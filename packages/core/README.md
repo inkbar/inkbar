@@ -30,7 +30,7 @@ Then import the URLs from the virtual module:
 import { assets } from 'virtual:inkbar-assets'
 ```
 
-In development the plugin serves the files from `node_modules`. In a build it copies them into `<outDir>/inkbar/`. The URLs respect your `base`. Pass `inkbar({ assetsDir: 'pdf' })` to use a different directory name.
+In development the plugin serves the files from `node_modules`. In a build it copies them into `<outDir>/inkbar/`. The URLs respect your `base`. With a relative `base` such as `./`, the plugin resolves the URLs at runtime from the location of your bundle, so the build works from any path. Pass `inkbar({ assetsDir: 'pdf' })` to use a different directory name.
 
 For TypeScript, reference the module declaration once, for example in `env.d.ts`:
 
