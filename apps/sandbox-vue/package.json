@@ -1,0 +1,29 @@
+{
+  "name": "@inkbar/sandbox-vue",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit",
+    "lint": "eslint src e2e",
+    "test:browser": "playwright test"
+  },
+  "dependencies": {
+    "@inkbar/core": "workspace:*",
+    "@inkbar/fixtures": "workspace:*",
+    "@inkbar/theme": "workspace:*",
+    "@inkbar/vue": "workspace:*",
+    "vue": "^3.5.43"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "1.62.1",
+    "@types/node": "^24",
+    "@vitejs/plugin-vue": "^6.0.10",
+    "vite": "^8.3.4",
+    "vue-tsc": "^3.3.13"
+  }
+}

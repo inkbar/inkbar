@@ -38,7 +38,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @inkbar/core exec playwright install --with-deps chromium
       - run: pnpm build
-      - run: pnpm test:browser
+      - run: pnpm exec turbo run test:browser --filter='!@inkbar/sandbox-vue'
+      # The sandbox suite measures frame times. It runs alone so the package suites do not
+      # compete with it for the runner's CPU.
+      - run: pnpm exec turbo run test:browser --filter=@inkbar/sandbox-vue
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -47,6 +50,7 @@ jobs:
           path: |
             packages/*/.vitest/attachments
             packages/*/test-results
+            apps/*/test-results
             packages/*/src/**/__screenshots__
           include-hidden-files: true
           if-no-files-found: ignore

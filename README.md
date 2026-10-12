@@ -6,12 +6,13 @@ Made by [Redactr](https://redactr.io).
 
 ## Packages
 
-| Package            | Purpose                                                                         |
-| ------------------ | ------------------------------------------------------------------------------- |
-| `@inkbar/core`     | Document model, rendering, annotations and tools, with no framework dependency. |
-| `@inkbar/vue`      | Vue 3 components, composables and a default toolbar.                            |
-| `@inkbar/theme`    | Default stylesheet. Zero specificity, compatible with shadcn token names.       |
-| `@inkbar/fixtures` | Test PDFs and helpers for the test suites. Private, not published.              |
+| Package               | Purpose                                                                                  |
+| --------------------- | ---------------------------------------------------------------------------------------- |
+| `@inkbar/core`        | Document model, rendering, annotations and tools, with no framework dependency.          |
+| `@inkbar/vue`         | Vue 3 components, composables and a default toolbar.                                     |
+| `@inkbar/theme`       | Default stylesheet. Zero specificity, compatible with shadcn token names.                |
+| `@inkbar/fixtures`    | Test PDFs and helpers for the test suites. Private, not published.                       |
+| `@inkbar/sandbox-vue` | Review app for end-to-end, accessibility and performance checks. Private, not published. |
 
 ## Install
 
@@ -27,6 +28,7 @@ The three packages are released together and share one version. `@inkbar/vue` de
 pnpm install
 pnpm build
 pnpm test
+pnpm --filter @inkbar/sandbox-vue dev  # the sandbox app on http://localhost:5180
 ```
 
 ## Releasing
