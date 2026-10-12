@@ -1,0 +1,26 @@
+packages/vue/src/components/InkNotePopover.vue
+  s_a8095ef648b42d::t_cabe404e009191 13,44,68-71,95
+packages/vue/src/components/popover-focus.ts
+  s_a8095ef648b42d::t_cabe404e009191 5,14-50,56-59
+  s_a8095ef648b42d::t_85b7e27584b0d6 51-55
+packages/vue/src/components/InkSuggestionCard.vue
+  s_a8095ef648b42d::t_cabe404e009191 16,52,69-72,93
+packages/vue/src/components/Popovers.ct.ts
+  s_a8095ef648b42d::t_1d3faff906402e 14-18,134-135,161-209
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "925f67721fb24c3d3ca60180c2c740e97ac35499",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
