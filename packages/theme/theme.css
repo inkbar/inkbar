@@ -295,7 +295,7 @@
     width: 100%;
     height: 100%;
     overflow: hidden;
-    font-family: Helvetica, Arial, sans-serif;
+    font-family: var(--ink-font-family, Helvetica), Helvetica, Arial, sans-serif;
     font-size: var(--ink-font-size);
     line-height: 1.2;
     color: var(--ink-text-color, var(--ink-free-text));
