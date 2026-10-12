@@ -1,0 +1,19 @@
+apps/sandbox-vue/e2e/large.spec.ts
+  s_a8095ef648b42d::t_5d089e3adeeeaa 72-76,86-87,90,97-103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dfb1ba9284fc31652af5eea0c4fc736ad1ac8ad9",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
