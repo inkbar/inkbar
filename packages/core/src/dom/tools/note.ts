@@ -51,7 +51,7 @@ export function noteTool(): Tool {
       ctx.onActivate?.(id)
     },
     onKeyDown(e) {
-      if (!ctx || !isViewportEnter(e)) return
+      if (!ctx || !isViewportEnter(e, ctx.root)) return
       e.preventDefault()
       const c = ctx
       const page = c.viewport.currentPage.get()

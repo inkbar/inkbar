@@ -230,33 +230,19 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
 }
 
 /**
- * Targets whose Enter is their own: annotations, slot content and anything interactive.
- * Everything else under the viewport (the scroll element, a page host, text-layer content)
- * is the viewport's.
+ * True for an unmodified, unhandled Enter on the viewport's own elements: the scroll element
+ * (`root`), a page host, or content of a page's text layer or canvas layer. Every other target
+ * (annotations, custom slot content, any control a host puts in the page) keeps its Enter.
+ * This is the keyboard trigger for the creation tools.
  */
-const OWN_ENTER = [
-  '[data-annotation]',
-  '[data-custom]',
-  'button',
-  'a[href]',
-  'input',
-  'textarea',
-  'select',
-  'summary',
-  '[contenteditable]:not([contenteditable="false"])',
-  '[role="button"]',
-  '[role="link"]',
-  '[role="textbox"]',
-].join(', ')
-
-/**
- * True for an unmodified, unhandled Enter on the viewport itself (the scroll element, a page
- * host or text-layer content), the keyboard trigger for the creation tools.
- */
-export function isViewportEnter(e: KeyboardEvent): boolean {
+export function isViewportEnter(e: KeyboardEvent, root: HTMLElement): boolean {
   if (e.key !== 'Enter' || e.defaultPrevented) return false
   if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.isComposing) return false
-  return !(e.target instanceof Element && e.target.closest(OWN_ENTER))
+  const target = e.target
+  if (target === root) return true
+  if (!(target instanceof Element) || !root.contains(target)) return false
+  if (target.matches('.ink-page[data-page]')) return true
+  return target.closest('[data-ink-text-layer], [data-ink-canvas-layer]') !== null
 }
 
 /**

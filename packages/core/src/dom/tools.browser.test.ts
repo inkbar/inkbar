@@ -839,7 +839,7 @@ describe('keyboard creation', () => {
     expect(window.getSelection()!.isCollapsed).toBe(true)
   })
 
-  it('note: Enter on a <summary>, in slot content or on the page, creates nothing', async () => {
+  it('note: Enter on a <summary> or a role=menuitem control, in slot content or on the page, creates nothing', async () => {
     const { doc, viewport, tools } = await setup('text-simple', { custom: true })
     const a = doc.annotations.add({
       type: 'redact',
@@ -854,6 +854,12 @@ describe('keyboard creation', () => {
     const inSlot = document.createElement('details')
     inSlot.innerHTML = '<summary>More</summary>'
     el.append(inSlot)
+    // A custom control a host might render: not a native one, but focusable and keyed.
+    const menuItem = document.createElement('div')
+    menuItem.setAttribute('role', 'menuitem')
+    menuItem.tabIndex = 0
+    menuItem.textContent = 'Options'
+    el.append(menuItem)
     const onPage = document.createElement('details')
     onPage.innerHTML = '<summary>Page notes</summary>'
     host.append(onPage)
@@ -862,10 +868,18 @@ describe('keyboard creation', () => {
       summary.focus()
       enter(summary)
     }
+    menuItem.focus()
+    enter(menuItem)
+    // Outside the slot too: a menu item placed straight on the page host.
+    const loose = menuItem.cloneNode(true) as HTMLElement
+    host.append(loose)
+    enter(loose)
     expect(session()).toEqual([])
-    // The page host itself still counts as the viewport.
+    // The page host itself still counts as the viewport, and so does text-layer content.
     enter(host)
     expect(session()).toHaveLength(1)
+    enter(host.querySelector('[data-ink-text-layer] span')!)
+    expect(session()).toHaveLength(2)
   })
 
   it('Enter on a focused annotation activates it and creates nothing', async () => {

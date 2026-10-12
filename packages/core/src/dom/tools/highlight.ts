@@ -34,7 +34,7 @@ export function highlightTool(): Tool {
       convert()
     },
     onKeyDown(e) {
-      if (isViewportEnter(e) && convert()) e.preventDefault()
+      if (!!ctx && isViewportEnter(e, ctx.root) && convert()) e.preventDefault()
     },
   }
 }

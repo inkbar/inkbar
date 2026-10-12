@@ -100,7 +100,7 @@ export function redactAreaTool(): Tool {
     },
     onKeyDown(e) {
       // The keyboard path for text marks: select text, then Enter.
-      if (isViewportEnter(e) && fromSelection()) e.preventDefault()
+      if (!!ctx && isViewportEnter(e, ctx.root) && fromSelection()) e.preventDefault()
     },
   }
 }
