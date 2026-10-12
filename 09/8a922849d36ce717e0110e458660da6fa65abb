@@ -1,0 +1,33 @@
+packages/core/README.md
+  s_a8095ef648b42d::t_e5dbd077fa48ab 1-10,12-63
+  s_a8095ef648b42d::t_8a049a0f43761f 11
+packages/core/tsdown.config.ts
+  s_a8095ef648b42d::t_2386fa15d5fe73 7,13-14
+packages/core/src/vite/index.ts
+  s_a8095ef648b42d::t_c807a0ff70fd71 1-108
+packages/core/src/vite/plugin.test.ts
+  s_a8095ef648b42d::t_c807a0ff70fd71 131
+  s_a8095ef648b42d::t_cfe28cf8606b41 1,10-12,14-20,24-69,73-90,94-123,127-130,132-159,163-167
+  s_a8095ef648b42d::t_9c5769be2cbc4b 13
+  s_a8095ef648b42d::t_0fb4f1d6c778fe 2-9,21-23,70-72,91-93,124-126,160-162
+packages/core/src/vite/client.d.ts
+  s_a8095ef648b42d::t_c807a0ff70fd71 1-4
+packages/core/package.json
+  s_a8095ef648b42d::t_2386fa15d5fe73 22-28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "098a922849d36ce717e0110e458660da6fa65abb",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
