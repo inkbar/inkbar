@@ -1,6 +1,12 @@
 // The live draft is `position:absolute; pointer-events:none` with left/top/width/height from
 // the drag: geometry only. Its look comes from the theme (`.ink-draft[data-ink-draft]`).
-import { clampedCssIn, type PageHit, type Tool, type ToolContext } from './controller'
+import {
+  clampedCssIn,
+  isViewportEnter,
+  type PageHit,
+  type Tool,
+  type ToolContext,
+} from './controller'
 
 /** Smallest drag, in CSS px on each axis, that draws a box rather than counting as a click. */
 const MIN_CSS = 3
@@ -9,6 +15,17 @@ export function redactAreaTool(): Tool {
   let ctx: ToolContext | undefined
   let start: PageHit | undefined
   let draft: HTMLElement | undefined
+
+  /** Text redactions from the live selection, one per page. False when nothing is selected. */
+  const fromSelection = (): boolean => {
+    if (!ctx) return false
+    const selections = ctx.selectionQuads()
+    if (selections.length === 0) return false
+    for (const s of selections)
+      ctx.store.add({ type: 'redact', page: s.page, quads: s.quads })
+    ctx.clearSelection()
+    return true
+  }
 
   const clear = (): void => {
     draft?.remove()
@@ -77,12 +94,13 @@ export function redactAreaTool(): Tool {
         })
         ctx.store.add({ type: 'redact', page: start.page, rect })
       } else {
-        const selections = ctx.selectionQuads()
-        for (const s of selections)
-          ctx.store.add({ type: 'redact', page: s.page, quads: s.quads })
-        if (selections.length > 0) ctx.clearSelection()
+        fromSelection()
       }
       clear()
+    },
+    onKeyDown(e) {
+      // The keyboard path for text marks: select text, then Enter.
+      if (isViewportEnter(e) && fromSelection()) e.preventDefault()
     },
   }
 }

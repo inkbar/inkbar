@@ -8,6 +8,7 @@
 // Custom elements are the exception and stay `pointer-events:auto`: the host draws them and
 // only it knows their shape. Every visual (colour, opacity, stroke, fill) is an SVG
 // attribute or a theme hook.
+import { hasRectGeometry, resizedRect, translated } from '../model/annotations/edit'
 import { confidenceBucket, type Annotation } from '../model/annotations/types'
 
 import { annotationBox, renderAnnotationContent, renderHitArea } from './overlay-render'
@@ -36,6 +37,14 @@ export interface Overlay {
 }
 
 type State = 'idle' | 'hover' | 'selected'
+
+/** Arrow keys as user-space unit steps (y grows upwards). */
+const ARROW_STEPS: Record<string, { x: number; y: number }> = {
+  ArrowRight: { x: 1, y: 0 },
+  ArrowLeft: { x: -1, y: 0 },
+  ArrowUp: { x: 0, y: 1 },
+  ArrowDown: { x: 0, y: -1 },
+}
 
 const LABELS: Record<Annotation['type'], string> = {
   highlight: 'Highlight',
@@ -163,7 +172,30 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     if (id !== undefined) elements.get(id)?.focus()
   }
 
+  /**
+   * `Shift+Arrow` moves the annotation 1 pt in user space (`Shift+Alt+Arrow` 10 pt; up is +y).
+   * `Ctrl+Shift+Arrow` or `Meta+Shift+Arrow` resizes a rect-shaped one by 1 pt: Right and Down
+   * grow it, Left and Up shrink it, keeping its top-left corner. Locked items ignore both.
+   * Returns true when the key was one of these chords.
+   */
+  function onEditKey(e: KeyboardEvent, id: string): boolean {
+    const step = ARROW_STEPS[e.key]
+    if (!step || !e.shiftKey) return false
+    e.preventDefault()
+    const a = store.get(id)
+    if (!a || a.locked) return true
+    if (e.ctrlKey || e.metaKey) {
+      if (hasRectGeometry(a))
+        store.update(id, { rect: resizedRect(a.rect, step.x, -step.y) })
+      return true
+    }
+    const by = e.altKey ? 10 : 1
+    store.update(id, translated(a, step.x * by, step.y * by))
+    return true
+  }
+
   function onKey(e: KeyboardEvent, id: string): void {
+    if (onEditKey(e, id)) return
     switch (e.key) {
       case 'Enter':
       case ' ':

@@ -789,3 +789,93 @@ describe('createPageMount', () => {
     expect(doc.annotations.selection.get()).toEqual([b.id])
   })
 })
+
+describe('keyboard creation', () => {
+  function selectText(viewport: Viewport, needle: string): void {
+    const span = [
+      ...viewport.hostFor(0)!.querySelectorAll('[data-ink-text-layer] span'),
+    ].find((s) => s.textContent?.includes(needle))!
+    const range = document.createRange()
+    range.selectNodeContents(span)
+    window.getSelection()!.removeAllRanges()
+    window.getSelection()!.addRange(range)
+  }
+  const enter = (el: Element, init: KeyboardEventInit = {}) => {
+    const e = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      bubbles: true,
+      cancelable: true,
+      ...init,
+    })
+    el.dispatchEvent(e)
+    return e
+  }
+
+  it('highlight: Enter on the scroll element turns the selection into a highlight', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('highlight')
+    container.tabIndex = 0
+    container.focus()
+    expect(enter(container).defaultPrevented).toBe(false)
+    expect(doc.annotations.list.get()).toEqual([])
+    selectText(viewport, 'QQ123456C')
+    expect(enter(container).defaultPrevented).toBe(true)
+    const [hl] = doc.annotations.list.get()
+    expect(hl?.type).toBe('highlight')
+    if (hl?.type === 'highlight') expect(hl.quads).toHaveLength(1)
+    expect(window.getSelection()!.isCollapsed).toBe(true)
+  })
+
+  it('redact-area: Enter turns the selection into text redactions; modified Enter does not', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('redact-area')
+    selectText(viewport, 'QQ123456C')
+    enter(container, { ctrlKey: true })
+    expect(doc.annotations.list.get()).toEqual([])
+    enter(container)
+    const [red] = doc.annotations.list.get()
+    expect(red?.type).toBe('redact')
+    if (red?.type === 'redact') expect(red.quads).toHaveLength(1)
+    expect(window.getSelection()!.isCollapsed).toBe(true)
+  })
+
+  it('Enter on a focused annotation activates it and creates nothing', async () => {
+    const { doc, viewport, tools, onActivate } = await setup()
+    const a = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    await settle()
+    tools.set('note')
+    const el = viewport.hostFor(0)!.querySelector(`[data-annotation="${a.id}"]`)!
+    enter(el)
+    expect(doc.annotations.list.get().map((x) => x.id)).toEqual([a.id])
+    expect(onActivate).toHaveBeenCalledWith(a.id)
+  })
+
+  it.each([false, true])(
+    'note: Enter places a note at the centre of the current page and focuses it (controlled: %s)',
+    async (controlled) => {
+      const { doc, container, viewport, tools, onActivate } = await setup(
+        'cropbox-offset',
+        { controlled }
+      )
+      tools.set('note')
+      container.tabIndex = 0
+      container.focus()
+      enter(container)
+      const session = () =>
+        doc.annotations.list.get().filter((a) => a.source === 'session')
+      await until(() => session().length === 1)
+      const [n] = session()
+      expect(n?.type).toBe('note')
+      expect(n!.page).toBe(viewport.currentPage.get())
+      // CropBox [50 50 550 750]: centre (300, 400), a 20 pt box around it.
+      expect(n!.rect).toEqual({ x: 290, y: 390, width: 20, height: 20 })
+      expect(doc.annotations.selection.get()).toEqual([n!.id])
+      expect(onActivate).toHaveBeenCalledWith(n!.id)
+      await until(() => document.activeElement?.getAttribute('data-annotation') === n!.id)
+    }
+  )
+})

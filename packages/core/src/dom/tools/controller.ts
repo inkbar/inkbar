@@ -229,6 +229,20 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
   }
 }
 
+/** Focused elements whose Enter is their own: annotations, form controls, editable content. */
+const OWN_ENTER =
+  '[data-annotation], input, textarea, select, button, a[href], [contenteditable]:not([contenteditable="false"])'
+
+/**
+ * True for an unmodified, unhandled Enter on the viewport itself (the scroll element or a
+ * page in it), the keyboard trigger for the creation tools.
+ */
+export function isViewportEnter(e: KeyboardEvent): boolean {
+  if (e.key !== 'Enter' || e.defaultPrevented) return false
+  if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.isComposing) return false
+  return !(e.target instanceof Element && e.target.closest(OWN_ENTER))
+}
+
 /**
  * True for a target inside a custom annotation element (`data-custom`) but not that element
  * itself: the host's buttons and inputs there own their presses and keys, as in the overlay.

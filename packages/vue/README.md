@@ -49,6 +49,10 @@ const annotations = ref<Annotation[]>([])
 
 `key` identifies the document. Reuse the same key when only the signed URL changes and the document is not reloaded.
 
+## Keyboard
+
+The scroll element takes focus. With the highlight or redact tool active, `Enter` turns the text selection into a mark; with the note tool, `Enter` places a note in the middle of the current page and opens it. On a focused annotation, `Enter` or `Space` opens it, `ArrowUp` and `ArrowDown` move between annotations, `Shift` + arrow moves it by 1 pt (add `Alt` for 10 pt), `Ctrl` or `Cmd` + `Shift` + arrow resizes an area mark, and `Delete` removes it. The full table is in the `@inkbar/core` README.
+
 ## Styling
 
 Components carry state on data attributes, for example `[data-annotation][data-state="selected"]` and `[data-tool="highlight"][data-state="on"]`. `@inkbar/theme` gives a default look. Your own CSS overrides it without `!important`.

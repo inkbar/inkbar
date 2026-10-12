@@ -31,6 +31,26 @@ Writing annotations back into the PDF needs `@inkbar/engine`, which is not relea
 
 The DOM layer (`@inkbar/core/dom`) provides the viewport, canvas renderer, text layer, overlay and tools for hosts without a framework package. Vue hosts should use `@inkbar/vue`.
 
+## Tools and keyboard
+
+`createToolController` from `@inkbar/core/dom` routes pointer and key events on the viewport to the active tool: `view`, `select`, `highlight`, `redact-area` or `note`. Every tool works from the keyboard as well as the pointer.
+
+| Where focus is               | Key                                 | Effect                                                                                              |
+| ---------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Viewport, `highlight` tool   | `Enter`                             | Turns the text selection into a highlight                                                           |
+| Viewport, `redact-area` tool | `Enter`                             | Turns the text selection into text redactions                                                       |
+| Viewport, `note` tool        | `Enter`                             | Places a note at the centre of the current page and focuses it                                      |
+| Viewport                     | `+` or `=`, `-`                     | Zoom in, zoom out                                                                                   |
+| Viewport                     | `Home`, `End`, `PageUp`, `PageDown` | First, last, previous, next page                                                                    |
+| Annotation                   | `Enter` or `Space`                  | Selects and activates it                                                                            |
+| Annotation                   | `ArrowUp`, `ArrowDown`              | Previous or next annotation on the page, in reading order                                           |
+| Annotation                   | `Shift` + arrow                     | Moves it 1 pt (`Shift` + `Alt` + arrow: 10 pt)                                                      |
+| Annotation                   | `Ctrl` or `Cmd` + `Shift` + arrow   | Resizes an area redaction, text box or shape by 1 pt. Right and Down grow it, Left and Up shrink it |
+| Annotation                   | `Delete` or `Backspace`             | Removes it                                                                                          |
+| Annotation                   | `Escape`                            | Clears the selection                                                                                |
+
+Locked annotations, such as those embedded in the file, ignore move, resize and delete. Without a text selection, `Enter` in the `highlight` and `redact-area` tools does nothing.
+
 ## Serving PDF.js assets
 
 PDF.js needs a worker script plus directories of CMaps, standard fonts, wasm decoders and ICC profiles. Inkbar loads them from URLs you pass as the `assets` option. The option has no default, because the right URLs depend on how you deploy your app.
