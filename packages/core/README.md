@@ -60,6 +60,20 @@ The DOM layer (`@inkbar/core/dom`) provides the viewport, canvas renderer, text 
 | Annotation                   | `Delete` or `Backspace`             | Removes it                                                                                          |
 | Annotation                   | `Escape`                            | Clears the selection                                                                                |
 
+The tool controller and the overlay handle the tool and annotation keys. The zoom and page keys (`+`, `=`, `-`, `Home`, `End`, `PageUp`, `PageDown`) come from `attachViewportKeys`, which the tool controller does not install. Attach it to the same container:
+
+```ts
+import { attachViewportKeys } from '@inkbar/core/dom'
+
+const detach = attachViewportKeys(container, {
+  viewport,
+  pageCount: () => doc.pages.length,
+})
+// later: detach()
+```
+
+On a focused annotation, `Enter` or `Space` selects it and calls `onActivate`; what activation opens is up to the host.
+
 Locked annotations, such as those embedded in the file, ignore move, resize and delete. Without a text selection, `Enter` in the `highlight` and `redact-area` tools does nothing.
 
 `redact-area` draws an area mark when you drag. To redact text instead, select the text with the `view` tool, switch to `redact-area`, then click inside the selection or press `Enter`. The tool keeps the press from starting a new text selection, so it cannot select text itself.
