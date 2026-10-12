@@ -6,6 +6,8 @@
   "exports": {
     ".": "./index.ts",
     "./urls": "./urls.ts",
+    "./browser-assets": "./browser-assets.ts",
+    "./vite-serve": "./vite-serve.ts",
     "./generate-large": "./generate-large.ts"
   },
   "scripts": {
@@ -20,6 +22,7 @@
   "devDependencies": {
     "pdfjs-dist": "^6.4.299",
     "tsx": "^4.20.0",
+    "vite": "^8.3.4",
     "vitest": "^5.0.4"
   }
 }

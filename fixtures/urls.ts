@@ -29,3 +29,5 @@ export type FixtureName = (typeof FIXTURE_NAMES)[number]
 export function fixtureUrl(name: FixtureName): string {
   return `/fixtures/${name}.pdf`
 }
+
+export { browserAssets, type BrowserPdfAssets } from './browser-assets'
