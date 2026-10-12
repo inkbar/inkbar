@@ -7,14 +7,18 @@ import {
   AnnotationSchema,
   type Annotation,
   type AnnotationDocument,
+  type ForeignAnnotation,
 } from './types'
 
 import type { AnnotationStore } from './store'
 
 export interface ImportResult {
   imported: number
-  /** Items whose `type` this version does not know. Keep them and pass them back to exportAnnotations. */
-  unknown: unknown[]
+  /**
+   * Items whose `type` this version does not know (they still need a string `id` and a numeric
+   * `page`). Keep them and pass them back to exportAnnotations.
+   */
+  unknown: ForeignAnnotation[]
   errors: { index: number; issues: string[] }[]
 }
 
@@ -27,10 +31,17 @@ const KNOWN_TYPES: ReadonlySet<string> = new Set(
   AnnotationSchema.options.flatMap((o) => [...o.shape.type._zod.values] as string[])
 )
 
-/** Session annotations plus any preserved unknown items. Embedded (`source: 'pdf'`) ones stay in the file. */
+/**
+ * Session annotations plus any preserved foreign items. Embedded (`source: 'pdf'`) ones stay in
+ * the file.
+ *
+ * Without foreign items the result validates against this version's `schema.json`. With them it
+ * validates only against the newer schema that produced them, since this version's schema
+ * describes only the types it knows.
+ */
 export function exportAnnotations(
   store: AnnotationStore,
-  preserved: unknown[] = [],
+  preserved: readonly ForeignAnnotation[] = [],
   documentKey?: string
 ): AnnotationDocument {
   const session = store.list.get().filter((a) => a.source === 'session')
@@ -38,7 +49,7 @@ export function exportAnnotations(
     format: ANNOTATION_FORMAT,
     version: ANNOTATION_VERSION,
     ...(documentKey === undefined ? {} : { documentKey }),
-    annotations: [...session, ...(preserved as Annotation[])],
+    annotations: [...session, ...preserved],
   }
 }
 
@@ -68,7 +79,14 @@ export function importAnnotations(
   envelope.data.annotations.forEach((item, index) => {
     const type = (item as { type?: unknown } | null)?.type
     if (typeof type === 'string' && !KNOWN_TYPES.has(type)) {
-      result.unknown.push(item)
+      if (isForeign(item)) result.unknown.push(item)
+      else
+        result.errors.push({
+          index,
+          issues: [
+            `type: unknown type "${type}" needs a string id and a numeric page to be preserved`,
+          ],
+        })
       return
     }
     const parsed = AnnotationSchema.safeParse(item)
@@ -106,13 +124,17 @@ export function importAnnotations(
   }
 
   if (result.unknown.length > 0 && !isProduction()) {
-    const types = [
-      ...new Set(result.unknown.map((u) => String((u as { type: unknown }).type))),
-    ]
+    const types = [...new Set(result.unknown.map((u) => u.type))]
     console.warn(
       `[inkbar] importAnnotations kept ${result.unknown.length} annotation(s) of unknown type ` +
         `(${types.join(', ')}). They are not shown, and exportAnnotations writes them back out.`
     )
   }
   return result
+}
+
+function isForeign(item: unknown): item is ForeignAnnotation {
+  if (typeof item !== 'object' || item === null || Array.isArray(item)) return false
+  const { type, id, page } = item as Record<string, unknown>
+  return typeof type === 'string' && typeof id === 'string' && typeof page === 'number'
 }

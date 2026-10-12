@@ -193,11 +193,21 @@ export const AnnotationDocumentSchema = z.object({
   annotations: z.array(z.unknown()),
 })
 
+/**
+ * An item whose `type` this version does not know, written by a newer Inkbar. It is kept as-is
+ * so it survives an import and export round trip, and it is valid only under the schema
+ * version that produced it.
+ */
+export type ForeignAnnotation = { type: string; id: string; page: number } & Record<
+  string,
+  unknown
+>
+
 export interface AnnotationDocument {
   format: typeof ANNOTATION_FORMAT
   version: typeof ANNOTATION_VERSION
   documentKey?: string
-  annotations: Annotation[]
+  annotations: Array<Annotation | ForeignAnnotation>
 }
 
 export type ConfidenceBucket = 'low' | 'medium' | 'high'

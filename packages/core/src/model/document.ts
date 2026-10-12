@@ -24,7 +24,7 @@ import { readonly, writable, type Readable } from './readable'
 import { resolveSource, type DocumentSource } from './source'
 import { textContentFromPdfjs, type TextContent } from './text'
 
-import type { Annotation, AnnotationDocument } from './annotations/types'
+import type { AnnotationDocument, ForeignAnnotation } from './annotations/types'
 import type {
   PdfAssets,
   PdfjsAnnotationData,
@@ -47,7 +47,11 @@ export interface OpenOptions {
   assets: PdfAssets
   password?: string | undefined
   fetch?: typeof fetch | undefined
-  /** Defaults to uncontrolled. */
+  /**
+   * Defaults to uncontrolled. In controlled mode the host owns only session annotations:
+   * embedded (`source: 'pdf'`) ones live in the store, are never passed to `onChange`, and stay
+   * in `list` whatever the host pushes back.
+   */
   annotations?: StoreMode | undefined
   /** Colour defaults. Pass `cssVariableDefaults(element)` from the DOM layer to read theme variables. */
   defaults?: AnnotationDefaults | undefined
@@ -68,8 +72,8 @@ export interface InkDocument {
   text(page: number): Promise<TextContent>
   /**
    * Annotations embedded in the file arrive here as `source: 'pdf'`, `locked: true` before
-   * `ready` resolves. They stay in `list` in both modes, and in controlled mode they are added
-   * without calling `onChange`.
+   * `ready` resolves. They stay in `list` in both modes and cannot be removed; in controlled
+   * mode they never reach `onChange`.
    */
   readonly annotations: AnnotationStore
   /** What the file contained, by PDF subtype, including subtypes Inkbar does not show. */
@@ -120,7 +124,7 @@ export async function openDocument(
     defaults: options.defaults ?? staticDefaults,
   })
   const embedded: EmbeddedSummary[] = []
-  let preserved: unknown[] = []
+  let preserved: ForeignAnnotation[] = []
 
   const destroyedError = (): InkError =>
     new InkError('DocumentDestroyed', 'The document has been destroyed')
@@ -178,7 +182,7 @@ export async function openDocument(
     })
     embedded.push(...summarise(perPage.map((r) => r.counts)))
     const fromFile = perPage.flatMap((r) => r.annotations)
-    if (fromFile.length > 0) addEmbedded(store, fromFile)
+    if (fromFile.length > 0) store._setEmbedded(fromFile)
   })()
 
   const ready = load.then(
@@ -260,30 +264,6 @@ export async function openDocument(
 
 const EMBEDDED_CONCURRENCY = 8
 
-/**
- * Puts the file's own annotations into the store without making them a host change.
- *
- * Uncontrolled: one `replaceAll(..., 'import')`, before history exists, so nothing records it.
- * Controlled: `onChange` is not called. The items are set straight into the list, and every
- * later `setControlledValue` keeps them (unless the host's list already has that id), so a host
- * that only tracks its own annotations still shows the embedded ones.
- */
-function addEmbedded(store: AnnotationStore, fromFile: readonly Annotation[]): void {
-  if (store.mode === 'uncontrolled') {
-    store.replaceAll([...fromFile, ...store.list.get()], 'import')
-    return
-  }
-  const setFromHost = store.setControlledValue.bind(store)
-  const withEmbedded = (value: Annotation[]): Annotation[] => {
-    const ids = new Set(value.map((a) => a.id))
-    return [...fromFile.filter((a) => !ids.has(a.id)), ...value]
-  }
-  store.setControlledValue = (value) => {
-    setFromHost(withEmbedded(value))
-  }
-  setFromHost(withEmbedded([...store.list.get()]))
-}
-
 /** Runs `task(0..count-1)` with at most `limit` in flight; results come back in index order. */
 async function mapInOrder<T>(
   count: number,
@@ -302,18 +282,12 @@ async function mapInOrder<T>(
   return results
 }
 
-function mergeById(existing: unknown[], incoming: unknown[]): unknown[] {
-  const idOf = (u: unknown): unknown => (u as { id?: unknown } | null)?.id
-  const replaced = new Set(
-    incoming.map(idOf).filter((id): id is string => typeof id === 'string')
-  )
-  return [
-    ...existing.filter((u) => {
-      const id = idOf(u)
-      return typeof id !== 'string' || !replaced.has(id)
-    }),
-    ...incoming,
-  ]
+function mergeById(
+  existing: readonly ForeignAnnotation[],
+  incoming: readonly ForeignAnnotation[]
+): ForeignAnnotation[] {
+  const replaced = new Set(incoming.map((u) => u.id))
+  return [...existing.filter((u) => !replaced.has(u.id)), ...incoming]
 }
 
 function teardown(destroyTask: () => Promise<void>): void {

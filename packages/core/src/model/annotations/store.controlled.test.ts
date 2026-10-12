@@ -226,3 +226,51 @@ describe('AnnotationStore (controlled)', () => {
     expect(() => s.setControlledValue([])).toThrow(TypeError)
   })
 })
+
+describe('AnnotationStore (controlled) with embedded annotations', () => {
+  const embedded: Annotation = {
+    id: 'pdf:0:1R',
+    type: 'note',
+    icon: 'comment',
+    page: 0,
+    rect,
+    color: '#FFD400',
+    opacity: 1,
+    createdAt: 'a',
+    modifiedAt: 'a',
+    source: 'pdf',
+    locked: true,
+  }
+
+  it('keeps embedded items in the store and out of onChange', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    vi.useFakeTimers()
+    try {
+      const { s, onChange, apply } = controlledStore()
+      s._setEmbedded([embedded])
+      expect(onChange).not.toHaveBeenCalled()
+      expect(s.list.get()).toEqual([embedded])
+
+      // Embedded edits (non-geometry) apply here; the host never sees them.
+      expect(s.update(embedded.id, { color: '#000000' })?.color).toBe('#000000')
+      expect(onChange).not.toHaveBeenCalled()
+
+      const note = s.add({ type: 'note', page: 0, rect })
+      expect(onChange.mock.calls[0]?.[0]).toEqual([note])
+      apply()
+      expect(s.list.get().map((a) => a.id)).toEqual([embedded.id, note.id])
+
+      // A host item reusing an embedded id is dropped.
+      s.setControlledValue([{ ...embedded, source: 'session', contents: 'x' }])
+      expect(s.list.get()).toHaveLength(1)
+      expect(s.list.get()[0]?.source).toBe('pdf')
+
+      expect(s.remove(embedded.id)).toBe(false)
+      vi.runAllTimers()
+      expect(warn).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+      warn.mockRestore()
+    }
+  })
+})

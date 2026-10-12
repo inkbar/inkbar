@@ -98,7 +98,11 @@ describe('json import/export', () => {
       {
         format: ANNOTATION_FORMAT,
         version: 1,
-        annotations: [{ type: 'hologram' }, { type: 'hologram' }, { type: 'sticker' }],
+        annotations: [
+          { type: 'hologram', id: 'a', page: 0 },
+          { type: 'hologram', id: 'b', page: 0 },
+          { type: 'sticker', id: 'c', page: 1 },
+        ],
       } as never,
       { mode: 'replace' }
     )
@@ -149,5 +153,29 @@ describe('json import/export', () => {
         mode: 'replace',
       })
     ).toThrow(/inkbar\/annotations/)
+  })
+
+  it('reports unknown types without an id or page instead of preserving them', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const s = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const result = importAnnotations(
+      s,
+      {
+        format: ANNOTATION_FORMAT,
+        version: 1,
+        annotations: [
+          { type: 'hologram', page: 0 },
+          { type: 'hologram', id: 'x', page: '0' },
+        ],
+      } as never,
+      { mode: 'replace' }
+    )
+    expect(result.unknown).toEqual([])
+    expect(result.errors.map((e) => e.index)).toEqual([0, 1])
+    expect(warn).not.toHaveBeenCalled()
+    warn.mockRestore()
   })
 })
