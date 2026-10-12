@@ -1,0 +1,21 @@
+packages/core/src/pdfjs/text-layer.browser.test.ts
+  s_a8095ef648b42d::t_f054a4460e864f 1-68
+packages/core/src/pdfjs/text-layer.ts
+  s_a8095ef648b42d::t_f054a4460e864f 25,46-47,49-57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "71c06df33af9f65f8107634df089b4a1b1674956",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
