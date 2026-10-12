@@ -221,6 +221,20 @@ describe('AnnotationStore (uncontrolled)', () => {
     })
   })
 
+  it('throws when the id generator repeats an id', () => {
+    const s = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+      id: () => 'fixed',
+      now,
+    })
+    s.add({ type: 'note', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
+    expect(() =>
+      s.add({ type: 'note', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
+    ).toThrow(/fixed/)
+    expect(s.list.get()).toHaveLength(1)
+  })
+
   it('throws when add reuses an existing id, naming it', () => {
     const s = store()
     s.add({

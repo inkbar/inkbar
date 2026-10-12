@@ -10,13 +10,7 @@
 import { MIN_SIZE, hasRectGeometry, translated } from '../../model/annotations/edit'
 import { rectFromPoints, rectsIntersect } from '../../model/geometry'
 
-import {
-  clampedCssIn,
-  cssIn,
-  type PageHit,
-  type Tool,
-  type ToolContext,
-} from './controller'
+import { cssIn, type PageHit, type Tool, type ToolContext } from './controller'
 
 import type { Point } from '../../model/geometry'
 import type { CssRect } from '../transform'
@@ -127,12 +121,7 @@ export function selectTool(): Tool {
       const { start } = mode
       if (mode.kind === 'resize') {
         const { box, el } = mode
-        const next = resizeCss(
-          box,
-          mode.corner,
-          clampedCssIn(start.host, e),
-          minCss(start)
-        )
+        const next = resizeCss(box, mode.corner, cornerAt(mode, e), minCss(start))
         if (el) {
           el.style.transformOrigin = '0 0'
           el.style.transform =
@@ -185,12 +174,7 @@ export function selectTool(): Tool {
           )
       } else if (current.kind === 'resize') {
         const { start, box } = current
-        const next = resizeCss(
-          box,
-          current.corner,
-          clampedCssIn(start.host, e),
-          minCss(start)
-        )
+        const next = resizeCss(box, current.corner, cornerAt(current, e), minCss(start))
         if (
           next.left === box.left &&
           next.top === box.top &&
@@ -254,6 +238,26 @@ function handleOf(target: EventTarget | null): Corner | undefined {
   if (!(target instanceof Element)) return undefined
   const corner = target.closest('[data-handle]')?.getAttribute('data-handle')
   return corner && CORNERS.includes(corner) ? (corner as Corner) : undefined
+}
+
+/**
+ * Where the dragged corner is now: where it started plus the pointer's travel since the
+ * press, kept on the page. Keeping the press's offset from the corner means a click on a
+ * handle, with no drag, leaves the box as it was.
+ */
+function cornerAt(
+  mode: { start: PageHit; box: CssRect; corner: Corner },
+  e: { clientX: number; clientY: number }
+): Point {
+  const { start, box, corner } = mode
+  const css = cssIn(start.host, e)
+  const x = (corner[1] === 'w' ? box.left : box.left + box.width) + css.x - start.css.x
+  const y = (corner[0] === 'n' ? box.top : box.top + box.height) + css.y - start.css.y
+  const { cssWidth, cssHeight } = start.transform
+  return {
+    x: Math.min(Math.max(x, 0), cssWidth),
+    y: Math.min(Math.max(y, 0), cssHeight),
+  }
 }
 
 /** `MIN_SIZE` points as CSS px on the press's page. */

@@ -381,9 +381,12 @@ export function createOverlay(opts: OverlayOptions): Overlay {
       if (target && doc.activeElement !== target) target.focus({ preventScroll: true })
     } else if (focusRoot) {
       // Last one on the page: back to the scroll element (as the popovers do), not <body>.
-      opts.host
-        .closest<HTMLElement>('[data-ink-viewport]')
-        ?.focus({ preventScroll: true })
+      const scroll = opts.host.closest<HTMLElement>('[data-ink-viewport]')
+      if (scroll) {
+        // A container the host did not make focusable still takes focus from script.
+        if (!scroll.hasAttribute('tabindex')) scroll.tabIndex = -1
+        scroll.focus({ preventScroll: true })
+      }
     }
   }
 

@@ -44,7 +44,8 @@ export interface AnnotationStore {
   byPage(page: number): Annotation[]
   /**
    * Returns the completed annotation. In controlled mode it is proposed to the host, not
-   * applied. Throws an `Error` naming the id when `input.id` is already in the list.
+   * applied. Throws an `Error` naming the id when it is already in the list, whether it came
+   * from `input.id` or the store's `id` generator.
    */
   add(input: AnnotationInput): Annotation
   /**
@@ -71,6 +72,11 @@ export interface AnnotationStore {
    * directly in both modes and never passed to `onChange`; the document calls it once on open.
    */
   _setEmbedded(list: readonly Annotation[]): void
+  /**
+   * @internal Like `get`, but in controlled mode it also sees changes proposed to the host and
+   * not applied yet: the list `update` and `remove` build on.
+   */
+  _getProposed(id: string): Annotation | undefined
   completeInput(input: AnnotationInput): Annotation
   on(event: 'change', fn: (change: AnnotationChange) => void): () => void
   destroy(): void
@@ -347,12 +353,14 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
     selection: readonly(selection),
     defaults: opts.defaults,
     get: (id) => list.get().find((a) => a.id === id),
+    _getProposed: (id) => findIn(basis(), id),
     byPage: (page) => list.get().filter((a) => a.page === page),
     completeInput,
     add(input) {
-      if (input.id !== undefined && findIn(basis(), input.id))
-        throw new Error(`An annotation with id ${input.id} already exists`)
       const a = completeInput(input)
+      // Covers ids from the input and from the `id` option's generator alike.
+      if (findIn(basis(), a.id))
+        throw new Error(`An annotation with id ${a.id} already exists`)
       if (destroyed) return a
       commit([...basis(), a], { kind: 'add', annotation: a })
       return a

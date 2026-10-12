@@ -839,6 +839,35 @@ describe('keyboard creation', () => {
     expect(window.getSelection()!.isCollapsed).toBe(true)
   })
 
+  it('note: Enter on a <summary>, in slot content or on the page, creates nothing', async () => {
+    const { doc, viewport, tools } = await setup('text-simple', { custom: true })
+    const a = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    await settle()
+    tools.set('note')
+    const host = viewport.hostFor(0)!
+    const el = host.querySelector(`[data-annotation="${a.id}"]`)!
+    // What a host's annotation slot might render: a disclosure widget.
+    const inSlot = document.createElement('details')
+    inSlot.innerHTML = '<summary>More</summary>'
+    el.append(inSlot)
+    const onPage = document.createElement('details')
+    onPage.innerHTML = '<summary>Page notes</summary>'
+    host.append(onPage)
+    const session = () => doc.annotations.list.get().filter((x) => x.type === 'note')
+    for (const summary of [inSlot, onPage].map((d) => d.querySelector('summary')!)) {
+      summary.focus()
+      enter(summary)
+    }
+    expect(session()).toEqual([])
+    // The page host itself still counts as the viewport.
+    enter(host)
+    expect(session()).toHaveLength(1)
+  })
+
   it('Enter on a focused annotation activates it and creates nothing', async () => {
     const { doc, viewport, tools, onActivate } = await setup()
     const a = doc.annotations.add({
@@ -925,6 +954,49 @@ describe('resize handles', () => {
     expect(r.width).toBeCloseTo(70, 5)
     expect(r.height).toBeCloseTo(40, 5)
     expect(doc.annotations.selection.get()).toEqual([a.id])
+  })
+
+  it('a click on a handle without a drag leaves the rect as it was', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    const a = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    tools.set('select')
+    doc.annotations.select([a.id])
+    await settle()
+    const host = viewport.hostFor(0)!
+    const h = host.getBoundingClientRect()
+    const handle = host.querySelector(
+      `[data-annotation="${a.id}"] > [data-handle="se"]`
+    ) as HTMLElement
+    const updates = vi.fn()
+    cleanup.push(
+      doc.annotations.on('change', (c) => {
+        if (c.kind === 'update') updates(c)
+      })
+    )
+    // Pressed 3 px inside the corner: the corner keeps that offset, so it does not snap.
+    pointer(handle, 'pointerdown', h.left + 147, h.top + 189)
+    pointer(container, 'pointerup', h.left + 147, h.top + 189)
+    expect(updates).not.toHaveBeenCalled()
+    expect(doc.annotations.get(a.id)!.rect).toEqual({
+      x: 100,
+      y: 600,
+      width: 50,
+      height: 30,
+    })
+    // A drag from that press moves the corner by the travel only.
+    pointer(handle, 'pointerdown', h.left + 147, h.top + 189)
+    pointer(container, 'pointermove', h.left + 157, h.top + 189)
+    pointer(container, 'pointerup', h.left + 157, h.top + 189)
+    expect(doc.annotations.get(a.id)!.rect).toEqual({
+      x: 100,
+      y: 600,
+      width: 60,
+      height: 30,
+    })
   })
 
   it('a drag past the opposite corner stops at 1 pt', async () => {
