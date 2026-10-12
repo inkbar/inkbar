@@ -184,4 +184,24 @@ describe('theme.css', () => {
       )
     }
   })
+
+  it('keeps a .light subtree light under a .dark ancestor', () => {
+    const darkRule = rules.find(
+      (r) =>
+        r.selector.includes('.dark [data-ink-root]') &&
+        r.nodes.some((d) => d.type === 'decl' && d.prop === '--ink-bg')
+    )
+    expect(darkRule).toBeDefined()
+    const inner: string[] = []
+    selectorParser((sels) => {
+      sels.walkPseudos((p) => {
+        if (p.value === ':where') for (const n of p.nodes) inner.push(n.toString().trim())
+      })
+    }).processSync(darkRule?.selector ?? '')
+    const nested = inner.filter((s) => s.startsWith('.dark '))
+    expect(nested.length).toBeGreaterThan(0)
+    for (const s of nested) expect(s, s).toContain(':not(')
+    for (const s of nested) expect(s, s).toContain('.dark .light *')
+    expect(darkRule?.selector).toContain('[data-ink-root]:not(.light,')
+  })
 })
