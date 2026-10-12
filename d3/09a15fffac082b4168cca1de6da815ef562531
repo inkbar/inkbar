@@ -1,0 +1,30 @@
+packages/core/src/dom/tools/note.ts
+  s_a8095ef648b42d::t_a695cbc58b8e30 22-24
+packages/core/src/dom/tools.browser.test.ts
+  s_a8095ef648b42d::t_8611f3e838dcb2 80,92,323-385
+  s_a8095ef648b42d::t_783cf8a6ecac2c 386-387
+packages/core/src/dom/tools/select.ts
+  s_a8095ef648b42d::t_a695cbc58b8e30 63,73,77-81,108-109
+  s_a8095ef648b42d::t_7e31a78bf186fe 110
+packages/core/src/dom/tools/controller.ts
+  s_a8095ef648b42d::t_a695cbc58b8e30 9-13,50-60,64-65,110-111,117-122,125-140,144-145,169-170
+packages/core/src/dom/tools/redact-area.ts
+  s_a8095ef648b42d::t_a695cbc58b8e30 35,39-43,58-59
+  s_a8095ef648b42d::t_eca132b6960f89 60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d309a15fffac082b4168cca1de6da815ef562531",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
