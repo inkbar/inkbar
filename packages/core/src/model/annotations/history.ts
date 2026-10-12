@@ -9,6 +9,8 @@ export interface History {
   undo(): void
   redo(): void
   clear(): void
+  /** Unsubscribes from the store and empties both stacks; undo and redo become no-ops. */
+  destroy(): void
 }
 
 interface Entry {
@@ -37,6 +39,7 @@ export function createHistory(
       undo() {},
       redo() {},
       clear() {},
+      destroy() {},
     }
   }
 
@@ -51,7 +54,8 @@ export function createHistory(
     canRedo.set(redoStack.length > 0)
   }
 
-  store.on('change', (change: AnnotationChange) => {
+  let destroyed = false
+  const unsubscribe = store.on('change', (change: AnnotationChange) => {
     const current = store.list.get()
     // Our own replays (and any other history replace) never become entries.
     if (replaying || (change.kind === 'replace' && change.reason === 'history')) {
@@ -86,16 +90,23 @@ export function createHistory(
     canRedo: readonly(canRedo),
     undo() {
       const entry = undoStack.pop()
-      if (!entry) return
+      if (destroyed || !entry) return
       redoStack.push(entry)
       apply(entry.before)
       sync()
     },
     redo() {
       const entry = redoStack.pop()
-      if (!entry) return
+      if (destroyed || !entry) return
       undoStack.push(entry)
       apply(entry.after)
+      sync()
+    },
+    destroy() {
+      destroyed = true
+      unsubscribe()
+      undoStack.length = 0
+      redoStack.length = 0
       sync()
     },
     clear() {

@@ -98,7 +98,7 @@ describe('AnnotationStore (controlled)', () => {
     vi.runAllTimers()
     expect(warn).toHaveBeenCalledTimes(1)
     expect(warn.mock.calls[0]![0]).toContain('ControlledMutationIgnored')
-    expect(warn.mock.calls[0]![0]).toContain(a.id)
+    expect(warn.mock.calls[0]![0]).toContain(`for annotation ${a.id}.`)
     expect(s.list.get()).toEqual([])
   })
 

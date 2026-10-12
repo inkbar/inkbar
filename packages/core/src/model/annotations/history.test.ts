@@ -127,4 +127,23 @@ describe('history', () => {
     expect(h.canUndo.get()).toBe(false)
     expect(h.canRedo.get()).toBe(false)
   })
+
+  it('destroy unsubscribes, empties the stacks and disables undo and redo', () => {
+    const s = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const h = createHistory(s)
+    s.add({ type: 'note', page: 0, rect })
+    s.add({ type: 'note', page: 1, rect })
+    h.undo()
+    h.destroy()
+    expect(h.canUndo.get()).toBe(false)
+    expect(h.canRedo.get()).toBe(false)
+    s.add({ type: 'note', page: 2, rect })
+    expect(h.canUndo.get()).toBe(false)
+    h.undo()
+    h.redo()
+    expect(s.list.get()).toHaveLength(2)
+  })
 })
