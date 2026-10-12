@@ -1,0 +1,619 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://inkbar.dev/schema/annotations-v1.json",
+  "title": "Inkbar annotations",
+  "description": "Typed annotation export. Coordinates are PDF user space in points, origin bottom-left.",
+  "$ref": "#/$defs/AnnotationDocument",
+  "$defs": {
+    "Annotation": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string", "minLength": 1 },
+            "page": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+            "rect": {
+              "type": "object",
+              "properties": {
+                "x": { "type": "number" },
+                "y": { "type": "number" },
+                "width": { "type": "number", "minimum": 0 },
+                "height": { "type": "number", "minimum": 0 }
+              },
+              "required": ["x", "y", "width", "height"],
+              "additionalProperties": false
+            },
+            "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+            "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+            "author": { "type": "string" },
+            "contents": { "type": "string" },
+            "inReplyTo": { "type": "string" },
+            "createdAt": { "type": "string" },
+            "modifiedAt": { "type": "string" },
+            "source": { "type": "string", "enum": ["session", "pdf"] },
+            "locked": { "type": "boolean" },
+            "custom": {
+              "type": "object",
+              "propertyNames": { "type": "string" },
+              "additionalProperties": {}
+            },
+            "type": {
+              "type": "string",
+              "enum": ["highlight", "underline", "strikeout", "squiggly"]
+            },
+            "quads": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "p1": {
+                    "type": "object",
+                    "properties": {
+                      "x": { "type": "number" },
+                      "y": { "type": "number" }
+                    },
+                    "required": ["x", "y"],
+                    "additionalProperties": false
+                  },
+                  "p2": {
+                    "type": "object",
+                    "properties": {
+                      "x": { "type": "number" },
+                      "y": { "type": "number" }
+                    },
+                    "required": ["x", "y"],
+                    "additionalProperties": false
+                  },
+                  "p3": {
+                    "type": "object",
+                    "properties": {
+                      "x": { "type": "number" },
+                      "y": { "type": "number" }
+                    },
+                    "required": ["x", "y"],
+                    "additionalProperties": false
+                  },
+                  "p4": {
+                    "type": "object",
+                    "properties": {
+                      "x": { "type": "number" },
+                      "y": { "type": "number" }
+                    },
+                    "required": ["x", "y"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["p1", "p2", "p3", "p4"],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "id",
+            "page",
+            "rect",
+            "color",
+            "opacity",
+            "createdAt",
+            "modifiedAt",
+            "source",
+            "type",
+            "quads"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string", "minLength": 1 },
+            "page": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+            "rect": {
+              "type": "object",
+              "properties": {
+                "x": { "type": "number" },
+                "y": { "type": "number" },
+                "width": { "type": "number", "minimum": 0 },
+                "height": { "type": "number", "minimum": 0 }
+              },
+              "required": ["x", "y", "width", "height"],
+              "additionalProperties": false
+            },
+            "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+            "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+            "author": { "type": "string" },
+            "contents": { "type": "string" },
+            "inReplyTo": { "type": "string" },
+            "createdAt": { "type": "string" },
+            "modifiedAt": { "type": "string" },
+            "source": { "type": "string", "enum": ["session", "pdf"] },
+            "locked": { "type": "boolean" },
+            "custom": {
+              "type": "object",
+              "propertyNames": { "type": "string" },
+              "additionalProperties": {}
+            },
+            "type": { "type": "string", "const": "note" },
+            "icon": {
+              "default": "comment",
+              "type": "string",
+              "enum": ["comment", "note", "help", "insert", "key", "paragraph"]
+            }
+          },
+          "required": [
+            "id",
+            "page",
+            "rect",
+            "color",
+            "opacity",
+            "createdAt",
+            "modifiedAt",
+            "source",
+            "type",
+            "icon"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string", "minLength": 1 },
+            "page": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+            "rect": {
+              "type": "object",
+              "properties": {
+                "x": { "type": "number" },
+                "y": { "type": "number" },
+                "width": { "type": "number", "minimum": 0 },
+                "height": { "type": "number", "minimum": 0 }
+              },
+              "required": ["x", "y", "width", "height"],
+              "additionalProperties": false
+            },
+            "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+            "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+            "author": { "type": "string" },
+            "contents": { "type": "string" },
+            "inReplyTo": { "type": "string" },
+            "createdAt": { "type": "string" },
+            "modifiedAt": { "type": "string" },
+            "source": { "type": "string", "enum": ["session", "pdf"] },
+            "locked": { "type": "boolean" },
+            "custom": {
+              "type": "object",
+              "propertyNames": { "type": "string" },
+              "additionalProperties": {}
+            },
+            "type": { "type": "string", "const": "freeText" },
+            "text": { "type": "string" },
+            "fontSize": { "default": 12, "type": "number", "exclusiveMinimum": 0 },
+            "fontFamily": { "default": "Helvetica", "type": "string" },
+            "align": {
+              "default": "left",
+              "type": "string",
+              "enum": ["left", "center", "right"]
+            },
+            "callout": {
+              "minItems": 2,
+              "maxItems": 3,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": { "x": { "type": "number" }, "y": { "type": "number" } },
+                "required": ["x", "y"],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "id",
+            "page",
+            "rect",
+            "color",
+            "opacity",
+            "createdAt",
+            "modifiedAt",
+            "source",
+            "type",
+            "text",
+            "fontSize",
+            "fontFamily",
+            "align"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string", "minLength": 1 },
+            "page": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+            "rect": {
+              "type": "object",
+              "properties": {
+                "x": { "type": "number" },
+                "y": { "type": "number" },
+                "width": { "type": "number", "minimum": 0 },
+                "height": { "type": "number", "minimum": 0 }
+              },
+              "required": ["x", "y", "width", "height"],
+              "additionalProperties": false
+            },
+            "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+            "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+            "author": { "type": "string" },
+            "contents": { "type": "string" },
+            "inReplyTo": { "type": "string" },
+            "createdAt": { "type": "string" },
+            "modifiedAt": { "type": "string" },
+            "source": { "type": "string", "enum": ["session", "pdf"] },
+            "locked": { "type": "boolean" },
+            "custom": {
+              "type": "object",
+              "propertyNames": { "type": "string" },
+              "additionalProperties": {}
+            },
+            "type": { "type": "string", "enum": ["square", "circle"] },
+            "strokeWidth": { "default": 1, "type": "number", "minimum": 0 },
+            "fill": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+          },
+          "required": [
+            "id",
+            "page",
+            "rect",
+            "color",
+            "opacity",
+            "createdAt",
+            "modifiedAt",
+            "source",
+            "type",
+            "strokeWidth"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string", "minLength": 1 },
+            "page": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+            "rect": {
+              "type": "object",
+              "properties": {
+                "x": { "type": "number" },
+                "y": { "type": "number" },
+                "width": { "type": "number", "minimum": 0 },
+                "height": { "type": "number", "minimum": 0 }
+              },
+              "required": ["x", "y", "width", "height"],
+              "additionalProperties": false
+            },
+            "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+            "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+            "author": { "type": "string" },
+            "contents": { "type": "string" },
+            "inReplyTo": { "type": "string" },
+            "createdAt": { "type": "string" },
+            "modifiedAt": { "type": "string" },
+            "source": { "type": "string", "enum": ["session", "pdf"] },
+            "locked": { "type": "boolean" },
+            "custom": {
+              "type": "object",
+              "propertyNames": { "type": "string" },
+              "additionalProperties": {}
+            },
+            "type": { "type": "string", "const": "line" },
+            "start": {
+              "type": "object",
+              "properties": { "x": { "type": "number" }, "y": { "type": "number" } },
+              "required": ["x", "y"],
+              "additionalProperties": false
+            },
+            "end": {
+              "type": "object",
+              "properties": { "x": { "type": "number" }, "y": { "type": "number" } },
+              "required": ["x", "y"],
+              "additionalProperties": false
+            },
+            "strokeWidth": { "default": 1, "type": "number", "minimum": 0 },
+            "endings": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "openArrow",
+                    "closedArrow",
+                    "square",
+                    "circle",
+                    "diamond",
+                    "butt",
+                    "slash"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "openArrow",
+                    "closedArrow",
+                    "square",
+                    "circle",
+                    "diamond",
+                    "butt",
+                    "slash"
+                  ]
+                }
+              ],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "id",
+            "page",
+            "rect",
+            "color",
+            "opacity",
+            "createdAt",
+            "modifiedAt",
+            "source",
+            "type",
+            "start",
+            "end",
+            "strokeWidth"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string", "minLength": 1 },
+            "page": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+            "rect": {
+              "type": "object",
+              "properties": {
+                "x": { "type": "number" },
+                "y": { "type": "number" },
+                "width": { "type": "number", "minimum": 0 },
+                "height": { "type": "number", "minimum": 0 }
+              },
+              "required": ["x", "y", "width", "height"],
+              "additionalProperties": false
+            },
+            "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+            "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+            "author": { "type": "string" },
+            "contents": { "type": "string" },
+            "inReplyTo": { "type": "string" },
+            "createdAt": { "type": "string" },
+            "modifiedAt": { "type": "string" },
+            "source": { "type": "string", "enum": ["session", "pdf"] },
+            "locked": { "type": "boolean" },
+            "custom": {
+              "type": "object",
+              "propertyNames": { "type": "string" },
+              "additionalProperties": {}
+            },
+            "type": { "type": "string", "enum": ["polyline", "polygon"] },
+            "vertices": {
+              "minItems": 2,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": { "x": { "type": "number" }, "y": { "type": "number" } },
+                "required": ["x", "y"],
+                "additionalProperties": false
+              }
+            },
+            "strokeWidth": { "default": 1, "type": "number", "minimum": 0 },
+            "fill": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+          },
+          "required": [
+            "id",
+            "page",
+            "rect",
+            "color",
+            "opacity",
+            "createdAt",
+            "modifiedAt",
+            "source",
+            "type",
+            "vertices",
+            "strokeWidth"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string", "minLength": 1 },
+            "page": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+            "rect": {
+              "type": "object",
+              "properties": {
+                "x": { "type": "number" },
+                "y": { "type": "number" },
+                "width": { "type": "number", "minimum": 0 },
+                "height": { "type": "number", "minimum": 0 }
+              },
+              "required": ["x", "y", "width", "height"],
+              "additionalProperties": false
+            },
+            "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+            "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+            "author": { "type": "string" },
+            "contents": { "type": "string" },
+            "inReplyTo": { "type": "string" },
+            "createdAt": { "type": "string" },
+            "modifiedAt": { "type": "string" },
+            "source": { "type": "string", "enum": ["session", "pdf"] },
+            "locked": { "type": "boolean" },
+            "custom": {
+              "type": "object",
+              "propertyNames": { "type": "string" },
+              "additionalProperties": {}
+            },
+            "type": { "type": "string", "const": "ink" },
+            "paths": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": { "x": { "type": "number" }, "y": { "type": "number" } },
+                  "required": ["x", "y"],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "strokeWidth": { "default": 2, "type": "number", "minimum": 0 }
+          },
+          "required": [
+            "id",
+            "page",
+            "rect",
+            "color",
+            "opacity",
+            "createdAt",
+            "modifiedAt",
+            "source",
+            "type",
+            "paths",
+            "strokeWidth"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string", "minLength": 1 },
+            "page": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+            "rect": {
+              "type": "object",
+              "properties": {
+                "x": { "type": "number" },
+                "y": { "type": "number" },
+                "width": { "type": "number", "minimum": 0 },
+                "height": { "type": "number", "minimum": 0 }
+              },
+              "required": ["x", "y", "width", "height"],
+              "additionalProperties": false
+            },
+            "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+            "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+            "author": { "type": "string" },
+            "contents": { "type": "string" },
+            "inReplyTo": { "type": "string" },
+            "createdAt": { "type": "string" },
+            "modifiedAt": { "type": "string" },
+            "source": { "type": "string", "enum": ["session", "pdf"] },
+            "locked": { "type": "boolean" },
+            "custom": {
+              "type": "object",
+              "propertyNames": { "type": "string" },
+              "additionalProperties": {}
+            },
+            "type": { "type": "string", "const": "redact" },
+            "quads": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "p1": {
+                    "type": "object",
+                    "properties": {
+                      "x": { "type": "number" },
+                      "y": { "type": "number" }
+                    },
+                    "required": ["x", "y"],
+                    "additionalProperties": false
+                  },
+                  "p2": {
+                    "type": "object",
+                    "properties": {
+                      "x": { "type": "number" },
+                      "y": { "type": "number" }
+                    },
+                    "required": ["x", "y"],
+                    "additionalProperties": false
+                  },
+                  "p3": {
+                    "type": "object",
+                    "properties": {
+                      "x": { "type": "number" },
+                      "y": { "type": "number" }
+                    },
+                    "required": ["x", "y"],
+                    "additionalProperties": false
+                  },
+                  "p4": {
+                    "type": "object",
+                    "properties": {
+                      "x": { "type": "number" },
+                      "y": { "type": "number" }
+                    },
+                    "required": ["x", "y"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["p1", "p2", "p3", "p4"],
+                "additionalProperties": false
+              }
+            },
+            "origin": {
+              "default": "user",
+              "type": "string",
+              "enum": ["user", "suggested"]
+            },
+            "suggestion": {
+              "type": "object",
+              "properties": {
+                "jobId": { "type": "string" },
+                "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+                "reason": { "type": "string" },
+                "explanation": { "type": "string" },
+                "recommendation": {
+                  "type": "string",
+                  "enum": ["redact", "review", "keep"]
+                }
+              },
+              "required": ["confidence"],
+              "additionalProperties": false
+            },
+            "overlayText": { "type": "string" },
+            "fill": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+          },
+          "required": [
+            "id",
+            "page",
+            "rect",
+            "color",
+            "opacity",
+            "createdAt",
+            "modifiedAt",
+            "source",
+            "type",
+            "origin",
+            "fill"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "AnnotationDocument": {
+      "type": "object",
+      "properties": {
+        "format": { "type": "string", "const": "inkbar/annotations" },
+        "version": { "type": "number", "const": 1 },
+        "documentKey": { "type": "string" },
+        "annotations": { "type": "array", "items": { "$ref": "#/$defs/Annotation" } }
+      },
+      "required": ["format", "version", "annotations"],
+      "additionalProperties": false
+    }
+  }
+}
