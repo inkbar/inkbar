@@ -1,0 +1,33 @@
+packages/core/src/model/annotations/store.ts
+  s_a8095ef648b42d::t_eb11a7d7fbc849 1-5,7-12,15-81,88-121,125-167,171-189,191-232,235-245,247-277,280-294
+  s_a8095ef648b42d::t_22162ed24a3cf1 6,13-14
+  s_a8095ef648b42d::t_2aa70b81dbdc64 82-87,122-124,168-170,190,233-234,246,278-279
+packages/core/src/model/annotations/defaults.ts
+  s_a8095ef648b42d::t_a10ca19b9ab62d 71
+  s_a8095ef648b42d::t_56532fee6ce293 1-70,74-94
+  s_a8095ef648b42d::t_2aa70b81dbdc64 72-73
+packages/core/src/index.ts
+  s_a8095ef648b42d::t_6b30eb9fb7c79e 20-21
+packages/core/src/model/annotations/store.test.ts
+  s_a8095ef648b42d::t_22162ed24a3cf1 5,68
+  s_a8095ef648b42d::t_6b30eb9fb7c79e 224-265
+  s_a8095ef648b42d::t_2aa70b81dbdc64 8-15,23-28,33-65,101-105,141-152,165-169,171-173,180-184,193-203,211-215
+  s_a8095ef648b42d::t_0cb3ae51fd5ee0 1-4,7,16-22,29-32,66-67,69-100,106-140,153-164,170,174-179,185-192,204-210,216-223
+  s_a8095ef648b42d::t_a10ca19b9ab62d 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "52a83cbfb938487ab6fb2a64bf2515ef98df1d6e",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
