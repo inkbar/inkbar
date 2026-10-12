@@ -34,7 +34,10 @@ const props = withDefaults(
     password?: string | undefined
     /** Colour defaults. Without it, the theme's CSS variables on the root element apply. */
     defaults?: AnnotationDefaults | undefined
-    /** Pass (with v-model) to put annotations under the host's control. */
+    /**
+     * Pass (with v-model) to put annotations under the host's control. The mode is fixed when a
+     * document opens: passing or dropping this prop later takes effect on the next open.
+     */
     annotations?: Annotation[] | undefined
     tool?: ToolId | undefined
     page?: number | undefined
@@ -166,6 +169,9 @@ async function open(): Promise<void> {
     doc.destroy()
     return
   }
+  // The prop may have changed while the file loaded, when there was no store to apply it to.
+  if (doc.annotations.mode === 'controlled' && props.annotations !== undefined)
+    doc.annotations.setControlledValue(props.annotations)
   document.value = doc
   override.value = null
   setTestHook(doc)

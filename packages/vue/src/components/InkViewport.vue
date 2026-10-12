@@ -62,6 +62,8 @@ const ctx = injectInkContext()
 const scroll = useTemplateRef<HTMLElement>('scroll')
 
 interface MountedPage {
+  /** The viewport build the host belongs to; part of the InkPage key. */
+  build: number
   page: number
   host: HTMLElement
   transform: PageTransform
@@ -74,6 +76,11 @@ const error = computed<InkError | null>(() =>
 )
 
 let viewport: Viewport | null = null
+/**
+ * Bumped on every build. A rebuild gives each page a new host element, and InkPage mounts into
+ * its host only once, so pages from an earlier build must remount, not be reused.
+ */
+let build = 0
 let tools: ToolController | null = null
 let stops: (() => void)[] = []
 /** The document the viewport was built for, and the zoom and page last reported to the host. */
@@ -108,6 +115,7 @@ function setup(): void {
     lastReportedPage = undefined
   }
   if (!doc || !el || ctx.status.value.state !== 'ready') return
+  const current = ++build
   const vp = createViewport({
     container: el,
     document: doc,
@@ -117,11 +125,11 @@ function setup(): void {
     gap: props.gap,
     buffer: props.buffer,
     onMount: (page, host, transform) => {
-      pages.value = [...pages.value, { page, host, transform }]
+      pages.value = [...pages.value, { build: current, page, host, transform }]
     },
     onUpdate: (page, host, transform) => {
       pages.value = pages.value.map((m) =>
-        m.page === page ? { page, host, transform } : m
+        m.page === page ? { build: current, page, host, transform } : m
       )
     },
     onUnmount: (page) => {
@@ -243,7 +251,7 @@ onBeforeUnmount(teardown)
     />
     <InkPage
       v-for="p in pages"
-      :key="`${p.page}:${!!slots.annotation}`"
+      :key="`${p.build}:${p.page}:${!!slots.annotation}`"
       :page="p.page"
       :host="p.host"
       :transform="p.transform"

@@ -160,6 +160,45 @@ test('controlled annotations: v-model receives proposals and the store follows t
   expect(listAfter).toBe(1)
 })
 
+test('controlled annotations that change while the document opens reach the store', async ({
+  mount,
+  page,
+}) => {
+  let release!: () => void
+  const gate = new Promise<void>((resolve) => (release = resolve))
+  await page.route('**/fixtures/text-simple.pdf', async (route) => {
+    await gate
+    await route.continue()
+  })
+  const note: Annotation = {
+    id: 'late-note',
+    type: 'note',
+    icon: 'comment',
+    page: 0,
+    rect: { x: 10, y: 10, width: 20, height: 20 },
+    color: '#ffd400',
+    opacity: 1,
+    createdAt: '2026-10-12T00:00:00.000Z',
+    modifiedAt: '2026-10-12T00:00:00.000Z',
+    source: 'session',
+  }
+  const cmp = await mount(InkRoot, {
+    props: { src: fixtureUrl('text-simple'), assets, annotations: [] },
+  })
+  await expect(cmp).toHaveAttribute('data-state', 'loading')
+  await cmp.update({
+    props: { src: fixtureUrl('text-simple'), assets, annotations: [note] },
+  })
+  release()
+  await expect(cmp).toHaveAttribute('data-state', 'ready')
+  const ids = await cmp.evaluate((el) =>
+    (el as RootEl)
+      .__inkDocument!.annotations.list.get()
+      .map((a) => (a as { id: string }).id)
+  )
+  expect(ids).toEqual(['late-note'])
+})
+
 test('uncontrolled by default, with history enabled', async ({ mount }) => {
   const cmp = await mount(InkRoot, { props: { src: fixtureUrl('text-simple'), assets } })
   await expect(cmp).toHaveAttribute('data-state', 'ready')
