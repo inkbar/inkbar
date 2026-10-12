@@ -40,6 +40,6 @@ The workflow needs these settings:
 
 release-it pushes straight to `main`. Once `main` is protected, add the App to the bypass list for the branch protection rule, or the push is rejected.
 
-If publishing fails after the tag exists, check out the tag and run `pnpm -r --filter @inkbar/core --filter @inkbar/vue --filter @inkbar/theme publish --access public --no-git-checks`. pnpm skips versions already on the registry, so a partial publish can be finished this way.
+If publishing fails after the tag exists, check out the tag, run `pnpm install --frozen-lockfile` and `pnpm build`, then run `pnpm -r --filter @inkbar/core --filter @inkbar/vue --filter @inkbar/theme publish --access public --no-git-checks`. pnpm skips versions already on the registry, so a partial publish can be finished this way.
 
 Licence: MIT.
