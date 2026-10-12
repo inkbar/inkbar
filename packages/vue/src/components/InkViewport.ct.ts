@@ -206,6 +206,25 @@ test('a page that fails to render shows the page-error slot; the rest stays usab
   await expect(second).not.toHaveAttribute('data-state', 'error')
 })
 
+test('a page error clears when a later render of the same mount succeeds', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(ViewportHarness, {
+    props: { src: fixtureUrl('text-simple'), assets, zoom: 0.5, failPage: 1 },
+  })
+  const second = cmp.locator('.ink-page[data-page="1"]')
+  await expect(second.locator('[data-ink-page-error]')).toBeVisible()
+  await expect(second).toHaveAttribute('data-state', 'error')
+  // The page can be drawn again; a zoom change re-renders it without remounting.
+  await cmp.getByTestId('heal').click()
+  await page.locator('[data-ink-scroll]').focus()
+  await page.keyboard.press('+')
+  await expect(second.locator('canvas[data-ink-canvas]')).toBeVisible()
+  await expect(second.locator('[data-ink-page-error]')).toHaveCount(0)
+  await expect(second).not.toHaveAttribute('data-state', 'error')
+})
+
 test('shows the PasswordRequired code for an encrypted file', async ({ mount }) => {
   const cmp = await mount(ViewportHarness, {
     props: { src: fixtureUrl('encrypted-aes'), assets, zoom: 1 },

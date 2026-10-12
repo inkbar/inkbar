@@ -539,3 +539,39 @@ test('closing a new note without writing anything removes it', async ({
   await expect(popover).toHaveCount(0)
   expect(await stored(docOf(page))).toEqual([])
 })
+
+test('with a slow controlled host, a comment submitted just before closing keeps the note', async ({
+  mount,
+  page,
+}) => {
+  const props = { src: fixtureUrl('text-simple'), assets, controlled: true }
+  const cmp = await mount(Harness, { props })
+  await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
+  const id = await addAnnotation(page, {
+    type: 'note',
+    page: 0,
+    rect: { x: 72, y: 600, width: 24, height: 24 },
+  })
+  const note = cmp.locator(`[data-annotation="${id}"]`)
+  await expect(note).toHaveCount(1)
+  // From here the host applies each proposal a second late.
+  await cmp.update({ props: { ...props, applyDelay: 1000 } })
+  await note.focus()
+  await page.keyboard.press('Enter')
+  const popover = page.locator('[data-ink-note-popover]')
+  await popover.getByRole('textbox', { name: 'Comment' }).fill('Keep me')
+  await popover.getByRole('button', { name: 'Comment' }).click()
+  // Closed before the host has applied the text: the note is still empty in its list.
+  await popover.getByRole('button', { name: 'Close' }).click()
+  await expect(popover).toHaveCount(0)
+  await expect
+    .poll(async () => (await stored(docOf(page))).find((a) => a.id === id)?.contents)
+    .toBe('Keep me')
+  await page.waitForTimeout(1200)
+  await expect(note).toHaveCount(1)
+  expect((await stored(docOf(page))).map((a) => a.id)).toEqual([id])
+  expect(
+    consoleGuard.problems.every((m) => m.includes('ControlledMutationIgnored'))
+  ).toBe(true)
+  consoleGuard.clear()
+})

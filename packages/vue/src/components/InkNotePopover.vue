@@ -97,7 +97,15 @@ watch(
 )
 
 /** Removes an unlocked root note with no text and no replies. True when it did. */
+/**
+ * Notes this popover wrote text or a reply for. In controlled mode the write is a proposal
+ * the host may not have applied yet, so the applied list still shows the note empty; these
+ * are never dropped as abandoned.
+ */
+const written = new Set<string>()
+
 function dropIfEmpty(id: string): boolean {
+  if (written.has(id)) return false
   const a = find(id)
   if (a?.type !== 'note' || a.locked || a.inReplyTo || a.contents?.trim()) return false
   if (replies(id).length > 0) return false
@@ -109,6 +117,7 @@ function reply(text: string): void {
   const root = note.value
   const contents = text.trim()
   if (!root || !contents) return
+  written.add(root.id)
   add({ type: 'note', page: root.page, rect: root.rect, contents, inReplyTo: root.id })
   draft.value = ''
 }
@@ -121,7 +130,12 @@ function close(): void {
   ctx.setActivated(null)
 }
 function isEmptyRoot(root: NoteAnnotation): boolean {
-  return !root.locked && !root.contents?.trim() && thread.value.length === 1
+  return (
+    !written.has(root.id) &&
+    !root.locked &&
+    !root.contents?.trim() &&
+    thread.value.length === 1
+  )
 }
 function submit(): void {
   const text = draft.value.trim()
@@ -142,7 +156,9 @@ function removeThread(): void {
   ctx.setActivated(null)
 }
 function updateContents(contents: string): void {
-  if (note.value && !note.value.locked) update(note.value.id, { contents })
+  if (!note.value || note.value.locked) return
+  if (contents.trim()) written.add(note.value.id)
+  update(note.value.id, { contents })
 }
 function onOpenChange(next: boolean): void {
   if (!next) close()

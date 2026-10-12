@@ -10,8 +10,8 @@
  * in order, so the elements already exist when the list arrives here.
  *
  * A page whose canvas or text layer fails gets `data-state="error"` on its host and the
- * `page-error` slot teleported into it; the other pages and the viewport carry on. The next
- * mount of the page (scrolling it out and back) tries again.
+ * `page-error` slot teleported into it; the other pages and the viewport carry on. A later
+ * render that succeeds (a zoom change, or the next mount of the page) clears it.
  */
 import { InkError, isInkError } from '@inkbar/core'
 import { createPageMount, type PageMount, type PageTransform } from '@inkbar/core/dom'
@@ -60,6 +60,12 @@ function onPageError(cause: unknown): void {
   props.host.setAttribute('data-state', 'error')
 }
 
+function onPageRendered(): void {
+  if (!pageError.value) return
+  pageError.value = null
+  props.host.removeAttribute('data-state')
+}
+
 function readTargets(): void {
   const m = mount.value
   const doc = ctx.document.value
@@ -83,6 +89,7 @@ onMounted(() => {
     onActivate: (id) => ctx.setActivated(id),
     isCustom: () => custom,
     onError: onPageError,
+    onRendered: onPageRendered,
   })
   if (custom) {
     stopList = doc.annotations.list.subscribe(readTargets)

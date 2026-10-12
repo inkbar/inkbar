@@ -21,6 +21,8 @@ export interface PageMountOptions {
   devicePixelRatio?: number
   /** Render and text layer failures (cancellations are not reported). */
   onError?(error: unknown): void
+  /** The canvas finished painting, after the first render or any later one. */
+  onRendered?(): void
 }
 
 export interface PageMount {
@@ -46,6 +48,7 @@ export function createPageMount(opts: PageMountOptions): PageMount {
       ? {}
       : { devicePixelRatio: opts.devicePixelRatio }),
     ...onError,
+    ...(opts.onRendered ? { onRendered: () => opts.onRendered?.() } : {}),
   })
   const textLayer = createTextLayer({ document, page, host, transform, ...onError })
   const overlay = createOverlay({
