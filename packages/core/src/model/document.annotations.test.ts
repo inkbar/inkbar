@@ -251,4 +251,46 @@ describe('document annotations', () => {
     warn.mockRestore()
     doc.destroy()
   })
+
+  it('merges by id across known and foreign items', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const doc = await openDocument(await fixtureBytes('text-simple'), {
+      assets: nodeAssets(),
+    })
+    await doc.ready
+    const envelope = { format: 'inkbar/annotations' as const, version: 1 as const }
+    const known = doc.annotations.completeInput({ id: 'x', type: 'note', page: 0, rect })
+    const foreign = { id: 'x', type: 'hologram', page: 0 }
+
+    doc.importAnnotations({ ...envelope, annotations: [foreign] })
+    doc.importAnnotations({ ...envelope, annotations: [known] }, { mode: 'merge' })
+    expect(doc.exportAnnotations('json').annotations).toEqual([known])
+
+    doc.importAnnotations({ ...envelope, annotations: [foreign] }, { mode: 'merge' })
+    expect(doc.exportAnnotations('json').annotations).toEqual([foreign])
+    expect(doc.annotations.list.get()).toEqual([])
+    warn.mockRestore()
+    doc.destroy()
+  })
+
+  it('records foreign items before the store announces the import', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const doc = await openDocument(await fixtureBytes('text-simple'), {
+      assets: nodeAssets(),
+    })
+    await doc.ready
+    const foreign = { id: 'f', type: 'hologram', page: 0 }
+    const seen: unknown[][] = []
+    doc.annotations.on('change', () =>
+      seen.push(doc.exportAnnotations('json').annotations)
+    )
+    doc.importAnnotations({
+      format: 'inkbar/annotations',
+      version: 1,
+      annotations: [foreign],
+    })
+    expect(seen).toEqual([[foreign]])
+    warn.mockRestore()
+    doc.destroy()
+  })
 })

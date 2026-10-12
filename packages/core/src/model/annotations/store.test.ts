@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { normalizeColor, staticDefaults } from './defaults'
+import { createHistory } from './history'
 import { createAnnotationStore, deriveRect } from './store'
 
 import type { Annotation } from './types'
@@ -261,5 +262,74 @@ describe('AnnotationStore (controlled warning timing)', () => {
       warn.mockRestore()
       vi.useRealTimers()
     }
+  })
+})
+
+describe('AnnotationStore embedded guard (uncontrolled)', () => {
+  const embedded: Annotation = {
+    id: 'pdf:0:1R',
+    type: 'note',
+    icon: 'comment',
+    page: 0,
+    rect: { x: 0, y: 0, width: 20, height: 20 },
+    color: '#FFD400',
+    opacity: 1,
+    contents: 'from the file',
+    createdAt: 'a',
+    modifiedAt: 'a',
+    source: 'pdf',
+    locked: true,
+  }
+  const make = () => {
+    const s = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    s._setEmbedded([embedded])
+    return s
+  }
+
+  it('ignores locked and source in an update to an embedded annotation', () => {
+    const s = make()
+    const after = s.update(embedded.id, {
+      locked: false,
+      source: 'session',
+      color: '#000000',
+    })
+    expect(after).toMatchObject({ locked: true, source: 'pdf', color: '#000000' })
+    expect(s.remove(embedded.id)).toBe(false)
+  })
+
+  it('replaceAll cannot erase, unlock or forge embedded annotations', () => {
+    const s = make()
+    const note = s.add({ type: 'note', page: 0, rect: embedded.rect })
+    s.replaceAll([], 'import')
+    expect(s.list.get()).toEqual([embedded])
+
+    s.replaceAll(
+      [
+        {
+          ...embedded,
+          locked: false,
+          source: 'session',
+          contents: 'edited',
+          color: '#000000',
+        },
+        { ...note, id: 'pdf:9:9R', source: 'pdf' },
+        note,
+      ],
+      'sync'
+    )
+    expect(s.list.get()).toEqual([{ ...embedded, color: '#000000' }, note])
+  })
+
+  it('still undoes an edit to an embedded annotation', () => {
+    const s = make()
+    const h = createHistory(s)
+    s.update(embedded.id, { color: '#000000' })
+    h.undo()
+    expect(s.get(embedded.id)).toEqual(embedded)
+    h.redo()
+    expect(s.get(embedded.id)?.color).toBe('#000000')
   })
 })

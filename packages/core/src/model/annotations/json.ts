@@ -33,7 +33,7 @@ const KNOWN_TYPES: ReadonlySet<string> = new Set(
 
 /**
  * Session annotations plus any preserved foreign items. Embedded (`source: 'pdf'`) ones stay in
- * the file.
+ * the file. Everything is a deep copy, so editing the result never touches the store.
  *
  * Without foreign items the result validates against this version's `schema.json`. With them it
  * validates only against the newer schema that produced them, since this version's schema
@@ -49,8 +49,17 @@ export function exportAnnotations(
     format: ANNOTATION_FORMAT,
     version: ANNOTATION_VERSION,
     ...(documentKey === undefined ? {} : { documentKey }),
-    annotations: [...session, ...preserved],
+    annotations: structuredClone([...session, ...preserved]),
   }
+}
+
+/** @internal A validated import that has not touched the store yet. */
+export interface ImportPlan {
+  result: ImportResult
+  /** Every id the payload brings in, known or foreign. */
+  ids: ReadonlySet<string>
+  /** Applies the plan to the store (one `replaceAll(..., 'import')`). */
+  apply(): void
 }
 
 /**
@@ -63,6 +72,24 @@ export function importAnnotations(
   data: AnnotationDocument | string,
   opts: ImportOptions
 ): ImportResult {
+  const plan = planImport(store, data, opts)
+  plan.apply()
+  return plan.result
+}
+
+/**
+ * @internal Validation half of `importAnnotations`, so the document can record foreign items
+ * before the store publishes the change.
+ *
+ * Ids are unique across the payload: the first item with an id wins, and later ones (known or
+ * foreign) are reported in `errors`. In `merge` mode an incoming item replaces whatever session
+ * annotation has its id, whether the incoming item is known or foreign.
+ */
+export function planImport(
+  store: AnnotationStore,
+  data: AnnotationDocument | string,
+  opts: ImportOptions
+): ImportPlan {
   const raw: unknown = typeof data === 'string' ? JSON.parse(data) : data
   const envelope = AnnotationDocumentSchema.safeParse(raw)
   if (!envelope.success) {
@@ -72,21 +99,42 @@ export function importAnnotations(
         .join('; ')}`
     )
   }
-  const embedded = store.list.get().filter((a) => a.source === 'pdf')
-  const embeddedIds = new Set(embedded.map((a) => a.id))
+  const embeddedIds = new Set(
+    store.list
+      .get()
+      .filter((a) => a.source === 'pdf')
+      .map((a) => a.id)
+  )
   const result: ImportResult = { imported: 0, unknown: [], errors: [] }
   const incoming: Annotation[] = []
+  /** id -> index of the item that claimed it. */
+  const seen = new Map<string, number>()
+  const claim = (id: string, index: number): boolean => {
+    const first = seen.get(id)
+    if (first === undefined) {
+      seen.set(id, index)
+      return true
+    }
+    result.errors.push({
+      index,
+      issues: [`id: duplicate id "${id}", already used by item ${first}`],
+    })
+    return false
+  }
+
   envelope.data.annotations.forEach((item, index) => {
     const type = (item as { type?: unknown } | null)?.type
     if (typeof type === 'string' && !KNOWN_TYPES.has(type)) {
-      if (isForeign(item)) result.unknown.push(item)
-      else
+      if (!isForeign(item)) {
         result.errors.push({
           index,
           issues: [
             `type: unknown type "${type}" needs a string id and a numeric page to be preserved`,
           ],
         })
+      } else if (claim(item.id, index)) {
+        result.unknown.push(item)
+      }
       return
     }
     const parsed = AnnotationSchema.safeParse(item)
@@ -106,22 +154,10 @@ export function importAnnotations(
       })
       return
     }
+    if (!claim(parsed.data.id, index)) return
     incoming.push({ ...parsed.data, source: 'session' })
     result.imported++
   })
-
-  if (opts.mode === 'replace') {
-    store.replaceAll([...embedded, ...incoming], 'import')
-  } else {
-    const byId = new Map(
-      store.list
-        .get()
-        .filter((a) => a.source === 'session')
-        .map((a) => [a.id, a])
-    )
-    for (const a of incoming) byId.set(a.id, a)
-    store.replaceAll([...embedded, ...byId.values()], 'import')
-  }
 
   if (result.unknown.length > 0 && !isProduction()) {
     const types = [...new Set(result.unknown.map((u) => u.type))]
@@ -130,7 +166,27 @@ export function importAnnotations(
         `(${types.join(', ')}). They are not shown, and exportAnnotations writes them back out.`
     )
   }
-  return result
+
+  const ids: ReadonlySet<string> = new Set(seen.keys())
+  return {
+    result,
+    ids,
+    apply() {
+      const current = store.list.get()
+      const embedded = current.filter((a) => a.source === 'pdf')
+      if (opts.mode === 'replace') {
+        store.replaceAll([...embedded, ...incoming], 'import')
+        return
+      }
+      const byId = new Map(
+        current
+          .filter((a) => a.source === 'session' && !ids.has(a.id))
+          .map((a) => [a.id, a])
+      )
+      for (const a of incoming) byId.set(a.id, a)
+      store.replaceAll([...embedded, ...byId.values()], 'import')
+    },
+  }
 }
 
 function isForeign(item: unknown): item is ForeignAnnotation {

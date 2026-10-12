@@ -14,7 +14,7 @@ describe('json import/export', () => {
       defaults: staticDefaults,
     })
     const a = s.add({ type: 'note', page: 0, rect, contents: 'x' })
-    s.replaceAll([a, { ...a, id: 'pdf:1R', source: 'pdf', locked: true }], 'import')
+    s._setEmbedded([{ ...a, id: 'pdf:1R', source: 'pdf', locked: true }])
     const out = exportAnnotations(s, [], 'doc-1')
     expect(out).toEqual({
       format: ANNOTATION_FORMAT,
@@ -120,7 +120,7 @@ describe('json import/export', () => {
     })
     const a = s.add({ type: 'note', page: 0, rect })
     const pdf = { ...a, id: 'pdf:0:1R', source: 'pdf' as const, locked: true }
-    s.replaceAll([pdf, a], 'import')
+    s._setEmbedded([pdf])
     const empty: AnnotationDocument = {
       format: ANNOTATION_FORMAT,
       version: 1,
@@ -177,5 +177,53 @@ describe('json import/export', () => {
     expect(result.errors.map((e) => e.index)).toEqual([0, 1])
     expect(warn).not.toHaveBeenCalled()
     warn.mockRestore()
+  })
+
+  it('keeps the first of duplicate ids and reports the rest', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const s = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const a = s.add({ type: 'note', page: 0, rect, contents: 'first' })
+    for (const mode of ['replace', 'merge'] as const) {
+      const result = importAnnotations(
+        s,
+        {
+          format: ANNOTATION_FORMAT,
+          version: 1,
+          annotations: [
+            a,
+            { ...a, contents: 'second' },
+            { id: a.id, type: 'hologram', page: 0 },
+          ],
+        } as never,
+        { mode }
+      )
+      expect(result.imported).toBe(1)
+      expect(result.unknown).toEqual([])
+      expect(result.errors.map((e) => e.index)).toEqual([1, 2])
+      expect(result.errors[0]?.issues[0]).toMatch(new RegExp(`duplicate id "${a.id}"`))
+      expect(s.list.get()).toEqual([a])
+    }
+    expect(warn).not.toHaveBeenCalled()
+    warn.mockRestore()
+  })
+
+  it('exports copies, so editing the export leaves the store alone', () => {
+    const s = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const a = s.add({ type: 'note', page: 0, rect, contents: 'kept' })
+    const foreign = { id: 'f', type: 'hologram', page: 0, nested: { n: 1 } }
+    const out = exportAnnotations(s, [foreign])
+    const [mine, theirs] = out.annotations as [typeof a, typeof foreign]
+    mine.contents = 'changed'
+    mine.rect.x = 99
+    theirs.nested.n = 2
+    expect(s.get(a.id)).toEqual(a)
+    expect(s.get(a.id)?.rect.x).toBe(0)
+    expect(foreign.nested.n).toBe(1)
   })
 })
