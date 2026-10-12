@@ -1,0 +1,25 @@
+packages/vue/src/components/InkNotePopover.vue
+  s_a8095ef648b42d::t_5dd2c64a1787a4 5-9,83-88,92-96,99-107,116-120,123-133,175,190-196,198-200
+  s_a8095ef648b42d::t_1c19434da11f07 140-142
+packages/vue/src/components/Popovers.ct.ts
+  s_a8095ef648b42d::t_734d01c06ebf1b 469-538
+  s_a8095ef648b42d::t_5cb63e3584f624 539-541
+packages/vue/playwright/harness/PopoverHarness.vue
+  s_a8095ef648b42d::t_734d01c06ebf1b 10,26,71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a5f1bc316a877b5284ee21fb8c7ceda6d9d8211e",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
