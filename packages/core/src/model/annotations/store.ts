@@ -1,5 +1,6 @@
 import { v7 as uuidv7 } from 'uuid'
 
+import { isProduction } from '../env'
 import { Emitter } from '../events'
 import { rectFromQuad, unionRects, type Point, type Rect } from '../geometry'
 import { readonly, writable, type Readable } from '../readable'
@@ -147,15 +148,6 @@ function isApplied(change: AnnotationChange, current: readonly Annotation[]): bo
     }
     case 'replace':
       return true
-  }
-}
-
-/** True only when the build or runtime says production; browsers without `process` count as dev. */
-function isProduction(): boolean {
-  try {
-    return process.env.NODE_ENV === 'production'
-  } catch {
-    return false
   }
 }
 
