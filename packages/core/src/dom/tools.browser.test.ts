@@ -33,7 +33,7 @@ import type { Annotation } from '../model/annotations/types'
  */
 async function setup(
   name: 'text-simple' | 'cropbox-offset' = 'text-simple',
-  { controlled = false }: { controlled?: boolean } = {}
+  { controlled = false, custom = false }: { controlled?: boolean; custom?: boolean } = {}
 ) {
   let host: Annotation[] = []
   const doc = await openFixtureInBrowser(
@@ -68,6 +68,7 @@ async function setup(
           transform,
           store: doc.annotations,
           onActivate,
+          isCustom: () => custom,
         })
       ),
     onUpdate: (page, _host, transform) => mounts.get(page)?.update(transform),
@@ -353,6 +354,48 @@ describe('tools', () => {
     container.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
     )
+    expect(doc.annotations.selection.get()).toEqual([])
+  })
+
+  it("select: presses and keys inside a custom annotation's content stay with that content", async () => {
+    const { doc, container, viewport, tools } = await setup('text-simple', {
+      custom: true,
+    })
+    const a = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    await settle()
+    tools.set('select')
+    const host = viewport.hostFor(0)!
+    const h = host.getBoundingClientRect()
+    const el = host.querySelector(`[data-annotation="${a.id}"]`) as HTMLElement
+    expect(el.hasAttribute('data-custom')).toBe(true)
+    // What a host's annotation slot would render into the element.
+    const button = document.createElement('button')
+    const input = document.createElement('input')
+    el.append(button, input)
+
+    pointer(el, 'pointerdown', h.left + 110, h.top + 180)
+    pointer(el, 'pointerup', h.left + 110, h.top + 180)
+    expect(doc.annotations.selection.get()).toEqual([a.id])
+
+    pointer(button, 'pointerdown', h.left + 110, h.top + 180)
+    pointer(container, 'pointermove', h.left + 150, h.top + 200)
+    expect(el.style.transform).toBe('')
+    pointer(container, 'pointerup', h.left + 150, h.top + 200)
+    expect(doc.annotations.get(a.id)!.rect).toEqual({
+      x: 100,
+      y: 600,
+      width: 50,
+      height: 30,
+    })
+
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    expect(doc.annotations.selection.get()).toEqual([a.id])
+    // The element itself still answers to the tool.
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
     expect(doc.annotations.selection.get()).toEqual([])
   })
 

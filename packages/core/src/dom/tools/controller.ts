@@ -125,7 +125,7 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
   const swallow = new Set<number>()
 
   const onDown = (e: PointerEvent): void => {
-    if (!e.isPrimary || e.button !== 0) return
+    if (!e.isPrimary || e.button !== 0 || inCustomContent(e.target)) return
     swallow.delete(e.pointerId)
     pressed = e.pointerId
     const target = e.target instanceof Element ? e.target : null
@@ -155,7 +155,9 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     swallow.delete(e.pointerId)
     current?.onPointerCancel?.(e)
   }
-  const onKey = (e: KeyboardEvent): void => current?.onKeyDown?.(e)
+  const onKey = (e: KeyboardEvent): void => {
+    if (!inCustomContent(e.target)) current?.onKeyDown?.(e)
+  }
 
   // Capture is best effort: synthetic events may carry a pointer id the browser does not know.
   function capture(id: number): void {
@@ -215,4 +217,14 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
       ctx.root.style.cursor = originalCursor
     },
   }
+}
+
+/**
+ * True for a target inside a custom annotation element (`data-custom`) but not that element
+ * itself: the host's buttons and inputs there own their presses and keys, as in the overlay.
+ */
+function inCustomContent(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false
+  const el = target.closest('[data-annotation]')
+  return el !== null && el !== target && el.hasAttribute('data-custom')
 }
