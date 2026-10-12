@@ -116,13 +116,21 @@ function onError(): void {
 
 let saveTimer: ReturnType<typeof setTimeout> | undefined
 /** The save that the debounce is still holding back, if any. */
-let pendingSave: (() => void) | undefined
+let pendingSave: (() => Promise<void>) | undefined
+/** Saves that have started and not yet been stored. */
+const inFlight = new Set<Promise<void>>()
 
-function flushSave(): void {
+/** Starts the held-back save now and resolves once it and any save in flight are stored. */
+async function flushSave(): Promise<void> {
   clearTimeout(saveTimer)
   const run = pendingSave
   pendingSave = undefined
-  run?.()
+  if (run) {
+    const saving = run()
+    inFlight.add(saving)
+    void saving.finally(() => inFlight.delete(saving))
+  }
+  await Promise.all(inFlight)
 }
 
 watch(annotations, (list) => {
@@ -130,8 +138,8 @@ watch(annotations, (list) => {
   if (forKey === null || forKey !== key.value) return
   clearTimeout(saveTimer)
   status.value = 'saving'
-  pendingSave = () => {
-    void server
+  pendingSave = () =>
+    server
       .save(forKey, {
         format: ANNOTATION_FORMAT,
         version: ANNOTATION_VERSION,
@@ -141,8 +149,7 @@ watch(annotations, (list) => {
       .then(() => {
         if (loadedKey.value === forKey) status.value = 'saved'
       })
-  }
-  saveTimer = setTimeout(flushSave, SAVE_DEBOUNCE_MS)
+  saveTimer = setTimeout(() => void flushSave(), SAVE_DEBOUNCE_MS)
 })
 onBeforeUnmount(() => clearTimeout(saveTimer))
 
@@ -190,10 +197,11 @@ function resign(): void {
 }
 
 /** A new version of the file: a new key, so the viewer reloads and starts from the server. */
-function newVersion(): void {
-  // An edit still inside the debounce window belongs to the old key: store it first.
-  flushSave()
+async function newVersion(): Promise<void> {
+  // Inert from here on. An edit still inside the debounce window belongs to the old key:
+  // wait until it is stored before the key changes.
   loadedKey.value = null
+  await flushSave()
   failed.value = false
   tool.value = 'view'
   document.value = null
