@@ -27,7 +27,7 @@ export default {
   hooks: {
     'before:init': ['pnpm build', 'pnpm test'],
     'after:bump': [
-      `pnpm -r ${filters} exec npm version \${version} --no-git-tag-version --allow-same-version`,
+      `pnpm -r ${filters} exec pnpm pkg set version=\${version}`,
       'git add packages/*/package.json',
     ],
     'after:release': [`pnpm -r ${filters} publish --access public --no-git-checks`],
