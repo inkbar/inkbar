@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createPageRenderer } from './page-renderer'
-import { mountContainer, nextFrame, openFixtureInBrowser } from './test-utils'
+import { mountContainer, nextFrame, openFixtureInBrowser, until } from './test-utils'
 import { createPageTransform } from './transform'
 
 import type { InkDocument } from '../model/document'
@@ -133,6 +133,56 @@ describe('createPageRenderer', () => {
     expect(canvas.width).toBe(t.cssWidth * 2)
     expect(canvas.height).toBe(t.cssHeight * 2)
     expect(canvas.style.width).toBe(`${t.cssWidth}px`)
+  })
+
+  it('re-arms the DPR watcher when the query fires before devicePixelRatio moves', async () => {
+    const original = Object.getOwnPropertyDescriptor(window, 'devicePixelRatio')
+    const setDpr = (value: number) =>
+      Object.defineProperty(window, 'devicePixelRatio', { value, configurable: true })
+    cleanup.push(() => {
+      if (original) Object.defineProperty(window, 'devicePixelRatio', original)
+      else delete (window as { devicePixelRatio?: number }).devicePixelRatio
+    })
+    // A controllable stand-in for the resolution media queries.
+    const queries: { media: string; listeners: Set<() => void> }[] = []
+    const matchMedia = vi
+      .spyOn(window, 'matchMedia')
+      .mockImplementation((media: string) => {
+        const q = { media, listeners: new Set<() => void>() }
+        queries.push(q)
+        return {
+          media,
+          matches: true,
+          addEventListener: (_: string, fn: () => void) => q.listeners.add(fn),
+          removeEventListener: (_: string, fn: () => void) => q.listeners.delete(fn),
+        } as unknown as MediaQueryList
+      })
+    cleanup.unshift(() => matchMedia.mockRestore())
+    const armed = () => queries.filter((q) => q.listeners.size > 0).map((q) => q.media)
+
+    setDpr(1)
+    const doc = await openFixtureInBrowser('text-simple')
+    const host = mountContainer(612, 792)
+    const t = createPageTransform(doc.pages[0]!, 1, 0)
+    const r = createPageRenderer({ document: doc, page: 0, host, transform: t })
+    cleanup.unshift(() => (r.destroy(), doc.destroy(), host.remove()))
+    await r.rendered
+    expect(armed()).toEqual(['(resolution: 1dppx)'])
+
+    // The query fires mid-transition: devicePixelRatio still reads 1.
+    const fired = queries.find((q) => q.listeners.size > 0)!
+    fired.listeners.forEach((fn) => fn())
+    await r.rendered
+    expect(canvasIn(host)!.width).toBe(t.cssWidth)
+    // Then the ratio settles at 2; no further event arrives.
+    setDpr(2)
+    await until(() => canvasIn(host)?.width === t.cssWidth * 2, 3000)
+    await r.rendered
+    expect(canvasIn(host)!.height).toBe(t.cssHeight * 2)
+    expect(armed()).toEqual(['(resolution: 2dppx)'])
+
+    r.destroy()
+    expect(armed()).toEqual([])
   })
 
   it('keeps the previous bitmap visible, CSS-scaled, until the new zoom lands', async () => {
