@@ -152,8 +152,13 @@ export async function openDocument(
       }
       let p = pageCache.get(index)
       if (!p) {
-        p = proxy.getPage(index + 1)
-        pageCache.set(index, p)
+        const fetched = proxy.getPage(index + 1)
+        pageCache.set(index, fetched)
+        // A failed lookup is not cached: the next mount of the page asks PDF.js again.
+        fetched.catch(() => {
+          if (pageCache.get(index) === fetched) pageCache.delete(index)
+        })
+        p = fetched
       }
       return p
     }

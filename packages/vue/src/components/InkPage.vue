@@ -8,7 +8,12 @@
  * Vue. So the teleport targets come from a list read after every overlay render: this
  * component subscribes to the store after the overlay does, and core notifies subscribers
  * in order, so the elements already exist when the list arrives here.
+ *
+ * A page whose canvas or text layer fails gets `data-state="error"` on its host and the
+ * `page-error` slot teleported into it; the other pages and the viewport carry on. The next
+ * mount of the page (scrolling it out and back) tries again.
  */
+import { InkError, isInkError } from '@inkbar/core'
 import { createPageMount, type PageMount, type PageTransform } from '@inkbar/core/dom'
 import { onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
 
@@ -30,12 +35,30 @@ const props = withDefaults(
   { customAnnotations: false }
 )
 
-defineSlots<{ annotation?(props: AnnotationSlotProps): unknown }>()
+defineSlots<{
+  annotation?(props: AnnotationSlotProps): unknown
+  'page-error'?(props: { error: InkError; page: number }): unknown
+}>()
 
 const ctx = injectInkContext()
 const mount = shallowRef<PageMount | null>(null)
 const targets = shallowRef<{ annotation: Annotation; el: HTMLElement }[]>([])
 let stopList: (() => void) | undefined
+const pageError = shallowRef<InkError | null>(null)
+
+/** The first failure wins: a canvas and a text layer failing together report one error. */
+function onPageError(cause: unknown): void {
+  if (pageError.value) return
+  pageError.value = isInkError(cause)
+    ? cause
+    : new InkError(
+        'InvalidPdf',
+        cause instanceof Error ? cause.message : String(cause),
+        { page: props.page },
+        cause
+      )
+  props.host.setAttribute('data-state', 'error')
+}
 
 function readTargets(): void {
   const m = mount.value
@@ -59,6 +82,7 @@ onMounted(() => {
     store: doc.annotations,
     onActivate: (id) => ctx.setActivated(id),
     isCustom: () => custom,
+    onError: onPageError,
   })
   if (custom) {
     stopList = doc.annotations.list.subscribe(readTargets)
@@ -76,12 +100,22 @@ onBeforeUnmount(() => {
   targets.value = []
   mount.value?.destroy()
   mount.value = null
+  if (pageError.value) props.host.removeAttribute('data-state')
+  pageError.value = null
 })
 
 defineExpose({ mount })
 </script>
 
 <template>
+  <Teleport v-if="pageError" :to="host">
+    <div class="ink-page-error" data-ink-page-error role="alert">
+      <slot name="page-error" :error="pageError" :page="page">
+        <p>Page {{ page + 1 }} could not be shown.</p>
+        <code class="ink-error-code">{{ pageError.code }}</code>
+      </slot>
+    </div>
+  </Teleport>
   <Teleport v-for="t in targets" :key="t.annotation.id" :to="t.el">
     <InkAnnotation :annotation="t.annotation" :element="t.el">
       <template #default="slotProps">

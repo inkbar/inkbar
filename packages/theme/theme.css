@@ -136,6 +136,24 @@
     color: var(--ink-muted-fg);
   }
 
+  /* A page that failed to render: covers that page only. */
+  :where(.ink-page-error) {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: grid;
+    place-content: center;
+    gap: 0.25rem;
+    padding: 1rem;
+    text-align: center;
+    color: var(--ink-fg);
+    background: var(--ink-surface);
+  }
+
+  :where(.ink-page-error p) {
+    margin: 0;
+  }
+
   /*
    * Text layer: the .textLayer rules from pdfjs-dist 6.4.299 web/pdf_viewer.css, renamed to
    * .ink-text-layer. PDF.js sizes the layer from --total-scale-factor (set on the page) and

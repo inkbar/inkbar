@@ -160,6 +160,47 @@ test('shows the error slot with the code and stays interactive (Review Focus 5)'
   await expect(alert).toHaveCount(0)
 })
 
+test('a page that fails to render shows the page-error slot; the rest stays usable and a remount retries', async ({
+  mount,
+  page,
+}) => {
+  const props = { src: fixtureUrl('text-simple'), assets, zoom: 0.5, failPage: 1 }
+  const cmp = await mount(ViewportHarness, { props })
+  const first = cmp.locator('.ink-page[data-page="0"]')
+  const second = cmp.locator('.ink-page[data-page="1"]')
+  await expect(first.locator('canvas[data-ink-canvas]')).toBeVisible()
+  await expect(second).toHaveAttribute('data-state', 'error')
+  const pageError = second.locator('[data-ink-page-error]')
+  await expect(pageError).toBeVisible()
+  await expect(pageError).toHaveAttribute('role', 'alert')
+  await expect(pageError).toContainText('Page 2 could not be shown.')
+  await expect(pageError.locator('code')).toHaveText('InvalidPdf')
+  await expect(pageError).not.toContainText('engine')
+  await expect(second.locator('canvas[data-ink-canvas]')).toHaveCount(0)
+  await expect(first).not.toHaveAttribute('data-state', 'error')
+  await expect(cmp.locator('[data-ink-viewport-root]')).toHaveAttribute(
+    'data-state',
+    'ready'
+  )
+
+  // The document stays usable: keyboard zoom works and nothing blocks the page around it.
+  const scroll = page.locator('[data-ink-scroll]')
+  await scroll.focus()
+  await page.keyboard.press('+')
+  await expect(first).toHaveCSS('width', `${612 * 0.625}px`)
+  await expect(pageError).toBeVisible()
+  const outside = cmp.getByTestId('outside')
+  await outside.click()
+  await expect(outside).toHaveText('Outside 1')
+
+  // Once the page can be drawn, the next mount (a rebuild here) renders it.
+  await cmp.getByTestId('heal').click()
+  await cmp.update({ props: { ...props, gap: 24 } })
+  await expect(second.locator('canvas[data-ink-canvas]')).toBeVisible()
+  await expect(second.locator('[data-ink-page-error]')).toHaveCount(0)
+  await expect(second).not.toHaveAttribute('data-state', 'error')
+})
+
 test('shows the PasswordRequired code for an encrypted file', async ({ mount }) => {
   const cmp = await mount(ViewportHarness, {
     props: { src: fixtureUrl('encrypted-aes'), assets, zoom: 1 },

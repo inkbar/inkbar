@@ -56,6 +56,8 @@ const slots = defineSlots<{
   error?(props: { error: InkError }): unknown
   empty?(): unknown
   annotation?(props: AnnotationSlotProps): unknown
+  /** Shown inside a page that failed to render. The rest of the document stays usable. */
+  'page-error'?(props: { error: InkError; page: number }): unknown
 }>()
 
 const ctx = injectInkContext()
@@ -259,6 +261,9 @@ onBeforeUnmount(teardown)
     >
       <template v-if="slots.annotation" #annotation="slotProps">
         <slot name="annotation" v-bind="slotProps" />
+      </template>
+      <template v-if="slots['page-error']" #page-error="slotProps">
+        <slot name="page-error" v-bind="slotProps" />
       </template>
     </InkPage>
   </div>
