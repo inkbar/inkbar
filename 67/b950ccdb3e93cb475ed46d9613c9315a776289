@@ -1,0 +1,61 @@
+.nvmrc
+  s_a8095ef648b42d::t_486030a70a4bf0 1
+pnpm-lock.yaml
+  s_a8095ef648b42d::t_0fdabba1eea050 1-5904
+.husky/pre-commit
+  s_a8095ef648b42d::t_3bd767fcd29f30 1
+.prettierrc.mjs
+  s_a8095ef648b42d::t_bc4ef72cc915f6 1
+pnpm-workspace.yaml
+  s_a8095ef648b42d::t_59a3aa7f97e1e5 8-12
+  s_a8095ef648b42d::t_8064d03dd0ccce 1-4
+  s_a8095ef648b42d::t_a2f67710e5a317 5-7
+package.json
+  s_a8095ef648b42d::t_0ebe685d367cb1 43
+  s_a8095ef648b42d::t_241855c1f9966e 1-6,42,44-47
+  s_a8095ef648b42d::t_5aeee4852d02a3 7-41
+.prettierignore
+  s_a8095ef648b42d::t_15171165c17b8d 1-2
+packages/core/package.json
+  s_a8095ef648b42d::t_5aeee4852d02a3 8-45
+  s_a8095ef648b42d::t_79d718f2138132 1-7,46-56
+packages/core/tsdown.config.ts
+  s_a8095ef648b42d::t_959f0a8a5e7bb0 1-12
+tsconfig.base.json
+  s_a8095ef648b42d::t_5af848ae2dafd5 1-20
+commitlint.config.mjs
+  s_a8095ef648b42d::t_83a55ae0d2766e 1-7
+packages/core/tsconfig.json
+  s_a8095ef648b42d::t_7e42b2821d5017 1-9
+.gitignore
+  s_a8095ef648b42d::t_11471e621ae28a 1-10
+README.md
+  s_a8095ef648b42d::t_1ab737e96a5e2f 1-8,14-23
+  s_a8095ef648b42d::t_5aeee4852d02a3 9-13
+eslint.config.js
+  s_a8095ef648b42d::t_cd0a0d1926ad5a 1-49
+turbo.json
+  s_a8095ef648b42d::t_df31fec7ecb8c1 1-11
+LICENSE
+  s_a8095ef648b42d::t_24d990f8479bd8 1-21
+.husky/commit-msg
+  s_a8095ef648b42d::t_835777cee322e1 1
+packages/core/src/index.ts
+  s_a8095ef648b42d::t_e85d68e9aafb14 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "67b950ccdb3e93cb475ed46d9613c9315a776289",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
