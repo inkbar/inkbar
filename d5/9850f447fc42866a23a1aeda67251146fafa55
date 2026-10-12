@@ -1,0 +1,26 @@
+packages/core/src/index.test.ts
+  s_a8095ef648b42d::t_d2499d06640b90 3-5,8,11,15,21-23
+packages/core/src/pdfjs/load.test.ts
+  s_a8095ef648b42d::t_d2499d06640b90 182-183,186,192-195,212,221-230,234
+packages/core/src/pdfjs/worker-failure.test.ts
+  s_a8095ef648b42d::t_d2499d06640b90 2-3,6-8,11-16
+  s_a8095ef648b42d::t_c5a7feecc1eee0 1,4-5,9-10,17
+packages/core/src/pdfjs/load.ts
+  s_a8095ef648b42d::t_d2499d06640b90 41-46,95,103-114,121-125,132-139
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d59850f447fc42866a23a1aeda67251146fafa55",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
