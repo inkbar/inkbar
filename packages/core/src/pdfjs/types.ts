@@ -30,7 +30,14 @@ export interface PdfjsAnnotationData {
   lineCoordinates?: [number, number, number, number]
   vertices?: Float32Array | number[]
   inkLists?: Array<Float32Array | number[]>
+  lineEndings?: string[]
+  /** Text under a markup annotation, not a redaction's overlay text. */
   overlaidText?: string
+  defaultAppearanceData?: {
+    fontSize: number
+    fontName?: string
+    fontColor?: Uint8ClampedArray | number[] | { [index: number]: number }
+  }
   hasAppearance?: boolean
   hidden?: boolean
   noView?: boolean
