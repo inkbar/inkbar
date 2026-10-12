@@ -138,6 +138,11 @@ test('shows the error slot with the code and stays interactive (Review Focus 5)'
   await expect(alert).toBeVisible()
   await expect(alert).toBeInViewport()
   await expect(alert).toContainText('InvalidPdf')
+  // The engine's own message is on the code's tooltip, never in the visible copy.
+  const message = await alert.locator('code.ink-error-code').getAttribute('title')
+  expect(message).toBeTruthy()
+  expect(await alert.innerText()).not.toContain(message!)
+  await expect(alert.locator('.ink-error-message')).toHaveCount(0)
   await expect(cmp.locator('[data-ink-root]')).toHaveAttribute('data-state', 'error')
   await expect(cmp.locator('.ink-page')).toHaveCount(0)
   // The PDF parser reports what it tried on the broken file; nothing else may warn.

@@ -234,9 +234,10 @@ onBeforeUnmount(teardown)
     <div v-else-if="error" class="ink-status ink-error" role="alert">
       <slot name="error" :error="error">
         <p class="ink-error-title">This document could not be opened.</p>
+        <!-- The message comes from the PDF engine and is not written for readers: it stays
+             off the page, on the code's tooltip. -->
         <p>
-          <code class="ink-error-code">{{ error.code }}</code>
-          <span class="ink-error-message">{{ error.message }}</span>
+          <code class="ink-error-code" :title="error.message">{{ error.code }}</code>
         </p>
       </slot>
     </div>
