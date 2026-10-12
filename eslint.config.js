@@ -16,6 +16,7 @@ export default defineConfig(
       '**/node_modules/**',
       '**/*.config.{js,ts,mjs,mts}',
       '**/playwright/index.ts',
+      '**/playwright/.cache/**',
       'fixtures/pdf/**',
     ],
   },

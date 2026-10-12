@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "jsx": "preserve",
+    "types": ["node", "vite/client"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.vue", "playwright/**/*.ts", "playwright/**/*.vue"],
+  "vueCompilerOptions": { "strictTemplates": true, "dataAttributes": ["data-*"] }
+}

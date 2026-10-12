@@ -9,3 +9,4 @@ __screenshots__/**/*-actual.png
 fixtures/pdf/generated-large.pdf
 *.log
 .DS_Store
+**/playwright/.cache

@@ -1,0 +1,46 @@
+{
+  "name": "@inkbar/vue",
+  "version": "0.0.0",
+  "description": "Vue 3 components and composables for Inkbar, the browser PDF viewer and editor.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "vue-tsc --noEmit -p tsconfig.json && vite build",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json",
+    "lint": "eslint src playwright",
+    "test": "vitest run",
+    "test:browser": "playwright test -c playwright-ct.config.ts"
+  },
+  "dependencies": {
+    "@inkbar/core": "workspace:*",
+    "reka-ui": "^2.11.0"
+  },
+  "peerDependencies": {
+    "vue": "^3.5.0"
+  },
+  "devDependencies": {
+    "@inkbar/fixtures": "workspace:*",
+    "@playwright/experimental-ct-vue": "1.62.1",
+    "@playwright/test": "1.62.1",
+    "@vitejs/plugin-vue": "^6.0.10",
+    "@vue/compiler-dom": "^3.5.43",
+    "lucide-vue-next": "^1.0.0",
+    "vite": "^8.3.4",
+    "vite-plugin-dts": "^5.1.2",
+    "vitest": "^5.0.4",
+    "vue": "^3.5.43",
+    "vue-tsc": "^3.3.13"
+  }
+}
