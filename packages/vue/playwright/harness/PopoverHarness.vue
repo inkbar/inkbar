@@ -20,6 +20,8 @@ const props = defineProps<{
   customAnnotations?: boolean | undefined
   /** Replace the card's default content with one slot-driven Remove button. */
   customCard?: boolean | undefined
+  /** Replace the note popover's default content with one slot-driven Remove button. */
+  customNote?: boolean | undefined
 }>()
 
 const list = shallowRef<Annotation[]>([])
@@ -76,7 +78,10 @@ function onReady(doc: InkDocument) {
         </template>
       </InkViewport>
     </div>
-    <InkNotePopover />
+    <InkNotePopover v-if="customNote" v-slot="{ remove }">
+      <button type="button" data-testid="custom-remove" @click="remove">Remove</button>
+    </InkNotePopover>
+    <InkNotePopover v-else />
     <InkSuggestionCard v-if="customCard" v-slot="{ dismiss }">
       <button type="button" data-testid="custom-dismiss" @click="dismiss">Remove</button>
     </InkSuggestionCard>

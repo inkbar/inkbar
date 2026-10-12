@@ -407,3 +407,62 @@ test('with a slow controlled host, a dismiss still moves focus past the removed 
   ).toBe(true)
   consoleGuard.clear()
 })
+
+test('a locked note has no Delete, and the slot remove keeps the popover and the note', async ({
+  mount,
+  page,
+}) => {
+  for (const customNote of [false, true]) {
+    const cmp = await mount(Harness, {
+      props: { src: fixtureUrl('annotated-notes-threaded'), assets, customNote },
+    })
+    await expect(cmp.locator('[data-annotation]')).toHaveCount(4)
+    const rootNote = (await stored(docOf(page))).find((a) => a.contents === 'Root note')!
+    const anchor = cmp.locator(`[data-annotation="${rootNote.id}"]`)
+    await expect(anchor).toHaveAttribute('data-locked', '')
+    await anchor.focus()
+    await page.keyboard.press('Enter')
+    const popover = page.locator('[data-ink-note-popover]')
+    await expect(popover).toBeVisible()
+    if (!customNote) {
+      await expect(popover.getByRole('button', { name: 'Delete' })).toHaveCount(0)
+    } else {
+      await popover.getByTestId('custom-remove').click()
+      await expect(popover).toBeVisible()
+      await expect(cmp.locator('[data-annotation]')).toHaveCount(4)
+    }
+    await cmp.unmount()
+  }
+})
+
+test('with a slow controlled host, Delete closes the note popover before the host applies', async ({
+  mount,
+  page,
+}) => {
+  const props = { src: fixtureUrl('text-simple'), assets, controlled: true }
+  const cmp = await mount(Harness, { props })
+  await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
+  const id = await addAnnotation(page, {
+    type: 'note',
+    page: 0,
+    rect: { x: 72, y: 600, width: 24, height: 24 },
+    contents: 'Check this',
+  })
+  const note = cmp.locator(`[data-annotation="${id}"]`)
+  await expect(note).toHaveCount(1)
+  // From here the host applies each proposal a second late.
+  await cmp.update({ props: { ...props, applyDelay: 1000 } })
+  await note.focus()
+  await page.keyboard.press('Enter')
+  const popover = page.locator('[data-ink-note-popover]')
+  await popover.getByRole('button', { name: 'Delete' }).click()
+  // Closed while the host still has the note.
+  await expect(popover).toHaveCount(0)
+  expect(await note.count()).toBe(1)
+  await expect(note).toHaveCount(0)
+  await expect(popover).toHaveCount(0)
+  await expect(page.locator('[data-ink-scroll]')).toBeFocused()
+  expect(consoleGuard.problems).toHaveLength(1)
+  expect(consoleGuard.problems[0]).toContain('ControlledMutationIgnored')
+  consoleGuard.clear()
+})
