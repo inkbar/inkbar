@@ -13,7 +13,10 @@ export interface PageRendererOptions {
   /** The page host (`div.ink-page`); the renderer appends its canvas layer to it. */
   host: HTMLElement
   transform: PageTransform
-  /** Defaults to `window.devicePixelRatio`. */
+  /**
+   * Fixed device pixel ratio. When omitted, `window.devicePixelRatio` is read at every render
+   * and the page re-renders when it changes (browser zoom, moving to another screen).
+   */
   devicePixelRatio?: number
   onRendered?(): void
   /** Called for any render failure other than a superseded render's cancellation. */
@@ -37,8 +40,10 @@ const isCancellation = (error: unknown): boolean =>
 
 export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
   const { document: doc, page, host } = opts
-  const dpr =
-    opts.devicePixelRatio ?? (typeof devicePixelRatio === 'number' ? devicePixelRatio : 1)
+  const view = host.ownerDocument.defaultView
+  const currentDpr = (): number =>
+    opts.devicePixelRatio ??
+    (view && view.devicePixelRatio > 0 ? view.devicePixelRatio : 1)
   const wrapper = host.ownerDocument.createElement('div')
   wrapper.className = 'ink-canvas-layer'
   wrapper.dataset.inkCanvasLayer = ''
@@ -46,6 +51,7 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
   host.append(wrapper)
 
   let current: HTMLCanvasElement | undefined
+  let latest = opts.transform
   let task: PdfjsRenderTask | undefined
   let destroyed = false
   let generation = 0
@@ -67,6 +73,9 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
 
   async function render(transform: PageTransform): Promise<void> {
     const gen = ++generation
+    latest = transform
+    const dpr = currentDpr()
+    watchDpr(dpr)
     task?.cancel()
     task = undefined
     if (!resolvePending) {
@@ -92,6 +101,8 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
       const ownTask = pdfPage.render({
         canvas,
         viewport,
+        // Pages are paper: an opaque white canvas, whatever the theme puts behind it.
+        background: '#ffffff',
         annotationMode: AnnotationMode.ENABLE,
         ...(dpr === 1 ? {} : { transform: [dpr, 0, 0, dpr, 0, 0] }),
       })
@@ -111,6 +122,22 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
     }
   }
 
+  // Re-render when the device pixel ratio changes, unless the caller fixed it. The media
+  // query matches only the ratio it was built for, so it is rebuilt after every change.
+  let dprQuery: MediaQueryList | undefined
+  let watchedDpr: number | undefined
+  const onDprChange = (): void => {
+    if (!destroyed) void render(latest)
+  }
+  function watchDpr(dpr: number): void {
+    if (opts.devicePixelRatio !== undefined || !view?.matchMedia) return
+    if (dpr === watchedDpr) return
+    watchedDpr = dpr
+    dprQuery?.removeEventListener('change', onDprChange)
+    dprQuery = view.matchMedia(`(resolution: ${dpr}dppx)`)
+    dprQuery.addEventListener('change', onDprChange)
+  }
+
   void render(opts.transform)
 
   return {
@@ -125,6 +152,8 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
     destroy() {
       if (destroyed) return
       destroyed = true
+      dprQuery?.removeEventListener('change', onDprChange)
+      dprQuery = undefined
       task?.cancel()
       task = undefined
       wrapper.remove()

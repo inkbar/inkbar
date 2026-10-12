@@ -4,6 +4,8 @@ import { createPageRenderer } from './page-renderer'
 import { mountContainer, nextFrame, openFixtureInBrowser } from './test-utils'
 import { createPageTransform } from './transform'
 
+import type { InkDocument } from '../model/document'
+
 const cleanup: (() => void)[] = []
 afterEach(() => cleanup.splice(0).forEach((f) => f()))
 
@@ -24,6 +26,22 @@ function darkPixels(
   let dark = 0
   for (let i = 0; i < data.length; i += 4) if (data[i]! < 128) dark++
   return dark
+}
+
+type PdfPage = Awaited<ReturnType<InkDocument['_pdfjs']['getPage']>>
+type RenderTask = ReturnType<PdfPage['render']>
+
+/** Resolves with the first render task PDF.js starts for `page`, as soon as it starts. */
+function renderStarts(page: PdfPage): Promise<RenderTask> {
+  const original = page.render.bind(page)
+  return new Promise((resolve) => {
+    const spy = vi.spyOn(page, 'render').mockImplementation((params) => {
+      const task = original(params)
+      resolve(task)
+      return task
+    })
+    cleanup.unshift(() => spy.mockRestore())
+  })
 }
 
 const canvasIn = (host: HTMLElement) =>
@@ -48,8 +66,10 @@ describe('createPageRenderer', () => {
     expect(canvas.height).toBe(1584)
     expect(canvas.style.width).toBe('612px')
     expect(canvas.getAttribute('aria-hidden')).toBe('true')
-    // blank area near the bottom-right is white
-    expect(pixel(canvas, 1100, 1500)).toEqual([255, 255, 255, 255])
+    // blank area near the bottom-right is opaque white: pages render on a white background
+    const [r0, g0, b0, alpha] = pixel(canvas, 1100, 1500)
+    expect([r0, g0, b0]).toEqual([255, 255, 255])
+    expect(alpha).toBe(255)
     // the first text line has its baseline at user y=700 → css y=92 → device 184; scan the band above it
     expect(darkPixels(canvas, 144, 160, 500, 24)).toBeGreaterThan(50)
   })
@@ -58,6 +78,7 @@ describe('createPageRenderer', () => {
     const doc = await openFixtureInBrowser('text-simple')
     const host = mountContainer(612, 792)
     const errors: unknown[] = []
+    const started = renderStarts(await doc._pdfjs.getPage(0))
     const r = createPageRenderer({
       document: doc,
       page: 0,
@@ -67,6 +88,12 @@ describe('createPageRenderer', () => {
       onError: (e) => errors.push(e),
     })
     cleanup.push(() => (r.destroy(), doc.destroy(), host.remove()))
+    // Wait for the first PDF.js render task to be in flight before superseding it.
+    const firstTask = await started
+    const firstOutcome = firstTask.promise.then(
+      () => 'completed',
+      (e: unknown) => (e as { name?: string }).name
+    )
     const first = r.rendered
     r.update(createPageTransform(doc.pages[0]!, 2, 0))
     r.update(createPageTransform(doc.pages[0]!, 3, 90))
@@ -79,6 +106,33 @@ describe('createPageRenderer', () => {
     expect(canvas.width).toBe(792 * 3)
     expect(canvas.height).toBe(612 * 3)
     expect(errors).toEqual([])
+    expect(await firstOutcome).toBe('RenderingCancelledException')
+  })
+
+  it('follows window.devicePixelRatio when none is given', async () => {
+    const original = Object.getOwnPropertyDescriptor(window, 'devicePixelRatio')
+    const setDpr = (value: number) =>
+      Object.defineProperty(window, 'devicePixelRatio', { value, configurable: true })
+    cleanup.push(() => {
+      if (original) Object.defineProperty(window, 'devicePixelRatio', original)
+      else delete (window as { devicePixelRatio?: number }).devicePixelRatio
+    })
+    setDpr(1)
+    const doc = await openFixtureInBrowser('text-simple')
+    const host = mountContainer(612, 792)
+    const t = createPageTransform(doc.pages[0]!, 1, 0)
+    const r = createPageRenderer({ document: doc, page: 0, host, transform: t })
+    cleanup.unshift(() => (r.destroy(), doc.destroy(), host.remove()))
+    await r.rendered
+    expect(canvasIn(host)!.width).toBe(t.cssWidth)
+
+    setDpr(2)
+    r.update(t)
+    await r.rendered
+    const canvas = canvasIn(host)!
+    expect(canvas.width).toBe(t.cssWidth * 2)
+    expect(canvas.height).toBe(t.cssHeight * 2)
+    expect(canvas.style.width).toBe(`${t.cssWidth}px`)
   })
 
   it('keeps the previous bitmap visible, CSS-scaled, until the new zoom lands', async () => {
