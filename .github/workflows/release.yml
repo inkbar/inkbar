@@ -1,0 +1,51 @@
+name: release
+
+# Manual only. Run it from the Actions tab on `main`.
+#
+# release-it pushes the release commit and the version tag straight to `main`
+# using the GitHub App token. Once `main` is protected, add the App to the
+# bypass list, or the push is rejected.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mint App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.INKBAR_CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.INKBAR_CI_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: sudo apt-get update && sudo apt-get install -y qpdf
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @inkbar/core exec playwright install --with-deps chromium
+      - name: Configure git
+        run: |
+          git config user.name "${{ steps.app-token.outputs.app-slug }}[bot]"
+          git config user.email "${{ steps.app-token.outputs.app-slug }}[bot]@users.noreply.github.com"
+      - name: Release
+        run: pnpm release --ci
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
