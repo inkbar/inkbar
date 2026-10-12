@@ -1,0 +1,43 @@
+packages/vue/src/components/InkAnnotation.vue
+  s_a8095ef648b42d::t_62652f52d365dd 64-65
+  s_a8095ef648b42d::t_0f356b07aa2cd1 7
+packages/core/src/index.ts
+  s_a8095ef648b42d::t_2ebfb9b7d171f0 28
+packages/core/src/model/annotations/store.ts
+  s_a8095ef648b42d::t_2ebfb9b7d171f0 41-42,354
+packages/core/src/model/annotations/suggestions.test.ts
+  s_a8095ef648b42d::t_2ebfb9b7d171f0 1-6,9-48,87
+packages/core/src/model/annotations/suggestions.ts
+  s_a8095ef648b42d::t_2ebfb9b7d171f0 1-7,10-14,18-19
+packages/core/src/dom/overlay.ts
+  s_a8095ef648b42d::t_6c86c63d5d6ff7 335-336,347,382-383
+packages/core/src/dom/overlay.browser.test.ts
+  s_a8095ef648b42d::t_8cf13b9488d6e1 268-288
+packages/vue/src/composables/useAnnotations.ts
+  s_a8095ef648b42d::t_62652f52d365dd 29-33
+  s_76ad91cd4e3ef9::t_7b9ca15d816a92 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9ff3aadef8b51c302467ef63e0575a3146114221",
+  "prompts": {},
+  "sessions": {
+    "s_76ad91cd4e3ef9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-add31a9870954fe7b",
+        "model": "unknown"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    },
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
