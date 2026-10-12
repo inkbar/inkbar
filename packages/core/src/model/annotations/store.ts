@@ -36,10 +36,17 @@ export interface AnnotationStore {
   byPage(page: number): Annotation[]
   /** Returns the completed annotation. In controlled mode it is proposed to the host, not applied. */
   add(input: AnnotationInput): Annotation
-  /** `id`, `type`, `createdAt` and `source` cannot be patched; `modifiedAt` is always bumped. */
+  /**
+   * `id`, `type`, `createdAt` and `source` cannot be patched, nor can `locked` on an embedded
+   * (`source: 'pdf'`) annotation: those keys are ignored. `modifiedAt` is always bumped.
+   */
   update(id: string, patch: Partial<Annotation>): Annotation | undefined
   remove(id: string): boolean
   select(ids: string[]): void
+  /**
+   * Uncontrolled: embedded annotations survive (the list may edit them like `update` would, but
+   * cannot drop or add them). Controlled: proposes the list minus embedded items to `onChange`.
+   */
   replaceAll(list: Annotation[], reason: 'import' | 'sync' | 'history'): void
   /**
    * Controlled mode only: the host pushes its current list. Embedded (`source: 'pdf'`) items
@@ -75,6 +82,28 @@ const LOCKED_KEYS = new Set([
   'callout',
   'contents',
 ])
+
+function keepKey(target: Record<string, unknown>, from: Annotation, key: string): void {
+  if (Object.prototype.hasOwnProperty.call(from, key))
+    target[key] = (from as Record<string, unknown>)[key]
+  else delete target[key]
+}
+
+/** `proposed` as a replacement for embedded `current`, with what the file owns kept from `current`. */
+function guardEmbedded(current: Annotation, proposed: Annotation): Annotation {
+  if (proposed === current) return current
+  if (proposed.type !== current.type) return current
+  const candidate: Record<string, unknown> = {
+    ...proposed,
+    id: current.id,
+    createdAt: current.createdAt,
+    source: 'pdf',
+  }
+  keepKey(candidate, current, 'locked')
+  if (current.locked) for (const key of LOCKED_KEYS) keepKey(candidate, current, key)
+  const parsed = AnnotationSchema.safeParse(candidate)
+  return parsed.success ? parsed.data : current
+}
 
 export function deriveRect(input: AnnotationInput): Rect {
   switch (input.type) {
@@ -244,6 +273,33 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
     emitter.emit('change', change)
   }
 
+  /**
+   * Uncontrolled `replaceAll` cannot drop or forge embedded annotations: every current embedded
+   * item stays (taking the list's version of it, guarded like `update`, when the list has one),
+   * and items claiming `source: 'pdf'` that the store does not hold are dropped. History
+   * snapshots contain the embedded items, so undo and redo of their edits still work.
+   */
+  function withEmbedded(proposed: readonly Annotation[]): Annotation[] {
+    const current = new Map(
+      list
+        .get()
+        .filter((a) => a.source === 'pdf')
+        .map((a) => [a.id, a])
+    )
+    const seen = new Set<string>()
+    const out: Annotation[] = []
+    for (const a of proposed) {
+      const mine = current.get(a.id)
+      if (mine) {
+        if (!seen.has(a.id)) out.push(guardEmbedded(mine, a))
+        seen.add(a.id)
+      } else if (a.source !== 'pdf') {
+        out.push(a)
+      }
+    }
+    return [...[...current.values()].filter((a) => !seen.has(a.id)), ...out]
+  }
+
   function pruneSelection(next: readonly Annotation[]): void {
     const known = new Set(next.map((a) => a.id))
     const current = selection.get()
@@ -269,7 +325,7 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
       if (destroyed || !before) return undefined
       if (before.locked && Object.keys(patch).some((k) => LOCKED_KEYS.has(k)))
         return undefined
-      const after = AnnotationSchema.parse({
+      const candidate: Record<string, unknown> = {
         ...before,
         ...patch,
         id: before.id,
@@ -277,7 +333,10 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
         createdAt: before.createdAt,
         source: before.source,
         modifiedAt: now(),
-      })
+      }
+      // An embedded annotation's lock belongs to the file: a `locked` key in the patch is ignored.
+      if (before.source === 'pdf') keepKey(candidate, before, 'locked')
+      const after = AnnotationSchema.parse(candidate)
       const next = list.get().map((a) => (a.id === id ? after : a))
       const change: AnnotationChange = { kind: 'update', id, before, after }
       if (controlled && before.source === 'pdf') {
@@ -314,7 +373,7 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
     },
     replaceAll(list, reason) {
       if (destroyed) return
-      const next = [...list]
+      const next = controlled ? [...list] : withEmbedded(list)
       commit(next, { kind: 'replace', reason })
       if (!controlled) pruneSelection(next)
     },

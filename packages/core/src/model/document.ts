@@ -9,7 +9,7 @@ import {
 import { createHistory, type History } from './annotations/history'
 import {
   exportAnnotations,
-  importAnnotations,
+  planImport,
   type ImportOptions,
   type ImportResult,
 } from './annotations/json'
@@ -234,10 +234,14 @@ export async function openDocument(
       return exportAnnotations(store, preserved, resolved.key)
     },
     importAnnotations(data, opts = { mode: 'replace' }) {
-      const result = importAnnotations(store, data, opts)
+      const plan = planImport(store, data, opts)
+      // Staged before the store publishes, so a change listener that exports sees it.
       preserved =
-        opts.mode === 'replace' ? result.unknown : mergeById(preserved, result.unknown)
-      return result
+        opts.mode === 'replace'
+          ? plan.result.unknown
+          : [...preserved.filter((u) => !plan.ids.has(u.id)), ...plan.result.unknown]
+      plan.apply()
+      return plan.result
     },
     save() {
       return Promise.reject(
@@ -283,14 +287,6 @@ async function mapInOrder<T>(
   }
   await Promise.all(Array.from({ length: Math.min(limit, count) }, worker))
   return results
-}
-
-function mergeById(
-  existing: readonly ForeignAnnotation[],
-  incoming: readonly ForeignAnnotation[]
-): ForeignAnnotation[] {
-  const replaced = new Set(incoming.map((u) => u.id))
-  return [...existing.filter((u) => !replaced.has(u.id)), ...incoming]
 }
 
 function teardown(destroyTask: () => Promise<void>): void {
