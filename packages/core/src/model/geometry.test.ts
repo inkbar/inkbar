@@ -22,14 +22,16 @@ const point = fc.record({
   x: fc.double({ min: -1e4, max: 1e4, noNaN: true }),
   y: fc.double({ min: -1e4, max: 1e4, noNaN: true }),
 })
-const matrix = fc.tuple(
-  fc.double({ min: -10, max: 10, noNaN: true }).filter((v) => Math.abs(v) > 0.01),
-  fc.constant(0),
-  fc.constant(0),
-  fc.double({ min: -10, max: 10, noNaN: true }).filter((v) => Math.abs(v) > 0.01),
-  fc.double({ min: -1e3, max: 1e3, noNaN: true }),
-  fc.double({ min: -1e3, max: 1e3, noNaN: true })
-) as fc.Arbitrary<Matrix>
+const coeff = fc.double({ min: -10, max: 10, noNaN: true })
+const offset = fc.double({ min: -1e3, max: 1e3, noNaN: true })
+/** Full affine matrices (rotation, skew, scale, translate); near-singular ones are excluded. */
+const matrix = fc
+  .tuple(coeff, coeff, coeff, coeff, offset, offset)
+  .filter(([a, b, c, d]) => Math.abs(a * d - b * c) > 1) as fc.Arbitrary<Matrix>
+
+/** Tolerance scales with magnitude: 1e-9 relative, floored at 1e-6 absolute. */
+const near = (a: number, b: number): boolean =>
+  approxEqual(a, b, Math.max(1e-6, 1e-9 * Math.max(Math.abs(a), Math.abs(b))))
 
 describe('geometry', () => {
   it('rectFromPoints normalises any two corners', () => {
@@ -84,7 +86,26 @@ describe('geometry', () => {
     fc.assert(
       fc.property(matrix, point, (m, p) => {
         const back = applyMatrix(invertMatrix(m), applyMatrix(m, p))
-        return approxEqual(back.x, p.x, 1e-6) && approxEqual(back.y, p.y, 1e-6)
+        return near(back.x, p.x) && near(back.y, p.y)
+      })
+    )
+  })
+
+  it('a matrix times its inverse is the identity', () => {
+    fc.assert(
+      fc.property(matrix, (m) => {
+        const id = multiplyMatrix(m, invertMatrix(m))
+        return [1, 0, 0, 1, 0, 0].every((v, i) => near(id[i]!, v))
+      })
+    )
+  })
+
+  it('applying a product equals applying a then b', () => {
+    fc.assert(
+      fc.property(matrix, matrix, point, (a, b, p) => {
+        const direct = applyMatrix(multiplyMatrix(a, b), p)
+        const stepwise = applyMatrix(b, applyMatrix(a, p))
+        return near(direct.x, stepwise.x) && near(direct.y, stepwise.y)
       })
     )
   })
@@ -94,5 +115,10 @@ describe('geometry', () => {
     const move: Matrix = [1, 0, 0, 1, 10, 5]
     const p: Point = { x: 1, y: 1 }
     expect(applyMatrix(multiplyMatrix(scale, move), p)).toEqual({ x: 12, y: 7 })
+    const rotate90: Matrix = [0, 1, -1, 0, 0, 0]
+    expect(applyMatrix(multiplyMatrix(rotate90, move), { x: 1, y: 0 })).toEqual({
+      x: 10,
+      y: 6,
+    })
   })
 })
