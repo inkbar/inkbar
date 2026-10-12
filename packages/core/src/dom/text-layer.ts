@@ -20,6 +20,8 @@ export interface TextLayerOptions {
    * exception is rethrown asynchronously; `ready` still resolves.
    */
   onError?(error: unknown): void
+  /** The layer mounted, or applied an `update`, without error. */
+  onRendered?(): void
 }
 
 export interface TextLayerHandle {
@@ -65,8 +67,8 @@ export function createTextLayer(opts: TextLayerOptions): TextLayerHandle {
     }
   }
 
-  let ready: Promise<void> = (async () => {
-    const { pdfPage, viewport } = await viewportFor(opts.transform)
+  const mount = async (transform: PageTransform): Promise<void> => {
+    const { pdfPage, viewport } = await viewportFor(transform)
     if (abort.signal.aborted) return
     mounted = await mountPdfjsTextLayer({
       module: doc._pdfjs.module,
@@ -75,7 +77,10 @@ export function createTextLayer(opts: TextLayerOptions): TextLayerHandle {
       viewport,
       signal: abort.signal,
     })
-  })().catch(report)
+    if (!abort.signal.aborted) opts.onRendered?.()
+  }
+
+  let ready: Promise<void> = mount(opts.transform).catch(report)
 
   return {
     element: el,
@@ -86,9 +91,17 @@ export function createTextLayer(opts: TextLayerOptions): TextLayerHandle {
       if (abort.signal.aborted) return
       ready = ready
         .then(async () => {
-          if (abort.signal.aborted || !mounted) return
+          if (abort.signal.aborted) return
+          // A mount that failed is tried again, so the layer can recover with the page.
+          if (!mounted) {
+            el.replaceChildren()
+            await mount(transform)
+            return
+          }
           const { viewport } = await viewportFor(transform)
-          if (!abort.signal.aborted) mounted.update(viewport)
+          if (abort.signal.aborted) return
+          mounted.update(viewport)
+          opts.onRendered?.()
         })
         .catch(report)
     },

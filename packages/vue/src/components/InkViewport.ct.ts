@@ -225,6 +225,31 @@ test('a page error clears when a later render of the same mount succeeds', async
   await expect(second).not.toHaveAttribute('data-state', 'error')
 })
 
+test('a text layer failure keeps the page error even though the canvas renders', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(ViewportHarness, {
+    props: { src: fixtureUrl('text-simple'), assets, zoom: 0.5, failText: 1 },
+  })
+  const second = cmp.locator('.ink-page[data-page="1"]')
+  await expect(second.locator('canvas[data-ink-canvas]')).toBeVisible()
+  await expect(second.locator('[data-ink-page-error]')).toBeVisible()
+  await expect(second).toHaveAttribute('data-state', 'error')
+  // A canvas re-render succeeds; the text layer has not recovered, so the error stays.
+  await page.locator('[data-ink-scroll]').focus()
+  await page.keyboard.press('+')
+  await expect(second).toHaveCSS('width', `${612 * 0.625}px`)
+  await expect(second.locator('canvas[data-ink-canvas]')).toBeVisible()
+  await page.waitForTimeout(300)
+  await expect(second.locator('[data-ink-page-error]')).toBeVisible()
+  await expect(second).toHaveAttribute('data-state', 'error')
+  await expect(cmp.locator('.ink-page[data-page="0"]')).not.toHaveAttribute(
+    'data-state',
+    'error'
+  )
+})
+
 test('shows the PasswordRequired code for an encrypted file', async ({ mount }) => {
   const cmp = await mount(ViewportHarness, {
     props: { src: fixtureUrl('encrypted-aes'), assets, zoom: 1 },

@@ -10,11 +10,17 @@
  * in order, so the elements already exist when the list arrives here.
  *
  * A page whose canvas or text layer fails gets `data-state="error"` on its host and the
- * `page-error` slot teleported into it; the other pages and the viewport carry on. A later
- * render that succeeds (a zoom change, or the next mount of the page) clears it.
+ * `page-error` slot teleported into it; the other pages and the viewport carry on. It clears
+ * once every layer that failed (canvas, text layer) has since succeeded, for example after a
+ * zoom change, or on the next mount of the page.
  */
 import { InkError, isInkError } from '@inkbar/core'
-import { createPageMount, type PageMount, type PageTransform } from '@inkbar/core/dom'
+import {
+  createPageMount,
+  type PageLayer,
+  type PageMount,
+  type PageTransform,
+} from '@inkbar/core/dom'
 import { onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
 
 import { injectInkContext } from '../context'
@@ -45,9 +51,12 @@ const mount = shallowRef<PageMount | null>(null)
 const targets = shallowRef<{ annotation: Annotation; el: HTMLElement }[]>([])
 let stopList: (() => void) | undefined
 const pageError = shallowRef<InkError | null>(null)
+/** Layers that have failed and not yet recovered; the error clears when this empties. */
+const failedLayers = new Set<PageLayer>()
 
 /** The first failure wins: a canvas and a text layer failing together report one error. */
-function onPageError(cause: unknown): void {
+function onPageError(cause: unknown, layer: PageLayer): void {
+  failedLayers.add(layer)
   if (pageError.value) return
   pageError.value = isInkError(cause)
     ? cause
@@ -60,8 +69,9 @@ function onPageError(cause: unknown): void {
   props.host.setAttribute('data-state', 'error')
 }
 
-function onPageRendered(): void {
-  if (!pageError.value) return
+function onPageRendered(layer: PageLayer): void {
+  failedLayers.delete(layer)
+  if (!pageError.value || failedLayers.size > 0) return
   pageError.value = null
   props.host.removeAttribute('data-state')
 }
@@ -109,6 +119,7 @@ onBeforeUnmount(() => {
   mount.value = null
   if (pageError.value) props.host.removeAttribute('data-state')
   pageError.value = null
+  failedLayers.clear()
 })
 
 defineExpose({ mount })

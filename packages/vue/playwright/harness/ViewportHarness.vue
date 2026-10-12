@@ -19,6 +19,8 @@ const props = defineProps<{
   tool?: ToolId | undefined
   /** Zero-based page whose page lookups reject until the Heal button is pressed. */
   failPage?: number | undefined
+  /** Zero-based page whose text content fails to load (its canvas still renders). */
+  failText?: number | undefined
 }>()
 const emit = defineEmits<{ 'update:zoom': [z: ZoomValue]; 'update:page': [p: number] }>()
 const clicks = ref(0)
@@ -31,13 +33,23 @@ function heal(): void {
 }
 function onReady(doc: InkDocument): void {
   const target = props.failPage
-  if (target === undefined) return
+  const textTarget = props.failText
+  if (target === undefined && textTarget === undefined) return
   const handles = doc._pdfjs
   const original = handles.getPage.bind(handles)
-  handles.getPage = (index) =>
-    failing && index === target
-      ? Promise.reject(new Error('The page could not be drawn by the engine'))
-      : original(index)
+  handles.getPage = async (index) => {
+    if (failing && index === target)
+      throw new Error('The page could not be drawn by the engine')
+    const page = await original(index)
+    // Only the text layer streams text content: failing the stream fails that layer alone.
+    if (index === textTarget) {
+      page.streamTextContent = () =>
+        new ReadableStream({
+          start: (controller) => controller.error(new Error('No text from the engine')),
+        })
+    }
+    return page
+  }
 }
 </script>
 
