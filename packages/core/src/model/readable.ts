@@ -4,22 +4,25 @@ export interface Readable<T> {
 }
 
 export interface Writable<T> extends Readable<T> {
-  set(value: T): void
-  update(fn: (value: T) => T): void
+  set(this: void, value: T): void
+  /** Safe to call detached (`const { update } = store`). */
+  update(this: void, fn: (value: T) => T): void
 }
 
 export function writable<T>(initial: T): Writable<T> {
   let value = initial
   const subs = new Set<(v: T) => void>()
+  // Not `this.set`: `update` must work detached, e.g. `const { update } = store`.
+  const set = (next: T): void => {
+    if (Object.is(next, value)) return
+    value = next
+    for (const fn of [...subs]) fn(value)
+  }
   return {
     get: () => value,
-    set(next) {
-      if (Object.is(next, value)) return
-      value = next
-      for (const fn of [...subs]) fn(value)
-    },
+    set,
     update(fn) {
-      this.set(fn(value))
+      set(fn(value))
     },
     subscribe(fn) {
       subs.add(fn)

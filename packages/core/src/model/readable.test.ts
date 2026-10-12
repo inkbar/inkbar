@@ -17,6 +17,13 @@ describe('readable', () => {
     expect(w.get()).toBe(4)
   })
 
+  it('update works detached from the store', () => {
+    const w = writable(1)
+    const { update } = w
+    update((v) => v + 1)
+    expect(w.get()).toBe(2)
+  })
+
   it('derived recomputes from its source', () => {
     const w = writable({ a: 1 })
     const d = derived(w, (v) => v.a * 10)

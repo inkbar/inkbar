@@ -109,6 +109,31 @@ describe('createPageRenderer', () => {
     expect(await firstOutcome).toBe('RenderingCancelledException')
   })
 
+  it('zeroes a canvas it replaces or drops, so its bitmap is freed at once', async () => {
+    const doc = await openFixtureInBrowser('text-simple')
+    const host = mountContainer(612, 792)
+    const r = createPageRenderer({
+      document: doc,
+      page: 0,
+      host,
+      transform: createPageTransform(doc.pages[0]!, 1, 0),
+      devicePixelRatio: 1,
+    })
+    cleanup.push(() => (doc.destroy(), host.remove()))
+    await r.rendered
+    const first = canvasIn(host)!
+    expect(first.width).toBe(612)
+    r.update(createPageTransform(doc.pages[0]!, 2, 0))
+    await r.rendered
+    const second = canvasIn(host)!
+    expect(second).not.toBe(first)
+    expect([first.width, first.height]).toEqual([0, 0])
+    expect(first.isConnected).toBe(false)
+    expect(second.width).toBe(1224)
+    r.destroy()
+    expect([second.width, second.height]).toEqual([0, 0])
+  })
+
   it('follows window.devicePixelRatio when none is given', async () => {
     const original = Object.getOwnPropertyDescriptor(window, 'devicePixelRatio')
     const setDpr = (value: number) =>

@@ -66,6 +66,16 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
     resolvePending = undefined
   }
 
+  /**
+   * Drops a canvas for good. Zeroing it frees its bitmap now rather than at garbage
+   * collection; Safari caps the total canvas memory, which a long scroll would otherwise hit.
+   */
+  function release(canvas: HTMLCanvasElement): void {
+    canvas.width = 0
+    canvas.height = 0
+    canvas.remove()
+  }
+
   function sizeCanvas(canvas: HTMLCanvasElement, transform: PageTransform) {
     canvas.style.width = `${transform.cssWidth}px`
     canvas.style.height = `${transform.cssHeight}px`
@@ -83,6 +93,7 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
     }
     // The previous bitmap stays visible, stretched to the new size, until the new one lands.
     if (current) sizeCanvas(current, transform)
+    let canvas: HTMLCanvasElement | undefined
     try {
       const pdfPage = await doc._pdfjs.getPage(page)
       if (destroyed || gen !== generation) return
@@ -91,7 +102,7 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
         scale: transform.zoom,
         rotation: transform.totalRotation,
       })
-      const canvas = host.ownerDocument.createElement('canvas')
+      canvas = host.ownerDocument.createElement('canvas')
       canvas.dataset.inkCanvas = ''
       canvas.setAttribute('aria-hidden', 'true')
       canvas.width = Math.round(transform.cssWidth * dpr)
@@ -109,12 +120,16 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
       task = ownTask
       await ownTask.promise
       if (task === ownTask) task = undefined
-      if (destroyed || gen !== generation) return
-      current?.remove()
+      if (destroyed || gen !== generation) {
+        release(canvas)
+        return
+      }
+      if (current) release(current)
       current = canvas
       wrapper.append(canvas)
       opts.onRendered?.()
     } catch (error) {
+      if (canvas && canvas !== current) release(canvas)
       const superseded = destroyed || gen !== generation
       if (!(superseded && isCancellation(error)) && !destroyed) opts.onError?.(error)
     } finally {
@@ -174,6 +189,8 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
       clearRechecks()
       task?.cancel()
       task = undefined
+      if (current) release(current)
+      current = undefined
       wrapper.remove()
       settle()
     },
