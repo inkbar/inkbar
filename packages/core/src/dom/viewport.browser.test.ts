@@ -296,6 +296,30 @@ describe('createViewport', () => {
     await until(() => mounted.has(2))
   })
 
+  it('lays out the current page when switching from continuous to single mode', async () => {
+    const { container, viewport, mounted } = await setup()
+    container.scrollTop = viewport.layout.get().boxes[2]!.top
+    await until(() => viewport.currentPage.get() === 2)
+    viewport.setMode('single')
+    expect(viewport.currentPage.get()).toBe(2)
+    expect(viewport.layout.get().boxes.map((b) => b.index)).toEqual([2])
+    await until(() => mounted.size === 1)
+    expect([...mounted.keys()]).toEqual([2])
+    const hosts = container.querySelectorAll<HTMLElement>('div.ink-page[data-page]')
+    expect([...hosts].map((h) => h.dataset.page)).toEqual(['2'])
+  })
+
+  it('uses a scroll whose frame has not run yet when switching to single mode', async () => {
+    const { container, viewport } = await setup()
+    // No await: the scroll handler's frame is still pending when the mode changes.
+    container.scrollTop = viewport.layout.get().boxes[2]!.top
+    viewport.setMode('single')
+    expect(viewport.currentPage.get()).toBe(2)
+    expect(viewport.layout.get().boxes.map((b) => b.index)).toEqual([2])
+    await settle()
+    expect(container.querySelector<HTMLElement>('div.ink-page')?.dataset.page).toBe('2')
+  })
+
   it('sets --total-scale-factor to zoom times /UserUnit and --scale-factor to the zoom', async () => {
     const { doc, viewport, mounted } = await setup('userunit-2')
     expect(doc.pages[0]!.userUnit).toBe(2)

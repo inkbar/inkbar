@@ -342,7 +342,9 @@ export function createViewport(opts: ViewportOptions): Viewport {
     },
     setMode(m) {
       if (m === mode.get()) return
-      // relayout() re-derives the current page from the old scroll position; keep the selection.
+      // Catch up with a scroll whose frame has not run yet, then keep that page: relayout()
+      // re-derives the current page from the scroll position, which the new mode changes.
+      if (mode.get() === 'continuous') sync()
       const page = currentPage.get()
       mode.set(m)
       relayout()
@@ -355,7 +357,8 @@ export function createViewport(opts: ViewportOptions): Viewport {
       const page = Math.max(0, Math.min(doc.pages.length - 1, index))
       const behavior = o?.behavior ?? 'auto'
       if (mode.get() === 'single') {
-        if (page !== currentPage.get()) {
+        // Also relayout when the layout shows another page, even if currentPage already matches.
+        if (page !== currentPage.get() || layout.get().boxes[0]?.index !== page) {
           currentPage.set(page)
           relayout()
         }
