@@ -503,11 +503,21 @@ describe('createOverlay', () => {
     expect(store.selection.get()).toEqual([])
     expect(onActivate).not.toHaveBeenCalled()
 
+    const onOverlayRoot = vi.fn()
+    overlay.element.addEventListener('pointerdown', onOverlayRoot)
     button.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
     expect(store.selection.get()).toEqual([])
     expect(onActivate).not.toHaveBeenCalled()
-    // Still kept from the page root, so a creation tool does not start a drag there.
-    expect(onRoot).not.toHaveBeenCalled()
+    // The press bubbles on, so delegated handlers above the slot content see it.
+    expect(onOverlayRoot).toHaveBeenCalledTimes(1)
+    expect(onRoot).toHaveBeenCalledTimes(1)
+
+    // A press on the element itself is still kept from the page root.
+    el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
+    expect(store.selection.get()).toEqual([a.id])
+    expect(onRoot).toHaveBeenCalledTimes(1)
+    store.select([])
+    onActivate.mockClear()
 
     // The element itself still behaves as before.
     el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
