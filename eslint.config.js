@@ -43,7 +43,7 @@ export default defineConfig(
             { name: 'pdfjs-dist', message: 'Import PDF.js only inside src/pdfjs/.' },
             { name: '#pdfjs', message: 'Import PDF.js only inside src/pdfjs/.' },
           ],
-          patterns: ['pdfjs-dist/*'],
+          patterns: ['pdfjs-dist/**'],
         },
       ],
     },
