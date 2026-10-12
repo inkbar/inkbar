@@ -339,9 +339,11 @@ export function createViewport(opts: ViewportOptions): Viewport {
     },
     setMode(m) {
       if (m === mode.get()) return
+      // relayout() re-derives the current page from the old scroll position; keep the selection.
+      const page = currentPage.get()
       mode.set(m)
       relayout()
-      viewport.scrollToPage(currentPage.get())
+      viewport.scrollToPage(page)
     },
     setRotation(r) {
       withAnchor(undefined, () => rotation.set(r))

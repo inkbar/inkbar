@@ -282,6 +282,20 @@ describe('createViewport', () => {
     expect(container.scrollTop).toBe(0)
   })
 
+  it('keeps the selected page when switching from single to continuous mode', async () => {
+    const { container, viewport, mounted } = await setup()
+    viewport.setMode('single')
+    viewport.scrollToPage(2)
+    await settle()
+    expect(viewport.currentPage.get()).toBe(2)
+    viewport.setMode('continuous')
+    expect(viewport.currentPage.get()).toBe(2)
+    await settle()
+    expect(viewport.currentPage.get()).toBe(2)
+    expect(container.scrollTop).toBe(viewport.layout.get().boxes[2]!.top - GAP)
+    await until(() => mounted.has(2))
+  })
+
   it('rotation swaps page dimensions', async () => {
     const { doc, viewport, mounted } = await setup()
     const upright = createPageTransform(doc.pages[0]!, 1, 0)

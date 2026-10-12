@@ -70,6 +70,27 @@ describe('computeCssLayout', () => {
     expect(l.width).toBe(792)
   })
 
+  it('handles a very large document without spreading page widths into Math.max', () => {
+    const many = Array.from({ length: 200_000 }, (_, i) => letter(i))
+    many[123_456] = {
+      ...letter(123_456),
+      box: { x: 0, y: 0, width: 1000, height: 792 },
+      width: 1000,
+    }
+    const l = computeCssLayout({
+      pages: many,
+      zoom: 1,
+      rotation: 0,
+      gap: 0,
+      mode: 'continuous',
+      current: 0,
+      containerWidth: 800,
+    })
+    expect(l.boxes).toHaveLength(200_000)
+    expect(l.width).toBe(1000)
+    expect(l.height).toBe(200_000 * 792)
+  })
+
   it('combines the page /Rotate with the view rotation', () => {
     const rotated: PageInfo = { ...letter(0), rotate: 90 }
     const l = computeCssLayout({
