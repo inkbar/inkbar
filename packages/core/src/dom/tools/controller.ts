@@ -124,8 +124,14 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
   /** Pointers whose release belongs to a tool that is no longer active. */
   const swallow = new Set<number>()
 
+  /** True for events from a pointer other than the one whose press is live. */
+  const foreign = (e: PointerEvent): boolean =>
+    pressed !== undefined && pressed !== e.pointerId
+
   const onDown = (e: PointerEvent): void => {
     if (!e.isPrimary || e.button !== 0 || inCustomContent(e.target)) return
+    // One gesture at a time: a second pointer pressing mid-gesture is ignored.
+    if (foreign(e)) return
     swallow.delete(e.pointerId)
     pressed = e.pointerId
     const target = e.target instanceof Element ? e.target : null
@@ -135,10 +141,14 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
       capture(e.pointerId)
   }
   const onMove = (e: PointerEvent): void => {
-    if (e.isPrimary) current?.onPointerMove?.(e, hitFor(ctx, e))
+    if (!e.isPrimary || foreign(e)) return
+    // A buttonless move means the release was missed: the press is over (tools drop their
+    // own gesture on the same signal), so another pointer may press again.
+    if (pressed === e.pointerId && e.buttons === 0) pressed = undefined
+    current?.onPointerMove?.(e, hitFor(ctx, e))
   }
   const onUp = (e: PointerEvent): void => {
-    if (!e.isPrimary || e.button !== 0) return
+    if (!e.isPrimary || e.button !== 0 || foreign(e)) return
     if (pressed === e.pointerId) pressed = undefined
     if (swallow.delete(e.pointerId)) {
       release(e.pointerId)
@@ -148,7 +158,7 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     release(e.pointerId)
   }
   const onCancel = (e: PointerEvent): void => {
-    if (!e.isPrimary) return
+    if (!e.isPrimary || foreign(e)) return
     // Capture is also lost when a completed release frees it: only a live press cancels.
     if (e.type === 'lostpointercapture' && pressed !== e.pointerId) return
     if (pressed === e.pointerId) pressed = undefined

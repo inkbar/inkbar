@@ -613,6 +613,29 @@ describe('controller and gesture edges', () => {
     expect(window.getSelection()!.isCollapsed).toBe(false)
   })
 
+  it('ignores a second pointer while a gesture is live', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('redact-area')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointermove', h.left + 160, h.top + 140)
+    const drafts = () => container.querySelectorAll('[data-ink-draft="redact"]')
+    expect(drafts()).toHaveLength(1)
+    const draft = drafts()[0] as HTMLElement
+    const before = draft.style.cssText
+    pointer(container, 'pointerdown', h.left + 300, h.top + 300, { pointerId: 2 })
+    pointer(container, 'pointermove', h.left + 350, h.top + 350, { pointerId: 2 })
+    expect(drafts()).toHaveLength(1)
+    expect(draft.style.cssText).toBe(before)
+    pointer(container, 'pointerup', h.left + 350, h.top + 350, { pointerId: 2 })
+    expect(doc.annotations.list.get()).toEqual([])
+    expect(draft.isConnected).toBe(true)
+    pointer(container, 'pointerup', h.left + 160, h.top + 140)
+    const list = doc.annotations.list.get()
+    expect(list).toHaveLength(1)
+    expect(list[0]!.rect).toEqual({ x: 100, y: 652, width: 60, height: 40 })
+  })
+
   it('note: a cancelled press adds nothing on a later release', async () => {
     const { doc, container, viewport, tools } = await setup()
     tools.set('note')
