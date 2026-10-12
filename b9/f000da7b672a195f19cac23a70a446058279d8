@@ -1,0 +1,32 @@
+packages/theme/README.md
+  s_a8095ef648b42d::t_841ef5b48a9ce2 3-9
+.github/workflows/release.yml
+  s_a8095ef648b42d::t_853ac0b9727e30 1-38,40-48
+  s_a8095ef648b42d::t_bde1682fa1bcc5 39
+.release-it.mjs
+  s_a8095ef648b42d::t_853ac0b9727e30 1-35
+packages/core/README.md
+  s_a8095ef648b42d::t_841ef5b48a9ce2 3,9-32
+  s_a8095ef648b42d::t_728977354df63d 33
+packages/vue/README.md
+  s_a8095ef648b42d::t_841ef5b48a9ce2 1-60
+README.md
+  s_a8095ef648b42d::t_841ef5b48a9ce2 17-24,34-43
+  s_a8095ef648b42d::t_2ac3a40b603422 44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b9f000da7b672a195f19cac23a70a446058279d8",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
