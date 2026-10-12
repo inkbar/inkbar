@@ -1,0 +1,21 @@
+packages/vue/src/ref-history.ts
+  s_a8095ef648b42d::t_555f93909b5622 1,15-16,22-24,28-29,31-32,34-48,65,68,76,80-96,98-120
+packages/vue/src/ref-history.test.ts
+  s_a8095ef648b42d::t_87c8b857ec9f26 1-118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "780707f705bbc184f39afd0491169c692686e1de",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
