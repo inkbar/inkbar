@@ -106,10 +106,31 @@ function bounds(pts: readonly Point[]): Rect {
   return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y }
 }
 
-function changeKey(change: AnnotationChange): string {
-  if (change.kind === 'replace') return 'replace'
-  if (change.kind === 'update') return change.id
-  return change.annotation.id
+/** Pending-map key; only annotation changes are tracked, and the prefix keeps ids apart from any other slot. */
+function changeKey(change: Exclude<AnnotationChange, { kind: 'replace' }>): string {
+  return `annotation:${change.kind === 'update' ? change.id : change.annotation.id}`
+}
+
+/** Structural equality for plain JSON values, ignoring `modifiedAt` at the top level. */
+function sameIgnoringModifiedAt(a: Annotation, b: Annotation): boolean {
+  const { modifiedAt: _a, ...restA } = a
+  const { modifiedAt: _b, ...restB } = b
+  return deepEqual(restA, restB)
+}
+
+function deepEqual(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null)
+    return false
+  if (Array.isArray(a) !== Array.isArray(b)) return false
+  const ka = Object.keys(a)
+  const kb = Object.keys(b)
+  if (ka.length !== kb.length) return false
+  return ka.every(
+    (k) =>
+      Object.prototype.hasOwnProperty.call(b, k) &&
+      deepEqual((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k])
+  )
 }
 
 function isApplied(change: AnnotationChange, current: readonly Annotation[]): boolean {
@@ -118,10 +139,12 @@ function isApplied(change: AnnotationChange, current: readonly Annotation[]): bo
       return current.some((a) => a.id === change.annotation.id)
     case 'remove':
       return !current.some((a) => a.id === change.annotation.id)
-    case 'update':
-      return (
-        current.find((a) => a.id === change.id)?.modifiedAt === change.after.modifiedAt
-      )
+    case 'update': {
+      const mine = current.find((a) => a.id === change.id)
+      if (!mine) return false
+      // A host or server may re-stamp modifiedAt, so fall back to a structural match.
+      return mine === change.after || sameIgnoringModifiedAt(mine, change.after)
+    }
     case 'replace':
       return true
   }
@@ -144,11 +167,12 @@ interface Pending {
 export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
   const now = opts.now ?? (() => new Date().toISOString())
   const nextId = opts.id ?? (() => uuidv7())
-  const list = writable<readonly Annotation[]>(opts.mode.initial ?? [])
+  const list = writable<readonly Annotation[]>([...(opts.mode.initial ?? [])])
   const selection = writable<readonly string[]>([])
   const emitter = new Emitter<{ change: AnnotationChange }>()
   const controlled = opts.mode.mode === 'controlled' ? opts.mode : undefined
   const pending = new Map<string, Pending>()
+  let destroyed = false
 
   function completeInput(input: AnnotationInput): Annotation {
     const ts = now()
@@ -193,14 +217,16 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
 
   function commit(next: readonly Annotation[], change: AnnotationChange): void {
     if (controlled) {
-      const key = changeKey(change)
-      clearPending(key)
-      // A macrotask, so hosts that apply the change a microtask or two later (Vue's
-      // v-model) reach setControlledValue before the check runs.
-      const timer = setTimeout(() => {
-        warnIfIgnored(key)
-      }, 0)
-      pending.set(key, { change, timer })
+      if (change.kind !== 'replace') {
+        const key = changeKey(change)
+        clearPending(key)
+        // A macrotask, so hosts that apply the change a microtask or two later (Vue's
+        // v-model) reach setControlledValue before the check runs.
+        const timer = setTimeout(() => {
+          warnIfIgnored(key)
+        }, 0)
+        pending.set(key, { change, timer })
+      }
       controlled.onChange([...next], change)
       return
     }
@@ -224,12 +250,13 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
     completeInput,
     add(input) {
       const a = completeInput(input)
+      if (destroyed) return a
       commit([...list.get(), a], { kind: 'add', annotation: a })
       return a
     },
     update(id, patch) {
       const before = store.get(id)
-      if (!before) return undefined
+      if (destroyed || !before) return undefined
       if (before.locked && Object.keys(patch).some((k) => LOCKED_KEYS.has(k)))
         return undefined
       const after = AnnotationSchema.parse({
@@ -249,7 +276,7 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
     },
     remove(id) {
       const target = store.get(id)
-      if (!target) return false
+      if (destroyed || !target) return false
       const doomed = new Set<string>([id])
       let grew = true
       while (grew) {
@@ -270,13 +297,17 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
       const known = new Set(list.get().map((a) => a.id))
       selection.set(ids.filter((id) => known.has(id)))
     },
-    replaceAll(next, reason) {
+    replaceAll(list, reason) {
+      if (destroyed) return
+      const next = [...list]
       commit(next, { kind: 'replace', reason })
       if (!controlled) pruneSelection(next)
     },
-    setControlledValue(next) {
+    setControlledValue(value) {
       if (!controlled)
         throw new TypeError('setControlledValue is only valid in controlled mode')
+      if (destroyed) return
+      const next = [...value]
       list.set(next)
       for (const [key, entry] of [...pending]) {
         if (isApplied(entry.change, next)) clearPending(key)
@@ -286,6 +317,7 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
     },
     on: (event, fn) => emitter.on(event, fn),
     destroy() {
+      destroyed = true
       for (const key of [...pending.keys()]) clearPending(key)
       emitter.clear()
     },
