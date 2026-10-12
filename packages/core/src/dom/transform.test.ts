@@ -34,10 +34,12 @@ describe('createPageTransform', () => {
     'text-rotated-90',
     'text-rotated-270',
     'cropbox-offset',
+    'userunit-2',
   ] as const)('%s matches PDF.js viewport for every rotation and zoom', async (name) => {
     const doc = await openDocument(await fixtureBytes(name), { assets: nodeAssets() })
     await doc.ready
     const page = doc.pages[0]!
+    if (name === 'userunit-2') expect(page.userUnit).toBe(2)
     const proxy = await doc._pdfjs.getPage(0)
     for (const rotation of ROTATIONS) {
       for (const zoom of [0.5, 1, 1.333, 3]) {
@@ -170,7 +172,7 @@ describe('createPageTransform', () => {
     })
   })
 
-  it('converts lengths by zoom only', () => {
+  it('converts lengths by zoom times userUnit', () => {
     const page: PageInfo = {
       index: 0,
       box: { x: 0, y: 0, width: 100, height: 100 },
@@ -182,5 +184,9 @@ describe('createPageTransform', () => {
     const t = createPageTransform(page, 1.5, 90)
     expect(t.toCssLength(12)).toBe(18)
     expect(t.fromCssLength(18)).toBe(12)
+    const u = createPageTransform({ ...page, userUnit: 2 }, 1.5, 0)
+    expect(u.toCssLength(12)).toBe(36)
+    expect(u.fromCssLength(36)).toBe(12)
+    expect(u.cssWidth).toBe(300)
   })
 })
