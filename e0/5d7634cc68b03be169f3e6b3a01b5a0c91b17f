@@ -1,0 +1,107 @@
+packages/vue/src/use-readable.ts
+  s_a8095ef648b42d::t_ffb9746093030a 7
+  s_a8095ef648b42d::t_6d5d4ae55c288c 1-6,8-40
+eslint.config.js
+  s_a8095ef648b42d::t_c4e2de0475fe8c 19
+packages/vue/src/composables/useSelection.ts
+  s_a8095ef648b42d::t_e644e5152fa856 1-10
+packages/vue/playwright/harness/ControlledHost.vue
+  s_a8095ef648b42d::t_fe9889ece94921 1-21
+packages/vue/src/composables/composables.test.ts
+  s_a8095ef648b42d::t_25081ef736464f 1-27
+packages/vue/src/composables/usePage.ts
+  s_a8095ef648b42d::t_e644e5152fa856 1-21
+packages/vue/src/ssr.test.ts
+  s_a8095ef648b42d::t_b5aa0f9ed9ab4c 9-10
+  s_a8095ef648b42d::t_5b0501e784f1db 11,13
+  s_a8095ef648b42d::t_25081ef736464f 1-8,12,14-60
+packages/vue/src/composables/useEmbedded.ts
+  s_a8095ef648b42d::t_e644e5152fa856 1-13
+packages/vue/src/ref-history.ts
+  s_a8095ef648b42d::t_652aada7d366f0 1-76
+packages/vue/src/composables/useZoom.ts
+  s_a8095ef648b42d::t_e644e5152fa856 1-17
+packages/vue/src/components/InkRoot.ct.ts
+  s_a8095ef648b42d::t_af31b0c2d2f1f9 10-11,120,125,143,145
+  s_a8095ef648b42d::t_46539921472a21 1-4,6-9,12-23,25-37,39-54,57-61,65,67,69-70,72-76,78-80,82-87,90-91,93-100,102-108,110-119,121-124,126-142,146-159,161-168,170-172,175-203,205-236,238-244
+  s_a8095ef648b42d::t_cd062c5a2c31c6 5,62,64,66,71,77,81,173-174
+  s_a8095ef648b42d::t_32ae3a2ae1991b 88-89,92,101,109
+  s_a8095ef648b42d::t_425c795f5ca0cf 55-56
+  s_a8095ef648b42d::t_8a600b1fd587be 24,38,63,68,144,160,169,204,237
+packages/vue/playwright-ct.config.ts
+  s_a8095ef648b42d::t_6be54c9de3e980 19
+  s_a8095ef648b42d::t_9711b6da67bce5 1-4,9-18,20,28
+  s_a8095ef648b42d::t_933fb1875d6ce7 5-8
+  s_a8095ef648b42d::t_8ac3eb9cdb920a 21-27
+packages/vue/playwright/index.ts
+  s_a8095ef648b42d::t_4ce6fb8c38110d 1
+  s_a8095ef648b42d::t_633d0fc217f3c6 2
+packages/vue/package.json
+  s_a8095ef648b42d::t_060bb68cccc2b4 1-21,23-37,39-46
+  s_a8095ef648b42d::t_6db55e96a34975 38
+  s_a8095ef648b42d::t_c9ce2ed5e7e0a2 22
+packages/vue/playwright/harness/EventHost.vue
+  s_a8095ef648b42d::t_cd062c5a2c31c6 1-7,13-19,26-28
+  s_a8095ef648b42d::t_b62d401cb6a8e2 8-12,20-25
+packages/vue/src/use-readable.test.ts
+  s_a8095ef648b42d::t_4ce6fb8c38110d 1-38
+pnpm-lock.yaml
+  s_a8095ef648b42d::t_afb11823a5be2a 305,316-358,365-368,373-381,691-704,859-870,1059-1072,1184-1192,1205-1215,1273-1275,1455-1461,1498-1523,1536-1566,1656-1658,1674-1677,1795-1797,1887-1889,1962-1965,2123-2125,2264-2266,2450-2452,2576-2581,2586-2588,2633-2635,2742-2744,2931-2935,3251-3284,3309-3322,3407-3409,3416-3429,3434-3436,3541-3542,3545-3553,3878-3894,4030-4047,4215-4257,4325-4330,4339-4349,4394-4395,4557-4562,4625-4668,4682-4728,4789-4790,4801-4804,4911-4912,5007-5008,5056-5057,5255-5256,5396-5397,5544-5545,5641-5644,5647-5650,5689-5690,5816-5817,5938-5950,6000,6010-6011,6013,6173,6183,6255-6281,6326-6339,6378-6379,6392-6407,6410-6411
+packages/vue/src/components/InkRoot.vue
+  s_a8095ef648b42d::t_62d7749f13259f 85,184,235,250
+  s_a8095ef648b42d::t_e644e5152fa856 1-84,86-183,185-234,236-249,251-267
+packages/vue/src/composables/useDocument.ts
+  s_a8095ef648b42d::t_e644e5152fa856 1-12,15-22
+  s_a8095ef648b42d::t_546c935eee168e 13-14
+packages/vue/src/index.ts
+  s_a8095ef648b42d::t_e644e5152fa856 1-12
+packages/vue/vitest.config.ts
+  s_a8095ef648b42d::t_9711b6da67bce5 2-4,6-8,10-18
+  s_a8095ef648b42d::t_25081ef736464f 1,5,9
+packages/vue/src/composables/useAnnotations.ts
+  s_a8095ef648b42d::t_8723ffa09b3947 29
+  s_a8095ef648b42d::t_e644e5152fa856 1-28,30-32
+packages/vue/vite.config.ts
+  s_a8095ef648b42d::t_9711b6da67bce5 1-19,25-27
+  s_a8095ef648b42d::t_b62d401cb6a8e2 20-24
+packages/vue/src/composables/useTool.ts
+  s_a8095ef648b42d::t_e644e5152fa856 1-8
+packages/vue/tsconfig.json
+  s_a8095ef648b42d::t_9711b6da67bce5 1-2,10
+  s_a8095ef648b42d::t_b051dede12d1e6 8
+  s_a8095ef648b42d::t_b62d401cb6a8e2 3-7
+  s_a8095ef648b42d::t_af31b0c2d2f1f9 9
+packages/vue/playwright/index.html
+  s_a8095ef648b42d::t_9711b6da67bce5 1-12
+packages/vue/playwright/harness.css
+  s_a8095ef648b42d::t_633d0fc217f3c6 1-9
+packages/vue/src/context.ts
+  s_a8095ef648b42d::t_0a97b7a821521c 1,3-13,17-44
+  s_a8095ef648b42d::t_4b77c3681d065e 14-16
+  s_a8095ef648b42d::t_652aada7d366f0 2,45-57
+packages/vue/playwright/harness/UncontrolledHost.vue
+  s_a8095ef648b42d::t_fe9889ece94921 1-15
+packages/vue/src/composables/useHistory.ts
+  s_a8095ef648b42d::t_e644e5152fa856 1-11
+.gitignore
+  s_a8095ef648b42d::t_8723ffa09b3947 12
+packages/vue/playwright/harness/ComposableProbe.vue
+  s_a8095ef648b42d::t_b62d401cb6a8e2 43-45
+  s_a8095ef648b42d::t_fe9889ece94921 1-42,46-48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e05d7634cc68b03be169f3e6b3a01b5a0c91b17f",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": null
+    }
+  }
+}
