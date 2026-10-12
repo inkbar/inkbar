@@ -19,6 +19,13 @@
       "types": "./dist/dom.d.mts",
       "default": "./dist/dom.mjs"
     },
+    "./vite": {
+      "types": "./dist/vite.d.mts",
+      "default": "./dist/vite.mjs"
+    },
+    "./vite/client": {
+      "types": "./dist/vite/client.d.ts"
+    },
     "./schema.json": "./schema.json",
     "./package.json": "./package.json"
   },
