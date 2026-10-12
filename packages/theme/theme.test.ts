@@ -83,7 +83,11 @@ describe('theme.css', () => {
   })
 
   it('defines the annotation colour tokens on the root', () => {
-    const rootRule = rules.find((r) => r.selector.startsWith(':where([data-ink-root]'))
+    const rootRule = rules.find(
+      (r) =>
+        r.selector.includes('[data-ink-root]') &&
+        r.nodes.some((d) => d.type === 'decl' && d.prop === '--ink-highlight')
+    )
     expect(rootRule).toBeDefined()
     const decls = new Set<string>()
     rootRule?.walkDecls((d) => {
@@ -156,6 +160,27 @@ describe('theme.css', () => {
         rules.some((r) => r.selector.includes(`[data-align='${align}']`)),
         align
       ).toBe(true)
+    }
+  })
+
+  it('never colours confidence label text with a suggestion colour, and shows it as a swatch', () => {
+    const label = rules.filter((r) => r.selector.includes('.ink-suggestion-confidence'))
+    const textColours = label.flatMap((r) =>
+      r.nodes.filter(
+        (d) =>
+          d.type === 'decl' && d.prop === 'color' && d.value.includes('--ink-suggestion-')
+      )
+    )
+    expect(textColours).toEqual([])
+    for (const bucket of ['low', 'medium', 'high']) {
+      const swatch = label.find(
+        (r) =>
+          r.selector ===
+          `:where(.ink-suggestion-confidence[data-confidence='${bucket}'])::before`
+      )
+      expect(swatch?.toString(), bucket).toMatch(
+        new RegExp(`background:\\s*var\\(--ink-suggestion-${bucket}\\)`)
+      )
     }
   })
 })
