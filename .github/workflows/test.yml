@@ -47,6 +47,7 @@ jobs:
           path: |
             packages/*/.vitest/attachments
             packages/*/test-results
+            apps/*/test-results
             packages/*/src/**/__screenshots__
           include-hidden-files: true
           if-no-files-found: ignore

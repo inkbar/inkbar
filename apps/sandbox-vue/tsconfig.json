@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "jsx": "preserve",
+    "types": ["node", "vite/client", "@inkbar/core/vite/client"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.vue", "e2e/**/*.ts"],
+  "vueCompilerOptions": { "strictTemplates": true, "dataAttributes": ["data-*"] }
+}

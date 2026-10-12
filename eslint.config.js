@@ -29,6 +29,8 @@ export default defineConfig(
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
       'tailwindcss/no-custom-classname': 'off',
+      // Vite plugins provide `virtual:` modules; their types come from reference declarations.
+      'import-x/no-unresolved': ['error', { ignore: ['^virtual:'] }],
     },
   },
   {
