@@ -739,4 +739,41 @@ describe('createOverlay', () => {
     expect(document.activeElement?.getAttribute('data-annotation')).toBe(bottom.id)
     expect(store.get(top.id)!.rect.y).toBe(700)
   })
+
+  it('draws corner handles on a selected, unlocked rect-shaped annotation only', () => {
+    const { store, host } = setup()
+    const area = store.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    const text = store.add({ type: 'redact', page: 0, quads })
+    const note = store.add({
+      type: 'note',
+      page: 0,
+      rect: { x: 10, y: 10, width: 20, height: 20 },
+    })
+    const handles = (id: string) =>
+      [...host.querySelectorAll(`[data-annotation="${id}"] > .ink-handle`)].map(
+        (h) => (h as HTMLElement).dataset.handle
+      )
+    expect(handles(area.id)).toEqual([])
+    store.select([area.id, text.id, note.id])
+    expect(handles(area.id)).toEqual(['nw', 'ne', 'sw', 'se'])
+    expect(handles(text.id)).toEqual([])
+    expect(handles(note.id)).toEqual([])
+    const se = host.querySelector(
+      `[data-annotation="${area.id}"] > [data-handle="se"]`
+    ) as HTMLElement
+    expect(se.style.pointerEvents).toBe('auto')
+    expect(se.style.width).toBe('8px')
+    // A redraw (new geometry) keeps them.
+    store.update(area.id, { rect: { x: 100, y: 600, width: 60, height: 30 } })
+    expect(handles(area.id)).toHaveLength(4)
+    store.update(area.id, { locked: true })
+    expect(handles(area.id)).toEqual([])
+    store.update(area.id, { locked: false })
+    store.select([])
+    expect(handles(area.id)).toEqual([])
+  })
 })

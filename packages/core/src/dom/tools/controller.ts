@@ -250,5 +250,11 @@ export function isViewportEnter(e: KeyboardEvent): boolean {
 function inCustomContent(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false
   const el = target.closest('[data-annotation]')
-  return el !== null && el !== target && el.hasAttribute('data-custom')
+  return (
+    el !== null &&
+    el !== target &&
+    el.hasAttribute('data-custom') &&
+    // Resize handles are the overlay's, not the host's content.
+    target.closest('[data-handle]') === null
+  )
 }

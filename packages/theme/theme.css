@@ -234,6 +234,26 @@
     background: color-mix(in srgb, var(--ink-redact) 15%, transparent);
   }
 
+  /* Resize handles on a selected area mark, text box or shape: shown with the select tool only. */
+  :where(.ink-handle) {
+    box-sizing: border-box;
+    border: 1px solid var(--ink-accent);
+    border-radius: 1px;
+    background: var(--ink-surface);
+  }
+
+  :where([data-ink-tool]:not([data-ink-tool='select']) .ink-handle) {
+    display: none;
+  }
+
+  :where(.ink-handle[data-handle='nw'], .ink-handle[data-handle='se']) {
+    cursor: nwse-resize;
+  }
+
+  :where(.ink-handle[data-handle='ne'], .ink-handle[data-handle='sw']) {
+    cursor: nesw-resize;
+  }
+
   /* Annotations */
   :where(.ink-overlay) {
     z-index: 1;

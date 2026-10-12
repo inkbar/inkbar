@@ -5,6 +5,8 @@
 // `PageTransform.toCssRect(a.rect)` for custom elements. Hit-testing
 // follows the drawn shape, not the box: elements are `pointer-events:none` and their shapes
 // opt back in (overlay-render.ts), so a press beside a shape still reaches the text layer.
+// Resize handles (`.ink-handle[data-handle]`) are 8px `position:absolute;
+// pointer-events:auto` boxes on the element's corners; their look is the theme's.
 // Custom elements are the exception and stay `pointer-events:auto`: the host draws them and
 // only it knows their shape. Every visual (colour, opacity, stroke, fill) is an SVG
 // attribute or a theme hook.
@@ -37,6 +39,11 @@ export interface Overlay {
 }
 
 type State = 'idle' | 'hover' | 'selected'
+
+/** Resize handles, by the CSS corner they sit on. */
+const HANDLES = ['nw', 'ne', 'sw', 'se'] as const
+/** Side of a resize handle, CSS px. */
+const HANDLE_PX = 8
 
 /** Arrow keys as user-space unit steps (y grows upwards). */
 const ARROW_STEPS: Record<string, { x: number; y: number }> = {
@@ -121,6 +128,38 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     node.dataset.state = state
     node.setAttribute('aria-pressed', String(state === 'selected'))
     node.tabIndex = !anyHere || state === 'selected' ? 0 : -1
+    const a = store.get(id)
+    syncHandles(
+      node,
+      state === 'selected' && a !== undefined && !a.locked && hasRectGeometry(a)
+    )
+  }
+
+  /**
+   * Corner handles for a selected, unlocked rect-shaped annotation. The select tool drags them
+   * (`data-handle` names the CSS corner); in other tools a press on one is a press on the
+   * annotation. Themes show them only while the select tool is active.
+   */
+  function syncHandles(node: HTMLElement, want: boolean): void {
+    const existing = node.querySelectorAll(':scope > [data-handle]')
+    if (!want) {
+      existing.forEach((h) => h.remove())
+      return
+    }
+    if (existing.length === HANDLES.length) return
+    existing.forEach((h) => h.remove())
+    for (const corner of HANDLES) {
+      const h = doc.createElement('div')
+      h.className = 'ink-handle'
+      h.dataset.handle = corner
+      h.setAttribute('aria-hidden', 'true')
+      const off = `${-HANDLE_PX / 2}px`
+      h.style.cssText =
+        `position:absolute;width:${HANDLE_PX}px;height:${HANDLE_PX}px;pointer-events:auto;` +
+        `${corner[0] === 'n' ? 'top' : 'bottom'}:${off};` +
+        `${corner[1] === 'w' ? 'left' : 'right'}:${off};`
+      node.append(h)
+    }
   }
 
   function applyAttributes(node: HTMLElement, a: Annotation): void {
@@ -242,7 +281,12 @@ export function createOverlay(opts: OverlayOptions): Overlay {
       if (e.button !== 0) return
       // A press on a custom element's own content (a host's button, say) is that content's:
       // no selection, and it bubbles on to the host's delegated handlers.
-      if (e.target !== node && node.hasAttribute('data-custom')) return
+      if (
+        e.target !== node &&
+        node.hasAttribute('data-custom') &&
+        !(e.target instanceof Element && e.target.closest('[data-handle]'))
+      )
+        return
       // A tool listening on the page root must not start a drag from this press.
       e.stopPropagation()
       activate(id)

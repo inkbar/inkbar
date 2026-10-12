@@ -879,3 +879,94 @@ describe('keyboard creation', () => {
     }
   )
 })
+
+describe('resize handles', () => {
+  it('dragging the se handle grows the rect by the dragged points, in one update', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    viewport.setZoom(1.5)
+    await until(() => viewport.transformFor(0).zoom === 1.5)
+    await settle()
+    const a = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    tools.set('select')
+    doc.annotations.select([a.id])
+    await settle()
+    const host = viewport.hostFor(0)!
+    const t = viewport.transformFor(0)
+    const handle = host.querySelector(
+      `[data-annotation="${a.id}"] > [data-handle="se"]`
+    ) as HTMLElement
+    expect(handle).not.toBeNull()
+    const el = handle.parentElement!
+    const updates = vi.fn()
+    cleanup.push(
+      doc.annotations.on('change', (c) => {
+        if (c.kind === 'update') updates(c)
+      })
+    )
+    const h = host.getBoundingClientRect()
+    const corner = t.toCss({ x: 150, y: 600 })
+    const dx = t.toCssLength(20)
+    const dy = t.toCssLength(10)
+    pointer(handle, 'pointerdown', h.left + corner.x, h.top + corner.y)
+    pointer(container, 'pointermove', h.left + corner.x + dx, h.top + corner.y + dy)
+    expect(el.style.transform).toContain('scale(')
+    expect(updates).not.toHaveBeenCalled()
+    pointer(container, 'pointerup', h.left + corner.x + dx, h.top + corner.y + dy)
+    expect(updates).toHaveBeenCalledTimes(1)
+    expect(el.style.transform).toBe('')
+    // The nw corner (100, 630) stays; the se corner moves 20 pt right and 10 pt down.
+    const r = doc.annotations.get(a.id)!.rect
+    expect(r.x).toBeCloseTo(100, 5)
+    expect(r.y).toBeCloseTo(590, 5)
+    expect(r.width).toBeCloseTo(70, 5)
+    expect(r.height).toBeCloseTo(40, 5)
+    expect(doc.annotations.selection.get()).toEqual([a.id])
+  })
+
+  it('a drag past the opposite corner stops at 1 pt', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    const a = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    tools.set('select')
+    doc.annotations.select([a.id])
+    await settle()
+    const host = viewport.hostFor(0)!
+    const h = host.getBoundingClientRect()
+    const handle = host.querySelector(
+      `[data-annotation="${a.id}"] > [data-handle="se"]`
+    ) as HTMLElement
+    pointer(handle, 'pointerdown', h.left + 150, h.top + 192)
+    pointer(container, 'pointermove', h.left + 20, h.top + 20)
+    pointer(container, 'pointerup', h.left + 20, h.top + 20)
+    expect(doc.annotations.get(a.id)!.rect).toEqual({
+      x: 100,
+      y: 629,
+      width: 1,
+      height: 1,
+    })
+  })
+
+  it('a locked or text-derived annotation shows no handles', async () => {
+    const { doc, viewport, tools } = await setup()
+    const a = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    doc.annotations.update(a.id, { locked: true })
+    tools.set('select')
+    doc.annotations.select([a.id])
+    await settle()
+    const host = viewport.hostFor(0)!
+    expect(host.querySelectorAll(`[data-annotation="${a.id}"] .ink-handle`)).toHaveLength(
+      0
+    )
+  })
+})
