@@ -28,6 +28,10 @@ describe('@inkbar/core/dom entry', () => {
         'confidenceAttr',
         'renderAnnotationContent',
         'cssVariableDefaults',
+        'createPageMount',
+        'createToolController',
+        'builtinTools',
+        'hitFor',
       ])
     )
 

@@ -10,7 +10,7 @@ export {
 } from './layout'
 export type { CssLayout, CssLayoutInput, CssPageBox, LayoutMode } from './layout'
 export { createViewport } from './viewport'
-export type { PageHit, Viewport, ViewportOptions, ZoomValue } from './viewport'
+export type { Viewport, ViewportHit, ViewportOptions, ZoomValue } from './viewport'
 export { createPageRenderer } from './page-renderer'
 export type { PageRenderer, PageRendererOptions } from './page-renderer'
 export { createTextLayer } from './text-layer'
@@ -20,4 +20,24 @@ export type { SelectionQuads } from './selection'
 export { confidenceAttr, createOverlay } from './overlay'
 export type { Overlay, OverlayOptions } from './overlay'
 export { renderAnnotationContent } from './overlay-render'
+export { createPageMount } from './page-mount'
+export type { PageMount, PageMountOptions } from './page-mount'
+export {
+  builtinTools,
+  createToolController,
+  highlightTool,
+  hitFor,
+  noteTool,
+  redactAreaTool,
+  selectTool,
+  viewTool,
+} from './tools'
+export type {
+  PageHit,
+  Tool,
+  ToolContext,
+  ToolController,
+  ToolControllerOptions,
+  ToolId,
+} from './tools'
 export { cssVariableDefaults } from '../model/annotations/defaults'

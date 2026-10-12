@@ -47,7 +47,8 @@ export interface ViewportOptions {
   onUnmount(page: number, host: HTMLElement): void
 }
 
-export interface PageHit {
+/** The mounted page under a client point. The tools layer adds `user` and `css` (`PageHit`). */
+export interface ViewportHit {
   page: number
   host: HTMLElement
   transform: PageTransform
@@ -73,7 +74,7 @@ export interface Viewport {
   transformFor(page: number): PageTransform
   hostFor(page: number): HTMLElement | undefined
   /** The mounted page under a viewport (client) point, if any. */
-  pageAtCss(clientX: number, clientY: number): PageHit | undefined
+  pageAtCss(clientX: number, clientY: number): ViewportHit | undefined
   destroy(): void
 }
 
@@ -258,7 +259,7 @@ export function createViewport(opts: ViewportOptions): Viewport {
   })
   ro.observe(container)
 
-  function pageAtCss(clientX: number, clientY: number): PageHit | undefined {
+  function pageAtCss(clientX: number, clientY: number): ViewportHit | undefined {
     for (const [page, host] of hosts) {
       const r = host.getBoundingClientRect()
       if (
