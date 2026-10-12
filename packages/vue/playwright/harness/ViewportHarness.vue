@@ -41,7 +41,7 @@ const clicks = ref(0)
           </template>
           <template
             v-if="customAnnotations"
-            #annotation="{ annotation, state, locked, accept, dismiss }"
+            #annotation="{ annotation, state, locked, select, accept, dismiss }"
           >
             <span
               class="my-pin"
@@ -54,10 +54,12 @@ const clicks = ref(0)
             <template
               v-if="annotation.type === 'redact' && annotation.origin === 'suggested'"
             >
+              <button type="button" data-testid="select" @click="select">Select</button>
               <button type="button" data-testid="accept" @click="accept">Accept</button>
               <button type="button" data-testid="dismiss" @click="dismiss">
                 Dismiss
               </button>
+              <input data-testid="slot-input" aria-label="Comment" />
             </template>
           </template>
         </InkViewport>
