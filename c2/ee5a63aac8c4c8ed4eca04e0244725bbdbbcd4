@@ -1,0 +1,30 @@
+packages/core/src/index.ts
+  s_a8095ef648b42d::t_f598c38f785546 1-5
+packages/core/tsdown.config.ts
+  s_a8095ef648b42d::t_f598c38f785546 1-2,5-8,21-23
+packages/core/vitest.config.ts
+  s_a8095ef648b42d::t_f598c38f785546 5-9,14,24
+.gitignore
+  s_a8095ef648b42d::t_16d6458bb754d4 13-15
+eslint.config.js
+  s_a8095ef648b42d::t_9aeb71b9b96acd 38,46-53
+packages/core/src/index.test.ts
+  s_a8095ef648b42d::t_f598c38f785546 3-4,28-32
+  s_a8095ef648b42d::t_5c344b78b8d359 33-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c2ee5a63aac8c4c8ed4eca04e0244725bbdbbcd4",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
