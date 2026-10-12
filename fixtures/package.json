@@ -1,0 +1,25 @@
+{
+  "name": "@inkbar/fixtures",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./index.ts",
+    "./urls": "./urls.ts",
+    "./generate-large": "./generate-large.ts"
+  },
+  "scripts": {
+    "generate": "tsx generate.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "pdf-lib": "^1.17.1"
+  },
+  "devDependencies": {
+    "pdfjs-dist": "^6.4.299",
+    "tsx": "^4.20.0",
+    "vitest": "^5.0.4"
+  }
+}

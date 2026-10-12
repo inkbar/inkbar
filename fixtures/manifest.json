@@ -1,0 +1,158 @@
+{
+  "text-simple": {
+    "file": "text-simple.pdf",
+    "pages": 3,
+    "opens": true,
+    "describes": "Three Letter pages of Helvetica text, no annotations"
+  },
+  "text-rotated-90": {
+    "file": "text-rotated-90.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "One Letter page with /Rotate 90; text drawn unrotated in user space"
+  },
+  "text-rotated-180": {
+    "file": "text-rotated-180.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "One Letter page with /Rotate 180; text drawn unrotated in user space"
+  },
+  "text-rotated-270": {
+    "file": "text-rotated-270.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "One Letter page with /Rotate 270; text drawn unrotated in user space"
+  },
+  "text-cjk": {
+    "file": "text-cjk.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Stand-in: an A4 page of Latin Helvetica text. pdf-lib standard fonts have no CJK glyphs, so this file contains no CJK text until a redistributable CJK font is embedded"
+  },
+  "cropbox-offset": {
+    "file": "cropbox-offset.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "CropBox [50 50 550 750] inside a Letter MediaBox; one Square annotation at user-space (100,100)",
+    "annotations": {
+      "Square": 1
+    }
+  },
+  "mixed-page-sizes": {
+    "file": "mixed-page-sizes.pdf",
+    "pages": 4,
+    "opens": true,
+    "describes": "Letter, A4 portrait, A4 landscape, square"
+  },
+  "annotated-markup": {
+    "file": "annotated-markup.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "One of each text-markup subtype on page 1",
+    "annotations": {
+      "Highlight": 1,
+      "Underline": 1,
+      "StrikeOut": 1,
+      "Squiggly": 1
+    }
+  },
+  "annotated-notes-threaded": {
+    "file": "annotated-notes-threaded.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A note with two replies (IRT) and one standalone note",
+    "annotations": {
+      "Text": 4
+    }
+  },
+  "annotated-redact": {
+    "file": "annotated-redact.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Two unapplied Redact annotations, one text-based with QuadPoints and one area",
+    "annotations": {
+      "Redact": 2
+    }
+  },
+  "annotated-shapes": {
+    "file": "annotated-shapes.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Square, Circle, Line, Polygon, Ink and FreeText",
+    "annotations": {
+      "Square": 1,
+      "Circle": 1,
+      "Line": 1,
+      "Polygon": 1,
+      "Ink": 1,
+      "FreeText": 1
+    }
+  },
+  "annotated-unsupported": {
+    "file": "annotated-unsupported.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Link, Stamp and FileAttachment, which Inkbar counts but does not import",
+    "annotations": {
+      "Link": 1,
+      "Stamp": 1,
+      "FileAttachment": 1
+    }
+  },
+  "acroform-basic": {
+    "file": "acroform-basic.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A text field and a checkbox (Widget annotations)",
+    "annotations": {
+      "Widget": 2
+    }
+  },
+  "incremental-saved": {
+    "file": "incremental-saved.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Two revisions: a base file plus one hand-written incremental update (xref section with /Prev) that adds a Highlight",
+    "annotations": {
+      "Highlight": 1
+    }
+  },
+  "object-streams": {
+    "file": "object-streams.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Saved with object streams and an xref stream"
+  },
+  "encrypted-aes": {
+    "file": "encrypted-aes.pdf",
+    "pages": 1,
+    "opens": true,
+    "password": "inkbar",
+    "describes": "AES-256 encrypted by qpdf, user password \"inkbar\""
+  },
+  "encrypted-rc4": {
+    "file": "encrypted-rc4.pdf",
+    "pages": 1,
+    "opens": true,
+    "password": "inkbar",
+    "describes": "128-bit RC4 encrypted by qpdf, user password \"inkbar\""
+  },
+  "malformed-truncated": {
+    "file": "malformed-truncated.pdf",
+    "pages": 0,
+    "opens": false,
+    "describes": "First 40% of a valid file; no xref, no trailer"
+  },
+  "malformed-missing-xref": {
+    "file": "malformed-missing-xref.pdf",
+    "pages": 3,
+    "opens": true,
+    "describes": "Copy of text-simple with the xref table and startxref removed; readers must rebuild the cross-reference by scanning"
+  },
+  "scanned-no-text": {
+    "file": "scanned-no-text.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Stand-in for a scan: a grey rectangle with no image and no text layer"
+  }
+}
