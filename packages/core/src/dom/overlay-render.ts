@@ -1,8 +1,32 @@
-import type { PageTransform } from './transform'
+import type { CssRect, PageTransform } from './transform'
 import type { Annotation } from '../model/annotations/types'
 import type { Point, Quad } from '../model/geometry'
 
 const SVG = 'http://www.w3.org/2000/svg'
+
+/**
+ * The CSS box an annotation's element occupies. Usually `toCssRect(a.rect)`; stroked paths
+ * (lines, polylines, polygons, ink) are padded by half their stroke width on every side, at
+ * least 1px in all, so a horizontal or vertical line, whose rect has no height or width,
+ * still has a box to draw and hit-test in.
+ */
+export function annotationBox(a: Annotation, t: PageTransform): CssRect {
+  const box = t.toCssRect(a.rect)
+  if (
+    a.type !== 'line' &&
+    a.type !== 'polyline' &&
+    a.type !== 'polygon' &&
+    a.type !== 'ink'
+  )
+    return box
+  const pad = Math.max(t.toCssLength(a.strokeWidth), 1) / 2
+  return {
+    left: box.left - pad,
+    top: box.top - pad,
+    width: box.width + pad * 2,
+    height: box.height + pad * 2,
+  }
+}
 
 /**
  * Draws the default visual for an annotation inside its positioned element. Coordinates are
@@ -16,7 +40,7 @@ export function renderAnnotationContent(
 ): void {
   const doc = el.ownerDocument
   el.replaceChildren()
-  const box = t.toCssRect(a.rect)
+  const box = annotationBox(a, t)
   const local = (p: Point): string => {
     const c = t.toCss(p)
     return `${c.x - box.left},${c.y - box.top}`
@@ -57,6 +81,7 @@ export function renderAnnotationContent(
     text.style.setProperty('--ink-font-size', `${t.toCssLength(a.fontSize)}px`)
     text.style.setProperty('--ink-text-color', a.color)
     text.style.setProperty('--ink-opacity', String(a.opacity))
+    text.style.setProperty('--ink-font-family', cssString(a.fontFamily))
     // Structural: the element itself ignores the pointer, the text box takes it.
     text.style.pointerEvents = 'auto'
     el.append(text)
@@ -178,7 +203,7 @@ export function renderAnnotationContent(
 export function renderHitArea(el: HTMLElement, a: Annotation, t: PageTransform): void {
   const doc = el.ownerDocument
   el.replaceChildren()
-  const box = t.toCssRect(a.rect)
+  const box = annotationBox(a, t)
   const svg = boxSvg(doc, box.width, box.height)
   svg.dataset.inkHit = ''
   const quads = 'quads' in a && a.quads ? a.quads : undefined
@@ -216,6 +241,9 @@ function boxSvg(doc: Document, width: number, height: number): SVGSVGElement {
   svg.setAttribute('height', String(height))
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`)
   svg.setAttribute('overflow', 'visible')
+  // Block, not inline: an inline SVG sits on the text baseline and drifts below a short box.
+  // The theme positions it absolutely as well.
+  svg.setAttribute('display', 'block')
   svg.setAttribute('aria-hidden', 'true')
   return svg
 }
@@ -260,4 +288,9 @@ function markupLine(type: 'underline' | 'strikeout' | 'squiggly', q: Quad): Poin
     pts.push({ x: p.x + up.x * s, y: p.y + up.y * s })
   }
   return pts
+}
+
+/** A CSS string literal, so any PDF font name is a single family name. */
+function cssString(value: string): string {
+  return `"${value.replace(/["\\]/g, '\\$&').replace(/\n/g, '\\a ')}"`
 }
