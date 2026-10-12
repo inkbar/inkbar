@@ -1,0 +1,26 @@
+packages/core/src/model/document.test.ts
+  s_a8095ef648b42d::t_f0162efed569ad 138-167
+  s_a8095ef648b42d::t_43431947cfc0f3 168-170
+packages/vue/playwright/harness/EventHost.vue
+  s_a8095ef648b42d::t_deb3a700a5acb4 2,8,12-13,19-35,40,43-44,47
+packages/vue/src/components/InkRoot.ct.ts
+  s_a8095ef648b42d::t_deb3a700a5acb4 74-92
+packages/core/src/model/source.ts
+  s_a8095ef648b42d::t_fa7191363487c8 27,35,44-48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7951a1dba7d9b3d3e368257f85b8ec9ceb695cb0",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
