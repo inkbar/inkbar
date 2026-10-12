@@ -286,6 +286,25 @@ describe('createOverlay', () => {
     expect(document.activeElement).toBe(scroll)
   })
 
+  it('makes a scroll container without tabindex focusable before falling back to it', () => {
+    const { store, host, overlay } = setup()
+    const scroll = document.createElement('div')
+    scroll.dataset.inkViewport = ''
+    document.body.append(scroll)
+    scroll.append(host)
+    cleanup.push(() => scroll.remove())
+    expect(scroll.hasAttribute('tabindex')).toBe(false)
+    const only = store.add({
+      type: 'note',
+      page: 0,
+      rect: { x: 10, y: 700, width: 20, height: 20 },
+    })
+    overlay.elementFor(only.id)!.focus()
+    store.remove(only.id)
+    expect(scroll.tabIndex).toBe(-1)
+    expect(document.activeElement).toBe(scroll)
+  })
+
   it('expresses visuals as SVG attributes and scales strokes with zoom', () => {
     const { store, overlay } = setup(2)
     const sq = store.add({

@@ -15,13 +15,24 @@ describe('createPageCache', () => {
     expect(fetch).toHaveBeenCalledTimes(2)
   })
 
-  it('shares one lookup per page while it is pending and after it resolves', async () => {
-    const fetch = vi.fn((index: number) => Promise.resolve({ index }))
+  it('shares one pending lookup between callers, then keeps the result', async () => {
+    const page = { pageNumber: 1 }
+    let resolve!: (p: typeof page) => void
+    const fetch = vi.fn(
+      () =>
+        new Promise<typeof page>((r) => {
+          resolve = r
+        })
+    )
     const cache = createPageCache(fetch)
-    const a = cache.get(0)
-    expect(cache.get(0)).toBe(a)
-    await a
-    expect(cache.get(0)).toBe(a)
+    // Both callers ask while the lookup is still pending.
+    const first = cache.get(0)
+    const second = cache.get(0)
+    expect(fetch).toHaveBeenCalledTimes(1)
+    resolve(page)
+    await expect(first).resolves.toBe(page)
+    await expect(second).resolves.toBe(page)
+    await expect(cache.get(0)).resolves.toBe(page)
     expect(fetch).toHaveBeenCalledTimes(1)
     cache.clear()
     void cache.get(0)
