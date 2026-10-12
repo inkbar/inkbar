@@ -33,6 +33,7 @@
   },
   "devDependencies": {
     "@inkbar/fixtures": "workspace:*",
+    "@inkbar/theme": "workspace:*",
     "@playwright/experimental-ct-vue": "1.62.1",
     "@playwright/test": "1.62.1",
     "@vitejs/plugin-vue": "^6.0.10",

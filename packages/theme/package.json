@@ -1,0 +1,29 @@
+{
+  "name": "@inkbar/theme",
+  "version": "0.0.0",
+  "description": "Default stylesheet for Inkbar. Zero specificity, so your CSS wins.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": [
+    "*.css"
+  ],
+  "files": [
+    "theme.css",
+    "README.md"
+  ],
+  "exports": {
+    "./theme.css": "./theme.css",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "echo skip",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint . && prettier --check theme.css",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "postcss": "^8.5.0",
+    "postcss-selector-parser": "^7.1.0",
+    "vitest": "^5.0.4"
+  }
+}

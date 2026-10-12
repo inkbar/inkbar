@@ -6,11 +6,12 @@ Made by [Redactr](https://redactr.io).
 
 ## Packages
 
-| Package         | Purpose                                                      |
-| --------------- | ------------------------------------------------------------ |
-| `@inkbar/core`  | Document model, rendering, annotations, tools. No framework. |
-| `@inkbar/vue`   | Vue 3 components and composables.                            |
-| `@inkbar/theme` | Default stylesheet using shadcn token names.                 |
+| Package            | Purpose                                                                         |
+| ------------------ | ------------------------------------------------------------------------------- |
+| `@inkbar/core`     | Document model, rendering, annotations and tools, with no framework dependency. |
+| `@inkbar/vue`      | Vue 3 components, composables and a default toolbar.                            |
+| `@inkbar/theme`    | Default stylesheet. Zero specificity, compatible with shadcn token names.       |
+| `@inkbar/fixtures` | Test PDFs and helpers for the test suites. Private, not published.              |
 
 ## Development
 

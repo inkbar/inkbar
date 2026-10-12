@@ -1,2 +1,3 @@
-// Component test entry. The theme stylesheet gets imported here once the theme package exists.
+// Component test entry: tests render with the default theme, like a host app would.
+import '@inkbar/theme/theme.css'
 import './harness.css'
