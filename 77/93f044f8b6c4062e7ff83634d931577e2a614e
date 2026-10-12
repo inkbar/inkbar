@@ -1,0 +1,55 @@
+packages/core/src/dom/tools/select.ts
+  s_a8095ef648b42d::t_04daeb712091b9 88-90,110-111,114-117,137-141
+  s_a8095ef648b42d::t_14bf2b852dbf7c 171
+  s_a8095ef648b42d::t_39175547d28f2b 1-87,91-109,112-113,118-136,142-170,172
+packages/core/src/dom/test-utils.ts
+  s_a8095ef648b42d::t_04cd9fcbf43cc4 38-46
+  s_a8095ef648b42d::t_f5c49275ce26b8 47-80
+packages/core/src/dom/index.ts
+  s_a8095ef648b42d::t_bd5fae6e6bc53c 13,23-42
+packages/core/src/dom/viewport.ts
+  s_a8095ef648b42d::t_31a9e058e0317a 50-51,77,262
+packages/core/src/dom/tools/controller.ts
+  s_a8095ef648b42d::t_c9495668eaa79f 1-134
+packages/core/src/dom/page-mount.ts
+  s_a8095ef648b42d::t_04daeb712091b9 40-42
+  s_a8095ef648b42d::t_14bf2b852dbf7c 50-53
+  s_a8095ef648b42d::t_bd5fae6e6bc53c 1-39,43-49,54-70
+packages/core/src/dom/text-layer.browser.test.ts
+  s_a8095ef648b42d::t_04cd9fcbf43cc4 4
+packages/core/src/dom/tools/highlight.ts
+  s_a8095ef648b42d::t_c9495668eaa79f 1-19,26-30
+  s_a8095ef648b42d::t_04daeb712091b9 20-25
+packages/core/src/dom/tools/redact-area.ts
+  s_a8095ef648b42d::t_04daeb712091b9 67-68
+  s_a8095ef648b42d::t_c9495668eaa79f 1-66,69-74
+packages/core/src/dom/tools/index.ts
+  s_a8095ef648b42d::t_bd5fae6e6bc53c 1-34
+packages/core/src/dom/tools/view.ts
+  s_a8095ef648b42d::t_c9495668eaa79f 1-6
+packages/core/src/dom/index.test.ts
+  s_a8095ef648b42d::t_bd5fae6e6bc53c 31-34
+packages/core/src/dom/tools.browser.test.ts
+  s_a8095ef648b42d::t_04cd9fcbf43cc4 1,5-11,15-22
+  s_a8095ef648b42d::t_04daeb712091b9 254-259,267-269,296-298
+  s_a8095ef648b42d::t_64c970ccac2f2e 2-4,12-14,23-253,260-266,270-295,299-337
+packages/core/src/dom/tools/note.ts
+  s_a8095ef648b42d::t_c9495668eaa79f 1-28,35-40
+  s_a8095ef648b42d::t_04daeb712091b9 29-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7793f044f8b6c4062e7ff83634d931577e2a614e",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
