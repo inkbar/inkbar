@@ -60,7 +60,7 @@ export function selectTool(): Tool {
         // The overlay selects and activates it once this capture-phase handler returns.
         mode = { kind: 'press', id: annotationId, start: hit }
         e.preventDefault()
-        return
+        return true
       }
       const el = hit.host.ownerDocument.createElement('div')
       el.className = 'ink-marquee'
@@ -70,9 +70,15 @@ export function selectTool(): Tool {
       mode = { kind: 'marquee', start: hit, el, additive: e.shiftKey }
       if (!e.shiftKey) ctx.store.select([])
       e.preventDefault()
+      return true
     },
     onPointerMove(e) {
       if (!ctx || mode.kind === 'idle') return
+      // No button down: the release was missed, so drop the gesture.
+      if (e.buttons === 0) {
+        reset()
+        return
+      }
       const { start } = mode
       const css = cssIn(start.host, e)
       const dx = css.x - start.css.x
@@ -98,6 +104,9 @@ export function selectTool(): Tool {
       mode.el.style.top = `${Math.min(start.css.y, css.y)}px`
       mode.el.style.width = `${Math.abs(dx)}px`
       mode.el.style.height = `${Math.abs(dy)}px`
+    },
+    onPointerCancel() {
+      reset()
     },
     onPointerUp(e) {
       if (!ctx) return

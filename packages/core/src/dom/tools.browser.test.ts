@@ -77,7 +77,7 @@ async function setup(name: 'text-simple' | 'cropbox-offset' = 'text-simple') {
 
 function pointer(
   el: Element,
-  type: 'pointerdown' | 'pointermove' | 'pointerup',
+  type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel',
   clientX: number,
   clientY: number,
   init: PointerEventInit = {}
@@ -89,7 +89,7 @@ function pointer(
       bubbles: true,
       pointerId: 1,
       button: 0,
-      buttons: type === 'pointerup' ? 0 : 1,
+      buttons: type === 'pointerup' || type === 'pointercancel' ? 0 : 1,
       isPrimary: true,
       ...init,
     })
@@ -318,6 +318,71 @@ describe('tools', () => {
     pointer(container, 'pointerup', h.left + 200, h.top + 200)
     expect(doc.annotations.get(a.id)!.rect.x).toBe(100)
   })
+})
+
+describe('interrupted gestures', () => {
+  async function dragging(how: 'cancel' | 'hover') {
+    const ctx = await setup()
+    const { doc, container, viewport, tools } = ctx
+    const a = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    await settle()
+    tools.set('select')
+    const host = viewport.hostFor(0)!
+    const h = host.getBoundingClientRect()
+    const el = host.querySelector(`[data-annotation="${a.id}"]`) as HTMLElement
+    const updates = vi.fn()
+    cleanup.push(
+      doc.annotations.on('change', (c) => {
+        if (c.kind === 'update') updates(c)
+      })
+    )
+    pointer(el, 'pointerdown', h.left + 110, h.top + 180)
+    pointer(container, 'pointermove', h.left + 150, h.top + 200)
+    expect(el.style.transform).toBe('translate(40px, 20px)')
+    if (how === 'cancel') pointer(container, 'pointercancel', h.left + 150, h.top + 200)
+    else pointer(container, 'pointermove', h.left + 170, h.top + 210, { buttons: 0 })
+    expect(el.style.transform).toBe('')
+    // A later release (or more hovering) must not move it either.
+    pointer(container, 'pointermove', h.left + 180, h.top + 220, { buttons: 0 })
+    expect(el.style.transform).toBe('')
+    pointer(container, 'pointerup', h.left + 180, h.top + 220)
+    expect(updates).not.toHaveBeenCalled()
+    expect(doc.annotations.get(a.id)!.rect).toEqual({
+      x: 100,
+      y: 600,
+      width: 50,
+      height: 30,
+    })
+  }
+
+  async function drawing(how: 'cancel' | 'hover') {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('redact-area')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointermove', h.left + 160, h.top + 140)
+    expect(container.querySelector('[data-ink-draft="redact"]')).not.toBeNull()
+    if (how === 'cancel') pointer(container, 'pointercancel', h.left + 160, h.top + 140)
+    else pointer(container, 'pointermove', h.left + 180, h.top + 150, { buttons: 0 })
+    expect(container.querySelector('[data-ink-draft]')).toBeNull()
+    pointer(container, 'pointermove', h.left + 200, h.top + 160, { buttons: 0 })
+    expect(container.querySelector('[data-ink-draft]')).toBeNull()
+    pointer(container, 'pointerup', h.left + 200, h.top + 160)
+    expect(doc.annotations.list.get()).toEqual([])
+  }
+
+  it('pointercancel mid-drag drops the live move without writing', () =>
+    dragging('cancel'))
+  it('a buttonless move mid-drag drops the live move without writing', () =>
+    dragging('hover'))
+  it('pointercancel mid-draw removes the redaction draft and adds nothing', () =>
+    drawing('cancel'))
+  it('a buttonless move mid-draw removes the redaction draft and adds nothing', () =>
+    drawing('hover'))
 })
 
 describe('createPageMount', () => {

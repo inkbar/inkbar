@@ -6,6 +6,11 @@
 // on annotation shapes (so a creation tool never starts a drag from one), but a capture
 // listener on the root runs before that, so the controller can pass the pressed annotation's
 // id to the tool. Move, up and key events bubble normally.
+//
+// When a tool starts a gesture (its `onPointerDown` returns true) the controller captures the
+// pointer on the root, so the release still arrives when it happens outside. `pointercancel`
+// and `lostpointercapture` reach the tool as `onPointerCancel`. `touch-action` is left to the
+// theme or host: touch gestures are theirs to arbitrate.
 import { readonly, writable, type Readable } from '../../model/readable'
 
 import type { AnnotationStore } from '../../model/annotations/store'
@@ -42,11 +47,22 @@ export interface Tool {
    * Runs in the capture phase, before the overlay sees the press. `annotationId` is set when
    * the press landed on an annotation; the overlay then selects and activates it, so tools
    * other than `select` should ignore such presses. Calling `e.stopPropagation()` here keeps
-   * the overlay from handling it.
+   * the overlay from handling it. Return true when the press starts a gesture: the controller
+   * then captures the pointer until it is released or cancelled.
    */
-  onPointerDown?(e: PointerEvent, hit: PageHit | undefined, annotationId?: string): void
+  onPointerDown?(
+    e: PointerEvent,
+    hit: PageHit | undefined,
+    annotationId?: string
+  ): boolean | void
+  /**
+   * A move with `e.buttons === 0` during a gesture means the release was missed (it happened
+   * where no listener saw it): tools treat it as a cancel.
+   */
   onPointerMove?(e: PointerEvent, hit: PageHit | undefined): void
   onPointerUp?(e: PointerEvent, hit: PageHit | undefined): void
+  /** `pointercancel` or `lostpointercapture`: drop any gesture in progress without writing. */
+  onPointerCancel?(e: PointerEvent): void
   onKeyDown?(e: KeyboardEvent): void
 }
 
@@ -91,18 +107,42 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     const target = e.target instanceof Element ? e.target : null
     const annotationId =
       target?.closest('[data-annotation]')?.getAttribute('data-annotation') ?? undefined
-    current?.onPointerDown?.(e, hitFor(ctx, e), annotationId)
+    if (current?.onPointerDown?.(e, hitFor(ctx, e), annotationId) === true)
+      capture(e.pointerId)
   }
   const onMove = (e: PointerEvent): void => {
     if (e.isPrimary) current?.onPointerMove?.(e, hitFor(ctx, e))
   }
   const onUp = (e: PointerEvent): void => {
-    if (e.isPrimary) current?.onPointerUp?.(e, hitFor(ctx, e))
+    if (!e.isPrimary) return
+    current?.onPointerUp?.(e, hitFor(ctx, e))
+    release(e.pointerId)
+  }
+  const onCancel = (e: PointerEvent): void => {
+    if (e.isPrimary) current?.onPointerCancel?.(e)
   }
   const onKey = (e: KeyboardEvent): void => current?.onKeyDown?.(e)
+
+  // Capture is best effort: synthetic events may carry a pointer id the browser does not know.
+  function capture(id: number): void {
+    try {
+      ctx.root.setPointerCapture?.(id)
+    } catch {
+      // Not an active pointer: the gesture still works while the pointer stays over the root.
+    }
+  }
+  function release(id: number): void {
+    try {
+      if (ctx.root.hasPointerCapture?.(id)) ctx.root.releasePointerCapture(id)
+    } catch {
+      // Already released.
+    }
+  }
   ctx.root.addEventListener('pointerdown', onDown, { capture: true })
   ctx.root.addEventListener('pointermove', onMove)
   ctx.root.addEventListener('pointerup', onUp)
+  ctx.root.addEventListener('pointercancel', onCancel)
+  ctx.root.addEventListener('lostpointercapture', onCancel)
   ctx.root.addEventListener('keydown', onKey)
 
   function set(id: ToolId): void {
@@ -126,6 +166,8 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
       ctx.root.removeEventListener('pointerdown', onDown, { capture: true })
       ctx.root.removeEventListener('pointermove', onMove)
       ctx.root.removeEventListener('pointerup', onUp)
+      ctx.root.removeEventListener('pointercancel', onCancel)
+      ctx.root.removeEventListener('lostpointercapture', onCancel)
       ctx.root.removeEventListener('keydown', onKey)
       delete ctx.root.dataset.inkTool
       ctx.root.style.cursor = ''

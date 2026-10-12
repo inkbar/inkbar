@@ -32,9 +32,15 @@ export function redactAreaTool(): Tool {
       // Keeps the press from starting a text selection; an existing one survives for the
       // text-derived mode on pointerup.
       e.preventDefault()
+      return true
     },
     onPointerMove(e) {
       if (!start) return
+      // No button down: the release was missed, so drop the draft.
+      if (e.buttons === 0) {
+        clear()
+        return
+      }
       const css = cssIn(start.host, e)
       if (!draft) {
         draft = start.host.ownerDocument.createElement('div')
@@ -48,6 +54,9 @@ export function redactAreaTool(): Tool {
       draft.style.top = `${Math.min(start.css.y, css.y)}px`
       draft.style.width = `${Math.abs(css.x - start.css.x)}px`
       draft.style.height = `${Math.abs(css.y - start.css.y)}px`
+    },
+    onPointerCancel() {
+      clear()
     },
     onPointerUp(e) {
       if (!ctx || !start) return
