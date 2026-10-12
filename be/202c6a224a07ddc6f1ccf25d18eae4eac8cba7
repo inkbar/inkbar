@@ -1,0 +1,21 @@
+packages/core/src/dom/overlay.browser.test.ts
+  s_a8095ef648b42d::t_bf5ee982d6d7f9 506-507,511-520
+packages/core/src/dom/overlay.ts
+  s_a8095ef648b42d::t_7bafef84c0c8a0 203-205
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "be202c6a224a07ddc6f1ccf25d18eae4eac8cba7",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
