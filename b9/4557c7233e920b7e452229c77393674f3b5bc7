@@ -1,0 +1,19 @@
+packages/core/src/model/document.test.ts
+  s_a8095ef648b42d::t_ba9dccbbfa794e 100-135
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b94557c7233e920b7e452229c77393674f3b5bc7",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
