@@ -3,7 +3,8 @@
  * - container: `overflow: auto`, and `position: relative` when its computed position is static;
  * - pages element: `position: relative`, plus `width`/`height` from the layout;
  * - page hosts: `position: absolute` and `left`/`top`/`width`/`height` from the layout;
- * - page hosts: the `--scale-factor` and `--total-scale-factor` custom properties.
+ * - page hosts: the `--scale-factor` (zoom) and `--total-scale-factor` (zoom × /UserUnit)
+ *   custom properties.
  * Nothing cosmetic (colours, borders, backgrounds, fonts) is ever set inline; that belongs to
  * the stylesheet. `destroy()` restores the container's overflow and position.
  */
@@ -202,8 +203,10 @@ export function createViewport(opts: ViewportOptions): Viewport {
     host.style.top = `${box.top}px`
     host.style.width = `${t.cssWidth}px`
     host.style.height = `${t.cssHeight}px`
+    // As in PDF.js's viewer: --scale-factor is the zoom, --total-scale-factor also folds in
+    // /UserUnit (pdf_viewer.css: calc(var(--scale-factor) * var(--user-unit))).
     host.style.setProperty('--scale-factor', String(t.zoom))
-    host.style.setProperty('--total-scale-factor', String(t.zoom))
+    host.style.setProperty('--total-scale-factor', String(t.scale))
     host.dataset.rotation = String(t.totalRotation)
   }
 
@@ -339,9 +342,13 @@ export function createViewport(opts: ViewportOptions): Viewport {
     },
     setMode(m) {
       if (m === mode.get()) return
+      // Catch up with a scroll whose frame has not run yet, then keep that page: relayout()
+      // re-derives the current page from the scroll position, which the new mode changes.
+      if (mode.get() === 'continuous') sync()
+      const page = currentPage.get()
       mode.set(m)
       relayout()
-      viewport.scrollToPage(currentPage.get())
+      viewport.scrollToPage(page)
     },
     setRotation(r) {
       withAnchor(undefined, () => rotation.set(r))
@@ -350,7 +357,8 @@ export function createViewport(opts: ViewportOptions): Viewport {
       const page = Math.max(0, Math.min(doc.pages.length - 1, index))
       const behavior = o?.behavior ?? 'auto'
       if (mode.get() === 'single') {
-        if (page !== currentPage.get()) {
+        // Also relayout when the layout shows another page, even if currentPage already matches.
+        if (page !== currentPage.get() || layout.get().boxes[0]?.index !== page) {
           currentPage.set(page)
           relayout()
         }

@@ -21,7 +21,13 @@ export interface CssRect {
 
 export interface PageTransform {
   readonly page: PageInfo
+  /** The viewer zoom the transform was built for. 1 is one CSS pixel per user-space unit at /UserUnit 1. */
   readonly zoom: number
+  /**
+   * CSS pixels per user-space unit: `zoom × page.userUnit`. This is PDF.js `PageViewport.scale`
+   * and the value its text and annotation layers read from `--total-scale-factor`.
+   */
+  readonly scale: number
   /** Rotation the viewer applied on top of the page's own /Rotate. */
   readonly rotation: ViewRotation
   /** The page's /Rotate plus the viewer rotation. */
@@ -35,11 +41,11 @@ export interface PageTransform {
   toCss(p: Point): Point
   toCssRect(r: Rect): CssRect
   toCssQuad(q: Quad): Quad
-  /** Converts a length in points (stroke width, font size) to CSS pixels. */
+  /** Converts a length in user-space units (stroke width, font size) to CSS pixels: zoom times `/UserUnit`. */
   toCssLength(points: number): number
   fromCss(p: Point): Point
   fromCssRect(r: CssRect): Rect
-  /** Converts a length in CSS pixels to points. */
+  /** Converts a length in CSS pixels to user-space units. */
   fromCssLength(px: number): number
 }
 
@@ -62,7 +68,8 @@ export function createPageTransform(
 ): PageTransform {
   const rotation = normalizeRotation(viewRotation)
   const totalRotation = normalizeRotation(page.rotate + rotation)
-  const scale = zoom
+  // PDF.js PageViewport does `scale *= userUnit`; zoom 1 is one user-space unit, so 1 point only when userUnit is 1.
+  const scale = zoom * page.userUnit
   const x0 = page.box.x
   const y0 = page.box.y
   const x1 = page.box.x + page.box.width
@@ -138,6 +145,7 @@ export function createPageTransform(
   return {
     page,
     zoom,
+    scale,
     rotation,
     totalRotation,
     cssWidth,
@@ -157,7 +165,7 @@ export function createPageTransform(
     toCssQuad(q) {
       return { p1: toCss(q.p1), p2: toCss(q.p2), p3: toCss(q.p3), p4: toCss(q.p4) }
     },
-    toCssLength: (points) => points * zoom,
+    toCssLength: (points) => points * scale,
     fromCssRect(r) {
       return bounds([
         fromCss({ x: r.left, y: r.top }),
@@ -166,6 +174,6 @@ export function createPageTransform(
         fromCss({ x: r.left + r.width, y: r.top + r.height }),
       ])
     },
-    fromCssLength: (px) => px / zoom,
+    fromCssLength: (px) => px / scale,
   }
 }

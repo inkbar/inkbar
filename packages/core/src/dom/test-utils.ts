@@ -27,12 +27,26 @@ export const nextFrame = (): Promise<void> =>
 export const settle = (ms = 50): Promise<void> =>
   new Promise<void>((resolve) => setTimeout(resolve, ms))
 
-/** Resolves once `pred` holds, checking every frame; rejects after `timeout` ms. */
+/**
+ * Resolves once `pred` holds, checking every frame; rejects after `timeout` ms. The timeout
+ * runs on its own timer, so it still fires when animation frames are paused (a hidden tab).
+ */
 export async function until(pred: () => boolean, timeout = 5000): Promise<void> {
-  const start = performance.now()
-  while (!pred()) {
-    if (performance.now() - start > timeout) throw new Error('until(): timed out')
-    await nextFrame()
+  let timedOut = false
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const expired = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      timedOut = true
+      reject(new Error('until(): timed out'))
+    }, timeout)
+  })
+  const poll = async (): Promise<void> => {
+    while (!timedOut && !pred()) await nextFrame()
+  }
+  try {
+    await Promise.race([poll(), expired])
+  } finally {
+    clearTimeout(timer)
   }
 }
 

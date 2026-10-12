@@ -45,7 +45,8 @@ export function computeCssLayout(input: CssLayoutInput): CssLayout {
       ? input.pages.filter((p) => p.index === input.current)
       : input.pages
   const sizes = pages.map((p) => cssSize(p, input.zoom, input.rotation))
-  const width = Math.max(input.containerWidth, ...sizes.map((s) => s.width))
+  // A reduce, not Math.max(...spread): spreading hundreds of thousands of pages overflows the stack.
+  const width = sizes.reduce((max, s) => Math.max(max, s.width), input.containerWidth)
   let top = input.gap
   const boxes = pages.map((p, i): CssPageBox => {
     const s = sizes[i]!

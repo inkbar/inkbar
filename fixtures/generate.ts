@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import {
   PDFDocument,
   PDFName,
+  PDFNumber,
   PDFString,
   degrees,
   rgb,
@@ -65,6 +66,21 @@ async function textSimple() {
     pages: 3,
     opens: true,
     describes: 'Three Letter pages of Helvetica text, no annotations',
+  })
+}
+
+async function userUnit2() {
+  const { d, font } = await doc()
+  for (let p = 0; p < 3; p++) {
+    const page = d.addPage([612, 792])
+    page.node.set(PDFName.of('UserUnit'), PDFNumber.of(2))
+    text(page, font, [`Page ${p + 1}`, ...BODY])
+  }
+  return save('userunit-2', d, {
+    pages: 3,
+    opens: true,
+    describes:
+      'Copy of text-simple with /UserUnit 2 on every page, so each page renders at twice its point size',
   })
 }
 
@@ -543,6 +559,7 @@ async function main() {
   await malformedTruncated()
   malformedMissingXref(simple)
   await scannedNoText()
+  await userUnit2()
   writeFileSync(join(here, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n')
   console.log(`wrote ${Object.keys(manifest).length} fixtures`)
 }

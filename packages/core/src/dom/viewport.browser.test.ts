@@ -282,6 +282,57 @@ describe('createViewport', () => {
     expect(container.scrollTop).toBe(0)
   })
 
+  it('keeps the selected page when switching from single to continuous mode', async () => {
+    const { container, viewport, mounted } = await setup()
+    viewport.setMode('single')
+    viewport.scrollToPage(2)
+    await settle()
+    expect(viewport.currentPage.get()).toBe(2)
+    viewport.setMode('continuous')
+    expect(viewport.currentPage.get()).toBe(2)
+    await settle()
+    expect(viewport.currentPage.get()).toBe(2)
+    expect(container.scrollTop).toBe(viewport.layout.get().boxes[2]!.top - GAP)
+    await until(() => mounted.has(2))
+  })
+
+  it('lays out the current page when switching from continuous to single mode', async () => {
+    const { container, viewport, mounted } = await setup()
+    container.scrollTop = viewport.layout.get().boxes[2]!.top
+    await until(() => viewport.currentPage.get() === 2)
+    viewport.setMode('single')
+    expect(viewport.currentPage.get()).toBe(2)
+    expect(viewport.layout.get().boxes.map((b) => b.index)).toEqual([2])
+    await until(() => mounted.size === 1)
+    expect([...mounted.keys()]).toEqual([2])
+    const hosts = container.querySelectorAll<HTMLElement>('div.ink-page[data-page]')
+    expect([...hosts].map((h) => h.dataset.page)).toEqual(['2'])
+  })
+
+  it('uses a scroll whose frame has not run yet when switching to single mode', async () => {
+    const { container, viewport } = await setup()
+    // No await: the scroll handler's frame is still pending when the mode changes.
+    container.scrollTop = viewport.layout.get().boxes[2]!.top
+    viewport.setMode('single')
+    expect(viewport.currentPage.get()).toBe(2)
+    expect(viewport.layout.get().boxes.map((b) => b.index)).toEqual([2])
+    await settle()
+    expect(container.querySelector<HTMLElement>('div.ink-page')?.dataset.page).toBe('2')
+  })
+
+  it('sets --total-scale-factor to zoom times /UserUnit and --scale-factor to the zoom', async () => {
+    const { doc, viewport, mounted } = await setup('userunit-2')
+    expect(doc.pages[0]!.userUnit).toBe(2)
+    await until(() => mounted.has(0))
+    const host = mounted.get(0)!
+    const t = viewport.transformFor(0)
+    expect(t.scale).toBe(2)
+    expect(host.style.getPropertyValue('--scale-factor')).toBe('1')
+    expect(host.style.getPropertyValue('--total-scale-factor')).toBe('2')
+    expect(host.style.width).toBe(`${t.cssWidth}px`)
+    expect(t.cssWidth).toBe(doc.pages[0]!.width * 2)
+  })
+
   it('rotation swaps page dimensions', async () => {
     const { doc, viewport, mounted } = await setup()
     const upright = createPageTransform(doc.pages[0]!, 1, 0)

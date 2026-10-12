@@ -154,5 +154,11 @@
     "pages": 1,
     "opens": true,
     "describes": "Stand-in for a scan: a grey rectangle with no image and no text layer"
+  },
+  "userunit-2": {
+    "file": "userunit-2.pdf",
+    "pages": 3,
+    "opens": true,
+    "describes": "Copy of text-simple with /UserUnit 2 on every page, so each page renders at twice its point size"
   }
 }
