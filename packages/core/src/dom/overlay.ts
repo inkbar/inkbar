@@ -1,11 +1,14 @@
 // Inline styles here are structural or geometric only: the container is
 // `position:absolute; inset:0; pointer-events:none` so it covers the page without eating
-// events, and each annotation element is `position:absolute; pointer-events:auto` with
-// `left/top/width/height` from `PageTransform.toCssRect`. Every visual (colour, opacity,
-// stroke, fill) is an SVG attribute or a theme hook; see overlay-render.ts.
+// events, and each annotation element is `position:absolute` with `left/top/width/height`
+// from `PageTransform.toCssRect`. Hit-testing follows the drawn shape, not the box: elements
+// are `pointer-events:none` and their shapes opt back in (overlay-render.ts), so a press
+// beside a shape still reaches the text layer. Custom elements are the exception and stay
+// `pointer-events:auto`: the host draws them and only it knows their shape. Every visual
+// (colour, opacity, stroke, fill) is an SVG attribute or a theme hook.
 import { confidenceBucket, type Annotation } from '../model/annotations/types'
 
-import { renderAnnotationContent } from './overlay-render'
+import { renderAnnotationContent, renderHitArea } from './overlay-render'
 
 import type { PageTransform } from './transform'
 import type { AnnotationStore } from '../model/annotations/store'
@@ -84,6 +87,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
   let transform = opts.transform
   const root = doc.createElement('div')
   root.className = 'ink-overlay'
+  root.dataset.inkOverlay = ''
   root.style.cssText = 'position:absolute;inset:0;pointer-events:none;'
   opts.host.append(root)
 
@@ -128,15 +132,18 @@ export function createOverlay(opts: OverlayOptions): Overlay {
   function applyContent(node: HTMLElement, a: Annotation): void {
     const custom = opts.isCustom?.(a) === true
     setFlag(node, 'custom', custom)
-    // Embedded annotations are already painted on the canvas by PDF.js; custom ones are the
-    // host's to fill. Either way, draw nothing.
-    if (custom || a.source === 'pdf') {
+    node.style.pointerEvents = custom ? 'auto' : 'none'
+    // Custom elements are the host's to fill: draw nothing.
+    if (custom) {
       if (drawn.delete(a.id)) node.replaceChildren()
       return
     }
     const last = drawn.get(a.id)
     if (last?.a === a && last.t === transform) return
-    renderAnnotationContent(node, a, transform)
+    // Embedded annotations are already painted on the canvas by PDF.js, so they get only an
+    // invisible hit area.
+    if (a.source === 'pdf') renderHitArea(node, a, transform)
+    else renderAnnotationContent(node, a, transform)
     drawn.set(a.id, { a, t: transform })
   }
 
@@ -183,7 +190,6 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     node.dataset.annotation = id
     node.setAttribute('role', 'button')
     node.style.position = 'absolute'
-    node.style.pointerEvents = 'auto'
     node.addEventListener('pointerenter', () => {
       hovered.add(id)
       applyState(node, id)

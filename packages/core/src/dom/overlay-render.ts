@@ -28,10 +28,23 @@ export function renderAnnotationContent(
   }
 
   if (a.type === 'note') {
+    // The note's box is its shape: a transparent rect takes the hits, the icon is theme art.
+    const svg = boxSvg(doc, box.width, box.height)
+    const hit = node('rect', {
+      x: 0,
+      y: 0,
+      width: box.width,
+      height: box.height,
+      fill: 'transparent',
+      stroke: 'none',
+      'pointer-events': 'all',
+    })
+    hit.classList.add('ink-note-box')
+    svg.append(hit)
     const icon = doc.createElement('span')
     icon.className = 'ink-note-icon'
     icon.dataset.icon = a.icon
-    el.append(icon)
+    el.append(svg, icon)
     return
   }
   if (a.type === 'freeText') {
@@ -44,17 +57,13 @@ export function renderAnnotationContent(
     text.style.setProperty('--ink-font-size', `${t.toCssLength(a.fontSize)}px`)
     text.style.setProperty('--ink-text-color', a.color)
     text.style.setProperty('--ink-opacity', String(a.opacity))
+    // Structural: the element itself ignores the pointer, the text box takes it.
+    text.style.pointerEvents = 'auto'
     el.append(text)
     return
   }
 
-  const svg = node('svg', {
-    width: box.width,
-    height: box.height,
-    viewBox: `0 0 ${box.width} ${box.height}`,
-    overflow: 'visible',
-    'aria-hidden': 'true',
-  })
+  const svg = boxSvg(doc, box.width, box.height)
   svg.classList.add('ink-annotation-shape')
 
   switch (a.type) {
@@ -157,7 +166,58 @@ export function renderAnnotationContent(
       svg.setAttribute('opacity', String(a.opacity))
       break
   }
+  // Hits follow the painted shape, so a press beside it reaches the text layer underneath.
+  for (const shape of svg.children) shape.setAttribute('pointer-events', 'visiblePainted')
   el.append(svg)
+}
+
+/**
+ * An invisible hit area for an annotation the overlay does not draw (embedded ones, which
+ * PDF.js paints on the canvas): polygons over its quads, or its rect. Selection chrome only.
+ */
+export function renderHitArea(el: HTMLElement, a: Annotation, t: PageTransform): void {
+  const doc = el.ownerDocument
+  el.replaceChildren()
+  const box = t.toCssRect(a.rect)
+  const svg = boxSvg(doc, box.width, box.height)
+  svg.dataset.inkHit = ''
+  const quads = 'quads' in a && a.quads ? a.quads : undefined
+  const shapes = quads
+    ? quads.map((q) => {
+        const poly = doc.createElementNS(SVG, 'polygon')
+        poly.setAttribute(
+          'points',
+          quadPoints(q)
+            .map((p) => {
+              const c = t.toCss(p)
+              return `${c.x - box.left},${c.y - box.top}`
+            })
+            .join(' ')
+        )
+        return poly
+      })
+    : [doc.createElementNS(SVG, 'rect')]
+  for (const shape of shapes) {
+    if (shape.tagName === 'rect') {
+      shape.setAttribute('width', String(box.width))
+      shape.setAttribute('height', String(box.height))
+    }
+    shape.setAttribute('fill', 'transparent')
+    shape.setAttribute('stroke', 'none')
+    shape.setAttribute('pointer-events', 'all')
+    svg.append(shape)
+  }
+  el.append(svg)
+}
+
+function boxSvg(doc: Document, width: number, height: number): SVGSVGElement {
+  const svg = doc.createElementNS(SVG, 'svg')
+  svg.setAttribute('width', String(width))
+  svg.setAttribute('height', String(height))
+  svg.setAttribute('viewBox', `0 0 ${width} ${height}`)
+  svg.setAttribute('overflow', 'visible')
+  svg.setAttribute('aria-hidden', 'true')
+  return svg
 }
 
 /** Quad corners in drawing order: p1 top-left, p2 top-right, p4 bottom-right, p3 bottom-left. */

@@ -289,11 +289,25 @@ describe('createOverlay', () => {
     expect(
       overlay.elementFor(ink.id)!.querySelector('polyline')?.getAttribute('stroke-width')
     ).toBe('4')
+    store.add({
+      type: 'freeText',
+      page: 0,
+      rect: { x: 300, y: 300, width: 100, height: 40 },
+      text: 'Hi',
+    })
+    store.add({ type: 'note', page: 0, rect: { x: 400, y: 400, width: 20, height: 20 } })
+    // Descendants carry no inline style, except `pointer-events` (and the FreeText custom
+    // properties) on the HTML children the overlay creates.
     for (const node of overlay.element.querySelectorAll('[data-annotation] *')) {
-      expect(node.getAttribute('style')).toBeNull()
+      const style = node.getAttribute('style')
+      if (style === null) continue
+      expect(node).toBeInstanceOf(HTMLElement)
+      expect(style.replace(/--ink-[\w-]+:[^;]*;\s*/g, '').trim()).toBe(
+        'pointer-events: auto;'
+      )
     }
     expect(el.style.cssText).toMatch(
-      /^position: absolute; pointer-events: auto; left: [\d.]+px; top: [\d.]+px; width: [\d.]+px; height: [\d.]+px;$/
+      /^position: absolute; left: [\d.]+px; top: [\d.]+px; width: [\d.]+px; height: [\d.]+px; pointer-events: none;$/
     )
     overlay.update(createPageTransform(page, 1, 0))
     expect(el.querySelector('rect')?.getAttribute('stroke-width')).toBe('3')
@@ -347,8 +361,100 @@ describe('createOverlay', () => {
       expect(parseFloat(el.style.top)).toBeCloseTo(box.top)
       expect(parseFloat(el.style.width)).toBeCloseTo(box.width)
       expect(parseFloat(el.style.height)).toBeCloseTo(box.height)
-      expect(el.childElementCount).toBe(0)
-      expect(el.querySelector('svg')).toBeNull()
+      // Nothing drawn: only the invisible hit area, which follows the quads.
+      expect(el.childElementCount).toBe(1)
+      const hit = el.firstElementChild as SVGElement
+      expect(hit.dataset.inkHit).toBe('')
+      expect(hit.querySelectorAll('polygon')).toHaveLength(
+        'quads' in a && a.quads ? a.quads.length : 0
+      )
+      for (const shape of hit.children) {
+        expect(shape.getAttribute('fill')).toBe('transparent')
+        expect(shape.getAttribute('stroke')).toBe('none')
+        expect(shape.getAttribute('pointer-events')).toBe('all')
+      }
     }
+    // A press on the hit area selects the embedded item.
+    const target = embedded[0]!
+    const poly = overlay.elementFor(target.id)!.querySelector('polygon')!
+    const r = poly.getBoundingClientRect()
+    const hitEl = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+    expect(hitEl).toBe(poly)
+    hitEl!.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
+    expect(doc.annotations.selection.get()).toEqual([target.id])
+  })
+
+  it('hit-tests by shape: a press between the lines of a highlight reaches the page', async () => {
+    const doc = await openFixtureInBrowser('text-simple')
+    const transform = createPageTransform(doc.pages[0]!, 1, 0)
+    const host = mountContainer(transform.cssWidth, transform.cssHeight)
+    const onActivate = vi.fn()
+    const overlay = createOverlay({
+      host,
+      page: 0,
+      store: doc.annotations,
+      transform,
+      onActivate,
+    })
+    cleanup.push(() => (overlay.destroy(), host.remove(), doc.destroy()))
+    const { items } = await doc.text(0)
+    const first = items.find((i) => i.str.startsWith('Hello'))!
+    const second = items.find((i) => i.str.startsWith('National Insurance'))!
+    const hl = doc.annotations.add({
+      type: 'highlight',
+      page: 0,
+      quads: [first.quad, second.quad],
+    })
+    const onRoot = vi.fn()
+    host.addEventListener('pointerdown', onRoot)
+    const press = (x: number, y: number) => {
+      const r = host.getBoundingClientRect()
+      const target = document.elementFromPoint(r.left + x, r.top + y)!
+      target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
+      return target
+    }
+    // Between the bottom of line one and the top of line two, inside the highlight's box.
+    const gapTop = transform.toCssRect(first.rect)
+    const gapBottom = transform.toCssRect(second.rect)
+    const gapY = (gapTop.top + gapTop.height + gapBottom.top) / 2
+    expect(gapBottom.top).toBeGreaterThan(gapTop.top + gapTop.height)
+    const box = transform.toCssRect(hl.rect)
+    expect(gapY).toBeGreaterThan(box.top)
+    expect(gapY).toBeLessThan(box.top + box.height)
+    const x = gapTop.left + 5
+    expect(overlay.elementFor(hl.id)!.contains(press(x, gapY))).toBe(false)
+    expect(doc.annotations.selection.get()).toEqual([])
+    expect(onRoot).toHaveBeenCalledTimes(1)
+    // On the first line's polygon it selects, activates and stops there.
+    const onLine = press(x, gapTop.top + gapTop.height / 2)
+    expect(onLine.tagName).toBe('polygon')
+    expect(doc.annotations.selection.get()).toEqual([hl.id])
+    expect(onActivate).toHaveBeenCalledWith(hl.id)
+    expect(onRoot).toHaveBeenCalledTimes(1)
+  })
+
+  it('marks the overlay root and keeps custom elements hittable as a whole', () => {
+    const store = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const host = mountContainer(612, 792)
+    const overlay = createOverlay({
+      host,
+      page: 0,
+      store,
+      transform: createPageTransform(page, 1, 0),
+      isCustom: (a) => a.type === 'note',
+    })
+    cleanup.push(() => (overlay.destroy(), host.remove()))
+    expect(host.querySelector('[data-ink-overlay]')).toBe(overlay.element)
+    const custom = store.add({
+      type: 'note',
+      page: 0,
+      rect: { x: 100, y: 100, width: 20, height: 20 },
+    })
+    const drawn = store.add({ type: 'highlight', page: 0, quads })
+    expect(overlay.elementFor(custom.id)!.style.pointerEvents).toBe('auto')
+    expect(overlay.elementFor(drawn.id)!.style.pointerEvents).toBe('none')
   })
 })
