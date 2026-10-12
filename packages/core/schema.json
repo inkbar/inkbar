@@ -3,18 +3,9 @@
   "$id": "https://inkbar.dev/schema/annotations-v1.json",
   "title": "Inkbar annotations",
   "description": "Typed annotation export. Coordinates are PDF user space in points, origin bottom-left.",
-  "type": "object",
-  "properties": {
-    "format": { "type": "string", "const": "inkbar/annotations" },
-    "version": { "type": "number", "const": 1 },
-    "documentKey": { "type": "string" },
-    "annotations": { "type": "array", "items": { "$ref": "#/$defs/Annotation" } }
-  },
-  "required": ["format", "version", "annotations"],
-  "additionalProperties": false,
+  "$ref": "#/$defs/AnnotationDocument",
   "$defs": {
     "Annotation": {
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
       "oneOf": [
         {
           "type": "object",

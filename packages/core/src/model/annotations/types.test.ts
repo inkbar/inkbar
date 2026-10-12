@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs'
 
 import { Ajv2020 } from 'ajv/dist/2020'
 import { describe, expect, it } from 'vitest'
-import { z } from 'zod'
 
+import { ANNOTATION_SCHEMA_ID, buildAnnotationSchema } from './schema'
 import {
   AnnotationDocumentSchema,
   AnnotationSchema,
@@ -16,6 +16,7 @@ import {
 } from './types'
 
 import type { Point, Quad, Rect } from '../geometry'
+import type { z } from 'zod'
 
 const valid: Annotation = {
   id: '0192a3b4-0000-7000-8000-000000000001',
@@ -100,27 +101,41 @@ describe('AnnotationSchema', () => {
 })
 
 describe('schema.json', () => {
-  it('is in sync with the zod schema and validates the same inputs', () => {
-    const generated = z.toJSONSchema(AnnotationSchema, { target: 'draft-2020-12' })
-    const onDisk = readPublished()
-    expect(onDisk.$defs.Annotation).toEqual(generated)
+  const annotationRef = `${ANNOTATION_SCHEMA_ID}#/$defs/Annotation`
+  const compileAnnotation = () => {
     const ajv = new Ajv2020({ strict: false })
-    const validate = ajv.compile(generated)
-    expect(validate(valid)).toBe(true)
-    expect(validate({ ...valid, color: 'yellow' })).toBe(false)
+    ajv.addSchema(readPublished())
+    const validate = ajv.getSchema(annotationRef)
+    if (!validate) throw new Error('Annotation definition missing')
+    return validate
+  }
+
+  it('is exactly what the generator builds, so it cannot go stale', () => {
+    expect(readPublished()).toEqual(buildAnnotationSchema())
   })
 
   it('is a complete published document', () => {
     const onDisk = readPublished()
     expect(onDisk.$schema).toBe('https://json-schema.org/draft/2020-12/schema')
-    expect(onDisk.$id).toBe('https://inkbar.dev/schema/annotations-v1.json')
+    expect(onDisk.$id).toBe(ANNOTATION_SCHEMA_ID)
     expect(onDisk.$defs).toHaveProperty('Annotation')
     expect(onDisk.$defs).toHaveProperty('AnnotationDocument')
   })
 
+  it('validates annotations like the zod schema', () => {
+    const validate = compileAnnotation()
+    expect(validate(valid)).toBe(true)
+    expect(validate({ ...valid, color: 'yellow' })).toBe(false)
+  })
+
+  it('accepts arbitrary nested JSON in custom', () => {
+    const validate = compileAnnotation()
+    const custom = { a: 1, b: { c: [true, null, 'x'] } }
+    expect(validate({ ...valid, custom })).toBe(true)
+  })
+
   it('compiles as a document schema and checks the envelope', () => {
-    const onDisk = readPublished()
-    const validate = new Ajv2020({ strict: false }).compile(onDisk)
+    const validate = new Ajv2020({ strict: false }).compile(readPublished())
     const doc = { format: 'inkbar/annotations', version: 1, annotations: [valid] }
     expect(validate(doc)).toBe(true)
     expect(validate({ ...doc, version: 2 })).toBe(false)
