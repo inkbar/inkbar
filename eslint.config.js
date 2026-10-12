@@ -21,6 +21,7 @@ export default defineConfig(
   },
   {
     name: 'inkbar/rules',
+    settings: { tailwindcss: { config: false } },
     rules: {
       '@typescript-eslint/no-unused-vars': [
         'error',
