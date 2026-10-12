@@ -3,12 +3,18 @@
  * The scroll element is handed to core's `createViewport` and `createToolController`; Vue
  * never renders children into it. Pages are InkPage components rendered here (they render
  * nothing in place) that mount core's page layers into the hosts the viewport creates.
+ * Keyboard shortcuts are core's `attachViewportKeys` on the scroll element.
  *
  * Two-way zoom and page: the viewport's own changes are reported through the context, and
  * the host's v-model values are applied only when they differ from the viewport's state, so
  * the echo of a reported value does nothing.
  */
-import { createToolController, createViewport, getSelectionQuads } from '@inkbar/core/dom'
+import {
+  attachViewportKeys,
+  createToolController,
+  createViewport,
+  getSelectionQuads,
+} from '@inkbar/core/dom'
 import {
   computed,
   onBeforeUnmount,
@@ -131,6 +137,7 @@ function setup(): void {
   ctx.viewport.value = vp
   ctx.tools.value = tc
   stops = [
+    attachViewportKeys(el, { viewport: vp, pageCount: () => doc.pages.length }),
     vp.zoom.subscribe((z) => ctx.reportZoom(z)),
     vp.currentPage.subscribe((p) => {
       lastReportedPage = p
@@ -178,40 +185,6 @@ watch(
 // Gap and buffer are construction options: rebuild the viewport when they change.
 watch([() => props.gap, () => props.buffer], setup)
 
-const IGNORE =
-  'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [data-annotation]'
-
-function onKeydown(e: KeyboardEvent): void {
-  const vp = viewport
-  const doc = ctx.document.value
-  if (!vp || !doc || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
-  if (e.target instanceof Element && e.target.closest(IGNORE)) return
-  switch (e.key) {
-    case '+':
-    case '=':
-      vp.zoomBy(1.25)
-      break
-    case '-':
-      vp.zoomBy(0.8)
-      break
-    case 'Home':
-      vp.scrollToPage(0)
-      break
-    case 'End':
-      vp.scrollToPage(doc.pages.length - 1)
-      break
-    case 'PageDown':
-      vp.scrollToPage(vp.currentPage.get() + 1)
-      break
-    case 'PageUp':
-      vp.scrollToPage(vp.currentPage.get() - 1)
-      break
-    default:
-      return
-  }
-  e.preventDefault()
-}
-
 onBeforeUnmount(teardown)
 </script>
 
@@ -239,7 +212,6 @@ onBeforeUnmount(teardown)
       tabindex="0"
       role="document"
       aria-label="Document"
-      @keydown="onKeydown"
     />
     <InkPage
       v-for="p in pages"

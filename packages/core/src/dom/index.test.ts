@@ -18,6 +18,7 @@ describe('@inkbar/core/dom entry', () => {
     expect(Object.keys(entry)).toEqual(
       expect.arrayContaining([
         'createViewport',
+        'attachViewportKeys',
         'computeCssLayout',
         'createPageTransform',
         'createPageRenderer',

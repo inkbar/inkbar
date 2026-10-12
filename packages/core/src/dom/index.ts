@@ -11,6 +11,8 @@ export {
 export type { CssLayout, CssLayoutInput, CssPageBox, LayoutMode } from './layout'
 export { createViewport } from './viewport'
 export type { Viewport, ViewportHit, ViewportOptions, ZoomValue } from './viewport'
+export { attachViewportKeys } from './viewport-keys'
+export type { ViewportKeysOptions } from './viewport-keys'
 export { createPageRenderer } from './page-renderer'
 export type { PageRenderer, PageRendererOptions } from './page-renderer'
 export { createTextLayer } from './text-layer'
