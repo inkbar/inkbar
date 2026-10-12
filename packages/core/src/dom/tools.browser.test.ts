@@ -953,6 +953,28 @@ describe('resize handles', () => {
     })
   })
 
+  it('shows handles only while the select tool is active', async () => {
+    const { doc, viewport, tools } = await setup()
+    const a = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    const handles = () =>
+      viewport.hostFor(0)!.querySelectorAll(`[data-annotation="${a.id}"] > .ink-handle`)
+    doc.annotations.select([a.id])
+    await settle()
+    // Selected under the view tool: nothing to drag them with, so no handles.
+    expect(handles()).toHaveLength(0)
+    tools.set('select')
+    await until(() => handles().length === 4)
+    tools.set('highlight')
+    await until(() => handles().length === 0)
+    expect(doc.annotations.selection.get()).toEqual([a.id])
+    tools.set('select')
+    await until(() => handles().length === 4)
+  })
+
   it('a locked or text-derived annotation shows no handles', async () => {
     const { doc, viewport, tools } = await setup()
     const a = doc.annotations.add({

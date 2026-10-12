@@ -763,6 +763,12 @@ describe('createOverlay', () => {
 
   it('draws corner handles on a selected, unlocked rect-shaped annotation only', () => {
     const { store, host } = setup()
+    // Handles need the select tool on the tool root; the controller would set this.
+    const toolRoot = document.createElement('div')
+    toolRoot.dataset.inkTool = 'select'
+    document.body.append(toolRoot)
+    toolRoot.append(host)
+    cleanup.push(() => toolRoot.remove())
     const area = store.add({
       type: 'redact',
       page: 0,

@@ -131,14 +131,41 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     const a = store.get(id)
     syncHandles(
       node,
-      state === 'selected' && a !== undefined && !a.locked && hasRectGeometry(a)
+      selectToolActive() &&
+        state === 'selected' &&
+        a !== undefined &&
+        !a.locked &&
+        hasRectGeometry(a)
     )
   }
 
+  /** True while the tool controller marks the tool root (an ancestor) `data-ink-tool="select"`. */
+  function selectToolActive(): boolean {
+    return (
+      opts.host.closest('[data-ink-tool]')?.getAttribute('data-ink-tool') === 'select'
+    )
+  }
+  // Re-sync handles on a tool switch. The controller's root is normally the viewport
+  // container; pages can mount before the controller marks it, so fall back to that.
+  const toolRoot =
+    opts.host.closest('[data-ink-tool]') ?? opts.host.closest('[data-ink-viewport]')
+  const Observer = doc.defaultView?.MutationObserver
+  let toolObserver: MutationObserver | undefined
+  if (toolRoot && Observer) {
+    toolObserver = new Observer(() => {
+      if (destroyed) return
+      for (const [id, node] of elements) applyState(node, id)
+    })
+    toolObserver.observe(toolRoot, {
+      attributes: true,
+      attributeFilter: ['data-ink-tool'],
+    })
+  }
+
   /**
-   * Corner handles for a selected, unlocked rect-shaped annotation. The select tool drags them
-   * (`data-handle` names the CSS corner); in other tools a press on one is a press on the
-   * annotation. Themes show them only while the select tool is active.
+   * Corner handles for a selected, unlocked rect-shaped annotation, drawn only while the select
+   * tool is active (`data-ink-tool="select"` on the tool root). The select tool drags them
+   * (`data-handle` names the CSS corner). The theme also hides them outside the select tool.
    */
   function syncHandles(node: HTMLElement, want: boolean): void {
     const existing = node.querySelectorAll(':scope > [data-handle]')
@@ -378,6 +405,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
       destroyed = true
       offList()
       offSelection()
+      toolObserver?.disconnect()
       root.remove()
       elements.clear()
       drawn.clear()
