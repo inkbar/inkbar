@@ -466,3 +466,76 @@ test('with a slow controlled host, Delete closes the note popover before the hos
   expect(consoleGuard.problems[0]).toContain('ControlledMutationIgnored')
   consoleGuard.clear()
 })
+
+test('a new note: the popover writes the note text itself, then replies', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(Harness, {
+    props: { src: fixtureUrl('text-simple'), assets, tool: 'note' },
+  })
+  await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
+  // Keyboard only: Enter on the document places a note on the current page and opens it.
+  await page.locator('[data-ink-scroll]').focus()
+  await page.keyboard.press('Enter')
+  const popover = page.locator('[data-ink-note-popover]')
+  await expect(popover).toBeVisible()
+  await expect(popover.locator('[data-ink-thread]')).toHaveCount(0)
+  await expect(popover.locator('textarea[aria-label="Reply"]')).toHaveCount(0)
+  const comment = popover.getByRole('textbox', { name: 'Comment' })
+  await comment.fill('Check the date')
+  await popover.getByRole('button', { name: 'Comment' }).click()
+
+  const notes = (await stored(docOf(page))).filter((a) => a.type === 'note')
+  expect(notes).toHaveLength(1)
+  expect(notes[0]).toMatchObject({ contents: 'Check the date' })
+  expect(notes[0]!.inReplyTo).toBeUndefined()
+  const items = popover.locator('[data-ink-thread-item]')
+  await expect(items).toHaveCount(1)
+  await expect(items.first()).toContainText('Check the date')
+
+  // From now on the form replies.
+  await popover.getByRole('textbox', { name: 'Reply' }).fill('Agreed')
+  await popover.getByRole('button', { name: 'Reply' }).click()
+  await expect(items).toHaveCount(2)
+  const after = (await stored(docOf(page))).filter((a) => a.type === 'note')
+  expect(after.find((a) => a.contents === 'Agreed')).toMatchObject({
+    inReplyTo: notes[0]!.id,
+  })
+  await popover.getByRole('button', { name: 'Close' }).click()
+  await expect(popover).toHaveCount(0)
+  await expect(cmp.locator(`[data-annotation="${notes[0]!.id}"]`)).toBeFocused()
+})
+
+test('closing a new note without writing anything removes it', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(Harness, {
+    props: { src: fixtureUrl('text-simple'), assets, tool: 'note' },
+  })
+  await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
+  await page.locator('[data-ink-scroll]').focus()
+  await page.keyboard.press('Enter')
+  const popover = page.locator('[data-ink-note-popover]')
+  await expect(popover).toBeVisible()
+  await expect(cmp.locator('[data-annotation]')).toHaveCount(1)
+  await page.keyboard.press('Escape')
+  await expect(popover).toHaveCount(0)
+  await expect(cmp.locator('[data-annotation]')).toHaveCount(0)
+  expect(await stored(docOf(page))).toEqual([])
+  await expect(page.locator('[data-ink-scroll]')).toBeFocused()
+
+  // The same through the Close button, for a note added with no text.
+  const id = await addAnnotation(page, {
+    type: 'note',
+    page: 0,
+    rect: { x: 72, y: 600, width: 24, height: 24 },
+  })
+  await cmp.locator(`[data-annotation="${id}"]`).focus()
+  await page.keyboard.press('Enter')
+  await expect(popover).toBeVisible()
+  await popover.getByRole('button', { name: 'Close' }).click()
+  await expect(popover).toHaveCount(0)
+  expect(await stored(docOf(page))).toEqual([])
+})

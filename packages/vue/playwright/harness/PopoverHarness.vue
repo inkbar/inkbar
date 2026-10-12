@@ -7,6 +7,7 @@ import InkSuggestionCard from '../../src/components/InkSuggestionCard.vue'
 import InkViewport from '../../src/components/InkViewport.vue'
 
 import type { Annotation, DocumentSource, InkDocument, PdfAssets } from '@inkbar/core'
+import type { ToolId } from '@inkbar/core/dom'
 
 const props = defineProps<{
   src: DocumentSource
@@ -22,6 +23,7 @@ const props = defineProps<{
   customCard?: boolean | undefined
   /** Replace the note popover's default content with one slot-driven Remove button. */
   customNote?: boolean | undefined
+  tool?: ToolId | undefined
 }>()
 
 const list = shallowRef<Annotation[]>([])
@@ -66,6 +68,7 @@ function onReady(doc: InkDocument) {
     :src="src"
     :assets="assets"
     :zoom="1"
+    :tool="tool"
     :annotations="controlled ? list : undefined"
     @update:annotations="onUpdate"
     @ready="onReady"

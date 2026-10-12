@@ -2,6 +2,11 @@
 /*
  * The thread for the activated note, anchored to the note's overlay element. Activating a
  * reply opens the whole thread from its root. Closing (Close, Escape, a press outside) clears `activated`.
+ *
+ * A new note has no text. While its root is empty (and unlocked) the default form writes the
+ * root's own `contents`, labelled "Comment", and the thread list stays hidden until there is
+ * something in it; after that the form adds replies. Closing a root that is still empty and
+ * has no replies removes it, so an abandoned note does not stay on the page.
  */
 import { PopoverContent, PopoverPortal, PopoverRoot } from 'reka-ui'
 import { computed, ref, watch } from 'vue'
@@ -75,11 +80,30 @@ const thread = computed<Annotation[]>(() => {
   return out
 })
 
+/** True while the default form writes the root note's own text rather than a reply. */
+const editingRoot = computed(() => {
+  const root = note.value
+  return root !== null && !root.locked && !root.contents?.trim()
+})
+
 const draft = ref('')
 watch(
   () => note.value?.id,
-  () => (draft.value = '')
+  (_next, previous) => {
+    draft.value = ''
+    // Activation moved on from a note that never got any text: drop it.
+    if (previous !== undefined) dropIfEmpty(previous)
+  }
 )
+
+/** Removes an unlocked root note with no text and no replies. True when it did. */
+function dropIfEmpty(id: string): boolean {
+  const a = find(id)
+  if (a?.type !== 'note' || a.locked || a.inReplyTo || a.contents?.trim()) return false
+  if (replies(id).length > 0) return false
+  remove(id)
+  return true
+}
 
 function reply(text: string): void {
   const root = note.value
@@ -89,7 +113,23 @@ function reply(text: string): void {
   draft.value = ''
 }
 function close(): void {
+  const root = note.value
+  if (root && find(root.id) && isEmptyRoot(root)) {
+    focusReturn.beforeRemove(anchor.value)
+    dropIfEmpty(root.id)
+  }
   ctx.setActivated(null)
+}
+function isEmptyRoot(root: NoteAnnotation): boolean {
+  return !root.locked && !root.contents?.trim() && thread.value.length === 1
+}
+function submit(): void {
+  const text = draft.value.trim()
+  if (!text) return
+  if (editingRoot.value) {
+    updateContents(text)
+    draft.value = ''
+  } else reply(text)
 }
 /** Locked notes cannot be removed: removing one does nothing and keeps the popover. */
 function removeThread(): void {
@@ -97,7 +137,9 @@ function removeThread(): void {
   if (!root || root.locked) return
   focusReturn.beforeRemove(anchor.value)
   remove(root.id)
-  close()
+  // Not `close()`: under a slow controlled host the note is still listed, and close would
+  // try to drop it a second time.
+  ctx.setActivated(null)
 }
 function updateContents(contents: string): void {
   if (note.value && !note.value.locked) update(note.value.id, { contents })
@@ -130,7 +172,7 @@ function onOpenChange(next: boolean): void {
           :remove="removeThread"
           :close="close"
         >
-          <ol class="ink-thread" data-ink-thread>
+          <ol v-if="!editingRoot || thread.length > 1" class="ink-thread" data-ink-thread>
             <li
               v-for="item in thread"
               :key="item.id"
@@ -145,14 +187,17 @@ function onOpenChange(next: boolean): void {
               <p class="ink-thread-text">{{ item.contents }}</p>
             </li>
           </ol>
-          <form
-            class="ink-thread-reply"
-            data-ink-thread-reply
-            @submit.prevent="reply(draft)"
-          >
-            <textarea v-model="draft" aria-label="Reply" rows="2" placeholder="Reply" />
+          <form class="ink-thread-reply" data-ink-thread-reply @submit.prevent="submit">
+            <textarea
+              v-model="draft"
+              :aria-label="editingRoot ? 'Comment' : 'Reply'"
+              rows="2"
+              :placeholder="editingRoot ? 'Comment' : 'Reply'"
+            />
             <div class="ink-thread-actions">
-              <button type="submit" :disabled="!draft.trim()">Reply</button>
+              <button type="submit" :disabled="!draft.trim()">
+                {{ editingRoot ? 'Comment' : 'Reply' }}
+              </button>
               <button v-if="!note.locked" type="button" @click="removeThread">
                 Delete
               </button>
