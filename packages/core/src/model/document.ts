@@ -60,6 +60,8 @@ export interface OpenOptions {
    * inert: the host owns the list, so it owns undo too.
    */
   history?: boolean | { limit?: number | undefined } | undefined
+  /** PDF.js verbosity level; 0 = errors only. Defaults to PDF.js's own level. */
+  verbosity?: number | undefined
 }
 
 export interface InkDocument {
@@ -135,6 +137,7 @@ export async function openDocument(
     const { task, proxy } = await openProxy(pdfjs, bytes, {
       assets: options.assets,
       password: options.password,
+      verbosity: options.verbosity,
     })
     destroyTask = () => task.destroy()
     const getPage = (index: number): Promise<PdfjsPage> => {

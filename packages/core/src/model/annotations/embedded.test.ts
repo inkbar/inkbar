@@ -11,7 +11,11 @@ import type { PdfjsAnnotationData } from '../../pdfjs/types'
 const NOW = '2026-10-12T00:00:00.000Z'
 
 async function rawAnnotations(name: Parameters<typeof fixtureBytes>[0]) {
-  const doc = await openDocument(await fixtureBytes(name), { assets: nodeAssets() })
+  // PDF.js warns about Redact and about building FreeText appearances in Node; both expected.
+  const doc = await openDocument(await fixtureBytes(name), {
+    assets: nodeAssets(),
+    verbosity: 0,
+  })
   await doc.ready
   const page = await doc._pdfjs.getPage(0)
   const raw = (await page.getAnnotations()) as unknown as PdfjsAnnotationData[]

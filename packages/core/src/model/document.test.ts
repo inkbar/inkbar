@@ -98,8 +98,10 @@ describe('openDocument', () => {
   })
 
   it('surfaces unreadable bytes as InvalidPdf', async () => {
+    // PDF.js warns while it tries to recover the truncated file; expected here.
     const doc = await openDocument(await fixtureBytes('malformed-truncated'), {
       assets: nodeAssets(),
+      verbosity: 0,
     })
     const status = doc.status.get()
     expect(status.state).toBe('error')
