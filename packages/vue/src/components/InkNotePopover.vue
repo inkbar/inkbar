@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /*
  * The thread for the activated note, anchored to the note's overlay element. Activating a
- * reply opens its root's thread. Closing (Close, Escape, a press outside) clears `activated`.
+ * reply opens the whole thread from its root. Closing (Close, Escape, a press outside) clears `activated`.
  */
 import { PopoverContent, PopoverPortal, PopoverRoot } from 'reka-ui'
 import { computed, ref, watch } from 'vue'
@@ -31,11 +31,25 @@ const { annotations, replies, add, update, remove } = useAnnotations()
 const find = (id: string | undefined) =>
   id ? annotations.value.find((a) => a.id === id) : undefined
 
+/**
+ * The top of a note's thread: follows `inReplyTo` up through notes, stopping at a missing
+ * parent, a parent that is not a note, or a cycle.
+ */
+function threadRoot(start: NoteAnnotation): NoteAnnotation {
+  const seen = new Set([start.id])
+  let current = start
+  while (current.inReplyTo) {
+    const parent = find(current.inReplyTo)
+    if (parent?.type !== 'note' || seen.has(parent.id)) break
+    seen.add(parent.id)
+    current = parent
+  }
+  return current
+}
+
 const note = computed<NoteAnnotation | null>(() => {
   const a = find(ctx.activated.value ?? undefined)
-  if (a?.type !== 'note') return null
-  const root = a.inReplyTo ? find(a.inReplyTo) : a
-  return root?.type === 'note' ? root : a
+  return a?.type === 'note' ? threadRoot(a) : null
 })
 const anchor = useAnnotationElement(
   ctx,
@@ -43,9 +57,23 @@ const anchor = useAnnotationElement(
 )
 const focusReturn = useFocusReturn(ctx)
 const open = computed(() => note.value !== null && anchor.value !== null)
-const thread = computed<Annotation[]>(() =>
-  note.value ? [note.value, ...replies(note.value.id)] : []
-)
+/** The root, then every reply below it, depth first, each level in creation order. */
+const thread = computed<Annotation[]>(() => {
+  const root = note.value
+  if (!root) return []
+  const out: Annotation[] = [root]
+  const seen = new Set([root.id])
+  const visit = (id: string): void => {
+    for (const r of replies(id)) {
+      if (seen.has(r.id)) continue
+      seen.add(r.id)
+      out.push(r)
+      visit(r.id)
+    }
+  }
+  visit(root.id)
+  return out
+})
 
 const draft = ref('')
 watch(
@@ -63,12 +91,12 @@ function reply(text: string): void {
 function close(): void {
   ctx.setActivated(null)
 }
+/** Locked notes cannot be removed: removing one does nothing and keeps the popover. */
 function removeThread(): void {
   const root = note.value
-  if (root && !root.locked) {
-    focusReturn.beforeRemove(anchor.value)
-    remove(root.id)
-  }
+  if (!root || root.locked) return
+  focusReturn.beforeRemove(anchor.value)
+  remove(root.id)
   close()
 }
 function updateContents(contents: string): void {

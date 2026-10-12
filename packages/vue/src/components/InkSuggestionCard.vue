@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /*
  * Review card for a suggested redaction: opens when the activated annotation, or the only
- * selected one, is a redaction with `origin: 'suggested'`. A press on the overlay selects and
+ * selected one, is a redaction with `origin: 'suggested'`. Locked suggestions cannot be
+ * dismissed, so they get no Dismiss button. A press on the overlay selects and
  * activates, so a click opens it whatever the tool. Closing clears `activated` and the
  * selection.
  */
@@ -39,12 +40,17 @@ const {
   select,
 } = useAnnotations()
 
-const target = computed<RedactAnnotation | null>(() => {
-  const id =
-    ctx.activated.value ?? (selection.value.length === 1 ? selection.value[0] : undefined)
+function suggestion(id: string | null | undefined): RedactAnnotation | null {
   const a = id ? annotations.value.find((x) => x.id === id) : undefined
   return a?.type === 'redact' && a.origin === 'suggested' ? a : null
-})
+}
+// The activated annotation when it is a suggestion; otherwise the only selected one (a
+// marquee selects without activating).
+const target = computed<RedactAnnotation | null>(
+  () =>
+    suggestion(ctx.activated.value) ??
+    (selection.value.length === 1 ? suggestion(selection.value[0]) : null)
+)
 const anchor = useAnnotationElement(
   ctx,
   computed(() => target.value?.id ?? null)
@@ -65,11 +71,12 @@ function accept(): void {
   if (target.value) acceptId(target.value.id)
   close()
 }
+/** Locked annotations cannot be removed: dismissing one does nothing and keeps the card. */
 function dismiss(): void {
-  if (target.value) {
-    focusReturn.beforeRemove(anchor.value, '[data-origin="suggested"]')
-    dismissId(target.value.id)
-  }
+  const t = target.value
+  if (!t || t.locked) return
+  focusReturn.beforeRemove(anchor.value, '[data-origin="suggested"]')
+  dismissId(t.id)
   close()
 }
 function onOpenChange(next: boolean): void {
@@ -115,7 +122,7 @@ function onOpenChange(next: boolean): void {
           </p>
           <div class="ink-suggestion-actions">
             <button type="button" @click="accept">Accept</button>
-            <button type="button" @click="dismiss">Dismiss</button>
+            <button v-if="!target.locked" type="button" @click="dismiss">Dismiss</button>
           </div>
         </slot>
       </PopoverContent>

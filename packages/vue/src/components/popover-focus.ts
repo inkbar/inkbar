@@ -4,10 +4,18 @@
  */
 import type { InkContext } from '../context'
 
-/** A press on any annotation is an activation, not a dismissal: the popover follows it. */
+/**
+ * A press that will activate an annotation is not a dismissal: the popover follows the
+ * activation. This mirrors the overlay's rule: a press on the annotation element or on its
+ * drawn shape activates; a press on a custom element's slot content belongs to that content,
+ * does not activate, and so dismisses like any other press outside.
+ */
 export function keepOpenOnAnnotation(event: CustomEvent<{ originalEvent: Event }>): void {
   const target = event.detail.originalEvent.target
-  if (target instanceof Element && target.closest('[data-annotation]'))
+  if (!(target instanceof Element)) return
+  const annotation = target.closest('[data-annotation]')
+  if (!annotation) return
+  if (target === annotation || !annotation.hasAttribute('data-custom'))
     event.preventDefault()
 }
 
@@ -24,10 +32,18 @@ export interface FocusReturn {
 
 export function useFocusReturn(ctx: InkContext): FocusReturn {
   let fallbacks: HTMLElement[] = []
+  /** Set by `beforeRemove`: the close comes from removing the anchor's annotation. */
+  let removing = false
+
+  const elementFor = (id: string): HTMLElement | null =>
+    ctx.rootEl.value?.querySelector<HTMLElement>(
+      `[data-annotation="${CSS.escape(id)}"]`
+    ) ?? null
 
   return {
     beforeRemove(anchor, prefer) {
       fallbacks = []
+      removing = true
       // The overlay keeps its elements in reading order, so DOM order is reading order.
       const siblings = anchor?.parentElement
         ? [...anchor.parentElement.children].filter(
@@ -45,16 +61,23 @@ export function useFocusReturn(ctx: InkContext): FocusReturn {
     onCloseAutoFocus(event, anchor) {
       event.preventDefault()
       const plan = fallbacks
+      const removed = removing
       fallbacks = []
-      // Activation moved to another annotation: its popover takes focus.
-      if (ctx.activated.value !== null) return
+      removing = false
       const root = ctx.rootEl.value
+      if (!root) return
+      // Activation moved to another annotation that is on screen: its popover takes focus. An
+      // id whose element is gone (the host removed it) does not count.
+      const activated = ctx.activated.value
+      if (activated !== null && elementFor(activated)) return
       // Reka can report the close more than once; focus already returned to the document stays.
-      const active = root?.ownerDocument.activeElement
-      if (active && active !== root && root?.contains(active)) return
-      const scroll = root?.querySelector<HTMLElement>('[data-ink-scroll]')
-      const target = [anchor, ...plan, scroll].find((el) => el?.isConnected)
-      target?.focus({ preventScroll: true })
+      const active = root.ownerDocument.activeElement
+      if (active && active !== root && root.contains(active)) return
+      const scroll = root.querySelector<HTMLElement>('[data-ink-scroll]')
+      // After a removal the anchor may still be connected (a controlled host has not applied
+      // the change yet), but it is on its way out: go straight to what follows it.
+      const candidates = removed ? [...plan, scroll] : [anchor, ...plan, scroll]
+      candidates.find((el) => el?.isConnected)?.focus({ preventScroll: true })
     },
   }
 }

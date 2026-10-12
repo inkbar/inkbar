@@ -1,16 +1,40 @@
 <script setup lang="ts">
+import { onBeforeUnmount, shallowRef } from 'vue'
+
 import InkNotePopover from '../../src/components/InkNotePopover.vue'
 import InkRoot from '../../src/components/InkRoot.vue'
 import InkSuggestionCard from '../../src/components/InkSuggestionCard.vue'
 import InkViewport from '../../src/components/InkViewport.vue'
 
-import type { DocumentSource, InkDocument, PdfAssets } from '@inkbar/core'
+import type { Annotation, DocumentSource, InkDocument, PdfAssets } from '@inkbar/core'
 
 const props = defineProps<{
   src: DocumentSource
   assets: PdfAssets
   seedSuggestions?: boolean | undefined
+  /** The host owns the list through v-model. */
+  controlled?: boolean | undefined
+  /** Controlled only: apply each proposal this many ms late, like a slow host. */
+  applyDelay?: number | undefined
+  /** Fill annotation elements with slot content (a button). */
+  customAnnotations?: boolean | undefined
+  /** Replace the card's default content with one slot-driven Remove button. */
+  customCard?: boolean | undefined
 }>()
+
+const list = shallowRef<Annotation[]>([])
+
+function onUpdate(next: Annotation[]): void {
+  if (props.applyDelay === undefined) list.value = next
+  else setTimeout(() => (list.value = next), props.applyDelay)
+}
+
+type HostWindow = Window & { __inkHostRemove?: ((id: string) => void) | undefined }
+// Test-only: the host drops an annotation from its own list, outside any popover.
+;(window as HostWindow).__inkHostRemove = (id) => {
+  list.value = list.value.filter((a) => a.id !== id)
+}
+onBeforeUnmount(() => ((window as HostWindow).__inkHostRemove = undefined))
 
 function onReady(doc: InkDocument) {
   if (!props.seedSuggestions) return
@@ -36,10 +60,26 @@ function onReady(doc: InkDocument) {
 </script>
 
 <template>
-  <InkRoot :src="src" :assets="assets" :zoom="1" @ready="onReady">
+  <InkRoot
+    :src="src"
+    :assets="assets"
+    :zoom="1"
+    :annotations="controlled ? list : undefined"
+    @update:annotations="onUpdate"
+    @ready="onReady"
+  >
     <!-- Test-only box: the scroll container needs a bounded height to scroll. -->
-    <div style="height: 600px; width: 900px"><InkViewport /></div>
+    <div style="height: 600px; width: 900px">
+      <InkViewport>
+        <template v-if="customAnnotations" #annotation="{ annotation }">
+          <button type="button" data-testid="pin">Pin {{ annotation.type }}</button>
+        </template>
+      </InkViewport>
+    </div>
     <InkNotePopover />
-    <InkSuggestionCard />
+    <InkSuggestionCard v-if="customCard" v-slot="{ dismiss }">
+      <button type="button" data-testid="custom-dismiss" @click="dismiss">Remove</button>
+    </InkSuggestionCard>
+    <InkSuggestionCard v-else />
   </InkRoot>
 </template>

@@ -4,15 +4,17 @@ import { expect, test } from '@playwright/experimental-ct-vue'
 import { guardConsole } from '../../playwright/console-guard'
 import Harness from '../../playwright/harness/PopoverHarness.vue'
 
-import type { Locator } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
 
 const assets = browserAssets()
-guardConsole(test)
+const consoleGuard = guardConsole(test)
 
 type Stored = { id: string; type: string; contents?: string; inReplyTo?: string }
 type DocHandle = {
   annotations: {
     add(input: unknown): { id: string }
+    update(id: string, patch: unknown): unknown
+    select(ids: string[]): void
     list: { get(): Stored[] }
     selection: { get(): string[] }
   }
@@ -21,6 +23,17 @@ type RootEl = HTMLElement & { __inkDocument?: DocHandle }
 
 const stored = (root: Locator) =>
   root.evaluate((el) => (el as RootEl).__inkDocument!.annotations.list.get())
+
+type HostWindow = Window & { __inkHostRemove?: (id: string) => void }
+
+const docOf = (page: Page) => page.locator('[data-ink-root]')
+
+/** Adds through the dev hook and returns the new id. */
+const addAnnotation = (page: Page, input: Record<string, unknown>) =>
+  docOf(page).evaluate(
+    (el, i) => (el as RootEl).__inkDocument!.annotations.add(i).id,
+    input
+  )
 
 /** Annotation elements ignore the pointer; their drawn shape takes the press. */
 const hitShape = (annotation: Locator) =>
@@ -206,4 +219,191 @@ test('after deleting the only note, focus moves to the document', async ({
   await expect(popover).toHaveCount(0)
   await expect(cmp.locator('[data-annotation]')).toHaveCount(0)
   await expect(page.locator('[data-ink-scroll]')).toBeFocused()
+})
+
+test('a locked suggestion has no Dismiss, and the slot dismiss keeps the card open', async ({
+  mount,
+  page,
+}) => {
+  for (const customCard of [false, true]) {
+    const cmp = await mount(Harness, {
+      props: {
+        src: fixtureUrl('text-simple'),
+        assets,
+        seedSuggestions: true,
+        customCard,
+      },
+    })
+    const suggested = cmp.locator('[data-annotation][data-origin="suggested"]')
+    await expect(suggested).toHaveCount(2)
+    const id = (await suggested.first().getAttribute('data-annotation'))!
+    await docOf(page).evaluate(
+      (el, a) => (el as RootEl).__inkDocument!.annotations.update(a, { locked: true }),
+      id
+    )
+    await expect(suggested.first()).toHaveAttribute('data-locked', '')
+    await suggested.first().focus()
+    await page.keyboard.press('Enter')
+    const card = page.locator('[data-ink-suggestion-card]')
+    await expect(card).toBeVisible()
+    if (!customCard) {
+      await expect(card.getByRole('button', { name: 'Dismiss' })).toHaveCount(0)
+      await expect(card.getByRole('button', { name: 'Accept' })).toHaveCount(1)
+    } else {
+      await card.getByTestId('custom-dismiss').click()
+      await expect(card).toBeVisible()
+      await expect(suggested).toHaveCount(2)
+    }
+    await cmp.unmount()
+  }
+})
+
+test('activating a nested reply opens the whole thread from its root', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(Harness, { props: { src: fixtureUrl('text-simple'), assets } })
+  await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
+  const note = (y: number, contents: string, inReplyTo?: string) =>
+    addAnnotation(page, {
+      type: 'note',
+      page: 0,
+      rect: { x: 72, y, width: 24, height: 24 },
+      contents,
+      ...(inReplyTo ? { inReplyTo } : {}),
+    })
+  const r = await note(600, 'Root')
+  const b = await note(560, 'Reply B', r)
+  const c = await note(520, 'Reply C to B', b)
+  await note(480, 'Reply D', r)
+  await cmp.locator(`[data-annotation="${c}"]`).focus()
+  await page.keyboard.press('Enter')
+  const popover = page.locator('[data-ink-note-popover]')
+  await expect(popover.locator('[data-ink-thread-item] .ink-thread-text')).toHaveText([
+    'Root',
+    'Reply B',
+    'Reply C to B',
+    'Reply D',
+  ])
+  await popover.locator('textarea[aria-label="Reply"]').fill('Done')
+  await popover.getByRole('button', { name: 'Reply' }).click()
+  await expect(popover.locator('[data-ink-thread-item]')).toHaveCount(5)
+  const reply = (await stored(docOf(page))).find((a) => a.contents === 'Done')
+  expect(reply?.inReplyTo).toBe(r)
+})
+
+test('when the host removes the activated suggestion, focus moves to the document', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(Harness, {
+    props: {
+      src: fixtureUrl('text-simple'),
+      assets,
+      seedSuggestions: true,
+      controlled: true,
+    },
+  })
+  const suggested = cmp.locator('[data-annotation][data-origin="suggested"]')
+  await expect(suggested).toHaveCount(2)
+  const id = (await suggested.first().getAttribute('data-annotation'))!
+  await suggested.first().focus()
+  await page.keyboard.press('Enter')
+  const card = page.locator('[data-ink-suggestion-card]')
+  await expect(card.getByRole('button', { name: 'Accept' })).toBeFocused()
+  await page.evaluate((a) => (window as HostWindow).__inkHostRemove!(a), id)
+  await expect(card).toHaveCount(0)
+  await expect(suggested).toHaveCount(1)
+  await expect(page.locator('[data-ink-scroll]')).toBeFocused()
+})
+
+test('a sole selected suggestion opens the card when something else is activated', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(Harness, {
+    props: { src: fixtureUrl('text-simple'), assets, seedSuggestions: true },
+  })
+  const suggested = cmp.locator('[data-annotation][data-origin="suggested"]')
+  await expect(suggested).toHaveCount(2)
+  const mark = await addAnnotation(page, {
+    type: 'redact',
+    page: 0,
+    rect: { x: 300, y: 500, width: 100, height: 20 },
+  })
+  await cmp.locator(`[data-annotation="${mark}"]`).focus()
+  await page.keyboard.press('Enter')
+  const card = page.locator('[data-ink-suggestion-card]')
+  await expect(card).toHaveCount(0)
+  // A marquee selects without activating.
+  const id = (await suggested.first().getAttribute('data-annotation'))!
+  await docOf(page).evaluate(
+    (el, a) => (el as RootEl).__inkDocument!.annotations.select([a]),
+    id
+  )
+  await expect(card).toBeVisible()
+  await expect(card).toContainText('third-party name')
+})
+
+test('a press on custom slot content dismisses the card; it does not activate', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(Harness, {
+    props: {
+      src: fixtureUrl('text-simple'),
+      assets,
+      seedSuggestions: true,
+      customAnnotations: true,
+    },
+  })
+  const suggested = cmp.locator('[data-annotation][data-origin="suggested"]')
+  await expect(suggested).toHaveCount(2)
+  await suggested.first().focus()
+  await page.keyboard.press('Enter')
+  const card = page.locator('[data-ink-suggestion-card]')
+  await expect(card).toBeVisible()
+  await suggested.nth(1).getByTestId('pin').click()
+  await expect(card).toHaveCount(0)
+})
+
+test('with a slow controlled host, a dismiss still moves focus past the removed element', async ({
+  mount,
+  page,
+}) => {
+  const props = {
+    src: fixtureUrl('text-simple'),
+    assets,
+    seedSuggestions: true,
+    controlled: true,
+  }
+  const cmp = await mount(Harness, { props })
+  const suggested = cmp.locator('[data-annotation][data-origin="suggested"]')
+  await expect(suggested).toHaveCount(2)
+  const second = (await suggested.nth(1).getAttribute('data-annotation'))!
+  // From here the host applies each proposal 300ms late, after the close has moved focus.
+  await cmp.update({ props: { ...props, applyDelay: 300 } })
+  const card = page.locator('[data-ink-suggestion-card]')
+
+  await suggested.first().focus()
+  await page.keyboard.press('Enter')
+  await card.getByRole('button', { name: 'Dismiss' }).click()
+  await expect(card).toHaveCount(0)
+  const next = cmp.locator(`[data-annotation="${second}"]`)
+  await expect(next).toBeFocused()
+  await expect(suggested).toHaveCount(1)
+  await expect(next).toBeFocused()
+
+  await page.keyboard.press('Enter')
+  await card.getByRole('button', { name: 'Dismiss' }).click()
+  await expect(card).toHaveCount(0)
+  await expect(page.locator('[data-ink-scroll]')).toBeFocused()
+  await expect(suggested).toHaveCount(0)
+  await expect(page.locator('[data-ink-scroll]')).toBeFocused()
+  // The store reports the late host, as it should; that is not what this test is about.
+  expect(consoleGuard.problems).toHaveLength(2)
+  expect(
+    consoleGuard.problems.every((m) => m.includes('ControlledMutationIgnored'))
+  ).toBe(true)
+  consoleGuard.clear()
 })
