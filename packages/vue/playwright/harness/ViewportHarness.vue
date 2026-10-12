@@ -13,6 +13,7 @@ defineProps<{
   zoom?: ZoomValue | undefined
   page?: number | undefined
   buffer?: number | undefined
+  gap?: number | undefined
   customAnnotations?: boolean | undefined
   customLoading?: boolean | undefined
 }>()
@@ -35,7 +36,7 @@ const clicks = ref(0)
     >
       <!-- Test-only box: the scroll container needs a bounded height to scroll. -->
       <div style="height: 700px; width: 900px">
-        <InkViewport :buffer="buffer ?? 2">
+        <InkViewport :buffer="buffer ?? 2" :gap="gap ?? 16">
           <template v-if="customLoading" #loading>
             <span data-testid="custom-loading">Opening the file</span>
           </template>

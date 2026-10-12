@@ -21,12 +21,12 @@ const letter = (index: number): PageInfo => ({
 })
 const textSimple = [letter(0), letter(1), letter(2)]
 
-function layoutAt(zoom: number, containerWidth: number) {
+function layoutAt(zoom: number, containerWidth: number, gap = GAP) {
   return computeCssLayout({
     pages: textSimple,
     zoom,
     rotation: 0,
-    gap: GAP,
+    gap,
     mode: 'continuous',
     current: 0,
     containerWidth,
@@ -363,4 +363,47 @@ test('applies the tool to the scroll element', async ({ mount, page }) => {
   })
   await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
   await expect(page.locator('[data-ink-scroll]')).toHaveAttribute('data-ink-tool', 'view')
+})
+
+test('keeps the page and zoom when a gap change rebuilds the viewport', async ({
+  mount,
+  page,
+}) => {
+  const zooms: ZoomValue[] = []
+  const pages: number[] = []
+  const on = {
+    'update:zoom': (z: ZoomValue) => zooms.push(z),
+    'update:page': (p: number) => pages.push(p),
+  }
+  const props = { src: fixtureUrl('text-simple'), assets, zoom: 1.5 }
+  const cmp = await mount(ViewportHarness, { props, on })
+  await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
+  const scroll = page.locator('[data-ink-scroll]')
+  await scroll.focus()
+  await page.keyboard.press('End')
+  await expect.poll(() => pages.at(-1)).toBe(2)
+  const before = pages.length
+
+  const gap = 40
+  await cmp.update({ props: { ...props, gap }, on })
+  const size = await scroll.evaluate((el) => ({
+    width: el.clientWidth,
+    max: el.scrollHeight - el.clientHeight,
+  }))
+  const layout = layoutAt(1.5, size.width, gap)
+  // The rebuilt layout is in place: page 2 sits where the new gap puts it.
+  await expect(cmp.locator('.ink-page[data-page="2"]')).toHaveCSS(
+    'top',
+    `${layout.boxes[2]!.top}px`
+  )
+  await expect
+    .poll(() => scroll.evaluate((el) => el.scrollTop))
+    .toBe(Math.min(size.max, layout.boxes[2]!.top - gap))
+  await expect(cmp.locator('.ink-page[data-page="2"]')).toHaveCSS(
+    'width',
+    `${612 * 1.5}px`
+  )
+  // Nothing changed for the host, so nothing is reported: no jump to page 0, no zoom echo.
+  expect(pages.slice(before)).toEqual([])
+  expect(zooms).toEqual([])
 })

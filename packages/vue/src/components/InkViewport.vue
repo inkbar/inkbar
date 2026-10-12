@@ -29,7 +29,7 @@ import { injectInkContext } from '../context'
 import InkPage from './InkPage.vue'
 
 import type { AnnotationSlotProps } from './annotation-slot'
-import type { InkError } from '@inkbar/core'
+import type { InkDocument, InkError } from '@inkbar/core'
 import type {
   LayoutMode,
   PageTransform,
@@ -76,6 +76,9 @@ const error = computed<InkError | null>(() =>
 let viewport: Viewport | null = null
 let tools: ToolController | null = null
 let stops: (() => void)[] = []
+/** The document the viewport was built for, and the zoom and page last reported to the host. */
+let builtFor: InkDocument | null = null
+let lastReportedZoom: ZoomValue | undefined
 let lastReportedPage: number | undefined
 
 function teardown(): void {
@@ -85,21 +88,30 @@ function teardown(): void {
   viewport?.destroy()
   tools = null
   viewport = null
-  lastReportedPage = undefined
   if (ctx.viewport.value) ctx.viewport.value = null
   if (ctx.tools.value) ctx.tools.value = null
   pages.value = []
 }
 
 function setup(): void {
+  // Rebuilding for the same document (a gap or buffer change) keeps where the reader was.
+  const carry =
+    viewport && builtFor === ctx.document.value
+      ? { zoom: viewport.zoom.get(), page: viewport.currentPage.get() }
+      : null
   teardown()
   const doc = ctx.document.value
   const el = scroll.value
+  if (!carry) {
+    builtFor = null
+    lastReportedZoom = undefined
+    lastReportedPage = undefined
+  }
   if (!doc || !el || ctx.status.value.state !== 'ready') return
   const vp = createViewport({
     container: el,
     document: doc,
-    zoom: ctx.zoomModel.value ?? 'fit-width',
+    zoom: carry?.zoom ?? ctx.zoomModel.value ?? 'fit-width',
     mode: props.mode,
     rotation: props.rotation,
     gap: props.gap,
@@ -136,17 +148,32 @@ function setup(): void {
   tools = tc
   ctx.viewport.value = vp
   ctx.tools.value = tc
+  if (!carry) {
+    // A new document starts from where the viewport opens; only later changes are reported.
+    builtFor = doc
+    lastReportedZoom = vp.zoom.get()
+    lastReportedPage = vp.currentPage.get()
+  }
+  const page = carry?.page ?? ctx.pageModel.value
+  if (page !== undefined && page !== vp.currentPage.get()) vp.scrollToPage(page)
+  const reportZoom = (z: ZoomValue): void => {
+    if (z === lastReportedZoom) return
+    lastReportedZoom = z
+    ctx.reportZoom(z)
+  }
+  const reportPage = (p: number): void => {
+    if (p === lastReportedPage) return
+    lastReportedPage = p
+    ctx.reportPage(p)
+  }
   stops = [
     attachViewportKeys(el, { viewport: vp, pageCount: () => doc.pages.length }),
-    vp.zoom.subscribe((z) => ctx.reportZoom(z)),
-    vp.currentPage.subscribe((p) => {
-      lastReportedPage = p
-      ctx.reportPage(p)
-    }),
+    vp.zoom.subscribe(reportZoom),
+    vp.currentPage.subscribe(reportPage),
   ]
-  const initialPage = ctx.pageModel.value
-  if (initialPage !== undefined && initialPage !== vp.currentPage.get())
-    vp.scrollToPage(initialPage)
+  // Whatever the restore changed is reported once; nothing is when it matched.
+  reportZoom(vp.zoom.get())
+  reportPage(vp.currentPage.get())
 }
 
 onMounted(() => {
