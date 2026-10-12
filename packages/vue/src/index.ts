@@ -14,3 +14,18 @@ export { default as InkViewport } from './components/InkViewport.vue'
 export { default as InkPage } from './components/InkPage.vue'
 export { default as InkAnnotation } from './components/InkAnnotation.vue'
 export type { AnnotationSlotProps, AnnotationState } from './components/annotation-slot'
+export { default as InkToolbar } from './components/InkToolbar.vue'
+export { default as InkToolButton } from './components/InkToolButton.vue'
+export { default as InkZoomIn } from './components/InkZoomIn.vue'
+export { default as InkZoomOut } from './components/InkZoomOut.vue'
+export { default as InkZoomSelect } from './components/InkZoomSelect.vue'
+export { default as InkPageInput } from './components/InkPageInput.vue'
+export { default as InkPageCount } from './components/InkPageCount.vue'
+export { default as InkNotePopover } from './components/InkNotePopover.vue'
+export type { NotePopoverSlotProps } from './components/InkNotePopover.vue'
+export { default as InkSuggestionCard } from './components/InkSuggestionCard.vue'
+export type {
+  ConfidenceBucket,
+  SuggestionCardSlotProps,
+} from './components/InkSuggestionCard.vue'
+export { default as DefaultToolbar } from './compositions/DefaultToolbar.vue'

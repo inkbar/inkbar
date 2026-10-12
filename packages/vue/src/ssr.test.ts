@@ -39,17 +39,35 @@ describe('@inkbar/vue on the server', () => {
         'usePage',
         'useHistory',
         'useEmbedded',
+        'InkToolbar',
+        'InkToolButton',
+        'InkZoomIn',
+        'InkZoomOut',
+        'InkZoomSelect',
+        'InkPageInput',
+        'InkPageCount',
+        'InkNotePopover',
+        'InkSuggestionCard',
+        'DefaultToolbar',
       ])
     )
     expect(evaluated.pdfjs).toBe(false)
 
     const app = createSSRApp({
-      render: () => h(entry.InkRoot, { src: '/doc.pdf', assets }, () => h('p', 'slot')),
+      render: () =>
+        h(entry.InkRoot, { src: '/doc.pdf', assets }, () => [
+          h('p', 'slot'),
+          h(entry.DefaultToolbar),
+          h(entry.InkNotePopover),
+          h(entry.InkSuggestionCard),
+        ]),
     })
     const html = await renderToString(app)
     expect(html).toContain('data-ink-root')
     expect(html).toContain('data-state="idle"')
     expect(html).toContain('<p>slot</p>')
+    expect(html).toContain('data-ink-toolbar')
+    expect(html).toContain('aria-label="Document tools"')
     expect(evaluated.pdfjs).toBe(false)
 
     // Control: the same mock fires once a document actually opens, so the falses above mean something.
