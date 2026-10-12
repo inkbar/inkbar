@@ -24,6 +24,10 @@ describe('@inkbar/core/dom entry', () => {
         'createTextLayer',
         'getSelectionQuads',
         'cssRectsToUserRects',
+        'createOverlay',
+        'confidenceAttr',
+        'renderAnnotationContent',
+        'cssVariableDefaults',
       ])
     )
 
