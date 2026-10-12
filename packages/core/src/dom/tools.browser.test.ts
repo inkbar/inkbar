@@ -789,3 +789,292 @@ describe('createPageMount', () => {
     expect(doc.annotations.selection.get()).toEqual([b.id])
   })
 })
+
+describe('keyboard creation', () => {
+  function selectText(viewport: Viewport, needle: string): void {
+    const span = [
+      ...viewport.hostFor(0)!.querySelectorAll('[data-ink-text-layer] span'),
+    ].find((s) => s.textContent?.includes(needle))!
+    const range = document.createRange()
+    range.selectNodeContents(span)
+    window.getSelection()!.removeAllRanges()
+    window.getSelection()!.addRange(range)
+  }
+  const enter = (el: Element, init: KeyboardEventInit = {}) => {
+    const e = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      bubbles: true,
+      cancelable: true,
+      ...init,
+    })
+    el.dispatchEvent(e)
+    return e
+  }
+
+  it('highlight: Enter on the scroll element turns the selection into a highlight', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('highlight')
+    container.tabIndex = 0
+    container.focus()
+    expect(enter(container).defaultPrevented).toBe(false)
+    expect(doc.annotations.list.get()).toEqual([])
+    selectText(viewport, 'QQ123456C')
+    expect(enter(container).defaultPrevented).toBe(true)
+    const [hl] = doc.annotations.list.get()
+    expect(hl?.type).toBe('highlight')
+    if (hl?.type === 'highlight') expect(hl.quads).toHaveLength(1)
+    expect(window.getSelection()!.isCollapsed).toBe(true)
+  })
+
+  it('redact-area: Enter turns the selection into text redactions; modified Enter does not', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('redact-area')
+    selectText(viewport, 'QQ123456C')
+    enter(container, { ctrlKey: true })
+    expect(doc.annotations.list.get()).toEqual([])
+    enter(container)
+    const [red] = doc.annotations.list.get()
+    expect(red?.type).toBe('redact')
+    if (red?.type === 'redact') expect(red.quads).toHaveLength(1)
+    expect(window.getSelection()!.isCollapsed).toBe(true)
+  })
+
+  it('note: Enter on a <summary> or a role=menuitem control, in slot content or on the page, creates nothing', async () => {
+    const { doc, viewport, tools } = await setup('text-simple', { custom: true })
+    const a = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    await settle()
+    tools.set('note')
+    const host = viewport.hostFor(0)!
+    const el = host.querySelector(`[data-annotation="${a.id}"]`)!
+    // What a host's annotation slot might render: a disclosure widget.
+    const inSlot = document.createElement('details')
+    inSlot.innerHTML = '<summary>More</summary>'
+    el.append(inSlot)
+    // A custom control a host might render: not a native one, but focusable and keyed.
+    const menuItem = document.createElement('div')
+    menuItem.setAttribute('role', 'menuitem')
+    menuItem.tabIndex = 0
+    menuItem.textContent = 'Options'
+    el.append(menuItem)
+    const onPage = document.createElement('details')
+    onPage.innerHTML = '<summary>Page notes</summary>'
+    host.append(onPage)
+    const session = () => doc.annotations.list.get().filter((x) => x.type === 'note')
+    for (const summary of [inSlot, onPage].map((d) => d.querySelector('summary')!)) {
+      summary.focus()
+      enter(summary)
+    }
+    menuItem.focus()
+    enter(menuItem)
+    // Outside the slot too: a menu item placed straight on the page host.
+    const loose = menuItem.cloneNode(true) as HTMLElement
+    host.append(loose)
+    enter(loose)
+    expect(session()).toEqual([])
+    // The page host itself still counts as the viewport, and so does text-layer content.
+    enter(host)
+    expect(session()).toHaveLength(1)
+    enter(host.querySelector('[data-ink-text-layer] span')!)
+    expect(session()).toHaveLength(2)
+  })
+
+  it('Enter on a focused annotation activates it and creates nothing', async () => {
+    const { doc, viewport, tools, onActivate } = await setup()
+    const a = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    await settle()
+    tools.set('note')
+    const el = viewport.hostFor(0)!.querySelector(`[data-annotation="${a.id}"]`)!
+    enter(el)
+    expect(doc.annotations.list.get().map((x) => x.id)).toEqual([a.id])
+    expect(onActivate).toHaveBeenCalledWith(a.id)
+  })
+
+  it.each([false, true])(
+    'note: Enter places a note at the centre of the current page and focuses it (controlled: %s)',
+    async (controlled) => {
+      const { doc, container, viewport, tools, onActivate } = await setup(
+        'cropbox-offset',
+        { controlled }
+      )
+      tools.set('note')
+      container.tabIndex = 0
+      container.focus()
+      enter(container)
+      const session = () =>
+        doc.annotations.list.get().filter((a) => a.source === 'session')
+      await until(() => session().length === 1)
+      const [n] = session()
+      expect(n?.type).toBe('note')
+      expect(n!.page).toBe(viewport.currentPage.get())
+      // CropBox [50 50 550 750]: centre (300, 400), a 20 pt box around it.
+      expect(n!.rect).toEqual({ x: 290, y: 390, width: 20, height: 20 })
+      expect(doc.annotations.selection.get()).toEqual([n!.id])
+      expect(onActivate).toHaveBeenCalledWith(n!.id)
+      await until(() => document.activeElement?.getAttribute('data-annotation') === n!.id)
+    }
+  )
+})
+
+describe('resize handles', () => {
+  it('dragging the se handle grows the rect by the dragged points, in one update', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    viewport.setZoom(1.5)
+    await until(() => viewport.transformFor(0).zoom === 1.5)
+    await settle()
+    const a = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    tools.set('select')
+    doc.annotations.select([a.id])
+    await settle()
+    const host = viewport.hostFor(0)!
+    const t = viewport.transformFor(0)
+    const handle = host.querySelector(
+      `[data-annotation="${a.id}"] > [data-handle="se"]`
+    ) as HTMLElement
+    expect(handle).not.toBeNull()
+    const el = handle.parentElement!
+    const updates = vi.fn()
+    cleanup.push(
+      doc.annotations.on('change', (c) => {
+        if (c.kind === 'update') updates(c)
+      })
+    )
+    const h = host.getBoundingClientRect()
+    const corner = t.toCss({ x: 150, y: 600 })
+    const dx = t.toCssLength(20)
+    const dy = t.toCssLength(10)
+    pointer(handle, 'pointerdown', h.left + corner.x, h.top + corner.y)
+    pointer(container, 'pointermove', h.left + corner.x + dx, h.top + corner.y + dy)
+    expect(el.style.transform).toContain('scale(')
+    expect(updates).not.toHaveBeenCalled()
+    pointer(container, 'pointerup', h.left + corner.x + dx, h.top + corner.y + dy)
+    expect(updates).toHaveBeenCalledTimes(1)
+    expect(el.style.transform).toBe('')
+    // The nw corner (100, 630) stays; the se corner moves 20 pt right and 10 pt down.
+    const r = doc.annotations.get(a.id)!.rect
+    expect(r.x).toBeCloseTo(100, 5)
+    expect(r.y).toBeCloseTo(590, 5)
+    expect(r.width).toBeCloseTo(70, 5)
+    expect(r.height).toBeCloseTo(40, 5)
+    expect(doc.annotations.selection.get()).toEqual([a.id])
+  })
+
+  it('a click on a handle without a drag leaves the rect as it was', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    const a = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    tools.set('select')
+    doc.annotations.select([a.id])
+    await settle()
+    const host = viewport.hostFor(0)!
+    const h = host.getBoundingClientRect()
+    const handle = host.querySelector(
+      `[data-annotation="${a.id}"] > [data-handle="se"]`
+    ) as HTMLElement
+    const updates = vi.fn()
+    cleanup.push(
+      doc.annotations.on('change', (c) => {
+        if (c.kind === 'update') updates(c)
+      })
+    )
+    // Pressed 3 px inside the corner: the corner keeps that offset, so it does not snap.
+    pointer(handle, 'pointerdown', h.left + 147, h.top + 189)
+    pointer(container, 'pointerup', h.left + 147, h.top + 189)
+    expect(updates).not.toHaveBeenCalled()
+    expect(doc.annotations.get(a.id)!.rect).toEqual({
+      x: 100,
+      y: 600,
+      width: 50,
+      height: 30,
+    })
+    // A drag from that press moves the corner by the travel only.
+    pointer(handle, 'pointerdown', h.left + 147, h.top + 189)
+    pointer(container, 'pointermove', h.left + 157, h.top + 189)
+    pointer(container, 'pointerup', h.left + 157, h.top + 189)
+    expect(doc.annotations.get(a.id)!.rect).toEqual({
+      x: 100,
+      y: 600,
+      width: 60,
+      height: 30,
+    })
+  })
+
+  it('a drag past the opposite corner stops at 1 pt', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    const a = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    tools.set('select')
+    doc.annotations.select([a.id])
+    await settle()
+    const host = viewport.hostFor(0)!
+    const h = host.getBoundingClientRect()
+    const handle = host.querySelector(
+      `[data-annotation="${a.id}"] > [data-handle="se"]`
+    ) as HTMLElement
+    pointer(handle, 'pointerdown', h.left + 150, h.top + 192)
+    pointer(container, 'pointermove', h.left + 20, h.top + 20)
+    pointer(container, 'pointerup', h.left + 20, h.top + 20)
+    expect(doc.annotations.get(a.id)!.rect).toEqual({
+      x: 100,
+      y: 629,
+      width: 1,
+      height: 1,
+    })
+  })
+
+  it('shows handles only while the select tool is active', async () => {
+    const { doc, viewport, tools } = await setup()
+    const a = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    const handles = () =>
+      viewport.hostFor(0)!.querySelectorAll(`[data-annotation="${a.id}"] > .ink-handle`)
+    doc.annotations.select([a.id])
+    await settle()
+    // Selected under the view tool: nothing to drag them with, so no handles.
+    expect(handles()).toHaveLength(0)
+    tools.set('select')
+    await until(() => handles().length === 4)
+    tools.set('highlight')
+    await until(() => handles().length === 0)
+    expect(doc.annotations.selection.get()).toEqual([a.id])
+    tools.set('select')
+    await until(() => handles().length === 4)
+  })
+
+  it('a locked or text-derived annotation shows no handles', async () => {
+    const { doc, viewport, tools } = await setup()
+    const a = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    doc.annotations.update(a.id, { locked: true })
+    tools.set('select')
+    doc.annotations.select([a.id])
+    await settle()
+    const host = viewport.hostFor(0)!
+    expect(host.querySelectorAll(`[data-annotation="${a.id}"] .ink-handle`)).toHaveLength(
+      0
+    )
+  })
+})

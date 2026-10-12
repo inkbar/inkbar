@@ -56,6 +56,8 @@ const slots = defineSlots<{
   error?(props: { error: InkError }): unknown
   empty?(): unknown
   annotation?(props: AnnotationSlotProps): unknown
+  /** Shown inside a page that failed to render. The rest of the document stays usable. */
+  'page-error'?(props: { error: InkError; page: number }): unknown
 }>()
 
 const ctx = injectInkContext()
@@ -232,9 +234,10 @@ onBeforeUnmount(teardown)
     <div v-else-if="error" class="ink-status ink-error" role="alert">
       <slot name="error" :error="error">
         <p class="ink-error-title">This document could not be opened.</p>
+        <!-- The message comes from the PDF engine and is not written for readers: it stays
+             off the page, on the code's tooltip. -->
         <p>
-          <code class="ink-error-code">{{ error.code }}</code>
-          <span class="ink-error-message">{{ error.message }}</span>
+          <code class="ink-error-code" :title="error.message">{{ error.code }}</code>
         </p>
       </slot>
     </div>
@@ -259,6 +262,9 @@ onBeforeUnmount(teardown)
     >
       <template v-if="slots.annotation" #annotation="slotProps">
         <slot name="annotation" v-bind="slotProps" />
+      </template>
+      <template v-if="slots['page-error']" #page-error="slotProps">
+        <slot name="page-error" v-bind="slotProps" />
       </template>
     </InkPage>
   </div>

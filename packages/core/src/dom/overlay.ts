@@ -5,9 +5,12 @@
 // `PageTransform.toCssRect(a.rect)` for custom elements. Hit-testing
 // follows the drawn shape, not the box: elements are `pointer-events:none` and their shapes
 // opt back in (overlay-render.ts), so a press beside a shape still reaches the text layer.
+// Resize handles (`.ink-handle[data-handle]`) are 8px `position:absolute;
+// pointer-events:auto` boxes on the element's corners; their look is the theme's.
 // Custom elements are the exception and stay `pointer-events:auto`: the host draws them and
 // only it knows their shape. Every visual (colour, opacity, stroke, fill) is an SVG
 // attribute or a theme hook.
+import { hasRectGeometry, resizedRect, translated } from '../model/annotations/edit'
 import { confidenceBucket, type Annotation } from '../model/annotations/types'
 
 import { annotationBox, renderAnnotationContent, renderHitArea } from './overlay-render'
@@ -36,6 +39,19 @@ export interface Overlay {
 }
 
 type State = 'idle' | 'hover' | 'selected'
+
+/** Resize handles, by the CSS corner they sit on. */
+const HANDLES = ['nw', 'ne', 'sw', 'se'] as const
+/** Side of a resize handle, CSS px. */
+const HANDLE_PX = 8
+
+/** Arrow keys as user-space unit steps (y grows upwards). */
+const ARROW_STEPS: Record<string, { x: number; y: number }> = {
+  ArrowRight: { x: 1, y: 0 },
+  ArrowLeft: { x: -1, y: 0 },
+  ArrowUp: { x: 0, y: 1 },
+  ArrowDown: { x: 0, y: -1 },
+}
 
 const LABELS: Record<Annotation['type'], string> = {
   highlight: 'Highlight',
@@ -112,6 +128,65 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     node.dataset.state = state
     node.setAttribute('aria-pressed', String(state === 'selected'))
     node.tabIndex = !anyHere || state === 'selected' ? 0 : -1
+    const a = store.get(id)
+    syncHandles(
+      node,
+      selectToolActive() &&
+        state === 'selected' &&
+        a !== undefined &&
+        !a.locked &&
+        hasRectGeometry(a)
+    )
+  }
+
+  /** True while the tool controller marks the tool root (an ancestor) `data-ink-tool="select"`. */
+  function selectToolActive(): boolean {
+    return (
+      opts.host.closest('[data-ink-tool]')?.getAttribute('data-ink-tool') === 'select'
+    )
+  }
+  // Re-sync handles on a tool switch. The controller's root is normally the viewport
+  // container; pages can mount before the controller marks it, so fall back to that.
+  const toolRoot =
+    opts.host.closest('[data-ink-tool]') ?? opts.host.closest('[data-ink-viewport]')
+  const Observer = doc.defaultView?.MutationObserver
+  let toolObserver: MutationObserver | undefined
+  if (toolRoot && Observer) {
+    toolObserver = new Observer(() => {
+      if (destroyed) return
+      for (const [id, node] of elements) applyState(node, id)
+    })
+    toolObserver.observe(toolRoot, {
+      attributes: true,
+      attributeFilter: ['data-ink-tool'],
+    })
+  }
+
+  /**
+   * Corner handles for a selected, unlocked rect-shaped annotation, drawn only while the select
+   * tool is active (`data-ink-tool="select"` on the tool root). The select tool drags them
+   * (`data-handle` names the CSS corner). The theme also hides them outside the select tool.
+   */
+  function syncHandles(node: HTMLElement, want: boolean): void {
+    const existing = node.querySelectorAll(':scope > [data-handle]')
+    if (!want) {
+      existing.forEach((h) => h.remove())
+      return
+    }
+    if (existing.length === HANDLES.length) return
+    existing.forEach((h) => h.remove())
+    for (const corner of HANDLES) {
+      const h = doc.createElement('div')
+      h.className = 'ink-handle'
+      h.dataset.handle = corner
+      h.setAttribute('aria-hidden', 'true')
+      const off = `${-HANDLE_PX / 2}px`
+      h.style.cssText =
+        `position:absolute;width:${HANDLE_PX}px;height:${HANDLE_PX}px;pointer-events:auto;` +
+        `${corner[0] === 'n' ? 'top' : 'bottom'}:${off};` +
+        `${corner[1] === 'w' ? 'left' : 'right'}:${off};`
+      node.append(h)
+    }
   }
 
   function applyAttributes(node: HTMLElement, a: Annotation): void {
@@ -163,7 +238,30 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     if (id !== undefined) elements.get(id)?.focus()
   }
 
+  /**
+   * `Shift+Arrow` moves the annotation 1 pt in user space (`Shift+Alt+Arrow` 10 pt; up is +y).
+   * `Ctrl+Shift+Arrow` or `Meta+Shift+Arrow` resizes a rect-shaped one by 1 pt: Right and Down
+   * grow it, Left and Up shrink it, keeping its top-left corner. Locked items ignore both.
+   * Returns true when the key was one of these chords.
+   */
+  function onEditKey(e: KeyboardEvent, id: string): boolean {
+    const step = ARROW_STEPS[e.key]
+    if (!step || !e.shiftKey) return false
+    e.preventDefault()
+    const a = store.get(id)
+    if (!a || a.locked) return true
+    if (e.ctrlKey || e.metaKey) {
+      if (hasRectGeometry(a))
+        store.update(id, { rect: resizedRect(a.rect, step.x, -step.y) })
+      return true
+    }
+    const by = e.altKey ? 10 : 1
+    store.update(id, translated(a, step.x * by, step.y * by))
+    return true
+  }
+
   function onKey(e: KeyboardEvent, id: string): void {
+    if (onEditKey(e, id)) return
     switch (e.key) {
       case 'Enter':
       case ' ':
@@ -210,7 +308,12 @@ export function createOverlay(opts: OverlayOptions): Overlay {
       if (e.button !== 0) return
       // A press on a custom element's own content (a host's button, say) is that content's:
       // no selection, and it bubbles on to the host's delegated handlers.
-      if (e.target !== node && node.hasAttribute('data-custom')) return
+      if (
+        e.target !== node &&
+        node.hasAttribute('data-custom') &&
+        !(e.target instanceof Element && e.target.closest('[data-handle]'))
+      )
+        return
       // A tool listening on the page root must not start a drag from this press.
       e.stopPropagation()
       activate(id)
@@ -229,6 +332,8 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     const ids = new Set(current.map((a) => a.id))
     const active = doc.activeElement
     let focusId = [...elements].find(([, n]) => n === active)?.[0]
+    /** The focused element is going away with nothing on this page to take over. */
+    let focusRoot = false
 
     if (focusId !== undefined && !ids.has(focusId)) {
       // The focused element is going away: hand focus to the next survivor, else the previous.
@@ -239,6 +344,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
           .slice(0, i)
           .reverse()
           .find((x) => ids.has(x))
+      focusRoot = focusId === undefined
     }
     for (const [id, node] of elements) {
       if (ids.has(id)) continue
@@ -273,6 +379,14 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     if (focusId !== undefined) {
       const target = elements.get(focusId)
       if (target && doc.activeElement !== target) target.focus({ preventScroll: true })
+    } else if (focusRoot) {
+      // Last one on the page: back to the scroll element (as the popovers do), not <body>.
+      const scroll = opts.host.closest<HTMLElement>('[data-ink-viewport]')
+      if (scroll) {
+        // A container the host did not make focusable still takes focus from script.
+        if (!scroll.hasAttribute('tabindex')) scroll.tabIndex = -1
+        scroll.focus({ preventScroll: true })
+      }
     }
   }
 
@@ -294,6 +408,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
       destroyed = true
       offList()
       offSelection()
+      toolObserver?.disconnect()
       root.remove()
       elements.clear()
       drawn.clear()

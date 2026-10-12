@@ -23,7 +23,7 @@ export { confidenceAttr, createOverlay } from './overlay'
 export type { Overlay, OverlayOptions } from './overlay'
 export { renderAnnotationContent } from './overlay-render'
 export { createPageMount } from './page-mount'
-export type { PageMount, PageMountOptions } from './page-mount'
+export type { PageLayer, PageMount, PageMountOptions } from './page-mount'
 export {
   builtinTools,
   createToolController,

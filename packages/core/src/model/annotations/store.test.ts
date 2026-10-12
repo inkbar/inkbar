@@ -202,8 +202,56 @@ describe('AnnotationStore (uncontrolled)', () => {
       rect: { x: 0, y: 0, width: 20, height: 20 },
       inReplyTo: root.id,
     })
+    const nested = s.add({
+      type: 'note',
+      page: 0,
+      rect: { x: 0, y: 0, width: 20, height: 20 },
+      inReplyTo: reply.id,
+    })
+    const fn = vi.fn()
+    s.on('change', fn)
     s.remove(root.id)
     expect(s.get(reply.id)).toBeUndefined()
+    expect(s.get(nested.id)).toBeUndefined()
+    // The change lists every removal, the target first, so a host can delete each one.
+    expect(fn).toHaveBeenCalledWith({
+      kind: 'remove',
+      annotation: root,
+      removed: [root, reply, nested],
+    })
+  })
+
+  it('throws when the id generator repeats an id', () => {
+    const s = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+      id: () => 'fixed',
+      now,
+    })
+    s.add({ type: 'note', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
+    expect(() =>
+      s.add({ type: 'note', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
+    ).toThrow(/fixed/)
+    expect(s.list.get()).toHaveLength(1)
+  })
+
+  it('throws when add reuses an existing id, naming it', () => {
+    const s = store()
+    s.add({
+      id: 'dup',
+      type: 'note',
+      page: 0,
+      rect: { x: 0, y: 0, width: 20, height: 20 },
+    })
+    expect(() =>
+      s.add({
+        id: 'dup',
+        type: 'note',
+        page: 1,
+        rect: { x: 0, y: 0, width: 20, height: 20 },
+      })
+    ).toThrow(/dup/)
+    expect(s.list.get()).toHaveLength(1)
   })
 
   it('byPage filters and replaceAll emits a replace change', () => {
@@ -298,6 +346,12 @@ describe('AnnotationStore embedded guard (uncontrolled)', () => {
     })
     expect(after).toMatchObject({ locked: true, source: 'pdf', color: '#000000' })
     expect(s.remove(embedded.id)).toBe(false)
+    // Its page is the file's too: PDF.js paints it there.
+    expect(s.update(embedded.id, { page: 3 })).toBeUndefined()
+    expect(s.get(embedded.id)!.page).toBe(0)
+    expect(() =>
+      s.add({ id: embedded.id, type: 'note', page: 0, rect: embedded.rect })
+    ).toThrow(embedded.id)
   })
 
   it('replaceAll cannot erase, unlock or forge embedded annotations', () => {

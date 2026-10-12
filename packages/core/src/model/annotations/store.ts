@@ -17,7 +17,13 @@ import type { AnnotationDefaults } from './defaults'
 export type AnnotationChange =
   | { kind: 'add'; annotation: Annotation }
   | { kind: 'update'; id: string; before: Annotation; after: Annotation }
-  | { kind: 'remove'; annotation: Annotation }
+  | {
+      kind: 'remove'
+      /** The annotation `remove` was called with. */
+      annotation: Annotation
+      /** Everything that went: `annotation` first, then the replies removed with it. */
+      removed: Annotation[]
+    }
   | { kind: 'replace'; reason: 'import' | 'sync' | 'history' }
 
 export type StoreMode =
@@ -32,13 +38,20 @@ export interface AnnotationStore {
   readonly mode: 'uncontrolled' | 'controlled'
   readonly list: Readable<readonly Annotation[]>
   readonly selection: Readable<readonly string[]>
+  /** The colour, fill and opacity defaults new annotations get. */
+  readonly defaults: AnnotationDefaults
   get(id: string): Annotation | undefined
   byPage(page: number): Annotation[]
-  /** Returns the completed annotation. In controlled mode it is proposed to the host, not applied. */
+  /**
+   * Returns the completed annotation. In controlled mode it is proposed to the host, not
+   * applied. Throws an `Error` naming the id when it is already in the list, whether it came
+   * from `input.id` or the store's `id` generator.
+   */
   add(input: AnnotationInput): Annotation
   /**
    * `id`, `type`, `createdAt` and `source` cannot be patched, nor can `locked` on an embedded
-   * (`source: 'pdf'`) annotation: those keys are ignored. `modifiedAt` is always bumped.
+   * (`source: 'pdf'`) annotation: those keys are ignored. `modifiedAt` is always bumped. A
+   * locked annotation refuses any patch to its geometry, `page` or `contents`.
    */
   update(id: string, patch: Partial<Annotation>): Annotation | undefined
   remove(id: string): boolean
@@ -59,6 +72,11 @@ export interface AnnotationStore {
    * directly in both modes and never passed to `onChange`; the document calls it once on open.
    */
   _setEmbedded(list: readonly Annotation[]): void
+  /**
+   * @internal Like `get`, but in controlled mode it also sees changes proposed to the host and
+   * not applied yet: the list `update` and `remove` build on.
+   */
+  _getProposed(id: string): Annotation | undefined
   completeInput(input: AnnotationInput): Annotation
   on(event: 'change', fn: (change: AnnotationChange) => void): () => void
   destroy(): void
@@ -73,6 +91,7 @@ export interface StoreOptions {
 
 /** Keys a locked annotation refuses to change. */
 const LOCKED_KEYS = new Set([
+  'page',
   'rect',
   'quads',
   'paths',
@@ -332,11 +351,16 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
     mode: opts.mode.mode,
     list: readonly(list),
     selection: readonly(selection),
+    defaults: opts.defaults,
     get: (id) => list.get().find((a) => a.id === id),
+    _getProposed: (id) => findIn(basis(), id),
     byPage: (page) => list.get().filter((a) => a.page === page),
     completeInput,
     add(input) {
       const a = completeInput(input)
+      // Covers ids from the input and from the `id` option's generator alike.
+      if (findIn(basis(), a.id))
+        throw new Error(`An annotation with id ${a.id} already exists`)
       if (destroyed) return a
       commit([...basis(), a], { kind: 'add', annotation: a })
       return a
@@ -388,7 +412,8 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
         }
       }
       const next = items.filter((a) => !doomed.has(a.id))
-      commit(next, { kind: 'remove', annotation: target })
+      const removed = [target, ...items.filter((a) => a.id !== id && doomed.has(a.id))]
+      commit(next, { kind: 'remove', annotation: target, removed })
       if (!controlled) pruneSelection(next)
       return true
     },

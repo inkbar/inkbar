@@ -19,6 +19,7 @@ import {
   type StoreMode,
 } from './annotations/store'
 import { InkError, isInkError } from './errors'
+import { createPageCache, type PageCache } from './page-cache'
 import { pageInfoFromProxy, type PageInfo } from './pages'
 import { readonly, writable, type Readable } from './readable'
 import { resolveSource, type DocumentSource } from './source'
@@ -116,7 +117,7 @@ export async function openDocument(
   const status = writable<DocumentStatus>({ state: 'loading' })
   const pages: PageInfo[] = []
   const info: DocumentInfo = { pageCount: 0, isEncrypted: false }
-  const pageCache = new Map<number, Promise<PdfjsPage>>()
+  let pageCache: PageCache<PdfjsPage> | undefined
   let destroyed = false
   let handles: InkDocument['_pdfjs'] | undefined
   let destroyTask: (() => Promise<void>) | undefined
@@ -140,6 +141,8 @@ export async function openDocument(
       verbosity: options.verbosity,
     })
     destroyTask = () => task.destroy()
+    const cache = createPageCache((index) => proxy.getPage(index + 1))
+    pageCache = cache
     const getPage = (index: number): Promise<PdfjsPage> => {
       if (destroyed) return Promise.reject(destroyedError())
       if (!Number.isInteger(index) || index < 0 || index >= proxy.numPages) {
@@ -150,12 +153,8 @@ export async function openDocument(
           })
         )
       }
-      let p = pageCache.get(index)
-      if (!p) {
-        p = proxy.getPage(index + 1)
-        pageCache.set(index, p)
-      }
-      return p
+      // A failed lookup is not cached: the next mount of the page asks PDF.js again.
+      return cache.get(index)
     }
     handles = { module: pdfjs, proxy, getPage }
     const meta = await proxy.getMetadata().catch(() => {
@@ -256,7 +255,7 @@ export async function openDocument(
       destroyed = true
       history.destroy()
       store.destroy()
-      pageCache.clear()
+      pageCache?.clear()
       if (destroyTask) {
         teardown(destroyTask)
       }

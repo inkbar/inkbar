@@ -138,6 +138,11 @@ test('shows the error slot with the code and stays interactive (Review Focus 5)'
   await expect(alert).toBeVisible()
   await expect(alert).toBeInViewport()
   await expect(alert).toContainText('InvalidPdf')
+  // The engine's own message is on the code's tooltip, never in the visible copy.
+  const message = await alert.locator('code.ink-error-code').getAttribute('title')
+  expect(message).toBeTruthy()
+  expect(await alert.innerText()).not.toContain(message!)
+  await expect(alert.locator('.ink-error-message')).toHaveCount(0)
   await expect(cmp.locator('[data-ink-root]')).toHaveAttribute('data-state', 'error')
   await expect(cmp.locator('.ink-page')).toHaveCount(0)
   // The PDF parser reports what it tried on the broken file; nothing else may warn.
@@ -158,6 +163,91 @@ test('shows the error slot with the code and stays interactive (Review Focus 5)'
   await cmp.update({ props: { src: fixtureUrl('text-simple'), assets, zoom: 1 } })
   await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
   await expect(alert).toHaveCount(0)
+})
+
+test('a page that fails to render shows the page-error slot; the rest stays usable and a remount retries', async ({
+  mount,
+  page,
+}) => {
+  const props = { src: fixtureUrl('text-simple'), assets, zoom: 0.5, failPage: 1 }
+  const cmp = await mount(ViewportHarness, { props })
+  const first = cmp.locator('.ink-page[data-page="0"]')
+  const second = cmp.locator('.ink-page[data-page="1"]')
+  await expect(first.locator('canvas[data-ink-canvas]')).toBeVisible()
+  await expect(second).toHaveAttribute('data-state', 'error')
+  const pageError = second.locator('[data-ink-page-error]')
+  await expect(pageError).toBeVisible()
+  await expect(pageError).toHaveAttribute('role', 'alert')
+  await expect(pageError).toContainText('Page 2 could not be shown.')
+  await expect(pageError.locator('code')).toHaveText('InvalidPdf')
+  await expect(pageError).not.toContainText('engine')
+  await expect(second.locator('canvas[data-ink-canvas]')).toHaveCount(0)
+  await expect(first).not.toHaveAttribute('data-state', 'error')
+  await expect(cmp.locator('[data-ink-viewport-root]')).toHaveAttribute(
+    'data-state',
+    'ready'
+  )
+
+  // The document stays usable: keyboard zoom works and nothing blocks the page around it.
+  const scroll = page.locator('[data-ink-scroll]')
+  await scroll.focus()
+  await page.keyboard.press('+')
+  await expect(first).toHaveCSS('width', `${612 * 0.625}px`)
+  await expect(pageError).toBeVisible()
+  const outside = cmp.getByTestId('outside')
+  await outside.click()
+  await expect(outside).toHaveText('Outside 1')
+
+  // Once the page can be drawn, the next mount (a rebuild here) renders it.
+  await cmp.getByTestId('heal').click()
+  await cmp.update({ props: { ...props, gap: 24 } })
+  await expect(second.locator('canvas[data-ink-canvas]')).toBeVisible()
+  await expect(second.locator('[data-ink-page-error]')).toHaveCount(0)
+  await expect(second).not.toHaveAttribute('data-state', 'error')
+})
+
+test('a page error clears when a later render of the same mount succeeds', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(ViewportHarness, {
+    props: { src: fixtureUrl('text-simple'), assets, zoom: 0.5, failPage: 1 },
+  })
+  const second = cmp.locator('.ink-page[data-page="1"]')
+  await expect(second.locator('[data-ink-page-error]')).toBeVisible()
+  await expect(second).toHaveAttribute('data-state', 'error')
+  // The page can be drawn again; a zoom change re-renders it without remounting.
+  await cmp.getByTestId('heal').click()
+  await page.locator('[data-ink-scroll]').focus()
+  await page.keyboard.press('+')
+  await expect(second.locator('canvas[data-ink-canvas]')).toBeVisible()
+  await expect(second.locator('[data-ink-page-error]')).toHaveCount(0)
+  await expect(second).not.toHaveAttribute('data-state', 'error')
+})
+
+test('a text layer failure keeps the page error even though the canvas renders', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(ViewportHarness, {
+    props: { src: fixtureUrl('text-simple'), assets, zoom: 0.5, failText: 1 },
+  })
+  const second = cmp.locator('.ink-page[data-page="1"]')
+  await expect(second.locator('canvas[data-ink-canvas]')).toBeVisible()
+  await expect(second.locator('[data-ink-page-error]')).toBeVisible()
+  await expect(second).toHaveAttribute('data-state', 'error')
+  // A canvas re-render succeeds; the text layer has not recovered, so the error stays.
+  await page.locator('[data-ink-scroll]').focus()
+  await page.keyboard.press('+')
+  await expect(second).toHaveCSS('width', `${612 * 0.625}px`)
+  await expect(second.locator('canvas[data-ink-canvas]')).toBeVisible()
+  await page.waitForTimeout(300)
+  await expect(second.locator('[data-ink-page-error]')).toBeVisible()
+  await expect(second).toHaveAttribute('data-state', 'error')
+  await expect(cmp.locator('.ink-page[data-page="0"]')).not.toHaveAttribute(
+    'data-state',
+    'error'
+  )
 })
 
 test('shows the PasswordRequired code for an encrypted file', async ({ mount }) => {

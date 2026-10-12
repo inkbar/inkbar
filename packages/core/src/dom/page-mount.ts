@@ -19,9 +19,20 @@ export interface PageMountOptions {
   isCustom?(a: Annotation): boolean
   /** Defaults to `window.devicePixelRatio`. */
   devicePixelRatio?: number
-  /** Render and text layer failures (cancellations are not reported). */
-  onError?(error: unknown): void
+  /**
+   * Canvas and text layer failures, with the layer that failed (cancellations are not
+   * reported).
+   */
+  onError?(error: unknown, layer: PageLayer): void
+  /**
+   * A layer finished without error: the canvas painted, or the text layer mounted or applied
+   * an update. Pair it with `onError` to tell when a failed layer has recovered.
+   */
+  onRendered?(layer: PageLayer): void
 }
+
+/** The page layers that can fail and recover: the canvas and the text layer. */
+export type PageLayer = 'canvas' | 'text'
 
 export interface PageMount {
   readonly renderer: PageRenderer
@@ -34,9 +45,12 @@ export interface PageMount {
 /** Canvas, text layer and annotation overlay for one page, stacked in that order. */
 export function createPageMount(opts: PageMountOptions): PageMount {
   const { document, page, host, transform } = opts
-  const onError = opts.onError
-    ? { onError: (error: unknown) => opts.onError?.(error) }
-    : {}
+  const callbacks = (layer: PageLayer) => ({
+    ...(opts.onError
+      ? { onError: (error: unknown) => opts.onError?.(error, layer) }
+      : {}),
+    ...(opts.onRendered ? { onRendered: () => opts.onRendered?.(layer) } : {}),
+  })
   const renderer = createPageRenderer({
     document,
     page,
@@ -45,9 +59,15 @@ export function createPageMount(opts: PageMountOptions): PageMount {
     ...(opts.devicePixelRatio === undefined
       ? {}
       : { devicePixelRatio: opts.devicePixelRatio }),
-    ...onError,
+    ...callbacks('canvas'),
   })
-  const textLayer = createTextLayer({ document, page, host, transform, ...onError })
+  const textLayer = createTextLayer({
+    document,
+    page,
+    host,
+    transform,
+    ...callbacks('text'),
+  })
   const overlay = createOverlay({
     host,
     page,

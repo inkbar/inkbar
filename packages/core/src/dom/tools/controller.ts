@@ -230,11 +230,33 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
 }
 
 /**
+ * True for an unmodified, unhandled Enter on the viewport's own elements: the scroll element
+ * (`root`), a page host, or content of a page's text layer or canvas layer. Every other target
+ * (annotations, custom slot content, any control a host puts in the page) keeps its Enter.
+ * This is the keyboard trigger for the creation tools.
+ */
+export function isViewportEnter(e: KeyboardEvent, root: HTMLElement): boolean {
+  if (e.key !== 'Enter' || e.defaultPrevented) return false
+  if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.isComposing) return false
+  const target = e.target
+  if (target === root) return true
+  if (!(target instanceof Element) || !root.contains(target)) return false
+  if (target.matches('.ink-page[data-page]')) return true
+  return target.closest('[data-ink-text-layer], [data-ink-canvas-layer]') !== null
+}
+
+/**
  * True for a target inside a custom annotation element (`data-custom`) but not that element
  * itself: the host's buttons and inputs there own their presses and keys, as in the overlay.
  */
 function inCustomContent(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false
   const el = target.closest('[data-annotation]')
-  return el !== null && el !== target && el.hasAttribute('data-custom')
+  return (
+    el !== null &&
+    el !== target &&
+    el.hasAttribute('data-custom') &&
+    // Resize handles are the overlay's, not the host's content.
+    target.closest('[data-handle]') === null
+  )
 }

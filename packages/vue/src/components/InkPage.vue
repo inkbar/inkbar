@@ -8,8 +8,19 @@
  * Vue. So the teleport targets come from a list read after every overlay render: this
  * component subscribes to the store after the overlay does, and core notifies subscribers
  * in order, so the elements already exist when the list arrives here.
+ *
+ * A page whose canvas or text layer fails gets `data-state="error"` on its host and the
+ * `page-error` slot teleported into it; the other pages and the viewport carry on. It clears
+ * once every layer that failed (canvas, text layer) has since succeeded, for example after a
+ * zoom change, or on the next mount of the page.
  */
-import { createPageMount, type PageMount, type PageTransform } from '@inkbar/core/dom'
+import { InkError, isInkError } from '@inkbar/core'
+import {
+  createPageMount,
+  type PageLayer,
+  type PageMount,
+  type PageTransform,
+} from '@inkbar/core/dom'
 import { onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
 
 import { injectInkContext } from '../context'
@@ -30,12 +41,40 @@ const props = withDefaults(
   { customAnnotations: false }
 )
 
-defineSlots<{ annotation?(props: AnnotationSlotProps): unknown }>()
+defineSlots<{
+  annotation?(props: AnnotationSlotProps): unknown
+  'page-error'?(props: { error: InkError; page: number }): unknown
+}>()
 
 const ctx = injectInkContext()
 const mount = shallowRef<PageMount | null>(null)
 const targets = shallowRef<{ annotation: Annotation; el: HTMLElement }[]>([])
 let stopList: (() => void) | undefined
+const pageError = shallowRef<InkError | null>(null)
+/** Layers that have failed and not yet recovered; the error clears when this empties. */
+const failedLayers = new Set<PageLayer>()
+
+/** The first failure wins: a canvas and a text layer failing together report one error. */
+function onPageError(cause: unknown, layer: PageLayer): void {
+  failedLayers.add(layer)
+  if (pageError.value) return
+  pageError.value = isInkError(cause)
+    ? cause
+    : new InkError(
+        'InvalidPdf',
+        cause instanceof Error ? cause.message : String(cause),
+        { page: props.page },
+        cause
+      )
+  props.host.setAttribute('data-state', 'error')
+}
+
+function onPageRendered(layer: PageLayer): void {
+  failedLayers.delete(layer)
+  if (!pageError.value || failedLayers.size > 0) return
+  pageError.value = null
+  props.host.removeAttribute('data-state')
+}
 
 function readTargets(): void {
   const m = mount.value
@@ -59,6 +98,8 @@ onMounted(() => {
     store: doc.annotations,
     onActivate: (id) => ctx.setActivated(id),
     isCustom: () => custom,
+    onError: onPageError,
+    onRendered: onPageRendered,
   })
   if (custom) {
     stopList = doc.annotations.list.subscribe(readTargets)
@@ -76,12 +117,23 @@ onBeforeUnmount(() => {
   targets.value = []
   mount.value?.destroy()
   mount.value = null
+  if (pageError.value) props.host.removeAttribute('data-state')
+  pageError.value = null
+  failedLayers.clear()
 })
 
 defineExpose({ mount })
 </script>
 
 <template>
+  <Teleport v-if="pageError" :to="host">
+    <div class="ink-page-error" data-ink-page-error role="alert">
+      <slot name="page-error" :error="pageError" :page="page">
+        <p>Page {{ page + 1 }} could not be shown.</p>
+        <code class="ink-error-code">{{ pageError.code }}</code>
+      </slot>
+    </div>
+  </Teleport>
   <Teleport v-for="t in targets" :key="t.annotation.id" :to="t.el">
     <InkAnnotation :annotation="t.annotation" :element="t.el">
       <template #default="slotProps">

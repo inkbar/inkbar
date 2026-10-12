@@ -41,7 +41,8 @@ jobs:
       - run: pnpm exec turbo run test:browser --filter='!@inkbar/sandbox-vue'
       # The sandbox suite measures frame times. It runs alone so the package suites do not
       # compete with it for the runner's CPU.
-      - run: pnpm exec turbo run test:browser --filter=@inkbar/sandbox-vue
+      - if: ${{ !cancelled() }}
+        run: pnpm exec turbo run test:browser --filter=@inkbar/sandbox-vue
       - if: failure()
         uses: actions/upload-artifact@v4
         with:

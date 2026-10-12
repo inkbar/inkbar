@@ -265,6 +265,46 @@ describe('createOverlay', () => {
     expect(document.activeElement).toBe(overlay.elementFor(b.id))
   })
 
+  it('moves focus to the scroll element when the last annotation on the page is removed', () => {
+    const { store, host, overlay } = setup()
+    // The viewport container the page host lives in, focusable like InkViewport's.
+    const scroll = document.createElement('div')
+    scroll.dataset.inkViewport = ''
+    scroll.tabIndex = 0
+    document.body.append(scroll)
+    scroll.append(host)
+    cleanup.push(() => scroll.remove())
+    const only = store.add({
+      type: 'note',
+      page: 0,
+      rect: { x: 10, y: 700, width: 20, height: 20 },
+    })
+    const el = overlay.elementFor(only.id)!
+    el.focus()
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }))
+    expect(store.get(only.id)).toBeUndefined()
+    expect(document.activeElement).toBe(scroll)
+  })
+
+  it('makes a scroll container without tabindex focusable before falling back to it', () => {
+    const { store, host, overlay } = setup()
+    const scroll = document.createElement('div')
+    scroll.dataset.inkViewport = ''
+    document.body.append(scroll)
+    scroll.append(host)
+    cleanup.push(() => scroll.remove())
+    expect(scroll.hasAttribute('tabindex')).toBe(false)
+    const only = store.add({
+      type: 'note',
+      page: 0,
+      rect: { x: 10, y: 700, width: 20, height: 20 },
+    })
+    overlay.elementFor(only.id)!.focus()
+    store.remove(only.id)
+    expect(scroll.tabIndex).toBe(-1)
+    expect(document.activeElement).toBe(scroll)
+  })
+
   it('expresses visuals as SVG attributes and scales strokes with zoom', () => {
     const { store, overlay } = setup(2)
     const sq = store.add({
@@ -633,5 +673,153 @@ describe('createOverlay', () => {
         [box.left, box.top, box.width, box.height].map((n) => `${n}px`)
       )
     }
+  })
+
+  it('Shift+Arrow nudges a focused annotation 1 pt in user space, Shift+Alt+Arrow 10 pt', () => {
+    const { store, host } = setup(2)
+    const a = store.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    const el = host.querySelector(`[data-annotation="${a.id}"]`) as HTMLElement
+    el.focus()
+    const key = (k: string, init: KeyboardEventInit = {}) =>
+      el.dispatchEvent(
+        new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...init })
+      )
+    key('ArrowRight', { shiftKey: true })
+    expect(store.get(a.id)!.rect).toEqual({ x: 101, y: 600, width: 50, height: 30 })
+    // Up is +y in user space.
+    key('ArrowUp', { shiftKey: true })
+    expect(store.get(a.id)!.rect).toEqual({ x: 101, y: 601, width: 50, height: 30 })
+    key('ArrowLeft', { shiftKey: true, altKey: true })
+    key('ArrowDown', { shiftKey: true, altKey: true })
+    expect(store.get(a.id)!.rect).toEqual({ x: 91, y: 591, width: 50, height: 30 })
+    // Drawn where the store says, through the transform (zoom 2).
+    expect(el.style.left).toBe('182px')
+    expect(document.activeElement).toBe(el)
+
+    // Text marks move their quads with the rect.
+    const hl = store.add({ type: 'highlight', page: 0, quads })
+    const hlEl = host.querySelector(`[data-annotation="${hl.id}"]`) as HTMLElement
+    hlEl.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowRight', shiftKey: true, bubbles: true })
+    )
+    const moved = store.get(hl.id)
+    if (moved?.type === 'highlight') expect(moved.quads[0]!.p1).toEqual({ x: 73, y: 715 })
+
+    // Locked items ignore it.
+    store.update(a.id, { locked: true })
+    key('ArrowRight', { shiftKey: true })
+    expect(store.get(a.id)!.rect.x).toBe(91)
+  })
+
+  it('Ctrl/Meta+Shift+Arrow resizes a rect-shaped annotation by 1 pt, never below 1 pt', () => {
+    const { store, host } = setup()
+    const a = store.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 2, height: 2 },
+    })
+    const el = host.querySelector(`[data-annotation="${a.id}"]`) as HTMLElement
+    const key = (k: string, init: KeyboardEventInit) =>
+      el.dispatchEvent(
+        new KeyboardEvent('keydown', { key: k, shiftKey: true, bubbles: true, ...init })
+      )
+    key('ArrowRight', { ctrlKey: true })
+    expect(store.get(a.id)!.rect).toEqual({ x: 100, y: 600, width: 3, height: 2 })
+    // Down grows downwards: the top edge (y + height) stays.
+    key('ArrowDown', { metaKey: true })
+    expect(store.get(a.id)!.rect).toEqual({ x: 100, y: 599, width: 3, height: 3 })
+    key('ArrowLeft', { ctrlKey: true })
+    key('ArrowLeft', { ctrlKey: true })
+    key('ArrowLeft', { ctrlKey: true })
+    key('ArrowUp', { ctrlKey: true })
+    key('ArrowUp', { ctrlKey: true })
+    key('ArrowUp', { ctrlKey: true })
+    expect(store.get(a.id)!.rect).toEqual({ x: 100, y: 601, width: 1, height: 1 })
+
+    // A note icon and a text mark are not rect-shaped: no resize.
+    const note = store.add({
+      type: 'note',
+      page: 0,
+      rect: { x: 10, y: 10, width: 20, height: 20 },
+    })
+    host.querySelector(`[data-annotation="${note.id}"]`)!.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'ArrowRight',
+        shiftKey: true,
+        ctrlKey: true,
+        bubbles: true,
+      })
+    )
+    expect(store.get(note.id)!.rect.width).toBe(20)
+
+    store.update(a.id, { locked: true })
+    key('ArrowRight', { ctrlKey: true })
+    expect(store.get(a.id)!.rect.width).toBe(1)
+  })
+
+  it('arrows without Shift still move focus and leave geometry alone', () => {
+    const { store, host } = setup()
+    const top = store.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 10, y: 700, width: 20, height: 20 },
+    })
+    const bottom = store.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 10, y: 100, width: 20, height: 20 },
+    })
+    const topEl = host.querySelector(`[data-annotation="${top.id}"]`) as HTMLElement
+    topEl.focus()
+    topEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+    expect(document.activeElement?.getAttribute('data-annotation')).toBe(bottom.id)
+    expect(store.get(top.id)!.rect.y).toBe(700)
+  })
+
+  it('draws corner handles on a selected, unlocked rect-shaped annotation only', () => {
+    const { store, host } = setup()
+    // Handles need the select tool on the tool root; the controller would set this.
+    const toolRoot = document.createElement('div')
+    toolRoot.dataset.inkTool = 'select'
+    document.body.append(toolRoot)
+    toolRoot.append(host)
+    cleanup.push(() => toolRoot.remove())
+    const area = store.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    const text = store.add({ type: 'redact', page: 0, quads })
+    const note = store.add({
+      type: 'note',
+      page: 0,
+      rect: { x: 10, y: 10, width: 20, height: 20 },
+    })
+    const handles = (id: string) =>
+      [...host.querySelectorAll(`[data-annotation="${id}"] > .ink-handle`)].map(
+        (h) => (h as HTMLElement).dataset.handle
+      )
+    expect(handles(area.id)).toEqual([])
+    store.select([area.id, text.id, note.id])
+    expect(handles(area.id)).toEqual(['nw', 'ne', 'sw', 'se'])
+    expect(handles(text.id)).toEqual([])
+    expect(handles(note.id)).toEqual([])
+    const se = host.querySelector(
+      `[data-annotation="${area.id}"] > [data-handle="se"]`
+    ) as HTMLElement
+    expect(se.style.pointerEvents).toBe('auto')
+    expect(se.style.width).toBe('8px')
+    // A redraw (new geometry) keeps them.
+    store.update(area.id, { rect: { x: 100, y: 600, width: 60, height: 30 } })
+    expect(handles(area.id)).toHaveLength(4)
+    store.update(area.id, { locked: true })
+    expect(handles(area.id)).toEqual([])
+    store.update(area.id, { locked: false })
+    store.select([])
+    expect(handles(area.id)).toEqual([])
   })
 })

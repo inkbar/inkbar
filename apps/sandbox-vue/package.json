@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
     "lint": "eslint src e2e",
+    "test": "node --test src/page-count.test.ts",
     "test:browser": "playwright test"
   },
   "dependencies": {

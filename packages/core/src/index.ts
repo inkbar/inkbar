@@ -1,4 +1,8 @@
-export const version = '0.0.0'
+/** Replaced at build time (tsdown) and in tests (vitest) with package.json's version. */
+declare const __INKBAR_VERSION__: string
+
+/** The @inkbar/core version, from its package.json. */
+export const version: string = __INKBAR_VERSION__
 
 export * from './model/errors'
 export * from './model/events'
@@ -21,6 +25,7 @@ export * from './model/annotations/types'
 export * from './model/annotations/defaults'
 export * from './model/annotations/store'
 export * from './model/annotations/history'
+export { acceptSuggestion } from './model/annotations/suggestions'
 export * from './model/annotations/embedded'
 export { parsePdfDate } from './model/pdf-date'
 export { exportAnnotations, importAnnotations } from './model/annotations/json'

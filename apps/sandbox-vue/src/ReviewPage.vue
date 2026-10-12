@@ -11,6 +11,7 @@ import {
   type Annotation,
   type DocumentSource,
   type InkDocument,
+  type Quad,
 } from '@inkbar/core'
 import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
 import {
@@ -21,11 +22,21 @@ import {
   InkViewport,
 } from '@inkbar/vue'
 import { assets } from 'virtual:inkbar-assets'
-import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  ref,
+  shallowRef,
+  useTemplateRef,
+  watch,
+} from 'vue'
 
 import EmbeddedBanner from './EmbeddedBanner.vue'
 import { createFakeServer } from './fake-server'
 import { recordReady } from './metrics'
+
+import type { ToolId } from '@inkbar/core/dom'
 
 const props = defineProps<{ fixture: string; largePages: number }>()
 
@@ -41,9 +52,16 @@ const readyCount = ref(0)
 /** Outcome of the last suggestion run, announced apart from the sync status. */
 const suggestResult = ref('')
 const document = shallowRef<InkDocument | null>(null)
+const root = useTemplateRef<InstanceType<typeof InkRoot>>('root')
 const largeBytes = shallowRef<Uint8Array | null>(null)
 /** The key whose saved annotations have been loaded; saving waits for it. */
 const loadedKey = ref<string | null>(null)
+/** The toolbar stays inert, and the tool at view, until the current key has loaded. */
+const failed = ref(false)
+const loading = computed(
+  () => !failed.value && (loadedKey.value === null || loadedKey.value !== key.value)
+)
+const tool = ref<ToolId>('view')
 
 const key = computed(() =>
   props.largePages > 0
@@ -79,24 +97,49 @@ async function onReady(doc: InkDocument): Promise<void> {
   const forKey = doc.key
   const saved = await server.load(forKey)
   if (document.value !== doc) return
-  if (saved) annotations.value = knownAnnotations(saved.annotations)
+  if (saved) {
+    annotations.value = knownAnnotations(saved.annotations)
+    // Undo history records every change to the list. Loading is not the reader's change, so
+    // once the history has seen it, clear it: undo right after opening must not empty the list.
+    await nextTick()
+    root.value?.history.clear()
+  }
   loadedKey.value = forKey
   status.value = 'ready'
 }
 
 function onError(): void {
+  failed.value = true
   document.value = null
   status.value = 'error'
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | undefined
+/** The save that the debounce is still holding back, if any. */
+let pendingSave: (() => Promise<void>) | undefined
+/** Saves that have started and not yet been stored. */
+const inFlight = new Set<Promise<void>>()
+
+/** Starts the held-back save now and resolves once it and any save in flight are stored. */
+async function flushSave(): Promise<void> {
+  clearTimeout(saveTimer)
+  const run = pendingSave
+  pendingSave = undefined
+  if (run) {
+    const saving = run()
+    inFlight.add(saving)
+    void saving.finally(() => inFlight.delete(saving))
+  }
+  await Promise.all(inFlight)
+}
+
 watch(annotations, (list) => {
   const forKey = loadedKey.value
   if (forKey === null || forKey !== key.value) return
   clearTimeout(saveTimer)
   status.value = 'saving'
-  saveTimer = setTimeout(() => {
-    void server
+  pendingSave = () =>
+    server
       .save(forKey, {
         format: ANNOTATION_FORMAT,
         version: ANNOTATION_VERSION,
@@ -106,9 +149,22 @@ watch(annotations, (list) => {
       .then(() => {
         if (loadedKey.value === forKey) status.value = 'saved'
       })
-  }, SAVE_DEBOUNCE_MS)
+  saveTimer = setTimeout(() => void flushSave(), SAVE_DEBOUNCE_MS)
 })
 onBeforeUnmount(() => clearTimeout(saveTimer))
+
+/** Rounded to 0.01 pt, so a rerun finds the rect it stored before. */
+function rectKey(r: { x: number; y: number; width: number; height: number }): string {
+  return [r.x, r.y, r.width, r.height].map((n) => n.toFixed(2)).join(',')
+}
+
+function quadsRect(quads: readonly Quad[]) {
+  const xs = quads.flatMap((q) => [q.p1.x, q.p2.x, q.p3.x, q.p4.x])
+  const ys = quads.flatMap((q) => [q.p1.y, q.p2.y, q.p3.y, q.p4.y])
+  const x = Math.min(...xs)
+  const y = Math.min(...ys)
+  return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y }
+}
 
 async function suggest(): Promise<void> {
   const doc = document.value
@@ -117,8 +173,22 @@ async function suggest(): Promise<void> {
   const inputs = await server.suggest(doc)
   if (document.value !== doc) return
   // In controlled mode each add is a proposal; proposals in one tick compose into one list.
-  for (const input of inputs) doc.annotations.add(input)
-  suggestResult.value = `${inputs.length} suggested redaction${inputs.length === 1 ? '' : 's'}`
+  // Running again must not repeat a suggestion already on the page.
+  const seen = new Set(
+    annotations.value
+      .filter((a) => a.type === 'redact')
+      .map((a) => `${a.page}:${rectKey(a.rect)}`)
+  )
+  const fresh = inputs.filter((input) => {
+    const quads = 'quads' in input ? input.quads : undefined
+    if (!quads) return true
+    const id = `${input.page}:${rectKey(quadsRect(quads))}`
+    if (seen.has(id)) return false
+    seen.add(id)
+    return true
+  })
+  for (const input of fresh) doc.annotations.add(input)
+  suggestResult.value = `${fresh.length} suggested redaction${fresh.length === 1 ? '' : 's'}`
 }
 
 /** A new signature for the same file: the key is unchanged, so nothing reloads. */
@@ -127,9 +197,13 @@ function resign(): void {
 }
 
 /** A new version of the file: a new key, so the viewer reloads and starts from the server. */
-function newVersion(): void {
-  clearTimeout(saveTimer)
+async function newVersion(): Promise<void> {
+  // Inert from here on. An edit still inside the debounce window belongs to the old key:
+  // wait until it is stored before the key changes.
   loadedKey.value = null
+  await flushSave()
+  failed.value = false
+  tool.value = 'view'
   document.value = null
   annotations.value = []
   suggestResult.value = ''
@@ -140,33 +214,40 @@ function newVersion(): void {
 
 <template>
   <InkRoot
+    ref="root"
     v-model:annotations="annotations"
+    v-model:tool="tool"
+    :history="true"
     :src="src"
     :assets="assets"
     class="sandbox-root"
     @ready="onReady"
     @error="onError"
   >
-    <DefaultToolbar>
-      <div class="sandbox-actions" role="group" aria-label="Review">
-        <button
-          type="button"
-          data-testid="suggest"
-          :disabled="!document"
-          @click="suggest"
-        >
-          Suggest redactions
-        </button>
-        <button type="button" data-testid="resign" @click="resign">Re-sign</button>
-        <button type="button" data-testid="new-version" @click="newVersion">
-          New version
-        </button>
-      </div>
-    </DefaultToolbar>
+    <div :inert="loading" data-testid="toolbar-gate">
+      <DefaultToolbar>
+        <div class="sandbox-actions" role="group" aria-label="Review">
+          <button
+            type="button"
+            data-testid="suggest"
+            :disabled="!document || loading"
+            @click="suggest"
+          >
+            Suggest redactions
+          </button>
+          <button type="button" data-testid="resign" @click="resign">Re-sign</button>
+          <button type="button" data-testid="new-version" @click="newVersion">
+            New version
+          </button>
+        </div>
+      </DefaultToolbar>
+    </div>
     <EmbeddedBanner />
-    <InkViewport />
-    <InkNotePopover />
-    <InkSuggestionCard />
+    <div :inert="loading" class="sandbox-editor" data-testid="editor-gate">
+      <InkViewport />
+      <InkNotePopover />
+      <InkSuggestionCard />
+    </div>
     <p
       class="sandbox-status"
       role="status"

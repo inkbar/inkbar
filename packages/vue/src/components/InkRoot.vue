@@ -257,7 +257,9 @@ provideInkContext({
   rootEl,
 })
 
-defineExpose({ document, status, rootEl })
+// `history` is what `useHistory()` returns inside the root, for hosts that hold a template ref:
+// a controlled host calls `history.clear()` after loading its saved list.
+defineExpose({ document, status, rootEl, history: inkHistory })
 </script>
 
 <template>

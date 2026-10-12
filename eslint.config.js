@@ -35,15 +35,22 @@ export default defineConfig(
   },
   {
     name: 'inkbar/pdfjs-quarantine',
-    files: ['packages/core/src/**/*.ts'],
+    // Shipped code and apps reach PDF.js only through @inkbar/core's loader.
+    files: ['packages/**/*.{ts,mts,tsx,vue}', 'apps/**/*.{ts,mts,tsx,vue}'],
     ignores: ['packages/core/src/pdfjs/**'],
     rules: {
       'no-restricted-imports': [
         'error',
         {
           paths: [
-            { name: 'pdfjs-dist', message: 'Import PDF.js only inside src/pdfjs/.' },
-            { name: '#pdfjs', message: 'Import PDF.js only inside src/pdfjs/.' },
+            {
+              name: 'pdfjs-dist',
+              message: 'Import PDF.js only inside packages/core/src/pdfjs/.',
+            },
+            {
+              name: '#pdfjs',
+              message: 'Import PDF.js only inside packages/core/src/pdfjs/.',
+            },
           ],
           patterns: ['pdfjs-dist/**'],
         },

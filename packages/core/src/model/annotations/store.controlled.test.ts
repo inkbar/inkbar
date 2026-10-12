@@ -72,7 +72,11 @@ describe('AnnotationStore (controlled)', () => {
     expect(s.get(a.id)?.contents).toBe('two')
     expect(s.remove(a.id)).toBe(true)
     expect(s.list.get()).toHaveLength(1)
-    expect(onChange).toHaveBeenLastCalledWith([], { kind: 'remove', annotation: b })
+    expect(onChange).toHaveBeenLastCalledWith([], {
+      kind: 'remove',
+      annotation: b,
+      removed: [b],
+    })
     expect(value()).toEqual([])
     apply()
     expect(s.list.get()).toEqual([])
@@ -365,5 +369,16 @@ describe('AnnotationStore (controlled) with embedded annotations', () => {
       s.select([a.id])
       expect(s.selection.get()).toEqual([])
     })
+  })
+})
+
+describe('AnnotationStore (controlled) ids', () => {
+  it('throws when add reuses an id, including one only proposed so far', () => {
+    const { s, apply } = controlledStore()
+    s.add({ id: 'dup', type: 'note', page: 0, rect })
+    expect(() => s.add({ id: 'dup', type: 'note', page: 0, rect })).toThrow(/dup/)
+    apply()
+    expect(() => s.add({ id: 'dup', type: 'note', page: 0, rect })).toThrow(/dup/)
+    expect(s.list.get()).toHaveLength(1)
   })
 })

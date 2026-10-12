@@ -22,6 +22,7 @@ export interface MountPdfjsTextLayerOptions {
  * Renders the page's text into `container` as positioned spans. The constructor sizes the
  * container from `--total-scale-factor` and sets `data-main-rotation`; CSS (the theme) turns
  * those into the final layout. Rejects with PDF.js's `AbortException` if `signal` aborts first.
+ * On any rejection the layer is cancelled and detached from `signal`.
  */
 export async function mountPdfjsTextLayer(
   opts: MountPdfjsTextLayerOptions
@@ -42,8 +43,17 @@ export async function mountPdfjsTextLayer(
       layer.cancel()
     },
   }
-  opts.signal?.addEventListener('abort', () => layer.cancel(), { once: true })
+  const onAbort = (): void => layer.cancel()
+  opts.signal?.addEventListener('abort', onAbort, { once: true })
   if (opts.signal?.aborted) layer.cancel()
-  await layer.render()
+  try {
+    await layer.render()
+  } catch (error) {
+    // A failed layer is dropped here: cancelled, and no longer held by the caller's signal, so
+    // a retry on the same signal does not keep every failed attempt alive.
+    opts.signal?.removeEventListener('abort', onAbort)
+    layer.cancel()
+    throw error
+  }
   return mounted
 }
