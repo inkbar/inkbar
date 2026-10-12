@@ -384,26 +384,28 @@ test('keeps the page and zoom when a gap change rebuilds the viewport', async ({
   await expect.poll(() => pages.at(-1)).toBe(2)
   const before = pages.length
 
-  const gap = 40
-  await cmp.update({ props: { ...props, gap }, on })
-  const size = await scroll.evaluate((el) => ({
-    width: el.clientWidth,
-    max: el.scrollHeight - el.clientHeight,
-  }))
-  const layout = layoutAt(1.5, size.width, gap)
-  // The rebuilt layout is in place: page 2 sits where the new gap puts it.
-  await expect(cmp.locator('.ink-page[data-page="2"]')).toHaveCSS(
-    'top',
-    `${layout.boxes[2]!.top}px`
-  )
-  await expect
-    .poll(() => scroll.evaluate((el) => el.scrollTop))
-    .toBe(Math.min(size.max, layout.boxes[2]!.top - gap))
-  await expect(cmp.locator('.ink-page[data-page="2"]')).toHaveCSS(
-    'width',
-    `${612 * 1.5}px`
-  )
-  // Nothing changed for the host, so nothing is reported: no jump to page 0, no zoom echo.
-  expect(pages.slice(before)).toEqual([])
-  expect(zooms).toEqual([])
+  // Twice: every rebuild must remember the document, not only the first.
+  for (const gap of [40, 24]) {
+    await cmp.update({ props: { ...props, gap }, on })
+    const size = await scroll.evaluate((el) => ({
+      width: el.clientWidth,
+      max: el.scrollHeight - el.clientHeight,
+    }))
+    const layout = layoutAt(1.5, size.width, gap)
+    // The rebuilt layout is in place: page 2 sits where the new gap puts it.
+    await expect(cmp.locator('.ink-page[data-page="2"]')).toHaveCSS(
+      'top',
+      `${layout.boxes[2]!.top}px`
+    )
+    await expect
+      .poll(() => scroll.evaluate((el) => el.scrollTop))
+      .toBe(Math.min(size.max, layout.boxes[2]!.top - gap))
+    await expect(cmp.locator('.ink-page[data-page="2"]')).toHaveCSS(
+      'width',
+      `${612 * 1.5}px`
+    )
+    // Nothing changed for the host, so nothing is reported: no jump to page 0, no zoom echo.
+    expect(pages.slice(before)).toEqual([])
+    expect(zooms).toEqual([])
+  }
 })

@@ -148,9 +148,10 @@ function setup(): void {
   tools = tc
   ctx.viewport.value = vp
   ctx.tools.value = tc
+  // Every successful build records its document, so each later rebuild carries state too.
+  builtFor = doc
   if (!carry) {
     // A new document starts from where the viewport opens; only later changes are reported.
-    builtFor = doc
     lastReportedZoom = vp.zoom.get()
     lastReportedPage = vp.currentPage.get()
   }
