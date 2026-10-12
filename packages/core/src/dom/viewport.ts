@@ -62,7 +62,7 @@ export interface Viewport {
   readonly layout: Readable<CssLayout>
   readonly rotation: Readable<ViewRotation>
   readonly mode: Readable<LayoutMode>
-  /** `anchorCss` is relative to the container's top-left, in CSS px; defaults to its centre. */
+  /** `anchorCss` is relative to the container's top-left inside its border, CSS px; defaults to its centre. */
   setZoom(zoom: ZoomValue, anchorCss?: Point): void
   zoomBy(factor: number, anchorCss?: Point): void
   setMode(mode: LayoutMode): void
@@ -128,13 +128,22 @@ export function createViewport(opts: ViewportOptions): Viewport {
     return { x: pagesEl.offsetLeft, y: pagesEl.offsetTop }
   }
 
+  /** The container's content box, CSS px: client size less padding. The pages element sits inside it. */
+  function innerSize(): { width: number; height: number } {
+    const cs = getComputedStyle(container)
+    const px = (v: string): number => Number.parseFloat(v) || 0
+    return {
+      width: container.clientWidth - px(cs.paddingLeft) - px(cs.paddingRight),
+      height: container.clientHeight - px(cs.paddingTop) - px(cs.paddingBottom),
+    }
+  }
+
   function resolveScale(): number {
     const z = zoom.get()
     if (typeof z === 'number') return clamp(z)
     const page = doc.pages[currentPage.get()] ?? doc.pages[0]
     if (!page) return 1
-    const size = { width: container.clientWidth, height: container.clientHeight }
-    return clamp(fitZoomCss(page, rotation.get(), size, z, gap))
+    return clamp(fitZoomCss(page, rotation.get(), innerSize(), z, gap))
   }
 
   function transformFor(page: number): PageTransform {
@@ -158,7 +167,7 @@ export function createViewport(opts: ViewportOptions): Viewport {
       gap,
       mode: mode.get(),
       current: currentPage.get(),
-      containerWidth: container.clientWidth,
+      containerWidth: innerSize().width,
     })
     pagesEl.style.width = `${l.width}px`
     pagesEl.style.height = `${l.height}px`
@@ -264,31 +273,52 @@ export function createViewport(opts: ViewportOptions): Viewport {
     return undefined
   }
 
-  /** Keeps the user-space point under `anchorCss` still while `change` alters the layout. */
+  /**
+   * The page box an anchor at layout-space `y` belongs to: the one whose vertical span
+   * contains it, otherwise the nearest one (an anchor in a gap or past either end).
+   */
+  function anchorBox(l: CssLayout, y: number): CssPageBox | undefined {
+    let best: CssPageBox | undefined
+    let bestDistance = Infinity
+    for (const b of l.boxes) {
+      const distance =
+        y < b.top ? b.top - y : y > b.top + b.height ? y - b.top - b.height : 0
+      if (distance < bestDistance) {
+        best = b
+        bestDistance = distance
+      }
+    }
+    return best
+  }
+
+  /**
+   * Keeps the user-space point under `anchorCss` still while `change` alters the layout.
+   * The anchor is taken in layout space, so it holds in the margins and gaps too: there it
+   * is extrapolated from the nearest page's transform, which is affine, so the point maps
+   * back exactly. The browser may still clamp the scroll at the content edges.
+   */
   function withAnchor(anchorCss: Point | undefined, change: () => void): void {
     const anchor = anchorCss ?? {
       x: container.clientWidth / 2,
       y: container.clientHeight / 2,
     }
-    const c = container.getBoundingClientRect()
-    const clientX = c.left + container.clientLeft + anchor.x
-    const clientY = c.top + container.clientTop + anchor.y
-    // Read the hit before relayout() clears the cached transforms.
-    const hit = pageAtCss(clientX, clientY)
-    let before: Point | undefined
-    if (hit) {
-      const h = hit.host.getBoundingClientRect()
-      before = hit.transform.fromCss({ x: clientX - h.left, y: clientY - h.top })
-    }
+    // Read everything from the old layout before relayout() clears the cached transforms.
+    const o = origin()
+    const x = container.scrollLeft + anchor.x - o.x
+    const y = container.scrollTop + anchor.y - o.y
+    const old = anchorBox(layout.get(), y)
+    const user = old
+      ? transformFor(old.index).fromCss({ x: x - old.left, y: y - old.top })
+      : undefined
     change()
     relayout()
-    if (!hit || !before) return
-    const box = boxFor(hit.page)
+    if (!old || !user) return
+    const box = boxFor(old.index)
     if (!box) return
-    const after = transformFor(hit.page).toCss(before)
-    const o = origin()
-    container.scrollLeft = o.x + box.left + after.x - anchor.x
-    container.scrollTop = o.y + box.top + after.y - anchor.y
+    const after = transformFor(old.index).toCss(user)
+    const o2 = origin()
+    container.scrollLeft = o2.x + box.left + after.x - anchor.x
+    container.scrollTop = o2.y + box.top + after.y - anchor.y
     sync()
   }
 

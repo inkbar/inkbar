@@ -29,7 +29,7 @@ export interface CssLayoutInput {
   mode: LayoutMode
   /** The page shown in `single` mode. */
   current: number
-  /** The container's client width, CSS px. Pages narrower than this are centred. */
+  /** The container's content width (client width less padding), CSS px. Narrower pages are centred. */
   containerWidth: number
 }
 

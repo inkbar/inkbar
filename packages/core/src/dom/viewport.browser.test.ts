@@ -158,6 +158,95 @@ describe('createViewport', () => {
     expect(after.point.y).toBeCloseTo(before.point.y, 0)
   })
 
+  /** Client y of `anchor` minus the top of `page`'s host, in CSS px. */
+  function offsetFromPageTop(
+    viewport: Viewport,
+    container: HTMLElement,
+    page: number,
+    y: number
+  ) {
+    const host = viewport.hostFor(page)
+    if (!host) throw new Error(`page ${page} is not mounted`)
+    return container.getBoundingClientRect().top + y - host.getBoundingClientRect().top
+  }
+
+  it('keeps the zoom anchored when the anchor is in the side margin', async () => {
+    const { container, viewport } = await setup()
+    const box = viewport.layout.get().boxes[1]!
+    const anchor = { x: box.left / 2, y: 300 }
+    expect(anchor.x).toBeGreaterThan(0)
+    container.scrollTop = box.top + 200 - anchor.y
+    await settle()
+    const c = container.getBoundingClientRect()
+    expect(viewport.pageAtCss(c.left + anchor.x, c.top + anchor.y)).toBeUndefined()
+    const userY = (scale: number) =>
+      viewport
+        .transformFor(1)
+        .fromCss({ x: 0, y: offsetFromPageTop(viewport, container, 1, anchor.y) }).y *
+      scale
+    const before = userY(1)
+
+    viewport.setZoom(2, anchor)
+    await settle()
+    expect(viewport.scale.get()).toBe(2)
+    // In CSS px at the new zoom: the point under the anchor's y has not moved.
+    expect(Math.abs(userY(2) - before * 2)).toBeLessThanOrEqual(1)
+    expect(offsetFromPageTop(viewport, container, 1, anchor.y)).toBeCloseTo(200 * 2, 0)
+  })
+
+  it('keeps the zoom anchored when the anchor is in the gap between pages', async () => {
+    const { container, viewport } = await setup()
+    const box = viewport.layout.get().boxes[1]!
+    const anchor = { x: container.clientWidth / 2, y: 300 }
+    const above = GAP / 4
+    container.scrollTop = box.top - above - anchor.y
+    await settle()
+    const c = container.getBoundingClientRect()
+    expect(viewport.pageAtCss(c.left + anchor.x, c.top + anchor.y)).toBeUndefined()
+    expect(offsetFromPageTop(viewport, container, 1, anchor.y)).toBeCloseTo(-above, 3)
+
+    viewport.setZoom(2, anchor)
+    await settle()
+    expect(viewport.scale.get()).toBe(2)
+    // The same user-space point, extrapolated from page 1, is still under the anchor.
+    expect(
+      Math.abs(offsetFromPageTop(viewport, container, 1, anchor.y) - -above * 2)
+    ).toBeLessThanOrEqual(1)
+  })
+
+  it('sizes pages inside the container padding', async () => {
+    const doc = await openFixtureInBrowser('text-simple')
+    const container = mountContainer(800, 600)
+    container.style.padding = '16px'
+    const viewport = createViewport({
+      container,
+      document: doc,
+      zoom: 'fit-width',
+      gap: GAP,
+      onMount: () => undefined,
+      onUpdate: () => undefined,
+      onUnmount: () => undefined,
+    })
+    cleanup.push(() => {
+      viewport.destroy()
+      doc.destroy()
+      container.remove()
+    })
+    await settle()
+    expect(container.scrollWidth).toBe(container.clientWidth)
+    expect(viewport.layout.get().width).toBe(container.clientWidth - 32)
+    expect(viewport.scale.get()).toBeCloseTo(
+      fitZoomCss(
+        doc.pages[0]!,
+        0,
+        { width: container.clientWidth - 32, height: container.clientHeight - 32 },
+        'fit-width',
+        GAP
+      ),
+      6
+    )
+  })
+
   it('scrollToRect brings a user-space rect into view on the right page', async () => {
     const { container, viewport } = await setup()
     const rect = { x: 72, y: 100, width: 100, height: 20 }
