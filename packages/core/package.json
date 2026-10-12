@@ -44,6 +44,7 @@
     }
   },
   "devDependencies": {
+    "@inkbar/fixtures": "workspace:*",
     "@playwright/experimental-ct-vue": "1.62.1",
     "@playwright/test": "1.62.1",
     "ajv": "^8.20.0",
