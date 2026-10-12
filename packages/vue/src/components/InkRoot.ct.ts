@@ -71,6 +71,17 @@ test('emits error with the code for an encrypted file and opens with the passwor
   await expect(cmp.getByTestId('error-codes')).toHaveText('PasswordRequired')
 })
 
+test('emits error when the file fails to load after openDocument resolves', async ({
+  mount,
+}) => {
+  // openDocument resolves for load failures and reports them through status, not by rejecting.
+  const cmp = await mount(EventHost, {
+    props: { src: fixtureUrl('malformed-truncated'), assets },
+  })
+  await expect(cmp).toHaveAttribute('data-state', 'error')
+  await expect(cmp.getByTestId('error-codes')).toHaveText('InvalidPdf')
+})
+
 test('surfaces a missing asset config through status and the error event instead of throwing', async ({
   mount,
 }) => {
