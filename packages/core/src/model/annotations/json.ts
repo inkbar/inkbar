@@ -33,7 +33,11 @@ const KNOWN_TYPES: ReadonlySet<string> = new Set(
 
 /**
  * Session annotations plus any preserved foreign items. Embedded (`source: 'pdf'`) ones stay in
- * the file. Everything is a deep copy, so editing the result never touches the store.
+ * the file.
+ *
+ * The result is a JSON copy (`JSON.parse(JSON.stringify(...))`), the same data a serialised
+ * export would carry: editing it never touches the store, and values JSON cannot hold, such as
+ * functions or `undefined` inside `custom`, are left out exactly as `JSON.stringify` would.
  *
  * Without foreign items the result validates against this version's `schema.json`. With them it
  * validates only against the newer schema that produced them, since this version's schema
@@ -49,7 +53,9 @@ export function exportAnnotations(
     format: ANNOTATION_FORMAT,
     version: ANNOTATION_VERSION,
     ...(documentKey === undefined ? {} : { documentKey }),
-    annotations: structuredClone([...session, ...preserved]),
+    annotations: JSON.parse(JSON.stringify([...session, ...preserved])) as Array<
+      Annotation | ForeignAnnotation
+    >,
   }
 }
 
@@ -81,8 +87,9 @@ export function importAnnotations(
  * @internal Validation half of `importAnnotations`, so the document can record foreign items
  * before the store publishes the change.
  *
- * Ids are unique across the payload: the first item with an id wins, and later ones (known or
- * foreign) are reported in `errors`. In `merge` mode an incoming item replaces whatever session
+ * Ids are unique across the payload: the first item with an id claims it, and later ones (known
+ * or foreign) are reported in `errors`, even when the first was itself rejected. An id that
+ * matches an embedded annotation is rejected for known and foreign items alike. In `merge` mode an incoming item replaces whatever session
  * annotation has its id, whether the incoming item is known or foreign.
  */
 export function planImport(
@@ -107,19 +114,35 @@ export function planImport(
   )
   const result: ImportResult = { imported: 0, unknown: [], errors: [] }
   const incoming: Annotation[] = []
-  /** id -> index of the item that claimed it. */
+  /** id -> index of the first item that used it, whether that item was accepted or not. */
   const seen = new Map<string, number>()
+  /** Ids the import actually brings in. */
+  const accepted = new Set<string>()
+  /**
+   * Reserves `id` for the item at `index`. Later items with the same id are duplicates even
+   * when this one is rejected for reusing an embedded id.
+   */
   const claim = (id: string, index: number): boolean => {
     const first = seen.get(id)
-    if (first === undefined) {
-      seen.set(id, index)
-      return true
+    if (first !== undefined) {
+      result.errors.push({
+        index,
+        issues: [`id: duplicate id "${id}", already used by item ${first}`],
+      })
+      return false
     }
-    result.errors.push({
-      index,
-      issues: [`id: duplicate id "${id}", already used by item ${first}`],
-    })
-    return false
+    seen.set(id, index)
+    if (embeddedIds.has(id)) {
+      result.errors.push({
+        index,
+        issues: [
+          'id: matches an annotation embedded in the PDF, which import never replaces',
+        ],
+      })
+      return false
+    }
+    accepted.add(id)
+    return true
   }
 
   envelope.data.annotations.forEach((item, index) => {
@@ -145,15 +168,6 @@ export function planImport(
       })
       return
     }
-    if (embeddedIds.has(parsed.data.id)) {
-      result.errors.push({
-        index,
-        issues: [
-          'id: matches an annotation embedded in the PDF, which import never replaces',
-        ],
-      })
-      return
-    }
     if (!claim(parsed.data.id, index)) return
     incoming.push({ ...parsed.data, source: 'session' })
     result.imported++
@@ -167,7 +181,7 @@ export function planImport(
     )
   }
 
-  const ids: ReadonlySet<string> = new Set(seen.keys())
+  const ids: ReadonlySet<string> = accepted
   return {
     result,
     ids,

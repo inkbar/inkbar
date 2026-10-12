@@ -177,30 +177,33 @@ describe('document annotations', () => {
       },
     })
     await doc.ready
-    const pdfIds = doc.annotations.list.get().map((a) => a.id)
-    expect(pdfIds).toHaveLength(4)
-
-    const note = doc.annotations.add({ type: 'note', page: 0, rect })
-    expect(changes).toEqual([[note]])
-    doc.annotations.setControlledValue(changes[0]!)
-    expect(doc.annotations.list.get().map((a) => a.id)).toEqual([...pdfIds, note.id])
-
-    doc.annotations.setControlledValue([])
-    expect(doc.annotations.list.get().map((a) => a.id)).toEqual(pdfIds)
-
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
-    vi.useFakeTimers()
     try {
-      expect(doc.annotations.remove(pdfIds[0]!)).toBe(false)
-      vi.runAllTimers()
-      expect(warn).not.toHaveBeenCalled()
-      expect(changes).toHaveLength(1)
-      expect(doc.annotations.list.get()).toHaveLength(4)
+      const pdfIds = doc.annotations.list.get().map((a) => a.id)
+      expect(pdfIds).toHaveLength(4)
+
+      const note = doc.annotations.add({ type: 'note', page: 0, rect })
+      expect(changes).toEqual([[note]])
+      doc.annotations.setControlledValue(changes[0]!)
+      expect(doc.annotations.list.get().map((a) => a.id)).toEqual([...pdfIds, note.id])
+
+      doc.annotations.setControlledValue([])
+      expect(doc.annotations.list.get().map((a) => a.id)).toEqual(pdfIds)
+
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+      vi.useFakeTimers()
+      try {
+        expect(doc.annotations.remove(pdfIds[0]!)).toBe(false)
+        vi.runAllTimers()
+        expect(warn).not.toHaveBeenCalled()
+        expect(changes).toHaveLength(1)
+        expect(doc.annotations.list.get()).toHaveLength(4)
+      } finally {
+        vi.useRealTimers()
+        warn.mockRestore()
+      }
     } finally {
-      vi.useRealTimers()
-      warn.mockRestore()
+      doc.destroy()
     }
-    doc.destroy()
   })
 
   it('refuses to remove embedded annotations in uncontrolled mode', async () => {
@@ -215,7 +218,6 @@ describe('document annotations', () => {
   })
 
   it('round-trips foreign items, which this version of the schema rejects', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     const foreign = {
       id: 'f1',
       type: 'hologram',
@@ -228,69 +230,136 @@ describe('document annotations', () => {
       assets: nodeAssets(),
     })
     await doc.ready
-    const mine = doc.annotations.add({ type: 'note', page: 0, rect })
-    doc.importAnnotations(
-      { format: 'inkbar/annotations', version: 1, annotations: [mine, foreign] },
-      { mode: 'replace' }
-    )
-    const out = doc.exportAnnotations('json')
-    expect(out.annotations).toEqual([mine, foreign])
-    const json = JSON.stringify(out)
-    expect(compileSchema()(JSON.parse(json))).toBe(false)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    try {
+      const mine = doc.annotations.add({ type: 'note', page: 0, rect })
+      doc.importAnnotations(
+        { format: 'inkbar/annotations', version: 1, annotations: [mine, foreign] },
+        { mode: 'replace' }
+      )
+      const out = doc.exportAnnotations('json')
+      expect(out.annotations).toEqual([mine, foreign])
+      const json = JSON.stringify(out)
+      expect(compileSchema()(JSON.parse(json))).toBe(false)
 
-    const fresh = createAnnotationStore({
-      mode: { mode: 'uncontrolled' },
-      defaults: staticDefaults,
-    })
-    const result = importAnnotations(fresh, json, { mode: 'replace' })
-    expect(result.imported).toBe(1)
-    expect(result.unknown.map((u) => JSON.stringify(u))).toEqual([
-      JSON.stringify(foreign),
-    ])
-    expect(warn).toHaveBeenCalledTimes(2)
-    warn.mockRestore()
-    doc.destroy()
+      const fresh = createAnnotationStore({
+        mode: { mode: 'uncontrolled' },
+        defaults: staticDefaults,
+      })
+      const result = importAnnotations(fresh, json, { mode: 'replace' })
+      expect(result.imported).toBe(1)
+      expect(result.unknown.map((u) => JSON.stringify(u))).toEqual([
+        JSON.stringify(foreign),
+      ])
+      expect(warn).toHaveBeenCalledTimes(2)
+    } finally {
+      warn.mockRestore()
+      doc.destroy()
+    }
   })
 
   it('merges by id across known and foreign items', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     const doc = await openDocument(await fixtureBytes('text-simple'), {
       assets: nodeAssets(),
     })
     await doc.ready
-    const envelope = { format: 'inkbar/annotations' as const, version: 1 as const }
-    const known = doc.annotations.completeInput({ id: 'x', type: 'note', page: 0, rect })
-    const foreign = { id: 'x', type: 'hologram', page: 0 }
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    try {
+      const envelope = { format: 'inkbar/annotations' as const, version: 1 as const }
+      const known = doc.annotations.completeInput({
+        id: 'x',
+        type: 'note',
+        page: 0,
+        rect,
+      })
+      const foreign = { id: 'x', type: 'hologram', page: 0 }
 
-    doc.importAnnotations({ ...envelope, annotations: [foreign] })
-    doc.importAnnotations({ ...envelope, annotations: [known] }, { mode: 'merge' })
-    expect(doc.exportAnnotations('json').annotations).toEqual([known])
+      doc.importAnnotations({ ...envelope, annotations: [foreign] })
+      doc.importAnnotations({ ...envelope, annotations: [known] }, { mode: 'merge' })
+      expect(doc.exportAnnotations('json').annotations).toEqual([known])
 
-    doc.importAnnotations({ ...envelope, annotations: [foreign] }, { mode: 'merge' })
-    expect(doc.exportAnnotations('json').annotations).toEqual([foreign])
-    expect(doc.annotations.list.get()).toEqual([])
-    warn.mockRestore()
-    doc.destroy()
+      doc.importAnnotations({ ...envelope, annotations: [foreign] }, { mode: 'merge' })
+      expect(doc.exportAnnotations('json').annotations).toEqual([foreign])
+      expect(doc.annotations.list.get()).toEqual([])
+    } finally {
+      warn.mockRestore()
+      doc.destroy()
+    }
   })
 
   it('records foreign items before the store announces the import', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     const doc = await openDocument(await fixtureBytes('text-simple'), {
       assets: nodeAssets(),
     })
     await doc.ready
-    const foreign = { id: 'f', type: 'hologram', page: 0 }
-    const seen: unknown[][] = []
-    doc.annotations.on('change', () =>
-      seen.push(doc.exportAnnotations('json').annotations)
-    )
-    doc.importAnnotations({
-      format: 'inkbar/annotations',
-      version: 1,
-      annotations: [foreign],
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    try {
+      const foreign = { id: 'f', type: 'hologram', page: 0 }
+      const seen: unknown[][] = []
+      doc.annotations.on('change', () =>
+        seen.push(doc.exportAnnotations('json').annotations)
+      )
+      doc.importAnnotations({
+        format: 'inkbar/annotations',
+        version: 1,
+        annotations: [foreign],
+      })
+      expect(seen).toEqual([[foreign]])
+    } finally {
+      warn.mockRestore()
+      doc.destroy()
+    }
+  })
+
+  it('exports JSON-safe copies of host data', async () => {
+    const doc = await openDocument(await fixtureBytes('text-simple'), {
+      assets: nodeAssets(),
     })
-    expect(seen).toEqual([[foreign]])
-    warn.mockRestore()
-    doc.destroy()
+    await doc.ready
+    try {
+      const callback = () => 'host'
+      const a = doc.annotations.add({
+        type: 'note',
+        page: 0,
+        rect,
+        custom: { callback, label: 'kept' },
+      })
+      const out = doc.exportAnnotations('json')
+      expect(out.annotations).toEqual([{ ...a, custom: { label: 'kept' } }])
+      expect(doc.annotations.get(a.id)?.custom?.callback).toBe(callback)
+    } finally {
+      doc.destroy()
+    }
+  })
+
+  it('reserves an embedded id so a later item with it is a duplicate', async () => {
+    const doc = await openDocument(await fixtureBytes('annotated-notes-threaded'), {
+      assets: nodeAssets(),
+    })
+    await doc.ready
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    try {
+      const [pdf] = doc.annotations.list.get()
+      const id = pdf!.id
+      const result = doc.importAnnotations({
+        format: 'inkbar/annotations',
+        version: 1,
+        annotations: [
+          { ...pdf!, source: 'session' },
+          { id, type: 'hologram', page: 0 },
+        ],
+      })
+      expect(result.imported).toBe(0)
+      expect(result.unknown).toEqual([])
+      expect(result.errors).toEqual([
+        { index: 0, issues: [expect.stringMatching(/embedded in the PDF/)] },
+        { index: 1, issues: [`id: duplicate id "${id}", already used by item 0`] },
+      ])
+      expect(doc.exportAnnotations('json').annotations).toEqual([])
+      expect(warn).not.toHaveBeenCalled()
+    } finally {
+      warn.mockRestore()
+      doc.destroy()
+    }
   })
 })
