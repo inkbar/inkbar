@@ -1,0 +1,21 @@
+packages/vue/src/components/InkViewport.ct.ts
+  s_a8095ef648b42d::t_b42c61493d26c6 387-410
+packages/vue/src/components/InkViewport.vue
+  s_a8095ef648b42d::t_376f963ff159d0 151-152
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f0ea4ac0b80d44bd32e731aa508cca8f8ec1c333",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
