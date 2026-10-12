@@ -1,3 +1,4 @@
+import { acceptSuggestion } from '@inkbar/core'
 import { computed } from 'vue'
 
 import { useInkContext } from '../context'
@@ -25,8 +26,11 @@ export function useAnnotations() {
       ctx.annotations.value
         .filter((a) => a.inReplyTo === id)
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
-    /** Keeps a suggested annotation as the user's own. */
-    accept: (id: string) => store()?.update(id, { origin: 'user' }),
+    /** Keeps a suggested redaction as the user's own, in the default redaction colour. */
+    accept: (id: string) => {
+      const s = store()
+      return s ? acceptSuggestion(s, id) : undefined
+    },
     dismiss: (id: string) => store()?.remove(id) ?? false,
   }
 }

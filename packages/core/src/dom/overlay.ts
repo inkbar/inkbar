@@ -305,6 +305,8 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     const ids = new Set(current.map((a) => a.id))
     const active = doc.activeElement
     let focusId = [...elements].find(([, n]) => n === active)?.[0]
+    /** The focused element is going away with nothing on this page to take over. */
+    let focusRoot = false
 
     if (focusId !== undefined && !ids.has(focusId)) {
       // The focused element is going away: hand focus to the next survivor, else the previous.
@@ -315,6 +317,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
           .slice(0, i)
           .reverse()
           .find((x) => ids.has(x))
+      focusRoot = focusId === undefined
     }
     for (const [id, node] of elements) {
       if (ids.has(id)) continue
@@ -349,6 +352,11 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     if (focusId !== undefined) {
       const target = elements.get(focusId)
       if (target && doc.activeElement !== target) target.focus({ preventScroll: true })
+    } else if (focusRoot) {
+      // Last one on the page: back to the scroll element (as the popovers do), not <body>.
+      opts.host
+        .closest<HTMLElement>('[data-ink-viewport]')
+        ?.focus({ preventScroll: true })
     }
   }
 

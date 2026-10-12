@@ -265,6 +265,27 @@ describe('createOverlay', () => {
     expect(document.activeElement).toBe(overlay.elementFor(b.id))
   })
 
+  it('moves focus to the scroll element when the last annotation on the page is removed', () => {
+    const { store, host, overlay } = setup()
+    // The viewport container the page host lives in, focusable like InkViewport's.
+    const scroll = document.createElement('div')
+    scroll.dataset.inkViewport = ''
+    scroll.tabIndex = 0
+    document.body.append(scroll)
+    scroll.append(host)
+    cleanup.push(() => scroll.remove())
+    const only = store.add({
+      type: 'note',
+      page: 0,
+      rect: { x: 10, y: 700, width: 20, height: 20 },
+    })
+    const el = overlay.elementFor(only.id)!
+    el.focus()
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }))
+    expect(store.get(only.id)).toBeUndefined()
+    expect(document.activeElement).toBe(scroll)
+  })
+
   it('expresses visuals as SVG attributes and scales strokes with zoom', () => {
     const { store, overlay } = setup(2)
     const sq = store.add({

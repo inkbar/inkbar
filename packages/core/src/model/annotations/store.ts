@@ -38,6 +38,8 @@ export interface AnnotationStore {
   readonly mode: 'uncontrolled' | 'controlled'
   readonly list: Readable<readonly Annotation[]>
   readonly selection: Readable<readonly string[]>
+  /** The colour, fill and opacity defaults new annotations get. */
+  readonly defaults: AnnotationDefaults
   get(id: string): Annotation | undefined
   byPage(page: number): Annotation[]
   /**
@@ -343,6 +345,7 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
     mode: opts.mode.mode,
     list: readonly(list),
     selection: readonly(selection),
+    defaults: opts.defaults,
     get: (id) => list.get().find((a) => a.id === id),
     byPage: (page) => list.get().filter((a) => a.page === page),
     completeInput,

@@ -4,6 +4,7 @@
  * the default visual for every annotation that is not custom, so this never draws a second
  * one. InkPage teleports it into the annotation's overlay element.
  */
+import { acceptSuggestion } from '@inkbar/core'
 import { computed, onBeforeUnmount, shallowRef, watch } from 'vue'
 
 import { injectInkContext } from '../context'
@@ -60,7 +61,8 @@ const slotProps = computed<AnnotationSlotProps>(() => {
     select: () => store()?.select([id]),
     remove: () => void store()?.remove(id),
     accept: () => {
-      if (isSuggestion.value) store()?.update(id, { origin: 'user' })
+      const s = store()
+      if (s && isSuggestion.value) acceptSuggestion(s, id)
     },
     dismiss: () => {
       if (isSuggestion.value) store()?.remove(id)
