@@ -1,0 +1,186 @@
+import { readFileSync } from 'node:fs'
+
+import { Ajv2020 } from 'ajv/dist/2020'
+import { describe, expect, it } from 'vitest'
+import { z } from 'zod'
+
+import {
+  AnnotationDocumentSchema,
+  AnnotationSchema,
+  confidenceBucket,
+  type Annotation,
+  type AnnotationInput,
+  type PointSchema,
+  type QuadSchema,
+  type RectSchema,
+} from './types'
+
+import type { Point, Quad, Rect } from '../geometry'
+
+const valid: Annotation = {
+  id: '0192a3b4-0000-7000-8000-000000000001',
+  type: 'highlight',
+  page: 0,
+  rect: { x: 72, y: 695, width: 228, height: 20 },
+  quads: [
+    {
+      p1: { x: 72, y: 715 },
+      p2: { x: 300, y: 715 },
+      p3: { x: 72, y: 695 },
+      p4: { x: 300, y: 695 },
+    },
+  ],
+  color: '#F2C230',
+  opacity: 0.5,
+  createdAt: '2026-10-12T12:00:00.000Z',
+  modifiedAt: '2026-10-12T12:00:00.000Z',
+  source: 'session',
+}
+
+const schemaUrl = new URL('../../../schema.json', import.meta.url)
+
+interface PublishedSchema {
+  $schema: string
+  $id: string
+  $defs: Record<string, unknown>
+}
+
+function readPublished(): PublishedSchema {
+  return JSON.parse(readFileSync(schemaUrl, 'utf8')) as PublishedSchema
+}
+
+describe('AnnotationSchema', () => {
+  it('accepts a valid highlight and rejects a bad colour', () => {
+    expect(AnnotationSchema.parse(valid)).toEqual(valid)
+    expect(AnnotationSchema.safeParse({ ...valid, color: 'yellow' }).success).toBe(false)
+  })
+
+  it('requires quads on text markup and fill on redactions', () => {
+    const { quads: _q, ...noQuads } = valid
+    expect(AnnotationSchema.safeParse(noQuads).success).toBe(false)
+    const redact = {
+      ...valid,
+      type: 'redact',
+      quads: undefined,
+      origin: 'suggested',
+      suggestion: { confidence: 0.4 },
+    }
+    expect(AnnotationSchema.safeParse(redact).success).toBe(false)
+    expect(AnnotationSchema.safeParse({ ...redact, fill: '#000000' }).success).toBe(true)
+  })
+
+  it('applies defaults for note icon and redact origin', () => {
+    const note = AnnotationSchema.parse({ ...valid, type: 'note', quads: undefined })
+    expect(note.type === 'note' && note.icon).toBe('comment')
+    const redact = AnnotationSchema.parse({
+      ...valid,
+      type: 'redact',
+      quads: undefined,
+      fill: '#000000',
+    })
+    expect(redact.type === 'redact' && redact.origin).toBe('user')
+  })
+
+  it('preserves custom data without interpreting it', () => {
+    const parsed = AnnotationSchema.parse({
+      ...valid,
+      custom: { caseId: 'abc', nested: { n: 1 } },
+    })
+    expect(parsed.custom).toEqual({ caseId: 'abc', nested: { n: 1 } })
+  })
+
+  it('buckets confidence', () => {
+    expect(confidenceBucket(0)).toBe('low')
+    expect(confidenceBucket(0.49)).toBe('low')
+    expect(confidenceBucket(0.5)).toBe('medium')
+    expect(confidenceBucket(0.79)).toBe('medium')
+    expect(confidenceBucket(0.8)).toBe('high')
+    expect(confidenceBucket(1)).toBe('high')
+  })
+})
+
+describe('schema.json', () => {
+  it('is in sync with the zod schema and validates the same inputs', () => {
+    const generated = z.toJSONSchema(AnnotationSchema, { target: 'draft-2020-12' })
+    const onDisk = readPublished()
+    expect(onDisk.$defs.Annotation).toEqual(generated)
+    const ajv = new Ajv2020({ strict: false })
+    const validate = ajv.compile(generated)
+    expect(validate(valid)).toBe(true)
+    expect(validate({ ...valid, color: 'yellow' })).toBe(false)
+  })
+
+  it('is a complete published document', () => {
+    const onDisk = readPublished()
+    expect(onDisk.$schema).toBe('https://json-schema.org/draft/2020-12/schema')
+    expect(onDisk.$id).toBe('https://inkbar.dev/schema/annotations-v1.json')
+    expect(onDisk.$defs).toHaveProperty('Annotation')
+    expect(onDisk.$defs).toHaveProperty('AnnotationDocument')
+  })
+
+  it('compiles as a document schema and checks the envelope', () => {
+    const onDisk = readPublished()
+    const validate = new Ajv2020({ strict: false }).compile(onDisk)
+    const doc = { format: 'inkbar/annotations', version: 1, annotations: [valid] }
+    expect(validate(doc)).toBe(true)
+    expect(validate({ ...doc, version: 2 })).toBe(false)
+    expect(validate({ ...doc, annotations: [{ ...valid, color: 'yellow' }] })).toBe(false)
+    expect(AnnotationDocumentSchema.safeParse(doc).success).toBe(true)
+  })
+})
+
+describe('geometry schemas match the geometry types', () => {
+  it('are structurally identical (checked at compile time)', () => {
+    const p1: Point = {} as z.infer<typeof PointSchema>
+    const p2: z.infer<typeof PointSchema> = {} as Point
+    const r1: Rect = {} as z.infer<typeof RectSchema>
+    const r2: z.infer<typeof RectSchema> = {} as Rect
+    const q1: Quad = {} as z.infer<typeof QuadSchema>
+    const q2: z.infer<typeof QuadSchema> = {} as Quad
+    expect([p1, p2, r1, r2, q1, q2]).toHaveLength(6)
+  })
+})
+
+describe('AnnotationInput (compile-time)', () => {
+  const quads = valid.type === 'highlight' ? valid.quads : []
+  const rect: Rect = { x: 0, y: 0, width: 10, height: 10 }
+
+  const accept = (_input: AnnotationInput): void => undefined
+
+  it('accepts minimal inputs and rejects missing or generated keys', () => {
+    const ok: AnnotationInput[] = [
+      { type: 'highlight', page: 0, quads },
+      { type: 'redact', page: 0, rect },
+      { type: 'redact', page: 0, quads },
+      { type: 'note', page: 0, rect },
+      { type: 'freeText', page: 0, rect, text: 'hi' },
+      { type: 'square', page: 0, rect },
+      { type: 'line', page: 0, start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+      {
+        type: 'polygon',
+        page: 0,
+        vertices: [
+          { x: 0, y: 0 },
+          { x: 1, y: 1 },
+        ],
+      },
+      { type: 'ink', page: 0, paths: [[{ x: 0, y: 0 }]] },
+      { type: 'highlight', page: 0, quads, id: 'x' },
+    ]
+    // @ts-expect-error text markup needs quads
+    accept({ type: 'highlight', page: 0 })
+    // @ts-expect-error redact needs a rect or quads
+    accept({ type: 'redact', page: 0 })
+    accept({
+      type: 'highlight',
+      page: 0,
+      quads,
+      id: 'x',
+      // @ts-expect-error generated keys are not accepted
+      createdAt: '2026-10-12T12:00:00.000Z',
+    })
+    // @ts-expect-error a note cannot carry text markup geometry it does not declare
+    accept({ type: 'note', page: 0, rect, nope: 1 })
+    expect(ok).toHaveLength(10)
+  })
+})
