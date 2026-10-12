@@ -1,6 +1,12 @@
 # @inkbar/theme
 
-Default styles for Inkbar. Import the stylesheet once in your app:
+Default styles for the Inkbar components. The package is one stylesheet with no JavaScript.
+
+```sh
+pnpm add @inkbar/theme
+```
+
+Import the stylesheet once in your app:
 
 ```ts
 import '@inkbar/theme/theme.css'
