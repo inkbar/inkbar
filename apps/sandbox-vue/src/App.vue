@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import { clampPageCount } from './page-count'
 import ReviewPage from './ReviewPage.vue'
 
 const params = new URLSearchParams(location.search)
 const doc = params.get('doc') ?? 'text-simple'
-const large = Math.max(0, Math.floor(Number(params.get('large') ?? 0)) || 0)
+const large = clampPageCount(params.get('large'))
 </script>
 
 <template>
