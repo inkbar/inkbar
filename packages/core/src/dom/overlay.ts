@@ -200,11 +200,16 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     })
     node.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return
+      // A press on a custom element's own content (a host's button, say) is that content's:
+      // no selection, and it bubbles on to the host's delegated handlers.
+      if (e.target !== node && node.hasAttribute('data-custom')) return
       // A tool listening on the page root must not start a drag from this press.
       e.stopPropagation()
       activate(id)
     })
     node.addEventListener('keydown', (e) => {
+      // Keys typed in descendants (a custom element's buttons and inputs) are theirs.
+      if (e.target !== node) return
       onKey(e, id)
     })
     return node

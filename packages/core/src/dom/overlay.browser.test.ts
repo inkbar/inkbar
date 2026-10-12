@@ -457,4 +457,73 @@ describe('createOverlay', () => {
     expect(overlay.elementFor(custom.id)!.style.pointerEvents).toBe('auto')
     expect(overlay.elementFor(drawn.id)!.style.pointerEvents).toBe('none')
   })
+
+  it('leaves keys and presses on custom slot content to that content', () => {
+    const store = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const host = mountContainer(612, 792)
+    const onActivate = vi.fn()
+    const overlay = createOverlay({
+      host,
+      page: 0,
+      store,
+      transform: createPageTransform(page, 1, 0),
+      onActivate,
+      isCustom: () => true,
+    })
+    cleanup.push(() => (overlay.destroy(), host.remove()))
+    const a = store.add({
+      type: 'note',
+      page: 0,
+      rect: { x: 100, y: 100, width: 40, height: 40 },
+    })
+    const el = overlay.elementFor(a.id)!
+    // What a host's slot would put inside the custom element.
+    const button = document.createElement('button')
+    const input = document.createElement('input')
+    el.append(button, input)
+    const onRoot = vi.fn()
+    host.addEventListener('pointerdown', onRoot)
+
+    for (const key of ['Enter', ' ']) {
+      const e = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true })
+      button.dispatchEvent(e)
+      expect(e.defaultPrevented).toBe(false)
+    }
+    const back = new KeyboardEvent('keydown', {
+      key: 'Backspace',
+      bubbles: true,
+      cancelable: true,
+    })
+    input.dispatchEvent(back)
+    expect(back.defaultPrevented).toBe(false)
+    expect(store.get(a.id)).toBeDefined()
+    expect(store.selection.get()).toEqual([])
+    expect(onActivate).not.toHaveBeenCalled()
+
+    const onOverlayRoot = vi.fn()
+    overlay.element.addEventListener('pointerdown', onOverlayRoot)
+    button.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
+    expect(store.selection.get()).toEqual([])
+    expect(onActivate).not.toHaveBeenCalled()
+    // The press bubbles on, so delegated handlers above the slot content see it.
+    expect(onOverlayRoot).toHaveBeenCalledTimes(1)
+    expect(onRoot).toHaveBeenCalledTimes(1)
+
+    // A press on the element itself is still kept from the page root.
+    el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
+    expect(store.selection.get()).toEqual([a.id])
+    expect(onRoot).toHaveBeenCalledTimes(1)
+    store.select([])
+    onActivate.mockClear()
+
+    // The element itself still behaves as before.
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    expect(store.selection.get()).toEqual([a.id])
+    expect(onActivate).toHaveBeenCalledWith(a.id)
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }))
+    expect(store.get(a.id)).toBeUndefined()
+  })
 })
