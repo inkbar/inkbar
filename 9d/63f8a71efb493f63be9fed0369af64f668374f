@@ -1,0 +1,42 @@
+packages/theme/vitest.config.ts
+  s_a8095ef648b42d::t_0a7ddc1fe3e211 1-3
+packages/theme/theme.css
+  s_a8095ef648b42d::t_fbfceab40f614c 1-524
+packages/theme/README.md
+  s_a8095ef648b42d::t_caa99851450f7e 1-33
+packages/theme/package.json
+  s_a8095ef648b42d::t_0a7ddc1fe3e211 1-29
+packages/theme/theme.test.ts
+  s_a8095ef648b42d::t_0a7ddc1fe3e211 1-17,23-24,26-33,35-49,56-68,72-85,87-131,138-154,159-161
+  s_a8095ef648b42d::t_fbfceab40f614c 18-22,50-55,69-71,132-137,155-158
+  s_a8095ef648b42d::t_a4d748077b1752 25
+  s_a8095ef648b42d::t_4ab25fd78f3500 34,86
+packages/vue/playwright/index.ts
+  s_a8095ef648b42d::t_91b5185364738a 1-2
+README.md
+  s_a8095ef648b42d::t_6fe0102b4a2fde 9-14
+packages/vue/package.json
+  s_a8095ef648b42d::t_91b5185364738a 36
+packages/theme/tsconfig.json
+  s_a8095ef648b42d::t_0a7ddc1fe3e211 1-5
+packages/vue/playwright/harness.css
+  s_a8095ef648b42d::t_fe50176eca2276 1-2
+pnpm-lock.yaml
+  s_a8095ef648b42d::t_7bca878f6d1a00 316-327,343-345
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9d63f8a71efb493f63be9fed0369af64f668374f",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
