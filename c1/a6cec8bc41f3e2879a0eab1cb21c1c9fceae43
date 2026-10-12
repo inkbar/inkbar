@@ -1,0 +1,30 @@
+packages/vue/src/components/InkPage.vue
+  s_a8095ef648b42d::t_a01d13712cdac9 13-15,18-23,54-55,58-59,72-74,122
+packages/core/src/dom/page-mount.ts
+  s_a8095ef648b42d::t_a01d13712cdac9 22-31,34-36,48-53,62-69
+packages/vue/playwright/harness/ViewportHarness.vue
+  s_a8095ef648b42d::t_a01d13712cdac9 22-23,36-37,40-52
+packages/vue/src/components/InkViewport.ct.ts
+  s_a8095ef648b42d::t_a01d13712cdac9 228-252
+packages/core/src/dom/text-layer.ts
+  s_a8095ef648b42d::t_a01d13712cdac9 23-24,80,102-104
+  s_a8095ef648b42d::t_5e8eab6d2c1dd0 70-71,81-83,94-100
+packages/core/src/dom/index.ts
+  s_a8095ef648b42d::t_a01d13712cdac9 26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c1a6cec8bc41f3e2879a0eab1cb21c1c9fceae43",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
