@@ -2,6 +2,7 @@ import { computeCssLayout, mostVisiblePageCss, visibleRangeCss } from '@inkbar/c
 import { browserAssets, fixtureUrl } from '@inkbar/fixtures/urls'
 import { expect, test } from '@playwright/experimental-ct-vue'
 
+import { guardConsole } from '../../playwright/console-guard'
 import ViewportHarness from '../../playwright/harness/ViewportHarness.vue'
 
 import type { PageInfo } from '@inkbar/core'
@@ -42,18 +43,7 @@ type DocHandle = {
 }
 type RootEl = HTMLElement & { __inkDocument?: DocHandle }
 
-// Vue warnings and runtime errors fail the test instead of scrolling past in the output.
-let consoleProblems: string[] = []
-test.beforeEach(({ page }) => {
-  consoleProblems = []
-  page.on('console', (m) => {
-    if (m.type() === 'warning' || m.type() === 'error') consoleProblems.push(m.text())
-  })
-  page.on('pageerror', (e) => consoleProblems.push(e.message))
-})
-test.afterEach(() => {
-  expect(consoleProblems).toEqual([])
-})
+const consoleGuard = guardConsole(test)
 
 test('renders pages with canvas, text layer and overlay, virtualises them and drives the zoom and page models', async ({
   mount,
@@ -147,11 +137,11 @@ test('shows the error slot with the code and stays interactive (Review Focus 5)'
   await expect(cmp.locator('[data-ink-root]')).toHaveAttribute('data-state', 'error')
   await expect(cmp.locator('.ink-page')).toHaveCount(0)
   // The PDF parser reports what it tried on the broken file; nothing else may warn.
-  expect(consoleProblems).toEqual([
+  expect(consoleGuard.problems).toEqual([
     'Warning: Indexing all PDF objects',
     'Warning: Unterminated hex string',
   ])
-  consoleProblems = []
+  consoleGuard.clear()
 
   // Nothing covers or blocks the page around the viewport.
   const outside = cmp.getByTestId('outside')
