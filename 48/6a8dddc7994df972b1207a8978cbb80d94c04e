@@ -1,0 +1,40 @@
+packages/core/src/dom/text-layer.browser.test.ts
+  s_a8095ef648b42d::t_e59a171eccca28 1-210,214-216
+  s_a8095ef648b42d::t_46647610634fcb 211-213
+packages/core/src/index.ts
+  s_a8095ef648b42d::t_a3fee6b5a83411 7
+packages/core/src/dom/index.ts
+  s_a8095ef648b42d::t_39f2cdd8168181 16-19
+packages/core/src/model/selection.ts
+  s_a8095ef648b42d::t_a3fee6b5a83411 1-29
+packages/core/src/model/selection.test.ts
+  s_a8095ef648b42d::t_afbedfd95e8a28 1-42
+packages/core/src/dom/selection.ts
+  s_a8095ef648b42d::t_39f2cdd8168181 3-78
+  s_a8095ef648b42d::t_c941b2d1670658 1-2
+packages/core/src/dom/index.test.ts
+  s_a8095ef648b42d::t_46647610634fcb 23-26
+packages/core/src/pdfjs/text-layer.ts
+  s_a8095ef648b42d::t_359c5b2f0f11af 1-16,19-23,25-44,47-49
+  s_a8095ef648b42d::t_39f2cdd8168181 17-18,24,45-46
+packages/core/src/dom/text-layer.ts
+  s_a8095ef648b42d::t_c941b2d1670658 6-7
+  s_a8095ef648b42d::t_46647610634fcb 45-48
+  s_a8095ef648b42d::t_39f2cdd8168181 1-5,8-44,49-89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "486a8dddc7994df972b1207a8978cbb80d94c04e",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
