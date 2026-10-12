@@ -7,6 +7,7 @@ export const FIXTURE_NAMES = [
   'text-rotated-270',
   'text-cjk',
   'cropbox-offset',
+  'userunit-2',
   'mixed-page-sizes',
   'annotated-markup',
   'annotated-notes-threaded',

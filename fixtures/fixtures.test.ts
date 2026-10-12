@@ -60,6 +60,16 @@ describe('fixtures corpus', () => {
     }
   )
 
+  it('userunit-2 reports /UserUnit 2 on every page', async () => {
+    const task = await open('userunit-2')
+    const doc = await task.promise
+    expect(doc.numPages).toBe(3)
+    for (let i = 1; i <= doc.numPages; i++) {
+      expect((await doc.getPage(i)).userUnit).toBe(2)
+    }
+    await task.destroy()
+  })
+
   it('malformed-truncated fails to open', async () => {
     const task = await open('malformed-truncated')
     await expect(task.promise).rejects.toThrow()
