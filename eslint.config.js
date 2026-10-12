@@ -36,7 +36,7 @@ export default defineConfig(
   {
     name: 'inkbar/pdfjs-quarantine',
     // Shipped code and apps reach PDF.js only through @inkbar/core's loader.
-    files: ['packages/**/*.{ts,vue}', 'apps/**/*.{ts,vue}'],
+    files: ['packages/**/*.{ts,mts,tsx,vue}', 'apps/**/*.{ts,mts,tsx,vue}'],
     ignores: ['packages/core/src/pdfjs/**'],
     rules: {
       'no-restricted-imports': [
