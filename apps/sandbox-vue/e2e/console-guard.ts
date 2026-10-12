@@ -28,8 +28,14 @@ export function guardConsole(test: typeof base): ConsoleGuard {
       return problems
     },
     take(pattern) {
-      const taken = problems.filter((p) => pattern.test(p))
-      problems = problems.filter((p) => !pattern.test(p))
+      const taken: string[] = []
+      const kept: string[] = []
+      for (const p of problems) {
+        // A global or sticky pattern carries `lastIndex` between tests.
+        pattern.lastIndex = 0
+        ;(pattern.test(p) ? taken : kept).push(p)
+      }
+      problems = kept
       return taken
     },
   }
