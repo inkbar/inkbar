@@ -38,7 +38,12 @@ export async function loadPdfjs(assets: PdfAssets): Promise<PdfjsModule> {
   assertAssets(assets)
   modulePromise ??= import('#pdfjs').catch((cause: unknown) => {
     modulePromise = undefined
-    throw new InkError('AssetLoadFailed', 'PDF.js could not be imported', {}, cause)
+    throw new InkError(
+      'AssetLoadFailed',
+      'PDF.js could not be imported',
+      { url: assets.worker },
+      cause
+    )
   }) as Promise<PdfjsModule>
   const pdfjs = await modulePromise
   if (configuredWorker === undefined) {
@@ -87,7 +92,7 @@ export async function openProxy(
       // The caller already receives the mapped load error below; a failure
       // while tearing down the half-open task adds nothing actionable.
     }
-    throw mapLoadError(cause, password !== undefined)
+    throw mapLoadError(cause, { assets, passwordSupplied: password !== undefined })
   }
 }
 
@@ -95,19 +100,43 @@ export async function openProxy(
 const INCORRECT_PASSWORD = 2
 
 /**
+ * PDF.js raises these from `task.promise` when the worker script cannot be
+ * imported (in browsers after its real Worker fails and the fake-worker
+ * fallback also fails to import `workerSrc`).
+ */
+const WORKER_FAILURE =
+  /Setting up fake worker failed|No "GlobalWorkerOptions\.workerSrc" specified/i
+
+/**
+ * Only the worker is mapped here. CMap, standard-font and wasm failures are
+ * PDF.js warnings with fallbacks that never reject the open promise, so they
+ * cannot be detected at open time.
+ *
  * PDF.js 6 exports only some exception classes (`PasswordException`,
  * `InvalidPDFException`, `ResponseException`, `AbortException`), and errors
  * that cross the worker boundary are rebuilt by name, so match on `name`.
  * Inputs here are always in-memory bytes, so there is no fetch to fail:
  * every non-password failure means the bytes are not a usable PDF.
  */
-export function mapLoadError(cause: unknown, passwordSupplied = false): InkError {
+export function mapLoadError(
+  cause: unknown,
+  context: { assets: PdfAssets; passwordSupplied?: boolean }
+): InkError {
+  const { assets, passwordSupplied = false } = context
   const name = (cause as { name?: unknown } | null)?.name
   const rawMessage = (cause as { message?: unknown } | null)?.message
   const message =
     typeof rawMessage === 'string' && rawMessage !== ''
       ? rawMessage
       : 'Unknown PDF.js error'
+  if (WORKER_FAILURE.test(message)) {
+    return new InkError(
+      'AssetLoadFailed',
+      'The PDF.js worker could not be loaded. Check the `assets.worker` URL.',
+      { url: assets.worker },
+      cause
+    )
+  }
   if (name === 'PasswordException') {
     const wrong = (cause as { code?: unknown }).code === INCORRECT_PASSWORD
     return new InkError(

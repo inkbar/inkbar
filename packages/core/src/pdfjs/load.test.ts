@@ -179,15 +179,20 @@ describe('openProxy', () => {
 })
 
 describe('mapLoadError', () => {
+  const assets = nodeAssets()
+
   it('maps PasswordException by code', () => {
     expect(
-      mapLoadError(named('PasswordException', 'x', { code: 1 }), false)
+      mapLoadError(named('PasswordException', 'x', { code: 1 }), { assets })
     ).toMatchObject({
       code: 'PasswordRequired',
       details: { passwordSupplied: false, incorrect: false },
     })
     expect(
-      mapLoadError(named('PasswordException', 'x', { code: 2 }), true)
+      mapLoadError(named('PasswordException', 'x', { code: 2 }), {
+        assets,
+        passwordSupplied: true,
+      })
     ).toMatchObject({
       code: 'PasswordRequired',
       details: { passwordSupplied: true, incorrect: true },
@@ -204,7 +209,7 @@ describe('mapLoadError', () => {
     'SomethingElse',
   ])('maps %s to InvalidPdf with the PDF.js message and cause', (name) => {
     const cause = named(name, `pdfjs says ${name}`)
-    const error = mapLoadError(cause)
+    const error = mapLoadError(cause, { assets })
     expect(error).toMatchObject({
       code: 'InvalidPdf',
       message: `pdfjs says ${name}`,
@@ -213,10 +218,20 @@ describe('mapLoadError', () => {
     expect(error.cause).toBe(cause)
   })
 
+  it('maps worker setup failures to AssetLoadFailed with the worker url', () => {
+    const cause = named('Error', 'Setting up fake worker failed: "nope".')
+    const error = mapLoadError(cause, { assets })
+    expect(error).toMatchObject({
+      code: 'AssetLoadFailed',
+      details: { url: assets.worker },
+    })
+    expect(error.cause).toBe(cause)
+  })
+
   it.each([['a string'], [undefined], [null], [42]])(
     'never swallows non-Error value %j',
     (cause) => {
-      const error = mapLoadError(cause)
+      const error = mapLoadError(cause, { assets })
       expect(error.code).toBe('InvalidPdf')
       expect(error.cause).toBe(cause)
     }
