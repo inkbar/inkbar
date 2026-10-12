@@ -13,7 +13,7 @@ import { useAnnotations } from '../composables/useAnnotations'
 import { injectInkContext } from '../context'
 
 import { useAnnotationElement } from './annotation-element'
-import { keepOpenOnAnnotation, returnFocus } from './popover-focus'
+import { keepOpenOnAnnotation, useFocusReturn } from './popover-focus'
 
 import type { RedactAnnotation, Suggestion } from '@inkbar/core'
 
@@ -49,6 +49,7 @@ const anchor = useAnnotationElement(
   ctx,
   computed(() => target.value?.id ?? null)
 )
+const focusReturn = useFocusReturn(ctx)
 const open = computed(() => target.value !== null && anchor.value !== null)
 const bucket = computed<ConfidenceBucket | undefined>(() =>
   target.value?.suggestion
@@ -65,7 +66,10 @@ function accept(): void {
   close()
 }
 function dismiss(): void {
-  if (target.value) dismissId(target.value.id)
+  if (target.value) {
+    focusReturn.beforeRemove(anchor.value, '[data-origin="suggested"]')
+    dismissId(target.value.id)
+  }
   close()
 }
 function onOpenChange(next: boolean): void {
@@ -86,7 +90,7 @@ function onOpenChange(next: boolean): void {
         :collision-padding="8"
         v-bind="{ 'aria-label': 'Suggested redaction' }"
         @interact-outside="keepOpenOnAnnotation"
-        @close-auto-focus="returnFocus($event, anchor, !open)"
+        @close-auto-focus="focusReturn.onCloseAutoFocus($event, anchor)"
       >
         <slot
           :annotation="target"

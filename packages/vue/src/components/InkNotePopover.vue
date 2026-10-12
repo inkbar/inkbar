@@ -10,7 +10,7 @@ import { useAnnotations } from '../composables/useAnnotations'
 import { injectInkContext } from '../context'
 
 import { useAnnotationElement } from './annotation-element'
-import { keepOpenOnAnnotation, returnFocus } from './popover-focus'
+import { keepOpenOnAnnotation, useFocusReturn } from './popover-focus'
 
 import type { Annotation, NoteAnnotation } from '@inkbar/core'
 
@@ -41,6 +41,7 @@ const anchor = useAnnotationElement(
   ctx,
   computed(() => note.value?.id ?? null)
 )
+const focusReturn = useFocusReturn(ctx)
 const open = computed(() => note.value !== null && anchor.value !== null)
 const thread = computed<Annotation[]>(() =>
   note.value ? [note.value, ...replies(note.value.id)] : []
@@ -64,7 +65,10 @@ function close(): void {
 }
 function removeThread(): void {
   const root = note.value
-  if (root && !root.locked) remove(root.id)
+  if (root && !root.locked) {
+    focusReturn.beforeRemove(anchor.value)
+    remove(root.id)
+  }
   close()
 }
 function updateContents(contents: string): void {
@@ -88,7 +92,7 @@ function onOpenChange(next: boolean): void {
         :collision-padding="8"
         v-bind="{ 'aria-label': 'Note thread' }"
         @interact-outside="keepOpenOnAnnotation"
-        @close-auto-focus="returnFocus($event, anchor, ctx.activated.value === null)"
+        @close-auto-focus="focusReturn.onCloseAutoFocus($event, anchor)"
       >
         <slot
           :note="note"

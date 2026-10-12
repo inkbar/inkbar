@@ -11,7 +11,11 @@ guardConsole(test)
 
 type Stored = { id: string; type: string; contents?: string; inReplyTo?: string }
 type DocHandle = {
-  annotations: { list: { get(): Stored[] }; selection: { get(): string[] } }
+  annotations: {
+    add(input: unknown): { id: string }
+    list: { get(): Stored[] }
+    selection: { get(): string[] }
+  }
 }
 type RootEl = HTMLElement & { __inkDocument?: DocHandle }
 
@@ -127,6 +131,8 @@ test('suggestion card accepts into a user redaction and dismisses', async ({
   await expect(suggested).toHaveCount(0)
   await expect(card).toHaveCount(0)
   await expect(cmp.locator('[data-annotation]')).toHaveCount(1)
+  // No suggestion follows it: focus goes to the previous annotation, the accepted one.
+  await expect(cmp.locator('[data-annotation][data-origin="user"]')).toBeFocused()
 })
 
 test('suggestion card opens from the keyboard and Escape closes it and clears the selection', async ({
@@ -151,4 +157,53 @@ test('suggestion card opens from the keyboard and Escape closes it and clears th
   expect(
     await root.evaluate((el) => (el as RootEl).__inkDocument!.annotations.selection.get())
   ).toEqual([])
+})
+
+test('after a dismiss, focus moves to the next suggestion, then to the document', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(Harness, {
+    props: { src: fixtureUrl('text-simple'), assets, seedSuggestions: true },
+  })
+  const suggested = cmp.locator('[data-annotation][data-origin="suggested"]')
+  await expect(suggested).toHaveCount(2)
+  const secondId = await suggested.nth(1).getAttribute('data-annotation')
+  await suggested.first().focus()
+  await page.keyboard.press('Enter')
+  const card = page.locator('[data-ink-suggestion-card]')
+  await card.getByRole('button', { name: 'Dismiss' }).click()
+  await expect(card).toHaveCount(0)
+  await expect(suggested).toHaveCount(1)
+  await expect(cmp.locator(`[data-annotation="${secondId}"]`)).toBeFocused()
+
+  await page.keyboard.press('Enter')
+  await card.getByRole('button', { name: 'Dismiss' }).click()
+  await expect(suggested).toHaveCount(0)
+  await expect(page.locator('[data-ink-scroll]')).toBeFocused()
+})
+
+test('after deleting the only note, focus moves to the document', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(Harness, { props: { src: fixtureUrl('text-simple'), assets } })
+  await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
+  const id = await page.locator('[data-ink-root]').evaluate(
+    (el) =>
+      (el as RootEl).__inkDocument!.annotations.add({
+        type: 'note',
+        page: 0,
+        rect: { x: 72, y: 600, width: 24, height: 24 },
+        contents: 'Check this',
+      }).id
+  )
+  const note = cmp.locator(`[data-annotation="${id}"]`)
+  await note.focus()
+  await page.keyboard.press('Enter')
+  const popover = page.locator('[data-ink-note-popover]')
+  await popover.getByRole('button', { name: 'Delete' }).click()
+  await expect(popover).toHaveCount(0)
+  await expect(cmp.locator('[data-annotation]')).toHaveCount(0)
+  await expect(page.locator('[data-ink-scroll]')).toBeFocused()
 })
