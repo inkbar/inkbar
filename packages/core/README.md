@@ -31,6 +31,17 @@ Writing annotations back into the PDF needs `@inkbar/engine`, which is not relea
 
 The DOM layer (`@inkbar/core/dom`) provides the viewport, canvas renderer, text layer, overlay and tools for hosts without a framework package. Vue hosts should use `@inkbar/vue`.
 
+## Annotation changes
+
+`doc.annotations.on('change', fn)`, and `onChange(next, change)` in controlled mode, describe each mutation:
+
+- `{ kind: 'add', annotation }`
+- `{ kind: 'update', id, before, after }`
+- `{ kind: 'remove', annotation, removed }`. Removing a note also removes its replies, so `removed` lists everything that went: `annotation` first, then the replies. A host that syncs by change should delete every id in `removed`.
+- `{ kind: 'replace', reason }` for an import, a history step or a controlled sync. Read the whole list.
+
+`add` throws if `input.id` is already in the list. Locked annotations refuse changes to their geometry, `page` and `contents`.
+
 ## Tools and keyboard
 
 `createToolController` from `@inkbar/core/dom` routes pointer and key events on the viewport to the active tool: `view`, `select`, `highlight`, `redact-area` or `note`. Every tool works from the keyboard as well as the pointer.

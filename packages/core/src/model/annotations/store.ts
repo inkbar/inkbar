@@ -17,7 +17,13 @@ import type { AnnotationDefaults } from './defaults'
 export type AnnotationChange =
   | { kind: 'add'; annotation: Annotation }
   | { kind: 'update'; id: string; before: Annotation; after: Annotation }
-  | { kind: 'remove'; annotation: Annotation }
+  | {
+      kind: 'remove'
+      /** The annotation `remove` was called with. */
+      annotation: Annotation
+      /** Everything that went: `annotation` first, then the replies removed with it. */
+      removed: Annotation[]
+    }
   | { kind: 'replace'; reason: 'import' | 'sync' | 'history' }
 
 export type StoreMode =
@@ -34,11 +40,15 @@ export interface AnnotationStore {
   readonly selection: Readable<readonly string[]>
   get(id: string): Annotation | undefined
   byPage(page: number): Annotation[]
-  /** Returns the completed annotation. In controlled mode it is proposed to the host, not applied. */
+  /**
+   * Returns the completed annotation. In controlled mode it is proposed to the host, not
+   * applied. Throws an `Error` naming the id when `input.id` is already in the list.
+   */
   add(input: AnnotationInput): Annotation
   /**
    * `id`, `type`, `createdAt` and `source` cannot be patched, nor can `locked` on an embedded
-   * (`source: 'pdf'`) annotation: those keys are ignored. `modifiedAt` is always bumped.
+   * (`source: 'pdf'`) annotation: those keys are ignored. `modifiedAt` is always bumped. A
+   * locked annotation refuses any patch to its geometry, `page` or `contents`.
    */
   update(id: string, patch: Partial<Annotation>): Annotation | undefined
   remove(id: string): boolean
@@ -73,6 +83,7 @@ export interface StoreOptions {
 
 /** Keys a locked annotation refuses to change. */
 const LOCKED_KEYS = new Set([
+  'page',
   'rect',
   'quads',
   'paths',
@@ -336,6 +347,8 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
     byPage: (page) => list.get().filter((a) => a.page === page),
     completeInput,
     add(input) {
+      if (input.id !== undefined && findIn(basis(), input.id))
+        throw new Error(`An annotation with id ${input.id} already exists`)
       const a = completeInput(input)
       if (destroyed) return a
       commit([...basis(), a], { kind: 'add', annotation: a })
@@ -388,7 +401,8 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
         }
       }
       const next = items.filter((a) => !doomed.has(a.id))
-      commit(next, { kind: 'remove', annotation: target })
+      const removed = [target, ...items.filter((a) => a.id !== id && doomed.has(a.id))]
+      commit(next, { kind: 'remove', annotation: target, removed })
       if (!controlled) pruneSelection(next)
       return true
     },
