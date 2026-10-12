@@ -1,29 +1,62 @@
 import { quadFromRect, type Quad, type Rect } from './geometry'
 
+const union = (a: Rect, b: Rect): Rect => {
+  const x = Math.min(a.x, b.x)
+  const y = Math.min(a.y, b.y)
+  return {
+    x,
+    y,
+    width: Math.max(a.x + a.width, b.x + b.width) - x,
+    height: Math.max(a.y + a.height, b.y + b.height) - y,
+  }
+}
+
+const centreY = (r: Rect): number => r.y + r.height / 2
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b)
+  const mid = sorted.length >> 1
+  return sorted.length % 2 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2
+}
+
 /**
- * Merges glyph boxes that share a line into one quad per line, ordered top to bottom then
- * left to right. Boxes whose vertical centres are within `tolerance` points count as the same
- * line; boxes with no area are dropped. Pure user-space maths: no DOM.
+ * Merges glyph boxes that share a line into one quad per run, ordered top to bottom (by
+ * vertical centre) then left to right. Boxes whose vertical centres are within `tolerance`
+ * points count as the same line; boxes with no area are dropped. Within a line, a horizontal
+ * gap wider than `gap` points (default 1.5 × the line's median box height) starts a new run,
+ * so text selected across a column gutter yields one quad per column. Pure user-space maths.
  */
-export function mergeLineRects(rects: readonly Rect[], tolerance = 2): Quad[] {
-  const lines: Rect[] = []
+export function mergeLineRects(
+  rects: readonly Rect[],
+  tolerance = 2,
+  gap?: number
+): Quad[] {
+  const lines: { bounds: Rect; boxes: Rect[] }[] = []
   for (const r of rects) {
     if (!(r.width > 0 && r.height > 0)) continue
-    const cy = r.y + r.height / 2
-    const line = lines.find((l) => Math.abs(l.y + l.height / 2 - cy) <= tolerance)
+    const line = lines.find((l) => Math.abs(centreY(l.bounds) - centreY(r)) <= tolerance)
     if (!line) {
-      lines.push({ ...r })
+      lines.push({ bounds: { ...r }, boxes: [r] })
       continue
     }
-    const x1 = Math.min(line.x, r.x)
-    const y1 = Math.min(line.y, r.y)
-    const x2 = Math.max(line.x + line.width, r.x + r.width)
-    const y2 = Math.max(line.y + line.height, r.y + r.height)
-    line.x = x1
-    line.y = y1
-    line.width = x2 - x1
-    line.height = y2 - y1
+    line.bounds = union(line.bounds, r)
+    line.boxes.push(r)
   }
-  lines.sort((a, b) => b.y - a.y || a.x - b.x)
-  return lines.map(quadFromRect)
+  const runs: Rect[] = []
+  for (const line of lines) {
+    const maxGap = gap ?? 1.5 * median(line.boxes.map((b) => b.height))
+    const boxes = [...line.boxes].sort((a, b) => a.x - b.x)
+    let run = { ...boxes[0]! }
+    for (const b of boxes.slice(1)) {
+      if (b.x - (run.x + run.width) > maxGap) {
+        runs.push(run)
+        run = { ...b }
+      } else {
+        run = union(run, b)
+      }
+    }
+    runs.push(run)
+  }
+  runs.sort((a, b) => centreY(b) - centreY(a) || a.x - b.x)
+  return runs.map(quadFromRect)
 }

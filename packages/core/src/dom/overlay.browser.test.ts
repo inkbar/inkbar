@@ -329,6 +329,7 @@ describe('createOverlay', () => {
     expect(text.style.fontSize).toBe('')
     expect(text.style.textAlign).toBe('')
     expect(text.dataset.align).toBe('center')
+    expect(text.style.getPropertyValue('--ink-font-family')).toBe('"Helvetica"')
   })
 
   it('destroy removes the container and stops listening', () => {
@@ -525,5 +526,47 @@ describe('createOverlay', () => {
     expect(onActivate).toHaveBeenCalledWith(a.id)
     el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }))
     expect(store.get(a.id)).toBeUndefined()
+  })
+  it('gives a horizontal line a box padded by its stroke, so it draws and is hittable', () => {
+    const { store, host, overlay, onActivate } = setup(2)
+    const line = store.add({
+      type: 'line',
+      page: 0,
+      start: { x: 100, y: 700 },
+      end: { x: 200, y: 700 },
+      strokeWidth: 2,
+    })
+    expect(line.rect.height).toBe(0)
+    const el = overlay.elementFor(line.id)!
+    // 2pt at zoom 2 = 4px of stroke: 2px of padding on each side.
+    expect(el.style.left).toBe('198px')
+    expect(el.style.top).toBe(`${(792 - 700) * 2 - 2}px`)
+    expect(el.style.width).toBe('204px')
+    expect(el.style.height).toBe('4px')
+    const svg = el.querySelector('svg')!
+    expect(svg.getAttribute('viewBox')).toBe('0 0 204 4')
+    const polyline = svg.querySelector('polyline')!
+    expect(polyline.getAttribute('points')).toBe('2,2 202,2')
+    // Within the window, so elementFromPoint can see it.
+    const h = host.getBoundingClientRect()
+    const hit = document.elementFromPoint(h.left + 300, h.top + (792 - 700) * 2)
+    expect(hit).toBe(polyline)
+    hit!.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
+    expect(store.selection.get()).toEqual([line.id])
+    expect(onActivate).toHaveBeenCalledWith(line.id)
+  })
+
+  it('pads even a zero-width stroke to a 1px box', () => {
+    const { store, overlay } = setup()
+    const v = store.add({
+      type: 'line',
+      page: 0,
+      start: { x: 100, y: 100 },
+      end: { x: 100, y: 200 },
+      strokeWidth: 0,
+    })
+    const el = overlay.elementFor(v.id)!
+    expect(el.style.width).toBe('1px')
+    expect(el.style.height).toBe('101px')
   })
 })

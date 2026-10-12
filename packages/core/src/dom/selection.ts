@@ -63,7 +63,7 @@ export function getSelectionQuads(
       if (!layer.contains(range.endContainer)) sub.setEnd(layer, layer.childNodes.length)
       const entry = results.get(info.page) ?? { rects: [], text: [] }
       entry.rects.push(...cssRectsToUserRects(sub.getClientRects(), host, info.transform))
-      entry.text.push(sub.toString())
+      entry.text.push(rangeText(sub))
       results.set(info.page, entry)
     }
   }
@@ -72,7 +72,25 @@ export function getSelectionQuads(
     .map(([page, { rects, text }]) => ({
       page,
       quads: mergeLineRects(rects),
-      text: text.join(' ').replace(/\s+/g, ' ').trim(),
+      text: normaliseText(text.join('\n')),
     }))
     .filter((r) => r.quads.length > 0)
+}
+
+/**
+ * The range's text with each PDF.js `<br>` (an end of line) kept as a newline.
+ * `Range.toString()` would run the lines together.
+ */
+function rangeText(range: Range): string {
+  const fragment = range.cloneContents()
+  for (const br of fragment.querySelectorAll('br')) br.replaceWith('\n')
+  return fragment.textContent ?? ''
+}
+
+/** Collapses runs of spaces and tabs, and any whitespace around a line break, to one. */
+function normaliseText(text: string): string {
+  return text
+    .replace(/[^\S\n]+/g, ' ')
+    .replace(/ ?\n\s*/g, '\n')
+    .trim()
 }

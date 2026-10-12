@@ -142,10 +142,13 @@ export function selectTool(): Tool {
         return
       }
       if (e.key !== 'Delete' && e.key !== 'Backspace') return
+      // A focused annotation's overlay element owns the key (it removes that one annotation
+      // and prevents the default); deleting the selection too would double-handle it.
+      if (e.defaultPrevented) return
       const target = e.target instanceof Element ? e.target : null
       if (
         target?.closest(
-          'input, textarea, [contenteditable]:not([contenteditable="false"])'
+          '[data-annotation], input, textarea, [contenteditable]:not([contenteditable="false"])'
         )
       )
         return

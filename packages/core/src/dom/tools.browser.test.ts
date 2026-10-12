@@ -399,4 +399,34 @@ describe('createPageMount', () => {
     expect(host.contains(m.textLayer.element)).toBe(false)
     expect(host.contains(m.overlay.element)).toBe(false)
   })
+  it('select: Delete on a focused annotation removes only that one, once', async () => {
+    const { doc, viewport, tools } = await setup()
+    const a = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    const b = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 300, y: 600, width: 50, height: 30 },
+    })
+    await settle()
+    tools.set('select')
+    doc.annotations.select([a.id, b.id])
+    const removed: string[] = []
+    const off = doc.annotations.on('change', (c) => {
+      if (c.kind === 'remove') removed.push(c.annotation.id)
+    })
+    cleanup.push(off)
+    const el = viewport
+      .hostFor(0)!
+      .querySelector(`[data-annotation="${a.id}"]`) as HTMLElement
+    el.focus()
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }))
+    // The overlay owns the key: the focused annotation goes, the rest of the selection stays.
+    expect(removed).toEqual([a.id])
+    expect(doc.annotations.get(b.id)).toBeDefined()
+    expect(doc.annotations.selection.get()).toEqual([b.id])
+  })
 })

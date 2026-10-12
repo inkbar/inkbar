@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { cssRectsToUserRects, getSelectionQuads } from './selection'
 import { mountContainer, openFixtureInBrowser, TEXT_LAYER_CSS } from './test-utils'
@@ -183,5 +183,52 @@ describe('text layer', () => {
       span.getBoundingClientRect().left - host.getBoundingClientRect().left
     ).toBeCloseTo(144, -1)
     expectNiLine(niQuad(host, zoomed))
+  })
+  it('keeps the line break between selected lines in the text', async () => {
+    const { host, t } = await layer('text-simple', 1)
+    const range = document.createRange()
+    range.setStart(spanWith(host, 'Hello'), 0)
+    const ni = spanWith(host, 'QQ123456C')
+    range.setEnd(ni, ni.childNodes.length)
+    const sel = window.getSelection()!
+    sel.removeAllRanges()
+    sel.addRange(range)
+    const [result] = getSelectionQuads(host, () => ({ page: 0, transform: t }))
+    expect(result!.text).toMatch(
+      /^Hello Inkbar\.[^\n]*\nNational Insurance number QQ123456C/
+    )
+  })
+
+  it('never rejects ready when onError throws, and rethrows asynchronously', async () => {
+    const doc = await openFixtureInBrowser('text-simple')
+    const t = createPageTransform(doc.pages[0]!, 1, 0)
+    const host = mountContainer(t.cssWidth, t.cssHeight)
+    sizeHost(host, t)
+    doc.destroy()
+    const rethrown: unknown[] = []
+    const original = globalThis.queueMicrotask.bind(globalThis)
+    const spy = vi.spyOn(globalThis, 'queueMicrotask').mockImplementation((cb) => {
+      original(() => {
+        try {
+          cb()
+        } catch (e) {
+          rethrown.push(e)
+        }
+      })
+    })
+    const boom = new Error('host bug')
+    const tl = createTextLayer({
+      document: doc,
+      page: 0,
+      host,
+      transform: t,
+      onError: () => {
+        throw boom
+      },
+    })
+    cleanup.push(() => (spy.mockRestore(), tl.destroy(), host.remove()))
+    await expect(tl.ready).resolves.toBeUndefined()
+    await new Promise((r) => setTimeout(r, 0))
+    expect(rethrown).toEqual([boom])
   })
 })

@@ -1,14 +1,15 @@
 // Inline styles here are structural or geometric only: the container is
 // `position:absolute; inset:0; pointer-events:none` so it covers the page without eating
 // events, and each annotation element is `position:absolute` with `left/top/width/height`
-// from `PageTransform.toCssRect`. Hit-testing follows the drawn shape, not the box: elements
-// are `pointer-events:none` and their shapes opt back in (overlay-render.ts), so a press
-// beside a shape still reaches the text layer. Custom elements are the exception and stay
-// `pointer-events:auto`: the host draws them and only it knows their shape. Every visual
-// (colour, opacity, stroke, fill) is an SVG attribute or a theme hook.
+// from `annotationBox` (`PageTransform.toCssRect`, padded for stroked paths). Hit-testing
+// follows the drawn shape, not the box: elements are `pointer-events:none` and their shapes
+// opt back in (overlay-render.ts), so a press beside a shape still reaches the text layer.
+// Custom elements are the exception and stay `pointer-events:auto`: the host draws them and
+// only it knows their shape. Every visual (colour, opacity, stroke, fill) is an SVG
+// attribute or a theme hook.
 import { confidenceBucket, type Annotation } from '../model/annotations/types'
 
-import { renderAnnotationContent, renderHitArea } from './overlay-render'
+import { annotationBox, renderAnnotationContent, renderHitArea } from './overlay-render'
 
 import type { PageTransform } from './transform'
 import type { AnnotationStore } from '../model/annotations/store'
@@ -122,7 +123,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
   }
 
   function applyGeometry(node: HTMLElement, a: Annotation): void {
-    const box = transform.toCssRect(a.rect)
+    const box = annotationBox(a, transform)
     node.style.left = `${box.left}px`
     node.style.top = `${box.top}px`
     node.style.width = `${box.width}px`
@@ -166,6 +167,8 @@ export function createOverlay(opts: OverlayOptions): Overlay {
         break
       case 'Delete':
       case 'Backspace': {
+        // The overlay owns deletion from a focused annotation: it removes that one only, never
+        // the rest of the selection. `preventDefault` tells the select tool to stand down.
         e.preventDefault()
         const a = store.get(id)
         if (a && !a.locked) store.remove(id)

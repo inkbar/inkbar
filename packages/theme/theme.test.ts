@@ -155,6 +155,7 @@ describe('theme.css', () => {
     expect(rule?.toString()).toMatch(/font-size:\s*var\(--ink-font-size\)/)
     expect(rule?.toString()).toMatch(/color:\s*var\(--ink-text-color,/)
     expect(rule?.toString()).toMatch(/opacity:\s*var\(--ink-opacity,/)
+    expect(rule?.toString()).toMatch(/font-family:\s*var\(--ink-font-family,/)
     for (const align of ['left', 'center', 'right']) {
       expect(
         rules.some((r) => r.selector.includes(`[data-align='${align}']`)),
