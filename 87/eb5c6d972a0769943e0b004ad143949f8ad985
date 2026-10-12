@@ -1,0 +1,33 @@
+packages/core/src/dom/overlay-render.ts
+  s_a8095ef648b42d::t_44db2f68d2d945 24,90-92,192-195
+  s_a8095ef648b42d::t_322b09830ab1a2 1,4-23,25-89,93-191,196-203
+  s_a8095ef648b42d::t_8ce7d5de43c53a 2-3
+packages/core/src/dom/index.test.ts
+  s_a8095ef648b42d::t_44db2f68d2d945 27-30
+packages/core/src/dom/overlay.ts
+  s_a8095ef648b42d::t_f2b8e37b0f3bbd 1-6,8,10,12-59,63-247,252-285
+  s_a8095ef648b42d::t_44db2f68d2d945 60-62,248-251
+  s_a8095ef648b42d::t_8ce7d5de43c53a 7,9,11
+packages/core/src/dom/index.ts
+  s_a8095ef648b42d::t_44db2f68d2d945 20-23
+packages/core/src/dom/overlay.browser.test.ts
+  s_a8095ef648b42d::t_44db2f68d2d945 12-27,32-35,38-44,54-60,80-84,98-112,121-123,135-138,140-146,148-152,162-166,181-195,210-229,234-236,240-242,245-247,253-262,270-286,289-291,295-297,304-311,324-328
+  s_a8095ef648b42d::t_a12500bb65368b 1-4,6-8,11,28-31,36-37,45-53,61-79,85-97,113-120,124-134,139,147,153-161,167-180,196-209,230-233,237-239,243-244,248-252,263-269,287-288,292-294,298-303,312-323,329-354
+  s_a8095ef648b42d::t_8ce7d5de43c53a 5,9-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "87eb5c6d972a0769943e0b004ad143949f8ad985",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
