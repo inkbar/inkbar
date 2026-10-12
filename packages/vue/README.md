@@ -47,6 +47,24 @@ const annotations = ref<Annotation[]>([])
 
 `v-model:annotations` makes your list the source of truth. Leave it off and Inkbar keeps the state itself, with undo and redo.
 
+## Controlled mode
+
+With `v-model:annotations`, Inkbar proposes each change through `update:annotations` and shows whatever list you pass back. To change annotations yourself, replace the array: `annotations.value = [...annotations.value, next]`. In-place mutation (`push`, `splice`, editing an item) is not observed, so the viewer never sees it.
+
+Undo and redo are off in controlled mode unless you pass `:history="true"`. Inkbar then keeps a stack of your list's past values and applies undo and redo through `v-model`. Every change to the list is a step, including the list you load from your server when the document opens. Clear the history once that load has reached the viewer, so the first undo does not empty the list:
+
+```ts
+const root = useTemplateRef<InstanceType<typeof InkRoot>>('root')
+
+async function onReady(doc: InkDocument) {
+  annotations.value = await loadAnnotations(doc.key)
+  await nextTick()
+  root.value?.history.clear()
+}
+```
+
+Inside `InkRoot`, `useHistory()` returns the same object.
+
 `key` identifies the document. Reuse the same key when only the signed URL changes and the document is not reloaded.
 
 ## Keyboard

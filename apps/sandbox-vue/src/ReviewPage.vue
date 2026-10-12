@@ -21,7 +21,15 @@ import {
   InkViewport,
 } from '@inkbar/vue'
 import { assets } from 'virtual:inkbar-assets'
-import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  ref,
+  shallowRef,
+  useTemplateRef,
+  watch,
+} from 'vue'
 
 import EmbeddedBanner from './EmbeddedBanner.vue'
 import { createFakeServer } from './fake-server'
@@ -41,6 +49,7 @@ const readyCount = ref(0)
 /** Outcome of the last suggestion run, announced apart from the sync status. */
 const suggestResult = ref('')
 const document = shallowRef<InkDocument | null>(null)
+const root = useTemplateRef<InstanceType<typeof InkRoot>>('root')
 const largeBytes = shallowRef<Uint8Array | null>(null)
 /** The key whose saved annotations have been loaded; saving waits for it. */
 const loadedKey = ref<string | null>(null)
@@ -79,7 +88,13 @@ async function onReady(doc: InkDocument): Promise<void> {
   const forKey = doc.key
   const saved = await server.load(forKey)
   if (document.value !== doc) return
-  if (saved) annotations.value = knownAnnotations(saved.annotations)
+  if (saved) {
+    annotations.value = knownAnnotations(saved.annotations)
+    // Undo history records every change to the list. Loading is not the reader's change, so
+    // once the history has seen it, clear it: undo right after opening must not empty the list.
+    await nextTick()
+    root.value?.history.clear()
+  }
   loadedKey.value = forKey
   status.value = 'ready'
 }
@@ -140,7 +155,9 @@ function newVersion(): void {
 
 <template>
   <InkRoot
+    ref="root"
     v-model:annotations="annotations"
+    :history="true"
     :src="src"
     :assets="assets"
     class="sandbox-root"
