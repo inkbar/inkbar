@@ -1,0 +1,56 @@
+{
+  "name": "@inkbar/core",
+  "version": "0.0.0",
+  "description": "PDF document model, rendering and annotations for the browser. No framework.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "schema.json",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "imports": {
+    "#pdfjs": {
+      "node": "pdfjs-dist/legacy/build/pdf.mjs",
+      "default": "pdfjs-dist"
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint src",
+    "test": "vitest run --passWithNoTests",
+    "generate": "tsx scripts/generate-schema.ts"
+  },
+  "dependencies": {
+    "pdfjs-dist": "^6.4.299",
+    "uuid": "^14.0.3",
+    "zod": "^4.6.6"
+  },
+  "peerDependencies": {
+    "vite": "^6.0.0 || ^7.0.0 || ^8.0.0"
+  },
+  "peerDependenciesMeta": {
+    "vite": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@playwright/experimental-ct-vue": "1.62.1",
+    "@playwright/test": "1.62.1",
+    "ajv": "^8.20.0",
+    "fast-check": "^4.10.2",
+    "tsdown": "^0.23.1",
+    "tsx": "^4.20.0",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.4"
+  }
+}
