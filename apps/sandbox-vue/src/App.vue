@@ -38,6 +38,12 @@ body,
   flex: 1 1 auto;
   min-height: 0;
 }
+.sandbox-editor {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
 .sandbox-actions {
   display: flex;
   flex-wrap: wrap;

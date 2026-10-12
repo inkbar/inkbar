@@ -176,7 +176,7 @@ async function suggest(): Promise<void> {
   // Running again must not repeat a suggestion already on the page.
   const seen = new Set(
     annotations.value
-      .filter((a) => a.type === 'redact' && a.origin === 'suggested')
+      .filter((a) => a.type === 'redact')
       .map((a) => `${a.page}:${rectKey(a.rect)}`)
   )
   const fresh = inputs.filter((input) => {
@@ -243,9 +243,11 @@ async function newVersion(): Promise<void> {
       </DefaultToolbar>
     </div>
     <EmbeddedBanner />
-    <InkViewport />
-    <InkNotePopover />
-    <InkSuggestionCard />
+    <div :inert="loading" class="sandbox-editor" data-testid="editor-gate">
+      <InkViewport />
+      <InkNotePopover />
+      <InkSuggestionCard />
+    </div>
     <p
       class="sandbox-status"
       role="status"
