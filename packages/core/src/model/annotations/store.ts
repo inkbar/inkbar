@@ -251,7 +251,8 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
     const entry = pending.get(key)
     if (!entry) return
     pending.delete(key)
-    proposed = undefined
+    // Later proposals may still be pending; they keep building on the proposed list.
+    if (pending.size === 0) proposed = undefined
     if (isApplied(entry.change, list.get()) || isProduction()) return
     console.warn(
       `[inkbar] ControlledMutationIgnored: the host did not apply a ${entry.change.kind} for ` +

@@ -329,6 +329,31 @@ describe('AnnotationStore (controlled) with embedded annotations', () => {
       expect(s.get(a.id)?.contents).toBe('two')
     })
 
+    it('keeps newer pending proposals when an older check fires', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+      const { s, nexts } = ignoringStore()
+      // Timers due together fire in creation order. This interleaves them so a's check fires
+      // while b is still pending, and c is added between a's check and b's.
+      let b: Annotation | undefined
+      let c: Annotation | undefined
+      let atC: Annotation[] | undefined
+      setTimeout(() => {
+        setTimeout(() => {
+          expect(warn).toHaveBeenCalledTimes(1)
+          c = s.add({ type: 'note', page: 0, rect })
+          atC = nexts.at(-1)
+        }, 0)
+        b = s.add({ type: 'note', page: 0, rect })
+      }, 0)
+      const a = s.add({ type: 'note', page: 0, rect })
+      vi.runAllTimers()
+      expect(atC).toEqual([a, b, c])
+      expect(warn).toHaveBeenCalledTimes(3)
+      // Every check has fired: the basis is the applied list again.
+      const d = s.add({ type: 'note', page: 0, rect })
+      expect(nexts.at(-1)).toEqual([d])
+    })
+
     it('resets the basis to the applied list once the check fires without the host applying', () => {
       vi.spyOn(console, 'warn').mockImplementation(() => undefined)
       const { s, nexts } = ignoringStore()
