@@ -4,6 +4,7 @@ export * from './model/errors'
 export * from './model/events'
 export * from './model/geometry'
 export * from './model/readable'
+export { mergeLineRects } from './model/selection'
 
 export { openDocument } from './model/document'
 export type {
