@@ -97,6 +97,42 @@ describe('openDocument', () => {
     expect(doc.status.get().state).toBe('error')
   })
 
+  it('surfaces unreadable bytes as InvalidPdf', async () => {
+    const doc = await openDocument(await fixtureBytes('malformed-truncated'), {
+      assets: nodeAssets(),
+    })
+    const status = doc.status.get()
+    expect(status.state).toBe('error')
+    if (status.state !== 'error') throw new Error('expected an error status')
+    expect(status.error.code).toBe('InvalidPdf')
+    await expect(doc.ready).rejects.toMatchObject({ code: 'InvalidPdf' })
+    await expect(doc.ready).rejects.toBe(status.error)
+    expect(doc.pages).toEqual([])
+    expect(doc.info.isEncrypted).toBe(false)
+    await expect(doc.text(0)).rejects.toBe(status.error)
+  })
+
+  it('reports each page box of a mixed-size document', async () => {
+    const doc = await openDocument(await fixtureBytes('mixed-page-sizes'), {
+      assets: nodeAssets(),
+    })
+    await doc.ready
+    expect(doc.info.pageCount).toBe(4)
+    expect(doc.pages.map((p) => p.box)).toEqual([
+      { x: 0, y: 0, width: 612, height: 792 },
+      { x: 0, y: 0, width: 595, height: 842 },
+      { x: 0, y: 0, width: 842, height: 595 },
+      { x: 0, y: 0, width: 300, height: 300 },
+    ])
+    expect(doc.pages.map((p) => [p.index, p.width, p.height, p.rotate])).toEqual([
+      [0, 612, 792, 0],
+      [1, 595, 842, 0],
+      [2, 842, 595, 0],
+      [3, 300, 300, 0],
+    ])
+    doc.destroy()
+  })
+
   it('throws AssetConfigMissing synchronously for a missing assets option', async () => {
     await expect(openDocument(new Uint8Array(), {} as never)).rejects.toMatchObject({
       code: 'AssetConfigMissing',
