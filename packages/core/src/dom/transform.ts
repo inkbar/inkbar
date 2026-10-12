@@ -21,7 +21,13 @@ export interface CssRect {
 
 export interface PageTransform {
   readonly page: PageInfo
+  /** The viewer zoom the transform was built for. 1 is one CSS pixel per user-space unit at /UserUnit 1. */
   readonly zoom: number
+  /**
+   * CSS pixels per user-space unit: `zoom × page.userUnit`. This is PDF.js `PageViewport.scale`
+   * and the value its text and annotation layers read from `--total-scale-factor`.
+   */
+  readonly scale: number
   /** Rotation the viewer applied on top of the page's own /Rotate. */
   readonly rotation: ViewRotation
   /** The page's /Rotate plus the viewer rotation. */
@@ -139,6 +145,7 @@ export function createPageTransform(
   return {
     page,
     zoom,
+    scale,
     rotation,
     totalRotation,
     cssWidth,

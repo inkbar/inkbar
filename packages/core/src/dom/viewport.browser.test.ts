@@ -296,6 +296,19 @@ describe('createViewport', () => {
     await until(() => mounted.has(2))
   })
 
+  it('sets --total-scale-factor to zoom times /UserUnit and --scale-factor to the zoom', async () => {
+    const { doc, viewport, mounted } = await setup('userunit-2')
+    expect(doc.pages[0]!.userUnit).toBe(2)
+    await until(() => mounted.has(0))
+    const host = mounted.get(0)!
+    const t = viewport.transformFor(0)
+    expect(t.scale).toBe(2)
+    expect(host.style.getPropertyValue('--scale-factor')).toBe('1')
+    expect(host.style.getPropertyValue('--total-scale-factor')).toBe('2')
+    expect(host.style.width).toBe(`${t.cssWidth}px`)
+    expect(t.cssWidth).toBe(doc.pages[0]!.width * 2)
+  })
+
   it('rotation swaps page dimensions', async () => {
     const { doc, viewport, mounted } = await setup()
     const upright = createPageTransform(doc.pages[0]!, 1, 0)

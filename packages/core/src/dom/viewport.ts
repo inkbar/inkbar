@@ -3,7 +3,8 @@
  * - container: `overflow: auto`, and `position: relative` when its computed position is static;
  * - pages element: `position: relative`, plus `width`/`height` from the layout;
  * - page hosts: `position: absolute` and `left`/`top`/`width`/`height` from the layout;
- * - page hosts: the `--scale-factor` and `--total-scale-factor` custom properties.
+ * - page hosts: the `--scale-factor` (zoom) and `--total-scale-factor` (zoom × /UserUnit)
+ *   custom properties.
  * Nothing cosmetic (colours, borders, backgrounds, fonts) is ever set inline; that belongs to
  * the stylesheet. `destroy()` restores the container's overflow and position.
  */
@@ -202,8 +203,10 @@ export function createViewport(opts: ViewportOptions): Viewport {
     host.style.top = `${box.top}px`
     host.style.width = `${t.cssWidth}px`
     host.style.height = `${t.cssHeight}px`
+    // As in PDF.js's viewer: --scale-factor is the zoom, --total-scale-factor also folds in
+    // /UserUnit (pdf_viewer.css: calc(var(--scale-factor) * var(--user-unit))).
     host.style.setProperty('--scale-factor', String(t.zoom))
-    host.style.setProperty('--total-scale-factor', String(t.zoom))
+    host.style.setProperty('--total-scale-factor', String(t.scale))
     host.dataset.rotation = String(t.totalRotation)
   }
 

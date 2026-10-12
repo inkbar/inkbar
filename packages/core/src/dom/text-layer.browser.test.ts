@@ -23,11 +23,11 @@ function sizeHost(host: HTMLElement, t: PageTransform) {
   host.style.width = `${t.cssWidth}px`
   host.style.height = `${t.cssHeight}px`
   host.style.setProperty('--scale-factor', String(t.zoom))
-  host.style.setProperty('--total-scale-factor', String(t.zoom))
+  host.style.setProperty('--total-scale-factor', String(t.scale))
 }
 
 async function layer(
-  name: 'text-simple' | 'text-rotated-90',
+  name: 'text-simple' | 'text-rotated-90' | 'userunit-2',
   zoom: number,
   rotation: ViewRotation = 0
 ) {
@@ -113,6 +113,20 @@ describe('text layer', () => {
     for (const k of ['p1', 'p2', 'p3', 'p4'] as const) {
       expect(Math.abs(q2[k].x - q1[k].x)).toBeLessThanOrEqual(2)
       expect(Math.abs(q2[k].y - q1[k].y)).toBeLessThanOrEqual(2)
+    }
+  })
+
+  it('reports the same user-space quad on a /UserUnit 2 page as on text-simple', async () => {
+    const plain = await layer('text-simple', 1)
+    const q1 = niQuad(plain.host, plain.t)
+    const unit = await layer('userunit-2', 1)
+    expect(unit.t.scale).toBe(2)
+    expect(unit.host.style.getPropertyValue('--total-scale-factor')).toBe('2')
+    const q2 = niQuad(unit.host, unit.t)
+    expectNiLine(q2)
+    for (const k of ['p1', 'p2', 'p3', 'p4'] as const) {
+      expect(Math.abs(q2[k].x - q1[k].x)).toBeLessThanOrEqual(1)
+      expect(Math.abs(q2[k].y - q1[k].y)).toBeLessThanOrEqual(1)
     }
   })
 
