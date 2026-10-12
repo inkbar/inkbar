@@ -273,4 +273,97 @@ describe('AnnotationStore (controlled) with embedded annotations', () => {
       warn.mockRestore()
     }
   })
+
+  describe('pending proposals', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+    afterEach(() => {
+      vi.useRealTimers()
+      vi.restoreAllMocks()
+    })
+
+    it('composes a second add on the first before the host applies', () => {
+      const { s, onChange, apply } = controlledStore()
+      const a = s.add({ type: 'note', page: 0, rect })
+      const b = s.add({ type: 'note', page: 1, rect })
+      expect(onChange).toHaveBeenLastCalledWith([a, b], { kind: 'add', annotation: b })
+      apply()
+      expect(s.list.get()).toEqual([a, b])
+    })
+
+    it('composes removals, so the second proposal holds neither', () => {
+      const { s, onChange, apply } = controlledStore()
+      const a = s.add({ type: 'note', page: 0, rect })
+      const b = s.add({ type: 'note', page: 0, rect })
+      const c = s.add({ type: 'note', page: 0, rect })
+      apply()
+      s.select([a.id, b.id])
+      expect(s.remove(a.id)).toBe(true)
+      expect(s.remove(b.id)).toBe(true)
+      expect(onChange.mock.lastCall![0]).toEqual([c])
+      // A second remove of an id already proposed away is a no-op.
+      expect(s.remove(a.id)).toBe(false)
+      apply()
+      expect(s.list.get()).toEqual([c])
+      expect(s.selection.get()).toEqual([])
+    })
+
+    it('lets select take an id that is only proposed so far', () => {
+      const { s, apply } = controlledStore()
+      const a = s.add({ type: 'note', page: 0, rect })
+      s.select([a.id])
+      expect(s.selection.get()).toEqual([a.id])
+      apply()
+      expect(s.list.get()).toEqual([a])
+      expect(s.selection.get()).toEqual([a.id])
+    })
+
+    it('composes an update on a pending add', () => {
+      const { s, onChange, apply } = controlledStore()
+      const a = s.add({ type: 'note', page: 0, rect, contents: 'one' })
+      const b = s.update(a.id, { contents: 'two' })
+      expect(b?.contents).toBe('two')
+      expect(onChange.mock.lastCall![0]).toEqual([b])
+      apply()
+      expect(s.get(a.id)?.contents).toBe('two')
+    })
+
+    it('keeps newer pending proposals when an older check fires', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+      const { s, nexts } = ignoringStore()
+      // Timers due together fire in creation order. This interleaves them so a's check fires
+      // while b is still pending, and c is added between a's check and b's.
+      let b: Annotation | undefined
+      let c: Annotation | undefined
+      let atC: Annotation[] | undefined
+      setTimeout(() => {
+        setTimeout(() => {
+          expect(warn).toHaveBeenCalledTimes(1)
+          c = s.add({ type: 'note', page: 0, rect })
+          atC = nexts.at(-1)
+        }, 0)
+        b = s.add({ type: 'note', page: 0, rect })
+      }, 0)
+      const a = s.add({ type: 'note', page: 0, rect })
+      vi.runAllTimers()
+      expect(atC).toEqual([a, b, c])
+      expect(warn).toHaveBeenCalledTimes(3)
+      // Every check has fired: the basis is the applied list again.
+      const d = s.add({ type: 'note', page: 0, rect })
+      expect(nexts.at(-1)).toEqual([d])
+    })
+
+    it('resets the basis to the applied list once the check fires without the host applying', () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+      const { s, nexts } = ignoringStore()
+      const a = s.add({ type: 'note', page: 0, rect })
+      vi.runAllTimers()
+      const b = s.add({ type: 'note', page: 0, rect })
+      expect(nexts.at(-1)).toEqual([b])
+      expect(a.id).not.toBe(b.id)
+      s.select([a.id])
+      expect(s.selection.get()).toEqual([])
+    })
+  })
 })

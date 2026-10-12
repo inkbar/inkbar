@@ -9,7 +9,8 @@ import {
   TEXT_LAYER_CSS,
   until,
 } from './test-utils'
-import { createToolController, type ToolController } from './tools'
+import { createToolController, type Tool, type ToolController } from './tools'
+import { createPageTransform } from './transform'
 import { createViewport, type Viewport } from './viewport'
 
 let style: HTMLStyleElement
@@ -23,8 +24,33 @@ afterAll(() => style.remove())
 const cleanup: (() => void)[] = []
 afterEach(() => cleanup.splice(0).forEach((f) => f()))
 
-async function setup(name: 'text-simple' | 'cropbox-offset' = 'text-simple') {
-  const doc = await openFixtureInBrowser(name)
+import type { Annotation } from '../model/annotations/types'
+
+/**
+ * `controlled: true` opens the document with a host that applies each proposal a microtask
+ * later, the way Vue's v-model does, so a tool's synchronous multi-step mutation runs before
+ * any of it is applied.
+ */
+async function setup(
+  name: 'text-simple' | 'cropbox-offset' = 'text-simple',
+  { controlled = false, custom = false }: { controlled?: boolean; custom?: boolean } = {}
+) {
+  let host: Annotation[] = []
+  const doc = await openFixtureInBrowser(
+    name,
+    controlled
+      ? {
+          annotations: {
+            mode: 'controlled',
+            initial: [],
+            onChange: (next) => {
+              host = next
+              queueMicrotask(() => doc.annotations.setControlledValue(host))
+            },
+          },
+        }
+      : {}
+  )
   const container = mountContainer(800, 900)
   const mounts = new Map<number, ReturnType<typeof createPageMount>>()
   const onActivate = vi.fn()
@@ -42,6 +68,7 @@ async function setup(name: 'text-simple' | 'cropbox-offset' = 'text-simple') {
           transform,
           store: doc.annotations,
           onActivate,
+          isCustom: () => custom,
         })
       ),
     onUpdate: (page, _host, transform) => mounts.get(page)?.update(transform),
@@ -164,7 +191,7 @@ describe('tools', () => {
     expect(window.getSelection()!.isCollapsed).toBe(true)
   })
 
-  it('highlight turns a text selection into one highlight per page and clears the selection', async () => {
+  it('highlight turns a text selection into one highlight and clears the selection', async () => {
     const { doc, container, viewport, tools } = await setup()
     tools.set('highlight')
     const span = [
@@ -184,6 +211,37 @@ describe('tools', () => {
     }
     expect(window.getSelection()!.isCollapsed).toBe(true)
   })
+
+  it.each([false, true])(
+    'highlight adds one annotation per page for a selection across two pages (controlled: %s)',
+    async (controlled) => {
+      const { doc, container, viewport, tools, mounts } = await setup('text-simple', {
+        controlled,
+      })
+      await until(() => mounts.has(1))
+      await mounts.get(1)!.textLayer.ready
+      tools.set('highlight')
+      const spans = (page: number) => [
+        ...viewport.hostFor(page)!.querySelectorAll('[data-ink-text-layer] span'),
+      ]
+      const first = spans(0).find((s) => s.textContent?.includes('QQ123456C'))!
+      const last = spans(1).find((s) => s.textContent?.includes('QQ123456C'))!
+      const range = document.createRange()
+      range.setStart(first, 0)
+      range.setEnd(last, last.childNodes.length)
+      window.getSelection()!.removeAllRanges()
+      window.getSelection()!.addRange(range)
+      const r = last.getBoundingClientRect()
+      pointer(container, 'pointerup', r.right, r.bottom)
+      await settle()
+      const list = doc.annotations.list.get()
+      expect(list.map((a) => [a.type, a.page])).toEqual([
+        ['highlight', 0],
+        ['highlight', 1],
+      ])
+      expect(window.getSelection()!.isCollapsed).toBe(true)
+    }
+  )
 
   it('note click adds a centred 20pt note, selects it and activates', async () => {
     const { doc, container, viewport, tools, onActivate } = await setup()
@@ -299,6 +357,48 @@ describe('tools', () => {
     expect(doc.annotations.selection.get()).toEqual([])
   })
 
+  it("select: presses and keys inside a custom annotation's content stay with that content", async () => {
+    const { doc, container, viewport, tools } = await setup('text-simple', {
+      custom: true,
+    })
+    const a = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    await settle()
+    tools.set('select')
+    const host = viewport.hostFor(0)!
+    const h = host.getBoundingClientRect()
+    const el = host.querySelector(`[data-annotation="${a.id}"]`) as HTMLElement
+    expect(el.hasAttribute('data-custom')).toBe(true)
+    // What a host's annotation slot would render into the element.
+    const button = document.createElement('button')
+    const input = document.createElement('input')
+    el.append(button, input)
+
+    pointer(el, 'pointerdown', h.left + 110, h.top + 180)
+    pointer(el, 'pointerup', h.left + 110, h.top + 180)
+    expect(doc.annotations.selection.get()).toEqual([a.id])
+
+    pointer(button, 'pointerdown', h.left + 110, h.top + 180)
+    pointer(container, 'pointermove', h.left + 150, h.top + 200)
+    expect(el.style.transform).toBe('')
+    pointer(container, 'pointerup', h.left + 150, h.top + 200)
+    expect(doc.annotations.get(a.id)!.rect).toEqual({
+      x: 100,
+      y: 600,
+      width: 50,
+      height: 30,
+    })
+
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    expect(doc.annotations.selection.get()).toEqual([a.id])
+    // The element itself still answers to the tool.
+    el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    expect(doc.annotations.selection.get()).toEqual([])
+  })
+
   it('locked annotations do not move', async () => {
     const { doc, container, viewport, tools } = await setup()
     const a = doc.annotations.add({
@@ -317,6 +417,233 @@ describe('tools', () => {
     expect(el.style.transform).toBe('')
     pointer(container, 'pointerup', h.left + 200, h.top + 200)
     expect(doc.annotations.get(a.id)!.rect.x).toBe(100)
+  })
+})
+
+describe('controlled mode', () => {
+  it('note add then select reaches the selection before the host applies', async () => {
+    const { doc, container, viewport, tools, onActivate } = await setup('text-simple', {
+      controlled: true,
+    })
+    tools.set('note')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 300, h.top + 400)
+    pointer(container, 'pointerup', h.left + 300, h.top + 400)
+    expect(doc.annotations.list.get()).toEqual([])
+    await settle()
+    const [n] = doc.annotations.list.get()
+    expect(n?.type).toBe('note')
+    expect(doc.annotations.selection.get()).toEqual([n!.id])
+    expect(onActivate).toHaveBeenCalledWith(n!.id)
+  })
+
+  it('select: Delete removes every selected annotation', async () => {
+    const { doc, container, tools } = await setup('text-simple', { controlled: true })
+    const a = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    const b = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 300, y: 600, width: 50, height: 30 },
+    })
+    await settle()
+    expect(doc.annotations.list.get()).toHaveLength(2)
+    tools.set('select')
+    doc.annotations.select([a.id, b.id])
+    container.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Delete', bubbles: true })
+    )
+    await settle()
+    expect(doc.annotations.list.get()).toEqual([])
+  })
+})
+
+describe('controller and gesture edges', () => {
+  it("restores the root's own inline cursor on destroy", async () => {
+    const { doc, viewport } = await setup()
+    const root = document.createElement('div')
+    root.style.cursor = 'zoom-in'
+    const c = createToolController({
+      ctx: {
+        store: doc.annotations,
+        viewport,
+        root,
+        selectionQuads: () => [],
+        clearSelection: () => undefined,
+      },
+      initial: 'note',
+    })
+    expect(root.style.cursor).toBe('copy')
+    c.destroy()
+    expect(root.style.cursor).toBe('zoom-in')
+  })
+
+  it('redact-area clamps a drag that leaves the page to the page edge', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('redact-area')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointermove', h.right + 50, h.top - 40)
+    const draft = container.querySelector<HTMLElement>('[data-ink-draft="redact"]')!
+    expect(draft.style.top).toBe('0px')
+    expect(draft.style.width).toBe(`${h.width - 100}px`)
+    pointer(container, 'pointerup', h.right + 50, h.top - 40)
+    const [r] = doc.annotations.list.get()
+    // Letter page at zoom 1: x 100 → 612, css top 0 → 100 is user y 692 → 792.
+    expect(r!.rect).toEqual({ x: 100, y: 692, width: 512, height: 100 })
+  })
+
+  it('switching tools mid-drag cancels the drag and keeps the release from the new tool', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('redact-area')
+    const host = viewport.hostFor(0)!
+    const span = [...host.querySelectorAll('[data-ink-text-layer] span')].find((s) =>
+      s.textContent?.includes('QQ123456C')
+    )!
+    const range = document.createRange()
+    range.selectNodeContents(span)
+    window.getSelection()!.removeAllRanges()
+    window.getSelection()!.addRange(range)
+    const h = host.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 300)
+    pointer(container, 'pointermove', h.left + 200, h.top + 350)
+    tools.set('highlight')
+    expect(container.querySelector('[data-ink-draft]')).toBeNull()
+    pointer(container, 'pointerup', h.left + 200, h.top + 350)
+    expect(doc.annotations.list.get()).toEqual([])
+    // The next press and release are the new tool's.
+    pointer(container, 'pointerdown', h.left + 200, h.top + 350)
+    pointer(container, 'pointerup', h.left + 200, h.top + 350)
+    expect(doc.annotations.list.get().map((a) => a.type)).toEqual(['highlight'])
+  })
+
+  it('drops a drag whose page host was unmounted mid-gesture', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    const a = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    await settle()
+    tools.set('select')
+    const host = viewport.hostFor(0)!
+    const h = host.getBoundingClientRect()
+    const el = host.querySelector(`[data-annotation="${a.id}"]`) as HTMLElement
+    const updates = vi.fn()
+    cleanup.unshift(
+      doc.annotations.on('change', (c) => {
+        if (c.kind === 'update') updates(c)
+      })
+    )
+    pointer(el, 'pointerdown', h.left + 110, h.top + 180)
+    pointer(container, 'pointermove', h.left + 150, h.top + 200)
+    const parent = host.parentElement!
+    host.remove()
+    pointer(container, 'pointerup', h.left + 170, h.top + 220)
+    expect(updates).not.toHaveBeenCalled()
+    tools.set('redact-area')
+    parent.append(host)
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointermove', h.left + 160, h.top + 140)
+    host.remove()
+    pointer(container, 'pointermove', h.left + 170, h.top + 150)
+    pointer(container, 'pointerup', h.left + 170, h.top + 150)
+    expect(doc.annotations.list.get().map((x) => x.id)).toEqual([a.id])
+    parent.append(host)
+  })
+
+  it('treats lostpointercapture as a cancel only while a press is live', async () => {
+    const { doc, viewport } = await setup()
+    const root = document.createElement('div')
+    document.body.append(root)
+    cleanup.push(() => root.remove())
+    const onPointerCancel = vi.fn()
+    const spy: Tool = {
+      id: 'view',
+      cursor: 'auto',
+      activate() {},
+      deactivate() {},
+      onPointerDown: () => true,
+      onPointerCancel,
+    }
+    const c = createToolController({
+      ctx: {
+        store: doc.annotations,
+        viewport,
+        root,
+        selectionQuads: () => [],
+        clearSelection: () => undefined,
+      },
+      tools: [spy],
+    })
+    cleanup.push(() => c.destroy())
+    const lost = () =>
+      root.dispatchEvent(
+        new PointerEvent('lostpointercapture', {
+          pointerId: 1,
+          isPrimary: true,
+          bubbles: true,
+        })
+      )
+    pointer(root, 'pointerdown', 10, 10)
+    pointer(root, 'pointerup', 10, 10)
+    lost()
+    expect(onPointerCancel).not.toHaveBeenCalled()
+    pointer(root, 'pointerdown', 10, 10)
+    lost()
+    expect(onPointerCancel).toHaveBeenCalledTimes(1)
+  })
+
+  it('ignores releases of buttons other than the primary one', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('highlight')
+    const span = [
+      ...viewport.hostFor(0)!.querySelectorAll('[data-ink-text-layer] span'),
+    ].find((s) => s.textContent?.includes('QQ123456C'))!
+    const range = document.createRange()
+    range.selectNodeContents(span)
+    window.getSelection()!.removeAllRanges()
+    window.getSelection()!.addRange(range)
+    const r = span.getBoundingClientRect()
+    pointer(container, 'pointerup', r.right, r.bottom, { button: 2 })
+    expect(doc.annotations.list.get()).toEqual([])
+    expect(window.getSelection()!.isCollapsed).toBe(false)
+  })
+
+  it('ignores a second pointer while a gesture is live', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('redact-area')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointermove', h.left + 160, h.top + 140)
+    const drafts = () => container.querySelectorAll('[data-ink-draft="redact"]')
+    expect(drafts()).toHaveLength(1)
+    const draft = drafts()[0] as HTMLElement
+    const before = draft.style.cssText
+    pointer(container, 'pointerdown', h.left + 300, h.top + 300, { pointerId: 2 })
+    pointer(container, 'pointermove', h.left + 350, h.top + 350, { pointerId: 2 })
+    expect(drafts()).toHaveLength(1)
+    expect(draft.style.cssText).toBe(before)
+    pointer(container, 'pointerup', h.left + 350, h.top + 350, { pointerId: 2 })
+    expect(doc.annotations.list.get()).toEqual([])
+    expect(draft.isConnected).toBe(true)
+    pointer(container, 'pointerup', h.left + 160, h.top + 140)
+    const list = doc.annotations.list.get()
+    expect(list).toHaveLength(1)
+    expect(list[0]!.rect).toEqual({ x: 100, y: 652, width: 60, height: 40 })
+  })
+
+  it('note: a cancelled press adds nothing on a later release', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('note')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 300, h.top + 400)
+    pointer(container, 'pointercancel', h.left + 300, h.top + 400)
+    pointer(container, 'pointerup', h.left + 300, h.top + 400)
+    expect(doc.annotations.list.get()).toEqual([])
   })
 })
 
@@ -386,6 +713,38 @@ describe('interrupted gestures', () => {
 })
 
 describe('createPageMount', () => {
+  it('forwards render and text layer failures to onError', async () => {
+    const doc = await openFixtureInBrowser('text-simple')
+    const host = mountContainer(612, 792)
+    host.style.setProperty('--total-scale-factor', '1')
+    const onError = vi.fn()
+    const m = createPageMount({
+      document: doc,
+      page: 99,
+      host,
+      transform: createPageTransform(
+        {
+          index: 99,
+          box: { x: 0, y: 0, width: 612, height: 792 },
+          width: 612,
+          height: 792,
+          rotate: 0,
+          userUnit: 1,
+        },
+        1
+      ),
+      store: doc.annotations,
+      onError,
+    })
+    cleanup.push(() => {
+      m.destroy()
+      doc.destroy()
+      host.remove()
+    })
+    await Promise.all([m.renderer.rendered, m.textLayer.ready])
+    expect(onError).toHaveBeenCalledTimes(2)
+  })
+
   it('composes the canvas, text layer and overlay and tears all three down', async () => {
     const { viewport, mounts } = await setup()
     const host = viewport.hostFor(0)!

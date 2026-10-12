@@ -203,7 +203,19 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
   const emitter = new Emitter<{ change: AnnotationChange }>()
   const controlled = opts.mode.mode === 'controlled' ? opts.mode : undefined
   const pending = new Map<string, Pending>()
+  /**
+   * Controlled mode: the list as the store last proposed it, embedded items included. Later
+   * proposals build on it, so several mutations in a row (one highlight per page, a bulk
+   * remove, add then select) all reach the host. It resets to the applied list when the host
+   * pushes a value or a pending change's check fires without one.
+   */
+  let proposed: readonly Annotation[] | undefined
   let destroyed = false
+
+  /** What mutations build on: the pending proposal in controlled mode, else the list. */
+  const basis = (): readonly Annotation[] => proposed ?? list.get()
+  const findIn = (items: readonly Annotation[], id: string): Annotation | undefined =>
+    items.find((a) => a.id === id)
 
   function completeInput(input: AnnotationInput): Annotation {
     const ts = now()
@@ -239,6 +251,8 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
     const entry = pending.get(key)
     if (!entry) return
     pending.delete(key)
+    // Later proposals may still be pending; they keep building on the proposed list.
+    if (pending.size === 0) proposed = undefined
     if (isApplied(entry.change, list.get()) || isProduction()) return
     console.warn(
       `[inkbar] ControlledMutationIgnored: the host did not apply a ${entry.change.kind} for ` +
@@ -262,6 +276,13 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
           timer,
         })
       }
+      proposed =
+        change.kind === 'replace'
+          ? [
+              ...list.get().filter((a) => a.source === 'pdf'),
+              ...next.filter((a) => a.source !== 'pdf'),
+            ]
+          : next
       // Embedded items are the store's, never the host's.
       controlled.onChange(
         next.filter((a) => a.source !== 'pdf'),
@@ -317,11 +338,11 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
     add(input) {
       const a = completeInput(input)
       if (destroyed) return a
-      commit([...list.get(), a], { kind: 'add', annotation: a })
+      commit([...basis(), a], { kind: 'add', annotation: a })
       return a
     },
     update(id, patch) {
-      const before = store.get(id)
+      const before = findIn(basis(), id)
       if (destroyed || !before) return undefined
       if (before.locked && Object.keys(patch).some((k) => LOCKED_KEYS.has(k)))
         return undefined
@@ -337,11 +358,14 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
       // An embedded annotation's lock belongs to the file: a `locked` key in the patch is ignored.
       if (before.source === 'pdf') keepKey(candidate, before, 'locked')
       const after = AnnotationSchema.parse(candidate)
-      const next = list.get().map((a) => (a.id === id ? after : a))
+      const swap = (items: readonly Annotation[]): Annotation[] =>
+        items.map((a) => (a.id === id ? after : a))
+      const next = swap(basis())
       const change: AnnotationChange = { kind: 'update', id, before, after }
       if (controlled && before.source === 'pdf') {
         // The host never holds embedded items, so their edits apply here.
-        list.set(next)
+        list.set(swap(list.get()))
+        if (proposed) proposed = next
         emitter.emit('change', change)
       } else {
         commit(next, change)
@@ -349,26 +373,27 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
       return after
     },
     remove(id) {
-      const target = store.get(id)
+      const items = basis()
+      const target = findIn(items, id)
       if (destroyed || !target || target.locked) return false
       const doomed = new Set<string>([id])
       let grew = true
       while (grew) {
         grew = false
-        for (const a of list.get()) {
+        for (const a of items) {
           if (a.inReplyTo !== undefined && doomed.has(a.inReplyTo) && !doomed.has(a.id)) {
             doomed.add(a.id)
             grew = true
           }
         }
       }
-      const next = list.get().filter((a) => !doomed.has(a.id))
+      const next = items.filter((a) => !doomed.has(a.id))
       commit(next, { kind: 'remove', annotation: target })
       if (!controlled) pruneSelection(next)
       return true
     },
     select(ids) {
-      const known = new Set(list.get().map((a) => a.id))
+      const known = new Set(basis().map((a) => a.id))
       selection.set(ids.filter((id) => known.has(id)))
     },
     replaceAll(list, reason) {
@@ -385,6 +410,7 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
       const embeddedIds = new Set(embedded.map((a) => a.id))
       const next = [...embedded, ...value.filter((a) => !embeddedIds.has(a.id))]
       list.set(next)
+      proposed = undefined
       for (const [key, entry] of [...pending]) {
         if (isApplied(entry.change, next)) clearPending(key)
       }
@@ -398,6 +424,7 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
         ...items,
         ...list.get().filter((a) => a.source !== 'pdf' && !ids.has(a.id)),
       ]
+      proposed = undefined
       list.set(next)
       pruneSelection(next)
       emitter.emit('change', { kind: 'replace', reason: 'import' })
@@ -405,6 +432,7 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
     on: (event, fn) => emitter.on(event, fn),
     destroy() {
       destroyed = true
+      proposed = undefined
       for (const key of [...pending.keys()]) clearPending(key)
       emitter.clear()
     },

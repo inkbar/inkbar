@@ -11,6 +11,11 @@
 // pointer on the root, so the release still arrives when it happens outside. `pointercancel`
 // and `lostpointercapture` reach the tool as `onPointerCancel`. `touch-action` is left to the
 // theme or host: touch gestures are theirs to arbitrate.
+//
+// The controller tracks the pressed pointer. Switching tools mid-press cancels the old tool's
+// gesture and swallows that pointer's release, so the new tool never sees half a gesture.
+// `lostpointercapture` after a completed release is not a cancel. Only primary-button presses
+// and releases reach tools. The root's own inline cursor is restored on destroy.
 import { readonly, writable, type Readable } from '../../model/readable'
 
 import type { AnnotationStore } from '../../model/annotations/store'
@@ -85,6 +90,18 @@ export function cssIn(host: HTMLElement, e: { clientX: number; clientY: number }
   return { x: e.clientX - r.left, y: e.clientY - r.top }
 }
 
+/** Like `cssIn`, clamped to the host's box, so a drag past the page edge stops at the edge. */
+export function clampedCssIn(
+  host: HTMLElement,
+  e: { clientX: number; clientY: number }
+): Point {
+  const r = host.getBoundingClientRect()
+  return {
+    x: Math.min(Math.max(e.clientX - r.left, 0), r.width),
+    y: Math.min(Math.max(e.clientY - r.top, 0), r.height),
+  }
+}
+
 /** The mounted page under a client point, with the point in CSS px and user space. */
 export function hitFor(
   ctx: ToolContext,
@@ -101,9 +118,22 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
   const byId = new Map(opts.tools.map((t) => [t.id, t]))
   const active = writable<ToolId>(opts.initial ?? 'view')
   let current: Tool | undefined
+  const originalCursor = ctx.root.style.cursor
+  /** The pointer between a primary press and its release or cancel. */
+  let pressed: number | undefined
+  /** Pointers whose release belongs to a tool that is no longer active. */
+  const swallow = new Set<number>()
+
+  /** True for events from a pointer other than the one whose press is live. */
+  const foreign = (e: PointerEvent): boolean =>
+    pressed !== undefined && pressed !== e.pointerId
 
   const onDown = (e: PointerEvent): void => {
-    if (!e.isPrimary || e.button !== 0) return
+    if (!e.isPrimary || e.button !== 0 || inCustomContent(e.target)) return
+    // One gesture at a time: a second pointer pressing mid-gesture is ignored.
+    if (foreign(e)) return
+    swallow.delete(e.pointerId)
+    pressed = e.pointerId
     const target = e.target instanceof Element ? e.target : null
     const annotationId =
       target?.closest('[data-annotation]')?.getAttribute('data-annotation') ?? undefined
@@ -111,17 +141,33 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
       capture(e.pointerId)
   }
   const onMove = (e: PointerEvent): void => {
-    if (e.isPrimary) current?.onPointerMove?.(e, hitFor(ctx, e))
+    if (!e.isPrimary || foreign(e)) return
+    // A buttonless move means the release was missed: the press is over (tools drop their
+    // own gesture on the same signal), so another pointer may press again.
+    if (pressed === e.pointerId && e.buttons === 0) pressed = undefined
+    current?.onPointerMove?.(e, hitFor(ctx, e))
   }
   const onUp = (e: PointerEvent): void => {
-    if (!e.isPrimary) return
+    if (!e.isPrimary || e.button !== 0 || foreign(e)) return
+    if (pressed === e.pointerId) pressed = undefined
+    if (swallow.delete(e.pointerId)) {
+      release(e.pointerId)
+      return
+    }
     current?.onPointerUp?.(e, hitFor(ctx, e))
     release(e.pointerId)
   }
   const onCancel = (e: PointerEvent): void => {
-    if (e.isPrimary) current?.onPointerCancel?.(e)
+    if (!e.isPrimary || foreign(e)) return
+    // Capture is also lost when a completed release frees it: only a live press cancels.
+    if (e.type === 'lostpointercapture' && pressed !== e.pointerId) return
+    if (pressed === e.pointerId) pressed = undefined
+    swallow.delete(e.pointerId)
+    current?.onPointerCancel?.(e)
   }
-  const onKey = (e: KeyboardEvent): void => current?.onKeyDown?.(e)
+  const onKey = (e: KeyboardEvent): void => {
+    if (!inCustomContent(e.target)) current?.onKeyDown?.(e)
+  }
 
   // Capture is best effort: synthetic events may carry a pointer id the browser does not know.
   function capture(id: number): void {
@@ -148,6 +194,14 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
   function set(id: ToolId): void {
     const next = byId.get(id)
     if (!next) throw new RangeError(`Unknown tool ${id}`)
+    if (pressed !== undefined) {
+      // Mid-press: end the old tool's gesture here and keep its release from the new tool.
+      current?.onPointerCancel?.(
+        new PointerEvent('pointercancel', { pointerId: pressed, isPrimary: true })
+      )
+      swallow.add(pressed)
+      pressed = undefined
+    }
     current?.deactivate()
     current = next
     next.activate(ctx)
@@ -170,7 +224,17 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
       ctx.root.removeEventListener('lostpointercapture', onCancel)
       ctx.root.removeEventListener('keydown', onKey)
       delete ctx.root.dataset.inkTool
-      ctx.root.style.cursor = ''
+      ctx.root.style.cursor = originalCursor
     },
   }
+}
+
+/**
+ * True for a target inside a custom annotation element (`data-custom`) but not that element
+ * itself: the host's buttons and inputs there own their presses and keys, as in the overlay.
+ */
+function inCustomContent(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false
+  const el = target.closest('[data-annotation]')
+  return el !== null && el !== target && el.hasAttribute('data-custom')
 }
