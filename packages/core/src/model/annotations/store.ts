@@ -1,5 +1,6 @@
 import { v7 as uuidv7 } from 'uuid'
 
+import { isProduction } from '../env'
 import { Emitter } from '../events'
 import { rectFromQuad, unionRects, type Point, type Rect } from '../geometry'
 import { readonly, writable, type Readable } from '../readable'
@@ -40,8 +41,17 @@ export interface AnnotationStore {
   remove(id: string): boolean
   select(ids: string[]): void
   replaceAll(list: Annotation[], reason: 'import' | 'sync' | 'history'): void
-  /** Controlled mode only: the host pushes its current list. */
+  /**
+   * Controlled mode only: the host pushes its current list. Embedded (`source: 'pdf'`) items
+   * belong to the store, so they stay in `list` whatever the host sends; host items that reuse
+   * an embedded id are dropped.
+   */
   setControlledValue(list: Annotation[]): void
+  /**
+   * @internal Replaces the annotations embedded in the file (`source: 'pdf'`). Applied
+   * directly in both modes and never passed to `onChange`; the document calls it once on open.
+   */
+  _setEmbedded(list: readonly Annotation[]): void
   completeInput(input: AnnotationInput): Annotation
   on(event: 'change', fn: (change: AnnotationChange) => void): () => void
   destroy(): void
@@ -150,15 +160,6 @@ function isApplied(change: AnnotationChange, current: readonly Annotation[]): bo
   }
 }
 
-/** True only when the build or runtime says production; browsers without `process` count as dev. */
-function isProduction(): boolean {
-  try {
-    return process.env.NODE_ENV === 'production'
-  } catch {
-    return false
-  }
-}
-
 interface Pending {
   id: string
   change: AnnotationChange
@@ -232,7 +233,11 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
           timer,
         })
       }
-      controlled.onChange([...next], change)
+      // Embedded items are the store's, never the host's.
+      controlled.onChange(
+        next.filter((a) => a.source !== 'pdf'),
+        change
+      )
       return
     }
     list.set(next)
@@ -273,15 +278,20 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
         source: before.source,
         modifiedAt: now(),
       })
-      commit(
-        list.get().map((a) => (a.id === id ? after : a)),
-        { kind: 'update', id, before, after }
-      )
+      const next = list.get().map((a) => (a.id === id ? after : a))
+      const change: AnnotationChange = { kind: 'update', id, before, after }
+      if (controlled && before.source === 'pdf') {
+        // The host never holds embedded items, so their edits apply here.
+        list.set(next)
+        emitter.emit('change', change)
+      } else {
+        commit(next, change)
+      }
       return after
     },
     remove(id) {
       const target = store.get(id)
-      if (destroyed || !target) return false
+      if (destroyed || !target || target.locked) return false
       const doomed = new Set<string>([id])
       let grew = true
       while (grew) {
@@ -312,13 +322,26 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
       if (!controlled)
         throw new TypeError('setControlledValue is only valid in controlled mode')
       if (destroyed) return
-      const next = [...value]
+      const embedded = list.get().filter((a) => a.source === 'pdf')
+      const embeddedIds = new Set(embedded.map((a) => a.id))
+      const next = [...embedded, ...value.filter((a) => !embeddedIds.has(a.id))]
       list.set(next)
       for (const [key, entry] of [...pending]) {
         if (isApplied(entry.change, next)) clearPending(key)
       }
       pruneSelection(next)
       emitter.emit('change', { kind: 'replace', reason: 'sync' })
+    },
+    _setEmbedded(items) {
+      if (destroyed) return
+      const ids = new Set(items.map((a) => a.id))
+      const next = [
+        ...items,
+        ...list.get().filter((a) => a.source !== 'pdf' && !ids.has(a.id)),
+      ]
+      list.set(next)
+      pruneSelection(next)
+      emitter.emit('change', { kind: 'replace', reason: 'import' })
     },
     on: (event, fn) => emitter.on(event, fn),
     destroy() {

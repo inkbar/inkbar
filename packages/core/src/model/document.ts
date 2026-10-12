@@ -1,12 +1,37 @@
 import { assertAssets, loadPdfjs, openProxy } from '../pdfjs/load'
 
+import { staticDefaults, type AnnotationDefaults } from './annotations/defaults'
+import {
+  importEmbeddedPage,
+  summarise,
+  type EmbeddedSummary,
+} from './annotations/embedded'
+import { createHistory, type History } from './annotations/history'
+import {
+  exportAnnotations,
+  importAnnotations,
+  type ImportOptions,
+  type ImportResult,
+} from './annotations/json'
+import {
+  createAnnotationStore,
+  type AnnotationStore,
+  type StoreMode,
+} from './annotations/store'
 import { InkError, isInkError } from './errors'
 import { pageInfoFromProxy, type PageInfo } from './pages'
 import { readonly, writable, type Readable } from './readable'
 import { resolveSource, type DocumentSource } from './source'
 import { textContentFromPdfjs, type TextContent } from './text'
 
-import type { PdfAssets, PdfjsDocument, PdfjsModule, PdfjsPage } from '../pdfjs/types'
+import type { AnnotationDocument, ForeignAnnotation } from './annotations/types'
+import type {
+  PdfAssets,
+  PdfjsAnnotationData,
+  PdfjsDocument,
+  PdfjsModule,
+  PdfjsPage,
+} from '../pdfjs/types'
 
 export type DocumentStatus =
   { state: 'loading' } | { state: 'ready' } | { state: 'error'; error: InkError }
@@ -22,6 +47,19 @@ export interface OpenOptions {
   assets: PdfAssets
   password?: string | undefined
   fetch?: typeof fetch | undefined
+  /**
+   * Defaults to uncontrolled. In controlled mode the host owns only session annotations:
+   * embedded (`source: 'pdf'`) ones live in the store, are never passed to `onChange`, and stay
+   * in `list` whatever the host pushes back.
+   */
+  annotations?: StoreMode | undefined
+  /** Colour defaults. Pass `cssVariableDefaults(element)` from the DOM layer to read theme variables. */
+  defaults?: AnnotationDefaults | undefined
+  /**
+   * Undo history, on by default. `false` disables it. In controlled mode history is always
+   * inert: the host owns the list, so it owns undo too.
+   */
+  history?: boolean | { limit?: number | undefined } | undefined
 }
 
 export interface InkDocument {
@@ -32,6 +70,21 @@ export interface InkDocument {
   readonly pages: readonly PageInfo[]
   readonly info: DocumentInfo
   text(page: number): Promise<TextContent>
+  /**
+   * Annotations embedded in the file arrive here as `source: 'pdf'`, `locked: true` before
+   * `ready` resolves. They stay in `list` in both modes and cannot be removed; in controlled
+   * mode they never reach `onChange`.
+   */
+  readonly annotations: AnnotationStore
+  /** What the file contained, by PDF subtype, including subtypes Inkbar does not show. */
+  readonly embedded: readonly EmbeddedSummary[]
+  readonly history: History
+  /** Session annotations only, plus unknown-type items kept from earlier imports. */
+  exportAnnotations(format: 'json'): AnnotationDocument
+  /** Defaults to `{ mode: 'replace' }`. Embedded annotations are never touched. */
+  importAnnotations(data: AnnotationDocument | string, opts?: ImportOptions): ImportResult
+  /** Writes the document with its annotations. Needs @inkbar/engine; rejects with EngineUnavailable otherwise. */
+  save(): Promise<Uint8Array>
   destroy(): void
   /** @internal PDF.js handles for the DOM layer. Not part of the public contract. */
   readonly _pdfjs: {
@@ -65,6 +118,13 @@ export async function openDocument(
   let destroyed = false
   let handles: InkDocument['_pdfjs'] | undefined
   let destroyTask: (() => Promise<void>) | undefined
+
+  const store = createAnnotationStore({
+    mode: options.annotations ?? { mode: 'uncontrolled' },
+    defaults: options.defaults ?? staticDefaults,
+  })
+  const embedded: EmbeddedSummary[] = []
+  let preserved: ForeignAnnotation[] = []
 
   const destroyedError = (): InkError =>
     new InkError('DocumentDestroyed', 'The document has been destroyed')
@@ -110,6 +170,19 @@ export async function openDocument(
       docInfo.EncryptFilterName !== null && docInfo.EncryptFilterName !== undefined
     for (let i = 0; i < proxy.numPages; i++)
       pages.push(pageInfoFromProxy(await getPage(i), i))
+
+    const importedAt = new Date().toISOString()
+    const perPage = await mapInOrder(proxy.numPages, EMBEDDED_CONCURRENCY, async (i) => {
+      const page = await getPage(i)
+      const raw: PdfjsAnnotationData[] = await page.getAnnotations().catch(() => {
+        // A page whose annotations PDF.js cannot parse still renders; it just has none to show.
+        return []
+      })
+      return importEmbeddedPage(i, raw, importedAt)
+    })
+    embedded.push(...summarise(perPage.map((r) => r.counts)))
+    const fromFile = perPage.flatMap((r) => r.annotations)
+    if (fromFile.length > 0) store._setEmbedded(fromFile)
   })()
 
   const ready = load.then(
@@ -128,6 +201,15 @@ export async function openDocument(
   // Keep the rejection observed so hosts that only watch `status` get no unhandled-rejection warning.
   await ready.catch(() => undefined)
 
+  // Created after the embedded import, so loading the file is not an undoable step.
+  const historyOption = options.history ?? true
+  const historyLimit =
+    historyOption === false ? 0 : historyOption === true ? undefined : historyOption.limit
+  const history = createHistory(
+    store,
+    historyLimit === undefined ? {} : { limit: historyLimit }
+  )
+
   const doc: InkDocument = {
     key: resolved.key,
     status: readonly(status),
@@ -140,9 +222,33 @@ export async function openDocument(
       const p = await handles.getPage(page)
       return textContentFromPdfjs(page, await p.getTextContent())
     },
+    annotations: store,
+    embedded,
+    history,
+    exportAnnotations(format) {
+      if (format !== 'json')
+        throw new TypeError(`Unsupported export format ${String(format)}`)
+      return exportAnnotations(store, preserved, resolved.key)
+    },
+    importAnnotations(data, opts = { mode: 'replace' }) {
+      const result = importAnnotations(store, data, opts)
+      preserved =
+        opts.mode === 'replace' ? result.unknown : mergeById(preserved, result.unknown)
+      return result
+    },
+    save() {
+      return Promise.reject(
+        new InkError(
+          'EngineUnavailable',
+          'Saving needs @inkbar/engine, which is not registered. Use exportAnnotations("json") to keep annotations without writing the PDF.'
+        )
+      )
+    },
     destroy() {
       if (destroyed) return
       destroyed = true
+      history.destroy()
+      store.destroy()
       pageCache.clear()
       if (destroyTask) {
         teardown(destroyTask)
@@ -154,6 +260,34 @@ export async function openDocument(
     },
   }
   return doc
+}
+
+const EMBEDDED_CONCURRENCY = 8
+
+/** Runs `task(0..count-1)` with at most `limit` in flight; results come back in index order. */
+async function mapInOrder<T>(
+  count: number,
+  limit: number,
+  task: (index: number) => Promise<T>
+): Promise<T[]> {
+  const results = new Array<T>(count)
+  let next = 0
+  const worker = async (): Promise<void> => {
+    while (next < count) {
+      const i = next++
+      results[i] = await task(i)
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, count) }, worker))
+  return results
+}
+
+function mergeById(
+  existing: readonly ForeignAnnotation[],
+  incoming: readonly ForeignAnnotation[]
+): ForeignAnnotation[] {
+  const replaced = new Set(incoming.map((u) => u.id))
+  return [...existing.filter((u) => !replaced.has(u.id)), ...incoming]
 }
 
 function teardown(destroyTask: () => Promise<void>): void {
