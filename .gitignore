@@ -10,3 +10,6 @@ fixtures/pdf/generated-large.pdf
 *.log
 .DS_Store
 **/playwright/.cache
+
+# Written by Turbo
+/AGENTS.md

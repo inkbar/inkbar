@@ -2,10 +2,16 @@ import { serveFixtures } from '@inkbar/fixtures/vite-serve'
 import { playwright } from '@vitest/browser-playwright'
 import { defineConfig } from 'vitest/config'
 
+import pkg from './package.json' with { type: 'json' }
+
+/** What tsdown defines at build time: `version` in src/index.ts. */
+const define = { __INKBAR_VERSION__: JSON.stringify(pkg.version) }
+
 export default defineConfig({
   test: {
     projects: [
       {
+        define,
         test: {
           name: 'node',
           include: ['src/**/*.test.ts'],
@@ -15,6 +21,7 @@ export default defineConfig({
         },
       },
       {
+        define,
         plugins: [serveFixtures()],
         // Pre-bundled up front: discovering it mid-run makes Vite reload the test page.
         optimizeDeps: { include: ['pdfjs-dist'] },

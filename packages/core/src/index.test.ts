@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
+import pkg from '../package.json' with { type: 'json' }
+
 import { loadPdfjs } from './pdfjs/load'
 import { nodeAssets } from './pdfjs/node-assets'
 
@@ -21,5 +23,12 @@ describe('package entry', () => {
     // Control: the same mock does fire once the loader runs, so the false above is meaningful.
     await loadPdfjs(nodeAssets())
     expect(evaluated.pdfjs).toBe(true)
+  })
+})
+
+describe('version', () => {
+  it('is the version in package.json', async () => {
+    const { version } = await import('./index')
+    expect(version).toBe(pkg.version)
   })
 })
