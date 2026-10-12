@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { staticDefaults } from './defaults'
 import { exportAnnotations, importAnnotations } from './json'
@@ -8,6 +8,11 @@ import { ANNOTATION_FORMAT, type AnnotationDocument } from './types'
 const rect = { x: 0, y: 0, width: 20, height: 20 }
 
 describe('json import/export', () => {
+  // Restores console.warn spies even when an assertion fails first.
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it('round-trips session annotations and excludes embedded ones', () => {
     const s = createAnnotationStore({
       mode: { mode: 'uncontrolled' },
