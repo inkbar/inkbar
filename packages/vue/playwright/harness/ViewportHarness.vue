@@ -5,7 +5,7 @@ import InkRoot from '../../src/components/InkRoot.vue'
 import InkViewport from '../../src/components/InkViewport.vue'
 
 import type { DocumentSource, PdfAssets } from '@inkbar/core'
-import type { ZoomValue } from '@inkbar/core/dom'
+import type { ToolId, ZoomValue } from '@inkbar/core/dom'
 
 defineProps<{
   src: DocumentSource | null
@@ -16,6 +16,7 @@ defineProps<{
   gap?: number | undefined
   customAnnotations?: boolean | undefined
   customLoading?: boolean | undefined
+  tool?: ToolId | undefined
 }>()
 const emit = defineEmits<{ 'update:zoom': [z: ZoomValue]; 'update:page': [p: number] }>()
 const clicks = ref(0)
@@ -31,6 +32,7 @@ const clicks = ref(0)
       :assets="assets"
       :zoom="zoom"
       :page="page"
+      :tool="tool"
       @update:zoom="emit('update:zoom', $event)"
       @update:page="emit('update:page', $event)"
     >

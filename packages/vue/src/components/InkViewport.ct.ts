@@ -37,7 +37,11 @@ function layoutAt(zoom: number, containerWidth: number, gap = GAP) {
 type DocHandle = {
   annotations: {
     add(i: unknown): { id: string }
-    get(id: string): { origin?: string } | undefined
+    get(
+      id: string
+    ):
+      | { origin?: string; rect: { x: number; y: number; width: number; height: number } }
+      | undefined
     selection: { get(): string[] }
   }
 }
@@ -209,9 +213,16 @@ test('without the slot, the overlay draws the default visual once', async ({ mou
 
 test('slot props follow the annotation: select, accept and dismiss a suggested redaction', async ({
   mount,
+  page,
 }) => {
   const cmp = await mount(ViewportHarness, {
-    props: { src: fixtureUrl('text-simple'), assets, zoom: 1, customAnnotations: true },
+    props: {
+      src: fixtureUrl('text-simple'),
+      assets,
+      zoom: 1,
+      customAnnotations: true,
+      tool: 'select',
+    },
   })
   await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
   const root = cmp.locator('[data-ink-root]')
@@ -240,6 +251,20 @@ test('slot props follow the annotation: select, accept and dismiss a suggested r
   ).toEqual([])
   await el.getByTestId('select').click()
   await expect(el.locator('.my-pin')).toHaveAttribute('data-pin-state', 'selected')
+  // With the select tool, dragging a slot control does not move the annotation.
+  const rectOf = () =>
+    root.evaluate(
+      (r, id) => (r as RootEl).__inkDocument!.annotations.get(id)?.rect,
+      first
+    )
+  const rectBefore = await rectOf()
+  const accept = await el.getByTestId('accept').boundingBox()
+  await page.mouse.move(accept!.x + 5, accept!.y + 5)
+  await page.mouse.down()
+  await page.mouse.move(accept!.x + 65, accept!.y + 45, { steps: 5 })
+  await page.mouse.up()
+  expect(await rectOf()).toEqual(rectBefore)
+  await expect(el).toHaveAttribute('data-origin', 'suggested')
   await el.getByTestId('accept').click()
   await expect(el).toHaveAttribute('data-origin', 'user')
   await expect(el.getByTestId('accept')).toHaveCount(0)
@@ -394,6 +419,22 @@ test('keeps the page and zoom when a gap change rebuilds the viewport', async ({
       'width',
       `${612 * 1.5}px`
     )
+    // Each page remounted against its new host: every live host holds attached layers.
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const hosts = [...document.querySelectorAll<HTMLElement>('.ink-page')]
+          return (
+            hosts.length > 0 &&
+            hosts.every(
+              (host) =>
+                !!host.querySelector('[data-ink-canvas]') &&
+                !!host.querySelector('[data-ink-text-layer]')
+            )
+          )
+        })
+      )
+      .toBe(true)
     // Nothing changed for the host, so nothing is reported: no jump to page 0, no zoom echo.
     expect(pages.slice(before)).toEqual([])
     expect(zooms).toEqual([])
