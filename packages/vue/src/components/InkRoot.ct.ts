@@ -71,6 +71,25 @@ test('emits error with the code for an encrypted file and opens with the passwor
   await expect(cmp.getByTestId('error-codes')).toHaveText('PasswordRequired')
 })
 
+test('retries a byte source with a password: wrong, then right, with the host bytes intact', async ({
+  mount,
+  page,
+}) => {
+  const size = await page.evaluate(
+    async (url) => (await (await fetch(url)).arrayBuffer()).byteLength,
+    fixtureUrl('encrypted-aes')
+  )
+  const props = { src: null, assets, bytesFrom: fixtureUrl('encrypted-aes') }
+  const cmp = await mount(EventHost, { props: { ...props, password: 'wrong' } })
+  await expect(cmp).toHaveAttribute('data-state', 'error')
+  await expect(cmp.getByTestId('error-codes')).toHaveText('PasswordRequired')
+  await expect(cmp.getByTestId('byte-length')).toHaveText(String(size))
+  await cmp.update({ props: { ...props, password: 'inkbar' } })
+  await expect(cmp).toHaveAttribute('data-state', 'ready')
+  await expect(cmp.getByTestId('error-codes')).toHaveText('PasswordRequired')
+  await expect(cmp.getByTestId('byte-length')).toHaveText(String(size))
+})
+
 test('emits error when the file fails to load after openDocument resolves', async ({
   mount,
 }) => {

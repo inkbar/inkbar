@@ -24,7 +24,7 @@ export function resolveSource(
     return { key: src, bytes: () => fetchBytes(src, fetchImpl) }
   if (src instanceof ArrayBuffer || src instanceof Uint8Array) {
     const data = toBytes(src)
-    return { key: `bytes:${uuidv7()}`, bytes: () => Promise.resolve(data) }
+    return { key: `bytes:${uuidv7()}`, bytes: () => Promise.resolve(data.slice()) }
   }
   if ('url' in src) {
     const { url } = src
@@ -32,7 +32,7 @@ export function resolveSource(
   }
   if ('data' in src) {
     const data = toBytes(src.data)
-    return { key: src.key, bytes: () => Promise.resolve(data) }
+    return { key: src.key, bytes: () => Promise.resolve(data.slice()) }
   }
   const blob = src
   return {
@@ -41,6 +41,11 @@ export function resolveSource(
   }
 }
 
+/**
+ * A view over the host's bytes. `bytes()` hands PDF.js a copy each time: PDF.js transfers the
+ * buffer it is given to its worker, which would empty the host's array and break a reopen
+ * (a password retry, for one).
+ */
 function toBytes(data: ArrayBuffer | Uint8Array): Uint8Array {
   return data instanceof Uint8Array ? data : new Uint8Array(data)
 }

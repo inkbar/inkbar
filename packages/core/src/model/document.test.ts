@@ -135,6 +135,39 @@ describe('openDocument', () => {
     doc.destroy()
   })
 
+  it('opens the same bytes twice without emptying the host buffer', async () => {
+    const bytes = await fixtureBytes('text-simple')
+    const length = bytes.byteLength
+    const first = await openDocument(bytes, { assets: nodeAssets() })
+    await first.ready
+    expect(bytes.byteLength).toBe(length)
+    const second = await openDocument(bytes, { assets: nodeAssets() })
+    await second.ready
+    expect(second.pages).toHaveLength(3)
+    expect(bytes.byteLength).toBe(length)
+    first.destroy()
+    second.destroy()
+  })
+
+  it('retries an encrypted byte source with a password after PasswordRequired', async () => {
+    const buffer = (await fixtureBytes('encrypted-aes')).slice().buffer
+    const length = buffer.byteLength
+    const locked = await openDocument(
+      { data: buffer, key: 'enc' },
+      { assets: nodeAssets() }
+    )
+    await expect(locked.ready).rejects.toMatchObject({ code: 'PasswordRequired' })
+    expect(buffer.byteLength).toBe(length)
+    const open = await openDocument(
+      { data: buffer, key: 'enc' },
+      { assets: nodeAssets(), password: 'inkbar' }
+    )
+    await open.ready
+    expect(open.status.get()).toEqual({ state: 'ready' })
+    locked.destroy()
+    open.destroy()
+  })
+
   it('throws AssetConfigMissing synchronously for a missing assets option', async () => {
     await expect(openDocument(new Uint8Array(), {} as never)).rejects.toMatchObject({
       code: 'AssetConfigMissing',
