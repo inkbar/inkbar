@@ -1,0 +1,9 @@
+/* Test-only: gives the viewport a bounded scroll container until the theme provides one. */
+#root {
+  height: 100vh;
+}
+
+[data-ink-viewport-root],
+[data-ink-scroll] {
+  height: 100%;
+}
