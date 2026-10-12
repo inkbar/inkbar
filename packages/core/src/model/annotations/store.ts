@@ -160,6 +160,7 @@ function isProduction(): boolean {
 }
 
 interface Pending {
+  id: string
   change: AnnotationChange
   timer: ReturnType<typeof setTimeout>
 }
@@ -211,7 +212,7 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
     if (isApplied(entry.change, list.get()) || isProduction()) return
     console.warn(
       `[inkbar] ControlledMutationIgnored: the host did not apply a ${entry.change.kind} for ` +
-        `annotation ${key}. In controlled mode, pass the list from onChange back into the store.`
+        `annotation ${entry.id}. In controlled mode, pass the list from onChange back into the store.`
     )
   }
 
@@ -225,7 +226,11 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
         const timer = setTimeout(() => {
           warnIfIgnored(key)
         }, 0)
-        pending.set(key, { change, timer })
+        pending.set(key, {
+          id: change.kind === 'update' ? change.id : change.annotation.id,
+          change,
+          timer,
+        })
       }
       controlled.onChange([...next], change)
       return
