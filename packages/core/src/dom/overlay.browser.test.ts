@@ -569,4 +569,69 @@ describe('createOverlay', () => {
     expect(el.style.width).toBe('1px')
     expect(el.style.height).toBe('101px')
   })
+  it('pads session ink once, from its path bounds, whatever its derived rect', () => {
+    const { store, overlay } = setup()
+    const ink = store.add({
+      type: 'ink',
+      page: 0,
+      paths: [
+        [
+          { x: 10, y: 10 },
+          { x: 40, y: 40 },
+        ],
+      ],
+      strokeWidth: 2,
+    })
+    // The store's derived rect already carries half the stroke...
+    expect(ink.rect).toEqual({ x: 9, y: 9, width: 32, height: 32 })
+    // ...and the element is the path bounds (10..40) padded by 1px, not padded again.
+    const el = overlay.elementFor(ink.id)!
+    expect(el.style.left).toBe('9px')
+    expect(el.style.top).toBe(`${792 - 40 - 1}px`)
+    expect(el.style.width).toBe('32px')
+    expect(el.style.height).toBe('32px')
+  })
+
+  it('keeps custom elements on the annotation rect, unpadded', () => {
+    const store = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const host = mountContainer(612, 792)
+    const transform = createPageTransform(page, 2, 0)
+    const overlay = createOverlay({
+      host,
+      page: 0,
+      store,
+      transform,
+      isCustom: () => true,
+    })
+    cleanup.push(() => (overlay.destroy(), host.remove()))
+    for (const a of [
+      store.add({
+        type: 'line',
+        page: 0,
+        start: { x: 100, y: 300 },
+        end: { x: 200, y: 300 },
+        strokeWidth: 3,
+      }),
+      store.add({
+        type: 'ink',
+        page: 0,
+        paths: [
+          [
+            { x: 10, y: 10 },
+            { x: 40, y: 40 },
+          ],
+        ],
+        strokeWidth: 2,
+      }),
+    ]) {
+      const el = overlay.elementFor(a.id)!
+      const box = transform.toCssRect(a.rect)
+      expect([el.style.left, el.style.top, el.style.width, el.style.height]).toEqual(
+        [box.left, box.top, box.width, box.height].map((n) => `${n}px`)
+      )
+    }
+  })
 })

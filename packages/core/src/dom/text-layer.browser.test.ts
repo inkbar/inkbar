@@ -231,4 +231,22 @@ describe('text layer', () => {
     await new Promise((r) => setTimeout(r, 0))
     expect(rethrown).toEqual([boom])
   })
+  it('keeps a blank line (two breaks) in selected text', async () => {
+    const { host, t } = await layer('text-simple', 1)
+    const layerEl = host.querySelector<HTMLElement>('[data-ink-text-layer]')!
+    const a = spanWith(host, 'Hello')
+    const b = spanWith(host, 'QQ123456C')
+    // Stand-in for a paragraph gap: PDF.js emits a <br> per end of line.
+    const fixture = document.createElement('div')
+    fixture.append(
+      a.cloneNode(true),
+      document.createElement('br'),
+      document.createElement('br'),
+      b.cloneNode(true)
+    )
+    layerEl.replaceChildren(...fixture.childNodes)
+    selectAllIn(layerEl)
+    const [result] = getSelectionQuads(host, () => ({ page: 0, transform: t }))
+    expect(result!.text).toMatch(/^Hello[^\n]*\n\nNational Insurance number QQ123456C/)
+  })
 })
