@@ -1,0 +1,37 @@
+packages/vue/src/index.ts
+  s_a8095ef648b42d::t_6a7314158d8786 13-16
+packages/vue/playwright/harness/ViewportHarness.vue
+  s_a8095ef648b42d::t_cfd4232b87d197 1-51,54-67
+  s_a8095ef648b42d::t_f6d9d5f75b23b0 52-53
+packages/vue/src/components/InkAnnotation.vue
+  s_a8095ef648b42d::t_854429b3055fcc 1-74
+packages/vue/src/components/InkViewport.vue
+  s_a8095ef648b42d::t_6a7314158d8786 1-17,19-104,107-245,247-249,251,253-257
+  s_a8095ef648b42d::t_cab551951fba93 246,250,252
+  s_a8095ef648b42d::t_af6dc7d9665894 18,105-106
+packages/vue/src/components/InkViewport.ct.ts
+  s_a8095ef648b42d::t_b4bda035028dd5 148-153
+  s_a8095ef648b42d::t_2c22ebd4e7a05c 44-56
+  s_a8095ef648b42d::t_55c8416ac96a12 1-43,57-147,154-192,204-318
+  s_a8095ef648b42d::t_e621cf6b91d338 193-203
+packages/vue/src/components/InkPage.vue
+  s_a8095ef648b42d::t_854429b3055fcc 1-92
+packages/vue/src/components/annotation-slot.ts
+  s_a8095ef648b42d::t_854429b3055fcc 1-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6e5af35da9fbc93dd21c8122f21cc5d7e5b58f00",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
