@@ -1,6 +1,6 @@
 // The live draft is `position:absolute; pointer-events:none` with left/top/width/height from
 // the drag: geometry only. Its look comes from the theme (`.ink-draft[data-ink-draft]`).
-import { cssIn, type PageHit, type Tool, type ToolContext } from './controller'
+import { clampedCssIn, type PageHit, type Tool, type ToolContext } from './controller'
 
 /** Smallest drag, in CSS px on each axis, that draws a box rather than counting as a click. */
 const MIN_CSS = 3
@@ -36,12 +36,13 @@ export function redactAreaTool(): Tool {
     },
     onPointerMove(e) {
       if (!start) return
-      // No button down: the release was missed, so drop the draft.
-      if (e.buttons === 0) {
+      // No button down: the release was missed, so drop the draft. A host scrolled out of
+      // the mounted range is gone with it.
+      if (e.buttons === 0 || !start.host.isConnected) {
         clear()
         return
       }
-      const css = cssIn(start.host, e)
+      const css = clampedCssIn(start.host, e)
       if (!draft) {
         draft = start.host.ownerDocument.createElement('div')
         draft.className = 'ink-draft'
@@ -60,7 +61,11 @@ export function redactAreaTool(): Tool {
     },
     onPointerUp(e) {
       if (!ctx || !start) return
-      const css = cssIn(start.host, e)
+      if (!start.host.isConnected) {
+        clear()
+        return
+      }
+      const css = clampedCssIn(start.host, e)
       const width = Math.abs(css.x - start.css.x)
       const height = Math.abs(css.y - start.css.y)
       if (width >= MIN_CSS && height >= MIN_CSS) {

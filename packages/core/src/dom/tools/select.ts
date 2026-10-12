@@ -74,8 +74,9 @@ export function selectTool(): Tool {
     },
     onPointerMove(e) {
       if (!ctx || mode.kind === 'idle') return
-      // No button down: the release was missed, so drop the gesture.
-      if (e.buttons === 0) {
+      // No button down: the release was missed, so drop the gesture. So does a start host
+      // that scrolling has unmounted.
+      if (e.buttons === 0 || !mode.start.host.isConnected) {
         reset()
         return
       }
@@ -112,6 +113,7 @@ export function selectTool(): Tool {
       if (!ctx) return
       const current = mode
       reset()
+      if (current.kind !== 'idle' && !current.start.host.isConnected) return
       if (current.kind === 'move') {
         const { start } = current
         const end = start.transform.fromCss(cssIn(start.host, e))

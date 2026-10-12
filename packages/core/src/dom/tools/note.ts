@@ -18,6 +18,7 @@ export function noteTool(): Tool {
     },
     onPointerDown(_e, hit, annotationId) {
       down = annotationId === undefined ? hit : undefined
+      return down !== undefined
     },
     onPointerCancel() {
       down = undefined

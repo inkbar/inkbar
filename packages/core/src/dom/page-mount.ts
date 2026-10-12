@@ -19,6 +19,8 @@ export interface PageMountOptions {
   isCustom?(a: Annotation): boolean
   /** Defaults to `window.devicePixelRatio`. */
   devicePixelRatio?: number
+  /** Render and text layer failures (cancellations are not reported). */
+  onError?(error: unknown): void
 }
 
 export interface PageMount {
@@ -32,6 +34,9 @@ export interface PageMount {
 /** Canvas, text layer and annotation overlay for one page, stacked in that order. */
 export function createPageMount(opts: PageMountOptions): PageMount {
   const { document, page, host, transform } = opts
+  const onError = opts.onError
+    ? { onError: (error: unknown) => opts.onError?.(error) }
+    : {}
   const renderer = createPageRenderer({
     document,
     page,
@@ -40,8 +45,9 @@ export function createPageMount(opts: PageMountOptions): PageMount {
     ...(opts.devicePixelRatio === undefined
       ? {}
       : { devicePixelRatio: opts.devicePixelRatio }),
+    ...onError,
   })
-  const textLayer = createTextLayer({ document, page, host, transform })
+  const textLayer = createTextLayer({ document, page, host, transform, ...onError })
   const overlay = createOverlay({
     host,
     page,
