@@ -24,14 +24,17 @@ async function axe(page: Page) {
   }))
 }
 
-/** Adds a note on page 1 with the note tool and posts one reply; leaves the popover open. */
+/** Adds a note on page 1 with the note tool, writes its text and posts one reply; leaves the popover open. */
 async function addNote(page: Page, text: string): Promise<void> {
   await page.locator('[data-tool="note"]').click()
   const box = (await page.locator('.ink-page[data-page="0"]').boundingBox())!
   await page.mouse.click(box.x + 300, box.y + 300)
   const popover = page.locator('[data-ink-note-popover]')
   await expect(popover).toBeVisible()
-  await popover.getByRole('textbox', { name: 'Reply' }).fill(text)
+  // A new note takes its own text first; replies come once the root has some.
+  await popover.getByRole('textbox', { name: 'Comment' }).fill(text)
+  await popover.getByRole('button', { name: 'Comment' }).click()
+  await popover.getByRole('textbox', { name: 'Reply' }).fill('Noted')
   await popover.getByRole('button', { name: 'Reply' }).click()
   await expect(popover.locator('[data-ink-thread-item]')).toHaveCount(2)
 }
@@ -213,6 +216,11 @@ test('suggested redactions can be accepted and dismissed', async ({ page }) => {
     els.map((el) => el.closest<HTMLElement>('.ink-page')!.dataset.page).sort()
   )
   expect(pages).toEqual(['0', '1', '2'])
+
+  // A second run finds the same matches and adds nothing.
+  await page.getByRole('button', { name: 'Suggest redactions' }).click()
+  await expect(page.getByTestId('suggest-result')).toHaveText('0 suggested redactions')
+  await expect(suggested(page)).toHaveCount(3)
 
   const card = page.locator('[data-ink-suggestion-card]')
   await suggested(page).first().click()
