@@ -20,6 +20,10 @@ describe('@inkbar/core/dom entry', () => {
         'createViewport',
         'computeCssLayout',
         'createPageTransform',
+        'createPageRenderer',
+        'createTextLayer',
+        'getSelectionQuads',
+        'cssRectsToUserRects',
       ])
     )
 
