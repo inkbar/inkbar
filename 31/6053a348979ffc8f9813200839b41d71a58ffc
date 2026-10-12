@@ -1,0 +1,27 @@
+packages/vue/src/components/InkViewport.ct.ts
+  s_a8095ef648b42d::t_1b771b0669dc16 40,244-245,247-250
+  s_a8095ef648b42d::t_de09450ca57eda 251,270-307
+  s_a8095ef648b42d::t_0e0d2a2a88dc1f 308-309
+packages/core/src/dom/overlay.ts
+  s_a8095ef648b42d::t_08223c06580be3 205-206,210-211
+packages/vue/playwright/harness/ViewportHarness.vue
+  s_a8095ef648b42d::t_de09450ca57eda 44,57,62
+packages/core/src/dom/overlay.browser.test.ts
+  s_a8095ef648b42d::t_995012eabef81b 460-518
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "316053a348979ffc8f9813200839b41d71a58ffc",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
