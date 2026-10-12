@@ -60,11 +60,12 @@
     }
   }
 
+  /* A .light element inside a .dark one keeps the light values. */
   :where(
-    .dark [data-ink-root],
+    .dark [data-ink-root]:not(.light, .dark .light *),
     [data-ink-root].dark,
-    .dark [data-ink-note-popover],
-    .dark [data-ink-suggestion-card]
+    .dark [data-ink-note-popover]:not(.dark .light *),
+    .dark [data-ink-suggestion-card]:not(.dark .light *)
   ) {
     --ink-bg: var(--muted, #0f1217);
     --ink-fg: var(--foreground, #e6e9ef);

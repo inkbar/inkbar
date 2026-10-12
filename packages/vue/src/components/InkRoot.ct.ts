@@ -292,3 +292,18 @@ test('controlled hosts without history get inert undo', async ({ mount }) => {
   await expect(cmp.getByTestId('host-count')).toHaveText('1')
   await expect(probe).toHaveAttribute('data-can-undo', 'false')
 })
+
+test('the theme keeps a .light root light inside a .dark ancestor', async ({
+  mount,
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: 'light' })
+  await page.evaluate(() => document.querySelector('#root')?.classList.add('dark'))
+  const inkBg = (el: Element) => getComputedStyle(el).getPropertyValue('--ink-bg').trim()
+  const dark = await mount(InkRoot, { props: { src: null, assets } })
+  await expect.poll(() => dark.evaluate(inkBg)).toBe('#0f1217')
+  await dark.unmount()
+  const light = await mount(InkRoot, { props: { src: null, assets, class: 'light' } })
+  await expect(light).toHaveClass(/light/)
+  await expect.poll(() => light.evaluate(inkBg)).toBe('#f1f2f5')
+})
