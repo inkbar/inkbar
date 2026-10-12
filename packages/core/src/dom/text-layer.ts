@@ -15,7 +15,10 @@ export interface TextLayerOptions {
   /** The page host (`div.ink-page`), which must carry `--total-scale-factor`. */
   host: HTMLElement
   transform: PageTransform
-  /** Mount or update failures. Cancellation by `destroy` is not reported. */
+  /**
+   * Mount or update failures. Cancellation by `destroy` is not reported. If it throws, the
+   * exception is rethrown asynchronously; `ready` still resolves.
+   */
   onError?(error: unknown): void
 }
 
@@ -49,8 +52,17 @@ export function createTextLayer(opts: TextLayerOptions): TextLayerHandle {
     }
   }
 
+  // A throwing `onError` must not reject `ready`: its exception is rethrown from a microtask,
+  // so it still surfaces as an uncaught error.
   const report = (error: unknown) => {
-    if (!abort.signal.aborted) opts.onError?.(error)
+    if (abort.signal.aborted || !opts.onError) return
+    try {
+      opts.onError(error)
+    } catch (thrown) {
+      queueMicrotask(() => {
+        throw thrown
+      })
+    }
   }
 
   let ready: Promise<void> = (async () => {
