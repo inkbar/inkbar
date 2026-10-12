@@ -87,10 +87,13 @@ function rangeText(range: Range): string {
   return fragment.textContent ?? ''
 }
 
-/** Collapses runs of spaces and tabs, and any whitespace around a line break, to one. */
+/**
+ * Collapses runs of horizontal whitespace to one space and drops the spaces around a line
+ * break. Breaks themselves are all kept, so a blank line (two breaks) survives.
+ */
 function normaliseText(text: string): string {
   return text
     .replace(/[^\S\n]+/g, ' ')
-    .replace(/ ?\n\s*/g, '\n')
+    .replace(/ ?\n ?/g, '\n')
     .trim()
 }

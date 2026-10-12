@@ -1,7 +1,8 @@
 // Inline styles here are structural or geometric only: the container is
 // `position:absolute; inset:0; pointer-events:none` so it covers the page without eating
 // events, and each annotation element is `position:absolute` with `left/top/width/height`
-// from `annotationBox` (`PageTransform.toCssRect`, padded for stroked paths). Hit-testing
+// from `annotationBox` (stroked paths padded once by their stroke), or from
+// `PageTransform.toCssRect(a.rect)` for custom elements. Hit-testing
 // follows the drawn shape, not the box: elements are `pointer-events:none` and their shapes
 // opt back in (overlay-render.ts), so a press beside a shape still reaches the text layer.
 // Custom elements are the exception and stay `pointer-events:auto`: the host draws them and
@@ -123,7 +124,11 @@ export function createOverlay(opts: OverlayOptions): Overlay {
   }
 
   function applyGeometry(node: HTMLElement, a: Annotation): void {
-    const box = annotationBox(a, transform)
+    // Custom elements hold host content laid out against the annotation's own rect.
+    const box =
+      opts.isCustom?.(a) === true
+        ? transform.toCssRect(a.rect)
+        : annotationBox(a, transform)
     node.style.left = `${box.left}px`
     node.style.top = `${box.top}px`
     node.style.width = `${box.width}px`

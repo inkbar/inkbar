@@ -5,20 +5,24 @@ import type { Point, Quad } from '../model/geometry'
 const SVG = 'http://www.w3.org/2000/svg'
 
 /**
- * The CSS box an annotation's element occupies. Usually `toCssRect(a.rect)`; stroked paths
- * (lines, polylines, polygons, ink) are padded by half their stroke width on every side, at
- * least 1px in all, so a horizontal or vertical line, whose rect has no height or width,
- * still has a box to draw and hit-test in.
+ * The CSS box an annotation's default visual occupies. Usually `toCssRect(a.rect)`. Stroked
+ * paths (lines, polylines, polygons, ink) use the bounds of their own points instead of
+ * `rect` (which may already carry stroke padding, as a derived ink rect does), padded once by
+ * half their stroke width on every side, at least 1px in all, so a horizontal or vertical
+ * line still has a box to draw and hit-test in. Custom elements do not use this: they sit on
+ * `toCssRect(a.rect)`.
  */
 export function annotationBox(a: Annotation, t: PageTransform): CssRect {
-  const box = t.toCssRect(a.rect)
-  if (
-    a.type !== 'line' &&
-    a.type !== 'polyline' &&
-    a.type !== 'polygon' &&
-    a.type !== 'ink'
-  )
-    return box
+  const points =
+    a.type === 'line'
+      ? [a.start, a.end]
+      : a.type === 'polyline' || a.type === 'polygon'
+        ? a.vertices
+        : a.type === 'ink'
+          ? a.paths.flat()
+          : undefined
+  if (!points || points.length === 0 || !('strokeWidth' in a)) return t.toCssRect(a.rect)
+  const box = t.toCssRect(pointBounds(points))
   const pad = Math.max(t.toCssLength(a.strokeWidth), 1) / 2
   return {
     left: box.left - pad,
@@ -26,6 +30,19 @@ export function annotationBox(a: Annotation, t: PageTransform): CssRect {
     width: box.width + pad * 2,
     height: box.height + pad * 2,
   }
+}
+
+function pointBounds(points: readonly Point[]): {
+  x: number
+  y: number
+  width: number
+  height: number
+} {
+  const xs = points.map((p) => p.x)
+  const ys = points.map((p) => p.y)
+  const x = Math.min(...xs)
+  const y = Math.min(...ys)
+  return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y }
 }
 
 /**
