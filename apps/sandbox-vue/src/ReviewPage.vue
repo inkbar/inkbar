@@ -14,6 +14,8 @@ import {
   type Quad,
 } from '@inkbar/core'
 import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
+import { createFakeServer } from '@inkbar/sandbox-shared/fake-server'
+import { recordReady } from '@inkbar/sandbox-shared/metrics'
 import {
   DefaultToolbar,
   InkNotePopover,
@@ -33,8 +35,6 @@ import {
 } from 'vue'
 
 import EmbeddedBanner from './EmbeddedBanner.vue'
-import { createFakeServer } from './fake-server'
-import { recordReady } from './metrics'
 
 import type { ToolId } from '@inkbar/core/dom'
 
