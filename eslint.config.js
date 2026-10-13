@@ -1,4 +1,5 @@
 import { defineConfig } from 'eslint/config'
+import pluginReactHooks from 'eslint-plugin-react-hooks'
 
 import configDefault from '@ecssc/eslint-config/default'
 import configTypescript from '@ecssc/eslint-config/typescript'
@@ -16,6 +17,7 @@ export default defineConfig(
       '**/node_modules/**',
       '**/*.config.{js,ts,mjs,mts}',
       '**/playwright/index.ts',
+      '**/playwright/index.tsx',
       '**/playwright/.cache/**',
       'fixtures/pdf/**',
     ],
@@ -31,6 +33,17 @@ export default defineConfig(
       'tailwindcss/no-custom-classname': 'off',
       // Vite plugins provide `virtual:` modules; their types come from reference declarations.
       'import-x/no-unresolved': ['error', { ignore: ['^virtual:'] }],
+    },
+  },
+  {
+    name: 'inkbar/react-hooks',
+    files: ['packages/react/**/*.{ts,tsx}', 'apps/sandbox-react/**/*.{ts,tsx}'],
+    plugins: { 'react-hooks': pluginReactHooks },
+    // The React Compiler rules in the plugin's recommended set stay off: this package syncs an
+    // external store into React from effects, which those rules flag by design.
+    rules: {
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'error',
     },
   },
   {
