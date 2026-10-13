@@ -313,6 +313,61 @@ describe('AnnotationStore (controlled warning timing)', () => {
   })
 })
 
+describe('AnnotationStore (controlled warning window)', () => {
+  const note = {
+    type: 'note',
+    page: 0,
+    rect: { x: 0, y: 0, width: 20, height: 20 },
+  } as const
+
+  it('does not warn for a host that applies after one macrotask', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    try {
+      const s = createAnnotationStore({
+        mode: {
+          mode: 'controlled',
+          initial: [],
+          onChange: (next) => {
+            void new Promise((r) => setTimeout(r, 0)).then(() => {
+              s.setControlledValue(next)
+            })
+          },
+        },
+        defaults: staticDefaults,
+        id: ids,
+        now,
+      })
+      s.add(note)
+      await new Promise((r) => setTimeout(r, 20))
+      expect(warn).not.toHaveBeenCalled()
+      expect(s.list.get()).toHaveLength(1)
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('warns exactly once after two macrotasks when the host never applies', async () => {
+    vi.useFakeTimers()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    try {
+      const s = createAnnotationStore({
+        mode: { mode: 'controlled', initial: [], onChange: () => undefined },
+        defaults: staticDefaults,
+        id: ids,
+        now,
+      })
+      s.add(note)
+      await vi.advanceTimersByTimeAsync(0)
+      expect(warn).not.toHaveBeenCalled()
+      await vi.runAllTimersAsync()
+      expect(warn).toHaveBeenCalledOnce()
+    } finally {
+      warn.mockRestore()
+      vi.useRealTimers()
+    }
+  })
+})
+
 describe('AnnotationStore embedded guard (uncontrolled)', () => {
   const embedded: Annotation = {
     id: 'pdf:0:1R',

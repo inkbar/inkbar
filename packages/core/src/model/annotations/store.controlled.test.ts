@@ -341,11 +341,14 @@ describe('AnnotationStore (controlled) with embedded annotations', () => {
       let b: Annotation | undefined
       let c: Annotation | undefined
       let atC: Annotation[] | undefined
+      // The check takes two macrotasks, so this chain is one hop longer than the check's.
       setTimeout(() => {
         setTimeout(() => {
-          expect(warn).toHaveBeenCalledTimes(1)
-          c = s.add({ type: 'note', page: 0, rect })
-          atC = nexts.at(-1)
+          setTimeout(() => {
+            expect(warn).toHaveBeenCalledTimes(1)
+            c = s.add({ type: 'note', page: 0, rect })
+            atC = nexts.at(-1)
+          }, 0)
         }, 0)
         b = s.add({ type: 'note', page: 0, rect })
       }, 0)
