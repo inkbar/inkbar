@@ -1,0 +1,36 @@
+apps/sandbox-shared/package.json
+  s_a8095ef648b42d::t_fd0b531a8fc5a2 1-25
+apps/sandbox-shared/tsconfig.json
+  s_a8095ef648b42d::t_fd0b531a8fc5a2 1-9
+apps/sandbox-vue/package.json
+  s_a8095ef648b42d::t_fd0b531a8fc5a2 11,17
+apps/sandbox-vue/playwright.config.ts
+  s_a8095ef648b42d::t_fd0b531a8fc5a2 1,3
+apps/sandbox-vue/src/ReviewPage.vue
+  s_a8095ef648b42d::t_89a1c8e029634d 17-18
+apps/sandbox-vue/tsconfig.json
+  s_a8095ef648b42d::t_fd0b531a8fc5a2 9
+apps/sandbox-shared/playwright.ts
+  s_a8095ef648b42d::t_fd0b531a8fc5a2 1-38
+apps/sandbox-vue/src/App.vue
+  s_a8095ef648b42d::t_098b81a7dcea53 2
+  s_a8095ef648b42d::t_89a1c8e029634d 3
+pnpm-lock.yaml
+  s_a8095ef648b42d::t_b5d78aca61e1db 260-275,284-286
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2185765220d21cbc2e2278e02e6806d7e450f4b2",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
