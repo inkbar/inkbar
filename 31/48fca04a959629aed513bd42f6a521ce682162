@@ -1,0 +1,39 @@
+packages/react/src/components/InkRoot.tsx
+  s_a8095ef648b42d::t_a5a10286c49689 207-208
+packages/vue/playwright/harness/PopoverHarness.vue
+  s_a8095ef648b42d::t_1a2c5431884998 30,33
+  s_a8095ef648b42d::t_e67418b3abd62b 2,78
+packages/vue/src/components/Popovers.ct.ts
+  s_a8095ef648b42d::t_9a10438df4c86b 578-609
+packages/vue/src/components/InkRoot.vue
+  s_a8095ef648b42d::t_0e89b3033376c9 141-142
+packages/react/src/components/InkNotePopover.tsx
+  s_a8095ef648b42d::t_884129d26db899 123-124
+  s_a8095ef648b42d::t_82b286d155fa8c 175-183,192-237
+  s_a8095ef648b42d::t_f6278d4f47b3cb 62-63,67-71,73
+  s_a8095ef648b42d::t_b784d8fe656b41 238-239
+packages/react/src/components/Popovers.ct.tsx
+  s_a8095ef648b42d::t_9a10438df4c86b 588-623
+packages/vue/src/components/InkNotePopover.vue
+  s_a8095ef648b42d::t_9072a8b70fe481 118-119
+  s_a8095ef648b42d::t_7c8842cbc4f0f7 55-61,69-70,72,74-76
+packages/react/playwright/harness/PopoverHarness.tsx
+  s_a8095ef648b42d::t_76e9d6c51d5be2 80
+  s_a8095ef648b42d::t_017f7b93e9f5f0 32,35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3148fca04a959629aed513bd42f6a521ce682162",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
