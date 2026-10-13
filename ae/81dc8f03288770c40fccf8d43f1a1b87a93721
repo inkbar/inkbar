@@ -1,0 +1,66 @@
+packages/svelte/src/test/harness/ReadableProbe.svelte
+  s_a8095ef648b42d::t_5c8e8221f0fef3 1-10,13-16
+  s_a8095ef648b42d::t_b155ae4917776d 11-12
+pnpm-workspace.yaml
+  s_a8095ef648b42d::t_43b511c28f4a6e 48
+package.json
+  s_a8095ef648b42d::t_43b511c28f4a6e 22,37,40,44,47
+packages/svelte/src/lib/class-names.ts
+  s_a8095ef648b42d::t_5c8e8221f0fef3 1-5
+packages/svelte/src/test/dom.ts
+  s_a8095ef648b42d::t_5c8e8221f0fef3 1-57,59-61,64,66-73
+  s_a8095ef648b42d::t_b155ae4917776d 62-63
+  s_a8095ef648b42d::t_cf52d129c694f8 58,65
+packages/svelte/src/test/use-readable.browser.test.ts
+  s_a8095ef648b42d::t_b155ae4917776d 9-11
+  s_a8095ef648b42d::t_5c8e8221f0fef3 1-8,12-69
+packages/svelte/src/test/harness.css
+  s_a8095ef648b42d::t_5c8e8221f0fef3 1-16
+packages/svelte/src/lib/use-readable.svelte.ts
+  s_a8095ef648b42d::t_5f01f6713c19f7 1-39
+packages/svelte/vitest.config.ts
+  s_a8095ef648b42d::t_43b511c28f4a6e 1-42
+packages/svelte/src/test/console-guard.ts
+  s_a8095ef648b42d::t_5c8e8221f0fef3 1-57
+.prettierignore
+  s_a8095ef648b42d::t_1c3ab00366bc83 3
+packages/svelte/src/lib/context.ts
+  s_a8095ef648b42d::t_5c8e8221f0fef3 1-70
+packages/svelte/tsconfig.json
+  s_a8095ef648b42d::t_43b511c28f4a6e 1-8
+packages/svelte/svelte.config.js
+  s_a8095ef648b42d::t_43b511c28f4a6e 1-6
+eslint.config.js
+  s_a8095ef648b42d::t_43b511c28f4a6e 1,4,10-11,16-18,55-72,76
+.prettierrc.mjs
+  s_a8095ef648b42d::t_43b511c28f4a6e 1-2,6-7,15
+  s_a8095ef648b42d::t_1c3ab00366bc83 3-5,10-13
+  s_a8095ef648b42d::t_b155ae4917776d 8-9,14
+packages/svelte/package.json
+  s_a8095ef648b42d::t_43b511c28f4a6e 1-7,12-51
+  s_a8095ef648b42d::t_b155ae4917776d 8-11
+.gitignore
+  s_a8095ef648b42d::t_1c3ab00366bc83 16
+packages/svelte/src/test/setup.ts
+  s_a8095ef648b42d::t_5c8e8221f0fef3 1-3
+packages/svelte/src/lib/index.ts
+  s_a8095ef648b42d::t_5c8e8221f0fef3 1-11
+pnpm-lock.yaml
+  s_a8095ef648b42d::t_86c300316f1f93 222,229-231,238-240,250-252,255,259-261,476-527,1174-1178,2194-2220,2232-2237,2724-2727,2746-2749,2766-2772,2829-2832,2863-2866,2989-2991,2995-2998,3020-3023,3034-3036,3172-3181,3202-3205,3214-3217,3232-3238,3252-3259,3506-3508,3561-3563,3625-3627,3709-3712,3725-3727,3773-3776,3821-3824,3882-3885,4004-4027,4052-4058,4217-4220,4300-4312,4322-4324,4421-4456,4461-4463,4748-4761,4888-4891,4933-4935,5217,5220,5569-5572,6625-6649,6661-6664,7133-7134,7149-7150,7159-7171,7231-7234,7261-7262,7380-7381,7384-7385,7404-7405,7412-7413,7556-7573,7595-7599,7609-7610,7650-7657,7670-7675,7905-7906,7939-7942,7991-7992,8049-8050,8067-8068,8104-8105,8146-8147,8190-8191,8332-8346,8368,8371-8377,8522-8523,8632-8642,8649-8650,8735-8799,8804-8805,9048-9057,9150-9151,9203-9204
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ae81dc8f03288770c40fccf8d43f1a1b87a93721",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
