@@ -1,0 +1,49 @@
+html,
+body,
+#app {
+  margin: 0;
+  height: 100%;
+}
+.sandbox {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  font-family: system-ui, sans-serif;
+}
+.sandbox-title {
+  font-size: 1rem;
+  margin: 0;
+  padding: 0.5rem 1rem;
+}
+.sandbox-root {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.sandbox-editor {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.sandbox-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.25rem 1rem;
+}
+.sandbox-banner {
+  margin: 0 1rem 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #b07d12;
+  background: #fbefd3;
+  color: #2b2100;
+  border-radius: 6px;
+}
+.sandbox-status {
+  margin: 0;
+  padding: 0.25rem 1rem;
+  font-size: 0.8rem;
+  color: #4a505c;
+}
