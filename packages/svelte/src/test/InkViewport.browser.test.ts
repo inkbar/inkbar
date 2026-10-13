@@ -544,4 +544,38 @@ describe('InkViewport', () => {
     await expect.element(screen.getByTestId('bound-zoom')).toHaveTextContent('2')
     await expect.element(screen.getByTestId('bound-page')).toHaveTextContent('2')
   })
+
+  // No React counterpart: a function binding can refuse what the viewport reports.
+  it('a host zoom outside the range is clamped and settles when the host withholds the report', async () => {
+    const withheld: (ZoomValue | undefined)[] = []
+    const screen = await render(BoundViewportHost, {
+      src: fixtureUrl('text-simple'),
+      assets,
+      initialZoom: 10,
+      withhold: true,
+      onWithheld: (z: ZoomValue | undefined) => withheld.push(z),
+    })
+    await q(`${FIRST} canvas`)
+    // The viewport opens at its maximum. Where it opens is not reported, only later changes.
+    await expect.poll(cssOf(FIRST, 'width')).toBe(`${612 * 8}px`)
+    await sleep(300)
+    expect(withheld).toEqual([])
+    // Applying the host's value again and again would end in an effect depth error.
+    expect(consoleGuard.problems).toEqual([])
+    expect(cssOf(FIRST, 'width')()).toBe(`${612 * 8}px`)
+    await expect.element(screen.getByTestId('bound-zoom')).toHaveTextContent('10')
+
+    // Back in range and out again after opening: now the clamped value is reported, once,
+    // and the host still holds a value the viewport cannot take.
+    await screen.getByTestId('set-zoom-2').click()
+    await expect.poll(cssOf(FIRST, 'width')).toBe(`${612 * 2}px`)
+    await screen.getByTestId('set-zoom-10').click()
+    await expect.poll(cssOf(FIRST, 'width')).toBe(`${612 * 8}px`)
+    await expect.poll(() => withheld).toEqual([2, 8])
+    await sleep(300)
+    expect(withheld).toEqual([2, 8])
+    expect(consoleGuard.problems).toEqual([])
+    expect(cssOf(FIRST, 'width')()).toBe(`${612 * 8}px`)
+    await expect.element(screen.getByTestId('bound-zoom')).toHaveTextContent('10')
+  })
 })

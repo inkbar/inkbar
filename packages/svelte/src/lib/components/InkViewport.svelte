@@ -210,32 +210,35 @@
   })
   $effect(() => () => teardown())
 
+  // The setters below run untracked: core relays out inside them and calls `onUpdate`, which
+  // reads and writes `pages`. Tracked, each effect would depend on the list it changes and run
+  // again, without end when the host holds a zoom the viewport clamps.
   $effect(() => {
     const z = ctx.zoomModel
     const vp = viewport
-    if (vp && z !== undefined && z !== vp.zoom.get()) vp.setZoom(z)
+    if (vp && z !== undefined && z !== vp.zoom.get()) untrack(() => vp.setZoom(z))
   })
   $effect(() => {
     const p = ctx.pageModel
     const vp = viewport
     if (!vp || p === undefined || p === lastReportedPage) return
-    if (p !== vp.currentPage.get()) vp.scrollToPage(p)
+    if (p !== vp.currentPage.get()) untrack(() => vp.scrollToPage(p))
   })
   $effect(() => {
     const t = ctx.tool
     const tc = tools
-    if (tc && tc.active.get() !== t) tc.set(t)
+    if (tc && tc.active.get() !== t) untrack(() => tc.set(t))
   })
   // The build applied both; these only act on a later change, not on mount.
   $effect(() => {
     const m = mode
     const vp = viewport
-    if (vp && vp.mode.get() !== m) vp.setMode(m)
+    if (vp && vp.mode.get() !== m) untrack(() => vp.setMode(m))
   })
   $effect(() => {
     const r = rotation
     const vp = viewport
-    if (vp && vp.rotation.get() !== r) vp.setRotation(r)
+    if (vp && vp.rotation.get() !== r) untrack(() => vp.setRotation(r))
   })
 
   // Not `state`: next to the `$state` rune, Svelte reads that name as a store.
