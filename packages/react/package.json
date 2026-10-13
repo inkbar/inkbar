@@ -19,7 +19,7 @@
   "scripts": {
     "build": "tsdown",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "lint": "eslint --no-error-on-unmatched-pattern src playwright",
+    "lint": "eslint src playwright",
     "test": "vitest run",
     "test:browser": "playwright test -c playwright-ct.config.ts"
   },
