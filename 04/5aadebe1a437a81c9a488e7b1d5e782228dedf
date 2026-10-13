@@ -1,0 +1,49 @@
+apps/sandbox-shared/package.json
+  s_a8095ef648b42d::t_bd2e078033e8e8 13
+packages/react/playwright/harness/ControlledHost.tsx
+  s_a8095ef648b42d::t_ba794001cf7b03 30,36-37,40,45,52-54
+packages/react/playwright/harness/ZoomClickHarness.tsx
+  s_a8095ef648b42d::t_5e671ba3d3e451 1-29
+packages/react/src/components/InkViewport.ct.tsx
+  s_a8095ef648b42d::t_bd2e078033e8e8 140,330
+packages/react/src/ssr.test.ts
+  s_a8095ef648b42d::t_bd2e078033e8e8 52-54
+packages/react/src/components/InkZoomIn.tsx
+  s_a8095ef648b42d::t_bd2e078033e8e8 16,28-31
+apps/sandbox-react/src/ReviewPage.tsx
+  s_a8095ef648b42d::t_bd2e078033e8e8 119-120,206
+packages/react/src/components/InkZoomOut.tsx
+  s_a8095ef648b42d::t_bd2e078033e8e8 12,24-27
+packages/react/playwright/harness/PopoverHarness.tsx
+  s_a8095ef648b42d::t_bd2e078033e8e8 34-36
+packages/react/src/components/InkViewport.tsx
+  s_a8095ef648b42d::t_bd2e078033e8e8 17-24,26,43,76-77,228-233
+packages/react/README.md
+  s_a8095ef648b42d::t_bd2e078033e8e8 11,111
+packages/react/src/use-latest.ts
+  s_a8095ef648b42d::t_bd2e078033e8e8 6-7
+packages/react/src/compositions/DefaultToolbar.tsx
+  s_a8095ef648b42d::t_bd2e078033e8e8 15,28,36,40-44
+packages/react/src/components/InkRoot.ct.tsx
+  s_a8095ef648b42d::t_ba794001cf7b03 364-393
+packages/react/src/components/Toolbar.ct.tsx
+  s_a8095ef648b42d::t_5e671ba3d3e451 6,95-99
+  s_a8095ef648b42d::t_ba794001cf7b03 90-94,100-105
+  s_a8095ef648b42d::t_2329680e9d88e5 106-107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "045aadebe1a437a81c9a488e7b1d5e782228dedf",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
