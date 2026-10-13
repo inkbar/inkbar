@@ -60,11 +60,8 @@
   } from '@inkbar/core'
   import { cssVariableDefaults } from '@inkbar/core/dom'
   import { DEV } from 'esm-env'
-  // Both entry points share one declaration file, which the rule takes for one module.
-  /* eslint-disable import-x/no-duplicates */
   import { untrack } from 'svelte'
   import { createAttachmentKey } from 'svelte/attachments'
-  /* eslint-enable import-x/no-duplicates */
 
   import { setInkContext, type InkContext, type InkHistory } from '../context.js'
   import { useReadable } from '../use-readable.svelte.js'
