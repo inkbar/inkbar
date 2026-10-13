@@ -23,13 +23,16 @@ export default defineConfig({
           include: ['src/test/*.test.ts'],
           exclude: ['src/test/*.browser.test.ts'],
           environment: 'node',
+          // The first test imports the whole library (Bits UI, icons, core): about 2 s alone,
+          // more with the other packages' tasks running beside it.
+          testTimeout: 30_000,
         },
       },
       {
         plugins: [svelte(), serveFixtures()],
         // Pre-bundled up front: discovering it mid-run makes Vite reload the test page.
         resolve: { alias: { 'pdfjs-dist': pdfjs } },
-        optimizeDeps: { include: ['pdfjs-dist', 'esm-env'] },
+        optimizeDeps: { include: ['pdfjs-dist', 'esm-env', 'bits-ui', '@lucide/svelte'] },
         test: {
           name: 'browser',
           include: ['src/test/*.browser.test.ts'],

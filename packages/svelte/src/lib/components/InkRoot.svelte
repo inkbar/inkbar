@@ -1,4 +1,5 @@
 <script module lang="ts">
+  import type { ChildSnippet } from './child-snippet.js'
   import type {
     Annotation,
     AnnotationChange,
@@ -48,7 +49,7 @@
      * Render your own root element: spread `props` on it and put your content inside. The
      * context is still provided, so Inkbar components work inside it.
      */
-    child?: Snippet<[{ props: Record<string, unknown> }]>
+    child?: ChildSnippet
   }
 </script>
 
