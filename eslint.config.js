@@ -1,15 +1,21 @@
+import tsParser from '@typescript-eslint/parser'
 import { defineConfig } from 'eslint/config'
 import pluginReactHooks from 'eslint-plugin-react-hooks'
+import pluginSvelte from 'eslint-plugin-svelte'
 
 import configDefault from '@ecssc/eslint-config/default'
 import configTypescript from '@ecssc/eslint-config/typescript'
 import configVue from '@ecssc/eslint-config/vue'
 
+import svelteConfig from './packages/svelte/svelte.config.js'
+
 export default defineConfig(
   configDefault,
   configTypescript,
   configVue,
-  { name: 'inkbar/files-to-lint', files: ['**/*.{ts,mts,tsx,vue}'] },
+  ...pluginSvelte.configs.recommended,
+  ...pluginSvelte.configs.prettier,
+  { name: 'inkbar/files-to-lint', files: ['**/*.{ts,mts,tsx,vue,svelte}'] },
   {
     name: 'inkbar/files-to-ignore',
     ignores: [
@@ -47,9 +53,27 @@ export default defineConfig(
     },
   },
   {
+    name: 'inkbar/svelte',
+    files: ['**/*.svelte', '**/*.svelte.ts'],
+    languageOptions: {
+      parserOptions: {
+        parser: tsParser,
+        extraFileExtensions: ['.svelte'],
+        svelteConfig,
+      },
+    },
+    rules: {
+      // Props are destructured from `$props()` with `...rest`; the rule has no way to see that.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', ignoreRestSiblings: true },
+      ],
+    },
+  },
+  {
     name: 'inkbar/pdfjs-quarantine',
     // Shipped code and apps reach PDF.js only through @inkbar/core's loader.
-    files: ['packages/**/*.{ts,mts,tsx,vue}', 'apps/**/*.{ts,mts,tsx,vue}'],
+    files: ['packages/**/*.{ts,mts,tsx,vue,svelte}', 'apps/**/*.{ts,mts,tsx,vue,svelte}'],
     ignores: ['packages/core/src/pdfjs/**'],
     rules: {
       'no-restricted-imports': [

@@ -1,0 +1,16 @@
+/* Test-only. The render container gets a height and the theme sizes the viewport inside it.
+   The viewport heights below repeat that sizing and stay until the suite drops them. */
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body > div {
+  height: 100%;
+}
+
+[data-ink-viewport-root],
+[data-ink-scroll] {
+  height: 100%;
+}

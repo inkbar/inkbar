@@ -19,7 +19,7 @@
     "release": "release-it"
   },
   "lint-staged": {
-    "*.{ts,mts,tsx,vue}": [
+    "*.{ts,mts,tsx,vue,svelte}": [
       "eslint --fix",
       "prettier --write"
     ],
@@ -34,13 +34,17 @@
     "@ecssc/prettier-config": "^0.1.3",
     "@ecssc/release-it-config": "^1.0.3",
     "@types/node": "^24",
+    "@typescript-eslint/parser": "^8.71.1",
     "eslint": "^10.0.0",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-svelte": "^3.23.1",
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",
     "prettier": "^3.9.0",
+    "prettier-plugin-svelte": "^4.1.1",
     "prettier-plugin-tailwindcss": "^0.6.14",
     "release-it": "^20.0.0",
+    "svelte": "^5.57.2",
     "tailwindcss": "^4.3.3",
     "turbo": "^2.11.7",
     "typescript": "^6.0.3"
