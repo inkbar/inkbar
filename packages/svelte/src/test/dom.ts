@@ -71,3 +71,8 @@ export function gateFetch(pattern: string): { release(): void; restore(): void }
     },
   }
 }
+
+/** For `expect.poll`: the focused element. */
+export function focused(): Element | null {
+  return document.activeElement
+}
