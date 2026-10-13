@@ -43,3 +43,11 @@ export type {
   ToolId,
 } from './tools'
 export { cssVariableDefaults } from '../model/annotations/defaults'
+export { TOOL_LABELS, ZOOM_LEVELS } from './ui'
+export type {
+  AnnotationSlotProps,
+  AnnotationState,
+  NotePopoverSlotProps,
+  SuggestionCardSlotProps,
+} from './ui'
+export { annotationElementFor, observeAnnotationElement } from './annotation-element'
