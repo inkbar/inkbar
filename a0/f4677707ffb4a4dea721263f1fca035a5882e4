@@ -1,0 +1,38 @@
+packages/svelte/src/test/hooks.test.ts
+  s_a8095ef648b42d::t_8ee3245c8524cb 1-23,27-28
+  s_a8095ef648b42d::t_d16daa1361d7e4 24-26
+packages/svelte/src/lib/index.ts
+  s_a8095ef648b42d::t_8ee3245c8524cb 12-19
+packages/svelte/src/lib/hooks/useTool.svelte.ts
+  s_a8095ef648b42d::t_8ee3245c8524cb 1-13
+packages/svelte/src/lib/hooks/useDocument.svelte.ts
+  s_a8095ef648b42d::t_8ee3245c8524cb 1-33
+packages/svelte/src/lib/hooks/useAnnotations.svelte.ts
+  s_a8095ef648b42d::t_8ee3245c8524cb 1-39
+packages/svelte/src/lib/hooks/useHistory.svelte.ts
+  s_a8095ef648b42d::t_8ee3245c8524cb 1-9
+packages/svelte/src/lib/hooks/useEmbedded.svelte.ts
+  s_a8095ef648b42d::t_8ee3245c8524cb 1-21
+packages/svelte/src/lib/hooks/useZoom.svelte.ts
+  s_a8095ef648b42d::t_8ee3245c8524cb 1-21
+packages/svelte/src/lib/hooks/usePage.svelte.ts
+  s_a8095ef648b42d::t_8ee3245c8524cb 1-29
+packages/svelte/src/lib/hooks/useSelection.svelte.ts
+  s_a8095ef648b42d::t_8ee3245c8524cb 1-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a0f4677707ffb4a4dea721263f1fca035a5882e4",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
