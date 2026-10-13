@@ -16,18 +16,12 @@ import { injectInkContext } from '../context'
 import { useAnnotationElement } from './annotation-element'
 import { keepOpenOnAnnotation, useFocusReturn } from './popover-focus'
 
-import type { ConfidenceBucket, RedactAnnotation, Suggestion } from '@inkbar/core'
+import type { ConfidenceBucket, RedactAnnotation } from '@inkbar/core'
+import type { SuggestionCardSlotProps } from '@inkbar/core/dom'
 
 export type { ConfidenceBucket } from '@inkbar/core'
 
-export interface SuggestionCardSlotProps {
-  annotation: RedactAnnotation
-  suggestion: Suggestion | undefined
-  bucket: ConfidenceBucket | undefined
-  accept: () => void
-  dismiss: () => void
-  close: () => void
-}
+export type { SuggestionCardSlotProps } from '@inkbar/core/dom'
 
 defineSlots<{ default?(props: SuggestionCardSlotProps): unknown }>()
 
