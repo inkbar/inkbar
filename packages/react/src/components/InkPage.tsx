@@ -45,6 +45,13 @@ interface Target {
   el: HTMLElement
 }
 
+function sameTargets(a: readonly Target[], b: readonly Target[]): boolean {
+  return (
+    a.length === b.length &&
+    a.every((t, i) => t.annotation === b[i]!.annotation && t.el === b[i]!.el)
+  )
+}
+
 export function InkPage({
   page,
   host,
@@ -110,12 +117,12 @@ export function InkPage({
     let stopList: (() => void) | undefined
     if (custom) {
       const read = (): void => {
-        setTargets(
-          doc.annotations.byPage(latest.current.page).flatMap((annotation) => {
-            const el = mount.overlay.elementFor(annotation.id)
-            return el ? [{ annotation, el }] : []
-          })
-        )
+        const next = doc.annotations.byPage(latest.current.page).flatMap((annotation) => {
+          const el = mount.overlay.elementFor(annotation.id)
+          return el ? [{ annotation, el }] : []
+        })
+        // A change elsewhere in the document leaves this page's targets as they were.
+        setTargets((prev) => (sameTargets(prev, next) ? prev : next))
       }
       stopList = doc.annotations.list.subscribe(read)
       read()

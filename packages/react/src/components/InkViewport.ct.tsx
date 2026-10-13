@@ -3,6 +3,7 @@ import { browserAssets, fixtureUrl } from '@inkbar/fixtures/urls'
 import { expect, test } from '@playwright/experimental-ct-react'
 
 import { guardConsole } from '../../playwright/console-guard'
+import { StrictViewportHost } from '../../playwright/harness/StrictViewportHost'
 import { ViewportHarness } from '../../playwright/harness/ViewportHarness'
 
 import type { PageInfo } from '@inkbar/core'
@@ -564,4 +565,33 @@ test('keeps the page and zoom when a gap change rebuilds the viewport', async ({
     expect(pages.slice(before)).toEqual([])
     expect(zooms).toEqual([])
   }
+})
+
+test('under StrictMode each page mounts once and custom annotations still portal in', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(
+    <StrictViewportHost src={fixtureUrl('text-simple')} assets={assets} />
+  )
+  const first = cmp.locator('.ink-page[data-page="0"]')
+  await expect(first.locator('canvas[data-ink-canvas]')).toBeVisible()
+  await expect(first).toHaveCount(1)
+  await expect(first.locator('canvas[data-ink-canvas]')).toHaveCount(1)
+  await expect(first.locator('[data-ink-overlay]')).toHaveCount(1)
+  // The replayed effects rebuilt the viewport; no page from the discarded build survives.
+  const mounted = await cmp
+    .locator('.ink-page')
+    .evaluateAll((els) => els.map((el) => el.getAttribute('data-page')))
+  expect(new Set(mounted).size).toBe(mounted.length)
+  await page.locator('[data-ink-root]').evaluate((el) => {
+    ;(el as RootEl).__inkDocument!.annotations.add({
+      type: 'note',
+      page: 0,
+      rect: { x: 72, y: 600, width: 24, height: 24 },
+    })
+  })
+  await expect(first.locator('.my-pin')).toHaveCount(1)
+  await expect(first.locator('.my-pin')).toHaveAttribute('data-type', 'note')
+  expect(consoleGuard.problems).toEqual([])
 })

@@ -16,6 +16,7 @@ const consoleGuard = guardConsole(test)
 
 type DocHandle = {
   annotations: {
+    mode: string
     add(i: unknown): void
     list: { get(): unknown[] }
   }
@@ -106,8 +107,8 @@ test('calls onError when the file fails to load after openDocument resolves', as
   )
   await expect(cmp).toHaveAttribute('data-state', 'error')
   await expect(cmp.getByTestId('error-codes')).toHaveText('InvalidPdf')
-  // PDF.js logs its own recovery warnings for the broken file; they are expected here.
-  expect(consoleGuard.problems.every((m) => m.startsWith('Warning: '))).toBe(true)
+  // The PDF engine logs its own recovery warnings for the broken file; nothing else may.
+  expect(consoleGuard.problems.filter((m) => !m.startsWith('Warning: '))).toEqual([])
   consoleGuard.clear()
 })
 
@@ -203,6 +204,47 @@ test('controlled annotations: onAnnotationsChange receives proposals and the sto
     (el) => (el as RootEl).__inkDocument!.annotations.list.get().length
   )
   expect(listAfter).toBe(1)
+})
+
+test('passing the annotations prop to an open uncontrolled document leaves its mode alone', async ({
+  mount,
+}) => {
+  const received: Annotation[][] = []
+  const cmp = await mount(<InkRoot src={fixtureUrl('text-simple')} assets={assets} />)
+  await expect(cmp).toHaveAttribute('data-state', 'ready')
+  await cmp.evaluate((el) => {
+    ;(el as RootEl).__inkDocument!.__marker = 1
+  })
+  await cmp.update(
+    <InkRoot
+      src={fixtureUrl('text-simple')}
+      assets={assets}
+      annotations={[]}
+      onAnnotationsChange={(next) => received.push(next)}
+    />
+  )
+  await cmp.page().waitForTimeout(100)
+  // Same document, still uncontrolled: an add lands in the store and proposes nothing.
+  expect(await cmp.evaluate((el) => (el as RootEl).__inkDocument?.__marker)).toBe(1)
+  const after = await cmp.evaluate((el) => {
+    const d = (el as RootEl).__inkDocument!
+    d.annotations.add({
+      type: 'note',
+      page: 0,
+      rect: { x: 0, y: 0, width: 20, height: 20 },
+    })
+    return { mode: d.annotations.mode, count: d.annotations.list.get().length }
+  })
+  expect(after).toEqual({ mode: 'uncontrolled', count: 1 })
+  await cmp.page().waitForTimeout(50)
+  expect(received).toEqual([])
+  // Dropping the prop again changes nothing either.
+  await cmp.update(<InkRoot src={fixtureUrl('text-simple')} assets={assets} />)
+  expect(
+    await cmp.evaluate(
+      (el) => (el as RootEl).__inkDocument!.annotations.list.get().length
+    )
+  ).toBe(1)
 })
 
 test('controlled annotations that change while the document opens reach the store', async ({
@@ -310,6 +352,8 @@ test('hooks bind to the document, tool and core history', async ({ mount }) => {
   await cmp.getByTestId('add').click()
   await expect(probe).toHaveAttribute('data-annotations', '1')
   await expect(probe).toHaveAttribute('data-can-undo', 'true')
+  // The hooks' actions keep their identity across list changes.
+  await expect(probe).toHaveAttribute('data-stable-actions', 'true')
   await cmp.getByTestId('select').click()
   await expect(probe).not.toHaveAttribute('data-selection', '')
   await cmp.getByTestId('undo').click()
