@@ -266,6 +266,18 @@ test('controlled lists proposed outside a React event reach the store before cor
   expect(consoleGuard.problems).toEqual([])
 })
 
+test('a host that adds from a useEffect after ready raises no React or core warnings', async ({
+  mount,
+}) => {
+  const cmp = await mount(
+    <ControlledHost src={fixtureUrl('text-simple')} assets={assets} addOnReady />
+  )
+  await expect(cmp.getByTestId('host-count')).toHaveText('1')
+  await cmp.page().waitForTimeout(100)
+  await expect(cmp.getByTestId('host-count')).toHaveText('1')
+  expect(consoleGuard.problems).toEqual([])
+})
+
 test('uncontrolled by default, with history enabled', async ({ mount }) => {
   const cmp = await mount(<InkRoot src={fixtureUrl('text-simple')} assets={assets} />)
   await expect(cmp).toHaveAttribute('data-state', 'ready')

@@ -211,12 +211,15 @@ export function InkRoot({
                 initial: latest.current.annotations ?? [],
                 onChange: (next, change) => {
                   // Apply the host's state update, its render and the layout effect that pushes
-                  // the list back before core's development check expires. Core calls this from
-                  // event handlers and promise continuations, never from render; a host that
-                  // mutates the store during render or a layout effect is unsupported.
-                  flushSync(() => {
-                    latest.current.onAnnotationsChange?.(next)
-                    latest.current.onChange?.(change)
+                  // the list back before core's development check expires. The microtask
+                  // leaves React's render, commit and passive-effect contexts, where a host
+                  // may call the store, so `flushSync` is always legal; the host sees the
+                  // proposal one microtask after the store returned.
+                  queueMicrotask(() => {
+                    flushSync(() => {
+                      latest.current.onAnnotationsChange?.(next)
+                      latest.current.onChange?.(change)
+                    })
                   })
                 },
               }
