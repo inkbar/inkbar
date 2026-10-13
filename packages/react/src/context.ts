@@ -26,18 +26,18 @@ export interface InkContext {
   tools: ToolController | null
   /** Desired tool; InkViewport applies it to the controller. */
   tool: ToolId
-  setTool(id: ToolId): void
+  setTool: (id: ToolId) => void
   /** Desired zoom and page from the host's props; InkViewport applies and reports back. */
   zoomModel: ZoomValue | undefined
   pageModel: number | undefined
-  reportZoom(z: ZoomValue): void
-  reportPage(p: number): void
+  reportZoom: (z: ZoomValue) => void
+  reportPage: (p: number) => void
   /** Last activated annotation (Enter, click with the note tool, etc.). Popovers key off this. */
   activated: string | null
-  setActivated(id: string | null): void
+  setActivated: (id: string | null) => void
   history: InkHistory
   rootEl: HTMLElement | null
-  setViewport(viewport: Viewport | null, tools: ToolController | null): void
+  setViewport: (viewport: Viewport | null, tools: ToolController | null) => void
 }
 
 export const InkContextObject = createContext<InkContext | null>(null)

@@ -214,8 +214,10 @@ export function InkRoot({
                   // the list back before core's development check expires. The microtask
                   // leaves React's render, commit and passive-effect contexts, where a host
                   // may call the store, so `flushSync` is always legal; the host sees the
-                  // proposal one microtask after the store returned.
+                  // proposal one microtask after the store returned. A proposal made in the
+                  // tick this root unmounts or reopens never reaches the host.
                   queueMicrotask(() => {
+                    if (cancelled) return
                     flushSync(() => {
                       latest.current.onAnnotationsChange?.(next)
                       latest.current.onChange?.(change)

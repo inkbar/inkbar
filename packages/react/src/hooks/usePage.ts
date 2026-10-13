@@ -1,19 +1,26 @@
+import { useMemo } from 'react'
+
 import { useInkContext } from '../context'
 import { useReadable } from '../use-readable'
 
 export function usePage() {
   const ctx = useInkContext('usePage()')
-  const current = useReadable<number>(ctx.viewport?.currentPage, 0)
-  return {
-    /** 0-based. */
-    current,
-    count: ctx.document?.pages.length ?? 0,
-    goTo: (index: number) => ctx.viewport?.scrollToPage(index),
-    next: () => ctx.viewport?.scrollToPage(current + 1),
-    previous: () => ctx.viewport?.scrollToPage(current - 1),
-    scrollToAnnotation(id: string) {
-      const a = ctx.document?.annotations.get(id)
-      if (a) ctx.viewport?.scrollToRect(a.page, a.rect)
-    },
-  }
+  const { viewport, document } = ctx
+  const current = useReadable<number>(viewport?.currentPage, 0)
+  return useMemo(
+    () => ({
+      /** 0-based. */
+      current,
+      count: document?.pages.length ?? 0,
+      goTo: (index: number) => viewport?.scrollToPage(index),
+      // Read the live page, so these stay the same functions as the reader scrolls.
+      next: () => viewport?.scrollToPage(viewport.currentPage.get() + 1),
+      previous: () => viewport?.scrollToPage(viewport.currentPage.get() - 1),
+      scrollToAnnotation(id: string) {
+        const a = document?.annotations.get(id)
+        if (a) viewport?.scrollToRect(a.page, a.rect)
+      },
+    }),
+    [viewport, document, current]
+  )
 }

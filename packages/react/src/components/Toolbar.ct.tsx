@@ -175,3 +175,23 @@ test('blurring an untouched page input does not move the viewport', async ({
   await expect(cmp.locator(toolButton('select'))).toHaveAttribute('aria-pressed', 'true')
   expect(await scroll.evaluate((el) => el.scrollTop)).toBe(before)
 })
+
+test('stepping the page input with the arrow keys moves the viewport', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(
+    <ToolbarHarness src={fixtureUrl('text-simple')} assets={assets} />
+  )
+  await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+  const scroll = cmp.locator('[data-ink-scroll]')
+  const input = cmp.locator('input[aria-label="Page"]')
+  await input.focus()
+  // A step commits through the native change event, with no Enter and no blur.
+  await page.keyboard.press('ArrowUp')
+  await expect(input).toHaveValue('2')
+  await expect.poll(() => scroll.evaluate((el) => el.scrollTop)).toBeGreaterThan(500)
+  await page.keyboard.press('ArrowDown')
+  await expect(input).toHaveValue('1')
+  await expect.poll(() => scroll.evaluate((el) => el.scrollTop)).toBe(0)
+})

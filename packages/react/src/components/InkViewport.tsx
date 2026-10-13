@@ -102,7 +102,7 @@ export function InkViewport({
     tools.current = null
     viewport.current = null
     latest.current.ctx.setViewport(null, null)
-    setPages([])
+    setPages((prev) => (prev.length === 0 ? prev : []))
   }, [latest])
 
   const setup = useCallback(() => {
@@ -213,11 +213,14 @@ export function InkViewport({
     const tc = tools.current
     if (tc && tc.active.get() !== ctx.tool) tc.set(ctx.tool)
   }, [ctx.tool])
+  // The build applied both; these only act on a later change, not on mount.
   useEffect(() => {
-    viewport.current?.setMode(mode)
+    const vp = viewport.current
+    if (vp && vp.mode.get() !== mode) vp.setMode(mode)
   }, [mode])
   useEffect(() => {
-    viewport.current?.setRotation(rotation)
+    const vp = viewport.current
+    if (vp && vp.rotation.get() !== rotation) vp.setRotation(rotation)
   }, [rotation])
 
   const state = ctx.status.state

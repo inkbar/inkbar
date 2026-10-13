@@ -3,11 +3,7 @@ import { Toolbar } from 'radix-ui'
 import { cx } from '../class-names'
 import { useZoom } from '../hooks/useZoom'
 
-import type { ComponentPropsWithoutRef } from 'react'
-
-export interface InkZoomButtonProps extends ComponentPropsWithoutRef<'button'> {
-  asChild?: boolean
-}
+import type { InkZoomButtonProps } from './zoom-button'
 
 export function InkZoomIn({
   asChild = false,

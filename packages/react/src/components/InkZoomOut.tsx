@@ -3,7 +3,7 @@ import { Toolbar } from 'radix-ui'
 import { cx } from '../class-names'
 import { useZoom } from '../hooks/useZoom'
 
-import type { InkZoomButtonProps } from './InkZoomIn'
+import type { InkZoomButtonProps } from './zoom-button'
 
 export function InkZoomOut({
   asChild = false,

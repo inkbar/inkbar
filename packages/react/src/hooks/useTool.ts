@@ -1,8 +1,9 @@
-import { useInkContext } from '../context'
+import { useMemo } from 'react'
 
-import type { ToolId } from '@inkbar/core/dom'
+import { useInkContext } from '../context'
 
 export function useTool() {
   const ctx = useInkContext('useTool()')
-  return { tool: ctx.tool, setTool: (id: ToolId) => ctx.setTool(id) }
+  const { tool, setTool } = ctx
+  return useMemo(() => ({ tool, setTool }), [tool, setTool])
 }
