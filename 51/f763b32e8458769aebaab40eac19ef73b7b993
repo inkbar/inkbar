@@ -1,0 +1,42 @@
+packages/vue/src/components/InkZoomSelect.vue
+  s_a8095ef648b42d::t_6b49ca6e99779f 2,13,42
+packages/vue/src/components/annotation-element.ts
+  s_a8095ef648b42d::t_6b49ca6e99779f 1,7,13,17-25,29
+packages/vue/src/components/InkNotePopover.vue
+  s_a8095ef648b42d::t_c38e92edd75e88 11
+  s_a8095ef648b42d::t_6b49ca6e99779f 22,24,29,36,44-46,73
+packages/vue/src/components/annotation-slot.ts
+  s_a8095ef648b42d::t_6b49ca6e99779f 1
+packages/vue/src/components/InkSuggestionCard.vue
+  s_a8095ef648b42d::t_6b49ca6e99779f 21
+  s_a8095ef648b42d::t_c38e92edd75e88 19
+packages/vue/src/components/popover-focus.ts
+  s_a8095ef648b42d::t_6b49ca6e99779f 6,9-11,18-21
+  s_a8095ef648b42d::t_7c7acff7873d59 1-5,13
+packages/vue/src/composables/useAnnotations.ts
+  s_a8095ef648b42d::t_63901203b44ba9 1
+  s_a8095ef648b42d::t_6b49ca6e99779f 25
+packages/vue/src/ref-history.ts
+  s_a8095ef648b42d::t_63901203b44ba9 37-39
+  s_a8095ef648b42d::t_6b49ca6e99779f 1-4,19-21,24-27,29-33,35-36
+packages/vue/src/components/InkToolButton.vue
+  s_a8095ef648b42d::t_6b49ca6e99779f 2,17
+packages/vue/src/context.ts
+  s_a8095ef648b42d::t_6b49ca6e99779f 4,8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "51f763b32e8458769aebaab40eac19ef73b7b993",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
