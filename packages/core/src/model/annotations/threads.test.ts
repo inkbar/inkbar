@@ -35,6 +35,12 @@ describe('repliesTo', () => {
     expect(repliesTo(list, 'r').map((a) => a.id)).toEqual(['d', 'b'])
     expect(repliesTo(list, 'x')).toEqual([])
   })
+
+  it('leaves the input list in its own order', () => {
+    const input = [c, b, root, d]
+    repliesTo(input, 'r')
+    expect(input).toEqual([c, b, root, d])
+  })
 })
 
 describe('threadRoot', () => {
@@ -62,9 +68,11 @@ describe('threadRoot', () => {
     }
     const onMark = note('n', '2026-10-13T00:00:05.000Z', { inReplyTo: 'm' })
     expect(threadRoot([mark, onMark], onMark).id).toBe('n')
+    // x replies to y and y to x: the walk visits y, finds x already seen and stops at y.
     const x = note('x', '2026-10-13T00:00:06.000Z', { inReplyTo: 'y' })
     const y = note('y', '2026-10-13T00:00:07.000Z', { inReplyTo: 'x' })
-    expect(['x', 'y']).toContain(threadRoot([x, y], x).id)
+    expect(threadRoot([x, y], x).id).toBe('y')
+    expect(threadRoot([x, y], y).id).toBe('x')
   })
 })
 

@@ -82,15 +82,39 @@ describe('createFocusReturn', () => {
     expect(document.activeElement).toBe(els[1])
   })
 
-  it('leaves focus alone when another on-screen annotation is activated or focus is already inside the root', () => {
+  it('leaves focus where it is when another on-screen annotation is activated', () => {
     const { els } = build(['a', 'b'])
     const fr = createFocusReturn({ root: () => root, activated: () => 'b' })
-    document.body.focus()
+    expect(document.activeElement).toBe(document.body)
     fr.onCloseAutoFocus(new Event('x', { cancelable: true }), els[0]!)
-    expect(document.activeElement).not.toBe(els[0])
-    const fr2 = createFocusReturn({ root: () => root, activated: () => 'gone' })
+    expect(document.activeElement).toBe(document.body)
+  })
+
+  it('ignores an activated id whose element is gone and returns to the anchor', () => {
+    const { els } = build(['a', 'b'])
+    const fr = createFocusReturn({ root: () => root, activated: () => 'gone' })
+    expect(document.activeElement).toBe(document.body)
+    fr.onCloseAutoFocus(new Event('x', { cancelable: true }), els[0]!)
+    expect(document.activeElement).toBe(els[0])
+  })
+
+  it('leaves focus alone when it is already inside the root', () => {
+    const { els } = build(['a', 'b'])
+    const fr = createFocusReturn({ root: () => root, activated: () => null })
     els[1]!.focus()
-    fr2.onCloseAutoFocus(new Event('x', { cancelable: true }), els[0]!)
+    fr.onCloseAutoFocus(new Event('x', { cancelable: true }), els[0]!)
     expect(document.activeElement).toBe(els[1])
+  })
+
+  it('forgets the removal plan after one close: the next close returns to the anchor', () => {
+    const { els } = build(['a', 'b'])
+    const fr = createFocusReturn({ root: () => root, activated: () => null })
+    fr.beforeRemove(els[0]!)
+    fr.onCloseAutoFocus(new Event('x', { cancelable: true }), els[0]!)
+    expect(document.activeElement).toBe(els[1])
+    els[1]!.blur()
+    expect(document.activeElement).toBe(document.body)
+    fr.onCloseAutoFocus(new Event('x', { cancelable: true }), els[0]!)
+    expect(document.activeElement).toBe(els[0])
   })
 })

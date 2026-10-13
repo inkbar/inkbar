@@ -23,7 +23,11 @@ export interface SnapshotHistory {
   undo(): void
   redo(): void
   clear(): void
-  /** The host's current list, or `undefined` when the host does not control it. */
+  /**
+   * The host's current list, or `undefined` when the host does not control it. The first list
+   * seeds the history; each later list that differs is a step. An `undefined` neither seeds
+   * nor records, and the next list after one starts again without a step.
+   */
   observe(list: readonly Annotation[] | undefined): void
 }
 
@@ -35,8 +39,7 @@ export function createSnapshotHistory(opts: SnapshotHistoryOptions): SnapshotHis
   const past = writable<Snapshot[]>([])
   const future = writable<Snapshot[]>([])
   let pending: Pending | null = null
-  let seeded = false
-  /** Copy of the host's list as of its last change. */
+  /** Copy of the host's list as of its last change; `undefined` before the first list. */
   let current: Snapshot | undefined
 
   function clear(): void {
@@ -48,15 +51,12 @@ export function createSnapshotHistory(opts: SnapshotHistoryOptions): SnapshotHis
   function observe(next: readonly Annotation[] | undefined): void {
     const prev = current
     current = snapshot(next)
-    if (!seeded) {
-      seeded = true
-      return
-    }
     if (!opts.enabled()) {
       // Steps taken while disabled are unknown to the stacks, which would undo to stale lists.
       if (past.get().length > 0 || future.get().length > 0 || pending) clear()
       return
     }
+    // The first list only seeds; there is no step from or to an undefined list.
     if (next === undefined || prev === undefined) return
     // A new array with the same content is not a step, and leaves a pending step alone.
     if (sameList(next, prev)) return
