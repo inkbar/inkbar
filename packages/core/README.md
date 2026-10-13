@@ -29,7 +29,7 @@ const json = doc.exportAnnotations('json')
 
 Writing annotations back into the PDF needs `@inkbar/engine`, which is not released yet. Until then `save()` rejects with `EngineUnavailable`. Persist `exportAnnotations('json')` instead and re-import it on the next open.
 
-The DOM layer (`@inkbar/core/dom`) provides the viewport, canvas renderer, text layer, overlay and tools for hosts without a framework package. Vue hosts should use `@inkbar/vue`, React hosts `@inkbar/react`.
+The DOM layer (`@inkbar/core/dom`) provides the viewport, canvas renderer, text layer, overlay and tools for hosts without a framework package. Vue hosts should use `@inkbar/vue`, React hosts `@inkbar/react`, Svelte hosts `@inkbar/svelte`.
 
 ## Annotation changes
 
