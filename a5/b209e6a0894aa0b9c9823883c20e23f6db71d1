@@ -1,0 +1,22 @@
+packages/react/src/hooks/useDocument.ts
+  s_a8095ef648b42d::t_1eb38e1638163b 3-5,15
+packages/react/src/hooks/hooks.test.ts
+  s_a8095ef648b42d::t_1eb38e1638163b 5-6,36-51
+  s_a8095ef648b42d::t_8e81292e8a2416 52-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a5b209e6a0894aa0b9c9823883c20e23f6db71d1",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
