@@ -1,0 +1,55 @@
+packages/svelte/src/lib/components/InkSuggestionCard.svelte
+  s_a8095ef648b42d::t_a16e281f1341fd 1-120
+packages/svelte/src/test/harness/SsrHost.svelte
+  s_a8095ef648b42d::t_a16e281f1341fd 2,4,17-18
+packages/svelte/src/test/Popovers.browser.test.ts
+  s_a8095ef648b42d::t_b9e3de7ca7c98d 60-62,68-70,74-76,94-96,142-144,172-174,246-248,357-359,391-395,439-441,453-455,487-491,513-515,521-525
+  s_a8095ef648b42d::t_a16e281f1341fd 1-59,63-67,71-73,77-93,97-141,145-171,175-245,249-306,318,321,323-324,326-356,360-390,396-438,442-452,456-486,492-512,516-520,526-549
+  s_a8095ef648b42d::t_f5e890d31bd590 307-317,319-320,322,325
+packages/svelte/src/lib/components/InkRoot.svelte
+  s_a8095ef648b42d::t_5b6d63164bcabb 118-119,247,313
+packages/svelte/src/test/harness/PopoverHarness.svelte
+  s_a8095ef648b42d::t_b9e3de7ca7c98d 21-23
+  s_a8095ef648b42d::t_b1c31233678eb1 33-37,53-55,92,95,98
+  s_a8095ef648b42d::t_a16e281f1341fd 1-19,24-32,38-52,56-63,65-66,69-72,74-83,85-87,89-91,93-94,96-97,99-118
+  s_a8095ef648b42d::t_2d20196426490e 20,64,67-68,73,84,88
+packages/svelte/src/lib/context.ts
+  s_a8095ef648b42d::t_5b6d63164bcabb 42-47
+packages/svelte/src/lib/components/annotation-element.svelte.ts
+  s_a8095ef648b42d::t_a16e281f1341fd 1-22,24-28
+  s_a8095ef648b42d::t_2d20196426490e 23,29
+packages/svelte/src/lib/index.ts
+  s_a8095ef648b42d::t_a16e281f1341fd 44-47
+packages/svelte/src/lib/components/popover-focus.ts
+  s_a8095ef648b42d::t_5b6d63164bcabb 16-20,24
+  s_a8095ef648b42d::t_2d20196426490e 6,8
+  s_a8095ef648b42d::t_a16e281f1341fd 1-5,7,9-15,21-23,25-26
+packages/svelte/src/test/ssr.test.ts
+  s_a8095ef648b42d::t_a16e281f1341fd 42-43
+packages/svelte/src/lib/components/InkNotePopover.svelte
+  s_a8095ef648b42d::t_5b6d63164bcabb 149
+  s_a8095ef648b42d::t_a16e281f1341fd 2,5-6,12-19,21,23,30,32,34,36,39-44,47,51-59,61,63-64,66-75,77-91,99-101,106-107,109-128,138,140-141,143-144,146,153-157,161-176,178-187
+  s_a8095ef648b42d::t_b9e3de7ca7c98d 92-98,102-105
+  s_a8095ef648b42d::t_e45647891508c6 60,62,65
+  s_a8095ef648b42d::t_2d20196426490e 1,3-4,7-11,20,22,24-29,31,33,35,37-38,45-46,48-50,76,108,129-137,139,142,145,147-148,150-152,158-160,177,188-192
+packages/svelte/src/lib/components/ThreadForm.svelte
+  s_a8095ef648b42d::t_b9e3de7ca7c98d 32,34-36
+  s_a8095ef648b42d::t_a16e281f1341fd 2-23,27-31,33,37-38,40-42
+  s_a8095ef648b42d::t_2d20196426490e 1,24-26,39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "44d18bf89553f850fff8ac8180b1a309a2cef10b",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
