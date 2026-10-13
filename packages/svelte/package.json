@@ -22,11 +22,12 @@
     "build": "svelte-package -i src/lib -o dist",
     "typecheck": "svelte-check --tsconfig ./tsconfig.json",
     "lint": "eslint src",
-    "test": "vitest run --project node --passWithNoTests",
+    "test": "vitest run --project node",
     "test:browser": "vitest run --project browser"
   },
   "dependencies": {
     "@inkbar/core": "workspace:*",
+    "@internationalized/date": "^3.12.4",
     "@lucide/svelte": "^1.56.0",
     "bits-ui": "^2.19.5",
     "esm-env": "^1.2.0"
@@ -37,7 +38,6 @@
   "devDependencies": {
     "@inkbar/fixtures": "workspace:*",
     "@inkbar/theme": "workspace:*",
-    "@internationalized/date": "^3.12.4",
     "@sveltejs/package": "^3.0.0",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@vitest/browser-playwright": "^5.0.4",

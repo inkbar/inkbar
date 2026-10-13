@@ -8,7 +8,7 @@ Svelte 5 components and hooks for Inkbar. The components are unstyled primitives
 pnpm add @inkbar/svelte @inkbar/core @inkbar/theme
 ```
 
-Svelte 5.46.4 or later is a peer dependency, in runes mode. Add the Vite plugin from `@inkbar/core/vite` so the PDF engine can load its worker and fonts; the `@inkbar/core` README covers it. The package ships `.svelte` sources, so your bundler compiles them for your target, including the server.
+Svelte 5.46.4 or later is a peer dependency. Add the Vite plugin from `@inkbar/core/vite` so the PDF engine can load its worker and fonts; the `@inkbar/core` README covers it. The package ships `.svelte` sources, so your bundler compiles them for your target, including the server.
 
 ## Usage
 
@@ -64,13 +64,14 @@ Undo and redo are off in controlled mode unless you pass `history={true}`. Inkba
 <script lang="ts">
   import { tick } from 'svelte'
   import { InkRoot, InkViewport } from '@inkbar/svelte'
+  import type { InkRootHandle } from '@inkbar/svelte'
   import type { Annotation, InkDocument } from '@inkbar/core'
   import { assets } from 'virtual:inkbar-assets'
 
   let { signedUrl, documentId }: { signedUrl: string; documentId: string } = $props()
 
   let annotations = $state.raw<Annotation[]>([])
-  let root = $state<ReturnType<typeof InkRoot> | undefined>()
+  let root = $state<InkRootHandle | undefined>()
 
   async function onReady(doc: InkDocument) {
     annotations = await loadAnnotations(doc.key)

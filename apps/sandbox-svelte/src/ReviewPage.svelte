@@ -30,6 +30,7 @@
   import EmbeddedBanner from './EmbeddedBanner.svelte'
 
   import type { ToolId } from '@inkbar/core/dom'
+  import type { InkRootHandle } from '@inkbar/svelte'
 
   let { fixture, largePages }: { fixture: string; largePages: number } = $props()
 
@@ -50,7 +51,7 @@
   /** Outcome of the last suggestion run, announced apart from the sync status. */
   let suggestResult = $state('')
   let openDoc = $state.raw<InkDocument | null>(null)
-  let root = $state<ReturnType<typeof InkRoot> | undefined>(undefined)
+  let root = $state<InkRootHandle | undefined>(undefined)
   let largeBytes = $state.raw<Uint8Array | null>(null)
   /** The key whose saved annotations have been loaded; saving waits for it. */
   let loadedKey = $state<string | null>(null)

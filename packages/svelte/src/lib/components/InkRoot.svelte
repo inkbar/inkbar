@@ -182,7 +182,7 @@
                   onChange: (next: Annotation[], change: AnnotationChange) => {
                     // A proposal made in the tick this root unmounts or reopens never reaches
                     // the host. Writing the bindable hands it to a bound host now; the effect
-                    // below pushes the applied list to the store in the same microtask.
+                    // below pushes the applied list to the store in Svelte's next effect flush.
                     if (cancelled) return
                     annotations = next
                     onAnnotationsChange?.(next)

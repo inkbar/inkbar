@@ -9,12 +9,15 @@ import configVue from '@ecssc/eslint-config/vue'
 
 import svelteConfig from './packages/svelte/svelte.config.js'
 
+const svelteScoped = (configs) =>
+  configs.map((c) => ({ ...c, files: c.files ?? ['**/*.svelte', '**/*.svelte.ts'] }))
+
 export default defineConfig(
   configDefault,
   configTypescript,
   configVue,
-  ...pluginSvelte.configs.recommended,
-  ...pluginSvelte.configs.prettier,
+  ...svelteScoped(pluginSvelte.configs.recommended),
+  ...svelteScoped(pluginSvelte.configs.prettier),
   { name: 'inkbar/files-to-lint', files: ['**/*.{ts,mts,tsx,vue,svelte}'] },
   {
     name: 'inkbar/files-to-ignore',
