@@ -51,3 +51,5 @@ export type {
   SuggestionCardSlotProps,
 } from './ui'
 export { annotationElementFor, observeAnnotationElement } from './annotation-element'
+export { createFocusReturn, shouldKeepOpenOnAnnotation } from './popover-focus'
+export type { FocusReturn, FocusReturnOptions } from './popover-focus'
