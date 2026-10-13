@@ -1,0 +1,43 @@
+packages/react/src/components/Toolbar.ct.tsx
+  s_a8095ef648b42d::t_12f981a9b456d9 18,24,41,45-112,128
+  s_a8095ef648b42d::t_b0ae8d9bce1a47 1-17,19-23,25-40,42-44,113-127,129-132
+packages/react/src/components/InkToolbar.tsx
+  s_a8095ef648b42d::t_12f981a9b456d9 1-6,10-33
+  s_a8095ef648b42d::t_4a312b578df647 7-9
+packages/react/src/components/InkToolButton.tsx
+  s_a8095ef648b42d::t_12f981a9b456d9 1-52
+packages/react/src/ssr.test.ts
+  s_a8095ef648b42d::t_fc7c86cea89a4a 42-49,58-59,65-66
+packages/react/src/components/InkZoomOut.tsx
+  s_a8095ef648b42d::t_12f981a9b456d9 1-28
+packages/react/src/components/InkZoomSelect.tsx
+  s_a8095ef648b42d::t_12f981a9b456d9 1-53
+packages/react/src/components/InkZoomIn.tsx
+  s_a8095ef648b42d::t_12f981a9b456d9 1-32
+packages/react/src/components/InkPageInput.tsx
+  s_a8095ef648b42d::t_12f981a9b456d9 1-50
+packages/react/src/components/InkPageCount.tsx
+  s_a8095ef648b42d::t_12f981a9b456d9 1-18
+packages/react/src/compositions/DefaultToolbar.tsx
+  s_a8095ef648b42d::t_12f981a9b456d9 1-86
+packages/react/src/index.ts
+  s_a8095ef648b42d::t_fc7c86cea89a4a 27-40
+packages/react/playwright/harness/ToolbarHarness.tsx
+  s_a8095ef648b42d::t_8545c7bbd4921a 1-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "aab488d3fafb460bcebe387e2715ee329253c9e3",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
