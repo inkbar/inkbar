@@ -1,0 +1,33 @@
+packages/react/playwright/harness/ViewportHarness.tsx
+  s_a8095ef648b42d::t_9cad33acdbefe0 1-94,97-119
+  s_a8095ef648b42d::t_a2a80bf48e4c54 95-96
+packages/react/src/components/InkViewport.ct.tsx
+  s_a8095ef648b42d::t_52590761f489c0 1-316,322-567
+  s_a8095ef648b42d::t_a2a80bf48e4c54 317-321
+packages/react/src/components/InkPage.tsx
+  s_a8095ef648b42d::t_4dc4f61b41e966 16-63
+  s_a8095ef648b42d::t_aa221d059c0635 1-15,64-174
+packages/react/src/components/InkViewport.tsx
+  s_a8095ef648b42d::t_a2a80bf48e4c54 128-130
+  s_a8095ef648b42d::t_0e532b2ca27270 1-127,131-266
+packages/react/src/components/InkAnnotation.tsx
+  s_a8095ef648b42d::t_123772b97374ea 1-64
+packages/react/src/index.ts
+  s_a8095ef648b42d::t_c1edb1f69afb1d 21-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "044e2c7daf216c43e316150d25d36c0d95d92ac9",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
