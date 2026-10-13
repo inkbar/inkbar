@@ -36,7 +36,8 @@ export default defineConfig({
             'pdfjs-dist',
             'esm-env',
             'bits-ui',
-            // DefaultToolbar imports each icon from its own module.
+            // DefaultToolbar imports each icon from its own module: a new icon there needs its
+            // path here too (src/lib/compositions/DefaultToolbar.svelte).
             ...[
               'hand',
               'highlighter',

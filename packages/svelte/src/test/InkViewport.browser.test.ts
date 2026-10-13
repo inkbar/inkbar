@@ -525,7 +525,9 @@ describe('InkViewport', () => {
       // remount of their layers.
       await sleep(200)
       expect(document.querySelector(FIRST)).toBe(host)
-      expect(qa('.ink-page')).toEqual(hosts)
+      const now = qa('.ink-page')
+      expect(now).toHaveLength(hosts.length)
+      now.forEach((el, i) => expect(el).toBe(hosts[i]))
       expect(host.isConnected).toBe(true)
       expect(document.querySelector(`${FIRST} canvas[data-ink-canvas]`)).toBe(canvas)
       expect(canvas.isConnected).toBe(true)

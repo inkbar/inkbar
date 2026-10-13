@@ -31,10 +31,20 @@ export function keepOpenOnAnnotation(event: PointerEvent): void {
  * and the remount reports a close and then, in the same call, an open. That close is not one,
  * and answering it would focus the anchor a frame before focus moves into the popover. So a
  * close reaches the planner one microtask late, and only when no open was reported after it.
+ *
+ * This relies on Bits UI reporting a remount as a close and then an open within one synchronous
+ * call (observed in bits-ui 2.19.5, `FocusScope.mount`). If that changes, the browser case 'a
+ * card opened by selection alone takes focus without passing it through the annotation' fails.
+ *
+ * A close that is superseded this way moves no focus, but it still uses up whatever
+ * `beforeRemove` planned for it, so the plan cannot leak into a later close.
  */
 export function useFocusReturn(ctx: InkContext): PopoverFocusReturn {
+  /** True while a superseded close is handed to the planner only to clear its plan. */
+  let discarding = false
   const planner = createFocusReturn({
-    root: () => ctx.rootEl,
+    // Without a root the planner clears its plan and returns before it looks for focus.
+    root: () => (discarding ? null : ctx.rootEl),
     activated: () => peekActivated(ctx),
   })
   /** Counts the open and close reports, so a close can tell whether anything followed it. */
@@ -49,7 +59,12 @@ export function useFocusReturn(ctx: InkContext): PopoverFocusReturn {
       event.preventDefault()
       const report = ++reports
       queueMicrotask(() => {
-        if (report === reports) planner.onCloseAutoFocus(event, anchor)
+        discarding = report !== reports
+        try {
+          planner.onCloseAutoFocus(event, anchor)
+        } finally {
+          discarding = false
+        }
       })
     },
   }

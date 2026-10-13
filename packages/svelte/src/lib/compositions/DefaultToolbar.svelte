@@ -14,7 +14,8 @@
    * own; the theme styles the `data-ink-*` hooks. Extra controls go in `children`.
    */
   // One module per icon: the package's index evaluates every icon it ships, which costs a
-  // server (or a test) that imports this file well over a second.
+  // server (or a test) that imports this file well over a second. A new icon also goes in the
+  // browser tests' `optimizeDeps.include` in vitest.config.ts.
   import Hand from '@lucide/svelte/icons/hand'
   import Highlighter from '@lucide/svelte/icons/highlighter'
   import MessageSquare from '@lucide/svelte/icons/message-square'
