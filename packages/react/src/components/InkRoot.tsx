@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -12,6 +13,7 @@ import {
   type ReactNode,
   type Ref,
 } from 'react'
+import { flushSync } from 'react-dom'
 
 import {
   InkContextObject,
@@ -194,7 +196,7 @@ export function InkRoot({
     }
     setOverride({ state: 'loading' })
     let opened: InkDocument | null = null
-    void (async () => {
+    const run = async () => {
       try {
         const doc = await openDocument(source, {
           assets: latest.current.assets,
@@ -208,8 +210,14 @@ export function InkRoot({
                 mode: 'controlled',
                 initial: latest.current.annotations ?? [],
                 onChange: (next, change) => {
-                  latest.current.onAnnotationsChange?.(next)
-                  latest.current.onChange?.(change)
+                  // Apply the host's state update, its render and the layout effect that pushes
+                  // the list back before core's development check expires. Core calls this from
+                  // event handlers and promise continuations, never from render; a host that
+                  // mutates the store during render or a layout effect is unsupported.
+                  flushSync(() => {
+                    latest.current.onAnnotationsChange?.(next)
+                    latest.current.onChange?.(change)
+                  })
                 },
               }
             : { mode: 'uncontrolled' },
@@ -244,7 +252,12 @@ export function InkRoot({
         setOverride({ state: 'error', error })
         latest.current.onError?.(error)
       }
-    })()
+    }
+    // StrictMode's simulated cleanup runs synchronously in the same commit, so deferring one
+    // microtask means the discarded first attempt never starts a fetch.
+    void Promise.resolve().then(() => {
+      if (!cancelled) return run()
+    })
     return () => {
       cancelled = true
       opened?.destroy()
@@ -255,7 +268,7 @@ export function InkRoot({
     // `srcIdentity` stands in for `src`: a new URL with the same key is the same document.
   }, [srcIdentity, password, snapshotHistory, latest])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (annotations && document?.annotations.mode === 'controlled')
       document.annotations.setControlledValue(annotations)
   }, [annotations, document])

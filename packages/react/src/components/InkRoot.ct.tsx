@@ -244,6 +244,28 @@ test('controlled annotations that change while the document opens reach the stor
   expect(ids).toEqual(['late-note'])
 })
 
+test('controlled lists proposed outside a React event reach the store before core checks', async ({
+  mount,
+}) => {
+  const cmp = await mount(
+    <ControlledHost src={fixtureUrl('text-simple')} assets={assets} />
+  )
+  await expect(cmp.getByTestId('probe')).toHaveAttribute('data-ready', 'true')
+  await cmp.evaluate(async (el) => {
+    await Promise.resolve()
+    const d = (el as RootEl).__inkDocument!
+    for (let i = 0; i < 3; i++)
+      d.annotations.add({
+        type: 'note',
+        page: 0,
+        rect: { x: 0, y: 0, width: 20, height: 20 },
+      })
+  })
+  await cmp.page().waitForTimeout(100)
+  await expect(cmp.getByTestId('host-count')).toHaveText('3')
+  expect(consoleGuard.problems).toEqual([])
+})
+
 test('uncontrolled by default, with history enabled', async ({ mount }) => {
   const cmp = await mount(<InkRoot src={fixtureUrl('text-simple')} assets={assets} />)
   await expect(cmp).toHaveAttribute('data-state', 'ready')
@@ -354,8 +376,10 @@ test('StrictMode opens one document and reports ready once (Review Focus 1)', as
   await page.waitForTimeout(300)
   await expect(cmp.getByTestId('ready-count')).toHaveText('1')
   await expect(cmp.getByTestId('error-count')).toHaveText('0')
-  // The effect ran, was cleaned up and ran again: the first open was discarded, the second kept.
-  expect(fetches).toBe(2)
+  // StrictMode replayed the effects, yet the discarded first attempt never fetched.
+  const runs = await cmp.getByTestId('effect-marker').getAttribute('data-effect-runs')
+  expect(Number(runs)).toBeGreaterThanOrEqual(2)
+  expect(fetches).toBe(1)
   // The live document is the one the hook points at, and it is not destroyed.
   const alive = await root.evaluate(
     (el) => (el as RootEl).__inkDocument!.annotations.list.get().length === 0
