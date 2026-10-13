@@ -99,6 +99,22 @@ describe('createSnapshotHistory', () => {
     expect(history.canUndo.get()).toBe(false)
   })
 
+  it('an undefined list neither seeds nor records: the list after it seeds again', () => {
+    const { history } = setup()
+    history.observe(undefined)
+    history.observe([note('a', 'one')])
+    expect(history.canUndo.get()).toBe(false)
+    history.observe([note('a', 'two')])
+    expect(history.canUndo.get()).toBe(true)
+    history.observe(undefined)
+    history.observe([note('b', 'other')])
+    // No step from `two` to `other`: the undefined list between them broke the chain.
+    expect(history.canUndo.get()).toBe(true)
+    history.undo()
+    history.observe([note('a', 'one')])
+    expect(history.canUndo.get()).toBe(false)
+  })
+
   it('ignores undefined lists and keeps the limit', () => {
     const { history } = setup(() => true, 2)
     history.observe(undefined)

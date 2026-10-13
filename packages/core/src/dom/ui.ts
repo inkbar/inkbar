@@ -24,7 +24,10 @@ export const ZOOM_LEVELS: readonly number[] = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4]
 /** The overlay's per-annotation state, as on its `data-state` attribute. */
 export type AnnotationState = 'idle' | 'hover' | 'selected'
 
-/** What a host-rendered annotation receives (Vue's `annotation` slot, React's `renderAnnotation`). */
+/**
+ * What a host-rendered annotation receives: Vue's `annotation` slot and React's
+ * `renderAnnotation`.
+ */
 export interface AnnotationSlotProps {
   annotation: Annotation
   state: AnnotationState

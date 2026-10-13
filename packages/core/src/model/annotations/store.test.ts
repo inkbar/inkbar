@@ -357,7 +357,8 @@ describe('AnnotationStore (controlled warning window)', () => {
         now,
       })
       s.add(note)
-      await vi.advanceTimersByTimeAsync(0)
+      // The check is two chained zero-delay timers: fire the first alone, then the rest.
+      await vi.advanceTimersToNextTimerAsync()
       expect(warn).not.toHaveBeenCalled()
       await vi.runAllTimersAsync()
       expect(warn).toHaveBeenCalledOnce()
