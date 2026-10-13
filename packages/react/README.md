@@ -8,7 +8,7 @@ React components and hooks for Inkbar. The components are unstyled primitives bu
 pnpm add @inkbar/react @inkbar/core @inkbar/theme
 ```
 
-React 19 or later is a peer dependency. Add the Vite plugin from `@inkbar/core/vite` so the PDF engine can load its worker and fonts; the `@inkbar/core` README covers it. The package is marked `'use client'`, so a React Server Components app can import it from a server component.
+React 19 is a peer dependency. Add the Vite plugin from `@inkbar/core/vite` so the PDF engine can load its worker and fonts; the `@inkbar/core` README covers it. The package is marked `'use client'`, so a React Server Components app can import it from a server component.
 
 ## Usage
 
@@ -108,7 +108,7 @@ The scroll element takes focus. With the highlight or redact tool active, `Enter
 
 ## Styling
 
-Components carry state on data attributes, for example `[data-annotation][data-state="selected"]` and `[data-tool="highlight"][data-state="on"]`. `@inkbar/theme` gives a default look. Your own CSS overrides it without `!important`. Every component accepts `className`.
+Components carry state on data attributes, for example `[data-annotation][data-state="selected"]` and `[data-tool="highlight"][data-state="on"]`. `@inkbar/theme` gives a default look. Your own CSS overrides it without `!important`. `InkRoot`, `InkViewport`, `DefaultToolbar` and the toolbar controls accept `className`.
 
 ## Hooks
 

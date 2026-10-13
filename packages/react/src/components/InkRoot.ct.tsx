@@ -361,6 +361,36 @@ test('controlled hosts get a snapshot undo stack through useHistory', async ({
   await expect(probe).toHaveAttribute('data-can-redo', 'false')
 })
 
+test('a host passing a fresh array of the same content each render keeps one undo step (Review Focus 2)', async ({
+  mount,
+}) => {
+  const cmp = await mount(
+    <ControlledHost
+      src={fixtureUrl('text-simple')}
+      assets={assets}
+      history={true}
+      spreadOnRender={true}
+    />
+  )
+  const probe = cmp.getByTestId('probe')
+  const hostCount = cmp.getByTestId('host-count')
+  await expect(probe).toHaveAttribute('data-ready', 'true')
+  await cmp.getByTestId('add').click()
+  await expect(hostCount).toHaveText('1')
+  await expect(probe).toHaveAttribute('data-can-undo', 'true')
+
+  await cmp.getByTestId('bump').click()
+  await cmp.getByTestId('bump').click()
+  await expect(cmp.getByTestId('bump')).toHaveText('2')
+  await expect(hostCount).toHaveText('1')
+  await expect(probe).toHaveAttribute('data-can-undo', 'true')
+  await expect(probe).toHaveAttribute('data-can-redo', 'false')
+  // One undo step only: a snapshot loop would have pushed more.
+  await cmp.getByTestId('undo').click()
+  await expect(hostCount).toHaveText('0')
+  await expect(probe).toHaveAttribute('data-can-undo', 'false')
+})
+
 test('controlled hosts without history get inert undo', async ({ mount }) => {
   const cmp = await mount(
     <ControlledHost src={fixtureUrl('text-simple')} assets={assets} />

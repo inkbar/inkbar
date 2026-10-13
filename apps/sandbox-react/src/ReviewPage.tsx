@@ -116,8 +116,8 @@ export function ReviewPage({
     }
   }, [largePages])
 
-  const latest = useRef({ loadedKey, key, readyCount })
-  latest.current = { loadedKey, key, readyCount }
+  const latest = useRef({ loadedKey, key, readyCount, annotations })
+  latest.current = { loadedKey, key, readyCount, annotations }
 
   async function onReady(doc: InkDocument): Promise<void> {
     const count = import.meta.env.DEV ? recordReady() : latest.current.readyCount + 1
@@ -203,7 +203,7 @@ export function ReviewPage({
     // In controlled mode each add is a proposal; proposals in one tick compose into one list.
     // Running again must not repeat a suggestion already on the page.
     const seen = new Set(
-      annotations
+      latest.current.annotations
         .filter((a) => a.type === 'redact')
         .map((a) => `${a.page}:${rectKey(a.rect)}`)
     )

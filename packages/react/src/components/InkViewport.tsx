@@ -14,8 +14,16 @@ import {
   createViewport,
   getSelectionQuads,
 } from '@inkbar/core/dom'
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ComponentPropsWithoutRef,
+  type ReactNode,
+} from 'react'
 
+import { cx } from '../class-names'
 import { useInkContext } from '../context'
 import { useLatest } from '../use-latest'
 
@@ -32,7 +40,7 @@ import type {
   ZoomValue,
 } from '@inkbar/core/dom'
 
-export interface InkViewportProps {
+export interface InkViewportProps extends ComponentPropsWithoutRef<'div'> {
   mode?: LayoutMode
   rotation?: ViewRotation
   /** Gap between pages, CSS px. */
@@ -65,6 +73,8 @@ export function InkViewport({
   error,
   renderAnnotation,
   renderPageError,
+  className,
+  ...rest
 }: InkViewportProps) {
   const ctx = useInkContext('InkViewport')
   const scroll = useRef<HTMLDivElement>(null)
@@ -215,7 +225,12 @@ export function InkViewport({
   const custom = !!renderAnnotation
 
   return (
-    <div className="ink-viewport-root" data-ink-viewport-root="" data-state={state}>
+    <div
+      {...rest}
+      className={cx('ink-viewport-root', className)}
+      data-ink-viewport-root=""
+      data-state={state}
+    >
       {state === 'loading' ? (
         <div className="ink-status" role="status" aria-live="polite">
           {loading === undefined ? 'Loading document…' : loading}

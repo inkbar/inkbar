@@ -9,6 +9,7 @@ export function InkZoomOut({
   asChild = false,
   className,
   children,
+  onClick,
   ...rest
 }: InkZoomButtonProps) {
   const { zoomOut } = useZoom()
@@ -19,8 +20,11 @@ export function InkZoomOut({
       data-ink-zoom-out=""
       aria-label="Zoom out"
       title="Zoom out"
-      onClick={() => zoomOut()}
       {...rest}
+      onClick={(e) => {
+        onClick?.(e)
+        if (!e.defaultPrevented) zoomOut()
+      }}
     >
       {children ?? '−'}
     </Toolbar.Button>

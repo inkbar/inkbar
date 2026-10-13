@@ -10,6 +10,7 @@
     "./playwright": "./playwright.ts"
   },
   "scripts": {
+    "build": "echo skip",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint src e2e playwright.ts",
     "test": "node --test src/page-count.test.ts"

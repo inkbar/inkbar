@@ -27,24 +27,31 @@ export function ControlledHost({
   assets,
   history,
   addOnReady = false,
+  spreadOnRender = false,
 }: {
   src: string
   assets: PdfAssets
   history?: boolean
   addOnReady?: boolean
+  /** Pass a new array with the same content on every render. */
+  spreadOnRender?: boolean
 }) {
   const [list, setList] = useState<Annotation[]>([])
+  const [bumps, setBumps] = useState(0)
   return (
     <InkRoot
       src={src}
       assets={assets}
-      annotations={list}
+      annotations={spreadOnRender ? [...list] : list}
       onAnnotationsChange={setList}
       history={history}
     >
       <HookProbe />
       {addOnReady ? <AddOnReady /> : null}
       <output data-testid="host-count">{list.length}</output>
+      <button type="button" data-testid="bump" onClick={() => setBumps((n) => n + 1)}>
+        {bumps}
+      </button>
     </InkRoot>
   )
 }

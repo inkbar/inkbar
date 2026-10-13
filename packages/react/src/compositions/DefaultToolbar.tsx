@@ -12,6 +12,7 @@ import {
   ZoomOut,
 } from 'lucide-react'
 
+import { cx } from '../class-names'
 import { InkPageCount } from '../components/InkPageCount'
 import { InkPageInput } from '../components/InkPageInput'
 import { InkToolbar } from '../components/InkToolbar'
@@ -24,6 +25,7 @@ import type { ReactNode } from 'react'
 
 export interface DefaultToolbarProps {
   label?: string
+  className?: string | undefined
   children?: ReactNode
 }
 
@@ -31,10 +33,15 @@ const ICON = 18
 
 export function DefaultToolbar({
   label = 'Document tools',
+  className,
   children,
 }: DefaultToolbarProps) {
   return (
-    <InkToolbar label={label} className="ink-default-toolbar" data-ink-default-toolbar="">
+    <InkToolbar
+      label={label}
+      className={cx('ink-default-toolbar', className)}
+      data-ink-default-toolbar=""
+    >
       <div
         className="ink-toolbar-group"
         data-ink-toolbar-group="tools"

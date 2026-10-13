@@ -49,6 +49,9 @@ describe('@inkbar/react on the server', () => {
         'DefaultToolbar',
         'InkNotePopover',
         'InkSuggestionCard',
+        'InkViewport',
+        'InkPage',
+        'InkAnnotation',
       ])
     )
     expect(evaluated.pdfjs).toBe(false)
