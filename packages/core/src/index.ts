@@ -15,6 +15,7 @@ export type {
   DocumentInfo,
   DocumentStatus,
   InkDocument,
+  InkStatus,
   OpenOptions,
 } from './model/document'
 export type { DocumentSource } from './model/source'
@@ -25,6 +26,11 @@ export * from './model/annotations/types'
 export * from './model/annotations/defaults'
 export * from './model/annotations/store'
 export * from './model/annotations/history'
+export { createSnapshotHistory } from './model/annotations/snapshot-history'
+export type {
+  SnapshotHistory,
+  SnapshotHistoryOptions,
+} from './model/annotations/snapshot-history'
 export { acceptSuggestion } from './model/annotations/suggestions'
 export * from './model/annotations/embedded'
 export { parsePdfDate } from './model/pdf-date'

@@ -93,3 +93,19 @@ describe('readable', () => {
     expect(r.get()).toBe('x')
   })
 })
+
+describe('reference stability', () => {
+  it('writable and derived return the same reference until the value changes', () => {
+    const w = writable<readonly number[]>([1])
+    expect(w.get()).toBe(w.get())
+    const d = derived(w, (v) => v.map((n) => n * 2))
+    const stop = d.subscribe(() => undefined)
+    expect(d.get()).toBe(d.get())
+    const before = d.get()
+    w.set([1])
+    expect(d.get()).not.toBe(before)
+    w.set(w.get())
+    expect(d.get()).toBe(d.get())
+    stop()
+  })
+})

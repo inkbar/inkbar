@@ -37,6 +37,9 @@ import type {
 export type DocumentStatus =
   { state: 'loading' } | { state: 'ready' } | { state: 'error'; error: InkError }
 
+/** A document's status plus `idle`, for a host with no document open. */
+export type InkStatus = DocumentStatus | { state: 'idle' }
+
 export interface DocumentInfo {
   title?: string | undefined
   author?: string | undefined
