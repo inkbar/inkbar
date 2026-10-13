@@ -1,0 +1,25 @@
+{
+  "name": "@inkbar/sandbox-shared",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    "./fake-server": "./src/fake-server.ts",
+    "./page-count": "./src/page-count.ts",
+    "./metrics": "./src/metrics.ts",
+    "./playwright": "./playwright.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint src e2e playwright.ts",
+    "test": "node --test src/page-count.test.ts"
+  },
+  "dependencies": {
+    "@inkbar/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "1.62.1",
+    "@types/node": "^24"
+  }
+}

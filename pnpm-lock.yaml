@@ -257,6 +257,22 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3
 
+  apps/sandbox-shared:
+    dependencies:
+      '@inkbar/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      '@axe-core/playwright':
+        specifier: ^4.13.0
+        version: 4.13.0(playwright-core@1.62.1)
+      '@playwright/test':
+        specifier: 1.62.1
+        version: 1.62.1
+      '@types/node':
+        specifier: ^24
+        version: 24.19.2
+
   apps/sandbox-vue:
     dependencies:
       '@inkbar/core':
@@ -265,6 +281,9 @@ importers:
       '@inkbar/fixtures':
         specifier: workspace:*
         version: link:../../fixtures
+      '@inkbar/sandbox-shared':
+        specifier: workspace:*
+        version: link:../sandbox-shared
       '@inkbar/theme':
         specifier: workspace:*
         version: link:../../packages/theme
@@ -275,9 +294,6 @@ importers:
         specifier: ^3.5.43
         version: 3.5.43(typescript@6.0.3)
     devDependencies:
-      '@axe-core/playwright':
-        specifier: ^4.13.0
-        version: 4.13.0(playwright-core@1.62.1)
       '@playwright/test':
         specifier: 1.62.1
         version: 1.62.1

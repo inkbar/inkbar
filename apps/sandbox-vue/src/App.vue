@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { clampPageCount } from './page-count'
+import { clampPageCount } from '@inkbar/sandbox-shared/page-count'
+
 import ReviewPage from './ReviewPage.vue'
 
 const params = new URLSearchParams(location.search)
