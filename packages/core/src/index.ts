@@ -32,6 +32,12 @@ export type {
   SnapshotHistoryOptions,
 } from './model/annotations/snapshot-history'
 export { acceptSuggestion } from './model/annotations/suggestions'
+export {
+  isAbandonedNote,
+  repliesTo,
+  threadOf,
+  threadRoot,
+} from './model/annotations/threads'
 export * from './model/annotations/embedded'
 export { parsePdfDate } from './model/pdf-date'
 export { exportAnnotations, importAnnotations } from './model/annotations/json'
