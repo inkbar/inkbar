@@ -1,0 +1,56 @@
+packages/react/playwright/harness/StrictHost.tsx
+  s_a8095ef648b42d::t_2a7687f3741ec2 1-24
+packages/react/playwright/index.html
+  s_a8095ef648b42d::t_2a7687f3741ec2 1-12
+packages/react/src/components/InkRoot.ct.tsx
+  s_a8095ef648b42d::t_23e912ba25da09 15,41-44,109-111,194-198,263-265,298-300,331-333,357-360
+  s_a8095ef648b42d::t_2a7687f3741ec2 1-14,16-40,45-108,112-193,199,201-262,266-297,301-330,334-356,361-370
+  s_a8095ef648b42d::t_34ebbcf43d335a 200
+packages/react/playwright-ct.config.ts
+  s_a8095ef648b42d::t_2a7687f3741ec2 1-28
+packages/react/src/ssr.test.ts
+  s_a8095ef648b42d::t_2a7687f3741ec2 1-46,52-63
+  s_a8095ef648b42d::t_23e912ba25da09 47-51
+packages/react/playwright/harness/ControlledHost.tsx
+  s_a8095ef648b42d::t_2a7687f3741ec2 1-32
+packages/react/playwright/harness.css
+  s_a8095ef648b42d::t_2a7687f3741ec2 1-10
+packages/react/playwright/harness/UncontrolledHost.tsx
+  s_a8095ef648b42d::t_2a7687f3741ec2 1-13
+packages/react/playwright/harness/HookProbe.tsx
+  s_a8095ef648b42d::t_2a7687f3741ec2 1-53
+packages/react/playwright/index.tsx
+  s_a8095ef648b42d::t_2a7687f3741ec2 1-3
+packages/react/src/index.ts
+  s_a8095ef648b42d::t_a28645392da48d 19-20
+packages/react/src/components/InkRoot.tsx
+  s_a8095ef648b42d::t_2a7687f3741ec2 1-15,22-42,47-92,95-175,177-204,206-221,223-268,277-296,306-307,314-366
+  s_a8095ef648b42d::t_23e912ba25da09 16-21,43-46,93-94,269-276,297-305,308-313
+  s_a8095ef648b42d::t_abc2af890e0546 176,205,222
+packages/react/playwright/harness/EventHost.tsx
+  s_a8095ef648b42d::t_2a7687f3741ec2 1-53
+packages/react/playwright/console-guard.ts
+  s_a8095ef648b42d::t_2a7687f3741ec2 1-34
+packages/react/package.json
+  s_a8095ef648b42d::t_a28645392da48d 22
+eslint.config.js
+  s_a8095ef648b42d::t_a28645392da48d 20
+packages/react/tsconfig.json
+  s_a8095ef648b42d::t_6ae18844583d31 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "72ea7750c06cfa5c9bae5a299345aa5d7011328f",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
