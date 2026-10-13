@@ -1,5 +1,7 @@
 <script lang="ts">
+  import InkNotePopover from '../../lib/components/InkNotePopover.svelte'
   import InkRoot from '../../lib/components/InkRoot.svelte'
+  import InkSuggestionCard from '../../lib/components/InkSuggestionCard.svelte'
   import InkViewport from '../../lib/components/InkViewport.svelte'
   import DefaultToolbar from '../../lib/compositions/DefaultToolbar.svelte'
 
@@ -12,4 +14,6 @@
   <p>slot</p>
   <DefaultToolbar />
   <InkViewport />
+  <InkNotePopover />
+  <InkSuggestionCard />
 </InkRoot>

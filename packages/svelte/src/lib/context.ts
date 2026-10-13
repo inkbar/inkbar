@@ -46,9 +46,23 @@ export interface InkContext {
 
 const KEY = Symbol('inkbar')
 
+/**
+ * `activated` as last set, not tracked, per context. Internal to the package. For code that
+ * runs while an effect is torn down (a popover's close handler): there Svelte serves a
+ * reactive read the value from before the change that caused the teardown.
+ */
+const activatedPeeks = new WeakMap<InkContext, () => string | null>()
+
 /** Called once by InkRoot during its initialisation. */
-export function setInkContext(ctx: InkContext): void {
+export function setInkContext(ctx: InkContext, peekActivated: () => string | null): void {
+  activatedPeeks.set(ctx, peekActivated)
   setContext(KEY, ctx)
+}
+
+/** The untracked `activated` of a context made by InkRoot. Not part of the public entry. */
+export function peekActivated(ctx: InkContext): string | null {
+  const peek = activatedPeeks.get(ctx)
+  return peek ? peek() : ctx.activated
 }
 
 /**
