@@ -1,0 +1,34 @@
+packages/core/src/model/annotations/threads.test.ts
+  s_a8095ef648b42d::t_146f70e99a610c 38-43
+  s_a8095ef648b42d::t_54ed3ef146cbe2 71,74-75
+packages/core/src/dom/popover-focus.browser.test.ts
+  s_a8095ef648b42d::t_ecb3842482291e 88
+  s_a8095ef648b42d::t_d0f2d94de7e1b3 85,90-95,97-103,105,108-114,117-119
+  s_a8095ef648b42d::t_76e106429319dc 96
+  s_a8095ef648b42d::t_ea3ff9597fa23d 115-116
+packages/core/src/dom/ui.ts
+  s_a8095ef648b42d::t_cf78b1d589229d 27-30
+packages/core/src/model/annotations/store.test.ts
+  s_a8095ef648b42d::t_3c4128d42f30cc 360-361
+packages/core/src/model/annotations/snapshot-history.ts
+  s_a8095ef648b42d::t_bc8e427c79c3ef 42,59
+  s_a8095ef648b42d::t_4d454cf7d314ab 26-30
+packages/core/src/model/annotations/snapshot-history.test.ts
+  s_a8095ef648b42d::t_be3d3417bccbdf 102-117
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "083c44adc95e81f1b2b9d0b511b99144086334c3",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
