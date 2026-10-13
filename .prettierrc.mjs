@@ -1,15 +1,17 @@
 import base from '@ecssc/prettier-config'
 
-// prettier-plugin-tailwindcss 0.6 crashes on Svelte files under Prettier 3.9 (its wrapped Svelte
-// printer has no getVisitorKeys), so Svelte files use the Svelte plugin alone and give up class
-// sorting. Every other file keeps the base plugins.
+// Svelte files use the Svelte plugin first and the Tailwind plugin last, which prettier-plugin-tailwindcss
+// requires. Tailwind plugin 0.6 crashed on Svelte under Prettier 3.9; 0.8 works.
 export default {
   ...base,
   overrides: [
     ...(base.overrides ?? []),
     {
       files: '*.svelte',
-      options: { parser: 'svelte', plugins: ['prettier-plugin-svelte'] },
+      options: {
+        parser: 'svelte',
+        plugins: ['prettier-plugin-svelte', 'prettier-plugin-tailwindcss'],
+      },
     },
   ],
 }
