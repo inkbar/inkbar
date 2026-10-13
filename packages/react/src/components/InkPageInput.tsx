@@ -13,7 +13,12 @@ export type InkPageInputProps = Omit<
   'value' | 'onChange' | 'type' | 'min' | 'max'
 >
 
-export function InkPageInput({ className, ...rest }: InkPageInputProps) {
+export function InkPageInput({
+  className,
+  onBlur,
+  onKeyDown: onKeyDownProp,
+  ...rest
+}: InkPageInputProps) {
   const { current, count, goTo } = usePage()
   const [draft, setDraft] = useState(String(current + 1))
   useEffect(() => {
@@ -27,7 +32,8 @@ export function InkPageInput({ className, ...rest }: InkPageInputProps) {
     else setDraft(String(current + 1))
   }
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>): void {
-    if (e.key !== 'Enter') return
+    onKeyDownProp?.(e)
+    if (e.defaultPrevented || e.key !== 'Enter') return
     e.preventDefault()
     commit()
   }
@@ -42,7 +48,11 @@ export function InkPageInput({ className, ...rest }: InkPageInputProps) {
       max={count}
       value={draft}
       onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
+      onBlur={(e) => {
+        onBlur?.(e)
+        // Only an edit commits on blur; a plain focus-then-blur must not move the viewport.
+        if (!e.defaultPrevented && draft !== String(current + 1)) commit()
+      }}
       onKeyDown={onKeyDown}
       {...rest}
     />

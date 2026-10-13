@@ -130,3 +130,29 @@ test('toolbar is keyboard operable', async ({ mount, page }) => {
   await page.keyboard.press('ArrowLeft')
   await expect(cmp.locator(toolButton('highlight'))).toBeFocused()
 })
+
+test('blurring an untouched page input does not move the viewport', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(
+    <ToolbarHarness src={fixtureUrl('text-simple')} assets={assets} />
+  )
+  await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+  const scroll = cmp.locator('[data-ink-scroll]')
+  const input = cmp.locator('input[aria-label="Page"]')
+  await input.fill('2')
+  await page.keyboard.press('Enter')
+  await expect(input).toHaveValue('2')
+  await expect.poll(() => scroll.evaluate((el) => el.scrollTop)).toBeGreaterThan(500)
+  await scroll.evaluate((el) => {
+    el.scrollTop += 200
+  })
+  await expect(input).toHaveValue('2')
+  const before = await scroll.evaluate((el) => el.scrollTop)
+  await input.focus()
+  // Zoom out would rescale the scroll position; clicking a non-zooming control isolates the blur.
+  await cmp.locator(toolButton('select')).click()
+  await expect(cmp.locator(toolButton('select'))).toHaveAttribute('aria-pressed', 'true')
+  expect(await scroll.evaluate((el) => el.scrollTop)).toBe(before)
+})
