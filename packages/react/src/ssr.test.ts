@@ -39,6 +39,14 @@ describe('@inkbar/react on the server', () => {
         'usePage',
         'useHistory',
         'useEmbedded',
+        'InkToolbar',
+        'InkToolButton',
+        'InkZoomIn',
+        'InkZoomOut',
+        'InkZoomSelect',
+        'InkPageInput',
+        'InkPageCount',
+        'DefaultToolbar',
       ])
     )
     expect(evaluated.pdfjs).toBe(false)
@@ -47,12 +55,15 @@ describe('@inkbar/react on the server', () => {
       createElement(
         entry.InkRoot,
         { src: '/doc.pdf', assets },
-        createElement('p', null, 'slot')
+        createElement('p', null, 'slot'),
+        createElement(entry.DefaultToolbar)
       )
     )
     expect(html).toContain('data-ink-root')
     expect(html).toContain('data-state="idle"')
     expect(html).toContain('<p>slot</p>')
+    expect(html).toContain('data-ink-toolbar')
+    expect(html).toContain('aria-label="Document tools"')
     expect(evaluated.pdfjs).toBe(false)
 
     // Control: the same mock fires once a document actually opens, so the falses above mean something.
