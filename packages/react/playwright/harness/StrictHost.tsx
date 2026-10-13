@@ -8,16 +8,26 @@ import type { PdfAssets } from '@inkbar/core'
 function Tree({ src, assets }: { src: string; assets: PdfAssets }) {
   const [ready, setReady] = useState(0)
   const [errors, setErrors] = useState(0)
+  // Mount-only: runs twice under StrictMode (mount, cleanup, mount), once otherwise.
+  const runs = useRef(0)
+  const [effectRuns, setEffectRuns] = useState(0)
+  useEffect(() => {
+    runs.current += 1
+    setEffectRuns(runs.current)
+  }, [])
   return (
-    <InkRoot
-      src={src}
-      assets={assets}
-      onReady={() => setReady((n) => n + 1)}
-      onError={() => setErrors((n) => n + 1)}
-    >
-      <output data-testid="ready-count">{ready}</output>
-      <output data-testid="error-count">{errors}</output>
-    </InkRoot>
+    <>
+      <div data-testid="effect-marker" data-effect-runs={effectRuns} />
+      <InkRoot
+        src={src}
+        assets={assets}
+        onReady={() => setReady((n) => n + 1)}
+        onError={() => setErrors((n) => n + 1)}
+      >
+        <output data-testid="ready-count">{ready}</output>
+        <output data-testid="error-count">{errors}</output>
+      </InkRoot>
+    </>
   )
 }
 
