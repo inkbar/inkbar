@@ -53,18 +53,24 @@ export function InkNotePopover({ children }: InkNotePopoverProps) {
   /** True while the default form writes the root note's own text rather than a reply. */
   const editingRoot = note !== null && !note.locked && !note.contents?.trim()
 
-  const [draft, setDraft] = useState('')
   /**
    * Notes this popover wrote text or a reply for. In controlled mode the write is a proposal
    * the host may not have applied yet, so the applied list still shows the note empty; these
    * are never dropped as abandoned.
    */
   const written = useRef(new Set<string>())
+  /** Notes this popover has already asked to remove, so a slow host is asked once. */
+  const dropped = useRef(new Set<string>())
   const latest = useLatest({ annotations, remove })
 
   function dropIfEmpty(id: string): boolean {
-    if (written.current.has(id) || !isAbandonedNote(latest.current.annotations, id))
+    if (
+      dropped.current.has(id) ||
+      written.current.has(id) ||
+      !isAbandonedNote(latest.current.annotations, id)
+    )
       return false
+    dropped.current.add(id)
     latest.current.remove(id)
     return true
   }
@@ -76,7 +82,6 @@ export function InkNotePopover({ children }: InkNotePopoverProps) {
     const previous = previousId.current
     if (previous === noteId) return
     previousId.current = noteId
-    setDraft('')
     if (previous !== undefined) dropIfEmpty(previous)
     // dropIfEmpty reads through `latest`; it is stable for the effect's purposes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -88,7 +93,6 @@ export function InkNotePopover({ children }: InkNotePopoverProps) {
     if (!root || !contents) return
     written.current.add(root.id)
     add({ type: 'note', page: root.page, rect: root.rect, contents, inReplyTo: root.id })
-    setDraft('')
   }
   function isEmptyRoot(root: NoteAnnotation): boolean {
     return (
@@ -111,23 +115,14 @@ export function InkNotePopover({ children }: InkNotePopoverProps) {
     if (contents.trim()) written.current.add(note.id)
     update(note.id, { contents })
   }
-  function submit(e: FormEvent): void {
-    e.preventDefault()
-    const text = draft.trim()
-    if (!text) return
-    if (editingRoot) {
-      updateContents(text)
-      setDraft('')
-    } else reply(text)
-  }
   /** Locked notes cannot be removed: removing one does nothing and keeps the popover. */
   function removeThread(): void {
     const root = note
     if (!root || root.locked) return
     focusReturn.beforeRemove(anchor)
+    // Under a slow controlled host the note stays listed for a while; it is not asked for again.
+    dropped.current.add(root.id)
     remove(root.id)
-    // Not `close()`: under a slow controlled host the note is still listed, and close would
-    // try to drop it a second time.
     ctx.setActivated(null)
   }
 
@@ -177,37 +172,68 @@ export function InkNotePopover({ children }: InkNotePopoverProps) {
                     ))}
                   </ol>
                 ) : null}
-                <form
-                  className="ink-thread-reply"
-                  data-ink-thread-reply=""
-                  onSubmit={submit}
-                >
-                  <textarea
-                    aria-label={editingRoot ? 'Comment' : 'Reply'}
-                    rows={2}
-                    placeholder={editingRoot ? 'Comment' : 'Reply'}
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                  />
-                  <div className="ink-thread-actions">
-                    <button type="submit" disabled={!draft.trim()}>
-                      {editingRoot ? 'Comment' : 'Reply'}
-                    </button>
-                    {!note.locked ? (
-                      <button type="button" onClick={removeThread}>
-                        Delete
-                      </button>
-                    ) : null}
-                    <button type="button" onClick={close}>
-                      Close
-                    </button>
-                  </div>
-                </form>
+                <ThreadForm
+                  // Keyed by note: moving to another note starts with an empty draft at once.
+                  key={note.id}
+                  editingRoot={editingRoot}
+                  locked={!!note.locked}
+                  onSubmit={(text) => (editingRoot ? updateContents(text) : reply(text))}
+                  onRemove={removeThread}
+                  onClose={close}
+                />
               </>
             )}
           </Popover.Content>
         ) : null}
       </Popover.Portal>
     </Popover.Root>
+  )
+}
+
+/** The default form: the root note's own text while it is empty, replies after that. */
+function ThreadForm({
+  editingRoot,
+  locked,
+  onSubmit,
+  onRemove,
+  onClose,
+}: {
+  editingRoot: boolean
+  locked: boolean
+  onSubmit: (text: string) => void
+  onRemove: () => void
+  onClose: () => void
+}) {
+  const [draft, setDraft] = useState('')
+  function submit(e: FormEvent): void {
+    e.preventDefault()
+    const text = draft.trim()
+    if (!text) return
+    onSubmit(text)
+    setDraft('')
+  }
+  return (
+    <form className="ink-thread-reply" data-ink-thread-reply="" onSubmit={submit}>
+      <textarea
+        aria-label={editingRoot ? 'Comment' : 'Reply'}
+        rows={2}
+        placeholder={editingRoot ? 'Comment' : 'Reply'}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+      />
+      <div className="ink-thread-actions">
+        <button type="submit" disabled={!draft.trim()}>
+          {editingRoot ? 'Comment' : 'Reply'}
+        </button>
+        {!locked ? (
+          <button type="button" onClick={onRemove}>
+            Delete
+          </button>
+        ) : null}
+        <button type="button" onClick={onClose}>
+          Close
+        </button>
+      </div>
+    </form>
   )
 }

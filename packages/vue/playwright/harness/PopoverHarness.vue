@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, shallowRef } from 'vue'
+import { onBeforeUnmount, ref, shallowRef } from 'vue'
 
 import InkNotePopover from '../../src/components/InkNotePopover.vue'
 import InkRoot from '../../src/components/InkRoot.vue'
@@ -27,8 +27,10 @@ const props = defineProps<{
 }>()
 
 const list = shallowRef<Annotation[]>([])
+const proposals = ref(0)
 
 function onUpdate(next: Annotation[]): void {
+  proposals.value += 1
   if (props.applyDelay === undefined) list.value = next
   else setTimeout(() => (list.value = next), props.applyDelay)
 }
@@ -73,6 +75,7 @@ function onReady(doc: InkDocument) {
     @update:annotations="onUpdate"
     @ready="onReady"
   >
+    <output data-testid="proposals">{{ proposals }}</output>
     <!-- Test-only box: the scroll container needs a bounded height to scroll. -->
     <div style="height: 600px; width: 900px">
       <InkViewport>
