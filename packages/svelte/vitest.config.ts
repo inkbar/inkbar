@@ -29,7 +29,7 @@ export default defineConfig({
         plugins: [svelte(), serveFixtures()],
         // Pre-bundled up front: discovering it mid-run makes Vite reload the test page.
         resolve: { alias: { 'pdfjs-dist': pdfjs } },
-        optimizeDeps: { include: ['pdfjs-dist'] },
+        optimizeDeps: { include: ['pdfjs-dist', 'esm-env'] },
         test: {
           name: 'browser',
           include: ['src/test/*.browser.test.ts'],
