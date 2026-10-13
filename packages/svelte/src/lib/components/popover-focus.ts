@@ -37,7 +37,9 @@ export function keepOpenOnAnnotation(event: PointerEvent): void {
  * card opened by selection alone takes focus without passing it through the annotation' fails.
  *
  * A close that is superseded this way moves no focus, but it still uses up whatever
- * `beforeRemove` planned for it, so the plan cannot leak into a later close.
+ * `beforeRemove` planned for it, so the plan cannot leak into a later close. A close that is
+ * only reported again in the same stretch is dropped, and the last report answers with the
+ * plan intact.
  */
 export function useFocusReturn(ctx: InkContext): PopoverFocusReturn {
   /** True while a superseded close is handed to the planner only to clear its plan. */
@@ -47,19 +49,24 @@ export function useFocusReturn(ctx: InkContext): PopoverFocusReturn {
     root: () => (discarding ? null : ctx.rootEl),
     activated: () => peekActivated(ctx),
   })
-  /** Counts the open and close reports, so a close can tell whether anything followed it. */
-  let reports = 0
+  /** Open and close reports so far, so a deferred close can tell what followed it. */
+  let opens = 0
+  let closes = 0
   return {
     beforeRemove: (anchor, prefer) => planner.beforeRemove(anchor, prefer),
     onOpenAutoFocus() {
-      reports += 1
+      opens += 1
     },
     onCloseAutoFocus(event, anchor) {
       // Never the library's own focus return: there is no trigger for it to return to.
       event.preventDefault()
-      const report = ++reports
+      const close = ++closes
+      const opensBefore = opens
       queueMicrotask(() => {
-        discarding = report !== reports
+        // Reported again since: the last close of the stretch answers, with the plan intact.
+        if (close !== closes) return
+        // An open followed: the popover is open, so only the plan is cleared.
+        discarding = opens !== opensBefore
         try {
           planner.onCloseAutoFocus(event, anchor)
         } finally {
