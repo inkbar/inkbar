@@ -1,0 +1,23 @@
+packages/react/playwright/harness/StrictHost.tsx
+  s_a8095ef648b42d::t_2c825574e78c66 11-17,19-30
+packages/react/src/components/InkRoot.ct.tsx
+  s_a8095ef648b42d::t_2a66f56a28d1c6 247-268,379-382
+packages/react/src/components/InkRoot.tsx
+  s_a8095ef648b42d::t_00514be13429be 8,16,199,213-220,255-260,271
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "68766e7931887a0edba5554b5549ea0095899eda",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
