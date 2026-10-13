@@ -1,11 +1,11 @@
 import { createContext } from 'reka-ui'
 import { getCurrentInstance } from 'vue'
 
-import type { Annotation, DocumentStatus, InkDocument, PdfAssets } from '@inkbar/core'
+import type { Annotation, InkDocument, InkStatus, PdfAssets } from '@inkbar/core'
 import type { ToolController, ToolId, Viewport, ZoomValue } from '@inkbar/core/dom'
 import type { Ref, ShallowRef } from 'vue'
 
-export type InkStatus = DocumentStatus | { state: 'idle' }
+export type { InkStatus }
 
 /** Undo and redo for the current document, whichever mode its annotations are in. */
 export interface InkHistory {
