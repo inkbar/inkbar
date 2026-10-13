@@ -75,5 +75,9 @@ describe('@inkbar/svelte on the server', () => {
     const { openDocument } = await import('@inkbar/core')
     await openDocument(new Uint8Array([1]), { assets })
     expect(evaluated.pdfjs).toBe(true)
-  })
+    // The import of the library is the slow part, and only on a cold transform cache, as in CI:
+    // about 2.3 s of the 2.6 s is the import of Bits UI's single entry, where the Svelte compiler
+    // goes through some 230 components, measured alone on a fast machine. Warm, the whole test
+    // takes 0.5 s. The default 5 s is too close to that when other packages' tasks run beside it.
+  }, 30_000)
 })

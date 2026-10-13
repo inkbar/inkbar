@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { page as browserPage, userEvent } from 'vitest/browser'
 import { render } from 'vitest-browser-svelte'
 
-import { guardConsole } from './console-guard'
-import { attr, count, focused, q, qa, sleep } from './dom'
+import { guardConsole } from './console-guard.js'
+import { attr, count, focused, q, qa, sleep } from './dom.js'
 import PopoverHarness, {
   type HostWindow,
   type PopoverHarnessProps,

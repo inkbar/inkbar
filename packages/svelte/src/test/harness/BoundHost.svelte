@@ -15,12 +15,15 @@
   /**
    * A host on the binding paths: `bind:annotations` by default; with `withhold`, a function
    * binding whose setter records the proposal and applies it only when Apply is pressed.
+   * With `noteColor`, the root element sets the theme's note colour variable to it.
    */
   let {
     src,
     assets,
     withhold = false,
     asChild = false,
+    history,
+    noteColor,
     onProposal,
     onChange,
   }: {
@@ -28,6 +31,8 @@
     assets: PdfAssets
     withhold?: boolean
     asChild?: boolean
+    history?: boolean | undefined
+    noteColor?: string | undefined
     onProposal?: ((next: Annotation[]) => void) | undefined
     onChange?: ((kind: string) => void) | undefined
   } = $props()
@@ -43,6 +48,7 @@
   }
   let root = $state<RootHandle | undefined>(undefined)
   let rootEl = $state<HTMLElement | null>(null)
+  const themeStyle = $derived(noteColor ? `--ink-note: ${noteColor}` : undefined)
 
   function propose(next: Annotation[]): void {
     onProposal?.(next)
@@ -60,6 +66,7 @@
   <button type="button" data-testid="clear-history" onclick={() => root?.history.clear()}>
     clear
   </button>
+  <output data-testid="handle-can-undo">{String(root?.history.canUndo ?? false)}</output>
   <output data-testid="handle-status">{root?.getStatus().state}</output>
   <output data-testid="handle-has-document"
     >{String(root ? root.getDocument() !== null : false)}</output
@@ -76,10 +83,11 @@
     {src}
     {assets}
     bind:annotations={() => list, propose}
+    {history}
     onChange={(c: AnnotationChange) => onChange?.(c.kind)}
   >
     {#snippet child({ props })}
-      <section {...props} class="host-root">
+      <section {...props} class="host-root" style={themeStyle}>
         {@render probeAndHandle()}
       </section>
     {/snippet}
@@ -91,6 +99,8 @@
     {src}
     {assets}
     bind:annotations={() => list, propose}
+    {history}
+    style={themeStyle}
     onChange={(c: AnnotationChange) => onChange?.(c.kind)}
   >
     {@render probeAndHandle()}

@@ -4,8 +4,8 @@ import { describe, expect, it } from 'vitest'
 import { page as browserPage, userEvent } from 'vitest/browser'
 import { render } from 'vitest-browser-svelte'
 
-import { guardConsole } from './console-guard'
-import { attr, count, cssOf, gateFetch, q, qa, scrollTopOf, sleep } from './dom'
+import { guardConsole } from './console-guard.js'
+import { attr, count, cssOf, gateFetch, q, qa, scrollTopOf, sleep } from './dom.js'
 import BoundViewportHost from './harness/BoundViewportHost.svelte'
 import ViewportHarness from './harness/ViewportHarness.svelte'
 
@@ -167,8 +167,7 @@ describe('InkViewport', () => {
     await expect.poll(attr('[data-ink-root]', 'data-state')).toBe('error')
     expect(count('.ink-page')()).toBe(0)
     // The engine's recovery warnings come from its worker and never reach this console.
-    expect(consoleGuard.problems.filter((m) => !m.startsWith('Warning: '))).toEqual([])
-    consoleGuard.clear()
+    expect(consoleGuard.problems).toEqual([])
 
     // Nothing covers or blocks the page around the viewport.
     await screen.getByTestId('outside').click()
@@ -497,6 +496,47 @@ describe('InkViewport', () => {
       expect(pages.slice(before)).toEqual([])
       expect(zooms).toEqual([])
     }
+  })
+
+  // No React counterpart: a prop read in an effect re-runs it whenever the host's expression
+  // is invalidated, changed or not, so the build reads `gap` and `buffer` through deriveds.
+  it('does not rebuild when the host restates the same gap and buffer', async () => {
+    const zooms: ZoomValue[] = []
+    const pages: number[] = []
+    const screen = await render(ViewportHarness, {
+      src: fixtureUrl('text-simple'),
+      assets,
+      zoom: 1,
+      onZoomChange: (z: ZoomValue) => zooms.push(z),
+      onPageChange: (p: number) => pages.push(p),
+    })
+    const canvas = await q(`${FIRST} canvas[data-ink-canvas]`)
+    await q(`${FIRST} [data-ink-text-layer] span`)
+    const hosts = qa('.ink-page')
+    expect(hosts.length).toBeGreaterThan(0)
+    const host = document.querySelector(FIRST)!
+
+    for (const presses of [1, 2]) {
+      await screen.getByTestId('restate').click()
+      await expect
+        .element(screen.getByTestId('restate'))
+        .toHaveTextContent(`Restated ${presses}`)
+      // A rebuild would have replaced the hosts within this flush; the wait covers the
+      // remount of their layers.
+      await sleep(200)
+      expect(document.querySelector(FIRST)).toBe(host)
+      expect(qa('.ink-page')).toEqual(hosts)
+      expect(host.isConnected).toBe(true)
+      expect(document.querySelector(`${FIRST} canvas[data-ink-canvas]`)).toBe(canvas)
+      expect(canvas.isConnected).toBe(true)
+    }
+    expect(zooms).toEqual([])
+    expect(pages).toEqual([])
+
+    // Control: the same harness does rebuild when the gap really changes.
+    await screen.rerender({ gap: 24 })
+    await expect.poll(() => document.querySelector(FIRST) !== host).toBe(true)
+    expect(host.isConnected).toBe(false)
   })
 
   // No React counterpart: the helper above has to be able to move an annotation, or the

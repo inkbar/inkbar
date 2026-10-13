@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { page as browserPage, userEvent } from 'vitest/browser'
 import { render } from 'vitest-browser-svelte'
 
-import { guardConsole } from './console-guard'
-import { attr, cssOf, focused, q, scrollTopOf } from './dom'
+import { guardConsole } from './console-guard.js'
+import { attr, cssOf, focused, q, scrollTopOf, sleep } from './dom.js'
 import ToolbarHarness from './harness/ToolbarHarness.svelte'
 import ZoomClickHarness from './harness/ZoomClickHarness.svelte'
 
@@ -121,6 +121,30 @@ describe('toolbar', () => {
     await input.fill('9')
     await userEvent.keyboard('{Enter}')
     await expect.element(input).toHaveValue(3)
+  })
+
+  // No React counterpart as a test; the React input replaces its draft the same way.
+  it('an uncommitted page draft gives way when the page changes from outside', async () => {
+    await render(ToolbarHarness, { src: fixtureUrl('text-simple'), assets })
+    await q('.ink-page canvas')
+    const input = browserPage.getByRole('spinbutton', { name: 'Page' })
+    await expect.element(input).toHaveValue(1)
+    // Typed, with no Enter and no blur: a draft the viewport has not been asked to follow.
+    const el = input.element() as HTMLInputElement
+    el.focus()
+    el.select()
+    await userEvent.keyboard('3')
+    await expect.element(input).toHaveValue(3)
+    await sleep(100)
+    expect(scrollTopOf(SCROLL)()).toBe(0)
+    expect(focused()).toBe(el)
+
+    // The reader scrolls to page 2 instead (zoom 1: 16 + 792 + 16 is the top of its box).
+    document.querySelector<HTMLElement>(SCROLL)!.scrollTop = 824
+    await expect.element(input).toHaveValue(2)
+    // Nothing committed the draft on the way: the viewport is where the reader put it.
+    expect(scrollTopOf(SCROLL)()).toBe(824)
+    expect(focused()).toBe(el)
   })
 
   // React: 'toolbar is keyboard operable'
