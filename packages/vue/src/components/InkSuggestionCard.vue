@@ -16,9 +16,9 @@ import { injectInkContext } from '../context'
 import { useAnnotationElement } from './annotation-element'
 import { keepOpenOnAnnotation, useFocusReturn } from './popover-focus'
 
-import type { RedactAnnotation, Suggestion } from '@inkbar/core'
+import type { ConfidenceBucket, RedactAnnotation, Suggestion } from '@inkbar/core'
 
-export type ConfidenceBucket = ReturnType<typeof confidenceBucket>
+export type { ConfidenceBucket } from '@inkbar/core'
 
 export interface SuggestionCardSlotProps {
   annotation: RedactAnnotation

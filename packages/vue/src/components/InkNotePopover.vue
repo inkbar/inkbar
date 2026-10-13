@@ -8,6 +8,7 @@
  * something in it; after that the form adds replies. Closing a root that is still empty and
  * has no replies removes it, so an abandoned note does not stay on the page.
  */
+import { isAbandonedNote, threadOf, threadRoot } from '@inkbar/core'
 import { PopoverContent, PopoverPortal, PopoverRoot } from 'reka-ui'
 import { computed, ref, watch } from 'vue'
 
@@ -18,43 +19,21 @@ import { useAnnotationElement } from './annotation-element'
 import { keepOpenOnAnnotation, useFocusReturn } from './popover-focus'
 
 import type { Annotation, NoteAnnotation } from '@inkbar/core'
+import type { NotePopoverSlotProps } from '@inkbar/core/dom'
 
-export interface NotePopoverSlotProps {
-  note: NoteAnnotation
-  replies: Annotation[]
-  reply: (text: string) => void
-  update: (contents: string) => void
-  remove: () => void
-  close: () => void
-}
+export type { NotePopoverSlotProps } from '@inkbar/core/dom'
 
 defineSlots<{ default?(props: NotePopoverSlotProps): unknown }>()
 
 const ctx = injectInkContext()
-const { annotations, replies, add, update, remove } = useAnnotations()
+const { annotations, add, update, remove } = useAnnotations()
 
 const find = (id: string | undefined) =>
   id ? annotations.value.find((a) => a.id === id) : undefined
 
-/**
- * The top of a note's thread: follows `inReplyTo` up through notes, stopping at a missing
- * parent, a parent that is not a note, or a cycle.
- */
-function threadRoot(start: NoteAnnotation): NoteAnnotation {
-  const seen = new Set([start.id])
-  let current = start
-  while (current.inReplyTo) {
-    const parent = find(current.inReplyTo)
-    if (parent?.type !== 'note' || seen.has(parent.id)) break
-    seen.add(parent.id)
-    current = parent
-  }
-  return current
-}
-
 const note = computed<NoteAnnotation | null>(() => {
   const a = find(ctx.activated.value ?? undefined)
-  return a?.type === 'note' ? threadRoot(a) : null
+  return a?.type === 'note' ? threadRoot(annotations.value, a) : null
 })
 const anchor = useAnnotationElement(
   ctx,
@@ -62,23 +41,9 @@ const anchor = useAnnotationElement(
 )
 const focusReturn = useFocusReturn(ctx)
 const open = computed(() => note.value !== null && anchor.value !== null)
-/** The root, then every reply below it, depth first, each level in creation order. */
-const thread = computed<Annotation[]>(() => {
-  const root = note.value
-  if (!root) return []
-  const out: Annotation[] = [root]
-  const seen = new Set([root.id])
-  const visit = (id: string): void => {
-    for (const r of replies(id)) {
-      if (seen.has(r.id)) continue
-      seen.add(r.id)
-      out.push(r)
-      visit(r.id)
-    }
-  }
-  visit(root.id)
-  return out
-})
+const thread = computed<Annotation[]>(() =>
+  note.value ? threadOf(annotations.value, note.value) : []
+)
 
 /** True while the default form writes the root note's own text rather than a reply. */
 const editingRoot = computed(() => {
@@ -105,10 +70,7 @@ watch(
 const written = new Set<string>()
 
 function dropIfEmpty(id: string): boolean {
-  if (written.has(id)) return false
-  const a = find(id)
-  if (a?.type !== 'note' || a.locked || a.inReplyTo || a.contents?.trim()) return false
-  if (replies(id).length > 0) return false
+  if (written.has(id) || !isAbandonedNote(annotations.value, id)) return false
   remove(id)
   return true
 }

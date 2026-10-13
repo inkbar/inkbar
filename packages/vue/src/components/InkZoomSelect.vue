@@ -1,16 +1,16 @@
 <script setup lang="ts">
+import { ZOOM_LEVELS } from '@inkbar/core/dom'
 import { computed } from 'vue'
 
 import { useZoom } from '../composables/useZoom'
 
 import type { ZoomValue } from '@inkbar/core/dom'
 
-const LEVELS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4]
 const CUSTOM = 'custom:'
 
 const { zoom, scale, setZoom } = useZoom()
 
-const level = (z: number) => LEVELS.find((l) => Math.abs(l - z) < 0.001)
+const level = (z: number) => ZOOM_LEVELS.find((l) => Math.abs(l - z) < 0.001)
 /** A numeric zoom that is not one of the levels (zoom in and out multiply). */
 const custom = computed(() =>
   typeof zoom.value === 'number' && level(zoom.value) === undefined ? zoom.value : null
@@ -39,7 +39,7 @@ function onChange(e: Event): void {
   >
     <option value="fit-width">Fit width</option>
     <option value="fit-page">Fit page</option>
-    <option v-for="l in LEVELS" :key="l" :value="String(l)">
+    <option v-for="l in ZOOM_LEVELS" :key="l" :value="String(l)">
       {{ Math.round(l * 100) }}%
     </option>
     <option v-if="custom !== null" :value="`${CUSTOM}${custom}`">

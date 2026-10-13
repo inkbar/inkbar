@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { TOOL_LABELS } from '@inkbar/core/dom'
 import { ToolbarButton } from 'reka-ui'
 import { computed } from 'vue'
 
@@ -11,17 +12,9 @@ const props = withDefaults(
   { label: undefined, asChild: false }
 )
 
-const LABELS: Record<ToolId, string> = {
-  view: 'View',
-  select: 'Select',
-  highlight: 'Highlight',
-  'redact-area': 'Mark for redaction',
-  note: 'Add note',
-}
-
 const { tool: current, setTool } = useTool()
 const active = computed(() => current.value === props.tool)
-const name = computed(() => props.label ?? LABELS[props.tool])
+const name = computed(() => props.label ?? TOOL_LABELS[props.tool])
 // Reka's typed props stop at its own; ARIA and listeners go through a bound object.
 const attrs = computed(() => ({
   'aria-pressed': String(active.value),
