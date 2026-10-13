@@ -7,12 +7,13 @@
     "./fake-server": "./src/fake-server.ts",
     "./page-count": "./src/page-count.ts",
     "./metrics": "./src/metrics.ts",
-    "./playwright": "./playwright.ts"
+    "./playwright": "./playwright.ts",
+    "./vite": "./vite.ts"
   },
   "scripts": {
     "build": "echo skip",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "lint": "eslint src e2e playwright.ts",
+    "lint": "eslint src e2e playwright.ts vite.ts",
     "test": "node --test src/page-count.test.ts"
   },
   "dependencies": {
