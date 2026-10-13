@@ -47,6 +47,8 @@ describe('@inkbar/react on the server', () => {
         'InkPageInput',
         'InkPageCount',
         'DefaultToolbar',
+        'InkNotePopover',
+        'InkSuggestionCard',
       ])
     )
     expect(evaluated.pdfjs).toBe(false)
@@ -56,7 +58,9 @@ describe('@inkbar/react on the server', () => {
         entry.InkRoot,
         { src: '/doc.pdf', assets },
         createElement('p', null, 'slot'),
-        createElement(entry.DefaultToolbar)
+        createElement(entry.DefaultToolbar),
+        createElement(entry.InkNotePopover),
+        createElement(entry.InkSuggestionCard)
       )
     )
     expect(html).toContain('data-ink-root')
