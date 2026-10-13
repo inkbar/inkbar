@@ -31,7 +31,7 @@ type Snapshot = readonly Annotation[]
 type Pending = { kind: 'undo' | 'redo'; target: Snapshot }
 
 export function createSnapshotHistory(opts: SnapshotHistoryOptions): SnapshotHistory {
-  const limit = opts.limit ?? 200
+  const limit = Math.max(1, opts.limit ?? 200)
   const past = writable<Snapshot[]>([])
   const future = writable<Snapshot[]>([])
   let pending: Pending | null = null
@@ -58,6 +58,8 @@ export function createSnapshotHistory(opts: SnapshotHistoryOptions): SnapshotHis
       return
     }
     if (next === undefined || prev === undefined) return
+    // A new array with the same content is not a step, and leaves a pending step alone.
+    if (sameList(next, prev)) return
     const step = pending
     pending = null
     if (step && sameList(next, step.target)) {
@@ -70,8 +72,6 @@ export function createSnapshotHistory(opts: SnapshotHistoryOptions): SnapshotHis
       }
       return
     }
-    // A new array with the same content is not a step.
-    if (sameList(next, prev)) return
     past.set([...past.get(), prev].slice(-limit))
     future.set([])
   }
