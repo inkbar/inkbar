@@ -1,0 +1,24 @@
+packages/svelte/src/lib/components/InkSuggestionCard.svelte
+  s_a8095ef648b42d::t_2688da7a19f193 87
+packages/svelte/src/lib/components/InkNotePopover.svelte
+  s_a8095ef648b42d::t_2688da7a19f193 149
+packages/svelte/src/lib/components/popover-focus.ts
+  s_a8095ef648b42d::t_dd352ee6c0df4c 15,17
+  s_a8095ef648b42d::t_2688da7a19f193 11-14,16,18,29-33,35-36,40-55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0dd8b64030b465c879fb8c59d6cf93aaa43005d5",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
