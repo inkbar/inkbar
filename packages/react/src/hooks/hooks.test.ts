@@ -2,6 +2,8 @@ import { createElement } from 'react'
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 
+import { InkContextObject, type InkContext } from '../context'
+
 import { useAnnotations } from './useAnnotations'
 import { useDocument } from './useDocument'
 import { useEmbedded } from './useEmbedded'
@@ -29,5 +31,23 @@ describe('hooks outside InkRoot', () => {
     expect(() => renderToString(createElement(Probe))).toThrow(
       `[inkbar] ${name} must be called in a component inside <InkRoot>.`
     )
+  })
+})
+
+describe('useDocument without a document', () => {
+  it('returns the same empty pages reference on every render', () => {
+    const value = {
+      document: null,
+      status: { state: 'loading' },
+    } as unknown as InkContext
+    const seen: unknown[] = []
+    function Probe(): null {
+      seen.push(useDocument().pages)
+      return null
+    }
+    const tree = createElement(InkContextObject.Provider, { value }, createElement(Probe))
+    renderToString(tree)
+    renderToString(tree)
+    expect(seen[0]).toBe(seen[1])
   })
 })
