@@ -340,15 +340,24 @@ test('controlled hosts without history get inert undo', async ({ mount }) => {
 
 test('StrictMode opens one document and reports ready once (Review Focus 1)', async ({
   mount,
+  page,
 }) => {
+  let fetches = 0
+  await page.route('**/fixtures/text-simple.pdf', async (route) => {
+    fetches++
+    await route.continue()
+  })
   const cmp = await mount(<StrictHost src={fixtureUrl('text-simple')} assets={assets} />)
-  await expect(cmp).toHaveAttribute('data-state', 'ready')
+  const root = cmp.locator('[data-ink-root]')
+  await expect(root).toHaveAttribute('data-state', 'ready')
   await expect(cmp.getByTestId('ready-count')).toHaveText('1')
-  await cmp.page().waitForTimeout(300)
+  await page.waitForTimeout(300)
   await expect(cmp.getByTestId('ready-count')).toHaveText('1')
   await expect(cmp.getByTestId('error-count')).toHaveText('0')
+  // The effect ran, was cleaned up and ran again: the first open was discarded, the second kept.
+  expect(fetches).toBe(2)
   // The live document is the one the hook points at, and it is not destroyed.
-  const alive = await cmp.evaluate(
+  const alive = await root.evaluate(
     (el) => (el as RootEl).__inkDocument!.annotations.list.get().length === 0
   )
   expect(alive).toBe(true)

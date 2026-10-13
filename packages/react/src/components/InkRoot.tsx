@@ -89,9 +89,17 @@ function identity(src: DocumentSource | null): unknown {
   return src
 }
 
+function isDevelopment(): boolean {
+  // Bundlers replace the expression with a literal; raw browser ESM has no `process`.
+  try {
+    return process.env.NODE_ENV !== 'production'
+  } catch {
+    return false
+  }
+}
+
 function setTestHook(el: HTMLElement | null, doc: InkDocument | undefined): void {
-  if (process.env.NODE_ENV !== 'production' && el)
-    (el as TestHookElement).__inkDocument = doc
+  if (el && isDevelopment()) (el as TestHookElement).__inkDocument = doc
 }
 
 export function InkRoot({
@@ -138,7 +146,11 @@ export function InkRoot({
   const annotationList = useReadable(document?.annotations.list, NO_ANNOTATIONS)
   const selection = useReadable(document?.annotations.selection, NO_IDS)
 
-  const controlled = annotations !== undefined
+  // What the next open will do follows the prop; the open document's mode is fixed.
+  const controlledProp = annotations !== undefined
+  const controlled = document
+    ? document.annotations.mode === 'controlled'
+    : controlledProp
   const historyEnabled = controlled && history === true
   // Callbacks and options read later than the render that passed them.
   const latest = useLatest({
@@ -146,7 +158,7 @@ export function InkRoot({
     assets,
     defaults,
     annotations,
-    controlled,
+    controlled: controlledProp,
     history,
     historyEnabled,
     onAnnotationsChange,
