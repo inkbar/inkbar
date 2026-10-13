@@ -4,6 +4,8 @@ import {
   type FocusReturn,
 } from '@inkbar/core/dom'
 
+import { peekActivated } from '../context.js'
+
 import type { InkContext } from '../context.js'
 
 export type { FocusReturn }
@@ -21,6 +23,6 @@ export function keepOpenOnAnnotation(event: PointerEvent): void {
 export function useFocusReturn(ctx: InkContext): FocusReturn {
   return createFocusReturn({
     root: () => ctx.rootEl,
-    activated: () => ctx.peekActivated(),
+    activated: () => peekActivated(ctx),
   })
 }

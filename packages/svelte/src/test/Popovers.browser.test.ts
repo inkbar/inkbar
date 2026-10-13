@@ -546,4 +546,25 @@ describe('popovers', () => {
     expect(consoleGuard.problems[0]).toContain('ControlledMutationIgnored')
     consoleGuard.clear()
   })
+
+  // No React counterpart: pins the drop when activation moves on without a close.
+  it('activation moving from one empty note to another removes the first', async () => {
+    await harness({ src: fixtureUrl('text-simple'), assets })
+    await q(`${FIRST} canvas`)
+    const empty = (y: number) =>
+      addAnnotation({ type: 'note', page: 0, rect: { x: 72, y, width: 24, height: 24 } })
+    const first = empty(600)
+    const second = empty(400)
+    await activate(await q(`[data-annotation="${first}"]`))
+    await q(POPOVER)
+    await hitShape(await q(`[data-annotation="${second}"]`)).click()
+    await expect.poll(() => stored().map((a) => a.id)).toEqual([second])
+    await expect.poll(count(`[data-annotation="${first}"]`)).toBe(0)
+    expect(count(`[data-annotation="${second}"]`)()).toBe(1)
+    const popover = await q(POPOVER)
+    await expect.element(byRole(popover, 'textbox', 'Comment')).toBeVisible()
+    expect(count(POPOVER)()).toBe(1)
+    await sleep(200)
+    expect(stored().map((a) => a.id)).toEqual([second])
+  })
 })

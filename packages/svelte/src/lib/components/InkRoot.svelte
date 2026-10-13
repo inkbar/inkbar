@@ -115,7 +115,7 @@
   /** Overrides the document's status while opening, and when opening itself failed. */
   let override = $state.raw<InkStatus | null>(null)
   let activated = $state<string | null>(null)
-  /** The same value outside the reactive graph, for `peekActivated`. */
+  /** The same value outside the reactive graph, for the popovers' close handlers. */
   let activatedNow: string | null = null
   let viewport = $state.raw<Viewport | null>(null)
   let tools = $state.raw<ToolController | null>(null)
@@ -272,7 +272,7 @@
     clear: () => (controlled ? snapshotHistory.clear() : document?.history.clear()),
   }
 
-  setInkContext({
+  const context: InkContext = {
     get assets() {
       return assets
     },
@@ -310,7 +310,6 @@
       return activated
     },
     setActivated,
-    peekActivated: () => activatedNow,
     history: inkHistory,
     get rootEl() {
       return ref
@@ -319,7 +318,8 @@
       viewport = vp
       tools = tc
     },
-  } satisfies InkContext)
+  }
+  setInkContext(context, () => activatedNow)
 
   // Instance exports, for hosts that `bind:this`. Svelte exposes constants and functions, not
   // getters, so the document and status are read through functions.
