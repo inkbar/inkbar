@@ -71,6 +71,33 @@ export default defineConfig(
     },
   },
   {
+    // The TypeScript parser cannot type `.svelte` imports, so they arrive as `any`, and it
+    // takes `svelte` and `svelte/attachments` for one module. `svelte-check` is the type gate
+    // for these files.
+    name: 'inkbar/svelte-untyped-imports',
+    files: ['**/*.svelte'],
+    rules: {
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      'import-x/no-duplicates': 'off',
+    },
+  },
+  {
+    // The same `any` reaches the TypeScript files that import components.
+    name: 'inkbar/svelte-untyped-imports-in-ts',
+    files: ['packages/svelte/src/test/**/*.ts', 'apps/sandbox-svelte/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+    },
+  },
+  {
     name: 'inkbar/pdfjs-quarantine',
     // Shipped code and apps reach PDF.js only through @inkbar/core's loader.
     files: ['packages/**/*.{ts,mts,tsx,vue,svelte}', 'apps/**/*.{ts,mts,tsx,vue,svelte}'],

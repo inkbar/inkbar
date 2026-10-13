@@ -28,6 +28,9 @@ describe('@inkbar/svelte on the server', () => {
     expect(Object.keys(entry)).toEqual(
       expect.arrayContaining([
         'InkRoot',
+        'InkViewport',
+        'InkPage',
+        'InkAnnotation',
         'useInkContext',
         'useReadable',
         'useDocument',
@@ -47,6 +50,11 @@ describe('@inkbar/svelte on the server', () => {
     expect(body).toContain('data-ink-root')
     expect(body).toContain('data-state="idle"')
     expect(body).toContain('<p>slot</p>')
+    expect(body).toContain('data-ink-viewport-root')
+    // Once on the root and once on the viewport, which renders its empty scroll element.
+    expect(body.match(/data-state="idle"/g)).toHaveLength(2)
+    expect(body).toContain('data-ink-scroll')
+    expect(body).not.toContain('ink-page')
     expect(evaluated.pdfjs).toBe(false)
 
     // Control: the same mock fires once a document actually opens, so the falses above mean something.
