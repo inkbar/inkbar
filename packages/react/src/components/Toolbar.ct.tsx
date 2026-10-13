@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/experimental-ct-react'
 
 import { guardConsole } from '../../playwright/console-guard'
 import { ToolbarHarness } from '../../playwright/harness/ToolbarHarness'
+import { ZoomClickHarness } from '../../playwright/harness/ZoomClickHarness'
 
 const assets = browserAssets()
 guardConsole(test)
@@ -84,6 +85,24 @@ test('zoom controls change the scale and the select reflects it', async ({ mount
   await expect(select).toHaveValue('2')
   await select.selectOption('fit-width')
   await expect(select).toHaveValue('fit-width')
+})
+
+test('a host onClick on the zoom button runs and the zoom still changes', async ({
+  mount,
+}) => {
+  let clicks = 0
+  const cmp = await mount(
+    <ZoomClickHarness
+      src={fixtureUrl('text-simple')}
+      assets={assets}
+      onHostClick={() => (clicks += 1)}
+    />
+  )
+  const first = cmp.locator('.ink-page[data-page="0"]')
+  await expect(first).toHaveCSS('width', '612px')
+  await cmp.locator('[aria-label="Zoom in"]').click()
+  await expect.poll(() => clicks).toBe(1)
+  await expect(first).not.toHaveCSS('width', '612px')
 })
 
 test('page input navigates and the count shows the total', async ({ mount, page }) => {

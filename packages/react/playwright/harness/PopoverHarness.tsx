@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { flushSync } from 'react-dom'
 
 import { InkNotePopover } from '../../src/components/InkNotePopover'
 import { InkRoot } from '../../src/components/InkRoot'
@@ -32,10 +31,9 @@ export function PopoverHarness(props: PopoverHarnessProps) {
   const [list, setList] = useState<Annotation[]>([])
   const delay = props.applyDelay
   function onAnnotationsChange(next: Annotation[]): void {
-    // The store checks that the host applied a proposal one macrotask later. Proposals made
-    // outside a React event (onReady, the dev hook) would otherwise render after that check,
-    // so apply them synchronously, like an event handler would.
-    if (delay === undefined) flushSync(() => setList(next))
+    // InkRoot flushes proposals made outside a React event itself, so an immediate host
+    // needs no flush here.
+    if (delay === undefined) setList(next)
     else setTimeout(() => setList(next), delay)
   }
   // Test-only: the host drops an annotation from its own list, outside any popover.

@@ -137,7 +137,7 @@ test('shows the loading slot while the document opens', async ({ mount, page }) 
   await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
 })
 
-test('shows the error slot with the code and stays interactive (Review Focus 5)', async ({
+test('shows the error slot with the code and stays interactive', async ({
   mount,
   page,
 }) => {
@@ -327,7 +327,7 @@ test('without the slot, the overlay draws the default visual once', async ({ mou
   await expect(cmp.locator('.my-pin')).toHaveCount(0)
 })
 
-test('slot props follow the annotation: select, accept and dismiss a suggested redaction', async ({
+test('slot props follow the annotation: select, accept and dismiss a suggested redaction (Review Focus 5)', async ({
   mount,
   page,
 }) => {
