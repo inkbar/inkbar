@@ -515,6 +515,9 @@ importers:
       '@inkbar/core':
         specifier: workspace:*
         version: link:../core
+      '@internationalized/date':
+        specifier: ^3.12.4
+        version: 3.12.4
       '@lucide/svelte':
         specifier: ^1.56.0
         version: 1.56.0(svelte@5.57.2(@typescript-eslint/types@8.71.1))
@@ -531,9 +534,6 @@ importers:
       '@inkbar/theme':
         specifier: workspace:*
         version: link:../theme
-      '@internationalized/date':
-        specifier: ^3.12.4
-        version: 3.12.4
       '@sveltejs/package':
         specifier: ^3.0.0
         version: 3.0.0(svelte@5.57.2(@typescript-eslint/types@8.71.1))(typescript@6.0.3)

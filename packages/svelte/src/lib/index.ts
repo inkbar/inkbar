@@ -1,3 +1,5 @@
+import type InkRootComponent from './components/InkRoot.svelte'
+
 export { useInkContext } from './context.js'
 export type { InkContext, InkHistory, InkStatus } from './context.js'
 export { useReadable } from './use-readable.svelte.js'
@@ -19,6 +21,7 @@ export { useHistory } from './hooks/useHistory.svelte.js'
 export { useEmbedded } from './hooks/useEmbedded.svelte.js'
 export { default as InkRoot } from './components/InkRoot.svelte'
 export type { InkRootProps } from './components/InkRoot.svelte'
+export type InkRootHandle = ReturnType<typeof InkRootComponent>
 export { default as InkViewport } from './components/InkViewport.svelte'
 export type { InkViewportProps } from './components/InkViewport.svelte'
 export { default as InkPage } from './components/InkPage.svelte'

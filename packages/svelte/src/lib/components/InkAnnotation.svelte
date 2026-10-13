@@ -33,8 +33,9 @@
   }
 
   let observed = $state.raw<AnnotationState | null>(null)
+  const observedEl = $derived(element)
   $effect(() => {
-    const el = element
+    const el = observedEl
     if (!el) {
       observed = null
       return
