@@ -1,3 +1,4 @@
+import type { ChildSnippet } from './child-snippet.js'
 import type { Snippet } from 'svelte'
 import type { HTMLButtonAttributes } from 'svelte/elements'
 
@@ -5,5 +6,5 @@ import type { HTMLButtonAttributes } from 'svelte/elements'
 export interface InkZoomButtonProps extends Omit<HTMLButtonAttributes, 'children'> {
   children?: Snippet | undefined
   /** Render your own button: spread `props` on it. */
-  child?: Snippet<[{ props: Record<string, unknown> }]> | undefined
+  child?: ChildSnippet | undefined
 }

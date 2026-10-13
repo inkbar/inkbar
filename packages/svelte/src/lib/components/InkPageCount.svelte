@@ -16,7 +16,5 @@
   class={['ink-page-count', className]}
   data-ink-page-count=""
   aria-live="polite"
-  {...rest}
+  {...rest}>of {page.count}</span
 >
-  of {page.count}
-</span>

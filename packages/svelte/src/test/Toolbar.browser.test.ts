@@ -108,7 +108,7 @@ describe('toolbar', () => {
     await render(ToolbarHarness, { src: fixtureUrl('text-simple'), assets })
     await q('.ink-page canvas')
     await expect
-      .poll(() => document.querySelector('[data-ink-page-count]')?.textContent?.trim())
+      .poll(() => document.querySelector('[data-ink-page-count]')?.textContent)
       .toBe('of 3')
     // A number input's value is a number to the matcher.
     const input = browserPage.getByRole('spinbutton', { name: 'Page' })

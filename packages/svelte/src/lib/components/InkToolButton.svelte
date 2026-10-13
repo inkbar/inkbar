@@ -1,4 +1,5 @@
 <script module lang="ts">
+  import type { ChildSnippet } from './child-snippet.js'
   import type { ToolId } from '@inkbar/core/dom'
   import type { Snippet } from 'svelte'
   import type { HTMLButtonAttributes } from 'svelte/elements'
@@ -7,7 +8,7 @@
     tool: ToolId
     label?: string | undefined
     children?: Snippet<[{ active: boolean; label: string }]> | undefined
-    child?: Snippet<[{ props: Record<string, unknown> }]> | undefined
+    child?: ChildSnippet | undefined
   }
 </script>
 
@@ -17,11 +18,14 @@
 
   import { useTool } from '../hooks/useTool.svelte.js'
 
+  import { asBitsProps } from './child-snippet.js'
+
   let {
     tool,
     label,
     class: className,
     children,
+    child,
     onclick,
     ...rest
   }: InkToolButtonProps = $props()
@@ -29,9 +33,6 @@
   const current = useTool()
   const active = $derived(current.tool === tool)
   const name = $derived(label ?? TOOL_LABELS[tool])
-  // Bits UI types attributes without `| null | undefined` (exactOptionalPropertyTypes); the
-  // values, `child` included, are passed through untouched.
-  const passthrough = $derived(rest as Record<string, unknown>)
 </script>
 
 <Toolbar.Button
@@ -42,7 +43,8 @@
   aria-pressed={active}
   aria-label={name}
   title={name}
-  {...passthrough}
+  {...child ? { child } : {}}
+  {...asBitsProps(rest)}
   onclick={(e) => {
     onclick?.(e)
     if (!e.defaultPrevented) current.setTool(tool)

@@ -3,14 +3,19 @@
 
   import { useZoom } from '../hooks/useZoom.svelte.js'
 
+  import { asBitsProps } from './child-snippet.js'
+
   import type { InkZoomButtonProps } from './zoom-button.js'
 
-  let { class: className, children, onclick, ...rest }: InkZoomButtonProps = $props()
+  let {
+    class: className,
+    children,
+    child,
+    onclick,
+    ...rest
+  }: InkZoomButtonProps = $props()
 
   const zoom = useZoom()
-  // Bits UI types attributes without `| null | undefined` (exactOptionalPropertyTypes); the
-  // values, `child` included, are passed through untouched.
-  const passthrough = $derived(rest as Record<string, unknown>)
 </script>
 
 <Toolbar.Button
@@ -18,7 +23,8 @@
   data-ink-zoom-out=""
   aria-label="Zoom out"
   title="Zoom out"
-  {...passthrough}
+  {...child ? { child } : {}}
+  {...asBitsProps(rest)}
   onclick={(e) => {
     onclick?.(e)
     if (!e.defaultPrevented) zoom.zoomOut()

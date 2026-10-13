@@ -66,6 +66,7 @@ describe('@inkbar/svelte on the server', () => {
     expect(body).toContain('data-ink-scroll')
     // Pages are `.ink-page[data-page]`; the toolbar's page input and count are not pages.
     expect(body).not.toContain('data-page=')
+    expect(body).not.toMatch(/class="ink-page[ "]/)
     expect(evaluated.pdfjs).toBe(false)
 
     // Control: the same mock fires once a document actually opens, so the falses above mean something.
