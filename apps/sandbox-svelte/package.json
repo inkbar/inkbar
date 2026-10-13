@@ -1,0 +1,29 @@
+{
+  "name": "@inkbar/sandbox-svelte",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "svelte-check --tsconfig ./tsconfig.json && vite build",
+    "preview": "vite preview",
+    "typecheck": "svelte-check --tsconfig ./tsconfig.json",
+    "lint": "eslint src",
+    "test:browser": "playwright test"
+  },
+  "dependencies": {
+    "@inkbar/core": "workspace:*",
+    "@inkbar/fixtures": "workspace:*",
+    "@inkbar/sandbox-shared": "workspace:*",
+    "@inkbar/svelte": "workspace:*",
+    "@inkbar/theme": "workspace:*",
+    "svelte": "^5.57.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@types/node": "^24",
+    "svelte-check": "^4.7.6",
+    "vite": "^8.3.4"
+  }
+}

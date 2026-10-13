@@ -45,6 +45,8 @@ jobs:
         run: pnpm exec turbo run test:browser --filter=@inkbar/sandbox-vue
       - if: ${{ !cancelled() }}
         run: pnpm exec turbo run test:browser --filter=@inkbar/sandbox-react
+      - if: ${{ !cancelled() }}
+        run: pnpm exec turbo run test:browser --filter=@inkbar/sandbox-svelte
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
