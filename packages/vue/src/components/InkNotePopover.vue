@@ -52,25 +52,28 @@ const editingRoot = computed(() => {
 })
 
 const draft = ref('')
-watch(
-  () => note.value?.id,
-  (_next, previous) => {
-    draft.value = ''
-    // Activation moved on from a note that never got any text: drop it.
-    if (previous !== undefined) dropIfEmpty(previous)
-  }
-)
+const noteId = () => note.value?.id
+// Synchronous, so a render for another note never shows the old draft.
+watch(noteId, () => (draft.value = ''), { flush: 'sync' })
+watch(noteId, (_next, previous) => {
+  // Activation moved on from a note that never got any text: drop it.
+  if (previous !== undefined) dropIfEmpty(previous)
+})
 
-/** Removes an unlocked root note with no text and no replies. True when it did. */
 /**
  * Notes this popover wrote text or a reply for. In controlled mode the write is a proposal
  * the host may not have applied yet, so the applied list still shows the note empty; these
  * are never dropped as abandoned.
  */
 const written = new Set<string>()
+/** Notes this popover has already asked to remove, so a slow host is asked once. */
+const dropped = new Set<string>()
 
+/** Removes an unlocked root note with no text and no replies. True when it did. */
 function dropIfEmpty(id: string): boolean {
-  if (written.has(id) || !isAbandonedNote(annotations.value, id)) return false
+  if (dropped.has(id) || written.has(id) || !isAbandonedNote(annotations.value, id))
+    return false
+  dropped.add(id)
   remove(id)
   return true
 }
@@ -112,9 +115,9 @@ function removeThread(): void {
   const root = note.value
   if (!root || root.locked) return
   focusReturn.beforeRemove(anchor.value)
+  // Under a slow controlled host the note stays listed for a while; it is not asked for again.
+  dropped.add(root.id)
   remove(root.id)
-  // Not `close()`: under a slow controlled host the note is still listed, and close would
-  // try to drop it a second time.
   ctx.setActivated(null)
 }
 function updateContents(contents: string): void {

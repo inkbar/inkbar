@@ -585,3 +585,39 @@ test('with a slow controlled host, a comment submitted just before closing keeps
   ).toBe(true)
   consoleGuard.clear()
 })
+
+test('with a slow controlled host, closing an empty note asks for its removal once', async ({
+  mount,
+  page,
+}) => {
+  const props: PopoverHarnessProps = {
+    src: fixtureUrl('text-simple'),
+    assets,
+    controlled: true,
+  }
+  const cmp = await mount(harness(props))
+  await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
+  const id = await addAnnotation(page, {
+    type: 'note',
+    page: 0,
+    rect: { x: 72, y: 600, width: 24, height: 24 },
+  })
+  const note = cmp.locator(`[data-annotation="${id}"]`)
+  await expect(note).toHaveCount(1)
+  await expect(cmp.getByTestId('proposals')).toHaveText('1')
+  // From here the host applies each proposal a second late.
+  await cmp.update(harness({ ...props, applyDelay: 1000 }))
+  await note.focus()
+  await page.keyboard.press('Enter')
+  const popover = page.locator('[data-ink-note-popover]')
+  await expect(popover).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(popover).toHaveCount(0)
+  // The note stays listed until the host applies; it is asked for once, not on every close.
+  await page.waitForTimeout(1200)
+  await expect(cmp.getByTestId('proposals')).toHaveText('2')
+  await expect(note).toHaveCount(0)
+  expect(consoleGuard.problems).toHaveLength(1)
+  expect(consoleGuard.problems[0]).toContain('ControlledMutationIgnored')
+  consoleGuard.clear()
+})

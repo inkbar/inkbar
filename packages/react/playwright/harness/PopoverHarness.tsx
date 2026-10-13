@@ -29,8 +29,10 @@ type HostWindow = Window & { __inkHostRemove?: ((id: string) => void) | undefine
 
 export function PopoverHarness(props: PopoverHarnessProps) {
   const [list, setList] = useState<Annotation[]>([])
+  const [proposals, setProposals] = useState(0)
   const delay = props.applyDelay
   function onAnnotationsChange(next: Annotation[]): void {
+    setProposals((n) => n + 1)
     // InkRoot flushes proposals made outside a React event itself, so an immediate host
     // needs no flush here.
     if (delay === undefined) setList(next)
@@ -75,6 +77,7 @@ export function PopoverHarness(props: PopoverHarnessProps) {
       onAnnotationsChange={onAnnotationsChange}
       onReady={onReady}
     >
+      <output data-testid="proposals">{proposals}</output>
       {/* Test-only box: the scroll container needs a bounded height to scroll. */}
       <div style={{ height: 600, width: 900 }}>
         <InkViewport

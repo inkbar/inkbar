@@ -204,7 +204,8 @@ export function InkRoot({
           defaults:
             latest.current.defaults ??
             (rootElRef.current ? cssVariableDefaults(rootElRef.current) : undefined),
-          history: latest.current.history ?? !latest.current.controlled,
+          // Controlled hosts get the snapshot history below; core's own stack stays off.
+          history: latest.current.controlled ? false : (latest.current.history ?? true),
           annotations: latest.current.controlled
             ? {
                 mode: 'controlled',

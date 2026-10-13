@@ -138,7 +138,8 @@ async function open(): Promise<void> {
       password: props.password,
       defaults:
         props.defaults ?? (rootEl.value ? cssVariableDefaults(rootEl.value) : undefined),
-      history: props.history ?? !controlled.value,
+      // Controlled hosts get the ref history below; core's own stack stays off.
+      history: controlled.value ? false : (props.history ?? true),
       annotations: controlled.value
         ? {
             mode: 'controlled',
