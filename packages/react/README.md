@@ -58,6 +58,10 @@ With `annotations` and `onAnnotationsChange`, Inkbar proposes each change throug
 Undo and redo are off in controlled mode unless you pass `history`. Inkbar then keeps a stack of your list's past values and applies undo and redo through `onAnnotationsChange`. Every change to the list is a step, including the list you load from your server when the document opens. Clear the history once that load has rendered, so the first undo does not empty the list:
 
 ```tsx
+import { useEffect, useRef, useState } from 'react'
+import type { InkRootHandle } from '@inkbar/react'
+import type { InkDocument } from '@inkbar/core'
+
 const root = useRef<InkRootHandle>(null)
 const [loaded, setLoaded] = useState<string | null>(null)
 
@@ -70,6 +74,18 @@ async function onReady(doc: InkDocument) {
 useEffect(() => {
   if (loaded) root.current?.history.clear()
 }, [loaded])
+
+<InkRoot
+  src={{ url: signedUrl, key: documentId }}
+  assets={assets}
+  annotations={annotations}
+  onAnnotationsChange={setAnnotations}
+  history
+  onReady={onReady}
+  ref={root}
+>
+  …
+</InkRoot>
 ```
 
 Inside `InkRoot`, `useHistory()` returns the same object.

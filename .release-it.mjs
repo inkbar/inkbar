@@ -2,8 +2,8 @@ import { base } from '@ecssc/release-it-config'
 
 // Lockstep release. The private root package.json holds the one version number
 // that release-it bumps from conventional commits. After the bump, the
-// `after:bump` hook copies that version into each public package so core, vue, react and
-// theme always share it. After the release commit, tag and GitHub release exist,
+// `after:bump` hook copies that version into each public package so core, vue,
+// react and theme always share it. After the release commit, tag and GitHub release exist,
 // `pnpm publish` pushes the four packages to npm. pnpm rewrites `workspace:*`
 // to the exact released version, so @inkbar/vue pins the @inkbar/core it was
 // built against.
