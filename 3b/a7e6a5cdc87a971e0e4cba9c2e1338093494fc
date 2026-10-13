@@ -1,0 +1,68 @@
+packages/react/src/hooks/usePage.ts
+  s_a8095ef648b42d::t_cb6f39b8a5c8bb 1-19
+packages/react/src/hooks/useZoom.ts
+  s_a8095ef648b42d::t_cb6f39b8a5c8bb 1-17
+packages/react/package.json
+  s_a8095ef648b42d::t_724040a4622979 1-7,12-21,23-49
+  s_a8095ef648b42d::t_cb6f39b8a5c8bb 8-11
+  s_a8095ef648b42d::t_cc2634aa3b46e7 22
+packages/react/vitest.config.ts
+  s_a8095ef648b42d::t_724040a4622979 1-18
+packages/react/src/use-readable.ts
+  s_a8095ef648b42d::t_cb6f39b8a5c8bb 1-23
+packages/react/src/hooks/useAnnotations.ts
+  s_a8095ef648b42d::t_cb6f39b8a5c8bb 1-37
+pnpm-workspace.yaml
+  s_a8095ef648b42d::t_724040a4622979 18-47
+packages/react/src/class-names.ts
+  s_a8095ef648b42d::t_cb6f39b8a5c8bb 1-5
+packages/react/tsdown.config.ts
+  s_a8095ef648b42d::t_cb6f39b8a5c8bb 13-20
+  s_a8095ef648b42d::t_724040a4622979 1-12,21-22
+packages/react/src/index.ts
+  s_a8095ef648b42d::t_cb6f39b8a5c8bb 1-18
+package.json
+  s_a8095ef648b42d::t_724040a4622979 22,38
+packages/react/src/hooks/useSelection.ts
+  s_a8095ef648b42d::t_cb6f39b8a5c8bb 1-10
+packages/react/src/hooks/useEmbedded.ts
+  s_a8095ef648b42d::t_cb6f39b8a5c8bb 1-12
+packages/react/src/hooks/useDocument.ts
+  s_a8095ef648b42d::t_cb6f39b8a5c8bb 1-19
+packages/react/tsconfig.json
+  s_a8095ef648b42d::t_724040a4622979 1-9
+packages/react/src/use-readable.test.ts
+  s_a8095ef648b42d::t_cb6f39b8a5c8bb 12-15
+  s_a8095ef648b42d::t_724040a4622979 1-11,16-35
+packages/react/src/hooks/useHistory.ts
+  s_a8095ef648b42d::t_cb6f39b8a5c8bb 1-10
+packages/react/src/hooks/hooks.test.ts
+  s_a8095ef648b42d::t_724040a4622979 1-33
+packages/react/src/context.ts
+  s_a8095ef648b42d::t_cb6f39b8a5c8bb 1-56
+packages/react/src/hooks/useTool.ts
+  s_a8095ef648b42d::t_cb6f39b8a5c8bb 1-8
+packages/react/src/use-latest.ts
+  s_a8095ef648b42d::t_cb6f39b8a5c8bb 1-14
+eslint.config.js
+  s_a8095ef648b42d::t_724040a4622979 2,37-45
+  s_a8095ef648b42d::t_06e6eb147d953e 46-47
+pnpm-lock.yaml
+  s_a8095ef648b42d::t_e6f7f1ec770d03 232-234,356-404,474-503,512-519,525-532,852-857,1229-1233,1250-1939,2134-2141,2324-2339,2585-2589,2608-2612,2639-2641,2836-2838,2856-2858,2960-2965,3135-3138,3147-3150,3209-3214,3360-3364,3380-3384,3510-3512,3517-3525,3611-3614,3868-3880,3884-3922,4012-4018,4295-4300,4308-4327,4522-4524,4562-4616,4618-4624,4626,4628,4630-4633,4635,4637-4638,4640-4642,4648-4654,4659-4676,5015-5020,5372-5393,5424-6175,6306-6313,6477-6481,6746-6747,6762-6769,6803-6804,6978-6979,6988-6989,7104-7114,7296-7297,7302-7303,7377-7382,7494-7495,7506-7507,7607-7610,7613-7618,7683-7684,7901-7963,7969-8002,8121-8124,8386-8391,8398-8412,8543-8544,8596-8599
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3ba7e6a5cdc87a971e0e4cba9c2e1338093494fc",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
