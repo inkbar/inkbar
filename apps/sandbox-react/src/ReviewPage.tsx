@@ -44,6 +44,10 @@ function largeFile(pages: number): Promise<Uint8Array> {
       generateLarge(pages)
     )
     largeFiles.set(pages, p)
+    // A failed generation is not kept: the next mount tries again instead of rejecting at once.
+    p.catch(() => {
+      if (largeFiles.get(pages) === p) largeFiles.delete(pages)
+    })
   }
   return p
 }
