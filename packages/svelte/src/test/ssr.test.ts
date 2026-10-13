@@ -39,6 +39,8 @@ describe('@inkbar/svelte on the server', () => {
         'InkPageInput',
         'InkPageCount',
         'DefaultToolbar',
+        'InkNotePopover',
+        'InkSuggestionCard',
         'useInkContext',
         'useReadable',
         'useDocument',

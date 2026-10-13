@@ -115,6 +115,8 @@
   /** Overrides the document's status while opening, and when opening itself failed. */
   let override = $state.raw<InkStatus | null>(null)
   let activated = $state<string | null>(null)
+  /** The same value outside the reactive graph, for `peekActivated`. */
+  let activatedNow: string | null = null
   let viewport = $state.raw<Viewport | null>(null)
   let tools = $state.raw<ToolController | null>(null)
 
@@ -242,6 +244,7 @@
   }
   function setActivated(id: string | null): void {
     activated = id
+    activatedNow = id
     if (id) onActivate?.(id)
   }
   function reportZoom(z: ZoomValue): void {
@@ -307,6 +310,7 @@
       return activated
     },
     setActivated,
+    peekActivated: () => activatedNow,
     history: inkHistory,
     get rootEl() {
       return ref

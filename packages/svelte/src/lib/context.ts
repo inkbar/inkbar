@@ -39,6 +39,12 @@ export interface InkContext {
   /** Last activated annotation (Enter, click with the note tool, etc.). Popovers key off this. */
   readonly activated: string | null
   setActivated(id: string | null): void
+  /**
+   * `activated` as last set, not tracked. For code that runs while an effect is torn down (a
+   * popover's close handler): there Svelte serves a reactive read the value from before the
+   * change that caused the teardown.
+   */
+  peekActivated(): string | null
   readonly history: InkHistory
   readonly rootEl: HTMLElement | null
   setViewport(viewport: Viewport | null, tools: ToolController | null): void
