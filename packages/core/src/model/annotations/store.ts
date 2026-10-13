@@ -284,16 +284,18 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
       if (change.kind !== 'replace') {
         const key = changeKey(change)
         clearPending(key)
-        // A macrotask, so hosts that apply the change a microtask or two later (Vue's
-        // v-model) reach setControlledValue before the check runs.
-        const timer = setTimeout(() => {
-          warnIfIgnored(key)
-        }, 0)
-        pending.set(key, {
+        // Two macrotasks. Vue applies the change in a microtask; React may apply it after its
+        // scheduler's macrotask plus an effect, so one macrotask warns a host that did apply it.
+        const entry: Pending = {
           id: change.kind === 'update' ? change.id : change.annotation.id,
           change,
-          timer,
-        })
+          timer: setTimeout(() => {
+            entry.timer = setTimeout(() => {
+              warnIfIgnored(key)
+            }, 0)
+          }, 0),
+        }
+        pending.set(key, entry)
       }
       proposed =
         change.kind === 'replace'
