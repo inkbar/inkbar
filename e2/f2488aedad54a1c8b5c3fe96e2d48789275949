@@ -1,0 +1,29 @@
+packages/react/src/use-latest.ts
+  s_a8095ef648b42d::t_d19aff75b13905 1,5-7,11
+packages/react/src/components/InkRoot.ct.tsx
+  s_a8095ef648b42d::t_aecf815368dca8 343,345-349
+  s_a8095ef648b42d::t_163713ab6535f4 351-352,354,357-358,360
+packages/react/playwright/harness/StrictHost.tsx
+  s_a8095ef648b42d::t_691d1268b4b2cb 1-2,23,29-34,36-40
+  s_a8095ef648b42d::t_163713ab6535f4 8,12-20,24-28,35
+  s_a8095ef648b42d::t_0284071e715810 41
+packages/react/src/components/InkRoot.tsx
+  s_a8095ef648b42d::t_d19aff75b13905 149-150,161
+  s_a8095ef648b42d::t_b6e6bcca36a47a 92-100,102,151-153
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e2f2488aedad54a1c8b5c3fe96e2d48789275949",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
