@@ -1,0 +1,23 @@
+packages/core/src/dom/popover-focus.browser.test.ts
+  s_a8095ef648b42d::t_da47570768d806 1-96
+packages/core/src/dom/popover-focus.ts
+  s_a8095ef648b42d::t_441768bee40d6b 1-81
+packages/core/src/dom/index.ts
+  s_a8095ef648b42d::t_441768bee40d6b 54-55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3203e280f57258bf9eb30d65c4fec184a68bc3ff",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
