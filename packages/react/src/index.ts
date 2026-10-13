@@ -16,3 +16,5 @@ export type {
   SuggestionCardSlotProps,
 } from '@inkbar/core/dom'
 export type { ConfidenceBucket } from '@inkbar/core'
+export { InkRoot } from './components/InkRoot'
+export type { InkRootHandle, InkRootProps } from './components/InkRoot'

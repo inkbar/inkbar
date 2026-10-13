@@ -1,0 +1,10 @@
+/* Test-only. #root gives the mount point a height and the theme sizes the viewport inside it.
+   The viewport heights below repeat that sizing and stay until the suite drops them. */
+#root {
+  height: 100vh;
+}
+
+[data-ink-viewport-root],
+[data-ink-scroll] {
+  height: 100%;
+}
