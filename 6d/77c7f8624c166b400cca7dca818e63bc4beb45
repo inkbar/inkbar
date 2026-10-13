@@ -1,0 +1,58 @@
+packages/svelte/src/test/dom.ts
+  s_a8095ef648b42d::t_1c7fbf47e44ed0 61,68
+  s_a8095ef648b42d::t_dd352ee6c0df4c 58-60
+packages/svelte/src/test/harness/HookProbe.svelte
+  s_a8095ef648b42d::t_381b18d27eb499 52-53
+packages/svelte/src/test/Toolbar.browser.test.ts
+  s_a8095ef648b42d::t_45abd2f562f8d0 7,126-147
+  s_a8095ef648b42d::t_1c7fbf47e44ed0 6
+  s_a8095ef648b42d::t_bed7598ecb5def 148-149
+packages/svelte/src/test/InkRoot.browser.test.ts
+  s_a8095ef648b42d::t_1c7fbf47e44ed0 8-9
+  s_a8095ef648b42d::t_45abd2f562f8d0 69,132-133,441-445,456-458,462-500,519-539
+  s_a8095ef648b42d::t_dd352ee6c0df4c 34-36,56,59,70
+  s_a8095ef648b42d::t_e2bf96b175ecb9 540
+packages/svelte/src/test/InkViewport.browser.test.ts
+  s_a8095ef648b42d::t_1c7fbf47e44ed0 7-8
+  s_a8095ef648b42d::t_45abd2f562f8d0 170,501-539
+  s_a8095ef648b42d::t_2460ba11329ae5 540-541
+packages/svelte/src/lib/components/portal.ts
+  s_a8095ef648b42d::t_381b18d27eb499 25-26
+  s_a8095ef648b42d::t_3656316a41a848 15-24
+packages/svelte/src/test/ssr.test.ts
+  s_a8095ef648b42d::t_3656316a41a848 78-82
+packages/svelte/src/test/harness/ViewportHarness.svelte
+  s_a8095ef648b42d::t_381b18d27eb499 41-45,107-109,114-115
+packages/svelte/src/test/harness/UncontrolledHost.svelte
+  s_a8095ef648b42d::t_381b18d27eb499 3,9-13,16,18-23
+packages/svelte/src/test/harness/BoundHost.svelte
+  s_a8095ef648b42d::t_381b18d27eb499 18,25-26,34-35,51,69,86,90,102-103
+packages/svelte/src/lib/compositions/DefaultToolbar.svelte
+  s_a8095ef648b42d::t_1c7fbf47e44ed0 16-24
+packages/svelte/vitest.config.ts
+  s_a8095ef648b42d::t_539f0611ae9fc0 34-50
+  s_a8095ef648b42d::t_1c7fbf47e44ed0 31-33
+packages/svelte/src/lib/components/child-snippet.ts
+  s_a8095ef648b42d::t_67df2ec14ada5b 8
+  s_a8095ef648b42d::t_1ea8a33be0e240 6-7,10-16,18-19
+packages/svelte/src/test/Popovers.browser.test.ts
+  s_a8095ef648b42d::t_1c7fbf47e44ed0 6-7
+packages/svelte/src/test/portal.browser.test.ts
+  s_a8095ef648b42d::t_1c7fbf47e44ed0 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6d77c7f8624c166b400cca7dca818e63bc4beb45",
+  "prompts": {},
+  "sessions": {
+    "s_a8095ef648b42d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ca7ae6f-d167-4811-b8fc-c3082998dd0b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
