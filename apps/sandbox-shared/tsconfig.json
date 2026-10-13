@@ -5,5 +5,5 @@
     "allowImportingTsExtensions": true,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "e2e/**/*.ts", "playwright.ts"]
+  "include": ["src/**/*.ts", "e2e/**/*.ts", "playwright.ts", "vite.ts"]
 }

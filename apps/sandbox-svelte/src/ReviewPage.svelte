@@ -95,6 +95,7 @@
       // Undo history records every change to the list. Loading is not the reader's change, so
       // once the history has seen it, clear it: undo right after opening must not empty the list.
       await tick()
+      if (openDoc !== doc) return
       root?.history.clear()
     }
     loadedKey = forKey
