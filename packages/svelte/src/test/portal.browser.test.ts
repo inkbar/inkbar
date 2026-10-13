@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-svelte'
 
-import { guardConsole } from './console-guard'
+import { guardConsole } from './console-guard.js'
 import PortalProbe from './harness/PortalProbe.svelte'
 
 guardConsole()

@@ -49,6 +49,8 @@
   >
     select
   </button>
+  <button data-testid="previous" onclick={() => page.previous()}>previous</button>
+  <button data-testid="next" onclick={() => page.next()}>next</button>
   <button data-testid="highlight" onclick={() => tool.setTool('highlight')}
     >highlight</button
   >

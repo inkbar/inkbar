@@ -84,6 +84,7 @@
         aria-label="Suggested redaction"
         customAnchor={anchor}
         onInteractOutside={keepOpenOnAnnotation}
+        onOpenAutoFocus={focusReturn.onOpenAutoFocus}
         onCloseAutoFocus={(e) => focusReturn.onCloseAutoFocus(e, anchor)}
       >
         {#if children}

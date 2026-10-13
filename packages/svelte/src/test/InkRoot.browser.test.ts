@@ -5,8 +5,8 @@ import { render } from 'vitest-browser-svelte'
 
 import InkRoot from '../lib/components/InkRoot.svelte'
 
-import { guardConsole } from './console-guard'
-import { attr, count, gateFetch, q, sleep } from './dom'
+import { guardConsole } from './console-guard.js'
+import { attr, count, gateFetch, q, sleep } from './dom.js'
 import BoundHost from './harness/BoundHost.svelte'
 import ControlledHost from './harness/ControlledHost.svelte'
 import EventHost from './harness/EventHost.svelte'
@@ -31,6 +31,9 @@ type RootEl = HTMLElement & { __inkDocument?: DocHandle & { __marker?: number } 
 const root = () => document.querySelector<RootEl>('[data-ink-root]')!
 const doc = () => root().__inkDocument!
 const note = { type: 'note', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } }
+/** The page's `fetch` as a value: compared by identity, never called. */
+// eslint-disable-next-line @typescript-eslint/unbound-method
+const currentFetch = (): unknown => window.fetch
 
 describe('InkRoot', () => {
   // React: 'calls onReady and reflects state on the root element'
@@ -50,8 +53,10 @@ describe('InkRoot', () => {
 
   // React: 'is loading from the moment the document starts opening'
   it('is loading from the moment the document starts opening', async () => {
+    const fetchBefore = currentFetch()
     const gate = gateFetch('text-simple.pdf')
     try {
+      expect(currentFetch()).not.toBe(fetchBefore)
       await render(InkRoot, { src: fixtureUrl('text-simple'), assets })
       await expect.poll(attr('[data-ink-root]', 'data-state')).toBe('loading')
       await sleep(100)
@@ -61,6 +66,8 @@ describe('InkRoot', () => {
     } finally {
       gate.restore()
     }
+    // The gate puts back the very function it replaced, not a copy of it.
+    expect(currentFetch()).toBe(fetchBefore)
   })
 
   // React: 'stays idle without a source'
@@ -122,10 +129,8 @@ describe('InkRoot', () => {
     await expect
       .element(screen.getByTestId('error-codes'))
       .toHaveTextContent('InvalidPdf')
-    // The PDF engine's recovery warnings come from its worker and never reach this console;
-    // anything that does reach it is a problem.
-    expect(consoleGuard.problems.filter((m) => !m.startsWith('Warning: '))).toEqual([])
-    consoleGuard.clear()
+    // The PDF engine's recovery warnings come from its worker and never reach this console.
+    expect(consoleGuard.problems).toEqual([])
   })
 
   // React: 'surfaces a missing asset config through status and onError instead of throwing'
@@ -433,7 +438,11 @@ describe('InkRoot', () => {
 
   // New: the instance exports and the `ref` binding.
   it('exposes history, getDocument, getStatus and the root element to a bound host', async () => {
-    const screen = await render(BoundHost, { src: fixtureUrl('text-simple'), assets })
+    const screen = await render(BoundHost, {
+      src: fixtureUrl('text-simple'),
+      assets,
+      history: true,
+    })
     await expect.poll(attr('[data-ink-root]', 'data-state')).toBe('ready')
     await expect.element(screen.getByTestId('handle-status')).toHaveTextContent('ready')
     await expect
@@ -444,9 +453,51 @@ describe('InkRoot', () => {
       .toHaveTextContent('data-ink-root')
     doc().annotations.add(note)
     await expect.element(screen.getByTestId('host-count')).toHaveTextContent('1')
+    // The handle's history is the live one: it reports the undo step, and clearing drops it.
+    await expect.element(screen.getByTestId('handle-can-undo')).toHaveTextContent('true')
+    await expect.poll(attr('[data-testid="probe"]', 'data-can-undo')).toBe('true')
     await screen.getByTestId('clear-history').click()
     flushSync()
     expect(count('[data-ink-root]')()).toBe(1)
+    await expect.element(screen.getByTestId('handle-can-undo')).toHaveTextContent('false')
+    await expect.poll(attr('[data-testid="probe"]', 'data-can-undo')).toBe('false')
+    // The list itself is untouched.
+    await expect.element(screen.getByTestId('host-count')).toHaveTextContent('1')
+  })
+
+  // New: `usePage().next()` and `previous()` pass the neighbouring index on and core clamps it.
+  it('usePage next and previous stop at the first and the last page', async () => {
+    const screen = await render(UncontrolledHost, {
+      src: fixtureUrl('text-simple'),
+      assets,
+      withViewport: true,
+    })
+    const probe = '[data-testid="probe"]'
+    const scrollTop = () => document.querySelector('[data-ink-scroll]')!.scrollTop
+    await q('.ink-page[data-page="0"] canvas')
+    await expect.poll(attr(probe, 'data-count')).toBe('3')
+    expect(attr(probe, 'data-current')()).toBe('0')
+
+    await screen.getByTestId('previous').click()
+    await sleep(100)
+    expect(attr(probe, 'data-current')()).toBe('0')
+    expect(scrollTop()).toBe(0)
+
+    await screen.getByTestId('next').click()
+    await expect.poll(attr(probe, 'data-current')).toBe('1')
+    await screen.getByTestId('next').click()
+    await expect.poll(attr(probe, 'data-current')).toBe('2')
+    const last = scrollTop()
+    expect(last).toBeGreaterThan(1500)
+    await screen.getByTestId('next').click()
+    await sleep(100)
+    expect(attr(probe, 'data-current')()).toBe('2')
+    expect(scrollTop()).toBe(last)
+
+    // And back down from the last page, so the clamp did not leave the hook stuck.
+    await screen.getByTestId('previous').click()
+    await expect.poll(attr(probe, 'data-current')).toBe('1')
+    expect(consoleGuard.problems).toEqual([])
   })
 
   // New: the `child` snippet.
@@ -463,6 +514,28 @@ describe('InkRoot', () => {
     await expect
       .element(screen.getByTestId('handle-ref'))
       .toHaveTextContent('data-ink-root')
+  })
+
+  // New: without a `defaults` prop the colours come from the theme variables on the root
+  // element, which the open has to have in hand however that element is rendered.
+  it('takes colour defaults from the theme variables on the root element, its own or the child snippet one', async () => {
+    for (const asChild of [false, true]) {
+      const screen = await render(BoundHost, {
+        src: fixtureUrl('text-simple'),
+        assets,
+        asChild,
+        noteColor: '#12ab34',
+      })
+      const selector = asChild ? 'section[data-ink-root]' : 'div[data-ink-root]'
+      await expect.poll(attr(selector, 'data-state')).toBe('ready')
+      doc().annotations.add(note)
+      await expect.element(screen.getByTestId('host-count')).toHaveTextContent('1')
+      const colours = doc()
+        .annotations.list.get()
+        .map((a) => (a as { color: string }).color)
+      expect(colours).toEqual(['#12AB34'])
+      await screen.unmount()
+    }
   })
 
   // React: 'the theme keeps a .light root light inside a .dark ancestor'

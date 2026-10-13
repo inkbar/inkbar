@@ -23,16 +23,32 @@ export default defineConfig({
           include: ['src/test/*.test.ts'],
           exclude: ['src/test/*.browser.test.ts'],
           environment: 'node',
-          // The first test imports the whole library (Bits UI, icons, core): about 2 s alone,
-          // more with the other packages' tasks running beside it.
-          testTimeout: 30_000,
         },
       },
       {
         plugins: [svelte(), serveFixtures()],
         // Pre-bundled up front: discovering it mid-run makes Vite reload the test page.
-        resolve: { alias: { 'pdfjs-dist': pdfjs } },
-        optimizeDeps: { include: ['pdfjs-dist', 'esm-env', 'bits-ui', '@lucide/svelte'] },
+        // A regex, so only the bare id is aliased: a string key would also rewrite
+        // `pdfjs-dist/...` subpaths by prefix.
+        resolve: { alias: [{ find: /^pdfjs-dist$/, replacement: pdfjs }] },
+        optimizeDeps: {
+          include: [
+            'pdfjs-dist',
+            'esm-env',
+            'bits-ui',
+            // DefaultToolbar imports each icon from its own module: a new icon there needs its
+            // path here too (src/lib/compositions/DefaultToolbar.svelte).
+            ...[
+              'hand',
+              'highlighter',
+              'message-square',
+              'mouse-pointer-2',
+              'square',
+              'zoom-in',
+              'zoom-out',
+            ].map((icon) => `@lucide/svelte/icons/${icon}`),
+          ],
+        },
         test: {
           name: 'browser',
           include: ['src/test/*.browser.test.ts'],

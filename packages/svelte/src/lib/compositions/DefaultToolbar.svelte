@@ -13,15 +13,16 @@
    * The standard toolbar: tools, zoom and page controls with icons. It adds no styles of its
    * own; the theme styles the `data-ink-*` hooks. Extra controls go in `children`.
    */
-  import {
-    Hand,
-    Highlighter,
-    MessageSquare,
-    MousePointer2,
-    Square,
-    ZoomIn,
-    ZoomOut,
-  } from '@lucide/svelte'
+  // One module per icon: the package's index evaluates every icon it ships, which costs a
+  // server (or a test) that imports this file well over a second. A new icon also goes in the
+  // browser tests' `optimizeDeps.include` in vitest.config.ts.
+  import Hand from '@lucide/svelte/icons/hand'
+  import Highlighter from '@lucide/svelte/icons/highlighter'
+  import MessageSquare from '@lucide/svelte/icons/message-square'
+  import MousePointer2 from '@lucide/svelte/icons/mouse-pointer-2'
+  import Square from '@lucide/svelte/icons/square'
+  import ZoomIn from '@lucide/svelte/icons/zoom-in'
+  import ZoomOut from '@lucide/svelte/icons/zoom-out'
 
   import { cx } from '../class-names.js'
   import InkPageCount from '../components/InkPageCount.svelte'

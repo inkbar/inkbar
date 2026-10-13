@@ -12,6 +12,18 @@ const attachments = new WeakMap<Element, Attachment<HTMLElement>>()
  * A new `target` is a new attachment: Svelte runs the cleanup and the attach again. The same
  * target always gets the same attachment, so `{@attach portal(el)}` re-evaluated with an
  * unchanged `el` leaves the content where it is.
+ *
+ * The cleanup relies on one invariant: the first and last nodes it moved are still children of
+ * the target, in that order, and every node between them belongs to the wrapper (the nodes
+ * moved on attach, plus whatever Svelte inserted between them since). Svelte keeps to it, because
+ * it only ever inserts relative to the anchors that were moved. Then the whole run from the
+ * first node to the last comes back, late nodes included. Nothing else may put nodes of its
+ * own between the two: they would be taken for the wrapper's and moved into it.
+ *
+ * When the invariant does not hold (the first or last node has left the target, or the walk
+ * from the first never reaches the last), the cleanup falls back to the nodes it moved on
+ * attach, wherever they are now, and moves only those back. Nodes Svelte added later are not
+ * moved.
  */
 export function portal(target: Element): Attachment<HTMLElement> {
   let attachment = attachments.get(target)

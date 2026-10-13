@@ -55,14 +55,17 @@ export function sleep(ms: number): Promise<void> {
  * `page.route` and keeps a document in `loading` for as long as a test needs.
  */
 export function gateFetch(pattern: string): { release(): void; restore(): void } {
-  const original = window.fetch.bind(window)
+  // The reference itself, so `restore()` puts back exactly what was there. The wrapper calls
+  // it with `window` as `this`.
+  // eslint-disable-next-line @typescript-eslint/unbound-method
+  const original = window.fetch
   let release!: () => void
   const gate = new Promise<void>((resolve) => (release = resolve))
   window.fetch = async (input, init) => {
     const url =
       typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
     if (url.includes(pattern)) await gate
-    return original(input, init)
+    return original.call(window, input, init)
   }
   return {
     release,

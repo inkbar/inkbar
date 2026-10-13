@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { page as browserPage, userEvent } from 'vitest/browser'
 import { render } from 'vitest-browser-svelte'
 
-import { guardConsole } from './console-guard'
-import { attr, count, focused, q, qa, sleep } from './dom'
+import { guardConsole } from './console-guard.js'
+import { attr, count, focused, q, qa, sleep } from './dom.js'
 import PopoverHarness, {
   type HostWindow,
   type PopoverHarnessProps,
@@ -293,6 +293,36 @@ describe('popovers', () => {
     const card = await q(CARD)
     await expect.element(browserPage.elementLocator(card)).toBeVisible()
     expect(card.textContent).toContain('third-party name')
+  })
+
+  // No React counterpart: the popover library reports a close while it opens, and the focus
+  // planner must not answer that one by focusing the annotation.
+  it('a card opened by selection alone takes focus without passing it through the annotation', async () => {
+    await harness({ src: fixtureUrl('text-simple'), assets, seedSuggestions: true })
+    await expect.poll(count(SUGGESTED)).toBe(2)
+    const anchor = qa(SUGGESTED)[0]!
+    const id = anchor.getAttribute('data-annotation')!
+    // Focus is outside the root, and nothing has been activated.
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
+    expect(focused()).toBe(document.body)
+
+    const seen: EventTarget[] = []
+    const record = (e: FocusEvent): void => {
+      if (e.target) seen.push(e.target)
+    }
+    document.addEventListener('focusin', record, true)
+    try {
+      doc().annotations.select([id])
+      const card = await q(CARD)
+      await expect.poll(focused).toBe(byRole(card, 'button', 'Accept').element())
+    } finally {
+      document.removeEventListener('focusin', record, true)
+    }
+    expect(seen).not.toContain(anchor)
+    expect(
+      seen.filter((t) => t instanceof Element && t.closest('[data-annotation]'))
+    ).toEqual([])
+    expect(seen.at(-1)).toBe(focused())
   })
 
   // React: 'a press on custom slot content dismisses the card; it does not activate'

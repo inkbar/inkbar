@@ -38,6 +38,11 @@
   } = $props()
 
   let clicks = $state(0)
+  // A host that keeps its viewport options in one object and makes a new one, with the same
+  // values, on every Restate press: the viewport's `gap` and `buffer` props are invalidated
+  // without changing.
+  let restated = $state(0)
+  const options = $derived({ gap, buffer, restated })
   // Stands in for a page the engine cannot render: the canvas and text layer both look the
   // page up through `_pdfjs.getPage`, so failing it fails that page's mount and nothing else.
   let failing = true
@@ -99,12 +104,15 @@
     Outside {clicks}
   </button>
   <button type="button" data-testid="heal" onclick={heal}>Heal</button>
+  <button type="button" data-testid="restate" onclick={() => (restated += 1)}>
+    Restated {restated}
+  </button>
   <InkRoot {src} {assets} {zoom} {page} {tool} {onZoomChange} {onPageChange} {onReady}>
     <!-- Test-only box: the scroll container needs a bounded height to scroll. -->
     <div style="height: 700px; width: 900px">
       <InkViewport
-        {buffer}
-        {gap}
+        buffer={options.buffer}
+        gap={options.gap}
         loading={customLoading ? loadingSlot : undefined}
         annotation={customAnnotations ? pin : undefined}
       />
