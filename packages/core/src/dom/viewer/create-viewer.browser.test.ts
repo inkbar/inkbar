@@ -308,6 +308,23 @@ describe('createViewer', () => {
       expect(focused()).toBe(select)
     })
 
+    it("keeps a host field's own tabindex", async () => {
+      const { viewer } = make('text-simple')
+      await ready(viewer)
+      const skipped = document.createElement('input')
+      skipped.setAttribute('aria-label', 'Skipped')
+      skipped.tabIndex = -1
+      const plain = document.createElement('textarea')
+      plain.setAttribute('aria-label', 'Plain')
+      viewer.toolbar!.append(skipped, plain)
+      await settle()
+      // A button added afterwards makes the toolbar sync its Tab stops again.
+      viewer.toolbar!.append(document.createElement('button'))
+      await settle()
+      expect(skipped.tabIndex).toBe(-1)
+      expect(plain.tabIndex).toBe(0)
+    })
+
     it('roves to buttons a host adds and leaves a host text input its keys', async () => {
       const { viewer } = make('text-simple')
       await ready(viewer)
