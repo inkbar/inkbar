@@ -1,0 +1,24 @@
+{
+  "name": "@inkbar/demo",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "pnpm typecheck && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.json",
+    "lint": "eslint src vite e2e --no-error-on-unmatched-pattern",
+    "test": "node --test \"vite/*.test.ts\""
+  },
+  "dependencies": {
+    "@inkbar/core": "workspace:*",
+    "@inkbar/theme": "workspace:*"
+  },
+  "devDependencies": {
+    "@inkbar/sandbox-shared": "workspace:*",
+    "@types/node": "^24",
+    "pdf-lib": "^1.17.1",
+    "vite": "^8.3.4"
+  }
+}
