@@ -31,6 +31,24 @@ Writing annotations back into the PDF needs `@inkbar/engine`, which is not relea
 
 The DOM layer (`@inkbar/core/dom`) provides the viewport, canvas renderer, text layer, overlay and tools for hosts without a framework package. Vue hosts should use `@inkbar/vue`, React hosts `@inkbar/react`, Svelte hosts `@inkbar/svelte`.
 
+### Mounting a viewer
+
+`mountViewer` wires the viewport, page layers, tools and zoom and page keys onto a scroll container. You render the chrome around it.
+
+```ts
+import { mountViewer } from '@inkbar/core/dom'
+
+const engine = mountViewer({
+  container, // a focusable, scrollable element
+  document: doc,
+  zoom: 'fit-width',
+  onPageError: (page, error) => console.warn(page, error),
+})
+engine.tools.set('highlight')
+engine.rebuild({ gap: 32 }) // construction-only options; zoom, page and tool carry over
+engine.destroy()
+```
+
 ## Annotation changes
 
 `doc.annotations.on('change', fn)`, and `onChange(next, change)` in controlled mode, describe each mutation:

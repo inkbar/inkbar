@@ -53,3 +53,5 @@ export type {
 export { annotationElementFor, observeAnnotationElement } from './annotation-element'
 export { createFocusReturn, shouldKeepOpenOnAnnotation } from './popover-focus'
 export type { FocusReturn, FocusReturnOptions } from './popover-focus'
+export { mountViewer } from './viewer-engine'
+export type { MountViewerOptions, ViewerEngine } from './viewer-engine'
