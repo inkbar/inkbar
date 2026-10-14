@@ -1,0 +1,27 @@
+packages/react/src/context.ts
+  s_0b0d6e3715476c::t_65cea652a83d27 16-19
+packages/core/src/model/annotations/snapshot-history.ts
+  s_0b0d6e3715476c::t_65cea652a83d27 74-79
+packages/vue/src/context.ts
+  s_0b0d6e3715476c::t_65cea652a83d27 18-21
+packages/svelte/src/lib/context.ts
+  s_0b0d6e3715476c::t_65cea652a83d27 16-19
+packages/core/src/model/annotations/snapshot-history.test.ts
+  s_0b0d6e3715476c::t_65cea652a83d27 285-363
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4a4a458ac0710e935449dc3c0324554d35059371",
+  "prompts": {},
+  "sessions": {
+    "s_0b0d6e3715476c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "703874b0-3bd9-4982-aace-3d9b19eab262",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
