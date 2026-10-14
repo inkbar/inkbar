@@ -3,7 +3,8 @@
   "compilerOptions": {
     "noEmit": true,
     "allowImportingTsExtensions": true,
+    "jsx": "react-jsx",
     "types": ["node", "vite/client", "@inkbar/core/vite/client"]
   },
-  "include": ["src/**/*.ts", "vite/**/*.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "vite/**/*.ts", "e2e/**/*.ts"]
 }
