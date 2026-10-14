@@ -1,0 +1,34 @@
+packages/react/src/components/InkViewport.ct.tsx
+  s_0b0d6e3715476c::t_04150ad45fecc2 598-636
+packages/vue/src/components/InkViewport.ct.ts
+  s_0b0d6e3715476c::t_dd61455cb7815b 533-571
+packages/core/src/dom/viewer-engine.browser.test.ts
+  s_0b0d6e3715476c::t_e462a8621cf45f 216-226
+  s_0b0d6e3715476c::t_a1a801991d693d 185-215
+packages/svelte/src/lib/components/InkViewport.svelte
+  s_0b0d6e3715476c::t_2faf10149ac28e 200
+packages/svelte/src/test/InkViewport.browser.test.ts
+  s_0b0d6e3715476c::t_50782726fffb17 623-651
+packages/vue/src/components/InkViewport.vue
+  s_0b0d6e3715476c::t_2faf10149ac28e 216-217
+packages/core/src/dom/viewer-engine.ts
+  s_0b0d6e3715476c::t_51a6327a3d3a0f 24-25,71-72,143-150,152-155,157-159,161-169,172,174-176,179-180,260
+  s_0b0d6e3715476c::t_314462da4b8867 18-23,26,68-70,73,137-142,151,156,160,170-171,173,177-178,181,189,224
+  s_0b0d6e3715476c::t_9253b1993d4226 182
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5c29ba36f92cb21d96d2f1d8d9bfdcafc5947d66",
+  "prompts": {},
+  "sessions": {
+    "s_0b0d6e3715476c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "703874b0-3bd9-4982-aace-3d9b19eab262",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
