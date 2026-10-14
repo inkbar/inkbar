@@ -30,7 +30,7 @@ export const FRAMEWORKS: Record<FrameworkId, Framework> = {
   vanilla: {
     name: 'TypeScript',
     blurb:
-      'No framework. createViewer from @inkbar/core/dom renders the viewer, toolbar and popovers.',
+      'No framework. createViewer from @inkbar/core/dom renders the viewer, toolbar and popovers. Undo, Redo and Suggest redactions are added in actions.ts.',
     install: 'pnpm add @inkbar/core @inkbar/theme',
   },
 }

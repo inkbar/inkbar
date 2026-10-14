@@ -33,7 +33,10 @@ export function addActions(
     stops = []
     result.textContent = ''
     undo.disabled = redo.disabled = suggest.disabled = !doc
-    if (!doc) return
+    if (!doc) {
+      undo.onclick = redo.onclick = suggest.onclick = null
+      return
+    }
     const watch = (r: Readable<boolean>, b: HTMLButtonElement): void => {
       b.disabled = !r.get()
       stops.push(r.subscribe((can) => (b.disabled = !can)))
@@ -49,15 +52,16 @@ export function addActions(
           doc.history.batch(() => {
             for (const input of found) doc.annotations.add(input)
           })
-          result.textContent = suggestionCount(found.length)
+          if (current.get() === doc) result.textContent = suggestionCount(found.length)
         })
         .catch((e: unknown) => {
           // Opening another file mid-run destroys the document; that is not a failure.
+          if (current.get() !== doc) return
           if (!(isInkError(e) && e.code === 'DocumentDestroyed'))
             result.textContent = 'Could not check this document.'
         })
         .finally(() => {
-          suggest.disabled = false
+          if (current.get() === doc) suggest.disabled = false
         })
     }
   }
