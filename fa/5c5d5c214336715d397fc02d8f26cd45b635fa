@@ -1,0 +1,63 @@
+packages/react/playwright/harness/HookProbe.tsx
+  s_0b0d6e3715476c::t_7f2b15966fe427 17,23-26,55-60
+packages/svelte/src/test/harness/HookProbe.svelte
+  s_0b0d6e3715476c::t_7f2b15966fe427 27-30,48-49
+packages/react/src/components/InkRoot.tsx
+  s_0b0d6e3715476c::t_826e612d781360 328
+  s_0b0d6e3715476c::t_3c35b045284b17 327,329-331
+packages/svelte/src/lib/context.ts
+  s_0b0d6e3715476c::t_3c35b045284b17 15-19
+apps/demo/e2e/smoke.spec.ts
+  s_0b0d6e3715476c::t_76ed07bdfe790d 64,68,74-78
+packages/react/src/components/InkRoot.ct.tsx
+  s_0b0d6e3715476c::t_c3b55207fa7af2 392-394
+  s_0b0d6e3715476c::t_7f2b15966fe427 367-391,395-396
+packages/svelte/README.md
+  s_0b0d6e3715476c::t_76ed07bdfe790d 95
+packages/vue/README.md
+  s_0b0d6e3715476c::t_76ed07bdfe790d 66
+packages/vue/src/ref-history.ts
+  s_0b0d6e3715476c::t_826e612d781360 40
+packages/svelte/src/lib/components/InkRoot.svelte
+  s_0b0d6e3715476c::t_826e612d781360 274
+  s_0b0d6e3715476c::t_3c35b045284b17 273,275-277
+packages/svelte/src/test/InkRoot.browser.test.ts
+  s_0b0d6e3715476c::t_7f2b15966fe427 424-454
+packages/react/src/context.ts
+  s_0b0d6e3715476c::t_c39e06eaff9884 15-19
+packages/vue/playwright/harness/ComposableProbe.vue
+  s_0b0d6e3715476c::t_7f2b15966fe427 15,23-28,47-48
+packages/vue/src/context.ts
+  s_0b0d6e3715476c::t_3c35b045284b17 17-21
+apps/demo/src/svelte/Actions.svelte
+  s_0b0d6e3715476c::t_76ed07bdfe790d 20-22
+packages/vue/src/components/InkRoot.ct.ts
+  s_0b0d6e3715476c::t_7f2b15966fe427 263-292
+packages/react/README.md
+  s_0b0d6e3715476c::t_76ed07bdfe790d 91
+apps/demo/src/react/Actions.tsx
+  s_0b0d6e3715476c::t_76ed07bdfe790d 11,20-22
+apps/demo/src/vanilla/toolbar.ts
+  s_0b0d6e3715476c::t_76ed07bdfe790d 178-180
+apps/demo/src/vue/Actions.vue
+  s_0b0d6e3715476c::t_76ed07bdfe790d 11,21-23
+packages/vue/src/components/InkRoot.vue
+  s_0b0d6e3715476c::t_826e612d781360 202
+  s_0b0d6e3715476c::t_3c35b045284b17 201,203-205
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fa5c5d5c214336715d397fc02d8f26cd45b635fa",
+  "prompts": {},
+  "sessions": {
+    "s_0b0d6e3715476c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "703874b0-3bd9-4982-aace-3d9b19eab262",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
