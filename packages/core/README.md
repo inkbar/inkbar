@@ -42,6 +42,8 @@ The DOM layer (`@inkbar/core/dom`) provides the viewport, canvas renderer, text 
 
 `add` throws if `input.id` is already in the list. Locked annotations refuse changes to their geometry, `page` and `contents`.
 
+`doc.history.batch(fn)` records everything `fn` changes as one undo step, so a host that adds many annotations at once can undo them together. Change events still fire one per annotation. `fn` must be synchronous, and nested calls join the outer batch.
+
 ## Tools and keyboard
 
 `createToolController` from `@inkbar/core/dom` routes pointer and key events on the viewport to the active tool: `view`, `select`, `highlight`, `redact-area` or `note`. Every tool works from the keyboard as well as the pointer.
