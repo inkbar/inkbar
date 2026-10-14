@@ -350,17 +350,42 @@ describe('createSnapshotHistory', () => {
     it('drops an undo in flight when a batch opens', () => {
       vi.useFakeTimers()
       try {
-        const { history } = setup()
+        const { history, apply } = setup()
         history.observe([])
         history.observe([note('a', '1')])
         history.undo()
+        expect(apply).toHaveBeenLastCalledWith([])
         history.batch(() => {})
-        history.observe([])
-        history.observe([note('b', '2')])
         vi.runAllTimers()
-        // One step for the batch window, from the list at open; the old undo did not pop it.
+        // Equal to the dropped undo's target: an ordinary step, not the undo landing.
+        history.observe([])
         expect(history.canRedo.get()).toBe(false)
         expect(history.canUndo.get()).toBe(true)
+        history.undo()
+        expect(apply).toHaveBeenLastCalledWith([note('a', '1')])
+        history.observe([note('a', '1')])
+        history.undo()
+        expect(apply).toHaveBeenLastCalledWith([])
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('bases the step on the list after an undo that already landed', () => {
+      vi.useFakeTimers()
+      try {
+        const { history, apply } = setup()
+        history.observe([])
+        history.observe([note('a', '1')])
+        history.undo()
+        history.observe([])
+        history.batch(() => {})
+        history.observe([note('b', '2')])
+        history.observe([note('b', '2'), note('c', '3')])
+        vi.runAllTimers()
+        expect(history.canRedo.get()).toBe(false)
+        history.undo()
+        expect(apply).toHaveBeenLastCalledWith([])
       } finally {
         vi.useRealTimers()
       }
