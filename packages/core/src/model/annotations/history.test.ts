@@ -147,3 +147,111 @@ describe('history', () => {
     expect(s.list.get()).toHaveLength(2)
   })
 })
+
+describe('history.batch', () => {
+  const store = () =>
+    createAnnotationStore({ mode: { mode: 'uncontrolled' }, defaults: staticDefaults })
+
+  it('records everything fn changes as one step', () => {
+    const s = store()
+    const h = createHistory(s)
+    h.batch(() => {
+      for (let i = 0; i < 9; i++)
+        s.add({ type: 'note', page: 0, rect, contents: `n${i}` })
+    })
+    expect(s.list.get()).toHaveLength(9)
+    h.undo()
+    expect(s.list.get()).toEqual([])
+    expect(h.canUndo.get()).toBe(false)
+    h.redo()
+    expect(s.list.get()).toHaveLength(9)
+  })
+
+  it('still emits one change event per annotation', () => {
+    const s = store()
+    const h = createHistory(s)
+    const kinds: string[] = []
+    s.on('change', (c) => kinds.push(c.kind))
+    h.batch(() => {
+      s.add({ type: 'note', page: 0, rect })
+      s.add({ type: 'note', page: 1, rect })
+    })
+    expect(kinds).toEqual(['add', 'add'])
+  })
+
+  it('nested batches join the outer one', () => {
+    const s = store()
+    const h = createHistory(s)
+    h.batch(() => {
+      s.add({ type: 'note', page: 0, rect })
+      h.batch(() => {
+        s.add({ type: 'note', page: 1, rect })
+      })
+      s.add({ type: 'note', page: 2, rect })
+    })
+    h.undo()
+    expect(s.list.get()).toEqual([])
+  })
+
+  it('a batch that changes nothing records nothing and keeps redo', () => {
+    const s = store()
+    const h = createHistory(s)
+    s.add({ type: 'note', page: 0, rect })
+    h.undo()
+    h.batch(() => undefined)
+    expect(h.canUndo.get()).toBe(false)
+    expect(h.canRedo.get()).toBe(true)
+  })
+
+  it('a throwing fn still closes the batch, records what changed and rethrows', () => {
+    const s = store()
+    const h = createHistory(s)
+    expect(() => {
+      h.batch(() => {
+        s.add({ type: 'note', page: 0, rect })
+        throw new Error('boom')
+      })
+    }).toThrow('boom')
+    expect(h.canUndo.get()).toBe(true)
+    h.undo()
+    expect(s.list.get()).toEqual([])
+    // The batch is closed: the next change is its own step.
+    s.add({ type: 'note', page: 1, rect })
+    s.add({ type: 'note', page: 2, rect })
+    h.undo()
+    expect(s.list.get()).toHaveLength(1)
+  })
+
+  it('an import inside a batch clears the stacks and the batch restarts from it', () => {
+    const s = store()
+    const h = createHistory(s)
+    s.add({ type: 'note', page: 0, rect })
+    h.batch(() => {
+      s.replaceAll([], 'import')
+      s.add({ type: 'note', page: 3, rect })
+    })
+    h.undo()
+    expect(s.list.get()).toEqual([])
+    expect(h.canUndo.get()).toBe(false)
+  })
+
+  it('on a destroyed or controlled history it only runs fn', () => {
+    const s = store()
+    const h = createHistory(s)
+    h.destroy()
+    let ran = false
+    h.batch(() => {
+      ran = true
+    })
+    expect(ran).toBe(true)
+    const c = createAnnotationStore({
+      mode: { mode: 'controlled', initial: [], onChange: () => undefined },
+      defaults: staticDefaults,
+    })
+    let ranControlled = false
+    createHistory(c).batch(() => {
+      ranControlled = true
+    })
+    expect(ranControlled).toBe(true)
+  })
+})

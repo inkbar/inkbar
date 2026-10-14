@@ -1,3 +1,4 @@
+import { isProduction } from '../env'
 import { readonly, writable, type Readable } from '../readable'
 
 import type { AnnotationChange, AnnotationStore } from './store'
@@ -9,6 +10,13 @@ export interface History {
   undo(): void
   redo(): void
   clear(): void
+  /**
+   * Runs `fn` and records everything it changes as one undo entry. Change events still fire once
+   * per annotation. Nested calls join the outer batch. `fn` must be synchronous; changes after an
+   * `await` are not part of the batch. A throwing `fn` still records what it changed, then
+   * rethrows. On a controlled or destroyed history this only runs `fn`.
+   */
+  batch(fn: () => void): void
   /** Unsubscribes from the store and empties both stacks; undo and redo become no-ops. */
   destroy(): void
 }
@@ -39,6 +47,9 @@ export function createHistory(
       undo() {},
       redo() {},
       clear() {},
+      batch(fn) {
+        fn()
+      },
       destroy() {},
     }
   }
@@ -48,6 +59,10 @@ export function createHistory(
   const redoStack: Entry[] = []
   let previous = store.list.get()
   let replaying = false
+  /** Open batch depth; while above zero, changes update `previous` but push no entry. */
+  let depth = 0
+  /** The list when the outermost batch opened (or was restarted by a replace). */
+  let batchStart: readonly Annotation[] | null = null
 
   const sync = () => {
     canUndo.set(undoStack.length > 0)
@@ -66,7 +81,12 @@ export function createHistory(
       undoStack.length = 0
       redoStack.length = 0
       previous = current
+      if (depth > 0) batchStart = current
       sync()
+      return
+    }
+    if (depth > 0) {
+      previous = current
       return
     }
     undoStack.push({ before: previous, after: current })
@@ -101,6 +121,38 @@ export function createHistory(
       undoStack.push(entry)
       apply(entry.after)
       sync()
+    },
+    batch(fn) {
+      if (destroyed) {
+        fn()
+        return
+      }
+      if (depth++ === 0) batchStart = store.list.get()
+      try {
+        const result: unknown = fn()
+        if (
+          result !== null &&
+          typeof result === 'object' &&
+          typeof (result as { then?: unknown }).then === 'function' &&
+          !isProduction()
+        ) {
+          console.warn(
+            '[inkbar] history.batch(fn): fn returned a promise. Changes after its first await are not part of the batch.'
+          )
+        }
+      } finally {
+        if (--depth === 0) {
+          const before = batchStart
+          batchStart = null
+          const after = store.list.get()
+          if (before && before !== after) {
+            undoStack.push({ before, after })
+            if (undoStack.length > limit) undoStack.shift()
+            redoStack.length = 0
+            sync()
+          }
+        }
+      }
     },
     destroy() {
       destroyed = true
