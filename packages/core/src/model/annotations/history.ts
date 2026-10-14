@@ -13,8 +13,11 @@ export interface History {
   /**
    * Runs `fn` and records everything it changes as one undo entry. Change events still fire once
    * per annotation. Nested calls join the outer batch. `fn` must be synchronous; changes after an
-   * `await` are not part of the batch. A throwing `fn` still records what it changed, then
-   * rethrows. On a controlled or destroyed history this only runs `fn`.
+   * `await` are not part of the batch; a dev build warns when `fn` returns a promise. A throwing
+   * `fn` still records what it changed, then rethrows. A batch whose list ends where it began
+   * (the same annotations, by identity, in the same order) records nothing and keeps redo.
+   * Calling `undo()` or `redo()` inside `fn` is not supported. On a controlled or destroyed
+   * history this only runs `fn`, and a history destroyed inside `fn` records nothing.
    */
   batch(fn: () => void): void
   /** Unsubscribes from the store and empties both stacks; undo and redo become no-ops. */
@@ -141,11 +144,13 @@ export function createHistory(
           )
         }
       } finally {
-        if (--depth === 0) {
+        // A history destroyed inside `fn` records nothing more.
+        if (--depth === 0 && !destroyed) {
           const before = batchStart
           batchStart = null
           const after = store.list.get()
-          if (before && before !== after) {
+          // A list that ends where it began, the same annotations in the same order, is no step.
+          if (before && !sameAnnotations(before, after)) {
             undoStack.push({ before, after })
             if (undoStack.length > limit) undoStack.shift()
             redoStack.length = 0
@@ -156,6 +161,7 @@ export function createHistory(
     },
     destroy() {
       destroyed = true
+      batchStart = null
       unsubscribe()
       undoStack.length = 0
       redoStack.length = 0
@@ -168,4 +174,9 @@ export function createHistory(
       sync()
     },
   }
+}
+
+/** The same annotation objects in the same order. */
+function sameAnnotations(a: readonly Annotation[], b: readonly Annotation[]): boolean {
+  return a === b || (a.length === b.length && a.every((x, i) => x === b[i]))
 }

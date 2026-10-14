@@ -1,3 +1,4 @@
+import { isProduction } from '../env'
 import { derived, writable, type Readable } from '../readable'
 
 import type { Annotation } from './types'
@@ -35,7 +36,14 @@ export interface SnapshotHistory {
    * the current macrotask ends (`setTimeout(0)`) and then pushes a single step from the list
    * before `fn` to the latest one. Limit: an unrelated change the host makes in that same window
    * is folded into the step. Nested calls join; a throwing `fn` still closes the batch; when
-   * history is disabled `fn` only runs. Undo and redo close an open batch first.
+   * history is disabled `fn` only runs. `fn` must be synchronous; a dev build warns when it
+   * returns a promise.
+   *
+   * A batch opened while an earlier one is still settling closes the earlier one first, so the
+   * two are two steps. An undo or redo still in flight (proposed, but not yet applied by the
+   * host) when a batch opens is dropped: the host's list that follows counts toward the batch.
+   * Undo and redo close a settling batch first. Calling `undo()` or `redo()` inside `fn` is not
+   * supported.
    */
   batch(fn: () => void): void
 }
@@ -80,7 +88,17 @@ export function createSnapshotHistory(opts: SnapshotHistoryOptions): SnapshotHis
     }
     depth++
     try {
-      fn()
+      const result: unknown = fn()
+      if (
+        result !== null &&
+        typeof result === 'object' &&
+        typeof (result as { then?: unknown }).then === 'function' &&
+        !isProduction()
+      ) {
+        console.warn(
+          '[inkbar] history.batch(fn): fn returned a promise. Changes after its first await are not part of the batch.'
+        )
+      }
     } finally {
       depth--
       if (depth === 0) settling = setTimeout(endBatch, 0)
