@@ -1,0 +1,21 @@
+apps/demo/src/vanilla/actions.ts
+  s_0b0d6e3715476c::t_a16969be9690ec 36-39,55,59,64
+apps/demo/src/shell/frameworks.ts
+  s_0b0d6e3715476c::t_a16969be9690ec 33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3beb669d565d8e9b031796a82119ad6e3beaa48e",
+  "prompts": {},
+  "sessions": {
+    "s_0b0d6e3715476c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "703874b0-3bd9-4982-aace-3d9b19eab262",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
