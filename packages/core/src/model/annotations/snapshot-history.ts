@@ -71,10 +71,12 @@ export function createSnapshotHistory(opts: SnapshotHistoryOptions): SnapshotHis
       fn()
       return
     }
-    if (depth === 0 && settling === null) from = current
-    if (settling !== null) {
-      clearTimeout(settling)
-      settling = null
+    if (depth === 0) {
+      // A batch still settling is closed first, so two batches are two steps.
+      if (settling !== null) endBatch()
+      // An undo or redo still in flight would be folded into this step; drop it.
+      pending = null
+      from = current
     }
     depth++
     try {
@@ -89,7 +91,6 @@ export function createSnapshotHistory(opts: SnapshotHistoryOptions): SnapshotHis
     past.set([])
     future.set([])
     pending = null
-    depth = 0
     from = undefined
     if (settling !== null) clearTimeout(settling)
     settling = null

@@ -282,6 +282,85 @@ describe('createSnapshotHistory', () => {
         history.observe([note('a', '1')])
         history.undo()
         expect(apply).toHaveBeenLastCalledWith([])
+        expect(history.canUndo.get()).toBe(true)
+        expect(history.canRedo.get()).toBe(false)
+        history.observe([])
+        expect(history.canUndo.get()).toBe(false)
+        expect(history.canRedo.get()).toBe(true)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('keeps grouping after clear() runs inside fn', () => {
+      vi.useFakeTimers()
+      try {
+        const { history } = setup()
+        history.observe([])
+        history.batch(() => history.clear())
+        vi.runAllTimers()
+        history.batch(() => {})
+        history.observe([note('a', '1')])
+        history.observe([note('a', '1'), note('b', '2')])
+        vi.runAllTimers()
+        history.undo()
+        history.observe([])
+        expect(history.canUndo.get()).toBe(false)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('clear() during the settle window drops the step', () => {
+      vi.useFakeTimers()
+      try {
+        const { history } = setup()
+        history.observe([])
+        history.batch(() => {})
+        history.observe([note('a', '1')])
+        history.clear()
+        vi.runAllTimers()
+        expect(history.canUndo.get()).toBe(false)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('a second batch in the settle window is its own step', () => {
+      vi.useFakeTimers()
+      try {
+        const { history, apply } = setup()
+        history.observe([])
+        history.batch(() => {})
+        history.observe([note('a', '1')])
+        history.batch(() => {})
+        history.observe([note('a', '1'), note('b', '2')])
+        vi.runAllTimers()
+        history.undo()
+        expect(apply).toHaveBeenLastCalledWith([note('a', '1')])
+        history.observe([note('a', '1')])
+        expect(history.canUndo.get()).toBe(true)
+        history.undo()
+        expect(apply).toHaveBeenLastCalledWith([])
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('drops an undo in flight when a batch opens', () => {
+      vi.useFakeTimers()
+      try {
+        const { history } = setup()
+        history.observe([])
+        history.observe([note('a', '1')])
+        history.undo()
+        history.batch(() => {})
+        history.observe([])
+        history.observe([note('b', '2')])
+        vi.runAllTimers()
+        // One step for the batch window, from the list at open; the old undo did not pop it.
+        expect(history.canRedo.get()).toBe(false)
+        expect(history.canUndo.get()).toBe(true)
       } finally {
         vi.useRealTimers()
       }

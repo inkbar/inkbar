@@ -13,8 +13,10 @@ export interface InkHistory {
   redo(): void
   clear(): void
   /**
-   * Runs `fn` and records what it changes as one undo step. Uncontrolled, core's history does
-   * the grouping; controlled, changes proposed in one tick reach the host as one list.
+   * Runs `fn` and records what it changes as one undo step. The host still receives one change
+   * per add. Controlled, the history groups the resulting list changes into one step, and
+   * `canUndo` updates once the current task ends. Any other change the host applies in that
+   * same window joins the step.
    */
   batch(fn: () => void): void
 }
