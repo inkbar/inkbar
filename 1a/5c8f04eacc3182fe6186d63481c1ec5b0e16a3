@@ -1,0 +1,26 @@
+apps/demo/src/react/Actions.tsx
+  s_0b0d6e3715476c::t_52bcab6eb07763 17-23
+apps/demo/src/shell/shell.ts
+  s_0b0d6e3715476c::t_52bcab6eb07763 93-94,97,102-109
+apps/demo/src/shell/frameworks.ts
+  s_0b0d6e3715476c::t_52bcab6eb07763 15,21,27,33
+eslint.config.js
+  s_0b0d6e3715476c::t_591cecf86c9093 50-55
+  s_0b0d6e3715476c::t_52bcab6eb07763 49,57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1a5c8f04eacc3182fe6186d63481c1ec5b0e16a3",
+  "prompts": {},
+  "sessions": {
+    "s_0b0d6e3715476c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "703874b0-3bd9-4982-aace-3d9b19eab262",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
