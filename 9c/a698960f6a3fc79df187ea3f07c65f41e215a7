@@ -1,0 +1,50 @@
+packages/core/src/dom/tree-shake.test.ts
+  s_0b0d6e3715476c::t_bd8244340467b5 1-8,11-19,22-52
+  s_0b0d6e3715476c::t_55fb36f011b8b0 9-10,20-21
+packages/core/src/dom/viewer/create-viewer.ts
+  s_0b0d6e3715476c::t_b5d8588042ce18 7-10,148-150
+  s_0b0d6e3715476c::t_38903c8d943208 45-46
+  s_0b0d6e3715476c::t_847c71c9b7c6f1 1-6,11-44,47-147,151-293
+packages/core/README.md
+  s_0b0d6e3715476c::t_8059f69c07657e 34-54
+packages/core/src/dom/viewer/icons.ts
+  s_0b0d6e3715476c::t_b5d8588042ce18 6-9
+  s_0b0d6e3715476c::t_8b7537974f040e 1-5,10-83
+packages/core/src/dom/viewer/popover.ts
+  s_0b0d6e3715476c::t_985fa0b6b3823d 1-114,119-131
+  s_0b0d6e3715476c::t_b5d8588042ce18 115-118
+packages/core/src/dom/viewer/create-viewer.browser.test.ts
+  s_0b0d6e3715476c::t_6f1e775298a3da 1-42,46-61,65-123,127-294,298-336,341-448,452-461,465-532,536-537,564-583
+  s_0b0d6e3715476c::t_b5d8588042ce18 43-45,62-64,124-126,295-297,337-340,449-451,462-464,533-535,541-543
+  s_0b0d6e3715476c::t_117c76704ce1c4 538-540,544-563
+packages/core/src/dom/viewer/note-popover.ts
+  s_0b0d6e3715476c::t_5fe8387b5c262a 1-66,68-122,130-186,188-230
+  s_0b0d6e3715476c::t_b5d8588042ce18 67,123-129
+  s_0b0d6e3715476c::t_a894da6c665021 187
+packages/core/src/dom/viewer/toolbar.ts
+  s_0b0d6e3715476c::t_82f593ffa6e283 1-290
+packages/core/src/dom/viewer/dom.ts
+  s_0b0d6e3715476c::t_8b7537974f040e 1-17
+packages/core/LICENSE
+  s_0b0d6e3715476c::t_d914c0dec42c29 1-70
+packages/core/src/dom/viewer/suggestion-card.ts
+  s_0b0d6e3715476c::t_edbe33590d1a88 1-132
+packages/core/src/dom/index.ts
+  s_0b0d6e3715476c::t_847c71c9b7c6f1 58-59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9ca698960f6a3fc79df187ea3f07c65f41e215a7",
+  "prompts": {},
+  "sessions": {
+    "s_0b0d6e3715476c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "703874b0-3bd9-4982-aace-3d9b19eab262",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
