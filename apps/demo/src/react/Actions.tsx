@@ -14,10 +14,13 @@ export function Actions() {
   async function suggest() {
     if (!document) return
     setBusy(true)
-    const found = await suggestRedactions(document, annotations)
-    for (const input of found) add(input)
-    setBusy(false)
-    setResult(suggestionCount(found.length))
+    try {
+      const found = await suggestRedactions(document, annotations)
+      for (const input of found) add(input)
+      setResult(suggestionCount(found.length))
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (

@@ -12,25 +12,25 @@ export const FRAMEWORKS: Record<FrameworkId, Framework> = {
   react: {
     name: 'React',
     blurb:
-      'The viewer, toolbar and popovers are components from @inkbar/react. Undo, Redo and Suggest redactions are built from its hooks.',
+      '@inkbar/react supplies the viewer, toolbar and popovers as components. Undo, Redo and Suggest redactions use its hooks.',
     install: 'pnpm add @inkbar/react @inkbar/core @inkbar/theme',
   },
   vue: {
     name: 'Vue',
     blurb:
-      'The viewer, toolbar and popovers are components from @inkbar/vue. Undo, Redo and Suggest redactions are built from its composables.',
+      '@inkbar/vue supplies the viewer, toolbar and popovers as components. Undo, Redo and Suggest redactions use its composables.',
     install: 'pnpm add @inkbar/vue @inkbar/core @inkbar/theme',
   },
   svelte: {
     name: 'Svelte',
     blurb:
-      'The viewer, toolbar and popovers are components from @inkbar/svelte. Undo, Redo and Suggest redactions are built from its hooks.',
+      '@inkbar/svelte supplies the viewer, toolbar and popovers as components. Undo, Redo and Suggest redactions use its hooks.',
     install: 'pnpm add @inkbar/svelte @inkbar/core @inkbar/theme',
   },
   vanilla: {
     name: 'TypeScript',
     blurb:
-      'No framework. The viewport, page layers and tools come from @inkbar/core/dom; the toolbar and popovers are written by hand.',
+      'No framework. @inkbar/core/dom provides the viewport, page layers and tools. The toolbar and popovers are plain TypeScript.',
     install: 'pnpm add @inkbar/core @inkbar/theme',
   },
 }

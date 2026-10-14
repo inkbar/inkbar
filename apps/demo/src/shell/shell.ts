@@ -90,13 +90,23 @@ export function startShell(opts: ShellOptions): void {
   const status = app.querySelector<HTMLElement>('[data-file-status]')!
 
   let unmount = opts.mount(viewer, SAMPLE)
+  /** Latest wins: each call takes a number, and a read that finishes after a newer call began is dropped. */
+  let latest = 0
 
   async function open(file: File): Promise<void> {
+    const request = ++latest
     if (!isPdf(file)) {
       status.textContent = `${file.name} is not a PDF.`
       return
     }
-    const data = new Uint8Array(await file.arrayBuffer())
+    let data: Uint8Array
+    try {
+      data = new Uint8Array(await file.arrayBuffer())
+    } catch {
+      if (request === latest) status.textContent = `${file.name} could not be read.`
+      return
+    }
+    if (request !== latest) return
     status.textContent = `Showing ${file.name}.`
     unmount()
     unmount = opts.mount(viewer, {

@@ -46,9 +46,15 @@ export default defineConfig(
   },
   {
     name: 'inkbar/demo-highlight-imports',
-    // `?highlight` imports are resolved by a Vite plugin; ESLint sees one module under two queries.
+    // A Vite plugin resolves `?highlight` imports; ESLint cannot see their default export.
+    // Only each page's entry file imports them.
+    files: ['apps/demo/src/*/main.{ts,tsx}'],
+    rules: { 'import-x/default': 'off' },
+  },
+  {
+    name: 'inkbar/demo-query-imports',
     files: ['apps/demo/src/**/*.{ts,tsx}'],
-    rules: { 'import-x/default': 'off', 'import-x/no-duplicates': 'off' },
+    rules: { 'import-x/no-duplicates': ['error', { considerQueryString: true }] },
   },
   {
     name: 'inkbar/react-hooks',
