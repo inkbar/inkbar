@@ -129,10 +129,12 @@ describe('mountViewer', () => {
   })
 
   it('rebuilds with a new viewport and keeps zoom, page and tool', async () => {
-    const { doc, container, engine, onBuild, onPageUnmount } =
+    const { doc, container, engine, onBuild, onPageMount, onPageUnmount } =
       await setup('mixed-page-sizes')
     await until(() => engine.pages.size > 0)
     engine.viewport.setZoom(1.5)
+    engine.viewport.setMode('single')
+    engine.viewport.setRotation(90)
     const last = doc.pages.length - 1
     engine.viewport.scrollToPage(last)
     await until(() => engine.viewport.currentPage.get() === last)
@@ -142,16 +144,42 @@ describe('mountViewer', () => {
     const oldPages = [...engine.pages.keys()]
     expect(oldHosts.length).toBeGreaterThan(0)
 
+    onPageUnmount.mockClear()
+    onPageMount.mockClear()
     engine.rebuild({ gap: 32 })
 
     expect(engine.viewport).not.toBe(old)
     expect(engine.viewport.zoom.get()).toBe(1.5)
     expect(engine.viewport.currentPage.get()).toBe(last)
     expect(engine.tools.active.get()).toBe('select')
+    expect(engine.viewport.mode.get()).toBe('single')
+    expect(engine.viewport.rotation.get()).toBe(90)
     expect(onBuild).toHaveBeenCalledTimes(2)
     expect(oldHosts.every((h) => !h.isConnected)).toBe(true)
-    for (const page of oldPages) expect(onPageUnmount).toHaveBeenCalledWith(page)
+    // The teardown's unmounts come before any page of the new build mounts.
+    const firstMount = onPageMount.mock.invocationCallOrder[0]!
+    const torn = onPageUnmount.mock.calls
+      .filter((_c, i) => onPageUnmount.mock.invocationCallOrder[i]! < firstMount)
+      .map((c: unknown[]) => c[0] as number)
+    expect(torn.sort()).toEqual([...oldPages].sort())
     await until(() => engine.pages.size > 0)
+  })
+
+  it("fires a build's page mounts before its onBuild, on the first build and on a rebuild", async () => {
+    const events: string[] = []
+    const { engine } = await setup('text-simple', {
+      onPageMount: (page) => events.push(`mount:${page}`),
+      onBuild: () => events.push('build'),
+    })
+    await until(() => engine.pages.size > 0)
+    engine.rebuild({ gap: 24 })
+    const first = events.indexOf('build')
+    const second = events.indexOf('build', first + 1)
+    expect(first).toBeGreaterThan(0)
+    expect(events[0]).toMatch(/^mount:/)
+    expect(second).toBeGreaterThan(first)
+    expect(events.slice(first + 1, second).some((e) => e.startsWith('mount:'))).toBe(true)
+    expect(events.slice(second + 1)).not.toContain('build')
   })
 
   it('cleans up on destroy', async () => {
@@ -161,7 +189,10 @@ describe('mountViewer', () => {
     const zoom = engine.viewport.zoom.get()
     engine.destroy()
     expect(engine.pages.size).toBe(0)
-    for (const page of mounted) expect(onPageUnmount).toHaveBeenCalledWith(page)
+    expect(onPageUnmount).toHaveBeenCalledTimes(mounted.length)
+    expect(onPageUnmount.mock.calls.map((c: unknown[]) => c[0] as number).sort()).toEqual(
+      [...mounted].sort()
+    )
     expect(container.querySelector('.ink-page')).toBeNull()
     key(container, '+')
     expect(engine.viewport.zoom.get()).toBe(zoom)

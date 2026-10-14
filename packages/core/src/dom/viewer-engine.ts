@@ -29,11 +29,26 @@ export interface MountViewerOptions {
   /** Annotation content is rendered by the host (custom slots). Changing it needs `rebuild`. */
   customAnnotations?: boolean
   onActivate?(id: string): void
-  /** After every (re)build: subscribe to the new viewport and controller here. */
+  /**
+   * After every (re)build: subscribe to the new viewport and controller here. It fires inside
+   * `mountViewer` before it returns, and after the build's `onPageMount` calls.
+   */
   onBuild?(viewport: Viewport, tools: ToolController): void
+  /**
+   * The viewport mounts pages synchronously, so a build's `onPageMount` calls fire before its
+   * `onBuild` (on the first build, before `mountViewer` returns). Do not read `engine.viewport`
+   * or `engine.tools` here: during a rebuild they still point at the destroyed objects. Use
+   * the arguments, or wait for `onBuild`.
+   */
   onPageMount?(page: number, mount: PageMount, host: HTMLElement): void
+  /** Same ordering rule as `onPageMount`: do not read `engine.viewport` or `engine.tools`. */
   onPageUnmount?(page: number): void
-  /** `error` when a page's canvas or text layer fails; `null` once every failed layer recovers. */
+  /**
+   * `error` when a page's canvas or text layer fails; `null` once every failed layer recovers.
+   * Unmounting a failed page does not emit `null`: hosts that track errors by page must clear
+   * them in `onPageUnmount`. Same ordering rule as `onPageMount`: do not read `engine.viewport`
+   * or `engine.tools`.
+   */
   onPageError?(page: number, error: InkError | null): void
 }
 
@@ -45,8 +60,6 @@ export interface ViewerEngine {
   rebuild(opts: { gap?: number; buffer?: number; customAnnotations?: boolean }): void
   destroy(): void
 }
-
-export function mountViewer(opts: MountViewerOptions): ViewerEngine
 
 export function mountViewer(opts: MountViewerOptions): ViewerEngine {
   const { container: el, document: doc } = opts
