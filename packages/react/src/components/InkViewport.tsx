@@ -55,6 +55,8 @@ interface MountedPage {
   host: HTMLElement
   mount: PageMount
   error: InkError | null
+  /** Whether the build that mounted the page renders the annotation slot. */
+  custom: boolean
 }
 
 export function InkViewport({
@@ -79,9 +81,9 @@ export function InkViewport({
   /** Page hosts, mounts and errors the engine reported; InkPage renders portals for them. */
   const [pages, setPages] = useState<MountedPage[]>([])
   /**
-   * Bumped after every build. A build mounts its pages before `onBuild` fires, so each build's
-   * pages carry the count left by the build before: distinct per build, which is all the
-   * InkPage key needs to remount pages whose host was replaced.
+   * Numbered before each build starts, so the pages a build mounts carry its own number. A
+   * rebuild gives each page a new host and mount, so pages from an earlier build must remount,
+   * not be reused.
    */
   const buildCount = useRef(0)
   /** The construction options the engine was last built with, so a rebuild runs only on a change. */
@@ -100,6 +102,8 @@ export function InkViewport({
     if (!doc || !el || c.status.state !== 'ready') return
     let first = true
     let stops: (() => void)[] = []
+    buildCount.current += 1
+    builtWith.current = { gap: g, buffer: b, custom: cu }
     const e = mountViewer({
       container: el,
       document: doc,
@@ -113,7 +117,6 @@ export function InkViewport({
       customAnnotations: cu,
       onActivate: (id) => latest.current.ctx.setActivated(id),
       onBuild: (vp, tc) => {
-        buildCount.current += 1
         latest.current.ctx.setViewport(vp, tc)
         if (first) {
           // A new document starts from where the viewport opens (its zoom, on the first page);
@@ -138,17 +141,17 @@ export function InkViewport({
         reportZoom(vp.zoom.get())
         reportPage(vp.currentPage.get())
       },
-      onPageMount: (page, mount, host) =>
-        setPages((prev) => [
-          ...prev,
-          { build: buildCount.current, page, host, mount, error: null },
-        ]),
+      onPageMount: (page, mount, host) => {
+        // `buildCount` and `builtWith` belong to the build in progress: both are set before it starts.
+        const build = buildCount.current
+        const custom = builtWith.current?.custom ?? false
+        setPages((prev) => [...prev, { build, page, host, mount, error: null, custom }])
+      },
       onPageUnmount: (page) => setPages((prev) => prev.filter((p) => p.page !== page)),
       onPageError: (page, err) =>
         setPages((prev) => prev.map((p) => (p.page === page ? { ...p, error: err } : p))),
     })
     engine.current = e
-    builtWith.current = { gap: g, buffer: b, custom: cu }
     return () => {
       for (const stop of stops) stop()
       e.destroy()
@@ -164,6 +167,7 @@ export function InkViewport({
     const built = builtWith.current
     if (!engine.current || !built) return
     if (built.gap === gap && built.buffer === buffer && built.custom === custom) return
+    buildCount.current += 1
     builtWith.current = { gap, buffer, custom }
     engine.current.rebuild({ gap, buffer, customAnnotations: custom })
   }, [gap, buffer, custom])
@@ -244,7 +248,7 @@ export function InkViewport({
           host={p.host}
           mount={p.mount}
           error={p.error}
-          customAnnotations={custom}
+          customAnnotations={p.custom}
           renderAnnotation={renderAnnotation}
           renderPageError={renderPageError}
         />

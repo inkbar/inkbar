@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { staticDefaults } from './defaults'
 import { createHistory } from './history'
@@ -253,5 +253,62 @@ describe('history.batch', () => {
       ranControlled = true
     })
     expect(ranControlled).toBe(true)
+  })
+
+  it('a history destroyed inside fn records nothing when the batch closes', () => {
+    const s = store()
+    const h = createHistory(s)
+    const canUndo: boolean[] = []
+    h.canUndo.subscribe((v) => canUndo.push(v))
+    h.batch(() => {
+      s.add({ type: 'note', page: 0, rect })
+      h.destroy()
+      s.add({ type: 'note', page: 1, rect })
+    })
+    expect(s.list.get()).toHaveLength(2)
+    expect(h.canUndo.get()).toBe(false)
+    expect(h.canRedo.get()).toBe(false)
+    expect(canUndo.every((v) => !v)).toBe(true)
+    h.undo()
+    expect(s.list.get()).toHaveLength(2)
+  })
+
+  it('an add then a remove inside one batch records nothing and keeps redo', () => {
+    const s = store()
+    const h = createHistory(s)
+    s.add({ type: 'note', page: 0, rect })
+    h.undo()
+    expect(h.canRedo.get()).toBe(true)
+    h.batch(() => {
+      const a = s.add({ type: 'note', page: 1, rect })
+      s.remove(a.id)
+    })
+    expect(s.list.get()).toEqual([])
+    expect(h.canUndo.get()).toBe(false)
+    expect(h.canRedo.get()).toBe(true)
+    h.redo()
+    expect(s.list.get()).toHaveLength(1)
+  })
+
+  it('warns in a dev build when fn returns a promise, and not otherwise', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    try {
+      const s = store()
+      const h = createHistory(s)
+      h.batch(() => {
+        s.add({ type: 'note', page: 0, rect })
+      })
+      expect(warn).not.toHaveBeenCalled()
+      // A thenable stands in for the promise an async fn returns.
+      const asyncLike = (() => {
+        s.add({ type: 'note', page: 1, rect })
+        return { then: () => undefined }
+      }) as () => void
+      h.batch(asyncLike)
+      expect(warn).toHaveBeenCalledOnce()
+      expect(warn.mock.calls[0]![0]).toMatch(/returned a promise/)
+    } finally {
+      warn.mockRestore()
+    }
   })
 })

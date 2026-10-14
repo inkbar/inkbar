@@ -47,10 +47,11 @@ undo.onclick = () => viewer.document.get()?.history.undo()
 viewer.toolbar?.append(undo) // buttons join the toolbar's arrow-key order
 
 viewer.open(otherFile) // destroys the current document; the latest call wins
+viewer.open(lockedFile, { password }) // this password applies to this load only
 viewer.destroy()
 ```
 
-It takes the `mountViewer` options below, plus `password`, `defaults`, `history`, `onReady` and `onError`. Set `toolbar`, `notes` or `suggestions` to `false` to leave that part out. `viewer.status`, `viewer.document` and `viewer.engine` are readables. An input, select or textarea you add stays a Tab stop of its own and keeps its arrow keys.
+It takes the [`mountViewer` options](#mounting-a-viewer) except `container` and `document`, plus `password`, `defaults`, `history`, `onReady` and `onError`. Set `toolbar`, `notes` or `suggestions` to `false` to leave that part out. `viewer.status`, `viewer.document` and `viewer.engine` are readables. A password you pass to `open` replaces the `createViewer` one for that load. An input, select or textarea you add keeps its arrow keys and its own `tabindex`: it is a Tab stop unless you give it `tabindex="-1"`.
 
 `createViewer` reads the theme's colours from the element you pass, so that element needs to be in the page when you call it.
 
@@ -68,9 +69,21 @@ const engine = mountViewer({
   onPageError: (page, error) => console.warn(page, error),
 })
 engine.tools.set('highlight')
-engine.rebuild({ gap: 32 }) // construction-only options; zoom, page and tool carry over
+engine.rebuild({ gap: 32 }) // construction-only options; zoom, page, tool and scroll position carry over
 engine.destroy()
 ```
+
+Options:
+
+- `container` and `document`, both required.
+- `zoom` (a number, `'fit-width'` or `'fit-page'`; default `'fit-width'`), `page`, `mode`, `rotation` and `tool` set the starting view. Change them later through `engine.viewport` and `engine.tools`.
+- `gap`, `buffer` and `customAnnotations` are fixed for a build. Change them with `engine.rebuild`.
+- `onActivate(id)` fires when the user activates an annotation.
+- `onBuild(viewport, tools)` fires after every build, the first one included, before `mountViewer` returns. Subscribe to the new viewport and tool controller here.
+- `onPageMount(page, mount, host)` and `onPageUnmount(page)` fire as pages enter and leave the mounted range.
+- `onPageError(page, error)` reports a page whose canvas or text layer failed, and `onPageError(page, null)` once every failed layer renders again. Unmounting a failed page emits no `null`, so clear any per-page error in `onPageUnmount`.
+
+The viewport mounts pages synchronously, so a build's page callbacks fire before its `onBuild`. During a rebuild, `engine.viewport` and `engine.tools` still point at the destroyed objects while those callbacks run. Read the arguments instead, or wait for `onBuild`.
 
 ## Annotation changes
 
@@ -83,7 +96,7 @@ engine.destroy()
 
 `add` throws if `input.id` is already in the list. Locked annotations refuse changes to their geometry, `page` and `contents`.
 
-`doc.history.batch(fn)` records everything `fn` changes as one undo step, so a host that adds many annotations at once can undo them together. Change events still fire one per annotation. `fn` must be synchronous, and nested calls join the outer batch.
+`doc.history.batch(fn)` records everything `fn` changes as one undo step, so a host that adds many annotations at once can undo them together. Change events still fire once per annotation. `fn` must be synchronous, and nested calls join the outer batch.
 
 ## Tools and keyboard
 

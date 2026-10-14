@@ -530,3 +530,42 @@ test('keeps the page and zoom when a gap change rebuilds the viewport', async ({
     expect(zooms).toEqual([])
   }
 })
+
+test('toggling the annotation slot keeps the scroll position and swaps the custom content', async ({
+  mount,
+  page,
+}) => {
+  const props = { src: fixtureUrl('text-simple'), assets, zoom: 1 }
+  const cmp = await mount(ViewportHarness, { props })
+  await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
+  await page.locator('[data-ink-root]').evaluate((el) => {
+    ;(el as RootEl).__inkDocument!.annotations.add({
+      type: 'note',
+      page: 1,
+      rect: { x: 72, y: 600, width: 24, height: 24 },
+    })
+  })
+  const scroll = page.locator('[data-ink-scroll]')
+  const width = await scroll.evaluate((el) => el.clientWidth)
+  const target = layoutAt(1, width).boxes[1]!.top + 300
+  await scroll.evaluate((el, top) => {
+    el.scrollTop = top
+  }, target)
+  const second = cmp.locator('.ink-page[data-page="1"]')
+  await expect(second.locator('[data-annotation]')).toHaveCount(1)
+  const before = await scroll.evaluate((el) => el.scrollTop)
+  expect(Math.abs(before - target)).toBeLessThanOrEqual(1)
+
+  await cmp.update({ props: { ...props, customAnnotations: true } })
+  await expect(second.locator('[data-annotation][data-custom] > .my-pin')).toHaveCount(1)
+  expect(
+    Math.abs((await scroll.evaluate((el) => el.scrollTop)) - before)
+  ).toBeLessThanOrEqual(2)
+
+  await cmp.update({ props: { ...props, customAnnotations: false } })
+  await expect(cmp.locator('.my-pin')).toHaveCount(0)
+  await expect(second.locator('[data-annotation]:not([data-custom])')).toHaveCount(1)
+  expect(
+    Math.abs((await scroll.evaluate((el) => el.scrollTop)) - before)
+  ).toBeLessThanOrEqual(2)
+})

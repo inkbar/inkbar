@@ -400,5 +400,28 @@ describe('createSnapshotHistory', () => {
       history.observe([note('a', '1')])
       expect(history.canUndo.get()).toBe(false)
     })
+
+    it('warns in a dev build when fn returns a promise, and not otherwise', () => {
+      vi.useFakeTimers()
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+      try {
+        const { history } = setup()
+        history.observe([])
+        history.batch(() => history.observe([note('a', '1')]))
+        expect(warn).not.toHaveBeenCalled()
+        // A thenable stands in for the promise an async fn returns.
+        const asyncLike = (() => ({ then: () => undefined })) as () => void
+        history.batch(asyncLike)
+        expect(warn).toHaveBeenCalledOnce()
+        expect(warn.mock.calls[0]![0]).toMatch(/returned a promise/)
+        // The batch still closes on time.
+        history.observe([note('a', '1'), note('b', '2')])
+        vi.runAllTimers()
+        expect(history.canUndo.get()).toBe(true)
+      } finally {
+        warn.mockRestore()
+        vi.useRealTimers()
+      }
+    })
   })
 })

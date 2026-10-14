@@ -182,6 +182,48 @@ describe('mountViewer', () => {
     expect(events.slice(second + 1)).not.toContain('build')
   })
 
+  it('keeps the scroll position within the page across a rebuild', async () => {
+    const { container, engine } = await setup('text-simple', { zoom: 1 })
+    await until(() => engine.pages.size > 0)
+    const box = engine.viewport.layout.get().boxes.find((b) => b.index === 1)!
+    container.scrollTop = box.top + 137
+    container.scrollLeft = 23
+    await until(() => engine.viewport.currentPage.get() === 1)
+    // Where page 2's top-left sits relative to the container: the visible point.
+    const offset = (): { x: number; y: number } => {
+      const host = container.querySelector<HTMLElement>('.ink-page[data-page="1"]')!
+      const r = host.getBoundingClientRect()
+      const c = container.getBoundingClientRect()
+      return { x: r.left - c.left, y: r.top - c.top }
+    }
+    const before = offset()
+    const scrollTop = container.scrollTop
+
+    engine.rebuild({ customAnnotations: true })
+    expect(Math.abs(container.scrollTop - scrollTop)).toBeLessThanOrEqual(2)
+    expect(Math.abs(offset().y - before.y)).toBeLessThanOrEqual(2)
+    expect(Math.abs(offset().x - before.x)).toBeLessThanOrEqual(2)
+
+    // A new gap moves every page, so compare the visible point rather than the scroll offset.
+    engine.rebuild({ gap: 48 })
+    expect(Math.abs(offset().y - before.y)).toBeLessThanOrEqual(2)
+    expect(Math.abs(offset().x - before.x)).toBeLessThanOrEqual(2)
+    await settle(100)
+    expect(engine.viewport.currentPage.get()).toBe(1)
+    expect(Math.abs(offset().y - before.y)).toBeLessThanOrEqual(2)
+  })
+
+  it('keeps a view resting at a page boundary at that boundary under a new gap', async () => {
+    const { container, engine } = await setup('text-simple', { zoom: 1 })
+    await until(() => engine.pages.size > 0)
+    engine.viewport.scrollToPage(1)
+    await until(() => engine.viewport.currentPage.get() === 1)
+    engine.rebuild({ gap: 48 })
+    const box = engine.viewport.layout.get().boxes.find((b) => b.index === 1)!
+    expect(container.scrollTop).toBe(box.top - 48)
+    expect(engine.viewport.currentPage.get()).toBe(1)
+  })
+
   it('cleans up on destroy', async () => {
     const { container, engine, onPageUnmount } = await setup()
     await until(() => engine.pages.size > 0)

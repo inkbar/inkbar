@@ -213,8 +213,8 @@ watch([() => props.gap, () => props.buffer], ([gap, buffer]) => rebuild({ gap, b
 // Slots are not reactive, so a change to whether the annotation slot is given is caught here.
 // `onBeforeUpdate` runs after the new slots are in place and before this render: the rebuild
 // swaps `pages` for the new build's pages synchronously, so the render that follows never pairs
-// the annotation slot with an overlay built without it (or the reverse). The rebuild lands at
-// the top of the current page.
+// the annotation slot with an overlay built without it (or the reverse). The rebuild keeps the
+// scroll position.
 onBeforeUpdate(() => {
   const next = !!slots.annotation
   if (engine.value && next !== custom) rebuild({ customAnnotations: next })

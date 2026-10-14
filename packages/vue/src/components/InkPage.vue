@@ -13,7 +13,7 @@
  * The engine tracks page errors and sets `data-state="error"` on the host; this component
  * teleports the `page-error` slot into it while `error` is set.
  */
-import { onBeforeUnmount, onMounted, shallowRef } from 'vue'
+import { onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
 
 import { injectInkContext } from '../context'
 
@@ -27,7 +27,7 @@ const props = withDefaults(
   defineProps<{
     page: number
     host: HTMLElement
-    /** The engine's page mount in `host`. Fixed for the life of the component. */
+    /** The engine's page mount in `host`. */
     mount: PageMount
     /** The engine's error for this page, `null` while it renders. */
     error: InkError | null
@@ -46,23 +46,36 @@ const ctx = injectInkContext()
 const targets = shallowRef<{ annotation: Annotation; el: HTMLElement }[]>([])
 let stopList: (() => void) | undefined
 
-onMounted(() => {
+function stop(): void {
+  stopList?.()
+  stopList = undefined
+  targets.value = []
+}
+
+// Targets are read from the current mount, and read again when InkViewport hands this page a
+// new one (the page left and came back within one tick, under the same key), as React and
+// Svelte do. The watch fires only when one of these values changes, not on an error change.
+function start(): void {
+  stop()
   const doc = ctx.document.value
   if (!doc || !props.customAnnotations) return
+  const mount = props.mount
   const read = (): void => {
     targets.value = doc.annotations.byPage(props.page).flatMap((annotation) => {
-      const el = props.mount.overlay.elementFor(annotation.id)
+      const el = mount.overlay.elementFor(annotation.id)
       return el ? [{ annotation, el }] : []
     })
   }
   stopList = doc.annotations.list.subscribe(read)
   read()
+}
+
+onMounted(() => {
+  start()
+  watch([() => props.mount, () => props.page, () => props.customAnnotations], start)
 })
 
-onBeforeUnmount(() => {
-  stopList?.()
-  targets.value = []
-})
+onBeforeUnmount(stop)
 </script>
 
 <template>

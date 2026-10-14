@@ -88,7 +88,7 @@ useEffect(() => {
 </InkRoot>
 ```
 
-Inside `InkRoot`, `useHistory()` returns the same object. `batch(fn)` records everything `fn` changes as one undo step.
+Inside `InkRoot`, `useHistory()` returns the same object. Its `batch(fn)` runs `fn` and records what it changes as one undo step. With `history` on a controlled list, you still get one `onAnnotationsChange` call per add. The step lands when the current task ends, and `canUndo` updates then. Any other change you apply to the list in that window joins the step. In both modes, `fn` must be synchronous.
 
 `key` identifies the document. Reuse the same key when only the signed URL changes and the document is not reloaded.
 

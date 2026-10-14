@@ -173,6 +173,35 @@ describe('createViewer', () => {
     expect(viewer.engine.get()).toBeNull()
   })
 
+  it("opens an encrypted file with the password given to open, else the constructor's", async () => {
+    const { viewer } = make('text-simple')
+    await ready(viewer)
+    viewer.open(fixtureUrl('encrypted-aes'))
+    await until(() => viewer.status.get().state === 'error')
+    const status = viewer.status.get()
+    expect(status.state === 'error' && status.error.code).toBe('PasswordRequired')
+
+    viewer.open(fixtureUrl('encrypted-aes'), { password: 'inkbar' })
+    const { doc } = await ready(viewer)
+    expect(doc.pages).toHaveLength(1)
+    await until(() => viewer.element.querySelector('.ink-page[data-page="0"]') !== null)
+
+    // The constructor's password is the fallback when open passes none.
+    const other = make('encrypted-aes', { password: 'inkbar' }).viewer
+    await ready(other)
+    other.open(fixtureUrl('encrypted-rc4'))
+    const { doc: rc4 } = await ready(other)
+    expect(rc4.pages).toHaveLength(1)
+    // A password given to open replaces the constructor's for that load.
+    other.open(fixtureUrl('encrypted-rc4'), { password: 'wrong' })
+    await until(() => other.status.get().state === 'error')
+    const wrong = other.status.get()
+    expect(wrong.state === 'error' && wrong.error).toMatchObject({
+      code: 'PasswordRequired',
+      details: { passwordSupplied: true, incorrect: true },
+    })
+  })
+
   it('lets the latest open win', async () => {
     const onReady = vi.fn()
     const { viewer } = make('text-simple', { onReady })
@@ -277,6 +306,23 @@ describe('createViewer', () => {
       select.focus()
       await userEvent.keyboard('{ArrowRight}')
       expect(focused()).toBe(select)
+    })
+
+    it("keeps a host field's own tabindex", async () => {
+      const { viewer } = make('text-simple')
+      await ready(viewer)
+      const skipped = document.createElement('input')
+      skipped.setAttribute('aria-label', 'Skipped')
+      skipped.tabIndex = -1
+      const plain = document.createElement('textarea')
+      plain.setAttribute('aria-label', 'Plain')
+      viewer.toolbar!.append(skipped, plain)
+      await settle()
+      // A button added afterwards makes the toolbar sync its Tab stops again.
+      viewer.toolbar!.append(document.createElement('button'))
+      await settle()
+      expect(skipped.tabIndex).toBe(-1)
+      expect(plain.tabIndex).toBe(0)
     })
 
     it('roves to buttons a host adds and leaves a host text input its keys', async () => {

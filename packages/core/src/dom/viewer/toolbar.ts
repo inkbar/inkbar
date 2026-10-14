@@ -222,14 +222,12 @@ export function createToolbar(): DefaultToolbar {
 
 /** Roving items, as in the bindings' Radix toolbar: buttons only. */
 const ITEMS = 'button'
-/** Fields are Tab stops of their own and keep every native key. */
-const FIELDS = 'input, select, textarea'
 
 /**
  * One Tab stop across the enabled buttons in `bar`: the current one has `tabindex="0"`, the
  * rest `-1`. ArrowLeft and ArrowRight move between them and wrap, Home and End go to the ends.
- * Inputs, selects and textareas, built in or added by the host, stay separate Tab stops and
- * keep their own arrow, Home and End keys.
+ * Inputs, selects and textareas, built in or added by the host, keep their own tabindex (a
+ * Tab stop of their own by default) and their own arrow, Home and End keys.
  */
 function rovingTabindex(bar: HTMLElement): { sync(): void; destroy(): void } {
   let current: HTMLElement | null = null
@@ -242,7 +240,7 @@ function rovingTabindex(bar: HTMLElement): { sync(): void; destroy(): void } {
     if (!current || !list.includes(current)) current = list[0] ?? null
     for (const el of bar.querySelectorAll<HTMLElement>(ITEMS))
       el.tabIndex = el === current ? 0 : -1
-    for (const el of bar.querySelectorAll<HTMLElement>(FIELDS)) el.tabIndex = 0
+    // Fields are left alone: they are Tab stops by default, and a host's tabindex on one stays.
   }
   const onFocusIn = (e: FocusEvent): void => {
     const target = e.target as HTMLElement

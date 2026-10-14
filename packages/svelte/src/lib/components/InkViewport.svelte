@@ -197,7 +197,7 @@
   // template updates before this effect runs, so for a moment the old build's pages see the new
   // `annotation` prop, but each InkPage reads targets only when the build that mounted it was
   // custom (`p.custom`), and shows them only while the snippet is given. Then this effect swaps
-  // `pages` for the new build's pages. The rebuild lands at the top of the current page.
+  // `pages` for the new build's pages. The rebuild keeps the scroll position.
   const buildGap = $derived(gap)
   const buildBuffer = $derived(buffer)
   const buildCustom = $derived(!!annotation)

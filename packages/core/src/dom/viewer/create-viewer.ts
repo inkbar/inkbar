@@ -32,6 +32,7 @@ export interface CreateViewerOptions extends Omit<
 > {
   source: DocumentSource
   assets: PdfAssets
+  /** User password for encrypted files. `open` can pass its own for one load. */
   password?: string
   /** Default: read from the theme's CSS variables on the viewer root. */
   defaults?: AnnotationDefaults
@@ -55,8 +56,11 @@ export interface Viewer {
   readonly engine: Readable<ViewerEngine | null>
   /** The toolbar element, for adding controls. `null` when `toolbar: false`. */
   readonly toolbar: HTMLElement | null
-  /** Opens another document in place; the previous one is destroyed. Latest call wins. */
-  open(source: DocumentSource): void
+  /**
+   * Opens another document in place; the previous one is destroyed. Latest call wins.
+   * `password` is used for this load only; without it, the constructor's `password` applies.
+   */
+  open(source: DocumentSource, opts?: { password?: string }): void
   destroy(): void
 }
 
@@ -223,7 +227,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     doc?.destroy()
   }
 
-  function open(source: DocumentSource): void {
+  function open(source: DocumentSource, openOpts?: { password?: string }): void {
     if (destroyed) return
     const load = ++loads
     close()
@@ -231,7 +235,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     // The theme's colour variables are read from the root, which is in the page by now.
     openDocument(source, {
       assets,
-      password,
+      password: openOpts?.password ?? password,
       defaults: defaults ?? cssVariableDefaults(root),
       history,
     }).then(
