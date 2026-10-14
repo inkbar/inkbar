@@ -1,21 +1,15 @@
 /*
- * The scroll element is handed to core's `createViewport` and `createToolController`; React
- * never renders children into it. Pages are InkPage components rendered here (they render
- * nothing in place) that mount core's page layers into the hosts the viewport creates.
- * Keyboard shortcuts are core's `attachViewportKeys` on the scroll element.
+ * The scroll element is handed to core's `mountViewer`, which builds the viewport, the page
+ * layers, the tool controller and the keyboard shortcuts in it; React never renders children
+ * into it. The engine reports each page host it mounts, and InkPage components rendered here
+ * portal the page-error and custom-annotation slots into them.
  *
  * Two-way zoom and page: the viewport's own changes are reported through the context, and
  * the host's props are applied only when they differ from the viewport's state, so the echo
  * of a reported value does nothing.
  */
+import { mountViewer } from '@inkbar/core/dom'
 import {
-  attachViewportKeys,
-  createToolController,
-  createViewport,
-  getSelectionQuads,
-} from '@inkbar/core/dom'
-import {
-  useCallback,
   useEffect,
   useRef,
   useState,
@@ -29,14 +23,13 @@ import { useLatest } from '../use-latest'
 
 import { InkPage } from './InkPage'
 
-import type { InkDocument, InkError } from '@inkbar/core'
+import type { InkError } from '@inkbar/core'
 import type {
   AnnotationSlotProps,
   LayoutMode,
-  PageTransform,
-  ToolController,
+  PageMount,
+  ViewerEngine,
   ViewRotation,
-  Viewport,
   ZoomValue,
 } from '@inkbar/core/dom'
 
@@ -56,11 +49,12 @@ export interface InkViewportProps extends ComponentPropsWithoutRef<'div'> {
 }
 
 interface MountedPage {
-  /** The viewport build the host belongs to; part of the InkPage key. */
+  /** The engine build the host belongs to; part of the InkPage key. */
   build: number
   page: number
   host: HTMLElement
-  transform: PageTransform
+  mount: PageMount
+  error: InkError | null
 }
 
 export function InkViewport({
@@ -78,154 +72,129 @@ export function InkViewport({
 }: InkViewportProps) {
   const ctx = useInkContext('InkViewport')
   const scroll = useRef<HTMLDivElement>(null)
-  const [pages, setPages] = useState<MountedPage[]>([])
-  const latest = useLatest({ ctx, mode, rotation, gap, buffer })
+  const custom = !!renderAnnotation
+  const latest = useLatest({ ctx, mode, rotation, gap, buffer, custom })
 
-  const viewport = useRef<Viewport | null>(null)
-  const tools = useRef<ToolController | null>(null)
+  const engine = useRef<ViewerEngine | null>(null)
+  /** Page hosts, mounts and errors the engine reported; InkPage renders portals for them. */
+  const [pages, setPages] = useState<MountedPage[]>([])
   /**
-   * Bumped on every build. A rebuild gives each page a new host element, and InkPage mounts
-   * into its host only once, so pages from an earlier build must remount, not be reused.
+   * Bumped after every build. A build mounts its pages before `onBuild` fires, so each build's
+   * pages carry the count left by the build before: distinct per build, which is all the
+   * InkPage key needs to remount pages whose host was replaced.
    */
-  const build = useRef(0)
-  const stops = useRef<(() => void)[]>([])
-  /** The document the viewport was built for, and the zoom and page last reported to the host. */
-  const builtFor = useRef<InkDocument | null>(null)
+  const buildCount = useRef(0)
+  /** The construction options the engine was last built with, so a rebuild runs only on a change. */
+  const builtWith = useRef<{ gap: number; buffer: number; custom: boolean } | null>(null)
+  /** The zoom and page last reported to the host. */
   const lastReportedZoom = useRef<ZoomValue | undefined>(undefined)
   const lastReportedPage = useRef<number | undefined>(undefined)
 
-  const teardown = useCallback(() => {
-    for (const stop of stops.current) stop()
-    stops.current = []
-    tools.current?.destroy()
-    viewport.current?.destroy()
-    tools.current = null
-    viewport.current = null
-    latest.current.ctx.setViewport(null, null)
-    setPages((prev) => (prev.length === 0 ? prev : []))
-  }, [latest])
-
-  const setup = useCallback(() => {
-    const { ctx: c, mode: m, rotation: r, gap: g, buffer: b } = latest.current
-    // Rebuilding for the same document (a gap or buffer change) keeps where the reader was.
-    const carry =
-      viewport.current && builtFor.current === c.document
-        ? { zoom: viewport.current.zoom.get(), page: viewport.current.currentPage.get() }
-        : null
-    teardown()
+  // Build for a new document or status; tear down on the next change and on unmount.
+  useEffect(() => {
+    const { ctx: c, mode: m, rotation: r, gap: g, buffer: b, custom: cu } = latest.current
     const doc = c.document
     const el = scroll.current
-    if (!carry) {
-      builtFor.current = null
-      lastReportedZoom.current = undefined
-      lastReportedPage.current = undefined
-    }
+    lastReportedZoom.current = undefined
+    lastReportedPage.current = undefined
     if (!doc || !el || c.status.state !== 'ready') return
-    const current = ++build.current
-    const vp = createViewport({
+    let first = true
+    let stops: (() => void)[] = []
+    const e = mountViewer({
       container: el,
       document: doc,
-      zoom: carry?.zoom ?? c.zoomModel ?? 'fit-width',
+      zoom: c.zoomModel ?? 'fit-width',
+      ...(c.pageModel === undefined ? {} : { page: c.pageModel }),
       mode: m,
       rotation: r,
       gap: g,
       buffer: b,
-      onMount: (page, host, transform) => {
-        setPages((prev) => [...prev, { build: current, page, host, transform }])
+      tool: c.tool,
+      customAnnotations: cu,
+      onActivate: (id) => latest.current.ctx.setActivated(id),
+      onBuild: (vp, tc) => {
+        buildCount.current += 1
+        latest.current.ctx.setViewport(vp, tc)
+        if (first) {
+          // A new document starts from where the viewport opens (its zoom, on the first page);
+          // only later changes are reported, the restored page among them.
+          first = false
+          lastReportedZoom.current = vp.zoom.get()
+          lastReportedPage.current = 0
+        }
+        for (const stop of stops) stop()
+        const reportZoom = (z: ZoomValue): void => {
+          if (z === lastReportedZoom.current) return
+          lastReportedZoom.current = z
+          latest.current.ctx.reportZoom(z)
+        }
+        const reportPage = (p: number): void => {
+          if (p === lastReportedPage.current) return
+          lastReportedPage.current = p
+          latest.current.ctx.reportPage(p)
+        }
+        stops = [vp.zoom.subscribe(reportZoom), vp.currentPage.subscribe(reportPage)]
+        // Whatever the build restored is reported once; nothing is when it matched.
+        reportZoom(vp.zoom.get())
+        reportPage(vp.currentPage.get())
       },
-      onUpdate: (page, host, transform) => {
-        setPages((prev) =>
-          prev.map((p) =>
-            p.page === page ? { build: current, page, host, transform } : p
-          )
-        )
-      },
-      onUnmount: (page) => {
-        setPages((prev) => prev.filter((p) => p.page !== page))
-      },
+      onPageMount: (page, mount, host) =>
+        setPages((prev) => [
+          ...prev,
+          { build: buildCount.current, page, host, mount, error: null },
+        ]),
+      onPageUnmount: (page) => setPages((prev) => prev.filter((p) => p.page !== page)),
+      onPageError: (page, err) =>
+        setPages((prev) => prev.map((p) => (p.page === page ? { ...p, error: err } : p))),
     })
-    const tc = createToolController({
-      initial: c.tool,
-      ctx: {
-        store: doc.annotations,
-        viewport: vp,
-        root: el,
-        selectionQuads: () =>
-          getSelectionQuads(el, (host) => {
-            const page = Number(host.dataset.page)
-            return { page, transform: vp.transformFor(page) }
-          }),
-        clearSelection: () =>
-          el.ownerDocument.defaultView?.getSelection()?.removeAllRanges(),
-        onActivate: (id) => latest.current.ctx.setActivated(id),
-      },
-    })
-    viewport.current = vp
-    tools.current = tc
-    c.setViewport(vp, tc)
-    // Every successful build records its document, so each later rebuild carries state too.
-    builtFor.current = doc
-    if (!carry) {
-      // A new document starts from where the viewport opens; only later changes are reported.
-      lastReportedZoom.current = vp.zoom.get()
-      lastReportedPage.current = vp.currentPage.get()
+    engine.current = e
+    builtWith.current = { gap: g, buffer: b, custom: cu }
+    return () => {
+      for (const stop of stops) stop()
+      e.destroy()
+      engine.current = null
+      builtWith.current = null
+      c.setViewport(null, null)
+      setPages((prev) => (prev.length === 0 ? prev : []))
     }
-    const page = carry?.page ?? c.pageModel
-    if (page !== undefined && page !== vp.currentPage.get()) vp.scrollToPage(page)
-    const reportZoom = (z: ZoomValue): void => {
-      if (z === lastReportedZoom.current) return
-      lastReportedZoom.current = z
-      latest.current.ctx.reportZoom(z)
-    }
-    const reportPage = (p: number): void => {
-      if (p === lastReportedPage.current) return
-      lastReportedPage.current = p
-      latest.current.ctx.reportPage(p)
-    }
-    stops.current = [
-      attachViewportKeys(el, { viewport: vp, pageCount: () => doc.pages.length }),
-      vp.zoom.subscribe(reportZoom),
-      vp.currentPage.subscribe(reportPage),
-    ]
-    // Whatever the restore changed is reported once; nothing is when it matched.
-    reportZoom(vp.zoom.get())
-    reportPage(vp.currentPage.get())
-  }, [latest, teardown])
+  }, [ctx.document, ctx.status.state, latest])
 
-  // Build for a new document or status; rebuild when the construction options change.
+  // Construction-only options rebuild the engine for the same document, keeping zoom and page.
   useEffect(() => {
-    setup()
-  }, [ctx.document, ctx.status.state, gap, buffer, setup])
-  useEffect(() => () => teardown(), [teardown])
+    const built = builtWith.current
+    if (!engine.current || !built) return
+    if (built.gap === gap && built.buffer === buffer && built.custom === custom) return
+    builtWith.current = { gap, buffer, custom }
+    engine.current.rebuild({ gap, buffer, customAnnotations: custom })
+  }, [gap, buffer, custom])
 
   useEffect(() => {
-    const vp = viewport.current
+    const vp = engine.current?.viewport
     const z = ctx.zoomModel
     if (vp && z !== undefined && z !== vp.zoom.get()) vp.setZoom(z)
   }, [ctx.zoomModel])
   useEffect(() => {
-    const vp = viewport.current
+    const vp = engine.current?.viewport
     const p = ctx.pageModel
     if (!vp || p === undefined || p === lastReportedPage.current) return
     if (p !== vp.currentPage.get()) vp.scrollToPage(p)
   }, [ctx.pageModel])
   useEffect(() => {
-    const tc = tools.current
+    const tc = engine.current?.tools
     if (tc && tc.active.get() !== ctx.tool) tc.set(ctx.tool)
   }, [ctx.tool])
   // The build applied both; these only act on a later change, not on mount.
   useEffect(() => {
-    const vp = viewport.current
+    const vp = engine.current?.viewport
     if (vp && vp.mode.get() !== mode) vp.setMode(mode)
   }, [mode])
   useEffect(() => {
-    const vp = viewport.current
+    const vp = engine.current?.viewport
     if (vp && vp.rotation.get() !== rotation) vp.setRotation(rotation)
   }, [rotation])
 
   const state = ctx.status.state
   const err = ctx.status.state === 'error' ? ctx.status.error : null
-  const custom = !!renderAnnotation
 
   return (
     <div
@@ -270,10 +239,11 @@ export function InkViewport({
       />
       {pages.map((p) => (
         <InkPage
-          key={`${p.build}:${p.page}:${custom}`}
+          key={`${p.build}:${p.page}`}
           page={p.page}
           host={p.host}
-          transform={p.transform}
+          mount={p.mount}
+          error={p.error}
           customAnnotations={custom}
           renderAnnotation={renderAnnotation}
           renderPageError={renderPageError}
