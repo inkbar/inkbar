@@ -4,8 +4,67 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Inkbar demo</title>
+    <meta
+      name="description"
+      content="Try the Inkbar PDF viewer and editor in React, Vue, Svelte and plain TypeScript."
+    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/src/styles/index.css" />
   </head>
   <body>
-    <h1>Inkbar demo</h1>
+    <header class="site-header">
+      <div class="site-header-inner container">
+        <a class="brand" href="https://inkbar.dev">
+          <svg viewBox="0 0 32 32" aria-hidden="true">
+            <rect width="32" height="32" rx="8" fill="#0D1026" />
+            <circle cx="16" cy="8.2" r="2.4" fill="#FFFFFF" />
+            <rect x="13.8" y="12" width="4.4" height="7.5" fill="#FFFFFF" />
+            <rect x="6" y="21" width="20" height="5" rx="1.5" fill="#E4FF4A" />
+          </svg>
+          <span class="wordmark">inkbar</span>
+        </a>
+        <a class="text-link" href="https://github.com/inkbar/inkbar">GitHub</a>
+      </div>
+    </header>
+    <main class="container">
+      <section class="hero">
+        <h1>One PDF editor. <span class="mark">Four ways</span> to build it.</h1>
+        <p class="lede">
+          Each page runs the same viewer on a sample case file. Highlight text, mark it
+          for redaction, leave notes, run Suggest redactions, or open a PDF of your own.
+          Files stay in your browser.
+        </p>
+      </section>
+      <ul class="cards">
+        <li class="card">
+          <h2><a href="./react/">React</a></h2>
+          <p>Components and hooks for React 19.</p>
+          <code class="install">pnpm add @inkbar/react @inkbar/core @inkbar/theme</code>
+        </li>
+        <li class="card">
+          <h2><a href="./vue/">Vue</a></h2>
+          <p>Components and composables for Vue 3.</p>
+          <code class="install">pnpm add @inkbar/vue @inkbar/core @inkbar/theme</code>
+        </li>
+        <li class="card">
+          <h2><a href="./svelte/">Svelte</a></h2>
+          <p>Components and hooks for Svelte 5.</p>
+          <code class="install">pnpm add @inkbar/svelte @inkbar/core @inkbar/theme</code>
+        </li>
+        <li class="card">
+          <h2><a href="./vanilla/">TypeScript</a></h2>
+          <p>
+            No framework. @inkbar/core/dom provides the viewport, page layers and tools.
+          </p>
+          <code class="install">pnpm add @inkbar/core @inkbar/theme</code>
+        </li>
+      </ul>
+    </main>
+    <footer class="site-footer container">
+      <p>
+        From the team behind <a href="https://redactr.io">Redactr</a>. Docs at
+        <a href="https://inkbar.dev">inkbar.dev</a>.
+      </p>
+    </footer>
   </body>
 </html>
