@@ -697,6 +697,52 @@ describe('createViewer', () => {
     expect(textarea.value).toBe('draft text')
   })
 
+  it('closes on Escape pressed on the scroll element', async () => {
+    const { viewer } = make('text-simple')
+    const { doc } = await ready(viewer)
+    const note = doc.annotations.add({
+      type: 'note',
+      page: 0,
+      rect: { x: 100, y: 700, width: 20, height: 20 },
+      contents: 'Keep me',
+    })
+    await until(() => annotationEl(viewer, note.id) !== null)
+    activate(annotationEl(viewer, note.id)!)
+    const popover = notePopover()!
+    expect(isOpen(popover)).toBe(true)
+    key(viewer.element.querySelector('[data-ink-scroll]')!, 'Escape')
+    await until(() => !isOpen(popover))
+  })
+
+  it('leaves focus on a host element clicked while the panel is hidden', async () => {
+    const { viewer } = make('text-simple', { buffer: 0 })
+    const { doc } = await ready(viewer)
+    const note = doc.annotations.add({
+      type: 'note',
+      page: 0,
+      rect: { x: 100, y: 700, width: 20, height: 20 },
+      contents: 'Keep me',
+    })
+    await until(() => annotationEl(viewer, note.id) !== null)
+    activate(annotationEl(viewer, note.id)!)
+    const popover = notePopover()!
+    popover.querySelector('textarea')!.focus()
+
+    const scroll = viewer.element.querySelector<HTMLElement>('[data-ink-scroll]')!
+    scroll.scrollTop = scroll.scrollHeight
+    await until(() => !isOpen(popover))
+    expect(focused()).toBe(scroll)
+
+    const host = document.createElement('button')
+    document.body.append(host)
+    cleanup.push(() => host.remove())
+    host.focus()
+    scroll.scrollTop = 0
+    await until(() => isOpen(popover))
+    await settle(100)
+    expect(focused()).toBe(host)
+  })
+
   it('shows a page error in the page host and clears it on recovery', async () => {
     const { viewer } = make('text-simple')
     const { doc, engine } = await ready(viewer)

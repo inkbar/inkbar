@@ -225,8 +225,10 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     tools = tc
     stopKeys = attachViewportKeys(el, { viewport: vp, pageCount: () => doc.pages.length })
     // A view resting in a gap lands on the page below it, not on the most visible page.
-    const page = state.anchor && !state.anchor.vertical ? state.anchor.page : state.page
-    if (page !== undefined && page !== vp.currentPage.get()) vp.scrollToPage(page)
+    // The scroll position resets on teardown, so the guard below must not skip a gap anchor.
+    if (state.anchor && !state.anchor.vertical) vp.scrollToPage(state.anchor.page)
+    else if (state.page !== undefined && state.page !== vp.currentPage.get())
+      vp.scrollToPage(state.page)
     if (state.anchor) restoreScroll(vp, state.anchor)
     opts.onBuild?.(vp, tc)
   }

@@ -79,7 +79,7 @@ export function createPopover(opts: PopoverOptions): Popover {
         const scroll = root.querySelector<HTMLElement>('[data-ink-scroll]')
         if (scroll) {
           stranded = active
-          scroll.focus()
+          scroll.focus({ preventScroll: true })
         }
       }
       panel.hidden = true
@@ -93,7 +93,8 @@ export function createPopover(opts: PopoverOptions): Popover {
       const back = stranded
       stranded = null
       const scroll = root.querySelector<HTMLElement>('[data-ink-scroll]')
-      if (panel.contains(back) && document.activeElement === scroll) back.focus()
+      if (panel.contains(back) && document.activeElement === scroll)
+        back.focus({ preventScroll: true })
     }
   }
 
