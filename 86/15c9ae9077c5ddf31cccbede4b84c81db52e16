@@ -1,0 +1,66 @@
+apps/demo/src/styles/base.css
+  s_0b0d6e3715476c::t_6a6bdb1bcfa7f9 1-89
+apps/demo/package.json
+  s_0b0d6e3715476c::t_735073271f11c6 12-13,16-18,20-23
+  s_0b0d6e3715476c::t_6155b9e09de133 26,28,30-32
+apps/demo/src/react/main.tsx
+  s_0b0d6e3715476c::t_e1ed45b845b268 1-25
+apps/sandbox-shared/package.json
+  s_0b0d6e3715476c::t_735073271f11c6 10
+apps/demo/playwright.config.ts
+  s_0b0d6e3715476c::t_74516a6e56d974 1-28
+apps/demo/src/shell/shell.ts
+  s_0b0d6e3715476c::t_e1ed45b845b268 1-141
+apps/demo/public/favicon.svg
+  s_0b0d6e3715476c::t_6a6bdb1bcfa7f9 1
+apps/demo/src/react/Actions.tsx
+  s_0b0d6e3715476c::t_e1ed45b845b268 1-39
+apps/demo/src/shell/logo.ts
+  s_0b0d6e3715476c::t_e1ed45b845b268 1-3
+eslint.config.js
+  s_0b0d6e3715476c::t_988a44c1028fbe 48-52
+  s_0b0d6e3715476c::t_735073271f11c6 44,55-59
+  s_0b0d6e3715476c::t_b6a2c685a91bbc 47
+apps/demo/src/shell/frameworks.ts
+  s_0b0d6e3715476c::t_e1ed45b845b268 1-36
+apps/demo/src/styles/chrome.css
+  s_0b0d6e3715476c::t_e1ed45b845b268 1-79
+apps/demo/src/styles/tokens.css
+  s_0b0d6e3715476c::t_6a6bdb1bcfa7f9 1-26
+apps/demo/src/styles/demo.css
+  s_0b0d6e3715476c::t_e1ed45b845b268 1-169
+apps/demo/src/styles/fonts.css
+  s_0b0d6e3715476c::t_e1ed45b845b268 1-3
+apps/demo/e2e/smoke.spec.ts
+  s_0b0d6e3715476c::t_74516a6e56d974 1-2,4-19,25-28,32-53,57-58,62-72,76-80,83-95,99-101,105-139
+  s_0b0d6e3715476c::t_f2c19b774215fa 3
+  s_0b0d6e3715476c::t_988a44c1028fbe 21-23,29-31,54-56,59-61,73-75,96-98,102-104
+  s_0b0d6e3715476c::t_b4abb60f2219b8 20,24,81-82
+apps/demo/src/react/Demo.tsx
+  s_0b0d6e3715476c::t_e1ed45b845b268 1-27
+apps/demo/tsconfig.json
+  s_0b0d6e3715476c::t_735073271f11c6 6
+  s_0b0d6e3715476c::t_988a44c1028fbe 9
+apps/demo/react/index.html
+  s_0b0d6e3715476c::t_e1ed45b845b268 1-13
+apps/demo/vite.config.ts
+  s_0b0d6e3715476c::t_e1ed45b845b268 5,16-22,27
+pnpm-lock.yaml
+  s_0b0d6e3715476c::t_7f03083786c7c7 274-282,286-288,292-297,299-301,305-307,311-319,1087-1095,5701-5706
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8615c9ae9077c5ddf31cccbede4b84c81db52e16",
+  "prompts": {},
+  "sessions": {
+    "s_0b0d6e3715476c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "703874b0-3bd9-4982-aace-3d9b19eab262",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
