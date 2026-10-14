@@ -12,13 +12,19 @@ const { isReady, pages } = useDocument()
 const { annotations, add } = useAnnotations()
 const { selection, select } = useSelection()
 const { total } = useEmbedded()
-const { canUndo, canRedo, undo, redo } = useHistory()
+const { canUndo, canRedo, undo, redo, batch } = useHistory()
 const { count, current } = usePage()
 const { tool, setTool } = useTool()
 const { zoom } = useZoom()
 
 function addNote() {
   add({ type: 'note', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
+}
+
+function addBatch(n: number) {
+  batch(() => {
+    for (let i = 0; i < n; i++) addNote()
+  })
 }
 </script>
 
@@ -38,6 +44,8 @@ function addNote() {
     :data-zoom="zoom"
   >
     <button data-testid="add" @click="addNote">add</button>
+    <button data-testid="batch3" @click="addBatch(3)">batch3</button>
+    <button data-testid="batch9" @click="addBatch(9)">batch9</button>
     <button data-testid="undo" @click="undo">undo</button>
     <button data-testid="redo" @click="redo">redo</button>
     <button data-testid="select" @click="select(annotations.map((a) => a.id))">

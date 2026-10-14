@@ -260,6 +260,36 @@ test('composables bind to the document, tool and core history', async ({ mount }
   await expect(probe).toHaveAttribute('data-tool', 'highlight')
 })
 
+test('batch records a run of additions as one undo step', async ({ mount }) => {
+  const cmp = await mount(UncontrolledHost, {
+    props: { src: fixtureUrl('text-simple'), assets },
+  })
+  const probe = cmp.getByTestId('probe')
+  await expect(probe).toHaveAttribute('data-ready', 'true')
+  await cmp.getByTestId('batch9').click()
+  await expect(probe).toHaveAttribute('data-annotations', '9')
+  await cmp.getByTestId('undo').click()
+  await expect(probe).toHaveAttribute('data-annotations', '0')
+  await expect(probe).toHaveAttribute('data-can-redo', 'true')
+})
+
+test('batch in a controlled host reaches the host as one undo step', async ({
+  mount,
+}) => {
+  const cmp = await mount(ControlledHost, {
+    props: { src: fixtureUrl('text-simple'), assets, history: true },
+  })
+  const probe = cmp.getByTestId('probe')
+  const hostCount = cmp.getByTestId('host-count')
+  await expect(probe).toHaveAttribute('data-ready', 'true')
+  await cmp.getByTestId('batch3').click()
+  await expect(hostCount).toHaveText('3')
+  await expect(probe).toHaveAttribute('data-annotations', '3')
+  await cmp.getByTestId('undo').click()
+  await expect(hostCount).toHaveText('0')
+  await expect(probe).toHaveAttribute('data-can-undo', 'false')
+})
+
 test('embedded summary comes from the file', async ({ mount }) => {
   const cmp = await mount(UncontrolledHost, {
     props: { src: fixtureUrl('annotated-markup'), assets },

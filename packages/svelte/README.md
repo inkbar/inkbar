@@ -92,7 +92,7 @@ Undo and redo are off in controlled mode unless you pass `history={true}`. Inkba
 </InkRoot>
 ```
 
-Inside `InkRoot`, `useHistory()` returns the same object. The instance also exposes `getDocument()` and `getStatus()`, and `bind:ref` gives you the root element.
+Inside `InkRoot`, `useHistory()` returns the same object. `batch(fn)` records everything `fn` changes as one undo step. The instance also exposes `getDocument()` and `getStatus()`, and `bind:ref` gives you the root element.
 
 `key` identifies the document. Reuse the same key when only the signed URL changes and the document is not reloaded.
 
