@@ -79,7 +79,7 @@ for (const framework of FRAMEWORKS) {
       await page.goto(`${framework}/`)
       await waitForFirstPage(page)
       await page.locator('input[type=file]').setInputFiles(onePage)
-      await expect(page.locator('[data-file-status]')).toHaveText('Showing text-cjk.pdf.')
+      await expect(page.locator('[data-file-status]')).toHaveText('Opened text-cjk.pdf.')
       await waitForFirstPage(page)
       await expect(page.locator('[data-ink-page-count]')).toHaveText('of 1')
       await expect(page.locator('.ink-annotation[data-locked]')).toHaveCount(0)
@@ -118,6 +118,24 @@ for (const framework of FRAMEWORKS) {
       guard.take(/./)
       await page.locator('input[type=file]').setInputFiles(textSimple)
       await waitForFirstPage(page)
+      await expect(page.locator('[data-file-status]')).toHaveText(
+        'Opened text-simple.pdf.'
+      )
+    })
+
+    test('ignores a suggestion run that a new file interrupts', async ({ page }) => {
+      await page.goto(`${framework}/`)
+      await waitForFirstPage(page)
+      await page.getByRole('button', { name: 'Suggest redactions' }).click()
+      // Straight away, inside the run's delay: the old document is destroyed under it.
+      await page.locator('input[type=file]').setInputFiles(onePage)
+      await waitForFirstPage(page)
+      await expect(page.locator('[data-ink-page-count]')).toHaveText('of 1')
+      // Let the interrupted run's 400 ms delay end, so a rejection would reach the console guard.
+      await page.waitForTimeout(800)
+      await expect(page.locator('.demo-result')).not.toHaveText(
+        'Could not check this document.'
+      )
     })
 
     test('has no horizontal scroll at phone width', async ({ page }) => {

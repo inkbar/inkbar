@@ -107,7 +107,7 @@ export function startShell(opts: ShellOptions): void {
       return
     }
     if (request !== latest) return
-    status.textContent = `Showing ${file.name}.`
+    status.textContent = `Opened ${file.name}.`
     unmount()
     unmount = opts.mount(viewer, {
       data,
@@ -125,8 +125,19 @@ export function startShell(opts: ShellOptions): void {
     e.preventDefault()
     viewer.dataset.drop = ''
   })
-  viewer.addEventListener('dragleave', () => {
+  viewer.addEventListener('dragleave', (e) => {
+    // Moving over a child of the viewer fires dragleave too; only clear when truly outside.
+    if (e.relatedTarget instanceof Node && viewer.contains(e.relatedTarget)) return
     delete viewer.dataset.drop
+  })
+  // A file dropped outside the viewer would make the browser navigate to it.
+  const isFileDrag = (e: DragEvent): boolean =>
+    e.dataTransfer?.types.includes('Files') ?? false
+  window.addEventListener('dragover', (e) => {
+    if (isFileDrag(e)) e.preventDefault()
+  })
+  window.addEventListener('drop', (e) => {
+    if (isFileDrag(e)) e.preventDefault()
   })
   viewer.addEventListener('drop', (e) => {
     const file = e.dataTransfer?.files[0]
@@ -138,14 +149,20 @@ export function startShell(opts: ShellOptions): void {
 
   for (const button of app.querySelectorAll<HTMLButtonElement>('[data-copy]')) {
     const file = opts.files[Number(button.dataset.copy)]
+    let reset: ReturnType<typeof setTimeout> | undefined
     button.addEventListener('click', () => {
       if (!file) return
-      void navigator.clipboard.writeText(file.source.code).then(() => {
-        button.textContent = 'Copied'
-        setTimeout(() => {
+      const show = (text: string): void => {
+        button.textContent = text
+        clearTimeout(reset)
+        reset = setTimeout(() => {
           button.textContent = 'Copy'
         }, 1500)
-      })
+      }
+      navigator.clipboard.writeText(file.source.code).then(
+        () => show('Copied'),
+        () => show('Copy failed')
+      )
     })
   }
 }
