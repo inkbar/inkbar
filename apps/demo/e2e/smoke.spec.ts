@@ -8,7 +8,7 @@ import { expect, test, type Page } from '@playwright/test'
 const guard = guardConsole(test)
 
 /** Every framework page meets the same contract; later tasks add their id here. */
-const FRAMEWORKS = ['react', 'vue', 'svelte'] as const
+const FRAMEWORKS = ['react', 'vue', 'svelte', 'vanilla'] as const
 
 /** The sample holds three NI numbers, three emails and three phone numbers. */
 const SAMPLE_SUGGESTIONS = '9 suggestions'
@@ -110,7 +110,10 @@ for (const framework of FRAMEWORKS) {
         buffer: Buffer.from('%PDF-1.7 this is not really a PDF'),
       })
       await expect(page.locator('[data-ink-root]')).toHaveAttribute('data-state', 'error')
-      await expect(page.getByText('This document could not be opened.')).toBeVisible()
+      // Scoped to the viewer: the plain TypeScript page's source panel holds the same words.
+      await expect(
+        page.locator('[data-ink-root]').getByText('This document could not be opened.')
+      ).toBeVisible()
       // PDF.js logs its parse failure; that is the expected outcome of this file.
       guard.take(/./)
       await page.locator('input[type=file]').setInputFiles(textSimple)

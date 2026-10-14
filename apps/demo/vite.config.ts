@@ -31,6 +31,7 @@ export default defineConfig({
         react: entry('./react/index.html'),
         vue: entry('./vue/index.html'),
         svelte: entry('./svelte/index.html'),
+        vanilla: entry('./vanilla/index.html'),
       },
     },
   },

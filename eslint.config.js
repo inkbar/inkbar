@@ -23,6 +23,7 @@ export default defineConfig(
     name: 'inkbar/files-to-ignore',
     ignores: [
       '**/dist/**',
+      '**/dist-e2e/**',
       '**/node_modules/**',
       '**/*.config.{js,ts,mjs,mts}',
       '**/playwright/index.ts',
