@@ -1,6 +1,8 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { createSSRApp, h } from 'vue'
 import { renderToString } from 'vue/server-renderer'
+
+import type * as Entry from './index'
 
 const evaluated = vi.hoisted(() => ({ pdfjs: false }))
 
@@ -22,10 +24,17 @@ vi.mock(pdfjsPath, () => {
 const assets = { worker: 'w', cMaps: 'c', standardFonts: 's', wasm: 'm', icc: 'i' }
 
 describe('@inkbar/vue on the server', () => {
-  it('imports without a DOM or PDF.js, and InkRoot renders its slot without opening', async () => {
+  let entry: typeof Entry
+
+  // The first import compiles every component on a cold transform cache. That takes several
+  // seconds on a busy CI runner, so it gets its own budget and the test's covers the render.
+  beforeAll(async () => {
     expect(typeof window).toBe('undefined')
     expect(typeof document).toBe('undefined')
-    const entry = await import('./index')
+    entry = await import('./index')
+  }, 30_000)
+
+  it('imports without a DOM or PDF.js, and InkRoot renders its slot without opening', async () => {
     expect(Object.keys(entry)).toEqual(
       expect.arrayContaining([
         'InkRoot',
