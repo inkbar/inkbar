@@ -405,7 +405,7 @@ describe('createSnapshotHistory', () => {
       vi.useFakeTimers()
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
       try {
-        const { history } = setup()
+        const { history, apply } = setup()
         history.observe([])
         history.batch(() => history.observe([note('a', '1')]))
         expect(warn).not.toHaveBeenCalled()
@@ -418,6 +418,12 @@ describe('createSnapshotHistory', () => {
         history.observe([note('a', '1'), note('b', '2')])
         vi.runAllTimers()
         expect(history.canUndo.get()).toBe(true)
+        // The thenable batch closed as its own step: two undos, one per step.
+        history.undo()
+        expect(apply.mock.calls.at(-1)![0].map((a) => a.id)).toEqual(['a'])
+        history.observe(apply.mock.calls.at(-1)![0])
+        history.undo()
+        expect(apply.mock.calls.at(-1)![0]).toEqual([])
       } finally {
         warn.mockRestore()
         vi.useRealTimers()
