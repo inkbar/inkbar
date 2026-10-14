@@ -31,6 +31,29 @@ Writing annotations back into the PDF needs `@inkbar/engine`, which is not relea
 
 The DOM layer (`@inkbar/core/dom`) provides the viewport, canvas renderer, text layer, overlay and tools for hosts without a framework package. Vue hosts should use `@inkbar/vue`, React hosts `@inkbar/react`, Svelte hosts `@inkbar/svelte`.
 
+### Without a framework
+
+`createViewer` opens a document and renders a complete viewer into an element: a toolbar with tools, zoom and page controls, plus a note thread and a suggested-redaction card. It uses the same markup as the framework packages, so `@inkbar/theme` styles it.
+
+```ts
+import { createViewer } from '@inkbar/core/dom'
+import '@inkbar/theme/theme.css'
+
+const viewer = createViewer(el, { source: file, assets, zoom: 'fit-width' })
+
+const undo = document.createElement('button')
+undo.textContent = 'Undo'
+undo.onclick = () => viewer.document.get()?.history.undo()
+viewer.toolbar?.append(undo) // buttons join the toolbar's arrow-key order
+
+viewer.open(otherFile) // destroys the current document; the latest call wins
+viewer.destroy()
+```
+
+It takes the `mountViewer` options below, plus `password`, `defaults`, `history`, `onReady` and `onError`. Set `toolbar`, `notes` or `suggestions` to `false` to leave that part out. `viewer.status`, `viewer.document` and `viewer.engine` are readables. An input, select or textarea you add stays a Tab stop of its own and keeps its arrow keys.
+
+`createViewer` reads the theme's colours from the element you pass, so that element needs to be in the page when you call it.
+
 ### Mounting a viewer
 
 `mountViewer` wires the viewport, page layers, tools and zoom and page keys onto a scroll container. You render the chrome around it.
