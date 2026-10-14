@@ -8,7 +8,7 @@ import { expect, test, type Page } from '@playwright/test'
 const guard = guardConsole(test)
 
 /** Every framework page meets the same contract; later tasks add their id here. */
-const FRAMEWORKS = ['react'] as const
+const FRAMEWORKS = ['react', 'vue'] as const
 
 /** The sample holds three NI numbers, three emails and three phone numbers. */
 const SAMPLE_SUGGESTIONS = '9 suggestions'

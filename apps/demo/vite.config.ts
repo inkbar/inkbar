@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { inkbar } from '@inkbar/core/vite'
 import { prebundlePdfEngine } from '@inkbar/sandbox-shared/vite'
 import react from '@vitejs/plugin-react'
+import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vite'
 
 import { highlightSource } from './vite/highlight.ts'
@@ -15,6 +16,7 @@ export default defineConfig({
   base: process.env.DEMO_BASE ?? '/',
   plugins: [
     react({ include: /\/src\/react\// }),
+    vue(),
     inkbar(),
     prebundlePdfEngine(),
     samplePdf(),
@@ -25,6 +27,7 @@ export default defineConfig({
       input: {
         index: entry('./index.html'),
         react: entry('./react/index.html'),
+        vue: entry('./vue/index.html'),
       },
     },
   },
