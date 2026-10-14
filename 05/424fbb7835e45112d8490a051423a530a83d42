@@ -1,0 +1,20 @@
+packages/vue/src/components/InkPage.vue
+  s_0b0d6e3715476c::t_94e8302a2c6b29 56-57,75
+  s_0b0d6e3715476c::t_90ac781694aea7 16,30,49-55,58-59,62,65,71,73-74,77-78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "05424fbb7835e45112d8490a051423a530a83d42",
+  "prompts": {},
+  "sessions": {
+    "s_0b0d6e3715476c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "703874b0-3bd9-4982-aace-3d9b19eab262",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
