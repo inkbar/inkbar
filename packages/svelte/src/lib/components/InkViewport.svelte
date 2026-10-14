@@ -25,21 +25,17 @@
 
 <script lang="ts">
   /*
-   * The scroll element is handed to core's `createViewport` and `createToolController`; Svelte
-   * never renders children into it. Pages are InkPage components rendered here (they render
-   * nothing visible in place) that mount core's page layers into the hosts the viewport creates.
-   * Keyboard shortcuts are core's `attachViewportKeys` on the scroll element.
+   * The scroll element is handed to core's `mountViewer`, which builds the viewport, the page
+   * layers, the tool controller and the keyboard shortcuts in it; Svelte never renders children
+   * into it. The engine reports each page host it mounts, and InkPage components rendered here
+   * (they render nothing visible in place) portal the page-error and annotation snippets into
+   * them.
    *
    * Two-way zoom and page: the viewport's own changes are reported through the context, and
    * the host's props are applied only when they differ from the viewport's state, so the echo
    * of a reported value does nothing.
    */
-  import {
-    attachViewportKeys,
-    createToolController,
-    createViewport,
-    getSelectionQuads,
-  } from '@inkbar/core/dom'
+  import { mountViewer } from '@inkbar/core/dom'
   import { untrack } from 'svelte'
 
   import { useInkContext } from '../context.js'
@@ -47,12 +43,7 @@
   import InkPage from './InkPage.svelte'
 
   import type { InkDocument, InkStatus } from '@inkbar/core'
-  import type {
-    PageTransform,
-    ToolController,
-    Viewport,
-    ZoomValue,
-  } from '@inkbar/core/dom'
+  import type { PageMount, ViewerEngine, ZoomValue } from '@inkbar/core/dom'
 
   let {
     mode = 'continuous',
@@ -69,37 +60,45 @@
   }: InkViewportProps = $props()
 
   interface MountedPage {
-    /** The viewport build the host belongs to; part of the InkPage key. */
+    /** The engine build the host belongs to; part of the InkPage key. */
     build: number
     page: number
     host: HTMLElement
-    transform: PageTransform
+    mount: PageMount
+    error: InkError | null
+    /** Whether the build that mounted the page renders the annotation snippet. */
+    custom: boolean
   }
 
   const ctx = useInkContext('InkViewport')
   let scroll = $state<HTMLDivElement | null>(null)
+  /** Page hosts, mounts and errors the engine reported; InkPage renders portals for them. */
   let pages = $state.raw<MountedPage[]>([])
 
-  let viewport: Viewport | null = null
-  let tools: ToolController | null = null
+  let engine: ViewerEngine | null = null
   /**
-   * Bumped on every build. A rebuild gives each page a new host element, and InkPage mounts
-   * into its host only once, so pages from an earlier build must remount, not be reused.
+   * Numbered before each build starts, so the pages a build mounts carry its own number. A
+   * rebuild gives each page a new host and mount, so pages from an earlier build must remount,
+   * not be reused.
    */
   let build = 0
+  /** The construction options the engine was last built with, so a rebuild runs only on a change. */
+  let builtWith: { gap: number; buffer: number; custom: boolean } | null = null
   let stops: (() => void)[] = []
-  /** The document the viewport was built for, and the zoom and page last reported to the host. */
-  let builtFor: InkDocument | null = null
+  /** The zoom and page last reported to the host. */
   let lastReportedZoom: ZoomValue | undefined
   let lastReportedPage: number | undefined
 
+  // The engine's page callbacks fire synchronously inside the effects below (and on scroll).
+  // They read and write `pages`, so every call into the engine from an effect runs untracked:
+  // tracked, the effect would depend on the list it changes and run again.
   function teardown(): void {
     for (const stop of stops) stop()
     stops = []
-    tools?.destroy()
-    viewport?.destroy()
-    tools = null
-    viewport = null
+    // Unmounts every page, which empties `pages` through `onPageUnmount`.
+    engine?.destroy()
+    engine = null
+    builtWith = null
     ctx.setViewport(null, null)
     if (pages.length > 0) pages = []
   }
@@ -107,144 +106,156 @@
   function setup(
     doc: InkDocument | null,
     state: InkStatus['state'],
-    el: HTMLDivElement | null,
-    g: number,
-    b: number
+    el: HTMLDivElement | null
   ): void {
-    // Rebuilding for the same document (a gap or buffer change) keeps where the reader was.
-    const carry =
-      viewport && builtFor === doc
-        ? { zoom: viewport.zoom.get(), page: viewport.currentPage.get() }
-        : null
-    teardown()
-    if (!carry) {
-      builtFor = null
-      lastReportedZoom = undefined
-      lastReportedPage = undefined
-    }
+    lastReportedZoom = undefined
+    lastReportedPage = undefined
     if (!doc || !el || state !== 'ready') return
-    const current = ++build
-    const vp = createViewport({
+    let first = true
+    build += 1
+    const custom = !!annotation
+    builtWith = { gap, buffer, custom }
+    engine = mountViewer({
       container: el,
       document: doc,
-      zoom: carry?.zoom ?? ctx.zoomModel ?? 'fit-width',
+      zoom: ctx.zoomModel ?? 'fit-width',
+      ...(ctx.pageModel === undefined ? {} : { page: ctx.pageModel }),
       mode,
       rotation,
-      gap: g,
-      buffer: b,
-      onMount: (page, host, transform) => {
-        pages = [...pages, { build: current, page, host, transform }]
+      gap,
+      buffer,
+      tool: ctx.tool,
+      customAnnotations: custom,
+      onActivate: (id) => ctx.setActivated(id),
+      onBuild: (vp, tc) => {
+        ctx.setViewport(vp, tc)
+        if (first) {
+          // A new document starts from where the viewport opens (its zoom, on the first page:
+          // `createViewport` always starts at page 0); only later changes are reported, the
+          // restored page among them, since the engine has already scrolled to it.
+          first = false
+          lastReportedZoom = vp.zoom.get()
+          lastReportedPage = 0
+        }
+        for (const stop of stops) stop()
+        const reportZoom = (z: ZoomValue): void => {
+          if (z === lastReportedZoom) return
+          lastReportedZoom = z
+          ctx.reportZoom(z)
+        }
+        const reportPage = (p: number): void => {
+          if (p === lastReportedPage) return
+          lastReportedPage = p
+          ctx.reportPage(p)
+        }
+        stops = [vp.zoom.subscribe(reportZoom), vp.currentPage.subscribe(reportPage)]
+        // Whatever the build restored is reported once; nothing is when it matched.
+        reportZoom(vp.zoom.get())
+        reportPage(vp.currentPage.get())
       },
-      onUpdate: (page, host, transform) => {
-        pages = pages.map((p) =>
-          p.page === page ? { build: current, page, host, transform } : p
-        )
+      onPageMount: (page, mount, host) => {
+        // `build` and `builtWith` belong to the build in progress: both are set before it starts.
+        const own = {
+          build,
+          page,
+          host,
+          mount,
+          error: null,
+          custom: builtWith?.custom ?? false,
+        }
+        pages = [...pages, own]
       },
-      onUnmount: (page) => {
+      onPageUnmount: (page) => {
         pages = pages.filter((p) => p.page !== page)
       },
-    })
-    const tc = createToolController({
-      initial: ctx.tool,
-      ctx: {
-        store: doc.annotations,
-        viewport: vp,
-        root: el,
-        selectionQuads: () =>
-          getSelectionQuads(el, (host) => {
-            const page = Number(host.dataset.page)
-            return { page, transform: vp.transformFor(page) }
-          }),
-        clearSelection: () =>
-          el.ownerDocument.defaultView?.getSelection()?.removeAllRanges(),
-        onActivate: (id) => ctx.setActivated(id),
+      onPageError: (page, err) => {
+        pages = pages.map((p) => (p.page === page ? { ...p, error: err } : p))
       },
     })
-    viewport = vp
-    tools = tc
-    ctx.setViewport(vp, tc)
-    // Every successful build records its document, so each later rebuild carries state too.
-    builtFor = doc
-    if (!carry) {
-      // A new document starts from where the viewport opens; only later changes are reported.
-      lastReportedZoom = vp.zoom.get()
-      lastReportedPage = vp.currentPage.get()
-    }
-    const page = carry?.page ?? ctx.pageModel
-    if (page !== undefined && page !== vp.currentPage.get()) vp.scrollToPage(page)
-    const reportZoom = (z: ZoomValue): void => {
-      if (z === lastReportedZoom) return
-      lastReportedZoom = z
-      ctx.reportZoom(z)
-    }
-    const reportPage = (p: number): void => {
-      if (p === lastReportedPage) return
-      lastReportedPage = p
-      ctx.reportPage(p)
-    }
-    stops = [
-      attachViewportKeys(el, { viewport: vp, pageCount: () => doc.pages.length }),
-      vp.zoom.subscribe(reportZoom),
-      vp.currentPage.subscribe(reportPage),
-    ]
-    // Whatever the restore changed is reported once; nothing is when it matched.
-    reportZoom(vp.zoom.get())
-    reportPage(vp.currentPage.get())
   }
 
-  // Build for a new document or status; rebuild when the construction options change. Only the
-  // five values read before `untrack` are dependencies, and each is read through a derived,
-  // which notifies only when the value changes: a host that spreads its props invalidates `gap`
-  // and `buffer` without changing them, and the status is a new object on every engine report.
+  // Build for a new document or status; tear down on the next change and on unmount. Only the
+  // values read before `untrack` are dependencies, each through a derived, which notifies only
+  // when the value changes: the status is a new object on every engine report.
   const buildDocument = $derived(ctx.document)
   const buildState = $derived(ctx.status.state)
-  const buildGap = $derived(gap)
-  const buildBuffer = $derived(buffer)
   $effect(() => {
     const doc = buildDocument
     const state = buildState
     const el = scroll
-    const g = buildGap
-    const b = buildBuffer
-    untrack(() => setup(doc, state, el, g, b))
+    untrack(() => setup(doc, state, el))
+    return () => untrack(teardown)
   })
-  $effect(() => () => teardown())
 
-  // The setters below run untracked: core relays out inside them and calls `onUpdate`, which
-  // reads and writes `pages`. Tracked, each effect would depend on the list it changes and run
-  // again, without end when the host holds a zoom the viewport clamps.
+  // Construction-only options rebuild the engine for the same document, keeping zoom and page.
+  // The deriveds notify only on a real change: a host that spreads its props invalidates `gap`
+  // and `buffer` without changing them. One effect for all three, so a gap and a snippet change
+  // in the same tick rebuild once. It skips its first run (and any run after a build that
+  // already used these values) by comparing with `builtWith`.
+  //
+  // A snippet toggle never puts a portal into an overlay built with the other setting. The
+  // template updates before this effect runs, so for a moment the old build's pages see the new
+  // `annotation` prop, but each InkPage reads targets only when the build that mounted it was
+  // custom (`p.custom`), and shows them only while the snippet is given. Then this effect swaps
+  // `pages` for the new build's pages. The rebuild lands at the top of the current page.
+  const buildGap = $derived(gap)
+  const buildBuffer = $derived(buffer)
+  const buildCustom = $derived(!!annotation)
+  $effect(() => {
+    const next = { gap: buildGap, buffer: buildBuffer, custom: buildCustom }
+    untrack(() => {
+      const built = builtWith
+      if (!engine || !built) return
+      if (
+        built.gap === next.gap &&
+        built.buffer === next.buffer &&
+        built.custom === next.custom
+      )
+        return
+      build += 1
+      builtWith = next
+      engine.rebuild({
+        gap: next.gap,
+        buffer: next.buffer,
+        customAnnotations: next.custom,
+      })
+    })
+  })
+
+  // The setters below run untracked: core relays out inside them and the engine's page
+  // callbacks read and write `pages`. Tracked, each effect would depend on the list it changes
+  // and run again, without end when the host holds a zoom the viewport clamps.
   $effect(() => {
     const z = ctx.zoomModel
-    const vp = viewport
+    const vp = engine?.viewport
     if (vp && z !== undefined && z !== vp.zoom.get()) untrack(() => vp.setZoom(z))
   })
   $effect(() => {
     const p = ctx.pageModel
-    const vp = viewport
+    const vp = engine?.viewport
     if (!vp || p === undefined || p === lastReportedPage) return
     if (p !== vp.currentPage.get()) untrack(() => vp.scrollToPage(p))
   })
   $effect(() => {
     const t = ctx.tool
-    const tc = tools
+    const tc = engine?.tools
     if (tc && tc.active.get() !== t) untrack(() => tc.set(t))
   })
   // The build applied both; these only act on a later change, not on mount.
   $effect(() => {
     const m = mode
-    const vp = viewport
+    const vp = engine?.viewport
     if (vp && vp.mode.get() !== m) untrack(() => vp.setMode(m))
   })
   $effect(() => {
     const r = rotation
-    const vp = viewport
+    const vp = engine?.viewport
     if (vp && vp.rotation.get() !== r) untrack(() => vp.setRotation(r))
   })
 
   // Not `state`: next to the `$state` rune, Svelte reads that name as a store.
   const viewState = $derived(buildState)
   const err = $derived(ctx.status.state === 'error' ? ctx.status.error : null)
-  const custom = $derived(!!annotation)
 </script>
 
 <div
@@ -281,12 +292,13 @@
     role="document"
     aria-label="Document"
   ></div>
-  {#each pages as p (`${p.build}:${p.page}:${custom}`)}
+  {#each pages as p (`${p.build}:${p.page}`)}
     <InkPage
       page={p.page}
       host={p.host}
-      transform={p.transform}
-      customAnnotations={custom}
+      mount={p.mount}
+      error={p.error}
+      customAnnotations={p.custom}
       {annotation}
       {pageError}
     />

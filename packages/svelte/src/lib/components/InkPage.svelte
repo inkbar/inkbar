@@ -1,13 +1,16 @@
 <script module lang="ts">
   import type { InkError } from '@inkbar/core'
-  import type { AnnotationSlotProps, PageTransform } from '@inkbar/core/dom'
+  import type { AnnotationSlotProps, PageMount } from '@inkbar/core/dom'
   import type { Snippet } from 'svelte'
 
   export interface InkPageProps {
     page: number
     host: HTMLElement
-    transform: PageTransform
-    /** Fixed for the life of the mount: InkViewport remounts the page when it changes. */
+    /** The engine's page mount in `host`. */
+    mount: PageMount
+    /** The engine's error for this page, `null` while it renders. */
+    error: InkError | null
+    /** Fixed for the life of the mount: the engine rebuilds when it changes. */
     customAnnotations?: boolean
     annotation?: Snippet<[AnnotationSlotProps]> | undefined
     pageError?: Snippet<[{ error: InkError; page: number }]> | undefined
@@ -16,22 +19,19 @@
 
 <script lang="ts">
   /*
-   * One mounted page: canvas, text layer and annotation overlay from core's `createPageMount`,
-   * in the host element the viewport created. Renders nothing visible in place; the portal
-   * attachment moves the page error into the host and each custom annotation's content into its
-   * overlay element.
+   * One page the viewer engine mounted. Renders nothing visible in place; the portal attachment
+   * moves the page error into the host and each custom annotation's content into its overlay
+   * element.
    *
    * The overlay creates and removes those elements as the annotation list changes, outside
    * Svelte. So the portal targets come from a list read after every overlay render: this
-   * component subscribes to the store after the overlay does, and core notifies subscribers in
-   * order, so the elements already exist when the list arrives here.
+   * component subscribes to the store after the overlay does (the engine created the mount
+   * first), and core notifies subscribers in order, so the elements already exist when the list
+   * arrives here.
    *
-   * A page whose canvas or text layer fails gets `data-state="error"` on its host and the page
-   * error portalled into it; the other pages carry on. It clears once every layer that failed
-   * has since succeeded (a zoom change re-renders), or on the next mount of the page.
+   * The engine tracks page errors and sets `data-state="error"` on the host; this component
+   * portals the page error into it while `error` is set.
    */
-  import { InkError as InkErrorClass, isInkError } from '@inkbar/core'
-  import { createPageMount } from '@inkbar/core/dom'
   import { untrack } from 'svelte'
 
   import { useInkContext } from '../context.js'
@@ -40,12 +40,12 @@
   import { portal } from './portal.js'
 
   import type { Annotation } from '@inkbar/core'
-  import type { PageLayer, PageMount } from '@inkbar/core/dom'
 
   let {
     page,
     host,
-    transform,
+    mount,
+    error,
     customAnnotations = false,
     annotation,
     pageError,
@@ -64,112 +64,54 @@
   }
 
   const ctx = useInkContext('InkPage')
-  let mount: PageMount | null = null
-  let applied: PageTransform | null = null
   let targets = $state.raw<Target[]>([])
-  let failure = $state.raw<InkError | null>(null)
 
-  // The mount lives as long as the host: the viewport hands a page a new host on every rebuild.
-  // The effect reads the host through a derived, which notifies only when the element changes:
-  // the viewport replaces this page's whole entry on every transform update, and that
-  // invalidates the `host` prop without changing it. The initial transform is read untracked;
-  // later ones go through the effect below.
-  const mountHost = $derived(host)
-  const mountCustom = $derived(customAnnotations)
+  // Targets are read from the current mount, and read again when InkViewport hands this page a
+  // new one (the page left and came back within one tick, under the same key). The props are
+  // read through deriveds, which notify only when the value changes: InkViewport replaces this
+  // page's whole entry when its error changes, and that invalidates every prop without
+  // changing the mount.
+  const listPage = $derived(page)
+  const listMount = $derived(mount)
+  const listCustom = $derived(customAnnotations)
   $effect(() => {
-    const h = mountHost
-    const custom = mountCustom
+    const p = listPage
+    const m = listMount
+    const custom = listCustom
     const doc = untrack(() => ctx.document)
-    if (!doc) return
-    /** Layers that have failed and not yet recovered; the error clears when this empties. */
-    // Bookkeeping for the two callbacks below; nothing reactive reads it.
-    // eslint-disable-next-line svelte/prefer-svelte-reactivity
-    const failedLayers = new Set<PageLayer>()
-    let error: InkError | null = null
-    const onError = (cause: unknown, layer: PageLayer): void => {
-      failedLayers.add(layer)
-      // The first failure wins: a canvas and a text layer failing together report one error.
-      if (error) return
-      error = isInkError(cause)
-        ? cause
-        : new InkErrorClass(
-            'InvalidPdf',
-            cause instanceof Error ? cause.message : String(cause),
-            { page: untrack(() => page) },
-            cause
-          )
-      h.setAttribute('data-state', 'error')
-      failure = error
+    if (!doc || !custom) {
+      if (untrack(() => targets).length > 0) targets = []
+      return
     }
-    const onRendered = (layer: PageLayer): void => {
-      failedLayers.delete(layer)
-      if (!error || failedLayers.size > 0) return
-      error = null
-      h.removeAttribute('data-state')
-      failure = null
-    }
-    const m = createPageMount({
-      document: doc,
-      page: untrack(() => page),
-      host: h,
-      transform: untrack(() => transform),
-      store: doc.annotations,
-      onActivate: (id) => ctx.setActivated(id),
-      isCustom: () => custom,
-      onError,
-      onRendered,
-    })
-    mount = m
-    applied = untrack(() => transform)
-    let stopList: (() => void) | undefined
-    if (custom) {
-      const read = (): void => {
-        const next = doc.annotations.byPage(untrack(() => page)).flatMap((a) => {
-          const el = m.overlay.elementFor(a.id)
-          return el ? [{ annotation: a, el }] : []
-        })
-        // A change elsewhere in the document leaves this page's targets as they were. The
-        // first read runs inside the effect, which must not come to depend on its own list.
-        if (
-          !sameTargets(
-            untrack(() => targets),
-            next
-          )
+    const read = (): void => {
+      const next = doc.annotations.byPage(p).flatMap((a) => {
+        const el = m.overlay.elementFor(a.id)
+        return el ? [{ annotation: a, el }] : []
+      })
+      // A change elsewhere in the document leaves this page's targets as they were. The
+      // first read runs inside the effect, which must not come to depend on its own list.
+      if (
+        !sameTargets(
+          untrack(() => targets),
+          next
         )
-          targets = next
-      }
-      stopList = doc.annotations.list.subscribe(read)
-      read()
+      )
+        targets = next
     }
-    return () => {
-      stopList?.()
-      targets = []
-      m.destroy()
-      mount = null
-      applied = null
-      if (error) h.removeAttribute('data-state')
-      failure = null
-    }
-  })
-
-  $effect(() => {
-    const t = transform
-    const m = mount
-    if (m && applied !== t) {
-      applied = t
-      m.update(t)
-    }
+    const stop = doc.annotations.list.subscribe(read)
+    read()
+    return stop
   })
 </script>
 
-{#if failure}
+{#if error}
   <div hidden {@attach portal(host)}>
     <div class="ink-page-error" data-ink-page-error="" role="alert">
       {#if pageError}
-        {@render pageError({ error: failure, page })}
+        {@render pageError({ error, page })}
       {:else}
         <p>Page {page + 1} could not be shown.</p>
-        <code class="ink-error-code">{failure.code}</code>
+        <code class="ink-error-code">{error.code}</code>
       {/if}
     </div>
   </div>
