@@ -29,6 +29,15 @@ export interface SnapshotHistory {
    * nor records, and the next list after one starts again without a step.
    */
   observe(list: readonly Annotation[] | undefined): void
+  /**
+   * Runs `fn` and records the host's changes that follow as one step. A framework may hand the
+   * host's list back after `fn` returns, one list per proposal, so the batch stays open until
+   * the current macrotask ends (`setTimeout(0)`) and then pushes a single step from the list
+   * before `fn` to the latest one. Limit: an unrelated change the host makes in that same window
+   * is folded into the step. Nested calls join; a throwing `fn` still closes the batch; when
+   * history is disabled `fn` only runs. Undo and redo close an open batch first.
+   */
+  batch(fn: () => void): void
 }
 
 type Snapshot = readonly Annotation[]
@@ -41,11 +50,49 @@ export function createSnapshotHistory(opts: SnapshotHistoryOptions): SnapshotHis
   let pending: Pending | null = null
   /** Copy of the host's list as of its last change; `undefined` before the first list. */
   let current: Snapshot | undefined
+  /** Open `batch` calls, and whether the batch is waiting out the task for late observes. */
+  let depth = 0
+  let settling: ReturnType<typeof setTimeout> | null = null
+  /** The host's list when the outermost batch opened. */
+  let from: Snapshot | undefined
+
+  function endBatch(): void {
+    if (settling !== null) clearTimeout(settling)
+    settling = null
+    const start = from
+    from = undefined
+    if (!opts.enabled() || !start || !current || sameList(current, start)) return
+    past.set([...past.get(), start].slice(-limit))
+    future.set([])
+  }
+
+  function batch(fn: () => void): void {
+    if (!opts.enabled()) {
+      fn()
+      return
+    }
+    if (depth === 0 && settling === null) from = current
+    if (settling !== null) {
+      clearTimeout(settling)
+      settling = null
+    }
+    depth++
+    try {
+      fn()
+    } finally {
+      depth--
+      if (depth === 0) settling = setTimeout(endBatch, 0)
+    }
+  }
 
   function clear(): void {
     past.set([])
     future.set([])
     pending = null
+    depth = 0
+    from = undefined
+    if (settling !== null) clearTimeout(settling)
+    settling = null
   }
 
   function observe(next: readonly Annotation[] | undefined): void {
@@ -58,6 +105,8 @@ export function createSnapshotHistory(opts: SnapshotHistoryOptions): SnapshotHis
     }
     // The first list only seeds; there is no step from or to an undefined list.
     if (next === undefined || prev === undefined) return
+    // Inside a batch, or while it settles, changes only move `current`; `endBatch` pushes the step.
+    if (from !== undefined) return
     // A new array with the same content is not a step, and leaves a pending step alone.
     if (sameList(next, prev)) return
     const step = pending
@@ -85,10 +134,17 @@ export function createSnapshotHistory(opts: SnapshotHistoryOptions): SnapshotHis
   return {
     canUndo: derived(past, (p) => p.length > 0),
     canRedo: derived(future, (f) => f.length > 0),
-    undo: () => propose('undo', past.get().at(-1)),
-    redo: () => propose('redo', future.get().at(-1)),
+    undo: () => {
+      if (from !== undefined && depth === 0) endBatch()
+      propose('undo', past.get().at(-1))
+    },
+    redo: () => {
+      if (from !== undefined && depth === 0) endBatch()
+      propose('redo', future.get().at(-1))
+    },
     clear,
     observe,
+    batch,
   }
 }
 

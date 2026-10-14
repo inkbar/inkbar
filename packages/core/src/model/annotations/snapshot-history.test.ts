@@ -199,4 +199,102 @@ describe('createSnapshotHistory', () => {
     history.observe([note('a', '1')])
     expect(history.canUndo.get()).toBe(false)
   })
+  describe('batch', () => {
+    it('folds observes made during and after fn into one step', () => {
+      vi.useFakeTimers()
+      try {
+        const { history } = setup()
+        history.observe([])
+        history.batch(() => history.observe([note('a', '1')]))
+        history.observe([note('a', '1'), note('b', '2')])
+        history.observe([note('a', '1'), note('b', '2'), note('c', '3')])
+        expect(history.canUndo.get()).toBe(false)
+        vi.runAllTimers()
+        expect(history.canUndo.get()).toBe(true)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('undoes the whole batch in one step and redoes it', () => {
+      vi.useFakeTimers()
+      try {
+        const { history, apply } = setup()
+        history.observe([])
+        history.batch(() => {})
+        history.observe([note('a', '1')])
+        history.observe([note('a', '1'), note('b', '2')])
+        vi.runAllTimers()
+        history.undo()
+        expect(apply).toHaveBeenLastCalledWith([])
+        history.observe([])
+        expect(history.canUndo.get()).toBe(false)
+        expect(history.canRedo.get()).toBe(true)
+        history.redo()
+        expect(apply).toHaveBeenLastCalledWith([note('a', '1'), note('b', '2')])
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('records nothing when the list ends where it began', () => {
+      vi.useFakeTimers()
+      try {
+        const { history } = setup()
+        history.observe([])
+        history.batch(() => history.observe([note('a', '1')]))
+        history.observe([])
+        vi.runAllTimers()
+        expect(history.canUndo.get()).toBe(false)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('joins nested calls and still closes when fn throws', () => {
+      vi.useFakeTimers()
+      try {
+        const { history } = setup()
+        history.observe([])
+        expect(() =>
+          history.batch(() => {
+            history.batch(() => history.observe([note('a', '1')]))
+            history.observe([note('a', '1'), note('b', '2')])
+            throw new Error('boom')
+          })
+        ).toThrow('boom')
+        vi.runAllTimers()
+        expect(history.canUndo.get()).toBe(true)
+        history.undo()
+        history.observe([])
+        expect(history.canUndo.get()).toBe(false)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('closes an open batch before an undo', () => {
+      vi.useFakeTimers()
+      try {
+        const { history, apply } = setup()
+        history.observe([])
+        history.batch(() => {})
+        history.observe([note('a', '1')])
+        history.undo()
+        expect(apply).toHaveBeenLastCalledWith([])
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('only runs fn when history is disabled', () => {
+      const { history } = setup(() => false)
+      const fn = vi.fn()
+      history.observe([])
+      history.batch(fn)
+      expect(fn).toHaveBeenCalledOnce()
+      history.observe([note('a', '1')])
+      expect(history.canUndo.get()).toBe(false)
+    })
+  })
 })
