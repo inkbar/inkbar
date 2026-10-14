@@ -1,0 +1,19 @@
+packages/react/src/components/InkViewport.tsx
+  s_0b0d6e3715476c::t_18a008c57a4ecf 58-59,84-86,105-106,144-149,170,251
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "23b768a6287816a9dec2098c5e6dc51cc97cbbae",
+  "prompts": {},
+  "sessions": {
+    "s_0b0d6e3715476c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "703874b0-3bd9-4982-aace-3d9b19eab262",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
