@@ -253,7 +253,8 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
         renderStatus({ state: 'ready' })
         stop = start(doc)
         status.set({ state: 'ready' })
-        onReady?.(doc)
+        // A status subscriber may have opened another document already.
+        if (load === loads) onReady?.(doc)
       },
       (cause: unknown) => {
         // Only a programmer error (missing assets) rejects; it gets the error state too.

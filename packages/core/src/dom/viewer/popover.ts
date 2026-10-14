@@ -12,6 +12,7 @@ import { h } from './dom'
 /** Space between the anchor and the panel, and between the panel and the window edge. */
 const GAP = 6
 const MARGIN = 8
+const TABBABLE = 'button, input, select, textarea, a[href], [tabindex]'
 
 export interface PopoverOptions {
   /** The viewer root: anchors are looked up and focus returns inside it. */
@@ -84,9 +85,25 @@ export function createPopover(opts: PopoverOptions): Popover {
     if (shouldKeepOpenOnAnnotation(e.target)) return
     opts.onDismiss()
   }
+  // Focus loops inside the panel, as the bindings' non-modal popovers do.
+  const onTab = (e: KeyboardEvent): void => {
+    if (e.key !== 'Tab' || e.altKey || e.ctrlKey || e.metaKey) return
+    const tabbable = [...panel.querySelectorAll<HTMLElement>(TABBABLE)].filter(
+      (el) => !(el as HTMLButtonElement).disabled && el.tabIndex >= 0
+    )
+    const first = tabbable[0]
+    const last = tabbable.at(-1)
+    if (!first || !last) return
+    const active = document.activeElement
+    if (e.shiftKey ? active !== first : active !== last) return
+    e.preventDefault()
+    ;(e.shiftKey ? last : first).focus()
+  }
+  panel.addEventListener('keydown', onTab)
   document.addEventListener('keydown', onKey)
   document.addEventListener('pointerdown', onPress, true)
-  root.addEventListener('scroll', place, true)
+  // The viewer's scroll element and any scrolling ancestor in the host page.
+  document.addEventListener('scroll', place, true)
   window.addEventListener('resize', place)
 
   return {
@@ -123,7 +140,8 @@ export function createPopover(opts: PopoverOptions): Popover {
       resizes.disconnect()
       document.removeEventListener('keydown', onKey)
       document.removeEventListener('pointerdown', onPress, true)
-      root.removeEventListener('scroll', place, true)
+      panel.removeEventListener('keydown', onTab)
+      document.removeEventListener('scroll', place, true)
       window.removeEventListener('resize', place)
       panel.remove()
     },

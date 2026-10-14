@@ -225,60 +225,85 @@ describe('createViewer', () => {
   })
 
   describe('toolbar', () => {
-    it('is one tab stop with arrow keys, Home and End', async () => {
+    it('roves between buttons; the select and the page input are their own Tab stops', async () => {
       const { viewer } = make('text-simple')
       await ready(viewer)
       const bar = viewer.toolbar!
       expect(bar.getAttribute('role')).toBe('toolbar')
       expect(bar.getAttribute('aria-label')).toBe('Document tools')
       expect(bar.getAttribute('aria-orientation')).toBe('horizontal')
-      const controls = [...bar.querySelectorAll<HTMLElement>('button, select, input')]
-      expect(controls).toHaveLength(9)
-      expect(controls.filter((c) => c.tabIndex === 0)).toHaveLength(1)
+      const buttons = [...bar.querySelectorAll<HTMLElement>('button')]
+      expect(buttons).toHaveLength(7)
+      expect(buttons.filter((c) => c.tabIndex === 0)).toHaveLength(1)
+      const select = bar.querySelector<HTMLSelectElement>('.ink-zoom-select')!
+      const input = bar.querySelector<HTMLInputElement>('[data-ink-page-input]')!
+      expect(select.tabIndex).toBe(0)
+      expect(input.tabIndex).toBe(0)
 
-      // Tab from before the viewer lands on the toolbar once, then leaves it.
+      // Tab from before the viewer: the buttons once, then the select, then the page input.
       const before = document.createElement('button')
       before.textContent = 'before'
       viewer.element.before(before)
       cleanup.push(() => before.remove())
       before.focus()
       await userEvent.tab()
-      expect(focused()).toBe(controls[0])
+      expect(focused()).toBe(buttons[0])
+      await userEvent.tab()
+      expect(focused()).toBe(select)
+      await userEvent.tab()
+      expect(focused()).toBe(input)
       await userEvent.tab()
       expect(bar.contains(focused())).toBe(false)
 
-      controls[0]!.focus()
+      buttons[0]!.focus()
       await userEvent.keyboard('{ArrowRight}')
-      expect(focused()).toBe(controls[1])
-      expect(controls[1]!.tabIndex).toBe(0)
-      expect(controls.filter((c) => c.tabIndex === 0)).toHaveLength(1)
+      expect(focused()).toBe(buttons[1])
+      expect(buttons[1]!.tabIndex).toBe(0)
+      expect(buttons.filter((c) => c.tabIndex === 0)).toHaveLength(1)
       await userEvent.keyboard('{ArrowLeft}')
       await userEvent.keyboard('{ArrowLeft}')
-      expect(focused()).toBe(controls[8])
+      expect(focused()).toBe(buttons[6])
       await userEvent.keyboard('{ArrowRight}')
-      expect(focused()).toBe(controls[0])
+      expect(focused()).toBe(buttons[0])
       await userEvent.keyboard('{End}')
-      expect(focused()).toBe(controls[8])
+      expect(focused()).toBe(buttons[6])
       await userEvent.keyboard('{Home}')
-      expect(focused()).toBe(controls[0])
-      // The zoom select keeps its own up and down.
-      const select = bar.querySelector<HTMLSelectElement>('.ink-zoom-select')!
+      expect(focused()).toBe(buttons[0])
+      // Zoom out to zoom in skips the select between them.
+      buttons[5]!.focus()
+      await userEvent.keyboard('{ArrowRight}')
+      expect(focused()).toBe(buttons[6])
+      // The select keeps its keys.
       select.focus()
       await userEvent.keyboard('{ArrowRight}')
-      expect(focused()).toBe(bar.querySelector('[data-ink-zoom-in]'))
+      expect(focused()).toBe(select)
     })
 
-    it('includes controls a host adds', async () => {
+    it('roves to buttons a host adds and leaves a host text input its keys', async () => {
       const { viewer } = make('text-simple')
       await ready(viewer)
       const extra = document.createElement('button')
       extra.textContent = 'Extra'
-      viewer.toolbar!.append(extra)
+      const field = document.createElement('input')
+      field.type = 'text'
+      field.setAttribute('aria-label', 'Search')
+      field.value = 'abc'
+      viewer.toolbar!.append(extra, field)
       await settle()
       expect(extra.tabIndex).toBe(-1)
-      bar(viewer).querySelector<HTMLElement>('[data-ink-page-input]')!.focus()
+      expect(field.tabIndex).toBe(0)
+      bar(viewer).querySelector<HTMLElement>('[data-ink-zoom-in]')!.focus()
       await userEvent.keyboard('{ArrowRight}')
       expect(focused()).toBe(extra)
+
+      field.focus()
+      field.setSelectionRange(3, 3)
+      await userEvent.keyboard('{ArrowLeft}')
+      expect(focused()).toBe(field)
+      expect(field.selectionStart).toBe(2)
+      await userEvent.keyboard('{Home}')
+      expect(focused()).toBe(field)
+      expect(field.selectionStart).toBe(0)
     })
 
     it('drives the tools, zoom and page', async () => {
@@ -499,6 +524,41 @@ describe('createViewer', () => {
     })
   })
 
+  it('loops Tab inside an open popover', async () => {
+    const { viewer } = make('annotated-notes-threaded')
+    const { doc } = await ready(viewer)
+    activate(await rootNote(viewer, doc))
+    const popover = notePopover()!
+    const textarea = popover.querySelector('textarea')!
+    await userEvent.type(textarea, 'x')
+    const close = [...popover.querySelectorAll('button')].at(-1)!
+    expect(close.textContent).toBe('Close')
+    close.focus()
+    await userEvent.tab()
+    expect(focused()).toBe(textarea)
+    await userEvent.tab({ shift: true })
+    expect(focused()).toBe(close)
+    expect(popover.hasAttribute('aria-modal')).toBe(false)
+  })
+
+  it('destroys a document that arrives after destroy, and mounts nothing', async () => {
+    const onReady = vi.fn()
+    const onError = vi.fn()
+    const { host, viewer } = make('text-simple', { onReady, onError })
+    viewer.destroy()
+    // A second viewer loading the same file marks when the first load has had time to land.
+    const other = make('text-simple')
+    await ready(other.viewer)
+    await settle(200)
+    other.viewer.destroy()
+    expect(host.childNodes).toHaveLength(0)
+    expect(document.querySelector('.ink-page')).toBeNull()
+    expect(viewer.document.get()).toBeNull()
+    expect(viewer.engine.get()).toBeNull()
+    expect(onReady).not.toHaveBeenCalled()
+    expect(onError).not.toHaveBeenCalled()
+  })
+
   it('a popover follows its annotation when its page unmounts and mounts again', async () => {
     const { viewer } = make('text-simple', { buffer: 0 })
     const { doc } = await ready(viewer)
@@ -522,7 +582,8 @@ describe('createViewer', () => {
     scroll.scrollTop = scroll.scrollHeight
     await until(() => viewer.element.querySelector('.ink-page[data-page="0"]') === null)
     await settle()
-    expect(!isOpen(popover) || placed()).toBe(true)
+    // Its anchor is gone: the panel hides rather than sit clamped somewhere unrelated.
+    expect(isOpen(popover)).toBe(false)
 
     scroll.scrollTop = 0
     await until(() => annotationEl(viewer, note.id) !== null)

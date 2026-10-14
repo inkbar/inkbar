@@ -1,7 +1,8 @@
 /*
  * The default toolbar: tools, zoom and page, with the classes and data attributes of the
  * bindings' DefaultToolbar so the theme styles it. It follows the WAI-ARIA toolbar pattern:
- * one Tab stop, arrow keys between controls (host-added ones included), Home and End.
+ * the buttons share one Tab stop with arrow keys, Home and End (host-added buttons included),
+ * and the zoom select and page input are Tab stops of their own, as in the bindings.
  *
  * The element outlives any one document, so a host can add controls once: `bind` points the
  * controls at a document's viewport and tool controller (again after every engine rebuild),
@@ -219,24 +220,29 @@ export function createToolbar(): DefaultToolbar {
   }
 }
 
-const FOCUSABLE = 'button, select, input, textarea, a[href], [tabindex]'
+/** Roving items, as in the bindings' Radix toolbar: buttons only. */
+const ITEMS = 'button'
+/** Fields are Tab stops of their own and keep every native key. */
+const FIELDS = 'input, select, textarea'
 
 /**
- * One Tab stop across every enabled control in `bar`: the current one has `tabindex="0"`, the
- * rest `-1`. ArrowLeft and ArrowRight move and wrap, Home and End go to the ends. ArrowUp and
- * ArrowDown are left to the control (the zoom select and the page input step with them).
+ * One Tab stop across the enabled buttons in `bar`: the current one has `tabindex="0"`, the
+ * rest `-1`. ArrowLeft and ArrowRight move between them and wrap, Home and End go to the ends.
+ * Inputs, selects and textareas, built in or added by the host, stay separate Tab stops and
+ * keep their own arrow, Home and End keys.
  */
 function rovingTabindex(bar: HTMLElement): { sync(): void; destroy(): void } {
   let current: HTMLElement | null = null
   const items = (): HTMLElement[] =>
-    [...bar.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
-      (el) => !(el as HTMLButtonElement).disabled && !el.closest('[hidden]')
+    [...bar.querySelectorAll<HTMLButtonElement>(ITEMS)].filter(
+      (el) => !el.disabled && !el.closest('[hidden]')
     )
   const sync = (): void => {
     const list = items()
     if (!current || !list.includes(current)) current = list[0] ?? null
-    for (const el of bar.querySelectorAll<HTMLElement>(FOCUSABLE))
+    for (const el of bar.querySelectorAll<HTMLElement>(ITEMS))
       el.tabIndex = el === current ? 0 : -1
+    for (const el of bar.querySelectorAll<HTMLElement>(FIELDS)) el.tabIndex = 0
   }
   const onFocusIn = (e: FocusEvent): void => {
     const target = e.target as HTMLElement
@@ -268,7 +274,7 @@ function rovingTabindex(bar: HTMLElement): { sync(): void; destroy(): void } {
     e.preventDefault()
     list[next]!.focus()
   }
-  // Host-added controls, and controls a host enables or disables, join the rotation.
+  // Host-added buttons, and buttons a host enables or disables, join the rotation.
   const observer = new MutationObserver(sync)
   observer.observe(bar, {
     childList: true,

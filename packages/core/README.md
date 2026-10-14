@@ -44,13 +44,15 @@ const viewer = createViewer(el, { source: file, assets, zoom: 'fit-width' })
 const undo = document.createElement('button')
 undo.textContent = 'Undo'
 undo.onclick = () => viewer.document.get()?.history.undo()
-viewer.toolbar?.append(undo) // joins the toolbar's arrow-key order
+viewer.toolbar?.append(undo) // buttons join the toolbar's arrow-key order
 
 viewer.open(otherFile) // destroys the current document; the latest call wins
 viewer.destroy()
 ```
 
-It takes the `mountViewer` options below, plus `password`, `defaults`, `history`, `onReady` and `onError`. Set `toolbar`, `notes` or `suggestions` to `false` to leave that part out. `viewer.status`, `viewer.document` and `viewer.engine` are readables.
+It takes the `mountViewer` options below, plus `password`, `defaults`, `history`, `onReady` and `onError`. Set `toolbar`, `notes` or `suggestions` to `false` to leave that part out. `viewer.status`, `viewer.document` and `viewer.engine` are readables. An input, select or textarea you add stays a Tab stop of its own and keeps its arrow keys.
+
+`createViewer` reads the theme's colours from the element you pass, so that element needs to be in the page when you call it.
 
 ### Mounting a viewer
 
