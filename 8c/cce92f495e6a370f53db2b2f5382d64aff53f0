@@ -1,0 +1,37 @@
+apps/demo/src/env.d.ts
+  s_0b0d6e3715476c::t_f8f78552e14777 3-7
+apps/demo/vite/highlight.ts
+  s_0b0d6e3715476c::t_6bf10172bb09e5 1-56
+apps/demo/src/shared/suggest.ts
+  s_0b0d6e3715476c::t_6bf10172bb09e5 1-107
+  s_0b0d6e3715476c::t_104bce1e9100cd 108-111
+apps/demo/src/shared/suggest.test.ts
+  s_0b0d6e3715476c::t_6bf10172bb09e5 1-98
+  s_0b0d6e3715476c::t_4c308babb6ac6c 99-106
+apps/demo/vite.config.ts
+  s_0b0d6e3715476c::t_f8f78552e14777 7,15
+apps/demo/vite/highlight.test.ts
+  s_0b0d6e3715476c::t_6bf10172bb09e5 1-19
+apps/demo/package.json
+  s_0b0d6e3715476c::t_d0e7fe983cfc60 12,22
+apps/demo/vite/inkbar-ink.json
+  s_0b0d6e3715476c::t_d0e7fe983cfc60 1-46
+pnpm-lock.yaml
+  s_0b0d6e3715476c::t_39e717eeb472ff 290-292,2247-2277,2379-2381,2385-2387,2405-2407,2470-2472,2926-2928,2937-2942,2991-2993,3157-3159,3563-3568,3588-3590,3919-3921,3930-3944,4047-4052,4336-4338,4439-4447,4570-4573,4602-4604,4643-4645,4741-4743,4840-4854,4942-4947,5202-5204,6877-6916,6999-7002,7005-7008,7025-7026,7120-7121,7537-7538,7543-7546,7587-7588,7734-7737,8174-8191,8208-8209,8460-8471,8476-8492,8573-8580,8768-8769,8915-8924,9062-9072,9100-9101,9139-9143,9258-9259,9344-9366,9461-9470,9662-9663
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8ccce92f495e6a370f53db2b2f5382d64aff53f0",
+  "prompts": {},
+  "sessions": {
+    "s_0b0d6e3715476c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "703874b0-3bd9-4982-aace-3d9b19eab262",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
