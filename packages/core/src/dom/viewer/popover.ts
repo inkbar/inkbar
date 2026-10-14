@@ -41,6 +41,8 @@ export function createPopover(opts: PopoverOptions): Popover {
   let anchoredId: string | null = null
   let anchor: HTMLElement | null = null
   let stopObserving: () => void = () => undefined
+  /** The element that had focus in the panel when the anchor went away. */
+  let stranded: HTMLElement | null = null
 
   const place = (): void => {
     if (!anchor || panel.hidden) return
@@ -62,20 +64,46 @@ export function createPopover(opts: PopoverOptions): Popover {
   const resizes = new ResizeObserver(place)
   resizes.observe(panel)
 
-  const onAnchor = (el: HTMLElement | null): void => {
+  const onAnchor = (el: HTMLElement | null, closing = false): void => {
     if (anchor) resizes.unobserve(anchor)
     anchor = el
     if (!el) {
+      const active = document.activeElement
+      if (
+        !closing &&
+        !panel.hidden &&
+        active instanceof HTMLElement &&
+        panel.contains(active)
+      ) {
+        // Hiding the panel would drop focus to the body: keep the keyboard in the viewer.
+        const scroll = root.querySelector<HTMLElement>('[data-ink-scroll]')
+        if (scroll) {
+          stranded = active
+          scroll.focus({ preventScroll: true })
+        }
+      }
       panel.hidden = true
       return
     }
     resizes.observe(el)
+    const wasHidden = panel.hidden
     panel.hidden = false
     place()
+    if (wasHidden && stranded) {
+      const back = stranded
+      stranded = null
+      const scroll = root.querySelector<HTMLElement>('[data-ink-scroll]')
+      if (panel.contains(back) && document.activeElement === scroll)
+        back.focus({ preventScroll: true })
+    }
   }
 
   const onKey = (e: KeyboardEvent): void => {
     if (e.key !== 'Escape' || panel.hidden || e.defaultPrevented) return
+    // An Escape meant for a host's own dialog elsewhere on the page is not ours.
+    const target = e.target
+    if (!(target instanceof Node) || !(panel.contains(target) || root.contains(target)))
+      return
     e.preventDefault()
     opts.onDismiss()
   }
@@ -123,7 +151,8 @@ export function createPopover(opts: PopoverOptions): Popover {
       stopObserving = () => undefined
       anchoredId = null
       const back = anchor
-      onAnchor(null)
+      stranded = null
+      onAnchor(null, true)
       // After the change that closed the popover has settled (a removed anchor is out of the
       // DOM, a cleared activation is cleared), as the bindings' close-auto-focus runs after
       // their render. A popover reopened meanwhile keeps focus where it is.

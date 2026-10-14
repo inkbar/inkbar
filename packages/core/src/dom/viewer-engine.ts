@@ -68,8 +68,8 @@ export interface ViewerEngine {
   /**
    * Recreates the viewport for construction-only options, keeping zoom, page, mode, rotation
    * and tool. The scroll position is kept too: the user-space point at the top-left of the
-   * visible area stays there. When that corner is in a gap rather than on a page, the current
-   * page lands where `scrollToPage` puts it, with the new gap above it.
+   * visible area stays there. When that corner is in a gap rather than on a page, the page below
+   * the gap lands where `scrollToPage` puts it, with the new gap above it.
    */
   rebuild(opts: { gap?: number; buffer?: number; customAnnotations?: boolean }): void
   destroy(): void
@@ -162,7 +162,12 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     const y = corner.y - o.y
     const boxes = vp.layout.get().boxes
     const inside = boxes.find((b) => y >= b.top && y < b.top + b.height)
-    const box = inside ?? boxes.find((b) => b.index === vp.currentPage.get())
+    // In a gap or margin: the page just below it, which the view reaches first. Past the
+    // last page there is none, so the current page stands in.
+    const box =
+      inside ??
+      boxes.find((b) => b.top > y) ??
+      boxes.find((b) => b.index === vp.currentPage.get())
     if (!box) return undefined
     // Transforms are affine, so a point left or right of the page maps back exactly too.
     const user = vp.transformFor(box.index).fromCss({ x: x - box.left, y: y - box.top })
@@ -219,7 +224,10 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     viewport = vp
     tools = tc
     stopKeys = attachViewportKeys(el, { viewport: vp, pageCount: () => doc.pages.length })
-    if (state.page !== undefined && state.page !== vp.currentPage.get())
+    // A view resting in a gap lands on the page below it, not on the most visible page.
+    // The scroll position resets on teardown, so the guard below must not skip a gap anchor.
+    if (state.anchor && !state.anchor.vertical) vp.scrollToPage(state.anchor.page)
+    else if (state.page !== undefined && state.page !== vp.currentPage.get())
       vp.scrollToPage(state.page)
     if (state.anchor) restoreScroll(vp, state.anchor)
     opts.onBuild?.(vp, tc)

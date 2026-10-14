@@ -224,6 +224,52 @@ describe('mountViewer', () => {
     expect(engine.viewport.currentPage.get()).toBe(1)
   })
 
+  it('anchors a rebuild on the page just below the gap, not the most visible page', async () => {
+    // At 0.25 the first page is 198 tall and the second 210.5, so with the top of the view in
+    // the margin above the first page, the second is the most visible although it is not the
+    // page the view reaches first.
+    const doc = await openFixtureInBrowser('mixed-page-sizes')
+    const container = mountContainer(800, 432)
+    const engine = mountViewer({ container, document: doc, zoom: 0.25 })
+    cleanup.push(() => {
+      engine.destroy()
+      doc.destroy()
+      container.remove()
+    })
+    await until(() => engine.pages.size > 0)
+    const first = engine.viewport.layout.get().boxes.find((b) => b.index === 0)!
+    container.scrollTop = first.top / 2
+    await until(() => engine.viewport.currentPage.get() === 1)
+    expect(container.scrollTop).toBeLessThan(first.top)
+
+    engine.rebuild({ gap: 32 })
+    const rebuilt = engine.viewport.layout.get().boxes.find((b) => b.index === 0)!
+    expect(container.scrollTop).toBe(rebuilt.top - 32)
+  })
+
+  it('lands a rebuild on the page below an interior gap', async () => {
+    // No gap in this fixture has a taller later page, so the most visible page is the one
+    // below the gap here; what this pins is that the scroll really runs for a page after the
+    // first one (the first is covered by the margin test above).
+    const doc = await openFixtureInBrowser('mixed-page-sizes')
+    const container = mountContainer(800, 200)
+    const engine = mountViewer({ container, document: doc, zoom: 0.25 })
+    cleanup.push(() => {
+      engine.destroy()
+      doc.destroy()
+      container.remove()
+    })
+    await until(() => engine.pages.size > 0)
+    const boxes = engine.viewport.layout.get().boxes
+    const above = boxes.find((b) => b.index === 1)!
+    container.scrollTop = above.top + above.height + 8
+    await until(() => engine.viewport.currentPage.get() === 2)
+
+    engine.rebuild({ gap: 32 })
+    const rebuilt = engine.viewport.layout.get().boxes.find((b) => b.index === 2)!
+    expect(Math.abs(container.scrollTop - (rebuilt.top - 32))).toBeLessThanOrEqual(1)
+  })
+
   it('cleans up on destroy', async () => {
     const { container, engine, onPageUnmount } = await setup()
     await until(() => engine.pages.size > 0)
