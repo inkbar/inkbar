@@ -208,7 +208,11 @@ watch(
   (r) => engine.value?.viewport.setRotation(r)
 )
 // Gap and buffer are construction options: rebuild for the same document, keeping zoom and page.
-watch([() => props.gap, () => props.buffer], ([gap, buffer]) => rebuild({ gap, buffer }))
+// The slots are already updated when this runs, so it carries the annotation slot too: a slot
+// toggle in the same tick is then recorded here and `onBeforeUpdate` finds nothing left to do.
+watch([() => props.gap, () => props.buffer], ([gap, buffer]) =>
+  rebuild({ gap, buffer, customAnnotations: !!slots.annotation })
+)
 
 // Slots are not reactive, so a change to whether the annotation slot is given is caught here.
 // `onBeforeUpdate` runs after the new slots are in place and before this render: the rebuild
