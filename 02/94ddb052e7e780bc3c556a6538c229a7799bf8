@@ -1,0 +1,23 @@
+.github/workflows/pages.yml
+  s_0b0d6e3715476c::t_f30d5d8a70f549 1-44
+README.md
+  s_0b0d6e3715476c::t_10022e67fb69ac 7-8,23,50
+turbo.json
+  s_0b0d6e3715476c::t_dc24b6925f8f71 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0294ddb052e7e780bc3c556a6538c229a7799bf8",
+  "prompts": {},
+  "sessions": {
+    "s_0b0d6e3715476c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "703874b0-3bd9-4982-aace-3d9b19eab262",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
