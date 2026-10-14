@@ -15,6 +15,15 @@ import { attachViewportKeys } from './viewport-keys'
 import type { LayoutMode } from './layout'
 import type { PageTransform, ViewRotation } from './transform'
 import type { InkDocument } from '../model/document'
+import type { Point } from '../model/geometry'
+
+/** A user-space point on a page, used to put the scroll position back after a rebuild. */
+interface ScrollAnchor {
+  page: number
+  user: Point
+  /** Whether the vertical position is restored too, not only the horizontal one. */
+  vertical: boolean
+}
 
 export interface MountViewerOptions {
   container: HTMLElement
@@ -56,7 +65,12 @@ export interface ViewerEngine {
   readonly viewport: Viewport
   readonly tools: ToolController
   readonly pages: ReadonlyMap<number, PageMount>
-  /** Recreates the viewport for construction-only options, keeping zoom, page, mode, rotation and tool. */
+  /**
+   * Recreates the viewport for construction-only options, keeping zoom, page, mode, rotation
+   * and tool. The scroll position is kept too: the user-space point at the top-left of the
+   * visible area stays there. When that corner is in a gap rather than on a page, the current
+   * page lands where `scrollToPage` puts it, with the new gap above it.
+   */
   rebuild(opts: { gap?: number; buffer?: number; customAnnotations?: boolean }): void
   destroy(): void
 }
@@ -120,12 +134,59 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     mount.destroy()
   }
 
+  /** The client point at the top-left of the container's visible content area. */
+  function viewTopLeft(): Point {
+    const r = el.getBoundingClientRect()
+    return { x: r.left + el.clientLeft, y: r.top + el.clientTop }
+  }
+
+  /** The client point of the pages element's top-left: the origin of the layout's page boxes. */
+  function layoutOrigin(): Point | undefined {
+    const pagesEl = el.querySelector<HTMLElement>(':scope > [data-ink-pages]')
+    if (!pagesEl) return undefined
+    const r = pagesEl.getBoundingClientRect()
+    return { x: r.left, y: r.top }
+  }
+
+  /**
+   * Where the view sits before a rebuild: the user-space point under the top-left of the
+   * visible area, on the page whose box contains it. When the top of the view is in a gap or a
+   * margin, only the horizontal position is kept, and the page lands where `scrollToPage` puts
+   * it, the new gap above it (a view resting at a page boundary stays at that boundary).
+   */
+  function scrollAnchor(vp: Viewport): ScrollAnchor | undefined {
+    const o = layoutOrigin()
+    if (!o) return undefined
+    const corner = viewTopLeft()
+    const x = corner.x - o.x
+    const y = corner.y - o.y
+    const boxes = vp.layout.get().boxes
+    const inside = boxes.find((b) => y >= b.top && y < b.top + b.height)
+    const box = inside ?? boxes.find((b) => b.index === vp.currentPage.get())
+    if (!box) return undefined
+    // Transforms are affine, so a point left or right of the page maps back exactly too.
+    const user = vp.transformFor(box.index).fromCss({ x: x - box.left, y: y - box.top })
+    return { page: box.index, user, vertical: inside !== undefined }
+  }
+
+  /** Scrolls so the anchor's point sits under the top-left of the visible area again. */
+  function restoreScroll(vp: Viewport, anchor: ScrollAnchor): void {
+    const o = layoutOrigin()
+    const box = vp.layout.get().boxes.find((b) => b.index === anchor.page)
+    if (!o || !box) return
+    const css = vp.transformFor(anchor.page).toCss(anchor.user)
+    const corner = viewTopLeft()
+    el.scrollLeft += o.x + box.left + css.x - corner.x
+    if (anchor.vertical) el.scrollTop += o.y + box.top + css.y - corner.y
+  }
+
   function build(state: {
     zoom: ZoomValue
     page: number | undefined
     mode: LayoutMode | undefined
     rotation: ViewRotation | undefined
     tool: ToolId | undefined
+    anchor?: ScrollAnchor | undefined
   }): void {
     const vp = createViewport({
       container: el,
@@ -160,6 +221,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     stopKeys = attachViewportKeys(el, { viewport: vp, pageCount: () => doc.pages.length })
     if (state.page !== undefined && state.page !== vp.currentPage.get())
       vp.scrollToPage(state.page)
+    if (state.anchor) restoreScroll(vp, state.anchor)
     opts.onBuild?.(vp, tc)
   }
 
@@ -195,6 +257,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
         mode: viewport.mode.get(),
         rotation: viewport.rotation.get(),
         tool: tools.active.get(),
+        anchor: scrollAnchor(viewport),
       }
       teardown()
       if (next.gap !== undefined) gap = next.gap

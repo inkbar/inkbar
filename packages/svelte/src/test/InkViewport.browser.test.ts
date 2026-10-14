@@ -620,4 +620,33 @@ describe('InkViewport', () => {
     expect(cssOf(FIRST, 'width')()).toBe(`${612 * 8}px`)
     await expect.element(screen.getByTestId('bound-zoom')).toHaveTextContent('10')
   })
+
+  // React: 'toggling the annotation slot keeps the scroll position and swaps the custom content'
+  it('toggling the annotation snippet keeps the scroll position and swaps the custom content', async () => {
+    const screen = await render(ViewportHarness, {
+      src: fixtureUrl('text-simple'),
+      assets,
+      zoom: 1,
+    })
+    await q(`${FIRST} canvas`)
+    doc().annotations.add({
+      type: 'note',
+      page: 1,
+      rect: { x: 72, y: 600, width: 24, height: 24 },
+    })
+    const target = layoutAt(1, scroll().clientWidth).boxes[1]!.top + 300
+    scroll().scrollTop = target
+    await expect.poll(count(`${SECOND} [data-annotation]`)).toBe(1)
+    const before = scroll().scrollTop
+    expect(Math.abs(before - target)).toBeLessThanOrEqual(1)
+
+    await screen.rerender({ customAnnotations: true })
+    await expect.poll(count(`${SECOND} [data-annotation][data-custom] > .my-pin`)).toBe(1)
+    expect(Math.abs(scroll().scrollTop - before)).toBeLessThanOrEqual(2)
+
+    await screen.rerender({ customAnnotations: false })
+    await expect.poll(count('.my-pin')).toBe(0)
+    await expect.poll(count(`${SECOND} [data-annotation]:not([data-custom])`)).toBe(1)
+    expect(Math.abs(scroll().scrollTop - before)).toBeLessThanOrEqual(2)
+  })
 })
