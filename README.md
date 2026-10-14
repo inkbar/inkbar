@@ -4,6 +4,8 @@ Browser PDF viewer and editor for Vue, React and Svelte, built on PDF.js. Headle
 
 Made by [Redactr](https://redactr.io).
 
+Try it in the browser: [inkbar.github.io/inkbar](https://inkbar.github.io/inkbar/), with one page each for React, Vue, Svelte and plain TypeScript.
+
 ## Packages
 
 | Package                  | Purpose                                                                                    |
@@ -18,6 +20,7 @@ Made by [Redactr](https://redactr.io).
 | `@inkbar/sandbox-react`  | The review app on React. Private, not published.                                           |
 | `@inkbar/sandbox-svelte` | The review app on Svelte. Private, not published.                                          |
 | `@inkbar/sandbox-shared` | End-to-end suite, fake server and helpers the three sandboxes run. Private, not published. |
+| `@inkbar/demo`           | The demo on GitHub Pages: an index and one page per framework. Private, not published.     |
 
 ## Install
 
@@ -44,6 +47,7 @@ pnpm test
 pnpm --filter @inkbar/sandbox-vue dev  # the sandbox app on http://localhost:5180
 pnpm --filter @inkbar/sandbox-react dev  # the React sandbox on http://localhost:5181
 pnpm --filter @inkbar/sandbox-svelte dev  # the Svelte sandbox on http://localhost:5182
+pnpm --filter @inkbar/demo dev  # the demo on http://localhost:5190
 ```
 
 ## Releasing
