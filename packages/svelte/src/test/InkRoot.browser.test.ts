@@ -421,6 +421,37 @@ describe('InkRoot', () => {
     await expect.poll(attr(probe, 'data-can-undo')).toBe('false')
   })
 
+  it('batch records a run of additions as one undo step', async () => {
+    const screen = await render(UncontrolledHost, {
+      src: fixtureUrl('text-simple'),
+      assets,
+    })
+    const probe = '[data-testid="probe"]'
+    await expect.poll(attr(probe, 'data-ready')).toBe('true')
+    await screen.getByTestId('batch9').click()
+    await expect.poll(attr(probe, 'data-annotations')).toBe('9')
+    await screen.getByTestId('undo').click()
+    await expect.poll(attr(probe, 'data-annotations')).toBe('0')
+    await expect.poll(attr(probe, 'data-can-redo')).toBe('true')
+  })
+
+  it('batch in a controlled host reaches the host as one undo step', async () => {
+    const screen = await render(ControlledHost, {
+      src: fixtureUrl('text-simple'),
+      assets,
+      history: true,
+    })
+    const probe = '[data-testid="probe"]'
+    const hostCount = screen.getByTestId('host-count')
+    await expect.poll(attr(probe, 'data-ready')).toBe('true')
+    await screen.getByTestId('batch3').click()
+    await expect.element(hostCount).toHaveTextContent('3')
+    await expect.poll(attr(probe, 'data-annotations')).toBe('3')
+    await screen.getByTestId('undo').click()
+    await expect.element(hostCount).toHaveTextContent('0')
+    await expect.poll(attr(probe, 'data-can-undo')).toBe('false')
+  })
+
   // React: 'controlled hosts without history get inert undo'
   it('controlled hosts without history get inert undo', async () => {
     const screen = await render(ControlledHost, {

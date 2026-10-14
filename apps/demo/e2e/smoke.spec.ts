@@ -61,17 +61,21 @@ for (const framework of FRAMEWORKS) {
       )
     })
 
-    test('undo removes the last change', async ({ page }) => {
+    test('undo removes a whole suggestion run, redo restores it', async ({ page }) => {
       await page.goto(`${framework}/`)
       await waitForFirstPage(page)
       const undo = page.getByRole('button', { name: 'Undo' })
+      const redo = page.getByRole('button', { name: 'Redo' })
       await expect(undo).toBeDisabled()
       await page.getByRole('button', { name: 'Suggest redactions' }).click()
       await expect(page.locator('.demo-result')).toHaveText(SAMPLE_SUGGESTIONS)
-      await expect(undo).toBeEnabled()
       await undo.click()
       await expect(page.locator('.ink-annotation[data-origin="suggested"]')).toHaveCount(
-        8
+        0
+      )
+      await redo.click()
+      await expect(page.locator('.ink-annotation[data-origin="suggested"]')).toHaveCount(
+        9
       )
     })
 

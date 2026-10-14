@@ -324,6 +324,11 @@ export function InkRoot({
         controlled ? snapshotHistory.redo() : documentRef.current?.history.redo(),
       clear: () =>
         controlled ? snapshotHistory.clear() : documentRef.current?.history.clear(),
+      batch: (fn) => {
+        if (controlled) snapshotHistory.batch(fn)
+        else if (documentRef.current) documentRef.current.history.batch(fn)
+        else fn()
+      },
     }),
     [
       controlled,

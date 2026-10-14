@@ -17,7 +17,9 @@
     busy = true
     try {
       const found = await suggestRedactions(current, annotations.annotations)
-      for (const input of found) annotations.add(input)
+      history.batch(() => {
+        for (const input of found) annotations.add(input)
+      })
       result = suggestionCount(found.length)
     } catch (e) {
       // Opening another file mid-run destroys the document; that is not a failure.

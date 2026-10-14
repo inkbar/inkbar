@@ -24,6 +24,10 @@
       page: 0,
       rect: { x: 0, y: 0, width: 20, height: 20 },
     })
+  const addBatch = (n: number) =>
+    history.batch(() => {
+      for (let i = 0; i < n; i++) addNote()
+    })
 </script>
 
 <div
@@ -41,6 +45,8 @@
   data-zoom={String(zoom.zoom)}
 >
   <button data-testid="add" onclick={addNote}>add</button>
+  <button data-testid="batch3" onclick={() => addBatch(3)}>batch3</button>
+  <button data-testid="batch9" onclick={() => addBatch(9)}>batch9</button>
   <button data-testid="undo" onclick={() => history.undo()}>undo</button>
   <button data-testid="redo" onclick={() => history.redo()}>redo</button>
   <button

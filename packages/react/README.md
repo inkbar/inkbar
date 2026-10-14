@@ -88,7 +88,7 @@ useEffect(() => {
 </InkRoot>
 ```
 
-Inside `InkRoot`, `useHistory()` returns the same object.
+Inside `InkRoot`, `useHistory()` returns the same object. `batch(fn)` records everything `fn` changes as one undo step.
 
 `key` identifies the document. Reuse the same key when only the signed URL changes and the document is not reloaded.
 

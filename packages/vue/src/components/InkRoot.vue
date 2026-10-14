@@ -198,6 +198,11 @@ const inkHistory: InkHistory = {
   undo: () => (controlled.value ? refHistory.undo() : document.value?.history.undo()),
   redo: () => (controlled.value ? refHistory.redo() : document.value?.history.redo()),
   clear: () => (controlled.value ? refHistory.clear() : document.value?.history.clear()),
+  batch: (fn) => {
+    if (controlled.value) refHistory.batch(fn)
+    else if (document.value) document.value.history.batch(fn)
+    else fn()
+  },
 }
 
 // Open on the client only: on the server InkRoot renders its empty slot.

@@ -270,6 +270,11 @@
     undo: () => (controlled ? snapshotHistory.undo() : document?.history.undo()),
     redo: () => (controlled ? snapshotHistory.redo() : document?.history.redo()),
     clear: () => (controlled ? snapshotHistory.clear() : document?.history.clear()),
+    batch: (fn) => {
+      if (controlled) snapshotHistory.batch(fn)
+      else if (document) document.history.batch(fn)
+      else fn()
+    },
   }
 
   const context: InkContext = {

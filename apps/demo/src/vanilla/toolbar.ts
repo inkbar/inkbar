@@ -175,7 +175,9 @@ export function createToolbar(
     suggest.disabled = true
     void suggestRedactions(doc, doc.annotations.list.get())
       .then((found) => {
-        for (const input of found) doc.annotations.add(input)
+        doc.history.batch(() => {
+          for (const input of found) doc.annotations.add(input)
+        })
         result.textContent = suggestionCount(found.length)
       })
       .catch((e: unknown) => {

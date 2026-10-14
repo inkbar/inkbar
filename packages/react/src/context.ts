@@ -12,6 +12,11 @@ export interface InkHistory {
   undo: () => void
   redo: () => void
   clear: () => void
+  /**
+   * Runs `fn` and records what it changes as one undo step. Uncontrolled, core's history does
+   * the grouping; controlled, changes proposed in one tick reach the host as one list.
+   */
+  batch: (fn: () => void) => void
 }
 
 export interface InkContext {

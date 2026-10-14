@@ -37,5 +37,6 @@ export function createRefHistory(opts: RefHistoryOptions): InkHistory {
     undo: () => history.undo(),
     redo: () => history.redo(),
     clear: () => history.clear(),
+    batch: (fn) => history.batch(fn),
   }
 }

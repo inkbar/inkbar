@@ -8,7 +8,7 @@ import { suggestionCount, suggestRedactions } from '../shared/suggest'
 
 const { document, isReady } = useDocument()
 const { annotations, add } = useAnnotations()
-const { undo, redo, canUndo, canRedo } = useHistory()
+const { undo, redo, canUndo, canRedo, batch } = useHistory()
 const busy = ref(false)
 const result = ref('')
 
@@ -18,7 +18,9 @@ async function suggest() {
   busy.value = true
   try {
     const found = await suggestRedactions(doc, annotations.value)
-    for (const input of found) add(input)
+    batch(() => {
+      for (const input of found) add(input)
+    })
     result.value = suggestionCount(found.length)
   } catch (e) {
     // Opening another file mid-run destroys the document; that is not a failure.
