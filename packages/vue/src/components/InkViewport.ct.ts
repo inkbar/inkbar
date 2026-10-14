@@ -569,3 +569,58 @@ test('toggling the annotation slot keeps the scroll position and swaps the custo
     Math.abs((await scroll.evaluate((el) => el.scrollTop)) - before)
   ).toBeLessThanOrEqual(2)
 })
+
+test('a gap change and a slot toggle in one tick rebuild the viewport once', async ({
+  mount,
+  page,
+}) => {
+  const props = { src: fixtureUrl('text-simple'), assets, zoom: 1 }
+  const cmp = await mount(ViewportHarness, { props })
+  await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
+  await page.locator('[data-ink-root]').evaluate((el) => {
+    ;(el as RootEl).__inkDocument!.annotations.add({
+      type: 'note',
+      page: 1,
+      rect: { x: 72, y: 600, width: 24, height: 24 },
+    })
+  })
+  const scroll = page.locator('[data-ink-scroll]')
+  const width = await scroll.evaluate((el) => el.clientWidth)
+  const target = layoutAt(1, width).boxes[1]!.top + 300
+  await scroll.evaluate((el, top) => {
+    el.scrollTop = top
+  }, target)
+  const second = cmp.locator('.ink-page[data-page="1"]')
+  await expect(second.locator('[data-annotation]')).toHaveCount(1)
+  const before = await scroll.evaluate((el) => el.scrollTop)
+  expect(Math.abs(before - target)).toBeLessThanOrEqual(1)
+
+  // Counts every page host the viewer creates from here on: one rebuild makes one set.
+  await page.evaluate(() => {
+    const w = window as unknown as { __hosts: number }
+    w.__hosts = 0
+    new MutationObserver((records) => {
+      for (const r of records)
+        for (const n of r.addedNodes)
+          if (n instanceof HTMLElement && n.classList.contains('ink-page')) w.__hosts += 1
+    }).observe(document.body, { childList: true, subtree: true })
+  })
+  const gap = 40
+  await cmp.update({ props: { ...props, gap, customAnnotations: true } })
+  await expect(second.locator('[data-annotation][data-custom] > .my-pin')).toHaveCount(1)
+  await expect(cmp.locator('.ink-page[data-page="2"]')).toHaveCSS(
+    'top',
+    `${layoutAt(1, width, gap).boxes[2]!.top}px`
+  )
+  // Let a second rebuild, had there been one, finish mounting.
+  await page.waitForTimeout(500)
+  expect(
+    await page.evaluate(() => (window as unknown as { __hosts: number }).__hosts)
+  ).toBe(textSimple.length)
+  await expect(cmp.locator('.my-pin')).toHaveCount(1)
+  await expect(cmp.locator('[data-annotation]:not([data-custom])')).toHaveCount(0)
+  const top = await scroll.evaluate((el) => el.scrollTop)
+  // Still 300px into the second page, wherever the new gap puts it.
+  const expected = layoutAt(1, width, gap).boxes[1]!.top + 300
+  expect(Math.abs(top - expected)).toBeLessThanOrEqual(2)
+})
