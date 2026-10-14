@@ -107,7 +107,11 @@ export default defineConfig(
   {
     // The same `any` reaches the TypeScript files that import components.
     name: 'inkbar/svelte-untyped-imports-in-ts',
-    files: ['packages/svelte/src/test/**/*.ts', 'apps/sandbox-svelte/**/*.ts'],
+    files: [
+      'packages/svelte/src/test/**/*.ts',
+      'apps/sandbox-svelte/**/*.ts',
+      'apps/demo/src/svelte/**/*.ts',
+    ],
     rules: {
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-call': 'off',

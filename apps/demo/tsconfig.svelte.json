@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "types": ["node", "vite/client", "@inkbar/core/vite/client"]
+  },
+  "include": [
+    "src/svelte/**/*.ts",
+    "src/svelte/**/*.svelte",
+    "src/shared/**/*.ts",
+    "src/shell/**/*.ts",
+    "src/env.d.ts"
+  ]
+}

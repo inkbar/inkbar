@@ -16,6 +16,8 @@ type Lang = (typeof LANGS)[keyof typeof LANGS]
 
 const QUERY = '?highlight'
 const PREFIX = '\0inkbar-demo-highlight:'
+// The id must not end in the source extension, or the framework plugins try to compile it.
+const SUFFIX = '.js'
 
 export function langFor(file: string): Lang {
   const lang = (LANGS as Record<string, Lang | undefined>)[extname(file)]
@@ -42,11 +44,11 @@ export function highlightSource(): Plugin {
       const target = await this.resolve(id.slice(0, -QUERY.length), importer, {
         skipSelf: true,
       })
-      return target ? PREFIX + target.id.split('?')[0] : null
+      return target ? PREFIX + target.id.split('?')[0] + SUFFIX : null
     },
     async load(id) {
       if (!id.startsWith(PREFIX)) return null
-      const file = id.slice(PREFIX.length)
+      const file = id.slice(PREFIX.length, -SUFFIX.length)
       this.addWatchFile(file)
       const code = await readFile(file, 'utf8')
       const html = await highlight(code, langFor(file))
