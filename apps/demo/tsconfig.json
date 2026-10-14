@@ -13,5 +13,6 @@
     "vite/**/*.ts",
     "e2e/**/*.ts"
   ],
+  "exclude": ["src/svelte/**"],
   "vueCompilerOptions": { "strictTemplates": true, "dataAttributes": ["data-*"] }
 }

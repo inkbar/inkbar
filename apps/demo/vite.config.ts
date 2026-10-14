@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { inkbar } from '@inkbar/core/vite'
 import { prebundlePdfEngine } from '@inkbar/sandbox-shared/vite'
 import react from '@vitejs/plugin-react'
+import { svelte } from '@sveltejs/vite-plugin-svelte'
 import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vite'
 
@@ -17,6 +18,7 @@ export default defineConfig({
   plugins: [
     react({ include: /\/src\/react\// }),
     vue(),
+    svelte(),
     inkbar(),
     prebundlePdfEngine(),
     samplePdf(),
@@ -28,6 +30,7 @@ export default defineConfig({
         index: entry('./index.html'),
         react: entry('./react/index.html'),
         vue: entry('./vue/index.html'),
+        svelte: entry('./svelte/index.html'),
       },
     },
   },
