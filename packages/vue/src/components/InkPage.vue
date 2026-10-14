@@ -1,41 +1,37 @@
 <script setup lang="ts">
 /*
- * One mounted page: canvas, text layer and annotation overlay from core's `createPageMount`,
- * in the host element the viewport created. Renders nothing itself except, when the host
- * provides the `annotation` slot, one Teleport per annotation into its overlay element.
+ * One page the viewer engine mounted. Renders nothing in place; Teleports go into the host
+ * (page error) and, when the host provides the `annotation` slot, into each annotation's
+ * overlay element.
  *
  * The overlay creates and removes those elements as the annotation list changes, outside
  * Vue. So the teleport targets come from a list read after every overlay render: this
- * component subscribes to the store after the overlay does, and core notifies subscribers
- * in order, so the elements already exist when the list arrives here.
+ * component subscribes to the store after the overlay does (the engine created the mount
+ * first), and core notifies subscribers in order, so the elements already exist when the list
+ * arrives here.
  *
- * A page whose canvas or text layer fails gets `data-state="error"` on its host and the
- * `page-error` slot teleported into it; the other pages and the viewport carry on. It clears
- * once every layer that failed (canvas, text layer) has since succeeded, for example after a
- * zoom change, or on the next mount of the page.
+ * The engine tracks page errors and sets `data-state="error"` on the host; this component
+ * teleports the `page-error` slot into it while `error` is set.
  */
-import { InkError, isInkError } from '@inkbar/core'
-import {
-  createPageMount,
-  type PageLayer,
-  type PageMount,
-  type PageTransform,
-} from '@inkbar/core/dom'
-import { onBeforeUnmount, onMounted, shallowRef, watch } from 'vue'
+import { onBeforeUnmount, onMounted, shallowRef } from 'vue'
 
 import { injectInkContext } from '../context'
 
 import InkAnnotation from './InkAnnotation.vue'
 
 import type { AnnotationSlotProps } from './annotation-slot'
-import type { Annotation } from '@inkbar/core'
+import type { Annotation, InkError } from '@inkbar/core'
+import type { PageMount } from '@inkbar/core/dom'
 
 const props = withDefaults(
   defineProps<{
     page: number
     host: HTMLElement
-    transform: PageTransform
-    /** Fixed for the life of the mount: InkViewport remounts the page when it changes. */
+    /** The engine's page mount in `host`. Fixed for the life of the component. */
+    mount: PageMount
+    /** The engine's error for this page, `null` while it renders. */
+    error: InkError | null
+    /** Fixed for the life of the mount: the engine rebuilds when it changes. */
     customAnnotations?: boolean
   }>(),
   { customAnnotations: false }
@@ -47,90 +43,34 @@ defineSlots<{
 }>()
 
 const ctx = injectInkContext()
-const mount = shallowRef<PageMount | null>(null)
 const targets = shallowRef<{ annotation: Annotation; el: HTMLElement }[]>([])
 let stopList: (() => void) | undefined
-const pageError = shallowRef<InkError | null>(null)
-/** Layers that have failed and not yet recovered; the error clears when this empties. */
-const failedLayers = new Set<PageLayer>()
-
-/** The first failure wins: a canvas and a text layer failing together report one error. */
-function onPageError(cause: unknown, layer: PageLayer): void {
-  failedLayers.add(layer)
-  if (pageError.value) return
-  pageError.value = isInkError(cause)
-    ? cause
-    : new InkError(
-        'InvalidPdf',
-        cause instanceof Error ? cause.message : String(cause),
-        { page: props.page },
-        cause
-      )
-  props.host.setAttribute('data-state', 'error')
-}
-
-function onPageRendered(layer: PageLayer): void {
-  failedLayers.delete(layer)
-  if (!pageError.value || failedLayers.size > 0) return
-  pageError.value = null
-  props.host.removeAttribute('data-state')
-}
-
-function readTargets(): void {
-  const m = mount.value
-  const doc = ctx.document.value
-  if (!m || !doc || !props.customAnnotations) return
-  targets.value = doc.annotations.byPage(props.page).flatMap((annotation) => {
-    const el = m.overlay.elementFor(annotation.id)
-    return el ? [{ annotation, el }] : []
-  })
-}
 
 onMounted(() => {
   const doc = ctx.document.value
-  if (!doc) return
-  const custom = props.customAnnotations
-  mount.value = createPageMount({
-    document: doc,
-    page: props.page,
-    host: props.host,
-    transform: props.transform,
-    store: doc.annotations,
-    onActivate: (id) => ctx.setActivated(id),
-    isCustom: () => custom,
-    onError: onPageError,
-    onRendered: onPageRendered,
-  })
-  if (custom) {
-    stopList = doc.annotations.list.subscribe(readTargets)
-    readTargets()
+  if (!doc || !props.customAnnotations) return
+  const read = (): void => {
+    targets.value = doc.annotations.byPage(props.page).flatMap((annotation) => {
+      const el = props.mount.overlay.elementFor(annotation.id)
+      return el ? [{ annotation, el }] : []
+    })
   }
+  stopList = doc.annotations.list.subscribe(read)
+  read()
 })
-
-watch(
-  () => props.transform,
-  (t) => mount.value?.update(t)
-)
 
 onBeforeUnmount(() => {
   stopList?.()
   targets.value = []
-  mount.value?.destroy()
-  mount.value = null
-  if (pageError.value) props.host.removeAttribute('data-state')
-  pageError.value = null
-  failedLayers.clear()
 })
-
-defineExpose({ mount })
 </script>
 
 <template>
-  <Teleport v-if="pageError" :to="host">
+  <Teleport v-if="error" :to="host">
     <div class="ink-page-error" data-ink-page-error role="alert">
-      <slot name="page-error" :error="pageError" :page="page">
+      <slot name="page-error" :error="error" :page="page">
         <p>Page {{ page + 1 }} could not be shown.</p>
-        <code class="ink-error-code">{{ pageError.code }}</code>
+        <code class="ink-error-code">{{ error.code }}</code>
       </slot>
     </div>
   </Teleport>
