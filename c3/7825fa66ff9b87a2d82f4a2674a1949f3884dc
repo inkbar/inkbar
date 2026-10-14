@@ -1,0 +1,21 @@
+apps/demo/src/styles/index.css
+  s_0b0d6e3715476c::t_e5d637c58956f0 23
+apps/demo/e2e/index.spec.ts
+  s_0b0d6e3715476c::t_45c9a199417983 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c37825fa66ff9b87a2d82f4a2674a1949f3884dc",
+  "prompts": {},
+  "sessions": {
+    "s_0b0d6e3715476c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "703874b0-3bd9-4982-aace-3d9b19eab262",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
