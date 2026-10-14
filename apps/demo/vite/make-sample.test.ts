@@ -25,5 +25,5 @@ void test('page 1 carries one embedded highlight and one note', async () => {
 
 void test('the same bytes come back for the same build', async () => {
   const [a, b] = await Promise.all([makeSample(), makeSample()])
-  assert.equal(a.length, b.length)
+  assert.deepEqual(a, b)
 })

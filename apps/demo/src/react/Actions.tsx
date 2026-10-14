@@ -1,3 +1,4 @@
+import { isInkError } from '@inkbar/core'
 import { useAnnotations, useDocument, useHistory } from '@inkbar/react'
 import { useState } from 'react'
 
@@ -18,6 +19,10 @@ export function Actions() {
       const found = await suggestRedactions(document, annotations)
       for (const input of found) add(input)
       setResult(suggestionCount(found.length))
+    } catch (e) {
+      // Opening another file mid-run destroys the document; that is not a failure.
+      if (!(isInkError(e) && e.code === 'DocumentDestroyed'))
+        setResult('Could not check this document.')
     } finally {
       setBusy(false)
     }

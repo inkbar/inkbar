@@ -159,8 +159,6 @@ function startViewer(
     notes.destroy()
     card.destroy()
     tools.destroy()
-    for (const mount of pages.values()) mount.destroy()
-    pages.clear()
     viewport.destroy()
   }
 }

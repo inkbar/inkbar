@@ -1,5 +1,6 @@
 <script lang="ts">
   /* Hooks only work inside InkRoot, so these controls are their own component. */
+  import { isInkError } from '@inkbar/core'
   import { useAnnotations, useDocument, useHistory } from '@inkbar/svelte'
 
   import { suggestionCount, suggestRedactions } from '../shared/suggest'
@@ -18,6 +19,10 @@
       const found = await suggestRedactions(current, annotations.annotations)
       for (const input of found) annotations.add(input)
       result = suggestionCount(found.length)
+    } catch (e) {
+      // Opening another file mid-run destroys the document; that is not a failure.
+      if (!(isInkError(e) && e.code === 'DocumentDestroyed'))
+        result = 'Could not check this document.'
     } finally {
       busy = false
     }

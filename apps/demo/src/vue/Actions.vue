@@ -1,5 +1,6 @@
 <script setup lang="ts">
 /* Composables only work inside InkRoot, so these controls are their own component. */
+import { isInkError } from '@inkbar/core'
 import { useAnnotations, useDocument, useHistory } from '@inkbar/vue'
 import { ref } from 'vue'
 
@@ -19,6 +20,10 @@ async function suggest() {
     const found = await suggestRedactions(doc, annotations.value)
     for (const input of found) add(input)
     result.value = suggestionCount(found.length)
+  } catch (e) {
+    // Opening another file mid-run destroys the document; that is not a failure.
+    if (!(isInkError(e) && e.code === 'DocumentDestroyed'))
+      result.value = 'Could not check this document.'
   } finally {
     busy.value = false
   }

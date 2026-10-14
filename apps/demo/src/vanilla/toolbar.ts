@@ -2,6 +2,7 @@
  * The toolbar, by hand: tools, zoom, page, then Undo, Redo and Suggest redactions. It uses
  * the classes and data attributes of the bindings' DefaultToolbar, so the theme styles it.
  */
+import { isInkError, type InkDocument, type Readable } from '@inkbar/core'
 import {
   TOOL_LABELS,
   ZOOM_LEVELS,
@@ -23,9 +24,7 @@ import {
 
 import { suggestionCount, suggestRedactions } from '../shared/suggest'
 
-import { h } from './dom'
-
-import type { InkDocument, Readable } from '@inkbar/core'
+import { button, h } from './dom'
 
 const TOOLS: [ToolId, IconNode][] = [
   ['view', Hand],
@@ -162,12 +161,10 @@ export function createToolbar(
     `of ${count}`
   )
 
-  const undo = h('button', { type: 'button' }, 'Undo')
-  const redo = h('button', { type: 'button' }, 'Redo')
+  const undo = button('Undo', () => doc.history.undo())
+  const redo = button('Redo', () => doc.history.redo())
   const suggest = h('button', { type: 'button' }, 'Suggest redactions')
   const result = h('span', { class: 'demo-result', role: 'status' })
-  undo.addEventListener('click', () => doc.history.undo())
-  redo.addEventListener('click', () => doc.history.redo())
   watch(doc.history.canUndo, (can) => {
     undo.disabled = !can
   })
@@ -180,6 +177,11 @@ export function createToolbar(
       .then((found) => {
         for (const input of found) doc.annotations.add(input)
         result.textContent = suggestionCount(found.length)
+      })
+      .catch((e: unknown) => {
+        // Opening another file mid-run destroys the document; that is not a failure.
+        if (!(isInkError(e) && e.code === 'DocumentDestroyed'))
+          result.textContent = 'Could not check this document.'
       })
       .finally(() => {
         suggest.disabled = false
