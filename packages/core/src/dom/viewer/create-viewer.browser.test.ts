@@ -642,6 +642,61 @@ describe('createViewer', () => {
     expect(below || above).toBe(true)
   })
 
+  it('closes on Escape from inside the panel or the viewer, not from elsewhere on the page', async () => {
+    const { viewer } = make('text-simple')
+    const { doc } = await ready(viewer)
+    const note = doc.annotations.add({
+      type: 'note',
+      page: 0,
+      rect: { x: 100, y: 700, width: 20, height: 20 },
+      contents: 'Keep me',
+    })
+    await until(() => annotationEl(viewer, note.id) !== null)
+    activate(annotationEl(viewer, note.id)!)
+    const popover = notePopover()!
+    expect(isOpen(popover)).toBe(true)
+
+    // A host dialog elsewhere on the page owns this Escape.
+    const dialog = document.createElement('button')
+    document.body.append(dialog)
+    cleanup.push(() => dialog.remove())
+    key(dialog, 'Escape')
+    await settle()
+    expect(isOpen(popover)).toBe(true)
+
+    key(popover.querySelector('textarea')!, 'Escape')
+    await until(() => !isOpen(popover))
+  })
+
+  it('keeps the keyboard in the viewer while the anchor is gone and restores the draft focus', async () => {
+    const { viewer } = make('text-simple', { buffer: 0 })
+    const { doc } = await ready(viewer)
+    const note = doc.annotations.add({
+      type: 'note',
+      page: 0,
+      rect: { x: 100, y: 700, width: 20, height: 20 },
+      contents: 'Keep me',
+    })
+    await until(() => annotationEl(viewer, note.id) !== null)
+    activate(annotationEl(viewer, note.id)!)
+    const popover = notePopover()!
+    const textarea = popover.querySelector('textarea')!
+    textarea.focus()
+    await userEvent.keyboard('draft text')
+    expect(textarea.value).toBe('draft text')
+
+    const scroll = viewer.element.querySelector<HTMLElement>('[data-ink-scroll]')!
+    scroll.scrollTop = scroll.scrollHeight
+    await until(() => viewer.element.querySelector('.ink-page[data-page="0"]') === null)
+    await until(() => !isOpen(popover))
+    expect(focused()).toBe(scroll)
+
+    scroll.scrollTop = 0
+    await until(() => isOpen(popover))
+    await until(() => focused() === textarea)
+    expect(textarea.value).toBe('draft text')
+  })
+
   it('shows a page error in the page host and clears it on recovery', async () => {
     const { viewer } = make('text-simple')
     const { doc, engine } = await ready(viewer)
