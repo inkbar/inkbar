@@ -1,0 +1,26 @@
+:root {
+  --ink: #0d1026;
+  --paper: #f3f4f8;
+  --sheet: #ffffff;
+  --highlighter: #e4ff4a;
+  --ballpoint: #2740f5;
+  --body: #3a405c;
+  --caption: #555b75;
+  --line: #dadde8;
+  --strike: #d92d5b;
+  --ink-raised: #151935;
+  --ink-line: #2a2f4d;
+  --on-ink: #c9cee6;
+  --on-ink-muted: #a9afcb;
+  --viewer-ground: #e9ebf2;
+  --code-keyword: #9dabff;
+
+  --font-display: 'Urbanist Variable', system-ui, sans-serif;
+  --font-body: 'Open Sans Variable', system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
+
+  --radius-control: 10px;
+  --radius-card: 16px;
+  --content-width: 1200px;
+  --gutter: clamp(20px, 5vw, 48px);
+}

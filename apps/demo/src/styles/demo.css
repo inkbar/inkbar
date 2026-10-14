@@ -1,0 +1,169 @@
+@import './fonts.css';
+@import './tokens.css';
+@import './base.css';
+@import './chrome.css';
+
+/* The theme reads shadcn token names. Set on :root so portalled popovers inherit them too. */
+:root {
+  --background: var(--sheet);
+  --foreground: var(--ink);
+  --muted: var(--viewer-ground);
+  --muted-foreground: var(--caption);
+  --border: var(--line);
+  --primary: var(--ink);
+  --primary-foreground: #ffffff;
+  --ring: var(--ballpoint);
+  --radius: var(--radius-control);
+}
+
+.demo {
+  display: grid;
+  gap: 24px;
+  padding-block: 32px 24px;
+}
+/* Grid items default to min-width: auto, which lets a long code line widen the page. */
+.demo > *,
+.source-file {
+  min-width: 0;
+}
+.demo-intro {
+  display: grid;
+  gap: 12px;
+  max-width: 760px;
+}
+.demo-intro h1 {
+  font-size: clamp(34px, 4.5vw, 52px);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+.lede {
+  color: var(--body);
+  font-size: 18px;
+}
+.demo-file {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+.file-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius-control);
+  background: var(--sheet);
+  color: var(--ink);
+  font-weight: 600;
+  cursor: pointer;
+}
+.file-button:has(input:focus-visible) {
+  outline: 3px solid var(--ballpoint);
+  outline-offset: 2px;
+}
+.caption {
+  color: var(--caption);
+  font-size: 14px;
+}
+.demo-viewer {
+  height: min(78vh, 920px);
+  min-height: 480px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  background: var(--viewer-ground);
+}
+.demo-viewer[data-drop] {
+  outline: 3px dashed var(--ballpoint);
+  outline-offset: -3px;
+}
+
+/* Unlayered, so it beats the theme's layered default on the same element. */
+.demo-root {
+  --ink-highlight: #e4ff4a;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.demo-root .ink-viewport-root {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.demo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.demo-actions button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--sheet);
+  color: var(--ink);
+}
+.demo-actions button:disabled {
+  color: var(--caption);
+  cursor: default;
+}
+.demo-result {
+  color: var(--caption);
+  font-size: 14px;
+}
+
+/* The plain TypeScript page hides its popovers with `hidden`; the theme's layered display rule would win otherwise. */
+[data-ink-note-popover][hidden],
+[data-ink-suggestion-card][hidden] {
+  display: none;
+}
+
+.source summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.source-file {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+.source-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 16px;
+}
+.source-head h2 {
+  margin-right: auto;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 600;
+}
+.text-button {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--ballpoint);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
+}
+.source pre {
+  max-width: 100%;
+  margin: 0;
+  padding: 20px;
+  border-radius: var(--radius-card);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+}

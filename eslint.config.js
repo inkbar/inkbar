@@ -41,12 +41,22 @@ export default defineConfig(
       ],
       'tailwindcss/no-custom-classname': 'off',
       // Vite plugins provide `virtual:` modules; their types come from reference declarations.
-      'import-x/no-unresolved': ['error', { ignore: ['^virtual:'] }],
+      'import-x/no-unresolved': ['error', { ignore: ['^virtual:', '\\?highlight$'] }],
     },
   },
   {
+    name: 'inkbar/demo-highlight-imports',
+    // `?highlight` imports are resolved by a Vite plugin; ESLint sees one module under two queries.
+    files: ['apps/demo/src/**/*.{ts,tsx}'],
+    rules: { 'import-x/default': 'off', 'import-x/no-duplicates': 'off' },
+  },
+  {
     name: 'inkbar/react-hooks',
-    files: ['packages/react/**/*.{ts,tsx}', 'apps/sandbox-react/**/*.{ts,tsx}'],
+    files: [
+      'packages/react/**/*.{ts,tsx}',
+      'apps/sandbox-react/**/*.{ts,tsx}',
+      'apps/demo/src/react/**/*.{ts,tsx}',
+    ],
     plugins: { 'react-hooks': pluginReactHooks },
     // The React Compiler rules in the plugin's recommended set stay off: this package syncs an
     // external store into React from effects, which those rules flag by design.
