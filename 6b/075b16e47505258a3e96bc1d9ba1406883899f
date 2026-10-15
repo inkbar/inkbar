@@ -1,0 +1,35 @@
+packages/core/README.md
+  s_1ba44f8206a6a0::t_c462589767c395 1-6,8-25,54,216-219
+packages/svelte/README.md
+  s_1ba44f8206a6a0::t_c462589767c395 1-6,8-25,33,143,153-155
+README.md
+  s_1ba44f8206a6a0::t_65673f0b44306b 25,34,38
+  s_1ba44f8206a6a0::t_d1b0f04b4cbab1 42-49,86-92,121-127,169-178
+  s_1ba44f8206a6a0::t_7018b45ab56460 1-6,8,10-12,14-19,21-24,26-31,33,35-37,39-41,50-55,59,65-76,79-85,93-120,128-129,133-136,138-139,142-149,153-168,179-182,184,186,188,190,192,194
+packages/react/README.md
+  s_1ba44f8206a6a0::t_c462589767c395 1-6,8-25,33,129,139-141
+packages/theme/README.md
+  s_1ba44f8206a6a0::t_c462589767c395 1-6,8-25,77-79
+packages/vue/README.md
+  s_1ba44f8206a6a0::t_c462589767c395 1-6,8-25,33,100,110-112
+.github/assets/inkbar-mark-on-dark.svg
+  s_1ba44f8206a6a0::t_0cfb3f3180dd4d 1
+.github/assets/inkbar-mark-on-light.svg
+  s_1ba44f8206a6a0::t_2229ffe4e9a5cb 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6b075b16e47505258a3e96bc1d9ba1406883899f",
+  "prompts": {},
+  "sessions": {
+    "s_1ba44f8206a6a0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "931db655-f2f7-4e27-9f52-d1b9b3d8cd98",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
