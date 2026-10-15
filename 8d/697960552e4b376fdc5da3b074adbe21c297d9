@@ -1,0 +1,211 @@
+packages/svelte/vitest.config.ts
+  s_b00e6df5d038b9::t_49a8def2d06b2f 35
+apps/sandbox/src/vanilla/Demo.ts
+  s_b00e6df5d038b9::t_2f0e75f76878a4 4,11,13,15,30,32,79-82
+  s_b00e6df5d038b9::t_8171b2ad7af0a2 2-3,6-10,12,14,16-20,22-29,31,33-36,43-50,56-63,67-78,83-107,109
+  s_b00e6df5d038b9::t_493f5f4129136c 51-55
+apps/sandbox/src/react/Actions.tsx
+  s_b00e6df5d038b9::t_bfa63ea60a0f60 11,34
+packages/svelte/src/test/harness.css
+  s_b00e6df5d038b9::t_3f2c888ae15bff 9-11
+packages/svelte/src/test/ssr.test.ts
+  s_b00e6df5d038b9::t_df39365106ec8d 36-38
+  s_b00e6df5d038b9::t_4b7741a71ececb 44-45
+  s_b00e6df5d038b9::t_02c47025edf5b6 69
+packages/svelte/src/lib/index.ts
+  s_b00e6df5d038b9::t_4b7741a71ececb 49-51
+  s_b00e6df5d038b9::t_df39365106ec8d 35-39
+apps/e2e-vue/src/ReviewPage.vue
+  s_b00e6df5d038b9::t_4a49282861c782 20,22-24,27-28,30-32,236-241,256,261-269
+packages/vue/src/ssr.test.ts
+  s_b00e6df5d038b9::t_77f9e714b9def7 70-72
+  s_b00e6df5d038b9::t_960d39b4e28c78 58-59
+  s_b00e6df5d038b9::t_76d4daae747dd5 73-81
+packages/core/src/dom/index.ts
+  s_b00e6df5d038b9::t_396d1b11d0f921 65-69
+  s_b00e6df5d038b9::t_7f6136f6c78006 60-64,70-73
+packages/vue/src/index.ts
+  s_b00e6df5d038b9::t_0419bf2202451e 19-21
+  s_b00e6df5d038b9::t_1fd44e8bbe0f5b 27-28
+packages/vue/README.md
+  s_b00e6df5d038b9::t_4e9e3c8335f964 23,43-44,48-52,71-75,79,81-87
+  s_b00e6df5d038b9::t_c3450ca085c0a9 45-47,76-78,94
+  s_b00e6df5d038b9::t_768d3c6ad161f3 95
+packages/svelte/src/lib/components/InkPrevPage.svelte
+  s_b00e6df5d038b9::t_fce53da710d070 1-36
+packages/svelte/src/lib/components/InkRedo.svelte
+  s_b00e6df5d038b9::t_e5de0afecae46c 1-36
+packages/react/src/components/history-button.ts
+  s_b00e6df5d038b9::t_57edfe28826dd0 1-6
+packages/react/src/components/Toolbar.ct.tsx
+  s_b00e6df5d038b9::t_b6a976fcdb8957 61-65,67-68,71-74,80-86,93,96-134,271
+  s_b00e6df5d038b9::t_86bfdee405c8e1 57-58,245-270
+packages/vue/src/components/InkRedo.vue
+  s_b00e6df5d038b9::t_0419bf2202451e 1-26
+packages/react/src/ssr.test.ts
+  s_b00e6df5d038b9::t_86bfdee405c8e1 53-55
+  s_b00e6df5d038b9::t_71620d5a331046 77-92
+  s_b00e6df5d038b9::t_d3c226b18e325d 61-62
+packages/react/src/components/InkToolbarSeparator.tsx
+  s_b00e6df5d038b9::t_57edfe28826dd0 1-21
+packages/svelte/src/lib/components/page-button.ts
+  s_b00e6df5d038b9::t_fce53da710d070 1-10
+packages/react/src/components/page-button.ts
+  s_b00e6df5d038b9::t_d3c226b18e325d 1-6
+packages/react/src/components/InkRedo.tsx
+  s_b00e6df5d038b9::t_57edfe28826dd0 1-34
+packages/svelte/src/lib/components/InkUndo.svelte
+  s_b00e6df5d038b9::t_e5de0afecae46c 1-36
+packages/core/src/dom/viewer/controls.ts
+  s_b00e6df5d038b9::t_3a43ed8bfd63f7 49,52,54-58,128-132
+  s_b00e6df5d038b9::t_53b815f9221ae0 2-5,7-9,19,21-48,61-75,108,110-120,122-127,134-149,151-152,154,163-167,169-197,199-204,212-216,218,220,223-224,227,229-243,248-250,252-255,257-260,262-265,267-282
+  s_b00e6df5d038b9::t_396d1b11d0f921 76,78-86,88-105,107
+packages/svelte/src/test/Toolbar.browser.test.ts
+  s_b00e6df5d038b9::t_83421341ce4c8e 19-25,66-73,75-78,85-87,94,97-132,269
+  s_b00e6df5d038b9::t_df39365106ec8d 60-61,248-268
+packages/react/src/components/InkUndo.tsx
+  s_b00e6df5d038b9::t_57edfe28826dd0 1-34
+apps/sandbox/src/vanilla/actions.ts
+  s_b00e6df5d038b9::t_2f0e75f76878a4 1,24-25,30,32
+packages/svelte/src/lib/components/InkNextPage.svelte
+  s_b00e6df5d038b9::t_fce53da710d070 1-2,4,6,8,13-17,19,22-33,35-36
+apps/e2e-react/src/ReviewPage.tsx
+  s_b00e6df5d038b9::t_5466ab935e1fde 20,22-24,27-28,30-32,272-277,298,303-311
+README.md
+  s_b00e6df5d038b9::t_8a97762b7b0622 84,90-91,95-99,110-114,118,120-126
+  s_b00e6df5d038b9::t_4e9e3c8335f964 25
+  s_b00e6df5d038b9::t_bfe61cf35f03f3 34
+  s_b00e6df5d038b9::t_c3450ca085c0a9 92-94,115-117,149-151
+packages/vue/src/components/InkPrevPage.vue
+  s_b00e6df5d038b9::t_1fd44e8bbe0f5b 1-28
+packages/core/src/dom/tree-shake.test.ts
+  s_b00e6df5d038b9::t_febfa4ad5ff970 38-40,43
+  s_b00e6df5d038b9::t_47af99bef3e7b8 2,41-42,46
+  s_b00e6df5d038b9::t_2ae70ce9843956 53-56
+packages/core/README.md
+  s_b00e6df5d038b9::t_47af99bef3e7b8 23,58,61-70,75-77,81-93
+  s_b00e6df5d038b9::t_bfe61cf35f03f3 100
+packages/svelte/src/lib/components/InkToolbarSeparator.svelte
+  s_b00e6df5d038b9::t_e5de0afecae46c 1-18
+packages/react/src/components/InkPrevPage.tsx
+  s_b00e6df5d038b9::t_d3c226b18e325d 1-34
+apps/sandbox/src/svelte/Demo.svelte
+  s_b00e6df5d038b9::t_df39365106ec8d 14-18,20-22,24-32,62-64
+  s_b00e6df5d038b9::t_4b7741a71ececb 66,68-80
+  s_b00e6df5d038b9::t_49a8def2d06b2f 49-60
+  s_b00e6df5d038b9::t_e944f9f555b6a2 2-5,7,9-11,33-34,46-48,61
+packages/svelte/src/test/harness/ToolbarHarness.svelte
+  s_b00e6df5d038b9::t_df39365106ec8d 6,9,11,17,40-42,57
+  s_b00e6df5d038b9::t_a9deb279663b4c 2-5,8,10,13-15,34-39,43,48-56
+  s_b00e6df5d038b9::t_769bb45ecb29c7 16
+packages/vue/src/components/InkNextPage.vue
+  s_b00e6df5d038b9::t_1fd44e8bbe0f5b 2-3,5,7-15,19-27
+packages/svelte/src/lib/components/history-button.ts
+  s_b00e6df5d038b9::t_e5de0afecae46c 1-10
+packages/react/src/components/InkZoomSelect.tsx
+  s_b00e6df5d038b9::t_d3c226b18e325d 3,8,12,14-19,21-22,25-29,43-47,58-65,71-79,94-115
+  s_b00e6df5d038b9::t_71620d5a331046 30-42,80
+  s_b00e6df5d038b9::t_9c727a2bad1f1a 81-93
+  s_b00e6df5d038b9::t_16b28ca24bce1c 1
+packages/vue/src/components/InkUndo.vue
+  s_b00e6df5d038b9::t_0419bf2202451e 1-26
+packages/vue/playwright/harness/ToolbarHarness.vue
+  s_b00e6df5d038b9::t_2095f14a4690c1 2-5,8,10,13-15,33-38,42,45-53
+  s_b00e6df5d038b9::t_1164ea614e338f 6,9,11,17,39-41,54
+  s_b00e6df5d038b9::t_55b12b39bc041a 16
+packages/vue/src/components/InkToolbarSeparator.vue
+  s_b00e6df5d038b9::t_9d749bb541eac2 2,6-11
+  s_b00e6df5d038b9::t_0419bf2202451e 1,3-5,12
+packages/svelte/README.md
+  s_b00e6df5d038b9::t_c3450ca085c0a9 44-46,71-73
+  s_b00e6df5d038b9::t_91fbbbf12c6e8c 23,42-43,47-53,67-70,74,76-84,90,174
+apps/sandbox/src/react/Demo.tsx
+  s_b00e6df5d038b9::t_5466ab935e1fde 2,4-6,10,12,15-17,20-26,28,30-32,39-42,46-63,72,74-94
+  s_b00e6df5d038b9::t_bfa63ea60a0f60 7,11,13,27,29,64-70
+packages/react/README.md
+  s_b00e6df5d038b9::t_8a97762b7b0622 23,42-43,47-51,74-78,82,84-90,99,159
+  s_b00e6df5d038b9::t_c3450ca085c0a9 44-46,79-81
+  s_b00e6df5d038b9::t_25b710cca47859 98
+apps/e2e-shared/e2e/review.spec.ts
+  s_b00e6df5d038b9::t_b5c640e4c4c150 89-94,143
+packages/react/playwright/harness/ToolbarHarness.tsx
+  s_b00e6df5d038b9::t_5466ab935e1fde 1-4,7,9,12-14,32-37,41,46-54
+  s_b00e6df5d038b9::t_86bfdee405c8e1 5,8,10,16,38-40,55
+  s_b00e6df5d038b9::t_8bda4d34a6f1bd 15
+apps/sandbox/src/shell/frameworks.ts
+  s_b00e6df5d038b9::t_57ebe32d813228 15,21,27,33
+apps/sandbox/src/styles/framework.css
+  s_b00e6df5d038b9::t_e79ef6b7c276ee 178-194
+  s_b00e6df5d038b9::t_dc1e8522ee5ffb 300-304
+packages/vue/src/components/InkZoomSelect.vue
+  s_b00e6df5d038b9::t_838696423bfeac 45-48,52-58,96-98,102,121-123,127
+  s_b00e6df5d038b9::t_62548015e47b72 49-50,66
+  s_b00e6df5d038b9::t_16b28ca24bce1c 2
+  s_b00e6df5d038b9::t_627d78339470d3 4-16,38-39,44,51,62-65,67-69,84-95,99-101,103,117-120,124-126,128,142-147
+  s_b00e6df5d038b9::t_76d4daae747dd5 70-83,104-116,129-141
+apps/e2e-svelte/src/ReviewPage.svelte
+  s_b00e6df5d038b9::t_4b7741a71ececb 260,265-273
+  s_b00e6df5d038b9::t_3ff5c6f5af7c82 21,23-25,28-29,31-33,240-245
+apps/sandbox/package.json
+  s_b00e6df5d038b9::t_b875b06472705c 25-26
+  s_b00e6df5d038b9::t_b2feb14b01e631 24,27
+packages/svelte/src/lib/components/InkZoomSelect.svelte
+  s_b00e6df5d038b9::t_16b28ca24bce1c 9
+  s_b00e6df5d038b9::t_8765287a128380 46-47,59,67
+  s_b00e6df5d038b9::t_bbdb6809e38c78 57-58,63
+  s_b00e6df5d038b9::t_c799b707152c30 69-82,108-120
+  s_b00e6df5d038b9::t_61de0fcb12bb02 2,4-5,11,15-16,20-23,25,39-45,48-50,60-62,64-66,68,83-92,98-107,121-124,126-129
+  s_b00e6df5d038b9::t_ddbcac3b47a6d9 93-97,125
+packages/theme/README.md
+  s_b00e6df5d038b9::t_bfe61cf35f03f3 77
+  s_b00e6df5d038b9::t_76523c3437ca29 23,78-84
+  s_b00e6df5d038b9::t_0667ce91362228 85
+packages/react/src/components/InkNextPage.tsx
+  s_b00e6df5d038b9::t_d3c226b18e325d 1,4,6,8-9,12-16,18-29,31-32
+packages/core/src/dom/viewer/create-viewer.browser.test.ts
+  s_b00e6df5d038b9::t_bc1a52e667b8c8 7-20,127,137,263,266-268,270-273,337,344,347,355,363,367,383,385,387,392,405-406,427,430,457-475,876-896
+  s_b00e6df5d038b9::t_febfa4ad5ff970 274,276-287,291-292,301,305-309,318,322,326,328,396,401,408-409,417-426
+  s_b00e6df5d038b9::t_0e3bf03b513cff 444-448
+  s_b00e6df5d038b9::t_a9785adb6ddd46 428-429,431-443,449-456
+packages/theme/theme.css
+  s_b00e6df5d038b9::t_6d6bd15f8db20c 395-401
+  s_b00e6df5d038b9::t_c6411732db7d6d 365-369,374,384-385,418,459
+  s_b00e6df5d038b9::t_ff44073dd6d211 15-20,54-55,74-75,416-417,428,430-437,444-458,460-481,483-513,518-559,644-647,656
+  s_b00e6df5d038b9::t_16b28ca24bce1c 482
+  s_b00e6df5d038b9::t_54644fa083fa30 514-517
+packages/svelte/src/test/harness/SsrHost.svelte
+  s_b00e6df5d038b9::t_a9deb279663b4c 2,4-6,9-10,12-14,23-25,27-35
+apps/sandbox/src/vue/Actions.vue
+  s_b00e6df5d038b9::t_57ebe32d813228 11,36
+packages/core/src/dom/viewer/create-viewer.ts
+  s_b00e6df5d038b9::t_0d7ab339ccee4b 2-4,27-28,56-61,91-92,178-182,217-218,292-293
+packages/vue/src/components/Toolbar.ct.ts
+  s_b00e6df5d038b9::t_1164ea614e338f 51-52,165-188
+  s_b00e6df5d038b9::t_2a0a873998f51b 55-59,61-62,65-68,72-78,85,88-122,189
+apps/sandbox/src/vue/Demo.vue
+  s_b00e6df5d038b9::t_c73e642f0a4f04 2-5,7,9-11,15,17,20-22,24-30,32,34-36,49-64,69,71-83
+  s_b00e6df5d038b9::t_57ebe32d813228 12,16,18,31,33,65-67
+packages/react/src/index.ts
+  s_b00e6df5d038b9::t_86bfdee405c8e1 31-35
+  s_b00e6df5d038b9::t_d3c226b18e325d 44-46
+apps/sandbox/src/svelte/Actions.svelte
+  s_b00e6df5d038b9::t_df39365106ec8d 34
+pnpm-lock.yaml
+  s_b00e6df5d038b9::t_3a5af54d809fe0 428-439,3482-3484,7310-7311
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8d697960552e4b376fdc5da3b074adbe21c297d9",
+  "prompts": {},
+  "sessions": {
+    "s_b00e6df5d038b9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "382703c2-4aa2-4e14-bde7-bff7e9b0fe89",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": null
+    }
+  }
+}
