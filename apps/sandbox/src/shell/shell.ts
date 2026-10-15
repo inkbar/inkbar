@@ -11,7 +11,7 @@ import { LOGO_SVG } from './logo'
 import type { DocumentSource } from '@inkbar/core'
 
 export interface SourceFile {
-  /** Relative to `apps/demo/`. */
+  /** Relative to `apps/sandbox/`. */
   path: string
   source: { html: string; code: string }
 }
@@ -36,7 +36,7 @@ function fileSection(file: SourceFile, index: number): string {
   <div class="source-head">
     <h2>${name}</h2>
     <button type="button" class="text-button" data-copy="${index}">Copy</button>
-    <a class="text-link" href="${REPO}/blob/main/apps/demo/${file.path}">View on GitHub</a>
+    <a class="text-link" href="${REPO}/blob/main/apps/sandbox/${file.path}">View on GitHub</a>
   </div>
   ${file.source.html}
 </section>`
@@ -44,12 +44,12 @@ function fileSection(file: SourceFile, index: number): string {
 
 export function startShell(opts: ShellOptions): void {
   const fw = FRAMEWORKS[opts.framework]
-  document.title = `${fw.name} · Inkbar demo`
+  document.title = `${fw.name} · Inkbar sandbox`
   const app = document.getElementById('app')!
   app.innerHTML = `
 <header class="site-header">
   <div class="container site-header-inner">
-    <a class="brand" href="${BASE}">${LOGO_SVG}<span class="wordmark">inkbar</span><span class="visually-hidden"> demo home</span></a>
+    <a class="brand" href="${BASE}">${LOGO_SVG}<span class="wordmark">inkbar</span><span class="visually-hidden"> sandbox home</span></a>
     <nav aria-label="Frameworks">
       <ul class="frameworks">
         ${FRAMEWORK_ORDER.map(

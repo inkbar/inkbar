@@ -46,15 +46,15 @@ export default defineConfig(
     },
   },
   {
-    name: 'inkbar/demo-highlight-imports',
+    name: 'inkbar/sandbox-highlight-imports',
     // A Vite plugin resolves `?highlight` imports; ESLint cannot see their default export.
     // Only each page's entry file imports them.
-    files: ['apps/demo/src/*/main.{ts,tsx}'],
+    files: ['apps/sandbox/src/*/main.{ts,tsx}'],
     rules: { 'import-x/default': 'off' },
   },
   {
-    name: 'inkbar/demo-query-imports',
-    files: ['apps/demo/src/**/*.{ts,tsx}'],
+    name: 'inkbar/sandbox-query-imports',
+    files: ['apps/sandbox/src/**/*.{ts,tsx}'],
     rules: { 'import-x/no-duplicates': ['error', { considerQueryString: true }] },
   },
   {
@@ -62,7 +62,7 @@ export default defineConfig(
     files: [
       'packages/react/**/*.{ts,tsx}',
       'apps/e2e-react/**/*.{ts,tsx}',
-      'apps/demo/src/react/**/*.{ts,tsx}',
+      'apps/sandbox/src/react/**/*.{ts,tsx}',
     ],
     plugins: { 'react-hooks': pluginReactHooks },
     // The React Compiler rules in the plugin's recommended set stay off: this package syncs an
@@ -111,7 +111,7 @@ export default defineConfig(
     files: [
       'packages/svelte/src/test/**/*.ts',
       'apps/e2e-svelte/**/*.ts',
-      'apps/demo/src/svelte/**/*.ts',
+      'apps/sandbox/src/svelte/**/*.ts',
     ],
     rules: {
       '@typescript-eslint/no-unsafe-assignment': 'off',

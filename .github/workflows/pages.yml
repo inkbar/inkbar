@@ -25,13 +25,11 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec turbo run build --filter=@inkbar/demo...
-        env:
-          DEMO_BASE: /inkbar/
+      - run: pnpm exec turbo run build --filter=@inkbar/sandbox...
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: apps/demo/dist
+          path: apps/sandbox/dist
 
   deploy:
     needs: build

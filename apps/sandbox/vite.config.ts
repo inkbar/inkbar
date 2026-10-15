@@ -13,8 +13,9 @@ import { samplePdf } from './vite/sample.ts'
 const entry = (path: string): string => fileURLToPath(new URL(path, import.meta.url))
 
 export default defineConfig({
-  // `/inkbar/` on GitHub Pages; the Pages workflow and the end-to-end suite set it.
-  base: process.env.DEMO_BASE ?? '/',
+  // The site is served from the root of sandbox.inkbar.dev. The end-to-end suite sets a
+  // sub-path to catch URLs that ignore the base.
+  base: process.env.SANDBOX_BASE ?? '/',
   plugins: [
     react({ include: /\/src\/react\// }),
     vue(),
