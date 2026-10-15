@@ -3,6 +3,13 @@
   "version": "0.1.0",
   "description": "PDF document model, rendering and annotations for the browser. No framework.",
   "license": "MIT",
+  "homepage": "https://inkbar.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/inkbar/inkbar.git",
+    "directory": "packages/core"
+  },
+  "bugs": "https://github.com/inkbar/inkbar/issues",
   "type": "module",
   "sideEffects": false,
   "files": [
