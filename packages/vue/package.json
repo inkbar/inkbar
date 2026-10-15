@@ -1,6 +1,6 @@
 {
   "name": "@inkbar/vue",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Vue 3 components and composables for Inkbar, the browser PDF viewer and editor.",
   "license": "MIT",
   "homepage": "https://inkbar.dev",

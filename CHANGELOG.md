@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.0](https://github.com/inkbar/inkbar/compare/v0.1.1...v0.2.0) (2026-10-15)
+
+
+### Features
+
+* replace the default toolbar with composable toolbar controls ([#113](https://github.com/inkbar/inkbar/issues/113)) ([601bad9](https://github.com/inkbar/inkbar/commit/601bad9fb3867a6ebf848fea384a75173dc554c0))
+
+
+### Bug Fixes
+
+* credit Lucide for the zoom select chevron in the theme licence ([#115](https://github.com/inkbar/inkbar/issues/115)) ([cfa4dff](https://github.com/inkbar/inkbar/commit/cfa4dff593019479f98a98ef17df255d00c5c04d))
+* ship the licence file in every package ([#112](https://github.com/inkbar/inkbar/issues/112)) ([1696a69](https://github.com/inkbar/inkbar/commit/1696a69669d2445d83f7f9332efacf92da73e5e2))
+
 ## [0.1.1](https://github.com/inkbar/inkbar/compare/v0.1.0...v0.1.1) (2026-10-15)
 
 
