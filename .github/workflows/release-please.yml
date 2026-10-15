@@ -1,0 +1,37 @@
+name: release-please
+
+# Keeps a release PR open that bumps the version of all five packages together
+# and writes CHANGELOG.md from the conventional commits since the last tag.
+# Merging it tags the commit and publishes the GitHub release, which starts
+# release.yml.
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      # The App's token, unlike GITHUB_TOKEN, starts CI on the release PR and
+      # starts release.yml on the release it publishes.
+      - name: Mint App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.IB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.IB_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          permission-contents: write
+          permission-pull-requests: write
+      - uses: googleapis/release-please-action@v5
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
