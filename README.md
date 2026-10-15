@@ -52,6 +52,7 @@ Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, sh
 
 - **Forms.** Read and fill form fields in the viewer.
 - **Search.** Find text across the document.
+- **Drawing tools.** Draw freehand ink, shapes, lines and text boxes. Ink, shapes and lines already display from imported data.
 - **Saving into the PDF.** Write annotations and applied redactions back into the file. Until then, store `exportAnnotations('json')` and load it on the next open.
 
 ## Install
