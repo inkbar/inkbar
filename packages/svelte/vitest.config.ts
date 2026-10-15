@@ -32,22 +32,7 @@ export default defineConfig({
         // `pdfjs-dist/...` subpaths by prefix.
         resolve: { alias: [{ find: /^pdfjs-dist$/, replacement: pdfjs }] },
         optimizeDeps: {
-          include: [
-            'pdfjs-dist',
-            'esm-env',
-            'bits-ui',
-            // DefaultToolbar imports each icon from its own module: a new icon there needs its
-            // path here too (src/lib/compositions/DefaultToolbar.svelte).
-            ...[
-              'hand',
-              'highlighter',
-              'message-square',
-              'mouse-pointer-2',
-              'square',
-              'zoom-in',
-              'zoom-out',
-            ].map((icon) => `@lucide/svelte/icons/${icon}`),
-          ],
+          include: ['pdfjs-dist', 'esm-env', 'bits-ui', '@inkbar/icons'],
         },
         test: {
           name: 'browser',

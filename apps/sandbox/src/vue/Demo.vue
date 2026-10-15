@@ -1,11 +1,26 @@
 <script setup lang="ts">
-/* Uncontrolled: the document keeps its own annotations and undo history. */
+/*
+ * Uncontrolled: the document keeps its own annotations and undo history. The toolbars are
+ * built from Inkbar's components, so each control is yours to keep, move or drop. Pass a
+ * button your own icon to replace the one it shows.
+ */
 import {
-  DefaultToolbar,
+  InkNextPage,
   InkNotePopover,
+  InkPageCount,
+  InkPageInput,
+  InkPrevPage,
+  InkRedo,
   InkRoot,
   InkSuggestionCard,
+  InkToolbar,
+  InkToolbarSeparator,
+  InkToolButton,
+  InkUndo,
   InkViewport,
+  InkZoomIn,
+  InkZoomOut,
+  InkZoomSelect,
 } from '@inkbar/vue'
 import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
@@ -19,10 +34,33 @@ defineProps<{ source: DocumentSource }>()
 
 <template>
   <InkRoot :src="source" :assets="assets" class="demo-root">
-    <DefaultToolbar>
+    <InkToolbar class="demo-toolbar">
+      <div class="demo-group" role="group" aria-label="Tools">
+        <InkToolButton tool="view" />
+        <InkToolButton tool="select" />
+        <InkToolButton tool="highlight" />
+        <InkToolButton tool="redact-area" />
+        <InkToolButton tool="note" />
+      </div>
+      <InkToolbarSeparator />
+      <InkUndo />
+      <InkRedo />
       <Actions />
-    </DefaultToolbar>
+    </InkToolbar>
     <InkViewport />
+    <InkToolbar label="Page and zoom" class="demo-status-bar">
+      <div class="demo-group" role="group" aria-label="Page">
+        <InkPrevPage />
+        <InkPageInput />
+        <InkPageCount />
+        <InkNextPage />
+      </div>
+      <div class="demo-group demo-zoom" role="group" aria-label="Zoom">
+        <InkZoomOut />
+        <InkZoomSelect />
+        <InkZoomIn />
+      </div>
+    </InkToolbar>
     <InkNotePopover />
     <InkSuggestionCard />
   </InkRoot>

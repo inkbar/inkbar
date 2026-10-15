@@ -1,10 +1,22 @@
 import { TOOL_LABELS, type ToolId } from '@inkbar/core/dom'
+import { Hand, Highlighter, MessageSquare, MousePointer2, Square } from '@inkbar/icons'
 import { Toolbar } from 'radix-ui'
 
 import { cx } from '../class-names'
 import { useTool } from '../hooks/useTool'
 
+import { InkIcon } from './InkIcon'
+
+import type { IconNode } from '@inkbar/icons'
 import type { ComponentPropsWithoutRef, ReactNode } from 'react'
+
+const ICONS: Readonly<Record<ToolId, IconNode>> = {
+  view: Hand,
+  select: MousePointer2,
+  highlight: Highlighter,
+  'redact-area': Square,
+  note: MessageSquare,
+}
 
 export interface InkToolButtonProps extends Omit<
   ComponentPropsWithoutRef<'button'>,
@@ -46,7 +58,7 @@ export function InkToolButton({
     >
       {typeof children === 'function'
         ? children({ active, label: name })
-        : (children ?? name)}
+        : (children ?? <InkIcon icon={ICONS[tool]} />)}
     </Toolbar.Button>
   )
 }

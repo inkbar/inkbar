@@ -20,7 +20,7 @@
 
 ---
 
-Drop a PDF viewer into your React app and let people highlight text, leave notes with replies and review redactions. `@inkbar/react` gives you a default toolbar and popovers styled by `@inkbar/theme`, plus the unstyled components and hooks they are made from, so you can keep the defaults or build your own UI.
+Drop a PDF viewer into your React app and let people highlight text, leave notes with replies and review redactions. `@inkbar/react` gives you components and hooks to build your own toolbars, plus note and suggestion popovers, all styled by `@inkbar/theme`.
 
 Annotations are plain typed objects. Control them from your own state, or let Inkbar hold them with undo and redo.
 
@@ -39,7 +39,16 @@ import { useState } from 'react'
 import {
   InkRoot,
   InkViewport,
-  DefaultToolbar,
+  InkToolbar,
+  InkToolButton,
+  InkToolbarSeparator,
+  InkUndo,
+  InkRedo,
+  InkPrevPage,
+  InkPageInput,
+  InkPageCount,
+  InkNextPage,
+  InkZoomSelect,
   InkNotePopover,
   InkSuggestionCard,
 } from '@inkbar/react'
@@ -62,14 +71,31 @@ export function Review({
       annotations={annotations}
       onAnnotationsChange={setAnnotations}
     >
-      <DefaultToolbar />
+      <InkToolbar>
+        <InkToolButton tool="select" />
+        <InkToolButton tool="highlight" />
+        <InkToolButton tool="redact-area" />
+        <InkToolButton tool="note" />
+        <InkToolbarSeparator />
+        <InkUndo />
+        <InkRedo />
+      </InkToolbar>
       <InkViewport />
+      <InkToolbar label="Page and zoom">
+        <InkPrevPage />
+        <InkPageInput />
+        <InkPageCount />
+        <InkNextPage />
+        <InkZoomSelect />
+      </InkToolbar>
       <InkNotePopover />
       <InkSuggestionCard />
     </InkRoot>
   )
 }
 ```
+
+Each control is a separate component, so put them in any order or leave some out. Buttons show icons from `@inkbar/icons`. Pass your own as `children` to replace one, and use `InkIcon` to put the same icons on your own buttons.
 
 `annotations` with `onAnnotationsChange` makes your list the source of truth. Leave them off and Inkbar keeps the state itself, with undo and redo.
 
@@ -130,7 +156,7 @@ The scroll element takes focus. With the highlight or redact tool active, `Enter
 
 ## Styling
 
-Components carry state on data attributes, for example `[data-annotation][data-state="selected"]` and `[data-tool="highlight"][data-state="on"]`. `@inkbar/theme` gives a default look. Your own CSS overrides it without `!important`. `InkRoot`, `InkViewport`, `DefaultToolbar` and the toolbar controls accept `className`.
+Components carry state on data attributes, for example `[data-annotation][data-state="selected"]` and `[data-tool="highlight"][data-state="on"]`. `@inkbar/theme` gives a default look. Your own CSS overrides it without `!important`. `InkRoot`, `InkViewport`, `InkToolbar` and the toolbar controls accept `className`.
 
 ## Hooks
 

@@ -33,12 +33,16 @@ describe('@inkbar/svelte on the server', () => {
         'InkAnnotation',
         'InkToolbar',
         'InkToolButton',
+        'InkToolbarSeparator',
+        'InkUndo',
+        'InkRedo',
         'InkZoomIn',
         'InkZoomOut',
         'InkZoomSelect',
         'InkPageInput',
         'InkPageCount',
-        'DefaultToolbar',
+        'InkPrevPage',
+        'InkNextPage',
         'InkNotePopover',
         'InkSuggestionCard',
         'useInkContext',
@@ -62,6 +66,7 @@ describe('@inkbar/svelte on the server', () => {
     expect(body).toContain('<p>slot</p>')
     expect(body).toContain('data-ink-toolbar')
     expect(body).toContain('aria-label="Document tools"')
+    expect(body).toContain('aria-label="Page and zoom"')
     expect(body).toContain('data-ink-viewport-root')
     // Once on the root and once on the viewport, which renders its empty scroll element.
     expect(body.match(/data-state="idle"/g)).toHaveLength(2)

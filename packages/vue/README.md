@@ -20,7 +20,7 @@
 
 ---
 
-Drop a PDF viewer into your Vue app and let people highlight text, leave notes with replies and review redactions. `@inkbar/vue` gives you a default toolbar and popovers styled by `@inkbar/theme`, plus the unstyled components and composables they are made from, so you can keep the defaults or build your own UI.
+Drop a PDF viewer into your Vue app and let people highlight text, leave notes with replies and review redactions. `@inkbar/vue` gives you components and composables to build your own toolbars, plus note and suggestion popovers, all styled by `@inkbar/theme`.
 
 Annotations are plain typed objects. Bind them with `v-model` to keep them in your own state, or let Inkbar hold them with undo and redo.
 
@@ -40,7 +40,16 @@ import { ref } from 'vue'
 import {
   InkRoot,
   InkViewport,
-  DefaultToolbar,
+  InkToolbar,
+  InkToolButton,
+  InkToolbarSeparator,
+  InkUndo,
+  InkRedo,
+  InkPrevPage,
+  InkPageInput,
+  InkPageCount,
+  InkNextPage,
+  InkZoomSelect,
   InkNotePopover,
   InkSuggestionCard,
 } from '@inkbar/vue'
@@ -59,13 +68,30 @@ const annotations = ref<Annotation[]>([])
     :assets="assets"
     v-model:annotations="annotations"
   >
-    <DefaultToolbar />
+    <InkToolbar>
+      <InkToolButton tool="select" />
+      <InkToolButton tool="highlight" />
+      <InkToolButton tool="redact-area" />
+      <InkToolButton tool="note" />
+      <InkToolbarSeparator />
+      <InkUndo />
+      <InkRedo />
+    </InkToolbar>
     <InkViewport />
+    <InkToolbar label="Page and zoom">
+      <InkPrevPage />
+      <InkPageInput />
+      <InkPageCount />
+      <InkNextPage />
+      <InkZoomSelect />
+    </InkToolbar>
     <InkNotePopover />
     <InkSuggestionCard />
   </InkRoot>
 </template>
 ```
+
+Each control is a separate component, so put them in any order or leave some out. Buttons show icons from `@inkbar/icons`. Put your own in a button's default slot to replace one, and use `InkIcon` to put the same icons on your own buttons.
 
 `v-model:annotations` makes your list the source of truth. Leave it off and Inkbar keeps the state itself, with undo and redo.
 

@@ -12,25 +12,25 @@ export const FRAMEWORKS: Record<FrameworkId, Framework> = {
   react: {
     name: 'React',
     blurb:
-      '@inkbar/react supplies the viewer, toolbar and popovers as components. Undo, Redo and Suggest redactions use its hooks.',
+      '@inkbar/react supplies the viewer, toolbar controls and popovers as components. Suggest redactions is a custom control built on its hooks.',
     install: 'pnpm add @inkbar/react @inkbar/core @inkbar/theme',
   },
   vue: {
     name: 'Vue',
     blurb:
-      '@inkbar/vue supplies the viewer, toolbar and popovers as components. Undo, Redo and Suggest redactions use its composables.',
+      '@inkbar/vue supplies the viewer, toolbar controls and popovers as components. Suggest redactions is a custom control built on its composables.',
     install: 'pnpm add @inkbar/vue @inkbar/core @inkbar/theme',
   },
   svelte: {
     name: 'Svelte',
     blurb:
-      '@inkbar/svelte supplies the viewer, toolbar and popovers as components. Undo, Redo and Suggest redactions use its hooks.',
+      '@inkbar/svelte supplies the viewer, toolbar controls and popovers as components. Suggest redactions is a custom control built on its hooks.',
     install: 'pnpm add @inkbar/svelte @inkbar/core @inkbar/theme',
   },
   vanilla: {
     name: 'TypeScript',
     blurb:
-      'No framework. createViewer from @inkbar/core/dom renders the viewer, toolbar and popovers. Undo, Redo and Suggest redactions are added in actions.ts.',
+      'No framework. createViewer from @inkbar/core/dom renders the viewer and popovers, and its controls build the toolbars. Suggest redactions is a custom control in actions.ts.',
     install: 'pnpm add @inkbar/core @inkbar/theme',
   },
 }

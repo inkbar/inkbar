@@ -1,7 +1,7 @@
 /*
- * A complete viewer without a framework: opens a document, mounts the engine and renders a
- * default toolbar, note thread and suggestion card around it, with the bindings' markup so
- * `@inkbar/theme` styles it unchanged. Each piece of UI can be left out.
+ * A viewer without a framework: opens a document, mounts the engine and renders the note
+ * thread and suggestion card, with the bindings' markup so `@inkbar/theme` styles it
+ * unchanged. Toolbars are the host's, built from the controls in ./controls.
  */
 import {
   cssVariableDefaults,
@@ -21,10 +21,11 @@ import { mountViewer, type MountViewerOptions, type ViewerEngine } from '../view
 import { h } from './dom'
 import { createNotePopover } from './note-popover'
 import { createSuggestionCard } from './suggestion-card'
-import { createToolbar } from './toolbar'
 
 import type { DocumentSource } from '../../model/source'
 import type { PdfAssets } from '../../pdfjs/types'
+import type { ToolController } from '../tools'
+import type { Viewport } from '../viewport'
 
 export interface CreateViewerOptions extends Omit<
   MountViewerOptions,
@@ -37,8 +38,6 @@ export interface CreateViewerOptions extends Omit<
   /** Default: read from the theme's CSS variables on the viewer root. */
   defaults?: AnnotationDefaults
   history?: OpenOptions['history']
-  /** Default toolbar: tools, zoom, page. `false` leaves it out. */
-  toolbar?: boolean
   /** Note thread popover. Default true. */
   notes?: boolean
   /** Suggested-redaction card. Default true. */
@@ -54,8 +53,12 @@ export interface Viewer {
   readonly document: Readable<InkDocument | null>
   /** Set while a document is ready; `null` otherwise. */
   readonly engine: Readable<ViewerEngine | null>
-  /** The toolbar element, for adding controls. `null` when `toolbar: false`. */
-  readonly toolbar: HTMLElement | null
+  /**
+   * The current viewport and tool controller; `null` while no document is ready. Both change
+   * when the engine rebuilds, so read them here rather than holding on to `engine.viewport`.
+   */
+  readonly viewport: Readable<Viewport | null>
+  readonly tools: Readable<ToolController | null>
   /**
    * Opens another document in place; the previous one is destroyed. Latest call wins.
    * `password` is used for this load only; without it, the constructor's `password` applies.
@@ -71,7 +74,6 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     password,
     defaults,
     history,
-    toolbar: withToolbar = true,
     notes: withNotes = true,
     suggestions: withSuggestions = true,
     onReady,
@@ -86,6 +88,8 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   const status = writable<InkStatus>({ state: 'idle' })
   const current = writable<InkDocument | null>(null)
   const engine = writable<ViewerEngine | null>(null)
+  const viewport = writable<Viewport | null>(null)
+  const tools = writable<ToolController | null>(null)
   /** The activated annotation: the note thread and the suggestion card open from it. */
   const activated = writable<string | null>(null)
 
@@ -102,8 +106,6 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     { class: 'ink-viewport-root', 'data-ink-viewport-root': '', 'data-state': 'idle' },
     scroll
   )
-  const toolbar = withToolbar ? createToolbar() : null
-  if (toolbar) root.append(toolbar.element)
   root.append(viewportRoot)
   el.append(root)
 
@@ -173,9 +175,11 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
         activated.set(id)
         onActivate?.(id)
       },
-      onBuild: (viewport, tools) => {
-        toolbar?.bind(doc, viewport, tools)
-        onBuild?.(viewport, tools)
+      onBuild: (vp, tc) => {
+        // Tools first: a viewport subscriber may read the tools.
+        tools.set(tc)
+        viewport.set(vp)
+        onBuild?.(vp, tc)
       },
       onPageMount: (page, mount, host) => {
         hosts.set(page, host)
@@ -210,7 +214,8 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       activated.set(null)
       engine.set(null)
       mounted.destroy()
-      toolbar?.unbind()
+      viewport.set(null)
+      tools.set(null)
     }
   }
 
@@ -284,14 +289,14 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     status: readonly(status),
     document: readonly(current),
     engine: readonly(engine),
-    toolbar: toolbar?.element ?? null,
+    viewport: readonly(viewport),
+    tools: readonly(tools),
     open,
     destroy() {
       if (destroyed) return
       destroyed = true
       loads++
       close()
-      toolbar?.destroy()
       root.remove()
     },
   }

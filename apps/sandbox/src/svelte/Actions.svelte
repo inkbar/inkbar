@@ -31,13 +31,7 @@
   }
 </script>
 
-<div class="demo-actions" role="group" aria-label="Edit">
-  <button type="button" disabled={!history.canUndo} onclick={() => history.undo()}>
-    Undo
-  </button>
-  <button type="button" disabled={!history.canRedo} onclick={() => history.redo()}>
-    Redo
-  </button>
+<div class="demo-actions" role="group" aria-label="Suggest">
   <button type="button" disabled={!doc.isReady || busy} onclick={suggest}>
     Suggest redactions
   </button>

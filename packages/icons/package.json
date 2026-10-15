@@ -1,0 +1,39 @@
+{
+  "name": "@inkbar/icons",
+  "version": "0.1.1",
+  "description": "The icons Inkbar's toolbar controls use, as framework-free data.",
+  "license": "MIT",
+  "homepage": "https://inkbar.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/inkbar/inkbar.git",
+    "directory": "packages/icons"
+  },
+  "bugs": "https://github.com/inkbar/inkbar/issues",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint src scripts",
+    "test": "vitest run",
+    "generate": "tsx scripts/generate.ts && prettier --write src/icons.ts"
+  },
+  "devDependencies": {
+    "lucide": "1.55.0",
+    "tsdown": "^0.23.1",
+    "tsx": "^4.20.0",
+    "vitest": "^5.0.4"
+  }
+}

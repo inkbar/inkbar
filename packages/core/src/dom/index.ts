@@ -57,3 +57,18 @@ export { mountViewer } from './viewer-engine'
 export type { MountViewerOptions, ViewerEngine } from './viewer-engine'
 export { createViewer } from './viewer/create-viewer'
 export type { CreateViewerOptions, Viewer } from './viewer/create-viewer'
+export {
+  createIcon,
+  createNextPage,
+  createPageCount,
+  createPageInput,
+  createPrevPage,
+  createRedo,
+  createToolbar,
+  createToolbarSeparator,
+  createToolButton,
+  createUndo,
+  createZoomIn,
+  createZoomOut,
+  createZoomSelect,
+} from './viewer/controls'

@@ -1,9 +1,11 @@
 <script lang="ts">
+  import { ZoomIn } from '@inkbar/icons'
   import { Toolbar } from 'bits-ui'
 
   import { useZoom } from '../hooks/useZoom.svelte.js'
 
   import { asBitsProps } from './child-snippet.js'
+  import InkIcon from './InkIcon.svelte'
 
   import type { InkZoomButtonProps } from './zoom-button.js'
 
@@ -30,5 +32,5 @@
     if (!e.defaultPrevented) zoom.zoomIn()
   }}
 >
-  {#if children}{@render children()}{:else}+{/if}
+  {#if children}{@render children()}{:else}<InkIcon icon={ZoomIn} />{/if}
 </Toolbar.Button>

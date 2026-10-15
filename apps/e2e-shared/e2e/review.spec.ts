@@ -86,7 +86,12 @@ test('the first page paints within 500 ms of ready', async ({ page }) => {
 test('zooming from fit width to 400% never shows a blank frame', async ({ page }) => {
   await page.goto('/?doc=text-simple')
   await waitForFirstPage(page)
-  await expect(page.getByRole('combobox', { name: 'Zoom' })).toHaveValue('fit-width')
+  const zoom = page.getByRole('combobox', { name: 'Zoom' })
+  await expect(zoom).toHaveText('Fit width')
+  // Open the list first, so the sampling below covers only the zoom.
+  await zoom.click()
+  const level = page.getByRole('option', { name: '400%', exact: true })
+  await expect(level).toBeVisible()
   // Every frame until the 400% bitmap lands, then a few more: some canvas in the visible area
   // of the scroller must hold page pixels (opaque paper and dark text).
   const sampling = page.evaluate(
@@ -135,7 +140,7 @@ test('zooming from fit width to 400% never shows a blank frame', async ({ page }
         requestAnimationFrame(frame)
       })
   )
-  await page.getByRole('combobox', { name: 'Zoom' }).selectOption('4')
+  await level.click()
   const result = await sampling
   report('zoom frames sampled', String(result.frames))
   expect(result.blank).toEqual([])

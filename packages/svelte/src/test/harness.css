@@ -6,7 +6,9 @@ body {
   height: 100%;
 }
 
-body > div {
+/* Not Bits UI's floating wrapper, which is also a div on the body: at full height it would
+   push a listbox that opens upwards off the top. */
+body > div:not([data-bits-floating-content-wrapper]) {
   height: 100%;
 }
 

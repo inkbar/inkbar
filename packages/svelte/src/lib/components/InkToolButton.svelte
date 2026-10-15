@@ -14,11 +14,23 @@
 
 <script lang="ts">
   import { TOOL_LABELS } from '@inkbar/core/dom'
+  import { Hand, Highlighter, MessageSquare, MousePointer2, Square } from '@inkbar/icons'
   import { Toolbar } from 'bits-ui'
 
   import { useTool } from '../hooks/useTool.svelte.js'
 
   import { asBitsProps } from './child-snippet.js'
+  import InkIcon from './InkIcon.svelte'
+
+  import type { IconNode } from '@inkbar/icons'
+
+  const ICONS: Readonly<Record<ToolId, IconNode>> = {
+    view: Hand,
+    select: MousePointer2,
+    highlight: Highlighter,
+    'redact-area': Square,
+    note: MessageSquare,
+  }
 
   let {
     tool,
@@ -50,5 +62,7 @@
     if (!e.defaultPrevented) current.setTool(tool)
   }}
 >
-  {#if children}{@render children({ active, label: name })}{:else}{name}{/if}
+  {#if children}{@render children({ active, label: name })}{:else}<InkIcon
+      icon={ICONS[tool]}
+    />{/if}
 </Toolbar.Button>

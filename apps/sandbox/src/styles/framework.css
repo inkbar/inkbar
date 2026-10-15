@@ -175,6 +175,24 @@
   flex: 1 1 auto;
   min-height: 0;
 }
+/* The demo's own bars: tools above the document, page and zoom in a smaller bar below it. */
+.demo-toolbar {
+  border-bottom: 1px solid var(--ink-border);
+}
+.demo-status-bar {
+  --ink-control-size: 2rem;
+  --ink-icon-size: 1rem;
+  border-top: 1px solid var(--ink-border);
+  font-size: 14px;
+}
+.demo-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.demo-zoom {
+  margin-left: auto;
+}
 .demo-actions {
   display: flex;
   flex-wrap: wrap;
@@ -279,4 +297,9 @@
   font-family: var(--font-mono);
   font-size: 13.5px;
   line-height: 1.65;
+}
+
+/* The zoom list marks the focused option with its highlight; the page-wide focus ring would double it. */
+[data-ink-select-item]:focus-visible {
+  outline: none;
 }
