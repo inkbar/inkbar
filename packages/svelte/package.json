@@ -26,16 +26,17 @@
     "test:browser": "vitest run --project browser"
   },
   "dependencies": {
-    "@inkbar/core": "workspace:*",
     "@internationalized/date": "^3.12.4",
     "@lucide/svelte": "^1.56.0",
     "bits-ui": "^2.19.5",
     "esm-env": "^1.2.0"
   },
   "peerDependencies": {
+    "@inkbar/core": "workspace:^",
     "svelte": "^5.46.4"
   },
   "devDependencies": {
+    "@inkbar/core": "workspace:*",
     "@inkbar/fixtures": "workspace:*",
     "@inkbar/theme": "workspace:*",
     "@sveltejs/package": "^3.0.0",

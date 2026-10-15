@@ -24,15 +24,16 @@
     "test:browser": "playwright test -c playwright-ct.config.ts"
   },
   "dependencies": {
-    "@inkbar/core": "workspace:*",
     "lucide-react": "^1.55.0",
     "radix-ui": "^1.8.1"
   },
   "peerDependencies": {
+    "@inkbar/core": "workspace:^",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@inkbar/core": "workspace:*",
     "@inkbar/fixtures": "workspace:*",
     "@inkbar/theme": "workspace:*",
     "@playwright/experimental-ct-react": "1.62.1",
