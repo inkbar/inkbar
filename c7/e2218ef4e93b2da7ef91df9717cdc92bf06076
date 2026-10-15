@@ -1,0 +1,14 @@
+.prettierignore
+  h_13c4e797d6e9d2 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c7e2218ef4e93b2da7ef91df9717cdc92bf06076",
+  "prompts": {},
+  "humans": {
+    "h_13c4e797d6e9d2": {
+      "author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
