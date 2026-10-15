@@ -58,7 +58,7 @@ Publishing the release starts the `release` workflow. It checks out the tag, bui
 
 The workflows need these settings:
 
-- Repository variable `INKBAR_CI_APP_CLIENT_ID` and secret `INKBAR_CI_APP_PRIVATE_KEY`: a GitHub App installed on this repository with contents and pull requests write access. Its token opens the release PR and publishes the release. A release made with `GITHUB_TOKEN` would not start the `release` workflow.
+- Organisation variable `IB_APP_CLIENT_ID` and secret `IB_APP_PRIVATE_KEY`: the `inkbar-ci` GitHub App, installed on this repository with contents and pull requests write access. Its token opens the release PR and publishes the release. A release made with `GITHUB_TOKEN` would not start the `release` workflow.
 - Secret `NPM_TOKEN`: an npm automation token with publish rights on the `@inkbar` scope.
 
 If publishing fails, rerun the `release` workflow from the Actions tab. pnpm skips versions already on the registry, so a rerun finishes a partial publish.
