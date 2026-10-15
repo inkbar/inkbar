@@ -30,7 +30,7 @@ Annotations are plain typed objects. Bind them with `bind:annotations` to keep t
 pnpm add @inkbar/svelte @inkbar/core @inkbar/theme
 ```
 
-Svelte 5.46.4 or later is a peer dependency. Add the Vite plugin from `@inkbar/core/vite` so the PDF engine can load its worker and fonts; the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#serving-pdfjs-assets) covers it. The package ships `.svelte` sources, so your bundler compiles them for your target, including the server.
+Svelte 5.46.4 or later is a peer dependency. Add the Vite plugin from `@inkbar/core/vite` so PDF.js can load its worker and fonts; the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#serving-pdfjs-assets) covers it. The package ships `.svelte` sources, so your bundler compiles them for your target, including the server.
 
 ## Usage
 
@@ -65,8 +65,10 @@ Svelte 5.46.4 or later is a peer dependency. Add the Vite plugin from `@inkbar/c
 
 <InkRoot src={{ url: signedUrl, key: documentId }} {assets} bind:annotations>
   <InkToolbar>
+    <InkToolButton tool="view" />
     <InkToolButton tool="select" />
     <InkToolButton tool="highlight" />
+    <InkToolButton tool="redact-area" />
     <InkToolButton tool="note" />
     <InkToolbarSeparator />
     <InkUndo />
@@ -155,7 +157,7 @@ A root note with no text and no replies is removed when its popover closes, or w
 
 Slots are snippets. `InkViewport` takes `loading`, `empty`, `error`, `annotation` and `pageError`. `InkNotePopover` and `InkSuggestionCard` take `children` as a snippet that receives the popover's props. `InkToolButton` takes `children` as a snippet of `{ active, label }`. The props each receives are typed as `AnnotationSlotProps`, `NotePopoverSlotProps` and `SuggestionCardSlotProps`, the same types the Vue and React packages export.
 
-`InkRoot`, `InkToolbar`, `InkToolButton`, `InkZoomIn` and `InkZoomOut` take a `child` snippet to render your own element. Spread the `props` it gives you on that element. The snippet type is exported as `ChildSnippet`.
+`InkRoot`, `InkToolbar`, `InkToolButton`, `InkUndo`, `InkRedo`, `InkPrevPage`, `InkNextPage`, `InkZoomIn` and `InkZoomOut` take a `child` snippet to render your own element. Spread the `props` it gives you on that element. The snippet type is exported as `ChildSnippet`.
 
 ```svelte
 <InkToolbar>
@@ -167,7 +169,20 @@ Slots are snippets. `InkViewport` takes `loading`, `empty`, `error`, `annotation
 
 ## Keyboard
 
-The scroll element takes focus. With the highlight or redact tool active, `Enter` turns the text selection into a mark; with the note tool, `Enter` places a note in the middle of the current page and opens it. On a focused annotation, `Enter` or `Space` selects and activates it (a note opens its thread and a suggested redaction its card; other types are only selected), `ArrowUp` and `ArrowDown` move between annotations, `Shift` + arrow moves it by 1 pt (add `Alt` for 10 pt), `Ctrl` or `Cmd` + `Shift` + arrow resizes an area mark, and `Delete` removes it. The full table is in the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#tools-and-keyboard).
+The scroll area takes focus. From there:
+
+- With the `highlight` or `redact-area` tool active, `Enter` turns the text selection into a mark.
+- With the `note` tool active, `Enter` places a note at the centre of the current page and opens it.
+
+On a focused annotation:
+
+- `Enter` or `Space` selects and activates it. A note opens its thread and a suggested redaction its card; other types are only selected.
+- `ArrowUp` and `ArrowDown` move to the previous or next annotation on the page.
+- `Shift` + arrow moves it by 1 pt, or by 10 pt with `Alt` as well.
+- `Ctrl` or `Cmd` + `Shift` + arrow resizes an area redaction, text box or shape.
+- `Delete` or `Backspace` removes it.
+
+The full table, with the zoom and page keys, is in the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#tools-and-keyboard).
 
 ## Styling
 

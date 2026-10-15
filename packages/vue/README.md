@@ -69,6 +69,7 @@ const annotations = ref<Annotation[]>([])
     v-model:annotations="annotations"
   >
     <InkToolbar>
+      <InkToolButton tool="view" />
       <InkToolButton tool="select" />
       <InkToolButton tool="highlight" />
       <InkToolButton tool="redact-area" />
@@ -121,9 +122,28 @@ Inside `InkRoot`, `useHistory()` returns the same object. Its `batch(fn)` runs `
 
 A root note with no text and no replies is removed when its popover closes, or when activation moves to another annotation, so abandoned notes do not stay on the page. Locked notes are never removed. If you add notes yourself (`add({ type: 'note', ... })`), give them `contents`, or they will be removed the first time someone opens and closes them.
 
+## Custom rendering
+
+Slots let you render parts yourself. `InkViewport` has `loading`, `empty`, `error`, `annotation` and `page-error` slots. `InkNotePopover` and `InkSuggestionCard` have a scoped default slot that receives the popover's props, and the default slot of `InkToolButton` receives `{ active, label }`. The props are typed as `AnnotationSlotProps`, `NotePopoverSlotProps` and `SuggestionCardSlotProps`, the same types the React and Svelte packages export.
+
+`InkRoot`, `InkToolbar`, `InkToolButton`, `InkUndo`, `InkRedo`, `InkPrevPage`, `InkNextPage`, `InkZoomIn` and `InkZoomOut` take `as-child` to render your own element in place of theirs, such as a button from your design system. Put that element in the default slot. The control keeps its behaviour and accessible name.
+
 ## Keyboard
 
-The scroll element takes focus. With the highlight or redact tool active, `Enter` turns the text selection into a mark; with the note tool, `Enter` places a note in the middle of the current page and opens it. On a focused annotation, `Enter` or `Space` selects and activates it (a note opens its thread and a suggested redaction its card; other types are only selected), `ArrowUp` and `ArrowDown` move between annotations, `Shift` + arrow moves it by 1 pt (add `Alt` for 10 pt), `Ctrl` or `Cmd` + `Shift` + arrow resizes an area mark, and `Delete` removes it. The full table is in the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#tools-and-keyboard).
+The scroll area takes focus. From there:
+
+- With the `highlight` or `redact-area` tool active, `Enter` turns the text selection into a mark.
+- With the `note` tool active, `Enter` places a note at the centre of the current page and opens it.
+
+On a focused annotation:
+
+- `Enter` or `Space` selects and activates it. A note opens its thread and a suggested redaction its card; other types are only selected.
+- `ArrowUp` and `ArrowDown` move to the previous or next annotation on the page.
+- `Shift` + arrow moves it by 1 pt, or by 10 pt with `Alt` as well.
+- `Ctrl` or `Cmd` + `Shift` + arrow resizes an area redaction, text box or shape.
+- `Delete` or `Backspace` removes it.
+
+The full table, with the zoom and page keys, is in the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#tools-and-keyboard).
 
 ## Styling
 

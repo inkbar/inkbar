@@ -34,7 +34,7 @@ Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, gi
 - **Toolbars you assemble.** You build each toolbar in your own markup from Inkbar's controls: tool buttons, undo and redo, the zoom select, the page input. Keep the ones you need, place them where they fit and add your own. The theme styles them with zero-specificity rules, so your CSS wins without `!important`, and it reads shadcn token names if your app defines them.
 - **Annotations as plain data.** Highlights, notes and redactions are typed objects. Keep them in your own state and save them to your own backend, or let Inkbar hold them. Undo and redo work either way.
 - **Redaction with review.** Mark text or areas for redaction by hand, or pass in suggestions from your own detector. Each suggestion shows what it matched and how confident it is, and someone accepts or dismisses it before it counts.
-- **Keyboard first.** Every tool works without a mouse: select text and press Enter to highlight it, move between annotations with the arrow keys, nudge them a point at a time.
+- **Keyboard first.** Select text and press Enter to highlight it, move between annotations with the arrow keys, and nudge them a point at a time. Drawing an area redaction is the one thing that still needs a pointer.
 - **Fits a real app.** Pass a signed URL and a stable key, and Inkbar won't reload the document when the URL rotates. You can import the document model during server rendering.
 
 ### What it does today
@@ -108,6 +108,7 @@ export function Review({ url }: { url: string }) {
     <div style={{ height: '100vh' }}>
       <InkRoot src={url} assets={assets}>
         <InkToolbar>
+          <InkToolButton tool="view" />
           <InkToolButton tool="select" />
           <InkToolButton tool="highlight" />
           <InkToolButton tool="redact-area" />
