@@ -181,13 +181,7 @@ PDF.js is imported only under `packages/core/src/pdfjs/`. Every coordinate is in
 
 ### Contributing
 
-Open a pull request against `main`. Pull requests are squash merged and the title becomes the commit message, so write it as a [Conventional Commit](https://www.conventionalcommits.org/) such as `feat(vue): expose the page count` or `fix(core): keep the selection after a zoom`. Commits carry the title only, with no body.
-
-### Releasing
-
-[release-please](https://github.com/googleapis/release-please) keeps a release PR open on `main` that bumps all five packages and writes `CHANGELOG.md` from the commit titles. Merging it tags the commit and publishes a GitHub release, and the `release` workflow then builds, tests and publishes the packages to npm with provenance.
-
-The workflows use the `inkbar-ci` GitHub App, through the organisation variable `IB_APP_CLIENT_ID` and secret `IB_APP_PRIVATE_KEY`, and an npm automation token in the `NPM_TOKEN` secret. If publishing fails, rerun the `release` workflow. pnpm skips versions already on the registry, so a rerun finishes a partial publish.
+Open a pull request against `main`. Pull requests are squash merged and the title becomes the commit message, so write it as a [Conventional Commit](https://www.conventionalcommits.org/) such as `feat(vue): expose the page count` or `fix(core): keep the selection after a zoom`. Commits carry the title only, with no body. [release-please](https://github.com/googleapis/release-please) cuts each release from those titles.
 
 ## Licence
 
