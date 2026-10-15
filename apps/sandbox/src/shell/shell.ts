@@ -3,7 +3,7 @@
  * source panel. It knows nothing about any framework: each page passes a `mount` function and
  * the shell calls it again with a new source when the reader opens a file.
  */
-import '../styles/demo.css'
+import '../styles/framework.css'
 
 import { FRAMEWORK_ORDER, FRAMEWORKS, type FrameworkId } from './frameworks'
 import { LOGO_SVG } from './logo'
@@ -32,15 +32,18 @@ const isPdf = (file: File): boolean =>
 
 function fileSection(file: SourceFile, index: number): string {
   const name = file.path.split('/').pop() ?? file.path
-  return `<section class="source-file">
+  return `<section class="source-file" aria-label="${name}">
   <div class="source-head">
-    <h2>${name}</h2>
+    <h3>${name}</h3>
     <button type="button" class="text-button" data-copy="${index}">Copy</button>
     <a class="text-link" href="${REPO}/blob/main/apps/sandbox/${file.path}">View on GitHub</a>
   </div>
   ${file.source.html}
 </section>`
 }
+
+const COPY_ICON =
+  '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>'
 
 export function startShell(opts: ShellOptions): void {
   const fw = FRAMEWORKS[opts.framework]
@@ -49,7 +52,7 @@ export function startShell(opts: ShellOptions): void {
   app.innerHTML = `
 <header class="site-header">
   <div class="container site-header-inner">
-    <a class="brand" href="${BASE}">${LOGO_SVG}<span class="wordmark">inkbar</span><span class="visually-hidden"> sandbox home</span></a>
+    <a class="brand" href="${BASE}">${LOGO_SVG}<span class="wordmark">inkbar</span><span class="wordmark-suffix">sandbox</span><span class="visually-hidden"> home</span></a>
     <nav aria-label="Frameworks">
       <ul class="frameworks">
         ${FRAMEWORK_ORDER.map(
@@ -58,31 +61,52 @@ export function startShell(opts: ShellOptions): void {
         ).join('')}
       </ul>
     </nav>
-    <a class="text-link" href="${REPO}">GitHub</a>
+    <nav class="site-nav" aria-label="Main">
+      <a href="https://inkbar.dev/docs/">Docs</a>
+      <a href="${REPO}">GitHub</a>
+    </nav>
   </div>
 </header>
-<main class="container demo">
-  <div class="demo-intro">
-    <h1>${fw.name}</h1>
-    <p class="lede">${fw.blurb}</p>
-    <code class="install">${fw.install}</code>
+<main class="container page">
+  <div class="intro">
+    <div class="intro-copy">
+      <h1>Inkbar in <span class="mark">${fw.name}</span></h1>
+      <p class="lede">${fw.blurb}</p>
+    </div>
+    <div class="install-box">
+      <code class="install"><span aria-hidden="true">$</span>${fw.install}</code>
+      <button type="button" class="icon-button" data-copy-install aria-label="Copy install command">${COPY_ICON}</button>
+    </div>
   </div>
-  <div class="demo-file">
-    <label class="file-button">
-      <input type="file" accept="application/pdf,.pdf" class="visually-hidden" />
-      Open a PDF
-    </label>
-    <p class="caption">Or drop one on the viewer. The file stays in your browser.</p>
-    <p class="caption" role="status" data-file-status></p>
-  </div>
-  <div class="demo-viewer" data-viewer></div>
-  <details class="source">
-    <summary>Source</summary>
+  <section class="viewer-section" aria-label="Viewer">
+    <div class="viewer-bar">
+      <p class="caption">Sample case file. Drop a PDF on the viewer to try your own. It stays in your browser.</p>
+      <p class="caption" role="status" data-file-status></p>
+      <label class="file-link">
+        <input type="file" accept="application/pdf,.pdf" class="visually-hidden" />
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M12 18v-6M9 15l3-3 3 3"/></svg>
+        Open a PDF
+      </label>
+    </div>
+    <div class="viewer" data-viewer></div>
+  </section>
+  <section class="source" aria-labelledby="source-title">
+    <div class="source-intro">
+      <h2 id="source-title">The whole integration</h2>
+      <p class="caption">These files are everything this page does with Inkbar. The page around them is in <code>src/shell</code>.</p>
+    </div>
     ${opts.files.map(fileSection).join('')}
-  </details>
+  </section>
 </main>
-<footer class="container site-footer">
-  <p>From the team behind <a href="https://redactr.io">Redactr</a>. Docs at <a href="https://inkbar.dev">inkbar.dev</a>.</p>
+<footer class="site-footer">
+  <div class="container site-footer-inner">
+    <p>MIT licensed. From the team behind <a href="https://redactr.io">Redactr</a>.</p>
+    <nav aria-label="Footer">
+      <a href="${BASE}">All sandboxes</a>
+      <a href="https://inkbar.dev/docs/">Docs</a>
+      <a href="${REPO}">GitHub</a>
+    </nav>
+  </div>
 </footer>`
 
   const viewer = app.querySelector<HTMLElement>('[data-viewer]')!
@@ -165,4 +189,22 @@ export function startShell(opts: ShellOptions): void {
       )
     })
   }
+
+  const copyInstall = app.querySelector<HTMLButtonElement>('[data-copy-install]')!
+  let installReset: ReturnType<typeof setTimeout> | undefined
+  copyInstall.addEventListener('click', () => {
+    const show = (label: string, copied: boolean): void => {
+      copyInstall.setAttribute('aria-label', label)
+      copyInstall.toggleAttribute('data-copied', copied)
+      clearTimeout(installReset)
+      installReset = setTimeout(() => {
+        copyInstall.setAttribute('aria-label', 'Copy install command')
+        copyInstall.removeAttribute('data-copied')
+      }, 1500)
+    }
+    navigator.clipboard.writeText(fw.install).then(
+      () => show('Copied', true),
+      () => show('Copy failed', false)
+    )
+  })
 }

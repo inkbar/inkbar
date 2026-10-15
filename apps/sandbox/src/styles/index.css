@@ -5,81 +5,278 @@
 
 .hero {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 56px 64px;
+  padding-block: clamp(32px, 6vw, 72px) 24px;
+}
+.hero-copy {
+  display: flex;
+  flex: 1 1 460px;
   flex-direction: column;
   gap: 24px;
-  padding-top: clamp(40px, 7vw, 88px);
+  min-width: 0;
 }
 .hero h1 {
-  isolation: isolate;
-  max-width: 900px;
-  font-size: clamp(40px, 6.2vw, 80px);
-  line-height: 0.98;
+  font-size: clamp(42px, 6vw, 76px);
+  line-height: 1;
   letter-spacing: -0.03em;
 }
-.mark {
-  position: relative;
-  z-index: -1;
-  padding: 0 0.12em;
-  white-space: nowrap;
-  border-radius: 6px;
-  background: var(--highlighter);
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
-}
 .lede {
-  max-width: 680px;
+  max-width: 540px;
   color: var(--body);
-  font-size: clamp(17px, 1.5vw, 21px);
+  font-size: clamp(17px, 1.5vw, 20px);
+  line-height: 1.55;
 }
-.cards {
+.private {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--body);
+  font-size: 15px;
+}
+.private .icon {
+  width: 20px;
+  height: 20px;
+  color: var(--ballpoint);
+}
+
+/* A drawing of the sample letter with one of each mark the viewer makes. */
+.specimen {
+  position: relative;
+  flex: 1 1 400px;
+  min-width: 0;
+  max-width: 500px;
+  margin: 0 0 28px;
+}
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 36px 40px 44px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--sheet);
+  box-shadow:
+    0 1px 2px rgb(13 16 38 / 6%),
+    0 24px 48px -24px rgb(13 16 38 / 28%);
+  color: #23263b;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.sheet-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 16px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--caption);
+}
+.sheet-head strong {
+  color: var(--ink);
+  font-size: 15px;
+}
+.sheet-re {
+  font-weight: 700;
+}
+.sheet-highlight {
+  padding: 0 2px;
+  background: var(--highlighter);
+}
+.sheet-redaction {
+  display: inline-block;
+  width: 96px;
+  height: 15px;
+  border-radius: 1px;
+  background: var(--ink);
+  vertical-align: -2px;
+}
+.sheet-suggested {
+  border-radius: 2px;
+  outline: 2px dashed var(--ballpoint);
+  outline-offset: 1px;
+  background: rgb(39 64 245 / 8%);
+}
+.sheet-noted {
+  position: relative;
+}
+.sheet-pin {
+  position: absolute;
+  top: -6px;
+  right: -18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 13px 13px 13px 3px;
+  background: var(--ballpoint);
+}
+.sheet-pin svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+.sheet-lines {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
-  gap: 16px;
-  margin: 48px 0 0;
+  gap: 9px;
+  padding-top: 4px;
+}
+.sheet-lines span {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--viewer-ground);
+}
+.sheet-lines span:nth-child(2) {
+  width: 92%;
+}
+.sheet-lines span:nth-child(3) {
+  width: 64%;
+}
+.specimen-note {
+  position: absolute;
+  right: -8px;
+  bottom: -28px;
+  width: 230px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: var(--ink);
+  box-shadow: 0 16px 32px -16px rgb(13 16 38 / 50%);
+  color: var(--paper);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.specimen-note strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--highlighter);
+}
+
+.stack,
+.try {
+  padding-top: clamp(72px, 9vw, 120px);
+}
+.try {
+  padding-bottom: clamp(72px, 9vw, 120px);
+}
+.stack h2,
+.try h2 {
+  margin-bottom: 28px;
+  font-size: clamp(28px, 3vw, 36px);
+  letter-spacing: -0.02em;
+}
+.rows {
+  margin: 0 0 20px;
+  padding: 0;
+  border-top: 2px solid var(--ink);
+  list-style: none;
+}
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 40px;
+  padding-block: 28px;
+  border-bottom: 1px solid var(--line);
+}
+.row-name {
+  display: flex;
+  flex: 0 0 220px;
+  flex-direction: column;
+  gap: 4px;
+}
+.row-name a {
+  align-self: flex-start;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  text-decoration: none;
+}
+.row-name a:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--highlighter);
+  text-decoration-skip-ink: none;
+  text-decoration-thickness: 8px;
+  text-underline-offset: -4px;
+}
+.row-name span {
+  color: var(--caption);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.row p {
+  flex: 1 1 260px;
+  color: var(--body);
+  line-height: 1.55;
+}
+.row p code {
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+.row-go {
+  gap: 8px;
+}
+.row-go .icon {
+  width: 18px;
+  height: 18px;
+}
+.row-go:hover {
+  color: var(--ballpoint);
+}
+.try-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 32px 40px;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
-.card {
-  position: relative;
-  display: grid;
-  align-content: start;
-  gap: 12px;
-  padding: 24px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
-  background: var(--sheet);
+.try-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
-.card:hover {
-  border-color: var(--ink);
+.try-list h3 {
+  font-size: 20px;
 }
-.card:has(a:focus-visible) {
-  outline: 3px solid var(--ballpoint);
-  outline-offset: 2px;
-}
-.card h2 {
-  font-size: 28px;
-}
-.card h2 a {
-  color: var(--ink);
-  text-decoration: none;
-}
-/* The whole card is the link's hit area; the install line sits above it so it can be selected. */
-.card h2 a::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-}
-.card h2 a:focus-visible {
-  outline: none;
-}
-.card p {
+.try-list p {
   color: var(--body);
+  font-size: 15px;
+  line-height: 1.55;
 }
-.card .install {
-  position: relative;
-  z-index: 1;
-  padding-block: 10px;
-  font-size: 13px;
-  line-height: 1.5;
+.try-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+}
+.try-icon-highlight {
+  background: var(--highlighter);
+}
+.try-icon-redact {
+  background: var(--ink);
+  color: #fff;
+}
+.try-icon-note {
+  background: var(--ballpoint);
+  color: #fff;
+}
+.try-icon-suggest {
+  border: 2px dashed var(--ballpoint);
+  background: var(--sheet);
+  color: var(--ballpoint);
+}
+.try-icon-file {
+  border: 1px solid var(--line);
+  background: var(--sheet);
 }

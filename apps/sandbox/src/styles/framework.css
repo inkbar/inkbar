@@ -1,0 +1,282 @@
+@import './fonts.css';
+@import './tokens.css';
+@import './base.css';
+@import './chrome.css';
+
+/* The theme reads shadcn token names. Set on :root so portalled popovers inherit them too. */
+:root {
+  --background: var(--sheet);
+  --foreground: var(--ink);
+  --muted: var(--viewer-ground);
+  --muted-foreground: var(--caption);
+  --border: var(--line);
+  --primary: var(--ink);
+  --primary-foreground: #ffffff;
+  --ring: var(--ballpoint);
+  --radius: var(--radius-control);
+}
+
+.frameworks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.frameworks a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 8px;
+  color: var(--body);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.frameworks a:hover {
+  color: var(--ballpoint);
+}
+.frameworks a[aria-current='page'] {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--highlighter);
+  text-decoration-skip-ink: none;
+  text-decoration-thickness: 6px;
+  text-underline-offset: 2px;
+}
+
+.page {
+  display: grid;
+  gap: 32px;
+  padding-block: clamp(32px, 5vw, 56px) clamp(56px, 7vw, 88px);
+}
+/* Grid items default to min-width: auto, which lets a long code line widen the page. */
+.page > *,
+.source-file {
+  min-width: 0;
+}
+.intro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px 48px;
+}
+.intro-copy {
+  display: grid;
+  flex: 1 1 520px;
+  gap: 16px;
+  min-width: 0;
+}
+.intro h1 {
+  font-size: clamp(40px, 5vw, 64px);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+.lede {
+  max-width: 620px;
+  color: var(--body);
+  font-size: 17px;
+  line-height: 1.55;
+}
+.install-box {
+  display: flex;
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+  background: var(--sheet);
+}
+.install-box .install {
+  min-width: 0;
+  min-height: 48px;
+  border: 0;
+  border-radius: 0;
+}
+.icon-button {
+  display: inline-flex;
+  flex: 0 0 48px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+}
+.icon-button:hover {
+  background: var(--paper);
+}
+.icon-button[data-copied] {
+  background: var(--highlighter);
+}
+.icon-button .icon {
+  width: 19px;
+  height: 19px;
+}
+
+.viewer-section {
+  display: grid;
+  gap: 12px;
+}
+.viewer-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 24px;
+}
+.viewer-bar .caption:first-child {
+  margin-right: auto;
+}
+.file-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--ballpoint);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
+  cursor: pointer;
+}
+.file-link .icon {
+  width: 18px;
+  height: 18px;
+}
+.file-link:has(input:focus-visible) {
+  outline: 3px solid var(--ballpoint);
+  outline-offset: 2px;
+}
+.viewer {
+  height: min(78vh, 920px);
+  min-height: 480px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--viewer-ground);
+  box-shadow: 0 24px 48px -32px rgb(13 16 38 / 35%);
+}
+.viewer[data-drop] {
+  outline: 3px dashed var(--ballpoint);
+  outline-offset: -3px;
+}
+
+/* Unlayered, so it beats the theme's layered default on the same element. */
+.demo-root {
+  --ink-highlight: #e4ff4a;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.demo-root .ink-viewport-root {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.demo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+.demo-actions button {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+.demo-actions button:hover:not(:disabled) {
+  background: var(--paper);
+}
+.demo-actions button:last-of-type {
+  color: var(--ballpoint);
+}
+.demo-actions button:disabled {
+  color: var(--caption);
+  cursor: default;
+}
+.demo-result {
+  padding: 0 8px;
+  color: var(--body);
+  font-size: 13px;
+}
+
+/* The plain TypeScript page hides its popovers with `hidden`; the theme's layered display rule would win otherwise. */
+[data-ink-note-popover][hidden],
+[data-ink-suggestion-card][hidden] {
+  display: none;
+}
+
+.source {
+  display: grid;
+  gap: 16px;
+  padding-top: 16px;
+}
+.source-intro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 24px;
+}
+.source-intro h2 {
+  font-size: clamp(26px, 3vw, 32px);
+  letter-spacing: -0.02em;
+}
+.source-file {
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--ink);
+  color: var(--on-ink);
+}
+.source-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 20px;
+  padding: 4px 18px;
+  border-bottom: 1px solid var(--ink-line);
+}
+.source-head h3 {
+  margin-right: auto;
+  color: var(--highlighter);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+}
+.text-button {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
+}
+.source-head .text-button,
+.source-head .text-link {
+  color: var(--on-ink);
+  font-size: 14px;
+  text-decoration-color: var(--highlighter);
+}
+.source-head .text-button:hover,
+.source-head .text-link:hover {
+  color: #ffffff;
+}
+.source pre {
+  max-width: 100%;
+  margin: 0;
+  padding: 20px 22px 24px;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  line-height: 1.65;
+}
