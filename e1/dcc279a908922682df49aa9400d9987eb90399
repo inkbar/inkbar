@@ -1,0 +1,22 @@
+apps/sandbox/public/CNAME
+  s_4769529b4687c1::t_1804e26f425385 1
+.github/workflows/pages.yml
+  s_4769529b4687c1::t_1804e26f425385 5,46,61
+  s_4769529b4687c1::t_d71d2936fe5766 3-4,9-15,19-20,22,24,28-30,34-37,41-45,47-49,51-53,55-60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e1dcc279a908922682df49aa9400d9987eb90399",
+  "prompts": {},
+  "sessions": {
+    "s_4769529b4687c1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1e621325-f8f6-41d5-8b3c-f07b1b2b80d6",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
