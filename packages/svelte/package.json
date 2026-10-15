@@ -3,6 +3,13 @@
   "version": "0.1.0",
   "description": "Svelte 5 components and hooks for Inkbar, the browser PDF viewer and editor.",
   "license": "MIT",
+  "homepage": "https://inkbar.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/inkbar/inkbar.git",
+    "directory": "packages/svelte"
+  },
+  "bugs": "https://github.com/inkbar/inkbar/issues",
   "type": "module",
   "sideEffects": false,
   "files": [

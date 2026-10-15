@@ -3,6 +3,13 @@
   "version": "0.1.0",
   "description": "Default stylesheet for Inkbar. Zero specificity, so your CSS wins.",
   "license": "MIT",
+  "homepage": "https://inkbar.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/inkbar/inkbar.git",
+    "directory": "packages/theme"
+  },
+  "bugs": "https://github.com/inkbar/inkbar/issues",
   "type": "module",
   "sideEffects": [
     "*.css"
