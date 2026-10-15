@@ -59,3 +59,4 @@ jobs:
           preview-branch: gh-pages
           umbrella-dir: pr-preview
           pages-base-url: sandbox.inkbar.dev
+          qr-code: false
