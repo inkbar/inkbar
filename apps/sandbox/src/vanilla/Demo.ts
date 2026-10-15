@@ -1,8 +1,24 @@
 /*
- * Inkbar without a framework: createViewer opens the document and renders the viewer, its
- * toolbar and its popovers. The Undo, Redo and Suggest controls are in actions.ts.
+ * Inkbar without a framework: createViewer opens the document and renders the viewer and its
+ * popovers. The toolbars are built from Inkbar's controls, so each one is yours to keep, move
+ * or drop, and each button takes your own icon in place of the one it shows. Suggest
+ * redactions is a custom control, in actions.ts.
  */
-import { createViewer } from '@inkbar/core/dom'
+import {
+  createNextPage,
+  createPageCount,
+  createPageInput,
+  createPrevPage,
+  createRedo,
+  createToolbar,
+  createToolbarSeparator,
+  createToolButton,
+  createUndo,
+  createViewer,
+  createZoomIn,
+  createZoomOut,
+  createZoomSelect,
+} from '@inkbar/core/dom'
 import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 
@@ -10,12 +26,65 @@ import { addActions } from './actions'
 
 import type { DocumentSource } from '@inkbar/core'
 
+function group(
+  label: string,
+  className: string,
+  ...controls: HTMLElement[]
+): HTMLElement {
+  const g = document.createElement('div')
+  g.className = className
+  g.setAttribute('role', 'group')
+  g.setAttribute('aria-label', label)
+  g.append(...controls)
+  return g
+}
+
 export function mountDemo(el: HTMLElement, source: DocumentSource): () => void {
   const viewer = createViewer(el, { source, assets })
   viewer.element.classList.add('demo-root')
-  const actions = viewer.toolbar ? addActions(viewer.toolbar, viewer.document) : undefined
+
+  const tools = createToolbar()
+  tools.classList.add('demo-toolbar')
+  tools.append(
+    group(
+      'Tools',
+      'demo-group',
+      createToolButton(viewer, 'view'),
+      createToolButton(viewer, 'select'),
+      createToolButton(viewer, 'highlight'),
+      createToolButton(viewer, 'redact-area'),
+      createToolButton(viewer, 'note')
+    ),
+    createToolbarSeparator(),
+    createUndo(viewer),
+    createRedo(viewer)
+  )
+  const actions = addActions(tools, viewer.document)
+
+  const status = createToolbar({ label: 'Page and zoom' })
+  status.classList.add('demo-status-bar')
+  status.append(
+    group(
+      'Page',
+      'demo-group',
+      createPrevPage(viewer),
+      createPageInput(viewer),
+      createPageCount(viewer),
+      createNextPage(viewer)
+    ),
+    group(
+      'Zoom',
+      'demo-group demo-zoom',
+      createZoomOut(viewer),
+      createZoomSelect(viewer),
+      createZoomIn(viewer)
+    )
+  )
+
+  viewer.element.prepend(tools)
+  viewer.element.append(status)
   return () => {
-    actions?.destroy()
+    actions.destroy()
     viewer.destroy()
   }
 }

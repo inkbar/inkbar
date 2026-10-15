@@ -20,7 +20,7 @@
 
 ---
 
-Drop a PDF viewer into your Svelte app and let people highlight text, leave notes with replies and review redactions. `@inkbar/svelte` gives you a default toolbar and popovers styled by `@inkbar/theme`, plus the unstyled components and hooks they are made from, so you can keep the defaults or build your own UI.
+Drop a PDF viewer into your Svelte app and let people highlight text, leave notes with replies and review redactions. `@inkbar/svelte` gives you components to build your own toolbars, popovers for notes and suggested redactions, and hooks for anything else. `@inkbar/theme` styles them all.
 
 Annotations are plain typed objects. Bind them with `bind:annotations` to keep them in your own state, or let Inkbar hold them with undo and redo.
 
@@ -39,7 +39,18 @@ Svelte 5.46.4 or later is a peer dependency. Add the Vite plugin from `@inkbar/c
   import {
     InkRoot,
     InkViewport,
-    DefaultToolbar,
+    InkToolbar,
+    InkToolButton,
+    InkToolbarSeparator,
+    InkUndo,
+    InkRedo,
+    InkPrevPage,
+    InkPageInput,
+    InkPageCount,
+    InkNextPage,
+    InkZoomOut,
+    InkZoomSelect,
+    InkZoomIn,
     InkNotePopover,
     InkSuggestionCard,
   } from '@inkbar/svelte'
@@ -53,14 +64,30 @@ Svelte 5.46.4 or later is a peer dependency. Add the Vite plugin from `@inkbar/c
 </script>
 
 <InkRoot src={{ url: signedUrl, key: documentId }} {assets} bind:annotations>
-  <DefaultToolbar />
+  <InkToolbar>
+    <InkToolButton tool="select" />
+    <InkToolButton tool="highlight" />
+    <InkToolButton tool="note" />
+    <InkToolbarSeparator />
+    <InkUndo />
+    <InkRedo />
+  </InkToolbar>
   <InkViewport />
+  <InkToolbar label="Page and zoom">
+    <InkPrevPage />
+    <InkPageInput />
+    <InkPageCount />
+    <InkNextPage />
+    <InkZoomOut />
+    <InkZoomSelect />
+    <InkZoomIn />
+  </InkToolbar>
   <InkNotePopover />
   <InkSuggestionCard />
 </InkRoot>
 ```
 
-`bind:annotations` makes your list the source of truth. Leave it off and Inkbar keeps the state itself, with undo and redo.
+Each toolbar control is a component, so keep the ones you need and put them where you like. Buttons show icons from `@inkbar/icons`. Pass your own as `children` to replace one, and use `InkIcon` to put the same icons on your own buttons. `bind:annotations` makes your list the source of truth. Leave it off and Inkbar keeps the state itself, with undo and redo.
 
 ## Controlled mode
 
@@ -144,7 +171,7 @@ The scroll element takes focus. With the highlight or redact tool active, `Enter
 
 ## Styling
 
-Components carry state on data attributes, for example `[data-annotation][data-state="selected"]` and `[data-tool="highlight"][data-state="on"]`. `@inkbar/theme` gives a default look. Your own CSS overrides it without `!important`. `InkRoot`, `InkViewport`, `DefaultToolbar` and the toolbar controls accept `class`.
+Components carry state on data attributes, for example `[data-annotation][data-state="selected"]` and `[data-tool="highlight"][data-state="on"]`. `@inkbar/theme` gives a default look. Your own CSS overrides it without `!important`. `InkRoot`, `InkViewport`, `InkToolbar` and the toolbar controls accept `class`.
 
 ## Hooks
 

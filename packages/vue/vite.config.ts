@@ -16,7 +16,7 @@ export default defineConfig({
     sourcemap: true,
     lib: { entry: './src/index.ts', formats: ['es'], fileName: 'index' },
     rollupOptions: {
-      external: ['vue', 'reka-ui', '@lucide/vue', /^@inkbar\/core/],
+      external: ['vue', 'reka-ui', /^@inkbar\/(core|icons)/],
       output: {
         preserveModules: true,
         preserveModulesRoot: 'src',

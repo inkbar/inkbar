@@ -31,7 +31,7 @@
     "test:browser": "playwright test -c playwright-ct.config.ts"
   },
   "dependencies": {
-    "@lucide/vue": "^1.55.0",
+    "@inkbar/icons": "workspace:^",
     "reka-ui": "^2.11.0"
   },
   "peerDependencies": {

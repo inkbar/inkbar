@@ -8,7 +8,7 @@ import { suggestionCount, suggestRedactions } from '../shared/suggest'
 export function Actions() {
   const { document, isReady } = useDocument()
   const { annotations, add } = useAnnotations()
-  const { undo, redo, canUndo, canRedo, batch } = useHistory()
+  const { batch } = useHistory()
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState('')
 
@@ -31,13 +31,7 @@ export function Actions() {
   }
 
   return (
-    <div className="demo-actions" role="group" aria-label="Edit">
-      <button type="button" onClick={undo} disabled={!canUndo}>
-        Undo
-      </button>
-      <button type="button" onClick={redo} disabled={!canRedo}>
-        Redo
-      </button>
+    <div className="demo-actions" role="group" aria-label="Suggest">
       <button type="button" onClick={() => void suggest()} disabled={!isReady || busy}>
         Suggest redactions
       </button>

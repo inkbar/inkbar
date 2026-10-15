@@ -15,8 +15,7 @@ export default defineConfig({
       'react-dom',
       'react/jsx-runtime',
       'radix-ui',
-      'lucide-react',
-      /^@inkbar\/core/,
+      /^@inkbar\/(core|icons)/,
     ],
   },
 })

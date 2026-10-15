@@ -22,7 +22,7 @@
 
 Your users want to read a PDF, mark it up and send it back without leaving your app. The commercial PDF SDKs do that and charge per seat or per domain. PDF.js is free, but it renders pages and stops there: the toolbar, the annotations, undo and the keyboard support are yours to build.
 
-Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, ships a default UI for Vue, React, Svelte and plain TypeScript, and is free under the MIT licence.
+Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, gives you the parts to build its UI in Vue, React, Svelte or plain TypeScript, and is free under the MIT licence.
 
 <p align="center">
   <img src=".github/assets/viewer.png" alt="The Inkbar viewer showing a letter with a highlighted line and suggested redactions on an email address and a phone number. A card for the email address offers Accept and Dismiss." width="100%">
@@ -31,7 +31,7 @@ Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, sh
 ## Why Inkbar
 
 - **Your framework.** Components and hooks for Vue 3, React 19 and Svelte 5, plus `createViewer` for apps with no framework at all. All four share one engine and one stylesheet.
-- **A default UI you can replace.** Import the theme and ship. Every rule has zero specificity, so your own CSS wins without `!important`, and the theme reads shadcn token names if you already use them. For your own toolbar, use the same headless parts the default one is made from.
+- **Toolbars you assemble.** You build each toolbar in your own markup from Inkbar's controls: tool buttons, undo and redo, the zoom select, the page input. Keep the ones you need, place them where they fit and add your own. The theme styles them with zero-specificity rules, so your CSS wins without `!important`, and it reads shadcn token names if your app defines them.
 - **Annotations as plain data.** Highlights, notes and redactions are typed objects. Keep them in your own state and save them to your own backend, or let Inkbar hold them. Undo and redo work either way.
 - **Redaction with review.** Mark text or areas for redaction by hand, or pass in suggestions from your own detector. Each suggestion shows what it matched and how confident it is, and someone accepts or dismisses it before it counts.
 - **Keyboard first.** Every tool works without a mouse: select text and press Enter to highlight it, move between annotations with the arrow keys, nudge them a point at a time.
@@ -81,13 +81,22 @@ Without Vite, copy the files yourself and pass their URLs. The [`@inkbar/core` R
 
 ## Quick start
 
-A complete viewer with the default toolbar, note threads and suggestion cards, in React:
+A complete viewer in React, with a toolbar above the pages, page and zoom controls below, note threads and suggestion cards:
 
 ```tsx
 import {
   InkRoot,
   InkViewport,
-  DefaultToolbar,
+  InkToolbar,
+  InkToolButton,
+  InkToolbarSeparator,
+  InkUndo,
+  InkRedo,
+  InkPrevPage,
+  InkPageInput,
+  InkPageCount,
+  InkNextPage,
+  InkZoomSelect,
   InkNotePopover,
   InkSuggestionCard,
 } from '@inkbar/react'
@@ -98,8 +107,23 @@ export function Review({ url }: { url: string }) {
   return (
     <div style={{ height: '100vh' }}>
       <InkRoot src={url} assets={assets}>
-        <DefaultToolbar />
+        <InkToolbar>
+          <InkToolButton tool="select" />
+          <InkToolButton tool="highlight" />
+          <InkToolButton tool="redact-area" />
+          <InkToolButton tool="note" />
+          <InkToolbarSeparator />
+          <InkUndo />
+          <InkRedo />
+        </InkToolbar>
         <InkViewport />
+        <InkToolbar label="Page and zoom">
+          <InkPrevPage />
+          <InkPageInput />
+          <InkPageCount />
+          <InkNextPage />
+          <InkZoomSelect />
+        </InkToolbar>
         <InkNotePopover />
         <InkSuggestionCard />
       </InkRoot>
@@ -122,12 +146,13 @@ The [sandbox](https://sandbox.inkbar.dev) runs all four on a sample document. Dr
 | Package                             | What it is                                                                      |
 | ----------------------------------- | ------------------------------------------------------------------------------- |
 | [`@inkbar/core`](packages/core)     | Document model, rendering, annotations and tools, with no framework dependency. |
-| [`@inkbar/vue`](packages/vue)       | Vue 3 components, composables and a default toolbar.                            |
-| [`@inkbar/react`](packages/react)   | React 19 components, hooks and a default toolbar.                               |
-| [`@inkbar/svelte`](packages/svelte) | Svelte 5 components, hooks and a default toolbar.                               |
+| [`@inkbar/vue`](packages/vue)       | Vue 3 components and composables to build your viewer.                          |
+| [`@inkbar/react`](packages/react)   | React 19 components and hooks to build your viewer.                             |
+| [`@inkbar/svelte`](packages/svelte) | Svelte 5 components and hooks to build your viewer.                             |
 | [`@inkbar/theme`](packages/theme)   | The default stylesheet. Zero specificity, compatible with shadcn token names.   |
+| [`@inkbar/icons`](packages/icons)   | The icons the toolbar controls show, as data, with their licence notices.       |
 
-The five packages are released together and share one version number. The framework packages take `@inkbar/core` as a peer dependency, so your app installs one copy of it.
+The six packages are released together and share one version number. The framework packages take `@inkbar/core` as a peer dependency, so your app installs one copy of it.
 
 ## Development
 

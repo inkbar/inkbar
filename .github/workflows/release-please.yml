@@ -1,6 +1,6 @@
 name: release-please
 
-# Keeps a release PR open that bumps the version of all five packages together
+# Keeps a release PR open that bumps the version of all six packages together
 # and writes CHANGELOG.md from the conventional commits since the last tag.
 # Merging it tags the commit and publishes the GitHub release, which starts
 # release.yml.

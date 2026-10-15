@@ -16,6 +16,13 @@ const toolButton = (id: string) => `[data-ink-toolbar] [data-tool="${id}"]`
 const FIRST = '.ink-page[data-page="0"]'
 const SCROLL = '[data-ink-scroll]'
 const toolbar = () => browserPage.getByRole('toolbar', { name: 'Document tools' })
+const statusBar = () => browserPage.getByRole('toolbar', { name: 'Page and zoom' })
+const zoomSelect = () => browserPage.getByRole('combobox', { name: 'Zoom' })
+/** Opens the zoom select and clicks an option, as a reader would. */
+async function choose(name: string): Promise<void> {
+  await zoomSelect().click()
+  await browserPage.getByRole('option', { name, exact: true }).click()
+}
 
 describe('toolbar', () => {
   // React: 'tool buttons reflect and set the active tool with aria-pressed and onToolChange'
@@ -50,41 +57,86 @@ describe('toolbar', () => {
       'Highlight',
       'Mark for redaction',
       'Add note',
-      'Zoom out',
-      'Zoom in',
+      'Undo',
+      'Redo',
     ])
       expect(
         toolbar().getByRole('button', { name, exact: true }).elements()
       ).toHaveLength(1)
-    expect(toolbar().getByRole('combobox', { name: 'Zoom' }).elements()).toHaveLength(1)
-    expect(toolbar().getByRole('spinbutton', { name: 'Page' }).elements()).toHaveLength(1)
+    for (const name of ['Previous page', 'Next page', 'Zoom out', 'Zoom in'])
+      expect(
+        statusBar().getByRole('button', { name, exact: true }).elements()
+      ).toHaveLength(1)
+    expect(statusBar().getByRole('combobox', { name: 'Zoom' }).elements()).toHaveLength(1)
+    expect(statusBar().getByRole('spinbutton', { name: 'Page' }).elements()).toHaveLength(
+      1
+    )
     // Icons are decoration: the button's name comes from its label.
-    expect(
-      toolbar().element().querySelectorAll('svg:not([aria-hidden="true"])')
-    ).toHaveLength(0)
+    for (const bar of [toolbar(), statusBar()])
+      expect(
+        bar.element().querySelectorAll('svg:not([aria-hidden="true"])')
+      ).toHaveLength(0)
+    // Without children a button shows its icon: an SVG drawn from path elements.
+    const icon = toolbar()
+      .getByRole('button', { name: 'Undo', exact: true })
+      .element().firstElementChild
+    expect(icon).toBeInstanceOf(SVGSVGElement)
+    expect(icon!.children.length).toBeGreaterThan(0)
+    for (const child of icon!.children) expect(child).toBeInstanceOf(SVGPathElement)
   })
 
   // React: 'zoom controls change the scale and the select reflects it'
   it('zoom controls change the scale and the select reflects it', async () => {
     await render(ToolbarHarness, { src: fixtureUrl('text-simple'), assets })
     await q(`${FIRST} canvas`)
-    const select = browserPage.getByRole('combobox', { name: 'Zoom' })
-    await expect.element(select).toHaveValue('1')
-    await select.selectOptions('2')
+    const select = zoomSelect()
+    await expect.element(select).toHaveTextContent('100%')
+    await choose('200%')
     await expect.poll(cssOf(FIRST, 'width')).toBe('1224px')
     await browserPage.getByRole('button', { name: 'Zoom out' }).click()
     // 2 x 0.8: 979.2px, which layout stores to 1/64 px.
     await expect
       .poll(() => document.querySelector(FIRST)!.getBoundingClientRect().width)
       .toBeCloseTo(612 * 1.6, 1)
-    await expect
-      .poll(() => (select.element() as HTMLSelectElement).selectedOptions[0]?.textContent)
-      .toBe('160%')
+    await expect.element(select).toHaveTextContent('160%')
     await browserPage.getByRole('button', { name: 'Zoom in' }).click()
     await expect.poll(cssOf(FIRST, 'width')).toBe('1224px')
-    await expect.element(select).toHaveValue('2')
-    await select.selectOptions('fit-width')
-    await expect.element(select).toHaveValue('fit-width')
+    await expect.element(select).toHaveTextContent('200%')
+    await choose('Fit width')
+    await expect.element(select).toHaveTextContent('Fit width')
+  })
+
+  // React: 'the zoom select opens from the keyboard'
+  it('the zoom select opens from the keyboard', async () => {
+    await render(ToolbarHarness, { src: fixtureUrl('text-simple'), assets })
+    await q(`${FIRST} canvas`)
+    const select = zoomSelect()
+    ;(select.element() as HTMLElement).focus()
+    await userEvent.keyboard('{Enter}')
+    await expect
+      .element(browserPage.getByRole('option', { name: '100%' }))
+      .toHaveAttribute('data-highlighted')
+    await userEvent.keyboard('{ArrowDown}')
+    await userEvent.keyboard('{Enter}')
+    await expect.element(select).toHaveTextContent('125%')
+    await expect.poll(focused).toBe(select.element())
+  })
+
+  // React: 'previous and next page buttons move one page and stop at the ends'
+  it('previous and next page buttons move one page and stop at the ends', async () => {
+    await render(ToolbarHarness, { src: fixtureUrl('text-simple'), assets })
+    await q('.ink-page canvas')
+    const prev = browserPage.getByRole('button', { name: 'Previous page' })
+    const next = browserPage.getByRole('button', { name: 'Next page' })
+    const input = browserPage.getByRole('spinbutton', { name: 'Page' })
+    await expect.element(prev).toBeDisabled()
+    await next.click()
+    await expect.element(input).toHaveValue(2)
+    await next.click()
+    await expect.element(input).toHaveValue(3)
+    await expect.element(next).toBeDisabled()
+    await prev.click()
+    await expect.element(input).toHaveValue(2)
   })
 
   // React: 'a host onClick on the zoom button runs and the zoom still changes'
@@ -199,5 +251,27 @@ describe('toolbar', () => {
     await userEvent.keyboard('{ArrowDown}')
     await expect.element(input).toHaveValue(1)
     await expect.poll(scrollTopOf(SCROLL)).toBe(0)
+  })
+
+  // Vue: 'undo and redo follow the history; the separator divides the toolbar'
+  it('undo and redo follow the history; the separator divides the toolbar', async () => {
+    await render(ToolbarHarness, { src: fixtureUrl('text-simple'), assets })
+    await q('.ink-page canvas')
+    const separator = toolbar().getByRole('separator')
+    await expect.element(separator).toHaveAttribute('aria-orientation', 'vertical')
+    const undo = toolbar().getByRole('button', { name: 'Undo', exact: true })
+    const redo = toolbar().getByRole('button', { name: 'Redo', exact: true })
+    const probe = browserPage.getByTestId('probe')
+    await expect.element(undo).toBeDisabled()
+    await expect.element(redo).toBeDisabled()
+    await browserPage.getByTestId('add').click()
+    await expect.element(undo).toBeEnabled()
+    await undo.click()
+    await expect.element(probe).toHaveAttribute('data-annotations', '0')
+    await expect.element(undo).toBeDisabled()
+    await expect.element(redo).toBeEnabled()
+    await redo.click()
+    await expect.element(probe).toHaveAttribute('data-annotations', '1')
+    await expect.element(redo).toBeDisabled()
   })
 })

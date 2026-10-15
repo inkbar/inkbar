@@ -8,7 +8,7 @@ import { suggestionCount, suggestRedactions } from '../shared/suggest'
 
 const { document, isReady } = useDocument()
 const { annotations, add } = useAnnotations()
-const { undo, redo, canUndo, canRedo, batch } = useHistory()
+const { batch } = useHistory()
 const busy = ref(false)
 const result = ref('')
 
@@ -33,9 +33,7 @@ async function suggest() {
 </script>
 
 <template>
-  <div class="demo-actions" role="group" aria-label="Edit">
-    <button type="button" :disabled="!canUndo" @click="undo">Undo</button>
-    <button type="button" :disabled="!canRedo" @click="redo">Redo</button>
+  <div class="demo-actions" role="group" aria-label="Suggest">
     <button type="button" :disabled="!isReady || busy" @click="suggest">
       Suggest redactions
     </button>

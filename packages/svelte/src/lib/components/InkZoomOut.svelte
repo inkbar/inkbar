@@ -1,9 +1,11 @@
 <script lang="ts">
+  import { ZoomOut } from '@inkbar/icons'
   import { Toolbar } from 'bits-ui'
 
   import { useZoom } from '../hooks/useZoom.svelte.js'
 
   import { asBitsProps } from './child-snippet.js'
+  import InkIcon from './InkIcon.svelte'
 
   import type { InkZoomButtonProps } from './zoom-button.js'
 
@@ -30,5 +32,5 @@
     if (!e.defaultPrevented) zoom.zoomOut()
   }}
 >
-  {#if children}{@render children()}{:else}−{/if}
+  {#if children}{@render children()}{:else}<InkIcon icon={ZoomOut} />{/if}
 </Toolbar.Button>

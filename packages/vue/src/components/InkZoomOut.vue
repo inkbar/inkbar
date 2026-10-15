@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { ZoomOut } from '@inkbar/icons'
 import { ToolbarButton } from 'reka-ui'
 
 import { useZoom } from '../composables/useZoom'
+
+import InkIcon from './InkIcon.vue'
 
 withDefaults(defineProps<{ asChild?: boolean }>(), { asChild: false })
 const { zoomOut } = useZoom()
@@ -20,6 +23,6 @@ const attrs = {
     data-ink-zoom-out
     v-bind="attrs"
   >
-    <slot>−</slot>
+    <slot><InkIcon :icon="ZoomOut" /></slot>
   </ToolbarButton>
 </template>

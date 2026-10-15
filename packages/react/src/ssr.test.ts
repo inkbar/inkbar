@@ -50,12 +50,16 @@ describe('@inkbar/react on the server', () => {
         'useEmbedded',
         'InkToolbar',
         'InkToolButton',
+        'InkToolbarSeparator',
+        'InkUndo',
+        'InkRedo',
         'InkZoomIn',
         'InkZoomOut',
         'InkZoomSelect',
         'InkPageInput',
         'InkPageCount',
-        'DefaultToolbar',
+        'InkPrevPage',
+        'InkNextPage',
         'InkNotePopover',
         'InkSuggestionCard',
         'InkViewport',
@@ -70,7 +74,22 @@ describe('@inkbar/react on the server', () => {
         entry.InkRoot,
         { src: '/doc.pdf', assets },
         createElement('p', null, 'slot'),
-        createElement(entry.DefaultToolbar),
+        createElement(
+          entry.InkToolbar,
+          null,
+          createElement(entry.InkToolButton, { tool: 'highlight' })
+        ),
+        createElement(
+          entry.InkToolbar,
+          { label: 'Page and zoom' },
+          createElement(entry.InkPrevPage),
+          createElement(entry.InkPageInput),
+          createElement(entry.InkPageCount),
+          createElement(entry.InkNextPage),
+          createElement(entry.InkZoomOut),
+          createElement(entry.InkZoomSelect),
+          createElement(entry.InkZoomIn)
+        ),
         createElement(entry.InkNotePopover),
         createElement(entry.InkSuggestionCard)
       )

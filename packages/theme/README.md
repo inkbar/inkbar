@@ -20,7 +20,7 @@
 
 ---
 
-`@inkbar/theme` styles the viewer, toolbar, note threads and suggestion cards from `@inkbar/vue`, `@inkbar/react`, `@inkbar/svelte` and `createViewer` in `@inkbar/core`. Import it and ship, or override any part of it with your own CSS. If your app already defines shadcn tokens, the theme picks up your colours and radius.
+`@inkbar/theme` styles the viewer, toolbar controls, note threads and suggestion cards from `@inkbar/vue`, `@inkbar/react`, `@inkbar/svelte` and `createViewer` in `@inkbar/core`. Import it and ship, or override any part of it with your own CSS. If your app already defines shadcn tokens, the theme picks up your colours and radius.
 
 ## Install
 
@@ -73,6 +73,16 @@ Inkbar reads a colour when you create the annotation and stores it on the annota
 ## Layout
 
 The root and viewport fill their parent as a column, and the scroll area takes the remaining height. Give the parent a height and the document scrolls inside it.
+
+The theme gives a toolbar a background and padding and styles the controls in it. You decide where the toolbar sits, how to group its controls and what separates it from the document. Set `--ink-control-size` on a toolbar to change the height of its buttons, fields and zoom select (default `2.25rem`), and `--ink-icon-size` to change the size of their icons (default `1.125rem`).
+
+```css
+.my-page-bar {
+  --ink-control-size: 2rem;
+  --ink-icon-size: 1rem;
+  border-top: 1px solid var(--border);
+}
+```
 
 ## Licence
 

@@ -17,11 +17,19 @@ import { createFakeServer } from '@inkbar/e2e-shared/fake-server'
 import { recordReady } from '@inkbar/e2e-shared/metrics'
 import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
 import {
-  DefaultToolbar,
+  InkNextPage,
   InkNotePopover,
+  InkPageCount,
+  InkPageInput,
+  InkPrevPage,
   InkRoot,
   InkSuggestionCard,
+  InkToolbar,
+  InkToolButton,
   InkViewport,
+  InkZoomIn,
+  InkZoomOut,
+  InkZoomSelect,
 } from '@inkbar/vue'
 import { assets } from 'virtual:inkbar-assets'
 import {
@@ -225,7 +233,12 @@ async function newVersion(): Promise<void> {
     @error="onError"
   >
     <div :inert="loading" data-testid="toolbar-gate">
-      <DefaultToolbar>
+      <InkToolbar>
+        <InkToolButton tool="view" />
+        <InkToolButton tool="select" />
+        <InkToolButton tool="highlight" />
+        <InkToolButton tool="redact-area" />
+        <InkToolButton tool="note" />
         <div class="sandbox-actions" role="group" aria-label="Review">
           <button
             type="button"
@@ -240,11 +253,20 @@ async function newVersion(): Promise<void> {
             New version
           </button>
         </div>
-      </DefaultToolbar>
+      </InkToolbar>
     </div>
     <EmbeddedBanner />
     <div :inert="loading" class="sandbox-editor" data-testid="editor-gate">
       <InkViewport />
+      <InkToolbar label="Page and zoom">
+        <InkPrevPage />
+        <InkPageInput />
+        <InkPageCount />
+        <InkNextPage />
+        <InkZoomOut />
+        <InkZoomSelect />
+        <InkZoomIn />
+      </InkToolbar>
       <InkNotePopover />
       <InkSuggestionCard />
     </div>

@@ -4,6 +4,20 @@ import { userEvent } from 'vitest/browser'
 
 import { mountContainer, settle, until } from '../test-utils'
 
+import {
+  createNextPage,
+  createPageCount,
+  createPageInput,
+  createPrevPage,
+  createRedo,
+  createToolbar,
+  createToolbarSeparator,
+  createToolButton,
+  createUndo,
+  createZoomIn,
+  createZoomOut,
+  createZoomSelect,
+} from './controls'
 import { createViewer, type CreateViewerOptions, type Viewer } from './create-viewer'
 
 import type { InkDocument } from '../../model/document'
@@ -110,7 +124,7 @@ async function rootNote(viewer: Viewer, doc: InkDocument): Promise<HTMLElement> 
 }
 
 describe('createViewer', () => {
-  it('opens a document and renders the viewer, toolbar and pages', async () => {
+  it('opens a document and renders the viewer and pages', async () => {
     const onReady = vi.fn()
     const { viewer } = make('annotated-notes-threaded', { onReady })
     expect(viewer.status.get().state).toBe('loading')
@@ -120,7 +134,7 @@ describe('createViewer', () => {
     const { doc } = await ready(viewer)
     expect(viewer.element.matches('[data-ink-root][data-state="ready"]')).toBe(true)
     expect(viewer.element.querySelector('.ink-viewport-root .ink-scroll')).not.toBeNull()
-    expect(viewer.element.querySelector('.ink-default-toolbar')).toBe(viewer.toolbar)
+    expect(viewer.element.querySelector('[data-ink-toolbar]')).toBeNull()
     await until(
       () => viewer.element.querySelector('.ink-page[data-page="0"] canvas') !== null
     )
@@ -227,13 +241,6 @@ describe('createViewer', () => {
   })
 
   describe('toggles', () => {
-    it('toolbar: false leaves the toolbar out', async () => {
-      const { viewer } = make('text-simple', { toolbar: false })
-      await ready(viewer)
-      expect(viewer.toolbar).toBeNull()
-      expect(viewer.element.querySelector('.ink-default-toolbar')).toBeNull()
-    })
-
     it('notes: false opens no note popover', async () => {
       const { viewer } = make('annotated-notes-threaded', { notes: false })
       const { doc } = await ready(viewer)
@@ -253,23 +260,36 @@ describe('createViewer', () => {
     })
   })
 
-  describe('toolbar', () => {
+  describe('controls', () => {
     it('roves between buttons; the select and the page input are their own Tab stops', async () => {
       const { viewer } = make('text-simple')
+      const { tools, status } = bars(viewer)
+      // Disabled until a document is ready.
+      expect([...status.querySelectorAll('button')].every((b) => b.disabled)).toBe(true)
       await ready(viewer)
-      const bar = viewer.toolbar!
-      expect(bar.getAttribute('role')).toBe('toolbar')
-      expect(bar.getAttribute('aria-label')).toBe('Document tools')
-      expect(bar.getAttribute('aria-orientation')).toBe('horizontal')
-      const buttons = [...bar.querySelectorAll<HTMLElement>('button')]
-      expect(buttons).toHaveLength(7)
+      expect(tools.getAttribute('role')).toBe('toolbar')
+      expect(tools.getAttribute('aria-label')).toBe('Document tools')
+      expect(tools.getAttribute('aria-orientation')).toBe('horizontal')
+      const buttons = [...tools.querySelectorAll<HTMLElement>('button')]
+      expect(buttons).toHaveLength(5)
       expect(buttons.filter((c) => c.tabIndex === 0)).toHaveLength(1)
-      const select = bar.querySelector<HTMLSelectElement>('.ink-zoom-select')!
-      const input = bar.querySelector<HTMLInputElement>('[data-ink-page-input]')!
+      expect(status.getAttribute('aria-label')).toBe('Page and zoom')
+      // On the first page, Previous page is disabled and leaves the rotation.
+      const statusButtons = [...status.querySelectorAll<HTMLButtonElement>('button')]
+      expect(statusButtons.map((b) => b.getAttribute('aria-label'))).toEqual([
+        'Previous page',
+        'Next page',
+        'Zoom out',
+        'Zoom in',
+      ])
+      expect(statusButtons[0]!.disabled).toBe(true)
+      const select = status.querySelector<HTMLSelectElement>('.ink-zoom-select')!
+      const input = status.querySelector<HTMLInputElement>('[data-ink-page-input]')!
       expect(select.tabIndex).toBe(0)
       expect(input.tabIndex).toBe(0)
 
-      // Tab from before the viewer: the buttons once, then the select, then the page input.
+      // Tab from before the viewer: the tools once, the document, then the status bar's
+      // buttons once, the page input and the select in document order.
       const before = document.createElement('button')
       before.textContent = 'before'
       viewer.element.before(before)
@@ -278,11 +298,15 @@ describe('createViewer', () => {
       await userEvent.tab()
       expect(focused()).toBe(buttons[0])
       await userEvent.tab()
-      expect(focused()).toBe(select)
+      expect(focused()?.matches('[data-ink-scroll]')).toBe(true)
       await userEvent.tab()
       expect(focused()).toBe(input)
       await userEvent.tab()
-      expect(bar.contains(focused())).toBe(false)
+      expect(focused()).toBe(statusButtons[1])
+      await userEvent.tab()
+      expect(focused()).toBe(select)
+      await userEvent.tab()
+      expect(status.contains(focused())).toBe(false)
 
       buttons[0]!.focus()
       await userEvent.keyboard('{ArrowRight}')
@@ -291,17 +315,17 @@ describe('createViewer', () => {
       expect(buttons.filter((c) => c.tabIndex === 0)).toHaveLength(1)
       await userEvent.keyboard('{ArrowLeft}')
       await userEvent.keyboard('{ArrowLeft}')
-      expect(focused()).toBe(buttons[6])
+      expect(focused()).toBe(buttons[4])
       await userEvent.keyboard('{ArrowRight}')
       expect(focused()).toBe(buttons[0])
       await userEvent.keyboard('{End}')
-      expect(focused()).toBe(buttons[6])
+      expect(focused()).toBe(buttons[4])
       await userEvent.keyboard('{Home}')
       expect(focused()).toBe(buttons[0])
       // Zoom out to zoom in skips the select between them.
-      buttons[5]!.focus()
+      statusButtons[2]!.focus()
       await userEvent.keyboard('{ArrowRight}')
-      expect(focused()).toBe(buttons[6])
+      expect(focused()).toBe(statusButtons[3])
       // The select keeps its keys.
       select.focus()
       await userEvent.keyboard('{ArrowRight}')
@@ -310,16 +334,17 @@ describe('createViewer', () => {
 
     it("keeps a host field's own tabindex", async () => {
       const { viewer } = make('text-simple')
+      const { tools } = bars(viewer)
       await ready(viewer)
       const skipped = document.createElement('input')
       skipped.setAttribute('aria-label', 'Skipped')
       skipped.tabIndex = -1
       const plain = document.createElement('textarea')
       plain.setAttribute('aria-label', 'Plain')
-      viewer.toolbar!.append(skipped, plain)
+      tools.append(skipped, plain)
       await settle()
       // A button added afterwards makes the toolbar sync its Tab stops again.
-      viewer.toolbar!.append(document.createElement('button'))
+      tools.append(document.createElement('button'))
       await settle()
       expect(skipped.tabIndex).toBe(-1)
       expect(plain.tabIndex).toBe(0)
@@ -327,6 +352,7 @@ describe('createViewer', () => {
 
     it('roves to buttons a host adds and leaves a host text input its keys', async () => {
       const { viewer } = make('text-simple')
+      const { tools } = bars(viewer)
       await ready(viewer)
       const extra = document.createElement('button')
       extra.textContent = 'Extra'
@@ -334,11 +360,11 @@ describe('createViewer', () => {
       field.type = 'text'
       field.setAttribute('aria-label', 'Search')
       field.value = 'abc'
-      viewer.toolbar!.append(extra, field)
+      tools.append(extra, field)
       await settle()
       expect(extra.tabIndex).toBe(-1)
       expect(field.tabIndex).toBe(0)
-      bar(viewer).querySelector<HTMLElement>('[data-ink-zoom-in]')!.focus()
+      tools.querySelector<HTMLElement>('[data-tool="note"]')!.focus()
       await userEvent.keyboard('{ArrowRight}')
       expect(focused()).toBe(extra)
 
@@ -354,31 +380,36 @@ describe('createViewer', () => {
 
     it('drives the tools, zoom and page', async () => {
       const { viewer } = make('text-simple')
+      const { tools: t, status: s } = bars(viewer)
       const { engine } = await ready(viewer)
-      const b = bar(viewer)
-      const highlight = b.querySelector<HTMLButtonElement>('[data-tool="highlight"]')!
+      const highlight = t.querySelector<HTMLButtonElement>('[data-tool="highlight"]')!
       expect(highlight.getAttribute('aria-label')).toBe('Highlight')
-      expect(highlight.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true')
+      // The icon is decoration; the label names the button.
+      expect(highlight.querySelector('svg.ink-icon')?.getAttribute('aria-hidden')).toBe(
+        'true'
+      )
       highlight.click()
       expect(highlight.getAttribute('aria-pressed')).toBe('true')
       expect(highlight.dataset.state).toBe('on')
       expect(engine.tools.active.get()).toBe('highlight')
-      expect(b.querySelector('[data-tool="view"]')!.getAttribute('aria-pressed')).toBe(
+      expect(t.querySelector('[data-tool="view"]')!.getAttribute('aria-pressed')).toBe(
         'false'
       )
 
-      const select = b.querySelector<HTMLSelectElement>('.ink-zoom-select')!
+      const select = s.querySelector<HTMLSelectElement>('.ink-zoom-select')!
       expect(select.value).toBe('1')
       select.value = '2'
       select.dispatchEvent(new Event('change'))
       expect(engine.viewport.zoom.get()).toBe(2)
-      b.querySelector<HTMLButtonElement>('[data-ink-zoom-out]')!.click()
+      s.querySelector<HTMLButtonElement>('[data-ink-zoom-out]')!.click()
       expect(engine.viewport.zoom.get()).toBeCloseTo(1.6)
       expect(select.value).toBe('custom')
       expect(select.selectedOptions[0]!.textContent).toBe('160%')
+      // In order among the levels.
+      expect(select.selectedOptions[0]!.previousElementSibling!.textContent).toBe('150%')
 
-      expect(b.querySelector('[data-ink-page-count]')!.textContent).toBe('of 3')
-      const input = b.querySelector<HTMLInputElement>('[data-ink-page-input]')!
+      expect(s.querySelector('[data-ink-page-count]')!.textContent).toBe('of 3')
+      const input = s.querySelector<HTMLInputElement>('[data-ink-page-input]')!
       expect(input.value).toBe('1')
       input.value = '3'
       input.dispatchEvent(new Event('change'))
@@ -386,6 +417,65 @@ describe('createViewer', () => {
       input.value = '9'
       input.dispatchEvent(new Event('change'))
       expect(input.value).toBe('3')
+
+      const prev = s.querySelector<HTMLButtonElement>('[data-ink-prev-page]')!
+      const next = s.querySelector<HTMLButtonElement>('[data-ink-next-page]')!
+      expect(next.disabled).toBe(true)
+      prev.click()
+      await until(() => engine.viewport.currentPage.get() === 1)
+      expect(prev.disabled).toBe(false)
+      expect(next.disabled).toBe(false)
+      next.click()
+      await until(() => engine.viewport.currentPage.get() === 2)
+    })
+
+    it('undo and redo follow the history; the separator divides the toolbar', async () => {
+      const { viewer } = make('text-simple')
+      const bar = createToolbar()
+      const separator = createToolbarSeparator()
+      const undo = createUndo(viewer)
+      const redo = createRedo(viewer)
+      bar.append(createToolButton(viewer, 'select'), separator, undo, redo)
+      viewer.element.prepend(bar)
+      expect(separator.getAttribute('role')).toBe('separator')
+      expect(separator.getAttribute('aria-orientation')).toBe('vertical')
+      expect(undo.getAttribute('aria-label')).toBe('Undo')
+      expect(undo.disabled).toBe(true)
+      const { doc } = await ready(viewer)
+      expect(undo.disabled).toBe(true)
+      expect(redo.disabled).toBe(true)
+      doc.annotations.add({
+        type: 'note',
+        page: 0,
+        rect: { x: 0, y: 0, width: 20, height: 20 },
+      })
+      expect(undo.disabled).toBe(false)
+      undo.click()
+      expect(doc.annotations.list.get()).toHaveLength(0)
+      expect(undo.disabled).toBe(true)
+      expect(redo.disabled).toBe(false)
+      redo.click()
+      expect(doc.annotations.list.get()).toHaveLength(1)
+      expect(redo.disabled).toBe(true)
+    })
+
+    it('follows the new viewport after a rebuild and disables while nothing is open', async () => {
+      const { viewer } = make('text-simple')
+      const { status: s } = bars(viewer)
+      const { engine } = await ready(viewer)
+      const before = viewer.viewport.get()
+      engine.rebuild({ gap: 24 })
+      expect(viewer.viewport.get()).not.toBe(before)
+      s.querySelector<HTMLButtonElement>('[data-ink-zoom-in]')!.click()
+      expect(viewer.viewport.get()!.zoom.get()).toBe(1.25)
+      expect(s.querySelector<HTMLSelectElement>('.ink-zoom-select')!.value).toBe('1.25')
+
+      viewer.open(fixtureUrl('text-simple'))
+      expect(viewer.viewport.get()).toBeNull()
+      expect([...s.querySelectorAll('button')].every((b) => b.disabled)).toBe(true)
+      expect(s.querySelector('[data-ink-page-count]')!.textContent).toBe('')
+      await ready(viewer)
+      expect(s.querySelector('[data-ink-page-count]')!.textContent).toBe('of 3')
     })
   })
 
@@ -786,6 +876,25 @@ describe('createViewer', () => {
   })
 })
 
-function bar(viewer: Viewer): HTMLElement {
-  return viewer.toolbar!
+/** A tools bar above the document and a page and zoom bar below it, as a host builds them. */
+function bars(viewer: Viewer): { tools: HTMLElement; status: HTMLElement } {
+  const tools = createToolbar()
+  tools.append(
+    ...(['view', 'select', 'highlight', 'redact-area', 'note'] as const).map((t) =>
+      createToolButton(viewer, t)
+    )
+  )
+  const status = createToolbar({ label: 'Page and zoom' })
+  status.append(
+    createPrevPage(viewer),
+    createPageInput(viewer),
+    createPageCount(viewer),
+    createNextPage(viewer),
+    createZoomOut(viewer),
+    createZoomSelect(viewer),
+    createZoomIn(viewer)
+  )
+  viewer.element.prepend(tools)
+  viewer.element.append(status)
+  return { tools, status }
 }

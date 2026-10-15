@@ -502,6 +502,9 @@ importers:
 
   packages/core:
     dependencies:
+      '@inkbar/icons':
+        specifier: workspace:^
+        version: link:../icons
       pdfjs-dist:
         specifier: ^6.4.299
         version: 6.4.299
@@ -540,11 +543,26 @@ importers:
         specifier: ^5.0.4
         version: 5.0.4(@types/node@24.19.2)(@vitest/browser-playwright@5.0.4)(@vitest/ui@5.0.4)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
 
+  packages/icons:
+    devDependencies:
+      lucide:
+        specifier: 1.55.0
+        version: 1.55.0
+      tsdown:
+        specifier: ^0.23.1
+        version: 0.23.1(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/language-core@3.3.13)(tsx@4.23.15)(typescript@6.0.3)(vue-tsc@3.3.13(typescript@6.0.3))
+      tsx:
+        specifier: ^4.20.0
+        version: 4.23.15
+      vitest:
+        specifier: ^5.0.4
+        version: 5.0.4(@types/node@24.19.2)(@vitest/browser-playwright@5.0.4)(@vitest/ui@5.0.4)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+
   packages/react:
     dependencies:
-      lucide-react:
-        specifier: ^1.55.0
-        version: 1.55.0(@types/react@19.3.0)(react@19.3.0)
+      '@inkbar/icons':
+        specifier: workspace:^
+        version: link:../icons
       radix-ui:
         specifier: ^1.8.1
         version: 1.8.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -591,12 +609,12 @@ importers:
 
   packages/svelte:
     dependencies:
+      '@inkbar/icons':
+        specifier: workspace:^
+        version: link:../icons
       '@internationalized/date':
         specifier: ^3.12.4
         version: 3.12.4
-      '@lucide/svelte':
-        specifier: ^1.56.0
-        version: 1.56.0(svelte@5.57.2(@typescript-eslint/types@8.71.1))
       bits-ui:
         specifier: ^2.19.5
         version: 2.19.5(@internationalized/date@3.12.4)(svelte@5.57.2(@typescript-eslint/types@8.71.1))
@@ -655,9 +673,9 @@ importers:
 
   packages/vue:
     dependencies:
-      '@lucide/vue':
-        specifier: ^1.55.0
-        version: 1.55.0(vue@3.5.43(typescript@6.0.3))
+      '@inkbar/icons':
+        specifier: workspace:^
+        version: link:../icons
       reka-ui:
         specifier: ^2.11.0
         version: 2.11.0(vue@3.5.43(typescript@6.0.3))
@@ -1156,16 +1174,6 @@ packages:
 
   '@keyv/serialize@1.1.1':
     resolution: {integrity: sha512-dXn3FZhPv0US+7dtJsIi2R+c7qWYiReoEh5zUntWCf4oSpMNib8FDhSoed6m3QyZdx5hK7iLFkYk3rNxwt8vTA==}
-
-  '@lucide/svelte@1.56.0':
-    resolution: {integrity: sha512-YzbcmneHmPog3wAdXSl7oORgJhFc6klu8rRLMmm5uXwPQ8B0740c7dcNd3oJ72nCPvlbCW1XEmsWa4I0SDIogw==}
-    peerDependencies:
-      svelte: ^5
-
-  '@lucide/vue@1.55.0':
-    resolution: {integrity: sha512-3lpuTiVGIMbG7vEVhcDnHvIu+ZkjXka7eOp9tIA9iDPu6GHpfqwykVyAb+LM1uYYVgSI9Myo4HGzTvVnTS2CyA==}
-    peerDependencies:
-      vue: '>=3.0.1'
 
   '@napi-rs/canvas-android-arm64@1.0.11':
     resolution: {integrity: sha512-dtJS4FQEfH9OwSYLtMrEnj7T8DzBbJc/97LI/OkiWOYpW/iW5t6R/gcxVrUXS8l45gCVpwMufgucRe/pe0ISqA==}
@@ -3467,14 +3475,8 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
-  lucide-react@1.55.0:
-    resolution: {integrity: sha512-bSozQHiI3/8q7JvgoqVRGOYUi7fYT3siAZwmZsljjsOH2Husp/2ODdFf/leD+ZC/2yKfn7r8oh6yeoR3ITR5vA==}
-    peerDependencies:
-      '@types/react': '*'
-      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
-    peerDependenciesMeta:
-      '@types/react':
-        optional: true
+  lucide@1.55.0:
+    resolution: {integrity: sha512-FA0GSqTWkdwtvY4KqOFcMXvurex3exkX9FMtfSwUdo8rVsYGx56fBB3TLfc5Iroi4YtgXHUl+2EMJ/uqd30F+Q==}
 
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
@@ -5039,14 +5041,6 @@ snapshots:
       keyv: 5.6.0
 
   '@keyv/serialize@1.1.1': {}
-
-  '@lucide/svelte@1.56.0(svelte@5.57.2(@typescript-eslint/types@8.71.1))':
-    dependencies:
-      svelte: 5.57.2(@typescript-eslint/types@8.71.1)
-
-  '@lucide/vue@1.55.0(vue@3.5.43(typescript@6.0.3))':
-    dependencies:
-      vue: 3.5.43(typescript@6.0.3)
 
   '@napi-rs/canvas-android-arm64@1.0.11':
     optional: true
@@ -7295,11 +7289,7 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
-  lucide-react@1.55.0(@types/react@19.3.0)(react@19.3.0):
-    dependencies:
-      react: 19.3.0
-    optionalDependencies:
-      '@types/react': 19.3.0
+  lucide@1.55.0: {}
 
   lz-string@1.5.0: {}
 

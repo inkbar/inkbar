@@ -54,37 +54,84 @@ test('every toolbar control has an accessible name', async ({ mount, page }) => 
     'Highlight',
     'Mark for redaction',
     'Add note',
-    'Zoom out',
-    'Zoom in',
+    'Undo',
+    'Redo',
   ])
     await expect(toolbar.getByRole('button', { name, exact: true })).toHaveCount(1)
-  await expect(toolbar.getByRole('combobox', { name: 'Zoom' })).toHaveCount(1)
-  await expect(toolbar.getByRole('spinbutton', { name: 'Page' })).toHaveCount(1)
+  const status = page.getByRole('toolbar', { name: 'Page and zoom' })
+  for (const name of ['Previous page', 'Next page', 'Zoom out', 'Zoom in'])
+    await expect(status.getByRole('button', { name, exact: true })).toHaveCount(1)
+  await expect(status.getByRole('combobox', { name: 'Zoom' })).toHaveCount(1)
+  await expect(status.getByRole('spinbutton', { name: 'Page' })).toHaveCount(1)
   // Icons are decoration: the button's name comes from its label.
-  await expect(toolbar.locator('svg:not([aria-hidden="true"])')).toHaveCount(0)
+  for (const bar of [toolbar, status])
+    await expect(bar.locator('svg:not([aria-hidden="true"])')).toHaveCount(0)
 })
 
-test('zoom controls change the scale and the select reflects it', async ({ mount }) => {
+test('zoom controls change the scale and the select reflects it', async ({
+  mount,
+  page,
+}) => {
   const cmp = await mount(
     <ToolbarHarness src={fixtureUrl('text-simple')} assets={assets} />
   )
   const first = cmp.locator('.ink-page[data-page="0"]')
   await expect(first.locator('canvas')).toBeVisible()
-  const select = cmp.locator('select[aria-label="Zoom"]')
-  await expect(select).toHaveValue('1')
-  await select.selectOption('2')
+  const select = page.getByRole('combobox', { name: 'Zoom' })
+  const choose = async (name: string) => {
+    await select.click()
+    await page.getByRole('option', { name, exact: true }).click()
+  }
+  await expect(select).toHaveText('100%')
+  await choose('200%')
   await expect(first).toHaveCSS('width', '1224px')
   await cmp.locator('[aria-label="Zoom out"]').click()
   // 2 x 0.8: 979.2px, which layout stores to 1/64 px.
   await expect
     .poll(() => first.evaluate((el) => el.getBoundingClientRect().width))
     .toBeCloseTo(612 * 1.6, 1)
-  await expect(select.locator('option:checked')).toHaveText('160%')
+  await expect(select).toHaveText('160%')
   await cmp.locator('[aria-label="Zoom in"]').click()
   await expect(first).toHaveCSS('width', '1224px')
-  await expect(select).toHaveValue('2')
-  await select.selectOption('fit-width')
-  await expect(select).toHaveValue('fit-width')
+  await expect(select).toHaveText('200%')
+  await choose('Fit width')
+  await expect(select).toHaveText('Fit width')
+})
+
+test('the zoom select opens from the keyboard', async ({ mount, page }) => {
+  const cmp = await mount(
+    <ToolbarHarness src={fixtureUrl('text-simple')} assets={assets} />
+  )
+  await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+  const select = page.getByRole('combobox', { name: 'Zoom' })
+  await select.focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('option', { name: '100%' })).toBeFocused()
+  await page.keyboard.press('ArrowDown')
+  await page.keyboard.press('Enter')
+  await expect(select).toHaveText('125%')
+  await expect(select).toBeFocused()
+})
+
+test('previous and next page buttons move one page and stop at the ends', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(
+    <ToolbarHarness src={fixtureUrl('text-simple')} assets={assets} />
+  )
+  await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+  const prev = page.getByRole('button', { name: 'Previous page' })
+  const next = page.getByRole('button', { name: 'Next page' })
+  const input = cmp.locator('input[aria-label="Page"]')
+  await expect(prev).toBeDisabled()
+  await next.click()
+  await expect(input).toHaveValue('2')
+  await next.click()
+  await expect(input).toHaveValue('3')
+  await expect(next).toBeDisabled()
+  await prev.click()
+  await expect(input).toHaveValue('2')
 })
 
 test('a host onClick on the zoom button runs and the zoom still changes', async ({
@@ -194,4 +241,31 @@ test('stepping the page input with the arrow keys moves the viewport', async ({
   await page.keyboard.press('ArrowDown')
   await expect(input).toHaveValue('1')
   await expect.poll(() => scroll.evaluate((el) => el.scrollTop)).toBe(0)
+})
+
+test('undo and redo follow the history; the separator divides the toolbar', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(
+    <ToolbarHarness src={fixtureUrl('text-simple')} assets={assets} />
+  )
+  await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+  const toolbar = page.getByRole('toolbar', { name: 'Document tools' })
+  const separator = toolbar.getByRole('separator')
+  await expect(separator).toHaveAttribute('aria-orientation', 'vertical')
+  const undo = toolbar.getByRole('button', { name: 'Undo', exact: true })
+  const redo = toolbar.getByRole('button', { name: 'Redo', exact: true })
+  const probe = page.getByTestId('probe')
+  await expect(undo).toBeDisabled()
+  await expect(redo).toBeDisabled()
+  await page.getByTestId('add').click()
+  await expect(undo).toBeEnabled()
+  await undo.click()
+  await expect(probe).toHaveAttribute('data-annotations', '0')
+  await expect(undo).toBeDisabled()
+  await expect(redo).toBeEnabled()
+  await redo.click()
+  await expect(probe).toHaveAttribute('data-annotations', '1')
+  await expect(redo).toBeDisabled()
 })

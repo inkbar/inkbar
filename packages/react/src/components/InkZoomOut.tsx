@@ -1,7 +1,10 @@
+import { ZoomOut } from '@inkbar/icons'
 import { Toolbar } from 'radix-ui'
 
 import { cx } from '../class-names'
 import { useZoom } from '../hooks/useZoom'
+
+import { InkIcon } from './InkIcon'
 
 import type { InkZoomButtonProps } from './zoom-button'
 
@@ -26,7 +29,7 @@ export function InkZoomOut({
         if (!e.defaultPrevented) zoomOut()
       }}
     >
-      {children ?? '−'}
+      {children ?? <InkIcon icon={ZoomOut} />}
     </Toolbar.Button>
   )
 }

@@ -51,6 +51,7 @@
     "test:browser": "vitest run --project browser"
   },
   "dependencies": {
+    "@inkbar/icons": "workspace:^",
     "pdfjs-dist": "^6.4.299",
     "uuid": "^14.0.3",
     "zod": "^4.6.6"

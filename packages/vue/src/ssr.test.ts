@@ -55,9 +55,10 @@ describe('@inkbar/vue on the server', () => {
         'InkZoomSelect',
         'InkPageInput',
         'InkPageCount',
+        'InkPrevPage',
+        'InkNextPage',
         'InkNotePopover',
         'InkSuggestionCard',
-        'DefaultToolbar',
       ])
     )
     expect(evaluated.pdfjs).toBe(false)
@@ -66,7 +67,18 @@ describe('@inkbar/vue on the server', () => {
       render: () =>
         h(entry.InkRoot, { src: '/doc.pdf', assets }, () => [
           h('p', 'slot'),
-          h(entry.DefaultToolbar),
+          h(entry.InkToolbar, null, () => [
+            h(entry.InkToolButton, { tool: 'highlight' }),
+          ]),
+          h(entry.InkToolbar, { label: 'Page and zoom' }, () => [
+            h(entry.InkPrevPage),
+            h(entry.InkPageInput),
+            h(entry.InkPageCount),
+            h(entry.InkNextPage),
+            h(entry.InkZoomOut),
+            h(entry.InkZoomSelect),
+            h(entry.InkZoomIn),
+          ]),
           h(entry.InkNotePopover),
           h(entry.InkSuggestionCard),
         ]),

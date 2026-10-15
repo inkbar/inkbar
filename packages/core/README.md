@@ -20,7 +20,7 @@
 
 ---
 
-`@inkbar/core` opens PDFs, renders pages with PDF.js and keeps annotations as typed data. The Vue, React and Svelte packages build on it. You can also use it on its own: `createViewer` puts a complete viewer, with toolbar, note threads and redaction review, into any element in a plain TypeScript app.
+`@inkbar/core` opens PDFs, renders pages with PDF.js and keeps annotations as typed data. The Vue, React and Svelte packages build on it. You can also use it on its own: `createViewer` puts a complete viewer, with note threads, redaction review and controls to build your toolbars from, into any element in a plain TypeScript app.
 
 Every coordinate is stored in PDF user space (points, origin bottom-left, before `/Rotate`), so annotations stay put whatever the zoom, rotation or screen.
 
@@ -55,25 +55,49 @@ The DOM layer (`@inkbar/core/dom`) provides the viewport, canvas renderer, text 
 
 ### Without a framework
 
-`createViewer` opens a document and renders a complete viewer into an element: a toolbar with tools, zoom and page controls, plus a note thread and a suggested-redaction card. It uses the same markup as the framework packages, so `@inkbar/theme` styles it.
+`createViewer` opens a document and renders it into an element, with a note thread and a suggested-redaction card. The toolbars are yours: build them from the controls below, which use the same markup as the framework packages, so `@inkbar/theme` styles them.
 
 ```ts
-import { createViewer } from '@inkbar/core/dom'
+import {
+  createViewer,
+  createToolbar,
+  createToolButton,
+  createPageInput,
+  createPageCount,
+  createZoomOut,
+  createZoomSelect,
+  createZoomIn,
+} from '@inkbar/core/dom'
 import '@inkbar/theme/theme.css'
 
 const viewer = createViewer(el, { source: file, assets, zoom: 'fit-width' })
 
+const tools = createToolbar()
+tools.append(createToolButton(viewer, 'select'), createToolButton(viewer, 'highlight'))
+
 const undo = document.createElement('button')
 undo.textContent = 'Undo'
 undo.onclick = () => viewer.document.get()?.history.undo()
-viewer.toolbar?.append(undo) // buttons join the toolbar's arrow-key order
+tools.append(undo) // buttons join the toolbar's arrow-key order
+
+const pages = createToolbar({ label: 'Page and zoom' })
+pages.append(
+  createPageInput(viewer),
+  createPageCount(viewer),
+  createZoomOut(viewer),
+  createZoomSelect(viewer),
+  createZoomIn(viewer)
+)
+
+viewer.element.prepend(tools) // above the document
+viewer.element.append(pages) // below it
 
 viewer.open(otherFile) // destroys the current document; the latest call wins
 viewer.open(lockedFile, { password }) // this password applies to this load only
 viewer.destroy()
 ```
 
-It takes the [`mountViewer` options](#mounting-a-viewer) except `container` and `document`, plus `password`, `defaults`, `history`, `onReady` and `onError`. Set `toolbar`, `notes` or `suggestions` to `false` to leave that part out. `viewer.status`, `viewer.document` and `viewer.engine` are readables. A password you pass to `open` replaces the `createViewer` one for that load. An input, select or textarea you add keeps its arrow keys and its own `tabindex`: it is a Tab stop unless you give it `tabindex="-1"`.
+It takes the [`mountViewer` options](#mounting-a-viewer) except `container` and `document`, plus `password`, `defaults`, `history`, `onReady` and `onError`. Set `notes` or `suggestions` to `false` to leave that part out. `viewer.status`, `viewer.document`, `viewer.engine`, `viewer.viewport` and `viewer.tools` are readables; the last two change when the engine rebuilds. A password you pass to `open` replaces the `createViewer` one for that load. The controls are `createToolButton`, `createUndo`, `createRedo`, `createZoomIn`, `createZoomOut`, `createZoomSelect`, `createPageInput`, `createPageCount`, `createPrevPage` and `createNextPage`. Each one disables itself while no document is ready and lives as long as its viewer. Buttons show an icon from [`@inkbar/icons`](https://github.com/inkbar/inkbar/tree/main/packages/icons). Replace their children with your own icon and the accessible name stays; `createIcon` draws any `@inkbar/icons` icon for your own buttons. `createToolbar` gives one Tab stop to all its buttons, with arrow keys between them, and `createToolbarSeparator` divides groups of controls in it. An input, select or textarea you add keeps its arrow keys and its own `tabindex`: it is a Tab stop unless you give it `tabindex="-1"`.
 
 `createViewer` reads the theme's colours from the element you pass, so that element needs to be in the page when you call it.
 

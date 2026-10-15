@@ -1,6 +1,6 @@
 name: release
 
-# Publishing a release builds the tag it names and publishes the five packages
+# Publishing a release builds the tag it names and publishes the six packages
 # to npm. release-please.yml publishes the release when its release PR is
 # merged.
 
@@ -39,7 +39,7 @@ jobs:
             v[0-9]*) ;;
             *) echo "::error::Tag $TAG is not a version tag"; exit 1 ;;
           esac
-          for p in core vue react svelte theme; do
+          for p in core vue react svelte theme icons; do
             v=$(jq -r .version "packages/$p/package.json")
             if [ "v$v" != "$TAG" ]; then
               echo "::error::Tag $TAG does not match @inkbar/$p ($v)"
@@ -60,5 +60,5 @@ jobs:
         run: >-
           pnpm -r
           --filter @inkbar/core --filter @inkbar/vue --filter @inkbar/react
-          --filter @inkbar/svelte --filter @inkbar/theme
+          --filter @inkbar/svelte --filter @inkbar/theme --filter @inkbar/icons
           publish --access public --provenance --no-git-checks
