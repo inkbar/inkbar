@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/inkbar/inkbar/compare/v0.1.0...v0.1.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* add repository details to the published packages ([#109](https://github.com/inkbar/inkbar/issues/109)) ([3a091d0](https://github.com/inkbar/inkbar/commit/3a091d06807deb4016fa2dadf79f95ec066dc7e0))
+
 ## 0.1.0 (2026-10-15)
 
 
