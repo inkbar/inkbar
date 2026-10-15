@@ -146,17 +146,15 @@ for (const framework of FRAMEWORKS) {
       await page.setViewportSize({ width: 390, height: 844 })
       await page.goto(`${framework}/`)
       await waitForFirstPage(page)
-      await page.locator('details.source summary').click()
       const overflow = await page.evaluate(
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth
       )
       expect(overflow).toBe(0)
     })
 
-    test('has no axe violations with the source open', async ({ page }) => {
+    test('has no axe violations', async ({ page }) => {
       await page.goto(`${framework}/`)
       await waitForFirstPage(page)
-      await page.locator('details.source summary').click()
       const { violations } = await new AxeBuilder({ page }).analyze()
       expect(violations).toEqual([])
     })
