@@ -548,9 +548,6 @@ importers:
 
   packages/react:
     dependencies:
-      '@inkbar/core':
-        specifier: workspace:*
-        version: link:../core
       lucide-react:
         specifier: ^1.55.0
         version: 1.55.0(@types/react@19.3.0)(react@19.3.0)
@@ -558,6 +555,9 @@ importers:
         specifier: ^1.8.1
         version: 1.8.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
     devDependencies:
+      '@inkbar/core':
+        specifier: workspace:*
+        version: link:../core
       '@inkbar/fixtures':
         specifier: workspace:*
         version: link:../../fixtures
@@ -597,9 +597,6 @@ importers:
 
   packages/svelte:
     dependencies:
-      '@inkbar/core':
-        specifier: workspace:*
-        version: link:../core
       '@internationalized/date':
         specifier: ^3.12.4
         version: 3.12.4
@@ -613,6 +610,9 @@ importers:
         specifier: ^1.2.0
         version: 1.2.2
     devDependencies:
+      '@inkbar/core':
+        specifier: workspace:*
+        version: link:../core
       '@inkbar/fixtures':
         specifier: workspace:*
         version: link:../../fixtures
@@ -661,9 +661,6 @@ importers:
 
   packages/vue:
     dependencies:
-      '@inkbar/core':
-        specifier: workspace:*
-        version: link:../core
       '@lucide/vue':
         specifier: ^1.55.0
         version: 1.55.0(vue@3.5.43(typescript@6.0.3))
@@ -671,6 +668,9 @@ importers:
         specifier: ^2.11.0
         version: 2.11.0(vue@3.5.43(typescript@6.0.3))
     devDependencies:
+      '@inkbar/core':
+        specifier: workspace:*
+        version: link:../core
       '@inkbar/fixtures':
         specifier: workspace:*
         version: link:../../fixtures
