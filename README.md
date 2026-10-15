@@ -52,15 +52,15 @@ pnpm --filter @inkbar/sandbox dev  # the sandbox on http://localhost:5190
 
 ## Releasing
 
-The `release` workflow runs from the Actions tab and publishes all five packages to npm at the same version. release-it picks the version from conventional commits on `main`, commits `release: v<version>` and tags it, creates the GitHub release with the generated changelog, then runs `pnpm publish --access public` for each package. pnpm replaces `workspace:*` with the released version at publish time.
+All five packages are released together at one version. On every push to `main`, the `release-please` workflow updates an open release PR. The PR bumps the version in each package and in `CHANGELOG.md`, picking the next version from the conventional commits since the last release. Merging it tags the commit and publishes the GitHub release.
 
-The workflow needs these settings:
+Publishing the release starts the `release` workflow. It checks out the tag, builds and tests, then runs `pnpm publish` for each package with provenance. pnpm replaces `workspace:*` with the released version at publish time.
 
-- Repository variable `INKBAR_CI_APP_CLIENT_ID` and secret `INKBAR_CI_APP_PRIVATE_KEY`: a GitHub App with contents write access, installed on this repository. Its token pushes the release commit and tag to `main`.
+The workflows need these settings:
+
+- Repository variable `INKBAR_CI_APP_CLIENT_ID` and secret `INKBAR_CI_APP_PRIVATE_KEY`: a GitHub App installed on this repository with contents and pull requests write access. Its token opens the release PR and publishes the release. A release made with `GITHUB_TOKEN` would not start the `release` workflow.
 - Secret `NPM_TOKEN`: an npm automation token with publish rights on the `@inkbar` scope.
 
-release-it pushes straight to `main`. Once `main` is protected, add the App to the bypass list for the branch protection rule, or the push is rejected.
-
-If publishing fails after the tag exists, check out the tag, run `pnpm install --frozen-lockfile` and `pnpm build`, then run `pnpm -r --filter @inkbar/core --filter @inkbar/vue --filter @inkbar/react --filter @inkbar/svelte --filter @inkbar/theme publish --access public --no-git-checks`. pnpm skips versions already on the registry, so a partial publish can be finished this way.
+If publishing fails, rerun the `release` workflow from the Actions tab. pnpm skips versions already on the registry, so a rerun finishes a partial publish.
 
 Licence: MIT.

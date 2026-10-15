@@ -1,51 +1,65 @@
 name: release
 
-# Manual only. Run it from the Actions tab on `main`.
-#
-# release-it pushes the release commit and the version tag straight to `main`
-# using the GitHub App token. Once `main` is protected, add the App to the
-# bypass list, or the push is rejected.
+# Publishing a release builds the tag it names and publishes the five packages
+# to npm. release-please.yml publishes the release when its release PR is
+# merged.
 
 on:
-  workflow_dispatch:
+  release:
+    types: [published]
 
 permissions:
   contents: read
+  id-token: write # npm provenance
 
 concurrency:
-  group: release
+  group: release-${{ github.event.release.tag_name }}
   cancel-in-progress: false
 
 jobs:
-  release:
+  publish:
     runs-on: ubuntu-latest
     steps:
-      - name: Mint App token
-        id: app-token
-        uses: actions/create-github-app-token@v3
-        with:
-          client-id: ${{ vars.INKBAR_CI_APP_CLIENT_ID }}
-          private-key: ${{ secrets.INKBAR_CI_APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
+      # Build the tag the release names, not whatever main happens to be.
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-          token: ${{ steps.app-token.outputs.token }}
+          ref: ${{ github.event.release.tag_name }}
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           cache: pnpm
           registry-url: https://registry.npmjs.org
+      # The tag reaches the shell through env, not interpolation: a tag name may
+      # legally contain shell metacharacters.
+      - name: Check the tag matches the package versions
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          case "$TAG" in
+            v[0-9]*) ;;
+            *) echo "::error::Tag $TAG is not a version tag"; exit 1 ;;
+          esac
+          for p in core vue react svelte theme; do
+            v=$(jq -r .version "packages/$p/package.json")
+            if [ "v$v" != "$TAG" ]; then
+              echo "::error::Tag $TAG does not match @inkbar/$p ($v)"
+              exit 1
+            fi
+          done
       - run: sudo apt-get update && sudo apt-get install -y qpdf
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @inkbar/core exec playwright install --with-deps chromium
-      - name: Configure git
-        run: |
-          git config user.name "${{ steps.app-token.outputs.app-slug }}[bot]"
-          git config user.email "${{ steps.app-token.outputs.app-slug }}[bot]@users.noreply.github.com"
-      - name: Release
-        run: pnpm release --ci
+      - run: pnpm build
+      - run: pnpm test
+      # pnpm replaces `workspace:*` with the released version at publish time
+      # and skips versions already on the registry, so a rerun finishes a
+      # partial publish.
+      - name: Publish
+        run: >-
+          pnpm -r
+          --filter @inkbar/core --filter @inkbar/vue --filter @inkbar/react
+          --filter @inkbar/svelte --filter @inkbar/theme
+          publish --access public --provenance --no-git-checks
         env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
