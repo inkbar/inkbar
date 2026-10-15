@@ -1,0 +1,19 @@
+.github/workflows/release.yml
+  s_1ba44f8206a6a0::t_91c801c36c9b67 13,56-58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8e7cf664491a49a9b0a6effe786552d489604e60",
+  "prompts": {},
+  "sessions": {
+    "s_1ba44f8206a6a0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "931db655-f2f7-4e27-9f52-d1b9b3d8cd98",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
