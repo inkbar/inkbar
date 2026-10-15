@@ -1,0 +1,25 @@
+packages/vue/LICENSE
+  s_b00e6df5d038b9::t_db61ffd5ef6c31 1-21
+packages/svelte/LICENSE
+  s_b00e6df5d038b9::t_db61ffd5ef6c31 1-21
+packages/react/LICENSE
+  s_b00e6df5d038b9::t_db61ffd5ef6c31 1-21
+packages/theme/LICENSE
+  s_b00e6df5d038b9::t_db61ffd5ef6c31 1-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5a009477aa7b822bbaed50ce0e4afbe8cb76ef63",
+  "prompts": {},
+  "sessions": {
+    "s_b00e6df5d038b9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "382703c2-4aa2-4e14-bde7-bff7e9b0fe89",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
