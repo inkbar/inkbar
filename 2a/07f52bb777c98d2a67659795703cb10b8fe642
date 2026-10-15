@@ -1,0 +1,22 @@
+apps/sandbox/src/shared/suggest.ts
+  s_1ba44f8206a6a0::t_0ad4947f908b13 42-43,69-71
+  s_1ba44f8206a6a0::t_86c9f7defdd2ef 39-41,44-60,62-64,66-68,72-73,76-79,107-108,120
+apps/sandbox/src/shared/suggest.test.ts
+  s_1ba44f8206a6a0::t_e52a38d1b897ab 51-63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2a07f52bb777c98d2a67659795703cb10b8fe642",
+  "prompts": {},
+  "sessions": {
+    "s_1ba44f8206a6a0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "931db655-f2f7-4e27-9f52-d1b9b3d8cd98",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
