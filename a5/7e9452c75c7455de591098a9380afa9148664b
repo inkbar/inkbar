@@ -1,0 +1,16 @@
+.github/workflows/release-please.yml
+  h_13c4e797d6e9d2 28-29
+README.md
+  h_13c4e797d6e9d2 61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a57e9452c75c7455de591098a9380afa9148664b",
+  "prompts": {},
+  "humans": {
+    "h_13c4e797d6e9d2": {
+      "author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
