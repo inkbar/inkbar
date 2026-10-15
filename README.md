@@ -8,19 +8,19 @@ Try it in the browser: [inkbar.github.io/inkbar](https://inkbar.github.io/inkbar
 
 ## Packages
 
-| Package              | Purpose                                                                                      |
-| -------------------- | -------------------------------------------------------------------------------------------- |
-| `@inkbar/core`       | Document model, rendering, annotations and tools, with no framework dependency.              |
-| `@inkbar/vue`        | Vue 3 components, composables and a default toolbar.                                         |
-| `@inkbar/react`      | React 19 components, hooks and a default toolbar.                                            |
-| `@inkbar/svelte`     | Svelte 5 components, hooks and a default toolbar.                                            |
-| `@inkbar/theme`      | Default stylesheet. Zero specificity, compatible with shadcn token names.                    |
-| `@inkbar/fixtures`   | Test PDFs and helpers for the test suites. Private, not published.                           |
-| `@inkbar/e2e-vue`    | Review app for end-to-end, accessibility and performance checks. Private, not published.     |
-| `@inkbar/e2e-react`  | The review app on React. Private, not published.                                             |
-| `@inkbar/e2e-svelte` | The review app on Svelte. Private, not published.                                            |
-| `@inkbar/e2e-shared` | End-to-end suite, fake server and helpers the three review apps run. Private, not published. |
-| `@inkbar/demo`       | The demo on GitHub Pages: an index and one page per framework. Private, not published.       |
+| Package              | Purpose                                                                                         |
+| -------------------- | ----------------------------------------------------------------------------------------------- |
+| `@inkbar/core`       | Document model, rendering, annotations and tools, with no framework dependency.                 |
+| `@inkbar/vue`        | Vue 3 components, composables and a default toolbar.                                            |
+| `@inkbar/react`      | React 19 components, hooks and a default toolbar.                                               |
+| `@inkbar/svelte`     | Svelte 5 components, hooks and a default toolbar.                                               |
+| `@inkbar/theme`      | Default stylesheet. Zero specificity, compatible with shadcn token names.                       |
+| `@inkbar/fixtures`   | Test PDFs and helpers for the test suites. Private, not published.                              |
+| `@inkbar/e2e-vue`    | Review app for end-to-end, accessibility and performance checks. Private, not published.        |
+| `@inkbar/e2e-react`  | The review app on React. Private, not published.                                                |
+| `@inkbar/e2e-svelte` | The review app on Svelte. Private, not published.                                               |
+| `@inkbar/e2e-shared` | End-to-end suite, fake server and helpers the three review apps run. Private, not published.    |
+| `@inkbar/sandbox`    | The sandbox at sandbox.inkbar.dev: an index and one page per framework. Private, not published. |
 
 ## Install
 
@@ -47,7 +47,7 @@ pnpm test
 pnpm --filter @inkbar/e2e-vue dev  # the review app on http://localhost:5180
 pnpm --filter @inkbar/e2e-react dev  # the React review app on http://localhost:5181
 pnpm --filter @inkbar/e2e-svelte dev  # the Svelte review app on http://localhost:5182
-pnpm --filter @inkbar/demo dev  # the demo on http://localhost:5190
+pnpm --filter @inkbar/sandbox dev  # the sandbox on http://localhost:5190
 ```
 
 ## Releasing

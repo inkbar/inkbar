@@ -1,5 +1,5 @@
 /*
- * "Suggest redactions" for the demo: a local pattern matcher standing in for a host's own
+ * "Suggest redactions" for the sandbox: a local pattern matcher standing in for a host's own
  * service. It reads each page's text, matches UK National Insurance numbers, email addresses
  * and UK phone numbers, and returns suggested redactions over just the matched characters.
  */

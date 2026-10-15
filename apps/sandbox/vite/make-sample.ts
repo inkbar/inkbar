@@ -1,5 +1,5 @@
 /*
- * The demo's sample document: a fictional, three-page housing case file with text the
+ * The sandbox's sample document: a fictional, three-page housing case file with text the
  * suggester can find (three National Insurance numbers, three email addresses and three UK
  * phone numbers) and two annotations already in the file, so the viewer shows the
  * embedded-annotation path. Every name, number and address is made up: `QQ` National
@@ -104,7 +104,7 @@ const NOTES: Line[] = [
 export async function makeSample(): Promise<Uint8Array> {
   const d = await PDFDocument.create()
   d.setTitle('Fernhill Housing Trust: tenancy review (sample)')
-  d.setAuthor('Inkbar demo')
+  d.setAuthor('Inkbar sandbox')
   // Fixed dates keep the bytes the same from build to build.
   d.setCreationDate(new Date('2026-10-14T09:00:00Z'))
   d.setModificationDate(new Date('2026-10-14T09:00:00Z'))

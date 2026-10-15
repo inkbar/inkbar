@@ -10,7 +10,7 @@ export function samplePdf(): Plugin {
   let bytes: Promise<Uint8Array> | undefined
   const sample = (): Promise<Uint8Array> => (bytes ??= makeSample())
   return {
-    name: 'inkbar-demo:sample-pdf',
+    name: 'inkbar-sandbox:sample-pdf',
     configureServer(server) {
       const base = server.config.base
       server.middlewares.use((req, res, next) => {

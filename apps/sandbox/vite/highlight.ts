@@ -15,7 +15,7 @@ const LANGS = { '.ts': 'ts', '.tsx': 'tsx', '.vue': 'vue', '.svelte': 'svelte' }
 type Lang = (typeof LANGS)[keyof typeof LANGS]
 
 const QUERY = '?highlight'
-const PREFIX = '\0inkbar-demo-highlight:'
+const PREFIX = '\0inkbar-sandbox-highlight:'
 // The id must not end in the source extension, or the framework plugins try to compile it.
 const SUFFIX = '.js'
 
@@ -37,7 +37,7 @@ export async function highlight(code: string, lang: Lang): Promise<string> {
 
 export function highlightSource(): Plugin {
   return {
-    name: 'inkbar-demo:highlight-source',
+    name: 'inkbar-sandbox:highlight-source',
     enforce: 'pre',
     async resolveId(id, importer) {
       if (!id.endsWith(QUERY)) return null
