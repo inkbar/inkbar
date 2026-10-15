@@ -2,10 +2,16 @@ name: test
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions:
   contents: read
+
+# A new push to a pull request replaces its running checks; main runs every push.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
@@ -25,8 +31,15 @@ jobs:
       - run: pnpm build
       - run: pnpm test
 
-  browser:
+  # One runner per suite. The e2e suites measure frame times, so nothing else may compete for
+  # their runner's CPU.
+  browser-suite:
+    name: browser (${{ matrix.package }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [core, vue, react, svelte, sandbox, e2e-vue, e2e-react, e2e-svelte]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -37,20 +50,11 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y qpdf
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @inkbar/core exec playwright install --with-deps chromium
-      - run: pnpm build
-      - run: pnpm exec turbo run test:browser --filter='!@inkbar/e2e-*'
-      # The end-to-end suites measure frame times. Each runs alone so nothing else competes for
-      # the runner's CPU.
-      - if: ${{ !cancelled() }}
-        run: pnpm exec turbo run test:browser --filter=@inkbar/e2e-vue
-      - if: ${{ !cancelled() }}
-        run: pnpm exec turbo run test:browser --filter=@inkbar/e2e-react
-      - if: ${{ !cancelled() }}
-        run: pnpm exec turbo run test:browser --filter=@inkbar/e2e-svelte
+      - run: pnpm exec turbo run test:browser --filter=@inkbar/${{ matrix.package }}
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: browser-test-results
+          name: browser-test-results-${{ matrix.package }}
           # Vitest browser mode writes failure screenshots under .vitest/attachments/.
           path: |
             packages/*/.vitest/attachments
@@ -60,3 +64,13 @@ jobs:
           include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 7
+
+  # The ruleset on main requires a check named "browser"; it passes when every suite does.
+  browser:
+    needs: browser-suite
+    # always(): a skipped required check counts as passed, so this job must run and fail.
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - if: needs.browser-suite.result != 'success'
+        run: exit 1
