@@ -492,7 +492,7 @@
     cursor: default;
   }
 
-  /* The native select draws the same chevron as the trigger's icon: Lucide's ChevronDown (ISC). */
+  /* The native select draws the same chevron as the trigger's icon: Lucide's ChevronDown; see LICENSE. */
   :where(.ink-toolbar select.ink-zoom-select) {
     padding-right: 2rem;
     appearance: none;
