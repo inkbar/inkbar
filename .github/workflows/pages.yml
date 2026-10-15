@@ -2,7 +2,7 @@ name: pages
 
 # Pages serves the gh-pages branch. Pushes to main publish the sandbox at its root; each pull
 # request that can change the sandbox gets a preview under pr-preview/pr-<number>/, removed
-# again when the pull request closes. public/CNAME keeps the custom domain on each publish.
+# again when the pull request closes.
 on:
   push:
     branches: [main]
@@ -45,6 +45,12 @@ jobs:
         env:
           SANDBOX_BASE: ${{ github.event_name == 'pull_request' && format('/pr-preview/pr-{0}/', github.event.number) || '/' }}
 
+      # Only the site root needs these. The deploy actions never delete CNAME or .nojekyll, so in
+      # a preview they would outlive its removal. CNAME keeps the custom domain set.
+      - if: github.event_name != 'pull_request'
+        run: |
+          echo sandbox.inkbar.dev > apps/sandbox/dist/CNAME
+          touch apps/sandbox/dist/.nojekyll
       - if: github.event_name != 'pull_request'
         uses: JamesIves/github-pages-deploy-action@v4
         with:
