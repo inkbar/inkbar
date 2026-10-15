@@ -1,66 +1,188 @@
-# Inkbar
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/assets/inkbar-mark-on-dark.svg">
+    <img src=".github/assets/inkbar-mark-on-light.svg" alt="Inkbar" width="96" height="96">
+  </picture>
+</p>
 
-Browser PDF viewer and editor for Vue, React and Svelte, built on PDF.js. Headless primitives, typed annotations, one coordinate system.
+<h1 align="center">Inkbar</h1>
 
-Made by [Redactr](https://redactr.io).
+<p align="center">
+  A full PDF editor for your web app. No licence fee.
+</p>
 
-Try it in the browser: [inkbar.github.io/inkbar](https://inkbar.github.io/inkbar/), with one page each for React, Vue, Svelte and plain TypeScript.
+<p align="center">
+  <a href="https://inkbar.dev">Website</a> ·
+  <a href="https://inkbar.dev/docs/">Docs</a> ·
+  <a href="https://sandbox.inkbar.dev">Sandbox</a> ·
+  <a href="https://www.npmjs.com/org/inkbar">npm</a>
+</p>
 
-## Packages
+---
 
-| Package              | Purpose                                                                                         |
-| -------------------- | ----------------------------------------------------------------------------------------------- |
-| `@inkbar/core`       | Document model, rendering, annotations and tools, with no framework dependency.                 |
-| `@inkbar/vue`        | Vue 3 components, composables and a default toolbar.                                            |
-| `@inkbar/react`      | React 19 components, hooks and a default toolbar.                                               |
-| `@inkbar/svelte`     | Svelte 5 components, hooks and a default toolbar.                                               |
-| `@inkbar/theme`      | Default stylesheet. Zero specificity, compatible with shadcn token names.                       |
-| `@inkbar/fixtures`   | Test PDFs and helpers for the test suites. Private, not published.                              |
-| `@inkbar/e2e-vue`    | Review app for end-to-end, accessibility and performance checks. Private, not published.        |
-| `@inkbar/e2e-react`  | The review app on React. Private, not published.                                                |
-| `@inkbar/e2e-svelte` | The review app on Svelte. Private, not published.                                               |
-| `@inkbar/e2e-shared` | End-to-end suite, fake server and helpers the three review apps run. Private, not published.    |
-| `@inkbar/sandbox`    | The sandbox at sandbox.inkbar.dev: an index and one page per framework. Private, not published. |
+Your users want to read a PDF, mark it up and send it back without leaving your app. The commercial PDF SDKs do that and charge per seat or per domain. PDF.js is free, but it renders pages and stops there: the toolbar, the annotations, undo and the keyboard support are yours to build.
+
+Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, ships a default UI for Vue, React, Svelte and plain TypeScript, and is free under the MIT licence.
+
+<p align="center">
+  <img src=".github/assets/viewer.png" alt="The Inkbar viewer showing a letter with a highlighted line and suggested redactions on an email address and a phone number. A card for the email address offers Accept and Dismiss." width="100%">
+</p>
+
+## Why Inkbar
+
+- **Your framework.** Components and hooks for Vue 3, React 19 and Svelte 5, plus `createViewer` for apps with no framework at all. All four share one engine and one stylesheet.
+- **A default UI you can replace.** Import the theme and ship. Every rule has zero specificity, so your own CSS wins without `!important`, and the theme reads shadcn token names if you already use them. For your own toolbar, use the same headless parts the default one is made from.
+- **Annotations as plain data.** Highlights, notes and redactions are typed objects. Keep them in your own state and save them to your own backend, or let Inkbar hold them. Undo and redo work either way.
+- **Redaction with review.** Mark text or areas for redaction by hand, or pass in suggestions from your own detector. Each suggestion shows what it matched and how confident it is, and someone accepts or dismisses it before it counts.
+- **Keyboard first.** Every tool works without a mouse: select text and press Enter to highlight it, move between annotations with the arrow keys, nudge them a point at a time.
+- **Fits a real app.** Pass a signed URL and a stable key, and Inkbar won't reload the document when the URL rotates. You can import the document model during server rendering.
+
+### What it does today
+
+| Area        | Available now                                                                                                                                                  |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Viewing     | Rendering, zoom, fit to width or page, page navigation, text selection                                                                                         |
+| Markup      | Highlights from a text selection                                                                                                                               |
+| Notes       | Notes with reply threads                                                                                                                                       |
+| Redaction   | Text and area redaction marks, suggested redactions with confidence and review                                                                                 |
+| Annotations | JSON import and export. Underline, strikeout, squiggly, ink, shapes and lines display from imported data and from the PDF's own annotations, which stay locked |
+| History     | Undo and redo, with grouped steps, whether Inkbar or your app holds the annotations                                                                            |
+
+### Coming soon
+
+- **Forms.** Read and fill form fields in the viewer.
+- **Search.** Find text across the document.
+- **Saving into the PDF.** Write annotations and applied redactions back into the file. Until then, store `exportAnnotations('json')` and load it on the next open.
 
 ## Install
 
-```sh
-pnpm add @inkbar/vue @inkbar/core @inkbar/theme
-```
+Install the core, the theme and the package for your framework:
 
 ```sh
 pnpm add @inkbar/react @inkbar/core @inkbar/theme
 ```
 
-```sh
-pnpm add @inkbar/svelte @inkbar/core @inkbar/theme
+Swap `@inkbar/react` for `@inkbar/vue` or `@inkbar/svelte`. With no framework, `@inkbar/core` and `@inkbar/theme` are enough.
+
+PDF.js loads a worker, fonts and decoders at runtime. With Vite, the plugin serves them:
+
+```ts
+// vite.config.ts
+import { inkbar } from '@inkbar/core/vite'
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  plugins: [inkbar()],
+})
 ```
 
-The five packages are released together and share one version. `@inkbar/vue`, `@inkbar/react` and `@inkbar/svelte` depend on the exact `@inkbar/core` version they were built against. See each package README for usage.
+Without Vite, copy the files yourself and pass their URLs. The [`@inkbar/core` README](packages/core/README.md#serving-pdfjs-assets) lists them.
+
+## Quick start
+
+A complete viewer with the default toolbar, note threads and suggestion cards, in React:
+
+```tsx
+import {
+  InkRoot,
+  InkViewport,
+  DefaultToolbar,
+  InkNotePopover,
+  InkSuggestionCard,
+} from '@inkbar/react'
+import { assets } from 'virtual:inkbar-assets'
+import '@inkbar/theme/theme.css'
+
+export function Review({ url }: { url: string }) {
+  return (
+    <div style={{ height: '100vh' }}>
+      <InkRoot src={url} assets={assets}>
+        <DefaultToolbar />
+        <InkViewport />
+        <InkNotePopover />
+        <InkSuggestionCard />
+      </InkRoot>
+    </div>
+  )
+}
+```
+
+The viewer fills its parent, so give the parent a height. The same example for each framework, and how to keep annotations in your own state:
+
+- [Vue](packages/vue/README.md)
+- [React](packages/react/README.md)
+- [Svelte](packages/svelte/README.md)
+- [Plain TypeScript](packages/core/README.md#without-a-framework)
+
+The [sandbox](https://sandbox.inkbar.dev) runs all four on a sample document. Drop in your own PDF to try it; the file stays in your browser.
+
+## Packages
+
+| Package                             | What it is                                                                      |
+| ----------------------------------- | ------------------------------------------------------------------------------- |
+| [`@inkbar/core`](packages/core)     | Document model, rendering, annotations and tools, with no framework dependency. |
+| [`@inkbar/vue`](packages/vue)       | Vue 3 components, composables and a default toolbar.                            |
+| [`@inkbar/react`](packages/react)   | React 19 components, hooks and a default toolbar.                               |
+| [`@inkbar/svelte`](packages/svelte) | Svelte 5 components, hooks and a default toolbar.                               |
+| [`@inkbar/theme`](packages/theme)   | The default stylesheet. Zero specificity, compatible with shadcn token names.   |
+
+The five packages are released together and share one version number. The framework packages take `@inkbar/core` as a peer dependency, so your app installs one copy of it.
 
 ## Development
 
+You need Git, Node 24 and pnpm. The repository pins its pnpm version in `package.json`, so `corepack enable` picks the right one. The test fixtures are generated with [qpdf](https://qpdf.sourceforge.io/), and the browser tests run in Playwright's Chromium.
+
+### Check out and build
+
 ```sh
+git clone https://github.com/inkbar/inkbar.git
+cd inkbar
 pnpm install
 pnpm build
-pnpm test
-pnpm --filter @inkbar/e2e-vue dev  # the review app on http://localhost:5180
-pnpm --filter @inkbar/e2e-react dev  # the React review app on http://localhost:5181
-pnpm --filter @inkbar/e2e-svelte dev  # the Svelte review app on http://localhost:5182
-pnpm --filter @inkbar/sandbox dev  # the sandbox on http://localhost:5190
 ```
 
-## Releasing
+### Run locally
 
-All five packages are released together at one version. On every push to `main`, the `release-please` workflow updates an open release PR. The PR bumps the version in each package and in `CHANGELOG.md`, picking the next version from the conventional commits since the last release. Merging it tags the commit and publishes the GitHub release.
+```sh
+pnpm --filter @inkbar/sandbox dev     # the sandbox on http://localhost:5190
+pnpm --filter @inkbar/e2e-vue dev     # the Vue review app on http://localhost:5180
+pnpm --filter @inkbar/e2e-react dev   # the React review app on http://localhost:5181
+pnpm --filter @inkbar/e2e-svelte dev  # the Svelte review app on http://localhost:5182
+```
 
-Publishing the release starts the `release` workflow. It checks out the tag, builds and tests, then runs `pnpm publish` for each package with provenance. pnpm replaces `workspace:*` with the released version at publish time.
+The sandbox is the public demo. The review apps load every fixture and back the end-to-end, accessibility and performance tests.
 
-The workflows need these settings:
+### Test
 
-- Organisation variable `IB_APP_CLIENT_ID` and secret `IB_APP_PRIVATE_KEY`: the `inkbar-ci` GitHub App, installed on this repository with contents and pull requests write access. Its token opens the release PR and publishes the release. A release made with `GITHUB_TOKEN` would not start the `release` workflow.
-- Secret `NPM_TOKEN`: an npm automation token with publish rights on the `@inkbar` scope.
+```sh
+pnpm lint
+pnpm typecheck
+pnpm test                                                # unit tests
+pnpm --filter @inkbar/core exec playwright install chromium
+pnpm test:browser                                        # component and end-to-end tests
+```
 
-If publishing fails, rerun the `release` workflow from the Actions tab. pnpm skips versions already on the registry, so a rerun finishes a partial publish.
+`pnpm format` runs Prettier over the repository, and `pnpm format:check` is what CI runs.
 
-Licence: MIT.
+### Layout
+
+| Path              | Contents                                                                   |
+| ----------------- | -------------------------------------------------------------------------- |
+| `packages/core`   | `@inkbar/core`: the document model, the DOM layer and the Vite plugin      |
+| `packages/vue`    | `@inkbar/vue`                                                              |
+| `packages/react`  | `@inkbar/react`                                                            |
+| `packages/svelte` | `@inkbar/svelte`                                                           |
+| `packages/theme`  | `@inkbar/theme`                                                            |
+| `apps/sandbox`    | The sandbox at sandbox.inkbar.dev                                          |
+| `apps/e2e-*`      | The review apps for each framework and the end-to-end suite they share     |
+| `fixtures`        | Test PDFs, the script that generates them, and helpers for the test suites |
+
+PDF.js is imported only under `packages/core/src/pdfjs/`. Every coordinate is in PDF user space: points, origin bottom-left, before `/Rotate`. Only `packages/core/src/dom/transform.ts` converts to CSS pixels.
+
+### Contributing
+
+Open a pull request against `main`. Pull requests are squash merged and the title becomes the commit message, so write it as a [Conventional Commit](https://www.conventionalcommits.org/) such as `feat(vue): expose the page count` or `fix(core): keep the selection after a zoom`. Commits carry the title only, with no body. [release-please](https://github.com/googleapis/release-please) cuts each release from those titles.
+
+## Licence
+
+[MIT](LICENSE). From the team behind [Redactr](https://redactr.io).
