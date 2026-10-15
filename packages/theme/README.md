@@ -1,6 +1,28 @@
-# @inkbar/theme
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/inkbar/inkbar/main/.github/assets/inkbar-mark-on-dark.svg">
+    <img src="https://raw.githubusercontent.com/inkbar/inkbar/main/.github/assets/inkbar-mark-on-light.svg" alt="Inkbar" width="72" height="72">
+  </picture>
+</p>
 
-Default styles for the Inkbar components. The package is one stylesheet with no JavaScript.
+<h1 align="center">@inkbar/theme</h1>
+
+<p align="center">
+  The default look for Inkbar: one stylesheet, no JavaScript.
+</p>
+
+<p align="center">
+  <a href="https://inkbar.dev">Website</a> ·
+  <a href="https://inkbar.dev/docs/">Docs</a> ·
+  <a href="https://sandbox.inkbar.dev">Sandbox</a> ·
+  <a href="https://github.com/inkbar/inkbar">GitHub</a>
+</p>
+
+---
+
+`@inkbar/theme` styles the viewer, toolbar, note threads and suggestion cards from `@inkbar/vue`, `@inkbar/react`, `@inkbar/svelte` and `createViewer` in `@inkbar/core`. Import it and ship, or override any part of it with your own CSS. If your app already defines shadcn tokens, the theme picks up your colours and radius.
+
+## Install
 
 ```sh
 pnpm add @inkbar/theme
@@ -52,4 +74,6 @@ Inkbar reads a colour when you create the annotation and stores it on the annota
 
 The root and viewport fill their parent as a column, and the scroll area takes the remaining height. Give the parent a height and the document scrolls inside it.
 
-Licence: MIT.
+## Licence
+
+[MIT](https://github.com/inkbar/inkbar/blob/main/LICENSE). From the team behind [Redactr](https://redactr.io).

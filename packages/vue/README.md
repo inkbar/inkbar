@@ -1,6 +1,28 @@
-# @inkbar/vue
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/inkbar/inkbar/main/.github/assets/inkbar-mark-on-dark.svg">
+    <img src="https://raw.githubusercontent.com/inkbar/inkbar/main/.github/assets/inkbar-mark-on-light.svg" alt="Inkbar" width="72" height="72">
+  </picture>
+</p>
 
-Vue 3 components and composables for Inkbar. The components are unstyled primitives built on `@inkbar/core`.
+<h1 align="center">@inkbar/vue</h1>
+
+<p align="center">
+  A PDF viewer and editor for Vue 3. No licence fee.
+</p>
+
+<p align="center">
+  <a href="https://inkbar.dev">Website</a> ·
+  <a href="https://inkbar.dev/docs/">Docs</a> ·
+  <a href="https://sandbox.inkbar.dev">Sandbox</a> ·
+  <a href="https://github.com/inkbar/inkbar">GitHub</a>
+</p>
+
+---
+
+Drop a PDF viewer into your Vue app and let people highlight text, leave notes with replies and review redactions. `@inkbar/vue` gives you a default toolbar and popovers styled by `@inkbar/theme`, plus the unstyled components and composables they are made from, so you can keep the defaults or build your own UI.
+
+Annotations are plain typed objects. Bind them with `v-model` to keep them in your own state, or let Inkbar hold them with undo and redo.
 
 ## Install
 
@@ -8,7 +30,7 @@ Vue 3 components and composables for Inkbar. The components are unstyled primiti
 pnpm add @inkbar/vue @inkbar/core @inkbar/theme
 ```
 
-Vue 3.5 or later is a peer dependency. Add the Vite plugin from `@inkbar/core/vite` so PDF.js can load its worker and fonts; the `@inkbar/core` README covers it.
+Vue 3.5 or later is a peer dependency. Add the Vite plugin from `@inkbar/core/vite` so PDF.js can load its worker and fonts; the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#serving-pdfjs-assets) covers it.
 
 ## Usage
 
@@ -75,7 +97,7 @@ A root note with no text and no replies is removed when its popover closes, or w
 
 ## Keyboard
 
-The scroll element takes focus. With the highlight or redact tool active, `Enter` turns the text selection into a mark; with the note tool, `Enter` places a note in the middle of the current page and opens it. On a focused annotation, `Enter` or `Space` selects and activates it (a note opens its thread and a suggested redaction its card; other types are only selected), `ArrowUp` and `ArrowDown` move between annotations, `Shift` + arrow moves it by 1 pt (add `Alt` for 10 pt), `Ctrl` or `Cmd` + `Shift` + arrow resizes an area mark, and `Delete` removes it. The full table is in the `@inkbar/core` README.
+The scroll element takes focus. With the highlight or redact tool active, `Enter` turns the text selection into a mark; with the note tool, `Enter` places a note in the middle of the current page and opens it. On a focused annotation, `Enter` or `Space` selects and activates it (a note opens its thread and a suggested redaction its card; other types are only selected), `ArrowUp` and `ArrowDown` move between annotations, `Shift` + arrow moves it by 1 pt (add `Alt` for 10 pt), `Ctrl` or `Cmd` + `Shift` + arrow resizes an area mark, and `Delete` removes it. The full table is in the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#tools-and-keyboard).
 
 ## Styling
 
@@ -85,4 +107,6 @@ Components carry state on data attributes, for example `[data-annotation][data-s
 
 `useDocument`, `useAnnotations`, `useTool`, `useSelection`, `useZoom`, `usePage`, `useHistory` and `useEmbedded` read the state of the nearest `InkRoot`. Build your own toolbar or side panel from them.
 
-MIT licence.
+## Licence
+
+[MIT](https://github.com/inkbar/inkbar/blob/main/LICENSE). From the team behind [Redactr](https://redactr.io).

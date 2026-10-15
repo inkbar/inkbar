@@ -1,6 +1,28 @@
-# @inkbar/core
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/inkbar/inkbar/main/.github/assets/inkbar-mark-on-dark.svg">
+    <img src="https://raw.githubusercontent.com/inkbar/inkbar/main/.github/assets/inkbar-mark-on-light.svg" alt="Inkbar" width="72" height="72">
+  </picture>
+</p>
 
-Document model, rendering and annotations for the browser, with no framework dependency. Renders with PDF.js and stores every coordinate in PDF user space (points, origin bottom-left, before `/Rotate`).
+<h1 align="center">@inkbar/core</h1>
+
+<p align="center">
+  The engine under Inkbar: documents, rendering, annotations and tools, with no framework dependency.
+</p>
+
+<p align="center">
+  <a href="https://inkbar.dev">Website</a> ·
+  <a href="https://inkbar.dev/docs/">Docs</a> ·
+  <a href="https://sandbox.inkbar.dev">Sandbox</a> ·
+  <a href="https://github.com/inkbar/inkbar">GitHub</a>
+</p>
+
+---
+
+`@inkbar/core` opens PDFs, renders pages with PDF.js and keeps annotations as typed data. The Vue, React and Svelte packages build on it. You can also use it on its own: `createViewer` puts a complete viewer, with toolbar, note threads and redaction review, into any element in a plain TypeScript app.
+
+Every coordinate is stored in PDF user space (points, origin bottom-left, before `/Rotate`), so annotations stay put whatever the zoom, rotation or screen.
 
 - `@inkbar/core` holds the document model and annotation store. It is safe to import during server rendering.
 - `@inkbar/core/dom` renders pages, text layers and annotation layers into the DOM.
@@ -29,7 +51,7 @@ const json = doc.exportAnnotations('json')
 
 Writing annotations back into the PDF needs `@inkbar/engine`, which is not released yet. Until then `save()` rejects with `EngineUnavailable`. Persist `exportAnnotations('json')` instead and re-import it on the next open.
 
-The DOM layer (`@inkbar/core/dom`) provides the viewport, canvas renderer, text layer, overlay and tools for hosts without a framework package. Vue hosts should use `@inkbar/vue`, React hosts `@inkbar/react`, Svelte hosts `@inkbar/svelte`.
+The DOM layer (`@inkbar/core/dom`) provides the viewport, canvas renderer, text layer, overlay and tools for hosts without a framework package. Vue hosts should use [`@inkbar/vue`](https://github.com/inkbar/inkbar/tree/main/packages/vue), React hosts [`@inkbar/react`](https://github.com/inkbar/inkbar/tree/main/packages/react), Svelte hosts [`@inkbar/svelte`](https://github.com/inkbar/inkbar/tree/main/packages/svelte).
 
 ### Without a framework
 
@@ -191,3 +213,7 @@ const assets = {
 ```
 
 Use the `pdfjs-dist` version that `@inkbar/core` depends on, so the worker matches the library.
+
+## Licence
+
+[MIT](https://github.com/inkbar/inkbar/blob/main/LICENSE). From the team behind [Redactr](https://redactr.io).
