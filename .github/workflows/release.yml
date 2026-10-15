@@ -10,7 +10,7 @@ on:
 
 permissions:
   contents: read
-  id-token: write # npm provenance
+  id-token: write # npm trusted publishing and provenance
 
 concurrency:
   group: release-${{ github.event.release.tag_name }}
@@ -29,7 +29,6 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
-          registry-url: https://registry.npmjs.org
       # The tag reaches the shell through env, not interpolation: a tag name may
       # legally contain shell metacharacters.
       - name: Check the tag matches the package versions
@@ -54,12 +53,12 @@ jobs:
       - run: pnpm test
       # pnpm replaces `workspace:*` with the released version at publish time
       # and skips versions already on the registry, so a rerun finishes a
-      # partial publish.
+      # partial publish. Each package trusts this workflow on npm, so pnpm
+      # exchanges the job's OIDC token for a short-lived publish token and no
+      # npm token is stored in the repository.
       - name: Publish
         run: >-
           pnpm -r
           --filter @inkbar/core --filter @inkbar/vue --filter @inkbar/react
           --filter @inkbar/svelte --filter @inkbar/theme
           publish --access public --provenance --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
