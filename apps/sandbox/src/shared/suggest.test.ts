@@ -48,6 +48,19 @@ void test('places the redaction over the matched characters only', async () => {
   assert.equal(Math.round(rect.width), 90)
 })
 
+void test('places the redaction by measured width, not character count', async () => {
+  // "iiii " is 5 narrow characters (1 unit each) before "QQ123456C" (9 wide, 4 units each):
+  // 41 units across 300pt. Counting characters would start the box at 5/14 of the run.
+  const doc = docWith('iiii QQ123456C')
+  const measure = (text: string): number =>
+    [...text].reduce((sum, ch) => sum + (ch === 'i' || ch === ' ' ? 1 : 4), 0)
+  const [first] = await suggestRedactions(doc, [], 0, measure)
+  assert.ok(first && first.type === 'redact' && first.quads)
+  const rect = rectOfQuads(first.quads)
+  assert.equal(rect.x.toFixed(2), ((5 / 41) * 300).toFixed(2))
+  assert.equal(rect.width.toFixed(2), ((36 / 41) * 300).toFixed(2))
+})
+
 void test('a second run over the same document suggests nothing new', async () => {
   const doc = docWith('NI QQ123456C, sam@example.com')
   const first = await suggestRedactions(doc, [], 0)

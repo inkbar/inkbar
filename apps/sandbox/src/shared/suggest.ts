@@ -36,18 +36,47 @@ const lerp = (a: Point, b: Point, t: number): Point => ({
   y: a.y + (b.y - a.y) * t,
 })
 
+/** Relative advance width of `text` as set in `item`. Only ratios within one run matter. */
+export type MeasureText = (text: string, item: TextItem) => number
+
+let context:
+  CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null | undefined
+
 /**
- * The part of a text run's quad that covers characters `start` to `end`, assuming equal
- * character widths. p3 to p4 is the run's baseline edge and p1 to p2 its top edge.
+ * Widths from the browser's sans-serif metrics. The text API gives one box per run, not per
+ * glyph, so this approximates the PDF's own font. It is far closer than equal widths for
+ * proportional text. Without a canvas (in Node), every character counts as one.
  */
-function subQuad(item: TextItem, start: number, end: number): Quad {
-  const n = Math.max(1, item.str.length)
+const measureWithCanvas: MeasureText = (text) => {
+  if (context === undefined) {
+    context =
+      typeof OffscreenCanvas === 'undefined'
+        ? null
+        : new OffscreenCanvas(1, 1).getContext('2d')
+    if (context) context.font = '100px Helvetica, Arial, sans-serif'
+  }
+  return context ? context.measureText(text).width : text.length
+}
+
+/**
+ * The part of a text run's quad that covers characters `start` to `end`, splitting the run
+ * in proportion to the measured width of the text before, within and after the match.
+ * p3 to p4 is the run's baseline edge and p1 to p2 its top edge.
+ */
+function subQuad(item: TextItem, start: number, end: number, measure: MeasureText): Quad {
+  const total = measure(item.str, item)
+  const at = (i: number): number =>
+    total > 0
+      ? measure(item.str.slice(0, i), item) / total
+      : i / Math.max(1, item.str.length)
+  const a = at(start)
+  const b = at(end)
   const { p1, p2, p3, p4 } = item.quad
   return {
-    p1: lerp(p1, p2, start / n),
-    p2: lerp(p1, p2, end / n),
-    p3: lerp(p3, p4, start / n),
-    p4: lerp(p3, p4, end / n),
+    p1: lerp(p1, p2, a),
+    p2: lerp(p1, p2, b),
+    p3: lerp(p3, p4, a),
+    p4: lerp(p3, p4, b),
   }
 }
 
@@ -75,7 +104,8 @@ export function suggestionCount(n: number): string {
 export async function suggestRedactions(
   doc: SuggestSource,
   existing: readonly Annotation[] = [],
-  delayMs = 400
+  delayMs = 400,
+  measure: MeasureText = measureWithCanvas
 ): Promise<AnnotationInput[]> {
   if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs))
   const seen = new Set(
@@ -87,7 +117,7 @@ export async function suggestRedactions(
     for (const item of items) {
       for (const { re, reason, confidence } of PATTERNS) {
         for (const match of item.str.matchAll(re)) {
-          const quad = subQuad(item, match.index, match.index + match[0].length)
+          const quad = subQuad(item, match.index, match.index + match[0].length, measure)
           const key = placeKey(page.index, rectOfQuads([quad]))
           if (seen.has(key)) continue
           seen.add(key)
