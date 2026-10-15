@@ -38,15 +38,15 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @inkbar/core exec playwright install --with-deps chromium
       - run: pnpm build
-      - run: pnpm exec turbo run test:browser --filter='!@inkbar/sandbox-*'
-      # The sandbox suites measure frame times. Each runs alone so nothing else competes for
+      - run: pnpm exec turbo run test:browser --filter='!@inkbar/e2e-*'
+      # The end-to-end suites measure frame times. Each runs alone so nothing else competes for
       # the runner's CPU.
       - if: ${{ !cancelled() }}
-        run: pnpm exec turbo run test:browser --filter=@inkbar/sandbox-vue
+        run: pnpm exec turbo run test:browser --filter=@inkbar/e2e-vue
       - if: ${{ !cancelled() }}
-        run: pnpm exec turbo run test:browser --filter=@inkbar/sandbox-react
+        run: pnpm exec turbo run test:browser --filter=@inkbar/e2e-react
       - if: ${{ !cancelled() }}
-        run: pnpm exec turbo run test:browser --filter=@inkbar/sandbox-svelte
+        run: pnpm exec turbo run test:browser --filter=@inkbar/e2e-svelte
       - if: failure()
         uses: actions/upload-artifact@v4
         with:

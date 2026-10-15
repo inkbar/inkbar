@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { clampPageCount } from '@inkbar/sandbox-shared/page-count'
+  import { clampPageCount } from '@inkbar/e2e-shared/page-count'
 
   import ReviewPage from './ReviewPage.svelte'
 
@@ -9,6 +9,6 @@
 </script>
 
 <main class="sandbox">
-  <h1 class="sandbox-title">Inkbar sandbox</h1>
+  <h1 class="sandbox-title">Inkbar review app</h1>
   <ReviewPage fixture={doc} largePages={large} />
 </main>

@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url'
 
 // eslint-disable-next-line import-x/no-named-as-default
 import AxeBuilder from '@axe-core/playwright'
-import { guardConsole } from '@inkbar/sandbox-shared/console-guard'
+import { guardConsole } from '@inkbar/e2e-shared/console-guard'
 import { expect, test, type Page } from '@playwright/test'
 
 const guard = guardConsole(test)

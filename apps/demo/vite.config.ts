@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url'
 
 import { inkbar } from '@inkbar/core/vite'
-import { prebundlePdfEngine } from '@inkbar/sandbox-shared/vite'
+import { prebundlePdfEngine } from '@inkbar/e2e-shared/vite'
 import react from '@vitejs/plugin-react'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import vue from '@vitejs/plugin-vue'

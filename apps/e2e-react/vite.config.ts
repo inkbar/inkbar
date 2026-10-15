@@ -1,6 +1,6 @@
 import { inkbar } from '@inkbar/core/vite'
 import { serveFixtures } from '@inkbar/fixtures/vite-serve'
-import { prebundlePdfEngine } from '@inkbar/sandbox-shared/vite'
+import { prebundlePdfEngine } from '@inkbar/e2e-shared/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 

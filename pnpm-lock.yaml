@@ -311,9 +311,9 @@ importers:
       '@axe-core/playwright':
         specifier: ^4.13.0
         version: 4.13.0(playwright-core@1.62.1)
-      '@inkbar/sandbox-shared':
+      '@inkbar/e2e-shared':
         specifier: workspace:*
-        version: link:../sandbox-shared
+        version: link:../e2e-shared
       '@playwright/test':
         specifier: 1.62.1
         version: 1.62.1
@@ -351,20 +351,20 @@ importers:
         specifier: ^3.3.13
         version: 3.3.13(typescript@6.0.3)
 
-  apps/sandbox-react:
+  apps/e2e-react:
     dependencies:
       '@inkbar/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@inkbar/e2e-shared':
+        specifier: workspace:*
+        version: link:../e2e-shared
       '@inkbar/fixtures':
         specifier: workspace:*
         version: link:../../fixtures
       '@inkbar/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@inkbar/sandbox-shared':
-        specifier: workspace:*
-        version: link:../sandbox-shared
       '@inkbar/theme':
         specifier: workspace:*
         version: link:../../packages/theme
@@ -394,7 +394,7 @@ importers:
         specifier: ^8.3.4
         version: 8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
 
-  apps/sandbox-shared:
+  apps/e2e-shared:
     dependencies:
       '@inkbar/core':
         specifier: workspace:*
@@ -413,17 +413,17 @@ importers:
         specifier: ^8.3.4
         version: 8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
 
-  apps/sandbox-svelte:
+  apps/e2e-svelte:
     dependencies:
       '@inkbar/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@inkbar/e2e-shared':
+        specifier: workspace:*
+        version: link:../e2e-shared
       '@inkbar/fixtures':
         specifier: workspace:*
         version: link:../../fixtures
-      '@inkbar/sandbox-shared':
-        specifier: workspace:*
-        version: link:../sandbox-shared
       '@inkbar/svelte':
         specifier: workspace:*
         version: link:../../packages/svelte
@@ -450,17 +450,17 @@ importers:
         specifier: ^8.3.4
         version: 8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
 
-  apps/sandbox-vue:
+  apps/e2e-vue:
     dependencies:
       '@inkbar/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@inkbar/e2e-shared':
+        specifier: workspace:*
+        version: link:../e2e-shared
       '@inkbar/fixtures':
         specifier: workspace:*
         version: link:../../fixtures
-      '@inkbar/sandbox-shared':
-        specifier: workspace:*
-        version: link:../sandbox-shared
       '@inkbar/theme':
         specifier: workspace:*
         version: link:../../packages/theme
