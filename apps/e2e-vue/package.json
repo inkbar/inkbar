@@ -1,5 +1,5 @@
 {
-  "name": "@inkbar/sandbox-vue",
+  "name": "@inkbar/e2e-vue",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -14,7 +14,7 @@
   "dependencies": {
     "@inkbar/core": "workspace:*",
     "@inkbar/fixtures": "workspace:*",
-    "@inkbar/sandbox-shared": "workspace:*",
+    "@inkbar/e2e-shared": "workspace:*",
     "@inkbar/theme": "workspace:*",
     "@inkbar/vue": "workspace:*",
     "vue": "^3.5.43"

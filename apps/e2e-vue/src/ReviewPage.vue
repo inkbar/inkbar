@@ -13,9 +13,9 @@ import {
   type InkDocument,
   type Quad,
 } from '@inkbar/core'
+import { createFakeServer } from '@inkbar/e2e-shared/fake-server'
+import { recordReady } from '@inkbar/e2e-shared/metrics'
 import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
-import { createFakeServer } from '@inkbar/sandbox-shared/fake-server'
-import { recordReady } from '@inkbar/sandbox-shared/metrics'
 import {
   DefaultToolbar,
   InkNotePopover,

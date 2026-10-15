@@ -61,7 +61,7 @@ export default defineConfig(
     name: 'inkbar/react-hooks',
     files: [
       'packages/react/**/*.{ts,tsx}',
-      'apps/sandbox-react/**/*.{ts,tsx}',
+      'apps/e2e-react/**/*.{ts,tsx}',
       'apps/demo/src/react/**/*.{ts,tsx}',
     ],
     plugins: { 'react-hooks': pluginReactHooks },
@@ -110,7 +110,7 @@ export default defineConfig(
     name: 'inkbar/svelte-untyped-imports-in-ts',
     files: [
       'packages/svelte/src/test/**/*.ts',
-      'apps/sandbox-svelte/**/*.ts',
+      'apps/e2e-svelte/**/*.ts',
       'apps/demo/src/svelte/**/*.ts',
     ],
     rules: {

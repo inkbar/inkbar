@@ -13,6 +13,8 @@ import {
   type InkDocument,
   type Quad,
 } from '@inkbar/core'
+import { createFakeServer } from '@inkbar/e2e-shared/fake-server'
+import { recordReady } from '@inkbar/e2e-shared/metrics'
 import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
 import {
   DefaultToolbar,
@@ -22,8 +24,6 @@ import {
   InkViewport,
   type InkRootHandle,
 } from '@inkbar/react'
-import { createFakeServer } from '@inkbar/sandbox-shared/fake-server'
-import { recordReady } from '@inkbar/sandbox-shared/metrics'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { assets } from 'virtual:inkbar-assets'
 
