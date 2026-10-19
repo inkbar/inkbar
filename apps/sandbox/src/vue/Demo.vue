@@ -5,6 +5,7 @@
  * button your own icon to replace the one it shows.
  */
 import {
+  InkColorMenu,
   InkLineStyleMenu,
   InkNextPage,
   InkNotePopover,
@@ -48,6 +49,8 @@ defineProps<{ source: DocumentSource }>()
       <InkToolbarSeparator />
       <div class="demo-group" role="group" aria-label="Style">
         <InkLineStyleMenu />
+        <InkColorMenu property="border" />
+        <InkColorMenu property="fill" />
       </div>
       <InkUndo />
       <InkRedo />

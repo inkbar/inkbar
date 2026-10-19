@@ -1,5 +1,7 @@
 // Vocabulary the framework packages share: labels, zoom levels and the props they hand to
 // host-rendered content. Core owns these so Vue and React cannot drift apart.
+import { PALETTE } from './palette'
+
 import type { ToolId } from './tools'
 import type { CurrentStyle, StyleKey, StyleProps } from '../model/annotations/tool-style'
 import type {
@@ -155,6 +157,103 @@ export function lineStyleMenuModel(
         })),
       },
     ],
+  }
+}
+
+/** The colour props a colour menu can set. */
+export type ColorProperty = 'border' | 'fill' | 'textColor'
+
+/** Accessible names of the colour menus, by property. */
+export const COLOR_LABELS: Readonly<Record<ColorProperty, string>> = {
+  border: 'Border colour',
+  fill: 'Fill colour',
+  textColor: 'Text colour',
+}
+
+/** Columns of the swatch grid: the arrow keys move by this much between rows. */
+export const COLOR_COLUMNS = 12
+
+export interface ColorMenuSwatch {
+  /** Unique within the menu. */
+  key: string
+  /** The swatch's accessible name: its hex value. */
+  label: string
+  color: string
+  checked: boolean
+  patch: StyleProps
+}
+
+/** What the trigger's swatch shows. */
+export type ColorTrigger =
+  | { kind: 'color'; color: string }
+  /** No fill. */
+  | { kind: 'none' }
+  /** The selection disagrees. */
+  | { kind: 'mixed' }
+  /** Nothing to show: the menu is disabled or the style has no value. */
+  | { kind: 'empty' }
+
+export interface ColorMenuModel {
+  label: string
+  /** False when nothing supports the property: the trigger disables. */
+  enabled: boolean
+  mixed: boolean
+  trigger: ColorTrigger
+  /** Common colours, greys, then the tonal grid, `COLOR_COLUMNS` to a row. */
+  swatches: ColorMenuSwatch[]
+  /** The "No fill" choice, for `fill` only. */
+  noFill: { checked: boolean; patch: StyleProps } | null
+  /** The colour the custom picker starts on. */
+  customValue: string
+  /** What picking `hex` in the custom picker writes. */
+  custom(hex: string): StyleProps
+}
+
+/**
+ * What a colour menu shows for a style: the palette with the matching swatch checked, "No fill"
+ * for `fill`, and the trigger's swatch. Shared by the bindings and the vanilla menu.
+ */
+export function colorMenuModel(
+  property: ColorProperty,
+  current: CurrentStyle,
+  supported: ReadonlySet<StyleKey>
+): ColorMenuModel {
+  const value = current[property]
+  const enabled = supported.has(property)
+  const color = typeof value === 'string' ? value.toUpperCase() : undefined
+  const flat = [
+    ...PALETTE.common.map((c, i) => [`common-${i}`, c] as const),
+    ...PALETTE.greys.map((c, i) => [`grey-${i}`, c] as const),
+    ...PALETTE.grid.flatMap((row, r) =>
+      row.map((c, i) => [`grid-${r}-${i}`, c] as const)
+    ),
+  ]
+  const patchFor = (c: string): StyleProps => ({ [property]: c })
+  const trigger: ColorTrigger = !enabled
+    ? { kind: 'empty' }
+    : value === 'mixed'
+      ? { kind: 'mixed' }
+      : value === null
+        ? { kind: 'none' }
+        : typeof value === 'string'
+          ? { kind: 'color', color: value }
+          : { kind: 'empty' }
+  return {
+    label: COLOR_LABELS[property],
+    enabled,
+    mixed: value === 'mixed',
+    trigger,
+    swatches: flat.map(([key, c]) => ({
+      key,
+      label: c,
+      color: c,
+      checked: color === c,
+      patch: patchFor(c),
+    })),
+    noFill:
+      property === 'fill' ? { checked: value === null, patch: { fill: null } } : null,
+    customValue: color ?? '#000000',
+    custom: (hex) => patchFor(hex.toUpperCase()),
   }
 }
 

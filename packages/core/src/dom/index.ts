@@ -59,15 +59,24 @@ export { cssVariableDefaults } from '../model/annotations/defaults'
 export {
   ARROWHEAD_CHOICES,
   ARROWHEAD_ENDING,
+  COLOR_COLUMNS,
+  COLOR_LABELS,
   DASH_PATTERN,
   LINE_WEIGHTS,
   TOOL_LABELS,
   ZOOM_LEVELS,
   arrowheadChoice,
+  colorMenuModel,
   lineStyleMenuModel,
 } from './ui'
+export { PALETTE } from './palette'
+export type { Palette } from './palette'
 export type {
   ArrowheadChoice,
+  ColorMenuModel,
+  ColorMenuSwatch,
+  ColorProperty,
+  ColorTrigger,
   LineStyleMenuItem,
   LineStyleMenuModel,
   LineStyleMenuSection,
@@ -102,5 +111,7 @@ export {
   createZoomSelect,
 } from './viewer/controls'
 export { createLineStyleMenu } from './viewer/style-menu'
+export { createColorMenu } from './viewer/color-menu'
+export type { ColorMenuOptions } from './viewer/color-menu'
 export { createMenu } from './viewer/menu'
 export type { Menu, MenuOptions } from './viewer/menu'

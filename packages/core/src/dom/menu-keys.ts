@@ -1,8 +1,13 @@
 // Keyboard support the style menus share across the bindings and the vanilla factories. Items
-// are `[role="menuitemradio"]` buttons that are not focus stops themselves (`tabindex="-1"`):
-// the menu moves focus between them, and Tab leaves the menu.
+// are `[role="menuitemradio"]` (or `menuitem`) buttons that are not focus stops themselves
+// (`tabindex="-1"`): the menu moves focus between them, and Tab leaves the menu.
+//
+// An element with `data-ink-menu-columns="N"` lays its items out as a grid N wide: ArrowLeft
+// and ArrowRight move within a row, ArrowUp and ArrowDown between rows, and past the first or
+// last row they carry on to the items before or after the grid.
 
-const ITEMS = '[role="menuitemradio"]:not(:disabled):not([aria-disabled="true"])'
+const ITEMS =
+  ':is([role="menuitemradio"], [role="menuitem"]):not(:disabled):not([aria-disabled="true"])'
 
 /** The menu's enabled items in document order. */
 export function menuItems(root: ParentNode): HTMLElement[] {
@@ -17,27 +22,44 @@ export function focusInitialMenuItem(root: ParentNode): void {
   target?.focus({ preventScroll: true })
 }
 
-/** ArrowDown and ArrowUp move between enabled items and wrap; Home and End go to the ends. */
+/** The index to focus for a key, or -1 when the key means nothing here. */
+function nextIndex(key: string, items: HTMLElement[], i: number): number {
+  const last = items.length - 1
+  if (key === 'Home') return 0
+  if (key === 'End') return last
+  const grid = items[i]?.closest<HTMLElement>('[data-ink-menu-columns]')
+  const cols = Number(grid?.dataset.inkMenuColumns)
+  if (grid && cols > 0) {
+    const cells = items.filter((el) => grid.contains(el))
+    const first = items.indexOf(cells[0]!)
+    const end = first + cells.length - 1
+    const at = i - first
+    if (key === 'ArrowRight') return at === cells.length - 1 ? i : i + 1
+    if (key === 'ArrowLeft') return at === 0 ? i : i - 1
+    if (key === 'ArrowDown')
+      return at + cols < cells.length ? i + cols : end === last ? 0 : end + 1
+    if (key === 'ArrowUp')
+      return at - cols >= 0 ? i - cols : first === 0 ? last : first - 1
+    return -1
+  }
+  if (key === 'ArrowDown') return i < 0 || i === last ? 0 : i + 1
+  if (key === 'ArrowUp') return i <= 0 ? last : i - 1
+  return -1
+}
+
+/**
+ * ArrowDown and ArrowUp move between enabled items and wrap; Home and End go to the ends.
+ * Inside a grid the arrow keys move in both directions.
+ */
 export function handleMenuKeys(e: KeyboardEvent, root: ParentNode): void {
   if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return
   const items = menuItems(root)
   if (items.length === 0) return
-  const i = items.indexOf(document.activeElement as HTMLElement)
-  const last = items.length - 1
-  const next =
-    e.key === 'ArrowDown'
-      ? i < 0 || i === last
-        ? 0
-        : i + 1
-      : e.key === 'ArrowUp'
-        ? i <= 0
-          ? last
-          : i - 1
-        : e.key === 'Home'
-          ? 0
-          : e.key === 'End'
-            ? last
-            : -1
+  const next = nextIndex(
+    e.key,
+    items,
+    items.indexOf(document.activeElement as HTMLElement)
+  )
   if (next < 0) return
   e.preventDefault()
   items[next]!.focus({ preventScroll: true })

@@ -4,6 +4,7 @@ import { userEvent } from 'vitest/browser'
 
 import { mountContainer, settle, until } from '../test-utils'
 
+import { createColorMenu } from './color-menu'
 import {
   createNextPage,
   createPageCount,
@@ -636,6 +637,130 @@ describe('createViewer', () => {
       expect(menu()).toBeNull()
       expect(focused()).toBe(trigger)
       expect(trigger.getAttribute('aria-expanded')).toBe('false')
+    })
+  })
+
+  describe('colour menus', () => {
+    const square = {
+      type: 'square',
+      page: 0,
+      rect: { x: 50, y: 500, width: 100, height: 60 },
+    } as const
+    const menu = (): HTMLElement | null =>
+      document.querySelector<HTMLElement>('[data-ink-menu^="color"][role="menu"]')
+    const item = (name: string): HTMLButtonElement =>
+      [...menu()!.querySelectorAll<HTMLButtonElement>('[role^="menuitem"]')].find(
+        (b) => (b.getAttribute('aria-label') ?? b.textContent?.trim()) === name
+      )!
+
+    it('border menu sets color on a selected square', async () => {
+      const { viewer } = make('text-simple')
+      const trigger = createColorMenu(viewer, { property: 'border' })
+      viewer.element.prepend(trigger)
+      expect(trigger.getAttribute('aria-label')).toBe('Border colour')
+      expect(trigger.disabled).toBe(true)
+      const { doc } = await ready(viewer)
+      const sq = doc.annotations.add({ ...square, color: '#FF3B30' })
+      doc.annotations.select([sq.id])
+      expect(trigger.disabled).toBe(false)
+      trigger.click()
+      expect(menu()!.getAttribute('aria-label')).toBe('Border colour')
+      expect(item('#FF3B30').getAttribute('aria-checked')).toBe('true')
+      expect(
+        menu()!.querySelector('[aria-label="No fill"], [data-key="no-fill"]')
+      ).toBeNull()
+      item('#007AFF').click()
+      expect(doc.annotations.get(sq.id)).toMatchObject({ color: '#007AFF' })
+      expect(item('#007AFF').getAttribute('aria-checked')).toBe('true')
+      expect(trigger.querySelector('[data-ink-swatch]')!.getAttribute('data-color')).toBe(
+        '#007AFF'
+      )
+    })
+
+    it('fill menu has No fill and it clears interiorColor', async () => {
+      const { viewer } = make('text-simple')
+      const trigger = createColorMenu(viewer, { property: 'fill' })
+      viewer.element.prepend(trigger)
+      const { doc } = await ready(viewer)
+      const sq = doc.annotations.add({ ...square, interiorColor: '#34C759' })
+      doc.annotations.select([sq.id])
+      trigger.click()
+      expect(item('#34C759').getAttribute('aria-checked')).toBe('true')
+      item('No fill').click()
+      expect(
+        (doc.annotations.get(sq.id) as { interiorColor?: string }).interiorColor
+      ).toBeUndefined()
+      expect(item('No fill').getAttribute('aria-checked')).toBe('true')
+      expect(trigger.querySelector('[data-ink-swatch]')!.getAttribute('data-kind')).toBe(
+        'none'
+      )
+    })
+
+    it('Custom opens a native color input and applies its value', async () => {
+      const { viewer } = make('text-simple')
+      const trigger = createColorMenu(viewer, { property: 'border' })
+      viewer.element.prepend(trigger)
+      const { doc } = await ready(viewer)
+      const sq = doc.annotations.add(square)
+      doc.annotations.select([sq.id])
+      trigger.click()
+      const input = menu()!.querySelector<HTMLInputElement>('input[type="color"]')!
+      expect(input.getAttribute('aria-label')).toBe('Custom colour')
+      let opened = 0
+      input.addEventListener('click', () => opened++)
+      item('Custom…').click()
+      expect(opened).toBe(1)
+      input.value = '#123abc'
+      input.dispatchEvent(new Event('change', { bubbles: true }))
+      expect(doc.annotations.get(sq.id)).toMatchObject({ color: '#123ABC' })
+    })
+
+    it('fill menu is disabled when only a line is selected', async () => {
+      const { viewer } = make('text-simple')
+      const border = createColorMenu(viewer, { property: 'border' })
+      const fill = createColorMenu(viewer, { property: 'fill' })
+      viewer.element.prepend(border, fill)
+      const { doc } = await ready(viewer)
+      const line = doc.annotations.add({
+        type: 'line',
+        page: 0,
+        start: { x: 50, y: 700 },
+        end: { x: 150, y: 700 },
+      })
+      doc.annotations.select([line.id])
+      expect(border.disabled).toBe(false)
+      expect(fill.disabled).toBe(true)
+    })
+
+    it('keyboard: arrows move between swatches, Enter applies, Escape returns focus', async () => {
+      const { viewer } = make('text-simple')
+      const trigger = createColorMenu(viewer, { property: 'fill' })
+      viewer.element.prepend(trigger)
+      const { doc } = await ready(viewer)
+      const sq = doc.annotations.add(square)
+      doc.annotations.select([sq.id])
+      trigger.focus()
+      key(trigger, 'ArrowDown')
+      expect(focused()).toBe(item('No fill'))
+      key(focused()!, 'ArrowDown')
+      expect(focused()).toBe(item('#FF3B30'))
+      key(focused()!, 'ArrowRight')
+      expect(focused()).toBe(item('#FF9500'))
+      key(focused()!, 'ArrowDown')
+      // One row down is the greys.
+      expect(focused()).toBe(item('#E8E8E8'))
+      key(focused()!, 'ArrowLeft')
+      expect(focused()).toBe(item('#FFFFFF'))
+      key(focused()!, 'ArrowUp')
+      expect(focused()).toBe(item('#FF3B30'))
+      key(focused()!, 'ArrowUp')
+      expect(focused()).toBe(item('No fill'))
+      key(focused()!, 'ArrowDown')
+      ;(focused() as HTMLElement).click() // Enter on a button is a click
+      expect(doc.annotations.get(sq.id)).toMatchObject({ interiorColor: '#FF3B30' })
+      key(focused()!, 'Escape')
+      expect(menu()).toBeNull()
+      expect(focused()).toBe(trigger)
     })
   })
 
