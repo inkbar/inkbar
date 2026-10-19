@@ -1030,7 +1030,7 @@ describe('createViewer', () => {
       expect(panel()!.getAttribute('aria-label')).toBe('Shapes')
       expect(item('Rectangle').getAttribute('aria-checked')).toBe('true')
       // Kinds with no creator yet are not offered.
-      expect(item('Speech bubble')).toBeUndefined()
+      expect(item('Speech bubble')).toBeDefined()
       expect(item('Loupe')).toBeUndefined()
       expect(item('Mask')).toBeUndefined()
       item('Ellipse').click()
@@ -1040,6 +1040,8 @@ describe('createViewer', () => {
       expect(document.activeElement).toBe(chevron)
       chevron.click()
       expect(item('Ellipse').getAttribute('aria-checked')).toBe('true')
+      item('Speech bubble').click()
+      expect(engine.tools.options('shape').get()).toMatchObject({ kind: 'bubble' })
     })
 
     it('the trigger icon follows the current kind', async () => {

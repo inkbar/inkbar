@@ -555,6 +555,13 @@ test.describe('shape menu', () => {
       .click()
     await expect(main(cmp)).toHaveAccessibleName('Shape: Star')
     expect(await main(cmp).innerHTML()).not.toBe(before)
+    await page.getByRole('button', { name: 'Choose shape' }).click()
+    await page
+      .getByRole('menu', { name: 'Shapes' })
+      .getByRole('menuitemradio', { name: 'Speech bubble' })
+      .click()
+    await expect(main(cmp)).toHaveAccessibleName('Shape: Speech bubble')
+    await expect(main(cmp)).toHaveAttribute('data-kind', 'bubble')
   })
 
   test('keyboard: ArrowDown opens on the first kind, arrows move through the grid, Escape returns focus', async ({

@@ -8,25 +8,12 @@ import {
   handleMenuKeys,
   menuItems,
   SHAPE_COLUMNS,
+  SHAPE_ICONS,
   SHAPE_KINDS,
   shapeMenuModel,
-  type ShapeKind,
   type ShapeOptions,
 } from '@inkbar/core/dom'
-import {
-  ChevronDown,
-  Circle,
-  Hexagon,
-  MessageCircle,
-  MoveUpRight,
-  RectangleHorizontal,
-  Search,
-  Slash,
-  Square,
-  SquareDashed,
-  Star,
-  type IconNode,
-} from '@inkbar/icons'
+import { ChevronDown } from '@inkbar/icons'
 import { Popover, Toolbar } from 'radix-ui'
 import { useRef, useState, type ComponentPropsWithoutRef, type ReactNode } from 'react'
 
@@ -35,19 +22,6 @@ import { useTool } from '../hooks/useTool'
 import { useToolOptions } from '../hooks/useToolOptions'
 
 import { InkIcon } from './InkIcon'
-
-const ICONS: Readonly<Record<ShapeKind, IconNode>> = {
-  line: Slash,
-  arrow: MoveUpRight,
-  rectangle: Square,
-  roundedRectangle: RectangleHorizontal,
-  ellipse: Circle,
-  bubble: MessageCircle,
-  star: Star,
-  polygon: Hexagon,
-  loupe: Search,
-  mask: SquareDashed,
-}
 
 export interface InkShapeMenuProps extends Omit<
   ComponentPropsWithoutRef<'div'>,
@@ -85,7 +59,7 @@ export function InkShapeMenu({ className, children, ...rest }: InkShapeMenuProps
         title={model.label}
         onClick={() => setTool('shape')}
       >
-        {children ?? <InkIcon icon={ICONS[model.kind]} />}
+        {children ?? <InkIcon icon={SHAPE_ICONS[model.kind]} />}
       </Toolbar.Button>
       <Popover.Root open={open} onOpenChange={setOpen}>
         <Toolbar.Button asChild>
@@ -152,7 +126,7 @@ export function InkShapeMenu({ className, children, ...rest }: InkShapeMenuProps
                     setOpen(false)
                   }}
                 >
-                  <InkIcon icon={ICONS[item.kind]} size={16} />
+                  <InkIcon icon={SHAPE_ICONS[item.kind]} size={16} />
                   {item.label}
                 </button>
               ))}

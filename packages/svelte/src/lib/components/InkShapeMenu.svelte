@@ -22,44 +22,19 @@
     handleMenuKeys,
     menuItems,
     SHAPE_COLUMNS,
+    SHAPE_ICONS,
     SHAPE_KINDS,
     shapeMenuModel,
     type ShapeKind,
     type ShapeOptions,
   } from '@inkbar/core/dom'
-  import {
-    ChevronDown,
-    Circle,
-    Hexagon,
-    MessageCircle,
-    MoveUpRight,
-    RectangleHorizontal,
-    Search,
-    Slash,
-    Square,
-    SquareDashed,
-    Star,
-    type IconNode,
-  } from '@inkbar/icons'
+  import { ChevronDown } from '@inkbar/icons'
   import { Popover, Toolbar } from 'bits-ui'
 
   import { useTool } from '../hooks/useTool.svelte.js'
   import { useToolOptions } from '../hooks/useToolOptions.svelte.js'
 
   import InkIcon from './InkIcon.svelte'
-
-  const ICONS: Readonly<Record<ShapeKind, IconNode>> = {
-    line: Slash,
-    arrow: MoveUpRight,
-    rectangle: Square,
-    roundedRectangle: RectangleHorizontal,
-    ellipse: Circle,
-    bubble: MessageCircle,
-    star: Star,
-    polygon: Hexagon,
-    loupe: Search,
-    mask: SquareDashed,
-  }
 
   let { class: className, children, ...rest }: InkShapeMenuProps = $props()
 
@@ -111,7 +86,9 @@
     title={model.label}
     onclick={() => current.setTool('shape')}
   >
-    {#if children}{@render children()}{:else}<InkIcon icon={ICONS[model.kind]} />{/if}
+    {#if children}{@render children()}{:else}<InkIcon
+        icon={SHAPE_ICONS[model.kind]}
+      />{/if}
   </Toolbar.Button>
   <Popover.Root bind:open>
     <Popover.Trigger>
@@ -169,7 +146,7 @@
               data-state={item.checked ? 'checked' : 'unchecked'}
               onclick={() => choose(item.kind)}
             >
-              <InkIcon icon={ICONS[item.kind]} size={16} />
+              <InkIcon icon={SHAPE_ICONS[item.kind]} size={16} />
               {item.label}
             </button>
           {/each}

@@ -4,6 +4,7 @@ import {
   constrain,
   DEFAULT_SHAPE_OPTIONS,
   polygonVertices,
+  SHAPE_KINDS,
   shapeInput,
   starVertices,
 } from './shape-geometry'
@@ -92,8 +93,28 @@ describe('shapeInput', () => {
     expect((make('polygon') as { vertices: unknown[] }).vertices).toHaveLength(6)
   })
 
+  it('maps a bubble to a callout free-text box with its tail below and left of the box', () => {
+    expect(make('bubble')).toEqual({
+      type: 'freetext',
+      page: 2,
+      contents: '',
+      intent: 'freeTextCallout',
+      cornerRadius: 8,
+      width: 1,
+      rect: { x: 10, y: 20, width: 40, height: 60 },
+      // The knee is the bottom-left quarter point; the tip is 24 pt below and left of it.
+      callout: [
+        { x: -4, y: -4 },
+        { x: 20, y: 20 },
+      ],
+    })
+  })
+
+  it('offers the bubble between the ellipse and the star', () => {
+    expect(SHAPE_KINDS.indexOf('bubble')).toBe(SHAPE_KINDS.indexOf('ellipse') + 1)
+  })
+
   it('has no creator for the kinds later tasks add', () => {
-    expect(make('bubble')).toBeUndefined()
     expect(make('loupe')).toBeUndefined()
     expect(make('mask')).toBeUndefined()
   })

@@ -9,25 +9,13 @@ import {
   handleMenuKeys,
   menuItems,
   SHAPE_COLUMNS,
+  SHAPE_ICONS,
   SHAPE_KINDS,
   shapeMenuModel,
   type ShapeKind,
   type ShapeOptions,
 } from '@inkbar/core/dom'
-import {
-  ChevronDown,
-  Circle,
-  Hexagon,
-  MessageCircle,
-  MoveUpRight,
-  RectangleHorizontal,
-  Search,
-  Slash,
-  Square,
-  SquareDashed,
-  Star,
-  type IconNode,
-} from '@inkbar/icons'
+import { ChevronDown } from '@inkbar/icons'
 import {
   PopoverContent,
   PopoverPortal,
@@ -42,26 +30,13 @@ import { useToolOptions } from '../composables/useToolOptions'
 
 import InkIcon from './InkIcon.vue'
 
-const ICONS: Readonly<Record<ShapeKind, IconNode>> = {
-  line: Slash,
-  arrow: MoveUpRight,
-  rectangle: Square,
-  roundedRectangle: RectangleHorizontal,
-  ellipse: Circle,
-  bubble: MessageCircle,
-  star: Star,
-  polygon: Hexagon,
-  loupe: Search,
-  mask: SquareDashed,
-}
-
 const { tool, setTool } = useTool()
 const { options, setOptions } = useToolOptions<ShapeOptions>('shape')
 const open = ref(false)
 
 const model = computed(() => shapeMenuModel(options.value, SHAPE_KINDS))
 const active = computed(() => tool.value === 'shape')
-const icon = computed(() => ICONS[model.value.kind])
+const icon = computed(() => SHAPE_ICONS[model.value.kind])
 
 /** ArrowDown opens on the first item; a click opens on the checked one. */
 let focusFirst = false
@@ -174,7 +149,7 @@ const innerAttrs = {
                 :data-state="item.checked ? 'checked' : 'unchecked'"
                 @click="choose(item.kind)"
               >
-                <InkIcon :icon="ICONS[item.kind]" :size="16" />
+                <InkIcon :icon="SHAPE_ICONS[item.kind]" :size="16" />
                 {{ item.label }}
               </button>
             </div>

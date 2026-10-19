@@ -566,6 +566,10 @@ describe('shape menu', () => {
     await kind('Star').click()
     await expect.poll(attr(main, 'aria-label')).toBe('Shape: Star')
     expect((await q(main)).innerHTML).not.toBe(before)
+    await chevron().click()
+    await kind('Speech bubble').click()
+    await expect.poll(attr(main, 'aria-label')).toBe('Shape: Speech bubble')
+    expect(attr(main, 'data-kind')()).toBe('bubble')
   })
 
   it('keyboard: ArrowDown opens on the first kind, arrows move through the grid, Escape returns focus', async () => {

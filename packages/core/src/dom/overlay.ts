@@ -13,6 +13,7 @@
 // attribute or a theme hook.
 import {
   hasCornerHandles,
+  isBubble,
   hasRectGeometry,
   isTextMarkup,
   resizedRect,
@@ -170,11 +171,14 @@ export function createOverlay(opts: OverlayOptions): Overlay {
       return { kind: 'ends', start: local(a.start), end: local(a.end) }
     }
     if (!hasCornerHandles(a)) return { kind: 'none' }
-    return {
-      kind: 'corners',
+    const corners = {
+      kind: 'corners' as const,
       width: parseFloat(node.style.width) || 0,
       height: parseFloat(node.style.height) || 0,
     }
+    if (!isBubble(a)) return corners
+    const tip = transform.toCss(a.callout[0])
+    return { ...corners, tail: { x: tip.x - left, y: tip.y - top } }
   }
 
   /**
