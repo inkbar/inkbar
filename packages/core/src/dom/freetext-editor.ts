@@ -13,7 +13,7 @@ import { refitBubble, styleFreeText } from './overlay-render'
 import type { PageTransform } from './transform'
 import type { AnnotationStore } from '../model/annotations/store'
 import type { Annotation, FreeTextAnnotation } from '../model/annotations/types'
-import type { Rect } from '../model/geometry'
+import type { Point, Rect } from '../model/geometry'
 
 export interface FreeTextEditor {
   /** Closes the editor, handing its text to `commit` (true) or calling `cancel` (false). */
@@ -218,12 +218,27 @@ export function editFreeTextIn(
         return
       }
       if (contents === now.contents && sameRect(rect, now.rect)) return
-      store.update(id, { contents, rect })
+      // A bubble's tail moves down with its bottom edge, keeping its length and side.
+      const callout = isBubble(now) ? movedCallout(now, rect, transform) : undefined
+      store.update(id, callout ? { contents, rect, callout } : { contents, rect })
     },
     cancel() {
       const now = current()
       if (now && now.contents.trim() === '' && !isBubble(now)) store.remove(id)
     },
+  })
+}
+
+/** `a`'s callout carried by the CSS-px growth of its box from `a.rect` to `rect`. */
+function movedCallout(
+  a: FreeTextAnnotation & { callout: Point[] },
+  rect: Rect,
+  t: PageTransform
+): Point[] {
+  const grown = t.toCssRect(rect).height - t.toCssRect(a.rect).height
+  return a.callout.map((p) => {
+    const c = t.toCss(p)
+    return t.fromCss({ x: c.x, y: c.y + grown })
   })
 }
 

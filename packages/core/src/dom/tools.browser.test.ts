@@ -1209,6 +1209,59 @@ describe('speech bubble', () => {
     expect(doc.annotations.get(bubble!.id)).toMatchObject({ contents: '' })
   })
 
+  it('growing the box carries the tail with it, in one update', async () => {
+    const { doc, container, viewport, tools } = await setup('cropbox-offset')
+    tools.set('shape', { kind: 'bubble' })
+    drag(container, viewport.hostFor(0)!.getBoundingClientRect())
+    const [made] = session(doc)
+    if (made?.type !== 'freetext') throw new Error('not free text')
+    const t = viewport.transformFor(0)
+    const updates: unknown[] = []
+    const stop = doc.annotations.on('change', (c) => {
+      if (c.kind === 'update') updates.push(c)
+    })
+    await userEvent.keyboard(
+      '1{Enter}2{Enter}3{Enter}4{Enter}5{Enter}6{Enter}7{Enter}8{Escape}'
+    )
+    stop()
+    expect(updates).toHaveLength(1)
+    const grown = doc.annotations.get(made.id)
+    if (grown?.type !== 'freetext') throw new Error('not free text')
+    const growth = made.rect.y - grown.rect.y
+    expect(growth).toBeGreaterThan(24)
+    expect(grown.rect.height).toBeCloseTo(made.rect.height + growth)
+    for (const i of [0, 1]) {
+      expect(grown.callout![i]!.x).toBeCloseTo(made.callout![i]!.x)
+      expect(grown.callout![i]!.y).toBeCloseTo(made.callout![i]!.y - growth)
+    }
+    // The tail still leaves the bottom edge and reaches the tip.
+    const el = viewport
+      .hostFor(0)!
+      .querySelector<HTMLElement>(`[data-annotation="${made.id}"]`)!
+    const box = t.toCssRect(grown.rect)
+    const tip = t.toCss(grown.callout![0]!)
+    expect(tip.y - (box.top + box.height)).toBeCloseTo(t.toCssLength(24))
+    const fmt = (n: number) => String(Math.round(n * 1000) / 1000 + 0)
+    const d = el.querySelector('path.ink-bubble')!.getAttribute('d')!
+    expect(d).toContain(`L${fmt(tip.x - box.left)} ${fmt(tip.y - box.top)}`)
+    expect(tip.y).toBeGreaterThan(box.top + box.height)
+    // The bottom edge's spike base sits on it.
+    expect(d).toContain(` ${fmt(box.height)}L${fmt(tip.x - box.left)}`)
+  })
+
+  it('creating, typing and dragging the tail are separate undo steps', async () => {
+    const { doc, container, viewport, tools } = await setup('cropbox-offset')
+    tools.set('shape', { kind: 'bubble' })
+    drag(container, viewport.hostFor(0)!.getBoundingClientRect())
+    const [made] = session(doc)
+    await userEvent.keyboard('Hi{Escape}')
+    expect(doc.annotations.get(made!.id)).toMatchObject({ contents: 'Hi' })
+    doc.history.undo()
+    expect(doc.annotations.get(made!.id)).toMatchObject({ contents: '' })
+    doc.history.undo()
+    expect(session(doc)).toEqual([])
+  })
+
   it('creates with the shape group border and fill and the text group text style', async () => {
     const { doc, container, viewport, tools, toolStyle } = await setup('cropbox-offset')
     tools.set('shape', { kind: 'bubble' })
@@ -1893,6 +1946,9 @@ describe('selection editing', () => {
     expect(next.callout![1]).toEqual({ x: 125, y: 600 })
     expect(next.callout![0]!.x).toBeCloseTo(121, 5)
     expect(next.callout![0]!.y).toBeCloseTo(566, 5)
+    // The drag was one history step.
+    doc.history.undo()
+    expect(doc.annotations.get(a.id)).toEqual(a)
   })
 
   it('ink scales by corner handle', async () => {

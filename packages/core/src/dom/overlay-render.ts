@@ -452,7 +452,7 @@ const BUBBLE_TAIL_HALF = 8
  * The outline of a speech bubble as SVG path data in element-local CSS px: the rounded box
  * (`width` x `height`, its top-left at 0,0) with the tail to `callout[0]`. The tail leaves the
  * side the tip lies furthest beyond, at the position of `callout[1]` along that side, kept
- * clear of the corners.
+ * clear of the corners. A `height` beyond the rect's moves the tail down with the bottom edge.
  */
 export function bubblePath(
   a: FreeTextAnnotation & { callout: readonly Point[] },
@@ -465,8 +465,11 @@ export function bubblePath(
     const c = t.toCss(p)
     return { x: c.x - origin.left, y: c.y - origin.top }
   }
-  const tip = local(a.callout[0]!)
-  const knee = local(a.callout[1]!)
+  // A box grown past its rect (the editor growing with its text) carries its tail down with it.
+  const grown = height - origin.height
+  const moved = (p: Point): Point => ({ x: p.x, y: p.y + grown })
+  const tip = moved(local(a.callout[0]!))
+  const knee = moved(local(a.callout[1]!))
   const r = Math.min(t.toCssLength(a.cornerRadius ?? 0), width / 2, height / 2)
   const beyond = {
     top: -tip.y,
