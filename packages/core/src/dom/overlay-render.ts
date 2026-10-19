@@ -1,5 +1,7 @@
 import { isBubble } from '../model/annotations/edit'
 
+import { outlinePath, strokeOutline } from './ink-stroke'
+
 import type { CssRect, PageTransform } from './transform'
 import type {
   Annotation,
@@ -379,19 +381,21 @@ export function renderAnnotationContent(
       break
     }
     case 'ink':
-      for (const path of a.inklist) {
-        svg.append(
-          node('polyline', {
-            points: path.map(local).join(' '),
-            fill: 'none',
-            stroke: a.color,
-            'stroke-width': t.toCssLength(a.width),
-            'stroke-linecap': 'round',
-            'stroke-linejoin': 'round',
-          })
+      // Every stroke is a smoothed filled outline, thinned by pressure when there is some.
+      // Dashes do not apply to a filled outline.
+      a.inklist.forEach((path, i) => {
+        const outline = strokeOutline(
+          path.map((p) => {
+            const c = t.toCss(p)
+            return { x: c.x - box.left, y: c.y - box.top }
+          }),
+          a.pressure?.[i],
+          t.toCssLength(a.width)
         )
-        dash(svg.lastElementChild as SVGElement, a.dashes, t)
-      }
+        svg.append(
+          node('path', { class: 'ink-stroke', d: outlinePath(outline), fill: a.color })
+        )
+      })
       svg.setAttribute('opacity', String(a.opacity))
       break
   }

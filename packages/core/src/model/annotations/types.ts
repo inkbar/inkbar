@@ -145,12 +145,33 @@ export const PolySchema = Base.extend({
   interiorColor: Hex.optional(),
 })
 
-export const InkSchema = Base.extend({
+const InkShape = Base.extend({
   type: z.literal('ink'),
   inklist: z.array(z.array(PointSchema).min(1)).min(1),
+  /** Pen pressure per sample, 0 to 1, shaped like `inklist`. Absent for mouse input. */
+  pressure: z.array(z.array(z.number().min(0).max(1))).optional(),
   width: z.number().nonnegative().default(2),
   dashes: DashesSchema,
 })
+
+/** Pressure must have one value per point of each stroke. */
+function checkPressure(
+  a: { inklist: unknown[][]; pressure?: unknown[][] | undefined },
+  ctx: z.core.$RefinementCtx
+): void {
+  if (!a.pressure) return
+  const ok =
+    a.pressure.length === a.inklist.length &&
+    a.pressure.every((p, i) => p.length === a.inklist[i]?.length)
+  if (!ok)
+    ctx.addIssue({
+      code: 'custom',
+      path: ['pressure'],
+      message: 'pressure must have the same shape as inklist',
+    })
+}
+
+export const InkSchema = InkShape.superRefine(checkPressure)
 
 export const SuggestionSchema = z.object({
   jobId: z.string().optional(),
@@ -193,7 +214,7 @@ export const ExportedAnnotationSchema = z.discriminatedUnion('type', [
   ShapeSchema.omit(VIEWER_STATE),
   LineSchema.omit(VIEWER_STATE),
   PolySchema.omit(VIEWER_STATE),
-  InkSchema.omit(VIEWER_STATE),
+  InkShape.omit(VIEWER_STATE).superRefine(checkPressure),
   RedactSchema.omit(VIEWER_STATE),
 ])
 

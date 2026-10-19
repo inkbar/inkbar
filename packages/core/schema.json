@@ -573,6 +573,13 @@
                 }
               }
             },
+            "pressure": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": { "type": "number", "minimum": 0, "maximum": 1 }
+              }
+            },
             "width": { "default": 2, "type": "number", "minimum": 0 },
             "dashes": {
               "minItems": 1,

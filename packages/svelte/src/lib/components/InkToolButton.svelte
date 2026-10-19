@@ -17,6 +17,7 @@
   import {
     Highlighter,
     MessageSquare,
+    PenLine,
     Square,
     SquareDashedMousePointer,
     TextCursor,
@@ -36,6 +37,7 @@
     select: SquareDashedMousePointer,
     highlight: Highlighter,
     'redact-area': Square,
+    draw: PenLine,
     note: MessageSquare,
     freetext: Type,
   }

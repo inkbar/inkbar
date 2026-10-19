@@ -165,6 +165,16 @@ export const Type: IconNode = [
   ['path', { d: 'M9 20h6' }],
 ]
 
+export const PenLine: IconNode = [
+  ['path', { d: 'M13 21h8' }],
+  [
+    'path',
+    {
+      d: 'M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z',
+    },
+  ],
+]
+
 export const ALargeSmall: IconNode = [
   ['path', { d: 'm15 16 2.536-7.328a1.02 1.02 1 0 1 1.928 0L22 16' }],
   ['path', { d: 'M15.697 14h5.606' }],

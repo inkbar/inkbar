@@ -22,6 +22,7 @@ export const TOOL_LABELS: Readonly<Partial<Record<ToolId, string>>> = {
   select: 'Rectangle select',
   highlight: 'Highlight',
   'redact-area': 'Mark for redaction',
+  draw: 'Draw',
   note: 'Add note',
   shape: 'Shape',
   freetext: 'Text',

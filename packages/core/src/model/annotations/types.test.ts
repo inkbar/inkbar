@@ -202,6 +202,34 @@ describe('AnnotationSchema', () => {
     ).toBe(true)
   })
 
+  it('ink pressure must match the inklist shape', () => {
+    const ink = {
+      ...valid,
+      type: 'ink',
+      quads: undefined,
+      inklist: [
+        [
+          { x: 0, y: 0 },
+          { x: 5, y: 5 },
+        ],
+        [{ x: 9, y: 9 }],
+      ],
+    }
+    expect(AnnotationSchema.safeParse(ink).success).toBe(true)
+    expect(
+      AnnotationSchema.safeParse({ ...ink, pressure: [[0.2, 0.9], [0.5]] }).success
+    ).toBe(true)
+    expect(AnnotationSchema.safeParse({ ...ink, pressure: [[0.2], [0.5]] }).success).toBe(
+      false
+    )
+    expect(AnnotationSchema.safeParse({ ...ink, pressure: [[0.2, 0.9]] }).success).toBe(
+      false
+    )
+    expect(
+      AnnotationSchema.safeParse({ ...ink, pressure: [[0.2, 1.5], [0.5]] }).success
+    ).toBe(false)
+  })
+
   it('applies defaults for note icon and redact origin', () => {
     const note = AnnotationSchema.parse({ ...valid, type: 'text', quads: undefined })
     expect(note.type === 'text' && note.icon).toBe('comment')

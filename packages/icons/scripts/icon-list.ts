@@ -27,6 +27,7 @@ export const ICONS = [
   'Search',
   'SquareDashed',
   'Type',
+  'PenLine',
   'ALargeSmall',
   'Bold',
   'Italic',

@@ -74,6 +74,29 @@ describe('json import/export', () => {
     expect(s2.list.get()[0]).toMatchObject({ cornerRadius: 8 })
   })
 
+  it('round-trips ink pressure', () => {
+    const mk = () =>
+      createAnnotationStore({ mode: { mode: 'uncontrolled' }, defaults: staticDefaults })
+    const s = mk()
+    s.add({
+      type: 'ink',
+      page: 0,
+      inklist: [
+        [
+          { x: 1, y: 1 },
+          { x: 9, y: 4 },
+        ],
+        [{ x: 20, y: 20 }],
+      ],
+      pressure: [[0.2, 0.9], [0.5]],
+    })
+    const text = JSON.stringify(exportAnnotations(s, [], 'k'))
+    const s2 = mk()
+    expect(importAnnotations(s2, text, { mode: 'replace' }).errors).toEqual([])
+    expect(s2.list.get()).toEqual(s.list.get())
+    expect(s2.list.get()[0]).toMatchObject({ pressure: [[0.2, 0.9], [0.5]] })
+  })
+
   it('round-trips a free-text box with fill, border and text style', () => {
     const mk = () =>
       createAnnotationStore({ mode: { mode: 'uncontrolled' }, defaults: staticDefaults })
