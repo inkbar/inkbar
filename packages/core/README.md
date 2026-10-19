@@ -128,6 +128,7 @@ Options:
 - `container` and `document`, both required.
 - `zoom` (a number, `'fit-width'` or `'fit-page'`; default `'fit-width'`), `page`, `mode`, `rotation` and `tool` set the starting view. Change them later through `engine.viewport` and `engine.tools`.
 - `gap`, `buffer` and `customAnnotations` are fixed for a build. Change them with `engine.rebuild`.
+- `signatures` is where saved signatures live (see [Signatures](#signatures)); `signatureFonts` lists the handwriting fonts a typed signature offers.
 - `onActivate(id)` fires when the user activates an annotation.
 - `onBuild(viewport, tools)` fires after every build, the first one included, before `mountViewer` returns. Subscribe to the new viewport and tool controller here.
 - `onPageMount(page, mount, host)` and `onPageUnmount(page)` fire as pages enter and leave the mounted range.
@@ -150,13 +151,14 @@ The viewport mounts pages synchronously, so a build's page callbacks fire before
 
 ## Tools and keyboard
 
-`createToolController` from `@inkbar/core/dom` routes pointer and key events on the viewport to the active tool: `select-text`, `select`, `highlight`, `redact-area`, `sketch`, `draw`, `shape`, `freetext` or `note`. Highlights, text redactions and notes can be made from the keyboard. Area redactions, sketches and drawings need a pointer.
+`createToolController` from `@inkbar/core/dom` routes pointer and key events on the viewport to the active tool: `select-text`, `select`, `highlight`, `redact-area`, `sketch`, `draw`, `shape`, `freetext`, `signature` or `note`. Highlights, text redactions, notes and signatures can be made from the keyboard. Area redactions, sketches and drawings need a pointer.
 
 | Where focus is               | Key                                 | Effect                                                                                              |
 | ---------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------- |
 | Viewport, `highlight` tool   | `Enter`                             | Turns the text selection into a highlight                                                           |
 | Viewport, `redact-area` tool | `Enter`                             | Turns the text selection into text redactions                                                       |
 | Viewport, `note` tool        | `Enter`                             | Places a note at the centre of the current page and focuses it                                      |
+| Viewport, `signature` tool   | `Enter`                             | Places the chosen signature at the centre of the current page                                       |
 | Viewport                     | `+` or `=`, `-`                     | Zoom in, zoom out                                                                                   |
 | Viewport                     | `Home`, `End`, `PageUp`, `PageDown` | First, last, previous, next page                                                                    |
 | Annotation                   | `Enter` or `Space`                  | Selects and activates it                                                                            |
@@ -189,6 +191,14 @@ Locked annotations, such as those embedded in the file, ignore move, resize and 
 With either select tool (`select-text` or `select`), a selected area redaction, text box, shape, polyline, polygon or drawing shows four corner handles (`.ink-handle[data-handle="nw|ne|sw|se"]`), and a selected line shows one on each end (`data-handle="start|end"`). Dragging a corner resizes the annotation, scaling its points with it; `Shift` keeps its aspect ratio. Dragging a line end moves that end only. The store records a single update on release. Drag the annotation itself to move it, or any member of a multi-selection to move them all in one undo step.
 
 A press on text markup (a highlight, underline, strikeout or squiggly) does nothing at first. A click selects it; a drag selects the text under it, as a drag on the bare text would. Presses on every other annotation select it straight away.
+
+## Signatures
+
+A signature here is a mark on the page, not a cryptographic signature of the file. Draw one, type your name in a handwriting font, or upload a scan, and it is saved as a template. The `signature` tool places the chosen template: a click puts it about 150 pt wide, centred on the press, and `Enter` puts it at the centre of the current page. It is turned to read upright on a rotated page. A drawn signature becomes `ink` and the others a `stamp` (an image), both with `subject: 'Signature'`. Both keep their aspect ratio when resized.
+
+Your app owns the templates. Pass a `SignatureStore` (`list`, `save`, `remove`, each returning a promise) as `signatures`. `createMemorySignatureStore()` is the default, and forgets everything on reload. `createLocalSignatureStore(key)` keeps them in `localStorage` and falls back to memory where storage is blocked. Typed signatures use the fonts in `signatureFonts`. Load each one with `@font-face` before offering it.
+
+`createSignatureMenu(viewer)` lists the saved signatures, removes them, and opens `createSignatureDialog`, which draws, types or uploads a new one and selects it.
 
 ## Serving PDF.js assets
 

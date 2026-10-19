@@ -19,6 +19,7 @@ import type {
   Suggestion,
   TextMarkupAnnotation,
 } from '../model/annotations/types'
+import type { SignatureOptions, SignatureTemplate } from '../model/signatures'
 
 /**
  * Accessible names of the built-in tools, as the toolbar buttons announce them. A host tool has
@@ -34,6 +35,7 @@ export const TOOL_LABELS: Readonly<Partial<Record<ToolId, string>>> = {
   note: 'Add note',
   shape: 'Shape',
   freetext: 'Text',
+  signature: 'Sign',
 }
 
 /**
@@ -41,6 +43,12 @@ export const TOOL_LABELS: Readonly<Partial<Record<ToolId, string>>> = {
  * writer can use without embedding a font. Hosts pass their own list as `fonts`.
  */
 export const FONT_FAMILIES: readonly string[] = ['Helvetica', 'Times', 'Courier']
+
+/**
+ * The fonts a typed signature offers by default: the browser's own handwriting family. Hosts
+ * load handwriting fonts and pass them as `signatureFonts`.
+ */
+export const SIGNATURE_FONTS: readonly string[] = ['cursive']
 
 /** Zoom levels the zoom select offers, as scale factors. */
 export const ZOOM_LEVELS: readonly number[] = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4]
@@ -559,4 +567,63 @@ export interface SuggestionCardSlotProps {
   accept: () => void
   dismiss: () => void
   close: () => void
+}
+
+/** The signature controls' words, shared so every binding announces the same names. */
+export const SIGNATURE_LABELS = {
+  /** The menu's group and main button. */
+  sign: 'Sign',
+  trigger: 'Choose signature',
+  menu: 'Signatures',
+  saved: 'Saved signatures',
+  create: 'Create signature',
+  /** The dialog's title. */
+  dialog: 'Create signature',
+  tabs: 'Signature source',
+  draw: 'Draw',
+  type: 'Type',
+  image: 'Image',
+  pad: 'Signature pad',
+  clear: 'Clear',
+  name: 'Name',
+  namePlaceholder: 'Your name',
+  fonts: 'Font',
+  file: 'Image file',
+  cancel: 'Cancel',
+  save: 'Save',
+} as const
+
+/** The dialog's tabs, in order. */
+export const SIGNATURE_TABS = ['draw', 'type', 'image'] as const
+export type SignatureTab = (typeof SIGNATURE_TABS)[number]
+
+export interface SignatureMenuItem {
+  id: string
+  /** `Signature 1`, `Signature 2`… in saved order. */
+  label: string
+  /** The remove button's accessible name. */
+  removeLabel: string
+  checked: boolean
+  template: SignatureTemplate
+}
+
+export interface SignatureMenuModel {
+  /** The template the tool places, when it is still saved. */
+  selected: SignatureTemplate | undefined
+  items: SignatureMenuItem[]
+}
+
+/** What the signature menu shows for the saved templates and the signature tool's options. */
+export function signatureMenuModel(
+  templates: readonly SignatureTemplate[],
+  options: SignatureOptions
+): SignatureMenuModel {
+  const items = templates.map((template, i) => ({
+    id: template.id,
+    label: `Signature ${i + 1}`,
+    removeLabel: `Remove signature ${i + 1}`,
+    checked: template.id === options.templateId,
+    template,
+  }))
+  return { selected: items.find((i) => i.checked)?.template, items }
 }

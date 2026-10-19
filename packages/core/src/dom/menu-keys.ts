@@ -81,3 +81,69 @@ export function handleRadioKeys(e: KeyboardEvent, group: ParentNode): void {
   next.focus({ preventScroll: true })
   next.click()
 }
+
+/**
+ * Arrow keys, Home and End inside a `role="tablist"`: the next (or previous) enabled
+ * `role="tab"` takes focus and is chosen, wrapping at the ends.
+ */
+export function handleTabKeys(e: KeyboardEvent, tablist: ParentNode): void {
+  if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
+  const tabs = [...tablist.querySelectorAll<HTMLElement>('[role="tab"]:not(:disabled)')]
+  const at = tabs.indexOf(document.activeElement as HTMLElement)
+  if (at < 0) return
+  const last = tabs.length - 1
+  const next =
+    e.key === 'ArrowRight' || e.key === 'ArrowDown'
+      ? at === last
+        ? 0
+        : at + 1
+      : e.key === 'ArrowLeft' || e.key === 'ArrowUp'
+        ? at === 0
+          ? last
+          : at - 1
+        : e.key === 'Home'
+          ? 0
+          : e.key === 'End'
+            ? last
+            : -1
+  if (next < 0) return
+  e.preventDefault()
+  tabs[next]!.focus({ preventScroll: true })
+  tabs[next]!.click()
+}
+
+const TABBABLE = [
+  'a[href]',
+  'button:not(:disabled)',
+  'input:not(:disabled):not([type="hidden"])',
+  'select:not(:disabled)',
+  'textarea:not(:disabled)',
+  '[tabindex]',
+]
+  .map((s) => `${s}:not([tabindex="-1"])`)
+  .join(', ')
+
+/**
+ * Keeps Tab inside `container`, a modal: Tab from its last stop goes to its first, and
+ * Shift+Tab from the first to the last.
+ */
+export function trapTab(e: KeyboardEvent, container: HTMLElement): void {
+  if (e.key !== 'Tab' || e.defaultPrevented) return
+  const stops = [...container.querySelectorAll<HTMLElement>(TABBABLE)].filter(
+    (el) => el.getClientRects().length > 0
+  )
+  if (stops.length === 0) {
+    e.preventDefault()
+    return
+  }
+  const first = stops[0]!
+  const last = stops[stops.length - 1]!
+  const active = document.activeElement
+  if (e.shiftKey && (active === first || !container.contains(active))) {
+    e.preventDefault()
+    last.focus()
+  } else if (!e.shiftKey && (active === last || !container.contains(active))) {
+    e.preventDefault()
+    first.focus()
+  }
+}

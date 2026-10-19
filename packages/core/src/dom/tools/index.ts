@@ -16,6 +16,7 @@ import { redactAreaTool } from './redact-area'
 import { selectTool } from './select'
 import { selectTextTool } from './select-text'
 import { shapeTool } from './shape'
+import { signatureTool } from './signature'
 import { sketchTool } from './sketch'
 
 import type { AnnotationStore } from '../../model/annotations/store'
@@ -41,8 +42,10 @@ export {
   selectTextTool,
   selectTool,
   shapeTool,
+  signatureTool,
   sketchTool,
 }
+export type { SignatureOptions } from './signature'
 export {
   DEFAULT_HIGHLIGHT_OPTIONS,
   MARKUP_KINDS,
@@ -69,6 +72,7 @@ export function builtinTools(): Tool[] {
     noteTool(),
     shapeTool(),
     freetextTool(),
+    signatureTool(),
   ]
 }
 

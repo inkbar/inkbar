@@ -70,6 +70,8 @@ const FIELDS: Readonly<
     textAlign: 'defaultStyle.textAlign',
   },
   text: {},
+  // An image, signatures among them: the style controls have nothing to change on it.
+  stamp: {},
 }
 
 const GROUPS: Readonly<Record<AnnotationType, StyleGroup | undefined>> = {
@@ -86,6 +88,7 @@ const GROUPS: Readonly<Record<AnnotationType, StyleGroup | undefined>> = {
   squiggly: 'markup',
   redact: 'redact',
   text: undefined,
+  stamp: undefined,
 }
 
 const SUPPORTED = new Map<AnnotationType, ReadonlySet<StyleKey>>(
@@ -98,6 +101,11 @@ const SUPPORTED = new Map<AnnotationType, ReadonlySet<StyleKey>>(
 /** The style group an annotation's type belongs to; notes belong to none. */
 export function styleGroupOf(a: Pick<Annotation, 'type'>): StyleGroup | undefined {
   return GROUPS[a.type]
+}
+
+/** The types in `group`, from the same table `styleGroupOf` reads. */
+export function typesInGroup(group: StyleGroup): AnnotationType[] {
+  return (Object.keys(GROUPS) as AnnotationType[]).filter((t) => GROUPS[t] === group)
 }
 
 /** The style group a type belongs to. */

@@ -42,6 +42,7 @@ export {
   styleGroupOfType,
   supportedProps,
   toFields,
+  typesInGroup,
 } from './model/annotations/style-map'
 export { createSnapshotHistory } from './model/annotations/snapshot-history'
 export type {
@@ -65,3 +66,20 @@ export { exportAnnotations, importAnnotations } from './model/annotations/json'
 export { recogniseStroke, RECOGNISE_THRESHOLD } from './model/recognise'
 export type { Recognised } from './model/recognise'
 export type { ImportOptions, ImportResult } from './model/annotations/json'
+export {
+  createImageTemplate,
+  createInkTemplate,
+  createLocalSignatureStore,
+  createMemorySignatureStore,
+  createSignatureLibrary,
+  DEFAULT_SIGNATURE_WIDTH,
+  normaliseInk,
+  placeSignature,
+  SIGNATURE_INK_WIDTH,
+} from './model/signatures'
+export type {
+  SignatureLibrary,
+  SignatureOptions,
+  SignatureStore,
+  SignatureTemplate,
+} from './model/signatures'

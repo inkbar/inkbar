@@ -16,6 +16,7 @@ import {
   MessageSquare,
   PenLine,
   PenTool,
+  Signature,
   Redo2,
   Square,
   SquareDashedMousePointer,
@@ -76,6 +77,7 @@ const TOOL_ICONS: Readonly<Partial<Record<ToolId, IconNode>>> = {
   draw: PenLine,
   note: MessageSquare,
   freetext: Type,
+  signature: Signature,
 }
 
 /**

@@ -7,10 +7,16 @@
 // `onChange` and nothing is applied before the host applies it.
 import { writable, type Readable, type Writable } from '../readable'
 
-import { fromAnnotation, styleGroupOf, supportedProps, toFields } from './style-map'
+import {
+  fromAnnotation,
+  styleGroupOf,
+  supportedProps,
+  toFields,
+  typesInGroup,
+} from './style-map'
 
 import type { AnnotationStore } from './store'
-import type { Annotation, AnnotationInput, AnnotationType, LineEnding } from './types'
+import type { Annotation, AnnotationInput, LineEnding } from './types'
 
 export type StyleGroup = 'shape' | 'ink' | 'text' | 'markup' | 'redact'
 
@@ -91,30 +97,10 @@ export interface ToolStyleDeps {
   active?: Readable<unknown>
 }
 
-const TYPES_BY_GROUP = new Map<StyleGroup, AnnotationType[]>()
-for (const type of [
-  'square',
-  'circle',
-  'line',
-  'polyline',
-  'polygon',
-  'ink',
-  'freetext',
-  'highlight',
-  'underline',
-  'strikeout',
-  'squiggly',
-  'redact',
-] as const) {
-  const group = styleGroupOf({ type })
-  if (!group) continue
-  TYPES_BY_GROUP.set(group, [...(TYPES_BY_GROUP.get(group) ?? []), type])
-}
-
 /** Every prop some type in `group` supports. */
 function groupProps(group: StyleGroup): ReadonlySet<StyleKey> {
   const out = new Set<StyleKey>()
-  for (const type of TYPES_BY_GROUP.get(group) ?? [])
+  for (const type of typesInGroup(group))
     for (const key of supportedProps(type)) out.add(key)
   return out
 }

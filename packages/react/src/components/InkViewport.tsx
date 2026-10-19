@@ -117,6 +117,7 @@ export function InkViewport({
       ...(c.hostTools ? { tools: c.hostTools } : {}),
       ...(c.toolStyle ? { toolStyle: c.toolStyle } : {}),
       toolHistory: { batch: (fn) => latest.current.ctx.history.batch(fn) },
+      signatureLibrary: c.signatures,
       customAnnotations: cu,
       onActivate: (id) => latest.current.ctx.setActivated(id),
       onBuild: (vp, tc) => {

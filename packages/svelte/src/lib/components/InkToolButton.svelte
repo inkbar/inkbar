@@ -19,6 +19,7 @@
     MessageSquare,
     PenLine,
     PenTool,
+    Signature,
     Square,
     SquareDashedMousePointer,
     TextCursor,
@@ -42,6 +43,7 @@
     draw: PenLine,
     note: MessageSquare,
     freetext: Type,
+    signature: Signature,
   }
 
   let {

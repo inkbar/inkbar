@@ -1,3 +1,12 @@
 @import '@fontsource-variable/urbanist/index.css';
 @import '@fontsource-variable/open-sans/index.css';
 @import '@fontsource-variable/geist-mono/index.css';
+
+/* The handwriting font typed signatures offer: Dancing Script, SIL Open Font License 1.1 (public/fonts/dancing-script/OFL.txt). */
+@font-face {
+  font-family: 'Dancing Script';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/dancing-script/DancingScript-Regular-latin.woff2') format('woff2');
+}

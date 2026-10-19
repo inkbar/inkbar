@@ -1,5 +1,16 @@
-import { createSnapshotHistory, InkError, openDocument } from '@inkbar/core'
-import { cssVariableDefaults, FONT_FAMILIES, trackToolStyle } from '@inkbar/core/dom'
+import {
+  createMemorySignatureStore,
+  createSignatureLibrary,
+  createSnapshotHistory,
+  InkError,
+  openDocument,
+} from '@inkbar/core'
+import {
+  cssVariableDefaults,
+  FONT_FAMILIES,
+  SIGNATURE_FONTS,
+  trackToolStyle,
+} from '@inkbar/core/dom'
 import { Slot } from 'radix-ui'
 import {
   useCallback,
@@ -31,6 +42,7 @@ import type {
   DocumentSource,
   InkDocument,
   PdfAssets,
+  SignatureStore,
 } from '@inkbar/core'
 import type { Tool, ToolController, ToolId, Viewport, ZoomValue } from '@inkbar/core/dom'
 
@@ -71,6 +83,14 @@ export interface InkRootProps extends Omit<
    * (`FONT_FAMILIES`). Fonts beyond those are the PDF writer's to embed.
    */
   fonts?: string[] | undefined
+  /**
+   * Where saved signatures live. Default: memory, gone on reload. `createLocalSignatureStore`
+   * keeps them in the browser; a host can keep them anywhere. The viewport reads it when it
+   * mounts.
+   */
+  signatures?: SignatureStore | undefined
+  /** The handwriting fonts a typed signature offers; the host loads them. */
+  signatureFonts?: string[] | undefined
   page?: number | undefined
   onPageChange?: ((page: number) => void) | undefined
   zoom?: ZoomValue | undefined
@@ -126,6 +146,8 @@ export function InkRoot({
   onToolChange,
   tools: hostTools,
   fonts: fontsProp,
+  signatures: signatureStore,
+  signatureFonts: signatureFontsProp,
   page,
   onPageChange,
   zoom,
@@ -386,6 +408,17 @@ export function InkRoot({
 
   // Stable while the host passes the same list.
   const fonts = useMemo<readonly string[]>(() => fontsProp ?? FONT_FAMILIES, [fontsProp])
+  const signatureFonts = useMemo<readonly string[]>(
+    () => signatureFontsProp ?? SIGNATURE_FONTS,
+    [signatureFontsProp]
+  )
+  const signatures = useMemo(
+    () => createSignatureLibrary(signatureStore ?? createMemorySignatureStore()),
+    [signatureStore]
+  )
+  useEffect(() => {
+    void signatures.refresh()
+  }, [signatures])
 
   const ctx = useMemo<InkContext>(
     () => ({
@@ -400,6 +433,8 @@ export function InkRoot({
       setTool,
       hostTools,
       fonts,
+      signatures,
+      signatureFonts,
       toolStyle: styleTracker?.toolStyle ?? null,
       zoomModel: zoom,
       pageModel: page,
@@ -423,6 +458,8 @@ export function InkRoot({
       setTool,
       hostTools,
       fonts,
+      signatures,
+      signatureFonts,
       styleTracker,
       zoom,
       page,

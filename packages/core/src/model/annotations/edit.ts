@@ -38,7 +38,7 @@ export function translated(a: Annotation, dx: number, dy: number): Partial<Annot
 
 /**
  * True when `rect` is the annotation's whole shape, so resizing means changing `rect`: area
- * redactions, free text, squares and circles. Text-derived marks (quads), note icons and
+ * redactions, free text, squares, circles and stamps. Text-derived marks (quads), note icons and
  * point-based shapes are not.
  */
 export function hasRectGeometry(a: Annotation): boolean {
@@ -48,6 +48,7 @@ export function hasRectGeometry(a: Annotation): boolean {
     case 'freetext':
     case 'square':
     case 'circle':
+    case 'stamp':
       return true
     default:
       return false
@@ -57,11 +58,21 @@ export function hasRectGeometry(a: Annotation): boolean {
 /**
  * Grows (positive) or shrinks (negative) a rect by `dw` and `dh` points, keeping its top-left
  * corner (user space: left edge and top edge, `y + height`) where it is. Neither side goes
- * below `MIN_SIZE`.
+ * below `MIN_SIZE`. With `keepAspect`, the side that changes leads and the other follows it in
+ * proportion (the width when both change).
  */
-export function resizedRect(r: Rect, dw: number, dh: number): Rect {
-  const width = Math.max(MIN_SIZE, r.width + dw)
-  const height = Math.max(MIN_SIZE, r.height + dh)
+export function resizedRect(r: Rect, dw: number, dh: number, keepAspect = false): Rect {
+  let width = Math.max(MIN_SIZE, r.width + dw)
+  let height = Math.max(MIN_SIZE, r.height + dh)
+  if (keepAspect && r.width > 0 && r.height > 0) {
+    const aspect = r.width / r.height
+    if (dw !== 0) height = width / aspect
+    else width = height * aspect
+    // Neither side below MIN_SIZE, still in proportion.
+    const grow = Math.max(MIN_SIZE / width, MIN_SIZE / height, 1)
+    width *= grow
+    height *= grow
+  }
   const top = r.y + r.height
   return { x: r.x, y: top - height, width, height }
 }
@@ -171,17 +182,11 @@ export function movedEndpoint(
  * masks and signatures (ink with subject `Signature`).
  */
 export function keepsAspect(a: Annotation): boolean {
-  // Some of these types arrive later; compare the type as a plain string.
-  switch (a.type as string) {
-    case 'stamp':
-    case 'loupe':
-    case 'mask':
-      return true
-    case 'ink':
-      return (a as { subject?: string }).subject === 'Signature'
-    default:
-      return false
-  }
+  if (a.type === 'stamp') return true
+  if (a.type === 'ink') return a.subject === 'Signature'
+  // Loupes and masks arrive later; compare the type as a plain string.
+  const type: string = a.type
+  return type === 'loupe' || type === 'mask'
 }
 
 /**

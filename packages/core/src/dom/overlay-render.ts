@@ -3,12 +3,13 @@ import { ICON_ATTRIBUTES, MessageSquareText } from '@inkbar/icons'
 import { isBubble, isTextMarkup } from '../model/annotations/edit'
 
 import { outlinePath, strokeOutline } from './ink-stroke'
+import { normalizeRotation, type CssRect, type PageTransform } from './transform'
 
-import type { CssRect, PageTransform } from './transform'
 import type {
   Annotation,
   FreeTextAnnotation,
   LineEnding,
+  StampAnnotation,
   TextMarkupAnnotation,
 } from '../model/annotations/types'
 import type { Point, Quad } from '../model/geometry'
@@ -269,6 +270,11 @@ export function renderAnnotationContent(
     return
   }
 
+  if (a.type === 'stamp') {
+    el.append(stampImage(doc, a, t, box))
+    return
+  }
+
   const svg = boxSvg(doc, box.width, box.height)
   svg.classList.add('ink-annotation-shape')
 
@@ -409,6 +415,42 @@ export function renderAnnotationContent(
 }
 
 /**
+ * A stamp's `img.ink-stamp`, filling the element's box. The image is upright in user space
+ * turned by the stamp's `rotation` (anticlockwise), and the page turns it again on screen
+ * (clockwise), so it is drawn turned by the difference: a signature placed against the page's
+ * turn reads upright. Size, position and turn are geometry, set inline; the opacity travels as
+ * `--ink-opacity` for the theme.
+ */
+function stampImage(
+  doc: Document,
+  a: StampAnnotation,
+  t: PageTransform,
+  box: CssRect
+): HTMLImageElement {
+  const img = doc.createElement('img')
+  img.className = 'ink-stamp'
+  img.alt = ''
+  img.draggable = false
+  img.decoding = 'async'
+  img.src = a.imagedata
+  const turn = normalizeRotation(t.totalRotation - (a.rotation ?? 0))
+  const sideways = turn === 90 || turn === 270
+  const width = sideways ? box.height : box.width
+  const height = sideways ? box.width : box.height
+  img.style.position = 'absolute'
+  img.style.left = `${(box.width - width) / 2}px`
+  img.style.top = `${(box.height - height) / 2}px`
+  img.style.width = `${width}px`
+  img.style.height = `${height}px`
+  if (turn !== 0) img.style.transform = `rotate(${turn}deg)`
+  // Structural: the element itself ignores the pointer, the image takes it.
+  img.style.pointerEvents = 'auto'
+  img.style.setProperty('--ink-opacity', String(a.opacity))
+  return img
+}
+
+/**
+ * Styles a free-text box/**
  * Styles a free-text box (`.ink-free-text`) from its annotation, as the theme reads it: the text
  * style, fill, border colour and width, corner radius and opacity travel as custom properties
  * (`--ink-font-size`, `--ink-font-family`, `--ink-font-weight`, `--ink-font-style`,

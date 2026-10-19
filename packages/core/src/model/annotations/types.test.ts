@@ -250,6 +250,50 @@ describe('AnnotationSchema', () => {
     expect(parsed.custom).toEqual({ caseId: 'abc', nested: { n: 1 } })
   })
 
+  describe('stamp', () => {
+    const PNG = 'data:image/png;base64,iVBORw0KGgo='
+    const stamp = {
+      ...valid,
+      type: 'stamp',
+      quads: undefined,
+      imagedata: PNG,
+      subject: 'Signature',
+    }
+
+    it('validates a stamp with a PNG or JPEG data URL', () => {
+      expect(AnnotationSchema.parse(stamp)).toMatchObject({
+        type: 'stamp',
+        imagedata: PNG,
+        subject: 'Signature',
+      })
+      expect(
+        AnnotationSchema.safeParse({ ...stamp, imagedata: 'data:image/jpeg;base64,/9j/' })
+          .success
+      ).toBe(true)
+    })
+
+    it('rejects imagedata that is not a PNG or JPEG data URL', () => {
+      for (const imagedata of [
+        'http://example.com/signature.png',
+        'data:image/svg+xml;base64,PHN2Zz4=',
+        'data:image/gif;base64,R0lGOD',
+        'data:image/png,raw',
+      ])
+        expect(
+          AnnotationSchema.safeParse({ ...stamp, imagedata }).success,
+          imagedata
+        ).toBe(false)
+      expect(AnnotationSchema.safeParse({ ...stamp, imagedata: undefined }).success).toBe(
+        false
+      )
+    })
+
+    it('takes a rotation in quarter turns only', () => {
+      expect(AnnotationSchema.safeParse({ ...stamp, rotation: 90 }).success).toBe(true)
+      expect(AnnotationSchema.safeParse({ ...stamp, rotation: 45 }).success).toBe(false)
+    })
+  })
+
   it('buckets confidence', () => {
     expect(confidenceBucket(0)).toBe('low')
     expect(confidenceBucket(0.49)).toBe('low')
@@ -287,6 +331,19 @@ describe('schema.json', () => {
     expect(validate(exported)).toBe(true)
     expect(validate({ ...exported, color: 'yellow' })).toBe(false)
     expect(validate({ ...exported, createdAt: 'yesterday' })).toBe(false)
+  })
+
+  it('validates a stamp', () => {
+    const validate = compileAnnotation()
+    const { quads: _quads, ...rest } = exported as typeof exported & { quads?: unknown }
+    const stamp = {
+      ...rest,
+      type: 'stamp',
+      imagedata: 'data:image/png;base64,iVBORw0KGgo=',
+      rotation: 270,
+    }
+    expect(validate(stamp)).toBe(true)
+    expect(validate({ ...stamp, imagedata: 'http://example.com/a.png' })).toBe(false)
   })
 
   it('leaves viewer state out of the exported shape', () => {
@@ -352,7 +409,10 @@ describe('AnnotationInput (compile-time)', () => {
       },
       { type: 'ink', page: 0, inklist: [[{ x: 0, y: 0 }]] },
       { type: 'highlight', page: 0, quads, id: 'x' },
+      { type: 'stamp', page: 0, rect, imagedata: 'data:image/png;base64,AA==' },
     ]
+    // @ts-expect-error a stamp needs its rect
+    accept({ type: 'stamp', page: 0, imagedata: 'data:image/png;base64,AA==' })
     // @ts-expect-error text markup needs quads
     accept({ type: 'highlight', page: 0 })
     // @ts-expect-error redact needs a rect or quads
@@ -367,6 +427,6 @@ describe('AnnotationInput (compile-time)', () => {
     })
     // @ts-expect-error a note cannot carry text markup geometry it does not declare
     accept({ type: 'text', page: 0, rect, nope: 1 })
-    expect(ok).toHaveLength(10)
+    expect(ok).toHaveLength(11)
   })
 })

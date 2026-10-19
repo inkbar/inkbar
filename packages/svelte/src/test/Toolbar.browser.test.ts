@@ -1,3 +1,4 @@
+import { createMemorySignatureStore, type SignatureTemplate } from '@inkbar/core'
 import { browserAssets, fixtureUrl } from '@inkbar/fixtures/urls'
 import { describe, expect, it } from 'vitest'
 import { page as browserPage, userEvent } from 'vitest/browser'
@@ -7,6 +8,7 @@ import { guardConsole } from './console-guard.js'
 import { attr, cssOf, focused, q, scrollTopOf, sleep } from './dom.js'
 import ColorMenuHarness from './harness/ColorMenuHarness.svelte'
 import LineStyleHarness from './harness/LineStyleHarness.svelte'
+import SignatureHarness from './harness/SignatureHarness.svelte'
 import TextStyleHarness from './harness/TextStyleHarness.svelte'
 import ToolbarHarness from './harness/ToolbarHarness.svelte'
 import ZoomClickHarness from './harness/ZoomClickHarness.svelte'
@@ -894,5 +896,155 @@ describe('text style menu', () => {
       .toEqual(['Georgia', 'Verdana', 'Helvetica'])
     await userEvent.selectOptions(font, 'Verdana')
     await expect.poll(() => style().fontFamily).toBe('Verdana')
+  })
+})
+
+describe('signature menu', () => {
+  const INK: SignatureTemplate = {
+    id: 'sig-a',
+    kind: 'ink',
+    inklist: [
+      [
+        { x: 0, y: 0 },
+        { x: 1, y: 1 },
+      ],
+    ],
+    aspect: 3,
+  }
+  const PNG =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAABCAYAAAAb4BS0AAAADklEQVR4nGP4z8DwH4YBJuYF+2EsXwgAAAAASUVORK5CYII='
+  const IMAGE: SignatureTemplate = {
+    id: 'sig-b',
+    kind: 'image',
+    imagedata: PNG,
+    aspect: 3,
+  }
+  const main = '[data-ink-signature-button]'
+  const chevron = () => browserPage.getByRole('button', { name: 'Choose signature' })
+  const menu = () => browserPage.getByRole('menu', { name: 'Signatures' })
+  const dialog = () => browserPage.getByRole('dialog', { name: 'Create signature' })
+  const probe = (name: string) => attr('[data-testid="probe"]', name)
+  const start = async (templates: SignatureTemplate[] = [], fonts?: string[]) => {
+    const store = createMemorySignatureStore(templates)
+    await render(SignatureHarness, {
+      src: fixtureUrl('text-simple'),
+      assets,
+      store,
+      ...(fonts ? { fonts } : {}),
+    })
+    await q('.ink-page canvas')
+    return store
+  }
+  const createSignature = async () => {
+    await chevron().click()
+    await menu().getByRole('menuitem', { name: 'Create signature' }).click()
+    await expect.element(dialog()).toBeVisible()
+  }
+
+  it('create a drawn signature, it appears in the menu and is selected', async () => {
+    const store = await start()
+    expect(attr(main, 'aria-label')()).toBe('Sign')
+    await chevron().click()
+    await expect.element(menu()).toBeVisible()
+    expect(menu().getByRole('menuitemradio').elements()).toHaveLength(0)
+    await menu().getByRole('menuitem', { name: 'Create signature' }).click()
+    await expect.element(dialog()).toBeVisible()
+    await expect.poll(() => menu().elements().length).toBe(0)
+    const save = dialog().getByRole('button', { name: 'Save' })
+    await expect.element(save).toBeDisabled()
+    const pad = await q('[data-ink-signature-pad]')
+    const r = pad.getBoundingClientRect()
+    const at = (type: string, x: number, y: number) =>
+      pad.dispatchEvent(
+        new PointerEvent(type, {
+          clientX: r.left + x,
+          clientY: r.top + y,
+          bubbles: true,
+          pointerId: 3,
+          buttons: type === 'pointerup' ? 0 : 1,
+          isPrimary: true,
+        })
+      )
+    at('pointerdown', 20, 60)
+    at('pointermove', 80, 20)
+    at('pointermove', 160, 70)
+    at('pointerup', 160, 70)
+    await expect.element(save).toBeEnabled()
+    await save.click()
+    await expect.poll(() => dialog().elements().length).toBe(0)
+    const [saved] = await store.list()
+    expect(saved?.kind).toBe('ink')
+    await expect
+      .poll(attr('[data-testid="signature-options"]', 'data-template'))
+      .toBe(saved!.id)
+    await expect.poll(probe('data-tool')).toBe('signature')
+    await expect.poll(attr(main, 'aria-pressed')).toBe('true')
+    await expect
+      .poll(() => document.activeElement === document.querySelector(main))
+      .toBe(true)
+    await chevron().click()
+    const item = menu().getByRole('menuitemradio', { name: 'Signature 1' })
+    await expect.element(item).toHaveAttribute('aria-checked', 'true')
+    expect(item.element().querySelector('svg path')).not.toBeNull()
+  })
+
+  it('remove deletes from the store', async () => {
+    const store = await start([INK, IMAGE])
+    await chevron().click()
+    await expect.poll(() => menu().getByRole('menuitemradio').elements().length).toBe(2)
+    expect(
+      menu()
+        .getByRole('menuitemradio', { name: 'Signature 2' })
+        .element()
+        .querySelector('img')
+        ?.getAttribute('src')
+    ).toBe(PNG)
+    await menu().getByRole('menuitem', { name: 'Remove signature 1' }).click()
+    await expect
+      .poll(async () => (await store.list()).map((t) => t.id))
+      .toEqual(['sig-b'])
+    await expect.poll(() => menu().getByRole('menuitemradio').elements().length).toBe(1)
+    const left = menu().getByRole('menuitemradio').element()
+    expect(left.getAttribute('data-key')).toBe('sig-b')
+    await expect.poll(() => document.activeElement === left).toBe(true)
+  })
+
+  it('dialog traps focus and Escape closes', async () => {
+    await start()
+    await createSignature()
+    const draw = dialog().getByRole('tab', { name: 'Draw' })
+    const type = dialog().getByRole('tab', { name: 'Type' })
+    await expect.poll(() => document.activeElement === draw.element()).toBe(true)
+    await userEvent.keyboard('{ArrowRight}')
+    await expect.poll(() => document.activeElement === type.element()).toBe(true)
+    await expect.element(type).toHaveAttribute('aria-selected', 'true')
+    // Save is disabled with no name, so Cancel is the last stop: Tab wraps both ways.
+    const cancel = dialog().getByRole('button', { name: 'Cancel' })
+    await userEvent.keyboard('{Shift>}{Tab}{/Shift}')
+    await expect.poll(() => document.activeElement === cancel.element()).toBe(true)
+    await userEvent.keyboard('{Tab}')
+    await expect.poll(() => document.activeElement === type.element()).toBe(true)
+    await userEvent.keyboard('{Escape}')
+    await expect.poll(() => dialog().elements().length).toBe(0)
+    await expect
+      .poll(() => document.activeElement === document.querySelector(main))
+      .toBe(true)
+  })
+
+  it('the Type tab saves the name in a host font as an image template', async () => {
+    const store = await start([], ['serif', 'cursive'])
+    await createSignature()
+    await dialog().getByRole('tab', { name: 'Type' }).click()
+    await dialog().getByLabelText('Name').fill('Ada Lovelace')
+    const fonts = dialog().getByRole('radio')
+    await expect
+      .poll(() => fonts.elements().map((f) => f.getAttribute('aria-label')))
+      .toEqual(['serif', 'cursive'])
+    await expect.poll(() => fonts.elements()[1]?.textContent?.trim()).toBe('Ada Lovelace')
+    await fonts.nth(1).click()
+    await expect.element(fonts.nth(1)).toHaveAttribute('aria-checked', 'true')
+    await dialog().getByRole('button', { name: 'Save' }).click()
+    await expect.poll(() => dialog().elements().length).toBe(0)
+    expect((await store.list()).map((t) => t.kind)).toEqual(['image'])
   })
 })

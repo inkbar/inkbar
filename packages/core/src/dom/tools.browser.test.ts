@@ -4,6 +4,7 @@ import { userEvent } from 'vitest/browser'
 
 import { createSnapshotHistory } from '../model/annotations/snapshot-history'
 import { readonly, writable } from '../model/readable'
+import { createMemorySignatureStore, createSignatureLibrary } from '../model/signatures'
 
 import { JOIN_GAP_MS } from './ink-stroke'
 import { createPageMount } from './page-mount'
@@ -43,6 +44,7 @@ afterEach(() => cleanup.splice(0).forEach((f) => f()))
 import type { AnnotationChange } from '../model/annotations/store'
 import type { Annotation } from '../model/annotations/types'
 import type { InkDocument } from '../model/document'
+import type { SignatureLibrary, SignatureTemplate } from '../model/signatures'
 
 /**
  * `controlled: true` opens the document with a host that applies each proposal a microtask
@@ -56,10 +58,13 @@ async function setup(
     custom = false,
     tools: hostTools,
     snapshotHistory = false,
+    signatures,
   }: {
     controlled?: boolean
     custom?: boolean
     tools?: Tool[]
+    /** The signature templates the `signature` tool places from. */
+    signatures?: SignatureLibrary
     /** Controlled only: undo and redo over the host's list, as the bindings give such hosts. */
     snapshotHistory?: boolean
   } = {}
@@ -133,6 +138,7 @@ async function setup(
       clearSelection: () => window.getSelection()?.removeAllRanges(),
       onActivate,
       history,
+      ...(signatures ? { signatures } : {}),
     },
   })
   tools.active.subscribe((id) => tracker.setTool(id))
@@ -632,6 +638,26 @@ describe('controlled mode', () => {
     await until(() => doc.annotations.list.get()[0]?.type === 'ink')
     history.undo()
     await until(() => doc.annotations.list.get().length === 0)
+  })
+
+  it('signature: a placed signature goes through onChange and is selected', async () => {
+    const signatures = await library([INK_TEMPLATE])
+    const { doc, container, viewport, tools } = await setup('text-simple', {
+      controlled: true,
+      signatures,
+    })
+    tools.set('signature', { templateId: INK_TEMPLATE.id })
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 300, h.top + 400)
+    pointer(container, 'pointerup', h.left + 300, h.top + 400)
+    // Nothing is written until the host applies it.
+    expect(doc.annotations.list.get()).toEqual([])
+    await settle()
+    const list = doc.annotations.list.get()
+    expect(list).toHaveLength(1)
+    const [sig] = list
+    expect(sig).toMatchObject({ type: 'ink', subject: 'Signature' })
+    expect(doc.annotations.selection.get()).toEqual([sig!.id])
   })
 
   it.each(['switching tool', 'destroying the controller'])(
@@ -2269,6 +2295,218 @@ describe('freetext tool', () => {
     expect(back.top).toBeCloseTo(100)
     expect(back.width).toBeCloseTo(160)
     expect(back.height).toBeGreaterThan(40)
+  })
+})
+
+const INK_TEMPLATE: SignatureTemplate = {
+  id: 'sig-ink',
+  kind: 'ink',
+  inklist: [
+    [
+      { x: 0, y: 0 },
+      { x: 0.5, y: 1 },
+      { x: 1, y: 0 },
+    ],
+  ],
+  aspect: 3,
+}
+/** A 3x1 red PNG. */
+const PNG_3x1 =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAABCAYAAAAb4BS0AAAADklEQVR4nGP4z8DwH4YBJuYF+2EsXwgAAAAASUVORK5CYII='
+const IMAGE_TEMPLATE: SignatureTemplate = {
+  id: 'sig-image',
+  kind: 'image',
+  imagedata: PNG_3x1,
+  aspect: 3,
+}
+
+/** A library over a memory store holding `templates`, loaded. */
+async function library(templates: SignatureTemplate[]): Promise<SignatureLibrary> {
+  const lib = createSignatureLibrary(createMemorySignatureStore(templates))
+  await lib.refresh()
+  return lib
+}
+
+describe('signature tool', () => {
+  it('signature tool click places the selected template centred', async () => {
+    const signatures = await library([INK_TEMPLATE, IMAGE_TEMPLATE])
+    const { doc, container, viewport, tools } = await setup('text-simple', { signatures })
+    tools.set('signature', { templateId: INK_TEMPLATE.id })
+    expect(container.dataset.inkTool).toBe('signature')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 300, h.top + 400)
+    pointer(container, 'pointerup', h.left + 300, h.top + 400)
+    const [sig] = doc.annotations.list.get()
+    if (sig?.type !== 'ink') throw new Error('no ink')
+    const at = viewport.transformFor(0).fromCss({ x: 300, y: 400 })
+    expect(sig).toMatchObject({ subject: 'Signature', width: 2 })
+    expect(sig.rect.width).toBeCloseTo(150, 5)
+    expect(sig.rect.height).toBeCloseTo(50, 5)
+    expect(sig.rect.x + sig.rect.width / 2).toBeCloseTo(at.x, 5)
+    expect(sig.rect.y + sig.rect.height / 2).toBeCloseTo(at.y, 5)
+    // The ink group's colour.
+    expect(sig.color).toBe('#151820')
+    expect(doc.annotations.selection.get()).toEqual([sig.id])
+
+    tools.set('signature', { templateId: IMAGE_TEMPLATE.id })
+    pointer(container, 'pointerdown', h.left + 200, h.top + 200)
+    pointer(container, 'pointerup', h.left + 200, h.top + 200)
+    const stamp = doc.annotations.list.get()[1]
+    if (stamp?.type !== 'stamp') throw new Error('no stamp')
+    expect(stamp).toMatchObject({ subject: 'Signature', imagedata: PNG_3x1 })
+    expect(stamp.rotation).toBeUndefined()
+    expect(stamp.rect.width).toBeCloseTo(150, 5)
+  })
+
+  it('places nothing without a template, or on a press over an annotation', async () => {
+    const signatures = await library([INK_TEMPLATE])
+    const { doc, container, viewport, tools } = await setup('text-simple', { signatures })
+    tools.set('signature')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 300, h.top + 400)
+    pointer(container, 'pointerup', h.left + 300, h.top + 400)
+    expect(doc.annotations.list.get()).toEqual([])
+    const sq = doc.annotations.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    await settle()
+    tools.set('signature', { templateId: INK_TEMPLATE.id })
+    const el = container.querySelector(`[data-annotation="${sq.id}"] svg *`)!
+    const c = viewport.transformFor(0).toCss({ x: 125, y: 615 })
+    pointer(el, 'pointerdown', h.left + c.x, h.top + c.y)
+    pointer(container, 'pointerup', h.left + c.x, h.top + c.y)
+    expect(doc.annotations.list.get()).toEqual([sq])
+  })
+
+  it('places a template saved after the library last loaded', async () => {
+    const store = createMemorySignatureStore()
+    const signatures = createSignatureLibrary(store)
+    const { doc, container, viewport, tools } = await setup('text-simple', { signatures })
+    await store.save(INK_TEMPLATE)
+    tools.set('signature', { templateId: INK_TEMPLATE.id })
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 300, h.top + 400)
+    pointer(container, 'pointerup', h.left + 300, h.top + 400)
+    await until(() => doc.annotations.list.get().length === 1)
+    expect(doc.annotations.list.get()[0]).toMatchObject({ subject: 'Signature' })
+  })
+
+  it('Enter places it at page centre', async () => {
+    const signatures = await library([IMAGE_TEMPLATE])
+    const { doc, container, viewport, tools } = await setup('text-simple', { signatures })
+    tools.set('signature', { templateId: IMAGE_TEMPLATE.id })
+    container.focus()
+    await userEvent.keyboard('{Enter}')
+    const [stamp] = doc.annotations.list.get()
+    if (stamp?.type !== 'stamp') throw new Error('no stamp')
+    const { box } = viewport.transformFor(viewport.currentPage.get()).page
+    expect(stamp.rect.x + stamp.rect.width / 2).toBeCloseTo(box.x + box.width / 2, 5)
+    expect(stamp.rect.y + stamp.rect.height / 2).toBeCloseTo(box.y + box.height / 2, 5)
+    expect(doc.annotations.selection.get()).toEqual([stamp.id])
+  })
+
+  it('stamp renders as img with the data URL', async () => {
+    const { doc, viewport } = await setup()
+    const a = doc.annotations.add({
+      type: 'stamp',
+      page: 0,
+      rect: { x: 100, y: 600, width: 90, height: 30 },
+      imagedata: PNG_3x1,
+      subject: 'Signature',
+    })
+    await settle()
+    const el = viewport
+      .hostFor(0)!
+      .querySelector<HTMLElement>(`[data-annotation="${a.id}"]`)!
+    const img = el.querySelector('img')!
+    expect(img.getAttribute('src')).toBe(PNG_3x1)
+    expect(img.classList.contains('ink-stamp')).toBe(true)
+    expect(el.getAttribute('aria-label')).toBe('Signature')
+    const box = viewport.transformFor(0).toCssRect(a.rect)
+    const r = img.getBoundingClientRect()
+    expect(r.width).toBeCloseTo(box.width, 0)
+    expect(r.height).toBeCloseTo(box.height, 0)
+  })
+
+  it('resizing a stamp keeps aspect', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    const a = doc.annotations.add({
+      type: 'stamp',
+      page: 0,
+      rect: { x: 100, y: 600, width: 90, height: 30 },
+      imagedata: PNG_3x1,
+    })
+    tools.set('select')
+    doc.annotations.select([a.id])
+    await settle()
+    const host = viewport.hostFor(0)!
+    const handle = host.querySelector<HTMLElement>(
+      `[data-annotation="${a.id}"] > [data-handle="se"]`
+    )!
+    expect(handle).not.toBeNull()
+    const h = host.getBoundingClientRect()
+    const t = viewport.transformFor(0)
+    const c = t.toCss({ x: 190, y: 600 })
+    pointer(handle, 'pointerdown', h.left + c.x, h.top + c.y)
+    pointer(container, 'pointermove', h.left + c.x + 30, h.top + c.y + 2)
+    pointer(container, 'pointerup', h.left + c.x + 30, h.top + c.y + 2)
+    const r = doc.annotations.get(a.id)!.rect
+    expect(r.width).toBeGreaterThan(90)
+    expect(r.width / r.height).toBeCloseTo(3, 5)
+    // The nw corner stays at (100, 630).
+    expect(r.x).toBeCloseTo(100, 5)
+    expect(r.y + r.height).toBeCloseTo(630, 5)
+  })
+
+  it.each([
+    ['/Rotate 90', 0],
+    ['/Rotate 90 and a view rotation of 270', 270],
+  ] as const)('reads upright on screen on a page at %s', async (_name, view) => {
+    const signatures = await library([INK_TEMPLATE, IMAGE_TEMPLATE])
+    const { doc, container, viewport, tools } = await setup('text-rotated-90', {
+      signatures,
+    })
+    if (view) {
+      viewport.setRotation(view)
+      await until(() => viewport.transformFor(0).rotation === view)
+    }
+    await settle()
+    const t = viewport.transformFor(0)
+    const host = viewport.hostFor(0)!
+    const h = host.getBoundingClientRect()
+    tools.set('signature', { templateId: INK_TEMPLATE.id })
+    pointer(container, 'pointerdown', h.left + 200, h.top + 150)
+    pointer(container, 'pointerup', h.left + 200, h.top + 150)
+    tools.set('signature', { templateId: IMAGE_TEMPLATE.id })
+    pointer(container, 'pointerdown', h.left + 200, h.top + 350)
+    pointer(container, 'pointerup', h.left + 200, h.top + 350)
+    await settle()
+    const [ink, stamp] = doc.annotations.list.get()
+    if (ink?.type !== 'ink' || stamp?.type !== 'stamp') throw new Error('not placed')
+    // Centred on the press, 150 wide and 50 high on screen.
+    for (const [a, y] of [
+      [ink, 150],
+      [stamp, 350],
+    ] as const) {
+      const box = t.toCssRect(a.rect)
+      expect(box.left + box.width / 2).toBeCloseTo(200, 5)
+      expect(box.top + box.height / 2).toBeCloseTo(y, 5)
+      expect(box.width).toBeCloseTo(t.toCssLength(150), 5)
+      expect(box.height).toBeCloseTo(t.toCssLength(50), 5)
+    }
+    // The ink's first point, the template's bottom-left, is at the box's bottom-left on screen.
+    const first = t.toCss(ink.inklist[0]![0]!)
+    const inkBox = t.toCssRect(ink.rect)
+    expect(first.x).toBeLessThan(inkBox.left + inkBox.width / 4)
+    expect(first.y).toBeGreaterThan(inkBox.top + (inkBox.height * 3) / 4)
+    // The stamp is turned against the page, and its image drawn upright to fill its box.
+    expect(stamp.rotation ?? 0).toBe(t.totalRotation)
+    const img = host.querySelector(`[data-annotation="${stamp.id}"] img`)!
+    const r = img.getBoundingClientRect()
+    expect(r.width).toBeCloseTo(t.toCssLength(150), 0)
+    expect(r.height).toBeCloseTo(t.toCssLength(50), 0)
   })
 })
 

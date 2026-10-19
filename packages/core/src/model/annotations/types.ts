@@ -174,6 +174,26 @@ function checkPressure(
 
 export const InkSchema = InkShape.superRefine(checkPressure)
 
+/** A PNG or JPEG image as a base64 `data:` URL, as XFDF carries a stamp's `<imagedata>`. */
+export const IMAGE_DATA_URL = /^data:image\/(png|jpeg);base64,/
+
+/**
+ * An image on the page (XFDF `stamp`), drawn to fill `rect`. Image and typed signatures are
+ * stamps with `subject: 'Signature'`.
+ */
+export const StampSchema = Base.extend({
+  type: z.literal('stamp'),
+  /** A PNG or JPEG `data:` URL (XFDF `imagedata`). */
+  imagedata: z.string().regex(IMAGE_DATA_URL, 'expected a PNG or JPEG data URL'),
+  /**
+   * Quarter turns, in degrees anticlockwise, the image is turned within `rect` (XFDF
+   * `rotation`). Absent means upright in user space.
+   */
+  rotation: z
+    .union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)])
+    .optional(),
+})
+
 export const SuggestionSchema = z.object({
   jobId: z.string().optional(),
   confidence: z.number().min(0).max(1),
@@ -201,6 +221,7 @@ export const AnnotationSchema = z.discriminatedUnion('type', [
   LineSchema,
   PolySchema,
   InkSchema,
+  StampSchema,
   RedactSchema,
 ])
 
@@ -216,6 +237,7 @@ export const ExportedAnnotationSchema = z.discriminatedUnion('type', [
   LineSchema.omit(VIEWER_STATE),
   PolySchema.omit(VIEWER_STATE),
   InkShape.omit(VIEWER_STATE).superRefine(checkPressure),
+  StampSchema.omit(VIEWER_STATE),
   RedactSchema.omit(VIEWER_STATE),
 ])
 
@@ -231,6 +253,7 @@ export type ShapeAnnotation = z.infer<typeof ShapeSchema>
 export type LineAnnotation = z.infer<typeof LineSchema>
 export type PolyAnnotation = z.infer<typeof PolySchema>
 export type InkAnnotation = z.infer<typeof InkSchema>
+export type StampAnnotation = z.infer<typeof StampSchema>
 export type RedactAnnotation = z.infer<typeof RedactSchema>
 export type Suggestion = z.infer<typeof SuggestionSchema>
 export type LineEnding = z.infer<typeof LineEndingSchema>
@@ -288,6 +311,7 @@ export type AnnotationInput =
       | z.input<typeof PolySchema>
       | z.input<typeof InkSchema>
     >
+  | (InputOf<z.input<typeof StampSchema>> & { rect: z.input<typeof StampSchema>['rect'] })
   | FreeTextCallerInput
   | RedactCallerInput
 

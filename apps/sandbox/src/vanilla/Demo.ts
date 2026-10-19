@@ -15,6 +15,7 @@ import {
   createPrevPage,
   createRedo,
   createShapeMenu,
+  createSignatureMenu,
   createToolbar,
   createToolbarSeparator,
   createToolButton,
@@ -26,6 +27,8 @@ import {
 } from '@inkbar/core/dom'
 import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
+
+import { signatureFonts, signatures } from '../shared/signatures'
 
 import { addActions } from './actions'
 
@@ -45,7 +48,7 @@ function group(
 }
 
 export function mountDemo(el: HTMLElement, source: DocumentSource): () => void {
-  const viewer = createViewer(el, { source, assets })
+  const viewer = createViewer(el, { source, assets, signatures, signatureFonts })
   viewer.element.classList.add('demo-root')
 
   const tools = createToolbar()
@@ -62,6 +65,7 @@ export function mountDemo(el: HTMLElement, source: DocumentSource): () => void {
       createToolButton(viewer, 'draw'),
       createShapeMenu(viewer),
       createToolButton(viewer, 'freetext'),
+      createSignatureMenu(viewer),
       createToolButton(viewer, 'note')
     ),
     createToolbarSeparator(),
