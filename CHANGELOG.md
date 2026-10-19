@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0](https://github.com/inkbar/inkbar/compare/v0.2.0...v0.3.0) (2026-10-19)
+
+
+### Features
+
+* align annotation field names with XFDF ([#117](https://github.com/inkbar/inkbar/issues/117)) ([1c54400](https://github.com/inkbar/inkbar/commit/1c544000c08e9f3c47f1f4fe54447c2a64a3ac02))
+* leave viewer state out of annotation exports ([#118](https://github.com/inkbar/inkbar/issues/118)) ([e4527fb](https://github.com/inkbar/inkbar/commit/e4527fb64facbb81980a07f7decec684b3674627))
+
 ## [0.2.0](https://github.com/inkbar/inkbar/compare/v0.1.1...v0.2.0) (2026-10-15)
 
 
