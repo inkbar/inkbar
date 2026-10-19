@@ -159,7 +159,7 @@ test('controlled annotations: v-model receives proposals and the store follows t
   await expect(cmp).toHaveAttribute('data-state', 'ready')
   await cmp.evaluate((el) => {
     ;(el as RootEl).__inkDocument!.annotations.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 0, y: 0, width: 20, height: 20 },
     })
@@ -191,7 +191,7 @@ test('controlled annotations that change while the document opens reach the stor
   })
   const note: Annotation = {
     id: 'late-note',
-    type: 'note',
+    type: 'text',
     icon: 'comment',
     page: 0,
     rect: { x: 10, y: 10, width: 20, height: 20 },
@@ -224,7 +224,7 @@ test('uncontrolled by default, with history enabled', async ({ mount }) => {
   const canUndo = await cmp.evaluate((el) => {
     const d = (el as RootEl).__inkDocument!
     d.annotations.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 0, y: 0, width: 20, height: 20 },
     })

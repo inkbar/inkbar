@@ -39,7 +39,7 @@ export function InkNotePopover({ children }: InkNotePopoverProps) {
 
   const note = useMemo<NoteAnnotation | null>(() => {
     const a = ctx.activated ? annotations.find((x) => x.id === ctx.activated) : undefined
-    return a?.type === 'note' ? threadRoot(annotations, a) : null
+    return a?.type === 'text' ? threadRoot(annotations, a) : null
   }, [annotations, ctx.activated])
   const anchor = useAnnotationElement(ctx.rootEl, note?.id ?? null)
   const anchorRef = useMemo(() => ({ current: anchor }), [anchor])
@@ -92,7 +92,7 @@ export function InkNotePopover({ children }: InkNotePopoverProps) {
     const contents = text.trim()
     if (!root || !contents) return
     written.current.add(root.id)
-    add({ type: 'note', page: root.page, rect: root.rect, contents, inReplyTo: root.id })
+    add({ type: 'text', page: root.page, rect: root.rect, contents, inReplyTo: root.id })
   }
   function isEmptyRoot(root: NoteAnnotation): boolean {
     return (

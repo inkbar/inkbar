@@ -445,7 +445,7 @@ describe('createViewer', () => {
       expect(undo.disabled).toBe(true)
       expect(redo.disabled).toBe(true)
       doc.annotations.add({
-        type: 'note',
+        type: 'text',
         page: 0,
         rect: { x: 0, y: 0, width: 20, height: 20 },
       })
@@ -504,7 +504,7 @@ describe('createViewer', () => {
       // A press on another annotation does not close: its activation takes over.
       const standalone = doc.annotations.list
         .get()
-        .find((a) => a.type === 'note' && !a.inReplyTo && a.contents !== 'Root note')!
+        .find((a) => a.type === 'text' && !a.inReplyTo && a.contents !== 'Root note')!
       const other = annotationEl(viewer, standalone.id)!
       pointer(other, 'pointerdown', 0, 0)
       expect(isOpen(popover)).toBe(true)
@@ -534,7 +534,7 @@ describe('createViewer', () => {
       scroll.focus()
       key(scroll, 'Enter')
       const [note] = doc.annotations.list.get()
-      expect(note?.type).toBe('note')
+      expect(note?.type).toBe('text')
       const popover = notePopover()!
       expect(isOpen(popover)).toBe(true)
       const textarea = popover.querySelector<HTMLTextAreaElement>(
@@ -699,7 +699,7 @@ describe('createViewer', () => {
     const { viewer } = make('text-simple', { buffer: 0 })
     const { doc } = await ready(viewer)
     const note = doc.annotations.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 100, y: 700, width: 20, height: 20 },
       contents: 'Keep me',
@@ -736,7 +736,7 @@ describe('createViewer', () => {
     const { viewer } = make('text-simple')
     const { doc } = await ready(viewer)
     const note = doc.annotations.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 100, y: 700, width: 20, height: 20 },
       contents: 'Keep me',
@@ -762,7 +762,7 @@ describe('createViewer', () => {
     const { viewer } = make('text-simple', { buffer: 0 })
     const { doc } = await ready(viewer)
     const note = doc.annotations.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 100, y: 700, width: 20, height: 20 },
       contents: 'Keep me',
@@ -791,7 +791,7 @@ describe('createViewer', () => {
     const { viewer } = make('text-simple')
     const { doc } = await ready(viewer)
     const note = doc.annotations.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 100, y: 700, width: 20, height: 20 },
       contents: 'Keep me',
@@ -808,7 +808,7 @@ describe('createViewer', () => {
     const { viewer } = make('text-simple', { buffer: 0 })
     const { doc } = await ready(viewer)
     const note = doc.annotations.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 100, y: 700, width: 20, height: 20 },
       contents: 'Keep me',

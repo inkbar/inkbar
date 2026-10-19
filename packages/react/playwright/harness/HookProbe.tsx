@@ -19,7 +19,7 @@ export function HookProbe() {
   const { tool, setTool } = useTool()
   const { zoom, setZoom } = useZoom()
   const addNote = () =>
-    add({ type: 'note', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
+    add({ type: 'text', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
   const addBatch = (n: number) =>
     batch(() => {
       for (let i = 0; i < n; i++) addNote()

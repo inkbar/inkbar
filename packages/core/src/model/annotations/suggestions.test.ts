@@ -40,7 +40,7 @@ describe('acceptSuggestion', () => {
       defaults: staticDefaults,
     })
     const own = store.add({ type: 'redact', page: 0, rect, color: '#445566' })
-    const note = store.add({ type: 'note', page: 0, rect })
+    const note = store.add({ type: 'text', page: 0, rect })
     expect(acceptSuggestion(store, own.id)).toBeUndefined()
     expect(acceptSuggestion(store, note.id)).toBeUndefined()
     expect(acceptSuggestion(store, 'missing')).toBeUndefined()

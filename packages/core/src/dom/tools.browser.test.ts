@@ -250,7 +250,7 @@ describe('tools', () => {
     pointer(container, 'pointerdown', h.left + 300, h.top + 400)
     pointer(container, 'pointerup', h.left + 300, h.top + 400)
     const [n] = doc.annotations.list.get()
-    expect(n?.type).toBe('note')
+    expect(n?.type).toBe('text')
     expect(n!.rect).toEqual({ x: 290, y: 382, width: 20, height: 20 })
     expect(doc.annotations.selection.get()).toEqual([n!.id])
     expect(onActivate).toHaveBeenCalledWith(n!.id)
@@ -432,7 +432,7 @@ describe('controlled mode', () => {
     expect(doc.annotations.list.get()).toEqual([])
     await settle()
     const [n] = doc.annotations.list.get()
-    expect(n?.type).toBe('note')
+    expect(n?.type).toBe('text')
     expect(doc.annotations.selection.get()).toEqual([n!.id])
     expect(onActivate).toHaveBeenCalledWith(n!.id)
   })
@@ -863,7 +863,7 @@ describe('keyboard creation', () => {
     const onPage = document.createElement('details')
     onPage.innerHTML = '<summary>Page notes</summary>'
     host.append(onPage)
-    const session = () => doc.annotations.list.get().filter((x) => x.type === 'note')
+    const session = () => doc.annotations.list.get().filter((x) => x.type === 'text')
     for (const summary of [inSlot, onPage].map((d) => d.querySelector('summary')!)) {
       summary.focus()
       enter(summary)
@@ -912,7 +912,7 @@ describe('keyboard creation', () => {
         doc.annotations.list.get().filter((a) => a.source === 'session')
       await until(() => session().length === 1)
       const [n] = session()
-      expect(n?.type).toBe('note')
+      expect(n?.type).toBe('text')
       expect(n!.page).toBe(viewport.currentPage.get())
       // CropBox [50 50 550 750]: centre (300, 400), a 20 pt box around it.
       expect(n!.rect).toEqual({ x: 290, y: 390, width: 20, height: 20 })

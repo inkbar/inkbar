@@ -94,7 +94,7 @@ const LOCKED_KEYS = new Set([
   'page',
   'rect',
   'quads',
-  'paths',
+  'inklist',
   'start',
   'end',
   'vertices',
@@ -135,8 +135,8 @@ export function deriveRect(input: AnnotationInput): Rect {
       if (input.quads) return unionRects(input.quads.map(rectFromQuad))
       break
     case 'ink': {
-      const pad = (input.strokeWidth ?? 2) / 2
-      const r = bounds(input.paths.flat())
+      const pad = (input.width ?? 2) / 2
+      const r = bounds(input.inklist.flat())
       return {
         x: r.x - pad,
         y: r.y - pad,
@@ -249,7 +249,8 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
       source: 'session',
     }
     if (input.type === 'redact') {
-      if (input.fill === undefined) candidate.fill = opts.defaults.fill()
+      if (input.interiorColor === undefined)
+        candidate.interiorColor = opts.defaults.fill()
       if (input.origin === 'suggested' && input.suggestion && input.color === undefined) {
         candidate.color = opts.defaults.suggestion(
           confidenceBucket(input.suggestion.confidence)

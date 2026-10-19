@@ -24,7 +24,7 @@ export function translated(a: Annotation, dx: number, dy: number): Partial<Annot
       patch.vertices = a.vertices.map((p) => shift(p, dx, dy))
       break
     case 'ink':
-      patch.paths = a.paths.map((path) => path.map((p) => shift(p, dx, dy)))
+      patch.inklist = a.inklist.map((path) => path.map((p) => shift(p, dx, dy)))
       break
     default:
   }
@@ -40,7 +40,7 @@ export function hasRectGeometry(a: Annotation): boolean {
   switch (a.type) {
     case 'redact':
       return a.quads === undefined || a.quads.length === 0
-    case 'freeText':
+    case 'freetext':
     case 'square':
     case 'circle':
       return true

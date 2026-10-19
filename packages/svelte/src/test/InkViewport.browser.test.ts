@@ -630,7 +630,7 @@ describe('InkViewport', () => {
     })
     await q(`${FIRST} canvas`)
     doc().annotations.add({
-      type: 'note',
+      type: 'text',
       page: 1,
       rect: { x: 72, y: 600, width: 24, height: 24 },
     })

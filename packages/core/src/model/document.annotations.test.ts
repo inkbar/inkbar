@@ -53,7 +53,7 @@ describe('document annotations', () => {
       assets: nodeAssets(),
     })
     await doc.ready
-    const mine = doc.annotations.add({ type: 'note', page: 0, rect })
+    const mine = doc.annotations.add({ type: 'text', page: 0, rect })
     const out = doc.exportAnnotations('json')
     expect(out.documentKey).toBe(doc.key)
     expect(out.annotations).toEqual([mine])
@@ -68,7 +68,7 @@ describe('document annotations', () => {
       assets: nodeAssets(),
     })
     await doc.ready
-    doc.annotations.add({ type: 'note', page: 0, rect, contents: 'hello' })
+    doc.annotations.add({ type: 'text', page: 0, rect, contents: 'hello' })
     doc.annotations.add({
       type: 'highlight',
       page: 0,
@@ -99,7 +99,7 @@ describe('document annotations', () => {
       },
     })
     await doc.ready
-    doc.annotations.add({ type: 'note', page: 0, rect })
+    doc.annotations.add({ type: 'text', page: 0, rect })
     expect(changes).toHaveLength(1)
     expect(doc.history.canUndo.get()).toBe(false)
     doc.destroy()
@@ -129,7 +129,7 @@ describe('document annotations', () => {
       assets: nodeAssets(),
     })
     await on.ready
-    on.annotations.add({ type: 'note', page: 0, rect })
+    on.annotations.add({ type: 'text', page: 0, rect })
     expect(on.history.canUndo.get()).toBe(true)
     on.history.undo()
     expect(on.annotations.list.get()).toEqual([])
@@ -140,7 +140,7 @@ describe('document annotations', () => {
       history: false,
     })
     await off.ready
-    off.annotations.add({ type: 'note', page: 0, rect })
+    off.annotations.add({ type: 'text', page: 0, rect })
     expect(off.history.canUndo.get()).toBe(false)
     off.destroy()
   })
@@ -162,7 +162,7 @@ describe('document annotations', () => {
     })
     await doc.ready
     doc.destroy()
-    doc.annotations.add({ type: 'note', page: 0, rect })
+    doc.annotations.add({ type: 'text', page: 0, rect })
     expect(doc.annotations.list.get()).toEqual([])
   })
 
@@ -181,7 +181,7 @@ describe('document annotations', () => {
       const pdfIds = doc.annotations.list.get().map((a) => a.id)
       expect(pdfIds).toHaveLength(4)
 
-      const note = doc.annotations.add({ type: 'note', page: 0, rect })
+      const note = doc.annotations.add({ type: 'text', page: 0, rect })
       expect(changes).toEqual([[note]])
       doc.annotations.setControlledValue(changes[0]!)
       expect(doc.annotations.list.get().map((a) => a.id)).toEqual([...pdfIds, note.id])
@@ -232,7 +232,7 @@ describe('document annotations', () => {
     await doc.ready
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     try {
-      const mine = doc.annotations.add({ type: 'note', page: 0, rect })
+      const mine = doc.annotations.add({ type: 'text', page: 0, rect })
       doc.importAnnotations(
         { format: 'inkbar/annotations', version: 1, annotations: [mine, foreign] },
         { mode: 'replace' }
@@ -268,7 +268,7 @@ describe('document annotations', () => {
       const envelope = { format: 'inkbar/annotations' as const, version: 1 as const }
       const known = doc.annotations.completeInput({
         id: 'x',
-        type: 'note',
+        type: 'text',
         page: 0,
         rect,
       })
@@ -319,7 +319,7 @@ describe('document annotations', () => {
     try {
       const callback = () => 'host'
       const a = doc.annotations.add({
-        type: 'note',
+        type: 'text',
         page: 0,
         rect,
         custom: { callback, label: 'kept' },

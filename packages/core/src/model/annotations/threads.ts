@@ -19,7 +19,7 @@ export function threadRoot(
   let current = start
   while (current.inReplyTo) {
     const parent = list.find((a) => a.id === current.inReplyTo)
-    if (parent?.type !== 'note' || seen.has(parent.id)) break
+    if (parent?.type !== 'text' || seen.has(parent.id)) break
     seen.add(parent.id)
     current = parent
   }
@@ -48,6 +48,6 @@ export function threadOf(
 /** An unlocked root note with no text and no replies: nothing a reader would miss. */
 export function isAbandonedNote(list: readonly Annotation[], id: string): boolean {
   const a = list.find((x) => x.id === id)
-  if (a?.type !== 'note' || a.locked || a.inReplyTo || a.contents?.trim()) return false
+  if (a?.type !== 'text' || a.locked || a.inReplyTo || a.contents?.trim()) return false
   return repliesTo(list, id).length === 0
 }

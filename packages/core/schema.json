@@ -133,7 +133,7 @@
               "propertyNames": { "type": "string" },
               "additionalProperties": {}
             },
-            "type": { "type": "string", "const": "note" },
+            "type": { "type": "string", "const": "text" },
             "icon": {
               "default": "comment",
               "type": "string",
@@ -184,8 +184,7 @@
               "propertyNames": { "type": "string" },
               "additionalProperties": {}
             },
-            "type": { "type": "string", "const": "freeText" },
-            "text": { "type": "string" },
+            "type": { "type": "string", "const": "freetext" },
             "fontSize": { "default": 12, "type": "number", "exclusiveMinimum": 0 },
             "fontFamily": { "default": "Helvetica", "type": "string" },
             "align": {
@@ -211,11 +210,11 @@
             "rect",
             "color",
             "opacity",
+            "contents",
             "createdAt",
             "modifiedAt",
             "source",
             "type",
-            "text",
             "fontSize",
             "fontFamily",
             "align"
@@ -253,8 +252,8 @@
               "additionalProperties": {}
             },
             "type": { "type": "string", "enum": ["square", "circle"] },
-            "strokeWidth": { "default": 1, "type": "number", "minimum": 0 },
-            "fill": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+            "width": { "default": 1, "type": "number", "minimum": 0 },
+            "interiorColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
           },
           "required": [
             "id",
@@ -266,7 +265,7 @@
             "modifiedAt",
             "source",
             "type",
-            "strokeWidth"
+            "width"
           ],
           "additionalProperties": false
         },
@@ -313,40 +312,32 @@
               "required": ["x", "y"],
               "additionalProperties": false
             },
-            "strokeWidth": { "default": 1, "type": "number", "minimum": 0 },
-            "endings": {
-              "type": "array",
-              "prefixItems": [
-                {
-                  "type": "string",
-                  "enum": [
-                    "none",
-                    "openArrow",
-                    "closedArrow",
-                    "square",
-                    "circle",
-                    "diamond",
-                    "butt",
-                    "slash"
-                  ]
-                },
-                {
-                  "type": "string",
-                  "enum": [
-                    "none",
-                    "openArrow",
-                    "closedArrow",
-                    "square",
-                    "circle",
-                    "diamond",
-                    "butt",
-                    "slash"
-                  ]
-                }
-              ],
-              "items": false,
-              "minItems": 2,
-              "maxItems": 2
+            "width": { "default": 1, "type": "number", "minimum": 0 },
+            "head": {
+              "type": "string",
+              "enum": [
+                "none",
+                "openArrow",
+                "closedArrow",
+                "square",
+                "circle",
+                "diamond",
+                "butt",
+                "slash"
+              ]
+            },
+            "tail": {
+              "type": "string",
+              "enum": [
+                "none",
+                "openArrow",
+                "closedArrow",
+                "square",
+                "circle",
+                "diamond",
+                "butt",
+                "slash"
+              ]
             }
           },
           "required": [
@@ -361,7 +352,7 @@
             "type",
             "start",
             "end",
-            "strokeWidth"
+            "width"
           ],
           "additionalProperties": false
         },
@@ -406,8 +397,8 @@
                 "additionalProperties": false
               }
             },
-            "strokeWidth": { "default": 1, "type": "number", "minimum": 0 },
-            "fill": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+            "width": { "default": 1, "type": "number", "minimum": 0 },
+            "interiorColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
           },
           "required": [
             "id",
@@ -420,7 +411,7 @@
             "source",
             "type",
             "vertices",
-            "strokeWidth"
+            "width"
           ],
           "additionalProperties": false
         },
@@ -455,7 +446,7 @@
               "additionalProperties": {}
             },
             "type": { "type": "string", "const": "ink" },
-            "paths": {
+            "inklist": {
               "minItems": 1,
               "type": "array",
               "items": {
@@ -469,7 +460,7 @@
                 }
               }
             },
-            "strokeWidth": { "default": 2, "type": "number", "minimum": 0 }
+            "width": { "default": 2, "type": "number", "minimum": 0 }
           },
           "required": [
             "id",
@@ -481,8 +472,8 @@
             "modifiedAt",
             "source",
             "type",
-            "paths",
-            "strokeWidth"
+            "inklist",
+            "width"
           ],
           "additionalProperties": false
         },
@@ -585,7 +576,7 @@
               "additionalProperties": false
             },
             "overlayText": { "type": "string" },
-            "fill": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+            "interiorColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
           },
           "required": [
             "id",
@@ -598,7 +589,7 @@
             "source",
             "type",
             "origin",
-            "fill"
+            "interiorColor"
           ],
           "additionalProperties": false
         }

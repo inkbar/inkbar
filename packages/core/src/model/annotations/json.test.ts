@@ -18,7 +18,7 @@ describe('json import/export', () => {
       mode: { mode: 'uncontrolled' },
       defaults: staticDefaults,
     })
-    const a = s.add({ type: 'note', page: 0, rect, contents: 'x' })
+    const a = s.add({ type: 'text', page: 0, rect, contents: 'x' })
     s._setEmbedded([{ ...a, id: 'pdf:1R', source: 'pdf', locked: true }])
     const out = exportAnnotations(s, [], 'doc-1')
     expect(out).toEqual({
@@ -41,8 +41,8 @@ describe('json import/export', () => {
       mode: { mode: 'uncontrolled' },
       defaults: staticDefaults,
     })
-    const keep = s.add({ type: 'note', page: 0, rect })
-    const change = s.add({ type: 'note', page: 0, rect, contents: 'old' })
+    const keep = s.add({ type: 'text', page: 0, rect })
+    const change = s.add({ type: 'text', page: 0, rect, contents: 'old' })
     importAnnotations(
       s,
       {
@@ -78,7 +78,7 @@ describe('json import/export', () => {
       {
         format: ANNOTATION_FORMAT,
         version: 1,
-        annotations: [unknown, { type: 'note' }],
+        annotations: [unknown, { type: 'text' }],
       } as never,
       { mode: 'replace' }
     )
@@ -123,7 +123,7 @@ describe('json import/export', () => {
       mode: { mode: 'uncontrolled' },
       defaults: staticDefaults,
     })
-    const a = s.add({ type: 'note', page: 0, rect })
+    const a = s.add({ type: 'text', page: 0, rect })
     const pdf = { ...a, id: 'pdf:0:1R', source: 'pdf' as const, locked: true }
     s._setEmbedded([pdf])
     const empty: AnnotationDocument = {
@@ -190,7 +190,7 @@ describe('json import/export', () => {
       mode: { mode: 'uncontrolled' },
       defaults: staticDefaults,
     })
-    const a = s.add({ type: 'note', page: 0, rect, contents: 'first' })
+    const a = s.add({ type: 'text', page: 0, rect, contents: 'first' })
     for (const mode of ['replace', 'merge'] as const) {
       const result = importAnnotations(
         s,
@@ -220,7 +220,7 @@ describe('json import/export', () => {
       mode: { mode: 'uncontrolled' },
       defaults: staticDefaults,
     })
-    const a = s.add({ type: 'note', page: 0, rect, contents: 'kept' })
+    const a = s.add({ type: 'text', page: 0, rect, contents: 'kept' })
     const foreign = { id: 'f', type: 'hologram', page: 0, nested: { n: 1 } }
     const out = exportAnnotations(s, [foreign])
     const [mine, theirs] = out.annotations as [typeof a, typeof foreign]

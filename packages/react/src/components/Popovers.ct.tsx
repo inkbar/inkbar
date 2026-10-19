@@ -69,7 +69,7 @@ test('note popover opens on activation, shows the thread, adds a reply and close
   await expect(items).toHaveCount(4)
   await expect(items.last()).toContainText('Looks fine')
   const reply = (await stored(root)).find((a) => a.contents === 'Looks fine')
-  expect(reply).toMatchObject({ type: 'note', inReplyTo: rootNote.id })
+  expect(reply).toMatchObject({ type: 'text', inReplyTo: rootNote.id })
   await expect(popover.locator('textarea[aria-label="Reply"]')).toHaveValue('')
 
   await popover.getByRole('button', { name: 'Close' }).click()
@@ -207,7 +207,7 @@ test('after deleting the only note, focus moves to the document', async ({
   const id = await page.locator('[data-ink-root]').evaluate(
     (el) =>
       (el as RootEl).__inkDocument!.annotations.add({
-        type: 'note',
+        type: 'text',
         page: 0,
         rect: { x: 72, y: 600, width: 24, height: 24 },
         contents: 'Check this',
@@ -268,7 +268,7 @@ test('activating a nested reply opens the whole thread from its root', async ({
   await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
   const note = (y: number, contents: string, inReplyTo?: string) =>
     addAnnotation(page, {
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 72, y, width: 24, height: 24 },
       contents,
@@ -449,7 +449,7 @@ test('with a slow controlled host, Delete closes the note popover before the hos
   const cmp = await mount(harness(props))
   await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
   const id = await addAnnotation(page, {
-    type: 'note',
+    type: 'text',
     page: 0,
     rect: { x: 72, y: 600, width: 24, height: 24 },
     contents: 'Check this',
@@ -492,7 +492,7 @@ test('a new note: the popover writes the note text itself, then replies', async 
   await comment.fill('Check the date')
   await popover.getByRole('button', { name: 'Comment' }).click()
 
-  const notes = (await stored(docOf(page))).filter((a) => a.type === 'note')
+  const notes = (await stored(docOf(page))).filter((a) => a.type === 'text')
   expect(notes).toHaveLength(1)
   expect(notes[0]).toMatchObject({ contents: 'Check the date' })
   expect(notes[0]!.inReplyTo).toBeUndefined()
@@ -504,7 +504,7 @@ test('a new note: the popover writes the note text itself, then replies', async 
   await popover.getByRole('textbox', { name: 'Reply' }).fill('Agreed')
   await popover.getByRole('button', { name: 'Reply' }).click()
   await expect(items).toHaveCount(2)
-  const after = (await stored(docOf(page))).filter((a) => a.type === 'note')
+  const after = (await stored(docOf(page))).filter((a) => a.type === 'text')
   expect(after.find((a) => a.contents === 'Agreed')).toMatchObject({
     inReplyTo: notes[0]!.id,
   })
@@ -534,7 +534,7 @@ test('closing a new note without writing anything removes it', async ({
 
   // The same through the Close button, for a note added with no text.
   const id = await addAnnotation(page, {
-    type: 'note',
+    type: 'text',
     page: 0,
     rect: { x: 72, y: 600, width: 24, height: 24 },
   })
@@ -558,7 +558,7 @@ test('with a slow controlled host, a comment submitted just before closing keeps
   const cmp = await mount(harness(props))
   await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
   const id = await addAnnotation(page, {
-    type: 'note',
+    type: 'text',
     page: 0,
     rect: { x: 72, y: 600, width: 24, height: 24 },
   })
@@ -598,7 +598,7 @@ test('with a slow controlled host, closing an empty note asks for its removal on
   const cmp = await mount(harness(props))
   await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
   const id = await addAnnotation(page, {
-    type: 'note',
+    type: 'text',
     page: 0,
     rect: { x: 72, y: 600, width: 24, height: 24 },
   })

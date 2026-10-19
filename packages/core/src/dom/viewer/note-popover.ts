@@ -50,14 +50,14 @@ export function createNotePopover(opts: NotePopoverOptions): { destroy(): void }
 
   function shown(): NoteAnnotation | null {
     const a = current ? store.get(current) : undefined
-    return a?.type === 'note' ? a : null
+    return a?.type === 'text' ? a : null
   }
 
   function target(): NoteAnnotation | null {
     const list = store.list.get()
     const id = activated.get()
     const a = id === null ? undefined : list.find((x) => x.id === id)
-    return a?.type === 'note' ? threadRoot(list, a) : null
+    return a?.type === 'text' ? threadRoot(list, a) : null
   }
 
   const editingRoot = (n: NoteAnnotation): boolean => !n.locked && !n.contents?.trim()
@@ -121,7 +121,7 @@ export function createNotePopover(opts: NotePopoverOptions): { destroy(): void }
     if (editingRoot(n)) store.update(n.id, { contents: text })
     else
       store.add({
-        type: 'note',
+        type: 'text',
         page: n.page,
         rect: n.rect,
         contents: text,

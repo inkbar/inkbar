@@ -49,15 +49,16 @@ export const TextMarkupSchema = Base.extend({
 })
 
 export const NoteSchema = Base.extend({
-  type: z.literal('note'),
+  type: z.literal('text'),
   icon: z
     .enum(['comment', 'note', 'help', 'insert', 'key', 'paragraph'])
     .default('comment'),
 })
 
 export const FreeTextSchema = Base.extend({
-  type: z.literal('freeText'),
-  text: z.string(),
+  type: z.literal('freetext'),
+  /** The text shown on the page. */
+  contents: z.string(),
   fontSize: z.number().positive().default(12),
   fontFamily: z.string().default('Helvetica'),
   align: z.enum(['left', 'center', 'right']).default('left'),
@@ -66,8 +67,8 @@ export const FreeTextSchema = Base.extend({
 
 export const ShapeSchema = Base.extend({
   type: z.enum(['square', 'circle']),
-  strokeWidth: z.number().nonnegative().default(1),
-  fill: Hex.optional(),
+  width: z.number().nonnegative().default(1),
+  interiorColor: Hex.optional(),
 })
 
 export const LineEndingSchema = z.enum([
@@ -85,21 +86,22 @@ export const LineSchema = Base.extend({
   type: z.literal('line'),
   start: PointSchema,
   end: PointSchema,
-  strokeWidth: z.number().nonnegative().default(1),
-  endings: z.tuple([LineEndingSchema, LineEndingSchema]).optional(),
+  width: z.number().nonnegative().default(1),
+  head: LineEndingSchema.optional(),
+  tail: LineEndingSchema.optional(),
 })
 
 export const PolySchema = Base.extend({
   type: z.enum(['polyline', 'polygon']),
   vertices: z.array(PointSchema).min(2),
-  strokeWidth: z.number().nonnegative().default(1),
-  fill: Hex.optional(),
+  width: z.number().nonnegative().default(1),
+  interiorColor: Hex.optional(),
 })
 
 export const InkSchema = Base.extend({
   type: z.literal('ink'),
-  paths: z.array(z.array(PointSchema).min(1)).min(1),
-  strokeWidth: z.number().nonnegative().default(2),
+  inklist: z.array(z.array(PointSchema).min(1)).min(1),
+  width: z.number().nonnegative().default(2),
 })
 
 export const SuggestionSchema = z.object({
@@ -118,7 +120,7 @@ export const RedactSchema = Base.extend({
   suggestion: SuggestionSchema.optional(),
   overlayText: z.string().optional(),
   /** Colour the redaction will be filled with when applied. */
-  fill: Hex,
+  interiorColor: Hex,
 })
 
 export const AnnotationSchema = z.discriminatedUnion('type', [
@@ -158,8 +160,8 @@ type InputOf<I> = I extends unknown
   : never
 
 type RedactInput = z.input<typeof RedactSchema>
-type RedactBase = Omit<InputOf<RedactInput>, 'fill' | 'rect' | 'quads'> & {
-  fill?: string
+type RedactBase = Omit<InputOf<RedactInput>, 'interiorColor' | 'rect' | 'quads'> & {
+  interiorColor?: string
 }
 type RedactCallerInput =
   | (RedactBase & { rect: RedactInput['rect']; quads?: RedactInput['quads'] })
@@ -171,7 +173,7 @@ type RedactCallerInput =
 /**
  * What callers pass to `add`. Built from zod input types, so fields with defaults or
  * optional fields may be omitted. A redaction needs `rect` or `quads` (the store
- * derives the other), and `fill` defaults to the store's redaction colour.
+ * derives the other), and `interiorColor` defaults to the store's redaction colour.
  */
 export type AnnotationInput =
   | InputOf<

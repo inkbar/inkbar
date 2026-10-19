@@ -75,7 +75,7 @@ describe('popovers', () => {
       'Looks fine'
     )
     const reply = stored().find((a) => a.contents === 'Looks fine')
-    expect(reply).toMatchObject({ type: 'note', inReplyTo: rootNote.id })
+    expect(reply).toMatchObject({ type: 'text', inReplyTo: rootNote.id })
     await expect.element(textarea).toHaveValue('')
 
     await byRole(popover, 'button', 'Close').click()
@@ -184,7 +184,7 @@ describe('popovers', () => {
     await harness({ src: fixtureUrl('text-simple'), assets })
     await q(`${FIRST} canvas`)
     const id = addAnnotation({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 72, y: 600, width: 24, height: 24 },
       contents: 'Check this',
@@ -230,7 +230,7 @@ describe('popovers', () => {
     await q(`${FIRST} canvas`)
     const note = (y: number, contents: string, inReplyTo?: string) =>
       addAnnotation({
-        type: 'note',
+        type: 'text',
         page: 0,
         rect: { x: 72, y, width: 24, height: 24 },
         contents,
@@ -425,7 +425,7 @@ describe('popovers', () => {
     })
     await q(`${FIRST} canvas`)
     const id = addAnnotation({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 72, y: 600, width: 24, height: 24 },
       contents: 'Check this',
@@ -461,8 +461,8 @@ describe('popovers', () => {
     await byRole(popover, 'textbox', 'Comment').fill('Check the date')
     await byRole(popover, 'button', 'Comment').click()
 
-    await expect.poll(() => stored().filter((a) => a.type === 'note').length).toBe(1)
-    const notes = stored().filter((a) => a.type === 'note')
+    await expect.poll(() => stored().filter((a) => a.type === 'text').length).toBe(1)
+    const notes = stored().filter((a) => a.type === 'text')
     expect(notes[0]).toMatchObject({ contents: 'Check the date' })
     expect(notes[0]!.inReplyTo).toBeUndefined()
     await expect.poll(count(`${POPOVER} [data-ink-thread-item]`)).toBe(1)
@@ -474,7 +474,7 @@ describe('popovers', () => {
     await byRole(popover, 'textbox', 'Reply').fill('Agreed')
     await byRole(popover, 'button', 'Reply').click()
     await expect.poll(count(`${POPOVER} [data-ink-thread-item]`)).toBe(2)
-    const after = stored().filter((a) => a.type === 'note')
+    const after = stored().filter((a) => a.type === 'text')
     expect(after.find((a) => a.contents === 'Agreed')).toMatchObject({
       inReplyTo: notes[0]!.id,
     })
@@ -501,7 +501,7 @@ describe('popovers', () => {
 
     // The same through the Close button, for a note added with no text.
     const id = addAnnotation({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 72, y: 600, width: 24, height: 24 },
     })
@@ -521,7 +521,7 @@ describe('popovers', () => {
     })
     await q(`${FIRST} canvas`)
     const id = addAnnotation({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 72, y: 600, width: 24, height: 24 },
     })
@@ -555,7 +555,7 @@ describe('popovers', () => {
     })
     await q(`${FIRST} canvas`)
     const id = addAnnotation({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 72, y: 600, width: 24, height: 24 },
     })
@@ -582,7 +582,7 @@ describe('popovers', () => {
     await harness({ src: fixtureUrl('text-simple'), assets })
     await q(`${FIRST} canvas`)
     const empty = (y: number) =>
-      addAnnotation({ type: 'note', page: 0, rect: { x: 72, y, width: 24, height: 24 } })
+      addAnnotation({ type: 'text', page: 0, rect: { x: 72, y, width: 24, height: 24 } })
     const first = empty(600)
     const second = empty(400)
     await activate(await q(`[data-annotation="${first}"]`))

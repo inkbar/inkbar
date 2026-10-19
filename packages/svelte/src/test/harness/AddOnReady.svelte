@@ -10,7 +10,7 @@
     if (doc.isReady && !added) {
       added = true
       annotations.add({
-        type: 'note',
+        type: 'text',
         page: 0,
         rect: { x: 0, y: 0, width: 20, height: 20 },
       })

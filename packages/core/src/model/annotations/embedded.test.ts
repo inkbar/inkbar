@@ -74,7 +74,7 @@ describe('embedded import', () => {
     const root = annotations.find((a) => a.contents === 'Root note')!
     const replies = annotations.filter((a) => a.inReplyTo === root.id)
     expect(replies.map((r) => r.contents).sort()).toEqual(['First reply', 'Second reply'])
-    expect(root.type === 'note' && root.icon).toBe('comment')
+    expect(root.type === 'text' && root.icon).toBe('comment')
     expect(root.createdAt).toBe('2026-10-12T11:00:00.000Z')
     expect(root.inReplyTo).toBeUndefined()
     // Ids are deterministic across opens.
@@ -92,7 +92,7 @@ describe('embedded import', () => {
     )
     expect(r.annotations[0]).toMatchObject({
       rect: { x: 72, y: 671, width: 228, height: 20 },
-      fill: '#000000',
+      interiorColor: '#000000',
       locked: true,
       source: 'pdf',
     })
@@ -105,18 +105,18 @@ describe('embedded import', () => {
     const s = importEmbeddedPage(0, shapes.raw, NOW)
     expect(s.annotations.map((a) => a.type).sort()).toEqual([
       'circle',
-      'freeText',
+      'freetext',
       'ink',
       'line',
       'polygon',
       'square',
     ])
     const by = (t: string) => s.annotations.find((a) => a.type === t)!
-    expect(by('square')).toMatchObject({ strokeWidth: 3, color: '#FF0000' })
+    expect(by('square')).toMatchObject({ width: 3, color: '#FF0000' })
     expect(by('line')).toMatchObject({
       start: { x: 72, y: 400 },
       end: { x: 400, y: 450 },
-      strokeWidth: 2,
+      width: 2,
     })
     expect(by('polygon')).toMatchObject({
       vertices: [
@@ -127,12 +127,12 @@ describe('embedded import', () => {
     })
     const ink = by('ink')
     if (ink.type === 'ink') {
-      expect(ink.paths).toHaveLength(1)
-      expect(ink.paths[0]).toHaveLength(5)
-      expect(ink.paths[0]![1]).toEqual({ x: 400, y: 380 })
+      expect(ink.inklist).toHaveLength(1)
+      expect(ink.inklist[0]).toHaveLength(5)
+      expect(ink.inklist[0]![1]).toEqual({ x: 400, y: 380 })
     }
-    expect(by('freeText')).toMatchObject({
-      text: 'Free text box',
+    expect(by('freetext')).toMatchObject({
+      contents: 'Free text box',
       fontSize: 12,
       color: '#000000',
     })
@@ -199,7 +199,7 @@ describe('embedded import', () => {
       page: 2,
       rect: { x: 50, y: 100, width: 150, height: 200 },
       color: '#C0392B',
-      strokeWidth: 1,
+      width: 1,
     })
   })
 })

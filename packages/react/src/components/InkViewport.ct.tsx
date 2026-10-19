@@ -586,13 +586,13 @@ test('under StrictMode each page mounts once and custom annotations still portal
   expect(new Set(mounted).size).toBe(mounted.length)
   await page.locator('[data-ink-root]').evaluate((el) => {
     ;(el as RootEl).__inkDocument!.annotations.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 72, y: 600, width: 24, height: 24 },
     })
   })
   await expect(first.locator('.my-pin')).toHaveCount(1)
-  await expect(first.locator('.my-pin')).toHaveAttribute('data-type', 'note')
+  await expect(first.locator('.my-pin')).toHaveAttribute('data-type', 'text')
   expect(consoleGuard.problems).toEqual([])
 })
 
@@ -605,7 +605,7 @@ test('toggling the annotation slot keeps the scroll position and swaps the custo
   await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
   await page.locator('[data-ink-root]').evaluate((el) => {
     ;(el as RootEl).__inkDocument!.annotations.add({
-      type: 'note',
+      type: 'text',
       page: 1,
       rect: { x: 72, y: 600, width: 24, height: 24 },
     })
