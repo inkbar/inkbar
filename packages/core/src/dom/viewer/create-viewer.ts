@@ -33,7 +33,7 @@ import type { Viewport } from '../viewport'
  */
 export interface CreateViewerOptions extends Omit<
   MountViewerOptions,
-  'container' | 'document' | 'toolStyle'
+  'container' | 'document' | 'toolStyle' | 'toolHistory'
 > {
   source: DocumentSource
   assets: PdfAssets

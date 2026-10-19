@@ -36,6 +36,8 @@ export interface FreehandOptions {
   commit(ctx: ToolContext, stroke: FreehandStroke): void
   /** Escape, or the tool deactivating. */
   end?(): void
+  /** The tool deactivating (a tool switch, or the controller's destroy). */
+  deactivate?(): void
 }
 
 /** A stroke being drawn: its page, and each sample in CSS px (host-relative) and user space. */
@@ -132,6 +134,7 @@ export function freehandTool(opts: FreehandOptions): Tool {
     deactivate() {
       clear()
       opts.end?.()
+      opts.deactivate?.()
       ctx = undefined
     },
     onPointerDown(e, hit) {

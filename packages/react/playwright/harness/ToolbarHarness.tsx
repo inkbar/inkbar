@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 import { InkColorMenu } from '../../src/components/InkColorMenu'
 import { InkLineStyleMenu } from '../../src/components/InkLineStyleMenu'
 import { InkNextPage } from '../../src/components/InkNextPage'
@@ -19,20 +21,32 @@ import { InkZoomSelect } from '../../src/components/InkZoomSelect'
 
 import { HookProbe } from './HookProbe'
 
-import type { DocumentSource, PdfAssets } from '@inkbar/core'
+import type { Annotation, DocumentSource, PdfAssets } from '@inkbar/core'
 import type { ToolId } from '@inkbar/core/dom'
 
 export function ToolbarHarness({
   src,
   assets,
   onToolChange,
+  controlled = false,
 }: {
   src: DocumentSource
   assets: PdfAssets
   onToolChange?: ((t: ToolId) => void) | undefined
+  /** The host owns the annotation list, with the root's snapshot history. */
+  controlled?: boolean
 }) {
+  const [list, setList] = useState<Annotation[]>([])
   return (
-    <InkRoot src={src} assets={assets} zoom={1} onToolChange={onToolChange}>
+    <InkRoot
+      src={src}
+      assets={assets}
+      zoom={1}
+      onToolChange={onToolChange}
+      {...(controlled
+        ? { annotations: list, onAnnotationsChange: setList, history: true }
+        : {})}
+    >
       <InkToolbar>
         <InkToolButton tool="select-text" />
         <InkToolButton tool="select" />

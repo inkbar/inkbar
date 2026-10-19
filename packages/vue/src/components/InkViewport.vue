@@ -132,6 +132,7 @@ function setup(): void {
     tool: ctx.tool.value,
     ...(ctx.hostTools.value ? { tools: ctx.hostTools.value } : {}),
     ...(ctx.toolStyle.value ? { toolStyle: ctx.toolStyle.value } : {}),
+    toolHistory: { batch: (fn) => ctx.history.batch(fn) },
     customAnnotations: custom,
     onActivate: (id) => ctx.setActivated(id),
     onBuild: (vp, tc) => {

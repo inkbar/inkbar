@@ -20,21 +20,36 @@
 
   import HookProbe from './HookProbe.svelte'
 
-  import type { DocumentSource, PdfAssets } from '@inkbar/core'
+  import type { Annotation, DocumentSource, PdfAssets } from '@inkbar/core'
   import type { ToolId } from '@inkbar/core/dom'
 
   let {
     src,
     assets,
     onToolChange,
+    controlled = false,
   }: {
     src: DocumentSource
     assets: PdfAssets
     onToolChange?: ((t: ToolId) => void) | undefined
+    /** The host owns the annotation list, with the root's snapshot history. */
+    controlled?: boolean
   } = $props()
+
+  let list = $state<Annotation[]>([])
 </script>
 
-<InkRoot {src} {assets} zoom={1} {onToolChange}>
+{#if controlled}
+  <InkRoot {src} {assets} zoom={1} {onToolChange} bind:annotations={list} history>
+    {@render content()}
+  </InkRoot>
+{:else}
+  <InkRoot {src} {assets} zoom={1} {onToolChange}>
+    {@render content()}
+  </InkRoot>
+{/if}
+
+{#snippet content()}
   <InkToolbar>
     <InkToolButton tool="select-text" />
     <InkToolButton tool="select" />
@@ -67,4 +82,4 @@
     <InkZoomIn />
   </InkToolbar>
   <HookProbe />
-</InkRoot>
+{/snippet}

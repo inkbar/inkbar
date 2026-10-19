@@ -542,6 +542,32 @@ describe('controlled mode', () => {
     await until(() => doc.annotations.list.get().length === 0)
   })
 
+  it.each(['switching tool', 'destroying the controller'])(
+    'sketch: %s before a controlled host applies the ink leaves the ink and fires nothing later',
+    async (how) => {
+      const { doc, container, viewport, tools } = await setup('text-simple', {
+        controlled: true,
+      })
+      tools.set('sketch')
+      const h = viewport.hostFor(0)!.getBoundingClientRect()
+      pointer(container, 'pointerdown', h.left + 260, h.top + 200)
+      for (let i = 1; i <= 64; i++) {
+        const t = (i / 60) * Math.PI * 2
+        pointer(
+          container,
+          'pointermove',
+          h.left + 200 + 60 * Math.cos(t),
+          h.top + 200 + 60 * Math.sin(t)
+        )
+      }
+      pointer(container, 'pointerup', h.left + 260, h.top + 200)
+      if (how === 'switching tool') tools.set('select')
+      else tools.destroy()
+      await settle(100)
+      expect(doc.annotations.list.get().map((a) => a.type)).toEqual(['ink'])
+    }
+  )
+
   it('select: Delete removes every selected annotation', async () => {
     const { doc, container, tools } = await setup('text-simple', { controlled: true })
     const a = doc.annotations.add({
