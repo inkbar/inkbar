@@ -1,3 +1,6 @@
+import { createAnnotationStore, createHistory, staticDefaults } from '@inkbar/core'
+import { trackToolStyle } from '@inkbar/core/dom'
+import { render } from 'svelte/server'
 import { describe, expect, it } from 'vitest'
 
 import { useAnnotations } from '../lib/hooks/useAnnotations.svelte.js'
@@ -7,7 +10,11 @@ import { useHistory } from '../lib/hooks/useHistory.svelte.js'
 import { usePage } from '../lib/hooks/usePage.svelte.js'
 import { useSelection } from '../lib/hooks/useSelection.svelte.js'
 import { useTool } from '../lib/hooks/useTool.svelte.js'
+import { useToolOptions } from '../lib/hooks/useToolOptions.svelte.js'
+import { useToolStyle } from '../lib/hooks/useToolStyle.svelte.js'
 import { useZoom } from '../lib/hooks/useZoom.svelte.js'
+
+import ToolStyleProbe from './harness/ToolStyleProbe.svelte'
 
 describe('hooks outside InkRoot', () => {
   it.each([
@@ -19,10 +26,46 @@ describe('hooks outside InkRoot', () => {
     ['usePage()', usePage],
     ['useHistory()', useHistory],
     ['useEmbedded()', useEmbedded],
+    ['useToolStyle()', useToolStyle],
+    ['useToolOptions()', () => useToolOptions('note')],
   ])('%s throws a readable error', (name, use) => {
     // Outside any component Svelte's own getContext throws; the hook turns that into its message.
     expect(() => use()).toThrow(
       `[inkbar] ${name} must be called in a component inside <InkRoot>.`
     )
+  })
+})
+
+describe('useToolStyle', () => {
+  it('setting style through the hook updates a selected annotation', () => {
+    const store = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const history = createHistory(store)
+    const { toolStyle } = trackToolStyle({ store, history, tool: 'select' })
+    const a = store.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 0, y: 0, width: 10, height: 10 },
+    })
+    store.select([a.id])
+    let api: ReturnType<typeof useToolStyle> | undefined
+    // The render runs when its output is read.
+    void render(ToolStyleProbe, {
+      props: {
+        context: { toolStyle },
+        onApi: (x) => {
+          api = x
+        },
+      },
+    }).body
+    expect(api?.current.width).toBe(1)
+    expect(api?.supported.has('fill')).toBe(true)
+    api?.set({ width: 4, border: '#00FF00' })
+    expect(store.get(a.id)).toMatchObject({ width: 4, color: '#00FF00' })
+    expect(api?.get('shape')).toMatchObject({ width: 4, border: '#00FF00' })
+    history.undo()
+    expect(store.get(a.id)).toMatchObject({ width: 1 })
   })
 })

@@ -22,7 +22,9 @@ export function redactAreaTool(): Tool {
     const selections = ctx.selectionQuads()
     if (selections.length === 0) return false
     for (const s of selections)
-      ctx.store.add({ type: 'redact', page: s.page, quads: s.quads })
+      ctx.store.add(
+        ctx.toolStyle.resolve('redact', { type: 'redact', page: s.page, quads: s.quads })
+      )
     ctx.clearSelection()
     return true
   }
@@ -36,6 +38,7 @@ export function redactAreaTool(): Tool {
   return {
     id: 'redact-area',
     cursor: 'crosshair',
+    styleGroup: 'redact',
     activate(c) {
       ctx = c
     },
@@ -92,7 +95,9 @@ export function redactAreaTool(): Tool {
           width,
           height,
         })
-        ctx.store.add({ type: 'redact', page: start.page, rect })
+        ctx.store.add(
+          ctx.toolStyle.resolve('redact', { type: 'redact', page: start.page, rect })
+        )
       } else {
         fromSelection()
       }

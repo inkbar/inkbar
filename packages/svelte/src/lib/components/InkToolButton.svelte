@@ -24,7 +24,7 @@
 
   import type { IconNode } from '@inkbar/icons'
 
-  const ICONS: Readonly<Record<ToolId, IconNode>> = {
+  const ICONS: Readonly<Partial<Record<ToolId, IconNode>>> = {
     view: Hand,
     select: MousePointer2,
     highlight: Highlighter,
@@ -44,7 +44,9 @@
 
   const current = useTool()
   const active = $derived(current.tool === tool)
-  const name = $derived(label ?? TOOL_LABELS[tool])
+  // A host tool has no built-in name or icon: `label` and `children` supply them.
+  const name = $derived(label ?? TOOL_LABELS[tool] ?? tool)
+  const icon = $derived(ICONS[tool])
 </script>
 
 <Toolbar.Button
@@ -62,7 +64,7 @@
     if (!e.defaultPrevented) current.setTool(tool)
   }}
 >
-  {#if children}{@render children({ active, label: name })}{:else}<InkIcon
-      icon={ICONS[tool]}
+  {#if children}{@render children({ active, label: name })}{:else if icon}<InkIcon
+      {icon}
     />{/if}
 </Toolbar.Button>

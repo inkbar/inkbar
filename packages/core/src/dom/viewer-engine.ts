@@ -8,12 +8,21 @@ import { InkError, isInkError } from '../model/errors'
 
 import { createPageMount, type PageLayer, type PageMount } from './page-mount'
 import { getSelectionQuads } from './selection'
-import { createToolController, type ToolController, type ToolId } from './tools'
+import {
+  createToolController,
+  createToolOptions,
+  trackToolStyle,
+  withHostTools,
+  type Tool,
+  type ToolController,
+  type ToolId,
+} from './tools'
 import { createViewport, type Viewport, type ZoomValue } from './viewport'
 import { attachViewportKeys } from './viewport-keys'
 
 import type { LayoutMode } from './layout'
 import type { PageTransform, ViewRotation } from './transform'
+import type { ToolStyle } from '../model/annotations/tool-style'
 import type { InkDocument } from '../model/document'
 import type { Point } from '../model/geometry'
 
@@ -35,6 +44,17 @@ export interface MountViewerOptions {
   gap?: number
   buffer?: number
   tool?: ToolId
+  /**
+   * Host tools, added to the built-ins. A host tool with a built-in's id replaces it. The same
+   * instances are reused when the engine rebuilds.
+   */
+  tools?: Tool[]
+  /**
+   * The style the tools create with. A binding passes its own, made with `trackToolStyle` and
+   * its own history (and keeps its active group in step with the tool). By default the engine
+   * makes one over the document's history.
+   */
+  toolStyle?: ToolStyle
   /** Annotation content is rendered by the host (custom slots). Changing it needs `rebuild`. */
   customAnnotations?: boolean
   onActivate?(id: string): void
@@ -64,6 +84,11 @@ export interface MountViewerOptions {
 export interface ViewerEngine {
   readonly viewport: Viewport
   readonly tools: ToolController
+  /**
+   * The style each group creates with, shared by the tools and the style controls. It lives as
+   * long as the engine, across rebuilds.
+   */
+  readonly toolStyle: ToolStyle
   readonly pages: ReadonlyMap<number, PageMount>
   /**
    * Recreates the viewport for construction-only options, keeping zoom, page, mode, rotation
@@ -84,7 +109,21 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
   let viewport: Viewport
   let tools: ToolController
   let stopKeys: () => void = () => undefined
+  let stopActive: () => void = () => undefined
   let destroyed = false
+  const hostTools = opts.tools ?? []
+  /** Option values outlive rebuilds: every controller shares this registry. */
+  const toolOptions = createToolOptions()
+  /** Without a host style, the engine's own follows the active tool across rebuilds. */
+  const tracker = opts.toolStyle
+    ? undefined
+    : trackToolStyle({
+        store: doc.annotations,
+        history: doc.history,
+        tools: hostTools,
+        tool: opts.tool,
+      })
+  const toolStyle = opts.toolStyle ?? (tracker as NonNullable<typeof tracker>).toolStyle
 
   function mountPage(page: number, host: HTMLElement, transform: PageTransform): void {
     /** Layers that failed and have not rendered since; the error clears when this empties. */
@@ -205,9 +244,13 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       onUpdate: (page, _host, transform) => pages.get(page)?.update(transform),
       onUnmount: unmountPage,
     })
+    const list = withHostTools(hostTools)
     const tc = createToolController({
       ...(state.tool === undefined ? {} : { initial: state.tool }),
+      tools: list,
+      options: toolOptions,
       ctx: {
+        toolStyle,
         store: doc.annotations,
         viewport: vp,
         root: el,
@@ -223,6 +266,10 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     })
     viewport = vp
     tools = tc
+    if (tracker) {
+      tracker.setTool(tc.active.get())
+      stopActive = tc.active.subscribe((id) => tracker.setTool(id))
+    }
     stopKeys = attachViewportKeys(el, { viewport: vp, pageCount: () => doc.pages.length })
     // A view resting in a gap lands on the page below it, not on the most visible page.
     // The scroll position resets on teardown, so the guard below must not skip a gap anchor.
@@ -235,6 +282,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
 
   function teardown(): void {
     stopKeys()
+    stopActive()
     tools.destroy()
     // The viewport unmounts every page it mounted, which destroys the page mounts.
     viewport.destroy()
@@ -256,6 +304,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     get tools() {
       return tools
     },
+    toolStyle,
     pages,
     rebuild(next) {
       if (destroyed) return

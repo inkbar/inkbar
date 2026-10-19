@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { InkError, openDocument } from '@inkbar/core'
-import { cssVariableDefaults } from '@inkbar/core/dom'
+import { cssVariableDefaults, trackToolStyle } from '@inkbar/core/dom'
 import { Primitive } from 'reka-ui'
 import {
   computed,
@@ -25,7 +25,14 @@ import type {
   InkDocument,
   PdfAssets,
 } from '@inkbar/core'
-import type { ToolController, ToolId, Viewport, ZoomValue } from '@inkbar/core/dom'
+import type {
+  Tool,
+  ToolController,
+  ToolId,
+  ToolStyle,
+  Viewport,
+  ZoomValue,
+} from '@inkbar/core/dom'
 
 const props = withDefaults(
   defineProps<{
@@ -40,6 +47,11 @@ const props = withDefaults(
      */
     annotations?: Annotation[] | undefined
     tool?: ToolId | undefined
+    /**
+     * Host tools, added to the built-ins; one with a built-in's id replaces it. Read when a
+     * document opens.
+     */
+    tools?: Tool[] | undefined
     page?: number | undefined
     zoom?: ZoomValue | undefined
     /** Undo history. Defaults to on for uncontrolled, off for controlled. */
@@ -51,6 +63,7 @@ const props = withDefaults(
     defaults: undefined,
     annotations: undefined,
     tool: undefined,
+    tools: undefined,
     page: undefined,
     zoom: undefined,
     history: undefined,
@@ -94,7 +107,7 @@ const selection = useReadable<readonly string[]>(
   []
 )
 const viewport = shallowRef<Viewport | null>(null)
-const tools = shallowRef<ToolController | null>(null)
+const toolController = shallowRef<ToolController | null>(null)
 const internalTool = ref<ToolId>(props.tool ?? 'view')
 const activated = ref<string | null>(null)
 
@@ -205,6 +218,31 @@ const inkHistory: InkHistory = {
   },
 }
 
+/** The document's tool style; it batches through `inkHistory`, whichever mode is on. */
+const toolStyle = shallowRef<ToolStyle | null>(null)
+let setStyleTool: ((id: ToolId) => void) | undefined
+watch(
+  document,
+  (doc) => {
+    if (!doc) {
+      toolStyle.value = null
+      setStyleTool = undefined
+      return
+    }
+    const tracker = trackToolStyle({
+      store: doc.annotations,
+      history: { batch: (fn) => inkHistory.batch(fn) },
+      tools: props.tools,
+      tool: internalTool.value,
+    })
+    setStyleTool = (id) => tracker.setTool(id)
+    toolStyle.value = tracker.toolStyle
+  },
+  // Sync: the style is in place before InkViewport's watcher mounts the engine with it.
+  { immediate: true, flush: 'sync' }
+)
+watch(internalTool, (id) => setStyleTool?.(id))
+
 // Open on the client only: on the server InkRoot renders its empty slot.
 onMounted(() => {
   syncRootEl()
@@ -247,9 +285,11 @@ provideInkContext({
   annotations: annotationList,
   selection,
   viewport,
-  tools,
+  tools: toolController,
   tool: internalTool,
   setTool,
+  hostTools: computed(() => props.tools),
+  toolStyle,
   zoomModel: computed(() => props.zoom),
   pageModel: computed(() => props.page),
   reportZoom: (z) => emit('update:zoom', z),

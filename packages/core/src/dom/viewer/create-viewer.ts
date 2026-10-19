@@ -27,9 +27,13 @@ import type { PdfAssets } from '../../pdfjs/types'
 import type { ToolController } from '../tools'
 import type { Viewport } from '../viewport'
 
+/**
+ * The engine options, less what the viewer owns per document: the container, the document,
+ * and the tool style (bound to one document's store, so each engine makes its own).
+ */
 export interface CreateViewerOptions extends Omit<
   MountViewerOptions,
-  'container' | 'document'
+  'container' | 'document' | 'toolStyle'
 > {
   source: DocumentSource
   assets: PdfAssets
@@ -83,8 +87,10 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     onPageMount,
     onPageUnmount,
     onPageError,
+    // Not an option (see the type), but a caller without types could still pass one.
+    toolStyle: _toolStyle,
     ...view
-  } = opts
+  } = opts as CreateViewerOptions & Pick<MountViewerOptions, 'toolStyle'>
   const status = writable<InkStatus>({ state: 'idle' })
   const current = writable<InkDocument | null>(null)
   const engine = writable<ViewerEngine | null>(null)

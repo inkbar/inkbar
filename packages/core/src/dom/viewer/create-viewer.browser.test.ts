@@ -173,6 +173,28 @@ describe('createViewer', () => {
     expect(onReady).toHaveBeenCalledTimes(1)
   })
 
+  it("gives each opened document's engine a tool style bound to that document", async () => {
+    const stale = {}
+    // @ts-expect-error A tool style belongs to one document's store: not a viewer option.
+    const options: Partial<CreateViewerOptions> = { toolStyle: stale }
+    // An untyped caller's style is ignored rather than handed to every engine.
+    const { viewer } = make('text-simple', options)
+    const first = await ready(viewer)
+    expect(first.engine.toolStyle).not.toBe(stale)
+    viewer.open(fixtureUrl('annotated-notes-threaded'))
+    await until(() => viewer.document.get() !== first.doc)
+    const second = await ready(viewer)
+    expect(second.engine.toolStyle).not.toBe(first.engine.toolStyle)
+    const a = second.doc.annotations.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 10, y: 10, width: 40, height: 40 },
+    })
+    second.doc.annotations.select([a.id])
+    second.engine.toolStyle.set({ width: 5 })
+    expect(second.doc.annotations.get(a.id)).toMatchObject({ width: 5 })
+  })
+
   it('shows the error state when openDocument itself rejects', async () => {
     const onError = vi.fn()
     const { viewer } = make('text-simple', {

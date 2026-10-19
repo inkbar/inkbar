@@ -9,8 +9,11 @@ import type {
   Suggestion,
 } from '../model/annotations/types'
 
-/** Accessible names of the built-in tools, as the toolbar buttons announce them. */
-export const TOOL_LABELS: Readonly<Record<ToolId, string>> = {
+/**
+ * Accessible names of the built-in tools, as the toolbar buttons announce them. A host tool has
+ * no entry: its button takes the host's `label`, else the tool id.
+ */
+export const TOOL_LABELS: Readonly<Partial<Record<ToolId, string>>> = {
   view: 'View',
   select: 'Select',
   highlight: 'Highlight',

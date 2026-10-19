@@ -114,6 +114,8 @@ export function InkViewport({
       gap: g,
       buffer: b,
       tool: c.tool,
+      ...(c.hostTools ? { tools: c.hostTools } : {}),
+      ...(c.toolStyle ? { toolStyle: c.toolStyle } : {}),
       customAnnotations: cu,
       onActivate: (id) => latest.current.ctx.setActivated(id),
       onBuild: (vp, tc) => {

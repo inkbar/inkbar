@@ -11,7 +11,7 @@ import InkIcon from './InkIcon.vue'
 import type { ToolId } from '@inkbar/core/dom'
 import type { IconNode } from '@inkbar/icons'
 
-const ICONS: Readonly<Record<ToolId, IconNode>> = {
+const ICONS: Readonly<Partial<Record<ToolId, IconNode>>> = {
   view: Hand,
   select: MousePointer2,
   highlight: Highlighter,
@@ -26,7 +26,9 @@ const props = withDefaults(
 
 const { tool: current, setTool } = useTool()
 const active = computed(() => current.value === props.tool)
-const name = computed(() => props.label ?? TOOL_LABELS[props.tool])
+// A host tool has no built-in name or icon: `label` and the slot supply them.
+const name = computed(() => props.label ?? TOOL_LABELS[props.tool] ?? props.tool)
+const icon = computed(() => ICONS[props.tool])
 // Reka's typed props stop at its own; ARIA and listeners go through a bound object.
 const attrs = computed(() => ({
   'aria-pressed': String(active.value),
@@ -45,6 +47,6 @@ const attrs = computed(() => ({
     :data-state="active ? 'on' : 'off'"
     v-bind="attrs"
   >
-    <slot :active="active" :label="name"><InkIcon :icon="ICONS[tool]" /></slot>
+    <slot :active="active" :label="name"><InkIcon v-if="icon" :icon="icon" /></slot>
   </ToolbarButton>
 </template>
