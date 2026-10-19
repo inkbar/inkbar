@@ -24,6 +24,7 @@ import { confidenceBucket, type Annotation } from '../model/annotations/types'
 import { canEditFreeText, editFreeTextIn, editorFor } from './freetext-editor'
 import {
   annotationBox,
+  hasComment,
   renderAnnotationContent,
   renderHitArea,
   syncHandles,
@@ -78,7 +79,7 @@ const ARROW_STEPS: Record<string, { x: number; y: number }> = {
 const LABELS: Record<Annotation['type'], string> = {
   highlight: 'Highlight',
   underline: 'Underline',
-  strikeout: 'Strikeout',
+  strikeout: 'Strikethrough',
   squiggly: 'Squiggly underline',
   text: 'Note',
   freetext: 'Text box',
@@ -103,7 +104,8 @@ function ariaLabel(a: Annotation): string {
     a.type === 'redact' && a.origin === 'suggested'
       ? 'Suggested redaction'
       : LABELS[a.type]
-  return a.author ? `${base} by ${a.author}` : base
+  const named = hasComment(a) ? `${base} with comment` : base
+  return a.author ? `${named} by ${a.author}` : named
 }
 
 /** Reading order in user space: top edge first (y grows upwards), then left edge. */

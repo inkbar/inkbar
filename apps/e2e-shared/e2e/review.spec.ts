@@ -29,7 +29,7 @@ async function addNote(page: Page, text: string): Promise<void> {
   await page.locator('[data-tool="note"]').click()
   const box = (await page.locator('.ink-page[data-page="0"]').boundingBox())!
   await page.mouse.click(box.x + 300, box.y + 300)
-  const popover = page.locator('[data-ink-note-popover]')
+  const popover = page.locator('[data-ink-thread-popover]')
   await expect(popover).toBeVisible()
   // A new note takes its own text first; replies come once the root has some.
   await popover.getByRole('textbox', { name: 'Comment' }).fill(text)
@@ -163,7 +163,7 @@ test('host-owned annotations survive a re-signed URL and a reload, and a new ver
 
   await addNote(page, 'Keep across re-signing')
   await page
-    .locator('[data-ink-note-popover]')
+    .locator('[data-ink-thread-popover]')
     .getByRole('button', { name: 'Close' })
     .click()
   const status = page.getByTestId('status')
@@ -197,7 +197,7 @@ test('host-owned annotations survive a re-signed URL and a reload, and a new ver
   const note = page.locator('[data-annotation][data-type="text"]').first()
   await note.focus()
   await page.keyboard.press('Enter')
-  await expect(page.locator('[data-ink-note-popover]')).toContainText(
+  await expect(page.locator('[data-ink-thread-popover]')).toContainText(
     'Keep across re-signing'
   )
   await page.keyboard.press('Escape')

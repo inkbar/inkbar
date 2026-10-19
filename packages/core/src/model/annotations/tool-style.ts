@@ -66,6 +66,20 @@ export interface ToolStyle {
   set(patch: StyleProps, opts?: { group?: StyleGroup; apply?: boolean }): void
   /** Fills an AnnotationInput's unset style fields from the group (input wins). */
   resolve<T extends AnnotationInput>(group: StyleGroup, input: T): T
+  /**
+   * The style as a control for one group sees it, whatever the active tool: the selection's
+   * when every selected annotation is in `group`, else the group's own. Same identity per group.
+   */
+  scoped(group: StyleGroup): ScopedToolStyle
+}
+
+/** A view of the tool style for one group, as `ToolStyle.scoped` gives it. */
+export interface ScopedToolStyle {
+  readonly group: StyleGroup
+  readonly current: Readable<CurrentStyle>
+  readonly supported: Readable<ReadonlySet<StyleKey>>
+  /** Updates the group, and the selection too when every selected annotation is in it. */
+  set(patch: StyleProps): void
 }
 
 export interface ToolStyleDeps {
@@ -193,6 +207,25 @@ export function createToolStyle(deps: ToolStyleDeps): ToolStyle {
     ...(deps.active ? [deps.active] : []),
   ]
 
+  /** One value per prop over `items`, `'mixed'` where they differ. */
+  const styleOf = (items: readonly Annotation[]): CurrentStyle => {
+    const out: Record<string, unknown> = {}
+    for (const a of items) {
+      const props = fromAnnotation(a) as Record<string, unknown>
+      for (const [key, value] of Object.entries(props)) {
+        if (!(key in out)) out[key] = value
+        else if (out[key] !== 'mixed' && !sameValue(out[key], value)) out[key] = 'mixed'
+      }
+    }
+    return out
+  }
+
+  const propsOf = (items: readonly Annotation[]): ReadonlySet<StyleKey> => {
+    const out = new Set<StyleKey>()
+    for (const a of items) for (const key of supportedProps(a.type)) out.add(key)
+    return out
+  }
+
   const current = computed<CurrentStyle>(
     sources,
     () => {
@@ -201,15 +234,7 @@ export function createToolStyle(deps: ToolStyleDeps): ToolStyle {
         const g = activeGroup()
         return g ? { ...groupStore(g).get() } : {}
       }
-      const out: Record<string, unknown> = {}
-      for (const a of items) {
-        const props = fromAnnotation(a) as Record<string, unknown>
-        for (const [key, value] of Object.entries(props)) {
-          if (!(key in out)) out[key] = value
-          else if (out[key] !== 'mixed' && !sameValue(out[key], value)) out[key] = 'mixed'
-        }
-      }
-      return out
+      return styleOf(items)
     },
     (a, b) => sameRecord(a, b)
   )
@@ -222,12 +247,47 @@ export function createToolStyle(deps: ToolStyleDeps): ToolStyle {
         const g = activeGroup()
         return g ? groupProps(g) : new Set()
       }
-      const out = new Set<StyleKey>()
-      for (const a of items) for (const key of supportedProps(a.type)) out.add(key)
-      return out
+      return propsOf(items)
     },
     sameSet
   )
+
+  /** The selection, when it is non-empty and wholly in `group`. */
+  const selectedIn = (group: StyleGroup): Annotation[] | null => {
+    const items = selected()
+    return items.length > 0 && items.every((a) => styleGroupOf(a) === group)
+      ? items
+      : null
+  }
+
+  const scopes = new Map<StyleGroup, ScopedToolStyle>()
+  function scoped(group: StyleGroup): ScopedToolStyle {
+    const known = scopes.get(group)
+    if (known) return known
+    groupStore(group)
+    const scope: ScopedToolStyle = {
+      group,
+      current: computed<CurrentStyle>(
+        sources,
+        () => {
+          const items = selectedIn(group)
+          return items ? styleOf(items) : { ...groupStore(group).get() }
+        },
+        (a, b) => sameRecord(a, b)
+      ),
+      supported: computed<ReadonlySet<StyleKey>>(
+        sources,
+        () => {
+          const items = selectedIn(group)
+          return items ? propsOf(items) : groupProps(group)
+        },
+        sameSet
+      ),
+      set: (patch) => set(patch, { group, apply: selectedIn(group) !== null }),
+    }
+    scopes.set(group, scope)
+    return scope
+  }
 
   function set(
     patch: StyleProps,
@@ -294,5 +354,6 @@ export function createToolStyle(deps: ToolStyleDeps): ToolStyle {
     supported,
     set,
     resolve,
+    scoped,
   }
 }

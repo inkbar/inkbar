@@ -60,7 +60,7 @@ describe('@inkbar/react on the server', () => {
         'InkPageCount',
         'InkPrevPage',
         'InkNextPage',
-        'InkNotePopover',
+        'InkThreadPopover',
         'InkSuggestionCard',
         'InkViewport',
         'InkPage',
@@ -90,7 +90,7 @@ describe('@inkbar/react on the server', () => {
           createElement(entry.InkZoomSelect),
           createElement(entry.InkZoomIn)
         ),
-        createElement(entry.InkNotePopover),
+        createElement(entry.InkThreadPopover),
         createElement(entry.InkSuggestionCard)
       )
     )

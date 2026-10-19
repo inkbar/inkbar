@@ -24,15 +24,15 @@
 </script>
 
 <script lang="ts">
-  import InkNotePopover from '../../lib/components/InkNotePopover.svelte'
   import InkRoot from '../../lib/components/InkRoot.svelte'
   import InkSuggestionCard from '../../lib/components/InkSuggestionCard.svelte'
+  import InkThreadPopover from '../../lib/components/InkThreadPopover.svelte'
   import InkViewport from '../../lib/components/InkViewport.svelte'
 
   import type { InkDocument } from '@inkbar/core'
   import type {
     AnnotationSlotProps,
-    NotePopoverSlotProps,
+    ThreadPopoverSlotProps,
     SuggestionCardSlotProps,
   } from '@inkbar/core/dom'
 
@@ -92,7 +92,7 @@
 {#snippet pin({ annotation }: AnnotationSlotProps)}
   <button type="button" data-testid="pin">Pin {annotation.type}</button>
 {/snippet}
-{#snippet noteRemove({ remove }: NotePopoverSlotProps)}
+{#snippet noteRemove({ remove }: ThreadPopoverSlotProps)}
   <button type="button" data-testid="custom-remove" onclick={remove}>Remove</button>
 {/snippet}
 {#snippet cardDismiss({ dismiss }: SuggestionCardSlotProps)}
@@ -113,6 +113,6 @@
   <div style="height: 600px; width: 900px">
     <InkViewport annotation={customAnnotations ? pin : undefined} />
   </div>
-  <InkNotePopover children={customNote ? noteRemove : undefined} />
+  <InkThreadPopover children={customNote ? noteRemove : undefined} />
   <InkSuggestionCard children={customCard ? cardDismiss : undefined} />
 </InkRoot>

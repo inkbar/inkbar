@@ -266,6 +266,96 @@ describe('tools', () => {
     expect(window.getSelection()!.isCollapsed).toBe(true)
   })
 
+  /** Selects the text of the span holding `text` on page 0 and releases the pointer on it. */
+  function selectSpanAndRelease(
+    container: HTMLElement,
+    viewport: Viewport,
+    text = 'QQ123456C'
+  ): void {
+    const span = [
+      ...viewport.hostFor(0)!.querySelectorAll('[data-ink-text-layer] span'),
+    ].find((s) => s.textContent?.includes(text))!
+    const range = document.createRange()
+    range.selectNodeContents(span)
+    window.getSelection()!.removeAllRanges()
+    window.getSelection()!.addRange(range)
+    const r = span.getBoundingClientRect()
+    pointer(container, 'pointerup', r.right, r.bottom)
+  }
+
+  it('highlight tool no longer copies selected text into contents', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('highlight')
+    selectSpanAndRelease(container, viewport)
+    const [hl] = doc.annotations.list.get()
+    expect(hl?.type).toBe('highlight')
+    expect(hl?.contents).toBeUndefined()
+  })
+
+  it('highlight selects the new markup', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('highlight')
+    selectSpanAndRelease(container, viewport)
+    const [hl] = doc.annotations.list.get()
+    expect(doc.annotations.selection.get()).toEqual([hl!.id])
+  })
+
+  it('underline kind creates underline', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    expect(tools.options('highlight').get()).toEqual({ kind: 'highlight' })
+    tools.set('highlight', { kind: 'underline' })
+    selectSpanAndRelease(container, viewport)
+    tools.set('highlight', { kind: 'squiggly' })
+    selectSpanAndRelease(container, viewport)
+    tools.set('highlight', { kind: 'strikeout' })
+    selectSpanAndRelease(container, viewport)
+    expect(doc.annotations.list.get().map((a) => a.type)).toEqual([
+      'underline',
+      'squiggly',
+      'strikeout',
+    ])
+  })
+
+  it.each(['text-simple', 'text-rotated-90'] as const)(
+    'commented highlight shows .ink-comment-marker (%s)',
+    async (fixture) => {
+      const { doc, viewport } = await setup(fixture)
+      const quad = (x: number, y: number) => ({
+        p1: { x, y: y + 12 },
+        p2: { x: x + 60, y: y + 12 },
+        p3: { x, y },
+        p4: { x: x + 60, y },
+      })
+      const hl = doc.annotations.add({
+        type: 'highlight',
+        page: 0,
+        quads: [quad(72, 700), quad(72, 680)],
+      })
+      await settle()
+      const el = () =>
+        viewport.hostFor(0)!.querySelector<HTMLElement>(`[data-annotation="${hl.id}"]`)!
+      expect(el().querySelector('.ink-comment-marker')).toBeNull()
+      doc.annotations.update(hl.id, { contents: 'Check this' })
+      await settle()
+      const marker = el().querySelector<HTMLElement>('span.ink-comment-marker')
+      expect(marker).not.toBeNull()
+      expect(el().getAttribute('aria-label')).toBe('Highlight with comment')
+      // At the last quad's top-right corner, wherever the page's rotation puts it.
+      const t = viewport.transformFor(0)
+      const corner = t.toCss({ x: 132, y: 692 })
+      const box = el().getBoundingClientRect()
+      const host = viewport.hostFor(0)!.getBoundingClientRect()
+      expect(box.left - host.left + parseFloat(marker!.style.left)).toBeCloseTo(
+        corner.x,
+        0
+      )
+      expect(box.top - host.top + parseFloat(marker!.style.top)).toBeCloseTo(corner.y, 0)
+      doc.annotations.update(hl.id, { contents: ' ' })
+      await settle()
+      expect(el().querySelector('.ink-comment-marker')).toBeNull()
+    }
+  )
+
   it.each([false, true])(
     'highlight adds one annotation per page for a selection across two pages (controlled: %s)',
     async (controlled) => {
@@ -293,6 +383,8 @@ describe('tools', () => {
         ['highlight', 0],
         ['highlight', 1],
       ])
+      // Both are selected, through the host too.
+      expect(doc.annotations.selection.get()).toEqual(list.map((a) => a.id))
       expect(window.getSelection()!.isCollapsed).toBe(true)
     }
   )

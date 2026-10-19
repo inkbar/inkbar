@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import InkColorMenu from '../../src/components/InkColorMenu.vue'
+import InkHighlightMenu from '../../src/components/InkHighlightMenu.vue'
 import InkLineStyleMenu from '../../src/components/InkLineStyleMenu.vue'
 import InkNextPage from '../../src/components/InkNextPage.vue'
 import InkPageCount from '../../src/components/InkPageCount.vue'
@@ -35,9 +36,9 @@ const emit = defineEmits<{ 'update:tool': [t: ToolId] }>()
     @update:tool="emit('update:tool', $event)"
   >
     <InkToolbar>
+      <InkHighlightMenu />
       <InkToolButton tool="select-text" />
       <InkToolButton tool="select" />
-      <InkToolButton tool="highlight" />
       <InkToolButton tool="redact-area" />
       <InkToolButton tool="sketch" />
       <InkToolButton tool="draw" />

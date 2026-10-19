@@ -20,7 +20,7 @@
 
 ---
 
-The toolbar controls in `@inkbar/vue`, `@inkbar/react`, `@inkbar/svelte` and `@inkbar/core` show these icons until you pass your own. They are 13 icons from [Lucide](https://lucide.dev), copied so the package has no dependencies.
+The toolbar controls in `@inkbar/vue`, `@inkbar/react`, `@inkbar/svelte` and `@inkbar/core` show these icons until you pass your own. They are 40 icons from [Lucide](https://lucide.dev), copied so the package has no dependencies.
 
 You don't need to install this package to get the icons. Install it when you want the same icons on your own buttons, so they match the rest of the toolbar.
 

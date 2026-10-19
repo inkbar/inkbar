@@ -19,8 +19,8 @@ import { createFocusReturn } from '../popover-focus'
 import { mountViewer, type MountViewerOptions, type ViewerEngine } from '../viewer-engine'
 
 import { h } from './dom'
-import { createNotePopover } from './note-popover'
 import { createSuggestionCard } from './suggestion-card'
+import { createThreadPopover } from './thread-popover'
 
 import type { DocumentSource } from '../../model/source'
 import type { PdfAssets } from '../../pdfjs/types'
@@ -42,8 +42,8 @@ export interface CreateViewerOptions extends Omit<
   /** Default: read from the theme's CSS variables on the viewer root. */
   defaults?: AnnotationDefaults
   history?: OpenOptions['history']
-  /** Note thread popover. Default true. */
-  notes?: boolean
+  /** The thread popover for notes and text markup. Default true. */
+  threads?: boolean
   /** Suggested-redaction card. Default true. */
   suggestions?: boolean
   onReady?(this: void, doc: InkDocument): void
@@ -78,7 +78,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     password,
     defaults,
     history,
-    notes: withNotes = true,
+    threads: withThreads = true,
     suggestions: withSuggestions = true,
     onReady,
     onError,
@@ -156,7 +156,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   function start(doc: InkDocument): () => void {
     const store = doc.annotations
     const popovers = [
-      withNotes ? createNotePopover({ root, store, activated, focusReturn }) : null,
+      withThreads ? createThreadPopover({ root, store, activated, focusReturn }) : null,
       withSuggestions
         ? createSuggestionCard({ root, store, activated, focusReturn })
         : null,

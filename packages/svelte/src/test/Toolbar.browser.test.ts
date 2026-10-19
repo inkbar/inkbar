@@ -141,6 +141,7 @@ describe('toolbar', () => {
       'Select text',
       'Rectangle select',
       'Highlight',
+      'Choose highlight',
       'Mark for redaction',
       'Add note',
       'Text',
@@ -301,11 +302,18 @@ describe('toolbar', () => {
     await expect.poll(attr(toolButton('select'), 'aria-pressed')).toBe('true')
     await expect.poll(attr(SCROLL, 'data-ink-tool')).toBe('select')
     await userEvent.keyboard('{ArrowRight}')
-    await userEvent.keyboard('{ArrowRight}')
     await expect.poll(focused).toBe(document.querySelector(toolButton('redact-area')))
     await userEvent.keyboard('[Space]')
     await expect.poll(attr(toolButton('redact-area'), 'aria-pressed')).toBe('true')
     await expect.poll(attr(SCROLL, 'data-ink-tool')).toBe('redact-area')
+    await userEvent.keyboard('{ArrowLeft}')
+    await userEvent.keyboard('{ArrowLeft}')
+    await expect.poll(focused).toBe(document.querySelector(toolButton('select-text')))
+    // The highlight menu's two parts are toolbar stops of their own.
+    await userEvent.keyboard('{ArrowLeft}')
+    await expect
+      .poll(focused)
+      .toBe(browserPage.getByRole('button', { name: 'Choose highlight' }).element())
     await userEvent.keyboard('{ArrowLeft}')
     await expect.poll(focused).toBe(document.querySelector(toolButton('highlight')))
   })
@@ -652,6 +660,115 @@ describe('shape menu', () => {
     await expect.poll(focused).toBe(kind('Arrow').element())
     await userEvent.keyboard('{ArrowDown}')
     await expect.poll(focused).toBe(kind('Rounded rectangle').element())
+    await userEvent.keyboard('{Escape}')
+    await expect.poll(() => menu().elements().length).toBe(0)
+    await expect.poll(focused).toBe(chevron().element())
+  })
+})
+
+describe('highlight menu', () => {
+  const main = '[data-ink-highlight-button]'
+  const chevron = () => browserPage.getByRole('button', { name: 'Choose highlight' })
+  const menu = () => browserPage.getByRole('menu', { name: 'Highlights' })
+  const kind = (name: string) => menu().getByRole('menuitemradio', { name, exact: true })
+  const colour = () => menu().getByRole('menuitem', { name: 'Highlight colour' })
+  const probe = (name: string) => attr('[data-testid="probe"]', name)
+  type Doc = {
+    annotations: {
+      add(input: unknown): { id: string }
+      select(ids: string[]): void
+      get(id: string): { color: string } | undefined
+    }
+  }
+  const doc = () =>
+    (document.querySelector('[data-ink-root]') as HTMLElement & { __inkDocument: Doc })
+      .__inkDocument
+  const start = async () => {
+    await render(ToolbarHarness, { src: fixtureUrl('text-simple'), assets })
+    await q('.ink-page canvas')
+  }
+
+  it('the main button activates highlight with the current kind', async () => {
+    await start()
+    expect(attr(main, 'aria-label')()).toBe('Highlight')
+    await expect.poll(attr(main, 'aria-pressed')).toBe('false')
+    await browserPage.elementLocator(await q(main)).click()
+    await expect.poll(attr(main, 'aria-pressed')).toBe('true')
+    expect(attr(main, 'data-kind')()).toBe('highlight')
+    await expect.poll(probe('data-tool')).toBe('highlight')
+  })
+
+  it('choosing underline activates highlight with kind underline', async () => {
+    await start()
+    const before = (await q(main)).innerHTML
+    await chevron().click()
+    await expect
+      .poll(() =>
+        menu()
+          .getByRole('menuitemradio')
+          .elements()
+          .map((b) => b.textContent?.trim())
+      )
+      .toEqual(['Highlight', 'Underline', 'Strikethrough', 'Squiggly underline'])
+    await expect.element(kind('Highlight')).toHaveAttribute('aria-checked', 'true')
+    await kind('Underline').click()
+    await expect.poll(probe('data-tool')).toBe('highlight')
+    await expect.poll(attr(main, 'data-kind')).toBe('underline')
+    expect(attr(main, 'aria-label')()).toBe('Underline')
+    expect((await q(main)).innerHTML).not.toBe(before)
+    await expect.poll(() => menu().elements().length).toBe(0)
+    await expect.poll(focused).toBe(chevron().element())
+  })
+
+  it('the colour works under any tool and recolours selected markup', async () => {
+    await start()
+    await expect.poll(probe('data-tool')).toBe('select-text')
+    const { id } = doc().annotations.add({
+      type: 'highlight',
+      page: 0,
+      quads: [
+        {
+          p1: { x: 72, y: 712 },
+          p2: { x: 200, y: 712 },
+          p3: { x: 72, y: 700 },
+          p4: { x: 200, y: 700 },
+        },
+      ],
+    })
+    doc().annotations.select([id])
+    await chevron().click()
+    await expect.element(colour()).toBeEnabled()
+    await colour().click()
+    const swatches = () => browserPage.getByRole('menu', { name: 'Highlight colour' })
+    const swatch = swatches().getByRole('menuitemradio').nth(3)
+    await swatch.click()
+    const picked = swatch.element().getAttribute('aria-label')
+    // The nested menu keeps the highlight menu open.
+    await expect.element(menu()).toBeVisible()
+    await expect.poll(() => doc().annotations.get(id)?.color).toBe(picked)
+    await expect
+      .element(colour().element().querySelector<HTMLElement>('[data-ink-swatch]'))
+      .toHaveAttribute('data-color', picked!)
+    await userEvent.keyboard('{Escape}')
+    await expect.poll(() => swatches().elements().length).toBe(0)
+    await expect.element(menu()).toBeVisible()
+    await expect.poll(focused).toBe(colour().element())
+    await userEvent.keyboard('{Escape}')
+    await expect.poll(() => menu().elements().length).toBe(0)
+  })
+
+  it('keyboard: ArrowDown opens on the first kind, arrows reach the colour, Escape returns focus', async () => {
+    await start()
+    ;(chevron().element() as HTMLElement).focus()
+    await userEvent.keyboard('{ArrowDown}')
+    await expect.poll(focused).toBe(kind('Highlight').element())
+    await userEvent.keyboard('{End}')
+    await expect.poll(focused).toBe(colour().element())
+    await userEvent.keyboard('{ArrowDown}')
+    await expect.poll(focused).toBe(kind('Highlight').element())
+    expect(
+      browserPage.getByRole('menu', { name: 'Highlight colour' }).elements()
+    ).toHaveLength(0)
     await userEvent.keyboard('{Escape}')
     await expect.poll(() => menu().elements().length).toBe(0)
     await expect.poll(focused).toBe(chevron().element())

@@ -44,6 +44,12 @@ export {
   sketchTool,
 }
 export {
+  DEFAULT_HIGHLIGHT_OPTIONS,
+  MARKUP_KINDS,
+  type HighlightOptions,
+  type MarkupKind,
+} from './highlight'
+export {
   DEFAULT_CORNER_RADIUS,
   DEFAULT_SHAPE_SIZE,
   SHAPE_KINDS,

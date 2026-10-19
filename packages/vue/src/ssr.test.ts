@@ -57,7 +57,7 @@ describe('@inkbar/vue on the server', () => {
         'InkPageCount',
         'InkPrevPage',
         'InkNextPage',
-        'InkNotePopover',
+        'InkThreadPopover',
         'InkSuggestionCard',
       ])
     )
@@ -79,7 +79,7 @@ describe('@inkbar/vue on the server', () => {
             h(entry.InkZoomSelect),
             h(entry.InkZoomIn),
           ]),
-          h(entry.InkNotePopover),
+          h(entry.InkThreadPopover),
           h(entry.InkSuggestionCard),
         ]),
     })

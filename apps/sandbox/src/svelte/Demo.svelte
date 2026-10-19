@@ -6,16 +6,17 @@
    */
   import {
     InkColorMenu,
+    InkHighlightMenu,
     InkLineStyleMenu,
     InkTextStyleMenu,
     InkNextPage,
-    InkNotePopover,
     InkPageCount,
     InkPageInput,
     InkPrevPage,
     InkRoot,
     InkShapeMenu,
     InkSuggestionCard,
+    InkThreadPopover,
     InkRedo,
     InkToolbar,
     InkToolbarSeparator,
@@ -38,9 +39,7 @@
 
 <InkRoot src={source} {assets} class="demo-root">
   <InkToolbar class="demo-toolbar">
-    <div class="demo-group" role="group" aria-label="Highlight">
-      <InkToolButton tool="highlight" />
-    </div>
+    <InkHighlightMenu />
     <div class="demo-group" role="group" aria-label="Tools">
       <InkToolButton tool="select-text" />
       <InkToolButton tool="select" />
@@ -76,6 +75,6 @@
       <InkZoomIn />
     </div>
   </InkToolbar>
-  <InkNotePopover />
+  <InkThreadPopover />
   <InkSuggestionCard />
 </InkRoot>

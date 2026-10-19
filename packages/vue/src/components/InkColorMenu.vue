@@ -27,6 +27,8 @@ import { useToolStyle } from '../composables/useToolStyle'
 
 import InkIcon from './InkIcon.vue'
 
+import type { StyleGroup } from '@inkbar/core'
+
 defineOptions({ inheritAttrs: false })
 
 /** Stands in for the toolbar item when the menu is nested in another panel. */
@@ -48,9 +50,14 @@ const props = defineProps<{
    * panel (the text style menu's text colour).
    */
   standalone?: boolean
+  /**
+   * Scopes the menu to one style group: it shows and sets that group's colour whatever tool
+   * is active, and recolours the selection only when it is all in the group.
+   */
+  group?: StyleGroup
 }>()
 
-const { current, supported, set } = useToolStyle()
+const { current, supported, set } = useToolStyle(props.group)
 const open = ref(false)
 const customInput = ref<HTMLInputElement | null>(null)
 

@@ -1,14 +1,16 @@
 /*
- * The thread for the activated note, anchored to the note's overlay element. Activating a
- * reply opens the whole thread from its root. Closing (Close, Escape, a press outside) clears
- * `activated`.
+ * The thread for the activated note or text markup, anchored to the root's overlay element.
+ * Activating a reply opens the whole thread from its root. Closing (Close, Escape, a press
+ * outside) clears `activated`.
  *
- * A new note has no text. While its root is empty (and unlocked) the default form writes the
- * root's own `contents`, labelled "Comment", and the thread list stays hidden until there is
- * something in it; after that the form adds replies. Closing a root that is still empty and
- * has no replies removes it, so an abandoned note does not stay on the page.
+ * A new note, or a highlight, has no text. While its root is empty (and unlocked) the default
+ * form writes the root's own `contents`, labelled "Comment", and the thread list stays hidden
+ * until there is something in it; after that the form adds replies. Closing a note that is
+ * still empty and has no replies removes it, so an abandoned note does not stay on the page.
+ * Markup stays: the mark is the point.
  */
 import { isAbandonedNote, threadOf, threadRoot } from '@inkbar/core'
+import { threadPopoverLabel } from '@inkbar/core/dom'
 import { Popover } from 'radix-ui'
 import {
   useEffect,
@@ -26,20 +28,20 @@ import { useLatest } from '../use-latest'
 import { useAnnotationElement } from './annotation-element'
 import { keepOpenOnAnnotation, useFocusReturn } from './popover-focus'
 
-import type { Annotation, NoteAnnotation } from '@inkbar/core'
-import type { NotePopoverSlotProps } from '@inkbar/core/dom'
+import type { Annotation, ThreadRoot } from '@inkbar/core'
+import type { ThreadPopoverSlotProps } from '@inkbar/core/dom'
 
-export interface InkNotePopoverProps {
-  children?: ((props: NotePopoverSlotProps) => ReactNode) | undefined
+export interface InkThreadPopoverProps {
+  children?: ((props: ThreadPopoverSlotProps) => ReactNode) | undefined
 }
 
-export function InkNotePopover({ children }: InkNotePopoverProps) {
-  const ctx = useInkContext('InkNotePopover')
+export function InkThreadPopover({ children }: InkThreadPopoverProps) {
+  const ctx = useInkContext('InkThreadPopover')
   const { annotations, add, update, remove } = useAnnotations()
 
-  const note = useMemo<NoteAnnotation | null>(() => {
+  const note = useMemo<ThreadRoot | null>(() => {
     const a = ctx.activated ? annotations.find((x) => x.id === ctx.activated) : undefined
-    return a?.type === 'text' ? threadRoot(annotations, a) : null
+    return a ? threadRoot(annotations, a) : null
   }, [annotations, ctx.activated])
   const anchor = useAnnotationElement(ctx.rootEl, note?.id ?? null)
   const anchorRef = useMemo(() => ({ current: anchor }), [anchor])
@@ -50,11 +52,11 @@ export function InkNotePopover({ children }: InkNotePopoverProps) {
     () => (note ? threadOf(annotations, note) : []),
     [annotations, note]
   )
-  /** True while the default form writes the root note's own text rather than a reply. */
+  /** True while the default form writes the root's own text rather than a reply. */
   const editingRoot = note !== null && !note.locked && !note.contents?.trim()
 
   /**
-   * Notes this popover wrote text or a reply for. In controlled mode the write is a proposal
+   * Roots this popover wrote text or a reply for. In controlled mode the write is a proposal
    * the host may not have applied yet, so the applied list still shows the note empty; these
    * are never dropped as abandoned.
    */
@@ -64,10 +66,13 @@ export function InkNotePopover({ children }: InkNotePopoverProps) {
   const latest = useLatest({ annotations, remove })
 
   function dropIfEmpty(id: string): boolean {
+    const list = latest.current.annotations
+    const a = list.find((x) => x.id === id)
     if (
+      !a ||
       dropped.current.has(id) ||
       written.current.has(id) ||
-      !isAbandonedNote(latest.current.annotations, id)
+      !isAbandonedNote(a, list)
     )
       return false
     dropped.current.add(id)
@@ -94,13 +99,9 @@ export function InkNotePopover({ children }: InkNotePopoverProps) {
     written.current.add(root.id)
     add({ type: 'text', page: root.page, rect: root.rect, contents, inReplyTo: root.id })
   }
-  function isEmptyRoot(root: NoteAnnotation): boolean {
-    return (
-      !written.current.has(root.id) &&
-      !root.locked &&
-      !root.contents?.trim() &&
-      thread.length === 1
-    )
+  /** A note that closing now would remove. */
+  function isEmptyRoot(root: ThreadRoot): boolean {
+    return !written.current.has(root.id) && isAbandonedNote(root, annotations)
   }
   function close(): void {
     const root = note
@@ -115,12 +116,12 @@ export function InkNotePopover({ children }: InkNotePopoverProps) {
     if (contents.trim()) written.current.add(note.id)
     update(note.id, { contents })
   }
-  /** Locked notes cannot be removed: removing one does nothing and keeps the popover. */
+  /** Locked roots cannot be removed: removing one does nothing and keeps the popover. */
   function removeThread(): void {
     const root = note
     if (!root || root.locked) return
     focusReturn.beforeRemove(anchor)
-    // Under a slow controlled host the note stays listed for a while; it is not asked for again.
+    // Under a slow controlled host the root stays listed for a while; it is not asked for again.
     dropped.current.add(root.id)
     remove(root.id)
     ctx.setActivated(null)
@@ -132,18 +133,18 @@ export function InkNotePopover({ children }: InkNotePopoverProps) {
       <Popover.Portal>
         {note && anchor ? (
           <Popover.Content
-            className="ink-note-popover"
-            data-ink-note-popover=""
+            className="ink-thread-popover"
+            data-ink-thread-popover=""
             side="right"
             sideOffset={8}
             collisionPadding={8}
-            aria-label="Note thread"
+            aria-label={threadPopoverLabel(note)}
             onInteractOutside={keepOpenOnAnnotation}
             onCloseAutoFocus={(e) => focusReturn.onCloseAutoFocus(e, anchor)}
           >
             {children ? (
               children({
-                note,
+                root: note,
                 replies: thread.slice(1),
                 reply,
                 update: updateContents,
@@ -173,7 +174,7 @@ export function InkNotePopover({ children }: InkNotePopoverProps) {
                   </ol>
                 ) : null}
                 <ThreadForm
-                  // Keyed by note: moving to another note starts with an empty draft at once.
+                  // Keyed by root: moving to another thread starts with an empty draft at once.
                   key={note.id}
                   editingRoot={editingRoot}
                   locked={!!note.locked}
@@ -190,7 +191,7 @@ export function InkNotePopover({ children }: InkNotePopoverProps) {
   )
 }
 
-/** The default form: the root note's own text while it is empty, replies after that. */
+/** The default form: the root's own text while it is empty, replies after that. */
 function ThreadForm({
   editingRoot,
   locked,

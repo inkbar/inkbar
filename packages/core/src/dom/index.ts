@@ -53,12 +53,15 @@ export type {
 export {
   DEFAULT_CORNER_RADIUS,
   DEFAULT_FREETEXT_WIDTH,
+  DEFAULT_HIGHLIGHT_OPTIONS,
   DEFAULT_SHAPE_SIZE,
+  MARKUP_KINDS,
   SHAPE_KINDS,
 } from './tools'
-export type { ShapeKind, ShapeOptions } from './tools'
+export type { HighlightOptions, MarkupKind, ShapeKind, ShapeOptions } from './tools'
 export type {
   CurrentStyle,
+  ScopedToolStyle,
   StyleGroup,
   StyleKey,
   StyleProps,
@@ -73,6 +76,7 @@ export {
   DASH_PATTERN,
   FONT_FAMILIES,
   LINE_WEIGHTS,
+  MARKUP_LABELS,
   SHAPE_COLUMNS,
   SHAPE_LABELS,
   TOOL_LABELS,
@@ -80,9 +84,11 @@ export {
   arrowheadChoice,
   clampFontSize,
   colorMenuModel,
+  highlightMenuModel,
   lineStyleMenuModel,
   shapeMenuModel,
   textStyleMenuModel,
+  threadPopoverLabel,
 } from './ui'
 export { PALETTE } from './palette'
 export type { Palette } from './palette'
@@ -92,6 +98,8 @@ export type {
   ColorMenuSwatch,
   ColorProperty,
   ColorTrigger,
+  HighlightMenuItem,
+  HighlightMenuModel,
   LineStyleMenuItem,
   LineStyleMenuModel,
   LineStyleMenuSection,
@@ -106,7 +114,7 @@ export type {
 export type {
   AnnotationSlotProps,
   AnnotationState,
-  NotePopoverSlotProps,
+  ThreadPopoverSlotProps,
   SuggestionCardSlotProps,
 } from './ui'
 export { editFreeText } from './freetext-editor'
@@ -143,7 +151,9 @@ export { createLineStyleMenu } from './viewer/style-menu'
 export { createColorMenu } from './viewer/color-menu'
 export { createTextStyleMenu } from './viewer/text-style-menu'
 export { createShapeMenu } from './viewer/shape-menu'
+export { createHighlightMenu } from './viewer/highlight-menu'
 export { SHAPE_ICONS } from './shape-icons'
+export { MARKUP_ICONS } from './markup-icons'
 export type { ColorMenuOptions } from './viewer/color-menu'
 export { createMenu } from './viewer/menu'
 export type { Menu, MenuOptions } from './viewer/menu'

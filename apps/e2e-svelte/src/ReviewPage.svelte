@@ -19,7 +19,7 @@
   import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
   import {
     InkNextPage,
-    InkNotePopover,
+    InkThreadPopover,
     InkPageCount,
     InkPageInput,
     InkPrevPage,
@@ -271,7 +271,7 @@
       <InkZoomSelect />
       <InkZoomIn />
     </InkToolbar>
-    <InkNotePopover />
+    <InkThreadPopover />
     <InkSuggestionCard />
   </div>
   <p

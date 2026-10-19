@@ -37,4 +37,7 @@ export const ICONS = [
   'AlignCenter',
   'AlignRight',
   'AlignJustify',
+  'Strikethrough',
+  'SpellCheck2',
+  'MessageSquareText',
 ] as const

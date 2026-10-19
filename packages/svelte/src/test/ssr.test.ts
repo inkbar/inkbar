@@ -43,7 +43,7 @@ describe('@inkbar/svelte on the server', () => {
         'InkPageCount',
         'InkPrevPage',
         'InkNextPage',
-        'InkNotePopover',
+        'InkThreadPopover',
         'InkSuggestionCard',
         'useInkContext',
         'useReadable',

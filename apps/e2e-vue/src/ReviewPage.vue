@@ -18,7 +18,7 @@ import { recordReady } from '@inkbar/e2e-shared/metrics'
 import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
 import {
   InkNextPage,
-  InkNotePopover,
+  InkThreadPopover,
   InkPageCount,
   InkPageInput,
   InkPrevPage,
@@ -267,7 +267,7 @@ async function newVersion(): Promise<void> {
         <InkZoomSelect />
         <InkZoomIn />
       </InkToolbar>
-      <InkNotePopover />
+      <InkThreadPopover />
       <InkSuggestionCard />
     </div>
     <p

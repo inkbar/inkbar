@@ -1,8 +1,8 @@
 import {
   InkColorMenu,
+  InkHighlightMenu,
   InkLineStyleMenu,
   InkNextPage,
-  InkNotePopover,
   InkPageCount,
   InkPageInput,
   InkPrevPage,
@@ -11,6 +11,7 @@ import {
   InkShapeMenu,
   InkSuggestionCard,
   InkTextStyleMenu,
+  InkThreadPopover,
   InkToolbar,
   InkToolbarSeparator,
   InkToolButton,
@@ -36,9 +37,7 @@ export function Demo({ source }: { source: DocumentSource }) {
   return (
     <InkRoot src={source} assets={assets} className="demo-root">
       <InkToolbar className="demo-toolbar">
-        <div className="demo-group" role="group" aria-label="Highlight">
-          <InkToolButton tool="highlight" />
-        </div>
+        <InkHighlightMenu />
         <div className="demo-group" role="group" aria-label="Tools">
           <InkToolButton tool="select-text" />
           <InkToolButton tool="select" />
@@ -74,7 +73,7 @@ export function Demo({ source }: { source: DocumentSource }) {
           <InkZoomIn />
         </div>
       </InkToolbar>
-      <InkNotePopover />
+      <InkThreadPopover />
       <InkSuggestionCard />
     </InkRoot>
   )

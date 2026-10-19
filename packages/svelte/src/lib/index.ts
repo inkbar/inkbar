@@ -7,7 +7,7 @@ export type { ReadableRef } from './use-readable.svelte.js'
 export type {
   AnnotationSlotProps,
   AnnotationState,
-  NotePopoverSlotProps,
+  ThreadPopoverSlotProps,
   SuggestionCardSlotProps,
 } from '@inkbar/core/dom'
 export type { ConfidenceBucket } from '@inkbar/core'
@@ -48,6 +48,8 @@ export { default as InkColorMenu } from './components/InkColorMenu.svelte'
 export type { InkColorMenuProps } from './components/InkColorMenu.svelte'
 export { default as InkShapeMenu } from './components/InkShapeMenu.svelte'
 export type { InkShapeMenuProps } from './components/InkShapeMenu.svelte'
+export { default as InkHighlightMenu } from './components/InkHighlightMenu.svelte'
+export type { InkHighlightMenuProps } from './components/InkHighlightMenu.svelte'
 export { default as InkLineStyleMenu } from './components/InkLineStyleMenu.svelte'
 export type { InkLineStyleMenuProps } from './components/InkLineStyleMenu.svelte'
 export { default as InkTextStyleMenu } from './components/InkTextStyleMenu.svelte'
@@ -62,7 +64,7 @@ export { default as InkPrevPage } from './components/InkPrevPage.svelte'
 export { default as InkNextPage } from './components/InkNextPage.svelte'
 export type { InkPageButtonProps } from './components/page-button.js'
 export type { ChildSnippet } from './components/child-snippet.js'
-export { default as InkNotePopover } from './components/InkNotePopover.svelte'
-export type { InkNotePopoverProps } from './components/InkNotePopover.svelte'
+export { default as InkThreadPopover } from './components/InkThreadPopover.svelte'
+export type { InkThreadPopoverProps } from './components/InkThreadPopover.svelte'
 export { default as InkSuggestionCard } from './components/InkSuggestionCard.svelte'
 export type { InkSuggestionCardProps } from './components/InkSuggestionCard.svelte'

@@ -18,12 +18,24 @@ import { h } from './dom'
 import { createMenu } from './menu'
 
 import type { Viewer } from './create-viewer'
-import type { ToolStyle } from '../../model/annotations/tool-style'
+import type {
+  CurrentStyle,
+  StyleGroup,
+  StyleKey,
+  StyleProps,
+  ToolStyle,
+} from '../../model/annotations/tool-style'
+import type { Readable } from '../../model/readable'
 
 export interface ColorMenuOptions {
   property: ColorProperty
   /** Accessible name; defaults to "Border colour", "Fill colour" or "Text colour". */
   label?: string
+  /**
+   * Scopes the menu to one style group (`ToolStyle.scoped`): it shows and sets that group's
+   * colour whatever tool is active, and recolours the selection only when it is all in the group.
+   */
+  group?: StyleGroup
 }
 
 /** Sets a swatch element's kind and colour from the model's trigger. */
@@ -71,7 +83,12 @@ export function createColorMenu(
   trigger.append(swatch)
   trigger.disabled = true
 
-  let style: ToolStyle | null = null
+  /** What the menu reads and writes: the whole tool style, or one group's view of it. */
+  let style: {
+    current: Readable<CurrentStyle>
+    supported: Readable<ReadonlySet<StyleKey>>
+    set(patch: StyleProps): void
+  } | null = null
   let stops: (() => void)[] = []
 
   const model = (): ColorMenuModel =>
@@ -200,7 +217,8 @@ export function createColorMenu(
   const follow = (engine: { toolStyle: ToolStyle } | null): void => {
     for (const stop of stops) stop()
     stops = []
-    style = engine?.toolStyle ?? null
+    const tool = engine?.toolStyle ?? null
+    style = tool && opts.group ? tool.scoped(opts.group) : tool
     if (style)
       stops = [style.current.subscribe(refresh), style.supported.subscribe(refresh)]
     if (!style) menu.close()

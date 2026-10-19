@@ -6,6 +6,7 @@
  */
 import {
   createColorMenu,
+  createHighlightMenu,
   createLineStyleMenu,
   createTextStyleMenu,
   createNextPage,
@@ -50,7 +51,7 @@ export function mountDemo(el: HTMLElement, source: DocumentSource): () => void {
   const tools = createToolbar()
   tools.classList.add('demo-toolbar')
   tools.append(
-    group('Highlight', 'demo-group', createToolButton(viewer, 'highlight')),
+    createHighlightMenu(viewer),
     group(
       'Tools',
       'demo-group',

@@ -1,14 +1,17 @@
 <script setup lang="ts">
 /*
- * The thread for the activated note, anchored to the note's overlay element. Activating a
- * reply opens the whole thread from its root. Closing (Close, Escape, a press outside) clears `activated`.
+ * The thread for the activated note or text markup, anchored to the root's overlay element.
+ * Activating a reply opens the whole thread from its root. Closing (Close, Escape, a press
+ * outside) clears `activated`.
  *
- * A new note has no text. While its root is empty (and unlocked) the default form writes the
- * root's own `contents`, labelled "Comment", and the thread list stays hidden until there is
- * something in it; after that the form adds replies. Closing a root that is still empty and
- * has no replies removes it, so an abandoned note does not stay on the page.
+ * A new note, or a highlight, has no text. While its root is empty (and unlocked) the default
+ * form writes the root's own `contents`, labelled "Comment", and the thread list stays hidden
+ * until there is something in it; after that the form adds replies. Closing a note that is
+ * still empty and has no replies removes it, so an abandoned note does not stay on the page.
+ * Markup stays: the mark is the point.
  */
 import { isAbandonedNote, threadOf, threadRoot } from '@inkbar/core'
+import { threadPopoverLabel } from '@inkbar/core/dom'
 import { PopoverContent, PopoverPortal, PopoverRoot } from 'reka-ui'
 import { computed, ref, watch } from 'vue'
 
@@ -18,12 +21,12 @@ import { injectInkContext } from '../context'
 import { useAnnotationElement } from './annotation-element'
 import { keepOpenOnAnnotation, useFocusReturn } from './popover-focus'
 
-import type { Annotation, NoteAnnotation } from '@inkbar/core'
-import type { NotePopoverSlotProps } from '@inkbar/core/dom'
+import type { Annotation, ThreadRoot } from '@inkbar/core'
+import type { ThreadPopoverSlotProps } from '@inkbar/core/dom'
 
-export type { NotePopoverSlotProps } from '@inkbar/core/dom'
+export type { ThreadPopoverSlotProps } from '@inkbar/core/dom'
 
-defineSlots<{ default?(props: NotePopoverSlotProps): unknown }>()
+defineSlots<{ default?(props: ThreadPopoverSlotProps): unknown }>()
 
 const ctx = injectInkContext()
 const { annotations, add, update, remove } = useAnnotations()
@@ -31,9 +34,9 @@ const { annotations, add, update, remove } = useAnnotations()
 const find = (id: string | undefined) =>
   id ? annotations.value.find((a) => a.id === id) : undefined
 
-const note = computed<NoteAnnotation | null>(() => {
+const note = computed<ThreadRoot | null>(() => {
   const a = find(ctx.activated.value ?? undefined)
-  return a?.type === 'text' ? threadRoot(annotations.value, a) : null
+  return a ? threadRoot(annotations.value, a) : null
 })
 const anchor = useAnnotationElement(
   ctx,
@@ -45,7 +48,7 @@ const thread = computed<Annotation[]>(() =>
   note.value ? threadOf(annotations.value, note.value) : []
 )
 
-/** True while the default form writes the root note's own text rather than a reply. */
+/** True while the default form writes the root's own text rather than a reply. */
 const editingRoot = computed(() => {
   const root = note.value
   return root !== null && !root.locked && !root.contents?.trim()
@@ -53,7 +56,7 @@ const editingRoot = computed(() => {
 
 const draft = ref('')
 const noteId = () => note.value?.id
-// Synchronous, so a render for another note never shows the old draft.
+// Synchronous, so a render for another thread never shows the old draft.
 watch(noteId, () => (draft.value = ''), { flush: 'sync' })
 watch(noteId, (_next, previous) => {
   // Activation moved on from a note that never got any text: drop it.
@@ -61,7 +64,7 @@ watch(noteId, (_next, previous) => {
 })
 
 /**
- * Notes this popover wrote text or a reply for. In controlled mode the write is a proposal
+ * Roots this popover wrote text or a reply for. In controlled mode the write is a proposal
  * the host may not have applied yet, so the applied list still shows the note empty; these
  * are never dropped as abandoned.
  */
@@ -71,7 +74,8 @@ const dropped = new Set<string>()
 
 /** Removes an unlocked root note with no text and no replies. True when it did. */
 function dropIfEmpty(id: string): boolean {
-  if (dropped.has(id) || written.has(id) || !isAbandonedNote(annotations.value, id))
+  const a = find(id)
+  if (!a || dropped.has(id) || written.has(id) || !isAbandonedNote(a, annotations.value))
     return false
   dropped.add(id)
   remove(id)
@@ -94,13 +98,9 @@ function close(): void {
   }
   ctx.setActivated(null)
 }
-function isEmptyRoot(root: NoteAnnotation): boolean {
-  return (
-    !written.has(root.id) &&
-    !root.locked &&
-    !root.contents?.trim() &&
-    thread.value.length === 1
-  )
+/** A note that closing now would remove. */
+function isEmptyRoot(root: ThreadRoot): boolean {
+  return !written.has(root.id) && isAbandonedNote(root, annotations.value)
 }
 function submit(): void {
   const text = draft.value.trim()
@@ -110,12 +110,12 @@ function submit(): void {
     draft.value = ''
   } else reply(text)
 }
-/** Locked notes cannot be removed: removing one does nothing and keeps the popover. */
+/** Locked roots cannot be removed: removing one does nothing and keeps the popover. */
 function removeThread(): void {
   const root = note.value
   if (!root || root.locked) return
   focusReturn.beforeRemove(anchor.value)
-  // Under a slow controlled host the note stays listed for a while; it is not asked for again.
+  // Under a slow controlled host the root stays listed for a while; it is not asked for again.
   dropped.add(root.id)
   remove(root.id)
   ctx.setActivated(null)
@@ -136,17 +136,17 @@ function onOpenChange(next: boolean): void {
       <PopoverContent
         v-if="note && anchor"
         :reference="anchor"
-        class="ink-note-popover"
-        data-ink-note-popover
+        class="ink-thread-popover"
+        data-ink-thread-popover
         side="right"
         :side-offset="8"
         :collision-padding="8"
-        v-bind="{ 'aria-label': 'Note thread' }"
+        v-bind="{ 'aria-label': threadPopoverLabel(note) }"
         @interact-outside="keepOpenOnAnnotation"
         @close-auto-focus="focusReturn.onCloseAutoFocus($event, anchor)"
       >
         <slot
-          :note="note"
+          :root="note"
           :replies="thread.slice(1)"
           :reply="reply"
           :update="updateContents"

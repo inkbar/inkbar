@@ -2,7 +2,13 @@
 // host-rendered content. Core owns these so Vue and React cannot drift apart.
 import { PALETTE } from './palette'
 
-import type { ShapeKind, ShapeOptions, ToolId } from './tools'
+import type {
+  HighlightOptions,
+  MarkupKind,
+  ShapeKind,
+  ShapeOptions,
+  ToolId,
+} from './tools'
 import type { CurrentStyle, StyleKey, StyleProps } from '../model/annotations/tool-style'
 import type {
   Annotation,
@@ -11,6 +17,7 @@ import type {
   NoteAnnotation,
   RedactAnnotation,
   Suggestion,
+  TextMarkupAnnotation,
 } from '../model/annotations/types'
 
 /**
@@ -434,6 +441,45 @@ export const SHAPE_LABELS: Readonly<Record<ShapeKind, string>> = {
   mask: 'Mask',
 }
 
+/** Accessible names of the text markup kinds, as the highlight menu announces them. */
+export const MARKUP_LABELS: Readonly<Record<MarkupKind, string>> = {
+  highlight: 'Highlight',
+  underline: 'Underline',
+  strikeout: 'Strikethrough',
+  squiggly: 'Squiggly underline',
+}
+
+export interface HighlightMenuItem {
+  kind: MarkupKind
+  label: string
+  checked: boolean
+}
+
+export interface HighlightMenuModel {
+  /** The kind the main button makes. */
+  kind: MarkupKind
+  /** The main button's accessible name. */
+  label: string
+  /** The kinds on offer, in menu order, with the current one checked. */
+  items: HighlightMenuItem[]
+}
+
+/** What the highlight menu shows for the highlight tool's options. */
+export function highlightMenuModel(
+  options: Partial<HighlightOptions>,
+  kinds: readonly MarkupKind[]
+): HighlightMenuModel {
+  const kind =
+    options.kind !== undefined && kinds.includes(options.kind)
+      ? options.kind
+      : (kinds[0] ?? 'highlight')
+  return {
+    kind,
+    label: MARKUP_LABELS[kind],
+    items: kinds.map((k) => ({ kind: k, label: MARKUP_LABELS[k], checked: k === kind })),
+  }
+}
+
 /** Columns of the shape grid: the arrow keys move by this much between rows. */
 export const SHAPE_COLUMNS = 2
 
@@ -490,9 +536,14 @@ export interface AnnotationSlotProps {
   dismiss: () => void
 }
 
-/** What a host-rendered note thread receives. */
-export interface NotePopoverSlotProps {
-  note: NoteAnnotation
+/** The thread popover's accessible name: "Note thread" for a note, "Comment thread" for markup. */
+export function threadPopoverLabel(root: Pick<Annotation, 'type'>): string {
+  return root.type === 'text' ? 'Note thread' : 'Comment thread'
+}
+
+/** What a host-rendered comment thread receives: a note's, or text markup's. */
+export interface ThreadPopoverSlotProps {
+  root: NoteAnnotation | TextMarkupAnnotation
   replies: Annotation[]
   reply: (text: string) => void
   update: (contents: string) => void

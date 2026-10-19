@@ -115,7 +115,8 @@ export function createMenu(trigger: HTMLButtonElement, opts: MenuOptions): Menu 
 
   trigger.addEventListener('click', () => (panel ? close(true) : open('initial')))
   trigger.addEventListener('keydown', (e) => {
-    if (e.key !== 'ArrowDown' || panel || trigger.disabled) return
+    // An enclosing menu that already moved focus on this key keeps it.
+    if (e.key !== 'ArrowDown' || e.defaultPrevented || panel || trigger.disabled) return
     e.preventDefault()
     open('first')
   })

@@ -20,7 +20,7 @@
 
 ---
 
-Drop a PDF viewer into your React app and let people highlight text, leave notes with replies and review redactions. `@inkbar/react` gives you components and hooks to build your own toolbars, plus note and suggestion popovers, all styled by `@inkbar/theme`.
+Drop a PDF viewer into your React app and let people highlight text, leave notes with replies and review redactions. `@inkbar/react` gives you components and hooks to build your own toolbars, plus thread and suggestion popovers, all styled by `@inkbar/theme`.
 
 Annotations are plain typed objects. Control them from your own state, or let Inkbar hold them with undo and redo.
 
@@ -49,7 +49,7 @@ import {
   InkPageCount,
   InkNextPage,
   InkZoomSelect,
-  InkNotePopover,
+  InkThreadPopover,
   InkSuggestionCard,
 } from '@inkbar/react'
 import type { Annotation } from '@inkbar/core'
@@ -89,7 +89,7 @@ export function Review({
         <InkNextPage />
         <InkZoomSelect />
       </InkToolbar>
-      <InkNotePopover />
+      <InkThreadPopover />
       <InkSuggestionCard />
     </InkRoot>
   )
@@ -141,15 +141,17 @@ Inside `InkRoot`, `useHistory()` returns the same object. Its `batch(fn)` runs `
 
 `key` identifies the document. Reuse the same key when only the signed URL changes and the document is not reloaded.
 
-## Note popover
+## Thread popover
 
-`InkNotePopover` opens the thread of the activated note. A new note has no text yet, so the form first writes the note's own text (labelled "Comment"); after that it adds replies.
+`InkThreadPopover` opens the comment thread of the activated note or text markup (a highlight, underline, strikeout or squiggly). A new note or highlight has no text yet, so the form first writes its own `contents` (labelled "Comment"); after that it adds replies. A highlight with a comment shows a small marker at its end.
 
-A root note with no text and no replies is removed when its popover closes, or when activation moves to another annotation, so abandoned notes do not stay on the page. Locked notes are never removed. If you add notes yourself (`add({ type: 'text', ... })`), give them `contents`, or they will be removed the first time someone opens and closes them.
+A root note with no text and no replies is removed when its popover closes, or when activation moves to another annotation, so abandoned notes do not stay on the page. A highlight stays: the mark is the point. Locked annotations are never removed. If you add notes yourself (`add({ type: 'text', ... })`), give them `contents`, or they will be removed the first time someone opens and closes them.
+
+The highlight tool leaves `contents` free for the comment. Read the marked text with `doc.text(page)`. `InkHighlightMenu` is a split button for the tool: it picks the markup kind and its colour.
 
 ## Custom rendering
 
-Slots are render props. `InkViewport` takes `loading`, `empty`, `error`, `renderAnnotation` and `renderPageError`; `InkNotePopover` and `InkSuggestionCard` take a function as `children`; `InkToolButton` takes a node or a function of `{ active, label }`. The props each receives are typed as `AnnotationSlotProps`, `NotePopoverSlotProps` and `SuggestionCardSlotProps`, the same types the Vue package exports.
+Slots are render props. `InkViewport` takes `loading`, `empty`, `error`, `renderAnnotation` and `renderPageError`; `InkThreadPopover` and `InkSuggestionCard` take a function as `children`; `InkToolButton` takes a node or a function of `{ active, label }`. The props each receives are typed as `AnnotationSlotProps`, `ThreadPopoverSlotProps` and `SuggestionCardSlotProps`, the same types the Vue package exports.
 
 `InkRoot`, `InkToolbar`, `InkToolButton`, `InkUndo`, `InkRedo`, `InkPrevPage`, `InkNextPage`, `InkZoomIn` and `InkZoomOut` take `asChild` to render your own element in place of theirs, such as a button from your design system. Pass that element as the only child. The control keeps its behaviour and accessible name.
 

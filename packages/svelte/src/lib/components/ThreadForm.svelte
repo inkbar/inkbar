@@ -1,5 +1,5 @@
 <script lang="ts">
-  /** The default form: the root note's own text while it is empty, replies after that. */
+  /** The default form: the root's own text while it is empty, replies after that. */
   let {
     editingRoot,
     locked,

@@ -54,7 +54,7 @@ test('note popover opens on activation, shows the thread, adds a reply and close
   const anchor = cmp.locator(`[data-annotation="${rootNote.id}"]`)
   await anchor.focus()
   await page.keyboard.press('Enter')
-  const popover = page.locator('[data-ink-note-popover]')
+  const popover = page.locator('[data-ink-thread-popover]')
   await expect(popover).toBeVisible()
   await expect(popover).toHaveAttribute('role', 'dialog')
   await expect(popover).toHaveAccessibleName('Note thread')
@@ -90,7 +90,7 @@ test('note popover keeps focus inside, closes on Escape and can reopen', async (
   const anchor = cmp.locator(`[data-annotation="${rootNote.id}"]`)
   await anchor.focus()
   await page.keyboard.press('Enter')
-  const popover = page.locator('[data-ink-note-popover]')
+  const popover = page.locator('[data-ink-thread-popover]')
   await expect(popover).toBeVisible()
   const textarea = popover.locator('textarea[aria-label="Reply"]')
   await textarea.focus()
@@ -216,7 +216,7 @@ test('after deleting the only note, focus moves to the document', async ({
   const note = cmp.locator(`[data-annotation="${id}"]`)
   await note.focus()
   await page.keyboard.press('Enter')
-  const popover = page.locator('[data-ink-note-popover]')
+  const popover = page.locator('[data-ink-thread-popover]')
   await popover.getByRole('button', { name: 'Delete' }).click()
   await expect(popover).toHaveCount(0)
   await expect(cmp.locator('[data-annotation]')).toHaveCount(0)
@@ -280,7 +280,7 @@ test('activating a nested reply opens the whole thread from its root', async ({
   await note(480, 'Reply D', r)
   await cmp.locator(`[data-annotation="${c}"]`).focus()
   await page.keyboard.press('Enter')
-  const popover = page.locator('[data-ink-note-popover]')
+  const popover = page.locator('[data-ink-thread-popover]')
   await expect(popover.locator('[data-ink-thread-item] .ink-thread-text')).toHaveText([
     'Root',
     'Reply B',
@@ -424,7 +424,7 @@ test('a locked note has no Delete, and the slot remove keeps the popover and the
     await expect(anchor).toHaveAttribute('data-locked', '')
     await anchor.focus()
     await page.keyboard.press('Enter')
-    const popover = page.locator('[data-ink-note-popover]')
+    const popover = page.locator('[data-ink-thread-popover]')
     await expect(popover).toBeVisible()
     if (!customNote) {
       await expect(popover.getByRole('button', { name: 'Delete' })).toHaveCount(0)
@@ -460,7 +460,7 @@ test('with a slow controlled host, Delete closes the note popover before the hos
   await cmp.update(harness({ ...props, applyDelay: 1000 }))
   await note.focus()
   await page.keyboard.press('Enter')
-  const popover = page.locator('[data-ink-note-popover]')
+  const popover = page.locator('[data-ink-thread-popover]')
   await popover.getByRole('button', { name: 'Delete' }).click()
   // Closed while the host still has the note.
   await expect(popover).toHaveCount(0)
@@ -484,7 +484,7 @@ test('a new note: the popover writes the note text itself, then replies', async 
   // Keyboard only: Enter on the document places a note on the current page and opens it.
   await page.locator('[data-ink-scroll]').focus()
   await page.keyboard.press('Enter')
-  const popover = page.locator('[data-ink-note-popover]')
+  const popover = page.locator('[data-ink-thread-popover]')
   await expect(popover).toBeVisible()
   await expect(popover.locator('[data-ink-thread]')).toHaveCount(0)
   await expect(popover.locator('textarea[aria-label="Reply"]')).toHaveCount(0)
@@ -523,7 +523,7 @@ test('closing a new note without writing anything removes it', async ({
   await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
   await page.locator('[data-ink-scroll]').focus()
   await page.keyboard.press('Enter')
-  const popover = page.locator('[data-ink-note-popover]')
+  const popover = page.locator('[data-ink-thread-popover]')
   await expect(popover).toBeVisible()
   await expect(cmp.locator('[data-annotation]')).toHaveCount(1)
   await page.keyboard.press('Escape')
@@ -568,7 +568,7 @@ test('with a slow controlled host, a comment submitted just before closing keeps
   await cmp.update(harness({ ...props, applyDelay: 1000 }))
   await note.focus()
   await page.keyboard.press('Enter')
-  const popover = page.locator('[data-ink-note-popover]')
+  const popover = page.locator('[data-ink-thread-popover]')
   await popover.getByRole('textbox', { name: 'Comment' }).fill('Keep me')
   await popover.getByRole('button', { name: 'Comment' }).click()
   // Closed before the host has applied the text: the note is still empty in its list.
@@ -609,7 +609,7 @@ test('with a slow controlled host, closing an empty note asks for its removal on
   await cmp.update(harness({ ...props, applyDelay: 1000 }))
   await note.focus()
   await page.keyboard.press('Enter')
-  const popover = page.locator('[data-ink-note-popover]')
+  const popover = page.locator('[data-ink-thread-popover]')
   await expect(popover).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(popover).toHaveCount(0)
@@ -620,4 +620,85 @@ test('with a slow controlled host, closing an empty note asks for its removal on
   expect(consoleGuard.problems).toHaveLength(1)
   expect(consoleGuard.problems[0]).toContain('ControlledMutationIgnored')
   consoleGuard.clear()
+})
+
+/** A one-line highlight across the top of page 0, added through the dev hook. */
+const addHighlight = (page: Page, type = 'highlight') =>
+  addAnnotation(page, {
+    type,
+    page: 0,
+    quads: [
+      {
+        p1: { x: 72, y: 712 },
+        p2: { x: 260, y: 712 },
+        p3: { x: 72, y: 698 },
+        p4: { x: 260, y: 698 },
+      },
+    ],
+  })
+
+test('activating a highlight opens the thread popover rooted at it', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(harness({ src: fixtureUrl('text-simple'), assets }))
+  await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
+  const id = await addHighlight(page)
+  const mark = cmp.locator(`[data-annotation="${id}"]`)
+  // A click with no drag under select-text selects and activates markup.
+  await hitShape(mark).click()
+  const popover = page.locator('[data-ink-thread-popover]')
+  await expect(popover).toBeVisible()
+  await expect(popover).toHaveAccessibleName('Comment thread')
+  await expect(popover.locator('[data-ink-thread]')).toHaveCount(0)
+  await expect(popover.getByRole('textbox', { name: 'Comment' })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(popover).toHaveCount(0)
+  // Enter on the focused markup opens it again.
+  await mark.focus()
+  await page.keyboard.press('Enter')
+  await expect(popover).toBeVisible()
+})
+
+test('first comment sets the highlight contents; next adds a reply', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(harness({ src: fixtureUrl('text-simple'), assets }))
+  await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
+  const id = await addHighlight(page, 'underline')
+  const mark = cmp.locator(`[data-annotation="${id}"]`)
+  await mark.focus()
+  await page.keyboard.press('Enter')
+  const popover = page.locator('[data-ink-thread-popover]')
+  await popover.getByRole('textbox', { name: 'Comment' }).fill('Why this?')
+  await popover.getByRole('button', { name: 'Comment' }).click()
+  expect((await stored(docOf(page))).find((a) => a.id === id)).toMatchObject({
+    type: 'underline',
+    contents: 'Why this?',
+  })
+  const items = popover.locator('[data-ink-thread-item]')
+  await expect(items).toHaveCount(1)
+  await popover.getByRole('textbox', { name: 'Reply' }).fill('Because')
+  await popover.getByRole('button', { name: 'Reply' }).click()
+  await expect(items).toHaveCount(2)
+  expect((await stored(docOf(page))).find((a) => a.contents === 'Because')).toMatchObject(
+    { type: 'text', inReplyTo: id }
+  )
+  await expect(mark.locator('.ink-comment-marker')).toHaveCount(1)
+})
+
+test('closing an empty highlight thread keeps the highlight', async ({ mount, page }) => {
+  const cmp = await mount(harness({ src: fixtureUrl('text-simple'), assets }))
+  await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
+  const id = await addHighlight(page)
+  const mark = cmp.locator(`[data-annotation="${id}"]`)
+  await mark.focus()
+  await page.keyboard.press('Enter')
+  const popover = page.locator('[data-ink-thread-popover]')
+  await popover.getByRole('button', { name: 'Close' }).click()
+  await expect(popover).toHaveCount(0)
+  await expect(mark).toBeFocused()
+  expect((await stored(docOf(page))).map((a) => a.id)).toEqual([id])
+  await expect(mark.locator('.ink-comment-marker')).toHaveCount(0)
 })

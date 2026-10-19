@@ -20,6 +20,7 @@ import {
   createZoomSelect,
 } from './controls'
 import { createViewer, type CreateViewerOptions, type Viewer } from './create-viewer'
+import { createHighlightMenu } from './highlight-menu'
 import { createShapeMenu } from './shape-menu'
 import { createLineStyleMenu } from './style-menu'
 import { createTextStyleMenu } from './text-style-menu'
@@ -65,8 +66,8 @@ async function ready(
   return { doc: viewer.document.get()!, engine: viewer.engine.get()! }
 }
 
-const notePopover = (): HTMLElement | null =>
-  document.querySelector<HTMLElement>('[data-ink-note-popover]')
+const threadPopover = (): HTMLElement | null =>
+  document.querySelector<HTMLElement>('[data-ink-thread-popover]')
 const card = (): HTMLElement | null =>
   document.querySelector<HTMLElement>('[data-ink-suggestion-card]')
 const isOpen = (el: HTMLElement | null): boolean => !!el && !el.hidden
@@ -267,12 +268,12 @@ describe('createViewer', () => {
   })
 
   describe('toggles', () => {
-    it('notes: false opens no note popover', async () => {
-      const { viewer } = make('annotated-notes-threaded', { notes: false })
+    it('threads: false opens no thread popover', async () => {
+      const { viewer } = make('annotated-notes-threaded', { threads: false })
       const { doc } = await ready(viewer)
       activate(await rootNote(viewer, doc))
       await settle()
-      expect(notePopover()).toBeNull()
+      expect(threadPopover()).toBeNull()
     })
 
     it('suggestions: false opens no card', async () => {
@@ -1017,6 +1018,121 @@ describe('createViewer', () => {
     })
   })
 
+  describe('highlight menu', () => {
+    const panel = (): HTMLElement | null =>
+      document.querySelector<HTMLElement>('[data-ink-menu="highlight"][role="menu"]')
+    const item = (name: string): HTMLButtonElement =>
+      [...panel()!.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]')].find(
+        (b) => b.textContent?.trim() === name
+      )!
+    const parts = (root: HTMLElement) => ({
+      main: root.querySelector<HTMLButtonElement>('[data-ink-highlight-button]')!,
+      chevron: root.querySelector<HTMLButtonElement>(
+        '[data-ink-highlight-menu-trigger]'
+      )!,
+    })
+
+    it('the main button activates the highlight tool with the current kind', async () => {
+      const { viewer } = make('text-simple')
+      const root = createHighlightMenu(viewer)
+      viewer.element.prepend(root)
+      const { main, chevron } = parts(root)
+      expect(main.disabled).toBe(true)
+      expect(chevron.disabled).toBe(true)
+      const { engine } = await ready(viewer)
+      expect(main.getAttribute('aria-label')).toBe('Highlight')
+      main.click()
+      expect(engine.tools.active.get()).toBe('highlight')
+      expect(main.getAttribute('aria-pressed')).toBe('true')
+      expect(engine.tools.options('highlight').get()).toEqual({ kind: 'highlight' })
+    })
+
+    it('choosing underline activates highlight with kind underline', async () => {
+      const { viewer } = make('text-simple')
+      const root = createHighlightMenu(viewer)
+      viewer.element.prepend(root)
+      const { main, chevron } = parts(root)
+      const { engine } = await ready(viewer)
+      chevron.click()
+      expect(panel()!.getAttribute('aria-label')).toBe('Highlights')
+      expect(
+        [...panel()!.querySelectorAll('[role="menuitemradio"]')].map((b) =>
+          b.textContent?.trim()
+        )
+      ).toEqual(['Highlight', 'Underline', 'Strikethrough', 'Squiggly underline'])
+      expect(item('Highlight').getAttribute('aria-checked')).toBe('true')
+      item('Underline').click()
+      expect(engine.tools.active.get()).toBe('highlight')
+      expect(engine.tools.options('highlight').get()).toEqual({ kind: 'underline' })
+      expect(main.getAttribute('aria-label')).toBe('Underline')
+      expect(panel()).toBeNull()
+      expect(document.activeElement).toBe(chevron)
+    })
+
+    it('the colour sets the markup group under any tool, and recolours selected markup', async () => {
+      const { viewer } = make('text-simple')
+      const root = createHighlightMenu(viewer)
+      viewer.element.prepend(root)
+      const { chevron } = parts(root)
+      const { doc, engine } = await ready(viewer)
+      expect(engine.tools.active.get()).toBe('select-text')
+      chevron.click()
+      const colour = panel()!.querySelector<HTMLButtonElement>(
+        '[data-ink-color-menu="border"]'
+      )!
+      expect(colour.getAttribute('aria-label')).toBe('Highlight colour')
+      expect(colour.disabled).toBe(false)
+      colour.click()
+      const swatches = document.querySelector<HTMLElement>(
+        '[data-ink-menu="color-border"][role="menu"]'
+      )!
+      // The nested menu keeps the highlight menu open.
+      expect(panel()).not.toBeNull()
+      swatches.querySelector<HTMLButtonElement>('.ink-swatch-item')!.click()
+      const picked = engine.toolStyle.get('markup').border
+      expect(picked).toMatch(/^#[0-9A-F]{6}$/)
+      const p = (x: number, y: number) => ({ x, y })
+      const hl = doc.annotations.add(
+        engine.toolStyle.resolve('markup', {
+          type: 'highlight' as const,
+          page: 0,
+          quads: [{ p1: p(72, 712), p2: p(200, 712), p3: p(72, 700), p4: p(200, 700) }],
+        })
+      )
+      expect(hl.color).toBe(picked)
+      doc.annotations.select([hl.id])
+      engine.toolStyle.scoped('markup').set({ border: '#112233' })
+      expect(doc.annotations.get(hl.id)?.color).toBe('#112233')
+      await userEvent.keyboard('{Escape}')
+      expect(panel()).not.toBeNull()
+    })
+
+    it('keyboard: ArrowDown opens on the first kind and moves on to the colour', async () => {
+      const { viewer } = make('text-simple')
+      const root = createHighlightMenu(viewer)
+      viewer.element.prepend(root)
+      const { chevron } = parts(root)
+      await ready(viewer)
+      chevron.focus()
+      key(chevron, 'ArrowDown')
+      expect(document.activeElement).toBe(item('Highlight'))
+      const press = (k: string) =>
+        document.activeElement!.dispatchEvent(
+          new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true })
+        )
+      press('End')
+      const colour = panel()!.querySelector('[data-ink-color-menu="border"]')
+      expect(document.activeElement).toBe(colour)
+      // ArrowDown moves on rather than opening the nested menu.
+      press('ArrowDown')
+      expect(document.activeElement).toBe(item('Highlight'))
+      expect(document.querySelector('[data-ink-menu="color-border"]')).toBeNull()
+      press('Escape')
+      expect(panel()).toBeNull()
+      expect(document.activeElement).toBe(chevron)
+    })
+  })
+
   describe('shape menu', () => {
     const panel = (): HTMLElement | null =>
       document.querySelector<HTMLElement>('[data-ink-menu="shape"][role="menu"]')
@@ -1120,13 +1236,13 @@ describe('createViewer', () => {
     })
   })
 
-  describe('note popover', () => {
+  describe('thread popover', () => {
     it('opens with its thread, hands over to another annotation, and Escape returns focus', async () => {
       const { viewer } = make('annotated-notes-threaded')
       const { doc } = await ready(viewer)
       const anchor = await rootNote(viewer, doc)
       activate(anchor)
-      const popover = notePopover()!
+      const popover = threadPopover()!
       expect(isOpen(popover)).toBe(true)
       expect(popover.matches('[role="dialog"][aria-label="Note thread"]')).toBe(true)
       expect(popover.querySelectorAll('[data-ink-thread-item]')).toHaveLength(3)
@@ -1176,7 +1292,7 @@ describe('createViewer', () => {
       key(scroll, 'Enter')
       const [note] = doc.annotations.list.get()
       expect(note?.type).toBe('text')
-      const popover = notePopover()!
+      const popover = threadPopover()!
       expect(isOpen(popover)).toBe(true)
       const textarea = popover.querySelector<HTMLTextAreaElement>(
         'textarea[aria-label="Comment"]'
@@ -1214,7 +1330,7 @@ describe('createViewer', () => {
       scroll.focus()
       key(scroll, 'Enter')
       const [note] = doc.annotations.list.get()
-      const popover = notePopover()!
+      const popover = threadPopover()!
       const textarea = popover.querySelector<HTMLTextAreaElement>('textarea')!
       await userEvent.type(textarea, 'First')
       popover.querySelector<HTMLButtonElement>('button[type="submit"]')!.click()
@@ -1229,6 +1345,68 @@ describe('createViewer', () => {
         contents: 'Second',
         inReplyTo: note!.id,
       })
+    })
+  })
+
+  describe('thread popover on text markup', () => {
+    async function highlighted(viewer: Viewer, doc: InkDocument) {
+      const p = (x: number, y: number) => ({ x, y })
+      const hl = doc.annotations.add({
+        type: 'highlight',
+        page: 0,
+        quads: [{ p1: p(72, 712), p2: p(200, 712), p3: p(72, 700), p4: p(200, 700) }],
+      })
+      await until(() => annotationEl(viewer, hl.id) !== null)
+      return { hl, el: annotationEl(viewer, hl.id)! }
+    }
+
+    it('activating a highlight opens the thread popover rooted at it', async () => {
+      const { viewer } = make('text-simple')
+      const { doc } = await ready(viewer)
+      const { el } = await highlighted(viewer, doc)
+      activate(el)
+      const popover = threadPopover()!
+      expect(isOpen(popover)).toBe(true)
+      expect(popover.getAttribute('aria-label')).toBe('Comment thread')
+      expect(focused()).toBe(popover.querySelector('textarea[aria-label="Comment"]'))
+      expect(popover.querySelector('[data-ink-thread]')).toBeNull()
+    })
+
+    it('first comment sets the highlight contents; next adds a reply', async () => {
+      const { viewer } = make('text-simple')
+      const { doc } = await ready(viewer)
+      const { hl, el } = await highlighted(viewer, doc)
+      activate(el)
+      const popover = threadPopover()!
+      const textarea = popover.querySelector<HTMLTextAreaElement>('textarea')!
+      const send = popover.querySelector<HTMLButtonElement>('button[type="submit"]')!
+      await userEvent.type(textarea, 'Why?')
+      send.click()
+      expect(doc.annotations.get(hl.id)?.contents).toBe('Why?')
+      expect(textarea.getAttribute('aria-label')).toBe('Reply')
+      await userEvent.type(textarea, 'Because')
+      send.click()
+      expect(popover.querySelectorAll('[data-ink-thread-item]')).toHaveLength(2)
+      expect(doc.annotations.list.get().at(-1)).toMatchObject({
+        type: 'text',
+        contents: 'Because',
+        inReplyTo: hl.id,
+      })
+      await until(() => el.querySelector('.ink-comment-marker') !== null)
+    })
+
+    it('closing an empty highlight thread keeps the highlight', async () => {
+      const { viewer } = make('text-simple')
+      const { doc } = await ready(viewer)
+      const { hl, el } = await highlighted(viewer, doc)
+      activate(el)
+      const popover = threadPopover()!
+      popover
+        .querySelectorAll('button')
+        .forEach((b) => b.textContent === 'Close' && b.click())
+      expect(isOpen(popover)).toBe(false)
+      expect(doc.annotations.get(hl.id)).toBeDefined()
+      await until(() => focused() === el)
     })
   })
 
@@ -1305,7 +1483,7 @@ describe('createViewer', () => {
     const { viewer } = make('annotated-notes-threaded')
     const { doc } = await ready(viewer)
     activate(await rootNote(viewer, doc))
-    const popover = notePopover()!
+    const popover = threadPopover()!
     const textarea = popover.querySelector('textarea')!
     await userEvent.type(textarea, 'x')
     const close = [...popover.querySelectorAll('button')].at(-1)!
@@ -1347,7 +1525,7 @@ describe('createViewer', () => {
     })
     await until(() => annotationEl(viewer, note.id) !== null)
     activate(annotationEl(viewer, note.id)!)
-    const popover = notePopover()!
+    const popover = threadPopover()!
     expect(isOpen(popover)).toBe(true)
     const placed = (): boolean => {
       const r = popover.getBoundingClientRect()
@@ -1384,7 +1562,7 @@ describe('createViewer', () => {
     })
     await until(() => annotationEl(viewer, note.id) !== null)
     activate(annotationEl(viewer, note.id)!)
-    const popover = notePopover()!
+    const popover = threadPopover()!
     expect(isOpen(popover)).toBe(true)
 
     // A host dialog elsewhere on the page owns this Escape.
@@ -1410,7 +1588,7 @@ describe('createViewer', () => {
     })
     await until(() => annotationEl(viewer, note.id) !== null)
     activate(annotationEl(viewer, note.id)!)
-    const popover = notePopover()!
+    const popover = threadPopover()!
     const textarea = popover.querySelector('textarea')!
     textarea.focus()
     await userEvent.keyboard('draft text')
@@ -1439,7 +1617,7 @@ describe('createViewer', () => {
     })
     await until(() => annotationEl(viewer, note.id) !== null)
     activate(annotationEl(viewer, note.id)!)
-    const popover = notePopover()!
+    const popover = threadPopover()!
     expect(isOpen(popover)).toBe(true)
     key(viewer.element.querySelector('[data-ink-scroll]')!, 'Escape')
     await until(() => !isOpen(popover))
@@ -1456,7 +1634,7 @@ describe('createViewer', () => {
     })
     await until(() => annotationEl(viewer, note.id) !== null)
     activate(annotationEl(viewer, note.id)!)
-    const popover = notePopover()!
+    const popover = threadPopover()!
     popover.querySelector('textarea')!.focus()
 
     const scroll = viewer.element.querySelector<HTMLElement>('[data-ink-scroll]')!
@@ -1506,11 +1684,11 @@ describe('createViewer', () => {
     const { host, viewer } = make('annotated-notes-threaded')
     const { doc } = await ready(viewer)
     activate(await rootNote(viewer, doc))
-    expect(isOpen(notePopover())).toBe(true)
+    expect(isOpen(threadPopover())).toBe(true)
     viewer.destroy()
     viewer.destroy()
     expect(host.childNodes).toHaveLength(0)
-    expect(notePopover()).toBeNull()
+    expect(threadPopover()).toBeNull()
     expect(card()).toBeNull()
     expect(viewer.engine.get()).toBeNull()
     await expect(doc.text(0)).rejects.toMatchObject({ code: 'DocumentDestroyed' })
