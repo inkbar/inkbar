@@ -1,0 +1,77 @@
+packages/core/src/dom/tools.browser.test.ts
+  s_5c84400dcebef8::t_e5d551cdcdec5a 1163-1191,1195-1206,1209-1260,1863-1896
+  s_5c84400dcebef8::t_f862e6a502c1ba 1192-1194
+  s_5c84400dcebef8::t_68ddc219b34675 1207-1208
+  s_5c84400dcebef8::t_e1050cd2d0f09e 1897
+apps/sandbox/e2e/smoke.spec.ts
+  s_5c84400dcebef8::t_cf487fa2bf5a96 333-352
+packages/core/src/model/annotations/edit.ts
+  s_5c84400dcebef8::t_d7a3cecb2a836d 5-10,186-201
+  s_5c84400dcebef8::t_dea463cfa3c3f6 202
+packages/core/src/dom/shape-icons.ts
+  s_5c84400dcebef8::t_6207ab570c9405 1-30
+packages/core/src/dom/freetext-editor.ts
+  s_5c84400dcebef8::t_71757d396eeec0 9-11,88-91,123,195-196,216,225
+packages/core/src/dom/tools/shape.ts
+  s_5c84400dcebef8::t_71757d396eeec0 5,13,23,67-114,117,119,131,134,185,202-203,207-208
+packages/theme/theme.css
+  s_5c84400dcebef8::t_31efed0e0ad082 393-397
+packages/vue/src/components/InkShapeMenu.vue
+  s_5c84400dcebef8::t_f862e6a502c1ba 18
+  s_5c84400dcebef8::t_07c126bde5a202 39,152
+  s_5c84400dcebef8::t_8a31dfde0e37dd 12
+packages/svelte/src/lib/components/InkShapeMenu.svelte
+  s_5c84400dcebef8::t_f862e6a502c1ba 31,89-91
+  s_5c84400dcebef8::t_8a31dfde0e37dd 25
+  s_5c84400dcebef8::t_07c126bde5a202 149
+packages/core/src/dom/viewer/shape-menu.ts
+  s_5c84400dcebef8::t_f862e6a502c1ba 7
+  s_5c84400dcebef8::t_07c126bde5a202 69,99
+  s_5c84400dcebef8::t_8a31dfde0e37dd 9
+packages/core/src/dom/index.ts
+  s_5c84400dcebef8::t_07c126bde5a202 146
+packages/core/src/model/annotations/shape-geometry.ts
+  s_5c84400dcebef8::t_55a29312908d3f 34,50-52,164-179
+packages/core/src/dom/overlay-render.ts
+  s_5c84400dcebef8::t_71757d396eeec0 1-2,23-29,39-45,70-75,238-255,428-435,438,442-444,448-520
+  s_5c84400dcebef8::t_1d2b3fac189ae3 521
+packages/theme/theme.test.ts
+  s_5c84400dcebef8::t_31efed0e0ad082 172-174
+packages/core/src/dom/viewer/create-viewer.browser.test.ts
+  s_5c84400dcebef8::t_26ad71386a8941 1033,1043-1044
+packages/react/src/components/Toolbar.ct.tsx
+  s_5c84400dcebef8::t_01268b8461f7fd 644-650
+packages/svelte/src/test/Toolbar.browser.test.ts
+  s_5c84400dcebef8::t_01268b8461f7fd 569-572
+packages/core/src/model/annotations/shape-geometry.test.ts
+  s_5c84400dcebef8::t_6cea2a76eecaac 7,107
+  s_5c84400dcebef8::t_77494182941c29 96-106,108-116
+packages/core/src/dom/overlay.browser.test.ts
+  s_5c84400dcebef8::t_e5d551cdcdec5a 435-497
+packages/core/src/dom/tools/selection-edit.ts
+  s_5c84400dcebef8::t_71757d396eeec0 16-17,28,40,45,48,143-146,157,248-251,349,352-353,415-427,429
+packages/vue/src/components/Toolbar.ct.ts
+  s_5c84400dcebef8::t_01268b8461f7fd 558-564
+packages/react/src/components/InkShapeMenu.tsx
+  s_5c84400dcebef8::t_07c126bde5a202 62,129
+  s_5c84400dcebef8::t_f862e6a502c1ba 16
+  s_5c84400dcebef8::t_8a31dfde0e37dd 11
+packages/core/src/dom/overlay.ts
+  s_5c84400dcebef8::t_71757d396eeec0 16,174-175,179-181
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "38bc46e558920f4fc97d9a7bb99bd3d4fa539efe",
+  "prompts": {},
+  "sessions": {
+    "s_5c84400dcebef8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b6002a2b-f6c7-44ec-8f13-05d214d02483",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
