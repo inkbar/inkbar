@@ -1,0 +1,140 @@
+packages/react/src/index.ts
+  s_5c84400dcebef8::t_dd2bb51dafab0e 51-52
+packages/vue/src/index.ts
+  s_5c84400dcebef8::t_076784de06e18c 25
+packages/vue/playwright/harness/LineStyleControls.vue
+  s_5c84400dcebef8::t_076784de06e18c 1-47
+packages/core/src/model/annotations/style-map.test.ts
+  s_5c84400dcebef8::t_5003f3ee9eb4a9 32,36-45
+  s_5c84400dcebef8::t_14e2626d08651e 96,98,101-109
+  s_5c84400dcebef8::t_0d6abe3d27e670 46-47
+packages/core/src/model/annotations/style-map.ts
+  s_5c84400dcebef8::t_9a49c9528582ec 13-41,46,50,130-131
+packages/core/src/dom/menu-keys.ts
+  s_5c84400dcebef8::t_0df7deec4b2995 15-16
+  s_5c84400dcebef8::t_4357f2a110cd3a 1-14,17-44
+packages/core/src/dom/overlay-render.ts
+  s_5c84400dcebef8::t_c563f9c6a66786 2,81-83,92-160,301,310-343,359,369-377
+  s_5c84400dcebef8::t_450658393f8165 378
+packages/react/playwright/harness/LineStyleHarness.tsx
+  s_5c84400dcebef8::t_896b8d9567557a 1-81
+packages/svelte/src/test/Toolbar.browser.test.ts
+  s_5c84400dcebef8::t_24536b1b946bb7 8,61,279-353
+  s_5c84400dcebef8::t_b455dac9f761ee 354
+apps/sandbox/src/react/Actions.tsx
+  s_5c84400dcebef8::t_04de7eeb60a55e 3,5,16-19
+  s_5c84400dcebef8::t_19a3a127091f9c 20
+apps/sandbox/src/svelte/Demo.svelte
+  s_5c84400dcebef8::t_d81f87479ac342 8,48-50
+apps/sandbox/src/vanilla/Demo.ts
+  s_5c84400dcebef8::t_d81f87479ac342 8,60
+apps/sandbox/src/vue/Actions.vue
+  s_5c84400dcebef8::t_04de7eeb60a55e 5,7,16-17
+  s_5c84400dcebef8::t_b4fea288bd651e 18
+apps/sandbox/src/svelte/Actions.svelte
+  s_5c84400dcebef8::t_04de7eeb60a55e 6,15-18
+  s_5c84400dcebef8::t_16acdcddbfc837 19
+packages/core/src/model/annotations/types.test.ts
+  s_5c84400dcebef8::t_5003f3ee9eb4a9 60-92,96-97
+  s_5c84400dcebef8::t_ddb12af76ab314 93-95
+packages/vue/src/components/Toolbar.ct.ts
+  s_5c84400dcebef8::t_05b95a68011b2d 8-9,196
+  s_5c84400dcebef8::t_076784de06e18c 5,54,194-195,197-294
+  s_5c84400dcebef8::t_5a638bf805cd9c 295
+packages/react/src/components/Toolbar.ct.tsx
+  s_5c84400dcebef8::t_5134938321b65c 341-348
+  s_5c84400dcebef8::t_896b8d9567557a 5,60,276-277,279-340,349-376
+  s_5c84400dcebef8::t_05b95a68011b2d 9-10,278
+  s_5c84400dcebef8::t_483b7e2c0ea5ff 377
+packages/theme/theme.css
+  s_5c84400dcebef8::t_25258cb532e28b 583-620
+packages/svelte/src/lib/index.ts
+  s_5c84400dcebef8::t_f7941be0b1f513 47-48
+apps/sandbox/e2e/smoke.spec.ts
+  s_5c84400dcebef8::t_1ad4a73a41c7c1 268,273
+  s_5c84400dcebef8::t_07099d17478fc0 240-242,255-264,269-270,272,274-275
+  s_5c84400dcebef8::t_9030d37b877d1b 245-254
+  s_5c84400dcebef8::t_bfc2d235d823ab 265-267,271
+  s_5c84400dcebef8::t_04de7eeb60a55e 243-244
+packages/svelte/src/test/harness/ToolbarHarness.svelte
+  s_5c84400dcebef8::t_f7941be0b1f513 2,42
+apps/sandbox/src/react/Demo.tsx
+  s_5c84400dcebef8::t_d81f87479ac342 2,46-48
+apps/sandbox/src/vanilla/actions.ts
+  s_5c84400dcebef8::t_04de7eeb60a55e 4,30
+packages/core/src/dom/overlay-render.test.ts
+  s_5c84400dcebef8::t_9106f03b9d2895 1-22,26-46
+  s_5c84400dcebef8::t_0df7deec4b2995 23-25
+packages/core/schema.json
+  s_5c84400dcebef8::t_c563f9c6a66786 41-42,144-145,202-203,276-277,285-289,336-337,357-361,435-436,454-484,532-533,554-559,606-607
+packages/core/src/dom/overlay.browser.test.ts
+  s_5c84400dcebef8::t_5003f3ee9eb4a9 604-655
+apps/sandbox/src/vue/Demo.vue
+  s_5c84400dcebef8::t_d81f87479ac342 8,49-51
+packages/core/src/dom/ui.ts
+  s_5c84400dcebef8::t_0df7deec4b2995 4,74-158
+  s_5c84400dcebef8::t_402c0ff1b9a2ec 8,29-73,159
+  s_5c84400dcebef8::t_bde4f770a8c677 160
+packages/react/src/components/InkLineStyleMenu.tsx
+  s_5c84400dcebef8::t_1067a1151ee3bd 10,91,101,105,129-141
+  s_5c84400dcebef8::t_dd2bb51dafab0e 1-9,11-90,92-100,102-104,106-128,142-146
+packages/core/src/model/annotations/json.test.ts
+  s_5c84400dcebef8::t_5003f3ee9eb4a9 40-64
+packages/vue/src/components/InkLineStyleMenu.vue
+  s_5c84400dcebef8::t_076784de06e18c 1-10,12-29,31-33,36-42,45,52-62,64-81,91,112-116
+  s_5c84400dcebef8::t_1067a1151ee3bd 11,30,44,63,84,104
+  s_5c84400dcebef8::t_9bcc28811451af 35,46-47,82-83,85-90,92-103,105-111
+  s_5c84400dcebef8::t_ffeb30b1ab96ec 34,43,48-51
+packages/vue/playwright/harness/ToolbarHarness.vue
+  s_5c84400dcebef8::t_076784de06e18c 2,41
+packages/vue/playwright/harness/LineStyleHarness.vue
+  s_5c84400dcebef8::t_076784de06e18c 1-20
+packages/icons/src/icons.ts
+  s_5c84400dcebef8::t_0b062142de0cf9 78-84
+packages/svelte/src/lib/components/InkLineStyleMenu.svelte
+  s_5c84400dcebef8::t_00808b27711eeb 100-102
+  s_5c84400dcebef8::t_f7941be0b1f513 1-19,21-34,36-48,50-52,54-76,78-95,97-99,103-110
+  s_5c84400dcebef8::t_1067a1151ee3bd 20,35,49,53,77,96
+packages/svelte/src/test/harness/LineStyleHarness.svelte
+  s_5c84400dcebef8::t_f7941be0b1f513 1-18
+packages/icons/scripts/icon-list.ts
+  s_5c84400dcebef8::t_0b062142de0cf9 16-17
+packages/svelte/src/test/harness/LineStyleControls.svelte
+  s_5c84400dcebef8::t_00808b27711eeb 30-34
+  s_5c84400dcebef8::t_014159b7027082 1-29,35-44
+packages/react/playwright/harness/ToolbarHarness.tsx
+  s_5c84400dcebef8::t_896b8d9567557a 1,40
+apps/sandbox/src/shared/e2e-hook.ts
+  s_5c84400dcebef8::t_04de7eeb60a55e 1-13
+packages/core/src/model/annotations/types.ts
+  s_5c84400dcebef8::t_9a49c9528582ec 44-47,74-76,80,100,109-113,121
+packages/core/src/dom/index.ts
+  s_5c84400dcebef8::t_0df7deec4b2995 67,69-74
+  s_5c84400dcebef8::t_350a562d46b545 104
+  s_5c84400dcebef8::t_402c0ff1b9a2ec 59-66,68
+  s_5c84400dcebef8::t_8006f6ce26f297 81
+packages/core/src/dom/viewer/style-menu.ts
+  s_5c84400dcebef8::t_e6b6b9dcaa5810 16
+  s_5c84400dcebef8::t_350a562d46b545 1-15,17-198,201-208
+  s_5c84400dcebef8::t_5a03d5514a072b 199-200
+packages/core/src/dom/viewer/create-viewer.browser.test.ts
+  s_5c84400dcebef8::t_5a03d5514a072b 505-602
+  s_5c84400dcebef8::t_e6b6b9dcaa5810 22
+  s_5c84400dcebef8::t_257dae9088b7bf 603-604
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c625f5ff0834e7414497f9a3d43ac588e21e8607",
+  "prompts": {},
+  "sessions": {
+    "s_5c84400dcebef8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b6002a2b-f6c7-44ec-8f13-05d214d02483",
+        "model": "unknown"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
