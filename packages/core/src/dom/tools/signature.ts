@@ -1,8 +1,9 @@
 // Places the chosen signature template. A click puts it centred on the press, about 150 pt
 // wide; Enter in the viewport puts it at the centre of the current page. It is turned against
-// the page's rotation on screen, so it reads upright where it lands. Ink takes the `ink` group's
-// colour at the template's own width; an image is placed as it is. Either way the new
-// annotation is selected, one undo step, and the tool stays active for the next one.
+// the page's own /Rotate, so it reads upright on the page as the file displays it; a view
+// rotation is the viewer's, and turns it with the page like any annotation. Ink takes the
+// `ink` group's colour at the template's own width; an image is placed as it is. Either way
+// the new annotation is selected, one undo step, and the tool stays active for the next one.
 import {
   DEFAULT_SIGNATURE_WIDTH,
   placeSignature,
@@ -13,7 +14,7 @@ import {
 import { isViewportEnter, type PageHit, type Tool, type ToolContext } from './controller'
 
 import type { Point } from '../../model/geometry'
-import type { ViewRotation } from '../transform'
+import type { PageRotation } from '../../model/pages'
 
 export type { SignatureOptions }
 
@@ -26,7 +27,7 @@ export function signatureTool(): Tool<SignatureOptions> {
     t: SignatureTemplate,
     page: number,
     at: Point,
-    rotation: ViewRotation
+    rotation: PageRotation
   ): void => {
     const input = placeSignature(t, page, at, DEFAULT_SIGNATURE_WIDTH, rotation)
     const a = c.store.add(
@@ -43,7 +44,7 @@ export function signatureTool(): Tool<SignatureOptions> {
     c: ToolContext,
     page: number,
     at: Point,
-    rotation: ViewRotation
+    rotation: PageRotation
   ): boolean => {
     const id = c.options<SignatureOptions>().templateId
     const library = c.signatures
@@ -84,7 +85,7 @@ export function signatureTool(): Tool<SignatureOptions> {
       const pressed = down
       down = undefined
       if (!ctx || !pressed || !hit || hit.page !== pressed.page) return
-      placeSelected(ctx, hit.page, hit.user, hit.transform.totalRotation)
+      placeSelected(ctx, hit.page, hit.user, hit.transform.page.rotate)
     },
     onKeyDown(e) {
       if (!ctx || !isViewportEnter(e, ctx.root)) return
@@ -92,7 +93,7 @@ export function signatureTool(): Tool<SignatureOptions> {
       const t = ctx.viewport.transformFor(page)
       const { box } = t.page
       const centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 }
-      if (placeSelected(ctx, page, centre, t.totalRotation)) e.preventDefault()
+      if (placeSelected(ctx, page, centre, t.page.rotate)) e.preventDefault()
     },
   }
 }

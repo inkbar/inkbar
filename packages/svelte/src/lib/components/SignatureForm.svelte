@@ -193,6 +193,11 @@
     <p class="ink-field-error" role="alert">{s.imageError}</p>
   {/if}
 </div>
+{#if s.saveError}
+  <p class="ink-field-error" role="alert" data-ink-signature-save-error="">
+    {s.saveError}
+  </p>
+{/if}
 <div class="ink-dialog-actions">
   <Dialog.Close>
     {#snippet child({ props })}

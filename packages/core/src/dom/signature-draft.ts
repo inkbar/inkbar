@@ -23,6 +23,8 @@ export interface SignatureDraftState {
   image: SignatureTemplate | undefined
   /** Why the chosen file was refused, for the Image tab to show. */
   imageError: string | undefined
+  /** Why the last save failed (the store refused it, full or offline), for the dialog to show. */
+  saveError: string | undefined
   /** True when the open tab has something to save. */
   canSave: boolean
   saving: boolean
@@ -41,7 +43,7 @@ export interface SignatureDraft {
   chooseFile(file: Blob | undefined): Promise<void>
   /**
    * Builds the open tab's template and saves it to `library`. Resolves with it, or undefined
-   * when there is nothing to save; rejects when the library does.
+   * when there is nothing to save or the save failed; a failure sets `saveError`.
    */
   save(library: SignatureLibrary): Promise<SignatureTemplate | undefined>
   /** Back to an empty Draw tab. */
@@ -60,6 +62,7 @@ export function createSignatureDraft(
     font: fonts[0]!,
     image: undefined,
     imageError: undefined,
+    saveError: undefined,
     canSave: false,
     saving: false,
   })
@@ -115,15 +118,21 @@ export function createSignatureDraft(
       try {
         const image = await createImageSignature(file)
         if (n === reads) patch({ image, imageError: undefined })
-      } catch {
+      } catch (e) {
         if (n === reads)
-          patch({ image: undefined, imageError: 'Choose a PNG or JPEG image.' })
+          patch({
+            image: undefined,
+            imageError:
+              e instanceof RangeError
+                ? 'This image is too large. Choose a smaller one.'
+                : 'Choose a PNG or JPEG image.',
+          })
       }
     },
     async save(library) {
       const s = state.get()
       if (!s.canSave) return undefined
-      patch({ saving: true })
+      patch({ saving: true, saveError: undefined })
       try {
         const t =
           s.tab === 'draw'
@@ -134,6 +143,11 @@ export function createSignatureDraft(
         if (!t) return undefined
         await library.save(t)
         return t
+      } catch {
+        patch({
+          saveError: 'The signature could not be saved. Try again, or try a smaller one.',
+        })
+        return undefined
       } finally {
         patch({ saving: false })
       }

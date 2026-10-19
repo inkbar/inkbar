@@ -450,7 +450,6 @@ function stampImage(
 }
 
 /**
- * Styles a free-text box/**
  * Styles a free-text box (`.ink-free-text`) from its annotation, as the theme reads it: the text
  * style, fill, border colour and width, corner radius and opacity travel as custom properties
  * (`--ink-font-size`, `--ink-font-family`, `--ink-font-weight`, `--ink-font-style`,

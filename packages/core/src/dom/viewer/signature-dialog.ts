@@ -164,6 +164,11 @@ export function createSignatureDialog(
       )
 
     // Actions
+    const saveError = h('p', {
+      class: 'ink-field-error',
+      role: 'alert',
+      'data-ink-signature-save-error': '',
+    })
     const cancel = h(
       'button',
       { type: 'button', class: 'ink-button', 'data-ink-signature-cancel': '' },
@@ -214,6 +219,7 @@ export function createSignatureDialog(
       title,
       tablist,
       ...panels.values(),
+      saveError,
       h('div', { class: 'ink-dialog-actions' }, cancel, save)
     )
     const overlay = h('div', {
@@ -250,6 +256,8 @@ export function createSignatureDialog(
       }
       imageError.textContent = s.imageError ?? ''
       imageError.hidden = s.imageError === undefined
+      saveError.textContent = s.saveError ?? ''
+      saveError.hidden = s.saveError === undefined
       save.disabled = !s.canSave || !viewer.engine.get()
     }
     const stopState = draft.state.subscribe(paint)

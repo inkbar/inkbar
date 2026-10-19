@@ -151,6 +151,39 @@ describe('image signature', () => {
     expect(t.kind === 'image' && t.imagedata).toMatch(/^data:image\/png;base64,/)
   })
 
+  /** A `width` x `height` image file of noise (so it compresses badly, like a photo). */
+  async function noise(width: number, height: number, type: string): Promise<File> {
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')!
+    const data = ctx.createImageData(width, height)
+    for (let i = 0; i < data.data.length; i += 65536)
+      crypto.getRandomValues(data.data.subarray(i, i + 65536))
+    for (let i = 3; i < data.data.length; i += 4) data.data[i] = 255
+    ctx.putImageData(data, 0, 0)
+    const blob = await new Promise<Blob>((resolve) =>
+      canvas.toBlob((b) => resolve(b!), type)
+    )
+    return new File([blob], 'scan', { type })
+  }
+
+  it('scales a large image down to 1000 px on its long side, keeping its type', async () => {
+    const png = await noise(3000, 1500, 'image/png')
+    expect(png.size).toBeGreaterThan(4_000_000)
+    const t = await createImageSignature(png)
+    if (t.kind !== 'image') throw new Error('no image')
+    expect(t.imagedata).toMatch(/^data:image\/png;base64,/)
+    expect(await imageSize(t.imagedata)).toEqual({ width: 1000, height: 500 })
+    expect(t.aspect).toBeCloseTo(2, 5)
+
+    const jpeg = await noise(1200, 1600, 'image/jpeg')
+    const j = await createImageSignature(jpeg)
+    if (j.kind !== 'image') throw new Error('no image')
+    expect(j.imagedata).toMatch(/^data:image\/jpeg;base64,/)
+    expect(await imageSize(j.imagedata)).toEqual({ width: 750, height: 1000 })
+  })
+
   it('refuses any other file', async () => {
     const file = new File(['<svg/>'], 'scan.svg', { type: 'image/svg+xml' })
     await expect(createImageSignature(file)).rejects.toThrow(TypeError)

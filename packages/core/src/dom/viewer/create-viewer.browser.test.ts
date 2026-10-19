@@ -1376,6 +1376,27 @@ describe('createViewer', () => {
       await until(() => document.activeElement === items[0])
     })
 
+    it('a save the store refuses shows an error and keeps the dialog open', async () => {
+      const store = createMemorySignatureStore()
+      store.save = () => Promise.reject(new Error('full'))
+      const { viewer } = make('text-simple', { signatures: store })
+      const root = createSignatureMenu(viewer)
+      viewer.element.prepend(root)
+      await ready(viewer)
+      parts(root).chevron.click()
+      panel()!.querySelector<HTMLButtonElement>('[data-ink-signature-create]')!.click()
+      const d = dialog()!
+      const error = d.querySelector<HTMLElement>('[data-ink-signature-save-error]')!
+      expect(error.hidden).toBe(true)
+      scribble(d.querySelector('[data-ink-signature-pad]')!)
+      d.querySelector<HTMLButtonElement>('[data-ink-signature-save]')!.click()
+      await until(() => !error.hidden)
+      expect(error.getAttribute('role')).toBe('alert')
+      expect(error.textContent).toMatch(/could not be saved/)
+      expect(dialog()).not.toBeNull()
+      expect(await store.list()).toEqual([])
+    })
+
     it('dialog traps focus and Escape closes', async () => {
       const { main, chevron } = await mounted()
       chevron.click()

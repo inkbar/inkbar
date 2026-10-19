@@ -31,11 +31,14 @@ export function SignatureHarness({
   assets,
   initial = [],
   fonts,
+  failSave = false,
 }: {
   src: DocumentSource
   assets: PdfAssets
   initial?: SignatureTemplate[]
   fonts?: string[]
+  /** The store refuses every save, as a full one would. */
+  failSave?: boolean
 }) {
   const [saved, setSaved] = useState<SignatureTemplate[]>(initial)
   const store = useMemo<SignatureStore>(() => {
@@ -44,6 +47,7 @@ export function SignatureHarness({
     return {
       list: () => inner.list(),
       save: async (t) => {
+        if (failSave) throw new Error('full')
         await inner.save(t)
         await sync()
       },

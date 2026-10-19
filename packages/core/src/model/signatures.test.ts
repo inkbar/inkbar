@@ -224,10 +224,10 @@ describe('createLocalSignatureStore', () => {
     expect(await store.list()).toEqual([image])
   })
 
-  it('keeps a template in memory when a write fails', async () => {
+  it('keeps templates in memory where storage refuses every write', async () => {
     const storage = memoryStorage()
     storage.setItem = () => {
-      throw new DOMException('full', 'QuotaExceededError')
+      throw new DOMException('blocked', 'QuotaExceededError')
     }
     vi.stubGlobal('localStorage', storage)
     const store = createLocalSignatureStore('sigs')
@@ -235,11 +235,30 @@ describe('createLocalSignatureStore', () => {
     expect(await store.list()).toEqual([ink])
   })
 
+  it('rejects a save that storage has no room for, and keeps what was there', async () => {
+    const storage = memoryStorage()
+    vi.stubGlobal('localStorage', storage)
+    const store = createLocalSignatureStore('sigs')
+    await store.save(ink)
+    const setItem = storage.setItem.bind(storage)
+    storage.setItem = (k, v) => {
+      if (v.length > JSON.stringify([ink]).length)
+        throw new DOMException('full', 'QuotaExceededError')
+      setItem(k, v)
+    }
+    await expect(store.save(image)).rejects.toThrow(/could not be saved/)
+    expect(await store.list()).toEqual([ink])
+    expect(await createLocalSignatureStore('sigs').list()).toEqual([ink])
+  })
+
   it('skips stored entries that are not templates', async () => {
     const storage = memoryStorage()
     storage.setItem('sigs', JSON.stringify([ink, { id: 'x', kind: 'nope' }, 7]))
     vi.stubGlobal('localStorage', storage)
     expect(await createLocalSignatureStore('sigs').list()).toEqual([ink])
+    // Pressure that does not match the strokes would throw when placed: skipped too.
+    storage.setItem('sigs', JSON.stringify([{ ...ink, pressure: [[0.5]] }, image]))
+    expect(await createLocalSignatureStore('sigs').list()).toEqual([image])
     storage.setItem('sigs', '{not json')
     expect(await createLocalSignatureStore('sigs').list()).toEqual([])
   })
@@ -259,6 +278,13 @@ describe('createSignatureLibrary', () => {
     await library.remove('ink-1')
     expect(library.templates.get()).toEqual([image])
     expect(library.get('ink-1')).toBeUndefined()
+  })
+
+  it('leaves out templates that are not valid, whatever store they come from', async () => {
+    const bad = { ...ink, id: 'bad', pressure: [[0.5]] } as SignatureTemplate
+    const library = createSignatureLibrary(createMemorySignatureStore([bad, image]))
+    await library.refresh()
+    expect(library.templates.get()).toEqual([image])
   })
 
   it('keeps the last list when the store fails to list', async () => {

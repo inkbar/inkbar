@@ -1036,4 +1036,22 @@ test.describe('signature menu', () => {
     await expect(dialog(page)).toBeHidden()
     await expect(store(page)).toHaveAttribute('data-kinds', 'image')
   })
+
+  test('a save the store refuses shows an error and keeps the dialog open', async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mount(SignatureHarness, {
+      props: { src: fixtureUrl('text-simple'), assets, failSave: true },
+    })
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    await page.getByRole('button', { name: 'Choose signature' }).click()
+    await menu(page).getByRole('menuitem', { name: 'Create signature' }).click()
+    await dialog(page).getByRole('tab', { name: 'Type' }).click()
+    await dialog(page).getByLabel('Name').fill('Ada')
+    await dialog(page).getByRole('button', { name: 'Save' }).click()
+    await expect(dialog(page).getByRole('alert')).toHaveText(/could not be saved/)
+    await expect(dialog(page)).toBeVisible()
+    await expect(store(page)).toHaveAttribute('data-count', '0')
+  })
 })

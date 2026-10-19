@@ -23,8 +23,10 @@ const props = withDefaults(
     assets: PdfAssets
     initial?: SignatureTemplate[]
     fonts?: string[] | undefined
+    /** The store refuses every save, as a full one would. */
+    failSave?: boolean
   }>(),
-  { initial: () => [], fonts: undefined }
+  { initial: () => [], fonts: undefined, failSave: false }
 )
 
 /** A memory store whose contents the page shows. */
@@ -36,6 +38,7 @@ const sync = async () => {
 const store: SignatureStore = {
   list: () => inner.list(),
   save: async (t) => {
+    if (props.failSave) throw new Error('full')
     await inner.save(t)
     await sync()
   },

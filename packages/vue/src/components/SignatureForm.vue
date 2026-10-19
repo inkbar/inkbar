@@ -197,6 +197,14 @@ const onFile = (e: Event) =>
     />
     <p v-if="s.imageError" class="ink-field-error" role="alert">{{ s.imageError }}</p>
   </div>
+  <p
+    v-if="s.saveError"
+    class="ink-field-error"
+    role="alert"
+    data-ink-signature-save-error
+  >
+    {{ s.saveError }}
+  </p>
   <div class="ink-dialog-actions">
     <DialogClose as-child>
       <button type="button" class="ink-button" data-ink-signature-cancel>

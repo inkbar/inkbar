@@ -84,6 +84,7 @@ const IDLE: SignatureDraftState = {
   font: '',
   image: undefined,
   imageError: undefined,
+  saveError: undefined,
   canSave: false,
   saving: false,
 }
@@ -253,6 +254,11 @@ function SignatureForm({
           </p>
         ) : null}
       </div>
+      {s.saveError ? (
+        <p className="ink-field-error" role="alert" data-ink-signature-save-error="">
+          {s.saveError}
+        </p>
+      ) : null}
       <div className="ink-dialog-actions">
         <Dialog.Close asChild>
           <button type="button" className="ink-button" data-ink-signature-cancel="">

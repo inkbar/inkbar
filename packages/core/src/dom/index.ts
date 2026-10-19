@@ -179,6 +179,8 @@ export {
   createTypedSignature,
   fontFamilyValue,
   renderTypedSignature,
+  SIGNATURE_IMAGE_MAX_LENGTH,
+  SIGNATURE_IMAGE_MAX_SIDE,
   SIGNATURE_IMAGE_TYPES,
   signaturePreview,
 } from './signature-pad'

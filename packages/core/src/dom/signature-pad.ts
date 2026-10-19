@@ -247,25 +247,54 @@ export async function createTypedSignature(
 /** The image types a signature image may be. */
 export const SIGNATURE_IMAGE_TYPES: readonly string[] = ['image/png', 'image/jpeg']
 
+/** The longest side, in pixels, an image signature is stored at. */
+export const SIGNATURE_IMAGE_MAX_SIDE = 1000
+
 /**
- * An image file (a scan of a signature) as an image template. Rejects with a TypeError for
- * anything but a PNG or JPEG.
+ * The longest data URL, in characters, an image signature may be once scaled. Templates live
+ * in host storage (`localStorage` holds about 5 MB) and are copied into every placed stamp.
+ */
+export const SIGNATURE_IMAGE_MAX_LENGTH = 3_000_000
+
+/**
+ * An image file (a scan of a signature) as an image template. The image is drawn again at no
+ * more than `SIGNATURE_IMAGE_MAX_SIDE` pixels on its long side, as a PNG (a JPEG stays a JPEG,
+ * as photos compress far better that way), so a phone photo does not fill the store. Rejects
+ * with a TypeError for anything but a PNG or JPEG, and a RangeError when the result is still
+ * longer than `SIGNATURE_IMAGE_MAX_LENGTH`.
  */
 export async function createImageSignature(file: Blob): Promise<SignatureTemplate> {
   if (!SIGNATURE_IMAGE_TYPES.includes(file.type))
     throw new TypeError('A signature image must be a PNG or JPEG')
-  const url = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as string)
-    reader.onerror = () => reject(reader.error ?? new Error('The file could not be read'))
-    reader.readAsDataURL(file)
-  })
-  const img = new Image()
-  img.src = url
-  await img.decode()
-  if (img.naturalWidth === 0 || img.naturalHeight === 0)
-    throw new TypeError('The image is empty')
-  return createImageTemplate(url, img.naturalWidth / img.naturalHeight)
+  const source = URL.createObjectURL(file)
+  try {
+    const img = new Image()
+    img.src = source
+    try {
+      await img.decode()
+    } catch {
+      throw new TypeError('The image could not be read')
+    }
+    const { naturalWidth: w, naturalHeight: h } = img
+    if (w === 0 || h === 0) throw new TypeError('The image is empty')
+    const scale = Math.min(1, SIGNATURE_IMAGE_MAX_SIDE / Math.max(w, h))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(w * scale))
+    canvas.height = Math.max(1, Math.round(h * scale))
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('Canvas 2D is unavailable')
+    ctx.imageSmoothingQuality = 'high'
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+    const url =
+      file.type === 'image/jpeg'
+        ? canvas.toDataURL('image/jpeg', 0.9)
+        : canvas.toDataURL('image/png')
+    if (url.length > SIGNATURE_IMAGE_MAX_LENGTH)
+      throw new RangeError('The signature image is too large')
+    return createImageTemplate(url, canvas.width / canvas.height)
+  } finally {
+    URL.revokeObjectURL(source)
+  }
 }
 
 /** The preview's height in its own units; the width follows the template's aspect. */

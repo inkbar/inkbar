@@ -40,21 +40,40 @@ export const DEFAULT_SIGNATURE_WIDTH = 150
 export const SIGNATURE_INK_WIDTH = 2
 
 const Aspect = z.number().positive().finite()
-const TemplateSchema = z.discriminatedUnion('kind', [
-  z.object({
-    id: z.string().min(1),
-    kind: z.literal('ink'),
-    inklist: z.array(z.array(PointSchema).min(1)).min(1),
-    pressure: z.array(z.array(z.number().min(0).max(1))).optional(),
-    aspect: Aspect,
-  }),
-  z.object({
-    id: z.string().min(1),
-    kind: z.literal('image'),
-    imagedata: z.string().regex(IMAGE_DATA_URL),
-    aspect: Aspect,
-  }),
-])
+const TemplateSchema = z
+  .discriminatedUnion('kind', [
+    z.object({
+      id: z.string().min(1),
+      kind: z.literal('ink'),
+      inklist: z.array(z.array(PointSchema).min(1)).min(1),
+      pressure: z.array(z.array(z.number().min(0).max(1))).optional(),
+      aspect: Aspect,
+    }),
+    z.object({
+      id: z.string().min(1),
+      kind: z.literal('image'),
+      imagedata: z.string().regex(IMAGE_DATA_URL),
+      aspect: Aspect,
+    }),
+  ])
+  .refine(
+    // Pressure must have one value per point of each stroke, or placing the template would
+    // produce ink the store refuses.
+    (t) =>
+      t.kind !== 'ink' ||
+      !t.pressure ||
+      (t.pressure.length === t.inklist.length &&
+        t.pressure.every((p, i) => p.length === t.inklist[i]?.length)),
+    { message: 'pressure must have the same shape as inklist', path: ['pressure'] }
+  )
+
+/** The items that are valid templates; the rest are skipped. */
+function validTemplates(items: readonly unknown[]): SignatureTemplate[] {
+  return items.flatMap((item) => {
+    const t = TemplateSchema.safeParse(item)
+    return t.success ? [t.data as SignatureTemplate] : []
+  })
+}
 
 const copy = (t: SignatureTemplate): SignatureTemplate =>
   JSON.parse(JSON.stringify(t)) as SignatureTemplate
@@ -86,52 +105,60 @@ export function createMemorySignatureStore(
 }
 
 /**
- * Templates in `localStorage` under `key`, as a JSON array. Where storage is blocked or full
- * the templates stay in memory for the page's life, so signing still works.
+ * Templates in `localStorage` under `key`, as a JSON array. Where storage is blocked (it refuses
+ * even a tiny test write, as in some private windows) the templates stay in memory for the
+ * page's life, so signing still works. Where storage works but has no room for a change, the
+ * change is undone and `save` or `remove` rejects, so the host can say so.
  */
 export function createLocalSignatureStore(key: string): SignatureStore {
-  const storage = (): Storage | undefined => {
+  /** Usable storage, or undefined when it is missing or blocked. */
+  const storage = ((): Storage | undefined => {
     try {
-      return globalThis.localStorage ?? undefined
+      const s = globalThis.localStorage ?? undefined
+      if (!s) return undefined
+      const probe = `${key}:probe`
+      s.setItem(probe, '1')
+      s.removeItem(probe)
+      return s
     } catch {
       return undefined
     }
-  }
+  })()
   /** The stored list; undefined when storage cannot be read. Invalid entries are skipped. */
   const read = (): SignatureTemplate[] | undefined => {
+    if (!storage) return undefined
     try {
-      const s = storage()
-      if (!s) return undefined
-      const raw = s.getItem(key)
+      const raw = storage.getItem(key)
       if (raw === null) return []
       const parsed: unknown = JSON.parse(raw)
       if (!Array.isArray(parsed)) return []
-      return parsed.flatMap((item) => {
-        const t = TemplateSchema.safeParse(item)
-        return t.success ? [t.data as SignatureTemplate] : []
-      })
+      return validTemplates(parsed)
     } catch (e) {
       // Unreadable JSON is an empty list; a storage that throws is no storage.
       return e instanceof SyntaxError ? [] : undefined
     }
   }
   let items = read() ?? []
-  /** Set when a write failed: memory holds templates storage lacks, so it stays the source. */
-  let unsaved = false
-  /** Picks up what another tab wrote, when storage can be read and holds everything. */
+  /** Picks up what another tab wrote. */
   const sync = (): void => {
-    if (unsaved) return
     const stored = read()
     if (stored) items = stored
   }
-  const write = (): void => {
-    try {
-      storage()?.setItem(key, JSON.stringify(items))
-      unsaved = false
-    } catch {
-      // Blocked or full: the templates live on in memory.
-      unsaved = true
+  /** Writes `next`, then adopts it; leaves everything as it was when storage refuses. */
+  const commit = (next: SignatureTemplate[]): Promise<void> => {
+    if (storage) {
+      try {
+        storage.setItem(key, JSON.stringify(next))
+      } catch (cause) {
+        return Promise.reject(
+          new Error('The signature could not be saved: browser storage is full', {
+            cause,
+          })
+        )
+      }
     }
+    items = next
+    return Promise.resolve()
   }
   return {
     list() {
@@ -140,15 +167,11 @@ export function createLocalSignatureStore(key: string): SignatureStore {
     },
     save(t) {
       sync()
-      items = upsert(items, t)
-      write()
-      return Promise.resolve()
+      return commit(upsert(items, t))
     },
     remove(id) {
       sync()
-      items = items.filter((x) => x.id !== id)
-      write()
-      return Promise.resolve()
+      return commit(items.filter((x) => x.id !== id))
     },
   }
 }
@@ -206,9 +229,9 @@ export function createImageTemplate(
 
 /**
  * The annotation that places `t` on `page`, `width` points wide on screen and centred on
- * `centre` (user space). `rotation` is how far the page is turned on screen (its /Rotate plus
- * the view's, clockwise): the signature is turned back by as much, so it reads upright where
- * it was placed. Ink becomes `ink` with `subject: 'Signature'`, its strokes inset by half their
+ * `centre` (user space). `rotation` is the page's /Rotate (clockwise): the signature is turned
+ * back by as much, so it reads upright on the page as the file displays it. A viewer's view
+ * rotation is left out; it turns the signature with the page like any annotation. Ink becomes `ink` with `subject: 'Signature'`, its strokes inset by half their
  * width; an image becomes a `stamp` with `subject: 'Signature'`.
  */
 export function placeSignature(
@@ -279,7 +302,8 @@ export function createSignatureLibrary(store: SignatureStore): SignatureLibrary 
   const refresh = async (): Promise<void> => {
     const n = ++loads
     try {
-      const list = await store.list()
+      // A host store may hand back anything: an invalid template would fail when placed.
+      const list = validTemplates(await store.list())
       if (n === loads) templates.set(list)
     } catch {
       // The store is unavailable: keep what was there.

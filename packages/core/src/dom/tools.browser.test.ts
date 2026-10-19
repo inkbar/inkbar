@@ -2460,10 +2460,8 @@ describe('signature tool', () => {
     expect(r.y + r.height).toBeCloseTo(630, 5)
   })
 
-  it.each([
-    ['/Rotate 90', 0],
-    ['/Rotate 90 and a view rotation of 270', 270],
-  ] as const)('reads upright on screen on a page at %s', async (_name, view) => {
+  /** Places the ink template at (200, 150) and the image one at (200, 350), CSS px on page 0. */
+  async function placeBoth(view: 0 | 270) {
     const signatures = await library([INK_TEMPLATE, IMAGE_TEMPLATE])
     const { doc, container, viewport, tools } = await setup('text-rotated-90', {
       signatures,
@@ -2485,6 +2483,12 @@ describe('signature tool', () => {
     await settle()
     const [ink, stamp] = doc.annotations.list.get()
     if (ink?.type !== 'ink' || stamp?.type !== 'stamp') throw new Error('not placed')
+    const img = host.querySelector(`[data-annotation="${stamp.id}"] img`)!
+    return { t, ink, stamp, img }
+  }
+
+  it('reads upright on a page with /Rotate 90', async () => {
+    const { t, ink, stamp, img } = await placeBoth(0)
     // Centred on the press, 150 wide and 50 high on screen.
     for (const [a, y] of [
       [ink, 150],
@@ -2502,11 +2506,32 @@ describe('signature tool', () => {
     expect(first.x).toBeLessThan(inkBox.left + inkBox.width / 4)
     expect(first.y).toBeGreaterThan(inkBox.top + (inkBox.height * 3) / 4)
     // The stamp is turned against the page, and its image drawn upright to fill its box.
-    expect(stamp.rotation ?? 0).toBe(t.totalRotation)
-    const img = host.querySelector(`[data-annotation="${stamp.id}"] img`)!
+    expect(stamp.rotation).toBe(90)
     const r = img.getBoundingClientRect()
     expect(r.width).toBeCloseTo(t.toCssLength(150), 0)
     expect(r.height).toBeCloseTo(t.toCssLength(50), 0)
+  })
+
+  it('follows the page, not a view rotation, and turns with the page in the view', async () => {
+    // /Rotate 90 plus a view rotation of 270: the page shows unrotated, and the signature,
+    // placed for the page as the file displays it, turns with it like any annotation.
+    const { t, ink, stamp, img } = await placeBoth(270)
+    expect(t.totalRotation).toBe(0)
+    expect(stamp.rotation).toBe(90)
+    for (const [a, y] of [
+      [ink, 150],
+      [stamp, 350],
+    ] as const) {
+      const box = t.toCssRect(a.rect)
+      expect(box.left + box.width / 2).toBeCloseTo(200, 5)
+      expect(box.top + box.height / 2).toBeCloseTo(y, 5)
+      // Sideways on screen: 50 wide, 150 high.
+      expect(box.width).toBeCloseTo(t.toCssLength(50), 5)
+      expect(box.height).toBeCloseTo(t.toCssLength(150), 5)
+    }
+    const r = img.getBoundingClientRect()
+    expect(r.width).toBeCloseTo(t.toCssLength(50), 0)
+    expect(r.height).toBeCloseTo(t.toCssLength(150), 0)
   })
 })
 
