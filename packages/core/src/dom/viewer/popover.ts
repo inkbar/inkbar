@@ -34,6 +34,24 @@ export interface Popover {
   destroy(): void
 }
 
+/**
+ * Fixed-positions `panel` below `anchor` (above it when only that fits), clamped to the
+ * window. Shared by the annotation popovers and the trigger-anchored menus.
+ */
+export function placePanel(panel: HTMLElement, anchor: DOMRect): void {
+  const { innerWidth: vw, innerHeight: vh } = window
+  const w = panel.offsetWidth
+  const ht = panel.offsetHeight
+  let top = anchor.bottom + GAP
+  if (top + ht > vh - MARGIN && anchor.top - GAP - ht >= MARGIN)
+    top = anchor.top - GAP - ht
+  top = Math.max(MARGIN, Math.min(top, vh - ht - MARGIN))
+  const left = Math.max(MARGIN, Math.min(anchor.left, vw - w - MARGIN))
+  panel.style.position = 'fixed'
+  panel.style.left = `${left}px`
+  panel.style.top = `${top}px`
+}
+
 export function createPopover(opts: PopoverOptions): Popover {
   const { root, focusReturn } = opts
   const panel = h('div', { ...opts.attrs, role: 'dialog', hidden: '' })
@@ -46,18 +64,7 @@ export function createPopover(opts: PopoverOptions): Popover {
 
   const place = (): void => {
     if (!anchor || panel.hidden) return
-    const r = anchor.getBoundingClientRect()
-    const { innerWidth: vw, innerHeight: vh } = window
-    const w = panel.offsetWidth
-    const ht = panel.offsetHeight
-    // Below the anchor; above it when only that fits; clamped to the window either way.
-    let top = r.bottom + GAP
-    if (top + ht > vh - MARGIN && r.top - GAP - ht >= MARGIN) top = r.top - GAP - ht
-    top = Math.max(MARGIN, Math.min(top, vh - ht - MARGIN))
-    const left = Math.max(MARGIN, Math.min(r.left, vw - w - MARGIN))
-    panel.style.position = 'fixed'
-    panel.style.left = `${left}px`
-    panel.style.top = `${top}px`
+    placePanel(panel, anchor.getBoundingClientRect())
   }
 
   // The anchor changes size on zoom; the panel when its content changes.

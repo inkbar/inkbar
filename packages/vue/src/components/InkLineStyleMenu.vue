@@ -9,6 +9,7 @@ import {
   focusInitialMenuItem,
   handleMenuKeys,
   lineStyleMenuModel,
+  menuItems,
 } from '@inkbar/core/dom'
 import { Check, Minus } from '@inkbar/icons'
 import {
@@ -18,7 +19,7 @@ import {
   PopoverTrigger,
   ToolbarButton,
 } from 'reka-ui'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { useToolStyle } from '../composables/useToolStyle'
 
@@ -29,11 +30,33 @@ const open = ref(false)
 
 const model = computed(() => lineStyleMenuModel(current.value, supported.value))
 
+// The menu closes when the control disables (the selection cleared while it was open).
+watch(
+  () => model.value.enabled,
+  (enabled) => {
+    if (!enabled) open.value = false
+  }
+)
+
+/** ArrowDown opens on the first item; a click opens on the checked one. */
+let focusFirst = false
+function onTriggerKeydown(e: KeyboardEvent): void {
+  if (e.key !== 'ArrowDown' || e.defaultPrevented || open.value || !model.value.enabled)
+    return
+  e.preventDefault()
+  focusFirst = true
+  open.value = true
+}
+
 function onOpenAutoFocus(e: Event): void {
   e.preventDefault()
   // One menu is open at a time.
   const menu = document.querySelector('[data-ink-menu="line-style"] [role="menu"]')
-  if (menu) focusInitialMenuItem(menu)
+  if (menu) {
+    if (focusFirst) menuItems(menu)[0]?.focus({ preventScroll: true })
+    else focusInitialMenuItem(menu)
+  }
+  focusFirst = false
 }
 
 // Reka's typed props stop at its own; ARIA goes through bound objects.
@@ -41,6 +64,7 @@ const triggerAttrs = computed(() => ({
   'aria-label': 'Line style',
   title: 'Line style',
   'aria-haspopup': 'menu' as const,
+  onKeydown: onTriggerKeydown,
   'data-mixed': model.value.mixed ? '' : undefined,
 }))
 const menuAttrs = { 'aria-label': 'Line style' }

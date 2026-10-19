@@ -292,4 +292,37 @@ test.describe('line style menu', () => {
     await expect(menu).toHaveCount(0)
     await expect(trigger).toBeFocused()
   })
+
+  test('ArrowDown on the trigger opens the menu on the first item', async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mount(LineStyleHarness, {
+      props: { src: fixtureUrl('text-simple'), assets },
+    })
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    await page.getByTestId('add-line-3').click()
+    await page.getByTestId('select-all').click()
+    await page.getByRole('button', { name: 'Line style' }).focus()
+    await page.keyboard.press('ArrowDown')
+    const menu = page.getByRole('menu', { name: 'Line style' })
+    await expect(menu.getByRole('menuitemradio', { name: '0.5 pt' })).toBeFocused()
+  })
+
+  test('closes when the selection clears and the control disables', async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mount(LineStyleHarness, {
+      props: { src: fixtureUrl('text-simple'), assets },
+    })
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    await page.getByTestId('add-line-3').click()
+    await page.getByTestId('select-all').click()
+    await page.getByRole('button', { name: 'Line style' }).click()
+    await expect(page.getByRole('menu', { name: 'Line style' })).toBeVisible()
+    await page.getByTestId('select-none').dispatchEvent('click')
+    await expect(page.getByRole('menu', { name: 'Line style' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Line style' })).toBeDisabled()
+  })
 })

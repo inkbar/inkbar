@@ -512,7 +512,7 @@ describe('createViewer', () => {
         width,
       }) as const
     const menu = (): HTMLElement | null =>
-      document.querySelector<HTMLElement>('[data-ink-menu="line-style"] [role="menu"]')
+      document.querySelector<HTMLElement>('[data-ink-menu="line-style"][role="menu"]')
     const item = (name: string): HTMLButtonElement =>
       [...menu()!.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]')].find(
         (b) => b.textContent?.trim() === name
@@ -580,6 +580,43 @@ describe('createViewer', () => {
       expect(weights.querySelectorAll('.ink-select-indicator')).toHaveLength(0)
       item('2 pt').click()
       expect(trigger.hasAttribute('data-mixed')).toBe(false)
+    })
+
+    it('ArrowDown on the trigger opens the menu on the first enabled item', async () => {
+      const { viewer } = make('text-simple')
+      const trigger = createLineStyleMenu(viewer)
+      viewer.element.prepend(trigger)
+      const { doc } = await ready(viewer)
+      doc.annotations.select([doc.annotations.add(lineAt(700, 3)).id])
+      trigger.focus()
+      key(trigger, 'ArrowDown')
+      expect(menu()).not.toBeNull()
+      expect(focused()).toBe(item('0.5 pt'))
+    })
+
+    it('closes when the selection clears and the control disables', async () => {
+      const { viewer } = make('text-simple')
+      const trigger = createLineStyleMenu(viewer)
+      viewer.element.prepend(trigger)
+      const { doc } = await ready(viewer)
+      doc.annotations.select([doc.annotations.add(lineAt(700, 3)).id])
+      trigger.click()
+      expect(menu()).not.toBeNull()
+      doc.annotations.select([])
+      expect(trigger.disabled).toBe(true)
+      expect(menu()).toBeNull()
+      expect(trigger.getAttribute('aria-expanded')).toBe('false')
+    })
+
+    it('dismisses on an outside press', async () => {
+      const { viewer } = make('text-simple')
+      const trigger = createLineStyleMenu(viewer)
+      viewer.element.prepend(trigger)
+      const { doc } = await ready(viewer)
+      doc.annotations.select([doc.annotations.add(lineAt(700, 3)).id])
+      trigger.click()
+      document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+      expect(menu()).toBeNull()
     })
 
     it('moves with the arrow keys, and Escape closes and returns focus', async () => {

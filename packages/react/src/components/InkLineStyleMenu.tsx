@@ -8,10 +8,17 @@ import {
   focusInitialMenuItem,
   handleMenuKeys,
   lineStyleMenuModel,
+  menuItems,
 } from '@inkbar/core/dom'
 import { Check, Minus } from '@inkbar/icons'
 import { Popover, Toolbar } from 'radix-ui'
-import { useState, type ComponentPropsWithoutRef, type ReactNode } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ComponentPropsWithoutRef,
+  type ReactNode,
+} from 'react'
 
 import { cx } from '../class-names'
 import { useToolStyle } from '../hooks/useToolStyle'
@@ -89,6 +96,12 @@ export function InkLineStyleMenu({
   const { current, supported, set } = useToolStyle()
   const [open, setOpen] = useState(false)
   const model = lineStyleMenuModel(current, supported)
+  /** ArrowDown opens on the first item; a click opens on the checked one. */
+  const focusFirst = useRef(false)
+  // The menu closes when the control disables (the selection cleared while it was open).
+  useEffect(() => {
+    if (!model.enabled) setOpen(false)
+  }, [model.enabled])
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
       <Toolbar.Button asChild>
@@ -104,6 +117,14 @@ export function InkLineStyleMenu({
             aria-haspopup="menu"
             disabled={!model.enabled}
             {...rest}
+            onKeyDown={(e) => {
+              rest.onKeyDown?.(e)
+              if (e.key !== 'ArrowDown' || e.defaultPrevented || open || !model.enabled)
+                return
+              e.preventDefault()
+              focusFirst.current = true
+              setOpen(true)
+            }}
           >
             {children ?? <InkIcon icon={Minus} />}
           </button>
@@ -122,7 +143,10 @@ export function InkLineStyleMenu({
           collisionPadding={8}
           onOpenAutoFocus={(e) => {
             e.preventDefault()
-            focusInitialMenuItem(e.currentTarget as HTMLElement)
+            const menu = e.currentTarget as HTMLElement
+            if (focusFirst.current) menuItems(menu)[0]?.focus({ preventScroll: true })
+            else focusInitialMenuItem(menu)
+            focusFirst.current = false
           }}
           onKeyDown={(e) => handleMenuKeys(e.nativeEvent, e.currentTarget)}
         >

@@ -102,3 +102,5 @@ export {
   createZoomSelect,
 } from './viewer/controls'
 export { createLineStyleMenu } from './viewer/style-menu'
+export { createMenu } from './viewer/menu'
+export type { Menu, MenuOptions } from './viewer/menu'

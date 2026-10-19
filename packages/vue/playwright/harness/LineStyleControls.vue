@@ -43,5 +43,6 @@ const tails = computed(() =>
     <button data-testid="select-all" @click="select(annotations.map((a) => a.id))">
       select all
     </button>
+    <button data-testid="select-none" @click="select([])">select none</button>
   </div>
 </template>

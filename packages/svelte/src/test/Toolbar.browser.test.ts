@@ -351,5 +351,27 @@ describe('toolbar', () => {
       await expect.poll(() => menu().elements().length).toBe(0)
       await expect.poll(focused).toBe(trigger().element())
     })
+
+    it('ArrowDown on the trigger opens the menu on the first item', async () => {
+      await render(LineStyleHarness, { src: fixtureUrl('text-simple'), assets })
+      await q('.ink-page canvas')
+      await click('add-line-3')
+      await click('select-all')
+      ;(trigger().element() as HTMLElement).focus()
+      await userEvent.keyboard('{ArrowDown}')
+      await expect.poll(focused).toBe(item('0.5 pt').element())
+    })
+
+    it('closes when the selection clears and the control disables', async () => {
+      await render(LineStyleHarness, { src: fixtureUrl('text-simple'), assets })
+      await q('.ink-page canvas')
+      await click('add-line-3')
+      await click('select-all')
+      await trigger().click()
+      await expect.element(menu()).toBeVisible()
+      ;(document.querySelector('[data-testid="select-none"]') as HTMLElement).click()
+      await expect.poll(() => menu().elements().length).toBe(0)
+      await expect.element(trigger()).toBeDisabled()
+    })
   })
 })

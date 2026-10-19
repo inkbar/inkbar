@@ -50,6 +50,9 @@ function Controls() {
       >
         select all
       </button>
+      <button data-testid="select-none" onClick={() => select([])}>
+        select none
+      </button>
       <button
         data-testid="select-first"
         onClick={() => select(annotations.slice(0, 1).map((a) => a.id))}

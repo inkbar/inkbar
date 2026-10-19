@@ -41,4 +41,7 @@
   >
     select all
   </button>
+  <button data-testid="select-none" onclick={() => selection.select([])}
+    >select none</button
+  >
 </div>
