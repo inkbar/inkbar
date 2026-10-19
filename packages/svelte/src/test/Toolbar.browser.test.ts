@@ -672,8 +672,35 @@ describe('text style menu', () => {
     await expect.poll(() => style().color).toBe('#FF3B30')
     await expect.element(menu()).toBeVisible()
     await userEvent.keyboard('{Escape}')
+    await expect
+      .poll(
+        () => browserPage.getByRole('menu', { name: 'Text colour' }).elements().length
+      )
+      .toBe(0)
+    await expect.element(menu()).toBeVisible()
+    await expect
+      .poll(focused)
+      .toBe(menu().getByRole('button', { name: 'Text colour' }).element())
     await userEvent.keyboard('{Escape}')
     await expect.poll(() => menu().elements().length).toBe(0)
     await expect.poll(focused).toBe(trigger().element())
+  })
+
+  it('the font select offers the host fonts', async () => {
+    await render(TextStyleHarness, {
+      src: fixtureUrl('text-simple'),
+      assets,
+      fonts: ['Georgia', 'Verdana'],
+    })
+    await q('.ink-page canvas')
+    await selectBox()
+    await trigger().click()
+    const font = menu().getByRole('combobox', { name: 'Font' })
+    // The selected box uses Helvetica, which the host list lacks: it stays selectable.
+    await expect
+      .poll(() => [...(font.element() as HTMLSelectElement).options].map((o) => o.value))
+      .toEqual(['Georgia', 'Verdana', 'Helvetica'])
+    await userEvent.selectOptions(font, 'Verdana')
+    await expect.poll(() => style().fontFamily).toBe('Verdana')
   })
 })

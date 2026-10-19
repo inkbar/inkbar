@@ -75,12 +75,14 @@ function Controls() {
 export function TextStyleHarness({
   src,
   assets,
+  fonts,
 }: {
   src: DocumentSource
   assets: PdfAssets
+  fonts?: string[] | undefined
 }) {
   return (
-    <InkRoot src={src} assets={assets} zoom={1}>
+    <InkRoot src={src} assets={assets} zoom={1} fonts={fonts}>
       <InkToolbar>
         <InkTextStyleMenu />
       </InkToolbar>

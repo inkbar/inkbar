@@ -950,6 +950,35 @@ describe('createViewer', () => {
       expect(focused()).toBe(trigger)
     })
 
+    const fontValues = (): string[] =>
+      [...byLabel<HTMLSelectElement>('Font').options].map((o) => o.value)
+
+    it('the font select offers the host fonts', async () => {
+      const { viewer } = make('text-simple', { fonts: ['Georgia', 'Verdana'] })
+      const trigger = createTextStyleMenu(viewer)
+      viewer.element.prepend(trigger)
+      const { doc } = await ready(viewer)
+      const tb = doc.annotations.add(box)
+      doc.annotations.select([tb.id])
+      trigger.click()
+      // The box uses Helvetica, which the host list lacks: it stays selectable.
+      expect(fontValues()).toEqual(['Georgia', 'Verdana', 'Helvetica'])
+      const font = byLabel<HTMLSelectElement>('Font')
+      font.value = 'Verdana'
+      font.dispatchEvent(new Event('change', { bubbles: true }))
+      expect(doc.annotations.get(tb.id)).toMatchObject({
+        defaultStyle: { fontFamily: 'Verdana' },
+      })
+    })
+
+    it('falls back to the built-in fonts without a host list', async () => {
+      const { trigger, doc } = await setup()
+      const tb = doc.annotations.add(box)
+      doc.annotations.select([tb.id])
+      trigger.click()
+      expect(fontValues()).toEqual(['Helvetica', 'Times', 'Courier'])
+    })
+
     it('closes when the selection clears and the control disables', async () => {
       const { trigger, doc } = await setup()
       const tb = doc.annotations.add(box)

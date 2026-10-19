@@ -8,11 +8,11 @@ import TextStyleControls from './TextStyleControls.vue'
 
 import type { DocumentSource, PdfAssets } from '@inkbar/core'
 
-defineProps<{ src: DocumentSource; assets: PdfAssets }>()
+defineProps<{ src: DocumentSource; assets: PdfAssets; fonts?: string[] }>()
 </script>
 
 <template>
-  <InkRoot :src="src" :assets="assets" :zoom="1">
+  <InkRoot :src="src" :assets="assets" :zoom="1" :fonts="fonts">
     <InkToolbar><InkTextStyleMenu /></InkToolbar>
     <div style="height: 600px; width: 900px"><InkViewport /></div>
     <TextStyleControls />

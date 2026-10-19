@@ -687,8 +687,30 @@ test.describe('text style menu', () => {
     expect((await style(page)).color).toBe('#FF3B30')
     await expect(menu).toBeVisible()
     await page.keyboard.press('Escape')
+    await expect(page.getByRole('menu', { name: 'Text colour' })).toHaveCount(0)
+    await expect(menu).toBeVisible()
+    await expect(menu.getByRole('button', { name: 'Text colour' })).toBeFocused()
     await page.keyboard.press('Escape')
     await expect(menu).toHaveCount(0)
     await expect(trigger).toBeFocused()
+  })
+
+  test('the font select offers the host fonts', async ({ mount, page }) => {
+    const cmp = await mount(TextStyleHarness, {
+      props: {
+        src: fixtureUrl('text-simple'),
+        assets,
+        fonts: ['Georgia', 'Verdana'],
+      },
+    })
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    await page.getByTestId('add-box').click()
+    await page.getByTestId('select-all').click()
+    const menu = await open(page)
+    const font = menu.getByRole('combobox', { name: 'Font' })
+    // The selected box uses Helvetica, which the host list lacks: it stays selectable.
+    await expect(font.locator('option')).toHaveText(['Georgia', 'Verdana', 'Helvetica'])
+    await font.selectOption('Verdana')
+    expect((await style(page)).fontFamily).toBe('Verdana')
   })
 })
