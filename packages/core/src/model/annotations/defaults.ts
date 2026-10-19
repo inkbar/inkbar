@@ -15,6 +15,7 @@ const COLORS: Record<AnnotationType, string> = {
   strikeout: '#C0392B',
   squiggly: '#1F7A4D',
   text: '#F2C230',
+  // Free text: the text colour (`defaultStyle.color`). A box's fill has no default.
   freetext: '#151820',
   square: '#C0392B',
   circle: '#C0392B',

@@ -31,7 +31,7 @@ import type { SelectionQuads } from '../selection'
 import type { Viewport, ViewportHit } from '../viewport'
 
 export type BuiltinToolId =
-  'select-text' | 'select' | 'highlight' | 'redact-area' | 'note' | 'shape'
+  'select-text' | 'select' | 'highlight' | 'redact-area' | 'note' | 'shape' | 'freetext'
 /** A built-in tool's id, or any id a host registers its own tool under. */
 export type ToolId = BuiltinToolId | (string & {})
 
@@ -308,6 +308,8 @@ export function isViewportEnter(e: KeyboardEvent, root: HTMLElement): boolean {
  */
 function inCustomContent(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false
+  // A free-text editor's presses and keys are its own, too.
+  if (target.closest('[data-ink-editor]')) return true
   const el = target.closest('[data-annotation]')
   return (
     el !== null &&

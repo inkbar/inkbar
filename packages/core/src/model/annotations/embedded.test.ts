@@ -131,11 +131,13 @@ describe('embedded import', () => {
       expect(ink.inklist[0]).toHaveLength(5)
       expect(ink.inklist[0]![1]).toEqual({ x: 400, y: 380 })
     }
+    // `/DA` carries the text colour and size; `/C` is the box's fill.
     expect(by('freetext')).toMatchObject({
       contents: 'Free text box',
-      fontSize: 12,
-      color: '#000000',
+      color: '#FFFFFF',
+      defaultStyle: { fontSize: 12, color: '#000000' },
     })
+    expect(by('freetext')).not.toHaveProperty('fontSize')
     shapes.doc.destroy()
   })
 

@@ -156,7 +156,20 @@ describe('theme.css', () => {
     expect(rule?.toString()).toMatch(/color:\s*var\(--ink-text-color,/)
     expect(rule?.toString()).toMatch(/opacity:\s*var\(--ink-opacity,/)
     expect(rule?.toString()).toMatch(/font-family:\s*var\(--ink-font-family,/)
-    for (const align of ['left', 'center', 'right']) {
+    for (const v of [
+      'font-weight:\\s*var\\(--ink-font-weight,',
+      'font-style:\\s*var\\(--ink-font-style,',
+      'text-decoration:\\s*var\\(--ink-text-decoration,',
+      'background:\\s*var\\(--ink-fill,',
+      'border-radius:\\s*var\\(--ink-corner-radius,',
+    ])
+      expect(rule?.toString()).toMatch(new RegExp(v))
+    const border = rules.find((r) => r.selector === ':where(.ink-free-text[data-border])')
+    expect(border?.toString()).toMatch(/var\(--ink-border-width,.*var\(--ink-border,/)
+    expect(
+      rules.some((r) => r.selector === ":where(.ink-free-text[data-border='dashed'])")
+    ).toBe(true)
+    for (const align of ['left', 'center', 'right', 'justify']) {
       expect(
         rules.some((r) => r.selector.includes(`[data-align='${align}']`)),
         align

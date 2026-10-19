@@ -109,6 +109,83 @@ describe('AnnotationSchema', () => {
     )
   })
 
+  describe('free text', () => {
+    const { quads: _q, color: _c, ...shared } = exported
+    const freetext = {
+      ...shared,
+      source: 'session',
+      type: 'freetext',
+      contents: 'Hi',
+      width: 0,
+      defaultStyle: {
+        fontFamily: 'Helvetica',
+        fontSize: 12,
+        color: '#000000',
+        textAlign: 'left',
+      },
+    }
+
+    it('validates without color: an absent fill is no fill', () => {
+      expect(AnnotationSchema.safeParse(freetext).success).toBe(true)
+      expect(AnnotationSchema.parse(freetext)).not.toHaveProperty('color')
+      expect(
+        AnnotationSchema.parse({ ...freetext, color: '#FFFF00', borderColor: '#FF0000' })
+      ).toMatchObject({ color: '#FFFF00', borderColor: '#FF0000' })
+    })
+
+    it('rejects the old top-level text style (strict)', () => {
+      expect(AnnotationSchema.safeParse({ ...freetext, fontSize: 12 }).success).toBe(
+        false
+      )
+      expect(AnnotationSchema.safeParse({ ...freetext, align: 'left' }).success).toBe(
+        false
+      )
+      expect(
+        AnnotationSchema.safeParse({
+          ...freetext,
+          defaultStyle: { ...freetext.defaultStyle, align: 'left' },
+        }).success
+      ).toBe(false)
+    })
+
+    it('takes justify, bold, italic, underline, dashes and a corner radius', () => {
+      const parsed = AnnotationSchema.parse({
+        ...freetext,
+        dashes: [3, 3],
+        cornerRadius: 4,
+        defaultStyle: {
+          ...freetext.defaultStyle,
+          textAlign: 'justify',
+          fontWeight: 'bold',
+          fontStyle: 'italic',
+          textDecoration: 'underline',
+        },
+      })
+      expect(parsed).toMatchObject({
+        dashes: [3, 3],
+        cornerRadius: 4,
+        defaultStyle: { textAlign: 'justify', fontWeight: 'bold' },
+      })
+    })
+
+    it('defaults width, font family, size and alignment', () => {
+      const { width: _w, ...noWidth } = freetext
+      const parsed = AnnotationSchema.parse({
+        ...noWidth,
+        defaultStyle: { color: '#000000' },
+      })
+      expect(parsed).toMatchObject({
+        width: 0,
+        defaultStyle: {
+          fontFamily: 'Helvetica',
+          fontSize: 12,
+          color: '#000000',
+          textAlign: 'left',
+        },
+      })
+    })
+  })
+
   it('requires quads on text markup and interiorColor on redactions', () => {
     const { quads: _q, ...noQuads } = valid
     expect(AnnotationSchema.safeParse(noQuads).success).toBe(false)

@@ -8,6 +8,7 @@ import {
   type ToolController,
   type ToolId,
 } from './controller'
+import { DEFAULT_FREETEXT_WIDTH, freetextTool } from './freetext'
 import { highlightTool } from './highlight'
 import { noteTool } from './note'
 import { redactAreaTool } from './redact-area'
@@ -28,7 +29,16 @@ export type {
 } from './controller'
 export { hitFor } from './controller'
 export { createToolOptions, type ToolOptions } from './options'
-export { highlightTool, noteTool, redactAreaTool, selectTextTool, selectTool, shapeTool }
+export {
+  DEFAULT_FREETEXT_WIDTH,
+  freetextTool,
+  highlightTool,
+  noteTool,
+  redactAreaTool,
+  selectTextTool,
+  selectTool,
+  shapeTool,
+}
 export {
   DEFAULT_CORNER_RADIUS,
   DEFAULT_SHAPE_SIZE,
@@ -46,6 +56,7 @@ export function builtinTools(): Tool[] {
     redactAreaTool(),
     noteTool(),
     shapeTool(),
+    freetextTool(),
   ]
 }
 

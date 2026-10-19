@@ -2,7 +2,7 @@
 // fields and back. Pure: no store, no DOM. A prop maps only where the type has the field, so a
 // patch for a mixed selection lands on each annotation as far as it can.
 import type { StyleGroup, StyleProps } from './tool-style'
-import type { Annotation, AnnotationType } from './types'
+import type { Annotation, AnnotationPatch, AnnotationType } from './types'
 
 type StyleKey = keyof StyleProps
 
@@ -53,8 +53,21 @@ const FIELDS: Readonly<
   strikeout: { border: 'color', opacity: 'opacity' },
   squiggly: { border: 'color', opacity: 'opacity' },
   redact: { border: 'color', opacity: 'opacity' },
-  // Free text gets its mapping with the free-text model (border box, fill, text style).
-  freetext: {},
+  // XFDF: a box's `color` is its fill; the text style lives in `defaultStyle`.
+  freetext: {
+    border: 'borderColor',
+    fill: 'color',
+    textColor: 'defaultStyle.color',
+    opacity: 'opacity',
+    width: 'width',
+    dashes: 'dashes',
+    fontFamily: 'defaultStyle.fontFamily',
+    fontSize: 'defaultStyle.fontSize',
+    fontWeight: 'defaultStyle.fontWeight',
+    fontStyle: 'defaultStyle.fontStyle',
+    textDecoration: 'defaultStyle.textDecoration',
+    textAlign: 'defaultStyle.textAlign',
+  },
   text: {},
 }
 
@@ -103,17 +116,38 @@ export function supportedProps(
 }
 
 /**
- * The field patch `patch` means on `type`. Props the type lacks are dropped. A `null` fill
- * becomes `interiorColor: undefined`, which removes the fill when the store applies it.
+ * The control values a field leaves out: `normal` weight and style, no decoration. The field
+ * is absent rather than holding them, as XFDF writes only what differs.
  */
-export function toFields(type: AnnotationType, patch: StyleProps): Partial<Annotation> {
+const UNSET: Readonly<Partial<Record<StyleKey, unknown>>> = {
+  fontWeight: 'normal',
+  fontStyle: 'normal',
+  textDecoration: 'none',
+}
+
+/** The prefix of a field nested in `defaultStyle` (free text). */
+const STYLE = 'defaultStyle.'
+
+/**
+ * The field patch `patch` means on `type`. Props the type lacks are dropped. A `null` fill
+ * becomes `interiorColor: undefined` (`color` on free text), which removes the fill when the
+ * store applies it; so does `normal` weight or style and no decoration. Free-text text props go
+ * into a partial `defaultStyle`, which the store merges into the current one.
+ */
+export function toFields(type: AnnotationType, patch: StyleProps): AnnotationPatch {
   const fields = FIELDS[type]
   const out: Record<string, unknown> = {}
   for (const key of Object.keys(patch) as StyleKey[]) {
     const field = fields[key]
     if (field === undefined) continue
-    const value = patch[key]
-    out[field] = value === null ? undefined : value
+    const raw = patch[key]
+    const value = raw === null || raw === UNSET[key] ? undefined : raw
+    if (field.startsWith(STYLE)) {
+      const style = (out.defaultStyle ??= {}) as Record<string, unknown>
+      style[field.slice(STYLE.length)] = value
+    } else {
+      out[field] = value
+    }
   }
   return out
 }
@@ -122,13 +156,17 @@ export function toFields(type: AnnotationType, patch: StyleProps): Partial<Annot
 export function fromAnnotation(a: Annotation): StyleProps {
   const fields = FIELDS[a.type]
   const record = a as unknown as Record<string, unknown>
+  const style = (record.defaultStyle ?? {}) as Record<string, unknown>
   const out: Record<string, unknown> = {}
   for (const key of Object.keys(fields) as StyleKey[]) {
     const field = fields[key] as string
-    const value = record[field]
+    const value = field.startsWith(STYLE)
+      ? style[field.slice(STYLE.length)]
+      : record[field]
     if (value !== undefined) out[key] = value
     else if (key === 'fill' || key === 'dashes') out[key] = null
     else if (key === 'head' || key === 'tail') out[key] = 'none'
+    else if (UNSET[key] !== undefined) out[key] = UNSET[key]
   }
   return out
 }

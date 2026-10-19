@@ -518,6 +518,9 @@ importers:
       '@inkbar/fixtures':
         specifier: workspace:*
         version: link:../../fixtures
+      '@inkbar/theme':
+        specifier: workspace:*
+        version: link:../theme
       '@vitest/browser-playwright':
         specifier: ^5.0.4
         version: 5.0.4(playwright@1.62.1)(vite@8.3.4(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))(vitest@5.0.4)

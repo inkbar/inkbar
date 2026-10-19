@@ -20,6 +20,7 @@
     Square,
     SquareDashedMousePointer,
     TextCursor,
+    Type,
   } from '@inkbar/icons'
   import { Toolbar } from 'bits-ui'
 
@@ -36,6 +37,7 @@
     highlight: Highlighter,
     'redact-area': Square,
     note: MessageSquare,
+    freetext: Type,
   }
 
   let {

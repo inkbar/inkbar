@@ -66,6 +66,13 @@ describe('mountViewer', () => {
     expect(engine.pages.get(0)).toBe(onPageMount.mock.calls[0]![1])
   })
 
+  it('offers the PDF standard font families unless the host passes its own', async () => {
+    const { engine } = await setup()
+    expect(engine.fonts).toEqual(['Helvetica', 'Times', 'Courier'])
+    const custom = await setup('text-simple', { fonts: ['Inter', 'Helvetica'] })
+    expect(custom.engine.fonts).toEqual(['Inter', 'Helvetica'])
+  })
+
   it('wires the tools and the viewport keys', async () => {
     const { container, engine } = await setup()
     expect(engine.tools.active.get()).toBe('select-text')

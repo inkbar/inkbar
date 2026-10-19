@@ -1,5 +1,5 @@
 import { createSnapshotHistory, InkError, openDocument } from '@inkbar/core'
-import { cssVariableDefaults, trackToolStyle } from '@inkbar/core/dom'
+import { cssVariableDefaults, FONT_FAMILIES, trackToolStyle } from '@inkbar/core/dom'
 import { Slot } from 'radix-ui'
 import {
   useCallback,
@@ -66,6 +66,11 @@ export interface InkRootProps extends Omit<
    * document opens.
    */
   tools?: Tool[] | undefined
+  /**
+   * The font families text boxes offer, replacing the PDF standard families
+   * (`FONT_FAMILIES`). Fonts beyond those are the PDF writer's to embed.
+   */
+  fonts?: string[] | undefined
   page?: number | undefined
   onPageChange?: ((page: number) => void) | undefined
   zoom?: ZoomValue | undefined
@@ -120,6 +125,7 @@ export function InkRoot({
   tool,
   onToolChange,
   tools: hostTools,
+  fonts: fontsProp,
   page,
   onPageChange,
   zoom,
@@ -375,6 +381,9 @@ export function InkRoot({
     inkHistory,
   ])
 
+  // Stable while the host passes the same list.
+  const fonts = useMemo<readonly string[]>(() => fontsProp ?? FONT_FAMILIES, [fontsProp])
+
   const ctx = useMemo<InkContext>(
     () => ({
       assets,
@@ -387,6 +396,7 @@ export function InkRoot({
       tool: internalTool,
       setTool,
       hostTools,
+      fonts,
       toolStyle: styleTracker?.toolStyle ?? null,
       zoomModel: zoom,
       pageModel: page,
@@ -409,6 +419,7 @@ export function InkRoot({
       internalTool,
       setTool,
       hostTools,
+      fonts,
       styleTracker,
       zoom,
       page,

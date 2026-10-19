@@ -20,6 +20,7 @@ import {
 } from '../model/annotations/edit'
 import { confidenceBucket, type Annotation } from '../model/annotations/types'
 
+import { editFreeTextIn, editorFor } from './freetext-editor'
 import {
   annotationBox,
   renderAnnotationContent,
@@ -240,6 +241,25 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     drawn.set(a.id, { a, t: transform })
   }
 
+  /**
+   * Opens the in-place editor on a free-text box this overlay draws. False when it cannot be
+   * edited: not free text, locked, embedded or host-rendered.
+   */
+  function edit(id: string): boolean {
+    const a = store.get(id)
+    const node = elements.get(id)
+    if (!a || !node || a.type !== 'freetext' || a.locked || a.source === 'pdf')
+      return false
+    if (opts.isCustom?.(a) === true) return false
+    if (editorFor(node)) return true
+    return editFreeTextIn(store, node, id, transform) !== undefined
+  }
+
+  /** Commits every open editor: before a redraw that would lose it, or teardown. */
+  function closeEditors(): void {
+    for (const node of elements.values()) editorFor(node)?.close(true)
+  }
+
   function activate(id: string): void {
     store.select([id])
     opts.onActivate?.(id)
@@ -367,7 +387,9 @@ export function createOverlay(opts: OverlayOptions): Overlay {
       case 'Enter':
       case ' ':
         e.preventDefault()
-        activate(id)
+        // Enter on a free-text box edits it in place.
+        if (e.key === 'Enter' && edit(id)) store.select([id])
+        else activate(id)
         break
       case 'Delete':
       case 'Backspace': {
@@ -407,6 +429,8 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     })
     node.addEventListener('pointerdown', (e) => {
       if (e.button !== 0) return
+      // Presses in a free-text editor place the caret: they are the editor's.
+      if (e.target instanceof Element && e.target.closest('[data-ink-editor]')) return
       // A press on a custom element's own content (a host's button, say) is that content's:
       // no selection, and it bubbles on to the host's delegated handlers.
       if (
@@ -424,6 +448,10 @@ export function createOverlay(opts: OverlayOptions): Overlay {
       // A tool listening on the page root must not start a drag from this press.
       e.stopPropagation()
       activate(id)
+    })
+    node.addEventListener('dblclick', (e) => {
+      if (e.target instanceof Element && e.target.closest('[data-ink-editor]')) return
+      if (edit(id)) e.preventDefault()
     })
     node.addEventListener('keydown', (e) => {
       // Keys typed in descendants (a custom element's buttons and inputs) are theirs.
@@ -455,6 +483,8 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     }
     for (const [id, node] of elements) {
       if (ids.has(id)) continue
+      // The box is gone (removed elsewhere, or undone): its edit goes with it.
+      editorFor(node)?.close(false)
       node.remove()
       elements.delete(id)
       drawn.delete(id)
@@ -469,8 +499,11 @@ export function createOverlay(opts: OverlayOptions): Overlay {
         elements.set(a.id, node)
       }
       applyAttributes(node, a)
-      applyGeometry(node, a)
-      applyContent(node, a)
+      // An open editor owns the element's content and height until it closes.
+      if (!editorFor(node)) {
+        applyGeometry(node, a)
+        applyContent(node, a)
+      }
       applyState(node, a.id)
     }
 
@@ -506,12 +539,15 @@ export function createOverlay(opts: OverlayOptions): Overlay {
   return {
     element: root,
     update(next) {
+      // The editor is laid out for the old zoom and rotation: commit it first.
+      closeEditors()
       transform = next
       render()
     },
     elementFor: (id) => elements.get(id),
     destroy() {
       if (destroyed) return
+      closeEditors()
       destroyed = true
       markupPress?.()
       offList()

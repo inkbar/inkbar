@@ -1,5 +1,9 @@
 import type { CssRect, PageTransform } from './transform'
-import type { Annotation, LineEnding } from '../model/annotations/types'
+import type {
+  Annotation,
+  FreeTextAnnotation,
+  LineEnding,
+} from '../model/annotations/types'
 import type { Point, Quad } from '../model/geometry'
 
 const SVG = 'http://www.w3.org/2000/svg'
@@ -215,16 +219,11 @@ export function renderAnnotationContent(
     return
   }
   if (a.type === 'freetext') {
-    // HTML rather than SVG <text>: a text box must wrap, and SVG text does not. Font size,
-    // colour and opacity travel as custom properties the theme reads; alignment as an attribute.
+    // HTML rather than SVG <text>: a text box must wrap, and SVG text does not.
     const text = doc.createElement('div')
     text.className = 'ink-free-text'
     text.textContent = a.contents
-    text.dataset.align = a.align
-    text.style.setProperty('--ink-font-size', `${t.toCssLength(a.fontSize)}px`)
-    text.style.setProperty('--ink-text-color', a.color)
-    text.style.setProperty('--ink-opacity', String(a.opacity))
-    text.style.setProperty('--ink-font-family', cssString(a.fontFamily))
+    styleFreeText(text, a, t)
     // Structural: the element itself ignores the pointer, the text box takes it.
     text.style.pointerEvents = 'auto'
     el.append(text)
@@ -365,6 +364,44 @@ export function renderAnnotationContent(
   // Hits follow the painted shape, so a press beside it reaches the text layer underneath.
   for (const shape of svg.children) shape.setAttribute('pointer-events', 'visiblePainted')
   el.append(svg)
+}
+
+/**
+ * Styles a free-text box (`.ink-free-text`) from its annotation, as the theme reads it: the text
+ * style, fill, border colour and width, corner radius and opacity travel as custom properties
+ * (`--ink-font-size`, `--ink-font-family`, `--ink-font-weight`, `--ink-font-style`,
+ * `--ink-text-decoration`, `--ink-text-color`, `--ink-fill`, `--ink-border`,
+ * `--ink-border-width`, `--ink-corner-radius`, `--ink-opacity`); alignment as `data-align`,
+ * and a border as `data-border` (`solid` or `dashed`, absent at width 0). Lengths are scaled to
+ * CSS px. Shared by the overlay and the in-place editor, so both look the same.
+ */
+export function styleFreeText(
+  node: HTMLElement,
+  a: FreeTextAnnotation,
+  t: PageTransform
+): void {
+  const s = a.defaultStyle
+  const set = (name: string, value: string | undefined): void => {
+    if (value === undefined) node.style.removeProperty(name)
+    else node.style.setProperty(name, value)
+  }
+  set('--ink-font-size', `${t.toCssLength(s.fontSize)}px`)
+  set('--ink-font-family', cssString(s.fontFamily))
+  set('--ink-font-weight', s.fontWeight)
+  set('--ink-font-style', s.fontStyle)
+  set('--ink-text-decoration', s.textDecoration)
+  set('--ink-text-color', s.color)
+  set('--ink-fill', a.color)
+  set('--ink-border', a.borderColor)
+  set('--ink-border-width', a.width > 0 ? `${t.toCssLength(a.width)}px` : undefined)
+  set(
+    '--ink-corner-radius',
+    a.cornerRadius ? `${t.toCssLength(a.cornerRadius)}px` : undefined
+  )
+  set('--ink-opacity', String(a.opacity))
+  node.dataset.align = s.textAlign
+  if (a.width > 0) node.dataset.border = a.dashes?.length ? 'dashed' : 'solid'
+  else delete node.dataset.border
 }
 
 /** Sets `stroke-dasharray` from a dash pattern in points, scaled to CSS px. */

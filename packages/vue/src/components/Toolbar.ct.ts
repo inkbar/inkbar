@@ -44,6 +44,25 @@ test('tool buttons reflect and set the active tool with aria-pressed and v-model
   )
 })
 
+test('the text tool button is named Text, shows its icon and picks the text box tool', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(Harness, { props: { src: fixtureUrl('text-simple'), assets } })
+  await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+  const text = page
+    .getByRole('toolbar', { name: 'Document tools' })
+    .getByRole('button', { name: 'Text', exact: true })
+  await expect(text).toHaveAttribute('data-tool', 'freetext')
+  await expect(text.locator('svg')).toHaveCount(1)
+  await text.click()
+  await expect(text).toHaveAttribute('aria-pressed', 'true')
+  await expect(cmp.locator('[data-ink-scroll]')).toHaveAttribute(
+    'data-ink-tool',
+    'freetext'
+  )
+})
+
 test('every toolbar control has an accessible name', async ({ mount, page }) => {
   const cmp = await mount(Harness, { props: { src: fixtureUrl('text-simple'), assets } })
   await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
@@ -54,6 +73,7 @@ test('every toolbar control has an accessible name', async ({ mount, page }) => 
     'Highlight',
     'Mark for redaction',
     'Add note',
+    'Text',
     'Line style',
     'Border colour',
     'Fill colour',
@@ -413,7 +433,7 @@ test.describe('colour menus', () => {
     await selectNew(page, 'add-line')
     await expect(page.getByRole('button', { name: 'Border colour' })).toBeEnabled()
     await expect(page.getByRole('button', { name: 'Fill colour' })).toBeDisabled()
-    // Text colour is mapped by no annotation yet.
+    // A line has no text.
     await expect(page.getByRole('button', { name: 'Text colour' })).toBeDisabled()
   })
 

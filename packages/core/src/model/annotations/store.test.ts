@@ -161,6 +161,50 @@ describe('AnnotationStore (uncontrolled)', () => {
     expect(s.update('missing', { contents: 'x' })).toBeUndefined()
   })
 
+  it('fills a free-text box text colour from the defaults and leaves it unfilled', () => {
+    const a = store().add({
+      type: 'freetext',
+      page: 0,
+      rect: { x: 0, y: 0, width: 20, height: 20 },
+      contents: 'hi',
+    })
+    expect(a).not.toHaveProperty('color')
+    expect(a).toMatchObject({
+      width: 0,
+      defaultStyle: {
+        color: staticDefaults.color('freetext'),
+        fontFamily: 'Helvetica',
+        fontSize: 12,
+        textAlign: 'left',
+      },
+    })
+  })
+
+  it('merges a defaultStyle patch one level deep', () => {
+    const s = store()
+    const a = s.add({
+      type: 'freetext',
+      page: 0,
+      rect: { x: 0, y: 0, width: 20, height: 20 },
+      contents: 'hi',
+      defaultStyle: { fontSize: 18, color: '#123456' },
+    })
+    const b = s.update(a.id, { defaultStyle: { fontWeight: 'bold' } })
+    expect(b).toMatchObject({
+      defaultStyle: {
+        fontSize: 18,
+        color: '#123456',
+        fontFamily: 'Helvetica',
+        textAlign: 'left',
+        fontWeight: 'bold',
+      },
+    })
+    // An `undefined` key in the patch removes it.
+    const c = s.update(a.id, { defaultStyle: { fontWeight: undefined } })
+    expect(c && 'defaultStyle' in c && c.defaultStyle).not.toHaveProperty('fontWeight')
+    expect(c).toMatchObject({ defaultStyle: { fontSize: 18 } })
+  })
+
   it('refuses to move a locked annotation but allows selecting it', () => {
     const s = store()
     const a = s.add({

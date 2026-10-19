@@ -5,6 +5,7 @@ import {
   Square,
   SquareDashedMousePointer,
   TextCursor,
+  Type,
 } from '@inkbar/icons'
 import { Toolbar } from 'radix-ui'
 
@@ -22,6 +23,7 @@ const ICONS: Readonly<Partial<Record<ToolId, IconNode>>> = {
   highlight: Highlighter,
   'redact-area': Square,
   note: MessageSquare,
+  freetext: Type,
 }
 
 export interface InkToolButtonProps extends Omit<

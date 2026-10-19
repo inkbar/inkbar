@@ -17,6 +17,7 @@ import {
   type ToolController,
   type ToolId,
 } from './tools'
+import { FONT_FAMILIES } from './ui'
 import { createViewport, type Viewport, type ZoomValue } from './viewport'
 import { attachViewportKeys } from './viewport-keys'
 
@@ -55,6 +56,11 @@ export interface MountViewerOptions {
    * makes one over the document's history.
    */
   toolStyle?: ToolStyle
+  /**
+   * The font families text boxes offer, replacing the default `FONT_FAMILIES` (the PDF
+   * standard families). Fonts beyond those are the PDF writer's to embed.
+   */
+  fonts?: string[]
   /** Annotation content is rendered by the host (custom slots). Changing it needs `rebuild`. */
   customAnnotations?: boolean
   onActivate?(id: string): void
@@ -89,6 +95,8 @@ export interface ViewerEngine {
    * long as the engine, across rebuilds.
    */
   readonly toolStyle: ToolStyle
+  /** The font families text boxes offer: the `fonts` option, else `FONT_FAMILIES`. */
+  readonly fonts: readonly string[]
   readonly pages: ReadonlyMap<number, PageMount>
   /**
    * Recreates the viewport for construction-only options, keeping zoom, page, mode, rotation
@@ -306,6 +314,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       return tools
     },
     toolStyle,
+    fonts: opts.fonts ? [...opts.fonts] : FONT_FAMILIES,
     pages,
     rebuild(next) {
       if (destroyed) return

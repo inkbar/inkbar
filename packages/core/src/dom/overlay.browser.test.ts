@@ -1,3 +1,4 @@
+import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { staticDefaults } from '../model/annotations/defaults'
@@ -361,8 +362,7 @@ describe('createOverlay', () => {
       page: 0,
       rect: { x: 100, y: 100, width: 200, height: 50 },
       contents: 'Hello',
-      fontSize: 12,
-      align: 'center',
+      defaultStyle: { fontSize: 12, textAlign: 'center' },
     })
     const text = overlay.elementFor(a.id)!.querySelector('.ink-free-text') as HTMLElement
     expect(text.textContent).toBe('Hello')
@@ -371,6 +371,65 @@ describe('createOverlay', () => {
     expect(text.style.textAlign).toBe('')
     expect(text.dataset.align).toBe('center')
     expect(text.style.getPropertyValue('--ink-font-family')).toBe('"Helvetica"')
+    expect(text.style.getPropertyValue('--ink-text-color')).toBe(
+      staticDefaults.color('freetext')
+    )
+  })
+
+  it('freetext renders fill, border, dashes and defaultStyle (bold, italic, underline, justify)', () => {
+    const style = document.createElement('style')
+    style.textContent = themeCss
+    document.head.append(style)
+    cleanup.push(() => style.remove())
+    const { store, overlay } = setup(2)
+    const a = store.add({
+      type: 'freetext',
+      page: 0,
+      rect: { x: 100, y: 100, width: 200, height: 50 },
+      contents: 'Styled',
+      color: '#FFFF00',
+      borderColor: '#FF0000',
+      width: 2,
+      dashes: [3, 3],
+      cornerRadius: 4,
+      defaultStyle: {
+        color: '#0000FF',
+        textAlign: 'justify',
+        fontWeight: 'bold',
+        fontStyle: 'italic',
+        textDecoration: 'underline',
+      },
+    })
+    const text = overlay.elementFor(a.id)!.querySelector('.ink-free-text') as HTMLElement
+    const cs = getComputedStyle(text)
+    expect(cs.backgroundColor).toBe('rgb(255, 255, 0)')
+    expect(cs.borderTopColor).toBe('rgb(255, 0, 0)')
+    expect(cs.borderTopWidth).toBe('4px')
+    expect(cs.borderTopStyle).toBe('dashed')
+    expect(cs.borderTopLeftRadius).toBe('8px')
+    expect(cs.color).toBe('rgb(0, 0, 255)')
+    expect(cs.fontWeight).toBe('700')
+    expect(cs.fontStyle).toBe('italic')
+    expect(cs.textDecorationLine).toBe('underline')
+    expect(cs.textAlign).toBe('justify')
+    expect(cs.boxSizing).toBe('border-box')
+
+    // No fill, no border, no text style: transparent, borderless, normal.
+    const plain = store.add({
+      type: 'freetext',
+      page: 0,
+      rect: { x: 100, y: 300, width: 200, height: 50 },
+      contents: 'Plain',
+    })
+    const p = getComputedStyle(
+      overlay.elementFor(plain.id)!.querySelector('.ink-free-text') as HTMLElement
+    )
+    expect(p.backgroundColor).toBe('rgba(0, 0, 0, 0)')
+    expect(p.borderTopStyle).toBe('none')
+    expect(p.fontWeight).toBe('400')
+    expect(p.fontStyle).toBe('normal')
+    expect(p.textDecorationLine).toBe('none')
+    expect(p.textAlign).toBe('left')
   })
 
   it('destroy removes the container and stops listening', () => {

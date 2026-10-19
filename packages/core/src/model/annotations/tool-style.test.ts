@@ -172,4 +172,31 @@ describe('createToolStyle', () => {
     expect(resolved.color).toBe('#111111')
     expect('interiorColor' in resolved).toBe(false)
   })
+
+  it('resolve and set reach a free-text box text style through the text group', () => {
+    const { store, style } = setup('text')
+    style.set({ fontWeight: 'bold', textColor: '#FF0000', fill: '#FFFF00' })
+    const input: AnnotationInput = {
+      type: 'freetext',
+      page: 0,
+      rect,
+      contents: 'Hi',
+      defaultStyle: { fontSize: 20 },
+    }
+    const a = store.add(style.resolve('text', input))
+    expect(a).toMatchObject({
+      color: '#FFFF00',
+      defaultStyle: { fontSize: 20, fontWeight: 'bold', color: '#FF0000' },
+    })
+    store.select([a.id])
+    style.set({ fontWeight: 'normal', textAlign: 'center' })
+    const b = store.get(a.id)
+    expect(b).toMatchObject({ defaultStyle: { fontSize: 20, textAlign: 'center' } })
+    expect(b && 'defaultStyle' in b && b.defaultStyle).not.toHaveProperty('fontWeight')
+    expect(style.current.get()).toMatchObject({
+      fontWeight: 'normal',
+      textColor: '#FF0000',
+    })
+    expect(style.supported.get().has('textColor')).toBe(true)
+  })
 })

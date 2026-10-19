@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { userEvent } from 'vitest/browser'
 
 import { readonly, writable } from '../model/readable'
 
@@ -14,6 +15,7 @@ import {
 import {
   builtinTools,
   createToolController,
+  DEFAULT_FREETEXT_WIDTH,
   trackToolStyle,
   type Tool,
   type ToolController,
@@ -35,6 +37,7 @@ afterAll(() => style.remove())
 const cleanup: (() => void)[] = []
 afterEach(() => cleanup.splice(0).forEach((f) => f()))
 
+import type { AnnotationChange } from '../model/annotations/store'
 import type { Annotation } from '../model/annotations/types'
 import type { InkDocument } from '../model/document'
 
@@ -464,6 +467,26 @@ describe('controlled mode', () => {
     expect(n?.type).toBe('text')
     expect(doc.annotations.selection.get()).toEqual([n!.id])
     expect(onActivate).toHaveBeenCalledWith(n!.id)
+  })
+
+  it('freetext: placing and committing a box go through onChange', async () => {
+    const { doc, container, viewport, tools } = await setup('text-simple', {
+      controlled: true,
+    })
+    tools.set('freetext')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointerup', h.left + 100, h.top + 100)
+    expect(doc.annotations.list.get()).toEqual([])
+    // The editor opens once the host has applied the new box.
+    await until(() => container.querySelector('[data-ink-editor]') !== null)
+    const [box] = doc.annotations.list.get()
+    expect(box).toMatchObject({ type: 'freetext', contents: '' })
+    expect(doc.annotations.selection.get()).toEqual([box!.id])
+    expect(document.activeElement).toBe(container.querySelector('[data-ink-editor]'))
+    await userEvent.keyboard('Hello{Escape}')
+    await settle()
+    expect(doc.annotations.get(box!.id)).toMatchObject({ contents: 'Hello' })
   })
 
   it('select: Delete removes every selected annotation', async () => {
@@ -1132,6 +1155,197 @@ describe('shape tool', () => {
     const [sq] = doc.annotations.list.get()
     expect(sq?.type).toBe('square')
     expect(doc.annotations.selection.get()).toEqual([sq!.id])
+  })
+})
+
+describe('freetext tool', () => {
+  const session = (doc: InkDocument) =>
+    doc.annotations.list.get().filter((a) => a.source === 'session')
+  const editorIn = (root: Element) => root.querySelector<HTMLElement>('[data-ink-editor]')
+  const enter = (el: Element) =>
+    el.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+    )
+
+  it('is a built-in tool in the text style group, labelled Text', () => {
+    const tool = builtinTools().find((t) => t.id === 'freetext')
+    expect(tool?.styleGroup).toBe('text')
+    expect(TOOL_LABELS.freetext).toBe('Text')
+  })
+
+  it('click places a box and focuses an editor', async () => {
+    const { doc, container, viewport, tools, toolStyle } = await setup('cropbox-offset')
+    tools.set('freetext')
+    toolStyle.set({ textColor: '#FF0000', fontWeight: 'bold' }, { group: 'text' })
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointerup', h.left + 100, h.top + 100)
+    const [box] = session(doc)
+    expect(box).toMatchObject({
+      type: 'freetext',
+      contents: '',
+      defaultStyle: { color: '#FF0000', fontWeight: 'bold' },
+    })
+    // CropBox [50 50 550 750]: css (100,100) is user (150, 650), the box's top-left corner.
+    expect(box!.rect.x).toBeCloseTo(150)
+    expect(box!.rect.y + box!.rect.height).toBeCloseTo(650)
+    expect(box!.rect.width).toBe(DEFAULT_FREETEXT_WIDTH)
+    expect(doc.annotations.selection.get()).toEqual([box!.id])
+    const editor = editorIn(container)
+    expect(editor).not.toBeNull()
+    expect(document.activeElement).toBe(editor)
+  })
+
+  it('drag sizes the box', async () => {
+    const { doc, container, viewport, tools } = await setup('cropbox-offset')
+    tools.set('freetext')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointermove', h.left + 260, h.top + 160)
+    expect(container.querySelector('[data-ink-draft="freetext"]')).not.toBeNull()
+    pointer(container, 'pointerup', h.left + 260, h.top + 160)
+    expect(container.querySelector('[data-ink-draft]')).toBeNull()
+    const [box] = session(doc)
+    expect(box!.rect).toEqual({ x: 150, y: 590, width: 160, height: 60 })
+    expect(document.activeElement).toBe(editorIn(container))
+  })
+
+  it('typing grows the box height and commits on Escape', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('freetext')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointerup', h.left + 100, h.top + 100)
+    const [placed] = session(doc)
+    const el = container.querySelector<HTMLElement>(`[data-annotation="${placed!.id}"]`)!
+    const startHeight = parseFloat(el.style.height)
+    await userEvent.keyboard('one{Enter}two{Enter}three')
+    await until(() => parseFloat(el.style.height) > startHeight)
+    const changes: AnnotationChange[] = []
+    cleanup.push(doc.annotations.on('change', (c) => changes.push(c)))
+    await userEvent.keyboard('{Escape}')
+    expect(changes).toHaveLength(1)
+    const [change] = changes
+    expect(change?.kind).toBe('update')
+    if (change?.kind !== 'update') return
+    expect(change.after).toMatchObject({ contents: 'one\ntwo\nthree' })
+    expect(change.after.rect.height).toBeGreaterThan(placed!.rect.height * 2)
+    expect(change.after.rect.y + change.after.rect.height).toBeCloseTo(
+      placed!.rect.y + placed!.rect.height
+    )
+    expect(editorIn(container)).toBeNull()
+    expect(el.querySelector('.ink-free-text')?.textContent).toBe('one\ntwo\nthree')
+    // Creating and typing are two undo steps: undo takes the text back off, then the box.
+    doc.history.undo()
+    expect(session(doc)[0]).toMatchObject({ contents: '' })
+  })
+
+  it('empty box is removed on commit', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('freetext')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointerup', h.left + 100, h.top + 100)
+    expect(session(doc)).toHaveLength(1)
+    await userEvent.keyboard('   {Escape}')
+    expect(session(doc)).toEqual([])
+  })
+
+  it('a press on the page while editing commits without placing another box', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('freetext')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointerup', h.left + 100, h.top + 100)
+    await userEvent.keyboard('Hi')
+    pointer(container, 'pointerdown', h.left + 300, h.top + 500)
+    pointer(container, 'pointerup', h.left + 300, h.top + 500)
+    expect(session(doc)).toHaveLength(1)
+    expect(session(doc)[0]).toMatchObject({ contents: 'Hi' })
+    expect(editorIn(container)).toBeNull()
+  })
+
+  it('double-click a freetext edits it; Enter on a selected freetext edits it', async () => {
+    const { doc, container, tools } = await setup()
+    tools.set('select-text')
+    const a = doc.annotations.add({
+      type: 'freetext',
+      page: 0,
+      rect: { x: 100, y: 600, width: 144, height: 20 },
+      contents: 'Hi',
+    })
+    const el = container.querySelector<HTMLElement>(`[data-annotation="${a.id}"]`)!
+    const box = el.querySelector('.ink-free-text')!
+    box.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, detail: 2 }))
+    expect(editorIn(el)?.textContent).toBe('Hi')
+    expect(document.activeElement).toBe(editorIn(el))
+    // Escape commits nothing new and hands focus back to the box.
+    await userEvent.keyboard('{Escape}')
+    expect(editorIn(el)).toBeNull()
+    expect(doc.annotations.get(a.id)).toBe(a)
+    expect(document.activeElement).toBe(el)
+    doc.annotations.select([a.id])
+    await userEvent.keyboard('{Enter}')
+    expect(editorIn(el)?.textContent).toBe('Hi')
+    await userEvent.keyboard('{End}!{Escape}')
+    expect(doc.annotations.get(a.id)).toMatchObject({ contents: 'Hi!' })
+  })
+
+  it('does not edit a locked freetext', async () => {
+    const { doc, container } = await setup()
+    const a = doc.annotations.add({
+      type: 'freetext',
+      page: 0,
+      rect: { x: 100, y: 600, width: 144, height: 20 },
+      contents: 'Hi',
+    })
+    doc.annotations.update(a.id, { locked: true })
+    const el = container.querySelector<HTMLElement>(`[data-annotation="${a.id}"]`)!
+    el.querySelector('.ink-free-text')!.dispatchEvent(
+      new MouseEvent('dblclick', { bubbles: true, detail: 2 })
+    )
+    expect(editorIn(el)).toBeNull()
+  })
+
+  it('Enter with the tool active places a box at the page centre and edits', async () => {
+    const { doc, container, viewport, tools } = await setup('cropbox-offset')
+    tools.set('freetext')
+    container.tabIndex = 0
+    container.focus()
+    enter(container)
+    const [box] = session(doc)
+    const t = viewport.transformFor(0)
+    const c = t.toCssRect(box!.rect)
+    const pb = t.page.box
+    const middle = t.toCss({ x: pb.x + pb.width / 2, y: pb.y + pb.height / 2 })
+    expect(c.left + c.width / 2).toBeCloseTo(middle.x)
+    expect(c.top + c.height / 2).toBeCloseTo(middle.y)
+    expect(document.activeElement).toBe(editorIn(container))
+  })
+
+  it('editing works on the rotated fixture', async () => {
+    const { doc, container, viewport, tools } = await setup('text-rotated-90')
+    tools.set('freetext')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointermove', h.left + 260, h.top + 140)
+    pointer(container, 'pointerup', h.left + 260, h.top + 140)
+    const [placed] = session(doc)
+    const t = viewport.transformFor(0)
+    // A 160 x 40 css drag on a page rotated 90 degrees is 40 x 160 in user space.
+    expect(placed!.rect.width).toBeCloseTo(40)
+    expect(placed!.rect.height).toBeCloseTo(160)
+    const el = container.querySelector<HTMLElement>(`[data-annotation="${placed!.id}"]`)!
+    await userEvent.keyboard('one{Enter}two{Enter}three{Enter}four')
+    await until(() => parseFloat(el.style.height) > 40)
+    await userEvent.keyboard('{Escape}')
+    const [box] = session(doc)
+    expect(box).toMatchObject({ contents: 'one\ntwo\nthree\nfour' })
+    const back = t.toCssRect(box!.rect)
+    expect(back.left).toBeCloseTo(100)
+    expect(back.top).toBeCloseTo(100)
+    expect(back.width).toBeCloseTo(160)
+    expect(back.height).toBeGreaterThan(40)
   })
 })
 

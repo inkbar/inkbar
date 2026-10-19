@@ -61,18 +61,47 @@ export const NoteSchema = Base.extend({
     .default('comment'),
 })
 
-export const FreeTextSchema = Base.extend({
+/** Dash pattern in points, on then off, repeating. Absent means solid. */
+const DashesSchema = z.array(z.number().nonnegative()).min(1).optional()
+
+/**
+ * A free-text box's text style, keyed by the CSS property names XFDF writes in its
+ * `defaultstyle` string.
+ */
+export const FreeTextStyleSchema = z.strictObject({
+  fontFamily: z.string().min(1).default('Helvetica'),
+  /** Points. */
+  fontSize: z.number().positive().default(12),
+  /** The text colour. */
+  color: Hex,
+  textAlign: z.enum(['left', 'center', 'right', 'justify']).default('left'),
+  fontWeight: z.literal('bold').optional(),
+  fontStyle: z.literal('italic').optional(),
+  textDecoration: z.literal('underline').optional(),
+})
+
+/**
+ * Free text, as XFDF has it: `color` is the box's fill and the text style lives in
+ * `defaultStyle`. Strict, so a box in the older shape (top-level `fontSize`, `align`) is
+ * rejected rather than silently losing its style.
+ */
+export const FreeTextSchema = z.strictObject({
+  ...Base.shape,
   type: z.literal('freetext'),
   /** The text shown on the page. */
   contents: z.string(),
-  fontSize: z.number().positive().default(12),
-  fontFamily: z.string().default('Helvetica'),
-  align: z.enum(['left', 'center', 'right']).default('left'),
+  /** The box's fill (XFDF `color`). Absent means no fill. */
+  color: Hex.optional(),
+  /** The border's colour. An extension, not XFDF. */
+  borderColor: Hex.optional(),
+  /** The border's width in points; 0 draws no border. */
+  width: z.number().nonnegative().default(0),
+  dashes: DashesSchema,
+  /** Points. An extension, not XFDF. */
+  cornerRadius: z.number().nonnegative().optional(),
+  defaultStyle: FreeTextStyleSchema,
   callout: z.array(PointSchema).min(2).max(3).optional(),
 })
-
-/** Dash pattern in points, on then off, repeating. Absent means solid. */
-const DashesSchema = z.array(z.number().nonnegative()).min(1).optional()
 
 export const ShapeSchema = Base.extend({
   type: z.enum(['square', 'circle']),
@@ -175,6 +204,7 @@ export type AnnotationOfType<T extends AnnotationType> = Extract<Annotation, { t
 export type TextMarkupAnnotation = z.infer<typeof TextMarkupSchema>
 export type NoteAnnotation = z.infer<typeof NoteSchema>
 export type FreeTextAnnotation = z.infer<typeof FreeTextSchema>
+export type FreeTextStyle = z.infer<typeof FreeTextStyleSchema>
 export type ShapeAnnotation = z.infer<typeof ShapeSchema>
 export type LineAnnotation = z.infer<typeof LineSchema>
 export type PolyAnnotation = z.infer<typeof PolySchema>
@@ -182,6 +212,15 @@ export type InkAnnotation = z.infer<typeof InkSchema>
 export type RedactAnnotation = z.infer<typeof RedactSchema>
 export type Suggestion = z.infer<typeof SuggestionSchema>
 export type LineEnding = z.infer<typeof LineEndingSchema>
+/**
+ * What `update` takes: any of a type's fields. A free-text `defaultStyle` may be partial; it
+ * merges into the current one.
+ */
+export type AnnotationPatch = Annotation extends infer A
+  ? A extends FreeTextAnnotation
+    ? Omit<Partial<A>, 'defaultStyle'> & { defaultStyle?: Partial<FreeTextStyle> }
+    : Partial<A>
+  : never
 // Point, Rect and Quad types come from ../geometry; the zod schemas above match them structurally.
 
 /** Keys the store fills in; callers never supply them (except an optional `id`). */
@@ -194,6 +233,12 @@ type InputOf<I> = I extends unknown
   ? Omit<I, Generated | Defaulted> &
       Partial<Pick<I, Extract<Defaulted, keyof I>>> & { id?: string }
   : never
+
+type FreeTextInput = z.input<typeof FreeTextSchema>
+/** Free text may leave out `defaultStyle`, or any of its keys: the store fills the text colour. */
+type FreeTextCallerInput = Omit<InputOf<FreeTextInput>, 'defaultStyle'> & {
+  defaultStyle?: Partial<z.input<typeof FreeTextStyleSchema>>
+}
 
 type RedactInput = z.input<typeof RedactSchema>
 type RedactBase = Omit<InputOf<RedactInput>, 'interiorColor' | 'rect' | 'quads'> & {
@@ -209,18 +254,19 @@ type RedactCallerInput =
 /**
  * What callers pass to `add`. Built from zod input types, so fields with defaults or
  * optional fields may be omitted. A redaction needs `rect` or `quads` (the store
- * derives the other), and `interiorColor` defaults to the store's redaction colour.
+ * derives the other), and `interiorColor` defaults to the store's redaction colour. Free text
+ * may leave out `defaultStyle`; its text colour defaults to the store's free-text colour.
  */
 export type AnnotationInput =
   | InputOf<
       | z.input<typeof TextMarkupSchema>
       | z.input<typeof NoteSchema>
-      | z.input<typeof FreeTextSchema>
       | z.input<typeof ShapeSchema>
       | z.input<typeof LineSchema>
       | z.input<typeof PolySchema>
       | z.input<typeof InkSchema>
     >
+  | FreeTextCallerInput
   | RedactCallerInput
 
 export const AnnotationDocumentSchema = z.object({
