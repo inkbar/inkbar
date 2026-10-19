@@ -69,6 +69,9 @@ const FIELDS: Readonly<
     textDecoration: 'defaultStyle.textDecoration',
     textAlign: 'defaultStyle.textAlign',
   },
+  // The rim is the outline; the inside is the magnified page, so there is no fill, and the
+  // rim is drawn solid.
+  loupe: { border: 'color', opacity: 'opacity', width: 'width' },
   text: {},
   // An image, signatures among them: the style controls have nothing to change on it.
   stamp: {},
@@ -80,6 +83,7 @@ const GROUPS: Readonly<Record<AnnotationType, StyleGroup | undefined>> = {
   line: 'shape',
   polyline: 'shape',
   polygon: 'shape',
+  loupe: 'shape',
   ink: 'ink',
   freetext: 'text',
   highlight: 'markup',

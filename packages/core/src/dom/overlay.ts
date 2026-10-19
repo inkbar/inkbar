@@ -24,6 +24,7 @@ import { withoutReplies } from '../model/annotations/threads'
 import { confidenceBucket, type Annotation } from '../model/annotations/types'
 
 import { canEditFreeText, editFreeTextIn, editorFor } from './freetext-editor'
+import { createLoupeLayer } from './loupe-layer'
 import {
   annotationBox,
   hasComment,
@@ -35,6 +36,7 @@ import {
 
 import type { PageTransform } from './transform'
 import type { AnnotationStore } from '../model/annotations/store'
+import type { InkDocument } from '../model/document'
 import type { Point } from '../model/geometry'
 
 export interface OverlayOptions {
@@ -47,6 +49,13 @@ export interface OverlayOptions {
   onActivate?(id: string): void
   /** Return true to render only the positioned shell; the host (e.g. a Vue slot) fills it. */
   isCustom?(annotation: Annotation): boolean
+  /**
+   * The document the page belongs to. Loupes magnify its page content; without it they show
+   * only their rim.
+   */
+  document?: InkDocument
+  /** Fixed device pixel ratio for loupes; `window.devicePixelRatio` when omitted. */
+  devicePixelRatio?: number
 }
 
 export interface Overlay {
@@ -92,6 +101,7 @@ const LABELS: Record<Annotation['type'], string> = {
   polygon: 'Polygon',
   ink: 'Drawing',
   stamp: 'Stamp',
+  loupe: 'Loupe',
   redact: 'Redaction',
 }
 
@@ -139,6 +149,14 @@ export function createOverlay(opts: OverlayOptions): Overlay {
   opts.host.append(root)
 
   const elements = new Map<string, HTMLElement>()
+  const loupes = opts.document
+    ? createLoupeLayer({
+        document: opts.document,
+        ...(opts.devicePixelRatio === undefined
+          ? {}
+          : { devicePixelRatio: opts.devicePixelRatio }),
+      })
+    : undefined
   /** What each element's content was last drawn from; absent when it has none of ours. */
   const drawn = new Map<string, { a: Annotation; t: PageTransform }>()
   const hovered = new Set<string>()
@@ -240,6 +258,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     node.style.pointerEvents = custom ? 'auto' : 'none'
     // Custom elements are the host's to fill: draw nothing.
     if (custom) {
+      loupes?.drop(a.id)
       if (drawn.delete(a.id)) node.replaceChildren()
       return
     }
@@ -249,6 +268,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     // invisible hit area.
     if (a.source === 'pdf') renderHitArea(node, a, transform)
     else renderAnnotationContent(node, a, transform)
+    if (a.type === 'loupe') loupes?.attach(node, a, transform)
     drawn.set(a.id, { a, t: transform })
   }
 
@@ -498,6 +518,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
       // The box is gone (removed elsewhere, or undone): its edit goes with it.
       editorFor(node)?.close(false)
       node.remove()
+      loupes?.drop(id)
       elements.delete(id)
       drawn.delete(id)
       hovered.delete(id)
@@ -572,6 +593,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
       offList()
       offSelection()
       toolObserver?.disconnect()
+      loupes?.destroy()
       root.remove()
       elements.clear()
       drawn.clear()

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   constrain,
   DEFAULT_SHAPE_OPTIONS,
+  isPointerOnlyKind,
   polygonVertices,
   SHAPE_KINDS,
   shapeInput,
@@ -114,8 +115,33 @@ describe('shapeInput', () => {
     expect(SHAPE_KINDS.indexOf('bubble')).toBe(SHAPE_KINDS.indexOf('ellipse') + 1)
   })
 
+  it('makes a loupe a square on the drag, sized by its longer side, at 2x', () => {
+    // b is 40 right and 60 up of a: the square takes the 60 and keeps the drag's direction.
+    expect(make('loupe')).toEqual({
+      type: 'loupe',
+      page: 2,
+      rect: { x: 10, y: 20, width: 60, height: 60 },
+      magnification: 2,
+    })
+    expect(shapeInput('loupe', 0, b, a, DEFAULT_SHAPE_OPTIONS)).toMatchObject({
+      rect: { x: -10, y: 20, width: 60, height: 60 },
+    })
+  })
+
+  it('offers the loupe after the polygon', () => {
+    expect(SHAPE_KINDS.indexOf('loupe')).toBe(SHAPE_KINDS.indexOf('polygon') + 1)
+  })
+
   it('has no creator for the kinds later tasks add', () => {
-    expect(make('loupe')).toBeUndefined()
     expect(make('mask')).toBeUndefined()
+  })
+})
+
+describe('isPointerOnlyKind', () => {
+  it('is true for the loupe and the mask only, which Enter does not place', () => {
+    expect(isPointerOnlyKind('loupe')).toBe(true)
+    expect(isPointerOnlyKind('mask')).toBe(true)
+    expect(isPointerOnlyKind('rectangle')).toBe(false)
+    expect(isPointerOnlyKind('bubble')).toBe(false)
   })
 })

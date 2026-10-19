@@ -73,6 +73,10 @@ export function createPageMount(opts: PageMountOptions): PageMount {
     page,
     store: opts.store,
     transform,
+    document,
+    ...(opts.devicePixelRatio === undefined
+      ? {}
+      : { devicePixelRatio: opts.devicePixelRatio }),
     ...(opts.onActivate ? { onActivate: (id: string) => opts.onActivate?.(id) } : {}),
     ...(opts.isCustom
       ? { isCustom: (a: Annotation) => opts.isCustom?.(a) === true }

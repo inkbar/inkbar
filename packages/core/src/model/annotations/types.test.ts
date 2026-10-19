@@ -294,6 +294,35 @@ describe('AnnotationSchema', () => {
     })
   })
 
+  describe('loupe', () => {
+    const loupe = {
+      ...valid,
+      type: 'loupe',
+      quads: undefined,
+      rect: { x: 100, y: 500, width: 72, height: 72 },
+    }
+
+    it('defaults magnification to 2 and the rim width to 2', () => {
+      expect(AnnotationSchema.parse(loupe)).toMatchObject({
+        type: 'loupe',
+        magnification: 2,
+        width: 2,
+      })
+    })
+
+    it('takes a magnification above 1 and a non-negative rim width', () => {
+      expect(
+        AnnotationSchema.safeParse({ ...loupe, magnification: 3.5, width: 0 }).success
+      ).toBe(true)
+      for (const magnification of [1, 0.5, 0, -2])
+        expect(
+          AnnotationSchema.safeParse({ ...loupe, magnification }).success,
+          String(magnification)
+        ).toBe(false)
+      expect(AnnotationSchema.safeParse({ ...loupe, width: -1 }).success).toBe(false)
+    })
+  })
+
   it('buckets confidence', () => {
     expect(confidenceBucket(0)).toBe('low')
     expect(confidenceBucket(0.49)).toBe('low')
@@ -344,6 +373,14 @@ describe('schema.json', () => {
     }
     expect(validate(stamp)).toBe(true)
     expect(validate({ ...stamp, imagedata: 'http://example.com/a.png' })).toBe(false)
+  })
+
+  it('validates a loupe', () => {
+    const validate = compileAnnotation()
+    const { quads: _quads, ...rest } = exported as typeof exported & { quads?: unknown }
+    const loupe = { ...rest, type: 'loupe', magnification: 3, width: 2 }
+    expect(validate(loupe)).toBe(true)
+    expect(validate({ ...loupe, magnification: 1 })).toBe(false)
   })
 
   it('leaves viewer state out of the exported shape', () => {
@@ -411,6 +448,10 @@ describe('AnnotationInput (compile-time)', () => {
       { type: 'highlight', page: 0, quads, id: 'x' },
       { type: 'stamp', page: 0, rect, imagedata: 'data:image/png;base64,AA==' },
     ]
+    ok.push({ type: 'loupe', page: 0, rect })
+    ok.push({ type: 'loupe', page: 0, rect, magnification: 3, width: 1 })
+    // @ts-expect-error a loupe needs its rect
+    accept({ type: 'loupe', page: 0 })
     // @ts-expect-error a stamp needs its rect
     accept({ type: 'stamp', page: 0, imagedata: 'data:image/png;base64,AA==' })
     // @ts-expect-error text markup needs quads
@@ -427,6 +468,6 @@ describe('AnnotationInput (compile-time)', () => {
     })
     // @ts-expect-error a note cannot carry text markup geometry it does not declare
     accept({ type: 'text', page: 0, rect, nope: 1 })
-    expect(ok).toHaveLength(11)
+    expect(ok).toHaveLength(13)
   })
 })

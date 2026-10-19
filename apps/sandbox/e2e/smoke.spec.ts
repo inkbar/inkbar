@@ -442,6 +442,26 @@ for (const framework of FRAMEWORKS) {
       await expect(bubble.locator('.ink-free-text')).toHaveText('Hello')
     })
 
+    test('add a loupe', async ({ page }) => {
+      await page.goto(`${framework}/`)
+      await waitForFirstPage(page)
+      await page.getByRole('button', { name: 'Choose shape' }).click()
+      await page.getByRole('menuitemradio', { name: 'Loupe', exact: true }).click()
+      await expect(shapeButton(page)).toHaveAccessibleName('Shape: Loupe')
+      await dragShape(page, [40, 30], [200, 100])
+      const loupe = sessionShape(page, 'loupe')
+      await expect(loupe).toHaveCount(1)
+      await expect(loupe.locator('circle.ink-loupe-rim')).toHaveCount(1)
+      // The magnified page lands in the lens canvas.
+      await expect
+        .poll(() =>
+          loupe
+            .locator('canvas[data-ink-loupe]')
+            .evaluate((c: HTMLCanvasElement) => c.width)
+        )
+        .toBeGreaterThan(0)
+    })
+
     test('make a text box bold and centred', async ({ page }) => {
       await page.goto(`${framework}/`)
       await waitForFirstPage(page)

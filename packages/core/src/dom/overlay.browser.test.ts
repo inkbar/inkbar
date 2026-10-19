@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { staticDefaults } from '../model/annotations/defaults'
 import { isTextMarkup } from '../model/annotations/edit'
 import { createAnnotationStore } from '../model/annotations/store'
+import { renderRegion } from '../pdfjs/render-region'
 
 import { createOverlay } from './overlay'
 import { createPageMount } from './page-mount'
@@ -1117,5 +1118,176 @@ describe('createOverlay', () => {
       expect(doc.annotations.selection.get()).toEqual([sq.id])
       expect(onActivate).toHaveBeenCalledWith(sq.id)
     })
+  })
+})
+
+describe('loupe', () => {
+  /** An overlay over `name`'s first page with the document, at a device pixel ratio of 1. */
+  async function mountLoupePage(
+    name: 'text-simple' | 'text-rotated-90' = 'text-simple',
+    zoom = 1,
+    rotation: 0 | 90 | 180 | 270 = 0
+  ) {
+    const doc = await openFixtureInBrowser(name)
+    const transform = createPageTransform(doc.pages[0]!, zoom, rotation)
+    const host = mountContainer(transform.cssWidth, transform.cssHeight)
+    const getPage = vi.spyOn(doc._pdfjs, 'getPage')
+    const overlay = createOverlay({
+      host,
+      page: 0,
+      store: doc.annotations,
+      transform,
+      document: doc,
+      devicePixelRatio: 1,
+    })
+    cleanup.push(() => {
+      overlay.destroy()
+      host.remove()
+      void doc.destroy()
+    })
+    return { doc, host, overlay, transform, getPage }
+  }
+
+  const lens = (host: HTMLElement) =>
+    host.querySelector<HTMLCanvasElement>('[data-annotation] canvas[data-ink-loupe]')
+
+  const dark = (c: HTMLCanvasElement): number => {
+    const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data
+    let n = 0
+    for (let i = 0; i < d.length; i += 4) if (d[i]! < 128) n++
+    return n
+  }
+
+  const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+  it('loupe shows a circular canvas magnifying the content under its centre', async () => {
+    const { doc, host, getPage } = await mountLoupePage()
+    const loupe = doc.annotations.add({
+      type: 'loupe',
+      page: 0,
+      rect: { x: 60, y: 680, width: 80, height: 80 },
+    })
+    const el = host.querySelector<HTMLElement>(`[data-annotation="${loupe.id}"]`)!
+    expect(el.dataset.type).toBe('loupe')
+    expect(el.getAttribute('aria-label')).toBe('Loupe')
+    const canvas = lens(host)!
+    expect(canvas).not.toBeNull()
+    expect(canvas.style.clipPath).toMatch(/^circle\(/)
+    // The rim is the annotation's colour and width, drawn over the canvas.
+    const rim = el.querySelector('svg circle')!
+    expect(rim.getAttribute('stroke')).toBe(loupe.color)
+    expect(rim.getAttribute('stroke-width')).toBe('2')
+    expect(
+      canvas.compareDocumentPosition(rim) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+    await expect.poll(() => canvas.width).toBe(80)
+    expect(canvas.height).toBe(80)
+    expect(dark(canvas)).toBeGreaterThan(0)
+
+    // Same pixels as the 40pt square under the centre, rendered at twice the zoom.
+    const expected = document.createElement('canvas')
+    await renderRegion(doc, 0, { x: 80, y: 700, width: 40, height: 40 }, 2, expected)
+    const a = canvas.getContext('2d')!.getImageData(0, 0, 80, 80).data
+    const b = expected.getContext('2d')!.getImageData(0, 0, 80, 80).data
+    let diff = 0
+    for (let i = 0; i < a.length; i++) diff += Math.abs(a[i]! - b[i]!)
+    expect(diff / a.length).toBeLessThan(4)
+
+    // A move re-renders, debounced: nothing at once, one render after the pause.
+    const before = getPage.mock.calls.length
+    doc.annotations.update(loupe.id, { rect: { x: 300, y: 300, width: 80, height: 80 } })
+    doc.annotations.update(loupe.id, { rect: { x: 310, y: 300, width: 80, height: 80 } })
+    expect(getPage.mock.calls.length).toBe(before)
+    expect(lens(host)).toBe(canvas)
+    await expect.poll(() => getPage.mock.calls.length).toBe(before + 1)
+    await wait(150)
+    expect(getPage.mock.calls.length).toBe(before + 1)
+    expect(lens(host)).toBe(canvas)
+  })
+
+  it('loupe re-renders debounced on zoom', async () => {
+    const { doc, host, overlay, getPage } = await mountLoupePage()
+    doc.annotations.add({
+      type: 'loupe',
+      page: 0,
+      rect: { x: 60, y: 680, width: 80, height: 80 },
+      magnification: 3,
+    })
+    const canvas = lens(host)!
+    await expect.poll(() => canvas.width).toBe(80)
+    await wait(150)
+    const before = getPage.mock.calls.length
+    for (const zoom of [1.25, 1.5, 2])
+      overlay.update(createPageTransform(doc.pages[0]!, zoom, 0))
+    expect(getPage.mock.calls.length).toBe(before)
+    // The old bitmap stretches with the element until the new one lands.
+    expect(canvas.style.width).toBe('100%')
+    await expect.poll(() => canvas.width).toBe(160)
+    await wait(150)
+    expect(getPage.mock.calls.length).toBe(before + 1)
+  })
+
+  it.each([0, 270] as const)(
+    'magnifies the region as the page shows it on a /Rotate 90 page at view rotation %i',
+    async (view) => {
+      const { doc, host, transform } = await mountLoupePage('text-rotated-90', 1, view)
+      doc.annotations.add({
+        type: 'loupe',
+        page: 0,
+        rect: { x: 60, y: 680, width: 80, height: 80 },
+      })
+      const canvas = lens(host)!
+      await expect.poll(() => canvas.width).toBe(80)
+      const expected = document.createElement('canvas')
+      const region = { x: 80, y: 700, width: 40, height: 40 }
+      await renderRegion(doc, 0, region, 2, expected, undefined, transform.totalRotation)
+      const a = canvas.getContext('2d')!.getImageData(0, 0, 80, 80).data
+      const b = expected.getContext('2d')!.getImageData(0, 0, 80, 80).data
+      let diff = 0
+      for (let i = 0; i < a.length; i++) diff += Math.abs(a[i]! - b[i]!)
+      expect(dark(canvas)).toBeGreaterThan(0)
+      expect(diff / a.length).toBeLessThan(4)
+    }
+  )
+
+  it('draws only the rim without a document, and drops the canvas when removed', () => {
+    const { store, host } = setup()
+    const loupe = store.add({
+      type: 'loupe',
+      page: 0,
+      rect: { x: 60, y: 680, width: 80, height: 80 },
+    })
+    const el = host.querySelector<HTMLElement>(`[data-annotation="${loupe.id}"]`)!
+    expect(el.querySelector('svg circle')).not.toBeNull()
+    expect(lens(host)).toBeNull()
+    store.remove(loupe.id)
+    expect(host.querySelector('[data-annotation]')).toBeNull()
+  })
+
+  it('a page mount passes its document, so its loupes magnify', async () => {
+    const doc = await openFixtureInBrowser('text-simple')
+    const transform = createPageTransform(doc.pages[0]!, 1, 0)
+    const host = mountContainer(transform.cssWidth, transform.cssHeight)
+    const mount = createPageMount({
+      document: doc,
+      page: 0,
+      host,
+      transform,
+      store: doc.annotations,
+      devicePixelRatio: 2,
+    })
+    cleanup.push(() => {
+      mount.destroy()
+      host.remove()
+      void doc.destroy()
+    })
+    doc.annotations.add({
+      type: 'loupe',
+      page: 0,
+      rect: { x: 60, y: 680, width: 80, height: 80 },
+    })
+    const canvas = lens(host)!
+    // Device pixels: the element's 80 CSS px at a ratio of 2.
+    await expect.poll(() => canvas.width).toBe(160)
   })
 })

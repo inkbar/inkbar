@@ -25,6 +25,8 @@ const COLORS: Record<AnnotationType, string> = {
   ink: '#151820',
   // A stamp draws its image; the colour is only what XFDF requires every annotation to carry.
   stamp: '#151820',
+  // The loupe's rim.
+  loupe: '#151820',
   redact: '#C0392B',
 }
 
@@ -59,6 +61,7 @@ const VARIABLES: Record<AnnotationType, string> = {
   polygon: '--ink-shape',
   ink: '--ink-ink',
   stamp: '--ink-ink',
+  loupe: '--ink-shape',
   redact: '--ink-redact',
 }
 

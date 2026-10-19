@@ -589,6 +589,26 @@ describe('controlled mode', () => {
     expect(onActivate).toHaveBeenCalledWith(n!.id)
   })
 
+  it('loupe: goes through onChange, then draws its lens once the host applies it', async () => {
+    const { doc, container, viewport, tools } = await setup('text-simple', {
+      controlled: true,
+    })
+    tools.set('shape', { kind: 'loupe' })
+    const host = viewport.hostFor(0)!
+    const h = host.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointerup', h.left + 100, h.top + 100)
+    expect(doc.annotations.list.get()).toEqual([])
+    await settle()
+    const [loupe] = doc.annotations.list.get()
+    expect(loupe).toMatchObject({ type: 'loupe', magnification: 2 })
+    expect(doc.annotations.selection.get()).toEqual([loupe!.id])
+    const lens = host.querySelector<HTMLCanvasElement>(
+      `[data-annotation="${loupe!.id}"] canvas[data-ink-loupe]`
+    )!
+    await until(() => lens.width > 0)
+  })
+
   it('freetext: a new box reaches onChange once, with its text, and is selected', async () => {
     const { doc, container, viewport, tools } = await setup('text-simple', {
       controlled: true,
@@ -1325,6 +1345,68 @@ describe('shape tool', () => {
     const middle = t.toCss({ x: box.x + box.width / 2, y: box.y + box.height / 2 })
     expect(c.left + c.width / 2).toBeCloseTo(middle.x)
     expect(c.top + c.height / 2).toBeCloseTo(middle.y)
+  })
+
+  it('loupe kind: a drag makes a square loupe with the shape group rim, a circle draft first', async () => {
+    const { doc, container, viewport, tools, toolStyle } = await setup('cropbox-offset')
+    tools.set('shape', { kind: 'loupe' })
+    toolStyle.set({ border: '#00FF00', width: 3 }, { group: 'shape' })
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointermove', h.left + 160, h.top + 140)
+    const draft = container.querySelector<HTMLElement>('[data-ink-draft="shape"]')!
+    expect(draft.dataset.inkShape).toBe('loupe')
+    expect(draft.querySelector('ellipse')).not.toBeNull()
+    expect(draft.style.width).toBe('60px')
+    expect(draft.style.height).toBe('60px')
+    pointer(container, 'pointerup', h.left + 160, h.top + 140)
+    const [loupe] = session(doc)
+    expect(loupe).toMatchObject({
+      type: 'loupe',
+      magnification: 2,
+      color: '#00FF00',
+      width: 3,
+    })
+    // CropBox [50 50 550 750]: css (100,100) is user (150, 650); the square takes the 60.
+    expect(loupe!.rect).toEqual({ x: 150, y: 590, width: 60, height: 60 })
+    expect(doc.annotations.selection.get()).toEqual([loupe!.id])
+  })
+
+  it('loupe kind: a click places a 72pt loupe, Enter places none', async () => {
+    const { doc, container, viewport, tools } = await setup('cropbox-offset')
+    tools.set('shape', { kind: 'loupe' })
+    container.tabIndex = 0
+    container.focus()
+    enter(container)
+    expect(session(doc)).toEqual([])
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 200, h.top + 300)
+    pointer(container, 'pointerup', h.left + 200, h.top + 300)
+    const [loupe] = session(doc)
+    expect(loupe?.type).toBe('loupe')
+    expect(loupe!.rect).toEqual({ x: 214, y: 414, width: 72, height: 72 })
+  })
+
+  it('loupe kind on the rotated fixture at view rotation 270: a square under the drag', async () => {
+    const { doc, container, viewport, tools } = await setup('text-rotated-90')
+    viewport.setRotation(270)
+    await until(() => viewport.transformFor(0).rotation === 270)
+    await settle()
+    tools.set('shape', { kind: 'loupe' })
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointermove', h.left + 180, h.top + 140)
+    pointer(container, 'pointerup', h.left + 180, h.top + 140)
+    const [loupe] = session(doc)
+    const t = viewport.transformFor(0)
+    expect(loupe!.rect.width).toBeCloseTo(80)
+    expect(loupe!.rect.height).toBeCloseTo(80)
+    // The square grows from the press along the drag: right and down on screen.
+    const back = t.toCssRect(loupe!.rect)
+    expect(back.left).toBeCloseTo(100)
+    expect(back.top).toBeCloseTo(100)
+    expect(back.width).toBeCloseTo(80)
+    expect(back.height).toBeCloseTo(80)
   })
 
   it('a drag cancelled mid-way leaves no draft and no annotation', async () => {

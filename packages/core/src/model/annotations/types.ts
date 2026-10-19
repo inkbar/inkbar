@@ -194,6 +194,18 @@ export const StampSchema = Base.extend({
     .optional(),
 })
 
+/**
+ * A loupe (an extension, not XFDF): a circle inscribed in `rect` that shows the page content
+ * under its own centre, magnified. `color` and `width` draw its rim.
+ */
+export const LoupeSchema = Base.extend({
+  type: z.literal('loupe'),
+  /** How many times larger the content under the centre is drawn. Above 1. */
+  magnification: z.number().gt(1).default(2),
+  /** The rim's width in points. */
+  width: z.number().nonnegative().default(2),
+})
+
 export const SuggestionSchema = z.object({
   jobId: z.string().optional(),
   confidence: z.number().min(0).max(1),
@@ -222,6 +234,7 @@ export const AnnotationSchema = z.discriminatedUnion('type', [
   PolySchema,
   InkSchema,
   StampSchema,
+  LoupeSchema,
   RedactSchema,
 ])
 
@@ -238,6 +251,7 @@ export const ExportedAnnotationSchema = z.discriminatedUnion('type', [
   PolySchema.omit(VIEWER_STATE),
   InkShape.omit(VIEWER_STATE).superRefine(checkPressure),
   StampSchema.omit(VIEWER_STATE),
+  LoupeSchema.omit(VIEWER_STATE),
   RedactSchema.omit(VIEWER_STATE),
 ])
 
@@ -254,6 +268,7 @@ export type LineAnnotation = z.infer<typeof LineSchema>
 export type PolyAnnotation = z.infer<typeof PolySchema>
 export type InkAnnotation = z.infer<typeof InkSchema>
 export type StampAnnotation = z.infer<typeof StampSchema>
+export type LoupeAnnotation = z.infer<typeof LoupeSchema>
 export type RedactAnnotation = z.infer<typeof RedactSchema>
 export type Suggestion = z.infer<typeof SuggestionSchema>
 export type LineEnding = z.infer<typeof LineEndingSchema>
@@ -312,6 +327,7 @@ export type AnnotationInput =
       | z.input<typeof InkSchema>
     >
   | (InputOf<z.input<typeof StampSchema>> & { rect: z.input<typeof StampSchema>['rect'] })
+  | (InputOf<z.input<typeof LoupeSchema>> & { rect: z.input<typeof LoupeSchema>['rect'] })
   | FreeTextCallerInput
   | RedactCallerInput
 

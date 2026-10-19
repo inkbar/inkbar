@@ -34,6 +34,7 @@ export const SHAPE_KINDS: readonly ShapeKind[] = [
   'bubble',
   'star',
   'polygon',
+  'loupe',
 ]
 
 export const DEFAULT_SHAPE_OPTIONS: Readonly<ShapeOptions> = {
@@ -41,6 +42,19 @@ export const DEFAULT_SHAPE_OPTIONS: Readonly<ShapeOptions> = {
   points: 5,
   sides: 6,
 }
+
+const POINTER_ONLY: ReadonlySet<ShapeKind> = new Set(['loupe', 'mask'])
+
+/**
+ * True for kinds only a pointer creates: the loupe and the mask. `Enter` with the shape tool
+ * does not place them.
+ */
+export function isPointerOnlyKind(kind: ShapeKind): boolean {
+  return POINTER_ONLY.has(kind)
+}
+
+/** Magnification of a new loupe. */
+export const DEFAULT_LOUPE_MAGNIFICATION = 2
 
 /** Side of the shape a click or Enter places, in points. */
 export const DEFAULT_SHAPE_SIZE = 72
@@ -181,6 +195,14 @@ export function shapeInput(
       return { type: 'polygon', page, vertices: starVertices(rect, opts.points) }
     case 'polygon':
       return { type: 'polygon', page, vertices: polygonVertices(rect, opts.sides) }
+    case 'loupe':
+      // Always a circle: the square on the drag's longer side, as Shift would make it.
+      return {
+        type: 'loupe',
+        page,
+        rect: rectOf(start, constrain(kind, start, end)),
+        magnification: DEFAULT_LOUPE_MAGNIFICATION,
+      }
     default:
       return undefined
   }

@@ -1,12 +1,14 @@
 // Drag draws a shape between the press and the release; a click, or Enter on the viewport,
-// places a default-size one. The live draft is `position:absolute; pointer-events:none`, a
-// box over the shape's bounds holding an SVG preview: geometry only, the look comes from the
-// theme (`.ink-draft[data-ink-draft='shape']`).
+// places a default-size one. Enter places no loupe or mask: they are pointer-only. The live
+// draft is `position:absolute; pointer-events:none`, a box over the shape's bounds holding an
+// SVG preview: geometry only, the look comes from the theme
+// (`.ink-draft[data-ink-draft='shape']`).
 import { isBubble } from '../../model/annotations/edit'
 import {
   constrain,
   DEFAULT_SHAPE_OPTIONS,
   defaultEnds,
+  isPointerOnlyKind,
   shapeInput,
   type ShapeOptions,
 } from '../../model/annotations/shape-geometry'
@@ -128,10 +130,15 @@ export function shapeTool(): Tool<ShapeOptions> {
     let box: { left: number; top: number; width: number; height: number }
     let points: Point[] | undefined
     let kind: 'rect' | 'ellipse' | 'path' = 'path'
-    if (input.type === 'square' || input.type === 'circle' || input.type === 'freetext') {
+    if (
+      input.type === 'square' ||
+      input.type === 'circle' ||
+      input.type === 'freetext' ||
+      input.type === 'loupe'
+    ) {
       if (!input.rect) return
       box = t.toCssRect(input.rect)
-      kind = input.type === 'circle' ? 'ellipse' : 'rect'
+      kind = input.type === 'circle' || input.type === 'loupe' ? 'ellipse' : 'rect'
     } else {
       if (input.type === 'line') points = [t.toCss(input.start), t.toCss(input.end)]
       else if (input.type === 'polygon') points = input.vertices.map((v) => t.toCss(v))
@@ -246,6 +253,8 @@ export function shapeTool(): Tool<ShapeOptions> {
     },
     onKeyDown(e) {
       if (!ctx || !isViewportEnter(e, ctx.root)) return
+      // The loupe and the mask are pointer-only, like area redaction.
+      if (isPointerOnlyKind(options(ctx).kind)) return
       e.preventDefault()
       const page = ctx.viewport.currentPage.get()
       const { box } = ctx.viewport.transformFor(page).page
