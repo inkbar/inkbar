@@ -10,7 +10,7 @@ import { styleFreeText } from './overlay-render'
 
 import type { PageTransform } from './transform'
 import type { AnnotationStore } from '../model/annotations/store'
-import type { FreeTextAnnotation } from '../model/annotations/types'
+import type { Annotation, FreeTextAnnotation } from '../model/annotations/types'
 import type { Rect } from '../model/geometry'
 
 export interface FreeTextEditor {
@@ -165,10 +165,29 @@ export function editFreeText(
 }
 
 /**
+ * True when `a` can be edited in place on its overlay element `el`: an unlocked free-text box
+ * the overlay draws itself. Embedded boxes (painted on the canvas, with only a hit area here)
+ * and host-rendered (`data-custom`) elements are not. Every edit path asks this.
+ */
+export function canEditFreeText(
+  a: Annotation | undefined,
+  el: Element | null | undefined
+): a is FreeTextAnnotation {
+  return (
+    a !== undefined &&
+    a.type === 'freetext' &&
+    !a.locked &&
+    a.source !== 'pdf' &&
+    !!el &&
+    !el.hasAttribute('data-custom')
+  )
+}
+
+/**
  * Opens an editor on the overlay element `el` for the free-text box `id`, wired to the store: a
  * commit is one `update` with the text and the grown rect (none when neither changed), and an
  * empty box is removed, as an abandoned note is. Returns undefined when the box cannot be
- * edited: missing, locked, or not free text.
+ * edited (`canEditFreeText`).
  */
 export function editFreeTextIn(
   store: AnnotationStore,
@@ -177,7 +196,7 @@ export function editFreeTextIn(
   transform: PageTransform
 ): FreeTextEditor | undefined {
   const a = store._getProposed(id) ?? store.get(id)
-  if (!a || a.type !== 'freetext' || a.locked) return undefined
+  if (!canEditFreeText(a, el)) return undefined
   const current = (): FreeTextAnnotation | undefined => {
     const now = store._getProposed(id) ?? store.get(id)
     return now?.type === 'freetext' ? now : undefined

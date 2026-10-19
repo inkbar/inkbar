@@ -20,7 +20,7 @@ import {
 } from '../model/annotations/edit'
 import { confidenceBucket, type Annotation } from '../model/annotations/types'
 
-import { editFreeTextIn, editorFor } from './freetext-editor'
+import { canEditFreeText, editFreeTextIn, editorFor } from './freetext-editor'
 import {
   annotationBox,
   renderAnnotationContent,
@@ -248,9 +248,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
   function edit(id: string): boolean {
     const a = store.get(id)
     const node = elements.get(id)
-    if (!a || !node || a.type !== 'freetext' || a.locked || a.source === 'pdf')
-      return false
-    if (opts.isCustom?.(a) === true) return false
+    if (!node || !canEditFreeText(a, node) || opts.isCustom?.(a) === true) return false
     if (editorFor(node)) return true
     return editFreeTextIn(store, node, id, transform) !== undefined
   }

@@ -78,17 +78,19 @@ export function freetextTool(): Tool {
     const draftBox = c.store.completeInput({ ...input, rect: t.fromCssRect(box) })
     if (draftBox.type !== 'freetext') return
     const doc = host.ownerDocument
-    // Laid out as the overlay lays out an annotation, on top of the page's layers.
+    // Laid out as the overlay lays out an annotation, stacked above the overlay (the theme
+    // gives it z-index 1) so existing annotations under the new box neither cover its editor
+    // nor take its presses.
     const el = doc.createElement('div')
     el.className = 'ink-annotation'
     el.dataset.inkPending = ''
     el.dataset.type = 'freetext'
     el.tabIndex = -1
-    el.style.cssText = `position:absolute;left:${box.left}px;top:${box.top}px;width:${box.width}px;height:${box.height}px;pointer-events:none;`
+    el.style.cssText = `position:absolute;left:${box.left}px;top:${box.top}px;width:${box.width}px;height:${box.height}px;pointer-events:none;z-index:2;`
     host.append(el)
     renderAnnotationContent(el, draftBox, t)
 
-    // A new zoom or rotation, or the page unmounting, commits the box as it stands.
+    // A new zoom or rotation commits the box as it stands.
     const view = [c.viewport.scale, c.viewport.rotation].map((r) =>
       r.subscribe(() => editor.close(true))
     )

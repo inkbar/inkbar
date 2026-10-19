@@ -22,7 +22,7 @@ import {
   type ToolStyle,
 } from '../../model/annotations/tool-style'
 import { readonly, writable, type Readable } from '../../model/readable'
-import { editFreeTextIn } from '../freetext-editor'
+import { canEditFreeText, editFreeTextIn } from '../freetext-editor'
 
 import { createToolOptions, type ToolOptions } from './options'
 
@@ -225,11 +225,10 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     if (selected.length !== 1) return
     const id = selected[0]!
     const a = ctx.store.get(id)
-    if (!a || a.type !== 'freetext' || a.locked) return
     const el = ctx.root.querySelector<HTMLElement>(
       `[data-annotation="${CSS.escape(id)}"]`
     )
-    if (!el || el.hasAttribute('data-custom')) return
+    if (!canEditFreeText(a, el) || !el) return
     e.preventDefault()
     editFreeTextIn(ctx.store, el, id, ctx.viewport.transformFor(a.page))
   }

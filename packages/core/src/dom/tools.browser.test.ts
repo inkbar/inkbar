@@ -1,3 +1,4 @@
+import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { userEvent } from 'vitest/browser'
 
@@ -1367,6 +1368,59 @@ describe('freetext tool', () => {
     expect(document.activeElement).toBe(editorIn(el))
     await userEvent.keyboard('{End}!{Escape}')
     expect(doc.annotations.get(a.id)).toMatchObject({ contents: 'Hi!' })
+  })
+
+  it('an embedded freetext stays read-only: neither Enter nor double-click edits it', async () => {
+    const { doc, container, tools } = await setup()
+    tools.set('select')
+    // Embedded boxes are painted on the canvas; the overlay draws only a hit area. Unlocked
+    // here so the embedded check alone has to refuse it.
+    const a = doc.annotations.completeInput({
+      type: 'freetext',
+      page: 0,
+      rect: { x: 100, y: 600, width: 144, height: 20 },
+      contents: 'From the file',
+    })
+    doc.annotations._setEmbedded([{ ...a, id: 'pdf:0:9R', source: 'pdf' }])
+    await settle()
+    container.tabIndex = 0
+    container.focus()
+    doc.annotations.select(['pdf:0:9R'])
+    enter(container)
+    expect(editorIn(container)).toBeNull()
+    const el = container.querySelector<HTMLElement>('[data-annotation="pdf:0:9R"]')!
+    el.firstElementChild!.dispatchEvent(
+      new MouseEvent('dblclick', { bubbles: true, detail: 2 })
+    )
+    el.focus()
+    el.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+    )
+    expect(editorIn(container)).toBeNull()
+  })
+
+  it('a new box over an existing annotation keeps its editor on top', async () => {
+    const theme = document.createElement('style')
+    theme.textContent = themeCss
+    document.head.append(theme)
+    cleanup.push(() => theme.remove())
+    const { doc, container, viewport, tools } = await setup()
+    const t = viewport.transformFor(0)
+    const under = doc.annotations.add({
+      type: 'square',
+      page: 0,
+      rect: t.fromCssRect({ left: 80, top: 80, width: 300, height: 100 }),
+      interiorColor: '#00FF00',
+    })
+    tools.set('freetext')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointerup', h.left + 100, h.top + 100)
+    const editor = editorIn(container)!
+    const r = editor.getBoundingClientRect()
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+    expect(editor.contains(hit)).toBe(true)
+    expect(hit?.closest(`[data-annotation="${under.id}"]`)).toBeNull()
   })
 
   it('double-click a freetext edits it; Enter on a selected freetext edits it', async () => {
