@@ -240,8 +240,8 @@ describe('AnnotationStore (controlled) with embedded annotations', () => {
     rect,
     color: '#FFD400',
     opacity: 1,
-    createdAt: 'a',
-    modifiedAt: 'a',
+    createdAt: '2026-10-12T12:00:00.000Z',
+    modifiedAt: '2026-10-12T12:00:00.000Z',
     source: 'pdf',
     locked: true,
   }

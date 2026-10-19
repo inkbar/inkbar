@@ -15,8 +15,11 @@ import type { Annotation } from './annotations/types'
 
 const rect = { x: 0, y: 0, width: 20, height: 20 }
 
+/** What an export carries for `a`: no viewer state. */
+const exported = ({ source: _source, locked: _locked, ...rest }: Annotation) => rest
+
 const compileSchema = () =>
-  new Ajv2020({ strict: false }).compile(
+  new Ajv2020({ strict: false, validateFormats: false }).compile(
     JSON.parse(
       readFileSync(new URL('../../schema.json', import.meta.url), 'utf8')
     ) as object
@@ -56,7 +59,7 @@ describe('document annotations', () => {
     const mine = doc.annotations.add({ type: 'text', page: 0, rect })
     const out = doc.exportAnnotations('json')
     expect(out.documentKey).toBe(doc.key)
-    expect(out.annotations).toEqual([mine])
+    expect(out.annotations).toEqual([exported(mine)])
     doc.importAnnotations({ ...out, annotations: [] })
     expect(doc.annotations.list.get().filter((a) => a.source === 'session')).toEqual([])
     expect(doc.annotations.list.get().filter((a) => a.source === 'pdf')).toHaveLength(4)
@@ -238,7 +241,7 @@ describe('document annotations', () => {
         { mode: 'replace' }
       )
       const out = doc.exportAnnotations('json')
-      expect(out.annotations).toEqual([mine, foreign])
+      expect(out.annotations).toEqual([exported(mine), foreign])
       const json = JSON.stringify(out)
       expect(compileSchema()(JSON.parse(json))).toBe(false)
 
@@ -276,7 +279,7 @@ describe('document annotations', () => {
 
       doc.importAnnotations({ ...envelope, annotations: [foreign] })
       doc.importAnnotations({ ...envelope, annotations: [known] }, { mode: 'merge' })
-      expect(doc.exportAnnotations('json').annotations).toEqual([known])
+      expect(doc.exportAnnotations('json').annotations).toEqual([exported(known)])
 
       doc.importAnnotations({ ...envelope, annotations: [foreign] }, { mode: 'merge' })
       expect(doc.exportAnnotations('json').annotations).toEqual([foreign])
@@ -325,7 +328,7 @@ describe('document annotations', () => {
         custom: { callback, label: 'kept' },
       })
       const out = doc.exportAnnotations('json')
-      expect(out.annotations).toEqual([{ ...a, custom: { label: 'kept' } }])
+      expect(out.annotations).toEqual([{ ...exported(a), custom: { label: 'kept' } }])
       expect(doc.annotations.get(a.id)?.custom?.callback).toBe(callback)
     } finally {
       doc.destroy()
