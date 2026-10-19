@@ -62,6 +62,18 @@ describe('toolbar', () => {
     await expect.poll(attr(SCROLL, 'data-ink-tool')).toBe('freetext')
   })
 
+  // React: 'the sketch tool button is named Sketch, shows its icon and picks the sketch tool'
+  it('the sketch tool button is named Sketch, shows its icon and picks the sketch tool', async () => {
+    await render(ToolbarHarness, { src: fixtureUrl('text-simple'), assets })
+    await q('.ink-page canvas')
+    const sketch = toolbar().getByRole('button', { name: 'Sketch', exact: true })
+    await expect.element(sketch).toHaveAttribute('data-tool', 'sketch')
+    expect(sketch.element().querySelectorAll('svg')).toHaveLength(1)
+    await sketch.click()
+    await expect.element(sketch).toHaveAttribute('aria-pressed', 'true')
+    await expect.poll(attr(SCROLL, 'data-ink-tool')).toBe('sketch')
+  })
+
   // React: 'the draw tool button is named Draw, shows its icon and picks the draw tool'
   it('the draw tool button is named Draw, shows its icon and picks the draw tool', async () => {
     await render(ToolbarHarness, { src: fixtureUrl('text-simple'), assets })

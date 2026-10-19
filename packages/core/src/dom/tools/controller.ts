@@ -40,6 +40,7 @@ export type BuiltinToolId =
   | 'shape'
   | 'freetext'
   | 'draw'
+  | 'sketch'
 /** A built-in tool's id, or any id a host registers its own tool under. */
 export type ToolId = BuiltinToolId | (string & {})
 

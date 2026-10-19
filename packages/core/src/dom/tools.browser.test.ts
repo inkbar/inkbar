@@ -2,6 +2,7 @@ import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { userEvent } from 'vitest/browser'
 
+import { createSnapshotHistory } from '../model/annotations/snapshot-history'
 import { readonly, writable } from '../model/readable'
 
 import { JOIN_GAP_MS } from './ink-stroke'
@@ -54,9 +55,23 @@ async function setup(
     controlled = false,
     custom = false,
     tools: hostTools,
-  }: { controlled?: boolean; custom?: boolean; tools?: Tool[] } = {}
+    snapshotHistory = false,
+  }: {
+    controlled?: boolean
+    custom?: boolean
+    tools?: Tool[]
+    /** Controlled only: undo and redo over the host's list, as the bindings give such hosts. */
+    snapshotHistory?: boolean
+  } = {}
 ) {
   let host: Annotation[] = []
+  const snapshot = snapshotHistory
+    ? createSnapshotHistory({
+        apply: (list) => doc.annotations.replaceAll(list, 'history'),
+        enabled: () => true,
+      })
+    : undefined
+  snapshot?.observe(host)
   const doc = await openFixtureInBrowser(
     name,
     controlled
@@ -66,12 +81,16 @@ async function setup(
             initial: [],
             onChange: (next) => {
               host = next
-              queueMicrotask(() => doc.annotations.setControlledValue(host))
+              queueMicrotask(() => {
+                doc.annotations.setControlledValue(host)
+                snapshot?.observe(host)
+              })
             },
           },
         }
       : {}
   )
+  const history = snapshot ?? doc.history
   const container = mountContainer(800, 900)
   const mounts = new Map<number, ReturnType<typeof createPageMount>>()
   const onActivate = vi.fn()
@@ -98,7 +117,7 @@ async function setup(
       mounts.delete(page)
     },
   })
-  const tracker = trackToolStyle({ store: doc.annotations, history: doc.history })
+  const tracker = trackToolStyle({ store: doc.annotations, history })
   const tools: ToolController = createToolController({
     ...(hostTools ? { tools: hostTools } : {}),
     ctx: {
@@ -113,7 +132,7 @@ async function setup(
         })),
       clearSelection: () => window.getSelection()?.removeAllRanges(),
       onActivate,
-      history: doc.history,
+      history,
     },
   })
   tools.active.subscribe((id) => tracker.setTool(id))
@@ -133,6 +152,7 @@ async function setup(
     onActivate,
     mounts,
     toolStyle: tracker.toolStyle,
+    history,
   }
 }
 
@@ -490,6 +510,36 @@ describe('controlled mode', () => {
     const [box] = doc.annotations.list.get()
     expect(box).toMatchObject({ type: 'freetext', contents: 'Hello' })
     expect(doc.annotations.selection.get()).toEqual([box!.id])
+  })
+
+  it('sketch: the ink and the swap to its shape go through onChange, as two undo steps', async () => {
+    const { doc, container, viewport, tools, history } = await setup('text-simple', {
+      controlled: true,
+      snapshotHistory: true,
+    })
+    tools.set('sketch')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    const r = 60
+    pointer(container, 'pointerdown', h.left + 200 + r, h.top + 200)
+    for (let i = 1; i <= 64; i++) {
+      const t = (i / 60) * Math.PI * 2
+      pointer(
+        container,
+        'pointermove',
+        h.left + 200 + r * Math.cos(t),
+        h.top + 200 + r * Math.sin(t)
+      )
+    }
+    pointer(container, 'pointerup', h.left + 200 + r, h.top + 200)
+    // Nothing is written until the host applies it: first the ink, then the swap.
+    expect(doc.annotations.list.get()).toEqual([])
+    await until(() => doc.annotations.list.get()[0]?.type === 'circle')
+    await settle()
+    expect(doc.annotations.list.get().map((a) => a.type)).toEqual(['circle'])
+    history.undo()
+    await until(() => doc.annotations.list.get()[0]?.type === 'ink')
+    history.undo()
+    await until(() => doc.annotations.list.get().length === 0)
   })
 
   it('select: Delete removes every selected annotation', async () => {
@@ -1461,6 +1511,147 @@ describe('draw tool', () => {
     const [ink, ...others] = inks(doc)
     expect(others).toEqual([])
     expect(ink?.type === 'ink' && ink.inklist).toHaveLength(2)
+  })
+})
+
+describe('sketch tool', () => {
+  const session = (doc: InkDocument) =>
+    doc.annotations.list.get().filter((a) => a.source === 'session')
+
+  /** A mouse stroke through `points`, CSS offsets in the page host. */
+  function stroke(container: Element, h: DOMRect, points: [number, number][]): void {
+    const [first, ...rest] = points
+    pointer(container, 'pointerdown', h.left + first![0], h.top + first![1])
+    for (const [x, y] of rest) pointer(container, 'pointermove', h.left + x, h.top + y)
+    const last = points[points.length - 1]!
+    pointer(container, 'pointerup', h.left + last[0], h.top + last[1])
+  }
+
+  /** A hand-drawn circle round (cx, cy): a little lumpy, overshooting its start. */
+  const circle = (cx: number, cy: number, r: number): [number, number][] =>
+    Array.from({ length: 64 }, (_, i) => {
+      const t = 0.5 + (i / 60) * Math.PI * 2
+      const lump = r * (1 + 0.03 * Math.sin(t * 3))
+      return [cx + lump * Math.cos(t), cy + lump * Math.sin(t)]
+    })
+
+  /** A run of cursive loops, like a signature. */
+  const scrawl = (x: number, y: number): [number, number][] =>
+    Array.from({ length: 160 }, (_, i) => {
+      const t = (i / 159) * Math.PI * 8
+      return [x + 6 * t - 14 * Math.sin(t), y - 14 * Math.cos(t)]
+    })
+
+  /** A box traced from its top-left corner, back to where it began. */
+  const box = (l: number, t: number, r: number, b: number): [number, number][] => {
+    const corners: [number, number][] = [
+      [l, t],
+      [r, t],
+      [r, b],
+      [l, b],
+      [l, t + 4],
+    ]
+    return corners.flatMap(([x, y], i) => {
+      if (i === 0) return [[x, y] as [number, number]]
+      const [px, py] = corners[i - 1]!
+      return Array.from({ length: 12 }, (_, k): [number, number] => [
+        px + ((x - px) * (k + 1)) / 12,
+        py + ((y - py) * (k + 1)) / 12,
+      ])
+    })
+  }
+
+  it('is a built-in tool in the ink style group, labelled Sketch', () => {
+    const sketch = builtinTools().find((t) => t.id === 'sketch')
+    expect(sketch?.styleGroup).toBe('ink')
+    expect(TOOL_LABELS.sketch).toBe('Sketch')
+  })
+
+  it('a rough circle becomes a circle annotation with the shape group style', async () => {
+    const { doc, container, viewport, tools, toolStyle } = await setup()
+    tools.set('sketch')
+    toolStyle.set({ border: '#00FF00', width: 3 }, { group: 'shape' })
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    const points = circle(200, 200, 60)
+    pointer(container, 'pointerdown', h.left + points[0]![0], h.top + points[0]![1])
+    pointer(container, 'pointermove', h.left + points[1]![0], h.top + points[1]![1])
+    expect(container.querySelector('[data-ink-draft="sketch"] path')).not.toBeNull()
+    for (const [x, y] of points.slice(2))
+      pointer(container, 'pointermove', h.left + x, h.top + y)
+    const last = points[points.length - 1]!
+    pointer(container, 'pointerup', h.left + last[0], h.top + last[1])
+    expect(container.querySelector('[data-ink-draft]')).toBeNull()
+    const [shape, ...others] = session(doc)
+    expect(others).toEqual([])
+    expect(shape).toMatchObject({ type: 'circle', color: '#00FF00', width: 3 })
+    // The circle fills the box the stroke spans, in user space.
+    const t = viewport.transformFor(0)
+    const spans = t.fromCss({ x: 140, y: 140 })
+    const ends = t.fromCss({ x: 260, y: 260 })
+    const expected = {
+      x: Math.min(spans.x, ends.x),
+      y: Math.min(spans.y, ends.y),
+      width: Math.abs(ends.x - spans.x),
+      height: Math.abs(ends.y - spans.y),
+    }
+    for (const key of ['x', 'y', 'width', 'height'] as const)
+      expect(Math.abs(shape!.rect[key] - expected[key])).toBeLessThan(4)
+  })
+
+  it('an unrecognised stroke stays ink', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('sketch')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    stroke(container, h, scrawl(100, 300))
+    const [ink, ...others] = session(doc)
+    expect(others).toEqual([])
+    if (ink?.type !== 'ink') throw new Error('not ink')
+    expect(ink.inklist).toHaveLength(1)
+    expect(ink.inklist[0]).toHaveLength(160)
+  })
+
+  it('undo after recognition restores the ink stroke; a second undo removes it', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('sketch')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    stroke(container, h, box(100, 100, 260, 220))
+    expect(session(doc).map((a) => a.type)).toEqual(['square'])
+    doc.history.undo()
+    const [ink, ...others] = session(doc)
+    expect(others).toEqual([])
+    expect(ink?.type === 'ink' && ink.inklist[0]).toHaveLength(49)
+    doc.history.undo()
+    expect(session(doc)).toEqual([])
+    doc.history.redo()
+    doc.history.redo()
+    expect(session(doc).map((a) => a.type)).toEqual(['square'])
+  })
+
+  it('sketch does not join strokes', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('sketch')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    stroke(container, h, scrawl(100, 200))
+    stroke(container, h, scrawl(100, 300))
+    stroke(container, h, circle(200, 500, 50))
+    expect(session(doc).map((a) => a.type)).toEqual(['ink', 'ink', 'circle'])
+    for (const a of session(doc)) if (a.type === 'ink') expect(a.inklist).toHaveLength(1)
+  })
+
+  it('a box on a page with /Rotate 90 becomes a square over the stroke, in page space', async () => {
+    const { doc, container, viewport, tools } = await setup('text-rotated-90')
+    tools.set('sketch')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    stroke(container, h, box(100, 100, 260, 220))
+    const [square] = session(doc)
+    expect(square?.type).toBe('square')
+    const t = viewport.transformFor(0)
+    const a = t.fromCss({ x: 100, y: 100 })
+    const b = t.fromCss({ x: 260, y: 220 })
+    // Rotated, the box's CSS width is its user-space height.
+    expect(Math.abs(square!.rect.width - Math.abs(b.x - a.x))).toBeLessThan(3)
+    expect(Math.abs(square!.rect.height - Math.abs(b.y - a.y))).toBeLessThan(3)
+    expect(square!.rect.width).toBeLessThan(square!.rect.height)
   })
 })
 

@@ -45,6 +45,7 @@
       <InkToolButton tool="select-text" />
       <InkToolButton tool="select" />
       <InkToolButton tool="redact-area" />
+      <InkToolButton tool="sketch" />
       <InkToolButton tool="draw" />
       <InkShapeMenu />
       <InkToolButton tool="freetext" />

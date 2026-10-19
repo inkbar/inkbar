@@ -150,7 +150,7 @@ The viewport mounts pages synchronously, so a build's page callbacks fire before
 
 ## Tools and keyboard
 
-`createToolController` from `@inkbar/core/dom` routes pointer and key events on the viewport to the active tool: `select-text`, `select`, `highlight`, `redact-area` or `note`. Highlights, text redactions and notes can be made from the keyboard. Drawing an area redaction needs a pointer.
+`createToolController` from `@inkbar/core/dom` routes pointer and key events on the viewport to the active tool: `select-text`, `select`, `highlight`, `redact-area`, `sketch`, `draw`, `shape`, `freetext` or `note`. Highlights, text redactions and notes can be made from the keyboard. Area redactions, sketches and drawings need a pointer.
 
 | Where focus is               | Key                                 | Effect                                                                                              |
 | ---------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------- |
@@ -183,6 +183,8 @@ On a focused annotation, `Enter` or `Space` selects it and calls `onActivate`; w
 Locked annotations, such as those embedded in the file, ignore move, resize and delete. Without a text selection, `Enter` in the `highlight` and `redact-area` tools does nothing.
 
 `redact-area` draws an area mark when you drag. To redact text instead, select the text with the `select-text` tool, switch to `redact-area`, then click inside the selection or press `Enter`. The tool keeps the press from starting a new text selection, so it cannot select text itself.
+
+`sketch` draws freehand ink, one annotation per stroke. A stroke that looks like a line, an arrow, a rectangle, an ellipse, a polygon or a star becomes that shape, in the shape style. One undo turns the shape back into the stroke, and a second removes the stroke. Draw each shape in one stroke: for an arrow, draw the shaft, then the head, without lifting. The recogniser is exported from `@inkbar/core` for your own input: `recogniseStroke(points)` takes user-space points and returns the shape with a score from 0 to 1. A stroke counts as a shape at `RECOGNISE_THRESHOLD` (0.8) or above.
 
 With either select tool (`select-text` or `select`), a selected area redaction, text box, shape, polyline, polygon or drawing shows four corner handles (`.ink-handle[data-handle="nw|ne|sw|se"]`), and a selected line shows one on each end (`data-handle="start|end"`). Dragging a corner resizes the annotation, scaling its points with it; `Shift` keeps its aspect ratio. Dragging a line end moves that end only. The store records a single update on release. Drag the annotation itself to move it, or any member of a multi-selection to move them all in one undo step.
 
