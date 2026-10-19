@@ -32,6 +32,7 @@ import {
   scaled,
   translated,
 } from '../../model/annotations/edit'
+import { withoutReplies } from '../../model/annotations/threads'
 import { rectFromPoints, rectsIntersect } from '../../model/geometry'
 import { annotationBox, renderAnnotationContent } from '../overlay-render'
 
@@ -360,9 +361,9 @@ export function createSelectionEdit(
             start.transform.fromCss(cssIn(start.host, e))
           )
           if (box.width === 0 && box.height === 0) return
-          const ids = ctx.store
-            .byPage(start.page)
-            .filter((a) => rectsIntersect(a.rect, box))
+          // Replies have no element on the page, so a marquee never picks them.
+          const ids = withoutReplies(ctx.store.list.get())
+            .filter((a) => a.page === start.page && rectsIntersect(a.rect, box))
             .map((a) => a.id)
           ctx.store.select(
             current.additive ? [...new Set([...ctx.store.selection.get(), ...ids])] : ids

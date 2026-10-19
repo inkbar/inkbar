@@ -51,10 +51,12 @@ export type {
 export { acceptSuggestion } from './model/annotations/suggestions'
 export {
   isAbandonedNote,
+  isReply,
   isThreadRoot,
   repliesTo,
   threadOf,
   threadRoot,
+  withoutReplies,
 } from './model/annotations/threads'
 export type { ThreadRoot } from './model/annotations/threads'
 export * from './model/annotations/embedded'

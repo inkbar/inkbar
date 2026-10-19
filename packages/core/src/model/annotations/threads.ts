@@ -9,6 +9,22 @@ export function isThreadRoot(a: Annotation): a is ThreadRoot {
   return a.type === 'text' || isTextMarkup(a)
 }
 
+/**
+ * True for a reply: an annotation whose `inReplyTo` names a thread root (a note or text markup)
+ * in `list`. Replies show in the thread popover only, never on the page.
+ */
+export function isReply(a: Annotation, list: readonly Annotation[]): boolean {
+  if (a.inReplyTo === undefined) return false
+  const parent = list.find((x) => x.id === a.inReplyTo)
+  return parent !== undefined && isThreadRoot(parent)
+}
+
+/** `list` less its replies (see `isReply`), in the same order. */
+export function withoutReplies(list: readonly Annotation[]): Annotation[] {
+  const roots = new Set(list.filter(isThreadRoot).map((a) => a.id))
+  return list.filter((a) => a.inReplyTo === undefined || !roots.has(a.inReplyTo))
+}
+
 /** Direct replies to `id`, in creation order. */
 export function repliesTo(list: readonly Annotation[], id: string): Annotation[] {
   return list

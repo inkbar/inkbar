@@ -123,7 +123,8 @@ function suggest(doc: InkDocument, y: number, reason = 'third-party name') {
 }
 
 async function rootNote(viewer: Viewer, doc: InkDocument): Promise<HTMLElement> {
-  await until(() => viewer.element.querySelectorAll('[data-annotation]').length === 4)
+  // The root and the standalone note: the root's two replies are not drawn on the page.
+  await until(() => viewer.element.querySelectorAll('[data-annotation]').length === 2)
   const note = doc.annotations.list.get().find((a) => a.contents === 'Root note')!
   return annotationEl(viewer, note.id)!
 }

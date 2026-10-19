@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
-import { isAbandonedNote, isThreadRoot, repliesTo, threadOf, threadRoot } from './threads'
+import {
+  isAbandonedNote,
+  isReply,
+  isThreadRoot,
+  repliesTo,
+  threadOf,
+  threadRoot,
+  withoutReplies,
+} from './threads'
 
 import type { Annotation, NoteAnnotation, TextMarkupAnnotation } from './types'
 
@@ -170,5 +178,21 @@ describe('isAbandonedNote', () => {
   it('is false for a highlight with no comment: the highlight is the point', () => {
     const h = markup('h')
     expect(isAbandonedNote(h, [h])).toBe(false)
+  })
+})
+
+describe('isReply and withoutReplies', () => {
+  it('treat answers to notes and markup as replies, and nothing else', () => {
+    const h = markup('h')
+    const onH = note('oh', '2026-10-13T00:00:01.000Z', { inReplyTo: 'h' })
+    const orphan = note('o', '2026-10-13T00:00:02.000Z', { inReplyTo: 'missing' })
+    const all: Annotation[] = [...list, h, onH, orphan]
+    expect(all.filter((a) => isReply(a, all)).map((a) => a.id)).toEqual([
+      'c',
+      'b',
+      'd',
+      'oh',
+    ])
+    expect(withoutReplies(all).map((a) => a.id)).toEqual(['r', 'h', 'o'])
   })
 })

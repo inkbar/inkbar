@@ -2732,6 +2732,74 @@ describe('selection editing', () => {
     window.getSelection()?.removeAllRanges()
   })
 
+  it('a highlight with a reply draws no note, and a drag across it still selects text', async () => {
+    const { doc, viewport, tools, container } = await setup()
+    const { hl, x, y, host } = await helloHighlight(doc, viewport)
+    doc.annotations.update(hl.id, { contents: 'Why?' })
+    const reply = doc.annotations.add({
+      type: 'text',
+      page: 0,
+      rect: hl.rect,
+      contents: 'Because',
+      inReplyTo: hl.id,
+    })
+    await settle()
+    // Replies live in the thread popover only: no element, no hit area, no tab stop.
+    expect(host.querySelector(`[data-annotation="${reply.id}"]`)).toBeNull()
+    expect(host.querySelectorAll('[data-type="text"]')).toHaveLength(0)
+    // Whatever is on top at the press is what a pointer reaches.
+    const top = document.elementFromPoint(x, y)!
+    expect(top.closest('[data-annotation]')?.getAttribute('data-annotation')).toBe(hl.id)
+    window.getSelection()?.removeAllRanges()
+    pointer(top, 'pointerdown', x, y)
+    pointer(top, 'pointermove', x + 20, y)
+    pointer(top, 'pointermove', x + 40, y)
+    pointer(top, 'pointerup', x + 40, y)
+    expect(doc.annotations.selection.get()).toEqual([])
+    expect(window.getSelection()?.toString()).not.toBe('')
+    window.getSelection()?.removeAllRanges()
+    // A marquee over the highlight picks the highlight, never its reply.
+    tools.set('select')
+    const h = host.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 2, h.top + 2)
+    pointer(container, 'pointermove', h.right - 2, h.bottom - 2)
+    pointer(container, 'pointerup', h.right - 2, h.bottom - 2)
+    expect(doc.annotations.selection.get()).toContain(hl.id)
+    expect(doc.annotations.selection.get()).not.toContain(reply.id)
+    // Deleting the root still takes its replies.
+    doc.annotations.remove(hl.id)
+    expect(doc.annotations.get(reply.id)).toBeUndefined()
+  })
+
+  it('a note with replies has exactly one overlay element, and arrow keys skip replies', async () => {
+    const { doc, viewport } = await setup()
+    const note = (y: number, inReplyTo?: string) =>
+      doc.annotations.add({
+        type: 'text',
+        page: 0,
+        rect: { x: 100, y, width: 20, height: 20 },
+        contents: 'x',
+        ...(inReplyTo ? { inReplyTo } : {}),
+      })
+    const root = note(600)
+    const r1 = note(560, root.id)
+    note(520, r1.id)
+    const other = note(400)
+    await settle()
+    const host = viewport.hostFor(0)!
+    expect(
+      [...host.querySelectorAll('[data-annotation]')].map((e) =>
+        e.getAttribute('data-annotation')
+      )
+    ).toEqual([root.id, other.id])
+    const first = host.querySelector<HTMLElement>(`[data-annotation="${root.id}"]`)!
+    first.focus()
+    first.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true })
+    )
+    expect(document.activeElement?.getAttribute('data-annotation')).toBe(other.id)
+  })
+
   it('a group move leaves a locked member in place, in one undo step', async () => {
     const { doc, container, viewport } = await setup()
     const rect = (x: number) => ({ x, y: 600, width: 50, height: 30 })

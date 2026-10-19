@@ -19,6 +19,7 @@ import {
   resizedRect,
   translated,
 } from '../model/annotations/edit'
+import { withoutReplies } from '../model/annotations/threads'
 import { confidenceBucket, type Annotation } from '../model/annotations/types'
 
 import { canEditFreeText, editFreeTextIn, editorFor } from './freetext-editor'
@@ -467,7 +468,10 @@ export function createOverlay(opts: OverlayOptions): Overlay {
 
   function render(): void {
     if (destroyed) return
-    const current = store.byPage(page).sort(readingOrder)
+    // Replies show in the thread popover only: no element, hit area or tab stop here.
+    const current = withoutReplies(store.list.get())
+      .filter((a) => a.page === page)
+      .sort(readingOrder)
     const ids = new Set(current.map((a) => a.id))
     const active = doc.activeElement
     let focusId = [...elements].find(([, n]) => n === active)?.[0]

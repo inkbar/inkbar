@@ -47,7 +47,7 @@ test('note popover opens on activation, shows the thread, adds a reply and close
     props: { src: fixtureUrl('annotated-notes-threaded'), assets },
   })
   const root = page.locator('[data-ink-root]')
-  await expect(cmp.locator('[data-annotation]')).toHaveCount(4)
+  await expect(cmp.locator('[data-annotation]')).toHaveCount(2)
   const rootNote = (await stored(root)).find((a) => a.contents === 'Root note')!
   const anchor = cmp.locator(`[data-annotation="${rootNote.id}"]`)
   await anchor.focus()
@@ -83,7 +83,7 @@ test('note popover keeps focus inside, closes on Escape and can reopen', async (
     props: { src: fixtureUrl('annotated-notes-threaded'), assets },
   })
   const root = page.locator('[data-ink-root]')
-  await expect(cmp.locator('[data-annotation]')).toHaveCount(4)
+  await expect(cmp.locator('[data-annotation]')).toHaveCount(2)
   const rootNote = (await stored(root)).find((a) => a.contents === 'Root note')!
   const anchor = cmp.locator(`[data-annotation="${rootNote.id}"]`)
   await anchor.focus()
@@ -258,7 +258,7 @@ test('a locked suggestion has no Dismiss, and the slot dismiss keeps the card op
   }
 })
 
-test('activating a nested reply opens the whole thread from its root', async ({
+test('nested replies have no element; the root opens the whole thread in order', async ({
   mount,
   page,
 }) => {
@@ -276,7 +276,10 @@ test('activating a nested reply opens the whole thread from its root', async ({
   const b = await note(560, 'Reply B', r)
   const c = await note(520, 'Reply C to B', b)
   await note(480, 'Reply D', r)
-  await cmp.locator(`[data-annotation="${c}"]`).focus()
+  // Replies show in the thread only: the page draws just the root.
+  await expect(cmp.locator('[data-annotation]')).toHaveCount(1)
+  await expect(cmp.locator(`[data-annotation="${c}"]`)).toHaveCount(0)
+  await cmp.locator(`[data-annotation="${r}"]`).focus()
   await page.keyboard.press('Enter')
   const popover = page.locator('[data-ink-thread-popover]')
   await expect(popover.locator('[data-ink-thread-item] .ink-thread-text')).toHaveText([
@@ -416,7 +419,7 @@ test('a locked note has no Delete, and the slot remove keeps the popover and the
     const cmp = await mount(Harness, {
       props: { src: fixtureUrl('annotated-notes-threaded'), assets, customNote },
     })
-    await expect(cmp.locator('[data-annotation]')).toHaveCount(4)
+    await expect(cmp.locator('[data-annotation]')).toHaveCount(2)
     const rootNote = (await stored(docOf(page))).find((a) => a.contents === 'Root note')!
     const anchor = cmp.locator(`[data-annotation="${rootNote.id}"]`)
     await expect(anchor).toHaveAttribute('data-locked', '')
@@ -429,7 +432,7 @@ test('a locked note has no Delete, and the slot remove keeps the popover and the
     } else {
       await popover.getByTestId('custom-remove').click()
       await expect(popover).toBeVisible()
-      await expect(cmp.locator('[data-annotation]')).toHaveCount(4)
+      await expect(cmp.locator('[data-annotation]')).toHaveCount(2)
     }
     await cmp.unmount()
   }
@@ -672,6 +675,8 @@ test('first comment sets the highlight contents; next adds a reply', async ({
     { type: 'text', inReplyTo: id }
   )
   await expect(mark.locator('.ink-comment-marker')).toHaveCount(1)
+  // The reply lives in the thread only: nothing for it on the page.
+  await expect(cmp.locator('[data-annotation][data-type="text"]')).toHaveCount(0)
 })
 
 test('closing an empty highlight thread keeps the highlight', async ({ mount, page }) => {

@@ -50,7 +50,7 @@ describe('popovers', () => {
   // React: 'note popover opens on activation, shows the thread, adds a reply and closes'
   it('note popover opens on activation, shows the thread, adds a reply and closes', async () => {
     await harness({ src: fixtureUrl('annotated-notes-threaded'), assets })
-    await expect.poll(count('[data-annotation]')).toBe(4)
+    await expect.poll(count('[data-annotation]')).toBe(2)
     const rootNote = stored().find((a) => a.contents === 'Root note')!
     const anchor = await q(`[data-annotation="${rootNote.id}"]`)
     await activate(anchor)
@@ -86,7 +86,7 @@ describe('popovers', () => {
   // React: 'note popover keeps focus inside, closes on Escape and can reopen'
   it('note popover keeps focus inside, closes on Escape and can reopen', async () => {
     await harness({ src: fixtureUrl('annotated-notes-threaded'), assets })
-    await expect.poll(count('[data-annotation]')).toBe(4)
+    await expect.poll(count('[data-annotation]')).toBe(2)
     const rootNote = stored().find((a) => a.contents === 'Root note')!
     const anchor = await q(`[data-annotation="${rootNote.id}"]`)
     await activate(anchor)
@@ -224,8 +224,8 @@ describe('popovers', () => {
     }
   })
 
-  // React: 'activating a nested reply opens the whole thread from its root'
-  it('activating a nested reply opens the whole thread from its root', async () => {
+  // React: 'nested replies have no element; the root opens the whole thread in order'
+  it('nested replies have no element; the root opens the whole thread in order', async () => {
     await harness({ src: fixtureUrl('text-simple'), assets })
     await q(`${FIRST} canvas`)
     const note = (y: number, contents: string, inReplyTo?: string) =>
@@ -240,7 +240,10 @@ describe('popovers', () => {
     const b = note(560, 'Reply B', r)
     const c = note(520, 'Reply C to B', b)
     note(480, 'Reply D', r)
-    await activate(await q(`[data-annotation="${c}"]`))
+    // Replies show in the thread only: the page draws just the root.
+    await expect.poll(count('[data-annotation]')).toBe(1)
+    expect(count(`[data-annotation="${c}"]`)()).toBe(0)
+    await activate(await q(`[data-annotation="${r}"]`))
     const popover = await q(POPOVER)
     await expect
       .poll(() =>
@@ -398,7 +401,7 @@ describe('popovers', () => {
         assets,
         customNote,
       })
-      await expect.poll(count('[data-annotation]')).toBe(4)
+      await expect.poll(count('[data-annotation]')).toBe(2)
       const rootNote = stored().find((a) => a.contents === 'Root note')!
       const anchor = await q(`[data-annotation="${rootNote.id}"]`)
       expect(anchor.getAttribute('data-locked')).toBe('')
@@ -410,7 +413,7 @@ describe('popovers', () => {
       } else {
         await screen.getByTestId('custom-remove').click()
         await expect.element(browserPage.elementLocator(popover)).toBeVisible()
-        expect(count('[data-annotation]')()).toBe(4)
+        expect(count('[data-annotation]')()).toBe(2)
       }
       await screen.unmount()
     }
@@ -655,6 +658,8 @@ describe('popovers', () => {
       inReplyTo: id,
     })
     await expect.poll(count(`[data-annotation="${id}"] .ink-comment-marker`)).toBe(1)
+    // The reply lives in the thread only: nothing for it on the page.
+    expect(count('[data-annotation][data-type="text"]')()).toBe(0)
   })
 
   // React: 'closing an empty highlight thread keeps the highlight'

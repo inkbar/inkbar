@@ -273,7 +273,7 @@ test('renders custom annotation slot content inside the overlay element', async 
   })
   const custom = cmp.locator('[data-annotation][data-custom] > .my-pin')
   await expect(custom.first()).toBeVisible()
-  await expect(custom).toHaveCount(4)
+  await expect(custom).toHaveCount(2)
   await expect(custom.first()).toHaveAttribute('data-pin-state', 'idle')
   // `locked` mirrors the overlay's own `data-locked` flag (embedded notes arrive locked).
   const pairs = await cmp
@@ -284,7 +284,7 @@ test('renders custom annotation slot content inside the overlay element', async 
         String(e.hasAttribute('data-locked')),
       ])
     )
-  expect(pairs).toHaveLength(4)
+  expect(pairs).toHaveLength(2)
   for (const [pin, overlay] of pairs) expect(pin).toBe(overlay)
   // The overlay draws nothing of its own into a custom element.
   await expect(cmp.locator('[data-annotation][data-custom] svg')).toHaveCount(0)
@@ -295,7 +295,7 @@ test('without the slot, the overlay draws the default visual once', async ({ mou
     props: { src: fixtureUrl('annotated-notes-threaded'), assets, zoom: 1 },
   })
   const elements = cmp.locator('[data-annotation]')
-  await expect(elements).toHaveCount(4)
+  await expect(elements).toHaveCount(2)
   await expect(cmp.locator('[data-annotation][data-custom]')).toHaveCount(0)
   for (const el of await elements.all()) await expect(el.locator('> svg')).toHaveCount(1)
   await expect(cmp.locator('.my-pin')).toHaveCount(0)
