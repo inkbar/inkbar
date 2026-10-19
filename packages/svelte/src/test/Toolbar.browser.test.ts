@@ -508,3 +508,62 @@ describe('toolbar', () => {
     })
   })
 })
+
+describe('shape menu', () => {
+  const main = '[data-ink-shape-button]'
+  const chevron = () => browserPage.getByRole('button', { name: 'Choose shape' })
+  const menu = () => browserPage.getByRole('menu', { name: 'Shapes' })
+  const kind = (name: string) => menu().getByRole('menuitemradio', { name, exact: true })
+  const probe = (name: string) => attr('[data-testid="probe"]', name)
+  const start = async () => {
+    await render(ToolbarHarness, { src: fixtureUrl('text-simple'), assets })
+    await q('.ink-page canvas')
+  }
+
+  it('the main button activates shape with the current kind', async () => {
+    await start()
+    await expect.poll(attr(main, 'aria-pressed')).toBe('false')
+    await browserPage.elementLocator(await q(main)).click()
+    await expect.poll(attr(main, 'aria-pressed')).toBe('true')
+    expect(attr(main, 'data-kind')()).toBe('rectangle')
+    await expect.poll(probe('data-tool')).toBe('shape')
+  })
+
+  it('choosing ellipse activates shape with kind ellipse', async () => {
+    await start()
+    await chevron().click()
+    await expect.element(kind('Rectangle')).toHaveAttribute('aria-checked', 'true')
+    expect(menu().getByRole('menuitemradio', { name: 'Loupe' }).elements()).toHaveLength(
+      0
+    )
+    await kind('Ellipse').click()
+    await expect.poll(probe('data-tool')).toBe('shape')
+    await expect.poll(attr(main, 'data-kind')).toBe('ellipse')
+    await expect.poll(() => menu().elements().length).toBe(0)
+    await expect.poll(focused).toBe(chevron().element())
+  })
+
+  it('the trigger icon follows the current kind', async () => {
+    await start()
+    const before = (await q(main)).innerHTML
+    expect(attr(main, 'aria-label')()).toBe('Shape: Rectangle')
+    await chevron().click()
+    await kind('Star').click()
+    await expect.poll(attr(main, 'aria-label')).toBe('Shape: Star')
+    expect((await q(main)).innerHTML).not.toBe(before)
+  })
+
+  it('keyboard: ArrowDown opens on the first kind, arrows move through the grid, Escape returns focus', async () => {
+    await start()
+    ;(chevron().element() as HTMLElement).focus()
+    await userEvent.keyboard('{ArrowDown}')
+    await expect.poll(focused).toBe(kind('Line').element())
+    await userEvent.keyboard('{ArrowRight}')
+    await expect.poll(focused).toBe(kind('Arrow').element())
+    await userEvent.keyboard('{ArrowDown}')
+    await expect.poll(focused).toBe(kind('Rounded rectangle').element())
+    await userEvent.keyboard('{Escape}')
+    await expect.poll(() => menu().elements().length).toBe(0)
+    await expect.poll(focused).toBe(chevron().element())
+  })
+})

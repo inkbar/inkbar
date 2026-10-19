@@ -34,6 +34,7 @@ export {
   redactAreaTool,
   selectTextTool,
   selectTool,
+  shapeTool,
   trackToolStyle,
   withHostTools,
 } from './tools'
@@ -48,6 +49,8 @@ export type {
   ToolOptions,
   ToolStyleTracker,
 } from './tools'
+export { DEFAULT_CORNER_RADIUS, DEFAULT_SHAPE_SIZE, SHAPE_KINDS } from './tools'
+export type { ShapeKind, ShapeOptions } from './tools'
 export type {
   CurrentStyle,
   StyleGroup,
@@ -63,11 +66,14 @@ export {
   COLOR_LABELS,
   DASH_PATTERN,
   LINE_WEIGHTS,
+  SHAPE_COLUMNS,
+  SHAPE_LABELS,
   TOOL_LABELS,
   ZOOM_LEVELS,
   arrowheadChoice,
   colorMenuModel,
   lineStyleMenuModel,
+  shapeMenuModel,
 } from './ui'
 export { PALETTE } from './palette'
 export type { Palette } from './palette'
@@ -80,6 +86,8 @@ export type {
   LineStyleMenuItem,
   LineStyleMenuModel,
   LineStyleMenuSection,
+  ShapeMenuItem,
+  ShapeMenuModel,
 } from './ui'
 export type {
   AnnotationSlotProps,
@@ -112,6 +120,7 @@ export {
 } from './viewer/controls'
 export { createLineStyleMenu } from './viewer/style-menu'
 export { createColorMenu } from './viewer/color-menu'
+export { createShapeMenu } from './viewer/shape-menu'
 export type { ColorMenuOptions } from './viewer/color-menu'
 export { createMenu } from './viewer/menu'
 export type { Menu, MenuOptions } from './viewer/menu'

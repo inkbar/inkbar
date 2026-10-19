@@ -79,6 +79,8 @@ export const ShapeSchema = Base.extend({
   width: z.number().nonnegative().default(1),
   dashes: DashesSchema,
   interiorColor: Hex.optional(),
+  /** Squares only: the corner radius in points. An extension, not XFDF. */
+  cornerRadius: z.number().nonnegative().optional(),
 })
 
 export const LineEndingSchema = z.enum([

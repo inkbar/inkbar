@@ -12,6 +12,7 @@ import {
   createPageInput,
   createPrevPage,
   createRedo,
+  createShapeMenu,
   createToolbar,
   createToolbarSeparator,
   createToolButton,
@@ -55,6 +56,7 @@ export function mountDemo(el: HTMLElement, source: DocumentSource): () => void {
       createToolButton(viewer, 'select-text'),
       createToolButton(viewer, 'select'),
       createToolButton(viewer, 'redact-area'),
+      createShapeMenu(viewer),
       createToolButton(viewer, 'note')
     ),
     createToolbarSeparator(),

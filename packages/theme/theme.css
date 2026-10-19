@@ -259,6 +259,24 @@
     background: color-mix(in srgb, var(--ink-redact) 15%, transparent);
   }
 
+  /* The shape draft's box is only its bounds; the outline is the SVG inside it. */
+  :where(.ink-draft[data-ink-draft='shape']) {
+    border: 0;
+    background: none;
+  }
+
+  :where(.ink-draft[data-ink-draft='shape'] svg) {
+    display: block;
+    stroke: var(--ink-accent);
+    stroke-width: 1.5;
+    stroke-dasharray: 4 3;
+    fill: color-mix(in srgb, var(--ink-accent) 10%, transparent);
+  }
+
+  :where(.ink-draft[data-ink-draft='shape'] polyline) {
+    fill: none;
+  }
+
   /* Edit handles on a selected annotation: shown with the select tools only. */
   :where(.ink-handle) {
     box-sizing: border-box;
@@ -696,6 +714,30 @@
     clip-path: inset(50%);
     opacity: 0;
     pointer-events: none;
+  }
+
+  /* Shape menu: a split button, the tool part beside a narrow chevron. */
+  :where(.ink-split-button) {
+    display: inline-flex;
+    align-items: stretch;
+  }
+
+  :where(.ink-split-button .ink-menu-trigger) {
+    padding-inline: 0.125rem;
+  }
+
+  :where(.ink-shape-grid) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(8.5rem, 1fr));
+    gap: 2px;
+    padding: 0.25rem;
+  }
+
+  :where(.ink-shape-item) {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-right: 0.5rem;
   }
 
   /* Note threads and suggestion cards */

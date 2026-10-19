@@ -6,6 +6,7 @@ import { InkPageInput } from '../../src/components/InkPageInput'
 import { InkPrevPage } from '../../src/components/InkPrevPage'
 import { InkRedo } from '../../src/components/InkRedo'
 import { InkRoot } from '../../src/components/InkRoot'
+import { InkShapeMenu } from '../../src/components/InkShapeMenu'
 import { InkToolbar } from '../../src/components/InkToolbar'
 import { InkToolbarSeparator } from '../../src/components/InkToolbarSeparator'
 import { InkToolButton } from '../../src/components/InkToolButton'
@@ -37,6 +38,7 @@ export function ToolbarHarness({
         <InkToolButton tool="highlight" />
         <InkToolButton tool="redact-area" />
         <InkToolButton tool="note" />
+        <InkShapeMenu />
         <InkToolbarSeparator />
         <InkLineStyleMenu />
         <InkColorMenu property="border" />

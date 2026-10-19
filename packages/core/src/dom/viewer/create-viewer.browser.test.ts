@@ -20,6 +20,7 @@ import {
   createZoomSelect,
 } from './controls'
 import { createViewer, type CreateViewerOptions, type Viewer } from './create-viewer'
+import { createShapeMenu } from './shape-menu'
 import { createLineStyleMenu } from './style-menu'
 
 import type { InkDocument } from '../../model/document'
@@ -798,6 +799,107 @@ describe('createViewer', () => {
       key(focused()!, 'Escape')
       expect(menu()).toBeNull()
       expect(focused()).toBe(trigger)
+    })
+  })
+
+  describe('shape menu', () => {
+    const panel = (): HTMLElement | null =>
+      document.querySelector<HTMLElement>('[data-ink-menu="shape"][role="menu"]')
+    const item = (name: string): HTMLButtonElement =>
+      [...panel()!.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]')].find(
+        (b) => b.textContent?.trim() === name
+      )!
+    const parts = (root: HTMLElement) => ({
+      main: root.querySelector<HTMLButtonElement>('[data-ink-shape-button]')!,
+      chevron: root.querySelector<HTMLButtonElement>('[data-ink-shape-menu-trigger]')!,
+    })
+
+    it('the main button activates the shape tool with the current kind', async () => {
+      const { viewer } = make('text-simple')
+      const root = createShapeMenu(viewer)
+      viewer.element.prepend(root)
+      const { main, chevron } = parts(root)
+      expect(main.disabled).toBe(true)
+      expect(chevron.disabled).toBe(true)
+      const { engine } = await ready(viewer)
+      expect(main.disabled).toBe(false)
+      expect(main.getAttribute('aria-pressed')).toBe('false')
+      main.click()
+      expect(engine.tools.active.get()).toBe('shape')
+      expect(main.getAttribute('aria-pressed')).toBe('true')
+      expect(main.dataset.state).toBe('on')
+      expect(engine.tools.options('shape').get()).toMatchObject({ kind: 'rectangle' })
+    })
+
+    it('choosing ellipse activates shape with kind ellipse', async () => {
+      const { viewer } = make('text-simple')
+      const root = createShapeMenu(viewer)
+      viewer.element.prepend(root)
+      const { chevron } = parts(root)
+      const { engine } = await ready(viewer)
+      chevron.click()
+      expect(panel()!.getAttribute('aria-label')).toBe('Shapes')
+      expect(item('Rectangle').getAttribute('aria-checked')).toBe('true')
+      // Kinds with no creator yet are not offered.
+      expect(item('Speech bubble')).toBeUndefined()
+      expect(item('Loupe')).toBeUndefined()
+      expect(item('Mask')).toBeUndefined()
+      item('Ellipse').click()
+      expect(engine.tools.active.get()).toBe('shape')
+      expect(engine.tools.options('shape').get()).toMatchObject({ kind: 'ellipse' })
+      expect(panel()).toBeNull()
+      expect(document.activeElement).toBe(chevron)
+      chevron.click()
+      expect(item('Ellipse').getAttribute('aria-checked')).toBe('true')
+    })
+
+    it('the trigger icon follows the current kind', async () => {
+      const { viewer } = make('text-simple')
+      const root = createShapeMenu(viewer)
+      viewer.element.prepend(root)
+      const { main } = parts(root)
+      const { engine } = await ready(viewer)
+      const rectangle = main.innerHTML
+      expect(main.getAttribute('aria-label')).toBe('Shape: Rectangle')
+      engine.tools.setOptions('shape', { kind: 'star' })
+      expect(main.dataset.kind).toBe('star')
+      expect(main.getAttribute('aria-label')).toBe('Shape: Star')
+      expect(main.innerHTML).not.toBe(rectangle)
+      // Changing the kind alone does not switch tools.
+      expect(engine.tools.active.get()).not.toBe('shape')
+    })
+
+    it('keyboard: ArrowDown opens on the first kind, arrows move through the grid, Escape returns focus', async () => {
+      const { viewer } = make('text-simple')
+      const root = createShapeMenu(viewer)
+      viewer.element.prepend(root)
+      const { chevron } = parts(root)
+      const { engine } = await ready(viewer)
+      chevron.focus()
+      chevron.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'ArrowDown',
+          bubbles: true,
+          cancelable: true,
+        })
+      )
+      const press = (key: string) =>
+        document.activeElement!.dispatchEvent(
+          new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true })
+        )
+      expect(document.activeElement).toBe(item('Line'))
+      press('ArrowRight')
+      expect(document.activeElement).toBe(item('Arrow'))
+      press('ArrowDown')
+      expect(document.activeElement).toBe(item('Rounded rectangle'))
+      press('ArrowLeft')
+      expect(document.activeElement).toBe(item('Rectangle'))
+      press('ArrowUp')
+      expect(document.activeElement).toBe(item('Line'))
+      press('Escape')
+      expect(panel()).toBeNull()
+      expect(document.activeElement).toBe(chevron)
+      expect(engine.tools.active.get()).not.toBe('shape')
     })
   })
 

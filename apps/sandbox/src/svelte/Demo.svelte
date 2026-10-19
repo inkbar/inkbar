@@ -13,6 +13,7 @@
     InkPageInput,
     InkPrevPage,
     InkRoot,
+    InkShapeMenu,
     InkSuggestionCard,
     InkRedo,
     InkToolbar,
@@ -43,6 +44,7 @@
       <InkToolButton tool="select-text" />
       <InkToolButton tool="select" />
       <InkToolButton tool="redact-area" />
+      <InkShapeMenu />
       <InkToolButton tool="note" />
     </div>
     <InkToolbarSeparator />

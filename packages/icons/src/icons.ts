@@ -82,3 +82,74 @@ export const MoveRight: IconNode = [
   ['path', { d: 'M18 8L22 12L18 16' }],
   ['path', { d: 'M2 12H22' }],
 ]
+
+export const Shapes: IconNode = [
+  [
+    'path',
+    {
+      d: 'M8.3 10a.7.7 0 0 1-.626-1.079L11.4 3a.7.7 0 0 1 1.198-.043L16.3 8.9a.7.7 0 0 1-.572 1.1Z',
+    },
+  ],
+  ['rect', { x: '3', y: '14', width: '7', height: '7', rx: '1' }],
+  ['circle', { cx: '17.5', cy: '17.5', r: '3.5' }],
+]
+
+export const Slash: IconNode = [['path', { d: 'M22 2 2 22' }]]
+
+export const MoveUpRight: IconNode = [
+  ['path', { d: 'M13 5H19V11' }],
+  ['path', { d: 'M19 5L5 19' }],
+]
+
+export const RectangleHorizontal: IconNode = [
+  ['rect', { width: '20', height: '12', x: '2', y: '6', rx: '2' }],
+]
+
+export const Circle: IconNode = [['circle', { cx: '12', cy: '12', r: '10' }]]
+
+export const Star: IconNode = [
+  [
+    'path',
+    {
+      d: 'M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z',
+    },
+  ],
+]
+
+export const Hexagon: IconNode = [
+  [
+    'path',
+    {
+      d: 'M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z',
+    },
+  ],
+]
+
+export const MessageCircle: IconNode = [
+  [
+    'path',
+    {
+      d: 'M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719',
+    },
+  ],
+]
+
+export const Search: IconNode = [
+  ['path', { d: 'm21 21-4.34-4.34' }],
+  ['circle', { cx: '11', cy: '11', r: '8' }],
+]
+
+export const SquareDashed: IconNode = [
+  ['path', { d: 'M5 3a2 2 0 0 0-2 2' }],
+  ['path', { d: 'M19 3a2 2 0 0 1 2 2' }],
+  ['path', { d: 'M21 19a2 2 0 0 1-2 2' }],
+  ['path', { d: 'M5 21a2 2 0 0 1-2-2' }],
+  ['path', { d: 'M9 3h1' }],
+  ['path', { d: 'M9 21h1' }],
+  ['path', { d: 'M14 3h1' }],
+  ['path', { d: 'M14 21h1' }],
+  ['path', { d: 'M3 9v1' }],
+  ['path', { d: 'M21 9v1' }],
+  ['path', { d: 'M3 14v1' }],
+  ['path', { d: 'M21 14v1' }],
+]

@@ -13,6 +13,7 @@ import { noteTool } from './note'
 import { redactAreaTool } from './redact-area'
 import { selectTool } from './select'
 import { selectTextTool } from './select-text'
+import { shapeTool } from './shape'
 
 import type { AnnotationStore } from '../../model/annotations/store'
 
@@ -27,11 +28,25 @@ export type {
 } from './controller'
 export { hitFor } from './controller'
 export { createToolOptions, type ToolOptions } from './options'
-export { highlightTool, noteTool, redactAreaTool, selectTextTool, selectTool }
+export { highlightTool, noteTool, redactAreaTool, selectTextTool, selectTool, shapeTool }
+export {
+  DEFAULT_CORNER_RADIUS,
+  DEFAULT_SHAPE_SIZE,
+  SHAPE_KINDS,
+  type ShapeKind,
+  type ShapeOptions,
+} from './shape'
 
 /** Fresh instances of every built-in tool. */
 export function builtinTools(): Tool[] {
-  return [selectTextTool(), selectTool(), highlightTool(), redactAreaTool(), noteTool()]
+  return [
+    selectTextTool(),
+    selectTool(),
+    highlightTool(),
+    redactAreaTool(),
+    noteTool(),
+    shapeTool(),
+  ]
 }
 
 /** The built-in tools with a host's tools added, a host tool replacing a built-in by id. */

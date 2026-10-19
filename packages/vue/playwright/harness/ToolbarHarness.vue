@@ -7,6 +7,7 @@ import InkPageInput from '../../src/components/InkPageInput.vue'
 import InkPrevPage from '../../src/components/InkPrevPage.vue'
 import InkRedo from '../../src/components/InkRedo.vue'
 import InkRoot from '../../src/components/InkRoot.vue'
+import InkShapeMenu from '../../src/components/InkShapeMenu.vue'
 import InkToolbar from '../../src/components/InkToolbar.vue'
 import InkToolbarSeparator from '../../src/components/InkToolbarSeparator.vue'
 import InkToolButton from '../../src/components/InkToolButton.vue'
@@ -38,6 +39,7 @@ const emit = defineEmits<{ 'update:tool': [t: ToolId] }>()
       <InkToolButton tool="highlight" />
       <InkToolButton tool="redact-area" />
       <InkToolButton tool="note" />
+      <InkShapeMenu />
       <InkToolbarSeparator />
       <InkLineStyleMenu />
       <InkColorMenu property="border" />
