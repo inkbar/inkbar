@@ -432,13 +432,15 @@ describe('toolbar', () => {
         .toBe('none')
     })
 
+    const picker = () =>
+      document.querySelector<HTMLInputElement>('input[data-ink-color-input="border"]')!
+
     it('Custom opens a native color input and applies its value', async () => {
       await start('add-square')
       await trigger('Border colour').click()
-      const input = menu('Border colour')
-        .getByLabelText('Custom colour')
-        .element() as HTMLInputElement
+      const input = picker()
       expect(input.type).toBe('color')
+      expect(input.getAttribute('aria-label')).toBe('Custom colour')
       let opened = 0
       input.addEventListener('click', () => opened++)
       await menu('Border colour').getByRole('menuitem', { name: 'Custom…' }).click()
@@ -446,6 +448,32 @@ describe('toolbar', () => {
       input.value = '#123abc'
       input.dispatchEvent(new Event('change', { bubbles: true }))
       await expect.poll(probe('data-colors')).toBe('#123ABC')
+    })
+
+    it('Custom: the input survives the menu closing while the picker is open', async () => {
+      await start('add-square')
+      await trigger('Border colour').click()
+      await menu('Border colour').getByRole('menuitem', { name: 'Custom…' }).click()
+      const input = picker()
+      await trigger('Border colour').click()
+      await expect.poll(() => menu('Border colour').elements().length).toBe(0)
+      expect(input.isConnected).toBe(true)
+      input.value = '#abcdef'
+      input.dispatchEvent(new Event('change', { bubbles: true }))
+      await expect.poll(probe('data-colors')).toBe('#ABCDEF')
+    })
+
+    it('a mixed selection shows a mixed trigger', async () => {
+      await render(ColorMenuHarness, { src: fixtureUrl('text-simple'), assets })
+      await q('.ink-page canvas')
+      await click('add-square')
+      await click('add-square-2')
+      await click('select-all')
+      for (const kind of ['border', 'fill']) {
+        const sel = `[data-ink-color-menu="${kind}"]`
+        await expect.poll(attr(sel, 'data-mixed')).toBe('')
+        await expect.poll(attr(`${sel} [data-ink-swatch]`, 'data-kind')).toBe('mixed')
+      }
     })
 
     it('fill menu is disabled when only a line is selected', async () => {

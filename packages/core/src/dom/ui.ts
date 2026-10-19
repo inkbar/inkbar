@@ -220,7 +220,8 @@ export function colorMenuModel(
 ): ColorMenuModel {
   const value = current[property]
   const enabled = supported.has(property)
-  const color = typeof value === 'string' ? value.toUpperCase() : undefined
+  const color =
+    typeof value === 'string' && value !== 'mixed' ? value.toUpperCase() : undefined
   const flat = [
     ...PALETTE.common.map((c, i) => [`common-${i}`, c] as const),
     ...PALETTE.greys.map((c, i) => [`grey-${i}`, c] as const),

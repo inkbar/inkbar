@@ -62,6 +62,10 @@ export function InkColorMenu({
     input.current = el
     el?.addEventListener('change', () => apply.current(el.value))
   }, [])
+  // The input outlives the panel, so it follows the current colour rather than mount time.
+  useEffect(() => {
+    if (input.current) input.current.value = model.customValue.toLowerCase()
+  }, [model.customValue])
   // The menu closes when the control disables (the selection cleared while it was open).
   useEffect(() => {
     if (!model.enabled) setOpen(false)
@@ -72,123 +76,126 @@ export function InkColorMenu({
       ? ({ '--ink-swatch': trigger.color } as CSSProperties)
       : undefined
   return (
-    <Popover.Root open={open} onOpenChange={setOpen}>
-      <Toolbar.Button asChild>
-        <Popover.Trigger asChild>
-          <button
-            type="button"
-            className={cx('ink-menu-trigger ink-color-menu', className)}
-            data-ink-color-menu={property}
-            data-state={open ? 'open' : 'closed'}
-            data-mixed={model.mixed ? '' : undefined}
-            aria-label={name}
-            title={name}
-            aria-haspopup="menu"
-            disabled={!model.enabled}
-            {...rest}
-            onKeyDown={(e) => {
-              rest.onKeyDown?.(e)
-              if (e.key !== 'ArrowDown' || e.defaultPrevented || open || !model.enabled)
-                return
-              e.preventDefault()
-              focusFirst.current = true
-              setOpen(true)
-            }}
-          >
-            {children ?? (
-              <span
-                className="ink-swatch"
-                data-ink-swatch=""
-                data-property={property}
-                data-kind={trigger.kind}
-                data-color={trigger.kind === 'color' ? trigger.color : undefined}
-                style={swatchStyle}
-                aria-hidden="true"
-              />
-            )}
-          </button>
-        </Popover.Trigger>
-      </Toolbar.Button>
-      <Popover.Portal>
-        <Popover.Content
-          role="menu"
-          aria-label={name}
-          className="ink-select-content ink-menu-content"
-          data-ink-select-content=""
-          data-ink-menu={`color-${property}`}
-          side="bottom"
-          align="start"
-          sideOffset={4}
-          collisionPadding={8}
-          onOpenAutoFocus={(e) => {
-            e.preventDefault()
-            const menu = e.currentTarget as HTMLElement
-            if (focusFirst.current) menuItems(menu)[0]?.focus({ preventScroll: true })
-            else focusInitialMenuItem(menu)
-            focusFirst.current = false
-          }}
-          onKeyDown={(e) => handleMenuKeys(e.nativeEvent, e.currentTarget)}
-        >
-          {model.noFill ? (
+    <>
+      <Popover.Root open={open} onOpenChange={setOpen}>
+        <Toolbar.Button asChild>
+          <Popover.Trigger asChild>
             <button
               type="button"
-              role="menuitemradio"
-              aria-checked={model.noFill.checked}
+              className={cx('ink-menu-trigger ink-color-menu', className)}
+              data-ink-color-menu={property}
+              data-state={open ? 'open' : 'closed'}
+              data-mixed={model.mixed ? '' : undefined}
+              aria-label={name}
+              title={name}
+              aria-haspopup="menu"
+              disabled={!model.enabled}
+              {...rest}
+              onKeyDown={(e) => {
+                rest.onKeyDown?.(e)
+                if (e.key !== 'ArrowDown' || e.defaultPrevented || open || !model.enabled)
+                  return
+                e.preventDefault()
+                focusFirst.current = true
+                setOpen(true)
+              }}
+            >
+              {children ?? (
+                <span
+                  className="ink-swatch"
+                  data-ink-swatch=""
+                  data-property={property}
+                  data-kind={trigger.kind}
+                  data-color={trigger.kind === 'color' ? trigger.color : undefined}
+                  style={swatchStyle}
+                  aria-hidden="true"
+                />
+              )}
+            </button>
+          </Popover.Trigger>
+        </Toolbar.Button>
+        <Popover.Portal>
+          <Popover.Content
+            role="menu"
+            aria-label={name}
+            className="ink-select-content ink-menu-content"
+            data-ink-select-content=""
+            data-ink-menu={`color-${property}`}
+            side="bottom"
+            align="start"
+            sideOffset={4}
+            collisionPadding={8}
+            onOpenAutoFocus={(e) => {
+              e.preventDefault()
+              const menu = e.currentTarget as HTMLElement
+              if (focusFirst.current) menuItems(menu)[0]?.focus({ preventScroll: true })
+              else focusInitialMenuItem(menu)
+              focusFirst.current = false
+            }}
+            onKeyDown={(e) => handleMenuKeys(e.nativeEvent, e.currentTarget)}
+          >
+            {model.noFill ? (
+              <button
+                type="button"
+                role="menuitemradio"
+                aria-checked={model.noFill.checked}
+                tabIndex={-1}
+                className="ink-select-item ink-menu-item"
+                data-ink-select-item=""
+                data-state={model.noFill.checked ? 'checked' : 'unchecked'}
+                onClick={() => set(model.noFill!.patch)}
+              >
+                No fill
+                {model.noFill.checked ? (
+                  <span className="ink-select-indicator">
+                    <InkIcon icon={Check} size={16} />
+                  </span>
+                ) : null}
+              </button>
+            ) : null}
+            <div
+              role="group"
+              aria-label="Colours"
+              className="ink-color-grid"
+              data-ink-menu-columns={COLOR_COLUMNS}
+            >
+              {model.swatches.map((sw) => (
+                <button
+                  key={sw.key}
+                  type="button"
+                  role="menuitemradio"
+                  aria-label={sw.label}
+                  aria-checked={sw.checked}
+                  tabIndex={-1}
+                  className="ink-swatch-item"
+                  data-state={sw.checked ? 'checked' : 'unchecked'}
+                  style={{ '--ink-swatch': sw.color } as CSSProperties}
+                  onClick={() => set(sw.patch)}
+                />
+              ))}
+            </div>
+            <button
+              type="button"
+              role="menuitem"
               tabIndex={-1}
               className="ink-select-item ink-menu-item"
               data-ink-select-item=""
-              data-state={model.noFill.checked ? 'checked' : 'unchecked'}
-              onClick={() => set(model.noFill!.patch)}
+              onClick={() => input.current?.click()}
             >
-              No fill
-              {model.noFill.checked ? (
-                <span className="ink-select-indicator">
-                  <InkIcon icon={Check} size={16} />
-                </span>
-              ) : null}
+              Custom…
             </button>
-          ) : null}
-          <div
-            role="group"
-            aria-label="Colours"
-            className="ink-color-grid"
-            data-ink-menu-columns={COLOR_COLUMNS}
-          >
-            {model.swatches.map((sw) => (
-              <button
-                key={sw.key}
-                type="button"
-                role="menuitemradio"
-                aria-label={sw.label}
-                aria-checked={sw.checked}
-                tabIndex={-1}
-                className="ink-swatch-item"
-                data-state={sw.checked ? 'checked' : 'unchecked'}
-                style={{ '--ink-swatch': sw.color } as CSSProperties}
-                onClick={() => set(sw.patch)}
-              />
-            ))}
-          </div>
-          <button
-            type="button"
-            role="menuitem"
-            tabIndex={-1}
-            className="ink-select-item ink-menu-item"
-            data-ink-select-item=""
-            onClick={() => input.current?.click()}
-          >
-            Custom…
-          </button>
-          <input
-            ref={bindInput}
-            type="color"
-            className="ink-color-input"
-            aria-label="Custom colour"
-            tabIndex={-1}
-            defaultValue={model.customValue.toLowerCase()}
-          />
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover.Root>
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover.Root>
+      <input
+        ref={bindInput}
+        type="color"
+        className="ink-color-input"
+        aria-label="Custom colour"
+        data-ink-color-input={property}
+        tabIndex={-1}
+        defaultValue={model.customValue.toLowerCase()}
+      />
+    </>
   )
 }

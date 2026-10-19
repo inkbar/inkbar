@@ -37,6 +37,8 @@ describe('colorMenuModel', () => {
     expect(m.mixed).toBe(true)
     expect(m.noFill?.checked).toBe(false)
     expect(m.swatches.some((s) => s.checked)).toBe(false)
+    // The native input needs a real colour: `mixed` must never reach it.
+    expect(m.customValue).toBe('#000000')
   })
 
   it('shows an empty swatch when the style has no value, and a custom colour as is', () => {

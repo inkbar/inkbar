@@ -483,9 +483,9 @@ test.describe('colour menus', () => {
     await selectNew(page, 'add-square')
     await page.getByRole('button', { name: 'Border colour' }).click()
     const menu = page.getByRole('menu', { name: 'Border colour' })
-    const input = menu.locator('input[type="color"]')
+    const input = page.locator('input[data-ink-color-input="border"]')
     await expect(input).toHaveAttribute('aria-label', 'Custom colour')
-    await expect(menu.getByRole('menuitem', { name: 'Custom…' })).toBeVisible()
+    await menu.getByRole('menuitem', { name: 'Custom…' }).click()
     await input.fill('#123abc')
     await expect(page.getByTestId('probe')).toHaveAttribute('data-colors', '#123ABC')
   })
@@ -527,5 +527,41 @@ test.describe('colour menus', () => {
     await page.keyboard.press('Escape')
     await expect(menu).toHaveCount(0)
     await expect(trigger).toBeFocused()
+  })
+
+  test('Custom: the input survives the menu closing while the picker is open', async ({
+    mount,
+    page,
+  }) => {
+    await mountHarness(mount)
+    await selectNew(page, 'add-square')
+    await page.getByRole('button', { name: 'Border colour' }).click()
+    const menu = page.getByRole('menu', { name: 'Border colour' })
+    const input = page.locator('input[data-ink-color-input="border"]')
+    await menu.getByRole('menuitem', { name: 'Custom…' }).click()
+    // Anything that dismisses the menu while the picker is open must not lose the pick.
+    await page.getByRole('button', { name: 'Border colour' }).click()
+    await expect(menu).toHaveCount(0)
+    await expect(input).toBeAttached()
+    await input.evaluate((el: HTMLInputElement) => {
+      el.value = '#abcdef'
+      el.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    await expect(page.getByTestId('probe')).toHaveAttribute('data-colors', '#ABCDEF')
+  })
+
+  test('a mixed selection shows a mixed trigger', async ({ mount, page }) => {
+    await mountHarness(mount)
+    await page.getByTestId('add-square').click()
+    await page.getByTestId('add-square-2').click()
+    await page.getByTestId('select-all').click()
+    for (const name of ['Border colour', 'Fill colour']) {
+      const trigger = page.getByRole('button', { name })
+      await expect(trigger).toHaveAttribute('data-mixed', '')
+      await expect(trigger.locator('[data-ink-swatch]')).toHaveAttribute(
+        'data-kind',
+        'mixed'
+      )
+    }
   })
 })

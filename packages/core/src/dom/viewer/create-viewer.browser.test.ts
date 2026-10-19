@@ -696,6 +696,9 @@ describe('createViewer', () => {
       )
     })
 
+    const picker = (): HTMLInputElement =>
+      document.querySelector<HTMLInputElement>('input[data-ink-color-input="border"]')!
+
     it('Custom opens a native color input and applies its value', async () => {
       const { viewer } = make('text-simple')
       const trigger = createColorMenu(viewer, { property: 'border' })
@@ -704,15 +707,49 @@ describe('createViewer', () => {
       const sq = doc.annotations.add(square)
       doc.annotations.select([sq.id])
       trigger.click()
-      const input = menu()!.querySelector<HTMLInputElement>('input[type="color"]')!
-      expect(input.getAttribute('aria-label')).toBe('Custom colour')
       let opened = 0
-      input.addEventListener('click', () => opened++)
+      document.addEventListener('click', (e) => {
+        if ((e.target as Element).matches?.('input[type="color"]')) opened++
+      })
       item('Custom…').click()
+      const input = picker()
       expect(opened).toBe(1)
+      expect(input.getAttribute('aria-label')).toBe('Custom colour')
       input.value = '#123abc'
       input.dispatchEvent(new Event('change', { bubbles: true }))
       expect(doc.annotations.get(sq.id)).toMatchObject({ color: '#123ABC' })
+    })
+
+    it('Custom: the input survives the menu closing while the picker is open', async () => {
+      const { viewer } = make('text-simple')
+      const trigger = createColorMenu(viewer, { property: 'border' })
+      viewer.element.prepend(trigger)
+      const { doc } = await ready(viewer)
+      const sq = doc.annotations.add(square)
+      doc.annotations.select([sq.id])
+      trigger.click()
+      item('Custom…').click()
+      const input = picker()
+      key(focused() ?? input, 'Escape')
+      expect(menu()).toBeNull()
+      expect(input.isConnected).toBe(true)
+      input.value = '#abcdef'
+      input.dispatchEvent(new Event('change', { bubbles: true }))
+      expect(doc.annotations.get(sq.id)).toMatchObject({ color: '#ABCDEF' })
+    })
+
+    it('a mixed selection shows a mixed trigger', async () => {
+      const { viewer } = make('text-simple')
+      const trigger = createColorMenu(viewer, { property: 'border' })
+      viewer.element.prepend(trigger)
+      const { doc } = await ready(viewer)
+      const a = doc.annotations.add({ ...square, color: '#FF3B30' })
+      const b = doc.annotations.add({ ...square, color: '#007AFF' })
+      doc.annotations.select([a.id, b.id])
+      expect(trigger.hasAttribute('data-mixed')).toBe(true)
+      expect(trigger.querySelector('[data-ink-swatch]')!.getAttribute('data-kind')).toBe(
+        'mixed'
+      )
     })
 
     it('fill menu is disabled when only a line is selected', async () => {

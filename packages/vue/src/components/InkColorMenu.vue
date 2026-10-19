@@ -27,6 +27,8 @@ import { useToolStyle } from '../composables/useToolStyle'
 
 import InkIcon from './InkIcon.vue'
 
+defineOptions({ inheritAttrs: false })
+
 const props = defineProps<{
   /** The colour this menu sets. */
   property: ColorProperty
@@ -101,7 +103,7 @@ const innerAttrs = computed(() => ({
           :data-ink-color-menu="property"
           :data-state="open ? 'open' : 'closed'"
           :disabled="!model.enabled"
-          v-bind="triggerAttrs"
+          v-bind="{ ...$attrs, ...triggerAttrs }"
         >
           <slot>
             <span
@@ -178,17 +180,18 @@ const innerAttrs = computed(() => ({
           >
             Custom…
           </button>
-          <input
-            ref="customInput"
-            type="color"
-            class="ink-color-input"
-            aria-label="Custom colour"
-            tabindex="-1"
-            :value="model.customValue.toLowerCase()"
-            @change="set(model.custom(($event.target as HTMLInputElement).value))"
-          />
         </div>
       </PopoverContent>
     </PopoverPortal>
   </PopoverRoot>
+  <input
+    ref="customInput"
+    type="color"
+    class="ink-color-input"
+    aria-label="Custom colour"
+    :data-ink-color-input="property"
+    tabindex="-1"
+    :value="model.customValue.toLowerCase()"
+    @change="set(model.custom(($event.target as HTMLInputElement).value))"
+  />
 </template>

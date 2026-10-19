@@ -34,6 +34,20 @@ function Controls() {
         square
       </button>
       <button
+        data-testid="add-square-2"
+        onClick={() =>
+          add({
+            type: 'square',
+            page: 0,
+            rect: { x: 200, y: 500, width: 100, height: 60 },
+            color: '#007AFF',
+            interiorColor: '#FF9500',
+          })
+        }
+      >
+        square 2
+      </button>
+      <button
         data-testid="add-line"
         onClick={() =>
           add({

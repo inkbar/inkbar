@@ -87,7 +87,32 @@ export function createColorMenu(
     if (m.mixed) trigger.setAttribute('data-mixed', '')
     else trigger.removeAttribute('data-mixed')
     paintSwatch(swatch, m)
+    if (picker && !trigger.isConnected) picker.remove()
     menu.refresh()
+  }
+
+  /**
+   * The native colour input lives beside the trigger, not in the panel: the panel is removed
+   * when the menu closes, and a pick that arrives after that must still land. Created on
+   * first use and reused.
+   */
+  let picker: HTMLInputElement | null = null
+  function pickerInput(): HTMLInputElement {
+    if (!picker) {
+      picker = h('input', {
+        type: 'color',
+        class: 'ink-color-input',
+        'aria-label': 'Custom colour',
+        'data-ink-color-input': property,
+        tabindex: '-1',
+      })
+      picker.addEventListener('change', () => style?.set(model().custom(picker!.value)))
+    }
+    picker.value = model().customValue.toLowerCase()
+    if (picker.parentNode !== trigger.parentNode || !picker.isConnected)
+      if (trigger.parentNode) trigger.after(picker)
+      else document.body.append(picker)
+    return picker
   }
 
   function paint(root: HTMLElement, m: ColorMenuModel): void {
@@ -134,13 +159,6 @@ export function createColorMenu(
         grid.append(b)
       }
       root.append(grid)
-      const input = h('input', {
-        type: 'color',
-        class: 'ink-color-input',
-        'aria-label': 'Custom colour',
-        tabindex: '-1',
-      })
-      input.addEventListener('change', () => style?.set(model().custom(input.value)))
       const custom = h(
         'button',
         {
@@ -153,15 +171,14 @@ export function createColorMenu(
         },
         'Custom…'
       )
-      custom.addEventListener('click', () => input.click())
-      root.append(custom, input)
+      custom.addEventListener('click', () => pickerInput().click())
+      root.append(custom)
     }
     const noFill = root.querySelector<HTMLElement>('[data-key="no-fill"]')
     if (noFill && m.noFill) mark(noFill, m.noFill.checked, true)
     const cells = root.querySelectorAll<HTMLElement>('.ink-swatch-item')
     m.swatches.forEach((sw, i) => mark(cells[i]!, sw.checked, false))
-    const input = root.querySelector<HTMLInputElement>('input[type="color"]')!
-    input.value = m.customValue.toLowerCase()
+    if (picker) picker.value = m.customValue.toLowerCase()
   }
 
   /** Reflects checked state on an item; `withMark` adds the check icon (labelled items). */

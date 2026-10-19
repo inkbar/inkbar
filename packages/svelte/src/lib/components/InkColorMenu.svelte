@@ -176,15 +176,16 @@
       >
         Custom…
       </button>
-      <input
-        bind:this={customInput}
-        type="color"
-        class="ink-color-input"
-        aria-label="Custom colour"
-        tabindex={-1}
-        value={model.customValue.toLowerCase()}
-        onchange={(e) => style.set(model.custom(e.currentTarget.value))}
-      />
     </Popover.Content>
   </Popover.Portal>
 </Popover.Root>
+<input
+  bind:this={customInput}
+  type="color"
+  class="ink-color-input"
+  aria-label="Custom colour"
+  data-ink-color-input={property}
+  tabindex={-1}
+  value={model.customValue.toLowerCase()}
+  onchange={(e) => style.set(model.custom(e.currentTarget.value))}
+/>
