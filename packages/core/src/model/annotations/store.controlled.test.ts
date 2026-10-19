@@ -48,7 +48,7 @@ describe('AnnotationStore (controlled)', () => {
 
   it('proposes changes without applying them until the host pushes a value', () => {
     const { s, onChange, apply } = controlledStore()
-    const a = s.add({ type: 'note', page: 0, rect })
+    const a = s.add({ type: 'text', page: 0, rect })
     expect(s.list.get()).toEqual([])
     expect(onChange).toHaveBeenCalledWith([a], { kind: 'add', annotation: a })
     apply()
@@ -57,7 +57,7 @@ describe('AnnotationStore (controlled)', () => {
 
   it('leaves the list unchanged after update and remove until the host applies, and reports the right shapes', () => {
     const { s, onChange, apply, value } = controlledStore()
-    const a = s.add({ type: 'note', page: 0, rect, contents: 'one' })
+    const a = s.add({ type: 'text', page: 0, rect, contents: 'one' })
     apply()
     const b = s.update(a.id, { contents: 'two' })
     expect(b?.contents).toBe('two')
@@ -84,7 +84,7 @@ describe('AnnotationStore (controlled)', () => {
 
   it('reconciles by id when the host passes a new list', () => {
     const { s, apply, value } = controlledStore()
-    const a = s.add({ type: 'note', page: 0, rect })
+    const a = s.add({ type: 'text', page: 0, rect })
     apply()
     s.select([a.id])
     const serverVersion: Annotation = { ...a, contents: 'server edit' }
@@ -98,7 +98,7 @@ describe('AnnotationStore (controlled)', () => {
   it('warns when the host ignores a mutation', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     const { s } = ignoringStore()
-    const a = s.add({ type: 'note', page: 0, rect })
+    const a = s.add({ type: 'text', page: 0, rect })
     vi.runAllTimers()
     expect(warn).toHaveBeenCalledTimes(1)
     expect(warn.mock.calls[0]![0]).toContain('ControlledMutationIgnored')
@@ -109,7 +109,7 @@ describe('AnnotationStore (controlled)', () => {
   it('does not warn when the host applies before the macrotask fires', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     const { s, apply } = controlledStore()
-    s.add({ type: 'note', page: 0, rect })
+    s.add({ type: 'text', page: 0, rect })
     apply()
     vi.runAllTimers()
     expect(warn).not.toHaveBeenCalled()
@@ -119,7 +119,7 @@ describe('AnnotationStore (controlled)', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     vi.stubEnv('NODE_ENV', 'production')
     const { s } = ignoringStore()
-    s.add({ type: 'note', page: 0, rect })
+    s.add({ type: 'text', page: 0, rect })
     vi.runAllTimers()
     expect(warn).not.toHaveBeenCalled()
   })
@@ -128,7 +128,7 @@ describe('AnnotationStore (controlled)', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     const a: Annotation = {
       ...controlledStore().s.completeInput({
-        type: 'note',
+        type: 'text',
         page: 0,
         rect,
         contents: 'zero',
@@ -146,7 +146,7 @@ describe('AnnotationStore (controlled)', () => {
 
   it('does not warn when the host applies an update but re-stamps modifiedAt', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
-    const base = controlledStore().s.completeInput({ type: 'note', page: 0, rect })
+    const base = controlledStore().s.completeInput({ type: 'text', page: 0, rect })
     const { s, nexts } = ignoringStore([base], fixedNow)
     s.update(base.id, { contents: 'edited' })
     s.setControlledValue(
@@ -159,7 +159,7 @@ describe('AnnotationStore (controlled)', () => {
   it('does not collide with an annotation whose id is "replace"', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     const { s } = ignoringStore()
-    const a = s.add({ type: 'note', page: 0, rect, id: 'replace' })
+    const a = s.add({ type: 'text', page: 0, rect, id: 'replace' })
     s.replaceAll([], 'import')
     vi.runAllTimers()
     expect(warn).toHaveBeenCalledTimes(1)
@@ -178,14 +178,14 @@ describe('AnnotationStore (controlled)', () => {
   it('destroy cancels a pending warning and makes later calls no-ops', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     const { s, onChange } = controlledStore()
-    s.add({ type: 'note', page: 0, rect })
+    s.add({ type: 'text', page: 0, rect })
     s.destroy()
     expect(vi.getTimerCount()).toBe(0)
     onChange.mockClear()
-    const a = s.completeInput({ type: 'note', page: 0, rect })
+    const a = s.completeInput({ type: 'text', page: 0, rect })
     s.setControlledValue([a])
     expect(s.list.get()).toEqual([])
-    expect(s.add({ type: 'note', page: 0, rect })).toBeDefined()
+    expect(s.add({ type: 'text', page: 0, rect })).toBeDefined()
     expect(s.update(a.id, { contents: 'x' })).toBeUndefined()
     expect(s.remove(a.id)).toBe(false)
     s.replaceAll([a], 'import')
@@ -201,16 +201,16 @@ describe('AnnotationStore (controlled)', () => {
       defaults: staticDefaults,
     })
     s.destroy()
-    s.add({ type: 'note', page: 0, rect })
+    s.add({ type: 'text', page: 0, rect })
     expect(s.list.get()).toEqual([])
   })
 
   it('does not alias the host array', () => {
     const { s } = controlledStore()
-    const a = s.completeInput({ type: 'note', page: 0, rect })
+    const a = s.completeInput({ type: 'text', page: 0, rect })
     const hostList = [a]
     s.setControlledValue(hostList)
-    hostList.push(s.completeInput({ type: 'note', page: 1, rect }))
+    hostList.push(s.completeInput({ type: 'text', page: 1, rect }))
     expect(s.list.get()).toHaveLength(1)
 
     const initial = [a]
@@ -234,7 +234,7 @@ describe('AnnotationStore (controlled)', () => {
 describe('AnnotationStore (controlled) with embedded annotations', () => {
   const embedded: Annotation = {
     id: 'pdf:0:1R',
-    type: 'note',
+    type: 'text',
     icon: 'comment',
     page: 0,
     rect,
@@ -259,7 +259,7 @@ describe('AnnotationStore (controlled) with embedded annotations', () => {
       expect(s.update(embedded.id, { color: '#000000' })?.color).toBe('#000000')
       expect(onChange).not.toHaveBeenCalled()
 
-      const note = s.add({ type: 'note', page: 0, rect })
+      const note = s.add({ type: 'text', page: 0, rect })
       expect(onChange.mock.calls[0]?.[0]).toEqual([note])
       apply()
       expect(s.list.get().map((a) => a.id)).toEqual([embedded.id, note.id])
@@ -289,8 +289,8 @@ describe('AnnotationStore (controlled) with embedded annotations', () => {
 
     it('composes a second add on the first before the host applies', () => {
       const { s, onChange, apply } = controlledStore()
-      const a = s.add({ type: 'note', page: 0, rect })
-      const b = s.add({ type: 'note', page: 1, rect })
+      const a = s.add({ type: 'text', page: 0, rect })
+      const b = s.add({ type: 'text', page: 1, rect })
       expect(onChange).toHaveBeenLastCalledWith([a, b], { kind: 'add', annotation: b })
       apply()
       expect(s.list.get()).toEqual([a, b])
@@ -298,9 +298,9 @@ describe('AnnotationStore (controlled) with embedded annotations', () => {
 
     it('composes removals, so the second proposal holds neither', () => {
       const { s, onChange, apply } = controlledStore()
-      const a = s.add({ type: 'note', page: 0, rect })
-      const b = s.add({ type: 'note', page: 0, rect })
-      const c = s.add({ type: 'note', page: 0, rect })
+      const a = s.add({ type: 'text', page: 0, rect })
+      const b = s.add({ type: 'text', page: 0, rect })
+      const c = s.add({ type: 'text', page: 0, rect })
       apply()
       s.select([a.id, b.id])
       expect(s.remove(a.id)).toBe(true)
@@ -315,7 +315,7 @@ describe('AnnotationStore (controlled) with embedded annotations', () => {
 
     it('lets select take an id that is only proposed so far', () => {
       const { s, apply } = controlledStore()
-      const a = s.add({ type: 'note', page: 0, rect })
+      const a = s.add({ type: 'text', page: 0, rect })
       s.select([a.id])
       expect(s.selection.get()).toEqual([a.id])
       apply()
@@ -325,7 +325,7 @@ describe('AnnotationStore (controlled) with embedded annotations', () => {
 
     it('composes an update on a pending add', () => {
       const { s, onChange, apply } = controlledStore()
-      const a = s.add({ type: 'note', page: 0, rect, contents: 'one' })
+      const a = s.add({ type: 'text', page: 0, rect, contents: 'one' })
       const b = s.update(a.id, { contents: 'two' })
       expect(b?.contents).toBe('two')
       expect(onChange.mock.lastCall![0]).toEqual([b])
@@ -346,27 +346,27 @@ describe('AnnotationStore (controlled) with embedded annotations', () => {
         setTimeout(() => {
           setTimeout(() => {
             expect(warn).toHaveBeenCalledTimes(1)
-            c = s.add({ type: 'note', page: 0, rect })
+            c = s.add({ type: 'text', page: 0, rect })
             atC = nexts.at(-1)
           }, 0)
         }, 0)
-        b = s.add({ type: 'note', page: 0, rect })
+        b = s.add({ type: 'text', page: 0, rect })
       }, 0)
-      const a = s.add({ type: 'note', page: 0, rect })
+      const a = s.add({ type: 'text', page: 0, rect })
       vi.runAllTimers()
       expect(atC).toEqual([a, b, c])
       expect(warn).toHaveBeenCalledTimes(3)
       // Every check has fired: the basis is the applied list again.
-      const d = s.add({ type: 'note', page: 0, rect })
+      const d = s.add({ type: 'text', page: 0, rect })
       expect(nexts.at(-1)).toEqual([d])
     })
 
     it('resets the basis to the applied list once the check fires without the host applying', () => {
       vi.spyOn(console, 'warn').mockImplementation(() => undefined)
       const { s, nexts } = ignoringStore()
-      const a = s.add({ type: 'note', page: 0, rect })
+      const a = s.add({ type: 'text', page: 0, rect })
       vi.runAllTimers()
-      const b = s.add({ type: 'note', page: 0, rect })
+      const b = s.add({ type: 'text', page: 0, rect })
       expect(nexts.at(-1)).toEqual([b])
       expect(a.id).not.toBe(b.id)
       s.select([a.id])
@@ -378,10 +378,10 @@ describe('AnnotationStore (controlled) with embedded annotations', () => {
 describe('AnnotationStore (controlled) ids', () => {
   it('throws when add reuses an id, including one only proposed so far', () => {
     const { s, apply } = controlledStore()
-    s.add({ id: 'dup', type: 'note', page: 0, rect })
-    expect(() => s.add({ id: 'dup', type: 'note', page: 0, rect })).toThrow(/dup/)
+    s.add({ id: 'dup', type: 'text', page: 0, rect })
+    expect(() => s.add({ id: 'dup', type: 'text', page: 0, rect })).toThrow(/dup/)
     apply()
-    expect(() => s.add({ id: 'dup', type: 'note', page: 0, rect })).toThrow(/dup/)
+    expect(() => s.add({ id: 'dup', type: 'text', page: 0, rect })).toThrow(/dup/)
     expect(s.list.get()).toHaveLength(1)
   })
 })

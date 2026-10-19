@@ -41,13 +41,13 @@ describe('deriveRect', () => {
       deriveRect({
         type: 'ink',
         page: 0,
-        paths: [
+        inklist: [
           [
             { x: 0, y: 0 },
             { x: 10, y: 4 },
           ],
         ],
-        strokeWidth: 2,
+        width: 2,
       })
     ).toEqual({ x: -1, y: -1, width: 12, height: 6 })
     expect(
@@ -66,7 +66,7 @@ describe('deriveRect', () => {
     ).toEqual({ x: 0, y: 0, width: 4, height: 3 })
   })
   it('throws when a rect-based type has no rect', () => {
-    expect(() => deriveRect({ type: 'note', page: 0 })).toThrow(/rect is required/)
+    expect(() => deriveRect({ type: 'text', page: 0 })).toThrow(/rect is required/)
   })
 })
 
@@ -98,7 +98,7 @@ describe('AnnotationStore (uncontrolled)', () => {
     expect(s.get('id-1')).toBe(a)
   })
 
-  it('fills redact fill and origin defaults', () => {
+  it('fills redact interiorColor and origin defaults', () => {
     const a = store().add({
       type: 'redact',
       page: 1,
@@ -106,7 +106,7 @@ describe('AnnotationStore (uncontrolled)', () => {
     })
     expect(a.type).toBe('redact')
     if (a.type === 'redact') {
-      expect(a.fill).toBe(staticDefaults.fill())
+      expect(a.interiorColor).toBe(staticDefaults.fill())
       expect(a.origin).toBe('user')
     }
   })
@@ -129,7 +129,7 @@ describe('AnnotationStore (uncontrolled)', () => {
     expect(medium.color).toBe(staticDefaults.suggestion('medium'))
     expect(high.color).toBe(staticDefaults.suggestion('high'))
     expect(new Set([low.color, medium.color, high.color]).size).toBe(3)
-    if (high.type === 'redact') expect(high.fill).toBe(staticDefaults.fill())
+    if (high.type === 'redact') expect(high.interiorColor).toBe(staticDefaults.fill())
     expect(suggest(0.95, '#123456').color).toBe('#123456')
   })
 
@@ -146,7 +146,7 @@ describe('AnnotationStore (uncontrolled)', () => {
       now: () => `t${++t}`,
     })
     const a = s.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 0, y: 0, width: 20, height: 20 },
       contents: 'hi',
@@ -164,7 +164,7 @@ describe('AnnotationStore (uncontrolled)', () => {
   it('refuses to move a locked annotation but allows selecting it', () => {
     const s = store()
     const a = s.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 0, y: 0, width: 20, height: 20 },
     })
@@ -179,7 +179,7 @@ describe('AnnotationStore (uncontrolled)', () => {
   it('removes and prunes selection, returns false for unknown ids', () => {
     const s = store()
     const a = s.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 0, y: 0, width: 20, height: 20 },
     })
@@ -192,18 +192,18 @@ describe('AnnotationStore (uncontrolled)', () => {
   it('removing a note removes its replies', () => {
     const s = store()
     const root = s.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 0, y: 0, width: 20, height: 20 },
     })
     const reply = s.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 0, y: 0, width: 20, height: 20 },
       inReplyTo: root.id,
     })
     const nested = s.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 0, y: 0, width: 20, height: 20 },
       inReplyTo: reply.id,
@@ -228,9 +228,9 @@ describe('AnnotationStore (uncontrolled)', () => {
       id: () => 'fixed',
       now,
     })
-    s.add({ type: 'note', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
+    s.add({ type: 'text', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
     expect(() =>
-      s.add({ type: 'note', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
+      s.add({ type: 'text', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
     ).toThrow(/fixed/)
     expect(s.list.get()).toHaveLength(1)
   })
@@ -239,14 +239,14 @@ describe('AnnotationStore (uncontrolled)', () => {
     const s = store()
     s.add({
       id: 'dup',
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 0, y: 0, width: 20, height: 20 },
     })
     expect(() =>
       s.add({
         id: 'dup',
-        type: 'note',
+        type: 'text',
         page: 1,
         rect: { x: 0, y: 0, width: 20, height: 20 },
       })
@@ -256,9 +256,9 @@ describe('AnnotationStore (uncontrolled)', () => {
 
   it('byPage filters and replaceAll emits a replace change', () => {
     const s = store()
-    s.add({ type: 'note', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
+    s.add({ type: 'text', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
     const b = s.add({
-      type: 'note',
+      type: 'text',
       page: 2,
       rect: { x: 0, y: 0, width: 20, height: 20 },
     })
@@ -291,7 +291,7 @@ describe('AnnotationStore (controlled warning timing)', () => {
         id: ids,
         now,
       })
-      s.add({ type: 'note', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
+      s.add({ type: 'text', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
       await vi.runAllTimersAsync()
       expect(warn).not.toHaveBeenCalled()
       expect(s.list.get()).toHaveLength(1)
@@ -302,7 +302,7 @@ describe('AnnotationStore (controlled warning timing)', () => {
         id: ids,
         now,
       })
-      ignoring.add({ type: 'note', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
+      ignoring.add({ type: 'text', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
       await vi.runAllTimersAsync()
       expect(warn).toHaveBeenCalledOnce()
       expect(warn.mock.calls[0]?.[0]).toMatch(/ControlledMutationIgnored/)
@@ -315,7 +315,7 @@ describe('AnnotationStore (controlled warning timing)', () => {
 
 describe('AnnotationStore (controlled warning window)', () => {
   const note = {
-    type: 'note',
+    type: 'text',
     page: 0,
     rect: { x: 0, y: 0, width: 20, height: 20 },
   } as const
@@ -372,7 +372,7 @@ describe('AnnotationStore (controlled warning window)', () => {
 describe('AnnotationStore embedded guard (uncontrolled)', () => {
   const embedded: Annotation = {
     id: 'pdf:0:1R',
-    type: 'note',
+    type: 'text',
     icon: 'comment',
     page: 0,
     rect: { x: 0, y: 0, width: 20, height: 20 },
@@ -406,13 +406,13 @@ describe('AnnotationStore embedded guard (uncontrolled)', () => {
     expect(s.update(embedded.id, { page: 3 })).toBeUndefined()
     expect(s.get(embedded.id)!.page).toBe(0)
     expect(() =>
-      s.add({ id: embedded.id, type: 'note', page: 0, rect: embedded.rect })
+      s.add({ id: embedded.id, type: 'text', page: 0, rect: embedded.rect })
     ).toThrow(embedded.id)
   })
 
   it('replaceAll cannot erase, unlock or forge embedded annotations', () => {
     const s = make()
-    const note = s.add({ type: 'note', page: 0, rect: embedded.rect })
+    const note = s.add({ type: 'text', page: 0, rect: embedded.rect })
     s.replaceAll([], 'import')
     expect(s.list.get()).toEqual([embedded])
 

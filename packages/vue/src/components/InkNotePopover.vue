@@ -33,7 +33,7 @@ const find = (id: string | undefined) =>
 
 const note = computed<NoteAnnotation | null>(() => {
   const a = find(ctx.activated.value ?? undefined)
-  return a?.type === 'note' ? threadRoot(annotations.value, a) : null
+  return a?.type === 'text' ? threadRoot(annotations.value, a) : null
 })
 const anchor = useAnnotationElement(
   ctx,
@@ -83,7 +83,7 @@ function reply(text: string): void {
   const contents = text.trim()
   if (!root || !contents) return
   written.add(root.id)
-  add({ type: 'note', page: root.page, rect: root.rect, contents, inReplyTo: root.id })
+  add({ type: 'text', page: root.page, rect: root.rect, contents, inReplyTo: root.id })
   draft.value = ''
 }
 function close(): void {

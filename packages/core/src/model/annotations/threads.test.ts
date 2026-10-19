@@ -11,7 +11,7 @@ function note(
 ): NoteAnnotation {
   return {
     id,
-    type: 'note',
+    type: 'text',
     icon: 'comment',
     page: 0,
     rect: { x: 0, y: 0, width: 20, height: 20 },
@@ -59,7 +59,7 @@ describe('threadRoot', () => {
       rect: { x: 0, y: 0, width: 10, height: 10 },
       quads: [],
       color: '#000000',
-      fill: '#000000',
+      interiorColor: '#000000',
       opacity: 1,
       origin: 'user',
       createdAt: '2026-10-13T00:00:00.000Z',

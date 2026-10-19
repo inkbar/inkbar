@@ -146,7 +146,7 @@ function convert(
     locked: true,
   })
   const fillOf = (c: ArrayLike<number> | null | undefined) =>
-    c && c.length >= 3 ? { fill: pdfColorToHex(c, '#FFFFFF') } : {}
+    c && c.length >= 3 ? { interiorColor: pdfColorToHex(c, '#FFFFFF') } : {}
 
   let candidate: Record<string, unknown>
   switch (d.subtype) {
@@ -162,8 +162,8 @@ function convert(
     }
     case 'Text':
       candidate = {
-        ...base('note'),
-        type: 'note',
+        ...base('text'),
+        type: 'text',
         icon: ICONS[(d.name ?? 'comment').toLowerCase()] ?? 'comment',
       }
       break
@@ -171,14 +171,14 @@ function convert(
       const da = d.defaultAppearanceData
       candidate = {
         ...base(
-          'freeText',
+          'freetext',
           pdfColorToHex(
             da?.fontColor as ArrayLike<number> | undefined,
-            staticDefaults.color('freeText')
+            staticDefaults.color('freetext')
           )
         ),
-        type: 'freeText',
-        text: contents ?? '',
+        type: 'freetext',
+        contents: contents ?? '',
         ...(da && da.fontSize > 0 ? { fontSize: da.fontSize } : {}),
       }
       break
@@ -186,7 +186,7 @@ function convert(
     case 'Square':
     case 'Circle': {
       const type = d.subtype.toLowerCase() as 'square' | 'circle'
-      candidate = { ...base(type), type, strokeWidth: stroke, ...fillOf(d.interiorColor) }
+      candidate = { ...base(type), type, width: stroke, ...fillOf(d.interiorColor) }
       break
     }
     case 'Line': {
@@ -197,9 +197,9 @@ function convert(
         type: 'line',
         start: { x: l[0], y: l[1] },
         end: { x: l[2], y: l[3] },
-        strokeWidth: stroke,
+        width: stroke,
         ...(endings && endings.length === 2 && endings.some((e) => e !== 'none')
-          ? { endings }
+          ? { head: endings[0], tail: endings[1] }
           : {}),
       }
       break
@@ -213,17 +213,17 @@ function convert(
         ...base(type),
         type,
         vertices,
-        strokeWidth: stroke,
+        width: stroke,
         ...fillOf(d.interiorColor),
       }
       break
     }
     case 'Ink': {
-      const paths: Point[][] = (d.inkLists ?? [])
+      const inklist: Point[][] = (d.inkLists ?? [])
         .map((p) => pointsFromFlat(p))
         .filter((p) => p.length > 0)
-      if (paths.length === 0) return undefined
-      candidate = { ...base('ink'), type: 'ink', paths, strokeWidth: stroke }
+      if (inklist.length === 0) return undefined
+      candidate = { ...base('ink'), type: 'ink', inklist, width: stroke }
       break
     }
     case 'Redact':
@@ -233,7 +233,7 @@ function convert(
         ...base('redact'),
         type: 'redact',
         origin: 'user',
-        fill: pdfColorToHex(d.interiorColor, staticDefaults.fill()),
+        interiorColor: pdfColorToHex(d.interiorColor, staticDefaults.fill()),
         ...(quads.length > 0 ? { quads } : {}),
       }
       break

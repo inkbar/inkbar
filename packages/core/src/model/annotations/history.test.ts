@@ -16,7 +16,7 @@ describe('history', () => {
     })
     const h = createHistory(s)
     expect(h.canUndo.get()).toBe(false)
-    const a = s.add({ type: 'note', page: 0, rect, contents: 'one' })
+    const a = s.add({ type: 'text', page: 0, rect, contents: 'one' })
     s.update(a.id, { contents: 'two' })
     s.remove(a.id)
     expect(s.list.get()).toEqual([])
@@ -39,9 +39,9 @@ describe('history', () => {
       defaults: staticDefaults,
     })
     const h = createHistory(s)
-    s.add({ type: 'note', page: 0, rect })
+    s.add({ type: 'text', page: 0, rect })
     h.undo()
-    s.add({ type: 'note', page: 1, rect })
+    s.add({ type: 'text', page: 1, rect })
     expect(h.canRedo.get()).toBe(false)
   })
 
@@ -51,14 +51,14 @@ describe('history', () => {
       defaults: staticDefaults,
     })
     const h = createHistory(s, { limit: 3 })
-    for (let i = 0; i < 5; i++) s.add({ type: 'note', page: i, rect })
+    for (let i = 0; i < 5; i++) s.add({ type: 'text', page: i, rect })
     let steps = 0
     while (h.canUndo.get()) {
       h.undo()
       steps++
     }
     expect(steps).toBe(3)
-    s.add({ type: 'note', page: 9, rect })
+    s.add({ type: 'text', page: 9, rect })
     s.replaceAll([], 'import')
     expect(h.canUndo.get()).toBe(false)
   })
@@ -69,8 +69,8 @@ describe('history', () => {
       defaults: staticDefaults,
     })
     const h = createHistory(s)
-    const root = s.add({ type: 'note', page: 0, rect })
-    const reply = s.add({ type: 'note', page: 0, rect, inReplyTo: root.id })
+    const root = s.add({ type: 'text', page: 0, rect })
+    const reply = s.add({ type: 'text', page: 0, rect, inReplyTo: root.id })
     s.remove(root.id)
     h.undo()
     expect(s.get(root.id)).toBeDefined()
@@ -83,7 +83,7 @@ describe('history', () => {
       defaults: staticDefaults,
     })
     const h = createHistory(s)
-    s.add({ type: 'note', page: 0, rect })
+    s.add({ type: 'text', page: 0, rect })
     h.undo()
     expect(h.canUndo.get()).toBe(false)
     expect(h.canRedo.get()).toBe(true)
@@ -98,7 +98,7 @@ describe('history', () => {
       defaults: staticDefaults,
     })
     const h = createHistory(s)
-    s.add({ type: 'note', page: 0, rect })
+    s.add({ type: 'text', page: 0, rect })
     h.undo()
     h.clear()
     expect(h.canUndo.get()).toBe(false)
@@ -118,7 +118,7 @@ describe('history', () => {
       defaults: staticDefaults,
     })
     const h = createHistory(s)
-    s.add({ type: 'note', page: 0, rect })
+    s.add({ type: 'text', page: 0, rect })
     s.setControlledValue(value)
     expect(h.canUndo.get()).toBe(false)
     h.undo()
@@ -134,13 +134,13 @@ describe('history', () => {
       defaults: staticDefaults,
     })
     const h = createHistory(s)
-    s.add({ type: 'note', page: 0, rect })
-    s.add({ type: 'note', page: 1, rect })
+    s.add({ type: 'text', page: 0, rect })
+    s.add({ type: 'text', page: 1, rect })
     h.undo()
     h.destroy()
     expect(h.canUndo.get()).toBe(false)
     expect(h.canRedo.get()).toBe(false)
-    s.add({ type: 'note', page: 2, rect })
+    s.add({ type: 'text', page: 2, rect })
     expect(h.canUndo.get()).toBe(false)
     h.undo()
     h.redo()
@@ -157,7 +157,7 @@ describe('history.batch', () => {
     const h = createHistory(s)
     h.batch(() => {
       for (let i = 0; i < 9; i++)
-        s.add({ type: 'note', page: 0, rect, contents: `n${i}` })
+        s.add({ type: 'text', page: 0, rect, contents: `n${i}` })
     })
     expect(s.list.get()).toHaveLength(9)
     h.undo()
@@ -173,8 +173,8 @@ describe('history.batch', () => {
     const kinds: string[] = []
     s.on('change', (c) => kinds.push(c.kind))
     h.batch(() => {
-      s.add({ type: 'note', page: 0, rect })
-      s.add({ type: 'note', page: 1, rect })
+      s.add({ type: 'text', page: 0, rect })
+      s.add({ type: 'text', page: 1, rect })
     })
     expect(kinds).toEqual(['add', 'add'])
   })
@@ -183,11 +183,11 @@ describe('history.batch', () => {
     const s = store()
     const h = createHistory(s)
     h.batch(() => {
-      s.add({ type: 'note', page: 0, rect })
+      s.add({ type: 'text', page: 0, rect })
       h.batch(() => {
-        s.add({ type: 'note', page: 1, rect })
+        s.add({ type: 'text', page: 1, rect })
       })
-      s.add({ type: 'note', page: 2, rect })
+      s.add({ type: 'text', page: 2, rect })
     })
     h.undo()
     expect(s.list.get()).toEqual([])
@@ -196,7 +196,7 @@ describe('history.batch', () => {
   it('a batch that changes nothing records nothing and keeps redo', () => {
     const s = store()
     const h = createHistory(s)
-    s.add({ type: 'note', page: 0, rect })
+    s.add({ type: 'text', page: 0, rect })
     h.undo()
     h.batch(() => undefined)
     expect(h.canUndo.get()).toBe(false)
@@ -208,7 +208,7 @@ describe('history.batch', () => {
     const h = createHistory(s)
     expect(() => {
       h.batch(() => {
-        s.add({ type: 'note', page: 0, rect })
+        s.add({ type: 'text', page: 0, rect })
         throw new Error('boom')
       })
     }).toThrow('boom')
@@ -216,8 +216,8 @@ describe('history.batch', () => {
     h.undo()
     expect(s.list.get()).toEqual([])
     // The batch is closed: the next change is its own step.
-    s.add({ type: 'note', page: 1, rect })
-    s.add({ type: 'note', page: 2, rect })
+    s.add({ type: 'text', page: 1, rect })
+    s.add({ type: 'text', page: 2, rect })
     h.undo()
     expect(s.list.get()).toHaveLength(1)
   })
@@ -225,10 +225,10 @@ describe('history.batch', () => {
   it('an import inside a batch clears the stacks and the batch restarts from it', () => {
     const s = store()
     const h = createHistory(s)
-    s.add({ type: 'note', page: 0, rect })
+    s.add({ type: 'text', page: 0, rect })
     h.batch(() => {
       s.replaceAll([], 'import')
-      s.add({ type: 'note', page: 3, rect })
+      s.add({ type: 'text', page: 3, rect })
     })
     h.undo()
     expect(s.list.get()).toEqual([])
@@ -261,9 +261,9 @@ describe('history.batch', () => {
     const canUndo: boolean[] = []
     h.canUndo.subscribe((v) => canUndo.push(v))
     h.batch(() => {
-      s.add({ type: 'note', page: 0, rect })
+      s.add({ type: 'text', page: 0, rect })
       h.destroy()
-      s.add({ type: 'note', page: 1, rect })
+      s.add({ type: 'text', page: 1, rect })
     })
     expect(s.list.get()).toHaveLength(2)
     expect(h.canUndo.get()).toBe(false)
@@ -276,11 +276,11 @@ describe('history.batch', () => {
   it('an add then a remove inside one batch records nothing and keeps redo', () => {
     const s = store()
     const h = createHistory(s)
-    s.add({ type: 'note', page: 0, rect })
+    s.add({ type: 'text', page: 0, rect })
     h.undo()
     expect(h.canRedo.get()).toBe(true)
     h.batch(() => {
-      const a = s.add({ type: 'note', page: 1, rect })
+      const a = s.add({ type: 'text', page: 1, rect })
       s.remove(a.id)
     })
     expect(s.list.get()).toEqual([])
@@ -296,12 +296,12 @@ describe('history.batch', () => {
       const s = store()
       const h = createHistory(s)
       h.batch(() => {
-        s.add({ type: 'note', page: 0, rect })
+        s.add({ type: 'text', page: 0, rect })
       })
       expect(warn).not.toHaveBeenCalled()
       // A thenable stands in for the promise an async fn returns.
       const asyncLike = (() => {
-        s.add({ type: 'note', page: 1, rect })
+        s.add({ type: 'text', page: 1, rect })
         return { then: () => undefined }
       }) as () => void
       h.batch(asyncLike)

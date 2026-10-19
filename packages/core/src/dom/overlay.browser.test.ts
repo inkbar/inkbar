@@ -50,7 +50,7 @@ describe('createOverlay', () => {
   it('renders annotations for its page with the data-attribute contract and geometry', () => {
     const { store, host } = setup(2)
     const hl = store.add({ type: 'highlight', page: 0, quads, author: 'Ed' })
-    store.add({ type: 'note', page: 1, rect: { x: 0, y: 0, width: 20, height: 20 } })
+    store.add({ type: 'text', page: 1, rect: { x: 0, y: 0, width: 20, height: 20 } })
     const sugg = store.add({
       type: 'redact',
       page: 0,
@@ -78,7 +78,7 @@ describe('createOverlay', () => {
   it('reflects selection and hover in data-state and aria-pressed', () => {
     const { store, host } = setup()
     const a = store.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 10, y: 10, width: 20, height: 20 },
     })
@@ -96,17 +96,17 @@ describe('createOverlay', () => {
   it('keyboard: enter activates, delete removes unless locked, arrows move focus, escape clears', () => {
     const { store, host, onActivate } = setup()
     const top = store.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 10, y: 700, width: 20, height: 20 },
     })
     const bottom = store.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 10, y: 100, width: 20, height: 20 },
     })
     const locked = store.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 300, y: 100, width: 20, height: 20 },
     })
@@ -142,11 +142,11 @@ describe('createOverlay', () => {
       page: 0,
       store,
       transform: createPageTransform(page, 1, 0),
-      isCustom: (a) => a.type === 'note',
+      isCustom: (a) => a.type === 'text',
     })
     cleanup.push(() => (overlay.destroy(), host.remove()))
     const a = store.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 100, y: 100, width: 20, height: 20 },
     })
@@ -160,7 +160,7 @@ describe('createOverlay', () => {
   it('primary pointerdown selects and activates without reaching the page root', () => {
     const { store, host, overlay, onActivate } = setup()
     const a = store.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 10, y: 10, width: 20, height: 20 },
     })
@@ -179,17 +179,17 @@ describe('createOverlay', () => {
   it('space activates; roving tabindex follows selection on this page', () => {
     const { store, overlay, onActivate } = setup()
     const a = store.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 10, y: 10, width: 20, height: 20 },
     })
     const b = store.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 100, y: 10, width: 20, height: 20 },
     })
     const other = store.add({
-      type: 'note',
+      type: 'text',
       page: 1,
       rect: { x: 10, y: 10, width: 20, height: 20 },
     })
@@ -208,22 +208,22 @@ describe('createOverlay', () => {
   it('orders arrow navigation top to bottom, then left to right, in user space', () => {
     const { store, overlay } = setup()
     const right = store.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 300, y: 400, width: 20, height: 20 },
     })
     const bottom = store.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 10, y: 100, width: 20, height: 20 },
     })
     const left = store.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 10, y: 400, width: 20, height: 20 },
     })
     const top = store.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 500, y: 700, width: 20, height: 20 },
     })
@@ -251,12 +251,12 @@ describe('createOverlay', () => {
   it('keeps focus on a surviving neighbour when the focused annotation is removed', () => {
     const { store, overlay } = setup()
     const a = store.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 10, y: 700, width: 20, height: 20 },
     })
     const b = store.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 10, y: 400, width: 20, height: 20 },
     })
@@ -275,7 +275,7 @@ describe('createOverlay', () => {
     scroll.append(host)
     cleanup.push(() => scroll.remove())
     const only = store.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 10, y: 700, width: 20, height: 20 },
     })
@@ -295,7 +295,7 @@ describe('createOverlay', () => {
     cleanup.push(() => scroll.remove())
     expect(scroll.hasAttribute('tabindex')).toBe(false)
     const only = store.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 10, y: 700, width: 20, height: 20 },
     })
@@ -311,18 +311,18 @@ describe('createOverlay', () => {
       type: 'square',
       page: 0,
       rect: { x: 100, y: 100, width: 50, height: 50 },
-      strokeWidth: 3,
+      width: 3,
     })
     const ink = store.add({
       type: 'ink',
       page: 0,
-      paths: [
+      inklist: [
         [
           { x: 10, y: 10 },
           { x: 40, y: 40 },
         ],
       ],
-      strokeWidth: 2,
+      width: 2,
     })
     const el = overlay.elementFor(sq.id)!
     expect(el.querySelector('rect')?.getAttribute('stroke-width')).toBe('6')
@@ -330,12 +330,12 @@ describe('createOverlay', () => {
       overlay.elementFor(ink.id)!.querySelector('polyline')?.getAttribute('stroke-width')
     ).toBe('4')
     store.add({
-      type: 'freeText',
+      type: 'freetext',
       page: 0,
       rect: { x: 300, y: 300, width: 100, height: 40 },
-      text: 'Hi',
+      contents: 'Hi',
     })
-    store.add({ type: 'note', page: 0, rect: { x: 400, y: 400, width: 20, height: 20 } })
+    store.add({ type: 'text', page: 0, rect: { x: 400, y: 400, width: 20, height: 20 } })
     // Descendants carry no inline style, except `pointer-events` (and the FreeText custom
     // properties) on the HTML children the overlay creates.
     for (const node of overlay.element.querySelectorAll('[data-annotation] *')) {
@@ -356,10 +356,10 @@ describe('createOverlay', () => {
   it('renders free text with its font size as a custom property and alignment as an attribute', () => {
     const { store, overlay } = setup(2)
     const a = store.add({
-      type: 'freeText',
+      type: 'freetext',
       page: 0,
       rect: { x: 100, y: 100, width: 200, height: 50 },
-      text: 'Hello',
+      contents: 'Hello',
       fontSize: 12,
       align: 'center',
     })
@@ -377,7 +377,7 @@ describe('createOverlay', () => {
     overlay.destroy()
     expect(host.querySelector('.ink-overlay')).toBeNull()
     const a = store.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 10, y: 10, width: 20, height: 20 },
     })
@@ -485,12 +485,12 @@ describe('createOverlay', () => {
       page: 0,
       store,
       transform: createPageTransform(page, 1, 0),
-      isCustom: (a) => a.type === 'note',
+      isCustom: (a) => a.type === 'text',
     })
     cleanup.push(() => (overlay.destroy(), host.remove()))
     expect(host.querySelector('[data-ink-overlay]')).toBe(overlay.element)
     const custom = store.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 100, y: 100, width: 20, height: 20 },
     })
@@ -516,7 +516,7 @@ describe('createOverlay', () => {
     })
     cleanup.push(() => (overlay.destroy(), host.remove()))
     const a = store.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 100, y: 100, width: 40, height: 40 },
     })
@@ -574,7 +574,7 @@ describe('createOverlay', () => {
       page: 0,
       start: { x: 100, y: 700 },
       end: { x: 200, y: 700 },
-      strokeWidth: 2,
+      width: 2,
     })
     expect(line.rect.height).toBe(0)
     const el = overlay.elementFor(line.id)!
@@ -603,7 +603,7 @@ describe('createOverlay', () => {
       page: 0,
       start: { x: 100, y: 100 },
       end: { x: 100, y: 200 },
-      strokeWidth: 0,
+      width: 0,
     })
     const el = overlay.elementFor(v.id)!
     expect(el.style.width).toBe('1px')
@@ -614,13 +614,13 @@ describe('createOverlay', () => {
     const ink = store.add({
       type: 'ink',
       page: 0,
-      paths: [
+      inklist: [
         [
           { x: 10, y: 10 },
           { x: 40, y: 40 },
         ],
       ],
-      strokeWidth: 2,
+      width: 2,
     })
     // The store's derived rect already carries half the stroke...
     expect(ink.rect).toEqual({ x: 9, y: 9, width: 32, height: 32 })
@@ -653,18 +653,18 @@ describe('createOverlay', () => {
         page: 0,
         start: { x: 100, y: 300 },
         end: { x: 200, y: 300 },
-        strokeWidth: 3,
+        width: 3,
       }),
       store.add({
         type: 'ink',
         page: 0,
-        paths: [
+        inklist: [
           [
             { x: 10, y: 10 },
             { x: 40, y: 40 },
           ],
         ],
-        strokeWidth: 2,
+        width: 2,
       }),
     ]) {
       const el = overlay.elementFor(a.id)!
@@ -742,7 +742,7 @@ describe('createOverlay', () => {
 
     // A note icon and a text mark are not rect-shaped: no resize.
     const note = store.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 10, y: 10, width: 20, height: 20 },
     })
@@ -795,7 +795,7 @@ describe('createOverlay', () => {
     })
     const text = store.add({ type: 'redact', page: 0, quads })
     const note = store.add({
-      type: 'note',
+      type: 'text',
       page: 0,
       rect: { x: 10, y: 10, width: 20, height: 20 },
     })

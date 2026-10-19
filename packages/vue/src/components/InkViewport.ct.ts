@@ -540,7 +540,7 @@ test('toggling the annotation slot keeps the scroll position and swaps the custo
   await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
   await page.locator('[data-ink-root]').evaluate((el) => {
     ;(el as RootEl).__inkDocument!.annotations.add({
-      type: 'note',
+      type: 'text',
       page: 1,
       rect: { x: 72, y: 600, width: 24, height: 24 },
     })
@@ -579,7 +579,7 @@ test('a gap change and a slot toggle in one tick rebuild the viewport once', asy
   await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
   await page.locator('[data-ink-root]').evaluate((el) => {
     ;(el as RootEl).__inkDocument!.annotations.add({
-      type: 'note',
+      type: 'text',
       page: 1,
       rect: { x: 72, y: 600, width: 24, height: 24 },
     })

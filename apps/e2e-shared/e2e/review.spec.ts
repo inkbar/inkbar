@@ -175,7 +175,7 @@ test('host-owned annotations survive a re-signed URL and a reload, and a new ver
   await page.waitForTimeout(500)
   expect(await readyCount(page)).toBe(1)
   expect(fetched).toEqual(['/fixtures/text-simple.pdf?sig=1'])
-  await expect(page.locator('[data-annotation][data-type="note"]')).not.toHaveCount(0)
+  await expect(page.locator('[data-annotation][data-type="text"]')).not.toHaveCount(0)
   await expect(status).toContainText('2 annotations')
 
   // A full reload starts a fresh page: the annotations come back from the fake server.
@@ -194,7 +194,7 @@ test('host-owned annotations survive a re-signed URL and a reload, and a new ver
   await page.reload()
   await waitForFirstPage(page)
   await expect(status).toContainText('2 annotations')
-  const note = page.locator('[data-annotation][data-type="note"]').first()
+  const note = page.locator('[data-annotation][data-type="text"]').first()
   await note.focus()
   await page.keyboard.press('Enter')
   await expect(page.locator('[data-ink-note-popover]')).toContainText(
@@ -207,7 +207,7 @@ test('host-owned annotations survive a re-signed URL and a reload, and a new ver
   await expect.poll(() => readyCount(page)).toBe(2)
   await waitForFirstPage(page)
   await expect(status).toContainText('0 annotations')
-  await expect(page.locator('[data-annotation][data-type="note"]')).toHaveCount(0)
+  await expect(page.locator('[data-annotation][data-type="text"]')).toHaveCount(0)
 })
 
 test('suggested redactions can be accepted and dismissed', async ({ page }) => {

@@ -11,7 +11,7 @@ function note(
 ): Annotation {
   return {
     id,
-    type: 'note',
+    type: 'text',
     icon: 'comment',
     page: 0,
     rect: { x: 10, y: 10, width: 20, height: 20 },

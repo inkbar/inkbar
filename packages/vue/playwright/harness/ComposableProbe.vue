@@ -18,7 +18,7 @@ const { tool, setTool } = useTool()
 const { zoom } = useZoom()
 
 function addNote() {
-  add({ type: 'note', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
+  add({ type: 'text', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
 }
 
 function addBatch(n: number) {

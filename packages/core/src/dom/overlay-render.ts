@@ -19,11 +19,11 @@ export function annotationBox(a: Annotation, t: PageTransform): CssRect {
       : a.type === 'polyline' || a.type === 'polygon'
         ? a.vertices
         : a.type === 'ink'
-          ? a.paths.flat()
+          ? a.inklist.flat()
           : undefined
-  if (!points || points.length === 0 || !('strokeWidth' in a)) return t.toCssRect(a.rect)
+  if (!points || points.length === 0 || !('width' in a)) return t.toCssRect(a.rect)
   const box = t.toCssRect(pointBounds(points))
-  const pad = Math.max(t.toCssLength(a.strokeWidth), 1) / 2
+  const pad = Math.max(t.toCssLength(a.width), 1) / 2
   return {
     left: box.left - pad,
     top: box.top - pad,
@@ -68,7 +68,7 @@ export function renderAnnotationContent(
     return n
   }
 
-  if (a.type === 'note') {
+  if (a.type === 'text') {
     // The note's box is its shape: a transparent rect takes the hits, the icon is theme art.
     const svg = boxSvg(doc, box.width, box.height)
     const hit = node('rect', {
@@ -88,12 +88,12 @@ export function renderAnnotationContent(
     el.append(svg, icon)
     return
   }
-  if (a.type === 'freeText') {
+  if (a.type === 'freetext') {
     // HTML rather than SVG <text>: a text box must wrap, and SVG text does not. Font size,
     // colour and opacity travel as custom properties the theme reads; alignment as an attribute.
     const text = doc.createElement('div')
     text.className = 'ink-free-text'
-    text.textContent = a.text
+    text.textContent = a.contents
     text.dataset.align = a.align
     text.style.setProperty('--ink-font-size', `${t.toCssLength(a.fontSize)}px`)
     text.style.setProperty('--ink-text-color', a.color)
@@ -143,7 +143,7 @@ export function renderAnnotationContent(
           )
         : [node('rect', { x: 0, y: 0, width: box.width, height: box.height })]
       for (const s of shapes) {
-        s.setAttribute('fill', a.fill)
+        s.setAttribute('fill', a.interiorColor)
         s.setAttribute('fill-opacity', '0.15')
         s.setAttribute('stroke', a.color)
         s.setAttribute('stroke-width', String(t.toCssLength(1)))
@@ -154,7 +154,7 @@ export function renderAnnotationContent(
     }
     case 'square':
     case 'circle': {
-      const sw = t.toCssLength(a.strokeWidth)
+      const sw = t.toCssLength(a.width)
       const shape =
         a.type === 'square'
           ? node('rect', {
@@ -169,7 +169,7 @@ export function renderAnnotationContent(
               rx: Math.max(0, box.width / 2 - sw / 2),
               ry: Math.max(0, box.height / 2 - sw / 2),
             })
-      shape.setAttribute('fill', a.fill ?? 'none')
+      shape.setAttribute('fill', a.interiorColor ?? 'none')
       shape.setAttribute('stroke', a.color)
       shape.setAttribute('stroke-width', String(sw))
       svg.append(shape)
@@ -183,9 +183,9 @@ export function renderAnnotationContent(
       svg.append(
         node(a.type === 'polygon' ? 'polygon' : 'polyline', {
           points: pts.map(local).join(' '),
-          fill: a.type === 'polygon' ? (a.fill ?? 'none') : 'none',
+          fill: a.type === 'polygon' ? (a.interiorColor ?? 'none') : 'none',
           stroke: a.color,
-          'stroke-width': t.toCssLength(a.strokeWidth),
+          'stroke-width': t.toCssLength(a.width),
           'stroke-linejoin': 'round',
         })
       )
@@ -193,13 +193,13 @@ export function renderAnnotationContent(
       break
     }
     case 'ink':
-      for (const path of a.paths) {
+      for (const path of a.inklist) {
         svg.append(
           node('polyline', {
             points: path.map(local).join(' '),
             fill: 'none',
             stroke: a.color,
-            'stroke-width': t.toCssLength(a.strokeWidth),
+            'stroke-width': t.toCssLength(a.width),
             'stroke-linecap': 'round',
             'stroke-linejoin': 'round',
           })

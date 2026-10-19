@@ -56,7 +56,7 @@ describe('AnnotationSchema', () => {
     expect(AnnotationSchema.safeParse({ ...valid, color: 'yellow' }).success).toBe(false)
   })
 
-  it('requires quads on text markup and fill on redactions', () => {
+  it('requires quads on text markup and interiorColor on redactions', () => {
     const { quads: _q, ...noQuads } = valid
     expect(AnnotationSchema.safeParse(noQuads).success).toBe(false)
     const redact = {
@@ -67,17 +67,19 @@ describe('AnnotationSchema', () => {
       suggestion: { confidence: 0.4 },
     }
     expect(AnnotationSchema.safeParse(redact).success).toBe(false)
-    expect(AnnotationSchema.safeParse({ ...redact, fill: '#000000' }).success).toBe(true)
+    expect(
+      AnnotationSchema.safeParse({ ...redact, interiorColor: '#000000' }).success
+    ).toBe(true)
   })
 
   it('applies defaults for note icon and redact origin', () => {
-    const note = AnnotationSchema.parse({ ...valid, type: 'note', quads: undefined })
-    expect(note.type === 'note' && note.icon).toBe('comment')
+    const note = AnnotationSchema.parse({ ...valid, type: 'text', quads: undefined })
+    expect(note.type === 'text' && note.icon).toBe('comment')
     const redact = AnnotationSchema.parse({
       ...valid,
       type: 'redact',
       quads: undefined,
-      fill: '#000000',
+      interiorColor: '#000000',
     })
     expect(redact.type === 'redact' && redact.origin).toBe('user')
   })
@@ -167,8 +169,8 @@ describe('AnnotationInput (compile-time)', () => {
       { type: 'highlight', page: 0, quads },
       { type: 'redact', page: 0, rect },
       { type: 'redact', page: 0, quads },
-      { type: 'note', page: 0, rect },
-      { type: 'freeText', page: 0, rect, text: 'hi' },
+      { type: 'text', page: 0, rect },
+      { type: 'freetext', page: 0, rect, contents: 'hi' },
       { type: 'square', page: 0, rect },
       { type: 'line', page: 0, start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
       {
@@ -179,7 +181,7 @@ describe('AnnotationInput (compile-time)', () => {
           { x: 1, y: 1 },
         ],
       },
-      { type: 'ink', page: 0, paths: [[{ x: 0, y: 0 }]] },
+      { type: 'ink', page: 0, inklist: [[{ x: 0, y: 0 }]] },
       { type: 'highlight', page: 0, quads, id: 'x' },
     ]
     // @ts-expect-error text markup needs quads
@@ -195,7 +197,7 @@ describe('AnnotationInput (compile-time)', () => {
       createdAt: '2026-10-12T12:00:00.000Z',
     })
     // @ts-expect-error a note cannot carry text markup geometry it does not declare
-    accept({ type: 'note', page: 0, rect, nope: 1 })
+    accept({ type: 'text', page: 0, rect, nope: 1 })
     expect(ok).toHaveLength(10)
   })
 })

@@ -40,7 +40,7 @@
     const a = ctx.activated
       ? store.annotations.find((x) => x.id === ctx.activated)
       : undefined
-    return a?.type === 'note' ? threadRoot(store.annotations, a) : null
+    return a?.type === 'text' ? threadRoot(store.annotations, a) : null
   })
   const anchorRef = useAnnotationElement(
     () => ctx.rootEl,
@@ -90,7 +90,7 @@
     if (!root || !contents) return
     written.add(root.id)
     store.add({
-      type: 'note',
+      type: 'text',
       page: root.page,
       rect: root.rect,
       contents,

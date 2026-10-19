@@ -14,7 +14,7 @@ function AddOnReady() {
   const { add } = useAnnotations()
   useEffect(() => {
     if (isReady)
-      add({ type: 'note', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
+      add({ type: 'text', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
     // Once per ready transition; `add` is not a dependency worth re-running for.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isReady])
