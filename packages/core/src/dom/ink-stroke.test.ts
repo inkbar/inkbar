@@ -21,7 +21,9 @@ describe('strokeOutline', () => {
   it('has an even width along a stroke without pressure', () => {
     const outline = strokeOutline(line, undefined, 4)
     const [a, b, c] = [50, 100, 150].map((x) => halfWidthAt(outline, x))
-    expect(a).toBeGreaterThan(0)
+    // Half the width either side of the axis: width 4 is 2 each way.
+    expect(a).toBeCloseTo(2, 0)
+    expect(Math.abs(a! - 2) / 2).toBeLessThan(0.1)
     expect(Math.abs(b! - a!) / a!).toBeLessThan(0.05)
     expect(Math.abs(c! - a!) / a!).toBeLessThan(0.05)
   })

@@ -20,6 +20,8 @@ interface Stroke {
   user: Point[]
   /** One value per sample for pen and touch, else undefined. */
   pressure: number[] | undefined
+  /** When the press happened: the gap to the last stroke runs to here, not to the release. */
+  startedAt: number
 }
 
 /** The annotation later strokes join, until the gap passes or something ends it. */
@@ -105,7 +107,7 @@ export function drawTool(): Tool {
     const pressure = s.pressure && reportsPressure(s.pressure) ? s.pressure : undefined
     const joined = session
     const current =
-      joined && joined.page === s.from.page && Date.now() - joined.endedAt <= JOIN_GAP_MS
+      joined && joined.page === s.from.page && s.startedAt - joined.endedAt <= JOIN_GAP_MS
         ? c.store.get(joined.id)
         : undefined
     if (current?.type === 'ink' && !current.locked) {
@@ -155,7 +157,13 @@ export function drawTool(): Tool {
     },
     onPointerDown(e, hit) {
       if (!hit) return
-      stroke = { from: hit, css: [], user: [], pressure: undefined }
+      stroke = {
+        from: hit,
+        css: [],
+        user: [],
+        pressure: undefined,
+        startedAt: Date.now(),
+      }
       sample(stroke, e)
       // Drawing over an annotation draws; it neither selects it nor starts a text selection.
       e.stopPropagation()

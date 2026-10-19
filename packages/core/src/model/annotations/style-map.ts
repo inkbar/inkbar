@@ -47,7 +47,8 @@ const FIELDS: Readonly<
     head: 'head',
     tail: 'tail',
   },
-  ink: { border: 'color', opacity: 'opacity', width: 'width', dashes: 'dashes' },
+  // Ink is drawn solid, so it has no dashes.
+  ink: { border: 'color', opacity: 'opacity', width: 'width' },
   highlight: { border: 'color', opacity: 'opacity' },
   underline: { border: 'color', opacity: 'opacity' },
   strikeout: { border: 'color', opacity: 'opacity' },

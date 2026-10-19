@@ -151,6 +151,7 @@ const InkShape = Base.extend({
   /** Pen pressure per sample, 0 to 1, shaped like `inklist`. Absent for mouse input. */
   pressure: z.array(z.array(z.number().min(0).max(1))).optional(),
   width: z.number().nonnegative().default(2),
+  /** Kept so imported dashed ink round-trips. Inkbar draws ink solid. */
   dashes: DashesSchema,
 })
 

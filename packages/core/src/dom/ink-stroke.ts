@@ -8,7 +8,7 @@ import type { Point } from '../model/geometry'
 export const JOIN_GAP_MS = 1000
 
 /**
- * The polygon around a stroke. `width` is the stroke width in the points' own unit; without
+ * The polygon around a stroke. `width` is the stroke width, in the points' own unit; without
  * `pressure` the line keeps an even width.
  */
 export function strokeOutline(
@@ -21,7 +21,7 @@ export function strokeOutline(
     (p, i) => [p.x, p.y, pressure?.[i] ?? 0.5] as [number, number, number]
   )
   return getStroke(input, {
-    size: width * 2,
+    size: width,
     thinning: withPressure ? 0.5 : 0,
     smoothing: 0.5,
     streamline: 0.5,

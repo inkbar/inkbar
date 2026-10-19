@@ -1300,6 +1300,66 @@ describe('draw tool', () => {
     expect(inks(doc)).toHaveLength(2)
   })
 
+  it("the gap runs to the next stroke's press, not its release", async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('draw')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    const now = vi.spyOn(Date, 'now')
+    now.mockReturnValue(10_000)
+    stroke(container, h, [
+      [100, 100, 0.3],
+      [140, 120, 0.6],
+    ])
+    // Pressed 600 ms after the first stroke ended, released 1.2 s after: still joins.
+    now.mockReturnValue(10_600)
+    pointer(container, 'pointerdown', h.left + 100, h.top + 200, pen(0.3))
+    pointer(container, 'pointermove', h.left + 140, h.top + 220, pen(0.6))
+    now.mockReturnValue(11_200)
+    pointer(container, 'pointerup', h.left + 140, h.top + 220, pen(0, { buttons: 0 }))
+    now.mockRestore()
+    expect(inks(doc)).toHaveLength(1)
+  })
+
+  it('a stroke within the gap on another page starts a new annotation', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    await until(() => viewport.hostFor(1) !== undefined)
+    tools.set('draw')
+    const h0 = viewport.hostFor(0)!.getBoundingClientRect()
+    stroke(container, h0, [
+      [100, 100, 0.3],
+      [140, 120, 0.6],
+    ])
+    const h1 = viewport.hostFor(1)!.getBoundingClientRect()
+    stroke(container, h1, [
+      [100, 100, 0.3],
+      [140, 120, 0.6],
+    ])
+    expect(
+      inks(doc)
+        .map((a) => a.page)
+        .sort()
+    ).toEqual([0, 1])
+  })
+
+  it('a stroke within the gap after the annotation was undone starts a new one', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('draw')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    stroke(container, h, [
+      [100, 100, 0.3],
+      [140, 120, 0.6],
+    ])
+    doc.history.undo()
+    expect(inks(doc)).toEqual([])
+    stroke(container, h, [
+      [100, 200, 0.3],
+      [140, 220, 0.6],
+    ])
+    const [ink, ...others] = inks(doc)
+    expect(others).toEqual([])
+    expect(ink?.type === 'ink' && ink.inklist).toHaveLength(1)
+  })
+
   it('Escape or switching tool ends the annotation', async () => {
     const { doc, container, viewport, tools } = await setup()
     tools.set('draw')
