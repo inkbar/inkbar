@@ -5,18 +5,32 @@
 // `PageTransform.toCssRect(a.rect)` for custom elements. Hit-testing
 // follows the drawn shape, not the box: elements are `pointer-events:none` and their shapes
 // opt back in (overlay-render.ts), so a press beside a shape still reaches the text layer.
-// Resize handles (`.ink-handle[data-handle]`) are 8px `position:absolute;
-// pointer-events:auto` boxes on the element's corners; their look is the theme's.
+// Edit handles (`.ink-handle[data-handle]`) are 8px `position:absolute;
+// pointer-events:auto` boxes on the element's corners or a line's ends, placed with
+// left/top; their look is the theme's.
 // Custom elements are the exception and stay `pointer-events:auto`: the host draws them and
 // only it knows their shape. Every visual (colour, opacity, stroke, fill) is an SVG
 // attribute or a theme hook.
-import { hasRectGeometry, resizedRect, translated } from '../model/annotations/edit'
+import {
+  hasCornerHandles,
+  hasRectGeometry,
+  isTextMarkup,
+  resizedRect,
+  translated,
+} from '../model/annotations/edit'
 import { confidenceBucket, type Annotation } from '../model/annotations/types'
 
-import { annotationBox, renderAnnotationContent, renderHitArea } from './overlay-render'
+import {
+  annotationBox,
+  renderAnnotationContent,
+  renderHitArea,
+  syncHandles,
+  type HandleSpec,
+} from './overlay-render'
 
 import type { PageTransform } from './transform'
 import type { AnnotationStore } from '../model/annotations/store'
+import type { Point } from '../model/geometry'
 
 export interface OverlayOptions {
   host: HTMLElement
@@ -40,10 +54,16 @@ export interface Overlay {
 
 type State = 'idle' | 'hover' | 'selected'
 
-/** Resize handles, by the CSS corner they sit on. */
-const HANDLES = ['nw', 'ne', 'sw', 'se'] as const
-/** Side of a resize handle, CSS px. */
-const HANDLE_PX = 8
+/** A text position: a node and an offset in it. */
+interface Caret {
+  node: Node
+  offset: number
+}
+
+/** Pointer travel, CSS px, within which a press on text markup is still a click. */
+const CLICK_SLOP = 3
+/** Longest press, ms, that still counts as a click on text markup. */
+const CLICK_MS = 500
 
 /** Arrow keys as user-space unit steps (y grows upwards). */
 const ARROW_STEPS: Record<string, { x: number; y: number }> = {
@@ -131,19 +151,38 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     const a = store.get(id)
     syncHandles(
       node,
-      selectToolActive() &&
-        state === 'selected' &&
-        a !== undefined &&
-        !a.locked &&
-        hasRectGeometry(a)
+      a && !a.locked && state === 'selected' && selectToolActive()
+        ? handleSpec(node, a)
+        : { kind: 'none' }
     )
   }
 
-  /** True while the tool controller marks the tool root (an ancestor) `data-ink-tool="select"`. */
+  /** Line ends for a line, corners for what a corner drag resizes, else none. */
+  function handleSpec(node: HTMLElement, a: Annotation): HandleSpec {
+    const left = parseFloat(node.style.left) || 0
+    const top = parseFloat(node.style.top) || 0
+    if (a.type === 'line') {
+      const local = (p: Point): Point => {
+        const c = transform.toCss(p)
+        return { x: c.x - left, y: c.y - top }
+      }
+      return { kind: 'ends', start: local(a.start), end: local(a.end) }
+    }
+    if (!hasCornerHandles(a)) return { kind: 'none' }
+    return {
+      kind: 'corners',
+      width: parseFloat(node.style.width) || 0,
+      height: parseFloat(node.style.height) || 0,
+    }
+  }
+
+  /**
+   * True while the tool controller marks the tool root (an ancestor) with a select tool,
+   * `data-ink-tool="select"` or `"select-text"`.
+   */
   function selectToolActive(): boolean {
-    return (
-      opts.host.closest('[data-ink-tool]')?.getAttribute('data-ink-tool') === 'select'
-    )
+    const tool = opts.host.closest('[data-ink-tool]')?.getAttribute('data-ink-tool')
+    return tool === 'select' || tool === 'select-text'
   }
   // Re-sync handles on a tool switch. The controller's root is normally the viewport
   // container; pages can mount before the controller marks it, so fall back to that.
@@ -160,33 +199,6 @@ export function createOverlay(opts: OverlayOptions): Overlay {
       attributes: true,
       attributeFilter: ['data-ink-tool'],
     })
-  }
-
-  /**
-   * Corner handles for a selected, unlocked rect-shaped annotation, drawn only while the select
-   * tool is active (`data-ink-tool="select"` on the tool root). The select tool drags them
-   * (`data-handle` names the CSS corner). The theme also hides them outside the select tool.
-   */
-  function syncHandles(node: HTMLElement, want: boolean): void {
-    const existing = node.querySelectorAll(':scope > [data-handle]')
-    if (!want) {
-      existing.forEach((h) => h.remove())
-      return
-    }
-    if (existing.length === HANDLES.length) return
-    existing.forEach((h) => h.remove())
-    for (const corner of HANDLES) {
-      const h = doc.createElement('div')
-      h.className = 'ink-handle'
-      h.dataset.handle = corner
-      h.setAttribute('aria-hidden', 'true')
-      const off = `${-HANDLE_PX / 2}px`
-      h.style.cssText =
-        `position:absolute;width:${HANDLE_PX}px;height:${HANDLE_PX}px;pointer-events:auto;` +
-        `${corner[0] === 'n' ? 'top' : 'bottom'}:${off};` +
-        `${corner[1] === 'w' ? 'left' : 'right'}:${off};`
-      node.append(h)
-    }
   }
 
   function applyAttributes(node: HTMLElement, a: Annotation): void {
@@ -231,6 +243,88 @@ export function createOverlay(opts: OverlayOptions): Overlay {
   function activate(id: string): void {
     store.select([id])
     opts.onActivate?.(id)
+  }
+
+  /** The live press on text markup, until its release or cancel. */
+  let markupPress: (() => void) | undefined
+
+  /**
+   * A press on text markup does nothing yet. A release within `CLICK_SLOP` px and `CLICK_MS`
+   * of it selects and activates the markup; a longer drag selects the text under it instead,
+   * from the press point to the pointer, as a drag on the bare text would.
+   */
+  function pressMarkup(e: PointerEvent, id: string): void {
+    // The browser's own selection would start inside the overlay, not the text: drive it here.
+    e.preventDefault()
+    markupPress?.()
+    const view = doc.defaultView
+    if (!view) return
+    const { clientX: x0, clientY: y0, pointerId, timeStamp: t0 } = e
+    let anchor: Caret | undefined
+    let dragging = false
+    const mine = (ev: PointerEvent): boolean => ev.pointerId === pointerId
+    const onMove = (ev: PointerEvent): void => {
+      if (!mine(ev)) return
+      if (ev.buttons === 0) return end()
+      if (!dragging && Math.hypot(ev.clientX - x0, ev.clientY - y0) <= CLICK_SLOP) return
+      dragging = true
+      anchor ??= caretAt(x0, y0)
+      const focus = caretAt(ev.clientX, ev.clientY)
+      if (anchor && focus)
+        doc
+          .getSelection()
+          ?.setBaseAndExtent(anchor.node, anchor.offset, focus.node, focus.offset)
+    }
+    const onUp = (ev: PointerEvent): void => {
+      if (!mine(ev) || ev.button !== 0) return
+      end()
+      if (
+        !dragging &&
+        !destroyed &&
+        Math.hypot(ev.clientX - x0, ev.clientY - y0) <= CLICK_SLOP &&
+        ev.timeStamp - t0 <= CLICK_MS &&
+        store.get(id)
+      )
+        activate(id)
+    }
+    const onCancel = (ev: PointerEvent): void => {
+      if (mine(ev)) end()
+    }
+    const end = (): void => {
+      view.removeEventListener('pointermove', onMove, true)
+      view.removeEventListener('pointerup', onUp, true)
+      view.removeEventListener('pointercancel', onCancel, true)
+      if (markupPress === end) markupPress = undefined
+    }
+    // Capture on the window: the release still arrives when a tool captured the pointer or a
+    // handler on the way stops it.
+    view.addEventListener('pointermove', onMove, true)
+    view.addEventListener('pointerup', onUp, true)
+    view.addEventListener('pointercancel', onCancel, true)
+    markupPress = end
+  }
+
+  /**
+   * The text position under a client point on this page's text layer, looked up with the
+   * overlay hidden so the markup on top does not answer instead.
+   */
+  function caretAt(x: number, y: number): Caret | undefined {
+    const visibility = root.style.visibility
+    root.style.visibility = 'hidden'
+    let caret: Caret | undefined
+    try {
+      if (typeof doc.caretPositionFromPoint === 'function') {
+        const p = doc.caretPositionFromPoint(x, y)
+        if (p) caret = { node: p.offsetNode, offset: p.offset }
+      } else if (typeof doc.caretRangeFromPoint === 'function') {
+        const r = doc.caretRangeFromPoint(x, y)
+        if (r) caret = { node: r.startContainer, offset: r.startOffset }
+      }
+    } finally {
+      root.style.visibility = visibility
+    }
+    const layer = opts.host.querySelector('[data-ink-text-layer]')
+    return caret && layer?.contains(caret.node) ? caret : undefined
   }
 
   function focusAt(index: number): void {
@@ -314,6 +408,12 @@ export function createOverlay(opts: OverlayOptions): Overlay {
         !(e.target instanceof Element && e.target.closest('[data-handle]'))
       )
         return
+      // Text markup waits for the release: a drag across it is a text selection.
+      const a = store.get(id)
+      if (a && isTextMarkup(a)) {
+        pressMarkup(e, id)
+        return
+      }
       // A tool listening on the page root must not start a drag from this press.
       e.stopPropagation()
       activate(id)
@@ -406,6 +506,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     destroy() {
       if (destroyed) return
       destroyed = true
+      markupPress?.()
       offList()
       offSelection()
       toolObserver?.disconnect()

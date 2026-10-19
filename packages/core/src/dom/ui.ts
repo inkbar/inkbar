@@ -14,8 +14,8 @@ import type {
  * no entry: its button takes the host's `label`, else the tool id.
  */
 export const TOOL_LABELS: Readonly<Partial<Record<ToolId, string>>> = {
-  view: 'View',
-  select: 'Select',
+  'select-text': 'Select text',
+  select: 'Rectangle select',
   highlight: 'Highlight',
   'redact-area': 'Mark for redaction',
   note: 'Add note',

@@ -3,25 +3,28 @@
 
 import type { IconNode } from './types'
 
-export const Hand: IconNode = [
-  ['path', { d: 'M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2' }],
-  ['path', { d: 'M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2' }],
-  ['path', { d: 'M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8' }],
-  [
-    'path',
-    {
-      d: 'M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15',
-    },
-  ],
+export const TextCursor: IconNode = [
+  ['path', { d: 'M17 22h-1a4 4 0 0 1-4-4V6a4 4 0 0 1 4-4h1' }],
+  ['path', { d: 'M7 22h1a4 4 0 0 0 4-4' }],
+  ['path', { d: 'M7 2h1a4 4 0 0 1 4 4' }],
 ]
 
-export const MousePointer2: IconNode = [
+export const SquareDashedMousePointer: IconNode = [
   [
     'path',
     {
-      d: 'M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z',
+      d: 'M12.034 12.681a.498.498 0 0 1 .647-.647l9 3.5a.5.5 0 0 1-.033.943l-3.444 1.068a1 1 0 0 0-.66.66l-1.067 3.443a.5.5 0 0 1-.943.033z',
     },
   ],
+  ['path', { d: 'M5 3a2 2 0 0 0-2 2' }],
+  ['path', { d: 'M19 3a2 2 0 0 1 2 2' }],
+  ['path', { d: 'M5 21a2 2 0 0 1-2-2' }],
+  ['path', { d: 'M9 3h1' }],
+  ['path', { d: 'M9 21h2' }],
+  ['path', { d: 'M14 3h1' }],
+  ['path', { d: 'M3 9v1' }],
+  ['path', { d: 'M21 9v2' }],
+  ['path', { d: 'M3 14v1' }],
 ]
 
 export const Highlighter: IconNode = [

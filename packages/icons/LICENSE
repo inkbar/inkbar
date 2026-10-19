@@ -24,8 +24,9 @@ SOFTWARE.
 
 Third-party notices
 
-The icons in src/icons.ts (Hand, MousePointer2, Highlighter, Square, MessageSquare, Undo2,
-Redo2, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, ChevronDown and Check) are copied from
+The icons in src/icons.ts (TextCursor, SquareDashedMousePointer, Highlighter, Square,
+MessageSquare, Undo2, Redo2, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, ChevronDown and
+Check) are copied from
 Lucide (https://lucide.dev), under the ISC licence:
 
 ISC License

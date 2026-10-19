@@ -107,7 +107,7 @@ export function ReviewPage({
   const [loadedPending, setLoadedPending] = useState<string | null>(null)
   /** The toolbar stays inert, and the tool at view, until the current key has loaded. */
   const [failed, setFailed] = useState(false)
-  const [tool, setTool] = useState<ToolId>('view')
+  const [tool, setTool] = useState<ToolId>('select-text')
 
   const key = largePages > 0 ? `large-${largePages}:v${version}` : `case-1:v${version}`
   const loading = !failed && (loadedKey === null || loadedKey !== key)
@@ -245,7 +245,7 @@ export function ReviewPage({
     setLoadedKey(null)
     await flushSave()
     setFailed(false)
-    setTool('view')
+    setTool('select-text')
     setDocument(null)
     documentRef.current = null
     setAnnotations([])
@@ -270,7 +270,7 @@ export function ReviewPage({
     >
       <div inert={loading} data-testid="toolbar-gate">
         <InkToolbar>
-          <InkToolButton tool="view" />
+          <InkToolButton tool="select-text" />
           <InkToolButton tool="select" />
           <InkToolButton tool="highlight" />
           <InkToolButton tool="redact-area" />

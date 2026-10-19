@@ -443,7 +443,7 @@ describe('InkViewport', () => {
   it('applies the tool to the scroll element', async () => {
     await render(ViewportHarness, { src: fixtureUrl('text-simple'), assets, zoom: 1 })
     await q(`${FIRST} canvas`)
-    await expect.poll(attr(SCROLL, 'data-ink-tool')).toBe('view')
+    await expect.poll(attr(SCROLL, 'data-ink-tool')).toBe('select-text')
   })
 
   // React: 'keeps the page and zoom when a gap change rebuilds the viewport'

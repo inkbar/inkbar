@@ -65,7 +65,7 @@
   let loadedKey = $state<string | null>(null)
   /** The toolbar stays inert, and the tool at view, until the current key has loaded. */
   let failed = $state(false)
-  let tool = $state<ToolId>('view')
+  let tool = $state<ToolId>('select-text')
 
   const key = $derived(
     largePages > 0 ? `large-${largePages}:v${version}` : `case-1:v${version}`
@@ -216,7 +216,7 @@
     loadedKey = null
     await flushSave()
     failed = false
-    tool = 'view'
+    tool = 'select-text'
     openDoc = null
     annotations = []
     suggestResult = ''
@@ -238,7 +238,7 @@
 >
   <div inert={loading} data-testid="toolbar-gate">
     <InkToolbar>
-      <InkToolButton tool="view" />
+      <InkToolButton tool="select-text" />
       <InkToolButton tool="select" />
       <InkToolButton tool="highlight" />
       <InkToolButton tool="redact-area" />

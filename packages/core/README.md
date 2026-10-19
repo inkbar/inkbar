@@ -74,7 +74,7 @@ const viewer = createViewer(el, { source: file, assets, zoom: 'fit-width' })
 
 const tools = createToolbar()
 tools.append(
-  createToolButton(viewer, 'view'),
+  createToolButton(viewer, 'select-text'),
   createToolButton(viewer, 'select'),
   createToolButton(viewer, 'highlight')
 )
@@ -150,7 +150,7 @@ The viewport mounts pages synchronously, so a build's page callbacks fire before
 
 ## Tools and keyboard
 
-`createToolController` from `@inkbar/core/dom` routes pointer and key events on the viewport to the active tool: `view`, `select`, `highlight`, `redact-area` or `note`. Highlights, text redactions and notes can be made from the keyboard. Drawing an area redaction needs a pointer.
+`createToolController` from `@inkbar/core/dom` routes pointer and key events on the viewport to the active tool: `select-text`, `select`, `highlight`, `redact-area` or `note`. Highlights, text redactions and notes can be made from the keyboard. Drawing an area redaction needs a pointer.
 
 | Where focus is               | Key                                 | Effect                                                                                              |
 | ---------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------- |
@@ -182,9 +182,11 @@ On a focused annotation, `Enter` or `Space` selects it and calls `onActivate`; w
 
 Locked annotations, such as those embedded in the file, ignore move, resize and delete. Without a text selection, `Enter` in the `highlight` and `redact-area` tools does nothing.
 
-`redact-area` draws an area mark when you drag. To redact text instead, select the text with the `view` tool, switch to `redact-area`, then click inside the selection or press `Enter`. The tool keeps the press from starting a new text selection, so it cannot select text itself.
+`redact-area` draws an area mark when you drag. To redact text instead, select the text with the `select-text` tool, switch to `redact-area`, then click inside the selection or press `Enter`. The tool keeps the press from starting a new text selection, so it cannot select text itself.
 
-With the `select` tool, a selected area redaction, text box or shape shows four corner handles (`.ink-handle[data-handle="nw|ne|sw|se"]`). Dragging one resizes it; the store records a single update on release. Drag the annotation itself to move it.
+With either select tool (`select-text` or `select`), a selected area redaction, text box, shape, polyline, polygon or drawing shows four corner handles (`.ink-handle[data-handle="nw|ne|sw|se"]`), and a selected line shows one on each end (`data-handle="start|end"`). Dragging a corner resizes the annotation, scaling its points with it; `Shift` keeps its aspect ratio. Dragging a line end moves that end only. The store records a single update on release. Drag the annotation itself to move it, or any member of a multi-selection to move them all in one undo step.
+
+A press on text markup (a highlight, underline, strikeout or squiggly) does nothing at first. A click selects it; a drag selects the text under it, as a drag on the bare text would. Presses on every other annotation select it straight away.
 
 ## Serving PDF.js assets
 

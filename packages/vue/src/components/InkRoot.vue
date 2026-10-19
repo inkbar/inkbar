@@ -108,7 +108,7 @@ const selection = useReadable<readonly string[]>(
 )
 const viewport = shallowRef<Viewport | null>(null)
 const toolController = shallowRef<ToolController | null>(null)
-const internalTool = ref<ToolId>(props.tool ?? 'view')
+const internalTool = ref<ToolId>(props.tool ?? 'select-text')
 const activated = ref<string | null>(null)
 
 const controlled = computed(() => props.annotations !== undefined)

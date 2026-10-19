@@ -65,7 +65,7 @@ Svelte 5.46.4 or later is a peer dependency. Add the Vite plugin from `@inkbar/c
 
 <InkRoot src={{ url: signedUrl, key: documentId }} {assets} bind:annotations>
   <InkToolbar>
-    <InkToolButton tool="view" />
+    <InkToolButton tool="select-text" />
     <InkToolButton tool="select" />
     <InkToolButton tool="highlight" />
     <InkToolButton tool="redact-area" />

@@ -68,7 +68,7 @@ describe('mountViewer', () => {
 
   it('wires the tools and the viewport keys', async () => {
     const { container, engine } = await setup()
-    expect(engine.tools.active.get()).toBe('view')
+    expect(engine.tools.active.get()).toBe('select-text')
     const before = engine.viewport.scale.get()
     key(container, '+')
     expect(engine.viewport.scale.get()).toBeGreaterThan(before)

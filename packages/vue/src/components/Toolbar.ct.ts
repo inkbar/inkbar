@@ -21,7 +21,7 @@ test('tool buttons reflect and set the active tool with aria-pressed and v-model
   })
   await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
   await expect(page.getByRole('toolbar', { name: 'Document tools' })).toBeVisible()
-  const view = cmp.locator(toolButton('view'))
+  const view = cmp.locator(toolButton('select-text'))
   const highlight = cmp.locator(toolButton('highlight'))
   await expect(view).toHaveAttribute('aria-pressed', 'true')
   await expect(view).toHaveAttribute('data-state', 'on')
@@ -43,8 +43,8 @@ test('every toolbar control has an accessible name', async ({ mount, page }) => 
   await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
   const toolbar = page.getByRole('toolbar', { name: 'Document tools' })
   for (const name of [
-    'View',
-    'Select',
+    'Select text',
+    'Rectangle select',
     'Highlight',
     'Mark for redaction',
     'Add note',
@@ -144,7 +144,7 @@ test('toolbar is keyboard operable', async ({ mount, page }) => {
   const cmp = await mount(Harness, { props: { src: fixtureUrl('text-simple'), assets } })
   await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
   const scroll = cmp.locator('[data-ink-scroll]')
-  await cmp.locator(toolButton('view')).focus()
+  await cmp.locator(toolButton('select-text')).focus()
   await page.keyboard.press('ArrowRight')
   await expect(cmp.locator(toolButton('select'))).toBeFocused()
   await page.keyboard.press('Enter')

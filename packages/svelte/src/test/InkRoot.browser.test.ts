@@ -336,7 +336,7 @@ describe('InkRoot', () => {
     await expect.poll(attr(probe, 'data-count')).toBe('3')
     await expect.poll(attr(probe, 'data-current')).toBe('0')
     await expect.poll(attr(probe, 'data-embedded')).toBe('0')
-    await expect.poll(attr(probe, 'data-tool')).toBe('view')
+    await expect.poll(attr(probe, 'data-tool')).toBe('select-text')
     await expect.poll(attr(probe, 'data-zoom')).toBe('fit-width')
     await expect.poll(attr(probe, 'data-can-undo')).toBe('false')
 

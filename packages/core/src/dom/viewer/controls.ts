@@ -11,13 +11,13 @@
 import {
   ChevronLeft,
   ChevronRight,
-  Hand,
   Highlighter,
   ICON_ATTRIBUTES,
   MessageSquare,
-  MousePointer2,
   Redo2,
   Square,
+  SquareDashedMousePointer,
+  TextCursor,
   Undo2,
   ZoomIn,
   ZoomOut,
@@ -65,8 +65,8 @@ function follow<T>(
 const SVG = 'http://www.w3.org/2000/svg'
 
 const TOOL_ICONS: Readonly<Partial<Record<ToolId, IconNode>>> = {
-  view: Hand,
-  select: MousePointer2,
+  'select-text': TextCursor,
+  select: SquareDashedMousePointer,
   highlight: Highlighter,
   'redact-area': Square,
   note: MessageSquare,

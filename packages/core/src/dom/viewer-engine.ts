@@ -262,6 +262,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
         clearSelection: () =>
           el.ownerDocument.defaultView?.getSelection()?.removeAllRanges(),
         onActivate: (id) => opts.onActivate?.(id),
+        history: doc.history,
       },
     })
     viewport = vp

@@ -4,7 +4,8 @@ import { staticDefaults } from '../model/annotations/defaults'
 import { createAnnotationStore } from '../model/annotations/store'
 
 import { createOverlay } from './overlay'
-import { mountContainer, openFixtureInBrowser } from './test-utils'
+import { createPageMount } from './page-mount'
+import { mountContainer, openFixtureInBrowser, TEXT_LAYER_CSS } from './test-utils'
 import { createPageTransform } from './transform'
 
 import type { PageInfo } from '../model/pages'
@@ -415,13 +416,14 @@ describe('createOverlay', () => {
         expect(shape.getAttribute('pointer-events')).toBe('all')
       }
     }
-    // A press on the hit area selects the embedded item.
+    // A click on the hit area selects the embedded item (text markup: on the release).
     const target = embedded[0]!
     const poly = overlay.elementFor(target.id)!.querySelector('polygon')!
     const r = poly.getBoundingClientRect()
     const hitEl = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
     expect(hitEl).toBe(poly)
     hitEl!.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
+    hitEl!.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0 }))
     expect(doc.annotations.selection.get()).toEqual([target.id])
   })
 
@@ -448,10 +450,12 @@ describe('createOverlay', () => {
     })
     const onRoot = vi.fn()
     host.addEventListener('pointerdown', onRoot)
-    const press = (x: number, y: number) => {
+    const click = (x: number, y: number) => {
       const r = host.getBoundingClientRect()
       const target = document.elementFromPoint(r.left + x, r.top + y)!
-      target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
+      const init = { bubbles: true, button: 0, clientX: r.left + x, clientY: r.top + y }
+      target.dispatchEvent(new PointerEvent('pointerdown', init))
+      target.dispatchEvent(new PointerEvent('pointerup', init))
       return target
     }
     // Between the bottom of line one and the top of line two, inside the highlight's box.
@@ -463,15 +467,16 @@ describe('createOverlay', () => {
     expect(gapY).toBeGreaterThan(box.top)
     expect(gapY).toBeLessThan(box.top + box.height)
     const x = gapTop.left + 5
-    expect(overlay.elementFor(hl.id)!.contains(press(x, gapY))).toBe(false)
+    expect(overlay.elementFor(hl.id)!.contains(click(x, gapY))).toBe(false)
     expect(doc.annotations.selection.get()).toEqual([])
     expect(onRoot).toHaveBeenCalledTimes(1)
-    // On the first line's polygon it selects, activates and stops there.
-    const onLine = press(x, gapTop.top + gapTop.height / 2)
+    // A click on the first line's polygon selects and activates it. The press itself goes on
+    // to the page: until the release it may still be a text drag.
+    const onLine = click(x, gapTop.top + gapTop.height / 2)
     expect(onLine.tagName).toBe('polygon')
     expect(doc.annotations.selection.get()).toEqual([hl.id])
     expect(onActivate).toHaveBeenCalledWith(hl.id)
-    expect(onRoot).toHaveBeenCalledTimes(1)
+    expect(onRoot).toHaveBeenCalledTimes(2)
   })
 
   it('marks the overlay root and keeps custom elements hittable as a whole', () => {
@@ -821,5 +826,115 @@ describe('createOverlay', () => {
     store.update(area.id, { locked: false })
     store.select([])
     expect(handles(area.id)).toEqual([])
+  })
+
+  describe('press rule', () => {
+    /** A real page (canvas, text layer, overlay) of `text-simple` at zoom 1. */
+    async function mountPage() {
+      const style = document.createElement('style')
+      style.textContent = TEXT_LAYER_CSS
+      document.head.append(style)
+      const doc = await openFixtureInBrowser('text-simple')
+      const transform = createPageTransform(doc.pages[0]!, 1, 0)
+      const host = mountContainer(transform.cssWidth, transform.cssHeight)
+      const onActivate = vi.fn()
+      const mount = createPageMount({
+        document: doc,
+        page: 0,
+        host,
+        transform,
+        store: doc.annotations,
+        onActivate,
+      })
+      cleanup.push(() => {
+        mount.destroy()
+        host.remove()
+        doc.destroy()
+        style.remove()
+        window.getSelection()?.removeAllRanges()
+      })
+      await mount.textLayer.ready
+      const { items } = await doc.text(0)
+      const first = items.find((i) => i.str.startsWith('Hello'))!
+      return { doc, host, transform, onActivate, overlay: mount.overlay, first }
+    }
+
+    const fire = (
+      target: Element,
+      type: 'pointerdown' | 'pointermove' | 'pointerup',
+      clientX: number,
+      clientY: number
+    ) =>
+      target.dispatchEvent(
+        new PointerEvent(type, {
+          bubbles: true,
+          clientX,
+          clientY,
+          button: 0,
+          buttons: type === 'pointerup' ? 0 : 1,
+          pointerId: 1,
+          isPrimary: true,
+        })
+      )
+
+    it('a drag across a highlight selects text, not the highlight', async () => {
+      const { doc, host, transform, first } = await mountPage()
+      const hl = doc.annotations.add({ type: 'highlight', page: 0, quads: [first.quad] })
+      const box = transform.toCssRect(first.rect)
+      const r = host.getBoundingClientRect()
+      const x = r.left + box.left + 4
+      const y = r.top + box.top + box.height / 2
+      const target = document.elementFromPoint(x, y)!
+      expect(target.tagName).toBe('polygon')
+      expect(target.closest('[data-annotation]')?.getAttribute('data-annotation')).toBe(
+        hl.id
+      )
+      fire(target, 'pointerdown', x, y)
+      expect(doc.annotations.selection.get()).toEqual([])
+      fire(target, 'pointermove', x + 20, y)
+      fire(target, 'pointermove', x + 40, y)
+      fire(target, 'pointerup', x + 40, y)
+      expect(doc.annotations.selection.get()).toEqual([])
+      expect(window.getSelection()?.toString()).not.toBe('')
+    })
+
+    it('a click on a highlight selects and activates it', async () => {
+      const { doc, host, transform, onActivate, first } = await mountPage()
+      const hl = doc.annotations.add({ type: 'highlight', page: 0, quads: [first.quad] })
+      const box = transform.toCssRect(first.rect)
+      const r = host.getBoundingClientRect()
+      const x = r.left + box.left + 4
+      const y = r.top + box.top + box.height / 2
+      const target = document.elementFromPoint(x, y)!
+      fire(target, 'pointerdown', x, y)
+      // Nothing yet: the press might still become a text drag.
+      expect(doc.annotations.selection.get()).toEqual([])
+      expect(onActivate).not.toHaveBeenCalled()
+      fire(target, 'pointermove', x + 2, y)
+      fire(target, 'pointerup', x + 2, y)
+      expect(doc.annotations.selection.get()).toEqual([hl.id])
+      expect(onActivate).toHaveBeenCalledWith(hl.id)
+    })
+
+    it('a press on a filled square selects it immediately', async () => {
+      const { doc, host, transform, onActivate } = await mountPage()
+      const sq = doc.annotations.add({
+        type: 'square',
+        page: 0,
+        rect: { x: 300, y: 300, width: 60, height: 40 },
+        interiorColor: '#00ff00',
+      })
+      const box = transform.toCssRect(sq.rect)
+      const r = host.getBoundingClientRect()
+      const x = r.left + box.left + box.width / 2
+      const y = r.top + box.top + box.height / 2
+      const target = document.elementFromPoint(x, y)!
+      expect(target.closest('[data-annotation]')?.getAttribute('data-annotation')).toBe(
+        sq.id
+      )
+      fire(target, 'pointerdown', x, y)
+      expect(doc.annotations.selection.get()).toEqual([sq.id])
+      expect(onActivate).toHaveBeenCalledWith(sq.id)
+    })
   })
 })

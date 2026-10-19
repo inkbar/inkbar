@@ -32,9 +32,9 @@ export {
   hitFor,
   noteTool,
   redactAreaTool,
+  selectTextTool,
   selectTool,
   trackToolStyle,
-  viewTool,
   withHostTools,
 } from './tools'
 export type {

@@ -32,10 +32,12 @@ export function Demo({ source }: { source: DocumentSource }) {
   return (
     <InkRoot src={source} assets={assets} className="demo-root">
       <InkToolbar className="demo-toolbar">
-        <div className="demo-group" role="group" aria-label="Tools">
-          <InkToolButton tool="view" />
-          <InkToolButton tool="select" />
+        <div className="demo-group" role="group" aria-label="Highlight">
           <InkToolButton tool="highlight" />
+        </div>
+        <div className="demo-group" role="group" aria-label="Tools">
+          <InkToolButton tool="select-text" />
+          <InkToolButton tool="select" />
           <InkToolButton tool="redact-area" />
           <InkToolButton tool="note" />
         </div>

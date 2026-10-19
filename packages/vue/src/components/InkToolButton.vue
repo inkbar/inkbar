@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { TOOL_LABELS } from '@inkbar/core/dom'
-import { Hand, Highlighter, MessageSquare, MousePointer2, Square } from '@inkbar/icons'
+import {
+  Highlighter,
+  MessageSquare,
+  Square,
+  SquareDashedMousePointer,
+  TextCursor,
+} from '@inkbar/icons'
 import { ToolbarButton } from 'reka-ui'
 import { computed } from 'vue'
 
@@ -12,8 +18,8 @@ import type { ToolId } from '@inkbar/core/dom'
 import type { IconNode } from '@inkbar/icons'
 
 const ICONS: Readonly<Partial<Record<ToolId, IconNode>>> = {
-  view: Hand,
-  select: MousePointer2,
+  'select-text': TextCursor,
+  select: SquareDashedMousePointer,
   highlight: Highlighter,
   'redact-area': Square,
   note: MessageSquare,

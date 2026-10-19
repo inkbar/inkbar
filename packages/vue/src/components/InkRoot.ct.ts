@@ -243,7 +243,7 @@ test('composables bind to the document, tool and core history', async ({ mount }
   await expect(probe).toHaveAttribute('data-count', '3')
   await expect(probe).toHaveAttribute('data-current', '0')
   await expect(probe).toHaveAttribute('data-embedded', '0')
-  await expect(probe).toHaveAttribute('data-tool', 'view')
+  await expect(probe).toHaveAttribute('data-tool', 'select-text')
   await expect(probe).toHaveAttribute('data-zoom', 'fit-width')
   await expect(probe).toHaveAttribute('data-can-undo', 'false')
 

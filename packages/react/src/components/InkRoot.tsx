@@ -144,7 +144,7 @@ export function InkRoot({
   const [document, setDocument] = useState<InkDocument | null>(null)
   /** Overrides the document's status while opening, and when opening itself failed. */
   const [override, setOverride] = useState<InkStatus | null>(null)
-  const [internalTool, setInternalTool] = useState<ToolId>(tool ?? 'view')
+  const [internalTool, setInternalTool] = useState<ToolId>(tool ?? 'select-text')
   const [activated, setActivatedState] = useState<string | null>(null)
   const [viewport, setViewportState] = useState<Viewport | null>(null)
   const [tools, setToolsState] = useState<ToolController | null>(null)

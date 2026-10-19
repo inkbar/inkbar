@@ -104,6 +104,7 @@ async function setup(
         })),
       clearSelection: () => window.getSelection()?.removeAllRanges(),
       onActivate,
+      history: doc.history,
     },
   })
   cleanup.push(() => {
@@ -141,7 +142,7 @@ function pointer(
 describe('tools', () => {
   it('sets data-ink-tool and cursor on the root, and removes them on destroy', async () => {
     const { container, tools } = await setup()
-    expect(container.dataset.inkTool).toBe('view')
+    expect(container.dataset.inkTool).toBe('select-text')
     tools.set('redact-area')
     expect(container.dataset.inkTool).toBe('redact-area')
     expect(container.dataset.tool).toBeUndefined()
@@ -289,7 +290,7 @@ describe('tools', () => {
     expect(doc.annotations.selection.get()).toEqual([a.id])
   })
 
-  it('select: click selects, drag moves an unlocked annotation, marquee multi-selects, Delete removes', async () => {
+  it('rectangle select marquee selects intersecting annotations', async () => {
     const { doc, container, viewport, tools } = await setup()
     const a = doc.annotations.add({
       type: 'redact',
@@ -577,7 +578,7 @@ describe('controller and gesture edges', () => {
     cleanup.push(() => root.remove())
     const onPointerCancel = vi.fn()
     const spy: Tool = {
-      id: 'view',
+      id: 'spy',
       cursor: 'auto',
       activate() {},
       deactivate() {},
@@ -592,6 +593,7 @@ describe('controller and gesture edges', () => {
         selectionQuads: () => [],
         clearSelection: () => undefined,
       },
+      initial: 'spy',
       tools: [spy],
     })
     cleanup.push(() => c.destroy())
@@ -1054,7 +1056,7 @@ describe('resize handles', () => {
     })
   })
 
-  it('shows handles only while the select tool is active', async () => {
+  it('shows handles only while a select tool is active', async () => {
     const { doc, viewport, tools } = await setup()
     const a = doc.annotations.add({
       type: 'redact',
@@ -1065,10 +1067,8 @@ describe('resize handles', () => {
       viewport.hostFor(0)!.querySelectorAll(`[data-annotation="${a.id}"] > .ink-handle`)
     doc.annotations.select([a.id])
     await settle()
-    // Selected under the view tool: nothing to drag them with, so no handles.
-    expect(handles()).toHaveLength(0)
-    tools.set('select')
-    await until(() => handles().length === 4)
+    // Selected under select-text, the default: it drags them too.
+    expect(handles()).toHaveLength(4)
     tools.set('highlight')
     await until(() => handles().length === 0)
     expect(doc.annotations.selection.get()).toEqual([a.id])
@@ -1091,6 +1091,219 @@ describe('resize handles', () => {
     expect(host.querySelectorAll(`[data-annotation="${a.id}"] .ink-handle`)).toHaveLength(
       0
     )
+  })
+})
+
+describe('selection editing', () => {
+  /** The page host, its client rect and a client-point helper for a user-space point. */
+  async function page0(viewport: Viewport) {
+    await settle()
+    const host = viewport.hostFor(0)!
+    const h = host.getBoundingClientRect()
+    const t = viewport.transformFor(0)
+    const at = (x: number, y: number) => {
+      const c = t.toCss({ x, y })
+      return [h.left + c.x, h.top + c.y] as const
+    }
+    const el = (id: string) =>
+      host.querySelector(`[data-annotation="${id}"]`) as HTMLElement
+    const handle = (id: string, name: string) =>
+      host.querySelector<HTMLElement>(
+        `[data-annotation="${id}"] > [data-handle="${name}"]`
+      )
+    return { host, at, el, handle }
+  }
+
+  it('select-text moves a selected square by drag', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    expect(tools.active.get()).toBe('select-text')
+    const a = doc.annotations.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+      interiorColor: '#00ff00',
+    })
+    const { at, el } = await page0(viewport)
+    const [x, y] = at(110, 620)
+    pointer(el(a.id), 'pointerdown', x, y)
+    expect(doc.annotations.selection.get()).toEqual([a.id])
+    pointer(container, 'pointermove', x + 20, y + 10)
+    pointer(container, 'pointermove', x + 40, y + 20)
+    expect(el(a.id).style.transform).toBe('translate(40px, 20px)')
+    pointer(container, 'pointerup', x + 40, y + 20)
+    expect(el(a.id).style.transform).toBe('')
+    expect(doc.annotations.get(a.id)!.rect).toEqual({
+      x: 140,
+      y: 580,
+      width: 50,
+      height: 30,
+    })
+  })
+
+  it('select-text resizes by corner handle', async () => {
+    const { doc, container, viewport } = await setup()
+    const a = doc.annotations.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    doc.annotations.select([a.id])
+    const { at, handle } = await page0(viewport)
+    const se = handle(a.id, 'se')!
+    expect(se).not.toBeNull()
+    const [x, y] = at(150, 600)
+    pointer(se, 'pointerdown', x, y)
+    pointer(container, 'pointermove', x + 20, y + 10)
+    pointer(container, 'pointerup', x + 20, y + 10)
+    const r = doc.annotations.get(a.id)!.rect
+    expect(r.x).toBeCloseTo(100, 5)
+    expect(r.y).toBeCloseTo(590, 5)
+    expect(r.width).toBeCloseTo(70, 5)
+    expect(r.height).toBeCloseTo(40, 5)
+  })
+
+  it('line shows two endpoint handles and dragging end moves only end', async () => {
+    const { doc, container, viewport } = await setup()
+    const a = doc.annotations.add({
+      type: 'line',
+      page: 0,
+      start: { x: 100, y: 600 },
+      end: { x: 200, y: 650 },
+      width: 2,
+    })
+    doc.annotations.select([a.id])
+    const { host, at, handle } = await page0(viewport)
+    const names = [
+      ...host.querySelectorAll(`[data-annotation="${a.id}"] > [data-handle]`),
+    ].map((h) => (h as HTMLElement).dataset.handle)
+    expect(names).toEqual(['start', 'end'])
+    const end = handle(a.id, 'end')!
+    const [x, y] = at(200, 650)
+    pointer(end, 'pointerdown', x, y)
+    pointer(container, 'pointermove', x + 10, y)
+    pointer(container, 'pointermove', x + 20, y - 10)
+    pointer(container, 'pointerup', x + 20, y - 10)
+    const next = doc.annotations.get(a.id)!
+    if (next.type !== 'line') throw new Error('not a line')
+    expect(next.start).toEqual({ x: 100, y: 600 })
+    expect(next.end.x).toBeCloseTo(220, 5)
+    expect(next.end.y).toBeCloseTo(660, 5)
+    expect(next.rect.x).toBeCloseTo(99, 5)
+    expect(next.rect.y).toBeCloseTo(599, 5)
+    expect(next.rect.width).toBeCloseTo(122, 5)
+    expect(next.rect.height).toBeCloseTo(62, 5)
+  })
+
+  it('ink scales by corner handle', async () => {
+    const { doc, container, viewport } = await setup()
+    const a = doc.annotations.add({
+      type: 'ink',
+      page: 0,
+      inklist: [
+        [
+          { x: 100, y: 600 },
+          { x: 150, y: 650 },
+        ],
+      ],
+      width: 2,
+    })
+    doc.annotations.select([a.id])
+    const { at, handle } = await page0(viewport)
+    // The handles sit on the drawn box: the path's bounds padded by half the stroke.
+    const se = handle(a.id, 'se')!
+    expect(se).not.toBeNull()
+    const [x, y] = at(151, 599)
+    pointer(se, 'pointerdown', x, y)
+    pointer(container, 'pointermove', x + 52, y + 52)
+    pointer(container, 'pointerup', x + 52, y + 52)
+    const next = doc.annotations.get(a.id)!
+    if (next.type !== 'ink') throw new Error('not ink')
+    const [p, q] = next.inklist[0]!
+    expect(p!.x).toBeCloseTo(101, 5)
+    expect(p!.y).toBeCloseTo(549, 5)
+    expect(q!.x).toBeCloseTo(201, 5)
+    expect(q!.y).toBeCloseTo(649, 5)
+  })
+
+  it('Shift locks aspect while resizing a square', async () => {
+    const { doc, container, viewport } = await setup()
+    const a = doc.annotations.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    doc.annotations.select([a.id])
+    const { at, handle } = await page0(viewport)
+    const [x, y] = at(150, 600)
+    pointer(handle(a.id, 'se')!, 'pointerdown', x, y, { shiftKey: true })
+    pointer(container, 'pointermove', x + 20, y + 2, { shiftKey: true })
+    pointer(container, 'pointerup', x + 20, y + 2, { shiftKey: true })
+    const r = doc.annotations.get(a.id)!.rect
+    expect(r.width).toBeCloseTo(70, 5)
+    expect(r.height).toBeCloseTo(42, 5)
+    // The nw corner stays at (100, 630).
+    expect(r.x).toBeCloseTo(100, 5)
+    expect(r.y + r.height).toBeCloseTo(630, 5)
+  })
+
+  it('a multi-selection moves together in one undo step', async () => {
+    const { doc, container, viewport } = await setup()
+    const a = doc.annotations.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+      interiorColor: '#00ff00',
+    })
+    const b = doc.annotations.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 300, y: 500, width: 50, height: 30 },
+      interiorColor: '#00ff00',
+    })
+    doc.annotations.select([a.id, b.id])
+    const { at, el } = await page0(viewport)
+    const [x, y] = at(110, 620)
+    pointer(el(a.id), 'pointerdown', x, y)
+    // Pressing a member of the selection keeps the rest selected.
+    expect(new Set(doc.annotations.selection.get())).toEqual(new Set([a.id, b.id]))
+    pointer(container, 'pointermove', x + 10, y)
+    pointer(container, 'pointermove', x + 20, y)
+    expect(el(b.id).style.transform).toBe('translate(20px, 0px)')
+    pointer(container, 'pointerup', x + 20, y)
+    expect(doc.annotations.get(a.id)!.rect.x).toBe(120)
+    expect(doc.annotations.get(b.id)!.rect.x).toBe(320)
+    doc.history.undo()
+    expect(doc.annotations.get(a.id)!.rect.x).toBe(100)
+    expect(doc.annotations.get(b.id)!.rect.x).toBe(300)
+  })
+
+  it('a click on a member of a multi-selection selects just that one', async () => {
+    const { doc, viewport, onActivate } = await setup()
+    const a = doc.annotations.add({
+      type: 'text',
+      page: 0,
+      rect: { x: 100, y: 600, width: 20, height: 20 },
+    })
+    const b = doc.annotations.add({
+      type: 'text',
+      page: 0,
+      rect: { x: 300, y: 600, width: 20, height: 20 },
+    })
+    doc.annotations.select([a.id, b.id])
+    const { at, el } = await page0(viewport)
+    const [x, y] = at(110, 610)
+    pointer(el(a.id), 'pointerdown', x, y)
+    pointer(el(a.id), 'pointerup', x, y)
+    expect(doc.annotations.selection.get()).toEqual([a.id])
+    expect(onActivate).toHaveBeenCalledWith(a.id)
+  })
+
+  it('view is gone: tools.set("view") throws or is ignored', async () => {
+    const { tools } = await setup()
+    // Like any unknown id.
+    expect(() => tools.set('view')).toThrow(RangeError)
+    expect(tools.active.get()).toBe('select-text')
+    expect(builtinTools().map((t) => t.id)).not.toContain('view')
   })
 })
 

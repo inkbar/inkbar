@@ -34,10 +34,12 @@
 
 <InkRoot src={source} {assets} class="demo-root">
   <InkToolbar class="demo-toolbar">
-    <div class="demo-group" role="group" aria-label="Tools">
-      <InkToolButton tool="view" />
-      <InkToolButton tool="select" />
+    <div class="demo-group" role="group" aria-label="Highlight">
       <InkToolButton tool="highlight" />
+    </div>
+    <div class="demo-group" role="group" aria-label="Tools">
+      <InkToolButton tool="select-text" />
+      <InkToolButton tool="select" />
       <InkToolButton tool="redact-area" />
       <InkToolButton tool="note" />
     </div>
