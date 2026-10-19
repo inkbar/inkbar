@@ -1188,4 +1188,24 @@ test.describe('signature menu', () => {
     await expect(dialog(page)).toBeVisible()
     await expect(store(page)).toHaveAttribute('data-count', '0')
   })
+
+  test('a removal the store refuses shows an error in the menu', async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mount(
+      <SignatureHarness
+        src={fixtureUrl('text-simple')}
+        assets={assets}
+        initial={[INK, IMAGE]}
+        failRemove
+      />
+    )
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    await page.getByRole('button', { name: 'Choose signature' }).click()
+    await menu(page).getByRole('menuitem', { name: 'Remove signature 1' }).click()
+    await expect(menu(page).getByRole('alert')).toHaveText(/could not be removed/)
+    await expect(menu(page).getByRole('menuitemradio')).toHaveCount(2)
+    await expect(store(page)).toHaveAttribute('data-count', '2')
+  })
 })

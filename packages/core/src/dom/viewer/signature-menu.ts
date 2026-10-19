@@ -108,18 +108,25 @@ export function createSignatureMenu(
   /** Removes a template; focus moves to the signature now in its row, else "Create signature". */
   function remove(panel: HTMLElement, id: string): void {
     const row = model().items.findIndex((i) => i.id === id)
-    void library?.remove(id).then(() => {
-      if (!menu.isOpen) return
-      const rows = panel.querySelectorAll<HTMLElement>('.ink-signature-item')
-      const next =
-        rows[Math.min(row, rows.length - 1)] ??
-        panel.querySelector<HTMLElement>('[data-ink-signature-create]')
-      next?.focus({ preventScroll: true })
-    })
+    library?.remove(id).then(
+      () => {
+        if (!menu.isOpen) return
+        const rows = panel.querySelectorAll<HTMLElement>('.ink-signature-item')
+        const next =
+          rows[Math.min(row, rows.length - 1)] ??
+          panel.querySelector<HTMLElement>('[data-ink-signature-create]')
+        next?.focus({ preventScroll: true })
+      },
+      () => {
+        // The store refused: the row stays, and `removeError` shows in the menu.
+      }
+    )
   }
 
   function paint(panel: HTMLElement, m: SignatureMenuModel): void {
     const ids = m.items.map((i) => i.id).join(' ')
+    // A fresh panel is a fresh opening: an old removal error is not news any more.
+    if (panel.childElementCount === 0) library?.clearRemoveError()
     if (panel.childElementCount === 0 || ids !== shown) {
       shown = ids
       const list = h('div', {
@@ -178,9 +185,18 @@ export function createSignatureMenu(
         ...(m.items.length > 0
           ? [list, h('div', { role: 'separator', class: 'ink-select-separator' })]
           : []),
-        create
+        create,
+        h('p', {
+          class: 'ink-field-error ink-signature-remove-error',
+          role: 'alert',
+          'data-ink-signature-remove-error': '',
+        })
       )
     }
+    const error = panel.querySelector<HTMLElement>('[data-ink-signature-remove-error]')!
+    const message = library?.removeError.get()
+    error.textContent = message ?? ''
+    error.hidden = message === undefined
     for (const item of m.items) {
       const el = panel.querySelector<HTMLElement>(
         `.ink-signature-item[data-key="${CSS.escape(item.id)}"]`
@@ -224,7 +240,10 @@ export function createSignatureMenu(
     if (next === library) return
     stopLibrary()
     library = next
-    stopLibrary = library?.templates.subscribe(refresh) ?? (() => undefined)
+    const stops = library
+      ? [library.templates.subscribe(refresh), library.removeError.subscribe(refresh)]
+      : []
+    stopLibrary = () => stops.forEach((stop) => stop())
     refresh()
   }
   follow(viewer.tools.get())

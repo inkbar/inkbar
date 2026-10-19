@@ -287,6 +287,18 @@ describe('createSignatureLibrary', () => {
     expect(library.templates.get()).toEqual([image])
   })
 
+  it('reports a removal the store refuses as removeError until cleared', async () => {
+    const store = createMemorySignatureStore([ink])
+    const library = createSignatureLibrary(store)
+    await library.refresh()
+    store.remove = () => Promise.reject(new Error('full'))
+    await expect(library.remove('ink-1')).rejects.toThrow('full')
+    expect(library.removeError.get()).toMatch(/could not be removed/)
+    expect(library.templates.get()).toEqual([ink])
+    library.clearRemoveError()
+    expect(library.removeError.get()).toBeUndefined()
+  })
+
   it('keeps the last list when the store fails to list', async () => {
     const store = createMemorySignatureStore([ink])
     const library = createSignatureLibrary(store)

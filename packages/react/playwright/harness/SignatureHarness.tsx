@@ -32,6 +32,7 @@ export function SignatureHarness({
   initial = [],
   fonts,
   failSave = false,
+  failRemove = false,
 }: {
   src: DocumentSource
   assets: PdfAssets
@@ -39,6 +40,8 @@ export function SignatureHarness({
   fonts?: string[]
   /** The store refuses every save, as a full one would. */
   failSave?: boolean
+  /** The store refuses every removal. */
+  failRemove?: boolean
 }) {
   const [saved, setSaved] = useState<SignatureTemplate[]>(initial)
   const store = useMemo<SignatureStore>(() => {
@@ -52,6 +55,7 @@ export function SignatureHarness({
         await sync()
       },
       remove: async (id) => {
+        if (failRemove) throw new Error('full')
         await inner.remove(id)
         await sync()
       },

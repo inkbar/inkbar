@@ -75,6 +75,7 @@ export function InkSignatureMenu({
   const [options, setOptions] = useToolOptions<SignatureOptions>('signature')
   const { signatures } = useInkContext('InkSignatureMenu')
   const templates = useReadable(signatures.templates, NO_TEMPLATES)
+  const removeError = useReadable(signatures.removeError, undefined)
   const model = signatureMenuModel(templates, options)
   const [open, setOpen] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -87,6 +88,11 @@ export function InkSignatureMenu({
   const toDialog = useRef(false)
   /** The row of a removed signature, until focus lands on what took its place. */
   const removedRow = useRef<number | null>(null)
+
+  // An old removal error is not news when the menu opens again.
+  useEffect(() => {
+    if (open) signatures.clearRemoveError()
+  }, [open, signatures])
 
   useEffect(() => {
     const row = removedRow.current
@@ -244,6 +250,15 @@ export function InkSignatureMenu({
               <InkIcon icon={Plus} size={16} />
               {SIGNATURE_LABELS.create}
             </button>
+            {removeError ? (
+              <p
+                className="ink-field-error ink-signature-remove-error"
+                role="alert"
+                data-ink-signature-remove-error=""
+              >
+                {removeError}
+              </p>
+            ) : null}
           </Popover.Content>
         </Popover.Portal>
       </Popover.Root>

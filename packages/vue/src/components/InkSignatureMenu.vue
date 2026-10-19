@@ -21,7 +21,7 @@ import {
   PopoverTrigger,
   ToolbarButton,
 } from 'reka-ui'
-import { computed, nextTick, ref, useTemplateRef } from 'vue'
+import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 
 import { useTool } from '../composables/useTool'
 import { useToolOptions } from '../composables/useToolOptions'
@@ -44,10 +44,15 @@ const { tool, setTool } = useTool()
 const { options, setOptions } = useToolOptions<SignatureOptions>('signature')
 const ctx = useInkContext('InkSignatureMenu')
 const templates = useReadable(() => ctx.signatures.value.templates, NO_TEMPLATES)
+const removeError = useReadable(() => ctx.signatures.value.removeError, undefined)
 const model = computed(() => signatureMenuModel(templates.value, options.value))
 const active = computed(() => tool.value === 'signature')
 const open = ref(false)
 const creating = ref(false)
+// An old removal error is not news when the menu opens again.
+watch(open, (isOpen) => {
+  if (isOpen) ctx.signatures.value.clearRemoveError()
+})
 const main = useTemplateRef<{ $el: HTMLElement }>('main')
 
 /** A saved signature drawn small: ink as filled outlines. */
@@ -261,6 +266,14 @@ const innerAttrs = {
               <InkIcon :icon="Plus" :size="16" />
               {{ SIGNATURE_LABELS.create }}
             </button>
+            <p
+              v-if="removeError"
+              class="ink-field-error ink-signature-remove-error"
+              role="alert"
+              data-ink-signature-remove-error
+            >
+              {{ removeError }}
+            </p>
           </div>
         </PopoverContent>
       </PopoverPortal>

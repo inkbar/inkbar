@@ -1397,6 +1397,32 @@ describe('createViewer', () => {
       expect(await store.list()).toEqual([])
     })
 
+    it('a removal the store refuses shows an error in the menu', async () => {
+      const store = createMemorySignatureStore([INK, IMAGE])
+      store.remove = () => Promise.reject(new Error('full'))
+      const { viewer } = make('text-simple', { signatures: store })
+      const root = createSignatureMenu(viewer)
+      viewer.element.prepend(root)
+      const { engine } = await ready(viewer)
+      await until(() => engine.signatures.templates.get().length === 2)
+      parts(root).chevron.click()
+      panel()!
+        .querySelector<HTMLButtonElement>(
+          '[data-ink-signature-remove][data-key="sig-a"]'
+        )!
+        .click()
+      await until(
+        () => panel()?.querySelector('[data-ink-signature-remove-error]') != null
+      )
+      const error = panel()!.querySelector<HTMLElement>(
+        '[data-ink-signature-remove-error]'
+      )!
+      expect(error.getAttribute('role')).toBe('alert')
+      expect(error.textContent).toMatch(/could not be removed/)
+      expect(panel()!.querySelectorAll('[role="menuitemradio"]')).toHaveLength(2)
+      expect(await store.list()).toEqual([INK, IMAGE])
+    })
+
     it('dialog traps focus and Escape closes', async () => {
       const { main, chevron } = await mounted()
       chevron.click()

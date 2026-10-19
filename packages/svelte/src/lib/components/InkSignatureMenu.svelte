@@ -30,7 +30,7 @@
   } from '@inkbar/core/dom'
   import { ChevronDown, Plus, Signature, Trash2 } from '@inkbar/icons'
   import { Popover, Toolbar } from 'bits-ui'
-  import { tick } from 'svelte'
+  import { tick, untrack } from 'svelte'
 
   import { useInkContext } from '../context.js'
   import { useTool } from '../hooks/useTool.svelte.js'
@@ -50,6 +50,11 @@
   const current = useTool()
   const signature = useToolOptions<SignatureOptions>('signature')
   const templates = useReadable(() => ctx.signatures.templates, NO_TEMPLATES)
+  const removeError = useReadable(() => ctx.signatures.removeError, undefined)
+  // An old removal error is not news when the menu opens again.
+  $effect(() => {
+    if (open) untrack(() => ctx.signatures.clearRemoveError())
+  })
   const model = $derived(signatureMenuModel(templates.current, signature.options))
   const active = $derived(current.tool === 'signature')
   let open = $state(false)
@@ -235,6 +240,15 @@
           <InkIcon icon={Plus} size={16} />
           {SIGNATURE_LABELS.create}
         </button>
+        {#if removeError.current}
+          <p
+            class="ink-field-error ink-signature-remove-error"
+            role="alert"
+            data-ink-signature-remove-error=""
+          >
+            {removeError.current}
+          </p>
+        {/if}
       </Popover.Content>
     </Popover.Portal>
   </Popover.Root>

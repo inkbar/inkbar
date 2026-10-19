@@ -1063,4 +1063,18 @@ describe('signature menu', () => {
     await expect.element(dialog()).toBeVisible()
     expect(await store.list()).toEqual([])
   })
+
+  it('a removal the store refuses shows an error in the menu', async () => {
+    const store = createMemorySignatureStore([INK, IMAGE])
+    store.remove = () => Promise.reject(new Error('full'))
+    await render(SignatureHarness, { src: fixtureUrl('text-simple'), assets, store })
+    await q('.ink-page canvas')
+    await chevron().click()
+    await menu().getByRole('menuitem', { name: 'Remove signature 1' }).click()
+    const error = await q('[data-ink-signature-remove-error]')
+    expect(error.getAttribute('role')).toBe('alert')
+    expect(error.textContent).toMatch(/could not be removed/)
+    expect(menu().getByRole('menuitemradio').elements()).toHaveLength(2)
+    expect((await store.list()).length).toBe(2)
+  })
 })

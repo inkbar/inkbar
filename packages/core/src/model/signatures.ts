@@ -291,12 +291,19 @@ export interface SignatureLibrary {
   refresh(): Promise<void>
   /** Saves through the store, then reloads. Rejects when the store does. */
   save(t: SignatureTemplate): Promise<void>
-  /** Removes through the store, then reloads. Rejects when the store does. */
+  /**
+   * Removes through the store, then reloads. Rejects when the store does, and then sets
+   * `removeError` for the menus to show.
+   */
   remove(id: string): Promise<void>
+  /** Why the last removal failed; cleared by the next one, or by `clearRemoveError`. */
+  readonly removeError: Readable<string | undefined>
+  clearRemoveError(): void
 }
 
 export function createSignatureLibrary(store: SignatureStore): SignatureLibrary {
   const templates = writable<readonly SignatureTemplate[]>([])
+  const removeError = writable<string | undefined>(undefined)
   /** Only the latest load writes, so a slow one cannot undo a later save. */
   let loads = 0
   const refresh = async (): Promise<void> => {
@@ -319,8 +326,16 @@ export function createSignatureLibrary(store: SignatureStore): SignatureLibrary 
       await refresh()
     },
     async remove(id) {
-      await store.remove(id)
+      removeError.set(undefined)
+      try {
+        await store.remove(id)
+      } catch (e) {
+        removeError.set('The signature could not be removed. Try again.')
+        throw e
+      }
       await refresh()
     },
+    removeError: readonly(removeError),
+    clearRemoveError: () => removeError.set(undefined),
   }
 }

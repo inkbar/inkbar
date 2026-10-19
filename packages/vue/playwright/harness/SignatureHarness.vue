@@ -25,8 +25,10 @@ const props = withDefaults(
     fonts?: string[] | undefined
     /** The store refuses every save, as a full one would. */
     failSave?: boolean
+    /** The store refuses every removal. */
+    failRemove?: boolean
   }>(),
-  { initial: () => [], fonts: undefined, failSave: false }
+  { initial: () => [], fonts: undefined, failSave: false, failRemove: false }
 )
 
 /** A memory store whose contents the page shows. */
@@ -43,6 +45,7 @@ const store: SignatureStore = {
     await sync()
   },
   remove: async (id) => {
+    if (props.failRemove) throw new Error('full')
     await inner.remove(id)
     await sync()
   },
