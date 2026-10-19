@@ -499,8 +499,13 @@ export function createOverlay(opts: OverlayOptions): Overlay {
         elements.set(a.id, node)
       }
       applyAttributes(node, a)
-      // An open editor owns the element's content and height until it closes.
-      if (!editorFor(node)) {
+      // An open editor owns the element's content and height until it closes; the element
+      // still follows the page.
+      if (editorFor(node)) {
+        const height = node.style.height
+        applyGeometry(node, a)
+        node.style.height = height
+      } else {
         applyGeometry(node, a)
         applyContent(node, a)
       }
@@ -539,8 +544,10 @@ export function createOverlay(opts: OverlayOptions): Overlay {
   return {
     element: root,
     update(next) {
-      // The editor is laid out for the old zoom and rotation: commit it first.
-      closeEditors()
+      // An editor is laid out for one zoom and rotation: a change to either commits it first
+      // (focus moves to its box). Any other relayout leaves it open.
+      if (next.zoom !== transform.zoom || next.rotation !== transform.rotation)
+        closeEditors()
       transform = next
       render()
     },

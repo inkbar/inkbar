@@ -1,9 +1,10 @@
 // A click places a text box with its top-left corner at the press, a drag sizes one, and Enter
-// on the viewport places one at the centre of the current page. Each new box is selected and
-// opens straight into the in-place editor. The live draft is
+// on the viewport places one at the centre of the current page. Each new box opens straight
+// into the in-place editor, and joins the store, selected, once it has text. The live draft is
 // `.ink-draft[data-ink-draft='freetext']`, `position:absolute; pointer-events:none`: geometry
 // only, the look is the theme's.
-import { closedEditor, editFreeTextIn } from '../freetext-editor'
+import { closedEditor, editFreeText, type FreeTextEditor } from '../freetext-editor'
+import { renderAnnotationContent } from '../overlay-render'
 
 import {
   clampedCssIn,
@@ -30,9 +31,6 @@ const FONT_SIZE = 12
 /** Smallest drag, in CSS px on each axis, that sizes a box rather than counting as a click. */
 const MIN_CSS = 3
 
-/** Frames to wait for a controlled host to apply a new box before giving up on editing it. */
-const EDIT_FRAMES = 30
-
 export function freetextTool(): Tool {
   let ctx: ToolContext | undefined
   let start: PageHit | undefined
@@ -44,16 +42,24 @@ export function freetextTool(): Tool {
     start = undefined
   }
 
+  /** The new box being typed into: it joins the store on its first non-empty commit. */
+  let pending: FreeTextEditor | undefined
+
   /**
-   * Adds a box on `page` over `css` (the page host's CSS px), or, without a box, one line high
-   * and `DEFAULT_FREETEXT_WIDTH` wide with its top-left at `at` (or centred on it). Then
-   * selects it and opens the editor.
+   * Opens an editor on a new box on `page` over `css` (the page host's CSS px), or, without a
+   * box, one line high and `DEFAULT_FREETEXT_WIDTH` wide with its top-left at `at` (or centred
+   * on it). The box is a stand-in element until the first commit with text, which adds and
+   * selects it: creating and typing are one change and one undo step, and an empty box never
+   * reaches the store.
    */
   const place = (
     c: ToolContext,
     page: number,
     css: CssRect | { at: { x: number; y: number }; centred: boolean }
   ): void => {
+    const host = c.viewport.hostFor(page)
+    if (!host) return
+    pending?.close(true)
     const t = c.viewport.transformFor(page)
     const blank: FreeTextInput = { type: 'freetext', page, contents: '' }
     const input = c.toolStyle.resolve('text', blank)
@@ -69,9 +75,58 @@ export function freetextTool(): Tool {
     } else {
       box = css
     }
-    const created = c.store.add({ ...input, rect: t.fromCssRect(box) })
-    c.store.select([created.id])
-    editWhenDrawn(c, created.id, page)
+    const draftBox = c.store.completeInput({ ...input, rect: t.fromCssRect(box) })
+    if (draftBox.type !== 'freetext') return
+    const doc = host.ownerDocument
+    // Laid out as the overlay lays out an annotation, on top of the page's layers.
+    const el = doc.createElement('div')
+    el.className = 'ink-annotation'
+    el.dataset.inkPending = ''
+    el.dataset.type = 'freetext'
+    el.tabIndex = -1
+    el.style.cssText = `position:absolute;left:${box.left}px;top:${box.top}px;width:${box.width}px;height:${box.height}px;pointer-events:none;`
+    host.append(el)
+    renderAnnotationContent(el, draftBox, t)
+
+    // A new zoom or rotation, or the page unmounting, commits the box as it stands.
+    const view = [c.viewport.scale, c.viewport.rotation].map((r) =>
+      r.subscribe(() => editor.close(true))
+    )
+    const done = (): void => {
+      view.forEach((stop) => stop())
+      el.remove()
+      if (pending === editor) pending = undefined
+    }
+    /** After the stand-in goes: focus the new box, else the viewport, never <body>. */
+    const refocus = (id?: string): void => {
+      // Focus that already moved on (a click on a control) stays there.
+      const active = doc.activeElement
+      if (active && active !== doc.body && active !== el) return
+      const drawn =
+        id === undefined
+          ? null
+          : c.root.querySelector<HTMLElement>(`[data-annotation="${CSS.escape(id)}"]`)
+      if (drawn) drawn.focus({ preventScroll: true })
+      else {
+        if (!c.root.hasAttribute('tabindex')) c.root.tabIndex = -1
+        c.root.focus({ preventScroll: true })
+      }
+    }
+    const editor = editFreeText(el, draftBox, {
+      transform: t,
+      commit(contents, rect) {
+        done()
+        if (contents.trim() === '') return refocus()
+        const created = c.store.add({ ...input, id: draftBox.id, contents, rect })
+        c.store.select([created.id])
+        refocus(created.id)
+      },
+      cancel() {
+        done()
+        refocus()
+      },
+    })
+    pending = editor
   }
 
   const paint = (from: PageHit, e: PointerEvent): void => {
@@ -100,6 +155,7 @@ export function freetextTool(): Tool {
     },
     deactivate() {
       clear()
+      pending?.close(true)
       ctx = undefined
     },
     onPointerDown(e, hit, annotationId) {
@@ -149,30 +205,4 @@ export function freetextTool(): Tool {
       place(ctx, page, { at: middle, centred: true })
     },
   }
-}
-
-/**
- * Opens the editor on the new box's overlay element. An uncontrolled store draws it
- * synchronously; a controlled host applies the change later, so wait a few frames, and give up
- * if the box never appears or something else took focus meanwhile.
- */
-function editWhenDrawn(ctx: ToolContext, id: string, page: number): void {
-  const doc = ctx.root.ownerDocument
-  const focused = doc.activeElement
-  const open = (): boolean => {
-    const el = ctx.root.querySelector<HTMLElement>(
-      `[data-annotation="${CSS.escape(id)}"]`
-    )
-    if (!el || !ctx.store.get(id)) return false
-    editFreeTextIn(ctx.store, el, id, ctx.viewport.transformFor(page))
-    return true
-  }
-  if (open()) return
-  let frames = 0
-  const view = doc.defaultView
-  const tick = (): void => {
-    if (doc.activeElement !== focused) return
-    if (!open() && ++frames < EDIT_FRAMES) view?.requestAnimationFrame(tick)
-  }
-  view?.requestAnimationFrame(tick)
 }

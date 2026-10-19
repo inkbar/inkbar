@@ -166,12 +166,18 @@ describe('editFreeText', () => {
   })
 
   it('a redraw for a new zoom commits the open editor first', async () => {
-    const { overlay, commit, field } = setup()
+    const { overlay, el, commit, field } = setup()
     await userEvent.keyboard('{End}!')
+    // A relayout at the same zoom and rotation keeps the edit going.
+    overlay.update(createPageTransform(page, 1, 0))
+    expect(field()).not.toBeNull()
+    expect(document.activeElement).toBe(field())
     overlay.update(createPageTransform(page, 2, 0))
     expect(commit).toHaveBeenCalledTimes(1)
     expect(commit.mock.calls[0]![0]).toBe('Hi!')
     expect(field()).toBeNull()
+    // Focus goes to the box, not <body>.
+    expect(document.activeElement).toBe(el)
   })
 
   it('closes the editor without committing when the box is removed', () => {

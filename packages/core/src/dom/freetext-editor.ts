@@ -44,8 +44,9 @@ export function closedEditor(e: Event): boolean {
 const SAME_PX = 0.5
 
 /**
- * Opens an editor on `el`, the overlay element showing `a`. `Escape` commits and hands focus
- * back to `el`; a press outside the editor, or focus leaving it, commits too. Keys typed in the
+ * Opens an editor on `el`, the overlay element showing `a` (or a stand-in for a box not in the
+ * store yet). `Escape` commits; a press outside the editor, or focus leaving it, commits too.
+ * Closing while the editor has focus hands focus to `el`. Keys typed in the
  * editor stop there, so no viewport or tool shortcut sees them. Opening a second editor on the
  * same element commits the first.
  */
@@ -100,7 +101,7 @@ export function editFreeText(
   }
 
   let closed = false
-  const finish = (commit: boolean, refocus = false): void => {
+  const finish = (commit: boolean): void => {
     if (closed) return
     closed = true
     const contents = read()
@@ -108,8 +109,9 @@ export function editFreeText(
     observer?.disconnect()
     view?.removeEventListener('pointerdown', onOutside, true)
     editors.delete(el)
-    // Focus moves before the editor goes, so it never falls back to <body>.
-    if (refocus) el.focus({ preventScroll: true })
+    // While the editor has focus, it moves to the box before the editor goes, so it never
+    // falls back to <body>. Focus that already left (a click on a control) stays where it is.
+    if (field.contains(doc.activeElement)) el.focus({ preventScroll: true })
     field.remove()
     box?.style.removeProperty('visibility')
     el.style.height = `${base.height}px`
@@ -127,7 +129,7 @@ export function editFreeText(
     e.stopPropagation()
     if (e.key === 'Escape' && !e.isComposing) {
       e.preventDefault()
-      finish(true, true)
+      finish(true)
     }
   })
   field.addEventListener('focusout', (e) => {

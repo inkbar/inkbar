@@ -325,9 +325,9 @@ for (const framework of FRAMEWORKS) {
       const created = sessionShape(page, 'freetext')
       await expect(created).toHaveCount(1)
       await expect(created.locator('.ink-free-text')).toHaveText('Hello\nthere')
-      // Undo takes the text back off, leaving the empty box it was typed into.
+      // Creating and typing are one step: undo takes the whole box away.
       await page.getByRole('button', { name: 'Undo', exact: true }).click()
-      await expect(created.locator('.ink-free-text')).toHaveText('')
+      await expect(created).toHaveCount(0)
     })
 
     test('has no horizontal scroll at phone width', async ({ page }) => {

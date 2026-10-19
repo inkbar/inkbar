@@ -22,6 +22,7 @@ import {
   type ToolStyle,
 } from '../../model/annotations/tool-style'
 import { readonly, writable, type Readable } from '../../model/readable'
+import { editFreeTextIn } from '../freetext-editor'
 
 import { createToolOptions, type ToolOptions } from './options'
 
@@ -214,7 +215,23 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     current?.onPointerCancel?.(e)
   }
   const onKey = (e: KeyboardEvent): void => {
-    if (!inCustomContent(e.target)) current?.onKeyDown?.(e)
+    if (inCustomContent(e.target)) return
+    current?.onKeyDown?.(e)
+    // Enter that no tool took edits the one selected text box, wherever focus is in the viewport.
+    if (isViewportEnter(e, ctx.root)) editSelectedText(e)
+  }
+  function editSelectedText(e: KeyboardEvent): void {
+    const selected = ctx.store.selection.get()
+    if (selected.length !== 1) return
+    const id = selected[0]!
+    const a = ctx.store.get(id)
+    if (!a || a.type !== 'freetext' || a.locked) return
+    const el = ctx.root.querySelector<HTMLElement>(
+      `[data-annotation="${CSS.escape(id)}"]`
+    )
+    if (!el || el.hasAttribute('data-custom')) return
+    e.preventDefault()
+    editFreeTextIn(ctx.store, el, id, ctx.viewport.transformFor(a.page))
   }
 
   // Capture is best effort: synthetic events may carry a pointer id the browser does not know.
