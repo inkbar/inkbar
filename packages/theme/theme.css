@@ -580,6 +580,44 @@
     display: inline-flex;
   }
 
+  /*
+   * Style menus (line style and the other style controls). The panel takes the select
+   * panel's box through `.ink-select-content`; its items are buttons.
+   */
+  :where(.ink-menu-content) {
+    min-width: 11rem;
+  }
+
+  :where(.ink-menu-group + .ink-menu-group) {
+    margin-top: 0.25rem;
+    padding-top: 0.25rem;
+    border-top: 1px solid var(--ink-border);
+  }
+
+  :where(.ink-menu-label) {
+    padding: 0.25rem 0.5rem;
+    color: var(--ink-muted-fg);
+    font-size: 0.75rem;
+  }
+
+  :where(.ink-menu-item) {
+    box-sizing: border-box;
+    width: 100%;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+  }
+
+  :where(.ink-menu-item:hover:not(:disabled), .ink-menu-item:focus-visible) {
+    background: color-mix(in srgb, var(--ink-fg) 8%, transparent);
+  }
+
+  :where(.ink-menu-item:disabled) {
+    opacity: 0.5;
+  }
+
   /* Note threads and suggestion cards */
   :where(.ink-note-popover, .ink-suggestion-card) {
     z-index: 50;

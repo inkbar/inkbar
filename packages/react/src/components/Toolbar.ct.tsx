@@ -2,8 +2,11 @@ import { browserAssets, fixtureUrl } from '@inkbar/fixtures/urls'
 import { expect, test } from '@playwright/experimental-ct-react'
 
 import { guardConsole } from '../../playwright/console-guard'
+import { LineStyleHarness } from '../../playwright/harness/LineStyleHarness'
 import { ToolbarHarness } from '../../playwright/harness/ToolbarHarness'
 import { ZoomClickHarness } from '../../playwright/harness/ZoomClickHarness'
+
+import type { Page } from '@playwright/test'
 
 const assets = browserAssets()
 guardConsole(test)
@@ -54,6 +57,7 @@ test('every toolbar control has an accessible name', async ({ mount, page }) => 
     'Highlight',
     'Mark for redaction',
     'Add note',
+    'Line style',
     'Undo',
     'Redo',
   ])
@@ -268,4 +272,106 @@ test('undo and redo follow the history; the separator divides the toolbar', asyn
   await redo.click()
   await expect(probe).toHaveAttribute('data-annotations', '1')
   await expect(redo).toBeDisabled()
+})
+
+test.describe('line style menu', () => {
+  const open = async (page: Page) => {
+    await page.getByRole('button', { name: 'Line style' }).click()
+    return page.getByRole('menu', { name: 'Line style' })
+  }
+
+  test('line style menu sets width on the selected line', async ({ mount, page }) => {
+    const cmp = await mount(
+      <LineStyleHarness src={fixtureUrl('text-simple')} assets={assets} />
+    )
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    const trigger = page.getByRole('button', { name: 'Line style' })
+    await expect(trigger).toBeDisabled()
+    await page.getByTestId('add-line-1').click()
+    await page.getByTestId('select-all').click()
+    await expect(trigger).toBeEnabled()
+    const menu = await open(page)
+    const one = menu.getByRole('menuitemradio', { name: '1 pt' })
+    await expect(one).toHaveAttribute('aria-checked', 'true')
+    await menu.getByRole('menuitemradio', { name: '4 pt' }).click()
+    await expect(page.getByTestId('probe')).toHaveAttribute('data-widths', '4')
+    await expect(menu.getByRole('menuitemradio', { name: '4 pt' })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    )
+    await menu.getByRole('menuitemradio', { name: 'Dashed' }).click()
+    await expect(page.getByTestId('probe')).toHaveAttribute('data-dashes', '3/3')
+    await menu.getByRole('menuitemradio', { name: 'Arrowhead at end' }).click()
+    await expect(page.getByTestId('probe')).toHaveAttribute('data-tails', 'openArrow')
+    await menu.getByRole('menuitemradio', { name: 'Solid' }).click()
+    await expect(page.getByTestId('probe')).toHaveAttribute('data-dashes', '-')
+  })
+
+  test('arrowheads section is disabled for a selected square', async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mount(
+      <LineStyleHarness src={fixtureUrl('text-simple')} assets={assets} />
+    )
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    await page.getByTestId('add-square').click()
+    await page.getByTestId('select-all').click()
+    const menu = await open(page)
+    const arrows = menu.getByRole('group', { name: 'Arrowheads' })
+    await expect(arrows).toHaveAttribute('aria-disabled', 'true')
+    await expect(arrows.getByRole('menuitemradio').first()).toBeDisabled()
+    await expect(menu.getByRole('menuitemradio', { name: '2 pt' })).toBeEnabled()
+    await expect(
+      menu.getByRole('group', { name: 'Pattern' }).getByRole('menuitemradio').first()
+    ).toBeEnabled()
+  })
+
+  test('shows mixed for two lines with different widths', async ({ mount, page }) => {
+    const cmp = await mount(
+      <LineStyleHarness src={fixtureUrl('text-simple')} assets={assets} />
+    )
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    await page.getByTestId('add-line-1').click()
+    await page.getByTestId('add-line-3').click()
+    await page.getByTestId('select-all').click()
+    const trigger = page.getByRole('button', { name: 'Line style' })
+    await expect(trigger).toHaveAttribute('data-mixed', '')
+    const menu = await open(page)
+    const weights = menu.getByRole('group', { name: 'Weight' })
+    await expect(weights.locator('[aria-checked="true"]')).toHaveCount(0)
+    await expect(weights.locator('.ink-select-indicator')).toHaveCount(0)
+    // The lines agree on pattern and endings, so those sections still show their choice.
+    await expect(menu.getByRole('menuitemradio', { name: 'Solid' })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    )
+    // Picking one weight settles the mix.
+    await menu.getByRole('menuitemradio', { name: '2 pt' }).click()
+    await expect(trigger).not.toHaveAttribute('data-mixed', '')
+  })
+
+  test('arrow keys move through the items, and Escape closes and returns focus', async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mount(
+      <LineStyleHarness src={fixtureUrl('text-simple')} assets={assets} />
+    )
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    await page.getByTestId('add-line-3').click()
+    await page.getByTestId('select-all').click()
+    const trigger = page.getByRole('button', { name: 'Line style' })
+    await trigger.focus()
+    await page.keyboard.press('Enter')
+    const menu = page.getByRole('menu', { name: 'Line style' })
+    await expect(menu.getByRole('menuitemradio', { name: '3 pt' })).toBeFocused()
+    await page.keyboard.press('ArrowDown')
+    await expect(menu.getByRole('menuitemradio', { name: '4 pt' })).toBeFocused()
+    await page.keyboard.press('Home')
+    await expect(menu.getByRole('menuitemradio', { name: '0.5 pt' })).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(menu).toHaveCount(0)
+    await expect(trigger).toBeFocused()
+  })
 })

@@ -5,6 +5,7 @@
  * redactions is a custom control, in actions.ts.
  */
 import {
+  createLineStyleMenu,
   createNextPage,
   createPageCount,
   createPageInput,
@@ -56,6 +57,7 @@ export function mountDemo(el: HTMLElement, source: DocumentSource): () => void {
       createToolButton(viewer, 'note')
     ),
     createToolbarSeparator(),
+    group('Style', 'demo-group', createLineStyleMenu(viewer)),
     createUndo(viewer),
     createRedo(viewer)
   )

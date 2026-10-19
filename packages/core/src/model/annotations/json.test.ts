@@ -37,6 +37,31 @@ describe('json import/export', () => {
     expect(s2.list.get()).toEqual([a])
   })
 
+  it('round-trips dashes, endings, subject and intent', () => {
+    const mk = () =>
+      createAnnotationStore({ mode: { mode: 'uncontrolled' }, defaults: staticDefaults })
+    const s = mk()
+    s.add({
+      type: 'polyline',
+      page: 0,
+      vertices: [
+        { x: 0, y: 0 },
+        { x: 10, y: 10 },
+      ],
+      dashes: [3, 3],
+      head: 'closedArrow',
+      tail: 'circle',
+      subject: 'Arrow',
+      intent: 'LineArrow',
+    })
+    s.add({ type: 'square', page: 0, rect, dashes: [4, 2] })
+    const text = JSON.stringify(exportAnnotations(s, [], 'k'))
+    const s2 = mk()
+    expect(importAnnotations(s2, text, { mode: 'replace' }).errors).toEqual([])
+    expect(s2.list.get()).toEqual(s.list.get())
+    expect(s2.list.get()[0]).toMatchObject({ dashes: [3, 3], head: 'closedArrow' })
+  })
+
   it('merge keeps existing ids not in the import and overwrites matching ids', () => {
     const s = createAnnotationStore({
       mode: { mode: 'uncontrolled' },

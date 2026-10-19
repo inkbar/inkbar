@@ -3,6 +3,7 @@
   import { isInkError } from '@inkbar/core'
   import { useAnnotations, useDocument, useHistory } from '@inkbar/svelte'
 
+  import { exposeDocument } from '../shared/e2e-hook'
   import { suggestionCount, suggestRedactions } from '../shared/suggest'
 
   const doc = useDocument()
@@ -10,6 +11,11 @@
   const history = useHistory()
   let busy = $state(false)
   let result = $state('')
+
+  $effect(() => {
+    exposeDocument(doc.document)
+    return () => exposeDocument(null)
+  })
 
   async function suggest() {
     const current = doc.document

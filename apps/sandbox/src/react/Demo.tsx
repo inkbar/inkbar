@@ -1,4 +1,5 @@
 import {
+  InkLineStyleMenu,
   InkNextPage,
   InkNotePopover,
   InkPageCount,
@@ -42,6 +43,9 @@ export function Demo({ source }: { source: DocumentSource }) {
           <InkToolButton tool="note" />
         </div>
         <InkToolbarSeparator />
+        <div className="demo-group" role="group" aria-label="Style">
+          <InkLineStyleMenu />
+        </div>
         <InkUndo />
         <InkRedo />
         <Actions />

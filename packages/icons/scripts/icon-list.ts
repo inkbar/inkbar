@@ -13,4 +13,6 @@ export const ICONS = [
   'ChevronRight',
   'ChevronDown',
   'Check',
+  'Minus',
+  'MoveRight',
 ] as const

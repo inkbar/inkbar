@@ -56,13 +56,29 @@ export type {
   ToolStyle,
 } from '../model/annotations/tool-style'
 export { cssVariableDefaults } from '../model/annotations/defaults'
-export { TOOL_LABELS, ZOOM_LEVELS } from './ui'
+export {
+  ARROWHEAD_CHOICES,
+  ARROWHEAD_ENDING,
+  DASH_PATTERN,
+  LINE_WEIGHTS,
+  TOOL_LABELS,
+  ZOOM_LEVELS,
+  arrowheadChoice,
+  lineStyleMenuModel,
+} from './ui'
+export type {
+  ArrowheadChoice,
+  LineStyleMenuItem,
+  LineStyleMenuModel,
+  LineStyleMenuSection,
+} from './ui'
 export type {
   AnnotationSlotProps,
   AnnotationState,
   NotePopoverSlotProps,
   SuggestionCardSlotProps,
 } from './ui'
+export { focusInitialMenuItem, handleMenuKeys, menuItems } from './menu-keys'
 export { annotationElementFor, observeAnnotationElement } from './annotation-element'
 export { createFocusReturn, shouldKeepOpenOnAnnotation } from './popover-focus'
 export type { FocusReturn, FocusReturnOptions } from './popover-focus'
@@ -85,3 +101,4 @@ export {
   createZoomOut,
   createZoomSelect,
 } from './viewer/controls'
+export { createLineStyleMenu } from './viewer/style-menu'

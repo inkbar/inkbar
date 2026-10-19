@@ -41,6 +41,10 @@ const Base = z.object({
   source: z.enum(['session', 'pdf']),
   /** Embedded annotations are locked until the engine can rewrite the file. Viewer state, never exported. */
   locked: z.boolean().optional(),
+  /** Short label for what the mark is (XFDF `subject`). */
+  subject: z.string().optional(),
+  /** What the mark is for, e.g. a callout or an arrow (XFDF `intent`). */
+  intent: z.string().optional(),
   /** Host data. Preserved, never interpreted. */
   custom: z.record(z.string(), z.unknown()).optional(),
 })
@@ -67,9 +71,13 @@ export const FreeTextSchema = Base.extend({
   callout: z.array(PointSchema).min(2).max(3).optional(),
 })
 
+/** Dash pattern in points, on then off, repeating. Absent means solid. */
+const DashesSchema = z.array(z.number().nonnegative()).min(1).optional()
+
 export const ShapeSchema = Base.extend({
   type: z.enum(['square', 'circle']),
   width: z.number().nonnegative().default(1),
+  dashes: DashesSchema,
   interiorColor: Hex.optional(),
 })
 
@@ -89,6 +97,7 @@ export const LineSchema = Base.extend({
   start: PointSchema,
   end: PointSchema,
   width: z.number().nonnegative().default(1),
+  dashes: DashesSchema,
   head: LineEndingSchema.optional(),
   tail: LineEndingSchema.optional(),
 })
@@ -97,6 +106,11 @@ export const PolySchema = Base.extend({
   type: z.enum(['polyline', 'polygon']),
   vertices: z.array(PointSchema).min(2),
   width: z.number().nonnegative().default(1),
+  dashes: DashesSchema,
+  /** Polylines only: the ending at the first vertex. */
+  head: LineEndingSchema.optional(),
+  /** Polylines only: the ending at the last vertex. */
+  tail: LineEndingSchema.optional(),
   interiorColor: Hex.optional(),
 })
 
@@ -104,6 +118,7 @@ export const InkSchema = Base.extend({
   type: z.literal('ink'),
   inklist: z.array(z.array(PointSchema).min(1)).min(1),
   width: z.number().nonnegative().default(2),
+  dashes: DashesSchema,
 })
 
 export const SuggestionSchema = z.object({

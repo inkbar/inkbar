@@ -1,4 +1,5 @@
 <script lang="ts">
+  import InkLineStyleMenu from '../../lib/components/InkLineStyleMenu.svelte'
   import InkNextPage from '../../lib/components/InkNextPage.svelte'
   import InkPageCount from '../../lib/components/InkPageCount.svelte'
   import InkPageInput from '../../lib/components/InkPageInput.svelte'
@@ -38,6 +39,7 @@
     <InkToolButton tool="redact-area" />
     <InkToolButton tool="note" />
     <InkToolbarSeparator />
+    <InkLineStyleMenu />
     <InkUndo />
     <InkRedo />
   </InkToolbar>

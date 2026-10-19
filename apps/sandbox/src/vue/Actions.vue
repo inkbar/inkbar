@@ -2,8 +2,9 @@
 /* Composables only work inside InkRoot, so these controls are their own component. */
 import { isInkError } from '@inkbar/core'
 import { useAnnotations, useDocument, useHistory } from '@inkbar/vue'
-import { ref } from 'vue'
+import { onScopeDispose, watch, ref } from 'vue'
 
+import { exposeDocument } from '../shared/e2e-hook'
 import { suggestionCount, suggestRedactions } from '../shared/suggest'
 
 const { document, isReady } = useDocument()
@@ -11,6 +12,9 @@ const { annotations, add } = useAnnotations()
 const { batch } = useHistory()
 const busy = ref(false)
 const result = ref('')
+
+watch(document, (doc) => exposeDocument(doc), { immediate: true })
+onScopeDispose(() => exposeDocument(null))
 
 async function suggest() {
   const doc = document.value

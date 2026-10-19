@@ -29,8 +29,20 @@ describe('toFields', () => {
 
   it('drops props a type does not have', () => {
     expect(toFields('highlight', { width: 3, head: 'openArrow' })).toEqual({})
-    expect(toFields('square', { head: 'openArrow', dashes: [3, 3] })).toEqual({})
+    expect(toFields('square', { head: 'openArrow', tail: 'circle' })).toEqual({})
     expect(toFields('polyline', { fill: '#00FF00' })).toEqual({})
+  })
+
+  it('maps dashes on shapes, lines, polylines and ink, and head and tail on polylines', () => {
+    for (const t of ['square', 'circle', 'line', 'polyline', 'polygon', 'ink'] as const)
+      expect(toFields(t, { dashes: [3, 3] })).toEqual({ dashes: [3, 3] })
+    expect(toFields('square', { dashes: null })).toEqual({ dashes: undefined })
+    expect(toFields('polyline', { head: 'openArrow', tail: 'none' })).toEqual({
+      head: 'openArrow',
+      tail: 'none',
+    })
+    expect(toFields('polygon', { head: 'openArrow' })).toEqual({})
+    expect(toFields('highlight', { dashes: [3, 3] })).toEqual({})
   })
 
   it('maps border to color on markup and redact', () => {
@@ -81,8 +93,19 @@ describe('fromAnnotation', () => {
       fill: '#00FF00',
       opacity: 1,
       width: 2,
+      dashes: null,
     })
+    expect(fromAnnotation({ ...square, dashes: [3, 3] }).dashes).toEqual([3, 3])
     const unfilled: Annotation = { ...base, type: 'circle', width: 1 }
     expect(fromAnnotation(unfilled).fill).toBeNull()
+    const line: Annotation = {
+      ...base,
+      type: 'line',
+      start: { x: 0, y: 0 },
+      end: { x: 1, y: 1 },
+      width: 1,
+      tail: 'openArrow',
+    }
+    expect(fromAnnotation(line)).toMatchObject({ head: 'none', tail: 'openArrow' })
   })
 })

@@ -75,3 +75,10 @@ export const ChevronRight: IconNode = [['path', { d: 'm9 18 6-6-6-6' }]]
 export const ChevronDown: IconNode = [['path', { d: 'm6 9 6 6 6-6' }]]
 
 export const Check: IconNode = [['path', { d: 'M20 6 9 17l-5-5' }]]
+
+export const Minus: IconNode = [['path', { d: 'M5 12h14' }]]
+
+export const MoveRight: IconNode = [
+  ['path', { d: 'M18 8L22 12L18 16' }],
+  ['path', { d: 'M2 12H22' }],
+]

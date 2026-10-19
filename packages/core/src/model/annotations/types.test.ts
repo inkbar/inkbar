@@ -57,6 +57,44 @@ describe('AnnotationSchema', () => {
     expect(AnnotationSchema.safeParse({ ...valid, color: 'yellow' }).success).toBe(false)
   })
 
+  it('accepts dashes on lines and shapes, keeps them off markup, and takes polyline endings', () => {
+    const shape = {
+      ...exported,
+      source: 'session',
+      type: 'square',
+      width: 1,
+      dashes: [3, 3],
+    }
+    expect(AnnotationSchema.parse(shape)).toMatchObject({ dashes: [3, 3] })
+    expect(
+      AnnotationSchema.parse({
+        ...shape,
+        type: 'line',
+        start: { x: 0, y: 0 },
+        end: { x: 5, y: 5 },
+      })
+    ).toMatchObject({ dashes: [3, 3] })
+    // Highlight has no dashes field: the object is not extended, so it never carries them.
+    expect(AnnotationSchema.parse({ ...valid, dashes: [3, 3] })).not.toHaveProperty(
+      'dashes'
+    )
+    expect(
+      AnnotationSchema.parse({
+        ...shape,
+        type: 'polyline',
+        vertices: [
+          { x: 0, y: 0 },
+          { x: 5, y: 5 },
+        ],
+        head: 'closedArrow',
+      })
+    ).toMatchObject({ head: 'closedArrow' })
+    expect(AnnotationSchema.safeParse({ ...shape, dashes: [-1] }).success).toBe(false)
+    expect(AnnotationSchema.parse({ ...valid, subject: 'S', intent: 'I' })).toMatchObject(
+      { subject: 'S', intent: 'I' }
+    )
+  })
+
   it('requires quads on text markup and interiorColor on redactions', () => {
     const { quads: _q, ...noQuads } = valid
     expect(AnnotationSchema.safeParse(noQuads).success).toBe(false)
