@@ -1,0 +1,217 @@
+apps/e2e-react/src/ReviewPage.tsx
+  s_5c84400dcebef8::t_65d9ef8982f3bf 21,312
+packages/core/src/dom/tree-shake.test.ts
+  s_5c84400dcebef8::t_c8a9487d51c348 39
+packages/svelte/src/lib/components/InkColorMenu.svelte
+  s_5c84400dcebef8::t_df2a64c6aebf9c 2,26-30,56,60-61
+packages/svelte/src/test/hooks.test.ts
+  s_5c84400dcebef8::t_df2a64c6aebf9c 71-100
+packages/react/src/hooks/hooks.test.ts
+  s_5c84400dcebef8::t_29f3a11ce7c2a4 92-118
+apps/e2e-svelte/src/ReviewPage.svelte
+  s_5c84400dcebef8::t_65d9ef8982f3bf 22,274
+packages/core/src/dom/overlay-render.ts
+  s_5c84400dcebef8::t_2b6d0ee160af1e 1-2,558-560,574-581
+  s_5c84400dcebef8::t_94727fba5fb3fa 3,408
+  s_5c84400dcebef8::t_0ca2ce374046cd 12
+  s_5c84400dcebef8::t_6e3bf5cdc19099 548-552,554-557,561-562,564-573,582-585
+  s_5c84400dcebef8::t_df73494dc6794b 553,563
+packages/core/src/dom/viewer/menu.ts
+  s_5c84400dcebef8::t_420e4c7c378705 118-119
+packages/react/src/components/Popovers.ct.tsx
+  s_5c84400dcebef8::t_af25811434daa8 685-687
+  s_5c84400dcebef8::t_35957129819ce0 57,93,219,283,427,463,487,526,571,612,624-684,688-704
+apps/sandbox/src/vue/Demo.vue
+  s_5c84400dcebef8::t_e78c062072ee1b 9,20,43,79
+packages/vue/src/components/InkColorMenu.vue
+  s_5c84400dcebef8::t_e49a2cd11b6658 30-31,53-57,60
+packages/core/src/model/annotations/tool-style.test.ts
+  s_5c84400dcebef8::t_6a4e267e22080e 202-233
+packages/react/README.md
+  s_5c84400dcebef8::t_ab98595fddb370 23,52,92,144,146,148-150,154
+packages/svelte/README.md
+  s_5c84400dcebef8::t_ab98595fddb370 23,54,87,150,152,154-156,160
+packages/icons/README.md
+  s_5c84400dcebef8::t_d668d8507cbb9b 23
+packages/svelte/src/test/harness/SsrHost.svelte
+  s_5c84400dcebef8::t_92735fa3a04ccd 8
+  s_5c84400dcebef8::t_2d035409d09baa 36
+packages/core/src/dom/viewer/create-viewer.browser.test.ts
+  s_5c84400dcebef8::t_7d792356c68ae5 1133-1134,1351-1412
+  s_5c84400dcebef8::t_3ab29bf31d0c0f 23,1021-1029,1033-1132
+  s_5c84400dcebef8::t_c8a9487d51c348 69-70,271-272,276,1239,1245,1295,1333,1486,1528,1565,1591,1620,1637,1687,1691
+  s_5c84400dcebef8::t_2b6d5ea2c0dd5a 1030-1032
+  s_5c84400dcebef8::t_96e38d421f8719 1135
+packages/core/src/model/annotations/threads.ts
+  s_5c84400dcebef8::t_b23b9bf2a672ee 3-8,10,20-22,26-28,30-34,42,57-63
+  s_5c84400dcebef8::t_f62b1451294674 1-2,9
+packages/core/src/dom/markup-icons.ts
+  s_5c84400dcebef8::t_318e384218ecf5 1-2,10-18
+  s_5c84400dcebef8::t_2b6d5ea2c0dd5a 3-9
+packages/svelte/src/test/Popovers.browser.test.ts
+  s_5c84400dcebef8::t_92735fa3a04ccd 600-673
+  s_5c84400dcebef8::t_2d035409d09baa 34
+packages/icons/src/icons.ts
+  s_5c84400dcebef8::t_ca641ab82f89e8 243-271
+apps/sandbox/src/react/Demo.tsx
+  s_5c84400dcebef8::t_e8e979ef0e39c6 3,14,40,76
+apps/sandbox/e2e/smoke.spec.ts
+  s_5c84400dcebef8::t_663e27744aa80c 264-305
+  s_5c84400dcebef8::t_90b40cc8d274f6 236-240
+packages/react/src/components/InkHighlightMenu.tsx
+  s_5c84400dcebef8::t_af25811434daa8 1-159
+packages/core/src/dom/viewer/highlight-menu.ts
+  s_5c84400dcebef8::t_420e4c7c378705 1-122,128-168
+  s_5c84400dcebef8::t_2b6d5ea2c0dd5a 123-127
+apps/sandbox/src/styles/framework.css
+  s_5c84400dcebef8::t_e8e979ef0e39c6 230
+packages/core/src/dom/tools.browser.test.ts
+  s_5c84400dcebef8::t_d1a5121e2c7484 386-387
+  s_5c84400dcebef8::t_a84a79ac798bc7 269-318
+  s_5c84400dcebef8::t_2b6d5ea2c0dd5a 348-351
+  s_5c84400dcebef8::t_3dca9da0e96cac 319-347,352-358
+packages/react/src/components/InkThreadPopover.tsx
+  s_5c84400dcebef8::t_6afcfdaa720cac 1-11,13-30,32-70,77-240
+  s_5c84400dcebef8::t_9e06199aeb245a 12,31
+  s_5c84400dcebef8::t_af25811434daa8 71-76
+packages/react/src/hooks/useToolStyle.ts
+  s_5c84400dcebef8::t_9ba9d0c7c5a02d 16-19,21,24-27,33-34,36
+packages/core/src/dom/viewer/create-viewer.ts
+  s_5c84400dcebef8::t_2b6d5ea2c0dd5a 23
+  s_5c84400dcebef8::t_c8a9487d51c348 45-46,81,159
+packages/vue/src/composables/useToolStyle.ts
+  s_5c84400dcebef8::t_2e841c97d08bc8 14-17,19,21-24,26-32
+apps/sandbox/src/svelte/Demo.svelte
+  s_5c84400dcebef8::t_e8b0b2fc0e4585 9,19,42,78
+packages/svelte/src/test/Toolbar.browser.test.ts
+  s_5c84400dcebef8::t_ee36d83dd3fc2a 750
+  s_5c84400dcebef8::t_c5de60d5d7a47b 144,310-317,666-749,751-774
+packages/react/src/components/InkColorMenu.tsx
+  s_5c84400dcebef8::t_ad66ba3f55dce2 33-34,50-54,63,67
+packages/vue/src/components/InkThreadPopover.vue
+  s_5c84400dcebef8::t_2e841c97d08bc8 1-192
+packages/core/src/dom/viewer/thread-popover.ts
+  s_5c84400dcebef8::t_ab948a8102d0c7 20-21,112
+  s_5c84400dcebef8::t_ba94e47eeb5e52 1-19,22-111,113-238
+packages/react/src/index.ts
+  s_5c84400dcebef8::t_6afcfdaa720cac 17,55-56,61-62
+packages/core/src/model/annotations/tool-style.ts
+  s_5c84400dcebef8::t_2b6d5ea2c0dd5a 258-260
+  s_5c84400dcebef8::t_e4ff6f91f3a79a 69-82,210-228,237,250,255-257,261-291,357
+packages/vue/src/components/Toolbar.ct.ts
+  s_5c84400dcebef8::t_368f83c8e43f73 110,229-234,632-765,767
+  s_5c84400dcebef8::t_2057b64943dcd6 766,768-769
+packages/svelte/src/lib/components/InkThreadPopover.svelte
+  s_5c84400dcebef8::t_92735fa3a04ccd 73-78
+  s_5c84400dcebef8::t_2d035409d09baa 1-72,79-197
+packages/core/src/index.ts
+  s_5c84400dcebef8::t_8e4a8d8afcaa15 54,59
+  s_5c84400dcebef8::t_6a4e267e22080e 32
+packages/core/src/dom/tools/highlight.ts
+  s_5c84400dcebef8::t_5659916da13962 3-21,23-26,28,34-35,37-38,40,43,50
+packages/core/src/dom/tools/index.ts
+  s_5c84400dcebef8::t_1c0b2c7e58295c 47-51
+  s_5c84400dcebef8::t_21149b72e01f44 46
+packages/core/src/dom/index.ts
+  s_5c84400dcebef8::t_420e4c7c378705 154
+  s_5c84400dcebef8::t_b0faeae33fb43f 117
+  s_5c84400dcebef8::t_6e3bf5cdc19099 56,58,61
+  s_5c84400dcebef8::t_6a4e267e22080e 64
+  s_5c84400dcebef8::t_318e384218ecf5 79,87,101-102,156
+  s_5c84400dcebef8::t_ab948a8102d0c7 91
+packages/vue/playwright/harness/PopoverHarness.vue
+  s_5c84400dcebef8::t_368f42c060502e 6
+  s_5c84400dcebef8::t_2e841c97d08bc8 87,89-90
+packages/svelte/src/lib/index.ts
+  s_5c84400dcebef8::t_67d5cfe6e07468 51-52
+  s_5c84400dcebef8::t_2d035409d09baa 10,67-68
+packages/svelte/src/test/ssr.test.ts
+  s_5c84400dcebef8::t_2d035409d09baa 46
+apps/e2e-vue/src/ReviewPage.vue
+  s_5c84400dcebef8::t_65d9ef8982f3bf 21,270
+packages/core/src/dom/overlay.browser.test.ts
+  s_5c84400dcebef8::t_9a6d015728dde6 5
+  s_5c84400dcebef8::t_dc9184f7a3d24c 532-536
+apps/sandbox/src/vanilla/Demo.ts
+  s_5c84400dcebef8::t_e8b0b2fc0e4585 9,54
+packages/vue/src/components/InkHighlightMenu.vue
+  s_5c84400dcebef8::t_32b9ffe0d5e142 82-83,165
+  s_5c84400dcebef8::t_e49a2cd11b6658 1-81,84-164,166-173
+packages/svelte/src/lib/components/InkHighlightMenu.svelte
+  s_5c84400dcebef8::t_67d5cfe6e07468 1-166
+packages/svelte/src/test/harness/ToolbarHarness.svelte
+  s_5c84400dcebef8::t_c5de60d5d7a47b 3,55
+packages/vue/README.md
+  s_5c84400dcebef8::t_ab98595fddb370 23,53,89,119,121,123-125,129
+packages/react/playwright/harness/PopoverHarness.tsx
+  s_5c84400dcebef8::t_6afcfdaa720cac 5,23,96,102,104
+packages/react/src/components/Toolbar.ct.tsx
+  s_5c84400dcebef8::t_a12af9c636eaa8 299-304
+  s_5c84400dcebef8::t_e4d4859bb9317e 754-773,777-847,852-893
+  s_5c84400dcebef8::t_af25811434daa8 774-776,848-851
+  s_5c84400dcebef8::t_c965fa300a8243 152
+packages/svelte/src/test/harness/PopoverHarness.svelte
+  s_5c84400dcebef8::t_2d035409d09baa 35,95,116
+  s_5c84400dcebef8::t_92735fa3a04ccd 29
+apps/e2e-shared/e2e/review.spec.ts
+  s_5c84400dcebef8::t_65d9ef8982f3bf 32,166,200
+packages/vue/src/composables/composables.test.ts
+  s_5c84400dcebef8::t_a7f35ea47544d4 77-113
+packages/react/src/ssr.test.ts
+  s_5c84400dcebef8::t_6afcfdaa720cac 63,93
+packages/core/README.md
+  s_5c84400dcebef8::t_977b639248baba 23,58,104
+packages/vue/playwright/harness/ToolbarHarness.vue
+  s_5c84400dcebef8::t_368f83c8e43f73 3,39
+packages/vue/src/components/Popovers.ct.ts
+  s_5c84400dcebef8::t_368f42c060502e 610-690
+  s_5c84400dcebef8::t_2e841c97d08bc8 55,91,217,281,425,457,481,520,561,598
+packages/vue/src/ssr.test.ts
+  s_5c84400dcebef8::t_2e841c97d08bc8 60,82
+packages/react/playwright/harness/ToolbarHarness.tsx
+  s_5c84400dcebef8::t_e4d4859bb9317e 4,52
+README.md
+  s_5c84400dcebef8::t_ab98595fddb370 100,128
+packages/svelte/src/lib/hooks/useToolStyle.svelte.ts
+  s_5c84400dcebef8::t_2d035409d09baa 14-17,19,21-26,34-38
+packages/core/src/dom/overlay.ts
+  s_5c84400dcebef8::t_dc0ff3266c68a7 82
+  s_5c84400dcebef8::t_94727fba5fb3fa 27,107-108
+packages/svelte/src/test/harness/ToolStyleProbe.svelte
+  s_5c84400dcebef8::t_df2a64c6aebf9c 5-6,11,15,21
+packages/core/src/dom/ui.ts
+  s_5c84400dcebef8::t_ab948a8102d0c7 539-543
+  s_5c84400dcebef8::t_b0faeae33fb43f 20,444-482,544-546
+  s_5c84400dcebef8::t_2b6d5ea2c0dd5a 5-11
+packages/core/src/model/annotations/threads.test.ts
+  s_5c84400dcebef8::t_cea21f23dde2f9 3,5,27-47,69-70,75,91,95-128,142-148,154-163,167-172
+packages/icons/scripts/icon-list.ts
+  s_5c84400dcebef8::t_ca641ab82f89e8 40-42
+packages/theme/theme.css
+  s_5c84400dcebef8::t_2b6d0ee160af1e 366,369-381
+  s_5c84400dcebef8::t_816f130feb82ec 858-879
+  s_5c84400dcebef8::t_ec376d7acb8a6e 17,53,73,367-368,382-385,880-881
+packages/vue/src/index.ts
+  s_5c84400dcebef8::t_e49a2cd11b6658 27
+  s_5c84400dcebef8::t_2e841c97d08bc8 37-38
+packages/svelte/src/lib/components/ThreadForm.svelte
+  s_5c84400dcebef8::t_2d035409d09baa 2
+packages/core/src/dom/viewer/color-menu.ts
+  s_5c84400dcebef8::t_c05954eb17cb41 21-28,34-38,86-91,220-221
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0f3b13caa6fe187558e98493ecb8b9ca2d7e1347",
+  "prompts": {},
+  "sessions": {
+    "s_5c84400dcebef8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b6002a2b-f6c7-44ec-8f13-05d214d02483",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
