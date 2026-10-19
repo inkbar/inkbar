@@ -1,0 +1,121 @@
+packages/theme/theme.css
+  s_5c84400dcebef8::t_9cef586cebe781 746-808
+packages/svelte/src/test/harness/TextStyleControls.svelte
+  s_5c84400dcebef8::t_9171cb0b3528de 1-69
+packages/react/src/index.ts
+  s_5c84400dcebef8::t_31d9a7eb5f1d37 55-56
+packages/svelte/src/lib/components/InkTextStyleMenu.svelte
+  s_5c84400dcebef8::t_db9c408cb7b6f6 44,91,119-123
+  s_5c84400dcebef8::t_9171cb0b3528de 1-43,45-90,92-109,111-118,124-217
+  s_5c84400dcebef8::t_7a729d13135267 110
+apps/sandbox/src/vanilla/Demo.ts
+  s_5c84400dcebef8::t_55c636ac2b87d9 10,70-71
+packages/svelte/src/test/Toolbar.browser.test.ts
+  s_5c84400dcebef8::t_6a41e7748ece7d 77
+  s_5c84400dcebef8::t_107d754014be78 10,585-678
+  s_5c84400dcebef8::t_78601bb607047e 679
+packages/react/src/components/InkColorMenu.tsx
+  s_5c84400dcebef8::t_31d9a7eb5f1d37 18,43-47,55,58,89,124
+packages/react/playwright/harness/TextStyleHarness.tsx
+  s_5c84400dcebef8::t_0187582be41012 1-46,52-93
+  s_5c84400dcebef8::t_6a41e7748ece7d 47-51
+packages/core/src/dom/viewer/text-style-menu.ts
+  s_5c84400dcebef8::t_6a41e7748ece7d 178-181,195-203,223-228
+  s_5c84400dcebef8::t_e5aafbcd47db69 48-51
+  s_5c84400dcebef8::t_e9cac6d07e29e0 1-47,52-177,182-194,204-222,229-245
+apps/sandbox/src/svelte/Demo.svelte
+  s_5c84400dcebef8::t_55c636ac2b87d9 10,57
+packages/react/src/components/InkTextStyleMenu.tsx
+  s_5c84400dcebef8::t_edbd8220291c7f 7
+  s_5c84400dcebef8::t_835958ee5d2271 182
+  s_5c84400dcebef8::t_31d9a7eb5f1d37 1-6,8-20,22-181,183-213
+  s_5c84400dcebef8::t_6a41e7748ece7d 21
+packages/vue/src/components/InkColorMenu.vue
+  s_5c84400dcebef8::t_6a41e7748ece7d 35-38
+  s_5c84400dcebef8::t_acf534a225e0e5 24,32-34,39-40,46-50,112,137
+packages/svelte/src/lib/components/InkColorMenu.svelte
+  s_5c84400dcebef8::t_e6827bf1dc5342 20-24,49,81-82,84-92,95-110,114,116-122
+  s_5c84400dcebef8::t_cc113ef81f30d6 61,115,144-155
+  s_5c84400dcebef8::t_6520355536cd8c 83
+packages/react/playwright/harness/ToolbarHarness.tsx
+  s_5c84400dcebef8::t_dd25e9ae2ee421 10,48
+packages/icons/scripts/icon-list.ts
+  s_5c84400dcebef8::t_31d9a7eb5f1d37 17
+  s_5c84400dcebef8::t_d952723f5148d0 30-37
+packages/core/src/dom/ui.ts
+  s_5c84400dcebef8::t_2e8fc61813bf69 296-297,339-340,408
+  s_5c84400dcebef8::t_6a41e7748ece7d 412-414
+  s_5c84400dcebef8::t_ec8f3894f262c3 269-295,298-338,341-407,409-411,415-420
+packages/vue/playwright/harness/TextStyleHarness.vue
+  s_5c84400dcebef8::t_acf534a225e0e5 1-20
+packages/vue/playwright/harness/TextStyleControls.vue
+  s_5c84400dcebef8::t_acf534a225e0e5 1-18,24-62
+  s_5c84400dcebef8::t_181effc57334a2 19-23
+packages/core/src/dom/viewer/create-viewer.browser.test.ts
+  s_5c84400dcebef8::t_8c4e2f2786851e 25,819-962
+  s_5c84400dcebef8::t_36a05f1bec831b 963-964
+apps/sandbox/src/react/Demo.tsx
+  s_5c84400dcebef8::t_55c636ac2b87d9 55
+  s_5c84400dcebef8::t_dd25e9ae2ee421 13
+packages/vue/src/components/InkTextStyleMenu.vue
+  s_5c84400dcebef8::t_88d07fa431785b 31
+  s_5c84400dcebef8::t_d3dbb372c3ddfa 1-30,32-45,48-208
+  s_5c84400dcebef8::t_6a41e7748ece7d 46-47
+packages/svelte/src/test/harness/ToolbarHarness.svelte
+  s_5c84400dcebef8::t_dd25e9ae2ee421 11,50
+packages/svelte/src/lib/index.ts
+  s_5c84400dcebef8::t_e6827bf1dc5342 53-54
+packages/react/src/components/Toolbar.ct.tsx
+  s_5c84400dcebef8::t_0187582be41012 7,669-678,683-753,755-770,775-781
+  s_5c84400dcebef8::t_e5df6e869a175c 679-682,754
+  s_5c84400dcebef8::t_6a41e7748ece7d 771-774
+  s_5c84400dcebef8::t_dd25e9ae2ee421 87
+  s_5c84400dcebef8::t_b3acf37ce3a785 782
+packages/svelte/src/test/harness/TextStyleHarness.svelte
+  s_5c84400dcebef8::t_9171cb0b3528de 1-18
+packages/vue/playwright/harness/ToolbarHarness.vue
+  s_5c84400dcebef8::t_dd25e9ae2ee421 11,49
+packages/core/src/dom/menu-keys.ts
+  s_5c84400dcebef8::t_6a41e7748ece7d 76
+  s_5c84400dcebef8::t_2e8fc61813bf69 67-75,77-83
+apps/sandbox/e2e/smoke.spec.ts
+  s_5c84400dcebef8::t_accb1c7153711e 333-357
+packages/core/src/dom/text-style-menu.test.ts
+  s_5c84400dcebef8::t_6a41e7748ece7d 11-13,58-69
+  s_5c84400dcebef8::t_5ccf05fcf084ee 1-10,14-57,70-73
+packages/core/src/dom/viewer/menu.ts
+  s_5c84400dcebef8::t_baa24583b16010 18-28,40-42,44,66,82,86,88-89,92,94-95,97,100
+  s_5c84400dcebef8::t_6a41e7748ece7d 80-81
+packages/vue/src/components/Toolbar.ct.ts
+  s_5c84400dcebef8::t_e5df6e869a175c 591-594,666
+  s_5c84400dcebef8::t_acf534a225e0e5 7,583-590,595-665,667-693
+  s_5c84400dcebef8::t_dd25e9ae2ee421 81
+  s_5c84400dcebef8::t_6e8b7d6fb4dfee 694
+packages/vue/src/index.ts
+  s_5c84400dcebef8::t_acf534a225e0e5 28
+packages/core/src/dom/index.ts
+  s_5c84400dcebef8::t_e5aafbcd47db69 144
+  s_5c84400dcebef8::t_ec8f3894f262c3 81,85,100-104
+  s_5c84400dcebef8::t_2e8fc61813bf69 114-119
+packages/icons/src/icons.ts
+  s_5c84400dcebef8::t_31d9a7eb5f1d37 81-85
+  s_5c84400dcebef8::t_678aea2cb87b31 167-215
+apps/sandbox/src/vue/Demo.vue
+  s_5c84400dcebef8::t_55c636ac2b87d9 10,58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "55725727809294f69eca28665621e64872567262",
+  "prompts": {},
+  "sessions": {
+    "s_5c84400dcebef8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b6002a2b-f6c7-44ec-8f13-05d214d02483",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
