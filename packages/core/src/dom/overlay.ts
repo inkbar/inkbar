@@ -250,8 +250,9 @@ export function createOverlay(opts: OverlayOptions): Overlay {
 
   /**
    * A press on text markup does nothing yet. A release within `CLICK_SLOP` px and `CLICK_MS`
-   * of it selects and activates the markup; a longer drag selects the text under it instead,
-   * from the press point to the pointer, as a drag on the bare text would.
+   * of it selects and activates the markup (with `Shift`, toggles it in the selection); a
+   * longer drag selects the text under it instead, from the press point to the pointer, as a
+   * drag on the bare text would. Rectangle select claims markup presses before they get here.
    */
   function pressMarkup(e: PointerEvent, id: string): void {
     // The browser's own selection would start inside the overlay, not the text: drive it here.
@@ -284,8 +285,14 @@ export function createOverlay(opts: OverlayOptions): Overlay {
         Math.hypot(ev.clientX - x0, ev.clientY - y0) <= CLICK_SLOP &&
         ev.timeStamp - t0 <= CLICK_MS &&
         store.get(id)
-      )
-        activate(id)
+      ) {
+        if (!(e.shiftKey || ev.shiftKey)) return activate(id)
+        // Shift-click adds the markup to the selection, or takes it out.
+        const selected = store.selection.get()
+        store.select(
+          selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id]
+        )
+      }
     }
     const onCancel = (ev: PointerEvent): void => {
       if (mine(ev)) end()

@@ -1298,7 +1298,133 @@ describe('selection editing', () => {
     expect(onActivate).toHaveBeenCalledWith(a.id)
   })
 
-  it('view is gone: tools.set("view") throws or is ignored', async () => {
+  /** A highlight over the fixture's "Hello" line, and a client point on it. */
+  async function helloHighlight(
+    doc: Awaited<ReturnType<typeof setup>>['doc'],
+    viewport: Viewport
+  ) {
+    const { items } = await doc.text(0)
+    const first = items.find((i) => i.str.startsWith('Hello'))!
+    const hl = doc.annotations.add({ type: 'highlight', page: 0, quads: [first.quad] })
+    const { at, el, host } = await page0(viewport)
+    const [x, y] = at(first.rect.x + 4, first.rect.y + first.rect.height / 2)
+    const poly = el(hl.id).querySelector('polygon')!
+    return { hl, x, y, poly, host }
+  }
+
+  for (const tool of ['select-text', 'select'] as const) {
+    it(`${tool}: Shift-click on markup adds it to the selection`, async () => {
+      const { doc, viewport, tools } = await setup()
+      tools.set(tool)
+      const sq = doc.annotations.add({
+        type: 'text',
+        page: 0,
+        rect: { x: 300, y: 300, width: 20, height: 20 },
+      })
+      const { hl, x, y, poly } = await helloHighlight(doc, viewport)
+      doc.annotations.select([sq.id])
+      pointer(poly, 'pointerdown', x, y, { shiftKey: true })
+      pointer(poly, 'pointerup', x, y, { shiftKey: true })
+      expect(new Set(doc.annotations.selection.get())).toEqual(new Set([sq.id, hl.id]))
+      pointer(poly, 'pointerdown', x, y, { shiftKey: true })
+      pointer(poly, 'pointerup', x, y, { shiftKey: true })
+      expect(doc.annotations.selection.get()).toEqual([sq.id])
+    })
+  }
+
+  it('select: a drag on a highlight selects and moves it, with no text selection', async () => {
+    const { doc, container, viewport, tools, onActivate } = await setup()
+    tools.set('select')
+    const { hl, x, y, poly } = await helloHighlight(doc, viewport)
+    window.getSelection()?.removeAllRanges()
+    pointer(poly, 'pointerdown', x, y)
+    expect(doc.annotations.selection.get()).toEqual([hl.id])
+    expect(onActivate).toHaveBeenCalledWith(hl.id)
+    pointer(container, 'pointermove', x + 20, y)
+    pointer(container, 'pointermove', x + 40, y)
+    pointer(container, 'pointerup', x + 40, y)
+    const moved = doc.annotations.get(hl.id)!
+    expect(moved.rect.x).toBeCloseTo(hl.rect.x + 40, 5)
+    expect(moved.rect.y).toBeCloseTo(hl.rect.y, 5)
+    expect(window.getSelection()?.toString()).toBe('')
+  })
+
+  it('select-text: a drag on a highlight selects text and leaves the highlight', async () => {
+    const { doc, viewport } = await setup()
+    const { hl, x, y, poly } = await helloHighlight(doc, viewport)
+    pointer(poly, 'pointerdown', x, y)
+    pointer(poly, 'pointermove', x + 20, y)
+    pointer(poly, 'pointermove', x + 40, y)
+    pointer(poly, 'pointerup', x + 40, y)
+    expect(doc.annotations.selection.get()).toEqual([])
+    expect(doc.annotations.get(hl.id)!.rect).toEqual(hl.rect)
+    expect(window.getSelection()?.toString()).not.toBe('')
+    window.getSelection()?.removeAllRanges()
+  })
+
+  it('a group move leaves a locked member in place, in one undo step', async () => {
+    const { doc, container, viewport } = await setup()
+    const rect = (x: number) => ({ x, y: 600, width: 50, height: 30 })
+    const [a, b, c] = [100, 200, 300].map((x) =>
+      doc.annotations.add({
+        type: 'square',
+        page: 0,
+        rect: rect(x),
+        interiorColor: '#00ff00',
+      })
+    ) as [Annotation, Annotation, Annotation]
+    doc.annotations.update(c.id, { locked: true })
+    doc.annotations.select([a.id, b.id, c.id])
+    const { at, el } = await page0(viewport)
+    const [x, y] = at(110, 620)
+    pointer(el(a.id), 'pointerdown', x, y)
+    pointer(container, 'pointermove', x + 10, y)
+    pointer(container, 'pointermove', x + 20, y)
+    expect(el(c.id).style.transform).toBe('')
+    pointer(container, 'pointerup', x + 20, y)
+    expect(doc.annotations.get(a.id)!.rect).toEqual(rect(120))
+    expect(doc.annotations.get(b.id)!.rect).toEqual(rect(220))
+    expect(doc.annotations.get(c.id)!.rect).toEqual(rect(300))
+    doc.history.undo()
+    expect(doc.annotations.get(a.id)!.rect).toEqual(rect(100))
+    expect(doc.annotations.get(b.id)!.rect).toEqual(rect(200))
+    expect(doc.annotations.get(c.id)!.locked).toBe(true)
+  })
+
+  it('a group move under a controlled store goes through onChange', async () => {
+    const { doc, container, viewport } = await setup('text-simple', { controlled: true })
+    const rect = (x: number) => ({ x, y: 600, width: 50, height: 30 })
+    doc.annotations.add({
+      type: 'square',
+      page: 0,
+      rect: rect(100),
+      interiorColor: '#00ff00',
+    })
+    doc.annotations.add({
+      type: 'square',
+      page: 0,
+      rect: rect(200),
+      interiorColor: '#00ff00',
+    })
+    await until(() => doc.annotations.list.get().length === 2)
+    const [a, b] = doc.annotations.list.get() as [Annotation, Annotation]
+    doc.annotations.select([a.id, b.id])
+    await until(() => doc.annotations.selection.get().length === 2)
+    const { at, el } = await page0(viewport)
+    const [x, y] = at(110, 620)
+    pointer(el(a.id), 'pointerdown', x, y)
+    pointer(container, 'pointermove', x + 20, y)
+    pointer(container, 'pointerup', x + 20, y)
+    // The host applies proposals a microtask later: nothing has moved yet.
+    expect(doc.annotations.get(a.id)!.rect).toEqual(rect(100))
+    await until(
+      () =>
+        doc.annotations.get(a.id)!.rect.x === 120 &&
+        doc.annotations.get(b.id)!.rect.x === 220
+    )
+  })
+
+  it('view is gone: tools.set("view") throws like any unknown id', async () => {
     const { tools } = await setup()
     // Like any unknown id.
     expect(() => tools.set('view')).toThrow(RangeError)

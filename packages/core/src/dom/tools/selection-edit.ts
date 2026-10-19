@@ -18,7 +18,8 @@
 // Move: dragging a pressed annotation moves it, or, when it belongs to the selection, every
 // selected unlocked annotation, in one history step.
 //
-// Text markup is left to the overlay: a drag across it selects text, a click selects it.
+// Under select-text, text markup is left to the overlay: a drag across it selects text, a
+// click selects it. Rectangle select (`marquee`) handles markup like any other annotation.
 import {
   MIN_SIZE,
   hasCornerHandles,
@@ -168,8 +169,12 @@ export function createSelectionEdit(
       reset()
       if (annotationId !== undefined) {
         const a = ctx.store.get(annotationId)
-        // Text markup lets a drag through to text selection; the overlay selects it on a click.
-        if (!a || isTextMarkup(a)) return
+        if (!a) return
+        // Under select-text, text markup lets a drag through to text selection and the overlay
+        // selects it on a click. Rectangle select treats it as any other annotation: it selects
+        // on the press and a drag moves it, so it claims the press from the overlay.
+        const markup = isTextMarkup(a)
+        if (markup && !opts.marquee) return
         const handle = handleOf(e.target)
         if (handle !== undefined && !a.locked && startHandle(e, hit, a, handle))
           return true
@@ -187,8 +192,13 @@ export function createSelectionEdit(
         const narrow = selected.length > 1 && selected.includes(annotationId)
         // A press on a member of the selection keeps the selection, so it can move as one.
         // Otherwise the overlay selects and activates it once this capture-phase handler
-        // returns.
+        // returns, except markup, which the overlay would hold until the release.
         if (narrow) e.stopPropagation()
+        else if (markup) {
+          e.stopPropagation()
+          ctx.store.select([annotationId])
+          ctx.onActivate?.(annotationId)
+        }
         mode = { kind: 'press', id: annotationId, start: hit, narrow }
         e.preventDefault()
         return true
