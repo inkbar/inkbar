@@ -1,0 +1,72 @@
+packages/core/src/model/signatures.ts
+  s_5c84400dcebef8::t_22c19d39014b21 232-234
+  s_5c84400dcebef8::t_91795347dabc7f 70-76,135,305-306
+  s_5c84400dcebef8::t_b5451502f178f0 108-111,114-115,117-122,126,129,131,142,147-153,157-158,160-161,170,174
+  s_5c84400dcebef8::t_6020f831d903dd 43-68,154-156
+  s_5c84400dcebef8::t_5491f8c2c53a4f 69
+packages/core/src/dom/viewer/create-viewer.browser.test.ts
+  s_5c84400dcebef8::t_6020f831d903dd 1379-1399
+packages/svelte/src/test/Toolbar.browser.test.ts
+  s_5c84400dcebef8::t_6020f831d903dd 1050-1059,1063-1065
+  s_5c84400dcebef8::t_75d98ac57b3a7c 1060-1062
+packages/core/src/dom/signature-pad.ts
+  s_5c84400dcebef8::t_090415854bbbef 250-252,254-264,269-297
+packages/react/src/components/Toolbar.ct.tsx
+  s_5c84400dcebef8::t_6020f831d903dd 1173-1190
+packages/svelte/src/lib/components/SignatureForm.svelte
+  s_5c84400dcebef8::t_6020f831d903dd 197-199
+  s_5c84400dcebef8::t_a26007b04cfb31 196,200
+packages/core/src/dom/tools.browser.test.ts
+  s_5c84400dcebef8::t_b0ba93480e663d 2463-2464,2486-2491,2509,2514-2534
+  s_5c84400dcebef8::t_afec4b6b3b00de 2535
+packages/vue/playwright/harness/SignatureHarness.vue
+  s_5c84400dcebef8::t_6020f831d903dd 26-27,29,41
+packages/core/src/dom/signature-pad.browser.test.ts
+  s_5c84400dcebef8::t_6020f831d903dd 165-167
+  s_5c84400dcebef8::t_fb78bca6081f58 161-163,173
+  s_5c84400dcebef8::t_b4512cae818fe4 154-160,164,168-172,174-186
+packages/core/src/dom/tools/signature.ts
+  s_5c84400dcebef8::t_f7d8855bda77e4 88,96
+  s_5c84400dcebef8::t_6765fa3ba30c89 4-6
+  s_5c84400dcebef8::t_22c19d39014b21 3,17,30,47
+packages/core/src/dom/viewer/signature-dialog.ts
+  s_5c84400dcebef8::t_a26007b04cfb31 167-171,222,259-260
+packages/core/src/dom/signature-draft.ts
+  s_5c84400dcebef8::t_6020f831d903dd 147-149
+  s_5c84400dcebef8::t_1b2dc28c6df043 26-27,46,65,121,123-129,135,146,150
+packages/vue/src/components/SignatureForm.vue
+  s_5c84400dcebef8::t_a26007b04cfb31 206-207
+  s_5c84400dcebef8::t_6020f831d903dd 200-205
+packages/core/src/model/signatures.test.ts
+  s_5c84400dcebef8::t_56cd1dc3a84585 252,283-289
+  s_5c84400dcebef8::t_8360b7462de61f 227,230,238-244,247-251
+  s_5c84400dcebef8::t_f81c4f3c54e5c2 259-261
+  s_5c84400dcebef8::t_6020f831d903dd 245-246
+  s_5c84400dcebef8::t_67bd60c24959c6 253
+packages/react/src/components/InkSignatureDialog.tsx
+  s_5c84400dcebef8::t_a26007b04cfb31 87,257-261
+packages/core/src/dom/index.ts
+  s_5c84400dcebef8::t_10685da780bdae 182-183
+packages/react/playwright/harness/SignatureHarness.tsx
+  s_5c84400dcebef8::t_6020f831d903dd 34,40-41,50
+packages/vue/src/components/Toolbar.ct.ts
+  s_5c84400dcebef8::t_6020f831d903dd 1039-1056
+packages/core/README.md
+  s_5c84400dcebef8::t_7571f68954de2e 197,199
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "67f817ebe3ed65a16deaa4ff5e3e51af64777d73",
+  "prompts": {},
+  "sessions": {
+    "s_5c84400dcebef8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b6002a2b-f6c7-44ec-8f13-05d214d02483",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
