@@ -143,7 +143,7 @@ describe('AnnotationStore (uncontrolled)', () => {
       mode: { mode: 'uncontrolled' },
       defaults: staticDefaults,
       id: ids,
-      now: () => `t${++t}`,
+      now: () => `2026-10-12T12:00:0${++t}.000Z`,
     })
     const a = s.add({
       type: 'text',
@@ -155,8 +155,8 @@ describe('AnnotationStore (uncontrolled)', () => {
     s.on('change', fn)
     const b = s.update(a.id, { contents: 'edited' })
     expect(b?.contents).toBe('edited')
-    expect(b?.modifiedAt).toBe('t2')
-    expect(b?.createdAt).toBe('t1')
+    expect(b?.modifiedAt).toBe('2026-10-12T12:00:02.000Z')
+    expect(b?.createdAt).toBe('2026-10-12T12:00:01.000Z')
     expect(fn).toHaveBeenCalledWith({ kind: 'update', id: a.id, before: a, after: b })
     expect(s.update('missing', { contents: 'x' })).toBeUndefined()
   })
@@ -379,8 +379,8 @@ describe('AnnotationStore embedded guard (uncontrolled)', () => {
     color: '#FFD400',
     opacity: 1,
     contents: 'from the file',
-    createdAt: 'a',
-    modifiedAt: 'a',
+    createdAt: '2026-10-12T12:00:00.000Z',
+    modifiedAt: '2026-10-12T12:00:00.000Z',
     source: 'pdf',
     locked: true,
   }

@@ -4,9 +4,10 @@ import {
   ANNOTATION_FORMAT,
   ANNOTATION_VERSION,
   AnnotationDocumentSchema,
-  AnnotationSchema,
+  ExportedAnnotationSchema,
   type Annotation,
   type AnnotationDocument,
+  type ExportedAnnotation,
   type ForeignAnnotation,
 } from './types'
 
@@ -28,12 +29,14 @@ export interface ImportOptions {
 }
 
 const KNOWN_TYPES: ReadonlySet<string> = new Set(
-  AnnotationSchema.options.flatMap((o) => [...o.shape.type._zod.values] as string[])
+  ExportedAnnotationSchema.options.flatMap(
+    (o) => [...o.shape.type._zod.values] as string[]
+  )
 )
 
 /**
  * Session annotations plus any preserved foreign items. Embedded (`source: 'pdf'`) ones stay in
- * the file.
+ * the file. `source` and `locked` are viewer state and are left out.
  *
  * The result is a JSON copy (`JSON.parse(JSON.stringify(...))`), the same data a serialised
  * export would carry: editing it never touches the store, and values JSON cannot hold, such as
@@ -48,13 +51,16 @@ export function exportAnnotations(
   preserved: readonly ForeignAnnotation[] = [],
   documentKey?: string
 ): AnnotationDocument {
-  const session = store.list.get().filter((a) => a.source === 'session')
+  const session: ExportedAnnotation[] = store.list
+    .get()
+    .filter((a) => a.source === 'session')
+    .map(({ source: _source, locked: _locked, ...rest }) => rest)
   return {
     format: ANNOTATION_FORMAT,
     version: ANNOTATION_VERSION,
     ...(documentKey === undefined ? {} : { documentKey }),
     annotations: JSON.parse(JSON.stringify([...session, ...preserved])) as Array<
-      Annotation | ForeignAnnotation
+      ExportedAnnotation | ForeignAnnotation
     >,
   }
 }
@@ -160,7 +166,8 @@ export function planImport(
       }
       return
     }
-    const parsed = AnnotationSchema.safeParse(item)
+    // Unknown keys, including `source` and `locked`, are dropped here.
+    const parsed = ExportedAnnotationSchema.safeParse(item)
     if (!parsed.success) {
       result.errors.push({
         index,

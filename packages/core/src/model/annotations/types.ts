@@ -33,11 +33,13 @@ const Base = z.object({
   contents: z.string().optional(),
   /** Id of the parent note; replies form threads. */
   inReplyTo: z.string().optional(),
-  createdAt: z.string(),
-  modifiedAt: z.string(),
-  /** Created in this session, or imported from the file. */
+  /** ISO 8601 date-time. */
+  createdAt: z.iso.datetime({ offset: true }),
+  /** ISO 8601 date-time. */
+  modifiedAt: z.iso.datetime({ offset: true }),
+  /** Created in this session, or imported from the file. Viewer state, never exported. */
   source: z.enum(['session', 'pdf']),
-  /** Embedded annotations are locked until the engine can rewrite the file. */
+  /** Embedded annotations are locked until the engine can rewrite the file. Viewer state, never exported. */
   locked: z.boolean().optional(),
   /** Host data. Preserved, never interpreted. */
   custom: z.record(z.string(), z.unknown()).optional(),
@@ -134,7 +136,23 @@ export const AnnotationSchema = z.discriminatedUnion('type', [
   RedactSchema,
 ])
 
+/** The viewer's own state on an annotation, left out of exports. */
+const VIEWER_STATE = { source: true, locked: true } as const
+
+/** One exported annotation: the stored annotation without its viewer state. */
+export const ExportedAnnotationSchema = z.discriminatedUnion('type', [
+  TextMarkupSchema.omit(VIEWER_STATE),
+  NoteSchema.omit(VIEWER_STATE),
+  FreeTextSchema.omit(VIEWER_STATE),
+  ShapeSchema.omit(VIEWER_STATE),
+  LineSchema.omit(VIEWER_STATE),
+  PolySchema.omit(VIEWER_STATE),
+  InkSchema.omit(VIEWER_STATE),
+  RedactSchema.omit(VIEWER_STATE),
+])
+
 export type Annotation = z.infer<typeof AnnotationSchema>
+export type ExportedAnnotation = z.infer<typeof ExportedAnnotationSchema>
 export type AnnotationType = Annotation['type']
 export type AnnotationOfType<T extends AnnotationType> = Extract<Annotation, { type: T }>
 export type TextMarkupAnnotation = z.infer<typeof TextMarkupSchema>
@@ -209,7 +227,7 @@ export interface AnnotationDocument {
   format: typeof ANNOTATION_FORMAT
   version: typeof ANNOTATION_VERSION
   documentKey?: string
-  annotations: Array<Annotation | ForeignAnnotation>
+  annotations: Array<ExportedAnnotation | ForeignAnnotation>
 }
 
 export type ConfidenceBucket = 'low' | 'medium' | 'high'

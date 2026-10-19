@@ -21,11 +21,12 @@ describe('json import/export', () => {
     const a = s.add({ type: 'text', page: 0, rect, contents: 'x' })
     s._setEmbedded([{ ...a, id: 'pdf:1R', source: 'pdf', locked: true }])
     const out = exportAnnotations(s, [], 'doc-1')
+    const { source: _source, ...exported } = a
     expect(out).toEqual({
       format: ANNOTATION_FORMAT,
       version: 1,
       documentKey: 'doc-1',
-      annotations: [a],
+      annotations: [exported],
     })
     const s2 = createAnnotationStore({
       mode: { mode: 'uncontrolled' },

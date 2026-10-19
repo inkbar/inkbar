@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { AnnotationDocumentSchema, AnnotationSchema } from './types'
+import { AnnotationDocumentSchema, ExportedAnnotationSchema } from './types'
 
 export const ANNOTATION_SCHEMA_ID = 'https://inkbar.dev/schema/annotations-v1.json'
 
@@ -12,7 +12,7 @@ function withoutDialect(schema: object): Record<string, unknown> {
 /** The exact object written to `schema.json`, before formatting. */
 export function buildAnnotationSchema(): Record<string, unknown> {
   const options = { target: 'draft-2020-12' } as const
-  const annotation = withoutDialect(z.toJSONSchema(AnnotationSchema, options))
+  const annotation = withoutDialect(z.toJSONSchema(ExportedAnnotationSchema, options))
   const envelope = withoutDialect(z.toJSONSchema(AnnotationDocumentSchema, options)) as {
     properties: Record<string, unknown>
   }

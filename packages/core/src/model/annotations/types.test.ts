@@ -37,6 +37,7 @@ const valid: Annotation = {
   modifiedAt: '2026-10-12T12:00:00.000Z',
   source: 'session',
 }
+const { source: _source, ...exported } = valid
 
 const schemaUrl = new URL('../../../schema.json', import.meta.url)
 
@@ -105,7 +106,7 @@ describe('AnnotationSchema', () => {
 describe('schema.json', () => {
   const annotationRef = `${ANNOTATION_SCHEMA_ID}#/$defs/Annotation`
   const compileAnnotation = () => {
-    const ajv = new Ajv2020({ strict: false })
+    const ajv = new Ajv2020({ strict: false, validateFormats: false })
     ajv.addSchema(readPublished())
     const validate = ajv.getSchema(annotationRef)
     if (!validate) throw new Error('Annotation definition missing')
@@ -126,22 +127,33 @@ describe('schema.json', () => {
 
   it('validates annotations like the zod schema', () => {
     const validate = compileAnnotation()
-    expect(validate(valid)).toBe(true)
-    expect(validate({ ...valid, color: 'yellow' })).toBe(false)
+    expect(validate(exported)).toBe(true)
+    expect(validate({ ...exported, color: 'yellow' })).toBe(false)
+    expect(validate({ ...exported, createdAt: 'yesterday' })).toBe(false)
+  })
+
+  it('leaves viewer state out of the exported shape', () => {
+    const validate = compileAnnotation()
+    expect(validate(valid)).toBe(false)
+    expect(validate({ ...exported, locked: true })).toBe(false)
   })
 
   it('accepts arbitrary nested JSON in custom', () => {
     const validate = compileAnnotation()
     const custom = { a: 1, b: { c: [true, null, 'x'] } }
-    expect(validate({ ...valid, custom })).toBe(true)
+    expect(validate({ ...exported, custom })).toBe(true)
   })
 
   it('compiles as a document schema and checks the envelope', () => {
-    const validate = new Ajv2020({ strict: false }).compile(readPublished())
-    const doc = { format: 'inkbar/annotations', version: 1, annotations: [valid] }
+    const validate = new Ajv2020({ strict: false, validateFormats: false }).compile(
+      readPublished()
+    )
+    const doc = { format: 'inkbar/annotations', version: 1, annotations: [exported] }
     expect(validate(doc)).toBe(true)
     expect(validate({ ...doc, version: 2 })).toBe(false)
-    expect(validate({ ...doc, annotations: [{ ...valid, color: 'yellow' }] })).toBe(false)
+    expect(validate({ ...doc, annotations: [{ ...exported, color: 'yellow' }] })).toBe(
+      false
+    )
     expect(AnnotationDocumentSchema.safeParse(doc).success).toBe(true)
   })
 })
