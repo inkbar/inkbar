@@ -17,6 +17,11 @@
     label?: string | undefined
     /** Replaces the swatch. */
     children?: Snippet | undefined
+    /**
+     * Renders the trigger outside the toolbar's roving focus, for a menu nested in another
+     * panel (the text style menu's text colour).
+     */
+    standalone?: boolean | undefined
   }
 </script>
 
@@ -41,6 +46,7 @@
     label,
     class: className,
     children,
+    standalone = false,
     ...rest
   }: InkColorMenuProps = $props()
 
@@ -52,6 +58,7 @@
   const trigger = $derived(model.trigger)
 
   let menu = $state<HTMLElement | null>(null)
+  let triggerEl = $state<HTMLButtonElement | null>(null)
   let customInput = $state<HTMLInputElement | null>(null)
 
   // The menu closes when the control disables (the selection cleared while it was open).
@@ -71,40 +78,48 @@
     focusFirst = true
     open = true
   }
+
+  const triggerAttrs = $derived({
+    class: ['ink-menu-trigger ink-color-menu', className],
+    'data-ink-color-menu': property,
+    'data-state': open ? 'open' : 'closed',
+    'data-mixed': model.mixed ? '' : undefined,
+    'aria-label': name,
+    title: name,
+    'aria-haspopup': 'menu' as const,
+    onkeydown: onTriggerKeydown,
+    disabled: !model.enabled,
+  })
 </script>
+
+{#snippet body()}
+  {#if children}
+    {@render children()}
+  {:else}
+    <span
+      class="ink-swatch"
+      data-ink-swatch=""
+      data-property={property}
+      data-kind={trigger.kind}
+      data-color={trigger.kind === 'color' ? trigger.color : undefined}
+      style={trigger.kind === 'color' ? `--ink-swatch: ${trigger.color}` : undefined}
+      aria-hidden="true"
+    ></span>
+  {/if}
+{/snippet}
 
 <Popover.Root bind:open>
   <Popover.Trigger>
     {#snippet child({ props })}
-      <Toolbar.Button
-        {...props}
-        {...asBitsProps(rest)}
-        class={['ink-menu-trigger ink-color-menu', className]}
-        data-ink-color-menu={property}
-        data-state={open ? 'open' : 'closed'}
-        data-mixed={model.mixed ? '' : undefined}
-        aria-label={name}
-        title={name}
-        aria-haspopup="menu"
-        onkeydown={onTriggerKeydown}
-        disabled={!model.enabled}
-      >
-        {#if children}
-          {@render children()}
-        {:else}
-          <span
-            class="ink-swatch"
-            data-ink-swatch=""
-            data-property={property}
-            data-kind={trigger.kind}
-            data-color={trigger.kind === 'color' ? trigger.color : undefined}
-            style={trigger.kind === 'color'
-              ? `--ink-swatch: ${trigger.color}`
-              : undefined}
-            aria-hidden="true"
-          ></span>
-        {/if}
-      </Toolbar.Button>
+      {#if standalone}
+        <button bind:this={triggerEl} {...props} {...asBitsProps(rest)} {...triggerAttrs}>
+          {@render body()}
+        </button>
+      {:else}
+        <Toolbar.Button {...props} {...asBitsProps(rest)} {...triggerAttrs}>
+          {@render body()}
+        </Toolbar.Button>
+      {/if}
     {/snippet}
   </Popover.Trigger>
   <Popover.Portal>
@@ -126,7 +141,18 @@
           else focusInitialMenuItem(menu)
         }
       }}
-      onkeydown={(e) => menu && handleMenuKeys(e, menu)}
+      onkeydown={(e) => {
+        // Nested in another panel, Escape closes this menu alone; Bits would otherwise pick
+        // the layer to close by registration order.
+        if (standalone && e.key === 'Escape') {
+          e.stopPropagation()
+          e.preventDefault()
+          open = false
+          triggerEl?.focus()
+          return
+        }
+        if (menu) handleMenuKeys(e, menu)
+      }}
     >
       {#if model.noFill}
         {@const noFill = model.noFill}

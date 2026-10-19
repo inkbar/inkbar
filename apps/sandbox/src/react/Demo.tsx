@@ -10,6 +10,7 @@ import {
   InkRoot,
   InkShapeMenu,
   InkSuggestionCard,
+  InkTextStyleMenu,
   InkToolbar,
   InkToolbarSeparator,
   InkToolButton,
@@ -51,6 +52,7 @@ export function Demo({ source }: { source: DocumentSource }) {
           <InkLineStyleMenu />
           <InkColorMenu property="border" />
           <InkColorMenu property="fill" />
+          <InkTextStyleMenu />
         </div>
         <InkUndo />
         <InkRedo />

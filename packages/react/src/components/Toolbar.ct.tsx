@@ -4,6 +4,7 @@ import { expect, test } from '@playwright/experimental-ct-react'
 import { guardConsole } from '../../playwright/console-guard'
 import { ColorMenuHarness } from '../../playwright/harness/ColorMenuHarness'
 import { LineStyleHarness } from '../../playwright/harness/LineStyleHarness'
+import { TextStyleHarness } from '../../playwright/harness/TextStyleHarness'
 import { ToolbarHarness } from '../../playwright/harness/ToolbarHarness'
 import { ZoomClickHarness } from '../../playwright/harness/ZoomClickHarness'
 
@@ -83,6 +84,7 @@ test('every toolbar control has an accessible name', async ({ mount, page }) => 
     'Line style',
     'Border colour',
     'Fill colour',
+    'Text style',
     'Undo',
     'Redo',
   ])
@@ -662,5 +664,119 @@ test.describe('shape menu', () => {
     await page.keyboard.press('Escape')
     await expect(menu).toHaveCount(0)
     await expect(chevron).toBeFocused()
+  })
+})
+
+test.describe('text style menu', () => {
+  const mountHarness = async (
+    mount: Parameters<Parameters<typeof test>[2]>[0]['mount']
+  ) => {
+    const cmp = await mount(
+      <TextStyleHarness src={fixtureUrl('text-simple')} assets={assets} />
+    )
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+  }
+  const style = async (page: Page): Promise<Record<string, unknown>> =>
+    JSON.parse(
+      (await page.getByTestId('probe').getAttribute('data-style')) || '{}'
+    ) as Record<string, unknown>
+  const open = async (page: Page) => {
+    await page.getByRole('button', { name: 'Text style' }).click()
+    return page.getByRole('dialog', { name: 'Text style' })
+  }
+
+  test('bold toggle sets defaultStyle.fontWeight on the selected text box', async ({
+    mount,
+    page,
+  }) => {
+    await mountHarness(mount)
+    await page.getByTestId('add-box').click()
+    await page.getByTestId('select-all').click()
+    const menu = await open(page)
+    const bold = menu.getByRole('button', { name: 'Bold' })
+    await expect(bold).toHaveAttribute('aria-pressed', 'false')
+    await bold.click()
+    await expect(bold).toHaveAttribute('aria-pressed', 'true')
+    expect((await style(page)).fontWeight).toBe('bold')
+    await bold.click()
+    expect(await style(page)).not.toHaveProperty('fontWeight')
+    await menu.getByRole('radio', { name: 'Align centre' }).click()
+    await menu.getByRole('combobox', { name: 'Font' }).selectOption('Times')
+    expect(await style(page)).toMatchObject({ textAlign: 'center', fontFamily: 'Times' })
+  })
+
+  test('size stepper clamps to 1..144', async ({ mount, page }) => {
+    await mountHarness(mount)
+    await page.getByTestId('add-box').click()
+    await page.getByTestId('select-all').click()
+    const menu = await open(page)
+    const size = menu.getByRole('spinbutton', { name: 'Font size' })
+    await expect(size).toHaveValue('12')
+    await size.fill('500')
+    await size.press('Enter')
+    await expect(size).toHaveValue('144')
+    expect((await style(page)).fontSize).toBe(144)
+    await menu.getByRole('button', { name: 'Increase font size' }).click()
+    await expect(size).toHaveValue('144')
+    await size.fill('0')
+    await size.press('Enter')
+    await expect(size).toHaveValue('1')
+    await menu.getByRole('button', { name: 'Decrease font size' }).click()
+    await expect(size).toHaveValue('1')
+    await menu.getByRole('button', { name: 'Increase font size' }).click()
+    expect((await style(page)).fontSize).toBe(2)
+  })
+
+  test('menu disabled with only a square selected and the select tool active', async ({
+    mount,
+    page,
+  }) => {
+    await mountHarness(mount)
+    await page.getByTestId('tool-select').click()
+    await page.getByTestId('add-square').click()
+    await page.getByTestId('select-all').click()
+    await expect(page.getByRole('button', { name: 'Text style' })).toBeDisabled()
+  })
+
+  test('with the text tool active and nothing selected, changes become the text group default for the next box', async ({
+    mount,
+    page,
+  }) => {
+    await mountHarness(mount)
+    await page.getByTestId('tool-freetext').click()
+    await page.getByTestId('select-none').click()
+    await expect(page.getByRole('button', { name: 'Text style' })).toBeEnabled()
+    const menu = await open(page)
+    await menu.getByRole('button', { name: 'Italic' }).click()
+    await menu.getByRole('radio', { name: 'Align right' }).click()
+    const group = JSON.parse(
+      (await page.getByTestId('probe').getAttribute('data-group')) ?? '{}'
+    ) as Record<string, unknown>
+    expect(group).toMatchObject({ fontStyle: 'italic', textAlign: 'right' })
+  })
+
+  test('nests the text colour menu, and Escape closes and returns focus', async ({
+    mount,
+    page,
+  }) => {
+    await mountHarness(mount)
+    await page.getByTestId('add-box').click()
+    await page.getByTestId('select-all').click()
+    const trigger = page.getByRole('button', { name: 'Text style' })
+    await trigger.focus()
+    await page.keyboard.press('ArrowDown')
+    const menu = page.getByRole('dialog', { name: 'Text style' })
+    await expect(menu.getByRole('combobox', { name: 'Font' })).toBeFocused()
+    await menu.getByRole('button', { name: 'Text colour' }).click()
+    await page
+      .getByRole('menu', { name: 'Text colour' })
+      .getByRole('menuitemradio', { name: '#FF3B30' })
+      .click()
+    expect((await style(page)).color).toBe('#FF3B30')
+    await expect(menu).toBeVisible()
+    await page.keyboard.press('Escape')
+    await page.keyboard.press('Escape')
+    await expect(menu).toHaveCount(0)
+    await expect(trigger).toBeFocused()
   })
 })

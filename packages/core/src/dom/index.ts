@@ -78,9 +78,11 @@ export {
   TOOL_LABELS,
   ZOOM_LEVELS,
   arrowheadChoice,
+  clampFontSize,
   colorMenuModel,
   lineStyleMenuModel,
   shapeMenuModel,
+  textStyleMenuModel,
 } from './ui'
 export { PALETTE } from './palette'
 export type { Palette } from './palette'
@@ -95,6 +97,11 @@ export type {
   LineStyleMenuSection,
   ShapeMenuItem,
   ShapeMenuModel,
+  TextAlignChoice,
+  TextAlignKey,
+  TextStyleMenuModel,
+  TextStyleToggle,
+  TextToggleKey,
 } from './ui'
 export type {
   AnnotationSlotProps,
@@ -104,7 +111,12 @@ export type {
 } from './ui'
 export { editFreeText } from './freetext-editor'
 export type { FreeTextEditor, FreeTextEditorOptions } from './freetext-editor'
-export { focusInitialMenuItem, handleMenuKeys, menuItems } from './menu-keys'
+export {
+  focusInitialMenuItem,
+  handleMenuKeys,
+  handleRadioKeys,
+  menuItems,
+} from './menu-keys'
 export { annotationElementFor, observeAnnotationElement } from './annotation-element'
 export { createFocusReturn, shouldKeepOpenOnAnnotation } from './popover-focus'
 export type { FocusReturn, FocusReturnOptions } from './popover-focus'
@@ -129,6 +141,7 @@ export {
 } from './viewer/controls'
 export { createLineStyleMenu } from './viewer/style-menu'
 export { createColorMenu } from './viewer/color-menu'
+export { createTextStyleMenu } from './viewer/text-style-menu'
 export { createShapeMenu } from './viewer/shape-menu'
 export type { ColorMenuOptions } from './viewer/color-menu'
 export { createMenu } from './viewer/menu'

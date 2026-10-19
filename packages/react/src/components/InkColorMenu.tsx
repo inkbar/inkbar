@@ -15,6 +15,7 @@ import {
 import { Check } from '@inkbar/icons'
 import { Popover, Toolbar } from 'radix-ui'
 import {
+  Fragment,
   useCallback,
   useEffect,
   useRef,
@@ -39,6 +40,11 @@ export interface InkColorMenuProps extends Omit<
   label?: string
   /** Replaces the swatch. */
   children?: ReactNode
+  /**
+   * Renders the trigger outside the toolbar's roving focus, for a menu nested in another
+   * panel (the text style menu's text colour).
+   */
+  standalone?: boolean
 }
 
 export function InkColorMenu({
@@ -46,8 +52,10 @@ export function InkColorMenu({
   label,
   className,
   children,
+  standalone = false,
   ...rest
 }: InkColorMenuProps) {
+  const Wrap = standalone ? Fragment : Toolbar.Button
   const { current, supported, set } = useToolStyle()
   const [open, setOpen] = useState(false)
   const model = colorMenuModel(property, current, supported)
@@ -78,7 +86,7 @@ export function InkColorMenu({
   return (
     <>
       <Popover.Root open={open} onOpenChange={setOpen}>
-        <Toolbar.Button asChild>
+        <Wrap {...(standalone ? {} : { asChild: true })}>
           <Popover.Trigger asChild>
             <button
               type="button"
@@ -113,7 +121,7 @@ export function InkColorMenu({
               )}
             </button>
           </Popover.Trigger>
-        </Toolbar.Button>
+        </Wrap>
         <Popover.Portal>
           <Popover.Content
             role="menu"
