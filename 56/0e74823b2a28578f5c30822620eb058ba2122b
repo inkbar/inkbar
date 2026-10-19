@@ -1,0 +1,147 @@
+packages/vue/src/context.ts
+  s_5c84400dcebef8::t_d0127f35764f46 5-12,46-49
+packages/react/src/hooks/useToolOptions.ts
+  s_5c84400dcebef8::t_0a35d4dc1f2429 1-25
+packages/core/src/dom/tools/highlight.ts
+  s_5c84400dcebef8::t_dc956997057be2 14-21,29
+packages/react/src/hooks/useToolStyle.ts
+  s_5c84400dcebef8::t_0a35d4dc1f2429 1-32
+packages/vue/src/components/InkViewport.vue
+  s_5c84400dcebef8::t_d0127f35764f46 133-134
+packages/svelte/src/lib/components/InkViewport.svelte
+  s_5c84400dcebef8::t_26eb9862897409 128-129
+packages/vue/src/components/InkToolButton.vue
+  s_5c84400dcebef8::t_d0127f35764f46 14,29-31,50
+packages/core/src/dom/viewer-engine.ts
+  s_5c84400dcebef8::t_46c1dea92d2126 11-13,15-19,47-51,87-91,112,114-116,247,250-251,253,285,307
+  s_5c84400dcebef8::t_19402b5b53f786 25
+  s_5c84400dcebef8::t_c9197373fa7291 14,52-57,117-126,269-272
+packages/react/src/components/InkRoot.tsx
+  s_5c84400dcebef8::t_0a35d4dc1f2429 365
+  s_5c84400dcebef8::t_f82241691f9c2a 2,35,64-68,122,180-181,389-390,411-412
+  s_5c84400dcebef8::t_cf75c500260ddd 352
+  s_5c84400dcebef8::t_77ee6d292484c7 353-364,366-369
+  s_5c84400dcebef8::t_58eaef435f976b 370
+packages/core/src/dom/tools.browser.test.ts
+  s_5c84400dcebef8::t_095f273c1e0181 1161
+  s_5c84400dcebef8::t_1690581942d343 21-23,46-50,95,1096-1160,1162-1169,1171,1173
+  s_5c84400dcebef8::t_b72b3a613c278e 1170,1172
+  s_5c84400dcebef8::t_19402b5b53f786 3-4
+  s_5c84400dcebef8::t_90a5a807f1277c 14-19
+  s_5c84400dcebef8::t_2141b83fdff1fc 1174
+packages/vue/src/index.ts
+  s_5c84400dcebef8::t_08013391bf388f 8-9
+packages/core/src/index.ts
+  s_5c84400dcebef8::t_617601ba4bde10 29-44
+packages/react/src/hooks/hooks.test.ts
+  s_5c84400dcebef8::t_4fa8ad18d8738f 1-2,16-17,30-31,60-83,86-90
+  s_5c84400dcebef8::t_daaac540984db2 84-85
+  s_5c84400dcebef8::t_95b0f2b15ffaa1 91-92
+packages/core/src/dom/tools/options.ts
+  s_5c84400dcebef8::t_736c8a8ee09fc8 1-50
+packages/react/src/index.ts
+  s_5c84400dcebef8::t_0a35d4dc1f2429 7-8
+packages/core/src/model/annotations/style-map.test.ts
+  s_5c84400dcebef8::t_90a5a807f1277c 73-78
+  s_5c84400dcebef8::t_41cd5ba830d3db 1-72,79-88
+packages/core/src/dom/tools/redact-area.ts
+  s_5c84400dcebef8::t_90a5a807f1277c 25-27,98-100
+  s_5c84400dcebef8::t_dc956997057be2 41
+packages/react/src/components/InkViewport.tsx
+  s_5c84400dcebef8::t_f82241691f9c2a 117-118
+packages/core/src/model/annotations/tool-style.ts
+  s_5c84400dcebef8::t_90a5a807f1277c 17-23,232-235,242-244,270-273
+  s_5c84400dcebef8::t_a4ea9491508283 126-127,135,137-138,140-147,150-155,158
+  s_5c84400dcebef8::t_19402b5b53f786 212,214,256
+  s_5c84400dcebef8::t_bc6a9d45e53d65 1-16,24-125,128-134,136,139,148-149,156-157,159-211,213,215-231,236-241,245-255,257-269,274-292
+packages/vue/src/composables/useToolStyle.ts
+  s_5c84400dcebef8::t_d0127f35764f46 1-25
+packages/svelte/src/test/hooks.test.ts
+  s_5c84400dcebef8::t_7e75e5347096fd 54-55,62-64
+  s_5c84400dcebef8::t_409177f14e1a78 17-18,57
+  s_5c84400dcebef8::t_acf45abe01bd76 1-3,13-14,29-30,38-53,56,58-61,65-69
+  s_5c84400dcebef8::t_18307816732f1a 70-71
+packages/core/src/model/annotations/style-map.ts
+  s_5c84400dcebef8::t_b8dd88fda0e599 1-9,13-91,93-105,107
+  s_5c84400dcebef8::t_19402b5b53f786 92,106
+  s_5c84400dcebef8::t_90a5a807f1277c 10-12
+packages/core/src/model/annotations/store.controlled.test.ts
+  s_5c84400dcebef8::t_59b368b3a8d56a 5,389-429
+  s_5c84400dcebef8::t_74f32327e01314 430
+packages/svelte/src/lib/index.ts
+  s_5c84400dcebef8::t_aa0ee5cd2c8b0c 17-18
+packages/core/src/dom/viewer/create-viewer.browser.test.ts
+  s_5c84400dcebef8::t_3a0cd775c7c4ca 176,178,180-182,184-197
+  s_5c84400dcebef8::t_0611c02bcf96af 177,179,183
+packages/core/src/dom/tools/index.ts
+  s_5c84400dcebef8::t_f9013ebd7bdf0b 20,29,37-41
+  s_5c84400dcebef8::t_c9197373fa7291 1-3,17-18,42,50-78
+  s_5c84400dcebef8::t_095f273c1e0181 9
+  s_5c84400dcebef8::t_61073d91cdf6b5 43
+packages/react/src/components/InkToolButton.tsx
+  s_5c84400dcebef8::t_f82241691f9c2a 13,42-44,63
+packages/core/src/model/annotations/types.ts
+  s_5c84400dcebef8::t_923f1454417bda 167
+packages/vue/src/composables/useToolOptions.ts
+  s_5c84400dcebef8::t_d0127f35764f46 1-26
+packages/svelte/src/test/harness/ToolStyleProbe.svelte
+  s_5c84400dcebef8::t_0ac98fa707c795 9-12,15
+  s_5c84400dcebef8::t_acf45abe01bd76 1-8,13-14,16-18
+packages/svelte/src/lib/components/InkToolButton.svelte
+  s_5c84400dcebef8::t_26eb9862897409 27,47-49,67-68
+packages/core/src/dom/viewer/create-viewer.ts
+  s_5c84400dcebef8::t_14eca6c938ee52 30-33,36,90-91,93
+packages/core/src/dom/index.ts
+  s_5c84400dcebef8::t_c9197373fa7291 36,49
+  s_5c84400dcebef8::t_617601ba4bde10 30,38,41,48,51-57
+packages/svelte/src/lib/components/InkRoot.svelte
+  s_5c84400dcebef8::t_26eb9862897409 13,36-40,67,87,286-303,330-335
+packages/svelte/src/lib/hooks/useToolStyle.svelte.ts
+  s_5c84400dcebef8::t_aa0ee5cd2c8b0c 1-30
+packages/svelte/src/lib/context.ts
+  s_5c84400dcebef8::t_26eb9862897409 4-11,48-51
+packages/react/src/context.ts
+  s_5c84400dcebef8::t_90a5a807f1277c 4-11
+  s_5c84400dcebef8::t_f82241691f9c2a 44-47
+packages/vue/src/composables/composables.test.ts
+  s_5c84400dcebef8::t_08013391bf388f 1-2,4-7,16-17,30-31,38-53,55-60,62-75
+  s_5c84400dcebef8::t_9f5a2e6b58095d 54,61
+  s_5c84400dcebef8::t_97da18c6dcb9b5 76-77
+packages/core/src/dom/tools/controller.ts
+  s_5c84400dcebef8::t_d263317bfaa732 26-27,33-35,53-56,59,62-65,93-97,102-103,107-111,147-158,161,235,238,259-266
+  s_5c84400dcebef8::t_90a5a807f1277c 19-23
+  s_5c84400dcebef8::t_7c3b9e9a14af8f 159-160
+packages/core/src/dom/ui.ts
+  s_5c84400dcebef8::t_5fd8e6494ed4ec 12-16
+packages/core/src/model/annotations/tool-style.test.ts
+  s_5c84400dcebef8::t_c18991a0b5943d 12,21,92,110,117
+  s_5c84400dcebef8::t_09a74830b438a9 8,167-168,170-171
+  s_5c84400dcebef8::t_ff3fd9d291da99 1-7,9-11,13-20,22-91,93-109,111-116,118-134,136-138,145-166,169,172-175
+  s_5c84400dcebef8::t_11e09c343e3e8d 135
+  s_5c84400dcebef8::t_bd737543c3fad8 139-144
+packages/svelte/src/lib/hooks/useToolOptions.svelte.ts
+  s_5c84400dcebef8::t_aa0ee5cd2c8b0c 1-25
+packages/vue/src/components/InkRoot.vue
+  s_5c84400dcebef8::t_9f5a2e6b58095d 110,238,288
+  s_5c84400dcebef8::t_d0127f35764f46 3,28-35,50-54,66,221-237,239-240,243-244,291-292
+  s_5c84400dcebef8::t_d647e4d384562b 241-242
+  s_5c84400dcebef8::t_be65bd30d346bb 245
+packages/core/src/dom/viewer/controls.ts
+  s_5c84400dcebef8::t_5fd8e6494ed4ec 67,100,103,160-163,169
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "560e74823b2a28578f5c30822620eb058ba2122b",
+  "prompts": {},
+  "sessions": {
+    "s_5c84400dcebef8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b6002a2b-f6c7-44ec-8f13-05d214d02483",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
