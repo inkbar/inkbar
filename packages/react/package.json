@@ -1,6 +1,6 @@
 {
   "name": "@inkbar/react",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "React components and hooks for Inkbar, the browser PDF viewer and editor.",
   "license": "MIT",
   "homepage": "https://inkbar.dev",
