@@ -263,6 +263,16 @@ describe('createViewer', () => {
     expect(viewer.element.querySelectorAll('.ink-page')).toHaveLength(1)
   })
 
+  it('keeps tool options across documents', async () => {
+    const { viewer } = make('text-simple')
+    const { engine: first } = await ready(viewer)
+    first.tools.set('shape', { kind: 'ellipse' })
+    viewer.open(fixtureUrl('annotated-notes-threaded'))
+    const { engine } = await ready(viewer)
+    expect(engine).not.toBe(first)
+    expect(engine.tools.options('shape').get()).toMatchObject({ kind: 'ellipse' })
+  })
+
   it('destroys the previous document when another opens', async () => {
     const { viewer } = make('text-simple')
     const { doc: first } = await ready(viewer)

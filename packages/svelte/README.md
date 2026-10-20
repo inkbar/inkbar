@@ -197,7 +197,7 @@ Components carry state on data attributes, for example `[data-annotation][data-s
 
 ## Hooks
 
-`useDocument`, `useAnnotations`, `useTool`, `useSelection`, `useZoom`, `usePage`, `useHistory` and `useEmbedded` read the state of the nearest `InkRoot`. Call them during component initialisation, as you would `getContext`. Each returns an object whose reactive members are getters: read `useZoom().zoom` in your template or an effect and it tracks; destructure it (`const { zoom } = useZoom()`) and you copy the value once. Keep the object and read through it.
+`useDocument`, `useAnnotations`, `useTool`, `useSelection`, `useZoom`, `usePage`, `useHistory` and `useEmbedded` read the state of the nearest `InkRoot`. Call them during component initialisation, as you would `getContext`. Each returns an object whose reactive members are getters: read `useZoom().zoom` in your template or an effect and it tracks; destructure it (`const { zoom } = useZoom()`) and you copy the value once. Keep the object and read through it. Tool options, such as the shape kind, last as long as `InkRoot`. The tool style that `useToolStyle` reads and sets (colours, line style, text style) belongs to the document: opening another one starts again from the theme's defaults.
 
 ## Licence
 

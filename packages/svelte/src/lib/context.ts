@@ -11,6 +11,7 @@ import type {
   Tool,
   ToolController,
   ToolId,
+  ToolOptions,
   ToolStyle,
   Viewport,
   ZoomValue,
@@ -55,6 +56,8 @@ export interface InkContext {
   readonly hostTools: Tool[] | undefined
   /** The font families text boxes offer: InkRoot's `fonts`, else `FONT_FAMILIES`. */
   readonly fonts: readonly string[]
+  /** The tools' options for InkRoot's life, so they persist across documents. */
+  readonly toolOptions: ToolOptions
   /** The saved signatures, from InkRoot's `signatures` store (memory by default). */
   readonly signatures: SignatureLibrary
   /** The fonts a typed signature offers: InkRoot's `signatureFonts`, else `SIGNATURE_FONTS`. */

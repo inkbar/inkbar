@@ -714,6 +714,25 @@ test.describe('shape menu', () => {
     await expect(page.getByRole('button', { name: 'Choose shape' })).toBeFocused()
   })
 
+  test('the chosen kind persists when another document opens', async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mountHarness(mount)
+    await page.getByRole('button', { name: 'Choose shape' }).click()
+    await page
+      .getByRole('menu', { name: 'Shapes' })
+      .getByRole('menuitemradio', { name: 'Ellipse' })
+      .click()
+    await expect(main(cmp)).toHaveAttribute('data-kind', 'ellipse')
+    await cmp.update(
+      <ToolbarHarness src={fixtureUrl('annotated-notes-threaded')} assets={assets} />
+    )
+    await expect(cmp.locator('.ink-page')).toHaveCount(1)
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    await expect(main(cmp)).toHaveAttribute('data-kind', 'ellipse')
+  })
+
   test('the trigger icon follows the current kind', async ({ mount, page }) => {
     const cmp = await mountHarness(mount)
     const before = await main(cmp).innerHTML()

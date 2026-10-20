@@ -6,6 +6,7 @@ import {
   openDocument,
 } from '@inkbar/core'
 import {
+  createToolOptions,
   cssVariableDefaults,
   FONT_FAMILIES,
   SIGNATURE_FONTS,
@@ -419,6 +420,8 @@ export function InkRoot({
   useEffect(() => {
     void signatures.refresh()
   }, [signatures])
+  /** Tool options last as long as the root; the tool style is per document. */
+  const [toolOptions] = useState(createToolOptions)
 
   const ctx = useMemo<InkContext>(
     () => ({
@@ -433,6 +436,7 @@ export function InkRoot({
       setTool,
       hostTools,
       fonts,
+      toolOptions,
       signatures,
       signatureFonts,
       toolStyle: styleTracker?.toolStyle ?? null,
@@ -458,6 +462,7 @@ export function InkRoot({
       setTool,
       hostTools,
       fonts,
+      toolOptions,
       signatures,
       signatureFonts,
       styleTracker,

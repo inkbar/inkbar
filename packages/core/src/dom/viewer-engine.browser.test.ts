@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { mountContainer, openFixtureInBrowser, settle, until } from './test-utils'
+import { createToolOptions } from './tools'
 import { mountViewer, type MountViewerOptions, type ViewerEngine } from './viewer-engine'
 
 import type { InkError } from '../model/errors'
@@ -294,6 +295,18 @@ describe('mountViewer', () => {
     const calls = onPageUnmount.mock.calls.length
     expect(() => engine.destroy()).not.toThrow()
     expect(onPageUnmount.mock.calls).toHaveLength(calls)
+  })
+
+  it('shares a host tool-options registry, so options outlive the engine', async () => {
+    const toolOptions = createToolOptions()
+    const first = await setup('text-simple', { toolOptions })
+    first.engine.tools.set('shape', { kind: 'star', points: 6 })
+    first.engine.destroy()
+    const next = await setup('text-simple', { toolOptions })
+    expect(next.engine.tools.options('shape').get()).toMatchObject({
+      kind: 'star',
+      points: 6,
+    })
   })
 
   it('renders annotation shells for the host when customAnnotations is on', async () => {

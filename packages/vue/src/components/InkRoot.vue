@@ -6,6 +6,7 @@ import {
   openDocument,
 } from '@inkbar/core'
 import {
+  createToolOptions,
   cssVariableDefaults,
   FONT_FAMILIES,
   SIGNATURE_FONTS,
@@ -309,6 +310,8 @@ const signatures = computed(() =>
   createSignatureLibrary(props.signatures ?? createMemorySignatureStore())
 )
 watch(signatures, (lib) => void lib.refresh(), { immediate: true })
+/** Tool options last as long as the root; the tool style is per document. */
+const toolOptions = createToolOptions()
 
 provideInkContext({
   assets: computed(() => props.assets),
@@ -322,6 +325,7 @@ provideInkContext({
   setTool,
   hostTools: computed(() => props.tools),
   fonts: computed(() => props.fonts ?? FONT_FAMILIES),
+  toolOptions,
   signatures,
   signatureFonts: computed(() => props.signatureFonts ?? SIGNATURE_FONTS),
   toolStyle,

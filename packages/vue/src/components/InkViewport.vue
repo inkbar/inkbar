@@ -133,6 +133,7 @@ function setup(): void {
     ...(ctx.hostTools.value ? { tools: ctx.hostTools.value } : {}),
     ...(ctx.toolStyle.value ? { toolStyle: ctx.toolStyle.value } : {}),
     toolHistory: { batch: (fn) => ctx.history.batch(fn) },
+    toolOptions: ctx.toolOptions,
     signatureLibrary: ctx.signatures.value,
     customAnnotations: custom,
     onActivate: (id) => ctx.setActivated(id),

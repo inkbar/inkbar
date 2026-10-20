@@ -128,6 +128,7 @@
       ...(ctx.hostTools ? { tools: ctx.hostTools } : {}),
       ...(ctx.toolStyle ? { toolStyle: ctx.toolStyle } : {}),
       toolHistory: { batch: (fn) => ctx.history.batch(fn) },
+      toolOptions: ctx.toolOptions,
       signatureLibrary: ctx.signatures,
       customAnnotations: custom,
       onActivate: (id) => ctx.setActivated(id),

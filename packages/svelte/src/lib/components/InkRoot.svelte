@@ -81,6 +81,7 @@
     openDocument,
   } from '@inkbar/core'
   import {
+    createToolOptions,
     cssVariableDefaults,
     FONT_FAMILIES,
     SIGNATURE_FONTS,
@@ -131,6 +132,8 @@
   $effect(() => {
     void signatures.refresh()
   })
+  /** Tool options last as long as the root; the tool style is per document. */
+  const toolOptions = createToolOptions()
 
   const IDLE: InkStatus = { state: 'idle' }
   const NO_ANNOTATIONS: readonly Annotation[] = []
@@ -364,6 +367,7 @@
     get fonts() {
       return fonts ?? FONT_FAMILIES
     },
+    toolOptions,
     get signatures() {
       return signatures
     },

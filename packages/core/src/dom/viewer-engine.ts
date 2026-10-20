@@ -22,6 +22,7 @@ import {
   type Tool,
   type ToolController,
   type ToolId,
+  type ToolOptions,
 } from './tools'
 import { FONT_FAMILIES, SIGNATURE_FONTS } from './ui'
 import { createViewport, type Viewport, type ZoomValue } from './viewport'
@@ -56,6 +57,12 @@ export interface MountViewerOptions {
    * instances are reused when the engine rebuilds.
    */
   tools?: Tool[]
+  /**
+   * The tools' options (the shape kind, the highlight kind…). A binding or `createViewer` passes
+   * one it keeps for its own life, so options persist across documents, as for the life of the
+   * viewer. By default the engine makes one, which lasts as long as the engine.
+   */
+  toolOptions?: ToolOptions
   /**
    * The style the tools create with. A binding passes its own, made with `trackToolStyle` and
    * its own history (and keeps its active group in step with the tool). By default the engine
@@ -152,7 +159,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
   let destroyed = false
   const hostTools = opts.tools ?? []
   /** Option values outlive rebuilds: every controller shares this registry. */
-  const toolOptions = createToolOptions()
+  const toolOptions = opts.toolOptions ?? createToolOptions()
   /** Without a host style, the engine's own follows the active tool across rebuilds. */
   const tracker = opts.toolStyle
     ? undefined
