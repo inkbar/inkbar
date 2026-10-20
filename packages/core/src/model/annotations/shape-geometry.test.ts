@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { freeTextBox } from './callout'
 import {
   constrain,
   DEFAULT_SHAPE_OPTIONS,
@@ -138,21 +139,34 @@ describe('shapeInput', () => {
     expect((make('polygon') as { vertices: unknown[] }).vertices).toHaveLength(6)
   })
 
-  it('maps a bubble to a callout free-text box with its tail below and left of the box', () => {
-    expect(make('bubble')).toEqual({
+  it('maps a bubble to a standard callout: the dragged box as text box, the tail below and left', () => {
+    const box = { x: 10, y: 20, width: 40, height: 60 }
+    const bubble = make('bubble')
+    if (bubble?.type !== 'freetext') throw new Error('not free text')
+    expect(bubble).toMatchObject({
       type: 'freetext',
       page: 2,
       contents: '',
       intent: 'FreeTextCallout',
       cornerRadius: 8,
       width: 1,
-      rect: { x: 10, y: 20, width: 40, height: 60 },
-      // The knee is the bottom-left quarter point; the tip is 24 pt below and left of it.
+      // The tip is 24 pt below and left of the edge point, the box's bottom-left quarter point.
       callout: [
         { x: -4, y: -4 },
         { x: 20, y: 20 },
       ],
     })
+    expect(bubble).not.toHaveProperty('head')
+    const [tip, edge] = bubble.callout!
+    // The edge point lies on the box's bottom edge.
+    expect(edge!.y).toBe(box.y)
+    expect(edge!.x).toBeGreaterThan(box.x)
+    expect(edge!.x).toBeLessThan(box.x + box.width)
+    expect(freeTextBox({ rect: bubble.rect!, fringe: bubble.fringe })).toEqual(box)
+    // The rect holds the tip, padded by half the 1 pt stroke.
+    expect(bubble.rect).toEqual({ x: -4.5, y: -4.5, width: 55, height: 85 })
+    expect(bubble.rect!.x).toBeLessThan(tip!.x)
+    expect(bubble.rect!.y).toBeLessThan(tip!.y)
   })
 
   it('offers the bubble between the ellipse and the star', () => {

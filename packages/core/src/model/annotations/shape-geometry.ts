@@ -1,5 +1,7 @@
 // Pure geometry for the shape tool: vertices for stars and polygons, Shift constraints and the
 // annotation each kind creates. Everything is PDF user space, points, origin bottom-left.
+import { withCalloutBounds } from './callout'
+
 import type { Point, Rect } from '../geometry'
 import type { PageRotation } from '../pages'
 import type { AnnotationInput } from './types'
@@ -70,6 +72,8 @@ export const DEFAULT_CORNER_RADIUS = 8
 
 /** How far below and left of its anchor a new speech bubble's tail tip sits, in points. */
 const BUBBLE_TAIL = 24
+/** A new speech bubble's outline width, in points, before the style group's applies. */
+const BUBBLE_WIDTH = 1
 
 const clean = (n: number): number => n + 0
 
@@ -194,19 +198,20 @@ export function shapeInput(
     case 'ellipse':
       return { type: 'circle', page, rect }
     case 'bubble': {
-      // The knee is the box's bottom-left quarter point, on its bottom edge; the tail runs from
-      // the box edge there to the tip.
-      const knee = { x: clean(rect.x + rect.width / 4), y: clean(rect.y) }
-      const tip = { x: clean(knee.x - BUBBLE_TAIL), y: clean(knee.y - BUBBLE_TAIL) }
+      // A standard callout around the dragged box: the edge point is the box's bottom-left
+      // quarter point, and the tail runs from it to the tip below and left.
+      const edge = { x: clean(rect.x + rect.width / 4), y: clean(rect.y) }
+      const tip = { x: clean(edge.x - BUBBLE_TAIL), y: clean(edge.y - BUBBLE_TAIL) }
+      const callout = [tip, edge]
       return {
         type: 'freetext',
         page,
         contents: '',
         intent: 'FreeTextCallout',
         cornerRadius: DEFAULT_CORNER_RADIUS,
-        width: 1,
-        rect,
-        callout: [tip, knee],
+        width: BUBBLE_WIDTH,
+        ...withCalloutBounds(rect, callout, BUBBLE_WIDTH, undefined),
+        callout,
       }
     }
     case 'star':

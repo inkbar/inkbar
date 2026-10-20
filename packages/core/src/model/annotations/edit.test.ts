@@ -1,10 +1,22 @@
 import { describe, expect, it } from 'vitest'
 
+import { freeTextBox, withCalloutBounds } from './callout'
 import { staticDefaults } from './defaults'
-import { hasRectGeometry, keepsAspect, movedEndpoint, resizedRect, scaled } from './edit'
+import {
+  hasCallout,
+  hasRectGeometry,
+  keepsAspect,
+  movedEndpoint,
+  movedTip,
+  resizedBox,
+  resizedRect,
+  scaled,
+  translated,
+  withBox,
+} from './edit'
 import { createAnnotationStore } from './store'
 
-import type { LineAnnotation } from './types'
+import type { Annotation, LineAnnotation } from './types'
 
 const store = () =>
   createAnnotationStore({ mode: { mode: 'uncontrolled' }, defaults: staticDefaults })
@@ -63,6 +75,112 @@ describe('scaled', () => {
       ],
       [{ x: 10, y: 12 }],
     ])
+  })
+})
+
+describe('callout edits', () => {
+  const freeText = (a: Annotation) => {
+    if (a.type !== 'freetext') throw new Error('not free text')
+    return a
+  }
+  const callout = () => {
+    const a = freeText(
+      store().add({
+        type: 'freetext',
+        page: 0,
+        contents: 'Hi',
+        intent: 'FreeTextCallout',
+        width: 1,
+        rect: { x: 55.5, y: 515.5, width: 145, height: 145 },
+        fringe: { left: 44.5, top: 0.5, right: 0.5, bottom: 84.5 },
+        callout: [
+          { x: 56, y: 516 },
+          { x: 80, y: 560 },
+          { x: 100, y: 620 },
+        ],
+        head: 'None',
+      })
+    )
+    if (!hasCallout(a)) throw new Error('not a callout')
+    return a
+  }
+
+  it('hasCallout is true for a standard callout and a bubble, not a plain box', () => {
+    const a = callout()
+    expect(hasCallout(a)).toBe(true)
+    expect(hasCallout({ ...a, cornerRadius: 8 })).toBe(true)
+    expect(hasCallout({ ...a, intent: undefined })).toBe(false)
+    expect(hasCallout({ ...a, callout: undefined })).toBe(false)
+  })
+
+  it('moving shifts rect and every callout point and leaves fringe alone', () => {
+    const a = callout()
+    expect(translated(a, 10, -5)).toEqual({
+      rect: { x: 65.5, y: 510.5, width: 145, height: 145 },
+      callout: [
+        { x: 66, y: 511 },
+        { x: 90, y: 555 },
+        { x: 110, y: 615 },
+      ],
+    })
+  })
+
+  it('scaling scales fringe by the same factors as rect', () => {
+    const a = callout()
+    const to = { x: 55.5, y: 515.5, width: 290, height: 72.5 }
+    const patch = scaled(a, a.rect, to)
+    expect(patch).toMatchObject({
+      rect: to,
+      fringe: { left: 89, top: 0.25, right: 1, bottom: 42.25 },
+    })
+  })
+
+  it('moving the tip keeps the text box and refits rect and fringe', () => {
+    const a = callout()
+    const patch = movedTip(a, { x: 300, y: 700 })
+    expect(patch.callout).toEqual([
+      { x: 300, y: 700 },
+      { x: 80, y: 560 },
+      { x: 100, y: 620 },
+    ])
+    expect(freeTextBox({ ...a, ...patch })).toEqual(freeTextBox(a))
+    expect(patch).toMatchObject(
+      withCalloutBounds(freeTextBox(a), patch.callout!, 1, 'None')
+    )
+  })
+
+  it('resizing the box carries the last point along its edge and keeps tip and bend', () => {
+    const a = callout()
+    // Box {100,600,100,60}: the last point is on its left edge, a third of the way up.
+    const to = { x: 120, y: 570, width: 50, height: 150 }
+    const patch = resizedBox(a, to)
+    expect(patch.callout).toEqual([
+      { x: 56, y: 516 },
+      { x: 80, y: 560 },
+      { x: 120, y: 620 },
+    ])
+    const box = freeTextBox({ ...a, ...patch })
+    expect(box.x).toBeCloseTo(to.x)
+    expect(box.y).toBeCloseTo(to.y)
+    expect(box.width).toBeCloseTo(to.width)
+    expect(box.height).toBeCloseTo(to.height)
+  })
+
+  it('a box without a callout keeps its fringe, or is the rect without one', () => {
+    const plain = freeText(
+      store().add({
+        type: 'freetext',
+        page: 0,
+        contents: 'Hi',
+        rect: { x: 0, y: 0, width: 100, height: 50 },
+      })
+    )
+    const to = { x: 10, y: 10, width: 20, height: 20 }
+    expect(withBox(plain, to)).toEqual({ rect: to })
+    const fringed = { ...plain, fringe: { left: 1, top: 2, right: 3, bottom: 4 } }
+    expect(withBox(fringed, to)).toEqual({
+      rect: { x: 9, y: 6, width: 24, height: 26 },
+    })
   })
 })
 

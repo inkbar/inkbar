@@ -2,6 +2,13 @@
 // paths so both produce the same patch for the same change.
 import { translateQuad, translateRect, type Point, type Rect } from '../geometry'
 
+import {
+  calloutStroke,
+  freeTextBox,
+  isStandardCallout,
+  withCalloutBounds,
+} from './callout'
+
 import type {
   Annotation,
   FreeTextAnnotation,
@@ -197,9 +204,9 @@ export function keepsAspect(a: Annotation): boolean {
 }
 
 /**
- * True for a speech bubble: a free-text callout (`intent: 'FreeTextCallout'`) with a tail
- * (`callout`) and a corner radius. Inkbar draws it as one rounded outline with the tail; the
- * tip is `callout[0]` and the tail leaves the box where `callout[1]` meets its edge.
+ * True for a speech bubble: a standard free-text callout (`intent: 'FreeTextCallout'`, `rect`,
+ * `fringe`, `callout`) with Inkbar's `cornerRadius`. Inkbar draws it as one rounded outline with
+ * a wedge from where `callout`'s last point meets the box to the tip, `callout[0]`.
  */
 export function isBubble(
   a: Annotation
@@ -211,4 +218,148 @@ export function isBubble(
     a.callout !== undefined &&
     a.callout.length >= 2
   )
+}
+
+/** True for a free text with a callout to edit: a speech bubble or a standard callout. */
+export function hasCallout(
+  a: Annotation
+): a is FreeTextAnnotation & { callout: [Point, Point, ...Point[]] } {
+  return isBubble(a) || isStandardCallout(a)
+}
+
+/**
+ * The patch that puts a free text's text box at `box`, refitting `rect` and `fringe` around
+ * it. A callout's points become `callout` (its own by default) and `rect` holds them too; any
+ * other box keeps its fringe, or has `rect` equal to the box without one.
+ */
+export function withBox(
+  a: FreeTextAnnotation,
+  box: Rect,
+  callout: readonly Point[] | undefined = a.callout
+): Partial<FreeTextAnnotation> {
+  if (hasCallout(a) && callout)
+    return {
+      ...withCalloutBounds(box, callout, calloutStroke(a).width, a.head),
+      callout: callout.map((p) => ({ ...p })),
+    }
+  const f = a.fringe
+  if (!f) return { rect: { ...box } }
+  return {
+    rect: {
+      x: box.x - f.left,
+      y: box.y - f.bottom,
+      width: box.width + f.left + f.right,
+      height: box.height + f.bottom + f.top,
+    },
+  }
+}
+
+/** Half a speech bubble's wedge where it leaves the box, points. */
+export const WEDGE_HALF = 8
+
+type Edge = 'left' | 'right' | 'bottom' | 'top'
+const EDGES: readonly Edge[] = ['left', 'right', 'bottom', 'top']
+
+/**
+ * The edge of `box` nearest `p`. `bubblePath` (dom/overlay-render.ts) picks the wedge's edge by
+ * the same rule in CSS px; change both together.
+ */
+function nearestEdge(p: Point, box: Rect): Edge {
+  const gaps: Record<Edge, number> = {
+    left: Math.abs(p.x - box.x),
+    right: Math.abs(p.x - (box.x + box.width)),
+    bottom: Math.abs(p.y - box.y),
+    top: Math.abs(p.y - (box.y + box.height)),
+  }
+  return EDGES.reduce((best, e) => (gaps[e] < gaps[best] ? e : best))
+}
+
+/** The side of `box` that `p` lies furthest beyond. */
+function edgeBeyond(p: Point, box: Rect): Edge {
+  const beyond: Record<Edge, number> = {
+    left: box.x - p.x,
+    right: p.x - (box.x + box.width),
+    bottom: box.y - p.y,
+    top: p.y - (box.y + box.height),
+  }
+  return EDGES.reduce((best, e) => (beyond[e] > beyond[best] ? e : best))
+}
+
+/**
+ * `p` carried from the box `from` onto the box `to`: it keeps its fraction along the box edge
+ * nearest it and its distance off that edge.
+ */
+export function onMovedEdge(p: Point, from: Rect, to: Rect): Point {
+  const edge = nearestEdge(p, from)
+  const along = (
+    v: number,
+    start: number,
+    size: number,
+    next: number,
+    nextSize: number
+  ) => next + (size === 0 ? nextSize / 2 : ((v - start) / size) * nextSize)
+  if (edge === 'left' || edge === 'right') {
+    const x = edge === 'left' ? from.x : from.x + from.width
+    const nx = edge === 'left' ? to.x : to.x + to.width
+    return { x: nx + p.x - x, y: along(p.y, from.y, from.height, to.y, to.height) }
+  }
+  const y = edge === 'bottom' ? from.y : from.y + from.height
+  const ny = edge === 'bottom' ? to.y : to.y + to.height
+  return { x: along(p.x, from.x, from.width, to.x, to.width), y: ny + p.y - y }
+}
+
+/**
+ * `p` placed on `box`'s `edge` at its own position along it, kept `margin` points clear of the
+ * corners (at most half the edge).
+ */
+function ontoEdge(p: Point, box: Rect, edge: Edge, margin: number): Point {
+  const clamp = (v: number, start: number, size: number) => {
+    const m = Math.min(margin, size / 2)
+    return Math.min(Math.max(v, start + m), start + size - m)
+  }
+  if (edge === 'left' || edge === 'right')
+    return {
+      x: edge === 'left' ? box.x : box.x + box.width,
+      y: clamp(p.y, box.y, box.height),
+    }
+  return {
+    x: clamp(p.x, box.x, box.width),
+    y: edge === 'bottom' ? box.y : box.y + box.height,
+  }
+}
+
+/**
+ * The patch that resizes a free text's text box to `to`. A callout's tip and bend stay where
+ * they are and its last point moves with the box edge it sits on (`onMovedEdge`).
+ */
+export function resizedBox(a: FreeTextAnnotation, to: Rect): Partial<FreeTextAnnotation> {
+  if (!hasCallout(a)) return withBox(a, to)
+  const from = freeTextBox(a)
+  const last = a.callout.length - 1
+  return withBox(
+    a,
+    to,
+    a.callout.map((p, i) => (i === last ? onMovedEdge(p, from, to) : p))
+  )
+}
+
+/**
+ * The patch that moves a callout's tip to `to`, leaving its text box where it is. A callout
+ * without a bend (every bubble) moves its edge point to the side the tip now lies furthest
+ * beyond, at its own position along that side and clear of the corners, so the line or wedge
+ * never crosses the box; on the same side it stays put. A bend and its edge point stay.
+ */
+export function movedTip(
+  a: FreeTextAnnotation & { callout: readonly Point[] },
+  to: Point
+): Partial<FreeTextAnnotation> {
+  const box = freeTextBox(a)
+  if (a.callout.length !== 2) return withBox(a, box, [to, ...a.callout.slice(1)])
+  const edge = a.callout[1]!
+  const side = edgeBeyond(to, box)
+  const margin = (a.cornerRadius ?? 0) + WEDGE_HALF
+  return withBox(a, box, [
+    to,
+    nearestEdge(edge, box) === side ? edge : ontoEdge(edge, box, side, margin),
+  ])
 }

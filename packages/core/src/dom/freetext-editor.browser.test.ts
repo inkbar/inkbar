@@ -234,4 +234,29 @@ describe('editFreeText', () => {
     expect(rect.height).toBeCloseTo(70 + grown, 0)
     expect(rect.y + rect.height).toBeCloseTo(630)
   })
+
+  it('gives a box its fringe leaves no width to a usable editor', () => {
+    const store = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const host = mountContainer(612, 792)
+    const transform = createPageTransform(page, 1, 0)
+    const overlay = createOverlay({ host, page: 0, store, transform })
+    cleanup.push(() => (overlay.destroy(), host.remove()))
+    const a = store.add({
+      type: 'freetext',
+      page: 0,
+      rect: { x: 60, y: 560, width: 50, height: 70 },
+      fringe: { left: 30, top: 5, right: 30, bottom: 45 },
+      contents: '',
+      defaultStyle: { fontSize: 12 },
+    }) as FreeTextAnnotation
+    const el = overlay.elementFor(a.id)!
+    const editor = editFreeText(el, a, { transform, commit: vi.fn(), cancel: vi.fn() })
+    cleanup.unshift(() => editor.close(false))
+    const f = el.querySelector<HTMLElement>('[data-ink-editor]')!
+    // Two ems of the 12 pt text at zoom 1.
+    expect(f.style.width).toBe('24px')
+  })
 })
