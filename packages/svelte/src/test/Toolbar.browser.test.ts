@@ -546,6 +546,24 @@ describe('toolbar', () => {
       await click('select-all')
     }
 
+    it('a scoped menu follows a change to its group prop', async () => {
+      const props = {
+        src: fixtureUrl('text-simple'),
+        assets,
+        borderGroup: 'shape' as const,
+      }
+      const screen = await render(ColorMenuHarness, props)
+      await q('.ink-page canvas')
+      const dot = '[data-ink-color-menu="border"] [data-ink-swatch]'
+      await trigger('Border colour').click()
+      await swatch('Border colour', '#FF3B30').click()
+      await expect.poll(attr(dot, 'data-color')).toBe('#FF3B30')
+      await screen.rerender({ ...props, borderGroup: 'markup' })
+      await expect.poll(attr(dot, 'data-color')).not.toBe('#FF3B30')
+      await screen.rerender(props)
+      await expect.poll(attr(dot, 'data-color')).toBe('#FF3B30')
+    })
+
     it('border menu sets color on a selected square', async () => {
       await render(ColorMenuHarness, { src: fixtureUrl('text-simple'), assets })
       await q('.ink-page canvas')

@@ -15,6 +15,11 @@ export { useDocument } from './hooks/useDocument.svelte.js'
 export { useAnnotations } from './hooks/useAnnotations.svelte.js'
 export { useTool } from './hooks/useTool.svelte.js'
 export { useToolStyle } from './hooks/useToolStyle.svelte.js'
+export type {
+  ScopedToolStyleHandle,
+  StyleGroupSource,
+  ToolStyleHandle,
+} from './hooks/useToolStyle.svelte.js'
 export { useToolOptions } from './hooks/useToolOptions.svelte.js'
 export { useSelection } from './hooks/useSelection.svelte.js'
 export { useZoom } from './hooks/useZoom.svelte.js'

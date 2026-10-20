@@ -60,8 +60,7 @@
     ...rest
   }: InkColorMenuProps = $props()
 
-  // svelte-ignore state_referenced_locally
-  const style = useToolStyle(group)
+  const style = useToolStyle(() => group)
   let open = $state(false)
 
   const model = $derived(colorMenuModel(property, style.current, style.supported))
