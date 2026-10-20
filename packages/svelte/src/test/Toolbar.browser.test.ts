@@ -457,7 +457,7 @@ describe('toolbar', () => {
       await item('Dashed').click()
       await expect.poll(probe('data-dashes')).toBe('3/3')
       await item('Arrowhead at end').click()
-      await expect.poll(probe('data-tails')).toBe('openArrow')
+      await expect.poll(probe('data-tails')).toBe('OpenArrow')
       await item('Solid').click()
       await expect.poll(probe('data-dashes')).toBe('-')
     })

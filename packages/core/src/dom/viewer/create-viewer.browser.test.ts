@@ -598,8 +598,8 @@ describe('createViewer', () => {
       item('Arrowhead at end').click()
       expect(doc.annotations.get(line.id)).toMatchObject({
         dashes: [3, 3],
-        tail: 'openArrow',
-        head: 'none',
+        tail: 'OpenArrow',
+        head: 'None',
       })
       item('Solid').click()
       expect(doc.annotations.get(line.id)).not.toHaveProperty('dashes', [3, 3])

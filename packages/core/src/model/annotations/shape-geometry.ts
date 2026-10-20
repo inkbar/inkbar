@@ -184,9 +184,9 @@ export function shapeInput(
   const rect = rectOf(start, end)
   switch (kind) {
     case 'line':
-      return { type: 'line', page, start, end, head: 'none', tail: 'none' }
+      return { type: 'line', page, start, end, head: 'None', tail: 'None' }
     case 'arrow':
-      return { type: 'line', page, start, end, tail: 'openArrow', intent: 'lineArrow' }
+      return { type: 'line', page, start, end, tail: 'OpenArrow', intent: 'LineArrow' }
     case 'rectangle':
       return { type: 'square', page, rect }
     case 'roundedRectangle':
@@ -202,7 +202,7 @@ export function shapeInput(
         type: 'freetext',
         page,
         contents: '',
-        intent: 'freeTextCallout',
+        intent: 'FreeTextCallout',
         cornerRadius: DEFAULT_CORNER_RADIUS,
         width: 1,
         rect,

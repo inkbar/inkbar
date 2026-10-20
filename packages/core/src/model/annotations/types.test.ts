@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { Ajv2020 } from 'ajv/dist/2020'
 import { describe, expect, it } from 'vitest'
 
+import { isKnown, LINE_ENDINGS } from './pdf-names'
 import { ANNOTATION_SCHEMA_ID, buildAnnotationSchema } from './schema'
 import {
   AnnotationDocumentSchema,
@@ -86,13 +87,32 @@ describe('AnnotationSchema', () => {
           { x: 0, y: 0 },
           { x: 5, y: 5 },
         ],
-        head: 'closedArrow',
+        head: 'ClosedArrow',
       })
-    ).toMatchObject({ head: 'closedArrow' })
+    ).toMatchObject({ head: 'ClosedArrow' })
     expect(AnnotationSchema.safeParse({ ...shape, dashes: [-1] }).success).toBe(false)
     expect(AnnotationSchema.parse({ ...valid, subject: 'S', intent: 'I' })).toMatchObject(
       { subject: 'S', intent: 'I' }
     )
+  })
+
+  it('keeps PDF names Inkbar does not know and treats the old spellings as unknown names', () => {
+    const line = { ...exported, source: 'session', type: 'line', width: 1 }
+    const ends = { start: { x: 0, y: 0 }, end: { x: 5, y: 5 } }
+    expect(AnnotationSchema.parse({ ...line, ...ends, head: 'Foo_1' })).toMatchObject({
+      head: 'Foo_1',
+    })
+    const old = AnnotationSchema.parse({
+      ...line,
+      type: 'polyline',
+      vertices: [ends.start, ends.end],
+      tail: 'openArrow',
+    })
+    expect(old).toMatchObject({ tail: 'openArrow' })
+    expect(isKnown(LINE_ENDINGS, old.type === 'polyline' ? old.tail! : '')).toBe(false)
+    expect(
+      AnnotationSchema.safeParse({ ...line, ...ends, head: 'not a name' }).success
+    ).toBe(false)
   })
 
   it('takes a corner radius on squares and rejects a negative one', () => {
@@ -126,13 +146,13 @@ describe('AnnotationSchema', () => {
           ...shape,
           type: 'polygon',
           vertices,
-          [end]: 'openArrow',
+          [end]: 'OpenArrow',
         }).success,
         end
       ).toBe(false)
     expect(
-      AnnotationSchema.parse({ ...shape, type: 'polyline', vertices, tail: 'openArrow' })
-    ).toMatchObject({ tail: 'openArrow' })
+      AnnotationSchema.parse({ ...shape, type: 'polyline', vertices, tail: 'OpenArrow' })
+    ).toMatchObject({ tail: 'OpenArrow' })
   })
 
   describe('free text', () => {
@@ -275,7 +295,7 @@ describe('AnnotationSchema', () => {
 
   it('applies defaults for note icon and redact origin', () => {
     const note = AnnotationSchema.parse({ ...valid, type: 'text', quads: undefined })
-    expect(note.type === 'text' && note.icon).toBe('comment')
+    expect(note.type === 'text' && note.icon).toBe('Note')
     const redact = AnnotationSchema.parse({
       ...valid,
       type: 'redact',
@@ -440,6 +460,28 @@ describe('schema.json', () => {
     expect(validate({ ...exported, createdAt: 'yesterday' })).toBe(false)
   })
 
+  it('accepts PDF names Inkbar knows and ones it does not, and describes them', () => {
+    const validate = compileAnnotation()
+    const note = { ...exported, type: 'text', icon: 'Check', intent: 'FreeTextCallout' }
+    delete (note as { quads?: unknown }).quads
+    expect(validate(note), JSON.stringify(validate.errors)).toBe(true)
+    const line = {
+      ...note,
+      type: 'line',
+      start: { x: 0, y: 0 },
+      end: { x: 5, y: 5 },
+      width: 1,
+      head: 'OpenArrow',
+      tail: 'Draft_1',
+    }
+    delete (line as { icon?: unknown }).icon
+    expect(validate(line), JSON.stringify(validate.errors)).toBe(true)
+    expect(validate({ ...line, tail: 'has space' })).toBe(false)
+    expect(validate({ ...note, icon: '' })).toBe(false)
+    const text = JSON.stringify(readPublished())
+    expect(text).toContain('Any other PDF name is allowed')
+  })
+
   it('validates a stamp', () => {
     const validate = compileAnnotation()
     const { quads: _quads, ...rest } = exported as typeof exported & { quads?: unknown }
@@ -471,10 +513,10 @@ describe('schema.json', () => {
     expect(validate({ ...rest, type: 'square', width: 1, cornerRadius: 8 })).toBe(true)
     expect(validate({ ...rest, type: 'circle', width: 1, cornerRadius: 8 })).toBe(false)
     expect(
-      validate({ ...rest, type: 'polyline', width: 1, vertices, head: 'circle' })
+      validate({ ...rest, type: 'polyline', width: 1, vertices, head: 'Circle' })
     ).toBe(true)
     expect(
-      validate({ ...rest, type: 'polygon', width: 1, vertices, head: 'circle' })
+      validate({ ...rest, type: 'polygon', width: 1, vertices, head: 'Circle' })
     ).toBe(false)
   })
 

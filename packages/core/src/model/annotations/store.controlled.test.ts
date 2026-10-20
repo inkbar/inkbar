@@ -236,7 +236,7 @@ describe('AnnotationStore (controlled) with embedded annotations', () => {
   const embedded: Annotation = {
     id: 'pdf:0:1R',
     type: 'text',
-    icon: 'comment',
+    icon: 'Comment',
     page: 0,
     rect,
     color: '#FFD400',

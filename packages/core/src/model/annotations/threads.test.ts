@@ -20,7 +20,7 @@ function note(
   return {
     id,
     type: 'text',
-    icon: 'comment',
+    icon: 'Comment',
     page: 0,
     rect: { x: 0, y: 0, width: 20, height: 20 },
     color: '#ffd400',
