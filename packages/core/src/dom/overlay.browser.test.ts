@@ -402,7 +402,7 @@ describe('createOverlay', () => {
     style.textContent = themeCss
     document.head.append(style)
     cleanup.push(() => style.remove())
-    const { store, overlay } = setup(2)
+    const { store, overlay, host } = setup(2)
     const a = store.add({
       type: 'freetext',
       page: 0,
@@ -447,6 +447,22 @@ describe('createOverlay', () => {
     )
     expect(p.backgroundColor).toBe('rgba(0, 0, 0, 0)')
     expect(p.borderTopStyle).toBe('none')
+
+    // A border with no colour of its own takes the text colour, as a bubble's outline does,
+    // not the interface's border token from the root.
+    host.dataset.inkRoot = ''
+    const bordered = store.add({
+      type: 'freetext',
+      page: 0,
+      rect: { x: 100, y: 500, width: 200, height: 50 },
+      contents: 'Bordered',
+      width: 1,
+      defaultStyle: { color: '#00FF00' },
+    })
+    const b = getComputedStyle(
+      overlay.elementFor(bordered.id)!.querySelector('.ink-free-text') as HTMLElement
+    )
+    expect(b.borderTopColor).toBe('rgb(0, 255, 0)')
     expect(p.fontWeight).toBe('400')
     expect(p.fontStyle).toBe('normal')
     expect(p.textDecorationLine).toBe('none')

@@ -406,7 +406,7 @@
   }
 
   :where(.ink-free-text[data-border]) {
-    border: var(--ink-border-width, 1px) solid var(--ink-border, var(--ink-free-text));
+    border: var(--ink-border-width, 1px) solid var(--ink-box-border, var(--ink-free-text));
   }
 
   :where(.ink-free-text[data-border='dashed']) {

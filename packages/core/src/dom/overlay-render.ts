@@ -499,7 +499,7 @@ function stampImage(
  * Styles a free-text box (`.ink-free-text`) from its annotation, as the theme reads it: the text
  * style, fill, border colour and width, corner radius and opacity travel as custom properties
  * (`--ink-font-size`, `--ink-font-family`, `--ink-font-weight`, `--ink-font-style`,
- * `--ink-text-decoration`, `--ink-text-color`, `--ink-fill`, `--ink-border`,
+ * `--ink-text-decoration`, `--ink-text-color`, `--ink-fill`, `--ink-box-border`,
  * `--ink-border-width`, `--ink-corner-radius`, `--ink-opacity`); alignment as `data-align`,
  * and a border as `data-border` (`solid` or `dashed`, absent at width 0). Lengths are scaled to
  * CSS px. Shared by the overlay and the in-place editor, so both look the same.
@@ -523,7 +523,9 @@ export function styleFreeText(
   // A speech bubble's outline and fill are drawn by its path, not by the text box.
   const bubble = isBubble(a)
   set('--ink-fill', bubble ? undefined : a.color)
-  set('--ink-border', bubble ? undefined : a.borderColor)
+  // Not `--ink-border`, the interface's border token: a box with no border colour of its own
+  // takes its text colour, as a bubble's outline does.
+  set('--ink-box-border', bubble ? undefined : (a.borderColor ?? s.color))
   set(
     '--ink-border-width',
     !bubble && a.width > 0 ? `${t.toCssLength(a.width)}px` : undefined
