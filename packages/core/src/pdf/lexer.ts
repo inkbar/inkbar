@@ -255,3 +255,11 @@ export const isName = (v: unknown, name?: string): v is PdfName =>
   v !== null &&
   (v as PdfName).kind === 'name' &&
   (name === undefined || (v as PdfName).name === name)
+
+/** True for a dictionary object. */
+export const isDict = (v: PdfValue | undefined): v is PdfDict =>
+  typeof v === 'object' && v !== null && !Array.isArray(v) && v.kind === 'dict'
+
+/** True for an indirect reference. */
+export const isRef = (v: PdfValue | undefined): v is PdfRef =>
+  typeof v === 'object' && v !== null && !Array.isArray(v) && v.kind === 'ref'
