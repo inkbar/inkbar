@@ -102,6 +102,7 @@ const LOCKED_KEYS = new Set([
   'callout',
   'contents',
   'imagedata',
+  'rotation',
 ])
 
 function keepKey(target: Record<string, unknown>, from: Annotation, key: string): void {

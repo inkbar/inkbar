@@ -220,6 +220,19 @@ describe('AnnotationStore (uncontrolled)', () => {
     expect(s.selection.get()).toEqual([a.id])
   })
 
+  it('refuses to turn a locked stamp', () => {
+    const s = store()
+    const a = s.add({
+      type: 'stamp',
+      page: 0,
+      rect: { x: 0, y: 0, width: 30, height: 10 },
+      imagedata: 'data:image/png;base64,iVBORw0KGgo=',
+    })
+    s.update(a.id, { locked: true })
+    expect(s.update(a.id, { rotation: 90 })).toBeUndefined()
+    expect(s.get(a.id)?.rotation).toBeUndefined()
+  })
+
   it('removes and prunes selection, returns false for unknown ids', () => {
     const s = store()
     const a = s.add({
