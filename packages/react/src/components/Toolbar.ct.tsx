@@ -68,6 +68,59 @@ test('the text tool button is named Text, shows its icon and picks the text box 
   )
 })
 
+test('the sketch tool button is named Sketch, shows its icon and picks the sketch tool', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(
+    <ToolbarHarness src={fixtureUrl('text-simple')} assets={assets} />
+  )
+  await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+  const sketch = page
+    .getByRole('toolbar', { name: 'Document tools' })
+    .getByRole('button', { name: 'Sketch', exact: true })
+  await expect(sketch).toHaveAttribute('data-tool', 'sketch')
+  await expect(sketch.locator('svg')).toHaveCount(1)
+  await sketch.click()
+  await expect(sketch).toHaveAttribute('aria-pressed', 'true')
+  await expect(cmp.locator('[data-ink-scroll]')).toHaveAttribute(
+    'data-ink-tool',
+    'sketch'
+  )
+})
+
+test('a controlled host undoes a sketched circle in two steps: the stroke, then nothing', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(
+    <ToolbarHarness src={fixtureUrl('text-simple')} assets={assets} controlled />
+  )
+  await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+  const bar = page.getByRole('toolbar', { name: 'Document tools' })
+  await bar.getByRole('button', { name: 'Sketch', exact: true }).click()
+  const box = (await cmp.locator('.ink-page[data-page="0"]').boundingBox())!
+  const at = (i: number) => {
+    const t = (i / 40) * Math.PI * 2
+    return [box.x + 150 + 50 * Math.cos(t), box.y + 110 + 45 * Math.sin(t)] as const
+  }
+  await page.mouse.move(...at(0))
+  await page.mouse.down()
+  for (let i = 1; i <= 42; i++) await page.mouse.move(...at(i))
+  await page.mouse.up()
+  const of = (type: string) =>
+    cmp.locator(`.ink-annotation[data-type="${type}"][data-source="session"]`)
+  await expect(of('circle')).toHaveCount(1)
+  await expect(of('ink')).toHaveCount(0)
+  const undo = bar.getByRole('button', { name: 'Undo', exact: true })
+  await undo.click()
+  await expect(of('ink')).toHaveCount(1)
+  await expect(of('circle')).toHaveCount(0)
+  await undo.click()
+  await expect(of('ink')).toHaveCount(0)
+  await expect(of('circle')).toHaveCount(0)
+})
+
 test('the draw tool button is named Draw, shows its icon and picks the draw tool', async ({
   mount,
   page,

@@ -389,6 +389,27 @@ for (const framework of FRAMEWORKS) {
       await expect(ink.locator('path.ink-stroke')).toHaveCount(1)
     })
 
+    test('sketch a circle', async ({ page }) => {
+      await page.goto(`${framework}/`)
+      await waitForFirstPage(page)
+      await page.getByRole('button', { name: 'Sketch', exact: true }).click()
+      const box = (await page.locator('.ink-page[data-page="0"]').boundingBox())!
+      const at = (i: number) => {
+        const t = (i / 40) * Math.PI * 2
+        return [box.x + 150 + 50 * Math.cos(t), box.y + 110 + 45 * Math.sin(t)] as const
+      }
+      await page.mouse.move(...at(0))
+      await page.mouse.down()
+      for (let i = 1; i <= 42; i++) await page.mouse.move(...at(i))
+      await page.mouse.up()
+      await expect(sessionShape(page, 'circle')).toHaveCount(1)
+      await expect(sessionShape(page, 'ink')).toHaveCount(0)
+      // One undo brings the stroke back.
+      await page.getByRole('button', { name: 'Undo', exact: true }).click()
+      await expect(sessionShape(page, 'ink')).toHaveCount(1)
+      await expect(sessionShape(page, 'circle')).toHaveCount(0)
+    })
+
     test('has no horizontal scroll at phone width', async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 844 })
       await page.goto(`${framework}/`)

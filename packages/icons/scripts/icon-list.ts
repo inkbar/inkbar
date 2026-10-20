@@ -28,6 +28,7 @@ export const ICONS = [
   'SquareDashed',
   'Type',
   'PenLine',
+  'PenTool',
   'ALargeSmall',
   'Bold',
   'Italic',

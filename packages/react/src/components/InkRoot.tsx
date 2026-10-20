@@ -195,7 +195,10 @@ export function InkRoot({
       }),
     [latest]
   )
-  useEffect(() => {
+  // A layout effect, like the one that pushes the list into the store below: history sees each
+  // list in the same commit the store does, so a change made once the store has a list (a
+  // sketch swapping its stroke for a shape) is never folded into the step before it.
+  useLayoutEffect(() => {
     snapshotHistory.observe(annotations)
   }, [annotations, snapshotHistory])
 

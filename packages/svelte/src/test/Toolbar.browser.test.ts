@@ -62,6 +62,65 @@ describe('toolbar', () => {
     await expect.poll(attr(SCROLL, 'data-ink-tool')).toBe('freetext')
   })
 
+  // React: 'the sketch tool button is named Sketch, shows its icon and picks the sketch tool'
+  it('the sketch tool button is named Sketch, shows its icon and picks the sketch tool', async () => {
+    await render(ToolbarHarness, { src: fixtureUrl('text-simple'), assets })
+    await q('.ink-page canvas')
+    const sketch = toolbar().getByRole('button', { name: 'Sketch', exact: true })
+    await expect.element(sketch).toHaveAttribute('data-tool', 'sketch')
+    expect(sketch.element().querySelectorAll('svg')).toHaveLength(1)
+    await sketch.click()
+    await expect.element(sketch).toHaveAttribute('aria-pressed', 'true')
+    await expect.poll(attr(SCROLL, 'data-ink-tool')).toBe('sketch')
+  })
+
+  // React: 'a controlled host undoes a sketched circle in two steps: the stroke, then nothing'
+  it('a controlled host undoes a sketched circle in two steps: the stroke, then nothing', async () => {
+    await render(ToolbarHarness, {
+      src: fixtureUrl('text-simple'),
+      assets,
+      controlled: true,
+    })
+    await q('.ink-page canvas')
+    await toolbar().getByRole('button', { name: 'Sketch', exact: true }).click()
+    const scroll = await q(SCROLL)
+    const box = (await q(FIRST)).getBoundingClientRect()
+    const at = (i: number) => {
+      const t = (i / 40) * Math.PI * 2
+      return {
+        clientX: box.left + 150 + 50 * Math.cos(t),
+        clientY: box.top + 110 + 45 * Math.sin(t),
+      }
+    }
+    const fire = (type: string, i: number) =>
+      scroll.dispatchEvent(
+        new PointerEvent(type, {
+          ...at(i),
+          bubbles: true,
+          pointerId: 1,
+          button: 0,
+          buttons: type === 'pointerup' ? 0 : 1,
+          isPrimary: true,
+        })
+      )
+    fire('pointerdown', 0)
+    for (let i = 1; i <= 42; i++) fire('pointermove', i)
+    fire('pointerup', 42)
+    const count = (type: string) => () =>
+      document.querySelectorAll(
+        `${FIRST} .ink-annotation[data-type="${type}"][data-source="session"]`
+      ).length
+    await expect.poll(count('circle')).toBe(1)
+    await expect.poll(count('ink')).toBe(0)
+    const undo = toolbar().getByRole('button', { name: 'Undo', exact: true })
+    await undo.click()
+    await expect.poll(count('ink')).toBe(1)
+    await expect.poll(count('circle')).toBe(0)
+    await undo.click()
+    await expect.poll(count('ink')).toBe(0)
+    await expect.poll(count('circle')).toBe(0)
+  })
+
   // React: 'the draw tool button is named Draw, shows its icon and picks the draw tool'
   it('the draw tool button is named Draw, shows its icon and picks the draw tool', async () => {
     await render(ToolbarHarness, { src: fixtureUrl('text-simple'), assets })

@@ -16,6 +16,7 @@ import { redactAreaTool } from './redact-area'
 import { selectTool } from './select'
 import { selectTextTool } from './select-text'
 import { shapeTool } from './shape'
+import { sketchTool } from './sketch'
 
 import type { AnnotationStore } from '../../model/annotations/store'
 
@@ -40,6 +41,7 @@ export {
   selectTextTool,
   selectTool,
   shapeTool,
+  sketchTool,
 }
 export {
   DEFAULT_CORNER_RADIUS,
@@ -56,6 +58,7 @@ export function builtinTools(): Tool[] {
     selectTool(),
     highlightTool(),
     redactAreaTool(),
+    sketchTool(),
     drawTool(),
     noteTool(),
     shapeTool(),

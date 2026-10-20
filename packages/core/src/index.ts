@@ -57,4 +57,6 @@ export {
 export * from './model/annotations/embedded'
 export { parsePdfDate } from './model/pdf-date'
 export { exportAnnotations, importAnnotations } from './model/annotations/json'
+export { recogniseStroke, RECOGNISE_THRESHOLD } from './model/recognise'
+export type { Recognised } from './model/recognise'
 export type { ImportOptions, ImportResult } from './model/annotations/json'

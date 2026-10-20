@@ -39,6 +39,7 @@ const emit = defineEmits<{ 'update:tool': [t: ToolId] }>()
       <InkToolButton tool="select" />
       <InkToolButton tool="highlight" />
       <InkToolButton tool="redact-area" />
+      <InkToolButton tool="sketch" />
       <InkToolButton tool="draw" />
       <InkToolButton tool="note" />
       <InkShapeMenu />

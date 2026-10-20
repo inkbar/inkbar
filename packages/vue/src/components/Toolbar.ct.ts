@@ -64,6 +64,25 @@ test('the text tool button is named Text, shows its icon and picks the text box 
   )
 })
 
+test('the sketch tool button is named Sketch, shows its icon and picks the sketch tool', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(Harness, { props: { src: fixtureUrl('text-simple'), assets } })
+  await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+  const sketch = page
+    .getByRole('toolbar', { name: 'Document tools' })
+    .getByRole('button', { name: 'Sketch', exact: true })
+  await expect(sketch).toHaveAttribute('data-tool', 'sketch')
+  await expect(sketch.locator('svg')).toHaveCount(1)
+  await sketch.click()
+  await expect(sketch).toHaveAttribute('aria-pressed', 'true')
+  await expect(cmp.locator('[data-ink-scroll]')).toHaveAttribute(
+    'data-ink-tool',
+    'sketch'
+  )
+})
+
 test('the draw tool button is named Draw, shows its icon and picks the draw tool', async ({
   mount,
   page,

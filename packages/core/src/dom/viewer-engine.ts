@@ -57,6 +57,12 @@ export interface MountViewerOptions {
    */
   toolStyle?: ToolStyle
   /**
+   * The history the tools group a gesture's changes with (a group move, a sketch's swap to its
+   * shape). A binding passes its own, so a controlled host's undo steps match the gesture. By
+   * default the document's history.
+   */
+  toolHistory?: { batch(fn: () => void): void }
+  /**
    * The font families text boxes offer, replacing the default `FONT_FAMILIES` (the PDF
    * standard families). Fonts beyond those are the PDF writer's to embed.
    */
@@ -127,7 +133,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     ? undefined
     : trackToolStyle({
         store: doc.annotations,
-        history: doc.history,
+        history: opts.toolHistory ?? doc.history,
         tools: hostTools,
         tool: opts.tool,
       })
@@ -270,7 +276,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
         clearSelection: () =>
           el.ownerDocument.defaultView?.getSelection()?.removeAllRanges(),
         onActivate: (id) => opts.onActivate?.(id),
-        history: doc.history,
+        history: opts.toolHistory ?? doc.history,
       },
     })
     viewport = vp
