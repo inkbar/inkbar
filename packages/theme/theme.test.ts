@@ -193,9 +193,26 @@ describe('theme.css', () => {
   })
 
   it('keeps a split button chevron narrow, past the toolbar button minimum width', () => {
-    const chevron = declsFor('.ink-split-button .ink-menu-trigger')
+    const chevron = declsFor('.ink-split-button > .ink-menu-trigger')
     expect(chevron).toMatch(/min-width:\s*0/)
     expect(chevron).toMatch(/width:\s*1\.25rem/)
+  })
+
+  it('draws a split button as one control: joined corners, shared hover and on state', () => {
+    expect(declsFor('.ink-split-button > .ink-tool-button')).toMatch(
+      /border-start-end-radius:\s*0/
+    )
+    expect(declsFor('.ink-split-button > .ink-menu-trigger')).toMatch(
+      /border-start-start-radius:\s*0/
+    )
+    expect(declsFor('.ink-split-button:hover')).toMatch(/background:/)
+    expect(
+      declsFor(
+        ".ink-split-button > .ink-tool-button[data-state='on'] + .ink-menu-trigger"
+      )
+    ).toMatch(/background:\s*var\(--ink-accent\)/)
+    // :has() costs frames on long documents (the 1,000-page e2e).
+    expect(rules.filter((r) => r.selector.includes(':has('))).toEqual([])
   })
 
   it('rings the text style panel controls on keyboard focus', () => {

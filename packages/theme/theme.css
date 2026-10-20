@@ -870,16 +870,48 @@
     border-color: var(--ink-border);
   }
 
-  /* Shape menu: a split button, the tool part beside a narrow chevron. */
+  /*
+   * Split buttons (shape, highlight, signature): one control with two parts, the tool button
+   * beside a narrow chevron. Hovering either part tints the whole control and the part under
+   * the pointer a shade more; with the tool on, both parts take the accent. Plain sibling
+ * selectors, not :has(), which costs frames on long documents.
+   */
   :where(.ink-split-button) {
     display: inline-flex;
     align-items: stretch;
+    border-radius: calc(var(--ink-radius) - 2px);
   }
 
-  :where(.ink-split-button .ink-menu-trigger) {
+  :where(.ink-split-button > .ink-tool-button) {
+    border-start-end-radius: 0;
+    border-end-end-radius: 0;
+  }
+
+  :where(.ink-split-button > .ink-menu-trigger) {
     min-width: 0;
     width: 1.25rem;
     padding-inline: 0.125rem;
+    border-start-start-radius: 0;
+    border-end-start-radius: 0;
+  }
+
+  :where(.ink-split-button:hover) {
+    background: color-mix(in srgb, var(--ink-fg) 8%, transparent);
+  }
+
+  /* The tool button's on state already takes the accent; the chevron beside it follows. */
+  :where(.ink-split-button > .ink-tool-button[data-state='on'] + .ink-menu-trigger) {
+    background: var(--ink-accent);
+    color: var(--ink-accent-fg);
+    /* The line between the parts, only while the accent fills both. */
+    box-shadow: inset 1px 0 color-mix(in srgb, var(--ink-accent-fg) 35%, transparent);
+  }
+
+  :where(
+    .ink-split-button > .ink-tool-button[data-state='on']:hover,
+    .ink-split-button > .ink-tool-button[data-state='on'] + .ink-menu-trigger:hover
+  ) {
+    background: color-mix(in srgb, var(--ink-accent-fg) 16%, var(--ink-accent));
   }
 
   :where(.ink-shape-grid) {
