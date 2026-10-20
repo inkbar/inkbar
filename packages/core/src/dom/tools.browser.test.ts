@@ -52,7 +52,11 @@ import type { SignatureLibrary, SignatureTemplate } from '../model/signatures'
  * any of it is applied.
  */
 async function setup(
-  name: 'text-simple' | 'cropbox-offset' | 'text-rotated-90' = 'text-simple',
+  name:
+    | 'text-simple'
+    | 'cropbox-offset'
+    | 'text-rotated-90'
+    | 'mixed-page-sizes' = 'text-simple',
   {
     controlled = false,
     custom = false,
@@ -2476,6 +2480,25 @@ describe('freetext tool', () => {
     expect(session(doc).map((x) => x.type === 'freetext' && x.contents)).toEqual(
       expect.arrayContaining(['Hi', 'Older!'])
     )
+  })
+
+  it('a new box mid-edit is committed when its page unmounts', async () => {
+    const { doc, container, viewport, tools } = await setup('mixed-page-sizes')
+    viewport.setZoom(3)
+    await settle()
+    tools.set('freetext')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointerup', h.left + 100, h.top + 100)
+    await userEvent.keyboard('Hi')
+    // The window is in the background (a wheel scroll there), so focus leaving the editor as
+    // its page goes does not commit it.
+    const hasFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(false)
+    cleanup.push(() => hasFocus.mockRestore())
+    container.scrollTop = container.scrollHeight
+    await until(() => viewport.hostFor(0) === undefined)
+    await settle()
+    expect(session(doc)).toMatchObject([{ type: 'freetext', page: 0, contents: 'Hi' }])
   })
 
   it('a new box mid-edit survives a resize, and a zoom commits it with focus on the box', async () => {

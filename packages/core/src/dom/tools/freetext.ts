@@ -90,10 +90,15 @@ export function freetextTool(): Tool {
     host.append(el)
     renderAnnotationContent(el, draftBox, t)
 
-    // A new zoom or rotation commits the box as it stands.
-    const view = [c.viewport.scale, c.viewport.rotation].map((r) =>
-      r.subscribe(() => editor.close(true))
-    )
+    // A new zoom or rotation commits the box as it stands, as does its page unmounting.
+    const view = [
+      ...[c.viewport.scale, c.viewport.rotation].map((r) =>
+        r.subscribe(() => editor.close(true))
+      ),
+      c.viewport.mounted.subscribe((pages) => {
+        if (!pages.includes(page)) editor.close(true)
+      }),
+    ]
     const done = (): void => {
       view.forEach((stop) => stop())
       el.remove()
