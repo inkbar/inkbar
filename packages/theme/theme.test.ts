@@ -192,6 +192,12 @@ describe('theme.css', () => {
     expect(declsFor('.ink-menu-trigger[data-mixed]')).toMatch(/border-style:\s*dashed/)
   })
 
+  it('keeps a split button chevron narrow, past the toolbar button minimum width', () => {
+    const chevron = declsFor('.ink-split-button .ink-menu-trigger')
+    expect(chevron).toMatch(/min-width:\s*0/)
+    expect(chevron).toMatch(/width:\s*1\.25rem/)
+  })
+
   it('never colours confidence label text with a suggestion colour, and shows it as a swatch', () => {
     const label = rules.filter((r) => r.selector.includes('.ink-suggestion-confidence'))
     const textColours = label.flatMap((r) =>

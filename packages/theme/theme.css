@@ -847,6 +847,8 @@
   }
 
   :where(.ink-split-button .ink-menu-trigger) {
+    min-width: 0;
+    width: 1.25rem;
     padding-inline: 0.125rem;
   }
 
