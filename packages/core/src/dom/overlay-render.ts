@@ -5,7 +5,7 @@ import {
   freeTextBox,
   isStandardCallout,
 } from '../model/annotations/callout'
-import { isBubble, isTextMarkup } from '../model/annotations/edit'
+import { isBubble, isTextMarkup, WEDGE_HALF } from '../model/annotations/edit'
 import { isKnown, LINE_ENDINGS } from '../model/annotations/pdf-names'
 
 import { outlinePath, strokeOutline } from './ink-stroke'
@@ -340,6 +340,7 @@ export function renderAnnotationContent(
     // Structural: the element itself ignores the pointer, the text box takes it.
     text.style.pointerEvents = 'auto'
     el.append(text)
+    appendSelectionFrame(el, a, t)
     return
   }
 
@@ -620,9 +621,6 @@ export function freeTextLocalBox(a: FreeTextAnnotation, t: PageTransform): CssRe
   }
 }
 
-/** Half the width of a bubble tail where it leaves the box, points. */
-const BUBBLE_TAIL_HALF = 8
-
 /**
  * The outline of a speech bubble as SVG path data in CSS px relative to `origin` (by default
  * the top-left of its rect on screen, where its overlay element sits): the rounded text box
@@ -645,17 +643,19 @@ export function bubblePath(
   const w = css.width
   const h = css.height
   const r = Math.min(t.toCssLength(a.cornerRadius ?? 0), w / 2, h / 2)
+  // The edge nearest the last point, as `nearestEdge` (model/annotations/edit.ts) picks it,
+  // ties included (left, right, bottom, top on an unturned page); change both together.
   const gaps = {
-    top: Math.abs(edge.y),
+    left: Math.abs(edge.x),
     right: Math.abs(edge.x - w),
     bottom: Math.abs(edge.y - h),
-    left: Math.abs(edge.x),
+    top: Math.abs(edge.y),
   }
   const side = (Object.keys(gaps) as (keyof typeof gaps)[]).reduce((best, s) =>
     gaps[s] < gaps[best] ? s : best
   )
   const along = side === 'top' || side === 'bottom' ? w : h
-  const half = Math.min(t.toCssLength(BUBBLE_TAIL_HALF), along / 4)
+  const half = Math.min(t.toCssLength(WEDGE_HALF), along / 4)
   const lo = Math.min(r + half, along / 2)
   const at = Math.min(
     Math.max(side === 'top' || side === 'bottom' ? edge.x : edge.y, lo),
@@ -711,7 +711,30 @@ function dash(
  */
 export function renderHitArea(el: HTMLElement, a: Annotation, t: PageTransform): void {
   drawHitArea(el, a, t)
+  if (a.type === 'freetext') appendSelectionFrame(el, a, t)
   appendCommentMarker(el, a, t)
+}
+
+/**
+ * For a free text inset by a fringe: a `div.ink-selection-frame` over its text box, where its
+ * corner handles sit, and `data-framed` on the element, so the theme draws the selection
+ * outline on the box rather than round the whole rect. Geometry only, `pointer-events:none`.
+ */
+function appendSelectionFrame(
+  el: HTMLElement,
+  a: FreeTextAnnotation,
+  t: PageTransform
+): void {
+  el.toggleAttribute('data-framed', a.fringe !== undefined)
+  if (!a.fringe) return
+  const box = freeTextLocalBox(a, t)
+  const frame = el.ownerDocument.createElement('div')
+  frame.className = 'ink-selection-frame'
+  frame.setAttribute('aria-hidden', 'true')
+  frame.style.cssText =
+    `position:absolute;pointer-events:none;left:${box.left}px;top:${box.top}px;` +
+    `width:${box.width}px;height:${box.height}px;`
+  el.append(frame)
 }
 
 /** True for text markup whose `contents` holds a comment. */

@@ -3703,14 +3703,16 @@ describe('selection editing', () => {
           ...host.querySelectorAll(`[data-annotation="${a.id}"] > [data-handle]`),
         ].map((h) => (h as HTMLElement).dataset.handle)
         expect(names).toEqual(['nw', 'ne', 'sw', 'se', 'callout'])
+        // Still below the box for the bubble; past its left side for the standard callout,
+        // whose bend and edge point stay all the same.
         const [x, y] = at(a.callout![0]!.x, a.callout![0]!.y)
+        const [dx, dy] = kind === 'bubble' ? [10, 20] : [-20, -50]
         pointer(handle(a.id, 'callout')!, 'pointerdown', x, y)
-        pointer(container, 'pointermove', x + 10, y)
-        pointer(container, 'pointermove', x - 20, y - 50)
-        pointer(container, 'pointerup', x - 20, y - 50)
+        pointer(container, 'pointermove', x + dx / 2, y)
+        pointer(container, 'pointerup', x + dx, y + dy)
         const next = freeText(doc.annotations.get(a.id))
-        expect(next.callout![0]!.x).toBeCloseTo(a.callout![0]!.x - 20, 5)
-        expect(next.callout![0]!.y).toBeCloseTo(a.callout![0]!.y + 50, 5)
+        expect(next.callout![0]!.x).toBeCloseTo(a.callout![0]!.x + dx, 5)
+        expect(next.callout![0]!.y).toBeCloseTo(a.callout![0]!.y - dy, 5)
         expect(next.callout!.slice(1)).toEqual(a.callout!.slice(1))
         expectBox(next, freeTextBox(a))
         expectBounds(next)
@@ -3764,6 +3766,64 @@ describe('selection editing', () => {
         expect(doc.annotations.get(a.id)).toEqual(a)
       })
     }
+
+    it("dragging a bubble's tip above the box moves its edge point to the top edge", async () => {
+      const { doc, container, viewport } = await setup()
+      const a = callout(doc, 'bubble')
+      doc.annotations.select([a.id])
+      const { host, at, handle } = await page0(viewport)
+      // From below the box {100,600,100,40} to above it, (160, 700).
+      const [x, y] = at(101, 576)
+      const [tx, ty] = at(160, 700)
+      pointer(handle(a.id, 'callout')!, 'pointerdown', x, y)
+      pointer(container, 'pointermove', tx, ty)
+      pointer(container, 'pointerup', tx, ty)
+      const next = freeText(doc.annotations.get(a.id))
+      expect(next.callout![0]!.x).toBeCloseTo(160, 5)
+      expect(next.callout![0]!.y).toBeCloseTo(700, 5)
+      // Same place along the box, now on its top edge.
+      expect(next.callout![1]!.x).toBeCloseTo(125, 5)
+      expect(next.callout![1]!.y).toBeCloseTo(640, 5)
+      expectBox(next, freeTextBox(a))
+      expectBounds(next)
+      // The wedge leaves the top edge: its base is on it and it does not cross the box.
+      const t = viewport.transformFor(0)
+      const origin = t.toCssRect(next.rect)
+      const box = t.toCssRect(freeTextBox(next))
+      const tip = t.toCss(next.callout![0]!)
+      const fmt = (n: number) => String(Math.round(n * 1000) / 1000 + 0)
+      const d = host
+        .querySelector(`[data-annotation="${a.id}"] path.ink-bubble`)!
+        .getAttribute('d')!
+      expect(d).toContain(
+        ` ${fmt(box.top - origin.top)}L${fmt(tip.x - origin.left)} ${fmt(tip.y - origin.top)}`
+      )
+      expect(d).not.toContain(
+        ` ${fmt(box.top + box.height - origin.top)}L${fmt(tip.x - origin.left)}`
+      )
+      doc.history.undo()
+      expect(doc.annotations.get(a.id)).toEqual(a)
+    })
+
+    it("dragging a bent callout's tip anywhere keeps its bend and edge point", async () => {
+      const { doc, container, viewport } = await setup()
+      const a = callout(doc, 'standard')
+      doc.annotations.select([a.id])
+      const { at, handle } = await page0(viewport)
+      // From below-left of the box to above it.
+      const [x, y] = at(60, 520)
+      const [tx, ty] = at(150, 720)
+      pointer(handle(a.id, 'callout')!, 'pointerdown', x, y)
+      pointer(container, 'pointermove', tx, ty)
+      pointer(container, 'pointerup', tx, ty)
+      const next = freeText(doc.annotations.get(a.id))
+      expect(next.callout![0]!.x).toBeCloseTo(150, 5)
+      expect(next.callout![0]!.y).toBeCloseTo(720, 5)
+      expect(next.callout!.slice(1)).toEqual(a.callout!.slice(1))
+      expectBounds(next)
+      doc.history.undo()
+      expect(doc.annotations.get(a.id)).toEqual(a)
+    })
 
     it('a bubble survives create, type, move, export and import', async () => {
       const { doc, container, viewport, tools } = await setup()

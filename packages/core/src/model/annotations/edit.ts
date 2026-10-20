@@ -254,20 +254,43 @@ export function withBox(
   }
 }
 
+/** Half a speech bubble's wedge where it leaves the box, points. */
+export const WEDGE_HALF = 8
+
+type Edge = 'left' | 'right' | 'bottom' | 'top'
+const EDGES: readonly Edge[] = ['left', 'right', 'bottom', 'top']
+
+/**
+ * The edge of `box` nearest `p`. `bubblePath` (dom/overlay-render.ts) picks the wedge's edge by
+ * the same rule in CSS px; change both together.
+ */
+function nearestEdge(p: Point, box: Rect): Edge {
+  const gaps: Record<Edge, number> = {
+    left: Math.abs(p.x - box.x),
+    right: Math.abs(p.x - (box.x + box.width)),
+    bottom: Math.abs(p.y - box.y),
+    top: Math.abs(p.y - (box.y + box.height)),
+  }
+  return EDGES.reduce((best, e) => (gaps[e] < gaps[best] ? e : best))
+}
+
+/** The side of `box` that `p` lies furthest beyond. */
+function edgeBeyond(p: Point, box: Rect): Edge {
+  const beyond: Record<Edge, number> = {
+    left: box.x - p.x,
+    right: p.x - (box.x + box.width),
+    bottom: box.y - p.y,
+    top: p.y - (box.y + box.height),
+  }
+  return EDGES.reduce((best, e) => (beyond[e] > beyond[best] ? e : best))
+}
+
 /**
  * `p` carried from the box `from` onto the box `to`: it keeps its fraction along the box edge
  * nearest it and its distance off that edge.
  */
 export function onMovedEdge(p: Point, from: Rect, to: Rect): Point {
-  const gaps = {
-    left: Math.abs(p.x - from.x),
-    right: Math.abs(p.x - (from.x + from.width)),
-    bottom: Math.abs(p.y - from.y),
-    top: Math.abs(p.y - (from.y + from.height)),
-  }
-  const edge = (Object.keys(gaps) as (keyof typeof gaps)[]).reduce((best, e) =>
-    gaps[e] < gaps[best] ? e : best
-  )
+  const edge = nearestEdge(p, from)
   const along = (
     v: number,
     start: number,
@@ -286,6 +309,26 @@ export function onMovedEdge(p: Point, from: Rect, to: Rect): Point {
 }
 
 /**
+ * `p` placed on `box`'s `edge` at its own position along it, kept `margin` points clear of the
+ * corners (at most half the edge).
+ */
+function ontoEdge(p: Point, box: Rect, edge: Edge, margin: number): Point {
+  const clamp = (v: number, start: number, size: number) => {
+    const m = Math.min(margin, size / 2)
+    return Math.min(Math.max(v, start + m), start + size - m)
+  }
+  if (edge === 'left' || edge === 'right')
+    return {
+      x: edge === 'left' ? box.x : box.x + box.width,
+      y: clamp(p.y, box.y, box.height),
+    }
+  return {
+    x: clamp(p.x, box.x, box.width),
+    y: edge === 'bottom' ? box.y : box.y + box.height,
+  }
+}
+
+/**
  * The patch that resizes a free text's text box to `to`. A callout's tip and bend stay where
  * they are and its last point moves with the box edge it sits on (`onMovedEdge`).
  */
@@ -300,10 +343,23 @@ export function resizedBox(a: FreeTextAnnotation, to: Rect): Partial<FreeTextAnn
   )
 }
 
-/** The patch that moves a callout's tip to `to`, leaving its text box where it is. */
+/**
+ * The patch that moves a callout's tip to `to`, leaving its text box where it is. A callout
+ * without a bend (every bubble) moves its edge point to the side the tip now lies furthest
+ * beyond, at its own position along that side and clear of the corners, so the line or wedge
+ * never crosses the box; on the same side it stays put. A bend and its edge point stay.
+ */
 export function movedTip(
   a: FreeTextAnnotation & { callout: readonly Point[] },
   to: Point
 ): Partial<FreeTextAnnotation> {
-  return withBox(a, freeTextBox(a), [to, ...a.callout.slice(1)])
+  const box = freeTextBox(a)
+  if (a.callout.length !== 2) return withBox(a, box, [to, ...a.callout.slice(1)])
+  const edge = a.callout[1]!
+  const side = edgeBeyond(to, box)
+  const margin = (a.cornerRadius ?? 0) + WEDGE_HALF
+  return withBox(a, box, [
+    to,
+    nearestEdge(edge, box) === side ? edge : ontoEdge(edge, box, side, margin),
+  ])
 }

@@ -349,6 +349,36 @@
     outline-style: dotted;
   }
 
+  /* A free text inset by a fringe outlines its text box, where its corner handles sit, not
+     the whole rect with its callout. */
+  :where(.ink-annotation[data-framed]) {
+    outline-color: transparent;
+  }
+
+  :where(.ink-selection-frame) {
+    border-radius: 2px;
+    outline: 1px solid transparent;
+    outline-offset: 1px;
+  }
+
+  :where(.ink-annotation[data-framed][data-state='hover'] > .ink-selection-frame) {
+    outline-color: color-mix(in srgb, var(--ink-ring) 50%, transparent);
+  }
+
+  :where(
+    .ink-annotation[data-framed][data-state='selected'] > .ink-selection-frame,
+    .ink-annotation[data-framed]:focus-visible > .ink-selection-frame
+  ) {
+    outline: 2px solid var(--ink-ring);
+  }
+
+  :where(
+    .ink-annotation[data-framed][data-locked][data-state='selected']
+      > .ink-selection-frame
+  ) {
+    outline-style: dotted;
+  }
+
   :where(.ink-annotation[data-origin='suggested'] .ink-annotation-shape > *) {
     stroke-dasharray: 4 3;
   }

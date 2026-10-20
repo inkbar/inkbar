@@ -3,7 +3,11 @@
 // draft is `position:absolute; pointer-events:none`, a box over the shape's bounds holding an
 // SVG preview: geometry only, the look comes from the theme
 // (`.ink-draft[data-ink-draft='shape']`).
-import { freeTextBox, withCalloutBounds } from '../../model/annotations/callout'
+import {
+  calloutStroke,
+  freeTextBox,
+  withCalloutBounds,
+} from '../../model/annotations/callout'
 import { isBubble } from '../../model/annotations/edit'
 import {
   constrain,
@@ -23,7 +27,11 @@ import {
   type ToolContext,
 } from './controller'
 
-import type { Annotation, AnnotationInput } from '../../model/annotations/types'
+import type {
+  Annotation,
+  AnnotationInput,
+  FreeTextAnnotation,
+} from '../../model/annotations/types'
 import type { Point } from '../../model/geometry'
 
 export {
@@ -78,20 +86,16 @@ export function shapeTool(): Tool<ShapeOptions> {
       contents: '',
     }
     const text = c.toolStyle.resolve('text', blank)
-    const width = shape.width ?? input.width ?? 0
     const out = {
       ...shape,
-      width,
+      width: shape.width ?? input.width,
       defaultStyle: { ...text.defaultStyle, ...input.defaultStyle },
     }
     if (!input.callout || !input.rect) return out
-    // The bounds were fit to the bubble's default width: refit them to the group's, stroked as
-    // `calloutStroke` strokes it (1 pt with no border).
+    // The bounds were fit to the bubble's default width: refit them to the group's.
     const box = freeTextBox({ rect: input.rect, fringe: input.fringe })
-    return {
-      ...out,
-      ...withCalloutBounds(box, input.callout, width > 0 ? width : 1, input.head),
-    }
+    const { width } = calloutStroke(out as FreeTextAnnotation)
+    return { ...out, ...withCalloutBounds(box, input.callout, width, input.head) }
   }
 
   /** Stops waiting for a bubble the host has not applied yet. */
