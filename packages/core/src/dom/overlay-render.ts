@@ -1,5 +1,5 @@
 import type { CssRect, PageTransform } from './transform'
-import type { Annotation } from '../model/annotations/types'
+import type { Annotation, LineEnding } from '../model/annotations/types'
 import type { Point, Quad } from '../model/geometry'
 
 const SVG = 'http://www.w3.org/2000/svg'
@@ -78,7 +78,9 @@ export function annotationBox(a: Annotation, t: PageTransform): CssRect {
           : undefined
   if (!points || points.length === 0 || !('width' in a)) return t.toCssRect(a.rect)
   const box = t.toCssRect(pointBounds(points))
-  const pad = Math.max(t.toCssLength(a.width), 1) / 2
+  const stroke = Math.max(t.toCssLength(a.width), 1)
+  // Endings reach up to ENDING_SCALE strokes either side of their end.
+  const pad = hasEndings(a) ? ENDING_SCALE * stroke : stroke / 2
   return {
     left: box.left - pad,
     top: box.top - pad,
@@ -86,6 +88,75 @@ export function annotationBox(a: Annotation, t: PageTransform): CssRect {
     height: box.height + pad * 2,
   }
 }
+
+/** An ending's length, and its full width, as a multiple of the stroke width. */
+const ENDING_SCALE = 3
+
+function endingKinds(a: Annotation): { head: LineEnding; tail: LineEnding } | undefined {
+  return a.type === 'line' || a.type === 'polyline'
+    ? { head: a.head ?? 'none', tail: a.tail ?? 'none' }
+    : undefined
+}
+
+function hasEndings(a: Annotation): boolean {
+  const e = endingKinds(a)
+  return e !== undefined && (e.head !== 'none' || e.tail !== 'none')
+}
+
+const fmt = (n: number): string => String(Math.round(n * 1000) / 1000 + 0)
+
+/**
+ * SVG path data for a line ending at `at`, in the caller's coordinates (CSS px). `from` is the
+ * other end of the segment the ending sits on, so the ending points from `from` towards `at`.
+ * Sized from the stroke `width` (at least 1): arrows are 3 strokes long, the rest 3 across.
+ * Returns an empty string for `none` or a zero-length segment.
+ */
+export function lineEndingPath(
+  kind: LineEnding,
+  at: Point,
+  from: Point,
+  width: number
+): string {
+  const len = Math.hypot(at.x - from.x, at.y - from.y)
+  if (kind === 'none' || len === 0) return ''
+  const size = ENDING_SCALE * Math.max(width, 1)
+  const half = size / 2
+  const dx = (at.x - from.x) / len
+  const dy = (at.y - from.y) / len
+  // Unit normal, 90 degrees clockwise on screen.
+  const nx = -dy
+  const ny = dx
+  const pt = (along: number, across: number, o: Point = at): string =>
+    `${fmt(o.x + dx * along + nx * across)} ${fmt(o.y + dy * along + ny * across)}`
+  switch (kind) {
+    case 'openArrow':
+      return `M${pt(-size, -half)}L${pt(0, 0)}L${pt(-size, half)}`
+    case 'closedArrow':
+      return `M${pt(-size, -half)}L${pt(0, 0)}L${pt(-size, half)}Z`
+    case 'square':
+      return `M${pt(-half, -half)}L${pt(half, -half)}L${pt(half, half)}L${pt(-half, half)}Z`
+    case 'diamond':
+      return `M${pt(-half, 0)}L${pt(0, -half)}L${pt(half, 0)}L${pt(0, half)}Z`
+    case 'circle':
+      return `M${pt(half, 0)}A${fmt(half)} ${fmt(half)} 0 1 0 ${pt(-half, 0)}A${fmt(half)} ${fmt(half)} 0 1 0 ${pt(half, 0)}Z`
+    case 'butt':
+      return `M${pt(0, -half)}L${pt(0, half)}`
+    case 'slash': {
+      // Tilted 30 degrees from the butt, as PDF draws it.
+      const s = Math.sin(Math.PI / 6) * half
+      const c = Math.cos(Math.PI / 6) * half
+      return `M${pt(-s, -c)}L${pt(s, c)}`
+    }
+  }
+}
+
+/** Endings that are solid shapes: filled with the stroke colour. */
+const FILLED_ENDINGS: ReadonlySet<LineEnding> = new Set([
+  'closedArrow',
+  'square',
+  'circle',
+  'diamond',
+])
 
 function pointBounds(points: readonly Point[]): {
   x: number
@@ -227,6 +298,7 @@ export function renderAnnotationContent(
       shape.setAttribute('fill', a.interiorColor ?? 'none')
       shape.setAttribute('stroke', a.color)
       shape.setAttribute('stroke-width', String(sw))
+      dash(shape, a.dashes, t)
       svg.append(shape)
       svg.setAttribute('opacity', String(a.opacity))
       break
@@ -235,15 +307,40 @@ export function renderAnnotationContent(
     case 'polyline':
     case 'polygon': {
       const pts = a.type === 'line' ? [a.start, a.end] : a.vertices
-      svg.append(
-        node(a.type === 'polygon' ? 'polygon' : 'polyline', {
-          points: pts.map(local).join(' '),
-          fill: a.type === 'polygon' ? (a.interiorColor ?? 'none') : 'none',
-          stroke: a.color,
-          'stroke-width': t.toCssLength(a.width),
-          'stroke-linejoin': 'round',
-        })
-      )
+      const stroked = node(a.type === 'polygon' ? 'polygon' : 'polyline', {
+        points: pts.map(local).join(' '),
+        fill: a.type === 'polygon' ? (a.interiorColor ?? 'none') : 'none',
+        stroke: a.color,
+        'stroke-width': t.toCssLength(a.width),
+        'stroke-linejoin': 'round',
+      })
+      dash(stroked, a.dashes, t)
+      svg.append(stroked)
+      const ends = endingKinds(a)
+      if (ends && pts.length >= 2) {
+        const first = t.toCss(pts[0]!)
+        const second = t.toCss(pts[1]!)
+        const last = t.toCss(pts[pts.length - 1]!)
+        const prev = t.toCss(pts[pts.length - 2]!)
+        const at = (p: Point): Point => ({ x: p.x - box.left, y: p.y - box.top })
+        for (const [name, kind, tip, other] of [
+          ['head', ends.head, first, second],
+          ['tail', ends.tail, last, prev],
+        ] as const) {
+          const d = lineEndingPath(kind, at(tip), at(other), t.toCssLength(a.width))
+          if (!d) continue
+          const ending = node('path', {
+            d,
+            fill: FILLED_ENDINGS.has(kind) ? a.color : 'none',
+            stroke: a.color,
+            'stroke-width': t.toCssLength(a.width),
+            'stroke-linejoin': 'round',
+            'stroke-linecap': 'round',
+          })
+          ending.setAttribute('data-ending', name)
+          svg.append(ending)
+        }
+      }
       svg.setAttribute('opacity', String(a.opacity))
       break
     }
@@ -259,6 +356,7 @@ export function renderAnnotationContent(
             'stroke-linejoin': 'round',
           })
         )
+        dash(svg.lastElementChild as SVGElement, a.dashes, t)
       }
       svg.setAttribute('opacity', String(a.opacity))
       break
@@ -266,6 +364,16 @@ export function renderAnnotationContent(
   // Hits follow the painted shape, so a press beside it reaches the text layer underneath.
   for (const shape of svg.children) shape.setAttribute('pointer-events', 'visiblePainted')
   el.append(svg)
+}
+
+/** Sets `stroke-dasharray` from a dash pattern in points, scaled to CSS px. */
+function dash(
+  shape: Element,
+  dashes: readonly number[] | undefined,
+  t: PageTransform
+): void {
+  if (!dashes || dashes.length === 0) return
+  shape.setAttribute('stroke-dasharray', dashes.map((d) => t.toCssLength(d)).join(' '))
 }
 
 /**

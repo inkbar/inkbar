@@ -5,6 +5,7 @@ import { render } from 'vitest-browser-svelte'
 
 import { guardConsole } from './console-guard.js'
 import { attr, cssOf, focused, q, scrollTopOf, sleep } from './dom.js'
+import LineStyleHarness from './harness/LineStyleHarness.svelte'
 import ToolbarHarness from './harness/ToolbarHarness.svelte'
 import ZoomClickHarness from './harness/ZoomClickHarness.svelte'
 
@@ -57,6 +58,7 @@ describe('toolbar', () => {
       'Highlight',
       'Mark for redaction',
       'Add note',
+      'Line style',
       'Undo',
       'Redo',
     ])
@@ -273,5 +275,103 @@ describe('toolbar', () => {
     await redo.click()
     await expect.element(probe).toHaveAttribute('data-annotations', '1')
     await expect.element(redo).toBeDisabled()
+  })
+
+  describe('line style menu', () => {
+    const trigger = () => browserPage.getByRole('button', { name: 'Line style' })
+    const menu = () => browserPage.getByRole('menu', { name: 'Line style' })
+    const item = (name: string) =>
+      menu().getByRole('menuitemradio', { name, exact: true })
+    const probe = (name: string) => attr('[data-testid="probe"]', name)
+    const click = (id: string) => browserPage.getByTestId(id).click()
+
+    it('line style menu sets width on the selected line', async () => {
+      await render(LineStyleHarness, { src: fixtureUrl('text-simple'), assets })
+      await q('.ink-page canvas')
+      await expect.element(trigger()).toBeDisabled()
+      await click('add-line-1')
+      await click('select-all')
+      await expect.element(trigger()).toBeEnabled()
+      await trigger().click()
+      await expect.element(item('1 pt')).toHaveAttribute('aria-checked', 'true')
+      await item('4 pt').click()
+      await expect.poll(probe('data-widths')).toBe('4')
+      await expect.element(item('4 pt')).toHaveAttribute('aria-checked', 'true')
+      await item('Dashed').click()
+      await expect.poll(probe('data-dashes')).toBe('3/3')
+      await item('Arrowhead at end').click()
+      await expect.poll(probe('data-tails')).toBe('openArrow')
+      await item('Solid').click()
+      await expect.poll(probe('data-dashes')).toBe('-')
+    })
+
+    it('arrowheads section is disabled for a selected square', async () => {
+      await render(LineStyleHarness, { src: fixtureUrl('text-simple'), assets })
+      await q('.ink-page canvas')
+      await click('add-square')
+      await click('select-all')
+      await trigger().click()
+      const arrows = menu().getByRole('group', { name: 'Arrowheads' })
+      await expect.element(arrows).toHaveAttribute('aria-disabled', 'true')
+      await expect.element(item('Arrowhead at end')).toBeDisabled()
+      await expect.element(item('2 pt')).toBeEnabled()
+      await expect.element(item('Dashed')).toBeEnabled()
+    })
+
+    it('shows mixed for two lines with different widths', async () => {
+      await render(LineStyleHarness, { src: fixtureUrl('text-simple'), assets })
+      await q('.ink-page canvas')
+      await click('add-line-1')
+      await click('add-line-3')
+      await click('select-all')
+      await expect.element(trigger()).toHaveAttribute('data-mixed')
+      await trigger().click()
+      const weights = menu().getByRole('group', { name: 'Weight' }).element()
+      expect(weights.querySelectorAll('[aria-checked="true"]')).toHaveLength(0)
+      expect(weights.querySelectorAll('.ink-select-indicator')).toHaveLength(0)
+      // The lines agree on pattern and endings, so those sections still show their choice.
+      await expect.element(item('Solid')).toHaveAttribute('aria-checked', 'true')
+      await item('2 pt').click()
+      await expect.poll(attr('[data-ink-line-style-menu]', 'data-mixed')).toBeNull()
+    })
+
+    it('arrow keys move through the items, and Escape closes and returns focus', async () => {
+      await render(LineStyleHarness, { src: fixtureUrl('text-simple'), assets })
+      await q('.ink-page canvas')
+      await click('add-line-3')
+      await click('select-all')
+      ;(trigger().element() as HTMLElement).focus()
+      await userEvent.keyboard('{Enter}')
+      await expect.poll(focused).toBe(item('3 pt').element())
+      await userEvent.keyboard('{ArrowDown}')
+      await expect.poll(focused).toBe(item('4 pt').element())
+      await userEvent.keyboard('{Home}')
+      await expect.poll(focused).toBe(item('0.5 pt').element())
+      await userEvent.keyboard('{Escape}')
+      await expect.poll(() => menu().elements().length).toBe(0)
+      await expect.poll(focused).toBe(trigger().element())
+    })
+
+    it('ArrowDown on the trigger opens the menu on the first item', async () => {
+      await render(LineStyleHarness, { src: fixtureUrl('text-simple'), assets })
+      await q('.ink-page canvas')
+      await click('add-line-3')
+      await click('select-all')
+      ;(trigger().element() as HTMLElement).focus()
+      await userEvent.keyboard('{ArrowDown}')
+      await expect.poll(focused).toBe(item('0.5 pt').element())
+    })
+
+    it('closes when the selection clears and the control disables', async () => {
+      await render(LineStyleHarness, { src: fixtureUrl('text-simple'), assets })
+      await q('.ink-page canvas')
+      await click('add-line-3')
+      await click('select-all')
+      await trigger().click()
+      await expect.element(menu()).toBeVisible()
+      ;(document.querySelector('[data-testid="select-none"]') as HTMLElement).click()
+      await expect.poll(() => menu().elements().length).toBe(0)
+      await expect.element(trigger()).toBeDisabled()
+    })
   })
 })

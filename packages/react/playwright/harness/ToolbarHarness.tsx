@@ -1,3 +1,4 @@
+import { InkLineStyleMenu } from '../../src/components/InkLineStyleMenu'
 import { InkNextPage } from '../../src/components/InkNextPage'
 import { InkPageCount } from '../../src/components/InkPageCount'
 import { InkPageInput } from '../../src/components/InkPageInput'
@@ -36,6 +37,7 @@ export function ToolbarHarness({
         <InkToolButton tool="redact-area" />
         <InkToolButton tool="note" />
         <InkToolbarSeparator />
+        <InkLineStyleMenu />
         <InkUndo />
         <InkRedo />
       </InkToolbar>

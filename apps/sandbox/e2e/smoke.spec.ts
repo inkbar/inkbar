@@ -237,6 +237,42 @@ for (const framework of FRAMEWORKS) {
       await expect(page.locator('.ink-annotation[data-state="selected"]')).toHaveCount(0)
     })
 
+    test('line style changes a drawn rectangle', async ({ page }) => {
+      await page.goto(`${framework}/`)
+      await waitForFirstPage(page)
+      // Until the shape tool exists, the rectangle is added through the document.
+      const id = await page.evaluate(() => {
+        const doc = (
+          window as unknown as {
+            __inkbarSandboxDocument: {
+              annotations: {
+                add(input: object): { id: string }
+                select(ids: string[]): void
+              }
+            }
+          }
+        ).__inkbarSandboxDocument
+        const square = doc.annotations.add({
+          type: 'square',
+          page: 0,
+          rect: { x: 72, y: 100, width: 120, height: 60 },
+          width: 1,
+        })
+        doc.annotations.select([square.id])
+        return square.id
+      })
+      const rect = page.locator(`[data-annotation="${id}"] rect`)
+      // The page is fitted to the window: the stroke is the width in points times the scale.
+      const stroke = async () => Number(await rect.getAttribute('stroke-width'))
+      const thin = await stroke()
+      await expect(rect).not.toHaveAttribute('stroke-dasharray', /.+/)
+      await page.getByRole('button', { name: 'Line style' }).click()
+      await page.getByRole('menuitemradio', { name: '6 pt', exact: true }).click()
+      await expect.poll(async () => (await stroke()) / thin).toBeCloseTo(6, 3)
+      await page.getByRole('menuitemradio', { name: 'Dashed', exact: true }).click()
+      await expect(rect).toHaveAttribute('stroke-dasharray', /^[\d.]+ [\d.]+$/)
+    })
+
     test('has no horizontal scroll at phone width', async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 844 })
       await page.goto(`${framework}/`)

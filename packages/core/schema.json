@@ -38,6 +38,8 @@
               "format": "date-time",
               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
             },
+            "subject": { "type": "string" },
+            "intent": { "type": "string" },
             "custom": {
               "type": "object",
               "propertyNames": { "type": "string" },
@@ -139,6 +141,8 @@
               "format": "date-time",
               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
             },
+            "subject": { "type": "string" },
+            "intent": { "type": "string" },
             "custom": {
               "type": "object",
               "propertyNames": { "type": "string" },
@@ -195,6 +199,8 @@
               "format": "date-time",
               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
             },
+            "subject": { "type": "string" },
+            "intent": { "type": "string" },
             "custom": {
               "type": "object",
               "propertyNames": { "type": "string" },
@@ -267,6 +273,8 @@
               "format": "date-time",
               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
             },
+            "subject": { "type": "string" },
+            "intent": { "type": "string" },
             "custom": {
               "type": "object",
               "propertyNames": { "type": "string" },
@@ -274,6 +282,11 @@
             },
             "type": { "type": "string", "enum": ["square", "circle"] },
             "width": { "default": 1, "type": "number", "minimum": 0 },
+            "dashes": {
+              "minItems": 1,
+              "type": "array",
+              "items": { "type": "number", "minimum": 0 }
+            },
             "interiorColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
           },
           "required": [
@@ -320,6 +333,8 @@
               "format": "date-time",
               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
             },
+            "subject": { "type": "string" },
+            "intent": { "type": "string" },
             "custom": {
               "type": "object",
               "propertyNames": { "type": "string" },
@@ -339,6 +354,11 @@
               "additionalProperties": false
             },
             "width": { "default": 1, "type": "number", "minimum": 0 },
+            "dashes": {
+              "minItems": 1,
+              "type": "array",
+              "items": { "type": "number", "minimum": 0 }
+            },
             "head": {
               "type": "string",
               "enum": [
@@ -412,6 +432,8 @@
               "format": "date-time",
               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
             },
+            "subject": { "type": "string" },
+            "intent": { "type": "string" },
             "custom": {
               "type": "object",
               "propertyNames": { "type": "string" },
@@ -429,6 +451,37 @@
               }
             },
             "width": { "default": 1, "type": "number", "minimum": 0 },
+            "dashes": {
+              "minItems": 1,
+              "type": "array",
+              "items": { "type": "number", "minimum": 0 }
+            },
+            "head": {
+              "type": "string",
+              "enum": [
+                "none",
+                "openArrow",
+                "closedArrow",
+                "square",
+                "circle",
+                "diamond",
+                "butt",
+                "slash"
+              ]
+            },
+            "tail": {
+              "type": "string",
+              "enum": [
+                "none",
+                "openArrow",
+                "closedArrow",
+                "square",
+                "circle",
+                "diamond",
+                "butt",
+                "slash"
+              ]
+            },
             "interiorColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
           },
           "required": [
@@ -476,6 +529,8 @@
               "format": "date-time",
               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
             },
+            "subject": { "type": "string" },
+            "intent": { "type": "string" },
             "custom": {
               "type": "object",
               "propertyNames": { "type": "string" },
@@ -496,7 +551,12 @@
                 }
               }
             },
-            "width": { "default": 2, "type": "number", "minimum": 0 }
+            "width": { "default": 2, "type": "number", "minimum": 0 },
+            "dashes": {
+              "minItems": 1,
+              "type": "array",
+              "items": { "type": "number", "minimum": 0 }
+            }
           },
           "required": [
             "id",
@@ -543,6 +603,8 @@
               "format": "date-time",
               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
             },
+            "subject": { "type": "string" },
+            "intent": { "type": "string" },
             "custom": {
               "type": "object",
               "propertyNames": { "type": "string" },

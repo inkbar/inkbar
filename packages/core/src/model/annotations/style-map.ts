@@ -10,18 +10,44 @@ type StyleKey = keyof StyleProps
 const FIELDS: Readonly<
   Record<AnnotationType, Readonly<Partial<Record<StyleKey, string>>>>
 > = {
-  square: { border: 'color', fill: 'interiorColor', opacity: 'opacity', width: 'width' },
-  circle: { border: 'color', fill: 'interiorColor', opacity: 'opacity', width: 'width' },
-  polygon: { border: 'color', fill: 'interiorColor', opacity: 'opacity', width: 'width' },
-  polyline: { border: 'color', opacity: 'opacity', width: 'width' },
+  square: {
+    border: 'color',
+    fill: 'interiorColor',
+    opacity: 'opacity',
+    width: 'width',
+    dashes: 'dashes',
+  },
+  circle: {
+    border: 'color',
+    fill: 'interiorColor',
+    opacity: 'opacity',
+    width: 'width',
+    dashes: 'dashes',
+  },
+  polygon: {
+    border: 'color',
+    fill: 'interiorColor',
+    opacity: 'opacity',
+    width: 'width',
+    dashes: 'dashes',
+  },
+  polyline: {
+    border: 'color',
+    opacity: 'opacity',
+    width: 'width',
+    dashes: 'dashes',
+    head: 'head',
+    tail: 'tail',
+  },
   line: {
     border: 'color',
     opacity: 'opacity',
     width: 'width',
+    dashes: 'dashes',
     head: 'head',
     tail: 'tail',
   },
-  ink: { border: 'color', opacity: 'opacity', width: 'width' },
+  ink: { border: 'color', opacity: 'opacity', width: 'width', dashes: 'dashes' },
   highlight: { border: 'color', opacity: 'opacity' },
   underline: { border: 'color', opacity: 'opacity' },
   strikeout: { border: 'color', opacity: 'opacity' },
@@ -101,7 +127,8 @@ export function fromAnnotation(a: Annotation): StyleProps {
     const field = fields[key] as string
     const value = record[field]
     if (value !== undefined) out[key] = value
-    else if (key === 'fill') out[key] = null
+    else if (key === 'fill' || key === 'dashes') out[key] = null
+    else if (key === 'head' || key === 'tail') out[key] = 'none'
   }
   return out
 }

@@ -601,6 +601,58 @@ describe('createOverlay', () => {
     expect(onActivate).toHaveBeenCalledWith(line.id)
   })
 
+  it('dashed square renders stroke-dasharray in css px', () => {
+    const { store, overlay } = setup(2)
+    const sq = store.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 50, y: 500, width: 100, height: 60 },
+      dashes: [3, 3],
+    })
+    const rect = overlay.elementFor(sq.id)!.querySelector('rect')!
+    expect(rect.getAttribute('stroke-dasharray')).toBe('6 6')
+    store.update(sq.id, { dashes: undefined })
+    expect(
+      overlay.elementFor(sq.id)!.querySelector('rect')!.hasAttribute('stroke-dasharray')
+    ).toBe(false)
+  })
+
+  it('line tail openArrow renders an arrowhead path', () => {
+    const { store, overlay } = setup()
+    const line = store.add({
+      type: 'line',
+      page: 0,
+      start: { x: 100, y: 700 },
+      end: { x: 200, y: 700 },
+      width: 2,
+      tail: 'openArrow',
+    })
+    const el = overlay.elementFor(line.id)!
+    const heads = el.querySelectorAll('path[data-ending]')
+    expect(heads).toHaveLength(1)
+    expect((heads[0] as SVGElement).dataset.ending).toBe('tail')
+    expect(heads[0]!.getAttribute('d')).toMatch(/^M/)
+    // Padded for the arrowhead: wider than the line's own 100px.
+    expect(parseFloat(el.style.width)).toBeGreaterThan(100)
+  })
+
+  it('polyline head renders', () => {
+    const { store, overlay } = setup()
+    const pl = store.add({
+      type: 'polyline',
+      page: 0,
+      vertices: [
+        { x: 100, y: 700 },
+        { x: 150, y: 650 },
+        { x: 200, y: 700 },
+      ],
+      head: 'closedArrow',
+    })
+    const el = overlay.elementFor(pl.id)!
+    expect(el.querySelectorAll('path[data-ending="head"]')).toHaveLength(1)
+    expect(el.querySelectorAll('path[data-ending="tail"]')).toHaveLength(0)
+  })
+
   it('pads even a zero-width stroke to a 1px box', () => {
     const { store, overlay } = setup()
     const v = store.add({

@@ -5,6 +5,7 @@
    * button your own icon to replace the one it shows.
    */
   import {
+    InkLineStyleMenu,
     InkNextPage,
     InkNotePopover,
     InkPageCount,
@@ -44,6 +45,9 @@
       <InkToolButton tool="note" />
     </div>
     <InkToolbarSeparator />
+    <div class="demo-group" role="group" aria-label="Style">
+      <InkLineStyleMenu />
+    </div>
     <InkUndo />
     <InkRedo />
     <Actions />

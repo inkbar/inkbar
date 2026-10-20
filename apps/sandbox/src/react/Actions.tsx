@@ -1,7 +1,8 @@
 import { isInkError } from '@inkbar/core'
 import { useAnnotations, useDocument, useHistory } from '@inkbar/react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
+import { exposeDocument } from '../shared/e2e-hook'
 import { suggestionCount, suggestRedactions } from '../shared/suggest'
 
 /** Hooks only work inside InkRoot, so these controls are their own component. */
@@ -11,6 +12,11 @@ export function Actions() {
   const { batch } = useHistory()
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState('')
+
+  useEffect(() => {
+    exposeDocument(document)
+    return () => exposeDocument(null)
+  }, [document])
 
   async function suggest() {
     if (!document) return

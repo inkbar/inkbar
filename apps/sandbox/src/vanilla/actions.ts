@@ -1,6 +1,7 @@
 /* Suggest redactions: a custom control, added to the demo's toolbar. */
 import { isInkError, type InkDocument, type Readable } from '@inkbar/core'
 
+import { exposeDocument } from '../shared/e2e-hook'
 import { suggestionCount, suggestRedactions } from '../shared/suggest'
 
 function button(label: string): HTMLButtonElement {
@@ -26,6 +27,7 @@ export function addActions(
   toolbar.append(group)
 
   const bind = (doc: InkDocument | null): void => {
+    exposeDocument(doc)
     result.textContent = ''
     suggest.disabled = !doc
     if (!doc) {

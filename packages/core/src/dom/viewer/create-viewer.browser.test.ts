@@ -19,6 +19,7 @@ import {
   createZoomSelect,
 } from './controls'
 import { createViewer, type CreateViewerOptions, type Viewer } from './create-viewer'
+import { createLineStyleMenu } from './style-menu'
 
 import type { InkDocument } from '../../model/document'
 import type { ViewerEngine } from '../viewer-engine'
@@ -498,6 +499,143 @@ describe('createViewer', () => {
       expect(s.querySelector('[data-ink-page-count]')!.textContent).toBe('')
       await ready(viewer)
       expect(s.querySelector('[data-ink-page-count]')!.textContent).toBe('of 3')
+    })
+  })
+
+  describe('line style menu', () => {
+    const lineAt = (y: number, width: number) =>
+      ({
+        type: 'line',
+        page: 0,
+        start: { x: 50, y },
+        end: { x: 150, y },
+        width,
+      }) as const
+    const menu = (): HTMLElement | null =>
+      document.querySelector<HTMLElement>('[data-ink-menu="line-style"][role="menu"]')
+    const item = (name: string): HTMLButtonElement =>
+      [...menu()!.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]')].find(
+        (b) => b.textContent?.trim() === name
+      )!
+
+    it('line style menu sets width on the selected line', async () => {
+      const { viewer } = make('text-simple')
+      const trigger = createLineStyleMenu(viewer)
+      viewer.element.prepend(trigger)
+      expect(trigger.getAttribute('aria-label')).toBe('Line style')
+      expect(trigger.disabled).toBe(true)
+      const { doc } = await ready(viewer)
+      const line = doc.annotations.add(lineAt(700, 1))
+      expect(trigger.disabled).toBe(true)
+      doc.annotations.select([line.id])
+      expect(trigger.disabled).toBe(false)
+      trigger.click()
+      expect(trigger.getAttribute('aria-expanded')).toBe('true')
+      expect(item('1 pt').getAttribute('aria-checked')).toBe('true')
+      item('4 pt').click()
+      expect(doc.annotations.get(line.id)).toMatchObject({ width: 4 })
+      expect(item('4 pt').getAttribute('aria-checked')).toBe('true')
+      item('Dashed').click()
+      item('Arrowhead at end').click()
+      expect(doc.annotations.get(line.id)).toMatchObject({
+        dashes: [3, 3],
+        tail: 'openArrow',
+        head: 'none',
+      })
+      item('Solid').click()
+      expect(doc.annotations.get(line.id)).not.toHaveProperty('dashes', [3, 3])
+    })
+
+    it('arrowheads section is disabled for a selected square', async () => {
+      const { viewer } = make('text-simple')
+      const trigger = createLineStyleMenu(viewer)
+      viewer.element.prepend(trigger)
+      const { doc } = await ready(viewer)
+      const sq = doc.annotations.add({
+        type: 'square',
+        page: 0,
+        rect: { x: 50, y: 500, width: 100, height: 60 },
+      })
+      doc.annotations.select([sq.id])
+      trigger.click()
+      const arrows = menu()!.querySelector('[aria-label="Arrowheads"]')!
+      expect(arrows.getAttribute('aria-disabled')).toBe('true')
+      expect(item('Arrowhead at end').disabled).toBe(true)
+      expect(item('2 pt').disabled).toBe(false)
+      expect(item('Dashed').disabled).toBe(false)
+    })
+
+    it('shows mixed for two lines with different widths', async () => {
+      const { viewer } = make('text-simple')
+      const trigger = createLineStyleMenu(viewer)
+      viewer.element.prepend(trigger)
+      const { doc } = await ready(viewer)
+      const a = doc.annotations.add(lineAt(700, 1))
+      const b = doc.annotations.add(lineAt(650, 3))
+      doc.annotations.select([a.id, b.id])
+      expect(trigger.hasAttribute('data-mixed')).toBe(true)
+      trigger.click()
+      const weights = menu()!.querySelector('[aria-label="Weight"]')!
+      expect(weights.querySelectorAll('[aria-checked="true"]')).toHaveLength(0)
+      expect(weights.querySelectorAll('.ink-select-indicator')).toHaveLength(0)
+      item('2 pt').click()
+      expect(trigger.hasAttribute('data-mixed')).toBe(false)
+    })
+
+    it('ArrowDown on the trigger opens the menu on the first enabled item', async () => {
+      const { viewer } = make('text-simple')
+      const trigger = createLineStyleMenu(viewer)
+      viewer.element.prepend(trigger)
+      const { doc } = await ready(viewer)
+      doc.annotations.select([doc.annotations.add(lineAt(700, 3)).id])
+      trigger.focus()
+      key(trigger, 'ArrowDown')
+      expect(menu()).not.toBeNull()
+      expect(focused()).toBe(item('0.5 pt'))
+    })
+
+    it('closes when the selection clears and the control disables', async () => {
+      const { viewer } = make('text-simple')
+      const trigger = createLineStyleMenu(viewer)
+      viewer.element.prepend(trigger)
+      const { doc } = await ready(viewer)
+      doc.annotations.select([doc.annotations.add(lineAt(700, 3)).id])
+      trigger.click()
+      expect(menu()).not.toBeNull()
+      doc.annotations.select([])
+      expect(trigger.disabled).toBe(true)
+      expect(menu()).toBeNull()
+      expect(trigger.getAttribute('aria-expanded')).toBe('false')
+    })
+
+    it('dismisses on an outside press', async () => {
+      const { viewer } = make('text-simple')
+      const trigger = createLineStyleMenu(viewer)
+      viewer.element.prepend(trigger)
+      const { doc } = await ready(viewer)
+      doc.annotations.select([doc.annotations.add(lineAt(700, 3)).id])
+      trigger.click()
+      document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+      expect(menu()).toBeNull()
+    })
+
+    it('moves with the arrow keys, and Escape closes and returns focus', async () => {
+      const { viewer } = make('text-simple')
+      const trigger = createLineStyleMenu(viewer)
+      viewer.element.prepend(trigger)
+      const { doc } = await ready(viewer)
+      doc.annotations.select([doc.annotations.add(lineAt(700, 3)).id])
+      trigger.focus()
+      trigger.click()
+      expect(focused()).toBe(item('3 pt'))
+      key(focused()!, 'ArrowDown')
+      expect(focused()).toBe(item('4 pt'))
+      key(focused()!, 'Home')
+      expect(focused()).toBe(item('0.5 pt'))
+      key(focused()!, 'Escape')
+      expect(menu()).toBeNull()
+      expect(focused()).toBe(trigger)
+      expect(trigger.getAttribute('aria-expanded')).toBe('false')
     })
   })
 
