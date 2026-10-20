@@ -1022,6 +1022,23 @@ test.describe('text style menu', () => {
     expect((await style(page)).fontSize).toBe(2)
   })
 
+  // As the vanilla menu does, where the size field's blur commits it.
+  test('closing the menu commits a typed size, so it reopens on the size in use', async ({
+    mount,
+    page,
+  }) => {
+    await mountHarness(mount)
+    await page.getByTestId('add-box').click()
+    await page.getByTestId('select-all').click()
+    let menu = await open(page)
+    await menu.getByRole('spinbutton', { name: 'Font size' }).fill('30')
+    await page.keyboard.press('Escape')
+    await expect(menu).toBeHidden()
+    expect((await style(page)).fontSize).toBe(30)
+    menu = await open(page)
+    await expect(menu.getByRole('spinbutton', { name: 'Font size' })).toHaveValue('30')
+  })
+
   test('menu disabled with only a square selected and the select tool active', async ({
     mount,
     page,

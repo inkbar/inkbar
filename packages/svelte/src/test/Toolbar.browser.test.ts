@@ -835,6 +835,21 @@ describe('text style menu', () => {
     await expect.poll(() => style().fontSize).toBe(2)
   })
 
+  // As the vanilla menu does, where the size field's blur commits it.
+  it('closing the menu commits a typed size, so it reopens on the size in use', async () => {
+    await start()
+    await selectBox()
+    await trigger().click()
+    await menu().getByRole('spinbutton', { name: 'Font size' }).fill('30')
+    await userEvent.keyboard('{Escape}')
+    await expect.element(menu()).not.toBeInTheDocument()
+    await expect.poll(() => style().fontSize).toBe(30)
+    await trigger().click()
+    await expect
+      .element(menu().getByRole('spinbutton', { name: 'Font size' }))
+      .toHaveValue(30)
+  })
+
   it('menu disabled with only a square selected and the select tool active', async () => {
     await start()
     await click('tool-select')
