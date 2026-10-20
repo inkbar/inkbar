@@ -1296,6 +1296,64 @@ describe('shape tool', () => {
     ).not.toBeNull()
   })
 
+  it('a plain line has no line endings until the line style picks them', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('shape', { kind: 'line' })
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointerup', h.left + 220, h.top + 160)
+    const [l] = session(doc)
+    expect(l?.type === 'line' && [l.head, l.tail]).toEqual(['None', 'None'])
+  })
+
+  it.each([
+    ['line', { head: 'OpenArrow', tail: 'OpenArrow' }],
+    ['line', { head: 'OpenArrow', tail: 'None' }],
+    ['arrow', { head: 'None', tail: 'None' }],
+    ['arrow', { head: 'OpenArrow', tail: 'OpenArrow' }],
+  ] as const)('a new %s takes its ends from the line style %o', async (kind, ends) => {
+    const { doc, container, viewport, tools, toolStyle } = await setup()
+    toolStyle.set(ends, { group: 'shape' })
+    tools.set('shape', { kind })
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointerup', h.left + 220, h.top + 160)
+    const [l] = session(doc)
+    expect(l).toMatchObject({ type: 'line', ...ends })
+  })
+
+  it('star and polygon kinds fill the dragged box', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    const t = viewport.transformFor(0)
+    tools.set('shape', { kind: 'star', points: 5 })
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointerup', h.left + 200, h.top + 160)
+    tools.set('shape', { kind: 'polygon', sides: 6 })
+    pointer(container, 'pointerdown', h.left + 300, h.top + 100)
+    pointer(container, 'pointerup', h.left + 400, h.top + 160)
+    const [star, poly] = session(doc)
+    const drag = (x: number) => {
+      const a = t.fromCss({ x, y: 100 })
+      const b = t.fromCss({ x: x + 100, y: 160 })
+      return {
+        x: Math.min(a.x, b.x),
+        y: Math.min(a.y, b.y),
+        width: Math.abs(b.x - a.x),
+        height: Math.abs(b.y - a.y),
+      }
+    }
+    for (const [shape, box] of [
+      [star, drag(100)],
+      [poly, drag(300)],
+    ] as const) {
+      expect(shape!.rect.x).toBeCloseTo(box.x)
+      expect(shape!.rect.y).toBeCloseTo(box.y)
+      expect(shape!.rect.width).toBeCloseTo(box.width)
+      expect(shape!.rect.height).toBeCloseTo(box.height)
+    }
+  })
+
   it('star and polygon kinds create polygons from the options', async () => {
     const { doc, container, viewport, tools } = await setup()
     const h = viewport.hostFor(0)!.getBoundingClientRect()
