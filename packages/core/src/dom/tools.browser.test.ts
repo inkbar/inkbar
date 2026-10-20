@@ -1968,6 +1968,25 @@ describe('sketch tool', () => {
     expect(ink.inklist[0]).toHaveLength(160)
   })
 
+  // A click, or a click's jitter, is too small to read as a shape: it stays a visible dot of
+  // ink, as with Draw, not an invisible sliver of a line.
+  it('a click or a tiny stroke stays ink', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('sketch')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    stroke(container, h, [[200, 200]])
+    stroke(container, h, [
+      [250, 250],
+      [250.4, 250.2],
+    ])
+    stroke(container, h, [
+      [300, 300],
+      [301, 300],
+      [302, 301],
+    ])
+    expect(session(doc).map((a) => a.type)).toEqual(['ink', 'ink', 'ink'])
+  })
+
   it('undo after recognition restores the ink stroke; a second undo removes it', async () => {
     const { doc, container, viewport, tools } = await setup()
     tools.set('sketch')
