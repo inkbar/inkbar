@@ -1684,7 +1684,8 @@ describe('draw tool', () => {
     const afterUndo = inks(doc)[0]
     expect(afterUndo?.type === 'ink' && afterUndo.inklist).toHaveLength(2)
     doc.history.undo()
-    expect(inks(doc)[0]?.type === 'ink' && inks(doc)[0]).toBeTruthy()
+    const first = inks(doc)[0]
+    expect(first?.type === 'ink' && first.inklist).toHaveLength(1)
     doc.history.undo()
     expect(inks(doc)).toEqual([])
   })
