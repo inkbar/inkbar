@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { nodeAssets } from '../../pdfjs/node-assets'
 import { openDocument } from '../document'
 
+import sample from './__fixtures__/standard-callout.json'
 import { importEmbeddedPage, pdfColorToHex, summarise } from './embedded'
 
 import type { PdfjsAnnotationData } from '../../pdfjs/types'
@@ -322,6 +323,8 @@ describe('embedded import of PDF names and callouts', () => {
       type: 'freetext',
       intent: 'FreeTextCallout',
       contents: 'Standard callout',
+      // The JSON twin of the fixture has the same border.
+      width: sample.annotations[0]!.width,
     })
     doc.destroy()
   })

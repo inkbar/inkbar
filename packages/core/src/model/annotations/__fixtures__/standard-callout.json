@@ -13,7 +13,7 @@
       "modifiedAt": "2026-10-20T09:00:00Z",
       "intent": "FreeTextCallout",
       "contents": "Standard callout",
-      "width": 0,
+      "width": 1,
       "defaultStyle": {
         "fontFamily": "Helvetica",
         "fontSize": 12,

@@ -393,6 +393,8 @@ async function standardCallout() {
       CL: [tip.x, tip.y, bend.x, bend.y, edge.x, edge.y],
       RD: [43.5, 3.5, 3.5, 83.5],
       LE: 'OpenArrow',
+      // PDF's default border width, written out: PDF.js reads a FreeText with no /BS as 0.
+      BS: { W: 1 },
       DA: PDFString.of(`/Helv 12 Tf ${red} rg`),
       Contents: PDFString.of('Standard callout'),
       NM: PDFString.of('callout-1'),
