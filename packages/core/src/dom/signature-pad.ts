@@ -118,10 +118,15 @@ export function createSignaturePad(host: HTMLElement): SignaturePad {
     live.stroke.path.remove()
     live = undefined
   }
+  /** Capture gone mid-stroke: keep what was drawn, as a touch sends no move to end it. */
+  const onLostCapture = (e: PointerEvent): void => {
+    if (live && e.pointerId === live.id) finish()
+  }
   svg.addEventListener('pointerdown', onDown)
   svg.addEventListener('pointermove', onMove)
   svg.addEventListener('pointerup', onUp)
   svg.addEventListener('pointercancel', onCancel)
+  svg.addEventListener('lostpointercapture', onLostCapture)
 
   return {
     element: svg,
@@ -147,6 +152,7 @@ export function createSignaturePad(host: HTMLElement): SignaturePad {
       svg.removeEventListener('pointermove', onMove)
       svg.removeEventListener('pointerup', onUp)
       svg.removeEventListener('pointercancel', onCancel)
+      svg.removeEventListener('lostpointercapture', onLostCapture)
       svg.remove()
     },
   }

@@ -97,6 +97,23 @@ describe('signature pad', () => {
     expect(el.querySelectorAll('path.ink-stroke')).toHaveLength(0)
   })
 
+  // A touch that loses capture sends no hover move to end its stroke.
+  it('ends the stroke when the pad loses pointer capture', () => {
+    const pad = createSignaturePad(padHost())
+    cleanup.push(() => pad.destroy())
+    const el = pad.element
+    pen(el, 'pointerdown', 20, 20, 0.5)
+    pen(el, 'pointermove', 120, 60, 0.5)
+    el.dispatchEvent(new PointerEvent('lostpointercapture', { pointerId: 7 }))
+    expect(pad.empty.get()).toBe(false)
+    // The next press starts a new stroke.
+    pen(el, 'pointerdown', 200, 20, 0.5)
+    pen(el, 'pointermove', 260, 60, 0.5)
+    pen(el, 'pointerup', 260, 60, 0)
+    const t = pad.toTemplate()
+    expect(t?.kind === 'ink' && t.inklist).toHaveLength(2)
+  })
+
   it('a mouse stroke has no pressure', () => {
     const pad = createSignaturePad(padHost())
     cleanup.push(() => pad.destroy())
