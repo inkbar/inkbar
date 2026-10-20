@@ -1,0 +1,35 @@
+packages/core/src/pdf/annotation-fields.ts
+  s_5c84400dcebef8::t_8386d5c0712ce3 111-112
+  s_5c84400dcebef8::t_5abb1e1a398f35 9
+  s_5c84400dcebef8::t_c574106bca960c 72-73
+  s_5c84400dcebef8::t_0faab2ddbe5995 1-8,10-71,74-110,113-149
+fixtures/urls.ts
+  s_5c84400dcebef8::t_e7cf0c1903363b 17-22
+packages/core/src/pdf/annotation-fields.test.ts
+  s_5c84400dcebef8::t_5abb1e1a398f35 4-5,42
+  s_5c84400dcebef8::t_902ac51615840e 1-3,6-11,13-41,43,46-67,72-104,111-116,119-130,135-150,155-174,176-194,198-201,205-218
+  s_5c84400dcebef8::t_8080e7ac9b41e9 12,175
+  s_5c84400dcebef8::t_8386d5c0712ce3 44-45,68-71,105-110,131-134,151-154,195-197,202-204
+  s_5c84400dcebef8::t_29fdb39fd0feb6 117-118
+fixtures/generate.ts
+  s_5c84400dcebef8::t_e7cf0c1903363b 7,11,356,406-410,419-435,658,773-778
+  s_5c84400dcebef8::t_bf3220f313f504 436-584
+fixtures/manifest.json
+  s_5c84400dcebef8::t_bf3220f313f504 100-153
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7015ee26c61e33fcdcc3766f7d678aaad0f3d7e9",
+  "prompts": {},
+  "sessions": {
+    "s_5c84400dcebef8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b6002a2b-f6c7-44ec-8f13-05d214d02483",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
