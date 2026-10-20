@@ -7,6 +7,7 @@ import { guardConsole } from './console-guard.js'
 import { attr, cssOf, focused, q, scrollTopOf, sleep } from './dom.js'
 import ColorMenuHarness from './harness/ColorMenuHarness.svelte'
 import LineStyleHarness from './harness/LineStyleHarness.svelte'
+import TextStyleHarness from './harness/TextStyleHarness.svelte'
 import ToolbarHarness from './harness/ToolbarHarness.svelte'
 import ZoomClickHarness from './harness/ZoomClickHarness.svelte'
 
@@ -73,6 +74,7 @@ describe('toolbar', () => {
       'Add note',
       'Text',
       'Line style',
+      'Text style',
       'Border colour',
       'Fill colour',
       'Undo',
@@ -578,5 +580,127 @@ describe('shape menu', () => {
     await userEvent.keyboard('{Escape}')
     await expect.poll(() => menu().elements().length).toBe(0)
     await expect.poll(focused).toBe(chevron().element())
+  })
+})
+
+describe('text style menu', () => {
+  const trigger = () => browserPage.getByRole('button', { name: 'Text style' })
+  const menu = () => browserPage.getByRole('dialog', { name: 'Text style' })
+  const click = (id: string) => browserPage.getByTestId(id).click()
+  const style = (): Record<string, unknown> =>
+    JSON.parse(attr('[data-testid="probe"]', 'data-style')() || '{}')
+  const start = async () => {
+    await render(TextStyleHarness, { src: fixtureUrl('text-simple'), assets })
+    await q('.ink-page canvas')
+  }
+  const selectBox = async () => {
+    await click('add-box')
+    await click('select-all')
+  }
+
+  it('bold toggle sets defaultStyle.fontWeight on the selected text box', async () => {
+    await start()
+    await selectBox()
+    await trigger().click()
+    const bold = menu().getByRole('button', { name: 'Bold', exact: true })
+    await expect.element(bold).toHaveAttribute('aria-pressed', 'false')
+    await bold.click()
+    await expect.element(bold).toHaveAttribute('aria-pressed', 'true')
+    await expect.poll(() => style().fontWeight).toBe('bold')
+    await bold.click()
+    await expect.poll(() => 'fontWeight' in style()).toBe(false)
+    await menu().getByRole('radio', { name: 'Align centre' }).click()
+    await userEvent.selectOptions(menu().getByRole('combobox', { name: 'Font' }), 'Times')
+    await expect.poll(style).toMatchObject({ textAlign: 'center', fontFamily: 'Times' })
+  })
+
+  it('size stepper clamps to 1..144', async () => {
+    await start()
+    await selectBox()
+    await trigger().click()
+    const size = menu().getByRole('spinbutton', { name: 'Font size' })
+    await expect.element(size).toHaveValue(12)
+    await size.fill('500')
+    await userEvent.keyboard('{Enter}')
+    await expect.element(size).toHaveValue(144)
+    await expect.poll(() => style().fontSize).toBe(144)
+    await menu().getByRole('button', { name: 'Increase font size' }).click()
+    await expect.element(size).toHaveValue(144)
+    await size.fill('0')
+    await userEvent.keyboard('{Enter}')
+    await expect.element(size).toHaveValue(1)
+    await menu().getByRole('button', { name: 'Decrease font size' }).click()
+    await expect.element(size).toHaveValue(1)
+    await menu().getByRole('button', { name: 'Increase font size' }).click()
+    await expect.poll(() => style().fontSize).toBe(2)
+  })
+
+  it('menu disabled with only a square selected and the select tool active', async () => {
+    await start()
+    await click('tool-select')
+    await click('add-square')
+    await click('select-all')
+    await expect.element(trigger()).toBeDisabled()
+  })
+
+  it('with the text tool active and nothing selected, changes become the text group default for the next box', async () => {
+    await start()
+    await click('tool-freetext')
+    await click('select-none')
+    await expect.element(trigger()).toBeEnabled()
+    await trigger().click()
+    await menu().getByRole('button', { name: 'Italic', exact: true }).click()
+    await menu().getByRole('radio', { name: 'Align right' }).click()
+    await expect
+      .poll(() => JSON.parse(attr('[data-testid="probe"]', 'data-group')() ?? '{}'))
+      .toMatchObject({ fontStyle: 'italic', textAlign: 'right' })
+  })
+
+  it('nests the text colour menu, and Escape closes and returns focus', async () => {
+    await start()
+    await selectBox()
+    ;(trigger().element() as HTMLElement).focus()
+    await userEvent.keyboard('{ArrowDown}')
+    await expect
+      .poll(focused)
+      .toBe(menu().getByRole('combobox', { name: 'Font' }).element())
+    await menu().getByRole('button', { name: 'Text colour' }).click()
+    await browserPage
+      .getByRole('menu', { name: 'Text colour' })
+      .getByRole('menuitemradio', { name: '#FF3B30', exact: true })
+      .click()
+    await expect.poll(() => style().color).toBe('#FF3B30')
+    await expect.element(menu()).toBeVisible()
+    await userEvent.keyboard('{Escape}')
+    await expect
+      .poll(
+        () => browserPage.getByRole('menu', { name: 'Text colour' }).elements().length
+      )
+      .toBe(0)
+    await expect.element(menu()).toBeVisible()
+    await expect
+      .poll(focused)
+      .toBe(menu().getByRole('button', { name: 'Text colour' }).element())
+    await userEvent.keyboard('{Escape}')
+    await expect.poll(() => menu().elements().length).toBe(0)
+    await expect.poll(focused).toBe(trigger().element())
+  })
+
+  it('the font select offers the host fonts', async () => {
+    await render(TextStyleHarness, {
+      src: fixtureUrl('text-simple'),
+      assets,
+      fonts: ['Georgia', 'Verdana'],
+    })
+    await q('.ink-page canvas')
+    await selectBox()
+    await trigger().click()
+    const font = menu().getByRole('combobox', { name: 'Font' })
+    // The selected box uses Helvetica, which the host list lacks: it stays selectable.
+    await expect
+      .poll(() => [...(font.element() as HTMLSelectElement).options].map((o) => o.value))
+      .toEqual(['Georgia', 'Verdana', 'Helvetica'])
+    await userEvent.selectOptions(font, 'Verdana')
+    await expect.poll(() => style().fontFamily).toBe('Verdana')
   })
 })

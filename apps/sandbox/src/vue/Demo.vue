@@ -7,6 +7,7 @@
 import {
   InkColorMenu,
   InkLineStyleMenu,
+  InkTextStyleMenu,
   InkNextPage,
   InkNotePopover,
   InkPageCount,
@@ -54,6 +55,7 @@ defineProps<{ source: DocumentSource }>()
         <InkLineStyleMenu />
         <InkColorMenu property="border" />
         <InkColorMenu property="fill" />
+        <InkTextStyleMenu />
       </div>
       <InkUndo />
       <InkRedo />

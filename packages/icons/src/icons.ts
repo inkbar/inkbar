@@ -78,6 +78,11 @@ export const Check: IconNode = [['path', { d: 'M20 6 9 17l-5-5' }]]
 
 export const Minus: IconNode = [['path', { d: 'M5 12h14' }]]
 
+export const Plus: IconNode = [
+  ['path', { d: 'M5 12h14' }],
+  ['path', { d: 'M12 5v14' }],
+]
+
 export const MoveRight: IconNode = [
   ['path', { d: 'M18 8L22 12L18 16' }],
   ['path', { d: 'M2 12H22' }],
@@ -158,4 +163,53 @@ export const Type: IconNode = [
   ['path', { d: 'M12 4v16' }],
   ['path', { d: 'M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2' }],
   ['path', { d: 'M9 20h6' }],
+]
+
+export const ALargeSmall: IconNode = [
+  ['path', { d: 'm15 16 2.536-7.328a1.02 1.02 1 0 1 1.928 0L22 16' }],
+  ['path', { d: 'M15.697 14h5.606' }],
+  ['path', { d: 'm2 16 4.039-9.69a.5.5 0 0 1 .923 0L11 16' }],
+  ['path', { d: 'M3.304 13h6.392' }],
+]
+
+export const Bold: IconNode = [
+  [
+    'path',
+    { d: 'M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8' },
+  ],
+]
+
+export const Italic: IconNode = [
+  ['line', { x1: '19', x2: '10', y1: '4', y2: '4' }],
+  ['line', { x1: '14', x2: '5', y1: '20', y2: '20' }],
+  ['line', { x1: '15', x2: '9', y1: '4', y2: '20' }],
+]
+
+export const Underline: IconNode = [
+  ['path', { d: 'M6 4v6a6 6 0 0 0 12 0V4' }],
+  ['line', { x1: '4', x2: '20', y1: '20', y2: '20' }],
+]
+
+export const AlignLeft: IconNode = [
+  ['path', { d: 'M21 5H3' }],
+  ['path', { d: 'M15 12H3' }],
+  ['path', { d: 'M17 19H3' }],
+]
+
+export const AlignCenter: IconNode = [
+  ['path', { d: 'M21 5H3' }],
+  ['path', { d: 'M17 12H7' }],
+  ['path', { d: 'M19 19H5' }],
+]
+
+export const AlignRight: IconNode = [
+  ['path', { d: 'M21 5H3' }],
+  ['path', { d: 'M21 12H9' }],
+  ['path', { d: 'M21 19H7' }],
+]
+
+export const AlignJustify: IconNode = [
+  ['path', { d: 'M3 5h18' }],
+  ['path', { d: 'M3 12h18' }],
+  ['path', { d: 'M3 19h18' }],
 ]

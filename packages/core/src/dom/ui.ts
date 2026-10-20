@@ -266,6 +266,158 @@ export function colorMenuModel(
   }
 }
 
+/** The smallest, largest and default text size in points, and what one step changes. */
+export const FONT_SIZE_MIN = 1
+export const FONT_SIZE_MAX = 144
+export const FONT_SIZE_DEFAULT = 12
+export const FONT_SIZE_STEP = 1
+
+/** A typed size as the menu stores it: a whole number of points within the range. */
+export function clampFontSize(size: number): number {
+  return Math.min(FONT_SIZE_MAX, Math.max(FONT_SIZE_MIN, Math.round(size)))
+}
+
+export type TextToggleKey = 'bold' | 'italic' | 'underline'
+export type TextAlignKey = 'left' | 'center' | 'right' | 'justify'
+
+export interface TextStyleToggle {
+  key: TextToggleKey
+  label: string
+  /** `'mixed'` when the selection disagrees. */
+  pressed: boolean | 'mixed'
+  /** What pressing writes: the opposite of `pressed`, and on for a mix. */
+  patch: StyleProps
+}
+
+export interface TextAlignChoice {
+  key: TextAlignKey
+  label: string
+  checked: boolean
+  /** The one radio in the Tab order: the checked one, else the first. */
+  tabStop: boolean
+  patch: StyleProps
+}
+
+export interface TextStyleMenuModel {
+  label: string
+  /** False when nothing supports text style: the trigger disables. */
+  enabled: boolean
+  mixed: boolean
+  font: {
+    label: string
+    /** The family, or `''` when the selection disagrees. */
+    value: string
+    /** The families on offer; a current family outside the list is added. */
+    options: string[]
+    patch(family: string): StyleProps
+  }
+  size: {
+    label: string
+    /** The size, or `null` when the selection disagrees. */
+    value: number | null
+    min: number
+    max: number
+    step: number
+    /** What committing a typed size writes, or `null` when it changes nothing. */
+    commit(raw: number): StyleProps | null
+    /** What a stepper press writes, or `null` at the end of the range. */
+    nudge(direction: 1 | -1): StyleProps | null
+  }
+  toggles: TextStyleToggle[]
+  align: { label: string; choices: TextAlignChoice[] }
+}
+
+const TEXT_KEYS: readonly StyleKey[] = [
+  'fontFamily',
+  'fontSize',
+  'fontWeight',
+  'fontStyle',
+  'textDecoration',
+  'textAlign',
+]
+
+const ALIGN_KEYS: readonly TextAlignKey[] = ['left', 'center', 'right', 'justify']
+
+const ALIGN_LABELS: Readonly<Record<TextAlignKey, string>> = {
+  left: 'Align left',
+  center: 'Align centre',
+  right: 'Align right',
+  justify: 'Justify',
+}
+
+/**
+ * What the text style menu shows for a style: the font, size, bold/italic/underline and
+ * alignment, each with the patch choosing it. `fonts` is the list the host offers.
+ */
+export function textStyleMenuModel(
+  current: CurrentStyle,
+  supported: ReadonlySet<StyleKey>,
+  fonts: readonly string[]
+): TextStyleMenuModel {
+  const family = current.fontFamily
+  const size = current.fontSize
+  const value = typeof size === 'number' ? size : null
+  const toggle = (
+    key: TextToggleKey,
+    label: string,
+    prop: 'fontWeight' | 'fontStyle' | 'textDecoration',
+    on: string,
+    off: string
+  ): TextStyleToggle => {
+    const now = current[prop]
+    const pressed = now === 'mixed' ? 'mixed' : now === on
+    return { key, label, pressed, patch: { [prop]: pressed === true ? off : on } }
+  }
+  const nudge = (direction: 1 | -1): StyleProps | null => {
+    const next = clampFontSize((value ?? FONT_SIZE_DEFAULT) + direction * FONT_SIZE_STEP)
+    return next === value ? null : { fontSize: next }
+  }
+  return {
+    label: 'Text style',
+    enabled: TEXT_KEYS.some((k) => supported.has(k)),
+    mixed: TEXT_KEYS.some((k) => current[k] === 'mixed'),
+    font: {
+      label: 'Font',
+      value: typeof family === 'string' && family !== 'mixed' ? family : '',
+      options:
+        typeof family === 'string' && family !== 'mixed' && !fonts.includes(family)
+          ? [...fonts, family]
+          : [...fonts],
+      patch: (f) => ({ fontFamily: f }),
+    },
+    size: {
+      label: 'Font size',
+      value,
+      min: FONT_SIZE_MIN,
+      max: FONT_SIZE_MAX,
+      step: FONT_SIZE_STEP,
+      commit: (raw) => {
+        if (!Number.isFinite(raw)) return null
+        const next = clampFontSize(raw)
+        return next === value ? null : { fontSize: next }
+      },
+      nudge,
+    },
+    toggles: [
+      toggle('bold', 'Bold', 'fontWeight', 'bold', 'normal'),
+      toggle('italic', 'Italic', 'fontStyle', 'italic', 'normal'),
+      toggle('underline', 'Underline', 'textDecoration', 'underline', 'none'),
+    ],
+    align: {
+      label: 'Alignment',
+      choices: ALIGN_KEYS.map((key, i) => ({
+        key,
+        label: ALIGN_LABELS[key],
+        checked: current.textAlign === key,
+        tabStop:
+          current.textAlign === key ||
+          (i === 0 && !ALIGN_KEYS.includes(current.textAlign as TextAlignKey)),
+        patch: { textAlign: key },
+      })),
+    },
+  }
+}
+
 /** Accessible names of the shape kinds, as the shape menu announces them. */
 export const SHAPE_LABELS: Readonly<Record<ShapeKind, string>> = {
   line: 'Line',

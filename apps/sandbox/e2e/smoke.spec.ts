@@ -330,6 +330,31 @@ for (const framework of FRAMEWORKS) {
       await expect(created).toHaveCount(0)
     })
 
+    test('make a text box bold and centred', async ({ page }) => {
+      await page.goto(`${framework}/`)
+      await waitForFirstPage(page)
+      await page.getByRole('button', { name: 'Text', exact: true }).click()
+      const box = (await page.locator('.ink-page[data-page="0"]').boundingBox())!
+      await page.mouse.click(box.x + 40, box.y + 30)
+      await expect(page.getByRole('textbox', { name: 'Text box' })).toBeFocused()
+      await page.keyboard.type('Hello')
+      await page.keyboard.press('Escape')
+      const created = sessionShape(page, 'freetext')
+      await expect(created).toHaveCount(1)
+      const trigger = page.getByRole('button', { name: 'Text style', exact: true })
+      await created.click()
+      await expect(trigger).toBeEnabled()
+      await trigger.click()
+      const panel = page.getByRole('dialog', { name: 'Text style' })
+      await panel.getByRole('button', { name: 'Bold', exact: true }).click()
+      await panel.getByRole('radio', { name: 'Align centre' }).click()
+      const text = created.locator('.ink-free-text')
+      await expect(text).toHaveCSS('font-weight', '700')
+      await expect(text).toHaveCSS('text-align', 'center')
+      await page.keyboard.press('Escape')
+      await expect(panel).toHaveCount(0)
+    })
+
     test('has no horizontal scroll at phone width', async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 844 })
       await page.goto(`${framework}/`)

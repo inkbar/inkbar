@@ -8,6 +8,7 @@
   import InkRedo from '../../lib/components/InkRedo.svelte'
   import InkRoot from '../../lib/components/InkRoot.svelte'
   import InkShapeMenu from '../../lib/components/InkShapeMenu.svelte'
+  import InkTextStyleMenu from '../../lib/components/InkTextStyleMenu.svelte'
   import InkToolbar from '../../lib/components/InkToolbar.svelte'
   import InkToolbarSeparator from '../../lib/components/InkToolbarSeparator.svelte'
   import InkToolButton from '../../lib/components/InkToolButton.svelte'
@@ -46,6 +47,7 @@
     <InkLineStyleMenu />
     <InkColorMenu property="border" />
     <InkColorMenu property="fill" />
+    <InkTextStyleMenu />
     <InkUndo />
     <InkRedo />
   </InkToolbar>

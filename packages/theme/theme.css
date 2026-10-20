@@ -743,6 +743,69 @@
     pointer-events: none;
   }
 
+  /*
+   * Text style menu: a popover panel of mixed widgets (font select, text colour, size stepper,
+   * emphasis toggles, alignment radios).
+   */
+  :where(.ink-text-style-content) {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.5rem;
+  }
+
+  :where(.ink-text-style-row, .ink-text-style-size) {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  :where(.ink-text-style-font, .ink-text-style-input) {
+    box-sizing: border-box;
+    height: 2rem;
+    padding: 0 0.5rem;
+    border: 1px solid var(--ink-border);
+    border-radius: calc(var(--ink-radius) - 2px);
+    background: var(--ink-surface);
+    color: inherit;
+    font: inherit;
+  }
+
+  :where(.ink-text-style-input) {
+    width: 3.5rem;
+    text-align: center;
+    appearance: textfield;
+  }
+
+  :where(.ink-text-style-button) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: calc(var(--ink-radius) - 2px);
+    background: none;
+    color: inherit;
+    cursor: default;
+  }
+
+  :where(.ink-text-style-button:hover, .ink-text-style-button:focus-visible) {
+    background: color-mix(in srgb, var(--ink-fg) 8%, transparent);
+  }
+
+  :where(.ink-text-style-button[data-state='on']) {
+    border-color: var(--ink-border);
+    background: color-mix(in srgb, var(--ink-fg) 14%, transparent);
+  }
+
+  :where(.ink-text-style-button[data-mixed]) {
+    border-style: dashed;
+    border-color: var(--ink-border);
+  }
+
   /* Shape menu: a split button, the tool part beside a narrow chevron. */
   :where(.ink-split-button) {
     display: inline-flex;

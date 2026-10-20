@@ -22,6 +22,7 @@ import {
 import { createViewer, type CreateViewerOptions, type Viewer } from './create-viewer'
 import { createShapeMenu } from './shape-menu'
 import { createLineStyleMenu } from './style-menu'
+import { createTextStyleMenu } from './text-style-menu'
 
 import type { InkDocument } from '../../model/document'
 import type { ViewerEngine } from '../viewer-engine'
@@ -812,6 +813,181 @@ describe('createViewer', () => {
       key(focused()!, 'Escape')
       expect(menu()).toBeNull()
       expect(focused()).toBe(trigger)
+    })
+  })
+
+  describe('text style menu', () => {
+    const box = {
+      type: 'freetext',
+      page: 0,
+      rect: { x: 50, y: 500, width: 200, height: 40 },
+      contents: 'Hello',
+      defaultStyle: {
+        fontFamily: 'Helvetica',
+        fontSize: 12,
+        color: '#000000',
+        textAlign: 'left',
+      },
+    } as const
+    const panel = (): HTMLElement | null =>
+      document.querySelector<HTMLElement>('[data-ink-menu="text-style"]')
+    const byLabel = <T extends HTMLElement>(label: string): T =>
+      panel()!.querySelector<T>(`[aria-label="${label}"]`)!
+    const setup = async () => {
+      const { viewer } = make('text-simple')
+      const trigger = createTextStyleMenu(viewer)
+      viewer.element.prepend(trigger)
+      const { doc, engine } = await ready(viewer)
+      return { viewer, trigger, doc, engine }
+    }
+
+    it('bold toggle sets defaultStyle.fontWeight on the selected text box', async () => {
+      const { trigger, doc } = await setup()
+      expect(trigger.getAttribute('aria-label')).toBe('Text style')
+      expect(trigger.disabled).toBe(true)
+      const tb = doc.annotations.add(box)
+      doc.annotations.select([tb.id])
+      expect(trigger.disabled).toBe(false)
+      trigger.click()
+      expect(panel()!.getAttribute('role')).toBe('dialog')
+      expect(panel()!.getAttribute('aria-label')).toBe('Text style')
+      const bold = byLabel('Bold')
+      expect(bold.getAttribute('aria-pressed')).toBe('false')
+      bold.click()
+      expect(bold.getAttribute('aria-pressed')).toBe('true')
+      expect(doc.annotations.get(tb.id)).toMatchObject({
+        defaultStyle: { fontWeight: 'bold' },
+      })
+      bold.click()
+      expect(
+        (doc.annotations.get(tb.id) as { defaultStyle: object }).defaultStyle
+      ).not.toHaveProperty('fontWeight')
+      byLabel('Align centre').click()
+      const font = byLabel<HTMLSelectElement>('Font')
+      font.value = 'Times'
+      font.dispatchEvent(new Event('change', { bubbles: true }))
+      expect(doc.annotations.get(tb.id)).toMatchObject({
+        defaultStyle: { textAlign: 'center', fontFamily: 'Times' },
+      })
+      expect(byLabel('Align centre').getAttribute('aria-checked')).toBe('true')
+    })
+
+    it('size stepper clamps to 1..144', async () => {
+      const { trigger, doc } = await setup()
+      const tb = doc.annotations.add(box)
+      doc.annotations.select([tb.id])
+      trigger.click()
+      const size = byLabel<HTMLInputElement>('Font size')
+      const fontSize = () =>
+        (doc.annotations.get(tb.id) as { defaultStyle: { fontSize: number } })
+          .defaultStyle.fontSize
+      expect(size.value).toBe('12')
+      size.value = '500'
+      size.dispatchEvent(new Event('input', { bubbles: true }))
+      key(size, 'Enter')
+      expect(fontSize()).toBe(144)
+      expect(size.value).toBe('144')
+      byLabel('Increase font size').click()
+      expect(size.value).toBe('144')
+      size.value = '0'
+      size.dispatchEvent(new Event('input', { bubbles: true }))
+      key(size, 'Enter')
+      expect(size.value).toBe('1')
+      byLabel('Decrease font size').click()
+      expect(size.value).toBe('1')
+      byLabel('Increase font size').click()
+      expect(fontSize()).toBe(2)
+    })
+
+    it('menu disabled with only a square selected and the select tool active', async () => {
+      const { trigger, doc, engine } = await setup()
+      engine.tools.set('select')
+      const sq = doc.annotations.add({
+        type: 'square',
+        page: 0,
+        rect: { x: 50, y: 400, width: 100, height: 60 },
+      })
+      doc.annotations.select([sq.id])
+      expect(trigger.disabled).toBe(true)
+    })
+
+    it('with the text tool active and nothing selected, changes become the text group default for the next box', async () => {
+      const { trigger, engine } = await setup()
+      engine.tools.set('freetext')
+      expect(trigger.disabled).toBe(false)
+      trigger.click()
+      byLabel('Italic').click()
+      byLabel('Align right').click()
+      expect(engine.toolStyle.get('text')).toMatchObject({
+        fontStyle: 'italic',
+        textAlign: 'right',
+      })
+    })
+
+    it('nests the text colour menu, and Escape closes it first, then the panel', async () => {
+      const { trigger, doc } = await setup()
+      const tb = doc.annotations.add(box)
+      doc.annotations.select([tb.id])
+      trigger.focus()
+      key(trigger, 'ArrowDown')
+      expect(focused()).toBe(byLabel('Font'))
+      const colour = byLabel<HTMLButtonElement>('Text colour')
+      colour.click()
+      const swatches = document.querySelector<HTMLElement>(
+        '[data-ink-menu="color-textColor"]'
+      )!
+      swatches.querySelector<HTMLElement>('[aria-label="#FF3B30"]')!.click()
+      expect(doc.annotations.get(tb.id)).toMatchObject({
+        defaultStyle: { color: '#FF3B30' },
+      })
+      expect(panel()).not.toBeNull()
+      key(focused()!, 'Escape')
+      expect(document.querySelector('[data-ink-menu="color-textColor"]')).toBeNull()
+      expect(panel()).not.toBeNull()
+      expect(focused()).toBe(colour)
+      key(focused()!, 'Escape')
+      expect(panel()).toBeNull()
+      expect(focused()).toBe(trigger)
+    })
+
+    const fontValues = (): string[] =>
+      [...byLabel<HTMLSelectElement>('Font').options].map((o) => o.value)
+
+    it('the font select offers the host fonts', async () => {
+      const { viewer } = make('text-simple', { fonts: ['Georgia', 'Verdana'] })
+      const trigger = createTextStyleMenu(viewer)
+      viewer.element.prepend(trigger)
+      const { doc } = await ready(viewer)
+      const tb = doc.annotations.add(box)
+      doc.annotations.select([tb.id])
+      trigger.click()
+      // The box uses Helvetica, which the host list lacks: it stays selectable.
+      expect(fontValues()).toEqual(['Georgia', 'Verdana', 'Helvetica'])
+      const font = byLabel<HTMLSelectElement>('Font')
+      font.value = 'Verdana'
+      font.dispatchEvent(new Event('change', { bubbles: true }))
+      expect(doc.annotations.get(tb.id)).toMatchObject({
+        defaultStyle: { fontFamily: 'Verdana' },
+      })
+    })
+
+    it('falls back to the built-in fonts without a host list', async () => {
+      const { trigger, doc } = await setup()
+      const tb = doc.annotations.add(box)
+      doc.annotations.select([tb.id])
+      trigger.click()
+      expect(fontValues()).toEqual(['Helvetica', 'Times', 'Courier'])
+    })
+
+    it('closes when the selection clears and the control disables', async () => {
+      const { trigger, doc } = await setup()
+      const tb = doc.annotations.add(box)
+      doc.annotations.select([tb.id])
+      trigger.click()
+      expect(panel()).not.toBeNull()
+      doc.annotations.select([])
+      expect(trigger.disabled).toBe(true)
+      expect(panel()).toBeNull()
     })
   })
 

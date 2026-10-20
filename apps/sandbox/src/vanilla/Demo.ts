@@ -7,6 +7,7 @@
 import {
   createColorMenu,
   createLineStyleMenu,
+  createTextStyleMenu,
   createNextPage,
   createPageCount,
   createPageInput,
@@ -66,7 +67,8 @@ export function mountDemo(el: HTMLElement, source: DocumentSource): () => void {
       'demo-group',
       createLineStyleMenu(viewer),
       createColorMenu(viewer, { property: 'border' }),
-      createColorMenu(viewer, { property: 'fill' })
+      createColorMenu(viewer, { property: 'fill' }),
+      createTextStyleMenu(viewer)
     ),
     createUndo(viewer),
     createRedo(viewer)

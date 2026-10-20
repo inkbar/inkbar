@@ -7,6 +7,7 @@
   import {
     InkColorMenu,
     InkLineStyleMenu,
+    InkTextStyleMenu,
     InkNextPage,
     InkNotePopover,
     InkPageCount,
@@ -53,6 +54,7 @@
       <InkLineStyleMenu />
       <InkColorMenu property="border" />
       <InkColorMenu property="fill" />
+      <InkTextStyleMenu />
     </div>
     <InkUndo />
     <InkRedo />

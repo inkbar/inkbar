@@ -64,3 +64,20 @@ export function handleMenuKeys(e: KeyboardEvent, root: ParentNode): void {
   e.preventDefault()
   items[next]!.focus({ preventScroll: true })
 }
+
+/**
+ * Arrow keys inside a `role="radiogroup"`: the next (or previous) enabled `role="radio"`
+ * takes focus and is chosen, wrapping at the ends, as a native radio group does.
+ */
+export function handleRadioKeys(e: KeyboardEvent, group: ParentNode): void {
+  if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
+  const forward = e.key === 'ArrowRight' || e.key === 'ArrowDown'
+  if (!forward && e.key !== 'ArrowLeft' && e.key !== 'ArrowUp') return
+  const radios = [...group.querySelectorAll<HTMLElement>('[role="radio"]:not(:disabled)')]
+  const at = radios.indexOf(document.activeElement as HTMLElement)
+  if (at < 0) return
+  e.preventDefault()
+  const next = radios[(at + (forward ? 1 : -1) + radios.length) % radios.length]!
+  next.focus({ preventScroll: true })
+  next.click()
+}

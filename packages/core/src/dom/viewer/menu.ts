@@ -15,6 +15,17 @@ export interface MenuOptions {
   label: string
   /** Extra attributes for the panel. */
   attrs?: Record<string, string>
+  /**
+   * The panel's role. `menu` (the default) is a list of items with arrow-key movement; `dialog`
+   * is for a panel of mixed widgets, which take Tab and their own keys, and opens on the first
+   * focusable one.
+   */
+  role?: 'menu' | 'dialog'
+  /**
+   * Whether `target` belongs to a menu nested in this one (its panel sits outside this panel
+   * in the DOM). Presses, focus and Escape inside it neither dismiss this menu nor close it.
+   */
+  owns?(target: Node): boolean
   /** Builds the items on first call and updates them in place after; called on open and `refresh`. */
   render(menu: HTMLElement): void
 }
@@ -26,7 +37,11 @@ export interface Menu {
   close(restoreFocus?: boolean): void
 }
 
+const FOCUSABLE =
+  'select:not(:disabled), input:not(:disabled), button:not(:disabled):not([tabindex="-1"])'
+
 export function createMenu(trigger: HTMLButtonElement, opts: MenuOptions): Menu {
+  const role = opts.role ?? 'menu'
   let panel: HTMLElement | null = null
   let teardown: (() => void) | null = null
 
@@ -48,7 +63,7 @@ export function createMenu(trigger: HTMLButtonElement, opts: MenuOptions): Menu 
   function open(focus: 'initial' | 'first'): void {
     if (panel || trigger.disabled) return
     const el = h('div', {
-      role: 'menu',
+      role,
       'aria-label': opts.label,
       class: 'ink-select-content ink-menu-content',
       'data-ink-select-content': '',
@@ -62,22 +77,27 @@ export function createMenu(trigger: HTMLButtonElement, opts: MenuOptions): Menu 
     el.style.visibility = ''
     trigger.setAttribute('aria-expanded', 'true')
     trigger.dataset.state = 'open'
-    if (focus === 'first') menuItems(el)[0]?.focus({ preventScroll: true })
+    if (role === 'dialog')
+      el.querySelector<HTMLElement>(FOCUSABLE)?.focus({ preventScroll: true })
+    else if (focus === 'first') menuItems(el)[0]?.focus({ preventScroll: true })
     else focusInitialMenuItem(el)
 
     const onKey = (e: KeyboardEvent): void => {
+      const nested = opts.owns?.(e.target as Node) === true
       if (e.key === 'Escape') {
+        // The nested menu closes itself; this one stays.
+        if (nested) return
         e.preventDefault()
         close(true)
-      } else if (el.contains(e.target as Node)) handleMenuKeys(e, el)
+      } else if (role === 'menu' && el.contains(e.target as Node)) handleMenuKeys(e, el)
     }
+    const outside = (t: Node): boolean =>
+      !el.contains(t) && !trigger.contains(t) && opts.owns?.(t) !== true
     const onPress = (e: PointerEvent): void => {
-      const t = e.target as Node
-      if (!el.contains(t) && !trigger.contains(t)) close()
+      if (outside(e.target as Node)) close()
     }
     const onFocus = (e: FocusEvent): void => {
-      const t = e.target as Node
-      if (!el.contains(t) && !trigger.contains(t)) close()
+      if (outside(e.target as Node)) close()
     }
     document.addEventListener('keydown', onKey, true)
     document.addEventListener('pointerdown', onPress, true)

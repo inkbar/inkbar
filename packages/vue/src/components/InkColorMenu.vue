@@ -21,7 +21,7 @@ import {
   PopoverTrigger,
   ToolbarButton,
 } from 'reka-ui'
-import { computed, ref, watch } from 'vue'
+import { computed, defineComponent, ref, watch } from 'vue'
 
 import { useToolStyle } from '../composables/useToolStyle'
 
@@ -29,11 +29,25 @@ import InkIcon from './InkIcon.vue'
 
 defineOptions({ inheritAttrs: false })
 
+/** Stands in for the toolbar item when the menu is nested in another panel. */
+const PassThrough = defineComponent({
+  inheritAttrs: false,
+  setup:
+    (_, { slots }) =>
+    () =>
+      slots.default?.(),
+})
+
 const props = defineProps<{
   /** The colour this menu sets. */
   property: ColorProperty
   /** Accessible name; defaults to "Border colour", "Fill colour" or "Text colour". */
   label?: string
+  /**
+   * Renders the trigger outside the toolbar's roving focus, for a menu nested in another
+   * panel (the text style menu's text colour).
+   */
+  standalone?: boolean
 }>()
 
 const { current, supported, set } = useToolStyle()
@@ -95,7 +109,7 @@ const innerAttrs = computed(() => ({
 
 <template>
   <PopoverRoot v-model:open="open">
-    <ToolbarButton as-child>
+    <component :is="standalone ? PassThrough : ToolbarButton" as-child>
       <PopoverTrigger as-child>
         <button
           type="button"
@@ -120,7 +134,7 @@ const innerAttrs = computed(() => ({
           </slot>
         </button>
       </PopoverTrigger>
-    </ToolbarButton>
+    </component>
     <PopoverPortal>
       <PopoverContent
         class="ink-select-content ink-menu-content"
