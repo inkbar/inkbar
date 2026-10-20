@@ -969,6 +969,27 @@ test.describe('text style menu', () => {
     await expect(page.getByRole('button', { name: 'Text style' })).toBeDisabled()
   })
 
+  test('enabled after drawing a rectangle and picking Text', async ({ mount, page }) => {
+    await mountHarness(mount)
+    await page.getByTestId('tool-shape').click()
+    const box = (await page.locator('.ink-page').first().boundingBox())!
+    await page.mouse.move(box.x + 100, box.y + 100)
+    await page.mouse.down()
+    await page.mouse.move(box.x + 200, box.y + 160, { steps: 5 })
+    await page.mouse.up()
+    // The new rectangle stays selected when the tool changes.
+    await expect(page.getByTestId('probe')).toHaveAttribute('data-selected', 'square')
+    await page.getByTestId('tool-freetext').click()
+    const trigger = page.getByRole('button', { name: 'Text style' })
+    await expect(trigger).toBeEnabled()
+    const menu = await open(page)
+    await menu.getByRole('button', { name: 'Bold' }).click()
+    const group = JSON.parse(
+      (await page.getByTestId('probe').getAttribute('data-group')) ?? '{}'
+    ) as Record<string, unknown>
+    expect(group).toMatchObject({ fontWeight: 'bold' })
+  })
+
   test('with the text tool active and nothing selected, changes become the text group default for the next box', async ({
     mount,
     page,

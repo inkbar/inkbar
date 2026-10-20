@@ -40,6 +40,7 @@ export {
   fromAnnotation,
   styleGroupOf,
   styleGroupOfType,
+  styleGroupsOf,
   supportedProps,
   toFields,
   typesInGroup,
