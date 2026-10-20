@@ -198,6 +198,15 @@ describe('theme.css', () => {
     expect(chevron).toMatch(/width:\s*1\.25rem/)
   })
 
+  it('rings the text style panel controls on keyboard focus', () => {
+    for (const control of [
+      '.ink-text-style-font:focus-visible',
+      '.ink-text-style-input:focus-visible',
+      '.ink-text-style-button:focus-visible',
+    ])
+      expect(declsFor(control), control).toMatch(/outline:\s*2px solid var\(--ink-ring\)/)
+  })
+
   it('never colours confidence label text with a suggestion colour, and shows it as a swatch', () => {
     const label = rules.filter((r) => r.selector.includes('.ink-suggestion-confidence'))
     const textColours = label.flatMap((r) =>

@@ -1117,7 +1117,10 @@
     .ink-tab:focus-visible,
     .ink-button:focus-visible,
     .ink-input:focus-visible,
-    .ink-signature-font:focus-visible
+    .ink-signature-font:focus-visible,
+    .ink-text-style-font:focus-visible,
+    .ink-text-style-input:focus-visible,
+    .ink-text-style-button:focus-visible
   ) {
     outline: 2px solid var(--ink-ring);
     outline-offset: 2px;
