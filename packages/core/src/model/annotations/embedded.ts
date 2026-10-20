@@ -57,6 +57,17 @@ function pdfName(raw: string | undefined): string | undefined {
   return raw !== undefined && PDF_NAME.test(raw) ? raw : undefined
 }
 
+/** `head` and `tail` from a Line's or PolyLine's `/LE`, left out when both are `None`. */
+function lineEndingsOf(
+  raw: readonly string[] | undefined
+): { head: string; tail: string } | Record<string, never> {
+  // PDF.js already turns a name it does not know into `None`.
+  const endings = raw?.map((e) => pdfName(e) ?? 'None')
+  return endings && endings.length === 2 && endings.some((e) => e !== 'None')
+    ? { head: endings[0]!, tail: endings[1]! }
+    : {}
+}
+
 /**
  * Imported ids are `pdf:<page>:<pdfjsId>` (page is 0-based, pdfjsId is the annotation's object
  * reference such as `12R`). They are stable across opens of the same file, and `inReplyTo`
@@ -184,17 +195,13 @@ function convert(
     }
     case 'Line': {
       const l = d.lineCoordinates ?? [d.rect[0], d.rect[1], d.rect[2], d.rect[3]]
-      // PDF.js already turns a name it does not know into `None`.
-      const endings = d.lineEndings?.map((e) => pdfName(e) ?? 'None')
       candidate = {
         ...base('line'),
         type: 'line',
         start: { x: l[0], y: l[1] },
         end: { x: l[2], y: l[3] },
         width: stroke,
-        ...(endings && endings.length === 2 && endings.some((e) => e !== 'None')
-          ? { head: endings[0], tail: endings[1] }
-          : {}),
+        ...lineEndingsOf(d.lineEndings),
       }
       break
     }
@@ -209,6 +216,7 @@ function convert(
         vertices,
         width: stroke,
         ...fillOf(d.interiorColor),
+        ...(type === 'polyline' ? lineEndingsOf(d.lineEndings) : {}),
       }
       break
     }

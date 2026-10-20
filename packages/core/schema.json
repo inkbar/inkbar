@@ -213,8 +213,7 @@
             "opacity",
             "createdAt",
             "modifiedAt",
-            "type",
-            "icon"
+            "type"
           ],
           "additionalProperties": false
         },
@@ -303,7 +302,7 @@
                 "textDecoration": { "type": "string", "const": "underline" },
                 "align": { "not": {} }
               },
-              "required": ["fontFamily", "fontSize", "color", "textAlign"],
+              "required": ["color"],
               "additionalProperties": false
             },
             "fringe": {
@@ -362,7 +361,6 @@
             "createdAt",
             "modifiedAt",
             "type",
-            "width",
             "defaultStyle"
           ],
           "additionalProperties": false
@@ -441,8 +439,7 @@
             "opacity",
             "createdAt",
             "modifiedAt",
-            "type",
-            "width"
+            "type"
           ],
           "additionalProperties": false
         },
@@ -520,8 +517,7 @@
             "opacity",
             "createdAt",
             "modifiedAt",
-            "type",
-            "width"
+            "type"
           ],
           "additionalProperties": false
         },
@@ -653,8 +649,7 @@
             "modifiedAt",
             "type",
             "start",
-            "end",
-            "width"
+            "end"
           ],
           "additionalProperties": false
         },
@@ -784,8 +779,7 @@
             "createdAt",
             "modifiedAt",
             "type",
-            "vertices",
-            "width"
+            "vertices"
           ],
           "additionalProperties": false
         },
@@ -875,8 +869,7 @@
             "createdAt",
             "modifiedAt",
             "type",
-            "vertices",
-            "width"
+            "vertices"
           ],
           "additionalProperties": false
         },
@@ -974,8 +967,7 @@
             "createdAt",
             "modifiedAt",
             "type",
-            "inklist",
-            "width"
+            "inklist"
           ],
           "additionalProperties": false
         },
@@ -1130,9 +1122,7 @@
             "opacity",
             "createdAt",
             "modifiedAt",
-            "type",
-            "magnification",
-            "width"
+            "type"
           ],
           "additionalProperties": false
         },
@@ -1205,8 +1195,7 @@
             "createdAt",
             "modifiedAt",
             "type",
-            "shape",
-            "dim"
+            "shape"
           ],
           "additionalProperties": false
         },
@@ -1346,7 +1335,6 @@
             "createdAt",
             "modifiedAt",
             "type",
-            "origin",
             "interiorColor"
           ],
           "additionalProperties": false

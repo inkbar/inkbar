@@ -2,6 +2,7 @@ import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { userEvent } from 'vitest/browser'
 
+import standardCallout from '../model/annotations/__fixtures__/standard-callout.json'
 import {
   freeTextBox,
   isStandardCallout,
@@ -3821,6 +3822,44 @@ describe('selection editing', () => {
       expect(next.callout![0]!.y).toBeCloseTo(720, 5)
       expect(next.callout!.slice(1)).toEqual(a.callout!.slice(1))
       expectBounds(next)
+      doc.history.undo()
+      expect(doc.annotations.get(a.id)).toEqual(a)
+    })
+
+    it("typing that grows a standard callout's box keeps its tip and bend, in one undo step", async () => {
+      const { doc, container, viewport } = await setup()
+      const result = importAnnotations(doc.annotations, JSON.stringify(standardCallout), {
+        mode: 'replace',
+      })
+      expect(result.errors).toEqual([])
+      const a = freeText(doc.annotations.get('standard-callout-1'))
+      const updates: unknown[] = []
+      const stop = doc.annotations.on('change', (c) => {
+        if (c.kind === 'update') updates.push(c)
+      })
+      const el = viewport
+        .hostFor(0)!
+        .querySelector<HTMLElement>(`[data-annotation="${a.id}"]`)!
+      el.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+      )
+      await until(() => container.querySelector('[data-ink-editor]') !== null)
+      await userEvent.keyboard('{End}{Enter}2{Enter}3{Enter}4{Enter}5{Enter}6{Escape}')
+      stop()
+      expect(updates).toHaveLength(1)
+      const next = freeText(doc.annotations.get(a.id))
+      const before = freeTextBox(a)
+      const after = freeTextBox(next)
+      // The box grows down: its top stays.
+      expect(after.y + after.height).toBeCloseTo(before.y + before.height, 5)
+      expect(before.y - after.y).toBeGreaterThan(24)
+      // The tip and the bend stay on what they point at.
+      expect(next.callout![0]).toEqual(a.callout![0])
+      expect(next.callout![1]).toEqual(a.callout![1])
+      // The edge point stays on the left edge, a third of the way up.
+      expect(next.callout![2]!.x).toBeCloseTo(after.x, 5)
+      expect(next.callout![2]!.y).toBeCloseTo(after.y + after.height / 3, 5)
+      expect(isStandardCallout(next)).toBe(true)
       doc.history.undo()
       expect(doc.annotations.get(a.id)).toEqual(a)
     })

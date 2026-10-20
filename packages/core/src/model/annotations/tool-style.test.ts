@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { withCalloutBounds } from './callout'
 import { staticDefaults } from './defaults'
 import { createHistory } from './history'
 import { createAnnotationStore } from './store'
@@ -327,5 +328,41 @@ describe('createToolStyle', () => {
       history.undo()
       expect(store.get(ul.id)?.color).toBe('#112233')
     })
+  })
+
+  it("a border width change refits a callout's rect and fringe in the same update", () => {
+    const { store, history, style } = setup('none')
+    const box = { x: 100, y: 600, width: 180, height: 60 }
+    const callout = [
+      { x: 60, y: 520 },
+      { x: 80, y: 560 },
+      { x: 100, y: 620 },
+    ]
+    const a = store.add({
+      type: 'freetext',
+      page: 0,
+      contents: 'Hi',
+      intent: 'FreeTextCallout',
+      width: 1,
+      head: 'OpenArrow',
+      ...withCalloutBounds(box, callout, 1, 'OpenArrow'),
+      callout,
+    })
+    store.select([a.id])
+    const updates: unknown[] = []
+    store.on('change', (c) => {
+      if (c.kind === 'update') updates.push(c)
+    })
+    style.set({ width: 6 })
+    expect(updates).toHaveLength(1)
+    const next = store.get(a.id)
+    if (next?.type !== 'freetext') throw new Error('not free text')
+    const want = withCalloutBounds(box, callout, 6, 'OpenArrow')
+    expect(next.width).toBe(6)
+    expect(next.rect).toEqual(want.rect)
+    expect(next.fringe).toEqual(want.fringe)
+    expect(next.callout).toEqual(callout)
+    history.undo()
+    expect(store.get(a.id)).toEqual(a)
   })
 })

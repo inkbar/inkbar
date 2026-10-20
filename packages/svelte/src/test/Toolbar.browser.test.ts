@@ -462,6 +462,20 @@ describe('toolbar', () => {
       await expect.poll(probe('data-dashes')).toBe('-')
     })
 
+    it('an ending Inkbar does not draw shows as no arrowhead', async () => {
+      await render(LineStyleHarness, { src: fixtureUrl('text-simple'), assets })
+      await q('.ink-page canvas')
+      await click('add-line-unknown')
+      await click('select-all')
+      await trigger().click()
+      await expect
+        .element(item('Arrowhead at end'))
+        .toHaveAttribute('aria-checked', 'true')
+      await expect
+        .element(item('Arrowheads at both ends'))
+        .toHaveAttribute('aria-checked', 'false')
+    })
+
     it('arrowheads section is disabled for a selected square', async () => {
       await render(LineStyleHarness, { src: fixtureUrl('text-simple'), assets })
       await q('.ink-page canvas')

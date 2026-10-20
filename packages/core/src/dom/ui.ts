@@ -1,5 +1,7 @@
 // Vocabulary the framework packages share: labels, zoom levels and the props they hand to
 // host-rendered content. Core owns these so Vue and React cannot drift apart.
+import { isKnown, LINE_ENDINGS } from '../model/annotations/pdf-names'
+
 import { PALETTE } from './palette'
 
 import type {
@@ -88,15 +90,20 @@ export const ARROWHEAD_CHOICES: readonly {
   },
 ]
 
-/** Which arrowhead choice a style shows, `'mixed'` when the selection disagrees, else `undefined`. */
+/**
+ * Which arrowhead choice a style shows, `'mixed'` when the selection disagrees, else `undefined`.
+ * Only an ending Inkbar draws counts: one it does not know draws as `None`.
+ */
 export function arrowheadChoice(
   head: LineEnding | 'mixed' | undefined,
   tail: LineEnding | 'mixed' | undefined
 ): ArrowheadChoice | 'mixed' | undefined {
   if (head === undefined && tail === undefined) return undefined
   if (head === 'mixed' || tail === 'mixed') return 'mixed'
-  const start = head !== undefined && head !== 'None'
-  const end = tail !== undefined && tail !== 'None'
+  const drawn = (e: LineEnding | undefined) =>
+    e !== undefined && e !== 'None' && isKnown(LINE_ENDINGS, e)
+  const start = drawn(head)
+  const end = drawn(tail)
   return start ? (end ? 'both' : 'start') : end ? 'end' : 'none'
 }
 

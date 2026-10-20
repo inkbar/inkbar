@@ -123,6 +123,8 @@ describe('the standard-callout sample', () => {
     if (a.type !== 'freetext') throw new Error('expected free text')
     expect(freeTextBox(a)).toEqual({ x: 100, y: 600, width: 180, height: 60 })
     expect(a.head).toBe('OpenArrow')
+    // The fixture PDF has no /BS, so its border is PDF's default 1 pt, and its /AP strokes the box.
+    expect(a.width).toBe(1)
     const { width } = calloutStroke(a)
     expect(withCalloutBounds(freeTextBox(a), a.callout!, width, a.head)).toEqual({
       rect: a.rect,

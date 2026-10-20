@@ -25,6 +25,20 @@
   <button data-testid="add-line-1" onclick={() => line(1, 700)}>line 1</button>
   <button data-testid="add-line-3" onclick={() => line(3, 650)}>line 3</button>
   <button
+    data-testid="add-line-unknown"
+    onclick={() =>
+      store.add({
+        type: 'line',
+        page: 0,
+        start: { x: 50, y: 600 },
+        end: { x: 150, y: 600 },
+        head: 'Foo_1',
+        tail: 'Square',
+      })}
+  >
+    line with an unknown ending
+  </button>
+  <button
     data-testid="add-square"
     onclick={() =>
       store.add({

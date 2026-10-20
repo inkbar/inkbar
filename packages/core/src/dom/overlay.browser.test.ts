@@ -507,7 +507,7 @@ describe('createOverlay', () => {
       expect(points[i]![0]).toBeCloseTo(c.x - rect.left)
       expect(points[i]![1]).toBeCloseTo(c.y - rect.top)
     })
-    // No border colour and no border: the text colour at 1 pt.
+    // No border colour: the text colour at the border's 1 pt.
     expect(line.getAttribute('stroke')).toBe('#D00000')
     expect(line.getAttribute('stroke-width')).toBe(String(t.toCssLength(1)))
     expect(line.getAttribute('stroke-linecap')).toBe('butt')
@@ -516,6 +516,10 @@ describe('createOverlay', () => {
     expect(ending.getAttribute('fill')).toBe('none')
 
     const text = el.querySelector('.ink-free-text') as HTMLElement
+    // The box is outlined at 1 pt, as the fixture PDF's appearance strokes it.
+    expect(text.style.getPropertyValue('--ink-border-width')).toBe(
+      `${t.toCssLength(1)}px`
+    )
     const at = text.getBoundingClientRect()
     const origin = host.getBoundingClientRect()
     const box = t.toCssRect(freeTextBox(a))
