@@ -9,7 +9,7 @@ import {
 import { parsePdfDate } from '../pdf-date'
 
 import { staticDefaults } from './defaults'
-import { LINE_ENDINGS, NOTE_ICONS, PDF_NAME } from './pdf-names'
+import { PDF_NAME } from './pdf-names'
 import { AnnotationSchema, type Annotation } from './types'
 
 import type { PdfjsAnnotationData } from '../../pdfjs/types'
@@ -52,20 +52,9 @@ function rectFromPdf(r: ArrayLike<number>): Rect {
   return rectFromPoints({ x: r[0]!, y: r[1]! }, { x: r[2]!, y: r[3]! })
 }
 
-/**
- * A PDF name as this version spells it: a known name matched without regard to case, else the
- * name unchanged, else `fallback` when it is not a valid PDF name.
- */
-function pdfName(
-  list: readonly string[],
-  raw: string | undefined,
-  fallback: string
-): string {
-  if (raw === undefined) return fallback
-  return (
-    list.find((k) => k.toLowerCase() === raw.toLowerCase()) ??
-    (PDF_NAME.test(raw) ? raw : fallback)
-  )
+/** A PDF name exactly as PDF.js gives it (names are case-sensitive), or undefined if invalid. */
+function pdfName(raw: string | undefined): string | undefined {
+  return raw !== undefined && PDF_NAME.test(raw) ? raw : undefined
 }
 
 /**
@@ -123,6 +112,7 @@ function convert(
   const optional = (v: unknown) => v !== undefined && v !== ''
   const withColor = (type: Annotation['type'], source = d.color) =>
     pdfColorToHex(source, staticDefaults.color(type))
+  const intent = pdfName(d.it)
   const base = (type: Annotation['type'], color = withColor(type)) => ({
     id: importedId(page, d.id),
     page,
@@ -132,6 +122,7 @@ function convert(
     ...(optional(author) ? { author } : {}),
     ...(optional(contents) ? { contents } : {}),
     ...(d.inReplyTo ? { inReplyTo: importedId(page, d.inReplyTo) } : {}),
+    ...(intent !== undefined ? { intent } : {}),
     createdAt: created,
     modifiedAt: parsePdfDate(d.modificationDate, created),
     source: 'pdf' as const,
@@ -152,13 +143,17 @@ function convert(
       candidate = { ...base(type), type, quads }
       break
     }
-    case 'Text':
+    case 'Text': {
+      // PDF.js reports `NoIcon` for any note with an appearance stream, hiding its `/Name`.
+      // Leave the icon out then, as when there is no `/Name`, so the default `Note` applies.
+      const icon = d.name === 'NoIcon' ? undefined : pdfName(d.name)
       candidate = {
         ...base('text'),
         type: 'text',
-        icon: pdfName(NOTE_ICONS, d.name, 'Comment'),
+        ...(icon !== undefined ? { icon } : {}),
       }
       break
+    }
     case 'FreeText': {
       // XFDF and PDF agree: `/C` is the box's fill, `/DA` the text's colour and size.
       const da = d.defaultAppearanceData
@@ -189,7 +184,8 @@ function convert(
     }
     case 'Line': {
       const l = d.lineCoordinates ?? [d.rect[0], d.rect[1], d.rect[2], d.rect[3]]
-      const endings = d.lineEndings?.map((e) => pdfName(LINE_ENDINGS, e, 'None'))
+      // PDF.js already turns a name it does not know into `None`.
+      const endings = d.lineEndings?.map((e) => pdfName(e) ?? 'None')
       candidate = {
         ...base('line'),
         type: 'line',

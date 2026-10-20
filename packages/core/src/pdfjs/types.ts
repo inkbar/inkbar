@@ -26,6 +26,8 @@ export interface PdfjsAnnotationData {
   creationDate?: string | null
   modificationDate?: string | null
   name?: string
+  /** The intent (`/IT`), a PDF name. PDF.js 6.4 does not pass FreeText `/CL`, `/RD` or `/LE`. */
+  it?: string
   borderStyle?: { width: number } | null
   lineCoordinates?: [number, number, number, number]
   vertices?: Float32Array | number[]

@@ -162,6 +162,14 @@ A speech bubble is a standard callout plus Inkbar's `cornerRadius`. Inkbar draws
 
 A callout's corner handles resize its text box: the tip and bend stay, and the point on the box moves with the edge it sits on. Its tip handle moves the tip alone. Each edit refits `rect` and `fringe` in the same update, so it is one undo step.
 
+## Limits of PDF import
+
+Inkbar reads the annotations embedded in a PDF through PDF.js, which passes on only part of each one. Import keeps `intent` (`/IT`) for every type. Three gaps remain, each a follow-up:
+
+- Read FreeText `/CL`, `/RD` and `/LE` from PDFs. A callout in a PDF imports with `intent: 'FreeTextCallout'` but without `callout`, `fringe` or `head`. PDF.js still paints it from the file's own appearance.
+- Read a note's `/Name` when the note has an appearance stream. PDF.js reports such notes as `NoIcon`, so they import with the default icon, `Note`.
+- Keep line endings Inkbar does not know. PDF.js turns them into `None`. Annotations loaded from JSON keep them.
+
 ## Tools and keyboard
 
 `createToolController` from `@inkbar/core/dom` routes pointer and key events on the viewport to the active tool: `select-text`, `select`, `highlight`, `redact-area`, `sketch`, `draw`, `shape`, `freetext`, `signature` or `note`. Highlights, text redactions, notes and signatures can be made from the keyboard. Area redactions, sketches and drawings need a pointer.
