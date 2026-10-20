@@ -1278,6 +1278,58 @@ describe('loupe', () => {
     expect(lens(host)).toBe(canvas)
   })
 
+  it('loupe re-renders when the device pixel ratio changes', async () => {
+    const original = Object.getOwnPropertyDescriptor(window, 'devicePixelRatio')
+    const setDpr = (value: number) =>
+      Object.defineProperty(window, 'devicePixelRatio', { value, configurable: true })
+    cleanup.push(() => {
+      if (original) Object.defineProperty(window, 'devicePixelRatio', original)
+      else delete (window as { devicePixelRatio?: number }).devicePixelRatio
+    })
+    // A controllable stand-in for the resolution media queries.
+    const listeners = new Map<string, Set<() => void>>()
+    const matchMedia = vi.spyOn(window, 'matchMedia').mockImplementation((media) => {
+      const set = listeners.get(media) ?? new Set<() => void>()
+      listeners.set(media, set)
+      return {
+        media,
+        matches: true,
+        addEventListener: (_: string, fn: () => void) => set.add(fn),
+        removeEventListener: (_: string, fn: () => void) => set.delete(fn),
+      } as unknown as MediaQueryList
+    })
+    cleanup.unshift(() => matchMedia.mockRestore())
+    setDpr(1)
+    const doc = await openFixtureInBrowser('text-simple')
+    const transform = createPageTransform(doc.pages[0]!, 1, 0)
+    const host = mountContainer(transform.cssWidth, transform.cssHeight)
+    const overlay = createOverlay({
+      host,
+      page: 0,
+      store: doc.annotations,
+      transform,
+      document: doc,
+    })
+    cleanup.push(() => {
+      overlay.destroy()
+      host.remove()
+      void doc.destroy()
+    })
+    doc.annotations.add({
+      type: 'loupe',
+      page: 0,
+      rect: { x: 60, y: 680, width: 80, height: 80 },
+      magnification: 2,
+    })
+    const canvas = lens(host)!
+    await expect.poll(() => canvas.width).toBe(80)
+    setDpr(2)
+    for (const fn of listeners.get('(resolution: 1dppx)') ?? []) fn()
+    await expect.poll(() => canvas.width).toBe(160)
+    overlay.destroy()
+    expect([...listeners.values()].every((set) => set.size === 0)).toBe(true)
+  })
+
   it('loupe re-renders debounced on zoom', async () => {
     const { doc, host, overlay, getPage } = await mountLoupePage()
     doc.annotations.add({

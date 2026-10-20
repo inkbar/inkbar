@@ -9,6 +9,8 @@
 // the pointer to the rim (`pointer-events:none`).
 import { renderRegion } from '../pdfjs/render-region'
 
+import { watchDevicePixelRatio, type DprWatch } from './dpr-watch'
+
 import type { PageTransform } from './transform'
 import type { LoupeAnnotation } from '../model/annotations/types'
 import type { InkDocument } from '../model/document'
@@ -19,7 +21,10 @@ export const LOUPE_RENDER_DELAY = 100
 
 export interface LoupeLayerOptions {
   document: InkDocument
-  /** Fixed device pixel ratio; `window.devicePixelRatio` at each render when omitted. */
+  /**
+   * Fixed device pixel ratio. When omitted, `window.devicePixelRatio` is read at every render
+   * and the loupes re-render when it changes (browser zoom, moving to another screen).
+   */
   devicePixelRatio?: number
 }
 
@@ -55,6 +60,8 @@ interface Lens {
   key: string | undefined
   timer: ReturnType<typeof setTimeout> | undefined
   controller: AbortController | undefined
+  /** The last `attach`, replayed when the device pixel ratio changes. */
+  last: { el: HTMLElement; a: LoupeAnnotation; t: PageTransform } | undefined
 }
 
 /** Frees a canvas's bitmap now rather than at garbage collection (Safari caps the total). */
@@ -67,6 +74,7 @@ function release(canvas: HTMLCanvasElement): void {
 export function createLoupeLayer(opts: LoupeLayerOptions): LoupeLayer {
   const lenses = new Map<string, Lens>()
   let destroyed = false
+  let dprWatch: DprWatch | undefined
 
   const dprOf = (el: HTMLElement): number => {
     if (opts.devicePixelRatio !== undefined) return opts.devicePixelRatio
@@ -128,33 +136,54 @@ export function createLoupeLayer(opts: LoupeLayerOptions): LoupeLayer {
     // Blank until the first render lands.
     canvas.width = 0
     canvas.height = 0
-    const lens: Lens = { canvas, key: undefined, timer: undefined, controller: undefined }
+    const lens: Lens = {
+      canvas,
+      key: undefined,
+      timer: undefined,
+      controller: undefined,
+      last: undefined,
+    }
     lenses.set(id, lens)
     return lens
   }
 
+  function attach(el: HTMLElement, a: LoupeAnnotation, t: PageTransform): void {
+    if (destroyed) return
+    const lens = lensFor(el, a.id)
+    lens.last = { el, a, t }
+    if (el.firstChild !== lens.canvas) el.prepend(lens.canvas)
+    const region = loupeRegion(a)
+    const dpr = dprOf(el)
+    if (opts.devicePixelRatio === undefined) {
+      dprWatch ??= watchDevicePixelRatio(
+        el.ownerDocument.defaultView,
+        () => dprOf(el),
+        () => {
+          for (const { last } of [...lenses.values()])
+            if (last) attach(last.el, last.a, last.t)
+        }
+      )
+      dprWatch.watch(dpr)
+    }
+    const scale = t.zoom * dpr * a.magnification
+    const rotation = t.totalRotation
+    const key = JSON.stringify([a.page, region, scale, rotation])
+    if (key === lens.key) return
+    const first = lens.key === undefined
+    lens.key = key
+    stop(lens)
+    if (first) {
+      void render(lens, a.page, region, scale, rotation)
+      return
+    }
+    lens.timer = setTimeout(() => {
+      lens.timer = undefined
+      void render(lens, a.page, region, scale, rotation)
+    }, LOUPE_RENDER_DELAY)
+  }
+
   return {
-    attach(el, a, t) {
-      if (destroyed) return
-      const lens = lensFor(el, a.id)
-      if (el.firstChild !== lens.canvas) el.prepend(lens.canvas)
-      const region = loupeRegion(a)
-      const scale = t.zoom * dprOf(el) * a.magnification
-      const rotation = t.totalRotation
-      const key = JSON.stringify([a.page, region, scale, rotation])
-      if (key === lens.key) return
-      const first = lens.key === undefined
-      lens.key = key
-      stop(lens)
-      if (first) {
-        void render(lens, a.page, region, scale, rotation)
-        return
-      }
-      lens.timer = setTimeout(() => {
-        lens.timer = undefined
-        void render(lens, a.page, region, scale, rotation)
-      }, LOUPE_RENDER_DELAY)
-    },
+    attach,
     drop(id) {
       const lens = lenses.get(id)
       if (!lens) return
@@ -165,6 +194,7 @@ export function createLoupeLayer(opts: LoupeLayerOptions): LoupeLayer {
     destroy() {
       if (destroyed) return
       destroyed = true
+      dprWatch?.destroy()
       for (const lens of lenses.values()) {
         stop(lens)
         release(lens.canvas)
