@@ -48,8 +48,14 @@ function stubCanvas() {
 describe('renderTypedSignature (stubbed canvas)', () => {
   it('waits for the font, then draws the name in it and returns a PNG', async () => {
     const { drawn, load } = stubCanvas()
-    const url = await renderTypedSignature('Ada', 'Dancing Script', { color: '#112233' })
+    let loaded!: () => void
+    load.mockReturnValueOnce(new Promise((resolve) => (loaded = () => resolve([]))))
+    const rendering = renderTypedSignature('Ada', 'Dancing Script', { color: '#112233' })
+    await Promise.resolve()
     expect(load).toHaveBeenCalledWith('60px "Dancing Script"', 'Ada')
+    expect(drawn).toEqual([])
+    loaded()
+    const url = await rendering
     expect(drawn).toEqual([
       { font: '60px "Dancing Script"', text: 'Ada', fill: '#112233' },
     ])
