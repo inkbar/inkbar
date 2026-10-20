@@ -284,6 +284,19 @@ describe('createToolStyle', () => {
     expect(style.supported.get().has('textColor')).toBe(true)
   })
 
+  it("resolve: an undefined key in the input's text style leaves the group's", () => {
+    const { style } = setup('text')
+    style.set({ fontFamily: 'Courier' })
+    const out = style.resolve('text', {
+      type: 'freetext',
+      page: 0,
+      rect,
+      contents: 'Hi',
+      defaultStyle: { fontFamily: undefined, fontSize: 20 },
+    })
+    expect(out.defaultStyle).toStrictEqual({ fontFamily: 'Courier', fontSize: 20 })
+  })
+
   describe('scoped', () => {
     it('shows the group under another tool, and sets only the group', () => {
       const { store, style } = setup('none')

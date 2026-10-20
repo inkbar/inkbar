@@ -322,6 +322,14 @@ export function createToolStyle(deps: ToolStyleDeps): ToolStyle {
     })
   }
 
+  /** `value`'s keys that hold something. */
+  const defined = (value: unknown): Record<string, unknown> =>
+    Object.fromEntries(
+      Object.entries((value ?? {}) as Record<string, unknown>).filter(
+        ([, v]) => v !== undefined
+      )
+    )
+
   function resolve<T extends AnnotationInput>(group: StyleGroup, input: T): T {
     const fields = toFields(input.type, groupStore(group).get()) as Record<
       string,
@@ -330,11 +338,8 @@ export function createToolStyle(deps: ToolStyleDeps): ToolStyle {
     const out: Record<string, unknown> = { ...input }
     for (const [key, value] of Object.entries(fields)) {
       if (key === 'defaultStyle') {
-        // Nested text style: the group's keys fill those the input leaves unset.
-        const style: Record<string, unknown> = {}
-        for (const [k, v] of Object.entries(value as Record<string, unknown>))
-          if (v !== undefined) style[k] = v
-        out[key] = { ...style, ...(out[key] as object | undefined) }
+        // Nested text style: the group's keys fill those the input leaves unset (or undefined).
+        out[key] = { ...defined(value), ...defined(out[key]) }
       } else if (value !== undefined && out[key] === undefined) out[key] = value
     }
     return out as T
