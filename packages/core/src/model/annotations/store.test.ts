@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { normalizeColor, staticDefaults } from './defaults'
 import { createHistory } from './history'
-import { createAnnotationStore, deriveRect } from './store'
+import { createAnnotationStore, deriveRect, type AnnotationChange } from './store'
 
 import type { Annotation } from './types'
 
@@ -485,5 +485,60 @@ describe('AnnotationStore embedded guard (uncontrolled)', () => {
     expect(s.get(embedded.id)).toEqual(embedded)
     h.redo()
     expect(s.get(embedded.id)?.color).toBe('#000000')
+  })
+})
+
+describe('one mask per page', () => {
+  const rect = { x: 10, y: 10, width: 100, height: 80 }
+  const mask = (page: number, shape: 'rect' | 'ellipse' = 'rect') =>
+    ({ type: 'mask', page, rect, shape }) as const
+
+  it('a second mask on a page replaces the first; one undo restores the first', () => {
+    const s = store()
+    const history = createHistory(s)
+    const note = s.add({
+      type: 'text',
+      page: 0,
+      rect: { x: 0, y: 0, width: 20, height: 20 },
+    })
+    const first = s.add(mask(0))
+    const elsewhere = s.add(mask(1))
+    const second = s.add(mask(0, 'ellipse'))
+    expect(s.list.get()).toEqual([note, elsewhere, second])
+    expect(s.get(first.id)).toBeUndefined()
+    history.undo()
+    expect(s.list.get()).toEqual([note, first, elsewhere])
+    history.redo()
+    expect(s.list.get()).toEqual([note, elsewhere, second])
+  })
+
+  it('drops the replaced mask from the selection', () => {
+    const s = store()
+    const first = s.add(mask(0))
+    s.select([first.id])
+    const second = s.add(mask(0))
+    expect(s.selection.get()).toEqual([])
+    s.select([second.id])
+    expect(s.selection.get()).toEqual([second.id])
+  })
+
+  it('controlled: the replacement is one onChange, the new list without the old mask', () => {
+    const onChange = vi.fn<(next: Annotation[], change: AnnotationChange) => void>()
+    const s = createAnnotationStore({
+      mode: { mode: 'controlled', initial: [], onChange },
+      defaults: staticDefaults,
+      id: ids,
+      now,
+    })
+    const first = s.add(mask(0))
+    expect(onChange).toHaveBeenCalledTimes(1)
+    // The host has not applied the first yet: the next add builds on what was proposed.
+    const second = s.add(mask(0, 'ellipse'))
+    expect(onChange).toHaveBeenCalledTimes(2)
+    const [next, change] = onChange.mock.calls[1]!
+    expect(next).toEqual([second])
+    expect(change).toMatchObject({ kind: 'add', annotation: { id: second.id } })
+    expect(next).not.toContainEqual(expect.objectContaining({ id: first.id }))
+    expect(s.list.get()).toEqual([])
   })
 })

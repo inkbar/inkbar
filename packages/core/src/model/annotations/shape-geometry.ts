@@ -15,6 +15,7 @@ export type ShapeKind =
   | 'polygon'
   | 'loupe'
   | 'mask'
+  | 'ovalMask'
 
 export interface ShapeOptions {
   kind: ShapeKind
@@ -35,6 +36,8 @@ export const SHAPE_KINDS: readonly ShapeKind[] = [
   'star',
   'polygon',
   'loupe',
+  'mask',
+  'ovalMask',
 ]
 
 export const DEFAULT_SHAPE_OPTIONS: Readonly<ShapeOptions> = {
@@ -43,7 +46,7 @@ export const DEFAULT_SHAPE_OPTIONS: Readonly<ShapeOptions> = {
   sides: 6,
 }
 
-const POINTER_ONLY: ReadonlySet<ShapeKind> = new Set(['loupe', 'mask'])
+const POINTER_ONLY: ReadonlySet<ShapeKind> = new Set(['loupe', 'mask', 'ovalMask'])
 
 /**
  * True for kinds only a pointer creates: the loupe and the mask. `Enter` with the shape tool
@@ -55,6 +58,9 @@ export function isPointerOnlyKind(kind: ShapeKind): boolean {
 
 /** Magnification of a new loupe. */
 export const DEFAULT_LOUPE_MAGNIFICATION = 2
+
+/** How strongly a new mask dims the page. */
+export const DEFAULT_MASK_DIM = 0.5
 
 /** Side of the shape a click or Enter places, in points. */
 export const DEFAULT_SHAPE_SIZE = 72
@@ -202,6 +208,15 @@ export function shapeInput(
         page,
         rect: rectOf(start, constrain(kind, start, end)),
         magnification: DEFAULT_LOUPE_MAGNIFICATION,
+      }
+    case 'mask':
+    case 'ovalMask':
+      return {
+        type: 'mask',
+        page,
+        rect,
+        shape: kind === 'mask' ? 'rect' : 'ellipse',
+        dim: DEFAULT_MASK_DIM,
       }
     default:
       return undefined

@@ -134,11 +134,17 @@ export function shapeTool(): Tool<ShapeOptions> {
       input.type === 'square' ||
       input.type === 'circle' ||
       input.type === 'freetext' ||
-      input.type === 'loupe'
+      input.type === 'loupe' ||
+      input.type === 'mask'
     ) {
       if (!input.rect) return
       box = t.toCssRect(input.rect)
-      kind = input.type === 'circle' || input.type === 'loupe' ? 'ellipse' : 'rect'
+      kind =
+        input.type === 'circle' ||
+        input.type === 'loupe' ||
+        (input.type === 'mask' && input.shape === 'ellipse')
+          ? 'ellipse'
+          : 'rect'
     } else {
       if (input.type === 'line') points = [t.toCss(input.start), t.toCss(input.end)]
       else if (input.type === 'polygon') points = input.vertices.map((v) => t.toCss(v))

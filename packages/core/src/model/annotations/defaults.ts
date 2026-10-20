@@ -27,6 +27,8 @@ const COLORS: Record<AnnotationType, string> = {
   stamp: '#151820',
   // The loupe's rim.
   loupe: '#151820',
+  // The dimming colour.
+  mask: '#000000',
   redact: '#C0392B',
 }
 
@@ -62,6 +64,7 @@ const VARIABLES: Record<AnnotationType, string> = {
   ink: '--ink-ink',
   stamp: '--ink-ink',
   loupe: '--ink-shape',
+  mask: '--ink-mask',
   redact: '--ink-redact',
 }
 

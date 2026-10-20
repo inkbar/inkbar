@@ -215,6 +215,19 @@ describe('loupe', () => {
   })
 })
 
+describe('mask', () => {
+  const mask = { ...base, type: 'mask', shape: 'rect', dim: 0.5 } as const
+
+  // A mask is the page dimmed outside a shape: no outline, fill or width to style, and no
+  // style group, so the style controls leave it alone.
+  it('takes no style props and belongs to no group', () => {
+    expect(styleGroupOf(mask)).toBeUndefined()
+    expect([...supportedProps('mask')]).toEqual([])
+    expect(toFields('mask', { border: '#FF0000', fill: '#00FF00', width: 3 })).toEqual({})
+    expect(typesInGroup('shape')).not.toContain('mask')
+  })
+})
+
 describe('stamp', () => {
   const stamp = {
     ...base,

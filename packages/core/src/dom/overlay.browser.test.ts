@@ -1291,3 +1291,170 @@ describe('loupe', () => {
     await expect.poll(() => canvas.width).toBe(160)
   })
 })
+
+describe('mask', () => {
+  const SVG_NS = 'http://www.w3.org/2000/svg'
+
+  /** An overlay over `name`'s first page, at `zoom` and a view `rotation`. */
+  async function mountMaskPage(
+    name: 'text-simple' | 'text-rotated-90' = 'text-simple',
+    zoom = 1,
+    rotation: 0 | 90 | 180 | 270 = 0
+  ) {
+    const doc = await openFixtureInBrowser(name)
+    const transform = createPageTransform(doc.pages[0]!, zoom, rotation)
+    const host = mountContainer(transform.cssWidth, transform.cssHeight)
+    const overlay = createOverlay({ host, page: 0, store: doc.annotations, transform })
+    cleanup.push(() => {
+      overlay.destroy()
+      host.remove()
+      void doc.destroy()
+    })
+    return { doc, host, overlay, transform }
+  }
+
+  const layer = (host: HTMLElement) =>
+    host.querySelector<SVGSVGElement>('svg[data-ink-mask-layer]')
+
+  /** Numbers of a path's data, in order. */
+  const numbers = (d: string): number[] => (d.match(/-?\d+(\.\d+)?/g) ?? []).map(Number)
+
+  it('mask layer covers the page minus the shape with an even-odd path at dim opacity', async () => {
+    const { doc, host, overlay } = await mountMaskPage('text-simple', 2)
+    expect(layer(host)).toBeNull()
+    const mask = doc.annotations.add({
+      type: 'mask',
+      page: 0,
+      rect: { x: 100, y: 500, width: 200, height: 100 },
+      shape: 'rect',
+      dim: 0.7,
+    })
+    const svg = layer(host)!
+    // Above the page canvas and text layer, below the annotation overlay, and never a target.
+    expect(svg.namespaceURI).toBe(SVG_NS)
+    expect(svg.nextElementSibling).toBe(overlay.element)
+    expect(svg.style.pointerEvents).toBe('none')
+    expect(svg.getAttribute('width')).toBe('1224')
+    expect(svg.getAttribute('height')).toBe('1584')
+    const paths = svg.querySelectorAll('path')
+    expect(paths).toHaveLength(1)
+    const path = paths[0]!
+    expect(path.getAttribute('fill-rule')).toBe('evenodd')
+    expect(path.getAttribute('fill')).toBe(mask.color)
+    expect(path.getAttribute('fill-opacity')).toBe('0.7')
+    // The page outline, then the shape's: css (200, 384) to (600, 584) at 2x.
+    expect(numbers(path.getAttribute('d')!)).toEqual([
+      0, 0, 1224, 0, 1224, 1584, 0, 1584, 200, 384, 600, 384, 600, 584, 200, 584,
+    ])
+
+    // A change to the mask redraws it; removing it removes the layer.
+    doc.annotations.update(mask.id, { dim: 0.2, shape: 'ellipse' })
+    const ellipse = layer(host)!.querySelector('path')!
+    expect(ellipse.getAttribute('fill-opacity')).toBe('0.2')
+    expect(ellipse.getAttribute('d')).toMatch(/A/)
+    expect(ellipse.getAttribute('fill-rule')).toBe('evenodd')
+    doc.annotations.remove(mask.id)
+    expect(layer(host)).toBeNull()
+  })
+
+  it('mask only covers its own page and follows zoom', async () => {
+    const { doc, host, overlay } = await mountMaskPage()
+    doc.annotations.add({
+      type: 'mask',
+      page: 1,
+      rect: { x: 0, y: 0, width: 10, height: 10 },
+      shape: 'rect',
+    })
+    expect(layer(host)).toBeNull()
+    doc.annotations.add({
+      type: 'mask',
+      page: 0,
+      rect: { x: 100, y: 500, width: 200, height: 100 },
+      shape: 'rect',
+    })
+    overlay.update(createPageTransform(doc.pages[0]!, 0.5, 0))
+    const d = layer(host)!.querySelector('path')!.getAttribute('d')!
+    expect(numbers(d)).toEqual([
+      0, 0, 306, 0, 306, 396, 0, 396, 50, 96, 150, 96, 150, 146, 50, 146,
+    ])
+    expect(layer(host)!.getAttribute('width')).toBe('306')
+  })
+
+  it('mask on the rotated fixture covers the whole page at view rotation 0 and 270', async () => {
+    for (const view of [0, 270] as const) {
+      const { doc, host, transform } = await mountMaskPage('text-rotated-90', 1, view)
+      const rect = { x: 100, y: 300, width: 200, height: 100 }
+      doc.annotations.add({ type: 'mask', page: 0, rect, shape: 'rect' })
+      const svg = layer(host)!
+      expect(svg.getAttribute('width')).toBe(String(transform.cssWidth))
+      expect(svg.getAttribute('height')).toBe(String(transform.cssHeight))
+      const all = numbers(svg.querySelector('path')!.getAttribute('d')!)
+      expect(all.slice(0, 8)).toEqual([
+        0,
+        0,
+        transform.cssWidth,
+        0,
+        transform.cssWidth,
+        transform.cssHeight,
+        0,
+        transform.cssHeight,
+      ])
+      // The shape is the rect's own css box under the page's turn.
+      const c = transform.toCssRect(rect)
+      const shape = all.slice(8)
+      expect(shape[0], String(view)).toBeCloseTo(c.left)
+      expect(shape[1], String(view)).toBeCloseTo(c.top)
+      expect(shape[2], String(view)).toBeCloseTo(c.left + c.width)
+      expect(shape[5], String(view)).toBeCloseTo(c.top + c.height)
+      // /Rotate 90 plus the view: sides swap at a quarter turn, not at a half or full one.
+      const swapped = transform.totalRotation % 180 !== 0
+      expect(c.width, String(view)).toBeCloseTo(swapped ? rect.height : rect.width)
+      expect(c.height, String(view)).toBeCloseTo(swapped ? rect.width : rect.height)
+      expect(c.left + c.width).toBeLessThanOrEqual(transform.cssWidth)
+      expect(c.top + c.height).toBeLessThanOrEqual(transform.cssHeight)
+    }
+  })
+
+  it('mask is selectable through its shape, not the dimmed area', async () => {
+    const { doc, host } = await mountMaskPage()
+    const mask = doc.annotations.add({
+      type: 'mask',
+      page: 0,
+      rect: { x: 100, y: 500, width: 200, height: 100 },
+      shape: 'ellipse',
+    })
+    const el = host.querySelector<HTMLElement>(`[data-annotation="${mask.id}"]`)!
+    expect(el.dataset.type).toBe('mask')
+    expect(el.getAttribute('aria-label')).toBe('Mask')
+    const box = host.getBoundingClientRect()
+    // css box: left 100, top 192..292. Centre is inside the ellipse, the box corner is not.
+    const at = (x: number, y: number) =>
+      document.elementFromPoint(box.left + x, box.top + y)
+    expect(at(200, 242)?.closest('[data-annotation]')).toBe(el)
+    expect(at(102, 194)?.closest('[data-annotation]')).toBeNull()
+    // Far outside the shape, in the dimmed area.
+    expect(at(450, 500)?.closest('[data-annotation]')).toBeNull()
+    expect(at(450, 500)?.closest('[data-ink-mask-layer]')).toBeNull()
+    // A press on the shape selects the mask.
+    at(200, 242)?.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, button: 0, isPrimary: true })
+    )
+    expect(doc.annotations.selection.get()).toEqual([mask.id])
+  })
+
+  it('a rect mask takes presses across its whole box', async () => {
+    const { doc, host } = await mountMaskPage()
+    const mask = doc.annotations.add({
+      type: 'mask',
+      page: 0,
+      rect: { x: 100, y: 500, width: 200, height: 100 },
+      shape: 'rect',
+    })
+    const el = host.querySelector<HTMLElement>(`[data-annotation="${mask.id}"]`)!
+    const box = host.getBoundingClientRect()
+    const at = (x: number, y: number) =>
+      document.elementFromPoint(box.left + x, box.top + y)
+    expect(at(102, 194)?.closest('[data-annotation]')).toBe(el)
+    expect(at(98, 194)?.closest('[data-annotation]')).toBeNull()
+  })
+})

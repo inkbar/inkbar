@@ -145,6 +145,24 @@ describe('json import/export', () => {
     })
   })
 
+  it('round-trips a mask with its shape and dim', () => {
+    const mk = () =>
+      createAnnotationStore({ mode: { mode: 'uncontrolled' }, defaults: staticDefaults })
+    const s = mk()
+    s.add({
+      type: 'mask',
+      page: 0,
+      rect: { x: 100, y: 500, width: 200, height: 120 },
+      shape: 'ellipse',
+      dim: 0.8,
+    })
+    const text = JSON.stringify(exportAnnotations(s, [], 'k'))
+    const s2 = mk()
+    expect(importAnnotations(s2, text, { mode: 'replace' }).errors).toEqual([])
+    expect(s2.list.get()).toEqual(s.list.get())
+    expect(s2.list.get()[0]).toMatchObject({ type: 'mask', shape: 'ellipse', dim: 0.8 })
+  })
+
   it('round-trips a free-text box with fill, border and text style', () => {
     const mk = () =>
       createAnnotationStore({ mode: { mode: 'uncontrolled' }, defaults: staticDefaults })

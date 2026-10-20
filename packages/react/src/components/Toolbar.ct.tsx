@@ -701,8 +701,12 @@ test.describe('shape menu', () => {
       menu.getByRole('menuitemradio', { name: 'Rectangle', exact: true })
     ).toHaveAttribute('aria-checked', 'true')
     await expect(menu.getByRole('menuitemradio', { name: 'Loupe' })).toHaveCount(1)
-    // Kinds with no creator yet are not offered.
-    await expect(menu.getByRole('menuitemradio', { name: 'Mask' })).toHaveCount(0)
+    await expect(
+      menu.getByRole('menuitemradio', { name: 'Mask', exact: true })
+    ).toHaveCount(1)
+    await expect(
+      menu.getByRole('menuitemradio', { name: 'Oval mask', exact: true })
+    ).toHaveCount(1)
     await menu.getByRole('menuitemradio', { name: 'Ellipse' }).click()
     await expect(page.getByTestId('probe')).toHaveAttribute('data-tool', 'shape')
     await expect(main(cmp)).toHaveAttribute('data-kind', 'ellipse')

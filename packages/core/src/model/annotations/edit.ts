@@ -38,7 +38,7 @@ export function translated(a: Annotation, dx: number, dy: number): Partial<Annot
 
 /**
  * True when `rect` is the annotation's whole shape, so resizing means changing `rect`: area
- * redactions, free text, squares, circles, stamps and loupes. Text-derived marks (quads), note icons and
+ * redactions, free text, squares, circles, stamps, loupes and masks. Text-derived marks (quads), note icons and
  * point-based shapes are not.
  */
 export function hasRectGeometry(a: Annotation): boolean {
@@ -50,6 +50,7 @@ export function hasRectGeometry(a: Annotation): boolean {
     case 'circle':
     case 'stamp':
     case 'loupe':
+    case 'mask':
       return true
     default:
       return false
@@ -183,11 +184,8 @@ export function movedEndpoint(
  * masks and signatures (ink with subject `Signature`).
  */
 export function keepsAspect(a: Annotation): boolean {
-  if (a.type === 'stamp' || a.type === 'loupe') return true
-  if (a.type === 'ink') return a.subject === 'Signature'
-  // Masks arrive later; compare the type as a plain string.
-  const type: string = a.type
-  return type === 'mask'
+  if (a.type === 'stamp' || a.type === 'loupe' || a.type === 'mask') return true
+  return a.type === 'ink' && a.subject === 'Signature'
 }
 
 /**

@@ -21,10 +21,15 @@ import {
   translated,
 } from '../model/annotations/edit'
 import { withoutReplies } from '../model/annotations/threads'
-import { confidenceBucket, type Annotation } from '../model/annotations/types'
+import {
+  confidenceBucket,
+  type Annotation,
+  type MaskAnnotation,
+} from '../model/annotations/types'
 
 import { canEditFreeText, editFreeTextIn, editorFor } from './freetext-editor'
 import { createLoupeLayer } from './loupe-layer'
+import { createMaskLayer } from './mask-layer'
 import {
   annotationBox,
   hasComment,
@@ -102,6 +107,7 @@ const LABELS: Record<Annotation['type'], string> = {
   ink: 'Drawing',
   stamp: 'Stamp',
   loupe: 'Loupe',
+  mask: 'Mask',
   redact: 'Redaction',
 }
 
@@ -149,6 +155,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
   opts.host.append(root)
 
   const elements = new Map<string, HTMLElement>()
+  const masks = createMaskLayer(opts.host, root)
   const loupes = opts.document
     ? createLoupeLayer({
         document: opts.document,
@@ -524,6 +531,11 @@ export function createOverlay(opts: OverlayOptions): Overlay {
       hovered.delete(id)
     }
 
+    masks.update(
+      current.find((a): a is MaskAnnotation => a.type === 'mask'),
+      transform
+    )
+
     order = current.map((a) => a.id)
     for (const a of current) {
       let node = elements.get(a.id)
@@ -594,6 +606,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
       offSelection()
       toolObserver?.disconnect()
       loupes?.destroy()
+      masks.destroy()
       root.remove()
       elements.clear()
       drawn.clear()

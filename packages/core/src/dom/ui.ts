@@ -447,6 +447,7 @@ export const SHAPE_LABELS: Readonly<Record<ShapeKind, string>> = {
   polygon: 'Polygon',
   loupe: 'Loupe',
   mask: 'Mask',
+  ovalMask: 'Oval mask',
 }
 
 /** Accessible names of the text markup kinds, as the highlight menu announces them. */

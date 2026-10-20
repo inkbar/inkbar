@@ -632,8 +632,12 @@ describe('shape menu', () => {
     expect(menu().getByRole('menuitemradio', { name: 'Loupe' }).elements()).toHaveLength(
       1
     )
-    // Kinds with no creator yet are not offered.
-    expect(menu().getByRole('menuitemradio', { name: 'Mask' }).elements()).toHaveLength(0)
+    expect(
+      menu().getByRole('menuitemradio', { name: 'Mask', exact: true }).elements()
+    ).toHaveLength(1)
+    expect(
+      menu().getByRole('menuitemradio', { name: 'Oval mask', exact: true }).elements()
+    ).toHaveLength(1)
     await kind('Ellipse').click()
     await expect.poll(probe('data-tool')).toBe('shape')
     await expect.poll(attr(main, 'data-kind')).toBe('ellipse')
