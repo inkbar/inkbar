@@ -122,7 +122,7 @@ const BUBBLE_SHAPE_PROPS: ReadonlySet<StyleKey> = new Set([
  * that owns that prop on `a`: a speech bubble's outline and fill are `shape`'s, its text `text`'s.
  */
 export function styleGroupOf(
-  a: Pick<Annotation, 'type'> & { intent?: string },
+  a: Pick<Annotation, 'type'> & { intent?: string | undefined },
   key?: StyleKey
 ): StyleGroup | undefined {
   if (
@@ -137,7 +137,7 @@ export function styleGroupOf(
 
 /** Every group that owns some prop on `a`: two for a speech bubble, else at most one. */
 export function styleGroupsOf(
-  a: Pick<Annotation, 'type'> & { intent?: string }
+  a: Pick<Annotation, 'type'> & { intent?: string | undefined }
 ): StyleGroup[] {
   const out = new Set<StyleGroup>()
   const own = GROUPS[a.type]
