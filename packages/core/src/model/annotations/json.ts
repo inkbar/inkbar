@@ -2,12 +2,14 @@ import { isProduction } from '../env'
 
 import {
   AnnotationDocumentSchema,
+  EXTENSION_TYPES,
   ExportedAnnotationSchema,
   GLOSS_FORMAT,
   GLOSS_VERSION,
   type Annotation,
   type AnnotationDocument,
   type ExportedAnnotation,
+  type FileAnnotation,
   type ForeignAnnotation,
 } from './types'
 
@@ -38,6 +40,23 @@ export const KNOWN_TYPES: ReadonlySet<string> = new Set(
   )
 )
 
+/** File name -> store name for Inkbar's own types: `x-loupe` -> `loupe`. */
+const FROM_FILE = new Map<string, string>(
+  Object.entries(EXTENSION_TYPES).map(([name, file]) => [file, name])
+)
+
+/** An annotation as the file writes it, with Inkbar's own types under their `x-` names. */
+function toFile(annotation: ExportedAnnotation): FileAnnotation {
+  return (
+    annotation.type in EXTENSION_TYPES
+      ? {
+          ...annotation,
+          type: EXTENSION_TYPES[annotation.type as keyof typeof EXTENSION_TYPES],
+        }
+      : annotation
+  ) as FileAnnotation
+}
+
 /**
  * Session annotations plus any preserved foreign items. Embedded (`source: 'pdf'`) ones stay in
  * the file. `source` and `locked` are viewer state and are left out.
@@ -46,24 +65,27 @@ export const KNOWN_TYPES: ReadonlySet<string> = new Set(
  * export would carry: editing it never touches the store, and values JSON cannot hold, such as
  * functions or `undefined` inside `custom`, are left out exactly as `JSON.stringify` would.
  *
- * The result validates against the Gloss schema (`gloss-format/schema.json`). Foreign items
- * validate as unknown annotations while their type is one Gloss does not define.
+ * Loupes and masks, which Gloss does not define, go out as `x-loupe` and `x-mask`.
+ *
+ * The result validates against the Gloss schema (`gloss-format/schema.json`). Foreign items,
+ * loupes and masks validate as unknown annotations while their type is one Gloss does not
+ * define.
  */
 export function exportAnnotations(
   store: AnnotationStore,
   preserved: readonly ForeignAnnotation[] = [],
   documentKey?: string
 ): AnnotationDocument {
-  const session: ExportedAnnotation[] = store.list
+  const session: FileAnnotation[] = store.list
     .get()
     .filter((a) => a.source === 'session')
-    .map(({ source: _source, locked: _locked, ...rest }) => rest)
+    .map(({ source: _source, locked: _locked, ...rest }) => toFile(rest))
   return {
     format: GLOSS_FORMAT,
     version: GLOSS_VERSION,
     ...(documentKey === undefined ? {} : { documentKey }),
     annotations: JSON.parse(JSON.stringify([...session, ...preserved])) as Array<
-      ExportedAnnotation | ForeignAnnotation
+      FileAnnotation | ForeignAnnotation
     >,
   }
 }
@@ -154,8 +176,13 @@ export function planImport(
     return true
   }
 
-  envelope.data.annotations.forEach((item, index) => {
-    const type = (item as { type?: unknown } | null)?.type
+  envelope.data.annotations.forEach((raw, index) => {
+    const fileType = (raw as { type?: unknown } | null)?.type
+    // Inkbar's own types arrive under their x- names and go into the store under plain ones.
+    // A plain `loupe` or `mask`, as Gloss 1.0.0 wrote them, still reads.
+    const type =
+      typeof fileType === 'string' ? (FROM_FILE.get(fileType) ?? fileType) : fileType
+    const item = type === fileType ? raw : { ...(raw as object), type }
     if (typeof type === 'string' && !KNOWN_TYPES.has(type)) {
       if (!isForeign(item)) {
         result.errors.push({

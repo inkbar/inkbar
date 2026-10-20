@@ -506,8 +506,8 @@ importers:
         specifier: workspace:^
         version: link:../icons
       gloss-format:
-        specifier: ^1.0.0
-        version: 1.0.0
+        specifier: ^1.1.0
+        version: 1.1.0
       pdfjs-dist:
         specifier: ^6.4.299
         version: 6.4.299
@@ -3229,8 +3229,8 @@ packages:
     resolution: {integrity: sha512-c/c15i26VrJ4IRt5Z89DnIzCGDn9EcebibhAOjw5ibqEHsE1wLUgkPn9RDmNcUKyU87GeaL633nyJ+pplFR2ZQ==}
     engines: {node: '>=18'}
 
-  gloss-format@1.0.0:
-    resolution: {integrity: sha512-mHYQtuKmAAX2ZqMsWZa0X8Btr+UioGwv+9iuZxkqg6xL7g9iVT41BYFFglbsMrACk2VbnUsIM4FhK4B/0ggIzQ==}
+  gloss-format@1.1.0:
+    resolution: {integrity: sha512-8EvKl0whXRzMlRq3yAp6MKlgOOaDvwxha+sJxkX9EgChMPWTmmuxqqru3gX0GI6rLZmyhGUnaHfWluK1UuZVGA==}
 
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
@@ -7104,7 +7104,7 @@ snapshots:
 
   globals@16.5.0: {}
 
-  gloss-format@1.0.0:
+  gloss-format@1.1.0:
     dependencies:
       zod: 4.6.6
 

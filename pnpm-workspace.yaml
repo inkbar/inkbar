@@ -45,4 +45,4 @@ minimumReleaseAgeExclude:
   - '@radix-ui/react-toolbar@1.2.1'
   - '@radix-ui/react-tooltip@1.4.1'
   - radix-ui@1.8.1
-  - gloss-format@1.0.0
+  - gloss-format@1.1.0

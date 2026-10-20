@@ -10,8 +10,6 @@ import {
   Ink,
   Line,
   LineEnding as GlossLineEnding,
-  Loupe,
-  Mask,
   Note,
   NoteIcon,
   Point,
@@ -178,17 +176,40 @@ export { IMAGE_DATA_URL } from 'gloss-format'
 export const StampSchema = z.object({ ...Stamp.shape, ...Base })
 
 /**
- * A loupe (an extension, not XFDF): a circle inscribed in `rect` that shows the page content
- * under its own centre, magnified. `color` and `width` draw its rim.
+ * Inkbar's own types, which Gloss does not define. A Gloss file names them with an `x-` prefix,
+ * which Gloss reserves for hosts, so no later version of the schema can claim the name.
+ * Everywhere else, including the store and the API, they keep their plain names.
  */
-export const LoupeSchema = z.object({ ...Loupe.shape, ...Base })
+export const EXTENSION_TYPES = { loupe: 'x-loupe', mask: 'x-mask' } as const
+type ExtensionType = keyof typeof EXTENSION_TYPES
 
 /**
- * A mask (an extension, not XFDF): dims everything on the page outside `shape` drawn in
- * `rect`, an ellipse inscribed in it or the rectangle itself. `color` is the dimming colour
- * and `dim` how strongly it covers. One per page: adding a second replaces the first.
+ * A loupe (an Inkbar extension, `x-loupe` in a file): a circle inscribed in `rect` that shows
+ * the page content under its own centre, magnified. `color` and `width` draw its rim.
  */
-export const MaskSchema = z.object({ ...Mask.shape, ...Base })
+export const LoupeSchema = z.object({
+  type: z.literal('loupe'),
+  ...commonFields,
+  /** How many times larger the content under the centre is drawn. Above 1. */
+  magnification: z.number().gt(1).default(2),
+  /** The rim's width in points. */
+  width: z.number().nonnegative().default(2),
+  ...Base,
+})
+
+/**
+ * A mask (an Inkbar extension, `x-mask` in a file): dims everything on the page outside
+ * `shape` drawn in `rect`, an ellipse inscribed in it or the rectangle itself. `color` is the
+ * dimming colour and `dim` how strongly it covers, from 0 to 1. One per page: adding a second
+ * replaces the first.
+ */
+export const MaskSchema = z.object({
+  type: z.literal('mask'),
+  ...commonFields,
+  shape: z.enum(['rect', 'ellipse']),
+  dim: z.number().min(0).max(1).default(0.5),
+  ...Base,
+})
 
 export const SuggestionSchema = z.object(GlossSuggestion.shape)
 
@@ -330,12 +351,19 @@ export const AnnotationDocumentSchema = z.object({
  */
 export type ForeignAnnotation = UnknownAnnotation
 
+/** An exported annotation as a Gloss file writes it: Inkbar's own types carry their `x-` names. */
+export type FileAnnotation = ExportedAnnotation extends infer A
+  ? A extends { type: ExtensionType }
+    ? Omit<A, 'type'> & { type: (typeof EXTENSION_TYPES)[A['type']] }
+    : A
+  : never
+
 /** A Gloss document holding Inkbar's annotations and any foreign items it kept. */
 export interface AnnotationDocument {
   format: GlossDocument['format']
   version: GlossDocument['version']
   documentKey?: string
-  annotations: Array<ExportedAnnotation | ForeignAnnotation>
+  annotations: Array<FileAnnotation | ForeignAnnotation>
 }
 
 export type ConfidenceBucket = 'low' | 'medium' | 'high'

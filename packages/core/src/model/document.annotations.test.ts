@@ -88,9 +88,11 @@ describe('document annotations', () => {
         },
       ],
     })
+    doc.annotations.add({ type: 'loupe', page: 0, rect })
+    doc.annotations.add({ type: 'mask', page: 0, rect, shape: 'ellipse' })
     const validate = compileSchema()
     const out = doc.exportAnnotations('json')
-    expect(out.annotations).toHaveLength(2)
+    expect(out.annotations).toHaveLength(4)
     expect(validate(JSON.parse(JSON.stringify(out)))).toBe(true)
     doc.destroy()
   })
