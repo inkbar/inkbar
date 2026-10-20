@@ -416,7 +416,8 @@ for (const framework of FRAMEWORKS) {
       await expect(editor).toHaveCount(0)
       const created = sessionShape(page, 'freetext')
       await expect(created).toHaveCount(1)
-      await expect(created.locator('.ink-free-text')).toHaveText('Hello\nthere')
+      // toHaveText folds whitespace, so read the text to check the line break.
+      expect(await created.locator('.ink-free-text').textContent()).toBe('Hello\nthere')
       // Creating and typing are one step: undo takes the whole box away.
       await page.getByRole('button', { name: 'Undo', exact: true }).click()
       await expect(created).toHaveCount(0)
