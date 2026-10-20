@@ -2372,7 +2372,9 @@ describe('freetext tool', () => {
     await until(() => editorIn(container) === null)
     const [box] = session(doc)
     expect(box).toMatchObject({ contents: 'Hi' })
-    expect(document.activeElement).not.toBe(document.body)
+    expect(document.activeElement).toBe(
+      container.querySelector(`[data-annotation="${box!.id}"]`)
+    )
   })
 
   it('a press on the page while editing commits without placing another box', async () => {
