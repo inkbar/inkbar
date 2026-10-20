@@ -164,11 +164,13 @@ A callout's corner handles resize its text box: the tip and bend stay, and the p
 
 ## Limits of PDF import
 
-Inkbar reads the annotations embedded in a PDF through PDF.js, which passes on only part of each one. Import keeps `intent` (`/IT`) for every type. Three gaps remain, each a follow-up:
+Inkbar reads the annotations embedded in a PDF through PDF.js, which passes on only part of each one. Import keeps `intent` (`/IT`) for every type. Once the document is ready, Inkbar reads the fields PDF.js leaves out from the file itself: a FreeText's `callout`, `fringe`, `head` and font, and a note's icon. They arrive as one `replace` change with `reason: 'embedded'`. That change adds no undo step and keeps the undo history.
 
-- Read FreeText `/CL`, `/RD` and `/LE` from PDFs. A callout in a PDF imports with `intent: 'FreeTextCallout'` but without `callout`, `fringe` or `head`. PDF.js still paints it from the file's own appearance.
-- Read a note's `/Name` when the note has an appearance stream. PDF.js reports such notes as `NoIcon`, so they import with the default icon, `Note`.
-- Keep line endings Inkbar does not know. PDF.js turns them into `None`. Annotations loaded from JSON keep them.
+Callout, icon and font fields are not read from encrypted PDFs, or from annotations stored as direct objects. Inkbar skips a file with a broken cross-reference table the same way.
+
+One gap remains, a follow-up:
+
+- Keep line endings Inkbar does not know on lines and polylines. PDF.js turns them into `None`. Annotations loaded from JSON keep them.
 
 ## Tools and keyboard
 

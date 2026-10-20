@@ -29,6 +29,19 @@ interface Entry {
   after: readonly Annotation[]
 }
 
+/** Embedded annotations in `after` that are not the same object as in `before`, by id. */
+function changedEmbedded(
+  before: readonly Annotation[],
+  after: readonly Annotation[]
+): Map<string, Annotation> {
+  const old = new Map(before.map((a) => [a.id, a]))
+  return new Map(
+    after
+      .filter((a) => a.source === 'pdf' && old.has(a.id) && old.get(a.id) !== a)
+      .map((a) => [a.id, a])
+  )
+}
+
 /**
  * Snapshot-based undo and redo over an uncontrolled store.
  *
@@ -77,6 +90,20 @@ export function createHistory(
     const current = store.list.get()
     // Our own replays (and any other history replace) never become entries.
     if (replaying || (change.kind === 'replace' && change.reason === 'history')) {
+      previous = current
+      return
+    }
+    if (change.kind === 'replace' && change.reason === 'embedded') {
+      // Fields read from the file late fill in what the import missed: no step, and every
+      // snapshot takes the filled-in version so undo never brings back the unfilled one.
+      const patched = changedEmbedded(previous, current)
+      const swap = (list: readonly Annotation[]) =>
+        list.map((a) => patched.get(a.id) ?? a)
+      for (const entry of [...undoStack, ...redoStack]) {
+        entry.before = swap(entry.before)
+        entry.after = swap(entry.after)
+      }
+      if (batchStart) batchStart = swap(batchStart)
       previous = current
       return
     }

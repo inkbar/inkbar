@@ -25,7 +25,11 @@ export type AnnotationChange =
       /** Everything that went: `annotation` first, then the replies removed with it. */
       removed: Annotation[]
     }
-  | { kind: 'replace'; reason: 'import' | 'sync' | 'history' }
+  | {
+      kind: 'replace'
+      /** `embedded`: fields read from the file after `ready` filled in embedded annotations. */
+      reason: 'import' | 'sync' | 'history' | 'embedded'
+    }
 
 export type StoreMode =
   | { mode: 'uncontrolled'; initial?: Annotation[] }
@@ -73,6 +77,12 @@ export interface AnnotationStore {
    * directly in both modes and never passed to `onChange`; the document calls it once on open.
    */
   _setEmbedded(list: readonly Annotation[]): void
+  /**
+   * @internal Swaps in patched embedded annotations by id (only ids still present with
+   * `source: 'pdf'`). Applied directly in both modes and never passed to `onChange`. Emits
+   * `{ kind: 'replace', reason: 'embedded' }` when anything changed.
+   */
+  _patchEmbedded(patched: ReadonlyMap<string, Annotation>): void
   /**
    * @internal Like `get`, but in controlled mode it also sees changes proposed to the host and
    * not applied yet: the list `update` and `remove` build on.
@@ -500,6 +510,21 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
       list.set(next)
       pruneSelection(next)
       emitter.emit('change', { kind: 'replace', reason: 'import' })
+    },
+    _patchEmbedded(patched) {
+      if (destroyed) return
+      const swap = (items: readonly Annotation[]): Annotation[] =>
+        items.map((a) => {
+          const p = a.source === 'pdf' ? patched.get(a.id) : undefined
+          return p && p.id === a.id && p.type === a.type && p.source === 'pdf' ? p : a
+        })
+      const current = list.get()
+      const next = swap(current)
+      if (next.every((a, i) => a === current[i])) return
+      list.set(next)
+      // A pending controlled proposal holds the embedded items too.
+      if (proposed) proposed = swap(proposed)
+      emitter.emit('change', { kind: 'replace', reason: 'embedded' })
     },
     on: (event, fn) => emitter.on(event, fn),
     destroy() {

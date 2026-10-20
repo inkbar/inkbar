@@ -5,7 +5,9 @@ import {
   importEmbeddedPage,
   summarise,
   type EmbeddedSummary,
+  type EmbeddedTarget,
 } from './annotations/embedded'
+import { readEmbeddedFields } from './annotations/embedded-fields'
 import { createHistory, type History } from './annotations/history'
 import {
   exportAnnotations,
@@ -79,7 +81,9 @@ export interface InkDocument {
   /**
    * Annotations embedded in the file arrive here as `source: 'pdf'`, `locked: true` before
    * `ready` resolves. They stay in `list` in both modes and cannot be removed; in controlled
-   * mode they never reach `onChange`.
+   * mode they never reach `onChange`. Fields PDF.js leaves out (a FreeText's callout, fringe,
+   * head and font, a note's icon) are read from the file after `ready` and fill in later, as a
+   * `{ kind: 'replace', reason: 'embedded' }` change.
    */
   readonly annotations: AnnotationStore
   /** What the file contained, by PDF subtype, including subtypes Inkbar does not show. */
@@ -131,6 +135,8 @@ export async function openDocument(
   })
   const embedded: EmbeddedSummary[] = []
   let preserved: ForeignAnnotation[] = []
+  /** Embedded annotations whose PDF.js data lacks fields the file holds; read after `ready`. */
+  const targets: EmbeddedTarget[] = []
 
   const destroyedError = (): InkError =>
     new InkError('DocumentDestroyed', 'The document has been destroyed')
@@ -187,6 +193,7 @@ export async function openDocument(
     })
     embedded.push(...summarise(perPage.map((r) => r.counts)))
     const fromFile = perPage.flatMap((r) => r.annotations)
+    targets.push(...perPage.flatMap((r) => r.targets))
     if (fromFile.length > 0) store._setEmbedded(fromFile)
   })()
 
@@ -213,6 +220,21 @@ export async function openDocument(
   const history = createHistory(
     store,
     historyLimit === undefined ? {} : { limit: historyLimit }
+  )
+
+  // Fills in fields PDF.js leaves out, read from the file's own bytes. It runs after `ready`
+  // so it never delays it, and a failure leaves the annotations as PDF.js imported them.
+  void ready.then(
+    () => {
+      if (destroyed || !handles) return
+      const { proxy } = handles
+      void readEmbeddedFields(store.list.get(), targets, () => proxy.getData()).then(
+        (patched) => {
+          if (!destroyed && patched.size > 0) store._patchEmbedded(patched)
+        }
+      )
+    },
+    () => undefined
   )
 
   const doc: InkDocument = {

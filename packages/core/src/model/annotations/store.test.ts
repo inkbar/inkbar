@@ -490,6 +490,50 @@ describe('AnnotationStore embedded guard (uncontrolled)', () => {
     expect(s.list.get()).toEqual([{ ...embedded, color: '#000000' }, note])
   })
 
+  it('_patchEmbedded swaps embedded annotations by id and emits reason embedded', () => {
+    const s = make()
+    const note = s.add({ type: 'text', page: 0, rect: embedded.rect })
+    const changes: AnnotationChange[] = []
+    s.on('change', (c) => changes.push(c))
+    const patched: Annotation = { ...embedded, icon: 'Key' }
+    s._patchEmbedded(
+      new Map<string, Annotation>([
+        [embedded.id, patched],
+        // Not in the list: ignored.
+        ['pdf:0:9R', { ...embedded, id: 'pdf:0:9R' }],
+        // A session annotation: never patched.
+        [note.id, { ...note, contents: 'patched' }],
+      ])
+    )
+    expect(s.list.get()).toEqual([patched, note])
+    expect(s.get(note.id)).toBe(note)
+    expect(changes).toEqual([{ kind: 'replace', reason: 'embedded' }])
+  })
+
+  it('_patchEmbedded with nothing to swap emits nothing', () => {
+    const s = make()
+    const fn = vi.fn()
+    s.on('change', fn)
+    s._patchEmbedded(new Map([['pdf:0:9R', { ...embedded, id: 'pdf:0:9R' }]]))
+    expect(fn).not.toHaveBeenCalled()
+  })
+
+  it('_patchEmbedded applies in controlled mode without proposing to onChange', () => {
+    const onChange = vi.fn()
+    const s = createAnnotationStore({
+      mode: { mode: 'controlled', initial: [], onChange },
+      defaults: staticDefaults,
+    })
+    s._setEmbedded([embedded])
+    const changes: AnnotationChange[] = []
+    s.on('change', (c) => changes.push(c))
+    const patched: Annotation = { ...embedded, icon: 'Key' }
+    s._patchEmbedded(new Map([[embedded.id, patched]]))
+    expect(s.get(embedded.id)).toBe(patched)
+    expect(onChange).not.toHaveBeenCalled()
+    expect(changes).toEqual([{ kind: 'replace', reason: 'embedded' }])
+  })
+
   it('still undoes an edit to an embedded annotation', () => {
     const s = make()
     const h = createHistory(s)
