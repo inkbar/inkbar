@@ -161,6 +161,17 @@ describe('template helpers', () => {
     })
     expect(() => createImageTemplate('http://example.com/a.png', 1)).toThrow(TypeError)
   })
+
+  it('refuses ink with no strokes, an empty stroke, or pressure shaped unlike the strokes', () => {
+    const stroke = [
+      { x: 0, y: 0 },
+      { x: 4, y: 2 },
+    ]
+    expect(() => createInkTemplate([])).toThrow(RangeError)
+    expect(() => createInkTemplate([stroke, []])).toThrow(RangeError)
+    expect(() => createInkTemplate([stroke], [[0.5]])).toThrow(RangeError)
+    expect(() => createInkTemplate([stroke], [[0.5, 0.5], [0.5]])).toThrow(RangeError)
+  })
 })
 
 describe('createMemorySignatureStore', () => {

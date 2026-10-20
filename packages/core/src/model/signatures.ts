@@ -223,11 +223,22 @@ export function normaliseInk(inklist: Point[][]): { inklist: Point[][]; aspect: 
   return { inklist: inklist.map((path) => path.map(map)), aspect: boxW / boxH }
 }
 
-/** An ink template from strokes in any y-up space, with a new id. */
+/**
+ * An ink template from strokes in any y-up space, with a new id. Throws a RangeError for no
+ * strokes, an empty stroke, or pressure that does not have one value per point.
+ */
 export function createInkTemplate(
   inklist: Point[][],
   pressure?: number[][]
 ): SignatureTemplate {
+  if (inklist.length === 0 || inklist.some((path) => path.length === 0))
+    throw new RangeError('A signature needs at least one stroke, and no empty strokes')
+  if (
+    pressure &&
+    (pressure.length !== inklist.length ||
+      pressure.some((p, i) => p.length !== inklist[i]!.length))
+  )
+    throw new RangeError('pressure must have the same shape as inklist')
   const fitted = normaliseInk(inklist)
   return {
     id: uuidv7(),
