@@ -7,6 +7,8 @@
 // `onChange` and nothing is applied before the host applies it.
 import { writable, type Readable, type Writable } from '../readable'
 
+import { freeTextBox } from './callout'
+import { hasCallout, withBox } from './edit'
 import {
   fromAnnotation,
   styleGroupOf,
@@ -17,7 +19,13 @@ import {
 } from './style-map'
 
 import type { AnnotationStore } from './store'
-import type { Annotation, AnnotationInput, LineEnding } from './types'
+import type {
+  Annotation,
+  AnnotationInput,
+  AnnotationPatch,
+  FreeTextAnnotation,
+  LineEnding,
+} from './types'
 
 export type StyleGroup = 'shape' | 'ink' | 'text' | 'markup' | 'redact'
 
@@ -314,12 +322,22 @@ export function createToolStyle(deps: ToolStyleDeps): ToolStyle {
     if (!(opts.apply ?? (active === undefined || selectedIn(active) !== null))) return
     const edits = items
       .filter((a) => !a.locked)
-      .map((a) => ({ id: a.id, fields: toFields(a.type, patch) }))
+      .map((a) => ({ id: a.id, fields: refit(a, toFields(a.type, patch)) }))
       .filter((e) => Object.keys(e.fields).length > 0)
     if (edits.length === 0) return
     history.batch(() => {
       for (const e of edits) store.update(e.id, e.fields)
     })
+  }
+
+  /**
+   * `fields` with a callout's `rect` and `fringe` refit when they change its border width, so
+   * the bounds keep covering the leader, its ending and the outline.
+   */
+  function refit(a: Annotation, fields: AnnotationPatch): AnnotationPatch {
+    if (!('width' in fields) || !hasCallout(a)) return fields
+    const next = { ...a, ...fields } as FreeTextAnnotation
+    return { ...fields, ...withBox(next, freeTextBox(a)) } as AnnotationPatch
   }
 
   /** `value`'s keys that hold something. */
