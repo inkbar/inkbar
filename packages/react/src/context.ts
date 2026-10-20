@@ -1,7 +1,14 @@
 import { createContext, useContext } from 'react'
 
 import type { Annotation, InkDocument, InkStatus, PdfAssets } from '@inkbar/core'
-import type { ToolController, ToolId, Viewport, ZoomValue } from '@inkbar/core/dom'
+import type {
+  Tool,
+  ToolController,
+  ToolId,
+  ToolStyle,
+  Viewport,
+  ZoomValue,
+} from '@inkbar/core/dom'
 
 export type { InkStatus }
 
@@ -34,6 +41,10 @@ export interface InkContext {
   /** Desired tool; InkViewport applies it to the controller. */
   tool: ToolId
   setTool: (id: ToolId) => void
+  /** Host tools from InkRoot's `tools` prop; InkViewport registers them. */
+  hostTools: Tool[] | undefined
+  /** The open document's tool style; `null` while no document is open. */
+  toolStyle: ToolStyle | null
   /** Desired zoom and page from the host's props; InkViewport applies and reports back. */
   zoomModel: ZoomValue | undefined
   pageModel: number | undefined

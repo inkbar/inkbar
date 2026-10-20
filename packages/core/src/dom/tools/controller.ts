@@ -16,14 +16,23 @@
 // gesture and swallows that pointer's release, so the new tool never sees half a gesture.
 // `lostpointercapture` after a completed release is not a cancel. Only primary-button presses
 // and releases reach tools. The root's own inline cursor is restored on destroy.
+import {
+  createToolStyle,
+  type StyleGroup,
+  type ToolStyle,
+} from '../../model/annotations/tool-style'
 import { readonly, writable, type Readable } from '../../model/readable'
+
+import { createToolOptions, type ToolOptions } from './options'
 
 import type { AnnotationStore } from '../../model/annotations/store'
 import type { Point } from '../../model/geometry'
 import type { SelectionQuads } from '../selection'
 import type { Viewport, ViewportHit } from '../viewport'
 
-export type ToolId = 'view' | 'select' | 'highlight' | 'redact-area' | 'note'
+export type BuiltinToolId = 'view' | 'select' | 'highlight' | 'redact-area' | 'note'
+/** A built-in tool's id, or any id a host registers its own tool under. */
+export type ToolId = BuiltinToolId | (string & {})
 
 export interface PageHit extends ViewportHit {
   /** Pointer position in user space. */
@@ -41,11 +50,19 @@ export interface ToolContext {
   selectionQuads(): SelectionQuads[]
   clearSelection(): void
   onActivate?(id: string): void
+  /** The style each group creates with, shared with the style controls. */
+  toolStyle: ToolStyle
+  /** The active tool's current options. */
+  options<O extends object>(): O
 }
 
-export interface Tool {
+export interface Tool<O extends object = object> {
   id: ToolId
   cursor: string
+  /** Style group the tool creates into; select tools have none. */
+  styleGroup?: StyleGroup
+  /** Option defaults. Options persist per tool for the viewer's life. */
+  defaultOptions?: O
   activate(ctx: ToolContext): void
   deactivate(): void
   /**
@@ -73,15 +90,25 @@ export interface Tool {
 
 export interface ToolController {
   readonly active: Readable<ToolId>
-  set(id: ToolId): void
+  /** Switches to the tool, first merging `options` into its options. */
+  set(id: ToolId, options?: object): void
+  /** Merges `patch` into a tool's options without switching to it. */
+  setOptions(id: ToolId, patch: object): void
+  options(id: ToolId): Readable<object>
   destroy(): void
 }
 
 export interface ToolControllerOptions {
-  ctx: ToolContext
+  /** The controller adds `options`; `toolStyle` defaults to one of the controller's own. */
+  ctx: Omit<ToolContext, 'toolStyle' | 'options'> & { toolStyle?: ToolStyle }
   /** Default `'view'`. */
   initial?: ToolId
   tools: Tool[]
+  /**
+   * Where options live. Pass the same registry to each controller that replaces another (a
+   * rebuild) so options persist; by default the controller keeps its own.
+   */
+  options?: ToolOptions
 }
 
 /** Host-relative CSS point for a client point. */
@@ -114,10 +141,24 @@ export function hitFor(
 }
 
 export function createToolController(opts: ToolControllerOptions): ToolController {
-  const { ctx } = opts
   const byId = new Map(opts.tools.map((t) => [t.id, t]))
   const active = writable<ToolId>(opts.initial ?? 'view')
   let current: Tool | undefined
+  const registry = opts.options ?? createToolOptions()
+  registry.register(opts.tools)
+  const ctx: ToolContext = {
+    ...opts.ctx,
+    toolStyle:
+      opts.ctx.toolStyle ??
+      createToolStyle({
+        store: opts.ctx.store,
+        history: { batch: (fn) => fn() },
+        activeGroup: () => current?.styleGroup,
+        active,
+      }),
+    // `current` is the activating tool already, so `activate` reads its own options.
+    options: <O extends object>() => registry.get(current?.id ?? active.get()) as O,
+  }
   const originalCursor = ctx.root.style.cursor
   /** The pointer between a primary press and its release or cancel. */
   let pressed: number | undefined
@@ -191,9 +232,10 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
   ctx.root.addEventListener('lostpointercapture', onCancel)
   ctx.root.addEventListener('keydown', onKey)
 
-  function set(id: ToolId): void {
+  function set(id: ToolId, options?: object): void {
     const next = byId.get(id)
     if (!next) throw new RangeError(`Unknown tool ${id}`)
+    if (options) registry.merge(id, options)
     if (pressed !== undefined) {
       // Mid-press: end the old tool's gesture here and keep its release from the new tool.
       current?.onPointerCancel?.(
@@ -214,6 +256,14 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
   return {
     active: readonly(active),
     set,
+    setOptions(id, patch) {
+      if (!byId.has(id)) throw new RangeError(`Unknown tool ${id}`)
+      registry.merge(id, patch)
+    },
+    options(id) {
+      if (!byId.has(id)) throw new RangeError(`Unknown tool ${id}`)
+      return registry.readable(id)
+    },
     destroy() {
       current?.deactivate()
       current = undefined

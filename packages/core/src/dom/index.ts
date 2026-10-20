@@ -27,21 +27,34 @@ export type { PageLayer, PageMount, PageMountOptions } from './page-mount'
 export {
   builtinTools,
   createToolController,
+  createToolOptions,
   highlightTool,
   hitFor,
   noteTool,
   redactAreaTool,
   selectTool,
+  trackToolStyle,
   viewTool,
+  withHostTools,
 } from './tools'
 export type {
+  BuiltinToolId,
   PageHit,
   Tool,
   ToolContext,
   ToolController,
   ToolControllerOptions,
   ToolId,
+  ToolOptions,
+  ToolStyleTracker,
 } from './tools'
+export type {
+  CurrentStyle,
+  StyleGroup,
+  StyleKey,
+  StyleProps,
+  ToolStyle,
+} from '../model/annotations/tool-style'
 export { cssVariableDefaults } from '../model/annotations/defaults'
 export { TOOL_LABELS, ZOOM_LEVELS } from './ui'
 export type {

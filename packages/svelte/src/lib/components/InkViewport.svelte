@@ -125,6 +125,8 @@
       gap,
       buffer,
       tool: ctx.tool,
+      ...(ctx.hostTools ? { tools: ctx.hostTools } : {}),
+      ...(ctx.toolStyle ? { toolStyle: ctx.toolStyle } : {}),
       customAnnotations: custom,
       onActivate: (id) => ctx.setActivated(id),
       onBuild: (vp, tc) => {

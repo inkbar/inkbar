@@ -26,6 +26,22 @@ export * from './model/annotations/types'
 export * from './model/annotations/defaults'
 export * from './model/annotations/store'
 export * from './model/annotations/history'
+export { createToolStyle, STYLE_GROUPS } from './model/annotations/tool-style'
+export type {
+  CurrentStyle,
+  StyleGroup,
+  StyleKey,
+  StyleProps,
+  ToolStyle,
+  ToolStyleDeps,
+} from './model/annotations/tool-style'
+export {
+  fromAnnotation,
+  styleGroupOf,
+  styleGroupOfType,
+  supportedProps,
+  toFields,
+} from './model/annotations/style-map'
 export { createSnapshotHistory } from './model/annotations/snapshot-history'
 export type {
   SnapshotHistory,

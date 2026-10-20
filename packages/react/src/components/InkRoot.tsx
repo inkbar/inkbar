@@ -1,5 +1,5 @@
 import { createSnapshotHistory, InkError, openDocument } from '@inkbar/core'
-import { cssVariableDefaults } from '@inkbar/core/dom'
+import { cssVariableDefaults, trackToolStyle } from '@inkbar/core/dom'
 import { Slot } from 'radix-ui'
 import {
   useCallback,
@@ -32,7 +32,7 @@ import type {
   InkDocument,
   PdfAssets,
 } from '@inkbar/core'
-import type { ToolController, ToolId, Viewport, ZoomValue } from '@inkbar/core/dom'
+import type { Tool, ToolController, ToolId, Viewport, ZoomValue } from '@inkbar/core/dom'
 
 export interface InkRootHandle {
   readonly document: InkDocument | null
@@ -61,6 +61,11 @@ export interface InkRootProps extends Omit<
   onChange?: ((change: AnnotationChange) => void) | undefined
   tool?: ToolId | undefined
   onToolChange?: ((tool: ToolId) => void) | undefined
+  /**
+   * Host tools, added to the built-ins; one with a built-in's id replaces it. Read when a
+   * document opens.
+   */
+  tools?: Tool[] | undefined
   page?: number | undefined
   onPageChange?: ((page: number) => void) | undefined
   zoom?: ZoomValue | undefined
@@ -114,6 +119,7 @@ export function InkRoot({
   onChange,
   tool,
   onToolChange,
+  tools: hostTools,
   page,
   onPageChange,
   zoom,
@@ -171,6 +177,8 @@ export function InkRoot({
     onToolChange,
     onPageChange,
     onZoomChange,
+    hostTools,
+    tool: internalTool,
   })
 
   const snapshotHistory = useMemo(
@@ -341,6 +349,25 @@ export function InkRoot({
     ]
   )
 
+  const latestHistory = useLatest(inkHistory)
+
+  /** The document's tool style; it batches through `history`, whichever mode is on. */
+  const styleTracker = useMemo(
+    () =>
+      document
+        ? trackToolStyle({
+            store: document.annotations,
+            history: { batch: (fn) => latestHistory.current.batch(fn) },
+            tools: latest.current.hostTools,
+            tool: latest.current.tool,
+          })
+        : null,
+    [document, latest, latestHistory]
+  )
+  useEffect(() => {
+    styleTracker?.setTool(internalTool)
+  }, [styleTracker, internalTool])
+
   useImperativeHandle(ref, () => ({ document, status, rootEl, history: inkHistory }), [
     document,
     status,
@@ -359,6 +386,8 @@ export function InkRoot({
       tools,
       tool: internalTool,
       setTool,
+      hostTools,
+      toolStyle: styleTracker?.toolStyle ?? null,
       zoomModel: zoom,
       pageModel: page,
       reportZoom,
@@ -379,6 +408,8 @@ export function InkRoot({
       tools,
       internalTool,
       setTool,
+      hostTools,
+      styleTracker,
       zoom,
       page,
       reportZoom,

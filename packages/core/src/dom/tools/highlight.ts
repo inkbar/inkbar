@@ -11,12 +11,14 @@ export function highlightTool(): Tool {
     const selections = ctx.selectionQuads()
     if (selections.length === 0) return false
     for (const s of selections) {
-      ctx.store.add({
-        type: 'highlight',
-        page: s.page,
-        quads: s.quads,
-        contents: s.text,
-      })
+      ctx.store.add(
+        ctx.toolStyle.resolve('markup', {
+          type: 'highlight',
+          page: s.page,
+          quads: s.quads,
+          contents: s.text,
+        })
+      )
     }
     ctx.clearSelection()
     return true
@@ -24,6 +26,7 @@ export function highlightTool(): Tool {
   return {
     id: 'highlight',
     cursor: 'text',
+    styleGroup: 'markup',
     activate(c) {
       ctx = c
     },

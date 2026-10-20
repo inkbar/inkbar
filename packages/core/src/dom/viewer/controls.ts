@@ -64,7 +64,7 @@ function follow<T>(
 
 const SVG = 'http://www.w3.org/2000/svg'
 
-const TOOL_ICONS: Readonly<Record<ToolId, IconNode>> = {
+const TOOL_ICONS: Readonly<Partial<Record<ToolId, IconNode>>> = {
   view: Hand,
   select: MousePointer2,
   highlight: Highlighter,
@@ -97,10 +97,10 @@ export function createIcon(icon: IconNode): SVGSVGElement {
 function button(
   label: string,
   attrs: Record<string, string>,
-  icon: IconNode
+  icon: IconNode | undefined
 ): HTMLButtonElement {
   const b = h('button', { type: 'button', ...attrs, 'aria-label': label, title: label })
-  b.append(createIcon(icon))
+  if (icon) b.append(createIcon(icon))
   return b
 }
 
@@ -157,13 +157,16 @@ function historyButton(viewer: Viewer, action: 'undo' | 'redo'): HTMLButtonEleme
   return b
 }
 
-/** Sets the tool; pressed while it is the active one. */
+/**
+ * Sets the tool; pressed while it is the active one. A host tool's button has no icon (append
+ * your own) and is named by `label`, else by the tool id.
+ */
 export function createToolButton(
   viewer: Viewer,
   tool: ToolId,
   opts: { label?: string } = {}
 ): HTMLButtonElement {
-  const label = opts.label ?? TOOL_LABELS[tool]
+  const label = opts.label ?? TOOL_LABELS[tool] ?? tool
   const b = button(
     label,
     { class: 'ink-tool-button', 'data-ink-tool-button': '', 'data-tool': tool },

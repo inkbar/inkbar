@@ -10,7 +10,7 @@
     InkStatus,
     PdfAssets,
   } from '@inkbar/core'
-  import type { ToolId, ZoomValue } from '@inkbar/core/dom'
+  import type { Tool, ToolId, ZoomValue } from '@inkbar/core/dom'
   import type { Snippet } from 'svelte'
   import type { HTMLAttributes } from 'svelte/elements'
 
@@ -33,6 +33,11 @@
     onChange?: ((change: AnnotationChange) => void) | undefined
     tool?: ToolId | undefined
     onToolChange?: ((tool: ToolId) => void) | undefined
+    /**
+     * Host tools, added to the built-ins; one with a built-in's id replaces it. Read when a
+     * document opens.
+     */
+    tools?: Tool[] | undefined
     page?: number | undefined
     onPageChange?: ((page: number) => void) | undefined
     zoom?: ZoomValue | undefined
@@ -59,7 +64,7 @@
     InkError as InkErrorClass,
     openDocument,
   } from '@inkbar/core'
-  import { cssVariableDefaults } from '@inkbar/core/dom'
+  import { cssVariableDefaults, trackToolStyle } from '@inkbar/core/dom'
   import { DEV } from 'esm-env'
   import { untrack } from 'svelte'
   import { createAttachmentKey } from 'svelte/attachments'
@@ -79,6 +84,7 @@
     onChange,
     tool = $bindable(),
     onToolChange,
+    tools: hostTools,
     page = $bindable(),
     onPageChange,
     zoom = $bindable(),
@@ -277,6 +283,24 @@
     },
   }
 
+  /** The document's tool style; it batches through `inkHistory`, whichever mode is on. */
+  const styleTracker = $derived.by(() => {
+    const doc = document
+    if (!doc) return null
+    return untrack(() =>
+      trackToolStyle({
+        store: doc.annotations,
+        history: { batch: (fn) => inkHistory.batch(fn) },
+        tools: hostTools,
+        tool: currentTool,
+      })
+    )
+  })
+  $effect(() => {
+    const id = currentTool
+    styleTracker?.setTool(id)
+  })
+
   const context: InkContext = {
     get assets() {
       return assets
@@ -303,6 +327,12 @@
       return currentTool
     },
     setTool,
+    get hostTools() {
+      return hostTools
+    },
+    get toolStyle() {
+      return styleTracker?.toolStyle ?? null
+    },
     get zoomModel() {
       return zoom
     },

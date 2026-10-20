@@ -1,5 +1,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
+import { readonly, writable } from '../model/readable'
+
 import { createPageMount } from './page-mount'
 import { getSelectionQuads } from './selection'
 import {
@@ -9,8 +11,16 @@ import {
   TEXT_LAYER_CSS,
   until,
 } from './test-utils'
-import { createToolController, type Tool, type ToolController } from './tools'
+import {
+  builtinTools,
+  createToolController,
+  type Tool,
+  type ToolController,
+} from './tools'
 import { createPageTransform } from './transform'
+import { TOOL_LABELS } from './ui'
+import { createToolButton } from './viewer/controls'
+import { mountViewer } from './viewer-engine'
 import { createViewport, type Viewport } from './viewport'
 
 let style: HTMLStyleElement
@@ -33,7 +43,11 @@ import type { Annotation } from '../model/annotations/types'
  */
 async function setup(
   name: 'text-simple' | 'cropbox-offset' = 'text-simple',
-  { controlled = false, custom = false }: { controlled?: boolean; custom?: boolean } = {}
+  {
+    controlled = false,
+    custom = false,
+    tools: hostTools,
+  }: { controlled?: boolean; custom?: boolean; tools?: Tool[] } = {}
 ) {
   let host: Annotation[] = []
   const doc = await openFixtureInBrowser(
@@ -78,6 +92,7 @@ async function setup(
     },
   })
   const tools: ToolController = createToolController({
+    ...(hostTools ? { tools: hostTools } : {}),
     ctx: {
       store: doc.annotations,
       viewport,
@@ -1076,5 +1091,84 @@ describe('resize handles', () => {
     expect(host.querySelectorAll(`[data-annotation="${a.id}"] .ink-handle`)).toHaveLength(
       0
     )
+  })
+})
+
+describe('tool registry and options', () => {
+  /** A stand-in for a creation tool with options, recording what it sees on activate. */
+  function optionTool(seen: object[]): Tool<{ kind: string; sides: number }> {
+    return {
+      id: 'shape',
+      cursor: 'crosshair',
+      styleGroup: 'shape',
+      defaultOptions: { kind: 'rectangle', sides: 6 },
+      activate(ctx) {
+        seen.push(ctx.options())
+      },
+      deactivate() {},
+    }
+  }
+
+  it('set(id, options) merges options and they persist across switches', async () => {
+    const seen: object[] = []
+    const { tools } = await setup('text-simple', {
+      tools: [...builtinTools(), optionTool(seen)],
+    })
+    expect(tools.options('shape').get()).toEqual({ kind: 'rectangle', sides: 6 })
+    tools.set('shape', { kind: 'ellipse' })
+    expect(seen.at(-1)).toEqual({ kind: 'ellipse', sides: 6 })
+    tools.set('select')
+    tools.set('shape')
+    expect(tools.options('shape').get()).toEqual({ kind: 'ellipse', sides: 6 })
+    expect(seen.at(-1)).toEqual({ kind: 'ellipse', sides: 6 })
+    tools.setOptions('shape', { sides: 8 })
+    expect(tools.active.get()).toBe('shape')
+    expect(tools.options('shape').get()).toEqual({ kind: 'ellipse', sides: 8 })
+    // A tool without declared options starts empty.
+    expect(tools.options('note').get()).toEqual({})
+  })
+
+  it('a host tool registers through mountViewer({ tools })', async () => {
+    const doc = await openFixtureInBrowser('text-simple')
+    const container = mountContainer(800, 600)
+    const activate = vi.fn()
+    const deactivate = vi.fn()
+    const engine = mountViewer({
+      container,
+      document: doc,
+      zoom: 0.5,
+      tools: [{ id: 'stamp-x', cursor: 'copy', activate, deactivate }],
+    })
+    cleanup.push(() => {
+      engine.destroy()
+      doc.destroy()
+      container.remove()
+    })
+    engine.tools.set('stamp-x')
+    expect(container.dataset.inkTool).toBe('stamp-x')
+    expect(container.style.cursor).toBe('copy')
+    expect(activate).toHaveBeenCalledTimes(1)
+    // The built-ins are still there.
+    engine.tools.set('note')
+    expect(deactivate).toHaveBeenCalledTimes(1)
+    // Options outlive a rebuild.
+    engine.tools.setOptions('stamp-x', { size: 2 })
+    engine.rebuild({ gap: 20 })
+    expect(engine.tools.options('stamp-x').get()).toEqual({ size: 2 })
+    expect(engine.toolStyle.get('shape')).toEqual({})
+  })
+
+  it('an unknown id label falls back', () => {
+    expect(TOOL_LABELS['stamp-x']).toBeUndefined()
+    const tools = writable<ToolController | null>(null)
+    const viewer = { tools: readonly(tools) } as unknown as Parameters<
+      typeof createToolButton
+    >[0]
+    const labelled = createToolButton(viewer, 'stamp-x', { label: 'Stamp' })
+    document.body.append(labelled)
+    cleanup.push(() => labelled.remove())
+    expect(labelled.getAttribute('aria-label')).toBe('Stamp')
+    const bare = createToolButton(viewer, 'stamp-x')
+    expect(bare.getAttribute('aria-label')).toBe('stamp-x')
   })
 })

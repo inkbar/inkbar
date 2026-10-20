@@ -164,6 +164,7 @@ export type PolyAnnotation = z.infer<typeof PolySchema>
 export type InkAnnotation = z.infer<typeof InkSchema>
 export type RedactAnnotation = z.infer<typeof RedactSchema>
 export type Suggestion = z.infer<typeof SuggestionSchema>
+export type LineEnding = z.infer<typeof LineEndingSchema>
 // Point, Rect and Quad types come from ../geometry; the zod schemas above match them structurally.
 
 /** Keys the store fills in; callers never supply them (except an optional `id`). */

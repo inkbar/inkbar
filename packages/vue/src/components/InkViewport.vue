@@ -130,6 +130,8 @@ function setup(): void {
     gap: props.gap,
     buffer: props.buffer,
     tool: ctx.tool.value,
+    ...(ctx.hostTools.value ? { tools: ctx.hostTools.value } : {}),
+    ...(ctx.toolStyle.value ? { toolStyle: ctx.toolStyle.value } : {}),
     customAnnotations: custom,
     onActivate: (id) => ctx.setActivated(id),
     onBuild: (vp, tc) => {

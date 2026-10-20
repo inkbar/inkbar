@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { staticDefaults } from './defaults'
 import { createAnnotationStore, type AnnotationChange } from './store'
+import { createToolStyle } from './tool-style'
 
 import type { Annotation } from './types'
 
@@ -383,5 +384,47 @@ describe('AnnotationStore (controlled) ids', () => {
     apply()
     expect(() => s.add({ id: 'dup', type: 'text', page: 0, rect })).toThrow(/dup/)
     expect(s.list.get()).toHaveLength(1)
+  })
+})
+
+describe('tool style in controlled mode', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('toolStyle.set on a selection proposes one update per annotation inside one batch, and applies nothing first', () => {
+    const { s, onChange, apply } = controlledStore()
+    const a = s.add({ type: 'square', page: 0, rect })
+    const b = s.add({ type: 'circle', page: 0, rect })
+    apply()
+    s.select([a.id, b.id])
+    onChange.mockClear()
+    const batches: number[] = []
+    const history = {
+      batch(fn: () => void) {
+        batches.push(onChange.mock.calls.length)
+        fn()
+        batches.push(onChange.mock.calls.length)
+      },
+    }
+    const style = createToolStyle({ store: s, history, activeGroup: () => undefined })
+    style.set({ border: '#00FF00', width: 3 })
+    expect(batches).toEqual([0, 2])
+    const changes = onChange.mock.calls.map((c) => c[1])
+    expect(changes.map((c) => c.kind)).toEqual(['update', 'update'])
+    expect(changes.map((c) => (c.kind === 'update' ? c.id : ''))).toEqual([a.id, b.id])
+    expect(onChange.mock.calls[1]![0]).toEqual([
+      expect.objectContaining({ id: a.id, color: '#00FF00', width: 3 }),
+      expect.objectContaining({ id: b.id, color: '#00FF00', width: 3 }),
+    ])
+    // Not applied until the host pushes the value back.
+    expect(s.get(a.id)).toEqual(a)
+    expect(s.get(b.id)).toEqual(b)
+    apply()
+    expect(s.get(a.id)).toMatchObject({ color: '#00FF00', width: 3 })
+    expect(s.get(b.id)).toMatchObject({ color: '#00FF00', width: 3 })
   })
 })

@@ -10,7 +10,7 @@ import { InkIcon } from './InkIcon'
 import type { IconNode } from '@inkbar/icons'
 import type { ComponentPropsWithoutRef, ReactNode } from 'react'
 
-const ICONS: Readonly<Record<ToolId, IconNode>> = {
+const ICONS: Readonly<Partial<Record<ToolId, IconNode>>> = {
   view: Hand,
   select: MousePointer2,
   highlight: Highlighter,
@@ -39,7 +39,9 @@ export function InkToolButton({
 }: InkToolButtonProps) {
   const { tool: current, setTool } = useTool()
   const active = current === tool
-  const name = label ?? TOOL_LABELS[tool]
+  // A host tool has no built-in name or icon: `label` and `children` supply them.
+  const name = label ?? TOOL_LABELS[tool] ?? tool
+  const icon = ICONS[tool]
   return (
     <Toolbar.Button
       asChild={asChild}
@@ -58,7 +60,7 @@ export function InkToolButton({
     >
       {typeof children === 'function'
         ? children({ active, label: name })
-        : (children ?? <InkIcon icon={ICONS[tool]} />)}
+        : (children ?? (icon ? <InkIcon icon={icon} /> : null))}
     </Toolbar.Button>
   )
 }
