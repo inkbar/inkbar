@@ -43,7 +43,8 @@ export interface SignatureDraft {
   chooseFile(file: Blob | undefined): Promise<void>
   /**
    * Builds the open tab's template and saves it to `library`. Resolves with it, or undefined
-   * when there is nothing to save or the save failed; a failure sets `saveError`.
+   * when there is nothing to save, the save failed (setting `saveError`), or the draft was
+   * destroyed before the save finished.
    */
   save(library: SignatureLibrary): Promise<SignatureTemplate | undefined>
   /** Back to an empty Draw tab. */
@@ -71,6 +72,8 @@ export function createSignatureDraft(
   let stopPad: (() => void) | undefined
   /** Only the latest file read lands. */
   let reads = 0
+  /** Set by `destroy`: a save that finishes later selects nothing. */
+  let destroyed = false
 
   const ready = (s: SignatureDraftState): boolean =>
     s.tab === 'draw'
@@ -97,6 +100,8 @@ export function createSignatureDraft(
     setName: (name) => patch({ name }),
     setFont: (font) => patch({ font }),
     attachPad(host) {
+      // Mounting again revives a destroyed draft, as React's StrictMode remounts do.
+      destroyed = false
       detachPad()
       const p = createSignaturePad(host)
       pad = p
@@ -144,7 +149,8 @@ export function createSignatureDraft(
               : s.image
         if (!t) return undefined
         await library.save(t)
-        return t
+        // Closed while saving: the template stays in the library, but nothing acts on it.
+        return destroyed ? undefined : t
       } catch {
         patch({
           saveError: 'The signature could not be saved. Try again, or try a smaller one.',
@@ -160,6 +166,7 @@ export function createSignatureDraft(
       state.set({ ...initial(), padEmpty: pad ? pad.empty.get() : true })
     },
     destroy() {
+      destroyed = true
       reads++
       detachPad()
     },
