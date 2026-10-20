@@ -630,8 +630,10 @@ describe('shape menu', () => {
     await chevron().click()
     await expect.element(kind('Rectangle')).toHaveAttribute('aria-checked', 'true')
     expect(menu().getByRole('menuitemradio', { name: 'Loupe' }).elements()).toHaveLength(
-      0
+      1
     )
+    // Kinds with no creator yet are not offered.
+    expect(menu().getByRole('menuitemradio', { name: 'Mask' }).elements()).toHaveLength(0)
     await kind('Ellipse').click()
     await expect.poll(probe('data-tool')).toBe('shape')
     await expect.poll(attr(main, 'data-kind')).toBe('ellipse')

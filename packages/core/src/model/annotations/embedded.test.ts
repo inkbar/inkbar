@@ -47,7 +47,7 @@ describe('embedded import', () => {
     })
     expect(hl!.id).toBe('pdf:0:7R')
     if (hl!.type === 'highlight') {
-      expect(hl!.quads[0]).toEqual({
+      expect(hl.quads[0]).toEqual({
         p1: { x: 72, y: 715 },
         p2: { x: 400, y: 715 },
         p3: { x: 72, y: 695 },

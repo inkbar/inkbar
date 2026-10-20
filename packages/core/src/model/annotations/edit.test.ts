@@ -100,6 +100,18 @@ describe('keepsAspect', () => {
   })
 })
 
+describe('loupe geometry', () => {
+  it('resizes by its rect and keeps its aspect', () => {
+    const loupe = store().add({
+      type: 'loupe',
+      page: 0,
+      rect: { x: 0, y: 0, width: 72, height: 72 },
+    })
+    expect(hasRectGeometry(loupe)).toBe(true)
+    expect(keepsAspect(loupe)).toBe(true)
+  })
+})
+
 describe('resizedRect', () => {
   const r = { x: 10, y: 20, width: 30, height: 10 }
 

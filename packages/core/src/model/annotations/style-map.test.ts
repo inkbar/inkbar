@@ -194,7 +194,24 @@ describe('styleGroupOf', () => {
       'line',
       'polyline',
       'polygon',
+      'loupe',
     ])
+  })
+})
+
+describe('loupe', () => {
+  const loupe = { ...base, type: 'loupe', magnification: 2, width: 2 } as const
+
+  // The rim is a shape's outline: the border colour, its width and opacity. It has no fill
+  // (the fill is the magnified page) and no dashes.
+  it('is in the shape group with the rim colour, width and opacity', () => {
+    expect(styleGroupOf(loupe)).toBe('shape')
+    expect([...supportedProps('loupe')].sort()).toEqual(['border', 'opacity', 'width'])
+    expect(toFields('loupe', { border: '#FF0000', fill: '#00FF00', width: 3 })).toEqual({
+      color: '#FF0000',
+      width: 3,
+    })
+    expect(fromAnnotation(loupe)).toEqual({ border: base.color, opacity: 1, width: 2 })
   })
 })
 

@@ -121,6 +121,30 @@ describe('json import/export', () => {
     })
   })
 
+  it('round-trips a loupe with its magnification and rim', () => {
+    const mk = () =>
+      createAnnotationStore({ mode: { mode: 'uncontrolled' }, defaults: staticDefaults })
+    const s = mk()
+    s.add({
+      type: 'loupe',
+      page: 0,
+      rect: { x: 100, y: 500, width: 72, height: 72 },
+      magnification: 3,
+      color: '#2B5A9E',
+      width: 4,
+    })
+    const text = JSON.stringify(exportAnnotations(s, [], 'k'))
+    const s2 = mk()
+    expect(importAnnotations(s2, text, { mode: 'replace' }).errors).toEqual([])
+    expect(s2.list.get()).toEqual(s.list.get())
+    expect(s2.list.get()[0]).toMatchObject({
+      type: 'loupe',
+      magnification: 3,
+      color: '#2B5A9E',
+      width: 4,
+    })
+  })
+
   it('round-trips a free-text box with fill, border and text style', () => {
     const mk = () =>
       createAnnotationStore({ mode: { mode: 'uncontrolled' }, defaults: staticDefaults })

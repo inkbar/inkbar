@@ -348,6 +348,23 @@ export function renderAnnotationContent(
       svg.setAttribute('opacity', String(a.opacity))
       break
     }
+    case 'loupe': {
+      // The rim, over the magnified canvas the overlay's loupe layer puts first in the
+      // element. Its transparent fill takes presses anywhere on the lens.
+      const sw = t.toCssLength(a.width)
+      const rim = node('circle', {
+        cx: box.width / 2,
+        cy: box.height / 2,
+        r: Math.max(0, Math.min(box.width, box.height) / 2 - sw / 2),
+        fill: 'transparent',
+        stroke: sw > 0 ? a.color : 'none',
+        'stroke-width': sw,
+      })
+      rim.classList.add('ink-loupe-rim')
+      svg.append(rim)
+      svg.setAttribute('opacity', String(a.opacity))
+      break
+    }
     case 'line':
     case 'polyline':
     case 'polygon': {
