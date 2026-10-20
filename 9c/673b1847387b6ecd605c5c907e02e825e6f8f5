@@ -1,0 +1,49 @@
+packages/core/src/model/annotations/store.ts
+  s_5c84400dcebef8::t_bf1fc455ed1359 28-32,80-85,514-516,521-527
+  s_5c84400dcebef8::t_6e7379e8198d60 517-520
+  s_5c84400dcebef8::t_d0a46df806a1e5 528
+packages/core/src/model/annotations/embedded.ts
+  s_5c84400dcebef8::t_d0aaae53991820 80-94,99-103,106,111-114,116-125
+packages/core/README.md
+  s_5c84400dcebef8::t_de406583d69d87 169
+  s_5c84400dcebef8::t_2f0ca27f23753e 167,170-173
+packages/core/src/model/annotations/embedded-fields.test.ts
+  s_5c84400dcebef8::t_fb052b18ee9700 15-29,175-184,186-187,197-203
+  s_5c84400dcebef8::t_51ea1920e1bd21 124-129
+  s_5c84400dcebef8::t_ab77a2b2fb2790 1-11,13-14,30-123,130-174,204-213
+  s_5c84400dcebef8::t_de423d42839f03 12
+  s_5c84400dcebef8::t_8ab2cbb13baebe 185,188-196
+packages/core/src/model/annotations/embedded.test.ts
+  s_5c84400dcebef8::t_0491ca5e46efc8 2,10,15-20,320-362
+packages/core/src/model/annotations/store.test.ts
+  s_5c84400dcebef8::t_9b00f60823bc63 505
+  s_5c84400dcebef8::t_38b7151b8e5cac 493-504,506-536
+packages/core/src/model/document.ts
+  s_5c84400dcebef8::t_beae0cba60653b 84-86
+  s_5c84400dcebef8::t_a23ffe799c047b 8,10,138-139,196,225-237
+  s_5c84400dcebef8::t_3838ed667801cb 238-239
+packages/core/src/model/annotations/history.ts
+  s_5c84400dcebef8::t_ea24e6a1e2112a 32-44,96-106
+  s_5c84400dcebef8::t_589318022ce0f0 107-109
+packages/core/src/model/annotations/embedded-fields.ts
+  s_5c84400dcebef8::t_7031bafbf96df0 1-78
+packages/core/src/model/annotations/history.test.ts
+  s_5c84400dcebef8::t_eecc0e73b5d44a 346-376
+  s_5c84400dcebef8::t_38b7151b8e5cac 314-345
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9c673b1847387b6ecd605c5c907e02e825e6f8f5",
+  "prompts": {},
+  "sessions": {
+    "s_5c84400dcebef8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b6002a2b-f6c7-44ec-8f13-05d214d02483",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
