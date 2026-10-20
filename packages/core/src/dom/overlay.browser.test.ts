@@ -1,8 +1,11 @@
 import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import standardCallout from '../model/annotations/__fixtures__/standard-callout.json'
+import { freeTextBox } from '../model/annotations/callout'
 import { staticDefaults } from '../model/annotations/defaults'
 import { isTextMarkup } from '../model/annotations/edit'
+import { importAnnotations } from '../model/annotations/json'
 import { createAnnotationStore } from '../model/annotations/store'
 import { renderRegion } from '../pdfjs/render-region'
 
@@ -467,6 +470,70 @@ describe('createOverlay', () => {
     expect(p.fontStyle).toBe('normal')
     expect(p.textDecorationLine).toBe('none')
     expect(p.textAlign).toBe('left')
+  })
+
+  it('draws a standard callout: the box inset by its fringe and a leader line to the tip', () => {
+    const style = document.createElement('style')
+    style.textContent = themeCss
+    document.head.append(style)
+    cleanup.push(() => style.remove())
+    const { store, overlay, host } = setup(2)
+    const t = createPageTransform(page, 2, 0)
+    const result = importAnnotations(store, JSON.stringify(standardCallout), {
+      mode: 'replace',
+    })
+    expect(result.errors).toEqual([])
+    const a = store.get('standard-callout-1')!
+    if (a.type !== 'freetext') throw new Error('expected free text')
+    const el = overlay.elementFor(a.id)!
+    // The element covers the whole rect, leader line included.
+    const rect = t.toCssRect(a.rect)
+    expect(parseFloat(el.style.left)).toBeCloseTo(rect.left)
+    expect(parseFloat(el.style.width)).toBeCloseTo(rect.width)
+
+    const line = el.querySelector('polyline.ink-callout-line')!
+    const points = line
+      .getAttribute('points')!
+      .split(' ')
+      .map((p) => p.split(',').map(Number))
+    expect(points).toHaveLength(3)
+    a.callout!.forEach((p, i) => {
+      const c = t.toCss(p)
+      expect(points[i]![0]).toBeCloseTo(c.x - rect.left)
+      expect(points[i]![1]).toBeCloseTo(c.y - rect.top)
+    })
+    // No border colour and no border: the text colour at 1 pt.
+    expect(line.getAttribute('stroke')).toBe('#D00000')
+    expect(line.getAttribute('stroke-width')).toBe(String(t.toCssLength(1)))
+    expect(line.getAttribute('stroke-linecap')).toBe('butt')
+    const ending = el.querySelector('path[data-ending="head"]')!
+    expect(ending.getAttribute('d')).not.toBe('')
+    expect(ending.getAttribute('fill')).toBe('none')
+
+    const text = el.querySelector('.ink-free-text') as HTMLElement
+    const at = text.getBoundingClientRect()
+    const origin = host.getBoundingClientRect()
+    const box = t.toCssRect(freeTextBox(a))
+    expect(at.left - origin.left).toBeCloseTo(box.left)
+    expect(at.top - origin.top).toBeCloseTo(box.top)
+    expect(at.width).toBeCloseTo(box.width)
+    expect(at.height).toBeCloseTo(box.height)
+
+    // The line takes presses as well as the box; the empty rest of the rect does not.
+    const bend = t.toCss(a.callout![1]!)
+    expect(document.elementFromPoint(origin.left + bend.x, origin.top + bend.y)).toBe(
+      line
+    )
+    const box2 = text.getBoundingClientRect()
+    expect(
+      document.elementFromPoint(box2.left + 4, box2.top + 4)?.closest('.ink-free-text')
+    ).toBe(text)
+    const empty = t.toCss({ x: 270, y: 530 })
+    expect(
+      document
+        .elementFromPoint(origin.left + empty.x, origin.top + empty.y)
+        ?.closest('[data-annotation]')
+    ).toBeNull()
   })
 
   const bubble = {

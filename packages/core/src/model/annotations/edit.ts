@@ -107,8 +107,8 @@ export function hasCornerHandles(a: Annotation): boolean {
 
 /**
  * The geometry patch that maps `a` from the box `from` onto the box `to`, both in user space:
- * `rect` and every point field (quads, ink paths, vertices, line ends, callout) scale with the
- * boxes. Stroke widths and font sizes stay as they are.
+ * `rect`, every point field (quads, ink paths, vertices, line ends, callout) and a free text's
+ * `fringe` scale with the boxes. Stroke widths and font sizes stay as they are.
  */
 export function scaled(a: Annotation, from: Rect, to: Rect): Partial<Annotation> {
   const sx = from.width === 0 ? 1 : to.width / from.width
@@ -137,6 +137,14 @@ export function scaled(a: Annotation, from: Rect, to: Rect): Partial<Annotation>
       p4: map(q.p4),
     }))
   if ('callout' in a && a.callout) patch.callout = a.callout.map(map)
+  // The text box inside a free text's rect scales with it.
+  if (a.type === 'freetext' && a.fringe)
+    patch.fringe = {
+      left: a.fringe.left * sx,
+      top: a.fringe.top * sy,
+      right: a.fringe.right * sx,
+      bottom: a.fringe.bottom * sy,
+    }
   switch (a.type) {
     case 'line':
       patch.start = map(a.start)

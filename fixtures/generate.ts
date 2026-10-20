@@ -346,6 +346,68 @@ async function annotatedShapes() {
   })
 }
 
+/**
+ * A FreeText callout stored the standard way, matching the JSON sample in
+ * `packages/core/src/model/annotations/__fixtures__/standard-callout.json`: a 180 x 60 box at
+ * (100, 600), a three-point leader from the tip (60, 520) and an open arrow at the tip, in red.
+ */
+async function standardCallout() {
+  const { d, font } = await doc()
+  const page = d.addPage([612, 792])
+  text(page, font, ['Standard callout'])
+  const ctx = d.context
+  const rect = [56.5, 516.5, 283.5, 663.5]
+  const tip = { x: 60, y: 520 }
+  const bend = { x: 80, y: 560 }
+  const edge = { x: 100, y: 620 }
+  // An open arrow 3 pt long and 3 pt across, pointing from the bend to the tip.
+  const len = Math.hypot(tip.x - bend.x, tip.y - bend.y)
+  const dx = (tip.x - bend.x) / len
+  const dy = (tip.y - bend.y) / len
+  const wing = (side: 1 | -1) =>
+    `${(tip.x - dx * 3 - dy * 1.5 * side).toFixed(3)} ${(tip.y - dy * 3 + dx * 1.5 * side).toFixed(3)}`
+  const red = '0.816 0 0'
+  const content = [
+    `${red} RG ${red} rg 1 w 1 j 0 J`,
+    // The box.
+    '100 600 180 60 re S',
+    // The leader, tip to box.
+    `${tip.x} ${tip.y} m ${bend.x} ${bend.y} l ${edge.x} ${edge.y} l S`,
+    // The arrow at the tip.
+    `${wing(1)} m ${tip.x} ${tip.y} l ${wing(-1)} l S`,
+    'BT /Helv 12 Tf 104 644 Td (Standard callout) Tj ET',
+  ].join('\n')
+  const appearance = ctx.register(
+    ctx.stream(content, {
+      Type: 'XObject',
+      Subtype: 'Form',
+      BBox: rect,
+      Resources: { Font: { Helv: font.ref } },
+    })
+  )
+  setAnnots(page, [
+    annot(ctx, {
+      Subtype: 'FreeText',
+      Rect: rect,
+      IT: 'FreeTextCallout',
+      CL: [tip.x, tip.y, bend.x, bend.y, edge.x, edge.y],
+      RD: [43.5, 3.5, 3.5, 83.5],
+      LE: 'OpenArrow',
+      DA: PDFString.of(`/Helv 12 Tf ${red} rg`),
+      Contents: PDFString.of('Standard callout'),
+      NM: PDFString.of('callout-1'),
+      AP: { N: appearance },
+    }),
+  ])
+  await save('standard-callout', d, {
+    pages: 1,
+    opens: true,
+    describes:
+      'One Letter page with a FreeText callout: /IT /FreeTextCallout, a three-point /CL, /RD, /LE /OpenArrow, red /DA and an /AP drawing box, leader and arrow',
+    annotations: { FreeText: 1 },
+  })
+}
+
 async function annotatedUnsupported() {
   const { d, font } = await doc()
   const page = d.addPage([612, 792])
@@ -550,6 +612,7 @@ async function main() {
   await annotatedNotesThreaded()
   await annotatedRedact()
   await annotatedShapes()
+  await standardCallout()
   await annotatedUnsupported()
   await acroformBasic()
   await incrementalSaved()

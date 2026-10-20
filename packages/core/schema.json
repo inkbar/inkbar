@@ -306,6 +306,17 @@
               "required": ["fontFamily", "fontSize", "color", "textAlign"],
               "additionalProperties": false
             },
+            "fringe": {
+              "type": "object",
+              "properties": {
+                "left": { "type": "number", "minimum": 0 },
+                "top": { "type": "number", "minimum": 0 },
+                "right": { "type": "number", "minimum": 0 },
+                "bottom": { "type": "number", "minimum": 0 }
+              },
+              "required": ["left", "top", "right", "bottom"],
+              "additionalProperties": false
+            },
             "callout": {
               "minItems": 2,
               "maxItems": 3,
@@ -316,6 +327,27 @@
                 "required": ["x", "y"],
                 "additionalProperties": false
               }
+            },
+            "head": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "None",
+                    "Square",
+                    "Circle",
+                    "Diamond",
+                    "OpenArrow",
+                    "ClosedArrow",
+                    "Butt",
+                    "ROpenArrow",
+                    "RClosedArrow",
+                    "Slash"
+                  ]
+                },
+                { "type": "string", "pattern": "^[^\\s()<>[\\]{}/%]+$" }
+              ],
+              "description": "One of None, Square, Circle, Diamond, OpenArrow, ClosedArrow, Butt, ROpenArrow, RClosedArrow, Slash. Any other PDF name is allowed and kept unchanged."
             },
             "fontFamily": { "not": {} },
             "fontSize": { "not": {} },

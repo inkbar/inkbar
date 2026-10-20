@@ -88,6 +88,15 @@
       "FreeText": 1
     }
   },
+  "standard-callout": {
+    "file": "standard-callout.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "One Letter page with a FreeText callout: /IT /FreeTextCallout, a three-point /CL, /RD, /LE /OpenArrow, red /DA and an /AP drawing box, leader and arrow",
+    "annotations": {
+      "FreeText": 1
+    }
+  },
   "annotated-unsupported": {
     "file": "annotated-unsupported.pdf",
     "pages": 1,
