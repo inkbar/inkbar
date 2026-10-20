@@ -2187,6 +2187,61 @@ describe('speech bubble', () => {
     expect(d).toContain(` ${fmt(box.height)}L${fmt(tip.x - box.left)}`)
   })
 
+  it('growing a bubble whose tail leaves the top keeps the tail where it is', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('select')
+    const tip = { x: 150, y: 700 }
+    const base = { x: 160, y: 640 }
+    const bubble = doc.annotations.add({
+      type: 'freetext',
+      page: 0,
+      intent: 'freeTextCallout',
+      cornerRadius: 8,
+      rect: { x: 100, y: 600, width: 144, height: 40 },
+      contents: '',
+      callout: [tip, base],
+    })
+    await settle()
+    const el = viewport
+      .hostFor(0)!
+      .querySelector<HTMLElement>(`[data-annotation="${bubble.id}"]`)!
+    el.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+    )
+    await until(() => editorIn(container) !== null)
+    await userEvent.keyboard('1{Enter}2{Enter}3{Enter}4{Enter}5{Enter}6{Escape}')
+    const grown = doc.annotations.get(bubble.id)
+    if (grown?.type !== 'freetext') throw new Error('not free text')
+    expect(grown.rect.height).toBeGreaterThan(40)
+    expect(grown.callout).toEqual([tip, base])
+  })
+
+  it('a commit keeps a rect the box was given while its editor was open', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('select')
+    const box = doc.annotations.add({
+      type: 'freetext',
+      page: 0,
+      rect: { x: 100, y: 600, width: 144, height: 40 },
+      contents: 'Hi',
+    })
+    await settle()
+    viewport
+      .hostFor(0)!
+      .querySelector<HTMLElement>(`[data-annotation="${box.id}"]`)!
+      .dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+      )
+    await until(() => editorIn(container) !== null)
+    const moved = { x: 200, y: 500, width: 144, height: 40 }
+    doc.annotations.update(box.id, { rect: moved })
+    await userEvent.keyboard('!')
+    editorIn(container)?.focus()
+    await userEvent.keyboard('{Escape}')
+    await until(() => editorIn(container) === null)
+    expect(doc.annotations.get(box.id)?.rect).toEqual(moved)
+  })
+
   it('creating, typing and dragging the tail are separate undo steps', async () => {
     const { doc, container, viewport, tools } = await setup('cropbox-offset')
     tools.set('shape', { kind: 'bubble' })
