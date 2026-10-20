@@ -482,6 +482,31 @@ describe('schema.json', () => {
     expect(text).toContain('Any other PDF name is allowed')
   })
 
+  it('leaves defaulted fields optional, as a writer may send them, and keeps their defaults', () => {
+    const validate = compileAnnotation()
+    const { quads: _quads, ...rest } = exported as typeof exported & { quads?: unknown }
+    const note = { ...rest, type: 'text' }
+    expect(validate(note), JSON.stringify(validate.errors)).toBe(true)
+    const freetext = {
+      ...rest,
+      type: 'freetext',
+      contents: 'Hi',
+      defaultStyle: { color: '#000000' },
+    }
+    expect(validate(freetext), JSON.stringify(validate.errors)).toBe(true)
+    expect(AnnotationSchema.parse({ ...note, source: 'session' })).toMatchObject({
+      icon: 'Note',
+    })
+    expect(JSON.stringify(readPublished())).toContain('"default":"Note"')
+    // Inkbar's own output, with every default filled in, still validates.
+    const parsed = AnnotationSchema.parse({ ...freetext, source: 'session' })
+    const { source: _s, ...written } = parsed
+    expect(validate(written), JSON.stringify(validate.errors)).toBe(true)
+    const parsedNote = AnnotationSchema.parse({ ...note, source: 'session' })
+    const { source: _n, ...writtenNote } = parsedNote
+    expect(validate(writtenNote), JSON.stringify(validate.errors)).toBe(true)
+  })
+
   it('validates a stamp', () => {
     const validate = compileAnnotation()
     const { quads: _quads, ...rest } = exported as typeof exported & { quads?: unknown }
