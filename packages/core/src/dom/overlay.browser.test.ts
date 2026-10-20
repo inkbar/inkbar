@@ -336,6 +336,22 @@ describe('createOverlay', () => {
     expect(stroke.getAttribute('fill')).toBe(ink.color)
     // The 30pt diagonal is 60 CSS px at zoom 2 (the outline ends short of the endpoints).
     expect((stroke as SVGGraphicsElement).getBBox().height).toBeGreaterThan(50)
+    // A level stroke's outline is as tall as its width: 2pt at zoom 2 is 4 CSS px.
+    const level = store.add({
+      type: 'ink',
+      page: 0,
+      inklist: [
+        [
+          { x: 100, y: 300 },
+          { x: 200, y: 300 },
+        ],
+      ],
+      width: 2,
+    })
+    const levelStroke = overlay
+      .elementFor(level.id)!
+      .querySelector<SVGGraphicsElement>('path.ink-stroke')!
+    expect(levelStroke.getBBox().height).toBeCloseTo(4, 0)
     store.add({
       type: 'freetext',
       page: 0,
