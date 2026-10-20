@@ -235,6 +235,20 @@ describe('createLocalSignatureStore', () => {
     expect(await store.list()).toEqual([ink])
   })
 
+  // A full store fails even the probe's tiny write, but it still holds the saved list.
+  it('reads a full store and rejects saves to it, rather than falling back to memory', async () => {
+    const storage = memoryStorage()
+    storage.setItem('sigs', JSON.stringify([ink]))
+    storage.setItem = () => {
+      throw new DOMException('full', 'QuotaExceededError')
+    }
+    vi.stubGlobal('localStorage', storage)
+    const store = createLocalSignatureStore('sigs')
+    expect(await store.list()).toEqual([ink])
+    await expect(store.save(image)).rejects.toThrow(/could not be saved/)
+    expect(await store.list()).toEqual([ink])
+  })
+
   it('rejects a save that storage has no room for, and keeps what was there', async () => {
     const storage = memoryStorage()
     vi.stubGlobal('localStorage', storage)

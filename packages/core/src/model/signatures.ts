@@ -107,8 +107,8 @@ export function createMemorySignatureStore(
 /**
  * Templates in `localStorage` under `key`, as a JSON array. Where storage is blocked (it refuses
  * even a tiny test write, as in some private windows) the templates stay in memory for the
- * page's life, so signing still works. Where storage works but has no room for a change, the
- * change is undone and `save` or `remove` rejects, so the host can say so. Stored entries it
+ * page's life, so signing still works. Where storage works, or is full but holds a saved list,
+ * and has no room for a change, the change is undone and `save` or `remove` rejects, so the host can say so. Stored entries it
  * cannot read, such as a later version's templates, are left out of `list` and kept on write.
  */
 export function createLocalSignatureStore(key: string): SignatureStore {
@@ -118,8 +118,14 @@ export function createLocalSignatureStore(key: string): SignatureStore {
       const s = globalThis.localStorage ?? undefined
       if (!s) return undefined
       const probe = `${key}:probe`
-      s.setItem(probe, '1')
-      s.removeItem(probe)
+      try {
+        s.setItem(probe, '1')
+        s.removeItem(probe)
+      } catch {
+        // A full store refuses the probe too, but still holds the list: keep it, so the list
+        // shows and saves reject. One that holds nothing of ours is treated as blocked.
+        return s.getItem(key) === null ? undefined : s
+      }
       return s
     } catch {
       return undefined
