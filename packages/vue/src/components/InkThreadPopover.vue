@@ -11,7 +11,7 @@
  * Markup stays: the mark is the point.
  */
 import { isAbandonedNote, threadOf, threadRoot } from '@inkbar/core'
-import { threadPopoverLabel } from '@inkbar/core/dom'
+import { threadDeleteLabel, threadPopoverLabel } from '@inkbar/core/dom'
 import { PopoverContent, PopoverPortal, PopoverRoot } from 'reka-ui'
 import { computed, ref, watch } from 'vue'
 
@@ -180,7 +180,7 @@ function onOpenChange(next: boolean): void {
                 {{ editingRoot ? 'Comment' : 'Reply' }}
               </button>
               <button v-if="!note.locked" type="button" @click="removeThread">
-                Delete
+                {{ threadDeleteLabel(note) }}
               </button>
               <button type="button" @click="close">Close</button>
             </div>

@@ -1636,6 +1636,10 @@ describe('createViewer', () => {
       expect(popover.getAttribute('aria-label')).toBe('Comment thread')
       expect(focused()).toBe(popover.querySelector('textarea[aria-label="Comment"]'))
       expect(popover.querySelector('[data-ink-thread]')).toBeNull()
+      // Delete removes the highlight itself, and says so.
+      const labels = [...popover.querySelectorAll('button')].map((b) => b.textContent)
+      expect(labels).toContain('Delete highlight')
+      expect(labels).not.toContain('Delete')
     })
 
     it('first comment sets the highlight contents; next adds a reply', async () => {

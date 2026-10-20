@@ -550,6 +550,14 @@ export function threadPopoverLabel(root: Pick<Annotation, 'type'>): string {
   return root.type === 'text' ? 'Note thread' : 'Comment thread'
 }
 
+/**
+ * The thread popover's delete button. It removes the root and its replies, so on text markup
+ * it says it deletes the highlight, not only the comment.
+ */
+export function threadDeleteLabel(root: Pick<Annotation, 'type'>): string {
+  return root.type === 'text' ? 'Delete' : 'Delete highlight'
+}
+
 /** What a host-rendered comment thread receives: a note's, or text markup's. */
 export interface ThreadPopoverSlotProps {
   root: NoteAnnotation | TextMarkupAnnotation

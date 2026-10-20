@@ -630,6 +630,8 @@ describe('popovers', () => {
       .toHaveAccessibleName('Comment thread')
     expect(count(`${POPOVER} [data-ink-thread]`)()).toBe(0)
     await expect.poll(focused).toBe(byRole(popover, 'textbox', 'Comment').element())
+    // Delete removes the highlight itself, and says so.
+    await expect.element(byRole(popover, 'button', 'Delete highlight')).toBeVisible()
     await userEvent.keyboard('{Escape}')
     await expect.poll(count(POPOVER)).toBe(0)
     await activate(mark)

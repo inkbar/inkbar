@@ -17,7 +17,7 @@ import {
   threadRoot,
   type ThreadRoot,
 } from '../../model/annotations/threads'
-import { threadPopoverLabel } from '../ui'
+import { threadDeleteLabel, threadPopoverLabel } from '../ui'
 
 import { button, h } from './dom'
 import { createPopover } from './popover'
@@ -196,7 +196,7 @@ function createThreadForm(
 ): ThreadForm {
   const textarea = h('textarea', { rows: '2' })
   const send = h('button', { type: 'submit' })
-  const remove = button('Delete', actions.remove)
+  const remove = button(threadDeleteLabel(n), actions.remove)
   const actionRow = h(
     'div',
     { class: 'ink-thread-actions' },

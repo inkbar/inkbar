@@ -3,12 +3,14 @@
   let {
     editingRoot,
     locked,
+    deleteLabel,
     onSubmit,
     onRemove,
     onClose,
   }: {
     editingRoot: boolean
     locked: boolean
+    deleteLabel: string
     onSubmit: (text: string) => void
     onRemove: () => void
     onClose: () => void
@@ -35,7 +37,7 @@
       >{editingRoot ? 'Comment' : 'Reply'}</button
     >
     {#if !locked}
-      <button type="button" onclick={onRemove}>Delete</button>
+      <button type="button" onclick={onRemove}>{deleteLabel}</button>
     {/if}
     <button type="button" onclick={onClose}>Close</button>
   </div>
