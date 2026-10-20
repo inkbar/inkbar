@@ -1,0 +1,27 @@
+packages/core/src/model/annotations/shape-geometry.test.ts
+  s_5c84400dcebef8::t_b70f1acaa69a70 6
+  s_5c84400dcebef8::t_b1e50c5b2c0357 63-93
+packages/core/src/model/annotations/shape-geometry.ts
+  s_5c84400dcebef8::t_9d65fa01738374 4,151-160,162-173
+packages/core/src/dom/tools.browser.test.ts
+  s_5c84400dcebef8::t_b1e50c5b2c0357 2152-2174
+packages/core/src/dom/tools/shape.ts
+  s_5c84400dcebef8::t_9d65fa01738374 255-259,270-271
+  s_5c84400dcebef8::t_a619182c8c405c 272-275
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "950e2b97f5009b60a06cb4ac03d06bc1ae641da9",
+  "prompts": {},
+  "sessions": {
+    "s_5c84400dcebef8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b6002a2b-f6c7-44ec-8f13-05d214d02483",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
