@@ -207,6 +207,16 @@ describe('theme.css', () => {
       expect(declsFor(control), control).toMatch(/outline:\s*2px solid var\(--ink-ring\)/)
   })
 
+  // Signatures are dark ink, in both themes: they need paper behind them.
+  it('puts signature surfaces on a fixed light paper', () => {
+    for (const surface of [
+      '.ink-signature-pad-host',
+      '.ink-signature-preview',
+      '.ink-signature-font',
+    ])
+      expect(declsFor(`${surface})`), surface).toMatch(/background:\s*#fff\b/)
+  })
+
   it('never colours confidence label text with a suggestion colour, and shows it as a swatch', () => {
     const label = rules.filter((r) => r.selector.includes('.ink-suggestion-confidence'))
     const textColours = label.flatMap((r) =>
