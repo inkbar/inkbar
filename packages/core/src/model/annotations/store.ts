@@ -85,7 +85,8 @@ export interface AnnotationStore {
   /**
    * @internal Merges fields read from the file into embedded annotations, by id, onto their
    * current version (only ids still present with `source: 'pdf'`; a merge that fails the schema
-   * is skipped). Applied directly in both modes and never passed to `onChange`. Emits
+   * is skipped). A host edit to a read field made before the pass lands is overwritten by the
+   * read value. Applied directly in both modes and never passed to `onChange`. Emits
    * `{ kind: 'replace', reason: 'embedded', fields }` when anything changed.
    */
   _patchEmbedded(fields: ReadonlyMap<string, EmbeddedFieldPatch>): void

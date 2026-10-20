@@ -51,8 +51,9 @@ function readTable(bytes: Uint8Array, offset: number): Section {
   let i = readToken(bytes, offset).end // past "xref"
   for (;;) {
     const head = readToken(bytes, i)
-    if (head.token === 'trailer') {
-      const trailer = parseValue(bytes, head.end).value
+    if (head.token.startsWith('trailer')) {
+      // The dictionary may follow the keyword with no space: `trailer<<`.
+      const trailer = parseValue(bytes, head.end - (head.token.length - 7)).value
       if (!isDict(trailer)) throw new Error('Trailer is not a dictionary')
       return { entries, trailer }
     }

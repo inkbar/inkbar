@@ -1,3 +1,5 @@
+import { PDF_NAME } from '../model/annotations/pdf-names'
+
 import {
   dictGet,
   isDict,
@@ -33,17 +35,27 @@ export function refOfPdfjsId(id: string): PdfRef | undefined {
 const FAMILIES: [RegExp, string][] = [
   [/^(helvetica|helv)/i, 'Helvetica'],
   [/^(times|tiro)/i, 'Times'],
-  [/^(courier|cour)/i, 'Courier'],
+  [/^cour(ier|$)/i, 'Courier'],
 ]
 
-/** BaseFont (or bare resource name) → Inkbar font fields; undefined for Symbol and ZapfDingbats. */
-export function fontFromBaseName(name: string): FontFields | undefined {
+/**
+ * BaseFont (or bare resource name) → Inkbar font fields; undefined for Symbol and ZapfDingbats.
+ * A family matches by prefix, so `HelveticaNeue` reads as Helvetica and `CourierNewPS` as
+ * Courier. Any other name keeps its own family, minus a trailing `MT` or `PSMT`.
+ * With `knownOnly`, a name outside Helvetica, Times and Courier gives undefined: a bare
+ * resource id such as `F1` is not a family.
+ */
+export function fontFromBaseName(
+  name: string,
+  knownOnly = false
+): FontFields | undefined {
   const bare = name.replace(/^[A-Z]{6}\+/, '')
   if (/^(symbol|zapfdingbats|zadb)/i.test(bare)) return undefined
   const cut = bare.search(/[-,]/)
   const base = cut < 0 ? bare : bare.slice(0, cut)
   const style = cut < 0 ? '' : bare.slice(cut + 1)
   const known = FAMILIES.find(([re]) => re.test(base))
+  if (knownOnly && !known) return undefined
   const fontFamily = known ? known[1] : base.replace(/(PS)?MT$/, '')
   if (!fontFamily) return undefined
   const font: FontFields = { fontFamily }
@@ -84,13 +96,13 @@ async function readFont(objs: PdfObjects, annot: PdfDict, daFont: string) {
     const base = await baseFontIn(objs, dr, daFont)
     if (base !== undefined) return fontFromBaseName(base)
   }
-  return fontFromBaseName(daFont)
+  return fontFromBaseName(daFont, true)
 }
 
 async function readHead(objs: PdfObjects, le: PdfValue | undefined) {
   let v = await objs.resolve(le)
   if (Array.isArray(v)) v = await objs.resolve(v[0])
-  return isName(v) && v.name ? v.name : undefined
+  return isName(v) && PDF_NAME.test(v.name) ? v.name : undefined
 }
 
 /** `rect` is the annotation's [x1 y1 x2 y2], used to reject a fringe that leaves no box. */
@@ -142,7 +154,7 @@ export async function readTextIcon(
     const annot = await objs.get(ref)
     if (!isDict(annot)) return undefined
     const name = await objs.resolve(dictGet(annot, 'Name'))
-    return isName(name) && name.name ? name.name : undefined
+    return isName(name) && PDF_NAME.test(name.name) ? name.name : undefined
   } catch {
     return undefined
   }

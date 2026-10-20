@@ -186,8 +186,25 @@ describe('readEmbeddedFields', () => {
       ).resolves.toEqual(new Map())
     })
 
-    it('leaves out a patch the schema refuses', async () => {
-      // `/a#20b` decodes to `a b`, which is not a valid line ending name; the note's icon is fine.
+    it('keeps a valid callout when /LE is not a valid name', async () => {
+      const bytes = buildPdf([
+        '<< /Type /Catalog >>',
+        '<< /Type /Annot /Subtype /FreeText /CL [10 10 20 20] /LE /a#20b >>',
+      ])
+      const patched = await readEmbeddedFields(
+        [freetext('pdf:0:2R')],
+        [target('pdf:0:2R')],
+        () => Promise.resolve(bytes)
+      )
+      expect(patched.get('pdf:0:2R')?.callout).toEqual([
+        { x: 10, y: 10 },
+        { x: 20, y: 20 },
+      ])
+      expect(patched.get('pdf:0:2R')?.head).toBeUndefined()
+    })
+
+    it('drops an invalid line ending name and still patches the rest', async () => {
+      // `/a#20b` decodes to `a b`, which is not a valid name, so only the head is dropped.
       const bytes = buildPdf([
         '<< /Type /Catalog >>',
         '<< /Type /Annot /Subtype /FreeText /LE /a#20b >>',
@@ -211,7 +228,7 @@ describe('readEmbeddedFields', () => {
         [target('pdf:0:2R'), { id: 'pdf:0:3R', subtype: 'Text', rect: RECT }],
         () => Promise.resolve(bytes)
       )
-      expect([...patched.keys()]).toEqual(['pdf:0:3R'])
+      expect(patched.get('pdf:0:2R')).toEqual({ font: { fontFamily: 'Helvetica' } })
       expect(patched.get('pdf:0:3R')).toEqual({ icon: 'Key' })
     })
 

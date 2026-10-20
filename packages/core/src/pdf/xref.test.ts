@@ -23,6 +23,13 @@ describe('readXref', () => {
     expect(await readXref(await fixtureBytes('malformed-missing-xref'))).toBeUndefined()
   })
 
+  it('reads a trailer glued to its dictionary', async () => {
+    const head = '%PDF-1.4\n'
+    const text = `${head}xref\n0 1\n0000000000 65535 f \ntrailer<< /Size 1 /Root 1 0 R >>\nstartxref\n${head.length}\n%%EOF\n`
+    const bytes = Uint8Array.from(text, (c) => c.charCodeAt(0))
+    expect((await readXref(bytes))?.trailer.entries.has('Root')).toBe(true)
+  })
+
   it('survives a /Prev loop', async () => {
     const head = '%PDF-1.4\n'
     const text = `${head}xref\n0 1\n0000000000 65535 f \ntrailer\n<< /Size 1 /Prev ${head.length} >>\nstartxref\n${head.length}\n%%EOF\n`
