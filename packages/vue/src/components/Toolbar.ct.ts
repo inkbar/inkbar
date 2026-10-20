@@ -261,6 +261,63 @@ test('undo and redo follow the history; the separator divides the toolbar', asyn
   await expect(redo).toBeDisabled()
 })
 
+test.describe('style menu triggers and the host', () => {
+  const cases = [
+    { harness: 'line', name: 'Line style', role: 'menu', add: 'add-line-1' },
+    { harness: 'colour', name: 'Border colour', role: 'menu', add: 'add-square' },
+    { harness: 'text', name: 'Text style', role: 'dialog', add: 'add-box' },
+  ] as const
+  const mountCase = (
+    mount: MountFn,
+    harness: (typeof cases)[number]['harness'],
+    hostDisabled?: 'true' | 'false'
+  ) => {
+    const props = { src: fixtureUrl('text-simple'), assets, hostDisabled }
+    if (harness === 'line') return mount(LineStyleHarness, { props })
+    if (harness === 'colour') return mount(ColorMenuHarness, { props })
+    return mount(TextStyleHarness, { props })
+  }
+
+  for (const { harness, name, role, add } of cases) {
+    test(`${name}: the host's listeners run and the menu still opens`, async ({
+      mount,
+      page,
+    }) => {
+      const cmp = await mountCase(mount, harness)
+      await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+      await page.getByTestId(add).click()
+      await page.getByTestId('select-all').click()
+      const trigger = page.getByRole('button', { name })
+      const menu = page.getByRole(role, { name })
+      const host = page.getByTestId('host')
+      await trigger.focus()
+      await page.keyboard.press('ArrowDown')
+      await expect(menu).toBeVisible()
+      await expect(host).toHaveAttribute('data-keys', 'ArrowDown')
+      await page.keyboard.press('Escape')
+      await expect(menu).toBeHidden()
+      await trigger.click()
+      await expect(menu).toBeVisible()
+      await expect(host).toHaveAttribute('data-clicks', '1')
+    })
+
+    test(`${name}: the host's disabled disables the trigger, and false does not enable it`, async ({
+      mount,
+      page,
+    }) => {
+      const on = await mountCase(mount, harness, 'true')
+      await expect(on.locator('.ink-page canvas').first()).toBeVisible()
+      await page.getByTestId(add).click()
+      await page.getByTestId('select-all').click()
+      await expect(page.getByRole('button', { name })).toBeDisabled()
+      await on.unmount()
+      const off = await mountCase(mount, harness, 'false')
+      await expect(off.locator('.ink-page canvas').first()).toBeVisible()
+      await expect(page.getByRole('button', { name })).toBeDisabled()
+    })
+  }
+})
+
 test.describe('line style menu', () => {
   const open = async (page: Page) => {
     await page.getByRole('button', { name: 'Line style' }).click()

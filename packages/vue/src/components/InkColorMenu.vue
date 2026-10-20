@@ -21,7 +21,7 @@ import {
   PopoverTrigger,
   ToolbarButton,
 } from 'reka-ui'
-import { computed, defineComponent, ref, watch } from 'vue'
+import { computed, defineComponent, mergeProps, ref, useAttrs, watch } from 'vue'
 
 import { useToolStyle } from '../composables/useToolStyle'
 
@@ -30,6 +30,7 @@ import InkIcon from './InkIcon.vue'
 import type { StyleGroup } from '@inkbar/core'
 
 defineOptions({ inheritAttrs: false })
+const attrs = useAttrs()
 
 /** Stands in for the toolbar item when the menu is nested in another panel. */
 const PassThrough = defineComponent({
@@ -106,6 +107,15 @@ const triggerAttrs = computed(() => ({
   onKeydown: onTriggerKeydown,
   'data-mixed': model.value.mixed ? '' : undefined,
 }))
+/**
+ * The trigger's bindings over the host's: both keydown listeners run, the host's first, and a
+ * host `disabled` can disable the trigger but not enable it.
+ */
+const triggerBindings = computed(() =>
+  mergeProps(attrs, triggerAttrs.value, {
+    disabled: (attrs.disabled ?? false) !== false || !model.value.enabled,
+  })
+)
 const menuAttrs = computed(() => ({ 'aria-label': name.value }))
 const innerAttrs = computed(() => ({
   role: 'menu',
@@ -123,8 +133,7 @@ const innerAttrs = computed(() => ({
           class="ink-menu-trigger ink-color-menu"
           :data-ink-color-menu="property"
           :data-state="open ? 'open' : 'closed'"
-          :disabled="!model.enabled"
-          v-bind="{ ...$attrs, ...triggerAttrs }"
+          v-bind="triggerBindings"
         >
           <slot>
             <span
