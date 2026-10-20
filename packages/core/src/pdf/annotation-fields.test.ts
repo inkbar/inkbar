@@ -198,6 +198,23 @@ describe('readFreeTextFields on malformed values', () => {
     expect(await fields('[1 2]')).toEqual({})
   })
 
+  it('gives no font for a bare resource id or a symbol face', async () => {
+    for (const id of ['F1', 'TT0', 'FXF0', 'ZaDb', 'Symbol'])
+      expect((await fields('<< >>', RECT, id)).font).toBeUndefined()
+  })
+
+  it('reads the Times and Courier aliases and not Courgette', async () => {
+    expect((await fields('<< >>', RECT, 'TiRo')).font).toEqual({ fontFamily: 'Times' })
+    expect((await fields('<< >>', RECT, 'Cour')).font).toEqual({ fontFamily: 'Courier' })
+    expect(fontFromBaseName('Courgette', true)).toBeUndefined()
+  })
+
+  it('drops a head or icon that is not a valid PDF name', async () => {
+    expect((await fields('<< /LE /a#20b >>')).head).toBeUndefined()
+    const { objs, ref } = fake('<< /Subtype /Text /Name /a#20b >>')
+    expect(await readTextIcon(objs, ref)).toBeUndefined()
+  })
+
   it('falls back to the bare name when no /DR names the font', async () => {
     expect((await fields('<< >>', RECT, 'Helv')).font).toEqual({
       fontFamily: 'Helvetica',

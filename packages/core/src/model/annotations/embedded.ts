@@ -79,7 +79,7 @@ export function importedId(page: number, pdfjsId: string): string {
 }
 
 /**
- * An imported annotation whose fields PDF.js leaves out, to be read from the file itself once
+ * @internal An imported annotation whose fields PDF.js leaves out, to be read from the file itself once
  * the document is ready: a FreeText's `/CL`, `/RD`, `/LE` and `/DA` font, or a note's `/Name`
  * when PDF.js reports `NoIcon`.
  */
@@ -110,6 +110,10 @@ export interface EmbeddedFieldPatch {
   font?: { fontFamily?: string; fontWeight?: 'bold'; fontStyle?: 'italic' }
 }
 
+/**
+ * Imports one page's PDF.js annotation data. `targets` is @internal: the annotations whose
+ * missing fields the document reads from the file after `ready`.
+ */
 export function importEmbeddedPage(
   page: number,
   raw: PdfjsAnnotationData[],

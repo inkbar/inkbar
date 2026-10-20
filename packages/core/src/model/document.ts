@@ -83,7 +83,7 @@ export interface InkDocument {
    * `ready` resolves. They stay in `list` in both modes and cannot be removed; in controlled
    * mode they never reach `onChange`. Fields PDF.js leaves out (a FreeText's callout, fringe,
    * head and font, a note's icon) are read from the file after `ready` and fill in later, as a
-   * `{ kind: 'replace', reason: 'embedded' }` change.
+   * `{ kind: 'replace', reason: 'embedded', fields }` change.
    */
   readonly annotations: AnnotationStore
   /** What the file contained, by PDF subtype, including subtypes Inkbar does not show. */
@@ -228,11 +228,11 @@ export async function openDocument(
     () => {
       if (destroyed || !handles) return
       const { proxy } = handles
-      void readEmbeddedFields(store.list.get(), targets, () => proxy.getData()).then(
-        (patched) => {
+      void readEmbeddedFields(store.list.get(), targets, () => proxy.getData())
+        .then((patched) => {
           if (!destroyed && patched.size > 0) store._patchEmbedded(patched)
-        }
-      )
+        })
+        .catch(() => undefined)
     },
     () => undefined
   )
