@@ -834,6 +834,12 @@
     border-color: var(--ink-border);
   }
 
+  /* A style menu's trigger when the selection disagrees (the colour menus' swatch shows it too). */
+  :where(.ink-menu-trigger[data-mixed]) {
+    border-style: dashed;
+    border-color: var(--ink-border);
+  }
+
   /* Shape menu: a split button, the tool part beside a narrow chevron. */
   :where(.ink-split-button) {
     display: inline-flex;

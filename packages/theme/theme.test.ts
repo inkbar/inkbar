@@ -181,6 +181,17 @@ describe('theme.css', () => {
     }
   })
 
+  /** The declarations of the rules whose selector list includes `selector`. */
+  const declsFor = (selector: string): string =>
+    rules
+      .filter((r) => r.selectors.some((s) => s.includes(selector)))
+      .map((r) => r.toString())
+      .join('\n')
+
+  it('marks a mixed menu trigger', () => {
+    expect(declsFor('.ink-menu-trigger[data-mixed]')).toMatch(/border-style:\s*dashed/)
+  })
+
   it('never colours confidence label text with a suggestion colour, and shows it as a swatch', () => {
     const label = rules.filter((r) => r.selector.includes('.ink-suggestion-confidence'))
     const textColours = label.flatMap((r) =>
