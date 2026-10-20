@@ -425,7 +425,8 @@ export function renderAnnotationContent(
             stroke: a.color,
             'stroke-width': t.toCssLength(a.width),
             'stroke-linejoin': 'round',
-            'stroke-linecap': 'round',
+            // A butt or slash ending is a cut across the line: a round cap would blunt it.
+            'stroke-linecap': kind === 'butt' || kind === 'slash' ? 'butt' : 'round',
           })
           ending.setAttribute('data-ending', name)
           svg.append(ending)

@@ -766,6 +766,28 @@ describe('createOverlay', () => {
     expect(parseFloat(el.style.width)).toBeGreaterThan(100)
   })
 
+  it('draws butt and slash endings with square-cut caps, others round', () => {
+    const { store, overlay } = setup()
+    const line = store.add({
+      type: 'line',
+      page: 0,
+      start: { x: 100, y: 700 },
+      end: { x: 200, y: 700 },
+      width: 2,
+      head: 'butt',
+      tail: 'slash',
+    })
+    const cap = (id: string, end: string) =>
+      overlay
+        .elementFor(id)!
+        .querySelector(`path[data-ending="${end}"]`)!
+        .getAttribute('stroke-linecap')
+    expect(cap(line.id, 'head')).toBe('butt')
+    expect(cap(line.id, 'tail')).toBe('butt')
+    store.update(line.id, { head: 'openArrow' })
+    expect(cap(line.id, 'head')).toBe('round')
+  })
+
   it('polyline head renders', () => {
     const { store, overlay } = setup()
     const pl = store.add({
