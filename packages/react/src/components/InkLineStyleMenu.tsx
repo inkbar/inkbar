@@ -91,6 +91,7 @@ function Group({
 export function InkLineStyleMenu({
   className,
   children,
+  disabled,
   ...rest
 }: InkLineStyleMenuProps) {
   const { current, supported, set } = useToolStyle()
@@ -115,7 +116,7 @@ export function InkLineStyleMenu({
             aria-label="Line style"
             title="Line style"
             aria-haspopup="menu"
-            disabled={!model.enabled}
+            disabled={disabled === true || !model.enabled}
             {...rest}
             onKeyDown={(e) => {
               rest.onKeyDown?.(e)

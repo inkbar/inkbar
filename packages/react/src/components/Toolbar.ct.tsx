@@ -385,6 +385,21 @@ test.describe('line style menu', () => {
     return page.getByRole('menu', { name: 'Line style' })
   }
 
+  test("a host's disabled={false} does not enable the trigger", async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mount(
+      <LineStyleHarness
+        src={fixtureUrl('text-simple')}
+        assets={assets}
+        disabled={false}
+      />
+    )
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Line style' })).toBeDisabled()
+  })
+
   test('line style menu sets width on the selected line', async ({ mount, page }) => {
     const cmp = await mount(
       <LineStyleHarness src={fixtureUrl('text-simple')} assets={assets} />
@@ -527,6 +542,21 @@ test.describe('colour menus', () => {
     await page.getByTestId(id).click()
     await page.getByTestId('select-all').click()
   }
+
+  test("a host's disabled={false} does not enable the trigger", async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mount(
+      <ColorMenuHarness
+        src={fixtureUrl('text-simple')}
+        assets={assets}
+        disabled={false}
+      />
+    )
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Border colour' })).toBeDisabled()
+  })
 
   test('border menu sets color on a selected square', async ({ mount, page }) => {
     await mountHarness(mount)
@@ -934,6 +964,21 @@ test.describe('text style menu', () => {
     await page.getByRole('button', { name: 'Text style' }).click()
     return page.getByRole('dialog', { name: 'Text style' })
   }
+
+  test("a host's disabled={false} does not enable the trigger", async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mount(
+      <TextStyleHarness
+        src={fixtureUrl('text-simple')}
+        assets={assets}
+        disabled={false}
+      />
+    )
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Text style' })).toBeDisabled()
+  })
 
   test('bold toggle sets defaultStyle.fontWeight on the selected text box', async ({
     mount,

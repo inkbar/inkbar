@@ -82,15 +82,18 @@ export function TextStyleHarness({
   src,
   assets,
   fonts,
+  disabled,
 }: {
   src: DocumentSource
   assets: PdfAssets
   fonts?: string[] | undefined
+  /** Passed to the trigger as a host would. */
+  disabled?: boolean
 }) {
   return (
     <InkRoot src={src} assets={assets} zoom={1} fonts={fonts}>
       <InkToolbar>
-        <InkTextStyleMenu />
+        <InkTextStyleMenu disabled={disabled} />
       </InkToolbar>
       <div style={{ height: 600, width: 900 }}>
         <InkViewport />

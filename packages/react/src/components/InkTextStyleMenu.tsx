@@ -45,6 +45,7 @@ const ALIGN_ICONS = {
 export function InkTextStyleMenu({
   className,
   children,
+  disabled,
   ...rest
 }: InkTextStyleMenuProps) {
   const { fonts } = useInkContext('InkTextStyleMenu')
@@ -86,7 +87,7 @@ export function InkTextStyleMenu({
             aria-label={model.label}
             title={model.label}
             aria-haspopup="dialog"
-            disabled={!model.enabled}
+            disabled={disabled === true || !model.enabled}
             {...rest}
             onKeyDown={(e) => {
               rest.onKeyDown?.(e)
