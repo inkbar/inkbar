@@ -513,7 +513,8 @@ export interface ShapeMenuModel {
 
 /**
  * What the shape menu shows for the shape tool's options, over the kinds in `kinds`
- * (`SHAPE_KINDS`). A kind that is not on offer falls back to the first.
+ * (`SHAPE_KINDS`). A kind that is not on offer falls back to `rectangle` when that is offered,
+ * else to the first.
  */
 export function shapeMenuModel(
   options: Partial<ShapeOptions>,
