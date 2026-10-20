@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { FringeSchema } from './callout'
 import { INTENTS, LINE_ENDINGS, NOTE_ICONS, pdfNameSet } from './pdf-names'
 
 export const ANNOTATION_FORMAT = 'inkbar/annotations'
@@ -64,6 +65,9 @@ export const NoteSchema = Base.extend({
   icon: NoteIconSchema.default('Note'),
 })
 
+/** A line ending (XFDF `head`/`tail`): a PDF name, so a name Inkbar does not know is kept. */
+export const LineEndingSchema = pdfNameSet(LINE_ENDINGS)
+
 /** Dash pattern in points, on then off, repeating. Absent means solid. */
 const DashesSchema = z.array(z.number().nonnegative()).min(1).optional()
 
@@ -110,7 +114,15 @@ export const FreeTextSchema = Base.extend({
   /** Points. An extension, not XFDF. */
   cornerRadius: z.number().nonnegative().optional(),
   defaultStyle: FreeTextStyleSchema,
+  /**
+   * The insets from `rect` to the text box, in points (XFDF `fringe`, PDF `/RD`). Absent means
+   * the box is `rect`.
+   */
+  fringe: FringeSchema.optional(),
+  /** A callout's leader line: the tip, an optional bend, and where it meets the box (PDF `/CL`). */
   callout: z.array(PointSchema).min(2).max(3).optional(),
+  /** The line ending at a callout's tip (XFDF `head`, PDF `/LE`). Absent means `None`. */
+  head: LineEndingSchema.optional(),
   fontFamily: Refused,
   fontSize: Refused,
   align: Refused,
@@ -136,9 +148,6 @@ export const CircleSchema = Base.extend({
 })
 
 export const ShapeSchema = z.discriminatedUnion('type', [SquareSchema, CircleSchema])
-
-/** A line ending (XFDF `head`/`tail`): a PDF name, so a name Inkbar does not know is kept. */
-export const LineEndingSchema = pdfNameSet(LINE_ENDINGS)
 
 export const LineSchema = Base.extend({
   type: z.literal('line'),

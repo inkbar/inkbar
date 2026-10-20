@@ -1,5 +1,10 @@
 import { ICON_ATTRIBUTES, MessageSquareText } from '@inkbar/icons'
 
+import {
+  calloutStroke,
+  freeTextBox,
+  isStandardCallout,
+} from '../model/annotations/callout'
 import { isBubble, isTextMarkup } from '../model/annotations/edit'
 import { isKnown, LINE_ENDINGS } from '../model/annotations/pdf-names'
 
@@ -273,12 +278,59 @@ export function renderAnnotationContent(
       dash(path, a.dashes, t)
       svg.append(path)
       el.append(svg)
+    } else if (isStandardCallout(a)) {
+      // The leader line runs from the tip to the box, with its ending at the tip.
+      const svg = boxSvg(doc, box.width, box.height)
+      svg.classList.add('ink-annotation-shape')
+      svg.setAttribute('opacity', String(a.opacity))
+      const stroke = calloutStroke(a)
+      const sw = t.toCssLength(stroke.width)
+      const line = node('polyline', {
+        points: a.callout.map(local).join(' '),
+        fill: 'none',
+        stroke: stroke.color,
+        'stroke-width': sw,
+        'stroke-linejoin': 'round',
+        'stroke-linecap': 'butt',
+        'pointer-events': 'visiblePainted',
+      })
+      line.classList.add('ink-callout-line')
+      svg.append(line)
+      const at = (p: Point): Point => {
+        const c = t.toCss(p)
+        return { x: c.x - box.left, y: c.y - box.top }
+      }
+      const kind = drawable(a.head)
+      const d = lineEndingPath(kind, at(a.callout[0]!), at(a.callout[1]!), sw)
+      if (d) {
+        const ending = node('path', {
+          d,
+          fill: FILLED_ENDINGS.has(kind) ? stroke.color : 'none',
+          stroke: stroke.color,
+          'stroke-width': sw,
+          'stroke-linejoin': 'round',
+          'stroke-linecap': kind === 'Butt' || kind === 'Slash' ? 'butt' : 'round',
+          'pointer-events': 'visiblePainted',
+        })
+        ending.setAttribute('data-ending', 'head')
+        svg.append(ending)
+      }
+      el.append(svg)
     }
     // HTML rather than SVG <text>: a text box must wrap, and SVG text does not.
     const text = doc.createElement('div')
     text.className = 'ink-free-text'
     text.textContent = a.contents
     styleFreeText(text, a, t)
+    if (a.fringe) {
+      // Inset from the element, which covers the whole rect.
+      const inner = freeTextLocalBox(a, t)
+      text.style.position = 'absolute'
+      text.style.left = `${inner.left}px`
+      text.style.top = `${inner.top}px`
+      text.style.width = `${inner.width}px`
+      text.style.height = `${inner.height}px`
+    }
     // Structural: the element itself ignores the pointer, the text box takes it.
     text.style.pointerEvents = 'auto'
     el.append(text)
@@ -553,6 +605,21 @@ export function styleFreeText(
   else delete node.dataset.bubble
   if (!bubble && a.width > 0) node.dataset.border = a.dashes?.length ? 'dashed' : 'solid'
   else delete node.dataset.border
+}
+
+/**
+ * A free text's text box (`freeTextBox`) in CSS px, relative to the top-left of its rect on
+ * screen, where its overlay element sits.
+ */
+export function freeTextLocalBox(a: FreeTextAnnotation, t: PageTransform): CssRect {
+  const origin = t.toCssRect(a.rect)
+  const box = t.toCssRect(freeTextBox(a))
+  return {
+    left: box.left - origin.left,
+    top: box.top - origin.top,
+    width: box.width,
+    height: box.height,
+  }
 }
 
 /** Half the width of a bubble tail where it leaves the box, points. */

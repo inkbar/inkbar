@@ -24,6 +24,21 @@ describe('scaled', () => {
     expect(patch.rect).toEqual({ x: 0, y: 0, width: 20, height: 20 })
   })
 
+  it("scales a free text's fringe with its rect", () => {
+    const ft = store().add({
+      type: 'freetext',
+      page: 0,
+      contents: 'Hi',
+      rect: { x: 0, y: 0, width: 100, height: 50 },
+      fringe: { left: 10, top: 5, right: 20, bottom: 15 },
+    })
+    const patch = scaled(ft, ft.rect, { x: 0, y: 0, width: 200, height: 25 })
+    expect(patch).toMatchObject({
+      rect: { x: 0, y: 0, width: 200, height: 25 },
+      fringe: { left: 20, top: 2.5, right: 40, bottom: 7.5 },
+    })
+  })
+
   it('doubles every ink point', () => {
     const ink = store().add({
       type: 'ink',

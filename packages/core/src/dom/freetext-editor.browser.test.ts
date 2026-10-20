@@ -191,4 +191,47 @@ describe('editFreeText', () => {
     )
     expect(commit).not.toHaveBeenCalled()
   })
+
+  it('opens over the text box of a box with a fringe and grows its rect by the same amount', async () => {
+    const style = document.createElement('style')
+    style.textContent = themeCss
+    document.head.append(style)
+    const store = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const host = mountContainer(612, 792)
+    const transform = createPageTransform(page, 1, 0)
+    const overlay = createOverlay({ host, page: 0, store, transform })
+    cleanup.push(() => (overlay.destroy(), host.remove(), style.remove()))
+    const a = store.add({
+      type: 'freetext',
+      page: 0,
+      rect: { x: 60, y: 560, width: 200, height: 70 },
+      fringe: { left: 40, top: 5, right: 10, bottom: 45 },
+      contents: '',
+    }) as FreeTextAnnotation
+    const el = overlay.elementFor(a.id)!
+    const commit = vi.fn<(contents: string, rect: Rect) => void>()
+    const editor = editFreeText(el, a, { transform, commit, cancel: vi.fn() })
+    cleanup.unshift(() => editor.close(false))
+    const f = el.querySelector<HTMLElement>('[data-ink-editor]')!
+    const at = f.getBoundingClientRect()
+    const origin = host.getBoundingClientRect()
+    // The box is x 100..250, top 625: css left 100, top 792 - 625.
+    expect(at.left - origin.left).toBeCloseTo(100)
+    expect(at.top - origin.top).toBeCloseTo(167)
+    expect(at.width).toBeCloseTo(150)
+    expect(at.height).toBeCloseTo(20)
+    const before = parseFloat(el.style.height)
+    await userEvent.keyboard('one{Enter}two{Enter}three')
+    await until(() => parseFloat(el.style.height) > before)
+    // The element grows by what the text box grew.
+    const grown = parseFloat(el.style.height) - before
+    expect(f.getBoundingClientRect().height).toBeCloseTo(20 + grown)
+    await userEvent.keyboard('{Escape}')
+    const [, rect] = commit.mock.calls[0]!
+    expect(rect.height).toBeCloseTo(70 + grown, 0)
+    expect(rect.y + rect.height).toBeCloseTo(630)
+  })
 })

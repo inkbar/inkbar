@@ -8,7 +8,7 @@
 // height, the box's `visibility` while it is covered, and the element's grown height.
 import { isBubble } from '../model/annotations/edit'
 
-import { refitBubble, styleFreeText } from './overlay-render'
+import { freeTextLocalBox, refitBubble, styleFreeText } from './overlay-render'
 
 import type { PageTransform } from './transform'
 import type { AnnotationStore } from '../model/annotations/store'
@@ -64,7 +64,9 @@ export function editFreeText(
   editors.get(el)?.close(true)
   const doc = el.ownerDocument
   const view = doc.defaultView
+  // The element covers the rect; the text box sits inside it, inset by any fringe.
   const base = opts.transform.toCssRect(a.rect)
+  const inner = freeTextLocalBox(a, opts.transform)
   const box = el.querySelector<HTMLElement>(':scope > .ink-free-text')
 
   const field = doc.createElement('div')
@@ -75,11 +77,11 @@ export function editFreeText(
   field.setAttribute('aria-label', 'Text box')
   styleFreeText(field, a, opts.transform)
   field.style.position = 'absolute'
-  field.style.left = '0'
-  field.style.top = '0'
-  field.style.width = '100%'
+  field.style.left = `${inner.left}px`
+  field.style.top = `${inner.top}px`
+  field.style.width = a.fringe ? `${inner.width}px` : '100%'
   field.style.height = 'auto'
-  field.style.minHeight = `${base.height}px`
+  field.style.minHeight = `${inner.height}px`
   field.style.pointerEvents = 'auto'
   makeEditable(field)
   field.textContent = a.contents
@@ -87,10 +89,11 @@ export function editFreeText(
   el.append(field)
 
   /** The box's CSS height for the text now in it: never less than it started at. */
-  const height = (): number => Math.max(base.height, field.getBoundingClientRect().height)
+  const height = (): number =>
+    Math.max(inner.height, field.getBoundingClientRect().height)
   const grow = (): void => {
     const h = height()
-    el.style.height = `${h}px`
+    el.style.height = `${base.height + h - inner.height}px`
     // A bubble's outline grows with its text.
     refitBubble(el, a, opts.transform, h)
   }
@@ -105,7 +108,7 @@ export function editFreeText(
   }
   /** How far the box grew, CSS px; 0 within `SAME_PX`. */
   const growth = (): number => {
-    const grown = height() - base.height
+    const grown = height() - inner.height
     return Math.abs(grown) < SAME_PX ? 0 : grown
   }
 

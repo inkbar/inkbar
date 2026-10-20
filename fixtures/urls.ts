@@ -13,6 +13,7 @@ export const FIXTURE_NAMES = [
   'annotated-notes-threaded',
   'annotated-redact',
   'annotated-shapes',
+  'standard-callout',
   'annotated-unsupported',
   'acroform-basic',
   'incremental-saved',
