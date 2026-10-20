@@ -108,7 +108,8 @@ export function createMemorySignatureStore(
  * Templates in `localStorage` under `key`, as a JSON array. Where storage is blocked (it refuses
  * even a tiny test write, as in some private windows) the templates stay in memory for the
  * page's life, so signing still works. Where storage works but has no room for a change, the
- * change is undone and `save` or `remove` rejects, so the host can say so.
+ * change is undone and `save` or `remove` rejects, so the host can say so. Stored entries it
+ * cannot read, such as a later version's templates, are left out of `list` and kept on write.
  */
 export function createLocalSignatureStore(key: string): SignatureStore {
   /** Usable storage, or undefined when it is missing or blocked. */
@@ -124,31 +125,46 @@ export function createLocalSignatureStore(key: string): SignatureStore {
       return undefined
     }
   })()
-  /** The stored list; undefined when storage cannot be read. Invalid entries are skipped. */
-  const read = (): SignatureTemplate[] | undefined => {
+  /** What storage holds: the templates, and the entries that are not (kept, never shown). */
+  interface Stored {
+    items: SignatureTemplate[]
+    /** Entries this version cannot read, such as a newer version's: written back unchanged. */
+    unread: unknown[]
+  }
+  /** The stored list; undefined when storage cannot be read. */
+  const read = (): Stored | undefined => {
     if (!storage) return undefined
     try {
       const raw = storage.getItem(key)
-      if (raw === null) return []
+      if (raw === null) return { items: [], unread: [] }
       const parsed: unknown = JSON.parse(raw)
-      if (!Array.isArray(parsed)) return []
-      return validTemplates(parsed)
+      if (!Array.isArray(parsed)) return { items: [], unread: [] }
+      const items = validTemplates(parsed)
+      return { items, unread: parsed.filter((x) => validTemplates([x]).length === 0) }
     } catch (e) {
       // Unreadable JSON is an empty list; a storage that throws is no storage.
-      return e instanceof SyntaxError ? [] : undefined
+      return e instanceof SyntaxError ? { items: [], unread: [] } : undefined
     }
   }
-  let items = read() ?? []
+  let { items, unread } = read() ?? { items: [], unread: [] }
   /** Picks up what another tab wrote. */
   const sync = (): void => {
     const stored = read()
-    if (stored) items = stored
+    if (stored) ({ items, unread } = stored)
   }
-  /** Writes `next`, then adopts it; leaves everything as it was when storage refuses. */
+  /** The id of an entry that may not be a template, if it has one. */
+  const idOf = (x: unknown): unknown =>
+    typeof x === 'object' && x !== null ? (x as { id?: unknown }).id : undefined
+  /**
+   * Writes `next`, then adopts it; leaves everything as it was when storage refuses. Entries
+   * it cannot read go back after the templates, less any whose id a template now has.
+   */
   const commit = (next: SignatureTemplate[]): Promise<void> => {
+    const ids = new Set<unknown>(next.map((t) => t.id))
+    const kept = unread.filter((x) => idOf(x) === undefined || !ids.has(idOf(x)))
     if (storage) {
       try {
-        storage.setItem(key, JSON.stringify(next))
+        storage.setItem(key, JSON.stringify([...next, ...kept]))
       } catch (cause) {
         return Promise.reject(
           new Error('The signature could not be saved: browser storage is full', {
@@ -158,6 +174,7 @@ export function createLocalSignatureStore(key: string): SignatureStore {
       }
     }
     items = next
+    unread = kept
     return Promise.resolve()
   }
   return {

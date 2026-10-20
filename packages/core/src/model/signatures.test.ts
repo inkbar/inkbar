@@ -262,6 +262,27 @@ describe('createLocalSignatureStore', () => {
     storage.setItem('sigs', '{not json')
     expect(await createLocalSignatureStore('sigs').list()).toEqual([])
   })
+
+  // A newer version's template, or a hand-edited one, must survive this version's writes.
+  it('writes back stored entries it cannot read, unchanged', async () => {
+    const storage = memoryStorage()
+    const future = { id: 'f', kind: 'vector', paths: ['M0 0'] }
+    storage.setItem('sigs', JSON.stringify([ink, future, 7]))
+    vi.stubGlobal('localStorage', storage)
+    const store = createLocalSignatureStore('sigs')
+    await store.save(image)
+    expect(JSON.parse(storage.getItem('sigs')!)).toEqual([ink, image, future, 7])
+    await store.remove('ink-1')
+    expect(JSON.parse(storage.getItem('sigs')!)).toEqual([image, future, 7])
+    expect(await store.list()).toEqual([image])
+    // Saving a template with an unreadable entry's id replaces that entry.
+    await store.save({ ...image, id: 'f' })
+    expect(JSON.parse(storage.getItem('sigs')!)).toEqual([
+      image,
+      { ...image, id: 'f' },
+      7,
+    ])
+  })
 })
 
 describe('createSignatureLibrary', () => {
