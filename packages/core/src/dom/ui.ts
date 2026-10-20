@@ -2,7 +2,7 @@
 // host-rendered content. Core owns these so Vue and React cannot drift apart.
 import { PALETTE } from './palette'
 
-import type { ToolId } from './tools'
+import type { ShapeKind, ShapeOptions, ToolId } from './tools'
 import type { CurrentStyle, StyleKey, StyleProps } from '../model/annotations/tool-style'
 import type {
   Annotation,
@@ -23,6 +23,7 @@ export const TOOL_LABELS: Readonly<Partial<Record<ToolId, string>>> = {
   highlight: 'Highlight',
   'redact-area': 'Mark for redaction',
   note: 'Add note',
+  shape: 'Shape',
 }
 
 /** Zoom levels the zoom select offers, as scale factors. */
@@ -255,6 +256,57 @@ export function colorMenuModel(
       property === 'fill' ? { checked: value === null, patch: { fill: null } } : null,
     customValue: color ?? '#000000',
     custom: (hex) => patchFor(hex.toUpperCase()),
+  }
+}
+
+/** Accessible names of the shape kinds, as the shape menu announces them. */
+export const SHAPE_LABELS: Readonly<Record<ShapeKind, string>> = {
+  line: 'Line',
+  arrow: 'Arrow',
+  rectangle: 'Rectangle',
+  roundedRectangle: 'Rounded rectangle',
+  ellipse: 'Ellipse',
+  bubble: 'Speech bubble',
+  star: 'Star',
+  polygon: 'Polygon',
+  loupe: 'Loupe',
+  mask: 'Mask',
+}
+
+/** Columns of the shape grid: the arrow keys move by this much between rows. */
+export const SHAPE_COLUMNS = 2
+
+export interface ShapeMenuItem {
+  kind: ShapeKind
+  label: string
+  checked: boolean
+}
+
+export interface ShapeMenuModel {
+  /** The kind the main button draws. */
+  kind: ShapeKind
+  /** The main button's accessible name. */
+  label: string
+  /** The kinds on offer, in menu order, with the current one checked. */
+  items: ShapeMenuItem[]
+}
+
+/**
+ * What the shape menu shows for the shape tool's options, over the kinds in `kinds`
+ * (`SHAPE_KINDS`). A kind that is not on offer falls back to the first.
+ */
+export function shapeMenuModel(
+  options: Partial<ShapeOptions>,
+  kinds: readonly ShapeKind[]
+): ShapeMenuModel {
+  const kind =
+    options.kind !== undefined && kinds.includes(options.kind)
+      ? options.kind
+      : (kinds.find((k) => k === 'rectangle') ?? kinds[0] ?? 'rectangle')
+  return {
+    kind,
+    label: `Shape: ${SHAPE_LABELS[kind]}`,
+    items: kinds.map((k) => ({ kind: k, label: SHAPE_LABELS[k], checked: k === kind })),
   }
 }
 

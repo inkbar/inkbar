@@ -14,6 +14,7 @@ import {
   InkPrevPage,
   InkRedo,
   InkRoot,
+  InkShapeMenu,
   InkSuggestionCard,
   InkToolbar,
   InkToolbarSeparator,
@@ -44,6 +45,7 @@ defineProps<{ source: DocumentSource }>()
         <InkToolButton tool="select-text" />
         <InkToolButton tool="select" />
         <InkToolButton tool="redact-area" />
+        <InkShapeMenu />
         <InkToolButton tool="note" />
       </div>
       <InkToolbarSeparator />

@@ -287,7 +287,8 @@
               "type": "array",
               "items": { "type": "number", "minimum": 0 }
             },
-            "interiorColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+            "interiorColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+            "cornerRadius": { "type": "number", "minimum": 0 }
           },
           "required": [
             "id",

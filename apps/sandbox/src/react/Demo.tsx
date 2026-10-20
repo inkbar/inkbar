@@ -8,6 +8,7 @@ import {
   InkPrevPage,
   InkRedo,
   InkRoot,
+  InkShapeMenu,
   InkSuggestionCard,
   InkToolbar,
   InkToolbarSeparator,
@@ -41,6 +42,7 @@ export function Demo({ source }: { source: DocumentSource }) {
           <InkToolButton tool="select-text" />
           <InkToolButton tool="select" />
           <InkToolButton tool="redact-area" />
+          <InkShapeMenu />
           <InkToolButton tool="note" />
         </div>
         <InkToolbarSeparator />

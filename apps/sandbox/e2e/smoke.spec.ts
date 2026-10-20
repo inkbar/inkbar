@@ -33,6 +33,25 @@ async function waitForFirstPage(page: Page): Promise<void> {
   })
 }
 
+/**
+ * Drags out a shape in the page's top margin, clear of the sample's own annotations and
+ * inside the window (the fitted page runs past the bottom of it). Offsets are CSS px from
+ * the page's top-left.
+ */
+async function dragShape(page: Page, from = [40, 30], to = [200, 100]): Promise<void> {
+  const box = (await page.locator('.ink-page[data-page="0"]').boundingBox())!
+  await page.mouse.move(box.x + from[0]!, box.y + from[1]!)
+  await page.mouse.down()
+  await page.mouse.move(box.x + to[0]!, box.y + to[1]!, { steps: 6 })
+  await page.mouse.up()
+}
+
+const shapeButton = (page: Page) => page.getByRole('button', { name: /^Shape: / })
+const sessionShape = (page: Page, type: string) =>
+  page.locator(
+    `.ink-page[data-page="0"] .ink-annotation[data-type="${type}"][data-source="session"]`
+  )
+
 for (const framework of FRAMEWORKS) {
   test.describe(framework, () => {
     test('renders the sample with its embedded annotations', async ({ page }) => {
@@ -240,28 +259,10 @@ for (const framework of FRAMEWORKS) {
     test('line style changes a drawn rectangle', async ({ page }) => {
       await page.goto(`${framework}/`)
       await waitForFirstPage(page)
-      // Until the shape tool exists, the rectangle is added through the document.
-      const id = await page.evaluate(() => {
-        const doc = (
-          window as unknown as {
-            __inkbarSandboxDocument: {
-              annotations: {
-                add(input: object): { id: string }
-                select(ids: string[]): void
-              }
-            }
-          }
-        ).__inkbarSandboxDocument
-        const square = doc.annotations.add({
-          type: 'square',
-          page: 0,
-          rect: { x: 72, y: 100, width: 120, height: 60 },
-          width: 1,
-        })
-        doc.annotations.select([square.id])
-        return square.id
-      })
-      const rect = page.locator(`[data-annotation="${id}"] rect`)
+      await shapeButton(page).click()
+      await dragShape(page)
+      await expect(sessionShape(page, 'square')).toHaveCount(1)
+      const rect = sessionShape(page, 'square').locator('rect')
       // The page is fitted to the window: the stroke is the width in points times the scale.
       const stroke = async () => Number(await rect.getAttribute('stroke-width'))
       const thin = await stroke()
@@ -276,33 +277,34 @@ for (const framework of FRAMEWORKS) {
     test('fill colour applies to a selected rectangle', async ({ page }) => {
       await page.goto(`${framework}/`)
       await waitForFirstPage(page)
-      // Until the shape tool exists, the rectangle is added through the document.
-      const id = await page.evaluate(() => {
-        const doc = (
-          window as unknown as {
-            __inkbarSandboxDocument: {
-              annotations: {
-                add(input: object): { id: string }
-                select(ids: string[]): void
-              }
-            }
-          }
-        ).__inkbarSandboxDocument
-        const square = doc.annotations.add({
-          type: 'square',
-          page: 0,
-          rect: { x: 72, y: 100, width: 120, height: 60 },
-        })
-        doc.annotations.select([square.id])
-        return square.id
-      })
-      const rect = page.locator(`[data-annotation="${id}"] rect`)
+      await shapeButton(page).click()
+      await dragShape(page)
+      await expect(sessionShape(page, 'square')).toHaveCount(1)
+      const rect = sessionShape(page, 'square').locator('rect')
       await expect(rect).toHaveAttribute('fill', 'none')
       await page.getByRole('button', { name: 'Fill colour' }).click()
       await page.getByRole('menuitemradio', { name: '#34C759', exact: true }).click()
       await expect(rect).toHaveAttribute('fill', /#34c759/i)
       await page.getByRole('menuitemradio', { name: 'No fill', exact: true }).click()
       await expect(rect).toHaveAttribute('fill', 'none')
+    })
+
+    test('draw a rectangle and an arrow', async ({ page }) => {
+      await page.goto(`${framework}/`)
+      await waitForFirstPage(page)
+      await shapeButton(page).click()
+      await expect(shapeButton(page)).toHaveAttribute('aria-pressed', 'true')
+      await dragShape(page)
+      await expect(sessionShape(page, 'square')).toHaveCount(1)
+
+      await page.getByRole('button', { name: 'Choose shape' }).click()
+      await page.getByRole('menuitemradio', { name: 'Arrow', exact: true }).click()
+      await expect(shapeButton(page)).toHaveAccessibleName('Shape: Arrow')
+      await dragShape(page, [260, 30], [400, 100])
+      const arrow = sessionShape(page, 'line')
+      await expect(arrow).toHaveCount(1)
+      await expect(arrow.locator('[data-ending="tail"]')).toHaveCount(1)
+      await expect(sessionShape(page, 'square')).toHaveCount(1)
     })
 
     test('has no horizontal scroll at phone width', async ({ page }) => {

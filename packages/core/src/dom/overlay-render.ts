@@ -288,6 +288,7 @@ export function renderAnnotationContent(
               y: sw / 2,
               width: Math.max(0, box.width - sw),
               height: Math.max(0, box.height - sw),
+              ...(a.cornerRadius ? { rx: t.toCssLength(a.cornerRadius) } : {}),
             })
           : node('ellipse', {
               cx: box.width / 2,

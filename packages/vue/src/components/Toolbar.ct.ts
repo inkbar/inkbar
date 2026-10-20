@@ -483,3 +483,78 @@ test.describe('colour menus', () => {
     }
   })
 })
+
+test.describe('shape menu', () => {
+  const mountHarness = async (mount: MountFn) => {
+    const cmp = await mount(Harness, {
+      props: { src: fixtureUrl('text-simple'), assets },
+    })
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    return cmp
+  }
+  const main = (cmp: Awaited<ReturnType<typeof mountHarness>>) =>
+    cmp.locator('[data-ink-shape-button]')
+
+  test('the main button activates shape with the current kind', async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mountHarness(mount)
+    await expect(main(cmp)).toHaveAttribute('aria-pressed', 'false')
+    await main(cmp).click()
+    await expect(main(cmp)).toHaveAttribute('aria-pressed', 'true')
+    await expect(main(cmp)).toHaveAttribute('data-kind', 'rectangle')
+    await expect(page.getByTestId('probe')).toHaveAttribute('data-tool', 'shape')
+  })
+
+  test('choosing ellipse activates shape with kind ellipse', async ({ mount, page }) => {
+    const cmp = await mountHarness(mount)
+    await page.getByRole('button', { name: 'Choose shape' }).click()
+    const menu = page.getByRole('menu', { name: 'Shapes' })
+    await expect(
+      menu.getByRole('menuitemradio', { name: 'Rectangle', exact: true })
+    ).toHaveAttribute('aria-checked', 'true')
+    await expect(menu.getByRole('menuitemradio', { name: 'Loupe' })).toHaveCount(0)
+    await menu.getByRole('menuitemradio', { name: 'Ellipse' }).click()
+    await expect(page.getByTestId('probe')).toHaveAttribute('data-tool', 'shape')
+    await expect(main(cmp)).toHaveAttribute('data-kind', 'ellipse')
+    await expect(menu).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Choose shape' })).toBeFocused()
+  })
+
+  test('the trigger icon follows the current kind', async ({ mount, page }) => {
+    const cmp = await mountHarness(mount)
+    const before = await main(cmp).innerHTML()
+    await expect(main(cmp)).toHaveAccessibleName('Shape: Rectangle')
+    await page.getByRole('button', { name: 'Choose shape' }).click()
+    await page
+      .getByRole('menu', { name: 'Shapes' })
+      .getByRole('menuitemradio', { name: 'Star' })
+      .click()
+    await expect(main(cmp)).toHaveAccessibleName('Shape: Star')
+    expect(await main(cmp).innerHTML()).not.toBe(before)
+  })
+
+  test('keyboard: ArrowDown opens on the first kind, arrows move through the grid, Escape returns focus', async ({
+    mount,
+    page,
+  }) => {
+    await mountHarness(mount)
+    const chevron = page.getByRole('button', { name: 'Choose shape' })
+    await chevron.focus()
+    await page.keyboard.press('ArrowDown')
+    const menu = page.getByRole('menu', { name: 'Shapes' })
+    await expect(
+      menu.getByRole('menuitemradio', { name: 'Line', exact: true })
+    ).toBeFocused()
+    await page.keyboard.press('ArrowRight')
+    await expect(menu.getByRole('menuitemradio', { name: 'Arrow' })).toBeFocused()
+    await page.keyboard.press('ArrowDown')
+    await expect(
+      menu.getByRole('menuitemradio', { name: 'Rounded rectangle' })
+    ).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(menu).toHaveCount(0)
+    await expect(chevron).toBeFocused()
+  })
+})

@@ -95,6 +95,20 @@ describe('AnnotationSchema', () => {
     )
   })
 
+  it('takes a corner radius on squares and rejects a negative one', () => {
+    const square = {
+      ...exported,
+      source: 'session',
+      type: 'square',
+      width: 1,
+      cornerRadius: 8,
+    }
+    expect(AnnotationSchema.parse(square)).toMatchObject({ cornerRadius: 8 })
+    expect(AnnotationSchema.safeParse({ ...square, cornerRadius: -1 }).success).toBe(
+      false
+    )
+  })
+
   it('requires quads on text markup and interiorColor on redactions', () => {
     const { quads: _q, ...noQuads } = valid
     expect(AnnotationSchema.safeParse(noQuads).success).toBe(false)

@@ -14,6 +14,7 @@ import {
 import {
   builtinTools,
   createToolController,
+  trackToolStyle,
   type Tool,
   type ToolController,
 } from './tools'
@@ -35,6 +36,7 @@ const cleanup: (() => void)[] = []
 afterEach(() => cleanup.splice(0).forEach((f) => f()))
 
 import type { Annotation } from '../model/annotations/types'
+import type { InkDocument } from '../model/document'
 
 /**
  * `controlled: true` opens the document with a host that applies each proposal a microtask
@@ -42,7 +44,7 @@ import type { Annotation } from '../model/annotations/types'
  * any of it is applied.
  */
 async function setup(
-  name: 'text-simple' | 'cropbox-offset' = 'text-simple',
+  name: 'text-simple' | 'cropbox-offset' | 'text-rotated-90' = 'text-simple',
   {
     controlled = false,
     custom = false,
@@ -91,9 +93,11 @@ async function setup(
       mounts.delete(page)
     },
   })
+  const tracker = trackToolStyle({ store: doc.annotations, history: doc.history })
   const tools: ToolController = createToolController({
     ...(hostTools ? { tools: hostTools } : {}),
     ctx: {
+      toolStyle: tracker.toolStyle,
       store: doc.annotations,
       viewport,
       root: container,
@@ -107,6 +111,7 @@ async function setup(
       history: doc.history,
     },
   })
+  tools.active.subscribe((id) => tracker.setTool(id))
   cleanup.push(() => {
     tools.destroy()
     viewport.destroy()
@@ -115,7 +120,15 @@ async function setup(
   })
   await until(() => mounts.size > 0)
   await Promise.all([...mounts.values()].map((m) => m.textLayer.ready))
-  return { doc, container, viewport, tools, onActivate, mounts }
+  return {
+    doc,
+    container,
+    viewport,
+    tools,
+    onActivate,
+    mounts,
+    toolStyle: tracker.toolStyle,
+  }
 }
 
 function pointer(
@@ -940,6 +953,188 @@ describe('keyboard creation', () => {
   )
 })
 
+describe('shape tool', () => {
+  const session = (doc: InkDocument) =>
+    doc.annotations.list.get().filter((a) => a.source === 'session')
+  const enter = (el: Element) =>
+    el.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+    )
+
+  it('shape tool drag creates a square with the shape group style', async () => {
+    const { doc, container, viewport, tools, toolStyle } = await setup('cropbox-offset')
+    tools.set('shape')
+    toolStyle.set({ border: '#00FF00', width: 3 }, { group: 'shape' })
+    const host = viewport.hostFor(0)!
+    const h = host.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointermove', h.left + 160, h.top + 140)
+    expect(container.querySelector('[data-ink-draft="shape"]')).not.toBeNull()
+    pointer(container, 'pointerup', h.left + 160, h.top + 140)
+    expect(container.querySelector('[data-ink-draft]')).toBeNull()
+    const [sq] = session(doc)
+    expect(sq).toMatchObject({ type: 'square', color: '#00FF00', width: 3 })
+    // CropBox [50 50 550 750]: css (100,100) is user (150, 650); 60 x 40.
+    expect(sq!.rect).toEqual({ x: 150, y: 610, width: 60, height: 40 })
+    expect(doc.annotations.selection.get()).toEqual([sq!.id])
+  })
+
+  it('click without drag places a 72pt rectangle centred on the press', async () => {
+    const { doc, container, viewport, tools } = await setup('cropbox-offset')
+    tools.set('shape')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 200, h.top + 300)
+    pointer(container, 'pointerup', h.left + 200, h.top + 300)
+    const [sq] = session(doc)
+    expect(sq?.type).toBe('square')
+    // css (200,300) is user (250, 450).
+    expect(sq!.rect).toEqual({ x: 214, y: 414, width: 72, height: 72 })
+    expect(doc.annotations.selection.get()).toEqual([sq!.id])
+  })
+
+  it('Enter places a default shape at the page centre', async () => {
+    const { doc, container, tools } = await setup('cropbox-offset')
+    tools.set('shape', { kind: 'ellipse' })
+    container.tabIndex = 0
+    container.focus()
+    enter(container)
+    const [c] = session(doc)
+    expect(c?.type).toBe('circle')
+    expect(c!.rect).toEqual({ x: 264, y: 364, width: 72, height: 72 })
+    expect(doc.annotations.selection.get()).toEqual([c!.id])
+  })
+
+  it('Shift drag makes a circle from ellipse kind', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('shape', { kind: 'ellipse' })
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    const shift = { shiftKey: true }
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100, shift)
+    pointer(container, 'pointermove', h.left + 200, h.top + 140, shift)
+    pointer(container, 'pointerup', h.left + 200, h.top + 140, shift)
+    const [c] = session(doc)
+    expect(c?.type).toBe('circle')
+    expect(c!.rect.width).toBe(100)
+    expect(c!.rect.height).toBe(100)
+  })
+
+  it('arrow kind creates line with tail and intent', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('shape', { kind: 'arrow' })
+    const host = viewport.hostFor(0)!
+    const h = host.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointermove', h.left + 220, h.top + 160)
+    pointer(container, 'pointerup', h.left + 220, h.top + 160)
+    const [l] = session(doc)
+    const t = viewport.transformFor(0)
+    expect(l).toMatchObject({
+      type: 'line',
+      tail: 'openArrow',
+      intent: 'lineArrow',
+      start: t.fromCss({ x: 100, y: 100 }),
+      end: t.fromCss({ x: 220, y: 160 }),
+    })
+    // The overlay draws the tail ending.
+    expect(
+      host.querySelector(`[data-annotation="${l!.id}"] [data-ending="tail"]`)
+    ).not.toBeNull()
+  })
+
+  it('star and polygon kinds create polygons from the options', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    tools.set('shape', { kind: 'star', points: 6 })
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointerup', h.left + 200, h.top + 200)
+    tools.set('shape', { kind: 'polygon', sides: 8 })
+    pointer(container, 'pointerdown', h.left + 300, h.top + 100)
+    pointer(container, 'pointerup', h.left + 400, h.top + 200)
+    const [star, poly] = session(doc)
+    expect(star).toMatchObject({ type: 'polygon' })
+    expect(star?.type === 'polygon' && star.vertices).toHaveLength(12)
+    expect(poly?.type === 'polygon' && poly.vertices).toHaveLength(8)
+  })
+
+  it('rounded rectangle renders rx scaled to css px', async () => {
+    const { doc, container, viewport, tools, mounts } = await setup()
+    tools.set('shape', { kind: 'roundedRectangle' })
+    const host = viewport.hostFor(0)!
+    const h = host.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointermove', h.left + 200, h.top + 160)
+    pointer(container, 'pointerup', h.left + 200, h.top + 160)
+    const [sq] = session(doc)
+    expect(sq).toMatchObject({ type: 'square', cornerRadius: 8 })
+    const rx = () =>
+      host.querySelector(`[data-annotation="${sq!.id}"] rect`)?.getAttribute('rx')
+    const before = viewport.transformFor(0).toCssLength(8)
+    expect(Number(rx())).toBeCloseTo(before)
+    viewport.setZoom(2)
+    await until(
+      () => viewport.transformFor(0).toCssLength(8) === before * 2 && mounts.size > 0
+    )
+    await until(() => Number(rx()) === before * 2)
+  })
+
+  it('rotated fixture: drag geometry lands in user space', async () => {
+    const { doc, container, viewport, tools } = await setup('text-rotated-90')
+    tools.set('shape')
+    const host = viewport.hostFor(0)!
+    const h = host.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointermove', h.left + 160, h.top + 140)
+    pointer(container, 'pointerup', h.left + 160, h.top + 140)
+    const [sq] = session(doc)
+    const t = viewport.transformFor(0)
+    // A 60 x 40 css drag on a page rotated 90 degrees is 40 x 60 in user space, and maps back.
+    expect(sq!.rect.width).toBeCloseTo(40)
+    expect(sq!.rect.height).toBeCloseTo(60)
+    const back = t.toCssRect(sq!.rect)
+    expect(back.left).toBeCloseTo(100)
+    expect(back.top).toBeCloseTo(100)
+    expect(back.width).toBeCloseTo(60)
+    expect(back.height).toBeCloseTo(40)
+    // Enter still centres on the rotated page.
+    container.tabIndex = 0
+    container.focus()
+    enter(container)
+    const centred = session(doc)[1]!
+    const c = t.toCssRect(centred.rect)
+    const box = t.page.box
+    const middle = t.toCss({ x: box.x + box.width / 2, y: box.y + box.height / 2 })
+    expect(c.left + c.width / 2).toBeCloseTo(middle.x)
+    expect(c.top + c.height / 2).toBeCloseTo(middle.y)
+  })
+
+  it('a drag cancelled mid-way leaves no draft and no annotation', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('shape')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointermove', h.left + 160, h.top + 140)
+    pointer(container, 'pointercancel', h.left + 160, h.top + 140)
+    expect(container.querySelector('[data-ink-draft]')).toBeNull()
+    expect(session(doc)).toEqual([])
+  })
+
+  it('in controlled mode the shape goes through onChange and is selected before the host applies', async () => {
+    const { doc, container, viewport, tools } = await setup('text-simple', {
+      controlled: true,
+    })
+    tools.set('shape')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointermove', h.left + 160, h.top + 140)
+    pointer(container, 'pointerup', h.left + 160, h.top + 140)
+    expect(doc.annotations.list.get()).toEqual([])
+    await settle()
+    const [sq] = doc.annotations.list.get()
+    expect(sq?.type).toBe('square')
+    expect(doc.annotations.selection.get()).toEqual([sq!.id])
+  })
+})
+
 describe('resize handles', () => {
   it('dragging the se handle grows the rect by the dragged points, in one update', async () => {
     const { doc, container, viewport, tools } = await setup()
@@ -1437,7 +1632,7 @@ describe('tool registry and options', () => {
   /** A stand-in for a creation tool with options, recording what it sees on activate. */
   function optionTool(seen: object[]): Tool<{ kind: string; sides: number }> {
     return {
-      id: 'shape',
+      id: 'stand-in',
       cursor: 'crosshair',
       styleGroup: 'shape',
       defaultOptions: { kind: 'rectangle', sides: 6 },
@@ -1453,16 +1648,16 @@ describe('tool registry and options', () => {
     const { tools } = await setup('text-simple', {
       tools: [...builtinTools(), optionTool(seen)],
     })
-    expect(tools.options('shape').get()).toEqual({ kind: 'rectangle', sides: 6 })
-    tools.set('shape', { kind: 'ellipse' })
+    expect(tools.options('stand-in').get()).toEqual({ kind: 'rectangle', sides: 6 })
+    tools.set('stand-in', { kind: 'ellipse' })
     expect(seen.at(-1)).toEqual({ kind: 'ellipse', sides: 6 })
     tools.set('select')
-    tools.set('shape')
-    expect(tools.options('shape').get()).toEqual({ kind: 'ellipse', sides: 6 })
+    tools.set('stand-in')
+    expect(tools.options('stand-in').get()).toEqual({ kind: 'ellipse', sides: 6 })
     expect(seen.at(-1)).toEqual({ kind: 'ellipse', sides: 6 })
-    tools.setOptions('shape', { sides: 8 })
-    expect(tools.active.get()).toBe('shape')
-    expect(tools.options('shape').get()).toEqual({ kind: 'ellipse', sides: 8 })
+    tools.setOptions('stand-in', { sides: 8 })
+    expect(tools.active.get()).toBe('stand-in')
+    expect(tools.options('stand-in').get()).toEqual({ kind: 'ellipse', sides: 8 })
     // A tool without declared options starts empty.
     expect(tools.options('note').get()).toEqual({})
   })
