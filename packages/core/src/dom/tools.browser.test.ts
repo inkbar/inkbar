@@ -2649,6 +2649,37 @@ describe('signature tool', () => {
     expect(doc.annotations.list.get()[0]).toMatchObject({ subject: 'Signature' })
   })
 
+  it('places nothing from a load that finishes after the tool was switched away and back', async () => {
+    const store = createMemorySignatureStore()
+    const signatures = createSignatureLibrary(store)
+    const { doc, container, viewport, tools } = await setup('text-simple', { signatures })
+    await store.save(INK_TEMPLATE)
+    let finish!: () => void
+    const list = store.list.bind(store)
+    store.list = () => new Promise((resolve) => (finish = () => resolve(list())))
+    tools.set('signature', { templateId: INK_TEMPLATE.id })
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 300, h.top + 400)
+    pointer(container, 'pointerup', h.left + 300, h.top + 400)
+    tools.set('select')
+    tools.set('signature', { templateId: INK_TEMPLATE.id })
+    finish()
+    await until(() => signatures.get(INK_TEMPLATE.id) !== undefined)
+    await settle()
+    expect(doc.annotations.list.get()).toEqual([])
+  })
+
+  it('places nothing when the release was missed', async () => {
+    const signatures = await library([INK_TEMPLATE])
+    const { doc, container, viewport, tools } = await setup('text-simple', { signatures })
+    tools.set('signature', { templateId: INK_TEMPLATE.id })
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 300, h.top + 400)
+    pointer(container, 'pointermove', h.left + 302, h.top + 400, { buttons: 0 })
+    pointer(container, 'pointerup', h.left + 302, h.top + 400)
+    expect(doc.annotations.list.get()).toEqual([])
+  })
+
   it('Enter places it at page centre', async () => {
     const signatures = await library([IMAGE_TEMPLATE])
     const { doc, container, viewport, tools } = await setup('text-simple', { signatures })

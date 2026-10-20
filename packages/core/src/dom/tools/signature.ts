@@ -21,6 +21,8 @@ export type { SignatureOptions }
 export function signatureTool(): Tool<SignatureOptions> {
   let ctx: ToolContext | undefined
   let down: PageHit | undefined
+  /** Bumped on deactivate, so a load still pending from an earlier use places nothing. */
+  let generation = 0
 
   const place = (
     c: ToolContext,
@@ -54,10 +56,16 @@ export function signatureTool(): Tool<SignatureOptions> {
       place(c, t, page, at, rotation)
       return true
     }
+    const gen = generation
     void library.refresh().then(() => {
-      // The tool may have been switched, or the template removed, meanwhile.
+      // The tool may have been switched (even away and back), or the template removed.
       const later = library.get(id)
-      if (later && ctx === c && c.options<SignatureOptions>().templateId === id)
+      if (
+        later &&
+        ctx === c &&
+        gen === generation &&
+        c.options<SignatureOptions>().templateId === id
+      )
         place(c, later, page, at, rotation)
     })
     return true
@@ -73,10 +81,15 @@ export function signatureTool(): Tool<SignatureOptions> {
     deactivate() {
       ctx = undefined
       down = undefined
+      generation++
     },
     onPointerDown(_e, hit, annotationId) {
       down = annotationId === undefined ? hit : undefined
       return down !== undefined
+    },
+    onPointerMove(e) {
+      // The release was missed: treat it as a cancel.
+      if (e.buttons === 0) down = undefined
     },
     onPointerCancel() {
       down = undefined
