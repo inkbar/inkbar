@@ -22,6 +22,11 @@ const onePage = fileURLToPath(
   new URL('../../../fixtures/pdf/text-cjk.pdf', import.meta.url)
 )
 
+/** A FreeText callout stored the standard way, with its own appearance. */
+const standardCallout = fileURLToPath(
+  new URL('../../../fixtures/pdf/standard-callout.pdf', import.meta.url)
+)
+
 async function waitForFirstPage(page: Page): Promise<void> {
   await expect(page.locator('[data-ink-root]')).toHaveAttribute('data-state', 'ready', {
     timeout: 20_000,
@@ -106,6 +111,25 @@ for (const framework of FRAMEWORKS) {
       await waitForFirstPage(page)
       await expect(page.locator('[data-ink-page-count]')).toHaveText('of 1')
       await expect(page.locator('.ink-annotation[data-locked]')).toHaveCount(0)
+    })
+
+    test('opens a PDF with a standard callout and gives it a hit area', async ({
+      page,
+    }) => {
+      await page.goto(`${framework}/`)
+      await waitForFirstPage(page)
+      await page.locator('input[type=file]').setInputFiles(standardCallout)
+      await expect(page.locator('[data-file-status]')).toHaveText(
+        'Opened standard-callout.pdf.'
+      )
+      await waitForFirstPage(page)
+      const callout = page.locator(
+        '.ink-page[data-page="0"] .ink-annotation[data-type="freetext"][data-source="pdf"]'
+      )
+      await expect(callout).toHaveCount(1)
+      await expect(callout).toHaveAttribute('data-locked', '')
+      // PDF.js paints the callout; Inkbar adds only the invisible hit area over it.
+      await expect(callout.locator('svg[data-ink-hit]')).toHaveCount(1)
     })
 
     test('refuses a file that is not a PDF and keeps the document', async ({ page }) => {

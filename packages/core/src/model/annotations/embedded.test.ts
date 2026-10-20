@@ -205,3 +205,98 @@ describe('embedded import', () => {
     })
   })
 })
+
+describe('embedded import of PDF names and callouts', () => {
+  const at = (
+    subtype: string,
+    extra: Partial<PdfjsAnnotationData> = {}
+  ): PdfjsAnnotationData => ({
+    id: '9R',
+    subtype,
+    annotationType: 0,
+    rect: [50, 500, 300, 700],
+    ...extra,
+  })
+  const one = (d: PdfjsAnnotationData) => {
+    const { annotations } = importEmbeddedPage(0, [d], NOW)
+    expect(annotations).toHaveLength(1)
+    return annotations[0]!
+  }
+  const quad = [72, 715, 400, 715, 72, 695, 400, 695]
+
+  it.each([
+    ['Highlight', { quadPoints: quad }, 'Custom'],
+    ['Underline', { quadPoints: quad }, 'Custom'],
+    ['StrikeOut', { quadPoints: quad }, 'Custom'],
+    ['Squiggly', { quadPoints: quad }, 'Custom'],
+    ['Text', { name: 'Comment' }, 'Custom'],
+    ['FreeText', {}, 'FreeTextTypeWriter'],
+    ['Square', {}, 'Custom'],
+    ['Circle', {}, 'Custom'],
+    ['Line', { lineCoordinates: [60, 520, 200, 600] }, 'LineArrow'],
+    ['Polygon', { vertices: [0, 0, 10, 0, 5, 10] }, 'PolygonCloud'],
+    ['PolyLine', { vertices: [0, 0, 10, 0, 5, 10] }, 'PolyLineDimension'],
+    ['Ink', { inkLists: [[0, 0, 10, 10]] }, 'Custom'],
+    ['Redact', {}, 'Custom'],
+  ] satisfies [string, Partial<PdfjsAnnotationData>, string][])(
+    'passes /IT through on %s',
+    (subtype, extra, intent) => {
+      expect(one(at(subtype, { ...extra, it: intent }))).toMatchObject({ intent })
+    }
+  )
+
+  it('leaves intent out when there is no /IT', () => {
+    expect(one(at('Square'))).not.toHaveProperty('intent')
+  })
+
+  it('imports note icons by their exact PDF name', () => {
+    expect(one(at('Text', { name: 'Comment' }))).toMatchObject({ icon: 'Comment' })
+    // A name Inkbar does not know is kept.
+    expect(one(at('Text', { name: 'Check' }))).toMatchObject({ icon: 'Check' })
+    // PDF names are case-sensitive: `/comment` is not `/Comment`.
+    expect(one(at('Text', { name: 'comment' }))).toMatchObject({ icon: 'comment' })
+  })
+
+  it('imports a note with no /Name, or a NoIcon one, with the default icon', () => {
+    // PDF.js reports `NoIcon` for any note with an appearance stream; it is never stored.
+    expect(one(at('Text', { name: 'NoIcon' }))).toMatchObject({ icon: 'Note' })
+    expect(one(at('Text'))).toMatchObject({ icon: 'Note' })
+  })
+
+  it('imports line endings as given', () => {
+    expect(
+      one(
+        at('Line', {
+          lineCoordinates: [60, 520, 200, 600],
+          lineEndings: ['ROpenArrow', 'Slash'],
+        })
+      )
+    ).toMatchObject({ head: 'ROpenArrow', tail: 'Slash' })
+    // Unknown and differently cased names are kept, not matched to a known one.
+    expect(
+      one(
+        at('Line', {
+          lineCoordinates: [60, 520, 200, 600],
+          lineEndings: ['openarrow', 'Wavy'],
+        })
+      )
+    ).toMatchObject({ head: 'openarrow', tail: 'Wavy' })
+  })
+
+  // PDF.js 6.4 passes FreeText /IT but not /CL, /RD or /LE, and has no other API that reads them.
+  it.todo(
+    'imports a FreeText callout line, fringe and head (PDF.js does not expose /CL /RD /LE)'
+  )
+
+  it('imports the standard callout fixture with its intent', async () => {
+    const { doc, raw } = await rawAnnotations('standard-callout')
+    const { annotations } = importEmbeddedPage(0, raw, NOW)
+    expect(annotations).toHaveLength(1)
+    expect(annotations[0]).toMatchObject({
+      type: 'freetext',
+      intent: 'FreeTextCallout',
+      contents: 'Standard callout',
+    })
+    doc.destroy()
+  })
+})
