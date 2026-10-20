@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.4.0](https://github.com/inkbar/inkbar/compare/v0.3.0...v0.4.0) (2026-10-20)
+
+
+### Features
+
+* add a loupe ([#134](https://github.com/inkbar/inkbar/issues/134)) ([99a9eb2](https://github.com/inkbar/inkbar/commit/99a9eb234331ba4c190ad65ac46a9ee33fbe6007))
+* add a mask ([#135](https://github.com/inkbar/inkbar/issues/135)) ([092ad5a](https://github.com/inkbar/inkbar/commit/092ad5ab1ab93de01e88f910873ebd8ef7313af5))
+* add a pressure-aware draw tool ([#130](https://github.com/inkbar/inkbar/issues/130)) ([4bf0d6b](https://github.com/inkbar/inkbar/commit/4bf0d6b5d7154112020ca8d14e091630bc4a9c11))
+* add a shapes tool and menu ([#126](https://github.com/inkbar/inkbar/issues/126)) ([074e95c](https://github.com/inkbar/inkbar/commit/074e95c6142b677ece74d4981a1cf1a60092a774))
+* add a sketch tool that tidies strokes into shapes ([#131](https://github.com/inkbar/inkbar/issues/131)) ([3e3b709](https://github.com/inkbar/inkbar/commit/3e3b70950da4cf088b42ef1b596e3d93c8cdc78a))
+* add a text box tool with in-place editing ([#127](https://github.com/inkbar/inkbar/issues/127)) ([4d65936](https://github.com/inkbar/inkbar/commit/4d65936835f41e688f751046e29c5cd7c63a8026))
+* add a text style menu ([#128](https://github.com/inkbar/inkbar/issues/128)) ([52d8a40](https://github.com/inkbar/inkbar/commit/52d8a402294fd2050bad0d6aab78215c2b3be670))
+* add border and fill colour menus ([#125](https://github.com/inkbar/inkbar/issues/125)) ([c60552e](https://github.com/inkbar/inkbar/commit/c60552e565a0434bef99146453e8e115799bca33))
+* add comments on highlights and a highlight menu ([#132](https://github.com/inkbar/inkbar/issues/132)) ([d7b4139](https://github.com/inkbar/inkbar/commit/d7b4139aaeb322df708cd4f6e01821bd089af85f))
+* add dashes and line endings with a line style menu ([#124](https://github.com/inkbar/inkbar/issues/124)) ([9eec2f4](https://github.com/inkbar/inkbar/commit/9eec2f44105d57e52782c9ddec5d7faf038e9508))
+* add signatures ([#133](https://github.com/inkbar/inkbar/issues/133)) ([bbd41d4](https://github.com/inkbar/inkbar/commit/bbd41d4d73c0d06e742a04e66f86c22eedeb023d))
+* add speech bubbles ([#129](https://github.com/inkbar/inkbar/issues/129)) ([1509aeb](https://github.com/inkbar/inkbar/commit/1509aeb288ebfea44be90330fec5fa819fcb8fce))
+* import intents and note icons from PDFs ([#141](https://github.com/inkbar/inkbar/issues/141)) ([ba35350](https://github.com/inkbar/inkbar/commit/ba35350594c57a79a237037272003e7d99796107))
+* keep speech bubbles and callout edits on standard callout fields ([#140](https://github.com/inkbar/inkbar/issues/140)) ([137af76](https://github.com/inkbar/inkbar/commit/137af76eea7764a49d4aa8cba0dbe703c5f5753d))
+* let hosts register tools and share a tool style ([#121](https://github.com/inkbar/inkbar/issues/121)) ([2cf9944](https://github.com/inkbar/inkbar/commit/2cf9944b72b0bdc1c68dc80954c45b9e76589566))
+* merge text and annotation selection into select-text ([#122](https://github.com/inkbar/inkbar/issues/122)) ([1d1db0e](https://github.com/inkbar/inkbar/commit/1d1db0e63417017b8008dcf1e10d7f5d2db6972c))
+* spell PDF-derived values as PDF names and keep unknown ones ([#138](https://github.com/inkbar/inkbar/issues/138)) ([ded4157](https://github.com/inkbar/inkbar/commit/ded4157651bfc511c0ea58e575cfac92bc1bd4df))
+* store and draw free-text callouts the standard way ([#139](https://github.com/inkbar/inkbar/issues/139)) ([a7af2ed](https://github.com/inkbar/inkbar/commit/a7af2ed1b4d8897f1e6568f4a1d74e72ee7c9849))
+
+
+### Bug Fixes
+
+* address review findings across the editor tools ([#136](https://github.com/inkbar/inkbar/issues/136)) ([8fbb881](https://github.com/inkbar/inkbar/commit/8fbb8819c373cd45542babe059ce341bd4d25df1))
+* address review findings on PDF names and callouts ([#142](https://github.com/inkbar/inkbar/issues/142)) ([4fcd108](https://github.com/inkbar/inkbar/commit/4fcd1089e8a2201fa9e7e0c547c8f8b858b1e5e9))
+
 ## [0.3.0](https://github.com/inkbar/inkbar/compare/v0.2.0...v0.3.0) (2026-10-19)
 
 
