@@ -1840,6 +1840,25 @@ describe('draw tool', () => {
     expect(inks(doc)).toHaveLength(3)
   })
 
+  it.each(['draw', 'sketch'] as const)(
+    '%s: Escape mid-stroke drops the stroke',
+    async (tool) => {
+      const { doc, container, viewport, tools } = await setup()
+      tools.set(tool)
+      const h = viewport.hostFor(0)!.getBoundingClientRect()
+      pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+      pointer(container, 'pointermove', h.left + 160, h.top + 140)
+      pointer(container, 'pointermove', h.left + 220, h.top + 100)
+      container.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+      )
+      expect(container.querySelector('[data-ink-draft]')).toBeNull()
+      pointer(container, 'pointerup', h.left + 220, h.top + 100)
+      await settle()
+      expect(doc.annotations.list.get()).toEqual([])
+    }
+  )
+
   it('uses getCoalescedEvents when available', async () => {
     const { doc, container, viewport, tools } = await setup()
     tools.set('draw')
