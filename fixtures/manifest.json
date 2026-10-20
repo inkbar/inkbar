@@ -97,6 +97,60 @@
       "FreeText": 1
     }
   },
+  "callout-xref-stream": {
+    "file": "callout-xref-stream.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "standard-callout saved with object streams and an xref stream, so the FreeText sits inside an object stream",
+    "annotations": {
+      "FreeText": 1
+    }
+  },
+  "callout-incremental": {
+    "file": "callout-incremental.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "standard-callout plus a hand-written incremental update that rewrites the FreeText with /CL starting at (80, 560)",
+    "annotations": {
+      "FreeText": 1
+    }
+  },
+  "callout-encrypted": {
+    "file": "callout-encrypted.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "standard-callout AES-256 encrypted by qpdf with an empty user password, so PDF.js opens it but the object reader skips it",
+    "annotations": {
+      "FreeText": 1
+    }
+  },
+  "callout-bad-xref": {
+    "file": "callout-bad-xref.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "standard-callout with startxref 7 bytes off the real xref table; PDF.js rebuilds the cross-reference",
+    "annotations": {
+      "FreeText": 1
+    }
+  },
+  "note-icon-ap": {
+    "file": "note-icon-ap.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "One Text annotation with /Name /Key and an /AP /N stream",
+    "annotations": {
+      "Text": 1
+    }
+  },
+  "freetext-fonts": {
+    "file": "freetext-fonts.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Four FreeTexts: /DA font through the annotation /DR (Times-BoldItalic), a bare /Helv, the AcroForm /DR (Courier-Oblique) and a subset Arial-BoldMT",
+    "annotations": {
+      "FreeText": 4
+    }
+  },
   "annotated-unsupported": {
     "file": "annotated-unsupported.pdf",
     "pages": 1,
