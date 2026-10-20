@@ -206,6 +206,19 @@ export const LoupeSchema = Base.extend({
   width: z.number().nonnegative().default(2),
 })
 
+/**
+ * A mask (an extension, not XFDF): dims everything on the page outside `shape` drawn in
+ * `rect`, an ellipse inscribed in it or the rectangle itself. `color` is the dimming colour
+ * (black by default) and `dim` how strongly it covers. One per page: adding a second replaces
+ * the first.
+ */
+export const MaskSchema = Base.extend({
+  type: z.literal('mask'),
+  shape: z.enum(['rect', 'ellipse']),
+  /** Opacity of the dimming, 0 (none) to 1 (opaque). */
+  dim: z.number().min(0).max(1).default(0.5),
+})
+
 export const SuggestionSchema = z.object({
   jobId: z.string().optional(),
   confidence: z.number().min(0).max(1),
@@ -235,6 +248,7 @@ export const AnnotationSchema = z.discriminatedUnion('type', [
   InkSchema,
   StampSchema,
   LoupeSchema,
+  MaskSchema,
   RedactSchema,
 ])
 
@@ -252,6 +266,7 @@ export const ExportedAnnotationSchema = z.discriminatedUnion('type', [
   InkShape.omit(VIEWER_STATE).superRefine(checkPressure),
   StampSchema.omit(VIEWER_STATE),
   LoupeSchema.omit(VIEWER_STATE),
+  MaskSchema.omit(VIEWER_STATE),
   RedactSchema.omit(VIEWER_STATE),
 ])
 
@@ -269,6 +284,7 @@ export type PolyAnnotation = z.infer<typeof PolySchema>
 export type InkAnnotation = z.infer<typeof InkSchema>
 export type StampAnnotation = z.infer<typeof StampSchema>
 export type LoupeAnnotation = z.infer<typeof LoupeSchema>
+export type MaskAnnotation = z.infer<typeof MaskSchema>
 export type RedactAnnotation = z.infer<typeof RedactSchema>
 export type Suggestion = z.infer<typeof SuggestionSchema>
 export type LineEnding = z.infer<typeof LineEndingSchema>
@@ -328,6 +344,7 @@ export type AnnotationInput =
     >
   | (InputOf<z.input<typeof StampSchema>> & { rect: z.input<typeof StampSchema>['rect'] })
   | (InputOf<z.input<typeof LoupeSchema>> & { rect: z.input<typeof LoupeSchema>['rect'] })
+  | (InputOf<z.input<typeof MaskSchema>> & { rect: z.input<typeof MaskSchema>['rect'] })
   | FreeTextCallerInput
   | RedactCallerInput
 

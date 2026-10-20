@@ -21,6 +21,7 @@ export const ICONS = [
   'MoveUpRight',
   'RectangleHorizontal',
   'Circle',
+  'CircleDashed',
   'Star',
   'Hexagon',
   'MessageCircle',

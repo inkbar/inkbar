@@ -462,6 +462,31 @@ for (const framework of FRAMEWORKS) {
         .toBeGreaterThan(0)
     })
 
+    test('add a mask', async ({ page }) => {
+      await page.goto(`${framework}/`)
+      await waitForFirstPage(page)
+      await page.getByRole('button', { name: 'Choose shape' }).click()
+      await page.getByRole('menuitemradio', { name: 'Mask', exact: true }).click()
+      await expect(shapeButton(page)).toHaveAccessibleName('Shape: Mask')
+      await dragShape(page, [40, 30], [200, 100])
+      const mask = sessionShape(page, 'mask')
+      await expect(mask).toHaveCount(1)
+      // The page is dimmed outside it, by an even-odd path under the annotations.
+      const dim = page.locator('.ink-page[data-page="0"] svg[data-ink-mask-layer] path')
+      await expect(dim).toHaveCount(1)
+      await expect(dim).toHaveAttribute('fill-rule', 'evenodd')
+      await expect(dim).toHaveAttribute('fill-opacity', '0.5')
+      // A second mask replaces the first.
+      await page.getByRole('button', { name: 'Choose shape' }).click()
+      await page.getByRole('menuitemradio', { name: 'Oval mask', exact: true }).click()
+      await dragShape(page, [60, 120], [220, 200])
+      await expect(mask).toHaveCount(1)
+      await expect(
+        page.locator('.ink-page[data-page="0"] svg[data-ink-mask-layer]')
+      ).toHaveCount(1)
+      await expect(mask.locator('ellipse')).toHaveCount(1)
+    })
+
     test('make a text box bold and centred', async ({ page }) => {
       await page.goto(`${framework}/`)
       await waitForFirstPage(page)

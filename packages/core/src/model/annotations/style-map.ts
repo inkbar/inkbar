@@ -72,6 +72,8 @@ const FIELDS: Readonly<
   // The rim is the outline; the inside is the magnified page, so there is no fill, and the
   // rim is drawn solid.
   loupe: { border: 'color', opacity: 'opacity', width: 'width' },
+  // A mask dims the page outside a shape: nothing for the style controls to change.
+  mask: {},
   text: {},
   // An image, signatures among them: the style controls have nothing to change on it.
   stamp: {},
@@ -93,6 +95,7 @@ const GROUPS: Readonly<Record<AnnotationType, StyleGroup | undefined>> = {
   redact: 'redact',
   text: undefined,
   stamp: undefined,
+  mask: undefined,
 }
 
 const SUPPORTED = new Map<AnnotationType, ReadonlySet<StyleKey>>(

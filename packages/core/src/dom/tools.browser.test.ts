@@ -1409,6 +1409,138 @@ describe('shape tool', () => {
     expect(back.height).toBeCloseTo(80)
   })
 
+  it('mask kind: a drag makes a rect mask, a draft box first, and ignores the shape style', async () => {
+    const { doc, container, viewport, tools, toolStyle } = await setup('cropbox-offset')
+    tools.set('shape', { kind: 'mask' })
+    toolStyle.set({ border: '#00FF00', fill: '#0000FF', width: 5 }, { group: 'shape' })
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointermove', h.left + 220, h.top + 160)
+    const draft = container.querySelector<HTMLElement>('[data-ink-draft="shape"]')!
+    expect(draft.dataset.inkShape).toBe('mask')
+    expect(draft.querySelector('rect')).not.toBeNull()
+    expect(draft.style.width).toBe('120px')
+    pointer(container, 'pointerup', h.left + 220, h.top + 160)
+    const [mask] = session(doc)
+    expect(mask).toMatchObject({
+      type: 'mask',
+      shape: 'rect',
+      dim: 0.5,
+      color: '#000000',
+    })
+    expect(mask).not.toHaveProperty('interiorColor')
+    // CropBox [50 50 550 750]: css (100,100) is user (150, 650).
+    expect(mask!.rect).toEqual({ x: 150, y: 590, width: 120, height: 60 })
+    expect(doc.annotations.selection.get()).toEqual([mask!.id])
+    // The page is dimmed outside it.
+    expect(
+      viewport.hostFor(0)!.querySelector('svg[data-ink-mask-layer] path')
+    ).not.toBeNull()
+  })
+
+  it('mask kind: an oval mask drags an ellipse, Shift a circle', async () => {
+    const { doc, container, viewport, tools } = await setup('cropbox-offset')
+    tools.set('shape', { kind: 'ovalMask' })
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointermove', h.left + 220, h.top + 160, { shiftKey: true })
+    const draft = container.querySelector<HTMLElement>('[data-ink-draft="shape"]')!
+    expect(draft.querySelector('ellipse')).not.toBeNull()
+    pointer(container, 'pointerup', h.left + 220, h.top + 160, { shiftKey: true })
+    const [mask] = session(doc)
+    expect(mask).toMatchObject({ type: 'mask', shape: 'ellipse' })
+    expect(mask!.rect.width).toBe(120)
+    expect(mask!.rect.height).toBe(120)
+  })
+
+  it('mask kind: a click places a 72pt mask, Enter places none', async () => {
+    const { doc, container, viewport, tools } = await setup('cropbox-offset')
+    tools.set('shape', { kind: 'mask' })
+    container.tabIndex = 0
+    container.focus()
+    enter(container)
+    expect(session(doc)).toEqual([])
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 200, h.top + 300)
+    pointer(container, 'pointerup', h.left + 200, h.top + 300)
+    const [mask] = session(doc)
+    expect(mask?.type).toBe('mask')
+    expect(mask!.rect).toEqual({ x: 214, y: 414, width: 72, height: 72 })
+    tools.set('shape', { kind: 'ovalMask' })
+    enter(container)
+    expect(session(doc)).toHaveLength(1)
+  })
+
+  it('mask kind: a second mask on the page replaces the first, one undo brings it back', async () => {
+    const { doc, container, viewport, tools, history } = await setup()
+    tools.set('shape', { kind: 'mask' })
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    const drag = (x: number, y: number) => {
+      pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+      pointer(container, 'pointermove', h.left + x, h.top + y)
+      pointer(container, 'pointerup', h.left + x, h.top + y)
+    }
+    drag(200, 200)
+    const [first] = session(doc)
+    drag(300, 250)
+    const [second, ...rest] = session(doc)
+    expect(rest).toEqual([])
+    expect(second!.id).not.toBe(first!.id)
+    expect(doc.annotations.selection.get()).toEqual([second!.id])
+    const host = viewport.hostFor(0)!
+    expect(host.querySelectorAll('[data-type="mask"]')).toHaveLength(1)
+    history.undo()
+    expect(session(doc).map((a) => a.id)).toEqual([first!.id])
+    expect(host.querySelectorAll('svg[data-ink-mask-layer]')).toHaveLength(1)
+  })
+
+  it('mask kind: in controlled mode the replacement reaches the host as one change', async () => {
+    const { doc, container, viewport, tools } = await setup('text-simple', {
+      controlled: true,
+    })
+    tools.set('shape', { kind: 'mask' })
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    const drag = (x: number, y: number) => {
+      pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+      pointer(container, 'pointermove', h.left + x, h.top + y)
+      pointer(container, 'pointerup', h.left + x, h.top + y)
+    }
+    drag(200, 200)
+    await settle()
+    const [first] = session(doc)
+    expect(first?.type).toBe('mask')
+    drag(300, 250)
+    expect(session(doc).map((a) => a.id)).toEqual([first!.id])
+    await settle()
+    const [second, ...rest] = session(doc)
+    expect(rest).toEqual([])
+    expect(second!.id).not.toBe(first!.id)
+    expect(doc.annotations.selection.get()).toEqual([second!.id])
+  })
+
+  it('mask kind on the rotated fixture at view rotation 270: a box under the drag', async () => {
+    const { doc, container, viewport, tools } = await setup('text-rotated-90')
+    viewport.setRotation(270)
+    await until(() => viewport.transformFor(0).rotation === 270)
+    await settle()
+    tools.set('shape', { kind: 'mask' })
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointermove', h.left + 180, h.top + 140)
+    pointer(container, 'pointerup', h.left + 180, h.top + 140)
+    const [mask] = session(doc)
+    const t = viewport.transformFor(0)
+    const back = t.toCssRect(mask!.rect)
+    expect(back.left).toBeCloseTo(100)
+    expect(back.top).toBeCloseTo(100)
+    expect(back.width).toBeCloseTo(80)
+    expect(back.height).toBeCloseTo(40)
+    // The layer spans the rotated page.
+    const svg = viewport.hostFor(0)!.querySelector('svg[data-ink-mask-layer]')!
+    expect(svg.getAttribute('width')).toBe(String(t.cssWidth))
+    expect(svg.getAttribute('height')).toBe(String(t.cssHeight))
+  })
+
   it('a drag cancelled mid-way leaves no draft and no annotation', async () => {
     const { doc, container, viewport, tools } = await setup()
     tools.set('shape')

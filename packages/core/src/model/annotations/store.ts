@@ -393,7 +393,21 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
       if (findIn(basis(), a.id))
         throw new Error(`An annotation with id ${a.id} already exists`)
       if (destroyed) return a
-      commit([...basis(), a], { kind: 'add', annotation: a })
+      // One mask per page: a new one replaces the page's session mask in the same change, so
+      // the history step and the host's `onChange` see the swap once.
+      const replaced =
+        a.type === 'mask'
+          ? basis().filter(
+              (x) => x.type === 'mask' && x.page === a.page && x.source !== 'pdf'
+            )
+          : []
+      const gone = new Set(replaced.map((x) => x.id))
+      for (const x of replaced) clearPending(changeKey({ kind: 'add', annotation: x }))
+      commit([...basis().filter((x) => !gone.has(x.id)), a], {
+        kind: 'add',
+        annotation: a,
+      })
+      if (!controlled && gone.size > 0) pruneSelection(list.get())
       return a
     },
     update(id, patch) {

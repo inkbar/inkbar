@@ -2,6 +2,7 @@
 // framework bindings so a kind has one icon everywhere.
 import {
   Circle,
+  CircleDashed,
   Hexagon,
   MessageSquare,
   MoveUpRight,
@@ -27,4 +28,5 @@ export const SHAPE_ICONS: Readonly<Record<ShapeKind, IconNode>> = {
   polygon: Hexagon,
   loupe: Search,
   mask: SquareDashed,
+  ovalMask: CircleDashed,
 }

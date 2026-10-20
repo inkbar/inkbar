@@ -132,8 +132,26 @@ describe('shapeInput', () => {
     expect(SHAPE_KINDS.indexOf('loupe')).toBe(SHAPE_KINDS.indexOf('polygon') + 1)
   })
 
-  it('has no creator for the kinds later tasks add', () => {
-    expect(make('mask')).toBeUndefined()
+  it('makes a mask a rect on the drag, and an oval mask an ellipse, both dimming by half', () => {
+    expect(make('mask')).toEqual({
+      type: 'mask',
+      page: 2,
+      rect: { x: 10, y: 20, width: 40, height: 60 },
+      shape: 'rect',
+      dim: 0.5,
+    })
+    expect(make('ovalMask')).toEqual({
+      type: 'mask',
+      page: 2,
+      rect: { x: 10, y: 20, width: 40, height: 60 },
+      shape: 'ellipse',
+      dim: 0.5,
+    })
+  })
+
+  it('offers the mask and the oval mask after the loupe', () => {
+    expect(SHAPE_KINDS.indexOf('mask')).toBe(SHAPE_KINDS.indexOf('loupe') + 1)
+    expect(SHAPE_KINDS.indexOf('ovalMask')).toBe(SHAPE_KINDS.indexOf('mask') + 1)
   })
 })
 
@@ -141,6 +159,7 @@ describe('isPointerOnlyKind', () => {
   it('is true for the loupe and the mask only, which Enter does not place', () => {
     expect(isPointerOnlyKind('loupe')).toBe(true)
     expect(isPointerOnlyKind('mask')).toBe(true)
+    expect(isPointerOnlyKind('ovalMask')).toBe(true)
     expect(isPointerOnlyKind('rectangle')).toBe(false)
     expect(isPointerOnlyKind('bubble')).toBe(false)
   })

@@ -365,6 +365,24 @@ export function renderAnnotationContent(
       svg.setAttribute('opacity', String(a.opacity))
       break
     }
+    case 'mask': {
+      // The shape's outline, with a transparent fill that takes presses inside the shape
+      // only (the dimmed area outside belongs to the page); the dimming is the mask layer's.
+      const shape =
+        a.shape === 'ellipse'
+          ? node('ellipse', {
+              cx: box.width / 2,
+              cy: box.height / 2,
+              rx: box.width / 2,
+              ry: box.height / 2,
+            })
+          : node('rect', { x: 0, y: 0, width: box.width, height: box.height })
+      shape.setAttribute('fill', 'transparent')
+      shape.setAttribute('stroke', 'none')
+      shape.classList.add('ink-mask-shape')
+      svg.append(shape)
+      break
+    }
     case 'line':
     case 'polyline':
     case 'polygon': {

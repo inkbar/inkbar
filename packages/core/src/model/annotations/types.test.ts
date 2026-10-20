@@ -323,6 +323,41 @@ describe('AnnotationSchema', () => {
     })
   })
 
+  describe('mask', () => {
+    const mask = {
+      ...valid,
+      type: 'mask',
+      quads: undefined,
+      shape: 'rect',
+      rect: { x: 100, y: 500, width: 200, height: 120 },
+    }
+
+    it('defaults dim to 0.5', () => {
+      expect(AnnotationSchema.parse(mask)).toMatchObject({
+        type: 'mask',
+        shape: 'rect',
+        dim: 0.5,
+      })
+    })
+
+    it('takes a rect or ellipse shape and a dim from 0 to 1', () => {
+      for (const shape of ['rect', 'ellipse'])
+        expect(AnnotationSchema.safeParse({ ...mask, shape }).success, shape).toBe(true)
+      for (const dim of [0, 0.25, 1])
+        expect(AnnotationSchema.safeParse({ ...mask, dim }).success, String(dim)).toBe(
+          true
+        )
+      for (const dim of [-0.1, 1.1])
+        expect(AnnotationSchema.safeParse({ ...mask, dim }).success, String(dim)).toBe(
+          false
+        )
+      expect(AnnotationSchema.safeParse({ ...mask, shape: 'star' }).success).toBe(false)
+      expect(AnnotationSchema.safeParse({ ...mask, shape: undefined }).success).toBe(
+        false
+      )
+    })
+  })
+
   it('buckets confidence', () => {
     expect(confidenceBucket(0)).toBe('low')
     expect(confidenceBucket(0.49)).toBe('low')
@@ -381,6 +416,15 @@ describe('schema.json', () => {
     const loupe = { ...rest, type: 'loupe', magnification: 3, width: 2 }
     expect(validate(loupe)).toBe(true)
     expect(validate({ ...loupe, magnification: 1 })).toBe(false)
+  })
+
+  it('validates a mask', () => {
+    const validate = compileAnnotation()
+    const { quads: _quads, ...rest } = exported as typeof exported & { quads?: unknown }
+    const mask = { ...rest, type: 'mask', shape: 'ellipse', dim: 0.7 }
+    expect(validate(mask)).toBe(true)
+    expect(validate({ ...mask, dim: 2 })).toBe(false)
+    expect(validate({ ...mask, shape: 'star' })).toBe(false)
   })
 
   it('leaves viewer state out of the exported shape', () => {
@@ -450,6 +494,10 @@ describe('AnnotationInput (compile-time)', () => {
     ]
     ok.push({ type: 'loupe', page: 0, rect })
     ok.push({ type: 'loupe', page: 0, rect, magnification: 3, width: 1 })
+    ok.push({ type: 'mask', page: 0, rect, shape: 'rect' })
+    ok.push({ type: 'mask', page: 0, rect, shape: 'ellipse', dim: 0.8 })
+    // @ts-expect-error a mask needs its shape
+    accept({ type: 'mask', page: 0, rect })
     // @ts-expect-error a loupe needs its rect
     accept({ type: 'loupe', page: 0 })
     // @ts-expect-error a stamp needs its rect
@@ -468,6 +516,6 @@ describe('AnnotationInput (compile-time)', () => {
     })
     // @ts-expect-error a note cannot carry text markup geometry it does not declare
     accept({ type: 'text', page: 0, rect, nope: 1 })
-    expect(ok).toHaveLength(13)
+    expect(ok).toHaveLength(15)
   })
 })
