@@ -17,6 +17,7 @@ import {
 } from '@inkbar/core/dom'
 import { ChevronDown } from '@inkbar/icons'
 import {
+  PopoverAnchor,
   PopoverContent,
   PopoverPortal,
   PopoverRoot,
@@ -30,6 +31,7 @@ import { useToolOptions } from '../composables/useToolOptions'
 
 import InkIcon from './InkIcon.vue'
 
+defineOptions({ inheritAttrs: false })
 const { tool, setTool } = useTool()
 const { options, setOptions } = useToolOptions<ShapeOptions>('shape')
 const open = ref(false)
@@ -86,76 +88,79 @@ const innerAttrs = {
 </script>
 
 <template>
-  <div
-    role="group"
-    aria-label="Shape"
-    class="ink-split-button ink-shape-menu"
-    data-ink-shape-menu
-  >
-    <ToolbarButton
-      class="ink-tool-button ink-shape-button"
-      data-ink-tool-button
-      data-ink-shape-button
-      data-tool="shape"
-      :data-kind="model.kind"
-      :data-state="active ? 'on' : 'off'"
-      v-bind="mainAttrs"
-    >
-      <slot :active="active" :kind="model.kind"><InkIcon :icon="icon" /></slot>
-    </ToolbarButton>
-    <PopoverRoot v-model:open="open">
-      <ToolbarButton as-child>
-        <PopoverTrigger as-child>
-          <button
-            type="button"
-            class="ink-menu-trigger ink-shape-menu-trigger"
-            data-ink-shape-menu-trigger
-            :data-state="open ? 'open' : 'closed'"
-            v-bind="triggerAttrs"
-          >
-            <InkIcon :icon="ChevronDown" />
-          </button>
-        </PopoverTrigger>
-      </ToolbarButton>
-      <PopoverPortal>
-        <PopoverContent
-          class="ink-select-content ink-menu-content"
-          data-ink-select-content
-          data-ink-menu="shape"
-          side="bottom"
-          align="start"
-          :side-offset="4"
-          :collision-padding="8"
-          v-bind="menuAttrs"
-          @open-auto-focus="onOpenAutoFocus"
+  <PopoverRoot v-model:open="open">
+    <PopoverAnchor as-child>
+      <div
+        role="group"
+        aria-label="Shape"
+        class="ink-split-button ink-shape-menu"
+        data-ink-shape-menu
+        v-bind="$attrs"
+      >
+        <ToolbarButton
+          class="ink-tool-button ink-shape-button"
+          data-ink-tool-button
+          data-ink-shape-button
+          data-tool="shape"
+          :data-kind="model.kind"
+          :data-state="active ? 'on' : 'off'"
+          v-bind="mainAttrs"
         >
-          <div v-bind="innerAttrs">
-            <div
-              role="group"
-              aria-label="Shapes"
-              class="ink-shape-grid"
-              :data-ink-menu-columns="SHAPE_COLUMNS"
+          <slot :active="active" :kind="model.kind"><InkIcon :icon="icon" /></slot>
+        </ToolbarButton>
+        <ToolbarButton as-child>
+          <PopoverTrigger as-child>
+            <button
+              type="button"
+              class="ink-menu-trigger ink-shape-menu-trigger"
+              data-ink-shape-menu-trigger
+              :data-state="open ? 'open' : 'closed'"
+              v-bind="triggerAttrs"
             >
-              <button
-                v-for="item in model.items"
-                :key="item.kind"
-                type="button"
-                role="menuitemradio"
-                class="ink-select-item ink-menu-item ink-shape-item"
-                data-ink-select-item
-                tabindex="-1"
-                :data-key="item.kind"
-                :aria-checked="item.checked"
-                :data-state="item.checked ? 'checked' : 'unchecked'"
-                @click="choose(item.kind)"
+              <InkIcon :icon="ChevronDown" />
+            </button>
+          </PopoverTrigger>
+        </ToolbarButton>
+        <PopoverPortal>
+          <PopoverContent
+            class="ink-select-content ink-menu-content"
+            data-ink-select-content
+            data-ink-menu="shape"
+            side="bottom"
+            align="start"
+            :side-offset="4"
+            :collision-padding="8"
+            v-bind="menuAttrs"
+            @open-auto-focus="onOpenAutoFocus"
+          >
+            <div v-bind="innerAttrs">
+              <div
+                role="group"
+                aria-label="Shapes"
+                class="ink-shape-grid"
+                :data-ink-menu-columns="SHAPE_COLUMNS"
               >
-                <InkIcon :icon="SHAPE_ICONS[item.kind]" :size="16" />
-                {{ item.label }}
-              </button>
+                <button
+                  v-for="item in model.items"
+                  :key="item.kind"
+                  type="button"
+                  role="menuitemradio"
+                  class="ink-select-item ink-menu-item ink-shape-item"
+                  data-ink-select-item
+                  tabindex="-1"
+                  :data-key="item.kind"
+                  :aria-checked="item.checked"
+                  :data-state="item.checked ? 'checked' : 'unchecked'"
+                  @click="choose(item.kind)"
+                >
+                  <InkIcon :icon="SHAPE_ICONS[item.kind]" :size="16" />
+                  {{ item.label }}
+                </button>
+              </div>
             </div>
-          </div>
-        </PopoverContent>
-      </PopoverPortal>
-    </PopoverRoot>
-  </div>
+          </PopoverContent>
+        </PopoverPortal>
+      </div>
+    </PopoverAnchor>
+  </PopoverRoot>
 </template>

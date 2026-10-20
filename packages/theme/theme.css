@@ -942,12 +942,54 @@
     padding-right: 0.5rem;
   }
 
+  /*
+   * The colour row reads as one more item: the swatch sits in the icon column and "Colour" in
+   * the label column. The colour menu's trigger covers the whole row, so the row is the target;
+   * the label shows through it.
+   */
   :where(.ink-highlight-colour) {
+    position: relative;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    padding: 0.25rem 0.25rem 0.25rem 0.5rem;
+    padding: 0.25rem;
+  }
+
+  :where(.ink-highlight-colour-label) {
+    padding: 0.375rem 0.5rem 0.375rem 2rem;
+  }
+
+  :where(.ink-highlight-colour > .ink-menu-trigger) {
+    position: absolute;
+    inset: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: auto;
+    min-width: 0;
+    height: auto;
+    padding: 0 0.5rem;
+    border: 0;
+    border-radius: calc(var(--ink-radius) - 4px);
+    background: transparent;
+  }
+
+  :where(
+    .ink-highlight-colour > .ink-menu-trigger:hover,
+    .ink-highlight-colour > .ink-menu-trigger:focus-visible,
+    .ink-highlight-colour > .ink-menu-trigger[data-state='open']
+  ) {
+    background: color-mix(in srgb, var(--ink-fg) 8%, transparent);
+  }
+
+  /* A markup colour is a fill, so its swatch is a disc, not the border ring. */
+  :where(.ink-highlight-colour .ink-swatch) {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  :where(.ink-highlight-colour .ink-swatch[data-kind='color']) {
+    border: 1px solid color-mix(in srgb, var(--ink-fg) 20%, transparent);
+    background: var(--ink-swatch);
   }
 
   /* Stamps: an image filling its box; the overlay sets its geometry and opacity. */

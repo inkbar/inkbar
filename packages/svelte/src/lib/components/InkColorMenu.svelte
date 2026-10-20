@@ -28,6 +28,8 @@
      * tool is active, and recolours the selection only when it is all in the group.
      */
     group?: StyleGroup | undefined
+    /** The colour new annotations get while the style leaves it unset; the swatch shows it. */
+    fallback?: string | undefined
   }
 </script>
 
@@ -54,6 +56,7 @@
     children,
     standalone = false,
     group,
+    fallback,
     disabled,
     onclick,
     onkeydown,
@@ -63,7 +66,9 @@
   const style = useToolStyle(() => group)
   let open = $state(false)
 
-  const model = $derived(colorMenuModel(property, style.current, style.supported))
+  const model = $derived(
+    colorMenuModel(property, style.current, style.supported, fallback)
+  )
   const name = $derived(label ?? model.label)
   const trigger = $derived(model.trigger)
 

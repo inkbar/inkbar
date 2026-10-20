@@ -41,6 +41,8 @@
   const current = useTool()
   const shape = useToolOptions<ShapeOptions>('shape')
   let open = $state(false)
+  /** The split button: the panel lines up under it rather than the chevron. */
+  let group = $state<HTMLElement | null>(null)
 
   const model = $derived(shapeMenuModel(shape.options, SHAPE_KINDS))
   const active = $derived(current.tool === 'shape')
@@ -68,6 +70,7 @@
 </script>
 
 <div
+  bind:this={group}
   role="group"
   aria-label="Shape"
   class={['ink-split-button ink-shape-menu', className]}
@@ -115,6 +118,7 @@
         class="ink-select-content ink-menu-content"
         data-ink-select-content=""
         data-ink-menu="shape"
+        customAnchor={group}
         side="bottom"
         align="start"
         sideOffset={4}

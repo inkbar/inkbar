@@ -116,161 +116,163 @@ export function InkSignatureMenu({
   }
 
   return (
-    <div
-      role="group"
-      aria-label={SIGNATURE_LABELS.sign}
-      className={cx('ink-split-button ink-signature-menu', className)}
-      data-ink-signature-menu=""
-      {...rest}
-    >
-      <Toolbar.Button
-        ref={main}
-        className="ink-tool-button ink-signature-button"
-        data-ink-tool-button=""
-        data-ink-signature-button=""
-        data-tool="signature"
-        data-state={active ? 'on' : 'off'}
-        aria-pressed={active}
-        aria-label={SIGNATURE_LABELS.sign}
-        title={SIGNATURE_LABELS.sign}
-        onClick={() => {
-          if (model.selected) setTool('signature')
-          else setOpen(true)
-        }}
-      >
-        {children ?? <InkIcon icon={Signature} />}
-      </Toolbar.Button>
-      <Popover.Root open={open} onOpenChange={setOpen}>
-        <Toolbar.Button asChild>
-          <Popover.Trigger asChild>
-            <button
-              type="button"
-              className="ink-menu-trigger ink-signature-menu-trigger"
-              data-ink-signature-menu-trigger=""
-              data-state={open ? 'open' : 'closed'}
-              aria-label={SIGNATURE_LABELS.trigger}
-              title={SIGNATURE_LABELS.trigger}
-              aria-haspopup="menu"
-              onKeyDown={(e) => {
-                if (e.key !== 'ArrowDown' || e.defaultPrevented || open) return
-                e.preventDefault()
-                focusFirst.current = true
-                setOpen(true)
-              }}
-            >
-              <InkIcon icon={ChevronDown} />
-            </button>
-          </Popover.Trigger>
-        </Toolbar.Button>
-        <Popover.Portal>
-          <Popover.Content
-            ref={menu}
-            role="menu"
-            aria-label={SIGNATURE_LABELS.menu}
-            className="ink-select-content ink-menu-content"
-            data-ink-select-content=""
-            data-ink-menu="signature"
-            side="bottom"
-            align="start"
-            sideOffset={4}
-            collisionPadding={8}
-            onOpenAutoFocus={(e) => {
-              e.preventDefault()
-              const el = e.currentTarget as HTMLElement
-              if (focusFirst.current) menuItems(el)[0]?.focus({ preventScroll: true })
-              else focusInitialMenuItem(el)
-              focusFirst.current = false
+    <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Anchor asChild>
+        <div
+          role="group"
+          aria-label={SIGNATURE_LABELS.sign}
+          className={cx('ink-split-button ink-signature-menu', className)}
+          data-ink-signature-menu=""
+          {...rest}
+        >
+          <Toolbar.Button
+            ref={main}
+            className="ink-tool-button ink-signature-button"
+            data-ink-tool-button=""
+            data-ink-signature-button=""
+            data-tool="signature"
+            data-state={active ? 'on' : 'off'}
+            aria-pressed={active}
+            aria-label={SIGNATURE_LABELS.sign}
+            title={SIGNATURE_LABELS.sign}
+            onClick={() => {
+              if (model.selected) setTool('signature')
+              else setOpen(true)
             }}
-            onCloseAutoFocus={(e) => {
-              if (toDialog.current) e.preventDefault()
-              toDialog.current = false
-            }}
-            onKeyDown={(e) => handleMenuKeys(e.nativeEvent, e.currentTarget)}
           >
-            {model.items.length > 0 ? (
-              <>
-                <div
-                  role="group"
-                  aria-label={SIGNATURE_LABELS.saved}
-                  className="ink-signature-list"
-                  data-ink-menu-columns={2}
-                >
-                  {model.items.map((item, row) => [
-                    <button
-                      key={`${item.id}-choose`}
-                      type="button"
-                      role="menuitemradio"
-                      aria-checked={item.checked}
-                      aria-label={item.label}
-                      tabIndex={-1}
-                      className="ink-select-item ink-menu-item ink-signature-item"
-                      data-ink-select-item=""
-                      data-key={item.id}
-                      data-state={item.checked ? 'checked' : 'unchecked'}
-                      onClick={() => {
-                        setOptions({ templateId: item.id })
-                        setTool('signature')
-                        setOpen(false)
-                      }}
-                    >
-                      <SignaturePreview template={item.template} />
-                    </button>,
-                    <button
-                      key={`${item.id}-remove`}
-                      type="button"
-                      role="menuitem"
-                      aria-label={item.removeLabel}
-                      title={item.removeLabel}
-                      tabIndex={-1}
-                      className="ink-menu-item ink-signature-remove"
-                      data-ink-signature-remove=""
-                      data-key={item.id}
-                      onClick={() => remove(item.id, row)}
-                    >
-                      <InkIcon icon={Trash2} size={16} />
-                    </button>,
-                  ])}
-                </div>
-                <div role="separator" className="ink-select-separator" />
-              </>
-            ) : null}
-            <button
-              type="button"
-              role="menuitem"
-              tabIndex={-1}
-              className="ink-select-item ink-menu-item ink-signature-create"
-              data-ink-select-item=""
-              data-ink-signature-create=""
-              onClick={() => {
-                toDialog.current = true
-                setOpen(false)
-                setCreating(true)
-              }}
-            >
-              <InkIcon icon={Plus} size={16} />
-              {SIGNATURE_LABELS.create}
-            </button>
-            {removeError ? (
-              <p
-                className="ink-field-error ink-signature-remove-error"
-                role="alert"
-                data-ink-signature-remove-error=""
+            {children ?? <InkIcon icon={Signature} />}
+          </Toolbar.Button>
+          <Toolbar.Button asChild>
+            <Popover.Trigger asChild>
+              <button
+                type="button"
+                className="ink-menu-trigger ink-signature-menu-trigger"
+                data-ink-signature-menu-trigger=""
+                data-state={open ? 'open' : 'closed'}
+                aria-label={SIGNATURE_LABELS.trigger}
+                title={SIGNATURE_LABELS.trigger}
+                aria-haspopup="menu"
+                onKeyDown={(e) => {
+                  if (e.key !== 'ArrowDown' || e.defaultPrevented || open) return
+                  e.preventDefault()
+                  focusFirst.current = true
+                  setOpen(true)
+                }}
               >
-                {removeError}
-              </p>
-            ) : null}
-          </Popover.Content>
-        </Popover.Portal>
-      </Popover.Root>
-      <InkSignatureDialog
-        open={creating}
-        onOpenChange={setCreating}
-        fonts={fonts}
-        onCloseAutoFocus={(e) => {
-          e.preventDefault()
-          main.current?.focus({ preventScroll: true })
-        }}
-      />
-    </div>
+                <InkIcon icon={ChevronDown} />
+              </button>
+            </Popover.Trigger>
+          </Toolbar.Button>
+          <Popover.Portal>
+            <Popover.Content
+              ref={menu}
+              role="menu"
+              aria-label={SIGNATURE_LABELS.menu}
+              className="ink-select-content ink-menu-content"
+              data-ink-select-content=""
+              data-ink-menu="signature"
+              side="bottom"
+              align="start"
+              sideOffset={4}
+              collisionPadding={8}
+              onOpenAutoFocus={(e) => {
+                e.preventDefault()
+                const el = e.currentTarget as HTMLElement
+                if (focusFirst.current) menuItems(el)[0]?.focus({ preventScroll: true })
+                else focusInitialMenuItem(el)
+                focusFirst.current = false
+              }}
+              onCloseAutoFocus={(e) => {
+                if (toDialog.current) e.preventDefault()
+                toDialog.current = false
+              }}
+              onKeyDown={(e) => handleMenuKeys(e.nativeEvent, e.currentTarget)}
+            >
+              {model.items.length > 0 ? (
+                <>
+                  <div
+                    role="group"
+                    aria-label={SIGNATURE_LABELS.saved}
+                    className="ink-signature-list"
+                    data-ink-menu-columns={2}
+                  >
+                    {model.items.map((item, row) => [
+                      <button
+                        key={`${item.id}-choose`}
+                        type="button"
+                        role="menuitemradio"
+                        aria-checked={item.checked}
+                        aria-label={item.label}
+                        tabIndex={-1}
+                        className="ink-select-item ink-menu-item ink-signature-item"
+                        data-ink-select-item=""
+                        data-key={item.id}
+                        data-state={item.checked ? 'checked' : 'unchecked'}
+                        onClick={() => {
+                          setOptions({ templateId: item.id })
+                          setTool('signature')
+                          setOpen(false)
+                        }}
+                      >
+                        <SignaturePreview template={item.template} />
+                      </button>,
+                      <button
+                        key={`${item.id}-remove`}
+                        type="button"
+                        role="menuitem"
+                        aria-label={item.removeLabel}
+                        title={item.removeLabel}
+                        tabIndex={-1}
+                        className="ink-menu-item ink-signature-remove"
+                        data-ink-signature-remove=""
+                        data-key={item.id}
+                        onClick={() => remove(item.id, row)}
+                      >
+                        <InkIcon icon={Trash2} size={16} />
+                      </button>,
+                    ])}
+                  </div>
+                  <div role="separator" className="ink-select-separator" />
+                </>
+              ) : null}
+              <button
+                type="button"
+                role="menuitem"
+                tabIndex={-1}
+                className="ink-select-item ink-menu-item ink-signature-create"
+                data-ink-select-item=""
+                data-ink-signature-create=""
+                onClick={() => {
+                  toDialog.current = true
+                  setOpen(false)
+                  setCreating(true)
+                }}
+              >
+                <InkIcon icon={Plus} size={16} />
+                {SIGNATURE_LABELS.create}
+              </button>
+              {removeError ? (
+                <p
+                  className="ink-field-error ink-signature-remove-error"
+                  role="alert"
+                  data-ink-signature-remove-error=""
+                >
+                  {removeError}
+                </p>
+              ) : null}
+            </Popover.Content>
+          </Popover.Portal>
+          <InkSignatureDialog
+            open={creating}
+            onOpenChange={setCreating}
+            fonts={fonts}
+            onCloseAutoFocus={(e) => {
+              e.preventDefault()
+              main.current?.focus({ preventScroll: true })
+            }}
+          />
+        </div>
+      </Popover.Anchor>
+    </Popover.Root>
   )
 }

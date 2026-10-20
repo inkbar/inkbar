@@ -8,6 +8,7 @@
  */
 import { ChevronDown } from '@inkbar/icons'
 
+import { writable } from '../../model/readable'
 import { MARKUP_ICONS } from '../markup-icons'
 import { MARKUP_KINDS, type MarkupKind, type ToolController } from '../tools'
 import { highlightMenuModel, type HighlightMenuModel } from '../ui'
@@ -58,11 +59,14 @@ export function createHighlightMenu(viewer: Viewer): HTMLElement {
   main.disabled = true
   trigger.disabled = true
 
+  /** The colour the chosen kind gets while the markup style leaves it unset. */
+  const defaultColour = writable<string | undefined>(undefined)
   // One colour menu for the life of the control; each panel adopts its trigger.
   const colour = createColorMenu(viewer, {
     property: 'border',
     group: 'markup',
     label: COLOUR_LABEL,
+    fallback: defaultColour,
   })
   colour.setAttribute('role', 'menuitem')
   colour.tabIndex = -1
@@ -87,6 +91,7 @@ export function createHighlightMenu(viewer: Viewer): HTMLElement {
     const on = tools?.active.get() === 'highlight'
     main.dataset.state = on ? 'on' : 'off'
     main.setAttribute('aria-pressed', String(on))
+    defaultColour.set(viewer.document.get()?.annotations.defaults.color(m.kind))
     menu.refresh()
   }
 
@@ -142,6 +147,7 @@ export function createHighlightMenu(viewer: Viewer): HTMLElement {
 
   const menu = createMenu(trigger, {
     label: 'Highlights',
+    anchor: root,
     attrs: { 'data-ink-menu': 'highlight' },
     owns: (t) =>
       t instanceof Element && t.closest('[data-ink-menu="color-border"]') !== null,
@@ -158,6 +164,7 @@ export function createHighlightMenu(viewer: Viewer): HTMLElement {
       stops = [
         tools.active.subscribe(refresh),
         tools.options('highlight').subscribe(refresh),
+        viewer.document.subscribe(refresh),
       ]
     if (!tools) menu.close()
     refresh()

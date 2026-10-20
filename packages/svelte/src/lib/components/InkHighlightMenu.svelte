@@ -31,6 +31,7 @@
   import { ChevronDown } from '@inkbar/icons'
   import { Popover, Toolbar } from 'bits-ui'
 
+  import { useDocument } from '../hooks/useDocument.svelte.js'
   import { useTool } from '../hooks/useTool.svelte.js'
   import { useToolOptions } from '../hooks/useToolOptions.svelte.js'
 
@@ -40,10 +41,15 @@
   let { class: className, children, ...rest }: InkHighlightMenuProps = $props()
 
   const current = useTool()
+  const inkDocument = useDocument()
   const highlight = useToolOptions<HighlightOptions>('highlight')
   let open = $state(false)
+  /** The split button: the panel lines up under it rather than the chevron. */
+  let group = $state<HTMLElement | null>(null)
 
   const model = $derived(highlightMenuModel(highlight.options, MARKUP_KINDS))
+  /** The colour the chosen kind gets while the markup style leaves it unset. */
+  const fallback = $derived(inkDocument.document?.annotations.defaults.color(model.kind))
   const active = $derived(current.tool === 'highlight')
 
   let menu = $state<HTMLElement | null>(null)
@@ -69,6 +75,7 @@
 </script>
 
 <div
+  bind:this={group}
   role="group"
   aria-label="Highlight"
   class={['ink-split-button ink-highlight-menu', className]}
@@ -116,6 +123,7 @@
         class="ink-select-content ink-menu-content"
         data-ink-select-content=""
         data-ink-menu="highlight"
+        customAnchor={group}
         side="bottom"
         align="start"
         sideOffset={4}
@@ -156,6 +164,7 @@
             group="markup"
             label="Highlight colour"
             standalone
+            {fallback}
             role="menuitem"
             tabindex={-1}
           />

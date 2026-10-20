@@ -715,6 +715,17 @@ describe('shape menu', () => {
     await expect.poll(probe('data-tool')).toBe('shape')
   })
 
+  it('the panel lines up under the whole split button, not the chevron', async () => {
+    await start()
+    const group = await q('[data-ink-shape-menu]')
+    group.style.marginLeft = '120px'
+    await chevron().click()
+    await expect.element(menu()).toBeVisible()
+    const left = menu().element().getBoundingClientRect().left
+    expect(left).toBeCloseTo(group.getBoundingClientRect().left, 0)
+    expect(left).toBeLessThan(chevron().element().getBoundingClientRect().left)
+  })
+
   it('choosing ellipse activates shape with kind ellipse', async () => {
     await start()
     await chevron().click()
@@ -816,6 +827,35 @@ describe('highlight menu', () => {
     expect((await q(main)).innerHTML).not.toBe(before)
     await expect.poll(() => menu().elements().length).toBe(0)
     await expect.poll(focused).toBe(chevron().element())
+  })
+
+  it("the colour row shows the chosen kind's default colour until a colour is picked", async () => {
+    await start()
+    const defaults = () =>
+      (doc().annotations as unknown as { defaults: { color(kind: string): string } })
+        .defaults
+    const swatch = () =>
+      browserPage.elementLocator(
+        document.querySelector('.ink-highlight-colour .ink-swatch') as Element
+      )
+    await chevron().click()
+    await expect
+      .poll(() => document.querySelector('.ink-highlight-colour .ink-swatch'))
+      .not.toBeNull()
+    await expect
+      .element(swatch())
+      .toHaveAttribute('data-color', defaults().color('highlight'))
+    expect(swatch().element().dataset.kind).toBe('color')
+    await kind('Underline').click()
+    await expect.poll(() => menu().elements().length).toBe(0)
+    await chevron().click()
+    await expect
+      .poll(
+        () =>
+          document.querySelector<HTMLElement>('.ink-highlight-colour .ink-swatch')
+            ?.dataset.color
+      )
+      .toBe(defaults().color('underline'))
   })
 
   it('the colour works under any tool and recolours selected markup', async () => {

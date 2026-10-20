@@ -17,6 +17,7 @@ import {
 } from '@inkbar/core/dom'
 import { ChevronDown } from '@inkbar/icons'
 import {
+  PopoverAnchor,
   PopoverContent,
   PopoverPortal,
   PopoverRoot,
@@ -25,18 +26,23 @@ import {
 } from 'reka-ui'
 import { computed, ref } from 'vue'
 
+import { useDocument } from '../composables/useDocument'
 import { useTool } from '../composables/useTool'
 import { useToolOptions } from '../composables/useToolOptions'
 
 import InkColorMenu from './InkColorMenu.vue'
 import InkIcon from './InkIcon.vue'
 
+defineOptions({ inheritAttrs: false })
 const { tool, setTool } = useTool()
 const { options, setOptions } = useToolOptions<HighlightOptions>('highlight')
+const { document: doc } = useDocument()
 const open = ref(false)
 
 const model = computed(() => highlightMenuModel(options.value, MARKUP_KINDS))
 const active = computed(() => tool.value === 'highlight')
+/** The colour the chosen kind gets while the markup style leaves it unset. */
+const fallback = computed(() => doc.value?.annotations.defaults.color(model.value.kind))
 const icon = computed(() => MARKUP_ICONS[model.value.kind])
 
 /** ArrowDown opens on the first item; a click opens on the checked one. */
@@ -92,82 +98,86 @@ const innerAttrs = {
 </script>
 
 <template>
-  <div
-    role="group"
-    aria-label="Highlight"
-    class="ink-split-button ink-highlight-menu"
-    data-ink-highlight-menu
-  >
-    <ToolbarButton
-      class="ink-tool-button ink-highlight-button"
-      data-ink-tool-button
-      data-ink-highlight-button
-      data-tool="highlight"
-      :data-kind="model.kind"
-      :data-state="active ? 'on' : 'off'"
-      v-bind="mainAttrs"
-    >
-      <slot :active="active" :kind="model.kind"><InkIcon :icon="icon" /></slot>
-    </ToolbarButton>
-    <PopoverRoot v-model:open="open">
-      <ToolbarButton as-child>
-        <PopoverTrigger as-child>
-          <button
-            type="button"
-            class="ink-menu-trigger ink-highlight-menu-trigger"
-            data-ink-highlight-menu-trigger
-            :data-state="open ? 'open' : 'closed'"
-            v-bind="triggerAttrs"
-          >
-            <InkIcon :icon="ChevronDown" />
-          </button>
-        </PopoverTrigger>
-      </ToolbarButton>
-      <PopoverPortal>
-        <PopoverContent
-          class="ink-select-content ink-menu-content"
-          data-ink-select-content
-          data-ink-menu="highlight"
-          side="bottom"
-          align="start"
-          :side-offset="4"
-          :collision-padding="8"
-          v-bind="menuAttrs"
-          @open-auto-focus="onOpenAutoFocus"
+  <PopoverRoot v-model:open="open">
+    <PopoverAnchor as-child>
+      <div
+        role="group"
+        aria-label="Highlight"
+        class="ink-split-button ink-highlight-menu"
+        data-ink-highlight-menu
+        v-bind="$attrs"
+      >
+        <ToolbarButton
+          class="ink-tool-button ink-highlight-button"
+          data-ink-tool-button
+          data-ink-highlight-button
+          data-tool="highlight"
+          :data-kind="model.kind"
+          :data-state="active ? 'on' : 'off'"
+          v-bind="mainAttrs"
         >
-          <div v-bind="innerAttrs">
-            <div role="group" aria-label="Kinds" class="ink-highlight-kinds">
-              <button
-                v-for="item in model.items"
-                :key="item.kind"
-                type="button"
-                role="menuitemradio"
-                class="ink-select-item ink-menu-item ink-highlight-item"
-                data-ink-select-item
-                tabindex="-1"
-                :data-key="item.kind"
-                :aria-checked="item.checked"
-                :data-state="item.checked ? 'checked' : 'unchecked'"
-                @click="choose(item.kind)"
-              >
-                <InkIcon :icon="MARKUP_ICONS[item.kind]" :size="16" />
-                {{ item.label }}
-              </button>
+          <slot :active="active" :kind="model.kind"><InkIcon :icon="icon" /></slot>
+        </ToolbarButton>
+        <ToolbarButton as-child>
+          <PopoverTrigger as-child>
+            <button
+              type="button"
+              class="ink-menu-trigger ink-highlight-menu-trigger"
+              data-ink-highlight-menu-trigger
+              :data-state="open ? 'open' : 'closed'"
+              v-bind="triggerAttrs"
+            >
+              <InkIcon :icon="ChevronDown" />
+            </button>
+          </PopoverTrigger>
+        </ToolbarButton>
+        <PopoverPortal>
+          <PopoverContent
+            class="ink-select-content ink-menu-content"
+            data-ink-select-content
+            data-ink-menu="highlight"
+            side="bottom"
+            align="start"
+            :side-offset="4"
+            :collision-padding="8"
+            v-bind="menuAttrs"
+            @open-auto-focus="onOpenAutoFocus"
+          >
+            <div v-bind="innerAttrs">
+              <div role="group" aria-label="Kinds" class="ink-highlight-kinds">
+                <button
+                  v-for="item in model.items"
+                  :key="item.kind"
+                  type="button"
+                  role="menuitemradio"
+                  class="ink-select-item ink-menu-item ink-highlight-item"
+                  data-ink-select-item
+                  tabindex="-1"
+                  :data-key="item.kind"
+                  :aria-checked="item.checked"
+                  :data-state="item.checked ? 'checked' : 'unchecked'"
+                  @click="choose(item.kind)"
+                >
+                  <InkIcon :icon="MARKUP_ICONS[item.kind]" :size="16" />
+                  {{ item.label }}
+                </button>
+              </div>
+              <div role="separator" class="ink-select-separator" />
+              <div role="group" aria-label="Colour" class="ink-highlight-colour">
+                <span class="ink-highlight-colour-label" aria-hidden="true">Colour</span>
+                <InkColorMenu
+                  property="border"
+                  group="markup"
+                  label="Highlight colour"
+                  standalone
+                  :fallback="fallback"
+                  v-bind="colourAttrs"
+                />
+              </div>
             </div>
-            <div role="separator" class="ink-select-separator" />
-            <div role="group" aria-label="Colour" class="ink-highlight-colour">
-              <span class="ink-highlight-colour-label" aria-hidden="true">Colour</span>
-              <InkColorMenu
-                property="border"
-                group="markup"
-                label="Highlight colour"
-                standalone
-                v-bind="colourAttrs"
-              />
-            </div>
-          </div>
-        </PopoverContent>
-      </PopoverPortal>
-    </PopoverRoot>
-  </div>
+          </PopoverContent>
+        </PopoverPortal>
+      </div>
+    </PopoverAnchor>
+  </PopoverRoot>
 </template>
