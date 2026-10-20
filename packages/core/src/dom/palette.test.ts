@@ -22,8 +22,10 @@ describe('PALETTE', () => {
     for (const row of PALETTE.grid) expect(row).toHaveLength(12)
     const lightness = (hex: string) =>
       [1, 3, 5].reduce((sum, i) => sum + parseInt(hex.slice(i, i + 2), 16), 0)
-    const column = PALETTE.grid.map((row) => lightness(row[0]!))
-    expect(column).toEqual([...column].sort((a, b) => a - b))
+    for (let c = 0; c < 12; c++) {
+      const column = PALETTE.grid.map((row) => lightness(row[c]!))
+      expect(column).toEqual([...column].sort((a, b) => a - b))
+    }
   })
 
   it('has no duplicates within common, and none anywhere in the palette', () => {
