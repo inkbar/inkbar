@@ -1,5 +1,7 @@
 // The live draft is `position:absolute; pointer-events:none` with left/top/width/height from
 // the drag: geometry only. Its look comes from the theme (`.ink-draft[data-ink-draft]`).
+import { isTextMarkup } from '../../model/annotations/edit'
+
 import {
   clampedCssIn,
   isViewportEnter,
@@ -47,7 +49,15 @@ export function redactAreaTool(): Tool {
       ctx = undefined
     },
     onPointerDown(e, hit, annotationId) {
-      if (!hit || annotationId !== undefined) return
+      if (!hit) return
+      if (annotationId !== undefined) {
+        // Text markup would let a drag through to text selection, which the next click here
+        // turns into a text redaction. Claim the press instead, as rectangle select does: a
+        // drag from markup draws an area, and a click redacts the live selection.
+        const a = ctx?.store.get(annotationId)
+        if (!a || !isTextMarkup(a)) return
+        e.stopPropagation()
+      }
       start = hit
       // Keeps the press from starting a text selection; an existing one survives for the
       // text-derived mode on pointerup.

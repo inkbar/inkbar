@@ -3261,6 +3261,28 @@ describe('selection editing', () => {
     expect(window.getSelection()?.toString()).toBe('')
   })
 
+  // A drag from markup must not leave a text selection for the next click to redact.
+  it('redact-area: a drag that starts on a highlight draws an area, not a text selection', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('redact-area')
+    const { hl, x, y, poly } = await helloHighlight(doc, viewport)
+    window.getSelection()?.removeAllRanges()
+    pointer(poly, 'pointerdown', x, y)
+    pointer(container, 'pointermove', x + 30, y + 20)
+    pointer(container, 'pointermove', x + 60, y + 40)
+    pointer(container, 'pointerup', x + 60, y + 40)
+    expect(window.getSelection()?.toString()).toBe('')
+    const added = doc.annotations.list.get().filter((a) => a.id !== hl.id)
+    expect(added).toHaveLength(1)
+    expect(added[0]).toMatchObject({ type: 'redact' })
+    expect(added[0]).not.toHaveProperty('quads')
+    // A later click on the page redacts nothing more.
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 400, h.top + 600)
+    pointer(container, 'pointerup', h.left + 400, h.top + 600)
+    expect(doc.annotations.list.get()).toHaveLength(2)
+  })
+
   it('select-text: a drag on a highlight selects text and leaves the highlight', async () => {
     const { doc, viewport } = await setup()
     const { hl, x, y, poly } = await helloHighlight(doc, viewport)
