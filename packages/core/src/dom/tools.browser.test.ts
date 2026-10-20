@@ -2149,6 +2149,29 @@ describe('speech bubble', () => {
     })
   })
 
+  // As a signature is: along the page as the file displays it, whatever its /Rotate.
+  it('a click places a line or arrow that runs left to right on a turned page', async () => {
+    const { doc, container, viewport, tools } = await setup('text-rotated-90')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    const t = viewport.transformFor(0)
+    for (const [kind, x] of [
+      ['arrow', 200],
+      ['line', 300],
+    ] as const) {
+      tools.set('shape', { kind })
+      pointer(container, 'pointerdown', h.left + x, h.top + 300)
+      pointer(container, 'pointerup', h.left + x, h.top + 300)
+    }
+    for (const a of session(doc)) {
+      if (a.type !== 'line') throw new Error('not a line')
+      const start = t.toCss(a.start)
+      const end = t.toCss(a.end)
+      expect(start.y).toBeCloseTo(end.y)
+      expect(end.x - start.x).toBeCloseTo(t.toCssLength(72))
+    }
+    expect(session(doc)).toHaveLength(2)
+  })
+
   it('click places a default bubble and its tail follows rotation', async () => {
     const { doc, container, viewport, tools } = await setup('text-rotated-90')
     tools.set('shape', { kind: 'bubble' })

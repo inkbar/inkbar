@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   constrain,
   DEFAULT_SHAPE_OPTIONS,
+  defaultEnds,
   isPointerOnlyKind,
   polygonVertices,
   SHAPE_KINDS,
@@ -56,6 +57,37 @@ describe('constrain', () => {
     expect(constrain('arrow', { x: 0, y: 0 }, { x: 1, y: -10 })).toEqual({ x: 0, y: -10 })
     const d = constrain('line', { x: 0, y: 0 }, { x: 10, y: 8 })
     expect(d.x).toBeCloseTo(d.y)
+  })
+})
+
+describe('defaultEnds', () => {
+  const at = { x: 100, y: 200 }
+
+  it('runs a line left to right on screen for each page rotation', () => {
+    expect(defaultEnds('line', at)).toEqual([
+      { x: 64, y: 200 },
+      { x: 136, y: 200 },
+    ])
+    // /Rotate 90 turns the page clockwise: user space up is screen right.
+    expect(defaultEnds('arrow', at, 90)).toEqual([
+      { x: 100, y: 164 },
+      { x: 100, y: 236 },
+    ])
+    expect(defaultEnds('line', at, 180)).toEqual([
+      { x: 136, y: 200 },
+      { x: 64, y: 200 },
+    ])
+    expect(defaultEnds('line', at, 270)).toEqual([
+      { x: 100, y: 236 },
+      { x: 100, y: 164 },
+    ])
+  })
+
+  it('leaves box kinds as a square round the point', () => {
+    expect(defaultEnds('rectangle', at, 90)).toEqual([
+      { x: 64, y: 164 },
+      { x: 136, y: 236 },
+    ])
   })
 })
 
