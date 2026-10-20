@@ -1,0 +1,23 @@
+packages/icons/LICENSE
+  s_5c84400dcebef8::t_12e6c0d1724baf 27-28,46,48
+packages/icons/src/readme.test.ts
+  s_5c84400dcebef8::t_e04a36ad431f33 1-20
+packages/icons/README.md
+  s_5c84400dcebef8::t_12e6c0d1724baf 23,44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "28fd0f3a2f26d21eb01898a335a60943650d180d",
+  "prompts": {},
+  "sessions": {
+    "s_5c84400dcebef8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b6002a2b-f6c7-44ec-8f13-05d214d02483",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
