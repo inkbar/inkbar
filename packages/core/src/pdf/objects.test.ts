@@ -130,6 +130,12 @@ describe('openPdfObjects', () => {
     ).toBeUndefined()
   })
 
+  it('treats a reference with the wrong generation as missing', async () => {
+    const objects = (await openPdfObjects(buildPdf(['<< >>', '<< /Answer 42 >>'])))!
+    expect(await objects.get({ kind: 'ref', num: 2, gen: 1 })).toBeUndefined()
+    expect(isDict(await objects.get(ref(2)))).toBe(true)
+  })
+
   it('get returns undefined for missing, free and junk objects without throwing', async () => {
     const bytes = buildPdf(['<< /Type /Catalog >>', '<< >>'])
     const objects = (await openPdfObjects(bytes))!

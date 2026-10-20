@@ -53,9 +53,11 @@ class Reader implements PdfObjects {
     const entry = this.xref.entries.get(ref.num)
     if (!entry || entry.type === 'free') return undefined
     if (entry.type === 'offset') {
+      if (entry.gen !== ref.gen) return undefined
       const obj = parseIndirect(this.bytes, entry.offset)
-      return obj.num === ref.num ? obj.value : undefined
+      return obj.num === ref.num && obj.gen === ref.gen ? obj.value : undefined
     }
+    if (ref.gen !== 0) return undefined
     const container = await this.objectStream(entry.stream, followLength)
     if (!container) return undefined
     let pair = container.pairs[entry.index]
