@@ -1,0 +1,19 @@
+packages/core/src/dom/tools.browser.test.ts
+  s_5c84400dcebef8::t_5c072f91e7285b 2375-2377
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "06f6709ffc95c20aacf8f834796c6500823f2a48",
+  "prompts": {},
+  "sessions": {
+    "s_5c84400dcebef8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b6002a2b-f6c7-44ec-8f13-05d214d02483",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
