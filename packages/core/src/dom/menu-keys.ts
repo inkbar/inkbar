@@ -34,8 +34,9 @@ function nextIndex(key: string, items: HTMLElement[], i: number): number {
     const first = items.indexOf(cells[0]!)
     const end = first + cells.length - 1
     const at = i - first
-    if (key === 'ArrowRight') return at === cells.length - 1 ? i : i + 1
-    if (key === 'ArrowLeft') return at === 0 ? i : i - 1
+    if (key === 'ArrowRight')
+      return at % cols === cols - 1 || at === cells.length - 1 ? i : i + 1
+    if (key === 'ArrowLeft') return at % cols === 0 ? i : i - 1
     if (key === 'ArrowDown')
       return at + cols < cells.length ? i + cols : end === last ? 0 : end + 1
     if (key === 'ArrowUp')
@@ -88,7 +89,11 @@ export function handleRadioKeys(e: KeyboardEvent, group: ParentNode): void {
  */
 export function handleTabKeys(e: KeyboardEvent, tablist: ParentNode): void {
   if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
-  const tabs = [...tablist.querySelectorAll<HTMLElement>('[role="tab"]:not(:disabled)')]
+  const tabs = [
+    ...tablist.querySelectorAll<HTMLElement>(
+      '[role="tab"]:not(:disabled):not([aria-disabled="true"])'
+    ),
+  ]
   const at = tabs.indexOf(document.activeElement as HTMLElement)
   if (at < 0) return
   const last = tabs.length - 1
@@ -130,7 +135,7 @@ const TABBABLE = [
 export function trapTab(e: KeyboardEvent, container: HTMLElement): void {
   if (e.key !== 'Tab' || e.defaultPrevented) return
   const stops = [...container.querySelectorAll<HTMLElement>(TABBABLE)].filter(
-    (el) => el.getClientRects().length > 0
+    (el) => !el.matches(':disabled') && el.getClientRects().length > 0
   )
   if (stops.length === 0) {
     e.preventDefault()
