@@ -1,20 +1,46 @@
+import {
+  Circle,
+  Color,
+  commonFields,
+  FreeText,
+  FreeTextStyle as GlossFreeTextStyle,
+  GLOSS_FORMAT,
+  GLOSS_VERSION,
+  Highlight,
+  Ink,
+  Line,
+  LineEnding as GlossLineEnding,
+  Loupe,
+  Mask,
+  Note,
+  NoteIcon,
+  Point,
+  Polygon,
+  Polyline,
+  Rect,
+  Redact,
+  Square,
+  Stamp,
+  Suggestion as GlossSuggestion,
+  type GlossDocument,
+  type UnknownAnnotation,
+} from 'gloss-format'
 import { z } from 'zod'
 
 import { FringeSchema } from './callout'
-import { INTENTS, LINE_ENDINGS, NOTE_ICONS, pdfNameSet } from './pdf-names'
 
-export const ANNOTATION_FORMAT = 'inkbar/annotations'
-export const ANNOTATION_VERSION = 1
+export {
+  GLOSS_FORMAT,
+  GLOSS_MEDIA_TYPE,
+  GLOSS_SCHEMA_ID,
+  GLOSS_VERSION,
+} from 'gloss-format'
 
-const Hex = z.string().regex(/^#[0-9a-fA-F]{6}$/, 'expected #RRGGBB')
+// Each schema starts from its Gloss definition and rebuilds it as a plain object, so unknown keys
+// are dropped on import, nested ones included. Inkbar then requires what it always fills in.
 
-export const PointSchema = z.object({ x: z.number(), y: z.number() })
-export const RectSchema = z.object({
-  x: z.number(),
-  y: z.number(),
-  width: z.number().nonnegative(),
-  height: z.number().nonnegative(),
-})
+export const PointSchema = z.object(Point.shape)
+export const RectSchema = z.object(Rect.shape)
 export const QuadSchema = z.object({
   p1: PointSchema,
   p2: PointSchema,
@@ -22,54 +48,37 @@ export const QuadSchema = z.object({
   p4: PointSchema,
 })
 
-const Base = z.object({
-  /** Client id, UUIDv7, assigned at creation and never reassigned. Embedded annotations use `pdf:<ref>`. */
-  id: z.string().min(1),
-  /** 0-based page index. */
-  page: z.number().int().nonnegative(),
+/** What Inkbar adds to every Gloss type: the fields it always fills in, and its viewer state. */
+const Base = {
   /** Bounding box in PDF user space. */
   rect: RectSchema,
   /** Resolved #RRGGBB. Written into the PDF later, so it is always concrete. */
-  color: Hex,
-  opacity: z.number().min(0).max(1),
-  author: z.string().optional(),
-  contents: z.string().optional(),
-  /** Id of the parent note; replies form threads. */
-  inReplyTo: z.string().optional(),
-  /** ISO 8601 date-time. */
-  createdAt: z.iso.datetime({ offset: true }),
-  /** ISO 8601 date-time. */
-  modifiedAt: z.iso.datetime({ offset: true }),
+  color: Color,
+  opacity: commonFields.opacity.removeDefault(),
+  createdAt: commonFields.createdAt.unwrap(),
+  modifiedAt: commonFields.modifiedAt.unwrap(),
   /** Created in this session, or imported from the file. Viewer state, never exported. */
   source: z.enum(['session', 'pdf']),
   /** Embedded annotations are locked until the engine can rewrite the file. Viewer state, never exported. */
   locked: z.boolean().optional(),
-  /** Short label for what the mark is (XFDF `subject`). */
-  subject: z.string().optional(),
-  /** What the mark is for, e.g. a callout or an arrow (XFDF `intent`, a PDF name). */
-  intent: pdfNameSet(INTENTS).optional(),
-  /** Host data. Preserved, never interpreted. */
-  custom: z.record(z.string(), z.unknown()).optional(),
-})
+}
 
-export const TextMarkupSchema = Base.extend({
+const Quads = z.array(QuadSchema).min(1)
+
+export const TextMarkupSchema = z.object({
+  ...Highlight.shape,
+  ...Base,
   type: z.enum(['highlight', 'underline', 'strikeout', 'squiggly']),
-  quads: z.array(QuadSchema).min(1),
+  quads: Quads,
 })
 
 /** A note's icon (XFDF `icon`): a PDF name, so a name Inkbar does not know is kept. */
-export const NoteIconSchema = pdfNameSet(NOTE_ICONS)
+export const NoteIconSchema = NoteIcon
 
-export const NoteSchema = Base.extend({
-  type: z.literal('text'),
-  icon: NoteIconSchema.default('Note'),
-})
+export const NoteSchema = z.object({ ...Note.shape, ...Base })
 
 /** A line ending (XFDF `head`/`tail`): a PDF name, so a name Inkbar does not know is kept. */
-export const LineEndingSchema = pdfNameSet(LINE_ENDINGS)
-
-/** Dash pattern in points, on then off, repeating. Absent means solid. */
-const DashesSchema = z.array(z.number().nonnegative()).min(1).optional()
+export const LineEndingSchema = GlossLineEnding
 
 /**
  * A key a type refuses outright rather than dropping like other unknown keys: one an older
@@ -83,15 +92,9 @@ const Refused = z.never().optional()
  * `defaultstyle` string. The older `align` is refused; other unknown keys are dropped.
  */
 export const FreeTextStyleSchema = z.object({
-  fontFamily: z.string().min(1).default('Helvetica'),
-  /** Points. */
-  fontSize: z.number().positive().default(12),
+  ...GlossFreeTextStyle.shape,
   /** The text colour. */
-  color: Hex,
-  textAlign: z.enum(['left', 'center', 'right', 'justify']).default('left'),
-  fontWeight: z.literal('bold').optional(),
-  fontStyle: z.literal('italic').optional(),
-  textDecoration: z.literal('underline').optional(),
+  color: Color,
   align: Refused,
 })
 
@@ -100,98 +103,50 @@ export const FreeTextStyleSchema = z.object({
  * `defaultStyle`. A box in the older shape (top-level `fontFamily`, `fontSize`, `align`) is
  * refused rather than silently losing its style; other unknown keys are dropped.
  */
-export const FreeTextSchema = Base.extend({
-  type: z.literal('freetext'),
-  /** The text shown on the page. */
-  contents: z.string(),
+export const FreeTextSchema = z.object({
+  ...FreeText.shape,
+  ...Base,
   /** The box's fill (XFDF `color`). Absent means no fill. */
-  color: Hex.optional(),
-  /** The border's colour. An extension, not XFDF. */
-  borderColor: Hex.optional(),
-  /** The border's width in points; 0 draws no border. */
-  width: z.number().nonnegative().default(0),
-  dashes: DashesSchema,
-  /** Points. An extension, not XFDF. */
-  cornerRadius: z.number().nonnegative().optional(),
+  color: FreeText.shape.color,
   defaultStyle: FreeTextStyleSchema,
-  /**
-   * The insets from `rect` to the text box, in points (XFDF `fringe`, PDF `/RD`). Absent means
-   * the box is `rect`.
-   */
   fringe: FringeSchema.optional(),
-  /** A callout's leader line: the tip, an optional bend, and where it meets the box (PDF `/CL`). */
   callout: z.array(PointSchema).min(2).max(3).optional(),
-  /** The line ending at a callout's tip (XFDF `head`, PDF `/LE`). Absent means `None`. */
-  head: LineEndingSchema.optional(),
   fontFamily: Refused,
   fontSize: Refused,
   align: Refused,
 })
 
-const ShapeFields = {
-  width: z.number().nonnegative().default(1),
-  dashes: DashesSchema,
-  interiorColor: Hex.optional(),
-}
+export const SquareSchema = z.object({ ...Square.shape, ...Base })
 
-export const SquareSchema = Base.extend({
-  type: z.literal('square'),
-  ...ShapeFields,
-  /** The corner radius in points. An extension, not XFDF. */
-  cornerRadius: z.number().nonnegative().optional(),
-})
-
-export const CircleSchema = Base.extend({
-  type: z.literal('circle'),
-  ...ShapeFields,
-  cornerRadius: Refused,
-})
+export const CircleSchema = z.object({ ...Circle.shape, ...Base, cornerRadius: Refused })
 
 export const ShapeSchema = z.discriminatedUnion('type', [SquareSchema, CircleSchema])
 
-export const LineSchema = Base.extend({
-  type: z.literal('line'),
+export const LineSchema = z.object({
+  ...Line.shape,
+  ...Base,
   start: PointSchema,
   end: PointSchema,
-  width: z.number().nonnegative().default(1),
-  dashes: DashesSchema,
-  head: LineEndingSchema.optional(),
-  tail: LineEndingSchema.optional(),
 })
 
-const PolyFields = {
-  vertices: z.array(PointSchema).min(2),
-  width: z.number().nonnegative().default(1),
-  dashes: DashesSchema,
-  interiorColor: Hex.optional(),
-}
+const Vertices = z.array(PointSchema).min(2)
 
-export const PolylineSchema = Base.extend({
-  type: z.literal('polyline'),
-  ...PolyFields,
-  /** The ending at the first vertex. */
-  head: LineEndingSchema.optional(),
-  /** The ending at the last vertex. */
-  tail: LineEndingSchema.optional(),
-})
+export const PolylineSchema = z.object({ ...Polyline.shape, ...Base, vertices: Vertices })
 
-export const PolygonSchema = Base.extend({
-  type: z.literal('polygon'),
-  ...PolyFields,
+export const PolygonSchema = z.object({
+  ...Polygon.shape,
+  ...Base,
+  vertices: Vertices,
   head: Refused,
   tail: Refused,
 })
 
 export const PolySchema = z.discriminatedUnion('type', [PolylineSchema, PolygonSchema])
 
-const InkShape = Base.extend({
-  type: z.literal('ink'),
+const InkShape = z.object({
+  ...Ink.shape,
+  ...Base,
   inklist: z.array(z.array(PointSchema).min(1)).min(1),
-  /** Pen pressure per sample, 0 to 1, shaped like `inklist`. Absent for mouse input. */
-  pressure: z.array(z.array(z.number().min(0).max(1))).optional(),
-  width: z.number().nonnegative().default(2),
-  /** Kept so imported dashed ink round-trips. Inkbar draws ink solid. */
-  dashes: DashesSchema,
 })
 
 /** Pressure must have one value per point of each stroke. */
@@ -214,67 +169,37 @@ function checkPressure(
 export const InkSchema = InkShape.superRefine(checkPressure)
 
 /** A PNG or JPEG image as a base64 `data:` URL, as XFDF carries a stamp's `<imagedata>`. */
-export const IMAGE_DATA_URL = /^data:image\/(png|jpeg);base64,/
+export { IMAGE_DATA_URL } from 'gloss-format'
 
 /**
  * An image on the page (XFDF `stamp`), drawn to fill `rect`. Image and typed signatures are
  * stamps with `subject: 'Signature'`.
  */
-export const StampSchema = Base.extend({
-  type: z.literal('stamp'),
-  /** A PNG or JPEG `data:` URL (XFDF `imagedata`). */
-  imagedata: z.string().regex(IMAGE_DATA_URL, 'expected a PNG or JPEG data URL'),
-  /**
-   * Quarter turns, in degrees anticlockwise, the image is turned within `rect` (XFDF
-   * `rotation`). Absent means upright in user space.
-   */
-  rotation: z
-    .union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)])
-    .optional(),
-})
+export const StampSchema = z.object({ ...Stamp.shape, ...Base })
 
 /**
  * A loupe (an extension, not XFDF): a circle inscribed in `rect` that shows the page content
  * under its own centre, magnified. `color` and `width` draw its rim.
  */
-export const LoupeSchema = Base.extend({
-  type: z.literal('loupe'),
-  /** How many times larger the content under the centre is drawn. Above 1. */
-  magnification: z.number().gt(1).default(2),
-  /** The rim's width in points. */
-  width: z.number().nonnegative().default(2),
-})
+export const LoupeSchema = z.object({ ...Loupe.shape, ...Base })
 
 /**
  * A mask (an extension, not XFDF): dims everything on the page outside `shape` drawn in
  * `rect`, an ellipse inscribed in it or the rectangle itself. `color` is the dimming colour
- * (black by default) and `dim` how strongly it covers. One per page: adding a second replaces
- * the first.
+ * and `dim` how strongly it covers. One per page: adding a second replaces the first.
  */
-export const MaskSchema = Base.extend({
-  type: z.literal('mask'),
-  shape: z.enum(['rect', 'ellipse']),
-  /** Opacity of the dimming, 0 (none) to 1 (opaque). */
-  dim: z.number().min(0).max(1).default(0.5),
-})
+export const MaskSchema = z.object({ ...Mask.shape, ...Base })
 
-export const SuggestionSchema = z.object({
-  jobId: z.string().optional(),
-  confidence: z.number().min(0).max(1),
-  reason: z.string().optional(),
-  explanation: z.string().optional(),
-  recommendation: z.enum(['redact', 'review', 'keep']).optional(),
-})
+export const SuggestionSchema = z.object(GlossSuggestion.shape)
 
-export const RedactSchema = Base.extend({
-  type: z.literal('redact'),
+export const RedactSchema = z.object({
+  ...Redact.shape,
+  ...Base,
   /** Present when the mark came from text; absent for an area mark. */
-  quads: z.array(QuadSchema).min(1).optional(),
-  origin: z.enum(['user', 'suggested']).default('user'),
+  quads: Quads.optional(),
   suggestion: SuggestionSchema.optional(),
-  overlayText: z.string().optional(),
   /** Colour the redaction will be filled with when applied. */
-  interiorColor: Hex,
+  interiorColor: Color,
 })
 
 export const AnnotationSchema = z.discriminatedUnion('type', [
@@ -392,26 +317,23 @@ export type AnnotationInput =
   | RedactCallerInput
 
 export const AnnotationDocumentSchema = z.object({
-  format: z.literal(ANNOTATION_FORMAT),
-  version: z.literal(ANNOTATION_VERSION),
+  format: z.literal(GLOSS_FORMAT),
+  version: z.literal(GLOSS_VERSION),
   documentKey: z.string().optional(),
   /** Validated item by item on import so unknown types can be preserved. */
   annotations: z.array(z.unknown()),
 })
 
 /**
- * An item whose `type` this version does not know, written by a newer Inkbar. It is kept as-is
- * so it survives an import and export round trip, and it is valid only under the schema
- * version that produced it.
+ * An item whose `type` this version does not know, such as one from a newer writer. It is kept
+ * as-is so it survives an import and export round trip.
  */
-export type ForeignAnnotation = { type: string; id: string; page: number } & Record<
-  string,
-  unknown
->
+export type ForeignAnnotation = UnknownAnnotation
 
+/** A Gloss document holding Inkbar's annotations and any foreign items it kept. */
 export interface AnnotationDocument {
-  format: typeof ANNOTATION_FORMAT
-  version: typeof ANNOTATION_VERSION
+  format: GlossDocument['format']
+  version: GlossDocument['version']
   documentKey?: string
   annotations: Array<ExportedAnnotation | ForeignAnnotation>
 }

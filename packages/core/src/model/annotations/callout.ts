@@ -1,6 +1,7 @@
 // Free-text callouts as PDF and XFDF store them: `rect` holds box and leader line together,
 // `fringe` insets it to the text box, `callout` runs from the tip to the box and `head` is the
 // ending at the tip.
+import { Fringe as GlossFringe } from 'gloss-format'
 import { z } from 'zod'
 
 import { isKnown, LINE_ENDINGS } from './pdf-names'
@@ -12,12 +13,7 @@ import type { Point, Rect } from '../geometry'
  * The insets from a free text's `rect` to its text box, in points (PDF `/RD`, XFDF `fringe`,
  * both in this order).
  */
-export const FringeSchema = z.object({
-  left: z.number().nonnegative(),
-  top: z.number().nonnegative(),
-  right: z.number().nonnegative(),
-  bottom: z.number().nonnegative(),
-})
+export const FringeSchema = z.object(GlossFringe.shape)
 
 export type Fringe = z.infer<typeof FringeSchema>
 

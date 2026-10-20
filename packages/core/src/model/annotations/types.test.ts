@@ -1,12 +1,7 @@
-import { readFileSync } from 'node:fs'
-
-import { Ajv2020 } from 'ajv/dist/2020'
 import { describe, expect, it } from 'vitest'
 
 import { isKnown, LINE_ENDINGS } from './pdf-names'
-import { ANNOTATION_SCHEMA_ID, buildAnnotationSchema } from './schema'
 import {
-  AnnotationDocumentSchema,
   AnnotationSchema,
   confidenceBucket,
   type Annotation,
@@ -39,18 +34,6 @@ const valid: Annotation = {
   source: 'session',
 }
 const { source: _source, ...exported } = valid
-
-const schemaUrl = new URL('../../../schema.json', import.meta.url)
-
-interface PublishedSchema {
-  $schema: string
-  $id: string
-  $defs: Record<string, unknown>
-}
-
-function readPublished(): PublishedSchema {
-  return JSON.parse(readFileSync(schemaUrl, 'utf8')) as PublishedSchema
-}
 
 describe('AnnotationSchema', () => {
   it('accepts a valid highlight and rejects a bad colour', () => {
@@ -428,155 +411,6 @@ describe('AnnotationSchema', () => {
     expect(confidenceBucket(0.79)).toBe('medium')
     expect(confidenceBucket(0.8)).toBe('high')
     expect(confidenceBucket(1)).toBe('high')
-  })
-})
-
-describe('schema.json', () => {
-  const annotationRef = `${ANNOTATION_SCHEMA_ID}#/$defs/Annotation`
-  const compileAnnotation = () => {
-    const ajv = new Ajv2020({ strict: false, validateFormats: false })
-    ajv.addSchema(readPublished())
-    const validate = ajv.getSchema(annotationRef)
-    if (!validate) throw new Error('Annotation definition missing')
-    return validate
-  }
-
-  it('is exactly what the generator builds, so it cannot go stale', () => {
-    expect(readPublished()).toEqual(buildAnnotationSchema())
-  })
-
-  it('is a complete published document', () => {
-    const onDisk = readPublished()
-    expect(onDisk.$schema).toBe('https://json-schema.org/draft/2020-12/schema')
-    expect(onDisk.$id).toBe(ANNOTATION_SCHEMA_ID)
-    expect(onDisk.$defs).toHaveProperty('Annotation')
-    expect(onDisk.$defs).toHaveProperty('AnnotationDocument')
-  })
-
-  it('validates annotations like the zod schema', () => {
-    const validate = compileAnnotation()
-    expect(validate(exported)).toBe(true)
-    expect(validate({ ...exported, color: 'yellow' })).toBe(false)
-    expect(validate({ ...exported, createdAt: 'yesterday' })).toBe(false)
-  })
-
-  it('accepts PDF names Inkbar knows and ones it does not, and describes them', () => {
-    const validate = compileAnnotation()
-    const note = { ...exported, type: 'text', icon: 'Check', intent: 'FreeTextCallout' }
-    delete (note as { quads?: unknown }).quads
-    expect(validate(note), JSON.stringify(validate.errors)).toBe(true)
-    const line = {
-      ...note,
-      type: 'line',
-      start: { x: 0, y: 0 },
-      end: { x: 5, y: 5 },
-      width: 1,
-      head: 'OpenArrow',
-      tail: 'Draft_1',
-    }
-    delete (line as { icon?: unknown }).icon
-    expect(validate(line), JSON.stringify(validate.errors)).toBe(true)
-    expect(validate({ ...line, tail: 'has space' })).toBe(false)
-    expect(validate({ ...note, icon: '' })).toBe(false)
-    const text = JSON.stringify(readPublished())
-    expect(text).toContain('Any other PDF name is allowed')
-  })
-
-  it('leaves defaulted fields optional, as a writer may send them, and keeps their defaults', () => {
-    const validate = compileAnnotation()
-    const { quads: _quads, ...rest } = exported as typeof exported & { quads?: unknown }
-    const note = { ...rest, type: 'text' }
-    expect(validate(note), JSON.stringify(validate.errors)).toBe(true)
-    const freetext = {
-      ...rest,
-      type: 'freetext',
-      contents: 'Hi',
-      defaultStyle: { color: '#000000' },
-    }
-    expect(validate(freetext), JSON.stringify(validate.errors)).toBe(true)
-    expect(AnnotationSchema.parse({ ...note, source: 'session' })).toMatchObject({
-      icon: 'Note',
-    })
-    expect(JSON.stringify(readPublished())).toContain('"default":"Note"')
-    // Inkbar's own output, with every default filled in, still validates.
-    const parsed = AnnotationSchema.parse({ ...freetext, source: 'session' })
-    const { source: _s, ...written } = parsed
-    expect(validate(written), JSON.stringify(validate.errors)).toBe(true)
-    const parsedNote = AnnotationSchema.parse({ ...note, source: 'session' })
-    const { source: _n, ...writtenNote } = parsedNote
-    expect(validate(writtenNote), JSON.stringify(validate.errors)).toBe(true)
-  })
-
-  it('validates a stamp', () => {
-    const validate = compileAnnotation()
-    const { quads: _quads, ...rest } = exported as typeof exported & { quads?: unknown }
-    const stamp = {
-      ...rest,
-      type: 'stamp',
-      imagedata: 'data:image/png;base64,iVBORw0KGgo=',
-      rotation: 270,
-    }
-    expect(validate(stamp)).toBe(true)
-    expect(validate({ ...stamp, imagedata: 'http://example.com/a.png' })).toBe(false)
-  })
-
-  it('validates a loupe', () => {
-    const validate = compileAnnotation()
-    const { quads: _quads, ...rest } = exported as typeof exported & { quads?: unknown }
-    const loupe = { ...rest, type: 'loupe', magnification: 3, width: 2 }
-    expect(validate(loupe)).toBe(true)
-    expect(validate({ ...loupe, magnification: 1 })).toBe(false)
-  })
-
-  it('refuses a corner radius on a circle and line endings on a polygon', () => {
-    const validate = compileAnnotation()
-    const { quads: _quads, ...rest } = exported as typeof exported & { quads?: unknown }
-    const vertices = [
-      { x: 0, y: 0 },
-      { x: 5, y: 5 },
-    ]
-    expect(validate({ ...rest, type: 'square', width: 1, cornerRadius: 8 })).toBe(true)
-    expect(validate({ ...rest, type: 'circle', width: 1, cornerRadius: 8 })).toBe(false)
-    expect(
-      validate({ ...rest, type: 'polyline', width: 1, vertices, head: 'Circle' })
-    ).toBe(true)
-    expect(
-      validate({ ...rest, type: 'polygon', width: 1, vertices, head: 'Circle' })
-    ).toBe(false)
-  })
-
-  it('validates a mask', () => {
-    const validate = compileAnnotation()
-    const { quads: _quads, ...rest } = exported as typeof exported & { quads?: unknown }
-    const mask = { ...rest, type: 'mask', shape: 'ellipse', dim: 0.7 }
-    expect(validate(mask)).toBe(true)
-    expect(validate({ ...mask, dim: 2 })).toBe(false)
-    expect(validate({ ...mask, shape: 'star' })).toBe(false)
-  })
-
-  it('leaves viewer state out of the exported shape', () => {
-    const validate = compileAnnotation()
-    expect(validate(valid)).toBe(false)
-    expect(validate({ ...exported, locked: true })).toBe(false)
-  })
-
-  it('accepts arbitrary nested JSON in custom', () => {
-    const validate = compileAnnotation()
-    const custom = { a: 1, b: { c: [true, null, 'x'] } }
-    expect(validate({ ...exported, custom })).toBe(true)
-  })
-
-  it('compiles as a document schema and checks the envelope', () => {
-    const validate = new Ajv2020({ strict: false, validateFormats: false }).compile(
-      readPublished()
-    )
-    const doc = { format: 'inkbar/annotations', version: 1, annotations: [exported] }
-    expect(validate(doc)).toBe(true)
-    expect(validate({ ...doc, version: 2 })).toBe(false)
-    expect(validate({ ...doc, annotations: [{ ...exported, color: 'yellow' }] })).toBe(
-      false
-    )
-    expect(AnnotationDocumentSchema.safeParse(doc).success).toBe(true)
   })
 })
 

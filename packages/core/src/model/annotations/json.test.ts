@@ -1,9 +1,10 @@
+import { ANNOTATION_TYPES } from 'gloss-format'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { staticDefaults } from './defaults'
-import { exportAnnotations, importAnnotations } from './json'
+import { exportAnnotations, importAnnotations, KNOWN_TYPES } from './json'
 import { createAnnotationStore } from './store'
-import { ANNOTATION_FORMAT, type AnnotationDocument } from './types'
+import { GLOSS_FORMAT, type AnnotationDocument } from './types'
 
 const rect = { x: 0, y: 0, width: 20, height: 20 }
 
@@ -23,7 +24,7 @@ describe('json import/export', () => {
     const out = exportAnnotations(s, [], 'doc-1')
     const { source: _source, ...exported } = a
     expect(out).toEqual({
-      format: ANNOTATION_FORMAT,
+      format: GLOSS_FORMAT,
       version: 1,
       documentKey: 'doc-1',
       annotations: [exported],
@@ -230,7 +231,7 @@ describe('json import/export', () => {
     importAnnotations(
       s,
       {
-        format: ANNOTATION_FORMAT,
+        format: GLOSS_FORMAT,
         version: 1,
         annotations: [{ ...change, contents: 'new' }],
       },
@@ -260,7 +261,7 @@ describe('json import/export', () => {
     const result = importAnnotations(
       s,
       {
-        format: ANNOTATION_FORMAT,
+        format: GLOSS_FORMAT,
         version: 1,
         annotations: [unknown, { type: 'text' }],
       } as never,
@@ -285,7 +286,7 @@ describe('json import/export', () => {
     importAnnotations(
       s,
       {
-        format: ANNOTATION_FORMAT,
+        format: GLOSS_FORMAT,
         version: 1,
         annotations: [
           { type: 'hologram', id: 'a', page: 0 },
@@ -311,7 +312,7 @@ describe('json import/export', () => {
     const pdf = { ...a, id: 'pdf:0:1R', source: 'pdf' as const, locked: true }
     s._setEmbedded([pdf])
     const empty: AnnotationDocument = {
-      format: ANNOTATION_FORMAT,
+      format: GLOSS_FORMAT,
       version: 1,
       annotations: [],
     }
@@ -341,7 +342,41 @@ describe('json import/export', () => {
       importAnnotations(s, { format: 'other', version: 1, annotations: [] } as never, {
         mode: 'replace',
       })
-    ).toThrow(/inkbar\/annotations/)
+    ).toThrow(/gloss v1/)
+  })
+
+  it('parses every type Gloss defines today', () => {
+    expect([...KNOWN_TYPES].sort()).toEqual([...ANNOTATION_TYPES].sort())
+  })
+
+  it('rejects an inkbar/annotations document', () => {
+    const s = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const old = { format: 'inkbar/annotations', version: 1, annotations: [] }
+    const run = () => importAnnotations(s, old as never, { mode: 'replace' })
+    expect(run).toThrow(TypeError)
+    expect(run).toThrow(/gloss v1/)
+  })
+
+  it('core is stricter than Gloss', () => {
+    const s = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    // Valid Gloss, but Inkbar needs the fill, colour, opacity and dates.
+    const minimal = { type: 'redact', id: 'r1', page: 0, rect }
+    const result = importAnnotations(
+      s,
+      { format: GLOSS_FORMAT, version: 1, annotations: [minimal] } as never,
+      { mode: 'replace' }
+    )
+    expect(result.imported).toBe(0)
+    expect(result.errors).toHaveLength(1)
+    expect(result.errors[0]?.index).toBe(0)
+    expect(result.errors[0]?.issues.join('\n')).toMatch(/interiorColor/)
+    expect(s.list.get()).toEqual([])
   })
 
   it('reports unknown types without an id or page instead of preserving them', () => {
@@ -353,7 +388,7 @@ describe('json import/export', () => {
     const result = importAnnotations(
       s,
       {
-        format: ANNOTATION_FORMAT,
+        format: GLOSS_FORMAT,
         version: 1,
         annotations: [
           { type: 'hologram', page: 0 },
@@ -379,7 +414,7 @@ describe('json import/export', () => {
       const result = importAnnotations(
         s,
         {
-          format: ANNOTATION_FORMAT,
+          format: GLOSS_FORMAT,
           version: 1,
           annotations: [
             a,

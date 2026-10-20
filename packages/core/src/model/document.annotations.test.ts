@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 
 import { fixtureBytes } from '@inkbar/fixtures'
 import { Ajv2020 } from 'ajv/dist/2020'
@@ -7,7 +8,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { nodeAssets } from '../pdfjs/node-assets'
 
 import { staticDefaults } from './annotations/defaults'
-import { importAnnotations } from './annotations/json'
+import { exportAnnotations, importAnnotations } from './annotations/json'
 import { createAnnotationStore } from './annotations/store'
 import { openDocument } from './document'
 
@@ -21,7 +22,10 @@ const exported = ({ source: _source, locked: _locked, ...rest }: Annotation) => 
 const compileSchema = () =>
   new Ajv2020({ strict: false, validateFormats: false }).compile(
     JSON.parse(
-      readFileSync(new URL('../../schema.json', import.meta.url), 'utf8')
+      readFileSync(
+        createRequire(import.meta.url).resolve('gloss-format/schema.json'),
+        'utf8'
+      )
     ) as object
   )
 
@@ -89,6 +93,14 @@ describe('document annotations', () => {
     expect(out.annotations).toHaveLength(2)
     expect(validate(JSON.parse(JSON.stringify(out)))).toBe(true)
     doc.destroy()
+  })
+
+  it('export carries the gloss format marker', () => {
+    const store = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    expect(exportAnnotations(store).format).toBe('gloss')
   })
 
   it('history and controlled mode are wired', async () => {
@@ -220,7 +232,7 @@ describe('document annotations', () => {
     doc.destroy()
   })
 
-  it('round-trips foreign items, which this version of the schema rejects', async () => {
+  it('round-trips foreign items, which validate as unknown annotations', async () => {
     const foreign = {
       id: 'f1',
       type: 'hologram',
@@ -237,13 +249,13 @@ describe('document annotations', () => {
     try {
       const mine = doc.annotations.add({ type: 'text', page: 0, rect })
       doc.importAnnotations(
-        { format: 'inkbar/annotations', version: 1, annotations: [mine, foreign] },
+        { format: 'gloss', version: 1, annotations: [mine, foreign] },
         { mode: 'replace' }
       )
       const out = doc.exportAnnotations('json')
       expect(out.annotations).toEqual([exported(mine), foreign])
       const json = JSON.stringify(out)
-      expect(compileSchema()(JSON.parse(json))).toBe(false)
+      expect(compileSchema()(JSON.parse(json))).toBe(true)
 
       const fresh = createAnnotationStore({
         mode: { mode: 'uncontrolled' },
@@ -268,7 +280,7 @@ describe('document annotations', () => {
     await doc.ready
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     try {
-      const envelope = { format: 'inkbar/annotations' as const, version: 1 as const }
+      const envelope = { format: 'gloss' as const, version: 1 as const }
       const known = doc.annotations.completeInput({
         id: 'x',
         type: 'text',
@@ -303,7 +315,7 @@ describe('document annotations', () => {
         seen.push(doc.exportAnnotations('json').annotations)
       )
       doc.importAnnotations({
-        format: 'inkbar/annotations',
+        format: 'gloss',
         version: 1,
         annotations: [foreign],
       })
@@ -345,7 +357,7 @@ describe('document annotations', () => {
       const [pdf] = doc.annotations.list.get()
       const id = pdf!.id
       const result = doc.importAnnotations({
-        format: 'inkbar/annotations',
+        format: 'gloss',
         version: 1,
         annotations: [
           { ...pdf!, source: 'session' },
