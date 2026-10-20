@@ -11,14 +11,25 @@ const EMPTY: Readonly<StyleProps> = {}
  * The tool style the style controls read and write: `current` shows the selection's values
  * (`'mixed'` where they differ), else the active tool's group; `supported` names the props
  * the active tool or the selection has. `set` updates the group and the selected annotations.
+ *
+ * With `group`, the style as a control for that group sees it, whatever tool is active: the
+ * selection's when it is all in the group, else the group's own; `set` updates the group, and
+ * the selection only when it is all in the group.
  */
-export function useToolStyle() {
+export function useToolStyle(group?: StyleGroup) {
   const ctx = useInkContext('useToolStyle()')
+  const view = () => {
+    const style = ctx.toolStyle.value
+    return group && style ? style.scoped(group) : style
+  }
   return {
-    current: useReadable(() => ctx.toolStyle.value?.current, NO_STYLE),
-    supported: useReadable(() => ctx.toolStyle.value?.supported, NO_PROPS),
-    set: (patch: StyleProps, opts?: { group?: StyleGroup; apply?: boolean }) =>
-      ctx.toolStyle.value?.set(patch, opts),
+    current: useReadable(() => view()?.current, NO_STYLE),
+    supported: useReadable(() => view()?.supported, NO_PROPS),
+    set: (patch: StyleProps, opts?: { group?: StyleGroup; apply?: boolean }) => {
+      const style = ctx.toolStyle.value
+      if (group) style?.scoped(group).set(patch)
+      else style?.set(patch, opts)
+    },
     get: (group: StyleGroup): Readonly<StyleProps> =>
       ctx.toolStyle.value?.get(group) ?? EMPTY,
   }

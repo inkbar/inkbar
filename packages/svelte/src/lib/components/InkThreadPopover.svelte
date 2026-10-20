@@ -1,24 +1,26 @@
 <script module lang="ts">
-  import type { NotePopoverSlotProps } from '@inkbar/core/dom'
+  import type { ThreadPopoverSlotProps } from '@inkbar/core/dom'
   import type { Snippet } from 'svelte'
 
-  export interface InkNotePopoverProps {
-    children?: Snippet<[NotePopoverSlotProps]> | undefined
+  export interface InkThreadPopoverProps {
+    children?: Snippet<[ThreadPopoverSlotProps]> | undefined
   }
 </script>
 
 <script lang="ts">
   /*
-   * The thread for the activated note, anchored to the note's overlay element. Activating a
-   * reply opens the whole thread from its root. Closing (Close, Escape, a press outside) clears
-   * `activated`.
+   * The thread for the activated note or text markup, anchored to the root's overlay
+   * element. Activating a reply opens the whole thread from its root. Closing (Close, Escape,
+   * a press outside) clears `activated`.
    *
-   * A new note has no text. While its root is empty (and unlocked) the default form writes the
-   * root's own `contents`, labelled "Comment", and the thread list stays hidden until there is
-   * something in it; after that the form adds replies. Closing a root that is still empty and
-   * has no replies removes it, so an abandoned note does not stay on the page.
+   * A new note, or a highlight, has no text. While its root is empty (and unlocked) the
+   * default form writes the root's own `contents`, labelled "Comment", and the thread list
+   * stays hidden until there is something in it; after that the form adds replies. Closing a
+   * note that is still empty and has no replies removes it, so an abandoned note does not stay
+   * on the page. Markup stays: the mark is the point.
    */
   import { isAbandonedNote, threadOf, threadRoot } from '@inkbar/core'
+  import { threadPopoverLabel } from '@inkbar/core/dom'
   import { Popover } from 'bits-ui'
   import { untrack } from 'svelte'
 
@@ -29,18 +31,18 @@
   import { keepOpenOnAnnotation, useFocusReturn } from './popover-focus.js'
   import ThreadForm from './ThreadForm.svelte'
 
-  import type { Annotation, NoteAnnotation } from '@inkbar/core'
+  import type { Annotation, ThreadRoot } from '@inkbar/core'
 
-  let { children }: InkNotePopoverProps = $props()
+  let { children }: InkThreadPopoverProps = $props()
 
-  const ctx = useInkContext('InkNotePopover')
+  const ctx = useInkContext('InkThreadPopover')
   const store = useAnnotations()
 
-  const note = $derived.by<NoteAnnotation | null>(() => {
+  const note = $derived.by<ThreadRoot | null>(() => {
     const a = ctx.activated
       ? store.annotations.find((x) => x.id === ctx.activated)
       : undefined
-    return a?.type === 'text' ? threadRoot(store.annotations, a) : null
+    return a ? threadRoot(store.annotations, a) : null
   })
   const anchorRef = useAnnotationElement(
     () => ctx.rootEl,
@@ -51,11 +53,11 @@
   const open = $derived(note !== null && anchor !== null)
   /** The root, then every reply below it, depth first, each level in creation order. */
   const thread = $derived<Annotation[]>(note ? threadOf(store.annotations, note) : [])
-  /** True while the default form writes the root note's own text rather than a reply. */
+  /** True while the default form writes the root's own text rather than a reply. */
   const editingRoot = $derived(note !== null && !note.locked && !note.contents?.trim())
 
   /**
-   * Notes this popover wrote text or a reply for. In controlled mode the write is a proposal
+   * Roots this popover wrote text or a reply for. In controlled mode the write is a proposal
    * the host may not have applied yet, so the applied list still shows the note empty; these
    * are never dropped as abandoned. Bookkeeping only: nothing renders from it.
    */
@@ -67,7 +69,13 @@
 
   /** Removes an unlocked root note with no text and no replies. True when it did. */
   function dropIfEmpty(id: string): boolean {
-    if (dropped.has(id) || written.has(id) || !isAbandonedNote(store.annotations, id))
+    const a = store.annotations.find((x) => x.id === id)
+    if (
+      !a ||
+      dropped.has(id) ||
+      written.has(id) ||
+      !isAbandonedNote(a, store.annotations)
+    )
       return false
     dropped.add(id)
     store.remove(id)
@@ -97,13 +105,9 @@
       inReplyTo: root.id,
     })
   }
-  function isEmptyRoot(root: NoteAnnotation): boolean {
-    return (
-      !written.has(root.id) &&
-      !root.locked &&
-      !root.contents?.trim() &&
-      thread.length === 1
-    )
+  /** A note that closing now would remove. */
+  function isEmptyRoot(root: ThreadRoot): boolean {
+    return !written.has(root.id) && isAbandonedNote(root, store.annotations)
   }
   function close(): void {
     const root = note
@@ -118,12 +122,12 @@
     if (contents.trim()) written.add(note.id)
     store.update(note.id, { contents })
   }
-  /** Locked notes cannot be removed: removing one does nothing and keeps the popover. */
+  /** Locked roots cannot be removed: removing one does nothing and keeps the popover. */
   function removeThread(): void {
     const root = note
     if (!root || root.locked) return
     focusReturn.beforeRemove(anchor)
-    // Under a slow controlled host the note stays listed for a while; it is not asked for again.
+    // Under a slow controlled host the root stays listed for a while; it is not asked for again.
     dropped.add(root.id)
     store.remove(root.id)
     ctx.setActivated(null)
@@ -137,13 +141,13 @@
   <Popover.Portal>
     {#if note && anchor}
       <Popover.Content
-        class="ink-note-popover"
-        data-ink-note-popover=""
+        class="ink-thread-popover"
+        data-ink-thread-popover=""
         role="dialog"
         side="right"
         sideOffset={8}
         collisionPadding={8}
-        aria-label="Note thread"
+        aria-label={threadPopoverLabel(note)}
         customAnchor={anchor}
         onInteractOutside={keepOpenOnAnnotation}
         onOpenAutoFocus={focusReturn.onOpenAutoFocus}
@@ -151,7 +155,7 @@
       >
         {#if children}
           {@render children({
-            note,
+            root: note,
             replies: thread.slice(1),
             reply,
             update: updateContents,
@@ -176,7 +180,7 @@
               {/each}
             </ol>
           {/if}
-          <!-- Keyed by note: moving to another note starts with an empty draft at once. -->
+          <!-- Keyed by root: moving to another thread starts with an empty draft at once. -->
           {#key note.id}
             <ThreadForm
               {editingRoot}

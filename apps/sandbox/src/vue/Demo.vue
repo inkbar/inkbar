@@ -6,10 +6,10 @@
  */
 import {
   InkColorMenu,
+  InkHighlightMenu,
   InkLineStyleMenu,
   InkTextStyleMenu,
   InkNextPage,
-  InkNotePopover,
   InkPageCount,
   InkPageInput,
   InkPrevPage,
@@ -17,6 +17,7 @@ import {
   InkRoot,
   InkShapeMenu,
   InkSuggestionCard,
+  InkThreadPopover,
   InkToolbar,
   InkToolbarSeparator,
   InkToolButton,
@@ -39,9 +40,7 @@ defineProps<{ source: DocumentSource }>()
 <template>
   <InkRoot :src="source" :assets="assets" class="demo-root">
     <InkToolbar class="demo-toolbar">
-      <div class="demo-group" role="group" aria-label="Highlight">
-        <InkToolButton tool="highlight" />
-      </div>
+      <InkHighlightMenu />
       <div class="demo-group" role="group" aria-label="Tools">
         <InkToolButton tool="select-text" />
         <InkToolButton tool="select" />
@@ -77,7 +76,7 @@ defineProps<{ source: DocumentSource }>()
         <InkZoomIn />
       </div>
     </InkToolbar>
-    <InkNotePopover />
+    <InkThreadPopover />
     <InkSuggestionCard />
   </InkRoot>
 </template>

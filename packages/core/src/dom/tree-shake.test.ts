@@ -36,7 +36,7 @@ async function bundle(code: string): Promise<string> {
 }
 
 const VIEWER_UI = [
-  'ink-note-popover',
+  'ink-thread-popover',
   'ink-suggestion-card',
   'data-ink-zoom-select',
   'data-ink-prev-page',

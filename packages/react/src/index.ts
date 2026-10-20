@@ -14,7 +14,7 @@ export { useEmbedded } from './hooks/useEmbedded'
 export type {
   AnnotationSlotProps,
   AnnotationState,
-  NotePopoverSlotProps,
+  ThreadPopoverSlotProps,
   SuggestionCardSlotProps,
 } from '@inkbar/core/dom'
 export type { ConfidenceBucket } from '@inkbar/core'
@@ -52,11 +52,13 @@ export { InkColorMenu } from './components/InkColorMenu'
 export type { InkColorMenuProps } from './components/InkColorMenu'
 export { InkShapeMenu } from './components/InkShapeMenu'
 export type { InkShapeMenuProps } from './components/InkShapeMenu'
+export { InkHighlightMenu } from './components/InkHighlightMenu'
+export type { InkHighlightMenuProps } from './components/InkHighlightMenu'
 export { InkTextStyleMenu } from './components/InkTextStyleMenu'
 export type { InkTextStyleMenuProps } from './components/InkTextStyleMenu'
 export { InkLineStyleMenu } from './components/InkLineStyleMenu'
 export type { InkLineStyleMenuProps } from './components/InkLineStyleMenu'
-export { InkNotePopover } from './components/InkNotePopover'
-export type { InkNotePopoverProps } from './components/InkNotePopover'
+export { InkThreadPopover } from './components/InkThreadPopover'
+export type { InkThreadPopoverProps } from './components/InkThreadPopover'
 export { InkSuggestionCard } from './components/InkSuggestionCard'
 export type { InkSuggestionCardProps } from './components/InkSuggestionCard'

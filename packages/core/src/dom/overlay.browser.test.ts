@@ -2,6 +2,7 @@ import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { staticDefaults } from '../model/annotations/defaults'
+import { isTextMarkup } from '../model/annotations/edit'
 import { createAnnotationStore } from '../model/annotations/store'
 
 import { createOverlay } from './overlay'
@@ -528,8 +529,11 @@ describe('createOverlay', () => {
       expect(parseFloat(el.style.top)).toBeCloseTo(box.top)
       expect(parseFloat(el.style.width)).toBeCloseTo(box.width)
       expect(parseFloat(el.style.height)).toBeCloseTo(box.height)
-      // Nothing drawn: only the invisible hit area, which follows the quads.
-      expect(el.childElementCount).toBe(1)
+      // Nothing drawn: only the invisible hit area, which follows the quads, and the comment
+      // marker on commented markup, which PDF.js does not paint.
+      const commented = isTextMarkup(a) && !!a.contents?.trim()
+      expect(el.childElementCount).toBe(commented ? 2 : 1)
+      expect(el.querySelectorAll('.ink-comment-marker')).toHaveLength(commented ? 1 : 0)
       const hit = el.firstElementChild as SVGElement
       expect(hit.dataset.inkHit).toBe('')
       expect(hit.querySelectorAll('polygon')).toHaveLength(

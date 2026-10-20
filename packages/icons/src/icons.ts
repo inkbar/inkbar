@@ -240,3 +240,32 @@ export const AlignJustify: IconNode = [
   ['path', { d: 'M3 12h18' }],
   ['path', { d: 'M3 19h18' }],
 ]
+
+export const Strikethrough: IconNode = [
+  ['path', { d: 'M16 4H9a3 3 0 0 0-2.83 4' }],
+  ['path', { d: 'M14 12a4 4 0 0 1 0 8H6' }],
+  ['line', { x1: '4', x2: '20', y1: '12', y2: '12' }],
+]
+
+export const SpellCheck2: IconNode = [
+  ['path', { d: 'm6 16 6-12 6 12' }],
+  ['path', { d: 'M8 12h8' }],
+  [
+    'path',
+    {
+      d: 'M4 21c1.1 0 1.1-1 2.3-1s1.1 1 2.3 1c1.1 0 1.1-1 2.3-1 1.1 0 1.1 1 2.3 1 1.1 0 1.1-1 2.3-1 1.1 0 1.1 1 2.3 1 1.1 0 1.1-1 2.3-1',
+    },
+  ],
+]
+
+export const MessageSquareText: IconNode = [
+  [
+    'path',
+    {
+      d: 'M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z',
+    },
+  ],
+  ['path', { d: 'M7 11h10' }],
+  ['path', { d: 'M7 15h6' }],
+  ['path', { d: 'M7 7h8' }],
+]

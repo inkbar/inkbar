@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import { InkColorMenu } from '../../src/components/InkColorMenu'
+import { InkHighlightMenu } from '../../src/components/InkHighlightMenu'
 import { InkLineStyleMenu } from '../../src/components/InkLineStyleMenu'
 import { InkNextPage } from '../../src/components/InkNextPage'
 import { InkPageCount } from '../../src/components/InkPageCount'
@@ -48,9 +49,9 @@ export function ToolbarHarness({
         : {})}
     >
       <InkToolbar>
+        <InkHighlightMenu />
         <InkToolButton tool="select-text" />
         <InkToolButton tool="select" />
-        <InkToolButton tool="highlight" />
         <InkToolButton tool="redact-area" />
         <InkToolButton tool="sketch" />
         <InkToolButton tool="draw" />

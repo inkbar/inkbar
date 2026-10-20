@@ -20,7 +20,7 @@
 
 ---
 
-Drop a PDF viewer into your Svelte app and let people highlight text, leave notes with replies and review redactions. `@inkbar/svelte` gives you components to build your own toolbars, popovers for notes and suggested redactions, and hooks for anything else. `@inkbar/theme` styles them all.
+Drop a PDF viewer into your Svelte app and let people highlight text, leave notes with replies and review redactions. `@inkbar/svelte` gives you components to build your own toolbars, popovers for comment threads and suggested redactions, and hooks for anything else. `@inkbar/theme` styles them all.
 
 Annotations are plain typed objects. Bind them with `bind:annotations` to keep them in your own state, or let Inkbar hold them with undo and redo.
 
@@ -51,7 +51,7 @@ Svelte 5.46.4 or later is a peer dependency. Add the Vite plugin from `@inkbar/c
     InkZoomOut,
     InkZoomSelect,
     InkZoomIn,
-    InkNotePopover,
+    InkThreadPopover,
     InkSuggestionCard,
   } from '@inkbar/svelte'
   import type { Annotation } from '@inkbar/core'
@@ -84,7 +84,7 @@ Svelte 5.46.4 or later is a peer dependency. Add the Vite plugin from `@inkbar/c
     <InkZoomSelect />
     <InkZoomIn />
   </InkToolbar>
-  <InkNotePopover />
+  <InkThreadPopover />
   <InkSuggestionCard />
 </InkRoot>
 ```
@@ -147,15 +147,17 @@ Inside `InkRoot`, `useHistory()` returns the same object. Its `batch(fn)` runs `
 
 `key` identifies the document. Reuse the same key when only the signed URL changes and the document is not reloaded.
 
-## Note popover
+## Thread popover
 
-`InkNotePopover` opens the thread of the activated note. A new note has no text yet, so the form first writes the note's own text (labelled "Comment"); after that it adds replies.
+`InkThreadPopover` opens the comment thread of the activated note or text markup (a highlight, underline, strikeout or squiggly). A new note or highlight has no text yet, so the form first writes its own `contents` (labelled "Comment"); after that it adds replies. A highlight with a comment shows a small marker at its end. Replies show in the thread only; the page draws just the note or highlight they answer.
 
-A root note with no text and no replies is removed when its popover closes, or when activation moves to another annotation, so abandoned notes do not stay on the page. Locked notes are never removed. If you add notes yourself (`add({ type: 'text', ... })`), give them `contents`, or they will be removed the first time someone opens and closes them.
+A root note with no text and no replies is removed when its popover closes, or when activation moves to another annotation, so abandoned notes do not stay on the page. A highlight stays: the mark is the point. Locked annotations are never removed. If you add notes yourself (`add({ type: 'text', ... })`), give them `contents`, or they will be removed the first time someone opens and closes them.
+
+The highlight tool leaves `contents` free for the comment. Read the marked text with `doc.text(page)`. `InkHighlightMenu` is a split button for the tool: it picks the markup kind and its colour.
 
 ## Custom rendering
 
-Slots are snippets. `InkViewport` takes `loading`, `empty`, `error`, `annotation` and `pageError`. `InkNotePopover` and `InkSuggestionCard` take `children` as a snippet that receives the popover's props. `InkToolButton` takes `children` as a snippet of `{ active, label }`. The props each receives are typed as `AnnotationSlotProps`, `NotePopoverSlotProps` and `SuggestionCardSlotProps`, the same types the Vue and React packages export.
+Slots are snippets. `InkViewport` takes `loading`, `empty`, `error`, `annotation` and `pageError`. `InkThreadPopover` and `InkSuggestionCard` take `children` as a snippet that receives the popover's props. `InkToolButton` takes `children` as a snippet of `{ active, label }`. The props each receives are typed as `AnnotationSlotProps`, `ThreadPopoverSlotProps` and `SuggestionCardSlotProps`, the same types the Vue and React packages export.
 
 `InkRoot`, `InkToolbar`, `InkToolButton`, `InkUndo`, `InkRedo`, `InkPrevPage`, `InkNextPage`, `InkZoomIn` and `InkZoomOut` take a `child` snippet to render your own element. Spread the `props` it gives you on that element. The snippet type is exported as `ChildSnippet`.
 

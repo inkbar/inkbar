@@ -199,4 +199,36 @@ describe('createToolStyle', () => {
     })
     expect(style.supported.get().has('textColor')).toBe(true)
   })
+
+  describe('scoped', () => {
+    it('shows the group under another tool, and sets only the group', () => {
+      const { store, style } = setup('none')
+      const sq = store.add({ type: 'square', page: 0, rect })
+      store.select([sq.id])
+      const markup = style.scoped('markup')
+      expect(style.scoped('markup')).toBe(markup)
+      expect(markup.current.get()).toEqual({})
+      expect([...markup.supported.get()]).toContain('border')
+      markup.set({ border: '#00FF00' })
+      expect(style.get('markup').border).toBe('#00FF00')
+      expect(markup.current.get()).toEqual({ border: '#00FF00' })
+      // A square in the selection is not the group's: it keeps its colour.
+      expect(store.get(sq.id)?.color).toBe(sq.color)
+    })
+
+    it('follows and recolours a selection wholly in the group, in one step', () => {
+      const { store, history, style } = setup('none')
+      const hl = store.add({ type: 'highlight', page: 0, quads })
+      const ul = store.add({ type: 'underline', page: 0, quads, color: '#112233' })
+      store.select([hl.id, ul.id])
+      const markup = style.scoped('markup')
+      expect(markup.current.get().border).toBe('mixed')
+      markup.set({ border: '#00FF00' })
+      expect(store.get(hl.id)?.color).toBe('#00FF00')
+      expect(store.get(ul.id)?.color).toBe('#00FF00')
+      expect(style.get('markup').border).toBe('#00FF00')
+      history.undo()
+      expect(store.get(ul.id)?.color).toBe('#112233')
+    })
+  })
 })

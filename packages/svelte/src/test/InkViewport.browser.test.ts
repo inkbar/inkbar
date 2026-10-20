@@ -276,14 +276,14 @@ describe('InkViewport', () => {
     })
     const CUSTOM = '[data-annotation][data-custom] > .my-pin'
     await q(CUSTOM)
-    await expect.poll(count(CUSTOM)).toBe(4)
+    await expect.poll(count(CUSTOM)).toBe(2)
     await expect.poll(attr(CUSTOM, 'data-pin-state')).toBe('idle')
     // `locked` mirrors the overlay's own `data-locked` flag (embedded notes arrive locked).
     const pairs = qa('[data-annotation][data-custom]').map((e) => [
       e.querySelector<HTMLElement>('.my-pin')?.dataset.pinLocked,
       String(e.hasAttribute('data-locked')),
     ])
-    expect(pairs).toHaveLength(4)
+    expect(pairs).toHaveLength(2)
     for (const [pin, overlay] of pairs) expect(pin).toBe(overlay)
     // The overlay draws nothing of its own into a custom element, and no wrapper came along.
     expect(count('[data-annotation][data-custom] svg')()).toBe(0)
@@ -297,7 +297,7 @@ describe('InkViewport', () => {
       assets,
       zoom: 1,
     })
-    await expect.poll(count('[data-annotation]')).toBe(4)
+    await expect.poll(count('[data-annotation]')).toBe(2)
     expect(count('[data-annotation][data-custom]')()).toBe(0)
     for (const el of qa('[data-annotation]'))
       expect(el.querySelectorAll(':scope > svg').length).toBe(1)

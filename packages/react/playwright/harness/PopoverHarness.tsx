@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 
-import { InkNotePopover } from '../../src/components/InkNotePopover'
 import { InkRoot } from '../../src/components/InkRoot'
 import { InkSuggestionCard } from '../../src/components/InkSuggestionCard'
+import { InkThreadPopover } from '../../src/components/InkThreadPopover'
 import { InkViewport } from '../../src/components/InkViewport'
 
 import type { Annotation, DocumentSource, InkDocument, PdfAssets } from '@inkbar/core'
@@ -20,7 +20,7 @@ export interface PopoverHarnessProps {
   customAnnotations?: boolean | undefined
   /** Replace the card's default content with one render-prop Remove button. */
   customCard?: boolean | undefined
-  /** Replace the note popover's default content with one render-prop Remove button. */
+  /** Replace the thread popover's default content with one render-prop Remove button. */
   customNote?: boolean | undefined
   tool?: ToolId | undefined
 }
@@ -93,15 +93,15 @@ export function PopoverHarness(props: PopoverHarnessProps) {
         />
       </div>
       {props.customNote ? (
-        <InkNotePopover>
+        <InkThreadPopover>
           {({ remove }) => (
             <button type="button" data-testid="custom-remove" onClick={remove}>
               Remove
             </button>
           )}
-        </InkNotePopover>
+        </InkThreadPopover>
       ) : (
-        <InkNotePopover />
+        <InkThreadPopover />
       )}
       {props.customCard ? (
         <InkSuggestionCard>

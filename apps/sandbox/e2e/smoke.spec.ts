@@ -233,6 +233,11 @@ for (const framework of FRAMEWORKS) {
         '.ink-page[data-page="0"] .ink-annotation[data-type="highlight"][data-source="session"]'
       )
       await expect(highlight).toHaveCount(1)
+      // The tool selects what it made; Escape on it clears that.
+      await expect(highlight).toHaveAttribute('data-state', 'selected')
+      await highlight.focus()
+      await page.keyboard.press('Escape')
+      await expect(page.locator('.ink-annotation[data-state="selected"]')).toHaveCount(0)
 
       await page.getByRole('button', { name: 'Select text', exact: true }).click()
       await page.evaluate(() => window.getSelection()?.removeAllRanges())
@@ -254,6 +259,93 @@ for (const framework of FRAMEWORKS) {
       expect(selected.trim()).not.toBe('')
       expect(text).toContain(selected.trim())
       await expect(page.locator('.ink-annotation[data-state="selected"]')).toHaveCount(0)
+    })
+
+    test('highlight text and comment on it', async ({ page }) => {
+      await page.goto(`${framework}/`)
+      await waitForFirstPage(page)
+      const span = page
+        .locator('.ink-page[data-page="0"] [data-ink-text-layer] span')
+        .filter({ hasText: /\w{8}/ })
+        .first()
+      const line = (await span.boundingBox())!
+      const midY = line.y + line.height / 2
+
+      // Underline the line, chosen from the highlight menu.
+      await page.getByRole('button', { name: 'Choose highlight' }).click()
+      await page
+        .getByRole('menu', { name: 'Highlights' })
+        .getByRole('menuitemradio', { name: 'Underline', exact: true })
+        .click()
+      await page.mouse.move(line.x + 1, midY)
+      await page.mouse.down()
+      await page.mouse.move(line.x + line.width - 1, midY, { steps: 5 })
+      await page.mouse.up()
+      const mark = sessionShape(page, 'underline')
+      await expect(mark).toHaveCount(1)
+      await expect(mark).toHaveAttribute('data-state', 'selected')
+
+      // Activate it and write the first comment, then a reply.
+      await mark.focus()
+      await page.keyboard.press('Enter')
+      const popover = page.locator('[data-ink-thread-popover]')
+      await expect(popover).toBeVisible()
+      await expect(popover).toHaveAccessibleName('Comment thread')
+      await popover.getByRole('textbox', { name: 'Comment' }).fill('Check this line')
+      await popover.getByRole('button', { name: 'Comment' }).click()
+      await popover.getByRole('textbox', { name: 'Reply' }).fill('Done')
+      await popover.getByRole('button', { name: 'Reply' }).click()
+      await expect(popover.locator('[data-ink-thread-item]')).toHaveCount(2)
+      await popover.getByRole('button', { name: 'Close' }).click()
+      await expect(popover).toBeHidden()
+      await expect(mark).toHaveCount(1)
+      await expect(mark.locator('.ink-comment-marker')).toHaveCount(1)
+      await expect(mark).toHaveAccessibleName('Underline with comment')
+      // The reply lives in the thread only: no note on the page.
+      await expect(
+        page.locator('.ink-page[data-page="0"] [data-type="text"][data-source="session"]')
+      ).toHaveCount(0)
+
+      // A drag across the commented line still selects its text.
+      await page.getByRole('button', { name: 'Select text', exact: true }).click()
+      await page.evaluate(() => window.getSelection()?.removeAllRanges())
+      await page.mouse.move(line.x + 2, midY)
+      await page.mouse.down()
+      await page.mouse.move(line.x + line.width * 0.6, midY, { steps: 8 })
+      await page.mouse.up()
+      const selected = await page.evaluate(() => window.getSelection()?.toString() ?? '')
+      expect(selected.trim()).not.toBe('')
+    })
+
+    test('a drag across a just-made highlight selects text', async ({ page }) => {
+      await page.goto(`${framework}/`)
+      await waitForFirstPage(page)
+      const span = page
+        .locator('.ink-page[data-page="0"] [data-ink-text-layer] span')
+        .filter({ hasText: /\w{8}/ })
+        .first()
+      const text = (await span.textContent()) ?? ''
+      const line = (await span.boundingBox())!
+      const midY = line.y + line.height / 2
+      await page.getByRole('button', { name: 'Highlight', exact: true }).click()
+      await page.mouse.move(line.x + 1, midY)
+      await page.mouse.down()
+      await page.mouse.move(line.x + line.width - 1, midY, { steps: 5 })
+      await page.mouse.up()
+      const highlight = sessionShape(page, 'highlight')
+      await expect(highlight).toHaveAttribute('data-state', 'selected')
+      const before = await highlight.boundingBox()
+
+      // Straight on, still selected: the drag selects text rather than moving the mark.
+      await page.getByRole('button', { name: 'Select text', exact: true }).click()
+      await page.mouse.move(line.x + 2, midY)
+      await page.mouse.down()
+      await page.mouse.move(line.x + line.width * 0.6, midY, { steps: 8 })
+      await page.mouse.up()
+      const selected = await page.evaluate(() => window.getSelection()?.toString() ?? '')
+      expect(selected.trim()).not.toBe('')
+      expect(text).toContain(selected.trim())
+      expect(await highlight.boundingBox()).toEqual(before)
     })
 
     test('line style changes a drawn rectangle', async ({ page }) => {

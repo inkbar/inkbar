@@ -30,6 +30,8 @@ import { useToolStyle } from '../hooks/useToolStyle'
 
 import { InkIcon } from './InkIcon'
 
+import type { StyleGroup } from '@inkbar/core'
+
 export interface InkColorMenuProps extends Omit<
   ComponentPropsWithoutRef<'button'>,
   'children'
@@ -45,6 +47,11 @@ export interface InkColorMenuProps extends Omit<
    * panel (the text style menu's text colour).
    */
   standalone?: boolean
+  /**
+   * Scopes the menu to one style group: it shows and sets that group's colour whatever tool
+   * is active, and recolours the selection only when it is all in the group.
+   */
+  group?: StyleGroup
 }
 
 export function InkColorMenu({
@@ -53,10 +60,11 @@ export function InkColorMenu({
   className,
   children,
   standalone = false,
+  group,
   ...rest
 }: InkColorMenuProps) {
   const Wrap = standalone ? Fragment : Toolbar.Button
-  const { current, supported, set } = useToolStyle()
+  const { current, supported, set } = useToolStyle(group)
   const [open, setOpen] = useState(false)
   const model = colorMenuModel(property, current, supported)
   const name = label ?? model.label

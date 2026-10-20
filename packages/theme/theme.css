@@ -14,7 +14,7 @@
   /* Tokens. Popovers are portalled out of the root, so they carry the tokens too. */
   :where(
     [data-ink-root],
-    [data-ink-note-popover],
+    [data-ink-thread-popover],
     [data-ink-suggestion-card],
     [data-ink-select-content]
   ) {
@@ -50,7 +50,7 @@
   @media (prefers-color-scheme: dark) {
     :where(
       [data-ink-root]:not(.light, .light *),
-      [data-ink-note-popover]:not(.light *),
+      [data-ink-thread-popover]:not(.light *),
       [data-ink-suggestion-card]:not(.light *),
       [data-ink-select-content]:not(.light *)
     ) {
@@ -70,7 +70,7 @@
   :where(
     .dark [data-ink-root]:not(.light, .dark .light *),
     [data-ink-root].dark,
-    .dark [data-ink-note-popover]:not(.dark .light *),
+    .dark [data-ink-thread-popover]:not(.dark .light *),
     .dark [data-ink-suggestion-card]:not(.dark .light *),
     .dark [data-ink-select-content]:not(.dark .light *)
   ) {
@@ -361,6 +361,26 @@
     background: var(--ink-note);
     box-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
     pointer-events: none;
+  }
+
+  /* Commented text markup: a comment glyph at the markup's end. */
+  :where(.ink-comment-marker) {
+    position: absolute;
+    display: grid;
+    place-items: center;
+    width: 14px;
+    height: 14px;
+    translate: -25% -75%;
+    border-radius: 4px;
+    background: var(--ink-surface);
+    color: var(--ink-accent);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+    pointer-events: none;
+  }
+
+  :where(.ink-comment-marker > svg) {
+    width: 10px;
+    height: 10px;
   }
 
   :where(.ink-free-text) {
@@ -835,8 +855,30 @@
     padding-right: 0.5rem;
   }
 
-  /* Note threads and suggestion cards */
-  :where(.ink-note-popover, .ink-suggestion-card) {
+  /* Highlight menu: the markup kinds, then the markup colour. */
+  :where(.ink-highlight-kinds) {
+    display: grid;
+    gap: 2px;
+    padding: 0.25rem;
+  }
+
+  :where(.ink-highlight-item) {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-right: 0.5rem;
+  }
+
+  :where(.ink-highlight-colour) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.25rem 0.25rem 0.25rem 0.5rem;
+  }
+
+  /* Comment threads and suggestion cards */
+  :where(.ink-thread-popover, .ink-suggestion-card) {
     z-index: 50;
     width: 20rem;
     max-width: calc(100vw - 1rem);

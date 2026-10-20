@@ -1,39 +1,46 @@
 /*
- * The thread for the activated note, anchored to the note's overlay element. Activating a
- * reply opens the whole thread from its root. Closing (Close, Escape, a press outside) clears
- * the activation.
+ * The thread for the activated note or text markup, anchored to the root's overlay element.
+ * Activating a reply opens the whole thread from its root. Closing (Close, Escape, a press
+ * outside) clears the activation.
  *
- * A new note has no text. While its root is empty (and unlocked) the form writes the root's
- * own `contents`, labelled "Comment", and the thread list stays hidden until there is
- * something in it; after that the form adds replies. A root closed, or left for another
- * annotation, while still empty and without replies is removed. The thread list re-renders on
- * every store change; the form, and the draft in it, stays until the popover moves to another
- * note or the note is gone.
+ * A new note, or a highlight, has no text. While its root is empty (and unlocked) the form
+ * writes the root's own `contents`, labelled "Comment", and the thread list stays hidden until
+ * there is something in it; after that the form adds replies. A note closed, or left for
+ * another annotation, while still empty and without replies is removed; markup stays, since
+ * the mark is the point. The thread list re-renders on every store change; the form, and the
+ * draft in it, stays until the popover moves to another thread or the root is gone.
  */
-import { isAbandonedNote, threadOf, threadRoot } from '../../model/annotations/threads'
+import {
+  isAbandonedNote,
+  isThreadRoot,
+  threadOf,
+  threadRoot,
+  type ThreadRoot,
+} from '../../model/annotations/threads'
+import { threadPopoverLabel } from '../ui'
 
 import { button, h } from './dom'
 import { createPopover } from './popover'
 
 import type { AnnotationStore } from '../../model/annotations/store'
-import type { Annotation, NoteAnnotation } from '../../model/annotations/types'
+import type { Annotation } from '../../model/annotations/types'
 import type { Writable } from '../../model/readable'
 import type { FocusReturn } from '../popover-focus'
 
-export interface NotePopoverOptions {
+export interface ThreadPopoverOptions {
   root: HTMLElement
   store: AnnotationStore
   activated: Writable<string | null>
   focusReturn: FocusReturn
 }
 
-export function createNotePopover(opts: NotePopoverOptions): { destroy(): void } {
+export function createThreadPopover(opts: ThreadPopoverOptions): { destroy(): void } {
   const { root, store, activated, focusReturn } = opts
   const popover = createPopover({
     root,
     attrs: {
-      class: 'ink-note-popover',
-      'data-ink-note-popover': '',
+      class: 'ink-thread-popover',
+      'data-ink-thread-popover': '',
       'aria-label': 'Note thread',
     },
     focusReturn,
@@ -41,41 +48,41 @@ export function createNotePopover(opts: NotePopoverOptions): { destroy(): void }
   })
   const thread = h('ol', { class: 'ink-thread', 'data-ink-thread': '' })
   let form: ThreadForm | null = null
-  /** The root note shown now. */
+  /** The thread root shown now. */
   let current: string | null = null
-  /** Notes given text or a reply here: never dropped as abandoned. */
+  /** Roots given text or a reply here: never dropped as abandoned. */
   const written = new Set<string>()
   /** Notes already removed from here, so they are not removed twice. */
   const dropped = new Set<string>()
 
-  function shown(): NoteAnnotation | null {
+  function shown(): ThreadRoot | null {
     const a = current ? store.get(current) : undefined
-    return a?.type === 'text' ? a : null
+    return a && isThreadRoot(a) ? a : null
   }
 
-  function target(): NoteAnnotation | null {
+  function target(): ThreadRoot | null {
     const list = store.list.get()
     const id = activated.get()
     const a = id === null ? undefined : list.find((x) => x.id === id)
-    return a?.type === 'text' ? threadRoot(list, a) : null
+    return a ? threadRoot(list, a) : null
   }
 
-  const editingRoot = (n: NoteAnnotation): boolean => !n.locked && !n.contents?.trim()
+  const editingRoot = (n: ThreadRoot): boolean => !n.locked && !n.contents?.trim()
 
-  function isEmptyRoot(n: NoteAnnotation): boolean {
-    return (
-      !written.has(n.id) && editingRoot(n) && threadOf(store.list.get(), n).length === 1
-    )
+  /** A note that closing now would remove. */
+  function isEmptyRoot(n: ThreadRoot): boolean {
+    return !written.has(n.id) && isAbandonedNote(n, store.list.get())
   }
 
   function dropIfEmpty(id: string): void {
-    if (dropped.has(id) || written.has(id) || !isAbandonedNote(store.list.get(), id))
-      return
+    const list = store.list.get()
+    const a = list.find((x) => x.id === id)
+    if (!a || dropped.has(id) || written.has(id) || !isAbandonedNote(a, list)) return
     dropped.add(id)
     store.remove(id)
   }
 
-  function renderThread(n: NoteAnnotation): void {
+  function renderThread(n: ThreadRoot): void {
     const items = threadOf(store.list.get(), n)
     if (editingRoot(n) && items.length === 1) {
       thread.remove()
@@ -102,6 +109,7 @@ export function createNotePopover(opts: NotePopoverOptions): { destroy(): void }
       const opening = popover.panel.hidden
       form = createThreadForm(n, { submit, remove: removeThread, close })
       popover.panel.replaceChildren(form.element)
+      popover.panel.setAttribute('aria-label', threadPopoverLabel(n))
       renderThread(n)
       popover.show(n.id)
       if ((opening || hadFocus) && !popover.panel.hidden) form.textarea.focus()
@@ -129,7 +137,7 @@ export function createNotePopover(opts: NotePopoverOptions): { destroy(): void }
       })
   }
 
-  /** Locked notes cannot be removed: Delete is not offered for them. */
+  /** Locked roots cannot be removed: Delete is not offered for them. */
   function removeThread(): void {
     const n = shown()
     if (!n || n.locked) return
@@ -178,12 +186,12 @@ function threadItem(a: Annotation): HTMLLIElement {
 interface ThreadForm {
   readonly element: HTMLFormElement
   readonly textarea: HTMLTextAreaElement
-  /** Follows the note's state: "Comment" while its own text is empty, "Reply" after. */
-  sync(n: NoteAnnotation): void
+  /** Follows the root's state: "Comment" while its own text is empty, "Reply" after. */
+  sync(n: ThreadRoot): void
 }
 
 function createThreadForm(
-  n: NoteAnnotation,
+  n: ThreadRoot,
   actions: { submit: (text: string) => void; remove: () => void; close: () => void }
 ): ThreadForm {
   const textarea = h('textarea', { rows: '2' })
@@ -216,12 +224,12 @@ function createThreadForm(
     actions.submit(text)
   })
 
-  function sync(note: NoteAnnotation): void {
-    const label = !note.locked && !note.contents?.trim() ? 'Comment' : 'Reply'
+  function sync(root: ThreadRoot): void {
+    const label = !root.locked && !root.contents?.trim() ? 'Comment' : 'Reply'
     textarea.setAttribute('aria-label', label)
     textarea.placeholder = label
     send.textContent = label
-    if (note.locked) remove.remove()
+    if (root.locked) remove.remove()
     else if (!remove.isConnected) send.after(remove)
   }
   sync(n)

@@ -266,6 +266,96 @@ describe('tools', () => {
     expect(window.getSelection()!.isCollapsed).toBe(true)
   })
 
+  /** Selects the text of the span holding `text` on page 0 and releases the pointer on it. */
+  function selectSpanAndRelease(
+    container: HTMLElement,
+    viewport: Viewport,
+    text = 'QQ123456C'
+  ): void {
+    const span = [
+      ...viewport.hostFor(0)!.querySelectorAll('[data-ink-text-layer] span'),
+    ].find((s) => s.textContent?.includes(text))!
+    const range = document.createRange()
+    range.selectNodeContents(span)
+    window.getSelection()!.removeAllRanges()
+    window.getSelection()!.addRange(range)
+    const r = span.getBoundingClientRect()
+    pointer(container, 'pointerup', r.right, r.bottom)
+  }
+
+  it('highlight tool no longer copies selected text into contents', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('highlight')
+    selectSpanAndRelease(container, viewport)
+    const [hl] = doc.annotations.list.get()
+    expect(hl?.type).toBe('highlight')
+    expect(hl?.contents).toBeUndefined()
+  })
+
+  it('highlight selects the new markup', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('highlight')
+    selectSpanAndRelease(container, viewport)
+    const [hl] = doc.annotations.list.get()
+    expect(doc.annotations.selection.get()).toEqual([hl!.id])
+  })
+
+  it('underline kind creates underline', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    expect(tools.options('highlight').get()).toEqual({ kind: 'highlight' })
+    tools.set('highlight', { kind: 'underline' })
+    selectSpanAndRelease(container, viewport)
+    tools.set('highlight', { kind: 'squiggly' })
+    selectSpanAndRelease(container, viewport)
+    tools.set('highlight', { kind: 'strikeout' })
+    selectSpanAndRelease(container, viewport)
+    expect(doc.annotations.list.get().map((a) => a.type)).toEqual([
+      'underline',
+      'squiggly',
+      'strikeout',
+    ])
+  })
+
+  it.each(['text-simple', 'text-rotated-90'] as const)(
+    'commented highlight shows .ink-comment-marker (%s)',
+    async (fixture) => {
+      const { doc, viewport } = await setup(fixture)
+      const quad = (x: number, y: number) => ({
+        p1: { x, y: y + 12 },
+        p2: { x: x + 60, y: y + 12 },
+        p3: { x, y },
+        p4: { x: x + 60, y },
+      })
+      const hl = doc.annotations.add({
+        type: 'highlight',
+        page: 0,
+        quads: [quad(72, 700), quad(72, 680)],
+      })
+      await settle()
+      const el = () =>
+        viewport.hostFor(0)!.querySelector<HTMLElement>(`[data-annotation="${hl.id}"]`)!
+      expect(el().querySelector('.ink-comment-marker')).toBeNull()
+      doc.annotations.update(hl.id, { contents: 'Check this' })
+      await settle()
+      const marker = el().querySelector<HTMLElement>('span.ink-comment-marker')
+      expect(marker).not.toBeNull()
+      expect(el().getAttribute('aria-label')).toBe('Highlight with comment')
+      // At the last quad's top-right corner, wherever the page's rotation puts it.
+      const t = viewport.transformFor(0)
+      const corner = t.toCss({ x: 132, y: 692 })
+      const box = el().getBoundingClientRect()
+      const host = viewport.hostFor(0)!.getBoundingClientRect()
+      expect(box.left - host.left + parseFloat(marker!.style.left)).toBeCloseTo(
+        corner.x,
+        0
+      )
+      expect(box.top - host.top + parseFloat(marker!.style.top)).toBeCloseTo(corner.y, 0)
+      doc.annotations.update(hl.id, { contents: ' ' })
+      await settle()
+      expect(el().querySelector('.ink-comment-marker')).toBeNull()
+    }
+  )
+
   it.each([false, true])(
     'highlight adds one annotation per page for a selection across two pages (controlled: %s)',
     async (controlled) => {
@@ -293,6 +383,8 @@ describe('tools', () => {
         ['highlight', 0],
         ['highlight', 1],
       ])
+      // Both are selected, through the host too.
+      expect(doc.annotations.selection.get()).toEqual(list.map((a) => a.id))
       expect(window.getSelection()!.isCollapsed).toBe(true)
     }
   )
@@ -2638,6 +2730,74 @@ describe('selection editing', () => {
     expect(doc.annotations.get(hl.id)!.rect).toEqual(hl.rect)
     expect(window.getSelection()?.toString()).not.toBe('')
     window.getSelection()?.removeAllRanges()
+  })
+
+  it('a highlight with a reply draws no note, and a drag across it still selects text', async () => {
+    const { doc, viewport, tools, container } = await setup()
+    const { hl, x, y, host } = await helloHighlight(doc, viewport)
+    doc.annotations.update(hl.id, { contents: 'Why?' })
+    const reply = doc.annotations.add({
+      type: 'text',
+      page: 0,
+      rect: hl.rect,
+      contents: 'Because',
+      inReplyTo: hl.id,
+    })
+    await settle()
+    // Replies live in the thread popover only: no element, no hit area, no tab stop.
+    expect(host.querySelector(`[data-annotation="${reply.id}"]`)).toBeNull()
+    expect(host.querySelectorAll('[data-type="text"]')).toHaveLength(0)
+    // Whatever is on top at the press is what a pointer reaches.
+    const top = document.elementFromPoint(x, y)!
+    expect(top.closest('[data-annotation]')?.getAttribute('data-annotation')).toBe(hl.id)
+    window.getSelection()?.removeAllRanges()
+    pointer(top, 'pointerdown', x, y)
+    pointer(top, 'pointermove', x + 20, y)
+    pointer(top, 'pointermove', x + 40, y)
+    pointer(top, 'pointerup', x + 40, y)
+    expect(doc.annotations.selection.get()).toEqual([])
+    expect(window.getSelection()?.toString()).not.toBe('')
+    window.getSelection()?.removeAllRanges()
+    // A marquee over the highlight picks the highlight, never its reply.
+    tools.set('select')
+    const h = host.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 2, h.top + 2)
+    pointer(container, 'pointermove', h.right - 2, h.bottom - 2)
+    pointer(container, 'pointerup', h.right - 2, h.bottom - 2)
+    expect(doc.annotations.selection.get()).toContain(hl.id)
+    expect(doc.annotations.selection.get()).not.toContain(reply.id)
+    // Deleting the root still takes its replies.
+    doc.annotations.remove(hl.id)
+    expect(doc.annotations.get(reply.id)).toBeUndefined()
+  })
+
+  it('a note with replies has exactly one overlay element, and arrow keys skip replies', async () => {
+    const { doc, viewport } = await setup()
+    const note = (y: number, inReplyTo?: string) =>
+      doc.annotations.add({
+        type: 'text',
+        page: 0,
+        rect: { x: 100, y, width: 20, height: 20 },
+        contents: 'x',
+        ...(inReplyTo ? { inReplyTo } : {}),
+      })
+    const root = note(600)
+    const r1 = note(560, root.id)
+    note(520, r1.id)
+    const other = note(400)
+    await settle()
+    const host = viewport.hostFor(0)!
+    expect(
+      [...host.querySelectorAll('[data-annotation]')].map((e) =>
+        e.getAttribute('data-annotation')
+      )
+    ).toEqual([root.id, other.id])
+    const first = host.querySelector<HTMLElement>(`[data-annotation="${root.id}"]`)!
+    first.focus()
+    first.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true })
+    )
+    expect(document.activeElement?.getAttribute('data-annotation')).toBe(other.id)
   })
 
   it('a group move leaves a locked member in place, in one undo step', async () => {

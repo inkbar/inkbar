@@ -1,5 +1,6 @@
 <script lang="ts">
   import InkColorMenu from '../../lib/components/InkColorMenu.svelte'
+  import InkHighlightMenu from '../../lib/components/InkHighlightMenu.svelte'
   import InkLineStyleMenu from '../../lib/components/InkLineStyleMenu.svelte'
   import InkNextPage from '../../lib/components/InkNextPage.svelte'
   import InkPageCount from '../../lib/components/InkPageCount.svelte'
@@ -51,9 +52,9 @@
 
 {#snippet content()}
   <InkToolbar>
+    <InkHighlightMenu />
     <InkToolButton tool="select-text" />
     <InkToolButton tool="select" />
-    <InkToolButton tool="highlight" />
     <InkToolButton tool="redact-area" />
     <InkToolButton tool="sketch" />
     <InkToolButton tool="draw" />

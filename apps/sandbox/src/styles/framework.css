@@ -227,7 +227,7 @@
 }
 
 /* The plain TypeScript page hides its popovers with `hidden`; the theme's layered display rule would win otherwise. */
-[data-ink-note-popover][hidden],
+[data-ink-thread-popover][hidden],
 [data-ink-suggestion-card][hidden] {
   display: none;
 }

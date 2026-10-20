@@ -31,7 +31,7 @@ const stored = () => doc().annotations.list.get()
 const addAnnotation = (input: Record<string, unknown>) => doc().annotations.add(input).id
 const FIRST = '.ink-page[data-page="0"]'
 const SCROLL = '[data-ink-scroll]'
-const POPOVER = '[data-ink-note-popover]'
+const POPOVER = '[data-ink-thread-popover]'
 const CARD = '[data-ink-suggestion-card]'
 const SUGGESTED = '[data-annotation][data-origin="suggested"]'
 const scroll = () => document.querySelector<HTMLElement>(SCROLL)!
@@ -50,7 +50,7 @@ describe('popovers', () => {
   // React: 'note popover opens on activation, shows the thread, adds a reply and closes'
   it('note popover opens on activation, shows the thread, adds a reply and closes', async () => {
     await harness({ src: fixtureUrl('annotated-notes-threaded'), assets })
-    await expect.poll(count('[data-annotation]')).toBe(4)
+    await expect.poll(count('[data-annotation]')).toBe(2)
     const rootNote = stored().find((a) => a.contents === 'Root note')!
     const anchor = await q(`[data-annotation="${rootNote.id}"]`)
     await activate(anchor)
@@ -86,7 +86,7 @@ describe('popovers', () => {
   // React: 'note popover keeps focus inside, closes on Escape and can reopen'
   it('note popover keeps focus inside, closes on Escape and can reopen', async () => {
     await harness({ src: fixtureUrl('annotated-notes-threaded'), assets })
-    await expect.poll(count('[data-annotation]')).toBe(4)
+    await expect.poll(count('[data-annotation]')).toBe(2)
     const rootNote = stored().find((a) => a.contents === 'Root note')!
     const anchor = await q(`[data-annotation="${rootNote.id}"]`)
     await activate(anchor)
@@ -224,8 +224,8 @@ describe('popovers', () => {
     }
   })
 
-  // React: 'activating a nested reply opens the whole thread from its root'
-  it('activating a nested reply opens the whole thread from its root', async () => {
+  // React: 'nested replies have no element; the root opens the whole thread in order'
+  it('nested replies have no element; the root opens the whole thread in order', async () => {
     await harness({ src: fixtureUrl('text-simple'), assets })
     await q(`${FIRST} canvas`)
     const note = (y: number, contents: string, inReplyTo?: string) =>
@@ -240,7 +240,10 @@ describe('popovers', () => {
     const b = note(560, 'Reply B', r)
     const c = note(520, 'Reply C to B', b)
     note(480, 'Reply D', r)
-    await activate(await q(`[data-annotation="${c}"]`))
+    // Replies show in the thread only: the page draws just the root.
+    await expect.poll(count('[data-annotation]')).toBe(1)
+    expect(count(`[data-annotation="${c}"]`)()).toBe(0)
+    await activate(await q(`[data-annotation="${r}"]`))
     const popover = await q(POPOVER)
     await expect
       .poll(() =>
@@ -398,7 +401,7 @@ describe('popovers', () => {
         assets,
         customNote,
       })
-      await expect.poll(count('[data-annotation]')).toBe(4)
+      await expect.poll(count('[data-annotation]')).toBe(2)
       const rootNote = stored().find((a) => a.contents === 'Root note')!
       const anchor = await q(`[data-annotation="${rootNote.id}"]`)
       expect(anchor.getAttribute('data-locked')).toBe('')
@@ -410,7 +413,7 @@ describe('popovers', () => {
       } else {
         await screen.getByTestId('custom-remove').click()
         await expect.element(browserPage.elementLocator(popover)).toBeVisible()
-        expect(count('[data-annotation]')()).toBe(4)
+        expect(count('[data-annotation]')()).toBe(2)
       }
       await screen.unmount()
     }
@@ -596,5 +599,81 @@ describe('popovers', () => {
     expect(count(POPOVER)()).toBe(1)
     await sleep(200)
     expect(stored().map((a) => a.id)).toEqual([second])
+  })
+
+  /** A one-line highlight across the top of page 0, added through the dev hook. */
+  const addHighlight = (type = 'highlight') =>
+    addAnnotation({
+      type,
+      page: 0,
+      quads: [
+        {
+          p1: { x: 72, y: 712 },
+          p2: { x: 260, y: 712 },
+          p3: { x: 72, y: 698 },
+          p4: { x: 260, y: 698 },
+        },
+      ],
+    })
+
+  // React: 'activating a highlight opens the thread popover rooted at it'
+  it('activating a highlight opens the thread popover rooted at it', async () => {
+    await harness({ src: fixtureUrl('text-simple'), assets })
+    await q(`${FIRST} canvas`)
+    const id = addHighlight()
+    const mark = await q(`[data-annotation="${id}"]`)
+    // A click with no drag under select-text selects and activates markup.
+    await hitShape(mark).click()
+    const popover = await q(POPOVER)
+    await expect
+      .element(browserPage.elementLocator(popover))
+      .toHaveAccessibleName('Comment thread')
+    expect(count(`${POPOVER} [data-ink-thread]`)()).toBe(0)
+    await expect.poll(focused).toBe(byRole(popover, 'textbox', 'Comment').element())
+    await userEvent.keyboard('{Escape}')
+    await expect.poll(count(POPOVER)).toBe(0)
+    await activate(mark)
+    await expect.poll(count(POPOVER)).toBe(1)
+  })
+
+  // React: 'first comment sets the highlight contents; next adds a reply'
+  it('first comment sets the highlight contents; next adds a reply', async () => {
+    await harness({ src: fixtureUrl('text-simple'), assets })
+    await q(`${FIRST} canvas`)
+    const id = addHighlight('underline')
+    const mark = await q(`[data-annotation="${id}"]`)
+    await activate(mark)
+    const popover = await q(POPOVER)
+    await byRole(popover, 'textbox', 'Comment').fill('Why this?')
+    await byRole(popover, 'button', 'Comment').click()
+    await expect
+      .poll(() => stored().find((a) => a.id === id))
+      .toMatchObject({ type: 'underline', contents: 'Why this?' })
+    await expect.poll(count(`${POPOVER} [data-ink-thread-item]`)).toBe(1)
+    await byRole(popover, 'textbox', 'Reply').fill('Because')
+    await byRole(popover, 'button', 'Reply').click()
+    await expect.poll(count(`${POPOVER} [data-ink-thread-item]`)).toBe(2)
+    expect(stored().find((a) => a.contents === 'Because')).toMatchObject({
+      type: 'text',
+      inReplyTo: id,
+    })
+    await expect.poll(count(`[data-annotation="${id}"] .ink-comment-marker`)).toBe(1)
+    // The reply lives in the thread only: nothing for it on the page.
+    expect(count('[data-annotation][data-type="text"]')()).toBe(0)
+  })
+
+  // React: 'closing an empty highlight thread keeps the highlight'
+  it('closing an empty highlight thread keeps the highlight', async () => {
+    await harness({ src: fixtureUrl('text-simple'), assets })
+    await q(`${FIRST} canvas`)
+    const id = addHighlight()
+    const mark = await q(`[data-annotation="${id}"]`)
+    await activate(mark)
+    const popover = await q(POPOVER)
+    await byRole(popover, 'button', 'Close').click()
+    await expect.poll(count(POPOVER)).toBe(0)
+    await expect.poll(focused).toBe(mark)
+    expect(stored().map((a) => a.id)).toEqual([id])
+    expect(count(`[data-annotation="${id}"] .ink-comment-marker`)()).toBe(0)
   })
 })

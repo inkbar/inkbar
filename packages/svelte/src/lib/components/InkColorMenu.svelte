@@ -1,4 +1,5 @@
 <script module lang="ts">
+  import type { StyleGroup } from '@inkbar/core'
   import type { ColorProperty } from '@inkbar/core/dom'
   import type { Snippet } from 'svelte'
   import type { HTMLButtonAttributes } from 'svelte/elements'
@@ -22,6 +23,11 @@
      * panel (the text style menu's text colour).
      */
     standalone?: boolean | undefined
+    /**
+     * Scopes the menu to one style group: it shows and sets that group's colour whatever
+     * tool is active, and recolours the selection only when it is all in the group.
+     */
+    group?: StyleGroup | undefined
   }
 </script>
 
@@ -47,10 +53,12 @@
     class: className,
     children,
     standalone = false,
+    group,
     ...rest
   }: InkColorMenuProps = $props()
 
-  const style = useToolStyle()
+  // svelte-ignore state_referenced_locally
+  const style = useToolStyle(group)
   let open = $state(false)
 
   const model = $derived(colorMenuModel(property, style.current, style.supported))

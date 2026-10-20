@@ -29,6 +29,7 @@ export * from './model/annotations/history'
 export { createToolStyle, STYLE_GROUPS } from './model/annotations/tool-style'
 export type {
   CurrentStyle,
+  ScopedToolStyle,
   StyleGroup,
   StyleKey,
   StyleProps,
@@ -50,10 +51,14 @@ export type {
 export { acceptSuggestion } from './model/annotations/suggestions'
 export {
   isAbandonedNote,
+  isReply,
+  isThreadRoot,
   repliesTo,
   threadOf,
   threadRoot,
+  withoutReplies,
 } from './model/annotations/threads'
+export type { ThreadRoot } from './model/annotations/threads'
 export * from './model/annotations/embedded'
 export { parsePdfDate } from './model/pdf-date'
 export { exportAnnotations, importAnnotations } from './model/annotations/json'

@@ -97,7 +97,7 @@ import {
   InkPageCount,
   InkNextPage,
   InkZoomSelect,
-  InkNotePopover,
+  InkThreadPopover,
   InkSuggestionCard,
 } from '@inkbar/react'
 import { assets } from 'virtual:inkbar-assets'
@@ -125,7 +125,7 @@ export function Review({ url }: { url: string }) {
           <InkNextPage />
           <InkZoomSelect />
         </InkToolbar>
-        <InkNotePopover />
+        <InkThreadPopover />
         <InkSuggestionCard />
       </InkRoot>
     </div>

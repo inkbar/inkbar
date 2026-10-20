@@ -89,4 +89,31 @@ describe('useToolStyle', () => {
     history.undo()
     expect(store.get(a.id)).toMatchObject({ width: 1 })
   })
+
+  it('scoped to a group, it sets that group and leaves a selection outside it', () => {
+    const store = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const history = createHistory(store)
+    const { toolStyle } = trackToolStyle({ store, history, tool: 'select-text' })
+    const a = store.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 0, y: 0, width: 10, height: 10 },
+    })
+    store.select([a.id])
+    const value = { toolStyle } as unknown as InkContext
+    let api: ReturnType<typeof useToolStyle> | undefined
+    function Probe(): null {
+      api = useToolStyle('markup')
+      return null
+    }
+    renderToString(
+      createElement(InkContextObject.Provider, { value }, createElement(Probe))
+    )
+    api?.set({ border: '#00FF00' })
+    expect(store.get(a.id)?.color).toBe(a.color)
+    expect(api?.get('markup')).toMatchObject({ border: '#00FF00' })
+  })
 })

@@ -107,6 +107,7 @@ test('every toolbar control has an accessible name', async ({ mount, page }) => 
     'Select text',
     'Rectangle select',
     'Highlight',
+    'Choose highlight',
     'Mark for redaction',
     'Add note',
     'Text',
@@ -217,7 +218,6 @@ test('toolbar is keyboard operable', async ({ mount, page }) => {
   await expect(cmp.locator(toolButton('select'))).toHaveAttribute('aria-pressed', 'true')
   await expect(scroll).toHaveAttribute('data-ink-tool', 'select')
   await page.keyboard.press('ArrowRight')
-  await page.keyboard.press('ArrowRight')
   await expect(cmp.locator(toolButton('redact-area'))).toBeFocused()
   await page.keyboard.press('Space')
   await expect(cmp.locator(toolButton('redact-area'))).toHaveAttribute(
@@ -225,6 +225,12 @@ test('toolbar is keyboard operable', async ({ mount, page }) => {
     'true'
   )
   await expect(scroll).toHaveAttribute('data-ink-tool', 'redact-area')
+  await page.keyboard.press('ArrowLeft')
+  await page.keyboard.press('ArrowLeft')
+  await expect(cmp.locator(toolButton('select-text'))).toBeFocused()
+  // The highlight menu's two parts are toolbar stops of their own.
+  await page.keyboard.press('ArrowLeft')
+  await expect(page.getByRole('button', { name: 'Choose highlight' })).toBeFocused()
   await page.keyboard.press('ArrowLeft')
   await expect(cmp.locator(toolButton('highlight'))).toBeFocused()
 })
@@ -617,6 +623,144 @@ test.describe('shape menu', () => {
     await expect(
       menu.getByRole('menuitemradio', { name: 'Rounded rectangle' })
     ).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(menu).toHaveCount(0)
+    await expect(chevron).toBeFocused()
+  })
+})
+
+test.describe('highlight menu', () => {
+  const mountHarness = async (mount: MountFn) => {
+    const cmp = await mount(Harness, {
+      props: { src: fixtureUrl('text-simple'), assets },
+    })
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    return cmp
+  }
+  const main = (cmp: Awaited<ReturnType<typeof mountHarness>>) =>
+    cmp.locator('[data-ink-highlight-button]')
+  type Doc = {
+    annotations: {
+      add(input: unknown): { id: string }
+      select(ids: string[]): void
+      get(id: string): { color: string } | undefined
+    }
+  }
+  const doc = (page: Page) =>
+    page
+      .locator('[data-ink-root]')
+      .evaluateHandle((el) => (el as HTMLElement & { __inkDocument: Doc }).__inkDocument)
+
+  test('the main button activates highlight with the current kind', async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mountHarness(mount)
+    await expect(main(cmp)).toHaveAccessibleName('Highlight')
+    await expect(main(cmp)).toHaveAttribute('aria-pressed', 'false')
+    await main(cmp).click()
+    await expect(main(cmp)).toHaveAttribute('aria-pressed', 'true')
+    await expect(main(cmp)).toHaveAttribute('data-kind', 'highlight')
+    await expect(page.getByTestId('probe')).toHaveAttribute('data-tool', 'highlight')
+  })
+
+  test('choosing underline activates highlight with kind underline', async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mountHarness(mount)
+    const before = await main(cmp).innerHTML()
+    await page.getByRole('button', { name: 'Choose highlight' }).click()
+    const menu = page.getByRole('menu', { name: 'Highlights' })
+    await expect(menu.getByRole('menuitemradio')).toHaveText([
+      'Highlight',
+      'Underline',
+      'Strikethrough',
+      'Squiggly underline',
+    ])
+    await expect(
+      menu.getByRole('menuitemradio', { name: 'Highlight', exact: true })
+    ).toHaveAttribute('aria-checked', 'true')
+    await menu.getByRole('menuitemradio', { name: 'Underline', exact: true }).click()
+    await expect(page.getByTestId('probe')).toHaveAttribute('data-tool', 'highlight')
+    await expect(main(cmp)).toHaveAttribute('data-kind', 'underline')
+    await expect(main(cmp)).toHaveAccessibleName('Underline')
+    expect(await main(cmp).innerHTML()).not.toBe(before)
+    await expect(menu).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Choose highlight' })).toBeFocused()
+  })
+
+  test('the colour works under any tool and recolours selected markup', async ({
+    mount,
+    page,
+  }) => {
+    await mountHarness(mount)
+    await expect(page.getByTestId('probe')).toHaveAttribute('data-tool', 'select-text')
+    const id = await (
+      await doc(page)
+    ).evaluate(
+      (d) =>
+        d.annotations.add({
+          type: 'highlight',
+          page: 0,
+          quads: [
+            {
+              p1: { x: 72, y: 712 },
+              p2: { x: 200, y: 712 },
+              p3: { x: 72, y: 700 },
+              p4: { x: 200, y: 700 },
+            },
+          ],
+        }).id
+    )
+    await (await doc(page)).evaluate((d, i) => d.annotations.select([i]), id)
+    await page.getByRole('button', { name: 'Choose highlight' }).click()
+    const menu = page.getByRole('menu', { name: 'Highlights' })
+    const colour = menu.getByRole('menuitem', { name: 'Highlight colour' })
+    await expect(colour).toBeEnabled()
+    await colour.click()
+    const swatches = page.getByRole('menu', { name: 'Highlight colour' })
+    await swatches.getByRole('menuitemradio').nth(3).click()
+    const picked = await swatches
+      .getByRole('menuitemradio')
+      .nth(3)
+      .getAttribute('aria-label')
+    // The nested menu keeps the highlight menu open.
+    await expect(menu).toBeVisible()
+    expect(
+      await (await doc(page)).evaluate((d, i) => d.annotations.get(i)?.color, id)
+    ).toBe(picked)
+    await expect(colour.locator('[data-ink-swatch]')).toHaveAttribute(
+      'data-color',
+      picked!
+    )
+    await page.keyboard.press('Escape')
+    await expect(swatches).toHaveCount(0)
+    await expect(menu).toBeVisible()
+    await expect(colour).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(menu).toHaveCount(0)
+  })
+
+  test('keyboard: ArrowDown opens on the first kind, arrows reach the colour, Escape returns focus', async ({
+    mount,
+    page,
+  }) => {
+    await mountHarness(mount)
+    const chevron = page.getByRole('button', { name: 'Choose highlight' })
+    await chevron.focus()
+    await page.keyboard.press('ArrowDown')
+    const menu = page.getByRole('menu', { name: 'Highlights' })
+    await expect(
+      menu.getByRole('menuitemradio', { name: 'Highlight', exact: true })
+    ).toBeFocused()
+    await page.keyboard.press('End')
+    await expect(menu.getByRole('menuitem', { name: 'Highlight colour' })).toBeFocused()
+    await page.keyboard.press('ArrowDown')
+    await expect(
+      menu.getByRole('menuitemradio', { name: 'Highlight', exact: true })
+    ).toBeFocused()
+    await expect(page.getByRole('menu', { name: 'Highlight colour' })).toHaveCount(0)
     await page.keyboard.press('Escape')
     await expect(menu).toHaveCount(0)
     await expect(chevron).toBeFocused()

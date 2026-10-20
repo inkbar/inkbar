@@ -1,4 +1,6 @@
-import { isBubble } from '../model/annotations/edit'
+import { ICON_ATTRIBUTES, MessageSquareText } from '@inkbar/icons'
+
+import { isBubble, isTextMarkup } from '../model/annotations/edit'
 
 import { outlinePath, strokeOutline } from './ink-stroke'
 
@@ -7,6 +9,7 @@ import type {
   Annotation,
   FreeTextAnnotation,
   LineEnding,
+  TextMarkupAnnotation,
 } from '../model/annotations/types'
 import type { Point, Quad } from '../model/geometry'
 
@@ -402,6 +405,7 @@ export function renderAnnotationContent(
   // Hits follow the painted shape, so a press beside it reaches the text layer underneath.
   for (const shape of svg.children) shape.setAttribute('pointer-events', 'visiblePainted')
   el.append(svg)
+  appendCommentMarker(el, a, t)
 }
 
 /**
@@ -541,6 +545,44 @@ function dash(
  * PDF.js paints on the canvas): polygons over its quads, or its rect. Selection chrome only.
  */
 export function renderHitArea(el: HTMLElement, a: Annotation, t: PageTransform): void {
+  drawHitArea(el, a, t)
+  appendCommentMarker(el, a, t)
+}
+
+/** True for text markup whose `contents` holds a comment. */
+export function hasComment(a: Annotation): a is TextMarkupAnnotation {
+  return isTextMarkup(a) && !!a.contents?.trim()
+}
+
+/**
+ * Marks commented text markup with `span.ink-comment-marker`, holding a comment glyph, at the
+ * last quad's top-right corner (its end in reading order), relative to the element. The theme
+ * sizes and colours it.
+ */
+function appendCommentMarker(el: HTMLElement, a: Annotation, t: PageTransform): void {
+  if (!hasComment(a)) return
+  const last = a.quads[a.quads.length - 1]
+  if (!last) return
+  const box = annotationBox(a, t)
+  const at = t.toCss(last.p2)
+  const marker = el.ownerDocument.createElement('span')
+  marker.className = 'ink-comment-marker'
+  marker.dataset.inkCommentMarker = ''
+  marker.setAttribute('aria-hidden', 'true')
+  marker.style.left = `${at.x - box.left}px`
+  marker.style.top = `${at.y - box.top}px`
+  const icon = el.ownerDocument.createElementNS(SVG, 'svg')
+  for (const [k, v] of Object.entries(ICON_ATTRIBUTES)) icon.setAttribute(k, v)
+  for (const [tag, attrs] of MessageSquareText) {
+    const child = el.ownerDocument.createElementNS(SVG, tag)
+    for (const [k, v] of Object.entries(attrs)) child.setAttribute(k, v)
+    icon.append(child)
+  }
+  marker.append(icon)
+  el.append(marker)
+}
+
+function drawHitArea(el: HTMLElement, a: Annotation, t: PageTransform): void {
   const doc = el.ownerDocument
   el.replaceChildren()
   const box = annotationBox(a, t)

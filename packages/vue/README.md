@@ -20,7 +20,7 @@
 
 ---
 
-Drop a PDF viewer into your Vue app and let people highlight text, leave notes with replies and review redactions. `@inkbar/vue` gives you components and composables to build your own toolbars, plus note and suggestion popovers, all styled by `@inkbar/theme`.
+Drop a PDF viewer into your Vue app and let people highlight text, leave notes with replies and review redactions. `@inkbar/vue` gives you components and composables to build your own toolbars, plus thread and suggestion popovers, all styled by `@inkbar/theme`.
 
 Annotations are plain typed objects. Bind them with `v-model` to keep them in your own state, or let Inkbar hold them with undo and redo.
 
@@ -50,7 +50,7 @@ import {
   InkPageCount,
   InkNextPage,
   InkZoomSelect,
-  InkNotePopover,
+  InkThreadPopover,
   InkSuggestionCard,
 } from '@inkbar/vue'
 import type { Annotation } from '@inkbar/core'
@@ -86,7 +86,7 @@ const annotations = ref<Annotation[]>([])
       <InkNextPage />
       <InkZoomSelect />
     </InkToolbar>
-    <InkNotePopover />
+    <InkThreadPopover />
     <InkSuggestionCard />
   </InkRoot>
 </template>
@@ -116,15 +116,17 @@ Inside `InkRoot`, `useHistory()` returns the same object. Its `batch(fn)` runs `
 
 `key` identifies the document. Reuse the same key when only the signed URL changes and the document is not reloaded.
 
-## Note popover
+## Thread popover
 
-`InkNotePopover` opens the thread of the activated note. A new note has no text yet, so the form first writes the note's own text (labelled "Comment"); after that it adds replies.
+`InkThreadPopover` opens the comment thread of the activated note or text markup (a highlight, underline, strikeout or squiggly). A new note or highlight has no text yet, so the form first writes its own `contents` (labelled "Comment"); after that it adds replies. A highlight with a comment shows a small marker at its end. Replies show in the thread only; the page draws just the note or highlight they answer.
 
-A root note with no text and no replies is removed when its popover closes, or when activation moves to another annotation, so abandoned notes do not stay on the page. Locked notes are never removed. If you add notes yourself (`add({ type: 'text', ... })`), give them `contents`, or they will be removed the first time someone opens and closes them.
+A root note with no text and no replies is removed when its popover closes, or when activation moves to another annotation, so abandoned notes do not stay on the page. A highlight stays: the mark is the point. Locked annotations are never removed. If you add notes yourself (`add({ type: 'text', ... })`), give them `contents`, or they will be removed the first time someone opens and closes them.
+
+The highlight tool leaves `contents` free for the comment. Read the marked text with `doc.text(page)`. `InkHighlightMenu` is a split button for the tool: it picks the markup kind and its colour.
 
 ## Custom rendering
 
-Slots let you render parts yourself. `InkViewport` has `loading`, `empty`, `error`, `annotation` and `page-error` slots. `InkNotePopover` and `InkSuggestionCard` have a scoped default slot that receives the popover's props, and the default slot of `InkToolButton` receives `{ active, label }`. The props are typed as `AnnotationSlotProps`, `NotePopoverSlotProps` and `SuggestionCardSlotProps`, the same types the React and Svelte packages export.
+Slots let you render parts yourself. `InkViewport` has `loading`, `empty`, `error`, `annotation` and `page-error` slots. `InkThreadPopover` and `InkSuggestionCard` have a scoped default slot that receives the popover's props, and the default slot of `InkToolButton` receives `{ active, label }`. The props are typed as `AnnotationSlotProps`, `ThreadPopoverSlotProps` and `SuggestionCardSlotProps`, the same types the React and Svelte packages export.
 
 `InkRoot`, `InkToolbar`, `InkToolButton`, `InkUndo`, `InkRedo`, `InkPrevPage`, `InkNextPage`, `InkZoomIn` and `InkZoomOut` take `as-child` to render your own element in place of theirs, such as a button from your design system. Put that element in the default slot. The control keeps its behaviour and accessible name.
 

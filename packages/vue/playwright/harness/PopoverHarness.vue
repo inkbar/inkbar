@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, shallowRef } from 'vue'
 
-import InkNotePopover from '../../src/components/InkNotePopover.vue'
 import InkRoot from '../../src/components/InkRoot.vue'
 import InkSuggestionCard from '../../src/components/InkSuggestionCard.vue'
+import InkThreadPopover from '../../src/components/InkThreadPopover.vue'
 import InkViewport from '../../src/components/InkViewport.vue'
 
 import type { Annotation, DocumentSource, InkDocument, PdfAssets } from '@inkbar/core'
@@ -84,10 +84,10 @@ function onReady(doc: InkDocument) {
         </template>
       </InkViewport>
     </div>
-    <InkNotePopover v-if="customNote" v-slot="{ remove }">
+    <InkThreadPopover v-if="customNote" v-slot="{ remove }">
       <button type="button" data-testid="custom-remove" @click="remove">Remove</button>
-    </InkNotePopover>
-    <InkNotePopover v-else />
+    </InkThreadPopover>
+    <InkThreadPopover v-else />
     <InkSuggestionCard v-if="customCard" v-slot="{ dismiss }">
       <button type="button" data-testid="custom-dismiss" @click="dismiss">Remove</button>
     </InkSuggestionCard>

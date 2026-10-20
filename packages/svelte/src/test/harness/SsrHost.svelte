@@ -1,11 +1,11 @@
 <script lang="ts">
   import InkNextPage from '../../lib/components/InkNextPage.svelte'
-  import InkNotePopover from '../../lib/components/InkNotePopover.svelte'
   import InkPageCount from '../../lib/components/InkPageCount.svelte'
   import InkPageInput from '../../lib/components/InkPageInput.svelte'
   import InkPrevPage from '../../lib/components/InkPrevPage.svelte'
   import InkRoot from '../../lib/components/InkRoot.svelte'
   import InkSuggestionCard from '../../lib/components/InkSuggestionCard.svelte'
+  import InkThreadPopover from '../../lib/components/InkThreadPopover.svelte'
   import InkToolbar from '../../lib/components/InkToolbar.svelte'
   import InkToolButton from '../../lib/components/InkToolButton.svelte'
   import InkViewport from '../../lib/components/InkViewport.svelte'
@@ -33,6 +33,6 @@
     <InkZoomSelect />
     <InkZoomIn />
   </InkToolbar>
-  <InkNotePopover />
+  <InkThreadPopover />
   <InkSuggestionCard />
 </InkRoot>
