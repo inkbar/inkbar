@@ -1,0 +1,25 @@
+packages/core/src/dom/dpr-watch.ts
+  s_5c84400dcebef8::t_92550654079f99 1-61
+packages/core/src/dom/overlay.browser.test.ts
+  s_5c84400dcebef8::t_f21f53dd738236 1281-1332
+packages/core/src/dom/page-renderer.ts
+  s_5c84400dcebef8::t_2c74313fc00a09 5-6,90,142-146,162
+packages/core/src/dom/loupe-layer.ts
+  s_5c84400dcebef8::t_204acf68b69080 12-13,24-27,63-64,77,139-145,150-184,186,197
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "809ae5d9a111e09cd3d7fdf8814ff80efcd95edb",
+  "prompts": {},
+  "sessions": {
+    "s_5c84400dcebef8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b6002a2b-f6c7-44ec-8f13-05d214d02483",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
