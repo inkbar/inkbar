@@ -321,14 +321,21 @@ export interface SignatureLibrary {
 export function createSignatureLibrary(store: SignatureStore): SignatureLibrary {
   const templates = writable<readonly SignatureTemplate[]>([])
   const removeError = writable<string | undefined>(undefined)
-  /** Only the latest load writes, so a slow one cannot undo a later save. */
+  /**
+   * The newest load that succeeded writes, so a slow one cannot undo a later save, and a later
+   * one that fails does not throw away a slow success.
+   */
   let loads = 0
+  let applied = 0
   const refresh = async (): Promise<void> => {
     const n = ++loads
     try {
       // A host store may hand back anything: an invalid template would fail when placed.
       const list = validTemplates(await store.list())
-      if (n === loads) templates.set(list)
+      if (n > applied) {
+        applied = n
+        templates.set(list)
+      }
     } catch {
       // The store is unavailable: keep what was there.
     }

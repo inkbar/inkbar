@@ -320,6 +320,32 @@ describe('createSignatureLibrary', () => {
     expect(library.removeError.get()).toBeUndefined()
   })
 
+  it('keeps a slow load that succeeds when a later one fails', async () => {
+    const store = createMemorySignatureStore([ink])
+    const library = createSignatureLibrary(store)
+    let finish!: (l: SignatureTemplate[]) => void
+    store.list = () => new Promise((resolve) => (finish = resolve))
+    const slow = library.refresh()
+    store.list = () => Promise.reject(new Error('offline'))
+    await library.refresh()
+    finish([ink])
+    await slow
+    expect(library.templates.get()).toEqual([ink])
+  })
+
+  it('ignores a slow load that finishes after a later one succeeded', async () => {
+    const store = createMemorySignatureStore([ink])
+    const library = createSignatureLibrary(store)
+    let finish!: (l: SignatureTemplate[]) => void
+    store.list = () => new Promise((resolve) => (finish = resolve))
+    const slow = library.refresh()
+    store.list = () => Promise.resolve([image])
+    await library.refresh()
+    finish([ink])
+    await slow
+    expect(library.templates.get()).toEqual([image])
+  })
+
   it('keeps the last list when the store fails to list', async () => {
     const store = createMemorySignatureStore([ink])
     const library = createSignatureLibrary(store)
