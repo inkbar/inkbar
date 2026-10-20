@@ -501,10 +501,11 @@ async function calloutBadXref() {
   const s = latin1(bytes)
   const m = /startxref\s+(\d+)(\s+%%EOF\s*)$/.exec(s)
   if (!m) throw new Error('callout-bad-xref: no startxref')
-  const at = m.index + m[0].indexOf(m[1], 'startxref'.length)
+  const offset = m[1]!
+  const at = m.index + m[0].indexOf(offset, 'startxref'.length)
   write(
     'callout-bad-xref',
-    fromLatin1(`${s.slice(0, at)}${Number(m[1]) + 7}${s.slice(at + m[1].length)}`)
+    fromLatin1(`${s.slice(0, at)}${Number(offset) + 7}${s.slice(at + offset.length)}`)
   )
   note('callout-bad-xref', {
     pages: 1,
