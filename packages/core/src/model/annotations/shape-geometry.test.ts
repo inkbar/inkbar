@@ -65,6 +65,18 @@ describe('shapeInput', () => {
   const make = (kind: Parameters<typeof shapeInput>[0]) =>
     shapeInput(kind, 2, a, b, DEFAULT_SHAPE_OPTIONS)
 
+  // The shape style keeps the ends an arrow was given; a plain line must not pick them up.
+  it('makes a line with no line endings, whatever the shape style holds', () => {
+    expect(make('line')).toEqual({
+      type: 'line',
+      page: 2,
+      start: a,
+      end: b,
+      head: 'none',
+      tail: 'none',
+    })
+  })
+
   it('makes an arrow a line with an open tail and the arrow intent', () => {
     expect(make('arrow')).toMatchObject({
       type: 'line',

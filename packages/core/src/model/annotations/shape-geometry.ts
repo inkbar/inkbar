@@ -172,7 +172,7 @@ export function shapeInput(
   const rect = rectOf(start, end)
   switch (kind) {
     case 'line':
-      return { type: 'line', page, start, end }
+      return { type: 'line', page, start, end, head: 'none', tail: 'none' }
     case 'arrow':
       return { type: 'line', page, start, end, tail: 'openArrow', intent: 'lineArrow' }
     case 'rectangle':
