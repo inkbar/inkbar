@@ -65,10 +65,17 @@ export const NoteSchema = Base.extend({
 const DashesSchema = z.array(z.number().nonnegative()).min(1).optional()
 
 /**
- * A free-text box's text style, keyed by the CSS property names XFDF writes in its
- * `defaultstyle` string.
+ * A key a type refuses outright rather than dropping like other unknown keys: one an older
+ * shape used (so its value is not silently lost), or one that means nothing on the type (so a
+ * later version is free to give it a meaning).
  */
-export const FreeTextStyleSchema = z.strictObject({
+const Refused = z.never().optional()
+
+/**
+ * A free-text box's text style, keyed by the CSS property names XFDF writes in its
+ * `defaultstyle` string. The older `align` is refused; other unknown keys are dropped.
+ */
+export const FreeTextStyleSchema = z.object({
   fontFamily: z.string().min(1).default('Helvetica'),
   /** Points. */
   fontSize: z.number().positive().default(12),
@@ -78,15 +85,15 @@ export const FreeTextStyleSchema = z.strictObject({
   fontWeight: z.literal('bold').optional(),
   fontStyle: z.literal('italic').optional(),
   textDecoration: z.literal('underline').optional(),
+  align: Refused,
 })
 
 /**
  * Free text, as XFDF has it: `color` is the box's fill and the text style lives in
- * `defaultStyle`. Strict, so a box in the older shape (top-level `fontSize`, `align`) is
- * rejected rather than silently losing its style.
+ * `defaultStyle`. A box in the older shape (top-level `fontFamily`, `fontSize`, `align`) is
+ * refused rather than silently losing its style; other unknown keys are dropped.
  */
-export const FreeTextSchema = z.strictObject({
-  ...Base.shape,
+export const FreeTextSchema = Base.extend({
   type: z.literal('freetext'),
   /** The text shown on the page. */
   contents: z.string(),
@@ -101,16 +108,31 @@ export const FreeTextSchema = z.strictObject({
   cornerRadius: z.number().nonnegative().optional(),
   defaultStyle: FreeTextStyleSchema,
   callout: z.array(PointSchema).min(2).max(3).optional(),
+  fontFamily: Refused,
+  fontSize: Refused,
+  align: Refused,
 })
 
-export const ShapeSchema = Base.extend({
-  type: z.enum(['square', 'circle']),
+const ShapeFields = {
   width: z.number().nonnegative().default(1),
   dashes: DashesSchema,
   interiorColor: Hex.optional(),
-  /** Squares only: the corner radius in points. An extension, not XFDF. */
+}
+
+export const SquareSchema = Base.extend({
+  type: z.literal('square'),
+  ...ShapeFields,
+  /** The corner radius in points. An extension, not XFDF. */
   cornerRadius: z.number().nonnegative().optional(),
 })
+
+export const CircleSchema = Base.extend({
+  type: z.literal('circle'),
+  ...ShapeFields,
+  cornerRadius: Refused,
+})
+
+export const ShapeSchema = z.discriminatedUnion('type', [SquareSchema, CircleSchema])
 
 export const LineEndingSchema = z.enum([
   'none',
@@ -133,17 +155,30 @@ export const LineSchema = Base.extend({
   tail: LineEndingSchema.optional(),
 })
 
-export const PolySchema = Base.extend({
-  type: z.enum(['polyline', 'polygon']),
+const PolyFields = {
   vertices: z.array(PointSchema).min(2),
   width: z.number().nonnegative().default(1),
   dashes: DashesSchema,
-  /** Polylines only: the ending at the first vertex. */
-  head: LineEndingSchema.optional(),
-  /** Polylines only: the ending at the last vertex. */
-  tail: LineEndingSchema.optional(),
   interiorColor: Hex.optional(),
+}
+
+export const PolylineSchema = Base.extend({
+  type: z.literal('polyline'),
+  ...PolyFields,
+  /** The ending at the first vertex. */
+  head: LineEndingSchema.optional(),
+  /** The ending at the last vertex. */
+  tail: LineEndingSchema.optional(),
 })
+
+export const PolygonSchema = Base.extend({
+  type: z.literal('polygon'),
+  ...PolyFields,
+  head: Refused,
+  tail: Refused,
+})
+
+export const PolySchema = z.discriminatedUnion('type', [PolylineSchema, PolygonSchema])
 
 const InkShape = Base.extend({
   type: z.literal('ink'),
@@ -242,9 +277,11 @@ export const AnnotationSchema = z.discriminatedUnion('type', [
   TextMarkupSchema,
   NoteSchema,
   FreeTextSchema,
-  ShapeSchema,
+  SquareSchema,
+  CircleSchema,
   LineSchema,
-  PolySchema,
+  PolylineSchema,
+  PolygonSchema,
   InkSchema,
   StampSchema,
   LoupeSchema,
@@ -260,9 +297,11 @@ export const ExportedAnnotationSchema = z.discriminatedUnion('type', [
   TextMarkupSchema.omit(VIEWER_STATE),
   NoteSchema.omit(VIEWER_STATE),
   FreeTextSchema.omit(VIEWER_STATE),
-  ShapeSchema.omit(VIEWER_STATE),
+  SquareSchema.omit(VIEWER_STATE),
+  CircleSchema.omit(VIEWER_STATE),
   LineSchema.omit(VIEWER_STATE),
-  PolySchema.omit(VIEWER_STATE),
+  PolylineSchema.omit(VIEWER_STATE),
+  PolygonSchema.omit(VIEWER_STATE),
   InkShape.omit(VIEWER_STATE).superRefine(checkPressure),
   StampSchema.omit(VIEWER_STATE),
   LoupeSchema.omit(VIEWER_STATE),

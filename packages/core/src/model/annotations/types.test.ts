@@ -109,6 +109,32 @@ describe('AnnotationSchema', () => {
     )
   })
 
+  // Fields a type ignores are refused, so a later version can give them a meaning.
+  it('refuses a corner radius on a circle and line endings on a polygon', () => {
+    const shape = { ...exported, source: 'session', width: 1 }
+    const vertices = [
+      { x: 0, y: 0 },
+      { x: 5, y: 5 },
+    ]
+    expect(
+      AnnotationSchema.safeParse({ ...shape, type: 'circle', cornerRadius: 8 }).success
+    ).toBe(false)
+    expect(AnnotationSchema.safeParse({ ...shape, type: 'circle' }).success).toBe(true)
+    for (const end of ['head', 'tail'])
+      expect(
+        AnnotationSchema.safeParse({
+          ...shape,
+          type: 'polygon',
+          vertices,
+          [end]: 'openArrow',
+        }).success,
+        end
+      ).toBe(false)
+    expect(
+      AnnotationSchema.parse({ ...shape, type: 'polyline', vertices, tail: 'openArrow' })
+    ).toMatchObject({ tail: 'openArrow' })
+  })
+
   describe('free text', () => {
     const { quads: _q, color: _c, ...shared } = exported
     const freetext = {
@@ -133,10 +159,13 @@ describe('AnnotationSchema', () => {
       ).toMatchObject({ color: '#FFFF00', borderColor: '#FF0000' })
     })
 
-    it('rejects the old top-level text style (strict)', () => {
+    it('rejects the old top-level text style', () => {
       expect(AnnotationSchema.safeParse({ ...freetext, fontSize: 12 }).success).toBe(
         false
       )
+      expect(
+        AnnotationSchema.safeParse({ ...freetext, fontFamily: 'Times' }).success
+      ).toBe(false)
       expect(AnnotationSchema.safeParse({ ...freetext, align: 'left' }).success).toBe(
         false
       )
@@ -146,6 +175,20 @@ describe('AnnotationSchema', () => {
           defaultStyle: { ...freetext.defaultStyle, align: 'left' },
         }).success
       ).toBe(false)
+    })
+
+    // A later version may add fields: they are dropped, as on every other type.
+    it('drops keys it does not know, in the box and in its text style', () => {
+      const parsed = AnnotationSchema.parse({
+        ...freetext,
+        lineHeight: 1.4,
+        defaultStyle: { ...freetext.defaultStyle, letterSpacing: 2 },
+      })
+      expect(parsed).not.toHaveProperty('lineHeight')
+      expect(parsed).toMatchObject({ defaultStyle: { fontSize: 12 } })
+      expect((parsed as { defaultStyle: object }).defaultStyle).not.toHaveProperty(
+        'letterSpacing'
+      )
     })
 
     it('takes justify, bold, italic, underline, dashes and a corner radius', () => {
@@ -416,6 +459,23 @@ describe('schema.json', () => {
     const loupe = { ...rest, type: 'loupe', magnification: 3, width: 2 }
     expect(validate(loupe)).toBe(true)
     expect(validate({ ...loupe, magnification: 1 })).toBe(false)
+  })
+
+  it('refuses a corner radius on a circle and line endings on a polygon', () => {
+    const validate = compileAnnotation()
+    const { quads: _quads, ...rest } = exported as typeof exported & { quads?: unknown }
+    const vertices = [
+      { x: 0, y: 0 },
+      { x: 5, y: 5 },
+    ]
+    expect(validate({ ...rest, type: 'square', width: 1, cornerRadius: 8 })).toBe(true)
+    expect(validate({ ...rest, type: 'circle', width: 1, cornerRadius: 8 })).toBe(false)
+    expect(
+      validate({ ...rest, type: 'polyline', width: 1, vertices, head: 'circle' })
+    ).toBe(true)
+    expect(
+      validate({ ...rest, type: 'polygon', width: 1, vertices, head: 'circle' })
+    ).toBe(false)
   })
 
   it('validates a mask', () => {
