@@ -355,6 +355,22 @@ test.describe('line style menu', () => {
     await expect(page.getByTestId('probe')).toHaveAttribute('data-dashes', '-')
   })
 
+  test('an ending Inkbar does not draw shows as no arrowhead', async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mount(LineStyleHarness, {
+      props: { src: fixtureUrl('text-simple'), assets },
+    })
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    await page.getByTestId('add-line-unknown').click()
+    await page.getByTestId('select-all').click()
+    const menu = await open(page)
+    const item = (name: string) => menu.getByRole('menuitemradio', { name, exact: true })
+    await expect(item('Arrowhead at end')).toHaveAttribute('aria-checked', 'true')
+    await expect(item('Arrowheads at both ends')).toHaveAttribute('aria-checked', 'false')
+  })
+
   test('arrowheads section is disabled for a selected square', async ({
     mount,
     page,

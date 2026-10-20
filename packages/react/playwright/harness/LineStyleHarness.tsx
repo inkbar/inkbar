@@ -39,6 +39,21 @@ function Controls() {
         line 3
       </button>
       <button
+        data-testid="add-line-unknown"
+        onClick={() =>
+          add({
+            type: 'line',
+            page: 0,
+            start: { x: 50, y: 600 },
+            end: { x: 150, y: 600 },
+            head: 'Foo_1',
+            tail: 'Square',
+          })
+        }
+      >
+        line with an unknown ending
+      </button>
+      <button
         data-testid="add-square"
         onClick={() => add({ type: 'square', page: 0, rect })}
       >

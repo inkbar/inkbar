@@ -605,6 +605,22 @@ describe('createViewer', () => {
       expect(doc.annotations.get(line.id)).not.toHaveProperty('dashes', [3, 3])
     })
 
+    it('an ending Inkbar does not draw shows as no arrowhead', async () => {
+      const { viewer } = make('text-simple')
+      const trigger = createLineStyleMenu(viewer)
+      viewer.element.prepend(trigger)
+      const { doc } = await ready(viewer)
+      const line = doc.annotations.add({
+        ...lineAt(700, 1),
+        head: 'Foo_1',
+        tail: 'Square',
+      })
+      doc.annotations.select([line.id])
+      trigger.click()
+      expect(item('Arrowhead at end').getAttribute('aria-checked')).toBe('true')
+      expect(item('Arrowheads at both ends').getAttribute('aria-checked')).toBe('false')
+    })
+
     it('arrowheads section is disabled for a selected square', async () => {
       const { viewer } = make('text-simple')
       const trigger = createLineStyleMenu(viewer)
