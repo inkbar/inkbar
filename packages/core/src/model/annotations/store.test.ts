@@ -230,7 +230,7 @@ describe('AnnotationStore (uncontrolled)', () => {
     })
     s.update(a.id, { locked: true })
     expect(s.update(a.id, { rotation: 90 })).toBeUndefined()
-    expect(s.get(a.id)?.rotation).toBeUndefined()
+    expect(s.get(a.id)).not.toHaveProperty('rotation')
   })
 
   it('removes and prunes selection, returns false for unknown ids', () => {
