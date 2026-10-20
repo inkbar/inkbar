@@ -1690,6 +1690,52 @@ describe('draw tool', () => {
     expect(inks(doc)).toEqual([])
   })
 
+  it('a pen stroke joining mouse ink keeps its pressure', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('draw')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    stroke(
+      container,
+      h,
+      [
+        [100, 100, 0.5],
+        [140, 120, 0.5],
+      ],
+      'mouse'
+    )
+    stroke(container, h, [
+      [100, 200, 0.3],
+      [140, 220, 0.8],
+    ])
+    const [ink] = inks(doc)
+    if (ink?.type !== 'ink') throw new Error('no ink')
+    expect(ink.inklist).toHaveLength(2)
+    // The mouse stroke takes 0.5 throughout, which draws as it did with no pressure.
+    expect(ink.pressure?.[0]?.every((p) => p === 0.5)).toBe(true)
+    expect(ink.pressure?.[1]).toContain(0.8)
+    expect(ink.pressure?.map((p) => p.length)).toEqual(ink.inklist.map((p) => p.length))
+  })
+
+  it('quick strokes join one annotation under a host that applies changes later', async () => {
+    const { doc, container, viewport, tools } = await setup('text-simple', {
+      controlled: true,
+    })
+    tools.set('draw')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    stroke(container, h, [
+      [100, 100, 0.3],
+      [140, 120, 0.6],
+    ])
+    stroke(container, h, [
+      [100, 200, 0.4],
+      [140, 220, 0.7],
+    ])
+    await settle()
+    const list = inks(doc)
+    expect(list).toHaveLength(1)
+    expect(list[0]?.type === 'ink' && list[0].inklist).toHaveLength(2)
+  })
+
   it('a stroke after the gap starts a new annotation', async () => {
     const { doc, container, viewport, tools } = await setup()
     tools.set('draw')
