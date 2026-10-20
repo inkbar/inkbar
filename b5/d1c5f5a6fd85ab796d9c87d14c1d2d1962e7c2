@@ -1,0 +1,29 @@
+packages/svelte/src/lib/hooks/useToolStyle.svelte.ts
+  s_5c84400dcebef8::t_1850af8de42e7d 10-29,35,39-41,43-44,47-48,61-62
+packages/svelte/src/lib/index.ts
+  s_5c84400dcebef8::t_1634c2116da244 18-22
+packages/svelte/src/test/hooks.test.ts
+  s_5c84400dcebef8::t_1634c2116da244 101-110
+packages/svelte/src/test/harness/ColorMenuHarness.svelte
+  s_5c84400dcebef8::t_0d1f35f644e366 9,15,21-22,28
+packages/svelte/src/test/Toolbar.browser.test.ts
+  s_5c84400dcebef8::t_0d1f35f644e366 549-566
+packages/svelte/src/lib/components/InkColorMenu.svelte
+  s_5c84400dcebef8::t_1850af8de42e7d 63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b5d1c5f5a6fd85ab796d9c87d14c1d2d1962e7c2",
+  "prompts": {},
+  "sessions": {
+    "s_5c84400dcebef8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b6002a2b-f6c7-44ec-8f13-05d214d02483",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
