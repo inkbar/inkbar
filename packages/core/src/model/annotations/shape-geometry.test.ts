@@ -32,12 +32,42 @@ describe('starVertices', () => {
 })
 
 describe('polygonVertices', () => {
-  it('returns the sides on the inscribed ellipse, the first at the top centre', () => {
+  it('returns the sides, the first at the top centre', () => {
     const v = polygonVertices(rect, 6)
     expect(v).toHaveLength(6)
     expect(v[0]).toEqual({ x: 140, y: 240 })
-    for (const p of v)
-      expect(((p.x - 140) / 40) ** 2 + ((p.y - 220) / 20) ** 2).toBeCloseTo(1)
+  })
+})
+
+describe('star and polygon bounds', () => {
+  const bounds = (v: { x: number; y: number }[]) => {
+    const xs = v.map((p) => p.x)
+    const ys = v.map((p) => p.y)
+    return {
+      x: Math.min(...xs),
+      y: Math.min(...ys),
+      width: Math.max(...xs) - Math.min(...xs),
+      height: Math.max(...ys) - Math.min(...ys),
+    }
+  }
+
+  it.each([
+    ['5-point star', () => starVertices(rect, 5)],
+    ['8-point star', () => starVertices(rect, 8)],
+    ['triangle', () => polygonVertices(rect, 3)],
+    ['pentagon', () => polygonVertices(rect, 5)],
+    ['hexagon', () => polygonVertices(rect, 6)],
+  ])('fill the box: %s', (_, make) => {
+    const b = bounds(make())
+    expect(b.x).toBeCloseTo(rect.x)
+    expect(b.y).toBeCloseTo(rect.y)
+    expect(b.width).toBeCloseTo(rect.width)
+    expect(b.height).toBeCloseTo(rect.height)
+  })
+
+  it('collapse onto the centre line of a flat box', () => {
+    const flat = { x: 0, y: 10, width: 50, height: 0 }
+    for (const p of polygonVertices(flat, 5)) expect(p.y).toBe(10)
   })
 })
 
@@ -98,25 +128,17 @@ describe('shapeInput', () => {
   const make = (kind: Parameters<typeof shapeInput>[0]) =>
     shapeInput(kind, 2, a, b, DEFAULT_SHAPE_OPTIONS)
 
-  // The shape style keeps the ends an arrow was given; a plain line must not pick them up.
-  it('makes a line with no line endings, whatever the shape style holds', () => {
-    expect(make('line')).toEqual({
-      type: 'line',
-      page: 2,
-      start: a,
-      end: b,
-      head: 'None',
-      tail: 'None',
-    })
+  // The line style menu's ends come from the shape style when the tool styles the input.
+  it('makes a line with no line endings of its own', () => {
+    expect(make('line')).toEqual({ type: 'line', page: 2, start: a, end: b })
   })
 
-  it('makes an arrow a line with an open tail and the arrow intent', () => {
-    expect(make('arrow')).toMatchObject({
+  it('makes an arrow a line with the arrow intent', () => {
+    expect(make('arrow')).toEqual({
       type: 'line',
       page: 2,
       start: a,
       end: b,
-      tail: 'OpenArrow',
       intent: 'LineArrow',
     })
   })

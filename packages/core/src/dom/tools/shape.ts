@@ -77,6 +77,16 @@ export function shapeTool(): Tool<ShapeOptions> {
 
   /** The input with the shape group's style and, for a bubble, the text group's text style. */
   const styled = (c: ToolContext, input: AnnotationInput): AnnotationInput => {
+    if (input.type === 'line') {
+      // The line style menu's ends win; until it picks them an arrow has an open tail.
+      const line = c.toolStyle.resolve('shape', input)
+      const arrow = input.intent === 'LineArrow'
+      return {
+        ...line,
+        head: line.head ?? 'None',
+        tail: line.tail ?? (arrow ? 'OpenArrow' : 'None'),
+      }
+    }
     if (input.type !== 'freetext') return c.toolStyle.resolve('shape', input)
     // The group's width must not lose to the bubble's default one, so it is filled last.
     const shape = c.toolStyle.resolve('shape', { ...input, width: undefined })

@@ -423,6 +423,36 @@ for (const framework of FRAMEWORKS) {
       await expect(sessionShape(page, 'square')).toHaveCount(1)
     })
 
+    test('the line style arrowheads apply to new lines and arrows', async ({ page }) => {
+      await page.goto(`${framework}/`)
+      await waitForFirstPage(page)
+      await shapeButton(page).click()
+      const kind = async (name: string) => {
+        await page.getByRole('button', { name: 'Choose shape' }).click()
+        await page.getByRole('menuitemradio', { name, exact: true }).click()
+        await expect(shapeButton(page)).toHaveAccessibleName(`Shape: ${name}`)
+      }
+      const arrowheads = async (name: string) => {
+        await page.getByRole('button', { name: 'Line style' }).click()
+        await page.getByRole('menuitemradio', { name, exact: true }).click()
+        await page.keyboard.press('Escape')
+      }
+      const lines = sessionShape(page, 'line')
+
+      await kind('Line')
+      await arrowheads('Arrowheads at both ends')
+      await dragShape(page, [40, 30], [200, 100])
+      await expect(lines).toHaveCount(1)
+      await expect(lines.nth(0).locator('[data-ending]')).toHaveCount(2)
+
+      await kind('Arrow')
+      await page.keyboard.press('Escape')
+      await arrowheads('No arrowheads')
+      await dragShape(page, [260, 30], [400, 100])
+      await expect(lines).toHaveCount(2)
+      await expect(lines.nth(1).locator('[data-ending]')).toHaveCount(0)
+    })
+
     test('type into a new text box', async ({ page }) => {
       await page.goto(`${framework}/`)
       await waitForFirstPage(page)
