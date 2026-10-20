@@ -8,6 +8,7 @@ import {
   type ToolController,
   type ToolId,
 } from './controller'
+import { drawTool } from './draw'
 import { DEFAULT_FREETEXT_WIDTH, freetextTool } from './freetext'
 import { highlightTool } from './highlight'
 import { noteTool } from './note'
@@ -31,6 +32,7 @@ export { hitFor } from './controller'
 export { createToolOptions, type ToolOptions } from './options'
 export {
   DEFAULT_FREETEXT_WIDTH,
+  drawTool,
   freetextTool,
   highlightTool,
   noteTool,
@@ -54,6 +56,7 @@ export function builtinTools(): Tool[] {
     selectTool(),
     highlightTool(),
     redactAreaTool(),
+    drawTool(),
     noteTool(),
     shapeTool(),
     freetextTool(),

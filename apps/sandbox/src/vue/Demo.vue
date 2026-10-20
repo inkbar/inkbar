@@ -46,6 +46,7 @@ defineProps<{ source: DocumentSource }>()
         <InkToolButton tool="select-text" />
         <InkToolButton tool="select" />
         <InkToolButton tool="redact-area" />
+        <InkToolButton tool="draw" />
         <InkShapeMenu />
         <InkToolButton tool="freetext" />
         <InkToolButton tool="note" />

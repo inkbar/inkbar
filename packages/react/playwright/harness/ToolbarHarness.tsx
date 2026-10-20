@@ -38,6 +38,7 @@ export function ToolbarHarness({
         <InkToolButton tool="select" />
         <InkToolButton tool="highlight" />
         <InkToolButton tool="redact-area" />
+        <InkToolButton tool="draw" />
         <InkToolButton tool="note" />
         <InkShapeMenu />
         <InkToolButton tool="freetext" />

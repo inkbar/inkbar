@@ -14,6 +14,7 @@ import {
   Highlighter,
   ICON_ATTRIBUTES,
   MessageSquare,
+  PenLine,
   Redo2,
   Square,
   SquareDashedMousePointer,
@@ -70,6 +71,7 @@ const TOOL_ICONS: Readonly<Partial<Record<ToolId, IconNode>>> = {
   select: SquareDashedMousePointer,
   highlight: Highlighter,
   'redact-area': Square,
+  draw: PenLine,
   note: MessageSquare,
   freetext: Type,
 }

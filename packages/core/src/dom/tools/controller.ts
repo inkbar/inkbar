@@ -32,7 +32,14 @@ import type { SelectionQuads } from '../selection'
 import type { Viewport, ViewportHit } from '../viewport'
 
 export type BuiltinToolId =
-  'select-text' | 'select' | 'highlight' | 'redact-area' | 'note' | 'shape' | 'freetext'
+  | 'select-text'
+  | 'select'
+  | 'highlight'
+  | 'redact-area'
+  | 'note'
+  | 'shape'
+  | 'freetext'
+  | 'draw'
 /** A built-in tool's id, or any id a host registers its own tool under. */
 export type ToolId = BuiltinToolId | (string & {})
 

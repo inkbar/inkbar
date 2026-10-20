@@ -328,9 +328,12 @@ describe('createOverlay', () => {
     })
     const el = overlay.elementFor(sq.id)!
     expect(el.querySelector('rect')?.getAttribute('stroke-width')).toBe('6')
-    expect(
-      overlay.elementFor(ink.id)!.querySelector('polyline')?.getAttribute('stroke-width')
-    ).toBe('4')
+    const inkEl = overlay.elementFor(ink.id)!
+    expect(inkEl.querySelector('polyline')).toBeNull()
+    const stroke = inkEl.querySelector('path.ink-stroke')!
+    expect(stroke.getAttribute('fill')).toBe(ink.color)
+    // The 30pt diagonal is 60 CSS px at zoom 2 (the outline ends short of the endpoints).
+    expect((stroke as SVGGraphicsElement).getBBox().height).toBeGreaterThan(50)
     store.add({
       type: 'freetext',
       page: 0,

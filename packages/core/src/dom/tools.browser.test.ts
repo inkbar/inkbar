@@ -4,6 +4,7 @@ import { userEvent } from 'vitest/browser'
 
 import { readonly, writable } from '../model/readable'
 
+import { JOIN_GAP_MS } from './ink-stroke'
 import { createPageMount } from './page-mount'
 import { getSelectionQuads } from './selection'
 import {
@@ -1157,6 +1158,309 @@ describe('shape tool', () => {
     const [sq] = doc.annotations.list.get()
     expect(sq?.type).toBe('square')
     expect(doc.annotations.selection.get()).toEqual([sq!.id])
+  })
+})
+
+describe('draw tool', () => {
+  const inks = (doc: InkDocument) =>
+    doc.annotations.list.get().filter((a) => a.type === 'ink')
+  const pen = (pressure: number, extra: PointerEventInit = {}): PointerEventInit => ({
+    pointerType: 'pen',
+    pressure,
+    ...extra,
+  })
+
+  /** One press-drag-release stroke along `moves` (CSS offsets in the page host). */
+  function stroke(
+    container: Element,
+    h: DOMRect,
+    moves: [number, number, number][],
+    pointerType = 'pen'
+  ): void {
+    const [first, ...rest] = moves
+    const at = (m: [number, number, number], extra: PointerEventInit = {}) =>
+      ({ pointerType, pressure: m[2], ...extra }) satisfies PointerEventInit
+    pointer(container, 'pointerdown', h.left + first![0], h.top + first![1], at(first!))
+    for (const m of rest)
+      pointer(container, 'pointermove', h.left + m[0], h.top + m[1], at(m))
+    const last = moves[moves.length - 1]!
+    pointer(
+      container,
+      'pointerup',
+      h.left + last[0],
+      h.top + last[1],
+      at(last, { pressure: 0 })
+    )
+  }
+
+  it('draw creates ink with pressure when the pen reports it', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('draw')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100, pen(0.2))
+    pointer(container, 'pointermove', h.left + 130, h.top + 120, pen(0.6))
+    expect(container.querySelector('[data-ink-draft="draw"] path')).not.toBeNull()
+    pointer(container, 'pointermove', h.left + 160, h.top + 120, pen(0.9))
+    pointer(container, 'pointerup', h.left + 160, h.top + 120, pen(0, { buttons: 0 }))
+    expect(container.querySelector('[data-ink-draft]')).toBeNull()
+    const [ink] = inks(doc)
+    if (ink?.type !== 'ink') throw new Error('no ink')
+    expect(ink.inklist).toHaveLength(1)
+    expect(ink.pressure).toEqual([[0.2, 0.6, 0.9]])
+    expect(ink.inklist[0]).toHaveLength(3)
+  })
+
+  it('mouse input omits pressure', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('draw')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    stroke(
+      container,
+      h,
+      [
+        [100, 100, 0.5],
+        [140, 130, 0.5],
+        [180, 130, 0.5],
+      ],
+      'mouse'
+    )
+    const [ink] = inks(doc)
+    expect(ink?.type).toBe('ink')
+    expect(ink).not.toHaveProperty('pressure')
+  })
+
+  it('drops pressure from a pen that always reports 0 or 0.5', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('draw')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    stroke(
+      container,
+      h,
+      [
+        [100, 100, 0.5],
+        [140, 130, 0.5],
+        [180, 130, 0.5],
+      ],
+      'pen'
+    )
+    expect(inks(doc)[0]).not.toHaveProperty('pressure')
+  })
+
+  it('strokes within JOIN_GAP_MS join one annotation; each stroke is one undo step', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('draw')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    stroke(container, h, [
+      [100, 100, 0.3],
+      [140, 120, 0.6],
+      [180, 120, 0.6],
+    ])
+    stroke(container, h, [
+      [100, 200, 0.4],
+      [140, 220, 0.7],
+      [180, 220, 0.7],
+    ])
+    stroke(container, h, [
+      [100, 300, 0.4],
+      [140, 320, 0.7],
+      [180, 320, 0.7],
+    ])
+    const [ink, ...others] = inks(doc)
+    if (ink?.type !== 'ink') throw new Error('no ink')
+    expect(others).toEqual([])
+    expect(ink.inklist).toHaveLength(3)
+    expect(ink.pressure?.map((p) => p.length)).toEqual(ink.inklist.map((p) => p.length))
+    // The rect grew to hold every stroke.
+    expect(ink.rect.height).toBeGreaterThan(190)
+    doc.history.undo()
+    const afterUndo = inks(doc)[0]
+    expect(afterUndo?.type === 'ink' && afterUndo.inklist).toHaveLength(2)
+    doc.history.undo()
+    expect(inks(doc)[0]?.type === 'ink' && inks(doc)[0]).toBeTruthy()
+    doc.history.undo()
+    expect(inks(doc)).toEqual([])
+  })
+
+  it('a stroke after the gap starts a new annotation', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('draw')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    const now = vi.spyOn(Date, 'now')
+    now.mockReturnValue(10_000)
+    stroke(container, h, [
+      [100, 100, 0.3],
+      [140, 120, 0.6],
+    ])
+    now.mockReturnValue(10_000 + JOIN_GAP_MS + 1)
+    stroke(container, h, [
+      [100, 200, 0.3],
+      [140, 220, 0.6],
+    ])
+    now.mockRestore()
+    expect(inks(doc)).toHaveLength(2)
+  })
+
+  it("the gap runs to the next stroke's press, not its release", async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('draw')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    const now = vi.spyOn(Date, 'now')
+    now.mockReturnValue(10_000)
+    stroke(container, h, [
+      [100, 100, 0.3],
+      [140, 120, 0.6],
+    ])
+    // Pressed 600 ms after the first stroke ended, released 1.2 s after: still joins.
+    now.mockReturnValue(10_600)
+    pointer(container, 'pointerdown', h.left + 100, h.top + 200, pen(0.3))
+    pointer(container, 'pointermove', h.left + 140, h.top + 220, pen(0.6))
+    now.mockReturnValue(11_200)
+    pointer(container, 'pointerup', h.left + 140, h.top + 220, pen(0, { buttons: 0 }))
+    now.mockRestore()
+    expect(inks(doc)).toHaveLength(1)
+  })
+
+  it('a stroke within the gap on another page starts a new annotation', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    await until(() => viewport.hostFor(1) !== undefined)
+    tools.set('draw')
+    const h0 = viewport.hostFor(0)!.getBoundingClientRect()
+    stroke(container, h0, [
+      [100, 100, 0.3],
+      [140, 120, 0.6],
+    ])
+    const h1 = viewport.hostFor(1)!.getBoundingClientRect()
+    stroke(container, h1, [
+      [100, 100, 0.3],
+      [140, 120, 0.6],
+    ])
+    expect(
+      inks(doc)
+        .map((a) => a.page)
+        .sort()
+    ).toEqual([0, 1])
+  })
+
+  it('a stroke within the gap after the annotation was undone starts a new one', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('draw')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    stroke(container, h, [
+      [100, 100, 0.3],
+      [140, 120, 0.6],
+    ])
+    doc.history.undo()
+    expect(inks(doc)).toEqual([])
+    stroke(container, h, [
+      [100, 200, 0.3],
+      [140, 220, 0.6],
+    ])
+    const [ink, ...others] = inks(doc)
+    expect(others).toEqual([])
+    expect(ink?.type === 'ink' && ink.inklist).toHaveLength(1)
+  })
+
+  it('Escape or switching tool ends the annotation', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('draw')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    stroke(container, h, [
+      [100, 100, 0.3],
+      [140, 120, 0.6],
+    ])
+    container.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+    )
+    stroke(container, h, [
+      [100, 200, 0.3],
+      [140, 220, 0.6],
+    ])
+    expect(inks(doc)).toHaveLength(2)
+    tools.set('select')
+    tools.set('draw')
+    stroke(container, h, [
+      [100, 300, 0.3],
+      [140, 320, 0.6],
+    ])
+    expect(inks(doc)).toHaveLength(3)
+  })
+
+  it('uses getCoalescedEvents when available', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('draw')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    for (const x of [140, 180]) {
+      const move = new PointerEvent('pointermove', {
+        clientX: h.left + x,
+        clientY: h.top + 100,
+        bubbles: true,
+        pointerId: 1,
+        buttons: 1,
+        isPrimary: true,
+      })
+      const sub = (dx: number) =>
+        new PointerEvent('pointermove', {
+          clientX: h.left + x + dx,
+          clientY: h.top + 100,
+        })
+      Object.defineProperty(move, 'getCoalescedEvents', {
+        value: () => [sub(-10), sub(-5), sub(0)],
+      })
+      container.dispatchEvent(move)
+    }
+    // The release lands where the last move ended: no extra sample.
+    pointer(container, 'pointerup', h.left + 180, h.top + 100)
+    const [ink] = inks(doc)
+    if (ink?.type !== 'ink') throw new Error('no ink')
+    expect(ink.inklist[0]).toHaveLength(1 + 3 * 2)
+  })
+
+  it('draws in page space on a page with /Rotate 90', async () => {
+    const { doc, container, viewport, tools } = await setup('text-rotated-90')
+    tools.set('draw')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    stroke(
+      container,
+      h,
+      [
+        [100, 100, 0.5],
+        [160, 100, 0.5],
+        [160, 160, 0.5],
+      ],
+      'mouse'
+    )
+    const [ink] = inks(doc)
+    if (ink?.type !== 'ink') throw new Error('no ink')
+    const t = viewport.transformFor(0)
+    expect(ink.inklist[0]![0]).toEqual(t.fromCss({ x: 100, y: 100 }))
+    expect(ink.inklist[0]![2]).toEqual(t.fromCss({ x: 160, y: 160 }))
+    expect(ink.rect.width).toBeGreaterThan(0)
+  })
+
+  it('in controlled mode each stroke goes through onChange', async () => {
+    const { doc, container, viewport, tools } = await setup('text-simple', {
+      controlled: true,
+    })
+    tools.set('draw')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    stroke(container, h, [
+      [100, 100, 0.3],
+      [140, 120, 0.6],
+    ])
+    expect(doc.annotations.list.get()).toEqual([])
+    await settle()
+    expect(inks(doc)).toHaveLength(1)
+    stroke(container, h, [
+      [100, 200, 0.3],
+      [140, 220, 0.6],
+    ])
+    const pending = inks(doc)[0]
+    expect(pending?.type === 'ink' && pending.inklist).toHaveLength(1)
+    await settle()
+    const [ink, ...others] = inks(doc)
+    expect(others).toEqual([])
+    expect(ink?.type === 'ink' && ink.inklist).toHaveLength(2)
   })
 })
 

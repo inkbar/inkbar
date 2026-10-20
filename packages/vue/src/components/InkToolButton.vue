@@ -3,6 +3,7 @@ import { TOOL_LABELS } from '@inkbar/core/dom'
 import {
   Highlighter,
   MessageSquare,
+  PenLine,
   Square,
   SquareDashedMousePointer,
   TextCursor,
@@ -23,6 +24,7 @@ const ICONS: Readonly<Partial<Record<ToolId, IconNode>>> = {
   select: SquareDashedMousePointer,
   highlight: Highlighter,
   'redact-area': Square,
+  draw: PenLine,
   note: MessageSquare,
   freetext: Type,
 }

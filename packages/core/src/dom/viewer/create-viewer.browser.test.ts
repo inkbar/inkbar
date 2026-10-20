@@ -417,6 +417,19 @@ describe('createViewer', () => {
       expect(engine.tools.active.get()).toBe('freetext')
     })
 
+    it('the draw tool button is named Draw, shows its icon and picks the draw tool', async () => {
+      const { viewer } = make('text-simple')
+      const { tools: t } = bars(viewer)
+      const draw = createToolButton(viewer, 'draw')
+      t.append(draw)
+      const { engine } = await ready(viewer)
+      expect(draw.getAttribute('aria-label')).toBe('Draw')
+      expect(draw.querySelector('svg.ink-icon')).not.toBeNull()
+      draw.click()
+      expect(draw.getAttribute('aria-pressed')).toBe('true')
+      expect(engine.tools.active.get()).toBe('draw')
+    })
+
     it('drives the tools, zoom and page', async () => {
       const { viewer } = make('text-simple')
       const { tools: t, status: s } = bars(viewer)

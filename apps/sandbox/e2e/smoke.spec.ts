@@ -375,6 +375,20 @@ for (const framework of FRAMEWORKS) {
       await expect(panel).toHaveCount(0)
     })
 
+    test('draw two joined strokes', async ({ page }) => {
+      await page.goto(`${framework}/`)
+      await waitForFirstPage(page)
+      await page.getByRole('button', { name: 'Draw', exact: true }).click()
+      await dragShape(page, [40, 30], [200, 60])
+      await dragShape(page, [40, 90], [200, 120])
+      const ink = sessionShape(page, 'ink')
+      await expect(ink).toHaveCount(1)
+      await expect(ink.locator('path.ink-stroke')).toHaveCount(2)
+      // Each stroke is its own undo step.
+      await page.getByRole('button', { name: 'Undo', exact: true }).click()
+      await expect(ink.locator('path.ink-stroke')).toHaveCount(1)
+    })
+
     test('has no horizontal scroll at phone width', async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 844 })
       await page.goto(`${framework}/`)

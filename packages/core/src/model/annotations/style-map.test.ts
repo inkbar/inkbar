@@ -33,9 +33,10 @@ describe('toFields', () => {
     expect(toFields('polyline', { fill: '#00FF00' })).toEqual({})
   })
 
-  it('maps dashes on shapes, lines, polylines and ink, and head and tail on polylines', () => {
-    for (const t of ['square', 'circle', 'line', 'polyline', 'polygon', 'ink'] as const)
+  it('maps dashes on shapes, lines and polylines (not ink), and head and tail on polylines', () => {
+    for (const t of ['square', 'circle', 'line', 'polyline', 'polygon'] as const)
       expect(toFields(t, { dashes: [3, 3] })).toEqual({ dashes: [3, 3] })
+    expect(toFields('ink', { dashes: [3, 3] })).toEqual({})
     expect(toFields('square', { dashes: null })).toEqual({ dashes: undefined })
     expect(toFields('polyline', { head: 'openArrow', tail: 'none' })).toEqual({
       head: 'openArrow',
