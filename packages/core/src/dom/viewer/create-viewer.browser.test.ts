@@ -851,7 +851,7 @@ describe('createViewer', () => {
       key(focused()!, 'ArrowUp')
       expect(focused()).toBe(item('No fill'))
       key(focused()!, 'ArrowDown')
-      ;(focused() as HTMLElement).click() // Enter on a button is a click
+      await userEvent.keyboard('{Enter}')
       expect(doc.annotations.get(sq.id)).toMatchObject({ interiorColor: '#FF3B30' })
       key(focused()!, 'Escape')
       expect(menu()).toBeNull()
