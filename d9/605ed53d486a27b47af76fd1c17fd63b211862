@@ -1,0 +1,42 @@
+apps/sandbox/src/shared/suggest.test.ts
+  s_9296d0dac39657::t_0c765a754bb712 89,91-104,116
+apps/sandbox/src/shell/shell.ts
+  s_9296d0dac39657::t_0c765a754bb712 83
+apps/sandbox/e2e/smoke.spec.ts
+  s_9296d0dac39657::t_1162ad92680d56 106-109
+  s_9296d0dac39657::t_874996ce5f4749 160
+  s_9296d0dac39657::t_eee8eb47d7785b 54-57,61-62
+  s_9296d0dac39657::t_713153db3e8183 58-60
+  s_9296d0dac39657::t_c8b62b5c3a1630 87
+  s_9296d0dac39657::t_b0abd5486e32d9 89,94,116
+  s_9296d0dac39657::t_24fa2ab51d515a 13-14,20
+apps/sandbox/index.html
+  s_9296d0dac39657::t_6f307e6e0b177f 53-54,56-75,84
+  s_9296d0dac39657::t_0c765a754bb712 38
+apps/sandbox/vite/make-sample.ts
+  s_9296d0dac39657::t_4455a9a108b1db 130-134
+  s_9296d0dac39657::t_f979285b4aeea4 159
+  s_9296d0dac39657::t_6d12befecd7609 71-77
+  s_9296d0dac39657::t_8444fa9acf039b 2-9,16-17,22-26,28-42,47-48,51-70,78-129,135-158,160-206,210-316,318-351,353-368,370-396,398-420,422,424-430,433-452,454-474,476-484,486-487,489-494,496-595,599,602-603,607-608,610,612-616,618-621,628-629,632,634,642,644-647,649,652
+  s_9296d0dac39657::t_f4ba794f4c1b68 317,352,475,485,488,495
+apps/sandbox/src/styles/index.css
+  s_9296d0dac39657::t_6f307e6e0b177f 44,64,81-98,106
+apps/sandbox/vite/make-sample.test.ts
+  s_9296d0dac39657::t_0dbc9a06a40076 8,10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d9605ed53d486a27b47af76fd1c17fd63b211862",
+  "prompts": {},
+  "sessions": {
+    "s_9296d0dac39657": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8ee36f85-a611-470f-8334-be5e42d4be96",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
