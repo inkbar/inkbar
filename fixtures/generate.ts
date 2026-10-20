@@ -4,9 +4,11 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import {
+  PDFDict,
   PDFDocument,
   PDFName,
   PDFNumber,
+  PDFRef as PDFRefClass,
   PDFString,
   degrees,
   rgb,
@@ -351,7 +353,7 @@ async function annotatedShapes() {
  * `packages/core/src/model/annotations/__fixtures__/standard-callout.json`: a 180 x 60 box at
  * (100, 600), a three-point leader from the tip (60, 520) and an open arrow at the tip, in red.
  */
-async function standardCallout() {
+async function buildStandardCallout() {
   const { d, font } = await doc()
   const page = d.addPage([612, 792])
   text(page, font, ['Standard callout'])
@@ -401,12 +403,183 @@ async function standardCallout() {
       AP: { N: appearance },
     }),
   ])
-  await save('standard-callout', d, {
+  return d
+}
+
+async function standardCallout() {
+  await save('standard-callout', await buildStandardCallout(), {
     pages: 1,
     opens: true,
     describes:
       'One Letter page with a FreeText callout: /IT /FreeTextCallout, a three-point /CL, /RD, /LE /OpenArrow, red /DA and an /AP drawing box, leader and arrow',
     annotations: { FreeText: 1 },
+  })
+}
+
+async function calloutXrefStream() {
+  await save(
+    'callout-xref-stream',
+    await buildStandardCallout(),
+    {
+      pages: 1,
+      opens: true,
+      describes:
+        'standard-callout saved with object streams and an xref stream, so the FreeText sits inside an object stream',
+      annotations: { FreeText: 1 },
+    },
+    { objectStreams: true }
+  )
+}
+
+/** Appends `refs` (current objects of `ctx`) to `base` as one incremental update. */
+function appendRevision(base: Uint8Array, ctx: PDFContext, refs: PDFRef[], who: string) {
+  const baseText = latin1(base)
+  const prev = /startxref\s+(\d+)\s+%%EOF\s*$/.exec(baseText)?.[1]
+  if (!prev) throw new Error(`${who}: base file has no startxref`)
+  let tail = baseText.endsWith('\n') ? '' : '\n'
+  const offsets: [number, number][] = []
+  for (const ref of [...refs].sort((a, b) => a.objectNumber - b.objectNumber)) {
+    offsets.push([ref.objectNumber, baseText.length + tail.length])
+    tail += `${ref.objectNumber} 0 obj\n${String(ctx.lookup(ref))}\nendobj\n`
+  }
+  const xrefAt = baseText.length + tail.length
+  tail += 'xref\n'
+  for (const [num, off] of offsets)
+    tail += `${num} 1\n${String(off).padStart(10, '0')} 00000 n \n`
+  const { Root, Info } = ctx.trailerInfo
+  if (!Root || !Info) throw new Error(`${who}: trailer lacks Root or Info`)
+  tail += `trailer\n<< /Size ${ctx.largestObjectNumber + 1} /Root ${String(Root)} /Info ${String(Info)} /Prev ${prev} >>\n`
+  tail += `startxref\n${xrefAt}\n%%EOF\n`
+  return fromLatin1(baseText + tail)
+}
+
+/** standard-callout plus an incremental update that moves the leader tip to (80, 560). */
+async function calloutIncremental() {
+  const base = await (await buildStandardCallout()).save({ useObjectStreams: false })
+  const d2 = await PDFDocument.load(base)
+  const ctx = d2.context
+  const ref = d2.getPage(0).node.Annots()?.get(0)
+  if (!(ref instanceof PDFRefClass)) throw new Error('callout-incremental: no annotation')
+  ctx.lookup(ref, PDFDict).set(PDFName.of('CL'), ctx.obj([80, 560, 80, 560, 100, 620]))
+  write('callout-incremental', appendRevision(base, ctx, [ref], 'callout-incremental'))
+  note('callout-incremental', {
+    pages: 1,
+    opens: true,
+    describes:
+      'standard-callout plus a hand-written incremental update that rewrites the FreeText with /CL starting at (80, 560)',
+    annotations: { FreeText: 1 },
+  })
+}
+
+async function calloutEncrypted() {
+  const plain = join(out, 'callout-encrypted.plain.pdf')
+  writeFileSync(
+    plain,
+    await (await buildStandardCallout()).save({ useObjectStreams: false })
+  )
+  execFileSync('qpdf', [
+    '--encrypt',
+    '',
+    'owner-secret',
+    '256',
+    '--',
+    plain,
+    join(out, 'callout-encrypted.pdf'),
+  ])
+  rmSync(plain)
+  note('callout-encrypted', {
+    pages: 1,
+    opens: true,
+    describes:
+      'standard-callout AES-256 encrypted by qpdf with an empty user password, so PDF.js opens it but the object reader skips it',
+    annotations: { FreeText: 1 },
+  })
+}
+
+async function calloutBadXref() {
+  const bytes = await (await buildStandardCallout()).save({ useObjectStreams: false })
+  const s = latin1(bytes)
+  const m = /startxref\s+(\d+)(\s+%%EOF\s*)$/.exec(s)
+  if (!m) throw new Error('callout-bad-xref: no startxref')
+  const offset = m[1]!
+  const at = m.index + m[0].indexOf(offset, 'startxref'.length)
+  write(
+    'callout-bad-xref',
+    fromLatin1(`${s.slice(0, at)}${Number(offset) + 7}${s.slice(at + offset.length)}`)
+  )
+  note('callout-bad-xref', {
+    pages: 1,
+    opens: true,
+    describes:
+      'standard-callout with startxref 7 bytes off the real xref table; PDF.js rebuilds the cross-reference',
+    annotations: { FreeText: 1 },
+  })
+}
+
+/** A Text annotation named /Key with its own /AP /N stream. */
+async function noteIconAp() {
+  const { d, font } = await doc()
+  const page = d.addPage([612, 792])
+  text(page, font, ['Note with an icon appearance'])
+  const ctx = d.context
+  const appearance = ctx.register(
+    ctx.stream('0.8 0.1 0.1 rg 4 4 16 16 re f', {
+      Type: 'XObject',
+      Subtype: 'Form',
+      BBox: [0, 0, 24, 24],
+    })
+  )
+  setAnnots(page, [
+    annot(ctx, {
+      Subtype: 'Text',
+      Rect: [100, 600, 124, 624],
+      Name: 'Key',
+      Contents: PDFString.of('A note'),
+      NM: PDFString.of('note-icon-1'),
+      AP: { N: appearance },
+    }),
+  ])
+  await save('note-icon-ap', d, {
+    pages: 1,
+    opens: true,
+    describes: 'One Text annotation with /Name /Key and an /AP /N stream',
+    annotations: { Text: 1 },
+  })
+}
+
+/** Four FreeTexts whose fonts resolve four ways: annotation /DR, bare name, AcroForm /DR, subset name. */
+async function freetextFonts() {
+  const { d, font } = await doc()
+  const page = d.addPage([612, 792])
+  text(page, font, ['FreeText fonts'])
+  const ctx = d.context
+  const face = (BaseFont: string) => ({ Type: 'Font', Subtype: 'Type1', BaseFont })
+  const free = (i: number, da: string, extra: Record<string, unknown> = {}) =>
+    annot(ctx, {
+      Subtype: 'FreeText',
+      Rect: [72, 640 - i * 60, 300, 670 - i * 60],
+      BS: { W: 1 },
+      DA: PDFString.of(da),
+      Contents: PDFString.of(`Font ${i + 1}`),
+      NM: PDFString.of(`font-${i + 1}`),
+      ...extra,
+    })
+  setAnnots(page, [
+    free(0, '/F1 12 Tf 0 g', { DR: { Font: { F1: face('Times-BoldItalic') } } }),
+    free(1, '/Helv 12 Tf 0 g'),
+    free(2, '/F2 10 Tf 0 g'),
+    free(3, '/F3 10 Tf 0 g', { DR: { Font: { F3: face('ABCDEF+Arial-BoldMT') } } }),
+  ])
+  d.catalog.set(
+    PDFName.of('AcroForm'),
+    ctx.obj({ Fields: [], DR: { Font: { F2: face('Courier-Oblique') } } })
+  )
+  await save('freetext-fonts', d, {
+    pages: 1,
+    opens: true,
+    describes:
+      'Four FreeTexts: /DA font through the annotation /DR (Times-BoldItalic), a bare /Helv, the AcroForm /DR (Courier-Oblique) and a subset Arial-BoldMT',
+    annotations: { FreeText: 4 },
   })
 }
 
@@ -483,24 +656,7 @@ async function incrementalSaved() {
   })
   setAnnots(p2, [hl])
 
-  const baseText = latin1(base)
-  const prev = /startxref\s+(\d+)\s+%%EOF\s*$/.exec(baseText)?.[1]
-  if (!prev) throw new Error('incremental-saved: base file has no startxref')
-  let tail = baseText.endsWith('\n') ? '' : '\n'
-  const offsets: [number, number][] = []
-  for (const ref of [p2.ref, hl].sort((a, b) => a.objectNumber - b.objectNumber)) {
-    offsets.push([ref.objectNumber, baseText.length + tail.length])
-    tail += `${ref.objectNumber} 0 obj\n${String(ctx.lookup(ref))}\nendobj\n`
-  }
-  const xrefAt = baseText.length + tail.length
-  tail += 'xref\n'
-  for (const [num, off] of offsets)
-    tail += `${num} 1\n${String(off).padStart(10, '0')} 00000 n \n`
-  const { Root, Info } = ctx.trailerInfo
-  if (!Root || !Info) throw new Error('incremental-saved: trailer lacks Root or Info')
-  tail += `trailer\n<< /Size ${ctx.largestObjectNumber + 1} /Root ${String(Root)} /Info ${String(Info)} /Prev ${prev} >>\n`
-  tail += `startxref\n${xrefAt}\n%%EOF\n`
-  write('incremental-saved', fromLatin1(baseText + tail))
+  write('incremental-saved', appendRevision(base, ctx, [p2.ref, hl], 'incremental-saved'))
   note('incremental-saved', {
     pages: 1,
     opens: true,
@@ -615,6 +771,12 @@ async function main() {
   await annotatedRedact()
   await annotatedShapes()
   await standardCallout()
+  await calloutXrefStream()
+  await calloutIncremental()
+  await calloutEncrypted()
+  await calloutBadXref()
+  await noteIconAp()
+  await freetextFonts()
   await annotatedUnsupported()
   await acroformBasic()
   await incrementalSaved()
