@@ -28,6 +28,7 @@ export {
   builtinTools,
   createToolController,
   createToolOptions,
+  freetextTool,
   highlightTool,
   hitFor,
   noteTool,
@@ -49,7 +50,12 @@ export type {
   ToolOptions,
   ToolStyleTracker,
 } from './tools'
-export { DEFAULT_CORNER_RADIUS, DEFAULT_SHAPE_SIZE, SHAPE_KINDS } from './tools'
+export {
+  DEFAULT_CORNER_RADIUS,
+  DEFAULT_FREETEXT_WIDTH,
+  DEFAULT_SHAPE_SIZE,
+  SHAPE_KINDS,
+} from './tools'
 export type { ShapeKind, ShapeOptions } from './tools'
 export type {
   CurrentStyle,
@@ -65,6 +71,7 @@ export {
   COLOR_COLUMNS,
   COLOR_LABELS,
   DASH_PATTERN,
+  FONT_FAMILIES,
   LINE_WEIGHTS,
   SHAPE_COLUMNS,
   SHAPE_LABELS,
@@ -95,6 +102,8 @@ export type {
   NotePopoverSlotProps,
   SuggestionCardSlotProps,
 } from './ui'
+export { editFreeText } from './freetext-editor'
+export type { FreeTextEditor, FreeTextEditorOptions } from './freetext-editor'
 export { focusInitialMenuItem, handleMenuKeys, menuItems } from './menu-keys'
 export { annotationElementFor, observeAnnotationElement } from './annotation-element'
 export { createFocusReturn, shouldKeepOpenOnAnnotation } from './popover-focus'

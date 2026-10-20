@@ -2,7 +2,7 @@ import { acceptSuggestion, repliesTo } from '@inkbar/core'
 
 import { useInkContext } from '../context.js'
 
-import type { Annotation, AnnotationInput } from '@inkbar/core'
+import type { Annotation, AnnotationInput, AnnotationPatch } from '@inkbar/core'
 
 export function useAnnotations() {
   const ctx = useInkContext('useAnnotations()')
@@ -26,7 +26,7 @@ export function useAnnotations() {
     /** Replies in creation order for a note id. */
     replies: (id: string) => repliesTo(ctx.annotations, id),
     add: (input: AnnotationInput) => store()?.add(input),
-    update: (id: string, patch: Partial<Annotation>) => store()?.update(id, patch),
+    update: (id: string, patch: AnnotationPatch) => store()?.update(id, patch),
     remove: (id: string) => store()?.remove(id) ?? false,
     select: (ids: string[]) => store()?.select(ids),
     /** Keeps a suggested redaction as the user's own, in the default redaction colour. */

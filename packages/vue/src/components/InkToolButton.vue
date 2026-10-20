@@ -6,6 +6,7 @@ import {
   Square,
   SquareDashedMousePointer,
   TextCursor,
+  Type,
 } from '@inkbar/icons'
 import { ToolbarButton } from 'reka-ui'
 import { computed } from 'vue'
@@ -23,6 +24,7 @@ const ICONS: Readonly<Partial<Record<ToolId, IconNode>>> = {
   highlight: Highlighter,
   'redact-area': Square,
   note: MessageSquare,
+  freetext: Type,
 }
 
 const props = withDefaults(

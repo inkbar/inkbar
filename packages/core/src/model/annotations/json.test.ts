@@ -74,6 +74,42 @@ describe('json import/export', () => {
     expect(s2.list.get()[0]).toMatchObject({ cornerRadius: 8 })
   })
 
+  it('round-trips a free-text box with fill, border and text style', () => {
+    const mk = () =>
+      createAnnotationStore({ mode: { mode: 'uncontrolled' }, defaults: staticDefaults })
+    const s = mk()
+    s.add({
+      type: 'freetext',
+      page: 0,
+      rect,
+      contents: 'Hello\nthere',
+      color: '#FFFF00',
+      borderColor: '#FF0000',
+      width: 2,
+      dashes: [3, 3],
+      cornerRadius: 6,
+      defaultStyle: {
+        fontFamily: 'Times',
+        fontSize: 18,
+        color: '#123456',
+        textAlign: 'justify',
+        fontWeight: 'bold',
+        fontStyle: 'italic',
+        textDecoration: 'underline',
+      },
+    })
+    s.add({ type: 'freetext', page: 0, rect, contents: 'Plain' })
+    const text = JSON.stringify(exportAnnotations(s, [], 'k'))
+    const s2 = mk()
+    expect(importAnnotations(s2, text, { mode: 'replace' }).errors).toEqual([])
+    expect(s2.list.get()).toEqual(s.list.get())
+    expect(s2.list.get()[1]).not.toHaveProperty('color')
+    expect(s2.list.get()[1]).toMatchObject({
+      width: 0,
+      defaultStyle: { color: staticDefaults.color('freetext'), fontSize: 12 },
+    })
+  })
+
   it('merge keeps existing ids not in the import and overwrites matching ids', () => {
     const s = createAnnotationStore({
       mode: { mode: 'uncontrolled' },

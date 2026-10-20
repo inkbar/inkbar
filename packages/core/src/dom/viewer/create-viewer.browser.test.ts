@@ -403,6 +403,19 @@ describe('createViewer', () => {
       expect(field.selectionStart).toBe(0)
     })
 
+    it('the text tool button is named Text, shows its icon and picks the text box tool', async () => {
+      const { viewer } = make('text-simple')
+      const { tools: t } = bars(viewer)
+      const text = createToolButton(viewer, 'freetext')
+      t.append(text)
+      const { engine } = await ready(viewer)
+      expect(text.getAttribute('aria-label')).toBe('Text')
+      expect(text.querySelector('svg.ink-icon')).not.toBeNull()
+      text.click()
+      expect(text.getAttribute('aria-pressed')).toBe('true')
+      expect(engine.tools.active.get()).toBe('freetext')
+    })
+
     it('drives the tools, zoom and page', async () => {
       const { viewer } = make('text-simple')
       const { tools: t, status: s } = bars(viewer)

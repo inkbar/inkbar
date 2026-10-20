@@ -57,6 +57,7 @@ export function mountDemo(el: HTMLElement, source: DocumentSource): () => void {
       createToolButton(viewer, 'select'),
       createToolButton(viewer, 'redact-area'),
       createShapeMenu(viewer),
+      createToolButton(viewer, 'freetext'),
       createToolButton(viewer, 'note')
     ),
     createToolbarSeparator(),

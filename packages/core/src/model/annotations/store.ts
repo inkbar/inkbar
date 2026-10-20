@@ -10,6 +10,7 @@ import {
   confidenceBucket,
   type Annotation,
   type AnnotationInput,
+  type AnnotationPatch,
 } from './types'
 
 import type { AnnotationDefaults } from './defaults'
@@ -53,7 +54,7 @@ export interface AnnotationStore {
    * (`source: 'pdf'`) annotation: those keys are ignored. `modifiedAt` is always bumped. A
    * locked annotation refuses any patch to its geometry, `page` or `contents`.
    */
-  update(id: string, patch: Partial<Annotation>): Annotation | undefined
+  update(id: string, patch: AnnotationPatch): Annotation | undefined
   remove(id: string): boolean
   select(ids: string[]): void
   /**
@@ -164,6 +165,24 @@ function bounds(pts: readonly Point[]): Rect {
   return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y }
 }
 
+/** `o` without its `undefined` values. */
+function withoutUndefined(o: object): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined))
+}
+
+/**
+ * A `defaultStyle` patch merges one level deep into the current one, so changing the weight
+ * keeps the font and size. An `undefined` value removes its key.
+ */
+function mergedStyle(
+  before: Annotation,
+  patch: AnnotationPatch
+): { defaultStyle?: Record<string, unknown> } {
+  const next = (patch as { defaultStyle?: unknown }).defaultStyle
+  if (before.type !== 'freetext' || next === undefined || next === null) return {}
+  return { defaultStyle: withoutUndefined({ ...before.defaultStyle, ...next }) }
+}
+
 /** Pending-map key; only annotation changes are tracked, and the prefix keeps ids apart from any other slot. */
 function changeKey(change: Exclude<AnnotationChange, { kind: 'replace' }>): string {
   return `annotation:${change.kind === 'update' ? change.id : change.annotation.id}`
@@ -247,6 +266,14 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
       createdAt: ts,
       modifiedAt: ts,
       source: 'session',
+    }
+    if (input.type === 'freetext') {
+      // A box's `color` is its fill, which has no default: the default colour is the text's.
+      if (input.color === undefined) delete candidate.color
+      candidate.defaultStyle = {
+        color: opts.defaults.color('freetext'),
+        ...withoutUndefined(input.defaultStyle ?? {}),
+      }
     }
     if (input.type === 'redact') {
       if (input.interiorColor === undefined)
@@ -376,6 +403,7 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
       const candidate: Record<string, unknown> = {
         ...before,
         ...patch,
+        ...mergedStyle(before, patch),
         id: before.id,
         type: before.type,
         createdAt: before.createdAt,

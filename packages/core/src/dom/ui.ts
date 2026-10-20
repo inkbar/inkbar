@@ -24,7 +24,14 @@ export const TOOL_LABELS: Readonly<Partial<Record<ToolId, string>>> = {
   'redact-area': 'Mark for redaction',
   note: 'Add note',
   shape: 'Shape',
+  freetext: 'Text',
 }
+
+/**
+ * The font families a text box offers by default: the PDF standard families, which a PDF
+ * writer can use without embedding a font. Hosts pass their own list as `fonts`.
+ */
+export const FONT_FAMILIES: readonly string[] = ['Helvetica', 'Times', 'Courier']
 
 /** Zoom levels the zoom select offers, as scale factors. */
 export const ZOOM_LEVELS: readonly number[] = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4]

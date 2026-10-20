@@ -307,6 +307,29 @@ for (const framework of FRAMEWORKS) {
       await expect(sessionShape(page, 'square')).toHaveCount(1)
     })
 
+    test('type into a new text box', async ({ page }) => {
+      await page.goto(`${framework}/`)
+      await waitForFirstPage(page)
+      const text = page.getByRole('button', { name: 'Text', exact: true })
+      await text.click()
+      await expect(text).toHaveAttribute('aria-pressed', 'true')
+      const box = (await page.locator('.ink-page[data-page="0"]').boundingBox())!
+      await page.mouse.click(box.x + 40, box.y + 30)
+      const editor = page.getByRole('textbox', { name: 'Text box' })
+      await expect(editor).toBeFocused()
+      await page.keyboard.type('Hello')
+      await page.keyboard.press('Enter')
+      await page.keyboard.type('there')
+      await page.keyboard.press('Escape')
+      await expect(editor).toHaveCount(0)
+      const created = sessionShape(page, 'freetext')
+      await expect(created).toHaveCount(1)
+      await expect(created.locator('.ink-free-text')).toHaveText('Hello\nthere')
+      // Creating and typing are one step: undo takes the whole box away.
+      await page.getByRole('button', { name: 'Undo', exact: true }).click()
+      await expect(created).toHaveCount(0)
+    })
+
     test('has no horizontal scroll at phone width', async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 844 })
       await page.goto(`${framework}/`)

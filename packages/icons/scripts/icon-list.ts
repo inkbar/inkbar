@@ -25,4 +25,5 @@ export const ICONS = [
   'MessageCircle',
   'Search',
   'SquareDashed',
+  'Type',
 ] as const

@@ -45,6 +45,7 @@
       <InkToolButton tool="select" />
       <InkToolButton tool="redact-area" />
       <InkShapeMenu />
+      <InkToolButton tool="freetext" />
       <InkToolButton tool="note" />
     </div>
     <InkToolbarSeparator />

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { InkError, openDocument } from '@inkbar/core'
-import { cssVariableDefaults, trackToolStyle } from '@inkbar/core/dom'
+import { cssVariableDefaults, FONT_FAMILIES, trackToolStyle } from '@inkbar/core/dom'
 import { Primitive } from 'reka-ui'
 import {
   computed,
@@ -52,6 +52,11 @@ const props = withDefaults(
      * document opens.
      */
     tools?: Tool[] | undefined
+    /**
+     * The font families text boxes offer, replacing the PDF standard families
+     * (`FONT_FAMILIES`). Fonts beyond those are the PDF writer's to embed.
+     */
+    fonts?: string[] | undefined
     page?: number | undefined
     zoom?: ZoomValue | undefined
     /** Undo history. Defaults to on for uncontrolled, off for controlled. */
@@ -64,6 +69,7 @@ const props = withDefaults(
     annotations: undefined,
     tool: undefined,
     tools: undefined,
+    fonts: undefined,
     page: undefined,
     zoom: undefined,
     history: undefined,
@@ -289,6 +295,7 @@ provideInkContext({
   tool: internalTool,
   setTool,
   hostTools: computed(() => props.tools),
+  fonts: computed(() => props.fonts ?? FONT_FAMILIES),
   toolStyle,
   zoomModel: computed(() => props.zoom),
   pageModel: computed(() => props.page),

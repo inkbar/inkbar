@@ -364,16 +364,30 @@
   }
 
   :where(.ink-free-text) {
+    box-sizing: border-box;
     width: 100%;
     height: 100%;
     overflow: hidden;
     font-family: var(--ink-font-family, Helvetica), Helvetica, Arial, sans-serif;
     font-size: var(--ink-font-size);
+    font-weight: var(--ink-font-weight, normal);
+    font-style: var(--ink-font-style, normal);
+    text-decoration: var(--ink-text-decoration, none);
     line-height: 1.2;
     color: var(--ink-text-color, var(--ink-free-text));
+    background: var(--ink-fill, transparent);
+    border-radius: var(--ink-corner-radius, 0);
     opacity: var(--ink-opacity, 1);
     overflow-wrap: break-word;
     white-space: pre-wrap;
+  }
+
+  :where(.ink-free-text[data-border]) {
+    border: var(--ink-border-width, 1px) solid var(--ink-border, var(--ink-free-text));
+  }
+
+  :where(.ink-free-text[data-border='dashed']) {
+    border-style: dashed;
   }
 
   :where(.ink-free-text[data-align='left']) {
@@ -386,6 +400,19 @@
 
   :where(.ink-free-text[data-align='right']) {
     text-align: right;
+  }
+
+  :where(.ink-free-text[data-align='justify']) {
+    text-align: justify;
+  }
+
+  /* The in-place editor grows with its text, and shows where the box is while it is empty. */
+  :where(.ink-free-text[data-ink-editor]) {
+    height: auto;
+    overflow: visible;
+    outline: 1px dashed var(--ink-free-text);
+    outline-offset: 1px;
+    cursor: text;
   }
 
   /*

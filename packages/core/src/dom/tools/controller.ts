@@ -22,6 +22,7 @@ import {
   type ToolStyle,
 } from '../../model/annotations/tool-style'
 import { readonly, writable, type Readable } from '../../model/readable'
+import { canEditFreeText, editFreeTextIn } from '../freetext-editor'
 
 import { createToolOptions, type ToolOptions } from './options'
 
@@ -31,7 +32,7 @@ import type { SelectionQuads } from '../selection'
 import type { Viewport, ViewportHit } from '../viewport'
 
 export type BuiltinToolId =
-  'select-text' | 'select' | 'highlight' | 'redact-area' | 'note' | 'shape'
+  'select-text' | 'select' | 'highlight' | 'redact-area' | 'note' | 'shape' | 'freetext'
 /** A built-in tool's id, or any id a host registers its own tool under. */
 export type ToolId = BuiltinToolId | (string & {})
 
@@ -214,7 +215,22 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     current?.onPointerCancel?.(e)
   }
   const onKey = (e: KeyboardEvent): void => {
-    if (!inCustomContent(e.target)) current?.onKeyDown?.(e)
+    if (inCustomContent(e.target)) return
+    current?.onKeyDown?.(e)
+    // Enter that no tool took edits the one selected text box, wherever focus is in the viewport.
+    if (isViewportEnter(e, ctx.root)) editSelectedText(e)
+  }
+  function editSelectedText(e: KeyboardEvent): void {
+    const selected = ctx.store.selection.get()
+    if (selected.length !== 1) return
+    const id = selected[0]!
+    const a = ctx.store.get(id)
+    const el = ctx.root.querySelector<HTMLElement>(
+      `[data-annotation="${CSS.escape(id)}"]`
+    )
+    if (!canEditFreeText(a, el) || !el) return
+    e.preventDefault()
+    editFreeTextIn(ctx.store, el, id, ctx.viewport.transformFor(a.page))
   }
 
   // Capture is best effort: synthetic events may carry a pointer id the browser does not know.
@@ -308,6 +324,8 @@ export function isViewportEnter(e: KeyboardEvent, root: HTMLElement): boolean {
  */
 function inCustomContent(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false
+  // A free-text editor's presses and keys are its own, too.
+  if (target.closest('[data-ink-editor]')) return true
   const el = target.closest('[data-annotation]')
   return (
     el !== null &&

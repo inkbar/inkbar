@@ -18,6 +18,7 @@ import {
   Square,
   SquareDashedMousePointer,
   TextCursor,
+  Type,
   Undo2,
   ZoomIn,
   ZoomOut,
@@ -70,6 +71,7 @@ const TOOL_ICONS: Readonly<Partial<Record<ToolId, IconNode>>> = {
   highlight: Highlighter,
   'redact-area': Square,
   note: MessageSquare,
+  freetext: Type,
 }
 
 /**

@@ -49,6 +49,18 @@ describe('toolbar', () => {
     await expect.poll(attr(SCROLL, 'data-ink-tool')).toBe('highlight')
   })
 
+  // React: 'the text tool button is named Text, shows its icon and picks the text box tool'
+  it('the text tool button is named Text, shows its icon and picks the text box tool', async () => {
+    await render(ToolbarHarness, { src: fixtureUrl('text-simple'), assets })
+    await q('.ink-page canvas')
+    const text = toolbar().getByRole('button', { name: 'Text', exact: true })
+    await expect.element(text).toHaveAttribute('data-tool', 'freetext')
+    expect(text.element().querySelectorAll('svg')).toHaveLength(1)
+    await text.click()
+    await expect.element(text).toHaveAttribute('aria-pressed', 'true')
+    await expect.poll(attr(SCROLL, 'data-ink-tool')).toBe('freetext')
+  })
+
   // React: 'every toolbar control has an accessible name'
   it('every toolbar control has an accessible name', async () => {
     await render(ToolbarHarness, { src: fixtureUrl('text-simple'), assets })
@@ -59,6 +71,7 @@ describe('toolbar', () => {
       'Highlight',
       'Mark for redaction',
       'Add note',
+      'Text',
       'Line style',
       'Border colour',
       'Fill colour',
@@ -480,7 +493,7 @@ describe('toolbar', () => {
       await start('add-line')
       await expect.element(trigger('Border colour')).toBeEnabled()
       await expect.element(trigger('Fill colour')).toBeDisabled()
-      // No annotation maps text colour yet.
+      // A line has no text.
       await expect.element(trigger('Text colour')).toBeDisabled()
     })
 

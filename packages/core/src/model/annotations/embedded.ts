@@ -168,18 +168,24 @@ function convert(
       }
       break
     case 'FreeText': {
+      // XFDF and PDF agree: `/C` is the box's fill, `/DA` the text's colour and size.
       const da = d.defaultAppearanceData
+      const { color: _stroke, ...rest } = base('freetext')
       candidate = {
-        ...base(
-          'freetext',
-          pdfColorToHex(
-            da?.fontColor as ArrayLike<number> | undefined,
-            staticDefaults.color('freetext')
-          )
-        ),
+        ...rest,
+        ...(d.color && d.color.length >= 3
+          ? { color: pdfColorToHex(d.color, '#FFFFFF') }
+          : {}),
         type: 'freetext',
         contents: contents ?? '',
-        ...(da && da.fontSize > 0 ? { fontSize: da.fontSize } : {}),
+        width: d.borderStyle?.width ?? 0,
+        defaultStyle: {
+          color: pdfColorToHex(
+            da?.fontColor as ArrayLike<number> | undefined,
+            staticDefaults.color('freetext')
+          ),
+          ...(da && da.fontSize > 0 ? { fontSize: da.fontSize } : {}),
+        },
       }
       break
     }

@@ -59,6 +59,104 @@ describe('toFields', () => {
   })
 })
 
+describe('free text', () => {
+  it('maps fill, border, text colour and font props to the XFDF fields', () => {
+    expect(
+      toFields('freetext', { fill: '#FFFF00', textColor: '#FF0000', fontWeight: 'bold' })
+    ).toEqual({
+      color: '#FFFF00',
+      defaultStyle: { color: '#FF0000', fontWeight: 'bold' },
+    })
+    expect(toFields('freetext', { border: '#00FF00', width: 2, dashes: [3, 3] })).toEqual(
+      {
+        borderColor: '#00FF00',
+        width: 2,
+        dashes: [3, 3],
+      }
+    )
+    expect(
+      toFields('freetext', {
+        fontFamily: 'Times',
+        fontSize: 18,
+        fontStyle: 'italic',
+        textDecoration: 'underline',
+        textAlign: 'justify',
+      })
+    ).toEqual({
+      defaultStyle: {
+        fontFamily: 'Times',
+        fontSize: 18,
+        fontStyle: 'italic',
+        textDecoration: 'underline',
+        textAlign: 'justify',
+      },
+    })
+  })
+
+  it('maps no fill, normal weight, normal style and no decoration to deletions', () => {
+    expect(toFields('freetext', { fill: null, dashes: null })).toEqual({
+      color: undefined,
+      dashes: undefined,
+    })
+    expect(
+      toFields('freetext', {
+        fontWeight: 'normal',
+        fontStyle: 'normal',
+        textDecoration: 'none',
+      })
+    ).toEqual({
+      defaultStyle: {
+        fontWeight: undefined,
+        fontStyle: undefined,
+        textDecoration: undefined,
+      },
+    })
+    expect(toFields('freetext', { head: 'openArrow', opacity: 0.5 })).toEqual({
+      opacity: 0.5,
+    })
+  })
+
+  it('reads the props back', () => {
+    const box: Annotation = {
+      ...base,
+      type: 'freetext',
+      contents: 'Hi',
+      width: 1,
+      borderColor: '#00FF00',
+      defaultStyle: {
+        fontFamily: 'Helvetica',
+        fontSize: 12,
+        color: '#FF0000',
+        textAlign: 'center',
+        fontWeight: 'bold',
+      },
+    }
+    expect(fromAnnotation(box)).toEqual({
+      border: '#00FF00',
+      fill: '#C0392B',
+      textColor: '#FF0000',
+      opacity: 1,
+      width: 1,
+      dashes: null,
+      fontFamily: 'Helvetica',
+      fontSize: 12,
+      fontWeight: 'bold',
+      fontStyle: 'normal',
+      textDecoration: 'none',
+      textAlign: 'center',
+    })
+    const { color: _c, ...unfilled } = box as Annotation & { color?: string }
+    expect(fromAnnotation(unfilled as Annotation).fill).toBeNull()
+  })
+
+  it('puts free text in the text group with its props supported', () => {
+    expect(styleGroupOf({ type: 'freetext' })).toBe('text')
+    for (const key of ['border', 'fill', 'textColor', 'fontSize', 'textAlign'] as const)
+      expect(supportedProps('freetext').has(key), key).toBe(true)
+    expect(supportedProps('freetext').has('head')).toBe(false)
+  })
+})
+
 describe('supportedProps', () => {
   it('reports supported props', () => {
     expect(supportedProps('line').has('head')).toBe(true)

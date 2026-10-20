@@ -38,6 +38,11 @@
      * document opens.
      */
     tools?: Tool[] | undefined
+    /**
+     * The font families text boxes offer, replacing the PDF standard families
+     * (`FONT_FAMILIES`). Fonts beyond those are the PDF writer's to embed.
+     */
+    fonts?: string[] | undefined
     page?: number | undefined
     onPageChange?: ((page: number) => void) | undefined
     zoom?: ZoomValue | undefined
@@ -64,7 +69,7 @@
     InkError as InkErrorClass,
     openDocument,
   } from '@inkbar/core'
-  import { cssVariableDefaults, trackToolStyle } from '@inkbar/core/dom'
+  import { cssVariableDefaults, FONT_FAMILIES, trackToolStyle } from '@inkbar/core/dom'
   import { DEV } from 'esm-env'
   import { untrack } from 'svelte'
   import { createAttachmentKey } from 'svelte/attachments'
@@ -85,6 +90,7 @@
     tool = $bindable(),
     onToolChange,
     tools: hostTools,
+    fonts,
     page = $bindable(),
     onPageChange,
     zoom = $bindable(),
@@ -329,6 +335,9 @@
     setTool,
     get hostTools() {
       return hostTools
+    },
+    get fonts() {
+      return fonts ?? FONT_FAMILIES
     },
     get toolStyle() {
       return styleTracker?.toolStyle ?? null

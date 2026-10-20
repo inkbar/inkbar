@@ -45,6 +45,8 @@ export interface InkContext {
   setTool(id: ToolId): void
   /** Host tools from InkRoot's `tools` prop; InkViewport registers them. */
   hostTools: Readonly<Ref<Tool[] | undefined>>
+  /** The font families text boxes offer: InkRoot's `fonts`, else `FONT_FAMILIES`. */
+  fonts: Readonly<Ref<readonly string[]>>
   /** The open document's tool style; `null` while no document is open. */
   toolStyle: Readonly<ShallowRef<ToolStyle | null>>
   /** Desired zoom and page from the host's v-models; InkViewport applies and reports back. */

@@ -3,7 +3,7 @@ import { computed } from 'vue'
 
 import { useInkContext } from '../context'
 
-import type { Annotation, AnnotationInput } from '@inkbar/core'
+import type { Annotation, AnnotationInput, AnnotationPatch } from '@inkbar/core'
 
 export function useAnnotations() {
   const ctx = useInkContext('useAnnotations()')
@@ -18,7 +18,7 @@ export function useAnnotations() {
     ),
     byPage: (page: number) => ctx.annotations.value.filter((a) => a.page === page),
     add: (input: AnnotationInput) => store()?.add(input),
-    update: (id: string, patch: Partial<Annotation>) => store()?.update(id, patch),
+    update: (id: string, patch: AnnotationPatch) => store()?.update(id, patch),
     remove: (id: string) => store()?.remove(id) ?? false,
     select: (ids: string[]) => store()?.select(ids),
     /** Replies in creation order for a note id. */
