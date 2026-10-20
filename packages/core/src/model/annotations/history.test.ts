@@ -311,4 +311,96 @@ describe('history.batch', () => {
       warn.mockRestore()
     }
   })
+  it('a late fill of embedded fields keeps history and patches every snapshot', () => {
+    const s = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const embedded: Annotation = {
+      id: 'pdf:0:1R',
+      type: 'text',
+      icon: 'Note',
+      page: 0,
+      rect,
+      color: '#FFD400',
+      opacity: 1,
+      createdAt: '2026-10-12T12:00:00.000Z',
+      modifiedAt: '2026-10-12T12:00:00.000Z',
+      source: 'pdf',
+      locked: true,
+    }
+    s._setEmbedded([embedded])
+    const h = createHistory(s)
+    const mine = s.add({ type: 'text', page: 0, rect })
+    const patched: Annotation = { ...embedded, icon: 'Key' }
+    s._patchEmbedded(new Map([[embedded.id, { icon: 'Key' }]]))
+    expect(h.canUndo.get()).toBe(true)
+    h.undo()
+    expect(s.get(mine.id)).toBeUndefined()
+    expect(s.get(embedded.id)).toEqual(patched)
+    expect(h.canUndo.get()).toBe(false)
+    h.redo()
+    expect(s.get(mine.id)).toBeDefined()
+    expect(s.get(embedded.id)).toEqual(patched)
+  })
+
+  it('a late fill reaches the redo stack too', () => {
+    const s = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const embedded: Annotation = {
+      id: 'pdf:0:1R',
+      type: 'text',
+      icon: 'Note',
+      page: 0,
+      rect,
+      color: '#FFD400',
+      opacity: 1,
+      createdAt: '2026-10-12T12:00:00.000Z',
+      modifiedAt: '2026-10-12T12:00:00.000Z',
+      source: 'pdf',
+      locked: true,
+    }
+    s._setEmbedded([embedded])
+    const h = createHistory(s)
+    s.add({ type: 'text', page: 0, rect })
+    h.undo()
+    const patched: Annotation = { ...embedded, icon: 'Key' }
+    s._patchEmbedded(new Map([[embedded.id, { icon: 'Key' }]]))
+    expect(h.canRedo.get()).toBe(true)
+    h.redo()
+    expect(s.get(embedded.id)).toEqual(patched)
+    h.undo()
+    expect(s.get(embedded.id)).toEqual(patched)
+  })
+
+  it('a late fill keeps an earlier edit undoable', () => {
+    const s = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const embedded: Annotation = {
+      id: 'pdf:0:1R',
+      type: 'text',
+      icon: 'Note',
+      page: 0,
+      rect,
+      color: '#FFD400',
+      opacity: 1,
+      createdAt: '2026-10-12T12:00:00.000Z',
+      modifiedAt: '2026-10-12T12:00:00.000Z',
+      source: 'pdf',
+      locked: true,
+    }
+    s._setEmbedded([embedded])
+    const h = createHistory(s)
+    s.update(embedded.id, { color: '#000000' })
+    s._patchEmbedded(new Map([[embedded.id, { icon: 'Key' }]]))
+    expect(s.get(embedded.id)).toMatchObject({ color: '#000000', icon: 'Key' })
+    h.undo()
+    expect(s.get(embedded.id)).toMatchObject({ color: '#FFD400', icon: 'Key' })
+    h.redo()
+    expect(s.get(embedded.id)).toMatchObject({ color: '#000000', icon: 'Key' })
+  })
 })

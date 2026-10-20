@@ -1,5 +1,5 @@
 import { fixtureBytes } from '@inkbar/fixtures'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { nodeAssets } from '../../pdfjs/node-assets'
 import { openDocument } from '../document'
@@ -10,6 +10,13 @@ import { importEmbeddedPage, pdfColorToHex, summarise } from './embedded'
 import type { PdfjsAnnotationData } from '../../pdfjs/types'
 
 const NOW = '2026-10-12T00:00:00.000Z'
+const twin = sample.annotations[0]!
+
+function open(name: Parameters<typeof fixtureBytes>[0]) {
+  return fixtureBytes(name).then((bytes) =>
+    openDocument(bytes, { assets: nodeAssets(), verbosity: 0 })
+  )
+}
 
 async function rawAnnotations(name: Parameters<typeof fixtureBytes>[0]) {
   // PDF.js warns about Redact and about building FreeText appearances in Node; both expected.
@@ -310,10 +317,66 @@ describe('embedded import of PDF names and callouts', () => {
     ).toMatchObject({ head: 'None', tail: 'Slash' })
   })
 
-  // PDF.js 6.4 passes FreeText /IT but not /CL, /RD or /LE, and has no other API that reads them.
-  it.todo(
-    'imports a FreeText callout line, fringe and head (PDF.js does not expose /CL /RD /LE)'
-  )
+  // PDF.js 6.4 passes FreeText /IT but not /CL, /RD or /LE: they are read from the file after ready.
+  it('standard-callout imports callout, fringe and head after ready', async () => {
+    const doc = await open('standard-callout')
+    await doc.ready
+    const callout = () => doc.annotations.list.get().find((a) => a.type === 'freetext')
+    await vi.waitFor(() =>
+      expect(callout()).toMatchObject({
+        callout: sample.annotations[0]!.callout,
+        fringe: sample.annotations[0]!.fringe,
+        head: sample.annotations[0]!.head,
+      })
+    )
+    // Loading the file, fields included, is not an undoable step.
+    expect(doc.history.canUndo.get()).toBe(false)
+    doc.destroy()
+  })
+
+  it('destroy right after ready stops the fill without throwing', async () => {
+    const doc = await open('standard-callout')
+    await doc.ready
+    const before = doc.annotations.list.get()
+    expect(() => doc.destroy()).not.toThrow()
+    await new Promise((r) => setTimeout(r, 200))
+    expect(doc.annotations.list.get()).toBe(before)
+    expect(before[0]).not.toHaveProperty('callout')
+  })
+
+  it('an embedded annotation gone before the fill lands stays gone, through a replace import', async () => {
+    const doc = await open('standard-callout')
+    await doc.ready
+    const [callout] = doc.annotations.list.get()
+    expect(callout).toMatchObject({ type: 'freetext', source: 'pdf' })
+    const patch = vi.spyOn(doc.annotations, '_patchEmbedded')
+    // Nothing public removes an embedded annotation, so drop it through the store's own hook.
+    doc.annotations._setEmbedded([])
+    doc.importAnnotations({ format: 'inkbar/annotations', version: 1, annotations: [] })
+    await vi.waitFor(() => expect(patch).toHaveBeenCalled())
+    // The fill was for the dropped callout, and it does not bring it back.
+    expect([...patch.mock.calls[0]![0].keys()]).toEqual([callout!.id])
+    expect(doc.annotations.list.get()).toEqual([])
+    doc.destroy()
+  })
+
+  it('keeps an edit made before the fill lands, and its undo', async () => {
+    const doc = await open('standard-callout')
+    await doc.ready
+    const [original] = doc.annotations.list.get()
+    const id = original!.id
+    doc.annotations.update(id, { color: '#00FF00' })
+    const filled = { callout: twin.callout, fringe: twin.fringe, head: twin.head }
+    await vi.waitFor(() =>
+      expect(doc.annotations.get(id)).toMatchObject({ ...filled, color: '#00FF00' })
+    )
+    doc.history.undo()
+    expect(doc.annotations.get(id)).toMatchObject(filled)
+    expect(doc.annotations.get(id)?.color).toBe(original!.color)
+    doc.history.redo()
+    expect(doc.annotations.get(id)).toMatchObject({ ...filled, color: '#00FF00' })
+    doc.destroy()
+  })
 
   it('imports the standard callout fixture with its intent', async () => {
     const { doc, raw } = await rawAnnotations('standard-callout')

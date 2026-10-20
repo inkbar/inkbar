@@ -5,6 +5,7 @@ import { Emitter } from '../events'
 import { rectFromQuad, unionRects, type Point, type Rect } from '../geometry'
 import { readonly, writable, type Readable } from '../readable'
 
+import { withEmbeddedFields } from './embedded-fields'
 import {
   AnnotationSchema,
   confidenceBucket,
@@ -14,6 +15,7 @@ import {
 } from './types'
 
 import type { AnnotationDefaults } from './defaults'
+import type { EmbeddedFieldPatch } from './embedded'
 
 export type AnnotationChange =
   | { kind: 'add'; annotation: Annotation }
@@ -26,6 +28,13 @@ export type AnnotationChange =
       removed: Annotation[]
     }
   | { kind: 'replace'; reason: 'import' | 'sync' | 'history' }
+  | {
+      kind: 'replace'
+      /** Fields read from the file after `ready` filled in embedded annotations. */
+      reason: 'embedded'
+      /** What was merged into each annotation, by id. */
+      fields: ReadonlyMap<string, EmbeddedFieldPatch>
+    }
 
 export type StoreMode =
   | { mode: 'uncontrolled'; initial?: Annotation[] }
@@ -73,6 +82,13 @@ export interface AnnotationStore {
    * directly in both modes and never passed to `onChange`; the document calls it once on open.
    */
   _setEmbedded(list: readonly Annotation[]): void
+  /**
+   * @internal Merges fields read from the file into embedded annotations, by id, onto their
+   * current version (only ids still present with `source: 'pdf'`; a merge that fails the schema
+   * is skipped). Applied directly in both modes and never passed to `onChange`. Emits
+   * `{ kind: 'replace', reason: 'embedded', fields }` when anything changed.
+   */
+  _patchEmbedded(fields: ReadonlyMap<string, EmbeddedFieldPatch>): void
   /**
    * @internal Like `get`, but in controlled mode it also sees changes proposed to the host and
    * not applied yet: the list `update` and `remove` build on.
@@ -500,6 +516,24 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
       list.set(next)
       pruneSelection(next)
       emitter.emit('change', { kind: 'replace', reason: 'import' })
+    },
+    _patchEmbedded(fields) {
+      if (destroyed) return
+      const applied = new Map<string, EmbeddedFieldPatch>()
+      const merge = (items: readonly Annotation[]): Annotation[] =>
+        items.map((a) => {
+          const f = a.source === 'pdf' ? fields.get(a.id) : undefined
+          const merged = f && withEmbeddedFields(a, f)
+          if (!merged) return a
+          applied.set(a.id, f)
+          return merged
+        })
+      const next = merge(list.get())
+      if (applied.size === 0) return
+      list.set(next)
+      // A pending controlled proposal holds the embedded items too.
+      if (proposed) proposed = merge(proposed)
+      emitter.emit('change', { kind: 'replace', reason: 'embedded', fields: applied })
     },
     on: (event, fn) => emitter.on(event, fn),
     destroy() {

@@ -12,6 +12,7 @@ import { staticDefaults } from './defaults'
 import { PDF_NAME } from './pdf-names'
 import { AnnotationSchema, type Annotation } from './types'
 
+import type { Fringe } from './callout'
 import type { PdfjsAnnotationData } from '../../pdfjs/types'
 
 export const SUPPORTED_SUBTYPES: ReadonlySet<string> = new Set([
@@ -77,20 +78,69 @@ export function importedId(page: number, pdfjsId: string): string {
   return `pdf:${page}:${pdfjsId}`
 }
 
+/**
+ * An imported annotation whose fields PDF.js leaves out, to be read from the file itself once
+ * the document is ready: a FreeText's `/CL`, `/RD`, `/LE` and `/DA` font, or a note's `/Name`
+ * when PDF.js reports `NoIcon`.
+ */
+export interface EmbeddedTarget {
+  /** The imported id, `pdf:<page>:<pdfjsId>`. */
+  id: string
+  subtype: 'FreeText' | 'Text'
+  /** The annotation's `/Rect` as PDF.js gives it, `[x1, y1, x2, y2]`. */
+  rect: readonly number[]
+  /** FreeText only: the `/DA` font resource name. */
+  daFont?: string
+}
+
+/**
+ * The fields read from the file for one embedded annotation: what PDF.js left out. They merge
+ * onto the annotation as it is when they land, so edits made in between are kept.
+ */
+export interface EmbeddedFieldPatch {
+  /** FreeText `/CL`: the tip, an optional bend, and where the line meets the box. */
+  callout?: Point[]
+  /** FreeText `/RD`. */
+  fringe?: Fringe
+  /** FreeText `/LE`. */
+  head?: string
+  /** Text `/Name`. */
+  icon?: string
+  /** FreeText `/DA` font, merged into `defaultStyle`. */
+  font?: { fontFamily?: string; fontWeight?: 'bold'; fontStyle?: 'italic' }
+}
+
 export function importEmbeddedPage(
   page: number,
   raw: PdfjsAnnotationData[],
   importedAt: string
-): { annotations: Annotation[]; counts: Record<string, number> } {
+): {
+  annotations: Annotation[]
+  counts: Record<string, number>
+  targets: EmbeddedTarget[]
+} {
   const counts: Record<string, number> = {}
   const annotations: Annotation[] = []
+  const targets: EmbeddedTarget[] = []
   for (const data of raw) {
     counts[data.subtype] = (counts[data.subtype] ?? 0) + 1
     if (!SUPPORTED_SUBTYPES.has(data.subtype) || data.hidden || data.noView) continue
     const converted = convert(page, data, importedAt)
-    if (converted) annotations.push(converted)
+    if (!converted) continue
+    annotations.push(converted)
+    const target = targetOf(converted.id, data)
+    if (target) targets.push(target)
   }
-  return { annotations, counts }
+  return { annotations, counts, targets }
+}
+
+function targetOf(id: string, d: PdfjsAnnotationData): EmbeddedTarget | undefined {
+  const rect = Array.from(d.rect)
+  if (d.subtype === 'Text')
+    return d.name === 'NoIcon' ? { id, subtype: 'Text', rect } : undefined
+  if (d.subtype !== 'FreeText') return undefined
+  const daFont = d.defaultAppearanceData?.fontName
+  return { id, subtype: 'FreeText', rect, ...(daFont ? { daFont } : {}) }
 }
 
 export function summarise(perPage: Record<string, number>[]): EmbeddedSummary[] {

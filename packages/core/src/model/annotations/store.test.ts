@@ -4,6 +4,7 @@ import { normalizeColor, staticDefaults } from './defaults'
 import { createHistory } from './history'
 import { createAnnotationStore, deriveRect, type AnnotationChange } from './store'
 
+import type { EmbeddedFieldPatch } from './embedded'
 import type { Annotation } from './types'
 
 const quads = [
@@ -488,6 +489,64 @@ describe('AnnotationStore embedded guard (uncontrolled)', () => {
       'sync'
     )
     expect(s.list.get()).toEqual([{ ...embedded, color: '#000000' }, note])
+  })
+
+  it('_patchEmbedded merges fields onto the current version and emits reason embedded', () => {
+    const s = make()
+    const note = s.add({ type: 'text', page: 0, rect: embedded.rect })
+    // An edit made before the fields arrive is kept.
+    s.update(embedded.id, { color: '#000000' })
+    const changes: AnnotationChange[] = []
+    s.on('change', (c) => changes.push(c))
+    s._patchEmbedded(
+      new Map<string, EmbeddedFieldPatch>([
+        [embedded.id, { icon: 'Key' }],
+        // Not in the list: ignored.
+        ['pdf:0:9R', { icon: 'Key' }],
+        // A session annotation: never patched.
+        [note.id, { icon: 'Key' }],
+      ])
+    )
+    expect(s.get(embedded.id)).toMatchObject({ icon: 'Key', color: '#000000' })
+    expect(s.get(note.id)).toBe(note)
+    expect(changes).toEqual([
+      {
+        kind: 'replace',
+        reason: 'embedded',
+        fields: new Map([[embedded.id, { icon: 'Key' }]]),
+      },
+    ])
+  })
+
+  it('_patchEmbedded skips fields that do not fit or fail the schema, and then emits nothing', () => {
+    const s = make()
+    const fn = vi.fn()
+    s.on('change', fn)
+    s._patchEmbedded(
+      new Map<string, EmbeddedFieldPatch>([
+        ['pdf:0:9R', { icon: 'Key' }],
+        // A note takes no callout.
+        [embedded.id, { head: 'Slash' }],
+      ])
+    )
+    s._patchEmbedded(new Map([[embedded.id, { icon: 'not a name' }]]))
+    expect(fn).not.toHaveBeenCalled()
+    expect(s.get(embedded.id)).toBe(embedded)
+  })
+
+  it('_patchEmbedded applies in controlled mode without proposing to onChange', () => {
+    const onChange = vi.fn()
+    const s = createAnnotationStore({
+      mode: { mode: 'controlled', initial: [], onChange },
+      defaults: staticDefaults,
+    })
+    s._setEmbedded([embedded])
+    const changes: AnnotationChange[] = []
+    s.on('change', (c) => changes.push(c))
+    s._patchEmbedded(new Map([[embedded.id, { icon: 'Key' }]]))
+    expect(s.get(embedded.id)).toEqual({ ...embedded, icon: 'Key' })
+    expect(onChange).not.toHaveBeenCalled()
+    expect(changes).toMatchObject([{ kind: 'replace', reason: 'embedded' }])
   })
 
   it('still undoes an edit to an embedded annotation', () => {

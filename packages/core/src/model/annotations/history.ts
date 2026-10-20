@@ -1,6 +1,8 @@
 import { isProduction } from '../env'
 import { readonly, writable, type Readable } from '../readable'
 
+import { withEmbeddedFields } from './embedded-fields'
+
 import type { AnnotationChange, AnnotationStore } from './store'
 import type { Annotation } from './types'
 
@@ -77,6 +79,23 @@ export function createHistory(
     const current = store.list.get()
     // Our own replays (and any other history replace) never become entries.
     if (replaying || (change.kind === 'replace' && change.reason === 'history')) {
+      previous = current
+      return
+    }
+    if (change.kind === 'replace' && change.reason === 'embedded') {
+      // Fields read from the file late fill in what the import missed: no step, and every
+      // snapshot gets the same fields so undo never brings back the unfilled version. Each
+      // snapshot keeps its own edits, such as a colour changed before the fields arrived.
+      const fill = (list: readonly Annotation[]) =>
+        list.map((a) => {
+          const f = change.fields.get(a.id)
+          return (f && withEmbeddedFields(a, f)) || a
+        })
+      for (const entry of [...undoStack, ...redoStack]) {
+        entry.before = fill(entry.before)
+        entry.after = fill(entry.after)
+      }
+      if (batchStart) batchStart = fill(batchStart)
       previous = current
       return
     }
