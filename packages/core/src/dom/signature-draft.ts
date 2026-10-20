@@ -115,6 +115,8 @@ export function createSignatureDraft(
         patch({ image: undefined, imageError: undefined })
         return
       }
+      // The old image goes at once, so Save waits for the new one.
+      patch({ image: undefined, imageError: undefined })
       try {
         const image = await createImageSignature(file)
         if (n === reads) patch({ image, imageError: undefined })
