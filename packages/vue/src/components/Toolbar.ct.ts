@@ -467,7 +467,16 @@ test.describe('colour menus', () => {
     const menu = page.getByRole('menu', { name: 'Border colour' })
     const input = page.locator('input[data-ink-color-input="border"]')
     await expect(input).toHaveAttribute('aria-label', 'Custom colour')
+    // fill() below skips the click, so record that Custom… clicked the input (and keep the
+    // native picker shut).
+    await input.evaluate((el) =>
+      el.addEventListener('click', (e) => {
+        e.preventDefault()
+        ;(el as HTMLElement).dataset.clicked = '1'
+      })
+    )
     await menu.getByRole('menuitem', { name: 'Custom…' }).click()
+    await expect(input).toHaveAttribute('data-clicked', '1')
     await input.fill('#123abc')
     await expect(page.getByTestId('probe')).toHaveAttribute('data-colors', '#123ABC')
   })
