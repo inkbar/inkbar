@@ -122,7 +122,7 @@ Inside `InkRoot`, `useHistory()` returns the same object. Its `batch(fn)` runs `
 
 A root note with no text and no replies is removed when its popover closes, or when activation moves to another annotation, so abandoned notes do not stay on the page. A highlight stays: the mark is the point. Locked annotations are never removed. If you add notes yourself (`add({ type: 'text', ... })`), give them `contents`, or they will be removed the first time someone opens and closes them.
 
-The highlight tool leaves `contents` free for the comment. Read the marked text with `doc.text(page)`. `InkHighlightMenu` is a split button for the tool: it picks the markup kind and its colour.
+The highlight tool leaves `contents` free for the comment. `doc.text(page)` returns the page's text items; match the markup's `quads` against them to get the marked text. `InkHighlightMenu` is a split button for the tool: it picks the markup kind and its colour.
 
 ## Signatures
 
