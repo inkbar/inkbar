@@ -40,100 +40,102 @@ export function InkShapeMenu({ className, children, ...rest }: InkShapeMenuProps
   /** ArrowDown opens on the first item; a click opens on the checked one. */
   const focusFirst = useRef(false)
   return (
-    <div
-      role="group"
-      aria-label="Shape"
-      className={cx('ink-split-button ink-shape-menu', className)}
-      data-ink-shape-menu=""
-      {...rest}
-    >
-      <Toolbar.Button
-        className="ink-tool-button ink-shape-button"
-        data-ink-tool-button=""
-        data-ink-shape-button=""
-        data-tool="shape"
-        data-kind={model.kind}
-        data-state={active ? 'on' : 'off'}
-        aria-pressed={active}
-        aria-label={model.label}
-        title={model.label}
-        onClick={() => setTool('shape')}
-      >
-        {children ?? <InkIcon icon={SHAPE_ICONS[model.kind]} />}
-      </Toolbar.Button>
-      <Popover.Root open={open} onOpenChange={setOpen}>
-        <Toolbar.Button asChild>
-          <Popover.Trigger asChild>
-            <button
-              type="button"
-              className="ink-menu-trigger ink-shape-menu-trigger"
-              data-ink-shape-menu-trigger=""
-              data-state={open ? 'open' : 'closed'}
-              aria-label="Choose shape"
-              title="Choose shape"
-              aria-haspopup="menu"
-              onKeyDown={(e) => {
-                if (e.key !== 'ArrowDown' || e.defaultPrevented || open) return
-                e.preventDefault()
-                focusFirst.current = true
-                setOpen(true)
-              }}
-            >
-              <InkIcon icon={ChevronDown} />
-            </button>
-          </Popover.Trigger>
-        </Toolbar.Button>
-        <Popover.Portal>
-          <Popover.Content
-            role="menu"
-            aria-label="Shapes"
-            className="ink-select-content ink-menu-content"
-            data-ink-select-content=""
-            data-ink-menu="shape"
-            side="bottom"
-            align="start"
-            sideOffset={4}
-            collisionPadding={8}
-            onOpenAutoFocus={(e) => {
-              e.preventDefault()
-              const menu = e.currentTarget as HTMLElement
-              if (focusFirst.current) menuItems(menu)[0]?.focus({ preventScroll: true })
-              else focusInitialMenuItem(menu)
-              focusFirst.current = false
-            }}
-            onKeyDown={(e) => handleMenuKeys(e.nativeEvent, e.currentTarget)}
+    <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Anchor asChild>
+        <div
+          role="group"
+          aria-label="Shape"
+          className={cx('ink-split-button ink-shape-menu', className)}
+          data-ink-shape-menu=""
+          {...rest}
+        >
+          <Toolbar.Button
+            className="ink-tool-button ink-shape-button"
+            data-ink-tool-button=""
+            data-ink-shape-button=""
+            data-tool="shape"
+            data-kind={model.kind}
+            data-state={active ? 'on' : 'off'}
+            aria-pressed={active}
+            aria-label={model.label}
+            title={model.label}
+            onClick={() => setTool('shape')}
           >
-            <div
-              role="group"
+            {children ?? <InkIcon icon={SHAPE_ICONS[model.kind]} />}
+          </Toolbar.Button>
+          <Toolbar.Button asChild>
+            <Popover.Trigger asChild>
+              <button
+                type="button"
+                className="ink-menu-trigger ink-shape-menu-trigger"
+                data-ink-shape-menu-trigger=""
+                data-state={open ? 'open' : 'closed'}
+                aria-label="Choose shape"
+                title="Choose shape"
+                aria-haspopup="menu"
+                onKeyDown={(e) => {
+                  if (e.key !== 'ArrowDown' || e.defaultPrevented || open) return
+                  e.preventDefault()
+                  focusFirst.current = true
+                  setOpen(true)
+                }}
+              >
+                <InkIcon icon={ChevronDown} />
+              </button>
+            </Popover.Trigger>
+          </Toolbar.Button>
+          <Popover.Portal>
+            <Popover.Content
+              role="menu"
               aria-label="Shapes"
-              className="ink-shape-grid"
-              data-ink-menu-columns={SHAPE_COLUMNS}
+              className="ink-select-content ink-menu-content"
+              data-ink-select-content=""
+              data-ink-menu="shape"
+              side="bottom"
+              align="start"
+              sideOffset={4}
+              collisionPadding={8}
+              onOpenAutoFocus={(e) => {
+                e.preventDefault()
+                const menu = e.currentTarget as HTMLElement
+                if (focusFirst.current) menuItems(menu)[0]?.focus({ preventScroll: true })
+                else focusInitialMenuItem(menu)
+                focusFirst.current = false
+              }}
+              onKeyDown={(e) => handleMenuKeys(e.nativeEvent, e.currentTarget)}
             >
-              {model.items.map((item) => (
-                <button
-                  key={item.kind}
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={item.checked}
-                  tabIndex={-1}
-                  className="ink-select-item ink-menu-item ink-shape-item"
-                  data-ink-select-item=""
-                  data-key={item.kind}
-                  data-state={item.checked ? 'checked' : 'unchecked'}
-                  onClick={() => {
-                    setOptions({ kind: item.kind })
-                    setTool('shape')
-                    setOpen(false)
-                  }}
-                >
-                  <InkIcon icon={SHAPE_ICONS[item.kind]} size={16} />
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </Popover.Content>
-        </Popover.Portal>
-      </Popover.Root>
-    </div>
+              <div
+                role="group"
+                aria-label="Shapes"
+                className="ink-shape-grid"
+                data-ink-menu-columns={SHAPE_COLUMNS}
+              >
+                {model.items.map((item) => (
+                  <button
+                    key={item.kind}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={item.checked}
+                    tabIndex={-1}
+                    className="ink-select-item ink-menu-item ink-shape-item"
+                    data-ink-select-item=""
+                    data-key={item.kind}
+                    data-state={item.checked ? 'checked' : 'unchecked'}
+                    onClick={() => {
+                      setOptions({ kind: item.kind })
+                      setTool('shape')
+                      setOpen(false)
+                    }}
+                  >
+                    <InkIcon icon={SHAPE_ICONS[item.kind]} size={16} />
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </Popover.Content>
+          </Popover.Portal>
+        </div>
+      </Popover.Anchor>
+    </Popover.Root>
   )
 }

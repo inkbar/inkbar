@@ -56,6 +56,8 @@ const props = defineProps<{
    * is active, and recolours the selection only when it is all in the group.
    */
   group?: StyleGroup | undefined
+  /** The colour new annotations get while the style leaves it unset; the swatch shows it. */
+  fallback?: string | undefined
 }>()
 
 const { current, supported, set } = useToolStyle(() => props.group)
@@ -63,7 +65,7 @@ const open = ref(false)
 const customInput = ref<HTMLInputElement | null>(null)
 
 const model = computed(() =>
-  colorMenuModel(props.property, current.value, supported.value)
+  colorMenuModel(props.property, current.value, supported.value, props.fallback)
 )
 const name = computed(() => props.label ?? model.value.label)
 const trigger = computed(() => model.value.trigger)

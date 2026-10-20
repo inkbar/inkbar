@@ -748,6 +748,24 @@ test.describe('shape menu', () => {
     await expect(page.getByTestId('probe')).toHaveAttribute('data-tool', 'shape')
   })
 
+  test('the panel lines up under the whole split button, not the chevron', async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mountHarness(mount)
+    const group = cmp.locator('[data-ink-shape-menu]')
+    await group.evaluate((el) => {
+      el.style.marginLeft = '120px'
+    })
+    const chevron = page.getByRole('button', { name: 'Choose shape' })
+    await chevron.click()
+    const panel = page.getByRole('menu', { name: 'Shapes' })
+    await expect(panel).toBeVisible()
+    const left = (await panel.boundingBox())!.x
+    expect(left).toBeCloseTo((await group.boundingBox())!.x, 0)
+    expect(left).toBeLessThan((await chevron.boundingBox())!.x)
+  })
+
   test('choosing ellipse activates shape with kind ellipse', async ({ mount, page }) => {
     const cmp = await mountHarness(mount)
     await page.getByRole('button', { name: 'Choose shape' }).click()
@@ -846,6 +864,7 @@ test.describe('highlight menu', () => {
     cmp.locator('[data-ink-highlight-button]')
   type Doc = {
     annotations: {
+      defaults: { color(kind: string): string }
       add(input: unknown): { id: string }
       select(ids: string[]): void
       get(id: string): { color: string } | undefined
@@ -893,6 +912,25 @@ test.describe('highlight menu', () => {
     expect(await main(cmp).innerHTML()).not.toBe(before)
     await expect(menu).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Choose highlight' })).toBeFocused()
+  })
+
+  test("the colour row shows the chosen kind's default colour until a colour is picked", async ({
+    mount,
+    page,
+  }) => {
+    await mountHarness(mount)
+    const defaultColour = async (kind: string) =>
+      (await doc(page)).evaluate((d, k) => d.annotations.defaults.color(k), kind)
+    const swatch = page.locator('.ink-highlight-colour .ink-swatch')
+    await page.getByRole('button', { name: 'Choose highlight' }).click()
+    await expect(swatch).toHaveAttribute('data-kind', 'color')
+    await expect(swatch).toHaveAttribute('data-color', await defaultColour('highlight'))
+    await page
+      .getByRole('menu', { name: 'Highlights' })
+      .getByRole('menuitemradio', { name: 'Underline', exact: true })
+      .click()
+    await page.getByRole('button', { name: 'Choose highlight' }).click()
+    await expect(swatch).toHaveAttribute('data-color', await defaultColour('underline'))
   })
 
   test('the colour works under any tool and recolours selected markup', async ({

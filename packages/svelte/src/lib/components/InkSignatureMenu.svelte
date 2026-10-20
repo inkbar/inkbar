@@ -58,6 +58,8 @@
   const model = $derived(signatureMenuModel(templates.current, signature.options))
   const active = $derived(current.tool === 'signature')
   let open = $state(false)
+  /** The split button: the panel lines up under it rather than the chevron. */
+  let group = $state<HTMLElement | null>(null)
   let creating = $state(false)
   let menu = $state<HTMLElement | null>(null)
   let main = $state<HTMLElement | null>(null)
@@ -115,6 +117,7 @@
 </script>
 
 <div
+  bind:this={group}
   role="group"
   aria-label={SIGNATURE_LABELS.sign}
   class={['ink-split-button ink-signature-menu', className]}
@@ -160,6 +163,7 @@
         class="ink-select-content ink-menu-content"
         data-ink-select-content=""
         data-ink-menu="signature"
+        customAnchor={group}
         side="bottom"
         align="start"
         sideOffset={4}

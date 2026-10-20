@@ -52,6 +52,8 @@ export interface InkColorMenuProps extends Omit<
    * is active, and recolours the selection only when it is all in the group.
    */
   group?: StyleGroup
+  /** The colour new annotations get while the style leaves it unset; the swatch shows it. */
+  fallback?: string | undefined
 }
 
 export function InkColorMenu({
@@ -61,13 +63,14 @@ export function InkColorMenu({
   children,
   standalone = false,
   group,
+  fallback,
   disabled,
   ...rest
 }: InkColorMenuProps) {
   const Wrap = standalone ? Fragment : Toolbar.Button
   const { current, supported, set } = useToolStyle(group)
   const [open, setOpen] = useState(false)
-  const model = colorMenuModel(property, current, supported)
+  const model = colorMenuModel(property, current, supported, fallback)
   const name = label ?? model.label
   /** ArrowDown opens on the first item; a click opens on the checked one. */
   const focusFirst = useRef(false)

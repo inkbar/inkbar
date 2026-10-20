@@ -15,6 +15,7 @@ import {
 } from '@inkbar/core/dom'
 import { ChevronDown, Plus, Signature, Trash2 } from '@inkbar/icons'
 import {
+  PopoverAnchor,
   PopoverContent,
   PopoverPortal,
   PopoverRoot,
@@ -33,6 +34,7 @@ import InkSignatureDialog from './InkSignatureDialog.vue'
 
 import type { SignatureOptions, SignatureTemplate } from '@inkbar/core'
 
+defineOptions({ inheritAttrs: false })
 const props = defineProps<{
   /** The fonts the dialog's Type tab offers. Default: InkRoot's `signatureFonts`. */
   fonts?: readonly string[] | undefined
@@ -155,133 +157,136 @@ const innerAttrs = {
 </script>
 
 <template>
-  <div
-    role="group"
-    :aria-label="SIGNATURE_LABELS.sign"
-    class="ink-split-button ink-signature-menu"
-    data-ink-signature-menu
-  >
-    <ToolbarButton
-      ref="main"
-      class="ink-tool-button ink-signature-button"
-      data-ink-tool-button
-      data-ink-signature-button
-      data-tool="signature"
-      :data-state="active ? 'on' : 'off'"
-      v-bind="mainAttrs"
-    >
-      <slot :active="active"><InkIcon :icon="Signature" /></slot>
-    </ToolbarButton>
-    <PopoverRoot v-model:open="open">
-      <ToolbarButton as-child>
-        <PopoverTrigger as-child>
-          <button
-            type="button"
-            class="ink-menu-trigger ink-signature-menu-trigger"
-            data-ink-signature-menu-trigger
-            :data-state="open ? 'open' : 'closed'"
-            v-bind="triggerAttrs"
-          >
-            <InkIcon :icon="ChevronDown" />
-          </button>
-        </PopoverTrigger>
-      </ToolbarButton>
-      <PopoverPortal>
-        <PopoverContent
-          class="ink-select-content ink-menu-content"
-          data-ink-select-content
-          data-ink-menu="signature"
-          side="bottom"
-          align="start"
-          :side-offset="4"
-          :collision-padding="8"
-          v-bind="menuAttrs"
-          @open-auto-focus="onOpenAutoFocus"
-          @close-auto-focus="onCloseAutoFocus"
+  <PopoverRoot v-model:open="open">
+    <PopoverAnchor as-child>
+      <div
+        role="group"
+        :aria-label="SIGNATURE_LABELS.sign"
+        class="ink-split-button ink-signature-menu"
+        data-ink-signature-menu
+        v-bind="$attrs"
+      >
+        <ToolbarButton
+          ref="main"
+          class="ink-tool-button ink-signature-button"
+          data-ink-tool-button
+          data-ink-signature-button
+          data-tool="signature"
+          :data-state="active ? 'on' : 'off'"
+          v-bind="mainAttrs"
         >
-          <div v-bind="innerAttrs">
-            <template v-if="model.items.length > 0">
-              <div
-                role="group"
-                :aria-label="SIGNATURE_LABELS.saved"
-                class="ink-signature-list"
-                data-ink-menu-columns="2"
-              >
-                <template v-for="(item, row) in model.items" :key="item.id">
-                  <button
-                    type="button"
-                    role="menuitemradio"
-                    :aria-checked="item.checked"
-                    :aria-label="item.label"
-                    tabindex="-1"
-                    class="ink-select-item ink-menu-item ink-signature-item"
-                    data-ink-select-item
-                    :data-key="item.id"
-                    :data-state="item.checked ? 'checked' : 'unchecked'"
-                    @click="choose(item.id)"
-                  >
-                    <span class="ink-signature-preview" :data-kind="item.template.kind">
-                      <img
-                        v-if="item.template.kind === 'image'"
-                        :src="item.template.imagedata"
-                        alt=""
-                        draggable="false"
-                      />
-                      <svg v-else :viewBox="previews[row]?.viewBox" aria-hidden="true">
-                        <path
-                          v-for="(d, i) in previews[row]?.paths ?? []"
-                          :key="i"
-                          :d="d"
-                          fill="currentColor"
-                        />
-                      </svg>
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    :aria-label="item.removeLabel"
-                    :title="item.removeLabel"
-                    tabindex="-1"
-                    class="ink-menu-item ink-signature-remove"
-                    data-ink-signature-remove
-                    :data-key="item.id"
-                    @click="remove(item.id, row)"
-                  >
-                    <InkIcon :icon="Trash2" :size="16" />
-                  </button>
-                </template>
-              </div>
-              <div role="separator" class="ink-select-separator" />
-            </template>
+          <slot :active="active"><InkIcon :icon="Signature" /></slot>
+        </ToolbarButton>
+        <ToolbarButton as-child>
+          <PopoverTrigger as-child>
             <button
               type="button"
-              role="menuitem"
-              tabindex="-1"
-              class="ink-select-item ink-menu-item ink-signature-create"
-              data-ink-select-item
-              data-ink-signature-create
-              @click="create"
+              class="ink-menu-trigger ink-signature-menu-trigger"
+              data-ink-signature-menu-trigger
+              :data-state="open ? 'open' : 'closed'"
+              v-bind="triggerAttrs"
             >
-              <InkIcon :icon="Plus" :size="16" />
-              {{ SIGNATURE_LABELS.create }}
+              <InkIcon :icon="ChevronDown" />
             </button>
-            <p
-              v-if="removeError"
-              class="ink-field-error ink-signature-remove-error"
-              role="alert"
-              data-ink-signature-remove-error
-            >
-              {{ removeError }}
-            </p>
-          </div>
-        </PopoverContent>
-      </PopoverPortal>
-    </PopoverRoot>
-    <InkSignatureDialog
-      v-model:open="creating"
-      :fonts="props.fonts"
-      @close-auto-focus="onDialogCloseAutoFocus"
-    />
-  </div>
+          </PopoverTrigger>
+        </ToolbarButton>
+        <PopoverPortal>
+          <PopoverContent
+            class="ink-select-content ink-menu-content"
+            data-ink-select-content
+            data-ink-menu="signature"
+            side="bottom"
+            align="start"
+            :side-offset="4"
+            :collision-padding="8"
+            v-bind="menuAttrs"
+            @open-auto-focus="onOpenAutoFocus"
+            @close-auto-focus="onCloseAutoFocus"
+          >
+            <div v-bind="innerAttrs">
+              <template v-if="model.items.length > 0">
+                <div
+                  role="group"
+                  :aria-label="SIGNATURE_LABELS.saved"
+                  class="ink-signature-list"
+                  data-ink-menu-columns="2"
+                >
+                  <template v-for="(item, row) in model.items" :key="item.id">
+                    <button
+                      type="button"
+                      role="menuitemradio"
+                      :aria-checked="item.checked"
+                      :aria-label="item.label"
+                      tabindex="-1"
+                      class="ink-select-item ink-menu-item ink-signature-item"
+                      data-ink-select-item
+                      :data-key="item.id"
+                      :data-state="item.checked ? 'checked' : 'unchecked'"
+                      @click="choose(item.id)"
+                    >
+                      <span class="ink-signature-preview" :data-kind="item.template.kind">
+                        <img
+                          v-if="item.template.kind === 'image'"
+                          :src="item.template.imagedata"
+                          alt=""
+                          draggable="false"
+                        />
+                        <svg v-else :viewBox="previews[row]?.viewBox" aria-hidden="true">
+                          <path
+                            v-for="(d, i) in previews[row]?.paths ?? []"
+                            :key="i"
+                            :d="d"
+                            fill="currentColor"
+                          />
+                        </svg>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      :aria-label="item.removeLabel"
+                      :title="item.removeLabel"
+                      tabindex="-1"
+                      class="ink-menu-item ink-signature-remove"
+                      data-ink-signature-remove
+                      :data-key="item.id"
+                      @click="remove(item.id, row)"
+                    >
+                      <InkIcon :icon="Trash2" :size="16" />
+                    </button>
+                  </template>
+                </div>
+                <div role="separator" class="ink-select-separator" />
+              </template>
+              <button
+                type="button"
+                role="menuitem"
+                tabindex="-1"
+                class="ink-select-item ink-menu-item ink-signature-create"
+                data-ink-select-item
+                data-ink-signature-create
+                @click="create"
+              >
+                <InkIcon :icon="Plus" :size="16" />
+                {{ SIGNATURE_LABELS.create }}
+              </button>
+              <p
+                v-if="removeError"
+                class="ink-field-error ink-signature-remove-error"
+                role="alert"
+                data-ink-signature-remove-error
+              >
+                {{ removeError }}
+              </p>
+            </div>
+          </PopoverContent>
+        </PopoverPortal>
+        <InkSignatureDialog
+          v-model:open="creating"
+          :fonts="props.fonts"
+          @close-auto-focus="onDialogCloseAutoFocus"
+        />
+      </div>
+    </PopoverAnchor>
+  </PopoverRoot>
 </template>
