@@ -432,6 +432,69 @@ describe('createOverlay', () => {
     expect(p.textAlign).toBe('left')
   })
 
+  const bubble = {
+    type: 'freetext',
+    page: 0,
+    rect: { x: 100, y: 300, width: 120, height: 60 },
+    contents: 'Hi',
+    intent: 'freeTextCallout',
+    cornerRadius: 8,
+    width: 1,
+    callout: [
+      { x: 106, y: 276 },
+      { x: 130, y: 300 },
+    ],
+  } as const
+
+  it('bubble renders one path for box and tail', () => {
+    const { store, overlay } = setup()
+    const a = store.add({ ...bubble, callout: [...bubble.callout] })
+    const el = overlay.elementFor(a.id)!
+    const paths = el.querySelectorAll('svg path')
+    expect(paths).toHaveLength(1)
+    expect(paths[0]!.classList.contains('ink-bubble')).toBe(true)
+    expect(el.querySelector('svg')!.querySelectorAll('*')).toHaveLength(1)
+    // The text box is a later sibling, so it paints above the outline.
+    const [first, second] = [...el.children]
+    expect(first!.tagName.toLowerCase()).toBe('svg')
+    expect(second).toBe(el.querySelector('.ink-free-text'))
+    expect(second!.textContent).toBe('Hi')
+    // The path reaches the tip (6, 24 px below the box's bottom edge in css).
+    const d = paths[0]!.getAttribute('d')!
+    expect(d).toContain('6 84')
+    // The text box draws neither fill nor border: the path does.
+    const text = second as HTMLElement
+    expect(text.dataset.border).toBeUndefined()
+    expect(text.style.getPropertyValue('--ink-fill')).toBe('')
+  })
+
+  it('border and fill colour apply to the bubble outline and inside', () => {
+    const { store, overlay } = setup()
+    const a = store.add({
+      ...bubble,
+      callout: [...bubble.callout],
+      borderColor: '#FF0000',
+      color: '#FFFF00',
+      width: 2,
+      dashes: [3, 3],
+    })
+    const path = overlay.elementFor(a.id)!.querySelector('path.ink-bubble')!
+    expect(path.getAttribute('stroke')).toBe('#FF0000')
+    expect(path.getAttribute('fill')).toBe('#FFFF00')
+    expect(path.getAttribute('stroke-width')).toBe('2')
+    expect(path.getAttribute('stroke-dasharray')).toBe('3 3')
+    const none = store.add({ ...bubble, callout: [...bubble.callout], width: 0 })
+    const plain = overlay.elementFor(none.id)!.querySelector('path.ink-bubble')!
+    expect(plain.getAttribute('fill')).toBe('none')
+    expect(plain.getAttribute('stroke')).toBe('none')
+  })
+
+  it('a free-text box with a callout but no bubble intent stays a plain box', () => {
+    const { store, overlay } = setup()
+    const a = store.add({ ...bubble, intent: undefined, callout: [...bubble.callout] })
+    expect(overlay.elementFor(a.id)!.querySelector('path.ink-bubble')).toBeNull()
+  })
+
   it('destroy removes the container and stops listening', () => {
     const { store, host, overlay } = setup()
     overlay.destroy()

@@ -330,6 +330,26 @@ for (const framework of FRAMEWORKS) {
       await expect(created).toHaveCount(0)
     })
 
+    test('add a speech bubble with text', async ({ page }) => {
+      await page.goto(`${framework}/`)
+      await waitForFirstPage(page)
+      await page.getByRole('button', { name: 'Choose shape' }).click()
+      await page
+        .getByRole('menuitemradio', { name: 'Speech bubble', exact: true })
+        .click()
+      await expect(shapeButton(page)).toHaveAccessibleName('Shape: Speech bubble')
+      await dragShape(page, [40, 30], [200, 100])
+      const editor = page.getByRole('textbox', { name: 'Text box' })
+      await expect(editor).toBeFocused()
+      await page.keyboard.type('Hello')
+      await page.keyboard.press('Escape')
+      await expect(editor).toHaveCount(0)
+      const bubble = sessionShape(page, 'freetext')
+      await expect(bubble).toHaveCount(1)
+      await expect(bubble.locator('path.ink-bubble')).toHaveCount(1)
+      await expect(bubble.locator('.ink-free-text')).toHaveText('Hello')
+    })
+
     test('make a text box bold and centred', async ({ page }) => {
       await page.goto(`${framework}/`)
       await waitForFirstPage(page)

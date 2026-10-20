@@ -6,12 +6,14 @@
 //
 // Inline styles here are structural or geometric only: the editor's position and minimum
 // height, the box's `visibility` while it is covered, and the element's grown height.
-import { styleFreeText } from './overlay-render'
+import { isBubble } from '../model/annotations/edit'
+
+import { refitBubble, styleFreeText } from './overlay-render'
 
 import type { PageTransform } from './transform'
 import type { AnnotationStore } from '../model/annotations/store'
 import type { Annotation, FreeTextAnnotation } from '../model/annotations/types'
-import type { Rect } from '../model/geometry'
+import type { Point, Rect } from '../model/geometry'
 
 export interface FreeTextEditor {
   /** Closes the editor, handing its text to `commit` (true) or calling `cancel` (false). */
@@ -83,7 +85,10 @@ export function editFreeText(
   /** The box's CSS height for the text now in it: never less than it started at. */
   const height = (): number => Math.max(base.height, field.getBoundingClientRect().height)
   const grow = (): void => {
-    el.style.height = `${height()}px`
+    const h = height()
+    el.style.height = `${h}px`
+    // A bubble's outline grows with its text.
+    refitBubble(el, a, opts.transform, h)
   }
   const Observer = view?.ResizeObserver
   const observer = Observer ? new Observer(grow) : undefined
@@ -115,6 +120,7 @@ export function editFreeText(
     field.remove()
     box?.style.removeProperty('visibility')
     el.style.height = `${base.height}px`
+    refitBubble(el, a, opts.transform, base.height)
     if (commit) opts.commit(contents, next)
     else opts.cancel()
   }
@@ -186,7 +192,8 @@ export function canEditFreeText(
 /**
  * Opens an editor on the overlay element `el` for the free-text box `id`, wired to the store: a
  * commit is one `update` with the text and the grown rect (none when neither changed), and an
- * empty box is removed, as an abandoned note is. Returns undefined when the box cannot be
+ * empty box is removed, as an abandoned note is. A speech bubble is the exception: its outline
+ * shows without text, so it is kept. Returns undefined when the box cannot be
  * edited (`canEditFreeText`).
  */
 export function editFreeTextIn(
@@ -206,17 +213,32 @@ export function editFreeTextIn(
     commit(contents, rect) {
       const now = current()
       if (!now) return
-      if (contents.trim() === '') {
+      if (contents.trim() === '' && !isBubble(now)) {
         store.remove(id)
         return
       }
       if (contents === now.contents && sameRect(rect, now.rect)) return
-      store.update(id, { contents, rect })
+      // A bubble's tail moves down with its bottom edge, keeping its length and side.
+      const callout = isBubble(now) ? movedCallout(now, rect, transform) : undefined
+      store.update(id, callout ? { contents, rect, callout } : { contents, rect })
     },
     cancel() {
       const now = current()
-      if (now && now.contents.trim() === '') store.remove(id)
+      if (now && now.contents.trim() === '' && !isBubble(now)) store.remove(id)
     },
+  })
+}
+
+/** `a`'s callout carried by the CSS-px growth of its box from `a.rect` to `rect`. */
+function movedCallout(
+  a: FreeTextAnnotation & { callout: Point[] },
+  rect: Rect,
+  t: PageTransform
+): Point[] {
+  const grown = t.toCssRect(rect).height - t.toCssRect(a.rect).height
+  return a.callout.map((p) => {
+    const c = t.toCss(p)
+    return t.fromCss({ x: c.x, y: c.y + grown })
   })
 }
 

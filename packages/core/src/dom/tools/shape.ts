@@ -2,6 +2,7 @@
 // places a default-size one. The live draft is `position:absolute; pointer-events:none`, a
 // box over the shape's bounds holding an SVG preview: geometry only, the look comes from the
 // theme (`.ink-draft[data-ink-draft='shape']`).
+import { isBubble } from '../../model/annotations/edit'
 import {
   constrain,
   DEFAULT_SHAPE_OPTIONS,
@@ -9,6 +10,7 @@ import {
   shapeInput,
   type ShapeOptions,
 } from '../../model/annotations/shape-geometry'
+import { closedEditor, editFreeTextIn } from '../freetext-editor'
 
 import {
   clampedCssIn,
@@ -18,7 +20,7 @@ import {
   type ToolContext,
 } from './controller'
 
-import type { AnnotationInput } from '../../model/annotations/types'
+import type { Annotation, AnnotationInput } from '../../model/annotations/types'
 import type { Point } from '../../model/geometry'
 
 export {
@@ -62,10 +64,59 @@ export function shapeTool(): Tool<ShapeOptions> {
     return shapeInput(o.kind, page, a, shift ? constrain(o.kind, a, b) : b, o)
   }
 
+  /** The input with the shape group's style and, for a bubble, the text group's text style. */
+  const styled = (c: ToolContext, input: AnnotationInput): AnnotationInput => {
+    if (input.type !== 'freetext') return c.toolStyle.resolve('shape', input)
+    // The group's width must not lose to the bubble's default one, so it is filled last.
+    const shape = c.toolStyle.resolve('shape', { ...input, width: undefined })
+    const blank: AnnotationInput & { type: 'freetext' } = {
+      type: 'freetext',
+      page: input.page,
+      contents: '',
+    }
+    const text = c.toolStyle.resolve('text', blank)
+    return {
+      ...shape,
+      width: shape.width ?? input.width,
+      defaultStyle: { ...text.defaultStyle, ...input.defaultStyle },
+    }
+  }
+
+  /** Stops waiting for a bubble the host has not applied yet. */
+  let waiting: (() => void) | undefined
+
+  const openEditor = (c: ToolContext, a: Annotation): boolean => {
+    const el = c.root.querySelector<HTMLElement>(
+      `[data-annotation="${CSS.escape(a.id)}"]`
+    )
+    return (
+      el !== null &&
+      editFreeTextIn(c.store, el, a.id, c.viewport.transformFor(a.page)) !== undefined
+    )
+  }
+
+  /**
+   * Opens the in-place editor on a new bubble. When a controlled host has not applied it yet,
+   * the editor opens once it does.
+   */
+  const edit = (c: ToolContext, a: Annotation): void => {
+    waiting?.()
+    waiting = undefined
+    if (openEditor(c, a)) return
+    const stop = c.store.list.subscribe(() => {
+      if (!c.store.get(a.id)) return
+      stop()
+      if (waiting === stop) waiting = undefined
+      openEditor(c, a)
+    })
+    waiting = stop
+  }
+
   const add = (c: ToolContext, input: AnnotationInput | undefined): void => {
     if (!input) return
-    const created = c.store.add(c.toolStyle.resolve('shape', input))
+    const created = c.store.add(styled(c, input))
     c.store.select([created.id])
+    if (isBubble(created)) edit(c, created)
   }
 
   const paint = (c: ToolContext, from: PageHit, e: PointerEvent): void => {
@@ -77,10 +128,10 @@ export function shapeTool(): Tool<ShapeOptions> {
     let box: { left: number; top: number; width: number; height: number }
     let points: Point[] | undefined
     let kind: 'rect' | 'ellipse' | 'path' = 'path'
-    if (input.type === 'square' || input.type === 'circle') {
+    if (input.type === 'square' || input.type === 'circle' || input.type === 'freetext') {
       if (!input.rect) return
       box = t.toCssRect(input.rect)
-      kind = input.type === 'square' ? 'rect' : 'ellipse'
+      kind = input.type === 'circle' ? 'ellipse' : 'rect'
     } else {
       if (input.type === 'line') points = [t.toCss(input.start), t.toCss(input.end)]
       else if (input.type === 'polygon') points = input.vertices.map((v) => t.toCss(v))
@@ -131,7 +182,7 @@ export function shapeTool(): Tool<ShapeOptions> {
     } else {
       node.setAttribute('width', String(box.width))
       node.setAttribute('height', String(box.height))
-      if (input.type === 'square' && input.cornerRadius)
+      if ((input.type === 'square' || input.type === 'freetext') && input.cornerRadius)
         node.setAttribute('rx', String(t.toCssLength(input.cornerRadius)))
     }
     svg.append(node)
@@ -148,10 +199,13 @@ export function shapeTool(): Tool<ShapeOptions> {
     },
     deactivate() {
       clear()
+      waiting?.()
+      waiting = undefined
       ctx = undefined
     },
     onPointerDown(e, hit, annotationId) {
-      if (!hit || annotationId !== undefined) return
+      // A press that ended a bubble's edit only ends it.
+      if (!hit || annotationId !== undefined || closedEditor(e)) return
       start = hit
       // Keeps the press from starting a text selection.
       e.preventDefault()

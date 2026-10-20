@@ -1160,6 +1160,157 @@ describe('shape tool', () => {
   })
 })
 
+describe('speech bubble', () => {
+  const session = (doc: InkDocument) =>
+    doc.annotations.list.get().filter((a) => a.source === 'session')
+  const editorIn = (root: Element) => root.querySelector<HTMLElement>('[data-ink-editor]')
+  const drag = (container: Element, h: DOMRect) => {
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointermove', h.left + 220, h.top + 160)
+    pointer(container, 'pointerup', h.left + 220, h.top + 160)
+  }
+
+  it('bubble starts editing on creation and an empty bubble is kept', async () => {
+    const { doc, container, viewport, tools } = await setup('cropbox-offset')
+    tools.set('shape', { kind: 'bubble' })
+    drag(container, viewport.hostFor(0)!.getBoundingClientRect())
+    const [bubble] = session(doc)
+    expect(bubble).toMatchObject({
+      type: 'freetext',
+      intent: 'freeTextCallout',
+      contents: '',
+      cornerRadius: 8,
+    })
+    expect(doc.annotations.selection.get()).toEqual([bubble!.id])
+    const editor = editorIn(container)
+    expect(editor).not.toBeNull()
+    expect(document.activeElement).toBe(editor)
+    await userEvent.keyboard('{Escape}')
+    expect(editorIn(container)).toBeNull()
+    expect(session(doc)).toHaveLength(1)
+    // Typing is a second step: undo removes the text, then the bubble.
+    const again = viewport
+      .hostFor(0)!
+      .querySelector<HTMLElement>(`[data-annotation="${bubble!.id}"]`)!
+    again.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+    )
+    await until(() => editorIn(container) !== null)
+    await userEvent.keyboard('Hello{Escape}')
+    const typed = doc.annotations.get(bubble!.id)
+    expect(typed).toMatchObject({ contents: 'Hello' })
+    // Clearing an existing bubble's text keeps it too.
+    again.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+    )
+    await until(() => editorIn(container) !== null)
+    document.getSelection()!.selectAllChildren(editorIn(container)!)
+    await userEvent.keyboard('{Backspace}{Escape}')
+    expect(doc.annotations.get(bubble!.id)).toMatchObject({ contents: '' })
+  })
+
+  it('growing the box carries the tail with it, in one update', async () => {
+    const { doc, container, viewport, tools } = await setup('cropbox-offset')
+    tools.set('shape', { kind: 'bubble' })
+    drag(container, viewport.hostFor(0)!.getBoundingClientRect())
+    const [made] = session(doc)
+    if (made?.type !== 'freetext') throw new Error('not free text')
+    const t = viewport.transformFor(0)
+    const updates: unknown[] = []
+    const stop = doc.annotations.on('change', (c) => {
+      if (c.kind === 'update') updates.push(c)
+    })
+    await userEvent.keyboard(
+      '1{Enter}2{Enter}3{Enter}4{Enter}5{Enter}6{Enter}7{Enter}8{Escape}'
+    )
+    stop()
+    expect(updates).toHaveLength(1)
+    const grown = doc.annotations.get(made.id)
+    if (grown?.type !== 'freetext') throw new Error('not free text')
+    const growth = made.rect.y - grown.rect.y
+    expect(growth).toBeGreaterThan(24)
+    expect(grown.rect.height).toBeCloseTo(made.rect.height + growth)
+    for (const i of [0, 1]) {
+      expect(grown.callout![i]!.x).toBeCloseTo(made.callout![i]!.x)
+      expect(grown.callout![i]!.y).toBeCloseTo(made.callout![i]!.y - growth)
+    }
+    // The tail still leaves the bottom edge and reaches the tip.
+    const el = viewport
+      .hostFor(0)!
+      .querySelector<HTMLElement>(`[data-annotation="${made.id}"]`)!
+    const box = t.toCssRect(grown.rect)
+    const tip = t.toCss(grown.callout![0]!)
+    expect(tip.y - (box.top + box.height)).toBeCloseTo(t.toCssLength(24))
+    const fmt = (n: number) => String(Math.round(n * 1000) / 1000 + 0)
+    const d = el.querySelector('path.ink-bubble')!.getAttribute('d')!
+    expect(d).toContain(`L${fmt(tip.x - box.left)} ${fmt(tip.y - box.top)}`)
+    expect(tip.y).toBeGreaterThan(box.top + box.height)
+    // The bottom edge's spike base sits on it.
+    expect(d).toContain(` ${fmt(box.height)}L${fmt(tip.x - box.left)}`)
+  })
+
+  it('creating, typing and dragging the tail are separate undo steps', async () => {
+    const { doc, container, viewport, tools } = await setup('cropbox-offset')
+    tools.set('shape', { kind: 'bubble' })
+    drag(container, viewport.hostFor(0)!.getBoundingClientRect())
+    const [made] = session(doc)
+    await userEvent.keyboard('Hi{Escape}')
+    expect(doc.annotations.get(made!.id)).toMatchObject({ contents: 'Hi' })
+    doc.history.undo()
+    expect(doc.annotations.get(made!.id)).toMatchObject({ contents: '' })
+    doc.history.undo()
+    expect(session(doc)).toEqual([])
+  })
+
+  it('creates with the shape group border and fill and the text group text style', async () => {
+    const { doc, container, viewport, tools, toolStyle } = await setup('cropbox-offset')
+    tools.set('shape', { kind: 'bubble' })
+    toolStyle.set({ border: '#00FF00', fill: '#FFFF00', width: 3 }, { group: 'shape' })
+    toolStyle.set({ textColor: '#FF0000', fontWeight: 'bold' }, { group: 'text' })
+    drag(container, viewport.hostFor(0)!.getBoundingClientRect())
+    const [bubble] = session(doc)
+    expect(bubble).toMatchObject({
+      borderColor: '#00FF00',
+      color: '#FFFF00',
+      width: 3,
+      defaultStyle: { color: '#FF0000', fontWeight: 'bold' },
+    })
+  })
+
+  it('click places a default bubble and its tail follows rotation', async () => {
+    const { doc, container, viewport, tools } = await setup('text-rotated-90')
+    tools.set('shape', { kind: 'bubble' })
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 200, h.top + 300)
+    pointer(container, 'pointerup', h.left + 200, h.top + 300)
+    const [bubble] = session(doc)
+    if (bubble?.type !== 'freetext') throw new Error('not free text')
+    expect(bubble.rect.width).toBeCloseTo(72)
+    expect(bubble.rect.height).toBeCloseTo(72)
+    const [tip, knee] = bubble.callout!
+    expect(knee!.x).toBeCloseTo(bubble.rect.x + 18)
+    expect(knee!.y).toBeCloseTo(bubble.rect.y)
+    expect(tip!.x).toBeCloseTo(knee!.x - 24)
+    expect(tip!.y).toBeCloseTo(knee!.y - 24)
+    await userEvent.keyboard('{Escape}')
+  })
+
+  it('in controlled mode the editor opens once the host has applied the bubble', async () => {
+    const { doc, container, viewport, tools } = await setup('text-simple', {
+      controlled: true,
+    })
+    tools.set('shape', { kind: 'bubble' })
+    drag(container, viewport.hostFor(0)!.getBoundingClientRect())
+    expect(doc.annotations.list.get()).toEqual([])
+    await settle()
+    const [bubble] = doc.annotations.list.get()
+    expect(bubble?.type).toBe('freetext')
+    expect(doc.annotations.selection.get()).toEqual([bubble!.id])
+    await until(() => editorIn(container) !== null)
+    await userEvent.keyboard('{Escape}')
+  })
+})
+
 describe('freetext tool', () => {
   const session = (doc: InkDocument) =>
     doc.annotations.list.get().filter((a) => a.source === 'session')
@@ -1760,6 +1911,44 @@ describe('selection editing', () => {
     expect(next.rect.y).toBeCloseTo(599, 5)
     expect(next.rect.width).toBeCloseTo(122, 5)
     expect(next.rect.height).toBeCloseTo(62, 5)
+  })
+
+  it('dragging the tail handle moves callout[0] only', async () => {
+    const { doc, container, viewport } = await setup()
+    const a = doc.annotations.add({
+      type: 'freetext',
+      page: 0,
+      contents: 'Hi',
+      intent: 'freeTextCallout',
+      cornerRadius: 8,
+      width: 1,
+      rect: { x: 100, y: 600, width: 100, height: 40 },
+      callout: [
+        { x: 101, y: 576 },
+        { x: 125, y: 600 },
+      ],
+    })
+    doc.annotations.select([a.id])
+    const { host, at, handle } = await page0(viewport)
+    const names = [
+      ...host.querySelectorAll(`[data-annotation="${a.id}"] > [data-handle]`),
+    ].map((h) => (h as HTMLElement).dataset.handle)
+    expect(names).toEqual(['nw', 'ne', 'sw', 'se', 'callout'])
+    const tail = handle(a.id, 'callout')!
+    const [x, y] = at(101, 576)
+    pointer(tail, 'pointerdown', x, y)
+    pointer(container, 'pointermove', x + 10, y)
+    pointer(container, 'pointermove', x + 20, y + 10)
+    pointer(container, 'pointerup', x + 20, y + 10)
+    const next = doc.annotations.get(a.id)!
+    if (next.type !== 'freetext') throw new Error('not free text')
+    expect(next.rect).toEqual(a.type === 'freetext' ? a.rect : undefined)
+    expect(next.callout![1]).toEqual({ x: 125, y: 600 })
+    expect(next.callout![0]!.x).toBeCloseTo(121, 5)
+    expect(next.callout![0]!.y).toBeCloseTo(566, 5)
+    // The drag was one history step.
+    doc.history.undo()
+    expect(doc.annotations.get(a.id)).toEqual(a)
   })
 
   it('ink scales by corner handle', async () => {

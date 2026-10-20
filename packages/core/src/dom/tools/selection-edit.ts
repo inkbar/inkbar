@@ -13,7 +13,8 @@
 // points are scaled onto it in one `store.update`. Neither side goes below 1 pt. `Shift`, or
 // a type that always keeps its aspect (`keepsAspect`), keeps the box's aspect ratio.
 //
-// Line ends: a press on `[data-handle=start|end]` drags that end; the other stays put.
+// Line ends: a press on `[data-handle=start|end]` drags that end; the other stays put. A speech
+// bubble's tail tip (`[data-handle=callout]`) drags the same way and moves `callout[0]` only.
 //
 // Move: dragging a pressed annotation moves it, or, when it belongs to the selection, every
 // selected unlocked annotation, in one history step.
@@ -24,6 +25,7 @@ import {
   MIN_SIZE,
   hasCornerHandles,
   hasRectGeometry,
+  isBubble,
   isTextMarkup,
   keepsAspect,
   movedEndpoint,
@@ -35,14 +37,15 @@ import { annotationBox, renderAnnotationContent } from '../overlay-render'
 
 import { cssIn, type PageHit, type ToolContext } from './controller'
 
-import type { Annotation, LineAnnotation } from '../../model/annotations/types'
+import type { Annotation } from '../../model/annotations/types'
 import type { Point } from '../../model/geometry'
 import type { CssRect } from '../transform'
 
 type Corner = 'nw' | 'ne' | 'sw' | 'se'
-type End = 'start' | 'end'
+type End = 'start' | 'end' | 'callout'
 const CORNERS: readonly string[] = ['nw', 'ne', 'sw', 'se']
 const ENDS: readonly string[] = ['start', 'end']
+const CALLOUT = 'callout'
 
 /** Pointer travel, CSS px, before a press on an annotation becomes a move. */
 const DRAG_THRESHOLD = 3
@@ -137,7 +140,10 @@ export function createSelectionEdit(
         el,
         locked: keepsAspect(a),
       }
-    } else if (ENDS.includes(handle) && a.type === 'line') {
+    } else if (
+      (ENDS.includes(handle) && a.type === 'line') ||
+      (handle === CALLOUT && isBubble(a))
+    ) {
       const preview = hit.host.ownerDocument.createElement('div')
       preview.className = 'ink-annotation ink-edit-preview'
       preview.dataset.inkPreview = ''
@@ -148,7 +154,7 @@ export function createSelectionEdit(
         id: a.id,
         start: hit,
         which: handle as End,
-        from: hit.transform.toCss(a[handle as End]),
+        from: hit.transform.toCss(endOf(a, handle as End)!),
         el,
         preview,
       }
@@ -239,8 +245,10 @@ export function createSelectionEdit(
       }
       if (mode.kind === 'endpoint') {
         const a = ctx.store.get(mode.id)
-        if (!a || a.type !== 'line') return
-        const draft = { ...a, ...movedEndpoint(a, mode.which, endAt(mode, e)) }
+        if (!a) return
+        const patch = endPatch(a, mode.which, endAt(mode, e))
+        if (!patch) return
+        const draft = { ...a, ...patch } as Annotation
         drawPreview(mode.preview, draft, start)
         if (mode.el) mode.el.style.visibility = 'hidden'
         // Beside the line in the overlay, so it paints where the line does.
@@ -338,10 +346,11 @@ export function createSelectionEdit(
         }
         case 'endpoint': {
           const a = ctx.store.get(current.id)
-          if (!a || a.locked || a.type !== 'line') return
+          if (!a || a.locked) return
           const css = cssIn(current.start.host, e)
           if (css.x === current.start.css.x && css.y === current.start.css.y) return
-          ctx.store.update(a.id, movedEndpoint(a, current.which, endAt(current, e)))
+          const patch = endPatch(a, current.which, endAt(current, e))
+          if (patch) ctx.store.update(a.id, patch)
           return
         }
         case 'marquee': {
@@ -403,8 +412,21 @@ function boxOf(el: HTMLElement): CssRect {
   }
 }
 
+/** The point a line's end or a bubble's tail handle sits on. */
+function endOf(a: Annotation, which: End): Point | undefined {
+  if (which === 'callout') return isBubble(a) ? a.callout[0] : undefined
+  return a.type === 'line' ? a[which] : undefined
+}
+
+/** The patch that moves a line's end, or a bubble's tail tip, to `to`; undefined for neither. */
+function endPatch(a: Annotation, which: End, to: Point): Partial<Annotation> | undefined {
+  if (which === 'callout')
+    return isBubble(a) ? { callout: [{ ...to }, ...a.callout.slice(1)] } : undefined
+  return a.type === 'line' ? movedEndpoint(a, which, to) : undefined
+}
+
 /** Draws `a` into the preview element at its own box. */
-function drawPreview(el: HTMLElement, a: LineAnnotation, start: PageHit): void {
+function drawPreview(el: HTMLElement, a: Annotation, start: PageHit): void {
   const box = annotationBox(a, start.transform)
   el.style.left = `${box.left}px`
   el.style.top = `${box.top}px`

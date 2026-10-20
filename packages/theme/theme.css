@@ -390,6 +390,11 @@
     border-style: dashed;
   }
 
+  /* A speech bubble's outline is the path beside the text, so the text only needs room inside it. */
+  :where(.ink-free-text[data-bubble]) {
+    padding: 0.4em 0.6em;
+  }
+
   :where(.ink-free-text[data-align='left']) {
     text-align: left;
   }

@@ -31,6 +31,7 @@ export const SHAPE_KINDS: readonly ShapeKind[] = [
   'rectangle',
   'roundedRectangle',
   'ellipse',
+  'bubble',
   'star',
   'polygon',
 ]
@@ -45,6 +46,9 @@ export const DEFAULT_SHAPE_OPTIONS: Readonly<ShapeOptions> = {
 export const DEFAULT_SHAPE_SIZE = 72
 /** Corner radius of a new rounded rectangle, in points. */
 export const DEFAULT_CORNER_RADIUS = 8
+
+/** How far below and left of its anchor a new speech bubble's tail tip sits, in points. */
+const BUBBLE_TAIL = 24
 
 const clean = (n: number): number => n + 0
 
@@ -157,6 +161,22 @@ export function shapeInput(
       return { type: 'square', page, rect, cornerRadius: DEFAULT_CORNER_RADIUS }
     case 'ellipse':
       return { type: 'circle', page, rect }
+    case 'bubble': {
+      // The knee is the box's bottom-left quarter point, on its bottom edge; the tail runs from
+      // the box edge there to the tip.
+      const knee = { x: clean(rect.x + rect.width / 4), y: clean(rect.y) }
+      const tip = { x: clean(knee.x - BUBBLE_TAIL), y: clean(knee.y - BUBBLE_TAIL) }
+      return {
+        type: 'freetext',
+        page,
+        contents: '',
+        intent: 'freeTextCallout',
+        cornerRadius: DEFAULT_CORNER_RADIUS,
+        width: 1,
+        rect,
+        callout: [tip, knee],
+      }
+    }
     case 'star':
       return { type: 'polygon', page, vertices: starVertices(rect, opts.points) }
     case 'polygon':

@@ -4,21 +4,9 @@
  * activates the shape tool with the current kind and draws that kind's icon; the chevron
  * opens a two-column grid of kinds. Choosing one switches to the shape tool with that kind.
  */
-import {
-  ChevronDown,
-  Circle,
-  Hexagon,
-  MessageCircle,
-  MoveUpRight,
-  RectangleHorizontal,
-  Search,
-  Slash,
-  Square,
-  SquareDashed,
-  Star,
-  type IconNode,
-} from '@inkbar/icons'
+import { ChevronDown } from '@inkbar/icons'
 
+import { SHAPE_ICONS } from '../shape-icons'
 import { SHAPE_KINDS, type ShapeKind, type ToolController } from '../tools'
 import { SHAPE_COLUMNS, shapeMenuModel, type ShapeMenuModel } from '../ui'
 
@@ -27,19 +15,6 @@ import { h } from './dom'
 import { createMenu } from './menu'
 
 import type { Viewer } from './create-viewer'
-
-const ICONS: Readonly<Record<ShapeKind, IconNode>> = {
-  line: Slash,
-  arrow: MoveUpRight,
-  rectangle: Square,
-  roundedRectangle: RectangleHorizontal,
-  ellipse: Circle,
-  bubble: MessageCircle,
-  star: Star,
-  polygon: Hexagon,
-  loupe: Search,
-  mask: SquareDashed,
-}
 
 /** A split button: the main part draws with the current shape kind, the chevron picks the kind. */
 export function createShapeMenu(viewer: Viewer): HTMLElement {
@@ -91,7 +66,7 @@ export function createShapeMenu(viewer: Viewer): HTMLElement {
     main.title = m.label
     main.dataset.kind = m.kind
     if (shownKind !== m.kind) {
-      main.replaceChildren(createIcon(ICONS[m.kind]))
+      main.replaceChildren(createIcon(SHAPE_ICONS[m.kind]))
       shownKind = m.kind
     }
     const on = tools?.active.get() === 'shape'
@@ -121,7 +96,7 @@ export function createShapeMenu(viewer: Viewer): HTMLElement {
           },
           item.label
         )
-        b.prepend(createIcon(ICONS[item.kind]))
+        b.prepend(createIcon(SHAPE_ICONS[item.kind]))
         b.addEventListener('click', () => {
           tools?.set('shape', { kind: item.kind })
           menu.close(true)

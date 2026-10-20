@@ -2,7 +2,12 @@
 // paths so both produce the same patch for the same change.
 import { translateQuad, translateRect, type Point, type Rect } from '../geometry'
 
-import type { Annotation, LineAnnotation, TextMarkupAnnotation } from './types'
+import type {
+  Annotation,
+  FreeTextAnnotation,
+  LineAnnotation,
+  TextMarkupAnnotation,
+} from './types'
 
 /** Smallest width or height a resize leaves, user-space points. */
 export const MIN_SIZE = 1
@@ -177,4 +182,21 @@ export function keepsAspect(a: Annotation): boolean {
     default:
       return false
   }
+}
+
+/**
+ * True for a speech bubble: a free-text callout (`intent: 'freeTextCallout'`) with a tail
+ * (`callout`) and a corner radius. Inkbar draws it as one rounded outline with the tail; the
+ * tip is `callout[0]` and the tail leaves the box where `callout[1]` meets its edge.
+ */
+export function isBubble(
+  a: Annotation
+): a is FreeTextAnnotation & { callout: [Point, Point, ...Point[]] } {
+  return (
+    a.type === 'freetext' &&
+    a.intent === 'freeTextCallout' &&
+    a.cornerRadius !== undefined &&
+    a.callout !== undefined &&
+    a.callout.length >= 2
+  )
 }

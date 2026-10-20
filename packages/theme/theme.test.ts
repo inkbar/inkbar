@@ -169,6 +169,9 @@ describe('theme.css', () => {
     expect(
       rules.some((r) => r.selector === ":where(.ink-free-text[data-border='dashed'])")
     ).toBe(true)
+    expect(rules.some((r) => r.selector === ':where(.ink-free-text[data-bubble])')).toBe(
+      true
+    )
     for (const align of ['left', 'center', 'right', 'justify']) {
       expect(
         rules.some((r) => r.selector.includes(`[data-align='${align}']`)),
