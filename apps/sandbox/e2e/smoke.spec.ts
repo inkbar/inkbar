@@ -273,6 +273,38 @@ for (const framework of FRAMEWORKS) {
       await expect(rect).toHaveAttribute('stroke-dasharray', /^[\d.]+ [\d.]+$/)
     })
 
+    test('fill colour applies to a selected rectangle', async ({ page }) => {
+      await page.goto(`${framework}/`)
+      await waitForFirstPage(page)
+      // Until the shape tool exists, the rectangle is added through the document.
+      const id = await page.evaluate(() => {
+        const doc = (
+          window as unknown as {
+            __inkbarSandboxDocument: {
+              annotations: {
+                add(input: object): { id: string }
+                select(ids: string[]): void
+              }
+            }
+          }
+        ).__inkbarSandboxDocument
+        const square = doc.annotations.add({
+          type: 'square',
+          page: 0,
+          rect: { x: 72, y: 100, width: 120, height: 60 },
+        })
+        doc.annotations.select([square.id])
+        return square.id
+      })
+      const rect = page.locator(`[data-annotation="${id}"] rect`)
+      await expect(rect).toHaveAttribute('fill', 'none')
+      await page.getByRole('button', { name: 'Fill colour' }).click()
+      await page.getByRole('menuitemradio', { name: '#34C759', exact: true }).click()
+      await expect(rect).toHaveAttribute('fill', /#34c759/i)
+      await page.getByRole('menuitemradio', { name: 'No fill', exact: true }).click()
+      await expect(rect).toHaveAttribute('fill', 'none')
+    })
+
     test('has no horizontal scroll at phone width', async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 844 })
       await page.goto(`${framework}/`)

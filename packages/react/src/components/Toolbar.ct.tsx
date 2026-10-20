@@ -2,6 +2,7 @@ import { browserAssets, fixtureUrl } from '@inkbar/fixtures/urls'
 import { expect, test } from '@playwright/experimental-ct-react'
 
 import { guardConsole } from '../../playwright/console-guard'
+import { ColorMenuHarness } from '../../playwright/harness/ColorMenuHarness'
 import { LineStyleHarness } from '../../playwright/harness/LineStyleHarness'
 import { ToolbarHarness } from '../../playwright/harness/ToolbarHarness'
 import { ZoomClickHarness } from '../../playwright/harness/ZoomClickHarness'
@@ -58,6 +59,8 @@ test('every toolbar control has an accessible name', async ({ mount, page }) => 
     'Mark for redaction',
     'Add note',
     'Line style',
+    'Border colour',
+    'Fill colour',
     'Undo',
     'Redo',
   ])
@@ -406,5 +409,159 @@ test.describe('line style menu', () => {
     await page.getByTestId('select-none').dispatchEvent('click')
     await expect(page.getByRole('menu', { name: 'Line style' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Line style' })).toBeDisabled()
+  })
+})
+
+test.describe('colour menus', () => {
+  const mountHarness = async (
+    mount: Parameters<Parameters<typeof test>[2]>[0]['mount']
+  ) => {
+    const cmp = await mount(
+      <ColorMenuHarness src={fixtureUrl('text-simple')} assets={assets} />
+    )
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+  }
+  const selectNew = async (page: Page, id: 'add-square' | 'add-line') => {
+    await page.getByTestId(id).click()
+    await page.getByTestId('select-all').click()
+  }
+
+  test('border menu sets color on a selected square', async ({ mount, page }) => {
+    await mountHarness(mount)
+    const trigger = page.getByRole('button', { name: 'Border colour' })
+    await expect(trigger).toBeDisabled()
+    await selectNew(page, 'add-square')
+    await expect(trigger).toBeEnabled()
+    await expect(trigger.locator('[data-ink-swatch]')).toHaveAttribute(
+      'data-color',
+      '#FF3B30'
+    )
+    await trigger.click()
+    const menu = page.getByRole('menu', { name: 'Border colour' })
+    await expect(menu.getByRole('menuitemradio', { name: '#FF3B30' })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    )
+    await expect(menu.getByRole('menuitemradio', { name: 'No fill' })).toHaveCount(0)
+    await menu.getByRole('menuitemradio', { name: '#007AFF' }).click()
+    await expect(page.getByTestId('probe')).toHaveAttribute('data-colors', '#007AFF')
+    await expect(menu.getByRole('menuitemradio', { name: '#007AFF' })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    )
+    await expect(trigger.locator('[data-ink-swatch]')).toHaveAttribute(
+      'data-color',
+      '#007AFF'
+    )
+  })
+
+  test('fill menu has No fill and it clears interiorColor', async ({ mount, page }) => {
+    await mountHarness(mount)
+    await selectNew(page, 'add-square')
+    await page.getByRole('button', { name: 'Fill colour' }).click()
+    const menu = page.getByRole('menu', { name: 'Fill colour' })
+    await expect(menu.getByRole('menuitemradio', { name: '#34C759' })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    )
+    await menu.getByRole('menuitemradio', { name: 'No fill' }).click()
+    await expect(page.getByTestId('probe')).toHaveAttribute('data-fills', '-')
+    await expect(menu.getByRole('menuitemradio', { name: 'No fill' })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    )
+    await expect(
+      page.getByRole('button', { name: 'Fill colour' }).locator('[data-ink-swatch]')
+    ).toHaveAttribute('data-kind', 'none')
+  })
+
+  test('Custom opens a native color input and applies its value', async ({
+    mount,
+    page,
+  }) => {
+    await mountHarness(mount)
+    await selectNew(page, 'add-square')
+    await page.getByRole('button', { name: 'Border colour' }).click()
+    const menu = page.getByRole('menu', { name: 'Border colour' })
+    const input = page.locator('input[data-ink-color-input="border"]')
+    await expect(input).toHaveAttribute('aria-label', 'Custom colour')
+    await menu.getByRole('menuitem', { name: 'Custom…' }).click()
+    await input.fill('#123abc')
+    await expect(page.getByTestId('probe')).toHaveAttribute('data-colors', '#123ABC')
+  })
+
+  test('fill menu is disabled when only a line is selected', async ({ mount, page }) => {
+    await mountHarness(mount)
+    await selectNew(page, 'add-line')
+    await expect(page.getByRole('button', { name: 'Border colour' })).toBeEnabled()
+    await expect(page.getByRole('button', { name: 'Fill colour' })).toBeDisabled()
+    // Text colour is mapped by no annotation yet.
+    await expect(page.getByRole('button', { name: 'Text colour' })).toBeDisabled()
+  })
+
+  test('keyboard: arrows move between swatches, Enter applies, Escape returns focus', async ({
+    mount,
+    page,
+  }) => {
+    await mountHarness(mount)
+    await selectNew(page, 'add-square')
+    const trigger = page.getByRole('button', { name: 'Fill colour' })
+    await trigger.focus()
+    await page.keyboard.press('ArrowDown')
+    const menu = page.getByRole('menu', { name: 'Fill colour' })
+    const swatch = (name: string) => menu.getByRole('menuitemradio', { name })
+    await expect(swatch('No fill')).toBeFocused()
+    await page.keyboard.press('ArrowDown')
+    await expect(swatch('#FF3B30')).toBeFocused()
+    await page.keyboard.press('ArrowRight')
+    await expect(swatch('#FF9500')).toBeFocused()
+    await page.keyboard.press('ArrowDown')
+    await expect(swatch('#E8E8E8')).toBeFocused()
+    await page.keyboard.press('ArrowLeft')
+    await expect(swatch('#FFFFFF')).toBeFocused()
+    await page.keyboard.press('ArrowUp')
+    await expect(swatch('#FF3B30')).toBeFocused()
+    await page.keyboard.press('ArrowRight')
+    await page.keyboard.press('Enter')
+    await expect(page.getByTestId('probe')).toHaveAttribute('data-fills', '#FF9500')
+    await page.keyboard.press('Escape')
+    await expect(menu).toHaveCount(0)
+    await expect(trigger).toBeFocused()
+  })
+
+  test('Custom: the input survives the menu closing while the picker is open', async ({
+    mount,
+    page,
+  }) => {
+    await mountHarness(mount)
+    await selectNew(page, 'add-square')
+    await page.getByRole('button', { name: 'Border colour' }).click()
+    const menu = page.getByRole('menu', { name: 'Border colour' })
+    const input = page.locator('input[data-ink-color-input="border"]')
+    await menu.getByRole('menuitem', { name: 'Custom…' }).click()
+    // Anything that dismisses the menu while the picker is open must not lose the pick.
+    await page.getByRole('button', { name: 'Border colour' }).click()
+    await expect(menu).toHaveCount(0)
+    await expect(input).toBeAttached()
+    await input.evaluate((el: HTMLInputElement) => {
+      el.value = '#abcdef'
+      el.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    await expect(page.getByTestId('probe')).toHaveAttribute('data-colors', '#ABCDEF')
+  })
+
+  test('a mixed selection shows a mixed trigger', async ({ mount, page }) => {
+    await mountHarness(mount)
+    await page.getByTestId('add-square').click()
+    await page.getByTestId('add-square-2').click()
+    await page.getByTestId('select-all').click()
+    for (const name of ['Border colour', 'Fill colour']) {
+      const trigger = page.getByRole('button', { name })
+      await expect(trigger).toHaveAttribute('data-mixed', '')
+      await expect(trigger.locator('[data-ink-swatch]')).toHaveAttribute(
+        'data-kind',
+        'mixed'
+      )
+    }
   })
 })

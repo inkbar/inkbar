@@ -1,4 +1,5 @@
 import {
+  InkColorMenu,
   InkLineStyleMenu,
   InkNextPage,
   InkNotePopover,
@@ -45,6 +46,8 @@ export function Demo({ source }: { source: DocumentSource }) {
         <InkToolbarSeparator />
         <div className="demo-group" role="group" aria-label="Style">
           <InkLineStyleMenu />
+          <InkColorMenu property="border" />
+          <InkColorMenu property="fill" />
         </div>
         <InkUndo />
         <InkRedo />

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import InkColorMenu from '../../lib/components/InkColorMenu.svelte'
   import InkLineStyleMenu from '../../lib/components/InkLineStyleMenu.svelte'
   import InkNextPage from '../../lib/components/InkNextPage.svelte'
   import InkPageCount from '../../lib/components/InkPageCount.svelte'
@@ -40,6 +41,8 @@
     <InkToolButton tool="note" />
     <InkToolbarSeparator />
     <InkLineStyleMenu />
+    <InkColorMenu property="border" />
+    <InkColorMenu property="fill" />
     <InkUndo />
     <InkRedo />
   </InkToolbar>

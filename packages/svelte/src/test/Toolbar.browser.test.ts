@@ -5,6 +5,7 @@ import { render } from 'vitest-browser-svelte'
 
 import { guardConsole } from './console-guard.js'
 import { attr, cssOf, focused, q, scrollTopOf, sleep } from './dom.js'
+import ColorMenuHarness from './harness/ColorMenuHarness.svelte'
 import LineStyleHarness from './harness/LineStyleHarness.svelte'
 import ToolbarHarness from './harness/ToolbarHarness.svelte'
 import ZoomClickHarness from './harness/ZoomClickHarness.svelte'
@@ -59,6 +60,8 @@ describe('toolbar', () => {
       'Mark for redaction',
       'Add note',
       'Line style',
+      'Border colour',
+      'Fill colour',
       'Undo',
       'Redo',
     ])
@@ -372,6 +375,136 @@ describe('toolbar', () => {
       ;(document.querySelector('[data-testid="select-none"]') as HTMLElement).click()
       await expect.poll(() => menu().elements().length).toBe(0)
       await expect.element(trigger()).toBeDisabled()
+    })
+  })
+
+  describe('colour menus', () => {
+    const trigger = (name: string) => browserPage.getByRole('button', { name })
+    const menu = (name: string) => browserPage.getByRole('menu', { name })
+    const swatch = (menuName: string, name: string) =>
+      menu(menuName).getByRole('menuitemradio', { name, exact: true })
+    const probe = (name: string) => attr('[data-testid="probe"]', name)
+    const click = (id: string) => browserPage.getByTestId(id).click()
+    const start = async (id: 'add-square' | 'add-line') => {
+      await render(ColorMenuHarness, { src: fixtureUrl('text-simple'), assets })
+      await q('.ink-page canvas')
+      await click(id)
+      await click('select-all')
+    }
+
+    it('border menu sets color on a selected square', async () => {
+      await render(ColorMenuHarness, { src: fixtureUrl('text-simple'), assets })
+      await q('.ink-page canvas')
+      await expect.element(trigger('Border colour')).toBeDisabled()
+      await click('add-square')
+      await click('select-all')
+      await expect.element(trigger('Border colour')).toBeEnabled()
+      const dot = '[data-ink-color-menu="border"] [data-ink-swatch]'
+      await expect.poll(attr(dot, 'data-color')).toBe('#FF3B30')
+      await trigger('Border colour').click()
+      await expect
+        .element(swatch('Border colour', '#FF3B30'))
+        .toHaveAttribute('aria-checked', 'true')
+      expect(
+        menu('Border colour').getByRole('menuitemradio', { name: 'No fill' }).elements()
+      ).toHaveLength(0)
+      await swatch('Border colour', '#007AFF').click()
+      await expect.poll(probe('data-colors')).toBe('#007AFF')
+      await expect
+        .element(swatch('Border colour', '#007AFF'))
+        .toHaveAttribute('aria-checked', 'true')
+      await expect.poll(attr(dot, 'data-color')).toBe('#007AFF')
+    })
+
+    it('fill menu has No fill and it clears interiorColor', async () => {
+      await start('add-square')
+      await trigger('Fill colour').click()
+      await expect
+        .element(swatch('Fill colour', '#34C759'))
+        .toHaveAttribute('aria-checked', 'true')
+      await swatch('Fill colour', 'No fill').click()
+      await expect.poll(probe('data-fills')).toBe('-')
+      await expect
+        .element(swatch('Fill colour', 'No fill'))
+        .toHaveAttribute('aria-checked', 'true')
+      await expect
+        .poll(attr('[data-ink-color-menu="fill"] [data-ink-swatch]', 'data-kind'))
+        .toBe('none')
+    })
+
+    const picker = () =>
+      document.querySelector<HTMLInputElement>('input[data-ink-color-input="border"]')!
+
+    it('Custom opens a native color input and applies its value', async () => {
+      await start('add-square')
+      await trigger('Border colour').click()
+      const input = picker()
+      expect(input.type).toBe('color')
+      expect(input.getAttribute('aria-label')).toBe('Custom colour')
+      let opened = 0
+      input.addEventListener('click', () => opened++)
+      await menu('Border colour').getByRole('menuitem', { name: 'Custom…' }).click()
+      expect(opened).toBe(1)
+      input.value = '#123abc'
+      input.dispatchEvent(new Event('change', { bubbles: true }))
+      await expect.poll(probe('data-colors')).toBe('#123ABC')
+    })
+
+    it('Custom: the input survives the menu closing while the picker is open', async () => {
+      await start('add-square')
+      await trigger('Border colour').click()
+      await menu('Border colour').getByRole('menuitem', { name: 'Custom…' }).click()
+      const input = picker()
+      await trigger('Border colour').click()
+      await expect.poll(() => menu('Border colour').elements().length).toBe(0)
+      expect(input.isConnected).toBe(true)
+      input.value = '#abcdef'
+      input.dispatchEvent(new Event('change', { bubbles: true }))
+      await expect.poll(probe('data-colors')).toBe('#ABCDEF')
+    })
+
+    it('a mixed selection shows a mixed trigger', async () => {
+      await render(ColorMenuHarness, { src: fixtureUrl('text-simple'), assets })
+      await q('.ink-page canvas')
+      await click('add-square')
+      await click('add-square-2')
+      await click('select-all')
+      for (const kind of ['border', 'fill']) {
+        const sel = `[data-ink-color-menu="${kind}"]`
+        await expect.poll(attr(sel, 'data-mixed')).toBe('')
+        await expect.poll(attr(`${sel} [data-ink-swatch]`, 'data-kind')).toBe('mixed')
+      }
+    })
+
+    it('fill menu is disabled when only a line is selected', async () => {
+      await start('add-line')
+      await expect.element(trigger('Border colour')).toBeEnabled()
+      await expect.element(trigger('Fill colour')).toBeDisabled()
+      // No annotation maps text colour yet.
+      await expect.element(trigger('Text colour')).toBeDisabled()
+    })
+
+    it('keyboard: arrows move between swatches, Enter applies, Escape returns focus', async () => {
+      await start('add-square')
+      ;(trigger('Fill colour').element() as HTMLElement).focus()
+      await userEvent.keyboard('{ArrowDown}')
+      const at = (name: string) => swatch('Fill colour', name).element()
+      await expect.poll(focused).toBe(at('No fill'))
+      await userEvent.keyboard('{ArrowDown}')
+      await expect.poll(focused).toBe(at('#FF3B30'))
+      await userEvent.keyboard('{ArrowRight}')
+      await expect.poll(focused).toBe(at('#FF9500'))
+      await userEvent.keyboard('{ArrowDown}')
+      await expect.poll(focused).toBe(at('#E8E8E8'))
+      await userEvent.keyboard('{ArrowLeft}')
+      await expect.poll(focused).toBe(at('#FFFFFF'))
+      await userEvent.keyboard('{ArrowUp}')
+      await expect.poll(focused).toBe(at('#FF3B30'))
+      await userEvent.keyboard('{ArrowRight}{Enter}')
+      await expect.poll(probe('data-fills')).toBe('#FF9500')
+      await userEvent.keyboard('{Escape}')
+      await expect.poll(() => menu('Fill colour').elements().length).toBe(0)
+      await expect.poll(focused).toBe(trigger('Fill colour').element())
     })
   })
 })
