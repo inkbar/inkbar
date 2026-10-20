@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { staticDefaults } from './defaults'
-import { keepsAspect, movedEndpoint, scaled } from './edit'
+import { hasRectGeometry, keepsAspect, movedEndpoint, resizedRect, scaled } from './edit'
 import { createAnnotationStore } from './store'
 
 import type { LineAnnotation } from './types'
@@ -75,5 +75,43 @@ describe('keepsAspect', () => {
       rect: { x: 0, y: 0, width: 10, height: 10 },
     })
     expect(keepsAspect(sq)).toBe(false)
+  })
+
+  it('is true for a stamp and for ink signed as a signature, not for other ink', () => {
+    const s = store()
+    const stamp = s.add({
+      type: 'stamp',
+      page: 0,
+      rect: { x: 0, y: 0, width: 30, height: 10 },
+      imagedata: 'data:image/png;base64,AA==',
+    })
+    const inklist = [
+      [
+        { x: 0, y: 0 },
+        { x: 5, y: 5 },
+      ],
+    ]
+    const signature = s.add({ type: 'ink', page: 0, inklist, subject: 'Signature' })
+    const ink = s.add({ type: 'ink', page: 0, inklist })
+    expect(keepsAspect(stamp)).toBe(true)
+    expect(hasRectGeometry(stamp)).toBe(true)
+    expect(keepsAspect(signature)).toBe(true)
+    expect(keepsAspect(ink)).toBe(false)
+  })
+})
+
+describe('resizedRect', () => {
+  const r = { x: 10, y: 20, width: 30, height: 10 }
+
+  it('keeps the top-left corner and changes one side', () => {
+    expect(resizedRect(r, 3, 0)).toEqual({ x: 10, y: 20, width: 33, height: 10 })
+  })
+
+  it('with keepAspect, the other side follows in proportion', () => {
+    expect(resizedRect(r, 3, 0, true)).toEqual({ x: 10, y: 19, width: 33, height: 11 })
+    expect(resizedRect(r, 0, -1, true)).toEqual({ x: 10, y: 21, width: 27, height: 9 })
+    const tiny = resizedRect({ x: 0, y: 0, width: 3, height: 1 }, -5, 0, true)
+    expect(tiny.height).toBe(1)
+    expect(tiny.width).toBe(3)
   })
 })

@@ -40,4 +40,6 @@ export const ICONS = [
   'Strikethrough',
   'SpellCheck2',
   'MessageSquareText',
+  'Signature',
+  'Trash2',
 ] as const

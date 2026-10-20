@@ -15,6 +15,10 @@ import {
 } from '../../model/document'
 import { InkError, isInkError } from '../../model/errors'
 import { readonly, writable, type Readable } from '../../model/readable'
+import {
+  createMemorySignatureStore,
+  createSignatureLibrary,
+} from '../../model/signatures'
 import { createFocusReturn } from '../popover-focus'
 import { mountViewer, type MountViewerOptions, type ViewerEngine } from '../viewer-engine'
 
@@ -33,7 +37,7 @@ import type { Viewport } from '../viewport'
  */
 export interface CreateViewerOptions extends Omit<
   MountViewerOptions,
-  'container' | 'document' | 'toolStyle' | 'toolHistory'
+  'container' | 'document' | 'toolStyle' | 'toolHistory' | 'signatureLibrary'
 > {
   source: DocumentSource
   assets: PdfAssets
@@ -87,10 +91,17 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     onPageMount,
     onPageUnmount,
     onPageError,
-    // Not an option (see the type), but a caller without types could still pass one.
+    // Not options (see the type), but a caller without types could still pass them.
     toolStyle: _toolStyle,
+    signatureLibrary: _signatureLibrary,
+    signatures: signatureStore,
     ...view
-  } = opts as CreateViewerOptions & Pick<MountViewerOptions, 'toolStyle'>
+  } = opts as CreateViewerOptions &
+    Pick<MountViewerOptions, 'toolStyle' | 'signatureLibrary'>
+  /** One library for the viewer's life, so templates and the menu outlive each document. */
+  const signatures = createSignatureLibrary(
+    signatureStore ?? createMemorySignatureStore()
+  )
   const status = writable<InkStatus>({ state: 'idle' })
   const current = writable<InkDocument | null>(null)
   const engine = writable<ViewerEngine | null>(null)
@@ -177,6 +188,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       ...view,
       container: scroll,
       document: doc,
+      signatureLibrary: signatures,
       onActivate: (id) => {
         activated.set(id)
         onActivate?.(id)

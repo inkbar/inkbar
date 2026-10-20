@@ -502,6 +502,42 @@ for (const framework of FRAMEWORKS) {
       await expect(sessionShape(page, 'circle')).toHaveCount(0)
     })
 
+    test('create and place a typed signature', async ({ page }) => {
+      await page.goto(`${framework}/`)
+      await waitForFirstPage(page)
+      await page.getByRole('button', { name: 'Choose signature' }).click()
+      await page.getByRole('menuitem', { name: 'Create signature' }).click()
+      const dialog = page.getByRole('dialog', { name: 'Create signature' })
+      await dialog.getByRole('tab', { name: 'Type' }).click()
+      await dialog.getByLabel('Name').fill('Ada Lovelace')
+      // The sandbox's handwriting font is offered and loads.
+      const font = dialog.getByRole('radio', { name: 'Dancing Script' })
+      await expect(font).toHaveAttribute('aria-checked', 'true')
+      await expect
+        .poll(() => page.evaluate(() => document.fonts.check('16px "Dancing Script"')))
+        .toBe(true)
+      await dialog.getByRole('button', { name: 'Save' }).click()
+      await expect(dialog).toHaveCount(0)
+      const sign = page.getByRole('button', { name: 'Sign', exact: true })
+      await expect(sign).toHaveAttribute('aria-pressed', 'true')
+      const box = (await page.locator('.ink-page[data-page="0"]').boundingBox())!
+      await page.mouse.click(box.x + 150, box.y + 60)
+      const stamp = sessionShape(page, 'stamp')
+      await expect(stamp).toHaveCount(1)
+      await expect(stamp).toHaveAccessibleName('Signature')
+      await expect(stamp.locator('img.ink-stamp')).toHaveAttribute(
+        'src',
+        /^data:image\/png;base64,/
+      )
+      // The signature is kept for next time.
+      await page.reload()
+      await waitForFirstPage(page)
+      await page.getByRole('button', { name: 'Choose signature' }).click()
+      await expect(
+        page.getByRole('menuitemradio', { name: 'Signature 1', exact: true })
+      ).toBeVisible()
+    })
+
     test('has no horizontal scroll at phone width', async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 844 })
       await page.goto(`${framework}/`)

@@ -28,6 +28,7 @@ import { createToolOptions, type ToolOptions } from './options'
 
 import type { AnnotationStore } from '../../model/annotations/store'
 import type { Point } from '../../model/geometry'
+import type { SignatureLibrary } from '../../model/signatures'
 import type { SelectionQuads } from '../selection'
 import type { Viewport, ViewportHit } from '../viewport'
 
@@ -41,6 +42,7 @@ export type BuiltinToolId =
   | 'freetext'
   | 'draw'
   | 'sketch'
+  | 'signature'
 /** A built-in tool's id, or any id a host registers its own tool under. */
 export type ToolId = BuiltinToolId | (string & {})
 
@@ -69,6 +71,8 @@ export interface ToolContext {
    * its own step.
    */
   history?: { batch(fn: () => void): void }
+  /** The signature templates the `signature` tool places. Without it, it places nothing. */
+  signatures?: SignatureLibrary
 }
 
 export interface Tool<O extends object = object> {

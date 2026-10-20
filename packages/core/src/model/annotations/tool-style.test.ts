@@ -153,6 +153,23 @@ describe('createToolStyle', () => {
     expect(style.supported.get().has('head')).toBe(false)
   })
 
+  it('leaves a selected stamp alone and styles the rest of the selection', () => {
+    const { store, style } = setup('none')
+    const sq = store.add({ type: 'square', page: 0, rect })
+    const st = store.add({
+      type: 'stamp',
+      page: 0,
+      rect,
+      imagedata: 'data:image/png;base64,AA==',
+    })
+    store.select([st.id])
+    expect(style.supported.get().size).toBe(0)
+    store.select([sq.id, st.id])
+    style.set({ border: '#00FF00', opacity: 0.5 })
+    expect(store.get(sq.id)).toMatchObject({ color: '#00FF00', opacity: 0.5 })
+    expect(store.get(st.id)).toEqual(st)
+  })
+
   it('apply: false updates only the group', () => {
     const { store, style } = setup('shape')
     const a = store.add({ type: 'square', page: 0, rect })

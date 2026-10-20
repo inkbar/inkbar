@@ -5,6 +5,12 @@
  * errors back through the callbacks.
  */
 import { InkError, isInkError } from '../model/errors'
+import {
+  createMemorySignatureStore,
+  createSignatureLibrary,
+  type SignatureLibrary,
+  type SignatureStore,
+} from '../model/signatures'
 
 import { createPageMount, type PageLayer, type PageMount } from './page-mount'
 import { getSelectionQuads } from './selection'
@@ -17,7 +23,7 @@ import {
   type ToolController,
   type ToolId,
 } from './tools'
-import { FONT_FAMILIES } from './ui'
+import { FONT_FAMILIES, SIGNATURE_FONTS } from './ui'
 import { createViewport, type Viewport, type ZoomValue } from './viewport'
 import { attachViewportKeys } from './viewport-keys'
 
@@ -67,6 +73,21 @@ export interface MountViewerOptions {
    * standard families). Fonts beyond those are the PDF writer's to embed.
    */
   fonts?: string[]
+  /**
+   * Where signature templates live. Default: memory, gone on reload
+   * (`createMemorySignatureStore`). `createLocalSignatureStore` keeps them in the browser.
+   */
+  signatures?: SignatureStore
+  /**
+   * The templates the `signature` tool and the signature controls share. A binding or
+   * `createViewer` passes its own, so they outlive one document; it wins over `signatures`.
+   */
+  signatureLibrary?: SignatureLibrary
+  /**
+   * The handwriting fonts a typed signature offers. The host loads them (`@font-face`).
+   * Default `SIGNATURE_FONTS`.
+   */
+  signatureFonts?: string[]
   /** Annotation content is rendered by the host (custom slots). Changing it needs `rebuild`. */
   customAnnotations?: boolean
   onActivate?(id: string): void
@@ -103,6 +124,10 @@ export interface ViewerEngine {
   readonly toolStyle: ToolStyle
   /** The font families text boxes offer: the `fonts` option, else `FONT_FAMILIES`. */
   readonly fonts: readonly string[]
+  /** The signature templates, loaded once the engine mounts. */
+  readonly signatures: SignatureLibrary
+  /** The fonts a typed signature offers: the `signatureFonts` option, else `SIGNATURE_FONTS`. */
+  readonly signatureFonts: readonly string[]
   readonly pages: ReadonlyMap<number, PageMount>
   /**
    * Recreates the viewport for construction-only options, keeping zoom, page, mode, rotation
@@ -138,6 +163,10 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
         tool: opts.tool,
       })
   const toolStyle = opts.toolStyle ?? (tracker as NonNullable<typeof tracker>).toolStyle
+  const signatures =
+    opts.signatureLibrary ??
+    createSignatureLibrary(opts.signatures ?? createMemorySignatureStore())
+  void signatures.refresh()
 
   function mountPage(page: number, host: HTMLElement, transform: PageTransform): void {
     /** Layers that failed and have not rendered since; the error clears when this empties. */
@@ -277,6 +306,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
           el.ownerDocument.defaultView?.getSelection()?.removeAllRanges(),
         onActivate: (id) => opts.onActivate?.(id),
         history: opts.toolHistory ?? doc.history,
+        signatures,
       },
     })
     viewport = vp
@@ -321,6 +351,8 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     },
     toolStyle,
     fonts: opts.fonts ? [...opts.fonts] : FONT_FAMILIES,
+    signatures,
+    signatureFonts: opts.signatureFonts ? [...opts.signatureFonts] : SIGNATURE_FONTS,
     pages,
     rebuild(next) {
       if (destroyed) return

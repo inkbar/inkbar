@@ -9,6 +9,7 @@ import {
   InkRedo,
   InkRoot,
   InkShapeMenu,
+  InkSignatureMenu,
   InkSuggestionCard,
   InkTextStyleMenu,
   InkThreadPopover,
@@ -24,6 +25,8 @@ import {
 import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 
+import { signatureFonts, signatures } from '../shared/signatures'
+
 import { Actions } from './Actions'
 
 import type { DocumentSource } from '@inkbar/core'
@@ -35,7 +38,13 @@ import type { DocumentSource } from '@inkbar/core'
  */
 export function Demo({ source }: { source: DocumentSource }) {
   return (
-    <InkRoot src={source} assets={assets} className="demo-root">
+    <InkRoot
+      src={source}
+      assets={assets}
+      signatures={signatures}
+      signatureFonts={signatureFonts}
+      className="demo-root"
+    >
       <InkToolbar className="demo-toolbar">
         <InkHighlightMenu />
         <div className="demo-group" role="group" aria-label="Tools">
@@ -46,6 +55,7 @@ export function Demo({ source }: { source: DocumentSource }) {
           <InkToolButton tool="draw" />
           <InkShapeMenu />
           <InkToolButton tool="freetext" />
+          <InkSignatureMenu />
           <InkToolButton tool="note" />
         </div>
         <InkToolbarSeparator />

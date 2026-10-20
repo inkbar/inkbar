@@ -23,6 +23,8 @@ const COLORS: Record<AnnotationType, string> = {
   polyline: '#151820',
   polygon: '#151820',
   ink: '#151820',
+  // A stamp draws its image; the colour is only what XFDF requires every annotation to carry.
+  stamp: '#151820',
   redact: '#C0392B',
 }
 
@@ -56,6 +58,7 @@ const VARIABLES: Record<AnnotationType, string> = {
   polyline: '--ink-shape',
   polygon: '--ink-shape',
   ink: '--ink-ink',
+  stamp: '--ink-ink',
   redact: '--ink-redact',
 }
 

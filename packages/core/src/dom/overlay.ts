@@ -16,6 +16,7 @@ import {
   isBubble,
   hasRectGeometry,
   isTextMarkup,
+  keepsAspect,
   resizedRect,
   translated,
 } from '../model/annotations/edit'
@@ -90,6 +91,7 @@ const LABELS: Record<Annotation['type'], string> = {
   polyline: 'Polyline',
   polygon: 'Polygon',
   ink: 'Drawing',
+  stamp: 'Stamp',
   redact: 'Redaction',
 }
 
@@ -104,7 +106,9 @@ function ariaLabel(a: Annotation): string {
   const base =
     a.type === 'redact' && a.origin === 'suggested'
       ? 'Suggested redaction'
-      : LABELS[a.type]
+      : a.subject === 'Signature' && (a.type === 'ink' || a.type === 'stamp')
+        ? 'Signature'
+        : LABELS[a.type]
   const named = hasComment(a) ? `${base} with comment` : base
   return a.author ? `${named} by ${a.author}` : named
 }
@@ -378,7 +382,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     if (!a || a.locked) return true
     if (e.ctrlKey || e.metaKey) {
       if (hasRectGeometry(a))
-        store.update(id, { rect: resizedRect(a.rect, step.x, -step.y) })
+        store.update(id, { rect: resizedRect(a.rect, step.x, -step.y, keepsAspect(a)) })
       return true
     }
     const by = e.altKey ? 10 : 1

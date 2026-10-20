@@ -36,6 +36,7 @@ export {
   selectTextTool,
   selectTool,
   shapeTool,
+  signatureTool,
   trackToolStyle,
   withHostTools,
 } from './tools'
@@ -58,7 +59,13 @@ export {
   MARKUP_KINDS,
   SHAPE_KINDS,
 } from './tools'
-export type { HighlightOptions, MarkupKind, ShapeKind, ShapeOptions } from './tools'
+export type {
+  HighlightOptions,
+  MarkupKind,
+  ShapeKind,
+  ShapeOptions,
+  SignatureOptions,
+} from './tools'
 export type {
   CurrentStyle,
   ScopedToolStyle,
@@ -79,6 +86,9 @@ export {
   MARKUP_LABELS,
   SHAPE_COLUMNS,
   SHAPE_LABELS,
+  SIGNATURE_FONTS,
+  SIGNATURE_LABELS,
+  SIGNATURE_TABS,
   TOOL_LABELS,
   ZOOM_LEVELS,
   arrowheadChoice,
@@ -87,6 +97,7 @@ export {
   highlightMenuModel,
   lineStyleMenuModel,
   shapeMenuModel,
+  signatureMenuModel,
   textStyleMenuModel,
   threadPopoverLabel,
 } from './ui'
@@ -105,6 +116,9 @@ export type {
   LineStyleMenuSection,
   ShapeMenuItem,
   ShapeMenuModel,
+  SignatureMenuItem,
+  SignatureMenuModel,
+  SignatureTab,
   TextAlignChoice,
   TextAlignKey,
   TextStyleMenuModel,
@@ -123,7 +137,9 @@ export {
   focusInitialMenuItem,
   handleMenuKeys,
   handleRadioKeys,
+  handleTabKeys,
   menuItems,
+  trapTab,
 } from './menu-keys'
 export { annotationElementFor, observeAnnotationElement } from './annotation-element'
 export { createFocusReturn, shouldKeepOpenOnAnnotation } from './popover-focus'
@@ -157,3 +173,20 @@ export { MARKUP_ICONS } from './markup-icons'
 export type { ColorMenuOptions } from './viewer/color-menu'
 export { createMenu } from './viewer/menu'
 export type { Menu, MenuOptions } from './viewer/menu'
+export {
+  createImageSignature,
+  createSignaturePad,
+  createTypedSignature,
+  fontFamilyValue,
+  renderTypedSignature,
+  SIGNATURE_IMAGE_MAX_LENGTH,
+  SIGNATURE_IMAGE_MAX_SIDE,
+  SIGNATURE_IMAGE_TYPES,
+  signaturePreview,
+} from './signature-pad'
+export type { SignaturePad, TypedSignatureOptions } from './signature-pad'
+export { createSignatureDraft } from './signature-draft'
+export type { SignatureDraft, SignatureDraftState } from './signature-draft'
+export { createSignatureMenu, createSignaturePreview } from './viewer/signature-menu'
+export { createSignatureDialog } from './viewer/signature-dialog'
+export type { SignatureDialog, SignatureDialogOptions } from './viewer/signature-dialog'

@@ -1,6 +1,12 @@
 import { createContext, useContext } from 'react'
 
-import type { Annotation, InkDocument, InkStatus, PdfAssets } from '@inkbar/core'
+import type {
+  Annotation,
+  InkDocument,
+  InkStatus,
+  PdfAssets,
+  SignatureLibrary,
+} from '@inkbar/core'
 import type {
   Tool,
   ToolController,
@@ -45,6 +51,10 @@ export interface InkContext {
   hostTools: Tool[] | undefined
   /** The font families text boxes offer: InkRoot's `fonts`, else `FONT_FAMILIES`. */
   fonts: readonly string[]
+  /** The saved signatures, from InkRoot's `signatures` store (memory by default). */
+  signatures: SignatureLibrary
+  /** The fonts a typed signature offers: InkRoot's `signatureFonts`, else `SIGNATURE_FONTS`. */
+  signatureFonts: readonly string[]
   /** The open document's tool style; `null` while no document is open. */
   toolStyle: ToolStyle | null
   /** Desired zoom and page from the host's props; InkViewport applies and reports back. */

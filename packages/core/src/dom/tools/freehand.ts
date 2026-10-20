@@ -50,15 +50,15 @@ interface Stroke {
   startedAt: number
 }
 
-/** Pressure from a device that reports it, else undefined. */
-function pressureOf(e: PointerEvent): number | undefined {
+/** Pressure from a device that reports it, else undefined. Shared with the signature pad. */
+export function pressureOf(e: PointerEvent): number | undefined {
   if (e.pointerType !== 'pen' && e.pointerType !== 'touch') return undefined
   // Two decimals: the device's float32 noise has no place in the saved file.
   return Math.round(Math.min(Math.max(e.pressure, 0), 1) * 100) / 100
 }
 
 /** True when the samples carry real pressure: not all 0 or 0.5, the values of a device with none. */
-function reportsPressure(samples: readonly number[]): boolean {
+export function reportsPressure(samples: readonly number[]): boolean {
   return samples.some((p) => p !== 0 && p !== 0.5)
 }
 

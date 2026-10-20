@@ -15,6 +15,7 @@
     InkPrevPage,
     InkRoot,
     InkShapeMenu,
+    InkSignatureMenu,
     InkSuggestionCard,
     InkThreadPopover,
     InkRedo,
@@ -30,6 +31,8 @@
   import '@inkbar/theme/theme.css'
   import { assets } from 'virtual:inkbar-assets'
 
+  import { signatureFonts, signatures } from '../shared/signatures'
+
   import Actions from './Actions.svelte'
 
   import type { DocumentSource } from '@inkbar/core'
@@ -37,7 +40,7 @@
   let { source }: { source: DocumentSource } = $props()
 </script>
 
-<InkRoot src={source} {assets} class="demo-root">
+<InkRoot src={source} {assets} {signatures} {signatureFonts} class="demo-root">
   <InkToolbar class="demo-toolbar">
     <InkHighlightMenu />
     <div class="demo-group" role="group" aria-label="Tools">
@@ -48,6 +51,7 @@
       <InkToolButton tool="draw" />
       <InkShapeMenu />
       <InkToolButton tool="freetext" />
+      <InkSignatureMenu />
       <InkToolButton tool="note" />
     </div>
     <InkToolbarSeparator />

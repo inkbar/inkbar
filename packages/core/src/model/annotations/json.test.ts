@@ -97,6 +97,30 @@ describe('json import/export', () => {
     expect(s2.list.get()[0]).toMatchObject({ pressure: [[0.2, 0.9], [0.5]] })
   })
 
+  it('round-trips a stamp with its image, subject and rotation', () => {
+    const mk = () =>
+      createAnnotationStore({ mode: { mode: 'uncontrolled' }, defaults: staticDefaults })
+    const s = mk()
+    s.add({
+      type: 'stamp',
+      page: 0,
+      rect: { x: 10, y: 20, width: 150, height: 50 },
+      imagedata: 'data:image/png;base64,iVBORw0KGgo=',
+      subject: 'Signature',
+      rotation: 90,
+    })
+    const text = JSON.stringify(exportAnnotations(s, [], 'k'))
+    const s2 = mk()
+    expect(importAnnotations(s2, text, { mode: 'replace' }).errors).toEqual([])
+    expect(s2.list.get()).toEqual(s.list.get())
+    expect(s2.list.get()[0]).toMatchObject({
+      type: 'stamp',
+      imagedata: 'data:image/png;base64,iVBORw0KGgo=',
+      subject: 'Signature',
+      rotation: 90,
+    })
+  })
+
   it('round-trips a free-text box with fill, border and text style', () => {
     const mk = () =>
       createAnnotationStore({ mode: { mode: 'uncontrolled' }, defaults: staticDefaults })

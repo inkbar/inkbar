@@ -2,6 +2,10 @@ import { browserAssets, fixtureUrl, type FixtureName } from '@inkbar/fixtures/ur
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { userEvent } from 'vitest/browser'
 
+import {
+  createMemorySignatureStore,
+  type SignatureTemplate,
+} from '../../model/signatures'
 import { mountContainer, settle, until } from '../test-utils'
 
 import { createColorMenu } from './color-menu'
@@ -22,6 +26,7 @@ import {
 import { createViewer, type CreateViewerOptions, type Viewer } from './create-viewer'
 import { createHighlightMenu } from './highlight-menu'
 import { createShapeMenu } from './shape-menu'
+import { createSignatureMenu } from './signature-menu'
 import { createLineStyleMenu } from './style-menu'
 import { createTextStyleMenu } from './text-style-menu'
 
@@ -1234,6 +1239,247 @@ describe('createViewer', () => {
       expect(panel()).toBeNull()
       expect(document.activeElement).toBe(chevron)
       expect(engine.tools.active.get()).not.toBe('shape')
+    })
+  })
+
+  describe('signature menu', () => {
+    const panel = (): HTMLElement | null =>
+      document.querySelector<HTMLElement>('[data-ink-menu="signature"][role="menu"]')
+    const dialog = (): HTMLElement | null =>
+      document.querySelector<HTMLElement>('[data-ink-signature-dialog]')
+    const parts = (root: HTMLElement) => ({
+      main: root.querySelector<HTMLButtonElement>('[data-ink-signature-button]')!,
+      chevron: root.querySelector<HTMLButtonElement>(
+        '[data-ink-signature-menu-trigger]'
+      )!,
+    })
+    const INK: SignatureTemplate = {
+      id: 'sig-a',
+      kind: 'ink',
+      inklist: [
+        [
+          { x: 0, y: 0 },
+          { x: 1, y: 1 },
+        ],
+      ],
+      aspect: 3,
+    }
+    const IMAGE: SignatureTemplate = {
+      id: 'sig-b',
+      kind: 'image',
+      imagedata:
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAABCAYAAAAb4BS0AAAADklEQVR4nGP4z8DwH4YBJuYF+2EsXwgAAAAASUVORK5CYII=',
+      aspect: 3,
+    }
+    function scribble(pad: Element): void {
+      const r = pad.getBoundingClientRect()
+      const at = (type: string, x: number, y: number) =>
+        pad.dispatchEvent(
+          new PointerEvent(type, {
+            clientX: r.left + x,
+            clientY: r.top + y,
+            bubbles: true,
+            pointerId: 3,
+            buttons: type === 'pointerup' ? 0 : 1,
+            isPrimary: true,
+          })
+        )
+      at('pointerdown', 10, 40)
+      at('pointermove', 60, 10)
+      at('pointermove', 120, 50)
+      at('pointerup', 120, 50)
+    }
+    async function mounted(templates: SignatureTemplate[] = []) {
+      const store = createMemorySignatureStore(templates)
+      const { viewer } = make('text-simple', { signatures: store })
+      const root = createSignatureMenu(viewer)
+      viewer.element.prepend(root)
+      const { engine } = await ready(viewer)
+      await until(() => engine.signatures.templates.get().length === templates.length)
+      return { viewer, engine, store, ...parts(root) }
+    }
+
+    it('create a drawn signature, it appears in the menu and is selected', async () => {
+      const { engine, store, main, chevron } = await mounted()
+      expect(main.getAttribute('aria-label')).toBe('Sign')
+      chevron.click()
+      expect(panel()!.getAttribute('aria-label')).toBe('Signatures')
+      expect(panel()!.querySelectorAll('[role="menuitemradio"]')).toHaveLength(0)
+      const create = panel()!.querySelector<HTMLButtonElement>(
+        '[data-ink-signature-create]'
+      )!
+      expect(create.textContent?.trim()).toBe('Create signature')
+      create.click()
+      expect(panel()).toBeNull()
+      const d = dialog()!
+      expect(d.getAttribute('role')).toBe('dialog')
+      expect(d.getAttribute('aria-modal')).toBe('true')
+      expect(document.activeElement?.getAttribute('role')).toBe('tab')
+      expect(document.activeElement?.textContent).toBe('Draw')
+      const save = d.querySelector<HTMLButtonElement>('[data-ink-signature-save]')!
+      expect(save.disabled).toBe(true)
+      scribble(d.querySelector('[data-ink-signature-pad]')!)
+      expect(save.disabled).toBe(false)
+      save.click()
+      await until(() => dialog() === null)
+      const [saved] = await store.list()
+      expect(saved).toMatchObject({ kind: 'ink' })
+      expect(engine.tools.active.get()).toBe('signature')
+      expect(engine.tools.options('signature').get()).toEqual({ templateId: saved!.id })
+      expect(document.activeElement).toBe(main)
+      expect(main.getAttribute('aria-pressed')).toBe('true')
+      chevron.click()
+      const items = panel()!.querySelectorAll<HTMLElement>('[role="menuitemradio"]')
+      expect(items).toHaveLength(1)
+      expect(items[0]!.getAttribute('aria-label')).toBe('Signature 1')
+      expect(items[0]!.getAttribute('aria-checked')).toBe('true')
+      expect(items[0]!.querySelector('svg path')).not.toBeNull()
+    })
+
+    it('choosing a saved signature selects it; the main button then places it', async () => {
+      const { engine, main, chevron } = await mounted([INK, IMAGE])
+      // Nothing chosen yet: the main button opens the menu.
+      main.click()
+      expect(panel()).not.toBeNull()
+      const items = panel()!.querySelectorAll<HTMLElement>('[role="menuitemradio"]')
+      expect([...items].map((i) => i.getAttribute('aria-label'))).toEqual([
+        'Signature 1',
+        'Signature 2',
+      ])
+      expect(items[1]!.querySelector('img')!.getAttribute('src')).toBe(
+        IMAGE.kind === 'image' ? IMAGE.imagedata : ''
+      )
+      items[1]!.click()
+      expect(engine.tools.active.get()).toBe('signature')
+      expect(engine.tools.options('signature').get()).toEqual({ templateId: 'sig-b' })
+      expect(document.activeElement).toBe(chevron)
+      engine.tools.set('select')
+      main.click()
+      expect(panel()).toBeNull()
+      expect(engine.tools.active.get()).toBe('signature')
+    })
+
+    it('remove deletes from the store', async () => {
+      const { engine, store, chevron } = await mounted([INK, IMAGE])
+      chevron.click()
+      const remove = panel()!.querySelector<HTMLButtonElement>(
+        '[data-ink-signature-remove][data-key="sig-a"]'
+      )!
+      expect(remove.getAttribute('aria-label')).toBe('Remove signature 1')
+      remove.focus()
+      remove.click()
+      await until(() => engine.signatures.templates.get().length === 1)
+      expect(await store.list()).toEqual([IMAGE])
+      const items = panel()!.querySelectorAll<HTMLElement>('[role="menuitemradio"]')
+      expect(items).toHaveLength(1)
+      expect(items[0]!.dataset.key).toBe('sig-b')
+      await until(() => document.activeElement === items[0])
+    })
+
+    it('a save the store refuses shows an error and keeps the dialog open', async () => {
+      const store = createMemorySignatureStore()
+      store.save = () => Promise.reject(new Error('full'))
+      const { viewer } = make('text-simple', { signatures: store })
+      const root = createSignatureMenu(viewer)
+      viewer.element.prepend(root)
+      await ready(viewer)
+      parts(root).chevron.click()
+      panel()!.querySelector<HTMLButtonElement>('[data-ink-signature-create]')!.click()
+      const d = dialog()!
+      const error = d.querySelector<HTMLElement>('[data-ink-signature-save-error]')!
+      expect(error.hidden).toBe(true)
+      scribble(d.querySelector('[data-ink-signature-pad]')!)
+      d.querySelector<HTMLButtonElement>('[data-ink-signature-save]')!.click()
+      await until(() => !error.hidden)
+      expect(error.getAttribute('role')).toBe('alert')
+      expect(error.textContent).toMatch(/could not be saved/)
+      expect(dialog()).not.toBeNull()
+      expect(await store.list()).toEqual([])
+    })
+
+    it('a removal the store refuses shows an error in the menu', async () => {
+      const store = createMemorySignatureStore([INK, IMAGE])
+      store.remove = () => Promise.reject(new Error('full'))
+      const { viewer } = make('text-simple', { signatures: store })
+      const root = createSignatureMenu(viewer)
+      viewer.element.prepend(root)
+      const { engine } = await ready(viewer)
+      await until(() => engine.signatures.templates.get().length === 2)
+      parts(root).chevron.click()
+      panel()!
+        .querySelector<HTMLButtonElement>(
+          '[data-ink-signature-remove][data-key="sig-a"]'
+        )!
+        .click()
+      await until(
+        () => panel()?.querySelector('[data-ink-signature-remove-error]') != null
+      )
+      const error = panel()!.querySelector<HTMLElement>(
+        '[data-ink-signature-remove-error]'
+      )!
+      expect(error.getAttribute('role')).toBe('alert')
+      expect(error.textContent).toMatch(/could not be removed/)
+      expect(panel()!.querySelectorAll('[role="menuitemradio"]')).toHaveLength(2)
+      expect(await store.list()).toEqual([INK, IMAGE])
+    })
+
+    it('dialog traps focus and Escape closes', async () => {
+      const { main, chevron } = await mounted()
+      chevron.click()
+      panel()!.querySelector<HTMLButtonElement>('[data-ink-signature-create]')!.click()
+      const d = dialog()!
+      const draw = d.querySelector<HTMLElement>('[role="tab"][data-key="draw"]')!
+      expect(document.activeElement).toBe(draw)
+      // Arrow keys move between the tabs and open them.
+      await userEvent.keyboard('{ArrowRight}')
+      const type = d.querySelector<HTMLElement>('[role="tab"][data-key="type"]')!
+      expect(document.activeElement).toBe(type)
+      expect(type.getAttribute('aria-selected')).toBe('true')
+      expect(
+        d.querySelector<HTMLElement>('[role="tabpanel"][data-key="type"]')!.hidden
+      ).toBe(false)
+      // Save is disabled with no name, so Cancel is the last stop: Tab wraps both ways.
+      const cancel = d.querySelector<HTMLElement>('[data-ink-signature-cancel]')!
+      await userEvent.keyboard('{Shift>}{Tab}{/Shift}')
+      expect(document.activeElement).toBe(cancel)
+      await userEvent.keyboard('{Tab}')
+      expect(document.activeElement).toBe(type)
+      await userEvent.keyboard('{Escape}')
+      expect(dialog()).toBeNull()
+      expect(document.activeElement).toBe(main)
+    })
+
+    it('the Type tab saves the name in the chosen font as an image template', async () => {
+      const store = createMemorySignatureStore()
+      const { viewer } = make('text-simple', {
+        signatures: store,
+        signatureFonts: ['serif', 'cursive'],
+      })
+      const root = createSignatureMenu(viewer)
+      viewer.element.prepend(root)
+      const { engine } = await ready(viewer)
+      parts(root).chevron.click()
+      panel()!.querySelector<HTMLButtonElement>('[data-ink-signature-create]')!.click()
+      const d = dialog()!
+      d.querySelector<HTMLElement>('[role="tab"][data-key="type"]')!.click()
+      const fonts = d.querySelectorAll<HTMLElement>('[role="radio"]')
+      expect([...fonts].map((f) => f.getAttribute('aria-label'))).toEqual([
+        'serif',
+        'cursive',
+      ])
+      expect(fonts[0]!.getAttribute('aria-checked')).toBe('true')
+      const name = d.querySelector<HTMLInputElement>('[data-ink-signature-name]')!
+      name.focus()
+      await userEvent.keyboard('Ada Lovelace')
+      expect(fonts[1]!.textContent).toBe('Ada Lovelace')
+      fonts[1]!.click()
+      expect(fonts[1]!.getAttribute('aria-checked')).toBe('true')
+      d.querySelector<HTMLButtonElement>('[data-ink-signature-save]')!.click()
+      await until(() => dialog() === null)
+      const [saved] = await store.list()
+      expect(saved).toMatchObject({ kind: 'image' })
+      expect(saved!.aspect).toBeGreaterThan(1)
+      expect(engine.tools.options('signature').get()).toEqual({ templateId: saved!.id })
     })
   })
 

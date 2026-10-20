@@ -124,6 +124,10 @@ A root note with no text and no replies is removed when its popover closes, or w
 
 The highlight tool leaves `contents` free for the comment. Read the marked text with `doc.text(page)`. `InkHighlightMenu` is a split button for the tool: it picks the markup kind and its colour.
 
+## Signatures
+
+`InkSignatureMenu` lists saved signatures, picks one for the `signature` tool, removes them, and opens `InkSignatureDialog` to draw, type or upload a new one. These are marks on the page, not cryptographic signatures. Pass `signatures` to `InkRoot` to keep them somewhere: `createLocalSignatureStore(key)` from `@inkbar/core` uses `localStorage`, and without it they last until reload. `signatureFonts` lists the handwriting fonts the Type tab offers; load them with `@font-face`. A placed signature keeps its aspect ratio when resized.
+
 ## Custom rendering
 
 Slots let you render parts yourself. `InkViewport` has `loading`, `empty`, `error`, `annotation` and `page-error` slots. `InkThreadPopover` and `InkSuggestionCard` have a scoped default slot that receives the popover's props, and the default slot of `InkToolButton` receives `{ active, label }`. The props are typed as `AnnotationSlotProps`, `ThreadPopoverSlotProps` and `SuggestionCardSlotProps`, the same types the React and Svelte packages export.
@@ -136,6 +140,7 @@ The scroll area takes focus. From there:
 
 - With the `highlight` or `redact-area` tool active, `Enter` turns the text selection into a mark.
 - With the `note` tool active, `Enter` places a note at the centre of the current page and opens it.
+- With the `signature` tool active, `Enter` places the chosen signature at the centre of the current page.
 
 On a focused annotation:
 

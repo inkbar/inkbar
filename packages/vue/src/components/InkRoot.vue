@@ -1,6 +1,16 @@
 <script setup lang="ts">
-import { InkError, openDocument } from '@inkbar/core'
-import { cssVariableDefaults, FONT_FAMILIES, trackToolStyle } from '@inkbar/core/dom'
+import {
+  createMemorySignatureStore,
+  createSignatureLibrary,
+  InkError,
+  openDocument,
+} from '@inkbar/core'
+import {
+  cssVariableDefaults,
+  FONT_FAMILIES,
+  SIGNATURE_FONTS,
+  trackToolStyle,
+} from '@inkbar/core/dom'
 import { Primitive } from 'reka-ui'
 import {
   computed,
@@ -24,6 +34,7 @@ import type {
   DocumentSource,
   InkDocument,
   PdfAssets,
+  SignatureStore,
 } from '@inkbar/core'
 import type {
   Tool,
@@ -57,6 +68,14 @@ const props = withDefaults(
      * (`FONT_FAMILIES`). Fonts beyond those are the PDF writer's to embed.
      */
     fonts?: string[] | undefined
+    /**
+     * Where saved signatures live. Default: memory, gone on reload.
+     * `createLocalSignatureStore` keeps them in the browser; a host can keep them anywhere.
+     * The viewport reads it when it mounts.
+     */
+    signatures?: SignatureStore | undefined
+    /** The handwriting fonts a typed signature offers; the host loads them. */
+    signatureFonts?: string[] | undefined
     page?: number | undefined
     zoom?: ZoomValue | undefined
     /** Undo history. Defaults to on for uncontrolled, off for controlled. */
@@ -70,6 +89,8 @@ const props = withDefaults(
     tool: undefined,
     tools: undefined,
     fonts: undefined,
+    signatures: undefined,
+    signatureFonts: undefined,
     page: undefined,
     zoom: undefined,
     history: undefined,
@@ -284,6 +305,11 @@ onBeforeUnmount(() => {
   release()
 })
 
+const signatures = computed(() =>
+  createSignatureLibrary(props.signatures ?? createMemorySignatureStore())
+)
+watch(signatures, (lib) => void lib.refresh(), { immediate: true })
+
 provideInkContext({
   assets: computed(() => props.assets),
   document,
@@ -296,6 +322,8 @@ provideInkContext({
   setTool,
   hostTools: computed(() => props.tools),
   fonts: computed(() => props.fonts ?? FONT_FAMILIES),
+  signatures,
+  signatureFonts: computed(() => props.signatureFonts ?? SIGNATURE_FONTS),
   toolStyle,
   zoomModel: computed(() => props.zoom),
   pageModel: computed(() => props.page),

@@ -9,6 +9,7 @@
     InkError,
     InkStatus,
     PdfAssets,
+    SignatureStore,
   } from '@inkbar/core'
   import type { Tool, ToolId, ZoomValue } from '@inkbar/core/dom'
   import type { Snippet } from 'svelte'
@@ -43,6 +44,14 @@
      * (`FONT_FAMILIES`). Fonts beyond those are the PDF writer's to embed.
      */
     fonts?: string[] | undefined
+    /**
+     * Where saved signatures live. Default: memory, gone on reload.
+     * `createLocalSignatureStore` keeps them in the browser; a host can keep them anywhere.
+     * The viewport reads it when it mounts.
+     */
+    signatures?: SignatureStore | undefined
+    /** The handwriting fonts a typed signature offers; the host loads them. */
+    signatureFonts?: string[] | undefined
     page?: number | undefined
     onPageChange?: ((page: number) => void) | undefined
     zoom?: ZoomValue | undefined
@@ -65,11 +74,18 @@
 
 <script lang="ts">
   import {
+    createMemorySignatureStore,
+    createSignatureLibrary,
     createSnapshotHistory,
     InkError as InkErrorClass,
     openDocument,
   } from '@inkbar/core'
-  import { cssVariableDefaults, FONT_FAMILIES, trackToolStyle } from '@inkbar/core/dom'
+  import {
+    cssVariableDefaults,
+    FONT_FAMILIES,
+    SIGNATURE_FONTS,
+    trackToolStyle,
+  } from '@inkbar/core/dom'
   import { DEV } from 'esm-env'
   import { untrack } from 'svelte'
   import { createAttachmentKey } from 'svelte/attachments'
@@ -91,6 +107,8 @@
     onToolChange,
     tools: hostTools,
     fonts,
+    signatures: signatureStore,
+    signatureFonts,
     page = $bindable(),
     onPageChange,
     zoom = $bindable(),
@@ -106,6 +124,13 @@
   }: InkRootProps = $props()
 
   type TestHookElement = HTMLElement & { __inkDocument?: InkDocument | undefined }
+
+  const signatures = $derived(
+    createSignatureLibrary(signatureStore ?? createMemorySignatureStore())
+  )
+  $effect(() => {
+    void signatures.refresh()
+  })
 
   const IDLE: InkStatus = { state: 'idle' }
   const NO_ANNOTATIONS: readonly Annotation[] = []
@@ -338,6 +363,12 @@
     },
     get fonts() {
       return fonts ?? FONT_FAMILIES
+    },
+    get signatures() {
+      return signatures
+    },
+    get signatureFonts() {
+      return signatureFonts ?? SIGNATURE_FONTS
     },
     get toolStyle() {
       return styleTracker?.toolStyle ?? null

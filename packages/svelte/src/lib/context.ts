@@ -1,6 +1,12 @@
 import { getContext, setContext } from 'svelte'
 
-import type { Annotation, InkDocument, InkStatus, PdfAssets } from '@inkbar/core'
+import type {
+  Annotation,
+  InkDocument,
+  InkStatus,
+  PdfAssets,
+  SignatureLibrary,
+} from '@inkbar/core'
 import type {
   Tool,
   ToolController,
@@ -49,6 +55,10 @@ export interface InkContext {
   readonly hostTools: Tool[] | undefined
   /** The font families text boxes offer: InkRoot's `fonts`, else `FONT_FAMILIES`. */
   readonly fonts: readonly string[]
+  /** The saved signatures, from InkRoot's `signatures` store (memory by default). */
+  readonly signatures: SignatureLibrary
+  /** The fonts a typed signature offers: InkRoot's `signatureFonts`, else `SIGNATURE_FONTS`. */
+  readonly signatureFonts: readonly string[]
   /** The open document's tool style; `null` while no document is open. */
   readonly toolStyle: ToolStyle | null
   /** Desired zoom and page from the host's props; InkViewport applies and reports back. */

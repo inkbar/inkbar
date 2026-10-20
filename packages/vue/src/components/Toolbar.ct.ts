@@ -4,6 +4,7 @@ import { expect, test } from '@playwright/experimental-ct-vue'
 import { guardConsole } from '../../playwright/console-guard'
 import ColorMenuHarness from '../../playwright/harness/ColorMenuHarness.vue'
 import LineStyleHarness from '../../playwright/harness/LineStyleHarness.vue'
+import SignatureHarness from '../../playwright/harness/SignatureHarness.vue'
 import TextStyleHarness from '../../playwright/harness/TextStyleHarness.vue'
 import Harness from '../../playwright/harness/ToolbarHarness.vue'
 
@@ -898,5 +899,179 @@ test.describe('text style menu', () => {
     await expect(font.locator('option')).toHaveText(['Georgia', 'Verdana', 'Helvetica'])
     await font.selectOption('Verdana')
     expect((await style(page)).fontFamily).toBe('Verdana')
+  })
+})
+
+test.describe('signature menu', () => {
+  const INK = {
+    id: 'sig-a',
+    kind: 'ink' as const,
+    inklist: [
+      [
+        { x: 0, y: 0 },
+        { x: 1, y: 1 },
+      ],
+    ],
+    aspect: 3,
+  }
+  const IMAGE = {
+    id: 'sig-b',
+    kind: 'image' as const,
+    imagedata:
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAABCAYAAAAb4BS0AAAADklEQVR4nGP4z8DwH4YBJuYF+2EsXwgAAAAASUVORK5CYII=',
+    aspect: 3,
+  }
+  const store = (page: Page) => page.getByTestId('signature-store')
+  const menu = (page: Page) => page.getByRole('menu', { name: 'Signatures' })
+  const dialog = (page: Page) => page.getByRole('dialog', { name: 'Create signature' })
+
+  test('create a drawn signature, it appears in the menu and is selected', async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mount(SignatureHarness, {
+      props: { src: fixtureUrl('text-simple'), assets },
+    })
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    const main = page.locator('[data-ink-signature-button]')
+    await expect(main).toHaveAccessibleName('Sign')
+    await page.getByRole('button', { name: 'Choose signature' }).click()
+    await expect(menu(page).getByRole('menuitemradio')).toHaveCount(0)
+    await menu(page).getByRole('menuitem', { name: 'Create signature' }).click()
+    await expect(menu(page)).toBeHidden()
+    await expect(dialog(page)).toBeVisible()
+    const save = dialog(page).getByRole('button', { name: 'Save' })
+    await expect(save).toBeDisabled()
+    const pad = dialog(page).locator('[data-ink-signature-pad]')
+    const box = (await pad.boundingBox())!
+    await page.mouse.move(box.x + 20, box.y + 60)
+    await page.mouse.down()
+    await page.mouse.move(box.x + 80, box.y + 20, { steps: 4 })
+    await page.mouse.move(box.x + 160, box.y + 70, { steps: 4 })
+    await page.mouse.up()
+    await expect(save).toBeEnabled()
+    await save.click()
+    await expect(dialog(page)).toBeHidden()
+    await expect(store(page)).toHaveAttribute('data-count', '1')
+    await expect(store(page)).toHaveAttribute('data-kinds', 'ink')
+    const id = await store(page).getAttribute('data-ids')
+    await expect(page.getByTestId('signature-options')).toHaveAttribute(
+      'data-template',
+      id!
+    )
+    await expect(page.getByTestId('probe')).toHaveAttribute('data-tool', 'signature')
+    await expect(main).toHaveAttribute('aria-pressed', 'true')
+    await expect(main).toBeFocused()
+    await page.getByRole('button', { name: 'Choose signature' }).click()
+    const item = menu(page).getByRole('menuitemradio', { name: 'Signature 1' })
+    await expect(item).toHaveAttribute('aria-checked', 'true')
+    await expect(item.locator('svg path')).not.toHaveCount(0)
+    await page.keyboard.press('Escape')
+    // The tool places it with a click on the page.
+    const pageBox = (await cmp.locator('.ink-page').first().boundingBox())!
+    await page.mouse.click(pageBox.x + 300, pageBox.y + 300)
+    await expect(page.getByTestId('probe')).toHaveAttribute('data-annotations', '1')
+  })
+
+  test('remove deletes from the store', async ({ mount, page }) => {
+    const cmp = await mount(SignatureHarness, {
+      props: { src: fixtureUrl('text-simple'), assets, initial: [INK, IMAGE] },
+    })
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    await page.getByRole('button', { name: 'Choose signature' }).click()
+    await expect(menu(page).getByRole('menuitemradio')).toHaveCount(2)
+    await expect(
+      menu(page).getByRole('menuitemradio', { name: 'Signature 2' }).locator('img')
+    ).toHaveAttribute('src', IMAGE.imagedata)
+    await menu(page).getByRole('menuitem', { name: 'Remove signature 1' }).click()
+    await expect(store(page)).toHaveAttribute('data-ids', 'sig-b')
+    const left = menu(page).getByRole('menuitemradio')
+    await expect(left).toHaveCount(1)
+    await expect(left).toHaveAttribute('data-key', 'sig-b')
+    await expect(left).toBeFocused()
+  })
+
+  test('dialog traps focus and Escape closes', async ({ mount, page }) => {
+    const cmp = await mount(SignatureHarness, {
+      props: { src: fixtureUrl('text-simple'), assets },
+    })
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    await page.getByRole('button', { name: 'Choose signature' }).click()
+    await menu(page).getByRole('menuitem', { name: 'Create signature' }).click()
+    const draw = dialog(page).getByRole('tab', { name: 'Draw' })
+    const type = dialog(page).getByRole('tab', { name: 'Type' })
+    await expect(draw).toBeFocused()
+    await page.keyboard.press('ArrowRight')
+    await expect(type).toBeFocused()
+    await expect(type).toHaveAttribute('aria-selected', 'true')
+    // Save is disabled with no name, so Cancel is the last stop: Tab wraps both ways.
+    await page.keyboard.press('Shift+Tab')
+    await expect(dialog(page).getByRole('button', { name: 'Cancel' })).toBeFocused()
+    await page.keyboard.press('Tab')
+    await expect(type).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(dialog(page)).toBeHidden()
+    await expect(page.locator('[data-ink-signature-button]')).toBeFocused()
+  })
+
+  test('the Type tab saves the name in a host font as an image template', async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mount(SignatureHarness, {
+      props: { src: fixtureUrl('text-simple'), assets, fonts: ['serif', 'cursive'] },
+    })
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    await page.getByRole('button', { name: 'Choose signature' }).click()
+    await menu(page).getByRole('menuitem', { name: 'Create signature' }).click()
+    await dialog(page).getByRole('tab', { name: 'Type' }).click()
+    await dialog(page).getByLabel('Name').fill('Ada Lovelace')
+    const fonts = dialog(page).getByRole('radio')
+    await expect(fonts).toHaveCount(2)
+    await expect(fonts.nth(1)).toHaveAccessibleName('cursive')
+    await expect(fonts.nth(1)).toHaveText('Ada Lovelace')
+    await fonts.nth(1).click()
+    await expect(fonts.nth(1)).toHaveAttribute('aria-checked', 'true')
+    await dialog(page).getByRole('button', { name: 'Save' }).click()
+    await expect(dialog(page)).toBeHidden()
+    await expect(store(page)).toHaveAttribute('data-kinds', 'image')
+  })
+
+  test('a save the store refuses shows an error and keeps the dialog open', async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mount(SignatureHarness, {
+      props: { src: fixtureUrl('text-simple'), assets, failSave: true },
+    })
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    await page.getByRole('button', { name: 'Choose signature' }).click()
+    await menu(page).getByRole('menuitem', { name: 'Create signature' }).click()
+    await dialog(page).getByRole('tab', { name: 'Type' }).click()
+    await dialog(page).getByLabel('Name').fill('Ada')
+    await dialog(page).getByRole('button', { name: 'Save' }).click()
+    await expect(dialog(page).getByRole('alert')).toHaveText(/could not be saved/)
+    await expect(dialog(page)).toBeVisible()
+    await expect(store(page)).toHaveAttribute('data-count', '0')
+  })
+
+  test('a removal the store refuses shows an error in the menu', async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mount(SignatureHarness, {
+      props: {
+        src: fixtureUrl('text-simple'),
+        assets,
+        initial: [INK, IMAGE],
+        failRemove: true,
+      },
+    })
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    await page.getByRole('button', { name: 'Choose signature' }).click()
+    await menu(page).getByRole('menuitem', { name: 'Remove signature 1' }).click()
+    await expect(menu(page).getByRole('alert')).toHaveText(/could not be removed/)
+    await expect(menu(page).getByRole('menuitemradio')).toHaveCount(2)
+    await expect(store(page)).toHaveAttribute('data-count', '2')
   })
 })

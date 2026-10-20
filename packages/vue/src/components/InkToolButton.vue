@@ -5,6 +5,7 @@ import {
   MessageSquare,
   PenLine,
   PenTool,
+  Signature,
   Square,
   SquareDashedMousePointer,
   TextCursor,
@@ -29,6 +30,7 @@ const ICONS: Readonly<Partial<Record<ToolId, IconNode>>> = {
   draw: PenLine,
   note: MessageSquare,
   freetext: Type,
+  signature: Signature,
 }
 
 const props = withDefaults(

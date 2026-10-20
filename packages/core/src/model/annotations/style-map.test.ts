@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { fromAnnotation, styleGroupOf, supportedProps, toFields } from './style-map'
+import {
+  fromAnnotation,
+  styleGroupOf,
+  supportedProps,
+  toFields,
+  typesInGroup,
+} from './style-map'
 
 import type { Annotation } from './types'
 
@@ -176,6 +182,34 @@ describe('styleGroupOf', () => {
     expect(of('squiggly')).toBe('markup')
     expect(of('redact')).toBe('redact')
     expect(of('text')).toBeUndefined()
+    expect(of('stamp')).toBeUndefined()
+  })
+
+  it('lists the types in each group, from the same table', () => {
+    expect(typesInGroup('ink')).toEqual(['ink'])
+    expect(typesInGroup('text')).toEqual(['freetext'])
+    expect(typesInGroup('shape')).toEqual([
+      'square',
+      'circle',
+      'line',
+      'polyline',
+      'polygon',
+    ])
+  })
+})
+
+describe('stamp', () => {
+  const stamp = {
+    ...base,
+    type: 'stamp',
+    imagedata: 'data:image/png;base64,AA==',
+  } as const
+
+  // A stamp is an image, a signature among them: the style controls have nothing to change.
+  it('supports no style props, so a style patch leaves it alone', () => {
+    expect(supportedProps('stamp').size).toBe(0)
+    expect(toFields('stamp', { border: '#FF0000', opacity: 0.5, width: 3 })).toEqual({})
+    expect(fromAnnotation(stamp)).toEqual({})
   })
 })
 
