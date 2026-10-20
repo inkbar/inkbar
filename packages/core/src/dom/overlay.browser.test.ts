@@ -1080,6 +1080,25 @@ describe('createOverlay', () => {
       expect(window.getSelection()?.toString()).not.toBe('')
     })
 
+    it('a press inside a mask reaches the text layer', async () => {
+      const { doc, host, transform, first } = await mountPage()
+      const { x, y, width, height } = first.rect
+      doc.annotations.add({
+        type: 'mask',
+        page: 0,
+        rect: { x: x - 40, y: y - 40, width: width + 80, height: height + 80 },
+        shape: 'rect',
+      })
+      const box = transform.toCssRect(first.rect)
+      const r = host.getBoundingClientRect()
+      const target = document.elementFromPoint(
+        r.left + box.left + 4,
+        r.top + box.top + box.height / 2
+      )!
+      expect(target.closest('[data-annotation]')).toBeNull()
+      expect(target.closest('.ink-text-layer')).not.toBeNull()
+    })
+
     it('a click on a highlight selects and activates it', async () => {
       const { doc, host, transform, onActivate, first } = await mountPage()
       const hl = doc.annotations.add({ type: 'highlight', page: 0, quads: [first.quad] })
@@ -1415,7 +1434,7 @@ describe('mask', () => {
     }
   })
 
-  it('mask is selectable through its shape, not the dimmed area', async () => {
+  it('mask is selectable by its edge, not its inside or the dimmed area', async () => {
     const { doc, host } = await mountMaskPage()
     const mask = doc.annotations.add({
       type: 'mask',
@@ -1427,22 +1446,24 @@ describe('mask', () => {
     expect(el.dataset.type).toBe('mask')
     expect(el.getAttribute('aria-label')).toBe('Mask')
     const box = host.getBoundingClientRect()
-    // css box: left 100, top 192..292. Centre is inside the ellipse, the box corner is not.
+    // css box: left 100..300, top 192..292. The ellipse's left edge is at (100, 242).
     const at = (x: number, y: number) =>
       document.elementFromPoint(box.left + x, box.top + y)
-    expect(at(200, 242)?.closest('[data-annotation]')).toBe(el)
+    expect(at(102, 242)?.closest('[data-annotation]')).toBe(el)
+    // The spotlight inside the edge belongs to the page, as does the box corner.
+    expect(at(200, 242)?.closest('[data-annotation]')).toBeNull()
     expect(at(102, 194)?.closest('[data-annotation]')).toBeNull()
     // Far outside the shape, in the dimmed area.
     expect(at(450, 500)?.closest('[data-annotation]')).toBeNull()
     expect(at(450, 500)?.closest('[data-ink-mask-layer]')).toBeNull()
-    // A press on the shape selects the mask.
-    at(200, 242)?.dispatchEvent(
+    // A press on the edge selects the mask.
+    at(102, 242)?.dispatchEvent(
       new PointerEvent('pointerdown', { bubbles: true, button: 0, isPrimary: true })
     )
     expect(doc.annotations.selection.get()).toEqual([mask.id])
   })
 
-  it('a rect mask takes presses across its whole box', async () => {
+  it('a rect mask takes presses along its edge only', async () => {
     const { doc, host } = await mountMaskPage()
     const mask = doc.annotations.add({
       type: 'mask',
@@ -1455,6 +1476,8 @@ describe('mask', () => {
     const at = (x: number, y: number) =>
       document.elementFromPoint(box.left + x, box.top + y)
     expect(at(102, 194)?.closest('[data-annotation]')).toBe(el)
+    expect(at(200, 290)?.closest('[data-annotation]')).toBe(el)
     expect(at(98, 194)?.closest('[data-annotation]')).toBeNull()
+    expect(at(200, 242)?.closest('[data-annotation]')).toBeNull()
   })
 })
