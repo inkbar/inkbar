@@ -1145,6 +1145,27 @@ test.describe('signature menu', () => {
     await expect(page.getByTestId('probe')).toHaveAttribute('data-annotations', '1')
   })
 
+  test('a store swapped after mount reaches the tool, not only the menu', async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mount(
+      <SignatureHarness src={fixtureUrl('text-simple')} assets={assets} swapTo={[INK]} />
+    )
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    await page.getByTestId('swap-store').click()
+    await page.getByRole('button', { name: 'Choose signature' }).click()
+    await menu(page).getByRole('menuitemradio', { name: 'Signature 1' }).click()
+    await expect(page.getByTestId('signature-options')).toHaveAttribute(
+      'data-template',
+      INK.id
+    )
+    await expect(menu(page)).toBeHidden()
+    const pageBox = (await cmp.locator('.ink-page').first().boundingBox())!
+    await page.mouse.click(pageBox.x + 300, pageBox.y + 300)
+    await expect(page.getByTestId('probe')).toHaveAttribute('data-annotations', '1')
+  })
+
   test('remove deletes from the store', async ({ mount, page }) => {
     const cmp = await mount(
       <SignatureHarness

@@ -47,7 +47,7 @@
     /**
      * Where saved signatures live. Default: memory, gone on reload.
      * `createLocalSignatureStore` keeps them in the browser; a host can keep them anywhere.
-     * The viewport reads it when it mounts.
+     * A new store takes effect at once, for the menus and the `signature` tool alike.
      */
     signatures?: SignatureStore | undefined
     /** The handwriting fonts a typed signature offers; the host loads them. */

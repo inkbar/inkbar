@@ -129,7 +129,8 @@
       ...(ctx.toolStyle ? { toolStyle: ctx.toolStyle } : {}),
       toolHistory: { batch: (fn) => ctx.history.batch(fn) },
       toolOptions: ctx.toolOptions,
-      signatureLibrary: ctx.signatures,
+      // Read through, so a new `signatures` store reaches the tool as well as the menus.
+      signatureLibrary: () => ctx.signatures,
       customAnnotations: custom,
       onActivate: (id) => ctx.setActivated(id),
       onBuild: (vp, tc) => {

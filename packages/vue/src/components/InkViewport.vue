@@ -134,7 +134,8 @@ function setup(): void {
     ...(ctx.toolStyle.value ? { toolStyle: ctx.toolStyle.value } : {}),
     toolHistory: { batch: (fn) => ctx.history.batch(fn) },
     toolOptions: ctx.toolOptions,
-    signatureLibrary: ctx.signatures.value,
+    // Read through, so a new `signatures` store reaches the tool as well as the menus.
+    signatureLibrary: () => ctx.signatures.value,
     customAnnotations: custom,
     onActivate: (id) => ctx.setActivated(id),
     onBuild: (vp, tc) => {

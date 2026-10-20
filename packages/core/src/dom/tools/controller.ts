@@ -72,7 +72,7 @@ export interface ToolContext {
    */
   history?: { batch(fn: () => void): void }
   /** The signature templates the `signature` tool places. Without it, it places nothing. */
-  signatures?: SignatureLibrary
+  signatures?: SignatureLibrary | undefined
 }
 
 export interface Tool<O extends object = object> {
@@ -168,6 +168,10 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
   registry.register(opts.tools)
   const ctx: ToolContext = {
     ...opts.ctx,
+    // Read through, as a spread copies a getter's value once: the host's library may change.
+    get signatures() {
+      return opts.ctx.signatures
+    },
     toolStyle:
       opts.ctx.toolStyle ??
       createToolStyle({

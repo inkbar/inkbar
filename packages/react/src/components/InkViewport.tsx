@@ -118,7 +118,8 @@ export function InkViewport({
       ...(c.toolStyle ? { toolStyle: c.toolStyle } : {}),
       toolHistory: { batch: (fn) => latest.current.ctx.history.batch(fn) },
       toolOptions: c.toolOptions,
-      signatureLibrary: c.signatures,
+      // Read through, so a new `signatures` store reaches the tool as well as the menus.
+      signatureLibrary: () => latest.current.ctx.signatures,
       customAnnotations: cu,
       onActivate: (id) => latest.current.ctx.setActivated(id),
       onBuild: (vp, tc) => {
