@@ -6,7 +6,7 @@ import { openDocument } from '../document'
 
 import sample from './__fixtures__/standard-callout.json'
 import { importEmbeddedPage, type EmbeddedTarget } from './embedded'
-import { readEmbeddedFields } from './embedded-fields'
+import { readEmbeddedFields, withEmbeddedFields } from './embedded-fields'
 
 import type { Annotation } from './types'
 import type { PdfjsAnnotationData } from '../../pdfjs/types'
@@ -60,13 +60,11 @@ describe('readEmbeddedFields', () => {
     expect(targets).toEqual([
       expect.objectContaining({ id: annotations[0]!.id, subtype: 'FreeText' }),
     ])
-    expect(patched.get(annotations[0]!.id)).toMatchObject({
+    expect(patched.get(annotations[0]!.id)).toEqual({
       callout: twin.callout,
       fringe: twin.fringe,
       head: twin.head,
-      defaultStyle: { fontFamily: 'Helvetica' },
-      source: 'pdf',
-      locked: true,
+      font: { fontFamily: 'Helvetica' },
     })
   })
 
@@ -76,31 +74,45 @@ describe('readEmbeddedFields', () => {
     // PDF.js hides the name behind `NoIcon`, so the import took the default.
     expect(note).toMatchObject({ icon: 'Note' })
     expect(targets.map((t) => t.id)).toContain(note.id)
-    expect(patched.get(note.id)).toMatchObject({ type: 'text', icon: 'Key' })
+    expect(patched.get(note.id)).toEqual({ icon: 'Key' })
   })
 
   it('patches freetext-fonts to the four fonts', async () => {
     const { annotations, patched } = await read('freetext-fonts')
     expect(annotations).toHaveLength(4)
-    const styles = annotations.map((a) => {
-      const p = patched.get(a.id)
-      return p?.type === 'freetext' ? p.defaultStyle : undefined
-    })
-    expect(styles).toEqual([
-      expect.objectContaining({
+    expect(annotations.map((a) => patched.get(a.id)?.font)).toEqual([
+      { fontFamily: 'Times', fontWeight: 'bold', fontStyle: 'italic' },
+      { fontFamily: 'Helvetica' },
+      { fontFamily: 'Courier', fontStyle: 'italic' },
+      { fontFamily: 'Arial', fontWeight: 'bold' },
+    ])
+  })
+
+  it('withEmbeddedFields merges onto the annotation as it is, font keys only', async () => {
+    const { annotations, patched } = await read('freetext-fonts')
+    const first = annotations[0]!
+    if (first.type !== 'freetext') throw new Error('expected a FreeText')
+    const edited: Annotation = {
+      ...first,
+      color: '#00FF00',
+      defaultStyle: { ...first.defaultStyle, fontSize: 30 },
+    }
+    const merged = withEmbeddedFields(edited, patched.get(first.id)!)
+    expect(merged).toMatchObject({
+      color: '#00FF00',
+      defaultStyle: {
+        color: first.defaultStyle.color,
+        fontSize: 30,
         fontFamily: 'Times',
         fontWeight: 'bold',
         fontStyle: 'italic',
-      }),
-      expect.objectContaining({ fontFamily: 'Helvetica' }),
-      expect.objectContaining({ fontFamily: 'Courier', fontStyle: 'italic' }),
-      expect.objectContaining({ fontFamily: 'Arial', fontWeight: 'bold' }),
-    ])
-    for (const s of styles) {
-      expect(s).not.toBeUndefined()
-      // The size and colour PDF.js read from /DA stay.
-      expect(s).toHaveProperty('color')
-    }
+      },
+    })
+    // Not embedded, or the wrong type: nothing to merge.
+    expect(withEmbeddedFields({ ...edited, source: 'session' }, { head: 'Slash' })).toBe(
+      undefined
+    )
+    expect(withEmbeddedFields(edited, { icon: 'Key' })).toBeUndefined()
   })
 
   it.each(['callout-encrypted', 'callout-bad-xref'] as const)(
@@ -200,7 +212,7 @@ describe('readEmbeddedFields', () => {
         () => Promise.resolve(bytes)
       )
       expect([...patched.keys()]).toEqual(['pdf:0:3R'])
-      expect(patched.get('pdf:0:3R')).toMatchObject({ icon: 'Key' })
+      expect(patched.get('pdf:0:3R')).toEqual({ icon: 'Key' })
     })
 
     it('leaves out a target whose annotation is not in the list', async () => {

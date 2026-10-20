@@ -7,10 +7,10 @@ import { openDocument } from '../document'
 import sample from './__fixtures__/standard-callout.json'
 import { importEmbeddedPage, pdfColorToHex, summarise } from './embedded'
 
-import type { AnnotationChange } from './store'
 import type { PdfjsAnnotationData } from '../../pdfjs/types'
 
 const NOW = '2026-10-12T00:00:00.000Z'
+const twin = sample.annotations[0]!
 
 function open(name: Parameters<typeof fixtureBytes>[0]) {
   return fixtureBytes(name).then((bytes) =>
@@ -344,20 +344,37 @@ describe('embedded import of PDF names and callouts', () => {
     expect(before[0]).not.toHaveProperty('callout')
   })
 
-  it('importAnnotations replace before the fill ends adds back no annotation it dropped', async () => {
+  it('an embedded annotation gone before the fill lands stays gone, through a replace import', async () => {
     const doc = await open('standard-callout')
     await doc.ready
-    const changes: AnnotationChange[] = []
-    doc.annotations.on('change', (c) => changes.push(c))
+    const [callout] = doc.annotations.list.get()
+    expect(callout).toMatchObject({ type: 'freetext', source: 'pdf' })
+    const patch = vi.spyOn(doc.annotations, '_patchEmbedded')
+    // Nothing public removes an embedded annotation, so drop it through the store's own hook.
+    doc.annotations._setEmbedded([])
     doc.importAnnotations({ format: 'inkbar/annotations', version: 1, annotations: [] })
-    const present = new Set(doc.annotations.list.get().map((a) => a.id))
+    await vi.waitFor(() => expect(patch).toHaveBeenCalled())
+    // The fill was for the dropped callout, and it does not bring it back.
+    expect([...patch.mock.calls[0]![0].keys()]).toEqual([callout!.id])
+    expect(doc.annotations.list.get()).toEqual([])
+    doc.destroy()
+  })
+
+  it('keeps an edit made before the fill lands, and its undo', async () => {
+    const doc = await open('standard-callout')
+    await doc.ready
+    const [original] = doc.annotations.list.get()
+    const id = original!.id
+    doc.annotations.update(id, { color: '#00FF00' })
+    const filled = { callout: twin.callout, fringe: twin.fringe, head: twin.head }
     await vi.waitFor(() =>
-      expect(changes.some((c) => c.kind === 'replace' && c.reason === 'embedded')).toBe(
-        present.size > 0
-      )
+      expect(doc.annotations.get(id)).toMatchObject({ ...filled, color: '#00FF00' })
     )
-    await new Promise((r) => setTimeout(r, 50))
-    for (const a of doc.annotations.list.get()) expect(present.has(a.id)).toBe(true)
+    doc.history.undo()
+    expect(doc.annotations.get(id)).toMatchObject(filled)
+    expect(doc.annotations.get(id)?.color).toBe(original!.color)
+    doc.history.redo()
+    expect(doc.annotations.get(id)).toMatchObject({ ...filled, color: '#00FF00' })
     doc.destroy()
   })
 

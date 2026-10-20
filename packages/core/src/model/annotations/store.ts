@@ -5,6 +5,7 @@ import { Emitter } from '../events'
 import { rectFromQuad, unionRects, type Point, type Rect } from '../geometry'
 import { readonly, writable, type Readable } from '../readable'
 
+import { withEmbeddedFields } from './embedded-fields'
 import {
   AnnotationSchema,
   confidenceBucket,
@@ -14,6 +15,7 @@ import {
 } from './types'
 
 import type { AnnotationDefaults } from './defaults'
+import type { EmbeddedFieldPatch } from './embedded'
 
 export type AnnotationChange =
   | { kind: 'add'; annotation: Annotation }
@@ -25,10 +27,13 @@ export type AnnotationChange =
       /** Everything that went: `annotation` first, then the replies removed with it. */
       removed: Annotation[]
     }
+  | { kind: 'replace'; reason: 'import' | 'sync' | 'history' }
   | {
       kind: 'replace'
-      /** `embedded`: fields read from the file after `ready` filled in embedded annotations. */
-      reason: 'import' | 'sync' | 'history' | 'embedded'
+      /** Fields read from the file after `ready` filled in embedded annotations. */
+      reason: 'embedded'
+      /** What was merged into each annotation, by id. */
+      fields: ReadonlyMap<string, EmbeddedFieldPatch>
     }
 
 export type StoreMode =
@@ -78,11 +83,12 @@ export interface AnnotationStore {
    */
   _setEmbedded(list: readonly Annotation[]): void
   /**
-   * @internal Swaps in patched embedded annotations by id (only ids still present with
-   * `source: 'pdf'`). Applied directly in both modes and never passed to `onChange`. Emits
-   * `{ kind: 'replace', reason: 'embedded' }` when anything changed.
+   * @internal Merges fields read from the file into embedded annotations, by id, onto their
+   * current version (only ids still present with `source: 'pdf'`; a merge that fails the schema
+   * is skipped). Applied directly in both modes and never passed to `onChange`. Emits
+   * `{ kind: 'replace', reason: 'embedded', fields }` when anything changed.
    */
-  _patchEmbedded(patched: ReadonlyMap<string, Annotation>): void
+  _patchEmbedded(fields: ReadonlyMap<string, EmbeddedFieldPatch>): void
   /**
    * @internal Like `get`, but in controlled mode it also sees changes proposed to the host and
    * not applied yet: the list `update` and `remove` build on.
@@ -511,20 +517,23 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
       pruneSelection(next)
       emitter.emit('change', { kind: 'replace', reason: 'import' })
     },
-    _patchEmbedded(patched) {
+    _patchEmbedded(fields) {
       if (destroyed) return
-      const swap = (items: readonly Annotation[]): Annotation[] =>
+      const applied = new Map<string, EmbeddedFieldPatch>()
+      const merge = (items: readonly Annotation[]): Annotation[] =>
         items.map((a) => {
-          const p = a.source === 'pdf' ? patched.get(a.id) : undefined
-          return p && p.id === a.id && p.type === a.type && p.source === 'pdf' ? p : a
+          const f = a.source === 'pdf' ? fields.get(a.id) : undefined
+          const merged = f && withEmbeddedFields(a, f)
+          if (!merged) return a
+          applied.set(a.id, f)
+          return merged
         })
-      const current = list.get()
-      const next = swap(current)
-      if (next.every((a, i) => a === current[i])) return
+      const next = merge(list.get())
+      if (applied.size === 0) return
       list.set(next)
       // A pending controlled proposal holds the embedded items too.
-      if (proposed) proposed = swap(proposed)
-      emitter.emit('change', { kind: 'replace', reason: 'embedded' })
+      if (proposed) proposed = merge(proposed)
+      emitter.emit('change', { kind: 'replace', reason: 'embedded', fields: applied })
     },
     on: (event, fn) => emitter.on(event, fn),
     destroy() {

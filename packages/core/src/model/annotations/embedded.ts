@@ -12,6 +12,7 @@ import { staticDefaults } from './defaults'
 import { PDF_NAME } from './pdf-names'
 import { AnnotationSchema, type Annotation } from './types'
 
+import type { Fringe } from './callout'
 import type { PdfjsAnnotationData } from '../../pdfjs/types'
 
 export const SUPPORTED_SUBTYPES: ReadonlySet<string> = new Set([
@@ -90,6 +91,23 @@ export interface EmbeddedTarget {
   rect: readonly number[]
   /** FreeText only: the `/DA` font resource name. */
   daFont?: string
+}
+
+/**
+ * The fields read from the file for one embedded annotation: what PDF.js left out. They merge
+ * onto the annotation as it is when they land, so edits made in between are kept.
+ */
+export interface EmbeddedFieldPatch {
+  /** FreeText `/CL`: the tip, an optional bend, and where the line meets the box. */
+  callout?: Point[]
+  /** FreeText `/RD`. */
+  fringe?: Fringe
+  /** FreeText `/LE`. */
+  head?: string
+  /** Text `/Name`. */
+  icon?: string
+  /** FreeText `/DA` font, merged into `defaultStyle`. */
+  font?: { fontFamily?: string; fontWeight?: 'bold'; fontStyle?: 'italic' }
 }
 
 export function importEmbeddedPage(
