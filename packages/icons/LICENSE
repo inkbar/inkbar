@@ -24,10 +24,8 @@ SOFTWARE.
 
 Third-party notices
 
-The icons in src/icons.ts (TextCursor, SquareDashedMousePointer, Highlighter, Square,
-MessageSquare, Undo2, Redo2, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, ChevronDown and
-Check) are copied from
-Lucide (https://lucide.dev), under the ISC licence:
+The icons in src/icons.ts are copied from Lucide (https://lucide.dev), under the ISC
+licence:
 
 ISC License
 
@@ -45,10 +43,9 @@ WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
 ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-Of these, Square, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, ChevronDown and Check are
-derived from the Feather project, under the MIT licence:
+Some of these icons are derived from the Feather project, under the MIT licence:
 
-The MIT License (MIT) (for the icons listed above)
+The MIT License (MIT) (for the icons derived from Feather)
 
 Copyright (c) 2013-present Cole Bemis
 
