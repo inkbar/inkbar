@@ -87,27 +87,42 @@ function rectOf(a: Point, b: Point): Rect {
   }
 }
 
-/** Vertices round the ellipse inscribed in `rect`, the first at the top centre, clockwise on the page. */
+/**
+ * Vertices round a circle, the first at the top centre, clockwise on the page, stretched so their
+ * bounds fill `rect`.
+ */
 function ring(rect: Rect, count: number, radius: (index: number) => number): Point[] {
-  const cx = rect.x + rect.width / 2
-  const cy = rect.y + rect.height / 2
-  return Array.from({ length: count }, (_, i) => {
+  const unit = Array.from({ length: count }, (_, i) => {
     const angle = (i * 2 * Math.PI) / count
     const r = radius(i)
-    return {
-      x: clean(cx + (rect.width / 2) * r * Math.sin(angle)),
-      y: clean(cy + (rect.height / 2) * r * Math.cos(angle)),
-    }
+    return { x: r * Math.sin(angle), y: r * Math.cos(angle) }
   })
+  const xs = unit.map((p) => p.x)
+  const ys = unit.map((p) => p.y)
+  const fit = (v: number, min: number, max: number, start: number, size: number) =>
+    clean(max > min ? start + ((v - min) / (max - min)) * size : start + size / 2)
+  const [minX, maxX, minY, maxY] = [
+    Math.min(...xs),
+    Math.max(...xs),
+    Math.min(...ys),
+    Math.max(...ys),
+  ]
+  return unit.map((p) => ({
+    x: fit(p.x, minX, maxX, rect.x, rect.width),
+    y: fit(p.y, minY, maxY, rect.y, rect.height),
+  }))
 }
 
-/** A star's `2 * points` vertices, outer and inner alternating, the first at the top centre. */
+/**
+ * A star's `2 * points` vertices, outer and inner alternating, stretched to fill `rect`, the first
+ * at the top centre.
+ */
 export function starVertices(rect: Rect, points: number, innerRatio = 0.5): Point[] {
   const n = Math.max(2, Math.round(points))
   return ring(rect, n * 2, (i) => (i % 2 === 0 ? 1 : innerRatio))
 }
 
-/** A regular polygon's vertices on the inscribed ellipse, the first at the top centre. */
+/** A regular polygon's vertices, stretched to fill `rect`, the first at the top centre. */
 export function polygonVertices(rect: Rect, sides: number): Point[] {
   return ring(rect, Math.max(3, Math.round(sides)), () => 1)
 }
@@ -188,9 +203,9 @@ export function shapeInput(
   const rect = rectOf(start, end)
   switch (kind) {
     case 'line':
-      return { type: 'line', page, start, end, head: 'None', tail: 'None' }
+      return { type: 'line', page, start, end }
     case 'arrow':
-      return { type: 'line', page, start, end, tail: 'OpenArrow', intent: 'LineArrow' }
+      return { type: 'line', page, start, end, intent: 'LineArrow' }
     case 'rectangle':
       return { type: 'square', page, rect }
     case 'roundedRectangle':
