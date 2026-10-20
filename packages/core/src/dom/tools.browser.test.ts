@@ -2,7 +2,16 @@ import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { userEvent } from 'vitest/browser'
 
+import {
+  freeTextBox,
+  isStandardCallout,
+  withCalloutBounds,
+} from '../model/annotations/callout'
+import { staticDefaults } from '../model/annotations/defaults'
+import { isBubble } from '../model/annotations/edit'
+import { exportAnnotations, importAnnotations } from '../model/annotations/json'
 import { createSnapshotHistory } from '../model/annotations/snapshot-history'
+import { createAnnotationStore } from '../model/annotations/store'
 import { readonly, writable } from '../model/readable'
 import { createMemorySignatureStore, createSignatureLibrary } from '../model/signatures'
 
@@ -44,6 +53,7 @@ afterEach(() => cleanup.splice(0).forEach((f) => f()))
 import type { AnnotationChange } from '../model/annotations/store'
 import type { Annotation } from '../model/annotations/types'
 import type { InkDocument } from '../model/document'
+import type { Rect } from '../model/geometry'
 import type { SignatureLibrary, SignatureTemplate } from '../model/signatures'
 
 /**
@@ -2151,17 +2161,25 @@ describe('speech bubble', () => {
     expect(doc.annotations.get(bubble!.id)).toMatchObject({ contents: '' })
   })
 
-  it('growing the box carries the tail with it, in one update', async () => {
+  it('growing the box carries a tail below it down, in one update and one undo step', async () => {
     const { doc, container, viewport, tools } = await setup('cropbox-offset')
     tools.set('shape', { kind: 'bubble' })
     drag(container, viewport.hostFor(0)!.getBoundingClientRect())
     const [made] = session(doc)
     if (made?.type !== 'freetext') throw new Error('not free text')
+    await userEvent.keyboard('{Escape}')
     const t = viewport.transformFor(0)
     const updates: unknown[] = []
     const stop = doc.annotations.on('change', (c) => {
       if (c.kind === 'update') updates.push(c)
     })
+    const el = viewport
+      .hostFor(0)!
+      .querySelector<HTMLElement>(`[data-annotation="${made.id}"]`)!
+    el.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+    )
+    await until(() => editorIn(container) !== null)
     await userEvent.keyboard(
       '1{Enter}2{Enter}3{Enter}4{Enter}5{Enter}6{Enter}7{Enter}8{Escape}'
     )
@@ -2169,26 +2187,33 @@ describe('speech bubble', () => {
     expect(updates).toHaveLength(1)
     const grown = doc.annotations.get(made.id)
     if (grown?.type !== 'freetext') throw new Error('not free text')
-    const growth = made.rect.y - grown.rect.y
+    const before = freeTextBox(made)
+    const after = freeTextBox(grown)
+    // The box grows down: its top stays.
+    expect(after.y + after.height).toBeCloseTo(before.y + before.height)
+    const growth = before.y - after.y
     expect(growth).toBeGreaterThan(24)
-    expect(grown.rect.height).toBeCloseTo(made.rect.height + growth)
     for (const i of [0, 1]) {
       expect(grown.callout![i]!.x).toBeCloseTo(made.callout![i]!.x)
       expect(grown.callout![i]!.y).toBeCloseTo(made.callout![i]!.y - growth)
     }
+    // The rect still covers the box and the tip.
+    expect(grown.rect.y).toBeCloseTo(made.rect.y - growth)
+    expect(grown.rect.height).toBeCloseTo(made.rect.height + growth)
     // The tail still leaves the bottom edge and reaches the tip.
-    const el = viewport
-      .hostFor(0)!
-      .querySelector<HTMLElement>(`[data-annotation="${made.id}"]`)!
-    const box = t.toCssRect(grown.rect)
+    const origin = t.toCssRect(grown.rect)
+    const box = t.toCssRect(after)
     const tip = t.toCss(grown.callout![0]!)
     expect(tip.y - (box.top + box.height)).toBeCloseTo(t.toCssLength(24))
     const fmt = (n: number) => String(Math.round(n * 1000) / 1000 + 0)
     const d = el.querySelector('path.ink-bubble')!.getAttribute('d')!
-    expect(d).toContain(`L${fmt(tip.x - box.left)} ${fmt(tip.y - box.top)}`)
-    expect(tip.y).toBeGreaterThan(box.top + box.height)
+    expect(d).toContain(`L${fmt(tip.x - origin.left)} ${fmt(tip.y - origin.top)}`)
     // The bottom edge's spike base sits on it.
-    expect(d).toContain(` ${fmt(box.height)}L${fmt(tip.x - box.left)}`)
+    expect(d).toContain(
+      ` ${fmt(box.top + box.height - origin.top)}L${fmt(tip.x - origin.left)}`
+    )
+    doc.history.undo()
+    expect(doc.annotations.get(made.id)).toEqual(made)
   })
 
   it('growing a bubble whose tail leaves the top keeps the tail where it is', async () => {
@@ -2196,12 +2221,14 @@ describe('speech bubble', () => {
     tools.set('select')
     const tip = { x: 150, y: 700 }
     const base = { x: 160, y: 640 }
+    const box = { x: 100, y: 600, width: 144, height: 40 }
     const bubble = doc.annotations.add({
       type: 'freetext',
       page: 0,
       intent: 'FreeTextCallout',
       cornerRadius: 8,
-      rect: { x: 100, y: 600, width: 144, height: 40 },
+      width: 1,
+      ...withCalloutBounds(box, [tip, base], 1, undefined),
       contents: '',
       callout: [tip, base],
     })
@@ -2216,8 +2243,15 @@ describe('speech bubble', () => {
     await userEvent.keyboard('1{Enter}2{Enter}3{Enter}4{Enter}5{Enter}6{Escape}')
     const grown = doc.annotations.get(bubble.id)
     if (grown?.type !== 'freetext') throw new Error('not free text')
-    expect(grown.rect.height).toBeGreaterThan(40)
+    const after = freeTextBox(grown)
+    expect(after.height).toBeGreaterThan(40)
+    expect(after.y + after.height).toBeCloseTo(640)
     expect(grown.callout).toEqual([tip, base])
+    // The rect grows to cover the box.
+    expect(grown.rect.y).toBeCloseTo(after.y - 0.5)
+    expect(grown.rect.y + grown.rect.height).toBeCloseTo(700.5)
+    doc.history.undo()
+    expect(doc.annotations.get(bubble.id)).toEqual(bubble)
   })
 
   it('a commit keeps a rect the box was given while its editor was open', async () => {
@@ -2305,11 +2339,12 @@ describe('speech bubble', () => {
     pointer(container, 'pointerup', h.left + 200, h.top + 300)
     const [bubble] = session(doc)
     if (bubble?.type !== 'freetext') throw new Error('not free text')
-    expect(bubble.rect.width).toBeCloseTo(72)
-    expect(bubble.rect.height).toBeCloseTo(72)
+    const box = freeTextBox(bubble)
+    expect(box.width).toBeCloseTo(72)
+    expect(box.height).toBeCloseTo(72)
     const [tip, knee] = bubble.callout!
-    expect(knee!.x).toBeCloseTo(bubble.rect.x + 18)
-    expect(knee!.y).toBeCloseTo(bubble.rect.y)
+    expect(knee!.x).toBeCloseTo(box.x + 18)
+    expect(knee!.y).toBeCloseTo(box.y)
     expect(tip!.x).toBeCloseTo(knee!.x - 24)
     expect(tip!.y).toBeCloseTo(knee!.y - 24)
     await userEvent.keyboard('{Escape}')
@@ -3251,7 +3286,8 @@ describe('selection editing', () => {
     pointer(container, 'pointerup', x + 20, y + 10)
     const next = doc.annotations.get(a.id)!
     if (next.type !== 'freetext') throw new Error('not free text')
-    expect(next.rect).toEqual(a.type === 'freetext' ? a.rect : undefined)
+    // The box stays where it was; the rect grows to hold the moved tip.
+    expect(freeTextBox(next)).toEqual(a.type === 'freetext' ? a.rect : undefined)
     expect(next.callout![1]).toEqual({ x: 125, y: 600 })
     expect(next.callout![0]!.x).toBeCloseTo(121, 5)
     expect(next.callout![0]!.y).toBeCloseTo(566, 5)
@@ -3601,6 +3637,173 @@ describe('selection editing', () => {
         doc.annotations.get(a.id)!.rect.x === 120 &&
         doc.annotations.get(b.id)!.rect.x === 220
     )
+  })
+
+  describe('callouts', () => {
+    type Kind = 'bubble' | 'standard'
+    /** A bubble, box {100,600,100,40}, or a standard callout, box {100,600,180,60}. */
+    const callout = (doc: InkDocument, kind: Kind) => {
+      const box =
+        kind === 'bubble'
+          ? { x: 100, y: 600, width: 100, height: 40 }
+          : { x: 100, y: 600, width: 180, height: 60 }
+      const points =
+        kind === 'bubble'
+          ? [
+              { x: 101, y: 576 },
+              { x: 125, y: 600 },
+            ]
+          : [
+              { x: 60, y: 520 },
+              { x: 80, y: 560 },
+              { x: 100, y: 620 },
+            ]
+      const head = kind === 'bubble' ? undefined : ('OpenArrow' as const)
+      const a = doc.annotations.add({
+        type: 'freetext',
+        page: 0,
+        contents: 'Hi',
+        intent: 'FreeTextCallout',
+        width: 1,
+        ...(kind === 'bubble' ? { cornerRadius: 8 } : { head }),
+        ...withCalloutBounds(box, points, 1, head),
+        callout: points,
+      })
+      if (a.type !== 'freetext') throw new Error('not free text')
+      return a
+    }
+    const freeText = (a: Annotation | undefined) => {
+      if (a?.type !== 'freetext') throw new Error('not free text')
+      return a
+    }
+    const expectBox = (a: Annotation | undefined, box: Rect) => {
+      const b = freeTextBox(freeText(a))
+      expect(b.x).toBeCloseTo(box.x, 5)
+      expect(b.y).toBeCloseTo(box.y, 5)
+      expect(b.width).toBeCloseTo(box.width, 5)
+      expect(b.height).toBeCloseTo(box.height, 5)
+    }
+    /** `rect` and `fringe` are the bounds of the box and the callout. */
+    const expectBounds = (a: Annotation | undefined) => {
+      const ft = freeText(a)
+      const want = withCalloutBounds(freeTextBox(ft), ft.callout!, 1, ft.head)
+      for (const k of ['x', 'y', 'width', 'height'] as const)
+        expect(ft.rect[k]).toBeCloseTo(want.rect[k], 5)
+      for (const k of ['left', 'top', 'right', 'bottom'] as const)
+        expect(ft.fringe![k]).toBeCloseTo(want.fringe[k], 5)
+    }
+
+    for (const kind of ['bubble', 'standard'] as const) {
+      it(`dragging a ${kind} callout's tip moves callout[0] only and keeps the box`, async () => {
+        const { doc, container, viewport } = await setup()
+        const a = callout(doc, kind)
+        doc.annotations.select([a.id])
+        const { host, at, handle } = await page0(viewport)
+        const names = [
+          ...host.querySelectorAll(`[data-annotation="${a.id}"] > [data-handle]`),
+        ].map((h) => (h as HTMLElement).dataset.handle)
+        expect(names).toEqual(['nw', 'ne', 'sw', 'se', 'callout'])
+        const [x, y] = at(a.callout![0]!.x, a.callout![0]!.y)
+        pointer(handle(a.id, 'callout')!, 'pointerdown', x, y)
+        pointer(container, 'pointermove', x + 10, y)
+        pointer(container, 'pointermove', x - 20, y - 50)
+        pointer(container, 'pointerup', x - 20, y - 50)
+        const next = freeText(doc.annotations.get(a.id))
+        expect(next.callout![0]!.x).toBeCloseTo(a.callout![0]!.x - 20, 5)
+        expect(next.callout![0]!.y).toBeCloseTo(a.callout![0]!.y + 50, 5)
+        expect(next.callout!.slice(1)).toEqual(a.callout!.slice(1))
+        expectBox(next, freeTextBox(a))
+        expectBounds(next)
+        // One history step, back to exactly what it was.
+        doc.history.undo()
+        expect(doc.annotations.get(a.id)).toEqual(a)
+      })
+
+      it(`resizing a ${kind} callout by a corner moves its edge point with the box`, async () => {
+        const { doc, container, viewport } = await setup()
+        const a = callout(doc, kind)
+        const box = freeTextBox(a)
+        doc.annotations.select([a.id])
+        const { host, at, handle } = await page0(viewport)
+        // The corners sit on the text box, not the rect.
+        const h = host.getBoundingClientRect()
+        const nw = handle(a.id, 'nw')!.getBoundingClientRect()
+        const [bx, by] = at(box.x, box.y + box.height)
+        expect(nw.left + nw.width / 2 - h.left).toBeCloseTo(bx - h.left, 0)
+        expect(nw.top + nw.height / 2 - h.top).toBeCloseTo(by - h.top, 0)
+        // Drag the north-west corner 20 left and 10 up: the box grows on those sides.
+        pointer(handle(a.id, 'nw')!, 'pointerdown', bx, by)
+        pointer(container, 'pointermove', bx - 10, by - 5)
+        pointer(container, 'pointerup', bx - 20, by - 10)
+        const to = {
+          x: box.x - 20,
+          y: box.y,
+          width: box.width + 20,
+          height: box.height + 10,
+        }
+        const next = freeText(doc.annotations.get(a.id))
+        expectBox(next, to)
+        expectBounds(next)
+        // Tip and any bend stay put.
+        const last = a.callout!.length - 1
+        expect(next.callout!.slice(0, last)).toEqual(a.callout!.slice(0, last))
+        const edge = next.callout![last]!
+        if (kind === 'bubble') {
+          // On the bottom edge, a quarter of the way along.
+          expect(edge.y).toBeCloseTo(to.y, 5)
+          expect(edge.x).toBeCloseTo(to.x + to.width / 4, 5)
+          expect(isBubble(next)).toBe(true)
+        } else {
+          // On the left edge, a third of the way up.
+          expect(edge.x).toBeCloseTo(to.x, 5)
+          expect(edge.y).toBeCloseTo(to.y + to.height / 3, 5)
+          expect(isStandardCallout(next)).toBe(true)
+          expect(next).not.toHaveProperty('cornerRadius')
+        }
+        doc.history.undo()
+        expect(doc.annotations.get(a.id)).toEqual(a)
+      })
+    }
+
+    it('a bubble survives create, type, move, export and import', async () => {
+      const { doc, container, viewport, tools } = await setup()
+      tools.set('shape', { kind: 'bubble' })
+      const h = viewport.hostFor(0)!.getBoundingClientRect()
+      pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+      pointer(container, 'pointermove', h.left + 220, h.top + 160)
+      pointer(container, 'pointerup', h.left + 220, h.top + 160)
+      await userEvent.keyboard('Hello{Escape}')
+      const [made] = doc.annotations.list.get()
+      tools.set('select')
+      const { at } = await page0(viewport)
+      const box = freeTextBox(freeText(made))
+      const [x, y] = at(box.x + box.width / 2, box.y + box.height / 2)
+      pointer(
+        container.querySelector(`[data-annotation="${made!.id}"] .ink-free-text`)!,
+        'pointerdown',
+        x,
+        y
+      )
+      pointer(container, 'pointermove', x + 30, y + 20)
+      pointer(container, 'pointerup', x + 30, y + 20)
+      const moved = freeText(doc.annotations.get(made!.id))
+      expect(moved.contents).toBe('Hello')
+      expect(moved.rect.x).toBeCloseTo(made!.rect.x + 30, 5)
+      expect(moved.fringe).toEqual(freeText(made).fringe)
+      const fresh = createAnnotationStore({
+        mode: { mode: 'uncontrolled' },
+        defaults: staticDefaults,
+      })
+      const result = importAnnotations(
+        fresh,
+        JSON.stringify(exportAnnotations(doc.annotations)),
+        { mode: 'replace' }
+      )
+      expect(result.errors).toEqual([])
+      const back = fresh.get(made!.id)
+      expect(back).toEqual(moved)
+      expect(isBubble(back!)).toBe(true)
+    })
   })
 
   it('view is gone: tools.set("view") throws like any unknown id', async () => {

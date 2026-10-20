@@ -11,12 +11,14 @@
 // Custom elements are the exception and stay `pointer-events:auto`: the host draws them and
 // only it knows their shape. Every visual (colour, opacity, stroke, fill) is an SVG
 // attribute or a theme hook.
+import { freeTextBox } from '../model/annotations/callout'
 import {
+  hasCallout,
   hasCornerHandles,
-  isBubble,
   hasRectGeometry,
   isTextMarkup,
   keepsAspect,
+  resizedBox,
   resizedRect,
   translated,
 } from '../model/annotations/edit'
@@ -32,6 +34,7 @@ import { createLoupeLayer } from './loupe-layer'
 import { createMaskLayer } from './mask-layer'
 import {
   annotationBox,
+  freeTextLocalBox,
   hasComment,
   renderAnnotationContent,
   renderHitArea,
@@ -191,7 +194,10 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     )
   }
 
-  /** Line ends for a line, corners for what a corner drag resizes, else none. */
+  /**
+   * Line ends for a line, corners for what a corner drag resizes (a free text's on its text
+   * box), plus the tip for a callout, else none.
+   */
   function handleSpec(node: HTMLElement, a: Annotation): HandleSpec {
     const left = parseFloat(node.style.left) || 0
     const top = parseFloat(node.style.top) || 0
@@ -203,12 +209,15 @@ export function createOverlay(opts: OverlayOptions): Overlay {
       return { kind: 'ends', start: local(a.start), end: local(a.end) }
     }
     if (!hasCornerHandles(a)) return { kind: 'none' }
-    const corners = {
-      kind: 'corners' as const,
-      width: parseFloat(node.style.width) || 0,
-      height: parseFloat(node.style.height) || 0,
-    }
-    if (!isBubble(a)) return corners
+    const corners =
+      a.type === 'freetext'
+        ? { kind: 'corners' as const, ...freeTextLocalBox(a, transform) }
+        : {
+            kind: 'corners' as const,
+            width: parseFloat(node.style.width) || 0,
+            height: parseFloat(node.style.height) || 0,
+          }
+    if (!hasCallout(a)) return corners
     const tip = transform.toCss(a.callout[0])
     return { ...corners, tail: { x: tip.x - left, y: tip.y - top } }
   }
@@ -398,7 +407,8 @@ export function createOverlay(opts: OverlayOptions): Overlay {
   /**
    * `Shift+Arrow` moves the annotation 1 pt in user space (`Shift+Alt+Arrow` 10 pt; up is +y).
    * `Ctrl+Shift+Arrow` or `Meta+Shift+Arrow` resizes a rect-shaped one by 1 pt: Right and Down
-   * grow it, Left and Up shrink it, keeping its top-left corner. Locked items ignore both.
+   * grow it, Left and Up shrink it, keeping its top-left corner. A free text resizes its text
+   * box, as its corner handles do. Locked items ignore both.
    * Returns true when the key was one of these chords.
    */
   function onEditKey(e: KeyboardEvent, id: string): boolean {
@@ -408,7 +418,9 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     const a = store.get(id)
     if (!a || a.locked) return true
     if (e.ctrlKey || e.metaKey) {
-      if (hasRectGeometry(a))
+      if (a.type === 'freetext')
+        store.update(id, resizedBox(a, resizedRect(freeTextBox(a), step.x, -step.y)))
+      else if (hasRectGeometry(a))
         store.update(id, { rect: resizedRect(a.rect, step.x, -step.y, keepsAspect(a)) })
       return true
     }

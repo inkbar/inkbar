@@ -29,16 +29,19 @@ const CORNERS = ['nw', 'ne', 'sw', 'se'] as const
 const MASK_EDGE = 6
 
 /**
- * Which edit handles an element shows: none, the four CSS corners of its box (`nw`, `ne`,
- * `sw`, `se`), or a line's two ends (`start`, `end`, element-local CSS px).
+ * Which edit handles an element shows: none, the four CSS corners of a box (`nw`, `ne`, `sw`,
+ * `se`), or a line's two ends (`start`, `end`), all element-local CSS px.
  */
 export type HandleSpec =
   | { kind: 'none' }
   | {
       kind: 'corners'
+      /** The box's top-left corner; 0,0 (the element's own) when absent. */
+      left?: number
+      top?: number
       width: number
       height: number
-      /** A speech bubble's tail tip (element-local CSS px): one more handle, `callout`. */
+      /** A callout's tip: one more handle, `callout`. */
       tail?: Point
     }
   | { kind: 'ends'; start: Point; end: Point }
@@ -84,8 +87,8 @@ export function syncHandles(node: HTMLElement, spec: HandleSpec): void {
           ? name === 'callout' && spec.tail
             ? spec.tail
             : {
-                x: name[1] === 'w' ? 0 : spec.width,
-                y: name[0] === 'n' ? 0 : spec.height,
+                x: (spec.left ?? 0) + (name[1] === 'w' ? 0 : spec.width),
+                y: (spec.top ?? 0) + (name[0] === 'n' ? 0 : spec.height),
               }
           : { x: 0, y: 0 }
     h.style.left = `${at.x - HANDLE_PX / 2}px`
@@ -230,9 +233,14 @@ export function renderAnnotationContent(
   const doc = el.ownerDocument
   el.replaceChildren()
   const box = annotationBox(a, t)
-  const local = (p: Point): string => {
+  /** A user-space point in element-local CSS px. */
+  const at = (p: Point): Point => {
     const c = t.toCss(p)
-    return `${c.x - box.left},${c.y - box.top}`
+    return { x: c.x - box.left, y: c.y - box.top }
+  }
+  const local = (p: Point): string => {
+    const c = at(p)
+    return `${c.x},${c.y}`
   }
   const node = (name: string, attrs: Record<string, string | number>): SVGElement => {
     const n = doc.createElementNS(SVG, name)
@@ -267,7 +275,7 @@ export function renderAnnotationContent(
       svg.classList.add('ink-annotation-shape')
       svg.setAttribute('opacity', String(a.opacity))
       const path = node('path', {
-        d: bubblePath(a, t, box.width, box.height),
+        d: bubblePath(a, t),
         fill: a.color ?? 'none',
         stroke: a.width > 0 ? (a.borderColor ?? a.defaultStyle.color) : 'none',
         'stroke-width': t.toCssLength(a.width),
@@ -295,11 +303,9 @@ export function renderAnnotationContent(
         'pointer-events': 'visiblePainted',
       })
       line.classList.add('ink-callout-line')
+      // The leader line is dashed as the box's border is.
+      dash(line, a.dashes, t)
       svg.append(line)
-      const at = (p: Point): Point => {
-        const c = t.toCss(p)
-        return { x: c.x - box.left, y: c.y - box.top }
-      }
       const kind = drawable(a.head)
       const d = lineEndingPath(kind, at(a.callout[0]!), at(a.callout[1]!), sw)
       if (d) {
@@ -473,14 +479,9 @@ export function renderAnnotationContent(
       svg.append(stroked)
       const ends = endingKinds(a)
       if (ends && pts.length >= 2) {
-        const first = t.toCss(pts[0]!)
-        const second = t.toCss(pts[1]!)
-        const last = t.toCss(pts[pts.length - 1]!)
-        const prev = t.toCss(pts[pts.length - 2]!)
-        const at = (p: Point): Point => ({ x: p.x - box.left, y: p.y - box.top })
         for (const [name, kind, tip, other] of [
-          ['head', ends.head, first, second],
-          ['tail', ends.tail, last, prev],
+          ['head', ends.head, pts[0]!, pts[1]!],
+          ['tail', ends.tail, pts[pts.length - 1]!, pts[pts.length - 2]!],
         ] as const) {
           const d = lineEndingPath(kind, at(tip), at(other), t.toCssLength(a.width))
           if (!d) continue
@@ -505,10 +506,7 @@ export function renderAnnotationContent(
       // Dashes do not apply to a filled outline.
       a.inklist.forEach((path, i) => {
         const outline = strokeOutline(
-          path.map((p) => {
-            const c = t.toCss(p)
-            return { x: c.x - box.left, y: c.y - box.top }
-          }),
+          path.map(at),
           a.pressure?.[i],
           t.toCssLength(a.width)
         )
@@ -626,50 +624,49 @@ export function freeTextLocalBox(a: FreeTextAnnotation, t: PageTransform): CssRe
 const BUBBLE_TAIL_HALF = 8
 
 /**
- * The outline of a speech bubble as SVG path data in element-local CSS px: the rounded box
- * (`width` x `height`, its top-left at 0,0) with the tail to `callout[0]`. The tail leaves the
- * side the tip lies furthest beyond, at the position of `callout[1]` along that side, kept
- * clear of the corners. A `height` beyond the rect's moves the tail down with the bottom edge.
+ * The outline of a speech bubble as SVG path data in CSS px relative to `origin` (by default
+ * the top-left of its rect on screen, where its overlay element sits): the rounded text box
+ * (`freeTextBox`) with a wedge to the tip, `callout[0]`. The wedge leaves the box edge nearest
+ * `callout`'s last point, at that point's position along it, kept clear of the corners.
  */
 export function bubblePath(
   a: FreeTextAnnotation & { callout: readonly Point[] },
   t: PageTransform,
-  width: number,
-  height: number
+  origin: { left: number; top: number } = t.toCssRect(a.rect)
 ): string {
-  const origin = t.toCssRect(a.rect)
-  const local = (p: Point): Point => {
+  const css = t.toCssRect(freeTextBox(a))
+  // Box-relative CSS px: the box's top-left is 0,0.
+  const inBox = (p: Point): Point => {
     const c = t.toCss(p)
-    return { x: c.x - origin.left, y: c.y - origin.top }
+    return { x: c.x - css.left, y: c.y - css.top }
   }
-  // A box grown past its rect (the editor growing with its text) carries its tail down with it.
-  const grown = height - origin.height
-  const moved = (p: Point): Point => ({ x: p.x, y: p.y + grown })
-  const tip = moved(local(a.callout[0]!))
-  const knee = moved(local(a.callout[1]!))
-  const r = Math.min(t.toCssLength(a.cornerRadius ?? 0), width / 2, height / 2)
-  const beyond = {
-    top: -tip.y,
-    right: tip.x - width,
-    bottom: tip.y - height,
-    left: -tip.x,
+  const tip = inBox(a.callout[0]!)
+  const edge = inBox(a.callout[a.callout.length - 1]!)
+  const w = css.width
+  const h = css.height
+  const r = Math.min(t.toCssLength(a.cornerRadius ?? 0), w / 2, h / 2)
+  const gaps = {
+    top: Math.abs(edge.y),
+    right: Math.abs(edge.x - w),
+    bottom: Math.abs(edge.y - h),
+    left: Math.abs(edge.x),
   }
-  const side = (Object.keys(beyond) as (keyof typeof beyond)[]).reduce((best, s) =>
-    beyond[s] > beyond[best] ? s : best
+  const side = (Object.keys(gaps) as (keyof typeof gaps)[]).reduce((best, s) =>
+    gaps[s] < gaps[best] ? s : best
   )
-  const along = side === 'top' || side === 'bottom' ? width : height
+  const along = side === 'top' || side === 'bottom' ? w : h
   const half = Math.min(t.toCssLength(BUBBLE_TAIL_HALF), along / 4)
   const lo = Math.min(r + half, along / 2)
   const at = Math.min(
-    Math.max(side === 'top' || side === 'bottom' ? knee.x : knee.y, lo),
+    Math.max(side === 'top' || side === 'bottom' ? edge.x : edge.y, lo),
     along - lo
   )
-  const P = (x: number, y: number): string => `${fmt(x)} ${fmt(y)}`
+  const dx = css.left - origin.left
+  const dy = css.top - origin.top
+  const P = (x: number, y: number): string => `${fmt(x + dx)} ${fmt(y + dy)}`
   const arc = (x: number, y: number): string =>
     r > 0 ? `A${fmt(r)} ${fmt(r)} 0 0 1 ${P(x, y)}` : ''
   const spike = (x: number, y: number): string => `L${P(x, y)}L${P(tip.x, tip.y)}`
-  const w = width
-  const h = height
   return [
     `M${P(r, 0)}`,
     side === 'top' ? `${spike(at - half, 0)}L${P(at + half, 0)}` : '',
@@ -684,19 +681,18 @@ export function bubblePath(
 }
 
 /**
- * Redraws an open bubble's outline for a box grown to `height` CSS px, as the editor grows it
- * with its text. No-op on any other element.
+ * Redraws an open bubble's outline as `a`, a draft of it (the editor's, as its box grows with
+ * its text), in an element whose top-left is `origin` on screen. No-op on any other element.
  */
 export function refitBubble(
   el: HTMLElement,
   a: FreeTextAnnotation,
   t: PageTransform,
-  height: number
+  origin: { left: number; top: number }
 ): void {
   const path = el.querySelector(':scope > svg > .ink-bubble')
   if (!path || !isBubble(a)) return
-  const width = t.toCssRect(a.rect).width
-  path.setAttribute('d', bubblePath(a, t, width, height))
+  path.setAttribute('d', bubblePath(a, t, origin))
 }
 
 /** Sets `stroke-dasharray` from a dash pattern in points, scaled to CSS px. */

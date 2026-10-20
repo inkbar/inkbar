@@ -154,6 +154,14 @@ The viewport mounts pages synchronously, so a build's page callbacks fire before
 
 Values taken from PDF names use PDF's spelling: `OpenArrow` and `ROpenArrow` for line endings, `Comment` and `NewParagraph` for note icons, `FreeTextCallout` and `LineArrow` for intents. Other valid PDF names (no spaces, none of `( ) < > [ ] { } / %`) are kept and written back unchanged, so `icon: 'Check'` survives an import and export. `LINE_ENDINGS`, `NOTE_ICONS` and `INTENTS` list the names Inkbar knows, and `isKnown(list, name)` tests one. A line ending Inkbar does not know draws as `None`, and every note icon draws the same icon.
 
+## Callouts and speech bubbles
+
+A free-text callout is stored as PDF and XFDF store it: `intent: 'FreeTextCallout'`, a `rect` that holds the text box and the leader line together, a `fringe` (`{ left, top, right, bottom }`, PDF `/RD`) that insets `rect` to the text box, and a `callout` of two or three points running from the tip, through an optional bend, to where the line meets the box. `head` is the ending at the tip.
+
+A speech bubble is a standard callout plus Inkbar's `cornerRadius`. Inkbar draws it as one rounded outline with a wedge to the tip. Other viewers ignore `cornerRadius` and draw a box with a leader line.
+
+A callout's corner handles resize its text box: the tip and bend stay, and the point on the box moves with the edge it sits on. Its tip handle moves the tip alone. Each edit refits `rect` and `fringe` in the same update, so it is one undo step.
+
 ## Tools and keyboard
 
 `createToolController` from `@inkbar/core/dom` routes pointer and key events on the viewport to the active tool: `select-text`, `select`, `highlight`, `redact-area`, `sketch`, `draw`, `shape`, `freetext`, `signature` or `note`. Highlights, text redactions, notes and signatures can be made from the keyboard. Area redactions, sketches and drawings need a pointer.

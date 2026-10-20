@@ -3,6 +3,7 @@
 // draft is `position:absolute; pointer-events:none`, a box over the shape's bounds holding an
 // SVG preview: geometry only, the look comes from the theme
 // (`.ink-draft[data-ink-draft='shape']`).
+import { freeTextBox, withCalloutBounds } from '../../model/annotations/callout'
 import { isBubble } from '../../model/annotations/edit'
 import {
   constrain,
@@ -77,10 +78,19 @@ export function shapeTool(): Tool<ShapeOptions> {
       contents: '',
     }
     const text = c.toolStyle.resolve('text', blank)
-    return {
+    const width = shape.width ?? input.width ?? 0
+    const out = {
       ...shape,
-      width: shape.width ?? input.width,
+      width,
       defaultStyle: { ...text.defaultStyle, ...input.defaultStyle },
+    }
+    if (!input.callout || !input.rect) return out
+    // The bounds were fit to the bubble's default width: refit them to the group's, stroked as
+    // `calloutStroke` strokes it (1 pt with no border).
+    const box = freeTextBox({ rect: input.rect, fringe: input.fringe })
+    return {
+      ...out,
+      ...withCalloutBounds(box, input.callout, width > 0 ? width : 1, input.head),
     }
   }
 
@@ -138,7 +148,12 @@ export function shapeTool(): Tool<ShapeOptions> {
       input.type === 'mask'
     ) {
       if (!input.rect) return
-      box = t.toCssRect(input.rect)
+      // A bubble previews its text box; its tail comes with the bubble itself.
+      box = t.toCssRect(
+        input.type === 'freetext'
+          ? freeTextBox({ rect: input.rect, fringe: input.fringe })
+          : input.rect
+      )
       kind =
         input.type === 'circle' ||
         input.type === 'loupe' ||

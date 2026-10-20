@@ -2,11 +2,13 @@
 // the box inside its overlay element, styled from the annotation exactly as the box is
 // (`styleFreeText`), with the box itself hidden underneath. It grows downwards on screen as the
 // text needs more lines, and nothing reaches the store until it closes: a commit hands back the
-// text and the grown rect together, so the edit is one change and one undo step.
+// text and the grown rect together, so the edit is one change and one undo step. A callout's
+// `rect` and `fringe` are refit around the grown box and its callout (`grownFreeText`).
 //
 // Inline styles here are structural or geometric only: the editor's position and minimum
 // height, the box's `visibility` while it is covered, and the element's grown height.
-import { isBubble } from '../model/annotations/edit'
+import { freeTextBox } from '../model/annotations/callout'
+import { hasCallout, isBubble, resizedBox, withBox } from '../model/annotations/edit'
 
 import { freeTextLocalBox, refitBubble, styleFreeText } from './overlay-render'
 
@@ -23,9 +25,9 @@ export interface FreeTextEditor {
 export interface FreeTextEditorOptions {
   transform: PageTransform
   /**
-   * The edited text and the box's rect, grown to fit it, in user space. `grown` is the growth
-   * alone, in CSS px (0 when the box kept its height), for a caller whose box may have moved
-   * or been resized while the editor was open.
+   * The edited text and the box's rect, grown to fit it (`grownFreeText`), in user space.
+   * `grown` is the growth alone, in CSS px (0 when the box kept its height), for a caller whose
+   * box may have moved or been resized while the editor was open.
    */
   commit(contents: string, rect: Rect, grown: number): void
   cancel(): void
@@ -48,6 +50,8 @@ export function closedEditor(e: Event): boolean {
 
 /** Point within which a grown height counts as unchanged, CSS px. */
 const SAME_PX = 0.5
+/** The editor's narrowest width, in ems of the box's font size, for a box inset to nothing. */
+const MIN_WIDTH_EM = 2
 
 /**
  * Opens an editor on `el`, the overlay element showing `a` (or a stand-in for a box not in the
@@ -79,7 +83,9 @@ export function editFreeText(
   field.style.position = 'absolute'
   field.style.left = `${inner.left}px`
   field.style.top = `${inner.top}px`
-  field.style.width = a.fringe ? `${inner.width}px` : '100%'
+  // A fringe can leave a box too narrow to type in: never narrower than a couple of letters.
+  const floor = opts.transform.toCssLength(a.defaultStyle.fontSize * MIN_WIDTH_EM)
+  field.style.width = a.fringe ? `${Math.max(inner.width, floor)}px` : '100%'
   field.style.height = 'auto'
   field.style.minHeight = `${inner.height}px`
   field.style.pointerEvents = 'auto'
@@ -91,11 +97,14 @@ export function editFreeText(
   /** The box's CSS height for the text now in it: never less than it started at. */
   const height = (): number =>
     Math.max(inner.height, field.getBoundingClientRect().height)
+  /** `a` with its box grown by `grown` CSS px. */
+  const grownTo = (grown: number): FreeTextAnnotation =>
+    grown === 0 ? a : { ...a, ...grownFreeText(a, grown, opts.transform) }
   const grow = (): void => {
     const h = height()
     el.style.height = `${base.height + h - inner.height}px`
     // A bubble's outline grows with its text.
-    refitBubble(el, a, opts.transform, h)
+    refitBubble(el, grownTo(h - inner.height), opts.transform, base)
   }
   const Observer = view?.ResizeObserver
   const observer = Observer ? new Observer(grow) : undefined
@@ -118,10 +127,7 @@ export function editFreeText(
     closed = true
     const contents = read()
     const grown = growth()
-    const next =
-      grown === 0
-        ? a.rect
-        : opts.transform.fromCssRect({ ...base, height: base.height + grown })
+    const next = grownTo(grown).rect
     observer?.disconnect()
     view?.removeEventListener('pointerdown', onOutside, true)
     editors.delete(el)
@@ -131,7 +137,7 @@ export function editFreeText(
     field.remove()
     box?.style.removeProperty('visibility')
     el.style.height = `${base.height}px`
-    refitBubble(el, a, opts.transform, base.height)
+    refitBubble(el, a, opts.transform, base)
     if (commit) opts.commit(contents, next, grown)
     else opts.cancel()
   }
@@ -229,15 +235,11 @@ export function editFreeTextIn(
         return
       }
       // The growth applies to the box as it is now: it may have moved while the editor was open.
-      const css = transform.toCssRect(now.rect)
-      const rect =
-        grown === 0
-          ? now.rect
-          : transform.fromCssRect({ ...css, height: css.height + grown })
-      if (contents === now.contents && rect === now.rect) return
-      // A tail from the bottom edge moves down with it, keeping its length and side.
-      const callout = isBubble(now) ? movedCallout(now, grown, transform) : undefined
-      store.update(id, callout ? { contents, rect, callout } : { contents, rect })
+      if (grown === 0) {
+        if (contents !== now.contents) store.update(id, { contents })
+        return
+      }
+      store.update(id, { contents, ...grownFreeText(now, grown, transform) })
     },
     cancel() {
       const now = current()
@@ -247,20 +249,30 @@ export function editFreeTextIn(
 }
 
 /**
- * `a`'s callout carried down by `grown` CSS px, when its tip is below the box's bottom edge on
- * screen; undefined when the tail leaves another edge, so it stays where it is.
+ * The patch that grows a free text's text box down the screen by `grown` CSS px, its top edge
+ * fixed, with `rect` and `fringe` refit. A callout's last point moves with the box edge it sits
+ * on; a tip below the box comes down with it, bend included, and any other tip stays.
  */
-function movedCallout(
-  a: FreeTextAnnotation & { callout: Point[] },
+export function grownFreeText(
+  a: FreeTextAnnotation,
   grown: number,
   t: PageTransform
-): Point[] | undefined {
-  const box = t.toCssRect(a.rect)
-  if (grown === 0 || t.toCss(a.callout[0]!).y <= box.top + box.height) return undefined
-  return a.callout.map((p) => {
+): Partial<FreeTextAnnotation> {
+  const css = t.toCssRect(freeTextBox(a))
+  const box = t.fromCssRect({ ...css, height: css.height + grown })
+  if (!hasCallout(a)) return withBox(a, box)
+  const resized = resizedBox(a, box)
+  if (t.toCss(a.callout[0]).y <= css.top + css.height) return resized
+  const last = a.callout.length - 1
+  const down = (p: Point): Point => {
     const c = t.toCss(p)
     return t.fromCss({ x: c.x, y: c.y + grown })
-  })
+  }
+  return withBox(
+    a,
+    box,
+    resized.callout!.map((p, i) => (i === last ? p : down(p)))
+  )
 }
 
 /** `plaintext-only` where the browser has it, else `true` (paste and formatting are then guarded). */

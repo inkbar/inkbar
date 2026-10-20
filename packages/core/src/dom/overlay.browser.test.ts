@@ -2,7 +2,11 @@ import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import standardCallout from '../model/annotations/__fixtures__/standard-callout.json'
-import { freeTextBox } from '../model/annotations/callout'
+import {
+  calloutStroke,
+  freeTextBox,
+  withCalloutBounds,
+} from '../model/annotations/callout'
 import { staticDefaults } from '../model/annotations/defaults'
 import { isTextMarkup } from '../model/annotations/edit'
 import { importAnnotations } from '../model/annotations/json'
@@ -534,6 +538,48 @@ describe('createOverlay', () => {
         .elementFromPoint(origin.left + empty.x, origin.top + empty.y)
         ?.closest('[data-annotation]')
     ).toBeNull()
+  })
+
+  it("dashes a standard callout's leader line as its border", () => {
+    const { store, overlay } = setup()
+    importAnnotations(store, JSON.stringify(standardCallout), { mode: 'replace' })
+    store.update('standard-callout-1', { width: 2, dashes: [3, 1] })
+    const line = overlay
+      .elementFor('standard-callout-1')!
+      .querySelector('polyline.ink-callout-line')!
+    expect(line.getAttribute('stroke-dasharray')).toBe('3 1')
+  })
+
+  it("Ctrl/Meta+Shift+Arrow resizes a callout's text box and refits rect and fringe, in one step", () => {
+    const { store, host } = setup()
+    importAnnotations(store, JSON.stringify(standardCallout), { mode: 'replace' })
+    const a = store.get('standard-callout-1')!
+    if (a.type !== 'freetext') throw new Error('expected free text')
+    const changes: unknown[] = []
+    store.on('change', (c) => changes.push(c))
+    const el = host.querySelector('[data-annotation="standard-callout-1"]') as HTMLElement
+    el.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'ArrowDown',
+        shiftKey: true,
+        ctrlKey: true,
+        bubbles: true,
+      })
+    )
+    expect(changes).toHaveLength(1)
+    const next = store.get('standard-callout-1')!
+    if (next.type !== 'freetext') throw new Error('expected free text')
+    // Down grows the box downwards by 1 pt, its top edge fixed.
+    const box = freeTextBox(a)
+    const to = { ...box, y: box.y - 1, height: box.height + 1 }
+    expect(freeTextBox(next)).toEqual(to)
+    // The edge point keeps its third of the way up the left edge; tip and bend stay.
+    expect(next.callout!.slice(0, 2)).toEqual(a.callout!.slice(0, 2))
+    expect(next.callout![2]!.x).toBe(100)
+    expect(next.callout![2]!.y).toBeCloseTo(to.y + to.height / 3)
+    expect(next).toMatchObject(
+      withCalloutBounds(to, next.callout!, calloutStroke(next).width, next.head)
+    )
   })
 
   const bubble = {

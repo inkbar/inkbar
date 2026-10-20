@@ -11,24 +11,31 @@
 // on a selected, unlocked annotation) drags that CSS corner while the opposite one stays put.
 // The new box is converted back to user space once, on release, and the annotation's rect and
 // points are scaled onto it in one `store.update`. Neither side goes below 1 pt. `Shift`, or
-// a type that always keeps its aspect (`keepsAspect`), keeps the box's aspect ratio.
+// a type that always keeps its aspect (`keepsAspect`), keeps the box's aspect ratio. A free
+// text's corners are its text box's: the box takes the new size and `rect` and `fringe` are
+// refit around it (`resizedBox`). One with a fringe or a callout is shown resizing in a
+// preview element, as a line end is, since scaling its element would stretch the callout too.
 //
-// Line ends: a press on `[data-handle=start|end]` drags that end; the other stays put. A speech
-// bubble's tail tip (`[data-handle=callout]`) drags the same way and moves `callout[0]` only.
+// Line ends: a press on `[data-handle=start|end]` drags that end; the other stays put. A
+// callout's tip (`[data-handle=callout]`) drags the same way and moves `callout[0]` only, the
+// text box staying where it is (`movedTip`).
 //
 // Move: dragging a pressed annotation moves it, or, when it belongs to the selection, every
 // selected unlocked annotation, in one history step.
 //
 // Under select-text, text markup is left to the overlay: a drag across it selects text, a
 // click selects it. Rectangle select (`marquee`) handles markup like any other annotation.
+import { freeTextBox } from '../../model/annotations/callout'
 import {
   MIN_SIZE,
+  hasCallout,
   hasCornerHandles,
   hasRectGeometry,
-  isBubble,
   isTextMarkup,
   keepsAspect,
   movedEndpoint,
+  movedTip,
+  resizedBox,
   scaled,
   translated,
 } from '../../model/annotations/edit'
@@ -39,8 +46,8 @@ import { annotationBox, renderAnnotationContent } from '../overlay-render'
 import { cssIn, type PageHit, type ToolContext } from './controller'
 
 import type { Annotation } from '../../model/annotations/types'
-import type { Point } from '../../model/geometry'
-import type { CssRect } from '../transform'
+import type { Point, Rect } from '../../model/geometry'
+import type { CssRect, PageTransform } from '../transform'
 
 type Corner = 'nw' | 'ne' | 'sw' | 'se'
 type End = 'start' | 'end' | 'callout'
@@ -72,6 +79,8 @@ type Mode =
       el: HTMLElement | undefined
       /** Keeps its aspect ratio whatever the modifier keys. */
       locked: boolean
+      /** Where the resized annotation is drawn instead of scaling `el`, for a free text. */
+      preview: HTMLElement | undefined
     }
   | {
       kind: 'endpoint'
@@ -113,7 +122,9 @@ export function createSelectionEdit(
     if (mode.kind === 'resize' && mode.el) {
       mode.el.style.transform = ''
       mode.el.style.transformOrigin = ''
+      mode.el.style.visibility = ''
     }
+    if (mode.kind === 'resize') mode.preview?.remove()
     if (mode.kind === 'endpoint') {
       mode.preview.remove()
       if (mode.el) mode.el.style.visibility = ''
@@ -124,6 +135,28 @@ export function createSelectionEdit(
   const elementIn = (root: ParentNode, id: string): HTMLElement | undefined =>
     root.querySelector<HTMLElement>(`[data-annotation="${CSS.escape(id)}"]`) ?? undefined
 
+  const previewFor = (host: HTMLElement, a: Annotation): HTMLElement => {
+    const preview = host.ownerDocument.createElement('div')
+    preview.className = 'ink-annotation ink-edit-preview'
+    preview.dataset.inkPreview = ''
+    preview.dataset.type = a.type
+    preview.style.cssText = 'position:absolute;pointer-events:none;'
+    return preview
+  }
+
+  /** Shows `draft` in `preview` beside `el`, which is hidden meanwhile. */
+  const showPreview = (
+    preview: HTMLElement,
+    el: HTMLElement | undefined,
+    draft: Annotation,
+    start: PageHit
+  ): void => {
+    drawPreview(preview, draft, start)
+    if (el) el.style.visibility = 'hidden'
+    // Beside the annotation in the overlay, so it paints where the annotation does.
+    if (!preview.isConnected) (el?.parentElement ?? start.host).append(preview)
+  }
+
   function startHandle(
     e: PointerEvent,
     hit: PageHit,
@@ -132,24 +165,29 @@ export function createSelectionEdit(
   ): boolean {
     const el = elementIn(hit.host, a.id)
     if (CORNERS.includes(handle) && hasCornerHandles(a)) {
+      const text = a.type === 'freetext'
       mode = {
         kind: 'resize',
         id: a.id,
         start: hit,
         corner: handle as Corner,
-        box: el ? boxOf(el) : annotationBox(a, hit.transform),
+        box: text
+          ? hit.transform.toCssRect(freeTextBox(a))
+          : el
+            ? boxOf(el)
+            : annotationBox(a, hit.transform),
         el,
         locked: keepsAspect(a),
+        preview:
+          text && (a.fringe !== undefined || hasCallout(a))
+            ? previewFor(hit.host, a)
+            : undefined,
       }
     } else if (
       (ENDS.includes(handle) && a.type === 'line') ||
-      (handle === CALLOUT && isBubble(a))
+      (handle === CALLOUT && hasCallout(a))
     ) {
-      const preview = hit.host.ownerDocument.createElement('div')
-      preview.className = 'ink-annotation ink-edit-preview'
-      preview.dataset.inkPreview = ''
-      preview.dataset.type = a.type
-      preview.style.cssText = 'position:absolute;pointer-events:none;'
+      const preview = previewFor(hit.host, a)
       mode = {
         kind: 'endpoint',
         id: a.id,
@@ -231,12 +269,17 @@ export function createSelectionEdit(
       }
       const { start } = mode
       if (mode.kind === 'resize') {
-        const { box, el } = mode
+        const { box, el, preview } = mode
         const next = resizeCss(box, mode.corner, cornerAt(mode, e), minCss(start), {
           aspect: mode.locked || e.shiftKey,
           page: start.transform,
         })
-        if (el) {
+        if (preview) {
+          const a = ctx.store.get(mode.id)
+          if (a?.type !== 'freetext') return
+          const draft = { ...a, ...resizedBox(a, userBox(start.transform, next)) }
+          showPreview(preview, el, draft, start)
+        } else if (el) {
           el.style.transformOrigin = '0 0'
           el.style.transform =
             `translate(${next.left - box.left}px, ${next.top - box.top}px) ` +
@@ -249,12 +292,7 @@ export function createSelectionEdit(
         if (!a) return
         const patch = endPatch(a, mode.which, endAt(mode, e))
         if (!patch) return
-        const draft = { ...a, ...patch } as Annotation
-        drawPreview(mode.preview, draft, start)
-        if (mode.el) mode.el.style.visibility = 'hidden'
-        // Beside the line in the overlay, so it paints where the line does.
-        if (!mode.preview.isConnected)
-          (mode.el?.parentElement ?? start.host).append(mode.preview)
+        showPreview(mode.preview, mode.el, { ...a, ...patch } as Annotation, start)
         return
       }
       const css = cssIn(start.host, e)
@@ -340,11 +378,10 @@ export function createSelectionEdit(
             return
           const a = ctx.store.get(current.id)
           if (!a || a.locked) return
-          const r = start.transform.fromCssRect(next)
-          const to = {
-            ...r,
-            width: Math.max(MIN_SIZE, r.width),
-            height: Math.max(MIN_SIZE, r.height),
+          const to = userBox(start.transform, next)
+          if (a.type === 'freetext') {
+            ctx.store.update(a.id, resizedBox(a, to))
+            return
           }
           // A rect-shaped annotation's box is its rect; a point-based one's is its drawn box.
           const from = hasRectGeometry(a) ? a.rect : start.transform.fromCssRect(box)
@@ -419,17 +456,26 @@ function boxOf(el: HTMLElement): CssRect {
   }
 }
 
-/** The point a line's end or a bubble's tail handle sits on. */
+/** The point a line's end or a callout's tip handle sits on. */
 function endOf(a: Annotation, which: End): Point | undefined {
-  if (which === 'callout') return isBubble(a) ? a.callout[0] : undefined
+  if (which === 'callout') return hasCallout(a) ? a.callout[0] : undefined
   return a.type === 'line' ? a[which] : undefined
 }
 
-/** The patch that moves a line's end, or a bubble's tail tip, to `to`; undefined for neither. */
+/** The patch that moves a line's end, or a callout's tip, to `to`; undefined for neither. */
 function endPatch(a: Annotation, which: End, to: Point): Partial<Annotation> | undefined {
-  if (which === 'callout')
-    return isBubble(a) ? { callout: [{ ...to }, ...a.callout.slice(1)] } : undefined
+  if (which === 'callout') return hasCallout(a) ? movedTip(a, to) : undefined
   return a.type === 'line' ? movedEndpoint(a, which, to) : undefined
+}
+
+/** A resized CSS box in user space, at least `MIN_SIZE` a side. */
+function userBox(t: PageTransform, css: CssRect): Rect {
+  const r = t.fromCssRect(css)
+  return {
+    ...r,
+    width: Math.max(MIN_SIZE, r.width),
+    height: Math.max(MIN_SIZE, r.height),
+  }
 }
 
 /** Draws `a` into the preview element at its own box. */
