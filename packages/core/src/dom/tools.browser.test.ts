@@ -3166,6 +3166,29 @@ describe('selection editing', () => {
     expect(doc.annotations.get(b.id)!.rect.x).toBe(300)
   })
 
+  // A highlight is anchored to its text and may carry a comment: dragging something else in
+  // the selection leaves it where it is.
+  it('a group move leaves selected text markup on its text', async () => {
+    const { doc, container, viewport } = await setup()
+    const sq = doc.annotations.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+      interiorColor: '#00ff00',
+    })
+    const { hl } = await helloHighlight(doc, viewport)
+    doc.annotations.select([sq.id, hl.id])
+    const { at, el } = await page0(viewport)
+    const [x, y] = at(110, 620)
+    pointer(el(sq.id), 'pointerdown', x, y)
+    pointer(container, 'pointermove', x + 10, y)
+    pointer(container, 'pointermove', x + 20, y)
+    expect(el(hl.id).style.transform).toBe('')
+    pointer(container, 'pointerup', x + 20, y)
+    expect(doc.annotations.get(sq.id)!.rect.x).toBe(120)
+    expect(doc.annotations.get(hl.id)).toEqual(hl)
+  })
+
   it('a click on a member of a multi-selection selects just that one', async () => {
     const { doc, viewport, onActivate } = await setup()
     const a = doc.annotations.add({

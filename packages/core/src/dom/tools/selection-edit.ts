@@ -268,9 +268,15 @@ export function createSelectionEdit(
           return
         }
         const selected = ctx.store.selection.get()
-        const ids = selected.includes(mode.id)
-          ? selected.filter((id) => ctx.store.get(id)?.locked !== true)
-          : [mode.id]
+        // Text markup is anchored to its text, and may carry a comment: it moves only when it
+        // is what the drag pressed, never along with the rest of a selection.
+        const pressed = mode.id
+        const ids = selected.includes(pressed)
+          ? selected.filter((id) => {
+              const m = ctx.store.get(id)
+              return m !== undefined && !m.locked && (id === pressed || !isTextMarkup(m))
+            })
+          : [pressed]
         const els = ids
           .map((id) => elementIn(ctx.root, id))
           .filter((el): el is HTMLElement => el !== undefined)
