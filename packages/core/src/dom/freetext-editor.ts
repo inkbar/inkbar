@@ -251,7 +251,8 @@ export function editFreeTextIn(
 /**
  * The patch that grows a free text's text box down the screen by `grown` CSS px, its top edge
  * fixed, with `rect` and `fringe` refit. A callout's last point moves with the box edge it sits
- * on; a tip below the box comes down with it, bend included, and any other tip stays.
+ * on. A bubble's tip below the box comes down with it; a standard callout's tip and bend stay on
+ * what they point at.
  */
 export function grownFreeText(
   a: FreeTextAnnotation,
@@ -262,7 +263,7 @@ export function grownFreeText(
   const box = t.fromCssRect({ ...css, height: css.height + grown })
   if (!hasCallout(a)) return withBox(a, box)
   const resized = resizedBox(a, box)
-  if (t.toCss(a.callout[0]).y <= css.top + css.height) return resized
+  if (!isBubble(a) || t.toCss(a.callout[0]).y <= css.top + css.height) return resized
   const last = a.callout.length - 1
   const down = (p: Point): Point => {
     const c = t.toCss(p)
