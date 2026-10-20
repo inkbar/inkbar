@@ -1,0 +1,86 @@
+packages/core/src/model/annotations/types.ts
+  s_5c84400dcebef8::t_727ec5e88cbe65 209-221,251,269,287,347
+packages/core/src/dom/overlay.ts
+  s_5c84400dcebef8::t_e86cfb36047779 24-28
+  s_5c84400dcebef8::t_73faa72cace494 32,158,534-538,609
+  s_5c84400dcebef8::t_d280d85f4eef37 110
+packages/core/src/dom/tools/shape.ts
+  s_5c84400dcebef8::t_aee7f3fb707234 137-138,142-147
+packages/core/src/dom/tools.browser.test.ts
+  s_5c84400dcebef8::t_e86cfb36047779 1425-1430
+  s_5c84400dcebef8::t_786e41078d72da 1433
+  s_5c84400dcebef8::t_38f478d0db263e 1412-1424,1431-1432,1434-1543
+packages/core/src/dom/viewer/create-viewer.browser.test.ts
+  s_5c84400dcebef8::t_786e41078d72da 1182-1183,1196-1201
+packages/react/src/components/Toolbar.ct.tsx
+  s_5c84400dcebef8::t_6a66103dd29dc8 704-709
+packages/core/src/model/annotations/edit.ts
+  s_5c84400dcebef8::t_727ec5e88cbe65 41,53,187-188
+packages/core/src/model/annotations/style-map.ts
+  s_5c84400dcebef8::t_727ec5e88cbe65 75-76,98
+packages/core/src/model/annotations/store.ts
+  s_5c84400dcebef8::t_e745c087bc008b 396-410
+packages/core/src/model/annotations/store.test.ts
+  s_5c84400dcebef8::t_73fe6192fb90a1 5,526
+  s_5c84400dcebef8::t_9ea1ba482f1ab2 490-525,527-544
+packages/icons/src/icons.ts
+  s_5c84400dcebef8::t_d280d85f4eef37 115-125
+packages/svelte/src/test/Toolbar.browser.test.ts
+  s_5c84400dcebef8::t_6a66103dd29dc8 635-640
+packages/core/src/model/annotations/style-map.test.ts
+  s_5c84400dcebef8::t_fa7494f4db9c2e 218-230
+packages/core/src/dom/ui.ts
+  s_5c84400dcebef8::t_d280d85f4eef37 450
+packages/core/README.md
+  s_5c84400dcebef8::t_4169d93358cf45 193-195
+packages/core/src/model/annotations/types.test.ts
+  s_5c84400dcebef8::t_fa7494f4db9c2e 326-354,358-360,421-429,497-500,519
+  s_5c84400dcebef8::t_e86cfb36047779 355-357
+packages/core/src/model/annotations/json.test.ts
+  s_5c84400dcebef8::t_fa7494f4db9c2e 148-165
+packages/core/src/model/annotations/shape-geometry.test.ts
+  s_5c84400dcebef8::t_fa7494f4db9c2e 135-154,162
+packages/core/src/dom/overlay-render.ts
+  s_5c84400dcebef8::t_73faa72cace494 368-385
+packages/core/src/dom/overlay.browser.test.ts
+  s_5c84400dcebef8::t_51a0a144f26e00 1294-1346,1348-1376,1380-1382,1416-1460
+  s_5c84400dcebef8::t_e86cfb36047779 1377-1379
+  s_5c84400dcebef8::t_4f9c70a445e6c6 1383-1415
+  s_5c84400dcebef8::t_73faa72cace494 1347
+packages/vue/src/components/Toolbar.ct.ts
+  s_5c84400dcebef8::t_6a66103dd29dc8 582-587
+packages/core/src/dom/mask-layer.ts
+  s_5c84400dcebef8::t_73faa72cace494 1-73,76-89
+  s_5c84400dcebef8::t_e86cfb36047779 74-75
+apps/sandbox/e2e/smoke.spec.ts
+  s_5c84400dcebef8::t_e86cfb36047779 484-486
+  s_5c84400dcebef8::t_6a66103dd29dc8 465-483,487-489
+packages/core/src/dom/shape-icons.ts
+  s_5c84400dcebef8::t_d280d85f4eef37 5,31
+packages/core/schema.json
+  s_5c84400dcebef8::t_e745c087bc008b 759,763-789
+  s_5c84400dcebef8::t_4c7dee2204263f 734-758,760-762
+packages/core/src/model/annotations/defaults.ts
+  s_5c84400dcebef8::t_727ec5e88cbe65 30-31,67
+packages/icons/scripts/icon-list.ts
+  s_5c84400dcebef8::t_d280d85f4eef37 24
+packages/core/src/model/annotations/shape-geometry.ts
+  s_5c84400dcebef8::t_727ec5e88cbe65 18,39-40,49,62-64,212-219
+  s_5c84400dcebef8::t_cb1425ea4a5a4f 220
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "637edc04d208c71a661113c47d591693f733afc8",
+  "prompts": {},
+  "sessions": {
+    "s_5c84400dcebef8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b6002a2b-f6c7-44ec-8f13-05d214d02483",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
