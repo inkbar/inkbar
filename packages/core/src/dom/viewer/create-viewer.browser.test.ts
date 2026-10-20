@@ -1355,7 +1355,7 @@ describe('createViewer', () => {
       expect(items[0]!.querySelector('svg path')).not.toBeNull()
     })
 
-    it('choosing a saved signature selects it; the main button then places it', async () => {
+    it('choosing a saved signature selects it; the main button then activates it', async () => {
       const { engine, main, chevron } = await mounted([INK, IMAGE])
       // Nothing chosen yet: the main button opens the menu.
       main.click()
