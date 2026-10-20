@@ -29,9 +29,12 @@ export function drawTool(): Tool {
     pressure: number[] | undefined
   ): void => {
     const inklist = [...ink.inklist, points]
-    const next = ink.pressure
-      ? [...ink.pressure, pressure ?? points.map(() => 0.5)]
-      : undefined
+    // A stroke without pressure takes 0.5 throughout, which draws as no pressure does.
+    const even = (p: Point[]): number[] => p.map(() => 0.5)
+    const next =
+      ink.pressure || pressure
+        ? [...(ink.pressure ?? ink.inklist.map(even)), pressure ?? even(points)]
+        : undefined
     c.store.update(ink.id, {
       inklist,
       pressure: next,
@@ -46,11 +49,12 @@ export function drawTool(): Tool {
     },
     /** Appends the stroke to the live session's annotation, else starts a new one. */
     commit(c, s) {
-      // The gap runs from the last stroke's release to this one's press.
+      // The gap runs from the last stroke's release to this one's press. Under a host that
+      // applies changes later, the last stroke may be proposed but not yet applied.
       const joined = session
       const current =
         joined && joined.page === s.page && s.startedAt - joined.endedAt <= JOIN_GAP_MS
-          ? c.store.get(joined.id)
+          ? (c.store._getProposed(joined.id) ?? c.store.get(joined.id))
           : undefined
       if (current?.type === 'ink' && !current.locked) {
         join(c, current, s.points, s.pressure)

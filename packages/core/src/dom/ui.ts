@@ -324,13 +324,13 @@ export interface TextStyleMenuModel {
     label: string
     /** The family, or `''` when the selection disagrees. */
     value: string
-    /** The families on offer; a current family outside the list is added. */
+    /** The families on offer, each once; a current family outside the list is added. */
     options: string[]
     patch(family: string): StyleProps
   }
   size: {
     label: string
-    /** The size, or `null` when the selection disagrees. */
+    /** The size, the default when the style sets none, or `null` when the selection disagrees. */
     value: number | null
     min: number
     max: number
@@ -373,7 +373,9 @@ export function textStyleMenuModel(
 ): TextStyleMenuModel {
   const family = current.fontFamily
   const size = current.fontSize
-  const value = typeof size === 'number' ? size : null
+  // A style with no size yet (a fresh group) shows the size a new box gets.
+  const value =
+    size === 'mixed' ? null : typeof size === 'number' ? size : FONT_SIZE_DEFAULT
   const toggle = (
     key: TextToggleKey,
     label: string,
@@ -392,14 +394,16 @@ export function textStyleMenuModel(
   return {
     label: 'Text style',
     enabled: TEXT_KEYS.some((k) => supported.has(k)),
-    mixed: TEXT_KEYS.some((k) => current[k] === 'mixed'),
+    // The panel holds the text colour too, so a mix of colours shows on the trigger.
+    mixed: [...TEXT_KEYS, 'textColor' as const].some((k) => current[k] === 'mixed'),
     font: {
       label: 'Font',
       value: typeof family === 'string' && family !== 'mixed' ? family : '',
-      options:
-        typeof family === 'string' && family !== 'mixed' && !fonts.includes(family)
-          ? [...fonts, family]
-          : [...fonts],
+      options: [
+        ...new Set(
+          typeof family === 'string' && family !== 'mixed' ? [...fonts, family] : fonts
+        ),
+      ],
       patch: (f) => ({ fontFamily: f }),
     },
     size: {
@@ -509,7 +513,8 @@ export interface ShapeMenuModel {
 
 /**
  * What the shape menu shows for the shape tool's options, over the kinds in `kinds`
- * (`SHAPE_KINDS`). A kind that is not on offer falls back to the first.
+ * (`SHAPE_KINDS`). A kind that is not on offer falls back to `rectangle` when that is offered,
+ * else to the first.
  */
 export function shapeMenuModel(
   options: Partial<ShapeOptions>,
@@ -548,6 +553,14 @@ export interface AnnotationSlotProps {
 /** The thread popover's accessible name: "Note thread" for a note, "Comment thread" for markup. */
 export function threadPopoverLabel(root: Pick<Annotation, 'type'>): string {
   return root.type === 'text' ? 'Note thread' : 'Comment thread'
+}
+
+/**
+ * The thread popover's delete button. It removes the root and its replies, so on text markup
+ * it says it deletes the highlight, not only the comment.
+ */
+export function threadDeleteLabel(root: Pick<Annotation, 'type'>): string {
+  return root.type === 'text' ? 'Delete' : 'Delete highlight'
 }
 
 /** What a host-rendered comment thread receives: a note's, or text markup's. */

@@ -52,7 +52,11 @@ import type { SignatureLibrary, SignatureTemplate } from '../model/signatures'
  * any of it is applied.
  */
 async function setup(
-  name: 'text-simple' | 'cropbox-offset' | 'text-rotated-90' = 'text-simple',
+  name:
+    | 'text-simple'
+    | 'cropbox-offset'
+    | 'text-rotated-90'
+    | 'mixed-page-sizes' = 'text-simple',
   {
     controlled = false,
     custom = false,
@@ -1684,9 +1688,56 @@ describe('draw tool', () => {
     const afterUndo = inks(doc)[0]
     expect(afterUndo?.type === 'ink' && afterUndo.inklist).toHaveLength(2)
     doc.history.undo()
-    expect(inks(doc)[0]?.type === 'ink' && inks(doc)[0]).toBeTruthy()
+    const first = inks(doc)[0]
+    expect(first?.type === 'ink' && first.inklist).toHaveLength(1)
     doc.history.undo()
     expect(inks(doc)).toEqual([])
+  })
+
+  it('a pen stroke joining mouse ink keeps its pressure', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('draw')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    stroke(
+      container,
+      h,
+      [
+        [100, 100, 0.5],
+        [140, 120, 0.5],
+      ],
+      'mouse'
+    )
+    stroke(container, h, [
+      [100, 200, 0.3],
+      [140, 220, 0.8],
+    ])
+    const [ink] = inks(doc)
+    if (ink?.type !== 'ink') throw new Error('no ink')
+    expect(ink.inklist).toHaveLength(2)
+    // The mouse stroke takes 0.5 throughout, which draws as it did with no pressure.
+    expect(ink.pressure?.[0]?.every((p) => p === 0.5)).toBe(true)
+    expect(ink.pressure?.[1]).toContain(0.8)
+    expect(ink.pressure?.map((p) => p.length)).toEqual(ink.inklist.map((p) => p.length))
+  })
+
+  it('quick strokes join one annotation under a host that applies changes later', async () => {
+    const { doc, container, viewport, tools } = await setup('text-simple', {
+      controlled: true,
+    })
+    tools.set('draw')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    stroke(container, h, [
+      [100, 100, 0.3],
+      [140, 120, 0.6],
+    ])
+    stroke(container, h, [
+      [100, 200, 0.4],
+      [140, 220, 0.7],
+    ])
+    await settle()
+    const list = inks(doc)
+    expect(list).toHaveLength(1)
+    expect(list[0]?.type === 'ink' && list[0].inklist).toHaveLength(2)
   })
 
   it('a stroke after the gap starts a new annotation', async () => {
@@ -1792,6 +1843,25 @@ describe('draw tool', () => {
     ])
     expect(inks(doc)).toHaveLength(3)
   })
+
+  it.each(['draw', 'sketch'] as const)(
+    '%s: Escape mid-stroke drops the stroke',
+    async (tool) => {
+      const { doc, container, viewport, tools } = await setup()
+      tools.set(tool)
+      const h = viewport.hostFor(0)!.getBoundingClientRect()
+      pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+      pointer(container, 'pointermove', h.left + 160, h.top + 140)
+      pointer(container, 'pointermove', h.left + 220, h.top + 100)
+      container.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+      )
+      expect(container.querySelector('[data-ink-draft]')).toBeNull()
+      pointer(container, 'pointerup', h.left + 220, h.top + 100)
+      await settle()
+      expect(doc.annotations.list.get()).toEqual([])
+    }
+  )
 
   it('uses getCoalescedEvents when available', async () => {
     const { doc, container, viewport, tools } = await setup()
@@ -1968,6 +2038,25 @@ describe('sketch tool', () => {
     expect(ink.inklist[0]).toHaveLength(160)
   })
 
+  // A click, or a click's jitter, is too small to read as a shape: it stays a visible dot of
+  // ink, as with Draw, not an invisible sliver of a line.
+  it('a click or a tiny stroke stays ink', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('sketch')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    stroke(container, h, [[200, 200]])
+    stroke(container, h, [
+      [250, 250],
+      [250.4, 250.2],
+    ])
+    stroke(container, h, [
+      [300, 300],
+      [301, 300],
+      [302, 301],
+    ])
+    expect(session(doc).map((a) => a.type)).toEqual(['ink', 'ink', 'ink'])
+  })
+
   it('undo after recognition restores the ink stroke; a second undo removes it', async () => {
     const { doc, container, viewport, tools } = await setup()
     tools.set('sketch')
@@ -2102,6 +2191,61 @@ describe('speech bubble', () => {
     expect(d).toContain(` ${fmt(box.height)}L${fmt(tip.x - box.left)}`)
   })
 
+  it('growing a bubble whose tail leaves the top keeps the tail where it is', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('select')
+    const tip = { x: 150, y: 700 }
+    const base = { x: 160, y: 640 }
+    const bubble = doc.annotations.add({
+      type: 'freetext',
+      page: 0,
+      intent: 'freeTextCallout',
+      cornerRadius: 8,
+      rect: { x: 100, y: 600, width: 144, height: 40 },
+      contents: '',
+      callout: [tip, base],
+    })
+    await settle()
+    const el = viewport
+      .hostFor(0)!
+      .querySelector<HTMLElement>(`[data-annotation="${bubble.id}"]`)!
+    el.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+    )
+    await until(() => editorIn(container) !== null)
+    await userEvent.keyboard('1{Enter}2{Enter}3{Enter}4{Enter}5{Enter}6{Escape}')
+    const grown = doc.annotations.get(bubble.id)
+    if (grown?.type !== 'freetext') throw new Error('not free text')
+    expect(grown.rect.height).toBeGreaterThan(40)
+    expect(grown.callout).toEqual([tip, base])
+  })
+
+  it('a commit keeps a rect the box was given while its editor was open', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('select')
+    const box = doc.annotations.add({
+      type: 'freetext',
+      page: 0,
+      rect: { x: 100, y: 600, width: 144, height: 40 },
+      contents: 'Hi',
+    })
+    await settle()
+    viewport
+      .hostFor(0)!
+      .querySelector<HTMLElement>(`[data-annotation="${box.id}"]`)!
+      .dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+      )
+    await until(() => editorIn(container) !== null)
+    const moved = { x: 200, y: 500, width: 144, height: 40 }
+    doc.annotations.update(box.id, { rect: moved })
+    await userEvent.keyboard('!')
+    editorIn(container)?.focus()
+    await userEvent.keyboard('{Escape}')
+    await until(() => editorIn(container) === null)
+    expect(doc.annotations.get(box.id)?.rect).toEqual(moved)
+  })
+
   it('creating, typing and dragging the tail are separate undo steps', async () => {
     const { doc, container, viewport, tools } = await setup('cropbox-offset')
     tools.set('shape', { kind: 'bubble' })
@@ -2128,6 +2272,29 @@ describe('speech bubble', () => {
       width: 3,
       defaultStyle: { color: '#FF0000', fontWeight: 'bold' },
     })
+  })
+
+  // As a signature is: along the page as the file displays it, whatever its /Rotate.
+  it('a click places a line or arrow that runs left to right on a turned page', async () => {
+    const { doc, container, viewport, tools } = await setup('text-rotated-90')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    const t = viewport.transformFor(0)
+    for (const [kind, x] of [
+      ['arrow', 200],
+      ['line', 300],
+    ] as const) {
+      tools.set('shape', { kind })
+      pointer(container, 'pointerdown', h.left + x, h.top + 300)
+      pointer(container, 'pointerup', h.left + x, h.top + 300)
+    }
+    for (const a of session(doc)) {
+      if (a.type !== 'line') throw new Error('not a line')
+      const start = t.toCss(a.start)
+      const end = t.toCss(a.end)
+      expect(start.y).toBeCloseTo(end.y)
+      expect(end.x - start.x).toBeCloseTo(t.toCssLength(72))
+    }
+    expect(session(doc)).toHaveLength(2)
   })
 
   it('click places a default bubble and its tail follows rotation', async () => {
@@ -2315,6 +2482,25 @@ describe('freetext tool', () => {
     )
   })
 
+  it('a new box mid-edit is committed when its page unmounts', async () => {
+    const { doc, container, viewport, tools } = await setup('mixed-page-sizes')
+    viewport.setZoom(3)
+    await settle()
+    tools.set('freetext')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointerup', h.left + 100, h.top + 100)
+    await userEvent.keyboard('Hi')
+    // The window is in the background (a wheel scroll there), so focus leaving the editor as
+    // its page goes does not commit it.
+    const hasFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(false)
+    cleanup.push(() => hasFocus.mockRestore())
+    container.scrollTop = container.scrollHeight
+    await until(() => viewport.hostFor(0) === undefined)
+    await settle()
+    expect(session(doc)).toMatchObject([{ type: 'freetext', page: 0, contents: 'Hi' }])
+  })
+
   it('a new box mid-edit survives a resize, and a zoom commits it with focus on the box', async () => {
     const { doc, container, viewport, tools } = await setup()
     tools.set('freetext')
@@ -2329,7 +2515,9 @@ describe('freetext tool', () => {
     await until(() => editorIn(container) === null)
     const [box] = session(doc)
     expect(box).toMatchObject({ contents: 'Hi' })
-    expect(document.activeElement).not.toBe(document.body)
+    expect(document.activeElement).toBe(
+      container.querySelector(`[data-annotation="${box!.id}"]`)
+    )
   })
 
   it('a press on the page while editing commits without placing another box', async () => {
@@ -2605,6 +2793,37 @@ describe('signature tool', () => {
     pointer(container, 'pointerup', h.left + 300, h.top + 400)
     await until(() => doc.annotations.list.get().length === 1)
     expect(doc.annotations.list.get()[0]).toMatchObject({ subject: 'Signature' })
+  })
+
+  it('places nothing from a load that finishes after the tool was switched away and back', async () => {
+    const store = createMemorySignatureStore()
+    const signatures = createSignatureLibrary(store)
+    const { doc, container, viewport, tools } = await setup('text-simple', { signatures })
+    await store.save(INK_TEMPLATE)
+    let finish!: () => void
+    const list = store.list.bind(store)
+    store.list = () => new Promise((resolve) => (finish = () => resolve(list())))
+    tools.set('signature', { templateId: INK_TEMPLATE.id })
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 300, h.top + 400)
+    pointer(container, 'pointerup', h.left + 300, h.top + 400)
+    tools.set('select')
+    tools.set('signature', { templateId: INK_TEMPLATE.id })
+    finish()
+    await until(() => signatures.get(INK_TEMPLATE.id) !== undefined)
+    await settle()
+    expect(doc.annotations.list.get()).toEqual([])
+  })
+
+  it('places nothing when the release was missed', async () => {
+    const signatures = await library([INK_TEMPLATE])
+    const { doc, container, viewport, tools } = await setup('text-simple', { signatures })
+    tools.set('signature', { templateId: INK_TEMPLATE.id })
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 300, h.top + 400)
+    pointer(container, 'pointermove', h.left + 302, h.top + 400, { buttons: 0 })
+    pointer(container, 'pointerup', h.left + 302, h.top + 400)
+    expect(doc.annotations.list.get()).toEqual([])
   })
 
   it('Enter places it at page centre', async () => {
@@ -3124,6 +3343,29 @@ describe('selection editing', () => {
     expect(doc.annotations.get(b.id)!.rect.x).toBe(300)
   })
 
+  // A highlight is anchored to its text and may carry a comment: dragging something else in
+  // the selection leaves it where it is.
+  it('a group move leaves selected text markup on its text', async () => {
+    const { doc, container, viewport } = await setup()
+    const sq = doc.annotations.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+      interiorColor: '#00ff00',
+    })
+    const { hl } = await helloHighlight(doc, viewport)
+    doc.annotations.select([sq.id, hl.id])
+    const { at, el } = await page0(viewport)
+    const [x, y] = at(110, 620)
+    pointer(el(sq.id), 'pointerdown', x, y)
+    pointer(container, 'pointermove', x + 10, y)
+    pointer(container, 'pointermove', x + 20, y)
+    expect(el(hl.id).style.transform).toBe('')
+    pointer(container, 'pointerup', x + 20, y)
+    expect(doc.annotations.get(sq.id)!.rect.x).toBe(120)
+    expect(doc.annotations.get(hl.id)).toEqual(hl)
+  })
+
   it('a click on a member of a multi-selection selects just that one', async () => {
     const { doc, viewport, onActivate } = await setup()
     const a = doc.annotations.add({
@@ -3194,6 +3436,28 @@ describe('selection editing', () => {
     expect(moved.rect.x).toBeCloseTo(hl.rect.x + 40, 5)
     expect(moved.rect.y).toBeCloseTo(hl.rect.y, 5)
     expect(window.getSelection()?.toString()).toBe('')
+  })
+
+  // A drag from markup must not leave a text selection for the next click to redact.
+  it('redact-area: a drag that starts on a highlight draws an area, not a text selection', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('redact-area')
+    const { hl, x, y, poly } = await helloHighlight(doc, viewport)
+    window.getSelection()?.removeAllRanges()
+    pointer(poly, 'pointerdown', x, y)
+    pointer(container, 'pointermove', x + 30, y + 20)
+    pointer(container, 'pointermove', x + 60, y + 40)
+    pointer(container, 'pointerup', x + 60, y + 40)
+    expect(window.getSelection()?.toString()).toBe('')
+    const added = doc.annotations.list.get().filter((a) => a.id !== hl.id)
+    expect(added).toHaveLength(1)
+    expect(added[0]).toMatchObject({ type: 'redact' })
+    expect(added[0]).not.toHaveProperty('quads')
+    // A later click on the page redacts nothing more.
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 400, h.top + 600)
+    pointer(container, 'pointerup', h.left + 400, h.top + 600)
+    expect(doc.annotations.list.get()).toHaveLength(2)
   })
 
   it('select-text: a drag on a highlight selects text and leaves the highlight', async () => {

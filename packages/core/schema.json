@@ -232,7 +232,8 @@
                 },
                 "fontWeight": { "type": "string", "const": "bold" },
                 "fontStyle": { "type": "string", "const": "italic" },
-                "textDecoration": { "type": "string", "const": "underline" }
+                "textDecoration": { "type": "string", "const": "underline" },
+                "align": { "not": {} }
               },
               "required": ["fontFamily", "fontSize", "color", "textAlign"],
               "additionalProperties": false
@@ -247,7 +248,10 @@
                 "required": ["x", "y"],
                 "additionalProperties": false
               }
-            }
+            },
+            "fontFamily": { "not": {} },
+            "fontSize": { "not": {} },
+            "align": { "not": {} }
           },
           "required": [
             "id",
@@ -301,7 +305,7 @@
               "propertyNames": { "type": "string" },
               "additionalProperties": {}
             },
-            "type": { "type": "string", "enum": ["square", "circle"] },
+            "type": { "type": "string", "const": "square" },
             "width": { "default": 1, "type": "number", "minimum": 0 },
             "dashes": {
               "minItems": 1,
@@ -310,6 +314,67 @@
             },
             "interiorColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
             "cornerRadius": { "type": "number", "minimum": 0 }
+          },
+          "required": [
+            "id",
+            "page",
+            "rect",
+            "color",
+            "opacity",
+            "createdAt",
+            "modifiedAt",
+            "type",
+            "width"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string", "minLength": 1 },
+            "page": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+            "rect": {
+              "type": "object",
+              "properties": {
+                "x": { "type": "number" },
+                "y": { "type": "number" },
+                "width": { "type": "number", "minimum": 0 },
+                "height": { "type": "number", "minimum": 0 }
+              },
+              "required": ["x", "y", "width", "height"],
+              "additionalProperties": false
+            },
+            "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+            "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+            "author": { "type": "string" },
+            "contents": { "type": "string" },
+            "inReplyTo": { "type": "string" },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            },
+            "modifiedAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            },
+            "subject": { "type": "string" },
+            "intent": { "type": "string" },
+            "custom": {
+              "type": "object",
+              "propertyNames": { "type": "string" },
+              "additionalProperties": {}
+            },
+            "type": { "type": "string", "const": "circle" },
+            "width": { "default": 1, "type": "number", "minimum": 0 },
+            "dashes": {
+              "minItems": 1,
+              "type": "array",
+              "items": { "type": "number", "minimum": 0 }
+            },
+            "interiorColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+            "cornerRadius": { "not": {} }
           },
           "required": [
             "id",
@@ -461,7 +526,7 @@
               "propertyNames": { "type": "string" },
               "additionalProperties": {}
             },
-            "type": { "type": "string", "enum": ["polyline", "polygon"] },
+            "type": { "type": "string", "const": "polyline" },
             "vertices": {
               "minItems": 2,
               "type": "array",
@@ -478,6 +543,7 @@
               "type": "array",
               "items": { "type": "number", "minimum": 0 }
             },
+            "interiorColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
             "head": {
               "type": "string",
               "enum": [
@@ -503,8 +569,80 @@
                 "butt",
                 "slash"
               ]
+            }
+          },
+          "required": [
+            "id",
+            "page",
+            "rect",
+            "color",
+            "opacity",
+            "createdAt",
+            "modifiedAt",
+            "type",
+            "vertices",
+            "width"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string", "minLength": 1 },
+            "page": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+            "rect": {
+              "type": "object",
+              "properties": {
+                "x": { "type": "number" },
+                "y": { "type": "number" },
+                "width": { "type": "number", "minimum": 0 },
+                "height": { "type": "number", "minimum": 0 }
+              },
+              "required": ["x", "y", "width", "height"],
+              "additionalProperties": false
             },
-            "interiorColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+            "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+            "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+            "author": { "type": "string" },
+            "contents": { "type": "string" },
+            "inReplyTo": { "type": "string" },
+            "createdAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            },
+            "modifiedAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            },
+            "subject": { "type": "string" },
+            "intent": { "type": "string" },
+            "custom": {
+              "type": "object",
+              "propertyNames": { "type": "string" },
+              "additionalProperties": {}
+            },
+            "type": { "type": "string", "const": "polygon" },
+            "vertices": {
+              "minItems": 2,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": { "x": { "type": "number" }, "y": { "type": "number" } },
+                "required": ["x", "y"],
+                "additionalProperties": false
+              }
+            },
+            "width": { "default": 1, "type": "number", "minimum": 0 },
+            "dashes": {
+              "minItems": 1,
+              "type": "array",
+              "items": { "type": "number", "minimum": 0 }
+            },
+            "interiorColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+            "head": { "not": {} },
+            "tail": { "not": {} }
           },
           "required": [
             "id",

@@ -263,6 +263,16 @@ describe('createViewer', () => {
     expect(viewer.element.querySelectorAll('.ink-page')).toHaveLength(1)
   })
 
+  it('keeps tool options across documents', async () => {
+    const { viewer } = make('text-simple')
+    const { engine: first } = await ready(viewer)
+    first.tools.set('shape', { kind: 'ellipse' })
+    viewer.open(fixtureUrl('annotated-notes-threaded'))
+    const { engine } = await ready(viewer)
+    expect(engine).not.toBe(first)
+    expect(engine.tools.options('shape').get()).toMatchObject({ kind: 'ellipse' })
+  })
+
   it('destroys the previous document when another opens', async () => {
     const { viewer } = make('text-simple')
     const { doc: first } = await ready(viewer)
@@ -841,7 +851,7 @@ describe('createViewer', () => {
       key(focused()!, 'ArrowUp')
       expect(focused()).toBe(item('No fill'))
       key(focused()!, 'ArrowDown')
-      ;(focused() as HTMLElement).click() // Enter on a button is a click
+      await userEvent.keyboard('{Enter}')
       expect(doc.annotations.get(sq.id)).toMatchObject({ interiorColor: '#FF3B30' })
       key(focused()!, 'Escape')
       expect(menu()).toBeNull()
@@ -1345,7 +1355,7 @@ describe('createViewer', () => {
       expect(items[0]!.querySelector('svg path')).not.toBeNull()
     })
 
-    it('choosing a saved signature selects it; the main button then places it', async () => {
+    it('choosing a saved signature selects it; the main button then activates it', async () => {
       const { engine, main, chevron } = await mounted([INK, IMAGE])
       // Nothing chosen yet: the main button opens the menu.
       main.click()
@@ -1626,6 +1636,10 @@ describe('createViewer', () => {
       expect(popover.getAttribute('aria-label')).toBe('Comment thread')
       expect(focused()).toBe(popover.querySelector('textarea[aria-label="Comment"]'))
       expect(popover.querySelector('[data-ink-thread]')).toBeNull()
+      // Delete removes the highlight itself, and says so.
+      const labels = [...popover.querySelectorAll('button')].map((b) => b.textContent)
+      expect(labels).toContain('Delete highlight')
+      expect(labels).not.toContain('Delete')
     })
 
     it('first comment sets the highlight contents; next adds a reply', async () => {

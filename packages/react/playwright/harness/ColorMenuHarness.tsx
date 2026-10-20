@@ -73,14 +73,17 @@ function Controls() {
 export function ColorMenuHarness({
   src,
   assets,
+  disabled,
 }: {
   src: DocumentSource
   assets: PdfAssets
+  /** Passed to the border trigger as a host would. */
+  disabled?: boolean
 }) {
   return (
     <InkRoot src={src} assets={assets} zoom={1}>
       <InkToolbar>
-        <InkColorMenu property="border" />
+        <InkColorMenu property="border" disabled={disabled} />
         <InkColorMenu property="fill" />
         <InkColorMenu property="textColor" />
       </InkToolbar>

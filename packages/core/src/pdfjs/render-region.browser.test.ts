@@ -116,9 +116,25 @@ describe('renderRegion', () => {
       renderRegion(doc, 0, REGION, 4, canvas, before.signal)
     ).rejects.toMatchObject({ name: 'AbortError' })
 
+    // Abort once the render has started, so it is the cancel that rejects, not the check
+    // before rendering. PDF.js hands out one proxy per page, so the patch reaches renderRegion.
+    const page = await doc._pdfjs.getPage(0)
+    const render = page.render.bind(page)
+    let started!: () => void
+    const begun = new Promise<void>((resolve) => (started = resolve))
+    let task: ReturnType<typeof render> | undefined
+    page.render = (params) => {
+      task = render(params)
+      started()
+      return task
+    }
     const during = new AbortController()
     const pending = renderRegion(doc, 0, REGION, 40, canvas, during.signal)
+    await begun
     during.abort()
     await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+    await expect(task!.promise).rejects.toMatchObject({
+      name: 'RenderingCancelledException',
+    })
   })
 })

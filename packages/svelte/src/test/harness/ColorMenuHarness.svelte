@@ -6,14 +6,26 @@
 
   import ColorMenuControls from './ColorMenuControls.svelte'
 
-  import type { DocumentSource, PdfAssets } from '@inkbar/core'
+  import type { DocumentSource, PdfAssets, StyleGroup } from '@inkbar/core'
 
-  let { src, assets }: { src: DocumentSource; assets: PdfAssets } = $props()
+  let {
+    src,
+    assets,
+    trigger = {},
+    borderGroup,
+  }: {
+    src: DocumentSource
+    assets: PdfAssets
+    /** Props a host passes the border trigger. */
+    trigger?: Record<string, unknown>
+    /** The border menu's style group. */
+    borderGroup?: StyleGroup
+  } = $props()
 </script>
 
 <InkRoot {src} {assets} zoom={1}>
   <InkToolbar>
-    <InkColorMenu property="border" />
+    <InkColorMenu property="border" group={borderGroup} {...trigger} />
     <InkColorMenu property="fill" />
     <InkColorMenu property="textColor" />
   </InkToolbar>

@@ -385,6 +385,21 @@ test.describe('line style menu', () => {
     return page.getByRole('menu', { name: 'Line style' })
   }
 
+  test("a host's disabled={false} does not enable the trigger", async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mount(
+      <LineStyleHarness
+        src={fixtureUrl('text-simple')}
+        assets={assets}
+        disabled={false}
+      />
+    )
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Line style' })).toBeDisabled()
+  })
+
   test('line style menu sets width on the selected line', async ({ mount, page }) => {
     const cmp = await mount(
       <LineStyleHarness src={fixtureUrl('text-simple')} assets={assets} />
@@ -528,6 +543,21 @@ test.describe('colour menus', () => {
     await page.getByTestId('select-all').click()
   }
 
+  test("a host's disabled={false} does not enable the trigger", async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mount(
+      <ColorMenuHarness
+        src={fixtureUrl('text-simple')}
+        assets={assets}
+        disabled={false}
+      />
+    )
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Border colour' })).toBeDisabled()
+  })
+
   test('border menu sets color on a selected square', async ({ mount, page }) => {
     await mountHarness(mount)
     const trigger = page.getByRole('button', { name: 'Border colour' })
@@ -587,7 +617,16 @@ test.describe('colour menus', () => {
     const menu = page.getByRole('menu', { name: 'Border colour' })
     const input = page.locator('input[data-ink-color-input="border"]')
     await expect(input).toHaveAttribute('aria-label', 'Custom colour')
+    // fill() below skips the click, so record that Custom… clicked the input (and keep the
+    // native picker shut).
+    await input.evaluate((el) =>
+      el.addEventListener('click', (e) => {
+        e.preventDefault()
+        ;(el as HTMLElement).dataset.clicked = '1'
+      })
+    )
     await menu.getByRole('menuitem', { name: 'Custom…' }).click()
+    await expect(input).toHaveAttribute('data-clicked', '1')
     await input.fill('#123abc')
     await expect(page.getByTestId('probe')).toHaveAttribute('data-colors', '#123ABC')
   })
@@ -712,6 +751,25 @@ test.describe('shape menu', () => {
     await expect(main(cmp)).toHaveAttribute('data-kind', 'ellipse')
     await expect(menu).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Choose shape' })).toBeFocused()
+  })
+
+  test('the chosen kind persists when another document opens', async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mountHarness(mount)
+    await page.getByRole('button', { name: 'Choose shape' }).click()
+    await page
+      .getByRole('menu', { name: 'Shapes' })
+      .getByRole('menuitemradio', { name: 'Ellipse' })
+      .click()
+    await expect(main(cmp)).toHaveAttribute('data-kind', 'ellipse')
+    await cmp.update(
+      <ToolbarHarness src={fixtureUrl('annotated-notes-threaded')} assets={assets} />
+    )
+    await expect(cmp.locator('.ink-page')).toHaveCount(1)
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    await expect(main(cmp)).toHaveAttribute('data-kind', 'ellipse')
   })
 
   test('the trigger icon follows the current kind', async ({ mount, page }) => {
@@ -916,6 +974,21 @@ test.describe('text style menu', () => {
     return page.getByRole('dialog', { name: 'Text style' })
   }
 
+  test("a host's disabled={false} does not enable the trigger", async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mount(
+      <TextStyleHarness
+        src={fixtureUrl('text-simple')}
+        assets={assets}
+        disabled={false}
+      />
+    )
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Text style' })).toBeDisabled()
+  })
+
   test('bold toggle sets defaultStyle.fontWeight on the selected text box', async ({
     mount,
     page,
@@ -958,6 +1031,23 @@ test.describe('text style menu', () => {
     expect((await style(page)).fontSize).toBe(2)
   })
 
+  // As the vanilla menu does, where the size field's blur commits it.
+  test('closing the menu commits a typed size, so it reopens on the size in use', async ({
+    mount,
+    page,
+  }) => {
+    await mountHarness(mount)
+    await page.getByTestId('add-box').click()
+    await page.getByTestId('select-all').click()
+    let menu = await open(page)
+    await menu.getByRole('spinbutton', { name: 'Font size' }).fill('30')
+    await page.keyboard.press('Escape')
+    await expect(menu).toBeHidden()
+    expect((await style(page)).fontSize).toBe(30)
+    menu = await open(page)
+    await expect(menu.getByRole('spinbutton', { name: 'Font size' })).toHaveValue('30')
+  })
+
   test('menu disabled with only a square selected and the select tool active', async ({
     mount,
     page,
@@ -967,6 +1057,27 @@ test.describe('text style menu', () => {
     await page.getByTestId('add-square').click()
     await page.getByTestId('select-all').click()
     await expect(page.getByRole('button', { name: 'Text style' })).toBeDisabled()
+  })
+
+  test('enabled after drawing a rectangle and picking Text', async ({ mount, page }) => {
+    await mountHarness(mount)
+    await page.getByTestId('tool-shape').click()
+    const box = (await page.locator('.ink-page').first().boundingBox())!
+    await page.mouse.move(box.x + 100, box.y + 100)
+    await page.mouse.down()
+    await page.mouse.move(box.x + 200, box.y + 160, { steps: 5 })
+    await page.mouse.up()
+    // The new rectangle stays selected when the tool changes.
+    await expect(page.getByTestId('probe')).toHaveAttribute('data-selected', 'square')
+    await page.getByTestId('tool-freetext').click()
+    const trigger = page.getByRole('button', { name: 'Text style' })
+    await expect(trigger).toBeEnabled()
+    const menu = await open(page)
+    await menu.getByRole('button', { name: 'Bold' }).click()
+    const group = JSON.parse(
+      (await page.getByTestId('probe').getAttribute('data-group')) ?? '{}'
+    ) as Record<string, unknown>
+    expect(group).toMatchObject({ fontWeight: 'bold' })
   })
 
   test('with the text tool active and nothing selected, changes become the text group default for the next box', async ({
@@ -1100,6 +1211,27 @@ test.describe('signature menu', () => {
     await expect(item.locator('svg path')).not.toHaveCount(0)
     await page.keyboard.press('Escape')
     // The tool places it with a click on the page.
+    const pageBox = (await cmp.locator('.ink-page').first().boundingBox())!
+    await page.mouse.click(pageBox.x + 300, pageBox.y + 300)
+    await expect(page.getByTestId('probe')).toHaveAttribute('data-annotations', '1')
+  })
+
+  test('a store swapped after mount reaches the tool, not only the menu', async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mount(
+      <SignatureHarness src={fixtureUrl('text-simple')} assets={assets} swapTo={[INK]} />
+    )
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    await page.getByTestId('swap-store').click()
+    await page.getByRole('button', { name: 'Choose signature' }).click()
+    await menu(page).getByRole('menuitemradio', { name: 'Signature 1' }).click()
+    await expect(page.getByTestId('signature-options')).toHaveAttribute(
+      'data-template',
+      INK.id
+    )
+    await expect(menu(page)).toBeHidden()
     const pageBox = (await cmp.locator('.ink-page').first().boundingBox())!
     await page.mouse.click(pageBox.x + 300, pageBox.y + 300)
     await expect(page.getByTestId('probe')).toHaveAttribute('data-annotations', '1')

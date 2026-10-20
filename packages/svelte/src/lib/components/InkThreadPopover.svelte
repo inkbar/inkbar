@@ -20,7 +20,7 @@
    * on the page. Markup stays: the mark is the point.
    */
   import { isAbandonedNote, threadOf, threadRoot } from '@inkbar/core'
-  import { threadPopoverLabel } from '@inkbar/core/dom'
+  import { threadDeleteLabel, threadPopoverLabel } from '@inkbar/core/dom'
   import { Popover } from 'bits-ui'
   import { untrack } from 'svelte'
 
@@ -185,6 +185,7 @@
             <ThreadForm
               {editingRoot}
               locked={!!note.locked}
+              deleteLabel={threadDeleteLabel(note)}
               onSubmit={(text) => (editingRoot ? updateContents(text) : reply(text))}
               onRemove={removeThread}
               onClose={close}

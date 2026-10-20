@@ -20,7 +20,7 @@
 
 ---
 
-The toolbar controls in `@inkbar/vue`, `@inkbar/react`, `@inkbar/svelte` and `@inkbar/core` show these icons until you pass your own. They are 40 icons from [Lucide](https://lucide.dev), copied so the package has no dependencies.
+The toolbar controls in `@inkbar/vue`, `@inkbar/react`, `@inkbar/svelte` and `@inkbar/core` show these icons until you pass your own. They are 43 icons from [Lucide](https://lucide.dev), copied so the package has no dependencies.
 
 You don't need to install this package to get the icons. Install it when you want the same icons on your own buttons, so they match the rest of the toolbar.
 
@@ -41,7 +41,7 @@ import { InkIcon } from '@inkbar/vue'
 
 Without a framework, `createIcon` from `@inkbar/core/dom` returns the `<svg>` element.
 
-The icons are `TextCursor`, `SquareDashedMousePointer`, `Highlighter`, `Square`, `MessageSquare`, `Undo2`, `Redo2`, `ZoomIn`, `ZoomOut`, `ChevronLeft`, `ChevronRight`, `ChevronDown` and `Check`.
+Each icon is exported under its Lucide name, such as `Highlighter`, `Undo2` or `ZoomIn`. The package's exports list them all.
 
 ## Licence
 

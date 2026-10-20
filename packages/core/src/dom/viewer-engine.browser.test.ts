@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import {
+  createMemorySignatureStore,
+  createSignatureLibrary,
+  type SignatureLibrary,
+} from '../model/signatures'
+
 import { mountContainer, openFixtureInBrowser, settle, until } from './test-utils'
+import { createToolOptions } from './tools'
 import { mountViewer, type MountViewerOptions, type ViewerEngine } from './viewer-engine'
 
 import type { InkError } from '../model/errors'
@@ -294,6 +301,64 @@ describe('mountViewer', () => {
     const calls = onPageUnmount.mock.calls.length
     expect(() => engine.destroy()).not.toThrow()
     expect(onPageUnmount.mock.calls).toHaveLength(calls)
+  })
+
+  it('shares a host tool-options registry, so options outlive the engine', async () => {
+    const toolOptions = createToolOptions()
+    const first = await setup('text-simple', { toolOptions })
+    first.engine.tools.set('shape', { kind: 'star', points: 6 })
+    first.engine.destroy()
+    const next = await setup('text-simple', { toolOptions })
+    expect(next.engine.tools.options('shape').get()).toMatchObject({
+      kind: 'star',
+      points: 6,
+    })
+  })
+
+  it('reads a host signature library through a getter, so a swap reaches the tool', async () => {
+    const empty = createSignatureLibrary(createMemorySignatureStore())
+    const next = createSignatureLibrary(
+      createMemorySignatureStore([
+        {
+          id: 'sig',
+          kind: 'ink',
+          inklist: [
+            [
+              { x: 0, y: 0 },
+              { x: 1, y: 1 },
+            ],
+          ],
+          aspect: 2,
+        },
+      ])
+    )
+    await next.refresh()
+    let current: SignatureLibrary = empty
+    const { doc, container, engine } = await setup('text-simple', {
+      zoom: 1,
+      signatureLibrary: () => current,
+    })
+    expect(engine.signatures).toBe(empty)
+    current = next
+    expect(engine.signatures).toBe(next)
+    engine.tools.set('signature', { templateId: 'sig' })
+    await until(() => engine.viewport.hostFor(0) !== undefined)
+    const h = engine.viewport.hostFor(0)!.getBoundingClientRect()
+    for (const type of ['pointerdown', 'pointerup'] as const)
+      container.dispatchEvent(
+        new PointerEvent(type, {
+          bubbles: true,
+          clientX: h.left + 200,
+          clientY: h.top + 200,
+          button: 0,
+          buttons: type === 'pointerup' ? 0 : 1,
+          pointerId: 1,
+          isPrimary: true,
+        })
+      )
+    expect(doc.annotations.list.get()).toMatchObject([
+      { type: 'ink', subject: 'Signature' },
+    ])
   })
 
   it('renders annotation shells for the host when customAnnotations is on', async () => {

@@ -6,6 +6,7 @@ import {
   openDocument,
 } from '@inkbar/core'
 import {
+  createToolOptions,
   cssVariableDefaults,
   FONT_FAMILIES,
   SIGNATURE_FONTS,
@@ -71,7 +72,7 @@ const props = withDefaults(
     /**
      * Where saved signatures live. Default: memory, gone on reload.
      * `createLocalSignatureStore` keeps them in the browser; a host can keep them anywhere.
-     * The viewport reads it when it mounts.
+     * A new store takes effect at once, for the menus and the `signature` tool alike.
      */
     signatures?: SignatureStore | undefined
     /** The handwriting fonts a typed signature offers; the host loads them. */
@@ -309,6 +310,8 @@ const signatures = computed(() =>
   createSignatureLibrary(props.signatures ?? createMemorySignatureStore())
 )
 watch(signatures, (lib) => void lib.refresh(), { immediate: true })
+/** Tool options last as long as the root; the tool style is per document. */
+const toolOptions = createToolOptions()
 
 provideInkContext({
   assets: computed(() => props.assets),
@@ -322,6 +325,7 @@ provideInkContext({
   setTool,
   hostTools: computed(() => props.tools),
   fonts: computed(() => props.fonts ?? FONT_FAMILIES),
+  toolOptions,
   signatures,
   signatureFonts: computed(() => props.signatureFonts ?? SIGNATURE_FONTS),
   toolStyle,

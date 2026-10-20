@@ -336,6 +336,22 @@ describe('createOverlay', () => {
     expect(stroke.getAttribute('fill')).toBe(ink.color)
     // The 30pt diagonal is 60 CSS px at zoom 2 (the outline ends short of the endpoints).
     expect((stroke as SVGGraphicsElement).getBBox().height).toBeGreaterThan(50)
+    // A level stroke's outline is as tall as its width: 2pt at zoom 2 is 4 CSS px.
+    const level = store.add({
+      type: 'ink',
+      page: 0,
+      inklist: [
+        [
+          { x: 100, y: 300 },
+          { x: 200, y: 300 },
+        ],
+      ],
+      width: 2,
+    })
+    const levelStroke = overlay
+      .elementFor(level.id)!
+      .querySelector<SVGGraphicsElement>('path.ink-stroke')!
+    expect(levelStroke.getBBox().height).toBeCloseTo(4, 0)
     store.add({
       type: 'freetext',
       page: 0,
@@ -386,7 +402,7 @@ describe('createOverlay', () => {
     style.textContent = themeCss
     document.head.append(style)
     cleanup.push(() => style.remove())
-    const { store, overlay } = setup(2)
+    const { store, overlay, host } = setup(2)
     const a = store.add({
       type: 'freetext',
       page: 0,
@@ -431,6 +447,22 @@ describe('createOverlay', () => {
     )
     expect(p.backgroundColor).toBe('rgba(0, 0, 0, 0)')
     expect(p.borderTopStyle).toBe('none')
+
+    // A border with no colour of its own takes the text colour, as a bubble's outline does,
+    // not the interface's border token from the root.
+    host.dataset.inkRoot = ''
+    const bordered = store.add({
+      type: 'freetext',
+      page: 0,
+      rect: { x: 100, y: 500, width: 200, height: 50 },
+      contents: 'Bordered',
+      width: 1,
+      defaultStyle: { color: '#00FF00' },
+    })
+    const b = getComputedStyle(
+      overlay.elementFor(bordered.id)!.querySelector('.ink-free-text') as HTMLElement
+    )
+    expect(b.borderTopColor).toBe('rgb(0, 255, 0)')
     expect(p.fontWeight).toBe('400')
     expect(p.fontStyle).toBe('normal')
     expect(p.textDecorationLine).toBe('none')
@@ -766,6 +798,28 @@ describe('createOverlay', () => {
     expect(parseFloat(el.style.width)).toBeGreaterThan(100)
   })
 
+  it('draws butt and slash endings with square-cut caps, others round', () => {
+    const { store, overlay } = setup()
+    const line = store.add({
+      type: 'line',
+      page: 0,
+      start: { x: 100, y: 700 },
+      end: { x: 200, y: 700 },
+      width: 2,
+      head: 'butt',
+      tail: 'slash',
+    })
+    const cap = (id: string, end: string) =>
+      overlay
+        .elementFor(id)!
+        .querySelector(`path[data-ending="${end}"]`)!
+        .getAttribute('stroke-linecap')
+    expect(cap(line.id, 'head')).toBe('butt')
+    expect(cap(line.id, 'tail')).toBe('butt')
+    store.update(line.id, { head: 'openArrow' })
+    expect(cap(line.id, 'head')).toBe('round')
+  })
+
   it('polyline head renders', () => {
     const { store, overlay } = setup()
     const pl = store.add({
@@ -1080,6 +1134,25 @@ describe('createOverlay', () => {
       expect(window.getSelection()?.toString()).not.toBe('')
     })
 
+    it('a press inside a mask reaches the text layer', async () => {
+      const { doc, host, transform, first } = await mountPage()
+      const { x, y, width, height } = first.rect
+      doc.annotations.add({
+        type: 'mask',
+        page: 0,
+        rect: { x: x - 40, y: y - 40, width: width + 80, height: height + 80 },
+        shape: 'rect',
+      })
+      const box = transform.toCssRect(first.rect)
+      const r = host.getBoundingClientRect()
+      const target = document.elementFromPoint(
+        r.left + box.left + 4,
+        r.top + box.top + box.height / 2
+      )!
+      expect(target.closest('[data-annotation]')).toBeNull()
+      expect(target.closest('.ink-text-layer')).not.toBeNull()
+    })
+
     it('a click on a highlight selects and activates it', async () => {
       const { doc, host, transform, onActivate, first } = await mountPage()
       const hl = doc.annotations.add({ type: 'highlight', page: 0, quads: [first.quad] })
@@ -1203,6 +1276,58 @@ describe('loupe', () => {
     await wait(150)
     expect(getPage.mock.calls.length).toBe(before + 1)
     expect(lens(host)).toBe(canvas)
+  })
+
+  it('loupe re-renders when the device pixel ratio changes', async () => {
+    const original = Object.getOwnPropertyDescriptor(window, 'devicePixelRatio')
+    const setDpr = (value: number) =>
+      Object.defineProperty(window, 'devicePixelRatio', { value, configurable: true })
+    cleanup.push(() => {
+      if (original) Object.defineProperty(window, 'devicePixelRatio', original)
+      else delete (window as { devicePixelRatio?: number }).devicePixelRatio
+    })
+    // A controllable stand-in for the resolution media queries.
+    const listeners = new Map<string, Set<() => void>>()
+    const matchMedia = vi.spyOn(window, 'matchMedia').mockImplementation((media) => {
+      const set = listeners.get(media) ?? new Set<() => void>()
+      listeners.set(media, set)
+      return {
+        media,
+        matches: true,
+        addEventListener: (_: string, fn: () => void) => set.add(fn),
+        removeEventListener: (_: string, fn: () => void) => set.delete(fn),
+      } as unknown as MediaQueryList
+    })
+    cleanup.unshift(() => matchMedia.mockRestore())
+    setDpr(1)
+    const doc = await openFixtureInBrowser('text-simple')
+    const transform = createPageTransform(doc.pages[0]!, 1, 0)
+    const host = mountContainer(transform.cssWidth, transform.cssHeight)
+    const overlay = createOverlay({
+      host,
+      page: 0,
+      store: doc.annotations,
+      transform,
+      document: doc,
+    })
+    cleanup.push(() => {
+      overlay.destroy()
+      host.remove()
+      void doc.destroy()
+    })
+    doc.annotations.add({
+      type: 'loupe',
+      page: 0,
+      rect: { x: 60, y: 680, width: 80, height: 80 },
+      magnification: 2,
+    })
+    const canvas = lens(host)!
+    await expect.poll(() => canvas.width).toBe(80)
+    setDpr(2)
+    for (const fn of listeners.get('(resolution: 1dppx)') ?? []) fn()
+    await expect.poll(() => canvas.width).toBe(160)
+    overlay.destroy()
+    expect([...listeners.values()].every((set) => set.size === 0)).toBe(true)
   })
 
   it('loupe re-renders debounced on zoom', async () => {
@@ -1415,7 +1540,7 @@ describe('mask', () => {
     }
   })
 
-  it('mask is selectable through its shape, not the dimmed area', async () => {
+  it('mask is selectable by its edge, not its inside or the dimmed area', async () => {
     const { doc, host } = await mountMaskPage()
     const mask = doc.annotations.add({
       type: 'mask',
@@ -1427,22 +1552,24 @@ describe('mask', () => {
     expect(el.dataset.type).toBe('mask')
     expect(el.getAttribute('aria-label')).toBe('Mask')
     const box = host.getBoundingClientRect()
-    // css box: left 100, top 192..292. Centre is inside the ellipse, the box corner is not.
+    // css box: left 100..300, top 192..292. The ellipse's left edge is at (100, 242).
     const at = (x: number, y: number) =>
       document.elementFromPoint(box.left + x, box.top + y)
-    expect(at(200, 242)?.closest('[data-annotation]')).toBe(el)
+    expect(at(102, 242)?.closest('[data-annotation]')).toBe(el)
+    // The spotlight inside the edge belongs to the page, as does the box corner.
+    expect(at(200, 242)?.closest('[data-annotation]')).toBeNull()
     expect(at(102, 194)?.closest('[data-annotation]')).toBeNull()
     // Far outside the shape, in the dimmed area.
     expect(at(450, 500)?.closest('[data-annotation]')).toBeNull()
     expect(at(450, 500)?.closest('[data-ink-mask-layer]')).toBeNull()
-    // A press on the shape selects the mask.
-    at(200, 242)?.dispatchEvent(
+    // A press on the edge selects the mask.
+    at(102, 242)?.dispatchEvent(
       new PointerEvent('pointerdown', { bubbles: true, button: 0, isPrimary: true })
     )
     expect(doc.annotations.selection.get()).toEqual([mask.id])
   })
 
-  it('a rect mask takes presses across its whole box', async () => {
+  it('a rect mask takes presses along its edge only', async () => {
     const { doc, host } = await mountMaskPage()
     const mask = doc.annotations.add({
       type: 'mask',
@@ -1455,6 +1582,8 @@ describe('mask', () => {
     const at = (x: number, y: number) =>
       document.elementFromPoint(box.left + x, box.top + y)
     expect(at(102, 194)?.closest('[data-annotation]')).toBe(el)
+    expect(at(200, 290)?.closest('[data-annotation]')).toBe(el)
     expect(at(98, 194)?.closest('[data-annotation]')).toBeNull()
+    expect(at(200, 242)?.closest('[data-annotation]')).toBeNull()
   })
 })

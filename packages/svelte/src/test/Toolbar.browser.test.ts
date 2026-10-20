@@ -376,6 +376,64 @@ describe('toolbar', () => {
     await expect.element(redo).toBeDisabled()
   })
 
+  describe('style menu triggers and the host', () => {
+    const cases = [
+      { harness: LineStyleHarness, name: 'Line style', role: 'menu', add: 'add-line-1' },
+      {
+        harness: ColorMenuHarness,
+        name: 'Border colour',
+        role: 'menu',
+        add: 'add-square',
+      },
+      { harness: TextStyleHarness, name: 'Text style', role: 'dialog', add: 'add-box' },
+    ] as const
+
+    it.each(cases)(
+      '$name: the host handlers run and the menu still opens',
+      async ({ harness, name, role, add }) => {
+        const keys: string[] = []
+        let clicks = 0
+        await render(harness, {
+          src: fixtureUrl('text-simple'),
+          assets,
+          trigger: {
+            onkeydown: (e: KeyboardEvent) => keys.push(e.key),
+            onclick: () => clicks++,
+          },
+        })
+        await q('.ink-page canvas')
+        await browserPage.getByTestId(add).click()
+        await browserPage.getByTestId('select-all').click()
+        const trigger = browserPage.getByRole('button', { name })
+        const menu = browserPage.getByRole(role, { name })
+        ;(trigger.element() as HTMLElement).focus()
+        await userEvent.keyboard('{ArrowDown}')
+        await expect.element(menu).toBeVisible()
+        expect(keys).toContain('ArrowDown')
+        await userEvent.keyboard('{Escape}')
+        await expect.element(menu).not.toBeInTheDocument()
+        await trigger.click()
+        await expect.element(menu).toBeVisible()
+        expect(clicks).toBe(1)
+      }
+    )
+
+    it.each(cases)(
+      '$name: a host disabled disables the trigger',
+      async ({ harness, name, add }) => {
+        await render(harness, {
+          src: fixtureUrl('text-simple'),
+          assets,
+          trigger: { disabled: true },
+        })
+        await q('.ink-page canvas')
+        await browserPage.getByTestId(add).click()
+        await browserPage.getByTestId('select-all').click()
+        await expect.element(browserPage.getByRole('button', { name })).toBeDisabled()
+      }
+    )
+  })
+
   describe('line style menu', () => {
     const trigger = () => browserPage.getByRole('button', { name: 'Line style' })
     const menu = () => browserPage.getByRole('menu', { name: 'Line style' })
@@ -487,6 +545,24 @@ describe('toolbar', () => {
       await click(id)
       await click('select-all')
     }
+
+    it('a scoped menu follows a change to its group prop', async () => {
+      const props = {
+        src: fixtureUrl('text-simple'),
+        assets,
+        borderGroup: 'shape' as const,
+      }
+      const screen = await render(ColorMenuHarness, props)
+      await q('.ink-page canvas')
+      const dot = '[data-ink-color-menu="border"] [data-ink-swatch]'
+      await trigger('Border colour').click()
+      await swatch('Border colour', '#FF3B30').click()
+      await expect.poll(attr(dot, 'data-color')).toBe('#FF3B30')
+      await screen.rerender({ ...props, borderGroup: 'markup' })
+      await expect.poll(attr(dot, 'data-color')).not.toBe('#FF3B30')
+      await screen.rerender(props)
+      await expect.poll(attr(dot, 'data-color')).toBe('#FF3B30')
+    })
 
     it('border menu sets color on a selected square', async () => {
       await render(ColorMenuHarness, { src: fixtureUrl('text-simple'), assets })
@@ -833,6 +909,21 @@ describe('text style menu', () => {
     await expect.element(size).toHaveValue(1)
     await menu().getByRole('button', { name: 'Increase font size' }).click()
     await expect.poll(() => style().fontSize).toBe(2)
+  })
+
+  // As the vanilla menu does, where the size field's blur commits it.
+  it('closing the menu commits a typed size, so it reopens on the size in use', async () => {
+    await start()
+    await selectBox()
+    await trigger().click()
+    await menu().getByRole('spinbutton', { name: 'Font size' }).fill('30')
+    await userEvent.keyboard('{Escape}')
+    await expect.element(menu()).not.toBeInTheDocument()
+    await expect.poll(() => style().fontSize).toBe(30)
+    await trigger().click()
+    await expect
+      .element(menu().getByRole('spinbutton', { name: 'Font size' }))
+      .toHaveValue(30)
   })
 
   it('menu disabled with only a square selected and the select tool active', async () => {

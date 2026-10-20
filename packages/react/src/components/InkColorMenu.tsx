@@ -61,6 +61,7 @@ export function InkColorMenu({
   children,
   standalone = false,
   group,
+  disabled,
   ...rest
 }: InkColorMenuProps) {
   const Wrap = standalone ? Fragment : Toolbar.Button
@@ -105,7 +106,7 @@ export function InkColorMenu({
               aria-label={name}
               title={name}
               aria-haspopup="menu"
-              disabled={!model.enabled}
+              disabled={disabled === true || !model.enabled}
               {...rest}
               onKeyDown={(e) => {
                 rest.onKeyDown?.(e)

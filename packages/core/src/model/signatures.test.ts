@@ -161,6 +161,17 @@ describe('template helpers', () => {
     })
     expect(() => createImageTemplate('http://example.com/a.png', 1)).toThrow(TypeError)
   })
+
+  it('refuses ink with no strokes, an empty stroke, or pressure shaped unlike the strokes', () => {
+    const stroke = [
+      { x: 0, y: 0 },
+      { x: 4, y: 2 },
+    ]
+    expect(() => createInkTemplate([])).toThrow(RangeError)
+    expect(() => createInkTemplate([stroke, []])).toThrow(RangeError)
+    expect(() => createInkTemplate([stroke], [[0.5]])).toThrow(RangeError)
+    expect(() => createInkTemplate([stroke], [[0.5, 0.5], [0.5]])).toThrow(RangeError)
+  })
 })
 
 describe('createMemorySignatureStore', () => {
@@ -235,6 +246,20 @@ describe('createLocalSignatureStore', () => {
     expect(await store.list()).toEqual([ink])
   })
 
+  // A full store fails even the probe's tiny write, but it still holds the saved list.
+  it('reads a full store and rejects saves to it, rather than falling back to memory', async () => {
+    const storage = memoryStorage()
+    storage.setItem('sigs', JSON.stringify([ink]))
+    storage.setItem = () => {
+      throw new DOMException('full', 'QuotaExceededError')
+    }
+    vi.stubGlobal('localStorage', storage)
+    const store = createLocalSignatureStore('sigs')
+    expect(await store.list()).toEqual([ink])
+    await expect(store.save(image)).rejects.toThrow(/could not be saved/)
+    expect(await store.list()).toEqual([ink])
+  })
+
   it('rejects a save that storage has no room for, and keeps what was there', async () => {
     const storage = memoryStorage()
     vi.stubGlobal('localStorage', storage)
@@ -261,6 +286,27 @@ describe('createLocalSignatureStore', () => {
     expect(await createLocalSignatureStore('sigs').list()).toEqual([image])
     storage.setItem('sigs', '{not json')
     expect(await createLocalSignatureStore('sigs').list()).toEqual([])
+  })
+
+  // A newer version's template, or a hand-edited one, must survive this version's writes.
+  it('writes back stored entries it cannot read, unchanged', async () => {
+    const storage = memoryStorage()
+    const future = { id: 'f', kind: 'vector', paths: ['M0 0'] }
+    storage.setItem('sigs', JSON.stringify([ink, future, 7]))
+    vi.stubGlobal('localStorage', storage)
+    const store = createLocalSignatureStore('sigs')
+    await store.save(image)
+    expect(JSON.parse(storage.getItem('sigs')!)).toEqual([ink, image, future, 7])
+    await store.remove('ink-1')
+    expect(JSON.parse(storage.getItem('sigs')!)).toEqual([image, future, 7])
+    expect(await store.list()).toEqual([image])
+    // Saving a template with an unreadable entry's id replaces that entry.
+    await store.save({ ...image, id: 'f' })
+    expect(JSON.parse(storage.getItem('sigs')!)).toEqual([
+      image,
+      { ...image, id: 'f' },
+      7,
+    ])
   })
 })
 
@@ -297,6 +343,32 @@ describe('createSignatureLibrary', () => {
     expect(library.templates.get()).toEqual([ink])
     library.clearRemoveError()
     expect(library.removeError.get()).toBeUndefined()
+  })
+
+  it('keeps a slow load that succeeds when a later one fails', async () => {
+    const store = createMemorySignatureStore([ink])
+    const library = createSignatureLibrary(store)
+    let finish!: (l: SignatureTemplate[]) => void
+    store.list = () => new Promise((resolve) => (finish = resolve))
+    const slow = library.refresh()
+    store.list = () => Promise.reject(new Error('offline'))
+    await library.refresh()
+    finish([ink])
+    await slow
+    expect(library.templates.get()).toEqual([ink])
+  })
+
+  it('ignores a slow load that finishes after a later one succeeded', async () => {
+    const store = createMemorySignatureStore([ink])
+    const library = createSignatureLibrary(store)
+    let finish!: (l: SignatureTemplate[]) => void
+    store.list = () => new Promise((resolve) => (finish = resolve))
+    const slow = library.refresh()
+    store.list = () => Promise.resolve([image])
+    await library.refresh()
+    finish([ink])
+    await slow
+    expect(library.templates.get()).toEqual([image])
   })
 
   it('keeps the last list when the store fails to list', async () => {

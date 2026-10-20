@@ -22,8 +22,12 @@ export interface FreeTextEditor {
 
 export interface FreeTextEditorOptions {
   transform: PageTransform
-  /** The edited text and the box's rect, grown to fit it, in user space. */
-  commit(contents: string, rect: Rect): void
+  /**
+   * The edited text and the box's rect, grown to fit it, in user space. `grown` is the growth
+   * alone, in CSS px (0 when the box kept its height), for a caller whose box may have moved
+   * or been resized while the editor was open.
+   */
+  commit(contents: string, rect: Rect, grown: number): void
   cancel(): void
 }
 
@@ -99,10 +103,10 @@ export function editFreeText(
     // A trailing line break is held open by a placeholder <br>, which reads as one more.
     return field.lastChild?.nodeName === 'BR' ? text.replace(/\n$/, '') : text
   }
-  const rect = (): Rect => {
-    const h = height()
-    if (Math.abs(h - base.height) < SAME_PX) return a.rect
-    return opts.transform.fromCssRect({ ...base, height: h })
+  /** How far the box grew, CSS px; 0 within `SAME_PX`. */
+  const growth = (): number => {
+    const grown = height() - base.height
+    return Math.abs(grown) < SAME_PX ? 0 : grown
   }
 
   let closed = false
@@ -110,7 +114,11 @@ export function editFreeText(
     if (closed) return
     closed = true
     const contents = read()
-    const next = rect()
+    const grown = growth()
+    const next =
+      grown === 0
+        ? a.rect
+        : opts.transform.fromCssRect({ ...base, height: base.height + grown })
     observer?.disconnect()
     view?.removeEventListener('pointerdown', onOutside, true)
     editors.delete(el)
@@ -121,7 +129,7 @@ export function editFreeText(
     box?.style.removeProperty('visibility')
     el.style.height = `${base.height}px`
     refitBubble(el, a, opts.transform, base.height)
-    if (commit) opts.commit(contents, next)
+    if (commit) opts.commit(contents, next, grown)
     else opts.cancel()
   }
 
@@ -210,16 +218,22 @@ export function editFreeTextIn(
   }
   return editFreeText(el, a, {
     transform,
-    commit(contents, rect) {
+    commit(contents, _rect, grown) {
       const now = current()
       if (!now) return
       if (contents.trim() === '' && !isBubble(now)) {
         store.remove(id)
         return
       }
-      if (contents === now.contents && sameRect(rect, now.rect)) return
-      // A bubble's tail moves down with its bottom edge, keeping its length and side.
-      const callout = isBubble(now) ? movedCallout(now, rect, transform) : undefined
+      // The growth applies to the box as it is now: it may have moved while the editor was open.
+      const css = transform.toCssRect(now.rect)
+      const rect =
+        grown === 0
+          ? now.rect
+          : transform.fromCssRect({ ...css, height: css.height + grown })
+      if (contents === now.contents && rect === now.rect) return
+      // A tail from the bottom edge moves down with it, keeping its length and side.
+      const callout = isBubble(now) ? movedCallout(now, grown, transform) : undefined
       store.update(id, callout ? { contents, rect, callout } : { contents, rect })
     },
     cancel() {
@@ -229,21 +243,21 @@ export function editFreeTextIn(
   })
 }
 
-/** `a`'s callout carried by the CSS-px growth of its box from `a.rect` to `rect`. */
+/**
+ * `a`'s callout carried down by `grown` CSS px, when its tip is below the box's bottom edge on
+ * screen; undefined when the tail leaves another edge, so it stays where it is.
+ */
 function movedCallout(
   a: FreeTextAnnotation & { callout: Point[] },
-  rect: Rect,
+  grown: number,
   t: PageTransform
-): Point[] {
-  const grown = t.toCssRect(rect).height - t.toCssRect(a.rect).height
+): Point[] | undefined {
+  const box = t.toCssRect(a.rect)
+  if (grown === 0 || t.toCss(a.callout[0]!).y <= box.top + box.height) return undefined
   return a.callout.map((p) => {
     const c = t.toCss(p)
     return t.fromCss({ x: c.x, y: c.y + grown })
   })
-}
-
-function sameRect(a: Rect, b: Rect): boolean {
-  return a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height
 }
 
 /** `plaintext-only` where the browser has it, else `true` (paste and formatting are then guarded). */

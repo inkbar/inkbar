@@ -44,7 +44,7 @@
 
   import { useToolStyle } from '../hooks/useToolStyle.svelte.js'
 
-  import { asBitsProps } from './child-snippet.js'
+  import { asBitsProps, composeHandlers } from './child-snippet.js'
   import InkIcon from './InkIcon.svelte'
 
   let {
@@ -54,11 +54,13 @@
     children,
     standalone = false,
     group,
+    disabled,
+    onclick,
+    onkeydown,
     ...rest
   }: InkColorMenuProps = $props()
 
-  // svelte-ignore state_referenced_locally
-  const style = useToolStyle(group)
+  const style = useToolStyle(() => group)
   let open = $state(false)
 
   const model = $derived(colorMenuModel(property, style.current, style.supported))
@@ -95,8 +97,12 @@
     'aria-label': name,
     title: name,
     'aria-haspopup': 'menu' as const,
-    onkeydown: onTriggerKeydown,
-    disabled: !model.enabled,
+    disabled: !!disabled || !model.enabled,
+  })
+  /** The trigger's handlers: the host's first, then Bits UI's and the menu's. */
+  const handlers = (props: Record<string, unknown>) => ({
+    onclick: composeHandlers(onclick, props.onclick),
+    onkeydown: composeHandlers(onkeydown, props.onkeydown, onTriggerKeydown),
   })
 </script>
 
@@ -120,11 +126,22 @@
   <Popover.Trigger>
     {#snippet child({ props })}
       {#if standalone}
-        <button bind:this={triggerEl} {...props} {...asBitsProps(rest)} {...triggerAttrs}>
+        <button
+          bind:this={triggerEl}
+          {...props}
+          {...asBitsProps(rest)}
+          {...triggerAttrs}
+          {...handlers(props)}
+        >
           {@render body()}
         </button>
       {:else}
-        <Toolbar.Button {...props} {...asBitsProps(rest)} {...triggerAttrs}>
+        <Toolbar.Button
+          {...props}
+          {...asBitsProps(rest)}
+          {...triggerAttrs}
+          {...handlers(props)}
+        >
           {@render body()}
         </Toolbar.Button>
       {/if}

@@ -77,7 +77,7 @@ describe('createToolStyle', () => {
   })
 
   it('skips locked annotations and props a type lacks', () => {
-    const { store, style } = setup('shape')
+    const { store, style } = setup('none')
     store._setEmbedded([lockedSquare])
     const sq = store.add({ type: 'square', page: 0, rect })
     const hl = store.add({ type: 'highlight', page: 0, quads })
@@ -150,7 +150,74 @@ describe('createToolStyle', () => {
     const a = store.add({ type: 'square', page: 0, rect })
     store.select([a.id])
     expect(style.supported.get().has('fill')).toBe(true)
+    // The shape tool has arrowheads, so the control stays enabled for the next line.
+    expect(style.supported.get().has('head')).toBe(true)
+    setGroup(undefined)
     expect(style.supported.get().has('head')).toBe(false)
+  })
+
+  describe('a creation tool with a selection from another group', () => {
+    it('shows and supports the tool’s group, not the selection', () => {
+      const { store, style, setGroup } = setup('shape')
+      const sq = store.add({ type: 'square', page: 0, rect, width: 4 })
+      store.select([sq.id])
+      expect(style.current.get().width).toBe(4)
+      setGroup('text')
+      style.set({ fontSize: 18 }, { apply: false })
+      expect(style.current.get()).toEqual({ fontSize: 18 })
+      expect(style.supported.get().has('fontSize')).toBe(true)
+      expect(style.supported.get().has('textAlign')).toBe(true)
+    })
+
+    it('sets the tool’s group and leaves the selection alone', () => {
+      const { store, style, setGroup } = setup('markup')
+      const hl = store.add({ type: 'highlight', page: 0, quads })
+      store.select([hl.id])
+      setGroup('ink')
+      expect(style.current.get().border).toBeUndefined()
+      style.set({ border: '#FF0000' })
+      expect(style.get('ink').border).toBe('#FF0000')
+      expect(style.get('markup').border).toBeUndefined()
+      expect(store.get(hl.id)).toBe(hl)
+    })
+  })
+
+  describe('a speech bubble', () => {
+    const bubble: AnnotationInput = {
+      type: 'freetext',
+      page: 0,
+      rect,
+      contents: 'Hi',
+      intent: 'freeTextCallout',
+      cornerRadius: 6,
+      callout: [
+        { x: 0, y: 0 },
+        { x: 10, y: 10 },
+      ],
+    }
+
+    it('line weight on a selected bubble updates shape, not text', () => {
+      const { store, style } = setup('none')
+      const a = store.add(bubble)
+      store.select([a.id])
+      style.set({ width: 3, border: '#00FF00', fontSize: 18 })
+      expect(style.get('shape')).toEqual({ width: 3, border: '#00FF00' })
+      expect(style.get('text')).toEqual({ fontSize: 18 })
+      expect(store.get(a.id)).toMatchObject({
+        width: 3,
+        borderColor: '#00FF00',
+        defaultStyle: { fontSize: 18 },
+      })
+    })
+
+    it('counts as in the shape group for the shape tool', () => {
+      const { store, style } = setup('shape')
+      const a = store.add({ ...bubble, width: 2 })
+      store.select([a.id])
+      expect(style.current.get().width).toBe(2)
+      style.set({ width: 5 })
+      expect(store.get(a.id)).toMatchObject({ width: 5 })
+    })
   })
 
   it('leaves a selected stamp alone and styles the rest of the selection', () => {
@@ -215,6 +282,19 @@ describe('createToolStyle', () => {
       textColor: '#FF0000',
     })
     expect(style.supported.get().has('textColor')).toBe(true)
+  })
+
+  it("resolve: an undefined key in the input's text style leaves the group's", () => {
+    const { style } = setup('text')
+    style.set({ fontFamily: 'Courier' })
+    const out = style.resolve('text', {
+      type: 'freetext',
+      page: 0,
+      rect,
+      contents: 'Hi',
+      defaultStyle: { fontFamily: undefined, fontSize: 20 },
+    })
+    expect(out.defaultStyle).toStrictEqual({ fontFamily: 'Courier', fontSize: 20 })
   })
 
   describe('scoped', () => {

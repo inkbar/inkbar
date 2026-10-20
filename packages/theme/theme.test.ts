@@ -165,7 +165,8 @@ describe('theme.css', () => {
     ])
       expect(rule?.toString()).toMatch(new RegExp(v))
     const border = rules.find((r) => r.selector === ':where(.ink-free-text[data-border])')
-    expect(border?.toString()).toMatch(/var\(--ink-border-width,.*var\(--ink-border,/)
+    // Its own colour token: --ink-border is the interface's.
+    expect(border?.toString()).toMatch(/var\(--ink-border-width,.*var\(--ink-box-border,/)
     expect(
       rules.some((r) => r.selector === ":where(.ink-free-text[data-border='dashed'])")
     ).toBe(true)
@@ -178,6 +179,42 @@ describe('theme.css', () => {
         align
       ).toBe(true)
     }
+  })
+
+  /** The declarations of the rules whose selector list includes `selector`. */
+  const declsFor = (selector: string): string =>
+    rules
+      .filter((r) => r.selectors.some((s) => s.includes(selector)))
+      .map((r) => r.toString())
+      .join('\n')
+
+  it('marks a mixed menu trigger', () => {
+    expect(declsFor('.ink-menu-trigger[data-mixed]')).toMatch(/border-style:\s*dashed/)
+  })
+
+  it('keeps a split button chevron narrow, past the toolbar button minimum width', () => {
+    const chevron = declsFor('.ink-split-button .ink-menu-trigger')
+    expect(chevron).toMatch(/min-width:\s*0/)
+    expect(chevron).toMatch(/width:\s*1\.25rem/)
+  })
+
+  it('rings the text style panel controls on keyboard focus', () => {
+    for (const control of [
+      '.ink-text-style-font:focus-visible',
+      '.ink-text-style-input:focus-visible',
+      '.ink-text-style-button:focus-visible',
+    ])
+      expect(declsFor(control), control).toMatch(/outline:\s*2px solid var\(--ink-ring\)/)
+  })
+
+  // Signatures are dark ink, in both themes: they need paper behind them.
+  it('puts signature surfaces on a fixed light paper', () => {
+    for (const surface of [
+      '.ink-signature-pad-host',
+      '.ink-signature-preview',
+      '.ink-signature-font',
+    ])
+      expect(declsFor(`${surface})`), surface).toMatch(/background:\s*#fff\b/)
   })
 
   it('never colours confidence label text with a suggestion colour, and shows it as a swatch', () => {

@@ -10,7 +10,7 @@
  * Markup stays: the mark is the point.
  */
 import { isAbandonedNote, threadOf, threadRoot } from '@inkbar/core'
-import { threadPopoverLabel } from '@inkbar/core/dom'
+import { threadDeleteLabel, threadPopoverLabel } from '@inkbar/core/dom'
 import { Popover } from 'radix-ui'
 import {
   useEffect,
@@ -178,6 +178,7 @@ export function InkThreadPopover({ children }: InkThreadPopoverProps) {
                   key={note.id}
                   editingRoot={editingRoot}
                   locked={!!note.locked}
+                  deleteLabel={threadDeleteLabel(note)}
                   onSubmit={(text) => (editingRoot ? updateContents(text) : reply(text))}
                   onRemove={removeThread}
                   onClose={close}
@@ -195,12 +196,14 @@ export function InkThreadPopover({ children }: InkThreadPopoverProps) {
 function ThreadForm({
   editingRoot,
   locked,
+  deleteLabel,
   onSubmit,
   onRemove,
   onClose,
 }: {
   editingRoot: boolean
   locked: boolean
+  deleteLabel: string
   onSubmit: (text: string) => void
   onRemove: () => void
   onClose: () => void
@@ -228,7 +231,7 @@ function ThreadForm({
         </button>
         {!locked ? (
           <button type="button" onClick={onRemove}>
-            Delete
+            {deleteLabel}
           </button>
         ) : null}
         <button type="button" onClick={onClose}>

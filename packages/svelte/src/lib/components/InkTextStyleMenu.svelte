@@ -32,11 +32,18 @@
   import { useInkContext } from '../context.js'
   import { useToolStyle } from '../hooks/useToolStyle.svelte.js'
 
-  import { asBitsProps } from './child-snippet.js'
+  import { asBitsProps, composeHandlers } from './child-snippet.js'
   import InkColorMenu from './InkColorMenu.svelte'
   import InkIcon from './InkIcon.svelte'
 
-  let { class: className, children, ...rest }: InkTextStyleMenuProps = $props()
+  let {
+    class: className,
+    children,
+    disabled,
+    onclick,
+    onkeydown,
+    ...rest
+  }: InkTextStyleMenuProps = $props()
 
   const ctx = useInkContext('InkTextStyleMenu')
   const style = useToolStyle()
@@ -98,8 +105,9 @@
         aria-label={model.label}
         title={model.label}
         aria-haspopup="dialog"
-        onkeydown={onTriggerKeydown}
-        disabled={!model.enabled}
+        onclick={composeHandlers(onclick, props.onclick)}
+        onkeydown={composeHandlers(onkeydown, props.onkeydown, onTriggerKeydown)}
+        disabled={!!disabled || !model.enabled}
       >
         {#if children}{@render children()}{:else}<InkIcon icon={ALargeSmall} />{/if}
       </Toolbar.Button>

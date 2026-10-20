@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   constrain,
   DEFAULT_SHAPE_OPTIONS,
+  defaultEnds,
   isPointerOnlyKind,
   polygonVertices,
   SHAPE_KINDS,
@@ -59,11 +60,54 @@ describe('constrain', () => {
   })
 })
 
+describe('defaultEnds', () => {
+  const at = { x: 100, y: 200 }
+
+  it('runs a line left to right on screen for each page rotation', () => {
+    expect(defaultEnds('line', at)).toEqual([
+      { x: 64, y: 200 },
+      { x: 136, y: 200 },
+    ])
+    // /Rotate 90 turns the page clockwise: user space up is screen right.
+    expect(defaultEnds('arrow', at, 90)).toEqual([
+      { x: 100, y: 164 },
+      { x: 100, y: 236 },
+    ])
+    expect(defaultEnds('line', at, 180)).toEqual([
+      { x: 136, y: 200 },
+      { x: 64, y: 200 },
+    ])
+    expect(defaultEnds('line', at, 270)).toEqual([
+      { x: 100, y: 236 },
+      { x: 100, y: 164 },
+    ])
+  })
+
+  it('leaves box kinds as a square round the point', () => {
+    expect(defaultEnds('rectangle', at, 90)).toEqual([
+      { x: 64, y: 164 },
+      { x: 136, y: 236 },
+    ])
+  })
+})
+
 describe('shapeInput', () => {
   const a = { x: 10, y: 20 }
   const b = { x: 50, y: 80 }
   const make = (kind: Parameters<typeof shapeInput>[0]) =>
     shapeInput(kind, 2, a, b, DEFAULT_SHAPE_OPTIONS)
+
+  // The shape style keeps the ends an arrow was given; a plain line must not pick them up.
+  it('makes a line with no line endings, whatever the shape style holds', () => {
+    expect(make('line')).toEqual({
+      type: 'line',
+      page: 2,
+      start: a,
+      end: b,
+      head: 'none',
+      tail: 'none',
+    })
+  })
 
   it('makes an arrow a line with an open tail and the arrow intent', () => {
     expect(make('arrow')).toMatchObject({

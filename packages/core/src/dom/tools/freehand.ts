@@ -186,7 +186,10 @@ export function freehandTool(opts: FreehandOptions): Tool {
       })
     },
     onKeyDown(e) {
-      if (e.key === 'Escape') opts.end?.()
+      if (e.key !== 'Escape') return
+      // Drops a stroke in progress too, so the release that follows commits nothing.
+      clear()
+      opts.end?.()
     },
   }
 }

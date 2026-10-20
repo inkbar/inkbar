@@ -19,6 +19,8 @@ const SVG = 'http://www.w3.org/2000/svg'
 /** Side of an edit handle, CSS px. */
 const HANDLE_PX = 8
 const CORNERS = ['nw', 'ne', 'sw', 'se'] as const
+/** Width in CSS px of the band along a mask's edge that takes presses. */
+const MASK_EDGE = 6
 
 /**
  * Which edit handles an element shows: none, the four CSS corners of its box (`nw`, `ne`,
@@ -366,19 +368,27 @@ export function renderAnnotationContent(
       break
     }
     case 'mask': {
-      // The shape's outline, with a transparent fill that takes presses inside the shape
-      // only (the dimmed area outside belongs to the page); the dimming is the mask layer's.
+      // The shape's outline as an invisible band just inside the edge: it takes presses on
+      // the edge only, so the spotlight stays readable, selectable and annotatable, and the
+      // dimmed area outside belongs to the page. The dimming is the mask layer's.
+      const inset = MASK_EDGE / 2
       const shape =
         a.shape === 'ellipse'
           ? node('ellipse', {
               cx: box.width / 2,
               cy: box.height / 2,
-              rx: box.width / 2,
-              ry: box.height / 2,
+              rx: Math.max(0, box.width / 2 - inset),
+              ry: Math.max(0, box.height / 2 - inset),
             })
-          : node('rect', { x: 0, y: 0, width: box.width, height: box.height })
-      shape.setAttribute('fill', 'transparent')
-      shape.setAttribute('stroke', 'none')
+          : node('rect', {
+              x: inset,
+              y: inset,
+              width: Math.max(0, box.width - MASK_EDGE),
+              height: Math.max(0, box.height - MASK_EDGE),
+            })
+      shape.setAttribute('fill', 'none')
+      shape.setAttribute('stroke', 'transparent')
+      shape.setAttribute('stroke-width', String(MASK_EDGE))
       shape.classList.add('ink-mask-shape')
       svg.append(shape)
       break
@@ -415,7 +425,8 @@ export function renderAnnotationContent(
             stroke: a.color,
             'stroke-width': t.toCssLength(a.width),
             'stroke-linejoin': 'round',
-            'stroke-linecap': 'round',
+            // A butt or slash ending is a cut across the line: a round cap would blunt it.
+            'stroke-linecap': kind === 'butt' || kind === 'slash' ? 'butt' : 'round',
           })
           ending.setAttribute('data-ending', name)
           svg.append(ending)
@@ -488,7 +499,7 @@ function stampImage(
  * Styles a free-text box (`.ink-free-text`) from its annotation, as the theme reads it: the text
  * style, fill, border colour and width, corner radius and opacity travel as custom properties
  * (`--ink-font-size`, `--ink-font-family`, `--ink-font-weight`, `--ink-font-style`,
- * `--ink-text-decoration`, `--ink-text-color`, `--ink-fill`, `--ink-border`,
+ * `--ink-text-decoration`, `--ink-text-color`, `--ink-fill`, `--ink-box-border`,
  * `--ink-border-width`, `--ink-corner-radius`, `--ink-opacity`); alignment as `data-align`,
  * and a border as `data-border` (`solid` or `dashed`, absent at width 0). Lengths are scaled to
  * CSS px. Shared by the overlay and the in-place editor, so both look the same.
@@ -512,7 +523,9 @@ export function styleFreeText(
   // A speech bubble's outline and fill are drawn by its path, not by the text box.
   const bubble = isBubble(a)
   set('--ink-fill', bubble ? undefined : a.color)
-  set('--ink-border', bubble ? undefined : a.borderColor)
+  // Not `--ink-border`, the interface's border token: a box with no border colour of its own
+  // takes its text colour, as a bubble's outline does.
+  set('--ink-box-border', bubble ? undefined : (a.borderColor ?? s.color))
   set(
     '--ink-border-width',
     !bubble && a.width > 0 ? `${t.toCssLength(a.width)}px` : undefined

@@ -22,6 +22,7 @@ import {
   type Tool,
   type ToolController,
   type ToolId,
+  type ToolOptions,
 } from './tools'
 import { FONT_FAMILIES, SIGNATURE_FONTS } from './ui'
 import { createViewport, type Viewport, type ZoomValue } from './viewport'
@@ -57,6 +58,12 @@ export interface MountViewerOptions {
    */
   tools?: Tool[]
   /**
+   * The tools' options (the shape kind, the highlight kind…). A binding or `createViewer` passes
+   * one it keeps for its own life, so options persist across documents, as for the life of the
+   * viewer. By default the engine makes one, which lasts as long as the engine.
+   */
+  toolOptions?: ToolOptions
+  /**
    * The style the tools create with. A binding passes its own, made with `trackToolStyle` and
    * its own history (and keeps its active group in step with the tool). By default the engine
    * makes one over the document's history.
@@ -81,8 +88,10 @@ export interface MountViewerOptions {
   /**
    * The templates the `signature` tool and the signature controls share. A binding or
    * `createViewer` passes its own, so they outlive one document; it wins over `signatures`.
+   * A function is read each time the library is needed, so a host that swaps its library
+   * after mount reaches the tool too.
    */
-  signatureLibrary?: SignatureLibrary
+  signatureLibrary?: SignatureLibrary | (() => SignatureLibrary)
   /**
    * The handwriting fonts a typed signature offers. The host loads them (`@font-face`).
    * Default `SIGNATURE_FONTS`.
@@ -124,7 +133,7 @@ export interface ViewerEngine {
   readonly toolStyle: ToolStyle
   /** The font families text boxes offer: the `fonts` option, else `FONT_FAMILIES`. */
   readonly fonts: readonly string[]
-  /** The signature templates, loaded once the engine mounts. */
+  /** The signature templates: the host's current library, or the engine's own. */
   readonly signatures: SignatureLibrary
   /** The fonts a typed signature offers: the `signatureFonts` option, else `SIGNATURE_FONTS`. */
   readonly signatureFonts: readonly string[]
@@ -152,7 +161,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
   let destroyed = false
   const hostTools = opts.tools ?? []
   /** Option values outlive rebuilds: every controller shares this registry. */
-  const toolOptions = createToolOptions()
+  const toolOptions = opts.toolOptions ?? createToolOptions()
   /** Without a host style, the engine's own follows the active tool across rebuilds. */
   const tracker = opts.toolStyle
     ? undefined
@@ -163,10 +172,14 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
         tool: opts.tool,
       })
   const toolStyle = opts.toolStyle ?? (tracker as NonNullable<typeof tracker>).toolStyle
-  const signatures =
-    opts.signatureLibrary ??
-    createSignatureLibrary(opts.signatures ?? createMemorySignatureStore())
-  void signatures.refresh()
+  const host = opts.signatureLibrary
+  const own = host
+    ? undefined
+    : createSignatureLibrary(opts.signatures ?? createMemorySignatureStore())
+  /** The library now: a host getter is read each time, so a swapped library takes effect. */
+  const signatures = (): SignatureLibrary =>
+    typeof host === 'function' ? host() : (host ?? (own as SignatureLibrary))
+  void signatures().refresh()
 
   function mountPage(page: number, host: HTMLElement, transform: PageTransform): void {
     /** Layers that failed and have not rendered since; the error clears when this empties. */
@@ -306,7 +319,9 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
           el.ownerDocument.defaultView?.getSelection()?.removeAllRanges(),
         onActivate: (id) => opts.onActivate?.(id),
         history: opts.toolHistory ?? doc.history,
-        signatures,
+        get signatures() {
+          return signatures()
+        },
       },
     })
     viewport = vp
@@ -351,7 +366,9 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     },
     toolStyle,
     fonts: opts.fonts ? [...opts.fonts] : FONT_FAMILIES,
-    signatures,
+    get signatures() {
+      return signatures()
+    },
     signatureFonts: opts.signatureFonts ? [...opts.signatureFonts] : SIGNATURE_FONTS,
     pages,
     rebuild(next) {

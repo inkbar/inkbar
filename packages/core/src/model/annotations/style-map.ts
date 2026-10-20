@@ -105,9 +105,48 @@ const SUPPORTED = new Map<AnnotationType, ReadonlySet<StyleKey>>(
   ])
 )
 
-/** The style group an annotation's type belongs to; notes belong to none. */
-export function styleGroupOf(a: Pick<Annotation, 'type'>): StyleGroup | undefined {
+/**
+ * The props a speech bubble (`intent: 'freeTextCallout'`) takes from the `shape` group: its
+ * outline, fill and opacity, as the shape tool creates it. Its text props stay in `text`.
+ */
+const BUBBLE_SHAPE_PROPS: ReadonlySet<StyleKey> = new Set([
+  'border',
+  'fill',
+  'opacity',
+  'width',
+  'dashes',
+])
+
+/**
+ * The style group an annotation's type belongs to; notes belong to none. With `key`, the group
+ * that owns that prop on `a`: a speech bubble's outline and fill are `shape`'s, its text `text`'s.
+ */
+export function styleGroupOf(
+  a: Pick<Annotation, 'type'> & { intent?: string | undefined },
+  key?: StyleKey
+): StyleGroup | undefined {
+  if (
+    key !== undefined &&
+    a.type === 'freetext' &&
+    a.intent === 'freeTextCallout' &&
+    BUBBLE_SHAPE_PROPS.has(key)
+  )
+    return 'shape'
   return GROUPS[a.type]
+}
+
+/** Every group that owns some prop on `a`: two for a speech bubble, else at most one. */
+export function styleGroupsOf(
+  a: Pick<Annotation, 'type'> & { intent?: string | undefined }
+): StyleGroup[] {
+  const out = new Set<StyleGroup>()
+  const own = GROUPS[a.type]
+  if (own) out.add(own)
+  for (const key of supportedProps(a.type)) {
+    const g = styleGroupOf(a, key)
+    if (g) out.add(g)
+  }
+  return [...out]
 }
 
 /** The types in `group`, from the same table `styleGroupOf` reads. */
@@ -120,14 +159,8 @@ export function styleGroupOfType(type: AnnotationType): StyleGroup | undefined {
   return GROUPS[type]
 }
 
-/**
- * The control-level props `type` supports. `intent` is reserved for types whose props depend
- * on it (a speech bubble's border and fill); no type uses it yet.
- */
-export function supportedProps(
-  type: AnnotationType,
-  _intent?: string
-): ReadonlySet<StyleKey> {
+/** The control-level props `type` supports. */
+export function supportedProps(type: AnnotationType): ReadonlySet<StyleKey> {
   return SUPPORTED.get(type) ?? new Set()
 }
 

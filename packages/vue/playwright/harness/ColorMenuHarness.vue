@@ -5,20 +5,37 @@ import InkToolbar from '../../src/components/InkToolbar.vue'
 import InkViewport from '../../src/components/InkViewport.vue'
 
 import ColorMenuControls from './ColorMenuControls.vue'
+import { useHostTrigger } from './host-trigger'
 
-import type { DocumentSource, PdfAssets } from '@inkbar/core'
+import type { DocumentSource, PdfAssets, StyleGroup } from '@inkbar/core'
 
-defineProps<{ src: DocumentSource; assets: PdfAssets }>()
+const props = defineProps<{
+  src: DocumentSource
+  assets: PdfAssets
+  hostDisabled?: 'true' | 'false'
+  /** The border menu's style group. */
+  borderGroup?: StyleGroup
+}>()
+const host = useHostTrigger(() => props.hostDisabled)
 </script>
 
 <template>
-  <InkRoot :src="src" :assets="assets" :zoom="1">
+  <InkRoot :src="props.src" :assets="props.assets" :zoom="1">
     <InkToolbar>
-      <InkColorMenu property="border" />
+      <InkColorMenu
+        property="border"
+        :group="props.borderGroup"
+        v-bind="host.attrs.value"
+      />
       <InkColorMenu property="fill" />
       <InkColorMenu property="textColor" />
     </InkToolbar>
     <div style="height: 600px; width: 900px"><InkViewport /></div>
     <ColorMenuControls />
+    <div
+      data-testid="host"
+      :data-keys="host.seen.keys.join(',')"
+      :data-clicks="host.seen.clicks"
+    />
   </InkRoot>
 </template>

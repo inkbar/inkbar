@@ -10,6 +10,7 @@ import { writable, type Readable, type Writable } from '../readable'
 import {
   fromAnnotation,
   styleGroupOf,
+  styleGroupsOf,
   supportedProps,
   toFields,
   typesInGroup,
@@ -58,16 +59,23 @@ export interface ToolStyle {
   get(group: StyleGroup): Readonly<StyleProps>
   readable(group: StyleGroup): Readable<Readonly<StyleProps>>
   /**
-   * Values the controls show: the selection's when it is non-empty, else the active group's.
-   * `'mixed'` per prop when selected values differ.
+   * Values the controls show. Under a select tool, the selection's. Under a creation tool, the
+   * selection's when it is non-empty and wholly in the tool's group, else the group's own: a
+   * leftover selection from another tool does not take over the controls. `'mixed'` per prop
+   * when selected values differ.
    */
   readonly current: Readable<CurrentStyle>
-  /** Which props the active tool or the selection supports; controls disable the rest. */
+  /**
+   * Which props the active tool or the selection supports; controls disable the rest. Under a
+   * creation tool, the group's props, plus the selection's when it is wholly in the group.
+   */
   readonly supported: Readable<ReadonlySet<StyleKey>>
   /**
-   * Updates the active tool's group, or under a select tool (no active group) the group of each
-   * selected annotation. With `apply` (the default) it also updates every selected, unlocked
-   * annotation that has the props, in one history step. `group` names the group explicitly.
+   * Updates the active tool's group, or under a select tool (no active group) the group that
+   * owns each prop on each selected annotation (a speech bubble's outline is `shape`'s, its
+   * text `text`'s). With `apply` it also updates every selected, unlocked annotation that has
+   * the props, in one history step. `apply` defaults to true under a select tool, and to
+   * whether the selection is wholly in the group otherwise. `group` names the group explicitly.
    */
   set(patch: StyleProps, opts?: { group?: StyleGroup; apply?: boolean }): void
   /** Fills an AnnotationInput's unset style fields from the group (input wins). */
@@ -212,15 +220,21 @@ export function createToolStyle(deps: ToolStyleDeps): ToolStyle {
     return out
   }
 
+  /** The selection, when it is non-empty and wholly in `group`. */
+  const selectedIn = (group: StyleGroup): Annotation[] | null => {
+    const items = selected()
+    return items.length > 0 && items.every((a) => styleGroupsOf(a).includes(group))
+      ? items
+      : null
+  }
+
   const current = computed<CurrentStyle>(
     sources,
     () => {
-      const items = selected()
-      if (items.length === 0) {
-        const g = activeGroup()
-        return g ? { ...groupStore(g).get() } : {}
-      }
-      return styleOf(items)
+      const g = activeGroup()
+      if (!g) return styleOf(selected())
+      const items = selectedIn(g)
+      return items ? styleOf(items) : { ...groupStore(g).get() }
     },
     (a, b) => sameRecord(a, b)
   )
@@ -228,23 +242,13 @@ export function createToolStyle(deps: ToolStyleDeps): ToolStyle {
   const supported = computed<ReadonlySet<StyleKey>>(
     sources,
     () => {
-      const items = selected()
-      if (items.length === 0) {
-        const g = activeGroup()
-        return g ? groupProps(g) : new Set()
-      }
-      return propsOf(items)
+      const g = activeGroup()
+      if (!g) return propsOf(selected())
+      const items = selectedIn(g)
+      return items ? new Set([...groupProps(g), ...propsOf(items)]) : groupProps(g)
     },
     sameSet
   )
-
-  /** The selection, when it is non-empty and wholly in `group`. */
-  const selectedIn = (group: StyleGroup): Annotation[] | null => {
-    const items = selected()
-    return items.length > 0 && items.every((a) => styleGroupOf(a) === group)
-      ? items
-      : null
-  }
 
   const scopes = new Map<StyleGroup, ScopedToolStyle>()
   function scoped(group: StyleGroup): ScopedToolStyle {
@@ -281,27 +285,33 @@ export function createToolStyle(deps: ToolStyleDeps): ToolStyle {
   ): void {
     const items = selected()
     const active = opts.group ?? activeGroup()
-    const targets = active
-      ? [active]
-      : [
-          ...new Set(
-            items
-              .map((a) => styleGroupOf(a))
-              .filter((g): g is StyleGroup => g !== undefined)
-          ),
-        ]
-    for (const g of targets) {
+    const keys = (Object.keys(patch) as StyleKey[]).filter((k) => patch[k] !== undefined)
+    // The keys each group takes: all of them for the active group, else each prop goes to the
+    // group that owns it on each selected annotation.
+    const targets = new Map<StyleGroup, Set<StyleKey>>()
+    if (active) targets.set(active, new Set(keys))
+    else
+      for (const a of items)
+        for (const key of keys) {
+          if (!supportedProps(a.type).has(key)) continue
+          const g = styleGroupOf(a, key)
+          if (!g) continue
+          const own = targets.get(g) ?? new Set<StyleKey>()
+          own.add(key)
+          targets.set(g, own)
+        }
+    for (const [g, own] of targets) {
       const allowed = groupProps(g)
       const next: Record<string, unknown> = { ...groupStore(g).get() }
       let changed = false
-      for (const key of Object.keys(patch) as StyleKey[]) {
-        if (!allowed.has(key) || patch[key] === undefined) continue
+      for (const key of own) {
+        if (!allowed.has(key)) continue
         next[key] = patch[key]
         changed = true
       }
       if (changed) groupStore(g).set(next)
     }
-    if (opts.apply === false) return
+    if (!(opts.apply ?? (active === undefined || selectedIn(active) !== null))) return
     const edits = items
       .filter((a) => !a.locked)
       .map((a) => ({ id: a.id, fields: toFields(a.type, patch) }))
@@ -312,6 +322,14 @@ export function createToolStyle(deps: ToolStyleDeps): ToolStyle {
     })
   }
 
+  /** `value`'s keys that hold something. */
+  const defined = (value: unknown): Record<string, unknown> =>
+    Object.fromEntries(
+      Object.entries((value ?? {}) as Record<string, unknown>).filter(
+        ([, v]) => v !== undefined
+      )
+    )
+
   function resolve<T extends AnnotationInput>(group: StyleGroup, input: T): T {
     const fields = toFields(input.type, groupStore(group).get()) as Record<
       string,
@@ -320,11 +338,8 @@ export function createToolStyle(deps: ToolStyleDeps): ToolStyle {
     const out: Record<string, unknown> = { ...input }
     for (const [key, value] of Object.entries(fields)) {
       if (key === 'defaultStyle') {
-        // Nested text style: the group's keys fill those the input leaves unset.
-        const style: Record<string, unknown> = {}
-        for (const [k, v] of Object.entries(value as Record<string, unknown>))
-          if (v !== undefined) style[k] = v
-        out[key] = { ...style, ...(out[key] as object | undefined) }
+        // Nested text style: the group's keys fill those the input leaves unset (or undefined).
+        out[key] = { ...defined(value), ...defined(out[key]) }
       } else if (value !== undefined && out[key] === undefined) out[key] = value
     }
     return out as T

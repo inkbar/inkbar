@@ -252,7 +252,11 @@ export function shapeTool(): Tool<ShapeOptions> {
           inputFor(ctx, from.page, from.user, from.transform.fromCss(css), e.shiftKey)
         )
       } else {
-        const [a, b] = defaultEnds(options(ctx).kind, from.user)
+        const [a, b] = defaultEnds(
+          options(ctx).kind,
+          from.user,
+          from.transform.page.rotate
+        )
         add(ctx, inputFor(ctx, from.page, a, b, false))
       }
       clear()
@@ -263,11 +267,12 @@ export function shapeTool(): Tool<ShapeOptions> {
       if (isPointerOnlyKind(options(ctx).kind)) return
       e.preventDefault()
       const page = ctx.viewport.currentPage.get()
-      const { box } = ctx.viewport.transformFor(page).page
-      const [a, b] = defaultEnds(options(ctx).kind, {
-        x: box.x + box.width / 2,
-        y: box.y + box.height / 2,
-      })
+      const { box, rotate } = ctx.viewport.transformFor(page).page
+      const [a, b] = defaultEnds(
+        options(ctx).kind,
+        { x: box.x + box.width / 2, y: box.y + box.height / 2 },
+        rotate
+      )
       add(ctx, inputFor(ctx, page, a, b, false))
     },
   }

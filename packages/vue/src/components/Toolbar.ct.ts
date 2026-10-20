@@ -261,6 +261,67 @@ test('undo and redo follow the history; the separator divides the toolbar', asyn
   await expect(redo).toBeDisabled()
 })
 
+test.describe('style menu triggers and the host', () => {
+  const cases = [
+    { harness: 'line', name: 'Line style', role: 'menu', add: 'add-line-1' },
+    { harness: 'colour', name: 'Border colour', role: 'menu', add: 'add-square' },
+    { harness: 'text', name: 'Text style', role: 'dialog', add: 'add-box' },
+  ] as const
+  const mountCase = (
+    mount: MountFn,
+    harness: (typeof cases)[number]['harness'],
+    hostDisabled?: 'true' | 'false'
+  ) => {
+    const props = {
+      src: fixtureUrl('text-simple'),
+      assets,
+      ...(hostDisabled ? { hostDisabled } : {}),
+    }
+    if (harness === 'line') return mount(LineStyleHarness, { props })
+    if (harness === 'colour') return mount(ColorMenuHarness, { props })
+    return mount(TextStyleHarness, { props })
+  }
+
+  for (const { harness, name, role, add } of cases) {
+    test(`${name}: the host's listeners run and the menu still opens`, async ({
+      mount,
+      page,
+    }) => {
+      const cmp = await mountCase(mount, harness)
+      await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+      await page.getByTestId(add).click()
+      await page.getByTestId('select-all').click()
+      const trigger = page.getByRole('button', { name })
+      const menu = page.getByRole(role, { name })
+      const host = page.getByTestId('host')
+      await trigger.focus()
+      await page.keyboard.press('ArrowDown')
+      await expect(menu).toBeVisible()
+      await expect(host).toHaveAttribute('data-keys', 'ArrowDown')
+      await page.keyboard.press('Escape')
+      await expect(menu).toBeHidden()
+      await trigger.click()
+      await expect(menu).toBeVisible()
+      await expect(host).toHaveAttribute('data-clicks', '1')
+    })
+
+    test(`${name}: the host's disabled disables the trigger, and false does not enable it`, async ({
+      mount,
+      page,
+    }) => {
+      const on = await mountCase(mount, harness, 'true')
+      await expect(on.locator('.ink-page canvas').first()).toBeVisible()
+      await page.getByTestId(add).click()
+      await page.getByTestId('select-all').click()
+      await expect(page.getByRole('button', { name })).toBeDisabled()
+      await on.unmount()
+      const off = await mountCase(mount, harness, 'false')
+      await expect(off.locator('.ink-page canvas').first()).toBeVisible()
+      await expect(page.getByRole('button', { name })).toBeDisabled()
+    })
+  }
+})
+
 test.describe('line style menu', () => {
   const open = async (page: Page) => {
     await page.getByRole('button', { name: 'Line style' }).click()
@@ -457,6 +518,27 @@ test.describe('colour menus', () => {
     ).toHaveAttribute('data-kind', 'none')
   })
 
+  test('a scoped menu follows a change to its group prop', async ({ mount, page }) => {
+    const props = {
+      src: fixtureUrl('text-simple'),
+      assets,
+      borderGroup: 'shape' as const,
+    }
+    const cmp = await mount(ColorMenuHarness, { props })
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    const dot = page.locator('[data-ink-color-menu="border"] [data-ink-swatch]')
+    await page.getByRole('button', { name: 'Border colour' }).click()
+    await page
+      .getByRole('menu', { name: 'Border colour' })
+      .getByRole('menuitemradio', { name: '#FF3B30' })
+      .click()
+    await expect(dot).toHaveAttribute('data-color', '#FF3B30')
+    await cmp.update({ props: { ...props, borderGroup: 'markup' } })
+    await expect(dot).not.toHaveAttribute('data-color', '#FF3B30')
+    await cmp.update({ props })
+    await expect(dot).toHaveAttribute('data-color', '#FF3B30')
+  })
+
   test('Custom opens a native color input and applies its value', async ({
     mount,
     page,
@@ -467,7 +549,16 @@ test.describe('colour menus', () => {
     const menu = page.getByRole('menu', { name: 'Border colour' })
     const input = page.locator('input[data-ink-color-input="border"]')
     await expect(input).toHaveAttribute('aria-label', 'Custom colour')
+    // fill() below skips the click, so record that Custom… clicked the input (and keep the
+    // native picker shut).
+    await input.evaluate((el) =>
+      el.addEventListener('click', (e) => {
+        e.preventDefault()
+        ;(el as HTMLElement).dataset.clicked = '1'
+      })
+    )
     await menu.getByRole('menuitem', { name: 'Custom…' }).click()
+    await expect(input).toHaveAttribute('data-clicked', '1')
     await input.fill('#123abc')
     await expect(page.getByTestId('probe')).toHaveAttribute('data-colors', '#123ABC')
   })
@@ -830,6 +921,23 @@ test.describe('text style menu', () => {
     await expect(size).toHaveValue('1')
     await menu.getByRole('button', { name: 'Increase font size' }).click()
     expect((await style(page)).fontSize).toBe(2)
+  })
+
+  // As the vanilla menu does, where the size field's blur commits it.
+  test('closing the menu commits a typed size, so it reopens on the size in use', async ({
+    mount,
+    page,
+  }) => {
+    await mountHarness(mount)
+    await page.getByTestId('add-box').click()
+    await page.getByTestId('select-all').click()
+    let menu = await open(page)
+    await menu.getByRole('spinbutton', { name: 'Font size' }).fill('30')
+    await page.keyboard.press('Escape')
+    await expect(menu).toBeHidden()
+    expect((await style(page)).fontSize).toBe(30)
+    menu = await open(page)
+    await expect(menu.getByRole('spinbutton', { name: 'Font size' })).toHaveValue('30')
   })
 
   test('menu disabled with only a square selected and the select tool active', async ({

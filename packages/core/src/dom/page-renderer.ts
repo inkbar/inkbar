@@ -2,6 +2,8 @@
 // (`position:absolute; inset:0; overflow:hidden`), and each canvas is pinned to the top-left
 // with its CSS size set from the transform (`position:absolute; left:0; top:0; width; height`).
 // Everything cosmetic (background, shadow, border) belongs to the theme.
+import { watchDevicePixelRatio } from './dpr-watch'
+
 import type { PageTransform } from './transform'
 import type { InkDocument } from '../model/document'
 import type { PdfjsRenderTask } from '../pdfjs/types'
@@ -85,7 +87,7 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
     const gen = ++generation
     latest = transform
     const dpr = currentDpr()
-    watchDpr(dpr)
+    dprWatch?.watch(dpr)
     task?.cancel()
     task = undefined
     if (!resolvePending) {
@@ -137,38 +139,11 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
     }
   }
 
-  // Re-render when the device pixel ratio changes, unless the caller fixed it. The media
-  // query matches only the ratio it was built for, so it is rebuilt after every change.
-  // During a browser-zoom or screen transition the query can fire while devicePixelRatio
-  // still reports the old value, so each change also schedules follow-up checks.
-  const RECHECK_MS = [100, 500]
-  let dprQuery: MediaQueryList | undefined
-  let watchedDpr: number | undefined
-  let rechecks: ReturnType<typeof setTimeout>[] = []
-  const clearRechecks = (): void => {
-    rechecks.forEach(clearTimeout)
-    rechecks = []
-  }
-  const onDprChange = (): void => {
-    if (destroyed) return
-    const seen = currentDpr()
-    watchDpr(seen, true)
-    void render(latest)
-    clearRechecks()
-    rechecks = RECHECK_MS.map((ms) =>
-      setTimeout(() => {
-        if (!destroyed && currentDpr() !== watchedDpr) onDprChange()
-      }, ms)
-    )
-  }
-  function watchDpr(dpr: number, force = false): void {
-    if (opts.devicePixelRatio !== undefined || !view?.matchMedia) return
-    if (dpr === watchedDpr && !force) return
-    watchedDpr = dpr
-    dprQuery?.removeEventListener('change', onDprChange)
-    dprQuery = view.matchMedia(`(resolution: ${dpr}dppx)`)
-    dprQuery.addEventListener('change', onDprChange)
-  }
+  // Re-render when the device pixel ratio changes, unless the caller fixed it.
+  const dprWatch =
+    opts.devicePixelRatio === undefined
+      ? watchDevicePixelRatio(view, currentDpr, () => void render(latest))
+      : undefined
 
   void render(opts.transform)
 
@@ -184,9 +159,7 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
     destroy() {
       if (destroyed) return
       destroyed = true
-      dprQuery?.removeEventListener('change', onDprChange)
-      dprQuery = undefined
-      clearRechecks()
+      dprWatch?.destroy()
       task?.cancel()
       task = undefined
       if (current) release(current)

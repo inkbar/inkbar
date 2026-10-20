@@ -44,6 +44,27 @@ describe('textStyleMenuModel', () => {
     expect(mixed.nudge(1)).toEqual({ fontSize: 13 })
   })
 
+  it('shows the default size when the style has none', () => {
+    const size = textStyleMenuModel({}, all, FONT_FAMILIES).size
+    expect(size.value).toBe(12)
+    expect(size.nudge(1)).toEqual({ fontSize: 13 })
+  })
+
+  it('shows mixed when only the text colour differs', () => {
+    expect(textStyleMenuModel({ textColor: 'mixed' }, all, FONT_FAMILIES).mixed).toBe(
+      true
+    )
+  })
+
+  it('offers each family once', () => {
+    const model = textStyleMenuModel({ fontFamily: 'Times' }, all, [
+      'Times',
+      'Arial',
+      'Times',
+    ])
+    expect(model.font.options).toEqual(['Times', 'Arial'])
+  })
+
   it('keeps a family outside the list selectable and shows no value for a mix', () => {
     const odd = textStyleMenuModel({ fontFamily: 'Arial' }, all, ['Times'])
     expect(odd.font.options).toEqual(['Times', 'Arial'])

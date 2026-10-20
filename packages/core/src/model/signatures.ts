@@ -107,8 +107,9 @@ export function createMemorySignatureStore(
 /**
  * Templates in `localStorage` under `key`, as a JSON array. Where storage is blocked (it refuses
  * even a tiny test write, as in some private windows) the templates stay in memory for the
- * page's life, so signing still works. Where storage works but has no room for a change, the
- * change is undone and `save` or `remove` rejects, so the host can say so.
+ * page's life, so signing still works. Where storage works, or is full but holds a saved list,
+ * and has no room for a change, the change is undone and `save` or `remove` rejects, so the host can say so. Stored entries it
+ * cannot read, such as a later version's templates, are left out of `list` and kept on write.
  */
 export function createLocalSignatureStore(key: string): SignatureStore {
   /** Usable storage, or undefined when it is missing or blocked. */
@@ -117,38 +118,59 @@ export function createLocalSignatureStore(key: string): SignatureStore {
       const s = globalThis.localStorage ?? undefined
       if (!s) return undefined
       const probe = `${key}:probe`
-      s.setItem(probe, '1')
-      s.removeItem(probe)
+      try {
+        s.setItem(probe, '1')
+        s.removeItem(probe)
+      } catch {
+        // A full store refuses the probe too, but still holds the list: keep it, so the list
+        // shows and saves reject. One that holds nothing of ours is treated as blocked.
+        return s.getItem(key) === null ? undefined : s
+      }
       return s
     } catch {
       return undefined
     }
   })()
-  /** The stored list; undefined when storage cannot be read. Invalid entries are skipped. */
-  const read = (): SignatureTemplate[] | undefined => {
+  /** What storage holds: the templates, and the entries that are not (kept, never shown). */
+  interface Stored {
+    items: SignatureTemplate[]
+    /** Entries this version cannot read, such as a newer version's: written back unchanged. */
+    unread: unknown[]
+  }
+  /** The stored list; undefined when storage cannot be read. */
+  const read = (): Stored | undefined => {
     if (!storage) return undefined
     try {
       const raw = storage.getItem(key)
-      if (raw === null) return []
+      if (raw === null) return { items: [], unread: [] }
       const parsed: unknown = JSON.parse(raw)
-      if (!Array.isArray(parsed)) return []
-      return validTemplates(parsed)
+      if (!Array.isArray(parsed)) return { items: [], unread: [] }
+      const items = validTemplates(parsed)
+      return { items, unread: parsed.filter((x) => validTemplates([x]).length === 0) }
     } catch (e) {
       // Unreadable JSON is an empty list; a storage that throws is no storage.
-      return e instanceof SyntaxError ? [] : undefined
+      return e instanceof SyntaxError ? { items: [], unread: [] } : undefined
     }
   }
-  let items = read() ?? []
+  let { items, unread } = read() ?? { items: [], unread: [] }
   /** Picks up what another tab wrote. */
   const sync = (): void => {
     const stored = read()
-    if (stored) items = stored
+    if (stored) ({ items, unread } = stored)
   }
-  /** Writes `next`, then adopts it; leaves everything as it was when storage refuses. */
+  /** The id of an entry that may not be a template, if it has one. */
+  const idOf = (x: unknown): unknown =>
+    typeof x === 'object' && x !== null ? (x as { id?: unknown }).id : undefined
+  /**
+   * Writes `next`, then adopts it; leaves everything as it was when storage refuses. Entries
+   * it cannot read go back after the templates, less any whose id a template now has.
+   */
   const commit = (next: SignatureTemplate[]): Promise<void> => {
+    const ids = new Set<unknown>(next.map((t) => t.id))
+    const kept = unread.filter((x) => idOf(x) === undefined || !ids.has(idOf(x)))
     if (storage) {
       try {
-        storage.setItem(key, JSON.stringify(next))
+        storage.setItem(key, JSON.stringify([...next, ...kept]))
       } catch (cause) {
         return Promise.reject(
           new Error('The signature could not be saved: browser storage is full', {
@@ -158,6 +180,7 @@ export function createLocalSignatureStore(key: string): SignatureStore {
       }
     }
     items = next
+    unread = kept
     return Promise.resolve()
   }
   return {
@@ -200,11 +223,22 @@ export function normaliseInk(inklist: Point[][]): { inklist: Point[][]; aspect: 
   return { inklist: inklist.map((path) => path.map(map)), aspect: boxW / boxH }
 }
 
-/** An ink template from strokes in any y-up space, with a new id. */
+/**
+ * An ink template from strokes in any y-up space, with a new id. Throws a RangeError for no
+ * strokes, an empty stroke, or pressure that does not have one value per point.
+ */
 export function createInkTemplate(
   inklist: Point[][],
   pressure?: number[][]
 ): SignatureTemplate {
+  if (inklist.length === 0 || inklist.some((path) => path.length === 0))
+    throw new RangeError('A signature needs at least one stroke, and no empty strokes')
+  if (
+    pressure &&
+    (pressure.length !== inklist.length ||
+      pressure.some((p, i) => p.length !== inklist[i]!.length))
+  )
+    throw new RangeError('pressure must have the same shape as inklist')
   const fitted = normaliseInk(inklist)
   return {
     id: uuidv7(),
@@ -304,14 +338,21 @@ export interface SignatureLibrary {
 export function createSignatureLibrary(store: SignatureStore): SignatureLibrary {
   const templates = writable<readonly SignatureTemplate[]>([])
   const removeError = writable<string | undefined>(undefined)
-  /** Only the latest load writes, so a slow one cannot undo a later save. */
+  /**
+   * The newest load that succeeded writes, so a slow one cannot undo a later save, and a later
+   * one that fails does not throw away a slow success.
+   */
   let loads = 0
+  let applied = 0
   const refresh = async (): Promise<void> => {
     const n = ++loads
     try {
       // A host store may hand back anything: an invalid template would fail when placed.
       const list = validTemplates(await store.list())
-      if (n === loads) templates.set(list)
+      if (n > applied) {
+        applied = n
+        templates.set(list)
+      }
     } catch {
       // The store is unavailable: keep what was there.
     }

@@ -66,14 +66,17 @@ function Controls() {
 export function LineStyleHarness({
   src,
   assets,
+  disabled,
 }: {
   src: DocumentSource
   assets: PdfAssets
+  /** Passed to the trigger as a host would. */
+  disabled?: boolean
 }) {
   return (
     <InkRoot src={src} assets={assets} zoom={1}>
       <InkToolbar>
-        <InkLineStyleMenu />
+        <InkLineStyleMenu disabled={disabled} />
       </InkToolbar>
       <div style={{ height: 600, width: 900 }}>
         <InkViewport />

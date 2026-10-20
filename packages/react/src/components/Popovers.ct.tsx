@@ -655,6 +655,8 @@ test('activating a highlight opens the thread popover rooted at it', async ({
   await expect(popover).toHaveAccessibleName('Comment thread')
   await expect(popover.locator('[data-ink-thread]')).toHaveCount(0)
   await expect(popover.getByRole('textbox', { name: 'Comment' })).toBeFocused()
+  // Delete removes the highlight itself, and says so.
+  await expect(popover.getByRole('button', { name: 'Delete highlight' })).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(popover).toHaveCount(0)
   // Enter on the focused markup opens it again.

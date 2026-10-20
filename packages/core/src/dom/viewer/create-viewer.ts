@@ -20,6 +20,7 @@ import {
   createSignatureLibrary,
 } from '../../model/signatures'
 import { createFocusReturn } from '../popover-focus'
+import { createToolOptions } from '../tools'
 import { mountViewer, type MountViewerOptions, type ViewerEngine } from '../viewer-engine'
 
 import { h } from './dom'
@@ -32,12 +33,18 @@ import type { ToolController } from '../tools'
 import type { Viewport } from '../viewport'
 
 /**
- * The engine options, less what the viewer owns per document: the container, the document,
- * and the tool style (bound to one document's store, so each engine makes its own).
+ * The engine options, less what the viewer owns: the container, the document, the tool style
+ * (bound to one document's store, so each engine makes its own), and the tool options and
+ * signature library (one for the viewer's life).
  */
 export interface CreateViewerOptions extends Omit<
   MountViewerOptions,
-  'container' | 'document' | 'toolStyle' | 'toolHistory' | 'signatureLibrary'
+  | 'container'
+  | 'document'
+  | 'toolStyle'
+  | 'toolHistory'
+  | 'toolOptions'
+  | 'signatureLibrary'
 > {
   source: DocumentSource
   assets: PdfAssets
@@ -93,15 +100,18 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     onPageError,
     // Not options (see the type), but a caller without types could still pass them.
     toolStyle: _toolStyle,
+    toolOptions: _toolOptions,
     signatureLibrary: _signatureLibrary,
     signatures: signatureStore,
     ...view
   } = opts as CreateViewerOptions &
-    Pick<MountViewerOptions, 'toolStyle' | 'signatureLibrary'>
+    Pick<MountViewerOptions, 'toolStyle' | 'toolOptions' | 'signatureLibrary'>
   /** One library for the viewer's life, so templates and the menu outlive each document. */
   const signatures = createSignatureLibrary(
     signatureStore ?? createMemorySignatureStore()
   )
+  /** Tool options persist for the viewer's life; the tool style is per document. */
+  const toolOptions = createToolOptions()
   const status = writable<InkStatus>({ state: 'idle' })
   const current = writable<InkDocument | null>(null)
   const engine = writable<ViewerEngine | null>(null)
@@ -188,6 +198,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       ...view,
       container: scroll,
       document: doc,
+      toolOptions,
       signatureLibrary: signatures,
       onActivate: (id) => {
         activated.set(id)

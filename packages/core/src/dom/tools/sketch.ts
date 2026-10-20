@@ -22,6 +22,19 @@ import type { AnnotationInput } from '../../model/annotations/types'
 /** How long the swap waits for a controlled host to apply the ink before giving up. */
 const APPLY_WAIT_MS = 2000
 
+/**
+ * The smallest stroke, in CSS px across its longer side, that can become a shape. A click or
+ * its jitter stays a dot of ink, as with `draw`, rather than an invisible sliver of a line.
+ */
+const MIN_SHAPE_PX = 4
+
+/** The longer side of the box `points` span, in the units they are in. */
+function extent(points: readonly { x: number; y: number }[]): number {
+  const xs = points.map((p) => p.x)
+  const ys = points.map((p) => p.y)
+  return Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys))
+}
+
 /** The annotation a recognised stroke becomes. */
 function recognisedInput(shape: Recognised, page: number): AnnotationInput | undefined {
   switch (shape.kind) {
@@ -102,6 +115,8 @@ export function sketchTool(): Tool {
           ...(s.pressure ? { pressure: [s.pressure] } : {}),
         })
       )
+      if (c.viewport.transformFor(s.page).toCssLength(extent(s.points)) < MIN_SHAPE_PX)
+        return
       const fit = recogniseStroke(s.points)
       if (!fit || fit.score < RECOGNISE_THRESHOLD) return
       const input = recognisedInput(fit.shape, s.page)

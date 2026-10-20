@@ -99,6 +99,7 @@ export {
   shapeMenuModel,
   signatureMenuModel,
   textStyleMenuModel,
+  threadDeleteLabel,
   threadPopoverLabel,
 } from './ui'
 export { PALETTE } from './palette'

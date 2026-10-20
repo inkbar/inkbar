@@ -33,6 +33,7 @@ export function SignatureHarness({
   fonts,
   failSave = false,
   failRemove = false,
+  swapTo,
 }: {
   src: DocumentSource
   assets: PdfAssets
@@ -42,8 +43,17 @@ export function SignatureHarness({
   failSave?: boolean
   /** The store refuses every removal. */
   failRemove?: boolean
+  /** Templates of a second store that the `swap-store` button hands to InkRoot. */
+  swapTo?: SignatureTemplate[]
 }) {
   const [saved, setSaved] = useState<SignatureTemplate[]>(initial)
+  const [swapped, setSwapped] = useState(false)
+  const next = useMemo(
+    () => createMemorySignatureStore(swapTo ?? []),
+    // Made once, from the first `swapTo`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  )
   const store = useMemo<SignatureStore>(() => {
     const inner = createMemorySignatureStore(initial)
     const sync = async () => setSaved(await inner.list())
@@ -64,7 +74,13 @@ export function SignatureHarness({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   return (
-    <InkRoot src={src} assets={assets} zoom={1} signatures={store} signatureFonts={fonts}>
+    <InkRoot
+      src={src}
+      assets={assets}
+      zoom={1}
+      signatures={swapped ? next : store}
+      signatureFonts={fonts}
+    >
       <InkToolbar>
         <InkToolButton tool="select" />
         <InkSignatureMenu />
@@ -79,6 +95,9 @@ export function SignatureHarness({
         data-ids={saved.map((t) => t.id).join(',')}
         data-kinds={saved.map((t) => t.kind).join(',')}
       />
+      <button data-testid="swap-store" onClick={() => setSwapped(true)}>
+        swap
+      </button>
       <OptionsProbe />
       <HookProbe />
     </InkRoot>

@@ -1,6 +1,7 @@
 // Pure geometry for the shape tool: vertices for stars and polygons, Shift constraints and the
 // annotation each kind creates. Everything is PDF user space, points, origin bottom-left.
 import type { Point, Rect } from '../geometry'
+import type { PageRotation } from '../pages'
 import type { AnnotationInput } from './types'
 
 /** Every kind the shape menu can offer. Kinds without a creator yet are not in `SHAPE_KINDS`. */
@@ -147,18 +148,29 @@ export function constrain(kind: ShapeKind, start: Point, end: Point): Point {
   }
 }
 
-/** The two drag corners of the default-size shape centred on `at`. */
-export function defaultEnds(kind: ShapeKind, at: Point): [Point, Point] {
+/**
+ * The two drag corners of the default-size shape centred on `at`. A line or arrow runs left to
+ * right on the page as the file displays it: along user space turned anticlockwise by the
+ * page's /Rotate `rotation`, which undoes the page's clockwise turn, as a signature is placed.
+ */
+export function defaultEnds(
+  kind: ShapeKind,
+  at: Point,
+  rotation: PageRotation = 0
+): [Point, Point] {
   const half = DEFAULT_SHAPE_SIZE / 2
-  return isLineKind(kind)
-    ? [
-        { x: at.x - half, y: at.y },
-        { x: at.x + half, y: at.y },
-      ]
-    : [
-        { x: at.x - half, y: at.y - half },
-        { x: at.x + half, y: at.y + half },
-      ]
+  if (!isLineKind(kind))
+    return [
+      { x: at.x - half, y: at.y - half },
+      { x: at.x + half, y: at.y + half },
+    ]
+  const rad = (rotation * Math.PI) / 180
+  const dx = Math.round(Math.cos(rad)) * half
+  const dy = Math.round(Math.sin(rad)) * half
+  return [
+    { x: clean(at.x - dx), y: clean(at.y - dy) },
+    { x: clean(at.x + dx), y: clean(at.y + dy) },
+  ]
 }
 
 /** The annotation a shape kind creates between two points, or `undefined` for a kind without a creator yet. */
@@ -172,7 +184,7 @@ export function shapeInput(
   const rect = rectOf(start, end)
   switch (kind) {
     case 'line':
-      return { type: 'line', page, start, end }
+      return { type: 'line', page, start, end, head: 'none', tail: 'none' }
     case 'arrow':
       return { type: 'line', page, start, end, tail: 'openArrow', intent: 'lineArrow' }
     case 'rectangle':

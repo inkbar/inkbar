@@ -25,7 +25,7 @@ import {
   PopoverTrigger,
   ToolbarButton,
 } from 'reka-ui'
-import { computed, ref, watch } from 'vue'
+import { computed, mergeProps, ref, useAttrs, watch } from 'vue'
 
 import { useToolStyle } from '../composables/useToolStyle'
 import { useInkContext } from '../context'
@@ -34,6 +34,10 @@ import InkColorMenu from './InkColorMenu.vue'
 import InkIcon from './InkIcon.vue'
 
 const { fonts } = useInkContext('InkTextStyleMenu')
+// The host's attributes go on the trigger: the root is a renderless popover.
+defineOptions({ inheritAttrs: false })
+const attrs = useAttrs()
+
 const { current, supported, set } = useToolStyle()
 const open = ref(false)
 /** The size as typed, until it is committed with Enter or blur. */
@@ -92,6 +96,15 @@ const triggerAttrs = computed(() => ({
   onKeydown: onTriggerKeydown,
   'data-mixed': model.value.mixed ? '' : undefined,
 }))
+/**
+ * The trigger's bindings over the host's: both keydown listeners run, the host's first, and a
+ * host `disabled` can disable the trigger but not enable it.
+ */
+const triggerBindings = computed(() =>
+  mergeProps(attrs, triggerAttrs.value, {
+    disabled: (attrs.disabled ?? false) !== false || !model.value.enabled,
+  })
+)
 const menuAttrs = computed(() => ({ 'aria-label': model.value.label }))
 </script>
 
@@ -104,8 +117,7 @@ const menuAttrs = computed(() => ({ 'aria-label': model.value.label }))
           class="ink-menu-trigger ink-text-style-menu"
           data-ink-text-style-menu
           :data-state="open ? 'open' : 'closed'"
-          :disabled="!model.enabled"
-          v-bind="triggerAttrs"
+          v-bind="triggerBindings"
         >
           <slot><InkIcon :icon="ALargeSmall" /></slot>
         </button>

@@ -406,7 +406,7 @@
   }
 
   :where(.ink-free-text[data-border]) {
-    border: var(--ink-border-width, 1px) solid var(--ink-border, var(--ink-free-text));
+    border: var(--ink-border-width, 1px) solid var(--ink-box-border, var(--ink-free-text));
   }
 
   :where(.ink-free-text[data-border='dashed']) {
@@ -834,6 +834,12 @@
     border-color: var(--ink-border);
   }
 
+  /* A style menu's trigger when the selection disagrees (the colour menus' swatch shows it too). */
+  :where(.ink-menu-trigger[data-mixed]) {
+    border-style: dashed;
+    border-color: var(--ink-border);
+  }
+
   /* Shape menu: a split button, the tool part beside a narrow chevron. */
   :where(.ink-split-button) {
     display: inline-flex;
@@ -841,6 +847,8 @@
   }
 
   :where(.ink-split-button .ink-menu-trigger) {
+    min-width: 0;
+    width: 1.25rem;
     padding-inline: 0.125rem;
   }
 
@@ -905,10 +913,13 @@
     background: color-mix(in srgb, var(--ink-accent) 10%, transparent);
   }
 
+  /* Signatures are dark ink in both themes, so they sit on paper. */
   :where(.ink-signature-preview) {
     display: inline-flex;
     align-items: center;
     height: 2rem;
+    border-radius: calc(var(--ink-radius) - 4px);
+    background: #fff;
   }
 
   :where(.ink-signature-preview svg, .ink-signature-preview img) {
@@ -1008,7 +1019,7 @@
     height: 10rem;
     border: 1px dashed var(--ink-border);
     border-radius: calc(var(--ink-radius) - 2px);
-    background: var(--ink-surface);
+    background: #fff;
     color: var(--ink-ink);
     cursor: crosshair;
   }
@@ -1053,7 +1064,7 @@
     padding: 0.25rem 0.5rem;
     border: 1px solid var(--ink-border);
     border-radius: calc(var(--ink-radius) - 2px);
-    background: var(--ink-surface);
+    background: #fff;
     color: var(--ink-ink);
     text-align: left;
     text-overflow: ellipsis;
@@ -1109,7 +1120,10 @@
     .ink-tab:focus-visible,
     .ink-button:focus-visible,
     .ink-input:focus-visible,
-    .ink-signature-font:focus-visible
+    .ink-signature-font:focus-visible,
+    .ink-text-style-font:focus-visible,
+    .ink-text-style-input:focus-visible,
+    .ink-text-style-button:focus-visible
   ) {
     outline: 2px solid var(--ink-ring);
     outline-offset: 2px;

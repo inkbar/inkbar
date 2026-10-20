@@ -45,6 +45,7 @@ const ALIGN_ICONS = {
 export function InkTextStyleMenu({
   className,
   children,
+  disabled,
   ...rest
 }: InkTextStyleMenuProps) {
   const { fonts } = useInkContext('InkTextStyleMenu')
@@ -55,7 +56,9 @@ export function InkTextStyleMenu({
   const model = textStyleMenuModel(current, supported, fonts)
   // The menu closes when the control disables (the selection cleared while it was open).
   useEffect(() => {
-    if (!model.enabled) setOpen(false)
+    if (model.enabled) return
+    setOpen(false)
+    setDraft(null)
   }, [model.enabled])
 
   const commitSize = () => {
@@ -74,7 +77,14 @@ export function InkTextStyleMenu({
   const sizeShown = draft ?? (model.size.value === null ? '' : String(model.size.value))
 
   return (
-    <Popover.Root open={open} onOpenChange={setOpen}>
+    <Popover.Root
+      open={open}
+      onOpenChange={(next) => {
+        // Closing commits a typed size, as the field's blur would.
+        if (!next) commitSize()
+        setOpen(next)
+      }}
+    >
       <Toolbar.Button asChild>
         <Popover.Trigger asChild>
           <button
@@ -86,7 +96,7 @@ export function InkTextStyleMenu({
             aria-label={model.label}
             title={model.label}
             aria-haspopup="dialog"
-            disabled={!model.enabled}
+            disabled={disabled === true || !model.enabled}
             {...rest}
             onKeyDown={(e) => {
               rest.onKeyDown?.(e)

@@ -12,7 +12,7 @@ import type { DocumentSource, PdfAssets } from '@inkbar/core'
 /** Adds a text box or a square and selects it, so the menu has something to style. */
 function Controls() {
   const { annotations, add } = useAnnotations()
-  const { select } = useSelection()
+  const { selection, select } = useSelection()
   const { setTool } = useTool()
   const style = useToolStyle()
   const box = annotations.find((a) => a.type === 'freetext')
@@ -21,6 +21,9 @@ function Controls() {
       data-testid="probe"
       data-style={box && box.type === 'freetext' ? JSON.stringify(box.defaultStyle) : ''}
       data-group={JSON.stringify(style.get('text'))}
+      data-selected={selection
+        .map((id) => annotations.find((a) => a.id === id)?.type)
+        .join(' ')}
     >
       <button
         data-testid="add-box"
@@ -68,6 +71,9 @@ function Controls() {
       <button data-testid="tool-freetext" onClick={() => setTool('freetext')}>
         text tool
       </button>
+      <button data-testid="tool-shape" onClick={() => setTool('shape')}>
+        shape tool
+      </button>
     </div>
   )
 }
@@ -76,15 +82,18 @@ export function TextStyleHarness({
   src,
   assets,
   fonts,
+  disabled,
 }: {
   src: DocumentSource
   assets: PdfAssets
   fonts?: string[] | undefined
+  /** Passed to the trigger as a host would. */
+  disabled?: boolean
 }) {
   return (
     <InkRoot src={src} assets={assets} zoom={1} fonts={fonts}>
       <InkToolbar>
-        <InkTextStyleMenu />
+        <InkTextStyleMenu disabled={disabled} />
       </InkToolbar>
       <div style={{ height: 600, width: 900 }}>
         <InkViewport />
