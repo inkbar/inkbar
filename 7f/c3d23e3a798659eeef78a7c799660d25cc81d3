@@ -1,0 +1,60 @@
+packages/core/src/dom/tools.browser.test.ts
+  s_5c84400dcebef8::t_52d5cd32b2afbf 56
+  s_5c84400dcebef8::t_7fedf1241e7759 5-9,11-12,14,3642-3780,3787-3794,3796-3806
+  s_5c84400dcebef8::t_a42fe5987b3aee 2164,2170,2176-2182,2190-2194,2200-2202,2204-2205,2210,2212-2216,2224,2230-2231,2246-2248,2250-2254,3289-3290
+  s_5c84400dcebef8::t_8fe51deb8dc7ad 2342-2344,2346-2347
+  s_5c84400dcebef8::t_813e03a2ea0f27 3781-3786
+  s_5c84400dcebef8::t_b495c460877bd4 10,3795
+  s_5c84400dcebef8::t_c32f41888791de 3807-3808
+packages/core/src/model/annotations/edit.test.ts
+  s_5c84400dcebef8::t_31a497a869c466 3,10-11,15,135-169,178-182,184
+  s_5c84400dcebef8::t_aa85e4759221a2 5-9,12-14,16,81,107-134,183
+  s_5c84400dcebef8::t_3f6ed183db701a 19,82-106,170-177
+  s_5c84400dcebef8::t_9ba552df4a73d8 185-186
+packages/core/src/dom/overlay.browser.test.ts
+  s_5c84400dcebef8::t_ed247d32818cc3 5-9,563,572,574-582
+  s_5c84400dcebef8::t_affc4c4f07d3ce 543-562,564-571,573,583-584
+packages/core/src/model/annotations/shape-geometry.test.ts
+  s_5c84400dcebef8::t_aa85e4759221a2 3,142-146,153,159-169
+packages/core/src/dom/tools/selection-edit.ts
+  s_5c84400dcebef8::t_e5aa5b8372fc40 14-17,19-21,28,31,37-38,49-50,82-83,125,127,138-159,168,174-178,181-184,188,190,272,277-282,295,381-384,459,461,465,467,471-473
+  s_5c84400dcebef8::t_813e03a2ea0f27 474-478
+  s_5c84400dcebef8::t_fc941b3f437c68 479-480
+packages/core/src/dom/overlay-render.ts
+  s_5c84400dcebef8::t_e2bf036a03096a 32,39-41,44,90-91,236-237,239-243,278,306-307,483-484,509,627-630,635,637-639,641,643-652,654-655,657,661,664-666,684-685,691,695
+  s_5c84400dcebef8::t_fc6755650d80d2 33
+packages/core/src/dom/freetext-editor.ts
+  s_5c84400dcebef8::t_5b3fce4b2dae9f 267
+  s_5c84400dcebef8::t_a7ca6758b09424 5-6,10-11,28-30,53-54,86-88,100-102,107,130,140,238-242,252-254,256-257,260-266,270-275
+packages/core/README.md
+  s_5c84400dcebef8::t_665470eb33fb3e 157-158,160-164
+  s_5c84400dcebef8::t_beb636b03b0805 159
+packages/core/src/dom/freetext-editor.browser.test.ts
+  s_5c84400dcebef8::t_affc4c4f07d3ce 237-261
+packages/core/src/model/annotations/edit.ts
+  s_5c84400dcebef8::t_813e03a2ea0f27 271-277
+  s_5c84400dcebef8::t_b78f2570270e6e 5-11,207-209,222-270,278-309
+packages/core/src/dom/overlay.ts
+  s_5c84400dcebef8::t_27e015a9d0bc77 14,16,21,37,197-200,212-220,410-411,421-423
+packages/core/src/dom/tools/shape.ts
+  s_5c84400dcebef8::t_813e03a2ea0f27 6,81-82,84,87-94,151-156
+packages/core/src/model/annotations/shape-geometry.ts
+  s_5c84400dcebef8::t_f61ab9cb501493 75-76
+  s_5c84400dcebef8::t_7e3d870885749f 3-4,201-205,212-214
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7fc3d23e3a798659eeef78a7c799660d25cc81d3",
+  "prompts": {},
+  "sessions": {
+    "s_5c84400dcebef8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b6002a2b-f6c7-44ec-8f13-05d214d02483",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
