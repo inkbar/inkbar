@@ -49,6 +49,8 @@ const json = doc.exportAnnotations('json')
 
 `file` can be a `File`, `Blob`, `Uint8Array`, a URL string, `{ url, key }` when the URL is signed and changes between loads, or `{ data, key }` for bytes you want to identify. `quads` is a list of quads in PDF user space.
 
+`exportAnnotations('json')` returns a [Gloss](https://gloss-format.org) document, an open JSON format for PDF annotations, and `importAnnotations` reads one. Gloss doesn't define the loupe and the mask, so the file writes them as `x-loupe` and `x-mask`, a prefix Gloss keeps for viewers' own types. In the store and the API they stay `loupe` and `mask`.
+
 Writing annotations back into the PDF needs `@inkbar/engine`, which is not released yet. Until then `save()` rejects with `EngineUnavailable`. Persist `exportAnnotations('json')` instead and re-import it on the next open. `doc.key` stays the same between opens only when you open with a key: a URL string, `{ url, key }` or `{ data, key }`. A `File`, `Blob` or raw bytes get a new random key each time.
 
 The DOM layer (`@inkbar/core/dom`) provides the viewport, canvas renderer, text layer, overlay and tools for hosts without a framework package. Vue hosts should use [`@inkbar/vue`](https://github.com/inkbar/inkbar/tree/main/packages/vue), React hosts [`@inkbar/react`](https://github.com/inkbar/inkbar/tree/main/packages/react), Svelte hosts [`@inkbar/svelte`](https://github.com/inkbar/inkbar/tree/main/packages/svelte).
