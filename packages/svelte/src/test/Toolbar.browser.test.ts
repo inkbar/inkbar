@@ -35,14 +35,14 @@ describe('toolbar', () => {
     })
     await q(`${SCROLL} .ink-page canvas`)
     await expect.element(toolbar()).toBeVisible()
-    await expect.poll(attr(toolButton('view'), 'aria-pressed')).toBe('true')
-    expect(attr(toolButton('view'), 'data-state')()).toBe('on')
+    await expect.poll(attr(toolButton('select-text'), 'aria-pressed')).toBe('true')
+    expect(attr(toolButton('select-text'), 'data-state')()).toBe('on')
     expect(attr(toolButton('highlight'), 'aria-pressed')()).toBe('false')
     expect(attr(toolButton('highlight'), 'data-state')()).toBe('off')
     await browserPage.elementLocator(await q(toolButton('highlight'))).click()
     await expect.poll(attr(toolButton('highlight'), 'aria-pressed')).toBe('true')
     expect(attr(toolButton('highlight'), 'data-state')()).toBe('on')
-    expect(attr(toolButton('view'), 'aria-pressed')()).toBe('false')
+    expect(attr(toolButton('select-text'), 'aria-pressed')()).toBe('false')
     expect(tools).toEqual(['highlight'])
     await expect.poll(attr(SCROLL, 'data-ink-tool')).toBe('highlight')
   })
@@ -52,8 +52,8 @@ describe('toolbar', () => {
     await render(ToolbarHarness, { src: fixtureUrl('text-simple'), assets })
     await q('.ink-page canvas')
     for (const name of [
-      'View',
-      'Select',
+      'Select text',
+      'Rectangle select',
       'Highlight',
       'Mark for redaction',
       'Add note',
@@ -203,7 +203,7 @@ describe('toolbar', () => {
   it('toolbar is keyboard operable', async () => {
     await render(ToolbarHarness, { src: fixtureUrl('text-simple'), assets })
     await q('.ink-page canvas')
-    ;(await q(toolButton('view'))).focus()
+    ;(await q(toolButton('select-text'))).focus()
     await userEvent.keyboard('{ArrowRight}')
     await expect.poll(focused).toBe(document.querySelector(toolButton('select')))
     await userEvent.keyboard('{Enter}')

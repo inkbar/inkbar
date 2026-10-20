@@ -72,7 +72,7 @@ export function Review({
       onAnnotationsChange={setAnnotations}
     >
       <InkToolbar>
-        <InkToolButton tool="view" />
+        <InkToolButton tool="select-text" />
         <InkToolButton tool="select" />
         <InkToolButton tool="highlight" />
         <InkToolButton tool="redact-area" />

@@ -142,6 +142,101 @@ for (const framework of FRAMEWORKS) {
       )
     })
 
+    test('select text then rectangle select a note', async ({ page }) => {
+      await page.goto(`${framework}/`)
+      await waitForFirstPage(page)
+      const selectText = page.getByRole('button', { name: 'Select text', exact: true })
+      await expect(selectText).toHaveAttribute('aria-pressed', 'true')
+
+      // A drag across a line of text selects it natively.
+      const span = page
+        .locator('.ink-page[data-page="0"] [data-ink-text-layer] span')
+        .filter({ hasText: /\w{4}/ })
+        .first()
+      const line = (await span.boundingBox())!
+      await page.mouse.move(line.x + 1, line.y + line.height / 2)
+      await page.mouse.down()
+      await page.mouse.move(line.x + line.width - 1, line.y + line.height / 2, {
+        steps: 5,
+      })
+      await page.mouse.up()
+      expect(await page.evaluate(() => window.getSelection()?.toString() ?? '')).not.toBe(
+        ''
+      )
+
+      // A note in the page's bottom margin, then a marquee around it.
+      const pageBox = (await page.locator('.ink-page[data-page="0"]').boundingBox())!
+      await page.getByRole('button', { name: 'Add note' }).click()
+      await page.mouse.click(
+        pageBox.x + pageBox.width - 40,
+        pageBox.y + pageBox.height - 40
+      )
+      const note = page.locator(
+        '.ink-page[data-page="0"] .ink-annotation[data-type="text"]'
+      )
+      await expect(note).toHaveCount(1)
+      await page.keyboard.press('Escape')
+      await page.getByRole('button', { name: 'Rectangle select' }).click()
+      // A press on empty space clears the selection.
+      await page.mouse.click(
+        pageBox.x + pageBox.width - 120,
+        pageBox.y + pageBox.height - 40
+      )
+      await expect(note).toHaveAttribute('data-state', /idle|hover/)
+      const box = (await note.boundingBox())!
+      await page.mouse.move(box.x - 20, box.y - 20)
+      await page.mouse.down()
+      await page.mouse.move(box.x + box.width + 10, box.y + box.height + 10, { steps: 5 })
+      await page.mouse.up()
+      await expect(note).toHaveAttribute('data-state', 'selected')
+    })
+
+    test('a drag that starts on a highlight selects text, not the highlight', async ({
+      page,
+    }) => {
+      await page.goto(`${framework}/`)
+      await waitForFirstPage(page)
+      const span = page
+        .locator('.ink-page[data-page="0"] [data-ink-text-layer] span')
+        .filter({ hasText: /\w{8}/ })
+        .first()
+      const text = (await span.textContent()) ?? ''
+      const line = (await span.boundingBox())!
+      const midY = line.y + line.height / 2
+
+      // Highlight the line with the highlight tool.
+      await page.getByRole('button', { name: 'Highlight', exact: true }).click()
+      await page.mouse.move(line.x + 1, midY)
+      await page.mouse.down()
+      await page.mouse.move(line.x + line.width - 1, midY, { steps: 5 })
+      await page.mouse.up()
+      const highlight = page.locator(
+        '.ink-page[data-page="0"] .ink-annotation[data-type="highlight"][data-source="session"]'
+      )
+      await expect(highlight).toHaveCount(1)
+
+      await page.getByRole('button', { name: 'Select text', exact: true }).click()
+      await page.evaluate(() => window.getSelection()?.removeAllRanges())
+      // A real drag from a point on the highlight across part of its text.
+      const onHighlight = await page.evaluate(
+        ([x, y]) =>
+          document
+            .elementFromPoint(x!, y!)
+            ?.closest('[data-annotation]')
+            ?.getAttribute('data-type') ?? null,
+        [line.x + 2, midY]
+      )
+      expect(onHighlight).toBe('highlight')
+      await page.mouse.move(line.x + 2, midY)
+      await page.mouse.down()
+      await page.mouse.move(line.x + line.width * 0.6, midY, { steps: 8 })
+      await page.mouse.up()
+      const selected = await page.evaluate(() => window.getSelection()?.toString() ?? '')
+      expect(selected.trim()).not.toBe('')
+      expect(text).toContain(selected.trim())
+      await expect(page.locator('.ink-annotation[data-state="selected"]')).toHaveCount(0)
+    })
+
     test('has no horizontal scroll at phone width', async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 844 })
       await page.goto(`${framework}/`)

@@ -46,12 +46,12 @@ export function mountDemo(el: HTMLElement, source: DocumentSource): () => void {
   const tools = createToolbar()
   tools.classList.add('demo-toolbar')
   tools.append(
+    group('Highlight', 'demo-group', createToolButton(viewer, 'highlight')),
     group(
       'Tools',
       'demo-group',
-      createToolButton(viewer, 'view'),
+      createToolButton(viewer, 'select-text'),
       createToolButton(viewer, 'select'),
-      createToolButton(viewer, 'highlight'),
       createToolButton(viewer, 'redact-area'),
       createToolButton(viewer, 'note')
     ),

@@ -259,7 +259,7 @@
     background: color-mix(in srgb, var(--ink-redact) 15%, transparent);
   }
 
-  /* Resize handles on a selected area mark, text box or shape: shown with the select tool only. */
+  /* Edit handles on a selected annotation: shown with the select tools only. */
   :where(.ink-handle) {
     box-sizing: border-box;
     border: 1px solid var(--ink-accent);
@@ -267,7 +267,10 @@
     background: var(--ink-surface);
   }
 
-  :where([data-ink-tool]:not([data-ink-tool='select']) .ink-handle) {
+  :where(
+    [data-ink-tool]:not([data-ink-tool='select'], [data-ink-tool='select-text'])
+      .ink-handle
+  ) {
     display: none;
   }
 
@@ -277,6 +280,11 @@
 
   :where(.ink-handle[data-handle='ne'], .ink-handle[data-handle='sw']) {
     cursor: nesw-resize;
+  }
+
+  :where(.ink-handle[data-handle='start'], .ink-handle[data-handle='end']) {
+    border-radius: 50%;
+    cursor: move;
   }
 
   /* Annotations */
@@ -298,7 +306,7 @@
 
   :where(
     [data-ink-tool='select'] .ink-annotation,
-    [data-ink-tool='view'] .ink-annotation
+    [data-ink-tool='select-text'] .ink-annotation
   ) {
     cursor: pointer;
   }

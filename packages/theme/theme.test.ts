@@ -205,11 +205,15 @@ describe('theme.css', () => {
     expect(darkRule?.selector).toContain('[data-ink-root]:not(.light,')
   })
 
-  it('draws resize handles and hides them outside the select tool', () => {
+  it('draws edit handles and hides them outside the select tools', () => {
     const handle = rules.find((r) => r.selector === ':where(.ink-handle)')
     expect(handle?.toString()).toMatch(/border:\s*1px solid var\(--ink-accent\)/)
     const hidden = rules.find((r) =>
-      r.selector.includes("[data-ink-tool]:not([data-ink-tool='select']) .ink-handle")
+      r.selector
+        .replace(/\s+/g, ' ')
+        .includes(
+          "[data-ink-tool]:not([data-ink-tool='select'], [data-ink-tool='select-text']) .ink-handle"
+        )
     )
     expect(hidden?.toString()).toMatch(/display:\s*none/)
   })

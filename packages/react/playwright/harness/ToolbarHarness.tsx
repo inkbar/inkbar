@@ -30,7 +30,7 @@ export function ToolbarHarness({
   return (
     <InkRoot src={src} assets={assets} zoom={1} onToolChange={onToolChange}>
       <InkToolbar>
-        <InkToolButton tool="view" />
+        <InkToolButton tool="select-text" />
         <InkToolButton tool="select" />
         <InkToolButton tool="highlight" />
         <InkToolButton tool="redact-area" />

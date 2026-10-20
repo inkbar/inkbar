@@ -3,9 +3,9 @@
 // Both are structural, and both are removed on destroy.
 //
 // `pointerdown` is listened for in the capture phase. The overlay stops propagation of presses
-// on annotation shapes (so a creation tool never starts a drag from one), but a capture
-// listener on the root runs before that, so the controller can pass the pressed annotation's
-// id to the tool. Move, up and key events bubble normally.
+// on annotation shapes other than text markup (so a creation tool never starts a drag from
+// one), but a capture listener on the root runs before that, so the controller can pass the
+// pressed annotation's id to the tool. Move, up and key events bubble normally.
 //
 // When a tool starts a gesture (its `onPointerDown` returns true) the controller captures the
 // pointer on the root, so the release still arrives when it happens outside. `pointercancel`
@@ -30,7 +30,8 @@ import type { Point } from '../../model/geometry'
 import type { SelectionQuads } from '../selection'
 import type { Viewport, ViewportHit } from '../viewport'
 
-export type BuiltinToolId = 'view' | 'select' | 'highlight' | 'redact-area' | 'note'
+export type BuiltinToolId =
+  'select-text' | 'select' | 'highlight' | 'redact-area' | 'note'
 /** A built-in tool's id, or any id a host registers its own tool under. */
 export type ToolId = BuiltinToolId | (string & {})
 
@@ -54,6 +55,11 @@ export interface ToolContext {
   toolStyle: ToolStyle
   /** The active tool's current options. */
   options<O extends object>(): O
+  /**
+   * Groups a gesture's changes into one undo step (a group move). Without it each change is
+   * its own step.
+   */
+  history?: { batch(fn: () => void): void }
 }
 
 export interface Tool<O extends object = object> {
@@ -67,10 +73,11 @@ export interface Tool<O extends object = object> {
   deactivate(): void
   /**
    * Runs in the capture phase, before the overlay sees the press. `annotationId` is set when
-   * the press landed on an annotation; the overlay then selects and activates it, so tools
-   * other than `select` should ignore such presses. Calling `e.stopPropagation()` here keeps
-   * the overlay from handling it. Return true when the press starts a gesture: the controller
-   * then captures the pointer until it is released or cancelled.
+   * the press landed on an annotation; the overlay then selects and activates it (text markup
+   * on a click, other types on the press), so tools other than the select tools should ignore
+   * such presses. Calling `e.stopPropagation()` here keeps the overlay from handling it.
+   * Return true when the press starts a gesture: the controller then captures the pointer
+   * until it is released or cancelled.
    */
   onPointerDown?(
     e: PointerEvent,
@@ -101,7 +108,7 @@ export interface ToolController {
 export interface ToolControllerOptions {
   /** The controller adds `options`; `toolStyle` defaults to one of the controller's own. */
   ctx: Omit<ToolContext, 'toolStyle' | 'options'> & { toolStyle?: ToolStyle }
-  /** Default `'view'`. */
+  /** Default `'select-text'`. */
   initial?: ToolId
   tools: Tool[]
   /**
@@ -142,7 +149,7 @@ export function hitFor(
 
 export function createToolController(opts: ToolControllerOptions): ToolController {
   const byId = new Map(opts.tools.map((t) => [t.id, t]))
-  const active = writable<ToolId>(opts.initial ?? 'view')
+  const active = writable<ToolId>(opts.initial ?? 'select-text')
   let current: Tool | undefined
   const registry = opts.options ?? createToolOptions()
   registry.register(opts.tools)
@@ -152,7 +159,7 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
       opts.ctx.toolStyle ??
       createToolStyle({
         store: opts.ctx.store,
-        history: { batch: (fn) => fn() },
+        history: opts.ctx.history ?? { batch: (fn) => fn() },
         activeGroup: () => current?.styleGroup,
         active,
       }),
@@ -251,7 +258,7 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     ctx.root.style.cursor = next.cursor
     active.set(id)
   }
-  set(opts.initial ?? 'view')
+  set(opts.initial ?? 'select-text')
 
   return {
     active: readonly(active),

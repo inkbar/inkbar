@@ -467,7 +467,10 @@ test('applies the tool to the scroll element', async ({ mount, page }) => {
     props: { src: fixtureUrl('text-simple'), assets, zoom: 1 },
   })
   await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
-  await expect(page.locator('[data-ink-scroll]')).toHaveAttribute('data-ink-tool', 'view')
+  await expect(page.locator('[data-ink-scroll]')).toHaveAttribute(
+    'data-ink-tool',
+    'select-text'
+  )
 })
 
 test('keeps the page and zoom when a gap change rebuilds the viewport', async ({

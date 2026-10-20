@@ -31,7 +31,7 @@ const emit = defineEmits<{ 'update:tool': [t: ToolId] }>()
     @update:tool="emit('update:tool', $event)"
   >
     <InkToolbar>
-      <InkToolButton tool="view" />
+      <InkToolButton tool="select-text" />
       <InkToolButton tool="select" />
       <InkToolButton tool="highlight" />
       <InkToolButton tool="redact-area" />

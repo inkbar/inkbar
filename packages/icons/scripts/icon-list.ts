@@ -1,7 +1,7 @@
 /** The Lucide icons this package copies, by their Lucide export name. */
 export const ICONS = [
-  'Hand',
-  'MousePointer2',
+  'TextCursor',
+  'SquareDashedMousePointer',
   'Highlighter',
   'Square',
   'MessageSquare',

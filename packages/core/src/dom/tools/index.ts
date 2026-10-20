@@ -12,7 +12,7 @@ import { highlightTool } from './highlight'
 import { noteTool } from './note'
 import { redactAreaTool } from './redact-area'
 import { selectTool } from './select'
-import { viewTool } from './view'
+import { selectTextTool } from './select-text'
 
 import type { AnnotationStore } from '../../model/annotations/store'
 
@@ -27,11 +27,11 @@ export type {
 } from './controller'
 export { hitFor } from './controller'
 export { createToolOptions, type ToolOptions } from './options'
-export { highlightTool, noteTool, redactAreaTool, selectTool, viewTool }
+export { highlightTool, noteTool, redactAreaTool, selectTextTool, selectTool }
 
 /** Fresh instances of every built-in tool. */
 export function builtinTools(): Tool[] {
-  return [viewTool(), selectTool(), highlightTool(), redactAreaTool(), noteTool()]
+  return [selectTextTool(), selectTool(), highlightTool(), redactAreaTool(), noteTool()]
 }
 
 /** The built-in tools with a host's tools added, a host tool replacing a built-in by id. */
@@ -67,7 +67,7 @@ export function trackToolStyle(opts: {
   tool?: ToolId | undefined
 }): ToolStyleTracker {
   const groups = new Map(withHostTools(opts.tools).map((t) => [t.id, t.styleGroup]))
-  const active = writable<ToolId>(opts.tool ?? 'view')
+  const active = writable<ToolId>(opts.tool ?? 'select-text')
   const toolStyle = createToolStyle({
     store: opts.store,
     history: opts.history,

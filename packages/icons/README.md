@@ -41,7 +41,7 @@ import { InkIcon } from '@inkbar/vue'
 
 Without a framework, `createIcon` from `@inkbar/core/dom` returns the `<svg>` element.
 
-The icons are `Hand`, `MousePointer2`, `Highlighter`, `Square`, `MessageSquare`, `Undo2`, `Redo2`, `ZoomIn`, `ZoomOut`, `ChevronLeft`, `ChevronRight`, `ChevronDown` and `Check`.
+The icons are `TextCursor`, `SquareDashedMousePointer`, `Highlighter`, `Square`, `MessageSquare`, `Undo2`, `Redo2`, `ZoomIn`, `ZoomOut`, `ChevronLeft`, `ChevronRight`, `ChevronDown` and `Check`.
 
 ## Licence
 

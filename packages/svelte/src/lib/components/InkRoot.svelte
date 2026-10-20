@@ -136,7 +136,7 @@
     () => document?.annotations.selection,
     NO_IDS
   )
-  const currentTool = $derived<ToolId>(tool ?? 'view')
+  const currentTool = $derived<ToolId>(tool ?? 'select-text')
 
   // What the next open will do follows the prop; the open document's mode is fixed.
   const controlledProp = $derived(annotations !== undefined)

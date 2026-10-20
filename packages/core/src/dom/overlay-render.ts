@@ -4,6 +4,61 @@ import type { Point, Quad } from '../model/geometry'
 
 const SVG = 'http://www.w3.org/2000/svg'
 
+/** Side of an edit handle, CSS px. */
+const HANDLE_PX = 8
+const CORNERS = ['nw', 'ne', 'sw', 'se'] as const
+
+/**
+ * Which edit handles an element shows: none, the four CSS corners of its box (`nw`, `ne`,
+ * `sw`, `se`), or a line's two ends (`start`, `end`, element-local CSS px).
+ */
+export type HandleSpec =
+  | { kind: 'none' }
+  | { kind: 'corners'; width: number; height: number }
+  | { kind: 'ends'; start: Point; end: Point }
+
+/**
+ * Syncs an element's edit handles (`.ink-handle[data-handle]`) with `spec`. Each is an 8px
+ * `position:absolute; pointer-events:auto` box centred on its point; its look is the theme's.
+ */
+export function syncHandles(node: HTMLElement, spec: HandleSpec): void {
+  const existing = [...node.querySelectorAll<HTMLElement>(':scope > [data-handle]')]
+  const names: readonly string[] =
+    spec.kind === 'none' ? [] : spec.kind === 'ends' ? ['start', 'end'] : CORNERS
+  if (
+    existing.length !== names.length ||
+    existing.some((h, i) => h.dataset.handle !== names[i])
+  ) {
+    existing.forEach((h) => h.remove())
+    existing.length = 0
+    for (const name of names) {
+      const h = node.ownerDocument.createElement('div')
+      h.className = 'ink-handle'
+      h.dataset.handle = name
+      h.setAttribute('aria-hidden', 'true')
+      h.style.cssText = `position:absolute;width:${HANDLE_PX}px;height:${HANDLE_PX}px;pointer-events:auto;`
+      node.append(h)
+      existing.push(h)
+    }
+  }
+  for (const h of existing) {
+    const name = h.dataset.handle!
+    const at =
+      spec.kind === 'ends'
+        ? name === 'start'
+          ? spec.start
+          : spec.end
+        : spec.kind === 'corners'
+          ? {
+              x: name[1] === 'w' ? 0 : spec.width,
+              y: name[0] === 'n' ? 0 : spec.height,
+            }
+          : { x: 0, y: 0 }
+    h.style.left = `${at.x - HANDLE_PX / 2}px`
+    h.style.top = `${at.y - HANDLE_PX / 2}px`
+  }
+}
+
 /**
  * The CSS box an annotation's default visual occupies. Usually `toCssRect(a.rect)`. Stroked
  * paths (lines, polylines, polygons, ink) use the bounds of their own points instead of

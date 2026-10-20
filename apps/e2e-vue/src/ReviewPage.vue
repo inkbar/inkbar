@@ -69,7 +69,7 @@ const failed = ref(false)
 const loading = computed(
   () => !failed.value && (loadedKey.value === null || loadedKey.value !== key.value)
 )
-const tool = ref<ToolId>('view')
+const tool = ref<ToolId>('select-text')
 
 const key = computed(() =>
   props.largePages > 0
@@ -211,7 +211,7 @@ async function newVersion(): Promise<void> {
   loadedKey.value = null
   await flushSave()
   failed.value = false
-  tool.value = 'view'
+  tool.value = 'select-text'
   document.value = null
   annotations.value = []
   suggestResult.value = ''
@@ -234,7 +234,7 @@ async function newVersion(): Promise<void> {
   >
     <div :inert="loading" data-testid="toolbar-gate">
       <InkToolbar>
-        <InkToolButton tool="view" />
+        <InkToolButton tool="select-text" />
         <InkToolButton tool="select" />
         <InkToolButton tool="highlight" />
         <InkToolButton tool="redact-area" />

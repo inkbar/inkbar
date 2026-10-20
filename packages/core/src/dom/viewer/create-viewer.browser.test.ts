@@ -414,9 +414,9 @@ describe('createViewer', () => {
       expect(highlight.getAttribute('aria-pressed')).toBe('true')
       expect(highlight.dataset.state).toBe('on')
       expect(engine.tools.active.get()).toBe('highlight')
-      expect(t.querySelector('[data-tool="view"]')!.getAttribute('aria-pressed')).toBe(
-        'false'
-      )
+      expect(
+        t.querySelector('[data-tool="select-text"]')!.getAttribute('aria-pressed')
+      ).toBe('false')
 
       const select = s.querySelector<HTMLSelectElement>('.ink-zoom-select')!
       expect(select.value).toBe('1')
@@ -902,7 +902,7 @@ describe('createViewer', () => {
 function bars(viewer: Viewer): { tools: HTMLElement; status: HTMLElement } {
   const tools = createToolbar()
   tools.append(
-    ...(['view', 'select', 'highlight', 'redact-area', 'note'] as const).map((t) =>
+    ...(['select-text', 'select', 'highlight', 'redact-area', 'note'] as const).map((t) =>
       createToolButton(viewer, t)
     )
   )
