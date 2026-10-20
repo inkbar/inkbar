@@ -283,6 +283,32 @@ describe('embedded import of PDF names and callouts', () => {
     ).toMatchObject({ head: 'openarrow', tail: 'Wavy' })
   })
 
+  it('imports polyline endings as lines do, and none on a polygon', () => {
+    const vertices = [0, 0, 10, 0, 5, 10]
+    expect(
+      one(at('PolyLine', { vertices, lineEndings: ['OpenArrow', 'Wavy'] }))
+    ).toMatchObject({ type: 'polyline', head: 'OpenArrow', tail: 'Wavy' })
+    const plain = one(at('PolyLine', { vertices, lineEndings: ['None', 'None'] }))
+    expect(plain).not.toHaveProperty('head')
+    expect(plain).not.toHaveProperty('tail')
+    const polygon = one(at('Polygon', { vertices, lineEndings: ['OpenArrow', 'None'] }))
+    expect(polygon).not.toHaveProperty('head')
+  })
+
+  it('drops a name that is not a valid PDF name', () => {
+    // `a b` holds whitespace, so it is not kept; the note takes the default icon.
+    expect(one(at('Text', { name: 'a b' }))).toMatchObject({ icon: 'Note' })
+    expect(one(at('Square', { it: 'a b' }))).not.toHaveProperty('intent')
+    expect(
+      one(
+        at('Line', {
+          lineCoordinates: [60, 520, 200, 600],
+          lineEndings: ['a b', 'Slash'],
+        })
+      )
+    ).toMatchObject({ head: 'None', tail: 'Slash' })
+  })
+
   // PDF.js 6.4 passes FreeText /IT but not /CL, /RD or /LE, and has no other API that reads them.
   it.todo(
     'imports a FreeText callout line, fringe and head (PDF.js does not expose /CL /RD /LE)'
