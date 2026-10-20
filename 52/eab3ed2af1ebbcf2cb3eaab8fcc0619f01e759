@@ -1,0 +1,35 @@
+packages/core/src/model/annotations/embedded.test.ts
+  s_5c84400dcebef8::t_6f874230429521 13,347,350-354,356-369,371,373-377
+packages/core/src/model/annotations/embedded.ts
+  s_5c84400dcebef8::t_92d8b8d2d7dfa1 15,96-110
+  s_5c84400dcebef8::t_67b1b23a3a4128 111-112
+packages/core/src/model/annotations/store.ts
+  s_5c84400dcebef8::t_0393d6ddddb547 8,18,30,33-36,86-89,91,520,522-523,525-529,531-532,535-536
+packages/core/src/model/annotations/embedded-fields.ts
+  s_5c84400dcebef8::t_92d8b8d2d7dfa1 10,14-49,55-57,65,67,70-71,79,82,86-87,89,91-92
+packages/core/src/model/annotations/history.test.ts
+  s_5c84400dcebef8::t_2f9fbe268cf670 336,370,377-404
+  s_5c84400dcebef8::t_2ffb867ac016ee 405
+packages/core/src/model/annotations/embedded-fields.test.ts
+  s_5c84400dcebef8::t_f376967bc8a489 9,63,67,77,83-105,109-115,215
+packages/core/src/model/annotations/store.test.ts
+  s_5c84400dcebef8::t_2f9fbe268cf670 7,494,497-498,502-503,505,507,510,512-518,521,525-532,534,546-547,549
+packages/core/src/model/annotations/history.ts
+  s_5c84400dcebef8::t_0393d6ddddb547 4-5,87-93,95-96,98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "52eab3ed2af1ebbcf2cb3eaab8fcc0619f01e759",
+  "prompts": {},
+  "sessions": {
+    "s_5c84400dcebef8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b6002a2b-f6c7-44ec-8f13-05d214d02483",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
