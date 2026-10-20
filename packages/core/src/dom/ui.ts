@@ -60,7 +60,7 @@ export const LINE_WEIGHTS: readonly number[] = [0.5, 1, 2, 3, 4, 6, 8]
 export const DASH_PATTERN: readonly number[] = [3, 3]
 
 /** The ending the menu's arrowhead choices draw. */
-export const ARROWHEAD_ENDING: LineEnding = 'openArrow'
+export const ARROWHEAD_ENDING: LineEnding = 'OpenArrow'
 
 export type ArrowheadChoice = 'none' | 'start' | 'end' | 'both'
 
@@ -70,16 +70,16 @@ export const ARROWHEAD_CHOICES: readonly {
   label: string
   patch: Pick<StyleProps, 'head' | 'tail'>
 }[] = [
-  { value: 'none', label: 'No arrowheads', patch: { head: 'none', tail: 'none' } },
+  { value: 'none', label: 'No arrowheads', patch: { head: 'None', tail: 'None' } },
   {
     value: 'start',
     label: 'Arrowhead at start',
-    patch: { head: ARROWHEAD_ENDING, tail: 'none' },
+    patch: { head: ARROWHEAD_ENDING, tail: 'None' },
   },
   {
     value: 'end',
     label: 'Arrowhead at end',
-    patch: { head: 'none', tail: ARROWHEAD_ENDING },
+    patch: { head: 'None', tail: ARROWHEAD_ENDING },
   },
   {
     value: 'both',
@@ -95,8 +95,8 @@ export function arrowheadChoice(
 ): ArrowheadChoice | 'mixed' | undefined {
   if (head === undefined && tail === undefined) return undefined
   if (head === 'mixed' || tail === 'mixed') return 'mixed'
-  const start = head !== undefined && head !== 'none'
-  const end = tail !== undefined && tail !== 'none'
+  const start = head !== undefined && head !== 'None'
+  const end = tail !== undefined && tail !== 'None'
   return start ? (end ? 'both' : 'start') : end ? 'end' : 'none'
 }
 

@@ -106,7 +106,7 @@ const SUPPORTED = new Map<AnnotationType, ReadonlySet<StyleKey>>(
 )
 
 /**
- * The props a speech bubble (`intent: 'freeTextCallout'`) takes from the `shape` group: its
+ * The props a speech bubble (`intent: 'FreeTextCallout'`) takes from the `shape` group: its
  * outline, fill and opacity, as the shape tool creates it. Its text props stay in `text`.
  */
 const BUBBLE_SHAPE_PROPS: ReadonlySet<StyleKey> = new Set([
@@ -128,7 +128,7 @@ export function styleGroupOf(
   if (
     key !== undefined &&
     a.type === 'freetext' &&
-    a.intent === 'freeTextCallout' &&
+    a.intent === 'FreeTextCallout' &&
     BUBBLE_SHAPE_PROPS.has(key)
   )
     return 'shape'
@@ -214,7 +214,7 @@ export function fromAnnotation(a: Annotation): StyleProps {
       : record[field]
     if (value !== undefined) out[key] = value
     else if (key === 'fill' || key === 'dashes') out[key] = null
-    else if (key === 'head' || key === 'tail') out[key] = 'none'
+    else if (key === 'head' || key === 'tail') out[key] = 'None'
     else if (UNSET[key] !== undefined) out[key] = UNSET[key]
   }
   return out

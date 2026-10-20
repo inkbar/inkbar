@@ -9,7 +9,7 @@ function note(id: string, x = 0, modifiedAt = '2026-10-12T00:00:00.000Z'): Annot
   return {
     id,
     type: 'text',
-    icon: 'comment',
+    icon: 'Comment',
     page: 0,
     rect: { x, y: 0, width: 20, height: 20 },
     color: '#ffd400',

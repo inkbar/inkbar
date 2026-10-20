@@ -74,7 +74,7 @@ describe('embedded import', () => {
     const root = annotations.find((a) => a.contents === 'Root note')!
     const replies = annotations.filter((a) => a.inReplyTo === root.id)
     expect(replies.map((r) => r.contents).sort()).toEqual(['First reply', 'Second reply'])
-    expect(root.type === 'text' && root.icon).toBe('comment')
+    expect(root.type === 'text' && root.icon).toBe('Comment')
     expect(root.createdAt).toBe('2026-10-12T11:00:00.000Z')
     expect(root.inReplyTo).toBeUndefined()
     // Ids are deterministic across opens.

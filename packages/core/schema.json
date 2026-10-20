@@ -39,7 +39,25 @@
               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
             },
             "subject": { "type": "string" },
-            "intent": { "type": "string" },
+            "intent": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "FreeText",
+                    "FreeTextCallout",
+                    "FreeTextTypeWriter",
+                    "LineArrow",
+                    "LineDimension",
+                    "PolygonCloud",
+                    "PolygonDimension",
+                    "PolyLineDimension"
+                  ]
+                },
+                { "type": "string", "pattern": "^[^\\s()<>[\\]{}/%]+$" }
+              ],
+              "description": "One of FreeText, FreeTextCallout, FreeTextTypeWriter, LineArrow, LineDimension, PolygonCloud, PolygonDimension, PolyLineDimension. Any other PDF name is allowed and kept unchanged."
+            },
             "custom": {
               "type": "object",
               "propertyNames": { "type": "string" },
@@ -142,7 +160,25 @@
               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
             },
             "subject": { "type": "string" },
-            "intent": { "type": "string" },
+            "intent": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "FreeText",
+                    "FreeTextCallout",
+                    "FreeTextTypeWriter",
+                    "LineArrow",
+                    "LineDimension",
+                    "PolygonCloud",
+                    "PolygonDimension",
+                    "PolyLineDimension"
+                  ]
+                },
+                { "type": "string", "pattern": "^[^\\s()<>[\\]{}/%]+$" }
+              ],
+              "description": "One of FreeText, FreeTextCallout, FreeTextTypeWriter, LineArrow, LineDimension, PolygonCloud, PolygonDimension, PolyLineDimension. Any other PDF name is allowed and kept unchanged."
+            },
             "custom": {
               "type": "object",
               "propertyNames": { "type": "string" },
@@ -150,9 +186,23 @@
             },
             "type": { "type": "string", "const": "text" },
             "icon": {
-              "default": "comment",
-              "type": "string",
-              "enum": ["comment", "note", "help", "insert", "key", "paragraph"]
+              "default": "Note",
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "Comment",
+                    "Note",
+                    "Help",
+                    "Insert",
+                    "Key",
+                    "NewParagraph",
+                    "Paragraph"
+                  ]
+                },
+                { "type": "string", "pattern": "^[^\\s()<>[\\]{}/%]+$" }
+              ],
+              "description": "One of Comment, Note, Help, Insert, Key, NewParagraph, Paragraph. Any other PDF name is allowed and kept unchanged."
             }
           },
           "required": [
@@ -200,7 +250,25 @@
               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
             },
             "subject": { "type": "string" },
-            "intent": { "type": "string" },
+            "intent": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "FreeText",
+                    "FreeTextCallout",
+                    "FreeTextTypeWriter",
+                    "LineArrow",
+                    "LineDimension",
+                    "PolygonCloud",
+                    "PolygonDimension",
+                    "PolyLineDimension"
+                  ]
+                },
+                { "type": "string", "pattern": "^[^\\s()<>[\\]{}/%]+$" }
+              ],
+              "description": "One of FreeText, FreeTextCallout, FreeTextTypeWriter, LineArrow, LineDimension, PolygonCloud, PolygonDimension, PolyLineDimension. Any other PDF name is allowed and kept unchanged."
+            },
             "custom": {
               "type": "object",
               "propertyNames": { "type": "string" },
@@ -299,7 +367,25 @@
               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
             },
             "subject": { "type": "string" },
-            "intent": { "type": "string" },
+            "intent": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "FreeText",
+                    "FreeTextCallout",
+                    "FreeTextTypeWriter",
+                    "LineArrow",
+                    "LineDimension",
+                    "PolygonCloud",
+                    "PolygonDimension",
+                    "PolyLineDimension"
+                  ]
+                },
+                { "type": "string", "pattern": "^[^\\s()<>[\\]{}/%]+$" }
+              ],
+              "description": "One of FreeText, FreeTextCallout, FreeTextTypeWriter, LineArrow, LineDimension, PolygonCloud, PolygonDimension, PolyLineDimension. Any other PDF name is allowed and kept unchanged."
+            },
             "custom": {
               "type": "object",
               "propertyNames": { "type": "string" },
@@ -360,7 +446,25 @@
               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
             },
             "subject": { "type": "string" },
-            "intent": { "type": "string" },
+            "intent": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "FreeText",
+                    "FreeTextCallout",
+                    "FreeTextTypeWriter",
+                    "LineArrow",
+                    "LineDimension",
+                    "PolygonCloud",
+                    "PolygonDimension",
+                    "PolyLineDimension"
+                  ]
+                },
+                { "type": "string", "pattern": "^[^\\s()<>[\\]{}/%]+$" }
+              ],
+              "description": "One of FreeText, FreeTextCallout, FreeTextTypeWriter, LineArrow, LineDimension, PolygonCloud, PolygonDimension, PolyLineDimension. Any other PDF name is allowed and kept unchanged."
+            },
             "custom": {
               "type": "object",
               "propertyNames": { "type": "string" },
@@ -421,7 +525,25 @@
               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
             },
             "subject": { "type": "string" },
-            "intent": { "type": "string" },
+            "intent": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "FreeText",
+                    "FreeTextCallout",
+                    "FreeTextTypeWriter",
+                    "LineArrow",
+                    "LineDimension",
+                    "PolygonCloud",
+                    "PolygonDimension",
+                    "PolyLineDimension"
+                  ]
+                },
+                { "type": "string", "pattern": "^[^\\s()<>[\\]{}/%]+$" }
+              ],
+              "description": "One of FreeText, FreeTextCallout, FreeTextTypeWriter, LineArrow, LineDimension, PolygonCloud, PolygonDimension, PolyLineDimension. Any other PDF name is allowed and kept unchanged."
+            },
             "custom": {
               "type": "object",
               "propertyNames": { "type": "string" },
@@ -447,30 +569,46 @@
               "items": { "type": "number", "minimum": 0 }
             },
             "head": {
-              "type": "string",
-              "enum": [
-                "none",
-                "openArrow",
-                "closedArrow",
-                "square",
-                "circle",
-                "diamond",
-                "butt",
-                "slash"
-              ]
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "None",
+                    "Square",
+                    "Circle",
+                    "Diamond",
+                    "OpenArrow",
+                    "ClosedArrow",
+                    "Butt",
+                    "ROpenArrow",
+                    "RClosedArrow",
+                    "Slash"
+                  ]
+                },
+                { "type": "string", "pattern": "^[^\\s()<>[\\]{}/%]+$" }
+              ],
+              "description": "One of None, Square, Circle, Diamond, OpenArrow, ClosedArrow, Butt, ROpenArrow, RClosedArrow, Slash. Any other PDF name is allowed and kept unchanged."
             },
             "tail": {
-              "type": "string",
-              "enum": [
-                "none",
-                "openArrow",
-                "closedArrow",
-                "square",
-                "circle",
-                "diamond",
-                "butt",
-                "slash"
-              ]
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "None",
+                    "Square",
+                    "Circle",
+                    "Diamond",
+                    "OpenArrow",
+                    "ClosedArrow",
+                    "Butt",
+                    "ROpenArrow",
+                    "RClosedArrow",
+                    "Slash"
+                  ]
+                },
+                { "type": "string", "pattern": "^[^\\s()<>[\\]{}/%]+$" }
+              ],
+              "description": "One of None, Square, Circle, Diamond, OpenArrow, ClosedArrow, Butt, ROpenArrow, RClosedArrow, Slash. Any other PDF name is allowed and kept unchanged."
             }
           },
           "required": [
@@ -520,7 +658,25 @@
               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
             },
             "subject": { "type": "string" },
-            "intent": { "type": "string" },
+            "intent": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "FreeText",
+                    "FreeTextCallout",
+                    "FreeTextTypeWriter",
+                    "LineArrow",
+                    "LineDimension",
+                    "PolygonCloud",
+                    "PolygonDimension",
+                    "PolyLineDimension"
+                  ]
+                },
+                { "type": "string", "pattern": "^[^\\s()<>[\\]{}/%]+$" }
+              ],
+              "description": "One of FreeText, FreeTextCallout, FreeTextTypeWriter, LineArrow, LineDimension, PolygonCloud, PolygonDimension, PolyLineDimension. Any other PDF name is allowed and kept unchanged."
+            },
             "custom": {
               "type": "object",
               "propertyNames": { "type": "string" },
@@ -545,30 +701,46 @@
             },
             "interiorColor": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
             "head": {
-              "type": "string",
-              "enum": [
-                "none",
-                "openArrow",
-                "closedArrow",
-                "square",
-                "circle",
-                "diamond",
-                "butt",
-                "slash"
-              ]
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "None",
+                    "Square",
+                    "Circle",
+                    "Diamond",
+                    "OpenArrow",
+                    "ClosedArrow",
+                    "Butt",
+                    "ROpenArrow",
+                    "RClosedArrow",
+                    "Slash"
+                  ]
+                },
+                { "type": "string", "pattern": "^[^\\s()<>[\\]{}/%]+$" }
+              ],
+              "description": "One of None, Square, Circle, Diamond, OpenArrow, ClosedArrow, Butt, ROpenArrow, RClosedArrow, Slash. Any other PDF name is allowed and kept unchanged."
             },
             "tail": {
-              "type": "string",
-              "enum": [
-                "none",
-                "openArrow",
-                "closedArrow",
-                "square",
-                "circle",
-                "diamond",
-                "butt",
-                "slash"
-              ]
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "None",
+                    "Square",
+                    "Circle",
+                    "Diamond",
+                    "OpenArrow",
+                    "ClosedArrow",
+                    "Butt",
+                    "ROpenArrow",
+                    "RClosedArrow",
+                    "Slash"
+                  ]
+                },
+                { "type": "string", "pattern": "^[^\\s()<>[\\]{}/%]+$" }
+              ],
+              "description": "One of None, Square, Circle, Diamond, OpenArrow, ClosedArrow, Butt, ROpenArrow, RClosedArrow, Slash. Any other PDF name is allowed and kept unchanged."
             }
           },
           "required": [
@@ -617,7 +789,25 @@
               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
             },
             "subject": { "type": "string" },
-            "intent": { "type": "string" },
+            "intent": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "FreeText",
+                    "FreeTextCallout",
+                    "FreeTextTypeWriter",
+                    "LineArrow",
+                    "LineDimension",
+                    "PolygonCloud",
+                    "PolygonDimension",
+                    "PolyLineDimension"
+                  ]
+                },
+                { "type": "string", "pattern": "^[^\\s()<>[\\]{}/%]+$" }
+              ],
+              "description": "One of FreeText, FreeTextCallout, FreeTextTypeWriter, LineArrow, LineDimension, PolygonCloud, PolygonDimension, PolyLineDimension. Any other PDF name is allowed and kept unchanged."
+            },
             "custom": {
               "type": "object",
               "propertyNames": { "type": "string" },
@@ -690,7 +880,25 @@
               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
             },
             "subject": { "type": "string" },
-            "intent": { "type": "string" },
+            "intent": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "FreeText",
+                    "FreeTextCallout",
+                    "FreeTextTypeWriter",
+                    "LineArrow",
+                    "LineDimension",
+                    "PolygonCloud",
+                    "PolygonDimension",
+                    "PolyLineDimension"
+                  ]
+                },
+                { "type": "string", "pattern": "^[^\\s()<>[\\]{}/%]+$" }
+              ],
+              "description": "One of FreeText, FreeTextCallout, FreeTextTypeWriter, LineArrow, LineDimension, PolygonCloud, PolygonDimension, PolyLineDimension. Any other PDF name is allowed and kept unchanged."
+            },
             "custom": {
               "type": "object",
               "propertyNames": { "type": "string" },
@@ -771,7 +979,25 @@
               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
             },
             "subject": { "type": "string" },
-            "intent": { "type": "string" },
+            "intent": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "FreeText",
+                    "FreeTextCallout",
+                    "FreeTextTypeWriter",
+                    "LineArrow",
+                    "LineDimension",
+                    "PolygonCloud",
+                    "PolygonDimension",
+                    "PolyLineDimension"
+                  ]
+                },
+                { "type": "string", "pattern": "^[^\\s()<>[\\]{}/%]+$" }
+              ],
+              "description": "One of FreeText, FreeTextCallout, FreeTextTypeWriter, LineArrow, LineDimension, PolygonCloud, PolygonDimension, PolyLineDimension. Any other PDF name is allowed and kept unchanged."
+            },
             "custom": {
               "type": "object",
               "propertyNames": { "type": "string" },
@@ -836,7 +1062,25 @@
               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
             },
             "subject": { "type": "string" },
-            "intent": { "type": "string" },
+            "intent": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "FreeText",
+                    "FreeTextCallout",
+                    "FreeTextTypeWriter",
+                    "LineArrow",
+                    "LineDimension",
+                    "PolygonCloud",
+                    "PolygonDimension",
+                    "PolyLineDimension"
+                  ]
+                },
+                { "type": "string", "pattern": "^[^\\s()<>[\\]{}/%]+$" }
+              ],
+              "description": "One of FreeText, FreeTextCallout, FreeTextTypeWriter, LineArrow, LineDimension, PolygonCloud, PolygonDimension, PolyLineDimension. Any other PDF name is allowed and kept unchanged."
+            },
             "custom": {
               "type": "object",
               "propertyNames": { "type": "string" },
@@ -892,7 +1136,25 @@
               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
             },
             "subject": { "type": "string" },
-            "intent": { "type": "string" },
+            "intent": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "FreeText",
+                    "FreeTextCallout",
+                    "FreeTextTypeWriter",
+                    "LineArrow",
+                    "LineDimension",
+                    "PolygonCloud",
+                    "PolygonDimension",
+                    "PolyLineDimension"
+                  ]
+                },
+                { "type": "string", "pattern": "^[^\\s()<>[\\]{}/%]+$" }
+              ],
+              "description": "One of FreeText, FreeTextCallout, FreeTextTypeWriter, LineArrow, LineDimension, PolygonCloud, PolygonDimension, PolyLineDimension. Any other PDF name is allowed and kept unchanged."
+            },
             "custom": {
               "type": "object",
               "propertyNames": { "type": "string" },
@@ -948,7 +1210,25 @@
               "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
             },
             "subject": { "type": "string" },
-            "intent": { "type": "string" },
+            "intent": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "FreeText",
+                    "FreeTextCallout",
+                    "FreeTextTypeWriter",
+                    "LineArrow",
+                    "LineDimension",
+                    "PolygonCloud",
+                    "PolygonDimension",
+                    "PolyLineDimension"
+                  ]
+                },
+                { "type": "string", "pattern": "^[^\\s()<>[\\]{}/%]+$" }
+              ],
+              "description": "One of FreeText, FreeTextCallout, FreeTextTypeWriter, LineArrow, LineDimension, PolygonCloud, PolygonDimension, PolyLineDimension. Any other PDF name is allowed and kept unchanged."
+            },
             "custom": {
               "type": "object",
               "propertyNames": { "type": "string" },

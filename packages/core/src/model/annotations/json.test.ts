@@ -49,8 +49,8 @@ describe('json import/export', () => {
         { x: 10, y: 10 },
       ],
       dashes: [3, 3],
-      head: 'closedArrow',
-      tail: 'circle',
+      head: 'ClosedArrow',
+      tail: 'Circle',
       subject: 'Arrow',
       intent: 'LineArrow',
     })
@@ -59,7 +59,28 @@ describe('json import/export', () => {
     const s2 = mk()
     expect(importAnnotations(s2, text, { mode: 'replace' }).errors).toEqual([])
     expect(s2.list.get()).toEqual(s.list.get())
-    expect(s2.list.get()[0]).toMatchObject({ dashes: [3, 3], head: 'closedArrow' })
+    expect(s2.list.get()[0]).toMatchObject({ dashes: [3, 3], head: 'ClosedArrow' })
+  })
+
+  it('round-trips PDF names Inkbar does not know', () => {
+    const mk = () =>
+      createAnnotationStore({ mode: { mode: 'uncontrolled' }, defaults: staticDefaults })
+    const s = mk()
+    s.add({ type: 'text', page: 0, rect, icon: 'Check' })
+    s.add({
+      type: 'line',
+      page: 0,
+      start: { x: 0, y: 0 },
+      end: { x: 10, y: 10 },
+      head: 'ROpenArrow',
+      intent: 'InkHighlight',
+    })
+    const text = JSON.stringify(exportAnnotations(s, [], 'k'))
+    const s2 = mk()
+    expect(importAnnotations(s2, text, { mode: 'replace' }).errors).toEqual([])
+    expect(s2.list.get()).toEqual(s.list.get())
+    expect(s2.list.get()[0]).toMatchObject({ icon: 'Check' })
+    expect(s2.list.get()[1]).toMatchObject({ head: 'ROpenArrow', intent: 'InkHighlight' })
   })
 
   it('round-trips a square corner radius', () => {

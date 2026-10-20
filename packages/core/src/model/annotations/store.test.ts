@@ -430,7 +430,7 @@ describe('AnnotationStore embedded guard (uncontrolled)', () => {
   const embedded: Annotation = {
     id: 'pdf:0:1R',
     type: 'text',
-    icon: 'comment',
+    icon: 'Comment',
     page: 0,
     rect: { x: 0, y: 0, width: 20, height: 20 },
     color: '#FFD400',

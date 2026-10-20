@@ -189,7 +189,7 @@ export function keepsAspect(a: Annotation): boolean {
 }
 
 /**
- * True for a speech bubble: a free-text callout (`intent: 'freeTextCallout'`) with a tail
+ * True for a speech bubble: a free-text callout (`intent: 'FreeTextCallout'`) with a tail
  * (`callout`) and a corner radius. Inkbar draws it as one rounded outline with the tail; the
  * tip is `callout[0]` and the tail leaves the box where `callout[1]` meets its edge.
  */
@@ -198,7 +198,7 @@ export function isBubble(
 ): a is FreeTextAnnotation & { callout: [Point, Point, ...Point[]] } {
   return (
     a.type === 'freetext' &&
-    a.intent === 'freeTextCallout' &&
+    a.intent === 'FreeTextCallout' &&
     a.cornerRadius !== undefined &&
     a.callout !== undefined &&
     a.callout.length >= 2

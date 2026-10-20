@@ -474,7 +474,7 @@ describe('createOverlay', () => {
     page: 0,
     rect: { x: 100, y: 300, width: 120, height: 60 },
     contents: 'Hi',
-    intent: 'freeTextCallout',
+    intent: 'FreeTextCallout',
     cornerRadius: 8,
     width: 1,
     callout: [
@@ -779,6 +779,35 @@ describe('createOverlay', () => {
     ).toBe(false)
   })
 
+  it('a note with an icon name Inkbar does not know still draws the note icon', () => {
+    const { store, overlay } = setup()
+    const note = store.add({
+      type: 'text',
+      page: 0,
+      rect: { x: 100, y: 100, width: 20, height: 20 },
+      icon: 'Check',
+    })
+    const icon = overlay.elementFor(note.id)!.querySelector('.ink-note-icon')
+    expect(icon).not.toBeNull()
+    expect((icon as HTMLElement).dataset.icon).toBe('Check')
+  })
+
+  it('a line ending with a name Inkbar does not know draws no ending and keeps the name', () => {
+    const { store, overlay } = setup()
+    const line = store.add({
+      type: 'line',
+      page: 0,
+      start: { x: 100, y: 700 },
+      end: { x: 200, y: 700 },
+      width: 2,
+      tail: 'Wobble',
+    })
+    expect(
+      overlay.elementFor(line.id)!.querySelectorAll('path[data-ending]')
+    ).toHaveLength(0)
+    expect(store.list.get()[0]).toMatchObject({ tail: 'Wobble' })
+  })
+
   it('line tail openArrow renders an arrowhead path', () => {
     const { store, overlay } = setup()
     const line = store.add({
@@ -787,7 +816,7 @@ describe('createOverlay', () => {
       start: { x: 100, y: 700 },
       end: { x: 200, y: 700 },
       width: 2,
-      tail: 'openArrow',
+      tail: 'OpenArrow',
     })
     const el = overlay.elementFor(line.id)!
     const heads = el.querySelectorAll('path[data-ending]')
@@ -806,8 +835,8 @@ describe('createOverlay', () => {
       start: { x: 100, y: 700 },
       end: { x: 200, y: 700 },
       width: 2,
-      head: 'butt',
-      tail: 'slash',
+      head: 'Butt',
+      tail: 'Slash',
     })
     const cap = (id: string, end: string) =>
       overlay
@@ -816,7 +845,7 @@ describe('createOverlay', () => {
         .getAttribute('stroke-linecap')
     expect(cap(line.id, 'head')).toBe('butt')
     expect(cap(line.id, 'tail')).toBe('butt')
-    store.update(line.id, { head: 'openArrow' })
+    store.update(line.id, { head: 'OpenArrow' })
     expect(cap(line.id, 'head')).toBe('round')
   })
 
@@ -830,7 +859,7 @@ describe('createOverlay', () => {
         { x: 150, y: 650 },
         { x: 200, y: 700 },
       ],
-      head: 'closedArrow',
+      head: 'ClosedArrow',
     })
     const el = overlay.elementFor(pl.id)!
     expect(el.querySelectorAll('path[data-ending="head"]')).toHaveLength(1)

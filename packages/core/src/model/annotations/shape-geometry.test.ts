@@ -104,8 +104,8 @@ describe('shapeInput', () => {
       page: 2,
       start: a,
       end: b,
-      head: 'none',
-      tail: 'none',
+      head: 'None',
+      tail: 'None',
     })
   })
 
@@ -115,8 +115,8 @@ describe('shapeInput', () => {
       page: 2,
       start: a,
       end: b,
-      tail: 'openArrow',
-      intent: 'lineArrow',
+      tail: 'OpenArrow',
+      intent: 'LineArrow',
     })
   })
 
@@ -143,7 +143,7 @@ describe('shapeInput', () => {
       type: 'freetext',
       page: 2,
       contents: '',
-      intent: 'freeTextCallout',
+      intent: 'FreeTextCallout',
       cornerRadius: 8,
       width: 1,
       rect: { x: 10, y: 20, width: 40, height: 60 },

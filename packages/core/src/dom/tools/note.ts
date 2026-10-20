@@ -19,6 +19,7 @@ export function noteTool(): Tool {
   const place = (c: ToolContext, page: number, at: Point): string => {
     const a = c.store.add({
       type: 'text',
+      icon: 'Comment',
       page,
       rect: { x: at.x - SIZE / 2, y: at.y - SIZE / 2, width: SIZE, height: SIZE },
     })

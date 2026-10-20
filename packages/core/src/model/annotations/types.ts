@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { INTENTS, LINE_ENDINGS, NOTE_ICONS, pdfNameSet } from './pdf-names'
+
 export const ANNOTATION_FORMAT = 'inkbar/annotations'
 export const ANNOTATION_VERSION = 1
 
@@ -43,8 +45,8 @@ const Base = z.object({
   locked: z.boolean().optional(),
   /** Short label for what the mark is (XFDF `subject`). */
   subject: z.string().optional(),
-  /** What the mark is for, e.g. a callout or an arrow (XFDF `intent`). */
-  intent: z.string().optional(),
+  /** What the mark is for, e.g. a callout or an arrow (XFDF `intent`, a PDF name). */
+  intent: pdfNameSet(INTENTS).optional(),
   /** Host data. Preserved, never interpreted. */
   custom: z.record(z.string(), z.unknown()).optional(),
 })
@@ -54,11 +56,12 @@ export const TextMarkupSchema = Base.extend({
   quads: z.array(QuadSchema).min(1),
 })
 
+/** A note's icon (XFDF `icon`): a PDF name, so a name Inkbar does not know is kept. */
+export const NoteIconSchema = pdfNameSet(NOTE_ICONS)
+
 export const NoteSchema = Base.extend({
   type: z.literal('text'),
-  icon: z
-    .enum(['comment', 'note', 'help', 'insert', 'key', 'paragraph'])
-    .default('comment'),
+  icon: NoteIconSchema.default('Note'),
 })
 
 /** Dash pattern in points, on then off, repeating. Absent means solid. */
@@ -134,16 +137,8 @@ export const CircleSchema = Base.extend({
 
 export const ShapeSchema = z.discriminatedUnion('type', [SquareSchema, CircleSchema])
 
-export const LineEndingSchema = z.enum([
-  'none',
-  'openArrow',
-  'closedArrow',
-  'square',
-  'circle',
-  'diamond',
-  'butt',
-  'slash',
-])
+/** A line ending (XFDF `head`/`tail`): a PDF name, so a name Inkbar does not know is kept. */
+export const LineEndingSchema = pdfNameSet(LINE_ENDINGS)
 
 export const LineSchema = Base.extend({
   type: z.literal('line'),

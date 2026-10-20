@@ -1274,8 +1274,8 @@ describe('shape tool', () => {
     const t = viewport.transformFor(0)
     expect(l).toMatchObject({
       type: 'line',
-      tail: 'openArrow',
-      intent: 'lineArrow',
+      tail: 'OpenArrow',
+      intent: 'LineArrow',
       start: t.fromCss({ x: 100, y: 100 }),
       end: t.fromCss({ x: 220, y: 160 }),
     })
@@ -2119,7 +2119,7 @@ describe('speech bubble', () => {
     const [bubble] = session(doc)
     expect(bubble).toMatchObject({
       type: 'freetext',
-      intent: 'freeTextCallout',
+      intent: 'FreeTextCallout',
       contents: '',
       cornerRadius: 8,
     })
@@ -2199,7 +2199,7 @@ describe('speech bubble', () => {
     const bubble = doc.annotations.add({
       type: 'freetext',
       page: 0,
-      intent: 'freeTextCallout',
+      intent: 'FreeTextCallout',
       cornerRadius: 8,
       rect: { x: 100, y: 600, width: 144, height: 40 },
       contents: '',
@@ -3228,7 +3228,7 @@ describe('selection editing', () => {
       type: 'freetext',
       page: 0,
       contents: 'Hi',
-      intent: 'freeTextCallout',
+      intent: 'FreeTextCallout',
       cornerRadius: 8,
       width: 1,
       rect: { x: 100, y: 600, width: 100, height: 40 },

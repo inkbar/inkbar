@@ -34,8 +34,8 @@ describe('toFields', () => {
   })
 
   it('drops props a type does not have', () => {
-    expect(toFields('highlight', { width: 3, head: 'openArrow' })).toEqual({})
-    expect(toFields('square', { head: 'openArrow', tail: 'circle' })).toEqual({})
+    expect(toFields('highlight', { width: 3, head: 'OpenArrow' })).toEqual({})
+    expect(toFields('square', { head: 'OpenArrow', tail: 'Circle' })).toEqual({})
     expect(toFields('polyline', { fill: '#00FF00' })).toEqual({})
   })
 
@@ -44,11 +44,11 @@ describe('toFields', () => {
       expect(toFields(t, { dashes: [3, 3] })).toEqual({ dashes: [3, 3] })
     expect(toFields('ink', { dashes: [3, 3] })).toEqual({})
     expect(toFields('square', { dashes: null })).toEqual({ dashes: undefined })
-    expect(toFields('polyline', { head: 'openArrow', tail: 'none' })).toEqual({
-      head: 'openArrow',
-      tail: 'none',
+    expect(toFields('polyline', { head: 'OpenArrow', tail: 'None' })).toEqual({
+      head: 'OpenArrow',
+      tail: 'None',
     })
-    expect(toFields('polygon', { head: 'openArrow' })).toEqual({})
+    expect(toFields('polygon', { head: 'OpenArrow' })).toEqual({})
     expect(toFields('highlight', { dashes: [3, 3] })).toEqual({})
   })
 
@@ -58,10 +58,10 @@ describe('toFields', () => {
   })
 
   it('maps width, head and tail on lines', () => {
-    expect(toFields('line', { width: 3, head: 'openArrow', tail: 'circle' })).toEqual({
+    expect(toFields('line', { width: 3, head: 'OpenArrow', tail: 'Circle' })).toEqual({
       width: 3,
-      head: 'openArrow',
-      tail: 'circle',
+      head: 'OpenArrow',
+      tail: 'Circle',
     })
   })
 })
@@ -120,7 +120,7 @@ describe('free text', () => {
         textDecoration: undefined,
       },
     })
-    expect(toFields('freetext', { head: 'openArrow', opacity: 0.5 })).toEqual({
+    expect(toFields('freetext', { head: 'OpenArrow', opacity: 0.5 })).toEqual({
       opacity: 0.5,
     })
   })
@@ -269,8 +269,8 @@ describe('fromAnnotation', () => {
       start: { x: 0, y: 0 },
       end: { x: 1, y: 1 },
       width: 1,
-      tail: 'openArrow',
+      tail: 'OpenArrow',
     }
-    expect(fromAnnotation(line)).toMatchObject({ head: 'none', tail: 'openArrow' })
+    expect(fromAnnotation(line)).toMatchObject({ head: 'None', tail: 'OpenArrow' })
   })
 })

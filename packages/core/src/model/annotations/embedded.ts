@@ -9,6 +9,7 @@ import {
 import { parsePdfDate } from '../pdf-date'
 
 import { staticDefaults } from './defaults'
+import { LINE_ENDINGS, NOTE_ICONS, PDF_NAME } from './pdf-names'
 import { AnnotationSchema, type Annotation } from './types'
 
 import type { PdfjsAnnotationData } from '../../pdfjs/types'
@@ -51,29 +52,20 @@ function rectFromPdf(r: ArrayLike<number>): Rect {
   return rectFromPoints({ x: r[0]!, y: r[1]! }, { x: r[2]!, y: r[3]! })
 }
 
-const ICONS: Record<
-  string,
-  'comment' | 'note' | 'help' | 'insert' | 'key' | 'paragraph'
-> = {
-  comment: 'comment',
-  note: 'note',
-  help: 'help',
-  insert: 'insert',
-  key: 'key',
-  paragraph: 'paragraph',
-  newparagraph: 'paragraph',
-}
-
-const ENDINGS: Record<string, string> = {
-  none: 'none',
-  openarrow: 'openArrow',
-  closedarrow: 'closedArrow',
-  square: 'square',
-  circle: 'circle',
-  diamond: 'diamond',
-  butt: 'butt',
-  slash: 'slash',
-  rslash: 'slash',
+/**
+ * A PDF name as this version spells it: a known name matched without regard to case, else the
+ * name unchanged, else `fallback` when it is not a valid PDF name.
+ */
+function pdfName(
+  list: readonly string[],
+  raw: string | undefined,
+  fallback: string
+): string {
+  if (raw === undefined) return fallback
+  return (
+    list.find((k) => k.toLowerCase() === raw.toLowerCase()) ??
+    (PDF_NAME.test(raw) ? raw : fallback)
+  )
 }
 
 /**
@@ -164,7 +156,7 @@ function convert(
       candidate = {
         ...base('text'),
         type: 'text',
-        icon: ICONS[(d.name ?? 'comment').toLowerCase()] ?? 'comment',
+        icon: pdfName(NOTE_ICONS, d.name, 'Comment'),
       }
       break
     case 'FreeText': {
@@ -197,14 +189,14 @@ function convert(
     }
     case 'Line': {
       const l = d.lineCoordinates ?? [d.rect[0], d.rect[1], d.rect[2], d.rect[3]]
-      const endings = d.lineEndings?.map((e) => ENDINGS[e.toLowerCase()] ?? 'none')
+      const endings = d.lineEndings?.map((e) => pdfName(LINE_ENDINGS, e, 'None'))
       candidate = {
         ...base('line'),
         type: 'line',
         start: { x: l[0], y: l[1] },
         end: { x: l[2], y: l[3] },
         width: stroke,
-        ...(endings && endings.length === 2 && endings.some((e) => e !== 'none')
+        ...(endings && endings.length === 2 && endings.some((e) => e !== 'None')
           ? { head: endings[0], tail: endings[1] }
           : {}),
       }

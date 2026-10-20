@@ -422,7 +422,7 @@ test.describe('line style menu', () => {
     await menu.getByRole('menuitemradio', { name: 'Dashed' }).click()
     await expect(page.getByTestId('probe')).toHaveAttribute('data-dashes', '3/3')
     await menu.getByRole('menuitemradio', { name: 'Arrowhead at end' }).click()
-    await expect(page.getByTestId('probe')).toHaveAttribute('data-tails', 'openArrow')
+    await expect(page.getByTestId('probe')).toHaveAttribute('data-tails', 'OpenArrow')
     await menu.getByRole('menuitemradio', { name: 'Solid' }).click()
     await expect(page.getByTestId('probe')).toHaveAttribute('data-dashes', '-')
   })

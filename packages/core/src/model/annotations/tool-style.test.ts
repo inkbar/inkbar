@@ -188,7 +188,7 @@ describe('createToolStyle', () => {
       page: 0,
       rect,
       contents: 'Hi',
-      intent: 'freeTextCallout',
+      intent: 'FreeTextCallout',
       cornerRadius: 6,
       callout: [
         { x: 0, y: 0 },

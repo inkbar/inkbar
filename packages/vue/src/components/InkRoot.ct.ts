@@ -192,7 +192,7 @@ test('controlled annotations that change while the document opens reach the stor
   const note: Annotation = {
     id: 'late-note',
     type: 'text',
-    icon: 'comment',
+    icon: 'Comment',
     page: 0,
     rect: { x: 10, y: 10, width: 20, height: 20 },
     color: '#ffd400',
