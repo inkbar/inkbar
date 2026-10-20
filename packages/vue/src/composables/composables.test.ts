@@ -111,4 +111,14 @@ describe('useToolStyle', () => {
     expect(api?.get('markup')).toMatchObject({ border: '#00FF00' })
     expect(api?.current.value.border).toBe('#00FF00')
   })
+
+  // Checked by typecheck: never called.
+  it('offers set options only when it is not scoped to a group', () => {
+    const useTypes = () => {
+      useToolStyle().set({ width: 2 }, { apply: false })
+      // @ts-expect-error A scoped style sets its own group, so it takes no options.
+      useToolStyle('shape').set({ width: 2 }, { apply: false })
+    }
+    expect(useTypes).toBeTypeOf('function')
+  })
 })

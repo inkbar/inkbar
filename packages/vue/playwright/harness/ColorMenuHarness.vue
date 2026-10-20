@@ -7,12 +7,14 @@ import InkViewport from '../../src/components/InkViewport.vue'
 import ColorMenuControls from './ColorMenuControls.vue'
 import { useHostTrigger } from './host-trigger'
 
-import type { DocumentSource, PdfAssets } from '@inkbar/core'
+import type { DocumentSource, PdfAssets, StyleGroup } from '@inkbar/core'
 
 const props = defineProps<{
   src: DocumentSource
   assets: PdfAssets
   hostDisabled?: 'true' | 'false'
+  /** The border menu's style group. */
+  borderGroup?: StyleGroup
 }>()
 const host = useHostTrigger(() => props.hostDisabled)
 </script>
@@ -20,7 +22,11 @@ const host = useHostTrigger(() => props.hostDisabled)
 <template>
   <InkRoot :src="props.src" :assets="props.assets" :zoom="1">
     <InkToolbar>
-      <InkColorMenu property="border" v-bind="host.attrs.value" />
+      <InkColorMenu
+        property="border"
+        :group="props.borderGroup"
+        v-bind="host.attrs.value"
+      />
       <InkColorMenu property="fill" />
       <InkColorMenu property="textColor" />
     </InkToolbar>

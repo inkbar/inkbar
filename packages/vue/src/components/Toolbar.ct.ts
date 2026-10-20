@@ -272,7 +272,11 @@ test.describe('style menu triggers and the host', () => {
     harness: (typeof cases)[number]['harness'],
     hostDisabled?: 'true' | 'false'
   ) => {
-    const props = { src: fixtureUrl('text-simple'), assets, hostDisabled }
+    const props = {
+      src: fixtureUrl('text-simple'),
+      assets,
+      ...(hostDisabled ? { hostDisabled } : {}),
+    }
     if (harness === 'line') return mount(LineStyleHarness, { props })
     if (harness === 'colour') return mount(ColorMenuHarness, { props })
     return mount(TextStyleHarness, { props })
@@ -512,6 +516,27 @@ test.describe('colour menus', () => {
     await expect(
       page.getByRole('button', { name: 'Fill colour' }).locator('[data-ink-swatch]')
     ).toHaveAttribute('data-kind', 'none')
+  })
+
+  test('a scoped menu follows a change to its group prop', async ({ mount, page }) => {
+    const props = {
+      src: fixtureUrl('text-simple'),
+      assets,
+      borderGroup: 'shape' as const,
+    }
+    const cmp = await mount(ColorMenuHarness, { props })
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    const dot = page.locator('[data-ink-color-menu="border"] [data-ink-swatch]')
+    await page.getByRole('button', { name: 'Border colour' }).click()
+    await page
+      .getByRole('menu', { name: 'Border colour' })
+      .getByRole('menuitemradio', { name: '#FF3B30' })
+      .click()
+    await expect(dot).toHaveAttribute('data-color', '#FF3B30')
+    await cmp.update({ props: { ...props, borderGroup: 'markup' } })
+    await expect(dot).not.toHaveAttribute('data-color', '#FF3B30')
+    await cmp.update({ props })
+    await expect(dot).toHaveAttribute('data-color', '#FF3B30')
   })
 
   test('Custom opens a native color input and applies its value', async ({

@@ -55,10 +55,10 @@ const props = defineProps<{
    * Scopes the menu to one style group: it shows and sets that group's colour whatever tool
    * is active, and recolours the selection only when it is all in the group.
    */
-  group?: StyleGroup
+  group?: StyleGroup | undefined
 }>()
 
-const { current, supported, set } = useToolStyle(props.group)
+const { current, supported, set } = useToolStyle(() => props.group)
 const open = ref(false)
 const customInput = ref<HTMLInputElement | null>(null)
 
