@@ -1,0 +1,56 @@
+packages/core/package.json
+  s_4b33a1ee6ce14b::t_ca12652f0428ed 52
+packages/core/src/model/annotations/pdf-names.ts
+  s_4b33a1ee6ce14b::t_86fe092a643b46 1,4
+pnpm-workspace.yaml
+  s_4b33a1ee6ce14b::t_ca12652f0428ed 48
+packages/core/tsconfig.json
+  s_4b33a1ee6ce14b::t_07ae449c354568 8
+apps/e2e-shared/e2e/review.spec.ts
+  s_4b33a1ee6ce14b::t_89ea95453fad19 191
+packages/core/src/model/document.annotations.test.ts
+  s_4b33a1ee6ce14b::t_07ae449c354568 25-28
+  s_4b33a1ee6ce14b::t_222f2d80bc8447 2,102,104-105,235,252,258,283,318,360
+  s_4b33a1ee6ce14b::t_f8ad6b6795e8ef 11,98-101,103
+packages/core/src/model/annotations/json.test.ts
+  s_4b33a1ee6ce14b::t_9a2f8921f66431 1,5,346-349
+  s_4b33a1ee6ce14b::t_222f2d80bc8447 7,27,234,264,289,315,345,350-357,361-379,391,417
+  s_4b33a1ee6ce14b::t_f8ad6b6795e8ef 358-360
+apps/e2e-vue/src/ReviewPage.vue
+  s_4b33a1ee6ce14b::t_52e18b93ab6b38 9-10,152-153
+packages/core/src/model/annotations/__fixtures__/standard-callout.json
+  s_4b33a1ee6ce14b::t_f8ad6b6795e8ef 2
+packages/core/src/model/annotations/types.ts
+  s_4b33a1ee6ce14b::t_07ae449c354568 32-37
+  s_4b33a1ee6ce14b::t_86fe092a643b46 7-8
+  s_4b33a1ee6ce14b::t_0751db4fb70f13 1-3,5,9-11,13-23,25-27,39-40,42-43,52,56,64-66,68-70,72,76,78,97,106-108,110,119,121,125-127,132,134,136-139,146-148,172,178,184,189,191,195-197,199,202,320-321,328-329,331,333,335-336
+  s_4b33a1ee6ce14b::t_bdaa71644045d5 6,12,24,81,95,193
+  s_4b33a1ee6ce14b::t_11b8dbc722ab10 4,51,57-59
+apps/e2e-react/src/ReviewPage.tsx
+  s_4b33a1ee6ce14b::t_52e18b93ab6b38 9-10,197-198
+packages/core/src/model/annotations/json.ts
+  s_4b33a1ee6ce14b::t_aa236e82d0bdbd 6-7,62-63,81,113
+  s_4b33a1ee6ce14b::t_9a2f8921f66431 31-35,49-50
+apps/e2e-svelte/src/ReviewPage.svelte
+  s_4b33a1ee6ce14b::t_52e18b93ab6b38 10-11,155-156
+pnpm-lock.yaml
+  s_4b33a1ee6ce14b::t_ae9b51dbec8baa 508-510,3232-3234,7107-7110
+packages/core/src/model/annotations/callout.ts
+  s_4b33a1ee6ce14b::t_86fe092a643b46 4,16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d400c999cf181937e9914e5162e2071098bea13d",
+  "prompts": {},
+  "sessions": {
+    "s_4b33a1ee6ce14b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ce036f2-57fc-4d1c-a889-cdbd024c5a1e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": null
+    }
+  }
+}
