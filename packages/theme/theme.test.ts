@@ -165,7 +165,8 @@ describe('theme.css', () => {
     ])
       expect(rule?.toString()).toMatch(new RegExp(v))
     const border = rules.find((r) => r.selector === ':where(.ink-free-text[data-border])')
-    expect(border?.toString()).toMatch(/var\(--ink-border-width,.*var\(--ink-border,/)
+    // Its own colour token: --ink-border is the interface's.
+    expect(border?.toString()).toMatch(/var\(--ink-border-width,.*var\(--ink-box-border,/)
     expect(
       rules.some((r) => r.selector === ":where(.ink-free-text[data-border='dashed'])")
     ).toBe(true)
