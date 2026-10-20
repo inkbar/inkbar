@@ -1101,6 +1101,22 @@ describe('createViewer', () => {
       expect(document.activeElement).toBe(chevron)
     })
 
+    it("the colour row shows the chosen kind's default colour until a colour is picked", async () => {
+      const { viewer } = make('text-simple')
+      const root = createHighlightMenu(viewer)
+      viewer.element.prepend(root)
+      const { chevron } = parts(root)
+      const { doc } = await ready(viewer)
+      const swatch = (): HTMLElement =>
+        panel()!.querySelector<HTMLElement>('.ink-highlight-colour .ink-swatch')!
+      chevron.click()
+      expect(swatch().dataset.kind).toBe('color')
+      expect(swatch().dataset.color).toBe(doc.annotations.defaults.color('highlight'))
+      item('Underline').click()
+      chevron.click()
+      expect(swatch().dataset.color).toBe(doc.annotations.defaults.color('underline'))
+    })
+
     it('the colour sets the markup group under any tool, and recolours selected markup', async () => {
       const { viewer } = make('text-simple')
       const root = createHighlightMenu(viewer)
@@ -1192,6 +1208,19 @@ describe('createViewer', () => {
       expect(main.getAttribute('aria-pressed')).toBe('true')
       expect(main.dataset.state).toBe('on')
       expect(engine.tools.options('shape').get()).toMatchObject({ kind: 'rectangle' })
+    })
+
+    it('the panel lines up under the whole split button, not the chevron', async () => {
+      const { viewer } = make('text-simple')
+      const root = createShapeMenu(viewer)
+      root.style.marginLeft = '120px'
+      viewer.element.prepend(root)
+      const { chevron } = parts(root)
+      await ready(viewer)
+      chevron.click()
+      const left = panel()!.getBoundingClientRect().left
+      expect(left).toBeCloseTo(root.getBoundingClientRect().left, 0)
+      expect(left).toBeLessThan(chevron.getBoundingClientRect().left)
     })
 
     it('choosing ellipse activates shape with kind ellipse', async () => {

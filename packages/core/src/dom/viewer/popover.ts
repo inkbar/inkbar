@@ -40,6 +40,11 @@ export interface Popover {
  */
 export function placePanel(panel: HTMLElement, anchor: DOMRect): void {
   const { innerWidth: vw, innerHeight: vh } = window
+  // Fixed at the corner before measuring: a panel still in the flow is as wide as the body,
+  // and one left where it was is squeezed by the window edge.
+  panel.style.position = 'fixed'
+  panel.style.left = '0px'
+  panel.style.top = '0px'
   const w = panel.offsetWidth
   const ht = panel.offsetHeight
   let top = anchor.bottom + GAP
@@ -47,7 +52,6 @@ export function placePanel(panel: HTMLElement, anchor: DOMRect): void {
     top = anchor.top - GAP - ht
   top = Math.max(MARGIN, Math.min(top, vh - ht - MARGIN))
   const left = Math.max(MARGIN, Math.min(anchor.left, vw - w - MARGIN))
-  panel.style.position = 'fixed'
   panel.style.left = `${left}px`
   panel.style.top = `${top}px`
 }

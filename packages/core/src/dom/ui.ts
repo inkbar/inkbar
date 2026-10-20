@@ -243,12 +243,15 @@ export interface ColorMenuModel {
 
 /**
  * What a colour menu shows for a style: the palette with the matching swatch checked, "No fill"
- * for `fill`, and the trigger's swatch. Shared by the bindings and the vanilla menu.
+ * for `fill`, and the trigger's swatch. Shared by the bindings and the vanilla menu. `fallback`
+ * is the colour new annotations get while the style leaves it unset: the trigger shows it
+ * rather than an empty swatch.
  */
 export function colorMenuModel(
   property: ColorProperty,
   current: CurrentStyle,
-  supported: ReadonlySet<StyleKey>
+  supported: ReadonlySet<StyleKey>,
+  fallback?: string
 ): ColorMenuModel {
   const value = current[property]
   const enabled = supported.has(property)
@@ -270,7 +273,9 @@ export function colorMenuModel(
         ? { kind: 'none' }
         : typeof value === 'string'
           ? { kind: 'color', color: value }
-          : { kind: 'empty' }
+          : fallback !== undefined
+            ? { kind: 'color', color: fallback }
+            : { kind: 'empty' }
   return {
     label: COLOR_LABELS[property],
     enabled,
@@ -285,7 +290,7 @@ export function colorMenuModel(
     })),
     noFill:
       property === 'fill' ? { checked: value === null, patch: { fill: null } } : null,
-    customValue: color ?? '#000000',
+    customValue: color ?? fallback?.toUpperCase() ?? '#000000',
     custom: (hex) => patchFor(hex.toUpperCase()),
   }
 }

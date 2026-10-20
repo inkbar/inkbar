@@ -208,6 +208,7 @@ export function createSignatureMenu(
 
   const menu = createMenu(trigger, {
     label: SIGNATURE_LABELS.menu,
+    anchor: root,
     attrs: { 'data-ink-menu': 'signature' },
     render: (panel) => paint(panel, model()),
   })

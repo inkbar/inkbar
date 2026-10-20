@@ -23,6 +23,26 @@ describe('colorMenuModel', () => {
     expect(m.trigger).toEqual({ kind: 'color', color: '#ff3b30' })
   })
 
+  it('shows the fallback colour while the style leaves the colour unset', () => {
+    const m = colorMenuModel('border', {}, both, '#2B5A9E')
+    expect(m.trigger).toEqual({ kind: 'color', color: '#2B5A9E' })
+    expect(m.swatches.some((s) => s.checked)).toBe(false)
+    expect(m.customValue).toBe('#2B5A9E')
+    // A chosen colour, none or mixed still win; an unsupported property stays empty.
+    expect(
+      colorMenuModel('border', { border: '#FF3B30' }, both, '#2B5A9E').trigger
+    ).toEqual({
+      kind: 'color',
+      color: '#FF3B30',
+    })
+    expect(colorMenuModel('fill', { fill: null }, both, '#2B5A9E').trigger).toEqual({
+      kind: 'none',
+    })
+    expect(colorMenuModel('textColor', {}, both, '#2B5A9E').trigger).toEqual({
+      kind: 'empty',
+    })
+  })
+
   it('offers No fill only for fill, checked when the fill is null', () => {
     expect(colorMenuModel('border', {}, both).noFill).toBeNull()
     const none = colorMenuModel('fill', { fill: null }, both)

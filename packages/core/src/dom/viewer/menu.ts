@@ -21,6 +21,8 @@ export interface MenuOptions {
    * focusable one.
    */
   role?: 'menu' | 'dialog'
+  /** The element the panel lines up under. Default `trigger`; a split button passes itself. */
+  anchor?: HTMLElement
   /**
    * Whether `target` belongs to a menu nested in this one (its panel sits outside this panel
    * in the DOM). Presses, focus and Escape inside it neither dismiss this menu nor close it.
@@ -46,7 +48,7 @@ export function createMenu(trigger: HTMLButtonElement, opts: MenuOptions): Menu 
   let teardown: (() => void) | null = null
 
   const place = (): void => {
-    if (panel) placePanel(panel, trigger.getBoundingClientRect())
+    if (panel) placePanel(panel, (opts.anchor ?? trigger).getBoundingClientRect())
   }
 
   function close(restoreFocus = false): void {

@@ -36,6 +36,8 @@ export interface ColorMenuOptions {
    * colour whatever tool is active, and recolours the selection only when it is all in the group.
    */
   group?: StyleGroup
+  /** The colour new annotations get while the style leaves it unset; the trigger shows it. */
+  fallback?: Readable<string | undefined>
 }
 
 /** Sets a swatch element's kind and colour from the model's trigger. */
@@ -95,7 +97,8 @@ export function createColorMenu(
     colorMenuModel(
       property,
       style?.current.get() ?? {},
-      style?.supported.get() ?? new Set()
+      style?.supported.get() ?? new Set(),
+      opts.fallback?.get()
     )
 
   function refresh(): void {
@@ -226,5 +229,6 @@ export function createColorMenu(
   }
   follow(viewer.engine.get())
   viewer.engine.subscribe(follow)
+  opts.fallback?.subscribe(refresh)
   return trigger
 }

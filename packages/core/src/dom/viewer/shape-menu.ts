@@ -114,6 +114,7 @@ export function createShapeMenu(viewer: Viewer): HTMLElement {
 
   const menu = createMenu(trigger, {
     label: 'Shapes',
+    anchor: root,
     attrs: { 'data-ink-menu': 'shape' },
     render: (panel) => paint(panel, model()),
   })
