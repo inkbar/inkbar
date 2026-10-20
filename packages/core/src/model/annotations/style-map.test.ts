@@ -101,7 +101,9 @@ describe('free text', () => {
   })
 
   it('maps no fill, normal weight, normal style and no decoration to deletions', () => {
-    expect(toFields('freetext', { fill: null, dashes: null })).toEqual({
+    // Strict: a deletion is a key holding undefined, which plain toEqual would not tell apart
+    // from a missing key.
+    expect(toFields('freetext', { fill: null, dashes: null })).toStrictEqual({
       color: undefined,
       dashes: undefined,
     })
@@ -111,7 +113,7 @@ describe('free text', () => {
         fontStyle: 'normal',
         textDecoration: 'none',
       })
-    ).toEqual({
+    ).toStrictEqual({
       defaultStyle: {
         fontWeight: undefined,
         fontStyle: undefined,
