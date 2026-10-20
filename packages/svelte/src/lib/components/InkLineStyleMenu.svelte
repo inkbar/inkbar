@@ -25,10 +25,17 @@
 
   import { useToolStyle } from '../hooks/useToolStyle.svelte.js'
 
-  import { asBitsProps } from './child-snippet.js'
+  import { asBitsProps, composeHandlers } from './child-snippet.js'
   import InkIcon from './InkIcon.svelte'
 
-  let { class: className, children, ...rest }: InkLineStyleMenuProps = $props()
+  let {
+    class: className,
+    children,
+    disabled,
+    onclick,
+    onkeydown,
+    ...rest
+  }: InkLineStyleMenuProps = $props()
 
   const style = useToolStyle()
   let open = $state(false)
@@ -69,8 +76,9 @@
         aria-label="Line style"
         title="Line style"
         aria-haspopup="menu"
-        onkeydown={onTriggerKeydown}
-        disabled={!model.enabled}
+        onclick={composeHandlers(onclick, props.onclick)}
+        onkeydown={composeHandlers(onkeydown, props.onkeydown, onTriggerKeydown)}
+        disabled={!!disabled || !model.enabled}
       >
         {#if children}{@render children()}{:else}<InkIcon icon={Minus} />{/if}
       </Toolbar.Button>

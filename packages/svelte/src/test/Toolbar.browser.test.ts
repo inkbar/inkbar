@@ -376,6 +376,64 @@ describe('toolbar', () => {
     await expect.element(redo).toBeDisabled()
   })
 
+  describe('style menu triggers and the host', () => {
+    const cases = [
+      { harness: LineStyleHarness, name: 'Line style', role: 'menu', add: 'add-line-1' },
+      {
+        harness: ColorMenuHarness,
+        name: 'Border colour',
+        role: 'menu',
+        add: 'add-square',
+      },
+      { harness: TextStyleHarness, name: 'Text style', role: 'dialog', add: 'add-box' },
+    ] as const
+
+    it.each(cases)(
+      '$name: the host handlers run and the menu still opens',
+      async ({ harness, name, role, add }) => {
+        const keys: string[] = []
+        let clicks = 0
+        await render(harness, {
+          src: fixtureUrl('text-simple'),
+          assets,
+          trigger: {
+            onkeydown: (e: KeyboardEvent) => keys.push(e.key),
+            onclick: () => clicks++,
+          },
+        })
+        await q('.ink-page canvas')
+        await browserPage.getByTestId(add).click()
+        await browserPage.getByTestId('select-all').click()
+        const trigger = browserPage.getByRole('button', { name })
+        const menu = browserPage.getByRole(role, { name })
+        ;(trigger.element() as HTMLElement).focus()
+        await userEvent.keyboard('{ArrowDown}')
+        await expect.element(menu).toBeVisible()
+        expect(keys).toContain('ArrowDown')
+        await userEvent.keyboard('{Escape}')
+        await expect.element(menu).not.toBeInTheDocument()
+        await trigger.click()
+        await expect.element(menu).toBeVisible()
+        expect(clicks).toBe(1)
+      }
+    )
+
+    it.each(cases)(
+      '$name: a host disabled disables the trigger',
+      async ({ harness, name, add }) => {
+        await render(harness, {
+          src: fixtureUrl('text-simple'),
+          assets,
+          trigger: { disabled: true },
+        })
+        await q('.ink-page canvas')
+        await browserPage.getByTestId(add).click()
+        await browserPage.getByTestId('select-all').click()
+        await expect.element(browserPage.getByRole('button', { name })).toBeDisabled()
+      }
+    )
+  })
+
   describe('line style menu', () => {
     const trigger = () => browserPage.getByRole('button', { name: 'Line style' })
     const menu = () => browserPage.getByRole('menu', { name: 'Line style' })

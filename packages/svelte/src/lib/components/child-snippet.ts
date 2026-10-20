@@ -20,3 +20,23 @@ export type BitsProps<T> = { [K in keyof T]: Exclude<T[K], null | undefined> }
 export function asBitsProps<T extends object>(rest: T): BitsProps<T> {
   return rest as BitsProps<T>
 }
+
+type Handler<E> = ((e: E) => unknown) | null | undefined
+
+/**
+ * One handler for an element both the host and the component listen on: the host's first,
+ * then each of `inner` in turn unless the host (or an earlier one) prevented the default.
+ * `inner` takes Bits UI's own handler from its `props`, typed `unknown` there.
+ */
+export function composeHandlers<E extends Event>(
+  host: Handler<E>,
+  ...inner: unknown[]
+): (e: E) => void {
+  return (e) => {
+    host?.(e)
+    for (const fn of inner) {
+      if (e.defaultPrevented) return
+      ;(fn as Handler<E>)?.(e)
+    }
+  }
+}

@@ -12,11 +12,18 @@
     src,
     assets,
     fonts,
-  }: { src: DocumentSource; assets: PdfAssets; fonts?: string[] } = $props()
+    trigger = {},
+  }: {
+    src: DocumentSource
+    assets: PdfAssets
+    fonts?: string[]
+    /** Props a host passes the trigger. */
+    trigger?: Record<string, unknown>
+  } = $props()
 </script>
 
 <InkRoot {src} {assets} zoom={1} {fonts}>
-  <InkToolbar><InkTextStyleMenu /></InkToolbar>
+  <InkToolbar><InkTextStyleMenu {...trigger} /></InkToolbar>
   <div style="height: 600px; width: 900px"><InkViewport /></div>
   <TextStyleControls />
 </InkRoot>

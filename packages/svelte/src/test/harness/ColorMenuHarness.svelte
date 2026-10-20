@@ -8,12 +8,21 @@
 
   import type { DocumentSource, PdfAssets } from '@inkbar/core'
 
-  let { src, assets }: { src: DocumentSource; assets: PdfAssets } = $props()
+  let {
+    src,
+    assets,
+    trigger = {},
+  }: {
+    src: DocumentSource
+    assets: PdfAssets
+    /** Props a host passes the border trigger. */
+    trigger?: Record<string, unknown>
+  } = $props()
 </script>
 
 <InkRoot {src} {assets} zoom={1}>
   <InkToolbar>
-    <InkColorMenu property="border" />
+    <InkColorMenu property="border" {...trigger} />
     <InkColorMenu property="fill" />
     <InkColorMenu property="textColor" />
   </InkToolbar>
