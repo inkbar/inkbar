@@ -1,9 +1,6 @@
-import { dictGet, isName, PdfSyntaxError, type PdfDict, type PdfValue } from './lexer'
+import { dictGet, isDict, isName, PdfSyntaxError, type PdfDict } from './lexer'
 
 const ENDSTREAM = Uint8Array.from('endstream', (c) => c.charCodeAt(0))
-
-const isDict = (v: PdfValue | undefined): v is PdfDict =>
-  typeof v === 'object' && v !== null && !Array.isArray(v) && v.kind === 'dict'
 
 function matchesAt(bytes: Uint8Array, at: number, pattern: Uint8Array): boolean {
   if (at < 0 || at + pattern.length > bytes.length) return false
@@ -36,11 +33,13 @@ function rawData(
   return bytes.subarray(start, end)
 }
 
-/** The single filter parameter dictionary, if any. */
+/** The single filter parameter dictionary, if any. Anything else that is defined is an error. */
 function decodeParms(dict: PdfDict): PdfDict | undefined {
   const parms = dictGet(dict, 'DecodeParms') ?? dictGet(dict, 'DP')
   const first = Array.isArray(parms) ? parms[0] : parms
-  return isDict(first) ? first : undefined
+  if (first === undefined || first === null) return undefined
+  if (!isDict(first)) throw new PdfSyntaxError('Unsupported /DecodeParms')
+  return first
 }
 
 function numberParam(parms: PdfDict | undefined, key: string, fallback: number): number {

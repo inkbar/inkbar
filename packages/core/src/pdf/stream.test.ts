@@ -2,7 +2,7 @@ import { deflateSync } from 'node:zlib'
 
 import { describe, expect, it } from 'vitest'
 
-import { parseValue, type PdfDict } from './lexer'
+import { parseValue, PdfSyntaxError, type PdfDict } from './lexer'
 import { decodeStream } from './stream'
 
 const b = (s: string): Uint8Array => Uint8Array.from(s, (c) => c.charCodeAt(0))
@@ -60,5 +60,19 @@ describe('decodeStream', () => {
     expect(text(await decodeStream(src, dict('<< >>'), 0, undefined))).toBe('abc')
     expect(text(await decodeStream(src, dict('<< >>'), 0, 99))).toBe('abc')
     expect(text(await decodeStream(src, dict('<< >>'), 0, 1))).toBe('abc')
+  })
+
+  it('rejects /DecodeParms that is not a dictionary', async () => {
+    const data = deflateSync('hello')
+    for (const parms of ['5 0 R', '7', '[ 5 0 R ]']) {
+      await expect(
+        decodeStream(
+          data,
+          dict(`<< /Filter /FlateDecode /DecodeParms ${parms} >>`),
+          0,
+          data.length
+        )
+      ).rejects.toThrow(PdfSyntaxError)
+    }
   })
 })
