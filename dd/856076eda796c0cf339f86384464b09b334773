@@ -1,0 +1,24 @@
+apps/sandbox/e2e/smoke.spec.ts
+  s_9296d0dac39657::t_be54341e4fb1a6 251-264,272-291
+  s_9296d0dac39657::t_2aab665eaf7c17 265-271
+packages/core/src/dom/tools.browser.test.ts
+  s_9296d0dac39657::t_41bf87b0ea2fac 3256-3298
+packages/core/src/dom/tools/selection-edit.ts
+  s_9296d0dac39657::t_1c9c2c2030dbe9 27-29,253-258
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dd856076eda796c0cf339f86384464b09b334773",
+  "prompts": {},
+  "sessions": {
+    "s_9296d0dac39657": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8ee36f85-a611-470f-8334-be5e42d4be96",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
