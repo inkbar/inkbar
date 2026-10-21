@@ -1,4 +1,4 @@
-import{Bt as e,C as t,D as n,F as r,I as i,Jt as a,L as o,M as s,N as c,O as l,P as u,S as d,T as f,a as p,b as m,g as h,i as g,j as _,k as v,n as y,r as b,t as x,v as S,w as C,x as w,y as T}from"./suggest-DZsPWGX8.js";var E={html:`<pre class="shiki inkbar-ink" style="background-color:#0D1026;color:#C9CEE6" tabindex="0"><code><span class="line"><span style="color:#A9AFCB">/* Suggest redactions: a custom control, added to the demo's toolbar. */</span></span>
+import{A as e,Bt as t,C as n,D as r,E as i,F as a,I as o,Jt as s,L as c,N as l,P as u,R as d,S as f,T as p,Xt as m,Yt as h,a as g,b as _,i as v,j as y,k as b,n as x,o as S,r as C,s as w,t as T,v as E,w as D,x as O,z as k}from"./suggestion-card-CbkU9ssL.js";var A={html:`<pre class="shiki inkbar-ink" style="background-color:#0D1026;color:#C9CEE6" tabindex="0"><code><span class="line"><span style="color:#A9AFCB">/* Suggest redactions: a custom control, added to the demo's toolbar. */</span></span>
 <span class="line"><span style="color:#9DABFF">import</span><span style="color:#C9CEE6"> { isInkError, </span><span style="color:#9DABFF">type</span><span style="color:#C9CEE6"> InkDocument, </span><span style="color:#9DABFF">type</span><span style="color:#C9CEE6"> Readable } </span><span style="color:#9DABFF">from</span><span style="color:#E4FF4A"> '@inkbar/core'</span></span>
 <span class="line"></span>
 <span class="line"><span style="color:#9DABFF">import</span><span style="color:#C9CEE6"> { suggestionCount, suggestRedactions } </span><span style="color:#9DABFF">from</span><span style="color:#E4FF4A"> '../shared/suggest'</span></span>
@@ -126,11 +126,12 @@ export function addActions(
     },
   }
 }
-`};function D(e){let t=document.createElement(`button`);return t.type=`button`,t.textContent=e,t}function O(t,n){let r=D(`Suggest redactions`),i=document.createElement(`span`);i.className=`demo-result`,i.setAttribute(`role`,`status`);let a=document.createElement(`div`);a.className=`demo-actions`,a.setAttribute(`role`,`group`),a.setAttribute(`aria-label`,`Suggest`),a.append(r,i),t.append(a);let o=t=>{i.textContent=``,r.disabled=!t,t?r.onclick=()=>{r.disabled=!0,x(t,t.annotations.list.get()).then(e=>{t.history.batch(()=>{for(let n of e)t.annotations.add(n)}),n.get()===t&&(i.textContent=y(e.length))}).catch(r=>{n.get()===t&&(e(r)&&r.code===`DocumentDestroyed`||(i.textContent=`Could not check this document.`))}).finally(()=>{n.get()===t&&(r.disabled=!1)})}:r.onclick=null};o(n.get());let s=n.subscribe(o);return{destroy(){s(),a.remove()}}}function k(e,t,...n){let r=document.createElement(`div`);return r.className=t,r.setAttribute(`role`,`group`),r.setAttribute(`aria-label`,e),r.append(...n),r}function A(e,a){let y=u(e,{source:a,assets:p,signatures:g,signatureFonts:b});y.element.classList.add(`demo-root`);let x=_();x.classList.add(`demo-toolbar`),x.append(S(y),k(`Tools`,`demo-group`,v(y,`select-text`),v(y,`select`),v(y,`redact-area`),v(y,`sketch`),v(y,`draw`),f(y),v(y,`freetext`),n(y),v(y,`note`)),s(),k(`Style`,`demo-group`,T(y),h(y,{property:`border`}),h(y,{property:`fill`}),l(y)),c(y),C(y));let E=O(x,y.document),D=_({label:`Page and zoom`});return D.classList.add(`demo-status-bar`),D.append(k(`Page`,`demo-group`,t(y),d(y),w(y),m(y)),k(`Zoom`,`demo-group demo-zoom`,i(y),o(y),r(y))),y.element.prepend(x),y.element.append(D),()=>{E.destroy(),y.destroy()}}a({framework:`vanilla`,files:[{path:`src/vanilla/Demo.ts`,source:{html:`<pre class="shiki inkbar-ink" style="background-color:#0D1026;color:#C9CEE6" tabindex="0"><code><span class="line"><span style="color:#A9AFCB">/*</span></span>
+`};function j(e){let t=document.createElement(`button`);return t.type=`button`,t.textContent=e,t}function M(e,n){let r=j(`Suggest redactions`),i=document.createElement(`span`);i.className=`demo-result`,i.setAttribute(`role`,`status`);let a=document.createElement(`div`);a.className=`demo-actions`,a.setAttribute(`role`,`group`),a.setAttribute(`aria-label`,`Suggest`),a.append(r,i),e.append(a);let o=e=>{i.textContent=``,r.disabled=!e,e?r.onclick=()=>{r.disabled=!0,x(e,e.annotations.list.get()).then(t=>{e.history.batch(()=>{for(let n of t)e.annotations.add(n)}),n.get()===e&&(i.textContent=C(t.length))}).catch(r=>{n.get()===e&&(t(r)&&r.code===`DocumentDestroyed`||(i.textContent=`Could not check this document.`))}).finally(()=>{n.get()===e&&(r.disabled=!1)})}:r.onclick=null};o(n.get());let s=n.subscribe(o);return{destroy(){s(),a.remove()}}}function N(e,t,...n){let r=document.createElement(`div`);return r.className=t,r.setAttribute(`role`,`group`),r.setAttribute(`aria-label`,e),r.append(...n),r}function P(t,s){let m=o(t,{source:s,assets:w,signatures:S,signatureFonts:g,decorateAnnotation:v});m.element.classList.add(`demo-root`);let h=null,x=e=>{h?.destroy(),h=e?T({root:m.element,store:e.annotations,activated:m.activated,setActivated:e=>m.setActivated(e)}):null};x(m.document.get());let C=m.document.subscribe(x),A=l();A.classList.add(`demo-toolbar`),A.append(_(m),N(`Tools`,`demo-group`,y(m,`select-text`),y(m,`select`),y(m,`redact-area`),y(m,`sketch`),y(m,`draw`),r(m),y(m,`freetext`),b(m),y(m,`note`)),u(),N(`Style`,`demo-group`,O(m),E(m,{property:`border`}),E(m,{property:`fill`}),e(m)),a(m),i(m));let j=M(A,m.document),P=l({label:`Page and zoom`});return P.classList.add(`demo-status-bar`),P.append(N(`Page`,`demo-group`,p(m),D(m),n(m),f(m)),N(`Zoom`,`demo-group demo-zoom`,d(m),k(m),c(m))),m.element.prepend(A),m.element.append(P),()=>{C(),h?.destroy(),j.destroy(),m.destroy()}}s({framework:`vanilla`,files:[{path:`src/vanilla/Demo.ts`,source:{html:`<pre class="shiki inkbar-ink" style="background-color:#0D1026;color:#C9CEE6" tabindex="0"><code><span class="line"><span style="color:#A9AFCB">/*</span></span>
 <span class="line"><span style="color:#A9AFCB"> * Inkbar without a framework: createViewer opens the document and renders the viewer and its</span></span>
 <span class="line"><span style="color:#A9AFCB"> * popovers. The toolbars are built from Inkbar's controls, so each one is yours to keep, move</span></span>
 <span class="line"><span style="color:#A9AFCB"> * or drop, and each button takes your own icon in place of the one it shows. Suggest</span></span>
-<span class="line"><span style="color:#A9AFCB"> * redactions is a custom control, in actions.ts.</span></span>
+<span class="line"><span style="color:#A9AFCB"> * redactions is the app's own extension: its button is in actions.ts, its review card in</span></span>
+<span class="line"><span style="color:#A9AFCB"> * shared/suggestion-card.ts.</span></span>
 <span class="line"><span style="color:#A9AFCB"> */</span></span>
 <span class="line"><span style="color:#9DABFF">import</span><span style="color:#C9CEE6"> {</span></span>
 <span class="line"><span style="color:#C9CEE6">  createColorMenu,</span></span>
@@ -157,10 +158,12 @@ export function addActions(
 <span class="line"><span style="color:#9DABFF">import</span><span style="color:#C9CEE6"> { assets } </span><span style="color:#9DABFF">from</span><span style="color:#E4FF4A"> 'virtual:inkbar-assets'</span></span>
 <span class="line"></span>
 <span class="line"><span style="color:#9DABFF">import</span><span style="color:#C9CEE6"> { signatureFonts, signatures } </span><span style="color:#9DABFF">from</span><span style="color:#E4FF4A"> '../shared/signatures'</span></span>
+<span class="line"><span style="color:#9DABFF">import</span><span style="color:#C9CEE6"> { decorateSuggestion } </span><span style="color:#9DABFF">from</span><span style="color:#E4FF4A"> '../shared/suggestion'</span></span>
+<span class="line"><span style="color:#9DABFF">import</span><span style="color:#C9CEE6"> { mountSuggestionCard } </span><span style="color:#9DABFF">from</span><span style="color:#E4FF4A"> '../shared/suggestion-card'</span></span>
 <span class="line"></span>
 <span class="line"><span style="color:#9DABFF">import</span><span style="color:#C9CEE6"> { addActions } </span><span style="color:#9DABFF">from</span><span style="color:#E4FF4A"> './actions'</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#9DABFF">import</span><span style="color:#9DABFF"> type</span><span style="color:#C9CEE6"> { DocumentSource } </span><span style="color:#9DABFF">from</span><span style="color:#E4FF4A"> '@inkbar/core'</span></span>
+<span class="line"><span style="color:#9DABFF">import</span><span style="color:#9DABFF"> type</span><span style="color:#C9CEE6"> { DocumentSource, InkDocument } </span><span style="color:#9DABFF">from</span><span style="color:#E4FF4A"> '@inkbar/core'</span></span>
 <span class="line"></span>
 <span class="line"><span style="color:#9DABFF">function</span><span style="color:#FFFFFF"> group</span><span style="color:#C9CEE6">(</span></span>
 <span class="line"><span style="color:#C9CEE6">  label</span><span style="color:#9DABFF">:</span><span style="color:#C9CEE6"> string,</span></span>
@@ -176,8 +179,30 @@ export function addActions(
 <span class="line"><span style="color:#C9CEE6">}</span></span>
 <span class="line"></span>
 <span class="line"><span style="color:#9DABFF">export</span><span style="color:#9DABFF"> function</span><span style="color:#FFFFFF"> mountDemo</span><span style="color:#C9CEE6">(el</span><span style="color:#9DABFF">:</span><span style="color:#FFFFFF"> HTMLElement</span><span style="color:#C9CEE6">, source</span><span style="color:#9DABFF">:</span><span style="color:#FFFFFF"> DocumentSource</span><span style="color:#C9CEE6">)</span><span style="color:#9DABFF">:</span><span style="color:#C9CEE6"> () </span><span style="color:#9DABFF">=></span><span style="color:#C9CEE6"> void {</span></span>
-<span class="line"><span style="color:#9DABFF">  const</span><span style="color:#C9CEE6"> viewer </span><span style="color:#9DABFF">=</span><span style="color:#FFFFFF"> createViewer</span><span style="color:#C9CEE6">(el, { source, assets, signatures, signatureFonts })</span></span>
+<span class="line"><span style="color:#9DABFF">  const</span><span style="color:#C9CEE6"> viewer </span><span style="color:#9DABFF">=</span><span style="color:#FFFFFF"> createViewer</span><span style="color:#C9CEE6">(el, {</span></span>
+<span class="line"><span style="color:#C9CEE6">    source,</span></span>
+<span class="line"><span style="color:#C9CEE6">    assets,</span></span>
+<span class="line"><span style="color:#C9CEE6">    signatures,</span></span>
+<span class="line"><span style="color:#C9CEE6">    signatureFonts,</span></span>
+<span class="line"><span style="color:#C9CEE6">    decorateAnnotation: decorateSuggestion,</span></span>
+<span class="line"><span style="color:#C9CEE6">  })</span></span>
 <span class="line"><span style="color:#C9CEE6">  viewer.element.classList.</span><span style="color:#FFFFFF">add</span><span style="color:#C9CEE6">(</span><span style="color:#E4FF4A">'demo-root'</span><span style="color:#C9CEE6">)</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#A9AFCB">  // The suggestion review card, remounted for each document opened.</span></span>
+<span class="line"><span style="color:#9DABFF">  let</span><span style="color:#C9CEE6"> card</span><span style="color:#9DABFF">:</span><span style="color:#C9CEE6"> { </span><span style="color:#FFFFFF">destroy</span><span style="color:#C9CEE6">()</span><span style="color:#9DABFF">:</span><span style="color:#C9CEE6"> void } </span><span style="color:#9DABFF">|</span><span style="color:#C9CEE6"> null </span><span style="color:#9DABFF">=</span><span style="color:#E4FF4A"> null</span></span>
+<span class="line"><span style="color:#9DABFF">  const</span><span style="color:#FFFFFF"> mountCard</span><span style="color:#9DABFF"> =</span><span style="color:#C9CEE6"> (doc</span><span style="color:#9DABFF">:</span><span style="color:#FFFFFF"> InkDocument</span><span style="color:#9DABFF"> |</span><span style="color:#C9CEE6"> null)</span><span style="color:#9DABFF">:</span><span style="color:#C9CEE6"> void </span><span style="color:#9DABFF">=></span><span style="color:#C9CEE6"> {</span></span>
+<span class="line"><span style="color:#C9CEE6">    card?.</span><span style="color:#FFFFFF">destroy</span><span style="color:#C9CEE6">()</span></span>
+<span class="line"><span style="color:#C9CEE6">    card </span><span style="color:#9DABFF">=</span><span style="color:#C9CEE6"> doc</span></span>
+<span class="line"><span style="color:#9DABFF">      ?</span><span style="color:#FFFFFF"> mountSuggestionCard</span><span style="color:#C9CEE6">({</span></span>
+<span class="line"><span style="color:#C9CEE6">          root: viewer.element,</span></span>
+<span class="line"><span style="color:#C9CEE6">          store: doc.annotations,</span></span>
+<span class="line"><span style="color:#C9CEE6">          activated: viewer.activated,</span></span>
+<span class="line"><span style="color:#FFFFFF">          setActivated</span><span style="color:#C9CEE6">: (id) </span><span style="color:#9DABFF">=></span><span style="color:#C9CEE6"> viewer.</span><span style="color:#FFFFFF">setActivated</span><span style="color:#C9CEE6">(id),</span></span>
+<span class="line"><span style="color:#C9CEE6">        })</span></span>
+<span class="line"><span style="color:#9DABFF">      :</span><span style="color:#E4FF4A"> null</span></span>
+<span class="line"><span style="color:#C9CEE6">  }</span></span>
+<span class="line"><span style="color:#FFFFFF">  mountCard</span><span style="color:#C9CEE6">(viewer.document.</span><span style="color:#FFFFFF">get</span><span style="color:#C9CEE6">())</span></span>
+<span class="line"><span style="color:#9DABFF">  const</span><span style="color:#C9CEE6"> stopCard </span><span style="color:#9DABFF">=</span><span style="color:#C9CEE6"> viewer.document.</span><span style="color:#FFFFFF">subscribe</span><span style="color:#C9CEE6">(mountCard)</span></span>
 <span class="line"></span>
 <span class="line"><span style="color:#9DABFF">  const</span><span style="color:#C9CEE6"> tools </span><span style="color:#9DABFF">=</span><span style="color:#FFFFFF"> createToolbar</span><span style="color:#C9CEE6">()</span></span>
 <span class="line"><span style="color:#C9CEE6">  tools.classList.</span><span style="color:#FFFFFF">add</span><span style="color:#C9CEE6">(</span><span style="color:#E4FF4A">'demo-toolbar'</span><span style="color:#C9CEE6">)</span></span>
@@ -233,6 +258,8 @@ export function addActions(
 <span class="line"><span style="color:#C9CEE6">  viewer.element.</span><span style="color:#FFFFFF">prepend</span><span style="color:#C9CEE6">(tools)</span></span>
 <span class="line"><span style="color:#C9CEE6">  viewer.element.</span><span style="color:#FFFFFF">append</span><span style="color:#C9CEE6">(status)</span></span>
 <span class="line"><span style="color:#9DABFF">  return</span><span style="color:#C9CEE6"> () </span><span style="color:#9DABFF">=></span><span style="color:#C9CEE6"> {</span></span>
+<span class="line"><span style="color:#FFFFFF">    stopCard</span><span style="color:#C9CEE6">()</span></span>
+<span class="line"><span style="color:#C9CEE6">    card?.</span><span style="color:#FFFFFF">destroy</span><span style="color:#C9CEE6">()</span></span>
 <span class="line"><span style="color:#C9CEE6">    actions.</span><span style="color:#FFFFFF">destroy</span><span style="color:#C9CEE6">()</span></span>
 <span class="line"><span style="color:#C9CEE6">    viewer.</span><span style="color:#FFFFFF">destroy</span><span style="color:#C9CEE6">()</span></span>
 <span class="line"><span style="color:#C9CEE6">  }</span></span>
@@ -241,7 +268,8 @@ export function addActions(
  * Inkbar without a framework: createViewer opens the document and renders the viewer and its
  * popovers. The toolbars are built from Inkbar's controls, so each one is yours to keep, move
  * or drop, and each button takes your own icon in place of the one it shows. Suggest
- * redactions is a custom control, in actions.ts.
+ * redactions is the app's own extension: its button is in actions.ts, its review card in
+ * shared/suggestion-card.ts.
  */
 import {
   createColorMenu,
@@ -268,10 +296,12 @@ import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 
 import { signatureFonts, signatures } from '../shared/signatures'
+import { decorateSuggestion } from '../shared/suggestion'
+import { mountSuggestionCard } from '../shared/suggestion-card'
 
 import { addActions } from './actions'
 
-import type { DocumentSource } from '@inkbar/core'
+import type { DocumentSource, InkDocument } from '@inkbar/core'
 
 function group(
   label: string,
@@ -287,8 +317,30 @@ function group(
 }
 
 export function mountDemo(el: HTMLElement, source: DocumentSource): () => void {
-  const viewer = createViewer(el, { source, assets, signatures, signatureFonts })
+  const viewer = createViewer(el, {
+    source,
+    assets,
+    signatures,
+    signatureFonts,
+    decorateAnnotation: decorateSuggestion,
+  })
   viewer.element.classList.add('demo-root')
+
+  // The suggestion review card, remounted for each document opened.
+  let card: { destroy(): void } | null = null
+  const mountCard = (doc: InkDocument | null): void => {
+    card?.destroy()
+    card = doc
+      ? mountSuggestionCard({
+          root: viewer.element,
+          store: doc.annotations,
+          activated: viewer.activated,
+          setActivated: (id) => viewer.setActivated(id),
+        })
+      : null
+  }
+  mountCard(viewer.document.get())
+  const stopCard = viewer.document.subscribe(mountCard)
 
   const tools = createToolbar()
   tools.classList.add('demo-toolbar')
@@ -344,8 +396,10 @@ export function mountDemo(el: HTMLElement, source: DocumentSource): () => void {
   viewer.element.prepend(tools)
   viewer.element.append(status)
   return () => {
+    stopCard()
+    card?.destroy()
     actions.destroy()
     viewer.destroy()
   }
 }
-`}},{path:`src/vanilla/actions.ts`,source:E}],mount:A});
+`}},{path:`src/vanilla/actions.ts`,source:A},{path:`src/shared/suggestion.ts`,source:h},{path:`src/shared/suggestion-card.ts`,source:m}],mount:P});
