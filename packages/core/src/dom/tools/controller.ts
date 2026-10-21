@@ -20,8 +20,8 @@
 // A one-shot tool (`kind: 'one-shot'`) is used once, then hands back to `select-text`. It is
 // ready until it reports what it made (`ctx.made`), then made, with `data-ink-made` on the
 // root. A press on empty page while made, or Escape, ends it (`ctx.done`), and the tool never
-// sees that press. A press on another annotation (not text markup) switches to `select-text`
-// in either state and goes to it, so the same press can drag. Whether a press finds the tool
+// sees that press. A press on another annotation switches to `select-text` and goes to it, so
+// the same press can drag: in either state, bar text markup, which switches only when made. Whether a press finds the tool
 // made is read before anything the press itself does: on the window when it is created, or on
 // the document once a free-text editor (which listens on the window) has committed. So a note
 // dropped by the press that closes its popover still counts as made. Removing everything it
@@ -305,7 +305,9 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
         if (madeEdit.onPointerDown(e, hitFor(ctx, e), a.id) === true) capture(e.pointerId)
         return
       }
-      if (a && !isTextMarkup(a)) set('select-text')
+      // Text markup counts as another annotation once the tool has made something; while it
+      // is ready the tool may claim the press (area redaction draws from it).
+      if (a && (!isTextMarkup(a) || pressFoundMade)) set('select-text')
     }
     pressed = e.pointerId
     if (current?.onPointerDown?.(e, hitFor(ctx, e), annotationId) === true)

@@ -4638,6 +4638,58 @@ describe('one-shot tools', () => {
     expect(doc.annotations.selection.get()).toEqual([a.id])
   })
 
+  /** A made area redaction, with a highlight on page 0 and a point in its middle. */
+  async function madeRedactionAndMarkup() {
+    const ctx = await setup()
+    const { doc, container, viewport, tools } = ctx
+    const markup = doc.annotations.add({
+      type: 'highlight',
+      page: 0,
+      quads: [
+        {
+          p1: { x: 72, y: 715 },
+          p2: { x: 300, y: 715 },
+          p3: { x: 72, y: 695 },
+          p4: { x: 300, y: 695 },
+        },
+      ],
+    })
+    await settle()
+    tools.set('redact-area')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 200, h.top + 300)
+    pointer(container, 'pointermove', h.left + 240, h.top + 330)
+    pointer(container, 'pointerup', h.left + 240, h.top + 330)
+    expect(doc.annotations.list.get()).toHaveLength(2)
+    expect(container.hasAttribute('data-ink-made')).toBe(true)
+    const el = container.querySelector(`[data-annotation="${markup.id}"]`)!
+    const r = el.getBoundingClientRect()
+    const x = r.left + r.width / 2
+    const y = r.top + r.height / 2
+    const target = document.elementFromPoint(x, y)!
+    expect(el.contains(target)).toBe(true)
+    return { ...ctx, markup, target, x, y }
+  }
+
+  it('a click on text markup after an area redaction selects it and switches to select-text', async () => {
+    const { doc, container, tools, markup, target, x, y } = await madeRedactionAndMarkup()
+    pointer(target, 'pointerdown', x, y)
+    pointer(container, 'pointerup', x, y)
+    expect(tools.active.get()).toBe('select-text')
+    expect(doc.annotations.list.get()).toHaveLength(2)
+    expect(doc.annotations.selection.get()).toEqual([markup.id])
+  })
+
+  it('a drag from text markup after an area redaction makes no second redaction', async () => {
+    const { doc, container, tools, target, x, y } = await madeRedactionAndMarkup()
+    pointer(target, 'pointerdown', x, y)
+    pointer(container, 'pointermove', x + 30, y + 20)
+    pointer(container, 'pointermove', x + 60, y + 40)
+    pointer(container, 'pointerup', x + 60, y + 40)
+    expect(tools.active.get()).toBe('select-text')
+    expect(doc.annotations.list.get()).toHaveLength(2)
+  })
+
   it('a press on the made item keeps the tool on', async () => {
     const { doc, container, viewport, tools } = await setup()
     tools.set('shape')
