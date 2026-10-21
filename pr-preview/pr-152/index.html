@@ -9,7 +9,7 @@
       content="Try the Inkbar PDF viewer and editor in React, Vue, Svelte and plain TypeScript."
     />
     <link rel="icon" href="/pr-preview/pr-152/favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" crossorigin href="/pr-preview/pr-152/assets/index-Bz0xOD3R.css">
+    <link rel="stylesheet" crossorigin href="/pr-preview/pr-152/assets/index-BbjsGYe6.css">
   </head>
   <body>
     <header class="site-header">
@@ -35,7 +35,7 @@
         <div class="hero-copy">
           <h1>One PDF editor. <span class="mark">Four ways</span> to build it.</h1>
           <p class="lede">
-            Each sandbox runs the same viewer on a sample case file, built with a
+            Each sandbox runs the same viewer on a tour of every annotation, built with a
             different binding. Highlight text, mark it for redaction, leave notes, or open
             a PDF of your own.
           </p>
@@ -50,26 +50,29 @@
         <figure class="specimen" aria-hidden="true">
           <div class="sheet">
             <div class="sheet-head">
-              <strong>Fernhill Housing Trust</strong>
-              <span>Page 1 of 3</span>
+              <strong>Customer record</strong>
+              <span>Page 4 of 4</span>
             </div>
-            <p class="sheet-re">
-              <span class="sheet-highlight"
-                >Re: Review of your tenancy, case FH-2026-0418</span
-              >
-            </p>
-            <p>
-              We hold your National Insurance number as
-              <span class="sheet-redaction"></span>. Please tell us if it is wrong.
-            </p>
-            <p class="sheet-noted">
-              If anything here is unclear, call your case officer, Jordan Pike, on
-              <span class="sheet-suggested">07700 900123</span>, or email
-              jordan.pike@fernhill.example.
-              <span class="sheet-pin">
-                <svg viewBox="0 0 24 24"><path d="M7 9h10M7 13h6" /></svg>
-              </span>
-            </p>
+            <dl class="sheet-record">
+              <dt>Name</dt>
+              <dd><span class="sheet-redaction"></span></dd>
+              <dt>Customer since</dt>
+              <dd><span class="sheet-highlight">March 2019</span></dd>
+              <dt>NI number</dt>
+              <dd><span class="sheet-suggested">QQ123456C</span></dd>
+              <dt>Email</dt>
+              <dd><span class="sheet-suggested">m.okafor@example.com</span></dd>
+              <dt>Phone</dt>
+              <dd><span class="sheet-suggested">07700 900123</span></dd>
+              <dt>Plan</dt>
+              <dd class="sheet-noted">
+                Household, billed monthly
+                <span class="sheet-pin">
+                  <svg viewBox="0 0 24 24"><path d="M7 9h10M7 13h6" /></svg>
+                </span>
+              </dd>
+            </dl>
+            <p>Called on 2 October about a duplicate charge. Refund agreed.</p>
             <div class="sheet-lines">
               <span></span>
               <span></span>
@@ -78,7 +81,7 @@
           </div>
           <figcaption class="specimen-note">
             <strong>Note</strong>
-            Send the surveyor’s report before the review closes.
+            Check the refund has gone through before closing this.
           </figcaption>
         </figure>
       </section>
