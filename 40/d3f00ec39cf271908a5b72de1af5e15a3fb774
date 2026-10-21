@@ -1,0 +1,141 @@
+packages/core/src/dom/index.ts
+  s_53bc7b36f6063e::t_25759e0867d397 23-28,158-159
+packages/core/src/dom/page-mount.ts
+  s_53bc7b36f6063e::t_109a48fa81bbb9 1,20-21,86
+packages/core/src/dom/viewer/create-viewer.browser.test.ts
+  s_53bc7b36f6063e::t_eae7ba9535953b 322-323
+  s_53bc7b36f6063e::t_0beaccec3c232c 306-321,324-337
+packages/core/src/dom/index.test.ts
+  s_53bc7b36f6063e::t_0beaccec3c232c 36-37
+packages/core/src/dom/overlay.browser.test.ts
+  s_53bc7b36f6063e::t_4def5b1e3f6ad3 17,62-127,130-147
+  s_53bc7b36f6063e::t_df6514b4655b70 128-129
+packages/core/src/dom/viewer/popover.ts
+  s_53bc7b36f6063e::t_25759e0867d397 2-9
+packages/core/src/dom/viewer-engine.ts
+  s_53bc7b36f6063e::t_1693f822c28ad3 32,103-109,205
+packages/core/src/dom/viewer/create-viewer.ts
+  s_53bc7b36f6063e::t_1693f822c28ad3 77-87,334-335
+packages/core/src/dom/overlay.ts
+  s_53bc7b36f6063e::t_06e9de741663e3 70-84,87,91,163-216,218-227,261-262,364-379,381-388,390-392
+  s_53bc7b36f6063e::t_109a48fa81bbb9 380,389
+  s_53bc7b36f6063e::t_c10d921efb327d 32
+  s_53bc7b36f6063e::t_eae7ba9535953b 88-90,217
+packages/vue/src/index.ts
+  s_53bc7b36f6063e::t_57dca74c8322e7 4
+packages/svelte/src/lib/components/InkRoot.svelte
+  s_53bc7b36f6063e::t_fb60cd006f5e90 14,42-46,115,375-376
+  s_53bc7b36f6063e::t_492a982f760faf 377
+packages/svelte/src/lib/context.ts
+  s_53bc7b36f6063e::t_fb60cd006f5e90 11,58-59
+packages/vue/src/components/InkViewport.vue
+  s_53bc7b36f6063e::t_57dca74c8322e7 135-136
+packages/svelte/src/test/InkViewport.browser.test.ts
+  s_53bc7b36f6063e::t_fb60cd006f5e90 12,44,653-669,671-674
+  s_53bc7b36f6063e::t_b83b218046c685 670,675
+  s_53bc7b36f6063e::t_c74100682755f9 676
+packages/vue/playwright/harness/ViewportHarness.vue
+  s_53bc7b36f6063e::t_1717763ea72e5c 2,7,20-21,29-34,76
+packages/vue/src/components/InkViewport.ct.ts
+  s_53bc7b36f6063e::t_1717763ea72e5c 40,631-661
+  s_53bc7b36f6063e::t_0fa7ff8751b944 662
+packages/svelte/src/lib/components/InkViewport.svelte
+  s_53bc7b36f6063e::t_fb60cd006f5e90 129-130
+packages/react/src/components/InkViewport.tsx
+  s_53bc7b36f6063e::t_24c5f99bcd2033 119-120
+packages/svelte/src/lib/index.ts
+  s_53bc7b36f6063e::t_fb60cd006f5e90 13
+packages/vue/src/components/InkRoot.vue
+  s_53bc7b36f6063e::t_57dca74c8322e7 41,68-72,98,337
+packages/react/src/components/InkViewport.ct.tsx
+  s_53bc7b36f6063e::t_6c7d8912333b24 644,658
+  s_53bc7b36f6063e::t_24c5f99bcd2033 41,641-643,645-657,659-666
+  s_53bc7b36f6063e::t_1b6137048cfa50 667
+packages/react/playwright/harness/ViewportHarness.tsx
+  s_53bc7b36f6063e::t_6c7d8912333b24 6,19-20,34-39,77
+packages/react/src/context.ts
+  s_53bc7b36f6063e::t_24c5f99bcd2033 54-55
+  s_53bc7b36f6063e::t_a0229a9ad844ed 11
+packages/react/src/index.ts
+  s_53bc7b36f6063e::t_24c5f99bcd2033 21
+packages/react/src/components/InkRoot.tsx
+  s_53bc7b36f6063e::t_24c5f99bcd2033 48-55,89-93,161,455,482
+packages/svelte/src/test/harness/ViewportHarness.svelte
+  s_53bc7b36f6063e::t_fb60cd006f5e90 23,38
+  s_53bc7b36f6063e::t_220f3d6eb89b37 6-11,117-127
+packages/vue/src/context.ts
+  s_53bc7b36f6063e::t_57dca74c8322e7 12,56-57
+apps/sandbox/src/svelte/Demo.svelte
+  s_53bc7b36f6063e::t_676844b7119a89 93
+  s_53bc7b36f6063e::t_b16f82dcbc3aab 5-7,36,39,46-53
+apps/sandbox/src/vanilla/main.ts
+  s_53bc7b36f6063e::t_3b7423fe066df9 1
+  s_53bc7b36f6063e::t_639e2c0d0a6139 13
+apps/sandbox/src/vue/Demo.vue
+  s_53bc7b36f6063e::t_b16f82dcbc3aab 5-7,36,39,52
+  s_53bc7b36f6063e::t_676844b7119a89 94
+apps/sandbox/src/shared/suggestion.ts
+  s_53bc7b36f6063e::t_9113414dc18124 1-70,75-77
+  s_53bc7b36f6063e::t_3b7423fe066df9 71-74
+apps/sandbox/src/shared/suggest.test.ts
+  s_53bc7b36f6063e::t_2a7996a9e2b8f6 10,12-15,35,41-43
+apps/sandbox/src/shared/suggestion-card.ts
+  s_53bc7b36f6063e::t_3b7423fe066df9 12-17,106-108
+  s_53bc7b36f6063e::t_03e44e3beea78e 26
+  s_53bc7b36f6063e::t_d075819f42e937 1-11,18-25,27-105,109-149
+apps/sandbox/src/svelte/SuggestionCard.svelte
+  s_53bc7b36f6063e::t_03e44e3beea78e 24
+  s_53bc7b36f6063e::t_676844b7119a89 1-23,25-28
+apps/sandbox/src/shell/frameworks.ts
+  s_53bc7b36f6063e::t_cae3fd09f7874b 15,21,27,33
+apps/sandbox/src/vue/main.ts
+  s_53bc7b36f6063e::t_3b7423fe066df9 3,9,16-17
+apps/sandbox/src/styles/framework.css
+  s_53bc7b36f6063e::t_f9e02822240120 230,234-305
+  s_53bc7b36f6063e::t_5838956e1eab52 306
+apps/sandbox/vite/make-sample.ts
+  s_53bc7b36f6063e::t_cae3fd09f7874b 6-9,567
+apps/sandbox/src/shared/suggestion.test.ts
+  s_53bc7b36f6063e::t_6e0291ff29788b 1-109,112
+  s_53bc7b36f6063e::t_6cd4cfe6d8a939 110-111
+apps/sandbox/index.html
+  s_53bc7b36f6063e::t_cae3fd09f7874b 204-205
+apps/sandbox/src/svelte/main.ts
+  s_53bc7b36f6063e::t_3b7423fe066df9 3,9,16-17
+apps/sandbox/src/vue/SuggestionCard.vue
+  s_53bc7b36f6063e::t_03e44e3beea78e 27
+  s_53bc7b36f6063e::t_676844b7119a89 2-4,6-8,10-12,18,34,36
+  s_53bc7b36f6063e::t_1c0d601a410902 1,5,9,13-17,19-26,28-33,35
+apps/sandbox/src/vanilla/Demo.ts
+  s_53bc7b36f6063e::t_03e44e3beea78e 73
+  s_53bc7b36f6063e::t_639e2c0d0a6139 5-6,33-34,54-61,65,67-72,74-75,79,134-135
+  s_53bc7b36f6063e::t_ae3191b994e715 38,64,66,76-78
+apps/sandbox/src/react/SuggestionCard.tsx
+  s_53bc7b36f6063e::t_676844b7119a89 1-29
+apps/sandbox/src/react/main.tsx
+  s_53bc7b36f6063e::t_3b7423fe066df9 4,10,17-18
+apps/sandbox/src/shared/suggest.ts
+  s_53bc7b36f6063e::t_8757ae40022760 5-6,128-133,138-139
+  s_53bc7b36f6063e::t_3b7423fe066df9 8-9
+apps/sandbox/e2e/smoke.spec.ts
+  s_53bc7b36f6063e::t_a99b8061c27ede 63-78,104,107,119,121,123-167,169-181
+apps/sandbox/src/react/Demo.tsx
+  s_53bc7b36f6063e::t_676844b7119a89 91
+  s_53bc7b36f6063e::t_b16f82dcbc3aab 28,31,38-40,49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "40d3f00ec39cf271908a5b72de1af5e15a3fb774",
+  "prompts": {},
+  "sessions": {
+    "s_53bc7b36f6063e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cc4ab85f-ebb1-4dc0-8290-66c99694838b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
