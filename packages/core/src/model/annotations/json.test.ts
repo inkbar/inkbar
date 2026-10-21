@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { staticDefaults } from './defaults'
 import { exportAnnotations, importAnnotations, KNOWN_TYPES } from './json'
 import { createAnnotationStore } from './store'
-import { EXTENSION_TYPES, GLOSS_FORMAT, type AnnotationDocument } from './types'
+import { ExportedAnnotationSchema, GLOSS_FORMAT, type AnnotationDocument } from './types'
 
 const rect = { x: 0, y: 0, width: 20, height: 20 }
 
@@ -156,8 +156,14 @@ describe('json import/export', () => {
       width: 4,
     })
     const out = exportAnnotations(s, [], 'k')
-    // Gloss doesn't define a loupe, so the file names it with a host's x- prefix.
-    expect(out.annotations[0]?.type).toBe('x-loupe')
+    // Gloss doesn't define a loupe, so the file writes it as the circle it draws.
+    expect(out.annotations[0]).toMatchObject({
+      type: 'circle',
+      color: '#2B5A9E',
+      width: 4,
+      custom: { inkbar: { type: 'loupe', magnification: 3 } },
+    })
+    expect(out.annotations[0]).not.toHaveProperty('magnification')
     expect(s.list.get()[0]?.type).toBe('loupe')
     const text = JSON.stringify(out)
     const s2 = mk()
@@ -183,7 +189,11 @@ describe('json import/export', () => {
       dim: 0.8,
     })
     const out = exportAnnotations(s, [], 'k')
-    expect(out.annotations[0]?.type).toBe('x-mask')
+    expect(out.annotations[0]).toMatchObject({
+      type: 'circle',
+      custom: { inkbar: { type: 'mask', dim: 0.8 } },
+    })
+    expect(out.annotations[0]).not.toHaveProperty('shape')
     const text = JSON.stringify(out)
     const s2 = mk()
     expect(importAnnotations(s2, text, { mode: 'replace' }).errors).toEqual([])
@@ -351,22 +361,22 @@ describe('json import/export', () => {
     ).toThrow(/gloss v1/)
   })
 
-  it('parses every type Gloss defines today, plus its own', () => {
-    const own = Object.keys(EXTENSION_TYPES)
-    expect([...KNOWN_TYPES].filter((t) => !own.includes(t)).sort()).toEqual(
-      [...ANNOTATION_TYPES].sort()
-    )
-    for (const type of [...own, ...Object.values(EXTENSION_TYPES)])
-      expect(ANNOTATION_TYPES).not.toContain(type)
+  it('parses every type Gloss defines today', () => {
+    expect([...KNOWN_TYPES].sort()).toEqual([...ANNOTATION_TYPES].sort())
+    for (const type of ANNOTATION_TYPES) {
+      const parsed = ExportedAnnotationSchema.safeParse({ type })
+      // Fails on missing fields, never on the type itself.
+      expect(parsed.error?.issues.some((i) => i.path[0] === 'type')).toBe(false)
+    }
   })
 
-  it('still reads a loupe written under its plain name', () => {
+  it('keeps x-loupe and plain loupe items as unknown types', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     const s = createAnnotationStore({
       mode: { mode: 'uncontrolled' },
       defaults: staticDefaults,
     })
     const loupe = {
-      type: 'loupe',
       id: 'l1',
       page: 0,
       rect: { x: 100, y: 500, width: 72, height: 72 },
@@ -375,13 +385,69 @@ describe('json import/export', () => {
       createdAt: '2026-10-20T12:00:00Z',
       modifiedAt: '2026-10-20T12:00:00Z',
     }
+    const items = [
+      { ...loupe, type: 'x-loupe' },
+      { ...loupe, id: 'l2', type: 'loupe' },
+    ]
+    const result = importAnnotations(
+      s,
+      { format: GLOSS_FORMAT, version: 1, annotations: items },
+      { mode: 'replace' }
+    )
+    expect(result).toEqual({ imported: 0, unknown: items, errors: [] })
+    expect(s.list.get()).toEqual([])
+  })
+
+  it('drops a top-level pressure from an older file', () => {
+    const s = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const ink = {
+      type: 'ink',
+      id: 'i1',
+      page: 0,
+      rect,
+      color: '#000000',
+      opacity: 1,
+      createdAt: '2026-10-20T12:00:00Z',
+      modifiedAt: '2026-10-20T12:00:00Z',
+      inklist: [[{ x: 1, y: 1 }]],
+      pressure: [[0.5]],
+    }
+    const result = importAnnotations(
+      s,
+      { format: GLOSS_FORMAT, version: 1, annotations: [ink] },
+      { mode: 'replace' }
+    )
+    expect(result).toEqual({ imported: 1, unknown: [], errors: [] })
+    expect(s.list.get()[0]).not.toHaveProperty('pressure')
+  })
+
+  it('reports a loupe with an invalid magnification', () => {
+    const s = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const loupe = {
+      type: 'circle',
+      id: 'l1',
+      page: 0,
+      rect,
+      color: '#2B5A9E',
+      opacity: 1,
+      createdAt: '2026-10-20T12:00:00Z',
+      modifiedAt: '2026-10-20T12:00:00Z',
+      custom: { inkbar: { type: 'loupe', magnification: 0.5 } },
+    }
     const result = importAnnotations(
       s,
       { format: GLOSS_FORMAT, version: 1, annotations: [loupe] },
       { mode: 'replace' }
     )
-    expect(result).toMatchObject({ imported: 1, unknown: [], errors: [] })
-    expect(s.list.get()[0]).toMatchObject({ type: 'loupe', magnification: 2 })
+    expect(result.imported).toBe(0)
+    expect(result.errors).toHaveLength(1)
+    expect(result.errors[0]?.issues.some((i) => i.startsWith('magnification'))).toBe(true)
   })
 
   it('rejects an inkbar/annotations document', () => {

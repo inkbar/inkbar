@@ -49,7 +49,7 @@
   },
   "dependencies": {
     "@inkbar/icons": "workspace:^",
-    "gloss-format": "^1.1.0",
+    "gloss-format": "^1.2.0",
     "pdfjs-dist": "^6.4.299",
     "perfect-freehand": "1.2.3",
     "uuid": "^14.0.3",
