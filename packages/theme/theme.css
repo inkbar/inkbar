@@ -340,7 +340,9 @@
   }
 
   /* Cursors say what a press will do: move an annotation, edit a text box's text, or (text
-     markup) select text. The creation tools' cursor shows through elsewhere. */
+     markup under select text) select text. Under rectangle select a press on text markup
+     selects and drags it, so it shows move there. The creation tools' cursor shows through
+     elsewhere. */
   :where(
     [data-ink-tool='select'] .ink-annotation,
     [data-ink-tool='select-text'] .ink-annotation,
@@ -350,13 +352,6 @@
   }
 
   :where(
-    [data-ink-tool='select']
-      .ink-annotation:is(
-        [data-type='highlight'],
-        [data-type='underline'],
-        [data-type='strikeout'],
-        [data-type='squiggly']
-      ),
     [data-ink-tool='select-text']
       .ink-annotation:is(
         [data-type='highlight'],

@@ -19,9 +19,9 @@
 //
 // A one-shot tool (`kind: 'one-shot'`) is used once, then hands back to `select-text`. It is
 // ready until it reports what it made (`ctx.made`), then made, with `data-ink-made` on the
-// root. A press on empty page while made, or Escape, ends it (`ctx.done`), and the tool never
-// sees that press. A press on another annotation (not text markup) switches to `select-text`
-// in either state and goes to it, so the same press can drag. Whether a press finds the tool
+// root. A press on empty page (a page or a gap between pages, not a scroll bar) while made, or
+// Escape, ends it (`ctx.done`), and the tool never sees that press. A press on another annotation switches to `select-text` and goes to it, so
+// the same press can drag: in either state, bar text markup, which switches only when made. Whether a press finds the tool
 // made is read before anything the press itself does: on the window when it is created, or on
 // the document once a free-text editor (which listens on the window) has committed. So a note
 // dropped by the press that closes its popover still counts as made. Removing everything it
@@ -31,7 +31,8 @@
 // While made, a press on a made item or on its handles goes to the controller's own selection
 // editor (selection-edit.ts) instead of the tool, as under `select-text`: a drag moves it, a
 // handle resizes it, a press inside a made text box reopens its editor, and the tool stays on
-// and made. Escape in that text editor commits and ends the tool, as in a new box. Delete and
+// and made. Escape in an editor on a made text box (opened that way, or by Enter or a
+// double-click) commits and ends the tool, as in a new box. Delete and
 // Backspace go to the selection editor too, so the made item can be removed without switching.
 import { isTextMarkup } from '../../model/annotations/edit'
 import {
@@ -40,7 +41,7 @@ import {
   type ToolStyle,
 } from '../../model/annotations/tool-style'
 import { readonly, writable, type Readable } from '../../model/readable'
-import { canEditFreeText, editFreeTextIn } from '../freetext-editor'
+import { canEditFreeText, editFreeTextIn, editorFor } from '../freetext-editor'
 
 import { createToolOptions, type ToolOptions } from './options'
 import { createSelectionEdit, type SelectionEdit } from './selection-edit'
@@ -289,7 +290,8 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     const annotationId =
       target?.closest('[data-annotation]')?.getAttribute('data-annotation') ?? undefined
     if (current?.kind === 'one-shot') {
-      if (pressFoundMade && annotationId === undefined) {
+      // Empty page is a page or the gaps between pages, not the viewport's own scroll bars.
+      if (pressFoundMade && annotationId === undefined && !onScrollBar(e, ctx.root)) {
         // No text selection starts. The press still bubbles, so a host's popover sees a
         // press outside it and closes.
         e.preventDefault()
@@ -305,7 +307,9 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
         if (madeEdit.onPointerDown(e, hitFor(ctx, e), a.id) === true) capture(e.pointerId)
         return
       }
-      if (a && !isTextMarkup(a)) set('select-text')
+      // Text markup counts as another annotation once the tool has made something; while it
+      // is ready the tool may claim the press (area redaction draws from it).
+      if (a && (!isTextMarkup(a) || pressFoundMade)) set('select-text')
     }
     pressed = e.pointerId
     if (current?.onPointerDown?.(e, hitFor(ctx, e), annotationId) === true)
@@ -363,6 +367,22 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     // Enter that no tool took edits the one selected text box, wherever focus is in the viewport.
     if (isViewportEnter(e, ctx.root)) editSelectedText(e)
   }
+  /**
+   * Escape in an editor on a made text box, however it was opened (a press inside, Enter, a
+   * double-click): commits and ends the tool. Captured, as the editor keeps its keys to itself.
+   */
+  const onEditorEscape = (e: KeyboardEvent): void => {
+    if (!made || e.key !== 'Escape' || e.isComposing || e.defaultPrevented) return
+    const target = e.target instanceof Element ? e.target : null
+    if (!target?.closest('[data-ink-editor]')) return
+    const el = target.closest<HTMLElement>('[data-annotation]')
+    const id = el?.getAttribute('data-annotation')
+    if (!el || !id || !made.includes(id)) return
+    e.preventDefault()
+    e.stopPropagation()
+    editorFor(el)?.close(true)
+    ctx.done()
+  }
   function editSelectedText(e: KeyboardEvent): void {
     const selected = ctx.store.selection.get()
     if (selected.length !== 1) return
@@ -400,6 +420,7 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
   ctx.root.addEventListener('pointercancel', onCancel)
   ctx.root.addEventListener('lostpointercapture', onCancel)
   ctx.root.addEventListener('keydown', onKey)
+  ctx.root.addEventListener('keydown', onEditorEscape, { capture: true })
 
   function set(id: ToolId, options?: object): void {
     const next = byId.get(id)
@@ -421,14 +442,7 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     // After `deactivate`, which may commit an open edit and report it made.
     clearMade()
     current = next
-    madeEdit =
-      next.kind === 'one-shot'
-        ? createSelectionEdit(ctx, {
-            onEditorClose: (how) => {
-              if (how === 'escape' && made) ctx.done()
-            },
-          })
-        : undefined
+    madeEdit = next.kind === 'one-shot' ? createSelectionEdit(ctx) : undefined
     next.activate(ctx)
     ctx.root.dataset.inkTool = id
     ctx.root.style.cursor = next.cursor
@@ -461,6 +475,7 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
       ctx.root.removeEventListener('pointercancel', onCancel)
       ctx.root.removeEventListener('lostpointercapture', onCancel)
       ctx.root.removeEventListener('keydown', onKey)
+      ctx.root.removeEventListener('keydown', onEditorEscape, { capture: true })
       delete ctx.root.dataset.inkTool
       ctx.root.style.cursor = originalCursor
     },
@@ -481,6 +496,18 @@ export function isViewportEnter(e: KeyboardEvent, root: HTMLElement): boolean {
   if (!(target instanceof Element) || !root.contains(target)) return false
   if (target.matches('.ink-page[data-page]')) return true
   return target.closest('[data-ink-text-layer], [data-ink-canvas-layer]') !== null
+}
+
+/**
+ * True for a press on `root` itself outside its client area: on a scroll bar (or its border).
+ * Client coordinates only, so a synthetic press gives the same answer as a real one.
+ */
+function onScrollBar(e: PointerEvent, root: HTMLElement): boolean {
+  if (e.target !== root) return false
+  const r = root.getBoundingClientRect()
+  const x = e.clientX - r.left - root.clientLeft
+  const y = e.clientY - r.top - root.clientTop
+  return x < 0 || y < 0 || x >= root.clientWidth || y >= root.clientHeight
 }
 
 /**

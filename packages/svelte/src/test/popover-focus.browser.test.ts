@@ -19,6 +19,8 @@ let scroll: HTMLElement
 let annotations: HTMLElement[]
 let outside: HTMLElement
 let inner: HTMLElement
+/** Page text inside the viewport's scroll element. */
+let pageText: HTMLElement
 
 beforeEach(() => {
   root = document.createElement('div')
@@ -35,6 +37,8 @@ beforeEach(() => {
     return el
   })
   scroll.appendChild(overlay)
+  pageText = document.createElement('span')
+  scroll.appendChild(pageText)
   root.appendChild(scroll)
   document.body.appendChild(root)
   outside = document.createElement('p')
@@ -105,11 +109,11 @@ describe('useFocusReturn', () => {
     expect(focused()).toBe(b)
   })
 
-  it("an outside pointer press that closes the popover doesn't move focus to the anchor", async () => {
+  it("a press on page text that closes the popover doesn't move focus to the anchor", async () => {
     const focus = focusReturn()
     const [a] = annotations
     let closed = 0
-    focus.onPressOutside(pressOn(outside), '[data-popover]', () => closed++)
+    focus.onPressOutside(pressOn(pageText), '[data-popover]', () => closed++)
     expect(closed).toBe(1)
     focus.onCloseAutoFocus(report(), a!)
     await settled()
@@ -127,6 +131,19 @@ describe('useFocusReturn', () => {
     focus.onPressOutside(pressOn(inner), '[data-popover]', () => closed++)
     focus.onPressOutside(pressOn(annotations[0]!), '[data-popover]', () => closed++)
     expect(closed).toBe(0)
+  })
+
+  it('a press outside the viewport is left to the popover library', async () => {
+    const focus = focusReturn()
+    const [a] = annotations
+    let closed = 0
+    // A host's own menu, toolbar or button elsewhere in the document.
+    focus.onPressOutside(pressOn(outside), '[data-popover]', () => closed++)
+    expect(closed).toBe(0)
+    // Nothing was marked as closed by a press: a close from the library returns focus.
+    focus.onCloseAutoFocus(report(), a!)
+    await settled()
+    expect(focused()).toBe(a)
   })
 
   it('an open with no close does nothing', async () => {

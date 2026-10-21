@@ -319,6 +319,9 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
     pending.delete(key)
     // Later proposals may still be pending; they keep building on the proposed list.
     if (pending.size === 0) proposed = undefined
+    // A refused add leaves nothing to select. Pruning makes the refusal observable, so a
+    // one-shot tool that reported it made returns to ready.
+    pruneSelection(basis())
     if (isApplied(entry.change, list.get()) || isProduction()) return
     console.warn(
       `[inkbar] ControlledMutationIgnored: the host did not apply a ${entry.change.kind} for ` +

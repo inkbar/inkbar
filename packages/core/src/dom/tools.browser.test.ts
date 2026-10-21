@@ -71,12 +71,15 @@ async function setup(
     | 'mixed-page-sizes' = 'text-simple',
   {
     controlled = false,
+    refuseAdds = false,
     custom = false,
     tools: hostTools,
     snapshotHistory = false,
     signatures,
   }: {
     controlled?: boolean
+    /** Controlled only: the host applies every change but an add. */
+    refuseAdds?: boolean
     custom?: boolean
     tools?: Tool[]
     /** The signature templates the `signature` tool places from. */
@@ -100,7 +103,8 @@ async function setup(
           annotations: {
             mode: 'controlled',
             initial: [],
-            onChange: (next) => {
+            onChange: (next, change) => {
+              if (refuseAdds && change.kind === 'add') return
               host = next
               queueMicrotask(() => {
                 doc.annotations.setControlledValue(host)
@@ -988,9 +992,15 @@ describe('cursors', () => {
     expect(cursorOf(el(square.id))).toBe('default')
   })
 
-  it.each(['select', 'select-text'])('text markup shows text under %s', async (tool) => {
+  it('text markup shows move under select, where a press drags it', async () => {
     const { tools, markup, el } = await withTheme()
-    tools.set(tool)
+    tools.set('select')
+    expect(cursorOf(el(markup.id))).toBe('move')
+  })
+
+  it('text markup shows text under select-text', async () => {
+    const { tools, markup, el } = await withTheme()
+    tools.set('select-text')
     expect(cursorOf(el(markup.id))).toBe('text')
   })
 
@@ -1000,6 +1010,27 @@ describe('cursors', () => {
     expect(cursorOf(el(text.id).querySelector('.ink-free-text'))).toBe('text')
     expect(cursorOf(el(text.id).querySelector('[data-ink-edge]'))).toBe('move')
   })
+
+  it.each(['select', 'select-text'])(
+    'an embedded text box, which a press drags, shows move under %s',
+    async (tool) => {
+      const { tools, doc, container } = await withTheme()
+      const a = doc.annotations.completeInput({
+        type: 'freetext',
+        page: 0,
+        rect: { x: 100, y: 500, width: 144, height: 20 },
+        contents: 'From the file',
+      })
+      doc.annotations._setEmbedded([{ ...a, id: 'pdf:0:9R', source: 'pdf' }])
+      await settle()
+      tools.set(tool)
+      const box = container.querySelector('[data-annotation="pdf:0:9R"]')!
+      const r = box.getBoundingClientRect()
+      const at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+      expect(box.contains(at)).toBe(true)
+      expect(cursorOf(at)).toBe('move')
+    }
+  )
 
   it('a locked text box shows default inside and on its edge', async () => {
     const { tools, doc, text, el } = await withTheme()
@@ -4607,6 +4638,90 @@ describe('one-shot tools', () => {
     expect(doc.annotations.selection.get()).toEqual([a.id])
   })
 
+  /** A made area redaction, with a highlight on page 0 and a point in its middle. */
+  async function madeRedactionAndMarkup() {
+    const ctx = await setup()
+    const { doc, container, viewport, tools } = ctx
+    const markup = doc.annotations.add({
+      type: 'highlight',
+      page: 0,
+      quads: [
+        {
+          p1: { x: 72, y: 715 },
+          p2: { x: 300, y: 715 },
+          p3: { x: 72, y: 695 },
+          p4: { x: 300, y: 695 },
+        },
+      ],
+    })
+    await settle()
+    tools.set('redact-area')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 200, h.top + 300)
+    pointer(container, 'pointermove', h.left + 240, h.top + 330)
+    pointer(container, 'pointerup', h.left + 240, h.top + 330)
+    expect(doc.annotations.list.get()).toHaveLength(2)
+    expect(container.hasAttribute('data-ink-made')).toBe(true)
+    const el = container.querySelector(`[data-annotation="${markup.id}"]`)!
+    const r = el.getBoundingClientRect()
+    const x = r.left + r.width / 2
+    const y = r.top + r.height / 2
+    const target = document.elementFromPoint(x, y)!
+    expect(el.contains(target)).toBe(true)
+    return { ...ctx, markup, target, x, y }
+  }
+
+  it('a click on text markup after an area redaction selects it and switches to select-text', async () => {
+    const { doc, container, tools, markup, target, x, y } = await madeRedactionAndMarkup()
+    pointer(target, 'pointerdown', x, y)
+    pointer(container, 'pointerup', x, y)
+    expect(tools.active.get()).toBe('select-text')
+    expect(doc.annotations.list.get()).toHaveLength(2)
+    expect(doc.annotations.selection.get()).toEqual([markup.id])
+  })
+
+  it('a drag from text markup after an area redaction makes no second redaction', async () => {
+    const { doc, container, tools, target, x, y } = await madeRedactionAndMarkup()
+    pointer(target, 'pointerdown', x, y)
+    pointer(container, 'pointermove', x + 30, y + 20)
+    pointer(container, 'pointermove', x + 60, y + 40)
+    pointer(container, 'pointerup', x + 60, y + 40)
+    expect(tools.active.get()).toBe('select-text')
+    expect(doc.annotations.list.get()).toHaveLength(2)
+  })
+
+  it('a press on the scroll bar, outside the client area, leaves a made tool on', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('shape')
+    click(container, viewport, 200, 300)
+    expect(container.hasAttribute('data-ink-made')).toBe(true)
+    // The test browser hides scroll bars. A border stands in for one: like a scroll bar, it
+    // sits on the viewport element outside its client area.
+    container.style.borderRight = '12px solid #ccc'
+    const r = container.getBoundingClientRect()
+    expect(container.offsetWidth - container.clientWidth).toBeGreaterThan(0)
+    const x = r.left + container.clientLeft + container.clientWidth + 2
+    const y = r.top + r.height / 2
+    pointer(container, 'pointerdown', x, y)
+    pointer(container, 'pointerup', x, y)
+    expect(tools.active.get()).toBe('shape')
+    expect(container.hasAttribute('data-ink-made')).toBe(true)
+    expect(doc.annotations.list.get()).toHaveLength(1)
+  })
+
+  it('a press in the gap between pages ends a made tool', async () => {
+    const { container, viewport, tools } = await setup()
+    tools.set('shape')
+    click(container, viewport, 200, 300)
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    const x = h.left + 100
+    const y = h.bottom + 4
+    expect(viewport.pageAtCss(x, y)).toBeUndefined()
+    pointer(container, 'pointerdown', x, y)
+    pointer(container, 'pointerup', x, y)
+    expect(tools.active.get()).toBe('select-text')
+  })
+
   it('a press on the made item keeps the tool on', async () => {
     const { doc, container, viewport, tools } = await setup()
     tools.set('shape')
@@ -4706,6 +4821,26 @@ describe('one-shot tools', () => {
     await settle()
     expect(tools.active.get()).toBe('select-text')
     expect(doc.annotations.list.get()).toHaveLength(1)
+  })
+
+  it('a controlled host refusing the add returns the tool to ready', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    cleanup.push(() => warn.mockRestore())
+    const { doc, container, viewport, tools } = await setup('text-simple', {
+      controlled: true,
+      refuseAdds: true,
+    })
+    tools.set('shape')
+    click(container, viewport, 200, 300)
+    expect(container.hasAttribute('data-ink-made')).toBe(true)
+    await until(() => warn.mock.calls.length > 0)
+    expect(doc.annotations.list.get()).toEqual([])
+    expect(doc.annotations.selection.get()).toEqual([])
+    expect(container.hasAttribute('data-ink-made')).toBe(false)
+    // The next press is another go with the tool, not the press that ends it.
+    click(container, viewport, 400, 500)
+    expect(tools.active.get()).toBe('shape')
+    expect(container.hasAttribute('data-ink-made')).toBe(true)
   })
 
   it('a host tool without a kind stays on', async () => {
@@ -4941,6 +5076,40 @@ describe('one-shot tools', () => {
     expect(editor).not.toBeNull()
     expect(document.activeElement).toBe(editor)
   })
+
+  it.each(['Enter', 'double-click'])(
+    'Escape in a made text box reopened by %s commits and ends the tool',
+    async (how) => {
+      const { doc, container, viewport, tools } = await setup()
+      tools.set('freetext')
+      click(container, viewport, 200, 300)
+      await userEvent.keyboard('Hi')
+      const button = document.createElement('button')
+      document.body.append(button)
+      cleanup.push(() => button.remove())
+      button.focus()
+      const [box] = doc.annotations.list.get()
+      expect(container.hasAttribute('data-ink-made')).toBe(true)
+      const el = container.querySelector<HTMLElement>(`[data-annotation="${box!.id}"]`)!
+      if (how === 'Enter') {
+        el.focus()
+        await userEvent.keyboard('{Enter}')
+      } else {
+        el.querySelector('.ink-free-text')!.dispatchEvent(
+          new MouseEvent('dblclick', { bubbles: true, cancelable: true, detail: 2 })
+        )
+      }
+      const editor = container.querySelector('[data-ink-editor]')
+      expect(editor).not.toBeNull()
+      expect(document.activeElement).toBe(editor)
+      expect(tools.active.get()).toBe('freetext')
+      await userEvent.keyboard('!{Escape}')
+      expect(container.querySelector('[data-ink-editor]')).toBeNull()
+      expect(doc.annotations.get(box!.id)).toMatchObject({ contents: 'Hi!' })
+      expect(tools.active.get()).toBe('select-text')
+      expect(doc.annotations.selection.get()).toEqual([])
+    }
+  )
 
   it('a press inside the made text box reopens its editor and the tool stays on', async () => {
     const { doc, container, viewport, tools } = await setup()

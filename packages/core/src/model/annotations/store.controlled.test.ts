@@ -107,6 +107,16 @@ describe('AnnotationStore (controlled)', () => {
     expect(s.list.get()).toEqual([])
   })
 
+  it('drops an ignored add from the selection', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const { s } = ignoringStore()
+    const a = s.add({ type: 'text', page: 0, rect })
+    s.select([a.id])
+    expect(s.selection.get()).toEqual([a.id])
+    vi.runAllTimers()
+    expect(s.selection.get()).toEqual([])
+  })
+
   it('does not warn when the host applies before the macrotask fires', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     const { s, apply } = controlledStore()
