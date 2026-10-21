@@ -19,6 +19,7 @@ import {
   Redact,
   Square,
   Stamp,
+  type Annotation as GlossAnnotation,
   type GlossDocument,
   type UnknownAnnotation,
 } from 'gloss-format'
@@ -105,6 +106,8 @@ export const FreeTextSchema = z.object({
   ...Base,
   /** The box's fill (XFDF `color`). Absent means no fill. */
   color: FreeText.shape.color,
+  /** The box's border colour. Absent means the text colour. */
+  borderColor: Color.optional(),
   defaultStyle: FreeTextStyleSchema,
   fringe: FringeSchema.optional(),
   callout: z.array(PointSchema).min(2).max(3).optional(),
@@ -144,6 +147,8 @@ const InkShape = z.object({
   ...Ink.shape,
   ...Base,
   inklist: z.array(z.array(PointSchema).min(1)).min(1),
+  /** Pen pressure from 0 to 1, one value per point of each stroke. Absent means even pressure. */
+  pressure: z.array(z.array(z.number().min(0).max(1))).optional(),
 })
 
 /** Pressure must have one value per point of each stroke. */
@@ -175,15 +180,7 @@ export { IMAGE_DATA_URL } from 'gloss-format'
 export const StampSchema = z.object({ ...Stamp.shape, ...Base })
 
 /**
- * Inkbar's own types, which Gloss does not define. A Gloss file names them with an `x-` prefix,
- * which Gloss reserves for hosts, so no later version of the schema can claim the name.
- * Everywhere else, including the store and the API, they keep their plain names.
- */
-export const EXTENSION_TYPES = { loupe: 'x-loupe', mask: 'x-mask' } as const
-type ExtensionType = keyof typeof EXTENSION_TYPES
-
-/**
- * A loupe (an Inkbar extension, `x-loupe` in a file): a circle inscribed in `rect` that shows
+ * A loupe (Inkbar's own type, a circle with `custom.inkbar.type: 'loupe'` in a file): a circle inscribed in `rect` that shows
  * the page content under its own centre, magnified. `color` and `width` draw its rim.
  */
 export const LoupeSchema = z.object({
@@ -197,7 +194,7 @@ export const LoupeSchema = z.object({
 })
 
 /**
- * A mask (an Inkbar extension, `x-mask` in a file): dims everything on the page outside
+ * A mask (Inkbar's own type, a circle or square with `custom.inkbar.type: 'mask'` in a file): dims everything on the page outside
  * `shape` drawn in `rect`, an ellipse inscribed in it or the rectangle itself. `color` is the
  * dimming colour and `dim` how strongly it covers, from 0 to 1. One per page: adding a second
  * replaces the first.
@@ -210,11 +207,8 @@ export const MaskSchema = z.object({
   ...Base,
 })
 
-// Inkbar leaves Gloss's `origin` and `suggestion` out, so they are dropped like any unknown key.
-const { origin: _origin, suggestion: _suggestion, ...redactShape } = Redact.shape
-
 export const RedactSchema = z.object({
-  ...redactShape,
+  ...Redact.shape,
   ...Base,
   /** Present when the mark came from text; absent for an area mark. */
   quads: Quads.optional(),
@@ -349,17 +343,10 @@ export const AnnotationDocumentSchema = z.object({
  */
 export type ForeignAnnotation = UnknownAnnotation
 
-/** An exported annotation as a Gloss file writes it: Inkbar's own types carry their `x-` names. */
-export type FileAnnotation = ExportedAnnotation extends infer A
-  ? A extends { type: ExtensionType }
-    ? Omit<A, 'type'> & { type: (typeof EXTENSION_TYPES)[A['type']] }
-    : A
-  : never
-
 /** A Gloss document holding Inkbar's annotations and any foreign items it kept. */
 export interface AnnotationDocument {
   format: GlossDocument['format']
   version: GlossDocument['version']
   documentKey?: string
-  annotations: Array<FileAnnotation | ForeignAnnotation>
+  annotations: Array<GlossAnnotation | ForeignAnnotation>
 }

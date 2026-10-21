@@ -89,10 +89,16 @@ describe('document annotations', () => {
       ],
     })
     doc.annotations.add({ type: 'loupe', page: 0, rect })
-    doc.annotations.add({ type: 'mask', page: 0, rect, shape: 'ellipse' })
+    doc.annotations.add({ type: 'mask', page: 0, rect, shape: 'rect' })
     const validate = compileSchema()
     const out = doc.exportAnnotations('json')
-    expect(out.annotations).toHaveLength(4)
+    // Gloss has no loupe or mask, so they go out as the circle and square they draw.
+    expect(out.annotations.map((a) => a.type)).toEqual([
+      'text',
+      'highlight',
+      'circle',
+      'square',
+    ])
     expect(validate(JSON.parse(JSON.stringify(out)))).toBe(true)
     doc.destroy()
   })
