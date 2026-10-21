@@ -314,7 +314,10 @@ export function createSelectionEdit(
           const draft = { ...a, ...resizedBox(a, userBox(start.transform, next)) }
           showPreview(preview, el, draft, start)
         } else if (el) {
-          el.style.transformOrigin = '0 0'
+          // The drawn box's corner within the element, which may be padded past it.
+          const ox = box.left - (parseFloat(el.style.left) || 0)
+          const oy = box.top - (parseFloat(el.style.top) || 0)
+          el.style.transformOrigin = `${ox}px ${oy}px`
           el.style.transform =
             `translate(${next.left - box.left}px, ${next.top - box.top}px) ` +
             `scale(${next.width / box.width}, ${next.height / box.height})`
