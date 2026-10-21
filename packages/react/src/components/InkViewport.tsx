@@ -11,6 +11,7 @@
 import { mountViewer } from '@inkbar/core/dom'
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ComponentPropsWithoutRef,
@@ -116,6 +117,9 @@ export function InkViewport({
       buffer: b,
       tool: c.tool,
       ...(c.hostTools ? { tools: c.hostTools } : {}),
+      // The engine adds the plugins' tools and layers, and decorates through the host, which
+      // reads `decorateAnnotation` first.
+      plugins: c.pluginHost,
       // Reads InkRoot's current prop; the effect below re-applies it when it changes.
       decorateAnnotation: (a) => latest.current.ctx.decorateAnnotation(a),
       ...(c.toolStyle ? { toolStyle: c.toolStyle } : {}),
@@ -178,7 +182,17 @@ export function InkViewport({
       c.setViewport(null, null)
       setPages((prev) => (prev.length === 0 ? prev : []))
     }
-  }, [ctx.document, ctx.status.state, latest])
+  }, [ctx.document, ctx.status.state, ctx.pluginHost, latest])
+
+  // The plugins' `root`. A layout effect, so it is set before the build above runs.
+  const { viewportEl } = ctx
+  useLayoutEffect(() => {
+    const el = scroll.current
+    viewportEl.set(el)
+    return () => {
+      if (viewportEl.get() === el) viewportEl.set(null)
+    }
+  }, [viewportEl])
 
   // A new decorateAnnotation re-applies to the mounted annotation elements at once.
   const { onDecorateAnnotationChange } = ctx

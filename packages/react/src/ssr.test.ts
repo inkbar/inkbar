@@ -64,19 +64,30 @@ describe('@inkbar/react on the server', () => {
         'InkViewport',
         'InkPage',
         'InkAnnotation',
+        'InkCommand',
+        'useCommand',
       ])
     )
     expect(evaluated.pdfjs).toBe(false)
 
+    // A plugin is set up on the server too (it touches no DOM), so its commands render.
+    const { definePlugin } = await import('@inkbar/core/dom')
+    const plugin = definePlugin({
+      id: 'sandbox',
+      setup(ctx) {
+        ctx.commands.add({ id: 'ping', label: 'Ping', run: () => undefined })
+      },
+    })
     const html = renderToString(
       createElement(
         entry.InkRoot,
-        { src: '/doc.pdf', assets },
+        { src: '/doc.pdf', assets, plugins: [plugin] },
         createElement('p', null, 'slot'),
         createElement(
           entry.InkToolbar,
           null,
-          createElement(entry.InkToolButton, { tool: 'highlight' })
+          createElement(entry.InkToolButton, { tool: 'highlight' }),
+          createElement(entry.InkCommand, { id: 'sandbox.ping' })
         ),
         createElement(
           entry.InkToolbar,
@@ -97,6 +108,7 @@ describe('@inkbar/react on the server', () => {
     expect(html).toContain('<p>slot</p>')
     expect(html).toContain('data-ink-toolbar')
     expect(html).toContain('aria-label="Document tools"')
+    expect(html).toContain('data-command="sandbox.ping"')
     expect(evaluated.pdfjs).toBe(false)
 
     // Control: the same mock fires once a document actually opens, so the falses above mean something.

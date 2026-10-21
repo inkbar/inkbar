@@ -4,8 +4,11 @@ import {
   createSnapshotHistory,
   InkError,
   openDocument,
+  readonly,
+  writable,
 } from '@inkbar/core'
 import {
+  createPluginHost,
   createToolOptions,
   cssVariableDefaults,
   FONT_FAMILIES,
@@ -43,10 +46,14 @@ import type {
   DocumentSource,
   InkDocument,
   PdfAssets,
+  PluginHistory,
   SignatureStore,
+  Writable,
 } from '@inkbar/core'
 import type {
   DecorateAnnotation,
+  InkPlugin,
+  PluginHost,
   Tool,
   ToolController,
   ToolId,
@@ -86,6 +93,12 @@ export interface InkRootProps extends Omit<
    * document opens.
    */
   tools?: Tool[] | undefined
+  /**
+   * Plugins, set up once when the root mounts; a later change to this prop is not applied.
+   * Their tools join `tools`, their decoration and page layers apply to every document, and
+   * their commands are placed with `InkCommand` or `useCommand`.
+   */
+  plugins?: InkPlugin[] | undefined
   /**
    * Adds `data-*` attributes, classes and a screen-reader description to each annotation's
    * element (see `DecorateAnnotation`). Decorations re-apply whenever the annotations change
@@ -127,6 +140,18 @@ type TestHookElement = HTMLElement & { __inkDocument?: InkDocument | undefined }
 const IDLE: InkStatus = { state: 'idle' }
 const NO_ANNOTATIONS: readonly Annotation[] = []
 const NO_IDS: readonly string[] = []
+const noop = (): void => undefined
+
+/** The plugin host and the readables it follows, for the root's life. */
+interface RootPlugins {
+  host: PluginHost
+  /** Set once the document is current, so the host reads the history that goes with it. */
+  document: Writable<InkDocument | null>
+  /** InkViewport's scroll element while it is mounted. */
+  root: Writable<HTMLElement | null>
+  activated: Writable<string | null>
+  destroyed: boolean
+}
 
 /** Signed URLs change; the key does not. Bytes and Blobs are their own identity. */
 function identity(src: DocumentSource | null): unknown {
@@ -160,6 +185,7 @@ export function InkRoot({
   tool,
   onToolChange,
   tools: hostTools,
+  plugins: pluginsProp,
   decorateAnnotation,
   fonts: fontsProp,
   signatures: signatureStore,
@@ -222,6 +248,7 @@ export function InkRoot({
     onPageChange,
     onZoomChange,
     hostTools,
+    plugins: pluginsProp,
     decorateAnnotation,
     tool: internalTool,
     tools,
@@ -242,6 +269,89 @@ export function InkRoot({
     snapshotHistory.observe(annotations)
   }, [annotations, snapshotHistory])
 
+  /** The plugins and their host; see below. */
+  const pluginsRef = useRef<RootPlugins | null>(null)
+  const setActivated = useCallback(
+    (id: string | null) => {
+      setActivatedState(id)
+      pluginsRef.current?.activated.set(id)
+      if (id) latest.current.onActivate?.(id)
+    },
+    [latest]
+  )
+
+  /**
+   * The history the plugins reach, picked by the open document's mode when they call: the host
+   * reads it as soon as a document opens, before this root has rendered with that document.
+   */
+  const pluginHistory = useMemo<PluginHistory>(() => {
+    const active = (): PluginHistory | undefined => {
+      const doc = documentRef.current
+      if (!doc) return undefined
+      return doc.annotations.mode === 'controlled' ? snapshotHistory : doc.history
+    }
+    return {
+      batch: (fn) => {
+        const h = active()
+        if (h) h.batch(fn)
+        else fn()
+      },
+      track: (store) => active()?.track(store) ?? noop,
+      react: (fn) => active()?.react(fn) ?? noop,
+    }
+  }, [snapshotHistory])
+
+  /*
+   * One plugin host for the root's life, built in the first render so that InkCommand finds its
+   * command when it renders. Building it touches no DOM, and no document opens on the server, so
+   * plugins see none there. A ref rather than state: StrictMode's second render reuses it, where
+   * it would call a state initialiser twice and set the plugins up twice.
+   */
+  const createPlugins = (): RootPlugins => {
+    const document = writable<InkDocument | null>(null)
+    const root = writable<HTMLElement | null>(null)
+    const activatedId = writable<string | null>(null)
+    const host = createPluginHost({
+      plugins: latest.current.plugins ?? [],
+      document: readonly(document),
+      history: () => pluginHistory,
+      activated: readonly(activatedId),
+      // As in `createViewer`: an id not in the open document is ignored.
+      setActivated: (id) => {
+        if (id === null || documentRef.current?.annotations.get(id)) setActivated(id)
+      },
+      root: readonly(root),
+      decorate: () => latest.current.decorateAnnotation,
+    })
+    return { host, document, root, activated: activatedId, destroyed: false }
+  }
+  pluginsRef.current ??= createPlugins()
+  const plugins = pluginsRef.current
+  const [, rebuildPlugins] = useState(0)
+  const hostMounts = useRef(0)
+  useEffect(() => {
+    // Shown again after the host was destroyed (an `<Activity>` hidden and shown): start anew.
+    if (pluginsRef.current?.destroyed) {
+      pluginsRef.current = createPlugins()
+      rebuildPlugins((n) => n + 1)
+    }
+    hostMounts.current += 1
+    return () => {
+      hostMounts.current -= 1
+      // After the rest of this commit's cleanups, so InkViewport's engine and its plugin layers
+      // go first, as in `createViewer`. StrictMode's simulated unmount mounts again at once, and
+      // then the host stays.
+      queueMicrotask(() => {
+        const current = pluginsRef.current
+        if (hostMounts.current > 0 || !current || current.destroyed) return
+        current.destroyed = true
+        current.host.destroy()
+      })
+    }
+    // Once per mount; `createPlugins` reads only stable values and refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const srcIdentity = identity(src)
   useEffect(() => {
     let cancelled = false
@@ -253,6 +363,9 @@ export function InkRoot({
     }
     setOverride({ state: 'loading' })
     let opened: InkDocument | null = null
+    /** The plugins told of `opened`, and the snapshot history's hold on its store. */
+    let told: RootPlugins | null = null
+    let detach: () => void = noop
     const run = async () => {
       try {
         const doc = await openDocument(source, {
@@ -295,6 +408,12 @@ export function InkRoot({
         if (doc.annotations.mode === 'controlled' && current !== undefined)
           doc.annotations.setControlledValue(current)
         documentRef.current = doc
+        // Controlled edits run the plugins' reactions inside their own snapshot step.
+        if (doc.annotations.mode === 'controlled')
+          detach = snapshotHistory.attach(doc.annotations)
+        // The document is current, so the host reads its history when it hears of it.
+        told = pluginsRef.current
+        told?.document.set(doc)
         setDocument(doc)
         setOverride(null)
         setTestHook(rootElRef.current, doc)
@@ -323,6 +442,9 @@ export function InkRoot({
     })
     return () => {
       cancelled = true
+      // Cleared first, so the plugins close their stores while the document is still alive.
+      told?.document.set(null)
+      detach()
       opened?.destroy()
       documentRef.current = null
       setDocument(null)
@@ -347,13 +469,6 @@ export function InkRoot({
       if (latest.current.tool === id && tc?.active.get() === id) tc.set(id)
       setInternalTool(id)
       latest.current.onToolChange?.(id)
-    },
-    [latest]
-  )
-  const setActivated = useCallback(
-    (id: string | null) => {
-      setActivatedState(id)
-      if (id) latest.current.onActivate?.(id)
     },
     [latest]
   )
@@ -389,6 +504,8 @@ export function InkRoot({
         else if (documentRef.current) documentRef.current.history.batch(fn)
         else fn()
       },
+      track: (store) => pluginHistory.track(store),
+      react: (fn) => pluginHistory.react(fn),
     }),
     [
       controlled,
@@ -398,6 +515,7 @@ export function InkRoot({
       coreCanUndo,
       coreCanRedo,
       snapshotHistory,
+      pluginHistory,
     ]
   )
 
@@ -410,11 +528,12 @@ export function InkRoot({
         ? trackToolStyle({
             store: document.annotations,
             history: { batch: (fn) => latestHistory.current.batch(fn) },
-            tools: latest.current.hostTools,
+            // The plugins' tools too, so a plugin tool's style group applies.
+            tools: [...(latest.current.hostTools ?? []), ...plugins.host.tools],
             tool: latest.current.tool,
           })
         : null,
-    [document, latest, latestHistory]
+    [document, latest, latestHistory, plugins]
   )
   useEffect(() => {
     styleTracker?.setTool(internalTool)
@@ -494,6 +613,8 @@ export function InkRoot({
       reportPage,
       activated,
       setActivated,
+      pluginHost: plugins.host,
+      viewportEl: plugins.root,
       history: inkHistory,
       rootEl,
       setViewport,
@@ -522,6 +643,7 @@ export function InkRoot({
       reportPage,
       activated,
       setActivated,
+      plugins,
       inkHistory,
       rootEl,
       setViewport,

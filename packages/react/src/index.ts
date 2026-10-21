@@ -12,12 +12,18 @@ export { useZoom } from './hooks/useZoom'
 export { usePage } from './hooks/usePage'
 export { useHistory } from './hooks/useHistory'
 export { useEmbedded } from './hooks/useEmbedded'
+export { useCommand } from './hooks/useCommand'
+export type { CommandHandle } from './hooks/useCommand'
 export type {
   AnnotationSlotProps,
   AnnotationState,
   ThreadPopoverSlotProps,
 } from '@inkbar/core/dom'
-export type { AnnotationDecoration, DecorateAnnotation } from '@inkbar/core/dom'
+export type {
+  AnnotationDecoration,
+  DecorateAnnotation,
+  InkPlugin,
+} from '@inkbar/core/dom'
 export { InkRoot } from './components/InkRoot'
 export type { InkRootHandle, InkRootProps } from './components/InkRoot'
 export { InkViewport } from './components/InkViewport'
@@ -32,6 +38,8 @@ export { InkIcon } from './components/InkIcon'
 export type { InkIconProps } from './components/InkIcon'
 export { InkToolButton } from './components/InkToolButton'
 export type { InkToolButtonProps } from './components/InkToolButton'
+export { InkCommand } from './components/InkCommand'
+export type { InkCommandProps } from './components/InkCommand'
 export { InkToolbarSeparator } from './components/InkToolbarSeparator'
 export type { InkToolbarSeparatorProps } from './components/InkToolbarSeparator'
 export { InkUndo } from './components/InkUndo'
