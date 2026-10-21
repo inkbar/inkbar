@@ -1,6 +1,7 @@
 import { mount, unmount } from 'svelte'
 
 import sharedCard from '../shared/suggestion-card.ts?highlight'
+import suggestion from '../shared/suggestion.ts?highlight'
 import { startShell } from '../shell/shell'
 
 import actions from './Actions.svelte?highlight'
@@ -14,6 +15,7 @@ startShell({
     { path: 'src/svelte/Demo.svelte', source: demo },
     { path: 'src/svelte/Actions.svelte', source: actions },
     { path: 'src/svelte/SuggestionCard.svelte', source: card },
+    { path: 'src/shared/suggestion.ts', source: suggestion },
     { path: 'src/shared/suggestion-card.ts', source: sharedCard },
   ],
   mount(el, source) {
