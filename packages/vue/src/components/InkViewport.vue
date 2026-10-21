@@ -132,6 +132,9 @@ function setup(): void {
     buffer: props.buffer,
     tool: ctx.tool.value,
     ...(ctx.hostTools.value ? { tools: ctx.hostTools.value } : {}),
+    // The engine adds the plugins' tools and layers, and decorates through the host, which
+    // reads `decorateAnnotation` first.
+    ...(ctx.pluginHost.value ? { plugins: ctx.pluginHost.value } : {}),
     // Read through, so the watch below can re-apply a new function without a rebuild.
     decorateAnnotation: (a) => ctx.decorateAnnotation.value?.(a),
     ...(ctx.toolStyle.value ? { toolStyle: ctx.toolStyle.value } : {}),
@@ -190,6 +193,7 @@ function setup(): void {
 }
 
 onMounted(() => {
+  ctx.viewportEl.value = scroll.value
   watch([() => ctx.document.value, () => ctx.status.value.state], setup, {
     immediate: true,
   })
@@ -247,7 +251,10 @@ onBeforeUpdate(() => {
   if (engine.value && next !== custom) rebuild({ customAnnotations: next })
 })
 
-onBeforeUnmount(teardown)
+onBeforeUnmount(() => {
+  teardown()
+  if (ctx.viewportEl.value === scroll.value) ctx.viewportEl.value = null
+})
 </script>
 
 <template>
