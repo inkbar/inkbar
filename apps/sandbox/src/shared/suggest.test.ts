@@ -7,8 +7,12 @@ import {
   suggestionCount,
   type SuggestSource,
 } from './suggest.ts'
+import { confidenceColor, suggestionOf } from './suggestion.ts'
 
-import type { Annotation } from '@inkbar/core'
+import type { Annotation, AnnotationInput } from '@inkbar/core'
+
+/** The suggestion an input carries, read the way the sandbox reads a stored annotation. */
+const suggestionIn = (f: AnnotationInput) => suggestionOf(f as Annotation)
 
 /** One page with one 300pt-wide text run whose characters are all the same width. */
 function docWith(str: string): SuggestSource {
@@ -28,13 +32,15 @@ void test('finds National Insurance numbers, emails and phone numbers', async ()
   const doc = docWith('NI QQ123456C, sam@example.com, 020 7946 0991')
   const found = await suggestRedactions(doc, [], 0)
   assert.deepEqual(
-    found.map((f) => (f.type === 'redact' ? f.suggestion?.reason : '')),
+    found.map((f) => suggestionIn(f)?.reason),
     ['National Insurance number', 'Email address', 'Phone number']
   )
   for (const f of found) {
     assert.equal(f.type, 'redact')
-    assert.equal(f.origin, 'suggested')
     assert.equal(f.page, 0)
+    assert.equal(suggestionIn(f)?.status, 'suggested')
+    assert.equal(f.color, confidenceColor(suggestionIn(f)!.confidence))
+    assert.equal('origin' in f, false)
   }
 })
 

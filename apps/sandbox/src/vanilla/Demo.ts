@@ -2,7 +2,8 @@
  * Inkbar without a framework: createViewer opens the document and renders the viewer and its
  * popovers. The toolbars are built from Inkbar's controls, so each one is yours to keep, move
  * or drop, and each button takes your own icon in place of the one it shows. Suggest
- * redactions is a custom control, in actions.ts.
+ * redactions is the app's own extension: its button is in actions.ts, its review card in
+ * shared/suggestion-card.ts.
  */
 import {
   createColorMenu,
@@ -29,10 +30,12 @@ import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 
 import { signatureFonts, signatures } from '../shared/signatures'
+import { decorateSuggestion } from '../shared/suggestion'
+import { mountSuggestionCard } from '../shared/suggestion-card'
 
 import { addActions } from './actions'
 
-import type { DocumentSource } from '@inkbar/core'
+import type { DocumentSource, InkDocument } from '@inkbar/core'
 
 function group(
   label: string,
@@ -48,8 +51,31 @@ function group(
 }
 
 export function mountDemo(el: HTMLElement, source: DocumentSource): () => void {
-  const viewer = createViewer(el, { source, assets, signatures, signatureFonts })
+  const viewer = createViewer(el, {
+    source,
+    assets,
+    signatures,
+    signatureFonts,
+    decorateAnnotation: decorateSuggestion,
+    suggestions: false,
+  })
   viewer.element.classList.add('demo-root')
+
+  // The suggestion review card, remounted for each document opened.
+  let card: { destroy(): void } | null = null
+  const mountCard = (doc: InkDocument | null): void => {
+    card?.destroy()
+    card = doc
+      ? mountSuggestionCard({
+          root: viewer.element,
+          store: doc.annotations,
+          activated: viewer.activated,
+          setActivated: (id) => viewer.setActivated(id),
+        })
+      : null
+  }
+  mountCard(viewer.document.get())
+  const stopCard = viewer.document.subscribe(mountCard)
 
   const tools = createToolbar()
   tools.classList.add('demo-toolbar')
@@ -105,6 +131,8 @@ export function mountDemo(el: HTMLElement, source: DocumentSource): () => void {
   viewer.element.prepend(tools)
   viewer.element.append(status)
   return () => {
+    stopCard()
+    card?.destroy()
     actions.destroy()
     viewer.destroy()
   }

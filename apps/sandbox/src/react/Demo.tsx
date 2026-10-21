@@ -10,7 +10,6 @@ import {
   InkRoot,
   InkShapeMenu,
   InkSignatureMenu,
-  InkSuggestionCard,
   InkTextStyleMenu,
   InkThreadPopover,
   InkToolbar,
@@ -26,15 +25,19 @@ import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 
 import { signatureFonts, signatures } from '../shared/signatures'
+import { decorateSuggestion } from '../shared/suggestion'
 
 import { Actions } from './Actions'
+import { SuggestionCard } from './SuggestionCard'
 
 import type { DocumentSource } from '@inkbar/core'
 
 /*
  * Uncontrolled: the document keeps its own annotations and undo history. The toolbars are
  * built from Inkbar's components, so each control is yours to keep, move or drop. Pass a
- * button your own icon to replace the one it shows.
+ * button your own icon to replace the one it shows. Suggest redactions is the app's own
+ * extension: Actions adds the button, SuggestionCard the review card, and decorateSuggestion
+ * tags each suggested mark so the page can draw it dashed.
  */
 export function Demo({ source }: { source: DocumentSource }) {
   return (
@@ -43,6 +46,7 @@ export function Demo({ source }: { source: DocumentSource }) {
       assets={assets}
       signatures={signatures}
       signatureFonts={signatureFonts}
+      decorateAnnotation={decorateSuggestion}
       className="demo-root"
     >
       <InkToolbar className="demo-toolbar">
@@ -84,7 +88,7 @@ export function Demo({ source }: { source: DocumentSource }) {
         </div>
       </InkToolbar>
       <InkThreadPopover />
-      <InkSuggestionCard />
+      <SuggestionCard />
     </InkRoot>
   )
 }

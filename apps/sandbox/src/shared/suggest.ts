@@ -2,7 +2,11 @@
  * "Suggest redactions" for the sandbox: a local pattern matcher standing in for a host's own
  * service. It reads each page's text, matches UK National Insurance numbers, email addresses
  * and UK phone numbers, and returns suggested redactions over just the matched characters.
+ * Each is a plain redaction in its confidence colour, with the details under the sandbox's own
+ * `custom` key (see suggestion.ts).
  */
+import { confidenceColor, type SandboxSuggestion } from './suggestion.ts'
+
 import type {
   Annotation,
   AnnotationInput,
@@ -121,17 +125,18 @@ export async function suggestRedactions(
           const key = placeKey(page.index, rectOfQuads([quad]))
           if (seen.has(key)) continue
           seen.add(key)
+          const suggestion: SandboxSuggestion = {
+            confidence,
+            reason,
+            explanation: `Matched ${match[0]}`,
+            status: 'suggested',
+          }
           out.push({
             type: 'redact',
             page: page.index,
             quads: [quad],
-            origin: 'suggested',
-            suggestion: {
-              confidence,
-              reason,
-              explanation: `Matched ${match[0]}`,
-              recommendation: 'redact',
-            },
+            color: confidenceColor(confidence),
+            custom: { sandbox: { suggestion } },
           })
         }
       }

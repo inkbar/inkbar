@@ -2,7 +2,9 @@
   /*
    * Uncontrolled: the document keeps its own annotations and undo history. The toolbars are
    * built from Inkbar's components, so each control is yours to keep, move or drop. Pass a
-   * button your own icon to replace the one it shows.
+   * button your own icon to replace the one it shows. Suggest redactions is the app's own
+   * extension: Actions adds the button, SuggestionCard the review card, and decorateSuggestion
+   * tags each suggested mark so the page can draw it dashed.
    */
   import {
     InkColorMenu,
@@ -16,7 +18,6 @@
     InkRoot,
     InkShapeMenu,
     InkSignatureMenu,
-    InkSuggestionCard,
     InkThreadPopover,
     InkRedo,
     InkToolbar,
@@ -32,15 +33,24 @@
   import { assets } from 'virtual:inkbar-assets'
 
   import { signatureFonts, signatures } from '../shared/signatures'
+  import { decorateSuggestion } from '../shared/suggestion'
 
   import Actions from './Actions.svelte'
+  import SuggestionCard from './SuggestionCard.svelte'
 
   import type { DocumentSource } from '@inkbar/core'
 
   let { source }: { source: DocumentSource } = $props()
 </script>
 
-<InkRoot src={source} {assets} {signatures} {signatureFonts} class="demo-root">
+<InkRoot
+  src={source}
+  {assets}
+  {signatures}
+  {signatureFonts}
+  decorateAnnotation={decorateSuggestion}
+  class="demo-root"
+>
   <InkToolbar class="demo-toolbar">
     <InkHighlightMenu />
     <div class="demo-group" role="group" aria-label="Tools">
@@ -80,5 +90,5 @@
     </div>
   </InkToolbar>
   <InkThreadPopover />
-  <InkSuggestionCard />
+  <SuggestionCard />
 </InkRoot>

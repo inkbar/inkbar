@@ -227,9 +227,81 @@
 }
 
 /* The plain TypeScript page hides its popovers with `hidden`; the theme's layered display rule would win otherwise. */
-[data-ink-thread-popover][hidden],
-[data-ink-suggestion-card][hidden] {
+[data-ink-thread-popover][hidden] {
   display: none;
+}
+
+/* Suggest redactions, the page's own extension: dashed marks and the review card. */
+.ink-annotation[data-sandbox-suggestion='suggested'] .ink-annotation-shape > * {
+  stroke-dasharray: 4 3;
+}
+/* The card sits on <body>, outside the viewer root, so it maps the theme's tokens itself. */
+.sandbox-suggestion-card {
+  --ink-fg: var(--foreground);
+  --ink-muted-fg: var(--muted-foreground);
+  --ink-surface: var(--background);
+  --ink-border: var(--border);
+  --ink-accent: var(--primary);
+  --ink-accent-fg: var(--primary-foreground);
+  --ink-ring: var(--ring);
+  --ink-radius: var(--radius);
+  z-index: 50;
+  width: 20rem;
+  max-width: calc(100vw - 1rem);
+  padding: 0.75rem;
+  border: 1px solid var(--ink-border);
+  border-radius: var(--ink-radius);
+  background: var(--ink-surface);
+  color: var(--ink-fg);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.15);
+  font-size: 0.875rem;
+}
+.sandbox-suggestion-card[hidden] {
+  display: none;
+}
+.sandbox-suggestion-reason,
+.sandbox-suggestion-explanation {
+  margin: 0;
+}
+.sandbox-suggestion-explanation {
+  margin-top: 0.25rem;
+  color: var(--ink-muted-fg);
+}
+/* The label keeps the body colour for contrast; the confidence colour is the swatch. */
+.sandbox-suggestion-confidence {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+}
+.sandbox-suggestion-swatch {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+}
+.sandbox-suggestion-actions {
+  display: flex;
+  gap: 0.375rem;
+  margin-top: 0.5rem;
+}
+.sandbox-suggestion-actions button {
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--ink-border);
+  border-radius: calc(var(--ink-radius) - 2px);
+  background: var(--ink-surface);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.sandbox-suggestion-actions button:first-child {
+  border-color: var(--ink-accent);
+  background: var(--ink-accent);
+  color: var(--ink-accent-fg);
+}
+.sandbox-suggestion-actions button:focus-visible {
+  outline: 2px solid var(--ink-ring);
+  outline-offset: 2px;
 }
 
 .source {
