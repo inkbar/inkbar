@@ -1,0 +1,34 @@
+packages/core/src/model/annotations/store.ts
+  s_611b86d68c2358::t_3afa0d1c6ee696 38,43,105-110,271,339,465
+  s_611b86d68c2358::t_aef70cb6564e22 550-551
+  s_611b86d68c2358::t_626a41138ef68e 39-42,462
+packages/core/src/index.ts
+  s_611b86d68c2358::t_3afa0d1c6ee696 11
+packages/core/src/model/annotations/store.controlled.test.ts
+  s_611b86d68c2358::t_cbd51f8c776038 440-458
+packages/core/src/model/annotations/store.test.ts
+  s_611b86d68c2358::t_cbd51f8c776038 594-629
+packages/core/src/model/errors.ts
+  s_611b86d68c2358::t_3afa0d1c6ee696 11
+packages/core/src/model/records.test.ts
+  s_611b86d68c2358::t_cbd51f8c776038 1-90
+packages/core/src/model/records.ts
+  s_611b86d68c2358::t_cbd51f8c776038 1-59,68-102
+  s_611b86d68c2358::t_626a41138ef68e 60-67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4ff2f5180a126972a9516386adaaac96d03d339b",
+  "prompts": {},
+  "sessions": {
+    "s_611b86d68c2358": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f6760cb6-1a68-4a5b-b172-32f4da0aa5b1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
