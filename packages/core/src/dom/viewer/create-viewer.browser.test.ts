@@ -1766,6 +1766,30 @@ describe('createViewer', () => {
     expect(isOpen(threadPopover())).toBe(false)
   })
 
+  it('deleting a note from its popover moves focus to the next annotation', async () => {
+    const { viewer } = make('text-simple')
+    const { doc } = await ready(viewer)
+    const note = (y: number, contents: string) =>
+      doc.annotations.add({
+        type: 'text',
+        page: 0,
+        rect: { x: 72, y, width: 20, height: 20 },
+        contents,
+      })
+    const a = note(670, 'First')
+    const b = note(610, 'Second')
+    await until(() => annotationEl(viewer, b.id) !== null)
+    activate(annotationEl(viewer, a.id)!)
+    const popover = threadPopover()!
+    expect(isOpen(popover)).toBe(true)
+    ;[...popover.querySelectorAll('button')]
+      .find((x) => x.textContent === 'Delete')!
+      .click()
+    expect(doc.annotations.get(a.id)).toBeUndefined()
+    expect(isOpen(popover)).toBe(false)
+    await until(() => focused() === annotationEl(viewer, b.id))
+  })
+
   it('loops Tab inside an open popover', async () => {
     const { viewer } = make('annotated-notes-threaded')
     const { doc } = await ready(viewer)
