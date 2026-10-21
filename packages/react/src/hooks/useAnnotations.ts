@@ -1,4 +1,4 @@
-import { acceptSuggestion, repliesTo } from '@inkbar/core'
+import { repliesTo } from '@inkbar/core'
 import { useMemo } from 'react'
 
 import { useInkContext } from '../context'
@@ -23,9 +23,6 @@ export function useAnnotations() {
       update: (id: string, patch: AnnotationPatch) => store?.update(id, patch),
       remove: (id: string) => store?.remove(id) ?? false,
       select: (ids: string[]) => store?.select(ids),
-      /** Keeps a suggested redaction as the user's own, in the default redaction colour. */
-      accept: (id: string) => (store ? acceptSuggestion(store, id) : undefined),
-      dismiss: (id: string) => store?.remove(id) ?? false,
     }),
     [store]
   )

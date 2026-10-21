@@ -40,9 +40,7 @@ type DocHandle = {
     update(id: string, patch: unknown): unknown
     get(
       id: string
-    ):
-      | { origin?: string; rect: { x: number; y: number; width: number; height: number } }
-      | undefined
+    ): { rect: { x: number; y: number; width: number; height: number } } | undefined
     selection: { get(): string[] }
   }
 }
@@ -302,7 +300,7 @@ test('without the slot, the overlay draws the default visual once', async ({ mou
   await expect(cmp.locator('.my-pin')).toHaveCount(0)
 })
 
-test('slot props follow the annotation: select, accept and dismiss a suggested redaction', async ({
+test('slot props follow the annotation: select and remove a redaction', async ({
   mount,
   page,
 }) => {
@@ -317,22 +315,16 @@ test('slot props follow the annotation: select, accept and dismiss a suggested r
   })
   await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
   const root = cmp.locator('[data-ink-root]')
-  const add = () =>
-    root.evaluate(
-      (el) =>
-        (el as RootEl).__inkDocument!.annotations.add({
-          type: 'redact',
-          origin: 'suggested',
-          suggestion: { confidence: 0.9 },
-          page: 0,
-          rect: { x: 72, y: 600, width: 200, height: 40 },
-        }).id
-    )
-
-  const first = await add()
-  const el = cmp.locator(`[data-annotation="${first}"]`)
+  const id = await root.evaluate(
+    (el) =>
+      (el as RootEl).__inkDocument!.annotations.add({
+        type: 'redact',
+        page: 0,
+        rect: { x: 72, y: 600, width: 200, height: 40 },
+      }).id
+  )
+  const el = cmp.locator(`[data-annotation="${id}"]`)
   await expect(el).toHaveAttribute('data-custom', '')
-  await expect(el).toHaveAttribute('data-origin', 'suggested')
   // A press on slot content belongs to that content: it does not select. The pointer is
   // still over the element, so the overlay's hover state comes through.
   await el.locator('.my-pin').click()
@@ -344,33 +336,17 @@ test('slot props follow the annotation: select, accept and dismiss a suggested r
   await expect(el.locator('.my-pin')).toHaveAttribute('data-pin-state', 'selected')
   // With the select tool, dragging a slot control does not move the annotation.
   const rectOf = () =>
-    root.evaluate(
-      (r, id) => (r as RootEl).__inkDocument!.annotations.get(id)?.rect,
-      first
-    )
+    root.evaluate((r, a) => (r as RootEl).__inkDocument!.annotations.get(a)?.rect, id)
   const rectBefore = await rectOf()
-  const accept = await el.getByTestId('accept').boundingBox()
-  await page.mouse.move(accept!.x + 5, accept!.y + 5)
+  const remove = await el.getByTestId('remove').boundingBox()
+  await page.mouse.move(remove!.x + 5, remove!.y + 5)
   await page.mouse.down()
-  await page.mouse.move(accept!.x + 65, accept!.y + 45, { steps: 5 })
+  await page.mouse.move(remove!.x + 65, remove!.y + 45, { steps: 5 })
   await page.mouse.up()
   expect(await rectOf()).toEqual(rectBefore)
-  await expect(el).toHaveAttribute('data-origin', 'suggested')
-  await el.getByTestId('accept').click()
-  await expect(el).toHaveAttribute('data-origin', 'user')
-  await expect(el.getByTestId('accept')).toHaveCount(0)
-  expect(
-    await root.evaluate(
-      (r, id) => (r as RootEl).__inkDocument!.annotations.get(id)?.origin,
-      first
-    )
-  ).toBe('user')
-
-  const second = await add()
-  const el2 = cmp.locator(`[data-annotation="${second}"]`)
-  await el2.getByTestId('dismiss').click()
-  await expect(el2).toHaveCount(0)
-  await expect(cmp.locator('[data-annotation]')).toHaveCount(1)
+  await el.getByTestId('remove').click()
+  await expect(el).toHaveCount(0)
+  expect(await rectOf()).toBeUndefined()
 })
 
 test('keys on slot controls reach the controls, not the annotation', async ({
@@ -385,32 +361,30 @@ test('keys on slot controls reach the controls, not the annotation', async ({
     (el) =>
       (el as RootEl).__inkDocument!.annotations.add({
         type: 'redact',
-        origin: 'suggested',
-        suggestion: { confidence: 0.9 },
         page: 0,
         rect: { x: 72, y: 600, width: 200, height: 40 },
       }).id
   )
   const el = cmp.locator(`[data-annotation="${id}"]`)
-  const stored = () =>
+  const present = () =>
     root.evaluate(
-      (r, a) => (r as RootEl).__inkDocument!.annotations.get(a)?.origin ?? 'gone',
+      (r, a) => (r as RootEl).__inkDocument!.annotations.get(a) !== undefined,
       id
     )
 
+  // Backspace on the annotation would remove it; in the input it edits the text.
   const input = el.getByTestId('slot-input')
   await input.fill('ab')
   await input.press('Backspace')
   await expect(input).toHaveValue('a')
-  expect(await stored()).toBe('suggested')
+  expect(await present()).toBe(true)
 
-  const accept = el.getByTestId('accept')
-  await accept.focus()
-  await accept.press('Enter')
-  await expect(el).toHaveAttribute('data-origin', 'user')
-  expect(await stored()).toBe('user')
-  // Enter reached the button: it accepted, rather than selecting the annotation.
-  await expect(el.locator('.my-pin')).toHaveAttribute('data-pin-state', 'idle')
+  const select = el.getByTestId('select')
+  await select.focus()
+  await select.press('Enter')
+  // Enter reached the button, and the button selected the annotation.
+  await expect(el.locator('.my-pin')).toHaveAttribute('data-pin-state', 'selected')
+  await expect(select).toBeFocused()
 })
 
 test('keyboard zoom and page navigation on the focused scroll element', async ({

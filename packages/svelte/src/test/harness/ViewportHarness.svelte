@@ -87,8 +87,7 @@
   state: pinState,
   locked,
   select,
-  accept,
-  dismiss,
+  remove,
 }: AnnotationSlotProps)}
   <span
     class="my-pin"
@@ -98,10 +97,9 @@
   >
     Pin
   </span>
-  {#if annotation.type === 'redact' && annotation.origin === 'suggested'}
+  {#if annotation.type === 'redact'}
     <button type="button" data-testid="select" onclick={select}>Select</button>
-    <button type="button" data-testid="accept" onclick={accept}>Accept</button>
-    <button type="button" data-testid="dismiss" onclick={dismiss}>Dismiss</button>
+    <button type="button" data-testid="remove" onclick={remove}>Remove</button>
     <input data-testid="slot-input" aria-label="Comment" />
   {/if}
 {/snippet}

@@ -556,10 +556,6 @@ export interface AnnotationSlotProps {
   locked: boolean
   select: () => void
   remove: () => void
-  /** Turns a suggested redaction into the user's own. No-op for anything else. */
-  accept: () => void
-  /** Removes a suggested redaction. No-op for anything else. */
-  dismiss: () => void
 }
 
 /** The thread popover's accessible name: "Note thread" for a note, "Comment thread" for markup. */

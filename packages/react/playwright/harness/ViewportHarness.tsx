@@ -91,7 +91,7 @@ export function ViewportHarness(props: ViewportHarnessProps) {
             }
             renderAnnotation={
               props.customAnnotations
-                ? ({ annotation, state, locked, select, accept, dismiss }) => (
+                ? ({ annotation, state, locked, select, remove }) => (
                     <>
                       <span
                         className="my-pin"
@@ -101,17 +101,13 @@ export function ViewportHarness(props: ViewportHarnessProps) {
                       >
                         Pin
                       </span>
-                      {annotation.type === 'redact' &&
-                      annotation.origin === 'suggested' ? (
+                      {annotation.type === 'redact' ? (
                         <>
                           <button type="button" data-testid="select" onClick={select}>
                             Select
                           </button>
-                          <button type="button" data-testid="accept" onClick={accept}>
-                            Accept
-                          </button>
-                          <button type="button" data-testid="dismiss" onClick={dismiss}>
-                            Dismiss
+                          <button type="button" data-testid="remove" onClick={remove}>
+                            Remove
                           </button>
                           <input data-testid="slot-input" aria-label="Comment" />
                         </>

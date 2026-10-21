@@ -1,8 +1,7 @@
 /*
  * Mirrors a host integration: a signed URL whose signature changes while the document key
- * does not, annotations owned by the host and synced to a server, and suggested redactions
- * that the reader accepts or dismisses. Same test ids and strings as the Vue sandbox: both
- * run the shared end-to-end suite.
+ * does not, and annotations owned by the host and synced to a server. Same test ids and
+ * strings as the Vue sandbox: both run the shared end-to-end suite.
  */
 import {
   AnnotationSchema,
@@ -11,7 +10,6 @@ import {
   type Annotation,
   type DocumentSource,
   type InkDocument,
-  type Quad,
 } from '@inkbar/core'
 import { createFakeServer } from '@inkbar/e2e-shared/fake-server'
 import { recordReady } from '@inkbar/e2e-shared/metrics'
@@ -23,7 +21,6 @@ import {
   InkPageInput,
   InkPrevPage,
   InkRoot,
-  InkSuggestionCard,
   InkToolbar,
   InkToolButton,
   InkViewport,
@@ -67,19 +64,6 @@ function knownAnnotations(items: readonly unknown[]): Annotation[] {
   })
 }
 
-/** Rounded to 0.01 pt, so a rerun finds the rect it stored before. */
-function rectKey(r: { x: number; y: number; width: number; height: number }): string {
-  return [r.x, r.y, r.width, r.height].map((n) => n.toFixed(2)).join(',')
-}
-
-function quadsRect(quads: readonly Quad[]) {
-  const xs = quads.flatMap((q) => [q.p1.x, q.p2.x, q.p3.x, q.p4.x])
-  const ys = quads.flatMap((q) => [q.p1.y, q.p2.y, q.p3.y, q.p4.y])
-  const x = Math.min(...xs)
-  const y = Math.min(...ys)
-  return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y }
-}
-
 export function ReviewPage({
   fixture,
   largePages,
@@ -95,9 +79,6 @@ export function ReviewPage({
     largePages > 0 ? `generating ${largePages} pages` : 'loading'
   )
   const [readyCount, setReadyCount] = useState(0)
-  /** Outcome of the last suggestion run, announced apart from the sync status. */
-  const [suggestResult, setSuggestResult] = useState('')
-  const [document, setDocument] = useState<InkDocument | null>(null)
   const documentRef = useRef<InkDocument | null>(null)
   const root = useRef<InkRootHandle>(null)
   const [largeBytes, setLargeBytes] = useState<Uint8Array | null>(null)
@@ -128,13 +109,12 @@ export function ReviewPage({
     }
   }, [largePages])
 
-  const latest = useRef({ loadedKey, key, readyCount, annotations })
-  latest.current = { loadedKey, key, readyCount, annotations }
+  const latest = useRef({ loadedKey, key, readyCount })
+  latest.current = { loadedKey, key, readyCount }
 
   async function onReady(doc: InkDocument): Promise<void> {
     const count = import.meta.env.DEV ? recordReady() : latest.current.readyCount + 1
     setReadyCount(count)
-    setDocument(doc)
     documentRef.current = doc
     const forKey = doc.key
     const saved = await server.load(forKey)
@@ -156,7 +136,6 @@ export function ReviewPage({
 
   function onError(): void {
     setFailed(true)
-    setDocument(null)
     documentRef.current = null
     setStatus('error')
   }
@@ -206,33 +185,6 @@ export function ReviewPage({
   }, [annotations, server, flushSave])
   useEffect(() => () => clearTimeout(saveTimer.current), [])
 
-  async function suggest(): Promise<void> {
-    const doc = documentRef.current
-    if (!doc) return
-    setSuggestResult('Looking for personal data…')
-    const inputs = await server.suggest(doc)
-    if (documentRef.current !== doc) return
-    // In controlled mode each add is a proposal; proposals in one tick compose into one list.
-    // Running again must not repeat a suggestion already on the page.
-    const seen = new Set(
-      latest.current.annotations
-        .filter((a) => a.type === 'redact')
-        .map((a) => `${a.page}:${rectKey(a.rect)}`)
-    )
-    const fresh = inputs.filter((input) => {
-      const quads = 'quads' in input ? input.quads : undefined
-      if (!quads) return true
-      const id = `${input.page}:${rectKey(quadsRect(quads))}`
-      if (seen.has(id)) return false
-      seen.add(id)
-      return true
-    })
-    for (const input of fresh) doc.annotations.add(input)
-    setSuggestResult(
-      `${fresh.length} suggested redaction${fresh.length === 1 ? '' : 's'}`
-    )
-  }
-
   /** A new signature for the same file: the key is unchanged, so nothing reloads. */
   function resign(): void {
     setSignature((s) => s + 1)
@@ -246,10 +198,8 @@ export function ReviewPage({
     await flushSave()
     setFailed(false)
     setTool('select-text')
-    setDocument(null)
     documentRef.current = null
     setAnnotations([])
-    setSuggestResult('')
     setStatus('loading')
     setVersion((v) => v + 1)
   }
@@ -276,14 +226,6 @@ export function ReviewPage({
           <InkToolButton tool="redact-area" />
           <InkToolButton tool="note" />
           <div className="sandbox-actions" role="group" aria-label="Review">
-            <button
-              type="button"
-              data-testid="suggest"
-              disabled={!document || loading}
-              onClick={() => void suggest()}
-            >
-              Suggest redactions
-            </button>
             <button type="button" data-testid="resign" onClick={resign}>
               Re-sign
             </button>
@@ -310,7 +252,6 @@ export function ReviewPage({
           <InkZoomIn />
         </InkToolbar>
         <InkThreadPopover />
-        <InkSuggestionCard />
       </div>
       <p
         className="sandbox-status"
@@ -321,9 +262,6 @@ export function ReviewPage({
         data-signature={signature}
       >
         {status} · {annotations.length} annotation{annotations.length === 1 ? '' : 's'}
-      </p>
-      <p className="sandbox-status" role="status" data-testid="suggest-result">
-        {suggestResult}
       </p>
     </InkRoot>
   )

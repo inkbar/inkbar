@@ -46,8 +46,10 @@ export function keepOpenOnAnnotation(event: PointerEvent): void {
  * close reaches the planner one microtask late, and only when no open was reported after it.
  *
  * This relies on Bits UI reporting a remount as a close and then an open within one synchronous
- * call (observed in bits-ui 2.19.5, `FocusScope.mount`). If that changes, the browser case 'a
- * card opened by selection alone takes focus without passing it through the annotation' fails.
+ * call (observed in bits-ui 2.19.5, `FocusScope.mount`). The unit case 'a close followed by an
+ * open in the same tick moves no focus and uses up the removal plan' pins the planner's side, and
+ * the browser case 'a popover opened without passing focus through the annotation takes focus'
+ * checks that an open moves focus straight into the popover.
  *
  * A close that is superseded this way moves no focus, but it still uses up whatever
  * `beforeRemove` planned for it, so the plan cannot leak into a later close. A close that is

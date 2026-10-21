@@ -86,7 +86,7 @@ function onReady(doc: InkDocument): void {
           </template>
           <template
             v-if="customAnnotations"
-            #annotation="{ annotation, state, locked, select, accept, dismiss }"
+            #annotation="{ annotation, state, locked, select, remove }"
           >
             <span
               class="my-pin"
@@ -96,14 +96,9 @@ function onReady(doc: InkDocument): void {
             >
               Pin
             </span>
-            <template
-              v-if="annotation.type === 'redact' && annotation.origin === 'suggested'"
-            >
+            <template v-if="annotation.type === 'redact'">
               <button type="button" data-testid="select" @click="select">Select</button>
-              <button type="button" data-testid="accept" @click="accept">Accept</button>
-              <button type="button" data-testid="dismiss" @click="dismiss">
-                Dismiss
-              </button>
+              <button type="button" data-testid="remove" @click="remove">Remove</button>
               <input data-testid="slot-input" aria-label="Comment" />
             </template>
           </template>

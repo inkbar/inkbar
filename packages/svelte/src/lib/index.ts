@@ -8,10 +8,8 @@ export type {
   AnnotationSlotProps,
   AnnotationState,
   ThreadPopoverSlotProps,
-  SuggestionCardSlotProps,
 } from '@inkbar/core/dom'
 export type { AnnotationDecoration, DecorateAnnotation } from '@inkbar/core/dom'
-export type { ConfidenceBucket } from '@inkbar/core'
 export { useDocument } from './hooks/useDocument.svelte.js'
 export { useAnnotations } from './hooks/useAnnotations.svelte.js'
 export { useTool } from './hooks/useTool.svelte.js'
@@ -76,5 +74,3 @@ export type { InkPageButtonProps } from './components/page-button.js'
 export type { ChildSnippet } from './components/child-snippet.js'
 export { default as InkThreadPopover } from './components/InkThreadPopover.svelte'
 export type { InkThreadPopoverProps } from './components/InkThreadPopover.svelte'
-export { default as InkSuggestionCard } from './components/InkSuggestionCard.svelte'
-export type { InkSuggestionCardProps } from './components/InkSuggestionCard.svelte'

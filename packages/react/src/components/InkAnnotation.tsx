@@ -3,7 +3,6 @@
  * default visual for every annotation that is not custom, so this never draws a second one.
  * InkPage portals it into the annotation's overlay element.
  */
-import { acceptSuggestion } from '@inkbar/core'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 
 import { useInkContext } from '../context'
@@ -40,7 +39,6 @@ export function InkAnnotation({ annotation, element, children }: InkAnnotationPr
   }, [element])
 
   const { id } = annotation
-  const isSuggestion = annotation.type === 'redact' && annotation.origin === 'suggested'
   const locked = annotation.locked === true
   const selected = ctx.selection.includes(id)
   const store = ctx.document?.annotations
@@ -51,14 +49,8 @@ export function InkAnnotation({ annotation, element, children }: InkAnnotationPr
       locked,
       select: () => store?.select([id]),
       remove: () => void store?.remove(id),
-      accept: () => {
-        if (store && isSuggestion) acceptSuggestion(store, id)
-      },
-      dismiss: () => {
-        if (isSuggestion) store?.remove(id)
-      },
     }),
-    [annotation, observed, selected, locked, store, id, isSuggestion]
+    [annotation, observed, selected, locked, store, id]
   )
   return <>{children(slotProps)}</>
 }

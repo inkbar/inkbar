@@ -4,7 +4,7 @@ import { page as browserPage, userEvent } from 'vitest/browser'
 import { render } from 'vitest-browser-svelte'
 
 import { guardConsole } from './console-guard.js'
-import { attr, count, focused, q, qa, sleep } from './dom.js'
+import { count, focused, q, qa, sleep } from './dom.js'
 import PopoverHarness, {
   type HostWindow,
   type PopoverHarnessProps,
@@ -17,8 +17,6 @@ type Stored = { id: string; type: string; contents?: string; inReplyTo?: string 
 type DocHandle = {
   annotations: {
     add(input: unknown): { id: string }
-    update(id: string, patch: unknown): unknown
-    select(ids: string[]): void
     list: { get(): Stored[] }
     selection: { get(): string[] }
   }
@@ -32,8 +30,7 @@ const addAnnotation = (input: Record<string, unknown>) => doc().annotations.add(
 const FIRST = '.ink-page[data-page="0"]'
 const SCROLL = '[data-ink-scroll]'
 const POPOVER = '[data-ink-thread-popover]'
-const CARD = '[data-ink-suggestion-card]'
-const SUGGESTED = '[data-annotation][data-origin="suggested"]'
+const NOTES = '[data-annotation][data-type="text"]'
 const scroll = () => document.querySelector<HTMLElement>(SCROLL)!
 const byRole = (root: Element, role: string, name: string) =>
   browserPage.elementLocator(root).getByRole(role, { name, exact: true })
@@ -113,72 +110,6 @@ describe('popovers', () => {
     await expect.poll(count(`${POPOVER} [data-ink-thread-item]`)).toBe(3)
   })
 
-  // React: 'suggestion card accepts into a user redaction and dismisses'
-  it('suggestion card accepts into a user redaction and dismisses', async () => {
-    await harness({ src: fixtureUrl('text-simple'), assets, seedSuggestions: true })
-    await expect.poll(count(SUGGESTED)).toBe(2)
-    await hitShape(qa(SUGGESTED)[0]!).click()
-    const card = await q(CARD)
-    await expect.element(browserPage.elementLocator(card)).toBeVisible()
-    await expect
-      .element(browserPage.elementLocator(card))
-      .toHaveAccessibleName('Suggested redaction')
-    expect(card.textContent).toContain('third-party name')
-    expect(card.textContent).toContain('Names a person other than the data subject.')
-    expect(attr(`${CARD} [data-confidence]`, 'data-confidence')()).toBe('high')
-    await byRole(card, 'button', 'Accept').click()
-    await expect
-      .poll(count('[data-annotation][data-origin="user"][data-type="redact"]'))
-      .toBe(1)
-    await expect.poll(count(CARD)).toBe(0)
-
-    await hitShape(qa(SUGGESTED)[0]!).click()
-    await expect.poll(attr(`${CARD} [data-confidence]`, 'data-confidence')).toBe('low')
-    await byRole(await q(CARD), 'button', 'Dismiss').click()
-    await expect.poll(count(SUGGESTED)).toBe(0)
-    await expect.poll(count(CARD)).toBe(0)
-    await expect.poll(count('[data-annotation]')).toBe(1)
-    // No suggestion follows it: focus goes to the previous annotation, the accepted one.
-    await expect
-      .poll(focused)
-      .toBe(document.querySelector('[data-annotation][data-origin="user"]'))
-  })
-
-  // React: 'suggestion card opens from the keyboard and Escape closes it and clears the selection'
-  it('suggestion card opens from the keyboard and Escape closes it and clears the selection', async () => {
-    await harness({ src: fixtureUrl('text-simple'), assets, seedSuggestions: true })
-    await expect.poll(count(SUGGESTED)).toBe(2)
-    const first = qa(SUGGESTED)[0]!
-    await activate(first)
-    const card = await q(CARD)
-    await expect.element(browserPage.elementLocator(card)).toBeVisible()
-    await expect.poll(focused).toBe(byRole(card, 'button', 'Accept').element())
-    await userEvent.keyboard('{Escape}')
-    await expect.poll(count(CARD)).toBe(0)
-    await expect.poll(focused).toBe(first)
-    await expect.poll(() => first.getAttribute('data-state')).toBe('idle')
-    expect(doc().annotations.selection.get()).toEqual([])
-  })
-
-  // React: 'after a dismiss, focus moves to the next suggestion, then to the document'
-  it('after a dismiss, focus moves to the next suggestion, then to the document', async () => {
-    await harness({ src: fixtureUrl('text-simple'), assets, seedSuggestions: true })
-    await expect.poll(count(SUGGESTED)).toBe(2)
-    const secondId = qa(SUGGESTED)[1]!.getAttribute('data-annotation')
-    await activate(qa(SUGGESTED)[0]!)
-    await byRole(await q(CARD), 'button', 'Dismiss').click()
-    await expect.poll(count(CARD)).toBe(0)
-    await expect.poll(count(SUGGESTED)).toBe(1)
-    await expect
-      .poll(focused)
-      .toBe(document.querySelector(`[data-annotation="${secondId}"]`))
-
-    await userEvent.keyboard('{Enter}')
-    await byRole(await q(CARD), 'button', 'Dismiss').click()
-    await expect.poll(count(SUGGESTED)).toBe(0)
-    await expect.poll(focused).toBe(scroll())
-  })
-
   // React: 'after deleting the only note, focus moves to the document'
   it('after deleting the only note, focus moves to the document', async () => {
     await harness({ src: fixtureUrl('text-simple'), assets })
@@ -194,34 +125,6 @@ describe('popovers', () => {
     await expect.poll(count(POPOVER)).toBe(0)
     await expect.poll(count('[data-annotation]')).toBe(0)
     await expect.poll(focused).toBe(scroll())
-  })
-
-  // React: 'a locked suggestion has no Dismiss, and the slot dismiss keeps the card open'
-  it('a locked suggestion has no Dismiss, and the snippet dismiss keeps the card open', async () => {
-    for (const customCard of [false, true]) {
-      const screen = await harness({
-        src: fixtureUrl('text-simple'),
-        assets,
-        seedSuggestions: true,
-        customCard,
-      })
-      await expect.poll(count(SUGGESTED)).toBe(2)
-      const id = qa(SUGGESTED)[0]!.getAttribute('data-annotation')!
-      doc().annotations.update(id, { locked: true })
-      await expect.poll(attr(`[data-annotation="${id}"]`, 'data-locked')).toBe('')
-      await activate(await q(`[data-annotation="${id}"]`))
-      const card = await q(CARD)
-      await expect.element(browserPage.elementLocator(card)).toBeVisible()
-      if (!customCard) {
-        expect(byRole(card, 'button', 'Dismiss').elements()).toHaveLength(0)
-        expect(byRole(card, 'button', 'Accept').elements()).toHaveLength(1)
-      } else {
-        await screen.getByTestId('custom-dismiss').click()
-        await expect.element(browserPage.elementLocator(card)).toBeVisible()
-        expect(count(SUGGESTED)()).toBe(2)
-      }
-      await screen.unmount()
-    }
   })
 
   // React: 'nested replies have no element; the root opens the whole thread in order'
@@ -259,52 +162,44 @@ describe('popovers', () => {
     expect(reply?.inReplyTo).toBe(r)
   })
 
-  // React: 'when the host removes the activated suggestion, focus moves to the document'
-  it('when the host removes the activated suggestion, focus moves to the document', async () => {
-    await harness({
-      src: fixtureUrl('text-simple'),
-      assets,
-      seedSuggestions: true,
-      controlled: true,
-    })
-    await expect.poll(count(SUGGESTED)).toBe(2)
-    const id = qa(SUGGESTED)[0]!.getAttribute('data-annotation')!
-    await activate(qa(SUGGESTED)[0]!)
-    const card = await q(CARD)
-    await expect.poll(focused).toBe(byRole(card, 'button', 'Accept').element())
+  // React: 'when the host removes the activated note, focus moves to the document'
+  it('when the host removes the activated note, focus moves to the document', async () => {
+    await harness({ src: fixtureUrl('text-simple'), assets, controlled: true })
+    await q(`${FIRST} canvas`)
+    const note = (x: number, y: number) =>
+      addAnnotation({
+        type: 'text',
+        page: 0,
+        rect: { x, y, width: 24, height: 24 },
+        contents: 'Check this',
+      })
+    const id = note(72, 600)
+    note(72, 560)
+    await expect.poll(count(NOTES)).toBe(2)
+    await activate(await q(`[data-annotation="${id}"]`))
+    const remove = byRole(await q(POPOVER), 'button', 'Delete')
+    await expect.element(remove).toBeVisible()
+    remove.element().focus()
     ;(window as HostWindow).__inkHostRemove!(id)
-    await expect.poll(count(CARD)).toBe(0)
-    await expect.poll(count(SUGGESTED)).toBe(1)
+    await expect.poll(count(POPOVER)).toBe(0)
+    await expect.poll(count(NOTES)).toBe(1)
     await expect.poll(focused).toBe(scroll())
-  })
-
-  // React: 'a sole selected suggestion opens the card when something else is activated'
-  it('a sole selected suggestion opens the card when something else is activated', async () => {
-    await harness({ src: fixtureUrl('text-simple'), assets, seedSuggestions: true })
-    await expect.poll(count(SUGGESTED)).toBe(2)
-    const mark = addAnnotation({
-      type: 'redact',
-      page: 0,
-      rect: { x: 300, y: 500, width: 100, height: 20 },
-    })
-    await activate(await q(`[data-annotation="${mark}"]`))
-    await sleep(100)
-    expect(count(CARD)()).toBe(0)
-    // A marquee selects without activating.
-    const id = qa(SUGGESTED)[0]!.getAttribute('data-annotation')!
-    doc().annotations.select([id])
-    const card = await q(CARD)
-    await expect.element(browserPage.elementLocator(card)).toBeVisible()
-    expect(card.textContent).toContain('third-party name')
   })
 
   // No React counterpart: the popover library reports a close while it opens, and the focus
   // planner must not answer that one by focusing the annotation.
-  it('a card opened by selection alone takes focus without passing it through the annotation', async () => {
-    await harness({ src: fixtureUrl('text-simple'), assets, seedSuggestions: true })
-    await expect.poll(count(SUGGESTED)).toBe(2)
-    const anchor = qa(SUGGESTED)[0]!
-    const id = anchor.getAttribute('data-annotation')!
+  it('a popover opened without passing focus through the annotation takes focus', async () => {
+    await harness({ src: fixtureUrl('text-simple'), assets })
+    await q(`${FIRST} canvas`)
+    const note = (x: number, y: number) =>
+      addAnnotation({
+        type: 'text',
+        page: 0,
+        rect: { x, y, width: 24, height: 24 },
+        contents: 'Check this',
+      })
+    const id = note(72, 600)
+    const anchor = await q(`[data-annotation="${id}"]`)
     // Focus is outside the root, and nothing has been activated.
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
     expect(focused()).toBe(document.body)
@@ -315,9 +210,9 @@ describe('popovers', () => {
     }
     document.addEventListener('focusin', record, true)
     try {
-      doc().annotations.select([id])
-      const card = await q(CARD)
-      await expect.poll(focused).toBe(byRole(card, 'button', 'Accept').element())
+      ;(window as HostWindow).__inkActivate!(id)
+      const popover = await q(POPOVER)
+      await expect.poll(() => popover.contains(focused())).toBe(true)
     } finally {
       document.removeEventListener('focusin', record, true)
     }
@@ -328,62 +223,64 @@ describe('popovers', () => {
     expect(seen.at(-1)).toBe(focused())
   })
 
-  // React: 'a press on custom slot content dismisses the card; it does not activate'
-  it('a press on snippet content dismisses the card; it does not activate', async () => {
-    await harness({
-      src: fixtureUrl('text-simple'),
-      assets,
-      seedSuggestions: true,
-      customAnnotations: true,
-    })
-    await expect.poll(count(SUGGESTED)).toBe(2)
-    // The card opens just below the first suggestion and covers the second, so the press goes
-    // to a third suggestion clear of it. Were the press to activate it, the card would stay
-    // open on that one.
-    const third = addAnnotation({
-      type: 'redact',
-      page: 0,
-      rect: { x: 300, y: 400, width: 150, height: 20 },
-      origin: 'suggested',
-      suggestion: { confidence: 0.5, reason: 'possible name' },
-    })
-    await expect.poll(count(SUGGESTED)).toBe(3)
-    await activate(qa(SUGGESTED)[0]!)
-    const card = await q(CARD)
-    expect(card.textContent).toContain('third-party name')
+  // React: 'a press on custom slot content dismisses the note popover; it does not activate'
+  it('a press on snippet content dismisses the note popover; it does not activate', async () => {
+    await harness({ src: fixtureUrl('text-simple'), assets, customAnnotations: true })
+    await q(`${FIRST} canvas`)
+    const note = (x: number, y: number) =>
+      addAnnotation({
+        type: 'text',
+        page: 0,
+        rect: { x, y, width: 24, height: 24 },
+        contents: 'Check this',
+      })
+    // The second note sits clear of the popover, which opens next to the first. Were the press
+    // to activate it, the popover would stay open on that one.
+    const first = note(72, 600)
+    const second = note(300, 400)
+    await activate(await q(`[data-annotation="${first}"]`))
+    await q(POPOVER)
     await browserPage
-      .elementLocator(await q(`[data-annotation="${third}"] [data-testid="pin"]`))
+      .elementLocator(await q(`[data-annotation="${second}"] [data-testid="pin"]`))
       .click()
-    await expect.poll(count(CARD)).toBe(0)
-    expect(doc().annotations.selection.get()).toEqual([])
+    await expect.poll(count(POPOVER)).toBe(0)
+    expect(doc().annotations.selection.get()).not.toContain(second)
   })
 
-  // React: 'with a slow controlled host, a dismiss still moves focus past the removed element'
-  it('with a slow controlled host, a dismiss still moves focus past the removed element', async () => {
+  // React: 'with a slow controlled host, deleting a note still moves focus past the removed element'
+  it('with a slow controlled host, deleting a note still moves focus past the removed element', async () => {
     const screen = await harness({
       src: fixtureUrl('text-simple'),
       assets,
-      seedSuggestions: true,
       controlled: true,
     })
-    await expect.poll(count(SUGGESTED)).toBe(2)
-    const second = qa(SUGGESTED)[1]!.getAttribute('data-annotation')!
+    await q(`${FIRST} canvas`)
+    const note = (x: number, y: number) =>
+      addAnnotation({
+        type: 'text',
+        page: 0,
+        rect: { x, y, width: 24, height: 24 },
+        contents: 'Check this',
+      })
+    const first = note(72, 600)
+    const second = note(72, 560)
+    await expect.poll(count(NOTES)).toBe(2)
     // From here the host applies each proposal 300ms late, after the close has moved focus.
     await screen.rerender({ applyDelay: 300 })
 
-    await activate(qa(SUGGESTED)[0]!)
-    await byRole(await q(CARD), 'button', 'Dismiss').click()
-    await expect.poll(count(CARD)).toBe(0)
+    await activate(await q(`[data-annotation="${first}"]`))
+    await byRole(await q(POPOVER), 'button', 'Delete').click()
+    await expect.poll(count(POPOVER)).toBe(0)
     const next = document.querySelector<HTMLElement>(`[data-annotation="${second}"]`)!
     await expect.poll(focused).toBe(next)
-    await expect.poll(count(SUGGESTED)).toBe(1)
+    await expect.poll(count(NOTES)).toBe(1)
     expect(focused()).toBe(next)
 
     await userEvent.keyboard('{Enter}')
-    await byRole(await q(CARD), 'button', 'Dismiss').click()
-    await expect.poll(count(CARD)).toBe(0)
+    await byRole(await q(POPOVER), 'button', 'Delete').click()
+    await expect.poll(count(POPOVER)).toBe(0)
     await expect.poll(focused).toBe(scroll())
-    await expect.poll(count(SUGGESTED)).toBe(0)
+    await expect.poll(count(NOTES)).toBe(0)
     expect(focused()).toBe(scroll())
     // The store reports the late host, as it should; that is not what this test is about.
     await expect.poll(() => consoleGuard.problems.length).toBe(2)
