@@ -101,10 +101,11 @@ export interface MountViewerOptions {
   /** Annotation content is rendered by the host (custom slots). Changing it needs `rebuild`. */
   customAnnotations?: boolean
   /**
-   * The app's own data attributes and classes for each annotation element, to style or find
-   * its marks: `{ data: { 'my-flag': 'on' } }` writes `data-my-flag="on"`. Read whenever the
-   * element renders, so return them from the annotation. Core's attributes and `ink-` classes
-   * cannot be overridden.
+   * The app's own data attributes, classes and description for each annotation element, to
+   * style or find its marks: `{ data: { 'my-flag': 'on' } }` writes `data-my-flag="on"`.
+   * Decorations re-apply whenever the annotations change; when the function's output changes
+   * for another reason (app state it reads), call `redecorate()`. Core's attributes and `ink-`
+   * classes cannot be overridden.
    */
   decorateAnnotation?: DecorateAnnotation
   onActivate?(id: string): void
@@ -153,6 +154,11 @@ export interface ViewerEngine {
    * the gap lands where `scrollToPage` puts it, with the new gap above it.
    */
   rebuild(opts: { gap?: number; buffer?: number; customAnnotations?: boolean }): void
+  /**
+   * Runs `decorateAnnotation` again for every mounted annotation element, without re-rendering
+   * anything else. Call it when the decorations would change but no annotation did.
+   */
+  redecorate(): void
   destroy(): void
 }
 
@@ -395,6 +401,10 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       if (next.buffer !== undefined) buffer = next.buffer
       if (next.customAnnotations !== undefined) custom = next.customAnnotations
       build(state)
+    },
+    redecorate() {
+      if (destroyed) return
+      for (const mount of pages.values()) mount.overlay.redecorate()
     },
     destroy() {
       if (destroyed) return

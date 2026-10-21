@@ -40,8 +40,10 @@
      */
     tools?: Tool[] | undefined
     /**
-     * Adds `data-*` attributes and classes to each annotation's element. Read on every render,
-     * so a new function takes effect without rebuilding the viewer.
+     * Adds `data-*` attributes, classes and a screen-reader description to each annotation's
+     * element (see `DecorateAnnotation`). Decorations re-apply whenever the annotations change
+     * and when this prop changes, without rebuilding the viewer. Pass a new function when its
+     * output would change for any other reason.
      */
     decorateAnnotation?: DecorateAnnotation | undefined
     /**

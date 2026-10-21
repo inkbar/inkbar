@@ -87,8 +87,10 @@ export interface InkRootProps extends Omit<
    */
   tools?: Tool[] | undefined
   /**
-   * Adds `data-*` attributes and classes to each annotation's element. Read on every render,
-   * so a new function takes effect without rebuilding the viewer.
+   * Adds `data-*` attributes, classes and a screen-reader description to each annotation's
+   * element (see `DecorateAnnotation`). Decorations re-apply whenever the annotations change
+   * and when this prop changes, without rebuilding the viewer. Pass a new function when its
+   * output would change for any other reason.
    */
   decorateAnnotation?: DecorateAnnotation | undefined
   /**
@@ -220,6 +222,7 @@ export function InkRoot({
     onPageChange,
     onZoomChange,
     hostTools,
+    decorateAnnotation,
     tool: internalTool,
     tools,
   })
@@ -440,6 +443,32 @@ export function InkRoot({
   /** Tool options last as long as the root; the tool style is per document. */
   const [toolOptions] = useState(createToolOptions)
 
+  // The prop is read through a stable function and kept out of the context's dependencies, so
+  // an inline arrow does not re-render every consumer. InkViewport hears of a change instead.
+  const decorate = useCallback<DecorateAnnotation>(
+    (a) => latest.current.decorateAnnotation?.(a),
+    [latest]
+  )
+  const [decorateListeners] = useState(() => new Set<() => void>())
+  const onDecorateAnnotationChange = useCallback(
+    (listener: () => void) => {
+      decorateListeners.add(listener)
+      return () => {
+        decorateListeners.delete(listener)
+      }
+    },
+    [decorateListeners]
+  )
+  const decoratedOnce = useRef(false)
+  useEffect(() => {
+    // The first build reads the prop itself.
+    if (!decoratedOnce.current) {
+      decoratedOnce.current = true
+      return
+    }
+    for (const listener of decorateListeners) listener()
+  }, [decorateAnnotation, decorateListeners])
+
   const ctx = useMemo<InkContext>(
     () => ({
       assets,
@@ -452,7 +481,8 @@ export function InkRoot({
       tool: internalTool,
       setTool,
       hostTools,
-      decorateAnnotation,
+      decorateAnnotation: decorate,
+      onDecorateAnnotationChange,
       fonts,
       toolOptions,
       signatures,
@@ -479,7 +509,8 @@ export function InkRoot({
       internalTool,
       setTool,
       hostTools,
-      decorateAnnotation,
+      decorate,
+      onDecorateAnnotationChange,
       fonts,
       toolOptions,
       signatures,

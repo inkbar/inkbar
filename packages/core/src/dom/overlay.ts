@@ -64,20 +64,26 @@ export interface OverlayOptions {
   /** Fixed device pixel ratio for loupes; `window.devicePixelRatio` when omitted. */
   devicePixelRatio?: number
   /**
-   * The app's own data attributes and classes for an annotation's element, read on every
-   * render. Core's own attributes and `ink-` classes win over them.
+   * The app's own data attributes, classes and description for an annotation's element, read
+   * whenever the annotations change and on `redecorate`. Core's own attributes and `ink-`
+   * classes win over them.
    */
   decorate?: DecorateAnnotation
 }
 
 /**
- * Data attributes and classes an app adds to an annotation's element, to style or find its
- * own marks. Each `data` key is written as `data-<key>`.
+ * Data attributes, classes and a description an app adds to an annotation's element, to style
+ * or find its own marks. Each `data` key is written as `data-<key>`.
  */
 export interface AnnotationDecoration {
   /** Written as data-<key>; keys are lower-case kebab (/^[a-z][a-z0-9-]*$/). */
   data?: Readonly<Record<string, string>>
   classes?: readonly string[]
+  /**
+   * Extra words screen readers announce after the element's label, such as "Needs review".
+   * Written as `aria-description`.
+   */
+  description?: string
 }
 
 /** Returns the decoration for an annotation's element, or undefined for none. */
@@ -90,6 +96,8 @@ export interface Overlay {
   /** Repositions every element and redraws content for a new zoom or rotation. */
   update(transform: PageTransform): void
   elementFor(id: string): HTMLElement | undefined
+  /** Runs `decorate` again for every element, for when its output changed but no annotation did. */
+  redecorate(): void
   destroy(): void
 }
 
@@ -183,6 +191,7 @@ function warnDecoration(what: string, why: string): void {
 interface Applied {
   data: Set<string>
   classes: Set<string>
+  description: boolean
 }
 
 function usableData(key: string): boolean {
@@ -342,7 +351,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     applyDecoration(node, a)
   }
 
-  /** The app's data attributes and classes, from `decorate`; a throw decorates nothing. */
+  /** The app's data attributes, classes and description, from `decorate`; a throw adds none. */
   function applyDecoration(node: HTMLElement, a: Annotation): void {
     let decoration: AnnotationDecoration | undefined
     try {
@@ -352,7 +361,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     }
     const prev = decorated.get(node)
     if (!decoration && !prev) return
-    const next: Applied = { data: new Set(), classes: new Set() }
+    const next: Applied = { data: new Set(), classes: new Set(), description: false }
     for (const [key, value] of Object.entries(decoration?.data ?? {})) {
       if (!usableData(key)) continue
       node.setAttribute(`data-${key}`, value)
@@ -363,6 +372,10 @@ export function createOverlay(opts: OverlayOptions): Overlay {
       node.classList.add(name)
       next.classes.add(name)
     }
+    if (decoration?.description) {
+      node.setAttribute('aria-description', decoration.description)
+      next.description = true
+    } else if (prev?.description) node.removeAttribute('aria-description')
     for (const key of prev?.data ?? [])
       if (!next.data.has(key)) node.removeAttribute(`data-${key}`)
     for (const name of prev?.classes ?? [])
@@ -723,6 +736,13 @@ export function createOverlay(opts: OverlayOptions): Overlay {
       render()
     },
     elementFor: (id) => elements.get(id),
+    redecorate() {
+      if (destroyed) return
+      for (const [id, node] of elements) {
+        const a = store.get(id)
+        if (a) applyDecoration(node, a)
+      }
+    },
     destroy() {
       if (destroyed) return
       closeEditors()
