@@ -60,6 +60,22 @@ async function goToLastPage(page: Page): Promise<void> {
   ).toBeVisible()
 }
 
+/** A suggestion still to review, as the sandbox's extension tags it. */
+const SUGGESTED = '.ink-annotation[data-sandbox-suggestion="suggested"]'
+
+/** Opens the sample, runs Suggest redactions and shows the last page, where the marks are. */
+async function suggestOnSample(page: Page, framework: string): Promise<void> {
+  await page.goto(`${framework}/`)
+  await waitForFirstPage(page)
+  await page.getByRole('button', { name: 'Suggest redactions' }).click()
+  await expect(page.locator('.demo-result')).toHaveText(SAMPLE_SUGGESTIONS)
+  await goToLastPage(page)
+  await expect(page.locator(SUGGESTED)).toHaveCount(4)
+}
+
+const suggestionCard = (page: Page) =>
+  page.getByRole('dialog', { name: 'Suggested redaction' })
+
 const shapeButton = (page: Page) => page.getByRole('button', { name: /^Shape: / })
 const sessionShape = (page: Page, type: string) =>
   page.locator(
@@ -85,14 +101,10 @@ for (const framework of FRAMEWORKS) {
       await suggest.click()
       await expect(result).toHaveText(SAMPLE_SUGGESTIONS)
       await goToLastPage(page)
-      await expect(page.locator('.ink-annotation[data-origin="suggested"]')).toHaveCount(
-        4
-      )
+      await expect(page.locator(SUGGESTED)).toHaveCount(4)
       await suggest.click()
       await expect(result).toHaveText('0 suggestions')
-      await expect(page.locator('.ink-annotation[data-origin="suggested"]')).toHaveCount(
-        4
-      )
+      await expect(page.locator(SUGGESTED)).toHaveCount(4)
     })
 
     test('undo removes a whole suggestion run, redo restores it', async ({ page }) => {
@@ -104,17 +116,69 @@ for (const framework of FRAMEWORKS) {
       await page.getByRole('button', { name: 'Suggest redactions' }).click()
       await expect(page.locator('.demo-result')).toHaveText(SAMPLE_SUGGESTIONS)
       await goToLastPage(page)
-      await expect(page.locator('.ink-annotation[data-origin="suggested"]')).toHaveCount(
-        4
-      )
+      await expect(page.locator(SUGGESTED)).toHaveCount(4)
       await undo.click()
-      await expect(page.locator('.ink-annotation[data-origin="suggested"]')).toHaveCount(
-        0
-      )
+      await expect(page.locator(SUGGESTED)).toHaveCount(0)
       await redo.click()
-      await expect(page.locator('.ink-annotation[data-origin="suggested"]')).toHaveCount(
-        4
+      await expect(page.locator(SUGGESTED)).toHaveCount(4)
+    })
+
+    test('accept turns a suggestion into a plain redaction', async ({ page }) => {
+      await suggestOnSample(page, framework)
+      const first = page.locator(SUGGESTED).first()
+      const id = (await first.getAttribute('data-annotation'))!
+      await first.click()
+      const card = suggestionCard(page)
+      await expect(card).toBeVisible()
+      await expect(card).toContainText('National Insurance number')
+      await expect(card).toContainText('High confidence')
+      await card.getByRole('button', { name: 'Accept' }).click()
+      await expect(
+        page.locator(`.ink-annotation[data-annotation="${id}"]`)
+      ).toHaveAttribute('data-sandbox-suggestion', 'accepted')
+      await expect(card).toBeHidden()
+      await expect(page.locator(SUGGESTED)).toHaveCount(3)
+    })
+
+    test('dismiss removes a suggestion and focus moves to the next', async ({ page }) => {
+      await suggestOnSample(page, framework)
+      const next = (await page.locator(SUGGESTED).nth(1).getAttribute('data-annotation'))!
+      await page.locator(SUGGESTED).first().click()
+      await suggestionCard(page).getByRole('button', { name: 'Dismiss' }).click()
+      await expect(suggestionCard(page)).toBeHidden()
+      await expect(page.locator(SUGGESTED)).toHaveCount(3)
+      await expect(
+        page.locator(`.ink-annotation[data-annotation="${next}"]`)
+      ).toBeFocused()
+    })
+
+    test('undo restores an accepted suggestion', async ({ page }) => {
+      await suggestOnSample(page, framework)
+      const first = page.locator(SUGGESTED).first()
+      const id = (await first.getAttribute('data-annotation'))!
+      const mark = page.locator(`.ink-annotation[data-annotation="${id}"]`)
+      await first.click()
+      await suggestionCard(page).getByRole('button', { name: 'Accept' }).click()
+      await expect(mark).toHaveAttribute('data-sandbox-suggestion', 'accepted')
+      await page.getByRole('button', { name: 'Undo' }).click()
+      await expect(mark).toHaveAttribute('data-sandbox-suggestion', 'suggested')
+      await expect(mark.locator('.ink-annotation-shape > *').first()).toHaveAttribute(
+        'stroke',
+        /^#c0392b$/i
       )
+      await mark.click()
+      await expect(suggestionCard(page)).toContainText('National Insurance number')
+    })
+
+    test('Escape closes the card and clears the selection', async ({ page }) => {
+      await suggestOnSample(page, framework)
+      await page.locator(SUGGESTED).first().click()
+      const card = suggestionCard(page)
+      await expect(card.getByRole('button', { name: 'Accept' })).toBeFocused()
+      await page.keyboard.press('Escape')
+      await expect(card).toBeHidden()
+      await expect(page.locator('.ink-annotation[data-state="selected"]')).toHaveCount(0)
+      await expect(page.locator(SUGGESTED)).toHaveCount(4)
     })
 
     test('opens a local PDF in place of the sample', async ({ page }) => {

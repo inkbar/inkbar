@@ -3,10 +3,10 @@
  * with a contents list, then three pages of three rows each: the feature on the left and a box
  * of real page content to try it on, on the right. Page 1 carries two annotations already in
  * the file, so the viewer shows the embedded-annotation path. The customer record on page 4
- * holds what the suggester finds (one National Insurance number, two email addresses and one
- * UK phone number). Every name, number and address is made up: `QQ` National Insurance
- * prefixes are never issued, the phone number is in Ofcom's drama range and the domain is
- * `example.com`.
+ * holds what the sandbox's Suggest redactions extension finds (one National Insurance number,
+ * two email addresses and one UK phone number). Every name, number and address is made up:
+ * `QQ` National Insurance prefixes are never issued, the phone number is in Ofcom's drama
+ * range and the domain is `example.com`.
  */
 import {
   PDFDocument,
@@ -564,7 +564,7 @@ const mask: Row = {
 const redaction: Row = {
   weight: 1.35,
   title: 'Redaction',
-  body: 'Mark text or an area for removal. Connect your own detection service and it can pass Inkbar suggested redactions, each with a reason and a confidence score, for someone to accept or reject.',
+  body: "Mark text or an area for removal. This sandbox adds suggested redactions as its own extension on Inkbar's public API, each with a reason and a confidence for you to accept or dismiss.",
   tryIt:
     'Try it: press Suggest redactions at the top. It finds the NI number, the emails and the phone number. Redact the name by hand.',
   demo(s, b) {
