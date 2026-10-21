@@ -188,7 +188,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     const a = store.get(id)
     syncHandles(
       node,
-      a && !a.locked && state === 'selected' && selectToolActive()
+      a && !a.locked && state === 'selected' && editsSelection()
         ? handleSpec(node, a)
         : { kind: 'none' }
     )
@@ -224,11 +224,17 @@ export function createOverlay(opts: OverlayOptions): Overlay {
 
   /**
    * True while the tool controller marks the tool root (an ancestor) with a select tool,
-   * `data-ink-tool="select"` or `"select-text"`.
+   * `data-ink-tool="select"` or `"select-text"`, or with `data-ink-made`: what a creation tool
+   * just made can be moved and resized too.
    */
-  function selectToolActive(): boolean {
-    const tool = opts.host.closest('[data-ink-tool]')?.getAttribute('data-ink-tool')
-    return tool === 'select' || tool === 'select-text'
+  function editsSelection(): boolean {
+    const root = opts.host.closest('[data-ink-tool]')
+    const tool = root?.getAttribute('data-ink-tool')
+    return (
+      tool === 'select' ||
+      tool === 'select-text' ||
+      root?.hasAttribute('data-ink-made') === true
+    )
   }
   // Re-sync handles on a tool switch. The controller's root is normally the viewport
   // container; pages can mount before the controller marks it, so fall back to that.
@@ -243,7 +249,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     })
     toolObserver.observe(toolRoot, {
       attributes: true,
-      attributeFilter: ['data-ink-tool'],
+      attributeFilter: ['data-ink-tool', 'data-ink-made'],
     })
   }
 

@@ -27,6 +27,11 @@
 // dropped by the press that closes its popover still counts as made. Removing everything it
 // made (Delete, undo, a controlled host refusing the add) returns the tool to ready; the
 // selection moving to something else switches to `select-text`.
+//
+// While made, a press on a made item or on its handles goes to the controller's own selection
+// editor (selection-edit.ts) instead of the tool, as under `select-text`: a drag moves it, a
+// handle resizes it, and the tool stays on and made. Delete and Backspace go to that editor
+// too, so the made item can be removed without switching.
 import { isTextMarkup } from '../../model/annotations/edit'
 import {
   createToolStyle,
@@ -37,6 +42,7 @@ import { readonly, writable, type Readable } from '../../model/readable'
 import { canEditFreeText, editFreeTextIn } from '../freetext-editor'
 
 import { createToolOptions, type ToolOptions } from './options'
+import { createSelectionEdit, type SelectionEdit } from './selection-edit'
 
 import type { AnnotationStore } from '../../model/annotations/store'
 import type { Point } from '../../model/geometry'
@@ -240,6 +246,10 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
   let stopMade: (() => void)[] = []
   /** Whether the press now under way found the tool made (see the top of the file). */
   let pressFoundMade = false
+  /** Moves and resizes what the active one-shot tool made. */
+  let madeEdit: SelectionEdit | undefined
+  /** The press now under way went to `madeEdit`, not the tool. */
+  let editingMade = false
 
   function clearMade(): void {
     stopMade.forEach((stop) => stop())
@@ -288,7 +298,13 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
         return
       }
       const a = annotationId === undefined ? undefined : ctx.store.get(annotationId)
-      if (a && !isTextMarkup(a) && !made?.includes(a.id)) set('select-text')
+      if (a && made?.includes(a.id) && madeEdit) {
+        pressed = e.pointerId
+        editingMade = true
+        if (madeEdit.onPointerDown(e, hitFor(ctx, e), a.id) === true) capture(e.pointerId)
+        return
+      }
+      if (a && !isTextMarkup(a)) set('select-text')
     }
     pressed = e.pointerId
     if (current?.onPointerDown?.(e, hitFor(ctx, e), annotationId) === true)
@@ -298,7 +314,13 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     if (!e.isPrimary || foreign(e)) return
     // A buttonless move means the release was missed: the press is over (tools drop their
     // own gesture on the same signal), so another pointer may press again.
-    if (pressed === e.pointerId && e.buttons === 0) pressed = undefined
+    const missed = pressed === e.pointerId && e.buttons === 0
+    if (missed) pressed = undefined
+    if (editingMade) {
+      madeEdit?.onPointerMove(e, hitFor(ctx, e))
+      if (missed) editingMade = false
+      return
+    }
     current?.onPointerMove?.(e, hitFor(ctx, e))
   }
   const onUp = (e: PointerEvent): void => {
@@ -308,7 +330,10 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
       release(e.pointerId)
       return
     }
-    current?.onPointerUp?.(e, hitFor(ctx, e))
+    if (editingMade) {
+      editingMade = false
+      madeEdit?.onPointerUp(e, hitFor(ctx, e))
+    } else current?.onPointerUp?.(e, hitFor(ctx, e))
     release(e.pointerId)
   }
   const onCancel = (e: PointerEvent): void => {
@@ -317,13 +342,20 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     if (e.type === 'lostpointercapture' && pressed !== e.pointerId) return
     if (pressed === e.pointerId) pressed = undefined
     swallow.delete(e.pointerId)
-    current?.onPointerCancel?.(e)
+    if (editingMade) {
+      editingMade = false
+      madeEdit?.onPointerCancel()
+    } else current?.onPointerCancel?.(e)
   }
   const onKey = (e: KeyboardEvent): void => {
     if (inCustomContent(e.target)) return
     if (made && e.key === 'Escape' && !e.defaultPrevented) {
       e.preventDefault()
       ctx.done()
+      return
+    }
+    if (made && (e.key === 'Delete' || e.key === 'Backspace')) {
+      madeEdit?.onKeyDown(e)
       return
     }
     current?.onKeyDown?.(e)
@@ -374,16 +406,21 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     if (options) registry.merge(id, options)
     if (pressed !== undefined) {
       // Mid-press: end the old tool's gesture here and keep its release from the new tool.
-      current?.onPointerCancel?.(
-        new PointerEvent('pointercancel', { pointerId: pressed, isPrimary: true })
-      )
+      if (editingMade) madeEdit?.onPointerCancel()
+      else
+        current?.onPointerCancel?.(
+          new PointerEvent('pointercancel', { pointerId: pressed, isPrimary: true })
+        )
       swallow.add(pressed)
       pressed = undefined
     }
+    editingMade = false
+    madeEdit?.reset()
     current?.deactivate()
     // After `deactivate`, which may commit an open edit and report it made.
     clearMade()
     current = next
+    madeEdit = next.kind === 'one-shot' ? createSelectionEdit(ctx) : undefined
     next.activate(ctx)
     ctx.root.dataset.inkTool = id
     ctx.root.style.cursor = next.cursor
@@ -403,6 +440,8 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
       return registry.readable(id)
     },
     destroy() {
+      madeEdit?.reset()
+      madeEdit = undefined
       current?.deactivate()
       clearMade()
       current = undefined
