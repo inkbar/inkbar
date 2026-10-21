@@ -188,7 +188,7 @@ test('host-owned annotations survive a re-signed URL and a reload, and a new ver
     documentKey: string
     annotations: { contents?: string }[]
   }
-  expect(saved.format).toBe('inkbar/annotations')
+  expect(saved.format).toBe('gloss')
   expect(saved.documentKey).toBe('case-1:v1')
   expect(saved.annotations.map((a) => a.contents)).toContain('Keep across re-signing')
   await page.reload()

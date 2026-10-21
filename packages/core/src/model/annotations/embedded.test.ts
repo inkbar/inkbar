@@ -352,7 +352,7 @@ describe('embedded import of PDF names and callouts', () => {
     const patch = vi.spyOn(doc.annotations, '_patchEmbedded')
     // Nothing public removes an embedded annotation, so drop it through the store's own hook.
     doc.annotations._setEmbedded([])
-    doc.importAnnotations({ format: 'inkbar/annotations', version: 1, annotations: [] })
+    doc.importAnnotations({ format: 'gloss', version: 1, annotations: [] })
     await vi.waitFor(() => expect(patch).toHaveBeenCalled())
     // The fill was for the dropped callout, and it does not bring it back.
     expect([...patch.mock.calls[0]![0].keys()]).toEqual([callout!.id])

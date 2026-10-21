@@ -1,9 +1,10 @@
+import { ANNOTATION_TYPES } from 'gloss-format'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { staticDefaults } from './defaults'
-import { exportAnnotations, importAnnotations } from './json'
+import { exportAnnotations, importAnnotations, KNOWN_TYPES } from './json'
 import { createAnnotationStore } from './store'
-import { ANNOTATION_FORMAT, type AnnotationDocument } from './types'
+import { EXTENSION_TYPES, GLOSS_FORMAT, type AnnotationDocument } from './types'
 
 const rect = { x: 0, y: 0, width: 20, height: 20 }
 
@@ -23,7 +24,7 @@ describe('json import/export', () => {
     const out = exportAnnotations(s, [], 'doc-1')
     const { source: _source, ...exported } = a
     expect(out).toEqual({
-      format: ANNOTATION_FORMAT,
+      format: GLOSS_FORMAT,
       version: 1,
       documentKey: 'doc-1',
       annotations: [exported],
@@ -154,7 +155,11 @@ describe('json import/export', () => {
       color: '#2B5A9E',
       width: 4,
     })
-    const text = JSON.stringify(exportAnnotations(s, [], 'k'))
+    const out = exportAnnotations(s, [], 'k')
+    // Gloss doesn't define a loupe, so the file names it with a host's x- prefix.
+    expect(out.annotations[0]?.type).toBe('x-loupe')
+    expect(s.list.get()[0]?.type).toBe('loupe')
+    const text = JSON.stringify(out)
     const s2 = mk()
     expect(importAnnotations(s2, text, { mode: 'replace' }).errors).toEqual([])
     expect(s2.list.get()).toEqual(s.list.get())
@@ -177,7 +182,9 @@ describe('json import/export', () => {
       shape: 'ellipse',
       dim: 0.8,
     })
-    const text = JSON.stringify(exportAnnotations(s, [], 'k'))
+    const out = exportAnnotations(s, [], 'k')
+    expect(out.annotations[0]?.type).toBe('x-mask')
+    const text = JSON.stringify(out)
     const s2 = mk()
     expect(importAnnotations(s2, text, { mode: 'replace' }).errors).toEqual([])
     expect(s2.list.get()).toEqual(s.list.get())
@@ -230,7 +237,7 @@ describe('json import/export', () => {
     importAnnotations(
       s,
       {
-        format: ANNOTATION_FORMAT,
+        format: GLOSS_FORMAT,
         version: 1,
         annotations: [{ ...change, contents: 'new' }],
       },
@@ -260,7 +267,7 @@ describe('json import/export', () => {
     const result = importAnnotations(
       s,
       {
-        format: ANNOTATION_FORMAT,
+        format: GLOSS_FORMAT,
         version: 1,
         annotations: [unknown, { type: 'text' }],
       } as never,
@@ -285,7 +292,7 @@ describe('json import/export', () => {
     importAnnotations(
       s,
       {
-        format: ANNOTATION_FORMAT,
+        format: GLOSS_FORMAT,
         version: 1,
         annotations: [
           { type: 'hologram', id: 'a', page: 0 },
@@ -311,7 +318,7 @@ describe('json import/export', () => {
     const pdf = { ...a, id: 'pdf:0:1R', source: 'pdf' as const, locked: true }
     s._setEmbedded([pdf])
     const empty: AnnotationDocument = {
-      format: ANNOTATION_FORMAT,
+      format: GLOSS_FORMAT,
       version: 1,
       annotations: [],
     }
@@ -341,7 +348,70 @@ describe('json import/export', () => {
       importAnnotations(s, { format: 'other', version: 1, annotations: [] } as never, {
         mode: 'replace',
       })
-    ).toThrow(/inkbar\/annotations/)
+    ).toThrow(/gloss v1/)
+  })
+
+  it('parses every type Gloss defines today, plus its own', () => {
+    const own = Object.keys(EXTENSION_TYPES)
+    expect([...KNOWN_TYPES].filter((t) => !own.includes(t)).sort()).toEqual(
+      [...ANNOTATION_TYPES].sort()
+    )
+    for (const type of [...own, ...Object.values(EXTENSION_TYPES)])
+      expect(ANNOTATION_TYPES).not.toContain(type)
+  })
+
+  it('still reads a loupe written under its plain name', () => {
+    const s = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const loupe = {
+      type: 'loupe',
+      id: 'l1',
+      page: 0,
+      rect: { x: 100, y: 500, width: 72, height: 72 },
+      color: '#2B5A9E',
+      opacity: 1,
+      createdAt: '2026-10-20T12:00:00Z',
+      modifiedAt: '2026-10-20T12:00:00Z',
+    }
+    const result = importAnnotations(
+      s,
+      { format: GLOSS_FORMAT, version: 1, annotations: [loupe] },
+      { mode: 'replace' }
+    )
+    expect(result).toMatchObject({ imported: 1, unknown: [], errors: [] })
+    expect(s.list.get()[0]).toMatchObject({ type: 'loupe', magnification: 2 })
+  })
+
+  it('rejects an inkbar/annotations document', () => {
+    const s = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const old = { format: 'inkbar/annotations', version: 1, annotations: [] }
+    const run = () => importAnnotations(s, old as never, { mode: 'replace' })
+    expect(run).toThrow(TypeError)
+    expect(run).toThrow(/gloss v1/)
+  })
+
+  it('core is stricter than Gloss', () => {
+    const s = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    // Valid Gloss, but Inkbar needs the fill, colour, opacity and dates.
+    const minimal = { type: 'redact', id: 'r1', page: 0, rect }
+    const result = importAnnotations(
+      s,
+      { format: GLOSS_FORMAT, version: 1, annotations: [minimal] } as never,
+      { mode: 'replace' }
+    )
+    expect(result.imported).toBe(0)
+    expect(result.errors).toHaveLength(1)
+    expect(result.errors[0]?.index).toBe(0)
+    expect(result.errors[0]?.issues.join('\n')).toMatch(/interiorColor/)
+    expect(s.list.get()).toEqual([])
   })
 
   it('reports unknown types without an id or page instead of preserving them', () => {
@@ -353,7 +423,7 @@ describe('json import/export', () => {
     const result = importAnnotations(
       s,
       {
-        format: ANNOTATION_FORMAT,
+        format: GLOSS_FORMAT,
         version: 1,
         annotations: [
           { type: 'hologram', page: 0 },
@@ -379,7 +449,7 @@ describe('json import/export', () => {
       const result = importAnnotations(
         s,
         {
-          format: ANNOTATION_FORMAT,
+          format: GLOSS_FORMAT,
           version: 1,
           annotations: [
             a,

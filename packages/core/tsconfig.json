@@ -5,5 +5,5 @@
     "types": ["node", "vite/client"],
     "paths": { "#pdfjs": ["./node_modules/pdfjs-dist/types/src/pdf.d.ts"] }
   },
-  "include": ["src/**/*.ts", "scripts/**/*.ts"]
+  "include": ["src/**/*.ts"]
 }

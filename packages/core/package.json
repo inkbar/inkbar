@@ -14,7 +14,6 @@
   "sideEffects": false,
   "files": [
     "dist",
-    "schema.json",
     "README.md"
   ],
   "exports": {
@@ -33,7 +32,6 @@
     "./vite/client": {
       "types": "./dist/vite/client.d.ts"
     },
-    "./schema.json": "./schema.json",
     "./package.json": "./package.json"
   },
   "imports": {
@@ -47,11 +45,11 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint src",
     "test": "vitest run --project node",
-    "generate": "tsx scripts/generate-schema.ts",
     "test:browser": "vitest run --project browser"
   },
   "dependencies": {
     "@inkbar/icons": "workspace:^",
+    "gloss-format": "^1.1.0",
     "pdfjs-dist": "^6.4.299",
     "perfect-freehand": "1.2.3",
     "uuid": "^14.0.3",
@@ -73,7 +71,6 @@
     "fast-check": "^4.10.2",
     "playwright": "1.62.1",
     "tsdown": "^0.23.1",
-    "tsx": "^4.20.0",
     "vite": "^8.3.4",
     "vitest": "^5.0.4"
   }

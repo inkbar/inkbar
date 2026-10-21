@@ -5,9 +5,9 @@
  * suggested redactions that the reader accepts or dismisses.
  */
 import {
-  ANNOTATION_FORMAT,
-  ANNOTATION_VERSION,
   AnnotationSchema,
+  GLOSS_FORMAT,
+  GLOSS_VERSION,
   type Annotation,
   type DocumentSource,
   type InkDocument,
@@ -149,8 +149,8 @@ watch(annotations, (list) => {
   pendingSave = () =>
     server
       .save(forKey, {
-        format: ANNOTATION_FORMAT,
-        version: ANNOTATION_VERSION,
+        format: GLOSS_FORMAT,
+        version: GLOSS_VERSION,
         documentKey: forKey,
         annotations: JSON.parse(JSON.stringify(list)) as Annotation[],
       })
