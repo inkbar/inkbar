@@ -81,26 +81,43 @@ function lift(raw: Item, inkbar: Item, keys: readonly string[], extra: Item = {}
   return item
 }
 
-/** A raw file item → an object for ExportedAnnotationSchema to parse; anything it doesn't recognise passes through unchanged. */
-export function fromFile(raw: Record<string, unknown>): Record<string, unknown> {
+/** A file item read back by `fromFile`. */
+export interface FromFile {
+  /** The object for ExportedAnnotationSchema to parse. */
+  item: Record<string, unknown>
+  /**
+   * Top-level keys of `item` that the file keeps under `custom.inkbar`, so an error in one is
+   * reported at `custom.inkbar.<key>`.
+   */
+  lifted: readonly string[]
+}
+
+/**
+ * A raw file item as Inkbar parses it: Inkbar's own data moves out of `custom.inkbar`. An item
+ * it doesn't recognise passes through unchanged.
+ */
+export function fromFile(raw: Record<string, unknown>): FromFile {
   const inkbar =
     isObject(raw.custom) && isObject(raw.custom.inkbar) ? raw.custom.inkbar : {}
+  const from = (keys: readonly string[], extra?: Item): FromFile => ({
+    item: lift(raw, inkbar, keys, extra),
+    lifted: keys,
+  })
+  const unchanged: FromFile = { item: raw, lifted: [] }
   switch (raw.type) {
     // A top-level `pressure` or `borderColor`, as older files wrote them, is dropped.
     case 'ink':
-      return lift(raw, inkbar, ['pressure'])
+      return from(['pressure'])
     case 'freetext':
-      return lift(raw, inkbar, ['borderColor'])
+      return from(['borderColor'])
     case 'circle':
-      if (inkbar.type === 'loupe') return lift(raw, inkbar, ['type', 'magnification'])
-      if (inkbar.type === 'mask')
-        return lift(raw, inkbar, ['type', 'dim'], { shape: 'ellipse' })
-      return raw
+      if (inkbar.type === 'loupe') return from(['type', 'magnification'])
+      if (inkbar.type === 'mask') return from(['type', 'dim'], { shape: 'ellipse' })
+      return unchanged
     case 'square':
-      if (inkbar.type === 'mask')
-        return lift(raw, inkbar, ['type', 'dim'], { shape: 'rect' })
-      return raw
+      if (inkbar.type === 'mask') return from(['type', 'dim'], { shape: 'rect' })
+      return unchanged
     default:
-      return raw
+      return unchanged
   }
 }

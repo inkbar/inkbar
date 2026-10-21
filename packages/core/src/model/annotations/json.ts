@@ -178,12 +178,20 @@ export function planImport(
     }
     // Inkbar's own data comes back out of `custom.inkbar`: a circle or square marked there as a
     // loupe or mask becomes one. Unknown keys, including `source` and `locked`, are dropped here.
-    const item = isRecord(raw) && typeof type === 'string' ? fromFile(raw) : raw
+    const { item, lifted } =
+      isRecord(raw) && typeof type === 'string'
+        ? fromFile(raw)
+        : { item: raw, lifted: [] as readonly string[] }
     const parsed = ExportedAnnotationSchema.safeParse(item)
     if (!parsed.success) {
       result.errors.push({
         index,
-        issues: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`),
+        // An error in a key Inkbar keeps under custom.inkbar names it where the file has it.
+        issues: parsed.error.issues.map((i) => {
+          const path = i.path.join('.')
+          const own = typeof i.path[0] === 'string' && lifted.includes(i.path[0])
+          return `${own ? `custom.inkbar.${path}` : path}: ${i.message}`
+        }),
       })
       return
     }

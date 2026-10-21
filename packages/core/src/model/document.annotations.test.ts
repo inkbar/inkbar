@@ -103,6 +103,19 @@ describe('document annotations', () => {
     doc.destroy()
   })
 
+  it('exports ellipse and rectangle masks that validate against the published schema', () => {
+    const store = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    // One mask per page: a second on the same page would replace the first.
+    store.add({ type: 'mask', page: 0, rect, shape: 'ellipse' })
+    store.add({ type: 'mask', page: 1, rect, shape: 'rect' })
+    const out = exportAnnotations(store)
+    expect(out.annotations.map((a) => a.type)).toEqual(['circle', 'square'])
+    expect(compileSchema()(JSON.parse(JSON.stringify(out)))).toBe(true)
+  })
+
   it('export carries the gloss format marker', () => {
     const store = createAnnotationStore({
       mode: { mode: 'uncontrolled' },

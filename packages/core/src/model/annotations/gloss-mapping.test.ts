@@ -20,7 +20,7 @@ function exported(input: AnnotationInput): ExportedAnnotation {
 
 /** `toFile` then `fromFile`, through JSON as a file would go. */
 const roundTrip = (a: ExportedAnnotation) =>
-  fromFile(JSON.parse(JSON.stringify(toFile(a))) as Record<string, unknown>)
+  fromFile(JSON.parse(JSON.stringify(toFile(a))) as Record<string, unknown>).item
 
 const inklist = [
   [

@@ -180,8 +180,9 @@ export { IMAGE_DATA_URL } from 'gloss-format'
 export const StampSchema = z.object({ ...Stamp.shape, ...Base })
 
 /**
- * A loupe (Inkbar's own type, a circle with `custom.inkbar.type: 'loupe'` in a file): a circle inscribed in `rect` that shows
- * the page content under its own centre, magnified. `color` and `width` draw its rim.
+ * A loupe (Inkbar's own type, a circle with `custom.inkbar.type: 'loupe'` in a file): a circle
+ * inscribed in `rect` that shows the page content under its own centre, magnified. `color` and
+ * `width` draw its rim.
  */
 export const LoupeSchema = z.object({
   type: z.literal('loupe'),
@@ -194,10 +195,10 @@ export const LoupeSchema = z.object({
 })
 
 /**
- * A mask (Inkbar's own type, a circle or square with `custom.inkbar.type: 'mask'` in a file): dims everything on the page outside
- * `shape` drawn in `rect`, an ellipse inscribed in it or the rectangle itself. `color` is the
- * dimming colour and `dim` how strongly it covers, from 0 to 1. One per page: adding a second
- * replaces the first.
+ * A mask (Inkbar's own type, a circle or square with `custom.inkbar.type: 'mask'` in a file):
+ * dims everything on the page outside `shape` drawn in `rect`, an ellipse inscribed in it or the
+ * rectangle itself. `color` is the dimming colour and `dim` how strongly it covers, from 0 to 1.
+ * One per page: adding a second replaces the first.
  */
 export const MaskSchema = z.object({
   type: z.literal('mask'),

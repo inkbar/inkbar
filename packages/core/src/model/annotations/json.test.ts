@@ -424,6 +424,38 @@ describe('json import/export', () => {
     expect(s.list.get()[0]).not.toHaveProperty('pressure')
   })
 
+  it.each([
+    ['out of range', [[1.5]]],
+    ['not shaped like inklist', [[0.5, 0.5]]],
+  ])('reports ink pressure %s at custom.inkbar.pressure', (_, pressure) => {
+    const s = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const ink = {
+      type: 'ink',
+      id: 'i1',
+      page: 0,
+      rect,
+      color: '#000000',
+      opacity: 1,
+      createdAt: '2026-10-20T12:00:00Z',
+      modifiedAt: '2026-10-20T12:00:00Z',
+      inklist: [[{ x: 1, y: 1 }]],
+      custom: { inkbar: { pressure } },
+    }
+    const result = importAnnotations(
+      s,
+      { format: GLOSS_FORMAT, version: 1, annotations: [ink] },
+      { mode: 'replace' }
+    )
+    expect(result.imported).toBe(0)
+    expect(result.errors).toHaveLength(1)
+    const issues = result.errors[0]?.issues ?? []
+    expect(issues.length).toBeGreaterThan(0)
+    for (const issue of issues) expect(issue).toMatch(/^custom\.inkbar\.pressure(\.|:)/)
+  })
+
   it('reports a loupe with an invalid magnification', () => {
     const s = createAnnotationStore({
       mode: { mode: 'uncontrolled' },
@@ -447,7 +479,12 @@ describe('json import/export', () => {
     )
     expect(result.imported).toBe(0)
     expect(result.errors).toHaveLength(1)
-    expect(result.errors[0]?.issues.some((i) => i.startsWith('magnification'))).toBe(true)
+    expect(
+      result.errors[0]?.issues.some((i) => i.startsWith('custom.inkbar.magnification:'))
+    ).toBe(true)
+    expect(result.errors[0]?.issues.some((i) => i.startsWith('magnification'))).toBe(
+      false
+    )
   })
 
   it('rejects an inkbar/annotations document', () => {
