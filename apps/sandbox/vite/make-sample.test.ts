@@ -5,9 +5,9 @@ import { PDFArray, PDFDocument, PDFName } from 'pdf-lib'
 
 import { makeSample } from './make-sample.ts'
 
-void test('the sample is a three-page document', async () => {
+void test('the sample is a four-page document', async () => {
   const d = await PDFDocument.load(await makeSample())
-  assert.equal(d.getPageCount(), 3)
+  assert.equal(d.getPageCount(), 4)
   assert.match(d.getTitle() ?? '', /sample/i)
 })
 

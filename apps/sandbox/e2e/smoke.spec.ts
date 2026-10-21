@@ -10,14 +10,14 @@ const guard = guardConsole(test)
 /** Every framework page meets the same contract; later tasks add their id here. */
 const FRAMEWORKS = ['react', 'vue', 'svelte', 'vanilla'] as const
 
-/** The sample holds three NI numbers, three emails and three phone numbers. */
-const SAMPLE_SUGGESTIONS = '9 suggestions'
+/** The sample holds one NI number, two emails and one phone number. */
+const SAMPLE_SUGGESTIONS = '4 suggestions'
 
 const textSimple = fileURLToPath(
   new URL('../../../fixtures/pdf/text-simple.pdf', import.meta.url)
 )
 
-/** One page and no annotations, unlike the three-page sample, so a swap is unmistakable. */
+/** One page and no annotations, unlike the four-page sample, so a swap is unmistakable. */
 const onePage = fileURLToPath(
   new URL('../../../fixtures/pdf/text-cjk.pdf', import.meta.url)
 )
@@ -51,6 +51,15 @@ async function dragShape(page: Page, from = [40, 30], to = [200, 100]): Promise<
   await page.mouse.up()
 }
 
+/** The sample's suggestions all fall on its last page, and only pages in view draw marks. */
+async function goToLastPage(page: Page): Promise<void> {
+  await page.locator('input[aria-label="Page"]').fill('4')
+  await page.keyboard.press('Enter')
+  await expect(
+    page.locator('.ink-page[data-page="3"] canvas[data-ink-canvas]')
+  ).toBeVisible()
+}
+
 const shapeButton = (page: Page) => page.getByRole('button', { name: /^Shape: / })
 const sessionShape = (page: Page, type: string) =>
   page.locator(
@@ -75,13 +84,14 @@ for (const framework of FRAMEWORKS) {
       const result = page.locator('.demo-result')
       await suggest.click()
       await expect(result).toHaveText(SAMPLE_SUGGESTIONS)
+      await goToLastPage(page)
       await expect(page.locator('.ink-annotation[data-origin="suggested"]')).toHaveCount(
-        9
+        4
       )
       await suggest.click()
       await expect(result).toHaveText('0 suggestions')
       await expect(page.locator('.ink-annotation[data-origin="suggested"]')).toHaveCount(
-        9
+        4
       )
     })
 
@@ -93,13 +103,17 @@ for (const framework of FRAMEWORKS) {
       await expect(undo).toBeDisabled()
       await page.getByRole('button', { name: 'Suggest redactions' }).click()
       await expect(page.locator('.demo-result')).toHaveText(SAMPLE_SUGGESTIONS)
+      await goToLastPage(page)
+      await expect(page.locator('.ink-annotation[data-origin="suggested"]')).toHaveCount(
+        4
+      )
       await undo.click()
       await expect(page.locator('.ink-annotation[data-origin="suggested"]')).toHaveCount(
         0
       )
       await redo.click()
       await expect(page.locator('.ink-annotation[data-origin="suggested"]')).toHaveCount(
-        9
+        4
       )
     })
 
@@ -143,7 +157,7 @@ for (const framework of FRAMEWORKS) {
       await expect(page.locator('[data-file-status]')).toHaveText(
         'notes.txt is not a PDF.'
       )
-      await expect(page.locator('[data-ink-page-count]')).toHaveText('of 3')
+      await expect(page.locator('[data-ink-page-count]')).toHaveText('of 4')
     })
 
     test('shows an error for a broken PDF and recovers on the next file', async ({

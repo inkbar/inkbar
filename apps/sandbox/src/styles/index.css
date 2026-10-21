@@ -41,7 +41,7 @@
   color: var(--ballpoint);
 }
 
-/* A drawing of the sample letter with one of each mark the viewer makes. */
+/* A drawing of the sample's customer record with one of each mark the viewer makes. */
 .specimen {
   position: relative;
   flex: 1 1 400px;
@@ -61,7 +61,7 @@
     0 1px 2px rgb(13 16 38 / 6%),
     0 24px 48px -24px rgb(13 16 38 / 28%);
   color: #23263b;
-  font-family: Georgia, 'Times New Roman', serif;
+  font-family: Helvetica, Arial, sans-serif;
   font-size: 14px;
   line-height: 1.7;
 }
@@ -78,8 +78,24 @@
   color: var(--ink);
   font-size: 15px;
 }
-.sheet-re {
-  font-weight: 700;
+.sheet-record {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0 24px;
+  margin: 0;
+}
+.sheet-record dt,
+.sheet-record dd {
+  margin: 0;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--line);
+}
+.sheet-record dt {
+  color: var(--caption);
+}
+.sheet-record dt:nth-last-child(2),
+.sheet-record dd:last-child {
+  border-bottom: 0;
 }
 .sheet-highlight {
   padding: 0 2px;
@@ -87,7 +103,7 @@
 }
 .sheet-redaction {
   display: inline-block;
-  width: 96px;
+  width: 120px;
   height: 15px;
   border-radius: 1px;
   background: var(--ink);

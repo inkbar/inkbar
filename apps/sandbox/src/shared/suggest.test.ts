@@ -86,24 +86,22 @@ void test('suggestionCount', () => {
   assert.equal(suggestionCount(9), '9 suggestions')
 })
 
-void test('finds exactly the nine sensitive strings in the sample, and no postcodes or case reference', async () => {
+void test('finds exactly the four sensitive strings in the sample, and no serial, times or amounts', async () => {
   const lines = [
-    'Fernhill Housing Trust',
-    '14 Orchard Row, Leeds LS2 7QQ',
-    'casework@fernhill.example  |  0113 496 0000',
-    '14 October 2026',
-    'Ms Alex Rowan',
-    'Flat 3, 22 Weaver Street, Leeds LS6 1AB',
-    'Re: Review of your tenancy, case FH-2026-0418',
-    'We hold your National Insurance number as QQ123456C. Please tell us if it is wrong.',
-    'If anything here is unclear, call your case officer, Jordan Pike, on 07700 900123,',
-    'or email jordan.pike@fernhill.example.',
-    'Date of birth: 9 March 1988',
-    'National Insurance number: QQ654321A',
-    'Email: alex.rowan@example.com',
-    'Phone: 020 7946 0991',
-    'Partner: Sam Rowan, National Insurance number QQ246813B',
-    'Agreed: the Trust will confirm the outcome of the review in writing within 28 days.',
+    'Invoice 2041',
+    'Due 14 November 2026',
+    '£1,746.00',
+    'Jan 44',
+    'SN 0047-2219-B',
+    'MFD 06/2026',
+    '08:15',
+    'Exp 08:41',
+    'Ref C-30918',
+    'Margaret Okafor',
+    'QQ123456C',
+    'm.okafor@example.com',
+    '07700 900123',
+    'agreed; confirmation sent to m.okafor@example.com.',
   ]
   const quad = {
     p1: { x: 0, y: 20 },
@@ -115,5 +113,5 @@ void test('finds exactly the nine sensitive strings in the sample, and no postco
     pages: lines.map((_, index) => ({ index })),
     text: (index: number) => Promise.resolve({ items: [{ str: lines[index], quad }] }),
   } as unknown as SuggestSource
-  assert.equal((await suggestRedactions(doc, [], 0)).length, 9)
+  assert.equal((await suggestRedactions(doc, [], 0)).length, 4)
 })
