@@ -11,7 +11,13 @@
     PdfAssets,
     SignatureStore,
   } from '@inkbar/core'
-  import type { DecorateAnnotation, Tool, ToolId, ZoomValue } from '@inkbar/core/dom'
+  import type {
+    DecorateAnnotation,
+    InkPlugin,
+    Tool,
+    ToolId,
+    ZoomValue,
+  } from '@inkbar/core/dom'
   import type { Snippet } from 'svelte'
   import type { HTMLAttributes } from 'svelte/elements'
 
@@ -39,6 +45,12 @@
      * document opens.
      */
     tools?: Tool[] | undefined
+    /**
+     * Plugins, set up once when the root is created; a later change to this prop is not
+     * applied. Their tools join `tools`, their decoration and page layers apply to every
+     * document, and their commands are placed with `InkCommand` or `useCommand`.
+     */
+    plugins?: InkPlugin[] | undefined
     /**
      * Adds `data-*` attributes, classes and a screen-reader description to each annotation's
      * element (see `DecorateAnnotation`). Decorations re-apply whenever the annotations change
@@ -86,8 +98,11 @@
     createSnapshotHistory,
     InkError as InkErrorClass,
     openDocument,
+    readonly,
+    writable,
   } from '@inkbar/core'
   import {
+    createPluginHost,
     createToolOptions,
     cssVariableDefaults,
     FONT_FAMILIES,
@@ -101,6 +116,7 @@
   import { setInkContext, type InkContext, type InkHistory } from '../context.js'
   import { useReadable } from '../use-readable.svelte.js'
 
+  import type { PluginHistory } from '@inkbar/core'
   import type { ToolController, Viewport } from '@inkbar/core/dom'
 
   let {
@@ -114,6 +130,7 @@
     tool = $bindable(),
     onToolChange,
     tools: hostTools,
+    plugins,
     decorateAnnotation,
     fonts,
     signatures: signatureStore,
@@ -146,6 +163,7 @@
   const IDLE: InkStatus = { state: 'idle' }
   const NO_ANNOTATIONS: readonly Annotation[] = []
   const NO_IDS: readonly string[] = []
+  const noop = (): void => undefined
 
   /** Signed URLs change; the key does not. Bytes and Blobs are their own identity. */
   function identity(source: DocumentSource | null): unknown {
@@ -160,6 +178,8 @@
   }
 
   let document = $state.raw<InkDocument | null>(null)
+  /** The same document outside the reactive graph, for the plugins' history. */
+  let documentNow: InkDocument | null = null
   /** Overrides the document's status while opening, and when opening itself failed. */
   let override = $state.raw<InkStatus | null>(null)
   let activated = $state<string | null>(null)
@@ -206,6 +226,8 @@
     const pw = sourcePassword
     let cancelled = false
     let opened: InkDocument | null = null
+    /** The snapshot history's hold on a controlled document's store. */
+    let detach: () => void = noop
     untrack(() => snapshotHistory.clear())
     const source = untrack(() => src)
     if (source === null) {
@@ -249,7 +271,13 @@
         const current = untrack(() => annotations)
         if (doc.annotations.mode === 'controlled' && current !== undefined)
           doc.annotations.setControlledValue(current)
+        documentNow = doc
         document = doc
+        // Controlled edits run the plugins' reactions inside their own snapshot step.
+        if (doc.annotations.mode === 'controlled')
+          detach = snapshotHistory.attach(doc.annotations)
+        // The document is current, so the host reads its history when it hears of it.
+        hostDocument.set(doc)
         override = null
         setTestHook(ref, doc)
         const s = doc.status.get()
@@ -272,7 +300,11 @@
     })()
     return () => {
       cancelled = true
+      // Cleared first, so the plugins close their stores while the document is still alive.
+      hostDocument.set(null)
+      detach()
       opened?.destroy()
+      documentNow = null
       document = null
       setTestHook(ref, undefined)
     }
@@ -295,6 +327,7 @@
   function setActivated(id: string | null): void {
     activated = id
     activatedNow = id
+    hostActivated.set(id)
     if (id) onActivate?.(id)
   }
   function reportZoom(z: ZoomValue): void {
@@ -325,7 +358,55 @@
       else if (document) document.history.batch(fn)
       else fn()
     },
+    track: (store) => pluginHistory.track(store),
+    react: (fn) => pluginHistory.react(fn),
   }
+
+  /**
+   * The history the plugins reach, picked by the open document's mode when they call. The host
+   * reads it as soon as a document opens, so it goes by `documentNow`, which is set by then.
+   */
+  const activeHistory = (): PluginHistory | undefined => {
+    const doc = documentNow
+    if (!doc) return undefined
+    return doc.annotations.mode === 'controlled' ? snapshotHistory : doc.history
+  }
+  const pluginHistory: PluginHistory = {
+    batch: (fn) => {
+      const h = activeHistory()
+      if (h) h.batch(fn)
+      else fn()
+    },
+    track: (store) => activeHistory()?.track(store) ?? noop,
+    react: (fn) => activeHistory()?.react(fn) ?? noop,
+  }
+
+  /*
+   * One plugin host for the root's life, built during initialisation so that InkCommand finds
+   * its command when it initialises. Building it touches no DOM, and no document opens on the
+   * server, so plugins see none there. It follows these writables rather than the root's state:
+   * the open effect sets `hostDocument` once `documentNow` is current.
+   */
+  const hostDocument = writable<InkDocument | null>(null)
+  const hostActivated = writable<string | null>(null)
+  const viewportEl = writable<HTMLElement | null>(null)
+  const pluginHost = createPluginHost({
+    // Read once, as documented on the prop.
+    plugins: untrack(() => plugins) ?? [],
+    document: readonly(hostDocument),
+    history: () => pluginHistory,
+    activated: readonly(hostActivated),
+    // As in `createViewer`: an id not in the open document is ignored.
+    setActivated: (id) => {
+      if (id === null || documentNow?.annotations.get(id)) setActivated(id)
+    },
+    root: readonly(viewportEl),
+    decorate: () => decorateAnnotation,
+  })
+  // Destroyed after InkViewport's engine and its plugin layers, as in `createViewer`: Svelte
+  // creates a component's effects after its template and tears them down in creation order, so
+  // the children's teardowns run first. Effects never run on the server.
+  $effect(() => () => pluginHost.destroy())
 
   /** The document's tool style; it batches through `inkHistory`, whichever mode is on. */
   const styleTracker = $derived.by(() => {
@@ -335,7 +416,8 @@
       trackToolStyle({
         store: doc.annotations,
         history: { batch: (fn) => inkHistory.batch(fn) },
-        tools: hostTools,
+        // The plugins' tools too, so a plugin tool's style group applies.
+        tools: [...(hostTools ?? []), ...pluginHost.tools],
         tool: currentTool,
       })
     )
@@ -361,6 +443,8 @@
     get selection() {
       return selection.current
     },
+    pluginHost,
+    viewportEl,
     get viewport() {
       return viewport
     },

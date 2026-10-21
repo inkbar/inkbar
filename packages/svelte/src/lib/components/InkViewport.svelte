@@ -126,6 +126,9 @@
       buffer,
       tool: ctx.tool,
       ...(ctx.hostTools ? { tools: ctx.hostTools } : {}),
+      // The engine adds the plugins' tools and layers, and decorates through the host, which
+      // reads `decorateAnnotation` first.
+      plugins: ctx.pluginHost,
       // Read through, so the effect below can re-apply a new function without a rebuild.
       decorateAnnotation: (a) => ctx.decorateAnnotation?.(a),
       ...(ctx.toolStyle ? { toolStyle: ctx.toolStyle } : {}),
@@ -190,6 +193,16 @@
       },
     })
   }
+
+  // The plugins' `root`. Before the build below, so it is set when the engine mounts.
+  $effect(() => {
+    const el = scroll
+    const { viewportEl } = ctx
+    viewportEl.set(el)
+    return () => {
+      if (viewportEl.get() === el) viewportEl.set(null)
+    }
+  })
 
   // Build for a new document or status; tear down on the next change and on unmount. Only the
   // values read before `untrack` are dependencies, each through a derived, which notifies only

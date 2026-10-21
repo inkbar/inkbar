@@ -27,6 +27,7 @@
   } from '@inkbar/icons'
   import { Toolbar } from 'bits-ui'
 
+  import { useInkContext } from '../context.js'
   import { useTool } from '../hooks/useTool.svelte.js'
 
   import { asBitsProps } from './child-snippet.js'
@@ -56,11 +57,16 @@
     ...rest
   }: InkToolButtonProps = $props()
 
+  const ctx = useInkContext('InkToolButton')
   const current = useTool()
   const active = $derived(current.tool === tool)
-  // A host tool has no built-in name or icon: `label` and `children` supply them.
-  const name = $derived(label ?? TOOL_LABELS[tool] ?? tool)
-  const icon = $derived(ICONS[tool])
+  /** A host or plugin tool by this id, for the name and icon core has none for. */
+  const own = $derived(
+    [...(ctx.hostTools ?? []), ...ctx.pluginHost.tools].find((t) => t.id === tool)
+  )
+  // `label` and `children` win; then core's name and icon; then the tool's own.
+  const name = $derived(label ?? TOOL_LABELS[tool] ?? own?.label ?? tool)
+  const icon = $derived(ICONS[tool] ?? own?.icon)
 </script>
 
 <Toolbar.Button

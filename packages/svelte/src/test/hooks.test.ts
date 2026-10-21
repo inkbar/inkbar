@@ -1,9 +1,15 @@
-import { createAnnotationStore, createHistory, staticDefaults } from '@inkbar/core'
+import {
+  createAnnotationStore,
+  createHistory,
+  isInkError,
+  staticDefaults,
+} from '@inkbar/core'
 import { trackToolStyle } from '@inkbar/core/dom'
 import { render } from 'svelte/server'
 import { describe, expect, it } from 'vitest'
 
 import { useAnnotations } from '../lib/hooks/useAnnotations.svelte.js'
+import { useCommand } from '../lib/hooks/useCommand.svelte.js'
 import { useDocument } from '../lib/hooks/useDocument.svelte.js'
 import { useEmbedded } from '../lib/hooks/useEmbedded.svelte.js'
 import { useHistory } from '../lib/hooks/useHistory.svelte.js'
@@ -15,6 +21,7 @@ import { useToolStyle } from '../lib/hooks/useToolStyle.svelte.js'
 import { useZoom } from '../lib/hooks/useZoom.svelte.js'
 
 import ToolStyleProbe from './harness/ToolStyleProbe.svelte'
+import UnknownCommandHost from './harness/UnknownCommandHost.svelte'
 
 describe('hooks outside InkRoot', () => {
   it.each([
@@ -28,6 +35,7 @@ describe('hooks outside InkRoot', () => {
     ['useEmbedded()', useEmbedded],
     ['useToolStyle()', useToolStyle],
     ['useToolOptions()', () => useToolOptions('note')],
+    ['useCommand()', () => useCommand('sandbox.ping')],
   ])('%s throws a readable error', (name, use) => {
     // Outside any component Svelte's own getContext throws; the hook turns that into its message.
     expect(() => use()).toThrow(
@@ -107,5 +115,20 @@ describe('useToolStyle', () => {
       useToolStyle('shape').set({ width: 2 }, { apply: false })
     }
     expect(useTypes).toBeTypeOf('function')
+  })
+})
+
+describe('useCommand', () => {
+  it('throws UnknownCommand for an id no plugin registered', () => {
+    const assets = { worker: 'w', cMaps: 'c', standardFonts: 's', wasm: 'm', icc: 'i' }
+    let error: unknown
+    try {
+      // The render runs when its output is read.
+      void render(UnknownCommandHost, { props: { assets } }).body
+    } catch (e) {
+      error = e
+    }
+    expect(isInkError(error)).toBe(true)
+    expect((error as { code: string }).code).toBe('UnknownCommand')
   })
 })
