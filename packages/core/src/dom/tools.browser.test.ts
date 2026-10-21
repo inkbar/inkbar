@@ -4340,6 +4340,165 @@ describe('one-shot tools', () => {
     expect(container.hasAttribute('data-ink-made')).toBe(false)
   })
 
+  /** The overlay's edit handles on annotation `id`, wherever its page is. */
+  const handlesOf = (container: HTMLElement, id: string) => [
+    ...container.querySelectorAll<HTMLElement>(
+      `[data-annotation="${CSS.escape(id)}"] > .ink-handle`
+    ),
+  ]
+
+  /** A drag from `(x0, y0)` to `(x, y)`, client px, pressed on `el`. */
+  function drag(
+    container: HTMLElement,
+    el: Element,
+    x0: number,
+    y0: number,
+    x: number,
+    y: number
+  ): void {
+    pointer(el, 'pointerdown', x0, y0)
+    pointer(container, 'pointermove', (x0 + x) / 2, (y0 + y) / 2)
+    pointer(container, 'pointermove', x, y)
+    pointer(container, 'pointerup', x, y)
+  }
+
+  it('the made shape shows handles under the shape tool', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('shape')
+    click(container, viewport, 200, 300)
+    const [made] = doc.annotations.list.get()
+    await until(() => handlesOf(container, made!.id).length === 4)
+    expect(tools.active.get()).toBe('shape')
+  })
+
+  it('dragging the made shape moves it and the tool stays shape', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('shape')
+    click(container, viewport, 200, 300)
+    const [made] = doc.annotations.list.get()
+    const before = made!.rect
+    const el = container.querySelector(`[data-annotation="${made!.id}"]`)!
+    const r = el.getBoundingClientRect()
+    const x = r.left + r.width / 2
+    const y = r.top + r.height / 2
+    drag(container, el, x, y, x + 40, y + 20)
+    expect(doc.annotations.list.get()).toHaveLength(1)
+    const after = doc.annotations.get(made!.id)!.rect
+    expect(after.x).toBeCloseTo(before.x + 40)
+    expect(after.y).toBeCloseTo(before.y - 20)
+    expect(tools.active.get()).toBe('shape')
+    expect(container.hasAttribute('data-ink-made')).toBe(true)
+    expect(doc.annotations.selection.get()).toEqual([made!.id])
+  })
+
+  it("dragging a made shape's corner resizes it", async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('shape')
+    click(container, viewport, 200, 300)
+    const [made] = doc.annotations.list.get()
+    const before = made!.rect
+    await until(() => handlesOf(container, made!.id).length === 4)
+    const se = container.querySelector(
+      `[data-annotation="${made!.id}"] > [data-handle="se"]`
+    )!
+    const r = se.getBoundingClientRect()
+    const x = r.left + r.width / 2
+    const y = r.top + r.height / 2
+    drag(container, se, x, y, x + 30, y + 20)
+    expect(doc.annotations.list.get()).toHaveLength(1)
+    const after = doc.annotations.get(made!.id)!.rect
+    expect(after.x).toBeCloseTo(before.x)
+    expect(after.width).toBeCloseTo(before.width + 30)
+    expect(after.height).toBeCloseTo(before.height + 20)
+    expect(after.y + after.height).toBeCloseTo(before.y + before.height)
+    expect(tools.active.get()).toBe('shape')
+  })
+
+  it('a made area redaction can be moved', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('redact-area')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    drag(container, container, h.left + 200, h.top + 300, h.left + 260, h.top + 340)
+    const [made] = doc.annotations.list.get()
+    const before = made!.rect
+    const el = container.querySelector(`[data-annotation="${made!.id}"]`)!
+    drag(container, el, h.left + 230, h.top + 320, h.left + 250, h.top + 330)
+    expect(doc.annotations.list.get()).toHaveLength(1)
+    const after = doc.annotations.get(made!.id)!.rect
+    expect(after.x).toBeCloseTo(before.x + 20)
+    expect(after.y).toBeCloseTo(before.y - 10)
+    expect(tools.active.get()).toBe('redact-area')
+  })
+
+  it('three text redactions from one selection move together', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    viewport.setZoom(0.3)
+    await until(() => [0, 1, 2].every((p) => viewport.hostFor(p) !== undefined))
+    await until(() =>
+      [0, 1, 2].every(
+        (p) =>
+          (viewport.hostFor(p)!.querySelector('[data-ink-text-layer] span') ?? null) !==
+          null
+      )
+    )
+    tools.set('redact-area')
+    const spans = (p: number) =>
+      [...viewport.hostFor(p)!.querySelectorAll('[data-ink-text-layer] span')].filter(
+        (s) => s.textContent?.trim()
+      )
+    const range = document.createRange()
+    range.setStartBefore(spans(0)[0]!)
+    range.setEndAfter(spans(2)[0]!)
+    window.getSelection()!.removeAllRanges()
+    window.getSelection()!.addRange(range)
+    click(container, viewport, 5, 5)
+    const made = doc.annotations.list.get()
+    expect(made.map((a) => a.page)).toEqual([0, 1, 2])
+    expect(doc.annotations.selection.get()).toEqual(made.map((a) => a.id))
+    const el = viewport.hostFor(1)!.querySelector(`[data-annotation="${made[1]!.id}"]`)!
+    const r = el.getBoundingClientRect()
+    const x = r.left + 2
+    const y = r.top + r.height / 2
+    // 15 CSS px at zoom 0.3 is 50 pt.
+    drag(container, el, x, y, x + 15, y)
+    expect(tools.active.get()).toBe('redact-area')
+    made.forEach((a) => {
+      const now = doc.annotations.get(a.id)!
+      expect(now.rect.x).toBeCloseTo(a.rect.x + 50)
+      expect(now.rect.y).toBeCloseTo(a.rect.y)
+    })
+  })
+
+  it('the Delete key removes the made shape and the tool returns to ready', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('shape')
+    click(container, viewport, 200, 300)
+    expect(doc.annotations.list.get()).toHaveLength(1)
+    container.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true })
+    )
+    expect(doc.annotations.list.get()).toEqual([])
+    expect(tools.active.get()).toBe('shape')
+    expect(container.hasAttribute('data-ink-made')).toBe(false)
+  })
+
+  it("handles return when the made item's page remounts", async () => {
+    const { doc, container, viewport, tools } = await setup('mixed-page-sizes')
+    viewport.setZoom(3)
+    await settle()
+    tools.set('shape')
+    click(container, viewport, 200, 300)
+    const [made] = doc.annotations.list.get()
+    await until(() => handlesOf(container, made!.id).length === 4)
+    container.scrollTop = container.scrollHeight
+    await until(() => viewport.hostFor(0) === undefined)
+    container.scrollTop = 0
+    await until(() => viewport.hostFor(0) !== undefined)
+    await until(() => handlesOf(container, made!.id).length === 4)
+    expect(tools.active.get()).toBe('shape')
+    expect(doc.annotations.selection.get()).toEqual([made!.id])
+  })
+
   it('data-ink-made is set while made and removed on switch', async () => {
     const { container, viewport, tools } = await setup()
     tools.set('shape')

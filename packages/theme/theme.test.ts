@@ -275,14 +275,16 @@ describe('theme.css', () => {
     expect(darkRule?.selector).toContain('[data-ink-root]:not(.light,')
   })
 
-  it('draws edit handles and hides them outside the select tools', () => {
+  it('draws edit handles and hides them outside the select tools and the made state', () => {
     const handle = rules.find((r) => r.selector === ':where(.ink-handle)')
     expect(handle?.toString()).toMatch(/border:\s*1px solid var\(--ink-accent\)/)
     const hidden = rules.find((r) =>
       r.selector
         .replace(/\s+/g, ' ')
+        .replace(/\( /g, '(')
+        .replace(/ \)/g, ')')
         .includes(
-          "[data-ink-tool]:not([data-ink-tool='select'], [data-ink-tool='select-text']) .ink-handle"
+          "[data-ink-tool]:not([data-ink-tool='select'], [data-ink-tool='select-text'], [data-ink-made]) .ink-handle"
         )
     )
     expect(hidden?.toString()).toMatch(/display:\s*none/)

@@ -280,7 +280,8 @@
     fill: none;
   }
 
-  /* Edit handles on a selected annotation: shown with the select tools only. */
+  /* Edit handles on a selected annotation: shown with the select tools, and on what a creation
+     tool just made (`data-ink-made`). */
   :where(.ink-handle) {
     box-sizing: border-box;
     border: 1px solid var(--ink-accent);
@@ -289,7 +290,11 @@
   }
 
   :where(
-    [data-ink-tool]:not([data-ink-tool='select'], [data-ink-tool='select-text'])
+    [data-ink-tool]:not(
+        [data-ink-tool='select'],
+        [data-ink-tool='select-text'],
+        [data-ink-made]
+      )
       .ink-handle
   ) {
     display: none;

@@ -1245,6 +1245,50 @@ describe('createOverlay', () => {
     expect(handles(area.id)).toEqual([])
   })
 
+  it('draws handles under a creation tool while the root is marked made', async () => {
+    const style = document.createElement('style')
+    style.textContent = themeCss
+    document.head.append(style)
+    cleanup.push(() => style.remove())
+    // The tool root is in place before the overlay, as the controller's is, so the overlay
+    // watches it.
+    const toolRoot = document.createElement('div')
+    toolRoot.dataset.inkTool = 'shape'
+    document.body.append(toolRoot)
+    cleanup.push(() => toolRoot.remove())
+    const host = mountContainer(612, 792)
+    toolRoot.append(host)
+    const store = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const overlay = createOverlay({
+      host,
+      page: 0,
+      store,
+      transform: createPageTransform(page, 1, 0),
+      onActivate: vi.fn(),
+    })
+    cleanup.push(() => overlay.destroy())
+    const area = store.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    const handles = () => [
+      ...host.querySelectorAll<HTMLElement>(
+        `[data-annotation="${area.id}"] > .ink-handle`
+      ),
+    ]
+    store.select([area.id])
+    expect(handles()).toEqual([])
+    toolRoot.dataset.inkMade = ''
+    await vi.waitFor(() => expect(handles()).toHaveLength(4))
+    for (const h of handles()) expect(getComputedStyle(h).display).not.toBe('none')
+    delete toolRoot.dataset.inkMade
+    await vi.waitFor(() => expect(handles()).toEqual([]))
+  })
+
   describe('press rule', () => {
     /** A real page (canvas, text layer, overlay) of `text-simple` at zoom 1. */
     async function mountPage() {
