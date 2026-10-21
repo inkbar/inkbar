@@ -90,7 +90,6 @@ describe('threadRoot', () => {
       color: '#000000',
       interiorColor: '#000000',
       opacity: 1,
-      origin: 'user',
       createdAt: '2026-10-13T00:00:00.000Z',
       modifiedAt: '2026-10-13T00:00:00.000Z',
       source: 'session',

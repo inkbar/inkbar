@@ -19,7 +19,6 @@ import {
   Redact,
   Square,
   Stamp,
-  Suggestion as GlossSuggestion,
   type GlossDocument,
   type UnknownAnnotation,
 } from 'gloss-format'
@@ -211,14 +210,14 @@ export const MaskSchema = z.object({
   ...Base,
 })
 
-export const SuggestionSchema = z.object(GlossSuggestion.shape)
+// Inkbar leaves Gloss's `origin` and `suggestion` out, so they are dropped like any unknown key.
+const { origin: _origin, suggestion: _suggestion, ...redactShape } = Redact.shape
 
 export const RedactSchema = z.object({
-  ...Redact.shape,
+  ...redactShape,
   ...Base,
   /** Present when the mark came from text; absent for an area mark. */
   quads: Quads.optional(),
-  suggestion: SuggestionSchema.optional(),
   /** Colour the redaction will be filled with when applied. */
   interiorColor: Color,
 })
@@ -275,7 +274,6 @@ export type StampAnnotation = z.infer<typeof StampSchema>
 export type LoupeAnnotation = z.infer<typeof LoupeSchema>
 export type MaskAnnotation = z.infer<typeof MaskSchema>
 export type RedactAnnotation = z.infer<typeof RedactSchema>
-export type Suggestion = z.infer<typeof SuggestionSchema>
 export type LineEnding = z.infer<typeof LineEndingSchema>
 /**
  * What `update` takes: any of a type's fields. A free-text `defaultStyle` may be partial; it
@@ -364,12 +362,4 @@ export interface AnnotationDocument {
   version: GlossDocument['version']
   documentKey?: string
   annotations: Array<FileAnnotation | ForeignAnnotation>
-}
-
-export type ConfidenceBucket = 'low' | 'medium' | 'high'
-
-export function confidenceBucket(confidence: number): ConfidenceBucket {
-  if (confidence < 0.5) return 'low'
-  if (confidence < 0.8) return 'medium'
-  return 'high'
 }

@@ -56,9 +56,9 @@ describe('createFocusReturn', () => {
 
   it('after a removal goes to the preferred next sibling, else the next, else the previous, else the scroll element', () => {
     const { scroll, els } = build(['a', 'b', 'c'])
-    els[2]!.setAttribute('data-origin', 'suggested')
+    els[2]!.setAttribute('data-type', 'text')
     const fr = createFocusReturn({ root: () => root, activated: () => null })
-    fr.beforeRemove(els[0]!, '[data-origin="suggested"]')
+    fr.beforeRemove(els[0]!, '[data-type="text"]')
     els[0]!.remove()
     fr.onCloseAutoFocus(new Event('x', { cancelable: true }), els[0]!)
     expect(document.activeElement).toBe(els[2])

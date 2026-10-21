@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { isKnown, LINE_ENDINGS } from './pdf-names'
 import {
   AnnotationSchema,
-  confidenceBucket,
+  RedactSchema,
   type Annotation,
   type AnnotationInput,
   type PointSchema,
@@ -239,8 +239,6 @@ describe('AnnotationSchema', () => {
       ...valid,
       type: 'redact',
       quads: undefined,
-      origin: 'suggested',
-      suggestion: { confidence: 0.4 },
     }
     expect(AnnotationSchema.safeParse(redact).success).toBe(false)
     expect(
@@ -276,16 +274,22 @@ describe('AnnotationSchema', () => {
     ).toBe(false)
   })
 
-  it('applies defaults for note icon and redact origin', () => {
+  it('applies the default note icon', () => {
     const note = AnnotationSchema.parse({ ...valid, type: 'text', quads: undefined })
     expect(note.type === 'text' && note.icon).toBe('Note')
-    const redact = AnnotationSchema.parse({
+  })
+
+  it('a redaction carries no origin or suggestion', () => {
+    const redact = RedactSchema.parse({
       ...valid,
       type: 'redact',
       quads: undefined,
       interiorColor: '#000000',
+      origin: 'user',
+      suggestion: { confidence: 0.4 },
     })
-    expect(redact.type === 'redact' && redact.origin).toBe('user')
+    expect(redact).not.toHaveProperty('origin')
+    expect(redact).not.toHaveProperty('suggestion')
   })
 
   it('preserves custom data without interpreting it', () => {
@@ -402,15 +406,6 @@ describe('AnnotationSchema', () => {
         false
       )
     })
-  })
-
-  it('buckets confidence', () => {
-    expect(confidenceBucket(0)).toBe('low')
-    expect(confidenceBucket(0.49)).toBe('low')
-    expect(confidenceBucket(0.5)).toBe('medium')
-    expect(confidenceBucket(0.79)).toBe('medium')
-    expect(confidenceBucket(0.8)).toBe('high')
-    expect(confidenceBucket(1)).toBe('high')
   })
 })
 

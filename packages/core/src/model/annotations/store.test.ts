@@ -99,7 +99,7 @@ describe('AnnotationStore (uncontrolled)', () => {
     expect(s.get('id-1')).toBe(a)
   })
 
-  it('fills redact interiorColor and origin defaults', () => {
+  it('fills the redact interiorColor default', () => {
     const a = store().add({
       type: 'redact',
       page: 1,
@@ -108,30 +108,7 @@ describe('AnnotationStore (uncontrolled)', () => {
     expect(a.type).toBe('redact')
     if (a.type === 'redact') {
       expect(a.interiorColor).toBe(staticDefaults.fill())
-      expect(a.origin).toBe('user')
     }
-  })
-
-  it('colours a suggested redaction by its confidence bucket', () => {
-    const s = store()
-    const suggest = (confidence: number, color?: string) =>
-      s.add({
-        type: 'redact',
-        page: 0,
-        quads,
-        origin: 'suggested',
-        suggestion: { confidence },
-        ...(color === undefined ? {} : { color }),
-      })
-    const low = suggest(0.2)
-    const medium = suggest(0.6)
-    const high = suggest(0.95)
-    expect(low.color).toBe(staticDefaults.suggestion('low'))
-    expect(medium.color).toBe(staticDefaults.suggestion('medium'))
-    expect(high.color).toBe(staticDefaults.suggestion('high'))
-    expect(new Set([low.color, medium.color, high.color]).size).toBe(3)
-    if (high.type === 'redact') expect(high.interiorColor).toBe(staticDefaults.fill())
-    expect(suggest(0.95, '#123456').color).toBe('#123456')
   })
 
   it('rejects invalid input through zod', () => {

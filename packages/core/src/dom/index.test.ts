@@ -15,6 +15,7 @@ describe('@inkbar/core/dom entry', () => {
   it('evaluates no PDF.js code on import, and the mock is live', async () => {
     const entry = await import('./index')
     expect(evaluated.pdfjs).toBe(false)
+    expect(Object.keys(entry)).not.toContain('confidenceAttr')
     expect(Object.keys(entry)).toEqual(
       expect.arrayContaining([
         'createViewport',
@@ -26,7 +27,6 @@ describe('@inkbar/core/dom entry', () => {
         'getSelectionQuads',
         'cssRectsToUserRects',
         'createOverlay',
-        'confidenceAttr',
         'renderAnnotationContent',
         'cssVariableDefaults',
         'createPageMount',

@@ -15,7 +15,6 @@
   :where(
     [data-ink-root],
     [data-ink-thread-popover],
-    [data-ink-suggestion-card],
     [data-ink-select-content],
     [data-ink-signature-dialog]
   ) {
@@ -29,9 +28,6 @@
     --ink-ink: #151820;
     --ink-redact: #c0392b;
     --ink-redact-fill: #000000;
-    --ink-suggestion-low: #d4a017;
-    --ink-suggestion-medium: #e67e22;
-    --ink-suggestion-high: #c0392b;
 
     --ink-bg: var(--muted, #f1f2f5);
     --ink-fg: var(--foreground, #151820);
@@ -52,7 +48,6 @@
     :where(
       [data-ink-root]:not(.light, .light *),
       [data-ink-thread-popover]:not(.light *),
-      [data-ink-suggestion-card]:not(.light *),
       [data-ink-select-content]:not(.light *),
       [data-ink-signature-dialog]:not(.light *)
     ) {
@@ -73,7 +68,6 @@
     .dark [data-ink-root]:not(.light, .dark .light *),
     [data-ink-root].dark,
     .dark [data-ink-thread-popover]:not(.dark .light *),
-    .dark [data-ink-suggestion-card]:not(.dark .light *),
     .dark [data-ink-select-content]:not(.dark .light *),
     .dark [data-ink-signature-dialog]:not(.dark .light *)
   ) {
@@ -436,10 +430,6 @@
       > .ink-selection-frame
   ) {
     outline-style: dotted;
-  }
-
-  :where(.ink-annotation[data-origin='suggested'] .ink-annotation-shape > *) {
-    stroke-dasharray: 4 3;
   }
 
   :where(.ink-note-icon) {
@@ -1292,8 +1282,8 @@
     outline-offset: 2px;
   }
 
-  /* Comment threads and suggestion cards */
-  :where(.ink-thread-popover, .ink-suggestion-card) {
+  /* Comment threads */
+  :where(.ink-thread-popover) {
     z-index: 50;
     width: 20rem;
     max-width: calc(100vw - 1rem);
@@ -1349,13 +1339,13 @@
     resize: vertical;
   }
 
-  :where(.ink-thread-actions, .ink-suggestion-actions) {
+  :where(.ink-thread-actions) {
     display: flex;
     gap: 0.375rem;
     margin-top: 0.5rem;
   }
 
-  :where(.ink-thread-actions button, .ink-suggestion-actions button) {
+  :where(.ink-thread-actions button) {
     padding: 0.375rem 0.75rem;
     border: 1px solid var(--ink-border);
     border-radius: calc(var(--ink-radius) - 2px);
@@ -1365,10 +1355,7 @@
     cursor: pointer;
   }
 
-  :where(
-    .ink-thread-actions button[type='submit'],
-    .ink-suggestion-actions button:first-child
-  ) {
+  :where(.ink-thread-actions button[type='submit']) {
     border-color: var(--ink-accent);
     background: var(--ink-accent);
     color: var(--ink-accent-fg);
@@ -1389,51 +1376,10 @@
     .ink-select-trigger:focus-visible,
     .ink-toolbar input:focus-visible,
     .ink-thread-actions button:focus-visible,
-    .ink-suggestion-actions button:focus-visible,
     .ink-thread-reply textarea:focus-visible
   ) {
     outline: 2px solid var(--ink-ring);
     outline-offset: 2px;
-  }
-
-  :where(.ink-suggestion-reason, .ink-suggestion-explanation) {
-    margin: 0;
-  }
-
-  :where(.ink-suggestion-explanation) {
-    margin-top: 0.25rem;
-    color: var(--ink-muted-fg);
-  }
-
-  /* The label text keeps the body colour for contrast; the confidence colour is a swatch. */
-  :where(.ink-suggestion-confidence) {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    margin-left: 0.5rem;
-    color: var(--ink-fg);
-    font-size: 0.75rem;
-    text-transform: capitalize;
-  }
-
-  :where(.ink-suggestion-confidence)::before {
-    content: '';
-    width: 0.5rem;
-    height: 0.5rem;
-    border-radius: 50%;
-    background: currentColor;
-  }
-
-  :where(.ink-suggestion-confidence[data-confidence='low'])::before {
-    background: var(--ink-suggestion-low);
-  }
-
-  :where(.ink-suggestion-confidence[data-confidence='medium'])::before {
-    background: var(--ink-suggestion-medium);
-  }
-
-  :where(.ink-suggestion-confidence[data-confidence='high'])::before {
-    background: var(--ink-suggestion-high);
   }
 
   @media (prefers-reduced-motion: no-preference) {

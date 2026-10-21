@@ -19,7 +19,7 @@ export { createTextLayer } from './text-layer'
 export type { TextLayerHandle, TextLayerOptions } from './text-layer'
 export { cssRectsToUserRects, getSelectionQuads } from './selection'
 export type { SelectionQuads } from './selection'
-export { confidenceAttr, createOverlay } from './overlay'
+export { createOverlay } from './overlay'
 export type {
   AnnotationDecoration,
   DecorateAnnotation,
@@ -132,12 +132,7 @@ export type {
   TextStyleToggle,
   TextToggleKey,
 } from './ui'
-export type {
-  AnnotationSlotProps,
-  AnnotationState,
-  ThreadPopoverSlotProps,
-  SuggestionCardSlotProps,
-} from './ui'
+export type { AnnotationSlotProps, AnnotationState, ThreadPopoverSlotProps } from './ui'
 export { editFreeText } from './freetext-editor'
 export type {
   EditorCloseReason,

@@ -149,12 +149,10 @@ describe('createOverlay', () => {
     const { store, host } = setup(2)
     const hl = store.add({ type: 'highlight', page: 0, quads, author: 'Ed' })
     store.add({ type: 'text', page: 1, rect: { x: 0, y: 0, width: 20, height: 20 } })
-    const sugg = store.add({
+    const redact = store.add({
       type: 'redact',
       page: 0,
       rect: { x: 72, y: 600, width: 100, height: 20 },
-      origin: 'suggested',
-      suggestion: { confidence: 0.42 },
     })
     const els = host.querySelectorAll('[data-annotation]')
     expect(els).toHaveLength(2)
@@ -168,9 +166,8 @@ describe('createOverlay', () => {
     expect(el.style.top).toBe(`${(792 - 715) * 2}px`)
     expect(el.style.width).toBe('456px')
     expect(el.querySelector('svg polygon')).not.toBeNull()
-    const s = host.querySelector(`[data-annotation="${sugg.id}"]`) as HTMLElement
-    expect(s.dataset.origin).toBe('suggested')
-    expect(s.dataset.confidence).toBe('low')
+    const r = host.querySelector(`[data-annotation="${redact.id}"]`) as HTMLElement
+    expect(r.getAttribute('aria-label')).toBe('Redaction')
   })
 
   it('reflects selection and hover in data-state and aria-pressed', () => {

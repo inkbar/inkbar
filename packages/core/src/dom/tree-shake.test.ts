@@ -35,12 +35,7 @@ async function bundle(code: string): Promise<string> {
     .join('\n')
 }
 
-const VIEWER_UI = [
-  'ink-thread-popover',
-  'ink-suggestion-card',
-  'data-ink-zoom-select',
-  'data-ink-prev-page',
-]
+const VIEWER_UI = ['ink-thread-popover', 'data-ink-zoom-select', 'data-ink-prev-page']
 
 describe('tree shaking @inkbar/core/dom', () => {
   it('importing only mountViewer leaves the controls and popovers out', async () => {

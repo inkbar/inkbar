@@ -8,7 +8,6 @@ import { readonly, writable, type Readable } from '../readable'
 import { withEmbeddedFields } from './embedded-fields'
 import {
   AnnotationSchema,
-  confidenceBucket,
   type Annotation,
   type AnnotationInput,
   type AnnotationPatch,
@@ -297,11 +296,6 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
     if (input.type === 'redact') {
       if (input.interiorColor === undefined)
         candidate.interiorColor = opts.defaults.fill()
-      if (input.origin === 'suggested' && input.suggestion && input.color === undefined) {
-        candidate.color = opts.defaults.suggestion(
-          confidenceBucket(input.suggestion.confidence)
-        )
-      }
     }
     return AnnotationSchema.parse(candidate)
   }

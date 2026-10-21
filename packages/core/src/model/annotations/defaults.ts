@@ -1,12 +1,10 @@
-import type { AnnotationType, ConfidenceBucket } from './types'
+import type { AnnotationType } from './types'
 
 export interface AnnotationDefaults {
   color(type: AnnotationType): string
   /** Fill colour for redactions. */
   fill(): string
   opacity(type: AnnotationType): number
-  /** Outline colour for a suggested redaction, by confidence bucket. */
-  suggestion(bucket: ConfidenceBucket): string
 }
 
 const COLORS: Record<AnnotationType, string> = {
@@ -32,21 +30,10 @@ const COLORS: Record<AnnotationType, string> = {
   redact: '#C0392B',
 }
 
-/**
- * Suggested-redaction colours, strengthening with confidence: amber for low, orange for
- * medium, the redaction red for high.
- */
-const SUGGESTION_COLORS: Record<ConfidenceBucket, string> = {
-  low: '#D4A017',
-  medium: '#E67E22',
-  high: '#C0392B',
-}
-
 export const staticDefaults: AnnotationDefaults = {
   color: (type) => COLORS[type],
   fill: () => '#000000',
   opacity: (type) => (type === 'highlight' ? 0.4 : 1),
-  suggestion: (bucket) => SUGGESTION_COLORS[bucket],
 }
 
 const VARIABLES: Record<AnnotationType, string> = {
@@ -79,8 +66,6 @@ export function cssVariableDefaults(el: Element): AnnotationDefaults {
     color: (type) => read(VARIABLES[type]) ?? staticDefaults.color(type),
     fill: () => read('--ink-redact-fill') ?? staticDefaults.fill(),
     opacity: (type) => staticDefaults.opacity(type),
-    suggestion: (bucket) =>
-      read(`--ink-suggestion-${bucket}`) ?? staticDefaults.suggestion(bucket),
   }
 }
 

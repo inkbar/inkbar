@@ -288,7 +288,6 @@ function convert(
       candidate = {
         ...base('redact'),
         type: 'redact',
-        origin: 'user',
         interiorColor: pdfColorToHex(d.interiorColor, staticDefaults.fill()),
         ...(quads.length > 0 ? { quads } : {}),
       }

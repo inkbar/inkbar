@@ -24,11 +24,6 @@ import {
   translated,
 } from '../model/annotations/edit'
 import { withoutReplies } from '../model/annotations/threads'
-import {
-  confidenceBucket,
-  type Annotation,
-  type MaskAnnotation,
-} from '../model/annotations/types'
 import { isProduction } from '../model/env'
 
 import { canEditFreeText, editFreeTextIn, editorFor } from './freetext-editor'
@@ -47,6 +42,7 @@ import {
 
 import type { PageTransform } from './transform'
 import type { AnnotationStore } from '../model/annotations/store'
+import type { Annotation, MaskAnnotation } from '../model/annotations/types'
 import type { InkDocument } from '../model/document'
 import type { Point } from '../model/geometry'
 
@@ -137,20 +133,11 @@ const LABELS: Record<Annotation['type'], string> = {
   redact: 'Redaction',
 }
 
-/** The `data-confidence` bucket for a suggested redaction; undefined for everything else. */
-export function confidenceAttr(a: Annotation): 'low' | 'medium' | 'high' | undefined {
-  return a.type === 'redact' && a.suggestion
-    ? confidenceBucket(a.suggestion.confidence)
-    : undefined
-}
-
 function ariaLabel(a: Annotation): string {
   const base =
-    a.type === 'redact' && a.origin === 'suggested'
-      ? 'Suggested redaction'
-      : a.subject === 'Signature' && (a.type === 'ink' || a.type === 'stamp')
-        ? 'Signature'
-        : LABELS[a.type]
+    a.subject === 'Signature' && (a.type === 'ink' || a.type === 'stamp')
+      ? 'Signature'
+      : LABELS[a.type]
   const named = hasComment(a) ? `${base} with comment` : base
   return a.author ? `${named} by ${a.author}` : named
 }
@@ -175,8 +162,6 @@ const RESERVED_DATA = new Set([
   'state',
   'custom',
   'handle',
-  'origin',
-  'confidence',
   'framed',
   'align',
   'bubble',
@@ -228,11 +213,6 @@ function usableClass(name: string): boolean {
 function setFlag(node: HTMLElement, key: string, on: boolean): void {
   if (on) node.dataset[key] = ''
   else delete node.dataset[key]
-}
-
-function setData(node: HTMLElement, key: string, value: string | undefined): void {
-  if (value === undefined) delete node.dataset[key]
-  else node.dataset[key] = value
 }
 
 export function createOverlay(opts: OverlayOptions): Overlay {
@@ -358,8 +338,6 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     node.dataset.type = a.type
     node.dataset.source = a.source
     setFlag(node, 'locked', a.locked === true)
-    setData(node, 'origin', a.type === 'redact' ? a.origin : undefined)
-    setData(node, 'confidence', confidenceAttr(a))
     node.setAttribute('aria-label', ariaLabel(a))
     applyDecoration(node, a)
   }
