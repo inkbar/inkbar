@@ -279,8 +279,9 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
       target?.closest('[data-annotation]')?.getAttribute('data-annotation') ?? undefined
     if (current?.kind === 'one-shot') {
       if (pressFoundMade && annotationId === undefined) {
+        // No text selection starts. The press still bubbles, so a host's popover sees a
+        // press outside it and closes.
         e.preventDefault()
-        e.stopPropagation()
         // The release belongs to no tool.
         swallow.add(e.pointerId)
         ctx.done()
