@@ -15,11 +15,13 @@ export interface PopoverFocusReturn {
   /** Bits UI's `onOpenAutoFocus` handler. Leaves the default alone: focus moves into the popover. */
   onOpenAutoFocus: (event: Event) => void
   /**
-   * A document-level pointer press, captured. `inside` selects the popover's content. A press outside it that will not activate
-   * an annotation closes it now, through `close`, before the press moves focus. Bits UI closes it
-   * a beat later, and its focus trap pulls focus back into the popover in between, which ends a
-   * text selection the press has just begun. Nothing is focused when it closes this way: the
-   * press places focus.
+   * A document-level pointer press, captured. `inside` selects the popover's content. A press on
+   * the viewer's own scroll element, outside the popover, that will not activate an annotation
+   * closes it now, through `close`, before the press moves focus. Bits UI closes it a beat
+   * later, and its focus trap pulls focus back into the popover in between, which ends a text
+   * selection the press has just begun. Nothing is focused when it closes this way: the press
+   * places focus. Every other press (a toolbar, a host's menu portaled out of the popover) is
+   * left to Bits UI, whose layer stack knows what belongs to the popover.
    */
   onPressOutside: (event: PointerEvent, inside: string, close: () => void) => void
   /** A pointer release or cancel, captured. */
@@ -70,6 +72,8 @@ export function useFocusReturn(ctx: InkContext): PopoverFocusReturn {
       const target = event.target
       if (event.button !== 0 || !(target instanceof Element)) return
       if (target.closest(inside) || shouldKeepOpenOnAnnotation(target)) return
+      const scroll = target.closest('[data-ink-scroll]')
+      if (!scroll || !ctx.rootEl?.contains(scroll)) return
       pressed = true
       close()
       flushSync()
