@@ -33,7 +33,7 @@ Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, gi
 - **Your framework.** Components and hooks for Vue 3, React 19 and Svelte 5, plus `createViewer` for apps with no framework at all. All four share one engine and one stylesheet.
 - **Toolbars you assemble.** You build each toolbar in your own markup from Inkbar's controls: tool buttons, undo and redo, the zoom select, the page input. Keep the ones you need, place them where they fit and add your own. The theme styles them with zero-specificity rules, so your CSS wins without `!important`, and it reads shadcn token names if your app defines them.
 - **Annotations as plain data.** Highlights, notes and redactions are typed objects. Keep them in your own state and save them to your own backend, or let Inkbar hold them. Undo and redo work either way.
-- **Redaction with review.** Mark text or areas for redaction by hand, or pass in suggestions from your own detector. Each suggestion shows what it matched and how confident it is, and someone accepts or dismisses it before it counts.
+- **Redaction marks.** Mark text or areas for redaction by hand, or add marks from your own detector through the same API. Anything your review needs, such as a reason or a score, goes in the annotation's `custom` data.
 - **Keyboard first.** Select text and press Enter to highlight it, move between annotations with the arrow keys, and nudge them a point at a time. Drawing an area redaction is the one thing that still needs a pointer.
 - **Fits a real app.** Pass a signed URL and a stable key, and Inkbar won't reload the document when the URL rotates. You can import the document model during server rendering.
 
@@ -44,7 +44,7 @@ Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, gi
 | Viewing     | Rendering, zoom, fit to width or page, page navigation, text selection                                                                                         |
 | Markup      | Highlights from a text selection                                                                                                                               |
 | Notes       | Notes with reply threads                                                                                                                                       |
-| Redaction   | Text and area redaction marks, suggested redactions with confidence and review                                                                                 |
+| Redaction   | Text and area redaction marks                                                                                                                                  |
 | Annotations | JSON import and export. Underline, strikeout, squiggly, ink, shapes and lines display from imported data and from the PDF's own annotations, which stay locked |
 | History     | Undo and redo, with grouped steps, whether Inkbar or your app holds the annotations                                                                            |
 
@@ -81,7 +81,7 @@ Without Vite, copy the files yourself and pass their URLs. The [`@inkbar/core` R
 
 ## Quick start
 
-A complete viewer in React, with a toolbar above the pages, page and zoom controls below, note threads and suggestion cards:
+A complete viewer in React, with a toolbar above the pages, page and zoom controls below, and note threads:
 
 ```tsx
 import {
@@ -98,7 +98,6 @@ import {
   InkNextPage,
   InkZoomSelect,
   InkThreadPopover,
-  InkSuggestionCard,
 } from '@inkbar/react'
 import { assets } from 'virtual:inkbar-assets'
 import '@inkbar/theme/theme.css'
@@ -126,7 +125,6 @@ export function Review({ url }: { url: string }) {
           <InkZoomSelect />
         </InkToolbar>
         <InkThreadPopover />
-        <InkSuggestionCard />
       </InkRoot>
     </div>
   )

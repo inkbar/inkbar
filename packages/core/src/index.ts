@@ -52,7 +52,6 @@ export type {
   SnapshotHistory,
   SnapshotHistoryOptions,
 } from './model/annotations/snapshot-history'
-export { acceptSuggestion } from './model/annotations/suggestions'
 export {
   isAbandonedNote,
   isReply,

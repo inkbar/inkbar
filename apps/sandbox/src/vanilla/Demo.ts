@@ -57,7 +57,6 @@ export function mountDemo(el: HTMLElement, source: DocumentSource): () => void {
     signatures,
     signatureFonts,
     decorateAnnotation: decorateSuggestion,
-    suggestions: false,
   })
   viewer.element.classList.add('demo-root')
 

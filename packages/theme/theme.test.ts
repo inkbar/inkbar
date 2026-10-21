@@ -115,9 +115,6 @@ describe('theme.css', () => {
       '--ink-ink',
       '--ink-redact',
       '--ink-redact-fill',
-      '--ink-suggestion-low',
-      '--ink-suggestion-medium',
-      '--ink-suggestion-high',
     ]) {
       expect(decls.has(v), v).toBe(true)
     }
@@ -245,25 +242,10 @@ describe('theme.css', () => {
       expect(declsFor(`${surface})`), surface).toMatch(/background:\s*#fff\b/)
   })
 
-  it('never colours confidence label text with a suggestion colour, and shows it as a swatch', () => {
-    const label = rules.filter((r) => r.selector.includes('.ink-suggestion-confidence'))
-    const textColours = label.flatMap((r) =>
-      r.nodes.filter(
-        (d) =>
-          d.type === 'decl' && d.prop === 'color' && d.value.includes('--ink-suggestion-')
-      )
-    )
-    expect(textColours).toEqual([])
-    for (const bucket of ['low', 'medium', 'high']) {
-      const swatch = label.find(
-        (r) =>
-          r.selector ===
-          `:where(.ink-suggestion-confidence[data-confidence='${bucket}'])::before`
-      )
-      expect(swatch?.toString(), bucket).toMatch(
-        new RegExp(`background:\\s*var\\(--ink-suggestion-${bucket}\\)`)
-      )
-    }
+  it('has no suggested-redaction styles', () => {
+    expect(css).not.toMatch(/suggestion/i)
+    expect(css).not.toMatch(/confidence/i)
+    expect(css).not.toContain('data-origin')
   })
 
   it('keeps a .light subtree light under a .dark ancestor', () => {

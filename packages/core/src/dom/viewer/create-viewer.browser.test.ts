@@ -73,8 +73,6 @@ async function ready(
 
 const threadPopover = (): HTMLElement | null =>
   document.querySelector<HTMLElement>('[data-ink-thread-popover]')
-const card = (): HTMLElement | null =>
-  document.querySelector<HTMLElement>('[data-ink-suggestion-card]')
 const isOpen = (el: HTMLElement | null): boolean => !!el && !el.hidden
 const focused = (): Element | null => document.activeElement
 
@@ -111,20 +109,6 @@ function pointer(
       isPrimary: true,
     })
   )
-}
-
-function suggest(doc: InkDocument, y: number, reason = 'third-party name') {
-  return doc.annotations.add({
-    type: 'redact',
-    page: 0,
-    rect: { x: 72, y, width: 150, height: 20 },
-    origin: 'suggested',
-    suggestion: {
-      confidence: 0.92,
-      reason,
-      explanation: 'Names a person other than the data subject.',
-    },
-  })
 }
 
 async function rootNote(viewer: Viewer, doc: InkDocument): Promise<HTMLElement> {
@@ -290,16 +274,6 @@ describe('createViewer', () => {
       activate(await rootNote(viewer, doc))
       await settle()
       expect(threadPopover()).toBeNull()
-    })
-
-    it('suggestions: false opens no card', async () => {
-      const { viewer } = make('text-simple', { suggestions: false })
-      const { doc } = await ready(viewer)
-      const s = suggest(doc, 670)
-      await until(() => annotationEl(viewer, s.id) !== null)
-      activate(annotationEl(viewer, s.id)!)
-      await settle()
-      expect(card()).toBeNull()
     })
   })
 
@@ -1775,73 +1749,21 @@ describe('createViewer', () => {
     })
   })
 
-  describe('suggestion card', () => {
-    it('accepts into a user redaction, and dismiss moves focus to the next suggestion', async () => {
-      const { viewer } = make('text-simple')
-      const { doc } = await ready(viewer)
-      const a = suggest(doc, 670)
-      const b = suggest(doc, 640, 'possible email')
-      const c = suggest(doc, 610, 'phone number')
-      await until(() => annotationEl(viewer, c.id) !== null)
-
-      activate(annotationEl(viewer, a.id)!)
-      const panel = card()!
-      expect(isOpen(panel)).toBe(true)
-      expect(panel.matches('[role="dialog"][aria-label="Suggested redaction"]')).toBe(
-        true
-      )
-      expect(panel.textContent).toContain('third-party name')
-      expect(
-        panel.querySelector('[data-confidence]')?.getAttribute('data-confidence')
-      ).toBe('high')
-      const accept = [...panel.querySelectorAll('button')].find(
-        (x) => x.textContent === 'Accept'
-      )!
-      expect(focused()).toBe(accept)
-      accept.click()
-      expect(doc.annotations.get(a.id)).toMatchObject({ origin: 'user' })
-      expect(isOpen(panel)).toBe(false)
-
-      activate(annotationEl(viewer, b.id)!)
-      expect(isOpen(panel)).toBe(true)
-      ;[...panel.querySelectorAll('button')]
-        .find((x) => x.textContent === 'Dismiss')!
-        .click()
-      expect(doc.annotations.get(b.id)).toBeUndefined()
-      expect(isOpen(panel)).toBe(false)
-      await until(() => focused() === annotationEl(viewer, c.id))
+  it('the note popover closes when undo removes its note', async () => {
+    const { viewer } = make('text-simple')
+    const { doc } = await ready(viewer)
+    const note = doc.annotations.add({
+      type: 'text',
+      page: 0,
+      rect: { x: 72, y: 670, width: 20, height: 20 },
+      contents: 'Check this',
     })
-
-    it('opens for a single suggestion selected by marquee', async () => {
-      const { viewer } = make('text-simple')
-      const { doc, engine } = await ready(viewer)
-      suggest(doc, 670)
-      const c = suggest(doc, 610)
-      await until(() => annotationEl(viewer, c.id) !== null)
-      engine.tools.set('select')
-      const r = annotationEl(viewer, c.id)!.getBoundingClientRect()
-      const scroll = viewer.element.querySelector<HTMLElement>('.ink-scroll')!
-      const start = document.elementFromPoint(r.left - 4, r.top - 4)!
-      pointer(start, 'pointerdown', r.left - 4, r.top - 4)
-      pointer(scroll, 'pointermove', r.right + 4, r.bottom + 4)
-      pointer(scroll, 'pointerup', r.right + 4, r.bottom + 4)
-      expect(doc.annotations.selection.get()).toEqual([c.id])
-      const panel = card()!
-      expect(isOpen(panel)).toBe(true)
-      expect(panel.textContent).toContain('third-party name')
-    })
-
-    it('closes when undo removes its suggestion', async () => {
-      const { viewer } = make('text-simple')
-      const { doc } = await ready(viewer)
-      const s = suggest(doc, 670)
-      await until(() => annotationEl(viewer, s.id) !== null)
-      activate(annotationEl(viewer, s.id)!)
-      expect(isOpen(card())).toBe(true)
-      doc.history.undo()
-      expect(doc.annotations.get(s.id)).toBeUndefined()
-      expect(isOpen(card())).toBe(false)
-    })
+    await until(() => annotationEl(viewer, note.id) !== null)
+    activate(annotationEl(viewer, note.id)!)
+    expect(isOpen(threadPopover())).toBe(true)
+    doc.history.undo()
+    expect(doc.annotations.get(note.id)).toBeUndefined()
+    expect(isOpen(threadPopover())).toBe(false)
   })
 
   it('loops Tab inside an open popover', async () => {
@@ -2054,7 +1976,6 @@ describe('createViewer', () => {
     viewer.destroy()
     expect(host.childNodes).toHaveLength(0)
     expect(threadPopover()).toBeNull()
-    expect(card()).toBeNull()
     expect(viewer.engine.get()).toBeNull()
     await expect(doc.text(0)).rejects.toMatchObject({ code: 'DocumentDestroyed' })
   })

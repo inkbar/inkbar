@@ -14,11 +14,8 @@ import type {
 import type { CurrentStyle, StyleKey, StyleProps } from '../model/annotations/tool-style'
 import type {
   Annotation,
-  ConfidenceBucket,
   LineEnding,
   NoteAnnotation,
-  RedactAnnotation,
-  Suggestion,
   TextMarkupAnnotation,
 } from '../model/annotations/types'
 import type { SignatureOptions, SignatureTemplate } from '../model/signatures'
@@ -578,16 +575,6 @@ export interface ThreadPopoverSlotProps {
   reply: (text: string) => void
   update: (contents: string) => void
   remove: () => void
-  close: () => void
-}
-
-/** What a host-rendered suggestion card receives. */
-export interface SuggestionCardSlotProps {
-  annotation: RedactAnnotation
-  suggestion: Suggestion | undefined
-  bucket: ConfidenceBucket | undefined
-  accept: () => void
-  dismiss: () => void
   close: () => void
 }
 

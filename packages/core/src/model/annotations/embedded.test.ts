@@ -91,13 +91,11 @@ describe('embedded import', () => {
     doc.destroy()
   })
 
-  it('imports redactions as user marks', async () => {
+  it('imports redactions', async () => {
     const red = await rawAnnotations('annotated-redact')
     const r = importEmbeddedPage(0, red.raw, NOW)
     expect(r.annotations).toHaveLength(2)
-    expect(r.annotations.every((a) => a.type === 'redact' && a.origin === 'user')).toBe(
-      true
-    )
+    expect(r.annotations.every((a) => a.type === 'redact')).toBe(true)
     expect(r.annotations[0]).toMatchObject({
       rect: { x: 72, y: 671, width: 228, height: 20 },
       interiorColor: '#000000',

@@ -1,7 +1,7 @@
 /*
  * A viewer without a framework: opens a document, mounts the engine and renders the note
- * thread and suggestion card, with the bindings' markup so `@inkbar/theme` styles it
- * unchanged. Toolbars are the host's, built from the controls in ./controls.
+ * thread popover, with the bindings' markup so `@inkbar/theme` styles it unchanged.
+ * Toolbars are the host's, built from the controls in ./controls.
  */
 import {
   cssVariableDefaults,
@@ -24,7 +24,6 @@ import { createToolOptions } from '../tools'
 import { mountViewer, type MountViewerOptions, type ViewerEngine } from '../viewer-engine'
 
 import { h } from './dom'
-import { createSuggestionCard } from './suggestion-card'
 import { createThreadPopover } from './thread-popover'
 
 import type { DocumentSource } from '../../model/source'
@@ -55,8 +54,6 @@ export interface CreateViewerOptions extends Omit<
   history?: OpenOptions['history']
   /** The thread popover for notes and text markup. Default true. */
   threads?: boolean
-  /** Suggested-redaction card. Default true. */
-  suggestions?: boolean
   onReady?(this: void, doc: InkDocument): void
   onError?(this: void, error: InkError): void
 }
@@ -101,7 +98,6 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     defaults,
     history,
     threads: withThreads = true,
-    suggestions: withSuggestions = true,
     onReady,
     onError,
     onActivate,
@@ -128,7 +124,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   const engine = writable<ViewerEngine | null>(null)
   const viewport = writable<Viewport | null>(null)
   const tools = writable<ToolController | null>(null)
-  /** The activated annotation: the note thread and the suggestion card open from it. */
+  /** The activated annotation: the note thread opens from it. */
   const activated = writable<string | null>(null)
 
   const root = h('div', { 'data-ink-root': '', 'data-state': 'idle' })
@@ -184,15 +180,12 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     status.set(s)
   }
 
-  /** Mounts the engine and the popovers for a ready document; returns their teardown. */
+  /** Mounts the engine and the thread popover for a ready document; returns their teardown. */
   function start(doc: InkDocument): () => void {
     const store = doc.annotations
-    const popovers = [
-      withThreads ? createThreadPopover({ root, store, activated, focusReturn }) : null,
-      withSuggestions
-        ? createSuggestionCard({ root, store, activated, focusReturn })
-        : null,
-    ]
+    const threads = withThreads
+      ? createThreadPopover({ root, store, activated, focusReturn })
+      : null
     // An activated annotation that has gone (removed, undone) is no longer activated, so it
     // does not reopen its popover if it comes back.
     const stopList = store.list.subscribe(() => {
@@ -250,7 +243,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     engine.set(mounted)
     return () => {
       stopList()
-      for (const p of popovers) p?.destroy()
+      threads?.destroy()
       activated.set(null)
       engine.set(null)
       mounted.destroy()
