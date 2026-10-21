@@ -19,8 +19,8 @@
 //
 // A one-shot tool (`kind: 'one-shot'`) is used once, then hands back to `select-text`. It is
 // ready until it reports what it made (`ctx.made`), then made, with `data-ink-made` on the
-// root. A press on empty page while made, or Escape, ends it (`ctx.done`), and the tool never
-// sees that press. A press on another annotation switches to `select-text` and goes to it, so
+// root. A press on empty page (a page or a gap between pages, not a scroll bar) while made, or
+// Escape, ends it (`ctx.done`), and the tool never sees that press. A press on another annotation switches to `select-text` and goes to it, so
 // the same press can drag: in either state, bar text markup, which switches only when made. Whether a press finds the tool
 // made is read before anything the press itself does: on the window when it is created, or on
 // the document once a free-text editor (which listens on the window) has committed. So a note
@@ -289,7 +289,8 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     const annotationId =
       target?.closest('[data-annotation]')?.getAttribute('data-annotation') ?? undefined
     if (current?.kind === 'one-shot') {
-      if (pressFoundMade && annotationId === undefined) {
+      // Empty page is a page or the gaps between pages, not the viewport's own scroll bars.
+      if (pressFoundMade && annotationId === undefined && !onScrollBar(e, ctx.root)) {
         // No text selection starts. The press still bubbles, so a host's popover sees a
         // press outside it and closes.
         e.preventDefault()
@@ -483,6 +484,18 @@ export function isViewportEnter(e: KeyboardEvent, root: HTMLElement): boolean {
   if (!(target instanceof Element) || !root.contains(target)) return false
   if (target.matches('.ink-page[data-page]')) return true
   return target.closest('[data-ink-text-layer], [data-ink-canvas-layer]') !== null
+}
+
+/**
+ * True for a press on `root` itself outside its client area: on a scroll bar (or its border).
+ * Client coordinates only, so a synthetic press gives the same answer as a real one.
+ */
+function onScrollBar(e: PointerEvent, root: HTMLElement): boolean {
+  if (e.target !== root) return false
+  const r = root.getBoundingClientRect()
+  const x = e.clientX - r.left - root.clientLeft
+  const y = e.clientY - r.top - root.clientTop
+  return x < 0 || y < 0 || x >= root.clientWidth || y >= root.clientHeight
 }
 
 /**

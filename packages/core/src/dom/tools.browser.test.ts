@@ -4690,6 +4690,38 @@ describe('one-shot tools', () => {
     expect(doc.annotations.list.get()).toHaveLength(2)
   })
 
+  it('a press on the scroll bar, outside the client area, leaves a made tool on', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('shape')
+    click(container, viewport, 200, 300)
+    expect(container.hasAttribute('data-ink-made')).toBe(true)
+    // The test browser hides scroll bars. A border stands in for one: like a scroll bar, it
+    // sits on the viewport element outside its client area.
+    container.style.borderRight = '12px solid #ccc'
+    const r = container.getBoundingClientRect()
+    expect(container.offsetWidth - container.clientWidth).toBeGreaterThan(0)
+    const x = r.left + container.clientLeft + container.clientWidth + 2
+    const y = r.top + r.height / 2
+    pointer(container, 'pointerdown', x, y)
+    pointer(container, 'pointerup', x, y)
+    expect(tools.active.get()).toBe('shape')
+    expect(container.hasAttribute('data-ink-made')).toBe(true)
+    expect(doc.annotations.list.get()).toHaveLength(1)
+  })
+
+  it('a press in the gap between pages ends a made tool', async () => {
+    const { container, viewport, tools } = await setup()
+    tools.set('shape')
+    click(container, viewport, 200, 300)
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    const x = h.left + 100
+    const y = h.bottom + 4
+    expect(viewport.pageAtCss(x, y)).toBeUndefined()
+    pointer(container, 'pointerdown', x, y)
+    pointer(container, 'pointerup', x, y)
+    expect(tools.active.get()).toBe('select-text')
+  })
+
   it('a press on the made item keeps the tool on', async () => {
     const { doc, container, viewport, tools } = await setup()
     tools.set('shape')
