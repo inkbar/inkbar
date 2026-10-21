@@ -13,11 +13,11 @@ import { readonly, writable, type Readable, type Writable } from '../../model/re
 import { createRecordStore, type RecordBase, type RecordStore } from '../../model/records'
 
 import { createCommandRegistry } from './commands'
+import { createLayerRegistry, type LayerSource, type PluginLayer } from './layer'
 
 import type {
   Command,
   InkPlugin,
-  LayerSpec,
   PluginContext,
   PluginLayerHandle,
   PluginStoreOptions,
@@ -40,13 +40,14 @@ export interface PluginHostOptions {
   decorate?: () => DecorateAnnotation | undefined
 }
 
-export interface PluginHost {
+export interface PluginHost extends LayerSource {
   readonly commands: ReadonlyMap<string, Command>
   command(id: string): Command | undefined
   readonly tools: readonly Tool[]
   /** The host's decoration first, then each plugin's in order; earlier ones win per key. */
   decorate: DecorateAnnotation
-  readonly layers: readonly (LayerSpec & { plugin: string })[]
+  /** Every layer added so far; `watchLayers` reports the ones added later and invalidates. */
+  readonly layers: readonly PluginLayer[]
   destroy(): void
 }
 
@@ -105,7 +106,7 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
   const registry = createCommandRegistry({ document: opts.document })
   const tools: Tool[] = []
   const decorators: DecorateAnnotation[] = []
-  const layers: (LayerSpec & { plugin: string })[] = []
+  const layers = createLayerRegistry()
   const requests: StoreRequest[] = []
   const documentFns: ((doc: InkDocument) => void | (() => void))[] = []
   const editFns: ((edit: AnnotationEdit) => void)[] = []
@@ -200,8 +201,7 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
         if (opened) opened.detach.push(opts.history().react(fn))
       },
       layer(spec): PluginLayerHandle {
-        layers.push(withProps(spec, { plugin: plugin.id }))
-        return { invalidate() {} }
+        return layers.add(withProps(spec, { plugin: plugin.id }))
       },
     }
   }
@@ -237,7 +237,8 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
       }
       return merged
     },
-    layers,
+    layers: layers.layers,
+    watchLayers: (listener) => layers.watchLayers(listener),
     destroy() {
       if (destroyed) return
       destroyed = true

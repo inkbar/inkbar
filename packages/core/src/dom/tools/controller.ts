@@ -521,8 +521,11 @@ function onScrollBar(e: PointerEvent, root: HTMLElement): boolean {
  */
 function inCustomContent(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false
-  // A free-text editor's presses and keys are its own, too.
+  // A free-text editor's presses and keys are its own, too, and so are a plugin layer's
+  // marks. The layer element itself lets presses through to the page underneath.
   if (target.closest('[data-ink-editor]')) return true
+  const layer = target.closest('.ink-plugin-layer')
+  if (layer && layer !== target) return true
   const el = target.closest('[data-annotation]')
   return (
     el !== null &&

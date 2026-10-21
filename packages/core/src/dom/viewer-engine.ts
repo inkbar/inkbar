@@ -13,6 +13,7 @@ import {
 } from '../model/signatures'
 
 import { createPageMount, type PageLayer, type PageMount } from './page-mount'
+import { createPluginLayers } from './plugins/layer'
 import { getSelectionQuads } from './selection'
 import {
   createToolController,
@@ -30,6 +31,7 @@ import { attachViewportKeys } from './viewport-keys'
 
 import type { LayoutMode } from './layout'
 import type { DecorateAnnotation } from './overlay'
+import type { PluginHost } from './plugins/host'
 import type { PageTransform, ViewRotation } from './transform'
 import type { ToolStyle } from '../model/annotations/tool-style'
 import type { InkDocument } from '../model/document'
@@ -108,6 +110,12 @@ export interface MountViewerOptions {
    * classes cannot be overridden.
    */
   decorateAnnotation?: DecorateAnnotation
+  /**
+   * The viewer's plugins. Their tools join `tools`, their layers are drawn on every page the
+   * engine mounts, and the host's `decorate` replaces `decorateAnnotation`: build the host with
+   * the app's decoration (its `decorate` option) so the two compose.
+   */
+  plugins?: PluginHost
   onActivate?(id: string): void
   /**
    * After every (re)build: subscribe to the new viewport and controller here. It fires inside
@@ -155,8 +163,9 @@ export interface ViewerEngine {
    */
   rebuild(opts: { gap?: number; buffer?: number; customAnnotations?: boolean }): void
   /**
-   * Runs `decorateAnnotation` again for every mounted annotation element, without re-rendering
-   * anything else. Call it when the decorations would change but no annotation did.
+   * Runs `decorateAnnotation` (or the plugins' `decorate`) again for every mounted annotation
+   * element, without re-rendering anything else. Call it when the decorations would change but
+   * no annotation did.
    */
   redecorate(): void
   destroy(): void
@@ -173,7 +182,13 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
   let stopKeys: () => void = () => undefined
   let stopActive: () => void = () => undefined
   let destroyed = false
-  const hostTools = opts.tools ?? []
+  const plugins = opts.plugins
+  const hostTools = [...(opts.tools ?? []), ...(plugins?.tools ?? [])]
+  /** Plugin layers follow the host for the engine's life, across rebuilds. */
+  const layers = plugins && createPluginLayers(plugins)
+  const decorate: DecorateAnnotation = plugins
+    ? (a) => plugins.decorate(a)
+    : (a) => opts.decorateAnnotation?.(a)
   /** Option values outlive rebuilds: every controller shares this registry. */
   const toolOptions = opts.toolOptions ?? createToolOptions()
   /** Without a host style, the engine's own follows the active tool across rebuilds. */
@@ -208,7 +223,8 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       store: doc.annotations,
       onActivate: (id) => opts.onActivate?.(id),
       isCustom: () => isCustom,
-      decorate: (a) => opts.decorateAnnotation?.(a),
+      decorate,
+      ...(layers ? { layers } : {}),
       onError: (cause, layer) => {
         failed.add(layer)
         // The first failure wins: a canvas and a text layer failing together report once.
@@ -410,6 +426,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       if (destroyed) return
       destroyed = true
       teardown()
+      layers?.destroy()
     },
   }
 }

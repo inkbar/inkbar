@@ -323,6 +323,17 @@
     z-index: 1;
   }
 
+  /* Plugin layers sit over the overlay (after it, at the same level). Presses that miss a
+     plugin's marks go through to the annotations and tools underneath. */
+  :where(.ink-plugin-layer) {
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  :where(.ink-plugin-layer > *) {
+    pointer-events: auto;
+  }
+
   :where(.ink-annotation) {
     border-radius: 2px;
     outline: 1px solid transparent;
