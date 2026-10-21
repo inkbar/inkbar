@@ -15,6 +15,7 @@
   :where(
     [data-ink-root],
     [data-ink-thread-popover],
+    [data-ink-popover],
     [data-ink-select-content],
     [data-ink-signature-dialog]
   ) {
@@ -48,6 +49,7 @@
     :where(
       [data-ink-root]:not(.light, .light *),
       [data-ink-thread-popover]:not(.light *),
+      [data-ink-popover]:not(.light *),
       [data-ink-select-content]:not(.light *),
       [data-ink-signature-dialog]:not(.light *)
     ) {
@@ -68,6 +70,7 @@
     .dark [data-ink-root]:not(.light, .dark .light *),
     [data-ink-root].dark,
     .dark [data-ink-thread-popover]:not(.dark .light *),
+    .dark [data-ink-popover]:not(.dark .light *),
     .dark [data-ink-select-content]:not(.dark .light *),
     .dark [data-ink-signature-dialog]:not(.dark .light *)
   ) {

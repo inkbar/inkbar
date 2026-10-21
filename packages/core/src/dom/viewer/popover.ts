@@ -1,12 +1,6 @@
 /*
- * A panel anchored to an annotation's overlay element, public in `@inkbar/core/dom` so an app
- * can open its own card next to an annotation; the note thread uses it too. The panel is a
- * `role="dialog"` on `<body>` carrying `attrs`; fill `panel` yourself. The overlay creates and
- * removes annotation elements as pages mount and unmount, so the panel follows the element by
- * id: a replaced element re-anchors it, and while the element is gone (its page scrolled out)
- * the panel hides but stays logically open. Escape and a press outside call `onDismiss`, Tab
- * loops inside the panel, and `hide` returns focus through `focusReturn`. `placePanel` is the
- * positioning alone, for panels anchored to anything else.
+ * Panels anchored to an annotation's overlay element: the note thread, and any card an app
+ * opens next to an annotation.
  */
 import { observeAnnotationElement } from '../annotation-element'
 import { shouldKeepOpenOnAnnotation, type FocusReturn } from '../popover-focus'
@@ -18,29 +12,44 @@ const GAP = 6
 const MARGIN = 8
 const TABBABLE = 'button, input, select, textarea, a[href], [tabindex]'
 
+/** Options for `createPopover`. */
 export interface PopoverOptions {
-  /** The viewer root: anchors are looked up and focus returns inside it. */
+  /** The viewer root (`[data-ink-root]`): anchors are looked up and focus returns inside it. */
   root: HTMLElement
+  /**
+   * Attributes for the panel, such as `class`, `aria-label` or the app's own `data-*` keys.
+   * `role` and `data-ink-popover` are always set by `createPopover`.
+   */
   attrs: Record<string, string>
+  /** Where focus goes when the panel hides: `createFocusReturn` over the same root. */
   focusReturn: FocusReturn
-  /** Escape, or a press outside that will not activate an annotation. */
+  /**
+   * Called on Escape inside the panel or the viewer, and on a press outside the panel that will
+   * not activate another annotation. Hide the panel (or clear the activation) here.
+   */
   onDismiss(): void
 }
 
+/** A panel anchored to one annotation at a time; see `createPopover`. */
 export interface Popover {
+  /** The panel element, on `<body>`. Fill it with the card's content. */
   readonly panel: HTMLElement
-  /** The anchor element, or null while it is not in the DOM. */
+  /** The anchored annotation's element, or null while it is not in the DOM (page unmounted). */
   readonly anchor: HTMLElement | null
-  /** Anchors to annotation `id`. The panel shows whenever its element is in the DOM. */
+  /**
+   * Anchors the panel to annotation `id`. The panel shows whenever that annotation's element
+   * is in the DOM, and follows it when it is replaced.
+   */
   show(id: string): void
-  /** Hides the panel and returns focus the way the bindings do. */
+  /** Hides the panel, then returns focus through `focusReturn`. */
   hide(): void
+  /** Removes the panel and its listeners. */
   destroy(): void
 }
 
 /**
- * Fixed-positions `panel` below `anchor` (above it when only that fits), clamped to the
- * window. Shared by the annotation popovers and the trigger-anchored menus.
+ * Positions `panel` (fixed) below the `anchor` rectangle, or above it when only that fits,
+ * kept inside the window. For panels anchored to something other than an annotation.
  */
 export function placePanel(panel: HTMLElement, anchor: DOMRect): void {
   const { innerWidth: vw, innerHeight: vh } = window
@@ -60,9 +69,21 @@ export function placePanel(panel: HTMLElement, anchor: DOMRect): void {
   panel.style.top = `${top}px`
 }
 
+/**
+ * Creates a non-modal `role="dialog"` panel on `<body>`, marked `data-ink-popover` so the theme
+ * gives it its tokens, that an app anchors to an annotation with `show(id)` (for instance on
+ * `viewer.activated`). The panel follows the annotation's element as pages mount and unmount:
+ * it hides while the element is gone and comes back with it. Tab loops inside the panel, and
+ * Escape or a press outside calls `onDismiss`. Call `destroy` when done.
+ */
 export function createPopover(opts: PopoverOptions): Popover {
   const { root, focusReturn } = opts
-  const panel = h('div', { ...opts.attrs, role: 'dialog', hidden: '' })
+  const panel = h('div', {
+    ...opts.attrs,
+    role: 'dialog',
+    'data-ink-popover': '',
+    hidden: '',
+  })
   document.body.append(panel)
   let anchoredId: string | null = null
   let anchor: HTMLElement | null = null
@@ -128,7 +149,7 @@ export function createPopover(opts: PopoverOptions): Popover {
     if (shouldKeepOpenOnAnnotation(e.target)) return
     opts.onDismiss()
   }
-  // Focus loops inside the panel, as the bindings' non-modal popovers do.
+  // Focus loops inside the panel.
   const onTab = (e: KeyboardEvent): void => {
     if (e.key !== 'Tab' || e.altKey || e.ctrlKey || e.metaKey) return
     const tabbable = [...panel.querySelectorAll<HTMLElement>(TABBABLE)].filter(
@@ -169,8 +190,8 @@ export function createPopover(opts: PopoverOptions): Popover {
       stranded = null
       onAnchor(null, true)
       // After the change that closed the popover has settled (a removed anchor is out of the
-      // DOM, a cleared activation is cleared), as the bindings' close-auto-focus runs after
-      // their render. A popover reopened meanwhile keeps focus where it is.
+      // DOM, a cleared activation is cleared). A popover reopened meanwhile keeps focus where it
+      // is.
       queueMicrotask(() => {
         if (anchoredId !== null || !panel.isConnected) return
         focusReturn.onCloseAutoFocus(
