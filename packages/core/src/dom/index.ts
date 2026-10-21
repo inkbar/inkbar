@@ -48,6 +48,7 @@ export type {
   ToolController,
   ToolControllerOptions,
   ToolId,
+  ToolKind,
   ToolOptions,
   ToolStyleTracker,
 } from './tools'
@@ -133,7 +134,11 @@ export type {
   SuggestionCardSlotProps,
 } from './ui'
 export { editFreeText } from './freetext-editor'
-export type { FreeTextEditor, FreeTextEditorOptions } from './freetext-editor'
+export type {
+  EditorCloseReason,
+  FreeTextEditor,
+  FreeTextEditorOptions,
+} from './freetext-editor'
 export {
   focusInitialMenuItem,
   handleMenuKeys,

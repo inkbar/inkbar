@@ -43,7 +43,7 @@
   import InkPage from './InkPage.svelte'
 
   import type { InkDocument, InkStatus } from '@inkbar/core'
-  import type { PageMount, ViewerEngine, ZoomValue } from '@inkbar/core/dom'
+  import type { PageMount, ToolId, ViewerEngine, ZoomValue } from '@inkbar/core/dom'
 
   let {
     mode = 'continuous',
@@ -155,7 +155,15 @@
           lastReportedPage = p
           ctx.reportPage(p)
         }
-        stops = [vp.zoom.subscribe(reportZoom), vp.currentPage.subscribe(reportPage)]
+        // A tool that switches itself (a one-shot tool once used) is reported as a pick.
+        const followTool = (id: ToolId): void => {
+          if (id !== ctx.tool) ctx.setTool(id)
+        }
+        stops = [
+          vp.zoom.subscribe(reportZoom),
+          vp.currentPage.subscribe(reportPage),
+          tc.active.subscribe(followTool),
+        ]
         // Whatever the build restored is reported once; nothing is when it matched.
         reportZoom(vp.zoom.get())
         reportPage(vp.currentPage.get())

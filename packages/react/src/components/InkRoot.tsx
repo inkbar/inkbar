@@ -208,6 +208,7 @@ export function InkRoot({
     onZoomChange,
     hostTools,
     tool: internalTool,
+    tools,
   })
 
   const snapshotHistory = useMemo(
@@ -325,6 +326,9 @@ export function InkRoot({
 
   const setTool = useCallback(
     (id: ToolId) => {
+      // Picking the active tool again starts it afresh, as after a one-shot tool's use.
+      const tc = latest.current.tools
+      if (latest.current.tool === id && tc?.active.get() === id) tc.set(id)
       setInternalTool(id)
       latest.current.onToolChange?.(id)
     },

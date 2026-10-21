@@ -16,6 +16,18 @@
 // gesture and swallows that pointer's release, so the new tool never sees half a gesture.
 // `lostpointercapture` after a completed release is not a cancel. Only primary-button presses
 // and releases reach tools. The root's own inline cursor is restored on destroy.
+//
+// A one-shot tool (`kind: 'one-shot'`) is used once, then hands back to `select-text`. It is
+// ready until it reports what it made (`ctx.made`), then made, with `data-ink-made` on the
+// root. A press on empty page while made, or Escape, ends it (`ctx.done`), and the tool never
+// sees that press. A press on another annotation (not text markup) switches to `select-text`
+// in either state and goes to it, so the same press can drag. Whether a press finds the tool
+// made is read before anything the press itself does: on the window when it is created, or on
+// the document once a free-text editor (which listens on the window) has committed. So a note
+// dropped by the press that closes its popover still counts as made. Removing everything it
+// made (Delete, undo, a controlled host refusing the add) returns the tool to ready; the
+// selection moving to something else switches to `select-text`.
+import { isTextMarkup } from '../../model/annotations/edit'
 import {
   createToolStyle,
   type StyleGroup,
@@ -46,6 +58,12 @@ export type BuiltinToolId =
 /** A built-in tool's id, or any id a host registers its own tool under. */
 export type ToolId = BuiltinToolId | (string & {})
 
+/**
+ * A one-shot tool switches back to `select-text` once it has made something and the user moves
+ * on; a sticky tool stays on. A tool without a kind is sticky.
+ */
+export type ToolKind = 'one-shot' | 'sticky'
+
 export interface PageHit extends ViewportHit {
   /** Pointer position in user space. */
   user: Point
@@ -73,10 +91,19 @@ export interface ToolContext {
   history?: { batch(fn: () => void): void }
   /** The signature templates the `signature` tool places. Without it, it places nothing. */
   signatures?: SignatureLibrary | undefined
+  /**
+   * A one-shot tool reports what it just made, already added and selected. Does nothing under
+   * a sticky tool or with an empty list.
+   */
+  made(ids: readonly string[]): void
+  /** Clears the selection and switches to `select-text`. */
+  done(): void
 }
 
 export interface Tool<O extends object = object> {
   id: ToolId
+  /** Default sticky. */
+  kind?: ToolKind
   cursor: string
   /** Style group the tool creates into; select tools have none. */
   styleGroup?: StyleGroup
@@ -119,8 +146,13 @@ export interface ToolController {
 }
 
 export interface ToolControllerOptions {
-  /** The controller adds `options`; `toolStyle` defaults to one of the controller's own. */
-  ctx: Omit<ToolContext, 'toolStyle' | 'options'> & { toolStyle?: ToolStyle }
+  /**
+   * The controller adds `options`, `made` and `done`; `toolStyle` defaults to one of the
+   * controller's own.
+   */
+  ctx: Omit<ToolContext, 'toolStyle' | 'options' | 'made' | 'done'> & {
+    toolStyle?: ToolStyle
+  }
   /** Default `'select-text'`. */
   initial?: ToolId
   tools: Tool[]
@@ -182,26 +214,83 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
       }),
     // `current` is the activating tool already, so `activate` reads its own options.
     options: <O extends object>() => registry.get(current?.id ?? active.get()) as O,
+    made(ids) {
+      if (current?.kind !== 'one-shot' || ids.length === 0) return
+      clearMade()
+      made = [...ids]
+      ctx.root.dataset.inkMade = ''
+      stopMade = [
+        ctx.store.list.subscribe(checkMade),
+        ctx.store.selection.subscribe(checkMade),
+      ]
+    },
+    done() {
+      clearMade()
+      ctx.store.select([])
+      set('select-text')
+    },
   }
   const originalCursor = ctx.root.style.cursor
   /** The pointer between a primary press and its release or cancel. */
   let pressed: number | undefined
   /** Pointers whose release belongs to a tool that is no longer active. */
   const swallow = new Set<number>()
+  /** What the active one-shot tool made; undefined while it is ready. */
+  let made: string[] | undefined
+  let stopMade: (() => void)[] = []
+  /** Whether the press now under way found the tool made (see the top of the file). */
+  let pressFoundMade = false
+
+  function clearMade(): void {
+    stopMade.forEach((stop) => stop())
+    stopMade = []
+    made = undefined
+    delete ctx.root.dataset.inkMade
+  }
+  /** Leaves the made state when its items are gone, or switches when the selection moved on. */
+  function checkMade(): void {
+    if (!made) return
+    const store = ctx.store
+    if (!made.some((id) => (store.get(id) ?? store._getProposed(id)) !== undefined)) {
+      clearMade()
+      return
+    }
+    const selected = store.selection.get()
+    if (!made.some((id) => selected.includes(id))) set('select-text')
+  }
 
   /** True for events from a pointer other than the one whose press is live. */
   const foreign = (e: PointerEvent): boolean =>
     pressed !== undefined && pressed !== e.pointerId
 
+  const readFirst = (): void => {
+    pressFoundMade = made !== undefined
+  }
+  const readAfterEditor = (): void => {
+    pressFoundMade ||= made !== undefined
+  }
   const onDown = (e: PointerEvent): void => {
     if (!e.isPrimary || e.button !== 0 || inCustomContent(e.target)) return
     // One gesture at a time: a second pointer pressing mid-gesture is ignored.
     if (foreign(e)) return
     swallow.delete(e.pointerId)
-    pressed = e.pointerId
     const target = e.target instanceof Element ? e.target : null
     const annotationId =
       target?.closest('[data-annotation]')?.getAttribute('data-annotation') ?? undefined
+    if (current?.kind === 'one-shot') {
+      if (pressFoundMade && annotationId === undefined) {
+        // No text selection starts. The press still bubbles, so a host's popover sees a
+        // press outside it and closes.
+        e.preventDefault()
+        // The release belongs to no tool.
+        swallow.add(e.pointerId)
+        ctx.done()
+        return
+      }
+      const a = annotationId === undefined ? undefined : ctx.store.get(annotationId)
+      if (a && !isTextMarkup(a) && !made?.includes(a.id)) set('select-text')
+    }
+    pressed = e.pointerId
     if (current?.onPointerDown?.(e, hitFor(ctx, e), annotationId) === true)
       capture(e.pointerId)
   }
@@ -232,6 +321,11 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
   }
   const onKey = (e: KeyboardEvent): void => {
     if (inCustomContent(e.target)) return
+    if (made && e.key === 'Escape' && !e.defaultPrevented) {
+      e.preventDefault()
+      ctx.done()
+      return
+    }
     current?.onKeyDown?.(e)
     // Enter that no tool took edits the one selected text box, wherever focus is in the viewport.
     if (isViewportEnter(e, ctx.root)) editSelectedText(e)
@@ -264,6 +358,9 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
       // Already released.
     }
   }
+  const doc = ctx.root.ownerDocument
+  doc.defaultView?.addEventListener('pointerdown', readFirst, { capture: true })
+  doc.addEventListener('pointerdown', readAfterEditor, { capture: true })
   ctx.root.addEventListener('pointerdown', onDown, { capture: true })
   ctx.root.addEventListener('pointermove', onMove)
   ctx.root.addEventListener('pointerup', onUp)
@@ -284,6 +381,8 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
       pressed = undefined
     }
     current?.deactivate()
+    // After `deactivate`, which may commit an open edit and report it made.
+    clearMade()
     current = next
     next.activate(ctx)
     ctx.root.dataset.inkTool = id
@@ -305,7 +404,10 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     },
     destroy() {
       current?.deactivate()
+      clearMade()
       current = undefined
+      doc.defaultView?.removeEventListener('pointerdown', readFirst, { capture: true })
+      doc.removeEventListener('pointerdown', readAfterEditor, { capture: true })
       ctx.root.removeEventListener('pointerdown', onDown, { capture: true })
       ctx.root.removeEventListener('pointermove', onMove)
       ctx.root.removeEventListener('pointerup', onUp)

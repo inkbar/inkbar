@@ -279,6 +279,8 @@
   })
 
   function setTool(id: ToolId): void {
+    // Picking the active tool again starts it afresh, as after a one-shot tool's use.
+    if (currentTool === id && tools?.active.get() === id) tools.set(id)
     tool = id
     onToolChange?.(id)
   }

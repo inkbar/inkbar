@@ -29,6 +29,7 @@ export type {
   ToolController,
   ToolControllerOptions,
   ToolId,
+  ToolKind,
 } from './controller'
 export { hitFor } from './controller'
 export { createToolOptions, type ToolOptions } from './options'

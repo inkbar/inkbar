@@ -28,6 +28,7 @@ import type {
   AnnotationSlotProps,
   LayoutMode,
   PageMount,
+  ToolId,
   ViewerEngine,
   ViewRotation,
   ZoomValue,
@@ -143,7 +144,15 @@ export function InkViewport({
           lastReportedPage.current = p
           latest.current.ctx.reportPage(p)
         }
-        stops = [vp.zoom.subscribe(reportZoom), vp.currentPage.subscribe(reportPage)]
+        // A tool that switches itself (a one-shot tool once used) is reported as a pick.
+        const followTool = (id: ToolId): void => {
+          if (id !== latest.current.ctx.tool) latest.current.ctx.setTool(id)
+        }
+        stops = [
+          vp.zoom.subscribe(reportZoom),
+          vp.currentPage.subscribe(reportPage),
+          tc.active.subscribe(followTool),
+        ]
         // Whatever the build restored is reported once; nothing is when it matched.
         reportZoom(vp.zoom.get())
         reportPage(vp.currentPage.get())

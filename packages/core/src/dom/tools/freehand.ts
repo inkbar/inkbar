@@ -126,6 +126,7 @@ export function freehandTool(opts: FreehandOptions): Tool {
 
   return {
     id: opts.id,
+    kind: 'sticky',
     cursor: 'crosshair',
     styleGroup: 'ink',
     activate(c) {

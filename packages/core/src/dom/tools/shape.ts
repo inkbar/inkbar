@@ -117,7 +117,12 @@ export function shapeTool(): Tool<ShapeOptions> {
     )
     return (
       el !== null &&
-      editFreeTextIn(c.store, el, a.id, c.viewport.transformFor(a.page)) !== undefined
+      editFreeTextIn(c.store, el, a.id, c.viewport.transformFor(a.page), {
+        // Escape ends the bubble's edit and the tool's use, unless the tool has gone already.
+        onClose: (how) => {
+          if (how === 'escape' && ctx === c) c.done()
+        },
+      }) !== undefined
     )
   }
 
@@ -142,6 +147,7 @@ export function shapeTool(): Tool<ShapeOptions> {
     if (!input) return
     const created = c.store.add(styled(c, input))
     c.store.select([created.id])
+    c.made([created.id])
     if (isBubble(created)) edit(c, created)
   }
 
@@ -233,6 +239,7 @@ export function shapeTool(): Tool<ShapeOptions> {
 
   return {
     id: 'shape',
+    kind: 'one-shot',
     cursor: 'crosshair',
     styleGroup: 'shape',
     defaultOptions: { ...DEFAULT_SHAPE_OPTIONS },

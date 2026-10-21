@@ -18,16 +18,26 @@ export function redactAreaTool(): Tool {
   let start: PageHit | undefined
   let draft: HTMLElement | undefined
 
+  /** Selects what the tool just added, together, and reports it made. */
+  const made = (c: ToolContext, ids: string[]): void => {
+    c.store.select(ids)
+    c.made(ids)
+  }
+
   /** Text redactions from the live selection, one per page. False when nothing is selected. */
   const fromSelection = (): boolean => {
     if (!ctx) return false
     const selections = ctx.selectionQuads()
     if (selections.length === 0) return false
-    for (const s of selections)
-      ctx.store.add(
-        ctx.toolStyle.resolve('redact', { type: 'redact', page: s.page, quads: s.quads })
-      )
-    ctx.clearSelection()
+    const c = ctx
+    const ids = selections.map(
+      (s) =>
+        c.store.add(
+          c.toolStyle.resolve('redact', { type: 'redact', page: s.page, quads: s.quads })
+        ).id
+    )
+    c.clearSelection()
+    made(c, ids)
     return true
   }
 
@@ -39,6 +49,7 @@ export function redactAreaTool(): Tool {
 
   return {
     id: 'redact-area',
+    kind: 'one-shot',
     cursor: 'crosshair',
     styleGroup: 'redact',
     activate(c) {
@@ -105,9 +116,10 @@ export function redactAreaTool(): Tool {
           width,
           height,
         })
-        ctx.store.add(
+        const a = ctx.store.add(
           ctx.toolStyle.resolve('redact', { type: 'redact', page: start.page, rect })
         )
+        made(ctx, [a.id])
       } else {
         fromSelection()
       }

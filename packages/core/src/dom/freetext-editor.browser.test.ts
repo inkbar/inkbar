@@ -5,7 +5,7 @@ import { userEvent } from 'vitest/browser'
 import { staticDefaults } from '../model/annotations/defaults'
 import { createAnnotationStore } from '../model/annotations/store'
 
-import { editFreeText } from './freetext-editor'
+import { editFreeText, type EditorCloseReason } from './freetext-editor'
 import { createOverlay } from './overlay'
 import { mountContainer, until } from './test-utils'
 import { createPageTransform } from './transform'
@@ -50,7 +50,8 @@ function setup(contents = 'Hi', rotation: 0 | 90 = 0) {
     contents,
   }) as FreeTextAnnotation
   const el = overlay.elementFor(a.id)!
-  const commit = vi.fn<(contents: string, rect: Rect) => void>()
+  const commit =
+    vi.fn<(contents: string, rect: Rect, grown: number, how: EditorCloseReason) => void>()
   const cancel = vi.fn()
   const editor = editFreeText(el, a, { transform, commit, cancel })
   cleanup.unshift(() => editor.close(false))
@@ -82,6 +83,7 @@ describe('editFreeText', () => {
     expect(commit).toHaveBeenCalledTimes(1)
     const [contents, rect] = commit.mock.calls[0]!
     expect(contents).toBe('one\ntwo\nthree\nfour')
+    expect(commit.mock.calls[0]![3]).toBe('escape')
     expect(rect.height).toBeGreaterThan(a.rect.height * 2)
     // The top edge and the width stay where they were.
     expect(rect.x).toBeCloseTo(a.rect.x)
@@ -102,7 +104,26 @@ describe('editFreeText', () => {
     )
     expect(commit).toHaveBeenCalledTimes(1)
     expect(commit.mock.calls[0]![0]).toBe('Hi!')
+    expect(commit.mock.calls[0]![3]).toBe('press')
     expect(field()).toBeNull()
+  })
+
+  it('commits when focus leaves the editor', () => {
+    const { commit, field } = setup()
+    const button = document.createElement('button')
+    document.body.append(button)
+    cleanup.push(() => button.remove())
+    button.focus()
+    expect(commit).toHaveBeenCalledTimes(1)
+    expect(commit.mock.calls[0]![3]).toBe('focus')
+    expect(field()).toBeNull()
+  })
+
+  it('close(true) commits with the api reason', () => {
+    const { commit, editor } = setup()
+    editor.close(true)
+    expect(commit).toHaveBeenCalledTimes(1)
+    expect(commit.mock.calls[0]![3]).toBe('api')
   })
 
   it('a press inside the editor keeps it open', () => {
