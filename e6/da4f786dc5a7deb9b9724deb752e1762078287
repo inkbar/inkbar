@@ -1,0 +1,61 @@
+packages/react/src/components/InkViewport.ct.tsx
+  s_53bc7b36f6063e::t_d9e4ef1021440a 631-632,635
+packages/core/src/dom/overlay.ts
+  s_53bc7b36f6063e::t_a87bf8b026e2c4 81-82
+  s_53bc7b36f6063e::t_13c89036dc1ede 65,67,73-74,80,83-84,97-98,192,335,345,356-359,720-726
+  s_53bc7b36f6063e::t_1cd76c423a4114 66
+packages/vue/src/components/InkViewport.ct.ts
+  s_53bc7b36f6063e::t_c244be6f51b75a 626-627,630
+packages/svelte/src/lib/context.ts
+  s_53bc7b36f6063e::t_97a05e42eaf33c 58,77-81
+packages/react/src/components/InkRoot.tsx
+  s_53bc7b36f6063e::t_b2dd41ecb2e3d9 90-93
+  s_53bc7b36f6063e::t_67a54b0f09bb09 225,442-467,480-481,508-509
+packages/core/src/dom/viewer/create-viewer.browser.test.ts
+  s_53bc7b36f6063e::t_da5cb38545549d 294-308
+packages/vue/src/components/InkViewport.vue
+  s_53bc7b36f6063e::t_045c7f1092f8e8 134,189-193
+packages/react/src/components/InkViewport.tsx
+  s_53bc7b36f6063e::t_67a54b0f09bb09 118-119,174-179
+  s_53bc7b36f6063e::t_e81bc0add72654 180
+packages/core/src/dom/overlay.browser.test.ts
+  s_53bc7b36f6063e::t_3d19b43a99e027 80,103-105,131-179
+packages/svelte/src/lib/components/InkViewport.svelte
+  s_53bc7b36f6063e::t_b23e0ee0376907 129,235-238
+  s_53bc7b36f6063e::t_9bfeecfeef3cc6 234
+  s_53bc7b36f6063e::t_6faed6bb2c2a93 239-240
+packages/vue/src/components/InkRoot.vue
+  s_53bc7b36f6063e::t_045c7f1092f8e8 69-72
+packages/react/src/context.ts
+  s_53bc7b36f6063e::t_67a54b0f09bb09 54-63,81-85
+packages/core/src/dom/viewer-engine.browser.test.ts
+  s_53bc7b36f6063e::t_afbbfa7bc942bb 374-387
+packages/vue/src/context.ts
+  s_53bc7b36f6063e::t_a0c45bf635b8c7 77-78
+  s_53bc7b36f6063e::t_97a05e42eaf33c 56,75-76,79
+packages/svelte/src/lib/components/InkRoot.svelte
+  s_53bc7b36f6063e::t_b2dd41ecb2e3d9 43-46
+packages/core/src/dom/viewer-engine.ts
+  s_53bc7b36f6063e::t_1cd76c423a4114 104-108,157-161
+  s_53bc7b36f6063e::t_daae2c0682bae7 405-408
+packages/core/src/dom/viewer/create-viewer.ts
+  s_53bc7b36f6063e::t_da5cb38545549d 82-83,329-331
+packages/svelte/src/test/InkViewport.browser.test.ts
+  s_53bc7b36f6063e::t_c244be6f51b75a 647-648,651
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e6da4f786dc5a7deb9b9724deb752e1762078287",
+  "prompts": {},
+  "sessions": {
+    "s_53bc7b36f6063e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cc4ab85f-ebb1-4dc0-8290-66c99694838b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
