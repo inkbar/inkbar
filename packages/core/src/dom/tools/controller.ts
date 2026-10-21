@@ -30,8 +30,9 @@
 //
 // While made, a press on a made item or on its handles goes to the controller's own selection
 // editor (selection-edit.ts) instead of the tool, as under `select-text`: a drag moves it, a
-// handle resizes it, and the tool stays on and made. Delete and Backspace go to that editor
-// too, so the made item can be removed without switching.
+// handle resizes it, a press inside a made text box reopens its editor, and the tool stays on
+// and made. Escape in that text editor commits and ends the tool, as in a new box. Delete and
+// Backspace go to the selection editor too, so the made item can be removed without switching.
 import { isTextMarkup } from '../../model/annotations/edit'
 import {
   createToolStyle,
@@ -420,7 +421,14 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     // After `deactivate`, which may commit an open edit and report it made.
     clearMade()
     current = next
-    madeEdit = next.kind === 'one-shot' ? createSelectionEdit(ctx) : undefined
+    madeEdit =
+      next.kind === 'one-shot'
+        ? createSelectionEdit(ctx, {
+            onEditorClose: (how) => {
+              if (how === 'escape' && made) ctx.done()
+            },
+          })
+        : undefined
     next.activate(ctx)
     ctx.root.dataset.inkTool = id
     ctx.root.style.cursor = next.cursor

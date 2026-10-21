@@ -5,7 +5,7 @@ import { userEvent } from 'vitest/browser'
 import { staticDefaults } from '../model/annotations/defaults'
 import { createAnnotationStore } from '../model/annotations/store'
 
-import { editFreeText, type EditorCloseReason } from './freetext-editor'
+import { editFreeText, editFreeTextIn, type EditorCloseReason } from './freetext-editor'
 import { createOverlay } from './overlay'
 import { mountContainer, until } from './test-utils'
 import { createPageTransform } from './transform'
@@ -254,6 +254,43 @@ describe('editFreeText', () => {
     const [, rect] = commit.mock.calls[0]!
     expect(rect.height).toBeCloseTo(70 + grown, 0)
     expect(rect.y + rect.height).toBeCloseTo(630)
+  })
+
+  it('caret lands at the given point', () => {
+    const { store, a, el, transform, editor, field } = setup('Hello world')
+    editor.close(true)
+    // The left edge of the "w", in the box as drawn.
+    const text = el.querySelector('.ink-free-text')!.firstChild!
+    const range = document.createRange()
+    range.setStart(text, 6)
+    range.setEnd(text, 7)
+    const w = range.getBoundingClientRect()
+    const opened = editFreeTextIn(store, el, a.id, transform, {
+      caret: { clientX: w.left + 1, clientY: w.top + w.height / 2 },
+    })
+    cleanup.unshift(() => opened?.close(false))
+    const f = field()!
+    expect(document.activeElement).toBe(f)
+    const selection = window.getSelection()!
+    expect(selection.isCollapsed).toBe(true)
+    expect(f.contains(selection.anchorNode)).toBe(true)
+    expect(selection.anchorOffset).toBe(6)
+  })
+
+  it('a caret point outside the text puts the caret at the end', () => {
+    const { store, a, el, transform, editor, field } = setup('Hello world')
+    editor.close(true)
+    const opened = editFreeTextIn(store, el, a.id, transform, {
+      caret: { clientX: -100, clientY: -100 },
+    })
+    cleanup.unshift(() => opened?.close(false))
+    const selection = window.getSelection()!
+    expect(selection.isCollapsed).toBe(true)
+    const range = selection.getRangeAt(0)
+    const end = document.createRange()
+    end.selectNodeContents(field()!)
+    end.collapse(false)
+    expect(range.compareBoundaryPoints(Range.START_TO_START, end)).toBe(0)
   })
 
   it('gives a box its fringe leaves no width to a usable editor', () => {

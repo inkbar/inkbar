@@ -23,6 +23,11 @@
 // Move: dragging a pressed annotation moves it, or, when it belongs to the selection, every
 // selected unlocked annotation, in one history step.
 //
+// Text boxes: a press inside one that can be edited (`canEditFreeText`) selects it and, on the
+// release, opens its editor with the caret where the press landed; it never moves the box. The
+// box moves by the band along its edge (`[data-ink-edge]`), or a speech bubble by its outline
+// and tail, as any annotation does. A locked or embedded box only selects.
+//
 // Under select-text, text markup is left to the overlay: a drag across it selects text, a
 // click selects it, and a press on empty space clears the annotation selection and starts a
 // text selection (Shift keeps it). Rectangle select (`marquee`) handles markup like any other
@@ -43,12 +48,14 @@ import {
 } from '../../model/annotations/edit'
 import { withoutReplies } from '../../model/annotations/threads'
 import { rectFromPoints, rectsIntersect } from '../../model/geometry'
+import { canEditFreeText, editFreeTextIn, editorFor } from '../freetext-editor'
 import { annotationBox, renderAnnotationContent } from '../overlay-render'
 
 import { cssIn, type PageHit, type ToolContext } from './controller'
 
 import type { Annotation } from '../../model/annotations/types'
 import type { Point, Rect } from '../../model/geometry'
+import type { EditorCloseReason } from '../freetext-editor'
 import type { CssRect, PageTransform } from '../transform'
 
 type Corner = 'nw' | 'ne' | 'sw' | 'se'
@@ -70,6 +77,13 @@ type Mode =
       narrow: boolean
     }
   | { kind: 'move'; ids: string[]; start: PageHit; els: HTMLElement[] }
+  | {
+      kind: 'edit'
+      id: string
+      start: PageHit
+      /** Where the press landed, for the caret. */
+      caret: { clientX: number; clientY: number }
+    }
   | { kind: 'marquee'; start: PageHit; el: HTMLElement; additive: boolean }
   | {
       kind: 'resize'
@@ -109,6 +123,8 @@ export interface SelectionEdit {
 export interface SelectionEditOptions {
   /** A press on empty space draws a marquee (rectangle select). Otherwise it is left alone. */
   marquee?: boolean
+  /** A text box editor opened by a press inside the box has closed, for `how`. */
+  onEditorClose?(how: EditorCloseReason): void
 }
 
 export function createSelectionEdit(
@@ -236,6 +252,20 @@ export function createSelectionEdit(
           )
           return
         }
+        if (inText(e.target) && canEditFreeText(a, elementIn(hit.host, annotationId))) {
+          // Selected here, not by the overlay, which would also take the press for a move.
+          e.stopPropagation()
+          ctx.store.select([annotationId])
+          ctx.onActivate?.(annotationId)
+          mode = {
+            kind: 'edit',
+            id: annotationId,
+            start: hit,
+            caret: { clientX: e.clientX, clientY: e.clientY },
+          }
+          e.preventDefault()
+          return true
+        }
         const narrow = selected.length > 1 && selected.includes(annotationId)
         // A press on a member of the selection keeps the selection, so it can move as one.
         // Otherwise the overlay selects and activates it once this capture-phase handler
@@ -275,6 +305,7 @@ export function createSelectionEdit(
         return
       }
       const { start } = mode
+      if (mode.kind === 'edit') return
       if (mode.kind === 'resize') {
         const { box, el, preview } = mode
         const next = resizeCss(box, mode.corner, cornerAt(mode, e), minCss(start), {
@@ -351,6 +382,17 @@ export function createSelectionEdit(
             ctx.onActivate?.(current.id)
           }
           return
+        case 'edit': {
+          // Opened on the release, so the press's own focus change has already happened.
+          const el = elementIn(current.start.host, current.id)
+          const a = ctx.store.get(current.id)
+          if (!el || !canEditFreeText(a, el) || editorFor(el)) return
+          editFreeTextIn(ctx.store, el, a.id, ctx.viewport.transformFor(a.page), {
+            caret: current.caret,
+            onClose: (how) => opts.onEditorClose?.(how),
+          })
+          return
+        }
         case 'move': {
           const { start } = current
           const end = start.transform.fromCss(cssIn(start.host, e))
@@ -451,6 +493,11 @@ export function createSelectionEdit(
 function handleOf(target: EventTarget | null): string | undefined {
   if (!(target instanceof Element)) return undefined
   return target.closest('[data-handle]')?.getAttribute('data-handle') ?? undefined
+}
+
+/** True when a press landed inside a free text's drawn text box. */
+function inText(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest('.ink-free-text') !== null
 }
 
 /** An overlay element's CSS box, from its inline geometry. */

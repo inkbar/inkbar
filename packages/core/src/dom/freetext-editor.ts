@@ -37,6 +37,8 @@ export interface FreeTextEditorOptions {
    */
   commit(contents: string, rect: Rect, grown: number, how: EditorCloseReason): void
   cancel(): void
+  /** Where to put the caret, a client point (a click on the box); at the end when absent. */
+  caret?: { clientX: number; clientY: number } | undefined
 }
 
 /** The open editor on each overlay element. */
@@ -61,7 +63,8 @@ const MIN_WIDTH_EM = 2
 
 /**
  * Opens an editor on `el`, the overlay element showing `a` (or a stand-in for a box not in the
- * store yet). `Escape` commits; a press outside the editor, or focus leaving it, commits too.
+ * store yet), with the caret at `opts.caret` or after the text. `Escape` commits; a press
+ * outside the editor, or focus leaving it, commits too.
  * Closing while the editor has focus hands focus to `el`. Keys typed in the
  * editor stop there, so no viewport or tool shortcut sees them. Opening a second editor on the
  * same element commits the first.
@@ -180,9 +183,12 @@ export function editFreeText(
   field.focus({ preventScroll: true })
   const selection = doc.getSelection()
   if (selection) {
-    const range = doc.createRange()
-    range.selectNodeContents(field)
-    range.collapse(false)
+    let range = opts.caret && caretIn(field, opts.caret)
+    if (!range) {
+      range = doc.createRange()
+      range.selectNodeContents(field)
+      range.collapse(false)
+    }
     selection.removeAllRanges()
     selection.addRange(range)
   }
@@ -217,14 +223,18 @@ export function canEditFreeText(
  * commit is one `update` with the text and the grown rect (none when neither changed), and an
  * empty box is removed, as an abandoned note is. A speech bubble is the exception: its outline
  * shows without text, so it is kept. `onClose` runs after the store change, with what closed
- * the editor. Returns undefined when the box cannot be edited (`canEditFreeText`).
+ * the editor; `caret` is a client point to put the caret at (`editFreeText`). Returns
+ * undefined when the box cannot be edited (`canEditFreeText`).
  */
 export function editFreeTextIn(
   store: AnnotationStore,
   el: HTMLElement,
   id: string,
   transform: PageTransform,
-  opts: { onClose?(how: EditorCloseReason): void } = {}
+  opts: {
+    onClose?(how: EditorCloseReason): void
+    caret?: { clientX: number; clientY: number }
+  } = {}
 ): FreeTextEditor | undefined {
   const a = store._getProposed(id) ?? store.get(id)
   if (!canEditFreeText(a, el)) return undefined
@@ -248,6 +258,7 @@ export function editFreeTextIn(
   }
   return editFreeText(el, a, {
     transform,
+    caret: opts.caret,
     commit(contents, _rect, grown, how) {
       write(contents, grown)
       opts.onClose?.(how)
@@ -286,6 +297,32 @@ export function grownFreeText(
     box,
     resized.callout!.map((p, i) => (i === last ? p : down(p)))
   )
+}
+
+/**
+ * A collapsed range at the text position under a client point, if that position is in `field`.
+ * The editor lies over the box with the same look, so a point on the box lands on the same
+ * character in the editor.
+ */
+function caretIn(
+  field: HTMLElement,
+  at: { clientX: number; clientY: number }
+): Range | undefined {
+  const doc = field.ownerDocument
+  let node: Node | undefined
+  let offset = 0
+  if (typeof doc.caretPositionFromPoint === 'function') {
+    const p = doc.caretPositionFromPoint(at.clientX, at.clientY)
+    if (p) ({ offsetNode: node, offset } = p)
+  } else if (typeof doc.caretRangeFromPoint === 'function') {
+    const r = doc.caretRangeFromPoint(at.clientX, at.clientY)
+    if (r) ({ startContainer: node, startOffset: offset } = r)
+  }
+  if (!node || !field.contains(node)) return undefined
+  const range = doc.createRange()
+  range.setStart(node, offset)
+  range.collapse(true)
+  return range
 }
 
 /** `plaintext-only` where the browser has it, else `true` (paste and formatting are then guarded). */
