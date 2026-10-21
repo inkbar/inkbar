@@ -2,14 +2,17 @@ import { browserAssets, fixtureUrl, type FixtureName } from '@inkbar/fixtures/ur
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { userEvent } from 'vitest/browser'
 
+import { writable, type Readable } from '../../model/readable'
 import {
   createMemorySignatureStore,
   type SignatureTemplate,
 } from '../../model/signatures'
+import { definePlugin } from '../plugins/define'
 import { mountContainer, settle, until } from '../test-utils'
 
 import { createColorMenu } from './color-menu'
 import {
+  createCommandButton,
   createNextPage,
   createPageCount,
   createPageInput,
@@ -31,6 +34,7 @@ import { createLineStyleMenu } from './style-menu'
 import { createTextStyleMenu } from './text-style-menu'
 
 import type { InkDocument } from '../../model/document'
+import type { RecordStore } from '../../model/records'
 import type { ViewerEngine } from '../viewer-engine'
 
 // The theme is not loaded here: give the scroll element a height so pages mount and unmount.
@@ -2042,3 +2046,145 @@ function bars(viewer: Viewer): { tools: HTMLElement; status: HTMLElement } {
   viewer.element.append(status)
   return { tools, status }
 }
+
+describe('createViewer plugins', () => {
+  it('runs a plugin command from createCommandButton and reports busy and status', async () => {
+    const status = writable('')
+    let finish: () => void = () => undefined
+    const plugin = definePlugin({
+      id: 'sandbox',
+      setup(ctx) {
+        ctx.commands.add({
+          id: 'work',
+          label: 'Do work',
+          status,
+          run: () =>
+            new Promise<void>((resolve) => {
+              status.set('Working')
+              finish = () => {
+                status.set('Done')
+                resolve()
+              }
+            }),
+        })
+      },
+    })
+    const { viewer } = make('annotated-notes-threaded', { plugins: [plugin] })
+    const el = createCommandButton(viewer, 'sandbox.work')
+    viewer.element.append(el)
+    const b = el.querySelector<HTMLButtonElement>('button[data-command="sandbox.work"]')!
+    const live = el.querySelector<HTMLElement>('.ink-command-status')!
+    expect(el.matches('div.ink-command')).toBe(true)
+    expect(b.getAttribute('aria-label')).toBe('Do work')
+    expect(live.getAttribute('role')).toBe('status')
+    expect(b.disabled).toBe(true)
+    await ready(viewer)
+    await until(() => !b.disabled)
+    b.click()
+    await until(() => b.getAttribute('aria-busy') === 'true')
+    expect(b.disabled).toBe(true)
+    expect(live.textContent).toBe('Working')
+    finish()
+    await until(() => b.getAttribute('aria-busy') !== 'true')
+    expect(b.disabled).toBe(false)
+    expect(live.textContent).toBe('Done')
+    expect(viewer.commands.get('sandbox.work')?.label).toBe('Do work')
+    expect(viewer.commands.get('nope')).toBeUndefined()
+  })
+
+  it('throws UnknownCommand for an id no plugin registered', () => {
+    const { viewer } = make('annotated-notes-threaded')
+    expect(() => createCommandButton(viewer, 'sandbox.nope')).toThrowError(
+      expect.objectContaining({ code: 'UnknownCommand' })
+    )
+  })
+
+  it('a plugin tool works with createToolButton and shows its own label', async () => {
+    const activate = vi.fn()
+    const plugin = definePlugin({
+      id: 'sandbox',
+      setup(ctx) {
+        ctx.tools.add({
+          id: 'stamp',
+          label: 'Stamp',
+          icon: [['circle', { cx: '12', cy: '12', r: '8' }]],
+          cursor: 'crosshair',
+          activate,
+          deactivate: () => undefined,
+        })
+      },
+    })
+    const { viewer } = make('annotated-notes-threaded', { plugins: [plugin] })
+    const b = createToolButton(viewer, 'sandbox.stamp')
+    viewer.element.append(b)
+    expect(b.getAttribute('aria-label')).toBe('Stamp')
+    expect(b.querySelector('svg.ink-icon')).not.toBeNull()
+    await ready(viewer)
+    await until(() => !b.disabled)
+    b.click()
+    expect(viewer.tools.get()?.active.get()).toBe('sandbox.stamp')
+    expect(b.getAttribute('aria-pressed')).toBe('true')
+    expect(activate).toHaveBeenCalled()
+  })
+
+  it('plugin records undo with annotations in createViewer', async () => {
+    let store: Readable<RecordStore<{ id: string }> | null> | undefined
+    const plugin = definePlugin({
+      id: 'sandbox',
+      setup(ctx) {
+        store = ctx.store<{ id: string }>('marks')
+        ctx.onAnnotationEdit((edit) => {
+          if (edit.kind === 'add') store?.get()?.add({ id: edit.annotation.id })
+        })
+      },
+    })
+    const { viewer } = make('annotated-notes-threaded', { plugins: [plugin] })
+    const { doc } = await ready(viewer)
+    const a = doc.annotations.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 10, y: 10, width: 40, height: 40 },
+    })
+    expect(
+      store
+        ?.get()
+        ?.list.get()
+        .map((r) => r.id)
+    ).toEqual([a.id])
+    doc.history.undo()
+    expect(store?.get()?.list.get()).toEqual([])
+    doc.history.redo()
+    expect(
+      store
+        ?.get()
+        ?.list.get()
+        .map((r) => r.id)
+    ).toEqual([a.id])
+  })
+
+  it('opening another document gives plugins fresh stores', async () => {
+    let store: Readable<RecordStore<{ id: string }> | null> | undefined
+    const plugin = definePlugin({
+      id: 'sandbox',
+      setup(ctx) {
+        store = ctx.store<{ id: string }>('marks')
+      },
+    })
+    const { viewer } = make('annotated-notes-threaded', { plugins: [plugin] })
+    const first = await ready(viewer)
+    const firstStore = store!.get()!
+    firstStore.add({ id: 'one' })
+    viewer.open(fixtureUrl('annotated-notes-threaded'))
+    await until(
+      () => viewer.document.get() !== null && viewer.document.get() !== first.doc
+    )
+    const second = store!.get()!
+    expect(second).not.toBe(firstStore)
+    expect(second.list.get()).toEqual([])
+    // The new document's history tracks the new store.
+    const doc = viewer.document.get()!
+    second.add({ id: 'two' })
+    doc.history.undo()
+    expect(second.list.get()).toEqual([])
+  })
+})

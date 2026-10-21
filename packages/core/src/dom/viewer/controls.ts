@@ -28,8 +28,10 @@ import {
   type IconNode,
 } from '@inkbar/icons'
 
+import { InkError } from '../../model/errors'
 import { TOOL_LABELS, ZOOM_LEVELS } from '../ui'
 
+import { hostToolsOf } from './create-viewer'
 import { h } from './dom'
 
 import type { InkDocument } from '../../model/document'
@@ -166,19 +168,20 @@ function historyButton(viewer: Viewer, action: 'undo' | 'redo'): HTMLButtonEleme
 }
 
 /**
- * Sets the tool; pressed while it is the active one. A host tool's button has no icon (append
- * your own) and is named by `label`, else by the tool id.
+ * Sets the tool; pressed while it is the active one. A host or plugin tool's button takes the
+ * tool's own `label` and `icon`; `opts.label` wins, and without either it is named by the tool id.
  */
 export function createToolButton(
   viewer: Viewer,
   tool: ToolId,
   opts: { label?: string } = {}
 ): HTMLButtonElement {
-  const label = opts.label ?? TOOL_LABELS[tool] ?? tool
+  const own = hostToolsOf(viewer).find((t) => t.id === tool)
+  const label = opts.label ?? TOOL_LABELS[tool] ?? own?.label ?? tool
   const b = button(
     label,
     { class: 'ink-tool-button', 'data-ink-tool-button': '', 'data-tool': tool },
-    TOOL_ICONS[tool]
+    TOOL_ICONS[tool] ?? own?.icon
   )
   const show = (active: ToolId | null): void => {
     const on = active === tool
@@ -193,6 +196,32 @@ export function createToolButton(
     () => show(null)
   )
   return b
+}
+
+/**
+ * A plugin command as a button with its status text beside it. The button is named by the
+ * command's label, disabled while the command is, and `aria-busy` while it runs; the status is
+ * a live region. Throws `InkError('UnknownCommand')` for an id no plugin registered.
+ */
+export function createCommandButton(viewer: Viewer, id: string): HTMLElement {
+  const command = viewer.commands.get(id)
+  if (!command)
+    throw new InkError('UnknownCommand', `No plugin registered a command ${id}`, { id })
+  const b = button(command.label, { 'data-command': id }, command.icon)
+  const status = h('span', { class: 'ink-command-status', role: 'status' })
+  b.addEventListener('click', () => void command.run())
+  // Enabled follows the command (a ready document by default); busy is its own attribute.
+  command.enabled.subscribe((on) => {
+    b.disabled = !on
+  })
+  b.disabled = !command.enabled.get()
+  command.busy.subscribe((on) => b.setAttribute('aria-busy', String(on)))
+  b.setAttribute('aria-busy', String(command.busy.get()))
+  command.status.subscribe((text) => {
+    status.textContent = text
+  })
+  status.textContent = command.status.get()
+  return h('div', { class: 'ink-command' }, b, status)
 }
 
 export function createZoomIn(viewer: Viewer): HTMLButtonElement {

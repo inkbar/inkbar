@@ -600,6 +600,50 @@
     cursor: default;
   }
 
+  /*
+   * A plugin command button (createCommandButton): the button looks like a toolbar button
+   * wherever it sits, and its status text goes beside it.
+   */
+  :where(.ink-command) {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  :where(.ink-command button) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--ink-control-size, 2.25rem);
+    height: var(--ink-control-size, 2.25rem);
+    padding: 0 0.5rem;
+    border: 1px solid transparent;
+    border-radius: calc(var(--ink-radius) - 2px);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  :where(.ink-command button:hover) {
+    background: color-mix(in srgb, var(--ink-fg) 8%, transparent);
+  }
+
+  :where(.ink-command button:disabled) {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  :where(.ink-command button:focus-visible) {
+    outline: 2px solid var(--ink-ring);
+    outline-offset: 2px;
+  }
+
+  :where(.ink-command-status) {
+    opacity: 0.75;
+    font-size: 0.875rem;
+  }
+
   :where(.ink-toolbar input) {
     box-sizing: border-box;
     height: var(--ink-control-size, 2.25rem);

@@ -223,6 +223,16 @@ describe('theme.css', () => {
     expect(rules.filter((r) => r.selector.includes(':has('))).toEqual([])
   })
 
+  it('styles a command button like a toolbar button, with its status beside it', () => {
+    expect(declsFor('.ink-command')).toMatch(/display:\s*inline-flex/)
+    const button = declsFor('.ink-command button')
+    expect(button).toMatch(/min-width:\s*var\(--ink-control-size/)
+    expect(button).toMatch(/height:\s*var\(--ink-control-size/)
+    expect(declsFor('.ink-command button:disabled')).toMatch(/opacity:/)
+    expect(declsFor('.ink-command button:focus-visible')).toMatch(/var\(--ink-ring\)/)
+    expect(declsFor('.ink-command-status')).toMatch(/font-size:/)
+  })
+
   it('rings the text style panel controls on keyboard focus', () => {
     for (const control of [
       '.ink-text-style-font:focus-visible',
