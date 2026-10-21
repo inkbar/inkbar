@@ -76,7 +76,6 @@ export const TEXT_LAYER_CSS = `
   color: transparent;
   position: absolute;
   white-space: pre;
-  cursor: text;
   transform-origin: 0% 0%;
 }
 .ink-text-layer > :not(.markedContent),

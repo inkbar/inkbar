@@ -917,6 +917,155 @@ describe('controller and gesture edges', () => {
   })
 })
 
+describe('cursors', () => {
+  const cursorOf = (el: Element | null): string => getComputedStyle(el!).cursor
+
+  async function withTheme(name: 'text-simple' = 'text-simple') {
+    const theme = document.createElement('style')
+    theme.textContent = themeCss
+    document.head.append(theme)
+    cleanup.push(() => theme.remove())
+    const ctx = await setup(name)
+    const { doc, viewport } = ctx
+    const t = viewport.transformFor(0)
+    const rect = t.fromCssRect({ left: 60, top: 60, width: 160, height: 60 })
+    const square = doc.annotations.add({ type: 'square', page: 0, rect })
+    const text = doc.annotations.add({
+      type: 'freetext',
+      page: 0,
+      rect: t.fromCssRect({ left: 60, top: 160, width: 160, height: 40 }),
+      contents: 'Hi',
+    })
+    const line = doc.annotations.add({
+      type: 'line',
+      page: 0,
+      start: t.fromCss({ x: 300, y: 80 }),
+      end: t.fromCss({ x: 400, y: 120 }),
+    })
+    const markup = doc.annotations.add({
+      type: 'highlight',
+      page: 0,
+      quads: [
+        {
+          p1: { x: 72, y: 715 },
+          p2: { x: 300, y: 715 },
+          p3: { x: 72, y: 695 },
+          p4: { x: 300, y: 695 },
+        },
+      ],
+    })
+    await settle()
+    const el = (id: string) =>
+      ctx.container.querySelector<HTMLElement>(`[data-annotation="${id}"]`)!
+    return { ...ctx, square, text, line, markup, el }
+  }
+
+  it.each(['select', 'select-text'])(
+    'an unlocked annotation shows move under %s',
+    async (tool) => {
+      const { tools, square, line, el } = await withTheme()
+      tools.set(tool)
+      expect(cursorOf(el(square.id))).toBe('move')
+      expect(cursorOf(el(line.id))).toBe('move')
+      expect(cursorOf(el(line.id).querySelector('[data-ink-hit-stroke]'))).toBe('move')
+    }
+  )
+
+  it('a just-made item shows move under a creation tool, others do not', async () => {
+    const { tools, container, doc, square, line, el } = await withTheme()
+    tools.set('shape')
+    expect(cursorOf(el(square.id))).toBe('crosshair')
+    container.dataset.inkMade = ''
+    doc.annotations.select([square.id])
+    expect(cursorOf(el(square.id))).toBe('move')
+    expect(cursorOf(el(line.id))).toBe('crosshair')
+  })
+
+  it('a locked annotation shows default', async () => {
+    const { tools, doc, square, el } = await withTheme()
+    tools.set('select')
+    doc.annotations.update(square.id, { locked: true })
+    expect(cursorOf(el(square.id))).toBe('default')
+  })
+
+  it.each(['select', 'select-text'])('text markup shows text under %s', async (tool) => {
+    const { tools, markup, el } = await withTheme()
+    tools.set(tool)
+    expect(cursorOf(el(markup.id))).toBe('text')
+  })
+
+  it('an editable text box shows text inside and move on its edge', async () => {
+    const { tools, text, el } = await withTheme()
+    tools.set('select')
+    expect(cursorOf(el(text.id).querySelector('.ink-free-text'))).toBe('text')
+    expect(cursorOf(el(text.id).querySelector('[data-ink-edge]'))).toBe('move')
+  })
+
+  it('a locked text box shows default inside and on its edge', async () => {
+    const { tools, doc, text, el } = await withTheme()
+    tools.set('select')
+    doc.annotations.update(text.id, { locked: true })
+    expect(cursorOf(el(text.id).querySelector('.ink-free-text'))).toBe('default')
+    expect(cursorOf(el(text.id).querySelector('[data-ink-edge]'))).toBe('default')
+  })
+
+  it('handles show a resize or crosshair cursor', async () => {
+    const { tools, doc, square, line, el } = await withTheme()
+    tools.set('select')
+    doc.annotations.select([square.id])
+    for (const [h, c] of [
+      ['nw', 'nwse-resize'],
+      ['se', 'nwse-resize'],
+      ['ne', 'nesw-resize'],
+      ['sw', 'nesw-resize'],
+    ] as const)
+      expect(cursorOf(el(square.id).querySelector(`[data-handle="${h}"]`)), h).toBe(c)
+    doc.annotations.select([line.id])
+    for (const h of ['start', 'end'])
+      expect(cursorOf(el(line.id).querySelector(`[data-handle="${h}"]`)), h).toBe(
+        'crosshair'
+      )
+  })
+
+  it('everything shows move while an annotation is dragged', async () => {
+    const { tools, container, viewport, square, el } = await withTheme()
+    tools.set('select')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(el(square.id), 'pointerdown', h.left + 100, h.top + 80)
+    pointer(container, 'pointermove', h.left + 140, h.top + 100)
+    expect(container.hasAttribute('data-ink-dragging')).toBe(true)
+    expect(cursorOf(container)).toBe('move')
+    expect(cursorOf(container.querySelector('.ink-text-layer span'))).toBe('move')
+    expect(cursorOf(el(square.id))).toBe('move')
+    pointer(container, 'pointerup', h.left + 140, h.top + 100)
+    expect(container.hasAttribute('data-ink-dragging')).toBe(false)
+    expect(cursorOf(container)).toBe('default')
+  })
+
+  it('a cancelled drag clears the dragging mark', async () => {
+    const { tools, container, viewport, square, el } = await withTheme()
+    tools.set('select')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(el(square.id), 'pointerdown', h.left + 100, h.top + 80)
+    pointer(container, 'pointermove', h.left + 140, h.top + 100)
+    pointer(container, 'pointercancel', h.left + 140, h.top + 100)
+    expect(container.hasAttribute('data-ink-dragging')).toBe(false)
+  })
+
+  it('page text follows the tool: crosshair under shape, text under select-text', async () => {
+    const { tools, container } = await withTheme()
+    const span = () => container.querySelector('.ink-text-layer span')
+    tools.set('shape')
+    expect(cursorOf(span())).toBe('crosshair')
+    tools.set('redact-area')
+    expect(cursorOf(span())).toBe('crosshair')
+    tools.set('note')
+    expect(cursorOf(span())).toBe('copy')
+    tools.set('select-text')
+    expect(cursorOf(span())).toBe('text')
+  })
+})
+
 describe('interrupted gestures', () => {
   async function dragging(how: 'cancel' | 'hover') {
     const ctx = await setup()

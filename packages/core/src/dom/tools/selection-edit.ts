@@ -136,7 +136,10 @@ export function createSelectionEdit(
 
   const reset = (): void => {
     if (mode.kind === 'marquee') mode.el.remove()
-    if (mode.kind === 'move') for (const el of mode.els) el.style.transform = ''
+    if (mode.kind === 'move') {
+      for (const el of mode.els) el.style.transform = ''
+      ctx.root.removeAttribute('data-ink-dragging')
+    }
     if (mode.kind === 'resize' && mode.el) {
       mode.el.style.transform = ''
       mode.el.style.transformOrigin = ''
@@ -356,6 +359,8 @@ export function createSelectionEdit(
           .map((id) => elementIn(ctx.root, id))
           .filter((el): el is HTMLElement => el !== undefined)
         mode = { kind: 'move', ids, start, els }
+        // The theme shows the move cursor everywhere until the release.
+        ctx.root.setAttribute('data-ink-dragging', '')
       }
       if (mode.kind === 'move') {
         for (const el of mode.els) el.style.transform = `translate(${dx}px, ${dy}px)`
