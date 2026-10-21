@@ -8,6 +8,7 @@ export type InkErrorCode =
   | 'ControlledMutationIgnored'
   | 'DocumentDestroyed'
   | 'PageOutOfRange'
+  | 'DuplicateId'
 
 export class InkError extends Error {
   override readonly name = 'InkError'

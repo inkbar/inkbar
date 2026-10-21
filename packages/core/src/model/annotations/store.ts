@@ -35,6 +35,12 @@ export type AnnotationChange =
       fields: ReadonlyMap<string, EmbeddedFieldPatch>
     }
 
+/** The changes `edit` reports: one per `add`, `update` or `remove` call that changed something. */
+export type AnnotationEdit = Extract<
+  AnnotationChange,
+  { kind: 'add' | 'update' | 'remove' }
+>
+
 export type StoreMode =
   | { mode: 'uncontrolled'; initial?: Annotation[] }
   | {
@@ -96,6 +102,12 @@ export interface AnnotationStore {
   _getProposed(id: string): Annotation | undefined
   completeInput(input: AnnotationInput): Annotation
   on(event: 'change', fn: (change: AnnotationChange) => void): () => void
+  /**
+   * Fires synchronously for every `add`, `update` and `remove` that changes something, in both
+   * modes, before the list is set (uncontrolled) or `onChange` is called (controlled). Never
+   * for `replace`.
+   */
+  on(event: 'edit', fn: (change: AnnotationEdit) => void): () => void
   destroy(): void
 }
 
@@ -256,7 +268,7 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
   const nextId = opts.id ?? (() => uuidv7())
   const list = writable<readonly Annotation[]>([...(opts.mode.initial ?? [])])
   const selection = writable<readonly string[]>([])
-  const emitter = new Emitter<{ change: AnnotationChange }>()
+  const emitter = new Emitter<{ change: AnnotationChange; edit: AnnotationEdit }>()
   const controlled = opts.mode.mode === 'controlled' ? opts.mode : undefined
   const pending = new Map<string, Pending>()
   /**
@@ -324,6 +336,7 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
   }
 
   function commit(next: readonly Annotation[], change: AnnotationChange): void {
+    if (change.kind !== 'replace') emitter.emit('edit', change)
     if (controlled) {
       if (change.kind !== 'replace') {
         const key = changeKey(change)
@@ -446,9 +459,10 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
       const swap = (items: readonly Annotation[]): Annotation[] =>
         items.map((a) => (a.id === id ? after : a))
       const next = swap(basis())
-      const change: AnnotationChange = { kind: 'update', id, before, after }
+      const change: AnnotationEdit = { kind: 'update', id, before, after }
       if (controlled && before.source === 'pdf') {
         // The host never holds embedded items, so their edits apply here.
+        emitter.emit('edit', change)
         list.set(swap(list.get()))
         if (proposed) proposed = next
         emitter.emit('change', change)
@@ -533,7 +547,8 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
       if (proposed) proposed = merge(proposed)
       emitter.emit('change', { kind: 'replace', reason: 'embedded', fields: applied })
     },
-    on: (event, fn) => emitter.on(event, fn),
+    on: (event: 'change' | 'edit', fn: (change: never) => void) =>
+      emitter.on(event, fn as never),
     destroy() {
       destroyed = true
       proposed = undefined
