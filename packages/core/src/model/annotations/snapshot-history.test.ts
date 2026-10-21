@@ -598,6 +598,55 @@ describe('createSnapshotHistory', () => {
       }
     })
 
+    it('keeps the records for redo when undo repeats before the host applies', async () => {
+      vi.useFakeTimers()
+      try {
+        const { store, history, threads, value } = controlledHost()
+        history.batch(() => {
+          store.add({
+            type: 'text',
+            page: 0,
+            rect: { x: 0, y: 0, width: 20, height: 20 },
+          })
+          threads.add({ id: 't1', text: 'hi' })
+        })
+        await settle()
+        history.undo()
+        history.undo()
+        await settle()
+        expect(value()).toEqual([])
+        expect(threads.list.get()).toEqual([])
+        history.redo()
+        await settle()
+        expect(value()).toHaveLength(1)
+        expect(threads.list.get()).toEqual([{ id: 't1', text: 'hi' }])
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('attaching the same store twice runs its reactions once', () => {
+      const store = createAnnotationStore({
+        mode: { mode: 'controlled', initial: [], onChange: () => {} },
+        defaults: staticDefaults,
+      })
+      const history = createSnapshotHistory({ apply: vi.fn(), enabled: () => true })
+      history.observe([])
+      const reaction = vi.fn()
+      history.react(reaction)
+      const detach = history.attach(store)
+      const again = history.attach(store)
+      store.add({ type: 'text', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
+      expect(reaction).toHaveBeenCalledOnce()
+      // The second handle is a no-op and leaves the first attachment in place.
+      again()
+      store.add({ type: 'text', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
+      expect(reaction).toHaveBeenCalledTimes(2)
+      detach()
+      store.add({ type: 'text', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
+      expect(reaction).toHaveBeenCalledTimes(2)
+    })
+
     it('a records-only undo moves without waiting for the host', async () => {
       vi.useFakeTimers()
       try {

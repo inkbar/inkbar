@@ -92,6 +92,8 @@ export function createSnapshotHistory(opts: SnapshotHistoryOptions): SnapshotHis
     { previous: readonly RecordBase[]; unsubscribe: () => void }
   >()
   const reactions = new Set<(edit: AnnotationEdit) => void>()
+  /** Each attached store with its `edit` unsubscribe. */
+  const attached = new Map<AnnotationStore, () => void>()
   /** Set while undo or redo puts records back, so those changes are not steps. */
   let replaying = false
 
@@ -203,7 +205,12 @@ export function createSnapshotHistory(opts: SnapshotHistoryOptions): SnapshotHis
 
   function propose(kind: Pending['kind'], target: Snapshot | undefined): void {
     if (!opts.enabled() || !target) return
-    const before = records()
+    // The same undo or redo again before the host applies: the records were already put back,
+    // so the state it leaves is the one the first call saw.
+    const before =
+      pending && pending.kind === kind && pending.target === target
+        ? pending.records
+        : records()
     replaying = true
     try {
       // Stores no longer tracked keep their records.
@@ -292,12 +299,20 @@ export function createSnapshotHistory(opts: SnapshotHistoryOptions): SnapshotHis
       }
     },
     attach(store) {
-      return store.on('edit', (edit) => {
+      if (attached.has(store)) return noop
+      const off = store.on('edit', (edit) => {
         if (reactions.size === 0) return
         batch(() => {
           for (const fn of [...reactions]) fn(edit)
         })
       })
+      attached.set(store, off)
+      // An old handle never detaches a later attachment of the same store.
+      return () => {
+        if (attached.get(store) !== off) return
+        attached.delete(store)
+        off()
+      }
     },
   }
 }
