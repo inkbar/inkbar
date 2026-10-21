@@ -371,4 +371,18 @@ describe('mountViewer', () => {
     await until(() => container.querySelector('[data-annotation]') !== null)
     expect(container.querySelector('[data-annotation][data-custom]')).toBeNull()
   })
+
+  it('re-applies decorations on redecorate when only their output changed', async () => {
+    let flag = 'on'
+    const { container, engine } = await setup('annotated-notes-threaded', {
+      zoom: 1,
+      decorateAnnotation: () => ({ data: { 'my-flag': flag } }),
+    })
+    await until(() => container.querySelector('[data-annotation]') !== null)
+    const els = [...container.querySelectorAll<HTMLElement>('[data-annotation]')]
+    expect(els.map((el) => el.dataset.myFlag)).toEqual(els.map(() => 'on'))
+    flag = 'off'
+    engine.redecorate()
+    expect(els.map((el) => el.dataset.myFlag)).toEqual(els.map(() => 'off'))
+  })
 })

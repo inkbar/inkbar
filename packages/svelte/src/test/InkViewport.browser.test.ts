@@ -644,9 +644,10 @@ describe('InkViewport', () => {
     const note = `.ink-annotation[data-annotation="${id}"]`
     await expect.poll(attr(note, 'data-test-mark')).toBe('note')
 
-    // A new function identity applies on the next render, without a rebuild.
+    // A new function re-applies at once: no annotation change, no rebuild.
+    const element = document.querySelector(note)
     await screen.rerender({ decorateAnnotation: mark('other') })
-    doc().annotations.update(id, { rect: { x: 100, y: 600, width: 24, height: 24 } })
     await expect.poll(attr(note, 'data-test-mark')).toBe('other')
+    expect(document.querySelector(note)).toBe(element)
   })
 })

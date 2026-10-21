@@ -55,7 +55,7 @@ export interface InkContext {
   setTool(id: ToolId): void
   /** Host tools from InkRoot's `tools` prop; InkViewport registers them. */
   readonly hostTools: Tool[] | undefined
-  /** InkRoot's `decorateAnnotation` prop; InkViewport reads it through on each decoration. */
+  /** InkRoot's `decorateAnnotation` prop. InkViewport re-applies decorations when it changes. */
   readonly decorateAnnotation: DecorateAnnotation | undefined
   /** The font families text boxes offer: InkRoot's `fonts`, else `FONT_FAMILIES`. */
   readonly fonts: readonly string[]
@@ -74,6 +74,11 @@ export interface InkContext {
   reportPage(p: number): void
   /** Last activated annotation (Enter, click with the note tool, etc.). Popovers key off this. */
   readonly activated: string | null
+  /**
+   * Activates annotation `id`, or clears the activation with `null`. This is the context's
+   * own: unlike core's `Viewer.setActivated`, it calls InkRoot's `onActivate` for an id, and
+   * it does not check that the id is in the document.
+   */
   setActivated(id: string | null): void
   readonly history: InkHistory
   readonly rootEl: HTMLElement | null

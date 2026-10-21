@@ -2,7 +2,8 @@
   /*
    * Mirrors a host integration: a signed URL whose signature changes while the document key
    * does not, and annotations owned by the host through `bind:annotations` and synced to a
-   * server. Same test ids and strings as the Vue and React sandboxes: all three run the shared end-to-end suite.
+   * server. Same test ids and strings as the Vue and React test apps: all three run the shared
+   * end-to-end suite.
    */
   import {
     AnnotationSchema,

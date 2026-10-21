@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
 import sharedCard from '../shared/suggestion-card.ts?highlight'
+import suggestion from '../shared/suggestion.ts?highlight'
 import { startShell } from '../shell/shell'
 
 import actions from './Actions.tsx?highlight'
@@ -15,6 +16,7 @@ startShell({
     { path: 'src/react/Demo.tsx', source: demo },
     { path: 'src/react/Actions.tsx', source: actions },
     { path: 'src/react/SuggestionCard.tsx', source: card },
+    { path: 'src/shared/suggestion.ts', source: suggestion },
     { path: 'src/shared/suggestion-card.ts', source: sharedCard },
   ],
   mount(el, source) {

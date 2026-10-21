@@ -623,14 +623,9 @@ test('decorateAnnotation reaches the annotation elements', async ({ mount, page 
   const note = cmp.locator(`.ink-annotation[data-annotation="${id}"]`)
   await expect(note).toHaveAttribute('data-test-mark', 'note')
 
-  // A new function identity applies on the next render, without a rebuild.
+  // A new function re-applies at once: no annotation change, no rebuild.
+  await note.evaluate((el) => el.setAttribute('data-before-swap', ''))
   await cmp.update({ props: { ...props, decorateMark: 'other' } })
-  await page.locator('[data-ink-root]').evaluate(
-    (el, annotationId) =>
-      (el as RootEl).__inkDocument!.annotations.update(annotationId, {
-        rect: { x: 100, y: 600, width: 24, height: 24 },
-      }),
-    id
-  )
   await expect(note).toHaveAttribute('data-test-mark', 'other')
+  await expect(note).toHaveAttribute('data-before-swap', '')
 })

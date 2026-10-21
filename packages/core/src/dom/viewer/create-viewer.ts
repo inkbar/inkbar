@@ -79,7 +79,8 @@ export interface Viewer {
   readonly activated: Readable<string | null>
   /**
    * Activates annotation `id`, or clears the activation with `null` (closing the thread
-   * popover). Unlike a click, it does not select the annotation or call `onActivate`.
+   * popover). Unlike a click, it does not select the annotation or call `onActivate`. An id
+   * not in the open document's annotations is ignored.
    */
   setActivated(id: string | null): void
   /**
@@ -325,7 +326,9 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     viewport: readonly(viewport),
     tools: readonly(tools),
     activated: readonly(activated),
-    setActivated: (id) => activated.set(id),
+    setActivated(id) {
+      if (id === null || current.get()?.annotations.get(id)) activated.set(id)
+    },
     open,
     destroy() {
       if (destroyed) return

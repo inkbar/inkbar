@@ -45,10 +45,17 @@ export function confidenceColor(confidence: number): string {
   return COLORS[confidenceLevel(confidence)]
 }
 
-/** Tags each suggestion's element `data-sandbox-suggestion="suggested"` (or `"accepted"`). */
+/**
+ * Tags each suggestion's element `data-sandbox-suggestion="suggested"` (or `"accepted"`), and
+ * tells screen readers which redactions are still only suggested.
+ */
 export const decorateSuggestion: DecorateAnnotation = (a) => {
   const s = suggestionOf(a)
-  return s ? { data: { 'sandbox-suggestion': s.status } } : undefined
+  if (!s) return undefined
+  const data = { 'sandbox-suggestion': s.status }
+  return s.status === 'suggested'
+    ? { data, description: 'Suggested redaction' }
+    : { data }
 }
 
 /**

@@ -291,6 +291,21 @@ describe('createViewer', () => {
       expect(isOpen(threadPopover())).toBe(false)
     })
 
+    it('activates by id without calling onActivate, and ignores unknown ids', async () => {
+      const onActivate = vi.fn()
+      const { viewer } = make('annotated-notes-threaded', { onActivate })
+      const { doc } = await ready(viewer)
+      const note = await rootNote(viewer, doc)
+      const id = note.dataset.annotation!
+      viewer.setActivated(id)
+      expect(viewer.activated.get()).toBe(id)
+      viewer.setActivated('no-such-annotation')
+      expect(viewer.activated.get()).toBe(id)
+      viewer.setActivated(null)
+      expect(viewer.activated.get()).toBeNull()
+      expect(onActivate).not.toHaveBeenCalled()
+    })
+
     it('passes decorateAnnotation to every page', async () => {
       const { viewer } = make('text-simple', {
         decorateAnnotation: (a) =>

@@ -77,7 +77,7 @@ describe('createOverlay', () => {
       cleanup.push(() => (overlay.destroy(), host.remove()))
       const elementOf = (id: string) =>
         host.querySelector<HTMLElement>(`[data-annotation="${id}"]`)!
-      return { store, elementOf }
+      return { store, overlay, elementOf }
     }
 
     it('applies data attributes and classes from decorate', () => {
@@ -99,8 +99,10 @@ describe('createOverlay', () => {
           : { data: { 'my-flag': 'on' }, classes: ['my-mark'] }
       )
       const a = store.add({ type: 'square', page: 0, rect })
-      store.update(a.id, { contents: 'plain' })
       const el = elementOf(a.id)
+      expect(el.dataset.myFlag).toBe('on')
+      expect(el.classList.contains('my-mark')).toBe(true)
+      store.update(a.id, { contents: 'plain' })
       expect(el.hasAttribute('data-my-flag')).toBe(false)
       expect(el.classList.contains('my-mark')).toBe(false)
       expect(el.classList.contains('ink-annotation')).toBe(true)
@@ -126,7 +128,55 @@ describe('createOverlay', () => {
         'ink-annotation',
       ])
       // Once per key or class, however often it renders.
-      expect(warn).toHaveBeenCalledTimes(6)
+      for (const what of [
+        'data key "state"',
+        'data key "type"',
+        'data key "annotation"',
+        'data key "Bad Key"',
+        'class "ink-annotation"',
+        'class "ink-x"',
+      ]) {
+        const calls = warn.mock.calls.filter(([message]) =>
+          String(message).includes(`skipped ${what}:`)
+        )
+        expect(calls, what).toHaveLength(1)
+      }
+    })
+
+    it('writes the description as aria-description and removes it when dropped', () => {
+      const { store, elementOf } = decorated((a) =>
+        a.contents === 'plain' ? undefined : { description: 'Flagged for review' }
+      )
+      const a = store.add({ type: 'square', page: 0, rect })
+      const el = elementOf(a.id)
+      expect(el.getAttribute('aria-description')).toBe('Flagged for review')
+      expect(el.getAttribute('aria-label')).toBe('Rectangle')
+      store.update(a.id, { contents: 'plain' })
+      expect(el.hasAttribute('aria-description')).toBe(false)
+    })
+
+    it('re-applies decorations on redecorate without an annotation change', () => {
+      let flag = 'on'
+      const { store, overlay, elementOf } = decorated(() =>
+        flag === 'off'
+          ? undefined
+          : { data: { 'my-flag': flag }, classes: [`my-${flag}`], description: flag }
+      )
+      const a = store.add({ type: 'square', page: 0, rect })
+      const el = elementOf(a.id)
+      expect(el.dataset.myFlag).toBe('on')
+      flag = 'later'
+      overlay.redecorate()
+      expect(el.dataset.myFlag).toBe('later')
+      expect(el.classList.contains('my-later')).toBe(true)
+      expect(el.classList.contains('my-on')).toBe(false)
+      expect(el.getAttribute('aria-description')).toBe('later')
+      flag = 'off'
+      overlay.redecorate()
+      expect(el.hasAttribute('data-my-flag')).toBe(false)
+      expect(el.classList.contains('my-later')).toBe(false)
+      expect(el.hasAttribute('aria-description')).toBe(false)
+      expect(elementOf(a.id)).toBe(el)
     })
 
     it('renders the annotation without decoration when decorateAnnotation throws', () => {

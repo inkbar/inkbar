@@ -564,7 +564,7 @@ const mask: Row = {
 const redaction: Row = {
   weight: 1.35,
   title: 'Redaction',
-  body: "Mark text or an area for removal. This sandbox adds suggested redactions as its own extension on Inkbar's public API, each with a reason and a confidence for you to accept or dismiss.",
+  body: "Mark text or an area for removal. This sandbox adds suggested redactions as its own extension on Inkbar's public API, each with a reason and a confidence level. Accept or dismiss each one.",
   tryIt:
     'Try it: press Suggest redactions at the top. It finds the NI number, the emails and the phone number. Redact the name by hand.',
   demo(s, b) {

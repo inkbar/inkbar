@@ -74,11 +74,16 @@ void test('confidenceColor', () => {
 })
 
 void test('decorateSuggestion tags a suggestion with its status', () => {
-  const { added } = storeWith(suggested(), { type: 'redact', page: 0, rect })
+  const { store, added } = storeWith(suggested(), { type: 'redact', page: 0, rect })
   assert.deepEqual(decorateSuggestion(added[0]!), {
     data: { 'sandbox-suggestion': 'suggested' },
+    description: 'Suggested redaction',
   })
   assert.equal(decorateSuggestion(added[1]!), undefined)
+  // An accepted suggestion is a plain redaction to a screen reader.
+  assert.deepEqual(decorateSuggestion(acceptSuggestion(store, added[0]!.id)!), {
+    data: { 'sandbox-suggestion': 'accepted' },
+  })
 })
 
 void test('acceptSuggestion marks it accepted in the default redaction colour', () => {

@@ -126,7 +126,7 @@
       buffer,
       tool: ctx.tool,
       ...(ctx.hostTools ? { tools: ctx.hostTools } : {}),
-      // A stable wrapper, so a new function identity applies on the next render without a rebuild.
+      // Read through, so the effect below can re-apply a new function without a rebuild.
       decorateAnnotation: (a) => ctx.decorateAnnotation?.(a),
       ...(ctx.toolStyle ? { toolStyle: ctx.toolStyle } : {}),
       toolHistory: { batch: (fn) => ctx.history.batch(fn) },
@@ -237,6 +237,13 @@
         customAnnotations: next.custom,
       })
     })
+  })
+
+  // A new decorateAnnotation re-applies to the mounted annotation elements at once.
+  const decorate = $derived(ctx.decorateAnnotation)
+  $effect(() => {
+    void decorate
+    untrack(() => engine?.redecorate())
   })
 
   // The setters below run untracked: core relays out inside them and the engine's page

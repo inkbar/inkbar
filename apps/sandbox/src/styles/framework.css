@@ -235,16 +235,8 @@
 .ink-annotation[data-sandbox-suggestion='suggested'] .ink-annotation-shape > * {
   stroke-dasharray: 4 3;
 }
-/* The card sits on <body>, outside the viewer root, so it maps the theme's tokens itself. */
+/* The card is a core popover (data-ink-popover), so the theme gives it its tokens. */
 .sandbox-suggestion-card {
-  --ink-fg: var(--foreground);
-  --ink-muted-fg: var(--muted-foreground);
-  --ink-surface: var(--background);
-  --ink-border: var(--border);
-  --ink-accent: var(--primary);
-  --ink-accent-fg: var(--primary-foreground);
-  --ink-ring: var(--ring);
-  --ink-radius: var(--radius);
   z-index: 50;
   width: 20rem;
   max-width: calc(100vw - 1rem);

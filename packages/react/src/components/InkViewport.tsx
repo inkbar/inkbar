@@ -116,8 +116,8 @@ export function InkViewport({
       buffer: b,
       tool: c.tool,
       ...(c.hostTools ? { tools: c.hostTools } : {}),
-      // A stable wrapper, so a new function identity applies on the next render without a rebuild.
-      decorateAnnotation: (a) => latest.current.ctx.decorateAnnotation?.(a),
+      // Reads InkRoot's current prop; the effect below re-applies it when it changes.
+      decorateAnnotation: (a) => latest.current.ctx.decorateAnnotation(a),
       ...(c.toolStyle ? { toolStyle: c.toolStyle } : {}),
       toolHistory: { batch: (fn) => latest.current.ctx.history.batch(fn) },
       toolOptions: c.toolOptions,
@@ -179,6 +179,13 @@ export function InkViewport({
       setPages((prev) => (prev.length === 0 ? prev : []))
     }
   }, [ctx.document, ctx.status.state, latest])
+
+  // A new decorateAnnotation re-applies to the mounted annotation elements at once.
+  const { onDecorateAnnotationChange } = ctx
+  useEffect(
+    () => onDecorateAnnotationChange(() => engine.current?.redecorate()),
+    [onDecorateAnnotationChange]
+  )
 
   // Construction-only options rebuild the engine for the same document, keeping zoom and page.
   useEffect(() => {
