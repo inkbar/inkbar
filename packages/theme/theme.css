@@ -244,10 +244,11 @@
     background: transparent;
   }
 
-  /* Tools: the active tool's cursor is set on the root; text spans follow it unless text is the target. */
+  /* Tools: the active tool's cursor is set on the root; page text follows it, except under
+     select text, where text is the target. */
   :where(
-    [data-ink-tool='redact-area'] .ink-text-layer span,
-    [data-ink-tool='note'] .ink-text-layer span
+    [data-ink-tool]:not([data-ink-tool='select-text']) .ink-text-layer span,
+    [data-ink-tool]:not([data-ink-tool='select-text']) .ink-text-layer br
   ) {
     cursor: inherit;
   }
@@ -308,9 +309,16 @@
     cursor: nesw-resize;
   }
 
+  :where(
+    .ink-handle[data-handle='start'],
+    .ink-handle[data-handle='end'],
+    .ink-handle[data-handle='callout']
+  ) {
+    cursor: crosshair;
+  }
+
   :where(.ink-handle[data-handle='start'], .ink-handle[data-handle='end']) {
     border-radius: 50%;
-    cursor: move;
   }
 
   /* Annotations */
@@ -331,11 +339,54 @@
     top: 0;
   }
 
+  /* Cursors say what a press will do: move an annotation, edit a text box's text, or (text
+     markup) select text. The creation tools' cursor shows through elsewhere. */
   :where(
     [data-ink-tool='select'] .ink-annotation,
-    [data-ink-tool='select-text'] .ink-annotation
+    [data-ink-tool='select-text'] .ink-annotation,
+    [data-ink-made] .ink-annotation[data-state='selected']
   ) {
-    cursor: pointer;
+    cursor: move;
+  }
+
+  :where(
+    [data-ink-tool='select']
+      .ink-annotation:is(
+        [data-type='highlight'],
+        [data-type='underline'],
+        [data-type='strikeout'],
+        [data-type='squiggly']
+      ),
+    [data-ink-tool='select-text']
+      .ink-annotation:is(
+        [data-type='highlight'],
+        [data-type='underline'],
+        [data-type='strikeout'],
+        [data-type='squiggly']
+      )
+  ) {
+    cursor: text;
+  }
+
+  :where(
+    [data-ink-tool='select'] .ink-annotation:not([data-locked]) .ink-free-text,
+    [data-ink-tool='select-text'] .ink-annotation:not([data-locked]) .ink-free-text,
+    [data-ink-made]
+      .ink-annotation[data-state='selected']:not([data-locked])
+      .ink-free-text
+  ) {
+    cursor: text;
+  }
+
+  /* The band along a text box's edge presses to move it, not to edit. */
+  :where(
+    [data-ink-tool='select'] .ink-annotation:not([data-locked]) [data-ink-edge],
+    [data-ink-tool='select-text'] .ink-annotation:not([data-locked]) [data-ink-edge],
+    [data-ink-made]
+      .ink-annotation[data-state='selected']:not([data-locked])
+      [data-ink-edge]
+  ) {
+    cursor: move;
   }
 
   :where(.ink-annotation[data-state='hover']) {
@@ -349,6 +400,13 @@
   /* Locked annotations can be selected but not moved or deleted. */
   :where(.ink-annotation[data-locked]) {
     cursor: default;
+  }
+
+  /* While an annotation is moved the whole viewport shows it, over any element's own cursor.
+     The one rule here that is not zero specificity: it has to beat them. */
+  [data-ink-dragging],
+  [data-ink-dragging] * {
+    cursor: move !important;
   }
 
   :where(.ink-annotation[data-locked][data-state='selected']) {

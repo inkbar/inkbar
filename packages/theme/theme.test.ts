@@ -45,6 +45,9 @@ function isZeroSpecificity(selector: string): boolean {
   return ok
 }
 
+/** The rule that must beat element rules, so it is not zero specificity. */
+const DRAGGING = ['[data-ink-dragging]', '[data-ink-dragging] *']
+
 describe('isZeroSpecificity', () => {
   it.each([
     ':where(.a)',
@@ -77,9 +80,17 @@ describe('theme.css', () => {
     expect(outside).toEqual([])
   })
 
-  it('wraps every selector in :where() for zero specificity', () => {
-    const bad = rules.flatMap((r) => r.selectors).filter((s) => !isZeroSpecificity(s))
+  it('wraps every selector in :where() for zero specificity, bar the dragging cursor', () => {
+    const bad = rules
+      .flatMap((r) => r.selectors)
+      .filter((s) => !isZeroSpecificity(s) && !DRAGGING.includes(s))
     expect(bad).toEqual([])
+  })
+
+  it('shows the move cursor over everything while dragging, over any other rule', () => {
+    const rule = rules.find((r) => r.selectors.includes('[data-ink-dragging] *'))
+    expect(rule?.selectors).toEqual(DRAGGING)
+    expect(rule?.toString()).toMatch(/cursor:\s*move !important/)
   })
 
   it('defines the annotation colour tokens on the root', () => {

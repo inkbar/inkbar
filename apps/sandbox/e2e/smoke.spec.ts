@@ -710,9 +710,17 @@ for (const framework of FRAMEWORKS) {
       await page.keyboard.press('Escape')
       await expect(editor).toHaveCount(0)
       await expect(text).toHaveText('HelXlo')
+      // The cursor says which: text inside the box, move on the band along its edge.
+      const cursorAt = (x: number, y: number) =>
+        page.evaluate(
+          ([px, py]) => getComputedStyle(document.elementFromPoint(px!, py!)!).cursor,
+          [x, y]
+        )
+      expect(await cursorAt(at.x, at.y)).toBe('text')
       // The band along the text box's edge drags the box.
       const before = (await created.boundingBox())!
       const edge = (await text.boundingBox())!
+      expect(await cursorAt(edge.x + 1, edge.y + edge.height / 2)).toBe('move')
       await page.mouse.move(edge.x + 1, edge.y + edge.height / 2)
       await page.mouse.down()
       await page.mouse.move(edge.x + 31, edge.y + edge.height / 2 + 20, { steps: 4 })
