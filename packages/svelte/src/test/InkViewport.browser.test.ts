@@ -5,17 +5,7 @@ import { page as browserPage, userEvent } from 'vitest/browser'
 import { render } from 'vitest-browser-svelte'
 
 import { guardConsole } from './console-guard.js'
-import {
-  attr,
-  count,
-  cssOf,
-  focused,
-  gateFetch,
-  q,
-  qa,
-  scrollTopOf,
-  sleep,
-} from './dom.js'
+import { attr, count, cssOf, gateFetch, q, qa, scrollTopOf, sleep } from './dom.js'
 import BoundViewportHost from './harness/BoundViewportHost.svelte'
 import ViewportHarness from './harness/ViewportHarness.svelte'
 
@@ -353,16 +343,13 @@ describe('InkViewport', () => {
 
   // React: 'keys on slot controls reach the controls, not the annotation'
   it('keys on snippet controls reach the controls, not the annotation', async () => {
-    const screen = await render(ViewportHarness, {
+    await render(ViewportHarness, {
       src: fixtureUrl('text-simple'),
       assets,
       zoom: 1,
       customAnnotations: true,
     })
     await q(`${FIRST} canvas`)
-    // Every case shares one page, and the last one left the pointer where this annotation
-    // appears: park it, so the state below is the keyboard's doing and not a hover.
-    await screen.getByTestId('outside').hover()
     const id = doc().annotations.add({
       type: 'redact',
       page: 0,
@@ -379,12 +366,11 @@ describe('InkViewport', () => {
     await expect.element(input).toHaveValue('a')
     expect(present()).toBe(true)
 
-    const select = el.querySelector<HTMLElement>('[data-testid="select"]')!
-    select.focus()
+    // Enter on the annotation would only select it; on the snippet's button it removes it.
+    el.querySelector<HTMLElement>('[data-testid="remove"]')!.focus()
     await userEvent.keyboard('{Enter}')
-    // Enter reached the button, and the button selected the annotation.
-    await expect.poll(attr(`${sel} .my-pin`, 'data-pin-state')).toBe('selected')
-    expect(focused()).toBe(select)
+    await expect.poll(count(sel)).toBe(0)
+    expect(present()).toBe(false)
   })
 
   // React: 'keyboard zoom and page navigation on the focused scroll element'

@@ -411,12 +411,12 @@ test('keys on slot controls reach the controls, not the annotation', async ({
   await expect(input).toHaveValue('a')
   expect(await present()).toBe(true)
 
-  const select = el.getByTestId('select')
-  await select.focus()
-  await select.press('Enter')
-  // Enter reached the button, and the button selected the annotation.
-  await expect(el.locator('.my-pin')).toHaveAttribute('data-pin-state', 'selected')
-  await expect(select).toBeFocused()
+  // Enter on the annotation would only select it; on the slot's button it removes it.
+  const remove = el.getByTestId('remove')
+  await remove.focus()
+  await remove.press('Enter')
+  await expect(el).toHaveCount(0)
+  expect(await present()).toBe(false)
 })
 
 test('keyboard zoom and page navigation on the focused scroll element', async ({

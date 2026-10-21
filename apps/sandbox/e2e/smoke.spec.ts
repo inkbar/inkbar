@@ -170,6 +170,40 @@ for (const framework of FRAMEWORKS) {
       await expect(suggestionCard(page)).toContainText('National Insurance number')
     })
 
+    test('a selected suggestion opens the card while another annotation is activated', async ({
+      page,
+    }) => {
+      await suggestOnSample(page, framework)
+      const card = suggestionCard(page)
+      // Accepted, the first mark is a plain redaction: activating it opens no card.
+      const first = page.locator(SUGGESTED).first()
+      const plainId = (await first.getAttribute('data-annotation'))!
+      await first.click()
+      await card.getByRole('button', { name: 'Accept' }).click()
+      await expect(card).toBeHidden()
+      const plain = page.locator(`.ink-annotation[data-annotation="${plainId}"]`)
+      await plain.click()
+      await expect(plain).toHaveAttribute('data-state', 'selected')
+      await expect(card).toBeHidden()
+
+      // A marquee selects without activating, so the plain mark stays the activated one.
+      const target = page.locator(SUGGESTED).last()
+      const targetId = (await target.getAttribute('data-annotation'))!
+      await page.getByRole('button', { name: 'Rectangle select' }).click()
+      await target.scrollIntoViewIfNeeded()
+      const box = (await target.boundingBox())!
+      await page.mouse.move(box.x - 4, box.y - 4)
+      await page.mouse.down()
+      await page.mouse.move(box.x + box.width + 4, box.y + box.height + 4, { steps: 5 })
+      await page.mouse.up()
+      await expect(
+        page.locator(`.ink-annotation[data-annotation="${targetId}"]`)
+      ).toHaveAttribute('data-state', 'selected')
+      await expect(page.locator('.ink-annotation[data-state="selected"]')).toHaveCount(1)
+      await expect(card).toBeVisible()
+      await expect(card).toContainText('Email address')
+    })
+
     test('Escape closes the card and clears the selection', async ({ page }) => {
       await suggestOnSample(page, framework)
       await page.locator(SUGGESTED).first().click()
