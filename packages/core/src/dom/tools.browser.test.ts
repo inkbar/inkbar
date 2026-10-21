@@ -71,12 +71,15 @@ async function setup(
     | 'mixed-page-sizes' = 'text-simple',
   {
     controlled = false,
+    refuseAdds = false,
     custom = false,
     tools: hostTools,
     snapshotHistory = false,
     signatures,
   }: {
     controlled?: boolean
+    /** Controlled only: the host applies every change but an add. */
+    refuseAdds?: boolean
     custom?: boolean
     tools?: Tool[]
     /** The signature templates the `signature` tool places from. */
@@ -100,7 +103,8 @@ async function setup(
           annotations: {
             mode: 'controlled',
             initial: [],
-            onChange: (next) => {
+            onChange: (next, change) => {
+              if (refuseAdds && change.kind === 'add') return
               host = next
               queueMicrotask(() => {
                 doc.annotations.setControlledValue(host)
@@ -4706,6 +4710,26 @@ describe('one-shot tools', () => {
     await settle()
     expect(tools.active.get()).toBe('select-text')
     expect(doc.annotations.list.get()).toHaveLength(1)
+  })
+
+  it('a controlled host refusing the add returns the tool to ready', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    cleanup.push(() => warn.mockRestore())
+    const { doc, container, viewport, tools } = await setup('text-simple', {
+      controlled: true,
+      refuseAdds: true,
+    })
+    tools.set('shape')
+    click(container, viewport, 200, 300)
+    expect(container.hasAttribute('data-ink-made')).toBe(true)
+    await until(() => warn.mock.calls.length > 0)
+    expect(doc.annotations.list.get()).toEqual([])
+    expect(doc.annotations.selection.get()).toEqual([])
+    expect(container.hasAttribute('data-ink-made')).toBe(false)
+    // The next press is another go with the tool, not the press that ends it.
+    click(container, viewport, 400, 500)
+    expect(tools.active.get()).toBe('shape')
+    expect(container.hasAttribute('data-ink-made')).toBe(true)
   })
 
   it('a host tool without a kind stays on', async () => {
