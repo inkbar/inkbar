@@ -324,6 +324,7 @@
     outline-offset: 1px;
   }
 
+  /* An annotation's SVGs (its shape, and a text box's edge band over the text) cover its box. */
   :where(.ink-annotation:not([data-custom]) > svg) {
     position: absolute;
     left: 0;

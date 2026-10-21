@@ -681,6 +681,49 @@ for (const framework of FRAMEWORKS) {
       await expect(panel).toHaveCount(0)
     })
 
+    test('a click inside a text box edits it at the click, a drag on its edge moves it', async ({
+      page,
+    }) => {
+      await page.goto(`${framework}/`)
+      await waitForFirstPage(page)
+      await page.getByRole('button', { name: 'Text', exact: true }).click()
+      const box = (await page.locator('.ink-page[data-page="0"]').boundingBox())!
+      await page.mouse.click(box.x + 40, box.y + 30)
+      const editor = page.getByRole('textbox', { name: 'Text box' })
+      await expect(editor).toBeFocused()
+      await page.keyboard.type('Hello')
+      await page.keyboard.press('Escape')
+      const created = sessionShape(page, 'freetext')
+      const text = created.locator('.ink-free-text')
+      await expect(text).toHaveText('Hello')
+      // Just inside the left edge of the second "l".
+      const at = await text.evaluate((el) => {
+        const range = document.createRange()
+        range.setStart(el.firstChild!, 3)
+        range.setEnd(el.firstChild!, 4)
+        const r = range.getBoundingClientRect()
+        return { x: r.left + 1, y: r.top + r.height / 2 }
+      })
+      await page.mouse.click(at.x, at.y)
+      await expect(editor).toBeFocused()
+      await page.keyboard.type('X')
+      await page.keyboard.press('Escape')
+      await expect(editor).toHaveCount(0)
+      await expect(text).toHaveText('HelXlo')
+      // The band along the text box's edge drags the box.
+      const before = (await created.boundingBox())!
+      const edge = (await text.boundingBox())!
+      await page.mouse.move(edge.x + 1, edge.y + edge.height / 2)
+      await page.mouse.down()
+      await page.mouse.move(edge.x + 31, edge.y + edge.height / 2 + 20, { steps: 4 })
+      await page.mouse.move(edge.x + 61, edge.y + edge.height / 2 + 40, { steps: 4 })
+      await page.mouse.up()
+      await expect(editor).toHaveCount(0)
+      await expect
+        .poll(async () => (await created.boundingBox())!.x - before.x)
+        .toBeCloseTo(60, 0)
+    })
+
     test('draw two joined strokes', async ({ page }) => {
       await page.goto(`${framework}/`)
       await waitForFirstPage(page)

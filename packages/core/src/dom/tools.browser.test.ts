@@ -3732,6 +3732,116 @@ describe('selection editing', () => {
     )
   })
 
+  describe('text boxes', () => {
+    beforeAll(() => {
+      style.textContent = TEXT_LAYER_CSS + themeCss
+    })
+    afterAll(() => {
+      style.textContent = TEXT_LAYER_CSS
+    })
+    const editorIn = (root: Element) =>
+      root.querySelector<HTMLElement>('[data-ink-editor]')
+    /** A box {100,600,144,20} reading "Hello world". */
+    const textBox = (doc: InkDocument, extra: { locked?: boolean } = {}) =>
+      doc.annotations.add({
+        type: 'freetext',
+        page: 0,
+        rect: { x: 100, y: 600, width: 144, height: 20 },
+        contents: 'Hello world',
+        ...extra,
+      })
+    /** A client point just inside the left edge of the box's `i`th character, as drawn. */
+    const charAt = (el: HTMLElement, i: number) => {
+      const text = el.querySelector('.ink-free-text')!.firstChild!
+      const range = document.createRange()
+      range.setStart(text, i)
+      range.setEnd(text, i + 1)
+      const r = range.getBoundingClientRect()
+      return [r.left + 1, r.top + r.height / 2] as const
+    }
+
+    it('a click inside a text box opens its editor with the caret at the click', async () => {
+      const { doc, container, viewport } = await setup()
+      const a = textBox(doc)
+      const { el } = await page0(viewport)
+      const [x, y] = charAt(el(a.id), 6)
+      const target = document.elementFromPoint(x, y)!
+      expect(target.closest('.ink-free-text')).not.toBeNull()
+      pointer(target, 'pointerdown', x, y)
+      expect(doc.annotations.selection.get()).toEqual([a.id])
+      pointer(container, 'pointerup', x, y)
+      const editor = editorIn(container)
+      expect(editor).not.toBeNull()
+      expect(document.activeElement).toBe(editor)
+      const selection = window.getSelection()!
+      expect(selection.isCollapsed).toBe(true)
+      expect(editor!.contains(selection.anchorNode)).toBe(true)
+      expect(selection.anchorOffset).toBe(6)
+      expect(doc.annotations.get(a.id)!.rect).toEqual(a.rect)
+    })
+
+    it("a drag from a text box's edge moves it", async () => {
+      const { doc, container, viewport } = await setup()
+      const a = textBox(doc)
+      const { at, el } = await page0(viewport)
+      const [x, y] = at(100, 610)
+      // The band straddles the edge: just outside and just inside both take the press.
+      const outside = document.elementFromPoint(x - 2, y)!
+      expect(outside.matches('[data-ink-edge]')).toBe(true)
+      expect(document.elementFromPoint(x + 2, y)!.matches('[data-ink-edge]')).toBe(true)
+      expect(outside.closest('[data-annotation]')).toBe(el(a.id))
+      pointer(outside, 'pointerdown', x - 2, y)
+      expect(doc.annotations.selection.get()).toEqual([a.id])
+      pointer(container, 'pointermove', x + 13, y + 10)
+      pointer(container, 'pointermove', x + 28, y + 20)
+      pointer(container, 'pointerup', x + 28, y + 20)
+      expect(editorIn(container)).toBeNull()
+      expect(doc.annotations.get(a.id)!.rect).toEqual({
+        x: 130,
+        y: 580,
+        width: 144,
+        height: 20,
+      })
+    })
+
+    it('a drag from inside a text box does not move it', async () => {
+      const { doc, container, viewport } = await setup()
+      const a = textBox(doc)
+      const { el } = await page0(viewport)
+      const [x, y] = charAt(el(a.id), 3)
+      pointer(document.elementFromPoint(x, y)!, 'pointerdown', x, y)
+      pointer(container, 'pointermove', x + 20, y + 10)
+      pointer(container, 'pointermove', x + 40, y + 20)
+      expect(el(a.id).style.transform).toBe('')
+      pointer(container, 'pointerup', x + 40, y + 20)
+      expect(doc.annotations.get(a.id)!.rect).toEqual(a.rect)
+    })
+
+    it('a locked text box selects on a click inside and does not edit', async () => {
+      const { doc, container, viewport } = await setup()
+      const a = textBox(doc, { locked: true })
+      const { el } = await page0(viewport)
+      const [x, y] = charAt(el(a.id), 3)
+      pointer(document.elementFromPoint(x, y)!, 'pointerdown', x, y)
+      pointer(container, 'pointerup', x, y)
+      expect(doc.annotations.selection.get()).toEqual([a.id])
+      expect(editorIn(container)).toBeNull()
+    })
+
+    it('double-click and Enter still edit a text box', async () => {
+      const { doc, container, viewport } = await setup()
+      const a = textBox(doc)
+      const { el } = await page0(viewport)
+      el(a.id).dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
+      expect(editorIn(container)).not.toBeNull()
+      await userEvent.keyboard('{Escape}')
+      expect(editorIn(container)).toBeNull()
+      el(a.id).focus()
+      await userEvent.keyboard('{Enter}')
+      expect(editorIn(container)).not.toBeNull()
+    })
+  })
+
   describe('callouts', () => {
     type Kind = 'bubble' | 'standard'
     /** A bubble, box {100,600,100,40}, or a standard callout, box {100,600,180,60}. */
@@ -3956,6 +4066,39 @@ describe('selection editing', () => {
       expect(doc.annotations.get(a.id)).toEqual(a)
     })
 
+    it('a click inside a bubble edits, a drag on its tail moves it', async () => {
+      const theme = document.createElement('style')
+      theme.textContent = themeCss
+      document.head.append(theme)
+      cleanup.push(() => theme.remove())
+      const { doc, container, viewport } = await setup()
+      const a = callout(doc, 'bubble')
+      // Filled, so the tail takes presses across its whole wedge.
+      doc.annotations.update(a.id, { color: '#ffeeaa' })
+      const { at } = await page0(viewport)
+      const [x, y] = at(150, 620)
+      const inside = document.elementFromPoint(x, y)!
+      expect(inside.closest('.ink-free-text')).not.toBeNull()
+      pointer(inside, 'pointerdown', x, y)
+      pointer(container, 'pointerup', x, y)
+      expect(container.querySelector('[data-ink-editor]')).not.toBeNull()
+      expect(doc.annotations.get(a.id)!.rect).toEqual(a.rect)
+      await userEvent.keyboard('{Escape}')
+      expect(container.querySelector('[data-ink-editor]')).toBeNull()
+      // Halfway down the wedge, between the box's bottom edge and the tip.
+      const [tx, ty] = at(113, 588)
+      const tail = document.elementFromPoint(tx, ty)!
+      expect(tail.matches('path.ink-bubble')).toBe(true)
+      pointer(tail, 'pointerdown', tx, ty)
+      pointer(container, 'pointermove', tx + 15, ty + 10)
+      pointer(container, 'pointermove', tx + 30, ty + 20)
+      pointer(container, 'pointerup', tx + 30, ty + 20)
+      expect(container.querySelector('[data-ink-editor]')).toBeNull()
+      const moved = freeText(doc.annotations.get(a.id))
+      expect(moved.rect.x).toBeCloseTo(a.rect.x + 30, 5)
+      expect(moved.rect.y).toBeCloseTo(a.rect.y - 20, 5)
+    })
+
     it('a bubble survives create, type, move, export and import', async () => {
       const { doc, container, viewport, tools } = await setup()
       tools.set('shape', { kind: 'bubble' })
@@ -3968,9 +4111,10 @@ describe('selection editing', () => {
       tools.set('select')
       const { at } = await page0(viewport)
       const box = freeTextBox(freeText(made))
-      const [x, y] = at(box.x + box.width / 2, box.y + box.height / 2)
+      // By the edge of its text box: a press inside would edit it.
+      const [x, y] = at(box.x, box.y + box.height / 2)
       pointer(
-        container.querySelector(`[data-annotation="${made!.id}"] .ink-free-text`)!,
+        container.querySelector(`[data-annotation="${made!.id}"] [data-ink-edge]`)!,
         'pointerdown',
         x,
         y
@@ -4554,5 +4698,57 @@ describe('one-shot tools', () => {
     click(container, viewport, 200, 300)
     tools.set('note')
     expect(container.hasAttribute('data-ink-made')).toBe(false)
+  })
+  /** A client point in the middle of a text box's drawn text. */
+  function inside(container: HTMLElement, id: string): readonly [number, number] {
+    const text = container.querySelector(`[data-annotation="${id}"] .ink-free-text`)!
+    const r = text.getBoundingClientRect()
+    return [r.left + r.width / 2, r.top + r.height / 2]
+  }
+
+  it("the text tool's press inside an existing box edits it and switches to select-text", async () => {
+    const { doc, container, tools } = await setup()
+    const a = doc.annotations.add({
+      type: 'freetext',
+      page: 0,
+      rect: { x: 100, y: 600, width: 144, height: 20 },
+      contents: 'Hello world',
+    })
+    await settle()
+    tools.set('freetext')
+    const [x, y] = inside(container, a.id)
+    pointer(document.elementFromPoint(x, y)!, 'pointerdown', x, y)
+    pointer(container, 'pointerup', x, y)
+    expect(tools.active.get()).toBe('select-text')
+    expect(doc.annotations.list.get()).toHaveLength(1)
+    expect(doc.annotations.selection.get()).toEqual([a.id])
+    const editor = container.querySelector('[data-ink-editor]')
+    expect(editor).not.toBeNull()
+    expect(document.activeElement).toBe(editor)
+  })
+
+  it('a press inside the made text box reopens its editor and the tool stays on', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('freetext')
+    click(container, viewport, 200, 300)
+    await userEvent.keyboard('Hi')
+    const button = document.createElement('button')
+    document.body.append(button)
+    cleanup.push(() => button.remove())
+    button.focus()
+    const [box] = doc.annotations.list.get()
+    expect(container.hasAttribute('data-ink-made')).toBe(true)
+    const [x, y] = inside(container, box!.id)
+    pointer(document.elementFromPoint(x, y)!, 'pointerdown', x, y)
+    pointer(container, 'pointerup', x, y)
+    const editor = container.querySelector('[data-ink-editor]')
+    expect(editor).not.toBeNull()
+    expect(document.activeElement).toBe(editor)
+    expect(tools.active.get()).toBe('freetext')
+    expect(doc.annotations.list.get()).toHaveLength(1)
+    // Escape in the reopened editor commits and ends the tool, as in a new box.
+    await userEvent.keyboard('!{Escape}')
+    expect(doc.annotations.get(box!.id)).toMatchObject({ contents: 'Hi!' })
+    expect(tools.active.get()).toBe('select-text')
   })
 })

@@ -27,6 +27,8 @@ const HANDLE_PX = 8
 const CORNERS = ['nw', 'ne', 'sw', 'se'] as const
 /** Width in CSS px of the band along a mask's edge that takes presses. */
 const MASK_EDGE = 6
+/** Width in CSS px of the band straddling a text box's edge, which drags the box. */
+const TEXT_EDGE = 6
 
 /**
  * Which edit handles an element shows: none, the four CSS corners of a box (`nw`, `ne`, `sw`,
@@ -339,7 +341,7 @@ export function renderAnnotationContent(
     }
     // Structural: the element itself ignores the pointer, the text box takes it.
     text.style.pointerEvents = 'auto'
-    el.append(text)
+    el.append(text, edgeBand(doc, box, freeTextLocalBox(a, t)))
     appendSelectionFrame(el, a, t)
     return
   }
@@ -522,6 +524,29 @@ export function renderAnnotationContent(
   for (const shape of svg.children) shape.setAttribute('pointer-events', 'visiblePainted')
   el.append(svg)
   appendCommentMarker(el, a, t)
+}
+
+/**
+ * The band a press on a free text's edge lands on: an invisible `rect[data-ink-edge]` stroke
+ * `TEXT_EDGE` px wide along the text box's edge, half inside it and half out, in its own SVG
+ * over the element. A press inside the box edits it; one on the band selects and drags it.
+ * It is there whether or not the box draws a border. Geometry only.
+ */
+function edgeBand(doc: Document, el: CssRect, box: CssRect): SVGSVGElement {
+  // A later sibling of the text box, so it paints above it once the theme positions it.
+  const svg = boxSvg(doc, el.width, el.height)
+  const band = doc.createElementNS(SVG, 'rect')
+  band.setAttribute('x', String(box.left))
+  band.setAttribute('y', String(box.top))
+  band.setAttribute('width', String(box.width))
+  band.setAttribute('height', String(box.height))
+  band.setAttribute('fill', 'none')
+  band.setAttribute('stroke', 'transparent')
+  band.setAttribute('stroke-width', String(TEXT_EDGE))
+  band.setAttribute('pointer-events', 'stroke')
+  band.setAttribute('data-ink-edge', '')
+  svg.append(band)
+  return svg
 }
 
 /**
