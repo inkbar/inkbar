@@ -20,7 +20,7 @@
 
 ---
 
-Drop a PDF viewer into your React app and let people highlight text, leave notes with replies and review redactions. `@inkbar/react` gives you components and hooks to build your own toolbars, plus thread and suggestion popovers, all styled by `@inkbar/theme`.
+Drop a PDF viewer into your React app and let people highlight text, leave notes with replies and redact. `@inkbar/react` gives you components and hooks to build your own toolbars, plus a popover for comment threads, all styled by `@inkbar/theme`.
 
 Annotations are plain typed objects. Control them from your own state, or let Inkbar hold them with undo and redo.
 
@@ -50,7 +50,6 @@ import {
   InkNextPage,
   InkZoomSelect,
   InkThreadPopover,
-  InkSuggestionCard,
 } from '@inkbar/react'
 import type { Annotation } from '@inkbar/core'
 import { assets } from 'virtual:inkbar-assets'
@@ -90,7 +89,6 @@ export function Review({
         <InkZoomSelect />
       </InkToolbar>
       <InkThreadPopover />
-      <InkSuggestionCard />
     </InkRoot>
   )
 }
@@ -155,7 +153,7 @@ The highlight tool leaves `contents` free for the comment. `doc.text(page)` retu
 
 ## Custom rendering
 
-Slots are render props. `InkViewport` takes `loading`, `empty`, `error`, `renderAnnotation` and `renderPageError`; `InkThreadPopover` and `InkSuggestionCard` take a function as `children`; `InkToolButton` takes a node or a function of `{ active, label }`. The props each receives are typed as `AnnotationSlotProps`, `ThreadPopoverSlotProps` and `SuggestionCardSlotProps`, the same types the Vue package exports.
+Slots are render props. `InkViewport` takes `loading`, `empty`, `error`, `renderAnnotation` and `renderPageError`; `InkThreadPopover` takes a function as `children`; `InkToolButton` takes a node or a function of `{ active, label }`. The props each receives are typed as `AnnotationSlotProps` and `ThreadPopoverSlotProps`, the same types the Vue package exports.
 
 `InkRoot`, `InkToolbar`, `InkToolButton`, `InkUndo`, `InkRedo`, `InkPrevPage`, `InkNextPage`, `InkZoomIn` and `InkZoomOut` take `asChild` to render your own element in place of theirs, such as a button from your design system. Pass that element as the only child. The control keeps its behaviour and accessible name.
 
@@ -169,7 +167,7 @@ The scroll area takes focus. From there:
 
 On a focused annotation:
 
-- `Enter` or `Space` selects and activates it. A note opens its thread and a suggested redaction its card; other types are only selected.
+- `Enter` or `Space` selects and activates it. A note or text markup opens its thread; other types are only selected.
 - `ArrowUp` and `ArrowDown` move to the previous or next annotation on the page.
 - `Shift` + arrow moves it by 1 pt, or by 10 pt with `Alt` as well.
 - `Ctrl` or `Cmd` + `Shift` + arrow resizes an area redaction, text box or shape.

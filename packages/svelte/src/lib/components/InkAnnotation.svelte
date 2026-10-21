@@ -17,8 +17,6 @@
    * default visual for every annotation that is not custom, so this never draws a second one.
    * InkPage portals it into the annotation's overlay element.
    */
-  import { acceptSuggestion } from '@inkbar/core'
-
   import { useInkContext } from '../context.js'
 
   import type { AnnotationState } from '@inkbar/core/dom'
@@ -48,9 +46,6 @@
     return () => observer.disconnect()
   })
 
-  const isSuggestion = $derived(
-    annotation.type === 'redact' && annotation.origin === 'suggested'
-  )
   const locked = $derived(annotation.locked === true)
   const selected = $derived(ctx.selection.includes(annotation.id))
   const store = () => ctx.document?.annotations
@@ -60,13 +55,6 @@
     locked,
     select: () => store()?.select([annotation.id]),
     remove: () => void store()?.remove(annotation.id),
-    accept: () => {
-      const s = store()
-      if (s && isSuggestion) acceptSuggestion(s, annotation.id)
-    },
-    dismiss: () => {
-      if (isSuggestion) store()?.remove(annotation.id)
-    },
   })
 </script>
 

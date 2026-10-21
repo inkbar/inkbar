@@ -40,8 +40,3 @@ export { default as InkPrevPage } from './components/InkPrevPage.vue'
 export { default as InkNextPage } from './components/InkNextPage.vue'
 export { default as InkThreadPopover } from './components/InkThreadPopover.vue'
 export type { ThreadPopoverSlotProps } from './components/InkThreadPopover.vue'
-export { default as InkSuggestionCard } from './components/InkSuggestionCard.vue'
-export type {
-  ConfidenceBucket,
-  SuggestionCardSlotProps,
-} from './components/InkSuggestionCard.vue'

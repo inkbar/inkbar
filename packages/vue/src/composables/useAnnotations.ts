@@ -1,4 +1,4 @@
-import { acceptSuggestion, repliesTo } from '@inkbar/core'
+import { repliesTo } from '@inkbar/core'
 import { computed } from 'vue'
 
 import { useInkContext } from '../context'
@@ -23,11 +23,5 @@ export function useAnnotations() {
     select: (ids: string[]) => store()?.select(ids),
     /** Replies in creation order for a note id. */
     replies: (id: string) => repliesTo(ctx.annotations.value, id),
-    /** Keeps a suggested redaction as the user's own, in the default redaction colour. */
-    accept: (id: string) => {
-      const s = store()
-      return s ? acceptSuggestion(s, id) : undefined
-    },
-    dismiss: (id: string) => store()?.remove(id) ?? false,
   }
 }

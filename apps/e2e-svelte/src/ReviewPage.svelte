@@ -1,9 +1,8 @@
 <script lang="ts">
   /*
    * Mirrors a host integration: a signed URL whose signature changes while the document key
-   * does not, annotations owned by the host through `bind:annotations` and synced to a server,
-   * and suggested redactions that the reader accepts or dismisses. Same test ids and strings as
-   * the Vue and React sandboxes: all three run the shared end-to-end suite.
+   * does not, and annotations owned by the host through `bind:annotations` and synced to a
+   * server. Same test ids and strings as the Vue and React sandboxes: all three run the shared end-to-end suite.
    */
   import {
     AnnotationSchema,
@@ -12,7 +11,6 @@
     type Annotation,
     type DocumentSource,
     type InkDocument,
-    type Quad,
   } from '@inkbar/core'
   import { createFakeServer } from '@inkbar/e2e-shared/fake-server'
   import { recordReady } from '@inkbar/e2e-shared/metrics'
@@ -24,7 +22,6 @@
     InkPageInput,
     InkPrevPage,
     InkRoot,
-    InkSuggestionCard,
     InkToolbar,
     InkToolButton,
     InkViewport,
@@ -56,8 +53,6 @@
     initialLargePages > 0 ? `generating ${initialLargePages} pages` : 'loading'
   )
   let readyCount = $state(0)
-  /** Outcome of the last suggestion run, announced apart from the sync status. */
-  let suggestResult = $state('')
   let openDoc = $state.raw<InkDocument | null>(null)
   let root = $state<InkRootHandle | undefined>(undefined)
   let largeBytes = $state.raw<Uint8Array | null>(null)
@@ -165,45 +160,6 @@
   })
   onDestroy(() => clearTimeout(saveTimer))
 
-  /** Rounded to 0.01 pt, so a rerun finds the rect it stored before. */
-  function rectKey(r: { x: number; y: number; width: number; height: number }): string {
-    return [r.x, r.y, r.width, r.height].map((n) => n.toFixed(2)).join(',')
-  }
-
-  function quadsRect(quads: readonly Quad[]) {
-    const xs = quads.flatMap((q) => [q.p1.x, q.p2.x, q.p3.x, q.p4.x])
-    const ys = quads.flatMap((q) => [q.p1.y, q.p2.y, q.p3.y, q.p4.y])
-    const x = Math.min(...xs)
-    const y = Math.min(...ys)
-    return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y }
-  }
-
-  async function suggest(): Promise<void> {
-    const doc = openDoc
-    if (!doc) return
-    suggestResult = 'Looking for personal data…'
-    const inputs = await server.suggest(doc)
-    if (openDoc !== doc) return
-    // In controlled mode each add is a proposal; proposals in one tick compose into one list.
-    // Running again must not repeat a suggestion already on the page.
-    // eslint-disable-next-line svelte/prefer-svelte-reactivity
-    const seen = new Set(
-      annotations
-        .filter((a) => a.type === 'redact')
-        .map((a) => `${a.page}:${rectKey(a.rect)}`)
-    )
-    const fresh = inputs.filter((input) => {
-      const quads = 'quads' in input ? input.quads : undefined
-      if (!quads) return true
-      const id = `${input.page}:${rectKey(quadsRect(quads))}`
-      if (seen.has(id)) return false
-      seen.add(id)
-      return true
-    })
-    for (const input of fresh) doc.annotations.add(input)
-    suggestResult = `${fresh.length} suggested redaction${fresh.length === 1 ? '' : 's'}`
-  }
-
   /** A new signature for the same file: the key is unchanged, so nothing reloads. */
   function resign(): void {
     signature += 1
@@ -219,7 +175,6 @@
     tool = 'select-text'
     openDoc = null
     annotations = []
-    suggestResult = ''
     status = 'loading'
     version += 1
   }
@@ -244,14 +199,6 @@
       <InkToolButton tool="redact-area" />
       <InkToolButton tool="note" />
       <div class="sandbox-actions" role="group" aria-label="Review">
-        <button
-          type="button"
-          data-testid="suggest"
-          disabled={!openDoc || loading}
-          onclick={() => void suggest()}
-        >
-          Suggest redactions
-        </button>
         <button type="button" data-testid="resign" onclick={resign}>Re-sign</button>
         <button type="button" data-testid="new-version" onclick={() => void newVersion()}>
           New version
@@ -272,7 +219,6 @@
       <InkZoomIn />
     </InkToolbar>
     <InkThreadPopover />
-    <InkSuggestionCard />
   </div>
   <p
     class="sandbox-status"
@@ -284,5 +230,4 @@
   >
     {status} · {annotations.length} annotation{annotations.length === 1 ? '' : 's'}
   </p>
-  <p class="sandbox-status" role="status" data-testid="suggest-result">{suggestResult}</p>
 </InkRoot>

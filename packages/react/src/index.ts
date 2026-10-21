@@ -16,10 +16,8 @@ export type {
   AnnotationSlotProps,
   AnnotationState,
   ThreadPopoverSlotProps,
-  SuggestionCardSlotProps,
 } from '@inkbar/core/dom'
 export type { AnnotationDecoration, DecorateAnnotation } from '@inkbar/core/dom'
-export type { ConfidenceBucket } from '@inkbar/core'
 export { InkRoot } from './components/InkRoot'
 export type { InkRootHandle, InkRootProps } from './components/InkRoot'
 export { InkViewport } from './components/InkViewport'
@@ -66,5 +64,3 @@ export { InkLineStyleMenu } from './components/InkLineStyleMenu'
 export type { InkLineStyleMenuProps } from './components/InkLineStyleMenu'
 export { InkThreadPopover } from './components/InkThreadPopover'
 export type { InkThreadPopoverProps } from './components/InkThreadPopover'
-export { InkSuggestionCard } from './components/InkSuggestionCard'
-export type { InkSuggestionCardProps } from './components/InkSuggestionCard'

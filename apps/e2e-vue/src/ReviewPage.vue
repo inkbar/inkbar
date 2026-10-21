@@ -1,8 +1,7 @@
 <script setup lang="ts">
 /*
  * Mirrors a host integration: a signed URL whose signature changes while the document key
- * does not, annotations owned by the host through v-model and synced to a server, and
- * suggested redactions that the reader accepts or dismisses.
+ * does not, and annotations owned by the host through v-model and synced to a server.
  */
 import {
   AnnotationSchema,
@@ -11,7 +10,6 @@ import {
   type Annotation,
   type DocumentSource,
   type InkDocument,
-  type Quad,
 } from '@inkbar/core'
 import { createFakeServer } from '@inkbar/e2e-shared/fake-server'
 import { recordReady } from '@inkbar/e2e-shared/metrics'
@@ -23,7 +21,6 @@ import {
   InkPageInput,
   InkPrevPage,
   InkRoot,
-  InkSuggestionCard,
   InkToolbar,
   InkToolButton,
   InkViewport,
@@ -57,8 +54,6 @@ const signature = ref(1)
 const annotations = ref<Annotation[]>([])
 const status = ref('loading')
 const readyCount = ref(0)
-/** Outcome of the last suggestion run, announced apart from the sync status. */
-const suggestResult = ref('')
 const document = shallowRef<InkDocument | null>(null)
 const root = useTemplateRef<InstanceType<typeof InkRoot>>('root')
 const largeBytes = shallowRef<Uint8Array | null>(null)
@@ -161,44 +156,6 @@ watch(annotations, (list) => {
 })
 onBeforeUnmount(() => clearTimeout(saveTimer))
 
-/** Rounded to 0.01 pt, so a rerun finds the rect it stored before. */
-function rectKey(r: { x: number; y: number; width: number; height: number }): string {
-  return [r.x, r.y, r.width, r.height].map((n) => n.toFixed(2)).join(',')
-}
-
-function quadsRect(quads: readonly Quad[]) {
-  const xs = quads.flatMap((q) => [q.p1.x, q.p2.x, q.p3.x, q.p4.x])
-  const ys = quads.flatMap((q) => [q.p1.y, q.p2.y, q.p3.y, q.p4.y])
-  const x = Math.min(...xs)
-  const y = Math.min(...ys)
-  return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y }
-}
-
-async function suggest(): Promise<void> {
-  const doc = document.value
-  if (!doc) return
-  suggestResult.value = 'Looking for personal data…'
-  const inputs = await server.suggest(doc)
-  if (document.value !== doc) return
-  // In controlled mode each add is a proposal; proposals in one tick compose into one list.
-  // Running again must not repeat a suggestion already on the page.
-  const seen = new Set(
-    annotations.value
-      .filter((a) => a.type === 'redact')
-      .map((a) => `${a.page}:${rectKey(a.rect)}`)
-  )
-  const fresh = inputs.filter((input) => {
-    const quads = 'quads' in input ? input.quads : undefined
-    if (!quads) return true
-    const id = `${input.page}:${rectKey(quadsRect(quads))}`
-    if (seen.has(id)) return false
-    seen.add(id)
-    return true
-  })
-  for (const input of fresh) doc.annotations.add(input)
-  suggestResult.value = `${fresh.length} suggested redaction${fresh.length === 1 ? '' : 's'}`
-}
-
 /** A new signature for the same file: the key is unchanged, so nothing reloads. */
 function resign(): void {
   signature.value++
@@ -214,7 +171,6 @@ async function newVersion(): Promise<void> {
   tool.value = 'select-text'
   document.value = null
   annotations.value = []
-  suggestResult.value = ''
   status.value = 'loading'
   version.value++
 }
@@ -240,14 +196,6 @@ async function newVersion(): Promise<void> {
         <InkToolButton tool="redact-area" />
         <InkToolButton tool="note" />
         <div class="sandbox-actions" role="group" aria-label="Review">
-          <button
-            type="button"
-            data-testid="suggest"
-            :disabled="!document || loading"
-            @click="suggest"
-          >
-            Suggest redactions
-          </button>
           <button type="button" data-testid="resign" @click="resign">Re-sign</button>
           <button type="button" data-testid="new-version" @click="newVersion">
             New version
@@ -268,7 +216,6 @@ async function newVersion(): Promise<void> {
         <InkZoomIn />
       </InkToolbar>
       <InkThreadPopover />
-      <InkSuggestionCard />
     </div>
     <p
       class="sandbox-status"
@@ -281,9 +228,6 @@ async function newVersion(): Promise<void> {
       {{ status }} · {{ annotations.length }} annotation{{
         annotations.length === 1 ? '' : 's'
       }}
-    </p>
-    <p class="sandbox-status" role="status" data-testid="suggest-result">
-      {{ suggestResult }}
     </p>
   </InkRoot>
 </template>

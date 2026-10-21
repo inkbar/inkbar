@@ -44,9 +44,7 @@ type DocHandle = {
     update(id: string, patch: unknown): unknown
     get(
       id: string
-    ):
-      | { origin?: string; rect: { x: number; y: number; width: number; height: number } }
-      | undefined
+    ): { rect: { x: number; y: number; width: number; height: number } } | undefined
     selection: { get(): string[] }
   }
 }
@@ -305,8 +303,8 @@ describe('InkViewport', () => {
     expect(count('.my-pin')()).toBe(0)
   })
 
-  // React: 'slot props follow the annotation: select, accept and dismiss a suggested redaction'
-  it('snippet props follow the annotation: select, accept and dismiss a suggested redaction (Review Focus 4)', async () => {
+  // React: 'slot props follow the annotation: select and remove a redaction'
+  it('snippet props follow the annotation: select and remove a redaction', async () => {
     await render(ViewportHarness, {
       src: fixtureUrl('text-simple'),
       assets,
@@ -315,20 +313,14 @@ describe('InkViewport', () => {
       tool: 'select',
     })
     await q(`${FIRST} canvas`)
-    const add = () =>
-      doc().annotations.add({
-        type: 'redact',
-        origin: 'suggested',
-        suggestion: { confidence: 0.9 },
-        page: 0,
-        rect: { x: 72, y: 600, width: 200, height: 40 },
-      }).id
-
-    const first = add()
-    const sel = `[data-annotation="${first}"]`
+    const id = doc().annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 72, y: 600, width: 200, height: 40 },
+    }).id
+    const sel = `[data-annotation="${id}"]`
     const el = await q(sel)
     await expect.poll(attr(sel, 'data-custom')).toBe('')
-    expect(el.getAttribute('data-origin')).toBe('suggested')
     // A press on snippet content belongs to that content: it does not select. The pointer is
     // still over the element, so the overlay's hover state comes through.
     const pin = browserPage.elementLocator(await q(`${sel} .my-pin`))
@@ -338,64 +330,47 @@ describe('InkViewport', () => {
     await browserPage.elementLocator(el.querySelector('[data-testid="select"]')!).click()
     await expect.poll(attr(`${sel} .my-pin`, 'data-pin-state')).toBe('selected')
     // With the select tool, dragging a snippet control does not move the annotation.
-    const rectOf = () => doc().annotations.get(first)?.rect
+    const rectOf = () => doc().annotations.get(id)?.rect
     const rectBefore = rectOf()
-    await drag(el.querySelector('[data-testid="accept"]')!, 60, 40)
+    await drag(el.querySelector('[data-testid="remove"]')!, 60, 40)
     expect(rectOf()).toEqual(rectBefore)
-    expect(el.getAttribute('data-origin')).toBe('suggested')
-    await browserPage.elementLocator(el.querySelector('[data-testid="accept"]')!).click()
-    await expect.poll(attr(sel, 'data-origin')).toBe('user')
-    await expect.poll(count(`${sel} [data-testid="accept"]`)).toBe(0)
-    expect(doc().annotations.get(first)?.origin).toBe('user')
-
-    const second = add()
-    const sel2 = `[data-annotation="${second}"]`
-    const el2 = await q(sel2)
-    await browserPage
-      .elementLocator(el2.querySelector('[data-testid="dismiss"]')!)
-      .click()
-    await expect.poll(count(sel2)).toBe(0)
-    await expect.poll(count('[data-annotation]')).toBe(1)
+    await browserPage.elementLocator(el.querySelector('[data-testid="remove"]')!).click()
+    await expect.poll(count(sel)).toBe(0)
+    expect(rectOf()).toBeUndefined()
     // The portal content came back out of a target core had removed, with nothing logged.
     expect(consoleGuard.problems).toEqual([])
   })
 
   // React: 'keys on slot controls reach the controls, not the annotation'
   it('keys on snippet controls reach the controls, not the annotation', async () => {
-    const screen = await render(ViewportHarness, {
+    await render(ViewportHarness, {
       src: fixtureUrl('text-simple'),
       assets,
       zoom: 1,
       customAnnotations: true,
     })
     await q(`${FIRST} canvas`)
-    // Every case shares one page, and the last one left the pointer where this annotation
-    // appears: park it, so the state below is the keyboard's doing and not a hover.
-    await screen.getByTestId('outside').hover()
     const id = doc().annotations.add({
       type: 'redact',
-      origin: 'suggested',
-      suggestion: { confidence: 0.9 },
       page: 0,
       rect: { x: 72, y: 600, width: 200, height: 40 },
     }).id
     const sel = `[data-annotation="${id}"]`
     const el = await q(sel)
-    const stored = () => doc().annotations.get(id)?.origin ?? 'gone'
+    const present = () => doc().annotations.get(id) !== undefined
 
+    // Backspace on the annotation would remove it; in the input it edits the text.
     const input = browserPage.elementLocator(await q(`${sel} [data-testid="slot-input"]`))
     await input.fill('ab')
     await userEvent.keyboard('{Backspace}')
     await expect.element(input).toHaveValue('a')
-    expect(stored()).toBe('suggested')
+    expect(present()).toBe(true)
 
-    const accept = el.querySelector<HTMLElement>('[data-testid="accept"]')!
-    accept.focus()
+    // Enter on the annotation would only select it; on the snippet's button it removes it.
+    el.querySelector<HTMLElement>('[data-testid="remove"]')!.focus()
     await userEvent.keyboard('{Enter}')
-    await expect.poll(attr(sel, 'data-origin')).toBe('user')
-    expect(stored()).toBe('user')
-    // Enter reached the button: it accepted, rather than selecting the annotation.
-    expect(attr(`${sel} .my-pin`, 'data-pin-state')()).toBe('idle')
+    await expect.poll(count(sel)).toBe(0)
+    expect(present()).toBe(false)
   })
 
   // React: 'keyboard zoom and page navigation on the focused scroll element'

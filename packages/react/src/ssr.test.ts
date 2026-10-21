@@ -61,7 +61,6 @@ describe('@inkbar/react on the server', () => {
         'InkPrevPage',
         'InkNextPage',
         'InkThreadPopover',
-        'InkSuggestionCard',
         'InkViewport',
         'InkPage',
         'InkAnnotation',
@@ -90,8 +89,7 @@ describe('@inkbar/react on the server', () => {
           createElement(entry.InkZoomSelect),
           createElement(entry.InkZoomIn)
         ),
-        createElement(entry.InkThreadPopover),
-        createElement(entry.InkSuggestionCard)
+        createElement(entry.InkThreadPopover)
       )
     )
     expect(html).toContain('data-ink-root')

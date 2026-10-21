@@ -20,7 +20,7 @@
 
 ---
 
-Drop a PDF viewer into your Vue app and let people highlight text, leave notes with replies and review redactions. `@inkbar/vue` gives you components and composables to build your own toolbars, plus thread and suggestion popovers, all styled by `@inkbar/theme`.
+Drop a PDF viewer into your Vue app and let people highlight text, leave notes with replies and redact. `@inkbar/vue` gives you components and composables to build your own toolbars, plus a popover for comment threads, all styled by `@inkbar/theme`.
 
 Annotations are plain typed objects. Bind them with `v-model` to keep them in your own state, or let Inkbar hold them with undo and redo.
 
@@ -51,7 +51,6 @@ import {
   InkNextPage,
   InkZoomSelect,
   InkThreadPopover,
-  InkSuggestionCard,
 } from '@inkbar/vue'
 import type { Annotation } from '@inkbar/core'
 import { assets } from 'virtual:inkbar-assets'
@@ -87,7 +86,6 @@ const annotations = ref<Annotation[]>([])
       <InkZoomSelect />
     </InkToolbar>
     <InkThreadPopover />
-    <InkSuggestionCard />
   </InkRoot>
 </template>
 ```
@@ -130,7 +128,7 @@ The highlight tool leaves `contents` free for the comment. `doc.text(page)` retu
 
 ## Custom rendering
 
-Slots let you render parts yourself. `InkViewport` has `loading`, `empty`, `error`, `annotation` and `page-error` slots. `InkThreadPopover` and `InkSuggestionCard` have a scoped default slot that receives the popover's props, and the default slot of `InkToolButton` receives `{ active, label }`. The props are typed as `AnnotationSlotProps`, `ThreadPopoverSlotProps` and `SuggestionCardSlotProps`, the same types the React and Svelte packages export.
+Slots let you render parts yourself. `InkViewport` has `loading`, `empty`, `error`, `annotation` and `page-error` slots. `InkThreadPopover` has a scoped default slot that receives the popover's props, and the default slot of `InkToolButton` receives `{ active, label }`. The props are typed as `AnnotationSlotProps` and `ThreadPopoverSlotProps`, the same types the React and Svelte packages export.
 
 `InkRoot`, `InkToolbar`, `InkToolButton`, `InkUndo`, `InkRedo`, `InkPrevPage`, `InkNextPage`, `InkZoomIn` and `InkZoomOut` take `as-child` to render your own element in place of theirs, such as a button from your design system. Put that element in the default slot. The control keeps its behaviour and accessible name.
 
@@ -144,7 +142,7 @@ The scroll area takes focus. From there:
 
 On a focused annotation:
 
-- `Enter` or `Space` selects and activates it. A note opens its thread and a suggested redaction its card; other types are only selected.
+- `Enter` or `Space` selects and activates it. A note or text markup opens its thread; other types are only selected.
 - `ArrowUp` and `ArrowDown` move to the previous or next annotation on the page.
 - `Shift` + arrow moves it by 1 pt, or by 10 pt with `Alt` as well.
 - `Ctrl` or `Cmd` + `Shift` + arrow resizes an area redaction, text box or shape.

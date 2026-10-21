@@ -58,7 +58,6 @@ describe('@inkbar/vue on the server', () => {
         'InkPrevPage',
         'InkNextPage',
         'InkThreadPopover',
-        'InkSuggestionCard',
       ])
     )
     expect(evaluated.pdfjs).toBe(false)
@@ -80,7 +79,6 @@ describe('@inkbar/vue on the server', () => {
             h(entry.InkZoomIn),
           ]),
           h(entry.InkThreadPopover),
-          h(entry.InkSuggestionCard),
         ]),
     })
     const html = await renderToString(app)

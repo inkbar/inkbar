@@ -4,7 +4,6 @@
   import InkPageInput from '../../lib/components/InkPageInput.svelte'
   import InkPrevPage from '../../lib/components/InkPrevPage.svelte'
   import InkRoot from '../../lib/components/InkRoot.svelte'
-  import InkSuggestionCard from '../../lib/components/InkSuggestionCard.svelte'
   import InkThreadPopover from '../../lib/components/InkThreadPopover.svelte'
   import InkToolbar from '../../lib/components/InkToolbar.svelte'
   import InkToolButton from '../../lib/components/InkToolButton.svelte'
@@ -34,5 +33,4 @@
     <InkZoomIn />
   </InkToolbar>
   <InkThreadPopover />
-  <InkSuggestionCard />
 </InkRoot>

@@ -39,9 +39,6 @@ async function addNote(page: Page, text: string): Promise<void> {
   await expect(popover.locator('[data-ink-thread-item]')).toHaveCount(2)
 }
 
-const suggested = (page: Page) =>
-  page.locator('[data-annotation][data-origin="suggested"]')
-
 test.describe('accessibility', () => {
   test('the review page with its toolbar has no WCAG 2.2 AA violations', async ({
     page,
@@ -49,16 +46,6 @@ test.describe('accessibility', () => {
     await page.goto('/?doc=annotated-notes-threaded')
     await waitForFirstPage(page)
     await expect(page.getByTestId('embedded-banner')).toContainText('4 annotations')
-    expect(await axe(page)).toEqual([])
-  })
-
-  test('an open suggestion card has no WCAG 2.2 AA violations', async ({ page }) => {
-    await page.goto('/?doc=text-simple')
-    await waitForFirstPage(page)
-    await page.getByRole('button', { name: 'Suggest redactions' }).click()
-    await expect(suggested(page)).toHaveCount(3)
-    await suggested(page).first().click()
-    await expect(page.locator('[data-ink-suggestion-card]')).toBeVisible()
     expect(await axe(page)).toEqual([])
   })
 
@@ -208,39 +195,6 @@ test('host-owned annotations survive a re-signed URL and a reload, and a new ver
   await waitForFirstPage(page)
   await expect(status).toContainText('0 annotations')
   await expect(page.locator('[data-annotation][data-type="text"]')).toHaveCount(0)
-})
-
-test('suggested redactions can be accepted and dismissed', async ({ page }) => {
-  await page.goto('/?doc=text-simple')
-  await waitForFirstPage(page)
-  await page.getByRole('button', { name: 'Suggest redactions' }).click()
-  await expect(page.getByTestId('suggest-result')).toHaveText('3 suggested redactions')
-  await expect(suggested(page)).toHaveCount(3)
-  // One per page, on the line holding the number.
-  const pages = await suggested(page).evaluateAll((els) =>
-    els.map((el) => el.closest<HTMLElement>('.ink-page')!.dataset.page).sort()
-  )
-  expect(pages).toEqual(['0', '1', '2'])
-
-  // A second run finds the same matches and adds nothing.
-  await page.getByRole('button', { name: 'Suggest redactions' }).click()
-  await expect(page.getByTestId('suggest-result')).toHaveText('0 suggested redactions')
-  await expect(suggested(page)).toHaveCount(3)
-
-  const card = page.locator('[data-ink-suggestion-card]')
-  await suggested(page).first().click()
-  await expect(card).toContainText('National Insurance number')
-  await card.getByRole('button', { name: 'Accept' }).click()
-  await expect(
-    page.locator('[data-annotation][data-type="redact"][data-origin="user"]')
-  ).toHaveCount(1)
-  await expect(suggested(page)).toHaveCount(2)
-
-  await suggested(page).first().click()
-  await card.getByRole('button', { name: 'Dismiss' }).click()
-  await expect(suggested(page)).toHaveCount(1)
-  await expect(page.locator('[data-annotation][data-type="redact"]')).toHaveCount(2)
-  await expect(page.getByTestId('status')).toContainText('saved · 2 annotations')
 })
 
 test('the banner counts annotations embedded in the file', async ({ page }) => {
