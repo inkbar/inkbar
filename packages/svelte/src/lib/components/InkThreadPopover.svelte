@@ -137,6 +137,13 @@
   }
 </script>
 
+<svelte:document
+  onpointerdowncapture={(e) =>
+    open && focusReturn.onPressOutside(e, '[data-ink-thread-popover]', close)}
+  onpointerup={focusReturn.onPressEnd}
+  onpointercancel={focusReturn.onPressEnd}
+/>
+
 <Popover.Root bind:open={() => open, onOpenChange}>
   <Popover.Portal>
     {#if note && anchor}

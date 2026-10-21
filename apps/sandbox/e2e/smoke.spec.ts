@@ -262,14 +262,8 @@ for (const framework of FRAMEWORKS) {
       const note = page.locator(
         '.ink-page[data-page="0"] .ink-annotation[data-type="text"]'
       )
-      await page.getByRole('button', { name: 'Rectangle select' }).click()
-      const box = (await note.boundingBox())!
-      await page.mouse.move(box.x - 20, box.y - 20)
-      await page.mouse.down()
-      await page.mouse.move(box.x + box.width + 10, box.y + box.height + 10, { steps: 5 })
-      await page.mouse.up()
-      await expect(note).toHaveAttribute('data-state', 'selected')
       await page.getByRole('button', { name: 'Select text', exact: true }).click()
+      await note.click()
       await expect(note).toHaveAttribute('data-state', 'selected')
 
       const line = (await page

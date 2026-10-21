@@ -3,6 +3,7 @@ import {
   shouldKeepOpenOnAnnotation,
   type FocusReturn,
 } from '@inkbar/core/dom'
+import { flushSync } from 'svelte'
 
 import { peekActivated } from '../context.js'
 
@@ -13,6 +14,16 @@ export interface PopoverFocusReturn {
   beforeRemove: FocusReturn['beforeRemove']
   /** Bits UI's `onOpenAutoFocus` handler. Leaves the default alone: focus moves into the popover. */
   onOpenAutoFocus: (event: Event) => void
+  /**
+   * A document-level pointer press, captured. `inside` selects the popover's content. A press outside it that will not activate
+   * an annotation closes it now, through `close`, before the press moves focus. Bits UI closes it
+   * a beat later, and its focus trap pulls focus back into the popover in between, which ends a
+   * text selection the press has just begun. Nothing is focused when it closes this way: the
+   * press places focus.
+   */
+  onPressOutside: (event: PointerEvent, inside: string, close: () => void) => void
+  /** A pointer release or cancel, captured. */
+  onPressEnd: () => void
   /** Bits UI's `onCloseAutoFocus` handler. Prevents the default; the planner places focus. */
   onCloseAutoFocus: (event: Event, anchor: HTMLElement | null) => void
 }
@@ -52,7 +63,20 @@ export function useFocusReturn(ctx: InkContext): PopoverFocusReturn {
   /** Open and close reports so far, so a deferred close can tell what followed it. */
   let opens = 0
   let closes = 0
+  /** A press closed the popover, and the planner answers that close without moving focus. */
+  let pressed = false
   return {
+    onPressOutside(event, inside, close) {
+      const target = event.target
+      if (event.button !== 0 || !(target instanceof Element)) return
+      if (target.closest(inside) || shouldKeepOpenOnAnnotation(target)) return
+      pressed = true
+      close()
+      flushSync()
+    },
+    onPressEnd() {
+      pressed = false
+    },
     beforeRemove: (anchor, prefer) => planner.beforeRemove(anchor, prefer),
     onOpenAutoFocus() {
       opens += 1
@@ -66,7 +90,7 @@ export function useFocusReturn(ctx: InkContext): PopoverFocusReturn {
         // Reported again since: the last close of the stretch answers, with the plan intact.
         if (close !== closes) return
         // An open followed: the popover is open, so only the plan is cleared.
-        discarding = opens !== opensBefore
+        discarding = opens !== opensBefore || pressed
         try {
           planner.onCloseAutoFocus(event, anchor)
         } finally {
