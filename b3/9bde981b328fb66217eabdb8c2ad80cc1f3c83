@@ -1,0 +1,61 @@
+packages/vue/src/index.ts
+  s_53bc7b36f6063e::t_57dca74c8322e7 4
+packages/svelte/src/lib/components/InkRoot.svelte
+  s_53bc7b36f6063e::t_fb60cd006f5e90 14,42-46,115,373-374
+  s_53bc7b36f6063e::t_492a982f760faf 375
+packages/svelte/src/lib/context.ts
+  s_53bc7b36f6063e::t_fb60cd006f5e90 11,58-59
+packages/vue/src/components/InkViewport.vue
+  s_53bc7b36f6063e::t_57dca74c8322e7 134-135
+packages/svelte/src/test/InkViewport.browser.test.ts
+  s_53bc7b36f6063e::t_fb60cd006f5e90 12,44,653-669,671-674
+  s_53bc7b36f6063e::t_b83b218046c685 670,675
+  s_53bc7b36f6063e::t_c74100682755f9 676
+packages/vue/playwright/harness/ViewportHarness.vue
+  s_53bc7b36f6063e::t_1717763ea72e5c 2,7,20-21,29-34,76
+packages/vue/src/components/InkViewport.ct.ts
+  s_53bc7b36f6063e::t_1717763ea72e5c 40,631-661
+  s_53bc7b36f6063e::t_0fa7ff8751b944 662
+packages/svelte/src/lib/components/InkViewport.svelte
+  s_53bc7b36f6063e::t_fb60cd006f5e90 129-130
+packages/react/src/components/InkViewport.tsx
+  s_53bc7b36f6063e::t_24c5f99bcd2033 118-119
+packages/svelte/src/lib/index.ts
+  s_53bc7b36f6063e::t_fb60cd006f5e90 13
+packages/vue/src/components/InkRoot.vue
+  s_53bc7b36f6063e::t_57dca74c8322e7 41,68-72,98,334
+packages/react/src/components/InkViewport.ct.tsx
+  s_53bc7b36f6063e::t_6c7d8912333b24 644,658
+  s_53bc7b36f6063e::t_24c5f99bcd2033 41,641-643,645-657,659-666
+  s_53bc7b36f6063e::t_1b6137048cfa50 667
+packages/react/playwright/harness/ViewportHarness.tsx
+  s_53bc7b36f6063e::t_6c7d8912333b24 6,19-20,34-39,77
+packages/react/src/context.ts
+  s_53bc7b36f6063e::t_24c5f99bcd2033 54-55
+  s_53bc7b36f6063e::t_a0229a9ad844ed 11
+packages/react/src/index.ts
+  s_53bc7b36f6063e::t_24c5f99bcd2033 21
+packages/react/src/components/InkRoot.tsx
+  s_53bc7b36f6063e::t_24c5f99bcd2033 48-55,89-93,161,451,478
+packages/svelte/src/test/harness/ViewportHarness.svelte
+  s_53bc7b36f6063e::t_fb60cd006f5e90 23,38
+  s_53bc7b36f6063e::t_220f3d6eb89b37 6-11,117-127
+packages/vue/src/context.ts
+  s_53bc7b36f6063e::t_57dca74c8322e7 12,56-57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b39bde981b328fb66217eabdb8c2ad80cc1f3c83",
+  "prompts": {},
+  "sessions": {
+    "s_53bc7b36f6063e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cc4ab85f-ebb1-4dc0-8290-66c99694838b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
