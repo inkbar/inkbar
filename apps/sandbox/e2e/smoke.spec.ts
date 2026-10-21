@@ -573,6 +573,50 @@ for (const framework of FRAMEWORKS) {
       await expect(mask.locator('ellipse')).toHaveCount(1)
     })
 
+    test('a click on a text box committed by focus leaving keeps the Text tool', async ({
+      page,
+    }) => {
+      await page.goto(`${framework}/`)
+      await waitForFirstPage(page)
+      const text = page.getByRole('button', { name: 'Text', exact: true })
+      await text.click()
+      const box = (await page.locator('.ink-page[data-page="0"]').boundingBox())!
+      await page.mouse.click(box.x + 40, box.y + 30)
+      const editor = page.getByRole('textbox', { name: 'Text box' })
+      await expect(editor).toBeFocused()
+      await page.keyboard.type('Hello')
+      // Focus moving to the Text style control commits the box and keeps the tool.
+      await page.getByRole('button', { name: 'Text style', exact: true }).focus()
+      await expect(editor).toHaveCount(0)
+      const created = sessionShape(page, 'freetext')
+      await expect(created).toHaveCount(1)
+      await expect(text).toHaveAttribute('aria-pressed', 'true')
+      await created.click()
+      await expect(created).toHaveAttribute('aria-pressed', 'true')
+      await expect(text).toHaveAttribute('aria-pressed', 'true')
+      await expect(created).toHaveCount(1)
+    })
+
+    test('a click elsewhere after placing a note drops it and switches to Select text', async ({
+      page,
+    }) => {
+      await page.goto(`${framework}/`)
+      await waitForFirstPage(page)
+      await page.getByRole('button', { name: 'Add note', exact: true }).click()
+      const box = (await page.locator('.ink-page[data-page="0"]').boundingBox())!
+      await page.mouse.click(box.x + 40, box.y + 30)
+      const notes = sessionShape(page, 'text')
+      await expect(notes).toHaveCount(1)
+      await expect(page.getByRole('dialog', { name: /note/i })).toBeVisible()
+      // Beside the note, clear of its popover, which opens below it.
+      await page.mouse.click(box.x + 500, box.y + 20)
+      await expect(page.getByRole('dialog', { name: /note/i })).toHaveCount(0)
+      await expect(notes).toHaveCount(0)
+      await expect(
+        page.getByRole('button', { name: 'Select text', exact: true })
+      ).toHaveAttribute('aria-pressed', 'true')
+    })
+
     test('make a text box bold and centred', async ({ page }) => {
       await page.goto(`${framework}/`)
       await waitForFirstPage(page)

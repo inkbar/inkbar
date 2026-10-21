@@ -4219,6 +4219,29 @@ describe('one-shot tools', () => {
     expect(doc.annotations.selection.get()).toEqual([made!.id])
   })
 
+  it('a press on a text box committed by focus leaving keeps the Text tool on', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('freetext')
+    click(container, viewport, 200, 300)
+    await userEvent.keyboard('Hi')
+    // Focus moving to a control outside the editor commits the box.
+    const button = document.createElement('button')
+    document.body.append(button)
+    cleanup.push(() => button.remove())
+    button.focus()
+    const [box] = doc.annotations.list.get()
+    expect(box).toMatchObject({ type: 'freetext', contents: 'Hi' })
+    expect(tools.active.get()).toBe('freetext')
+    expect(container.hasAttribute('data-ink-made')).toBe(true)
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    const el = container.querySelector(`[data-annotation="${box!.id}"]`)!
+    pointer(el, 'pointerdown', h.left + 210, h.top + 305)
+    pointer(el, 'pointerup', h.left + 210, h.top + 305)
+    expect(tools.active.get()).toBe('freetext')
+    expect(doc.annotations.list.get()).toHaveLength(1)
+    expect(doc.annotations.selection.get()).toEqual([box!.id])
+  })
+
   it('Delete on the made item returns the tool to ready', async () => {
     const { doc, container, viewport, tools } = await setup()
     tools.set('shape')
