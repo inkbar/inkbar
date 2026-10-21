@@ -1,0 +1,155 @@
+packages/core/src/dom/tools/redact-area.ts
+  s_9296d0dac39657::t_e988b22a96ea38 32-40,52,119,122
+  s_9296d0dac39657::t_625ec448a6ebaf 21-26
+packages/react/playwright/harness/ToolbarHarness.tsx
+  s_9296d0dac39657::t_4813b1cb4f6a11 32,38,49
+packages/core/src/dom/tools/freetext.ts
+  s_9296d0dac39657::t_e988b22a96ea38 124,126,130,132,160
+packages/core/src/dom/tools.browser.test.ts
+  s_9296d0dac39657::t_a19b7ee4a2208b 4475-4477
+  s_9296d0dac39657::t_21fc759be3b756 4231-4394,4432-4474,4478-4529,4689-4701,4754
+  s_9296d0dac39657::t_f56a5e1f7ca4f9 4395-4408
+  s_9296d0dac39657::t_dd6e95263a76b4 610,628-630,1536-1539,1543,1545,1563-1566,1570,1574,2459-2461
+  s_9296d0dac39657::t_aae9620f15593e 35
+  s_9296d0dac39657::t_1e5ae696b08f6b 4409-4431
+  s_9296d0dac39657::t_9912cdc6893d53 4626-4628,4633-4634
+  s_9296d0dac39657::t_06fb5abcf9f58e 4530-4625,4629-4632,4635-4651,4656-4658,4672-4688
+  s_9296d0dac39657::t_9445e451d1ddbc 4652-4655
+  s_9296d0dac39657::t_f10306da63281c 4659-4671
+  s_9296d0dac39657::t_41bf87b0ea2fac 3256-3298
+  s_9296d0dac39657::t_f504503ce78c7a 3742-3743,4710
+  s_9296d0dac39657::t_137d420863ec1e 3735-3741,3744-3844,4069-4101,4114-4115,4117,4702-4709,4711-4753
+packages/vue/src/components/InkRoot.vue
+  s_9296d0dac39657::t_6261c66594fa6e 300-302
+packages/core/src/dom/tools/freehand.ts
+  s_9296d0dac39657::t_2f6d2149b10dc8 129
+packages/core/src/dom/freetext-editor.browser.test.ts
+  s_9296d0dac39657::t_da5496b934e984 53-54,86,107,111-127
+  s_9296d0dac39657::t_af5a74d6562997 128
+  s_9296d0dac39657::t_9bcef0399dcbb6 8,257-293
+packages/core/src/dom/tools/controller.ts
+  s_9296d0dac39657::t_a19b7ee4a2208b 36,229-232
+  s_9296d0dac39657::t_cf9db787e9c0b5 19-29,68-73,101-107,112-113,156-162,224-228,233-238,245-249,254-271,277-282,291-292,295,296-301,309-310,353-357,394-396,421-422,454,456-457
+  s_9296d0dac39657::t_dec33b66adf314 293-294
+  s_9296d0dac39657::t_d5b75b7a1010da 30-32,46,250-253,302-308,318-324,334-337,346-349,358-361,410-414,418-419,451-452
+  s_9296d0dac39657::t_4a4790898a9824 33-35,424-431
+packages/react/src/components/InkViewport.tsx
+  s_9296d0dac39657::t_c7bda23498daa5 31,147-155
+packages/core/src/dom/tools/signature.ts
+  s_9296d0dac39657::t_e988b22a96ea38 6,39,77
+packages/svelte/src/test/InkRoot.browser.test.ts
+  s_9296d0dac39657::t_b0512443664059 13,590,624
+  s_9296d0dac39657::t_3facdfdd726bd6 591-623
+packages/react/src/components/InkRoot.tsx
+  s_9296d0dac39657::t_6261c66594fa6e 211,329-331
+packages/svelte/src/lib/components/InkRoot.svelte
+  s_9296d0dac39657::t_6261c66594fa6e 282-283
+apps/sandbox/e2e/smoke.spec.ts
+  s_9296d0dac39657::t_2a435e285c9033 457-473,666-669
+  s_9296d0dac39657::t_5621cc44a6431e 646-647
+  s_9296d0dac39657::t_2687ca259385b3 611-645,648-654
+  s_9296d0dac39657::t_be54341e4fb1a6 251-264,265,267-285
+  s_9296d0dac39657::t_e85e5dfc17534e 266
+  s_9296d0dac39657::t_df7d7c2aeed0e1 684-726
+  s_9296d0dac39657::t_344d995c0e48b3 430,448
+packages/core/src/dom/index.ts
+  s_9296d0dac39657::t_cf9db787e9c0b5 51
+  s_9296d0dac39657::t_4fbda0764d89cf 137-141
+packages/vue/playwright/harness/ToolbarHarness.vue
+  s_9296d0dac39657::t_6bddc43bdcb022 27,36
+packages/core/src/dom/viewer/create-viewer.browser.test.ts
+  s_9296d0dac39657::t_3d709be5fc29d0 1636-1653
+packages/core/src/dom/tools/shape.ts
+  s_9296d0dac39657::t_e988b22a96ea38 120-125,150,242
+packages/vue/src/components/InkViewport.vue
+  s_9296d0dac39657::t_e71c9a1d81cf07 32,165-173
+packages/react/src/components/InkRoot.ct.tsx
+  s_9296d0dac39657::t_a14602af5d160a 524,537-538,540
+  s_9296d0dac39657::t_4813b1cb4f6a11 8,521-523,525-536,539,541-545
+  s_9296d0dac39657::t_13c7548ef2e253 546
+packages/vue/src/components/InkRoot.ct.ts
+  s_9296d0dac39657::t_6bddc43bdcb022 6,360-380
+  s_9296d0dac39657::t_76ffd76e352d2d 381
+packages/core/README.md
+  s_9296d0dac39657::t_cc32bbf503a963 182-184
+  s_9296d0dac39657::t_53e2f10a413f71 181,224
+packages/core/src/dom/tools/note.ts
+  s_9296d0dac39657::t_e988b22a96ea38 27,33
+packages/svelte/src/test/harness/ToolbarHarness.svelte
+  s_9296d0dac39657::t_b0512443664059 31,37,46,50
+packages/core/src/dom/freetext-editor.ts
+  s_9296d0dac39657::t_4fbda0764d89cf 25-30,36,38,134,150,157,164,172,197,225,233,245-258,262-264,269
+  s_9296d0dac39657::t_f8594dc6897d74 186-188
+  s_9296d0dac39657::t_f53c490d318346 226-227,234-237,261
+  s_9296d0dac39657::t_1d012f9639a318 40-41,66-67,189-191,302-325
+  s_9296d0dac39657::t_c9f7694453d490 326-327
+packages/core/src/dom/tools/highlight.ts
+  s_9296d0dac39657::t_e988b22a96ea38 48
+packages/core/src/dom/tools/index.ts
+  s_9296d0dac39657::t_cf9db787e9c0b5 32
+packages/svelte/src/lib/components/InkViewport.svelte
+  s_9296d0dac39657::t_e71c9a1d81cf07 46,158-166
+packages/core/src/dom/overlay.ts
+  s_9296d0dac39657::t_9912cdc6893d53 246-250
+  s_9296d0dac39657::t_111542eca12ffc 193,240-241,243-245,265
+  s_9296d0dac39657::t_9f3f7f872615ae 38,199-209,230-231
+  s_9296d0dac39657::t_6400e7b04f7ebc 4-5
+packages/theme/theme.test.ts
+  s_9296d0dac39657::t_111542eca12ffc 278
+  s_9296d0dac39657::t_0842f009b063b7 284-285,287
+packages/core/src/dom/overlay.browser.test.ts
+  s_9296d0dac39657::t_bbde9aae4f5ce0 1256-1257,1262-1275
+  s_9296d0dac39657::t_88ef4ee918ca6a 1251-1255,1258-1261,1276-1281,1285-1294
+  s_9296d0dac39657::t_9912cdc6893d53 1282-1284
+  s_9296d0dac39657::t_8668d64bed841f 342,900-905,907,909,1032-1034,1051-1052,1054-1057,1869,1877-1878,1881-1890
+  s_9296d0dac39657::t_6400e7b04f7ebc 913,1845,1859
+  s_9296d0dac39657::t_c4c7be6067165d 1818-1844,1846-1858,1860-1868,1880,1891-1926
+  s_9296d0dac39657::t_920a77cd6ca565 1870-1876,1879
+packages/theme/theme.css
+  s_9296d0dac39657::t_fa14d9c8560d03 283-284,293-297
+  s_9296d0dac39657::t_e324eb61fc8b2a 327
+packages/core/src/dom/tools/selection-edit.ts
+  s_9296d0dac39657::t_1c9c2c2030dbe9 32-34,279-284
+  s_9296d0dac39657::t_8ef7e515413981 26-30,51,80-86,126-127,251-264,304,381-387,389-391,494-496
+  s_9296d0dac39657::t_f504503ce78c7a 58,388
+  s_9296d0dac39657::t_cb6b6c92d5c72a 497-498
+  s_9296d0dac39657::t_6400e7b04f7ebc 192
+  s_9296d0dac39657::t_9f3f7f872615ae 52
+packages/svelte/src/lib/components/popover-focus.ts
+  s_9296d0dac39657::t_a7a62cb855acb6 17,23,67,76,93
+  s_9296d0dac39657::t_747114965add14 19-22,25-26,66,70-71,73-75,77-79
+  s_9296d0dac39657::t_515f2a9f7762f5 6,18,24,69,72
+packages/svelte/src/lib/components/InkThreadPopover.svelte
+  s_9296d0dac39657::t_36876c047acf32 142
+  s_9296d0dac39657::t_515f2a9f7762f5 140-141,143-146
+packages/svelte/src/test/popover-focus.browser.test.ts
+  s_9296d0dac39657::t_e85e5dfc17534e 108-110,114-116,118-121,130-131
+  s_9296d0dac39657::t_515f2a9f7762f5 20-21,40-45,50-51,56-61,111-113,117,122-129
+packages/svelte/src/lib/components/InkSuggestionCard.svelte
+  s_9296d0dac39657::t_36876c047acf32 76
+  s_9296d0dac39657::t_515f2a9f7762f5 74-75,77-80
+packages/core/src/dom/overlay-render.ts
+  s_9296d0dac39657::t_ac53001cbfa52e 30-31,399,649-655,657-669
+  s_9296d0dac39657::t_651a5bfd4b9618 656
+  s_9296d0dac39657::t_198b52aef6b24a 670-671
+  s_9296d0dac39657::t_6400e7b04f7ebc 492-493
+  s_9296d0dac39657::t_b6a1b2f910417d 411-412,461-465,467-486,553-562,582-589,607-618,625,630-646
+  s_9296d0dac39657::t_c380e06236e9e7 101-128,134-136,139-164,647
+  s_9296d0dac39657::t_5e2c90e9d77737 648
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "99d5d90269d8f2cfd3bc37773b9ef6e514246009",
+  "prompts": {},
+  "sessions": {
+    "s_9296d0dac39657": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8ee36f85-a611-470f-8334-be5e42d4be96",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}

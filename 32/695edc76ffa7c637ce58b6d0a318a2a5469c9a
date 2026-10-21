@@ -1,0 +1,23 @@
+packages/core/src/dom/tools.browser.test.ts
+  s_9296d0dac39657::t_5122c6d143743b 3108,3116
+  s_9296d0dac39657::t_d4e7b4a758a147 3129-3137,3139-3143,3145-3165
+  s_9296d0dac39657::t_63812f476d44a4 3103-3107,3109-3115,3117-3128,3138,3144,3166-3168
+packages/core/src/dom/tools/selection-edit.ts
+  s_9296d0dac39657::t_be6d64febe083f 317-320
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "32695edc76ffa7c637ce58b6d0a318a2a5469c9a",
+  "prompts": {},
+  "sessions": {
+    "s_9296d0dac39657": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8ee36f85-a611-470f-8334-be5e42d4be96",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
