@@ -75,6 +75,17 @@ export interface Viewer {
   readonly viewport: Readable<Viewport | null>
   readonly tools: Readable<ToolController | null>
   /**
+   * The activated annotation's id: the one last clicked, or activated with Enter or Space.
+   * The note thread opens from it, and an app can anchor its own popover (`createPopover`) to
+   * it. `null` when none is, and again once that annotation is removed or the document closes.
+   */
+  readonly activated: Readable<string | null>
+  /**
+   * Activates annotation `id`, or clears the activation with `null` (closing the thread
+   * popover). Unlike a click, it does not select the annotation or call `onActivate`.
+   */
+  setActivated(id: string | null): void
+  /**
    * Opens another document in place; the previous one is destroyed. Latest call wins.
    * `password` is used for this load only; without it, the constructor's `password` applies.
    */
@@ -320,6 +331,8 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     engine: readonly(engine),
     viewport: readonly(viewport),
     tools: readonly(tools),
+    activated: readonly(activated),
+    setActivated: (id) => activated.set(id),
     open,
     destroy() {
       if (destroyed) return

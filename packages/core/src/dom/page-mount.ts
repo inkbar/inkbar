@@ -1,4 +1,4 @@
-import { createOverlay, type Overlay } from './overlay'
+import { createOverlay, type DecorateAnnotation, type Overlay } from './overlay'
 import { createPageRenderer, type PageRenderer } from './page-renderer'
 import { createTextLayer, type TextLayerHandle } from './text-layer'
 
@@ -17,6 +17,8 @@ export interface PageMountOptions {
   store: AnnotationStore
   onActivate?(id: string): void
   isCustom?(a: Annotation): boolean
+  /** The app's data attributes and classes for each annotation element (see `OverlayOptions`). */
+  decorate?: DecorateAnnotation
   /** Defaults to `window.devicePixelRatio`. */
   devicePixelRatio?: number
   /**
@@ -81,6 +83,7 @@ export function createPageMount(opts: PageMountOptions): PageMount {
     ...(opts.isCustom
       ? { isCustom: (a: Annotation) => opts.isCustom?.(a) === true }
       : {}),
+    ...(opts.decorate ? { decorate: opts.decorate } : {}),
   })
   return {
     renderer,

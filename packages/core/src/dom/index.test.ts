@@ -33,6 +33,8 @@ describe('@inkbar/core/dom entry', () => {
         'createToolController',
         'builtinTools',
         'hitFor',
+        'createPopover',
+        'placePanel',
       ])
     )
 

@@ -20,7 +20,12 @@ export type { TextLayerHandle, TextLayerOptions } from './text-layer'
 export { cssRectsToUserRects, getSelectionQuads } from './selection'
 export type { SelectionQuads } from './selection'
 export { confidenceAttr, createOverlay } from './overlay'
-export type { Overlay, OverlayOptions } from './overlay'
+export type {
+  AnnotationDecoration,
+  DecorateAnnotation,
+  Overlay,
+  OverlayOptions,
+} from './overlay'
 export { renderAnnotationContent } from './overlay-render'
 export { createPageMount } from './page-mount'
 export type { PageLayer, PageMount, PageMountOptions } from './page-mount'
@@ -150,6 +155,8 @@ export {
 export { annotationElementFor, observeAnnotationElement } from './annotation-element'
 export { createFocusReturn, shouldKeepOpenOnAnnotation } from './popover-focus'
 export type { FocusReturn, FocusReturnOptions } from './popover-focus'
+export { createPopover, placePanel } from './viewer/popover'
+export type { Popover, PopoverOptions } from './viewer/popover'
 export { mountViewer } from './viewer-engine'
 export type { MountViewerOptions, ViewerEngine } from './viewer-engine'
 export { createViewer } from './viewer/create-viewer'
