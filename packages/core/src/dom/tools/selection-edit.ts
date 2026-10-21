@@ -24,7 +24,9 @@
 // selected unlocked annotation, in one history step.
 //
 // Under select-text, text markup is left to the overlay: a drag across it selects text, a
-// click selects it. Rectangle select (`marquee`) handles markup like any other annotation.
+// click selects it, and a press on empty space clears the annotation selection and starts a
+// text selection (Shift keeps it). Rectangle select (`marquee`) handles markup like any other
+// annotation and draws a marquee on empty space.
 import { freeTextBox } from '../../model/annotations/callout'
 import {
   MIN_SIZE,
@@ -248,7 +250,12 @@ export function createSelectionEdit(
         e.preventDefault()
         return true
       }
-      if (!opts.marquee) return
+      if (!opts.marquee) {
+        // Select text: an empty press drops the annotation selection and is left alone, so a
+        // text selection starts as usual. Shift keeps the selection.
+        if (!e.shiftKey) ctx.store.select([])
+        return
+      }
       const el = hit.host.ownerDocument.createElement('div')
       el.className = 'ink-marquee'
       el.dataset.inkMarquee = ''

@@ -3253,6 +3253,49 @@ describe('selection editing', () => {
     })
   })
 
+  it('select-text: an empty press clears the selection and still selects text', async () => {
+    const { doc, viewport } = await setup()
+    const a = doc.annotations.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    doc.annotations.select([a.id])
+    const { host, at } = await page0(viewport)
+    const [x, y] = at(400, 300)
+    const down = new PointerEvent('pointerdown', {
+      clientX: x,
+      clientY: y,
+      bubbles: true,
+      cancelable: true,
+      pointerId: 1,
+      button: 0,
+      buttons: 1,
+      isPrimary: true,
+    })
+    host.dispatchEvent(down)
+    expect(doc.annotations.selection.get()).toEqual([])
+    // Left alone, so the browser starts a text selection.
+    expect(down.defaultPrevented).toBe(false)
+    pointer(host, 'pointerup', x, y)
+    expect(doc.annotations.get(a.id)).toBeDefined()
+  })
+
+  it('select-text: shift-press keeps the selection', async () => {
+    const { doc, viewport } = await setup()
+    const a = doc.annotations.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    doc.annotations.select([a.id])
+    const { host, at } = await page0(viewport)
+    const [x, y] = at(400, 300)
+    pointer(host, 'pointerdown', x, y, { shiftKey: true })
+    pointer(host, 'pointerup', x, y, { shiftKey: true })
+    expect(doc.annotations.selection.get()).toEqual([a.id])
+  })
+
   it('select-text resizes by corner handle', async () => {
     const { doc, container, viewport } = await setup()
     const a = doc.annotations.add({

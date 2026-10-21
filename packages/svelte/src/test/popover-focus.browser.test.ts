@@ -17,6 +17,8 @@ guardConsole()
 let root: HTMLElement
 let scroll: HTMLElement
 let annotations: HTMLElement[]
+let outside: HTMLElement
+let inner: HTMLElement
 
 beforeEach(() => {
   root = document.createElement('div')
@@ -35,14 +37,28 @@ beforeEach(() => {
   scroll.appendChild(overlay)
   root.appendChild(scroll)
   document.body.appendChild(root)
+  outside = document.createElement('p')
+  const popover = document.createElement('div')
+  popover.setAttribute('data-popover', '')
+  inner = document.createElement('button')
+  popover.appendChild(inner)
+  document.body.append(outside, popover)
   if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
 })
 afterEach(() => {
   root.remove()
+  outside.remove()
+  inner.parentElement?.remove()
 })
 
 const focusReturn = () =>
   useFocusReturn({ rootEl: root, activated: null } as unknown as InkContext)
+/** A primary pointerdown whose target is `el`. */
+const pressOn = (el: Element): PointerEvent => {
+  const event = new PointerEvent('pointerdown', { button: 0 })
+  Object.defineProperty(event, 'target', { value: el })
+  return event
+}
 const report = () => new CustomEvent('report', { cancelable: true })
 /** The planner answers a close one microtask after it is reported. */
 const settled = () => new Promise<void>((resolve) => queueMicrotask(resolve))
@@ -87,6 +103,30 @@ describe('useFocusReturn', () => {
     focus.onCloseAutoFocus(report(), a!)
     await settled()
     expect(focused()).toBe(b)
+  })
+
+  it("an outside pointer press that closes the popover doesn't move focus to the anchor", async () => {
+    const focus = focusReturn()
+    const [a] = annotations
+    let closed = 0
+    focus.onPressOutside(pressOn(outside), '[data-popover]', () => closed++)
+    expect(closed).toBe(1)
+    focus.onCloseAutoFocus(report(), a!)
+    await settled()
+    expect(focused()).toBe(document.body)
+    focus.onPressEnd()
+    // The next close, from the keyboard, returns focus as usual.
+    focus.onCloseAutoFocus(report(), a!)
+    await settled()
+    expect(focused()).toBe(a)
+  })
+
+  it('a press inside the popover, or on an annotation, closes nothing', () => {
+    const focus = focusReturn()
+    let closed = 0
+    focus.onPressOutside(pressOn(inner), '[data-popover]', () => closed++)
+    focus.onPressOutside(pressOn(annotations[0]!), '[data-popover]', () => closed++)
+    expect(closed).toBe(0)
   })
 
   it('an open with no close does nothing', async () => {
