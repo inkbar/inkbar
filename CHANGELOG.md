@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.5.0](https://github.com/inkbar/inkbar/compare/v0.4.0...v0.5.0) (2026-10-21)
+
+
+### Features
+
+* build the sandbox's suggested redactions as an app extension ([#167](https://github.com/inkbar/inkbar/issues/167)) ([722f945](https://github.com/inkbar/inkbar/commit/722f9459f3922877dfb22e214ee886bf8f1218f7))
+* clear the annotation selection on an empty press under select text ([#159](https://github.com/inkbar/inkbar/issues/159)) ([e07369f](https://github.com/inkbar/inkbar/commit/e07369fd11501bfbc115d8f83e17eb7cd4aa33f0))
+* draw split buttons as one control ([#153](https://github.com/inkbar/inkbar/issues/153)) ([e6d41be](https://github.com/inkbar/inkbar/commit/e6d41be87840e4d350769e4d40fa14f849652d66))
+* drop the suggestion card from the framework packages ([#168](https://github.com/inkbar/inkbar/issues/168)) ([0363b5e](https://github.com/inkbar/inkbar/commit/0363b5e54fda2acbb041640034a6b8ac033d1507))
+* edit text boxes on a click and move them by their edge ([#160](https://github.com/inkbar/inkbar/issues/160)) ([5074170](https://github.com/inkbar/inkbar/commit/5074170b6d18faa95689b154ba532bfa7530cf8d))
+* import callout, icon and font fields from PDF annotations ([#149](https://github.com/inkbar/inkbar/issues/149)) ([59de378](https://github.com/inkbar/inkbar/commit/59de3780bfb8023b3a3c9d0e18fb58233b32fc12))
+* let apps decorate annotation elements and open their own popovers ([#165](https://github.com/inkbar/inkbar/issues/165)) ([1cdff3c](https://github.com/inkbar/inkbar/commit/1cdff3c22d2ef224477f7b06a7ac4749187c04c7))
+* let apps redecorate annotations and give their popovers theme tokens ([#171](https://github.com/inkbar/inkbar/issues/171)) ([17962f2](https://github.com/inkbar/inkbar/commit/17962f2a9982b0d1b296f339d7ff899cb9da4c0a))
+* look up PDF objects through the cross-reference ([#147](https://github.com/inkbar/inkbar/issues/147)) ([b652091](https://github.com/inkbar/inkbar/commit/b652091123afcf9fa9ea065f43d1b9f42a09dd1b))
+* match cursors to what a press will do ([#162](https://github.com/inkbar/inkbar/issues/162)) ([7bbd25f](https://github.com/inkbar/inkbar/commit/7bbd25f6de8c7e683f9fbf6ef43305a4f3aff82c))
+* move and resize what a creation tool just made ([#158](https://github.com/inkbar/inkbar/issues/158)) ([c4e8254](https://github.com/inkbar/inkbar/commit/c4e8254373eee2ca2ba9d1808722e2c82b3851ba))
+* parse PDF object syntax and Flate streams ([#146](https://github.com/inkbar/inkbar/issues/146)) ([510ae7a](https://github.com/inkbar/inkbar/commit/510ae7a4a3f60a7508e9fcf3850d9ef508c6ace0))
+* pass decorateAnnotation through the framework roots ([#166](https://github.com/inkbar/inkbar/issues/166)) ([aa9dfcf](https://github.com/inkbar/inkbar/commit/aa9dfcf29752f677239c86552f08d4bce05d1fef))
+* read and write gloss documents ([#145](https://github.com/inkbar/inkbar/issues/145)) ([1217e57](https://github.com/inkbar/inkbar/commit/1217e57f5c6f0c6403287c643c7f5b8bf29963e6))
+* read callout, icon and font fields from annotation dictionaries ([#148](https://github.com/inkbar/inkbar/issues/148)) ([5025a9b](https://github.com/inkbar/inkbar/commit/5025a9bb1a314d435d939d06fecfb9edff5c2bf6))
+* remove suggested redactions from core and the theme ([#169](https://github.com/inkbar/inkbar/issues/169)) ([afc1ea0](https://github.com/inkbar/inkbar/commit/afc1ea079a18c8a2f7c16407e72c762e5b0a7c15))
+* replace the sandbox sample with a tour of every annotation ([#156](https://github.com/inkbar/inkbar/issues/156)) ([74de738](https://github.com/inkbar/inkbar/commit/74de73842140026ad31479662ed942dff396d270))
+* switch creation tools back to select text after use ([#157](https://github.com/inkbar/inkbar/issues/157)) ([5665f2c](https://github.com/inkbar/inkbar/commit/5665f2cec1d9673c9757177ed86e5c9fcd8bace4))
+* widen the hit area of thin lines and borders ([#161](https://github.com/inkbar/inkbar/issues/161)) ([14ce8e5](https://github.com/inkbar/inkbar/commit/14ce8e53be23267ea28ee6a6eb680e235d6f8fe4))
+* write inkbar's own data under custom.inkbar in gloss files ([#170](https://github.com/inkbar/inkbar/issues/170)) ([d151117](https://github.com/inkbar/inkbar/commit/d151117d1dcdd26b8c7d3d200f37f791d9f5664a))
+
+
+### Bug Fixes
+
+* fill the drag box with stars and polygons and honour arrowheads on new lines ([#144](https://github.com/inkbar/inkbar/issues/144)) ([d288d70](https://github.com/inkbar/inkbar/commit/d288d7087d492137089d79bdda5ae3453b7561ff))
+* keep unknown font names and invalid PDF names out of imported annotations ([#150](https://github.com/inkbar/inkbar/issues/150)) ([3c83cfd](https://github.com/inkbar/inkbar/commit/3c83cfd34026ad8ead3b2945b8dbf0a2afa41096))
+* line up split button menus and show the default markup colour ([#154](https://github.com/inkbar/inkbar/issues/154)) ([23d27d7](https://github.com/inkbar/inkbar/commit/23d27d70b9bada9071db1b520ba13c04f6138461))
+* tidy edge cases in tool switching ([#163](https://github.com/inkbar/inkbar/issues/163)) ([1b2b400](https://github.com/inkbar/inkbar/commit/1b2b400e87650525e6b642bd7b25f75f5c354918))
+
 ## [0.4.0](https://github.com/inkbar/inkbar/compare/v0.3.0...v0.4.0) (2026-10-20)
 
 
