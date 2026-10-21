@@ -1,0 +1,29 @@
+packages/react/src/components/InkViewport.ct.tsx
+  s_53bc7b36f6063e::t_59c06e621e43a7 414-419
+packages/svelte/src/test/InkViewport.browser.test.ts
+  s_53bc7b36f6063e::t_d1005de2e13f8f 346
+  s_53bc7b36f6063e::t_59c06e621e43a7 369-370,372-373
+  s_53bc7b36f6063e::t_deb754ba74ba53 8
+packages/vue/src/components/InkViewport.ct.ts
+  s_53bc7b36f6063e::t_59c06e621e43a7 382-387
+apps/sandbox/e2e/smoke.spec.ts
+  s_53bc7b36f6063e::t_a480acf4478a97 173-192,194-203,205-206
+  s_53bc7b36f6063e::t_04e02bbf0c7628 193
+  s_53bc7b36f6063e::t_36b5c2158e97ed 204
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "17fbce257963fb479768bd4ec74143aacc461a4f",
+  "prompts": {},
+  "sessions": {
+    "s_53bc7b36f6063e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cc4ab85f-ebb1-4dc0-8290-66c99694838b",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
