@@ -303,6 +303,38 @@ describe('createViewer', () => {
     })
   })
 
+  describe('extension points', () => {
+    it('exposes the activated annotation and lets the host clear it', async () => {
+      const { viewer } = make()
+      const { doc } = await ready(viewer)
+      expect(viewer.activated.get()).toBeNull()
+      const note = await rootNote(viewer, doc)
+      activate(note)
+      expect(viewer.activated.get()).toBe(note.dataset.annotation)
+      expect(isOpen(threadPopover())).toBe(true)
+      viewer.setActivated(null)
+      expect(viewer.activated.get()).toBeNull()
+      expect(isOpen(threadPopover())).toBe(false)
+    })
+
+    it('passes decorateAnnotation to every page', async () => {
+      const { viewer } = make('text-simple', {
+        decorateAnnotation: (a) =>
+          a.page === 1 ? { data: { 'my-flag': 'on' } } : undefined,
+      })
+      const { doc } = await ready(viewer)
+      const a = doc.annotations.add({
+        type: 'square',
+        page: 1,
+        rect: { x: 72, y: 600, width: 50, height: 20 },
+      })
+      const scroll = viewer.element.querySelector<HTMLElement>('.ink-scroll')!
+      scroll.scrollTop = scroll.scrollHeight
+      await until(() => annotationEl(viewer, a.id) !== null)
+      expect(annotationEl(viewer, a.id)!.dataset.myFlag).toBe('on')
+    })
+  })
+
   describe('controls', () => {
     it('roves between buttons; the select and the page input are their own Tab stops', async () => {
       const { viewer } = make('text-simple')

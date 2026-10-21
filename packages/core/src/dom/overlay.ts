@@ -29,6 +29,7 @@ import {
   type Annotation,
   type MaskAnnotation,
 } from '../model/annotations/types'
+import { isProduction } from '../model/env'
 
 import { canEditFreeText, editFreeTextIn, editorFor } from './freetext-editor'
 import { createLoupeLayer } from './loupe-layer'
@@ -66,7 +67,27 @@ export interface OverlayOptions {
   document?: InkDocument
   /** Fixed device pixel ratio for loupes; `window.devicePixelRatio` when omitted. */
   devicePixelRatio?: number
+  /**
+   * The app's own data attributes and classes for an annotation's element, read on every
+   * render. Core's own attributes and `ink-` classes win over them.
+   */
+  decorate?: DecorateAnnotation
 }
+
+/**
+ * Data attributes and classes an app adds to an annotation's element, to style or find its
+ * own marks. Each `data` key is written as `data-<key>`.
+ */
+export interface AnnotationDecoration {
+  /** Written as data-<key>; keys are lower-case kebab (/^[a-z][a-z0-9-]*$/). */
+  data?: Readonly<Record<string, string>>
+  classes?: readonly string[]
+}
+
+/** Returns the decoration for an annotation's element, or undefined for none. */
+export type DecorateAnnotation = (
+  annotation: Annotation
+) => AnnotationDecoration | undefined
 
 export interface Overlay {
   readonly element: HTMLElement
@@ -139,6 +160,71 @@ function readingOrder(a: Annotation, b: Annotation): number {
   return b.rect.y + b.rect.height - (a.rect.y + a.rect.height) || a.rect.x - b.rect.x
 }
 
+/** A decoration's data key: lower-case kebab, as written after `data-`. */
+const DECORATION_KEY = /^[a-z][a-z0-9-]*$/
+
+/**
+ * `data-*` keys core writes on an annotation element or inside it; a decoration cannot set
+ * them. `data-ink-*` is core's too.
+ */
+const RESERVED_DATA = new Set([
+  'annotation',
+  'type',
+  'source',
+  'locked',
+  'state',
+  'custom',
+  'handle',
+  'origin',
+  'confidence',
+  'framed',
+  'align',
+  'bubble',
+  'border',
+  'icon',
+  'ending',
+])
+
+/** Skipped decoration keys and classes already warned about. */
+const warnedDecorations = new Set<string>()
+
+function warnDecoration(what: string, why: string): void {
+  if (isProduction() || warnedDecorations.has(what)) return
+  warnedDecorations.add(what)
+  console.warn(`[inkbar] annotation decoration: skipped ${what}: ${why}`)
+}
+
+/** What a decoration applied to an element last time, to take off what the next drops. */
+interface Applied {
+  data: Set<string>
+  classes: Set<string>
+}
+
+function usableData(key: string): boolean {
+  if (!DECORATION_KEY.test(key)) {
+    warnDecoration(`data key "${key}"`, 'keys are lower-case kebab')
+    return false
+  }
+  if (RESERVED_DATA.has(key) || key === 'ink' || key.startsWith('ink-')) {
+    warnDecoration(`data key "${key}"`, 'core sets it')
+    return false
+  }
+  return true
+}
+
+function usableClass(name: string): boolean {
+  if (name.startsWith('ink-')) {
+    warnDecoration(`class "${name}"`, "`ink-` classes are core's")
+    return false
+  }
+  // classList rejects empty and whitespace tokens.
+  if (name === '' || /\s/.test(name)) {
+    warnDecoration(`class "${name}"`, 'not a single class name')
+    return false
+  }
+  return true
+}
+
 function setFlag(node: HTMLElement, key: string, on: boolean): void {
   if (on) node.dataset[key] = ''
   else delete node.dataset[key]
@@ -172,6 +258,8 @@ export function createOverlay(opts: OverlayOptions): Overlay {
   /** What each element's content was last drawn from; absent when it has none of ours. */
   const drawn = new Map<string, { a: Annotation; t: PageTransform }>()
   const hovered = new Set<string>()
+  /** The decoration each element last got, so a later one can drop what it no longer has. */
+  const decorated = new WeakMap<HTMLElement, Applied>()
   let order: string[] = []
   let destroyed = false
 
@@ -273,6 +361,35 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     setData(node, 'origin', a.type === 'redact' ? a.origin : undefined)
     setData(node, 'confidence', confidenceAttr(a))
     node.setAttribute('aria-label', ariaLabel(a))
+    applyDecoration(node, a)
+  }
+
+  /** The app's data attributes and classes, from `decorate`; a throw decorates nothing. */
+  function applyDecoration(node: HTMLElement, a: Annotation): void {
+    let decoration: AnnotationDecoration | undefined
+    try {
+      decoration = opts.decorate?.(a)
+    } catch (error) {
+      console.error(error)
+    }
+    const prev = decorated.get(node)
+    if (!decoration && !prev) return
+    const next: Applied = { data: new Set(), classes: new Set() }
+    for (const [key, value] of Object.entries(decoration?.data ?? {})) {
+      if (!usableData(key)) continue
+      node.setAttribute(`data-${key}`, value)
+      next.data.add(key)
+    }
+    for (const name of decoration?.classes ?? []) {
+      if (!usableClass(name)) continue
+      node.classList.add(name)
+      next.classes.add(name)
+    }
+    for (const key of prev?.data ?? [])
+      if (!next.data.has(key)) node.removeAttribute(`data-${key}`)
+    for (const name of prev?.classes ?? [])
+      if (!next.classes.has(name)) node.classList.remove(name)
+    decorated.set(node, next)
   }
 
   function applyGeometry(node: HTMLElement, a: Annotation): void {

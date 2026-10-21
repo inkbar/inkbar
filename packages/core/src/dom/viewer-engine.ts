@@ -29,6 +29,7 @@ import { createViewport, type Viewport, type ZoomValue } from './viewport'
 import { attachViewportKeys } from './viewport-keys'
 
 import type { LayoutMode } from './layout'
+import type { DecorateAnnotation } from './overlay'
 import type { PageTransform, ViewRotation } from './transform'
 import type { ToolStyle } from '../model/annotations/tool-style'
 import type { InkDocument } from '../model/document'
@@ -99,6 +100,13 @@ export interface MountViewerOptions {
   signatureFonts?: string[]
   /** Annotation content is rendered by the host (custom slots). Changing it needs `rebuild`. */
   customAnnotations?: boolean
+  /**
+   * The app's own data attributes and classes for each annotation element, to style or find
+   * its marks: `{ data: { 'my-flag': 'on' } }` writes `data-my-flag="on"`. Read whenever the
+   * element renders, so return them from the annotation. Core's attributes and `ink-` classes
+   * cannot be overridden.
+   */
+  decorateAnnotation?: DecorateAnnotation
   onActivate?(id: string): void
   /**
    * After every (re)build: subscribe to the new viewport and controller here. It fires inside
@@ -194,6 +202,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       store: doc.annotations,
       onActivate: (id) => opts.onActivate?.(id),
       isCustom: () => isCustom,
+      decorate: (a) => opts.decorateAnnotation?.(a),
       onError: (cause, layer) => {
         failed.add(layer)
         // The first failure wins: a canvas and a text layer failing together report once.

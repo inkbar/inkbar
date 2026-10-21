@@ -14,7 +14,7 @@ import { importAnnotations } from '../model/annotations/json'
 import { createAnnotationStore } from '../model/annotations/store'
 import { renderRegion } from '../pdfjs/render-region'
 
-import { createOverlay } from './overlay'
+import { createOverlay, type OverlayOptions } from './overlay'
 import { createPageMount } from './page-mount'
 import { mountContainer, openFixtureInBrowser, TEXT_LAYER_CSS } from './test-utils'
 import { createPageTransform } from './transform'
@@ -59,6 +59,92 @@ function setup(zoom = 1) {
 }
 
 describe('createOverlay', () => {
+  describe('decorate', () => {
+    const rect = { x: 72, y: 600, width: 100, height: 20 }
+    function decorated(decorate: OverlayOptions['decorate']) {
+      const store = createAnnotationStore({
+        mode: { mode: 'uncontrolled' },
+        defaults: staticDefaults,
+      })
+      const host = mountContainer(612, 792)
+      const overlay = createOverlay({
+        host,
+        page: 0,
+        store,
+        transform: createPageTransform(page, 1, 0),
+        ...(decorate ? { decorate } : {}),
+      })
+      cleanup.push(() => (overlay.destroy(), host.remove()))
+      const elementOf = (id: string) =>
+        host.querySelector<HTMLElement>(`[data-annotation="${id}"]`)!
+      return { store, elementOf }
+    }
+
+    it('applies data attributes and classes from decorate', () => {
+      const { store, elementOf } = decorated(() => ({
+        data: { 'my-flag': 'on' },
+        classes: ['my-mark'],
+      }))
+      const a = store.add({ type: 'square', page: 0, rect })
+      const el = elementOf(a.id)
+      expect(el.dataset.myFlag).toBe('on')
+      expect(el.classList.contains('my-mark')).toBe(true)
+      expect(el.classList.contains('ink-annotation')).toBe(true)
+    })
+
+    it('removes data attributes and classes a later decoration drops', () => {
+      const { store, elementOf } = decorated((a) =>
+        a.contents === 'plain'
+          ? undefined
+          : { data: { 'my-flag': 'on' }, classes: ['my-mark'] }
+      )
+      const a = store.add({ type: 'square', page: 0, rect })
+      store.update(a.id, { contents: 'plain' })
+      const el = elementOf(a.id)
+      expect(el.hasAttribute('data-my-flag')).toBe(false)
+      expect(el.classList.contains('my-mark')).toBe(false)
+      expect(el.classList.contains('ink-annotation')).toBe(true)
+    })
+
+    it("ignores decorations that clash with core's own attributes", () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+      cleanup.push(() => warn.mockRestore())
+      const { store, elementOf } = decorated(() => ({
+        data: { state: 'x', type: 'y', annotation: 'z', 'Bad Key': '1' },
+        classes: ['ink-annotation', 'ink-x'],
+      }))
+      const a = store.add({ type: 'square', page: 0, rect })
+      store.update(a.id, { contents: 'again' })
+      const el = elementOf(a.id)
+      expect(el.dataset.state).toBe('idle')
+      expect(el.dataset.type).toBe('square')
+      expect(el.dataset.annotation).toBe(a.id)
+      expect(
+        [...el.attributes].some((at) => at.name.toLowerCase().startsWith('data-bad'))
+      ).toBe(false)
+      expect([...el.classList].filter((c) => c.startsWith('ink-'))).toEqual([
+        'ink-annotation',
+      ])
+      // Once per key or class, however often it renders.
+      expect(warn).toHaveBeenCalledTimes(6)
+    })
+
+    it('renders the annotation without decoration when decorateAnnotation throws', () => {
+      const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      cleanup.push(() => error.mockRestore())
+      const { store, elementOf } = decorated(() => {
+        throw new Error('boom')
+      })
+      const a = store.add({ type: 'square', page: 0, rect })
+      const el = elementOf(a.id)
+      expect(el).not.toBeNull()
+      expect(el.dataset.type).toBe('square')
+      expect(el.dataset.state).toBe('idle')
+      expect(el.className).toBe('ink-annotation')
+      expect(error).toHaveBeenCalledTimes(1)
+    })
+  })
+
   it('renders annotations for its page with the data-attribute contract and geometry', () => {
     const { store, host } = setup(2)
     const hl = store.add({ type: 'highlight', page: 0, quads, author: 'Ed' })

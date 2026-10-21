@@ -1,8 +1,12 @@
 /*
- * A panel anchored to an annotation's overlay element, shared by the note thread and the
- * suggestion card. The overlay creates and removes those elements as pages mount and unmount,
- * so the panel follows the element by id: a replaced element re-anchors it, and while the
- * element is gone (its page scrolled out) the panel hides but stays logically open.
+ * A panel anchored to an annotation's overlay element, public in `@inkbar/core/dom` so an app
+ * can open its own card next to an annotation; the note thread uses it too. The panel is a
+ * `role="dialog"` on `<body>` carrying `attrs`; fill `panel` yourself. The overlay creates and
+ * removes annotation elements as pages mount and unmount, so the panel follows the element by
+ * id: a replaced element re-anchors it, and while the element is gone (its page scrolled out)
+ * the panel hides but stays logically open. Escape and a press outside call `onDismiss`, Tab
+ * loops inside the panel, and `hide` returns focus through `focusReturn`. `placePanel` is the
+ * positioning alone, for panels anchored to anything else.
  */
 import { observeAnnotationElement } from '../annotation-element'
 import { shouldKeepOpenOnAnnotation, type FocusReturn } from '../popover-focus'
