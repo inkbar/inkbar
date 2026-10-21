@@ -178,6 +178,10 @@ One gap remains:
 
 `createToolController` from `@inkbar/core/dom` routes pointer and key events on the viewport to the active tool: `select-text`, `select`, `highlight`, `redact-area`, `sketch`, `draw`, `shape`, `freetext`, `signature` or `note`. Highlights, text redactions, notes and signatures can be made from the keyboard. Area redactions, sketches and drawings need a pointer.
 
+Most creation tools are one-shot: `shape`, `freetext`, `note`, `redact-area` and `signature` each make one thing, select it, then hand back to `select-text`. After a one-shot tool has made something, a press on empty page or `Escape` clears the selection and switches to `select-text` without making anything more. The press that closes a new text box, or a new note's popover, counts as that press too. A press on another annotation switches to `select-text` and selects it, and a drag moves it. Removing what the tool made (`Delete`, undo, or a controlled host refusing the add) leaves the tool on for another go, and the selection moving to something else switches to `select-text`. Picking a tool again starts it afresh. While the tool waits for that press, the viewport carries `data-ink-made`. `draw`, `sketch` and `highlight` are sticky: they stay on until you pick another tool.
+
+A host tool says which it is with `kind: 'one-shot' | 'sticky'` (no `kind` is sticky). A one-shot tool adds and selects what it makes, then calls `ctx.made(ids)`; `ctx.done()` clears the selection and switches to `select-text` itself. Under a sticky tool, `ctx.made` does nothing. The controller's `active` readable reports every switch, including one a one-shot tool makes.
+
 | Where focus is               | Key                                 | Effect                                                                                              |
 | ---------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------- |
 | Viewport, `highlight` tool   | `Enter`                             | Turns the text selection into a highlight                                                           |

@@ -22,14 +22,20 @@ export interface FreeTextEditor {
   close(commit: boolean): void
 }
 
+/**
+ * What closed an editor: Escape, a press outside it, focus leaving it, or a call to `close`
+ * (a redraw, the page unmounting, the box being removed, a tool switch).
+ */
+export type EditorCloseReason = 'escape' | 'press' | 'focus' | 'api'
+
 export interface FreeTextEditorOptions {
   transform: PageTransform
   /**
    * The edited text and the box's rect, grown to fit it (`grownFreeText`), in user space.
    * `grown` is the growth alone, in CSS px (0 when the box kept its height), for a caller whose
-   * box may have moved or been resized while the editor was open.
+   * box may have moved or been resized while the editor was open. `how` says what closed it.
    */
-  commit(contents: string, rect: Rect, grown: number): void
+  commit(contents: string, rect: Rect, grown: number, how: EditorCloseReason): void
   cancel(): void
 }
 
@@ -122,7 +128,7 @@ export function editFreeText(
   }
 
   let closed = false
-  const finish = (commit: boolean): void => {
+  const finish = (commit: boolean, how: EditorCloseReason): void => {
     if (closed) return
     closed = true
     const contents = read()
@@ -138,21 +144,21 @@ export function editFreeText(
     box?.style.removeProperty('visibility')
     el.style.height = `${base.height}px`
     refitBubble(el, a, opts.transform, base)
-    if (commit) opts.commit(contents, next, grown)
+    if (commit) opts.commit(contents, next, grown, how)
     else opts.cancel()
   }
 
   const onOutside = (e: Event): void => {
     if (e.target instanceof Node && field.contains(e.target)) return
     closingPresses.add(e)
-    finish(true)
+    finish(true, 'press')
   }
   view?.addEventListener('pointerdown', onOutside, true)
   field.addEventListener('keydown', (e) => {
     e.stopPropagation()
     if (e.key === 'Escape' && !e.isComposing) {
       e.preventDefault()
-      finish(true)
+      finish(true, 'escape')
     }
   })
   field.addEventListener('focusout', (e) => {
@@ -160,7 +166,7 @@ export function editFreeText(
     if (!doc.hasFocus()) return
     const to = e.relatedTarget
     if (to instanceof Node && field.contains(to)) return
-    finish(true)
+    finish(true, 'focus')
   })
   // Plain text only, whatever the clipboard holds and whichever editing mode the browser has.
   field.addEventListener('paste', (e) => {
@@ -182,7 +188,7 @@ export function editFreeText(
   }
   grow()
 
-  const editor: FreeTextEditor = { close: (commit) => finish(commit) }
+  const editor: FreeTextEditor = { close: (commit) => finish(commit, 'api') }
   editors.set(el, editor)
   return editor
 }
@@ -210,14 +216,15 @@ export function canEditFreeText(
  * Opens an editor on the overlay element `el` for the free-text box `id`, wired to the store: a
  * commit is one `update` with the text and the grown rect (none when neither changed), and an
  * empty box is removed, as an abandoned note is. A speech bubble is the exception: its outline
- * shows without text, so it is kept. Returns undefined when the box cannot be
- * edited (`canEditFreeText`).
+ * shows without text, so it is kept. `onClose` runs after the store change, with what closed
+ * the editor. Returns undefined when the box cannot be edited (`canEditFreeText`).
  */
 export function editFreeTextIn(
   store: AnnotationStore,
   el: HTMLElement,
   id: string,
-  transform: PageTransform
+  transform: PageTransform,
+  opts: { onClose?(how: EditorCloseReason): void } = {}
 ): FreeTextEditor | undefined {
   const a = store._getProposed(id) ?? store.get(id)
   if (!canEditFreeText(a, el)) return undefined
@@ -225,25 +232,30 @@ export function editFreeTextIn(
     const now = store._getProposed(id) ?? store.get(id)
     return now?.type === 'freetext' ? now : undefined
   }
+  const write = (contents: string, grown: number): void => {
+    const now = current()
+    if (!now) return
+    if (contents.trim() === '' && !isBubble(now)) {
+      store.remove(id)
+      return
+    }
+    // The growth applies to the box as it is now: it may have moved while the editor was open.
+    if (grown === 0) {
+      if (contents !== now.contents) store.update(id, { contents })
+      return
+    }
+    store.update(id, { contents, ...grownFreeText(now, grown, transform) })
+  }
   return editFreeText(el, a, {
     transform,
-    commit(contents, _rect, grown) {
-      const now = current()
-      if (!now) return
-      if (contents.trim() === '' && !isBubble(now)) {
-        store.remove(id)
-        return
-      }
-      // The growth applies to the box as it is now: it may have moved while the editor was open.
-      if (grown === 0) {
-        if (contents !== now.contents) store.update(id, { contents })
-        return
-      }
-      store.update(id, { contents, ...grownFreeText(now, grown, transform) })
+    commit(contents, _rect, grown, how) {
+      write(contents, grown)
+      opts.onClose?.(how)
     },
     cancel() {
       const now = current()
       if (now && now.contents.trim() === '' && !isBubble(now)) store.remove(id)
+      opts.onClose?.('api')
     },
   })
 }

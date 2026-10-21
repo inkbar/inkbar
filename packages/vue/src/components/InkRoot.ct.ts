@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/experimental-ct-vue'
 
 import ControlledHost from '../../playwright/harness/ControlledHost.vue'
 import EventHost from '../../playwright/harness/EventHost.vue'
+import ToolbarHarness from '../../playwright/harness/ToolbarHarness.vue'
 import UncontrolledHost from '../../playwright/harness/UncontrolledHost.vue'
 
 import InkRoot from './InkRoot.vue'
@@ -355,4 +356,26 @@ test('the theme keeps a .light root light inside a .dark ancestor', async ({
   const light = await mount(InkRoot, { props: { src: null, assets, class: 'light' } })
   await expect(light).toHaveClass(/light/)
   await expect.poll(() => light.evaluate(inkBg)).toBe('#f1f2f5')
+})
+
+test('a one-shot tool switching back to select text emits update:tool and reaches the toolbar', async ({
+  mount,
+  page,
+}) => {
+  const tools: string[] = []
+  const cmp = await mount(ToolbarHarness, {
+    props: { src: fixtureUrl('text-simple'), assets, tool: 'shape' },
+    on: { 'update:tool': (t: string) => tools.push(t) },
+  })
+  const canvas = cmp.locator('[data-ink-scroll] .ink-page canvas').first()
+  await expect(canvas).toBeVisible()
+  const box = (await canvas.boundingBox())!
+  await page.mouse.click(box.x + 200, box.y + 300)
+  await expect(cmp.locator('[data-annotation]')).toHaveCount(1)
+  await page.mouse.click(box.x + 400, box.y + 500)
+  await expect(
+    cmp.locator('[data-ink-toolbar] [data-tool="select-text"]')
+  ).toHaveAttribute('aria-pressed', 'true')
+  await expect(cmp.locator('[data-annotation]')).toHaveCount(1)
+  expect(tools).toEqual(['select-text'])
 })

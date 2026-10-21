@@ -10,6 +10,7 @@ import { attr, count, gateFetch, q, sleep } from './dom.js'
 import BoundHost from './harness/BoundHost.svelte'
 import ControlledHost from './harness/ControlledHost.svelte'
 import EventHost from './harness/EventHost.svelte'
+import ToolbarHarness from './harness/ToolbarHarness.svelte'
 import UnboundHost from './harness/UnboundHost.svelte'
 import UncontrolledHost from './harness/UncontrolledHost.svelte'
 
@@ -585,5 +586,40 @@ describe('InkRoot', () => {
     } finally {
       document.body.classList.remove('dark')
     }
+  })
+
+  // React: 'a one-shot tool switching back to select text reaches onToolChange and the toolbar'
+  it('a one-shot tool switching back to select text reaches onToolChange and the toolbar', async () => {
+    const tools: string[] = []
+    await render(ToolbarHarness, {
+      src: fixtureUrl('text-simple'),
+      assets,
+      tool: 'shape',
+      onToolChange: (t: string) => tools.push(t),
+    })
+    const scroll = await q('[data-ink-scroll]')
+    const box = (await q('[data-ink-scroll] .ink-page canvas')).getBoundingClientRect()
+    const click = (x: number, y: number) => {
+      for (const type of ['pointerdown', 'pointerup'])
+        scroll.dispatchEvent(
+          new PointerEvent(type, {
+            clientX: box.left + x,
+            clientY: box.top + y,
+            bubbles: true,
+            pointerId: 1,
+            button: 0,
+            buttons: type === 'pointerup' ? 0 : 1,
+            isPrimary: true,
+          })
+        )
+    }
+    click(200, 300)
+    await expect.poll(count('[data-annotation]')).toBe(1)
+    click(400, 500)
+    await expect
+      .poll(attr('[data-ink-toolbar] [data-tool="select-text"]', 'aria-pressed'))
+      .toBe('true')
+    expect(count('[data-annotation]')()).toBe(1)
+    expect(tools).toEqual(['select-text'])
   })
 })

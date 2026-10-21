@@ -24,11 +24,13 @@ export function noteTool(): Tool {
       rect: { x: at.x - SIZE / 2, y: at.y - SIZE / 2, width: SIZE, height: SIZE },
     })
     c.store.select([a.id])
+    c.made([a.id])
     return a.id
   }
 
   return {
     id: 'note',
+    kind: 'one-shot',
     cursor: 'copy',
     activate(c) {
       ctx = c

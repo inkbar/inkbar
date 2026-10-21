@@ -24,7 +24,7 @@ import ComposableProbe from './ComposableProbe.vue'
 import type { DocumentSource, PdfAssets } from '@inkbar/core'
 import type { ToolId } from '@inkbar/core/dom'
 
-defineProps<{ src: DocumentSource; assets: PdfAssets }>()
+defineProps<{ src: DocumentSource; assets: PdfAssets; tool?: ToolId }>()
 const emit = defineEmits<{ 'update:tool': [t: ToolId] }>()
 </script>
 
@@ -33,6 +33,7 @@ const emit = defineEmits<{ 'update:tool': [t: ToolId] }>()
     :src="src"
     :assets="assets"
     :zoom="1"
+    :tool="tool"
     @update:tool="emit('update:tool', $event)"
   >
     <InkToolbar>

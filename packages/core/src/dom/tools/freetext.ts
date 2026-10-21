@@ -121,12 +121,15 @@ export function freetextTool(): Tool {
     }
     const editor = editFreeText(el, draftBox, {
       transform: t,
-      commit(contents, rect) {
+      commit(contents, rect, _grown, how) {
         done()
+        // An empty box makes nothing: the tool stays ready.
         if (contents.trim() === '') return refocus()
         const created = c.store.add({ ...input, id: draftBox.id, contents, rect })
         c.store.select([created.id])
+        c.made([created.id])
         refocus(created.id)
+        if (how === 'escape') c.done()
       },
       cancel() {
         done()
@@ -154,6 +157,7 @@ export function freetextTool(): Tool {
 
   return {
     id: 'freetext',
+    kind: 'one-shot',
     cursor: 'text',
     styleGroup: 'text',
     defaultOptions: {},

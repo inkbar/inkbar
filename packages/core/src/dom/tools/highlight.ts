@@ -45,6 +45,7 @@ export function highlightTool(): Tool<HighlightOptions> {
   }
   return {
     id: 'highlight',
+    kind: 'sticky',
     cursor: 'text',
     styleGroup: 'markup',
     defaultOptions: { ...DEFAULT_HIGHLIGHT_OPTIONS },

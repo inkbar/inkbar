@@ -1633,6 +1633,24 @@ describe('createViewer', () => {
       await until(() => focused() === scroll)
     })
 
+    it('an outside press that drops an empty note switches without placing another', async () => {
+      const { viewer } = make('text-simple')
+      const { doc, engine } = await ready(viewer)
+      await until(() => engine.viewport.hostFor(0) !== undefined)
+      engine.tools.set('note')
+      const scroll = viewer.element.querySelector<HTMLElement>('.ink-scroll')!
+      const h = engine.viewport.hostFor(0)!.getBoundingClientRect()
+      pointer(scroll, 'pointerdown', h.left + 200, h.top + 100)
+      pointer(scroll, 'pointerup', h.left + 200, h.top + 100)
+      expect(doc.annotations.list.get().map((a) => a.type)).toEqual(['text'])
+      expect(isOpen(threadPopover())).toBe(true)
+      pointer(scroll, 'pointerdown', h.left + 400, h.top + 300)
+      pointer(scroll, 'pointerup', h.left + 400, h.top + 300)
+      expect(isOpen(threadPopover())).toBe(false)
+      expect(doc.annotations.list.get()).toEqual([])
+      expect(engine.tools.active.get()).toBe('select-text')
+    })
+
     it('a written comment turns the form into a reply', async () => {
       const { viewer } = make('text-simple')
       const { doc, engine } = await ready(viewer)

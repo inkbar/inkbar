@@ -3,7 +3,7 @@
 // the page's own /Rotate, so it reads upright on the page as the file displays it; a view
 // rotation is the viewer's, and turns it with the page like any annotation. Ink takes the
 // `ink` group's colour at the template's own width; an image is placed as it is. Either way
-// the new annotation is selected, one undo step, and the tool stays active for the next one.
+// the new annotation is selected and one undo step.
 import {
   DEFAULT_SIGNATURE_WIDTH,
   placeSignature,
@@ -36,6 +36,7 @@ export function signatureTool(): Tool<SignatureOptions> {
       input.type === 'ink' ? c.toolStyle.resolve('ink', input) : input
     )
     c.store.select([a.id])
+    c.made([a.id])
   }
 
   /**
@@ -73,6 +74,7 @@ export function signatureTool(): Tool<SignatureOptions> {
 
   return {
     id: 'signature',
+    kind: 'one-shot',
     cursor: 'copy',
     defaultOptions: {},
     activate(c) {

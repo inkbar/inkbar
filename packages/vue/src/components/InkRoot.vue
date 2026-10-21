@@ -297,6 +297,9 @@ watch(
 )
 
 function setTool(id: ToolId): void {
+  // Picking the active tool again starts it afresh, as after a one-shot tool's use.
+  const tc = toolController.value
+  if (internalTool.value === id && tc?.active.get() === id) tc.set(id)
   internalTool.value = id
   emit('update:tool', id)
 }

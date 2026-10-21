@@ -28,11 +28,13 @@
     src,
     assets,
     onToolChange,
+    tool,
     controlled = false,
   }: {
     src: DocumentSource
     assets: PdfAssets
     onToolChange?: ((t: ToolId) => void) | undefined
+    tool?: ToolId | undefined
     /** The host owns the annotation list, with the root's snapshot history. */
     controlled?: boolean
   } = $props()
@@ -41,11 +43,11 @@
 </script>
 
 {#if controlled}
-  <InkRoot {src} {assets} zoom={1} {onToolChange} bind:annotations={list} history>
+  <InkRoot {src} {assets} zoom={1} {tool} {onToolChange} bind:annotations={list} history>
     {@render content()}
   </InkRoot>
 {:else}
-  <InkRoot {src} {assets} zoom={1} {onToolChange}>
+  <InkRoot {src} {assets} zoom={1} {tool} {onToolChange}>
     {@render content()}
   </InkRoot>
 {/if}

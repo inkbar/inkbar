@@ -29,11 +29,13 @@ export function ToolbarHarness({
   src,
   assets,
   onToolChange,
+  tool,
   controlled = false,
 }: {
   src: DocumentSource
   assets: PdfAssets
   onToolChange?: ((t: ToolId) => void) | undefined
+  tool?: ToolId | undefined
   /** The host owns the annotation list, with the root's snapshot history. */
   controlled?: boolean
 }) {
@@ -44,6 +46,7 @@ export function ToolbarHarness({
       assets={assets}
       zoom={1}
       onToolChange={onToolChange}
+      {...(tool ? { tool } : {})}
       {...(controlled
         ? { annotations: list, onAnnotationsChange: setList, history: true }
         : {})}

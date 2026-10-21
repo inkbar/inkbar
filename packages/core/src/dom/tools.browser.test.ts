@@ -32,6 +32,7 @@ import {
   DEFAULT_FREETEXT_WIDTH,
   trackToolStyle,
   type Tool,
+  type ToolContext,
   type ToolController,
 } from './tools'
 import { createPageTransform } from './transform'
@@ -423,24 +424,6 @@ describe('tools', () => {
     expect(onActivate).toHaveBeenCalledWith(n!.id)
   })
 
-  it('creation tools ignore presses that land on an annotation', async () => {
-    const { doc, viewport, tools } = await setup()
-    const a = doc.annotations.add({
-      type: 'redact',
-      page: 0,
-      rect: { x: 100, y: 600, width: 50, height: 30 },
-    })
-    await settle()
-    tools.set('note')
-    const host = viewport.hostFor(0)!
-    const h = host.getBoundingClientRect()
-    const el = host.querySelector(`[data-annotation="${a.id}"]`) as HTMLElement
-    pointer(el, 'pointerdown', h.left + 110, h.top + 180)
-    pointer(el, 'pointerup', h.left + 110, h.top + 180)
-    expect(doc.annotations.list.get().map((x) => x.id)).toEqual([a.id])
-    expect(doc.annotations.selection.get()).toEqual([a.id])
-  })
-
   it('rectangle select marquee selects intersecting annotations', async () => {
     const { doc, container, viewport, tools } = await setup()
     const a = doc.annotations.add({
@@ -624,7 +607,7 @@ describe('controlled mode', () => {
     await until(() => lens.width > 0)
   })
 
-  it('freetext: a new box reaches onChange once, with its text, and is selected', async () => {
+  it('freetext: a new box reaches onChange once, with its text', async () => {
     const { doc, container, viewport, tools } = await setup('text-simple', {
       controlled: true,
     })
@@ -642,7 +625,9 @@ describe('controlled mode', () => {
     await settle()
     const [box] = doc.annotations.list.get()
     expect(box).toMatchObject({ type: 'freetext', contents: 'Hello' })
-    expect(doc.annotations.selection.get()).toEqual([box!.id])
+    // Escape commits and ends the tool's use, which clears the selection.
+    expect(tools.active.get()).toBe('select-text')
+    expect(doc.annotations.selection.get()).toEqual([])
   })
 
   it('sketch: the ink and the swap to its shape go through onChange, as two undo steps', async () => {
@@ -1548,14 +1533,16 @@ describe('shape tool', () => {
     const { doc, container, viewport, tools, history } = await setup()
     tools.set('shape', { kind: 'mask' })
     const h = viewport.hostFor(0)!.getBoundingClientRect()
-    const drag = (x: number, y: number) => {
-      pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    const drag = (x0: number, y0: number, x: number, y: number) => {
+      // The shape tool is one-shot: each mask is a fresh pick.
+      tools.set('shape', { kind: 'mask' })
+      pointer(container, 'pointerdown', h.left + x0, h.top + y0)
       pointer(container, 'pointermove', h.left + x, h.top + y)
       pointer(container, 'pointerup', h.left + x, h.top + y)
     }
-    drag(200, 200)
+    drag(100, 100, 200, 200)
     const [first] = session(doc)
-    drag(300, 250)
+    drag(300, 300, 400, 350)
     const [second, ...rest] = session(doc)
     expect(rest).toEqual([])
     expect(second!.id).not.toBe(first!.id)
@@ -1573,16 +1560,18 @@ describe('shape tool', () => {
     })
     tools.set('shape', { kind: 'mask' })
     const h = viewport.hostFor(0)!.getBoundingClientRect()
-    const drag = (x: number, y: number) => {
-      pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    const drag = (x0: number, y0: number, x: number, y: number) => {
+      // The shape tool is one-shot: each mask is a fresh pick.
+      tools.set('shape', { kind: 'mask' })
+      pointer(container, 'pointerdown', h.left + x0, h.top + y0)
       pointer(container, 'pointermove', h.left + x, h.top + y)
       pointer(container, 'pointerup', h.left + x, h.top + y)
     }
-    drag(200, 200)
+    drag(100, 100, 200, 200)
     await settle()
     const [first] = session(doc)
     expect(first?.type).toBe('mask')
-    drag(300, 250)
+    drag(300, 300, 400, 350)
     expect(session(doc).map((a) => a.id)).toEqual([first!.id])
     await settle()
     const [second, ...rest] = session(doc)
@@ -2467,7 +2456,9 @@ describe('freetext tool', () => {
     expect(box!.rect.x).toBeCloseTo(150)
     expect(box!.rect.y + box!.rect.height).toBeCloseTo(650)
     expect(box!.rect.width).toBe(DEFAULT_FREETEXT_WIDTH)
-    expect(doc.annotations.selection.get()).toEqual([box!.id])
+    // Escape ends the tool's use too.
+    expect(doc.annotations.selection.get()).toEqual([])
+    expect(tools.active.get()).toBe('select-text')
     expect(pendingIn(container)).toBeNull()
     expect(document.activeElement).toBe(
       container.querySelector(`[data-annotation="${box!.id}"]`)
@@ -4048,5 +4039,295 @@ describe('tool registry and options', () => {
     expect(labelled.getAttribute('aria-label')).toBe('Stamp')
     const bare = createToolButton(viewer, 'stamp-x')
     expect(bare.getAttribute('aria-label')).toBe('stamp-x')
+  })
+})
+
+describe('one-shot tools', () => {
+  /** A press and release at `(x, y)` in page 0's host, CSS px. */
+  function click(container: HTMLElement, viewport: Viewport, x: number, y: number): void {
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + x, h.top + y)
+    pointer(container, 'pointerup', h.left + x, h.top + y)
+  }
+
+  /** Selects the text of the `index`th text span on page 0 and releases the pointer on it. */
+  function selectSpan(container: HTMLElement, viewport: Viewport, index: number): void {
+    const span = [
+      ...viewport.hostFor(0)!.querySelectorAll('[data-ink-text-layer] span'),
+    ].filter((s) => s.textContent?.trim())[index]!
+    const range = document.createRange()
+    range.selectNodeContents(span)
+    window.getSelection()!.removeAllRanges()
+    window.getSelection()!.addRange(range)
+    const r = span.getBoundingClientRect()
+    pointer(container, 'pointerup', r.right, r.bottom)
+  }
+
+  it.each(['shape', 'note'])(
+    'a click on empty page after a %s switches to select-text and makes nothing',
+    async (tool) => {
+      const { doc, container, viewport, tools } = await setup()
+      tools.set(tool)
+      click(container, viewport, 200, 300)
+      const [made] = doc.annotations.list.get()
+      expect(doc.annotations.list.get()).toHaveLength(1)
+      expect(doc.annotations.selection.get()).toEqual([made!.id])
+      click(container, viewport, 400, 500)
+      expect(doc.annotations.list.get()).toHaveLength(1)
+      expect(tools.active.get()).toBe('select-text')
+      expect(doc.annotations.selection.get()).toEqual([])
+    }
+  )
+
+  it('a click on empty page after a signature switches to select-text and makes nothing', async () => {
+    const signatures = await library([INK_TEMPLATE])
+    const { doc, container, viewport, tools } = await setup('text-simple', { signatures })
+    tools.set('signature', { templateId: INK_TEMPLATE.id })
+    click(container, viewport, 200, 300)
+    const [made] = doc.annotations.list.get()
+    expect(doc.annotations.selection.get()).toEqual([made!.id])
+    click(container, viewport, 400, 500)
+    expect(doc.annotations.list.get()).toHaveLength(1)
+    expect(tools.active.get()).toBe('select-text')
+    expect(doc.annotations.selection.get()).toEqual([])
+  })
+
+  it('a click on empty page after an area redaction switches to select-text and makes nothing', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('redact-area')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 200, h.top + 300)
+    pointer(container, 'pointermove', h.left + 240, h.top + 330)
+    pointer(container, 'pointerup', h.left + 240, h.top + 330)
+    const [made] = doc.annotations.list.get()
+    expect(doc.annotations.selection.get()).toEqual([made!.id])
+    click(container, viewport, 400, 500)
+    expect(doc.annotations.list.get()).toHaveLength(1)
+    expect(tools.active.get()).toBe('select-text')
+    expect(doc.annotations.selection.get()).toEqual([])
+  })
+
+  it('a click on empty page after a text box switches to select-text and makes nothing', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('freetext')
+    click(container, viewport, 200, 300)
+    expect(document.activeElement).toBe(container.querySelector('[data-ink-editor]'))
+    await userEvent.keyboard('Hi')
+    click(container, viewport, 400, 500)
+    expect(doc.annotations.list.get().map((a) => [a.type, a.contents])).toEqual([
+      ['freetext', 'Hi'],
+    ])
+    expect(tools.active.get()).toBe('select-text')
+    expect(doc.annotations.selection.get()).toEqual([])
+  })
+
+  it('an empty text box makes nothing, so the tool stays ready', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('freetext')
+    click(container, viewport, 200, 300)
+    click(container, viewport, 400, 500)
+    expect(doc.annotations.list.get()).toEqual([])
+    expect(tools.active.get()).toBe('freetext')
+  })
+
+  it('Escape after a shape switches to select-text', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('shape')
+    click(container, viewport, 200, 300)
+    container.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    )
+    expect(tools.active.get()).toBe('select-text')
+    expect(doc.annotations.list.get()).toHaveLength(1)
+    expect(doc.annotations.selection.get()).toEqual([])
+  })
+
+  it('Escape in a new text box commits and switches', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('freetext')
+    click(container, viewport, 200, 300)
+    await userEvent.keyboard('Hi')
+    await userEvent.keyboard('{Escape}')
+    expect(doc.annotations.list.get().map((a) => a.contents)).toEqual(['Hi'])
+    expect(tools.active.get()).toBe('select-text')
+  })
+
+  it('Escape in a new speech bubble switches to select-text', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('shape', { kind: 'bubble' })
+    click(container, viewport, 200, 300)
+    expect(document.activeElement).toBe(container.querySelector('[data-ink-editor]'))
+    await userEvent.keyboard('Hi')
+    await userEvent.keyboard('{Escape}')
+    expect(doc.annotations.list.get().map((a) => a.contents)).toEqual(['Hi'])
+    expect(tools.active.get()).toBe('select-text')
+  })
+
+  it('a press on another annotation switches to select-text and drags it', async () => {
+    const { doc, viewport, container, tools } = await setup()
+    const a = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    await settle()
+    tools.set('shape')
+    const host = viewport.hostFor(0)!
+    const h = host.getBoundingClientRect()
+    const el = host.querySelector(`[data-annotation="${a.id}"]`) as HTMLElement
+    pointer(el, 'pointerdown', h.left + 110, h.top + 180)
+    expect(tools.active.get()).toBe('select-text')
+    pointer(container, 'pointermove', h.left + 120, h.top + 180)
+    pointer(container, 'pointermove', h.left + 130, h.top + 180)
+    pointer(container, 'pointerup', h.left + 130, h.top + 180)
+    expect(doc.annotations.list.get().map((x) => x.id)).toEqual([a.id])
+    expect(doc.annotations.get(a.id)!.rect.x).toBeCloseTo(120)
+    expect(doc.annotations.selection.get()).toEqual([a.id])
+  })
+
+  it('a press on another annotation after a shape switches to select-text', async () => {
+    const { doc, viewport, tools, container } = await setup()
+    const a = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    await settle()
+    tools.set('shape')
+    click(container, viewport, 300, 400)
+    const host = viewport.hostFor(0)!
+    const h = host.getBoundingClientRect()
+    const el = host.querySelector(`[data-annotation="${a.id}"]`) as HTMLElement
+    pointer(el, 'pointerdown', h.left + 110, h.top + 180)
+    pointer(el, 'pointerup', h.left + 110, h.top + 180)
+    expect(tools.active.get()).toBe('select-text')
+    expect(doc.annotations.list.get()).toHaveLength(2)
+    expect(doc.annotations.selection.get()).toEqual([a.id])
+  })
+
+  it('a press on the made item keeps the tool on', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('shape')
+    click(container, viewport, 200, 300)
+    const [made] = doc.annotations.list.get()
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    const el = container.querySelector(`[data-annotation="${made!.id}"]`)!
+    pointer(el, 'pointerdown', h.left + 200, h.top + 300)
+    pointer(el, 'pointerup', h.left + 200, h.top + 300)
+    expect(tools.active.get()).toBe('shape')
+    expect(doc.annotations.list.get()).toHaveLength(1)
+    expect(doc.annotations.selection.get()).toEqual([made!.id])
+  })
+
+  it('Delete on the made item returns the tool to ready', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('shape')
+    click(container, viewport, 200, 300)
+    const [made] = doc.annotations.list.get()
+    doc.annotations.remove(made!.id)
+    expect(doc.annotations.list.get()).toEqual([])
+    expect(tools.active.get()).toBe('shape')
+    click(container, viewport, 400, 500)
+    expect(doc.annotations.list.get()).toHaveLength(1)
+    expect(tools.active.get()).toBe('shape')
+  })
+
+  it('a host selecting something else switches to select-text', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    const other = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    tools.set('shape')
+    click(container, viewport, 200, 300)
+    doc.annotations.select([other.id])
+    expect(tools.active.get()).toBe('select-text')
+    expect(doc.annotations.selection.get()).toEqual([other.id])
+  })
+
+  it('pen and highlight stay on', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('draw')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    const line = (y: number): void => {
+      pointer(container, 'pointerdown', h.left + 100, h.top + y)
+      pointer(container, 'pointermove', h.left + 150, h.top + y)
+      pointer(container, 'pointerup', h.left + 150, h.top + y)
+    }
+    line(300)
+    click(container, viewport, 400, 500)
+    line(350)
+    expect(tools.active.get()).toBe('draw')
+    tools.set('highlight')
+    selectSpan(container, viewport, 0)
+    selectSpan(container, viewport, 1)
+    expect(doc.annotations.list.get().filter((a) => a.type === 'highlight')).toHaveLength(
+      2
+    )
+    expect(tools.active.get()).toBe('highlight')
+  })
+
+  it('made state survives a controlled host applying the add a microtask later', async () => {
+    const { doc, container, viewport, tools } = await setup('text-simple', {
+      controlled: true,
+    })
+    tools.set('shape')
+    click(container, viewport, 200, 300)
+    await settle()
+    expect(doc.annotations.list.get()).toHaveLength(1)
+    expect(tools.active.get()).toBe('shape')
+    click(container, viewport, 400, 500)
+    await settle()
+    expect(tools.active.get()).toBe('select-text')
+    expect(doc.annotations.list.get()).toHaveLength(1)
+  })
+
+  it('a host tool without a kind stays on', async () => {
+    let ctx: ToolContext | undefined
+    const stamp: Tool = {
+      id: 'stamp-x',
+      cursor: 'copy',
+      activate(c) {
+        ctx = c
+      },
+      deactivate() {
+        ctx = undefined
+      },
+      onPointerDown: (_e, hit, id) => !!hit && id === undefined,
+      onPointerUp(_e, hit) {
+        if (!ctx || !hit) return
+        const a = ctx.store.add({
+          type: 'redact',
+          page: hit.page,
+          rect: { x: hit.user.x, y: hit.user.y, width: 20, height: 20 },
+        })
+        ctx.store.select([a.id])
+        ctx.made([a.id])
+      },
+    }
+    const { doc, container, viewport, tools } = await setup('text-simple', {
+      tools: [...builtinTools(), stamp],
+    })
+    tools.set('stamp-x')
+    click(container, viewport, 200, 300)
+    click(container, viewport, 400, 500)
+    expect(doc.annotations.list.get()).toHaveLength(2)
+    expect(tools.active.get()).toBe('stamp-x')
+    expect(container.hasAttribute('data-ink-made')).toBe(false)
+  })
+
+  it('data-ink-made is set while made and removed on switch', async () => {
+    const { container, viewport, tools } = await setup()
+    tools.set('shape')
+    expect(container.hasAttribute('data-ink-made')).toBe(false)
+    click(container, viewport, 200, 300)
+    expect(container.hasAttribute('data-ink-made')).toBe(true)
+    click(container, viewport, 400, 500)
+    expect(container.hasAttribute('data-ink-made')).toBe(false)
+    tools.set('shape')
+    click(container, viewport, 200, 300)
+    tools.set('note')
+    expect(container.hasAttribute('data-ink-made')).toBe(false)
   })
 })

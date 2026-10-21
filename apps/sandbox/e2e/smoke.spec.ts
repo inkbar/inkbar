@@ -419,6 +419,23 @@ for (const framework of FRAMEWORKS) {
       await expect(rect).toHaveAttribute('fill', 'none')
     })
 
+    test('a click on empty page after a shape switches back to Select text', async ({
+      page,
+    }) => {
+      await page.goto(`${framework}/`)
+      await waitForFirstPage(page)
+      await shapeButton(page).click()
+      await dragShape(page)
+      await expect(sessionShape(page, 'square')).toHaveCount(1)
+      const box = (await page.locator('.ink-page[data-page="0"]').boundingBox())!
+      await page.mouse.click(box.x + 300, box.y + 60)
+      await expect(
+        page.getByRole('button', { name: 'Select text', exact: true })
+      ).toHaveAttribute('aria-pressed', 'true')
+      await expect(shapeButton(page)).toHaveAttribute('aria-pressed', 'false')
+      await expect(sessionShape(page, 'square')).toHaveCount(1)
+    })
+
     test('draw a rectangle and an arrow', async ({ page }) => {
       await page.goto(`${framework}/`)
       await waitForFirstPage(page)
@@ -567,6 +584,10 @@ for (const framework of FRAMEWORKS) {
       await page.keyboard.press('Escape')
       const created = sessionShape(page, 'freetext')
       await expect(created).toHaveCount(1)
+      // Escape commits the box and switches back to Select text, which the click then uses.
+      await expect(
+        page.getByRole('button', { name: 'Select text', exact: true })
+      ).toHaveAttribute('aria-pressed', 'true')
       const trigger = page.getByRole('button', { name: 'Text style', exact: true })
       await created.click()
       await expect(trigger).toBeEnabled()
