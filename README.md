@@ -25,7 +25,7 @@ Your users want to read a PDF, mark it up and send it back without leaving your 
 Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, gives you the parts to build its UI in Vue, React, Svelte or plain TypeScript, and is free under the MIT licence.
 
 <p align="center">
-  <img src=".github/assets/viewer.png" alt="The Inkbar viewer showing a letter with a highlighted line and suggested redactions on an email address and a phone number. A card for the email address offers Accept and Dismiss." width="100%">
+  <img src=".github/assets/viewer.png" alt="The Inkbar viewer showing a lease clause with a highlighted phrase, a phrase struck out across a line break and a word marked for redaction. A note's comment thread is open beside the clause." width="100%">
 </p>
 
 ## Why Inkbar
