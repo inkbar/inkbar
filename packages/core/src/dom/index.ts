@@ -27,6 +27,18 @@ export type {
   OverlayOptions,
 } from './overlay'
 export { renderAnnotationContent } from './overlay-render'
+export { definePlugin } from './plugins/define'
+export type {
+  Command,
+  CommandSpec,
+  InkPlugin,
+  LayerSpec,
+  PluginContext,
+  PluginLayerHandle,
+  PluginStoreOptions,
+} from './plugins/define'
+export { createPluginHost } from './plugins/host'
+export type { PluginHost, PluginHostOptions } from './plugins/host'
 export { createPageMount } from './page-mount'
 export type { PageLayer, PageMount, PageMountOptions } from './page-mount'
 export {

@@ -51,6 +51,7 @@ import type { Point } from '../../model/geometry'
 import type { SignatureLibrary } from '../../model/signatures'
 import type { SelectionQuads } from '../selection'
 import type { Viewport, ViewportHit } from '../viewport'
+import type { IconNode } from '@inkbar/icons'
 
 export type BuiltinToolId =
   | 'select-text'
@@ -110,6 +111,10 @@ export interface ToolContext {
 
 export interface Tool<O extends object = object> {
   id: ToolId
+  /** The accessible name a toolbar button shows for a tool core has no label for. */
+  label?: string
+  /** The icon a toolbar button shows for a tool core has no icon for. */
+  icon?: IconNode
   /** Default sticky. */
   kind?: ToolKind
   cursor: string
