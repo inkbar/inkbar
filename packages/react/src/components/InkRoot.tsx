@@ -45,7 +45,14 @@ import type {
   PdfAssets,
   SignatureStore,
 } from '@inkbar/core'
-import type { Tool, ToolController, ToolId, Viewport, ZoomValue } from '@inkbar/core/dom'
+import type {
+  DecorateAnnotation,
+  Tool,
+  ToolController,
+  ToolId,
+  Viewport,
+  ZoomValue,
+} from '@inkbar/core/dom'
 
 export interface InkRootHandle {
   readonly document: InkDocument | null
@@ -79,6 +86,11 @@ export interface InkRootProps extends Omit<
    * document opens.
    */
   tools?: Tool[] | undefined
+  /**
+   * Adds `data-*` attributes and classes to each annotation's element. Read on every render,
+   * so a new function takes effect without rebuilding the viewer.
+   */
+  decorateAnnotation?: DecorateAnnotation | undefined
   /**
    * The font families text boxes offer, replacing the PDF standard families
    * (`FONT_FAMILIES`). Fonts beyond those are the PDF writer's to embed.
@@ -146,6 +158,7 @@ export function InkRoot({
   tool,
   onToolChange,
   tools: hostTools,
+  decorateAnnotation,
   fonts: fontsProp,
   signatures: signatureStore,
   signatureFonts: signatureFontsProp,
@@ -439,6 +452,7 @@ export function InkRoot({
       tool: internalTool,
       setTool,
       hostTools,
+      decorateAnnotation,
       fonts,
       toolOptions,
       signatures,
@@ -465,6 +479,7 @@ export function InkRoot({
       internalTool,
       setTool,
       hostTools,
+      decorateAnnotation,
       fonts,
       toolOptions,
       signatures,

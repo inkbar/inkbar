@@ -9,7 +9,7 @@ import { attr, count, cssOf, gateFetch, q, qa, scrollTopOf, sleep } from './dom.
 import BoundViewportHost from './harness/BoundViewportHost.svelte'
 import ViewportHarness from './harness/ViewportHarness.svelte'
 
-import type { PageInfo } from '@inkbar/core'
+import type { Annotation, PageInfo } from '@inkbar/core'
 import type { ZoomValue } from '@inkbar/core/dom'
 
 const assets = browserAssets()
@@ -41,6 +41,7 @@ function layoutAt(zoom: number, containerWidth: number, gap = GAP) {
 type DocHandle = {
   annotations: {
     add(i: unknown): { id: string }
+    update(id: string, patch: unknown): unknown
     get(
       id: string
     ):
@@ -648,5 +649,29 @@ describe('InkViewport', () => {
     await expect.poll(count('.my-pin')).toBe(0)
     await expect.poll(count(`${SECOND} [data-annotation]:not([data-custom])`)).toBe(1)
     expect(Math.abs(scroll().scrollTop - before)).toBeLessThanOrEqual(2)
+  })
+
+  it('decorateAnnotation reaches the annotation elements', async () => {
+    const mark = (value: string) => (a: Annotation) =>
+      a.type === 'text' ? { data: { 'test-mark': value } } : undefined
+    const screen = await render(ViewportHarness, {
+      src: fixtureUrl('text-simple'),
+      assets,
+      zoom: 1,
+      decorateAnnotation: mark('note'),
+    })
+    await q(`${FIRST} canvas`)
+    const { id } = doc().annotations.add({
+      type: 'text',
+      page: 0,
+      rect: { x: 72, y: 600, width: 24, height: 24 },
+    })
+    const note = `.ink-annotation[data-annotation="${id}"]`
+    await expect.poll(attr(note, 'data-test-mark')).toBe('note')
+
+    // A new function identity applies on the next render, without a rebuild.
+    await screen.rerender({ decorateAnnotation: mark('other') })
+    doc().annotations.update(id, { rect: { x: 100, y: 600, width: 24, height: 24 } })
+    await expect.poll(attr(note, 'data-test-mark')).toBe('other')
   })
 })

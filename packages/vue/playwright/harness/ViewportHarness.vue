@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 import InkRoot from '../../src/components/InkRoot.vue'
 import InkViewport from '../../src/components/InkViewport.vue'
 
-import type { DocumentSource, InkDocument, PdfAssets } from '@inkbar/core'
+import type { Annotation, DocumentSource, InkDocument, PdfAssets } from '@inkbar/core'
 import type { ToolId, ZoomValue } from '@inkbar/core/dom'
 
 const props = defineProps<{
@@ -17,6 +17,8 @@ const props = defineProps<{
   customAnnotations?: boolean | undefined
   customLoading?: boolean | undefined
   tool?: ToolId | undefined
+  /** Marks text annotations with `data-test-mark`; a function cannot cross the mount boundary. */
+  decorateMark?: string | undefined
   /** Zero-based page whose page lookups reject until the Heal button is pressed. */
   failPage?: number | undefined
   /** Zero-based page whose text content fails to load (its canvas still renders). */
@@ -24,6 +26,12 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ 'update:zoom': [z: ZoomValue]; 'update:page': [p: number] }>()
 const clicks = ref(0)
+const decorate = computed(() => {
+  const mark = props.decorateMark
+  if (mark === undefined) return undefined
+  return (a: Annotation) =>
+    a.type === 'text' ? { data: { 'test-mark': mark } } : undefined
+})
 
 // Stands in for a page PDF.js cannot render: the canvas and text layer both look the page up
 // through `_pdfjs.getPage`, so failing it fails that page's mount and nothing else.
@@ -65,6 +73,7 @@ function onReady(doc: InkDocument): void {
       :zoom="zoom"
       :page="page"
       :tool="tool"
+      :decorate-annotation="decorate"
       @update:zoom="emit('update:zoom', $event)"
       @update:page="emit('update:page', $event)"
       @ready="onReady"

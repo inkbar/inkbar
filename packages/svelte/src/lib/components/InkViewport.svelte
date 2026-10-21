@@ -126,6 +126,8 @@
       buffer,
       tool: ctx.tool,
       ...(ctx.hostTools ? { tools: ctx.hostTools } : {}),
+      // A stable wrapper, so a new function identity applies on the next render without a rebuild.
+      decorateAnnotation: (a) => ctx.decorateAnnotation?.(a),
       ...(ctx.toolStyle ? { toolStyle: ctx.toolStyle } : {}),
       toolHistory: { batch: (fn) => ctx.history.batch(fn) },
       toolOptions: ctx.toolOptions,

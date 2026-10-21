@@ -116,6 +116,8 @@ export function InkViewport({
       buffer: b,
       tool: c.tool,
       ...(c.hostTools ? { tools: c.hostTools } : {}),
+      // A stable wrapper, so a new function identity applies on the next render without a rebuild.
+      decorateAnnotation: (a) => latest.current.ctx.decorateAnnotation?.(a),
       ...(c.toolStyle ? { toolStyle: c.toolStyle } : {}),
       toolHistory: { batch: (fn) => latest.current.ctx.history.batch(fn) },
       toolOptions: c.toolOptions,

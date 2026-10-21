@@ -38,6 +38,7 @@ function layoutAt(zoom: number, containerWidth: number, gap = GAP) {
 type DocHandle = {
   annotations: {
     add(i: unknown): { id: string }
+    update(id: string, patch: unknown): unknown
     get(
       id: string
     ):
@@ -636,4 +637,31 @@ test('toggling the annotation slot keeps the scroll position and swaps the custo
   expect(
     Math.abs((await scroll.evaluate((el) => el.scrollTop)) - before)
   ).toBeLessThanOrEqual(2)
+})
+
+test('decorateAnnotation reaches the annotation elements', async ({ mount, page }) => {
+  const props = { src: fixtureUrl('text-simple'), assets, zoom: 1 }
+  const cmp = await mount(<ViewportHarness {...props} decorateMark="note" />)
+  await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
+  const id = await page.locator('[data-ink-root]').evaluate(
+    (el) =>
+      (el as RootEl).__inkDocument!.annotations.add({
+        type: 'text',
+        page: 0,
+        rect: { x: 72, y: 600, width: 24, height: 24 },
+      }).id
+  )
+  const note = cmp.locator(`.ink-annotation[data-annotation="${id}"]`)
+  await expect(note).toHaveAttribute('data-test-mark', 'note')
+
+  // A new function identity applies on the next render, without a rebuild.
+  await cmp.update(<ViewportHarness {...props} decorateMark="other" />)
+  await page.locator('[data-ink-root]').evaluate(
+    (el, annotationId) =>
+      (el as RootEl).__inkDocument!.annotations.update(annotationId, {
+        rect: { x: 100, y: 600, width: 24, height: 24 },
+      }),
+    id
+  )
+  await expect(note).toHaveAttribute('data-test-mark', 'other')
 })
