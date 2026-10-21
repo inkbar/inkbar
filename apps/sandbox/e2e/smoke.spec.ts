@@ -248,6 +248,47 @@ for (const framework of FRAMEWORKS) {
       await expect(note).toHaveAttribute('data-state', 'selected')
     })
 
+    test('select text: a drag across text clears the annotation selection', async ({
+      page,
+    }) => {
+      await page.goto(`${framework}/`)
+      await waitForFirstPage(page)
+      const pageBox = (await page.locator('.ink-page[data-page="0"]').boundingBox())!
+      await page.getByRole('button', { name: 'Add note' }).click()
+      await page.mouse.click(
+        pageBox.x + pageBox.width - 40,
+        pageBox.y + pageBox.height - 40
+      )
+      const note = page.locator(
+        '.ink-page[data-page="0"] .ink-annotation[data-type="text"]'
+      )
+      await page.getByRole('button', { name: 'Rectangle select' }).click()
+      const box = (await note.boundingBox())!
+      await page.mouse.move(box.x - 20, box.y - 20)
+      await page.mouse.down()
+      await page.mouse.move(box.x + box.width + 10, box.y + box.height + 10, { steps: 5 })
+      await page.mouse.up()
+      await expect(note).toHaveAttribute('data-state', 'selected')
+      await page.getByRole('button', { name: 'Select text', exact: true }).click()
+      await expect(note).toHaveAttribute('data-state', 'selected')
+
+      const line = (await page
+        .locator('.ink-page[data-page="0"] [data-ink-text-layer] span')
+        .filter({ hasText: /\w{4}/ })
+        .first()
+        .boundingBox())!
+      await page.mouse.move(line.x + 1, line.y + line.height / 2)
+      await page.mouse.down()
+      await page.mouse.move(line.x + line.width - 1, line.y + line.height / 2, {
+        steps: 5,
+      })
+      await page.mouse.up()
+      await expect(page.locator('.ink-annotation[data-state="selected"]')).toHaveCount(0)
+      expect(await page.evaluate(() => window.getSelection()?.toString() ?? '')).not.toBe(
+        ''
+      )
+    })
+
     test('a drag that starts on a highlight selects text, not the highlight', async ({
       page,
     }) => {
