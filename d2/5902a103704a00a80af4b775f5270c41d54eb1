@@ -1,0 +1,35 @@
+packages/core/src/dom/overlay.browser.test.ts
+  s_9296d0dac39657::t_8668d64bed841f 342,900-905,907,909,1032-1034,1051-1052,1054-1057,1869,1877-1878,1881-1890
+  s_9296d0dac39657::t_6400e7b04f7ebc 913,1845,1859
+  s_9296d0dac39657::t_c4c7be6067165d 1818-1844,1846-1858,1860-1868,1880,1891-1926
+  s_9296d0dac39657::t_920a77cd6ca565 1870-1876,1879
+packages/core/src/dom/overlay-render.ts
+  s_9296d0dac39657::t_6400e7b04f7ebc 492-493
+  s_9296d0dac39657::t_b6a1b2f910417d 411-412,461-465,467-486,553-562,582-589,607-618,625,630-646
+  s_9296d0dac39657::t_c380e06236e9e7 101-128,134-136,139-164,647
+  s_9296d0dac39657::t_5e2c90e9d77737 648
+apps/sandbox/e2e/smoke.spec.ts
+  s_9296d0dac39657::t_344d995c0e48b3 430,448
+packages/core/src/dom/overlay.ts
+  s_9296d0dac39657::t_9f3f7f872615ae 38,199-209,230-231
+  s_9296d0dac39657::t_6400e7b04f7ebc 4-5
+packages/core/src/dom/tools/selection-edit.ts
+  s_9296d0dac39657::t_6400e7b04f7ebc 192
+  s_9296d0dac39657::t_9f3f7f872615ae 52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d25902a103704a00a80af4b775f5270c41d54eb1",
+  "prompts": {},
+  "sessions": {
+    "s_9296d0dac39657": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8ee36f85-a611-470f-8334-be5e42d4be96",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
