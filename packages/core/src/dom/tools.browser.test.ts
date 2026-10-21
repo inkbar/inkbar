@@ -5077,6 +5077,40 @@ describe('one-shot tools', () => {
     expect(document.activeElement).toBe(editor)
   })
 
+  it.each(['Enter', 'double-click'])(
+    'Escape in a made text box reopened by %s commits and ends the tool',
+    async (how) => {
+      const { doc, container, viewport, tools } = await setup()
+      tools.set('freetext')
+      click(container, viewport, 200, 300)
+      await userEvent.keyboard('Hi')
+      const button = document.createElement('button')
+      document.body.append(button)
+      cleanup.push(() => button.remove())
+      button.focus()
+      const [box] = doc.annotations.list.get()
+      expect(container.hasAttribute('data-ink-made')).toBe(true)
+      const el = container.querySelector<HTMLElement>(`[data-annotation="${box!.id}"]`)!
+      if (how === 'Enter') {
+        el.focus()
+        await userEvent.keyboard('{Enter}')
+      } else {
+        el.querySelector('.ink-free-text')!.dispatchEvent(
+          new MouseEvent('dblclick', { bubbles: true, cancelable: true, detail: 2 })
+        )
+      }
+      const editor = container.querySelector('[data-ink-editor]')
+      expect(editor).not.toBeNull()
+      expect(document.activeElement).toBe(editor)
+      expect(tools.active.get()).toBe('freetext')
+      await userEvent.keyboard('!{Escape}')
+      expect(container.querySelector('[data-ink-editor]')).toBeNull()
+      expect(doc.annotations.get(box!.id)).toMatchObject({ contents: 'Hi!' })
+      expect(tools.active.get()).toBe('select-text')
+      expect(doc.annotations.selection.get()).toEqual([])
+    }
+  )
+
   it('a press inside the made text box reopens its editor and the tool stays on', async () => {
     const { doc, container, viewport, tools } = await setup()
     tools.set('freetext')

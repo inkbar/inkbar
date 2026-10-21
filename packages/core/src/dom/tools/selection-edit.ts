@@ -55,7 +55,6 @@ import { cssIn, type PageHit, type ToolContext } from './controller'
 
 import type { Annotation } from '../../model/annotations/types'
 import type { Point, Rect } from '../../model/geometry'
-import type { EditorCloseReason } from '../freetext-editor'
 import type { CssRect, PageTransform } from '../transform'
 
 type Corner = 'nw' | 'ne' | 'sw' | 'se'
@@ -123,8 +122,6 @@ export interface SelectionEdit {
 export interface SelectionEditOptions {
   /** A press on empty space draws a marquee (rectangle select). Otherwise it is left alone. */
   marquee?: boolean
-  /** A text box editor opened by a press inside the box has closed, for `how`. */
-  onEditorClose?(how: EditorCloseReason): void
 }
 
 export function createSelectionEdit(
@@ -393,7 +390,6 @@ export function createSelectionEdit(
           if (!el || !canEditFreeText(a, el) || editorFor(el)) return
           editFreeTextIn(ctx.store, el, a.id, ctx.viewport.transformFor(a.page), {
             caret: current.caret,
-            onClose: (how) => opts.onEditorClose?.(how),
           })
           return
         }

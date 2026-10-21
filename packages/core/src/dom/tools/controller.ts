@@ -31,7 +31,8 @@
 // While made, a press on a made item or on its handles goes to the controller's own selection
 // editor (selection-edit.ts) instead of the tool, as under `select-text`: a drag moves it, a
 // handle resizes it, a press inside a made text box reopens its editor, and the tool stays on
-// and made. Escape in that text editor commits and ends the tool, as in a new box. Delete and
+// and made. Escape in an editor on a made text box (opened that way, or by Enter or a
+// double-click) commits and ends the tool, as in a new box. Delete and
 // Backspace go to the selection editor too, so the made item can be removed without switching.
 import { isTextMarkup } from '../../model/annotations/edit'
 import {
@@ -40,7 +41,7 @@ import {
   type ToolStyle,
 } from '../../model/annotations/tool-style'
 import { readonly, writable, type Readable } from '../../model/readable'
-import { canEditFreeText, editFreeTextIn } from '../freetext-editor'
+import { canEditFreeText, editFreeTextIn, editorFor } from '../freetext-editor'
 
 import { createToolOptions, type ToolOptions } from './options'
 import { createSelectionEdit, type SelectionEdit } from './selection-edit'
@@ -366,6 +367,22 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     // Enter that no tool took edits the one selected text box, wherever focus is in the viewport.
     if (isViewportEnter(e, ctx.root)) editSelectedText(e)
   }
+  /**
+   * Escape in an editor on a made text box, however it was opened (a press inside, Enter, a
+   * double-click): commits and ends the tool. Captured, as the editor keeps its keys to itself.
+   */
+  const onEditorEscape = (e: KeyboardEvent): void => {
+    if (!made || e.key !== 'Escape' || e.isComposing || e.defaultPrevented) return
+    const target = e.target instanceof Element ? e.target : null
+    if (!target?.closest('[data-ink-editor]')) return
+    const el = target.closest<HTMLElement>('[data-annotation]')
+    const id = el?.getAttribute('data-annotation')
+    if (!el || !id || !made.includes(id)) return
+    e.preventDefault()
+    e.stopPropagation()
+    editorFor(el)?.close(true)
+    ctx.done()
+  }
   function editSelectedText(e: KeyboardEvent): void {
     const selected = ctx.store.selection.get()
     if (selected.length !== 1) return
@@ -403,6 +420,7 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
   ctx.root.addEventListener('pointercancel', onCancel)
   ctx.root.addEventListener('lostpointercapture', onCancel)
   ctx.root.addEventListener('keydown', onKey)
+  ctx.root.addEventListener('keydown', onEditorEscape, { capture: true })
 
   function set(id: ToolId, options?: object): void {
     const next = byId.get(id)
@@ -424,14 +442,7 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     // After `deactivate`, which may commit an open edit and report it made.
     clearMade()
     current = next
-    madeEdit =
-      next.kind === 'one-shot'
-        ? createSelectionEdit(ctx, {
-            onEditorClose: (how) => {
-              if (how === 'escape' && made) ctx.done()
-            },
-          })
-        : undefined
+    madeEdit = next.kind === 'one-shot' ? createSelectionEdit(ctx) : undefined
     next.activate(ctx)
     ctx.root.dataset.inkTool = id
     ctx.root.style.cursor = next.cursor
@@ -464,6 +475,7 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
       ctx.root.removeEventListener('pointercancel', onCancel)
       ctx.root.removeEventListener('lostpointercapture', onCancel)
       ctx.root.removeEventListener('keydown', onKey)
+      ctx.root.removeEventListener('keydown', onEditorEscape, { capture: true })
       delete ctx.root.dataset.inkTool
       ctx.root.style.cursor = originalCursor
     },
