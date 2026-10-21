@@ -1,0 +1,67 @@
+packages/svelte/src/lib/components/InkRoot.svelte
+  s_611b86d68c2358::t_29582e484de8ef 304
+  s_611b86d68c2358::t_e53d5925055a04 14-20,48-53,101-102,105,119,133,166,181-182,229-230,274,276-280,303,305,307,330,361-362,365-405,419-420,446-447
+  s_611b86d68c2358::t_ff136650199360 406-409
+  s_611b86d68c2358::t_1eb56c8baaedcd 410
+packages/svelte/src/lib/components/InkToolButton.svelte
+  s_611b86d68c2358::t_29582e484de8ef 30,60,63-69
+packages/svelte/src/lib/components/InkViewport.svelte
+  s_611b86d68c2358::t_29582e484de8ef 129-131,197-205
+  s_611b86d68c2358::t_2a07304dbab227 206
+packages/svelte/src/test/InkRoot.browser.test.ts
+  s_611b86d68c2358::t_d58e16976e94a9 4
+  s_611b86d68c2358::t_cbd7c818258340 14,627-631,634-707,709-710
+  s_611b86d68c2358::t_e95aeddd5fb05e 632-633,708
+  s_611b86d68c2358::t_96bc54e5f79acd 711
+packages/svelte/README.md
+  s_611b86d68c2358::t_4aab77b287e029 160-177,180,182,216
+packages/svelte/src/lib/components/InkCommand.svelte
+  s_611b86d68c2358::t_175715b148de95 44
+  s_611b86d68c2358::t_7650c4b2b9fead 1-43,45-59
+packages/svelte/src/lib/index.ts
+  s_611b86d68c2358::t_4aab77b287e029 12-16,32-33,49-50
+packages/svelte/src/lib/hooks/useCommand.svelte.ts
+  s_611b86d68c2358::t_7650c4b2b9fead 1-46
+packages/svelte/src/test/harness/UnknownCommandHost.svelte
+  s_611b86d68c2358::t_f99359deb1864f 1-13
+packages/svelte/src/test/InkCommand.browser.test.ts
+  s_611b86d68c2358::t_cbd7c818258340 1-26,29-54,58-89
+  s_611b86d68c2358::t_e95aeddd5fb05e 27-28,55-57
+packages/svelte/src/test/harness/SsrHost.svelte
+  s_611b86d68c2358::t_e95aeddd5fb05e 19-20
+  s_611b86d68c2358::t_33ac8ee248275d 2,17,23,27
+packages/svelte/src/test/harness/PluginHarness.svelte
+  s_611b86d68c2358::t_f99359deb1864f 1,4-28,30-49
+  s_611b86d68c2358::t_175715b148de95 2-3,29
+packages/svelte/src/test/harness/test-plugin.ts
+  s_611b86d68c2358::t_b88bb113cd9e80 1-14,18,20-76,86-89
+  s_611b86d68c2358::t_56fb62d767cdc6 15-17,19,77-85
+packages/svelte/src/test/harness/CommandProbe.svelte
+  s_611b86d68c2358::t_175715b148de95 2-3,8
+  s_611b86d68c2358::t_f99359deb1864f 1,4-7,9
+packages/svelte/src/test/hooks.test.ts
+  s_611b86d68c2358::t_d58e16976e94a9 1-6,12,24,38,120-132
+  s_611b86d68c2358::t_b3066dbdfb038e 133-134
+packages/svelte/src/test/harness/PluginControls.svelte
+  s_611b86d68c2358::t_f99359deb1864f 1-57
+packages/svelte/src/test/ssr.test.ts
+  s_611b86d68c2358::t_33ac8ee248275d 57-58,64-72,79
+packages/svelte/src/lib/context.ts
+  s_611b86d68c2358::t_52774e0180b514 8,10,14,26-30,56-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "087b3f34e1bb94bb38d6f5b144067857f75f89db",
+  "prompts": {},
+  "sessions": {
+    "s_611b86d68c2358": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f6760cb6-1a68-4a5b-b172-32f4da0aa5b1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
