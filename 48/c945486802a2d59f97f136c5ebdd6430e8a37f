@@ -1,0 +1,51 @@
+packages/react/src/context.ts
+  s_611b86d68c2358::t_c003aabd66626a 8,14,26-30,52-56
+  s_611b86d68c2358::t_84e007af425c50 10,57-58
+packages/react/src/components/InkCommand.tsx
+  s_611b86d68c2358::t_3bff335d5bf1c0 1-60
+packages/react/src/hooks/useCommand.ts
+  s_611b86d68c2358::t_3bff335d5bf1c0 1-10,12-34
+  s_611b86d68c2358::t_a3c272e6ff9ce3 11
+packages/react/playwright/harness/test-plugin.ts
+  s_611b86d68c2358::t_e9fcb91d357b62 1-80
+packages/react/src/components/InkCommand.ct.tsx
+  s_611b86d68c2358::t_7dec6eed1fe7d6 1-10,17-39,43-58,62-71,75-81
+  s_611b86d68c2358::t_a3c272e6ff9ce3 11-16,40-42,59-61,72-74
+packages/react/src/components/InkRoot.ct.tsx
+  s_611b86d68c2358::t_a3c272e6ff9ce3 550-552
+  s_611b86d68c2358::t_7dec6eed1fe7d6 7,548-549,553-631
+packages/react/playwright/harness/PluginHarness.tsx
+  s_611b86d68c2358::t_e9fcb91d357b62 1-17,25-127,132-144
+  s_611b86d68c2358::t_a3c272e6ff9ce3 18-24,128-131
+packages/react/src/components/InkViewport.tsx
+  s_611b86d68c2358::t_7962d115d52a4a 14,120-122,185-195
+packages/react/src/index.ts
+  s_611b86d68c2358::t_3bff335d5bf1c0 15-16,22-26,41-42
+packages/react/src/hooks/useCommand.test.ts
+  s_611b86d68c2358::t_7dec6eed1fe7d6 1-28
+packages/react/src/components/InkRoot.tsx
+  s_611b86d68c2358::t_84e007af425c50 7-8,11,49,51,55-56,96-101,143-154,188,251,274-354,366-368,411-416,445-447,507-508,518,531-532,536,616-617,646
+  s_611b86d68c2358::t_17452048c89281 272-273
+packages/react/src/components/InkToolButton.tsx
+  s_611b86d68c2358::t_7962d115d52a4a 16,55,58-62
+packages/react/src/ssr.test.ts
+  s_611b86d68c2358::t_cd28e9568ef775 67-68,73-80,84,89-90,111
+packages/react/README.md
+  s_611b86d68c2358::t_cd65a279efb58c 154-171,174,176,202
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "48c945486802a2d59f97f136c5ebdd6430e8a37f",
+  "prompts": {},
+  "sessions": {
+    "s_611b86d68c2358": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f6760cb6-1a68-4a5b-b172-32f4da0aa5b1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
