@@ -339,7 +339,7 @@ describe('createOverlay', () => {
     const el = overlay.elementFor(sq.id)!
     expect(el.querySelector('rect')?.getAttribute('stroke-width')).toBe('6')
     const inkEl = overlay.elementFor(ink.id)!
-    expect(inkEl.querySelector('polyline')).toBeNull()
+    expect(inkEl.querySelector('polyline:not([data-ink-hit-stroke])')).toBeNull()
     const stroke = inkEl.querySelector('path.ink-stroke')!
     expect(stroke.getAttribute('fill')).toBe(ink.color)
     // The 30pt diagonal is 60 CSS px at zoom 2 (the outline ends short of the endpoints).
@@ -897,19 +897,20 @@ describe('createOverlay', () => {
     })
     expect(line.rect.height).toBe(0)
     const el = overlay.elementFor(line.id)!
-    // 2pt at zoom 2 = 4px of stroke: 2px of padding on each side.
-    expect(el.style.left).toBe('198px')
-    expect(el.style.top).toBe(`${(792 - 700) * 2 - 2}px`)
-    expect(el.style.width).toBe('204px')
-    expect(el.style.height).toBe('4px')
+    // 2pt at zoom 2 = 4px of stroke: 2px of padding on each side, and 4px more for the
+    // wider hit twin.
+    expect(el.style.left).toBe('194px')
+    expect(el.style.top).toBe(`${(792 - 700) * 2 - 6}px`)
+    expect(el.style.width).toBe('212px')
+    expect(el.style.height).toBe('12px')
     const svg = el.querySelector('svg')!
-    expect(svg.getAttribute('viewBox')).toBe('0 0 204 4')
+    expect(svg.getAttribute('viewBox')).toBe('0 0 212 12')
     const polyline = svg.querySelector('polyline')!
-    expect(polyline.getAttribute('points')).toBe('2,2 202,2')
+    expect(polyline.getAttribute('points')).toBe('6,6 206,6')
     // Within the window, so elementFromPoint can see it.
     const h = host.getBoundingClientRect()
     const hit = document.elementFromPoint(h.left + 300, h.top + (792 - 700) * 2)
-    expect(hit).toBe(polyline)
+    expect(hit?.getAttribute('points')).toBe(polyline.getAttribute('points'))
     hit!.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
     expect(store.selection.get()).toEqual([line.id])
     expect(onActivate).toHaveBeenCalledWith(line.id)
@@ -1028,8 +1029,9 @@ describe('createOverlay', () => {
       width: 0,
     })
     const el = overlay.elementFor(v.id)!
-    expect(el.style.width).toBe('1px')
-    expect(el.style.height).toBe('101px')
+    // 1px of stroke and 4px of hit padding either side.
+    expect(el.style.width).toBe('9px')
+    expect(el.style.height).toBe('109px')
   })
   it('pads session ink once, from its path bounds, whatever its derived rect', () => {
     const { store, overlay } = setup()
@@ -1046,12 +1048,13 @@ describe('createOverlay', () => {
     })
     // The store's derived rect already carries half the stroke...
     expect(ink.rect).toEqual({ x: 9, y: 9, width: 32, height: 32 })
-    // ...and the element is the path bounds (10..40) padded by 1px, not padded again.
+    // ...and the element is the path bounds (10..40) padded by 1px, not padded again, and by
+    // 4px more for the hit twin.
     const el = overlay.elementFor(ink.id)!
-    expect(el.style.left).toBe('9px')
-    expect(el.style.top).toBe(`${792 - 40 - 1}px`)
-    expect(el.style.width).toBe('32px')
-    expect(el.style.height).toBe('32px')
+    expect(el.style.left).toBe('5px')
+    expect(el.style.top).toBe(`${792 - 40 - 5}px`)
+    expect(el.style.width).toBe('40px')
+    expect(el.style.height).toBe('40px')
   })
 
   it('keeps custom elements on the annotation rect, unpadded', () => {
@@ -1810,5 +1813,114 @@ describe('mask', () => {
     expect(at(200, 290)?.closest('[data-annotation]')).toBe(el)
     expect(at(98, 194)?.closest('[data-annotation]')).toBeNull()
     expect(at(200, 242)?.closest('[data-annotation]')).toBeNull()
+  })
+})
+
+describe('hit areas', () => {
+  /** The annotation under a point `x`,`y` CSS px into the host. */
+  function under(host: HTMLElement, x: number, y: number) {
+    const r = host.getBoundingClientRect()
+    return document.elementFromPoint(r.left + x, r.top + y)?.closest('[data-annotation]')
+  }
+
+  it('a press 3px off a 1pt line hits it', () => {
+    const { store, host, overlay } = setup()
+    const line = store.add({
+      type: 'line',
+      page: 0,
+      start: { x: 100, y: 700 },
+      end: { x: 200, y: 700 },
+      width: 1,
+    })
+    const el = overlay.elementFor(line.id)!
+    expect(under(host, 150, 92 + 3)).toBe(el)
+    expect(under(host, 150, 92 - 3)).toBe(el)
+    expect(under(host, 150, 92 + 6)).toBeNull()
+    const twin = el.querySelector('[data-ink-hit-stroke]')!
+    expect(twin.getAttribute('stroke')).toBe('transparent')
+    expect(twin.getAttribute('stroke-width')).toBe('8')
+    expect(twin.getAttribute('pointer-events')).toBe('stroke')
+  })
+
+  it("a press 3px outside an unfilled square's border hits it", () => {
+    const { store, host, overlay } = setup()
+    const sq = store.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 100, y: 500, width: 100, height: 100 },
+    })
+    const el = overlay.elementFor(sq.id)!
+    // The rect spans CSS left 100..200, top 192..292.
+    expect(under(host, 97, 242)).toBe(el)
+    expect(under(host, 103, 242)).toBe(el)
+    expect(under(host, 150, 295)).toBe(el)
+  })
+
+  it('a press in the middle of an unfilled square misses it', () => {
+    const { store, host } = setup()
+    store.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 100, y: 500, width: 100, height: 100 },
+    })
+    expect(under(host, 150, 242)).toBeNull()
+  })
+
+  it("puts an unfilled square's handles on its rect, not its padded element", () => {
+    const { store, host, overlay } = setup()
+    // Handles need the select tool on the tool root; the controller would set this.
+    const toolRoot = document.createElement('div')
+    toolRoot.dataset.inkTool = 'select'
+    document.body.append(toolRoot)
+    toolRoot.append(host)
+    cleanup.push(() => toolRoot.remove())
+    const rect = { x: 100, y: 500, width: 100, height: 100 }
+    const sq = store.add({ type: 'square', page: 0, rect })
+    store.select([sq.id])
+    const el = overlay.elementFor(sq.id)!
+    const nw = el.querySelector<HTMLElement>('[data-handle="nw"]')!
+    const se = el.querySelector<HTMLElement>('[data-handle="se"]')!
+    // The rect spans CSS left 100..200, top 192..292, in an element 4px larger each side.
+    expect(parseFloat(el.style.left)).toBeLessThan(100)
+    const at = (h: HTMLElement) => [
+      parseFloat(el.style.left) + parseFloat(h.style.left) + h.offsetWidth / 2,
+      parseFloat(el.style.top) + parseFloat(h.style.top) + h.offsetHeight / 2,
+    ]
+    expect(at(nw)).toEqual([100, 192])
+    expect(at(se)).toEqual([200, 292])
+  })
+
+  it('a press 3px off an ink stroke hits it', () => {
+    const { store, host, overlay } = setup()
+    const ink = store.add({
+      type: 'ink',
+      page: 0,
+      inklist: [
+        [
+          { x: 100, y: 100 },
+          { x: 200, y: 100 },
+        ],
+      ],
+      width: 1,
+    })
+    const el = overlay.elementFor(ink.id)!
+    expect(under(host, 150, 692 + 3)).toBe(el)
+    expect(under(host, 150, 692 - 3)).toBe(el)
+    expect(under(host, 150, 692 + 8)).toBeNull()
+  })
+
+  it('a filled square has no hit twin', () => {
+    const { store, host, overlay } = setup()
+    const sq = store.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 100, y: 500, width: 100, height: 100 },
+      interiorColor: '#00ff00',
+    })
+    const el = overlay.elementFor(sq.id)!
+    expect(el.querySelector('[data-ink-hit-stroke]')).toBeNull()
+    expect(el.style.left).toBe('100px')
+    expect(under(host, 150, 242)).toBe(el)
+    expect(under(host, 97, 242)).toBeNull()
   })
 })

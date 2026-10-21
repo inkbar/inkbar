@@ -3100,6 +3100,72 @@ describe('resize handles', () => {
     expect(doc.annotations.selection.get()).toEqual([a.id])
   })
 
+  it('keeps the preview of a padded shape on the dragged corner', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    const square = doc.annotations.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 100, y: 600, width: 100, height: 100 },
+    })
+    const ink = doc.annotations.add({
+      type: 'ink',
+      page: 0,
+      inklist: [
+        [
+          { x: 300, y: 600 },
+          { x: 400, y: 700 },
+        ],
+      ],
+      width: 2,
+    })
+    tools.set('select')
+    const host = viewport.hostFor(0)!
+    for (const [a, drawn] of [
+      [square, 'rect:not([data-ink-hit-stroke])'],
+      [ink, 'path.ink-stroke'],
+    ] as const) {
+      doc.annotations.select([a.id])
+      await settle()
+      const handle = (name: string) =>
+        host.querySelector(
+          `[data-annotation="${a.id}"] > [data-handle="${name}"]`
+        ) as HTMLElement
+      const centre = (el: HTMLElement) => {
+        const r = el.getBoundingClientRect()
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 }
+      }
+      const shape = handle('se').parentElement!.querySelector(drawn)!
+      const before = shape.getBoundingClientRect()
+      // The drawn box's corners, where the handles sit.
+      const nw = centre(handle('nw'))
+      const se = centre(handle('se'))
+      pointer(handle('se'), 'pointerdown', se.x, se.y)
+      pointer(container, 'pointermove', se.x + 100, se.y + 100)
+      const during = shape.getBoundingClientRect()
+      // The preview scales the drawn box about its top-left, whose corner stays put, so
+      // the shape lands where scaling its offset from that corner puts it.
+      const sx = (se.x + 100 - nw.x) / (se.x - nw.x)
+      const sy = (se.y + 100 - nw.y) / (se.y - nw.y)
+      expect(
+        Math.abs(during.left - (nw.x + (before.left - nw.x) * sx)),
+        a.type
+      ).toBeLessThan(1)
+      expect(
+        Math.abs(during.top - (nw.y + (before.top - nw.y) * sy)),
+        a.type
+      ).toBeLessThan(1)
+      expect(
+        Math.abs(during.right - (nw.x + (before.right - nw.x) * sx)),
+        a.type
+      ).toBeLessThan(1)
+      expect(
+        Math.abs(during.bottom - (nw.y + (before.bottom - nw.y) * sy)),
+        a.type
+      ).toBeLessThan(1)
+      pointer(container, 'pointerup', se.x + 100, se.y + 100)
+    }
+  })
+
   it('a click on a handle without a drag leaves the rect as it was', async () => {
     const { doc, container, viewport, tools } = await setup()
     const a = doc.annotations.add({

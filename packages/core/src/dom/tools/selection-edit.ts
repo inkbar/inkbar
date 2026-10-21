@@ -49,7 +49,7 @@ import {
 import { withoutReplies } from '../../model/annotations/threads'
 import { rectFromPoints, rectsIntersect } from '../../model/geometry'
 import { canEditFreeText, editFreeTextIn, editorFor } from '../freetext-editor'
-import { annotationBox, renderAnnotationContent } from '../overlay-render'
+import { annotationBox, handleBox, renderAnnotationContent } from '../overlay-render'
 
 import { cssIn, type PageHit, type ToolContext } from './controller'
 
@@ -189,11 +189,7 @@ export function createSelectionEdit(
         id: a.id,
         start: hit,
         corner: handle as Corner,
-        box: text
-          ? hit.transform.toCssRect(freeTextBox(a))
-          : el
-            ? boxOf(el)
-            : annotationBox(a, hit.transform),
+        box: text ? hit.transform.toCssRect(freeTextBox(a)) : handleBox(a, hit.transform),
         el,
         locked: keepsAspect(a),
         preview:
@@ -318,7 +314,10 @@ export function createSelectionEdit(
           const draft = { ...a, ...resizedBox(a, userBox(start.transform, next)) }
           showPreview(preview, el, draft, start)
         } else if (el) {
-          el.style.transformOrigin = '0 0'
+          // The drawn box's corner within the element, which may be padded past it.
+          const ox = box.left - (parseFloat(el.style.left) || 0)
+          const oy = box.top - (parseFloat(el.style.top) || 0)
+          el.style.transformOrigin = `${ox}px ${oy}px`
           el.style.transform =
             `translate(${next.left - box.left}px, ${next.top - box.top}px) ` +
             `scale(${next.width / box.width}, ${next.height / box.height})`
@@ -498,16 +497,6 @@ function handleOf(target: EventTarget | null): string | undefined {
 /** True when a press landed inside a free text's drawn text box. */
 function inText(target: EventTarget | null): boolean {
   return target instanceof Element && target.closest('.ink-free-text') !== null
-}
-
-/** An overlay element's CSS box, from its inline geometry. */
-function boxOf(el: HTMLElement): CssRect {
-  return {
-    left: parseFloat(el.style.left) || 0,
-    top: parseFloat(el.style.top) || 0,
-    width: parseFloat(el.style.width) || 0,
-    height: parseFloat(el.style.height) || 0,
-  }
 }
 
 /** The point a line's end or a callout's tip handle sits on. */
