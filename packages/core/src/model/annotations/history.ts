@@ -3,10 +3,28 @@ import { readonly, writable, type Readable } from '../readable'
 
 import { withEmbeddedFields } from './embedded-fields'
 
-import type { AnnotationChange, AnnotationStore } from './store'
+import type { RecordBase, RecordStore } from '../records'
+import type { AnnotationChange, AnnotationEdit, AnnotationStore } from './store'
 import type { Annotation } from './types'
 
-export interface History {
+/** The part of a history plugins use: one undo step across annotations and record stores. */
+export interface PluginHistory {
+  batch(fn: () => void): void
+  /**
+   * Makes the store's changes undo steps: on their own, or joining the open batch or edit. The
+   * returned function stops tracking; existing entries keep their snapshot of the store but undo
+   * and redo no longer replay it.
+   */
+  track(store: RecordStore<RecordBase>): () => void
+  /**
+   * Runs `fn` synchronously for every user `add`, `update` and `remove` of an annotation, inside
+   * that edit's undo entry, so whatever `fn` changes undoes with the edit. Never runs for
+   * `replace`, so never for undo and redo. Returns a function that removes `fn`.
+   */
+  react(fn: (edit: AnnotationEdit) => void): () => void
+}
+
+export interface History extends PluginHistory {
   readonly canUndo: Readable<boolean>
   readonly canRedo: Readable<boolean>
   undo(): void
@@ -26,10 +44,24 @@ export interface History {
   destroy(): void
 }
 
-interface Entry {
-  before: readonly Annotation[]
-  after: readonly Annotation[]
+interface Snapshot<T> {
+  before: readonly T[]
+  after: readonly T[]
 }
+
+interface Entry {
+  annotations: Snapshot<Annotation>
+  /** Each tracked store that changed in this step. */
+  records: Map<RecordStore<RecordBase>, Snapshot<RecordBase>>
+}
+
+/** Where an open step (a batch or an edit with its reactions) began. */
+interface Start {
+  annotations: readonly Annotation[]
+  records: Map<RecordStore<RecordBase>, readonly RecordBase[]>
+}
+
+const noop = () => {}
 
 /**
  * Snapshot-based undo and redo over an uncontrolled store.
@@ -55,6 +87,8 @@ export function createHistory(
       batch(fn) {
         fn()
       },
+      track: () => noop,
+      react: () => noop,
       destroy() {},
     }
   }
@@ -64,14 +98,64 @@ export function createHistory(
   const redoStack: Entry[] = []
   let previous = store.list.get()
   let replaying = false
-  /** Open batch depth; while above zero, changes update `previous` but push no entry. */
+  /**
+   * Open step depth (batches, and an edit while its reactions run); while above zero, changes
+   * update the baselines but push no entry.
+   */
   let depth = 0
-  /** The list when the outermost batch opened (or was restarted by a replace). */
-  let batchStart: readonly Annotation[] | null = null
+  /** The lists when the outermost step opened (or were restarted by a replace). */
+  let start: Start | null = null
+  /** Each tracked store with its list as of the last change history saw. */
+  const tracked = new Map<
+    RecordStore<RecordBase>,
+    { previous: readonly RecordBase[]; unsubscribe: () => void }
+  >()
+  const reactions = new Set<(edit: AnnotationEdit) => void>()
 
   const sync = () => {
     canUndo.set(undoStack.length > 0)
     canRedo.set(redoStack.length > 0)
+  }
+
+  const push = (entry: Entry) => {
+    undoStack.push(entry)
+    if (undoStack.length > limit) undoStack.shift()
+    redoStack.length = 0
+    sync()
+  }
+
+  const resetStacks = () => {
+    undoStack.length = 0
+    redoStack.length = 0
+    sync()
+  }
+
+  /** Opens the outermost step from `annotations` and every tracked store's baseline. */
+  const open = (annotations: readonly Annotation[]) => {
+    const records = new Map<RecordStore<RecordBase>, readonly RecordBase[]>()
+    for (const [s, t] of tracked) records.set(s, t.previous)
+    start = { annotations, records }
+  }
+
+  /**
+   * Closes the outermost step: one entry for everything that changed since it opened. A step
+   * whose lists end where they began (the same objects in the same order) records nothing.
+   */
+  const close = () => {
+    const from = start
+    start = null
+    if (!from) return
+    const annotations = { before: from.annotations, after: store.list.get() }
+    previous = annotations.after
+    const records = new Map<RecordStore<RecordBase>, Snapshot<RecordBase>>()
+    for (const [s, t] of tracked) {
+      const before = from.records.get(s) ?? t.previous
+      const after = s.list.get()
+      t.previous = after
+      if (!sameList(before, after)) records.set(s, { before, after })
+    }
+    if (records.size === 0 && sameList(annotations.before, annotations.after)) return
+    push({ annotations, records })
   }
 
   let destroyed = false
@@ -91,37 +175,46 @@ export function createHistory(
           const f = change.fields.get(a.id)
           return (f && withEmbeddedFields(a, f)) || a
         })
-      for (const entry of [...undoStack, ...redoStack]) {
-        entry.before = fill(entry.before)
-        entry.after = fill(entry.after)
+      for (const { annotations } of [...undoStack, ...redoStack]) {
+        annotations.before = fill(annotations.before)
+        annotations.after = fill(annotations.after)
       }
-      if (batchStart) batchStart = fill(batchStart)
+      if (start) start.annotations = fill(start.annotations)
       previous = current
       return
     }
     if (change.kind === 'replace') {
-      undoStack.length = 0
-      redoStack.length = 0
       previous = current
-      if (depth > 0) batchStart = current
-      sync()
+      if (depth > 0) open(current)
+      resetStacks()
       return
     }
     if (depth > 0) {
+      // Inside a batch or another edit's reactions: react, and the open step records it all.
       previous = current
+      for (const fn of [...reactions]) fn(change)
       return
     }
-    undoStack.push({ before: previous, after: current })
-    if (undoStack.length > limit) undoStack.shift()
-    redoStack.length = 0
-    previous = current
-    sync()
+    // An edit on its own: its reactions run inside a step that opens before the edit.
+    open(previous)
+    depth++
+    try {
+      for (const fn of [...reactions]) fn(change)
+    } finally {
+      // A history destroyed by a reaction records nothing more.
+      if (--depth === 0 && !destroyed) close()
+    }
   })
 
-  const apply = (list: readonly Annotation[]) => {
+  /** Replays a step's lists under the `replaying` guard, skipping stores no longer tracked. */
+  const apply = (entry: Entry, side: 'before' | 'after') => {
     replaying = true
     try {
-      store.replaceAll([...list], 'history')
+      const { annotations } = entry
+      if (!sameList(annotations.before, annotations.after))
+        store.replaceAll([...annotations[side]], 'history')
+      for (const [s, snapshot] of entry.records)
+        if (tracked.has(s)) s.replaceAll([...snapshot[side]], 'history')
     } finally {
       replaying = false
     }
@@ -134,14 +227,14 @@ export function createHistory(
       const entry = undoStack.pop()
       if (destroyed || !entry) return
       redoStack.push(entry)
-      apply(entry.before)
+      apply(entry, 'before')
       sync()
     },
     redo() {
       const entry = redoStack.pop()
       if (destroyed || !entry) return
       undoStack.push(entry)
-      apply(entry.after)
+      apply(entry, 'after')
       sync()
     },
     batch(fn) {
@@ -149,7 +242,7 @@ export function createHistory(
         fn()
         return
       }
-      if (depth++ === 0) batchStart = store.list.get()
+      if (depth++ === 0) open(store.list.get())
       try {
         const result: unknown = fn()
         if (
@@ -164,38 +257,72 @@ export function createHistory(
         }
       } finally {
         // A history destroyed inside `fn` records nothing more.
-        if (--depth === 0 && !destroyed) {
-          const before = batchStart
-          batchStart = null
-          const after = store.list.get()
-          // A list that ends where it began, the same annotations in the same order, is no step.
-          if (before && !sameAnnotations(before, after)) {
-            undoStack.push({ before, after })
-            if (undoStack.length > limit) undoStack.shift()
-            redoStack.length = 0
-            sync()
-          }
+        if (--depth === 0 && !destroyed) close()
+      }
+    },
+    track(recordStore) {
+      if (destroyed || tracked.has(recordStore)) return noop
+      const unsubscribeStore = recordStore.on('change', (change) => {
+        const t = tracked.get(recordStore)
+        if (!t) return
+        const before = t.previous
+        const current = recordStore.list.get()
+        t.previous = current
+        // Our own replays (and any other history replace) never become entries.
+        if (replaying || (change.kind === 'replace' && change.reason === 'history'))
+          return
+        if (change.kind === 'replace') {
+          // A reset starts the store over, so no older step can be replayed against it.
+          if (depth > 0 && start) start.records.set(recordStore, current)
+          resetStacks()
+          return
         }
+        if (depth > 0) return
+        push({
+          annotations: { before: previous, after: previous },
+          records: new Map([[recordStore, { before, after: current }]]),
+        })
+      })
+      tracked.set(recordStore, {
+        previous: recordStore.list.get(),
+        unsubscribe: unsubscribeStore,
+      })
+      // Tracked inside an open step: the step covers it from here.
+      if (start) start.records.set(recordStore, recordStore.list.get())
+      return () => {
+        if (tracked.get(recordStore)?.unsubscribe !== unsubscribeStore) return
+        unsubscribeStore()
+        tracked.delete(recordStore)
+        start?.records.delete(recordStore)
+      }
+    },
+    react(fn) {
+      if (destroyed) return noop
+      // Wrapped, so the same function added twice runs twice and each handle removes its own.
+      const run = (edit: AnnotationEdit) => fn(edit)
+      reactions.add(run)
+      return () => {
+        reactions.delete(run)
       }
     },
     destroy() {
       destroyed = true
-      batchStart = null
+      start = null
       unsubscribe()
-      undoStack.length = 0
-      redoStack.length = 0
-      sync()
+      for (const t of tracked.values()) t.unsubscribe()
+      tracked.clear()
+      reactions.clear()
+      resetStacks()
     },
     clear() {
-      undoStack.length = 0
-      redoStack.length = 0
       previous = store.list.get()
-      sync()
+      for (const [s, t] of tracked) t.previous = s.list.get()
+      resetStacks()
     },
   }
 }
 
-/** The same annotation objects in the same order. */
-function sameAnnotations(a: readonly Annotation[], b: readonly Annotation[]): boolean {
+/** The same objects in the same order. */
+function sameList<T>(a: readonly T[], b: readonly T[]): boolean {
   return a === b || (a.length === b.length && a.every((x, i) => x === b[i]))
 }
