@@ -98,15 +98,70 @@ export function syncHandles(node: HTMLElement, spec: HandleSpec): void {
   }
 }
 
+/** Width in CSS px a thin stroke's invisible hit twin is widened to. */
+const HIT_STROKE = 8
+
+/**
+ * True when `a` is drawn as a stroke alone (a line, polyline, ink, or an unfilled square,
+ * circle or polygon with a border), so a press beside the stroke would miss it. These get an
+ * invisible, wider hit twin of their geometry.
+ */
+function hasHitTwin(a: Annotation): boolean {
+  switch (a.type) {
+    case 'line':
+    case 'polyline':
+    case 'ink':
+      return true
+    case 'polygon':
+    case 'square':
+    case 'circle':
+      return a.interiorColor === undefined && a.width > 0
+    default:
+      return false
+  }
+}
+
+/** The width in CSS px of `a`'s hit twin: 8px, or the drawn stroke if that is wider. */
+function hitWidth(a: Annotation, t: PageTransform): number {
+  return Math.max(HIT_STROKE, 'width' in a ? t.toCssLength(a.width) : 0)
+}
+
 /**
  * The CSS box an annotation's default visual occupies. Usually `toCssRect(a.rect)`. Stroked
  * paths (lines, polylines, polygons, ink) use the bounds of their own points instead of
  * `rect` (which may already carry stroke padding, as a derived ink rect does), padded once by
  * half their stroke width on every side, at least 1px in all, so a horizontal or vertical
- * line still has a box to draw and hit-test in. Custom elements do not use this: they sit on
- * `toCssRect(a.rect)`.
+ * line still has a box to draw and hit-test in. A shape with a hit twin (see `hasHitTwin`)
+ * is padded by at least 4px more, so its wider hit area is not clipped. Custom elements do
+ * not use this: they sit on `toCssRect(a.rect)`.
  */
 export function annotationBox(a: Annotation, t: PageTransform): CssRect {
+  const drawn = handleBox(a, t)
+  if (!hasHitTwin(a)) return drawn
+  const pad = hitPad(a, t)
+  return {
+    left: drawn.left - pad,
+    top: drawn.top - pad,
+    width: drawn.width + pad * 2,
+    height: drawn.height + pad * 2,
+  }
+}
+
+/**
+ * How far past `handleBox` a shape with a hit twin extends its element: the twin's overhang
+ * beyond the drawn stroke, and at least 4px.
+ */
+function hitPad(a: Annotation, t: PageTransform): number {
+  const overhang = Math.max(0, hitWidth(a, t) - t.toCssLength('width' in a ? a.width : 0))
+  return Math.max(HIT_STROKE / 2, overhang / 2)
+}
+
+/**
+ * The CSS box an annotation's edit handles and resizing work on: `annotationBox` without the
+ * padding its hit twin needs. `toCssRect(a.rect)` for a rect-shaped annotation; the padded
+ * bounds of its points for a stroked path.
+ */
+export function handleBox(a: Annotation, t: PageTransform): CssRect {
   const points =
     a.type === 'line'
       ? [a.start, a.end]
@@ -353,6 +408,8 @@ export function renderAnnotationContent(
 
   const svg = boxSvg(doc, box.width, box.height)
   svg.classList.add('ink-annotation-shape')
+  /** Invisible wider copies of stroke-only geometry, added once the drawn shapes are. */
+  const twins: SVGElement[] = []
 
   switch (a.type) {
     case 'highlight':
@@ -401,26 +458,39 @@ export function renderAnnotationContent(
     case 'square':
     case 'circle': {
       const sw = t.toCssLength(a.width)
-      const shape =
+      // The element is the rect plus its hit twin's padding, if it has a twin.
+      const pad = hasHitTwin(a) ? hitPad(a, t) : 0
+      const w = box.width - pad * 2
+      const h = box.height - pad * 2
+      const geometry =
         a.type === 'square'
-          ? node('rect', {
-              x: sw / 2,
-              y: sw / 2,
-              width: Math.max(0, box.width - sw),
-              height: Math.max(0, box.height - sw),
-              ...(a.cornerRadius ? { rx: t.toCssLength(a.cornerRadius) } : {}),
-            })
-          : node('ellipse', {
-              cx: box.width / 2,
-              cy: box.height / 2,
-              rx: Math.max(0, box.width / 2 - sw / 2),
-              ry: Math.max(0, box.height / 2 - sw / 2),
-            })
+          ? {
+              name: 'rect',
+              attrs: {
+                x: pad + sw / 2,
+                y: pad + sw / 2,
+                width: Math.max(0, w - sw),
+                height: Math.max(0, h - sw),
+                ...(a.cornerRadius ? { rx: t.toCssLength(a.cornerRadius) } : {}),
+              },
+            }
+          : {
+              name: 'ellipse',
+              attrs: {
+                cx: box.width / 2,
+                cy: box.height / 2,
+                rx: Math.max(0, w / 2 - sw / 2),
+                ry: Math.max(0, h / 2 - sw / 2),
+              },
+            }
+      const shape = node(geometry.name, geometry.attrs)
       shape.setAttribute('fill', a.interiorColor ?? 'none')
       shape.setAttribute('stroke', a.color)
       shape.setAttribute('stroke-width', String(sw))
       dash(shape, a.dashes, t)
       svg.append(shape)
+      if (hasHitTwin(a))
+        twins.push(hitTwin(node, geometry.name, geometry.attrs, hitWidth(a, t)))
       svg.setAttribute('opacity', String(a.opacity))
       break
     }
@@ -480,6 +550,16 @@ export function renderAnnotationContent(
       })
       dash(stroked, a.dashes, t)
       svg.append(stroked)
+      if (hasHitTwin(a)) {
+        twins.push(
+          hitTwin(
+            node,
+            stroked.tagName,
+            { points: stroked.getAttribute('points')!, 'stroke-linejoin': 'round' },
+            hitWidth(a, t)
+          )
+        )
+      }
       const ends = endingKinds(a)
       if (ends && pts.length >= 2) {
         for (const [name, kind, tip, other] of [
@@ -499,6 +579,14 @@ export function renderAnnotationContent(
           })
           ending.setAttribute('data-ending', name)
           svg.append(ending)
+          twins.push(
+            hitTwin(
+              node,
+              'path',
+              { d, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' },
+              hitWidth(a, t)
+            )
+          )
         }
       }
       svg.setAttribute('opacity', String(a.opacity))
@@ -516,14 +604,46 @@ export function renderAnnotationContent(
         svg.append(
           node('path', { class: 'ink-stroke', d: outlinePath(outline), fill: a.color })
         )
+        twins.push(
+          hitTwin(
+            node,
+            'polyline',
+            {
+              points: path.map(local).join(' '),
+              'stroke-linejoin': 'round',
+              'stroke-linecap': 'round',
+            },
+            hitWidth(a, t)
+          )
+        )
       })
       svg.setAttribute('opacity', String(a.opacity))
       break
   }
   // Hits follow the painted shape, so a press beside it reaches the text layer underneath.
   for (const shape of svg.children) shape.setAttribute('pointer-events', 'visiblePainted')
+  svg.append(...twins)
   el.append(svg)
   appendCommentMarker(el, a, t)
+}
+
+/**
+ * An invisible copy of a stroke-only shape's geometry, `width` CSS px wide, that takes
+ * presses on the stroke alone (`[data-ink-hit-stroke]`), so a thin line is easy to hit.
+ */
+function hitTwin(
+  node: (name: string, attrs: Record<string, string | number>) => SVGElement,
+  name: string,
+  attrs: Record<string, string | number>,
+  width: number
+): SVGElement {
+  const twin = node(name, attrs)
+  twin.setAttribute('data-ink-hit-stroke', '')
+  twin.setAttribute('fill', 'none')
+  twin.setAttribute('stroke', 'transparent')
+  twin.setAttribute('stroke-width', String(width))
+  twin.setAttribute('pointer-events', 'stroke')
+  return twin
 }
 
 /**

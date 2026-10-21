@@ -427,7 +427,7 @@ for (const framework of FRAMEWORKS) {
       await shapeButton(page).click()
       await dragShape(page)
       await expect(sessionShape(page, 'square')).toHaveCount(1)
-      const rect = sessionShape(page, 'square').locator('rect')
+      const rect = sessionShape(page, 'square').locator('rect:not([data-ink-hit-stroke])')
       // The page is fitted to the window: the stroke is the width in points times the scale.
       const stroke = async () => Number(await rect.getAttribute('stroke-width'))
       const thin = await stroke()
@@ -445,7 +445,7 @@ for (const framework of FRAMEWORKS) {
       await shapeButton(page).click()
       await dragShape(page)
       await expect(sessionShape(page, 'square')).toHaveCount(1)
-      const rect = sessionShape(page, 'square').locator('rect')
+      const rect = sessionShape(page, 'square').locator('rect:not([data-ink-hit-stroke])')
       await expect(rect).toHaveAttribute('fill', 'none')
       await page.getByRole('button', { name: 'Fill colour' }).click()
       await page.getByRole('menuitemradio', { name: '#34C759', exact: true }).click()

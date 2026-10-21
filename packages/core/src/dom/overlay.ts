@@ -1,7 +1,8 @@
 // Inline styles here are structural or geometric only: the container is
 // `position:absolute; inset:0; pointer-events:none` so it covers the page without eating
 // events, and each annotation element is `position:absolute` with `left/top/width/height`
-// from `annotationBox` (stroked paths padded once by their stroke), or from
+// from `annotationBox` (stroked paths padded once by their stroke, and thin ones by their wider
+// hit twin), or from
 // `PageTransform.toCssRect(a.rect)` for custom elements. Hit-testing
 // follows the drawn shape, not the box: elements are `pointer-events:none` and their shapes
 // opt back in (overlay-render.ts), so a press beside a shape still reaches the text layer.
@@ -34,6 +35,7 @@ import { createLoupeLayer } from './loupe-layer'
 import { createMaskLayer } from './mask-layer'
 import {
   annotationBox,
+  handleBox,
   freeTextLocalBox,
   hasComment,
   renderAnnotationContent,
@@ -194,6 +196,17 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     )
   }
 
+  /** `handleBox` relative to an element at `left`,`top`. */
+  function handleLocalBox(a: Annotation, left: number, top: number) {
+    const box = handleBox(a, transform)
+    return {
+      left: box.left - left,
+      top: box.top - top,
+      width: box.width,
+      height: box.height,
+    }
+  }
+
   /**
    * Line ends for a line, corners for what a corner drag resizes (a free text's on its text
    * box), plus the tip for a callout, else none.
@@ -214,8 +227,8 @@ export function createOverlay(opts: OverlayOptions): Overlay {
         ? { kind: 'corners' as const, ...freeTextLocalBox(a, transform) }
         : {
             kind: 'corners' as const,
-            width: parseFloat(node.style.width) || 0,
-            height: parseFloat(node.style.height) || 0,
+            // On the drawn shape, inside the padding its hit area may add.
+            ...handleLocalBox(a, left, top),
           }
     if (!hasCallout(a)) return corners
     const tip = transform.toCss(a.callout[0])
