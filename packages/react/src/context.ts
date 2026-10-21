@@ -8,6 +8,7 @@ import type {
   SignatureLibrary,
 } from '@inkbar/core'
 import type {
+  DecorateAnnotation,
   Tool,
   ToolController,
   ToolId,
@@ -50,6 +51,8 @@ export interface InkContext {
   setTool: (id: ToolId) => void
   /** Host tools from InkRoot's `tools` prop; InkViewport registers them. */
   hostTools: Tool[] | undefined
+  /** InkRoot's `decorateAnnotation` prop; InkViewport reads it through on each decoration. */
+  decorateAnnotation: DecorateAnnotation | undefined
   /** The font families text boxes offer: InkRoot's `fonts`, else `FONT_FAMILIES`. */
   fonts: readonly string[]
   /** The tools' options for InkRoot's life, so they persist across documents. */

@@ -37,6 +37,7 @@ function layoutAt(zoom: number, containerWidth: number, gap = GAP) {
 type DocHandle = {
   annotations: {
     add(i: unknown): { id: string }
+    update(id: string, patch: unknown): unknown
     get(
       id: string
     ):
@@ -626,4 +627,36 @@ test('a gap change and a slot toggle in one tick rebuild the viewport once', asy
   // Still 300px into the second page, wherever the new gap puts it.
   const expected = layoutAt(1, width, gap).boxes[1]!.top + 300
   expect(Math.abs(top - expected)).toBeLessThanOrEqual(2)
+})
+
+test('decorateAnnotation reaches the annotation elements', async ({ mount, page }) => {
+  const props = {
+    src: fixtureUrl('text-simple'),
+    assets,
+    zoom: 1,
+    decorateMark: 'note',
+  }
+  const cmp = await mount(ViewportHarness, { props })
+  await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
+  const id = await page.locator('[data-ink-root]').evaluate(
+    (el) =>
+      (el as RootEl).__inkDocument!.annotations.add({
+        type: 'text',
+        page: 0,
+        rect: { x: 72, y: 600, width: 24, height: 24 },
+      }).id
+  )
+  const note = cmp.locator(`.ink-annotation[data-annotation="${id}"]`)
+  await expect(note).toHaveAttribute('data-test-mark', 'note')
+
+  // A new function identity applies on the next render, without a rebuild.
+  await cmp.update({ props: { ...props, decorateMark: 'other' } })
+  await page.locator('[data-ink-root]').evaluate(
+    (el, annotationId) =>
+      (el as RootEl).__inkDocument!.annotations.update(annotationId, {
+        rect: { x: 100, y: 600, width: 24, height: 24 },
+      }),
+    id
+  )
+  await expect(note).toHaveAttribute('data-test-mark', 'other')
 })

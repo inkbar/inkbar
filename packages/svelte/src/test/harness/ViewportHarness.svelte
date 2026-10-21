@@ -3,7 +3,12 @@
   import InkViewport from '../../lib/components/InkViewport.svelte'
 
   import type { DocumentSource, InkDocument, PdfAssets } from '@inkbar/core'
-  import type { AnnotationSlotProps, ToolId, ZoomValue } from '@inkbar/core/dom'
+  import type {
+    AnnotationSlotProps,
+    DecorateAnnotation,
+    ToolId,
+    ZoomValue,
+  } from '@inkbar/core/dom'
 
   let {
     src,
@@ -15,6 +20,7 @@
     customAnnotations = false,
     customLoading = false,
     tool,
+    decorateAnnotation,
     failPage,
     failText,
     onZoomChange,
@@ -29,6 +35,7 @@
     customAnnotations?: boolean
     customLoading?: boolean
     tool?: ToolId | undefined
+    decorateAnnotation?: DecorateAnnotation | undefined
     /** Zero-based page whose page lookups reject until the Heal button is pressed. */
     failPage?: number | undefined
     /** Zero-based page whose text content fails to load (its canvas still renders). */
@@ -107,7 +114,17 @@
   <button type="button" data-testid="restate" onclick={() => (restated += 1)}>
     Restated {restated}
   </button>
-  <InkRoot {src} {assets} {zoom} {page} {tool} {onZoomChange} {onPageChange} {onReady}>
+  <InkRoot
+    {src}
+    {assets}
+    {zoom}
+    {page}
+    {tool}
+    {decorateAnnotation}
+    {onZoomChange}
+    {onPageChange}
+    {onReady}
+  >
     <!-- Test-only box: the scroll container needs a bounded height to scroll. -->
     <div style="height: 700px; width: 900px">
       <InkViewport

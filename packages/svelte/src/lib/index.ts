@@ -10,6 +10,7 @@ export type {
   ThreadPopoverSlotProps,
   SuggestionCardSlotProps,
 } from '@inkbar/core/dom'
+export type { AnnotationDecoration, DecorateAnnotation } from '@inkbar/core/dom'
 export type { ConfidenceBucket } from '@inkbar/core'
 export { useDocument } from './hooks/useDocument.svelte.js'
 export { useAnnotations } from './hooks/useAnnotations.svelte.js'

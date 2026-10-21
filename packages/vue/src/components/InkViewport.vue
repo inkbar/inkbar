@@ -132,6 +132,8 @@ function setup(): void {
     buffer: props.buffer,
     tool: ctx.tool.value,
     ...(ctx.hostTools.value ? { tools: ctx.hostTools.value } : {}),
+    // A stable wrapper, so a new function identity applies on the next render without a rebuild.
+    decorateAnnotation: (a) => ctx.decorateAnnotation.value?.(a),
     ...(ctx.toolStyle.value ? { toolStyle: ctx.toolStyle.value } : {}),
     toolHistory: { batch: (fn) => ctx.history.batch(fn) },
     toolOptions: ctx.toolOptions,

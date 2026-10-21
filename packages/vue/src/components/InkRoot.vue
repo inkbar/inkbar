@@ -38,6 +38,7 @@ import type {
   SignatureStore,
 } from '@inkbar/core'
 import type {
+  DecorateAnnotation,
   Tool,
   ToolController,
   ToolId,
@@ -65,6 +66,11 @@ const props = withDefaults(
      */
     tools?: Tool[] | undefined
     /**
+     * Adds `data-*` attributes and classes to each annotation's element. Read on every render,
+     * so a new function takes effect without rebuilding the viewer.
+     */
+    decorateAnnotation?: DecorateAnnotation | undefined
+    /**
      * The font families text boxes offer, replacing the PDF standard families
      * (`FONT_FAMILIES`). Fonts beyond those are the PDF writer's to embed.
      */
@@ -89,6 +95,7 @@ const props = withDefaults(
     annotations: undefined,
     tool: undefined,
     tools: undefined,
+    decorateAnnotation: undefined,
     fonts: undefined,
     signatures: undefined,
     signatureFonts: undefined,
@@ -327,6 +334,7 @@ provideInkContext({
   tool: internalTool,
   setTool,
   hostTools: computed(() => props.tools),
+  decorateAnnotation: computed(() => props.decorateAnnotation),
   fonts: computed(() => props.fonts ?? FONT_FAMILIES),
   toolOptions,
   signatures,

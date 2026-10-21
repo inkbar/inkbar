@@ -3,7 +3,7 @@ import { useRef, useState } from 'react'
 import { InkRoot } from '../../src/components/InkRoot'
 import { InkViewport } from '../../src/components/InkViewport'
 
-import type { DocumentSource, InkDocument, PdfAssets } from '@inkbar/core'
+import type { Annotation, DocumentSource, InkDocument, PdfAssets } from '@inkbar/core'
 import type { ToolId, ZoomValue } from '@inkbar/core/dom'
 
 export interface ViewportHarnessProps {
@@ -16,6 +16,8 @@ export interface ViewportHarnessProps {
   customAnnotations?: boolean | undefined
   customLoading?: boolean | undefined
   tool?: ToolId | undefined
+  /** Marks text annotations with `data-test-mark`; a function cannot cross the mount boundary. */
+  decorateMark?: string | undefined
   /** Zero-based page whose page lookups reject until the Heal button is pressed. */
   failPage?: number | undefined
   /** Zero-based page whose text content fails to load (its canvas still renders). */
@@ -29,6 +31,12 @@ export function ViewportHarness(props: ViewportHarnessProps) {
   // Stands in for a page the engine cannot render: the canvas and text layer both look the
   // page up through `_pdfjs.getPage`, so failing it fails that page's mount and nothing else.
   const failing = useRef(true)
+  const mark = props.decorateMark
+  const decorate =
+    mark === undefined
+      ? undefined
+      : (a: Annotation) =>
+          a.type === 'text' ? { data: { 'test-mark': mark } } : undefined
   const heal = () => {
     failing.current = false
   }
@@ -66,6 +74,7 @@ export function ViewportHarness(props: ViewportHarnessProps) {
         zoom={props.zoom}
         page={props.page}
         tool={props.tool}
+        decorateAnnotation={decorate}
         onZoomChange={props.onZoomChange}
         onPageChange={props.onPageChange}
         onReady={onReady}

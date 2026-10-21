@@ -11,7 +11,7 @@
     PdfAssets,
     SignatureStore,
   } from '@inkbar/core'
-  import type { Tool, ToolId, ZoomValue } from '@inkbar/core/dom'
+  import type { DecorateAnnotation, Tool, ToolId, ZoomValue } from '@inkbar/core/dom'
   import type { Snippet } from 'svelte'
   import type { HTMLAttributes } from 'svelte/elements'
 
@@ -39,6 +39,11 @@
      * document opens.
      */
     tools?: Tool[] | undefined
+    /**
+     * Adds `data-*` attributes and classes to each annotation's element. Read on every render,
+     * so a new function takes effect without rebuilding the viewer.
+     */
+    decorateAnnotation?: DecorateAnnotation | undefined
     /**
      * The font families text boxes offer, replacing the PDF standard families
      * (`FONT_FAMILIES`). Fonts beyond those are the PDF writer's to embed.
@@ -107,6 +112,7 @@
     tool = $bindable(),
     onToolChange,
     tools: hostTools,
+    decorateAnnotation,
     fonts,
     signatures: signatureStore,
     signatureFonts,
@@ -365,6 +371,9 @@
     setTool,
     get hostTools() {
       return hostTools
+    },
+    get decorateAnnotation() {
+      return decorateAnnotation
     },
     get fonts() {
       return fonts ?? FONT_FAMILIES

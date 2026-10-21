@@ -1,6 +1,7 @@
 export { default as InkRoot } from './components/InkRoot.vue'
 export { injectInkContext } from './context'
 export type { InkContext, InkHistory, InkStatus } from './context'
+export type { AnnotationDecoration, DecorateAnnotation } from '@inkbar/core/dom'
 export { useReadable } from './use-readable'
 export { useDocument } from './composables/useDocument'
 export { useAnnotations } from './composables/useAnnotations'
