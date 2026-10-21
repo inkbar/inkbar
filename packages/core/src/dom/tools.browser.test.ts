@@ -992,9 +992,15 @@ describe('cursors', () => {
     expect(cursorOf(el(square.id))).toBe('default')
   })
 
-  it.each(['select', 'select-text'])('text markup shows text under %s', async (tool) => {
+  it('text markup shows move under select, where a press drags it', async () => {
     const { tools, markup, el } = await withTheme()
-    tools.set(tool)
+    tools.set('select')
+    expect(cursorOf(el(markup.id))).toBe('move')
+  })
+
+  it('text markup shows text under select-text', async () => {
+    const { tools, markup, el } = await withTheme()
+    tools.set('select-text')
     expect(cursorOf(el(markup.id))).toBe('text')
   })
 
@@ -1004,6 +1010,27 @@ describe('cursors', () => {
     expect(cursorOf(el(text.id).querySelector('.ink-free-text'))).toBe('text')
     expect(cursorOf(el(text.id).querySelector('[data-ink-edge]'))).toBe('move')
   })
+
+  it.each(['select', 'select-text'])(
+    'an embedded text box, which a press drags, shows move under %s',
+    async (tool) => {
+      const { tools, doc, container } = await withTheme()
+      const a = doc.annotations.completeInput({
+        type: 'freetext',
+        page: 0,
+        rect: { x: 100, y: 500, width: 144, height: 20 },
+        contents: 'From the file',
+      })
+      doc.annotations._setEmbedded([{ ...a, id: 'pdf:0:9R', source: 'pdf' }])
+      await settle()
+      tools.set(tool)
+      const box = container.querySelector('[data-annotation="pdf:0:9R"]')!
+      const r = box.getBoundingClientRect()
+      const at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+      expect(box.contains(at)).toBe(true)
+      expect(cursorOf(at)).toBe('move')
+    }
+  )
 
   it('a locked text box shows default inside and on its edge', async () => {
     const { tools, doc, text, el } = await withTheme()
