@@ -1,0 +1,25 @@
+packages/vue/README.md
+  s_a9eee6338cf60a::t_1f55987cd132a3 149
+packages/vue/playwright/harness/FindHarness.vue
+  s_a9eee6338cf60a::t_f61094c5907a0f 24
+packages/vue/src/components/FindBar.ct.ts
+  s_a9eee6338cf60a::t_f61094c5907a0f 122-130
+packages/vue/src/components/InkFindBar.vue
+  s_a9eee6338cf60a::t_0b3051af802dc5 24-26,121
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1f28f62ed353d259d85d58c04150b775299e24b7",
+  "prompts": {},
+  "sessions": {
+    "s_a9eee6338cf60a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c2869588-dbba-445a-be19-91e3d8b07d87",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
