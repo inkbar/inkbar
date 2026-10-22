@@ -29,6 +29,8 @@ const props = withDefaults(
     push?: FieldValues
     templates?: SignatureTemplate[]
     formHighlight?: boolean | undefined
+    /** What the Swap button opens next, and the controlled values it starts from. */
+    swapTo?: { src: string; initial?: FieldValues } | undefined
   }>(),
   {
     controlled: false,
@@ -36,6 +38,7 @@ const props = withDefaults(
     push: () => ({}),
     templates: () => [],
     formHighlight: undefined,
+    swapTo: undefined,
   }
 )
 const emit = defineEmits<{
@@ -46,6 +49,7 @@ const emit = defineEmits<{
 
 /** A host that owns the values through v-model, the way an app would. */
 const values = ref<FieldValues>(props.initial)
+const src = ref(props.src)
 const heard = ref(0)
 const store = shallowRef(createMemorySignatureStore(props.templates))
 
@@ -57,11 +61,16 @@ function onFields(next: FieldValues, change?: FieldsChange): void {
 function onPush(): void {
   values.value = { ...values.value, ...props.push }
 }
+function onSwap(): void {
+  if (!props.swapTo) return
+  src.value = props.swapTo.src
+  values.value = props.swapTo.initial ?? {}
+}
 </script>
 
 <template>
   <InkRoot
-    :src="props.src"
+    :src="src"
     :assets="props.assets"
     :zoom="1"
     :signatures="store"
@@ -84,6 +93,7 @@ function onPush(): void {
       :data-heard="heard"
     />
     <button type="button" data-testid="push" @click="onPush">push</button>
+    <button type="button" data-testid="swap" @click="onSwap">swap</button>
     <FormProbe />
     <ComposableProbe />
   </InkRoot>
