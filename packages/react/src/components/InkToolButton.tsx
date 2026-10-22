@@ -13,6 +13,7 @@ import {
 import { Toolbar } from 'radix-ui'
 
 import { cx } from '../class-names'
+import { useInkContext } from '../context'
 import { useTool } from '../hooks/useTool'
 
 import { InkIcon } from './InkIcon'
@@ -51,11 +52,14 @@ export function InkToolButton({
   onClick,
   ...rest
 }: InkToolButtonProps) {
+  const { hostTools, pluginHost } = useInkContext('InkToolButton')
   const { tool: current, setTool } = useTool()
   const active = current === tool
-  // A host tool has no built-in name or icon: `label` and `children` supply them.
-  const name = label ?? TOOL_LABELS[tool] ?? tool
-  const icon = ICONS[tool]
+  /** A host or plugin tool by this id, for the name and icon core has none for. */
+  const own = [...(hostTools ?? []), ...pluginHost.tools].find((t) => t.id === tool)
+  // `label` and `children` win; then core's name and icon; then the tool's own.
+  const name = label ?? TOOL_LABELS[tool] ?? own?.label ?? tool
+  const icon = ICONS[tool] ?? own?.icon
   return (
     <Toolbar.Button
       asChild={asChild}
