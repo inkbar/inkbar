@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 
+import { createRecordStore, type RecordBase } from '../records'
+
+import { staticDefaults } from './defaults'
 import { createSnapshotHistory } from './snapshot-history'
+import { createAnnotationStore, type AnnotationEdit } from './store'
 
 import type { Annotation } from './types'
 
@@ -426,6 +430,278 @@ describe('createSnapshotHistory', () => {
         expect(apply.mock.calls.at(-1)![0]).toEqual([])
       } finally {
         warn.mockRestore()
+        vi.useRealTimers()
+      }
+    })
+  })
+
+  describe('records', () => {
+    interface Thread extends RecordBase {
+      text: string
+    }
+
+    /**
+     * A controlled host: the store proposes each change through `onChange` and the host applies
+     * it a microtask later, as a framework would, then the binding observes the new list. Undo
+     * and redo proposals go the same way.
+     */
+    function controlledHost() {
+      let value: Annotation[] = []
+      const host = (next: Annotation[]) => {
+        queueMicrotask(() => {
+          value = next
+          store.setControlledValue(next)
+          history.observe(next)
+        })
+      }
+      const store = createAnnotationStore({
+        mode: { mode: 'controlled', initial: [], onChange: (next) => host(next) },
+        defaults: staticDefaults,
+      })
+      const apply = vi.fn((list: Annotation[]) => host(list))
+      const history = createSnapshotHistory({ apply, enabled: () => true })
+      history.observe(value)
+      const threads = createRecordStore<Thread>('sandbox')
+      history.track(threads)
+      history.attach(store)
+      return { store, history, apply, threads, value: () => value }
+    }
+
+    /** Runs the host's microtasks and the settle window. */
+    async function settle() {
+      await vi.runAllTimersAsync()
+    }
+
+    it('a record change is a step', async () => {
+      vi.useFakeTimers()
+      try {
+        const { history, threads } = controlledHost()
+        threads.add({ id: 't1', text: 'hi' })
+        expect(history.canUndo.get()).toBe(false)
+        await settle()
+        expect(history.canUndo.get()).toBe(true)
+        history.undo()
+        expect(threads.list.get()).toEqual([])
+        history.redo()
+        expect(threads.list.get()).toEqual([{ id: 't1', text: 'hi' }])
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('an annotation edit and a record change in one batch are one controlled step', async () => {
+      vi.useFakeTimers()
+      try {
+        const { store, history, apply, threads, value } = controlledHost()
+        history.batch(() => {
+          store.add({
+            type: 'text',
+            page: 0,
+            rect: { x: 0, y: 0, width: 20, height: 20 },
+          })
+          threads.add({ id: 't1', text: 'hi' })
+        })
+        await settle()
+        expect(value()).toHaveLength(1)
+        expect(history.canUndo.get()).toBe(true)
+        history.undo()
+        // Records go back at once; the annotations wait for the host.
+        expect(threads.list.get()).toEqual([])
+        expect(apply).toHaveBeenLastCalledWith([])
+        expect(history.canRedo.get()).toBe(false)
+        await settle()
+        expect(value()).toEqual([])
+        expect(history.canUndo.get()).toBe(false)
+        expect(history.canRedo.get()).toBe(true)
+        history.redo()
+        expect(threads.list.get()).toEqual([{ id: 't1', text: 'hi' }])
+        await settle()
+        expect(value()).toHaveLength(1)
+        expect(history.canUndo.get()).toBe(true)
+        expect(history.canRedo.get()).toBe(false)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('a record change and the host list in the same task are one step', async () => {
+      vi.useFakeTimers()
+      try {
+        const { store, history, threads, value } = controlledHost()
+        store.add({ type: 'text', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
+        threads.add({ id: 't1', text: 'hi' })
+        await settle()
+        expect(value()).toHaveLength(1)
+        history.undo()
+        await settle()
+        expect(value()).toEqual([])
+        expect(threads.list.get()).toEqual([])
+        expect(history.canUndo.get()).toBe(false)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('a reaction to a controlled remove joins its step', async () => {
+      vi.useFakeTimers()
+      try {
+        const { store, history, threads, value } = controlledHost()
+        const a = store.add({
+          type: 'text',
+          page: 0,
+          rect: { x: 0, y: 0, width: 20, height: 20 },
+        })
+        threads.add({ id: a.id, text: 'hi' })
+        await settle()
+        const edits: AnnotationEdit['kind'][] = []
+        history.react((edit) => {
+          edits.push(edit.kind)
+          if (edit.kind === 'remove') threads.remove(edit.annotation.id)
+        })
+        store.remove(a.id)
+        expect(threads.list.get()).toEqual([])
+        await settle()
+        expect(value()).toEqual([])
+        expect(edits).toEqual(['remove'])
+        history.undo()
+        expect(threads.list.get()).toEqual([{ id: a.id, text: 'hi' }])
+        await settle()
+        expect(value()).toEqual([a])
+        // The add and its thread before it are one earlier step.
+        history.undo()
+        await settle()
+        expect(value()).toEqual([])
+        expect(threads.list.get()).toEqual([])
+        expect(history.canUndo.get()).toBe(false)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('undo and redo do not run reactions', async () => {
+      vi.useFakeTimers()
+      try {
+        const { store, history } = controlledHost()
+        const reaction = vi.fn()
+        history.react(reaction)
+        store.add({ type: 'text', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
+        await settle()
+        expect(reaction).toHaveBeenCalledOnce()
+        history.undo()
+        await settle()
+        history.redo()
+        await settle()
+        expect(reaction).toHaveBeenCalledOnce()
+        expect(history.canUndo.get()).toBe(true)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('keeps the records for redo when undo repeats before the host applies', async () => {
+      vi.useFakeTimers()
+      try {
+        const { store, history, threads, value } = controlledHost()
+        history.batch(() => {
+          store.add({
+            type: 'text',
+            page: 0,
+            rect: { x: 0, y: 0, width: 20, height: 20 },
+          })
+          threads.add({ id: 't1', text: 'hi' })
+        })
+        await settle()
+        history.undo()
+        history.undo()
+        await settle()
+        expect(value()).toEqual([])
+        expect(threads.list.get()).toEqual([])
+        history.redo()
+        await settle()
+        expect(value()).toHaveLength(1)
+        expect(threads.list.get()).toEqual([{ id: 't1', text: 'hi' }])
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('attaching the same store twice runs its reactions once', () => {
+      const store = createAnnotationStore({
+        mode: { mode: 'controlled', initial: [], onChange: () => {} },
+        defaults: staticDefaults,
+      })
+      const history = createSnapshotHistory({ apply: vi.fn(), enabled: () => true })
+      history.observe([])
+      const reaction = vi.fn()
+      history.react(reaction)
+      const detach = history.attach(store)
+      const again = history.attach(store)
+      store.add({ type: 'text', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
+      expect(reaction).toHaveBeenCalledOnce()
+      // The second handle is a no-op and leaves the first attachment in place.
+      again()
+      store.add({ type: 'text', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
+      expect(reaction).toHaveBeenCalledTimes(2)
+      detach()
+      store.add({ type: 'text', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
+      expect(reaction).toHaveBeenCalledTimes(2)
+    })
+
+    it('a records-only undo moves without waiting for the host', async () => {
+      vi.useFakeTimers()
+      try {
+        const { history, apply, threads } = controlledHost()
+        threads.add({ id: 't1', text: 'hi' })
+        await settle()
+        history.undo()
+        expect(apply).not.toHaveBeenCalled()
+        expect(history.canUndo.get()).toBe(false)
+        expect(history.canRedo.get()).toBe(true)
+        history.redo()
+        expect(history.canUndo.get()).toBe(true)
+        expect(history.canRedo.get()).toBe(false)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('a record reset clears both stacks', async () => {
+      vi.useFakeTimers()
+      try {
+        const { history, threads } = controlledHost()
+        threads.add({ id: 't1', text: 'hi' })
+        await settle()
+        threads.replaceAll([], 'reset')
+        await settle()
+        expect(history.canUndo.get()).toBe(false)
+        expect(history.canRedo.get()).toBe(false)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('stops reacting after detach and replaying after untrack', async () => {
+      vi.useFakeTimers()
+      try {
+        const store = createAnnotationStore({
+          mode: { mode: 'controlled', initial: [], onChange: () => {} },
+          defaults: staticDefaults,
+        })
+        const history = createSnapshotHistory({ apply: vi.fn(), enabled: () => true })
+        history.observe([])
+        const threads = createRecordStore<Thread>('sandbox')
+        const untrack = history.track(threads)
+        const reaction = vi.fn()
+        history.react(reaction)
+        history.attach(store)()
+        store.add({ type: 'text', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
+        expect(reaction).not.toHaveBeenCalled()
+        threads.add({ id: 't1', text: 'hi' })
+        await settle()
+        untrack()
+        history.undo()
+        expect(threads.list.get()).toHaveLength(1)
+      } finally {
         vi.useRealTimers()
       }
     })
