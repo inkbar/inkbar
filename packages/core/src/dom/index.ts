@@ -38,6 +38,7 @@ export type {
   PluginStoreOptions,
 } from './plugins/define'
 export type { PluginApi, PluginOptions } from './plugins/api/api'
+export type { CommandOptions, CommandRun } from './plugins/api/command'
 export type { Records } from './plugins/api/records'
 export { unknownCommand } from './plugins/commands'
 export { createPluginHost } from './plugins/host'

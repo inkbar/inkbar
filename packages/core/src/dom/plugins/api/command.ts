@@ -43,8 +43,9 @@ export function createCommand(
   const status = writable('')
   let controller: AbortController | null = null
 
-  // The status belongs to one document; a run in flight is cancelled when the document changes.
-  ctx.document.subscribe(() => {
+  // The status belongs to one document; a run in flight is cancelled when that document closes,
+  // another opens or the host is destroyed.
+  ctx.onDocument(() => () => {
     controller?.abort()
     status.set('')
   })

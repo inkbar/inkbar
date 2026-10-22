@@ -40,7 +40,7 @@ function setup(run: CommandRun, opts?: CommandOptions) {
   const factory = definePlugin('demo', (plugin) => {
     command = plugin.command('go', 'Go', run, opts)
   })
-  createPluginHost({
+  const host = createPluginHost({
     plugins: [factory()],
     document,
     history: () => history,
@@ -48,7 +48,7 @@ function setup(run: CommandRun, opts?: CommandOptions) {
     setActivated() {},
     root: writable<HTMLElement | null>(null),
   })
-  return { command, document, docA }
+  return { command, document, docA, host }
 }
 
 afterEach(() => vi.restoreAllMocks())
@@ -149,6 +149,27 @@ describe('plugin.command', () => {
     await command.run()
     expect(command.status.get()).toBe('done')
     document.set(fakeDocument('b'))
+    expect(command.status.get()).toBe('')
+  })
+
+  it('destroying the host clears the status and aborts a run in flight', async () => {
+    const done = setup(() => 'done')
+    await done.command.run()
+    expect(done.command.status.get()).toBe('done')
+    done.host.destroy()
+    expect(done.command.status.get()).toBe('')
+
+    const pending = deferred()
+    let signal!: AbortSignal
+    const { command, host } = setup((run) => {
+      signal = run.signal
+      return pending.promise
+    })
+    const running = command.run()
+    host.destroy()
+    expect(signal.aborted).toBe(true)
+    pending.resolve('stale')
+    await running
     expect(command.status.get()).toBe('')
   })
 
