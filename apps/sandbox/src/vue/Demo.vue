@@ -73,7 +73,7 @@ defineProps<{ source: DocumentSource }>()
       <InkUndo />
       <InkRedo />
       <div class="demo-actions" role="group" aria-label="Suggest">
-        <InkCommand id="sandbox.suggest" v-slot="{ label }">{{ label }}</InkCommand>
+        <InkCommand id="sandbox.suggest" />
       </div>
     </InkToolbar>
     <InkViewport />
