@@ -7,7 +7,7 @@ import FormHarness from '../../playwright/harness/FormHarness.vue'
 import type { Locator, Page } from '@playwright/test'
 
 const assets = browserAssets()
-guardConsole(test)
+const guard = guardConsole(test)
 
 const PNG =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAABCAYAAAAb4BS0AAAADklEQVR4nGP4z8DwH4YBJuYF+2EsXwgAAAAASUVORK5CYII='
@@ -121,6 +121,24 @@ test('a form script error reaches error', async ({ mount, page }) => {
     doc.form._error({ code: 'FormScriptError', message: 'A form script failed' })
   })
   await expect.poll(() => errors.map((e) => e.code)).toEqual(['FormScriptError'])
+})
+
+test('a sandbox that fails while the document opens reaches error', async ({
+  mount,
+  page,
+}) => {
+  // The error crosses to the test as a plain `Error`, so its message stands for its code.
+  const errors: string[] = []
+  // Without the sandbox's engine, the scripts cannot start.
+  await mount(FormHarness, {
+    props: { src: fixtureUrl('form-scripted'), assets: { ...assets, wasm: '/missing/' } },
+    on: { error: (e: Error) => errors.push(e.message) },
+  })
+  await expect(widget(page, 'hello')).toBeVisible()
+  await expect
+    .poll(() => errors)
+    .toEqual(["The form's scripts could not start; it can still be filled in"])
+  guard.clear()
 })
 
 test.describe('signature fields', () => {

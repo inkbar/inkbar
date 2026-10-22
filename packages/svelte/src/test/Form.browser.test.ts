@@ -8,7 +8,7 @@ import { attr, count, focused, q, sleep } from './dom.js'
 import FormHarness, { type FormHarnessProps } from './harness/FormHarness.svelte'
 
 const assets = browserAssets()
-guardConsole()
+const guard = guardConsole()
 
 const PNG =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAABCAYAAAAb4BS0AAAADklEQVR4nGP4z8DwH4YBJuYF+2EsXwgAAAAASUVORK5CYII='
@@ -191,6 +191,19 @@ describe('form filling', () => {
     const doc = root.__inkDocument as { form: { _error(e: unknown): void } }
     doc.form._error({ code: 'FormScriptError', message: 'A form script failed' })
     await expect.poll(() => errors.map((e) => e.code)).toEqual(['FormScriptError'])
+  })
+
+  it('a sandbox that fails while the document opens reaches onError', async () => {
+    const errors: { code: string }[] = []
+    // Without the sandbox's engine, the scripts cannot start.
+    await render(FormHarness, {
+      assets: { ...assets, wasm: '/missing/' },
+      src: fixtureUrl('form-scripted'),
+      onError: (e) => errors.push(e),
+    })
+    await widget('hello')
+    await expect.poll(() => errors.map((e) => e.code)).toEqual(['FormScriptError'])
+    guard.clear()
   })
 
   describe('signature fields', () => {

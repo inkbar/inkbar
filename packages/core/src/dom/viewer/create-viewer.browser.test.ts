@@ -8,6 +8,7 @@ import {
   createMemorySignatureStore,
   type SignatureTemplate,
 } from '../../model/signatures'
+import { sandboxLoader } from '../../pdfjs/scripting'
 import { definePlugin } from '../plugins/define'
 import { mountContainer, settle, until } from '../test-utils'
 
@@ -2553,6 +2554,16 @@ describe('forms', () => {
     const error = new InkError('FormScriptError', 'A form script failed')
     doc.form._error(error)
     expect(onError).toHaveBeenCalledWith(error)
+  })
+
+  it('reports a sandbox that fails while the document opens to onError', async () => {
+    vi.spyOn(sandboxLoader, 'load').mockRejectedValue(new Error('offline'))
+    cleanup.push(() => vi.restoreAllMocks())
+    const onError = vi.fn<(e: InkError) => void>()
+    const { viewer } = make('form-scripted', { onError })
+    await ready(viewer)
+    await until(() => onError.mock.calls.length > 0)
+    expect(onError.mock.calls.map(([e]) => e.code)).toEqual(['FormScriptError'])
   })
 
   it('controlled fields round-trip through onFieldsChange', async () => {
