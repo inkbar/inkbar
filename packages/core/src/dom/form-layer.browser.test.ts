@@ -424,6 +424,9 @@ describe('form layer', () => {
     doc.form._signWith('sig', 'ink-1')
     expect(button.textContent).toBe('')
     expect(button.hasAttribute('data-ink-signed')).toBe(true)
+    expect(button.getAttribute('aria-disabled')).toBe('true')
+    expect(button.tabIndex).toBe(-1)
+    expect(p.mount.form!.tabStops()).not.toContain(button)
     button.click()
     expect(requests).toHaveLength(1)
     // The PDF's own appearance of the box stays under the button.
@@ -1072,6 +1075,29 @@ describe('checkboxes, radios, choices and buttons', () => {
     cleanup.push(() => document.removeEventListener('keydown', spy))
     await userEvent.keyboard('{Tab}')
     expect(prevented).toBe(false)
+  })
+
+  it('Tab waits once for a next page that mounts after the scroll', async () => {
+    const { container, engine, fieldOf, pageOf } = await viewer()
+    // The view lands on page 1 a frame later, as a smooth scroll would.
+    const scrollToRect = engine.viewport.scrollToRect.bind(engine.viewport)
+    vi.spyOn(engine.viewport, 'scrollToRect').mockImplementation((...args) => {
+      requestAnimationFrame(() => scrollToRect(...args))
+    })
+    let prevented: boolean | undefined
+    const spy = (e: KeyboardEvent) => (prevented = e.defaultPrevented)
+    document.addEventListener('keydown', spy)
+    cleanup.push(() => document.removeEventListener('keydown', spy))
+    container
+      .querySelector<HTMLElement>('[data-ink-field="reset"] button')!
+      .focus({ preventScroll: true })
+    await nextFrame()
+    expect(engine.pages.has(1)).toBe(false)
+    await userEvent.keyboard('{Tab}')
+    // Focus does not leave the viewer while the page mounts.
+    expect(prevented).toBe(true)
+    await until(() => pageOf(document.activeElement) === 1)
+    expect(fieldOf(document.activeElement)).toBe('header.ref')
   })
 
   it('Shift+Tab goes back', async () => {

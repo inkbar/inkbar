@@ -295,6 +295,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     })
     pages.set(page, mount)
     opts.onPageMount?.(page, mount, host)
+    if (tabWait?.page === page) tabWait.retry()
   }
 
   /** Whether form fields take input under the active tool. */
@@ -324,10 +325,41 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     return edges
   }
 
+  /** The page a Tab waits for: its stops were not mounted when the view scrolled to it. */
+  let tabWait: { page: number; retry: () => void; cancel: () => void } | undefined
+
+  /** The first stop of `page` (`back`: its last), once its form layer is mounted. */
+  const edgeStop = (page: number, back: boolean): HTMLElement | undefined => {
+    const stops = pages.get(page)?.form?.tabStops() ?? []
+    return back ? stops.at(-1) : stops[0]
+  }
+
+  /**
+   * Focuses `page`'s edge stop when the page mounts, or on the next animation frame,
+   * whichever comes first. Tries once; when the page still has no stop, focus stays put.
+   */
+  function awaitTabStop(page: number, back: boolean): void {
+    tabWait?.cancel()
+    const frame = requestAnimationFrame(() => wait.retry())
+    const wait = {
+      page,
+      retry: () => {
+        wait.cancel()
+        if (!destroyed) edgeStop(page, back)?.focus()
+      },
+      cancel: () => {
+        cancelAnimationFrame(frame)
+        if (tabWait === wait) tabWait = undefined
+      },
+    }
+    tabWait = wait
+  }
+
   /**
    * Tab on a page's last field stop (Shift+Tab on its first) goes to the first (last) stop of
-   * the next (previous) page that has fields, mounting it and scrolling it into view. Past the
-   * last page's fields, Tab leaves the viewer as usual.
+   * the next (previous) page that has fields, mounting it and scrolling it into view. A page
+   * that has not mounted once the view scrolls to it gets one more try, when it mounts or on the
+   * next frame. Past the last page's fields, Tab leaves the viewer as usual.
    */
   function onFormTab(e: KeyboardEvent): void {
     if (e.key !== 'Tab' || e.altKey || e.ctrlKey || e.metaKey || e.defaultPrevented)
@@ -345,12 +377,17 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       .sort(([a], [b]) => (back ? b - a : a - b))
     for (const [next, widget] of edges) {
       viewport.scrollToRect(next, widget.rect)
-      const stops = pages.get(next)?.form?.tabStops() ?? []
-      const to = back ? stops.at(-1) : stops[0]
-      if (!to) continue
-      e.preventDefault()
-      to.focus()
-      return
+      const to = edgeStop(next, back)
+      if (to) {
+        e.preventDefault()
+        to.focus()
+        return
+      }
+      if (!pages.get(next)?.form) {
+        e.preventDefault()
+        awaitTabStop(next, back)
+        return
+      }
     }
   }
   el.addEventListener('keydown', onFormTab)
@@ -548,6 +585,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       highlights?.destroy()
       stopRedecorate?.()
       el.removeEventListener('keydown', onFormTab)
+      tabWait?.cancel()
       for (const stop of stopForm) stop()
       if (opts.formHighlight === false) delete el.dataset.inkFormHighlight
     },

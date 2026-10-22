@@ -235,8 +235,10 @@ describe('FormController', () => {
       pageEvent: vi.fn(() => Promise.resolve()),
       destroy: vi.fn(),
     }
-    form._attachScripting(scripting)
+    // form-fields has no widget scripts; a sandbox running document scripts counts.
     expect(form.hasScripts).toBe(false)
+    form._attachScripting(scripting)
+    expect(form.hasScripts).toBe(true)
     expect(form.set({ name: 'Ada', notes: 'n' })).toEqual({
       applied: ['name'],
       rejected: [{ name: 'notes', reason: 'script' }],

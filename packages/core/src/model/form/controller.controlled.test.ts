@@ -105,6 +105,28 @@ describe('FormController (controlled)', () => {
     expect(onChange.mock.calls[0]![1]).toEqual({ kind: 'calculate', names: ['notes'] })
   })
 
+  it('a commit names the fields its calculation changed', () => {
+    const { form, onChange } = controlled()
+    form._attachScripting({
+      commit(name, value) {
+        if (name === 'name') form._scriptValues({ notes: `hi ${value as string}` })
+        return value
+      },
+      sync: () => undefined,
+      dispatch: () => undefined,
+      keystroke: () => undefined,
+      pageEvent: () => Promise.resolve(),
+      destroy: () => undefined,
+    })
+    expect(form.hasScripts).toBe(true)
+    form.set({ name: 'Bo' })
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(onChange.mock.calls[0]![1]).toEqual({
+      kind: 'commit',
+      names: ['name', 'notes'],
+    })
+  })
+
   it('a push equal to the current map emits nothing', () => {
     const { form, onChange } = controlled()
     const sync = vi.fn()

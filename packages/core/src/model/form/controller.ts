@@ -36,13 +36,18 @@ export interface FormController {
   readonly formatted: Readable<Readonly<Record<string, string>>>
   /** Script-driven widget state: hidden, readOnly, required, colours, by widget id. */
   readonly widgetState: Readable<Readonly<Record<string, WidgetOverride>>>
+  /**
+   * Whether the form has JavaScript: a widget's scripts, or document-level or page scripts
+   * running in the sandbox.
+   */
   readonly hasScripts: boolean
   get(name: string): FieldValue | undefined
   /**
    * Commits `values` as a person would: each runs its validate and calculate scripts, and the
    * whole call is one undo step. A value that is unknown, read-only, invalid for the field or
    * rejected by a script is left out and listed in `rejected`. In controlled mode the full map
-   * is reported once afterwards.
+   * is reported once afterwards, as a `commit` naming the fields set and the fields a
+   * calculation changed.
    */
   set(values: FieldValues): FormSetResult
   /**
@@ -268,9 +273,9 @@ export function createFormController(opts: FormControllerOptions): FormControlle
     else
       for (const id of [...change.added, ...change.updated, ...change.removed])
         dropPending(id)
+    // Only an uncontrolled document has undo history, so no controlled host hears of this.
     if (change.kind !== 'replace' || change.reason !== 'history') return
     within(() => scripting?.sync(current(), false))
-    if (controlled) controlled.onChange(current(), { kind: 'history' })
   })
 
   /** Writes one value (none removes it), skipping one equal to what is stored. */
@@ -469,7 +474,10 @@ export function createFormController(opts: FormControllerOptions): FormControlle
     formatted: readonly(formatted),
     widgetState: readonly(widgetState),
     get hasScripts() {
-      return fields.get().some((f) => f.widgets.some((w) => w.hasScripts))
+      return (
+        scripting !== undefined ||
+        fields.get().some((f) => f.widgets.some((w) => w.hasScripts))
+      )
     },
     get: (name) => store.get(name)?.value,
     set(next) {
@@ -495,7 +503,10 @@ export function createFormController(opts: FormControllerOptions): FormControlle
             result.applied.push(name)
           }
         },
-        () => ({ kind: 'commit', names: result.applied })
+        (changedNames) => ({
+          kind: 'commit',
+          names: [...new Set([...result.applied, ...changedNames])],
+        })
       )
       return result
     },

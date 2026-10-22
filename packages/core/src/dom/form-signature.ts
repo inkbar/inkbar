@@ -3,7 +3,8 @@
 // to sign it through `onSignField`, anchored to the widget's box; the viewer opens the
 // signature menu there. Once signed it shows nothing of its own: the signature is an annotation,
 // drawn by the overlay above the field, and selecting and deleting it clears the field. A signed
-// field is not signed again until it is cleared.
+// field is not signed again until it is cleared: its button is disabled for assistive
+// technology and left out of the Tab order.
 //
 // The button's font size follows the box at each zoom (geometry); its look is the theme's.
 import { FORM_LABELS } from './ui'
@@ -44,11 +45,19 @@ export function createSignatureWidget(ctx: WidgetViewContext): WidgetView {
   return {
     control: el,
     drawn: false,
+    get tabbable() {
+      return !signed()
+    },
     sync(next) {
       state = next
       const isSigned = signed()
-      if (isSigned) el.dataset.inkSigned = ''
-      else delete el.dataset.inkSigned
+      if (isSigned) {
+        el.dataset.inkSigned = ''
+        el.setAttribute('aria-disabled', 'true')
+      } else {
+        delete el.dataset.inkSigned
+        el.removeAttribute('aria-disabled')
+      }
       // Text only: the label is ours, the name is the file's.
       el.textContent = signable() ? FORM_LABELS.sign : ''
       if (signable()) {

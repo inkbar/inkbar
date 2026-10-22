@@ -158,6 +158,8 @@ export interface WidgetView {
    * the layer does not send one on pointer up.
    */
   readonly activates?: boolean
+  /** False keeps the control out of the Tab order (a signed signature field). */
+  readonly tabbable?: boolean
   sync(state: WidgetState): void
   /** The control was placed in a new frame (zoom or rotation). */
   layout(frame: WidgetFrame): void
@@ -375,6 +377,7 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
 
   /** A radio group is one Tab stop on the page: its chosen radio, else its first. */
   const isStop = (e: Entry): boolean => {
+    if (e.view?.tabbable === false) return false
     if (e.field.type !== 'radio') return true
     const value = form.values.get()[e.field.name]
     const group = entries.filter((g) => g.field === e.field && g.view && !hiddenOf(g))
