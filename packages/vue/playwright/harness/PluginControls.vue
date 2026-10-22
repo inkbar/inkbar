@@ -43,7 +43,7 @@ function removeRedaction(): void {
     :data-marks="list.map((m) => m.status).join(',')"
     :data-can-undo="canUndo"
     :data-accept-enabled="accept.enabled.value"
-    :data-accept-label="accept.label"
+    :data-accept-label="accept.label.value"
   >
     <button data-testid="remove" @click="removeRedaction">remove</button>
     <button data-testid="finish" @click="emit('finish')">finish</button>

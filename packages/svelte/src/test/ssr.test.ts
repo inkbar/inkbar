@@ -73,7 +73,11 @@ describe('@inkbar/svelte on the server', () => {
     expect(body).toContain('data-ink-toolbar')
     expect(body).toContain('aria-label="Document tools"')
     expect(body).toContain('aria-label="Page and zoom"')
-    expect(body).toMatch(/<button[^>]*data-command="sandbox\.ping"[^>]*disabled/)
+    // Disabled and out of the accessibility tree while it has no name to give.
+    const button = /<button[^>]*data-command="sandbox\.ping"[^>]*>/.exec(body)?.[0] ?? ''
+    expect(button).toMatch(/\sdisabled/)
+    expect(button).toContain('aria-hidden="true"')
+    expect(button).not.toMatch(/aria-label|title=/)
     expect(setup).not.toHaveBeenCalled()
     expect(body).toContain('data-ink-viewport-root')
     // Once on the root and once on the viewport, which renders its empty scroll element.

@@ -4,8 +4,9 @@
  * `createCommandButton`, so the theme styles both alike. The button is named by the command's
  * label, disabled while the command is, and `aria-busy` while it runs; the status is a live
  * region. A command without an icon shows its label as the button's text. Until the plugins
- * are set up (once InkRoot has mounted; never on the server) the button is disabled. After
- * that, an id no plugin registered throws `InkError('UnknownCommand')`.
+ * are set up (once InkRoot has mounted; never on the server) the button is disabled and
+ * `aria-hidden`. After that, an id no plugin registered raises `InkError('UnknownCommand')`
+ * through Vue's error handling.
  */
 import { ToolbarButton } from 'reka-ui'
 import { computed } from 'vue'
@@ -20,13 +21,15 @@ const props = withDefaults(defineProps<{ id: string; asChild?: boolean }>(), {
 
 // The id is read once, as `useCommand` does: a different command is a different component.
 const command = useCommand(props.id)
-const { enabled, busy, status } = command
+const { enabled, busy, status, label, icon } = command
 // Reka's typed props stop at its own; ARIA and listeners go through a bound object.
 const attrs = computed(() => ({
   type: 'button',
-  // No label until the plugins are set up: no empty name either.
-  'aria-label': command.label || undefined,
-  title: command.label || undefined,
+  // No label until the plugins are set up: the disabled button stays out of the
+  // accessibility tree rather than go unnamed.
+  'aria-label': label.value || undefined,
+  title: label.value || undefined,
+  'aria-hidden': label.value ? undefined : 'true',
   'aria-busy': String(busy.value),
   onClick: () => void command.run(),
 }))
@@ -40,9 +43,9 @@ const attrs = computed(() => ({
       :data-command="id"
       v-bind="attrs"
     >
-      <slot :label="command.label" :busy="busy">
-        <InkIcon v-if="command.icon" :icon="command.icon" />
-        <template v-else>{{ command.label }}</template>
+      <slot :label="label" :busy="busy">
+        <InkIcon v-if="icon" :icon="icon" />
+        <template v-else>{{ label }}</template>
       </slot>
     </ToolbarButton>
     <span class="ink-command-status" role="status">{{ status }}</span>

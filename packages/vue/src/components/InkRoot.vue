@@ -346,8 +346,13 @@ watch(internalTool, (id) => setStyleTool?.(id))
 // The plugins first, so the first document opens with their stores and reactions.
 onMounted(() => {
   syncRootEl()
-  setUpPlugins()
-  void open()
+  // A plugin whose setup throws still leaves the document to open; the error then goes to
+  // Vue's error handling (`onErrorCaptured`, `app.config.errorHandler`).
+  try {
+    setUpPlugins()
+  } finally {
+    void open()
+  }
 })
 onUpdated(syncRootEl)
 

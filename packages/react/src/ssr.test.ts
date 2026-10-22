@@ -105,7 +105,11 @@ describe('@inkbar/react on the server', () => {
     expect(html).toContain('<p>slot</p>')
     expect(html).toContain('data-ink-toolbar')
     expect(html).toContain('aria-label="Document tools"')
-    expect(html).toMatch(/<button[^>]*data-command="sandbox\.ping"[^>]*disabled/)
+    // Disabled and out of the accessibility tree while it has no name to give.
+    const button = /<button[^>]*data-command="sandbox\.ping"[^>]*>/.exec(html)?.[0] ?? ''
+    expect(button).toMatch(/\sdisabled/)
+    expect(button).toContain('aria-hidden="true"')
+    expect(button).not.toMatch(/aria-label|title=/)
     expect(setup).not.toHaveBeenCalled()
     expect(evaluated.pdfjs).toBe(false)
 

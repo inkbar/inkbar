@@ -310,15 +310,16 @@ export function InkRoot({
   }, [snapshotHistory])
 
   /*
-   * One plugin host for the root's life, built in an effect so that no `setup` runs on the
-   * server, where nothing would clean it up. Until then `pluginHost` is null and InkCommand
-   * renders its command disabled. The effect is declared before the one that opens the
-   * document, so the first document opens with the plugins' stores and reactions.
+   * One plugin host for the root's life, built in a layout effect so that no `setup` runs on
+   * the server, where nothing would clean it up, and the browser never paints the commands
+   * without it. Until then `pluginHost` is null and InkCommand renders its command disabled.
+   * Layout effects run before the passive effect that opens the document, so the first
+   * document opens with the plugins' stores and reactions.
    */
   const hostRef = useRef<RootHost | null>(null)
   const [pluginHost, setPluginHost] = useState<PluginHost | null>(null)
   const hostMounts = useRef(0)
-  useEffect(() => {
+  useLayoutEffect(() => {
     hostMounts.current += 1
     // StrictMode's simulated unmount mounts again at once, and then the host from the first
     // mount stays. Shown again after it was destroyed (an `<Activity>` hidden and shown), or

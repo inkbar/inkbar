@@ -16,15 +16,16 @@ export interface CommandHandle {
   /** The command's progress or result message, `''` without one. */
   status: Readonly<Ref<string>>
   /** `''` until the plugins are set up. */
-  label: string
-  icon: IconNode | undefined
+  label: Readonly<Ref<string>>
+  icon: Readonly<Ref<IconNode | undefined>>
 }
 
 /**
  * A plugin command by its namespaced id (`sandbox.suggest`), for hosts building their own
  * control. Plugins are set up once InkRoot has mounted, so until then (and on the server) the
  * command is disabled with no label; it fills in then. Once they are set up, an id no plugin
- * passed to InkRoot registered throws `InkError('UnknownCommand')` where the handle is read.
+ * passed to InkRoot registered raises `InkError('UnknownCommand')` where the handle is read,
+ * which reaches Vue's error handling (`onErrorCaptured`, `app.config.errorHandler`).
  */
 export function useCommand(id: string): CommandHandle {
   const host = useInkContext('useCommand()').pluginHost
@@ -40,12 +41,7 @@ export function useCommand(id: string): CommandHandle {
     enabled: useReadable(() => command.value?.enabled, false),
     busy: useReadable(() => command.value?.busy, false),
     status: useReadable(() => command.value?.status, ''),
-    // Getters, so a template reading them updates once the command exists.
-    get label() {
-      return command.value?.label ?? ''
-    },
-    get icon() {
-      return command.value?.icon
-    },
+    label: computed(() => command.value?.label ?? ''),
+    icon: computed(() => command.value?.icon),
   }
 }

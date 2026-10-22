@@ -3,8 +3,8 @@
  * `createCommandButton`, so the theme styles both alike. The button is named by the command's
  * label, disabled while the command is, and `aria-busy` while it runs; the status is a live
  * region. A command without an icon shows its label as the button's text. Until the plugins
- * are set up (once InkRoot has mounted; never on the server) the button is disabled. After
- * that, an id no plugin registered throws `InkError('UnknownCommand')`.
+ * are set up (once InkRoot has mounted; never on the server) the button is disabled and
+ * `aria-hidden`. After that, an id no plugin registered throws `InkError('UnknownCommand')`.
  */
 import { Toolbar } from 'radix-ui'
 
@@ -39,9 +39,11 @@ export function InkCommand({
         asChild={asChild}
         type="button"
         data-command={id}
-        // No label until the plugins are set up: no empty name either.
+        // No label until the plugins are set up: the disabled button stays out of the
+        // accessibility tree rather than go unnamed.
         aria-label={label || undefined}
         title={label || undefined}
+        aria-hidden={label ? undefined : true}
         aria-busy={busy}
         {...rest}
         disabled={disabled === true || !enabled}

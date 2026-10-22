@@ -171,7 +171,7 @@ A plugin from `definePlugin` (in `@inkbar/core/dom`) adds commands, tools, decor
 </InkRoot>
 ```
 
-`InkCommand` is a button named by the command's label, disabled while the command is, with `aria-busy` while it runs, and its status in a live region beside it. It shows the command's icon, or its label as text when the command has no icon. To build your own, `useCommand(id)` returns `run`, `enabled`, `busy`, `status`, `label` and `icon`. Plugins are set up once `InkRoot` has mounted in the browser, never on the server, so until then the command is disabled and has no label. After that, both throw `UnknownCommand` for an id no plugin registered. `InkToolButton` takes a plugin tool's own label and icon.
+`InkCommand` is a button named by the command's label, disabled while the command is, with `aria-busy` while it runs, and its status in a live region beside it. It shows the command's icon, or its label as text when the command has no icon. To build your own, `useCommand(id)` returns `run`, `enabled`, `busy`, `status`, `label` and `icon`. Plugins are set up once `InkRoot` has mounted in the browser, never on the server. Until then the command is disabled and has no label, and `InkCommand` keeps its button out of the accessibility tree (`aria-hidden`). Read `label` and `icon` off the handle, as you read `enabled`, so they fill in then. After that, both throw `UnknownCommand` for an id no plugin registered. `InkToolButton` takes a plugin tool's own label and icon.
 
 Plugin stores undo with annotations. In controlled mode with `history`, each undo step also snapshots the plugin stores, so accepting something and undoing it restores both.
 
