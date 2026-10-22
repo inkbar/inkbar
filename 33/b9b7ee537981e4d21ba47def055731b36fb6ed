@@ -1,0 +1,97 @@
+packages/vue/src/ssr.test.ts
+  s_611b86d68c2358::t_6d47f7ce1d2897 67-68,70-71,98-99
+packages/vue/src/components/InkCommand.ct.ts
+  s_611b86d68c2358::t_9bccc780315f02 85-87
+  s_611b86d68c2358::t_f51a71fac82fed 4,81-84,88-99
+packages/react/src/components/InkCommand.ct.tsx
+  s_611b86d68c2358::t_2491da2489cadd 5,9,83-97,99-104
+  s_611b86d68c2358::t_6b5b1baf18075e 98
+packages/vue/playwright/harness/test-plugin.ts
+  s_611b86d68c2358::t_acfa5a9c02d985 20-22,28,31-32,85,90-94
+packages/svelte/src/lib/components/InkCommand.svelte
+  s_611b86d68c2358::t_0e3f1d1ad543ff 20-22,43-44
+packages/svelte/src/lib/context.ts
+  s_611b86d68c2358::t_0e3f1d1ad543ff 57-59,61
+packages/svelte/src/test/harness/CommandStateHarness.svelte
+  s_611b86d68c2358::t_c45c60a8d5c489 1-41
+packages/svelte/src/lib/components/InkToolButton.svelte
+  s_611b86d68c2358::t_8ed6f16b52aeca 65-67
+packages/vue/playwright/harness/CommandStateHarness.vue
+  s_611b86d68c2358::t_f51a71fac82fed 1-41
+packages/vue/src/components/InkRoot.vue
+  s_611b86d68c2358::t_b12f4cb6c4022d 349
+  s_611b86d68c2358::t_51285dbd7b870a 289-293,302-304,316,333,345-346
+packages/react/src/context.ts
+  s_611b86d68c2358::t_61488651bcfd14 53-55,57
+packages/svelte/src/test/hooks.test.ts
+  s_611b86d68c2358::t_8ed6f16b52aeca 1,120-122
+  s_611b86d68c2358::t_ce969ea2dfebf4 117,119
+packages/vue/src/context.ts
+  s_611b86d68c2358::t_b12f4cb6c4022d 54-56
+packages/vue/src/composables/useCommand.ts
+  s_611b86d68c2358::t_51285dbd7b870a 2,18,25-27,30-37,39-49
+packages/vue/playwright/harness/CommandStateProbe.vue
+  s_611b86d68c2358::t_f51a71fac82fed 1-4,6-16,18-19
+  s_611b86d68c2358::t_6ecbdf188aef7d 5,17
+packages/svelte/src/test/InkCommand.browser.test.ts
+  s_611b86d68c2358::t_c45c60a8d5c489 8,12,79-96
+  s_611b86d68c2358::t_cca9bf0841cb08 97-98
+packages/react/src/components/InkRoot.tsx
+  s_611b86d68c2358::t_67a29ca417d4bf 145,152-156,276-281,285,313-316,318-319,323-341,345,347,353,417-418,534,538,618,648
+  s_611b86d68c2358::t_288c4cb588c6a3 288,456
+packages/react/src/components/InkViewport.tsx
+  s_611b86d68c2358::t_61488651bcfd14 122
+packages/react/src/hooks/useCommand.ts
+  s_611b86d68c2358::t_61488651bcfd14 17,24-26,29-31,33-37
+packages/react/src/ssr.test.ts
+  s_611b86d68c2358::t_dcc7261886a22d 73-74,76-77,108-109
+packages/vue/README.md
+  s_611b86d68c2358::t_69f91032b1a717 143
+packages/react/src/hooks/useCommand.test.ts
+  s_611b86d68c2358::t_dcc7261886a22d 12-16,18-19
+packages/svelte/src/test/ssr.test.ts
+  s_611b86d68c2358::t_ce969ea2dfebf4 64-65,67-68,76-77
+packages/svelte/src/lib/components/InkRoot.svelte
+  s_611b86d68c2358::t_0e3f1d1ad543ff 385-390,395-416,428,454-455
+  s_611b86d68c2358::t_8ed6f16b52aeca 120
+  s_611b86d68c2358::t_1ffb87ae146c79 456
+packages/svelte/src/lib/hooks/useCommand.svelte.ts
+  s_611b86d68c2358::t_0e3f1d1ad543ff 16,23-25,29-40,42,52-57
+packages/svelte/README.md
+  s_611b86d68c2358::t_69f91032b1a717 174
+packages/svelte/src/test/harness/test-plugin.ts
+  s_611b86d68c2358::t_acfa5a9c02d985 20-22,28,31-32,85,90-94
+packages/react/README.md
+  s_611b86d68c2358::t_69f91032b1a717 168
+packages/vue/src/components/InkCommand.vue
+  s_611b86d68c2358::t_b12f4cb6c4022d 6-8
+  s_611b86d68c2358::t_8c21bda2b939a4 27-29
+packages/react/playwright/harness/CommandStateHarness.tsx
+  s_611b86d68c2358::t_2491da2489cadd 1-67
+packages/react/src/components/InkCommand.tsx
+  s_611b86d68c2358::t_61488651bcfd14 5-7,42-44
+packages/svelte/src/lib/components/InkViewport.svelte
+  s_611b86d68c2358::t_0e3f1d1ad543ff 131
+packages/svelte/src/test/harness/CommandStateProbe.svelte
+  s_611b86d68c2358::t_c45c60a8d5c489 1-23
+packages/core/README.md
+  s_611b86d68c2358::t_69f91032b1a717 266
+packages/react/src/components/InkToolButton.tsx
+  s_611b86d68c2358::t_3e17794b66df64 59-61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "33b9b7ee537981e4d21ba47def055731b36fb6ed",
+  "prompts": {},
+  "sessions": {
+    "s_611b86d68c2358": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f6760cb6-1a68-4a5b-b172-32f4da0aa5b1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
