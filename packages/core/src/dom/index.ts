@@ -40,7 +40,11 @@ export type {
 export type { PluginApi, PluginOptions } from './plugins/api/api'
 export type { CommandOptions, CommandRun } from './plugins/api/command'
 export type { Records } from './plugins/api/records'
-export type { AnnotationLink, AnnotationLinkSpec } from './plugins/api/links'
+export type {
+  AnnotationInputOf,
+  AnnotationLink,
+  AnnotationLinkSpec,
+} from './plugins/api/links'
 export { unknownCommand } from './plugins/commands'
 export { createPluginHost } from './plugins/host'
 export type { PluginHost, PluginHostOptions } from './plugins/host'
