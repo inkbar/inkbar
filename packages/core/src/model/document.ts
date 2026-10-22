@@ -267,7 +267,7 @@ export async function openDocument(
       )
       formData.fields = buildFormFields(widgets, formData.extras)
     }
-    form._load(formData.fields)
+    form._load(formData.fields, formData.extras.tabs)
     // Scripts start before `ready`, so the form a host first sees has run its open scripts,
     // and they are not an undo step. Only a document with fields and JavaScript loads the
     // sandbox; one without fields does no extra work. A failure, or a sandbox that does not

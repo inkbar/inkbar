@@ -6,6 +6,9 @@
 // control is focused it shows the raw value; otherwise the formatted one. The text it draws
 // takes the field's `/DA` font, size and colour, `/Q` alignment and `/MK` border and
 // background, or a script's colours and size over them.
+//
+// An editable combo box is the same control with a `<datalist>` of its options: a person picks
+// one or types their own text. It shows each option's label and stores its export value.
 import { fontFamilyValue } from './signature-pad'
 
 import type {
@@ -14,6 +17,7 @@ import type {
   WidgetView,
   WidgetViewContext,
 } from './form-layer'
+import type { FieldOption } from '../model/form/types'
 
 /** Line height as a multiple of the font size, as PDF.js lays out field text. */
 const LINE_FACTOR = 1.35
@@ -25,7 +29,7 @@ const MULTILINE_AUTO = 12
 const AUTO_MIN = 4
 
 /** A font family from `/DA` as a CSS font-family list, closest standard fallbacks after it. */
-function familyList(family: string | undefined): string {
+export function familyList(family: string | undefined): string {
   if (!family) return 'Helvetica, Arial, sans-serif'
   if (/^times/i.test(family))
     return `${fontFamilyValue(family)}, 'Times New Roman', serif`
@@ -34,7 +38,7 @@ function familyList(family: string | undefined): string {
   return `${fontFamilyValue(family)}, Helvetica, Arial, sans-serif`
 }
 
-const BORDER_STYLES = {
+export const BORDER_STYLES = {
   solid: 'solid',
   dashed: 'dashed',
   beveled: 'outset',
@@ -77,10 +81,19 @@ function editOf(
   return { start: p, end: value.length - s, change: after.slice(p, after.length - s) }
 }
 
-export function createTextWidget(ctx: WidgetViewContext): WidgetView {
+let lists = 0
+
+/**
+ * A text field's control, or with `choices` an editable combo box's: the options are offered
+ * by label, and a label typed or picked is stored as its export value.
+ */
+export function createTextWidget(
+  ctx: WidgetViewContext,
+  choices?: readonly FieldOption[]
+): WidgetView {
   const { form, field, widget } = ctx
   const ownerDoc = ctx.box.ownerDocument
-  const multiline = field.flags.multiline
+  const multiline = !choices && field.flags.multiline
   const el: Control = ownerDoc.createElement(multiline ? 'textarea' : 'input')
   if (el instanceof HTMLInputElement) el.type = field.flags.password ? 'password' : 'text'
   el.className = 'ink-form-control'
@@ -102,6 +115,22 @@ export function createTextWidget(ctx: WidgetViewContext): WidgetView {
       : 0
   if (comb) ctx.box.dataset.inkComb = String(comb)
   ctx.box.append(el)
+  let datalist: HTMLDataListElement | undefined
+  if (choices) {
+    datalist = ownerDoc.createElement('datalist')
+    datalist.id = `ink-form-list-${++lists}`
+    for (const o of choices) {
+      const option = ownerDoc.createElement('option')
+      option.value = o.label
+      datalist.append(option)
+    }
+    ctx.box.append(datalist)
+    el.setAttribute('list', datalist.id)
+  }
+  /** The text shown for a stored value: an option's label, else the value itself. */
+  const label = (value: string) => choices?.find((o) => o.value === value)?.label ?? value
+  /** The value stored for text: the export value of the option it labels, else the text. */
+  const valueOf = (text: string) => choices?.find((o) => o.label === text)?.value ?? text
 
   const appearance = widget.appearance
   const initial = typeof field.value === 'string' ? field.value : ''
@@ -239,15 +268,18 @@ export function createTextWidget(ctx: WidgetViewContext): WidgetView {
 
   /** Shows the raw value while focused and the formatted one otherwise. */
   const show = () => {
-    const text = focused ? raw() : (state.formatted ?? raw())
+    const text = focused ? label(raw()) : (state.formatted ?? label(raw()))
     if (el.value !== text) el.value = text
   }
 
   const commit = () => {
     if (!typed) return
     typed = false
-    const text = el.value
-    if (text === raw()) return
+    const text = valueOf(el.value)
+    if (text === raw()) {
+      show()
+      return
+    }
     const result = form.set({ [field.name]: text })
     ctx.setInvalid(result.rejected.length > 0)
     // A rejected commit leaves the stored value, which nothing re-sends: show it again.
@@ -344,6 +376,7 @@ export function createTextWidget(ctx: WidgetViewContext): WidgetView {
     },
     destroy() {
       el.remove()
+      datalist?.remove()
     },
   }
 }

@@ -106,8 +106,13 @@ export interface FormController {
    * `calculate`.
    */
   _scriptValues(values: FieldValues): void
+  /** @internal Each page's `/Tabs`, for pages that set one; set with the fields. */
+  readonly _tabs: ReadonlyMap<number, 'R' | 'C' | 'S' | 'W'>
   /** @internal Sets the structure once the file's fields are read, applying any waiting push. */
-  _load(fields: readonly FormField[]): void
+  _load(
+    fields: readonly FormField[],
+    tabs?: ReadonlyMap<number, 'R' | 'C' | 'S' | 'W'>
+  ): void
   /**
    * @internal Applies values already checked by `fieldsFromGloss`, as an import: not an undo
    * step, and reported to a controlled host as `import`.
@@ -174,6 +179,7 @@ export function createFormController(opts: FormControllerOptions): FormControlle
   let byWidget = new Map<string, FormField>()
   let widgets = new Map<string, FormWidget>()
   let loaded = false
+  let tabs: ReadonlyMap<number, 'R' | 'C' | 'S' | 'W'> = new Map()
   /** A push that arrived before the fields loaded. */
   let waiting: FieldValues | undefined
   let scripting: FormScripting | undefined
@@ -331,8 +337,12 @@ export function createFormController(opts: FormControllerOptions): FormControlle
     }
   }
 
-  const load = (list: readonly FormField[]) => {
+  const load = (
+    list: readonly FormField[],
+    pageTabs?: ReadonlyMap<number, 'R' | 'C' | 'S' | 'W'>
+  ) => {
     loaded = true
+    tabs = pageTabs ?? new Map()
     fields.set(list)
     byName = new Map(list.map((f) => [f.name, f]))
     byWidget = new Map(list.flatMap((f) => f.widgets.map((w) => [w.id, f] as const)))
@@ -514,6 +524,9 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       }
       if (depth > 0) apply()
       else reporting(apply, (names) => ({ kind: 'calculate', names }))
+    },
+    get _tabs() {
+      return tabs
     },
     _load: load,
     _import(next) {

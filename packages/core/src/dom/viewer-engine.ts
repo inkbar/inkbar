@@ -12,6 +12,8 @@ import {
   type SignatureStore,
 } from '../model/signatures'
 
+import { hasControl } from './form-layer'
+import { tabOrder } from './form-order'
 import { createPageMount, type PageLayer, type PageMount } from './page-mount'
 import { createPluginLayers } from './plugins/layer'
 import { createSearchHighlights } from './search/highlights'
@@ -37,6 +39,7 @@ import type { SearchController } from './search/controller'
 import type { PageTransform, ViewRotation } from './transform'
 import type { ToolStyle } from '../model/annotations/tool-style'
 import type { InkDocument } from '../model/document'
+import type { FormWidget } from '../model/form/types'
 import type { Point } from '../model/geometry'
 
 /** A user-space point on a page, used to put the scroll position back after a rebuild. */
@@ -250,10 +253,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       formHighlight: opts.formHighlight ?? true,
       // While a build mounts its pages, `tools` is unset or the old controller; the build
       // refreshes the fields once its controller exists.
-      formActive: () => {
-        const id = (tools as ToolController | undefined)?.active.get()
-        return id !== undefined && FORM_TOOLS.has(id)
-      },
+      formActive: formsActive,
       ...(layers ? { layers } : {}),
       ...(highlights ? { highlights } : {}),
       onError: (cause, layer) => {
@@ -282,6 +282,64 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     pages.set(page, mount)
     opts.onPageMount?.(page, mount, host)
   }
+
+  /** Whether form fields take input under the active tool. */
+  const formsActive = (): boolean => {
+    const id = (tools as ToolController | undefined)?.active.get()
+    return id !== undefined && FORM_TOOLS.has(id)
+  }
+
+  /**
+   * The first widget (`last`: the last) in Tab order on each page with a control to stop at,
+   * by page index.
+   */
+  function tabEdges(last: boolean): Map<number, FormWidget> {
+    const fields = doc.form.fields.get()
+    const byId = new Map(
+      fields.flatMap((f) =>
+        hasControl(f) ? f.widgets.map((w) => [w.id, w] as const) : []
+      )
+    )
+    const state = doc.form.widgetState.get()
+    const edges = new Map<number, FormWidget>()
+    for (const id of tabOrder(fields, doc.form._tabs, doc.pages)) {
+      const w = byId.get(id)
+      if (!w || (state[id]?.hidden ?? (w.hidden || w.printOnly))) continue
+      if (last || !edges.has(w.page)) edges.set(w.page, w)
+    }
+    return edges
+  }
+
+  /**
+   * Tab on a page's last field stop (Shift+Tab on its first) goes to the first (last) stop of
+   * the next (previous) page that has fields, mounting it and scrolling it into view. Past the
+   * last page's fields, Tab leaves the viewer as usual.
+   */
+  function onFormTab(e: KeyboardEvent): void {
+    if (e.key !== 'Tab' || e.altKey || e.ctrlKey || e.metaKey || e.defaultPrevented)
+      return
+    const target = e.target
+    if (!(target instanceof Element) || !target.closest('[data-ink-form-layer]')) return
+    if (!formsActive()) return
+    const back = e.shiftKey
+    const from = [...pages].find(([, m]) => m.form?.element.contains(target))
+    if (!from) return
+    const [page, mount] = from
+    if (mount.form?.tabStops().at(back ? 0 : -1) !== target) return
+    const edges = [...tabEdges(back)]
+      .filter(([p]) => (back ? p < page : p > page))
+      .sort(([a], [b]) => (back ? b - a : a - b))
+    for (const [next, widget] of edges) {
+      viewport.scrollToRect(next, widget.rect)
+      const stops = pages.get(next)?.form?.tabStops() ?? []
+      const to = back ? stops.at(-1) : stops[0]
+      if (!to) continue
+      e.preventDefault()
+      to.focus()
+      return
+    }
+  }
+  el.addEventListener('keydown', onFormTab)
 
   function unmountPage(page: number): void {
     const mount = pages.get(page)
@@ -466,6 +524,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       layers?.destroy()
       highlights?.destroy()
       stopRedecorate?.()
+      el.removeEventListener('keydown', onFormTab)
       if (opts.formHighlight === false) delete el.dataset.inkFormHighlight
     },
   }

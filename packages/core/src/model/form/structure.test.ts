@@ -133,6 +133,13 @@ describe('buildFormFields', () => {
     })
     expect(fields.get('notes')!.widgets[0]!.appearance.align).toBe('center')
     expect(fields.get('auto')!.widgets[0]!.appearance.fontSize).toBe(0)
+    // Checkboxes and radios say whether the file has their on look; text fields do not.
+    expect(fields.get('agree')!.widgets[0]!.appearance.onAppearance).toBe(true)
+    expect(fields.get('plan')!.widgets.map((w) => w.appearance.onAppearance)).toEqual([
+      true,
+      true,
+    ])
+    expect(fields.get('name')!.widgets[0]!.appearance.onAppearance).toBeUndefined()
   })
 
   it('reads a /DA font through the resource dictionary', async () => {
