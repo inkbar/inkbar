@@ -1,0 +1,26 @@
+packages/vue/src/components/InkCommand.vue
+  s_611b86d68c2358::t_47810488b7c53c 6-7,43
+packages/vue/playwright/harness/test-plugin.ts
+  s_611b86d68c2358::t_2f260d6e1b0800 15-16
+  s_611b86d68c2358::t_eb83501b3f6442 51
+packages/vue/src/components/InkCommand.ct.ts
+  s_611b86d68c2358::t_eb83501b3f6442 35-49
+packages/vue/README.md
+  s_611b86d68c2358::t_0c0d0560a2b7f6 143
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "98a036f87c1a2203406396e11937bfcb9c4afef4",
+  "prompts": {},
+  "sessions": {
+    "s_611b86d68c2358": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f6760cb6-1a68-4a5b-b172-32f4da0aa5b1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
