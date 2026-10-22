@@ -1,106 +1,77 @@
 import assert from 'node:assert/strict'
-import { test } from 'node:test'
+import { createRequire } from 'node:module'
+import { dirname, join } from 'node:path'
+import { after, before, test } from 'node:test'
+import { fileURLToPath } from 'node:url'
+
+import { openDocument, writable, type InkDocument } from '@inkbar/core'
+import { createPluginHost } from '@inkbar/core/dom'
+
+import { makeSample } from '../../vite/make-sample.ts'
 
 import {
-  createAnnotationStore,
-  createHistory,
-  createRecordStore,
-  staticDefaults,
-  writable,
-  type InkDocument,
-  type RecordBase,
-  type RecordStore,
-} from '@inkbar/core'
-
-import {
-  acceptSuggestion,
-  dismissSuggestion,
+  findSuggestions,
   SAMPLE_SUGGESTIONS,
   suggestionsPlugin,
   type Suggestion,
+  type SuggestionsOptions,
 } from './suggestions.ts'
 
-import type { CommandSpec, PluginContext } from '@inkbar/core/dom'
+/** PDF.js's files from core's own copy, as file paths for Node. */
+function nodeAssets() {
+  const require = createRequire(fileURLToPath(import.meta.resolve('@inkbar/core')))
+  const root = dirname(require.resolve('pdfjs-dist/package.json'))
+  return {
+    worker: require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs'),
+    cMaps: join(root, 'cmaps') + '/',
+    standardFonts: join(root, 'standard_fonts') + '/',
+    wasm: join(root, 'wasm') + '/',
+    icc: join(root, 'iccs') + '/',
+  }
+}
 
-/** The text of the sample's page 4, as one run per value: enough for Suggest to find them. */
-const SAMPLE_TEXT = [
-  'QQ123456C',
-  'm.okafor@example.com',
-  '07700 900123',
-  'agreed; confirmation sent to m.okafor@example.com.',
-]
+let sampleBytes: Uint8Array
+const opened: InkDocument[] = []
 
-/**
- * A four-page document whose last page holds `text`, with a real annotation store and
- * history, and a plugin context over it that records what the plugin registers.
- */
-function setUp(text: string[] = SAMPLE_TEXT) {
-  const annotations = createAnnotationStore({
-    mode: { mode: 'uncontrolled' },
-    defaults: staticDefaults,
-  })
-  const history = createHistory(annotations)
-  const doc = {
-    pages: [0, 1, 2, 3].map((index) => ({ index })),
-    text: (page: number) =>
-      Promise.resolve({ items: (page === 3 ? text : []).map((str) => ({ str })) }),
-    annotations,
-    history,
-  } as unknown as InkDocument
-  const commands = new Map<string, CommandSpec>()
-  let store: RecordStore<Suggestion> | null = null
-  const ctx: PluginContext = {
-    id: 'sandbox',
-    document: writable<InkDocument | null>(doc),
-    history,
+/** A fresh copy of the sandbox's sample PDF, open and ready. */
+async function openSample(): Promise<InkDocument> {
+  const doc = await openDocument(sampleBytes.slice(), { assets: nodeAssets() })
+  opened.push(doc)
+  await doc.ready
+  return doc
+}
+
+before(async () => {
+  sampleBytes = await makeSample()
+})
+
+after(() => {
+  for (const doc of opened) doc.destroy()
+})
+
+/** The plugin in a real host, over the sample, as a viewer runs it. */
+async function setUp(options?: SuggestionsOptions) {
+  const doc = await openSample()
+  const document = writable<InkDocument | null>(null)
+  const host = createPluginHost({
+    plugins: [suggestionsPlugin(options)],
+    document,
+    history: () => document.get()!.history,
     activated: writable<string | null>(null),
     setActivated() {},
     root: writable<HTMLElement | null>(null),
-    commands: {
-      add(spec) {
-        commands.set(spec.id, spec)
-        return {} as never
-      },
-    },
-    tools: { add() {} },
-    decorate() {},
-    redecorate() {},
-    store<T extends RecordBase>(name: string) {
-      assert.equal(name, 'suggestions')
-      const s = createRecordStore<T>(`sandbox.${name}`)
-      history.track(s)
-      store = s as unknown as RecordStore<Suggestion>
-      return writable(s)
-    },
-    onDocument(fn) {
-      fn(doc)
-    },
-    onAnnotationEdit(fn) {
-      history.react(fn)
-    },
-    layer: () => ({ invalidate() {} }),
-  }
-  suggestionsPlugin().setup(ctx)
-  const suggest = commands.get('suggest')!
-  return { ctx, doc, annotations, history, store: store!, suggest }
-}
-
-/** Adds the sample's four suggestions straight to the store, as Suggest would. */
-function withSample() {
-  const env = setUp()
-  env.history.batch(() => {
-    for (const s of SAMPLE_SUGGESTIONS) env.store.add(s)
   })
-  return env
+  document.set(doc)
+  return { doc, document, suggest: host.command('sandbox.suggest')! }
 }
 
-void test('suggest adds the four sample suggestions once', async () => {
-  const { store, suggest } = setUp()
-  assert.equal(suggest.label, 'Suggest redactions')
-  await suggest.run()
+const statusOf = (s: Suggestion) => [s.id, s.status]
+
+void test('findSuggestions finds the four sample values in the sample, in reading order', async () => {
+  const doc = await openSample()
+  const found = await findSuggestions(doc)
   assert.deepEqual(
-    store.list.get().map((s) => [s.reason, s.confidence, s.status, s.page]),
-    // In reading order: the record's three values, then the email in the call note.
+    found.map((s) => [s.reason, s.confidence, s.status, s.page]),
     [
       ['National Insurance number', 0.95, 'suggested', 3],
       ['Email address', 0.85, 'suggested', 3],
@@ -108,53 +79,77 @@ void test('suggest adds the four sample suggestions once', async () => {
       ['Email address', 0.85, 'suggested', 3],
     ]
   )
+})
+
+void test('findSuggestions finds nothing when the text is absent', async () => {
+  const doc = {
+    pages: [0, 1, 2, 3].map((index) => ({ index })),
+    pageText: () => Promise.resolve('Nothing to see here.'),
+  } as unknown as InkDocument
+  assert.deepEqual(await findSuggestions(doc), [])
+})
+
+void test('findSuggestions stops when its signal aborts', async () => {
+  const doc = await openSample()
+  const controller = new AbortController()
+  const found = findSuggestions(doc, { signal: controller.signal })
+  controller.abort()
+  await assert.rejects(found, { name: 'AbortError' })
+})
+
+void test('Suggest adds the four suggestions once, in one undo step, and saves them', async () => {
+  let saved: readonly Suggestion[] = []
+  const { doc, suggest } = await setUp({
+    records: { suggestions: { onChange: (list) => (saved = list) } },
+  })
+  assert.equal(suggest.label, 'Suggest redactions')
+  await suggest.run()
   assert.equal(suggest.status?.get(), '4 suggestions')
+  assert.deepEqual(
+    saved.map((s) => s.id),
+    SAMPLE_SUGGESTIONS.map((s) => s.id)
+  )
   await suggest.run()
-  assert.equal(store.list.get().length, 4)
   assert.equal(suggest.status?.get(), '0 suggestions')
+  assert.equal(saved.length, 4)
+  doc.history.undo()
+  assert.equal(saved.length, 0)
 })
 
-void test('suggest finds nothing when the text is absent', async () => {
-  const { store, suggest } = setUp(['Nothing to see here.'])
-  await suggest.run()
-  assert.equal(store.list.get().length, 0)
-  assert.equal(suggest.status?.get(), '0 suggestions')
+void test('a Suggest run that a new document interrupts adds nothing to either', async () => {
+  let saved: readonly Suggestion[] = []
+  const { document, suggest } = await setUp({
+    records: { suggestions: { onChange: (list) => (saved = list) } },
+  })
+  const run = suggest.run()
+  document.set(await openSample())
+  await run
+  assert.equal(saved.length, 0)
+  assert.equal(suggest.status?.get(), '')
 })
 
-void test('accept marks the suggestion and adds a linked redaction in one undo step', () => {
-  const { ctx, store, annotations, history } = withSample()
+void test('deleting an accepted redaction restores its suggestion, in the same undo step', async () => {
+  let saved: readonly Suggestion[] = []
   const [first] = SAMPLE_SUGGESTIONS
-  acceptSuggestion(ctx, store, first!.id)
-  assert.equal(store.get(first!.id)?.status, 'accepted')
-  const [redaction] = annotations.list.get()
-  assert.equal(redaction?.type, 'redact')
-  assert.equal(redaction?.page, 3)
-  assert.deepEqual(redaction?.custom, { sandbox: { suggestionId: first!.id } })
-  assert.equal(redaction?.color, annotations.defaults.color('redact'))
-  assert.equal(redaction?.type === 'redact' && redaction.quads?.length, 1)
-
-  history.undo()
-  assert.equal(store.get(first!.id)?.status, 'suggested')
-  assert.equal(annotations.list.get().length, 0)
-})
-
-void test('dismiss marks it dismissed', () => {
-  const { store } = withSample()
-  const [, second] = SAMPLE_SUGGESTIONS
-  dismissSuggestion(store, second!.id)
-  assert.equal(store.get(second!.id)?.status, 'dismissed')
-  assert.equal(store.list.get().length, 4)
-})
-
-void test('removing an accepted redaction restores its suggestion', () => {
-  const { ctx, store, annotations, history } = withSample()
-  const [first] = SAMPLE_SUGGESTIONS
-  acceptSuggestion(ctx, store, first!.id)
-  const [redaction] = annotations.list.get()
-  annotations.remove(redaction!.id)
-  assert.equal(store.get(first!.id)?.status, 'suggested')
-  // The restore is part of the removal's undo step.
-  history.undo()
-  assert.equal(store.get(first!.id)?.status, 'accepted')
-  assert.equal(annotations.list.get().length, 1)
+  const { doc } = await setUp({
+    records: {
+      suggestions: {
+        // The host's saved state: one suggestion accepted, its redaction linked to it.
+        initial: () => [{ ...first!, status: 'accepted' }],
+        onChange: (list) => (saved = list),
+      },
+    },
+  })
+  const redaction = doc.annotations.add({
+    type: 'redact',
+    page: first!.page,
+    quads: first!.quads,
+    color: doc.annotations.defaults.color('redact'),
+    custom: { sandbox: { suggestions: first!.id } },
+  })
+  doc.annotations.remove(redaction.id)
+  assert.deepEqual(saved.map(statusOf), [[first!.id, 'suggested']])
+  doc.history.undo()
+  assert.deepEqual(saved.map(statusOf), [[first!.id, 'accepted']])
+  assert.ok(doc.annotations.list.get().some((a) => a.id === redaction.id))
 })

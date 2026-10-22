@@ -2,8 +2,6 @@
  * The plugin page: the example plugin's source, with a note on each file, beside the
  * TypeScript viewer running it.
  */
-import card from '../plugin/card.ts?highlight'
-import layer from '../plugin/layer.ts?highlight'
 import css from '../plugin/suggestions.css?highlight'
 import suggestions from '../plugin/suggestions.ts?highlight'
 import { startShell } from '../shell/shell'
@@ -15,22 +13,12 @@ startShell({
     {
       path: 'src/plugin/suggestions.ts',
       source: suggestions,
-      note: '<code>definePlugin</code> and its <code>setup</code>, run once per viewer. It keeps the suggestions in a store, adds the Suggest command and draws a layer on each page. A host registers it in <code>plugins</code> and places the button.',
-    },
-    {
-      path: 'src/plugin/layer.ts',
-      source: layer,
-      note: 'Draws the open suggestions on a page as dashed buttons. Positions are in PDF points; the transform the layer is handed turns them into pixels.',
-    },
-    {
-      path: 'src/plugin/card.ts',
-      source: card,
-      note: 'The review card, built on core’s popover. Accept adds a redaction, Dismiss sets the suggestion aside, and Undo takes back either.',
+      note: '<code>definePlugin</code> and its setup, run once per viewer. It keeps the suggestions as records, adds the Suggest command, draws each open suggestion as a mark with a review card, and links Accept’s redaction back to its suggestion. A host registers it in <code>plugins</code> and places the button.',
     },
     {
       path: 'src/plugin/suggestions.css',
       source: css,
-      note: 'The marks and the card, styled with the theme’s tokens.',
+      note: 'The marks’ look. The card is core’s, styled by the theme.',
     },
   ],
   mount: mountDemo,
