@@ -1,6 +1,7 @@
 /*
  * Panels anchored to an annotation's overlay element: the note thread, and any card an app
- * opens next to an annotation.
+ * opens next to an annotation. A panel can also anchor to an element of the app's or a
+ * plugin's own, such as a mark in a plugin layer.
  */
 import { observeAnnotationElement } from '../annotation-element'
 import { shouldKeepOpenOnAnnotation, type FocusReturn } from '../popover-focus'
@@ -30,17 +31,26 @@ export interface PopoverOptions {
   onDismiss(): void
 }
 
-/** A panel anchored to one annotation at a time; see `createPopover`. */
+/** A panel anchored to one annotation, or one element, at a time; see `createPopover`. */
 export interface Popover {
   /** The panel element, on `<body>`. Fill it with the card's content. */
   readonly panel: HTMLElement
-  /** The anchored annotation's element, or null while it is not in the DOM (page unmounted). */
+  /**
+   * The anchored annotation's element (or the element passed to `showAt`), or null while it is
+   * not in the DOM (page unmounted).
+   */
   readonly anchor: HTMLElement | null
   /**
    * Anchors the panel to annotation `id`. The panel shows whenever that annotation's element
    * is in the DOM, and follows it when it is replaced.
    */
   show(id: string): void
+  /**
+   * Anchors the panel to `el`, for anchors that are not annotations (a plugin layer's mark).
+   * The panel shows while `el` is under the viewer root and hides while it is not. On hide,
+   * focus returns to `el` when it is still connected, else through `focusReturn`.
+   */
+  showAt(el: HTMLElement): void
   /** Hides the panel, then returns focus through `focusReturn`. */
   hide(): void
   /** Removes the panel and its listeners. */
@@ -70,9 +80,31 @@ export function placePanel(panel: HTMLElement, anchor: DOMRect): void {
 }
 
 /**
+ * Calls `onChange` with `el` while it is under `root` and null while it is not: once now, then
+ * whenever that changes. Returns a function that stops observing.
+ */
+function observeElement(
+  root: HTMLElement,
+  el: HTMLElement,
+  onChange: (el: HTMLElement | null) => void
+): () => void {
+  let last: HTMLElement | null | undefined
+  const resolve = (): void => {
+    const found = root.contains(el) ? el : null
+    if (found === last) return
+    last = found
+    onChange(found)
+  }
+  resolve()
+  const observer = new MutationObserver(resolve)
+  observer.observe(root, { childList: true, subtree: true })
+  return () => observer.disconnect()
+}
+
+/**
  * Creates a non-modal `role="dialog"` panel on `<body>`, marked `data-ink-popover` so the theme
  * gives it its tokens, that an app anchors to an annotation with `show(id)` (for instance on
- * `viewer.activated`). The panel follows the annotation's element as pages mount and unmount:
+ * `viewer.activated`), or to any element in the viewer with `showAt(el)`. The panel follows the annotation's element as pages mount and unmount:
  * it hides while the element is gone and comes back with it. Tab loops inside the panel, and
  * Escape or a press outside calls `onDismiss`. Call `destroy` when done.
  */
@@ -85,7 +117,8 @@ export function createPopover(opts: PopoverOptions): Popover {
     hidden: '',
   })
   document.body.append(panel)
-  let anchoredId: string | null = null
+  /** What the panel is anchored to: an annotation id, or an element from `showAt`. */
+  let anchored: string | HTMLElement | null = null
   let anchor: HTMLElement | null = null
   let stopObserving: () => void = () => undefined
   /** The element that had focus in the panel when the anchor went away. */
@@ -176,16 +209,23 @@ export function createPopover(opts: PopoverOptions): Popover {
       return anchor
     },
     show(id) {
-      if (id === anchoredId) return
+      if (id === anchored) return
       stopObserving()
-      anchoredId = id
+      anchored = id
       stopObserving = observeAnnotationElement(root, id, onAnchor)
     },
+    showAt(el) {
+      if (el === anchored) return
+      stopObserving()
+      anchored = el
+      stopObserving = observeElement(root, el, onAnchor)
+    },
     hide() {
-      if (anchoredId === null) return
+      if (anchored === null) return
       stopObserving()
       stopObserving = () => undefined
-      anchoredId = null
+      const element = typeof anchored === 'string' ? null : anchored
+      anchored = null
       const back = anchor
       stranded = null
       onAnchor(null, true)
@@ -193,7 +233,14 @@ export function createPopover(opts: PopoverOptions): Popover {
       // DOM, a cleared activation is cleared). A popover reopened meanwhile keeps focus where it
       // is.
       queueMicrotask(() => {
-        if (anchoredId !== null || !panel.isConnected) return
+        if (anchored !== null || !panel.isConnected) return
+        if (element?.isConnected) {
+          // Focus already back in the viewer (a press on another mark) stays there.
+          const active = document.activeElement
+          if (!(active && active !== root && root.contains(active)))
+            element.focus({ preventScroll: true })
+          return
+        }
         focusReturn.onCloseAutoFocus(
           new Event('closeautofocus', { cancelable: true }),
           back

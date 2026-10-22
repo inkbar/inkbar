@@ -2,6 +2,7 @@ import { createOverlay, type DecorateAnnotation, type Overlay } from './overlay'
 import { createPageRenderer, type PageRenderer } from './page-renderer'
 import { createTextLayer, type TextLayerHandle } from './text-layer'
 
+import type { PluginLayers } from './plugins/layer'
 import type { PageTransform } from './transform'
 import type { AnnotationStore } from '../model/annotations/store'
 import type { Annotation } from '../model/annotations/types'
@@ -21,6 +22,8 @@ export interface PageMountOptions {
   decorate?: DecorateAnnotation
   /** Defaults to `window.devicePixelRatio`. */
   devicePixelRatio?: number
+  /** Plugin layers, mounted above the overlay. The engine passes them for its pages only. */
+  layers?: PluginLayers
   /**
    * Canvas and text layer failures, with the layer that failed (cancellations are not
    * reported).
@@ -44,7 +47,10 @@ export interface PageMount {
   destroy(): void
 }
 
-/** Canvas, text layer and annotation overlay for one page, stacked in that order. */
+/**
+ * Canvas, text layer, annotation overlay and any plugin layers for one page, stacked in that
+ * order.
+ */
 export function createPageMount(opts: PageMountOptions): PageMount {
   const { document, page, host, transform } = opts
   const callbacks = (layer: PageLayer) => ({
@@ -85,6 +91,7 @@ export function createPageMount(opts: PageMountOptions): PageMount {
       : {}),
     ...(opts.decorate ? { decorate: opts.decorate } : {}),
   })
+  const layers = opts.layers?.mount(page, host, transform)
   return {
     renderer,
     textLayer,
@@ -93,8 +100,10 @@ export function createPageMount(opts: PageMountOptions): PageMount {
       renderer.update(next)
       textLayer.update(next)
       overlay.update(next)
+      layers?.update(next)
     },
     destroy() {
+      layers?.destroy()
       overlay.destroy()
       textLayer.destroy()
       renderer.destroy()

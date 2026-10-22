@@ -286,6 +286,17 @@ describe('theme.css', () => {
     expect(darkRule?.selector).toContain('[data-ink-root]:not(.light,')
   })
 
+  it('stacks plugin layers above the overlay, letting presses through to the page', () => {
+    const overlay = declsFor('.ink-overlay)')
+    const layer = rules
+      .find((r) => r.selector === ':where(.ink-plugin-layer)')
+      ?.toString()
+    const z = (css: string | undefined) => Number(/z-index:\s*(\d+)/.exec(css ?? '')?.[1])
+    expect(z(layer)).toBeGreaterThanOrEqual(z(overlay))
+    expect(layer).toMatch(/pointer-events:\s*none/)
+    expect(declsFor('.ink-plugin-layer > *')).toMatch(/pointer-events:\s*auto/)
+  })
+
   it('draws edit handles and hides them outside the select tools and the made state', () => {
     const handle = rules.find((r) => r.selector === ':where(.ink-handle)')
     expect(handle?.toString()).toMatch(/border:\s*1px solid var\(--ink-accent\)/)

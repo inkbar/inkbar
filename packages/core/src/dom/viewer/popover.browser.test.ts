@@ -89,4 +89,53 @@ describe('createPopover', () => {
     expect(popover.anchor).toBe(again)
     expect(popover.panel.hidden).toBe(false)
   })
+
+  it('showAt anchors to an element and returns focus to it', async () => {
+    const { popover, page, onDismiss } = setup()
+    const layer = document.createElement('div')
+    const mark = document.createElement('div')
+    mark.tabIndex = 0
+    Object.assign(mark.style, { width: '30px', height: '10px' })
+    layer.append(mark)
+    page.append(layer)
+    mark.focus()
+    popover.showAt(mark)
+    expect(popover.panel.hidden).toBe(false)
+    expect(popover.anchor).toBe(mark)
+    popover.panel.querySelector('button')!.focus()
+
+    // Followed like an annotation element: hidden while out of the DOM, back when it returns.
+    layer.remove()
+    await settle()
+    expect(popover.anchor).toBeNull()
+    expect(popover.panel.hidden).toBe(true)
+    page.append(layer)
+    await settle()
+    expect(popover.anchor).toBe(mark)
+    expect(popover.panel.hidden).toBe(false)
+
+    // Pressing the anchor is a press outside the panel, unlike an annotation's.
+    mark.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+    expect(onDismiss).toHaveBeenCalledTimes(1)
+
+    popover.panel.querySelector('button')!.focus()
+    popover.hide()
+    expect(popover.panel.hidden).toBe(true)
+    expect(popover.anchor).toBeNull()
+    await settle()
+    expect(document.activeElement).toBe(mark)
+  })
+
+  it('showAt returns focus to the scroll element when the anchor is gone', async () => {
+    const { popover, scroll, page } = setup()
+    const mark = document.createElement('div')
+    mark.tabIndex = 0
+    page.append(mark)
+    popover.showAt(mark)
+    popover.panel.querySelector('button')!.focus()
+    mark.remove()
+    popover.hide()
+    await settle()
+    expect(document.activeElement).toBe(scroll)
+  })
 })

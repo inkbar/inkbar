@@ -37,6 +37,7 @@ describe('@inkbar/core/dom entry', () => {
         'placePanel',
         'definePlugin',
         'createPluginHost',
+        'createPluginLayers',
       ])
     )
 

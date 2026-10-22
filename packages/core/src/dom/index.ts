@@ -39,6 +39,14 @@ export type {
 } from './plugins/define'
 export { createPluginHost } from './plugins/host'
 export type { PluginHost, PluginHostOptions } from './plugins/host'
+export { createPluginLayers } from './plugins/layer'
+export type {
+  LayerEvent,
+  LayerSource,
+  PageLayers,
+  PluginLayer,
+  PluginLayers,
+} from './plugins/layer'
 export { createPageMount } from './page-mount'
 export type { PageLayer, PageMount, PageMountOptions } from './page-mount'
 export {
