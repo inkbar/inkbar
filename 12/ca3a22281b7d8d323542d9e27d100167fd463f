@@ -1,0 +1,87 @@
+packages/core/src/dom/viewer/create-viewer.ts
+  s_e6109f66fbb4ed::t_f6d559dc47ec8e 3-4,29-30,34-35,56-57,66-71,81,90-91,136,150-151,155-158,167,214-216,268-272,281-287,326-328,348,364,383,411,426-427
+  s_e6109f66fbb4ed::t_ba947f96c250b3 280
+packages/core/src/dom/viewer/create-viewer.browser.test.ts
+  s_e6109f66fbb4ed::t_5d1aee63ecd458 2485
+  s_e6109f66fbb4ed::t_abe4cc4709cdcf 2504,2506
+  s_e6109f66fbb4ed::t_ddb0409830234c 2356-2359,2366-2413,2415-2436,2440-2475,2479-2484,2486-2503,2505,2507-2509,2516-2544,2548-2558,2560-2590,2594-2605
+  s_e6109f66fbb4ed::t_ba947f96c250b3 38,2414,2559
+  s_e6109f66fbb4ed::t_6681ce8afaf125 2360-2365,2437-2439,2476-2478,2510-2515,2545-2547,2591-2593
+packages/core/src/dom/viewer/form-alert.ts
+  s_e6109f66fbb4ed::t_6681ce8afaf125 28-32,100-101
+  s_e6109f66fbb4ed::t_4c87919c84f568 1-27,33-99,102-113
+packages/core/src/dom/ui.ts
+  s_e6109f66fbb4ed::t_28f5046d6afd1d 641-643,647-655
+packages/core/src/dom/viewer/signature-dialog.ts
+  s_e6109f66fbb4ed::t_23278999421deb 21,30-38,57-59,204-208
+packages/theme/theme.css
+  s_e6109f66fbb4ed::t_3c31907ad3736d 20-21,59-60,84-85,350-352,369-381,1249-1254
+  s_e6109f66fbb4ed::t_ef7391bf54bac4 1255
+packages/core/src/model/errors.ts
+  s_e6109f66fbb4ed::t_5a0f20fdf2ba3f 17-20
+packages/core/src/dom/form-signature.ts
+  s_e6109f66fbb4ed::t_16126d0c707b1f 1-69
+packages/core/src/dom/form-layer.ts
+  s_e6109f66fbb4ed::t_b0ff2df22af08d 14-16,20-22,36,174
+packages/core/src/model/annotations/store.ts
+  s_e6109f66fbb4ed::t_4ec3f7a4f50b0f 103-112,281,457-461,511-517
+packages/core/src/model/form/sign.test.ts
+  s_e6109f66fbb4ed::t_ba947f96c250b3 11
+  s_e6109f66fbb4ed::t_6681ce8afaf125 191-193
+  s_e6109f66fbb4ed::t_b616d071275dcf 1-10,12-190,194-244
+packages/core/src/model/form/controller.ts
+  s_e6109f66fbb4ed::t_7c4eb3cacf448f 9,122-134,139-150,228-232,392-449,630-667,671-672
+packages/core/src/index.ts
+  s_e6109f66fbb4ed::t_22867449c95f80 73
+packages/core/src/dom/tools/selection-edit.ts
+  s_e6109f66fbb4ed::t_98679c20847375 24-25,134-135,241,344,355,407,432,445
+packages/core/src/dom/overlay.ts
+  s_e6109f66fbb4ed::t_5d1aee63ecd458 628-630
+  s_e6109f66fbb4ed::t_6681ce8afaf125 631-632
+  s_e6109f66fbb4ed::t_59f72d974b64e7 9,268-269,272,352,549,734-740,768
+packages/core/src/dom/viewer-engine.ts
+  s_e6109f66fbb4ed::t_1e7c99efdd7f30 40,111-123,261,348-356,540
+  s_e6109f66fbb4ed::t_3a38399dd7aa87 15
+packages/core/src/dom/viewer/signature-menu.ts
+  s_e6109f66fbb4ed::t_6681ce8afaf125 363-365
+  s_e6109f66fbb4ed::t_ba947f96c250b3 62-66
+  s_e6109f66fbb4ed::t_2c9a7ea1258dc3 13-14,20,25,293-362,366-403
+  s_e6109f66fbb4ed::t_c80826c30b4116 7-9,52-55,57-61,67-68,75-89,92-93,96,116,144,158,170-245,250
+packages/core/src/model/form/sign.ts
+  s_e6109f66fbb4ed::t_b2bac2f62740f4 1-31,34-62
+  s_e6109f66fbb4ed::t_6681ce8afaf125 32-33
+packages/core/src/model/document.ts
+  s_e6109f66fbb4ed::t_936d3a4cd77f4f 305,309,311-312
+packages/core/src/dom/index.ts
+  s_e6109f66fbb4ed::t_b27005a10df9ae 232-240
+packages/core/src/dom/form-layer.browser.test.ts
+  s_e6109f66fbb4ed::t_71a9d08cef664a 44,62,397-418
+  s_e6109f66fbb4ed::t_0010a4974df9a4 13
+  s_e6109f66fbb4ed::t_3397b58fa3cd2a 378-379,983,987,1005,1044
+  s_e6109f66fbb4ed::t_9a8846506e20d5 419-420,1045
+packages/theme/theme.test.ts
+  s_e6109f66fbb4ed::t_6681ce8afaf125 288-303
+  s_e6109f66fbb4ed::t_fd8b07a36e8e40 285-287,304
+packages/core/src/dom/page-mount.ts
+  s_e6109f66fbb4ed::t_350ba330d93ac5 35,66,94-96,115-129
+packages/core/src/dom/viewer/form-alert.browser.test.ts
+  s_e6109f66fbb4ed::t_aa4518e1e0e3b2 1-82
+packages/core/src/dom/viewer/menu.ts
+  s_e6109f66fbb4ed::t_5039472cc2e855 31-35,42-43,125-133,139
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "12ca3a22281b7d8d323542d9e27d100167fd463f",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
