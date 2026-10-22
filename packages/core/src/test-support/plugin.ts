@@ -1,10 +1,10 @@
-// The plugin the framework packages' component tests share, imported by relative path. Test
-// support only: not exported from the package, and not part of its build.
-import { writable, type Readable } from '../../model/readable'
+// Test support only, never production code: the plugin the framework packages' component tests
+// share, imported by relative path. No build entry reaches this directory, and the package
+// publishes only `dist`.
+import { definePlugin } from '../dom/plugins/define'
+import { writable, type Readable } from '../model/readable'
 
-import { definePlugin } from './define'
-
-import type { RecordStore } from '../../model/records'
+import type { RecordStore } from '../model/records'
 
 export interface Mark {
   id: string

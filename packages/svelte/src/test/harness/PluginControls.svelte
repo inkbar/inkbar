@@ -10,7 +10,7 @@
   import { useHistory } from '../../lib/hooks/useHistory.svelte.js'
   import { useReadable } from '../../lib/use-readable.svelte.js'
 
-  import type { Mark } from '../../../../core/src/dom/plugins/test-plugin.js'
+  import type { Mark } from '../../../../core/src/test-support/plugin.js'
   import type { Readable, RecordStore } from '@inkbar/core'
 
   let {

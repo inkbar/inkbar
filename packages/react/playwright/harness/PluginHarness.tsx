@@ -1,7 +1,7 @@
 import { StrictMode, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 
-import { createTestPlugin, type Mark } from '../../../core/src/dom/plugins/test-plugin'
+import { createTestPlugin, type Mark } from '../../../core/src/test-support/plugin'
 import { InkCommand } from '../../src/components/InkCommand'
 import { InkRedo } from '../../src/components/InkRedo'
 import { InkRoot } from '../../src/components/InkRoot'

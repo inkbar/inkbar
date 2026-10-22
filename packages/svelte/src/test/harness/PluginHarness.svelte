@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte'
 
-  import { createTestPlugin } from '../../../../core/src/dom/plugins/test-plugin.js'
+  import { createTestPlugin } from '../../../../core/src/test-support/plugin.js'
   import InkRoot from '../../lib/components/InkRoot.svelte'
 
   import PluginControls from './PluginControls.svelte'

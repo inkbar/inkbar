@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-import { createTestPlugin } from '../../../core/src/dom/plugins/test-plugin'
+import { createTestPlugin } from '../../../core/src/test-support/plugin'
 import InkRoot from '../../src/components/InkRoot.vue'
 
 import PluginControls from './PluginControls.vue'
