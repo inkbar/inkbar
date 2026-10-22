@@ -35,6 +35,7 @@ import { createTextStyleMenu } from './text-style-menu'
 
 import type { InkDocument } from '../../model/document'
 import type { RecordStore } from '../../model/records'
+import type { Tool } from '../tools/controller'
 import type { ViewerEngine } from '../viewer-engine'
 
 // The theme is not loaded here: give the scroll element a height so pages mount and unmount.
@@ -2198,6 +2199,33 @@ describe('createViewer plugins', () => {
     pointer(scroll, 'pointerup', h.left + 200, h.top + 100)
     expect(tool.presses).toHaveLength(1)
     expect(tool.id).toBe('stamp')
+  })
+
+  it('a plain-object plugin tool keeps state on itself between presses', async () => {
+    const tool: Tool & { pressedAt?: number; released?: number[] } = {
+      id: 'probe',
+      label: 'Probe',
+      cursor: 'crosshair',
+      activate() {},
+      deactivate() {},
+      onPointerDown(e) {
+        this.pressedAt = e.clientX
+        return true
+      },
+      onPointerUp() {
+        ;(this.released ??= []).push(this.pressedAt!)
+      },
+    }
+    const plugin = definePlugin({ id: 'sandbox', setup: (ctx) => ctx.tools.add(tool) })
+    const { viewer } = make('text-simple', { plugins: [plugin] })
+    const { engine } = await ready(viewer)
+    await until(() => engine.viewport.hostFor(0) !== undefined)
+    engine.tools.set('sandbox.probe')
+    const scroll = viewer.element.querySelector<HTMLElement>('.ink-scroll')!
+    const h = engine.viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(scroll, 'pointerdown', h.left + 200, h.top + 100)
+    pointer(scroll, 'pointerup', h.left + 200, h.top + 100)
+    expect(tool.released).toEqual([h.left + 200])
   })
 
   it('plugin records undo with annotations in createViewer', async () => {

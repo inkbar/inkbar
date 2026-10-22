@@ -260,6 +260,7 @@ A command is disabled until a document is ready, unless it passes its own `enabl
 ### Plugin authors
 
 - Marks you draw in a layer (`ctx.layer`) take presses only with `@inkbar/theme` loaded: it lets presses through the layer and gives the layer's children `pointer-events: auto`. Without the theme, set that yourself.
+- A tool you add with `ctx.tools.add` is placed under its namespaced id (`sandbox.stamp`), but its methods run on your own object, so inside them `this.id` is the id you gave it (`stamp`). A class instance keeps its `#private` fields.
 - Presses on a mark bubble up to the viewer's root. Stop propagation if listeners there shouldn't see them.
 - A layer's `destroy` can run after the document's stores have closed, so check `store.get()` for `null` there.
 - Keep `setup` free of side effects. A framework package can run it while rendering on the server, where its cleanup never runs. Start timers and listeners in `onDocument`.

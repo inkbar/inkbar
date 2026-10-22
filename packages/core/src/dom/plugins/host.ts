@@ -67,8 +67,9 @@ interface Opened {
 }
 
 /**
- * `value` seen with `extra` laid over it. Everything else is read from `value` itself, and the
- * methods it inherits are bound to it, so a class instance keeps its `#private` fields.
+ * `value` seen with `extra` laid over it, read-only. Everything else is read from and written to
+ * `value` itself, and its methods are bound to it, so a method always runs on the original
+ * (a class instance keeps its `#private` fields, and `this.id` is the plugin's own id).
  */
 function withProps<T extends object, U extends object>(value: T, extra: U): T & U {
   const bound = new Map<PropertyKey, { fn: unknown; bound: unknown }>()
@@ -78,7 +79,7 @@ function withProps<T extends object, U extends object>(value: T, extra: U): T & 
     get(_, key) {
       if (own(key)) return extra[key as keyof U]
       const v: unknown = Reflect.get(value, key, value)
-      if (typeof v !== 'function' || Object.hasOwn(value, key)) return v
+      if (typeof v !== 'function') return v
       // The same bound function on each read, while the method stays the same.
       let entry = bound.get(key)
       if (entry?.fn !== v) {
@@ -87,6 +88,9 @@ function withProps<T extends object, U extends object>(value: T, extra: U): T & 
       }
       return entry.bound
     },
+    set: (_, key, v) => !own(key) && Reflect.set(value, key, v, value),
+    defineProperty: (_, key, d) => !own(key) && Reflect.defineProperty(value, key, d),
+    deleteProperty: (_, key) => !own(key) && Reflect.deleteProperty(value, key),
     has: (_, key) => own(key) || Reflect.has(value, key),
     ownKeys: () => [...new Set([...Reflect.ownKeys(value), ...Reflect.ownKeys(extra)])],
     getOwnPropertyDescriptor(_, key) {

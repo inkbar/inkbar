@@ -110,6 +110,59 @@ describe('createPluginHost', () => {
     expect(tool.id).toBe('mark')
   })
 
+  it("a tool's methods see the tool itself: its writes land on it and its own id", () => {
+    const seen: string[] = []
+    const tool: Tool & { count?: number } = {
+      id: 'mark',
+      cursor: 'crosshair',
+      activate() {
+        this.count = (this.count ?? 0) + 1
+        seen.push(this.id)
+      },
+      deactivate() {},
+    }
+    const { host } = hostWith([
+      definePlugin({ id: 'sandbox', setup: (ctx) => ctx.tools.add(tool) }),
+    ])
+    const wrapped = host.tools[0] as Tool & { count?: number }
+    const ctx = {} as Parameters<Tool['activate']>[0]
+    wrapped.activate(ctx)
+    wrapped.activate(ctx)
+    expect(tool.count).toBe(2)
+    expect(wrapped.count).toBe(2)
+    expect(seen).toEqual(['mark', 'mark'])
+    expect(wrapped.id).toBe('sandbox.mark')
+  })
+
+  it('a class setter written through the wrapped tool reaches the instance', () => {
+    class ModeTool {
+      readonly id = 'mode'
+      readonly cursor = 'default'
+      #mode = 'a'
+      get mode() {
+        return this.#mode
+      }
+      set mode(v: string) {
+        this.#mode = v
+      }
+      activate() {}
+      deactivate() {}
+    }
+    const tool = new ModeTool()
+    const { host } = hostWith([
+      definePlugin({ id: 'sandbox', setup: (ctx) => ctx.tools.add(tool) }),
+    ])
+    const wrapped = host.tools[0] as unknown as ModeTool
+    wrapped.mode = 'b'
+    expect(tool.mode).toBe('b')
+    expect(wrapped.mode).toBe('b')
+    // The namespaced id stays.
+    expect(() => {
+      ;(wrapped as { id: string }).id = 'other'
+    }).toThrow(TypeError)
+    expect(wrapped.id).toBe('sandbox.mode')
+  })
+
   it('decorations merge with the host winning per key', () => {
     const { host } = hostWith(
       [
@@ -310,7 +363,11 @@ describe('createPluginHost', () => {
       { activated, setActivated, root }
     )
     expect(setActivated).toHaveBeenCalledWith(null)
-    expect(host.layers).toEqual([expect.objectContaining({ plugin: 'sandbox', render })])
+    expect(host.layers).toHaveLength(1)
+    expect(host.layers[0]!.plugin).toBe('sandbox')
+    // The spec's methods are bound to it, so check render by calling it.
+    host.layers[0]!.render({} as HTMLElement, 0, {} as never)
+    expect(render).toHaveBeenCalledTimes(1)
     expect(() => handle.invalidate(1)).not.toThrow()
     document.set(fakeDocument('a'))
     expect(tracked.size).toBe(1)
