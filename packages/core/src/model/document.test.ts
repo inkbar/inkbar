@@ -186,4 +186,15 @@ describe('openDocument', () => {
       code: 'DocumentDestroyed',
     })
   })
+
+  it('pageText joins the text items with a single space', async () => {
+    const doc = await openDocument(await fixtureBytes('text-simple'), {
+      assets: nodeAssets(),
+    })
+    await doc.ready
+    const items = (await doc.text(0)).items
+    expect(items.length).toBeGreaterThan(0)
+    expect(await doc.pageText(0)).toBe(items.map((i) => i.str).join(' '))
+    doc.destroy()
+  })
 })

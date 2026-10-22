@@ -78,6 +78,8 @@ export interface InkDocument {
   readonly pages: readonly PageInfo[]
   readonly info: DocumentInfo
   text(page: number): Promise<TextContent>
+  /** The page's text items joined with a single space. */
+  pageText(page: number): Promise<string>
   /**
    * Annotations embedded in the file arrive here as `source: 'pdf'`, `locked: true` before
    * `ready` resolves. They stay in `list` in both modes and cannot be removed; in controlled
@@ -248,6 +250,9 @@ export async function openDocument(
       if (!handles) throw statusError(status.get())
       const p = await handles.getPage(page)
       return textContentFromPdfjs(page, await p.getTextContent())
+    },
+    async pageText(page) {
+      return (await doc.text(page)).items.map((item) => item.str).join(' ')
     },
     annotations: store,
     embedded,
