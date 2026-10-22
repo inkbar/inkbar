@@ -1,0 +1,54 @@
+packages/core/src/pdfjs/sandbox-patch.test.ts
+  s_e6109f66fbb4ed::t_1f8643cc875d46 1-91
+  s_e6109f66fbb4ed::t_a16f385524654e 92
+packages/core/src/pdfjs/sandbox-patch.ts
+  s_e6109f66fbb4ed::t_c89b5621cdd596 1-67
+  s_e6109f66fbb4ed::t_dd8e338f5b53a8 68-74
+packages/core/src/model/form/submit.ts
+  s_e6109f66fbb4ed::t_3ac0b169e9a194 1-23
+  s_e6109f66fbb4ed::t_5b406f3e240409 24
+packages/core/src/pdfjs/sandbox-shim.d.ts
+  s_e6109f66fbb4ed::t_04f5eb1afc418c 1-20
+packages/core/src/pdfjs/scripting.ts
+  s_e6109f66fbb4ed::t_d85aadd414390f 1-603,605
+  s_e6109f66fbb4ed::t_630e73d46a6f54 604,606-635
+packages/core/src/pdfjs/scripting.browser.test.ts
+  s_e6109f66fbb4ed::t_d8999f7ebedd5e 1-383
+  s_e6109f66fbb4ed::t_77a6a75cdedc24 384-406
+packages/core/package.json
+  s_e6109f66fbb4ed::t_58748dc82d5ea0 41-42
+packages/core/src/model/document.ts
+  s_e6109f66fbb4ed::t_3865e1cfe3b559 4,256-275
+packages/core/src/model/form/controller.controlled.test.ts
+  s_e6109f66fbb4ed::t_a080336bb554f4 96-97,110-116
+packages/core/src/model/form/controller.test.ts
+  s_e6109f66fbb4ed::t_956ac3e64438c6 214-215,231-240
+packages/core/src/model/form/controller.ts
+  s_e6109f66fbb4ed::t_c695535c69b3d5 5,18-19,62-65,70-73,85,92-102,114-120,126-138,161,167-175,210,243-248,268-313,319,391,398-399,401-404,419-432,439-447,470-492,500
+packages/core/src/model/form/structure.test.ts
+  s_e6109f66fbb4ed::t_6820811d02ef22 186-187
+packages/core/src/model/form/structure.ts
+  s_e6109f66fbb4ed::t_ee6fbc7976dac9 142-144,151-156
+packages/core/src/model/form/types.ts
+  s_e6109f66fbb4ed::t_2218a19bb5ebaf 114
+packages/core/tsdown.config.ts
+  s_e6109f66fbb4ed::t_d707a975132e9b 23
+packages/core/vitest.config.ts
+  s_e6109f66fbb4ed::t_13e8cab5df1a1b 27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "82c0fd453a9d26d71743a5a0d2c1c4108e73bc5e",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
