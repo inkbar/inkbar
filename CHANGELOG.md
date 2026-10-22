@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.6.0](https://github.com/inkbar/inkbar/compare/v0.5.0...v0.6.0) (2026-10-22)
+
+
+### Features
+
+* accept plugins in createViewer and add command buttons ([#179](https://github.com/inkbar/inkbar/issues/179)) ([bbb661d](https://github.com/inkbar/inkbar/commit/bbb661d900694167c9be8b468e1c51b30932abcb))
+* add a plugin host with commands, tools, decorations and record stores ([#177](https://github.com/inkbar/inkbar/issues/177)) ([60c34ee](https://github.com/inkbar/inkbar/commit/60c34ee27556d73f34b6965f1e0e45d6f712a2c2))
+* add cards for plugin marks, styled by the theme ([#202](https://github.com/inkbar/inkbar/issues/202)) ([4145110](https://github.com/inkbar/inkbar/commit/414511049c23a2c037806c7772ffcdd4cbf10389))
+* add definePlugin(id, setup) with records that follow the open document ([#198](https://github.com/inkbar/inkbar/issues/198)) ([3a400d0](https://github.com/inkbar/inkbar/commit/3a400d0cdbb90683b5bf57dc836bf4121f30f670))
+* add plugin.command with status, cancellation and errors ([#199](https://github.com/inkbar/inkbar/issues/199)) ([baf87cb](https://github.com/inkbar/inkbar/commit/baf87cb6d59ba341492e55044c256576384556fe))
+* add plugin.marks for drawing records on the page ([#201](https://github.com/inkbar/inkbar/issues/201)) ([3f28ace](https://github.com/inkbar/inkbar/commit/3f28ace999270680c4ba810f4e334f40fb13225f))
+* add quad, rect and page text helpers ([#197](https://github.com/inkbar/inkbar/issues/197)) ([33804b0](https://github.com/inkbar/inkbar/commit/33804b010b21adce4d4355dfc8e075d1dae41558))
+* add record stores and an annotation edit event ([#174](https://github.com/inkbar/inkbar/issues/174)) ([a6a1dcd](https://github.com/inkbar/inkbar/commit/a6a1dcda1cdeb68b3e29d4a44b84c2f209ebb141))
+* include record stores in controlled undo ([#176](https://github.com/inkbar/inkbar/issues/176)) ([24e7313](https://github.com/inkbar/inkbar/commit/24e7313c2324e548240c7eda47734d140c658788))
+* let history track record stores and react to annotation edits ([#175](https://github.com/inkbar/inkbar/issues/175)) ([30a6ae8](https://github.com/inkbar/inkbar/commit/30a6ae8177ef8deef3ee315142ed4fdf0a6d3625))
+* let plugins draw their own layer on each page ([#178](https://github.com/inkbar/inkbar/issues/178)) ([08810c6](https://github.com/inkbar/inkbar/commit/08810c6635e7ad28bd3a09018007dc0ad256a119))
+* let plugins redecorate annotations ([#190](https://github.com/inkbar/inkbar/issues/190)) ([da6c9a4](https://github.com/inkbar/inkbar/commit/da6c9a40493492284c472dac6f7fe1b5476d1e9f))
+* link plugin records to the annotations they create ([#200](https://github.com/inkbar/inkbar/issues/200)) ([167ba1d](https://github.com/inkbar/inkbar/commit/167ba1dd3b0bd303d09ed0a472a198d92d31f1e8))
+* **react:** add plugins, InkCommand and useCommand ([#181](https://github.com/inkbar/inkbar/issues/181)) ([ce57d02](https://github.com/inkbar/inkbar/commit/ce57d02fde92988410df3ef94cc4e4efaa7d00ac))
+* rebuild the sandbox suggestions as a plugin ([#183](https://github.com/inkbar/inkbar/issues/183)) ([6487795](https://github.com/inkbar/inkbar/commit/6487795834463d06cb76143da14314345fe53157))
+* rewrite the sandbox plugin on the fluent plugin API ([#203](https://github.com/inkbar/inkbar/issues/203)) ([56dcfe7](https://github.com/inkbar/inkbar/commit/56dcfe716118a242a8761d11c50662c294d73774))
+* scroll to new plugin marks with scrollToFirst ([#206](https://github.com/inkbar/inkbar/issues/206)) ([9a87595](https://github.com/inkbar/inkbar/commit/9a8759567a033d9a426d04c6c7ed1beae8bd28b3))
+* show the example plugin on every sandbox page and add a plugin page ([#184](https://github.com/inkbar/inkbar/issues/184)) ([ec93815](https://github.com/inkbar/inkbar/commit/ec938152ad859af3cb6bfecd61b6cb84068779ca))
+* **svelte:** add plugins, InkCommand and useCommand ([#182](https://github.com/inkbar/inkbar/issues/182)) ([f42ecc2](https://github.com/inkbar/inkbar/commit/f42ecc2a889bfa6b4dc3c8a1628fe0e8d9e584c6))
+* tell sandbox visitors they can extend Inkbar with plugins ([#196](https://github.com/inkbar/inkbar/issues/196)) ([c29b7fc](https://github.com/inkbar/inkbar/commit/c29b7fce86a48667335572e6d9572dbe545c5b96))
+* **vue:** add plugins, InkCommand and useCommand ([#180](https://github.com/inkbar/inkbar/issues/180)) ([3f5fd74](https://github.com/inkbar/inkbar/commit/3f5fd7486fbeaa6f4eb63e6263382060e2948ecf))
+
+
+### Bug Fixes
+
+* clean up plugins when a later setup throws ([#188](https://github.com/inkbar/inkbar/issues/188)) ([45c5ecd](https://github.com/inkbar/inkbar/commit/45c5ecd0bd977eba2dc94d77a58c9851b2f6c248))
+* keep annotation undo when a plugin resets its records ([#187](https://github.com/inkbar/inkbar/issues/187)) ([653f4cb](https://github.com/inkbar/inkbar/commit/653f4cbfb6771dceac3829e1fb07c7f4b4de8094))
+* keep class-based plugin tools working ([#189](https://github.com/inkbar/inkbar/issues/189)) ([c241fa6](https://github.com/inkbar/inkbar/commit/c241fa68c2657092d51a9cbbeb06050d02cbcd71))
+* keep focus on a command button while its command runs ([#207](https://github.com/inkbar/inkbar/issues/207)) ([9a9e545](https://github.com/inkbar/inkbar/commit/9a9e545e83bdac42e2f5a399164026854836bf05))
+* keep keyboard focus where it moved when a Svelte menu refocuses on open ([#208](https://github.com/inkbar/inkbar/issues/208)) ([61b2fdc](https://github.com/inkbar/inkbar/commit/61b2fdc512dc5c1b8a992d75175d1fe11d0809b6))
+* let plugin marks take presses without the theme ([#191](https://github.com/inkbar/inkbar/issues/191)) ([d5b8c40](https://github.com/inkbar/inkbar/commit/d5b8c40a72613343ed91e85ffde90ce12704dc07))
+* log unknown plugin commands instead of throwing ([#195](https://github.com/inkbar/inkbar/issues/195)) ([33aef97](https://github.com/inkbar/inkbar/commit/33aef97a5c044097f5412fdec096a112fccf8686))
+* run plugin setup only in the browser ([#192](https://github.com/inkbar/inkbar/issues/192)) ([7b2540d](https://github.com/inkbar/inkbar/commit/7b2540d7e929d86e79d765133831aa52b959949a))
+
 ## [0.5.0](https://github.com/inkbar/inkbar/compare/v0.4.0...v0.5.0) (2026-10-21)
 
 

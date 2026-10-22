@@ -1,6 +1,6 @@
 {
   "name": "@inkbar/core",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "PDF document model, rendering and annotations for the browser. No framework.",
   "license": "MIT",
   "homepage": "https://inkbar.dev",
