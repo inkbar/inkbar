@@ -32,6 +32,21 @@ test('InkCommand runs a plugin command and shows its status', async ({ mount }) 
   await expect(probe).toHaveAttribute('data-accept-enabled', 'true')
 })
 
+test('InkCommand shows the icon, or the label as text when the command has none', async ({
+  mount,
+}) => {
+  const cmp = await mount(PluginHarness, {
+    props: { src: fixtureUrl('text-simple'), assets },
+  })
+  const work = cmp.locator('button[data-command="sandbox.work"]')
+  await expect(work.locator('svg.ink-icon')).toHaveCount(1)
+  await expect(work).toHaveText('')
+  const accept = cmp.locator('button[data-command="sandbox.accept"]')
+  await expect(accept.locator('svg')).toHaveCount(0)
+  await expect(accept).toHaveText('Accept')
+  await expect(accept).toHaveAccessibleName('Accept')
+})
+
 test('InkCommand is disabled until a document is ready', async ({ mount, page }) => {
   let release!: () => void
   const gate = new Promise<void>((resolve) => (release = resolve))

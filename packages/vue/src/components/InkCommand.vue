@@ -3,7 +3,8 @@
  * A plugin command as a toolbar button with its status beside it: the markup of core's
  * `createCommandButton`, so the theme styles both alike. The button is named by the command's
  * label, disabled while the command is, and `aria-busy` while it runs; the status is a live
- * region. Throws `InkError('UnknownCommand')` for an id no plugin registered.
+ * region. A command without an icon shows its label as the button's text. Throws
+ * `InkError('UnknownCommand')` for an id no plugin registered.
  */
 import { ToolbarButton } from 'reka-ui'
 import { computed } from 'vue'
@@ -39,6 +40,7 @@ const attrs = computed(() => ({
     >
       <slot :label="command.label" :busy="busy">
         <InkIcon v-if="command.icon" :icon="command.icon" />
+        <template v-else>{{ command.label }}</template>
       </slot>
     </ToolbarButton>
     <span class="ink-command-status" role="status">{{ status }}</span>

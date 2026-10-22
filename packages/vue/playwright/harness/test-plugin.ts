@@ -12,8 +12,8 @@ export interface Mark {
 
 /**
  * A plugin small enough to read in one go: one store of marks, `accept` (marks `m1` accepted and
- * adds a redaction, in one step), `work` (busy until the harness releases it), a `stamp` tool, and
- * a reaction that puts a mark back to suggested when its redaction is deleted.
+ * adds a redaction, in one step), `work` (with an icon; busy until the harness releases it), a
+ * `stamp` tool, and a reaction that puts a mark back to suggested when its redaction is deleted.
  */
 export function createTestPlugin() {
   let marks: Readable<RecordStore<Mark> | null> = {
@@ -48,6 +48,7 @@ export function createTestPlugin() {
       ctx.commands.add({
         id: 'work',
         label: 'Work',
+        icon: [['path', { d: 'M4 12h16' }]],
         status,
         run: () =>
           new Promise<void>((resolve) => {
