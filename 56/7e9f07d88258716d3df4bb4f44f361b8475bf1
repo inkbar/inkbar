@@ -1,0 +1,22 @@
+packages/core/src/dom/plugins/api/marks.browser.test.ts
+  s_611b86d68c2358::t_66c02a2948f8bd 211-224
+packages/core/src/dom/plugins/api/marks.ts
+  s_611b86d68c2358::t_f745adaaf8f484 28
+  s_611b86d68c2358::t_1df46882f3394c 24-27,84-85,131
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "567e9f07d88258716d3df4bb4f44f361b8475bf1",
+  "prompts": {},
+  "sessions": {
+    "s_611b86d68c2358": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f6760cb6-1a68-4a5b-b172-32f4da0aa5b1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
