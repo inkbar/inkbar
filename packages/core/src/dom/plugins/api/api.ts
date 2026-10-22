@@ -2,11 +2,12 @@
  * The API a `definePlugin(id, setup)` plugin receives: its context plus shorthands for the
  * common jobs, each built on the public context alone.
  */
+import { createCommand, type CommandOptions, type CommandRun } from './command'
 import { createRecords, type Records } from './records'
 
 import type { InkDocument } from '../../../model/document'
 import type { RecordBase } from '../../../model/records'
-import type { PluginContext, PluginStoreOptions } from '../define'
+import type { Command, PluginContext, PluginStoreOptions } from '../define'
 
 export interface PluginOptions {
   /** Store options by records name; `plugin.records(name)` picks them up. */
@@ -23,6 +24,15 @@ export interface PluginApi extends PluginContext {
   records<T extends RecordBase>(name: string, opts?: PluginStoreOptions<T>): Records<T>
   /** Makes everything `fn` changes one undo step: `history.batch`. */
   batch(fn: () => void): void
+  /**
+   * Registers `<plugin>.<id>`. `run` gets the document open when it started and a signal that
+   * aborts when that document closes or another opens. A returned string becomes the command's
+   * status and `undefined` clears it; a failure is logged once and sets `errorStatus` (default
+   * "Something went wrong."). The status clears when the document changes.
+   *
+   * Inside a command, write through `records.in(doc)`.
+   */
+  command(id: string, label: string, run: CommandRun, opts?: CommandOptions): Command
 }
 
 export function createPluginApi(ctx: PluginContext, options: PluginOptions): PluginApi {
@@ -42,5 +52,6 @@ export function createPluginApi(ctx: PluginContext, options: PluginOptions): Plu
       return createRecords<T>({ batch, storesDocument: () => storesDocument }, source)
     },
     batch,
+    command: (id, label, run, opts) => createCommand(ctx, id, label, run, opts),
   }
 }
