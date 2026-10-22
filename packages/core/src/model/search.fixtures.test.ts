@@ -32,28 +32,57 @@ describe('InkDocument.search', () => {
     doc.destroy()
   })
 
-  it('finds split, hyphenated, accented and quoted text', async () => {
+  it('finds a word split over two font runs as one hit with a quad per run', async () => {
     const doc = await open('text-search')
-    expect(await doc.search('Invoice').all()).not.toHaveLength(0)
-    expect(await doc.search('document').all()).not.toHaveLength(0)
-    expect(await doc.search('cafe').all()).not.toHaveLength(0)
-    expect(await doc.search('"quoted"').all()).not.toHaveLength(0)
+    const items = (await doc.text(0)).items
+    const hits = await doc.search('Invoice').all()
+    expect(hits).toHaveLength(1)
+    const hit = hits[0]!
+    expect(hit.text).toBe('Invoice')
+    expect(hit.quads).toHaveLength(2)
+    const runs = [items[0]!.rect, items[1]!.rect]
+    const left = Math.min(...runs.map((r) => r.x))
+    const right = Math.max(...runs.map((r) => r.x + r.width))
+    expect(hit.rect.x).toBeCloseTo(left, 1)
+    expect(hit.rect.x + hit.rect.width).toBeCloseTo(right, 1)
+    doc.destroy()
+  })
+
+  it('finds a hyphenated word across the line break, one quad on each line', async () => {
+    const doc = await open('text-search')
+    const hits = await doc.search('document').all()
+    expect(hits).toHaveLength(1)
+    const { quads } = hits[0]!
+    expect(quads).toHaveLength(2)
+    expect(quads[0]!.p3.y).toBeGreaterThan(quads[1]!.p3.y + 5)
+    doc.destroy()
+  })
+
+  it('finds accented text from a plain query', async () => {
+    const doc = await open('text-search')
+    const hits = await doc.search('cafe').all()
+    expect(hits.map((h) => h.text)).toEqual(['café'])
+    doc.destroy()
+  })
+
+  it('finds straight quotes in a query against the curly quotes on the page', async () => {
+    const doc = await open('text-search')
+    const hits = await doc.search('"quoted"').all()
+    expect(hits.map((h) => h.text)).toEqual(['\u201cquoted\u201d'])
     doc.destroy()
   })
 
   it('finds "right column" only in the right column', async () => {
     const doc = await open('text-search')
     const hits = await doc.search('right column').all()
-    expect(hits.length).toBeGreaterThan(0)
-    const mid = doc.pages[0]!.width / 2
-    for (const hit of hits) expect(hit.rect.x).toBeGreaterThan(mid)
+    expect(hits).toHaveLength(1)
+    expect(hits[0]!.rect.x).toBeGreaterThan(300)
     doc.destroy()
   })
 
   it('keeps a hit on a rotated page inside the page', async () => {
     const doc = await open('text-rotated-90')
-    const text = (await doc.pageText(0)).split(/\s+/)[0]!
-    const [hit] = await doc.search(text).all()
+    const [hit] = await doc.search('Rotated').all()
     const { box } = doc.pages[0]!
     expect(hit).toBeDefined()
     for (const q of hit!.quads)
