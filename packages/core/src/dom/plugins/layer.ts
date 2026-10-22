@@ -97,13 +97,26 @@ const CHILD_RULE = ':where(.ink-plugin-layer > *) { pointer-events: auto; }'
 const childSheets = new WeakMap<object, CSSStyleSheet>()
 
 /**
- * Adopts the children's `pointer-events: auto` rule into the document or shadow root `el`
- * lives in, once; again if the host has since replaced its adopted sheets.
+ * Puts the children's `pointer-events: auto` rule in the document or shadow root `el` lives
+ * in: an adopted sheet, again if the host has since replaced its adopted sheets, or one
+ * `<style>` element where adopted sheets are missing. A layer not yet connected gets it on a
+ * later draw, which calls this again.
  */
 function adoptChildRule(el: HTMLElement): void {
-  const root = el.getRootNode() as Partial<DocumentOrShadowRoot>
-  const win = el.ownerDocument.defaultView
-  if (!root.adoptedStyleSheets || !win) return
+  if (!el.isConnected) return
+  const root = el.getRootNode() as Document | ShadowRoot
+  const doc = el.ownerDocument
+  const win = doc.defaultView
+  if (!root.adoptedStyleSheets || !win) {
+    const parent = root === doc ? (doc.head ?? doc.documentElement) : root
+    if ([...parent.children].some((c) => c.matches('style[data-ink-plugin-layer]')))
+      return
+    const style = doc.createElement('style')
+    style.dataset.inkPluginLayer = ''
+    style.textContent = CHILD_RULE
+    parent.append(style)
+    return
+  }
   let sheet = childSheets.get(win)
   if (!sheet) {
     sheet = new win.CSSStyleSheet()
@@ -130,8 +143,10 @@ interface MountedPage {
 export function createPluginLayers(source: LayerSource): PluginLayers {
   const pages = new Map<number, MountedPage>()
 
-  const draw = (layer: PluginLayer, el: HTMLElement, page: number, t: PageTransform) =>
+  const draw = (layer: PluginLayer, el: HTMLElement, page: number, t: PageTransform) => {
+    adoptChildRule(el)
     guard(() => layer.render(el, page, t))
+  }
 
   const add = (layer: PluginLayer, page: number, state: MountedPage) => {
     const el = state.host.ownerDocument.createElement('div')
@@ -139,7 +154,6 @@ export function createPluginLayers(source: LayerSource): PluginLayers {
     el.dataset.plugin = layer.plugin
     el.style.cssText = 'position:absolute;inset:0;pointer-events:none;'
     state.host.append(el)
-    adoptChildRule(el)
     state.elements.set(layer, el)
     draw(layer, el, page, state.transform)
   }

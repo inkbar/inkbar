@@ -7,6 +7,7 @@ import { mountViewer, type MountViewerOptions } from '../viewer-engine'
 
 import { definePlugin, type LayerSpec, type PluginContext } from './define'
 import { createPluginHost } from './host'
+import { createPluginLayers, type PluginLayer } from './layer'
 
 import type { Rect } from '../../model/geometry'
 import type { Tool } from '../tools/controller'
@@ -336,5 +337,51 @@ describe('ctx.redecorate', () => {
     // After the engine is gone, a redecorate does nothing.
     engine.destroy()
     expect(() => ctx().redecorate()).not.toThrow()
+  })
+})
+
+describe('the children rule without the theme', () => {
+  /** Layers over one plugin that draws a single child, mounted on `host`. */
+  function layersOn(host: HTMLElement) {
+    const layer: PluginLayer = {
+      plugin: 'sandbox',
+      render: (el) => el.replaceChildren(document.createElement('i')),
+    }
+    const layers = createPluginLayers({ layers: [layer], watchLayers: () => () => {} })
+    const page = layers.mount(0, host, {} as PageTransform)
+    cleanup.push(() => {
+      page.destroy()
+      layers.destroy()
+    })
+    return { page, child: () => host.querySelector('.ink-plugin-layer > i')! }
+  }
+
+  /** A shadow root in the page, so the rule it gets is its own, not the document's. */
+  function shadow(): ShadowRoot {
+    const outer = document.createElement('div')
+    document.body.append(outer)
+    cleanup.push(() => outer.remove())
+    return outer.attachShadow({ mode: 'open' })
+  }
+
+  it('reaches a page host mounted before it was connected, on its next draw', () => {
+    const root = shadow()
+    const host = document.createElement('div')
+    const { page, child } = layersOn(host)
+    root.append(host)
+    expect(getComputedStyle(child()).pointerEvents).toBe('none')
+    page.update({} as PageTransform)
+    expect(getComputedStyle(child()).pointerEvents).toBe('auto')
+  })
+
+  it('falls back to one style element where adopted sheets are missing', () => {
+    const root = shadow()
+    Object.defineProperty(root, 'adoptedStyleSheets', { value: undefined })
+    const host = document.createElement('div')
+    root.append(host)
+    const { page, child } = layersOn(host)
+    page.update({} as PageTransform)
+    expect(getComputedStyle(child()).pointerEvents).toBe('auto')
+    expect(root.querySelectorAll('style')).toHaveLength(1)
   })
 })
