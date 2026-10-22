@@ -1,0 +1,21 @@
+packages/react/README.md
+  s_a9eee6338cf60a::t_1f55987cd132a3 174
+packages/svelte/README.md
+  s_a9eee6338cf60a::t_1f55987cd132a3 180
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9c2f792885f5194097760526361752ff004d7897",
+  "prompts": {},
+  "sessions": {
+    "s_a9eee6338cf60a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c2869588-dbba-445a-be19-91e3d8b07d87",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
