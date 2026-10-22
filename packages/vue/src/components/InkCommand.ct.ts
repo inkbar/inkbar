@@ -1,7 +1,9 @@
 import { browserAssets, fixtureUrl } from '@inkbar/fixtures/urls'
 import { expect, test } from '@playwright/experimental-ct-vue'
 
+import CommandStateHarness from '../../playwright/harness/CommandStateHarness.vue'
 import PluginHarness from '../../playwright/harness/PluginHarness.vue'
+import SetupThrowsHarness from '../../playwright/harness/SetupThrowsHarness.vue'
 
 const assets = browserAssets()
 
@@ -76,4 +78,34 @@ test("InkToolButton shows a plugin tool's own label", async ({ mount }) => {
   await expect(cmp).toHaveAttribute('data-state', 'ready')
   await button.click()
   await expect(button).toHaveAttribute('aria-pressed', 'true')
+})
+
+test('InkCommand is disabled until the plugins are set up on mount, then enabled', async ({
+  mount,
+}) => {
+  const cmp = await mount(CommandStateHarness, {
+    props: { assets, id: 'sandbox.always' },
+  })
+  const button = cmp.locator('button[data-command="sandbox.always"]')
+  await expect(button).toBeEnabled()
+  await expect(button).toHaveAttribute('aria-label', 'Always')
+  await expect(cmp.getByTestId('seen')).toHaveText('false,true')
+  await expect(cmp.getByTestId('label')).toHaveText('Always')
+})
+
+test('an id no plugin registered throws UnknownCommand once the plugins are set up', async ({
+  mount,
+}) => {
+  const cmp = await mount(CommandStateHarness, { props: { assets, id: 'sandbox.nope' } })
+  await expect(cmp).toHaveAttribute('data-error', 'UnknownCommand')
+})
+
+test('a plugin setup that throws is reported, and the document still opens', async ({
+  mount,
+}) => {
+  const cmp = await mount(SetupThrowsHarness, {
+    props: { src: fixtureUrl('text-simple'), assets },
+  })
+  await expect(cmp).toHaveAttribute('data-error', 'setup failed')
+  await expect(cmp.locator('[data-ink-root]')).toHaveAttribute('data-state', 'ready')
 })

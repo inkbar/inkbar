@@ -128,7 +128,7 @@
       ...(ctx.hostTools ? { tools: ctx.hostTools } : {}),
       // The engine adds the plugins' tools and layers, and decorates through the host, which
       // reads `decorateAnnotation` first.
-      plugins: ctx.pluginHost,
+      ...(ctx.pluginHost ? { plugins: ctx.pluginHost } : {}),
       // Read through, so the effect below can re-apply a new function without a rebuild.
       decorateAnnotation: (a) => ctx.decorateAnnotation?.(a),
       ...(ctx.toolStyle ? { toolStyle: ctx.toolStyle } : {}),

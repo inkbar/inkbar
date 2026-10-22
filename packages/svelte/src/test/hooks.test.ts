@@ -1,9 +1,4 @@
-import {
-  createAnnotationStore,
-  createHistory,
-  isInkError,
-  staticDefaults,
-} from '@inkbar/core'
+import { createAnnotationStore, createHistory, staticDefaults } from '@inkbar/core'
 import { trackToolStyle } from '@inkbar/core/dom'
 import { render } from 'svelte/server'
 import { describe, expect, it } from 'vitest'
@@ -119,16 +114,11 @@ describe('useToolStyle', () => {
 })
 
 describe('useCommand', () => {
-  it('throws UnknownCommand for an id no plugin registered', () => {
+  it('renders without throwing on the server, before any plugin is set up', () => {
     const assets = { worker: 'w', cMaps: 'c', standardFonts: 's', wasm: 'm', icc: 'i' }
-    let error: unknown
-    try {
-      // The render runs when its output is read.
-      void render(UnknownCommandHost, { props: { assets } }).body
-    } catch (e) {
-      error = e
-    }
-    expect(isInkError(error)).toBe(true)
-    expect((error as { code: string }).code).toBe('UnknownCommand')
+    // The render runs when its output is read.
+    expect(
+      () => void render(UnknownCommandHost, { props: { assets } }).body
+    ).not.toThrow()
   })
 })

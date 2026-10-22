@@ -1,4 +1,5 @@
 import { InkError } from '@inkbar/core'
+import { computed } from 'vue'
 
 import { useInkContext } from '../context'
 import { useReadable } from '../use-readable'
@@ -14,24 +15,33 @@ export interface CommandHandle {
   busy: Readonly<Ref<boolean>>
   /** The command's progress or result message, `''` without one. */
   status: Readonly<Ref<string>>
-  label: string
-  icon: IconNode | undefined
+  /** `''` until the plugins are set up. */
+  label: Readonly<Ref<string>>
+  icon: Readonly<Ref<IconNode | undefined>>
 }
 
 /**
  * A plugin command by its namespaced id (`sandbox.suggest`), for hosts building their own
- * control. Throws `InkError('UnknownCommand')` for an id no plugin passed to InkRoot registered.
+ * control. Plugins are set up once InkRoot has mounted, so until then (and on the server) the
+ * command is disabled with no label; it fills in then. Once they are set up, an id no plugin
+ * passed to InkRoot registered raises `InkError('UnknownCommand')` where the handle is read,
+ * which reaches Vue's error handling (`onErrorCaptured`, `app.config.errorHandler`).
  */
 export function useCommand(id: string): CommandHandle {
-  const command = useInkContext('useCommand()').pluginHost.value?.command(id)
-  if (!command)
-    throw new InkError('UnknownCommand', `No plugin registered a command ${id}`, { id })
+  const host = useInkContext('useCommand()').pluginHost
+  const command = computed(() => {
+    if (!host.value) return undefined
+    const found = host.value.command(id)
+    if (!found)
+      throw new InkError('UnknownCommand', `No plugin registered a command ${id}`, { id })
+    return found
+  })
   return {
-    run: () => command.run(),
-    enabled: useReadable(command.enabled, false),
-    busy: useReadable(command.busy, false),
-    status: useReadable(command.status, ''),
-    label: command.label,
-    icon: command.icon,
+    run: async () => command.value?.run(),
+    enabled: useReadable(() => command.value?.enabled, false),
+    busy: useReadable(() => command.value?.busy, false),
+    status: useReadable(() => command.value?.status, ''),
+    label: computed(() => command.value?.label ?? ''),
+    icon: computed(() => command.value?.icon),
   }
 }

@@ -142,14 +142,18 @@ const NO_ANNOTATIONS: readonly Annotation[] = []
 const NO_IDS: readonly string[] = []
 const noop = (): void => undefined
 
-/** The plugin host and the readables it follows, for the root's life. */
+/** The readables the plugin host follows, for the root's life. */
 interface RootPlugins {
-  host: PluginHost
   /** Set once the document is current, so the host reads the history that goes with it. */
   document: Writable<InkDocument | null>
   /** InkViewport's scroll element while it is mounted. */
   root: Writable<HTMLElement | null>
   activated: Writable<string | null>
+}
+
+/** A plugin host, and whether it has been torn down. */
+interface RootHost {
+  host: PluginHost
   destroyed: boolean
 }
 
@@ -269,15 +273,19 @@ export function InkRoot({
     snapshotHistory.observe(annotations)
   }, [annotations, snapshotHistory])
 
-  /** The plugins and their host; see below. */
-  const pluginsRef = useRef<RootPlugins | null>(null)
+  /** What the plugin host follows; plain readables, so StrictMode's second render is harmless. */
+  const [plugins] = useState<RootPlugins>(() => ({
+    document: writable<InkDocument | null>(null),
+    root: writable<HTMLElement | null>(null),
+    activated: writable<string | null>(null),
+  }))
   const setActivated = useCallback(
     (id: string | null) => {
       setActivatedState(id)
-      pluginsRef.current?.activated.set(id)
+      plugins.activated.set(id)
       if (id) latest.current.onActivate?.(id)
     },
-    [latest]
+    [latest, plugins]
   )
 
   /**
@@ -302,53 +310,48 @@ export function InkRoot({
   }, [snapshotHistory])
 
   /*
-   * One plugin host for the root's life, built in the first render so that InkCommand finds its
-   * command when it renders. Building it touches no DOM, and no document opens on the server, so
-   * plugins see none there. A ref rather than state: StrictMode's second render reuses it, where
-   * it would call a state initialiser twice and set the plugins up twice.
+   * One plugin host for the root's life, built in a layout effect so that no `setup` runs on
+   * the server, where nothing would clean it up, and the browser never paints the commands
+   * without it. Until then `pluginHost` is null and InkCommand renders its command disabled.
+   * Layout effects run before the passive effect that opens the document, so the first
+   * document opens with the plugins' stores and reactions.
    */
-  const createPlugins = (): RootPlugins => {
-    const document = writable<InkDocument | null>(null)
-    const root = writable<HTMLElement | null>(null)
-    const activatedId = writable<string | null>(null)
-    const host = createPluginHost({
-      plugins: latest.current.plugins ?? [],
-      document: readonly(document),
-      history: () => pluginHistory,
-      activated: readonly(activatedId),
-      // As in `createViewer`: an id not in the open document is ignored.
-      setActivated: (id) => {
-        if (id === null || documentRef.current?.annotations.get(id)) setActivated(id)
-      },
-      root: readonly(root),
-      decorate: () => latest.current.decorateAnnotation,
-    })
-    return { host, document, root, activated: activatedId, destroyed: false }
-  }
-  pluginsRef.current ??= createPlugins()
-  const plugins = pluginsRef.current
-  const [, rebuildPlugins] = useState(0)
+  const hostRef = useRef<RootHost | null>(null)
+  const [pluginHost, setPluginHost] = useState<PluginHost | null>(null)
   const hostMounts = useRef(0)
-  useEffect(() => {
-    // Shown again after the host was destroyed (an `<Activity>` hidden and shown): start anew.
-    if (pluginsRef.current?.destroyed) {
-      pluginsRef.current = createPlugins()
-      rebuildPlugins((n) => n + 1)
-    }
+  useLayoutEffect(() => {
     hostMounts.current += 1
+    // StrictMode's simulated unmount mounts again at once, and then the host from the first
+    // mount stays. Shown again after it was destroyed (an `<Activity>` hidden and shown), or
+    // mounted for the first time: start anew.
+    if (!hostRef.current || hostRef.current.destroyed) {
+      const host = createPluginHost({
+        plugins: latest.current.plugins ?? [],
+        document: readonly(plugins.document),
+        history: () => pluginHistory,
+        activated: readonly(plugins.activated),
+        // As in `createViewer`: an id not in the open document is ignored.
+        setActivated: (id) => {
+          if (id === null || documentRef.current?.annotations.get(id)) setActivated(id)
+        },
+        root: readonly(plugins.root),
+        decorate: () => latest.current.decorateAnnotation,
+      })
+      hostRef.current = { host, destroyed: false }
+      setPluginHost(host)
+    }
     return () => {
       hostMounts.current -= 1
       // After the rest of this commit's cleanups, so InkViewport's engine and its plugin layers
-      // go first, as in `createViewer`. StrictMode's simulated unmount mounts again at once, and
-      // then the host stays.
+      // go first, as in `createViewer`.
       queueMicrotask(() => {
-        const current = pluginsRef.current
+        const current = hostRef.current
         if (hostMounts.current > 0 || !current || current.destroyed) return
         current.destroyed = true
         current.host.destroy()
       })
     }
-    // Once per mount; `createPlugins` reads only stable values and refs.
+    // Once per mount; the host reads only stable values and refs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -412,8 +415,8 @@ export function InkRoot({
         if (doc.annotations.mode === 'controlled')
           detach = snapshotHistory.attach(doc.annotations)
         // The document is current, so the host reads its history when it hears of it.
-        told = pluginsRef.current
-        told?.document.set(doc)
+        told = plugins
+        told.document.set(doc)
         setDocument(doc)
         setOverride(null)
         setTestHook(rootElRef.current, doc)
@@ -451,7 +454,7 @@ export function InkRoot({
       setTestHook(rootElRef.current, undefined)
     }
     // `srcIdentity` stands in for `src`: a new URL with the same key is the same document.
-  }, [srcIdentity, password, snapshotHistory, latest])
+  }, [srcIdentity, password, snapshotHistory, latest, plugins])
 
   useLayoutEffect(() => {
     if (annotations && document?.annotations.mode === 'controlled')
@@ -529,11 +532,11 @@ export function InkRoot({
             store: document.annotations,
             history: { batch: (fn) => latestHistory.current.batch(fn) },
             // The plugins' tools too, so a plugin tool's style group applies.
-            tools: [...(latest.current.hostTools ?? []), ...plugins.host.tools],
+            tools: [...(latest.current.hostTools ?? []), ...(pluginHost?.tools ?? [])],
             tool: latest.current.tool,
           })
         : null,
-    [document, latest, latestHistory, plugins]
+    [document, latest, latestHistory, pluginHost]
   )
   useEffect(() => {
     styleTracker?.setTool(internalTool)
@@ -613,7 +616,7 @@ export function InkRoot({
       reportPage,
       activated,
       setActivated,
-      pluginHost: plugins.host,
+      pluginHost,
       viewportEl: plugins.root,
       history: inkHistory,
       rootEl,
@@ -643,6 +646,7 @@ export function InkRoot({
       reportPage,
       activated,
       setActivated,
+      pluginHost,
       plugins,
       inkHistory,
       rootEl,

@@ -17,18 +17,19 @@ export interface Mark {
  * an empty page layer. `log` records the layer's teardown and the plugin's cleanup, in order.
  */
 export function createTestPlugin(log: string[] = []) {
-  let marks: Readable<RecordStore<Mark> | null> = {
-    get: () => null,
-    subscribe: () => () => {},
-  }
+  // Plugins are set up once the root has mounted: the harness reads this one readable from
+  // the start, and setup points it at the plugin's store.
+  const marks = writable<RecordStore<Mark> | null>(null)
   const status = writable('')
   let finish = () => {}
   const plugin = definePlugin({
     id: 'sandbox',
     setup(ctx) {
-      marks = ctx.store<Mark>('marks', {
+      const store = ctx.store<Mark>('marks', {
         initial: () => [{ id: 'm1', status: 'suggested' }],
       })
+      marks.set(store.get())
+      const stopMarks = store.subscribe((s) => marks.set(s))
       ctx.commands.add({
         id: 'accept',
         label: 'Accept',
@@ -81,9 +82,14 @@ export function createTestPlugin(log: string[] = []) {
         },
       })
       return () => {
+        stopMarks()
         log.push('plugin cleaned up')
       }
     },
   })
-  return { plugin, marks: () => marks, finish: () => finish() }
+  return {
+    plugin,
+    marks: (): Readable<RecordStore<Mark> | null> => marks,
+    finish: () => finish(),
+  }
 }

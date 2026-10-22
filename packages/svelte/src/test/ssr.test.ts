@@ -61,14 +61,11 @@ describe('@inkbar/svelte on the server', () => {
     expect(evaluated.pdfjs).toBe(false)
 
     const { default: SsrHost } = await import('./harness/SsrHost.svelte')
-    // A plugin is set up on the server too (it touches no DOM), so its commands render.
+    // Plugins are set up only once mounted in the browser: on the server a command button
+    // renders disabled.
     const { definePlugin } = await import('@inkbar/core/dom')
-    const plugin = definePlugin({
-      id: 'sandbox',
-      setup(ctx) {
-        ctx.commands.add({ id: 'ping', label: 'Ping', run: () => undefined })
-      },
-    })
+    const setup = vi.fn()
+    const plugin = definePlugin({ id: 'sandbox', setup })
     const { body } = render(SsrHost, { props: { assets, plugins: [plugin] } })
     expect(body).toContain('data-ink-root')
     expect(body).toContain('data-state="idle"')
@@ -76,7 +73,12 @@ describe('@inkbar/svelte on the server', () => {
     expect(body).toContain('data-ink-toolbar')
     expect(body).toContain('aria-label="Document tools"')
     expect(body).toContain('aria-label="Page and zoom"')
-    expect(body).toContain('data-command="sandbox.ping"')
+    // Disabled and out of the accessibility tree while it has no name to give.
+    const button = /<button[^>]*data-command="sandbox\.ping"[^>]*>/.exec(body)?.[0] ?? ''
+    expect(button).toMatch(/\sdisabled/)
+    expect(button).toContain('aria-hidden="true"')
+    expect(button).not.toMatch(/aria-label|title=/)
+    expect(setup).not.toHaveBeenCalled()
     expect(body).toContain('data-ink-viewport-root')
     // Once on the root and once on the viewport, which renders its empty scroll element.
     expect(body.match(/data-state="idle"/g)).toHaveLength(2)

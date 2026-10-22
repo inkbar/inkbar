@@ -56,7 +56,9 @@ export function InkToolButton({
   const { tool: current, setTool } = useTool()
   const active = current === tool
   /** A host or plugin tool by this id, for the name and icon core has none for. */
-  const own = [...(hostTools ?? []), ...pluginHost.tools].find((t) => t.id === tool)
+  const own = [...(hostTools ?? []), ...(pluginHost?.tools ?? [])].find(
+    (t) => t.id === tool
+  )
   // `label` and `children` win; then core's name and icon; then the tool's own.
   const name = label ?? TOOL_LABELS[tool] ?? own?.label ?? tool
   const icon = ICONS[tool] ?? own?.icon

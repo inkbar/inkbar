@@ -51,8 +51,9 @@ export interface InkContext {
   annotations: Readonly<Ref<readonly Annotation[]>>
   selection: Readonly<Ref<readonly string[]>>
   /**
-   * The plugins from InkRoot's `plugins` prop, set up once for the root's life; `null` once the
-   * root unmounts. InkViewport hands it to the engine; InkCommand places its commands.
+   * The plugins from InkRoot's `plugins` prop, set up once the root has mounted and kept for
+   * its life; `null` before that (and on the server) and once it unmounts. InkViewport hands it
+   * to the engine; InkCommand places its commands.
    */
   pluginHost: Readonly<ShallowRef<PluginHost | null>>
   /** InkViewport's scroll element while it is mounted: the plugins' `root`. */
