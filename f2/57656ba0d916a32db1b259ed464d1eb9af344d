@@ -1,0 +1,27 @@
+packages/core/src/dom/plugins/api/card.ts
+  s_611b86d68c2358::t_e87aa96de41018 29-32
+  s_611b86d68c2358::t_8c4f14bf3ca5bd 51-52,74-81,91,160,184,187
+packages/core/src/dom/plugins/api/marks.browser.test.ts
+  s_611b86d68c2358::t_52d6a3f54117d1 204-206
+packages/core/src/dom/plugins/api/marks.ts
+  s_611b86d68c2358::t_8c4f14bf3ca5bd 128-131
+  s_611b86d68c2358::t_e87aa96de41018 35-36,41-42
+packages/core/src/dom/plugins/api/card.browser.test.ts
+  s_611b86d68c2358::t_52d6a3f54117d1 230-259
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f257656ba0d916a32db1b259ed464d1eb9af344d",
+  "prompts": {},
+  "sessions": {
+    "s_611b86d68c2358": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f6760cb6-1a68-4a5b-b172-32f4da0aa5b1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
