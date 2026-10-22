@@ -1,0 +1,42 @@
+packages/core/src/dom/plugins/api/command.test.ts
+  s_611b86d68c2358::t_30b16d824f870e 32,34-35,39-41,53-154,176-209
+  s_611b86d68c2358::t_a2adaab69675d8 13
+  s_611b86d68c2358::t_27a3cc97c508c4 1-12,14-31,33,36-38,42,44-50,52
+packages/core/src/dom/plugins/api/command.ts
+  s_611b86d68c2358::t_59eeb67a10bd25 1-10,12-45,49-55,58-78
+  s_611b86d68c2358::t_399e37f2607b4d 56-57
+  s_611b86d68c2358::t_a2adaab69675d8 11
+packages/core/src/dom/plugins/api/api.ts
+  s_611b86d68c2358::t_59eeb67a10bd25 5,10,27-35,64
+  s_611b86d68c2358::t_a02b1b23ddd0b0 52-61
+packages/core/src/dom/index.ts
+  s_611b86d68c2358::t_a02b1b23ddd0b0 43
+packages/core/src/dom/plugins/api/links.ts
+  s_611b86d68c2358::t_a7d88e8c4171c5 6,69-70,73-75
+  s_611b86d68c2358::t_5f7017695e5d45 1-5,7-68,71-72,76-101
+packages/core/src/dom/plugins/api/records.ts
+  s_611b86d68c2358::t_a02b1b23ddd0b0 8-11,42-50,100-105,148-152,154-159
+  s_611b86d68c2358::t_a7d88e8c4171c5 153
+packages/core/src/dom/plugins/api/links.test.ts
+  s_611b86d68c2358::t_5953579f6f4bb7 128,131,183,214
+  s_611b86d68c2358::t_65eadda4fd4aaa 143-146
+  s_611b86d68c2358::t_1547ace00a1d35 56
+  s_611b86d68c2358::t_0c87bf1f6263b0 1-10,12-55,57-58,65-127,129-130,132-142,147-158,163-181,185-197,202-213,215-241,246-260
+  s_611b86d68c2358::t_af53c32ac28ba0 11,59-64,159-162,182,184,198-201,242-245
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8531cfcf0a55168e2c6e1d080e5be6e72d928c41",
+  "prompts": {},
+  "sessions": {
+    "s_611b86d68c2358": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f6760cb6-1a68-4a5b-b172-32f4da0aa5b1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
