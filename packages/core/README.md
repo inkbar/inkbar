@@ -300,6 +300,43 @@ A command added with `ctx.commands.add` is disabled until a document is ready, u
 - Decorations from `ctx.decorate` re-apply when the annotations change. Call `ctx.redecorate()` when one reads state of your own that changed. Marks from `plugin.marks` take `refresh()` for the same job.
 - The framework packages run `setup` once the viewer has mounted in the browser, never while rendering on the server. Until then the plugin's commands are disabled, and anything `setup` creates, such as a store, doesn't exist yet.
 
+## Search
+
+`doc.search(query, options?)` finds text across the document. The query is a string or a `RegExp`. It returns `SearchResults`: iterate it with `for await` to get hits as pages are scanned, or call `all()` for the lot.
+
+```ts
+for await (const hit of doc.search('invoice')) {
+  console.log(hit.page, hit.text, `${hit.before}[${hit.text}]${hit.after}`)
+}
+
+const refs = await doc.search(/\b[A-Z]{2}\d{6}[A-D]\b/, { signal }).all()
+```
+
+Options: `matchCase` (default false; a `RegExp` keeps its own `i` flag), `wholeWord`, `pages` (indices to search, in the order given; all pages in order by default) and `signal`, which stops the scan. A string matches the way the page reads: it finds text across line breaks and a hyphenated line end, and ignores accents, ligatures and curly quotes.
+
+Each `SearchHit` has:
+
+- `page`: 0-based page index.
+- `start`, `end`: offsets into `doc.pageText(page)`.
+- `text`: the page text the hit covers.
+- `quads`, `rect`: where it is, in PDF user space. `quads` has one entry per run of text the hit touches, and can go straight into a text markup annotation.
+- `before`, `after`: up to 40 characters of page text either side.
+
+`viewer.search` is the state and actions behind the viewer's find bar: `state` (a readable of `open`, `query`, `matchCase`, `hits`, `current` and `scanning`), `open(query?)`, `setQuery`, `setMatchCase`, `next`, `previous` and `close`. `open()` runs the search and draws the highlights even with no find bar on the page. Plugins get the same object as `ctx.search`.
+
+```ts
+import { createFindBar, createSearchButton } from '@inkbar/core/dom'
+
+toolbar.append(createSearchButton(viewer))
+viewer.element.querySelector('[data-ink-viewport-root]')!.append(createFindBar(viewer))
+```
+
+`createSearchButton(viewer)` opens the bar. `createFindBar(viewer)` is a field with a match count, previous and next, a match-case toggle and close. Put it inside `[data-ink-viewport-root]`; the theme floats it over the top-right of the pages. Enter steps to the next match, `Shift+Enter` to the previous, and `Escape` closes and returns focus to where it was.
+
+Ctrl/Cmd+F opens the bar when one is mounted and the key comes from inside the viewer, with the page selection (up to 200 characters) as the query. Without a bar, or from outside the viewer, the browser keeps the key.
+
+Hits are drawn as a layer over the page. `@inkbar/theme` styles them with `--ink-search-hit` and, for the current hit, `--ink-search-current` and `--ink-search-current-outline`.
+
 ## Signatures
 
 A signature here is a mark on the page, not a cryptographic signature of the file. Draw one, type your name in a handwriting font, or upload a scan, and it is saved as a template. The `signature` tool places the chosen template: a click puts it about 150 pt wide, centred on the press, and `Enter` puts it at the centre of the current page. It is turned against the page's `/Rotate`, so it reads upright on the page; a view rotation turns it with the page. A drawn signature becomes `ink` and the others a `stamp` (an image), both with `subject: 'Signature'`. Both keep their aspect ratio when resized.
