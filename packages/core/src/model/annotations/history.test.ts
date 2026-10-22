@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createRecordStore } from '../records'
+import { createRecordStore, type RecordChange } from '../records'
 
 import { staticDefaults } from './defaults'
 import { createHistory } from './history'
@@ -452,6 +452,25 @@ describe('history over record stores', () => {
     h.redo()
     expect(s.get(id)).toBeDefined()
     expect(notes.get('n1')?.annotationId).toBe(id)
+  })
+
+  it('undo and redo hand the store a replace naming the records they changed', () => {
+    const { s, h, notes } = setup()
+    notes.add({ id: 'n2', status: 'open' })
+    h.track(notes)
+    const changes: RecordChange<Note>[] = []
+    notes.on('change', (c) => changes.push(c))
+    h.batch(() => {
+      const id = s.add({ type: 'text', page: 0, rect }).id
+      notes.update('n1', { status: 'done', annotationId: id })
+    })
+    changes.length = 0
+    h.undo()
+    h.redo()
+    expect(changes).toEqual([
+      { kind: 'replace', reason: 'history', added: [], updated: ['n1'], removed: [] },
+      { kind: 'replace', reason: 'history', added: [], updated: ['n1'], removed: [] },
+    ])
   })
 
   it("a reaction's record writes join the edit's entry", () => {
