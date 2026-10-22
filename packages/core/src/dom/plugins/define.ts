@@ -121,6 +121,12 @@ export interface PluginContext {
   layer(spec: LayerSpec): PluginLayerHandle
 }
 
+/** A factory's parameters: its options, optional only when `O` has no required field. */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- `{}` tests for no required field
+type PluginFactoryArgs<O> = {} extends O
+  ? [options?: O & PluginOptions]
+  : [options: O & PluginOptions]
+
 const PLUGIN_ID = /^[a-z][a-z0-9-]*$/
 
 function checkId(id: string): void {
@@ -141,12 +147,13 @@ function checkId(id: string): void {
 export function definePlugin(plugin: InkPlugin): InkPlugin
 /**
  * Checks the id now and returns a factory: `factory(options)` is a plugin whose setup receives
- * the plugin API and those options. Each call makes an independent plugin.
+ * the plugin API and those options. Each call makes an independent plugin. The options may be
+ * left out only when every field of `O` is optional.
  */
 export function definePlugin<O extends object = object>(
   id: string,
   setup: (plugin: PluginApi, options: O & PluginOptions) => void | (() => void)
-): (options?: O & PluginOptions) => InkPlugin
+): (...args: PluginFactoryArgs<O>) => InkPlugin
 export function definePlugin<O extends object>(
   plugin: InkPlugin | string,
   setup?: (plugin: PluginApi, options: O & PluginOptions) => void | (() => void)

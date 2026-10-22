@@ -17,7 +17,8 @@ export interface PluginOptions {
 export interface PluginApi extends PluginContext {
   /**
    * A handle on the store `<plugin>.<name>` that follows the open document. Its options are
-   * `opts` when given, else the host's `options.records[name]`.
+   * `opts` when given, else the host's `options.records[name]`. Call it once per name in
+   * setup and keep the handle: a second call for the same name throws `InkError('DuplicateId')`.
    */
   records<T extends RecordBase>(name: string, opts?: PluginStoreOptions<T>): Records<T>
   /** Makes everything `fn` changes one undo step: `history.batch`. */

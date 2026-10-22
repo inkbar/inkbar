@@ -108,6 +108,16 @@ describe('definePlugin', () => {
     first.host.destroy()
     expect(cleanup).toHaveBeenCalledTimes(1)
   })
+
+  it('requires the factory options when the plugin has required options', () => {
+    const keyed = definePlugin('keyed', (_plugin, _options: { apiKey: string }) => {})
+    // @ts-expect-error `apiKey` is required, so the options are too
+    keyed()
+    expect(keyed({ apiKey: 'k' }).id).toBe('keyed')
+    const optional = definePlugin('optional', (_plugin, _options: { tag?: string }) => {})
+    expect(optional().id).toBe('optional')
+    expect(definePlugin('plain', () => {})().id).toBe('plain')
+  })
 })
 
 describe('createPluginHost', () => {
