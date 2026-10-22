@@ -27,6 +27,7 @@ import { mountViewer, type MountViewerOptions, type ViewerEngine } from '../view
 import { h } from './dom'
 import { createThreadPopover } from './thread-popover'
 
+import type { PluginHistory } from '../../model/annotations/history'
 import type { DocumentSource } from '../../model/source'
 import type { PdfAssets } from '../../pdfjs/types'
 import type { Command, InkPlugin } from '../plugins/define'
@@ -102,6 +103,13 @@ export interface Viewer {
   destroy(): void
 }
 
+const noop = () => undefined
+const passThrough: PluginHistory = {
+  batch: (fn) => fn(),
+  track: () => noop,
+  react: () => noop,
+}
+
 export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer {
   const {
     source: initial,
@@ -160,12 +168,13 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
 
   /**
    * One host for the viewer's life. It reads the history when a document opens, and `current`
-   * is set before it notifies, so that is the new document's.
+   * is set before it notifies, so that is the new document's. With no document open, a
+   * command's `batch` just runs its function.
    */
   const host: PluginHost = createPluginHost({
     plugins: plugins ?? [],
     document: readonly(current),
-    history: () => current.get()!.history,
+    history: () => current.get()?.history ?? passThrough,
     activated: readonly(activated),
     setActivated: (id) => {
       if (id === null || current.get()?.annotations.get(id)) activated.set(id)

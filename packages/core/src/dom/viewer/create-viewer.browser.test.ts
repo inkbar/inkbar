@@ -2162,6 +2162,28 @@ describe('createViewer plugins', () => {
     ).toEqual([a.id])
   })
 
+  it('a command batching with no document open runs its function', async () => {
+    const fn = vi.fn()
+    const plugin = definePlugin({
+      id: 'sandbox',
+      setup(ctx) {
+        ctx.commands.add({
+          id: 'work',
+          label: 'Do work',
+          enabled: writable(true),
+          run: () => ctx.history.batch(fn),
+        })
+      },
+    })
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const { viewer } = make('annotated-notes-threaded', { plugins: [plugin] })
+    expect(viewer.document.get()).toBeNull()
+    await viewer.commands.get('sandbox.work')!.run()
+    expect(fn).toHaveBeenCalledOnce()
+    expect(error).not.toHaveBeenCalled()
+    error.mockRestore()
+  })
+
   it('opening another document gives plugins fresh stores', async () => {
     let store: Readable<RecordStore<{ id: string }> | null> | undefined
     const plugin = definePlugin({
