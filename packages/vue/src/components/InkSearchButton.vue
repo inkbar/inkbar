@@ -7,6 +7,7 @@ import { Search } from '@inkbar/icons'
 import { ToolbarButton } from 'reka-ui'
 import { computed, nextTick } from 'vue'
 
+import { useDocument } from '../composables/useDocument'
 import { useSearch } from '../composables/useSearch'
 import { useInkContext } from '../context'
 
@@ -15,6 +16,7 @@ import InkIcon from './InkIcon.vue'
 withDefaults(defineProps<{ asChild?: boolean }>(), { asChild: false })
 const ctx = useInkContext('InkSearchButton')
 const { state, open } = useSearch()
+const { isReady } = useDocument()
 
 async function onClick(): Promise<void> {
   open()
@@ -39,6 +41,7 @@ const attrs = computed(() => ({
 <template>
   <ToolbarButton
     :as-child="asChild"
+    :disabled="!isReady"
     class="ink-search-button"
     data-ink-search-button
     v-bind="attrs"

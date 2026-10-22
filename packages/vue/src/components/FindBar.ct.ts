@@ -1,3 +1,4 @@
+import { AxeBuilder } from '@axe-core/playwright'
 import { browserAssets, fixtureUrl } from '@inkbar/fixtures/urls'
 import { expect, test } from '@playwright/experimental-ct-vue'
 
@@ -99,4 +100,22 @@ test('useSearch().state follows setQuery', async ({ mount, page }) => {
   // The bar is still hidden: setting the query does not open it.
   await expect(page.getByTestId('open')).toHaveText('false')
   await expect(page.locator('[data-ink-find-bar] input')).toHaveValue('Inkbar')
+})
+
+test('the search button is disabled until a document is open', async ({
+  mount,
+  page,
+}) => {
+  await mount(Harness, { props: { src: null, assets } })
+  await expect(page.getByRole('button', { name: 'Find', exact: true })).toBeDisabled()
+})
+
+test('the bar passes axe while open', async ({ mount, page }) => {
+  const cmp = await mount(Harness, { props })
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  await page.getByRole('button', { name: 'Find', exact: true }).click()
+  await page.keyboard.type('QQ123456C')
+  await expect(page.locator('[data-ink-find-count]')).toHaveText('1 of 3')
+  const results = await new AxeBuilder({ page }).include('[data-ink-find-bar]').analyze()
+  expect(results.violations.map((v) => v.id)).toEqual([])
 })

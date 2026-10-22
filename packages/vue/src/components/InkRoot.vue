@@ -13,6 +13,7 @@ import {
   createToolOptions,
   handleFindKey,
   pageSelectionText,
+  viewerSearchOf,
   cssVariableDefaults,
   FONT_FAMILIES,
   SIGNATURE_FONTS,
@@ -324,15 +325,7 @@ function setUpPlugins(): void {
     root: readonly(hostRoot),
     decorate: () => props.decorateAnnotation,
     viewport: () => viewport.value,
-    search: {
-      state: controller.state,
-      open: (query) => controller.open(query),
-      setQuery: (query) => controller.setQuery(query),
-      setMatchCase: (on) => controller.setMatchCase(on),
-      next: () => controller.next(),
-      previous: () => controller.previous(),
-      close: () => controller.close(),
-    },
+    search: viewerSearchOf(controller),
   })
 }
 

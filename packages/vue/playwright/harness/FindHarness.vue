@@ -10,7 +10,7 @@ import SearchProbe from './SearchProbe.vue'
 import type { DocumentSource, PdfAssets } from '@inkbar/core'
 
 withDefaults(
-  defineProps<{ src: DocumentSource; assets: PdfAssets; withBar?: boolean }>(),
+  defineProps<{ src: DocumentSource | null; assets: PdfAssets; withBar?: boolean }>(),
   { withBar: true }
 )
 </script>

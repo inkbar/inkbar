@@ -42,6 +42,7 @@
     "@inkbar/core": "workspace:*",
     "@inkbar/fixtures": "workspace:*",
     "@inkbar/theme": "workspace:*",
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/experimental-ct-vue": "1.62.1",
     "@playwright/test": "1.62.1",
     "@vitejs/plugin-vue": "^6.0.10",
