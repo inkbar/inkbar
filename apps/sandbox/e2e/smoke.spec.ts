@@ -69,6 +69,11 @@ const RESULT = '.ink-command-status'
 /** Opens the sample, runs Suggest redactions and shows the last page, where the marks are. */
 async function suggestOnSample(page: Page, path: string): Promise<void> {
   await page.goto(path)
+  await suggest(page)
+}
+
+/** Runs Suggest redactions on the sample already open and shows the last page. */
+async function suggest(page: Page): Promise<void> {
   await waitForFirstPage(page)
   await page.getByRole('button', { name: 'Suggest redactions' }).click()
   await expect(page.locator(RESULT)).toHaveText(SAMPLE_SUGGESTIONS)
@@ -963,8 +968,7 @@ test.describe('plugin page', () => {
     await expect(
       page.getByRole('region', { name: 'suggestions.ts', exact: true })
     ).toContainText('definePlugin')
-    await waitForFirstPage(page)
-    await suggestOnSample(page, 'plugin/')
+    await suggest(page)
     await page.locator(`${SUGGESTED}[data-suggestion="email"]`).click()
     await suggestionCard(page).getByRole('button', { name: 'Accept' }).click()
     await expect(page.locator(SUGGESTED)).toHaveCount(3)
