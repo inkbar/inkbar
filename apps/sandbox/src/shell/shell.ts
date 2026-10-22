@@ -59,7 +59,7 @@ export function startShell(opts: ShellOptions): void {
     : `Inkbar in <span class="mark">${fw.name}</span>`
   const sourceIntro = isPlugin
     ? `<h2 id="source-title">The plugin</h2>
-      <p class="caption">Four files, all in <code>src/plugin</code>. The viewer above is the TypeScript page's.</p>`
+      <p class="caption">Every file is in <code>src/plugin</code>. The viewer above is the TypeScript page's.</p>`
     : `<h2 id="source-title">The whole integration</h2>
       <p class="caption">This file is everything this page does with Inkbar. The plugin it registers is on <a class="text-link" href="${BASE}plugin/">its own page</a>, and the page around them is in <code>src/shell</code>.</p>`
   document.title = `${fw.name} · Inkbar sandbox`
@@ -77,7 +77,7 @@ export function startShell(opts: ShellOptions): void {
       </ul>
     </nav>
     <nav class="site-nav" aria-label="Main">
-      <a href="${BASE}plugin/"${current('plugin')}>Writing a plugin</a>
+      <a href="${BASE}plugin/"${current('plugin')}>${PLUGIN_PAGE.name}</a>
       <a href="https://inkbar.dev/docs/">Docs</a>
       <a href="${REPO}">GitHub</a>
     </nav>
@@ -118,7 +118,7 @@ export function startShell(opts: ShellOptions): void {
     <p>MIT licensed. From the team behind <a href="https://redactr.io">Redactr</a>.</p>
     <nav aria-label="Footer">
       <a href="${BASE}">All sandboxes</a>
-      <a href="${BASE}plugin/">Writing a plugin</a>
+      <a href="${BASE}plugin/">${PLUGIN_PAGE.name}</a>
       <a href="https://inkbar.dev/docs/">Docs</a>
       <a href="${REPO}">GitHub</a>
     </nav>
