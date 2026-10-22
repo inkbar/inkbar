@@ -1,0 +1,83 @@
+packages/core/src/model/form/structure.test.ts
+  s_e6109f66fbb4ed::t_d8738bce52d923 147-152
+packages/core/src/pdf/form-fields.ts
+  s_e6109f66fbb4ed::t_793aa620ac4809 29-30,282-283
+packages/core/src/dom/form-text.ts
+  s_e6109f66fbb4ed::t_28d013386c0cde 220
+  s_e6109f66fbb4ed::t_729540b2ab0580 328,331-338
+  s_e6109f66fbb4ed::t_c651a37a4b5f09 1-10,17-29,34-216,221-311,313-327,329-330,339-349
+  s_e6109f66fbb4ed::t_f2dce98c4ce150 11-16,30-33,217-219,312
+packages/core/src/dom/form-layer.browser.test.ts
+  s_e6109f66fbb4ed::t_f2dce98c4ce150 363-365,382-384,441,445
+  s_e6109f66fbb4ed::t_beb6efb2286a75 1-362,366-381,385-440,442-444,446-477
+packages/svelte/tsconfig.json
+  s_e6109f66fbb4ed::t_ae6aefe39a1855 7-12
+packages/vue/tsconfig.json
+  s_e6109f66fbb4ed::t_ae6aefe39a1855 8-14
+packages/core/src/model/form/controller.ts
+  s_e6109f66fbb4ed::t_101314374f022c 87-91,120-122,151-152,470-472
+  s_e6109f66fbb4ed::t_fcc534c80322de 473
+packages/core/src/model/form/controller.test.ts
+  s_e6109f66fbb4ed::t_d3c608c4250f71 218
+packages/core/src/dom/tools/controller.ts
+  s_e6109f66fbb4ed::t_a8cad3c6309e39 521,528-529
+packages/core/src/pdfjs/scripting.ts
+  s_e6109f66fbb4ed::t_101314374f022c 146-150,302-312,314-316
+  s_e6109f66fbb4ed::t_ad815845168821 313
+  s_e6109f66fbb4ed::t_61180fdc2a188f 317
+packages/core/src/model/form/controller.controlled.test.ts
+  s_e6109f66fbb4ed::t_d3c608c4250f71 98,116
+packages/core/src/dom/ui.ts
+  s_e6109f66fbb4ed::t_9435a1329ed556 639-646
+packages/core/src/dom/viewer-engine.ts
+  s_e6109f66fbb4ed::t_dcc76d7b37cb2e 242-243
+  s_e6109f66fbb4ed::t_a8cad3c6309e39 103-107,179-181,184,193,241,244-247,385-389,403,458
+packages/core/src/pdfjs/render-region.ts
+  s_e6109f66fbb4ed::t_f6455e460ce489 15-16,55-58
+packages/core/src/dom/page-renderer.ts
+  s_e6109f66fbb4ed::t_f6455e460ce489 23-28,109,126
+packages/core/src/pdfjs/scripting.browser.test.ts
+  s_e6109f66fbb4ed::t_4a11365781bea7 420
+  s_e6109f66fbb4ed::t_1dd952de88e88b 239-243,312-317,408,416-419,421-425
+  s_e6109f66fbb4ed::t_ad815845168821 409,415
+  s_e6109f66fbb4ed::t_f2dce98c4ce150 303-304,410-414
+  s_e6109f66fbb4ed::t_52a8a039f27aed 426-427
+packages/core/src/dom/index.ts
+  s_e6109f66fbb4ed::t_9435a1329ed556 123
+  s_e6109f66fbb4ed::t_21e8f877b6d819 63
+packages/react/tsconfig.json
+  s_e6109f66fbb4ed::t_ae6aefe39a1855 8-14
+packages/core/src/model/form/structure.ts
+  s_e6109f66fbb4ed::t_793aa620ac4809 288-289
+packages/theme/theme.css
+  s_e6109f66fbb4ed::t_d2778686ee532e 44-47,69-71,93-95,347-373
+  s_e6109f66fbb4ed::t_42b6e049c18306 374
+packages/core/src/dom/form-layer.ts
+  s_e6109f66fbb4ed::t_f2dce98c4ce150 331-332
+  s_e6109f66fbb4ed::t_729540b2ab0580 158
+  s_e6109f66fbb4ed::t_8520aeba1c7092 1-157,159-174,186-204,206-304,306-330,333-386
+  s_e6109f66fbb4ed::t_3917ca4797f2da 175-185,205,305
+fixtures/generate.ts
+  s_e6109f66fbb4ed::t_3b73d1641165ad 907
+packages/theme/theme.test.ts
+  s_e6109f66fbb4ed::t_7710dfbfd22eb0 323,329-333,338-354
+  s_e6109f66fbb4ed::t_f2dce98c4ce150 324-328,334-337
+packages/core/src/dom/page-mount.ts
+  s_e6109f66fbb4ed::t_729540b2ab0580 1,26-35,56-57,63-64,106-122,128,133,138
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "756e4779c63b3158c05889d1bc60439b532ea108",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
