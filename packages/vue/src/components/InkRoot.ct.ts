@@ -446,3 +446,20 @@ test('deleting a reacted annotation under a controlled host is one undo step', a
   await expect(probe).toHaveAttribute('data-marks', 'suggested')
   await expect(probe).toHaveAttribute('data-can-undo', 'false')
 })
+
+test('unmounting tears down the plugin layers before the plugins', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(PluginHarness, {
+    props: { src: fixtureUrl('text-simple'), assets },
+  })
+  await expect(cmp).toHaveAttribute('data-state', 'ready')
+  await expect(cmp.locator('.ink-page[data-page="0"]')).toHaveCount(1)
+  await cmp.unmount()
+  await expect
+    .poll(() =>
+      page.evaluate(() => (window as Window & { pluginLog?: string[] }).pluginLog)
+    )
+    .toEqual(['layer destroyed', 'plugin cleaned up'])
+})

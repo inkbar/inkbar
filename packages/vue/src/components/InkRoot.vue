@@ -19,6 +19,7 @@ import { Primitive } from 'reka-ui'
 import {
   computed,
   onBeforeUnmount,
+  onUnmounted,
   onMounted,
   onUpdated,
   ref,
@@ -376,6 +377,11 @@ function setTool(id: ToolId): void {
 onBeforeUnmount(() => {
   generation++
   release()
+})
+
+// After the children: InkViewport's engine, and the plugin layers with it, are gone by now, as
+// in `createViewer`, so no layer `destroy` runs after the plugins' cleanups.
+onUnmounted(() => {
   pluginHost.value?.destroy()
   pluginHost.value = null
 })

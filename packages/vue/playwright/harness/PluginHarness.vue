@@ -17,7 +17,10 @@ defineProps<{
 }>()
 
 // Plugins hold functions, which a component test cannot pass as props: the harness builds it.
-const { plugin, marks, finish } = createTestPlugin()
+// Its teardown log outlives the component on `window`, where a test reads it after unmounting.
+const log: string[] = []
+;(window as Window & { pluginLog?: string[] }).pluginLog = log
+const { plugin, marks, finish } = createTestPlugin(log)
 const plugins = [plugin]
 const list = ref<Annotation[]>([])
 </script>

@@ -13,9 +13,10 @@ export interface Mark {
 /**
  * A plugin small enough to read in one go: one store of marks, `accept` (marks `m1` accepted and
  * adds a redaction, in one step), `work` (with an icon; busy until the harness releases it), a
- * `stamp` tool, and a reaction that puts a mark back to suggested when its redaction is deleted.
+ * `stamp` tool, a reaction that puts a mark back to suggested when its redaction is deleted, and
+ * an empty page layer. `log` records the layer's teardown and the plugin's cleanup, in order.
  */
-export function createTestPlugin() {
+export function createTestPlugin(log: string[] = []) {
   let marks: Readable<RecordStore<Mark> | null> = {
     get: () => null,
     subscribe: () => () => {},
@@ -73,6 +74,15 @@ export function createTestPlugin() {
         const mark = store?.list.get().find((m) => m.annotationId === edit.annotation.id)
         if (mark) store?.update(mark.id, { status: 'suggested', annotationId: undefined })
       })
+      ctx.layer({
+        render: () => undefined,
+        destroy: (_el, page) => {
+          if (page === 0) log.push('layer destroyed')
+        },
+      })
+      return () => {
+        log.push('plugin cleaned up')
+      }
     },
   })
   return { plugin, marks: () => marks, finish: () => finish() }
