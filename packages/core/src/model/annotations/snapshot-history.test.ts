@@ -725,8 +725,11 @@ describe('createSnapshotHistory', () => {
         await settle()
         threads.replaceAll([], 'reset')
         await settle()
+        // As in History: the step keeps its annotation change, so undo goes back to 'one'.
         history.undo()
         await settle()
+        expect(value()[0]?.contents).toBe('one')
+        expect(threads.list.get()).toEqual([])
         history.undo()
         await settle()
         expect(value()).toEqual([])
