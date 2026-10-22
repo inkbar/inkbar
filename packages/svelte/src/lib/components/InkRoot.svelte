@@ -407,6 +407,7 @@
         },
         root: readonly(viewportEl),
         decorate: () => decorateAnnotation,
+        viewport: () => viewport,
       })
     )
     pluginHost = host

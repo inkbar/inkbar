@@ -27,6 +27,7 @@ import type { AnnotationEdit } from '../../model/annotations/store'
 import type { InkDocument } from '../../model/document'
 import type { AnnotationDecoration, DecorateAnnotation } from '../overlay'
 import type { Tool } from '../tools/controller'
+import type { Viewport } from '../viewport'
 
 export interface PluginHostOptions {
   plugins: readonly InkPlugin[]
@@ -38,6 +39,8 @@ export interface PluginHostOptions {
   root: Readable<HTMLElement | null>
   /** The host's own decoration, read on each call. */
   decorate?: () => DecorateAnnotation | undefined
+  /** The viewer's viewport, read on each call; without one, `ctx.scrollTo` does nothing. */
+  viewport?: () => Viewport | null | undefined
 }
 
 export interface PluginHost extends LayerSource {
@@ -243,6 +246,9 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
       },
       layer(spec): PluginLayerHandle {
         return layers.add(withProps(spec, { plugin: plugin.id }))
+      },
+      scrollTo(page, rect, scrollOpts) {
+        opts.viewport?.()?.scrollToRect(page, rect, scrollOpts)
       },
     }
   }

@@ -12,6 +12,7 @@ import type { Annotation } from '../../model/annotations/types'
 import type { DocumentStatus, InkDocument } from '../../model/document'
 import type { RecordBase, RecordStore } from '../../model/records'
 import type { Tool } from '../tools/controller'
+import type { Viewport } from '../viewport'
 
 interface Suggestion extends RecordBase {
   status: string
@@ -479,5 +480,18 @@ describe('createPluginHost', () => {
     history.batch(fn)
     expect(fn).toHaveBeenCalledTimes(2)
     expect(batched).toEqual(['a', 'b'])
+  })
+
+  it('scrollTo goes to the current viewport, and does nothing without one', () => {
+    let ctx!: PluginContext
+    const plugin = definePlugin({ id: 'p', setup: (c) => void (ctx = c) })
+    let viewport: Pick<Viewport, 'scrollToRect'> | null = null
+    hostWith([plugin], { viewport: () => viewport as Viewport | null })
+    const rect = { x: 1, y: 2, width: 3, height: 4 }
+    expect(() => ctx.scrollTo(0, rect)).not.toThrow()
+
+    viewport = { scrollToRect: vi.fn() }
+    ctx.scrollTo(2, rect, { behavior: 'smooth' })
+    expect(viewport.scrollToRect).toHaveBeenCalledWith(2, rect, { behavior: 'smooth' })
   })
 })

@@ -11,6 +11,7 @@ import { createPluginApi, type PluginApi, type PluginOptions } from './api/api'
 
 import type { AnnotationEdit } from '../../model/annotations/store'
 import type { InkDocument } from '../../model/document'
+import type { Rect } from '../../model/geometry'
 import type { Readable } from '../../model/readable'
 import type { RecordBase, RecordChange, RecordStore } from '../../model/records'
 import type { DecorateAnnotation } from '../overlay'
@@ -119,6 +120,11 @@ export interface PluginContext {
   onAnnotationEdit(fn: (edit: AnnotationEdit) => void): void
   /** Adds a layer drawn on every mounted page, above the annotations. */
   layer(spec: LayerSpec): PluginLayerHandle
+  /**
+   * Scrolls the viewer so `rect` (user space on `page`) is in view, centring it when it was
+   * not. Moves no focus. Does nothing while no document is shown.
+   */
+  scrollTo(page: number, rect: Rect, opts?: { behavior?: ScrollBehavior }): void
 }
 
 /** A factory's parameters: its options, optional only when `O` has no required field. */

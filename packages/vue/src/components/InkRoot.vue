@@ -312,6 +312,7 @@ function setUpPlugins(): void {
     },
     root: readonly(hostRoot),
     decorate: () => props.decorateAnnotation,
+    viewport: () => viewport.value,
   })
 }
 

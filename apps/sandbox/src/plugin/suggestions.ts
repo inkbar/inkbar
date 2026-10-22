@@ -151,25 +151,27 @@ export const suggestionsPlugin = definePlugin<SuggestionsOptions>('sandbox', (pl
     { errorStatus: 'Could not check this document.' }
   )
 
-  plugin.marks(suggestions, {
-    where: (s) => s.status === 'suggested',
-    rect: (s) => s.rect,
-    label: (s) => `Suggested redaction: ${s.reason}`,
-    style: (s) => ({ borderColor: confidenceColor(s.confidence) }),
-    className: 'sandbox-suggestion',
-    card: (s) => ({
-      title: s.reason,
-      label: 'Suggested redaction',
-      meta: `${confidenceLevel(s.confidence)} confidence`,
-      swatch: confidenceColor(s.confidence),
-      ...(s.explanation && { body: s.explanation }),
-      actions: {
-        Accept: () => {
-          suggestions.update(s.id, { status: 'accepted' })
-          redaction.add(s)
+  plugin
+    .marks(suggestions, {
+      where: (s) => s.status === 'suggested',
+      rect: (s) => s.rect,
+      label: (s) => `Suggested redaction: ${s.reason}`,
+      style: (s) => ({ borderColor: confidenceColor(s.confidence) }),
+      className: 'sandbox-suggestion',
+      card: (s) => ({
+        title: s.reason,
+        label: 'Suggested redaction',
+        meta: `${confidenceLevel(s.confidence)} confidence`,
+        swatch: confidenceColor(s.confidence),
+        ...(s.explanation && { body: s.explanation }),
+        actions: {
+          Accept: () => {
+            suggestions.update(s.id, { status: 'accepted' })
+            redaction.add(s)
+          },
+          Dismiss: () => suggestions.update(s.id, { status: 'dismissed' }),
         },
-        Dismiss: () => suggestions.update(s.id, { status: 'dismissed' }),
-      },
-    }),
-  })
+      }),
+    })
+    .scrollToFirst()
 })

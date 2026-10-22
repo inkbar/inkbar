@@ -9,9 +9,11 @@ import { createPluginHost } from '../host'
 
 import type { MarksHandle, MarksOptions } from './marks'
 import type { Records } from './records'
+import type { InkDocument } from '../../../model/document'
 import type { Rect } from '../../../model/geometry'
 import type { RecordBase } from '../../../model/records'
 import type { Tool } from '../../tools/controller'
+import type { Viewport } from '../../viewport'
 import type { FixtureName } from '@inkbar/fixtures/urls'
 
 interface Finding extends RecordBase {
@@ -34,15 +36,16 @@ afterEach(() => cleanup.splice(0).forEach((f) => f()))
 
 /**
  * A viewer whose one plugin, `sandbox`, keeps `initial` as its `findings` records and draws
- * the open ones as marks with `opts`.
+ * the open ones as marks with `opts`, calling `scrollToFirst()` on them when asked.
  */
 async function setup(
   initial: Finding[],
   opts: Partial<MarksOptions<Finding>> = {},
   {
     fixture = 'text-simple',
+    scrollToFirst = false,
     ...viewer
-  }: Partial<MountViewerOptions> & { fixture?: FixtureName } = {}
+  }: Partial<MountViewerOptions> & { fixture?: FixtureName; scrollToFirst?: boolean } = {}
 ) {
   const doc = await openFixtureInBrowser(fixture)
   const container = mountContainer(800, 600)
@@ -56,16 +59,22 @@ async function setup(
       label: (f) => f.reason,
       ...opts,
     })
+    if (scrollToFirst) handle.scrollToFirst()
   })
+  /** Set once the viewer mounts, for `ctx.scrollTo`. */
+  const view: { viewport?: Viewport } = {}
+  const current = writable<InkDocument | null>(doc)
   const plugins = createPluginHost({
     plugins: [factory()],
-    document: writable(doc),
+    document: current,
     history: () => doc.history,
     activated: writable<string | null>(null),
     setActivated() {},
     root: writable<HTMLElement | null>(container),
+    viewport: () => view.viewport,
   })
   const engine = mountViewer({ container, document: doc, zoom: 1, plugins, ...viewer })
+  view.viewport = engine.viewport
   cleanup.push(() => {
     engine.destroy()
     plugins.destroy()
@@ -82,7 +91,7 @@ async function setup(
   ]
   const markFor = (id: string) =>
     container.querySelector<HTMLButtonElement>(`button[data-record="${id}"]`)
-  return { doc, container, engine, findings, handle, marksOn, markFor }
+  return { doc, current, container, engine, findings, handle, marksOn, markFor }
 }
 
 describe('plugin.marks', () => {
@@ -285,5 +294,138 @@ describe('plugin.marks', () => {
     expect(marksOn(0)).toHaveLength(1)
     handle.refresh()
     expect(marksOn(0)).toHaveLength(0)
+  })
+
+  describe('scrollToFirst()', () => {
+    /** Spies on the viewport's scrollToRect, the call `ctx.scrollTo` makes. */
+    const spyScroll = (engine: { viewport: Viewport }) =>
+      vi.spyOn(engine.viewport, 'scrollToRect')
+
+    it('returns the handle', async () => {
+      const { handle } = await setup([])
+      expect(handle.scrollToFirst()).toBe(handle)
+    })
+
+    it('scrolls once to the first new mark in reading order: page, then top to bottom', async () => {
+      const { engine, findings } = await setup(
+        [],
+        {},
+        { fixture: 'mixed-page-sizes', scrollToFirst: true }
+      )
+      const scroll = spyScroll(engine)
+      findings.addMissing([
+        finding('low', 1, 100),
+        finding('high', 1, 600),
+        finding('b', 2),
+      ])
+      await settle()
+      expect(scroll).toHaveBeenCalledTimes(1)
+      expect(scroll.mock.calls[0]!.slice(0, 2)).toEqual([1, finding('high', 1, 600).rect])
+    })
+
+    it('scrolls the viewer to a new mark on a page out of view, moving no focus', async () => {
+      const { container, engine, findings } = await setup(
+        [],
+        {},
+        { fixture: 'mixed-page-sizes', scrollToFirst: true }
+      )
+      const last = engine.viewport.layout.get().boxes.length - 1
+      const before = container.scrollTop
+      const focused = document.activeElement
+      findings.add(finding('far', last))
+      await until(() => engine.pages.has(last))
+      expect(container.scrollTop).toBeGreaterThan(before)
+      expect(document.activeElement).toBe(focused)
+    })
+
+    it("doesn't scroll for the records a document opens with, undo or redo", async () => {
+      const { doc, engine, findings } = await setup(
+        [finding('a', 0)],
+        {},
+        { scrollToFirst: true }
+      )
+      const scroll = spyScroll(engine)
+      await settle()
+      expect(scroll).not.toHaveBeenCalled()
+      findings.add(finding('b', 0, 200))
+      await settle()
+      expect(scroll).toHaveBeenCalledTimes(1)
+      doc.history.undo()
+      doc.history.redo()
+      await settle()
+      expect(scroll).toHaveBeenCalledTimes(1)
+    })
+
+    it('scrolls when a record changes to pass where, not when a marked one changes', async () => {
+      const closed = { ...finding('c', 0, 300), open: false }
+      const { engine, findings } = await setup(
+        [finding('a', 0), closed],
+        {},
+        { scrollToFirst: true }
+      )
+      const scroll = spyScroll(engine)
+      findings.update('a', {
+        reason: 'Moved',
+        rect: { x: 0, y: 0, width: 10, height: 10 },
+      })
+      findings.add({ ...finding('d', 0), open: false })
+      await settle()
+      expect(scroll).not.toHaveBeenCalled()
+      findings.update('c', { open: true })
+      await settle()
+      expect(scroll).toHaveBeenCalledWith(0, closed.rect, expect.anything())
+    })
+
+    it('skips a new record that stops passing where before the change settles', async () => {
+      const { engine, findings } = await setup([], {}, { scrollToFirst: true })
+      const scroll = spyScroll(engine)
+      findings.add(finding('a', 0))
+      findings.update('a', { open: false })
+      await settle()
+      expect(scroll).not.toHaveBeenCalled()
+    })
+
+    it("doesn't scroll to a record of the next document when one closes before the change settles", async () => {
+      // Every document opens with `initial`, so the next one has the same id.
+      const initial: Finding[] = []
+      const { current, engine, findings } = await setup(
+        initial,
+        {},
+        { scrollToFirst: true }
+      )
+      const next = await openFixtureInBrowser('text-simple')
+      cleanup.push(() => next.destroy())
+      const scroll = spyScroll(engine)
+      findings.add(finding('a', 0))
+      initial.push(finding('a', 0))
+      current.set(next)
+      expect(findings.has('a')).toBe(true)
+      await settle()
+      expect(scroll).not.toHaveBeenCalled()
+    })
+
+    it("doesn't scroll without scrollToFirst()", async () => {
+      const { engine, findings } = await setup([])
+      const scroll = spyScroll(engine)
+      findings.add(finding('a', 0))
+      await settle()
+      expect(scroll).not.toHaveBeenCalled()
+    })
+
+    it('scrolls smoothly, or at once when the user asks for reduced motion', async () => {
+      const { engine, findings } = await setup([], {}, { scrollToFirst: true })
+      const scroll = spyScroll(engine)
+      findings.add(finding('a', 0))
+      await settle()
+      expect(scroll.mock.calls[0]![2]).toEqual({ behavior: 'smooth' })
+
+      vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: query.includes('reduce'),
+      }))
+      cleanup.push(() => vi.unstubAllGlobals())
+      findings.add(finding('b', 0, 200))
+      await settle()
+      expect(scroll.mock.calls[1]![2]).toEqual({ behavior: 'instant' })
+    })
   })
 })

@@ -71,7 +71,7 @@ export interface Viewport {
   setRotation(rotation: ViewRotation): void
   scrollToPage(index: number, opts?: { behavior?: ScrollBehavior }): void
   /** Scrolls so `rect` (user space on `page`) is visible, centring it when it was not. */
-  scrollToRect(page: number, rect: Rect): void
+  scrollToRect(page: number, rect: Rect, opts?: { behavior?: ScrollBehavior }): void
   transformFor(page: number): PageTransform
   hostFor(page: number): HTMLElement | undefined
   /** The mounted page under a viewport (client) point, if any. */
@@ -371,7 +371,7 @@ export function createViewport(opts: ViewportOptions): Viewport {
       container.scrollTo({ top: Math.max(0, origin().y + box.top - gap), behavior })
       sync()
     },
-    scrollToRect(page, rect) {
+    scrollToRect(page, rect, o) {
       if (mode.get() === 'single' && currentPage.get() !== page) {
         currentPage.set(page)
         relayout()
@@ -379,21 +379,23 @@ export function createViewport(opts: ViewportOptions): Viewport {
       const box = boxFor(page)
       if (!box) return
       const css = transformFor(page).toCssRect(rect)
-      const o = origin()
-      const top = o.y + box.top + css.top
+      const at = origin()
+      const to: ScrollToOptions = { behavior: o?.behavior ?? 'auto' }
+      const top = at.y + box.top + css.top
       if (
         top < container.scrollTop ||
         top + css.height > container.scrollTop + container.clientHeight
       ) {
-        container.scrollTop = Math.max(0, top - (container.clientHeight - css.height) / 2)
+        to.top = Math.max(0, top - (container.clientHeight - css.height) / 2)
       }
-      const left = o.x + box.left + css.left
+      const left = at.x + box.left + css.left
       if (
         left < container.scrollLeft ||
         left + css.width > container.scrollLeft + container.clientWidth
       ) {
-        container.scrollLeft = Math.max(0, left - (container.clientWidth - css.width) / 2)
+        to.left = Math.max(0, left - (container.clientWidth - css.width) / 2)
       }
+      if (to.top !== undefined || to.left !== undefined) container.scrollTo(to)
       sync()
     },
     transformFor,

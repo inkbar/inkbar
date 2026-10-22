@@ -3,7 +3,8 @@
  * own layer, placed from the record's rect in user space through the page transform. Marks are
  * keyed by record id and reconciled in place, so a mark that stays keeps its element, and with
  * it focus, through a zoom, a rotation or another record's change. They redraw whenever the
- * records change (undo and redo included) and on `refresh()`.
+ * records change (undo and redo included) and on `refresh()`. With `scrollToFirst()`, the viewer
+ * scrolls to records as they start to get a mark.
  *
  * Presses and clicks on a mark are the plugin's: they go no further, so neither the active tool
  * nor listeners on the viewer's root see them. Enter and Space activate it, as on any button.
@@ -12,7 +13,7 @@ import { createCard, type CardSpec } from './card'
 
 import type { Records } from './records'
 import type { Rect } from '../../../model/geometry'
-import type { RecordBase } from '../../../model/records'
+import type { RecordBase, RecordChange } from '../../../model/records'
 import type { PageTransform } from '../../transform'
 import type { PluginContext } from '../define'
 
@@ -49,6 +50,13 @@ export interface MarksOptions<T extends RecordBase & { page: number }> {
 export interface MarksHandle {
   /** Redraws every mark, for marks that read state outside the records. */
   refresh(): void
+  /**
+   * From now on, when records start to get a mark (added, or changed to pass `where`), the
+   * viewer scrolls to the first of them in reading order, unless it is in view already. Records
+   * a document opens with, and undo and redo, never scroll. Focus stays where it is. Returns
+   * the handle.
+   */
+  scrollToFirst(): MarksHandle
 }
 
 /** Events stopped on a mark, so the viewer's root never sees a press on it. */
@@ -70,13 +78,14 @@ export function createMarks<T extends RecordBase & { page: number }>(
   opts: MarksOptions<T>
 ): MarksHandle {
   const applied = new WeakMap<HTMLButtonElement, Applied<T>>()
+  const marked = (record: T) => opts.where?.(record) ?? true
 
   const spec = opts.card?.bind(opts)
   const card =
     spec &&
     createCard(ctx, records, {
       spec,
-      marked: (record) => opts.where?.(record) ?? true,
+      marked,
       marks: (root) =>
         [
           ...root.querySelectorAll<HTMLButtonElement>(
@@ -146,9 +155,7 @@ export function createMarks<T extends RecordBase & { page: number }>(
    * new ones inserted, the rest removed.
    */
   const draw = (el: HTMLElement, page: number, transform: PageTransform) => {
-    const list = records.list
-      .get()
-      .filter((r) => r.page === page && (opts.where?.(r) ?? true))
+    const list = records.list.get().filter((r) => r.page === page && marked(r))
     const ids = new Set(list.map((r) => r.id))
     const kept = new Map<string, HTMLButtonElement>()
     for (const mark of [...el.children] as HTMLButtonElement[]) {
@@ -165,9 +172,70 @@ export function createMarks<T extends RecordBase & { page: number }>(
     }
   }
 
+  let scrolling = false
+  /** Ids that started to get a mark in the change under way, read once it settles. */
+  const fresh = new Set<string>()
+
+  /** Scrolls to the first fresh record still marked, so a batch of adds scrolls once. */
+  const reveal = () => {
+    const [first] = [...fresh]
+      .map((id) => records.find(id))
+      .filter((r): r is T => r !== undefined && marked(r))
+      .sort(readingOrder((r) => opts.rect(r)))
+    fresh.clear()
+    if (first)
+      ctx.scrollTo(first.page, opts.rect(first), {
+        behavior: reducedMotion() ? 'instant' : 'smooth',
+      })
+  }
+
+  /** Notes a record that starts to get a mark; replaces (undo, redo, reset) never count. */
+  const watch = (change: RecordChange<T>) => {
+    const record =
+      change.kind === 'add'
+        ? change.record
+        : change.kind === 'update' && !marked(change.before)
+          ? change.after
+          : undefined
+    if (!record || !marked(record)) return
+    if (fresh.size === 0) queueMicrotask(reveal)
+    fresh.add(record.id)
+  }
+
   const layer = ctx.layer({ render: draw })
-  ctx.onDocument(() => records.list.subscribe(() => layer.invalidate()))
-  return { refresh: () => layer.invalidate() }
+  ctx.onDocument(() => {
+    const stopDraw = records.list.subscribe(() => layer.invalidate())
+    const stopWatch = records.store()?.on('change', (change) => {
+      if (scrolling) watch(change)
+    })
+    return () => {
+      stopDraw()
+      stopWatch?.()
+      // A reveal still pending belongs to this document, not the next one.
+      fresh.clear()
+    }
+  })
+  const handle: MarksHandle = {
+    refresh: () => layer.invalidate(),
+    scrollToFirst() {
+      scrolling = true
+      return handle
+    },
+  }
+  return handle
+}
+
+/** Page first, then top to bottom and left to right, by each record's rect in user space. */
+function readingOrder<T extends { page: number }>(rect: (record: T) => Rect) {
+  return (a: T, b: T) => {
+    const ra = rect(a)
+    const rb = rect(b)
+    return a.page - b.page || rb.y + rb.height - (ra.y + ra.height) || ra.x - rb.x
+  }
+}
+
+function reducedMotion(): boolean {
+  return globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 }
 
 /** `borderColor` → `border-color`, as `setProperty` takes it; `--custom` names stay as given. */

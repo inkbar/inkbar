@@ -133,6 +133,19 @@ for (const framework of FRAMEWORKS) {
 
     const mark = (page: Page, id: string) =>
       page.locator(`[data-record="${id}"][data-plugin="sandbox"]`)
+
+    test('Suggest redactions scrolls to the first suggestion without focusing it', async ({
+      page,
+    }) => {
+      await page.goto(`${framework}/`)
+      await waitForFirstPage(page)
+      await page.getByRole('button', { name: 'Suggest redactions' }).click()
+      await expect(page.locator(RESULT)).toHaveText(SAMPLE_SUGGESTIONS)
+      await expect(mark(page, 'ni-number')).toBeInViewport()
+      await expect(page.locator(`${SUGGESTED}:focus`)).toHaveCount(0)
+      await expect(suggestionCard(page)).toHaveCount(0)
+    })
+
     const redactions = (page: Page) =>
       page.locator('.ink-page[data-page="3"] .ink-annotation[data-type="redact"]')
 
