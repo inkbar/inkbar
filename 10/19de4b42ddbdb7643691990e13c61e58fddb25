@@ -1,0 +1,47 @@
+packages/react/src/components/InkCommand.ct.tsx
+  s_611b86d68c2358::t_4e34ba96803498 26-27,29-32,36
+packages/svelte/README.md
+  s_611b86d68c2358::t_22d23725aa72d1 174
+packages/core/src/dom/viewer/controls.ts
+  s_611b86d68c2358::t_b3c581e1def8b3 203-204,224-235
+packages/vue/src/components/InkCommand.ct.ts
+  s_611b86d68c2358::t_4e34ba96803498 25-26,28-31,35
+packages/vue/README.md
+  s_611b86d68c2358::t_22d23725aa72d1 143
+packages/svelte/src/lib/components/InkCommand.svelte
+  s_611b86d68c2358::t_b3c581e1def8b3 19-20,48-49
+packages/core/src/dom/viewer/create-viewer.browser.test.ts
+  s_611b86d68c2358::t_4e34ba96803498 2085,2088-2091,2096
+packages/svelte/src/test/InkCommand.browser.test.ts
+  s_611b86d68c2358::t_4e34ba96803498 37-39,45
+  s_611b86d68c2358::t_f50408a6aa7713 40
+apps/sandbox/e2e/smoke.spec.ts
+  s_611b86d68c2358::t_95824760f40f2a 137,142-144,147
+packages/react/README.md
+  s_611b86d68c2358::t_22d23725aa72d1 168
+packages/core/README.md
+  s_611b86d68c2358::t_0627b9e1b478b5 106
+packages/react/src/components/InkCommand.tsx
+  s_611b86d68c2358::t_b3c581e1def8b3 4-5,49-50,52
+packages/theme/theme.css
+  s_611b86d68c2358::t_b3c581e1def8b3 632,637-638
+  s_611b86d68c2358::t_535fe814f5278b 639-640
+packages/vue/src/components/InkCommand.vue
+  s_611b86d68c2358::t_b3c581e1def8b3 5-6,34-35,44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1019de4b42ddbdb7643691990e13c61e58fddb25",
+  "prompts": {},
+  "sessions": {
+    "s_611b86d68c2358": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f6760cb6-1a68-4a5b-b172-32f4da0aa5b1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
