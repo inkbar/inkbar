@@ -208,6 +208,20 @@ describe('plugin.marks', () => {
     expect(mark.dataset.reason).toBe('Other')
   })
 
+  it('style sets custom properties, and drops one the next draw no longer asks for', async () => {
+    const { findings, markFor } = await setup([finding('a', 0)], {
+      style: (f) => (f.reason === 'Reason a' ? { '--x': '4px', borderColor: 'red' } : {}),
+    })
+    let mark = markFor('a')!
+    expect(mark.style.getPropertyValue('--x')).toBe('4px')
+    expect(mark.style.borderColor).toBe('red')
+
+    findings.update('a', { reason: 'Other' })
+    mark = markFor('a')!
+    expect(mark.style.getPropertyValue('--x')).toBe('')
+    expect(mark.style.borderColor).toBe('')
+  })
+
   it("a record on a page that isn't mounted, or beyond the page count, draws nothing and doesn't throw", async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     cleanup.push(() => error.mockRestore())

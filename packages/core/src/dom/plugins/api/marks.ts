@@ -21,8 +21,11 @@ export interface MarksOptions<T extends RecordBase & { page: number }> {
   label(record: T): string
   /** Only records that pass get a mark. Default: all. */
   where?(record: T): boolean
-  /** Inline style for the mark. Core draws nothing else: the look is the plugin's CSS. */
-  style?(record: T): Partial<CSSStyleDeclaration>
+  /**
+   * Inline style for the mark, camel-case properties and `--custom` properties alike. Core draws
+   * nothing else: the look is the plugin's CSS.
+   */
+  style?(record: T): Partial<CSSStyleDeclaration> & { [property: `--${string}`]: string }
   /** Classes every mark gets. */
   className?: string
   /** More attributes (`data-*`, `aria-*`). `data-record` and `data-plugin` stay core's. */
@@ -78,7 +81,8 @@ export function createMarks<T extends RecordBase & { page: number }>(
     for (const key of prev?.style ?? [])
       if (!(key in style)) mark.style.removeProperty(key)
     for (const key of prev?.attrs ?? []) if (!(key in attrs)) mark.removeAttribute(key)
-    Object.assign(mark.style, style)
+    for (const [key, value] of Object.entries(style))
+      mark.style.setProperty(toCssName(key), value)
     for (const [name, value] of Object.entries(attrs)) mark.setAttribute(name, value)
     mark.dataset.record = record.id
     mark.dataset.plugin = ctx.id
@@ -124,7 +128,7 @@ export function createMarks<T extends RecordBase & { page: number }>(
   return { refresh: () => layer.invalidate() }
 }
 
-/** `borderColor` → `border-color`, as `removeProperty` takes it; custom properties pass. */
+/** `borderColor` → `border-color`, as `setProperty` takes it; `--custom` names stay as given. */
 function toCssName(key: string): string {
   return key.startsWith('--') ? key : key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)
 }
