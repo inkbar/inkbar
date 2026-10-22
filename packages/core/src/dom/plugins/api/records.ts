@@ -5,6 +5,10 @@
  */
 import { derived, type Readable } from '../../../model/readable'
 
+import { createLink, type AnnotationLink, type AnnotationLinkSpec } from './links'
+
+import type { AnnotationEdit } from '../../../model/annotations/store'
+import type { AnnotationType } from '../../../model/annotations/types'
 import type { InkDocument } from '../../../model/document'
 import type { RecordBase, RecordStore } from '../../../model/records'
 
@@ -35,6 +39,15 @@ export interface Records<T extends RecordBase> {
   in(doc: InkDocument): Records<T>
   /** The underlying store, or null; for anything the handle lacks. */
   store(): RecordStore<T> | null
+  /**
+   * Links these records to the `type` annotations made from them, as
+   * `custom.<plugin>.<records name> = <record id>`. A record may have several. Each call listens
+   * for annotation edits for the viewer's lifetime: call it in `setup`.
+   */
+  annotates<K extends AnnotationType>(
+    type: K,
+    spec: AnnotationLinkSpec<T, K>
+  ): AnnotationLink<T>
 }
 
 const EMPTY: readonly never[] = Object.freeze([])
@@ -84,6 +97,12 @@ export interface RecordsDeps {
    * before the host swaps the stores.
    */
   storesDocument(): InkDocument | null
+  /** The plugin's id. */
+  plugin: string
+  /** The records name. */
+  name: string
+  /** The plugin's `ctx.onAnnotationEdit`. */
+  onAnnotationEdit(fn: (edit: AnnotationEdit) => void): void
 }
 
 /**
@@ -126,5 +145,17 @@ export function createRecords<T extends RecordBase>(
       return createRecords(deps, bound, base)
     },
     store: current,
+    annotates: (type, spec) =>
+      createLink(
+        {
+          plugin: deps.plugin,
+          name: deps.name,
+          onAnnotationEdit: (fn) => deps.onAnnotationEdit(fn),
+          document: () => (current() ? deps.storesDocument() : null),
+          find: (id) => current()?.get(id),
+        },
+        type,
+        spec
+      ),
   }
 }

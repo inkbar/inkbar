@@ -49,7 +49,16 @@ export function createPluginApi(ctx: PluginContext, options: PluginOptions): Plu
     ...ctx,
     records<T extends RecordBase>(name: string, opts?: PluginStoreOptions<T>) {
       const source = ctx.store<T>(name, opts ?? options.records?.[name])
-      return createRecords<T>({ batch, storesDocument: () => storesDocument }, source)
+      return createRecords<T>(
+        {
+          batch,
+          storesDocument: () => storesDocument,
+          plugin: ctx.id,
+          name,
+          onAnnotationEdit: (fn) => ctx.onAnnotationEdit(fn),
+        },
+        source
+      )
     },
     batch,
     command: (id, label, run, opts) => createCommand(ctx, id, label, run, opts),
