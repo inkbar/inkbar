@@ -3,6 +3,7 @@
  * common jobs, each built on the public context alone.
  */
 import { createCommand, type CommandOptions, type CommandRun } from './command'
+import { createMarks, type MarksHandle, type MarksOptions } from './marks'
 import { createRecords, type Records } from './records'
 
 import type { InkDocument } from '../../../model/document'
@@ -33,6 +34,15 @@ export interface PluginApi extends PluginContext {
    * Inside a command, write through `records.in(doc)`.
    */
   command(id: string, label: string, run: CommandRun, opts?: CommandOptions): Command
+  /**
+   * Draws a `<button>` for each record that passes `where`, on page `record.page` at
+   * `rect(record)`, in a layer of its own. The marks redraw when the records change; call
+   * `refresh()` when they read state of your own that changed.
+   */
+  marks<T extends RecordBase & { page: number }>(
+    records: Records<T>,
+    opts: MarksOptions<T>
+  ): MarksHandle
 }
 
 export function createPluginApi(ctx: PluginContext, options: PluginOptions): PluginApi {
@@ -62,5 +72,6 @@ export function createPluginApi(ctx: PluginContext, options: PluginOptions): Plu
     },
     batch,
     command: (id, label, run, opts) => createCommand(ctx, id, label, run, opts),
+    marks: (records, opts) => createMarks(ctx, records, opts),
   }
 }

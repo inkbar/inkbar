@@ -40,6 +40,7 @@ export type {
 export type { PluginApi, PluginOptions } from './plugins/api/api'
 export type { CommandOptions, CommandRun } from './plugins/api/command'
 export type { Records } from './plugins/api/records'
+export type { MarksHandle, MarksOptions } from './plugins/api/marks'
 export type {
   AnnotationInputOf,
   AnnotationLink,
