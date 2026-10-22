@@ -283,7 +283,7 @@ Marks redraw when their records change, undo and redo included, and keep their e
 
 `suggestions.annotates('redact', { from, onRemoved })` links records to the annotations made from them. Its `add(record)` adds an annotation from `from(record)`, stores the link at `custom.<plugin>.<records name>` (here `custom.review.suggestions`) and fills the type's default colour when `from` gives none. `of(record)` returns the linked annotations. `onRemoved(record, annotation)` and `onChanged(record, annotation)` run inside the user's undo step, never on undo or redo. Call it in `setup`. The link travels with the annotation through a Gloss export and import.
 
-`quadsFromRect(rect)` and `rectFromQuads(quads)` from `@inkbar/core` convert between a box and the quads that text markup takes, and `doc.pageText(page)` resolves to a page's text joined with single spaces.
+`quadsFromRect(rect)` and `rectFromQuads(quads)` from `@inkbar/core` convert between a box and the quads that text markup takes, and `doc.pageText(page)` resolves to a page's text joined the way the page reads: nothing between touching items, a space at line ends and at wide gaps.
 
 ### Going further
 
