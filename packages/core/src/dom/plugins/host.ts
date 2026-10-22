@@ -207,7 +207,14 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
   }
 
   for (const plugin of opts.plugins) {
-    const cleanup = plugin.setup(contextFor(plugin))
+    let cleanup: void | (() => void)
+    try {
+      cleanup = plugin.setup(contextFor(plugin))
+    } catch (error) {
+      // No host comes back to destroy, so undo the plugins already set up here.
+      for (const done of setupCleanups.reverse()) guard(done)
+      throw error
+    }
     if (typeof cleanup === 'function') setupCleanups.push(cleanup)
   }
 

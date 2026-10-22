@@ -6,7 +6,10 @@ import type { InkDocument } from '../../model/document'
 
 export interface CommandRegistry {
   readonly commands: ReadonlyMap<string, Command>
-  /** Registers `spec` as `<plugin>.<spec.id>`. Throws `InkError('DuplicateId')` when taken. */
+  /**
+   * Registers `spec` as `<plugin>.<spec.id>`. Throws `InkError('DuplicateId')` when taken and
+   * `InkError('InvalidCommandLabel')` for an empty label.
+   */
   add(plugin: string, spec: CommandSpec): Command
 }
 
@@ -86,6 +89,9 @@ export function createCommandRegistry(opts: {
         throw new InkError('DuplicateId', `A command with id ${id} already exists`, {
           id,
         })
+      // The label names the command's button; without one it would have no accessible name.
+      if (!spec.label.trim())
+        throw new InkError('InvalidCommandLabel', `Command ${id} needs a label`, { id })
       const busy = writable(false)
       const allowed = spec.enabled ?? ready
       const enabled = computed(

@@ -44,6 +44,21 @@ describe('createCommandRegistry', () => {
     ).toThrow(expect.objectContaining({ code: 'DuplicateId' }))
   })
 
+  it('rejects a command without a label, which a button could not be named by', () => {
+    const registry = createCommandRegistry({
+      document: writable<InkDocument | null>(null),
+    })
+    for (const label of ['', '  '])
+      expect(() => registry.add('sandbox', { id: 'blank', label, run() {} })).toThrow(
+        expect.objectContaining({
+          name: 'InkError',
+          code: 'InvalidCommandLabel',
+          details: { id: 'sandbox.blank' },
+        })
+      )
+    expect(registry.commands.has('sandbox.blank')).toBe(false)
+  })
+
   it('a command is busy until its promise settles and ignores runs meanwhile', async () => {
     const { doc } = fakeDocument()
     const registry = createCommandRegistry({
