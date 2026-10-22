@@ -8,6 +8,7 @@
 import {
   createColorMenu,
   createCommandButton,
+  createFindBar,
   createHighlightMenu,
   createLineStyleMenu,
   createTextStyleMenu,
@@ -16,6 +17,7 @@ import {
   createPageInput,
   createPrevPage,
   createRedo,
+  createSearchButton,
   createShapeMenu,
   createSignatureMenu,
   createToolbar,
@@ -87,6 +89,7 @@ export function mountDemo(el: HTMLElement, source: DocumentSource): () => void {
     ),
     createUndo(viewer),
     createRedo(viewer),
+    createSearchButton(viewer),
     group('Suggest', 'demo-actions', createCommandButton(viewer, 'sandbox.suggest'))
   )
 
@@ -110,6 +113,7 @@ export function mountDemo(el: HTMLElement, source: DocumentSource): () => void {
     )
   )
 
+  viewer.element.querySelector('[data-ink-viewport-root]')?.append(createFindBar(viewer))
   viewer.element.prepend(tools)
   viewer.element.append(status)
   return () => viewer.destroy()

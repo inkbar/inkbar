@@ -185,6 +185,14 @@ export { createPopover, placePanel } from './viewer/popover'
 export type { Popover, PopoverOptions } from './viewer/popover'
 export { mountViewer } from './viewer-engine'
 export type { MountViewerOptions, ViewerEngine } from './viewer-engine'
+export { createFindBar, handleFindKey, pageSelectionText } from './search/find-bar'
+export { createSearchController } from './search/controller'
+export type {
+  SearchController,
+  SearchControllerOptions,
+  SearchState,
+  ViewerSearch,
+} from './search/controller'
 export { createViewer } from './viewer/create-viewer'
 export type { CreateViewerOptions, Viewer } from './viewer/create-viewer'
 export {
@@ -201,6 +209,7 @@ export {
   createUndo,
   createZoomIn,
   createZoomOut,
+  createSearchButton,
   createZoomSelect,
 } from './viewer/controls'
 export { createLineStyleMenu } from './viewer/style-menu'
