@@ -15,7 +15,9 @@ import { createFakeServer } from '@inkbar/e2e-shared/fake-server'
 import { recordReady } from '@inkbar/e2e-shared/metrics'
 import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
 import {
+  InkFindBar,
   InkNextPage,
+  InkSearchButton,
   InkThreadPopover,
   InkPageCount,
   InkPageInput,
@@ -225,6 +227,7 @@ export function ReviewPage({
           <InkToolButton tool="highlight" />
           <InkToolButton tool="redact-area" />
           <InkToolButton tool="note" />
+          <InkSearchButton />
           <div className="sandbox-actions" role="group" aria-label="Review">
             <button type="button" data-testid="resign" onClick={resign}>
               Re-sign
@@ -242,6 +245,7 @@ export function ReviewPage({
       <EmbeddedBanner />
       <div inert={loading} className="sandbox-editor" data-testid="editor-gate">
         <InkViewport />
+        <InkFindBar />
         <InkToolbar label="Page and zoom">
           <InkPrevPage />
           <InkPageInput />

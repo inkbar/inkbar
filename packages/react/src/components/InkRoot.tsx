@@ -9,11 +9,15 @@ import {
 } from '@inkbar/core'
 import {
   createPluginHost,
+  createSearchController,
   createToolOptions,
   cssVariableDefaults,
   FONT_FAMILIES,
+  handleFindKey,
+  pageSelectionText,
   SIGNATURE_FONTS,
   trackToolStyle,
+  viewerSearchOf,
 } from '@inkbar/core/dom'
 import { Slot } from 'radix-ui'
 import {
@@ -54,6 +58,7 @@ import type {
   DecorateAnnotation,
   InkPlugin,
   PluginHost,
+  SearchController,
   Tool,
   ToolController,
   ToolId,
@@ -151,9 +156,10 @@ interface RootPlugins {
   activated: Writable<string | null>
 }
 
-/** A plugin host, and whether it has been torn down. */
+/** A plugin host and the search controller it shares, and whether they have been torn down. */
 interface RootHost {
   host: PluginHost
+  search: SearchController
   destroyed: boolean
 }
 
@@ -320,6 +326,7 @@ export function InkRoot({
    */
   const hostRef = useRef<RootHost | null>(null)
   const [pluginHost, setPluginHost] = useState<PluginHost | null>(null)
+  const [search, setSearch] = useState<SearchController | null>(null)
   const hostMounts = useRef(0)
   useLayoutEffect(() => {
     hostMounts.current += 1
@@ -327,6 +334,10 @@ export function InkRoot({
     // mount stays. Shown again after it was destroyed (an `<Activity>` hidden and shown), or
     // mounted for the first time: start anew.
     if (!hostRef.current || hostRef.current.destroyed) {
+      const search = createSearchController({
+        document: readonly(plugins.document),
+        viewport: () => viewportRef.current,
+      })
       const host = createPluginHost({
         plugins: latest.current.plugins ?? [],
         document: readonly(plugins.document),
@@ -339,9 +350,11 @@ export function InkRoot({
         root: readonly(plugins.root),
         decorate: () => latest.current.decorateAnnotation,
         viewport: () => viewportRef.current,
+        search: viewerSearchOf(search),
       })
-      hostRef.current = { host, destroyed: false }
+      hostRef.current = { host, search, destroyed: false }
       setPluginHost(host)
+      setSearch(search)
     }
     return () => {
       hostMounts.current -= 1
@@ -352,6 +365,7 @@ export function InkRoot({
         if (hostMounts.current > 0 || !current || current.destroyed) return
         current.destroyed = true
         current.host.destroy()
+        current.search.destroy()
       })
     }
     // Once per mount; the host reads only stable values and refs.
@@ -621,6 +635,7 @@ export function InkRoot({
       activated,
       setActivated,
       pluginHost,
+      search,
       viewportEl: plugins.root,
       history: inkHistory,
       rootEl,
@@ -651,12 +666,27 @@ export function InkRoot({
       activated,
       setActivated,
       pluginHost,
+      search,
       plugins,
       inkHistory,
       rootEl,
       setViewport,
     ]
   )
+
+  /*
+   * Ctrl/Cmd+F while focus is in the root and a find bar is mounted; else the browser's. A
+   * native listener: the handler reads the event's `currentTarget`, which React's delegated
+   * synthetic events do not leave on the root.
+   */
+  useEffect(() => {
+    if (!rootEl || !search) return
+    const onKeyDown = (e: globalThis.KeyboardEvent): void => {
+      handleFindKey(e, search, () => pageSelectionText(rootEl))
+    }
+    rootEl.addEventListener('keydown', onKeyDown)
+    return () => rootEl.removeEventListener('keydown', onKeyDown)
+  }, [rootEl, search])
 
   const Comp = asChild ? Slot.Root : 'div'
   return (

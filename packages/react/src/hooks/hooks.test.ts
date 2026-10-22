@@ -11,6 +11,7 @@ import { useDocument } from './useDocument'
 import { useEmbedded } from './useEmbedded'
 import { useHistory } from './useHistory'
 import { usePage } from './usePage'
+import { useSearch } from './useSearch'
 import { useSelection } from './useSelection'
 import { useTool } from './useTool'
 import { useToolOptions } from './useToolOptions'
@@ -24,6 +25,7 @@ describe('hooks outside InkRoot', () => {
     ['useTool()', useTool],
     ['useSelection()', useSelection],
     ['useZoom()', useZoom],
+    ['useSearch()', useSearch],
     ['usePage()', usePage],
     ['useHistory()', useHistory],
     ['useEmbedded()', useEmbedded],
@@ -125,5 +127,26 @@ describe('useToolStyle', () => {
       useToolStyle('shape').set({ width: 2 }, { apply: false })
     }
     expect(useTypes).toBeTypeOf('function')
+  })
+})
+
+describe('useSearch before the root has set search up', () => {
+  it('is closed, and its actions do nothing', () => {
+    const value = { search: null } as unknown as InkContext
+    let seen: ReturnType<typeof useSearch> | undefined
+    function Probe(): null {
+      seen = useSearch()
+      return null
+    }
+    renderToString(
+      createElement(InkContextObject.Provider, { value }, createElement(Probe))
+    )
+    expect(seen?.state).toMatchObject({ open: false, query: '', hits: [], current: -1 })
+    expect(() => {
+      seen?.open('x')
+      seen?.setQuery('x')
+      seen?.next()
+      seen?.close()
+    }).not.toThrow()
   })
 })
