@@ -1,10 +1,10 @@
 <script lang="ts">
   import { untrack } from 'svelte'
 
+  import { createTestPlugin } from '../../../../core/src/dom/plugins/test-plugin.js'
   import InkRoot from '../../lib/components/InkRoot.svelte'
 
   import PluginControls from './PluginControls.svelte'
-  import { createTestPlugin } from './test-plugin.js'
 
   import type { Annotation, DocumentSource, PdfAssets } from '@inkbar/core'
 
@@ -26,7 +26,7 @@
   } = $props()
 
   // Built once: a later prop change is not applied, as with InkRoot's `plugins`.
-  const { plugin, marks, finish } = createTestPlugin(untrack(() => log))
+  const { plugin, marks, finish } = createTestPlugin({ log: untrack(() => log) })
   const plugins = [plugin]
   let list = $state.raw<Annotation[]>([])
 </script>

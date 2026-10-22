@@ -1,6 +1,7 @@
 import { StrictMode, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 
+import { createTestPlugin, type Mark } from '../../../core/src/dom/plugins/test-plugin'
 import { InkCommand } from '../../src/components/InkCommand'
 import { InkRedo } from '../../src/components/InkRedo'
 import { InkRoot } from '../../src/components/InkRoot'
@@ -12,8 +13,6 @@ import { useAnnotations } from '../../src/hooks/useAnnotations'
 import { useCommand } from '../../src/hooks/useCommand'
 import { useHistory } from '../../src/hooks/useHistory'
 import { useReadable } from '../../src/use-readable'
-
-import { createTestPlugin, type Mark } from './test-plugin'
 
 import type {
   Annotation,
@@ -91,7 +90,7 @@ export function PluginHarness({
   history,
   onSetup,
 }: PluginHarnessProps & { onSetup?: () => void }) {
-  const [{ plugin, marks, finish }] = useState(() => createTestPlugin(onSetup))
+  const [{ plugin, marks, finish }] = useState(() => createTestPlugin({ onSetup }))
   const [plugins] = useState(() => [plugin])
   const [list, setList] = useState<Annotation[]>([])
   return controlled ? (

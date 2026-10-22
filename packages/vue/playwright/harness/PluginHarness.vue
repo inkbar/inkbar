@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
+import { createTestPlugin } from '../../../core/src/dom/plugins/test-plugin'
 import InkRoot from '../../src/components/InkRoot.vue'
 
 import PluginControls from './PluginControls.vue'
-import { createTestPlugin } from './test-plugin'
 
 import type { Annotation, DocumentSource, PdfAssets } from '@inkbar/core'
 
@@ -20,7 +20,7 @@ defineProps<{
 // Its teardown log outlives the component on `window`, where a test reads it after unmounting.
 const log: string[] = []
 ;(window as Window & { pluginLog?: string[] }).pluginLog = log
-const { plugin, marks, finish } = createTestPlugin(log)
+const { plugin, marks, finish } = createTestPlugin({ log })
 const plugins = [plugin]
 const list = ref<Annotation[]>([])
 </script>
