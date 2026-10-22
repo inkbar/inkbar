@@ -88,11 +88,13 @@ describe('FormController (controlled)', () => {
   it('a host push syncs the sandbox and emits what calculation changed', () => {
     const { form, onChange } = controlled()
     form._attachScripting({
-      commit: () => true,
+      commit: (_name, value) => value,
       sync(values, calculate) {
         if (calculate)
           form._store.update('notes', { value: `hi ${values.name as string}` })
       },
+      dispatch: () => undefined,
+      keystroke: () => undefined,
       destroy: () => undefined,
     })
     form.setControlledValue({ ...form.values.get(), name: 'Bo' })
@@ -105,7 +107,13 @@ describe('FormController (controlled)', () => {
   it('a push equal to the current map emits nothing', () => {
     const { form, onChange } = controlled()
     const sync = vi.fn()
-    form._attachScripting({ commit: () => true, sync, destroy: () => undefined })
+    form._attachScripting({
+      commit: (_name, value) => value,
+      sync,
+      dispatch: () => undefined,
+      keystroke: () => undefined,
+      destroy: () => undefined,
+    })
     form.setControlledValue({ ...form.values.get() })
     expect(onChange).not.toHaveBeenCalled()
     expect(sync).not.toHaveBeenCalled()

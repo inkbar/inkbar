@@ -2,6 +2,7 @@ import { emptyFormExtras, readFormExtras, type FormExtras } from '../pdf/form-fi
 import { openPdfObjects } from '../pdf/objects'
 import { pageGlyphs } from '../pdfjs/glyphs'
 import { assertAssets, loadPdfjs, openProxy } from '../pdfjs/load'
+import { createFormScripting } from '../pdfjs/scripting'
 
 import { staticDefaults, type AnnotationDefaults } from './annotations/defaults'
 import {
@@ -267,6 +268,29 @@ export async function openDocument(
       formData.fields = buildFormFields(widgets, formData.extras)
     }
     form._load(formData.fields)
+    // Scripts start before `ready`, so the form a host first sees has run its open scripts,
+    // and they are not an undo step. Only a document with fields and JavaScript loads the
+    // sandbox; one without fields does no extra work. A failure, or a sandbox that does not
+    // load in time, leaves the form without scripts and never fails the document.
+    if (formData.fields.length === 0) return
+    const scripting = await createFormScripting({
+      proxy,
+      assets: options.assets,
+      form,
+      info,
+      calculateAtStart: fieldsMode.mode === 'uncontrolled',
+    }).catch((cause: unknown) => {
+      form._error(
+        new InkError(
+          'FormScriptError',
+          "The form's scripts could not start; it can still be filled in",
+          {},
+          cause
+        )
+      )
+      return undefined
+    })
+    if (scripting) form._attachScripting(scripting)
   })()
 
   const ready = load.then(

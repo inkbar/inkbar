@@ -2,6 +2,8 @@ import { Emitter } from '../events'
 import { readonly, writable, type Readable } from '../readable'
 import { createRecordStore, type RecordStore } from '../records'
 
+import { submitValues } from './submit'
+import { safeUrl } from './url'
 import { checkValue, normaliseValue, resetValue, sameValue, suits } from './values'
 
 import type { InkError } from '../errors'
@@ -14,6 +16,8 @@ import type {
   FormEvent,
   FormField,
   FormSetResult,
+  FormWidget,
+  WidgetAction,
   WidgetOverride,
 } from './types'
 
@@ -56,11 +60,18 @@ export interface FormController {
   on(event: 'alert', fn: (message: string) => void): () => void
   /** A script failed. The document keeps working; the form layer shows or logs it. */
   on(event: 'error', fn: (e: InkError) => void): () => void
+  /** A script asked to move focus to this widget (by id). */
+  on(event: 'focus', fn: (widgetId: string) => void): () => void
+  /** A widget's `/GoTo` action ran: show this page (zero-based). */
+  on(event: 'goto', fn: (page: number) => void): () => void
   /** @internal The scripting seam and the form layer. */
   readonly _store: RecordStore<FieldRecord>
   _attachScripting(s: FormScripting): void
   _emitAction(a: FormAction): void
-  /** Without scripting: no-op, except that a Blur drops the widget's uncommitted text. */
+  /**
+   * Runs the widget's scripts for `event`, and on `Action` its non-script action (reset,
+   * submit, URI, named Print, GoTo). A Blur drops the widget's uncommitted text.
+   */
   _dispatch(event: FormEvent): void
   /**
    * Applies a keystroke to the widget's text as typed so far (its uncommitted text, else the
@@ -72,13 +83,24 @@ export interface FormController {
     change: string,
     selStart: number,
     selEnd: number
-  ): { accepted: boolean; value: string; selStart: number; selEnd: number }
+  ): KeystrokeResult
   /** @internal Sets a field's formatted text; `undefined` clears it. */
   _setFormatted(name: string, text: string | undefined): void
   /** @internal Merges into a widget's override; `undefined` clears it. */
   _setWidgetState(widgetId: string, override: WidgetOverride | undefined): void
   /** @internal Reports a script error to `onError` and the `error` listeners. */
   _error(e: InkError): void
+  /** @internal A script's `app.alert`. */
+  _alert(message: string): void
+  /** @internal A script moved focus to a widget. */
+  _focus(widgetId: string): void
+  /**
+   * @internal Values a script set (a calculation, or a script assigning a field). Read-only
+   * fields take them; locked fields and values that do not suit the field are skipped. Outside
+   * a commit or other change they are one undo step, reported to a controlled host as
+   * `calculate`.
+   */
+  _scriptValues(values: FieldValues): void
   /** @internal Sets the structure once the file's fields are read, applying any waiting push. */
   _load(fields: readonly FormField[]): void
   /**
@@ -90,11 +112,34 @@ export interface FormController {
   _destroy(): void
 }
 
+export interface KeystrokeResult {
+  accepted: boolean
+  value: string
+  selStart: number
+  selEnd: number
+}
+
 export interface FormScripting {
-  /** Runs validate for `name` with `value`; false = rejected. Then calculate. Synchronous. */
-  commit(name: string, value: FieldValue): boolean
+  /**
+   * Runs validate for `name` with `value`, then calculate. Synchronous. Returns the value to
+   * store (a script may change it), or `undefined` when a script rejected it.
+   */
+  commit(name: string, value: FieldValue): FieldValue | undefined
   /** After values change without a user commit (host push, import, reset, undo). */
   sync(values: FieldValues, calculate: boolean): void
+  /** Runs a widget event's scripts. Synchronous. */
+  dispatch(event: FormEvent): void
+  /**
+   * Runs the widget's keystroke scripts on `text`, the text typed so far. `undefined` when the
+   * widget has no field in the sandbox.
+   */
+  keystroke(
+    widget: string,
+    text: string,
+    change: string,
+    selStart: number,
+    selEnd: number
+  ): KeystrokeResult | undefined
   destroy(): void
 }
 
@@ -117,12 +162,21 @@ export function createFormController(opts: FormControllerOptions): FormControlle
   const fields = writable<readonly FormField[]>([])
   let byName = new Map<string, FormField>()
   let byWidget = new Map<string, FormField>()
+  let widgets = new Map<string, FormWidget>()
   let loaded = false
   /** A push that arrived before the fields loaded. */
   let waiting: FieldValues | undefined
   let scripting: FormScripting | undefined
   let destroyed = false
-  const emitter = new Emitter<{ action: FormAction; alert: string; error: InkError }>()
+  const emitter = new Emitter<{
+    action: FormAction
+    alert: string
+    error: InkError
+    focus: string
+    goto: number
+  }>()
+  /** How many changes are running whose values are reported when they finish. */
+  let depth = 0
   /** Text typed into a widget and not yet committed, by widget id. */
   const pending = new Map<string, string>()
   const formatted = writable<Readonly<Record<string, string>>>({})
@@ -157,7 +211,7 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       for (const id of [...change.added, ...change.updated, ...change.removed])
         dropPending(id)
     if (change.kind !== 'replace' || change.reason !== 'history') return
-    scripting?.sync(current(), false)
+    within(() => scripting?.sync(current(), false))
     if (controlled) controlled.onChange(current(), { kind: 'history' })
   })
 
@@ -190,7 +244,12 @@ export function createFormController(opts: FormControllerOptions): FormControlle
     change: (names: string[]) => FieldsChange | undefined
   ) => {
     const before = current()
-    batch(fn)
+    depth++
+    try {
+      batch(fn)
+    } finally {
+      depth--
+    }
     const after = current()
     if (!controlled || destroyed || after === before) return
     const names = changed(before, after)
@@ -210,11 +269,64 @@ export function createFormController(opts: FormControllerOptions): FormControlle
         : []
     })
 
+  /** Runs `fn` as part of a change the caller reports itself. */
+  const within = (fn: () => void) => {
+    depth++
+    try {
+      fn()
+    } finally {
+      depth--
+    }
+  }
+
+  /** The names an action's include or exclude list picks; every field when the list is empty. */
+  const picked = (names: readonly string[], include: boolean): string[] => {
+    const all = fields.get().map((f) => f.name)
+    if (names.length === 0) return all
+    const listed = (name: string) =>
+      names.some((n) => name === n || name.startsWith(`${n}.`))
+    return all.filter((name) => listed(name) === include)
+  }
+
+  /** A widget's non-script action. Inkbar never sends, opens or prints; the host is told. */
+  const runAction = (action: WidgetAction) => {
+    switch (action.kind) {
+      case 'reset':
+        form.reset(picked(action.fields, action.include))
+        break
+      case 'submit': {
+        // The file's own URLs get the same check as a script's.
+        const url = safeUrl(action.url)
+        if (!url) break
+        form._emitAction({
+          kind: 'submit',
+          url,
+          fields: submitValues(current(), fields.get(), action.fields, action.include),
+          format: action.format,
+          ...(action.method ? { method: action.method } : {}),
+        })
+        break
+      }
+      case 'uri': {
+        const url = safeUrl(action.url)
+        if (url) form._emitAction({ kind: 'open-url', url, newWindow: false })
+        break
+      }
+      case 'named':
+        if (action.name === 'Print') form._emitAction({ kind: 'print' })
+        break
+      case 'goto':
+        if (!destroyed) emitter.emit('goto', action.page)
+        break
+    }
+  }
+
   const load = (list: readonly FormField[]) => {
     loaded = true
     fields.set(list)
     byName = new Map(list.map((f) => [f.name, f]))
     byWidget = new Map(list.flatMap((f) => f.widgets.map((w) => [w.id, f] as const)))
+    widgets = new Map(list.flatMap((f) => f.widgets.map((w) => [w.id, w] as const)))
     const start = new Map<string, FieldValue>()
     for (const f of list) if (f.value !== undefined) start.set(f.name, f.value)
     for (const [name, value] of valid(opts.mode.initial ?? {})) start.set(name, value)
@@ -249,11 +361,12 @@ export function createFormController(opts: FormControllerOptions): FormControlle
             }
             dropPending(name)
             const stored = normaliseValue(field, value)
-            if (scripting && !scripting.commit(name, stored)) {
+            const kept = scripting ? scripting.commit(name, stored) : stored
+            if (kept === undefined) {
               result.rejected.push({ name, reason: 'script' })
               continue
             }
-            write(name, stored)
+            write(name, suits(field, kept) ? normaliseValue(field, kept) : stored)
             result.applied.push(name)
           }
         },
@@ -286,17 +399,20 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       if (pushed.length === 0) return
       writeAll(pushed)
       const expected = current()
-      scripting?.sync(expected, true)
+      within(() => scripting?.sync(expected, true))
       const after = current()
       if (after === expected) return
       const names = changed(expected, after)
       if (names.length > 0) controlled.onChange(after, { kind: 'calculate', names })
     },
     on(
-      event: 'action' | 'alert' | 'error',
-      fn: (payload: FormAction & string & InkError) => void
+      event: 'action' | 'alert' | 'error' | 'focus' | 'goto',
+      fn: (payload: never) => void
     ) {
-      return emitter.on(event, fn as (payload: FormAction | string | InkError) => void)
+      return emitter.on(
+        event,
+        fn as (payload: FormAction | string | InkError | number) => void
+      )
     },
     _store: store,
     _attachScripting(s) {
@@ -311,17 +427,35 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       if (!destroyed) emitter.emit('action', a)
     },
     _dispatch(event) {
-      // Scripts handle events once a sandbox is attached; without one there is nothing to run.
-      if (event.name === 'Blur') pending.delete(event.widget)
+      if (destroyed) return
+      // Text typed and then left uncommitted is dropped, and the sandbox, which saw each
+      // keystroke, goes back to the stored value.
+      const abandoned = event.name === 'Blur' && pending.delete(event.widget)
+      if (scripting)
+        reporting(
+          () => {
+            scripting?.dispatch(event)
+            if (abandoned) scripting?.sync(current(), false)
+          },
+          (names) => ({ kind: 'calculate', names })
+        )
+      const action = widgets.get(event.widget)?.action
+      if (event.name === 'Action' && action && !destroyed) runAction(action)
     },
     _keystroke(widget, change, selStart, selEnd) {
       const field = byWidget.get(widget)
       const stored = field ? store.get(field.name)?.value : undefined
       const before = pending.get(widget) ?? (typeof stored === 'string' ? stored : '')
       const caret = selStart + change.length
-      const value = before.slice(0, selStart) + change + before.slice(selEnd)
-      if (!destroyed) pending.set(widget, value)
-      return { accepted: true, value, selStart: caret, selEnd: caret }
+      const result = (!destroyed &&
+        scripting?.keystroke(widget, before, change, selStart, selEnd)) || {
+        accepted: true,
+        value: before.slice(0, selStart) + change + before.slice(selEnd),
+        selStart: caret,
+        selEnd: caret,
+      }
+      if (!destroyed && result.accepted) pending.set(widget, result.value)
+      return result
     },
     _setFormatted(name, text) {
       if (destroyed) return
@@ -344,6 +478,29 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       opts.onError(e)
       emitter.emit('error', e)
     },
+    _alert(message) {
+      if (!destroyed) emitter.emit('alert', message)
+    },
+    _focus(widgetId) {
+      if (!destroyed && widgets.has(widgetId)) emitter.emit('focus', widgetId)
+    },
+    _scriptValues(next) {
+      if (destroyed) return
+      const entries = Object.entries(next).flatMap(
+        ([name, value]): [string, FieldValue][] => {
+          const field = byName.get(name)
+          return field && !field.locked && suits(field, value)
+            ? [[name, normaliseValue(field, value)]]
+            : []
+        }
+      )
+      if (entries.length === 0) return
+      const apply = () => {
+        for (const [name, value] of entries) write(name, value)
+      }
+      if (depth > 0) apply()
+      else reporting(apply, (names) => ({ kind: 'calculate', names }))
+    },
     _load: load,
     _import(next) {
       if (destroyed) return
@@ -351,7 +508,7 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       writeAll(Object.entries(next))
       const names = changed(before, current())
       if (names.length === 0) return
-      scripting?.sync(current(), true)
+      within(() => scripting?.sync(current(), true))
       if (controlled) controlled.onChange(current(), { kind: 'import', names })
     },
     _destroy() {

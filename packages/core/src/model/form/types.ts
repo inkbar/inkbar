@@ -111,7 +111,7 @@ export interface WidgetOverride {
   hidden?: boolean
   readOnly?: boolean
   required?: boolean
-  /** `#rrggbb`. */
+  /** `#rrggbb`, or `transparent` for none. */
   textColor?: string
   fillColor?: string
   strokeColor?: string

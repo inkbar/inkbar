@@ -87,6 +87,7 @@ const FORMS = {
   'form-signed': { widgets: 2, fields: ['cert', 'name'] },
   'form-fieldmdp': { widgets: 3, fields: ['amount', 'approved', 'memo'] },
   'form-timer': { widgets: 1, fields: ['ticker'] },
+  'form-uppercase': { widgets: 1, fields: ['code'] },
 } as const satisfies Partial<Record<FixtureName, { widgets: number; fields: string[] }>>
 
 const formNames = Object.keys(FORMS) as (keyof typeof FORMS)[]
