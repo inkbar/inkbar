@@ -196,6 +196,30 @@ describe('theme.css', () => {
       .map((r) => r.toString())
       .join('\n')
 
+  it('styles the plugin card from the popover tokens', () => {
+    const card = rules.filter((r) => r.selector.includes('.ink-card'))
+    expect(card.length).toBeGreaterThan(0)
+    expect(card.every(insideLayer)).toBe(true)
+    const panel = declsFor(':where(.ink-card)')
+    for (const token of ['--ink-surface', '--ink-fg', '--ink-border', '--ink-radius'])
+      expect(panel, token).toContain(`var(${token})`)
+    for (const part of [
+      '.ink-card-title',
+      '.ink-card-meta',
+      '.ink-card-swatch',
+      '.ink-card-body',
+      '.ink-card-actions button',
+    ])
+      expect(declsFor(part), part).not.toBe('')
+    // The first action is the primary one, as the thread's submit button.
+    expect(declsFor('.ink-card-actions button:first-child')).toMatch(
+      /background:\s*var\(--ink-accent\)/
+    )
+    expect(declsFor('.ink-card-actions button:focus-visible')).toMatch(
+      /var\(--ink-ring\)/
+    )
+  })
+
   it('marks a mixed menu trigger', () => {
     expect(declsFor('.ink-menu-trigger[data-mixed]')).toMatch(/border-style:\s*dashed/)
   })
