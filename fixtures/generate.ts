@@ -7,6 +7,7 @@ import {
   PDFArray,
   PDFDict,
   PDFDocument,
+  PDFHexString,
   PDFName,
   PDFNumber,
   PDFRef as PDFRefClass,
@@ -24,7 +25,11 @@ import {
   showText,
   rgb,
   type PDFContext,
+  type PDFField,
+  type PDFFont,
+  type PDFForm,
   type PDFPage,
+  type PDFRadioGroup,
   type PDFRef,
 } from 'pdf-lib'
 
@@ -58,9 +63,12 @@ async function save(
   name: FixtureName,
   d: PDFDocument,
   meta: Omit<FixtureMeta, 'file'>,
-  opts?: { objectStreams?: boolean }
+  opts?: { objectStreams?: boolean; appearances?: boolean }
 ) {
-  const bytes = await d.save({ useObjectStreams: opts?.objectStreams ?? false })
+  const bytes = await d.save({
+    useObjectStreams: opts?.objectStreams ?? false,
+    updateFieldAppearances: opts?.appearances ?? true,
+  })
   write(name, bytes)
   note(name, meta)
   return bytes
@@ -727,6 +735,525 @@ async function acroformBasic() {
   })
 }
 
+const HELV_12 = '/Helv 12 Tf 0 g'
+
+/** A PDF literal string with `\`, `(` and `)` escaped; UTF-16 hex when the text is not ASCII. */
+function pdfText(value: string) {
+  return /^[\x20-\x7e]*$/.test(value)
+    ? PDFString.of(value.replace(/[\\()]/g, (c) => `\\${c}`))
+    : PDFHexString.fromText(value)
+}
+
+function js(ctx: PDFContext, code: string) {
+  return ctx.obj({ S: 'JavaScript', JS: pdfText(code) })
+}
+
+/** Labels a field: 9pt text just above its rectangle. */
+function label(page: PDFPage, font: PDFFont, s: string, x: number, y: number, h: number) {
+  page.drawText(s, { x, y: y + h + 3, size: 9, font })
+}
+
+/** Puts a plain Helvetica under /Helv in the AcroForm /DR, which every hand-written /DA names. */
+function addHelv(d: PDFDocument, form: PDFForm) {
+  const ctx = d.context
+  const helv = ctx.register(
+    ctx.obj({
+      Type: 'Font',
+      Subtype: 'Type1',
+      BaseFont: 'Helvetica',
+      Encoding: 'WinAnsiEncoding',
+    })
+  )
+  const acro = form.acroForm.dict
+  const dr = acro.lookupMaybe(PDFName.of('DR'), PDFDict) ?? ctx.obj({})
+  const fonts = dr.lookupMaybe(PDFName.of('Font'), PDFDict) ?? ctx.obj({})
+  fonts.set(PDFName.of('Helv'), helv)
+  dr.set(PDFName.of('Font'), fonts)
+  acro.set(PDFName.of('DR'), dr)
+  acro.set(PDFName.of('DA'), PDFString.of(HELV_12))
+}
+
+/** Sets /DA on the field and drops any copy pdf-lib wrote on its widgets. */
+function setDA(field: PDFField, da: string) {
+  field.acroField.dict.set(PDFName.of('DA'), PDFString.of(da))
+  for (const w of field.acroField.getWidgets()) w.dict.delete(PDFName.of('DA'))
+}
+
+function widgetDict(field: PDFField, i = 0): PDFDict {
+  const w = field.acroField.getWidgets()[i]
+  if (!w) throw new Error(`${field.getName()} has no widget ${i}`)
+  return w.dict
+}
+
+/** pdf-lib names radio on-states 0, 1, …; this renames them and drops the /Opt it wrote. */
+function nameRadioStates(radio: PDFRadioGroup, states: string[], value: string) {
+  radio.acroField.getWidgets().forEach((w, i) => {
+    const ap = w.dict.lookup(PDFName.of('AP'), PDFDict)
+    for (const key of ['N', 'D']) {
+      const sub = ap.lookupMaybe(PDFName.of(key), PDFDict)
+      const stream = sub?.get(PDFName.of(String(i)))
+      if (!sub || !stream) continue
+      sub.delete(PDFName.of(String(i)))
+      sub.set(PDFName.of(states[i]!), stream)
+    }
+    w.dict.set(PDFName.of('AS'), PDFName.of(states[i] === value ? value : 'Off'))
+  })
+  radio.acroField.dict.delete(PDFName.of('Opt'))
+  radio.acroField.dict.set(PDFName.of('V'), PDFName.of(value))
+}
+
+/**
+ * pdf-lib registers each new non-terminal twice and keeps one, leaving an unreferenced copy
+ * in the file. This deletes the copy so the fixture holds one `header` dictionary.
+ */
+function dropDuplicateParent(d: PDFDocument, field: PDFField) {
+  const parent = field.acroField.dict.get(PDFName.of('Parent'))
+  const t = field.acroField.dict
+    .lookup(PDFName.of('Parent'), PDFDict)
+    .get(PDFName.of('T'))
+  for (const [r, o] of d.context.enumerateIndirectObjects()) {
+    if (r !== parent && o instanceof PDFDict && o.get(PDFName.of('T')) === t)
+      d.context.delete(r)
+  }
+}
+
+function addRawField(
+  form: PDFForm,
+  page: PDFPage,
+  dict: Record<string, unknown>
+): PDFRef {
+  const ctx = page.doc.context
+  const ref = annot(ctx, { Subtype: 'Widget', P: page.ref, ...dict })
+  form.acroForm.addField(ref)
+  page.node.addAnnot(ref)
+  return ref
+}
+
+/** A signature dictionary with a zero-filled /Contents. It looks signed; it verifies nothing. */
+function dummySignature(ctx: PDFContext, reference: Record<string, unknown>): PDFRef {
+  return ctx.register(
+    ctx.obj({
+      Type: 'Sig',
+      Filter: 'Adobe.PPKLite',
+      SubFilter: 'adbe.pkcs7.detached',
+      ByteRange: [0, 1000, 9000, 1000],
+      Contents: PDFHexString.of('00'.repeat(512)),
+      M: PDFString.of('D:20261022120000Z'),
+      Name: PDFString.of('Sam Carter'),
+      Reference: [{ Type: 'SigRef', ...reference }],
+    } as never)
+  )
+}
+
+async function formFields() {
+  const { d, font } = await doc()
+  const ctx = d.context
+  const p1 = d.addPage([612, 792])
+  const p2 = d.addPage([612, 792])
+  p2.setRotation(degrees(90))
+  p1.node.set(PDFName.of('Tabs'), PDFName.of('R'))
+  text(p1, font, ['Form fields'], 740)
+  text(p2, font, ['Form fields, page 2'], 740)
+  const form = d.getForm()
+
+  const L = 72
+  const R = 320
+  const row = (i: number) => 680 - i * 56
+  const box = (x: number, i: number, width = 200, height = 22) => ({
+    x,
+    y: row(i),
+    width,
+    height,
+  })
+  const put = (s: string, x: number, i: number, height = 22) =>
+    label(p1, font, s, x, row(i), height)
+
+  const name = form.createTextField('name')
+  name.setText('Sam')
+  name.setAlignment(0)
+  name.addToPage(p1, box(L, 0))
+  put('name', L, 0)
+
+  const notes = form.createTextField('notes')
+  notes.enableMultiline()
+  notes.setAlignment(1)
+  notes.addToPage(p1, box(R, 0, 200, 44))
+  put('notes (multiline)', R, 0, 44)
+
+  const pin = form.createTextField('pin')
+  pin.enablePassword()
+  pin.setMaxLength(4)
+  pin.addToPage(p1, box(L, 1, 80))
+  put('pin (password)', L, 1)
+
+  const code = form.createTextField('code')
+  code.setMaxLength(6)
+  code.enableCombing()
+  code.addToPage(p1, box(R, 1, 120))
+  put('code (comb)', R, 1)
+
+  const auto = form.createTextField('auto')
+  auto.addToPage(p1, box(L, 2))
+  put('auto (auto size)', L, 2)
+
+  const locked = form.createTextField('locked')
+  locked.setText('fixed')
+  locked.enableReadOnly()
+  locked.addToPage(p1, box(R, 2))
+  put('locked (read-only)', R, 2)
+
+  const email = form.createTextField('email')
+  email.enableRequired()
+  email.addToPage(p1, box(L, 3))
+  put('email (required)', L, 3)
+
+  const internal = form.createTextField('internal')
+  internal.setText('x')
+  internal.disableExporting()
+  internal.addToPage(p1, box(R, 3))
+  put('internal (no export)', R, 3)
+
+  const agree = form.createCheckBox('agree')
+  agree.addToPage(p1, box(L, 4, 18, 18))
+  put('agree', L, 4, 18)
+
+  const plan = form.createRadioGroup('plan')
+  plan.addOptionToPage('monthly', p1, box(R, 4, 18, 18))
+  plan.addOptionToPage('yearly', p1, box(R + 100, 4, 18, 18))
+  plan.select('monthly')
+  put('plan: monthly', R, 4, 18)
+  put('yearly', R + 100, 4, 18)
+
+  // Two widgets share the export value "A" but have their own on-states, so they toggle apart.
+  const shared = form.createRadioGroup('shared')
+  shared.addOptionToPage('A', p1, box(L, 5, 18, 18))
+  shared.addOptionToPage('A', p1, box(L + 100, 5, 18, 18))
+  shared.acroField.dict.set(PDFName.of('V'), PDFName.of('Off'))
+  put('shared: first A', L, 5, 18)
+  put('second A', L + 100, 5, 18)
+
+  const country = form.createDropdown('country')
+  country.setOptions(['United Kingdom', 'France'])
+  country.select('United Kingdom')
+  country.addToPage(p1, box(R, 5))
+  put('country', R, 5)
+
+  const city = form.createDropdown('city')
+  city.setOptions(['Leeds', 'Lyon', 'Lisbon'])
+  city.enableEditing()
+  city.addToPage(p1, box(L, 6))
+  put('city (editable)', L, 6)
+
+  const interests = form.createOptionList('interests')
+  interests.setOptions(['maths', 'engines', 'poetry'])
+  interests.enableMultiselect()
+  interests.addToPage(p1, box(R, 7, 200, 60))
+  put('interests (multi-select)', R, 7, 60)
+
+  const ref = form.createTextField('header.ref')
+  dropDuplicateParent(d, ref)
+  ref.setText('REF-0042')
+  ref.addToPage(p1, box(L, 7))
+  put('header.ref', L, 7)
+  // Page 2 is rotated 90; /MK /R 90 keeps its widgets upright for the reader.
+  ref.addToPage(p2, { x: 72, y: 600, width: 200, height: 22, rotate: degrees(90) })
+
+  const rotated = form.createTextField('rotated')
+  rotated.addToPage(p2, { x: 120, y: 600, width: 200, height: 22, rotate: degrees(90) })
+
+  addRawField(form, p1, {
+    FT: 'Sig',
+    T: PDFString.of('sig'),
+    Rect: [L, row(9), L + 200, row(9) + 40],
+  })
+  put('sig (empty signature)', L, 9, 40)
+
+  const reset = form.createButton('reset')
+  reset.addToPage('Reset', p1, box(R, 9, 100, 24))
+
+  form.updateFieldAppearances(font)
+
+  addHelv(d, form)
+  for (const f of form.getFields()) {
+    if (f.acroField.dict.has(PDFName.of('DA'))) setDA(f, HELV_12)
+  }
+  setDA(auto, '/Helv 0 Tf 0 g')
+  agree.acroField.dict.set(PDFName.of('V'), PDFName.of('Off'))
+  nameRadioStates(plan, ['monthly', 'yearly'], 'monthly')
+  country.acroField.dict.set(
+    PDFName.of('Opt'),
+    ctx.obj([
+      [PDFString.of('gb'), PDFString.of('United Kingdom')],
+      [PDFString.of('fr'), PDFString.of('France')],
+    ])
+  )
+  country.acroField.dict.set(PDFName.of('V'), PDFString.of('gb'))
+  widgetDict(reset).set(PDFName.of('A'), ctx.obj({ S: 'ResetForm' }))
+
+  await save(
+    'form-fields',
+    d,
+    {
+      pages: 2,
+      opens: true,
+      describes:
+        'Every AcroForm field type and flag: text variants, checkbox, radios (named on-states, and two widgets sharing one export value), combo, list, a two-widget field across pages, a rotated page 2, an empty signature and a reset button',
+      annotations: { Widget: 21 },
+    },
+    { appearances: false }
+  )
+}
+
+async function formScripted() {
+  const { d, font } = await doc()
+  const ctx = d.context
+  const page = d.addPage([612, 792])
+  text(page, font, ['Scripted form'], 740)
+  const form = d.getForm()
+
+  const L = 72
+  const R = 320
+  const row = (i: number) => 680 - i * 56
+  const box = (x: number, i: number, width = 200, height = 22) => ({
+    x,
+    y: row(i),
+    width,
+    height,
+  })
+  const put = (s: string, x: number, i: number, height = 22) =>
+    label(page, font, s, x, row(i), height)
+  const fieldAA = (f: PDFField, actions: Record<string, string>) => {
+    const aa: Record<string, PDFDict> = {}
+    for (const [k, code] of Object.entries(actions)) aa[k] = js(ctx, code)
+    f.acroField.dict.set(PDFName.of('AA'), ctx.obj(aa))
+  }
+
+  const pounds = '2, 0, 0, 0, "£", true'
+  const qty = form.createTextField('qty')
+  qty.addToPage(page, box(L, 0, 120))
+  put('qty', L, 0)
+  const price = form.createTextField('price')
+  price.addToPage(page, box(L + 160, 0, 120))
+  put('price', L + 160, 0)
+  const total = form.createTextField('total')
+  total.enableReadOnly()
+  total.addToPage(page, box(L + 320, 0, 120))
+  put('total (qty x price)', L + 320, 0)
+
+  const when = form.createTextField('when')
+  when.addToPage(page, box(L, 1))
+  put('when (dd/mm/yyyy)', L, 1)
+  const age = form.createTextField('age')
+  age.addToPage(page, box(R, 1, 80))
+  put('age (18 to 120)', R, 1)
+
+  const more = form.createCheckBox('more')
+  more.addToPage(page, box(L, 2, 18, 18))
+  put('more (shows extra)', L, 2, 18)
+  const extra = form.createTextField('extra')
+  extra.addToPage(page, { ...box(R, 2), hidden: true })
+
+  const buttons: [string, string, number, number][] = [
+    ['hello', 'Hello', L, 3],
+    ['ask', 'Ask', L + 160, 3],
+    ['submit', 'Submit', L + 320, 3],
+    ['mail', 'Mail', L, 4],
+    ['link', 'Link', L + 160, 4],
+    ['print', 'Print', L + 320, 4],
+    ['send', 'Send', L, 5],
+    ['site', 'Site', L + 160, 5],
+    ['clear', 'Clear', L + 320, 5],
+  ]
+  const btn: Record<string, PDFField> = {}
+  for (const [n, caption, x, i] of buttons) {
+    const b = form.createButton(n)
+    b.addToPage(caption, page, box(x, i, 120, 24))
+    btn[n] = b
+  }
+
+  form.updateFieldAppearances(font)
+
+  addHelv(d, form)
+  for (const f of form.getFields()) {
+    if (f.acroField.dict.has(PDFName.of('DA'))) setDA(f, HELV_12)
+  }
+  fieldAA(qty, {
+    K: 'AFNumber_Keystroke(0, 0, 0, 0, "", true)',
+    F: 'AFNumber_Format(0, 0, 0, 0, "", true)',
+  })
+  fieldAA(price, { K: `AFNumber_Keystroke(${pounds})`, F: `AFNumber_Format(${pounds})` })
+  fieldAA(total, {
+    C: 'AFSimple_Calculate("PRD", new Array("qty", "price"))',
+    F: `AFNumber_Format(${pounds})`,
+  })
+  fieldAA(when, {
+    K: 'AFDate_KeystrokeEx("dd/mm/yyyy")',
+    F: 'AFDate_FormatEx("dd/mm/yyyy")',
+  })
+  fieldAA(age, { V: 'event.rc = event.value >= 18 && event.value <= 120' })
+  form.acroForm.dict.set(PDFName.of('CO'), ctx.obj([total.ref]))
+
+  widgetDict(more).set(
+    PDFName.of('AA'),
+    ctx.obj({
+      U: js(
+        ctx,
+        'this.getField("extra").display = event.target.value == "Off" ? display.hidden : display.visible'
+      ),
+    })
+  )
+
+  const action = (n: string, a: PDFDict) => widgetDict(btn[n]!).set(PDFName.of('A'), a)
+  action('hello', js(ctx, 'app.alert("Hello")'))
+  action('ask', js(ctx, 'app.response("Name?")'))
+  action('submit', js(ctx, 'this.submitForm("https://example.com/submit")'))
+  action('mail', js(ctx, 'this.mailDoc(false, "forms@example.com")'))
+  action('link', js(ctx, 'app.launchURL("https://example.com", true)'))
+  action('print', js(ctx, 'this.print()'))
+  action(
+    'send',
+    ctx.obj({ S: 'SubmitForm', F: PDFString.of('https://example.com/xfdf'), Flags: 32 })
+  )
+  action('site', ctx.obj({ S: 'URI', URI: PDFString.of('https://example.com') }))
+  action('clear', ctx.obj({ S: 'ResetForm' }))
+
+  d.addJavaScript('init', 'var formReady = true;')
+
+  await save(
+    'form-scripted',
+    d,
+    {
+      pages: 1,
+      opens: true,
+      describes:
+        'Fields with keystroke, format, validate and calculate scripts, a mouse-up script that shows a hidden field, JavaScript and non-JavaScript button actions, and a document-level script',
+      annotations: { Widget: 16 },
+    },
+    { appearances: false }
+  )
+}
+
+async function formSigned() {
+  {
+    const { d, font } = await doc()
+    const ctx = d.context
+    const page = d.addPage([612, 792])
+    text(page, font, ['Certified form'], 740)
+    const form = d.getForm()
+    const name = form.createTextField('name')
+    name.addToPage(page, { x: 72, y: 600, width: 200, height: 22 })
+    label(page, font, 'name', 72, 600, 22)
+    form.updateFieldAppearances(font)
+    addHelv(d, form)
+    setDA(name, HELV_12)
+
+    const sig = dummySignature(ctx, {
+      TransformMethod: 'DocMDP',
+      TransformParams: { Type: 'TransformParams', P: 1, V: '1.2' },
+    })
+    addRawField(form, page, {
+      FT: 'Sig',
+      T: PDFString.of('cert'),
+      V: sig,
+      Rect: [72, 500, 272, 540],
+    })
+    label(page, font, 'cert (certifying signature)', 72, 500, 40)
+    form.acroForm.dict.set(PDFName.of('SigFlags'), PDFNumber.of(3))
+    d.catalog.set(PDFName.of('Perms'), ctx.obj({ DocMDP: sig }))
+    await save(
+      'form-signed',
+      d,
+      {
+        pages: 1,
+        opens: true,
+        describes:
+          'A certified document: /Perms /DocMDP names the signature in "cert" with /P 1 (no changes allowed), plus a text field',
+        annotations: { Widget: 2 },
+      },
+      { appearances: false }
+    )
+  }
+  {
+    const { d, font } = await doc()
+    const ctx = d.context
+    const page = d.addPage([612, 792])
+    text(page, font, ['Approval form'], 740)
+    const form = d.getForm()
+    const amount = form.createTextField('amount')
+    amount.setText('120.00')
+    amount.addToPage(page, { x: 72, y: 600, width: 200, height: 22 })
+    label(page, font, 'amount (locked by approved)', 72, 600, 22)
+    const memo = form.createTextField('memo')
+    memo.addToPage(page, { x: 72, y: 540, width: 200, height: 22 })
+    label(page, font, 'memo', 72, 540, 22)
+    form.updateFieldAppearances(font)
+    addHelv(d, form)
+    setDA(amount, HELV_12)
+    setDA(memo, HELV_12)
+
+    const fields = ctx.obj([PDFString.of('amount')])
+    const sig = dummySignature(ctx, {
+      TransformMethod: 'FieldMDP',
+      TransformParams: {
+        Type: 'TransformParams',
+        Action: 'Include',
+        Fields: fields,
+        V: '1.2',
+      },
+    })
+    addRawField(form, page, {
+      FT: 'Sig',
+      T: PDFString.of('approved'),
+      V: sig,
+      Lock: { Type: 'SigFieldLock', Action: 'Include', Fields: fields },
+      Rect: [72, 440, 272, 480],
+    })
+    label(page, font, 'approved (signature)', 72, 440, 40)
+    form.acroForm.dict.set(PDFName.of('SigFlags'), PDFNumber.of(3))
+    await save(
+      'form-fieldmdp',
+      d,
+      {
+        pages: 1,
+        opens: true,
+        describes:
+          'No DocMDP; the signed field "approved" has /Lock /Include [amount], so amount is locked and memo stays editable',
+        annotations: { Widget: 3 },
+      },
+      { appearances: false }
+    )
+  }
+}
+
+async function formTimer() {
+  const { d, font } = await doc()
+  const page = d.addPage([612, 792])
+  text(page, font, ['Timer form'], 740)
+  const form = d.getForm()
+  const ticker = form.createTextField('ticker')
+  ticker.addToPage(page, { x: 72, y: 600, width: 200, height: 22 })
+  label(page, font, 'ticker (counts up every 50 ms)', 72, 600, 22)
+  form.updateFieldAppearances(font)
+  addHelv(d, form)
+  setDA(ticker, HELV_12)
+  d.addJavaScript(
+    'tick',
+    `var ticking = app.setInterval("this.getField('ticker').value = String(Number(this.getField('ticker').value || 0) + 1)", 50)`
+  )
+  await save(
+    'form-timer',
+    d,
+    {
+      pages: 1,
+      opens: true,
+      describes:
+        'One text field and a document-level script whose app.setInterval bumps it every 50 ms, for checking that teardown clears sandbox timers',
+      annotations: { Widget: 1 },
+    },
+    { appearances: false }
+  )
+}
+
 /**
  * A real incremental update: the base revision is written by pdf-lib, then the changed page
  * object and the new Highlight are appended with their own xref section and a trailer whose
@@ -874,6 +1401,10 @@ async function main() {
   await freetextFonts()
   await annotatedUnsupported()
   await acroformBasic()
+  await formFields()
+  await formScripted()
+  await formSigned()
+  await formTimer()
   await incrementalSaved()
   await objectStreams()
   await encrypted('encrypted-aes')

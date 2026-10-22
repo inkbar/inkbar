@@ -177,6 +177,51 @@
       "Widget": 2
     }
   },
+  "form-fields": {
+    "file": "form-fields.pdf",
+    "pages": 2,
+    "opens": true,
+    "describes": "Every AcroForm field type and flag: text variants, checkbox, radios (named on-states, and two widgets sharing one export value), combo, list, a two-widget field across pages, a rotated page 2, an empty signature and a reset button",
+    "annotations": {
+      "Widget": 21
+    }
+  },
+  "form-scripted": {
+    "file": "form-scripted.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Fields with keystroke, format, validate and calculate scripts, a mouse-up script that shows a hidden field, JavaScript and non-JavaScript button actions, and a document-level script",
+    "annotations": {
+      "Widget": 16
+    }
+  },
+  "form-signed": {
+    "file": "form-signed.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A certified document: /Perms /DocMDP names the signature in \"cert\" with /P 1 (no changes allowed), plus a text field",
+    "annotations": {
+      "Widget": 2
+    }
+  },
+  "form-fieldmdp": {
+    "file": "form-fieldmdp.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "No DocMDP; the signed field \"approved\" has /Lock /Include [amount], so amount is locked and memo stays editable",
+    "annotations": {
+      "Widget": 3
+    }
+  },
+  "form-timer": {
+    "file": "form-timer.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "One text field and a document-level script whose app.setInterval bumps it every 50 ms, for checking that teardown clears sandbox timers",
+    "annotations": {
+      "Widget": 1
+    }
+  },
   "incremental-saved": {
     "file": "incremental-saved.pdf",
     "pages": 1,
