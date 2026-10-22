@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/experimental-ct-vue'
 
 import ControlledHost from '../../playwright/harness/ControlledHost.vue'
 import EventHost from '../../playwright/harness/EventHost.vue'
+import PluginHarness from '../../playwright/harness/PluginHarness.vue'
 import ToolbarHarness from '../../playwright/harness/ToolbarHarness.vue'
 import UncontrolledHost from '../../playwright/harness/UncontrolledHost.vue'
 
@@ -378,4 +379,87 @@ test('a one-shot tool switching back to select text emits update:tool and reache
   ).toHaveAttribute('aria-pressed', 'true')
   await expect(cmp.locator('[data-annotation]')).toHaveCount(1)
   expect(tools).toEqual(['select-text'])
+})
+
+test('accept then undo restores both stores, uncontrolled', async ({ mount }) => {
+  const cmp = await mount(PluginHarness, {
+    props: { src: fixtureUrl('text-simple'), assets },
+  })
+  const probe = cmp.getByTestId('probe')
+  await expect(cmp).toHaveAttribute('data-state', 'ready')
+  await expect(probe).toHaveAttribute('data-marks', 'suggested')
+  await cmp.locator('button[data-command="sandbox.accept"]').click()
+  await expect(probe).toHaveAttribute('data-marks', 'accepted')
+  await expect(probe).toHaveAttribute('data-annotations', '1')
+  await cmp.locator('[data-ink-undo]').click()
+  await expect(probe).toHaveAttribute('data-marks', 'suggested')
+  await expect(probe).toHaveAttribute('data-annotations', '0')
+  await cmp.locator('[data-ink-redo]').click()
+  await expect(probe).toHaveAttribute('data-marks', 'accepted')
+  await expect(probe).toHaveAttribute('data-annotations', '1')
+})
+
+test('accept then undo restores both stores, controlled with history', async ({
+  mount,
+}) => {
+  const cmp = await mount(PluginHarness, {
+    props: { src: fixtureUrl('text-simple'), assets, controlled: true, history: true },
+  })
+  const probe = cmp.getByTestId('probe')
+  const hostCount = cmp.getByTestId('host-count')
+  await expect(cmp).toHaveAttribute('data-state', 'ready')
+  await cmp.locator('button[data-command="sandbox.accept"]').click()
+  await expect(hostCount).toHaveText('1')
+  await expect(probe).toHaveAttribute('data-marks', 'accepted')
+  await expect(probe).toHaveAttribute('data-can-undo', 'true')
+  await cmp.locator('[data-ink-undo]').click()
+  await expect(hostCount).toHaveText('0')
+  await expect(probe).toHaveAttribute('data-marks', 'suggested')
+  await expect(probe).toHaveAttribute('data-can-undo', 'false')
+  await cmp.locator('[data-ink-redo]').click()
+  await expect(hostCount).toHaveText('1')
+  await expect(probe).toHaveAttribute('data-marks', 'accepted')
+})
+
+test('deleting a reacted annotation under a controlled host is one undo step', async ({
+  mount,
+}) => {
+  const cmp = await mount(PluginHarness, {
+    props: { src: fixtureUrl('text-simple'), assets, controlled: true, history: true },
+  })
+  const probe = cmp.getByTestId('probe')
+  const hostCount = cmp.getByTestId('host-count')
+  await expect(cmp).toHaveAttribute('data-state', 'ready')
+  await cmp.locator('button[data-command="sandbox.accept"]').click()
+  await expect(hostCount).toHaveText('1')
+  await expect(probe).toHaveAttribute('data-marks', 'accepted')
+  // The reaction puts the mark back in the delete's own step.
+  await cmp.getByTestId('remove').click()
+  await expect(hostCount).toHaveText('0')
+  await expect(probe).toHaveAttribute('data-marks', 'suggested')
+  await cmp.locator('[data-ink-undo]').click()
+  await expect(hostCount).toHaveText('1')
+  await expect(probe).toHaveAttribute('data-marks', 'accepted')
+  // One more undo takes back the accept: the delete was one step, not two.
+  await cmp.locator('[data-ink-undo]').click()
+  await expect(hostCount).toHaveText('0')
+  await expect(probe).toHaveAttribute('data-marks', 'suggested')
+  await expect(probe).toHaveAttribute('data-can-undo', 'false')
+})
+
+test('unmounting tears down the plugin layers before the plugins', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(PluginHarness, {
+    props: { src: fixtureUrl('text-simple'), assets },
+  })
+  await expect(cmp).toHaveAttribute('data-state', 'ready')
+  await expect(cmp.locator('.ink-page[data-page="0"]')).toHaveCount(1)
+  await cmp.unmount()
+  await expect
+    .poll(() =>
+      page.evaluate(() => (window as Window & { pluginLog?: string[] }).pluginLog)
+    )
+    .toEqual(['layer destroyed', 'plugin cleaned up'])
 })

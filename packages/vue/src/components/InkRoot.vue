@@ -4,8 +4,11 @@ import {
   createSignatureLibrary,
   InkError,
   openDocument,
+  readonly,
+  writable,
 } from '@inkbar/core'
 import {
+  createPluginHost,
   createToolOptions,
   cssVariableDefaults,
   FONT_FAMILIES,
@@ -16,6 +19,7 @@ import { Primitive } from 'reka-ui'
 import {
   computed,
   onBeforeUnmount,
+  onUnmounted,
   onMounted,
   onUpdated,
   ref,
@@ -39,6 +43,8 @@ import type {
 } from '@inkbar/core'
 import type {
   DecorateAnnotation,
+  InkPlugin,
+  PluginHost,
   Tool,
   ToolController,
   ToolId,
@@ -65,6 +71,12 @@ const props = withDefaults(
      * document opens.
      */
     tools?: Tool[] | undefined
+    /**
+     * Plugins, set up once when the root is created; a later change to this prop is not
+     * applied. Their tools join `tools`, their decoration and page layers apply to every
+     * document, and their commands are placed with `InkCommand` or `useCommand`.
+     */
+    plugins?: InkPlugin[] | undefined
     /**
      * Adds `data-*` attributes, classes and a screen-reader description to each annotation's
      * element (see `DecorateAnnotation`). Decorations re-apply whenever the annotations change
@@ -97,6 +109,7 @@ const props = withDefaults(
     annotations: undefined,
     tool: undefined,
     tools: undefined,
+    plugins: undefined,
     decorateAnnotation: undefined,
     fonts: undefined,
     signatures: undefined,
@@ -150,6 +163,13 @@ const activated = ref<string | null>(null)
 
 const controlled = computed(() => props.annotations !== undefined)
 
+function setActivated(id: string | null): void {
+  activated.value = id
+  if (id) emit('activate', id)
+}
+
+const noop = () => {}
+
 /** Signed URLs change; the key does not. Bytes and Blobs are their own identity. */
 function identity(src: DocumentSource | null): unknown {
   if (src === null) return null
@@ -165,8 +185,10 @@ function setTestHook(doc: InkDocument | undefined): void {
 
 let generation = 0
 function release(): void {
-  document.value?.destroy()
+  // Cleared first, so the plugins close their stores while the document is still alive.
+  const doc = document.value
   document.value = null
+  doc?.destroy()
   setTestHook(undefined)
 }
 
@@ -235,6 +257,8 @@ const refHistory = createRefHistory({
   source: () => props.annotations,
   apply: (list) => document.value?.annotations.replaceAll(list, 'history'),
   enabled: computed(() => controlled.value && props.history === true),
+  store: () =>
+    document.value?.annotations.mode === 'controlled' ? document.value.annotations : null,
 })
 const coreCanUndo = useReadable(() => document.value?.history.canUndo ?? null, false)
 const coreCanRedo = useReadable(() => document.value?.history.canRedo ?? null, false)
@@ -253,7 +277,42 @@ const inkHistory: InkHistory = {
     else if (document.value) document.value.history.batch(fn)
     else fn()
   },
+  track: (store) =>
+    controlled.value
+      ? refHistory.track(store)
+      : (document.value?.history.track(store) ?? noop),
+  react: (fn) =>
+    controlled.value ? refHistory.react(fn) : (document.value?.history.react(fn) ?? noop),
 }
+
+/*
+ * One plugin host for the root's life, built here rather than on mount so that InkCommand
+ * finds its command during its own setup. Building it touches no DOM, and no document opens on
+ * the server, so plugins see none there. The host follows `hostDocument`, which is set after
+ * `document` (a sync watch): when the host reads `inkHistory` for a new document, it is that
+ * document's history.
+ */
+const hostDocument = writable<InkDocument | null>(null)
+watch(document, (doc) => hostDocument.set(doc), { flush: 'sync' })
+const viewportEl = shallowRef<HTMLElement | null>(null)
+const hostRoot = writable<HTMLElement | null>(null)
+watch(viewportEl, (el) => hostRoot.set(el), { flush: 'sync' })
+const hostActivated = writable<string | null>(null)
+watch(activated, (id) => hostActivated.set(id), { flush: 'sync' })
+const pluginHost = shallowRef<PluginHost | null>(
+  createPluginHost({
+    plugins: props.plugins ?? [],
+    document: readonly(hostDocument),
+    history: () => inkHistory,
+    activated: readonly(hostActivated),
+    // As in `createViewer`: an id not in the open document is ignored.
+    setActivated: (id) => {
+      if (id === null || document.value?.annotations.get(id)) setActivated(id)
+    },
+    root: readonly(hostRoot),
+    decorate: () => props.decorateAnnotation,
+  })
+)
 
 /** The document's tool style; it batches through `inkHistory`, whichever mode is on. */
 const toolStyle = shallowRef<ToolStyle | null>(null)
@@ -269,7 +328,9 @@ watch(
     const tracker = trackToolStyle({
       store: doc.annotations,
       history: { batch: (fn) => inkHistory.batch(fn) },
-      tools: props.tools,
+      // The plugins' tools too, so a plugin tool's style group applies (the host is set by now:
+      // no document opens during setup).
+      tools: [...(props.tools ?? []), ...(pluginHost.value?.tools ?? [])],
       tool: internalTool.value,
     })
     setStyleTool = (id) => tracker.setTool(id)
@@ -318,6 +379,13 @@ onBeforeUnmount(() => {
   release()
 })
 
+// After the children: InkViewport's engine, and the plugin layers with it, are gone by now, as
+// in `createViewer`, so no layer `destroy` runs after the plugins' cleanups.
+onUnmounted(() => {
+  pluginHost.value?.destroy()
+  pluginHost.value = null
+})
+
 const signatures = computed(() =>
   createSignatureLibrary(props.signatures ?? createMemorySignatureStore())
 )
@@ -347,10 +415,9 @@ provideInkContext({
   reportZoom: (z) => emit('update:zoom', z),
   reportPage: (p) => emit('update:page', p),
   activated,
-  setActivated(id) {
-    activated.value = id
-    if (id) emit('activate', id)
-  },
+  setActivated,
+  pluginHost,
+  viewportEl,
   history: inkHistory,
   rootEl,
 })

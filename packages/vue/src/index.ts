@@ -1,7 +1,11 @@
 export { default as InkRoot } from './components/InkRoot.vue'
 export { injectInkContext } from './context'
 export type { InkContext, InkHistory, InkStatus } from './context'
-export type { AnnotationDecoration, DecorateAnnotation } from '@inkbar/core/dom'
+export type {
+  AnnotationDecoration,
+  DecorateAnnotation,
+  InkPlugin,
+} from '@inkbar/core/dom'
 export { useReadable } from './use-readable'
 export { useDocument } from './composables/useDocument'
 export { useAnnotations } from './composables/useAnnotations'
@@ -14,6 +18,8 @@ export { useZoom } from './composables/useZoom'
 export { usePage } from './composables/usePage'
 export { useHistory } from './composables/useHistory'
 export { useEmbedded } from './composables/useEmbedded'
+export { useCommand } from './composables/useCommand'
+export type { CommandHandle } from './composables/useCommand'
 export { default as InkViewport } from './components/InkViewport.vue'
 export { default as InkPage } from './components/InkPage.vue'
 export { default as InkAnnotation } from './components/InkAnnotation.vue'
@@ -21,6 +27,7 @@ export type { AnnotationSlotProps, AnnotationState } from './components/annotati
 export { default as InkToolbar } from './components/InkToolbar.vue'
 export { default as InkIcon } from './components/InkIcon.vue'
 export { default as InkToolButton } from './components/InkToolButton.vue'
+export { default as InkCommand } from './components/InkCommand.vue'
 export { default as InkToolbarSeparator } from './components/InkToolbarSeparator.vue'
 export { default as InkUndo } from './components/InkUndo.vue'
 export { default as InkRedo } from './components/InkRedo.vue'

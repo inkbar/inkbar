@@ -6,10 +6,12 @@ import type {
   InkDocument,
   InkStatus,
   PdfAssets,
+  PluginHistory,
   SignatureLibrary,
 } from '@inkbar/core'
 import type {
   DecorateAnnotation,
+  PluginHost,
   Tool,
   ToolController,
   ToolId,
@@ -22,8 +24,11 @@ import type { Ref, ShallowRef } from 'vue'
 
 export type { InkStatus }
 
-/** Undo and redo for the current document, whichever mode its annotations are in. */
-export interface InkHistory {
+/**
+ * Undo and redo for the current document, whichever mode its annotations are in. `track` and
+ * `react` (from `PluginHistory`) reach the same history, so plugin stores undo with the edits.
+ */
+export interface InkHistory extends PluginHistory {
   canUndo: Readonly<Ref<boolean>>
   canRedo: Readonly<Ref<boolean>>
   undo: () => void
@@ -45,6 +50,13 @@ export interface InkContext {
   status: Readonly<Ref<InkStatus>>
   annotations: Readonly<Ref<readonly Annotation[]>>
   selection: Readonly<Ref<readonly string[]>>
+  /**
+   * The plugins from InkRoot's `plugins` prop, set up once for the root's life; `null` once the
+   * root unmounts. InkViewport hands it to the engine; InkCommand places its commands.
+   */
+  pluginHost: Readonly<ShallowRef<PluginHost | null>>
+  /** InkViewport's scroll element while it is mounted: the plugins' `root`. */
+  viewportEl: ShallowRef<HTMLElement | null>
   /** Set by InkViewport once it has mounted its viewport and tool controller. */
   viewport: ShallowRef<Viewport | null>
   tools: ShallowRef<ToolController | null>

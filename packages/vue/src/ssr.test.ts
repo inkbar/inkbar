@@ -58,16 +58,27 @@ describe('@inkbar/vue on the server', () => {
         'InkPrevPage',
         'InkNextPage',
         'InkThreadPopover',
+        'InkCommand',
+        'useCommand',
       ])
     )
     expect(evaluated.pdfjs).toBe(false)
 
+    // A plugin is set up on the server too (it touches no DOM), so its commands render.
+    const { definePlugin } = await import('@inkbar/core/dom')
+    const plugin = definePlugin({
+      id: 'sandbox',
+      setup(ctx) {
+        ctx.commands.add({ id: 'ping', label: 'Ping', run: () => undefined })
+      },
+    })
     const app = createSSRApp({
       render: () =>
-        h(entry.InkRoot, { src: '/doc.pdf', assets }, () => [
+        h(entry.InkRoot, { src: '/doc.pdf', assets, plugins: [plugin] }, () => [
           h('p', 'slot'),
           h(entry.InkToolbar, null, () => [
             h(entry.InkToolButton, { tool: 'highlight' }),
+            h(entry.InkCommand, { id: 'sandbox.ping' }),
           ]),
           h(entry.InkToolbar, { label: 'Page and zoom' }, () => [
             h(entry.InkPrevPage),
@@ -87,6 +98,7 @@ describe('@inkbar/vue on the server', () => {
     expect(html).toContain('<p>slot</p>')
     expect(html).toContain('data-ink-toolbar')
     expect(html).toContain('aria-label="Document tools"')
+    expect(html).toContain('data-command="sandbox.ping"')
     expect(evaluated.pdfjs).toBe(false)
 
     // Control: the same mock fires once a document actually opens, so the falses above mean something.

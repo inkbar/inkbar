@@ -15,6 +15,7 @@ import { ToolbarButton } from 'reka-ui'
 import { computed } from 'vue'
 
 import { useTool } from '../composables/useTool'
+import { useInkContext } from '../context'
 
 import InkIcon from './InkIcon.vue'
 
@@ -38,11 +39,20 @@ const props = withDefaults(
   { label: undefined, asChild: false }
 )
 
+const ctx = useInkContext('InkToolButton')
 const { tool: current, setTool } = useTool()
 const active = computed(() => current.value === props.tool)
-// A host tool has no built-in name or icon: `label` and the slot supply them.
-const name = computed(() => props.label ?? TOOL_LABELS[props.tool] ?? props.tool)
-const icon = computed(() => ICONS[props.tool])
+/** A host or plugin tool by this id, for the name and icon core has none for. */
+const own = computed(() =>
+  [...(ctx.hostTools.value ?? []), ...(ctx.pluginHost.value?.tools ?? [])].find(
+    (t) => t.id === props.tool
+  )
+)
+// `label` and the slot win; then core's name and icon; then the tool's own.
+const name = computed(
+  () => props.label ?? TOOL_LABELS[props.tool] ?? own.value?.label ?? props.tool
+)
+const icon = computed(() => ICONS[props.tool] ?? own.value?.icon)
 // Reka's typed props stop at its own; ARIA and listeners go through a bound object.
 const attrs = computed(() => ({
   'aria-pressed': String(active.value),
