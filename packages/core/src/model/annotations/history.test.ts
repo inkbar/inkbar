@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
+import { createRecordStore, type RecordChange } from '../records'
+
 import { staticDefaults } from './defaults'
 import { createHistory } from './history'
 import { createAnnotationStore } from './store'
@@ -402,5 +404,148 @@ describe('history.batch', () => {
     expect(s.get(embedded.id)).toMatchObject({ color: '#FFD400', icon: 'Key' })
     h.redo()
     expect(s.get(embedded.id)).toMatchObject({ color: '#000000', icon: 'Key' })
+  })
+})
+
+describe('history over record stores', () => {
+  interface Note {
+    id: string
+    status: string
+    annotationId?: string
+  }
+  const setup = () => {
+    const s = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const h = createHistory(s)
+    const notes = createRecordStore<Note>('sandbox', {
+      initial: [{ id: 'n1', status: 'open' }],
+    })
+    return { s, h, notes }
+  }
+
+  it('a record change is an undo step', () => {
+    const { s, h, notes } = setup()
+    h.track(notes)
+    notes.update('n1', { status: 'done' })
+    expect(h.canUndo.get()).toBe(true)
+    h.undo()
+    expect(notes.get('n1')?.status).toBe('open')
+    h.redo()
+    expect(notes.get('n1')?.status).toBe('done')
+    expect(s.list.get()).toEqual([])
+  })
+
+  it('an annotation add and a record update in one batch are one step, and undo restores both', () => {
+    const { s, h, notes } = setup()
+    h.track(notes)
+    let id = ''
+    h.batch(() => {
+      id = s.add({ type: 'text', page: 0, rect }).id
+      notes.update('n1', { status: 'done', annotationId: id })
+    })
+    h.undo()
+    expect(s.list.get()).toEqual([])
+    expect(notes.get('n1')).toEqual({ id: 'n1', status: 'open' })
+    expect(h.canUndo.get()).toBe(false)
+    h.redo()
+    expect(s.get(id)).toBeDefined()
+    expect(notes.get('n1')?.annotationId).toBe(id)
+  })
+
+  it('undo and redo hand the store a replace naming the records they changed', () => {
+    const { s, h, notes } = setup()
+    notes.add({ id: 'n2', status: 'open' })
+    h.track(notes)
+    const changes: RecordChange<Note>[] = []
+    notes.on('change', (c) => changes.push(c))
+    h.batch(() => {
+      const id = s.add({ type: 'text', page: 0, rect }).id
+      notes.update('n1', { status: 'done', annotationId: id })
+    })
+    changes.length = 0
+    h.undo()
+    h.redo()
+    expect(changes).toEqual([
+      { kind: 'replace', reason: 'history', added: [], updated: ['n1'], removed: [] },
+      { kind: 'replace', reason: 'history', added: [], updated: ['n1'], removed: [] },
+    ])
+  })
+
+  it("a reaction's record writes join the edit's entry", () => {
+    const { s, h, notes } = setup()
+    h.track(notes)
+    const a = s.add({ type: 'text', page: 0, rect })
+    h.clear()
+    h.react((edit) => {
+      if (edit.kind === 'remove') notes.update('n1', { status: 'reopened' })
+    })
+    s.remove(a.id)
+    expect(notes.get('n1')?.status).toBe('reopened')
+    h.undo()
+    expect(s.get(a.id)).toBeDefined()
+    expect(notes.get('n1')?.status).toBe('open')
+    expect(h.canUndo.get()).toBe(false)
+  })
+
+  it('undo and redo do not run reactions', () => {
+    const { s, h, notes } = setup()
+    h.track(notes)
+    const fn = vi.fn()
+    h.react(fn)
+    s.add({ type: 'text', page: 0, rect })
+    notes.update('n1', { status: 'done' })
+    expect(fn).toHaveBeenCalledTimes(1)
+    h.undo()
+    h.undo()
+    h.redo()
+    h.redo()
+    expect(fn).toHaveBeenCalledTimes(1)
+    // Replays never become entries either.
+    expect(h.canRedo.get()).toBe(false)
+    h.undo()
+    h.undo()
+    expect(h.canUndo.get()).toBe(false)
+  })
+
+  it('a batch that changes records then restores them records nothing', () => {
+    const { h, notes } = setup()
+    h.track(notes)
+    h.batch(() => {
+      notes.add({ id: 'n2', status: 'open' })
+      notes.remove('n2')
+    })
+    expect(h.canUndo.get()).toBe(false)
+  })
+
+  it('untracked stores are not replayed', () => {
+    const { s, h, notes } = setup()
+    const untrack = h.track(notes)
+    const a = s.add({ type: 'text', page: 0, rect })
+    h.batch(() => {
+      s.update(a.id, { contents: 'two' })
+      notes.update('n1', { status: 'done' })
+    })
+    untrack()
+    notes.update('n1', { status: 'later' })
+    // An untracked store's changes are not steps.
+    h.undo()
+    expect(s.get(a.id)?.contents).toBeUndefined()
+    expect(notes.get('n1')?.status).toBe('later')
+  })
+
+  it('clear empties steps that hold records', () => {
+    const { h, notes } = setup()
+    h.track(notes)
+    notes.update('n1', { status: 'done' })
+    h.undo()
+    notes.update('n1', { status: 'other' })
+    h.clear()
+    expect(h.canUndo.get()).toBe(false)
+    expect(h.canRedo.get()).toBe(false)
+    notes.update('n1', { status: 'third' })
+    h.undo()
+    expect(notes.get('n1')?.status).toBe('other')
   })
 })
