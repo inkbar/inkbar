@@ -1,0 +1,28 @@
+apps/sandbox/src/react/Demo.tsx
+  s_e6109f66fbb4ed::t_fb72966a35cf60 26,34,37-39,49-51,53-54,68
+apps/sandbox/src/vanilla/Demo.ts
+  s_e6109f66fbb4ed::t_fb72966a35cf60 3-4,101-102,110-115,179-182
+  s_e6109f66fbb4ed::t_5a86de62a2c584 5-9
+apps/sandbox/e2e/forms.spec.ts
+  s_e6109f66fbb4ed::t_85c1096b6a2077 63-75
+apps/sandbox/src/svelte/Demo.svelte
+  s_e6109f66fbb4ed::t_fb72966a35cf60 3-5,43,47,51-58
+apps/sandbox/src/vue/Demo.vue
+  s_e6109f66fbb4ed::t_fb72966a35cf60 3-5,37,44,52-54,56-57,59-60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b6230a4a812f7a3e4aee500d095022196d238b9a",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
