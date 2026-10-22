@@ -9,7 +9,9 @@
  * added after pages have mounted (from `onDocument`, say) appear on those pages at once.
  *
  * The layer element is `pointer-events: none`, so a press that misses the plugin's marks
- * reaches the overlay and the tools underneath; the theme turns its children back to `auto`.
+ * reaches the overlay and the tools underneath. Its direct children default back to `auto`
+ * through a rule core adopts into the layer's document (or shadow root), the same rule the
+ * theme has: `:where(.ink-plugin-layer > *)`, so any rule of the plugin's own wins.
  * Presses and keys on those children are the plugin's: the tool controller leaves them alone.
  * Marks that take focus are Tab stops after the page's annotations, by DOM order.
  */
@@ -90,6 +92,28 @@ function guard(fn: () => void): void {
   }
 }
 
+const CHILD_RULE = ':where(.ink-plugin-layer > *) { pointer-events: auto; }'
+/** One sheet per window: a constructed sheet can only be adopted in its own window. */
+const childSheets = new WeakMap<object, CSSStyleSheet>()
+
+/**
+ * Adopts the children's `pointer-events: auto` rule into the document or shadow root `el`
+ * lives in, once; again if the host has since replaced its adopted sheets.
+ */
+function adoptChildRule(el: HTMLElement): void {
+  const root = el.getRootNode() as Partial<DocumentOrShadowRoot>
+  const win = el.ownerDocument.defaultView
+  if (!root.adoptedStyleSheets || !win) return
+  let sheet = childSheets.get(win)
+  if (!sheet) {
+    sheet = new win.CSSStyleSheet()
+    sheet.replaceSync(CHILD_RULE)
+    childSheets.set(win, sheet)
+  }
+  if (!root.adoptedStyleSheets.includes(sheet))
+    root.adoptedStyleSheets = [...root.adoptedStyleSheets, sheet]
+}
+
 interface MountedPage {
   host: HTMLElement
   transform: PageTransform
@@ -115,6 +139,7 @@ export function createPluginLayers(source: LayerSource): PluginLayers {
     el.dataset.plugin = layer.plugin
     el.style.cssText = 'position:absolute;inset:0;pointer-events:none;'
     state.host.append(el)
+    adoptChildRule(el)
     state.elements.set(layer, el)
     draw(layer, el, page, state.transform)
   }

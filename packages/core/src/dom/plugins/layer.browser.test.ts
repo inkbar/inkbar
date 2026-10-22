@@ -207,43 +207,73 @@ describe('plugin page layers', () => {
     expect(render).not.toHaveBeenCalled()
   })
 
-  it('presses outside layer children reach the active tool', async () => {
-    const onPointerDown = vi.fn()
-    const tool: Tool = {
-      id: 'probe',
-      cursor: 'crosshair',
-      activate() {},
-      deactivate() {},
-      onPointerDown,
+  it.each([
+    ['without', false],
+    ['with', true],
+  ])(
+    'presses outside layer children reach the active tool, %s the theme',
+    async (_, theme) => {
+      const onPointerDown = vi.fn()
+      const tool: Tool = {
+        id: 'probe',
+        cursor: 'crosshair',
+        activate() {},
+        deactivate() {},
+        onPointerDown,
+      }
+      const rect: Rect = { x: 100, y: 500, width: 144, height: 40 }
+      const { container, engine } = await setup((c) => c.layer(boxes([rect])), {
+        theme,
+        tools: [tool],
+      })
+      engine.tools.set('probe')
+      const layer = layerOf(engine.viewport.hostFor(0)!)!
+      const mark = layer.querySelector<HTMLElement>('[data-mark]')!
+      const page = engine.viewport.hostFor(0)!.getBoundingClientRect()
+
+      // Away from the mark the layer lets the press through to the page underneath.
+      const x = page.left + 20
+      const y = page.top + 20
+      const under = document.elementFromPoint(x, y)!
+      expect(layer.contains(under)).toBe(false)
+      pointer(under, 'pointerdown', x, y)
+      pointer(under, 'pointerup', x, y)
+      expect(onPointerDown).toHaveBeenCalledTimes(1)
+      expect(onPointerDown.mock.calls[0]![1]).toMatchObject({ page: 0 })
+
+      // The mark itself is the plugin's: it is hit, and the tool does not see the press.
+      const m = mark.getBoundingClientRect()
+      const onMark = document.elementFromPoint(m.left + m.width / 2, m.top + m.height / 2)
+      expect(onMark).toBe(mark)
+      pointer(mark, 'pointerdown', m.left + 2, m.top + 2)
+      pointer(mark, 'pointerup', m.left + 2, m.top + 2)
+      expect(onPointerDown).toHaveBeenCalledTimes(1)
+      expect(container.contains(mark)).toBe(true)
     }
-    const rect: Rect = { x: 100, y: 500, width: 144, height: 40 }
-    const { container, engine } = await setup((c) => c.layer(boxes([rect])), {
-      theme: true,
-      tools: [tool],
-    })
-    engine.tools.set('probe')
-    const layer = layerOf(engine.viewport.hostFor(0)!)!
-    const mark = layer.querySelector<HTMLElement>('[data-mark]')!
-    const page = engine.viewport.hostFor(0)!.getBoundingClientRect()
+  )
 
-    // Away from the mark the layer lets the press through to the page underneath.
-    const x = page.left + 20
-    const y = page.top + 20
-    const under = document.elementFromPoint(x, y)!
-    expect(layer.contains(under)).toBe(false)
-    pointer(under, 'pointerdown', x, y)
-    pointer(under, 'pointerup', x, y)
-    expect(onPointerDown).toHaveBeenCalledTimes(1)
-    expect(onPointerDown.mock.calls[0]![1]).toMatchObject({ page: 0 })
-
-    // The mark itself is the plugin's: it is hit, and the tool does not see the press.
-    const m = mark.getBoundingClientRect()
-    const onMark = document.elementFromPoint(m.left + m.width / 2, m.top + m.height / 2)
-    expect(onMark).toBe(mark)
-    pointer(mark, 'pointerdown', m.left + 2, m.top + 2)
-    pointer(mark, 'pointerup', m.left + 2, m.top + 2)
-    expect(onPointerDown).toHaveBeenCalledTimes(1)
-    expect(container.contains(mark)).toBe(true)
+  it("a plugin's own rule, or a child added later, decides without the theme", async () => {
+    const style = document.createElement('style')
+    style.textContent = '.sandbox-passive { pointer-events: none; }'
+    document.head.append(style)
+    cleanup.push(() => style.remove())
+    let layerEl!: HTMLElement
+    const { engine } = await setup((c) =>
+      c.layer({
+        render(el) {
+          layerEl = el
+          const passive = document.createElement('div')
+          passive.className = 'sandbox-passive'
+          el.replaceChildren(passive)
+        },
+      })
+    )
+    await until(() => engine.pages.size > 0)
+    const [passive] = layerEl.children
+    expect(getComputedStyle(passive!).pointerEvents).toBe('none')
+    const late = document.createElement('div')
+    layerEl.append(late)
+    expect(getComputedStyle(late).pointerEvents).toBe('auto')
   })
 
   it('plugin tools appear in the controller', async () => {
