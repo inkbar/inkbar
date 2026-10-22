@@ -2092,6 +2092,32 @@ describe('createViewer plugins', () => {
     expect(viewer.commands.get('nope')).toBeUndefined()
   })
 
+  it('shows a command without an icon as its label, and one with an icon as the icon', () => {
+    const plugin = definePlugin({
+      id: 'sandbox',
+      setup(ctx) {
+        ctx.commands.add({
+          id: 'plain',
+          label: 'Suggest redactions',
+          run: () => undefined,
+        })
+        ctx.commands.add({
+          id: 'drawn',
+          label: 'Stamp',
+          icon: [['circle', { cx: '12', cy: '12', r: '8' }]],
+          run: () => undefined,
+        })
+      },
+    })
+    const { viewer } = make('annotated-notes-threaded', { plugins: [plugin] })
+    const plain = createCommandButton(viewer, 'sandbox.plain').querySelector('button')!
+    const drawn = createCommandButton(viewer, 'sandbox.drawn').querySelector('button')!
+    expect(plain.textContent).toBe('Suggest redactions')
+    expect(plain.querySelector('svg')).toBeNull()
+    expect(drawn.textContent).toBe('')
+    expect(drawn.querySelector('svg.ink-icon')).not.toBeNull()
+  })
+
   it('throws UnknownCommand for an id no plugin registered', () => {
     const { viewer } = make('annotated-notes-threaded')
     expect(() => createCommandButton(viewer, 'sandbox.nope')).toThrowError(

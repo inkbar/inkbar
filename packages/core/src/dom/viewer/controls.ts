@@ -201,13 +201,15 @@ export function createToolButton(
 /**
  * A plugin command as a button with its status text beside it. The button is named by the
  * command's label, disabled while the command is, and `aria-busy` while it runs; the status is
- * a live region. Throws `InkError('UnknownCommand')` for an id no plugin registered.
+ * a live region. A command without an icon shows its label as the button's text. Throws
+ * `InkError('UnknownCommand')` for an id no plugin registered.
  */
 export function createCommandButton(viewer: Viewer, id: string): HTMLElement {
   const command = viewer.commands.get(id)
   if (!command)
     throw new InkError('UnknownCommand', `No plugin registered a command ${id}`, { id })
   const b = button(command.label, { 'data-command': id }, command.icon)
+  if (!command.icon) b.textContent = command.label
   const status = h('span', { class: 'ink-command-status', role: 'status' })
   b.addEventListener('click', () => void command.run())
   // Enabled follows the command (a ready document by default); busy is its own attribute.

@@ -30,7 +30,7 @@ export const FRAMEWORKS: Record<FrameworkId, Framework> = {
   vanilla: {
     name: 'TypeScript',
     blurb:
-      "No framework. createViewer from @inkbar/core/dom renders the viewer and popovers, and its controls build the toolbars. This page adds Suggest redactions with Inkbar's public API: a button in actions.ts and a review card in suggestion-card.ts.",
+      'No framework. createViewer from @inkbar/core/dom renders the viewer and popovers, and its controls build the toolbars. This page adds Suggest redactions as a plugin, with its button placed by createCommandButton.',
     install: 'pnpm add @inkbar/core @inkbar/theme',
   },
 }

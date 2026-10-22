@@ -1,0 +1,85 @@
+/* The suggestions plugin: dashed marks in the page layer, and the review card. */
+
+/*
+ * A mark sits just outside its text. The layer itself lets presses through to the page; the
+ * mark takes them back, whatever the theme does.
+ */
+.sandbox-suggestion {
+  position: absolute;
+  box-sizing: content-box;
+  margin: -3px;
+  padding: 1px;
+  border: 2px dashed;
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.sandbox-suggestion:hover {
+  background: rgb(0 0 0 / 0.06);
+}
+.sandbox-suggestion:focus-visible {
+  outline: 2px solid var(--ink-ring);
+  outline-offset: 2px;
+}
+
+/* The card is a core popover (data-ink-popover), so the theme gives it its tokens. */
+.sandbox-suggestion-card {
+  z-index: 50;
+  width: 20rem;
+  max-width: calc(100vw - 1rem);
+  padding: 0.75rem;
+  border: 1px solid var(--ink-border);
+  border-radius: var(--ink-radius);
+  background: var(--ink-surface);
+  color: var(--ink-fg);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.15);
+  font-size: 0.875rem;
+}
+.sandbox-suggestion-card[hidden] {
+  display: none;
+}
+.sandbox-suggestion-reason,
+.sandbox-suggestion-explanation {
+  margin: 0;
+}
+.sandbox-suggestion-explanation {
+  margin-top: 0.25rem;
+  color: var(--ink-muted-fg);
+}
+/* The label keeps the body colour for contrast; the confidence colour is the swatch. */
+.sandbox-suggestion-confidence {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+}
+.sandbox-suggestion-swatch {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+}
+.sandbox-suggestion-actions {
+  display: flex;
+  gap: 0.375rem;
+  margin-top: 0.5rem;
+}
+.sandbox-suggestion-actions button {
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--ink-border);
+  border-radius: calc(var(--ink-radius) - 2px);
+  background: var(--ink-surface);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.sandbox-suggestion-actions button:first-child {
+  border-color: var(--ink-accent);
+  background: var(--ink-accent);
+  color: var(--ink-accent-fg);
+}
+.sandbox-suggestion-actions button:focus-visible {
+  outline: 2px solid var(--ink-ring);
+  outline-offset: 2px;
+}

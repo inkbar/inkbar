@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && vue-tsc --noEmit -p tsconfig.json && svelte-check --tsconfig ./tsconfig.svelte.json",
     "lint": "eslint src vite e2e --no-error-on-unmatched-pattern",
-    "test": "node --test \"vite/*.test.ts\" \"src/shared/*.test.ts\"",
+    "test": "node --test \"vite/*.test.ts\" \"src/shared/*.test.ts\" \"src/plugin/*.test.ts\"",
     "test:browser": "playwright test"
   },
   "dependencies": {
