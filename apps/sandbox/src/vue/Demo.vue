@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /*
- * The document keeps its own annotations and undo history. The page owns the form's values
- * (v-model:fields, written out so each change also refreshes the Gloss view) and hears the
- * form's requests (@form-action), which the Form panel lists.
+ * The document keeps its own annotations, form values and undo history, so Undo covers field
+ * edits too. The page follows the form's values (`doc.form.values`) for the Gloss view and
+ * hears the form's requests (@form-action), which the Form panel lists.
  * The toolbars are built from Inkbar's components, so each control is yours to keep, move or
  * drop. Pass a button your own icon to replace the one it shows. Suggest redactions is a
  * plugin (src/plugin/suggestions.ts): registered in `plugins`, with its button placed by
@@ -36,30 +36,30 @@ import {
 } from '@inkbar/vue'
 import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
-import { ref, shallowRef } from 'vue'
+import { ref, shallowRef, watch } from 'vue'
 
 import { suggestionsPlugin } from '../plugin/suggestions'
 import '../plugin/suggestions.css'
 import { glossFields, logAction, type LoggedAction } from '../shared/form'
 import { signatureFonts, signatures } from '../shared/signatures'
 
-import type { DocumentSource, FieldValues, FormAction, InkDocument } from '@inkbar/core'
+import type { DocumentSource, FormAction, InkDocument } from '@inkbar/core'
 
 defineProps<{ source: DocumentSource }>()
 
 const doc = shallowRef<InkDocument | null>(null)
-const fields = shallowRef<FieldValues>({})
 const actions = ref<LoggedAction[]>([])
 const gloss = ref('')
 
+// The Gloss view follows each change to the open document's values.
+watch(doc, (d, _previous, onCleanup) => {
+  if (!d) return
+  gloss.value = glossFields(d)
+  onCleanup(d.form.values.subscribe(() => (gloss.value = glossFields(d))))
+})
+
 function onReady(d: InkDocument): void {
   doc.value = d
-  gloss.value = glossFields(d)
-}
-
-function onFields(next: FieldValues): void {
-  fields.value = next
-  gloss.value = glossFields(doc.value)
 }
 
 function onFormAction(a: FormAction): void {
@@ -74,9 +74,7 @@ function onFormAction(a: FormAction): void {
     :signatures="signatures"
     :signature-fonts="signatureFonts"
     :plugins="[suggestionsPlugin()]"
-    :fields="fields"
     class="demo-root"
-    @update:fields="onFields"
     @form-action="onFormAction"
     @ready="onReady"
   >

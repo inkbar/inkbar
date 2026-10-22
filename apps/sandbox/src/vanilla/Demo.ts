@@ -1,10 +1,12 @@
 /*
  * Inkbar without a framework: createViewer opens the document and renders the viewer and its
- * popovers. The page owns the form's values (`fields`, controlled) and hears the form's
- * requests (`onFormAction`), which the Form panel lists. The toolbars are built from Inkbar's
- * controls, so each one is yours to keep, move or drop, and each button takes your own icon in
- * place of the one it shows. Suggest redactions is a plugin (src/plugin/suggestions.ts):
- * registered in `plugins`, with its button placed by createCommandButton.
+ * popovers. The document keeps its own form values and undo history, so Undo covers field
+ * edits too. The page follows the form's values (`doc.form.values`) for the Gloss view and
+ * hears the form's requests (`onFormAction`), which the Form panel lists. The toolbars are
+ * built from Inkbar's controls, so each one is yours to keep, move or drop, and each button
+ * takes your own icon in place of the one it shows. Suggest redactions is a plugin
+ * (src/plugin/suggestions.ts): registered in `plugins`, with its button placed by
+ * createCommandButton.
  */
 import {
   createColorMenu,
@@ -98,20 +100,21 @@ function formPanel() {
 
 export function mountDemo(el: HTMLElement, source: DocumentSource): () => void {
   const panel = formPanel()
+  /** Stops following the last document's values. */
+  let unfollow = (): void => undefined
   const viewer = createViewer(el, {
     source,
     assets,
     signatures,
     signatureFonts,
     plugins: [suggestionsPlugin()],
-    fields: {
-      mode: 'controlled',
-      initial: {},
-      // The page could store or reject the values here; it shows them as Gloss.
-      onChange: () => panel.gloss(glossFields(viewer.document.get())),
-    },
     onFormAction: (a) => panel.action(a),
-    onReady: (doc) => panel.gloss(glossFields(doc)),
+    // The Gloss view follows each change to the open document's values.
+    onReady: (doc) => {
+      unfollow()
+      panel.gloss(glossFields(doc))
+      unfollow = doc.form.values.subscribe(() => panel.gloss(glossFields(doc)))
+    },
   })
   viewer.element.classList.add('demo-root')
 
@@ -177,5 +180,8 @@ export function mountDemo(el: HTMLElement, source: DocumentSource): () => void {
   viewer.element.querySelector('[data-ink-viewport-root]')?.append(createFindBar(viewer))
   viewer.element.prepend(tools)
   viewer.element.append(status)
-  return () => viewer.destroy()
+  return () => {
+    unfollow()
+    viewer.destroy()
+  }
 }
