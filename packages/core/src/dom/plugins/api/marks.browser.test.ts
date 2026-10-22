@@ -201,6 +201,9 @@ describe('plugin.marks', () => {
     expect(mark.getAttribute('aria-describedby')).toBe('help')
     expect(mark.dataset.record).toBe('a')
     expect(mark.dataset.plugin).toBe('sandbox')
+    // Only a mark with a card opens a popup.
+    expect(mark.hasAttribute('aria-haspopup')).toBe(false)
+    expect(mark.hasAttribute('aria-expanded')).toBe(false)
 
     findings.update('a', { reason: 'Other' })
     mark = markFor('a')!
@@ -220,6 +223,35 @@ describe('plugin.marks', () => {
     mark = markFor('a')!
     expect(mark.style.getPropertyValue('--x')).toBe('')
     expect(mark.style.borderColor).toBe('')
+  })
+
+  it("the plugin's style and attrs can't change the mark's type, position, style or class", async () => {
+    const { markFor } = await setup([finding('a', 0)], {
+      className: 'sandbox-finding',
+      style: () => ({ position: 'static', borderColor: 'red' }),
+      attrs: () => ({
+        type: 'submit',
+        class: 'spoofed',
+        style: 'color: blue',
+        'data-reason': 'kept',
+      }),
+    })
+    const mark = markFor('a')!
+    expect(mark.type).toBe('button')
+    expect(mark.style.position).toBe('absolute')
+    expect(mark.className).toBe('sandbox-finding')
+    expect(mark.style.color).toBe('')
+    expect(mark.style.borderColor).toBe('red')
+    expect(mark.dataset.reason).toBe('kept')
+  })
+
+  it('drops a style property the plugin no longer asks for', async () => {
+    const { findings, markFor } = await setup([finding('a', 0)], {
+      style: (f) => (f.reason === 'Reason a' ? { borderColor: 'red' } : {}),
+    })
+    expect(markFor('a')!.style.borderColor).toBe('red')
+    findings.update('a', { reason: 'Other' })
+    expect(markFor('a')!.style.borderColor).toBe('')
   })
 
   it("a record on a page that isn't mounted, or beyond the page count, draws nothing and doesn't throw", async () => {

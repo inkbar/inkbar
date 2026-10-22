@@ -1419,6 +1419,72 @@
     color: var(--ink-accent-fg);
   }
 
+  /* Plugin cards: the card a plugin mark opens, a core popover like the thread's. */
+  :where(.ink-card) {
+    z-index: 50;
+    width: 20rem;
+    max-width: calc(100vw - 1rem);
+    padding: 0.75rem;
+    border: 1px solid var(--ink-border);
+    border-radius: var(--ink-radius);
+    background: var(--ink-surface);
+    color: var(--ink-fg);
+    box-shadow: 0 8px 24px rgb(0 0 0 / 0.15);
+    font-size: 0.875rem;
+  }
+
+  :where(.ink-card-title, .ink-card-meta, .ink-card-body) {
+    margin: 0;
+  }
+
+  :where(.ink-card-title) {
+    font-weight: 600;
+  }
+
+  /* The meta line keeps the body colour for contrast; any colour of its own is the swatch. */
+  :where(.ink-card-meta) {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin-top: 0.125rem;
+    font-size: 0.75rem;
+  }
+
+  :where(.ink-card-swatch) {
+    flex: none;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+  }
+
+  :where(.ink-card-body) {
+    margin-top: 0.25rem;
+    color: var(--ink-muted-fg);
+  }
+
+  :where(.ink-card-actions) {
+    display: flex;
+    gap: 0.375rem;
+    margin-top: 0.5rem;
+  }
+
+  :where(.ink-card-actions button) {
+    padding: 0.375rem 0.75rem;
+    border: 1px solid var(--ink-border);
+    border-radius: calc(var(--ink-radius) - 2px);
+    background: var(--ink-surface);
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  /* The first action is the primary one. */
+  :where(.ink-card-actions button:first-child) {
+    border-color: var(--ink-accent);
+    background: var(--ink-accent);
+    color: var(--ink-accent-fg);
+  }
+
   :where(.ink-select-item:focus-visible) {
     outline: none;
   }
@@ -1434,7 +1500,8 @@
     .ink-select-trigger:focus-visible,
     .ink-toolbar input:focus-visible,
     .ink-thread-actions button:focus-visible,
-    .ink-thread-reply textarea:focus-visible
+    .ink-thread-reply textarea:focus-visible,
+    .ink-card-actions button:focus-visible
   ) {
     outline: 2px solid var(--ink-ring);
     outline-offset: 2px;
