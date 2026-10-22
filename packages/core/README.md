@@ -257,6 +257,13 @@ Pass it to the viewer in `plugins: [suggestions]`. Nothing a plugin registers sh
 
 A command is disabled until a document is ready, unless it passes its own `enabled` readable, and it is busy, and disabled, until the promise `run` returns settles. A failed run is logged, never thrown. `ctx.store(name)` gives each document its own record store, keyed `<plugin>.<name>`, and its changes undo with annotation edits; `ctx.onAnnotationEdit(fn)` runs inside each user edit's undo step. `ctx.history.batch(fn)` makes everything `fn` changes, annotations and records alike, one undo step. Inkbar keeps no plugin data: load it with `initial(doc)` and save it from `onChange`.
 
+### Plugin authors
+
+- Marks you draw in a layer (`ctx.layer`) take presses only with `@inkbar/theme` loaded: it lets presses through the layer and gives the layer's children `pointer-events: auto`. Without the theme, set that yourself.
+- Presses on a mark bubble up to the viewer's root. Stop propagation if listeners there shouldn't see them.
+- A layer's `destroy` can run after the document's stores have closed, so check `store.get()` for `null` there.
+- Keep `setup` free of side effects. A framework package can run it while rendering on the server, where its cleanup never runs. Start timers and listeners in `onDocument`.
+
 ## Signatures
 
 A signature here is a mark on the page, not a cryptographic signature of the file. Draw one, type your name in a handwriting font, or upload a scan, and it is saved as a template. The `signature` tool places the chosen template: a click puts it about 150 pt wide, centred on the press, and `Enter` puts it at the centre of the current page. It is turned against the page's `/Rotate`, so it reads upright on the page; a view rotation turns it with the page. A drawn signature becomes `ink` and the others a `stamp` (an image), both with `subject: 'Signature'`. Both keep their aspect ratio when resized.
