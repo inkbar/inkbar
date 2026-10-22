@@ -124,3 +124,29 @@ test('searching a 300-page document keeps the main thread responsive', async ({
   report('longest task', { ms: Math.round(longest) })
   if (!process.env.CI) expect(longest).toBeLessThanOrEqual(200)
 })
+
+test('a one-letter search of a 300-page document keeps the main thread responsive', async ({
+  page,
+}) => {
+  test.setTimeout(120_000)
+  await page.goto('/?large=300')
+  await waitForFirstPage(page, 60_000)
+  await page.evaluate(() => {
+    const w = window as unknown as { __longTasks: number[] }
+    w.__longTasks = []
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) w.__longTasks.push(entry.duration)
+    }).observe({ type: 'longtask', buffered: false })
+  })
+
+  await findButton(page).click()
+  // Thousands of hits: every page has a score of them.
+  await page.keyboard.type('e')
+  await expect(count(page)).toHaveText(/^1 of \d{4,}$/, { timeout: 60_000 })
+
+  const longest = await page.evaluate(() =>
+    Math.max(0, ...(window as unknown as { __longTasks: number[] }).__longTasks)
+  )
+  report('longest task, one letter', { ms: Math.round(longest) })
+  if (!process.env.CI) expect(longest).toBeLessThanOrEqual(200)
+})
