@@ -1,0 +1,57 @@
+packages/core/src/dom/form-order.ts
+  s_e6109f66fbb4ed::t_57a7b0d2a37912 1-14,24-38,41-73,78-91,100-117
+  s_e6109f66fbb4ed::t_b83d10f964e991 15-23,92-94
+  s_e6109f66fbb4ed::t_77426dd7dbbb65 39-40,74-77,95-99
+packages/core/src/dom/form-order.test.ts
+  s_e6109f66fbb4ed::t_75b8a151644aee 1-24,44-102
+  s_e6109f66fbb4ed::t_77426dd7dbbb65 25-43
+packages/core/src/dom/page-renderer.ts
+  s_e6109f66fbb4ed::t_b435b066f0506e 26-28,30,128-133
+packages/core/src/model/form/structure.ts
+  s_e6109f66fbb4ed::t_b435b066f0506e 123-124
+packages/core/src/model/document.ts
+  s_e6109f66fbb4ed::t_b435b066f0506e 255
+packages/core/src/pdfjs/widget-states.ts
+  s_e6109f66fbb4ed::t_3e14e19c4f5920 1-14
+packages/core/src/dom/viewer-engine.ts
+  s_e6109f66fbb4ed::t_b435b066f0506e 15-16,40,247,276-333,516
+packages/core/src/model/form/types.ts
+  s_e6109f66fbb4ed::t_b435b066f0506e 58-59
+packages/core/src/dom/form-layer.browser.test.ts
+  s_e6109f66fbb4ed::t_77426dd7dbbb65 5-6,9,14-15,134-136,595-797,811-836,839-1016
+  s_e6109f66fbb4ed::t_dba5f5fe581fab 798-810
+  s_e6109f66fbb4ed::t_207a29b37c0e9f 356-357,433
+  s_e6109f66fbb4ed::t_d76cc34dfec0b0 837-838
+  s_e6109f66fbb4ed::t_0f09b9282f3126 1017
+packages/core/src/dom/form-choice.ts
+  s_e6109f66fbb4ed::t_e4ed26df12ba97 15,17-18,202,251-255,259
+  s_e6109f66fbb4ed::t_b05765856b6292 1-14,16,19-201,203-250,256-258,260-292
+packages/core/src/dom/form-layer.ts
+  s_e6109f66fbb4ed::t_b435b066f0506e 18-25,27,29-31,91-92,132-133,148-152,163-173,176-177,217-218,220,237-257,268,367-372,380,384-392,421-422,435,467-471
+  s_e6109f66fbb4ed::t_22c53c722b77f0 472
+packages/core/src/model/form/controller.ts
+  s_e6109f66fbb4ed::t_b435b066f0506e 109-110,112-115,182,340-343,345,528-529
+  s_e6109f66fbb4ed::t_7ea8fffcbafb31 530
+packages/core/src/model/form/structure.test.ts
+  s_e6109f66fbb4ed::t_dba5f5fe581fab 136-142
+packages/core/src/dom/form-button.ts
+  s_e6109f66fbb4ed::t_562216eb6e8385 1-44
+packages/core/src/dom/form-text.ts
+  s_e6109f66fbb4ed::t_b435b066f0506e 9-11,20,32,41,84-93,96,118-133,271,278-282,379
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "88cd77e45c47e469e24b498864bc8030dc6a1cc4",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
