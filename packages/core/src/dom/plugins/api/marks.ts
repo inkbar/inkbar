@@ -32,12 +32,14 @@ export interface MarksOptions<T extends RecordBase & { page: number }> {
   className?: string
   /**
    * More attributes (`data-*`, `aria-*`). `data-record`, `data-plugin` and `aria-label` stay
-   * core's; `style`, `class` and `type` are skipped (use `style` and `className`).
+   * core's, and so do `aria-haspopup` and `aria-expanded` on a mark with a card; `style`,
+   * `class` and `type` are skipped (use `style` and `className`).
    */
   attrs?(record: T): Record<string, string>
   /**
    * The card a mark opens when activated: a popover next to it, styled by the theme. Each
-   * action is one undo step.
+   * action is one undo step. The mark gets `aria-haspopup="dialog"`, and `aria-expanded` true
+   * while its card is open.
    */
   card?(record: T): CardSpec
   /** Runs when the mark is clicked, or activated with Enter or Space, after `card` opens. */
@@ -123,6 +125,10 @@ export function createMarks<T extends RecordBase & { page: number }>(
     mark.dataset.record = record.id
     mark.dataset.plugin = ctx.id
     mark.setAttribute('aria-label', opts.label(record))
+    if (card) {
+      mark.setAttribute('aria-haspopup', 'dialog')
+      mark.setAttribute('aria-expanded', String(card.expanded(mark)))
+    }
     const r = transform.toCssRect(opts.rect(record))
     mark.style.left = `${r.left}px`
     mark.style.top = `${r.top}px`

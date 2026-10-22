@@ -227,6 +227,36 @@ describe('plugin.marks card', () => {
     await until(() => document.activeElement === mark)
   })
 
+  it('a mark with a card has aria-haspopup="dialog", and aria-expanded true while its card is open', async () => {
+    const { markFor } = await setup([finding('a'), finding('b', 300)])
+    const a = markFor('a')!
+    const b = markFor('b')!
+    for (const mark of [a, b]) {
+      expect(mark.getAttribute('aria-haspopup')).toBe('dialog')
+      expect(mark.getAttribute('aria-expanded')).toBe('false')
+    }
+    await userEvent.click(a)
+    expect(a.getAttribute('aria-expanded')).toBe('true')
+    expect(b.getAttribute('aria-expanded')).toBe('false')
+    await userEvent.keyboard('{Escape}')
+    expect(a.getAttribute('aria-expanded')).toBe('false')
+
+    await userEvent.click(b)
+    expect(b.getAttribute('aria-expanded')).toBe('true')
+    // Keep renames the record: the mark redraws and its card stays open.
+    await userEvent.click(actionsOf(openCard()!)[1]!)
+    expect(markFor('b')!.getAttribute('aria-expanded')).toBe('true')
+    // Close removes the mark; the card closes and focus moves to `a`.
+    await userEvent.click(actionsOf(openCard()!)[0]!)
+    expect(document.activeElement).toBe(a)
+    expect(a.getAttribute('aria-expanded')).toBe('false')
+
+    await userEvent.click(a)
+    expect(a.getAttribute('aria-expanded')).toBe('true')
+    document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+    expect(a.getAttribute('aria-expanded')).toBe('false')
+  })
+
   it('label names the dialog; it defaults to title', async () => {
     const { findings, markFor } = await setup([finding('a')], (f) => ({
       title: f.reason,

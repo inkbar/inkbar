@@ -201,6 +201,9 @@ describe('plugin.marks', () => {
     expect(mark.getAttribute('aria-describedby')).toBe('help')
     expect(mark.dataset.record).toBe('a')
     expect(mark.dataset.plugin).toBe('sandbox')
+    // Only a mark with a card opens a popup.
+    expect(mark.hasAttribute('aria-haspopup')).toBe(false)
+    expect(mark.hasAttribute('aria-expanded')).toBe(false)
 
     findings.update('a', { reason: 'Other' })
     mark = markFor('a')!

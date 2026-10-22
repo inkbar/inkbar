@@ -26,8 +26,10 @@ export interface CardSpec {
   /** Text under the meta line (`.ink-card-body`). */
   body?: string
   /**
-   * One button per key, in order, the first taking focus on open (`.ink-card-actions`). Each
-   * action is one undo step.
+   * One button per key, in order (`.ink-card-actions`). The first takes focus on open and is
+   * styled as the primary action. Each action runs synchronously in one undo step: writes after
+   * an `await` fall outside it. When an action removes the mark, focus moves to the next of this
+   * `marks()` handle's marks, else the previous, else the viewport.
    */
   actions: Record<string, () => void>
   /** Classes added to the card. */
@@ -46,6 +48,8 @@ export interface CardOptions<T extends RecordBase> {
 export interface Card<T extends RecordBase> {
   /** Shows `record`'s card next to `mark`, focusing its first action. */
   open(record: T, mark: HTMLElement): void
+  /** Whether the card is open on `mark`, for its `aria-expanded`. */
+  expanded(mark: HTMLElement): boolean
 }
 
 function el(tag: string, className: string, ...children: (Node | string)[]): HTMLElement {
@@ -67,6 +71,14 @@ export function createCard<T extends RecordBase>(
   let shown: string | null = null
   /** Set while an action runs: the action decides what happens after it. */
   let acting = false
+  /** The mark whose card is open: its `aria-expanded` is true. */
+  let expanded: HTMLElement | null = null
+
+  const expand = (mark: HTMLElement | null) => {
+    expanded?.setAttribute('aria-expanded', 'false')
+    expanded = mark
+    mark?.setAttribute('aria-expanded', 'true')
+  }
 
   /** The shown record as it stands now, while it still has a mark. */
   const current = (): T | undefined => {
@@ -76,6 +88,7 @@ export function createCard<T extends RecordBase>(
 
   const close = () => {
     shown = null
+    expand(null)
     popover?.hide()
   }
 
@@ -144,6 +157,7 @@ export function createCard<T extends RecordBase>(
     return () => {
       stop()
       shown = null
+      expand(null)
       popover?.destroy()
       popover = null
       root = null
@@ -167,7 +181,9 @@ export function createCard<T extends RecordBase>(
       shown = record.id
       render(record)
       popover!.showAt(mark)
+      expand(mark)
       popover!.panel.querySelector<HTMLElement>('.ink-card-actions > button')?.focus()
     },
+    expanded: (mark) => mark === expanded,
   }
 }
