@@ -1,8 +1,8 @@
 /*
  * A plugin command as a toolbar button with its status beside it: the markup of core's
  * `createCommandButton`, so the theme styles both alike. The button is named by the command's
- * label, disabled while the command is, and `aria-busy` while it runs; the status is a live
- * region. A command without an icon shows its label as the button's text. Until the plugins
+ * label and disabled while the command is, except while it runs: then it keeps focus, with
+ * `aria-busy` and `aria-disabled`, and a press does nothing. The status is a live region. A command without an icon shows its label as the button's text. Until the plugins
  * are set up (once InkRoot has mounted; never on the server) the button is disabled and
  * `aria-hidden`. An id no plugin registered stays that way and logs `InkError('UnknownCommand')`
  * to the console once.
@@ -46,8 +46,10 @@ export function InkCommand({
         title={label || undefined}
         aria-hidden={label ? undefined : true}
         aria-busy={busy}
+        // Disabled while it runs, but not `disabled`, so the button keeps focus.
+        aria-disabled={busy || undefined}
         {...rest}
-        disabled={disabled === true || !enabled}
+        disabled={disabled === true || (!enabled && !busy)}
         onClick={(e) => {
           onClick?.(e)
           if (!e.defaultPrevented) void run()

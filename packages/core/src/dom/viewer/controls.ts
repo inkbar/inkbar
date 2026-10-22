@@ -200,8 +200,8 @@ export function createToolButton(
 
 /**
  * A plugin command as a button with its status text beside it. The button is named by the
- * command's label, disabled while the command is, and `aria-busy` while it runs; the status is
- * a live region. A command without an icon shows its label as the button's text. For an id no
+ * command's label and disabled while the command is, except while it runs: then it keeps focus,
+ * with `aria-busy` and `aria-disabled`, and a press does nothing. The status is a live region. A command without an icon shows its label as the button's text. For an id no
  * plugin registered it logs `InkError('UnknownCommand')` to the console and returns the same
  * markup disabled, `aria-hidden` and unnamed.
  */
@@ -221,13 +221,18 @@ export function createCommandButton(viewer: Viewer, id: string): HTMLElement {
   const b = button(command.label, { 'data-command': id }, command.icon)
   if (!command.icon) b.textContent = command.label
   b.addEventListener('click', () => void command.run())
-  // Enabled follows the command (a ready document by default); busy is its own attribute.
-  command.enabled.subscribe((on) => {
-    b.disabled = !on
-  })
-  b.disabled = !command.enabled.get()
-  command.busy.subscribe((on) => b.setAttribute('aria-busy', String(on)))
-  b.setAttribute('aria-busy', String(command.busy.get()))
+  // Enabled follows the command (a ready document by default). A busy command is disabled too,
+  // but its button stays enabled so focus stays on it; `run` does nothing meanwhile.
+  const sync = () => {
+    const busy = command.busy.get()
+    b.disabled = !command.enabled.get() && !busy
+    b.setAttribute('aria-busy', String(busy))
+    if (busy) b.setAttribute('aria-disabled', 'true')
+    else b.removeAttribute('aria-disabled')
+  }
+  command.enabled.subscribe(sync)
+  command.busy.subscribe(sync)
+  sync()
   command.status.subscribe((text) => {
     status.textContent = text
   })
