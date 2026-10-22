@@ -34,11 +34,15 @@ describe('InkCommand', () => {
     await expect.poll(disabled(button)).toBe(false)
     await click(button)
     await expect.poll(attr(button, 'aria-busy')).toBe('true')
-    expect(disabled(button)()).toBe(true)
+    // Disabled for assistive tech, but not natively, so focus stays on it.
+    expect(attr(button, 'aria-disabled')()).toBe('true')
+    expect(disabled(button)()).toBe(false)
+    expect(document.activeElement).toBe(document.querySelector(button))
     await expect.poll(text(status)).toBe('Working')
     await click('[data-testid="finish"]')
     await expect.poll(attr(button, 'aria-busy')).toBe('false')
     await expect.poll(disabled(button)).toBe(false)
+    expect(attr(button, 'aria-disabled')()).toBeNull()
     await expect.poll(text(status)).toBe('Done')
     // useCommand hands a host the same command.
     expect(attr(PROBE, 'data-accept-label')()).toBe('Accept')

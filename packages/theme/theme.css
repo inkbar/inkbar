@@ -629,9 +629,13 @@
     background: color-mix(in srgb, var(--ink-fg) 8%, transparent);
   }
 
-  :where(.ink-command button:disabled) {
+  :where(.ink-command button:disabled, .ink-command button[aria-disabled='true']) {
     opacity: 0.5;
     cursor: default;
+  }
+
+  :where(.ink-command button[aria-busy='true']) {
+    cursor: progress;
   }
 
   :where(.ink-command button:focus-visible) {
