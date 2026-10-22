@@ -189,6 +189,10 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
   const decorate: DecorateAnnotation = plugins
     ? (a) => plugins.decorate(a)
     : (a) => opts.decorateAnnotation?.(a)
+  /** A plugin's `ctx.redecorate()` reaches every page this engine has mounted. */
+  const stopRedecorate = plugins?.watchRedecorate(() => {
+    for (const mount of pages.values()) mount.overlay.redecorate()
+  })
   /** Option values outlive rebuilds: every controller shares this registry. */
   const toolOptions = opts.toolOptions ?? createToolOptions()
   /** Without a host style, the engine's own follows the active tool across rebuilds. */
@@ -427,6 +431,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       destroyed = true
       teardown()
       layers?.destroy()
+      stopRedecorate?.()
     },
   }
 }

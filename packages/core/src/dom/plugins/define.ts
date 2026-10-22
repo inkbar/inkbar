@@ -95,6 +95,11 @@ export interface PluginContext {
   /** Composed after the host's own decoration and earlier plugins'; earlier ones win per key. */
   decorate(fn: DecorateAnnotation): void
   /**
+   * Runs every decoration again for the open document's annotations. Decorations re-apply when
+   * the annotations change; call this when one reads state of your own that changed instead.
+   */
+  redecorate(): void
+  /**
    * A record store keyed `<plugin>.<name>`, created for each document that opens and tracked by
    * its history; null while no document is open. Inkbar keeps no plugin data: pass `initial`
    * and `onChange` to load and save it.

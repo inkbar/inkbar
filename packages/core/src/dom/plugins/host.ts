@@ -48,6 +48,8 @@ export interface PluginHost extends LayerSource {
   decorate: DecorateAnnotation
   /** Every layer added so far; `watchLayers` reports the ones added later and invalidates. */
   readonly layers: readonly PluginLayer[]
+  /** Calls `listener` on every `ctx.redecorate()`; returns a stop function. */
+  watchRedecorate(listener: () => void): () => void
   destroy(): void
 }
 
@@ -146,6 +148,7 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
   const documentFns: ((doc: InkDocument) => void | (() => void))[] = []
   const editFns: ((edit: AnnotationEdit) => void)[] = []
   const setupCleanups: (() => void)[] = []
+  const redecorators = new Set<() => void>()
   let opened: Opened | null = null
   let destroyed = false
 
@@ -209,6 +212,9 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
       },
       decorate(fn) {
         decorators.push(fn)
+      },
+      redecorate() {
+        for (const listener of [...redecorators]) listener()
       },
       store<T extends RecordBase>(name: string, storeOpts: PluginStoreOptions<T> = {}) {
         const key = `${plugin.id}.${name}`
@@ -281,6 +287,14 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
     },
     layers: layers.layers,
     watchLayers: (listener) => layers.watchLayers(listener),
+    watchRedecorate(listener) {
+      // Wrapped, so the same listener added twice runs twice and each stop removes its own.
+      const run = () => listener()
+      redecorators.add(run)
+      return () => {
+        redecorators.delete(run)
+      }
+    },
     destroy() {
       if (destroyed) return
       destroyed = true
