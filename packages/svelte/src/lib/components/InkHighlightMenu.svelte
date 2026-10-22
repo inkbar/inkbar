@@ -19,12 +19,10 @@
 
 <script lang="ts">
   import {
-    focusInitialMenuItem,
     handleMenuKeys,
     highlightMenuModel,
     MARKUP_ICONS,
     MARKUP_KINDS,
-    menuItems,
     type HighlightOptions,
     type MarkupKind,
   } from '@inkbar/core/dom'
@@ -37,6 +35,7 @@
 
   import InkColorMenu from './InkColorMenu.svelte'
   import InkIcon from './InkIcon.svelte'
+  import { createMenuOpenFocus } from './menu-open-focus.js'
 
   let { class: className, children, ...rest }: InkHighlightMenuProps = $props()
 
@@ -55,15 +54,14 @@
   let menu = $state<HTMLElement | null>(null)
 
   /** ArrowDown opens on the first item; a click opens on the checked one. */
-  let focusFirst = false
-  // Bits runs the open-focus callback more than once, so the flag outlives it; reset on close.
+  const openFocus = createMenuOpenFocus()
   $effect(() => {
-    if (!open) focusFirst = false
+    if (!open) openFocus.reset()
   })
   function onTriggerKeydown(e: KeyboardEvent): void {
     if (e.key !== 'ArrowDown' || e.defaultPrevented || open) return
     e.preventDefault()
-    focusFirst = true
+    openFocus.first()
     open = true
   }
 
@@ -128,13 +126,8 @@
         align="start"
         sideOffset={4}
         collisionPadding={8}
-        onOpenAutoFocus={(e) => {
-          e.preventDefault()
-          if (menu) {
-            if (focusFirst) menuItems(menu)[0]?.focus({ preventScroll: true })
-            else focusInitialMenuItem(menu)
-          }
-        }}
+        onOpenAutoFocus={(e) => openFocus.onOpenAutoFocus(e, menu)}
+        onfocusin={openFocus.onfocusin}
         onkeydowncapture={(e: KeyboardEvent) => menu && handleMenuKeys(e, menu)}
       >
         <div role="group" aria-label="Kinds" class="ink-highlight-kinds">

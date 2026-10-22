@@ -212,6 +212,8 @@ test('the zoom select opens from the keyboard', async ({ mount, page }) => {
   await page.keyboard.press('Enter')
   await expect(page.getByRole('option', { name: '100%' })).toBeFocused()
   await page.keyboard.press('ArrowDown')
+  // The select moves focus a task after the key, so Enter must wait for it.
+  await expect(page.getByRole('option', { name: '125%' })).toBeFocused()
   await page.keyboard.press('Enter')
   await expect(select).toHaveText('125%')
   await expect(select).toBeFocused()
