@@ -1,4 +1,5 @@
 <script lang="ts">
+  import InkCommand from '../../lib/components/InkCommand.svelte'
   import InkNextPage from '../../lib/components/InkNextPage.svelte'
   import InkPageCount from '../../lib/components/InkPageCount.svelte'
   import InkPageInput from '../../lib/components/InkPageInput.svelte'
@@ -13,14 +14,17 @@
   import InkZoomSelect from '../../lib/components/InkZoomSelect.svelte'
 
   import type { PdfAssets } from '@inkbar/core'
+  import type { InkPlugin } from '@inkbar/core/dom'
 
-  let { assets }: { assets: PdfAssets } = $props()
+  let { assets, plugins }: { assets: PdfAssets; plugins?: InkPlugin[] | undefined } =
+    $props()
 </script>
 
-<InkRoot src="/doc.pdf" {assets}>
+<InkRoot src="/doc.pdf" {assets} {plugins}>
   <p>slot</p>
   <InkToolbar>
     <InkToolButton tool="highlight" />
+    <InkCommand id="sandbox.ping" />
   </InkToolbar>
   <InkViewport />
   <InkToolbar label="Page and zoom">

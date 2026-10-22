@@ -1,6 +1,7 @@
 import { browserAssets, fixtureUrl } from '@inkbar/fixtures/urls'
 import { flushSync } from 'svelte'
 import { describe, expect, it } from 'vitest'
+import { page as browserPage } from 'vitest/browser'
 import { render } from 'vitest-browser-svelte'
 
 import InkRoot from '../lib/components/InkRoot.svelte'
@@ -10,6 +11,7 @@ import { attr, count, gateFetch, q, sleep } from './dom.js'
 import BoundHost from './harness/BoundHost.svelte'
 import ControlledHost from './harness/ControlledHost.svelte'
 import EventHost from './harness/EventHost.svelte'
+import PluginHarness from './harness/PluginHarness.svelte'
 import ToolbarHarness from './harness/ToolbarHarness.svelte'
 import UnboundHost from './harness/UnboundHost.svelte'
 import UncontrolledHost from './harness/UncontrolledHost.svelte'
@@ -621,5 +623,90 @@ describe('InkRoot', () => {
       .toBe('true')
     expect(count('[data-annotation]')()).toBe(1)
     expect(tools).toEqual(['select-text'])
+  })
+
+  describe('plugins', () => {
+    const PROBE = '[data-testid="probe"]'
+    const click = async (selector: string) =>
+      browserPage.elementLocator(await q(selector)).click()
+    const hostCount = () =>
+      document.querySelector('[data-testid="host-count"]')?.textContent
+
+    // React: 'accept then undo restores both stores, uncontrolled'
+    it('accept then undo restores both stores, uncontrolled', async () => {
+      await render(PluginHarness, { src: fixtureUrl('text-simple'), assets })
+      await expect.poll(attr('[data-ink-root]', 'data-state')).toBe('ready')
+      await expect.poll(attr(PROBE, 'data-marks')).toBe('suggested')
+      await click('button[data-command="sandbox.accept"]')
+      await expect.poll(attr(PROBE, 'data-marks')).toBe('accepted')
+      await expect.poll(attr(PROBE, 'data-annotations')).toBe('1')
+      await click('[data-ink-undo]')
+      await expect.poll(attr(PROBE, 'data-marks')).toBe('suggested')
+      await expect.poll(attr(PROBE, 'data-annotations')).toBe('0')
+      await click('[data-ink-redo]')
+      await expect.poll(attr(PROBE, 'data-marks')).toBe('accepted')
+      await expect.poll(attr(PROBE, 'data-annotations')).toBe('1')
+    })
+
+    // React: 'accept then undo restores both stores, controlled with history'
+    it('accept then undo restores both stores, controlled with history', async () => {
+      await render(PluginHarness, {
+        src: fixtureUrl('text-simple'),
+        assets,
+        controlled: true,
+        history: true,
+      })
+      await expect.poll(attr('[data-ink-root]', 'data-state')).toBe('ready')
+      await click('button[data-command="sandbox.accept"]')
+      await expect.poll(hostCount).toBe('1')
+      await expect.poll(attr(PROBE, 'data-marks')).toBe('accepted')
+      await expect.poll(attr(PROBE, 'data-can-undo')).toBe('true')
+      await click('[data-ink-undo]')
+      await expect.poll(hostCount).toBe('0')
+      await expect.poll(attr(PROBE, 'data-marks')).toBe('suggested')
+      await expect.poll(attr(PROBE, 'data-can-undo')).toBe('false')
+      await click('[data-ink-redo]')
+      await expect.poll(hostCount).toBe('1')
+      await expect.poll(attr(PROBE, 'data-marks')).toBe('accepted')
+    })
+
+    // React: 'deleting a reacted annotation under a controlled host is one undo step'
+    it('deleting a reacted annotation under a controlled host is one undo step', async () => {
+      await render(PluginHarness, {
+        src: fixtureUrl('text-simple'),
+        assets,
+        controlled: true,
+        history: true,
+      })
+      await expect.poll(attr('[data-ink-root]', 'data-state')).toBe('ready')
+      await click('button[data-command="sandbox.accept"]')
+      await expect.poll(hostCount).toBe('1')
+      await expect.poll(attr(PROBE, 'data-marks')).toBe('accepted')
+      // The reaction puts the mark back in the delete's own step.
+      await click('[data-testid="remove"]')
+      await expect.poll(hostCount).toBe('0')
+      await expect.poll(attr(PROBE, 'data-marks')).toBe('suggested')
+      await click('[data-ink-undo]')
+      await expect.poll(hostCount).toBe('1')
+      await expect.poll(attr(PROBE, 'data-marks')).toBe('accepted')
+      // One more undo takes back the accept: the delete was one step, not two.
+      await click('[data-ink-undo]')
+      await expect.poll(hostCount).toBe('0')
+      await expect.poll(attr(PROBE, 'data-marks')).toBe('suggested')
+      await expect.poll(attr(PROBE, 'data-can-undo')).toBe('false')
+    })
+
+    it('unmounting tears down the plugin layers before the plugins', async () => {
+      const log: string[] = []
+      const screen = await render(PluginHarness, {
+        src: fixtureUrl('text-simple'),
+        assets,
+        log,
+      })
+      await expect.poll(attr('[data-ink-root]', 'data-state')).toBe('ready')
+      await q('.ink-page[data-page="0"]')
+      await screen.unmount()
+      await expect.poll(() => log).toEqual(['layer destroyed', 'plugin cleaned up'])
+    })
   })
 })

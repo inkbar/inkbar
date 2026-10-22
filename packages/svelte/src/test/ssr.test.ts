@@ -54,18 +54,29 @@ describe('@inkbar/svelte on the server', () => {
         'usePage',
         'useHistory',
         'useEmbedded',
+        'InkCommand',
+        'useCommand',
       ])
     )
     expect(evaluated.pdfjs).toBe(false)
 
     const { default: SsrHost } = await import('./harness/SsrHost.svelte')
-    const { body } = render(SsrHost, { props: { assets } })
+    // A plugin is set up on the server too (it touches no DOM), so its commands render.
+    const { definePlugin } = await import('@inkbar/core/dom')
+    const plugin = definePlugin({
+      id: 'sandbox',
+      setup(ctx) {
+        ctx.commands.add({ id: 'ping', label: 'Ping', run: () => undefined })
+      },
+    })
+    const { body } = render(SsrHost, { props: { assets, plugins: [plugin] } })
     expect(body).toContain('data-ink-root')
     expect(body).toContain('data-state="idle"')
     expect(body).toContain('<p>slot</p>')
     expect(body).toContain('data-ink-toolbar')
     expect(body).toContain('aria-label="Document tools"')
     expect(body).toContain('aria-label="Page and zoom"')
+    expect(body).toContain('data-command="sandbox.ping"')
     expect(body).toContain('data-ink-viewport-root')
     // Once on the root and once on the viewport, which renders its empty scroll element.
     expect(body.match(/data-state="idle"/g)).toHaveLength(2)

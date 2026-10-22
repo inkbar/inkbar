@@ -9,7 +9,11 @@ export type {
   AnnotationState,
   ThreadPopoverSlotProps,
 } from '@inkbar/core/dom'
-export type { AnnotationDecoration, DecorateAnnotation } from '@inkbar/core/dom'
+export type {
+  AnnotationDecoration,
+  DecorateAnnotation,
+  InkPlugin,
+} from '@inkbar/core/dom'
 export { useDocument } from './hooks/useDocument.svelte.js'
 export { useAnnotations } from './hooks/useAnnotations.svelte.js'
 export { useTool } from './hooks/useTool.svelte.js'
@@ -25,6 +29,8 @@ export { useZoom } from './hooks/useZoom.svelte.js'
 export { usePage } from './hooks/usePage.svelte.js'
 export { useHistory } from './hooks/useHistory.svelte.js'
 export { useEmbedded } from './hooks/useEmbedded.svelte.js'
+export { useCommand } from './hooks/useCommand.svelte.js'
+export type { CommandHandle } from './hooks/useCommand.svelte.js'
 export { default as InkRoot } from './components/InkRoot.svelte'
 export type { InkRootProps } from './components/InkRoot.svelte'
 export type InkRootHandle = ReturnType<typeof InkRootComponent>
@@ -40,6 +46,8 @@ export { default as InkIcon } from './components/InkIcon.svelte'
 export type { InkIconProps } from './components/InkIcon.svelte'
 export { default as InkToolButton } from './components/InkToolButton.svelte'
 export type { InkToolButtonProps } from './components/InkToolButton.svelte'
+export { default as InkCommand } from './components/InkCommand.svelte'
+export type { InkCommandProps } from './components/InkCommand.svelte'
 export { default as InkToolbarSeparator } from './components/InkToolbarSeparator.svelte'
 export type { InkToolbarSeparatorProps } from './components/InkToolbarSeparator.svelte'
 export { default as InkUndo } from './components/InkUndo.svelte'
