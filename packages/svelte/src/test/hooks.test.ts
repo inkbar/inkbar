@@ -7,6 +7,7 @@ import { useAnnotations } from '../lib/hooks/useAnnotations.svelte.js'
 import { useCommand } from '../lib/hooks/useCommand.svelte.js'
 import { useDocument } from '../lib/hooks/useDocument.svelte.js'
 import { useEmbedded } from '../lib/hooks/useEmbedded.svelte.js'
+import { useForm } from '../lib/hooks/useForm.svelte.js'
 import { useHistory } from '../lib/hooks/useHistory.svelte.js'
 import { usePage } from '../lib/hooks/usePage.svelte.js'
 import { useSearch } from '../lib/hooks/useSearch.svelte.js'
@@ -33,6 +34,7 @@ describe('hooks outside InkRoot', () => {
     ['useToolStyle()', useToolStyle],
     ['useToolOptions()', () => useToolOptions('note')],
     ['useCommand()', () => useCommand('sandbox.ping')],
+    ['useForm()', useForm],
   ])('%s throws a readable error', (name, use) => {
     // Outside any component Svelte's own getContext throws; the hook turns that into its message.
     expect(() => use()).toThrow(
