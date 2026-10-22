@@ -1,6 +1,7 @@
 /*
  * A viewer without a framework: opens a document, mounts the engine and renders the note
- * thread popover, with the bindings' markup so `@inkbar/theme` styles it unchanged.
+ * thread popover, the signature menu a signature field opens and the message box a form script
+ * shows, with the bindings' markup so `@inkbar/theme` styles them unchanged.
  * Toolbars are the host's, built from the controls in ./controls.
  */
 import {
@@ -32,9 +33,13 @@ import { createToolOptions } from '../tools'
 import { mountViewer, type MountViewerOptions, type ViewerEngine } from '../viewer-engine'
 
 import { h } from './dom'
+import { createFormAlert } from './form-alert'
+import { createSignFieldMenu, type SignFieldMenu } from './signature-menu'
 import { createThreadPopover } from './thread-popover'
 
 import type { PluginHistory } from '../../model/annotations/history'
+import type { FormController } from '../../model/form/controller'
+import type { FieldsMode } from '../../model/form/types'
 import type { DocumentSource } from '../../model/source'
 import type { PdfAssets } from '../../pdfjs/types'
 import type { Command, InkPlugin } from '../plugins/define'
@@ -56,6 +61,8 @@ export interface CreateViewerOptions extends Omit<
   | 'signatureLibrary'
   | 'plugins'
   | 'search'
+  | 'onSignField'
+  | 'onFormAlert'
 > {
   source: DocumentSource
   assets: PdfAssets
@@ -65,6 +72,12 @@ export interface CreateViewerOptions extends Omit<
   defaults?: AnnotationDefaults
   history?: OpenOptions['history']
   /**
+   * Form field values; defaults to uncontrolled, starting from the PDF's. Controlled:
+   * `{ mode: 'controlled', initial, onChange }`, where `onChange` hears every commit with the
+   * full map and the host pushes back with `viewer.form.get()?.setControlledValue(next)`.
+   */
+  fields?: FieldsMode
+  /**
    * Plugins, set up once for the viewer's life. Their tools join the viewer's tools, their
    * decoration and page layers apply to every document, and their commands are placed with
    * `createCommandButton`.
@@ -73,6 +86,7 @@ export interface CreateViewerOptions extends Omit<
   /** The thread popover for notes and text markup. Default true. */
   threads?: boolean
   onReady?(this: void, doc: InkDocument): void
+  /** The document failed to open, a form script failed, or signing a field was refused. */
   onError?(this: void, error: InkError): void
 }
 
@@ -81,6 +95,8 @@ export interface Viewer {
   readonly element: HTMLElement
   readonly status: Readable<InkStatus>
   readonly document: Readable<InkDocument | null>
+  /** The open document's form (`document.form`) while it is ready; `null` otherwise. */
+  readonly form: Readable<FormController | null>
   /** Set while a document is ready; `null` otherwise. */
   readonly engine: Readable<ViewerEngine | null>
   /**
@@ -130,6 +146,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     password,
     defaults,
     history,
+    fields,
     plugins,
     threads: withThreads = true,
     onReady,
@@ -143,11 +160,21 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     toolStyle: _toolStyle,
     toolOptions: _toolOptions,
     signatureLibrary: _signatureLibrary,
+    onSignField: _onSignField,
+    onFormAlert: _onFormAlert,
     signatures: signatureStore,
     search: _search,
     ...view
   } = opts as CreateViewerOptions &
-    Pick<MountViewerOptions, 'toolStyle' | 'toolOptions' | 'signatureLibrary' | 'search'>
+    Pick<
+      MountViewerOptions,
+      | 'toolStyle'
+      | 'toolOptions'
+      | 'signatureLibrary'
+      | 'search'
+      | 'onSignField'
+      | 'onFormAlert'
+    >
   /** One library for the viewer's life, so templates and the menu outlive each document. */
   const signatures = createSignatureLibrary(
     signatureStore ?? createMemorySignatureStore()
@@ -156,6 +183,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   const toolOptions = createToolOptions()
   const status = writable<InkStatus>({ state: 'idle' })
   const current = writable<InkDocument | null>(null)
+  const form = writable<FormController | null>(null)
   const engine = writable<ViewerEngine | null>(null)
   const viewport = writable<Viewport | null>(null)
   const tools = writable<ToolController | null>(null)
@@ -214,6 +242,9 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     root: () => root,
     activated: () => activated.get(),
   })
+  /** For the viewer's life, like the signature library: the field menu and the script alert. */
+  let signFieldMenu: SignFieldMenu | undefined
+  const formAlert = createFormAlert(root)
 
   let statusEl: HTMLElement | null = null
   function renderStatus(s: InkStatus): void {
@@ -265,6 +296,8 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       errors.get(page)?.remove()
       errors.delete(page)
     }
+    // A failed script leaves the form fillable; its error reaches the host.
+    const stopForm = doc.form.on('error', (error) => onError?.(error))
     const mounted = mountViewer({
       ...view,
       plugins: host,
@@ -273,6 +306,15 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       document: doc,
       toolOptions,
       signatureLibrary: signatures,
+      onFormAlert: (message) => formAlert.show(message),
+      // Pressed after `createViewer` returned, so `viewer` exists by then.
+      onSignField: (req) => {
+        signFieldMenu ??= createSignFieldMenu(viewer, {
+          ...(view.signatureFonts ? { fonts: view.signatureFonts } : {}),
+          onError: (error) => onError?.(error),
+        })
+        signFieldMenu.open(req)
+      },
       onActivate: (id) => {
         activated.set(id)
         onActivate?.(id)
@@ -311,6 +353,9 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     })
     engine.set(mounted)
     return () => {
+      stopForm()
+      signFieldMenu?.close()
+      formAlert.close()
       stopList()
       threads?.destroy()
       activated.set(null)
@@ -331,6 +376,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     stop()
     stop = () => undefined
     const doc = current.get()
+    form.set(null)
     current.set(null)
     doc?.destroy()
   }
@@ -346,6 +392,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       password: openOpts?.password ?? password,
       defaults: defaults ?? cssVariableDefaults(root),
       history,
+      fields,
     }).then(
       (doc) => {
         // A later `open` or `destroy` superseded this load.
@@ -364,6 +411,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
         // engine is set before anyone hears `ready`.
         renderStatus({ state: 'ready' })
         stop = start(doc)
+        form.set(doc.form)
         status.set({ state: 'ready' })
         // A status subscriber may have opened another document already.
         if (load === loads) onReady?.(doc)
@@ -391,6 +439,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     element: root,
     status: readonly(status),
     document: readonly(current),
+    form: readonly(form),
     engine: readonly(engine),
     viewport: readonly(viewport),
     tools: readonly(tools),
@@ -408,6 +457,8 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       close()
       for (const fn of destroyers) fn()
       search.destroy()
+      signFieldMenu?.destroy()
+      formAlert.destroy()
       host.destroy()
       root.remove()
     },

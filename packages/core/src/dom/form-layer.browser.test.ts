@@ -10,6 +10,7 @@ import { mountContainer, nextFrame, openFixtureInBrowser, until } from './test-u
 import { createPageTransform, type PageTransform, type ViewRotation } from './transform'
 import { mountViewer } from './viewer-engine'
 
+import type { SignFieldRequest } from './form-layer'
 import type { InkDocument } from '../model/document'
 import type { FormField, FormWidget } from '../model/form/types'
 import type { Rect } from '../model/geometry'
@@ -40,6 +41,7 @@ interface MountOptions {
   rotation?: ViewRotation
   highlight?: boolean
   active?: () => boolean
+  onSignField?: (req: SignFieldRequest) => void
 }
 
 /** A page of `doc` mounted through `createPageMount`, inside a themed root. */
@@ -57,6 +59,7 @@ function mountPage(doc: InkDocument, o: MountOptions = {}) {
     devicePixelRatio: 1,
     ...(o.highlight === undefined ? {} : { formHighlight: o.highlight }),
     ...(o.active ? { formActive: o.active } : {}),
+    ...(o.onSignField ? { onSignField: o.onSignField } : {}),
   })
   cleanup.push(() => {
     mount.destroy()
@@ -372,7 +375,8 @@ describe('form layer', () => {
     expect(input.tabIndex).toBe(-1)
     engine.tools.set('select-text')
     expect(input.tabIndex).toBe(0)
-    await userEvent.click(input)
+    // The press drew a dot at the field's centre, which now takes presses on its own shape.
+    await userEvent.click(input, { position: { x: 4, y: 4 } })
     expect(document.activeElement).toBe(input)
   })
 
@@ -388,6 +392,30 @@ describe('form layer', () => {
         .getAttribute('data-ink-form-highlight')
     ).toBe('off')
     expect(getComputedStyle(off.control('name')).boxShadow).toBe('none')
+  })
+
+  it('an empty signature field asks to be signed; a signed one does not', async () => {
+    const doc = await open('form-fields')
+    const requests: SignFieldRequest[] = []
+    const p = mountPage(doc, { onSignField: (req) => requests.push(req) })
+    const box = p.box('sig')
+    const button = box.querySelector<HTMLButtonElement>('button')!
+    expect(button.textContent).toBe('Sign')
+    expect(button.title).toBe('Sign this field')
+    expect(button.tabIndex).toBe(0)
+    button.click()
+    const widget = p.widgetOf('sig')
+    expect(requests).toEqual([
+      { field: 'sig', widget: widget.id, page: 0, rect: widget.rect, anchor: box },
+    ])
+    doc.annotations.add({ id: 'ink-1', type: 'square', page: 0, rect: widget.rect })
+    doc.form._signWith('sig', 'ink-1')
+    expect(button.textContent).toBe('')
+    expect(button.hasAttribute('data-ink-signed')).toBe(true)
+    button.click()
+    expect(requests).toHaveLength(1)
+    // The PDF's own appearance of the box stays under the button.
+    expect(box.hasAttribute('data-ink-drawn')).toBe(false)
   })
 
   it('focuses a widget a script moves focus to', async () => {
@@ -952,11 +980,11 @@ describe('checkboxes, radios, choices and buttons', () => {
     const { container, engine, fieldOf, pageOf } = await viewer()
     container.querySelector<HTMLInputElement>('[data-ink-field="name"] input')!.focus()
     const visited = [fieldOf(document.activeElement)]
-    for (let i = 0; i < 16; i++) {
+    for (let i = 0; i < 17; i++) {
       await userEvent.keyboard('{Tab}')
       visited.push(fieldOf(document.activeElement))
     }
-    // Row by row as page 0 reads; a radio group is one stop, and the signature box has none.
+    // Row by row as page 0 reads; a radio group is one stop, and so is the signature box.
     expect(visited).toEqual([
       'name',
       'notes',
@@ -974,6 +1002,7 @@ describe('checkboxes, radios, choices and buttons', () => {
       'header.ref',
       'interests',
       'styled',
+      'sig',
       'reset',
     ])
     expect(pageOf(document.activeElement)).toBe(0)
@@ -984,6 +1013,8 @@ describe('checkboxes, radios, choices and buttons', () => {
     expect(inView(container, document.activeElement!)).toBe(true)
     await userEvent.keyboard('{Tab}')
     expect(fieldOf(document.activeElement)).toBe('rotated')
+    await userEvent.keyboard('{Tab}')
+    expect(fieldOf(document.activeElement)).toBe('sig2')
 
     // From the last field of the last page, Tab leaves the viewer as usual.
     let prevented: boolean | undefined
@@ -1011,6 +1042,8 @@ describe('checkboxes, radios, choices and buttons', () => {
     expect(fieldOf(document.activeElement)).toBe('reset')
     expect(pageOf(document.activeElement)).toBe(0)
     expect(inView(container, document.activeElement!)).toBe(true)
+    await userEvent.keyboard('{Shift>}{Tab}{/Shift}')
+    expect(fieldOf(document.activeElement)).toBe('sig')
     await userEvent.keyboard('{Shift>}{Tab}{/Shift}')
     expect(fieldOf(document.activeElement)).toBe('styled')
   })

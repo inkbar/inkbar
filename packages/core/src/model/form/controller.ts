@@ -6,6 +6,7 @@ import { submitValues } from './submit'
 import { safeUrl } from './url'
 import { checkValue, normaliseValue, resetValue, sameValue, suits } from './values'
 
+import type { AnnotationEdit, AnnotationStore } from '../annotations/store'
 import type { InkError } from '../errors'
 import type {
   FieldsChange,
@@ -118,8 +119,38 @@ export interface FormController {
    * step, and reported to a controlled host as `import`.
    */
   _import(values: FieldValues): void
+  /**
+   * @internal Keeps signature fields and the annotations that sign them in step, from now
+   * until `_destroy`. Each signing annotation is pinned in the store. Removing one (by a person,
+   * an import, a controlled host that drops it, or undo) clears its field, and clearing the
+   * field (a reset, a host's push of another value, an import) removes the annotation.
+   */
+  _linkAnnotations(link: SignatureLink): void
+  /**
+   * @internal Signs signature field `name` with annotation `id`, reported to a controlled
+   * host as a `commit`. When the annotation is not in the list yet (a controlled host has it
+   * proposed), the field is signed once it arrives, and stays empty if the host drops it.
+   */
+  _signWith(name: string, id: string): void
+  /**
+   * @internal Whether `name` waits for a signature a controlled host has proposed and not
+   * applied or dropped yet.
+   */
+  _awaitingSignature(name: string): boolean
   /** @internal Destroys the scripting and drops every listener. */
   _destroy(): void
+}
+
+/** What `_linkAnnotations` needs from the document. */
+export interface SignatureLink {
+  store: AnnotationStore
+  /** The history's `react`: runs inside a person's edit, so the field clears in the same step. */
+  react(fn: (edit: AnnotationEdit) => void): () => void
+  /**
+   * True when undo and redo replay the field values together with the annotations, so an
+   * annotation replay leaves the fields to theirs.
+   */
+  replays: boolean
 }
 
 /** A page event a page's scripts may handle. */
@@ -199,6 +230,11 @@ export function createFormController(opts: FormControllerOptions): FormControlle
   const widgetState = writable<Readonly<Record<string, WidgetOverride>>>({})
 
   const store = createRecordStore<FieldRecord>('form.fields')
+  /** The annotations signature fields are signed with, once linked. */
+  let annotations: AnnotationStore | undefined
+  /** Signatures proposed to a controlled host and not in the list yet: annotation id to field. */
+  const awaiting = new Map<string, string>()
+  const unlink: (() => void)[] = []
 
   let cachedList: readonly FieldRecord[] | undefined
   let cachedMap: FieldValues = Object.freeze({})
@@ -356,6 +392,69 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       [...start].map(([id, value]) => ({ id, value })),
       'reset'
     )
+  }
+
+  /** The annotation a signature field's value names, if it has one. */
+  const signatureOf = (name: string): string | undefined => {
+    const value = store.get(name)?.value
+    return typeof value === 'object' && !Array.isArray(value)
+      ? (value as { signature: string }).signature
+      : undefined
+  }
+
+  /** Each signed signature field's annotation id, by field name. */
+  const signedFields = (): Map<string, string> => {
+    const out = new Map<string, string>()
+    for (const f of fields.get()) {
+      if (f.type !== 'signature') continue
+      const id = signatureOf(f.name)
+      if (id !== undefined) out.set(f.name, id)
+    }
+    return out
+  }
+
+  const pin = () => annotations?._setPinned(new Set(signedFields().values()))
+
+  /**
+   * Clears the signature fields whose annotation has gone, as a commit. One a controlled host
+   * still has proposed (an import's, say) has not gone; it goes once the host drops it.
+   */
+  const dropDangling = () => {
+    const linked = annotations
+    if (!linked || destroyed) return
+    const gone = [...signedFields()].filter(
+      ([, id]) => !linked.get(id) && !linked._getProposed(id)
+    )
+    if (gone.length > 0)
+      reporting(
+        () => {
+          for (const [name] of gone) write(name, undefined)
+        },
+        (names) => ({ kind: 'commit', names })
+      )
+    pin()
+  }
+
+  /** Writes a signature, as a commit. */
+  const sign = (name: string, id: string) =>
+    reporting(
+      () => {
+        write(name, Object.freeze({ signature: id }))
+      },
+      (names) => ({ kind: 'commit', names })
+    )
+
+  /** Signs the fields whose proposed annotation has arrived, and forgets ones a host dropped. */
+  const land = () => {
+    const linked = annotations
+    if (!linked) return
+    for (const [id, name] of [...awaiting]) {
+      if (linked.get(id)) {
+        awaiting.delete(id)
+        if (byName.get(name)?.type === 'signature' && signatureOf(name) === undefined)
+          sign(name, id)
+      } else if (!linked._getProposed(id)) awaiting.delete(id)
+    }
   }
 
   const form: FormController = {
@@ -538,9 +637,58 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       within(() => scripting?.sync(current(), true))
       if (controlled) controlled.onChange(current(), { kind: 'import', names })
     },
+    _linkAnnotations(link) {
+      if (destroyed || annotations) return
+      const linked = link.store
+      annotations = linked
+      let signed = signedFields()
+      unlink.push(
+        store.on('change', (change) => {
+          const before = signed
+          signed = signedFields()
+          // Undo and redo replay the annotations too: a signature that went with the step has
+          // already gone.
+          const replay = change.kind === 'replace' && change.reason === 'history'
+          if (!replay) {
+            const kept = new Set(signed.values())
+            for (const [name, id] of before)
+              if (signed.get(name) !== id && !kept.has(id)) linked.remove(id)
+          }
+          dropDangling()
+        }),
+        linked.on('change', (change) => {
+          if (change.kind === 'replace' && change.reason === 'history' && link.replays) {
+            pin()
+            return
+          }
+          land()
+          dropDangling()
+        }),
+        link.react((edit) => {
+          if (edit.kind === 'remove') dropDangling()
+        })
+      )
+      dropDangling()
+    },
+    _signWith(name, id) {
+      if (destroyed) return
+      if (!annotations || annotations.get(id)) sign(name, id)
+      else awaiting.set(id, name)
+    },
+    _awaitingSignature(name) {
+      for (const [id, field] of [...awaiting]) {
+        if (field !== name) continue
+        // A proposal the host let lapse without pushing a list is gone too.
+        if (annotations?._getProposed(id)) return true
+        awaiting.delete(id)
+      }
+      return false
+    },
     _destroy() {
       if (destroyed) return
       destroyed = true
+      for (const stop of unlink.splice(0)) stop()
+      awaiting.clear()
       scripting?.destroy()
       scripting = undefined
       emitter.clear()

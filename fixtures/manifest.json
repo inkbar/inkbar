@@ -181,9 +181,9 @@
     "file": "form-fields.pdf",
     "pages": 2,
     "opens": true,
-    "describes": "Every AcroForm field type and flag: text variants, checkbox, radios (named on-states, and two widgets sharing one export value), combo, list, a two-widget field across pages, a rotated page 2, a /DA font named only through /DR, an empty signature and a reset button",
+    "describes": "Every AcroForm field type and flag: text variants, checkbox, radios (named on-states, and two widgets sharing one export value), combo, list, a two-widget field across pages, a rotated page 2, a /DA font named only through /DR, empty signatures on both pages and a reset button",
     "annotations": {
-      "Widget": 22
+      "Widget": 23
     }
   },
   "form-scripted": {

@@ -54,6 +54,7 @@ describe('buildFormFields', () => {
       rotated: 'text',
       styled: 'text',
       sig: 'signature',
+      sig2: 'signature',
       reset: 'button',
     })
     expect(fields.get('plan')!.options).toEqual([
@@ -75,7 +76,7 @@ describe('buildFormFields', () => {
   it('keeps first-widget order', async () => {
     const names = [...(await fieldsOf('form-fields')).keys()]
     expect(names.slice(0, 3)).toEqual(['name', 'notes', 'pin'])
-    expect(names.at(-1)).toBe('rotated')
+    expect(names.slice(-2)).toEqual(['rotated', 'sig2'])
   })
 
   it('reads flags', async () => {

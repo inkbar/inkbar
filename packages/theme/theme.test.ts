@@ -298,23 +298,26 @@ describe('theme.css', () => {
     expect(css).not.toContain('data-origin')
   })
 
-  it('gives app popovers (data-ink-popover) the tokens, in light and dark', () => {
-    const tokenRules = rules.filter((r) =>
-      r.nodes.some((d) => d.type === 'decl' && d.prop === '--ink-fg')
-    )
-    const inMedia = (r: Rule) =>
-      r.parent?.type === 'atrule' && (r.parent as AtRule).name === 'media'
-    const light = tokenRules.find((r) =>
-      r.nodes.some((d) => d.type === 'decl' && d.prop === '--ink-highlight')
-    )
-    const media = tokenRules.find(inMedia)
-    const dark = tokenRules.find(
-      (r) => !inMedia(r) && r.selector.includes('.dark [data-ink-root]')
-    )
-    expect(light?.selector).toContain('[data-ink-popover]')
-    expect(media?.selector).toContain('[data-ink-popover]:not(.light *)')
-    expect(dark?.selector).toContain('.dark [data-ink-popover]:not(.dark .light *)')
-  })
+  it.each(['data-ink-popover', 'data-ink-form-alert'])(
+    'gives portalled panels ([%s]) the tokens, in light and dark',
+    (attr) => {
+      const tokenRules = rules.filter((r) =>
+        r.nodes.some((d) => d.type === 'decl' && d.prop === '--ink-fg')
+      )
+      const inMedia = (r: Rule) =>
+        r.parent?.type === 'atrule' && (r.parent as AtRule).name === 'media'
+      const light = tokenRules.find((r) =>
+        r.nodes.some((d) => d.type === 'decl' && d.prop === '--ink-highlight')
+      )
+      const media = tokenRules.find(inMedia)
+      const dark = tokenRules.find(
+        (r) => !inMedia(r) && r.selector.includes('.dark [data-ink-root]')
+      )
+      expect(light?.selector).toContain(`[${attr}]`)
+      expect(media?.selector).toContain(`[${attr}]:not(.light *)`)
+      expect(dark?.selector).toContain(`.dark [${attr}]:not(.dark .light *)`)
+    }
+  )
 
   it('keeps a .light subtree light under a .dark ancestor', () => {
     const darkRule = rules.find(

@@ -18,6 +18,7 @@ import {
 import { h } from './dom'
 
 import type { Viewer } from './create-viewer'
+import type { SignatureTemplate } from '../../model/signatures'
 
 export interface SignatureDialogOptions {
   /** The fonts the Type tab offers. Default: the viewer's `signatureFonts`. */
@@ -26,8 +27,15 @@ export interface SignatureDialogOptions {
 
 export interface SignatureDialog {
   readonly isOpen: boolean
-  /** Opens the dialog. On close, focus goes to `returnFocus`, else to what had it before. */
-  open(opts?: { returnFocus?: HTMLElement | null }): void
+  /**
+   * Opens the dialog. On close, focus goes to `returnFocus`, else to what had it before. Save
+   * stores the template and selects it for the `signature` tool, or, with `onSave`, hands it
+   * to `onSave` instead (to sign a form field with it).
+   */
+  open(opts?: {
+    returnFocus?: HTMLElement | null
+    onSave?: (t: SignatureTemplate) => void
+  }): void
   close(): void
   destroy(): void
 }
@@ -46,7 +54,9 @@ export function createSignatureDialog(
     teardown = null
   }
 
-  function open(o: { returnFocus?: HTMLElement | null } = {}): void {
+  function open(
+    o: { returnFocus?: HTMLElement | null; onSave?: (t: SignatureTemplate) => void } = {}
+  ): void {
     if (teardown) return
     const returnTo =
       o.returnFocus ??
@@ -191,6 +201,11 @@ export function createSignatureDialog(
       draft.save(library).then(
         (t) => {
           if (!t) return
+          if (o.onSave) {
+            close()
+            o.onSave(t)
+            return
+          }
           viewer.tools.get()?.set('signature', { templateId: t.id })
           close()
         },

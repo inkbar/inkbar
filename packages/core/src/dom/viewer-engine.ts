@@ -12,7 +12,7 @@ import {
   type SignatureStore,
 } from '../model/signatures'
 
-import { hasControl } from './form-layer'
+import { hasControl, type SignFieldRequest } from './form-layer'
 import { tabOrder } from './form-order'
 import { createPageMount, type PageLayer, type PageMount } from './page-mount'
 import { createPluginLayers } from './plugins/layer'
@@ -39,7 +39,7 @@ import type { SearchController } from './search/controller'
 import type { PageTransform, ViewRotation } from './transform'
 import type { ToolStyle } from '../model/annotations/tool-style'
 import type { InkDocument } from '../model/document'
-import type { FormWidget } from '../model/form/types'
+import type { FormAction, FormWidget } from '../model/form/types'
 import type { Point } from '../model/geometry'
 
 /** A user-space point on a page, used to put the scroll position back after a rebuild. */
@@ -110,6 +110,19 @@ export interface MountViewerOptions {
    * `data-ink-form-highlight="off"` on the container and each page's form layer.
    */
   formHighlight?: boolean
+  /**
+   * An empty signature field was activated: sign it, for instance by offering the saved
+   * signatures anchored to `req.anchor` and calling `signField` with the one picked.
+   * `createViewer` opens its signature menu here. Without it the field does nothing.
+   */
+  onSignField?(req: SignFieldRequest): void
+  /**
+   * The form asked the host to submit, open a link, send mail, print or prompt. Inkbar itself
+   * never does any of these.
+   */
+  onFormAction?(action: FormAction): void
+  /** A form script called `app.alert`: show `message` (text, not markup) without blocking. */
+  onFormAlert?(message: string): void
   /** Annotation content is rendered by the host (custom slots). Changing it needs `rebuild`. */
   customAnnotations?: boolean
   /**
@@ -254,6 +267,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       // While a build mounts its pages, `tools` is unset or the old controller; the build
       // refreshes the fields once its controller exists.
       formActive: formsActive,
+      onSignField: (req) => opts.onSignField?.(req),
       ...(layers ? { layers } : {}),
       ...(highlights ? { highlights } : {}),
       onError: (cause, layer) => {
@@ -340,6 +354,15 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     }
   }
   el.addEventListener('keydown', onFormTab)
+
+  // What the form asks of the host, and a field's go-to action, which the viewer runs itself.
+  const stopForm = [
+    doc.form.on('action', (a) => opts.onFormAction?.(a)),
+    doc.form.on('alert', (message) => opts.onFormAlert?.(message)),
+    doc.form.on('goto', (page) => {
+      if (!destroyed && page >= 0 && page < doc.pages.length) viewport.scrollToPage(page)
+    }),
+  ]
 
   function unmountPage(page: number): void {
     const mount = pages.get(page)
@@ -525,6 +548,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       highlights?.destroy()
       stopRedecorate?.()
       el.removeEventListener('keydown', onFormTab)
+      for (const stop of stopForm) stop()
       if (opts.formHighlight === false) delete el.dataset.inkFormHighlight
     },
   }

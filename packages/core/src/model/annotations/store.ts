@@ -100,6 +100,16 @@ export interface AnnotationStore {
    * not applied yet: the list `update` and `remove` build on.
    */
   _getProposed(id: string): Annotation | undefined
+  /**
+   * @internal Pins annotations to what they fill (a signature to its signature field): a
+   * pinned annotation refuses every patch but one to its `contents` (no move, resize or
+   * restyle), while `remove` still works. Replaces the whole set.
+   */
+  _setPinned(ids: ReadonlySet<string>): void
+  /** @internal Whether `_setPinned` pinned `id`. */
+  _isPinned(id: string): boolean
+  /** @internal The pinned ids, for the overlay. */
+  readonly _pinned: Readable<ReadonlySet<string>>
   completeInput(input: AnnotationInput): Annotation
   on(event: 'change', fn: (change: AnnotationChange) => void): () => void
   /**
@@ -268,6 +278,7 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
   const nextId = opts.id ?? (() => uuidv7())
   const list = writable<readonly Annotation[]>([...(opts.mode.initial ?? [])])
   const selection = writable<readonly string[]>([])
+  const pinned = writable<ReadonlySet<string>>(new Set())
   const emitter = new Emitter<{ change: AnnotationChange; edit: AnnotationEdit }>()
   const controlled = opts.mode.mode === 'controlled' ? opts.mode : undefined
   const pending = new Map<string, Pending>()
@@ -443,6 +454,9 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
       if (destroyed || !before) return undefined
       if (before.locked && Object.keys(patch).some((k) => LOCKED_KEYS.has(k)))
         return undefined
+      // A pinned annotation is what fills its field, as it is: only its comment changes.
+      if (pinned.get().has(id) && Object.keys(patch).some((k) => k !== 'contents'))
+        return undefined
       const candidate: Record<string, unknown> = {
         ...before,
         ...patch,
@@ -492,6 +506,13 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
       if (!controlled) pruneSelection(next)
       return true
     },
+    _setPinned(ids) {
+      const current = pinned.get()
+      if (current.size === ids.size && [...ids].every((id) => current.has(id))) return
+      pinned.set(new Set(ids))
+    },
+    _isPinned: (id) => pinned.get().has(id),
+    _pinned: readonly(pinned),
     select(ids) {
       const known = new Set(basis().map((a) => a.id))
       selection.set(ids.filter((id) => known.has(id)))

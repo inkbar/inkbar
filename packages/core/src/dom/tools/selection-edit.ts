@@ -21,7 +21,8 @@
 // text box staying where it is (`movedTip`).
 //
 // Move: dragging a pressed annotation moves it, or, when it belongs to the selection, every
-// selected unlocked annotation, in one history step.
+// selected unlocked annotation, in one history step. A pinned one (a signature in its field)
+// only selects, like a locked one, but it can be deleted.
 //
 // Text boxes: a press inside one that can be edited (`canEditFreeText`) selects it and, on the
 // release, opens its editor with the caret where the press landed; it never moves the box. The
@@ -130,6 +131,8 @@ export function createSelectionEdit(
 ): SelectionEdit {
   let mode: Mode = { kind: 'idle' }
   const batch = (fn: () => void): void => (ctx.history ? ctx.history.batch(fn) : fn())
+  /** Locked, or pinned to what it fills (a signature in its field): it only selects. */
+  const fixed = (a: Annotation): boolean => a.locked === true || ctx.store._isPinned(a.id)
 
   const reset = (): void => {
     if (mode.kind === 'marquee') mode.el.remove()
@@ -235,7 +238,7 @@ export function createSelectionEdit(
         const markup = isTextMarkup(a)
         if (markup && !opts.marquee) return
         const handle = handleOf(e.target)
-        if (handle !== undefined && !a.locked && startHandle(e, hit, a, handle))
+        if (handle !== undefined && !fixed(a) && startHandle(e, hit, a, handle))
           return true
         const selected = ctx.store.selection.get()
         if (e.shiftKey) {
@@ -338,7 +341,7 @@ export function createSelectionEdit(
       if (mode.kind === 'press') {
         if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return
         const a = ctx.store.get(mode.id)
-        if (!a || a.locked) {
+        if (!a || fixed(a)) {
           mode = { kind: 'idle' }
           return
         }
@@ -349,7 +352,7 @@ export function createSelectionEdit(
         const ids = selected.includes(pressed)
           ? selected.filter((id) => {
               const m = ctx.store.get(id)
-              return m !== undefined && !m.locked && (id === pressed || !isTextMarkup(m))
+              return m !== undefined && !fixed(m) && (id === pressed || !isTextMarkup(m))
             })
           : [pressed]
         const els = ids
@@ -401,7 +404,7 @@ export function createSelectionEdit(
           batch(() => {
             for (const id of current.ids) {
               const a = ctx.store.get(id)
-              if (a && !a.locked) ctx.store.update(id, translated(a, dx, dy))
+              if (a && !fixed(a)) ctx.store.update(id, translated(a, dx, dy))
             }
           })
           return
@@ -426,7 +429,7 @@ export function createSelectionEdit(
           )
             return
           const a = ctx.store.get(current.id)
-          if (!a || a.locked) return
+          if (!a || fixed(a)) return
           const to = userBox(start.transform, next)
           if (a.type === 'freetext') {
             ctx.store.update(a.id, resizedBox(a, to))
@@ -439,7 +442,7 @@ export function createSelectionEdit(
         }
         case 'endpoint': {
           const a = ctx.store.get(current.id)
-          if (!a || a.locked) return
+          if (!a || fixed(a)) return
           const css = cssIn(current.start.host, e)
           if (css.x === current.start.css.x && css.y === current.start.css.y) return
           const patch = endPatch(a, current.which, endAt(current, e))

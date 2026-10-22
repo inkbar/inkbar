@@ -11,10 +11,14 @@
 // out (`AnnotationMode.ENABLE_FORMS`), and the layer keeps a second canvas with every widget's
 // own appearance (`ENABLE`), clipped to the widgets the layer is not drawing itself. That canvas
 // sits in the page's stack right above the page canvas, under the text layer and the
-// annotations, so annotations over a field stay visible; only the controls sit above the
-// annotations, in the layer. A widget's
+// annotations, so annotations over a field stay visible. The layer itself sits above the text
+// layer and under the annotations: a press on an annotation's shape selects the annotation, and
+// a press anywhere else in a field's box is the field's. A widget's
 // control is clear until it is focused or shows something the PDF's appearance does not (a
 // changed value, a script's colour or size); then the clip leaves it out and the control draws.
+//
+// A signature field is a button: "Sign" while it is empty, which asks the host to sign it
+// (`onSignField`), and clear once signed, when the signature annotation shows over it.
 //
 // Checkboxes and radios never change the clip as they change state: the layer stores each one's
 // state for PDF.js and draws the appearance canvas again, so it shows the PDF's own on or off
@@ -29,6 +33,7 @@ import { storeButtonStates } from '../pdfjs/widget-states'
 import { createButtonWidget } from './form-button'
 import { createChoiceWidget, createToggleWidget } from './form-choice'
 import { tabOrder } from './form-order'
+import { createSignatureWidget } from './form-signature'
 import { createTextWidget } from './form-text'
 import { createPageRenderer, type PageRenderer } from './page-renderer'
 import { normalizeRotation, type PageTransform, type ViewRotation } from './transform'
@@ -166,6 +171,7 @@ const RENDERERS: Partial<Record<FormFieldType, WidgetRenderer>> = {
   combo: createChoiceWidget,
   list: createChoiceWidget,
   button: createButtonWidget,
+  signature: createSignatureWidget,
 }
 
 /** Whether the layer gives the field a control: its type has one and nothing locks it. */

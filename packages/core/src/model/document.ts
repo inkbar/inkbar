@@ -317,13 +317,14 @@ export async function openDocument(
     store,
     historyLimit === undefined ? {} : { limit: historyLimit }
   )
-  if (
+  const replays =
     historyOption !== false &&
     store.mode === 'uncontrolled' &&
     fieldsMode.mode === 'uncontrolled'
-  )
-    history.track(form._store)
+  if (replays) history.track(form._store)
   step = (fn) => history.batch(fn)
+  // Signature fields and the annotations that sign them change together from here.
+  form._linkAnnotations({ store, react: (fn) => history.react(fn), replays })
 
   // Fills in fields PDF.js leaves out, read from the file's own bytes. It runs after `ready`
   // so it never delays it, and a failure leaves the annotations as PDF.js imported them.
