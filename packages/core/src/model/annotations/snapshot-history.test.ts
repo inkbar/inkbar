@@ -665,7 +665,7 @@ describe('createSnapshotHistory', () => {
       }
     })
 
-    it('a record reset clears both stacks', async () => {
+    it('a record reset drops the steps holding its records', async () => {
       vi.useFakeTimers()
       try {
         const { history, threads } = controlledHost()
@@ -675,6 +675,118 @@ describe('createSnapshotHistory', () => {
         await settle()
         expect(history.canUndo.get()).toBe(false)
         expect(history.canRedo.get()).toBe(false)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('a record reset keeps annotation-only steps', async () => {
+      vi.useFakeTimers()
+      try {
+        const { store, history, threads, value } = controlledHost()
+        const rect = { x: 0, y: 0, width: 20, height: 20 }
+        const a = store.add({ type: 'text', page: 0, rect, contents: 'one' })
+        await settle()
+        threads.add({ id: 't1', text: 'hi' })
+        await settle()
+        store.update(a.id, { contents: 'two' })
+        await settle()
+        threads.replaceAll([{ id: 't9', text: 'fresh' }], 'reset')
+        await settle()
+        history.undo()
+        await settle()
+        expect(value()[0]?.contents).toBe('one')
+        expect(threads.list.get()).toEqual([{ id: 't9', text: 'fresh' }])
+        history.undo()
+        await settle()
+        expect(value()).toEqual([])
+        expect(threads.list.get()).toEqual([{ id: 't9', text: 'fresh' }])
+        expect(history.canUndo.get()).toBe(false)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it("a record reset keeps a step's annotation change for undo then redo", async () => {
+      vi.useFakeTimers()
+      try {
+        const { store, history, threads, value } = controlledHost()
+        const a = store.add({
+          type: 'text',
+          page: 0,
+          rect: { x: 0, y: 0, width: 20, height: 20 },
+          contents: 'one',
+        })
+        await settle()
+        history.batch(() => {
+          store.update(a.id, { contents: 'two' })
+          threads.add({ id: 't1', text: 'hi' })
+        })
+        await settle()
+        threads.replaceAll([], 'reset')
+        await settle()
+        // As in History: the step keeps its annotation change, so undo goes back to 'one'.
+        history.undo()
+        await settle()
+        expect(value()[0]?.contents).toBe('one')
+        expect(threads.list.get()).toEqual([])
+        history.undo()
+        await settle()
+        expect(value()).toEqual([])
+        history.redo()
+        await settle()
+        history.redo()
+        await settle()
+        expect(value()[0]?.contents).toBe('two')
+        expect(threads.list.get()).toEqual([])
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('an annotation undo in flight still lands across a record reset', async () => {
+      vi.useFakeTimers()
+      try {
+        const { store, history, threads, value } = controlledHost()
+        store.add({ type: 'text', page: 0, rect: { x: 0, y: 0, width: 20, height: 20 } })
+        await settle()
+        history.undo()
+        threads.replaceAll([{ id: 't9', text: 'fresh' }], 'reset')
+        await settle()
+        expect(value()).toEqual([])
+        expect(history.canUndo.get()).toBe(false)
+        expect(history.canRedo.get()).toBe(true)
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('a record reset drops redo steps holding its records and keeps the others', async () => {
+      vi.useFakeTimers()
+      try {
+        const { store, history, threads, value } = controlledHost()
+        const a = store.add({
+          type: 'text',
+          page: 0,
+          rect: { x: 0, y: 0, width: 20, height: 20 },
+        })
+        await settle()
+        threads.add({ id: 't1', text: 'hi' })
+        await settle()
+        history.undo()
+        await settle()
+        history.undo()
+        await settle()
+        expect(value()).toEqual([])
+        expect(history.canRedo.get()).toBe(true)
+        threads.replaceAll([], 'reset')
+        await settle()
+        history.redo()
+        await settle()
+        expect(value()).toEqual([a])
+        expect(threads.list.get()).toEqual([])
+        expect(history.canRedo.get()).toBe(false)
+        expect(history.canUndo.get()).toBe(true)
       } finally {
         vi.useRealTimers()
       }
