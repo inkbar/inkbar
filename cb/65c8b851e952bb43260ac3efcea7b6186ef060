@@ -1,0 +1,71 @@
+packages/react/src/components/InkCommand.ct.tsx
+  s_611b86d68c2358::t_1baabf3460432f 8,118
+  s_611b86d68c2358::t_e1f4994d3fb792 119-120
+  s_611b86d68c2358::t_b58c4334263b2f 9,96,98,100-109,111-117,121-133
+packages/core/src/dom/viewer/create-viewer.browser.test.ts
+  s_611b86d68c2358::t_671acef64807be 2146
+  s_611b86d68c2358::t_0f2038a803f222 2123-2127,2130-2145,2147-2155,2159-2162
+  s_611b86d68c2358::t_8fbe3be8e68ae9 2128-2129,2156-2158
+  s_611b86d68c2358::t_23dadf9b88106a 5
+packages/svelte/src/lib/components/InkCommand.svelte
+  s_611b86d68c2358::t_75b11a1d461804 22-23
+packages/svelte/src/lib/hooks/useCommand.svelte.ts
+  s_611b86d68c2358::t_75b11a1d461804 1,25-26,31-33,35-37
+packages/vue/src/components/InkCommand.ct.ts
+  s_611b86d68c2358::t_9c38594e9656e7 8-9
+  s_611b86d68c2358::t_28d73ac9c7b8b6 98,100,102-131
+packages/svelte/src/test/hooks.test.ts
+  s_611b86d68c2358::t_26fbae6f0ff247 18,121
+packages/svelte/src/test/harness/CommandStateHarness.svelte
+  s_611b86d68c2358::t_db29d602d7688a 11-15,33-35
+packages/react/README.md
+  s_611b86d68c2358::t_26e3aca2bb30db 168
+packages/vue/src/composables/useCommand.ts
+  s_611b86d68c2358::t_75b11a1d461804 1-2,27-28,32-40
+packages/react/src/components/InkCommand.tsx
+  s_611b86d68c2358::t_75b11a1d461804 7-8
+packages/react/playwright/harness/CommandStateHarness.tsx
+  s_611b86d68c2358::t_b58c4334263b2f 3,44-53,55-57
+packages/vue/README.md
+  s_611b86d68c2358::t_26e3aca2bb30db 143
+packages/core/README.md
+  s_611b86d68c2358::t_26e3aca2bb30db 106
+packages/svelte/src/test/InkCommand.browser.test.ts
+  s_611b86d68c2358::t_db29d602d7688a 1,3,90-112
+packages/core/src/dom/index.ts
+  s_611b86d68c2358::t_604768ad2ae01a 40
+packages/core/src/dom/viewer/create-viewer.ts
+  s_611b86d68c2358::t_604768ad2ae01a 384,394-399
+  s_611b86d68c2358::t_f67710ff11f59c 400
+packages/core/src/dom/plugins/commands.ts
+  s_611b86d68c2358::t_604768ad2ae01a 16-28
+packages/vue/src/components/InkCommand.vue
+  s_611b86d68c2358::t_75b11a1d461804 8-9
+packages/react/src/hooks/useCommand.ts
+  s_611b86d68c2358::t_75b11a1d461804 1-2,26-27,32-37
+packages/vue/playwright/harness/CommandStateHarness.vue
+  s_611b86d68c2358::t_28d73ac9c7b8b6 11-13,32-34
+packages/svelte/src/test/harness/PendingCommandHost.svelte
+  s_611b86d68c2358::t_26fbae6f0ff247 1-13
+packages/svelte/README.md
+  s_611b86d68c2358::t_23b4a2a1042e22 174
+packages/core/src/dom/viewer/controls.ts
+  s_611b86d68c2358::t_604768ad2ae01a 31,34,204-206,210-212,218-220
+  s_611b86d68c2358::t_8fbe3be8e68ae9 213-217
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cb65c8b851e952bb43260ac3efcea7b6186ef060",
+  "prompts": {},
+  "sessions": {
+    "s_611b86d68c2358": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f6760cb6-1a68-4a5b-b172-32f4da0aa5b1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
