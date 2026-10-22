@@ -228,6 +228,35 @@ With either select tool (`select-text` or `select`), or on what a one-shot tool 
 
 A press on text markup (a highlight, underline, strikeout or squiggly) does nothing at first. A click selects it; a drag selects the text under it, as a drag on the bare text would. Presses on every other annotation select it straight away.
 
+## Plugins
+
+A plugin adds commands, tools, annotation decorations, page layers and its own records to a viewer. Write it once with `definePlugin` from `@inkbar/core/dom` and it runs in every framework package and in `createViewer`.
+
+```ts
+import { definePlugin } from '@inkbar/core/dom'
+
+export const suggestions = definePlugin({
+  id: 'sandbox', // lower-case kebab; everything the plugin adds is named under it
+  setup(ctx) {
+    const store = ctx.store<{ id: string; status: string }>('suggestions', {
+      initial: () => [],
+    })
+    ctx.commands.add({
+      id: 'suggest', // becomes 'sandbox.suggest'
+      label: 'Suggest redactions',
+      async run() {
+        const list = await findSuggestions() // your own code
+        ctx.history.batch(() => list.forEach((s) => store.get()?.add(s)))
+      },
+    })
+  },
+})
+```
+
+Pass it to the viewer in `plugins: [suggestions]`. Nothing a plugin registers shows by itself: place a command with `InkCommand` (`createCommandButton(viewer, 'sandbox.suggest')` without a framework), and a plugin tool with a tool button, as you place the built-in ones.
+
+A command is disabled until a document is ready, unless it passes its own `enabled` readable, and it is busy, and disabled, until the promise `run` returns settles. A failed run is logged, never thrown. `ctx.store(name)` gives each document its own record store, keyed `<plugin>.<name>`, and its changes undo with annotation edits; `ctx.onAnnotationEdit(fn)` runs inside each user edit's undo step. `ctx.history.batch(fn)` makes everything `fn` changes, annotations and records alike, one undo step. Inkbar keeps no plugin data: load it with `initial(doc)` and save it from `onChange`.
+
 ## Signatures
 
 A signature here is a mark on the page, not a cryptographic signature of the file. Draw one, type your name in a handwriting font, or upload a scan, and it is saved as a template. The `signature` tool places the chosen template: a click puts it about 150 pt wide, centred on the press, and `Enter` puts it at the centre of the current page. It is turned against the page's `/Rotate`, so it reads upright on the page; a view rotation turns it with the page. A drawn signature becomes `ink` and the others a `stamp` (an image), both with `subject: 'Signature'`. Both keep their aspect ratio when resized.

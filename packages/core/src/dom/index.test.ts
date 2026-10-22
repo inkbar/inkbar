@@ -35,6 +35,8 @@ describe('@inkbar/core/dom entry', () => {
         'hitFor',
         'createPopover',
         'placePanel',
+        'definePlugin',
+        'createPluginHost',
       ])
     )
 

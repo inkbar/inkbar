@@ -9,6 +9,7 @@ export type InkErrorCode =
   | 'DocumentDestroyed'
   | 'PageOutOfRange'
   | 'DuplicateId'
+  | 'DuplicatePlugin'
 
 export class InkError extends Error {
   override readonly name = 'InkError'
