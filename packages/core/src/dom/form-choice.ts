@@ -5,7 +5,7 @@
 // widget's own on or off appearance under it. Only a widget whose file has no on appearance
 // draws itself, with its `/MK /CA` character in ZapfDingbats style. A click, or Space, commits
 // the new state and then runs the widget's Mouse Up and Action; arrow keys move through a radio
-// group on the page and pick as they go.
+// group's shown, editable widgets on the page and pick as they go.
 //
 // A combo box is a native `<select>` (an editable one is a text input with a `<datalist>`, in
 // form-text.ts), and a list box a `<select>` with a `size`, or `multiple` for a multi-select.
@@ -114,6 +114,9 @@ export function createToggleWidget(ctx: WidgetViewContext): WidgetView {
           : 0
     if (step === 0) return
     e.preventDefault()
+    // Hidden and read-only radios are passed over, and none is picked while this one is
+    // read-only.
+    if (state?.readOnly) return
     const group = ctx.siblings()
     const at = group.indexOf(el)
     if (at < 0 || group.length < 2) return

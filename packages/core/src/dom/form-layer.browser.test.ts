@@ -903,6 +903,43 @@ describe('checkboxes, radios, choices and buttons', () => {
     expect(document.activeElement).toBe(yearly)
   })
 
+  it('numbers a radio group and passes over hidden and read-only radios', async () => {
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    const widgets = widgetsOf(doc, 'plan')
+    const [monthly, yearly] = widgets.map((w) => controlOf(p.host, w))
+    const numbers = () =>
+      [monthly!, yearly!].map((c) => [
+        c.getAttribute('aria-posinset'),
+        c.getAttribute('aria-setsize'),
+      ])
+    expect(numbers()).toEqual([
+      ['1', '2'],
+      ['2', '2'],
+    ])
+
+    doc.form._setWidgetState(widgets[1]!.id, { readOnly: true })
+    monthly!.focus()
+    await userEvent.keyboard('{ArrowRight}')
+    expect(document.activeElement).toBe(monthly)
+    expect(doc.form.get('plan')).toBe('monthly')
+
+    doc.form._setWidgetState(widgets[1]!.id, { readOnly: false, hidden: true })
+    expect(numbers()).toEqual([
+      ['1', '1'],
+      [null, null],
+    ])
+    await userEvent.keyboard('{ArrowRight}')
+    expect(document.activeElement).toBe(monthly)
+    expect(doc.form.get('plan')).toBe('monthly')
+
+    // A read-only radio picks nothing from the keyboard.
+    doc.form._setWidgetState(widgets[1]!.id, { hidden: false })
+    doc.form._setWidgetState(widgets[0]!.id, { readOnly: true })
+    await userEvent.keyboard('{ArrowRight}')
+    expect(doc.form.get('plan')).toBe('monthly')
+  })
+
   it('combo shows labels and stores export values', async () => {
     const doc = await open('form-fields')
     const p = mountPage(doc)
