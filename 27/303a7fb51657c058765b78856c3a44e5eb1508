@@ -1,0 +1,43 @@
+packages/core/src/pdf/lexer.ts
+  s_e6109f66fbb4ed::t_fc6950ad93f9d0 321-323,338-342
+  s_e6109f66fbb4ed::t_b98e5566a42f62 116-117,132-133,152-155,333-334
+  s_e6109f66fbb4ed::t_fbc64918aec83f 14,17,108-115,118-123,126-131,134-147,156-176,226,228,320,324-332,335-337,343-344
+packages/core/src/model/form/types.ts
+  s_e6109f66fbb4ed::t_d375d4ce03b435 1-107
+packages/core/src/pdf/form-fields.ts
+  s_e6109f66fbb4ed::t_f79ce8910f5455 1-118,121-139,142-163,166-318,321-332
+  s_e6109f66fbb4ed::t_b98e5566a42f62 119-120,140-141,164-165,319-320
+packages/core/src/pdf/lexer.test.ts
+  s_e6109f66fbb4ed::t_710852c13b5896 3-10
+  s_e6109f66fbb4ed::t_b98e5566a42f62 62-64
+  s_e6109f66fbb4ed::t_c756aa0bf3a773 39,42,45-61,65
+packages/core/src/model/document.ts
+  s_e6109f66fbb4ed::t_70a9bd4b34bc83 1-2,26,34,146-150,203-206,212-225
+packages/core/src/model/form/structure.test.ts
+  s_e6109f66fbb4ed::t_8c5983d4cf0fb3 1-139,146-190
+  s_e6109f66fbb4ed::t_b98e5566a42f62 140-145
+packages/core/src/model/form/structure.ts
+  s_e6109f66fbb4ed::t_b98e5566a42f62 119-120,135-139,247-250,285-288
+  s_e6109f66fbb4ed::t_3f1ccb7b1ce9db 1-118,121-134,140-246,251-284,289-305
+packages/core/src/pdfjs/types.ts
+  s_e6109f66fbb4ed::t_61423741c55b6e 45-82
+packages/core/src/pdf/form-fields.test.ts
+  s_e6109f66fbb4ed::t_b98e5566a42f62 18-20
+  s_e6109f66fbb4ed::t_9905cc50e7978c 1-17,21-86
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "27303a7fb51657c058765b78856c3a44e5eb1508",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
