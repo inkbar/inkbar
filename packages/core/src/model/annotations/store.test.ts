@@ -591,3 +591,39 @@ describe('one mask per page', () => {
     expect(s.list.get()).toEqual([])
   })
 })
+
+describe('AnnotationStore edit event', () => {
+  it('edit fires before change for add, update and remove', () => {
+    const s = store()
+    const order: string[] = []
+    s.on('edit', (e) => order.push(`edit:${e.kind}`))
+    s.on('change', (c) => order.push(`change:${c.kind}`))
+    const a = s.add({ type: 'highlight', page: 0, quads })
+    s.update(a.id, { contents: 'x' })
+    s.remove(a.id)
+    expect(order).toEqual([
+      'edit:add',
+      'change:add',
+      'edit:update',
+      'change:update',
+      'edit:remove',
+      'change:remove',
+    ])
+  })
+
+  it('edit fires before the list is set', () => {
+    const s = store()
+    let seen = -1
+    s.on('edit', () => (seen = s.list.get().length))
+    s.add({ type: 'highlight', page: 0, quads })
+    expect(seen).toBe(0)
+  })
+
+  it('replaceAll fires no edit', () => {
+    const s = store()
+    const fn = vi.fn()
+    s.on('edit', fn)
+    s.replaceAll([], 'history')
+    expect(fn).not.toHaveBeenCalled()
+  })
+})

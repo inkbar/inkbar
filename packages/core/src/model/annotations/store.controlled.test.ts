@@ -437,4 +437,23 @@ describe('tool style in controlled mode', () => {
     expect(s.get(a.id)).toMatchObject({ color: '#00FF00', width: 3 })
     expect(s.get(b.id)).toMatchObject({ color: '#00FF00', width: 3 })
   })
+
+  it('edit fires before onChange for a controlled remove', () => {
+    const order: string[] = []
+    const s = createAnnotationStore({
+      mode: {
+        mode: 'controlled',
+        initial: [],
+        onChange: (_next, change) => {
+          order.push(`onChange:${change.kind}`)
+        },
+      },
+      defaults: staticDefaults,
+      now: fixedNow,
+    })
+    s.on('edit', (e) => order.push(`edit:${e.kind}`))
+    const a = s.add({ type: 'square', page: 0, rect })
+    s.remove(a.id)
+    expect(order).toEqual(['edit:add', 'onChange:add', 'edit:remove', 'onChange:remove'])
+  })
 })
