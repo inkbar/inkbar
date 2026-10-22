@@ -60,34 +60,20 @@ async function goToLastPage(page: Page): Promise<void> {
   ).toBeVisible()
 }
 
-/**
- * The TypeScript page runs Suggest redactions as a plugin, which draws its own marks in a page
- * layer and reports through the command's status. The other pages tag suggested redaction
- * annotations and report in their own result text.
- */
-const usesPlugin = (framework: string): boolean => framework === 'vanilla'
+/** A suggestion still to review: the plugin draws each as a mark in its page layer. */
+const SUGGESTED = '.sandbox-suggestion'
 
-/** A suggestion still to review, as the sandbox's annotation-based pages tag it. */
-const SUGGESTED_ANNOTATION = '.ink-annotation[data-sandbox-suggestion="suggested"]'
-
-/** A suggestion still to review, as the plugin draws it. */
-const SUGGESTED_MARK = '.sandbox-suggestion'
-
-const suggestedSelector = (framework: string): string =>
-  usesPlugin(framework) ? SUGGESTED_MARK : SUGGESTED_ANNOTATION
-
-/** Where Suggest redactions reports what it found. */
-const resultSelector = (framework: string): string =>
-  usesPlugin(framework) ? '.ink-command-status' : '.demo-result'
+/** Where Suggest redactions reports what it found: its command's status. */
+const RESULT = '.ink-command-status'
 
 /** Opens the sample, runs Suggest redactions and shows the last page, where the marks are. */
-async function suggestOnSample(page: Page, framework: string): Promise<void> {
-  await page.goto(`${framework}/`)
+async function suggestOnSample(page: Page, path: string): Promise<void> {
+  await page.goto(path)
   await waitForFirstPage(page)
   await page.getByRole('button', { name: 'Suggest redactions' }).click()
-  await expect(page.locator(resultSelector(framework))).toHaveText(SAMPLE_SUGGESTIONS)
+  await expect(page.locator(RESULT)).toHaveText(SAMPLE_SUGGESTIONS)
   await goToLastPage(page)
-  await expect(page.locator(suggestedSelector(framework))).toHaveCount(4)
+  await expect(page.locator(SUGGESTED)).toHaveCount(4)
 }
 
 const suggestionCard = (page: Page) =>
@@ -113,257 +99,154 @@ for (const framework of FRAMEWORKS) {
     test('suggests redactions once, then finds nothing new', async ({ page }) => {
       await page.goto(`${framework}/`)
       await waitForFirstPage(page)
-      const suggested = suggestedSelector(framework)
       const suggest = page.getByRole('button', { name: 'Suggest redactions' })
-      const result = page.locator(resultSelector(framework))
+      const result = page.locator(RESULT)
       await suggest.click()
       await expect(result).toHaveText(SAMPLE_SUGGESTIONS)
       await goToLastPage(page)
-      await expect(page.locator(suggested)).toHaveCount(4)
+      await expect(page.locator(SUGGESTED)).toHaveCount(4)
       await suggest.click()
       await expect(result).toHaveText('0 suggestions')
-      await expect(page.locator(suggested)).toHaveCount(4)
+      await expect(page.locator(SUGGESTED)).toHaveCount(4)
     })
 
     test('undo removes a whole suggestion run, redo restores it', async ({ page }) => {
       await page.goto(`${framework}/`)
       await waitForFirstPage(page)
-      const suggested = suggestedSelector(framework)
       const undo = page.getByRole('button', { name: 'Undo' })
       const redo = page.getByRole('button', { name: 'Redo' })
       await expect(undo).toBeDisabled()
       await page.getByRole('button', { name: 'Suggest redactions' }).click()
-      await expect(page.locator(resultSelector(framework))).toHaveText(SAMPLE_SUGGESTIONS)
+      await expect(page.locator(RESULT)).toHaveText(SAMPLE_SUGGESTIONS)
       await goToLastPage(page)
-      await expect(page.locator(suggested)).toHaveCount(4)
+      await expect(page.locator(SUGGESTED)).toHaveCount(4)
       await undo.click()
-      await expect(page.locator(suggested)).toHaveCount(0)
+      await expect(page.locator(SUGGESTED)).toHaveCount(0)
       await redo.click()
-      await expect(page.locator(suggested)).toHaveCount(4)
+      await expect(page.locator(SUGGESTED)).toHaveCount(4)
     })
 
-    if (!usesPlugin(framework)) {
-      test('accept turns a suggestion into a plain redaction', async ({ page }) => {
-        await suggestOnSample(page, framework)
-        const first = page.locator(SUGGESTED_ANNOTATION).first()
-        const id = (await first.getAttribute('data-annotation'))!
-        await first.click()
-        const card = suggestionCard(page)
-        await expect(card).toBeVisible()
-        await expect(card).toContainText('National Insurance number')
-        await expect(card).toContainText('High confidence')
-        await expect(first).toHaveAttribute('aria-description', 'Suggested redaction')
-        await card.getByRole('button', { name: 'Accept' }).click()
-        const mark = page.locator(`.ink-annotation[data-annotation="${id}"]`)
-        await expect(mark).toHaveAttribute('data-sandbox-suggestion', 'accepted')
-        await expect(mark).not.toHaveAttribute('aria-description')
-        await expect(card).toBeHidden()
-        await expect(page.locator(SUGGESTED_ANNOTATION)).toHaveCount(3)
-      })
+    const mark = (page: Page, id: string) =>
+      page.locator(`${SUGGESTED}[data-suggestion="${id}"]`)
+    const redactions = (page: Page) =>
+      page.locator('.ink-page[data-page="3"] .ink-annotation[data-type="redact"]')
 
-      test('dismiss removes a suggestion and focus moves to the next', async ({
-        page,
-      }) => {
-        await suggestOnSample(page, framework)
-        const next = (await page
-          .locator(SUGGESTED_ANNOTATION)
-          .nth(1)
-          .getAttribute('data-annotation'))!
-        await page.locator(SUGGESTED_ANNOTATION).first().click()
-        await suggestionCard(page).getByRole('button', { name: 'Dismiss' }).click()
-        await expect(suggestionCard(page)).toBeHidden()
-        await expect(page.locator(SUGGESTED_ANNOTATION)).toHaveCount(3)
-        await expect(
-          page.locator(`.ink-annotation[data-annotation="${next}"]`)
-        ).toBeFocused()
-      })
+    test('accept adds a redaction and moves focus to the next suggestion', async ({
+      page,
+    }) => {
+      await suggestOnSample(page, `${framework}/`)
+      const first = mark(page, 'ni-number')
+      await expect(first).toHaveAccessibleName(
+        'Suggested redaction: National Insurance number'
+      )
+      await first.click()
+      const card = suggestionCard(page)
+      await expect(card).toBeVisible()
+      await expect(card).toContainText('National Insurance number')
+      await expect(card).toContainText('High confidence')
+      await expect(card.getByRole('button', { name: 'Accept' })).toBeFocused()
+      await card.getByRole('button', { name: 'Accept' }).click()
+      await expect(card).toBeHidden()
+      await expect(page.locator(SUGGESTED)).toHaveCount(3)
+      await expect(first).toHaveCount(0)
+      await expect(redactions(page)).toHaveCount(1)
+      await expect(mark(page, 'email')).toBeFocused()
+    })
 
-      test('undo restores an accepted suggestion', async ({ page }) => {
-        await suggestOnSample(page, framework)
-        const first = page.locator(SUGGESTED_ANNOTATION).first()
-        const id = (await first.getAttribute('data-annotation'))!
-        const mark = page.locator(`.ink-annotation[data-annotation="${id}"]`)
-        await first.click()
-        await suggestionCard(page).getByRole('button', { name: 'Accept' }).click()
-        await expect(mark).toHaveAttribute('data-sandbox-suggestion', 'accepted')
-        await page.getByRole('button', { name: 'Undo' }).click()
-        await expect(mark).toHaveAttribute('data-sandbox-suggestion', 'suggested')
-        await expect(mark.locator('.ink-annotation-shape > *').first()).toHaveAttribute(
-          'stroke',
-          /^#c0392b$/i
-        )
-        await mark.click()
-        await expect(suggestionCard(page)).toContainText('National Insurance number')
-      })
+    test('dismiss sets a suggestion aside and moves focus to the next', async ({
+      page,
+    }) => {
+      await suggestOnSample(page, `${framework}/`)
+      await mark(page, 'ni-number').click()
+      await suggestionCard(page).getByRole('button', { name: 'Dismiss' }).click()
+      await expect(suggestionCard(page)).toBeHidden()
+      await expect(page.locator(SUGGESTED)).toHaveCount(3)
+      await expect(redactions(page)).toHaveCount(0)
+      await expect(mark(page, 'email')).toBeFocused()
+    })
 
-      test('a selected suggestion opens the card while another annotation is activated', async ({
-        page,
-      }) => {
-        await suggestOnSample(page, framework)
-        const card = suggestionCard(page)
-        // Accepted, the first mark is a plain redaction: activating it opens no card.
-        const first = page.locator(SUGGESTED_ANNOTATION).first()
-        const plainId = (await first.getAttribute('data-annotation'))!
-        await first.click()
-        await card.getByRole('button', { name: 'Accept' }).click()
-        await expect(card).toBeHidden()
-        const plain = page.locator(`.ink-annotation[data-annotation="${plainId}"]`)
-        await plain.click()
-        await expect(plain).toHaveAttribute('data-state', 'selected')
-        await expect(card).toBeHidden()
+    test('undo restores an accepted suggestion', async ({ page }) => {
+      await suggestOnSample(page, `${framework}/`)
+      await mark(page, 'ni-number').click()
+      await suggestionCard(page).getByRole('button', { name: 'Accept' }).click()
+      await expect(redactions(page)).toHaveCount(1)
+      await page.getByRole('button', { name: 'Undo' }).click()
+      await expect(redactions(page)).toHaveCount(0)
+      await expect(page.locator(SUGGESTED)).toHaveCount(4)
+      await mark(page, 'ni-number').click()
+      await expect(suggestionCard(page)).toContainText('National Insurance number')
+    })
 
-        // A marquee selects without activating, so the plain mark stays the activated one.
-        const target = page.locator(SUGGESTED_ANNOTATION).last()
-        const targetId = (await target.getAttribute('data-annotation'))!
-        await page.getByRole('button', { name: 'Rectangle select' }).click()
-        await target.scrollIntoViewIfNeeded()
-        const box = (await target.boundingBox())!
-        await page.mouse.move(box.x - 4, box.y - 4)
-        await page.mouse.down()
-        await page.mouse.move(box.x + box.width + 4, box.y + box.height + 4, { steps: 5 })
-        await page.mouse.up()
-        await expect(
-          page.locator(`.ink-annotation[data-annotation="${targetId}"]`)
-        ).toHaveAttribute('data-state', 'selected')
-        await expect(page.locator('.ink-annotation[data-state="selected"]')).toHaveCount(
-          1
-        )
-        await expect(card).toBeVisible()
-        await expect(card).toContainText('Email address')
-      })
+    test('deleting an accepted redaction restores its suggestion', async ({ page }) => {
+      await suggestOnSample(page, `${framework}/`)
+      await mark(page, 'ni-number').click()
+      await suggestionCard(page).getByRole('button', { name: 'Accept' }).click()
+      await expect(mark(page, 'ni-number')).toHaveCount(0)
+      // As a keyboard user would: Accept moves focus to the next mark, and the page's own
+      // annotations come before the marks, so Shift+Tab reaches the redaction.
+      await expect(mark(page, 'email')).toBeFocused()
+      await page.keyboard.press('Shift+Tab')
+      await expect(redactions(page)).toBeFocused()
+      await page.keyboard.press('Delete')
+      await expect(redactions(page)).toHaveCount(0)
+      await expect(mark(page, 'ni-number')).toHaveCount(1)
+      await expect(page.locator(SUGGESTED)).toHaveCount(4)
+      // One step put back both: Undo restores the redaction and takes the mark away again.
+      await page.getByRole('button', { name: 'Undo' }).click()
+      await expect(redactions(page)).toHaveCount(1)
+      await expect(mark(page, 'ni-number')).toHaveCount(0)
+      await expect(page.locator(SUGGESTED)).toHaveCount(3)
+    })
 
-      test('Escape closes the card and clears the selection', async ({ page }) => {
-        await suggestOnSample(page, framework)
-        await page.locator(SUGGESTED_ANNOTATION).first().click()
-        const card = suggestionCard(page)
-        await expect(card.getByRole('button', { name: 'Accept' })).toBeFocused()
-        await page.keyboard.press('Escape')
-        await expect(card).toBeHidden()
-        await expect(page.locator('.ink-annotation[data-state="selected"]')).toHaveCount(
-          0
-        )
-        await expect(page.locator(SUGGESTED_ANNOTATION)).toHaveCount(4)
-      })
-    }
+    test('Tab reaches the marks after the page annotations, and Enter opens the card', async ({
+      page,
+    }) => {
+      await suggestOnSample(page, `${framework}/`)
+      // Accept one, so the page has an annotation of its own ahead of the marks.
+      await mark(page, 'ni-number').click()
+      await suggestionCard(page).getByRole('button', { name: 'Accept' }).click()
+      await expect(redactions(page)).toHaveCount(1)
+      await redactions(page).focus()
+      await page.keyboard.press('Tab')
+      await expect(mark(page, 'email')).toBeFocused()
+      await page.keyboard.press('Enter')
+      const card = suggestionCard(page)
+      await expect(card).toBeVisible()
+      await expect(card).toContainText('Email address')
+      await expect(card.getByRole('button', { name: 'Accept' })).toBeFocused()
+    })
 
-    if (usesPlugin(framework)) {
-      const mark = (page: Page, id: string) =>
-        page.locator(`${SUGGESTED_MARK}[data-suggestion="${id}"]`)
-      const redactions = (page: Page) =>
-        page.locator('.ink-page[data-page="3"] .ink-annotation[data-type="redact"]')
+    test('Escape closes the card and returns focus to the mark', async ({ page }) => {
+      await suggestOnSample(page, `${framework}/`)
+      const first = mark(page, 'ni-number')
+      await first.click()
+      const card = suggestionCard(page)
+      await expect(card.getByRole('button', { name: 'Accept' })).toBeFocused()
+      await page.keyboard.press('Escape')
+      await expect(card).toBeHidden()
+      await expect(first).toBeFocused()
+      await expect(page.locator(SUGGESTED)).toHaveCount(4)
+      await expect(page.locator('.ink-annotation[data-state="selected"]')).toHaveCount(0)
+    })
 
-      test('accept adds a redaction and moves focus to the next suggestion', async ({
-        page,
-      }) => {
-        await suggestOnSample(page, framework)
-        const first = mark(page, 'ni-number')
-        await expect(first).toHaveAccessibleName(
-          'Suggested redaction: National Insurance number'
-        )
-        await first.click()
-        const card = suggestionCard(page)
-        await expect(card).toBeVisible()
-        await expect(card).toContainText('National Insurance number')
-        await expect(card).toContainText('High confidence')
-        await expect(card.getByRole('button', { name: 'Accept' })).toBeFocused()
-        await card.getByRole('button', { name: 'Accept' }).click()
-        await expect(card).toBeHidden()
-        await expect(page.locator(SUGGESTED_MARK)).toHaveCount(3)
-        await expect(first).toHaveCount(0)
-        await expect(redactions(page)).toHaveCount(1)
-        await expect(mark(page, 'email')).toBeFocused()
-      })
+    test('a press on a mark keeps the selection', async ({ page }) => {
+      await suggestOnSample(page, `${framework}/`)
+      await mark(page, 'ni-number').click()
+      await suggestionCard(page).getByRole('button', { name: 'Accept' }).click()
+      await redactions(page).click()
+      await expect(redactions(page)).toHaveAttribute('data-state', 'selected')
+      await mark(page, 'email').click()
+      await expect(suggestionCard(page)).toContainText('Email address')
+      await expect(redactions(page)).toHaveAttribute('data-state', 'selected')
+    })
 
-      test('dismiss sets a suggestion aside and moves focus to the next', async ({
-        page,
-      }) => {
-        await suggestOnSample(page, framework)
-        await mark(page, 'ni-number').click()
-        await suggestionCard(page).getByRole('button', { name: 'Dismiss' }).click()
-        await expect(suggestionCard(page)).toBeHidden()
-        await expect(page.locator(SUGGESTED_MARK)).toHaveCount(3)
-        await expect(redactions(page)).toHaveCount(0)
-        await expect(mark(page, 'email')).toBeFocused()
-      })
-
-      test('undo restores an accepted suggestion', async ({ page }) => {
-        await suggestOnSample(page, framework)
-        await mark(page, 'ni-number').click()
-        await suggestionCard(page).getByRole('button', { name: 'Accept' }).click()
-        await expect(redactions(page)).toHaveCount(1)
-        await page.getByRole('button', { name: 'Undo' }).click()
-        await expect(redactions(page)).toHaveCount(0)
-        await expect(page.locator(SUGGESTED_MARK)).toHaveCount(4)
-        await mark(page, 'ni-number').click()
-        await expect(suggestionCard(page)).toContainText('National Insurance number')
-      })
-
-      test('deleting an accepted redaction puts its suggestion back', async ({
-        page,
-      }) => {
-        await suggestOnSample(page, framework)
-        await mark(page, 'phone').click()
-        await suggestionCard(page).getByRole('button', { name: 'Accept' }).click()
-        await expect(mark(page, 'phone')).toHaveCount(0)
-        await redactions(page).focus()
-        await page.keyboard.press('Delete')
-        await expect(redactions(page)).toHaveCount(0)
-        await expect(mark(page, 'phone')).toHaveCount(1)
-        await expect(page.locator(SUGGESTED_MARK)).toHaveCount(4)
-      })
-
-      test('Tab reaches the marks after the page annotations, and Enter opens the card', async ({
-        page,
-      }) => {
-        await suggestOnSample(page, framework)
-        // Accept one, so the page has an annotation of its own ahead of the marks.
-        await mark(page, 'ni-number').click()
-        await suggestionCard(page).getByRole('button', { name: 'Accept' }).click()
-        await expect(redactions(page)).toHaveCount(1)
-        await redactions(page).focus()
-        await page.keyboard.press('Tab')
-        await expect(mark(page, 'email')).toBeFocused()
-        await page.keyboard.press('Enter')
-        const card = suggestionCard(page)
-        await expect(card).toBeVisible()
-        await expect(card).toContainText('Email address')
-        await expect(card.getByRole('button', { name: 'Accept' })).toBeFocused()
-      })
-
-      test('Escape closes the card and returns focus to the mark', async ({ page }) => {
-        await suggestOnSample(page, framework)
-        const first = mark(page, 'ni-number')
-        await first.click()
-        const card = suggestionCard(page)
-        await expect(card.getByRole('button', { name: 'Accept' })).toBeFocused()
-        await page.keyboard.press('Escape')
-        await expect(card).toBeHidden()
-        await expect(first).toBeFocused()
-        await expect(page.locator(SUGGESTED_MARK)).toHaveCount(4)
-        await expect(page.locator('.ink-annotation[data-state="selected"]')).toHaveCount(
-          0
-        )
-      })
-
-      test('a press on a mark keeps the selection', async ({ page }) => {
-        await suggestOnSample(page, framework)
-        await mark(page, 'ni-number').click()
-        await suggestionCard(page).getByRole('button', { name: 'Accept' }).click()
-        await redactions(page).click()
-        await expect(redactions(page)).toHaveAttribute('data-state', 'selected')
-        await mark(page, 'email').click()
-        await expect(suggestionCard(page)).toContainText('Email address')
-        await expect(redactions(page)).toHaveAttribute('data-state', 'selected')
-      })
-
-      test('has no axe violations with the marks and the card open', async ({ page }) => {
-        await suggestOnSample(page, framework)
-        await mark(page, 'ni-number').click()
-        await expect(suggestionCard(page)).toBeVisible()
-        const { violations } = await new AxeBuilder({ page }).analyze()
-        expect(violations).toEqual([])
-      })
-    }
+    test('has no axe violations with the marks and the card open', async ({ page }) => {
+      await suggestOnSample(page, `${framework}/`)
+      await mark(page, 'ni-number').click()
+      await expect(suggestionCard(page)).toBeVisible()
+      const { violations } = await new AxeBuilder({ page }).analyze()
+      expect(violations).toEqual([])
+    })
 
     test('opens a local PDF in place of the sample', async ({ page }) => {
       await page.goto(`${framework}/`)
@@ -442,9 +325,7 @@ for (const framework of FRAMEWORKS) {
       await expect(page.locator('[data-ink-page-count]')).toHaveText('of 1')
       // Let the interrupted run's 400 ms delay end, so a rejection would reach the console guard.
       await page.waitForTimeout(800)
-      await expect(page.locator(resultSelector(framework))).not.toHaveText(
-        'Could not check this document.'
-      )
+      await expect(page.locator(RESULT)).not.toHaveText('Could not check this document.')
     })
 
     test('select text then rectangle select a note', async ({ page }) => {
@@ -1069,3 +950,38 @@ for (const framework of FRAMEWORKS) {
     })
   })
 }
+
+test.describe('plugin page', () => {
+  test("the plugin page shows the plugin's source and a working viewer", async ({
+    page,
+  }) => {
+    await page.goto('./')
+    await page.getByRole('link', { name: 'Writing a plugin' }).first().click()
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Writing a plugin')
+    for (const name of ['suggestions.ts', 'layer.ts', 'card.ts', 'suggestions.css'])
+      await expect(page.getByRole('region', { name, exact: true })).toBeVisible()
+    await expect(
+      page.getByRole('region', { name: 'suggestions.ts', exact: true })
+    ).toContainText('definePlugin')
+    await waitForFirstPage(page)
+    await suggestOnSample(page, 'plugin/')
+    await page.locator(`${SUGGESTED}[data-suggestion="email"]`).click()
+    await suggestionCard(page).getByRole('button', { name: 'Accept' }).click()
+    await expect(page.locator(SUGGESTED)).toHaveCount(3)
+  })
+
+  test('each framework page links to the plugin page', async ({ page }) => {
+    for (const framework of FRAMEWORKS) {
+      await page.goto(`${framework}/`)
+      await page.getByRole('link', { name: 'Writing a plugin' }).first().click()
+      await expect(page).toHaveURL(/\/plugin\/$/)
+    }
+  })
+
+  test('has no axe violations', async ({ page }) => {
+    await page.goto('plugin/')
+    await waitForFirstPage(page)
+    const { violations } = await new AxeBuilder({ page }).analyze()
+    expect(violations).toEqual([])
+  })
+})

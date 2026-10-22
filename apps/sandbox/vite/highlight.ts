@@ -11,7 +11,13 @@ import theme from './inkbar-ink.json' with { type: 'json' }
 
 import type { Plugin } from 'vite'
 
-const LANGS = { '.ts': 'ts', '.tsx': 'tsx', '.vue': 'vue', '.svelte': 'svelte' } as const
+const LANGS = {
+  '.ts': 'ts',
+  '.tsx': 'tsx',
+  '.vue': 'vue',
+  '.svelte': 'svelte',
+  '.css': 'css',
+} as const
 type Lang = (typeof LANGS)[keyof typeof LANGS]
 
 const QUERY = '?highlight'

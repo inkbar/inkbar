@@ -2,12 +2,12 @@
 /*
  * Uncontrolled: the document keeps its own annotations and undo history. The toolbars are
  * built from Inkbar's components, so each control is yours to keep, move or drop. Pass a
- * button your own icon to replace the one it shows. Suggest redactions is the app's own
- * extension: Actions adds the button, SuggestionCard the review card, and decorateSuggestion
- * tags each suggested mark so the page can draw it dashed.
+ * button your own icon to replace the one it shows. Suggest redactions is a plugin
+ * (src/plugin/suggestions.ts): registered in `plugins`, with its button placed by InkCommand.
  */
 import {
   InkColorMenu,
+  InkCommand,
   InkHighlightMenu,
   InkLineStyleMenu,
   InkTextStyleMenu,
@@ -32,11 +32,9 @@ import {
 import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 
+import { suggestionsPlugin } from '../plugin/suggestions'
+import '../plugin/suggestions.css'
 import { signatureFonts, signatures } from '../shared/signatures'
-import { decorateSuggestion } from '../shared/suggestion'
-
-import Actions from './Actions.vue'
-import SuggestionCard from './SuggestionCard.vue'
 
 import type { DocumentSource } from '@inkbar/core'
 
@@ -49,7 +47,7 @@ defineProps<{ source: DocumentSource }>()
     :assets="assets"
     :signatures="signatures"
     :signature-fonts="signatureFonts"
-    :decorate-annotation="decorateSuggestion"
+    :plugins="[suggestionsPlugin()]"
     class="demo-root"
   >
     <InkToolbar class="demo-toolbar">
@@ -74,7 +72,9 @@ defineProps<{ source: DocumentSource }>()
       </div>
       <InkUndo />
       <InkRedo />
-      <Actions />
+      <div class="demo-actions" role="group" aria-label="Suggest">
+        <InkCommand id="sandbox.suggest" v-slot="{ label }">{{ label }}</InkCommand>
+      </div>
     </InkToolbar>
     <InkViewport />
     <InkToolbar label="Page and zoom" class="demo-status-bar">
@@ -91,6 +91,5 @@ defineProps<{ source: DocumentSource }>()
       </div>
     </InkToolbar>
     <InkThreadPopover />
-    <SuggestionCard />
   </InkRoot>
 </template>

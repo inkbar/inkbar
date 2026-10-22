@@ -1,5 +1,8 @@
 export type FrameworkId = 'react' | 'vue' | 'svelte' | 'vanilla'
 
+/** Every page the shell draws: one per framework, and the plugin page. */
+export type PageId = FrameworkId | 'plugin'
+
 export interface Framework {
   name: string
   blurb: string
@@ -12,25 +15,33 @@ export const FRAMEWORKS: Record<FrameworkId, Framework> = {
   react: {
     name: 'React',
     blurb:
-      "@inkbar/react supplies the viewer, toolbar controls and popovers as components. This page adds Suggest redactions with Inkbar's public API: a button built on its hooks and a review card of its own.",
+      "@inkbar/react supplies the viewer, toolbar controls and popovers as components. This page registers an example plugin, Suggest redactions, and places its button with InkCommand. The plugin's code is on its own page.",
     install: 'pnpm add @inkbar/react @inkbar/core @inkbar/theme',
   },
   vue: {
     name: 'Vue',
     blurb:
-      "@inkbar/vue supplies the viewer, toolbar controls and popovers as components. This page adds Suggest redactions with Inkbar's public API: a button built on its composables and a review card of its own.",
+      "@inkbar/vue supplies the viewer, toolbar controls and popovers as components. This page registers an example plugin, Suggest redactions, and places its button with InkCommand. The plugin's code is on its own page.",
     install: 'pnpm add @inkbar/vue @inkbar/core @inkbar/theme',
   },
   svelte: {
     name: 'Svelte',
     blurb:
-      "@inkbar/svelte supplies the viewer, toolbar controls and popovers as components. This page adds Suggest redactions with Inkbar's public API: a button built on its hooks and a review card of its own.",
+      "@inkbar/svelte supplies the viewer, toolbar controls and popovers as components. This page registers an example plugin, Suggest redactions, and places its button with InkCommand. The plugin's code is on its own page.",
     install: 'pnpm add @inkbar/svelte @inkbar/core @inkbar/theme',
   },
   vanilla: {
     name: 'TypeScript',
     blurb:
-      'No framework. createViewer from @inkbar/core/dom renders the viewer and popovers, and its controls build the toolbars. This page adds Suggest redactions as a plugin, with its button placed by createCommandButton.',
+      "No framework. createViewer from @inkbar/core/dom renders the viewer and popovers, and its controls build the toolbars. This page registers an example plugin, Suggest redactions, and places its button with createCommandButton. The plugin's code is on its own page.",
     install: 'pnpm add @inkbar/core @inkbar/theme',
   },
+}
+
+/** The plugin page, which runs the TypeScript viewer. */
+export const PLUGIN_PAGE: Framework = {
+  name: 'Writing a plugin',
+  blurb:
+    "A plugin adds a feature to Inkbar once, for every framework. This one is Suggest redactions: a command, a store of suggestions, a page layer that draws them and a card to review each one. It uses only Inkbar's public API. Every sandbox registers it in a line.",
+  install: 'pnpm add @inkbar/core @inkbar/theme',
 }
