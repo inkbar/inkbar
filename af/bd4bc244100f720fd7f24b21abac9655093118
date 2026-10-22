@@ -1,0 +1,95 @@
+packages/core/src/model/annotations/history.test.ts
+  s_611b86d68c2358::t_a38ff3dfd37c51 3-4,409-416,421-531
+  s_611b86d68c2358::t_bbef6cbe12f797 417-420
+  s_611b86d68c2358::t_19e8fd28b3f778 532
+packages/core/src/model/annotations/history.ts
+  s_611b86d68c2358::t_fb011e5c39a6d6 6-7,10-27,47-51,53-61,64-65,90-91,101-104,106-113,120-160,178-180,182,188-189,193,195,198-206,209-210,213-217,230,237,245,260-271,274-278,280-305,310,312-315,319-320,325-326
+  s_611b86d68c2358::t_bbef6cbe12f797 272-273
+packages/core/src/model/annotations/snapshot-history.test.ts
+  s_611b86d68c2358::t_251a4e469b8845 465,497-501,549-553,693
+  s_611b86d68c2358::t_1e50152479b489 3
+  s_611b86d68c2358::t_0e89e81a611930 4-5,7,437-464,466-496,502-548,554-600,650-692,694-707
+  s_611b86d68c2358::t_0154ecadd0bd24 708
+  s_611b86d68c2358::t_d6318acb08d27e 637-638,641-647
+  s_611b86d68c2358::t_4ee5e5e88fd943 601-636,639-640,648-649
+packages/core/src/model/annotations/snapshot-history.ts
+  s_611b86d68c2358::t_a54b1c4947c732 4-6,23-28,30,58-63,66-75,83,87,89-94,97-104,108-133,140-142,146,154,199-200,203,214-275,292-301,304-308,316,320-327
+  s_611b86d68c2358::t_251a4e469b8845 105-107,143-145
+  s_611b86d68c2358::t_8146717bf048e3 95-96,309-310,312-313
+  s_611b86d68c2358::t_30dbdb3a53a39b 208-213,302-303,311,314-315
+packages/core/src/dom/plugins/host.test.ts
+  s_611b86d68c2358::t_6501e4d59be2dc 147
+  s_611b86d68c2358::t_aee699f258a0cd 1-7,9-19,24-142,146,148-293
+  s_611b86d68c2358::t_2e948c437f0d70 8,20-23,143-145
+packages/core/src/dom/plugins/commands.ts
+  s_611b86d68c2358::t_25372125ac80b9 1-4,6-85,89-113,116-125
+  s_611b86d68c2358::t_2e948c437f0d70 5,86-88,114-115
+packages/core/src/dom/plugins/commands.test.ts
+  s_611b86d68c2358::t_2e948c437f0d70 12,30-32,42-44,49-51,80-85,109-111,114-118,137-139
+  s_611b86d68c2358::t_da2ac5ab6fe91d 1-11,13-29,33-41,45-48,52-79,86-108,112-113,119-136,140-152
+packages/core/src/dom/plugins/host.ts
+  s_611b86d68c2358::t_2e948c437f0d70 25-29,92-98,124-127,169-171,181-183,233-234
+  s_611b86d68c2358::t_64e8f6f252502a 1-15,17-20,21-24,30-42,44-48,51-91,99-104,106-116,118-123,128-168,172-180,184-186,188-203,205-232,235-239,242-250
+  s_611b86d68c2358::t_b0d90088a8ce16 117,187
+  s_611b86d68c2358::t_3b123791eb1e55 16,43,49-50,105,204,240
+  s_611b86d68c2358::t_01eb85c4429926 241
+packages/core/src/model/errors.ts
+  s_611b86d68c2358::t_bc639add75179b 12
+packages/core/src/dom/index.ts
+  s_611b86d68c2358::t_487ff31dcf07d7 30-41
+  s_611b86d68c2358::t_34667b8ed473e5 42-49
+packages/core/README.md
+  s_611b86d68c2358::t_c830446b5ef653 231-235,237-250,252-259
+  s_611b86d68c2358::t_2e948c437f0d70 236,251
+packages/core/src/dom/tools/controller.ts
+  s_611b86d68c2358::t_bc639add75179b 114-117
+  s_611b86d68c2358::t_2e948c437f0d70 54
+  s_611b86d68c2358::t_b40ce319cf1cce 524-525,527-528
+packages/core/src/dom/plugins/define.ts
+  s_611b86d68c2358::t_8e7ee67ea37b55 1-15,17-106,108-115,117-118
+  s_611b86d68c2358::t_2e948c437f0d70 16
+  s_611b86d68c2358::t_5763f9ba736fca 116
+  s_611b86d68c2358::t_3dc16ece693685 107
+packages/core/src/dom/index.test.ts
+  s_611b86d68c2358::t_487ff31dcf07d7 38-39
+  s_611b86d68c2358::t_34667b8ed473e5 40
+packages/core/src/dom/viewer/popover.browser.test.ts
+  s_611b86d68c2358::t_75611a264fe861 92-140
+packages/core/src/dom/page-mount.ts
+  s_611b86d68c2358::t_795e55a6e7f964 5,25-26,50-53,94,103,106
+packages/theme/theme.test.ts
+  s_611b86d68c2358::t_fe23f9554bdd1d 289-290,294-299
+  s_611b86d68c2358::t_191b1d08a8e6f8 291-293
+packages/core/src/dom/viewer/popover.ts
+  s_611b86d68c2358::t_baaf408263d483 3-4,34,38-41,48-53,82-103,107,120-121,212,214,217-222,224,227-228,236-243
+packages/core/src/dom/plugins/layer.ts
+  s_611b86d68c2358::t_7a4c89f8c4b7c2 1-35,37-50,52-145
+  s_611b86d68c2358::t_3b123791eb1e55 36,51
+packages/theme/theme.css
+  s_611b86d68c2358::t_08c2724635a312 326-336
+packages/core/src/dom/plugins/layer.browser.test.ts
+  s_611b86d68c2358::t_9858991e24d027 110,147
+  s_611b86d68c2358::t_c8c31ebbe923ab 118
+  s_611b86d68c2358::t_37445533839457 190,262-264
+  s_611b86d68c2358::t_191b1d08a8e6f8 128-130,272-274
+  s_611b86d68c2358::t_0ea97762240102 1-109,111-117,119-127,131-146,148-189,191-261,265-271,275-284
+packages/core/src/dom/viewer-engine.ts
+  s_611b86d68c2358::t_ffdb66973dc20c 166-168
+  s_611b86d68c2358::t_795e55a6e7f964 16,34,113-118,185-191,226-227,429
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "afbd4bc244100f720fd7f24b21abac9655093118",
+  "prompts": {},
+  "sessions": {
+    "s_611b86d68c2358": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f6760cb6-1a68-4a5b-b172-32f4da0aa5b1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
