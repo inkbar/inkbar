@@ -84,6 +84,10 @@ function guard<T>(fn: () => T): T | undefined {
   }
 }
 
+/**
+ * @internal For bindings and `createViewer`, which place a viewer's plugins; plugin authors use
+ * `definePlugin` and never call it.
+ */
 export function createPluginHost(opts: PluginHostOptions): PluginHost {
   const seen = new Set<string>()
   for (const plugin of opts.plugins) {
