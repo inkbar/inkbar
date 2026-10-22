@@ -9,5 +9,5 @@
 </script>
 
 <InkRoot src={null} {assets}>
-  <CommandProbe id="nope.x" />
+  <CommandProbe id="sandbox.any" />
 </InkRoot>

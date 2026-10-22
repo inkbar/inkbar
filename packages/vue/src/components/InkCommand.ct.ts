@@ -5,6 +5,8 @@ import CommandStateHarness from '../../playwright/harness/CommandStateHarness.vu
 import PluginHarness from '../../playwright/harness/PluginHarness.vue'
 import SetupThrowsHarness from '../../playwright/harness/SetupThrowsHarness.vue'
 
+import type { JSHandle } from '@playwright/test'
+
 const assets = browserAssets()
 
 test('InkCommand runs a plugin command and shows its status', async ({ mount }) => {
@@ -93,11 +95,40 @@ test('InkCommand is disabled until the plugins are set up on mount, then enabled
   await expect(cmp.getByTestId('label')).toHaveText('Always')
 })
 
-test('an id no plugin registered throws UnknownCommand once the plugins are set up', async ({
+test('an id no plugin registered logs UnknownCommand and stays a disabled hidden button', async ({
   mount,
+  page,
 }) => {
-  const cmp = await mount(CommandStateHarness, { props: { assets, id: 'sandbox.nope' } })
-  await expect(cmp).toHaveAttribute('data-error', 'UnknownCommand')
+  const logged: JSHandle[] = []
+  page.on('console', (m) => {
+    if (m.type() === 'error') logged.push(m.args()[0]!)
+  })
+  const cmp = await mount(CommandStateHarness, {
+    props: { assets, id: 'sandbox.nope', src: fixtureUrl('text-simple') },
+  })
+  const button = cmp.locator('button[data-command="sandbox.nope"]')
+  await expect(button).toBeDisabled()
+  await expect(button).toHaveAttribute('aria-hidden', 'true')
+  await expect(button).not.toHaveAttribute('aria-label')
+  await expect(button).not.toHaveAttribute('title')
+  await expect(button).toHaveText('')
+  // The viewer keeps working.
+  await expect(page.locator('[data-ink-root]')).toHaveAttribute('data-state', 'ready')
+  // Once per handle (the probe's and the button's), though the document opening re-renders.
+  expect(logged).toHaveLength(2)
+  expect(
+    await logged[0]!.evaluate((e: Error & { code: string; details: object }) => ({
+      name: e.name,
+      code: e.code,
+      details: e.details,
+      message: e.message,
+    }))
+  ).toMatchObject({
+    name: 'InkError',
+    code: 'UnknownCommand',
+    details: { id: 'sandbox.nope', registered: ['sandbox.always'] },
+    message: expect.stringContaining('sandbox.always'),
+  })
 })
 
 test('a plugin setup that throws is reported, and the document still opens', async ({

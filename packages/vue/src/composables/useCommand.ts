@@ -1,5 +1,5 @@
-import { InkError } from '@inkbar/core'
-import { computed } from 'vue'
+import { unknownCommand } from '@inkbar/core/dom'
+import { computed, watch } from 'vue'
 
 import { useInkContext } from '../context'
 import { useReadable } from '../use-readable'
@@ -24,18 +24,20 @@ export interface CommandHandle {
  * A plugin command by its namespaced id (`sandbox.suggest`), for hosts building their own
  * control. Plugins are set up once InkRoot has mounted, so until then (and on the server) the
  * command is disabled with no label; it fills in then. Once they are set up, an id no plugin
- * passed to InkRoot registered raises `InkError('UnknownCommand')` where the handle is read,
- * which reaches Vue's error handling (`onErrorCaptured`, `app.config.errorHandler`).
+ * passed to InkRoot registered stays that way, and logs `InkError('UnknownCommand')` to the
+ * console once.
  */
 export function useCommand(id: string): CommandHandle {
   const host = useInkContext('useCommand()').pluginHost
-  const command = computed(() => {
-    if (!host.value) return undefined
-    const found = host.value.command(id)
-    if (!found)
-      throw new InkError('UnknownCommand', `No plugin registered a command ${id}`, { id })
-    return found
-  })
+  const command = computed(() => host.value?.command(id))
+  watch(
+    host,
+    (set) => {
+      if (set && !set.command(id))
+        console.error(unknownCommand(id, [...set.commands.keys()]))
+    },
+    { immediate: true }
+  )
   return {
     run: async () => command.value?.run(),
     enabled: useReadable(() => command.value?.enabled, false),

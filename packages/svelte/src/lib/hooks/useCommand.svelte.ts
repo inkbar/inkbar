@@ -1,4 +1,4 @@
-import { InkError } from '@inkbar/core'
+import { unknownCommand } from '@inkbar/core/dom'
 
 import { useInkContext } from '../context.js'
 import { useReadable } from '../use-readable.svelte.js'
@@ -22,18 +22,19 @@ export interface CommandHandle {
  * A plugin command by its namespaced id (`sandbox.suggest`), for hosts building their own
  * control. Plugins are set up once InkRoot has mounted, so until then (and on the server) the
  * command is disabled with no label; it fills in then. Once they are set up, an id no plugin
- * passed to InkRoot registered throws `InkError('UnknownCommand')` where the handle is read.
+ * passed to InkRoot registered stays that way, and logs `InkError('UnknownCommand')` to the
+ * console once.
  * The id is read once: a different command is a different component.
  */
 export function useCommand(id: string): CommandHandle {
   const ctx = useInkContext('useCommand()')
-  const command = $derived.by(() => {
+  const command = $derived(ctx.pluginHost?.command(id))
+  let logged = false
+  $effect(() => {
     const host = ctx.pluginHost
-    if (!host) return undefined
-    const found = host.command(id)
-    if (!found)
-      throw new InkError('UnknownCommand', `No plugin registered a command ${id}`, { id })
-    return found
+    if (!host || command || logged) return
+    logged = true
+    console.error(unknownCommand(id, [...host.commands.keys()]))
   })
   const enabled = useReadable(() => command?.enabled, false)
   const busy = useReadable(() => command?.busy, false)

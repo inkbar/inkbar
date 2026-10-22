@@ -1,5 +1,6 @@
+import { InkError } from '@inkbar/core'
 import { browserAssets, fixtureUrl } from '@inkbar/fixtures/urls'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { page as browserPage } from 'vitest/browser'
 import { render } from 'vitest-browser-svelte'
 
@@ -86,12 +87,29 @@ describe('InkCommand before the plugins are set up', () => {
     await expect.poll(text('[data-testid="seen"]')).toBe('false,true')
   })
 
-  // React: 'an id no plugin registered throws UnknownCommand once the plugins are set up'
-  it('throws UnknownCommand for an id no plugin registered, once they are', async () => {
-    await render(CommandStateHarness, { assets, id: 'sandbox.nope' })
-    await expect
-      .poll(attr('[data-testid="harness"]', 'data-error'))
-      .toBe('UnknownCommand')
+  // React: 'an id no plugin registered logs UnknownCommand and stays a disabled hidden button'
+  it('logs UnknownCommand for an id no plugin registered, and stays a disabled hidden button', async () => {
+    await render(CommandStateHarness, {
+      assets,
+      id: 'sandbox.nope',
+      src: fixtureUrl('text-simple'),
+    })
+    const button = command('sandbox.nope')
+    await expect.poll(attr('[data-ink-root]', 'data-state')).toBe('ready')
+    expect(disabled(button)()).toBe(true)
+    expect(attr(button, 'aria-hidden')()).toBe('true')
+    expect(attr(button, 'aria-label')()).toBeNull()
+    expect(attr(button, 'title')()).toBeNull()
+    expect(text(button)()).toBe('')
+    // Once per handle (the probe's and the button's), though the document opening re-renders.
+    const logged = vi.mocked(console.error).mock.calls.map(([e]) => e)
+    expect(logged).toHaveLength(2)
+    expect(logged[0]).toBeInstanceOf(InkError)
+    expect(logged[0]).toMatchObject({
+      code: 'UnknownCommand',
+      details: { id: 'sandbox.nope', registered: ['sandbox.always'] },
+    })
+    expect((logged[0] as InkError).message).toContain('sandbox.always')
     guard.clear()
   })
 })

@@ -381,6 +381,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     },
   }
   toolsByViewer.set(viewer, [...(view.tools ?? []), ...host.tools])
+  commandIdsByViewer.set(viewer, () => [...host.commands.keys()])
   return viewer
 }
 
@@ -389,4 +390,11 @@ const toolsByViewer = new WeakMap<Viewer, readonly Tool[]>()
 /** The host tools a viewer was given (its own and its plugins'), for the controls' labels and icons. */
 export function hostToolsOf(viewer: Viewer): readonly Tool[] {
   return toolsByViewer.get(viewer) ?? []
+}
+
+const commandIdsByViewer = new WeakMap<Viewer, () => string[]>()
+
+/** The ids of the commands a viewer's plugins registered, for the error on an unknown one. */
+export function hostCommandIdsOf(viewer: Viewer): string[] {
+  return commandIdsByViewer.get(viewer)?.() ?? []
 }

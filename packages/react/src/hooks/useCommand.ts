@@ -1,5 +1,5 @@
-import { InkError } from '@inkbar/core'
-import { useCallback } from 'react'
+import { unknownCommand } from '@inkbar/core/dom'
+import { useCallback, useEffect, useRef } from 'react'
 
 import { useInkContext } from '../context'
 import { useReadable } from '../use-readable'
@@ -23,13 +23,18 @@ export interface CommandHandle {
  * A plugin command by its namespaced id (`sandbox.suggest`), for hosts building their own
  * control. Plugins are set up once InkRoot has mounted, so until then (and on the server) the
  * command is disabled with no label; it fills in then. Once they are set up, an id no plugin
- * passed to InkRoot registered throws `InkError('UnknownCommand')`.
+ * passed to InkRoot registered stays that way, and logs `InkError('UnknownCommand')` to the
+ * console once.
  */
 export function useCommand(id: string): CommandHandle {
   const { pluginHost } = useInkContext('useCommand()')
   const command = pluginHost?.command(id)
-  if (pluginHost && !command)
-    throw new InkError('UnknownCommand', `No plugin registered a command ${id}`, { id })
+  const logged = useRef(false)
+  useEffect(() => {
+    if (!pluginHost || command || logged.current) return
+    logged.current = true
+    console.error(unknownCommand(id, [...pluginHost.commands.keys()]))
+  }, [pluginHost, command, id])
   const enabled = useReadable(command?.enabled, false)
   const busy = useReadable(command?.busy, false)
   const status = useReadable(command?.status, '')
