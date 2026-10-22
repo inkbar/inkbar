@@ -70,8 +70,8 @@ describe('createRecordStore', () => {
     s.replaceAll([{ id: 'b', text: 'n' }], 'history')
     s.replaceAll([], 'reset')
     expect(changes).toEqual([
-      { kind: 'replace', reason: 'history' },
-      { kind: 'replace', reason: 'reset' },
+      { kind: 'replace', reason: 'history', added: ['b'], updated: [], removed: [] },
+      { kind: 'replace', reason: 'reset', added: [], updated: [], removed: ['b'] },
     ])
     expect(onChange).toHaveBeenCalledTimes(2)
     expect(onChange.mock.calls[0]?.[0]).toEqual([{ id: 'b', text: 'n' }])
@@ -86,5 +86,67 @@ describe('createRecordStore', () => {
     expect(Object.isFrozen(u)).toBe(true)
     s.replaceAll([{ id: 'c', text: 'w' }], 'reset')
     expect(Object.isFrozen(s.get('c'))).toBe(true)
+  })
+  it('replaceAll reports the ids it added, updated and removed', () => {
+    const s = createRecordStore<Note>('notes', {
+      initial: [
+        { id: 'a', text: 'keep' },
+        { id: 'b', text: 'old' },
+        { id: 'c', text: 'gone' },
+      ],
+    })
+    const kept = s.get('a')
+    const changes: RecordChange<Note>[] = []
+    s.on('change', (c) => changes.push(c))
+    s.replaceAll(
+      [
+        { id: 'a', text: 'keep' },
+        { id: 'b', text: 'new' },
+        { id: 'd', text: 'fresh' },
+      ],
+      'reset'
+    )
+    expect(changes).toEqual([
+      { kind: 'replace', reason: 'reset', added: ['d'], updated: ['b'], removed: ['c'] },
+    ])
+    // An unchanged record keeps its stored object.
+    expect(s.get('a')).toBe(kept)
+  })
+
+  it('does not freeze the objects it is handed', () => {
+    const first = { id: 'a', text: 'x' }
+    const added = { id: 'b', text: 'y' }
+    const replaced = { id: 'c', text: 'z' }
+    const s = createRecordStore<Note>('notes', { initial: [first] })
+    s.add(added)
+    expect(Object.isFrozen(first)).toBe(false)
+    expect(Object.isFrozen(added)).toBe(false)
+    expect(Object.isFrozen(s.get('a'))).toBe(true)
+    expect(Object.isFrozen(s.get('b'))).toBe(true)
+    s.replaceAll([replaced], 'reset')
+    expect(Object.isFrozen(replaced)).toBe(false)
+    expect(Object.isFrozen(s.get('c'))).toBe(true)
+    first.text = 'changed'
+    expect(s.get('a')).toBeUndefined()
+    replaced.text = 'changed'
+    expect(s.get('c')?.text).toBe('z')
+  })
+
+  it('ignores writes after destroy', () => {
+    const onChange = vi.fn()
+    const s = createRecordStore<Note>('notes', {
+      initial: [{ id: 'a', text: 'x' }],
+      onChange,
+    })
+    const fn = vi.fn()
+    s.on('change', fn)
+    s.destroy()
+    expect(s.add({ id: 'b', text: 'y' })).toEqual({ id: 'b', text: 'y' })
+    expect(s.update('a', { text: 'z' })).toBeUndefined()
+    expect(s.remove('a')).toBeUndefined()
+    s.replaceAll([], 'reset')
+    expect(fn).not.toHaveBeenCalled()
+    expect(onChange).not.toHaveBeenCalled()
+    expect(s.list.get()).toEqual([{ id: 'a', text: 'x' }])
   })
 })
