@@ -37,6 +37,8 @@ export type {
   PluginLayerHandle,
   PluginStoreOptions,
 } from './plugins/define'
+export type { PluginApi, PluginOptions } from './plugins/api/api'
+export type { Records } from './plugins/api/records'
 export { unknownCommand } from './plugins/commands'
 export { createPluginHost } from './plugins/host'
 export type { PluginHost, PluginHostOptions } from './plugins/host'

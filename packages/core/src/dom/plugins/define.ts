@@ -7,6 +7,8 @@
  */
 import { InkError } from '../../model/errors'
 
+import { createPluginApi, type PluginApi, type PluginOptions } from './api/api'
+
 import type { AnnotationEdit } from '../../model/annotations/store'
 import type { InkDocument } from '../../model/document'
 import type { Readable } from '../../model/readable'
@@ -119,18 +121,51 @@ export interface PluginContext {
   layer(spec: LayerSpec): PluginLayerHandle
 }
 
+/** A factory's parameters: its options, optional only when `O` has no required field. */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- `{}` tests for no required field
+type PluginFactoryArgs<O> = {} extends O
+  ? [options?: O & PluginOptions]
+  : [options: O & PluginOptions]
+
 const PLUGIN_ID = /^[a-z][a-z0-9-]*$/
+
+function checkId(id: string): void {
+  if (!PLUGIN_ID.test(id))
+    throw new InkError(
+      'InvalidPluginId',
+      `Plugin id ${JSON.stringify(id)} must be lower-case kebab`,
+      {
+        id,
+      }
+    )
+}
 
 /**
  * Checks the plugin's id and returns the plugin unchanged. Throws `InkError('InvalidPluginId')`
  * for an id that is not lower-case kebab.
  */
-export function definePlugin(plugin: InkPlugin): InkPlugin {
-  if (!PLUGIN_ID.test(plugin.id))
-    throw new InkError(
-      'InvalidPluginId',
-      `Plugin id ${JSON.stringify(plugin.id)} must be lower-case kebab`,
-      { id: plugin.id }
-    )
-  return plugin
+export function definePlugin(plugin: InkPlugin): InkPlugin
+/**
+ * Checks the id now and returns a factory: `factory(options)` is a plugin whose setup receives
+ * the plugin API and those options. Each call makes an independent plugin. The options may be
+ * left out only when every field of `O` is optional.
+ */
+export function definePlugin<O extends object = object>(
+  id: string,
+  setup: (plugin: PluginApi, options: O & PluginOptions) => void | (() => void)
+): (...args: PluginFactoryArgs<O>) => InkPlugin
+export function definePlugin<O extends object>(
+  plugin: InkPlugin | string,
+  setup?: (plugin: PluginApi, options: O & PluginOptions) => void | (() => void)
+): InkPlugin | ((options?: O & PluginOptions) => InkPlugin) {
+  if (typeof plugin !== 'string') {
+    checkId(plugin.id)
+    return plugin
+  }
+  const id = plugin
+  checkId(id)
+  return (options = {} as O & PluginOptions) => ({
+    id,
+    setup: (ctx) => setup?.(createPluginApi(ctx, options), options),
+  })
 }

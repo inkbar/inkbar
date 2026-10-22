@@ -5,6 +5,7 @@ import { writable } from '../../model/readable'
 import { definePlugin, type InkPlugin, type PluginContext } from './define'
 import { createPluginHost, type PluginHostOptions } from './host'
 
+import type { Records } from './api/records'
 import type { PluginHistory } from '../../model/annotations/history'
 import type { AnnotationEdit } from '../../model/annotations/store'
 import type { Annotation } from '../../model/annotations/types'
@@ -71,6 +72,51 @@ describe('definePlugin', () => {
           details: { id },
         })
       )
+  })
+
+  it('checks the id of the factory form when defined', () => {
+    expect(() => definePlugin('Sandbox', () => {})).toThrow(
+      expect.objectContaining({ code: 'InvalidPluginId', details: { id: 'Sandbox' } })
+    )
+  })
+
+  it('definePlugin(id, setup) returns a factory whose plugins are independent', () => {
+    const handles: Records<Suggestion>[] = []
+    const cleanup = vi.fn()
+    const factory = definePlugin('sandbox', (plugin, options: { tag?: string }) => {
+      expect(plugin.id).toBe('sandbox')
+      handles.push(plugin.records<Suggestion>(options.tag ?? 'suggestions'))
+      return cleanup
+    })
+    const one = factory()
+    const two = factory({ tag: 'suggestions' })
+    // A host passes `records` alongside the plugin's own options, both typed.
+    factory({ tag: 'notes', records: { notes: { initial: () => [] } } })
+    // @ts-expect-error `tag` keeps the plugin's own type
+    factory({ tag: 1 })
+    // @ts-expect-error `records` keeps its type
+    factory({ records: { notes: 1 } })
+    expect(one.id).toBe('sandbox')
+    expect(one).not.toBe(two)
+    const first = hostWith([one])
+    const second = hostWith([two])
+    first.document.set(fakeDocument('a'))
+    second.document.set(fakeDocument('a'))
+    handles[0]!.add({ id: 's1', status: 'open' })
+    expect(handles[0]!.all()).toEqual([{ id: 's1', status: 'open' }])
+    expect(handles[1]!.all()).toEqual([])
+    first.host.destroy()
+    expect(cleanup).toHaveBeenCalledTimes(1)
+  })
+
+  it('requires the factory options when the plugin has required options', () => {
+    const keyed = definePlugin('keyed', (_plugin, _options: { apiKey: string }) => {})
+    // @ts-expect-error `apiKey` is required, so the options are too
+    keyed()
+    expect(keyed({ apiKey: 'k' }).id).toBe('keyed')
+    const optional = definePlugin('optional', (_plugin, _options: { tag?: string }) => {})
+    expect(optional().id).toBe('optional')
+    expect(definePlugin('plain', () => {})().id).toBe('plain')
   })
 })
 
