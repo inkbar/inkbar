@@ -82,22 +82,25 @@ export function createSearchHighlights(
     )
   }
 
-  /** The hits on each mounted page, in one pass over the state's hits. */
-  const forMounted = (): Map<number, SearchHit[]> => {
-    const byPage = new Map<number, SearchHit[]>()
-    for (const hit of search.state.get().hits) {
-      if (!pages.has(hit.page)) continue
-      const list = byPage.get(hit.page)
-      if (list) list.push(hit)
-      else byPage.set(hit.page, [hit])
+  /** The hits on `page`: a run of the state's hits, which are in `(page, start)` order. */
+  const hitsOn = (all: readonly SearchHit[], page: number): readonly SearchHit[] => {
+    const first = (p: number) => {
+      let low = 0
+      let high = all.length
+      while (low < high) {
+        const mid = (low + high) >>> 1
+        if ((all[mid] as SearchHit).page < p) low = mid + 1
+        else high = mid
+      }
+      return low
     }
-    return byPage
+    const from = first(page)
+    const to = first(page + 1)
+    return to > from ? all.slice(from, to) : NO_HITS
   }
 
-  const stop = search.state.subscribe(() => {
-    if (pages.size === 0) return
-    const byPage = forMounted()
-    for (const [index, page] of pages) draw(page, false, byPage.get(index) ?? NO_HITS)
+  const stop = search.state.subscribe(({ hits }) => {
+    for (const [index, page] of pages) draw(page, false, hitsOn(hits, index))
   })
 
   return {
@@ -111,8 +114,7 @@ export function createSearchHighlights(
       host.insertBefore(el, overlay)
       const page: MountedPage = { el, transform, hits: NO_HITS, current: undefined }
       pages.set(index, page)
-      const own = search.state.get().hits.filter((hit) => hit.page === index)
-      draw(page, true, own.length > 0 ? own : NO_HITS)
+      draw(page, true, hitsOn(search.state.get().hits, index))
       return {
         update(next) {
           page.transform = next

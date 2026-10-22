@@ -132,10 +132,38 @@ describe('createSearchController', () => {
     expect(controller.state.get().scanning).toBe(false)
   })
 
+  it('adds a page of hits in one state change', async () => {
+    const many = (page: number) => Array.from({ length: 50 }, (_, i) => hit(page, i * 4))
+    const { controller } = setup({ 0: many(0), 2: many(2) })
+    const lengths: number[] = []
+    controller.state.subscribe((s) => {
+      if (s.hits.length !== lengths.at(-1)) lengths.push(s.hits.length)
+    })
+    controller.setQuery('foo')
+    await settle()
+    expect(lengths).toEqual([0, 50, 100])
+    expect(controller.state.get().current).toBe(0)
+  })
+
+  it('keeps current on its hit while a page of earlier hits arrives', async () => {
+    const { controller } = setup(
+      { 0: [hit(0, 1), hit(0, 2), hit(0, 3)], 3: [hit(3, 2), hit(3, 4)] },
+      3
+    )
+    controller.setQuery('foo')
+    await vi.advanceTimersByTimeAsync(185)
+    controller.next()
+    expect(controller.state.get().hits[controller.state.get().current]).toEqual(hit(3, 4))
+    await settle()
+    const s = controller.state.get()
+    expect(s.hits).toHaveLength(5)
+    expect(s.current).toBe(4)
+  })
+
   it('points current at the first hit at or after the page in view, and keeps it', async () => {
     const { controller, scrollToRect } = setup({ 0: [hit(0, 5)], 3: [hit(3, 2)] }, 2)
     controller.setQuery('foo')
-    await vi.advanceTimersByTimeAsync(170)
+    await vi.advanceTimersByTimeAsync(175)
     let s = controller.state.get()
     expect(s.hits.map((h) => h.page)).toEqual([3])
     expect(s.current).toBe(0)
