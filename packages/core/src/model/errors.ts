@@ -11,6 +11,7 @@ export type InkErrorCode =
   | 'DuplicateId'
   | 'DuplicatePlugin'
   | 'InvalidPluginId'
+  | 'InvalidCommandLabel'
   | 'UnknownCommand'
 
 export class InkError extends Error {

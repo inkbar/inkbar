@@ -26,6 +26,7 @@ export interface InkPlugin {
 export interface CommandSpec {
   /** Namespaced to `<plugin>.<id>`. */
   id: string
+  /** Names the command's button; must not be empty (`InkError('InvalidCommandLabel')`). */
   label: string
   icon?: IconNode
   /** Default: a document is open and ready. */
