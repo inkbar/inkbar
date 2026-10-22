@@ -185,7 +185,8 @@ export { createPopover, placePanel } from './viewer/popover'
 export type { Popover, PopoverOptions } from './viewer/popover'
 export { mountViewer } from './viewer-engine'
 export type { MountViewerOptions, ViewerEngine } from './viewer-engine'
-export { createFindBar, handleFindKey, pageSelectionText } from './search/find-bar'
+export { createFindBar } from './search/find-bar'
+export { handleFindKey, pageSelectionText } from './search/find-key'
 export { createSearchController } from './search/controller'
 export type {
   SearchController,

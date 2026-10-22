@@ -26,7 +26,7 @@ import {
   type SearchController,
   type ViewerSearch,
 } from '../search/controller'
-import { handleFindKey, pageSelectionText } from '../search/find-bar'
+import { handleFindKey, pageSelectionText } from '../search/find-key'
 import { createToolOptions } from '../tools'
 import { mountViewer, type MountViewerOptions, type ViewerEngine } from '../viewer-engine'
 

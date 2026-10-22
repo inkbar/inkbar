@@ -10,12 +10,7 @@ import { button } from '../viewer/controls'
 import { searchControllerOf, onViewerDestroy, type Viewer } from '../viewer/create-viewer'
 import { h } from '../viewer/dom'
 
-import type { SearchController, SearchState } from './controller'
-
-/** Longest page selection that becomes the query. */
-const MAX_SELECTION = 200
-
-const FIELD = '[data-ink-find-bar] input'
+import type { SearchState } from './controller'
 
 /** The count beside the field: "3 of 17", "3 of 12…" while scanning, "No results". */
 function countText(s: SearchState): string {
@@ -30,64 +25,6 @@ function announcement(s: SearchState): string {
   const hit = s.hits[s.current]
   if (!hit) return 'No results'
   return `Match ${s.current + 1} of ${s.hits.length}, page ${hit.page + 1}`
-}
-
-/**
- * The text selected on the page inside `root`, on one line and trimmed; '' when there is none,
- * when it is not in `root`, when it is in the find bar, or when it is too long to be a query.
- */
-export function pageSelectionText(root: HTMLElement): string {
-  const sel = root.ownerDocument.defaultView?.getSelection()
-  if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return ''
-  const { anchorNode, focusNode } = sel
-  if (
-    !anchorNode ||
-    !focusNode ||
-    !root.contains(anchorNode) ||
-    !root.contains(focusNode)
-  )
-    return ''
-  const bar = (node: Node): boolean =>
-    (node instanceof Element ? node : node.parentElement)?.closest(
-      '[data-ink-find-bar]'
-    ) != null
-  if (bar(anchorNode) || bar(focusNode)) return ''
-  const text = sel.toString().replace(/\s+/g, ' ').trim()
-  return text.length > MAX_SELECTION ? '' : text
-}
-
-/**
- * Ctrl/Cmd+F on a viewer's root. Takes the key only when a find bar is mounted for this
- * viewer and the event comes from inside its root (listen on the root, or pass an event that
- * bubbled to it); otherwise the browser keeps it. Opens the search with the page selection as
- * the query, if there is one, and focuses and selects the field. Returns whether it took the key.
- *
- * @internal Shared with the framework bindings.
- */
-export function handleFindKey(
-  e: KeyboardEvent,
-  controller: SearchController,
-  selection: () => string
-): boolean {
-  if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== 'f')
-    return false
-  if (!controller.barAttached.get()) return false
-  const target = e.target instanceof Node ? e.target : null
-  const root =
-    e.currentTarget instanceof HTMLElement
-      ? e.currentTarget
-      : (target instanceof Element
-          ? target
-          : target?.parentElement
-        )?.closest<HTMLElement>('[data-ink-root]')
-  if (!root || !target || !root.contains(target)) return false
-  e.preventDefault()
-  const text = selection()
-  controller.open(text === '' ? undefined : text)
-  const field = root.querySelector<HTMLInputElement>(FIELD)
-  field?.focus()
-  field?.select()
-  return true
 }
 
 /**
@@ -149,7 +86,7 @@ export function createFindBar(viewer: Viewer): HTMLElement {
     else controller.next()
   })
   bar.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape' || e.defaultPrevented) return
+    if (e.key !== 'Escape' || e.defaultPrevented || e.isComposing) return
     e.preventDefault()
     e.stopPropagation()
     controller.close()
@@ -192,7 +129,11 @@ export function createFindBar(viewer: Viewer): HTMLElement {
         else before = null
       }
     }
-    if (field.value !== s.query) field.value = s.query
+    if (field.value !== s.query) {
+      field.value = s.query
+      // A query set from code arrives after the bar opened: keep the new text selected.
+      if (bar.ownerDocument.activeElement === field) field.select()
+    }
     count.textContent = countText(s)
     matchCase.setAttribute('aria-pressed', String(s.matchCase))
     const say = announcement(s)

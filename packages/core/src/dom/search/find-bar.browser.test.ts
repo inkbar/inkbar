@@ -241,4 +241,28 @@ describe('find bar', () => {
     const results = await runAxe(bar!)
     expect(results.violations.map((v) => v.id)).toEqual([])
   })
+
+  it('selects the new text when opened with a query from code', async () => {
+    const { viewer, field } = await make()
+    await attached(viewer)
+    viewer.search.open('Inkbar')
+    expect(document.activeElement).toBe(field())
+    expect(field().value).toBe('Inkbar')
+    expect([field().selectionStart, field().selectionEnd]).toEqual([0, 6])
+  })
+
+  it('refocuses and selects the field on Ctrl+F while open, without a new search', async () => {
+    const { viewer, scroll, field } = await make()
+    await attached(viewer)
+    viewer.search.open('Inkbar')
+    await until(() => !viewer.search.state.get().scanning)
+    const hits = viewer.search.state.get().hits
+    scroll.focus()
+    field().setSelectionRange(2, 2)
+    expect(findKey(scroll)).toBe(false)
+    expect(document.activeElement).toBe(field())
+    expect([field().selectionStart, field().selectionEnd]).toEqual([0, 6])
+    expect(viewer.search.state.get().hits).toBe(hits)
+    expect(viewer.search.state.get().scanning).toBe(false)
+  })
 })
