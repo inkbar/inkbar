@@ -13,6 +13,7 @@ export type InkErrorCode =
   | 'InvalidPluginId'
   | 'InvalidCommandLabel'
   | 'UnknownCommand'
+  | 'FormScriptError'
 
 export class InkError extends Error {
   override readonly name = 'InkError'

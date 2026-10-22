@@ -27,6 +27,8 @@ import { z } from 'zod'
 
 import { FringeSchema } from './callout'
 
+import type { FieldValue } from '../form/types'
+
 export {
   GLOSS_FORMAT,
   GLOSS_MEDIA_TYPE,
@@ -336,6 +338,8 @@ export const AnnotationDocumentSchema = z.object({
   documentKey: z.string().optional(),
   /** Validated item by item on import so unknown types can be preserved. */
   annotations: z.array(z.unknown()),
+  /** Form field values by full name, validated field by field against the form on import. */
+  fields: z.record(z.string(), z.unknown()).optional(),
 })
 
 /**
@@ -350,4 +354,6 @@ export interface AnnotationDocument {
   version: GlossDocument['version']
   documentKey?: string
   annotations: Array<GlossAnnotation | ForeignAnnotation>
+  /** Form field values by full name: each field that has one and is not no-export. */
+  fields?: Record<string, FieldValue>
 }
