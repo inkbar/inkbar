@@ -1,4 +1,4 @@
-import{qt as e}from"./signatures-BUC9F9q5.js";import{t}from"./Demo-Bqx8f7sb.js";e({page:`vanilla`,files:[{path:`src/vanilla/Demo.ts`,source:{html:`<pre class="shiki inkbar-ink" style="background-color:#0D1026;color:#C9CEE6" tabindex="0"><code><span class="line"><span style="color:#A9AFCB">/*</span></span>
+import{Jt as e}from"./signatures-Cgdz1wn7.js";import{t}from"./Demo-BlactcfZ.js";e({page:`vanilla`,files:[{path:`src/vanilla/Demo.ts`,source:{html:`<pre class="shiki inkbar-ink" style="background-color:#0D1026;color:#C9CEE6" tabindex="0"><code><span class="line"><span style="color:#A9AFCB">/*</span></span>
 <span class="line"><span style="color:#A9AFCB"> * Inkbar without a framework: createViewer opens the document and renders the viewer and its</span></span>
 <span class="line"><span style="color:#A9AFCB"> * popovers. The toolbars are built from Inkbar's controls, so each one is yours to keep, move</span></span>
 <span class="line"><span style="color:#A9AFCB"> * or drop, and each button takes your own icon in place of the one it shows. Suggest</span></span>
