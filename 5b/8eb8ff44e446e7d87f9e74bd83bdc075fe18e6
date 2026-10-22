@@ -1,0 +1,22 @@
+apps/sandbox/index.html
+  s_611b86d68c2358::t_083b1a280bb291 204-205
+apps/sandbox/src/styles/index.css
+  s_611b86d68c2358::t_083b1a280bb291 271-274,276
+  s_611b86d68c2358::t_1c3a78e644a234 275
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5b8eb8ff44e446e7d87f9e74bd83bdc075fe18e6",
+  "prompts": {},
+  "sessions": {
+    "s_611b86d68c2358": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f6760cb6-1a68-4a5b-b172-32f4da0aa5b1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
