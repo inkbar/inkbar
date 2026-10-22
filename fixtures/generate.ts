@@ -961,6 +961,10 @@ async function formFields() {
   const rotated = form.createTextField('rotated')
   rotated.addToPage(p2, { x: 120, y: 600, width: 200, height: 22, rotate: degrees(90) })
 
+  const styled = form.createTextField('styled')
+  styled.addToPage(p1, box(L, 8))
+  put('styled (Times bold via /F1)', L, 8)
+
   addRawField(form, p1, {
     FT: 'Sig',
     T: PDFString.of('sig'),
@@ -978,8 +982,27 @@ async function formFields() {
     if (f.acroField.dict.has(PDFName.of('DA'))) setDA(f, HELV_12)
   }
   setDA(auto, '/Helv 0 Tf 0 g')
+  // /F1 is a resource name, not a family: only the AcroForm /DR says it is Times-Bold.
+  form.acroForm.dict
+    .lookup(PDFName.of('DR'), PDFDict)
+    .lookup(PDFName.of('Font'), PDFDict)
+    .set(
+      PDFName.of('F1'),
+      ctx.register(
+        ctx.obj({
+          Type: 'Font',
+          Subtype: 'Type1',
+          BaseFont: 'Times-Bold',
+          Encoding: 'WinAnsiEncoding',
+        })
+      )
+    )
+  setDA(styled, '/F1 10 Tf 0 0 1 rg')
   agree.acroField.dict.set(PDFName.of('V'), PDFName.of('Off'))
   nameRadioStates(plan, ['monthly', 'yearly'], 'monthly')
+  plan.acroField.dict.set(PDFName.of('DV'), PDFName.of('yearly'))
+  // PDF.js maps both states to the shared export "A"; /DV names the second widget's state.
+  shared.acroField.dict.set(PDFName.of('DV'), PDFName.of('1'))
   country.acroField.dict.set(
     PDFName.of('Opt'),
     ctx.obj([
@@ -997,8 +1020,8 @@ async function formFields() {
       pages: 2,
       opens: true,
       describes:
-        'Every AcroForm field type and flag: text variants, checkbox, radios (named on-states, and two widgets sharing one export value), combo, list, a two-widget field across pages, a rotated page 2, an empty signature and a reset button',
-      annotations: { Widget: 21 },
+        'Every AcroForm field type and flag: text variants, checkbox, radios (named on-states, and two widgets sharing one export value), combo, list, a two-widget field across pages, a rotated page 2, a /DA font named only through /DR, an empty signature and a reset button',
+      annotations: { Widget: 22 },
     },
     { appearances: false }
   )
