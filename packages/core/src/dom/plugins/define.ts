@@ -5,6 +5,8 @@
  * tool button). Everything it names is namespaced under its id: command `suggest` of plugin
  * `sandbox` is `sandbox.suggest`, and so are its tools and stores.
  */
+import { InkError } from '../../model/errors'
+
 import type { AnnotationEdit } from '../../model/annotations/store'
 import type { InkDocument } from '../../model/document'
 import type { Readable } from '../../model/readable'
@@ -113,9 +115,16 @@ export interface PluginContext {
 
 const PLUGIN_ID = /^[a-z][a-z0-9-]*$/
 
-/** Checks the plugin's id and returns the plugin unchanged. */
+/**
+ * Checks the plugin's id and returns the plugin unchanged. Throws `InkError('InvalidPluginId')`
+ * for an id that is not lower-case kebab.
+ */
 export function definePlugin(plugin: InkPlugin): InkPlugin {
   if (!PLUGIN_ID.test(plugin.id))
-    throw new TypeError(`Plugin id ${JSON.stringify(plugin.id)} must be lower-case kebab`)
+    throw new InkError(
+      'InvalidPluginId',
+      `Plugin id ${JSON.stringify(plugin.id)} must be lower-case kebab`,
+      { id: plugin.id }
+    )
   return plugin
 }

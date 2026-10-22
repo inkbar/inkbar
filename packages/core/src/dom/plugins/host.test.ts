@@ -63,8 +63,14 @@ describe('definePlugin', () => {
     expect(definePlugin({ id: 'sandbox-suggestions', setup() {} }).id).toBe(
       'sandbox-suggestions'
     )
-    expect(() => definePlugin({ id: 'Sandbox', setup() {} })).toThrow()
-    expect(() => definePlugin({ id: 'a.b', setup() {} })).toThrow()
+    for (const id of ['Sandbox', 'a.b'])
+      expect(() => definePlugin({ id, setup() {} })).toThrow(
+        expect.objectContaining({
+          name: 'InkError',
+          code: 'InvalidPluginId',
+          details: { id },
+        })
+      )
   })
 })
 
@@ -250,6 +256,27 @@ describe('createPluginHost', () => {
     expect(tracked.size).toBe(0)
     host.destroy()
     expect(cleanup).toHaveBeenCalledTimes(1)
+  })
+
+  it('a throwing setup cleans up the plugins already set up, in reverse, then rethrows', () => {
+    const order: string[] = []
+    const failure = new Error('setup failed')
+    const later = vi.fn()
+    expect(() =>
+      hostWith([
+        definePlugin({ id: 'one', setup: () => () => order.push('one') }),
+        definePlugin({ id: 'two', setup: () => () => order.push('two') }),
+        definePlugin({
+          id: 'three',
+          setup() {
+            throw failure
+          },
+        }),
+        definePlugin({ id: 'four', setup: later }),
+      ])
+    ).toThrow(failure)
+    expect(order).toEqual(['two', 'one'])
+    expect(later).not.toHaveBeenCalled()
   })
 
   it('duplicate plugin ids throw', () => {
