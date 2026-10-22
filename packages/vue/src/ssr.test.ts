@@ -64,14 +64,11 @@ describe('@inkbar/vue on the server', () => {
     )
     expect(evaluated.pdfjs).toBe(false)
 
-    // A plugin is set up on the server too (it touches no DOM), so its commands render.
+    // Plugins are set up only once mounted in the browser: on the server a command button
+    // renders disabled.
     const { definePlugin } = await import('@inkbar/core/dom')
-    const plugin = definePlugin({
-      id: 'sandbox',
-      setup(ctx) {
-        ctx.commands.add({ id: 'ping', label: 'Ping', run: () => undefined })
-      },
-    })
+    const setup = vi.fn()
+    const plugin = definePlugin({ id: 'sandbox', setup })
     const app = createSSRApp({
       render: () =>
         h(entry.InkRoot, { src: '/doc.pdf', assets, plugins: [plugin] }, () => [
@@ -98,7 +95,8 @@ describe('@inkbar/vue on the server', () => {
     expect(html).toContain('<p>slot</p>')
     expect(html).toContain('data-ink-toolbar')
     expect(html).toContain('aria-label="Document tools"')
-    expect(html).toContain('data-command="sandbox.ping"')
+    expect(html).toMatch(/<button[^>]*data-command="sandbox\.ping"[^>]*disabled/)
+    expect(setup).not.toHaveBeenCalled()
     expect(evaluated.pdfjs).toBe(false)
 
     // Control: the same mock fires once a document actually opens, so the falses above mean something.

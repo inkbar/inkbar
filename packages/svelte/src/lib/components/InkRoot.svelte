@@ -117,7 +117,7 @@
   import { useReadable } from '../use-readable.svelte.js'
 
   import type { PluginHistory } from '@inkbar/core'
-  import type { ToolController, Viewport } from '@inkbar/core/dom'
+  import type { PluginHost, ToolController, Viewport } from '@inkbar/core/dom'
 
   let {
     src,
@@ -382,31 +382,39 @@
   }
 
   /*
-   * One plugin host for the root's life, built during initialisation so that InkCommand finds
-   * its command when it initialises. Building it touches no DOM, and no document opens on the
-   * server, so plugins see none there. It follows these writables rather than the root's state:
-   * the open effect sets `hostDocument` once `documentNow` is current.
+   * One plugin host for the root's life, built in an effect so that no `setup` runs on the
+   * server, where effects never run and nothing would clean it up. Until then `pluginHost` is
+   * null and InkCommand renders its command disabled. The open effect above runs first, but
+   * the document it opens arrives after an await, so the host is in place by then. It follows
+   * these writables rather than the root's state: the open effect sets `hostDocument` once
+   * `documentNow` is current.
    */
   const hostDocument = writable<InkDocument | null>(null)
   const hostActivated = writable<string | null>(null)
   const viewportEl = writable<HTMLElement | null>(null)
-  const pluginHost = createPluginHost({
-    // Read once, as documented on the prop.
-    plugins: untrack(() => plugins) ?? [],
-    document: readonly(hostDocument),
-    history: () => pluginHistory,
-    activated: readonly(hostActivated),
-    // As in `createViewer`: an id not in the open document is ignored.
-    setActivated: (id) => {
-      if (id === null || documentNow?.annotations.get(id)) setActivated(id)
-    },
-    root: readonly(viewportEl),
-    decorate: () => decorateAnnotation,
+  let pluginHost = $state.raw<PluginHost | null>(null)
+  $effect(() => {
+    const host = untrack(() =>
+      createPluginHost({
+        // Read once, as documented on the prop.
+        plugins: plugins ?? [],
+        document: readonly(hostDocument),
+        history: () => pluginHistory,
+        activated: readonly(hostActivated),
+        // As in `createViewer`: an id not in the open document is ignored.
+        setActivated: (id) => {
+          if (id === null || documentNow?.annotations.get(id)) setActivated(id)
+        },
+        root: readonly(viewportEl),
+        decorate: () => decorateAnnotation,
+      })
+    )
+    pluginHost = host
+    // Destroyed after InkViewport's engine and its plugin layers, as in `createViewer`: Svelte
+    // creates a component's effects after its template and tears them down in creation order,
+    // so the children's teardowns run first.
+    return () => host.destroy()
   })
-  // Destroyed after InkViewport's engine and its plugin layers, as in `createViewer`: Svelte
-  // creates a component's effects after its template and tears them down in creation order, so
-  // the children's teardowns run first. Effects never run on the server.
-  $effect(() => () => pluginHost.destroy())
 
   /** The document's tool style; it batches through `inkHistory`, whichever mode is on. */
   const styleTracker = $derived.by(() => {
@@ -417,7 +425,7 @@
         store: doc.annotations,
         history: { batch: (fn) => inkHistory.batch(fn) },
         // The plugins' tools too, so a plugin tool's style group applies.
-        tools: [...(hostTools ?? []), ...pluginHost.tools],
+        tools: [...(hostTools ?? []), ...(pluginHost?.tools ?? [])],
         tool: currentTool,
       })
     )
@@ -443,7 +451,9 @@
     get selection() {
       return selection.current
     },
-    pluginHost,
+    get pluginHost() {
+      return pluginHost
+    },
     viewportEl,
     get viewport() {
       return viewport

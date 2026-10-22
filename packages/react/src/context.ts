@@ -50,10 +50,11 @@ export interface InkContext {
   annotations: readonly Annotation[]
   selection: readonly string[]
   /**
-   * The plugins from InkRoot's `plugins` prop, set up once for the root's life. InkViewport
-   * hands it to the engine; InkCommand places its commands.
+   * The plugins from InkRoot's `plugins` prop, set up once the root has mounted and kept for
+   * its life; `null` before that, and on the server. InkViewport hands it to the engine;
+   * InkCommand places its commands.
    */
-  pluginHost: PluginHost
+  pluginHost: PluginHost | null
   /** InkViewport's scroll element while it is mounted: the plugins' `root`. */
   viewportEl: Writable<HTMLElement | null>
   /** Set by InkViewport once it has built its viewport and tool controller. */

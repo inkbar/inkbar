@@ -264,7 +264,7 @@ A command is disabled until a document is ready, unless it passes its own `enabl
 - Presses on a mark bubble up to the viewer's root. Stop propagation if listeners there shouldn't see them.
 - A layer's `destroy` can run after the document's stores have closed, so check `store.get()` for `null` there.
 - Decorations from `ctx.decorate` re-apply when the annotations change. Call `ctx.redecorate()` when one reads state of your own that changed.
-- Keep `setup` free of side effects. A framework package can run it while rendering on the server, where its cleanup never runs. Start timers and listeners in `onDocument`.
+- The framework packages run `setup` once the viewer has mounted in the browser, never while rendering on the server. Until then the plugin's commands are disabled, and anything `setup` creates, such as a store, doesn't exist yet.
 
 ## Signatures
 

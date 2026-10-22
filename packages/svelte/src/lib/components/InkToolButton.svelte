@@ -62,7 +62,9 @@
   const active = $derived(current.tool === tool)
   /** A host or plugin tool by this id, for the name and icon core has none for. */
   const own = $derived(
-    [...(ctx.hostTools ?? []), ...ctx.pluginHost.tools].find((t) => t.id === tool)
+    [...(ctx.hostTools ?? []), ...(ctx.pluginHost?.tools ?? [])].find(
+      (t) => t.id === tool
+    )
   )
   // `label` and `children` win; then core's name and icon; then the tool's own.
   const name = $derived(label ?? TOOL_LABELS[tool] ?? own?.label ?? tool)

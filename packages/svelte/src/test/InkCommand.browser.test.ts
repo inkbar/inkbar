@@ -5,10 +5,11 @@ import { render } from 'vitest-browser-svelte'
 
 import { guardConsole } from './console-guard.js'
 import { attr, gateFetch, q } from './dom.js'
+import CommandStateHarness from './harness/CommandStateHarness.svelte'
 import PluginHarness from './harness/PluginHarness.svelte'
 
 const assets = browserAssets()
-guardConsole()
+const guard = guardConsole()
 
 const command = (id: string) => `div.ink-command > button[data-command="${id}"]`
 const click = async (selector: string) =>
@@ -72,6 +73,26 @@ describe('InkCommand', () => {
     } finally {
       gate.restore()
     }
+  })
+})
+
+describe('InkCommand before the plugins are set up', () => {
+  // React: 'InkCommand is disabled until the plugins are set up on mount, then enabled'
+  it('is disabled until the plugins are set up on mount, then enabled', async () => {
+    await render(CommandStateHarness, { assets, id: 'sandbox.always' })
+    const button = command('sandbox.always')
+    await expect.poll(disabled(button)).toBe(false)
+    expect(attr(button, 'aria-label')()).toBe('Always')
+    await expect.poll(text('[data-testid="seen"]')).toBe('false,true')
+  })
+
+  // React: 'an id no plugin registered throws UnknownCommand once the plugins are set up'
+  it('throws UnknownCommand for an id no plugin registered, once they are', async () => {
+    await render(CommandStateHarness, { assets, id: 'sandbox.nope' })
+    await expect
+      .poll(attr('[data-testid="harness"]', 'data-error'))
+      .toBe('UnknownCommand')
+    guard.clear()
   })
 })
 

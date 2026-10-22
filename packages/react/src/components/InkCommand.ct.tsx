@@ -2,10 +2,11 @@ import { browserAssets, fixtureUrl } from '@inkbar/fixtures/urls'
 import { expect, test } from '@playwright/experimental-ct-react'
 
 import { guardConsole } from '../../playwright/console-guard'
+import { CommandStateHarness } from '../../playwright/harness/CommandStateHarness'
 import { PluginHarness } from '../../playwright/harness/PluginHarness'
 
 const assets = browserAssets()
-guardConsole(test)
+const guard = guardConsole(test)
 
 test('InkCommand runs a plugin command and shows its status', async ({ mount }) => {
   const cmp = await mount(
@@ -78,4 +79,26 @@ test("InkToolButton shows a plugin tool's own label", async ({ mount }) => {
   await expect(cmp).toHaveAttribute('data-state', 'ready')
   await button.click()
   await expect(button).toHaveAttribute('aria-pressed', 'true')
+})
+
+test('InkCommand is disabled until the plugins are set up on mount, then enabled', async ({
+  mount,
+}) => {
+  const cmp = await mount(<CommandStateHarness assets={assets} id="sandbox.always" />)
+  const button = cmp.locator('button[data-command="sandbox.always"]')
+  await expect(button).toBeEnabled()
+  await expect(button).toHaveAttribute('aria-label', 'Always')
+  await expect(cmp.getByTestId('seen')).toHaveText('false,true')
+})
+
+test('an id no plugin registered throws UnknownCommand once the plugins are set up', async ({
+  mount,
+}) => {
+  const cmp = await mount(<CommandStateHarness assets={assets} id="sandbox.nope" />)
+  await expect(cmp).toHaveAttribute('data-error', 'UnknownCommand')
+  // React reports the error the boundary caught.
+  expect(guard.problems.join('\n')).toContain(
+    'No plugin registered a command sandbox.nope'
+  )
+  guard.clear()
 })

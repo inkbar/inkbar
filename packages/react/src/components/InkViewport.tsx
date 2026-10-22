@@ -119,7 +119,7 @@ export function InkViewport({
       ...(c.hostTools ? { tools: c.hostTools } : {}),
       // The engine adds the plugins' tools and layers, and decorates through the host, which
       // reads `decorateAnnotation` first.
-      plugins: c.pluginHost,
+      ...(c.pluginHost ? { plugins: c.pluginHost } : {}),
       // Reads InkRoot's current prop; the effect below re-applies it when it changes.
       decorateAnnotation: (a) => latest.current.ctx.decorateAnnotation(a),
       ...(c.toolStyle ? { toolStyle: c.toolStyle } : {}),

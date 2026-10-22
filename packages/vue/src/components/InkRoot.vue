@@ -286,11 +286,11 @@ const inkHistory: InkHistory = {
 }
 
 /*
- * One plugin host for the root's life, built here rather than on mount so that InkCommand
- * finds its command during its own setup. Building it touches no DOM, and no document opens on
- * the server, so plugins see none there. The host follows `hostDocument`, which is set after
- * `document` (a sync watch): when the host reads `inkHistory` for a new document, it is that
- * document's history.
+ * One plugin host for the root's life, built once mounted so that no `setup` runs on the
+ * server, where nothing would clean it up. Until then `pluginHost` is null, and InkCommand
+ * renders its command disabled. The host follows `hostDocument`, which is set after `document`
+ * (a sync watch): when the host reads `inkHistory` for a new document, it is that document's
+ * history.
  */
 const hostDocument = writable<InkDocument | null>(null)
 watch(document, (doc) => hostDocument.set(doc), { flush: 'sync' })
@@ -299,8 +299,9 @@ const hostRoot = writable<HTMLElement | null>(null)
 watch(viewportEl, (el) => hostRoot.set(el), { flush: 'sync' })
 const hostActivated = writable<string | null>(null)
 watch(activated, (id) => hostActivated.set(id), { flush: 'sync' })
-const pluginHost = shallowRef<PluginHost | null>(
-  createPluginHost({
+const pluginHost = shallowRef<PluginHost | null>(null)
+function setUpPlugins(): void {
+  pluginHost.value = createPluginHost({
     plugins: props.plugins ?? [],
     document: readonly(hostDocument),
     history: () => inkHistory,
@@ -312,7 +313,7 @@ const pluginHost = shallowRef<PluginHost | null>(
     root: readonly(hostRoot),
     decorate: () => props.decorateAnnotation,
   })
-)
+}
 
 /** The document's tool style; it batches through `inkHistory`, whichever mode is on. */
 const toolStyle = shallowRef<ToolStyle | null>(null)
@@ -329,7 +330,7 @@ watch(
       store: doc.annotations,
       history: { batch: (fn) => inkHistory.batch(fn) },
       // The plugins' tools too, so a plugin tool's style group applies (the host is set by now:
-      // no document opens during setup).
+      // it is built on mount, before the first document opens).
       tools: [...(props.tools ?? []), ...(pluginHost.value?.tools ?? [])],
       tool: internalTool.value,
     })
@@ -341,9 +342,11 @@ watch(
 )
 watch(internalTool, (id) => setStyleTool?.(id))
 
-// Open on the client only: on the server InkRoot renders its empty slot.
+// Plugins and the document on the client only: on the server InkRoot renders its empty slot.
+// The plugins first, so the first document opens with their stores and reactions.
 onMounted(() => {
   syncRootEl()
+  setUpPlugins()
   void open()
 })
 onUpdated(syncRootEl)
