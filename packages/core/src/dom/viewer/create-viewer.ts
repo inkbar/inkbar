@@ -181,6 +181,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     },
     root: readonly(rootEl),
     decorate: () => view.decorateAnnotation,
+    viewport: () => viewport.get(),
   })
 
   const focusReturn = createFocusReturn({

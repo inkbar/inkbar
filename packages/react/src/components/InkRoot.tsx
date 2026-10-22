@@ -221,6 +221,8 @@ export function InkRoot({
   const [internalTool, setInternalTool] = useState<ToolId>(tool ?? 'select-text')
   const [activated, setActivatedState] = useState<string | null>(null)
   const [viewport, setViewportState] = useState<Viewport | null>(null)
+  /** The viewport as of the last `setViewport`, for the plugin host's `scrollTo`. */
+  const viewportRef = useRef<Viewport | null>(null)
   const [tools, setToolsState] = useState<ToolController | null>(null)
 
   const documentStatus = useReadable<InkStatus>(document?.status, IDLE)
@@ -336,6 +338,7 @@ export function InkRoot({
         },
         root: readonly(plugins.root),
         decorate: () => latest.current.decorateAnnotation,
+        viewport: () => viewportRef.current,
       })
       hostRef.current = { host, destroyed: false }
       setPluginHost(host)
@@ -484,6 +487,7 @@ export function InkRoot({
     [latest]
   )
   const setViewport = useCallback((vp: Viewport | null, tc: ToolController | null) => {
+    viewportRef.current = vp
     setViewportState(vp)
     setToolsState(tc)
   }, [])

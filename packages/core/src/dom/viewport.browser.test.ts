@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { fitZoomCss, visibleRangeCss } from './layout'
 import { mountContainer, openFixtureInBrowser, settle, until } from './test-utils'
@@ -261,6 +261,19 @@ describe('createViewport', () => {
       absoluteTop + css.height
     )
     await until(() => viewport.hostFor(2) !== undefined)
+  })
+
+  it('scrollToRect passes its behaviour on, and leaves a rect in view where it is', async () => {
+    const { container, viewport } = await setup()
+    const scrollTo = vi.spyOn(container, 'scrollTo')
+    const rect = { x: 72, y: 100, width: 100, height: 20 }
+    viewport.scrollToRect(2, rect, { behavior: 'smooth' })
+    expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ behavior: 'smooth' }))
+    await until(() => viewport.hostFor(2) !== undefined)
+    scrollTo.mockClear()
+    await settle(600)
+    viewport.scrollToRect(2, rect)
+    expect(scrollTo).not.toHaveBeenCalled()
   })
 
   it('scrollToPage puts the page top just below the gap', async () => {
