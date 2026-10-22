@@ -233,37 +233,71 @@ A press on text markup (a highlight, underline, strikeout or squiggly) does noth
 A plugin adds commands, tools, annotation decorations, page layers and its own records to a viewer. Write it once with `definePlugin` from `@inkbar/core/dom` and it runs in every framework package and in `createViewer`.
 
 ```ts
+import type { RecordBase, Rect } from '@inkbar/core'
 import { definePlugin } from '@inkbar/core/dom'
 
-export const suggestions = definePlugin({
-  id: 'sandbox', // lower-case kebab; everything the plugin adds is named under it
-  setup(ctx) {
-    const store = ctx.store<{ id: string; status: string }>('suggestions', {
-      initial: () => [],
-    })
-    ctx.commands.add({
-      id: 'suggest', // becomes 'sandbox.suggest'
-      label: 'Suggest redactions',
-      async run() {
-        const list = await findSuggestions() // your own code
-        ctx.history.batch(() => list.forEach((s) => store.get()?.add(s)))
-      },
-    })
-  },
+interface Suggestion extends RecordBase {
+  page: number // 0-based
+  rect: Rect // in PDF user space
+  reason: string
+  status: 'suggested' | 'dismissed'
+}
+
+// The id is lower-case kebab; everything the plugin adds is named under it.
+export const review = definePlugin('review', (plugin) => {
+  // The open document's `review.suggestions` records; empty while none is open.
+  const suggestions = plugin.records<Suggestion>('suggestions')
+
+  // Placed as 'review.suggest'. The returned string becomes the command's status.
+  plugin.command('suggest', 'Suggest redactions', async ({ doc, signal }) => {
+    const found = await findSuggestions(doc, { signal }) // your own code
+    return `${suggestions.in(doc).addMissing(found).length} suggestions`
+  })
+
+  // A button over each open suggestion, opening a card styled by `@inkbar/theme`.
+  plugin.marks(suggestions, {
+    where: (s) => s.status === 'suggested',
+    rect: (s) => s.rect,
+    label: (s) => `Suggested redaction: ${s.reason}`,
+    card: (s) => ({
+      title: s.reason,
+      actions: { Dismiss: () => suggestions.update(s.id, { status: 'dismissed' }) },
+    }),
+  })
 })
 ```
 
-Pass it to the viewer in `plugins: [suggestions]`. Nothing a plugin registers shows by itself: place a command with `InkCommand` (`createCommandButton(viewer, 'sandbox.suggest')` without a framework), and a plugin tool with a tool button, as you place the built-in ones.
+`definePlugin(id, setup)` checks the id and returns a factory. Pass `plugins: [review()]` to the viewer. Nothing a plugin registers shows by itself: place a command with `InkCommand` (`createCommandButton(viewer, 'review.suggest')` without a framework), and a plugin tool with a tool button, as you place the built-in ones.
 
-A command is disabled until a document is ready, unless it passes its own `enabled` readable, and it is busy, and disabled, until the promise `run` returns settles. A failed run is logged, never thrown. `ctx.store(name)` gives each document its own record store, keyed `<plugin>.<name>`, and its changes undo with annotation edits; `ctx.onAnnotationEdit(fn)` runs inside each user edit's undo step. `ctx.history.batch(fn)` makes everything `fn` changes, annotations and records alike, one undo step. Inkbar keeps no plugin data: load it with `initial(doc)` and save it from `onChange`.
+Inkbar keeps no plugin data. The host loads and saves a plugin's records through the factory's `records` option, which `plugin.records(name)` picks up by name: `review({ records: { suggestions: { initial, onChange } } })`. `initial(doc)` returns the records a document opens with; `onChange(list, change)` runs after every change. Options passed to `plugin.records(name, { initial, onChange })` win over the host's.
 
-### Plugin authors
+Three rules cover undo and stale results:
+
+- Every records call is one undo step, and `plugin.batch` makes several one step.
+- Inside a command, write through `records.in(doc)`. A write through the plain handle after an `await` goes to whatever document is open by then; `in(doc)` writes to the run's document, and nothing once that document closes.
+- Each card action is one undo step.
+
+A command's `run` gets `doc`, the document open when it started, and a `signal` that aborts when that document closes or another opens. Returning `undefined` clears the status. A failed run is logged and sets the status to `errorStatus` (default "Something went wrong."); the status clears when the document changes.
+
+Marks redraw when their records change, undo and redo included, and keep their elements, so focus and an open card survive a zoom. Each carries `data-record` and `data-plugin`; `style`, `className` and `attrs` add your own look. A card has a `title`, optional `label`, `meta`, `swatch` and `body`, and `actions`; the first action takes focus. After an action that removes the mark, focus moves to the next mark, else the previous one, else the viewport. Escape or a press outside closes the card and returns focus to the mark. `@inkbar/theme` styles `.ink-card`, `.ink-card-title`, `.ink-card-meta`, `.ink-card-swatch`, `.ink-card-body` and `.ink-card-actions`, and the card's `className` adds your own class.
+
+`suggestions.annotates('redact', { from, onRemoved })` links records to the annotations made from them. Its `add(record)` adds an annotation from `from(record)`, stores the link at `custom.<plugin>.<records name>` (here `custom.review.suggestions`) and fills the type's default colour when `from` gives none. `of(record)` returns the linked annotations. `onRemoved(record, annotation)` and `onChanged(record, annotation)` run inside the user's undo step, never on undo or redo. Call it in `setup`. The link travels with the annotation through a Gloss export and import.
+
+`quadsFromRect(rect)` and `rectFromQuads(quads)` from `@inkbar/core` convert between a box and the quads that text markup takes, and `doc.pageText(page)` resolves to a page's text joined with single spaces.
+
+### Going further
+
+The `plugin` that `setup` receives is also the plugin's context, so everything below works in the new form. The object form, `definePlugin({ id, setup(ctx) { … } })`, still works and returns the plugin itself: pass `plugins: [plugin]`.
+
+A command added with `ctx.commands.add` is disabled until a document is ready, unless it passes its own `enabled` readable, and it is busy, and disabled, until the promise `run` returns settles. A failed run is logged, never thrown. `ctx.store(name)` gives each document its own record store, keyed `<plugin>.<name>`, and its changes undo with annotation edits; `ctx.onAnnotationEdit(fn)` runs inside each user edit's undo step. `ctx.history.batch(fn)` makes everything `fn` changes, annotations and records alike, one undo step. Load records with `initial(doc)` and save them from `onChange`.
+
+#### Plugin authors
 
 - A layer (`ctx.layer`) lets presses through to the page, and the elements you put straight into it take them back (`pointer-events: auto`), with or without `@inkbar/theme`. That default has no specificity, so a rule of yours such as `pointer-events: none` on a mark wins.
-- A tool you add with `ctx.tools.add` is placed under its namespaced id (`sandbox.stamp`), but its methods run on your own object, so inside them `this.id` is the id you gave it (`stamp`). A class instance keeps its `#private` fields.
-- Presses on a mark bubble up to the viewer's root. Stop propagation if listeners there shouldn't see them.
+- A tool you add with `ctx.tools.add` is placed under its namespaced id (`review.stamp`), but its methods run on your own object, so inside them `this.id` is the id you gave it (`stamp`). A class instance keeps its `#private` fields.
+- Presses on a mark you draw in your own layer bubble up to the viewer's root. Stop propagation if listeners there shouldn't see them. `plugin.marks` does this for you.
 - A layer's `destroy` can run after the document's stores have closed, so check `store.get()` for `null` there.
-- Decorations from `ctx.decorate` re-apply when the annotations change. Call `ctx.redecorate()` when one reads state of your own that changed.
+- Decorations from `ctx.decorate` re-apply when the annotations change. Call `ctx.redecorate()` when one reads state of your own that changed. Marks from `plugin.marks` take `refresh()` for the same job.
 - The framework packages run `setup` once the viewer has mounted in the browser, never while rendering on the server. Until then the plugin's commands are disabled, and anything `setup` creates, such as a store, doesn't exist yet.
 
 ## Signatures
