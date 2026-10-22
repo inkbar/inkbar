@@ -42,6 +42,6 @@ export const FRAMEWORKS: Record<FrameworkId, Framework> = {
 export const PLUGIN_PAGE: Framework = {
   name: 'Writing a plugin',
   blurb:
-    "A plugin adds a feature to Inkbar once, for every framework. This one is Suggest redactions: a command, a store of suggestions, a page layer that draws them and a card to review each one. It uses only Inkbar's public API. Every sandbox registers it in a line.",
+    "A plugin adds a feature to Inkbar once, for every framework. This one is Suggest redactions: a command, records of suggestions, a mark for each one and a card to review it. It uses only Inkbar's public API. Every sandbox registers it in a line.",
   install: 'pnpm add @inkbar/core @inkbar/theme',
 }

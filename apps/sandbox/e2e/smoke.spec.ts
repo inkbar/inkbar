@@ -61,7 +61,7 @@ async function goToLastPage(page: Page): Promise<void> {
 }
 
 /** A suggestion still to review: the plugin draws each as a mark in its page layer. */
-const SUGGESTED = '.sandbox-suggestion'
+const SUGGESTED = '[data-record][data-plugin="sandbox"]'
 
 /** Where Suggest redactions reports what it found: its command's status. */
 const RESULT = '.ink-command-status'
@@ -132,7 +132,7 @@ for (const framework of FRAMEWORKS) {
     })
 
     const mark = (page: Page, id: string) =>
-      page.locator(`${SUGGESTED}[data-suggestion="${id}"]`)
+      page.locator(`[data-record="${id}"][data-plugin="sandbox"]`)
     const redactions = (page: Page) =>
       page.locator('.ink-page[data-page="3"] .ink-annotation[data-type="redact"]')
 
@@ -963,13 +963,13 @@ test.describe('plugin page', () => {
     await page.goto('./')
     await page.getByRole('link', { name: 'Writing a plugin' }).first().click()
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Writing a plugin')
-    for (const name of ['suggestions.ts', 'layer.ts', 'card.ts', 'suggestions.css'])
+    for (const name of ['suggestions.ts', 'suggestions.css'])
       await expect(page.getByRole('region', { name, exact: true })).toBeVisible()
     await expect(
       page.getByRole('region', { name: 'suggestions.ts', exact: true })
     ).toContainText('definePlugin')
     await suggest(page)
-    await page.locator(`${SUGGESTED}[data-suggestion="email"]`).click()
+    await page.locator('[data-record="email"][data-plugin="sandbox"]').click()
     await suggestionCard(page).getByRole('button', { name: 'Accept' }).click()
     await expect(page.locator(SUGGESTED)).toHaveCount(3)
   })
