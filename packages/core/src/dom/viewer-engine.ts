@@ -14,6 +14,7 @@ import {
 
 import { createPageMount, type PageLayer, type PageMount } from './page-mount'
 import { createPluginLayers } from './plugins/layer'
+import { createSearchHighlights } from './search/highlights'
 import { getSelectionQuads } from './selection'
 import {
   createToolController,
@@ -32,6 +33,7 @@ import { attachViewportKeys } from './viewport-keys'
 import type { LayoutMode } from './layout'
 import type { DecorateAnnotation } from './overlay'
 import type { PluginHost } from './plugins/host'
+import type { SearchController } from './search/controller'
 import type { PageTransform, ViewRotation } from './transform'
 import type { ToolStyle } from '../model/annotations/tool-style'
 import type { InkDocument } from '../model/document'
@@ -116,6 +118,11 @@ export interface MountViewerOptions {
    * the app's decoration (its `decorate` option) so the two compose.
    */
   plugins?: PluginHost
+  /**
+   * The viewer's search controller. Its matches are highlighted on every page the engine
+   * mounts, below the annotations.
+   */
+  search?: SearchController
   onActivate?(id: string): void
   /**
    * After every (re)build: subscribe to the new viewport and controller here. It fires inside
@@ -186,6 +193,8 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
   const hostTools = [...(opts.tools ?? []), ...(plugins?.tools ?? [])]
   /** Plugin layers follow the host for the engine's life, across rebuilds. */
   const layers = plugins && createPluginLayers(plugins)
+  /** Match highlights follow the controller for the engine's life, across rebuilds. */
+  const highlights = opts.search && createSearchHighlights(opts.search)
   const decorate: DecorateAnnotation = plugins
     ? (a) => plugins.decorate(a)
     : (a) => opts.decorateAnnotation?.(a)
@@ -229,6 +238,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       isCustom: () => isCustom,
       decorate,
       ...(layers ? { layers } : {}),
+      ...(highlights ? { highlights } : {}),
       onError: (cause, layer) => {
         failed.add(layer)
         // The first failure wins: a canvas and a text layer failing together report once.
@@ -431,6 +441,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       destroyed = true
       teardown()
       layers?.destroy()
+      highlights?.destroy()
       stopRedecorate?.()
     },
   }
