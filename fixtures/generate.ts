@@ -1120,9 +1120,11 @@ async function formScripted() {
     C: 'AFSimple_Calculate("PRD", new Array("qty", "price"))',
     F: `AFNumber_Format(${pounds})`,
   })
+  // Written as Acrobat writes them, with the semicolon PDF.js looks for to treat the field
+  // as a date.
   fieldAA(when, {
-    K: 'AFDate_KeystrokeEx("dd/mm/yyyy")',
-    F: 'AFDate_FormatEx("dd/mm/yyyy")',
+    K: 'AFDate_KeystrokeEx("dd/mm/yyyy");',
+    F: 'AFDate_FormatEx("dd/mm/yyyy");',
   })
   fieldAA(age, { V: 'event.rc = event.value >= 18 && event.value <= 120' })
   form.acroForm.dict.set(PDFName.of('CO'), ctx.obj([total.ref]))
@@ -1317,6 +1319,38 @@ async function formUppercase() {
   )
 }
 
+async function formSharedScripted() {
+  const { d, font } = await doc()
+  const page = d.addPage([612, 792])
+  text(page, font, ['Shared export form'], 740)
+  const form = d.getForm()
+  // Two widgets share the export value "A"; a validate script makes the commit go through the
+  // sandbox, which names the first widget whichever was chosen.
+  const shared = form.createRadioGroup('shared')
+  shared.addOptionToPage('A', page, { x: 72, y: 600, width: 18, height: 18 })
+  shared.addOptionToPage('A', page, { x: 172, y: 600, width: 18, height: 18 })
+  shared.acroField.dict.set(PDFName.of('V'), PDFName.of('Off'))
+  label(page, font, 'shared: first A', 72, 600, 18)
+  label(page, font, 'second A', 172, 600, 18)
+  form.updateFieldAppearances(font)
+  shared.acroField.dict.set(
+    PDFName.of('AA'),
+    d.context.obj({ V: js(d.context, 'event.rc = true') })
+  )
+  await save(
+    'form-shared-scripted',
+    d,
+    {
+      pages: 1,
+      opens: true,
+      describes:
+        'A radio group whose two widgets share the export value "A", with a validate script, for checking that the widget chosen is the one kept',
+      annotations: { Widget: 2 },
+    },
+    { appearances: false }
+  )
+}
+
 /**
  * A real incremental update: the base revision is written by pdf-lib, then the changed page
  * object and the new Highlight are appended with their own xref section and a trailer whose
@@ -1469,6 +1503,7 @@ async function main() {
   await formSigned()
   await formTimer()
   await formUppercase()
+  await formSharedScripted()
   await incrementalSaved()
   await objectStreams()
   await encrypted('encrypted-aes')

@@ -82,6 +82,14 @@ export async function createFormScripting(
     fields.flatMap((f) => f.widgets.map((w) => [w.id, f] as const))
   )
   const widgets = new Map(fields.flatMap((f) => f.widgets.map((w) => [w.id, w] as const)))
+  /** Fields PDF.js reads as a date or time, from their standard format scripts. */
+  const dates = new Set(
+    [...(objects?.entries() ?? [])]
+      .filter(([, list]) =>
+        list.some((o) => (o as { hasDatetimeHTML?: unknown }).hasDatetimeHTML === true)
+      )
+      .map(([name]) => name)
+  )
   /** What the sandbox holds, by field name, in the form's terms. */
   const mirror = new Map<string, FieldValue>()
   for (const f of fields) if (f.value !== undefined) mirror.set(f.name, f.value)
@@ -187,7 +195,16 @@ export async function createFormScripting(
       const own = o.source?.field === field
       if (own && !o.source?.accepted) continue
       if ('value' in u) {
-        const value = fromSandbox(field, u.id as string, u.value)
+        // A date or time field reports the time its scripts parsed; its text is the
+        // formatted value.
+        const raw =
+          dates.has(field.name) && typeof u.value === 'number'
+            ? u.formattedValue
+            : u.value
+        const value =
+          raw === u.value || typeof raw === 'string'
+            ? fromSandbox(field, u.id as string, raw)
+            : undefined
         if (value !== undefined) {
           mirror.set(field.name, value)
           if (o.values && !own) next[field.name] = value
@@ -250,13 +267,33 @@ export async function createFormScripting(
     const accepted = !updates.some((u) => ownOf(u, field) && 'selRange' in u)
     apply(updates, { values, source: { field, accepted } })
     if (!accepted) return undefined
-    // The sandbox reports a text value as the string it was given (it keeps the original
-    // alongside any number it parses), so a difference here is a script's change.
     const echo = updates.filter((u) => ownOf(u, field) && 'value' in u).at(-1)
-    const kept = echo ? fromSandbox(field, echo.id as string, echo.value) : undefined
+    const kept = echo ? scriptChange(field, echo) : undefined
     const stored = kept !== undefined && !sameValue(kept, value) ? kept : value
     mirror.set(field.name, stored)
     return stored
+  }
+
+  /**
+   * The value a script changed a commit to, from the sandbox's echo of it; `undefined` when
+   * the echo is no change. The sandbox reports a text value as the string it was given (it
+   * keeps the original alongside any number it parses), so a different string is a script's
+   * change. A number is the sandbox's own parse: a date or time field reports the time it
+   * read. A checkbox or radio echo names the first widget with the export value, which is
+   * not always the one chosen, so the chosen state stands; a rejection shows as a selection.
+   */
+  const scriptChange = (field: FormField, echo: Update): FieldValue | undefined => {
+    switch (field.type) {
+      case 'text':
+      case 'combo':
+        return typeof echo.value === 'string'
+          ? fromSandbox(field, echo.id as string, echo.value)
+          : undefined
+      case 'list':
+        return fromSandbox(field, echo.id as string, echo.value)
+      default:
+        return undefined
+    }
   }
 
   const scripting: FormScripting & { _sandboxForTesting?: PdfjsSandbox } = {

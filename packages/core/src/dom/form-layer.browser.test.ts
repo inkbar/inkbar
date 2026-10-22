@@ -263,6 +263,18 @@ describe('form layer', () => {
     expect(price.value).toBe('£5.00')
   })
 
+  it('shows a committed date as typed when focused again', async () => {
+    const doc = await open('form-scripted')
+    const p = mountPage(doc)
+    const when = p.control('when')
+    await typeOver(when, '25/12/2026')
+    when.blur()
+    expect(doc.form.get('when')).toBe('25/12/2026')
+    expect(when.value).toBe('25/12/2026')
+    await userEvent.click(when)
+    expect(when.value).toBe('25/12/2026')
+  })
+
   it('refuses keystrokes a script rejects', async () => {
     const doc = await open('form-scripted')
     const p = mountPage(doc)

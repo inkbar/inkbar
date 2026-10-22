@@ -89,6 +89,7 @@ const FORMS = {
   'form-fieldmdp': { widgets: 3, fields: ['amount', 'approved', 'memo'] },
   'form-timer': { widgets: 1, fields: ['ticker'] },
   'form-uppercase': { widgets: 1, fields: ['code'] },
+  'form-shared-scripted': { widgets: 2, fields: ['shared'] },
 } as const satisfies Partial<Record<FixtureName, { widgets: number; fields: string[] }>>
 
 const formNames = Object.keys(FORMS) as (keyof typeof FORMS)[]
