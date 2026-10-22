@@ -1,0 +1,23 @@
+packages/core/src/model/annotations/snapshot-history.test.ts
+  s_611b86d68c2358::t_d6318acb08d27e 637-638,641-647
+  s_611b86d68c2358::t_4ee5e5e88fd943 601-636,639-640,648-649
+packages/core/src/model/annotations/snapshot-history.ts
+  s_611b86d68c2358::t_8146717bf048e3 95-96,309-310,312-313
+  s_611b86d68c2358::t_30dbdb3a53a39b 208-213,302-303,311,314-315
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6df37338df26850d5d0faa9b622f22e7829f34bb",
+  "prompts": {},
+  "sessions": {
+    "s_611b86d68c2358": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f6760cb6-1a68-4a5b-b172-32f4da0aa5b1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
