@@ -1,11 +1,12 @@
 /*
- * The page around each framework's viewer: header, intro, file control, viewer slot and
- * source panel. It knows nothing about any framework: each page passes a `mount` function and
- * the shell calls it again with a new source when the reader opens a file.
+ * The page around each framework's viewer, and around the plugin page's: header, intro, file
+ * control, viewer slot and source panel. It knows nothing about any framework: each page
+ * passes a `mount` function and the shell calls it again with a new source when the reader
+ * opens a file.
  */
 import '../styles/framework.css'
 
-import { FRAMEWORK_ORDER, FRAMEWORKS, type FrameworkId } from './frameworks'
+import { FRAMEWORK_ORDER, FRAMEWORKS, PLUGIN_PAGE, type PageId } from './frameworks'
 import { LOGO_SVG } from './logo'
 
 import type { DocumentSource } from '@inkbar/core'
@@ -14,10 +15,12 @@ export interface SourceFile {
   /** Relative to `apps/sandbox/`. */
   path: string
   source: { html: string; code: string }
+  /** A line or two above the code, saying what the file does. */
+  note?: string
 }
 
 export interface ShellOptions {
-  framework: FrameworkId
+  page: PageId
   files: SourceFile[]
   /** Mounts the viewer for `source` into `el` and returns a function that unmounts it. */
   mount(el: HTMLElement, source: DocumentSource): () => void
@@ -38,6 +41,7 @@ function fileSection(file: SourceFile, index: number): string {
     <button type="button" class="text-button" data-copy="${index}">Copy</button>
     <a class="text-link" href="${REPO}/blob/main/apps/sandbox/${file.path}">View on GitHub</a>
   </div>
+  ${file.note ? `<p class="source-note">${file.note}</p>` : ''}
   ${file.source.html}
 </section>`
 }
@@ -46,7 +50,18 @@ const COPY_ICON =
   '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>'
 
 export function startShell(opts: ShellOptions): void {
-  const fw = FRAMEWORKS[opts.framework]
+  const isPlugin = opts.page === 'plugin'
+  const fw = opts.page === 'plugin' ? PLUGIN_PAGE : FRAMEWORKS[opts.page]
+  const current = (page: PageId): string =>
+    page === opts.page ? ' aria-current="page"' : ''
+  const heading = isPlugin
+    ? 'Writing a <span class="mark">plugin</span>'
+    : `Inkbar in <span class="mark">${fw.name}</span>`
+  const sourceIntro = isPlugin
+    ? `<h2 id="source-title">The plugin</h2>
+      <p class="caption">Every file is in <code>src/plugin</code>. The viewer above is the TypeScript page's.</p>`
+    : `<h2 id="source-title">The whole integration</h2>
+      <p class="caption">This file is everything this page does with Inkbar. The plugin it registers is on <a class="text-link" href="${BASE}plugin/">its own page</a>, and the page around them is in <code>src/shell</code>.</p>`
   document.title = `${fw.name} · Inkbar sandbox`
   const app = document.getElementById('app')!
   app.innerHTML = `
@@ -57,11 +72,12 @@ export function startShell(opts: ShellOptions): void {
       <ul class="frameworks">
         ${FRAMEWORK_ORDER.map(
           (id) =>
-            `<li><a href="${BASE}${id}/"${id === opts.framework ? ' aria-current="page"' : ''}>${FRAMEWORKS[id].name}</a></li>`
+            `<li><a href="${BASE}${id}/"${current(id)}>${FRAMEWORKS[id].name}</a></li>`
         ).join('')}
       </ul>
     </nav>
     <nav class="site-nav" aria-label="Main">
+      <a href="${BASE}plugin/"${current('plugin')}>${PLUGIN_PAGE.name}</a>
       <a href="https://inkbar.dev/docs/">Docs</a>
       <a href="${REPO}">GitHub</a>
     </nav>
@@ -70,7 +86,7 @@ export function startShell(opts: ShellOptions): void {
 <main class="container page">
   <div class="intro">
     <div class="intro-copy">
-      <h1>Inkbar in <span class="mark">${fw.name}</span></h1>
+      <h1>${heading}</h1>
       <p class="lede">${fw.blurb}</p>
     </div>
     <div class="install-box">
@@ -92,8 +108,7 @@ export function startShell(opts: ShellOptions): void {
   </section>
   <section class="source" aria-labelledby="source-title">
     <div class="source-intro">
-      <h2 id="source-title">The whole integration</h2>
-      <p class="caption">These files are everything this page does with Inkbar. The page around them is in <code>src/shell</code>.</p>
+      ${sourceIntro}
     </div>
     ${opts.files.map(fileSection).join('')}
   </section>
@@ -103,6 +118,7 @@ export function startShell(opts: ShellOptions): void {
     <p>MIT licensed. From the team behind <a href="https://redactr.io">Redactr</a>.</p>
     <nav aria-label="Footer">
       <a href="${BASE}">All sandboxes</a>
+      <a href="${BASE}plugin/">${PLUGIN_PAGE.name}</a>
       <a href="https://inkbar.dev/docs/">Docs</a>
       <a href="${REPO}">GitHub</a>
     </nav>

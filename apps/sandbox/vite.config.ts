@@ -33,6 +33,7 @@ export default defineConfig({
         vue: entry('./vue/index.html'),
         svelte: entry('./svelte/index.html'),
         vanilla: entry('./vanilla/index.html'),
+        plugin: entry('./plugin/index.html'),
       },
     },
   },
