@@ -9,7 +9,10 @@ import {
 } from '@inkbar/core'
 import {
   createPluginHost,
+  createSearchController,
   createToolOptions,
+  handleFindKey,
+  pageSelectionText,
   cssVariableDefaults,
   FONT_FAMILIES,
   SIGNATURE_FONTS,
@@ -45,6 +48,7 @@ import type {
   DecorateAnnotation,
   InkPlugin,
   PluginHost,
+  SearchController,
   Tool,
   ToolController,
   ToolId,
@@ -300,7 +304,14 @@ watch(viewportEl, (el) => hostRoot.set(el), { flush: 'sync' })
 const hostActivated = writable<string | null>(null)
 watch(activated, (id) => hostActivated.set(id), { flush: 'sync' })
 const pluginHost = shallowRef<PluginHost | null>(null)
+/** One search controller for the root's life, built with the plugin host that shares it. */
+const search = shallowRef<SearchController | null>(null)
 function setUpPlugins(): void {
+  const controller = createSearchController({
+    document: readonly(hostDocument),
+    viewport: () => viewport.value,
+  })
+  search.value = controller
   pluginHost.value = createPluginHost({
     plugins: props.plugins ?? [],
     document: readonly(hostDocument),
@@ -313,7 +324,27 @@ function setUpPlugins(): void {
     root: readonly(hostRoot),
     decorate: () => props.decorateAnnotation,
     viewport: () => viewport.value,
+    search: {
+      state: controller.state,
+      open: (query) => controller.open(query),
+      setQuery: (query) => controller.setQuery(query),
+      setMatchCase: (on) => controller.setMatchCase(on),
+      next: () => controller.next(),
+      previous: () => controller.previous(),
+      close: () => controller.close(),
+    },
   })
+}
+
+// Reka's typed props stop at its own; listeners go through a bound object.
+const rootListeners = { onKeydown }
+
+/** Ctrl/Cmd+F while focus is in the root and a find bar is mounted; else the browser's. */
+function onKeydown(e: KeyboardEvent): void {
+  const controller = search.value
+  const root = e.currentTarget
+  if (controller && root instanceof HTMLElement)
+    handleFindKey(e, controller, () => pageSelectionText(root))
 }
 
 /** The document's tool style; it batches through `inkHistory`, whichever mode is on. */
@@ -393,6 +424,8 @@ onBeforeUnmount(() => {
 onUnmounted(() => {
   pluginHost.value?.destroy()
   pluginHost.value = null
+  search.value?.destroy()
+  search.value = null
 })
 
 const signatures = computed(() =>
@@ -426,6 +459,7 @@ provideInkContext({
   activated,
   setActivated,
   pluginHost,
+  search,
   viewportEl,
   history: inkHistory,
   rootEl,
@@ -443,6 +477,7 @@ defineExpose({ document, status, rootEl, history: inkHistory })
     as="div"
     data-ink-root
     :data-state="status.state"
+    v-bind="rootListeners"
   >
     <slot :status="status" :document="document" />
   </Primitive>

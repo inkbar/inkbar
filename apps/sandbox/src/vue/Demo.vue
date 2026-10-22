@@ -8,6 +8,7 @@
 import {
   InkColorMenu,
   InkCommand,
+  InkFindBar,
   InkHighlightMenu,
   InkLineStyleMenu,
   InkTextStyleMenu,
@@ -17,6 +18,7 @@ import {
   InkPrevPage,
   InkRedo,
   InkRoot,
+  InkSearchButton,
   InkShapeMenu,
   InkSignatureMenu,
   InkThreadPopover,
@@ -72,6 +74,7 @@ defineProps<{ source: DocumentSource }>()
       </div>
       <InkUndo />
       <InkRedo />
+      <InkSearchButton />
       <div class="demo-actions" role="group" aria-label="Suggest">
         <InkCommand id="sandbox.suggest" />
       </div>
@@ -91,5 +94,6 @@ defineProps<{ source: DocumentSource }>()
       </div>
     </InkToolbar>
     <InkThreadPopover />
+    <InkFindBar />
   </InkRoot>
 </template>
