@@ -1,0 +1,58 @@
+packages/svelte/src/lib/context.ts
+  s_a9eee6338cf60a::t_968e4b56c5c56b 15,63-68
+packages/svelte/src/lib/components/search-button.ts
+  s_a9eee6338cf60a::t_b206b4c3cfaf38 1-10
+packages/svelte/src/test/FindBar.browser.test.ts
+  s_a9eee6338cf60a::t_15df0a1feecdca 1-57,60-119,121-126
+  s_a9eee6338cf60a::t_2d2de30dd6ec43 58-59,120
+apps/e2e-svelte/src/ReviewPage.svelte
+  s_a9eee6338cf60a::t_c5e6e327aef32f 20,27,204,216
+packages/svelte/vitest.config.ts
+  s_a9eee6338cf60a::t_2d2de30dd6ec43 35
+packages/svelte/src/lib/components/InkSearchButton.svelte
+  s_a9eee6338cf60a::t_b206b4c3cfaf38 1-56
+packages/svelte/src/lib/hooks/useSearch.svelte.ts
+  s_a9eee6338cf60a::t_b206b4c3cfaf38 1-38
+packages/svelte/src/test/hooks.test.ts
+  s_a9eee6338cf60a::t_fce1e176ddd822 12,31
+packages/svelte/src/test/harness/SsrHost.svelte
+  s_a9eee6338cf60a::t_42403af9aeb032 3,9,30,33
+packages/svelte/src/lib/components/InkFindBar.svelte
+  s_a9eee6338cf60a::t_b206b4c3cfaf38 1-68,71-127,131-173
+  s_a9eee6338cf60a::t_b1916fbedab945 69-70,128-130
+packages/svelte/src/test/harness/SearchProbe.svelte
+  s_a9eee6338cf60a::t_15df0a1feecdca 1-11
+packages/svelte/src/test/ssr.test.ts
+  s_a9eee6338cf60a::t_42403af9aeb032 56-58,89-91
+apps/sandbox/src/svelte/Demo.svelte
+  s_a9eee6338cf60a::t_c5e6e327aef32f 11,20,76,82
+packages/svelte/src/lib/index.ts
+  s_a9eee6338cf60a::t_b206b4c3cfaf38 31,60-63
+packages/svelte/src/test/harness/FindHarness.svelte
+  s_a9eee6338cf60a::t_15df0a1feecdca 1-30
+packages/svelte/src/lib/components/InkViewport.svelte
+  s_a9eee6338cf60a::t_968e4b56c5c56b 132-133
+packages/svelte/package.json
+  s_a9eee6338cf60a::t_42403af9aeb032 52
+packages/svelte/src/lib/components/InkRoot.svelte
+  s_a9eee6338cf60a::t_968e4b56c5c56b 106,110-111,114,124-129,405-406,408-413,428,431,436-454,495-496
+  s_a9eee6338cf60a::t_4925eb9cb21999 497
+pnpm-lock.yaml
+  s_a9eee6338cf60a::t_cf76bf9798e3e6 655-657
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "46d5ab56990860e24fba33c049740d27b2461d79",
+  "prompts": {},
+  "sessions": {
+    "s_a9eee6338cf60a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c2869588-dbba-445a-be19-91e3d8b07d87",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
