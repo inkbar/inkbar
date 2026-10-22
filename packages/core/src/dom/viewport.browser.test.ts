@@ -269,9 +269,10 @@ describe('createViewport', () => {
     const rect = { x: 72, y: 100, width: 100, height: 20 }
     viewport.scrollToRect(2, rect, { behavior: 'smooth' })
     expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ behavior: 'smooth' }))
+    // An instant scroll ends the smooth one where it was headed.
+    viewport.scrollToRect(2, rect)
     await until(() => viewport.hostFor(2) !== undefined)
     scrollTo.mockClear()
-    await settle(600)
     viewport.scrollToRect(2, rect)
     expect(scrollTo).not.toHaveBeenCalled()
   })

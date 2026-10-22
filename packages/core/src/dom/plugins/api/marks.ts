@@ -185,7 +185,7 @@ export function createMarks<T extends RecordBase & { page: number }>(
     fresh.clear()
     if (first)
       ctx.scrollTo(first.page, opts.rect(first), {
-        behavior: reducedMotion() ? 'auto' : 'smooth',
+        behavior: reducedMotion() ? 'instant' : 'smooth',
       })
   }
 
@@ -211,6 +211,8 @@ export function createMarks<T extends RecordBase & { page: number }>(
     return () => {
       stopDraw()
       stopWatch?.()
+      // A reveal still pending belongs to this document, not the next one.
+      fresh.clear()
     }
   })
   const handle: MarksHandle = {

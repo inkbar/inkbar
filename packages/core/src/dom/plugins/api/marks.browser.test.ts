@@ -9,6 +9,7 @@ import { createPluginHost } from '../host'
 
 import type { MarksHandle, MarksOptions } from './marks'
 import type { Records } from './records'
+import type { InkDocument } from '../../../model/document'
 import type { Rect } from '../../../model/geometry'
 import type { RecordBase } from '../../../model/records'
 import type { Tool } from '../../tools/controller'
@@ -62,9 +63,10 @@ async function setup(
   })
   /** Set once the viewer mounts, for `ctx.scrollTo`. */
   const view: { viewport?: Viewport } = {}
+  const current = writable<InkDocument | null>(doc)
   const plugins = createPluginHost({
     plugins: [factory()],
-    document: writable(doc),
+    document: current,
     history: () => doc.history,
     activated: writable<string | null>(null),
     setActivated() {},
@@ -89,7 +91,7 @@ async function setup(
   ]
   const markFor = (id: string) =>
     container.querySelector<HTMLButtonElement>(`button[data-record="${id}"]`)
-  return { doc, container, engine, findings, handle, marksOn, markFor }
+  return { doc, current, container, engine, findings, handle, marksOn, markFor }
 }
 
 describe('plugin.marks', () => {
@@ -383,6 +385,25 @@ describe('plugin.marks', () => {
       expect(scroll).not.toHaveBeenCalled()
     })
 
+    it("doesn't scroll to a record of the next document when one closes before the change settles", async () => {
+      // Every document opens with `initial`, so the next one has the same id.
+      const initial: Finding[] = []
+      const { current, engine, findings } = await setup(
+        initial,
+        {},
+        { scrollToFirst: true }
+      )
+      const next = await openFixtureInBrowser('text-simple')
+      cleanup.push(() => next.destroy())
+      const scroll = spyScroll(engine)
+      findings.add(finding('a', 0))
+      initial.push(finding('a', 0))
+      current.set(next)
+      expect(findings.has('a')).toBe(true)
+      await settle()
+      expect(scroll).not.toHaveBeenCalled()
+    })
+
     it("doesn't scroll without scrollToFirst()", async () => {
       const { engine, findings } = await setup([])
       const scroll = spyScroll(engine)
@@ -404,7 +425,7 @@ describe('plugin.marks', () => {
       cleanup.push(() => vi.unstubAllGlobals())
       findings.add(finding('b', 0, 200))
       await settle()
-      expect(scroll.mock.calls[1]![2]).toEqual({ behavior: 'auto' })
+      expect(scroll.mock.calls[1]![2]).toEqual({ behavior: 'instant' })
     })
   })
 })
