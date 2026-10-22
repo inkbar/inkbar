@@ -535,6 +535,44 @@ describe('history over record stores', () => {
     expect(notes.get('n1')?.status).toBe('later')
   })
 
+  it('a record reset keeps annotation-only entries and drops the ones holding its records', () => {
+    const { s, h, notes } = setup()
+    h.track(notes)
+    const a = s.add({ type: 'text', page: 0, rect, contents: 'one' })
+    notes.update('n1', { status: 'done' })
+    s.update(a.id, { contents: 'two' })
+    notes.replaceAll([{ id: 'n9', status: 'fresh' }], 'reset')
+    h.undo()
+    expect(s.get(a.id)?.contents).toBe('one')
+    expect(notes.list.get()).toEqual([{ id: 'n9', status: 'fresh' }])
+    h.undo()
+    expect(s.list.get()).toEqual([])
+    expect(notes.list.get()).toEqual([{ id: 'n9', status: 'fresh' }])
+    expect(h.canUndo.get()).toBe(false)
+  })
+
+  it('a record reset drops redo entries holding its records and keeps the others', () => {
+    const { s, h, notes } = setup()
+    h.track(notes)
+    const other = createRecordStore<Note>('other', {
+      initial: [{ id: 'o1', status: 'open' }],
+    })
+    h.track(other)
+    const a = s.add({ type: 'text', page: 0, rect })
+    other.update('o1', { status: 'done' })
+    notes.update('n1', { status: 'done' })
+    h.undo()
+    h.undo()
+    h.undo()
+    notes.replaceAll([], 'reset')
+    h.redo()
+    expect(s.get(a.id)).toBeDefined()
+    h.redo()
+    expect(other.get('o1')?.status).toBe('done')
+    expect(h.canRedo.get()).toBe(false)
+    expect(notes.list.get()).toEqual([])
+  })
+
   it('clear empties steps that hold records', () => {
     const { h, notes } = setup()
     h.track(notes)

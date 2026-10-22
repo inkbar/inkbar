@@ -124,6 +124,15 @@ export function createHistory(
     sync()
   }
 
+  /** Drops the entries that hold `recordStore`'s records; the others still undo and redo. */
+  const dropEntries = (recordStore: RecordStore<RecordBase>) => {
+    for (const stack of [undoStack, redoStack]) {
+      const kept = stack.filter((entry) => !entry.records.has(recordStore))
+      stack.splice(0, stack.length, ...kept)
+    }
+    sync()
+  }
+
   const resetStacks = () => {
     undoStack.length = 0
     redoStack.length = 0
@@ -272,9 +281,9 @@ export function createHistory(
         if (replaying || (change.kind === 'replace' && change.reason === 'history'))
           return
         if (change.kind === 'replace') {
-          // A reset starts the store over, so no older step can be replayed against it.
+          // A reset starts the store over, so no older step holding its records can be replayed.
           if (depth > 0 && start) start.records.set(recordStore, current)
-          resetStacks()
+          dropEntries(recordStore)
           return
         }
         if (depth > 0) return

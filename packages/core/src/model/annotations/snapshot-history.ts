@@ -25,7 +25,8 @@ export interface SnapshotHistoryOptions {
  * them. Undo and redo put records back at once (`replaceAll(list, 'history')`) and propose the
  * annotations as above; a step whose annotations did not change moves the stacks at once. A
  * record change outside a batch opens one, so the change and the host's list that follows in
- * the same macrotask are one step. A record store's `reset` empties both stacks.
+ * the same macrotask are one step. A record store's `reset` drops the steps that changed its
+ * records; the others still undo and redo.
  */
 export interface SnapshotHistory extends PluginHistory {
   readonly canUndo: Readable<boolean>
@@ -121,6 +122,46 @@ export function createSnapshotHistory(opts: SnapshotHistoryOptions): SnapshotHis
       future.set(future.get().slice(0, -1))
       past.set([...past.get(), prev])
     }
+  }
+
+  /**
+   * Drops the steps that changed `store` and gives every remaining snapshot its new `list`, so
+   * undo and redo leave its records alone. `was` is its list just before the reset. Undo
+   * targets lose the snapshot before such a step, redo targets the one after it, so the step's
+   * annotation changes fold into its neighbour.
+   */
+  function dropSteps(
+    store: RecordStore<RecordBase>,
+    was: readonly RecordBase[],
+    list: readonly RecordBase[]
+  ): void {
+    const changes = (a: Records, b: Records | undefined) => {
+      const x = a.get(store)
+      const y = b ? b.get(store) : was
+      return x !== undefined && y !== undefined && !sameRecords(x, y)
+    }
+    const renewed = new Map<Snapshot, Snapshot>()
+    const renew = (step: Snapshot): Snapshot => {
+      const next = step.records.has(store)
+        ? { ...step, records: new Map(step.records).set(store, list) }
+        : step
+      renewed.set(step, next)
+      return next
+    }
+    // Oldest first, then the state now: each undo target is the snapshot before a step.
+    const p = past.get()
+    past.set(p.filter((step, i) => !changes(step.records, p[i + 1]?.records)).map(renew))
+    // Next redo last: each redo target is the snapshot after a step.
+    const f = future.get()
+    future.set(
+      f.filter((step, i) => !changes(step.records, f[i + 1]?.records)).map(renew)
+    )
+    // An undo or redo in flight still lands when its target survived.
+    const target = pending && renewed.get(pending.target)
+    pending =
+      pending && target
+        ? { ...pending, target, records: new Map(pending.records).set(store, list) }
+        : null
   }
 
   /** Opens the outermost batch from the current state. */
@@ -248,12 +289,10 @@ export function createSnapshotHistory(opts: SnapshotHistoryOptions): SnapshotHis
         return
       }
       if (change.kind === 'replace') {
-        // A reset starts the store over, so no older step can be replayed against it.
+        // A reset starts the store over, so no older step holding its records can be replayed.
+        dropSteps(store, t.previous, list)
         t.previous = list
         from?.records.set(store, list)
-        past.set([])
-        future.set([])
-        pending = null
         return
       }
       // On its own, a change opens a batch from the state before it, which waits out the task
