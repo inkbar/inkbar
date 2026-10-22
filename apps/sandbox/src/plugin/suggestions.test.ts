@@ -64,6 +64,7 @@ function setUp(text: string[] = SAMPLE_TEXT) {
     },
     tools: { add() {} },
     decorate() {},
+    redecorate() {},
     store<T extends RecordBase>(name: string) {
       assert.equal(name, 'suggestions')
       const s = createRecordStore<T>(`sandbox.${name}`)

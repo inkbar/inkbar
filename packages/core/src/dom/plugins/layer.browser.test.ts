@@ -282,3 +282,29 @@ describe('plugin page layers', () => {
     expect(decorateAnnotation).not.toHaveBeenCalled()
   })
 })
+
+describe('ctx.redecorate', () => {
+  it('re-runs decorations that read plugin state', async () => {
+    let flag = 'on'
+    const { doc, engine, ctx } = await setup((c) =>
+      c.decorate(() => ({ data: { flag } }))
+    )
+    const a = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 500, width: 144, height: 40 },
+    })
+    const el = () =>
+      engine.viewport
+        .hostFor(0)!
+        .querySelector<HTMLElement>(`[data-annotation="${a.id}"]`)
+    await until(() => el() !== null)
+    expect(el()!.dataset.flag).toBe('on')
+    flag = 'off'
+    ctx().redecorate()
+    expect(el()!.dataset.flag).toBe('off')
+    // After the engine is gone, a redecorate does nothing.
+    engine.destroy()
+    expect(() => ctx().redecorate()).not.toThrow()
+  })
+})
