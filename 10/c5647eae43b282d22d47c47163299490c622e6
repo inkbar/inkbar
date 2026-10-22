@@ -1,0 +1,32 @@
+packages/vue/playwright/harness/PluginControls.vue
+  s_611b86d68c2358::t_b671fba0e5a2db 13
+packages/svelte/src/test/harness/PluginHarness.svelte
+  s_611b86d68c2358::t_0f499ec0f15567 4,29
+packages/react/playwright/harness/PluginHarness.tsx
+  s_611b86d68c2358::t_b671fba0e5a2db 93
+  s_611b86d68c2358::t_0f499ec0f15567 4
+packages/core/src/dom/plugins/test-plugin.ts
+  s_611b86d68c2358::t_b671fba0e5a2db 1-17,19,21-106
+  s_611b86d68c2358::t_a7a8749320d393 18,20
+packages/svelte/src/test/harness/PluginControls.svelte
+  s_611b86d68c2358::t_0f499ec0f15567 13
+packages/vue/playwright/harness/PluginHarness.vue
+  s_611b86d68c2358::t_b671fba0e5a2db 23
+  s_611b86d68c2358::t_0f499ec0f15567 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "10c5647eae43b282d22d47c47163299490c622e6",
+  "prompts": {},
+  "sessions": {
+    "s_611b86d68c2358": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f6760cb6-1a68-4a5b-b172-32f4da0aa5b1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
