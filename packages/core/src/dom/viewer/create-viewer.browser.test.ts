@@ -35,6 +35,7 @@ import { createTextStyleMenu } from './text-style-menu'
 
 import type { InkDocument } from '../../model/document'
 import type { RecordStore } from '../../model/records'
+import type { Tool } from '../tools/controller'
 import type { ViewerEngine } from '../viewer-engine'
 
 // The theme is not loaded here: give the scroll element a height so pages mount and unmount.
@@ -2151,6 +2152,80 @@ describe('createViewer plugins', () => {
     expect(viewer.tools.get()?.active.get()).toBe('sandbox.stamp')
     expect(b.getAttribute('aria-pressed')).toBe('true')
     expect(activate).toHaveBeenCalled()
+  })
+
+  it('a class-based plugin tool with private fields activates and takes presses', async () => {
+    class StampTool {
+      readonly id = 'stamp'
+      readonly label = 'Stamp'
+      #presses: { x: number; y: number }[] = []
+      #active = false
+      get cursor() {
+        return this.#active ? 'crosshair' : 'default'
+      }
+      get presses() {
+        return this.#presses
+      }
+      activate() {
+        this.#active = true
+      }
+      deactivate() {
+        this.#active = false
+      }
+      onPointerDown(
+        _e: PointerEvent,
+        hit: { user: { x: number; y: number } } | undefined
+      ) {
+        if (hit) this.#presses.push(hit.user)
+      }
+    }
+    const tool = new StampTool()
+    const plugin = definePlugin({
+      id: 'sandbox',
+      setup: (ctx) => ctx.tools.add(tool),
+    })
+    const { viewer } = make('text-simple', { plugins: [plugin] })
+    const { engine } = await ready(viewer)
+    await until(() => engine.viewport.hostFor(0) !== undefined)
+    const b = createToolButton(viewer, 'sandbox.stamp')
+    viewer.element.append(b)
+    await until(() => !b.disabled)
+    b.click()
+    expect(engine.tools.active.get()).toBe('sandbox.stamp')
+    const scroll = viewer.element.querySelector<HTMLElement>('.ink-scroll')!
+    expect(scroll.closest<HTMLElement>('[data-ink-tool]')?.style.cursor).toBe('crosshair')
+    const h = engine.viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(scroll, 'pointerdown', h.left + 200, h.top + 100)
+    pointer(scroll, 'pointerup', h.left + 200, h.top + 100)
+    expect(tool.presses).toHaveLength(1)
+    expect(tool.id).toBe('stamp')
+  })
+
+  it('a plain-object plugin tool keeps state on itself between presses', async () => {
+    const tool: Tool & { pressedAt?: number; released?: number[] } = {
+      id: 'probe',
+      label: 'Probe',
+      cursor: 'crosshair',
+      activate() {},
+      deactivate() {},
+      onPointerDown(e) {
+        this.pressedAt = e.clientX
+        return true
+      },
+      onPointerUp() {
+        ;(this.released ??= []).push(this.pressedAt!)
+      },
+    }
+    const plugin = definePlugin({ id: 'sandbox', setup: (ctx) => ctx.tools.add(tool) })
+    const { viewer } = make('text-simple', { plugins: [plugin] })
+    const { engine } = await ready(viewer)
+    await until(() => engine.viewport.hostFor(0) !== undefined)
+    engine.tools.set('sandbox.probe')
+    const scroll = viewer.element.querySelector<HTMLElement>('.ink-scroll')!
+    const h = engine.viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(scroll, 'pointerdown', h.left + 200, h.top + 100)
+    pointer(scroll, 'pointerup', h.left + 200, h.top + 100)
+    expect(tool.released).toEqual([h.left + 200])
   })
 
   it('plugin records undo with annotations in createViewer', async () => {

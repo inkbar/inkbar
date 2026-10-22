@@ -66,13 +66,48 @@ interface Opened {
   cleanups: (() => void)[]
 }
 
-/** A copy of `value` with `extra` laid over it, keeping its prototype (a class's methods). */
+/**
+ * `value` seen with `extra` laid over it, read-only. Everything else is read from and written to
+ * `value` itself, and its methods are bound to it, so a method always runs on the original
+ * (a class instance keeps its `#private` fields, and `this.id` is the plugin's own id).
+ */
 function withProps<T extends object, U extends object>(value: T, extra: U): T & U {
-  return Object.assign(
-    Object.create(Object.getPrototypeOf(value) as object | null) as T,
-    value,
-    extra
-  )
+  const bound = new Map<PropertyKey, { fn: unknown; bound: unknown }>()
+  const own = (key: PropertyKey) => Object.hasOwn(extra, key)
+  // An empty target, so a frozen `value` breaks no proxy invariant on the keys `extra` replaces;
+  // only properties defined non-configurable through the proxy are mirrored onto it.
+  return new Proxy(Object.create(null) as T & U, {
+    get(_, key) {
+      if (own(key)) return extra[key as keyof U]
+      const v: unknown = Reflect.get(value, key, value)
+      if (typeof v !== 'function') return v
+      // The same bound function on each read, while the method stays the same.
+      let entry = bound.get(key)
+      if (entry?.fn !== v) {
+        entry = { fn: v, bound: (v as (...a: unknown[]) => unknown).bind(value) }
+        bound.set(key, entry)
+      }
+      return entry.bound
+    },
+    set: (_, key, v) => !own(key) && Reflect.set(value, key, v, value),
+    defineProperty(target, key, d) {
+      if (own(key) || !Reflect.defineProperty(value, key, d)) return false
+      // A proxy may only report a non-configurable property its target has: mirror it there.
+      const defined = Reflect.getOwnPropertyDescriptor(value, key)
+      if (defined && !defined.configurable) Reflect.defineProperty(target, key, defined)
+      return true
+    },
+    deleteProperty: (_, key) => !own(key) && Reflect.deleteProperty(value, key),
+    has: (_, key) => own(key) || Reflect.has(value, key),
+    ownKeys: () => [...new Set([...Reflect.ownKeys(value), ...Reflect.ownKeys(extra)])],
+    getOwnPropertyDescriptor(target, key) {
+      const d = Reflect.getOwnPropertyDescriptor(own(key) ? extra : value, key)
+      // Configurable unless mirrored on the target as non-configurable (see `defineProperty`).
+      const fixed = Reflect.getOwnPropertyDescriptor(target, key)?.configurable === false
+      return d && { ...d, configurable: !fixed }
+    },
+    getPrototypeOf: () => Reflect.getPrototypeOf(value),
+  })
 }
 
 /** Runs a plugin callback; a throw is logged so one plugin cannot break the others. */
