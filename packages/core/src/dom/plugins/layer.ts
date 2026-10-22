@@ -19,12 +19,20 @@ import type { PageTransform } from '../transform'
 /** A layer as the host keeps it: the plugin's spec and the id of the plugin that added it. */
 export type PluginLayer = LayerSpec & { readonly plugin: string }
 
-/** What a layer source reports: a layer was added, or one asked to redraw. */
+/**
+ * What a layer source reports: a layer was added, or one asked to redraw.
+ *
+ * @internal For bindings, which mount plugin layers; not for plugin authors.
+ */
 export type LayerEvent =
   | { type: 'add'; layer: PluginLayer }
   | { type: 'invalidate'; layer: PluginLayer; page?: number | undefined }
 
-/** Where page layers come from: a plugin host. */
+/**
+ * Where page layers come from: a plugin host.
+ *
+ * @internal For bindings, which mount plugin layers; not for plugin authors.
+ */
 export interface LayerSource {
   readonly layers: readonly PluginLayer[]
   /** Calls `listener` for every layer added and every invalidate; returns a stop function. */
@@ -56,7 +64,11 @@ export function createLayerRegistry(): LayerRegistry {
   }
 }
 
-/** One page's plugin layers, made by `PluginLayers.mount`. */
+/**
+ * One page's plugin layers, made by `PluginLayers.mount`.
+ *
+ * @internal For bindings, which mount plugin layers; not for plugin authors.
+ */
 export interface PageLayers {
   update(transform: PageTransform): void
   destroy(): void
@@ -87,6 +99,9 @@ interface MountedPage {
 /**
  * Mounts `source`'s layers on the pages the engine mounts, and follows it: a layer added later
  * is drawn on every mounted page, and an invalidate redraws its page, or all of them.
+ *
+ * @internal For bindings, which mount plugin layers; plugin authors add a layer with
+ * `ctx.layer`.
  */
 export function createPluginLayers(source: LayerSource): PluginLayers {
   const pages = new Map<number, MountedPage>()
