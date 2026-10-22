@@ -1,6 +1,6 @@
 import { writable } from '@inkbar/core'
 import { definePlugin } from '@inkbar/core/dom'
-import { Component, useLayoutEffect, useState, type ReactNode } from 'react'
+import { useLayoutEffect, useState } from 'react'
 
 import { InkCommand } from '../../src/components/InkCommand'
 import { InkRoot } from '../../src/components/InkRoot'
@@ -24,20 +24,6 @@ const plugins = [
   }),
 ]
 
-class Catch extends Component<{ children: ReactNode }, { code: string }> {
-  override state = { code: '' }
-  static getDerivedStateFromError(e: unknown) {
-    return { code: (e as { code?: string }).code ?? String(e) }
-  }
-  override render() {
-    return (
-      <div data-testid="harness" data-error={this.state.code}>
-        {this.state.code ? null : this.props.children}
-      </div>
-    )
-  }
-}
-
 function Probe({ id }: { id: string }) {
   const { enabled } = useCommand(id)
   /** Every value `enabled` takes, from the first commit on. */
@@ -55,13 +41,19 @@ function Probe({ id }: { id: string }) {
   )
 }
 
-/** A command button and a record of its `enabled`, or the error an unknown id throws. */
-export function CommandStateHarness({ assets, id }: { assets: PdfAssets; id: string }) {
+/** A command button and a record of its `enabled`. */
+export function CommandStateHarness({
+  assets,
+  id,
+  src = null,
+}: {
+  assets: PdfAssets
+  id: string
+  src?: string | null
+}) {
   return (
-    <Catch>
-      <InkRoot src={null} assets={assets} plugins={plugins}>
-        <Probe id={id} />
-      </InkRoot>
-    </Catch>
+    <InkRoot src={src} assets={assets} plugins={plugins}>
+      <Probe id={id} />
+    </InkRoot>
   )
 }

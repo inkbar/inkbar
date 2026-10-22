@@ -19,7 +19,8 @@
    * label, disabled while the command is, and `aria-busy` while it runs; the status is a live
    * region. A command without an icon shows its label as the button's text. Until the plugins
    * are set up (once InkRoot has mounted; never on the server) the button is disabled and
-   * `aria-hidden`. After that, an id no plugin registered throws `InkError('UnknownCommand')`.
+   * `aria-hidden`. An id no plugin registered stays that way and logs
+   * `InkError('UnknownCommand')` to the console once.
    */
   import { Toolbar } from 'bits-ui'
   import { untrack } from 'svelte'

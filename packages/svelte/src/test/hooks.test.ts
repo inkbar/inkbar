@@ -15,8 +15,8 @@ import { useToolOptions } from '../lib/hooks/useToolOptions.svelte.js'
 import { useToolStyle } from '../lib/hooks/useToolStyle.svelte.js'
 import { useZoom } from '../lib/hooks/useZoom.svelte.js'
 
+import PendingCommandHost from './harness/PendingCommandHost.svelte'
 import ToolStyleProbe from './harness/ToolStyleProbe.svelte'
-import UnknownCommandHost from './harness/UnknownCommandHost.svelte'
 
 describe('hooks outside InkRoot', () => {
   it.each([
@@ -118,7 +118,7 @@ describe('useCommand', () => {
     const assets = { worker: 'w', cMaps: 'c', standardFonts: 's', wasm: 'm', icc: 'i' }
     // The render runs when its output is read.
     expect(
-      () => void render(UnknownCommandHost, { props: { assets } }).body
+      () => void render(PendingCommandHost, { props: { assets } }).body
     ).not.toThrow()
   })
 })

@@ -28,10 +28,10 @@ import {
   type IconNode,
 } from '@inkbar/icons'
 
-import { InkError } from '../../model/errors'
+import { unknownCommand } from '../plugins/commands'
 import { TOOL_LABELS, ZOOM_LEVELS } from '../ui'
 
-import { hostToolsOf } from './create-viewer'
+import { hostCommandIdsOf, hostToolsOf } from './create-viewer'
 import { h } from './dom'
 
 import type { InkDocument } from '../../model/document'
@@ -201,16 +201,25 @@ export function createToolButton(
 /**
  * A plugin command as a button with its status text beside it. The button is named by the
  * command's label, disabled while the command is, and `aria-busy` while it runs; the status is
- * a live region. A command without an icon shows its label as the button's text. Throws
- * `InkError('UnknownCommand')` for an id no plugin registered.
+ * a live region. A command without an icon shows its label as the button's text. For an id no
+ * plugin registered it logs `InkError('UnknownCommand')` to the console and returns the same
+ * markup disabled, `aria-hidden` and unnamed.
  */
 export function createCommandButton(viewer: Viewer, id: string): HTMLElement {
   const command = viewer.commands.get(id)
-  if (!command)
-    throw new InkError('UnknownCommand', `No plugin registered a command ${id}`, { id })
+  const status = h('span', { class: 'ink-command-status', role: 'status' })
+  if (!command) {
+    console.error(unknownCommand(id, hostCommandIdsOf(viewer)))
+    const pending = h('button', {
+      type: 'button',
+      'data-command': id,
+      'aria-hidden': 'true',
+    })
+    pending.disabled = true
+    return h('div', { class: 'ink-command' }, pending, status)
+  }
   const b = button(command.label, { 'data-command': id }, command.icon)
   if (!command.icon) b.textContent = command.label
-  const status = h('span', { class: 'ink-command-status', role: 'status' })
   b.addEventListener('click', () => void command.run())
   // Enabled follows the command (a ready document by default); busy is its own attribute.
   command.enabled.subscribe((on) => {

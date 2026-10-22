@@ -13,6 +13,19 @@ export interface CommandRegistry {
   add(plugin: string, spec: CommandSpec): Command
 }
 
+/**
+ * The error for a command id no plugin registered, naming the ids that were. Bindings log it
+ * rather than throw, and show the control as it is before the plugins are set up.
+ */
+export function unknownCommand(id: string, registered: readonly string[]): InkError {
+  const known = registered.length > 0 ? registered.join(', ') : 'none'
+  return new InkError(
+    'UnknownCommand',
+    `No plugin registered a command ${id} (registered: ${known})`,
+    { id, registered }
+  )
+}
+
 const EMPTY: Readable<string> = { get: () => '', subscribe: () => () => {} }
 
 /**

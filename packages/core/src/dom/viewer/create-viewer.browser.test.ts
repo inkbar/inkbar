@@ -2,6 +2,7 @@ import { browserAssets, fixtureUrl, type FixtureName } from '@inkbar/fixtures/ur
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { userEvent } from 'vitest/browser'
 
+import { InkError } from '../../model/errors'
 import { writable, type Readable } from '../../model/readable'
 import {
   createMemorySignatureStore,
@@ -2119,11 +2120,46 @@ describe('createViewer plugins', () => {
     expect(drawn.querySelector('svg.ink-icon')).not.toBeNull()
   })
 
-  it('throws UnknownCommand for an id no plugin registered', () => {
-    const { viewer } = make('annotated-notes-threaded')
-    expect(() => createCommandButton(viewer, 'sandbox.nope')).toThrowError(
-      expect.objectContaining({ code: 'UnknownCommand' })
-    )
+  it('logs UnknownCommand and returns a disabled hidden button for an id no plugin registered', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      const plugin = definePlugin({
+        id: 'sandbox',
+        setup: (ctx) =>
+          void ctx.commands.add({ id: 'real', label: 'Real', run: () => undefined }),
+      })
+      const { viewer } = make('annotated-notes-threaded', { plugins: [plugin] })
+      const wrap = createCommandButton(viewer, 'sandbox.nope')
+      const b = wrap.querySelector('button')!
+      expect(wrap.className).toBe('ink-command')
+      expect(b.dataset['command']).toBe('sandbox.nope')
+      expect(b.disabled).toBe(true)
+      expect(b.getAttribute('aria-hidden')).toBe('true')
+      expect(b.hasAttribute('aria-label')).toBe(false)
+      expect(b.hasAttribute('title')).toBe(false)
+      expect(b.textContent).toBe('')
+      expect(wrap.querySelector('span.ink-command-status')?.getAttribute('role')).toBe(
+        'status'
+      )
+      expect(viewer.commands.get('sandbox.nope')).toBeUndefined()
+      expect(error).toHaveBeenCalledTimes(1)
+      const logged = error.mock.calls[0]![0] as InkError
+      expect(logged).toBeInstanceOf(InkError)
+      expect(logged).toMatchObject({
+        code: 'UnknownCommand',
+        details: { id: 'sandbox.nope', registered: ['sandbox.real'] },
+      })
+      expect(logged.message).toContain('sandbox.nope')
+      expect(logged.message).toContain('sandbox.real')
+      // The rest of the viewer keeps working.
+      await ready(viewer)
+      expect(
+        createCommandButton(viewer, 'sandbox.real').querySelector('button')!.disabled
+      ).toBe(false)
+      expect(error).toHaveBeenCalledTimes(1)
+    } finally {
+      error.mockRestore()
+    }
   })
 
   it('a plugin tool works with createToolButton and shows its own label', async () => {

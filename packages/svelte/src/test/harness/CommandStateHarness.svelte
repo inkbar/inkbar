@@ -8,7 +8,11 @@
 
   import type { PdfAssets } from '@inkbar/core'
 
-  let { assets, id }: { assets: PdfAssets; id: string } = $props()
+  let {
+    assets,
+    id,
+    src = null,
+  }: { assets: PdfAssets; id: string; src?: string | null } = $props()
 
   // `always` is enabled without a document, so only plugin setup decides when it turns on.
   const plugins = [
@@ -26,16 +30,6 @@
   ]
 </script>
 
-<svelte:boundary>
-  <div data-testid="harness" data-error="">
-    <InkRoot src={null} {assets} {plugins}>
-      <CommandStateProbe {id} />
-    </InkRoot>
-  </div>
-  {#snippet failed(error)}
-    <div
-      data-testid="harness"
-      data-error={(error as { code?: string }).code ?? String(error)}
-    ></div>
-  {/snippet}
-</svelte:boundary>
+<InkRoot {src} {assets} {plugins}>
+  <CommandStateProbe {id} />
+</InkRoot>
