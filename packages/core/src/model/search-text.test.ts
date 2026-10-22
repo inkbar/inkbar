@@ -74,6 +74,21 @@ describe('searchableText', () => {
     expect(t.norm).toBe('document')
   })
 
+  it('joins a line break after U+2010 or a soft hyphen, not after an en dash', () => {
+    const at = (end: string) =>
+      searchableText(
+        content(
+          item(`docu${end}`, 0, 25, { hasEOL: true }),
+          item('ment', 0, 20, { y: 88 })
+        )
+      ).norm
+    expect(at('\u2010')).toBe('document')
+    expect(at('\u2011')).toBe('document')
+    expect(at('\u00ad')).toBe('document')
+    expect(at('\u2013')).toBe('docu- ment')
+    expect(at('\u2014')).toBe('docu- ment')
+  })
+
   it('keeps a hyphen that is not followed by a line break', () => {
     const t = searchableText(content(item('a-b', 0, 15)))
     expect(t.norm).toBe('a-b')

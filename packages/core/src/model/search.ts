@@ -1,5 +1,5 @@
 import { rectFromQuads, type Point, type Quad, type Rect } from './geometry'
-import { normalizeQuery, type SearchableText } from './search-text'
+import { isBlankQuery, normalizeQuery, type SearchableText } from './search-text'
 
 /** How much page text `before` and `after` carry on each side of a hit. */
 export const CONTEXT_CHARS = 40
@@ -46,8 +46,8 @@ function normRanges(
 ): [number, number][] {
   const out: [number, number][] = []
   if (typeof query === 'string') {
+    if (isBlankQuery(query)) return out
     const needle = normalizeQuery(query, true)
-    if (needle === '') return out
     const haystack = matchCase ? norm : norm.toLocaleLowerCase()
     const target = matchCase ? needle : needle.toLocaleLowerCase()
     // Indexes into `norm` only carry over when folding case kept every length.
@@ -63,17 +63,22 @@ function normRanges(
     // Lower-casing changed a length ("İ" is two UTF-16 units), so search `norm` itself.
     return regexRanges(norm, new RegExp(escapeRegExp(needle), 'giu'))
   }
-  return regexRanges(
-    norm,
-    new RegExp(query.source, query.flags.includes('g') ? query.flags : query.flags + 'g')
-  )
+  // Global so `exec` walks the text; not sticky, which would stop at the first gap.
+  const flags = query.flags.replace(/[gy]/g, '') + 'g'
+  return regexRanges(norm, new RegExp(query.source, flags))
 }
 
 function regexRanges(norm: string, re: RegExp): [number, number][] {
   const out: [number, number][] = []
+  const unicode = re.unicode || re.flags.includes('v')
   for (let m = re.exec(norm); m; m = re.exec(norm)) {
-    if (m[0] === '') re.lastIndex++
-    else out.push([m.index, m.index + m[0].length])
+    if (m[0] !== '') {
+      out.push([m.index, m.index + m[0].length])
+      continue
+    }
+    // Step past an empty match by a whole code point: a unicode regexp moved to the middle of
+    // a surrogate pair backs up to its start and finds the same empty match again.
+    re.lastIndex = m.index + (unicode && norm.codePointAt(m.index)! > 0xffff ? 2 : 1)
   }
   return out
 }
