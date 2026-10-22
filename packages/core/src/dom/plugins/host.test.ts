@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { writable } from '../../model/readable'
 
-import { definePlugin, type InkPlugin } from './define'
+import { definePlugin, type InkPlugin, type PluginContext } from './define'
 import { createPluginHost, type PluginHostOptions } from './host'
 
 import type { PluginHistory } from '../../model/annotations/history'
@@ -276,9 +276,7 @@ describe('createPluginHost', () => {
             expect(ctx.document.get()).toBeNull()
             ctx.setActivated(null)
             handle = ctx.layer({ render })
-            ctx.onDocument(() => {
-              ctx.history.track({} as RecordStore<RecordBase>)
-            })
+            ctx.store('notes')
           },
         }),
       ],
@@ -289,5 +287,36 @@ describe('createPluginHost', () => {
     expect(() => handle.invalidate(1)).not.toThrow()
     document.set(fakeDocument('a'))
     expect(tracked.size).toBe(1)
+  })
+  it("gives plugins only the history's batch, run on the current history", () => {
+    const batched: string[] = []
+    let current = 'a'
+    let history!: PluginContext['history']
+    createPluginHost({
+      plugins: [
+        definePlugin({ id: 'sandbox', setup: (ctx) => void (history = ctx.history) }),
+      ],
+      document: writable<InkDocument | null>(null),
+      history: () => {
+        const at = current
+        return {
+          ...fakeHistory().history,
+          batch(fn) {
+            batched.push(at)
+            fn()
+          },
+        }
+      },
+      activated: writable<string | null>(null),
+      setActivated() {},
+      root: writable<HTMLElement | null>(null),
+    })
+    expect(Object.keys(history)).toEqual(['batch'])
+    const fn = vi.fn()
+    history.batch(fn)
+    current = 'b'
+    history.batch(fn)
+    expect(fn).toHaveBeenCalledTimes(2)
+    expect(batched).toEqual(['a', 'b'])
   })
 })

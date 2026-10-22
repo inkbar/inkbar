@@ -255,7 +255,7 @@ export const suggestions = definePlugin({
 
 Pass it to the viewer in `plugins: [suggestions]`. Nothing a plugin registers shows by itself: place a command with `InkCommand` (`createCommandButton(viewer, 'sandbox.suggest')` without a framework), and a plugin tool with a tool button, as you place the built-in ones.
 
-A command is disabled until a document is ready, unless it passes its own `enabled` readable, and it is busy, and disabled, until the promise `run` returns settles. A failed run is logged, never thrown. `ctx.store(name)` gives each document its own record store, keyed `<plugin>.<name>`, and its changes undo with annotation edits; `ctx.onAnnotationEdit(fn)` runs inside each user edit's undo step. Inkbar keeps no plugin data: load it with `initial(doc)` and save it from `onChange`.
+A command is disabled until a document is ready, unless it passes its own `enabled` readable, and it is busy, and disabled, until the promise `run` returns settles. A failed run is logged, never thrown. `ctx.store(name)` gives each document its own record store, keyed `<plugin>.<name>`, and its changes undo with annotation edits; `ctx.onAnnotationEdit(fn)` runs inside each user edit's undo step. `ctx.history.batch(fn)` makes everything `fn` changes, annotations and records alike, one undo step. Inkbar keeps no plugin data: load it with `initial(doc)` and save it from `onChange`.
 
 ## Signatures
 

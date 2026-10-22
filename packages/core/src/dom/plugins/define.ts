@@ -5,7 +5,6 @@
  * tool button). Everything it names is namespaced under its id: command `suggest` of plugin
  * `sandbox` is `sandbox.suggest`, and so are its tools and stores.
  */
-import type { PluginHistory } from '../../model/annotations/history'
 import type { AnnotationEdit } from '../../model/annotations/store'
 import type { InkDocument } from '../../model/document'
 import type { Readable } from '../../model/readable'
@@ -76,8 +75,12 @@ export interface PluginContext {
   /** The plugin's id. */
   readonly id: string
   readonly document: Readable<InkDocument | null>
-  /** The viewer's active history, so plugin store changes undo with annotation edits. */
-  readonly history: PluginHistory
+  /**
+   * The viewer's active history. `batch` makes everything `fn` changes, annotations and plugin
+   * records alike, one undo step. Stores from `store` are tracked for you, and `onAnnotationEdit`
+   * runs inside the edit's step.
+   */
+  readonly history: { batch(fn: () => void): void }
   /** The id of the activated annotation, or null. */
   readonly activated: Readable<string | null>
   setActivated(id: string | null): void

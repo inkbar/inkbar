@@ -152,11 +152,7 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
     return {
       id: plugin.id,
       document: opts.document,
-      history: {
-        batch: (fn) => opts.history().batch(fn),
-        track: (store) => opts.history().track(store),
-        react: (fn) => opts.history().react(fn),
-      },
+      history: { batch: (fn) => opts.history().batch(fn) },
       activated: opts.activated,
       setActivated: (id) => opts.setActivated(id),
       root: opts.root,
