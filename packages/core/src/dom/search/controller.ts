@@ -129,8 +129,14 @@ export function createSearchController(opts: SearchControllerOptions): SearchCon
         if (controller.signal.aborted) return
         accept(hit)
       }
-    } catch {
-      // An abort is our own doing; any other failure ends the scan with the hits found so far.
+    } catch (error) {
+      // An abort is our own doing; anything else is a real failure worth reporting.
+      if (!controller.signal.aborted) {
+        console.error(error)
+        if (scan === controller) scan = undefined
+        patch({ scanning: false })
+        return
+      }
     }
     if (scan === controller) {
       scan = undefined
@@ -178,17 +184,22 @@ export function createSearchController(opts: SearchControllerOptions): SearchCon
     if (state.get().open) restart(false)
   })
 
+  function setQuery(query: string): void {
+    patch({ query })
+    restart(true)
+  }
+
+  function open(query?: string): void {
+    const wasOpen = state.get().open
+    patch({ open: true })
+    if (query !== undefined) setQuery(query)
+    else if (!wasOpen && state.get().query !== '') restart(false)
+  }
+
   return {
     state: readonly(state),
-    open(query) {
-      patch({ open: true })
-      if (query !== undefined) this.setQuery(query)
-      else if (state.get().query !== '' && !scan && timer === undefined) restart(false)
-    },
-    setQuery(query) {
-      patch({ query })
-      restart(true)
-    },
+    open,
+    setQuery,
     setMatchCase(on) {
       patch({ matchCase: on })
       restart(false)

@@ -56,7 +56,7 @@ function setup(table: Record<number, SearchHit[]>, page = 0, pageCount = 5) {
   const scrollToRect = vi.fn()
   const viewport = { currentPage, scrollToRect } as unknown as Viewport
   const controller = createSearchController({ document, viewport: () => viewport })
-  return { controller, document, calls, currentPage, scrollToRect }
+  return { controller, doc, document, calls, currentPage, scrollToRect }
 }
 
 const settle = async (ms = 1000) => {
@@ -285,5 +285,44 @@ describe('createSearchController', () => {
     controller.destroy()
     await settle()
     expect(calls).toHaveLength(0)
+  })
+
+  it('open on an open bar leaves finished hits and current alone', async () => {
+    const { controller, calls } = setup({ 0: [hit(0, 1)], 1: [hit(1, 1)] })
+    controller.open('foo')
+    await settle()
+    controller.next()
+    controller.open()
+    await settle()
+    expect(calls).toHaveLength(1)
+    expect(controller.state.get().hits).toHaveLength(2)
+    expect(controller.state.get().current).toBe(1)
+  })
+
+  it('logs a scan failure that is not an abort and stops scanning', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { controller, doc } = setup({})
+    const boom = new Error('boom')
+    ;(doc as unknown as { search: unknown }).search = () => ({
+      [Symbol.asyncIterator]: () => ({ next: () => Promise.reject(boom) }),
+    })
+    controller.setQuery('foo')
+    await settle()
+    expect(error).toHaveBeenCalledWith(boom)
+    expect(controller.state.get().scanning).toBe(false)
+    error.mockRestore()
+  })
+
+  it('works with its actions destructured', async () => {
+    const { controller, calls } = setup({ 0: [hit(0, 1)] })
+    // Detached on purpose: actions must not depend on `this`.
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    const { open, setQuery, close } = controller
+    open('foo')
+    await settle()
+    expect(calls).toHaveLength(1)
+    setQuery('bar')
+    close()
+    expect(controller.state.get().open).toBe(false)
   })
 })
