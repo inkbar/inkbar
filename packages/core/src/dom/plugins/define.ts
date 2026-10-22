@@ -15,6 +15,7 @@ import type { Rect } from '../../model/geometry'
 import type { Readable } from '../../model/readable'
 import type { RecordBase, RecordChange, RecordStore } from '../../model/records'
 import type { DecorateAnnotation } from '../overlay'
+import type { ViewerSearch } from '../search/controller'
 import type { Tool } from '../tools/controller'
 import type { PageTransform } from '../transform'
 import type { IconNode } from '@inkbar/icons'
@@ -125,6 +126,11 @@ export interface PluginContext {
    * not. Moves no focus. Does nothing while no document is shown.
    */
   scrollTo(page: number, rect: Rect, opts?: { behavior?: ScrollBehavior }): void
+  /**
+   * The viewer's search state and actions, shared with the find bar. Inert (always closed, no
+   * hits) when the host has no search.
+   */
+  readonly search: ViewerSearch
 }
 
 /** A factory's parameters: its options, optional only when `O` has no required field. */

@@ -26,6 +26,7 @@ import type { PluginHistory } from '../../model/annotations/history'
 import type { AnnotationEdit } from '../../model/annotations/store'
 import type { InkDocument } from '../../model/document'
 import type { AnnotationDecoration, DecorateAnnotation } from '../overlay'
+import type { SearchState, ViewerSearch } from '../search/controller'
 import type { Tool } from '../tools/controller'
 import type { Viewport } from '../viewport'
 
@@ -41,6 +42,30 @@ export interface PluginHostOptions {
   decorate?: () => DecorateAnnotation | undefined
   /** The viewer's viewport, read on each call; without one, `ctx.scrollTo` does nothing. */
   viewport?: () => Viewport | null | undefined
+  /** The viewer's search; without one, `ctx.search` is inert. */
+  search?: ViewerSearch
+}
+
+const inertState = readonly(
+  writable<SearchState>({
+    open: false,
+    query: '',
+    matchCase: false,
+    hits: [],
+    current: -1,
+    scanning: false,
+  })
+)
+
+/** What `ctx.search` is when the host has no search: closed, and every action does nothing. */
+const inertSearch: ViewerSearch = {
+  state: inertState,
+  open() {},
+  setQuery() {},
+  setMatchCase() {},
+  next() {},
+  previous() {},
+  close() {},
 }
 
 export interface PluginHost extends LayerSource {
@@ -250,6 +275,7 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
       scrollTo(page, rect, scrollOpts) {
         opts.viewport?.()?.scrollToRect(page, rect, scrollOpts)
       },
+      search: opts.search ?? inertSearch,
     }
   }
 

@@ -495,3 +495,39 @@ describe('createPluginHost', () => {
     expect(viewport.scrollToRect).toHaveBeenCalledWith(2, rect, { behavior: 'smooth' })
   })
 })
+
+describe('ctx.search', () => {
+  it('is the host search when one is given, and an inert closed stub otherwise', () => {
+    let ctx!: PluginContext
+    const plugin = definePlugin({ id: 'p', setup: (c) => void (ctx = c) })
+    hostWith([plugin])
+    expect(ctx.search.state.get().open).toBe(false)
+    ctx.search.open('x')
+    ctx.search.next()
+    ctx.search.close()
+    expect(ctx.search.state.get().open).toBe(false)
+    expect(ctx.search.state.get().hits).toEqual([])
+
+    const state = writable({
+      open: true,
+      query: 'q',
+      matchCase: false,
+      hits: [],
+      current: -1,
+      scanning: false,
+    })
+    const search = {
+      state,
+      open: vi.fn(),
+      setQuery: vi.fn(),
+      setMatchCase: vi.fn(),
+      next: vi.fn(),
+      previous: vi.fn(),
+      close: vi.fn(),
+    }
+    hostWith([plugin], { search })
+    expect(ctx.search.state.get().query).toBe('q')
+    ctx.search.next()
+    expect(search.next).toHaveBeenCalled()
+  })
+})
