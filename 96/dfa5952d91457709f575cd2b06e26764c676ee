@@ -1,0 +1,83 @@
+packages/core/src/dom/plugins/api/command.test.ts
+  s_611b86d68c2358::t_30b16d824f870e 32,34-35,39-41,53-154,176-209
+  s_611b86d68c2358::t_a2adaab69675d8 13
+  s_611b86d68c2358::t_27a3cc97c508c4 1-12,14-31,33,36-38,42,44-50,52
+packages/core/src/dom/plugins/api/command.ts
+  s_611b86d68c2358::t_59eeb67a10bd25 1-10,12-45,49-55,58-78
+  s_611b86d68c2358::t_399e37f2607b4d 56-57
+  s_611b86d68c2358::t_a2adaab69675d8 11
+packages/core/src/dom/plugins/api/api.ts
+  s_611b86d68c2358::t_59eeb67a10bd25 5,11,28-36,74
+  s_611b86d68c2358::t_a02b1b23ddd0b0 62-71
+  s_611b86d68c2358::t_c764d3e8539e3c 6,37-45,75
+packages/core/src/dom/index.ts
+  s_611b86d68c2358::t_c764d3e8539e3c 43
+  s_611b86d68c2358::t_ee19c998d4b0d8 44
+packages/core/src/dom/plugins/api/links.ts
+  s_611b86d68c2358::t_a7d88e8c4171c5 6,69-70,73-75
+  s_611b86d68c2358::t_5f7017695e5d45 1-5,7-68,71-72,76-101
+packages/core/src/dom/plugins/api/records.ts
+  s_611b86d68c2358::t_a02b1b23ddd0b0 8-11,42-50,100-105,148-152,154-159
+  s_611b86d68c2358::t_a7d88e8c4171c5 153
+packages/core/src/dom/plugins/api/links.test.ts
+  s_611b86d68c2358::t_5953579f6f4bb7 128,131,183,214
+  s_611b86d68c2358::t_65eadda4fd4aaa 143-146
+  s_611b86d68c2358::t_1547ace00a1d35 56
+  s_611b86d68c2358::t_0c87bf1f6263b0 1-10,12-55,57-58,65-127,129-130,132-142,147-158,163-181,185-197,202-213,215-241,246-260
+  s_611b86d68c2358::t_af53c32ac28ba0 11,59-64,159-162,182,184,198-201,242-245
+packages/core/src/dom/plugins/api/marks.ts
+  s_611b86d68c2358::t_3031fa4bba8837 1-10,13-16,18-25,31-32,37,44-54,58-71,86,91-93,94,95-107,116,119,123-132,134-166,168-170
+  s_611b86d68c2358::t_068e4b1add30c4 17
+  s_611b86d68c2358::t_2126707a68e8b5 110-112
+  s_611b86d68c2358::t_73d47c33ce12b5 72
+  s_611b86d68c2358::t_3100f3f7b9435e 11-12,33-36,38-43,55-57,73-85,87-90,108-109,113-115,120-122,133
+packages/core/src/dom/plugins/api/marks.browser.test.ts
+  s_611b86d68c2358::t_3b19d66ea36c5d 1-105,107-131,136-210,254-286
+  s_611b86d68c2358::t_068e4b1add30c4 106,132-135
+  s_611b86d68c2358::t_fb95c83f643fbe 225-253
+packages/core/src/dom/plugins/api/card.browser.test.ts
+  s_611b86d68c2358::t_24bebd8d06bbd4 1-59,61-62,70-82,84-183,185-259,261-262
+  s_611b86d68c2358::t_49e7787acd8a07 60,63-69,83,184,260
+packages/core/src/dom/plugins/api/card.ts
+  s_611b86d68c2358::t_5f13bffa653e5e 1-173
+packages/theme/theme.css
+  s_611b86d68c2358::t_ee19c998d4b0d8 1422-1487,1503-1504
+packages/theme/theme.test.ts
+  s_611b86d68c2358::t_2126707a68e8b5 218-220
+  s_611b86d68c2358::t_fb95c83f643fbe 199-217,221-222
+apps/sandbox/src/plugin-page/main.ts
+  s_611b86d68c2358::t_85ce0ed8e53e87 16,21
+apps/sandbox/e2e/smoke.spec.ts
+  s_611b86d68c2358::t_2dcda005d00f63 64,135,966,972
+apps/sandbox/src/shell/frameworks.ts
+  s_611b86d68c2358::t_0aaefbd98960d3 45
+apps/sandbox/src/plugin/suggestions.ts
+  s_611b86d68c2358::t_4d88521ad8b3ac 6-9,28,41-42,92-102,108,112,114,119-121,134,136-141,143-149,151-173,175
+  s_611b86d68c2358::t_32405a164b4d5e 117
+  s_611b86d68c2358::t_313b0b47ab3de1 15,21,126-130,133
+  s_611b86d68c2358::t_03ed628e77fbdb 109-110
+apps/sandbox/src/plugin/suggestions.css
+  s_611b86d68c2358::t_25c489262dd015 1-4
+apps/sandbox/src/plugin/suggestions.test.ts
+  s_611b86d68c2358::t_fc6312a636a271 154
+  s_611b86d68c2358::t_92ed073b97b89d 2-5,7-10,13,17,20-29,33-62,64,68-72,74,84-89,92-97,100-128,131-132,134-153
+  s_611b86d68c2358::t_28452514e78564 65
+packages/core/README.md
+  s_611b86d68c2358::t_1acc73b98de6bb 236,239-266,270,272,274-294,297-298,300
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "96dfa5952d91457709f575cd2b06e26764c676ee",
+  "prompts": {},
+  "sessions": {
+    "s_611b86d68c2358": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f6760cb6-1a68-4a5b-b172-32f4da0aa5b1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
