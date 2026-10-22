@@ -10,7 +10,7 @@ import { useCommand } from '../../src/composables/useCommand'
 import { useHistory } from '../../src/composables/useHistory'
 import { useReadable } from '../../src/use-readable'
 
-import type { Mark } from './test-plugin'
+import type { Mark } from '../../../core/src/test-support/plugin'
 import type { Readable, RecordStore } from '@inkbar/core'
 
 const props = defineProps<{ marks: () => Readable<RecordStore<Mark> | null> }>()

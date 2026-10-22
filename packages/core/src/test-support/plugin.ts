@@ -1,7 +1,10 @@
-import { writable } from '@inkbar/core'
-import { definePlugin } from '@inkbar/core/dom'
+// Test support only, never production code: the plugin the framework packages' component tests
+// share, imported by relative path. No build entry reaches this directory, and the package
+// publishes only `dist`.
+import { definePlugin } from '../dom/plugins/define'
+import { writable, type Readable } from '../model/readable'
 
-import type { Readable, RecordStore } from '@inkbar/core'
+import type { RecordStore } from '../model/records'
 
 export interface Mark {
   id: string
@@ -10,25 +13,34 @@ export interface Mark {
   annotationId?: string | undefined
 }
 
+export interface TestPluginOptions {
+  /** Records the layer's teardown and the plugin's cleanup, in order. */
+  log?: string[] | undefined
+  /** Called each time the plugin is set up. */
+  onSetup?: (() => void) | undefined
+}
+
 /**
  * A plugin small enough to read in one go: one store of marks, `accept` (marks `m1` accepted and
- * adds a redaction, in one step), `work` (with an icon; busy until the harness releases it), a `stamp` tool, and
- * a reaction that puts a mark back to suggested when its redaction is deleted.
+ * adds a redaction, in one step), `work` (with an icon; busy until the harness releases it), a
+ * `stamp` tool, a reaction that puts a mark back to suggested when its redaction is deleted, and
+ * an empty page layer.
  */
-export function createTestPlugin(onSetup?: () => void) {
-  let marks: Readable<RecordStore<Mark> | null> = {
-    get: () => null,
-    subscribe: () => () => {},
-  }
+export function createTestPlugin({ log = [], onSetup }: TestPluginOptions = {}) {
+  // Plugins are set up once the root has mounted: the harness reads this one readable from
+  // the start, and setup points it at the plugin's store.
+  const marks = writable<RecordStore<Mark> | null>(null)
   const status = writable('')
   let finish = () => {}
   const plugin = definePlugin({
     id: 'sandbox',
     setup(ctx) {
       onSetup?.()
-      marks = ctx.store<Mark>('marks', {
+      const store = ctx.store<Mark>('marks', {
         initial: () => [{ id: 'm1', status: 'suggested' }],
       })
+      marks.set(store.get())
+      const stopMarks = store.subscribe((s) => marks.set(s))
       ctx.commands.add({
         id: 'accept',
         label: 'Accept',
@@ -74,7 +86,21 @@ export function createTestPlugin(onSetup?: () => void) {
         const mark = store?.list.get().find((m) => m.annotationId === edit.annotation.id)
         if (mark) store?.update(mark.id, { status: 'suggested', annotationId: undefined })
       })
+      ctx.layer({
+        render: () => undefined,
+        destroy: (_el, page) => {
+          if (page === 0) log.push('layer destroyed')
+        },
+      })
+      return () => {
+        stopMarks()
+        log.push('plugin cleaned up')
+      }
     },
   })
-  return { plugin, marks: () => marks, finish: () => finish() }
+  return {
+    plugin,
+    marks: (): Readable<RecordStore<Mark> | null> => marks,
+    finish: () => finish(),
+  }
 }
