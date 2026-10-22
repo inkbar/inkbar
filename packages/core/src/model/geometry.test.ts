@@ -8,9 +8,11 @@ import {
   multiplyMatrix,
   quadFromRect,
   quadsFromFlat,
+  quadsFromRect,
   rectContainsPoint,
   rectFromPoints,
   rectFromQuad,
+  rectFromQuads,
   rectsIntersect,
   translateRect,
   unionRects,
@@ -120,5 +122,42 @@ describe('geometry', () => {
       x: 10,
       y: 6,
     })
+  })
+})
+
+describe('quadsFromRect and rectFromQuads', () => {
+  it('builds one quad in the sandbox line() corner order', () => {
+    const left = 383
+    const bottom = 246.9
+    const right = 443.35
+    const top = 258.91
+    expect(
+      quadsFromRect({ x: left, y: bottom, width: right - left, height: top - bottom })
+    ).toEqual([
+      {
+        p1: { x: left, y: top },
+        p2: { x: right, y: top },
+        p3: { x: left, y: bottom },
+        p4: { x: right, y: bottom },
+      },
+    ])
+  })
+
+  it('round-trips a rect', () => {
+    const r = { x: 383, y: 246.9, width: 60.35, height: 12.01 }
+    const back = rectFromQuads(quadsFromRect(r))
+    // x + width - x is not exact in floating point.
+    expect(back.x).toBe(r.x)
+    expect(back.y).toBe(r.y)
+    expect(back.width).toBeCloseTo(r.width, 9)
+    expect(back.height).toBeCloseTo(r.height, 9)
+  })
+
+  it('gives the union of several quads', () => {
+    const quads = [
+      ...quadsFromRect({ x: 0, y: 0, width: 10, height: 5 }),
+      ...quadsFromRect({ x: 20, y: 10, width: 5, height: 5 }),
+    ]
+    expect(rectFromQuads(quads)).toEqual({ x: 0, y: 0, width: 25, height: 15 })
   })
 })

@@ -55,6 +55,17 @@ export function quadFromRect(r: Rect): Quad {
   }
 }
 
+/** One quad covering `r`, in the corner order of `quadFromRect`. */
+export function quadsFromRect(r: Rect): Quad[] {
+  return [quadFromRect(r)]
+}
+
+/** The bounding box of every corner of `quads`. */
+export function rectFromQuads(quads: readonly Quad[]): Rect {
+  if (quads.length === 0) throw new RangeError('rectFromQuads needs at least one quad')
+  return unionRects(quads.map(rectFromQuad))
+}
+
 export function unionRects(rects: readonly Rect[]): Rect {
   if (rects.length === 0) throw new RangeError('unionRects needs at least one rect')
   let x1 = Infinity
