@@ -1,9 +1,10 @@
 /*
  * Inkbar without a framework: createViewer opens the document and renders the viewer and its
- * popovers. The toolbars are built from Inkbar's controls, so each one is yours to keep, move
- * or drop, and each button takes your own icon in place of the one it shows. Suggest
- * redactions is a plugin (src/plugin/suggestions.ts): registered in `plugins`, with its button
- * placed by createCommandButton.
+ * popovers. The page owns the form's values (`fields`, controlled) and hears the form's
+ * requests (`onFormAction`), which the Form panel lists. The toolbars are built from Inkbar's
+ * controls, so each one is yours to keep, move or drop, and each button takes your own icon in
+ * place of the one it shows. Suggest redactions is a plugin (src/plugin/suggestions.ts):
+ * registered in `plugins`, with its button placed by createCommandButton.
  */
 import {
   createColorMenu,
@@ -34,9 +35,10 @@ import { assets } from 'virtual:inkbar-assets'
 
 import { suggestionsPlugin } from '../plugin/suggestions'
 import '../plugin/suggestions.css'
+import { glossFields, logAction, type LoggedAction } from '../shared/form'
 import { signatureFonts, signatures } from '../shared/signatures'
 
-import type { DocumentSource } from '@inkbar/core'
+import type { DocumentSource, FormAction } from '@inkbar/core'
 
 function group(
   label: string,
@@ -51,15 +53,74 @@ function group(
   return g
 }
 
+function element(tag: string, text = ''): HTMLElement {
+  const e = document.createElement(tag)
+  e.textContent = text
+  return e
+}
+
+/** The Form panel: the form's latest actions and its values as Gloss, set as text only. */
+function formPanel() {
+  const panel = element('section')
+  panel.className = 'demo-form'
+  panel.setAttribute('aria-labelledby', 'demo-form-title')
+  // It scrolls, so it takes focus for keyboard scrolling.
+  panel.tabIndex = 0
+  const title = element('h2', 'Form')
+  title.id = 'demo-form-title'
+  const list = element('ol')
+  const empty = element('p', 'None yet. Try the buttons on page 6.')
+  const gloss = element('pre')
+  panel.append(
+    title,
+    element(
+      'p',
+      "Inkbar never sends, opens or prints anything. The form's requests come here."
+    ),
+    element('h3', 'Actions'),
+    empty,
+    element('h3', 'Fields as Gloss'),
+    gloss
+  )
+  let log: LoggedAction[] = []
+  return {
+    element: panel,
+    action(a: FormAction) {
+      log = logAction(log, a)
+      list.replaceChildren(...log.map((entry) => element('li', entry.text)))
+      if (empty.isConnected) empty.replaceWith(list)
+    },
+    gloss(text: string) {
+      gloss.textContent = text
+    },
+  }
+}
+
 export function mountDemo(el: HTMLElement, source: DocumentSource): () => void {
+  const panel = formPanel()
   const viewer = createViewer(el, {
     source,
     assets,
     signatures,
     signatureFonts,
     plugins: [suggestionsPlugin()],
+    fields: {
+      mode: 'controlled',
+      initial: {},
+      // The page could store or reject the values here; it shows them as Gloss.
+      onChange: () => panel.gloss(glossFields(viewer.document.get())),
+    },
+    onFormAction: (a) => panel.action(a),
+    onReady: (doc) => panel.gloss(glossFields(doc)),
   })
   viewer.element.classList.add('demo-root')
+
+  // The panel sits beside the viewport, in a row of its own.
+  const body = element('div')
+  body.className = 'demo-body'
+  const viewport = viewer.element.querySelector('.ink-viewport-root')!
+  viewport.replaceWith(body)
+  body.append(viewport, panel.element)
 
   const tools = createToolbar()
   tools.classList.add('demo-toolbar')

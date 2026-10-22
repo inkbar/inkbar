@@ -1,0 +1,41 @@
+import type { FormAction, InkDocument } from '@inkbar/core'
+
+/*
+ * The Form panel beside each viewer: the form's latest actions and its values as Gloss.
+ * Inkbar never sends, opens, mails or prints anything itself. It hands each request to the
+ * host, and this sandbox only lists them.
+ */
+
+export interface LoggedAction {
+  id: number
+  text: string
+}
+
+let nextId = 0
+
+/** One line for an action: its kind and what it points at. */
+export function describeAction(a: FormAction): string {
+  switch (a.kind) {
+    case 'submit':
+      return `submit ${a.url}`
+    case 'open-url':
+      return `open-url ${a.url}`
+    case 'mail':
+      return a.to ? `mail ${a.to}` : 'mail'
+    case 'prompt':
+      return `prompt ${a.message}`
+    case 'print':
+      return 'print'
+  }
+}
+
+/** The log with `a` added: the last ten, newest first. */
+export function logAction(log: readonly LoggedAction[], a: FormAction): LoggedAction[] {
+  return [{ id: nextId++, text: describeAction(a) }, ...log].slice(0, 10)
+}
+
+/** The document's form values as its Gloss export writes them. */
+export function glossFields(doc: InkDocument | null): string {
+  if (!doc) return ''
+  return JSON.stringify(doc.exportAnnotations('json').fields ?? {}, null, 2)
+}

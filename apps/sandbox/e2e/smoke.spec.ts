@@ -17,7 +17,7 @@ const textSimple = fileURLToPath(
   new URL('../../../fixtures/pdf/text-simple.pdf', import.meta.url)
 )
 
-/** One page and no annotations, unlike the four-page sample, so a swap is unmistakable. */
+/** One page and no annotations, unlike the six-page sample, so a swap is unmistakable. */
 const onePage = fileURLToPath(
   new URL('../../../fixtures/pdf/text-cjk.pdf', import.meta.url)
 )
@@ -51,8 +51,8 @@ async function dragShape(page: Page, from = [40, 30], to = [200, 100]): Promise<
   await page.mouse.up()
 }
 
-/** The sample's suggestions all fall on its last page, and only pages in view draw marks. */
-async function goToLastPage(page: Page): Promise<void> {
+/** The sample's suggestions all fall on page 4, and only pages in view draw marks. */
+async function goToRecordPage(page: Page): Promise<void> {
   await page.locator('input[aria-label="Page"]').fill('4')
   await page.keyboard.press('Enter')
   await expect(
@@ -66,18 +66,18 @@ const SUGGESTED = '[data-record][data-plugin="sandbox"]'
 /** Where Suggest redactions reports what it found: its command's status. */
 const RESULT = '.ink-command-status'
 
-/** Opens the sample, runs Suggest redactions and shows the last page, where the marks are. */
+/** Opens the sample, runs Suggest redactions and shows page 4, where the marks are. */
 async function suggestOnSample(page: Page, path: string): Promise<void> {
   await page.goto(path)
   await suggest(page)
 }
 
-/** Runs Suggest redactions on the sample already open and shows the last page. */
+/** Runs Suggest redactions on the sample already open and shows page 4. */
 async function suggest(page: Page): Promise<void> {
   await waitForFirstPage(page)
   await page.getByRole('button', { name: 'Suggest redactions' }).click()
   await expect(page.locator(RESULT)).toHaveText(SAMPLE_SUGGESTIONS)
-  await goToLastPage(page)
+  await goToRecordPage(page)
   await expect(page.locator(SUGGESTED)).toHaveCount(4)
 }
 
@@ -108,7 +108,7 @@ for (const framework of FRAMEWORKS) {
       const result = page.locator(RESULT)
       await suggest.click()
       await expect(result).toHaveText(SAMPLE_SUGGESTIONS)
-      await goToLastPage(page)
+      await goToRecordPage(page)
       await expect(page.locator(SUGGESTED)).toHaveCount(4)
       await suggest.click()
       await expect(result).toHaveText('0 suggestions')
@@ -123,7 +123,7 @@ for (const framework of FRAMEWORKS) {
       await expect(undo).toBeDisabled()
       await page.getByRole('button', { name: 'Suggest redactions' }).click()
       await expect(page.locator(RESULT)).toHaveText(SAMPLE_SUGGESTIONS)
-      await goToLastPage(page)
+      await goToRecordPage(page)
       await expect(page.locator(SUGGESTED)).toHaveCount(4)
       await undo.click()
       await expect(page.locator(SUGGESTED)).toHaveCount(0)
@@ -308,7 +308,7 @@ for (const framework of FRAMEWORKS) {
       await expect(page.locator('[data-file-status]')).toHaveText(
         'notes.txt is not a PDF.'
       )
-      await expect(page.locator('[data-ink-page-count]')).toHaveText('of 4')
+      await expect(page.locator('[data-ink-page-count]')).toHaveText('of 6')
     })
 
     test('shows an error for a broken PDF and recovers on the next file', async ({
