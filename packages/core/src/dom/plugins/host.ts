@@ -66,13 +66,35 @@ interface Opened {
   cleanups: (() => void)[]
 }
 
-/** A copy of `value` with `extra` laid over it, keeping its prototype (a class's methods). */
+/**
+ * `value` seen with `extra` laid over it. Everything else is read from `value` itself, and the
+ * methods it inherits are bound to it, so a class instance keeps its `#private` fields.
+ */
 function withProps<T extends object, U extends object>(value: T, extra: U): T & U {
-  return Object.assign(
-    Object.create(Object.getPrototypeOf(value) as object | null) as T,
-    value,
-    extra
-  )
+  const bound = new Map<PropertyKey, { fn: unknown; bound: unknown }>()
+  const own = (key: PropertyKey) => Object.hasOwn(extra, key)
+  // An empty target, so a frozen `value` breaks no proxy invariant on the keys `extra` replaces.
+  return new Proxy(Object.create(null) as T & U, {
+    get(_, key) {
+      if (own(key)) return extra[key as keyof U]
+      const v: unknown = Reflect.get(value, key, value)
+      if (typeof v !== 'function' || Object.hasOwn(value, key)) return v
+      // The same bound function on each read, while the method stays the same.
+      let entry = bound.get(key)
+      if (entry?.fn !== v) {
+        entry = { fn: v, bound: (v as (...a: unknown[]) => unknown).bind(value) }
+        bound.set(key, entry)
+      }
+      return entry.bound
+    },
+    has: (_, key) => own(key) || Reflect.has(value, key),
+    ownKeys: () => [...new Set([...Reflect.ownKeys(value), ...Reflect.ownKeys(extra)])],
+    getOwnPropertyDescriptor(_, key) {
+      const d = Reflect.getOwnPropertyDescriptor(own(key) ? extra : value, key)
+      return d && { ...d, configurable: true }
+    },
+    getPrototypeOf: () => Reflect.getPrototypeOf(value),
+  })
 }
 
 /** Runs a plugin callback; a throw is logged so one plugin cannot break the others. */

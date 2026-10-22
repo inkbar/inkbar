@@ -2153,6 +2153,53 @@ describe('createViewer plugins', () => {
     expect(activate).toHaveBeenCalled()
   })
 
+  it('a class-based plugin tool with private fields activates and takes presses', async () => {
+    class StampTool {
+      readonly id = 'stamp'
+      readonly label = 'Stamp'
+      #presses: { x: number; y: number }[] = []
+      #active = false
+      get cursor() {
+        return this.#active ? 'crosshair' : 'default'
+      }
+      get presses() {
+        return this.#presses
+      }
+      activate() {
+        this.#active = true
+      }
+      deactivate() {
+        this.#active = false
+      }
+      onPointerDown(
+        _e: PointerEvent,
+        hit: { user: { x: number; y: number } } | undefined
+      ) {
+        if (hit) this.#presses.push(hit.user)
+      }
+    }
+    const tool = new StampTool()
+    const plugin = definePlugin({
+      id: 'sandbox',
+      setup: (ctx) => ctx.tools.add(tool),
+    })
+    const { viewer } = make('text-simple', { plugins: [plugin] })
+    const { engine } = await ready(viewer)
+    await until(() => engine.viewport.hostFor(0) !== undefined)
+    const b = createToolButton(viewer, 'sandbox.stamp')
+    viewer.element.append(b)
+    await until(() => !b.disabled)
+    b.click()
+    expect(engine.tools.active.get()).toBe('sandbox.stamp')
+    const scroll = viewer.element.querySelector<HTMLElement>('.ink-scroll')!
+    expect(scroll.closest<HTMLElement>('[data-ink-tool]')?.style.cursor).toBe('crosshair')
+    const h = engine.viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(scroll, 'pointerdown', h.left + 200, h.top + 100)
+    pointer(scroll, 'pointerup', h.left + 200, h.top + 100)
+    expect(tool.presses).toHaveLength(1)
+    expect(tool.id).toBe('stamp')
+  })
+
   it('plugin records undo with annotations in createViewer', async () => {
     let store: Readable<RecordStore<{ id: string }> | null> | undefined
     const plugin = definePlugin({
