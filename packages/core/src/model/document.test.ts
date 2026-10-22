@@ -187,14 +187,23 @@ describe('openDocument', () => {
     })
   })
 
-  it('pageText joins the text items with a single space', async () => {
-    const doc = await openDocument(await fixtureBytes('text-simple'), {
+  it('joins page text the way the page reads', async () => {
+    const simple = await openDocument(await fixtureBytes('text-simple'), {
       assets: nodeAssets(),
     })
-    await doc.ready
-    const items = (await doc.text(0)).items
-    expect(items.length).toBeGreaterThan(0)
-    expect(await doc.pageText(0)).toBe(items.map((i) => i.str).join(' '))
-    doc.destroy()
+    await simple.ready
+    expect(await simple.pageText(0)).toContain(
+      'National Insurance number QQ123456C appears here.'
+    )
+    simple.destroy()
+
+    const search = await openDocument(await fixtureBytes('text-search'), {
+      assets: nodeAssets(),
+    })
+    await search.ready
+    const text = await search.pageText(0)
+    expect(text).toContain('Invoice')
+    expect(text).not.toContain('  ')
+    search.destroy()
   })
 })

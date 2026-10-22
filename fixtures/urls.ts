@@ -2,6 +2,7 @@
 
 export const FIXTURE_NAMES = [
   'text-simple',
+  'text-search',
   'text-rotated-90',
   'text-rotated-180',
   'text-rotated-270',
