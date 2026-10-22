@@ -1,0 +1,62 @@
+packages/core/src/index.ts
+  s_e6109f66fbb4ed::t_f0429bb061e819 72-89
+packages/core/src/model/form/values.ts
+  s_e6109f66fbb4ed::t_5472701acac19a 2-8,13-16,19-100
+  s_e6109f66fbb4ed::t_41e877c0d158c2 17-18
+  s_e6109f66fbb4ed::t_d3cf788edb5978 1,9-12
+packages/core/src/model/annotations/json.ts
+  s_e6109f66fbb4ed::t_ac6c709fb6fe3f 27,60-61,68-69,82-84,93-94,102-103,127-128,145-149,151,235
+  s_e6109f66fbb4ed::t_c7a4505f5caf6a 2,16
+  s_e6109f66fbb4ed::t_d3cf788edb5978 28,150
+packages/core/src/model/errors.ts
+  s_e6109f66fbb4ed::t_a0e6d33afb509e 16
+packages/core/src/test-support/form.ts
+  s_e6109f66fbb4ed::t_c7a4505f5caf6a 3
+  s_e6109f66fbb4ed::t_e8ddc7ba10d78c 1-2,4-30
+packages/core/src/model/annotations/json.test.ts
+  s_e6109f66fbb4ed::t_91de7e0cbdeb71 10,592-621
+  s_e6109f66fbb4ed::t_e9e9f81668163c 38,398,424
+packages/core/src/model/form/controller.ts
+  s_e6109f66fbb4ed::t_b7d7891b41a2d5 264-265
+  s_e6109f66fbb4ed::t_1c78bb3136a8ba 1-4,6-42,47-156,161-169,175-176,180-188,191-233,235-238,241-251,255-263,266-282,285-298,301-315,317-319
+  s_e6109f66fbb4ed::t_41e877c0d158c2 5,170-174,177-179,189-190,283-284,316
+  s_e6109f66fbb4ed::t_cfec773d11c0fe 43-46,157-160,234,239-240,252-254,299-300
+packages/core/src/model/form/gloss.ts
+  s_e6109f66fbb4ed::t_d3cf788edb5978 5,7-12,47,49
+  s_e6109f66fbb4ed::t_7c7fa23618db60 1-4,6,13-46,48,50-59,61-68
+  s_e6109f66fbb4ed::t_ce26d187175f87 60
+packages/core/src/model/document.ts
+  s_e6109f66fbb4ed::t_d446909e16d214 168-169,175,285
+  s_e6109f66fbb4ed::t_74f582da2eacf5 26-27,36,68-72,77-78,106-111,113-116,163,167,170-174,176,246,250,252,279-284,320,324-329,332,339,354
+packages/core/src/model/form/controller.controlled.test.ts
+  s_e6109f66fbb4ed::t_d446909e16d214 71-72
+  s_e6109f66fbb4ed::t_732962221546dc 1-70,73-104
+packages/core/src/model/form/types.ts
+  s_e6109f66fbb4ed::t_a0e6d33afb509e 108-190
+packages/core/src/model/annotations/types.ts
+  s_e6109f66fbb4ed::t_ac6c709fb6fe3f 30-31
+  s_e6109f66fbb4ed::t_a08de23bf92f86 341-342,357-358
+packages/core/src/model/form/controller.test.ts
+  s_e6109f66fbb4ed::t_cfec773d11c0fe 54-56,65-67,69-71,168-170
+  s_e6109f66fbb4ed::t_99a9ee704410f3 1-53,57-64,68,72-167,171-201
+packages/core/src/model/form/gloss.test.ts
+  s_e6109f66fbb4ed::t_cfec773d11c0fe 83-85,120-125
+  s_e6109f66fbb4ed::t_d446909e16d214 10,117
+  s_e6109f66fbb4ed::t_e24b7f373e7d88 1-9,11-82,86-116,118-119,126-135
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3f9e6be0bfeb1748b8e817e96a68b37d5699aa03",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
