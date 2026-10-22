@@ -1,0 +1,66 @@
+packages/core/src/model/annotations/types.ts
+  s_e6109f66fbb4ed::t_ac6c709fb6fe3f 30-31
+  s_e6109f66fbb4ed::t_a08de23bf92f86 341-342,357-358
+packages/core/src/model/form/types.ts
+  s_e6109f66fbb4ed::t_a0e6d33afb509e 108-190
+packages/core/src/model/form/values.ts
+  s_e6109f66fbb4ed::t_5472701acac19a 2-8,13-16,19-100
+  s_e6109f66fbb4ed::t_d3cf788edb5978 1,9-12
+  s_e6109f66fbb4ed::t_41e877c0d158c2 17-18
+packages/core/src/model/form/gloss.test.ts
+  s_e6109f66fbb4ed::t_d446909e16d214 10,117
+  s_e6109f66fbb4ed::t_cfec773d11c0fe 83-85,120-125
+  s_e6109f66fbb4ed::t_e24b7f373e7d88 1-9,11-82,86-116,118-119,126-135
+packages/core/src/model/annotations/json.test.ts
+  s_e6109f66fbb4ed::t_e9e9f81668163c 38,398,424
+  s_e6109f66fbb4ed::t_91de7e0cbdeb71 10,592-621
+packages/core/src/model/form/gloss.ts
+  s_e6109f66fbb4ed::t_ce26d187175f87 60
+  s_e6109f66fbb4ed::t_7c7fa23618db60 1-4,6,13-46,48,50-59,61-68
+  s_e6109f66fbb4ed::t_d3cf788edb5978 5,7-12,47,49
+packages/core/src/model/form/controller.ts
+  s_e6109f66fbb4ed::t_1c78bb3136a8ba 1-4,6-42,47-56,59-62,64,70-75,82-124,128-145,151-153,157-169,177-185,190-198,204-205,209-217,220-247,249-263,265-268,270-280,284,286-292,298-310,312,314-315,319,344-348,350-363,365-367
+  s_e6109f66fbb4ed::t_cfec773d11c0fe 43,46,186-189,264,281-283
+  s_e6109f66fbb4ed::t_61e30cdac13005 349
+  s_e6109f66fbb4ed::t_41e877c0d158c2 5,199-203,206-208,218-219,316,364
+  s_e6109f66fbb4ed::t_7a95b029041288 44-45,57-58,63,65-69,76-81,125-127,146-150,154-156,170-176,248,269,285,293-297,311,313,317-318,320-343
+packages/core/src/model/errors.ts
+  s_e6109f66fbb4ed::t_a0e6d33afb509e 16
+packages/core/src/model/annotations/json.ts
+  s_e6109f66fbb4ed::t_c7a4505f5caf6a 2,16
+  s_e6109f66fbb4ed::t_ac6c709fb6fe3f 27,60-61,68-69,82-84,93-94,102-103,127-128,145-149,151,235
+  s_e6109f66fbb4ed::t_d3cf788edb5978 28,150
+packages/core/src/model/form/controller.controlled.test.ts
+  s_e6109f66fbb4ed::t_732962221546dc 1-65,75-79,82-113
+  s_e6109f66fbb4ed::t_d446909e16d214 80-81
+  s_e6109f66fbb4ed::t_7de3d59b18d1a0 66-74
+packages/core/src/model/document.ts
+  s_e6109f66fbb4ed::t_74f582da2eacf5 26-27,36,68-72,77-78,106-111,113-116,163,167,170-173,176,178,248,252,254,281-286,322,326-331,334,341,356
+  s_e6109f66fbb4ed::t_d446909e16d214 168-169,177,287
+  s_e6109f66fbb4ed::t_f9074bd8d4128d 174-175
+packages/core/src/test-support/form.ts
+  s_e6109f66fbb4ed::t_e8ddc7ba10d78c 1-2,4-30
+  s_e6109f66fbb4ed::t_c7a4505f5caf6a 3
+packages/core/src/model/form/controller.test.ts
+  s_e6109f66fbb4ed::t_7de3d59b18d1a0 7,123-133,146-196
+  s_e6109f66fbb4ed::t_cfec773d11c0fe 55-57,66-68,70-72,230-232
+  s_e6109f66fbb4ed::t_99a9ee704410f3 1-6,8-54,58-65,69,73-122,134-145,197-229,233-263
+packages/core/src/index.ts
+  s_e6109f66fbb4ed::t_f0429bb061e819 72-89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6866e805705bedf842e270f052b5be9b2cce603f",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": null
+    }
+  }
+}
