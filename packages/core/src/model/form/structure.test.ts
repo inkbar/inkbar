@@ -144,6 +144,14 @@ describe('buildFormFields', () => {
     })
   })
 
+  it("reads a field's /TU when its widget is a separate kid", async () => {
+    const fields = await fieldsOf('form-fields')
+    expect(fields.get('email')!.tooltip).toBe('Email address')
+    expect(fields.get('name')!.tooltip).toBeUndefined()
+    // The non-terminal `header` has a /TU; it names that node, not `header.ref`.
+    expect(fields.get('header.ref')!.tooltip).toBeUndefined()
+  })
+
   it('reads default values as state names', async () => {
     const fields = await fieldsOf('form-fields')
     // PDF.js reports both of shared's states as the export value "A".

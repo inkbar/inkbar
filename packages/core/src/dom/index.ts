@@ -60,6 +60,7 @@ export type {
 } from './plugins/layer'
 export { createPageMount } from './page-mount'
 export type { PageLayer, PageMount, PageMountOptions } from './page-mount'
+export type { FormLayer, SignFieldRequest } from './form-layer'
 export {
   builtinTools,
   createToolController,
@@ -119,6 +120,7 @@ export {
   COLOR_LABELS,
   DASH_PATTERN,
   FONT_FAMILIES,
+  FORM_LABELS,
   LINE_WEIGHTS,
   MARKUP_LABELS,
   SHAPE_COLUMNS,

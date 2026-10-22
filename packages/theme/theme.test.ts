@@ -336,6 +336,38 @@ describe('theme.css', () => {
     expect(darkRule?.selector).toContain('[data-ink-root]:not(.light,')
   })
 
+  it('defines the form tokens in light and dark', () => {
+    const tokens = [
+      '--ink-form-field-bg',
+      '--ink-form-field-focus',
+      '--ink-form-field-invalid',
+    ]
+    const has = (r: Rule) =>
+      tokens.every((t) => r.nodes.some((d) => d.type === 'decl' && d.prop === t))
+    const inMedia = (r: Rule) =>
+      r.parent?.type === 'atrule' && (r.parent as AtRule).name === 'media'
+    const light = rules.find(
+      (r) =>
+        !inMedia(r) &&
+        r.selector.includes('[data-ink-root]') &&
+        has(r) &&
+        r.nodes.some((d) => d.type === 'decl' && d.prop === '--ink-highlight')
+    )
+    const media = rules.find((r) => inMedia(r) && has(r))
+    const dark = rules.find(
+      (r) => !inMedia(r) && r.selector.includes('.dark [data-ink-root]') && has(r)
+    )
+    expect(light).toBeDefined()
+    expect(media).toBeDefined()
+    expect(dark).toBeDefined()
+    const layer = declsFor('.ink-form-layer)')
+    expect(layer).toMatch(/z-index:\s*1/)
+    expect(css).toMatch(/var\(--ink-form-field-bg\)/)
+    expect(css).toMatch(/var\(--ink-form-field-focus\)/)
+    expect(css).toMatch(/var\(--ink-form-field-invalid\)/)
+    expect(css).toContain("[data-ink-form-highlight='off']")
+  })
+
   it('stacks plugin layers above the overlay, letting presses through to the page', () => {
     const overlay = declsFor('.ink-overlay)')
     const layer = rules

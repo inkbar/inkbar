@@ -236,7 +236,11 @@ describe('form scripts', () => {
 type Spec = { name: string; type: FormFieldType; actions?: Record<string, string[]> }
 
 /** A form whose fields and scripts come straight from `objects`, without a PDF. */
-function stage(specs: Spec[], docActions?: Record<string, string[]>) {
+function stage(
+  specs: Spec[],
+  docActions?: Record<string, string[]>,
+  pageActions?: Record<string, string[]>
+) {
   const fields: FormField[] = specs.map((s, i) => ({
     name: s.name,
     type: s.type,
@@ -296,6 +300,8 @@ function stage(specs: Spec[], docActions?: Record<string, string[]>) {
     getCalculationOrderIds: () => Promise.resolve(null),
     getJSActions: () =>
       Promise.resolve(docActions ? new Map(Object.entries(docActions)) : null),
+    getPage: () =>
+      Promise.resolve({ getJSActions: () => Promise.resolve(pageActions ?? null) }),
   } as unknown as PdfjsDocument
   cleanup.push(() => form._destroy())
   const start = () =>
@@ -303,8 +309,12 @@ function stage(specs: Spec[], docActions?: Record<string, string[]>) {
   return { form, errors, start }
 }
 
-async function scripted(specs: Spec[], docActions?: Record<string, string[]>) {
-  const { form, errors, start } = stage(specs, docActions)
+async function scripted(
+  specs: Spec[],
+  docActions?: Record<string, string[]>,
+  pageActions?: Record<string, string[]>
+) {
+  const { form, errors, start } = stage(specs, docActions, pageActions)
   const scripting = await start()
   if (scripting) form._attachScripting(scripting)
   return { form, scripting, errors, actions: actionsOf(form) }
@@ -393,6 +403,26 @@ describe('rewritten methods', () => {
       init: ['this.getField("out").value = "ready"'],
     })
     expect(form.get('out')).toBe('ready')
+  })
+
+  it('runs page open and close scripts', async () => {
+    // Page scripts alone do not load the sandbox, as in PDF.js: the field has one too.
+    const out: Spec = {
+      name: 'out',
+      type: 'text',
+      actions: { Keystroke: ['event.rc = true'] },
+    }
+    const { form, errors } = await scripted([out], undefined, {
+      PageOpen: ['this.getField("out").value = "opened " + this.pageNum'],
+      PageClose: ['this.getField("out").value = "closed"'],
+    })
+    await form._pageEvent(0, 'PageOpen')
+    expect(errors).toEqual([])
+    expect(form.get('out')).toBe('opened 0')
+    await form._pageEvent(0, 'PageClose')
+    expect(form.get('out')).toBe('closed')
+    await form._pageEvent(0, 'PageOpen')
+    expect(form.get('out')).toBe('opened 0')
   })
 
   it('a sandbox that cannot load is a FormScriptError and no scripts run', async () => {

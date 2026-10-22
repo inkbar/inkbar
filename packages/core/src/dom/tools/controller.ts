@@ -518,12 +518,15 @@ function onScrollBar(e: PointerEvent, root: HTMLElement): boolean {
 /**
  * True for a target inside a custom annotation element (`data-custom`) but not that element
  * itself: the host's buttons and inputs there own their presses and keys, as in the overlay.
+ * A form field's control, a free-text editor and a plugin layer's marks own theirs too.
  */
 function inCustomContent(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false
   // A free-text editor's presses and keys are its own, too, and so are a plugin layer's
   // marks. The layer element itself lets presses through to the page underneath.
   if (target.closest('[data-ink-editor]')) return true
+  // A form field takes its own presses and keys while it takes input at all.
+  if (target.closest('[data-ink-form-layer] [data-ink-widget]')) return true
   const layer = target.closest('.ink-plugin-layer')
   if (layer && layer !== target) return true
   const el = target.closest('[data-annotation]')

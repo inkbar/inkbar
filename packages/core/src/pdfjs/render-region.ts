@@ -12,7 +12,9 @@ const isCancellation = (error: unknown): boolean =>
  * unit (times `/UserUnit`, as PDF.js applies it), turned by `rotation`: the page's /Rotate plus
  * any view rotation, the page's own /Rotate when omitted. The canvas is resized to the region,
  * so a 50 pt square at scale 4 gives a 200 × 200 canvas. Like the page canvas, the background
- * is white and embedded annotation appearances are drawn.
+ * is white and embedded annotation appearances are drawn, form widgets included. Like the
+ * annotations made in the session, field values filled in the session are not magnified: the
+ * region shows each widget as the file draws it.
  *
  * Rejects with `signal.reason` once `signal` aborts; an abort mid-render cancels it, leaving
  * the canvas partly drawn.

@@ -84,6 +84,11 @@ export interface FormController {
     selStart: number,
     selEnd: number
   ): KeystrokeResult
+  /**
+   * @internal A page's form layer mounted (`PageOpen`) or went (`PageClose`): runs the page's
+   * open or close scripts. Resolves once they ran; nothing runs without scripts.
+   */
+  _pageEvent(page: number, name: PageEventName): Promise<void>
   /** @internal Sets a field's formatted text; `undefined` clears it. */
   _setFormatted(name: string, text: string | undefined): void
   /** @internal Merges into a widget's override; `undefined` clears it. */
@@ -111,6 +116,9 @@ export interface FormController {
   /** @internal Destroys the scripting and drops every listener. */
   _destroy(): void
 }
+
+/** A page event a page's scripts may handle. */
+export type PageEventName = 'PageOpen' | 'PageClose'
 
 export interface KeystrokeResult {
   accepted: boolean
@@ -140,6 +148,8 @@ export interface FormScripting {
     selStart: number,
     selEnd: number
   ): KeystrokeResult | undefined
+  /** Runs `page`'s (zero-based) open or close scripts; resolves once they ran. */
+  pageEvent(page: number, name: PageEventName): Promise<void>
   destroy(): void
 }
 
@@ -456,6 +466,10 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       }
       if (!destroyed && result.accepted) pending.set(widget, result.value)
       return result
+    },
+    _pageEvent(page, name) {
+      if (destroyed || !scripting) return Promise.resolve()
+      return scripting.pageEvent(page, name)
     },
     _setFormatted(name, text) {
       if (destroyed) return

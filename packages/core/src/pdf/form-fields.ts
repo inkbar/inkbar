@@ -26,6 +26,8 @@ export interface WidgetExtras {
   caption?: string
   /** The field has `/PMD`, which marks a barcode field. */
   barcode?: true
+  /** `/TU` from the widget or its terminal field; PDF.js reads only the widget's. */
+  tooltip?: string
 }
 
 /** Form details read from the file's own objects. */
@@ -83,6 +85,19 @@ async function inherited(objs: PdfObjects, dict: PdfDict, key: string) {
     node = await dictOf(objs, dictGet(node, 'Parent'))
   }
   return undefined
+}
+
+/**
+ * `key` on the widget, else on its terminal field: the widget itself when it carries `/T`,
+ * otherwise its `/Parent`. For keys that are not inherited, such as `/TU`.
+ */
+async function terminal(objs: PdfObjects, widget: PdfDict, key: string) {
+  const own = dictGet(widget, key)
+  if (own !== undefined) return objs.resolve(own)
+  if (dictGet(widget, 'T') !== undefined) return undefined
+  const parent = await dictOf(objs, dictGet(widget, 'Parent'))
+  const v = parent && dictGet(parent, key)
+  return v === undefined ? undefined : objs.resolve(v)
 }
 
 interface FieldNode {
@@ -277,6 +292,8 @@ async function readWidget(
   const caption = mk && textString(await objs.resolve(dictGet(mk, 'CA')))
   if (caption) extras.caption = caption
   if ((await inherited(objs, widget, 'PMD')) !== undefined) extras.barcode = true
+  const tooltip = textString(await terminal(objs, widget, 'TU'))
+  if (tooltip) extras.tooltip = tooltip
   return extras
 }
 

@@ -44,6 +44,10 @@
     --ink-radius: var(--radius, 0.5rem);
     --ink-page-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
     --ink-text-selection: color-mix(in srgb, AccentColor, transparent 50%);
+    /* Form fields sit on the white page, in light and dark alike. */
+    --ink-form-field-bg: rgb(43 90 158 / 0.12);
+    --ink-form-field-focus: #2b5a9e;
+    --ink-form-field-invalid: #c0392b;
 
     color: var(--ink-fg);
   }
@@ -65,6 +69,9 @@
       --ink-accent-fg: var(--primary-foreground, #151820);
       --ink-ring: var(--ring, #7aa5e6);
       --ink-page-shadow: 0 1px 3px rgb(0 0 0 / 0.6);
+      --ink-form-field-bg: rgb(43 90 158 / 0.16);
+      --ink-form-field-focus: #3d73c4;
+      --ink-form-field-invalid: #c0392b;
     }
   }
 
@@ -86,6 +93,9 @@
     --ink-accent-fg: var(--primary-foreground, #151820);
     --ink-ring: var(--ring, #7aa5e6);
     --ink-page-shadow: 0 1px 3px rgb(0 0 0 / 0.6);
+    --ink-form-field-bg: rgb(43 90 158 / 0.16);
+    --ink-form-field-focus: #3d73c4;
+    --ink-form-field-invalid: #c0392b;
   }
 
   /* Layout: root and viewport fill their parent; the scroll area takes the space left over. */
@@ -352,6 +362,34 @@
 
   :where(.ink-plugin-layer > *) {
     pointer-events: auto;
+  }
+
+  /* Form fields: over the annotations, under the plugin layers. A field is tinted until it is
+     read-only, ringed while focused and marked when a value was refused. */
+  :where(.ink-form-layer) {
+    z-index: 1;
+  }
+
+  :where(.ink-form-control) {
+    outline: none;
+    box-shadow: inset 0 0 0 100vmax var(--ink-form-field-bg);
+  }
+
+  :where(
+    [data-ink-form-highlight='off'] .ink-form-control,
+    .ink-form-widget[data-ink-readonly] .ink-form-control
+  ) {
+    box-shadow: none;
+  }
+
+  :where(.ink-form-widget[data-ink-focused] .ink-form-control) {
+    outline: 2px solid var(--ink-form-field-focus);
+    outline-offset: 0;
+  }
+
+  :where(.ink-form-widget[data-ink-invalid] .ink-form-control) {
+    outline: 2px solid var(--ink-form-field-invalid);
+    outline-offset: 0;
   }
 
   :where(.ink-annotation) {
