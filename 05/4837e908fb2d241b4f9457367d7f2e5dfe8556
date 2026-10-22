@@ -1,0 +1,39 @@
+packages/core/src/dom/viewer/create-viewer.ts
+  s_a9eee6338cf60a::t_b297821070a88e 26,189
+packages/vue/src/components/InkRoot.vue
+  s_a9eee6338cf60a::t_b297821070a88e 16,328
+packages/vue/src/components/FindBar.ct.ts
+  s_a9eee6338cf60a::t_21be0cef385784 104,109-121
+  s_a9eee6338cf60a::t_9f941ff0ceee6c 105-108
+  s_a9eee6338cf60a::t_01eeeb1b3926ae 1
+packages/core/src/dom/index.ts
+  s_a9eee6338cf60a::t_b297821070a88e 191
+packages/core/src/dom/search/controller.ts
+  s_a9eee6338cf60a::t_b297821070a88e 240-257
+apps/e2e-shared/e2e/search.spec.ts
+  s_a9eee6338cf60a::t_21be0cef385784 4,45-64,122-125
+packages/vue/src/components/InkSearchButton.vue
+  s_a9eee6338cf60a::t_b297821070a88e 10,19,44
+packages/vue/package.json
+  s_a9eee6338cf60a::t_220a4fd43758ca 45
+packages/vue/playwright/harness/FindHarness.vue
+  s_a9eee6338cf60a::t_4f94d173609b2b 13
+pnpm-lock.yaml
+  s_a9eee6338cf60a::t_f49c8ae1ed1b3b 692-694
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "054837e908fb2d241b4f9457367d7f2e5dfe8556",
+  "prompts": {},
+  "sessions": {
+    "s_a9eee6338cf60a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c2869588-dbba-445a-be19-91e3d8b07d87",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
