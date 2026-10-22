@@ -260,6 +260,20 @@ describe('createSearchController', () => {
     expect(calls[1]?.opts.matchCase).toBe(true)
   })
 
+  it('a whitespace-only query scans nothing and shows no hits', async () => {
+    const { controller, calls } = setup({ 0: [hit(0, 1)] })
+    controller.open('  \t')
+    await settle()
+    expect(calls).toHaveLength(0)
+    expect(controller.state.get()).toMatchObject({
+      hits: [],
+      current: -1,
+      scanning: false,
+    })
+    controller.setQuery(' ')
+    expect(controller.state.get().scanning).toBe(false)
+  })
+
   it('an empty query scans nothing', async () => {
     const { controller, calls } = setup({ 0: [hit(0, 1)] })
     controller.setQuery('')

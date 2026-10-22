@@ -4,6 +4,7 @@
  * the bar and a plugin running the same query see the same hits.
  */
 import { readonly, writable, type Readable } from '../../model/readable'
+import { isBlankQuery } from '../../model/search-text'
 
 import type { InkDocument } from '../../model/document'
 import type { SearchHit } from '../../model/search'
@@ -182,7 +183,7 @@ export function createSearchController(opts: SearchControllerOptions): SearchCon
     scan?.abort()
     scan = undefined
     const doc = opts.document.get()
-    if (!doc || state.get().query === '') {
+    if (!doc || isBlankQuery(state.get().query)) {
       patch({ scanning: false })
       return
     }
@@ -195,7 +196,7 @@ export function createSearchController(opts: SearchControllerOptions): SearchCon
   /** Empties the hits now and scans again, after the debounce when `delay` is set. */
   function restart(delay: boolean): void {
     reset()
-    if (state.get().query === '') return
+    if (isBlankQuery(state.get().query)) return
     patch({ scanning: true })
     if (delay) timer = setTimeout(start, debounceMs)
     else start()
@@ -228,7 +229,7 @@ export function createSearchController(opts: SearchControllerOptions): SearchCon
     const wasOpen = state.get().open
     patch({ open: true })
     if (query !== undefined) setQuery(query)
-    else if (!wasOpen && state.get().query !== '') restart(false)
+    else if (!wasOpen && !isBlankQuery(state.get().query)) restart(false)
   }
 
   return {

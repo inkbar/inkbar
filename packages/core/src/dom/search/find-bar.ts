@@ -10,7 +10,7 @@ import { button } from '../viewer/controls'
 import { searchControllerOf, onViewerDestroy, type Viewer } from '../viewer/create-viewer'
 import { h } from '../viewer/dom'
 
-import { findAnnouncement, findCountText } from './find-text'
+import { findAnnouncer, findCountText } from './find-text'
 
 import type { SearchState } from './controller'
 
@@ -82,6 +82,7 @@ export function createFindBar(viewer: Viewer): HTMLElement {
   /** Where focus was when the bar opened. */
   let before: HTMLElement | null = null
   let wasOpen = false
+  const announce = findAnnouncer()
   let announced = ''
 
   function restoreFocus(): void {
@@ -123,7 +124,7 @@ export function createFindBar(viewer: Viewer): HTMLElement {
     }
     count.textContent = findCountText(s)
     matchCase.setAttribute('aria-pressed', String(s.matchCase))
-    const say = findAnnouncement(s)
+    const say = announce(s)
     if (say !== announced) {
       announced = say
       live.textContent = say

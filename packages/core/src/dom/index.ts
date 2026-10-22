@@ -187,7 +187,7 @@ export { mountViewer } from './viewer-engine'
 export type { MountViewerOptions, ViewerEngine } from './viewer-engine'
 export { createFindBar } from './search/find-bar'
 export { handleFindKey, pageSelectionText } from './search/find-key'
-export { findAnnouncement, findCountText } from './search/find-text'
+export { findAnnouncer, findCountText } from './search/find-text'
 export { createSearchController, viewerSearchOf } from './search/controller'
 export type {
   SearchController,

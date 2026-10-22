@@ -10,7 +10,7 @@
  * Enter in the field steps to the next match, Shift+Enter to the previous, Escape closes.
  * Closing returns focus to where it was before the bar opened, else to the document.
  */
-import { findAnnouncement, findCountText } from '@inkbar/core/dom'
+import { findAnnouncer, findCountText } from '@inkbar/core/dom'
 import { CaseSensitive, ChevronDown, ChevronUp, X } from '@inkbar/icons'
 import { computed, onBeforeUnmount, shallowRef, useTemplateRef, watch } from 'vue'
 
@@ -30,9 +30,10 @@ const bar = useTemplateRef<HTMLElement>('bar')
 const field = useTemplateRef<HTMLInputElement>('field')
 
 const count = computed(() => findCountText(state.value))
+const announce = findAnnouncer()
 const announcement = shallowRef('')
 watch(
-  () => findAnnouncement(state.value),
+  () => announce(state.value),
   (say) => (announcement.value = say),
   { immediate: true }
 )
