@@ -9,7 +9,9 @@
  * added after pages have mounted (from `onDocument`, say) appear on those pages at once.
  *
  * The layer element is `pointer-events: none`, so a press that misses the plugin's marks
- * reaches the overlay and the tools underneath; the theme turns its children back to `auto`.
+ * reaches the overlay and the tools underneath. Its direct children default back to `auto`
+ * through a rule core adopts into the layer's document (or shadow root), the same rule the
+ * theme has: `:where(.ink-plugin-layer > *)`, so any rule of the plugin's own wins.
  * Presses and keys on those children are the plugin's: the tool controller leaves them alone.
  * Marks that take focus are Tab stops after the page's annotations, by DOM order.
  */
@@ -90,6 +92,41 @@ function guard(fn: () => void): void {
   }
 }
 
+const CHILD_RULE = ':where(.ink-plugin-layer > *) { pointer-events: auto; }'
+/** One sheet per window: a constructed sheet can only be adopted in its own window. */
+const childSheets = new WeakMap<object, CSSStyleSheet>()
+
+/**
+ * Puts the children's `pointer-events: auto` rule in the document or shadow root `el` lives
+ * in: an adopted sheet, again if the host has since replaced its adopted sheets, or one
+ * `<style>` element where adopted sheets are missing. A layer not yet connected gets it on a
+ * later draw, which calls this again.
+ */
+function adoptChildRule(el: HTMLElement): void {
+  if (!el.isConnected) return
+  const root = el.getRootNode() as Document | ShadowRoot
+  const doc = el.ownerDocument
+  const win = doc.defaultView
+  if (!root.adoptedStyleSheets || !win) {
+    const parent = root === doc ? (doc.head ?? doc.documentElement) : root
+    if ([...parent.children].some((c) => c.matches('style[data-ink-plugin-layer]')))
+      return
+    const style = doc.createElement('style')
+    style.dataset.inkPluginLayer = ''
+    style.textContent = CHILD_RULE
+    parent.append(style)
+    return
+  }
+  let sheet = childSheets.get(win)
+  if (!sheet) {
+    sheet = new win.CSSStyleSheet()
+    sheet.replaceSync(CHILD_RULE)
+    childSheets.set(win, sheet)
+  }
+  if (!root.adoptedStyleSheets.includes(sheet))
+    root.adoptedStyleSheets = [...root.adoptedStyleSheets, sheet]
+}
+
 interface MountedPage {
   host: HTMLElement
   transform: PageTransform
@@ -106,8 +143,10 @@ interface MountedPage {
 export function createPluginLayers(source: LayerSource): PluginLayers {
   const pages = new Map<number, MountedPage>()
 
-  const draw = (layer: PluginLayer, el: HTMLElement, page: number, t: PageTransform) =>
+  const draw = (layer: PluginLayer, el: HTMLElement, page: number, t: PageTransform) => {
+    adoptChildRule(el)
     guard(() => layer.render(el, page, t))
+  }
 
   const add = (layer: PluginLayer, page: number, state: MountedPage) => {
     const el = state.host.ownerDocument.createElement('div')

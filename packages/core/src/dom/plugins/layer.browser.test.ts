@@ -7,6 +7,7 @@ import { mountViewer, type MountViewerOptions } from '../viewer-engine'
 
 import { definePlugin, type LayerSpec, type PluginContext } from './define'
 import { createPluginHost } from './host'
+import { createPluginLayers, type PluginLayer } from './layer'
 
 import type { Rect } from '../../model/geometry'
 import type { Tool } from '../tools/controller'
@@ -207,43 +208,73 @@ describe('plugin page layers', () => {
     expect(render).not.toHaveBeenCalled()
   })
 
-  it('presses outside layer children reach the active tool', async () => {
-    const onPointerDown = vi.fn()
-    const tool: Tool = {
-      id: 'probe',
-      cursor: 'crosshair',
-      activate() {},
-      deactivate() {},
-      onPointerDown,
+  it.each([
+    ['without', false],
+    ['with', true],
+  ])(
+    'presses outside layer children reach the active tool, %s the theme',
+    async (_, theme) => {
+      const onPointerDown = vi.fn()
+      const tool: Tool = {
+        id: 'probe',
+        cursor: 'crosshair',
+        activate() {},
+        deactivate() {},
+        onPointerDown,
+      }
+      const rect: Rect = { x: 100, y: 500, width: 144, height: 40 }
+      const { container, engine } = await setup((c) => c.layer(boxes([rect])), {
+        theme,
+        tools: [tool],
+      })
+      engine.tools.set('probe')
+      const layer = layerOf(engine.viewport.hostFor(0)!)!
+      const mark = layer.querySelector<HTMLElement>('[data-mark]')!
+      const page = engine.viewport.hostFor(0)!.getBoundingClientRect()
+
+      // Away from the mark the layer lets the press through to the page underneath.
+      const x = page.left + 20
+      const y = page.top + 20
+      const under = document.elementFromPoint(x, y)!
+      expect(layer.contains(under)).toBe(false)
+      pointer(under, 'pointerdown', x, y)
+      pointer(under, 'pointerup', x, y)
+      expect(onPointerDown).toHaveBeenCalledTimes(1)
+      expect(onPointerDown.mock.calls[0]![1]).toMatchObject({ page: 0 })
+
+      // The mark itself is the plugin's: it is hit, and the tool does not see the press.
+      const m = mark.getBoundingClientRect()
+      const onMark = document.elementFromPoint(m.left + m.width / 2, m.top + m.height / 2)
+      expect(onMark).toBe(mark)
+      pointer(mark, 'pointerdown', m.left + 2, m.top + 2)
+      pointer(mark, 'pointerup', m.left + 2, m.top + 2)
+      expect(onPointerDown).toHaveBeenCalledTimes(1)
+      expect(container.contains(mark)).toBe(true)
     }
-    const rect: Rect = { x: 100, y: 500, width: 144, height: 40 }
-    const { container, engine } = await setup((c) => c.layer(boxes([rect])), {
-      theme: true,
-      tools: [tool],
-    })
-    engine.tools.set('probe')
-    const layer = layerOf(engine.viewport.hostFor(0)!)!
-    const mark = layer.querySelector<HTMLElement>('[data-mark]')!
-    const page = engine.viewport.hostFor(0)!.getBoundingClientRect()
+  )
 
-    // Away from the mark the layer lets the press through to the page underneath.
-    const x = page.left + 20
-    const y = page.top + 20
-    const under = document.elementFromPoint(x, y)!
-    expect(layer.contains(under)).toBe(false)
-    pointer(under, 'pointerdown', x, y)
-    pointer(under, 'pointerup', x, y)
-    expect(onPointerDown).toHaveBeenCalledTimes(1)
-    expect(onPointerDown.mock.calls[0]![1]).toMatchObject({ page: 0 })
-
-    // The mark itself is the plugin's: it is hit, and the tool does not see the press.
-    const m = mark.getBoundingClientRect()
-    const onMark = document.elementFromPoint(m.left + m.width / 2, m.top + m.height / 2)
-    expect(onMark).toBe(mark)
-    pointer(mark, 'pointerdown', m.left + 2, m.top + 2)
-    pointer(mark, 'pointerup', m.left + 2, m.top + 2)
-    expect(onPointerDown).toHaveBeenCalledTimes(1)
-    expect(container.contains(mark)).toBe(true)
+  it("a plugin's own rule, or a child added later, decides without the theme", async () => {
+    const style = document.createElement('style')
+    style.textContent = '.sandbox-passive { pointer-events: none; }'
+    document.head.append(style)
+    cleanup.push(() => style.remove())
+    let layerEl!: HTMLElement
+    const { engine } = await setup((c) =>
+      c.layer({
+        render(el) {
+          layerEl = el
+          const passive = document.createElement('div')
+          passive.className = 'sandbox-passive'
+          el.replaceChildren(passive)
+        },
+      })
+    )
+    await until(() => engine.pages.size > 0)
+    const [passive] = layerEl.children
+    expect(getComputedStyle(passive!).pointerEvents).toBe('none')
+    const late = document.createElement('div')
+    layerEl.append(late)
+    expect(getComputedStyle(late).pointerEvents).toBe('auto')
   })
 
   it('plugin tools appear in the controller', async () => {
@@ -306,5 +337,51 @@ describe('ctx.redecorate', () => {
     // After the engine is gone, a redecorate does nothing.
     engine.destroy()
     expect(() => ctx().redecorate()).not.toThrow()
+  })
+})
+
+describe('the children rule without the theme', () => {
+  /** Layers over one plugin that draws a single child, mounted on `host`. */
+  function layersOn(host: HTMLElement) {
+    const layer: PluginLayer = {
+      plugin: 'sandbox',
+      render: (el) => el.replaceChildren(document.createElement('i')),
+    }
+    const layers = createPluginLayers({ layers: [layer], watchLayers: () => () => {} })
+    const page = layers.mount(0, host, {} as PageTransform)
+    cleanup.push(() => {
+      page.destroy()
+      layers.destroy()
+    })
+    return { page, child: () => host.querySelector('.ink-plugin-layer > i')! }
+  }
+
+  /** A shadow root in the page, so the rule it gets is its own, not the document's. */
+  function shadow(): ShadowRoot {
+    const outer = document.createElement('div')
+    document.body.append(outer)
+    cleanup.push(() => outer.remove())
+    return outer.attachShadow({ mode: 'open' })
+  }
+
+  it('reaches a page host mounted before it was connected, on its next draw', () => {
+    const root = shadow()
+    const host = document.createElement('div')
+    const { page, child } = layersOn(host)
+    root.append(host)
+    expect(getComputedStyle(child()).pointerEvents).toBe('none')
+    page.update({} as PageTransform)
+    expect(getComputedStyle(child()).pointerEvents).toBe('auto')
+  })
+
+  it('falls back to one style element where adopted sheets are missing', () => {
+    const root = shadow()
+    Object.defineProperty(root, 'adoptedStyleSheets', { value: undefined })
+    const host = document.createElement('div')
+    root.append(host)
+    const { page, child } = layersOn(host)
+    page.update({} as PageTransform)
+    expect(getComputedStyle(child()).pointerEvents).toBe('auto')
+    expect(root.querySelectorAll('style')).toHaveLength(1)
   })
 })
