@@ -119,3 +119,12 @@ test('the bar passes axe while open', async ({ mount, page }) => {
   const results = await new AxeBuilder({ page }).include('[data-ink-find-bar]').analyze()
   expect(results.violations.map((v) => v.id)).toEqual([])
 })
+
+test('puts class and other attributes on the bar itself', async ({ mount, page }) => {
+  const cmp = await mount(Harness, { props })
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  const bar = page.locator('[data-ink-viewport-root] > [data-ink-find-bar]')
+  await expect(bar).toHaveClass(/\bharness-find\b/)
+  await expect(bar).toHaveClass(/\bink-find-bar\b/)
+  await expect(bar).toHaveAttribute('data-testid', 'find-bar')
+})

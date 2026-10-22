@@ -21,6 +21,9 @@ import InkIcon from './InkIcon.vue'
 
 import type { SearchState } from '@inkbar/core/dom'
 
+// The root is a Teleport, so attributes such as `class` are bound to the bar itself.
+defineOptions({ inheritAttrs: false })
+
 const ctx = useInkContext('InkFindBar')
 const { state, setQuery, setMatchCase, next, previous, close } = useSearch()
 
@@ -115,6 +118,7 @@ onBeforeUnmount(() => {
 <template>
   <Teleport v-if="target" :to="target">
     <div
+      v-bind="$attrs"
       ref="bar"
       class="ink-find-bar"
       data-ink-find-bar

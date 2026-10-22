@@ -21,7 +21,7 @@ withDefaults(
     <InkToolbar><InkSearchButton /></InkToolbar>
     <!-- Test-only box: the scroll container needs a bounded height to scroll. -->
     <div style="height: 600px; width: 900px"><InkViewport /></div>
-    <InkFindBar v-if="withBar" />
+    <InkFindBar v-if="withBar" class="harness-find" data-testid="find-bar" />
     <SearchProbe />
   </InkRoot>
 </template>
