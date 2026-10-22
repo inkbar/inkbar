@@ -103,11 +103,15 @@
   } from '@inkbar/core'
   import {
     createPluginHost,
+    createSearchController,
     createToolOptions,
     cssVariableDefaults,
     FONT_FAMILIES,
+    handleFindKey,
+    pageSelectionText,
     SIGNATURE_FONTS,
     trackToolStyle,
+    viewerSearchOf,
   } from '@inkbar/core/dom'
   import { DEV } from 'esm-env'
   import { untrack } from 'svelte'
@@ -117,7 +121,12 @@
   import { useReadable } from '../use-readable.svelte.js'
 
   import type { PluginHistory } from '@inkbar/core'
-  import type { PluginHost, ToolController, Viewport } from '@inkbar/core/dom'
+  import type {
+    PluginHost,
+    SearchController,
+    ToolController,
+    Viewport,
+  } from '@inkbar/core/dom'
 
   let {
     src,
@@ -393,7 +402,15 @@
   const hostActivated = writable<string | null>(null)
   const viewportEl = writable<HTMLElement | null>(null)
   let pluginHost = $state.raw<PluginHost | null>(null)
+  /** One search controller for the root's life, built with the plugin host that shares it. */
+  let search = $state.raw<SearchController | null>(null)
   $effect(() => {
+    const controller = untrack(() =>
+      createSearchController({
+        document: readonly(hostDocument),
+        viewport: () => viewport,
+      })
+    )
     const host = untrack(() =>
       createPluginHost({
         // Read once, as documented on the prop.
@@ -408,13 +425,33 @@
         root: readonly(viewportEl),
         decorate: () => decorateAnnotation,
         viewport: () => viewport,
+        search: viewerSearchOf(controller),
       })
     )
+    search = controller
     pluginHost = host
     // Destroyed after InkViewport's engine and its plugin layers, as in `createViewer`: Svelte
     // creates a component's effects after its template and tears them down in creation order,
     // so the children's teardowns run first.
-    return () => host.destroy()
+    return () => {
+      host.destroy()
+      controller.destroy()
+    }
+  })
+
+  /*
+   * Ctrl/Cmd+F while focus is in the root and a find bar is mounted; else the browser's. A
+   * native listener: the handler reads the event's `currentTarget`, which is the root here.
+   */
+  $effect(() => {
+    const el = ref
+    const controller = search
+    if (!el || !controller) return
+    const onKeydown = (e: KeyboardEvent): void => {
+      handleFindKey(e, controller, () => pageSelectionText(el))
+    }
+    el.addEventListener('keydown', onKeydown)
+    return () => el.removeEventListener('keydown', onKeydown)
   })
 
   /** The document's tool style; it batches through `inkHistory`, whichever mode is on. */
@@ -454,6 +491,9 @@
     },
     get pluginHost() {
       return pluginHost
+    },
+    get search() {
+      return search
     },
     viewportEl,
     get viewport() {

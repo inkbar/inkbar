@@ -129,6 +129,8 @@
       // The engine adds the plugins' tools and layers, and decorates through the host, which
       // reads `decorateAnnotation` first.
       ...(ctx.pluginHost ? { plugins: ctx.pluginHost } : {}),
+      // The highlights draw from the shared search.
+      ...(ctx.search ? { search: ctx.search } : {}),
       // Read through, so the effect below can re-apply a new function without a rebuild.
       decorateAnnotation: (a) => ctx.decorateAnnotation?.(a),
       ...(ctx.toolStyle ? { toolStyle: ctx.toolStyle } : {}),
