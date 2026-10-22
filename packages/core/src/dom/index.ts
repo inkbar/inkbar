@@ -177,6 +177,7 @@ export type { MountViewerOptions, ViewerEngine } from './viewer-engine'
 export { createViewer } from './viewer/create-viewer'
 export type { CreateViewerOptions, Viewer } from './viewer/create-viewer'
 export {
+  createCommandButton,
   createIcon,
   createNextPage,
   createPageCount,

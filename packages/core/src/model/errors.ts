@@ -10,6 +10,7 @@ export type InkErrorCode =
   | 'PageOutOfRange'
   | 'DuplicateId'
   | 'DuplicatePlugin'
+  | 'UnknownCommand'
 
 export class InkError extends Error {
   override readonly name = 'InkError'

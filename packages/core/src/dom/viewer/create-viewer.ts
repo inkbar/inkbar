@@ -19,6 +19,7 @@ import {
   createMemorySignatureStore,
   createSignatureLibrary,
 } from '../../model/signatures'
+import { createPluginHost, type PluginHost } from '../plugins/host'
 import { createFocusReturn } from '../popover-focus'
 import { createToolOptions } from '../tools'
 import { mountViewer, type MountViewerOptions, type ViewerEngine } from '../viewer-engine'
@@ -26,9 +27,11 @@ import { mountViewer, type MountViewerOptions, type ViewerEngine } from '../view
 import { h } from './dom'
 import { createThreadPopover } from './thread-popover'
 
+import type { PluginHistory } from '../../model/annotations/history'
 import type { DocumentSource } from '../../model/source'
 import type { PdfAssets } from '../../pdfjs/types'
-import type { ToolController } from '../tools'
+import type { Command, InkPlugin } from '../plugins/define'
+import type { Tool, ToolController } from '../tools'
 import type { Viewport } from '../viewport'
 
 /**
@@ -44,6 +47,7 @@ export interface CreateViewerOptions extends Omit<
   | 'toolHistory'
   | 'toolOptions'
   | 'signatureLibrary'
+  | 'plugins'
 > {
   source: DocumentSource
   assets: PdfAssets
@@ -52,6 +56,12 @@ export interface CreateViewerOptions extends Omit<
   /** Default: read from the theme's CSS variables on the viewer root. */
   defaults?: AnnotationDefaults
   history?: OpenOptions['history']
+  /**
+   * Plugins, set up once for the viewer's life. Their tools join the viewer's tools, their
+   * decoration and page layers apply to every document, and their commands are placed with
+   * `createCommandButton`.
+   */
+  plugins?: readonly InkPlugin[]
   /** The thread popover for notes and text markup. Default true. */
   threads?: boolean
   onReady?(this: void, doc: InkDocument): void
@@ -83,12 +93,21 @@ export interface Viewer {
    * not in the open document's annotations is ignored.
    */
   setActivated(id: string | null): void
+  /** The plugins' commands by namespaced id (`sandbox.suggest`); place one with `createCommandButton`. */
+  readonly commands: { get(id: string): Command | undefined }
   /**
    * Opens another document in place; the previous one is destroyed. Latest call wins.
    * `password` is used for this load only; without it, the constructor's `password` applies.
    */
   open(source: DocumentSource, opts?: { password?: string }): void
   destroy(): void
+}
+
+const noop = () => undefined
+const passThrough: PluginHistory = {
+  batch: (fn) => fn(),
+  track: () => noop,
+  react: () => noop,
 }
 
 export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer {
@@ -98,6 +117,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     password,
     defaults,
     history,
+    plugins,
     threads: withThreads = true,
     onReady,
     onError,
@@ -128,6 +148,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   /** The activated annotation: the note thread opens from it. */
   const activated = writable<string | null>(null)
 
+  const rootEl = writable<HTMLElement | null>(null)
   const root = h('div', { 'data-ink-root': '', 'data-state': 'idle' })
   const scroll = h('div', {
     class: 'ink-scroll',
@@ -143,6 +164,24 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   )
   root.append(viewportRoot)
   el.append(root)
+  rootEl.set(scroll)
+
+  /**
+   * One host for the viewer's life. It reads the history when a document opens, and `current`
+   * is set before it notifies, so that is the new document's. With no document open, a
+   * command's `batch` just runs its function.
+   */
+  const host: PluginHost = createPluginHost({
+    plugins: plugins ?? [],
+    document: readonly(current),
+    history: () => current.get()?.history ?? passThrough,
+    activated: readonly(activated),
+    setActivated: (id) => {
+      if (id === null || current.get()?.annotations.get(id)) activated.set(id)
+    },
+    root: readonly(rootEl),
+    decorate: () => view.decorateAnnotation,
+  })
 
   const focusReturn = createFocusReturn({
     root: () => root,
@@ -201,6 +240,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     }
     const mounted = mountViewer({
       ...view,
+      plugins: host,
       container: scroll,
       document: doc,
       toolOptions,
@@ -318,7 +358,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
 
   open(initial)
 
-  return {
+  const viewer: Viewer = {
     element: root,
     status: readonly(status),
     document: readonly(current),
@@ -326,16 +366,27 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     viewport: readonly(viewport),
     tools: readonly(tools),
     activated: readonly(activated),
-    setActivated(id) {
+    setActivated: (id) => {
       if (id === null || current.get()?.annotations.get(id)) activated.set(id)
     },
+    commands: { get: (id) => host.command(id) },
     open,
     destroy() {
       if (destroyed) return
       destroyed = true
       loads++
       close()
+      host.destroy()
       root.remove()
     },
   }
+  toolsByViewer.set(viewer, [...(view.tools ?? []), ...host.tools])
+  return viewer
+}
+
+const toolsByViewer = new WeakMap<Viewer, readonly Tool[]>()
+
+/** The host tools a viewer was given (its own and its plugins'), for the controls' labels and icons. */
+export function hostToolsOf(viewer: Viewer): readonly Tool[] {
+  return toolsByViewer.get(viewer) ?? []
 }
