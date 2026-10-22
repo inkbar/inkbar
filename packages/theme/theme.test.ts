@@ -123,7 +123,11 @@ describe('theme.css', () => {
   it('defines the search match tokens in light and dark', () => {
     const declaring = (prop: string) =>
       rules.filter((r) => r.nodes.some((d) => d.type === 'decl' && d.prop === prop))
-    for (const token of ['--ink-search-hit', '--ink-search-current']) {
+    for (const token of [
+      '--ink-search-hit',
+      '--ink-search-current',
+      '--ink-search-current-outline',
+    ]) {
       const found = declaring(token)
       expect(found.length, token).toBeGreaterThanOrEqual(3)
       // One light rule at the top of the layer, and dark values in the media query and the class.
