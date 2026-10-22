@@ -8,6 +8,10 @@
  * Two-way zoom and page: the viewport's own changes are reported through the context, and
  * the host's v-model values are applied only when they differ from the viewport's state, so
  * the echo of a reported value does nothing.
+ *
+ * Form fields render in the engine's form layer. A signature field's "Sign" opens
+ * `InkSignFieldPopover`, and a form script's alert shows in `InkFormAlert`; both are mounted
+ * here, so hosts compose nothing for them.
  */
 import { mountViewer } from '@inkbar/core/dom'
 import {
@@ -22,13 +26,16 @@ import {
 
 import { injectInkContext } from '../context'
 
+import InkFormAlert from './InkFormAlert.vue'
 import InkPage from './InkPage.vue'
+import InkSignFieldPopover from './InkSignFieldPopover.vue'
 
 import type { AnnotationSlotProps } from './annotation-slot'
 import type { InkError } from '@inkbar/core'
 import type {
   LayoutMode,
   PageMount,
+  SignFieldRequest,
   ToolId,
   ViewerEngine,
   ViewRotation,
@@ -78,6 +85,11 @@ const error = computed<InkError | null>(() =>
 )
 
 const engine = shallowRef<ViewerEngine | null>(null)
+/** The signature field whose menu is open. */
+const signRequest = shallowRef<SignFieldRequest | null>(null)
+/** The form script's message on show, and how many have been shown. */
+const alertMessage = shallowRef<string | null>(null)
+const alertsShown = shallowRef(0)
 /**
  * Numbered before each build starts, so the pages a build mounts carry its own number. A
  * rebuild gives each page a new host and mount, so pages from an earlier build must remount,
@@ -100,6 +112,9 @@ function teardown(): void {
   if (ctx.viewport.value) ctx.viewport.value = null
   if (ctx.tools.value) ctx.tools.value = null
   pages.value = []
+  // Their fields and the document they came from are gone.
+  signRequest.value = null
+  alertMessage.value = null
 }
 
 function rebuild(opts: Parameters<ViewerEngine['rebuild']>[0]): void {
@@ -146,6 +161,15 @@ function setup(): void {
     // Read through, so a new `signatures` store reaches the tool as well as the menus.
     signatureLibrary: () => ctx.signatures.value,
     customAnnotations: custom,
+    ...(ctx.formHighlight.value === undefined
+      ? {}
+      : { formHighlight: ctx.formHighlight.value }),
+    onSignField: (req) => (signRequest.value = req),
+    onFormAction: (a) => ctx.reportFormAction(a),
+    onFormAlert: (message) => {
+      alertMessage.value = message
+      alertsShown.value += 1
+    },
     onActivate: (id) => ctx.setActivated(id),
     onBuild: (vp, tc) => {
       ctx.viewport.value = vp
@@ -301,5 +325,12 @@ onBeforeUnmount(() => {
         <slot name="page-error" v-bind="slotProps" />
       </template>
     </InkPage>
+    <InkSignFieldPopover :request="signRequest" @close="signRequest = null" />
+    <InkFormAlert
+      :message="alertMessage"
+      :shown="alertsShown"
+      :fallback="scroll"
+      @close="alertMessage = null"
+    />
   </div>
 </template>

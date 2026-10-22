@@ -23,7 +23,10 @@ import { useReadable } from '../use-readable'
 
 import type { SignatureOptions, SignatureTemplate } from '@inkbar/core'
 
-const props = defineProps<{ fonts?: readonly string[] | undefined }>()
+const props = withDefaults(
+  defineProps<{ fonts?: readonly string[] | undefined; select?: boolean }>(),
+  { fonts: undefined, select: true }
+)
 const emit = defineEmits<{ saved: [template: SignatureTemplate]; close: [] }>()
 
 const ctx = useInkContext('InkSignatureDialog')
@@ -48,8 +51,10 @@ function save(): void {
   draft.save(ctx.signatures.value).then(
     (t) => {
       if (!t) return
-      setOptions({ templateId: t.id })
-      setTool('signature')
+      if (props.select) {
+        setOptions({ templateId: t.id })
+        setTool('signature')
+      }
       emit('saved', t)
       emit('close')
     },
