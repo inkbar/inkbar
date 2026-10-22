@@ -124,10 +124,17 @@ export function createHistory(
     sync()
   }
 
-  /** Drops the entries that hold `recordStore`'s records; the others still undo and redo. */
+  /**
+   * Forgets `recordStore`'s records in every entry, so undo and redo leave it alone. An entry
+   * left with nothing to replay (no annotation change, no other store) is dropped.
+   */
   const dropEntries = (recordStore: RecordStore<RecordBase>) => {
     for (const stack of [undoStack, redoStack]) {
-      const kept = stack.filter((entry) => !entry.records.has(recordStore))
+      const kept = stack.filter((entry) => {
+        if (!entry.records.delete(recordStore)) return true
+        const { before, after } = entry.annotations
+        return entry.records.size > 0 || !sameList(before, after)
+      })
       stack.splice(0, stack.length, ...kept)
     }
     sync()

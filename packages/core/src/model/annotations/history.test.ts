@@ -551,6 +551,26 @@ describe('history over record stores', () => {
     expect(h.canUndo.get()).toBe(false)
   })
 
+  it("a record reset keeps an entry's annotation change, and undo then redo restores it", () => {
+    const { s, h, notes } = setup()
+    h.track(notes)
+    const a = s.add({ type: 'text', page: 0, rect, contents: 'one' })
+    h.batch(() => {
+      s.update(a.id, { contents: 'two' })
+      notes.update('n1', { status: 'done' })
+    })
+    notes.replaceAll([], 'reset')
+    h.undo()
+    expect(s.get(a.id)?.contents).toBe('one')
+    h.undo()
+    expect(s.list.get()).toEqual([])
+    h.redo()
+    h.redo()
+    expect(s.get(a.id)?.contents).toBe('two')
+    expect(notes.list.get()).toEqual([])
+    expect(h.canRedo.get()).toBe(false)
+  })
+
   it('a record reset drops redo entries holding its records and keeps the others', () => {
     const { s, h, notes } = setup()
     h.track(notes)

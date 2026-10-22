@@ -707,6 +707,40 @@ describe('createSnapshotHistory', () => {
       }
     })
 
+    it("a record reset keeps a step's annotation change for undo then redo", async () => {
+      vi.useFakeTimers()
+      try {
+        const { store, history, threads, value } = controlledHost()
+        const a = store.add({
+          type: 'text',
+          page: 0,
+          rect: { x: 0, y: 0, width: 20, height: 20 },
+          contents: 'one',
+        })
+        await settle()
+        history.batch(() => {
+          store.update(a.id, { contents: 'two' })
+          threads.add({ id: 't1', text: 'hi' })
+        })
+        await settle()
+        threads.replaceAll([], 'reset')
+        await settle()
+        history.undo()
+        await settle()
+        history.undo()
+        await settle()
+        expect(value()).toEqual([])
+        history.redo()
+        await settle()
+        history.redo()
+        await settle()
+        expect(value()[0]?.contents).toBe('two')
+        expect(threads.list.get()).toEqual([])
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
     it('an annotation undo in flight still lands across a record reset', async () => {
       vi.useFakeTimers()
       try {
