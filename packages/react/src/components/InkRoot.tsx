@@ -48,6 +48,9 @@ import type {
   AnnotationChange,
   AnnotationDefaults,
   DocumentSource,
+  FieldsChange,
+  FieldValues,
+  FormAction,
   InkDocument,
   PdfAssets,
   PluginHistory,
@@ -91,6 +94,21 @@ export interface InkRootProps extends Omit<
   annotations?: Annotation[] | undefined
   onAnnotationsChange?: ((next: Annotation[]) => void) | undefined
   onChange?: ((change: AnnotationChange) => void) | undefined
+  /**
+   * Pass (with `onFieldsChange`) to put the form's field values under the host's control. A
+   * commit shows at once and is reported after; the host's push wins. The mode is fixed when
+   * a document opens, as for `annotations`.
+   */
+  fields?: FieldValues | undefined
+  /**
+   * Committed field values, in full, with what changed them, one microtask after the commit.
+   * Called only while the fields are controlled.
+   */
+  onFieldsChange?: ((next: FieldValues, change: FieldsChange) => void) | undefined
+  /** The form asked to submit, open a link, send mail, print or prompt. Inkbar does none. */
+  onFormAction?: ((action: FormAction) => void) | undefined
+  /** Tints fillable form fields. Default true. Read when the viewer is built for a document. */
+  formHighlight?: boolean | undefined
   tool?: ToolId | undefined
   onToolChange?: ((tool: ToolId) => void) | undefined
   /**
@@ -132,6 +150,10 @@ export interface InkRootProps extends Omit<
   history?: boolean | undefined
   asChild?: boolean | undefined
   onReady?: ((doc: InkDocument) => void) | undefined
+  /**
+   * Opening failed, or later: a form script failed (`FormScriptError`; the form stays
+   * fillable), or a signature field refused its signing (`FieldSigned`, `FieldReadOnly`).
+   */
   onError?: ((error: InkError) => void) | undefined
   onActivate?: ((id: string) => void) | undefined
   children?:
@@ -192,6 +214,10 @@ export function InkRoot({
   annotations,
   onAnnotationsChange,
   onChange,
+  fields,
+  onFieldsChange,
+  onFormAction,
+  formHighlight,
   tool,
   onToolChange,
   tools: hostTools,
@@ -249,6 +275,9 @@ export function InkRoot({
     defaults,
     annotations,
     controlled: controlledProp,
+    fields,
+    onFieldsChange,
+    onFormAction,
     history,
     historyEnabled,
     onAnnotationsChange,
@@ -386,6 +415,7 @@ export function InkRoot({
     /** The plugins told of `opened`, and the snapshot history's hold on its store. */
     let told: RootPlugins | null = null
     let detach: () => void = noop
+    let stopFormErrors: () => void = noop
     const run = async () => {
       try {
         const doc = await openDocument(source, {
@@ -417,6 +447,20 @@ export function InkRoot({
                 },
               }
             : { mode: 'uncontrolled' },
+          fields:
+            latest.current.fields !== undefined
+              ? {
+                  mode: 'controlled',
+                  initial: latest.current.fields,
+                  // Deferred and flushed as annotation proposals are, for the same reasons.
+                  onChange: (next, change) => {
+                    queueMicrotask(() => {
+                      if (cancelled) return
+                      flushSync(() => latest.current.onFieldsChange?.(next, change))
+                    })
+                  },
+                }
+              : { mode: 'uncontrolled' },
         })
         if (cancelled) {
           doc.destroy()
@@ -427,6 +471,11 @@ export function InkRoot({
         const current = latest.current.annotations
         if (doc.annotations.mode === 'controlled' && current !== undefined)
           doc.annotations.setControlledValue(current)
+        // The same for the fields; a document whose fields opened uncontrolled ignores the push.
+        const currentFields = latest.current.fields
+        if (currentFields !== undefined) doc.form.setControlledValue(currentFields)
+        // A form script that fails leaves the form fillable; the failure goes to `onError`.
+        stopFormErrors = doc.form.on('error', (e) => latest.current.onError?.(e))
         documentRef.current = doc
         // Controlled edits run the plugins' reactions inside their own snapshot step.
         if (doc.annotations.mode === 'controlled')
@@ -465,6 +514,7 @@ export function InkRoot({
       // Cleared first, so the plugins close their stores while the document is still alive.
       told?.document.set(null)
       detach()
+      stopFormErrors()
       opened?.destroy()
       documentRef.current = null
       setDocument(null)
@@ -477,6 +527,10 @@ export function InkRoot({
     if (annotations && document?.annotations.mode === 'controlled')
       document.annotations.setControlledValue(annotations)
   }, [annotations, document])
+
+  useLayoutEffect(() => {
+    if (fields && document) document.form.setControlledValue(fields)
+  }, [fields, document])
 
   useEffect(() => {
     if (tool) setInternalTool(tool)
@@ -500,6 +554,18 @@ export function InkRoot({
     (p: number) => latest.current.onPageChange?.(p),
     [latest]
   )
+  const reportFormAction = useCallback(
+    (a: FormAction) => {
+      // As for `onFieldsChange`: the engine reports from inside a press or a script.
+      const doc = documentRef.current
+      queueMicrotask(() => {
+        if (documentRef.current !== doc) return
+        flushSync(() => latest.current.onFormAction?.(a))
+      })
+    },
+    [latest]
+  )
+  const reportError = useCallback((e: InkError) => latest.current.onError?.(e), [latest])
   const setViewport = useCallback((vp: Viewport | null, tc: ToolController | null) => {
     viewportRef.current = vp
     setViewportState(vp)
@@ -640,6 +706,9 @@ export function InkRoot({
       history: inkHistory,
       rootEl,
       setViewport,
+      formHighlight,
+      reportFormAction,
+      reportError,
     }),
     [
       assets,
@@ -671,6 +740,9 @@ export function InkRoot({
       inkHistory,
       rootEl,
       setViewport,
+      formHighlight,
+      reportFormAction,
+      reportError,
     ]
   )
 

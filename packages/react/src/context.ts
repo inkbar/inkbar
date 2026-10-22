@@ -2,7 +2,9 @@ import { createContext, useContext } from 'react'
 
 import type {
   Annotation,
+  FormAction,
   InkDocument,
+  InkError,
   InkStatus,
   PdfAssets,
   PluginHistory,
@@ -108,6 +110,12 @@ export interface InkContext {
   history: InkHistory
   rootEl: HTMLElement | null
   setViewport: (viewport: Viewport | null, tools: ToolController | null) => void
+  /** InkRoot's `formHighlight`; InkViewport reads it when it builds the viewer. */
+  formHighlight: boolean | undefined
+  /** Calls InkRoot's `onFormAction`, one microtask later. */
+  reportFormAction: (action: FormAction) => void
+  /** Calls InkRoot's `onError`, for failures after the document opened (a refused signing). */
+  reportError: (error: InkError) => void
 }
 
 export const InkContextObject = createContext<InkContext | null>(null)

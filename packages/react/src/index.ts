@@ -14,6 +14,8 @@ export { usePage } from './hooks/usePage'
 export { useHistory } from './hooks/useHistory'
 export { useEmbedded } from './hooks/useEmbedded'
 export { useCommand } from './hooks/useCommand'
+export { useForm } from './hooks/useForm'
+export type { FormHandle } from './hooks/useForm'
 export type { CommandHandle } from './hooks/useCommand'
 export type {
   AnnotationSlotProps,
