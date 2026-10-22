@@ -1,0 +1,26 @@
+packages/vue/src/components/InkRoot.vue
+  s_611b86d68c2358::t_7bef534c0312bb 22,380-384
+packages/vue/playwright/harness/PluginHarness.vue
+  s_611b86d68c2358::t_554eb5e32fdefb 23
+  s_611b86d68c2358::t_c008bb450e933b 20-22
+packages/vue/playwright/harness/test-plugin.ts
+  s_611b86d68c2358::t_554eb5e32fdefb 16-17,19,77-85
+packages/vue/src/components/InkRoot.ct.ts
+  s_611b86d68c2358::t_c008bb450e933b 449-465
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d893c09c4bbaf089afcbf04e788fa1cbe5052a4b",
+  "prompts": {},
+  "sessions": {
+    "s_611b86d68c2358": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f6760cb6-1a68-4a5b-b172-32f4da0aa5b1",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
