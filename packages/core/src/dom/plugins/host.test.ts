@@ -134,6 +134,37 @@ describe('createPluginHost', () => {
     expect(wrapped.id).toBe('sandbox.mark')
   })
 
+  it('a property defined on the wrapped tool lands on the tool and reads back', () => {
+    const tool: Tool & { x?: number; y?: number } = {
+      id: 'mark',
+      cursor: 'crosshair',
+      activate() {},
+      deactivate() {},
+    }
+    const { host } = hostWith([
+      definePlugin({ id: 'sandbox', setup: (ctx) => ctx.tools.add(tool) }),
+    ])
+    const wrapped = host.tools[0] as Tool & { x?: number; y?: number }
+    // Non-configurable and non-writable, said outright and by default.
+    expect(() =>
+      Object.defineProperty(wrapped, 'x', { value: 1, configurable: false })
+    ).not.toThrow()
+    expect(() => Object.defineProperty(wrapped, 'z', { value: 3 })).not.toThrow()
+    expect(Object.getOwnPropertyDescriptor(wrapped, 'z')).toMatchObject({ value: 3 })
+    expect(tool.x).toBe(1)
+    expect(wrapped.x).toBe(1)
+    expect(Object.getOwnPropertyDescriptor(wrapped, 'x')).toMatchObject({
+      value: 1,
+      configurable: false,
+    })
+    expect(Reflect.ownKeys(wrapped)).toContain('x')
+    // A writable one keeps following the tool.
+    Object.defineProperty(wrapped, 'y', { value: 1, writable: true })
+    tool.y = 2
+    expect(wrapped.y).toBe(2)
+    expect(Object.getOwnPropertyDescriptor(wrapped, 'y')?.value).toBe(2)
+  })
+
   it('a class setter written through the wrapped tool reaches the instance', () => {
     class ModeTool {
       readonly id = 'mode'
