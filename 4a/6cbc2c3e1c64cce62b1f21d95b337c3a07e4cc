@@ -1,0 +1,26 @@
+packages/react/README.md
+  s_a9eee6338cf60a::t_e1f8ff98edff3c 172-175
+packages/core/README.md
+  s_a9eee6338cf60a::t_b4758df1ad8a2e 315,328
+  s_a9eee6338cf60a::t_e1f8ff98edff3c 303-314,316-327,329-339
+packages/svelte/README.md
+  s_a9eee6338cf60a::t_e1f8ff98edff3c 178-181
+packages/vue/README.md
+  s_a9eee6338cf60a::t_e1f8ff98edff3c 147-150
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4a6cbc2c3e1c64cce62b1f21d95b337c3a07e4cc",
+  "prompts": {},
+  "sessions": {
+    "s_a9eee6338cf60a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c2869588-dbba-445a-be19-91e3d8b07d87",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
