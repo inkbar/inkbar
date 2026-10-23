@@ -142,13 +142,15 @@ describe('InkDocument.search', () => {
 
   it('stops on abort and reads no more pages', async () => {
     const doc = await open('text-simple')
-    const text = vi.spyOn(doc, 'text')
+    const reads = await Promise.all(
+      [0, 1, 2].map(async (i) => vi.spyOn(await doc._pdfjs.getPage(i), 'getTextContent'))
+    )
     const abort = new AbortController()
     const it = doc.search('QQ123456C', { signal: abort.signal })[Symbol.asyncIterator]()
     expect((await it.next()).value).toMatchObject({ page: 0 })
     abort.abort()
     await expect(it.next()).rejects.toMatchObject({ name: 'AbortError' })
-    expect(text.mock.calls.map((c) => c[0])).toEqual([0])
+    expect(reads.map((r) => r.mock.calls.length > 0)).toEqual([true, false, false])
     doc.destroy()
   })
 
@@ -172,10 +174,12 @@ describe('InkDocument.search', () => {
   it('reads page text once per page across searches', async () => {
     const doc = await open('text-simple')
     await doc.search('QQ123456C').all()
-    const text = vi.spyOn(doc, 'text')
+    const reads = await Promise.all(
+      [0, 1, 2].map(async (i) => vi.spyOn(await doc._pdfjs.getPage(i), 'getTextContent'))
+    )
     await doc.search('QQ123456C').all()
     await doc.search('a', { matchCase: true }).all()
-    expect(text).not.toHaveBeenCalled()
+    for (const r of reads) expect(r).not.toHaveBeenCalled()
     doc.destroy()
   })
 
@@ -214,5 +218,20 @@ describe('InkDocument.search', () => {
     // The fixture draws "To" at x = 72 with the "o" kerned 120 back; the T is 611 wide.
     expect(t!.rect.x).toBeCloseTo(72, 2)
     expect(t!.rect.width).toBeCloseTo((611 * 14) / 1000, 2)
+  })
+
+  it('reads glyph positions only for pages with hits, once each', async () => {
+    const doc = await open('text-simple')
+    const reads = await Promise.all(
+      [0, 1, 2].map(async (i) => vi.spyOn(await doc._pdfjs.getPage(i), 'getOperatorList'))
+    )
+    await doc.search('not anywhere in this file').all()
+    expect(reads.map((r) => r.mock.calls.length)).toEqual([0, 0, 0])
+    const [hit] = await doc.search('QQ123456C', { pages: [1] }).all()
+    expect(hit!.exact).toBe(true)
+    expect(reads.map((r) => r.mock.calls.length)).toEqual([0, 1, 0])
+    await doc.search('QQ123456C', { pages: [1] }).all()
+    expect(reads[1]!.mock.calls).toHaveLength(1)
+    doc.destroy()
   })
 })
