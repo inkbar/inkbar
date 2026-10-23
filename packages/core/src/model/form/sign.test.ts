@@ -280,8 +280,8 @@ describe('signField', () => {
 
     // A proposal the host lets lapse without pushing frees the field again.
     doc.annotations.setControlledValue([])
-    signField(doc, 'sig', widget.id, ink)
-    await new Promise((resolve) => setTimeout(resolve, 10))
+    const second = signField(doc, 'sig', widget.id, ink)
+    await vi.waitFor(() => expect(doc.annotations._getProposed(second)).toBeUndefined())
     expect(() => signField(doc, 'sig', widget.id, ink)).not.toThrow()
     doc.destroy()
   })
