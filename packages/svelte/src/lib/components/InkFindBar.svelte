@@ -26,9 +26,10 @@
   import { useReadable } from '../use-readable.svelte.js'
 
   import InkIcon from './InkIcon.svelte'
-  import { portal } from './portal.js'
 
-  let { class: className, onkeydown, ...rest }: InkFindBarProps = $props()
+  import type { SearchState } from '@inkbar/core/dom'
+
+  let { class: className, ...rest }: InkFindBarProps = $props()
 
   const ctx = useInkContext('InkFindBar')
   const search = useSearch()
@@ -38,6 +39,7 @@
 
   let bar = $state<HTMLDivElement | null>(null)
   let field = $state<HTMLInputElement | null>(null)
+  let live = $state<HTMLDivElement | null>(null)
   /** Where focus was when the bar opened, and whether it was open on the last pass. */
   let before: HTMLElement | null = null
   let wasOpen = false
@@ -91,84 +93,120 @@
     return controller.attachBar()
   })
 
-  const announce = findAnnouncer()
-  const status = $derived(announce(search.state))
+  // The live region follows the controller's state change by change, as the vanilla bar does,
+  // and is written directly. An update shows only the last of the changes batched into it, so
+  // two steps in one task that end where they began would otherwise say nothing.
+  $effect(() => {
+    const controller = ctx.search
+    const el = live
+    if (!controller || !el) return
+    return untrack(() => {
+      const announce = findAnnouncer()
+      const say = (s: SearchState): void => {
+        const text = announce(s)
+        if (el.textContent !== text) el.textContent = text
+      }
+      say(controller.state.get())
+      return controller.state.subscribe(say)
+    })
+  })
+
+  // A native listener, so Escape stops at the bar as it does in the vanilla and Vue bars;
+  // Svelte's delegated events would stop it only after the root's own listeners saw it.
+  $effect(() => {
+    const controller = ctx.search
+    const el = bar
+    if (!controller || !el) return
+    const onKeydown = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape' || e.defaultPrevented || e.isComposing) return
+      e.preventDefault()
+      e.stopPropagation()
+      controller.close()
+    }
+    el.addEventListener('keydown', onKeydown)
+    return () => el.removeEventListener('keydown', onKeydown)
+  })
+
+  /**
+   * Moves the bar itself into the viewport root, leaving nothing where it is written. Svelte
+   * removes it when its own `{#if}` branch goes, but not when an ancestor's block goes and
+   * takes only the nodes still in place, so the cleanup removes it too.
+   */
+  const into = (to: Element) => (el: HTMLElement) => {
+    to.appendChild(el)
+    return () => el.remove()
+  }
 </script>
 
 {#if target}
-  <div hidden {@attach portal(target)}>
-    <div
-      {...rest}
-      bind:this={bar}
-      class={['ink-find-bar', className]}
-      data-ink-find-bar=""
-      role="search"
-      hidden={!open}
+  <div
+    {...rest}
+    bind:this={bar}
+    class={['ink-find-bar', className]}
+    data-ink-find-bar=""
+    role="search"
+    hidden={!open}
+    {@attach into(target)}
+  >
+    <input
+      bind:this={field}
+      type="text"
+      aria-label="Find in document"
+      autocomplete="off"
+      spellcheck={false}
+      oninput={(e) => search.setQuery(e.currentTarget.value)}
       onkeydown={(e) => {
-        onkeydown?.(e)
-        if (e.key !== 'Escape' || e.defaultPrevented || e.isComposing) return
+        if (e.key !== 'Enter' || e.isComposing) return
         e.preventDefault()
-        e.stopPropagation()
-        search.close()
+        if (e.shiftKey) search.previous()
+        else search.next()
       }}
+    />
+    <span class="ink-find-count" data-ink-find-count=""
+      >{findCountText(search.state)}</span
     >
-      <input
-        bind:this={field}
-        type="text"
-        aria-label="Find in document"
-        autocomplete="off"
-        spellcheck={false}
-        oninput={(e) => search.setQuery(e.currentTarget.value)}
-        onkeydown={(e) => {
-          if (e.key !== 'Enter' || e.isComposing) return
-          e.preventDefault()
-          if (e.shiftKey) search.previous()
-          else search.next()
-        }}
-      />
-      <span class="ink-find-count" data-ink-find-count=""
-        >{findCountText(search.state)}</span
-      >
-      <button
-        type="button"
-        data-ink-find-previous=""
-        aria-label="Previous match"
-        title="Previous match"
-        onclick={() => search.previous()}
-      >
-        <InkIcon icon={ChevronUp} />
-      </button>
-      <button
-        type="button"
-        data-ink-find-next=""
-        aria-label="Next match"
-        title="Next match"
-        onclick={() => search.next()}
-      >
-        <InkIcon icon={ChevronDown} />
-      </button>
-      <button
-        type="button"
-        data-ink-find-match-case=""
-        aria-label="Match case"
-        title="Match case"
-        aria-pressed={search.state.matchCase}
-        onclick={() => search.setMatchCase(!search.state.matchCase)}
-      >
-        <InkIcon icon={CaseSensitive} />
-      </button>
-      <button
-        type="button"
-        data-ink-find-close=""
-        aria-label="Close find"
-        title="Close find"
-        onclick={() => search.close()}
-      >
-        <InkIcon icon={X} />
-      </button>
-      <div class="ink-visually-hidden" data-ink-find-status="" aria-live="polite">
-        {status}
-      </div>
-    </div>
+    <button
+      type="button"
+      data-ink-find-previous=""
+      aria-label="Previous match"
+      title="Previous match"
+      onclick={() => search.previous()}
+    >
+      <InkIcon icon={ChevronUp} />
+    </button>
+    <button
+      type="button"
+      data-ink-find-next=""
+      aria-label="Next match"
+      title="Next match"
+      onclick={() => search.next()}
+    >
+      <InkIcon icon={ChevronDown} />
+    </button>
+    <button
+      type="button"
+      data-ink-find-match-case=""
+      aria-label="Match case"
+      title="Match case"
+      aria-pressed={search.state.matchCase}
+      onclick={() => search.setMatchCase(!search.state.matchCase)}
+    >
+      <InkIcon icon={CaseSensitive} />
+    </button>
+    <button
+      type="button"
+      data-ink-find-close=""
+      aria-label="Close find"
+      title="Close find"
+      onclick={() => search.close()}
+    >
+      <InkIcon icon={X} />
+    </button>
+    <div
+      bind:this={live}
+      class="ink-visually-hidden"
+      data-ink-find-status=""
+      aria-live="polite"
+    ></div>
   </div>
 {/if}
