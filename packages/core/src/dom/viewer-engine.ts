@@ -199,6 +199,28 @@ export interface ViewerEngine {
   destroy(): void
 }
 
+const FOCUSABLE =
+  'a[href], area[href], button, input, select, textarea, iframe, summary, [tabindex], [contenteditable]'
+
+/**
+ * The element sequential focus moves to from `from` (`back`: the one before), in document order:
+ * enabled, shown and with a non-negative tabindex. For an element that holds others (`from`
+ * being the viewer), its own descendants are skipped. Positive tabindex order is not followed.
+ */
+function nextFocusable(from: Element, back: boolean): HTMLElement | undefined {
+  const all = [...from.ownerDocument.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+    (c) =>
+      c.tabIndex >= 0 &&
+      !(c as HTMLButtonElement).disabled &&
+      !c.closest('[inert]') &&
+      c.getClientRects().length > 0 &&
+      !from.contains(c)
+  )
+  const after = (c: Element) =>
+    (from.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+  return back ? all.filter((c) => !after(c)).at(-1) : all.find(after)
+}
+
 /** The tools under which form fields take input: the pointer tools, which make nothing. */
 const FORM_TOOLS: ReadonlySet<ToolId> = new Set<ToolId>(['select-text', 'select'])
 
@@ -337,16 +359,21 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
 
   /**
    * Focuses `page`'s edge stop when the page mounts, or on the next animation frame,
-   * whichever comes first. Tries once; when the page still has no stop, focus stays put.
+   * whichever comes first. Tries once; when the page still has no stop, Tab goes where the
+   * browser would have taken it from `from`: the next focusable element (`back`: the one
+   * before), or the next one past the viewer when `from` has unmounted.
    */
-  function awaitTabStop(page: number, back: boolean): void {
+  function awaitTabStop(page: number, back: boolean, from: Element): void {
     tabWait?.cancel()
     const frame = requestAnimationFrame(() => wait.retry())
     const wait = {
       page,
       retry: () => {
         wait.cancel()
-        if (!destroyed) edgeStop(page, back)?.focus()
+        if (destroyed) return
+        const stop = edgeStop(page, back)
+        if (stop) stop.focus()
+        else nextFocusable(from.isConnected ? from : el, back)?.focus()
       },
       cancel: () => {
         cancelAnimationFrame(frame)
@@ -360,7 +387,8 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
    * Tab on a page's last field stop (Shift+Tab on its first) goes to the first (last) stop of
    * the next (previous) page that has fields, mounting it and scrolling it into view. A page
    * that has not mounted once the view scrolls to it gets one more try, when it mounts or on the
-   * next frame. Past the last page's fields, Tab leaves the viewer as usual.
+   * next frame; after that, focus moves on as the browser's Tab would. Past the last page's
+   * fields, Tab leaves the viewer as usual.
    */
   function onFormTab(e: KeyboardEvent): void {
     if (e.key !== 'Tab' || e.altKey || e.ctrlKey || e.metaKey || e.defaultPrevented)
@@ -386,7 +414,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       }
       if (!pages.get(next)?.form) {
         e.preventDefault()
-        awaitTabStop(next, back)
+        awaitTabStop(next, back, target)
         return
       }
     }

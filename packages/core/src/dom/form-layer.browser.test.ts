@@ -1615,6 +1615,24 @@ describe('checkboxes, radios, choices and buttons', () => {
     expect(fieldOf(document.activeElement)).toBe('header.ref')
   })
 
+  it('Tab moves on to the next focusable when the next page never mounts', async () => {
+    const { container, engine, fieldOf } = await viewer()
+    // The view never gets to page 1.
+    vi.spyOn(engine.viewport, 'scrollToRect').mockImplementation(() => undefined)
+    const after = document.createElement('button')
+    after.textContent = 'after'
+    container.after(after)
+    cleanup.push(() => after.remove())
+    const reset = container.querySelector<HTMLElement>('[data-ink-field="reset"] button')!
+    reset.focus({ preventScroll: true })
+    await nextFrame()
+    expect(engine.pages.has(1)).toBe(false)
+    await userEvent.keyboard('{Tab}')
+    await until(() => document.activeElement !== reset)
+    expect(fieldOf(document.activeElement)).toBeUndefined()
+    expect(document.activeElement).toBe(after)
+  })
+
   it('Shift+Tab goes back', async () => {
     const { container, engine, fieldOf, pageOf } = await viewer()
     engine.viewport.scrollToPage(1)
