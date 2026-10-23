@@ -568,6 +568,66 @@ describe('form layer', () => {
     expect(shownCanvas(p.host, agree.id)?.dataset.inkLook).toBe('checked')
   })
 
+  it('waits for a look that shows while its idle pass is queued', async () => {
+    const idle: (() => void)[] = []
+    vi.spyOn(window, 'requestIdleCallback').mockImplementation((fn) => {
+      idle.push(() => fn({ didTimeout: false, timeRemaining: () => 50 }))
+      return idle.length
+    })
+    const doc = await open('form-fields')
+    const page = await doc._pdfjs.getPage(0)
+    const render = page.render.bind(page)
+    // Once gated, each appearance render waits until the test lets it go.
+    const gate = { on: false, waiting: [] as (() => void)[] }
+    vi.spyOn(page, 'render').mockImplementation((params) => {
+      const task = render(params)
+      if (!gate.on || params.canvas?.hasAttribute('data-ink-canvas')) return task
+      const go = new Promise<void>((resolve) => gate.waiting.push(resolve))
+      return {
+        ...task,
+        promise: go.then(() => task.promise),
+        cancel: () => task.cancel(),
+      } as typeof task
+    })
+    doc.form.set({ plan: 'Off' })
+    const p = mountPage(doc)
+    await settled(p)
+    idle.splice(0).forEach((fn) => fn())
+    await until(() => p.host.querySelector('[data-ink-look="checked"]') !== null)
+    await settled(p)
+    const agree = widgetsOf(doc, 'agree')[0]!
+    const checked = () =>
+      p.host.querySelector<HTMLCanvasElement>(
+        `[data-ink-appearance="${agree.id}"] [data-ink-look="checked"]`
+      )
+    // The checked look's canvas at this zoom; until its new one lands, it is shown stretched.
+    const old = checked()!
+    gate.on = true
+    // A new zoom draws the shown looks again (one pass runs, held), and the checked looks'
+    // idle pass queues behind them.
+    p.update(createPageTransform(doc.pages[0]!, 1.25, 0))
+    await until(() => gate.waiting.length === 1)
+    await until(() => idle.length > 0)
+    idle.splice(0).forEach((fn) => fn())
+    doc.form.set({ agree: agree.onState! })
+    let done = false
+    let early = false
+    void p.mount.form!.rendered.then(() => {
+      done = true
+      early = checked() === old
+    })
+    // Let the held renders go one at a time.
+    while (!done) {
+      await until(() => gate.waiting.length > 0 || done)
+      gate.waiting.shift()?.()
+      await nextFrame()
+    }
+    gate.on = false
+    gate.waiting.splice(0).forEach((go) => go())
+    expect(early).toBe(false)
+    expect(shownCanvas(p.host, agree.id)?.dataset.inkLook).toBe('checked')
+  })
+
   it('touching widgets share a pass', async () => {
     const doc = await open('form-fields')
     const name = widgetsOf(doc, 'name')[0]!
