@@ -61,24 +61,52 @@ export function attachHistoryKeys(
  * Keeps focus in the viewer when a focused Undo or Redo button inside `el` turns disabled
  * (it undid or redid the last step), which would otherwise drop focus to `<body>`, out of
  * reach of the undo and redo keys. Focus moves to `scroll()`, the viewer's scroll element,
- * without scrolling. Returns a function that removes the listener.
+ * without scrolling. Returns a function that removes the listeners.
+ *
+ * Chrome and Firefox blur the button as it is disabled: its `focusout` comes while the
+ * `disabled` change is still queued for the observer below, and only that `focusout` counts.
+ * WebKit can leave focus on the disabled button instead. The observer then moves it, and a later
+ * `focusout` (a click on content that takes no focus) is left alone.
  */
 export function keepHistoryFocus(
   el: HTMLElement,
   scroll: () => HTMLElement | null | undefined
 ): () => void {
-  const onFocusout = (e: FocusEvent): void => {
-    const button = e.target
-    // A disabled control loses focus with nowhere to go; a move elsewhere names its target.
-    if (!(button instanceof HTMLButtonElement) || !button.disabled) return
-    if (e.relatedTarget !== null || !button.matches('[data-ink-undo], [data-ink-redo]'))
-      return
+  const isHistoryButton = (node: unknown): node is HTMLButtonElement =>
+    node instanceof HTMLButtonElement &&
+    node.disabled &&
+    node.matches('[data-ink-undo], [data-ink-redo]')
+  const toScroll = (): void => {
     const target = scroll()
     if (!target?.isConnected) return
     // A container the host did not make focusable still takes focus from script.
     if (!target.hasAttribute('tabindex')) target.tabIndex = -1
     target.focus({ preventScroll: true })
   }
+  /** Buttons disabled since the observer last ran that still hold focus (WebKit). */
+  const stillFocused = (records: MutationRecord[]): void => {
+    for (const r of records)
+      if (
+        isHistoryButton(r.target) &&
+        r.target.ownerDocument.activeElement === r.target
+      ) {
+        toScroll()
+        return
+      }
+  }
+  const observer = new MutationObserver(stillFocused)
+  observer.observe(el, { subtree: true, attributes: true, attributeFilter: ['disabled'] })
+  const onFocusout = (e: FocusEvent): void => {
+    const button = e.target
+    if (!isHistoryButton(button) || e.relatedTarget !== null) return
+    // Only the blur the disable itself caused: its change has not reached the observer yet.
+    const records = observer.takeRecords()
+    if (records.some((r) => r.target === button)) toScroll()
+    else stillFocused(records)
+  }
   el.addEventListener('focusout', onFocusout)
-  return () => el.removeEventListener('focusout', onFocusout)
+  return () => {
+    observer.disconnect()
+    el.removeEventListener('focusout', onFocusout)
+  }
 }
