@@ -1,3 +1,3 @@
 import { defineSandboxConfig } from '@inkbar/e2e-shared/playwright'
 
-export default defineSandboxConfig({ port: 5181, testIgnore: ['search.spec.ts'] })
+export default defineSandboxConfig({ port: 5181 })
