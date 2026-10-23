@@ -297,7 +297,8 @@ describe('signField', () => {
     })
     const widget = fieldOf(doc.form.fields.get(), 'sig').widgets[0]!
     const id = signField(doc, 'sig', widget.id, ink)
-    await new Promise((resolve) => setTimeout(resolve, 10))
+    // The proposal lapses once the store stops holding it.
+    await vi.waitFor(() => expect(doc.annotations._getProposed(id)).toBeUndefined())
     expect(doc.form._awaitingSignature('sig')).toBe(false)
     expect(doc.form._awaitingSignature('sig')).toBe(false)
     // A slow host applies the proposal after all: the field it was for is signed.
