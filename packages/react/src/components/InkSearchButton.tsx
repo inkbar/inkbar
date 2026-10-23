@@ -22,6 +22,7 @@ export function InkSearchButton({
   asChild = false,
   className,
   children,
+  disabled,
   onClick,
   ...rest
 }: InkSearchButtonProps) {
@@ -30,6 +31,7 @@ export function InkSearchButton({
   const { isReady } = useDocument()
   return (
     <Toolbar.Button
+      {...rest}
       asChild={asChild}
       className={cx('ink-search-button', className)}
       data-ink-search-button=""
@@ -37,8 +39,7 @@ export function InkSearchButton({
       title="Find"
       aria-pressed={state.open}
       data-state={state.open ? 'on' : 'off'}
-      disabled={!isReady}
-      {...rest}
+      disabled={!isReady || !!disabled}
       onClick={(e) => {
         onClick?.(e)
         if (e.defaultPrevented) return

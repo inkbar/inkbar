@@ -66,6 +66,12 @@ describe('searchableText', () => {
     expect(t.raw).toBe('one two')
   })
 
+  it('puts a space before an item on another baseline, even with no gap or hasEOL', () => {
+    const t = searchableText(content(item('one', 0, 15), item('two', 15, 15, { y: 88 })))
+    expect(t.raw).toBe('one two')
+    expect(t.rawToItem[3]).toBe(-1)
+  })
+
   it('joins a hyphenated line break in norm and keeps it in raw', () => {
     const t = searchableText(
       content(item('docu-', 0, 25, { hasEOL: true }), item('ment', 0, 20, { y: 88 }))

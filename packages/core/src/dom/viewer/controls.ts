@@ -32,7 +32,7 @@ import {
 import { unknownCommand } from '../plugins/commands'
 import { TOOL_LABELS, ZOOM_LEVELS } from '../ui'
 
-import { hostCommandIdsOf, hostToolsOf } from './create-viewer'
+import { hostCommandIdsOf, hostToolsOf, onViewerDestroy } from './create-viewer'
 import { h } from './dom'
 
 import type { InkDocument } from '../../model/document'
@@ -45,14 +45,15 @@ type Control = HTMLButtonElement | HTMLSelectElement | HTMLInputElement
 
 /**
  * Runs `connect` for every value `source` takes while it is set, undoing the previous run's
- * subscriptions first, and disables `control` while it is `null`.
+ * subscriptions first, and disables `control` while it is `null`. Returns the function that
+ * stops following.
  */
 function follow<T>(
   source: Readable<T | null>,
   control: Control,
   connect: (value: T, watch: <V>(r: Readable<V>, fn: (value: V) => void) => void) => void,
   reset?: () => void
-): void {
+): () => void {
   let stops: (() => void)[] = []
   const watch = <V>(r: Readable<V>, fn: (value: V) => void): void => {
     fn(r.get())
@@ -66,7 +67,12 @@ function follow<T>(
     else connect(value, watch)
   }
   run(source.get())
-  source.subscribe(run)
+  const stopSource = source.subscribe(run)
+  return () => {
+    stopSource()
+    for (const s of stops) s()
+    stops = []
+  }
 }
 
 const SVG = 'http://www.w3.org/2000/svg'
@@ -139,8 +145,11 @@ export function createSearchButton(viewer: Viewer): HTMLButtonElement {
     b.setAttribute('aria-pressed', String(s.open))
   }
   show(viewer.search.state.get())
-  viewer.search.state.subscribe(show)
-  follow(viewer.document, b, () => undefined)
+  onViewerDestroy(viewer, viewer.search.state.subscribe(show))
+  onViewerDestroy(
+    viewer,
+    follow(viewer.document, b, () => undefined)
+  )
   return b
 }
 
@@ -273,7 +282,10 @@ export function createCommandButton(viewer: Viewer, id: string): HTMLElement {
 export function createZoomIn(viewer: Viewer): HTMLButtonElement {
   const b = button('Zoom in', { class: 'ink-zoom-in', 'data-ink-zoom-in': '' }, ZoomIn)
   b.addEventListener('click', () => viewer.viewport.get()?.zoomBy(1.25))
-  follow(viewer.viewport, b, () => undefined)
+  onViewerDestroy(
+    viewer,
+    follow(viewer.viewport, b, () => undefined)
+  )
   return b
 }
 
@@ -284,7 +296,10 @@ export function createZoomOut(viewer: Viewer): HTMLButtonElement {
     ZoomOut
   )
   b.addEventListener('click', () => viewer.viewport.get()?.zoomBy(0.8))
-  follow(viewer.viewport, b, () => undefined)
+  onViewerDestroy(
+    viewer,
+    follow(viewer.viewport, b, () => undefined)
+  )
   return b
 }
 

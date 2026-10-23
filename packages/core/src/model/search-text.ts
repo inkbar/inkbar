@@ -31,7 +31,8 @@ const JOINING_HYPHENS = new Set(['-', '\u2010', '\u2011', '\u00ad'])
 
 const MARKS = /\p{M}/gu
 const WHITESPACE = /^\s$/u
-const LETTER = /^\p{L}/u
+/** Sticky: set `lastIndex` to test the code point at that index without slicing. */
+const LETTER_AT = /\p{L}/uy
 
 /** One code point to its normalised form: NFKD, marks stripped, quotes and dashes folded. */
 function fold(ch: string): string {
@@ -39,6 +40,11 @@ function fold(ch: string): string {
   let s = ''
   for (const c of out) s += FOLD[c] ?? c
   return s
+}
+
+function letterAt(s: string, i: number): boolean {
+  LETTER_AT.lastIndex = i
+  return LETTER_AT.test(s)
 }
 
 const isSpace = (ch: string | undefined) => ch !== undefined && WHITESPACE.test(ch)
@@ -102,7 +108,7 @@ export function searchableText(content: TextContent): SearchableText {
   const map: number[] = []
   for (let r = 0; r < raw.length;) {
     const ch = String.fromCodePoint(raw.codePointAt(r)!)
-    if (JOINING_HYPHENS.has(ch) && eolSpace.has(r + 1) && LETTER.test(raw.slice(r + 2))) {
+    if (JOINING_HYPHENS.has(ch) && eolSpace.has(r + 1) && letterAt(raw, r + 2)) {
       // "docu-⏎ment": drop the hyphen and the space the line end added.
       r += 2
       continue

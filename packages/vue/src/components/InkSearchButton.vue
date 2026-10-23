@@ -5,13 +5,16 @@
  */
 import { Search } from '@inkbar/icons'
 import { ToolbarButton } from 'reka-ui'
-import { computed, nextTick } from 'vue'
+import { computed, mergeProps, nextTick } from 'vue'
 
 import { useDocument } from '../composables/useDocument'
 import { useSearch } from '../composables/useSearch'
 import { useInkContext } from '../context'
 
 import InkIcon from './InkIcon.vue'
+
+// Bound below, under the button's own label, so a caller's attributes cannot replace its copy.
+defineOptions({ inheritAttrs: false })
 
 withDefaults(defineProps<{ asChild?: boolean }>(), { asChild: false })
 const ctx = useInkContext('InkSearchButton')
@@ -36,15 +39,17 @@ const attrs = computed(() => ({
   'data-state': state.value.open ? 'on' : 'off',
   onClick,
 }))
+/** Disabled until a document is open, whatever the caller's `disabled` says, as in React and Svelte. */
+const disabled = (fromCaller: unknown): boolean =>
+  !isReady.value || (fromCaller != null && fromCaller !== false)
 </script>
 
 <template>
   <ToolbarButton
     :as-child="asChild"
-    :disabled="!isReady"
     class="ink-search-button"
     data-ink-search-button
-    v-bind="attrs"
+    v-bind="mergeProps($attrs, attrs, { disabled: disabled($attrs.disabled) })"
   >
     <slot><InkIcon :icon="Search" /></slot>
   </ToolbarButton>

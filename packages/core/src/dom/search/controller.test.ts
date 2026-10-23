@@ -198,6 +198,46 @@ describe('createSearchController', () => {
     expect(controller.state.get().current).toBe(0)
   })
 
+  it('scrolls only to the stepped-to hit when a step lands before the first page shows', async () => {
+    const { controller, doc, scrollToRect } = setup({})
+    // One page of hits that arrives without a timer, then a scan that never ends.
+    ;(doc as unknown as { search: unknown }).search = () => ({
+      async *[Symbol.asyncIterator]() {
+        await Promise.resolve()
+        yield hit(0, 1)
+        yield hit(0, 5)
+        await new Promise(() => {})
+      },
+    })
+    controller.setQuery('foo')
+    controller.setMatchCase(false)
+    for (let i = 0; i < 10; i++) await Promise.resolve()
+    expect(controller.state.get().hits).toEqual([])
+    controller.next()
+    expect(controller.state.get().current).toBe(1)
+    expect(scrollToRect.mock.calls).toEqual([[0, hit(0, 5).rect]])
+    await settle()
+    expect(scrollToRect).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not scroll to the first hit after a step', async () => {
+    const { controller, scrollToRect } = setup(
+      { 2: [hit(2, 1), hit(2, 4)], 0: [hit(0, 1)] },
+      2,
+      3
+    )
+    controller.setQuery('foo')
+    await vi.advanceTimersByTimeAsync(165)
+    expect(controller.state.get().hits.map((h) => h.page)).toEqual([2, 2])
+    controller.next()
+    await settle()
+    expect(controller.state.get().hits).toHaveLength(3)
+    expect(scrollToRect.mock.calls).toEqual([
+      [2, hit(2, 1).rect],
+      [2, hit(2, 4).rect],
+    ])
+  })
+
   it('does nothing on next and previous without hits', () => {
     const { controller, scrollToRect } = setup({})
     controller.next()
@@ -348,11 +388,14 @@ describe('createSearchController', () => {
     ;(doc as unknown as { search: unknown }).search = () => ({
       [Symbol.asyncIterator]: () => ({ next: () => Promise.reject(boom) }),
     })
-    controller.setQuery('foo')
-    await settle()
-    expect(error).toHaveBeenCalledWith(boom)
-    expect(controller.state.get().scanning).toBe(false)
-    error.mockRestore()
+    try {
+      controller.setQuery('foo')
+      await settle()
+      expect(error).toHaveBeenCalledWith(boom)
+      expect(controller.state.get().scanning).toBe(false)
+    } finally {
+      error.mockRestore()
+    }
   })
 
   it('works with its actions destructured', async () => {

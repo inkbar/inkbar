@@ -111,9 +111,10 @@ export function createSearchController(opts: SearchControllerOptions): SearchCon
   /**
    * Adds the pending page of hits to the state in one change. A page's hits sit together in
    * `(page, start)` order, so they go in with one splice, and `current` moves by their count
-   * when they land before it.
+   * when they land before it. The first hit becomes current and is scrolled to, unless
+   * `scroll` is false: a step flushes first and scrolls to where it lands instead.
    */
-  function flush(): void {
+  function flush(scroll = true): void {
     clearTimeout(flushTimer)
     flushTimer = undefined
     if (pending.length === 0) return
@@ -126,7 +127,7 @@ export function createSearchController(opts: SearchControllerOptions): SearchCon
     if (!currentHit) {
       currentHit = first
       currentIndex = at
-      scrollTo(first)
+      if (scroll) scrollTo(first)
     } else if (at <= currentIndex) currentIndex += batch.length
     patch({ hits: next, current: currentIndex })
   }
@@ -138,7 +139,7 @@ export function createSearchController(opts: SearchControllerOptions): SearchCon
   function accept(hit: SearchHit): void {
     if (pending.length > 0 && pending[0]!.page !== hit.page) flush()
     pending.push(hit)
-    flushTimer ??= setTimeout(flush)
+    flushTimer ??= setTimeout(() => flush())
   }
 
   async function run(doc: InkDocument, controller: AbortController): Promise<void> {
@@ -203,7 +204,7 @@ export function createSearchController(opts: SearchControllerOptions): SearchCon
   }
 
   function step(by: 1 | -1): void {
-    flush()
+    flush(false)
     const { hits, current } = state.get()
     if (hits.length === 0) return
     const index = (Math.max(current, 0) + by + hits.length) % hits.length
