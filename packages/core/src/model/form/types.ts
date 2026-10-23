@@ -90,7 +90,9 @@ export interface FormWidget {
   rotation: 0 | 90 | 180 | 270
   /** A checkbox or radio widget's on appearance state. */
   onState?: string
+  /** Not drawn on screen: `/F` Hidden or NoView, or a barcode field Inkbar cannot draw. */
   hidden: boolean
+  /** `/F` NoView with Print: drawn only when printed. Such a widget is also `hidden`. */
   printOnly: boolean
   appearance: WidgetAppearance
   action?: WidgetAction

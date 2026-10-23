@@ -1,13 +1,14 @@
 import { fixtureBytes, type FixtureName } from '@inkbar/fixtures'
 import { describe, expect, it } from 'vitest'
 
-import { readFormExtras } from '../../pdf/form-fields'
+import { emptyFormExtras, readFormExtras } from '../../pdf/form-fields'
 import { openPdfObjects } from '../../pdf/objects'
 import { nodeAssets } from '../../pdfjs/node-assets'
 import { openDocument } from '../document'
 
 import { buildFormFields } from './structure'
 
+import type { RawWidget } from './structure'
 import type { FormField } from './types'
 import type { PdfjsAnnotationData } from '../../pdfjs/types'
 
@@ -238,5 +239,30 @@ describe('buildFormFields', () => {
     await expect(doc.ready).resolves.toBeUndefined()
     expect(doc.annotations.list.get()).toEqual([])
     doc.destroy()
+  })
+
+  it('reads NoView with Print as print-only, and NoView alone as hidden', () => {
+    const widget = (id: string, flags: number): RawWidget => ({
+      page: 0,
+      data: {
+        id,
+        subtype: 'Widget',
+        annotationType: 20,
+        rect: [0, 0, 10, 10],
+        fieldName: id,
+        fieldType: 'Tx',
+        annotationFlags: flags,
+        // PDF.js marks a NoView widget hidden.
+        hidden: (flags & 34) !== 0,
+      },
+    })
+    const fields = buildFormFields(
+      [widget('screen', 4), widget('print', 32 | 4), widget('never', 32)],
+      emptyFormExtras()
+    )
+    const w = (i: number) => fields[i]!.widgets[0]!
+    expect([w(0).hidden, w(0).printOnly]).toEqual([false, false])
+    expect([w(1).hidden, w(1).printOnly]).toEqual([true, true])
+    expect([w(2).hidden, w(2).printOnly]).toEqual([true, false])
   })
 })

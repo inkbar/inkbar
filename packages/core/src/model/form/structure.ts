@@ -38,6 +38,7 @@ const FF = {
 
 // Annotation `/F` bits.
 const F_HIDDEN = 1 << 1
+const F_PRINT = 1 << 2
 const F_NO_VIEW = 1 << 5
 
 const BORDER_STYLES = ['solid', 'dashed', 'beveled', 'inset', 'underline'] as const
@@ -185,7 +186,7 @@ function widgetOf(
     },
     rotation: rotationOf(d.rotation),
     hidden: (flags & F_HIDDEN) !== 0 || d.hidden === true,
-    printOnly: (flags & F_NO_VIEW) !== 0,
+    printOnly: (flags & F_NO_VIEW) !== 0 && (flags & F_PRINT) !== 0,
     appearance: appearanceOf(d, type, extra),
     hasScripts: hasScripts(d.actions),
   }
