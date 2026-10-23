@@ -214,7 +214,7 @@ const detach = attachViewportKeys(container, {
 // later: detach()
 ```
 
-`createViewer` and each binding's `InkRoot` put the undo and redo keys on the root element, so they work from the toolbars inside it as well as from the viewport. A key does what the Undo or Redo button does, and acts only while that button is enabled. `Ctrl` and `Cmd` both work on every platform, and so does `Ctrl` + `Y`. In a text field, a select or editable content the keys stay with the element, so a field keeps its own text undo. With `mountViewer` or `createToolController`, attach them yourself:
+`createViewer` and each binding's `InkRoot` put the undo and redo keys on the root element, so they work from the toolbars inside it as well as from the viewport. A key does what the Undo or Redo button does, and acts only while that button is enabled. `Ctrl` and `Cmd` both work on every platform, and so does `Ctrl` + `Y`. In a text field or editable content the keys stay with the element, so a field keeps its own text undo. In a `<select>` they are left to the browser, which does nothing with them. With `mountViewer` or `createToolController`, attach them yourself:
 
 ```ts
 import { attachHistoryKeys } from '@inkbar/core/dom'

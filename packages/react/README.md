@@ -194,7 +194,7 @@ The scroll area takes focus. From there:
 - With the `highlight` or `redact-area` tool active, `Enter` turns the text selection into a mark.
 - With the `note` tool active, `Enter` places a note at the centre of the current page and opens it.
 - With the `signature` tool active, `Enter` places the chosen signature at the centre of the current page.
-- `Ctrl` or `Cmd` + `Z` undoes. `Ctrl` or `Cmd` + `Shift` + `Z`, or `Ctrl` + `Y`, redoes. `Ctrl` and `Cmd` both work on every platform. The keys do what `InkUndo` and `InkRedo` do, from anywhere in `InkRoot`, toolbars included, and act only while that button is enabled. In a text field, a select or editable content the keys stay with the element, so a field keeps its own text undo.
+- `Ctrl` or `Cmd` + `Z` undoes. `Ctrl` or `Cmd` + `Shift` + `Z`, or `Ctrl` + `Y`, redoes. `Ctrl` and `Cmd` both work on every platform. The keys do what `InkUndo` and `InkRedo` do, from anywhere in `InkRoot`, toolbars included, and act only while that button is enabled. In a text field or editable content the keys stay with the element, so a field keeps its own text undo. In a `<select>` they are left to the browser, which does nothing with them.
 
 On a focused annotation:
 
