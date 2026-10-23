@@ -874,6 +874,53 @@ describe('form layer', () => {
     expect(onError.mock.calls.every(([, layer]) => layer === 'form')).toBe(true)
   })
 
+  it('reports a pass that keeps failing once per geometry, after its retry', async () => {
+    const doc = await open('form-fields')
+    const page = await doc._pdfjs.getPage(0)
+    const render = page.render.bind(page)
+    let attempts = 0
+    vi.spyOn(page, 'render').mockImplementation((params) => {
+      const task = render(params)
+      if (params.canvas?.hasAttribute('data-ink-canvas')) return task
+      attempts++
+      task.promise.catch(() => undefined)
+      task.cancel()
+      return {
+        promise: Promise.reject(new Error('broken')),
+        cancel: () => undefined,
+      } as unknown as typeof task
+    })
+    const t = createPageTransform(doc.pages[0]!, 1, 0)
+    const host = mountContainer(t.cssWidth, t.cssHeight)
+    const onError = vi.fn()
+    const mount = createPageMount({
+      document: doc,
+      page: 0,
+      host,
+      transform: t,
+      store: doc.annotations,
+      devicePixelRatio: 1,
+      onError,
+    })
+    cleanup.push(() => (mount.destroy(), host.remove()))
+    // Each look's pass fails, is retried once, and fails again: one report per pass.
+    const quiet = async () => {
+      let seen = -1
+      while (seen !== attempts) {
+        seen = attempts
+        await new Promise((resolve) => setTimeout(resolve, 700))
+      }
+    }
+    await quiet()
+    const passes = attempts / 2
+    expect(Number.isInteger(passes)).toBe(true)
+    expect(onError).toHaveBeenCalledTimes(passes)
+    mount.update(createPageTransform(doc.pages[0]!, 1.5, 0))
+    await quiet()
+    expect(onError.mock.calls.length).toBeLessThanOrEqual(attempts / 2)
+    expect(onError.mock.calls.length).toBeGreaterThan(passes)
+  })
+
   it('keeps a value a script refuses on Enter, so it can be corrected', async () => {
     const doc = await open('form-scripted')
     const p = mountPage(doc)

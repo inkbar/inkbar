@@ -53,7 +53,10 @@ export interface WidgetAppearancesOptions {
   widgets: readonly AppearanceWidget[]
   /** Fixed device pixel ratio; `window.devicePixelRatio`, watched, when omitted. */
   devicePixelRatio?: number
-  /** A pass of appearances failed to render (cancellations are not reported). */
+  /**
+   * A pass of appearances failed to render, and failed again when retried (cancellations are
+   * not reported). A look that keeps failing is reported once per geometry.
+   */
   onError?(error: unknown): void
   /** Every look shown has painted, with no failure since the last such call. */
   onRendered?(): void
@@ -448,10 +451,14 @@ export function createWidgetAppearances(
       slot.failures++
     }
     if (pass.shown) failed = true
-    opts.onError?.(error)
-    // Try once more; a look that keeps failing waits for a new geometry.
+    // Try once more; a look that keeps failing waits for a new geometry. Only a failure that
+    // gets no retry is reported, so a look fails aloud once per geometry.
     for (const { item } of pass.members)
       if (wantedOf(item).includes(pass.look)) request(item, pass.look, false)
+    const retrying = pass.members.some(
+      ({ item }) => slotOf(item, pass.look).queued === pass.key
+    )
+    if (!retrying) opts.onError?.(error)
   }
 
   const run = async (pass: Pass): Promise<void> => {
