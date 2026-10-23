@@ -213,6 +213,23 @@ describe('form layer', () => {
     expect(styled.color).toBe('rgb(0, 0, 255)')
   })
 
+  it('restyles only the widgets whose field or widget state changed', async () => {
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    const name = p.control('name')
+    // A mark only a sync of `name` would overwrite.
+    name.style.color = 'rgb(1, 2, 3)'
+    doc.form.set({ notes: 'other' })
+    doc.form._setFormatted('pin', '****')
+    doc.form._setWidgetState(p.widgetOf('email').id, { textColor: '#ff0000' })
+    expect(name.style.color).toBe('rgb(1, 2, 3)')
+    doc.form._setWidgetState(p.widgetOf('name').id, { textSize: 10 })
+    expect(name.style.color).not.toBe('rgb(1, 2, 3)')
+    name.style.color = 'rgb(1, 2, 3)'
+    doc.form.set({ name: 'Ada' })
+    expect(name.style.color).not.toBe('rgb(1, 2, 3)')
+  })
+
   it('the two widgets of one field stay in step', async () => {
     const doc = await open('form-fields')
     const p0 = mountPage(doc, { page: 0 })

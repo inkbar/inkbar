@@ -336,21 +336,19 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
   const hiddenOf = (e: Entry): boolean =>
     form.widgetState.get()[e.widget.id]?.hidden ?? (e.widget.hidden || e.widget.printOnly)
 
-  /** Shows each widget's own appearance, unless the layer draws it or it is hidden. */
-  const showAppearances = () => {
+  /** Shows the widget's own appearance, unless the layer draws it or it is hidden. */
+  const showAppearance = (e: Entry) => {
     if (!appearances) return
-    const values = form.values.get()
-    for (const e of entries) {
-      const look =
-        e.view?.drawn || hiddenOf(e)
-          ? null
-          : isToggle(e.field)
-            ? e.widget.onState !== undefined && values[e.field.name] === e.widget.onState
-              ? 'checked'
-              : 'unchecked'
-            : 'own'
-      appearances.show(e.widget.id, look)
-    }
+    const look =
+      e.view?.drawn || hiddenOf(e)
+        ? null
+        : isToggle(e.field)
+          ? e.widget.onState !== undefined &&
+            form.values.get()[e.field.name] === e.widget.onState
+            ? 'checked'
+            : 'unchecked'
+          : 'own'
+    appearances.show(e.widget.id, look)
   }
 
   const place = (e: Entry) => {
@@ -439,12 +437,40 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
     }
   }
 
-  const syncAll = () => {
-    if (destroyed) return
-    for (const e of entries) syncEntry(e)
-    showAppearances()
+  /** The field values, formatted text and widget state the widgets were last synced with. */
+  let synced = {
+    values: form.values.get(),
+    formatted: form.formatted.get(),
+    state: form.widgetState.get(),
+  }
+
+  /** Syncs `list`, then the page's Tab stops and radio numbering, which span widgets. */
+  const syncEntries = (list: readonly Entry[]) => {
+    for (const e of list) {
+      syncEntry(e)
+      showAppearance(e)
+    }
     numberRadios()
     setActive()
+  }
+
+  /** Syncs the widgets whose field's value or formatted text, or own state, changed. */
+  const syncChanged = () => {
+    if (destroyed) return
+    const was = synced
+    synced = {
+      values: form.values.get(),
+      formatted: form.formatted.get(),
+      state: form.widgetState.get(),
+    }
+    const now = synced
+    const dirty = entries.filter(
+      (e) =>
+        now.values[e.field.name] !== was.values[e.field.name] ||
+        now.formatted[e.field.name] !== was.formatted[e.field.name] ||
+        now.state[e.widget.id] !== was.state[e.widget.id]
+    )
+    if (dirty.length > 0) syncEntries(dirty)
   }
 
   const listeners: (() => void)[] = []
@@ -472,7 +498,7 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
         redraw: () => {
           if (destroyed) return
           toggle(box, 'data-ink-drawn', e.view?.drawn === true)
-          showAppearances()
+          showAppearance(e)
         },
         setInvalid: (invalid) => setInvalid(e, invalid),
         siblings: () =>
@@ -500,12 +526,12 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
     }
     place(e)
   }
-  syncAll()
+  syncEntries(entries)
 
   const stops = [
-    form.values.subscribe(syncAll),
-    form.formatted.subscribe(syncAll),
-    form.widgetState.subscribe(syncAll),
+    form.values.subscribe(syncChanged),
+    form.formatted.subscribe(syncChanged),
+    form.widgetState.subscribe(syncChanged),
     // A reset or a push clears a refused commit's mark, even when it puts back the value the
     // field held.
     form._onPut((names) => {
