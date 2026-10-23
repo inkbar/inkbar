@@ -60,13 +60,17 @@ const SELECT_KEYS = new Set([
 
 /**
  * Whether the key opens a select or changes its choice: the keys above (Alt+Down and Alt+Up
- * included), and a printable key, which picks the option it starts, unless Ctrl or Cmd makes it
- * a shortcut.
+ * included), and a key that types a character (one code point, astral ones too), which picks
+ * the option it starts. Ctrl or Cmd makes a key a shortcut, and so does Alt on a letter or
+ * digit key that still types that letter or digit; Alt that types another character (Option
+ * on macOS) still picks.
  */
 function opensOrPicks(e: KeyboardEvent): boolean {
   if (e.ctrlKey || e.metaKey) return false
   if (SELECT_KEYS.has(e.key)) return true
-  return !e.altKey && e.key.length === 1
+  if ([...e.key].length !== 1) return false
+  const plain = /^(?:Key|Digit)(.)$/.exec(e.code)?.[1]
+  return !(e.altKey && plain !== undefined && e.key.toUpperCase() === plain)
 }
 
 /** Focus and Blur reach the widget's scripts. */

@@ -1734,6 +1734,11 @@ describe('checkboxes, radios, choices and buttons', () => {
       for (const k of ['ArrowDown', ' ', 'Enter', 'End', 'F4', 'f'])
         expect(key({ key: k })).toBe(true)
       expect(key({ key: 'ArrowDown', altKey: true })).toBe(true)
+      // A character outside the BMP, and Option typing another character, pick.
+      expect(key({ key: '😀' })).toBe(true)
+      expect(key({ key: 'å', code: 'KeyA', altKey: true })).toBe(true)
+      // Alt on a letter that still types it is a shortcut.
+      expect(key({ key: 'a', code: 'KeyA', altKey: true })).toBe(false)
       // Tab, Escape and shortcuts pass through.
       expect(key({ key: 'Tab' })).toBe(false)
       expect(key({ key: 'Escape' })).toBe(false)
