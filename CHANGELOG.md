@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.7.0](https://github.com/inkbar/inkbar/compare/v0.6.0...v0.7.0) (2026-10-23)
+
+
+### Features
+
+* add a find bar and search button ([#226](https://github.com/inkbar/inkbar/issues/226)) ([7c825ef](https://github.com/inkbar/inkbar/commit/7c825ef053a0fb550374356263ddd6af749b8cb0))
+* add a find bar to the React binding ([#228](https://github.com/inkbar/inkbar/issues/228)) ([59a75d0](https://github.com/inkbar/inkbar/commit/59a75d022b1980df41ca2d09976b2538cd259977))
+* add a find bar to the Svelte binding ([#229](https://github.com/inkbar/inkbar/issues/229)) ([bd56c12](https://github.com/inkbar/inkbar/commit/bd56c1263db09da575df6ecce1e4e683409bc86c))
+* add a find bar to the Vue binding ([#227](https://github.com/inkbar/inkbar/issues/227)) ([5efad17](https://github.com/inkbar/inkbar/commit/5efad17a24c01c263e34190459a83e2127a3e6b5))
+* add a viewer search controller ([#224](https://github.com/inkbar/inkbar/issues/224)) ([6bd1bc5](https://github.com/inkbar/inkbar/commit/6bd1bc5f12623f3e4b5546bc54a43f4034374933))
+* highlight search matches on the page ([#225](https://github.com/inkbar/inkbar/issues/225)) ([3eff72b](https://github.com/inkbar/inkbar/commit/3eff72b36943c9b8d82eeb9e09b037e711c892d8))
+* say whether a search hit's boxes are exact ([#243](https://github.com/inkbar/inkbar/issues/243)) ([005fbd7](https://github.com/inkbar/inkbar/commit/005fbd74acfd0793c1f9b2392dc2e870b3d4a339))
+* search a document's text ([#223](https://github.com/inkbar/inkbar/issues/223)) ([a252882](https://github.com/inkbar/inkbar/commit/a252882ed7aa0ddd249dbf5a16db6bf82445b80c))
+
+
+### Bug Fixes
+
+* cut search hit boxes at the PDF font's glyph widths ([#242](https://github.com/inkbar/inkbar/issues/242)) ([0b501fb](https://github.com/inkbar/inkbar/commit/0b501fb491e18d7c985b30665dd71688c0a061a4))
+* draw search matches under the text in the brand highlighter ([#235](https://github.com/inkbar/inkbar/issues/235)) ([50a9cbe](https://github.com/inkbar/inkbar/commit/50a9cbe576c52f399a413054def9d80f82bd1cd2))
+* harden search against zero-length matches, long documents and blank queries ([#231](https://github.com/inkbar/inkbar/issues/231)) ([0adc4b3](https://github.com/inkbar/inkbar/commit/0adc4b375e3b3fe97971b54a3825e484ca910247))
+* join page text the way the page reads ([#222](https://github.com/inkbar/inkbar/issues/222)) ([2a8d685](https://github.com/inkbar/inkbar/commit/2a8d685ae760c524642ce8b7de9178228094196e))
+* land the first find step on the first match ([#245](https://github.com/inkbar/inkbar/issues/245)) ([dd9b86f](https://github.com/inkbar/inkbar/commit/dd9b86faf8fda55528beb6b00b8e58d3ccd083ea))
+* place search highlights by measured glyph widths ([#234](https://github.com/inkbar/inkbar/issues/234)) ([b8bd2d4](https://github.com/inkbar/inkbar/commit/b8bd2d4b56487eb92708e719905c173e0bb4689d))
+* read glyph positions only for pages with search hits ([#247](https://github.com/inkbar/inkbar/issues/247)) ([8e70e68](https://github.com/inkbar/inkbar/commit/8e70e6805c1eaeedefc83fc9ba32040f236ceb8e))
+* space right-to-left words in search text ([#246](https://github.com/inkbar/inkbar/issues/246)) ([3ab133e](https://github.com/inkbar/inkbar/commit/3ab133e407b7a8dd182c81a865c1a7ee28a8a466))
+* tidy search edge cases across core and the bindings ([#233](https://github.com/inkbar/inkbar/issues/233)) ([785db9e](https://github.com/inkbar/inkbar/commit/785db9e8648701a46a99ca9d26fa9189f61257ef))
+
 ## [0.6.0](https://github.com/inkbar/inkbar/compare/v0.5.0...v0.6.0) (2026-10-22)
 
 
