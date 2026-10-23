@@ -348,6 +348,22 @@ Ctrl/Cmd+F opens the bar when one is mounted and the key comes from inside the v
 
 Hits are drawn as a layer over the page that multiplies with it, so the text shows through. `@inkbar/theme` styles them with `--ink-search-hit` and, for the current hit, `--ink-search-current`.
 
+## Forms
+
+Inkbar fills the AcroForm fields in a PDF and runs the form's scripts. `doc.form` reads and sets the values:
+
+```ts
+doc.form.values.get() // { name: 'Ada', agree: 'Yes', ... }
+doc.form.set({ name: 'Grace' }) // runs the scripts; one undo step
+doc.form.reset() // every field back to the PDF's default
+```
+
+Pass `fields: { mode: 'controlled', initial, onChange }` to `openDocument` or `createViewer` to hold the values in your own state. The form never submits, opens a link, sends mail or prints. `onFormAction` hands each request to you.
+
+Each fillable field has a light tint. `formHighlight: false` turns it off when the viewer opens. To change it later, call `viewer.setFormHighlight(on)` on a `createViewer` viewer, or `engine.setFormHighlight(on)` on a `mountViewer` engine. Neither renders a page again, and a focused field keeps its focus and typed text.
+
+The [forms guide](https://inkbar.dev/docs/guides/forms/) covers controlled fields, form actions, scripts, signature fields and saving values as Gloss.
+
 ## Signatures
 
 A signature here is a mark on the page, not a cryptographic signature of the file. Draw one, type your name in a handwriting font, or upload a scan, and it is saved as a template. The `signature` tool places the chosen template: a click puts it about 150 pt wide, centred on the press, and `Enter` puts it at the centre of the current page. It is turned against the page's `/Rotate`, so it reads upright on the page; a view rotation turns it with the page. A drawn signature becomes `ink` and the others a `stamp` (an image), both with `subject: 'Signature'`. Both keep their aspect ratio when resized.

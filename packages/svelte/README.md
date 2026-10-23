@@ -145,6 +145,12 @@ Inside `InkRoot`, `useHistory()` returns the same object. Its `batch(fn)` runs `
 
 `key` identifies the document. Reuse the same key when only the signed URL changes and the document is not reloaded.
 
+## Forms
+
+`InkViewport` fills the PDF's form fields and runs the form's scripts. `useForm()` returns the fields, their values, and `set` and `reset`. Use `bind:fields` to hold the values in your own state. The form never submits, opens a link, sends mail or prints: `onformaction` hands each request to you. `formHighlight={false}` turns off the field tint, and a change applies to the open document in place.
+
+The [forms guide](https://inkbar.dev/docs/guides/forms/) covers controlled fields, form actions, scripts, signature fields and saving values as Gloss.
+
 ## Thread popover
 
 `InkThreadPopover` opens the comment thread of the activated note or text markup (a highlight, underline, strikeout or squiggly). A new note or highlight has no text yet, so the form first writes its own `contents` (labelled "Comment"); after that it adds replies. A highlight with a comment shows a small marker at its end. Replies show in the thread only; the page draws just the note or highlight they answer.
