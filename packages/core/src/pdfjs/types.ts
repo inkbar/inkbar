@@ -77,6 +77,8 @@ export interface PdfjsAnnotationData {
   actions?: Map<string, string[]> | Record<string, string[]> | null
   resetForm?: { fields: string[]; refs: string[]; include: boolean }
   url?: string
+  /** `app.launchURL`'s second argument, for a `url` PDF.js read out of a JavaScript `/A`. */
+  newWindow?: boolean
   /** A Named action's name. */
   action?: string
   dest?: string | unknown[]

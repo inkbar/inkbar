@@ -531,6 +531,46 @@ describe('rewritten methods', () => {
 })
 
 describe('fix round', () => {
+  it('a JavaScript button follows its link when the sandbox cannot load', async () => {
+    vi.spyOn(sandboxLoader, 'load').mockRejectedValue(new Error('offline'))
+    const { form } = await open('form-scripted')
+    const actions = actionsOf(form)
+    press(form, 'link')
+    expect(actions).toEqual([
+      { kind: 'open-url', url: 'https://example.com/', newWindow: true },
+    ])
+  })
+
+  it('a script and its /Next reset and submit are one undo step', async () => {
+    const { form, history } = await open('form-range')
+    const actions = actionsOf(form)
+    form.set({ note: 'hi' })
+    press(form, 'clear')
+    expect(form.get('score')).toBe('3')
+    expect(form.get('note')).toBe('')
+    expect(actions.map((a) => a.kind)).toEqual(['submit'])
+    history.undo()
+    expect(form.get('score')).toBe('')
+    expect(form.get('note')).toBe('hi')
+  })
+
+  it('a GoTo with JavaScript in its /Next runs both', async () => {
+    const { form } = await open('form-goto')
+    const pages: number[] = []
+    form.on('goto', (p) => pages.push(p))
+    expect(form.hasScripts).toBe(true)
+    press(form, 'goto-script')
+    press(form, 'chain')
+    expect(pages).toEqual([1, 1])
+  })
+
+  it('a JavaScript button with a working sandbox opens its link once', async () => {
+    const { form } = await open('form-scripted')
+    const actions = actionsOf(form)
+    press(form, 'link')
+    expect(actions.filter((a) => a.kind === 'open-url')).toHaveLength(1)
+  })
+
   it('drops script URLs that are not http, https, mailto or tel', async () => {
     const { form, actions } = await scripted([
       {
@@ -593,6 +633,39 @@ describe('fix round', () => {
     expect(getFieldObjects).not.toHaveBeenCalled()
     await open('form-fields')
     expect(load).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['has no engine', { support: null, _module: null }],
+    [
+      'fails to start',
+      {
+        support: { win: null },
+        _module: { stringToNewUTF8: () => 0 },
+        create: () => {
+          throw new Error('no start')
+        },
+      },
+    ],
+  ])('a sandbox that %s is torn down', async (_, parts) => {
+    const nukeSandbox = vi.fn(() => {
+      throw new Error('half-built')
+    })
+    const fake = {
+      create: () => undefined,
+      dispatchEvent: () => undefined,
+      nukeSandbox,
+      ...parts,
+    }
+    vi.spyOn(sandboxLoader, 'load').mockResolvedValue({
+      QuickJSSandbox: () => Promise.resolve(fake),
+    })
+    const { scripting, errors } = await scripted([
+      { name: 'out', type: 'text', actions: { Keystroke: ['event.rc = false'] } },
+    ])
+    expect(scripting).toBeUndefined()
+    expect(errors.map((e) => e.code)).toEqual(['FormScriptError'])
+    expect(nukeSandbox).toHaveBeenCalledTimes(1)
   })
 
   it('a sandbox that never loads times out without scripts', async () => {

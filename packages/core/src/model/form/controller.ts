@@ -218,6 +218,9 @@ export interface FormControllerOptions {
   quiet?: ((fn: () => void) => void) | undefined
 }
 
+/** How many errors from before the first `error` listener are kept for it. */
+const UNHEARD_LIMIT = 20
+
 /**
  * The document's form values, in a record store keyed by field name (`{ id: name, value }`).
  * In controlled mode the store is the working copy: a change shows and reaches the sandbox at
@@ -244,7 +247,10 @@ export function createFormController(opts: FormControllerOptions): FormControlle
     focus: string
     goto: number
   }>()
-  /** Errors reported before anything listened for them; `undefined` once something has. */
+  /**
+   * Errors reported before anything listened for them, the newest `UNHEARD_LIMIT`;
+   * `undefined` once something has.
+   */
   let unheard: InkError[] | undefined = []
   /** How many changes are running whose values are reported when they finish. */
   let depth = 0
@@ -256,8 +262,16 @@ export function createFormController(opts: FormControllerOptions): FormControlle
   const store = createRecordStore<FieldRecord>('form.fields')
   /** The annotations signature fields are signed with, once linked. */
   let annotations: AnnotationStore | undefined
+  /** Whether undo and redo replay the field values along with the annotations. */
+  let replays = false
   /** Signatures proposed to a controlled host and not in the list yet: annotation id to field. */
   const awaiting = new Map<string, string>()
+  /**
+   * Signatures whose annotation went and cleared their field, by annotation id, when the
+   * field values have no undo history of their own (controlled fields). Undo or redo that
+   * brings the annotation back signs its field again.
+   */
+  const dropped = new Map<string, string>()
   const unlink: (() => void)[] = []
 
   let cachedList: readonly FieldRecord[] | undefined
@@ -389,7 +403,12 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       }
       case 'uri': {
         const url = safeUrl(action.url)
-        if (url) form._emitAction({ kind: 'open-url', url, newWindow: false })
+        if (url)
+          form._emitAction({
+            kind: 'open-url',
+            url,
+            newWindow: action.newWindow === true,
+          })
         break
       }
       case 'named':
@@ -456,11 +475,27 @@ export function createFormController(opts: FormControllerOptions): FormControlle
     if (gone.length > 0)
       reporting(
         () => {
-          for (const [name] of gone) write(name, undefined)
+          for (const [name, id] of gone) {
+            if (!replays) dropped.set(id, name)
+            write(name, undefined)
+          }
         },
         (names) => ({ kind: 'commit', names })
       )
     pin()
+  }
+
+  /** Signs again the fields whose dropped signature an undo or redo brought back. */
+  const restore = () => {
+    const linked = annotations
+    if (!linked || destroyed) return
+    for (const [id, name] of [...dropped]) {
+      if (!linked.get(id)) continue
+      dropped.delete(id)
+      const field = byName.get(name)
+      if (field?.type === 'signature' && !field.locked && signatureOf(name) === undefined)
+        sign(name, id)
+    }
   }
 
   /** Writes a signature, as a commit. */
@@ -509,13 +544,14 @@ export function createFormController(opts: FormControllerOptions): FormControlle
               result.rejected.push({ name, reason: reason ?? 'unknown' })
               continue
             }
-            dropPending(name)
             const stored = normaliseValue(field, value)
             const kept = scripting ? scripting.commit(name, stored) : stored
+            // A value the scripts reject leaves the typed text, so the user can correct it.
             if (kept === undefined) {
               result.rejected.push({ name, reason: 'script' })
               continue
             }
+            dropPending(name)
             write(name, suits(field, kept) ? normaliseValue(field, kept) : stored)
             result.applied.push(name)
           }
@@ -590,7 +626,11 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       // Text typed and then left uncommitted is dropped, and the sandbox, which saw each
       // keystroke, goes back to the stored value.
       const abandoned = event.name === 'Blur' && pending.delete(event.widget)
-      const action = widgets.get(event.widget)?.action
+      const widget = widgets.get(event.widget)
+      // Without scripts, a JavaScript button still opens the URL its script would.
+      const action = widget?.action ?? (scripting ? undefined : widget?.fallback)
+      // The `/A`'s `/Next` actions follow it, scripts or not.
+      const next = event.name === 'Action' ? (widget?.next ?? []) : []
       // An Action's scripts and the reset it runs are one step.
       batch(() => {
         if (scripting)
@@ -602,6 +642,7 @@ export function createFormController(opts: FormControllerOptions): FormControlle
             (names) => ({ kind: 'calculate', names })
           )
         if (event.name === 'Action' && action && !destroyed) runAction(action)
+        for (const n of next) if (!destroyed) runAction(n)
       })
     },
     _step(fn) {
@@ -646,8 +687,8 @@ export function createFormController(opts: FormControllerOptions): FormControlle
     _error(e) {
       if (destroyed) return
       opts.onError(e)
-      if (unheard) unheard.push(e)
-      else emitter.emit('error', e)
+      if (!unheard) emitter.emit('error', e)
+      else if (unheard.push(e) > UNHEARD_LIMIT) unheard.shift()
     },
     _alert(message) {
       if (!destroyed) emitter.emit('alert', message)
@@ -696,6 +737,7 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       if (destroyed || annotations) return
       const linked = link.store
       annotations = linked
+      replays = link.replays
       let signed = signedFields()
       unlink.push(
         store.on('change', (change) => {
@@ -712,10 +754,12 @@ export function createFormController(opts: FormControllerOptions): FormControlle
           dropDangling()
         }),
         linked.on('change', (change) => {
-          if (change.kind === 'replace' && change.reason === 'history' && link.replays) {
+          const replay = change.kind === 'replace' && change.reason === 'history'
+          if (replay && link.replays) {
             pin()
             return
           }
+          if (replay) restore()
           land()
           dropDangling()
         }),
@@ -731,12 +775,11 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       else awaiting.set(id, name)
     },
     _awaitingSignature(name) {
-      for (const [id, field] of [...awaiting]) {
-        if (field !== name) continue
-        // A proposal the host let lapse without pushing a list is gone too.
-        if (annotations?._getProposed(id)) return true
-        awaiting.delete(id)
-      }
+      // A proposal the host let lapse without pushing a list no longer counts. The query
+      // forgets nothing: `land` does that when the list next changes, so a late push still
+      // signs the field.
+      for (const [id, field] of awaiting)
+        if (field === name && annotations?._getProposed(id)) return true
       return false
     },
     _destroy() {
@@ -744,6 +787,7 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       destroyed = true
       for (const stop of unlink.splice(0)) stop()
       awaiting.clear()
+      dropped.clear()
       unheard = undefined
       scripting?.destroy()
       scripting = undefined

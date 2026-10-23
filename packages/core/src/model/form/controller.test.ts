@@ -172,6 +172,44 @@ describe('FormController', () => {
     expect(form._keystroke(widget, 'x', 0, 0).value).toBe('x')
   })
 
+  it('a value a script rejects keeps the typed text', () => {
+    const form = controller()
+    form._attachScripting({
+      commit: vi.fn(() => undefined),
+      sync: vi.fn(),
+      dispatch: vi.fn(),
+      keystroke: vi.fn(() => undefined),
+      pageEvent: vi.fn(() => Promise.resolve()),
+      destroy: vi.fn(),
+    })
+    const widget = fields.find((f) => f.name === 'name')!.widgets[0]!.id
+    form._keystroke(widget, 'a', 3, 3)
+    expect(form.set({ name: 'Sama' }).rejected).toEqual([
+      { name: 'name', reason: 'script' },
+    ])
+    expect(form._keystroke(widget, '!', 4, 4).value).toBe('Sama!')
+  })
+
+  it('undo and redo drop only the typed text of fields they change', async () => {
+    const doc = await openDocument(await fixtureBytes('form-fields'), {
+      assets: nodeAssets(),
+    })
+    const { form, history } = doc
+    const name = form.fields.get().find((f) => f.name === 'name')!.widgets[0]!.id
+    const notes = form.fields.get().find((f) => f.name === 'notes')!.widgets[0]!.id
+    form.set({ notes: 'n' })
+    form._keystroke(name, 'a', 3, 3)
+    form._keystroke(notes, 'x', 1, 1)
+    history.undo()
+    expect(form._keystroke(name, 'b', 4, 4).value).toBe('Samab')
+    expect(form._keystroke(notes, 'y', 0, 0).value).toBe('y')
+    form._keystroke(notes, 'z', 1, 1)
+    history.redo()
+    expect(form._keystroke(name, 'c', 5, 5).value).toBe('Samabc')
+    expect(form._keystroke(notes, '!', 1, 1).value).toBe('n!')
+    doc.destroy()
+  })
+
   it('keeps formatted text and widget overrides set by scripts', () => {
     const form = controller()
     form._setFormatted('name', '£2.50')
@@ -213,6 +251,14 @@ describe('FormController', () => {
     expect(second).toHaveBeenCalledWith(late)
   })
 
+  it('keeps only the newest 20 errors from before the first listener', () => {
+    const form = controller()
+    for (let i = 0; i < 25; i++) form._error(new InkError('FormScriptError', `e${i}`))
+    const heard: string[] = []
+    form.on('error', (e) => heard.push(e.message))
+    expect(heard).toEqual(Array.from({ length: 20 }, (_, i) => `e${i + 5}`))
+  })
+
   it('emits actions', () => {
     const form = controller()
     const fn = vi.fn()
@@ -250,6 +296,70 @@ describe('FormController', () => {
 })
 
 describe('doc.form', () => {
+  it("opens a script button's URL only while no scripts run, and runs /Next always", async () => {
+    const scripting = {
+      commit: vi.fn((_: string, value: FieldValue) => value),
+      sync: vi.fn(),
+      dispatch: vi.fn(),
+      keystroke: vi.fn(() => undefined),
+      pageEvent: vi.fn(() => Promise.resolve()),
+      destroy: vi.fn(),
+    }
+    const run = (list: FormField[], name: string, withScripts: boolean) => {
+      const form = createFormController({
+        fields: list,
+        mode: { mode: 'uncontrolled' },
+        onError: () => undefined,
+      })
+      if (withScripts) form._attachScripting(scripting)
+      const seen: unknown[] = []
+      form.on('action', (a) => seen.push(a))
+      form.on('goto', (page) => seen.push({ goto: page }))
+      const widget = list.find((f) => f.name === name)!.widgets[0]!.id
+      form._dispatch({ widget, name: 'Action' })
+      form._dispatch({ widget, name: 'Mouse Up' })
+      form._destroy()
+      return seen
+    }
+    const scripted = await formFieldsOf('form-scripted')
+    const goto = await formFieldsOf('form-goto')
+    // `link` runs app.launchURL(url, true): the script opens it while scripts run.
+    expect(run(scripted, 'link', false)).toEqual([
+      { kind: 'open-url', url: 'https://example.com/', newWindow: true },
+    ])
+    expect(run(scripted, 'link', true)).toEqual([])
+    // /Next actions run in order after the scripts, with or without them.
+    for (const withScripts of [false, true]) {
+      expect(run(goto, 'scripted', withScripts)).toEqual([{ goto: 2 }])
+      expect(run(goto, 'goto-script', withScripts)).toEqual([{ goto: 1 }])
+      expect(run(goto, 'chain', withScripts)).toEqual([
+        { kind: 'open-url', url: 'https://example.com/next', newWindow: false },
+        { goto: 1 },
+        { kind: 'print' },
+      ])
+    }
+  })
+
+  it('runs a reset and a submit in /Next as one undo step with the scripts', async () => {
+    const doc = await openDocument(await fixtureBytes('form-range'), {
+      assets: nodeAssets(),
+    })
+    await doc.ready
+    const { form, history } = doc
+    const seen: unknown[] = []
+    form.on('action', (a) => seen.push(a))
+    form.set({ note: 'hi' })
+    const clear = form.fields.get().find((f) => f.name === 'clear')!.widgets[0]!.id
+    form._dispatch({ widget: clear, name: 'Action' })
+    expect(form.get('note')).toBe('')
+    expect(seen).toEqual([
+      expect.objectContaining({ kind: 'submit', url: 'https://example.com/range' }),
+    ])
+    history.undo()
+    expect(form.get('note')).toBe('hi')
+    doc.destroy()
+  })
+
   it("runs a widget's non-script action on Action", () => {
     const form = controller()
     const reset = fields.find((f) => f.name === 'reset')!.widgets[0]!.id

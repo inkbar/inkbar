@@ -42,14 +42,16 @@ export interface WidgetAppearance {
   font?: { family: string; fontWeight?: 'bold'; fontStyle?: 'italic' }
   /** Points; 0 means auto size. */
   fontSize: number
-  /** `#rrggbb`. */
+  /** Upper-case `#RRGGBB`, as `pdfColorToHex` gives it. */
   color?: string
   align: 'left' | 'center' | 'right'
   border?: {
+    /** Upper-case `#RRGGBB`. */
     color?: string
     width: number
     style: 'solid' | 'dashed' | 'beveled' | 'inset' | 'underline'
   }
+  /** Upper-case `#RRGGBB`. */
   background?: string
   /** A push button's `/MK /CA`. */
   caption?: string
@@ -76,7 +78,7 @@ export type WidgetAction =
       format: 'fdf' | 'xfdf' | 'html' | 'pdf'
       method?: 'GET' | 'POST'
     }
-  | { kind: 'uri'; url: string }
+  | { kind: 'uri'; url: string; newWindow?: boolean }
   | { kind: 'named'; name: string }
   | { kind: 'goto'; page: number }
 
@@ -90,10 +92,26 @@ export interface FormWidget {
   rotation: 0 | 90 | 180 | 270
   /** A checkbox or radio widget's on appearance state. */
   onState?: string
+  /** Not drawn on screen: `/F` Hidden or NoView, or a barcode field Inkbar cannot draw. */
   hidden: boolean
+  /** `/F` NoView with Print: drawn only when printed. Such a widget is also `hidden`. */
   printOnly: boolean
   appearance: WidgetAppearance
   action?: WidgetAction
+  /**
+   * The URL a JavaScript `/A`'s `app.launchURL` opens, as PDF.js reads it out of the script.
+   * Followed on Action only when the form runs no scripts, such as when the sandbox failed to
+   * load; with scripts running, the script opens it itself.
+   */
+  fallback?: WidgetAction
+  /**
+   * The GoTo, URI, Named, ResetForm and SubmitForm actions in the `/A`'s `/Next` chain, in
+   * order. They run on Action after the widget's scripts and its own action, whether or not
+   * scripts run, in the same undo step. JavaScript anywhere in the chain runs first, with the
+   * widget's other Action scripts (PDF.js collects them into one), so its position in the
+   * chain is not kept: a GoTo whose `/Next` is JavaScript runs the script, then the GoTo.
+   */
+  next?: readonly WidgetAction[]
   hasScripts: boolean
 }
 
@@ -120,7 +138,7 @@ export interface WidgetOverride {
   hidden?: boolean
   readOnly?: boolean
   required?: boolean
-  /** `#rrggbb`, or `transparent` for none. */
+  /** Lower-case `#rrggbb`, or `transparent` for none. */
   textColor?: string
   fillColor?: string
   strokeColor?: string

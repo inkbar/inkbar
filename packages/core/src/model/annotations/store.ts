@@ -102,8 +102,9 @@ export interface AnnotationStore {
   _getProposed(id: string): Annotation | undefined
   /**
    * @internal Pins annotations to what they fill (a signature to its signature field): a
-   * pinned annotation refuses every patch but one to its `contents` (no move, resize or
-   * restyle), while `remove` still works. Replaces the whole set.
+   * pinned annotation takes patches only to `contents` and to `custom` outside its `inkbar`
+   * key, and refuses any other (no move, resize, restyle, new image or new author), while
+   * `remove` still works. Replaces the whole set.
    */
   _setPinned(ids: ReadonlySet<string>): void
   /** @internal Whether `_setPinned` pinned `id`. */
@@ -142,6 +143,23 @@ const LOCKED_KEYS = new Set([
   'imagedata',
   'rotation',
 ])
+
+/**
+ * Keys a pinned annotation still takes: its comment and the host's own data. Geometry, style,
+ * its image or ink, its author (who signed), subject, rotation and lock are refused.
+ */
+const PINNED_KEYS = new Set(['contents', 'custom'])
+
+/**
+ * Whether `patch` changes nothing a pinned annotation keeps: only `PINNED_KEYS`, and a
+ * `custom` that leaves Inkbar's own `custom.inkbar` (which can carry ink pressure) as it was.
+ */
+function pinnedAccepts(before: Annotation, patch: Record<string, unknown>): boolean {
+  if (Object.keys(patch).some((k) => !PINNED_KEYS.has(k))) return false
+  if (!('custom' in patch)) return true
+  const inkbar = (c: unknown) => (c as { inkbar?: unknown } | undefined)?.inkbar
+  return deepEqual(inkbar(patch.custom), inkbar(before.custom))
+}
 
 function keepKey(target: Record<string, unknown>, from: Annotation, key: string): void {
   if (Object.prototype.hasOwnProperty.call(from, key))
@@ -454,9 +472,9 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
       if (destroyed || !before) return undefined
       if (before.locked && Object.keys(patch).some((k) => LOCKED_KEYS.has(k)))
         return undefined
-      // A pinned annotation is what fills its field, as it is: only its comment changes.
-      if (pinned.get().has(id) && Object.keys(patch).some((k) => k !== 'contents'))
-        return undefined
+      // A pinned annotation is what fills its field, as it is: only keys that leave its look
+      // and place alone change.
+      if (pinned.get().has(id) && !pinnedAccepts(before, patch)) return undefined
       const candidate: Record<string, unknown> = {
         ...before,
         ...patch,

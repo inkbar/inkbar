@@ -144,6 +144,12 @@ function parseLiteralString(
     if (c === 0x29 && --depth === 0) {
       return { value: { kind: 'string', bytes: Uint8Array.from(out) }, end: i + 1 }
     }
+    if (c === 13) {
+      // An unescaped CR or CRLF in a literal string reads as a single LF.
+      if (bytes[i + 1] === 10) i++
+      out.push(10)
+      continue
+    }
     out.push(c)
   }
   throw new PdfSyntaxError('Unterminated string')
@@ -318,7 +324,7 @@ export const isDict = (v: PdfValue | undefined): v is PdfDict =>
 export const isRef = (v: PdfValue | undefined): v is PdfRef =>
   typeof v === 'object' && v !== null && !Array.isArray(v) && v.kind === 'ref'
 
-/** PDFDocEncoding where it differs from Latin-1: 0x18–0x1f, and 0x80–0x9e. */
+/** PDFDocEncoding where it differs from Latin-1: 0x18–0x1f, 0x80–0x9e and 0xa0 (the euro sign). */
 const PDF_DOC_18 = '\u02d8\u02c7\u02c6\u02d9\u02dd\u02db\u02da\u02dc'
 const PDF_DOC_80 = '•†‡…—–ƒ⁄‹›−‰„“”‘’‚™ﬁﬂŁŒŠŸŽıłœšž'
 
@@ -338,6 +344,7 @@ export function textString(v: PdfValue | undefined): string | undefined {
   for (const c of b) {
     if (c >= 0x18 && c <= 0x1f) out += PDF_DOC_18[c - 0x18]
     else if (c >= 0x80 && c <= 0x9e) out += PDF_DOC_80[c - 0x80]
+    else if (c === 0xa0) out += '€'
     else out += String.fromCharCode(c)
   }
   return out

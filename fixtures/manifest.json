@@ -249,6 +249,24 @@
       "Widget": 2
     }
   },
+  "form-goto": {
+    "file": "form-goto.pdf",
+    "pages": 3,
+    "opens": true,
+    "describes": "Push buttons with GoTo actions: an explicit destination, a name-tree name, a catalog /Dests name, a name with no destination, a JavaScript action whose /Next is a named GoTo, a GoTo whose /Next is JavaScript, and a JavaScript action whose /Next chain holds a URI, a GoTo and that GoTo's /Next Print",
+    "annotations": {
+      "Widget": 7
+    }
+  },
+  "form-range": {
+    "file": "form-range.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A text field whose AFRange_Validate (0 to 10) alerts and refuses a value outside the range, a plain text field, and a button whose JavaScript sets score and whose /Next resets note and submits, for checking that a refused value stays as typed through the alert and that /Next resets and submits run",
+    "annotations": {
+      "Widget": 3
+    }
+  },
   "incremental-saved": {
     "file": "incremental-saved.pdf",
     "pages": 1,

@@ -290,14 +290,25 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       const id = activated.get()
       if (id !== null && !store.get(id)) activated.set(null)
     })
+    // A failed script leaves the form fillable; its error reaches the host. Subscribed first,
+    // so the form replays the errors from while the document opened here, and they are held
+    // until `onReady` has run.
+    let held: InkError[] | undefined = []
+    const stopForm = doc.form.on('error', (error) => {
+      if (held) held.push(error)
+      else onError?.(error)
+    })
+    releaseFormErrors = () => {
+      const early = held ?? []
+      held = undefined
+      for (const error of early) onError?.(error)
+    }
     const hosts = new Map<number, HTMLElement>()
     const errors = new Map<number, HTMLElement>()
     const clearError = (page: number): void => {
       errors.get(page)?.remove()
       errors.delete(page)
     }
-    // A failed script leaves the form fillable; its error reaches the host.
-    const stopForm = doc.form.on('error', (error) => onError?.(error))
     const mounted = mountViewer({
       ...view,
       plugins: host,
@@ -354,6 +365,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     engine.set(mounted)
     return () => {
       stopForm()
+      releaseFormErrors = () => undefined
       signFieldMenu?.close()
       formAlert.close()
       stopList()
@@ -370,6 +382,8 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   let destroyed = false
   const destroyers: (() => void)[] = []
   let stop: () => void = () => undefined
+  /** Hands the open document's held form errors to `onError`, once `onReady` has run. */
+  let releaseFormErrors: () => void = () => undefined
 
   /** Tears down the open document, if any, and destroys it. */
   function close(): void {
@@ -414,7 +428,9 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
         form.set(doc.form)
         status.set({ state: 'ready' })
         // A status subscriber may have opened another document already.
-        if (load === loads) onReady?.(doc)
+        if (load !== loads) return
+        onReady?.(doc)
+        if (load === loads) releaseFormErrors()
       },
       (cause: unknown) => {
         // Only a programmer error (missing assets) rejects; it gets the error state too.

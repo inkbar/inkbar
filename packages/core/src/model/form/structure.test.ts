@@ -1,13 +1,15 @@
 import { fixtureBytes, type FixtureName } from '@inkbar/fixtures'
 import { describe, expect, it } from 'vitest'
 
-import { readFormExtras } from '../../pdf/form-fields'
+import { emptyFormExtras, readFormExtras } from '../../pdf/form-fields'
 import { openPdfObjects } from '../../pdf/objects'
+import { destinationPage } from '../../pdfjs/destinations'
 import { nodeAssets } from '../../pdfjs/node-assets'
 import { openDocument } from '../document'
 
 import { buildFormFields } from './structure'
 
+import type { RawWidget } from './structure'
 import type { FormField } from './types'
 import type { PdfjsAnnotationData } from '../../pdfjs/types'
 
@@ -22,12 +24,13 @@ async function fieldsOf(name: FixtureName): Promise<Map<string, FormField>> {
     ).getAnnotations()) as PdfjsAnnotationData[]
     for (const data of annots) if (data.subtype === 'Widget') raw.push({ page, data })
   }
-  doc.destroy()
   const objs = (await openPdfObjects(await fixtureBytes(name)))!
   const extras = await readFormExtras(
     objs,
-    raw.map((r) => r.data.id)
+    raw.map((r) => r.data.id),
+    { destinationPage: (dest) => destinationPage(doc._pdfjs.proxy, dest) }
   )
+  doc.destroy()
   return new Map(buildFormFields(raw, extras).map((f) => [f.name, f]))
 }
 
@@ -238,5 +241,115 @@ describe('buildFormFields', () => {
     await expect(doc.ready).resolves.toBeUndefined()
     expect(doc.annotations.list.get()).toEqual([])
     doc.destroy()
+  })
+
+  it('reads GoTo actions to explicit and named destinations', async () => {
+    const fields = await fieldsOf('form-goto')
+    const action = (name: string) => fields.get(name)!.widgets[0]!.action
+    expect(action('explicit')).toEqual({ kind: 'goto', page: 2 })
+    expect(action('named')).toEqual({ kind: 'goto', page: 2 })
+    expect(action('legacy')).toEqual({ kind: 'goto', page: 1 })
+    expect(action('missing')).toBeUndefined()
+    // A GoTo with JavaScript in its /Next keeps its GoTo, and its widget has scripts.
+    expect(action('goto-script')).toEqual({ kind: 'goto', page: 1 })
+    expect(fields.get('goto-script')!.widgets[0]!.hasScripts).toBe(true)
+    expect(action('scripted')).toBeUndefined()
+    expect(fields.get('scripted')!.widgets[0]!.next).toEqual([{ kind: 'goto', page: 2 }])
+    expect(fields.get('chain')!.widgets[0]!.next).toEqual([
+      { kind: 'uri', url: 'https://example.com/next' },
+      { kind: 'goto', page: 1 },
+      { kind: 'named', name: 'Print' },
+    ])
+  })
+
+  it("keeps app.launchURL's new-window flag on a script button's fallback", async () => {
+    const fields = await fieldsOf('form-scripted')
+    expect(fields.get('link')!.widgets[0]!.fallback).toEqual({
+      kind: 'uri',
+      url: 'https://example.com/',
+      newWindow: true,
+    })
+  })
+
+  it('opening a document resolves named GoTo destinations', async () => {
+    const doc = await openDocument(await fixtureBytes('form-goto'), {
+      assets: nodeAssets(),
+    })
+    await doc.ready
+    const named = doc.form.fields.get().find((f) => f.name === 'named')!
+    expect(named.widgets[0]!.action).toEqual({ kind: 'goto', page: 2 })
+    doc.destroy()
+  })
+
+  it('reads NoView with Print as print-only, and NoView alone as hidden', () => {
+    const widget = (id: string, flags: number): RawWidget => ({
+      page: 0,
+      data: {
+        id,
+        subtype: 'Widget',
+        annotationType: 20,
+        rect: [0, 0, 10, 10],
+        fieldName: id,
+        fieldType: 'Tx',
+        annotationFlags: flags,
+        // PDF.js marks a NoView widget hidden.
+        hidden: (flags & 34) !== 0,
+      },
+    })
+    const fields = buildFormFields(
+      [widget('screen', 4), widget('print', 32 | 4), widget('never', 32)],
+      emptyFormExtras()
+    )
+    const w = (i: number) => fields[i]!.widgets[0]!
+    expect([w(0).hidden, w(0).printOnly]).toEqual([false, false])
+    expect([w(1).hidden, w(1).printOnly]).toEqual([true, true])
+    expect([w(2).hidden, w(2).printOnly]).toEqual([true, false])
+  })
+
+  it('drops a /DV that is not one of the options', () => {
+    const base = { subtype: 'Widget', annotationType: 20, rect: [0, 0, 10, 10] } as const
+    const radio = (id: string, state: string, dv: string): RawWidget => ({
+      page: 0,
+      data: {
+        ...base,
+        rect: [0, 0, 10, 10],
+        id,
+        fieldName: 'pick',
+        fieldType: 'Btn',
+        radioButton: true,
+        buttonValue: state,
+        fieldValue: 'Off',
+        defaultFieldValue: dv,
+      },
+    })
+    const list = (name: string, dv: string): RawWidget => ({
+      page: 0,
+      data: {
+        ...base,
+        rect: [0, 0, 10, 10],
+        id: `${name}1`,
+        fieldName: name,
+        fieldType: 'Ch',
+        options: [{ exportValue: 'a', displayValue: 'A' }],
+        defaultFieldValue: dv,
+      },
+    })
+    const extras = emptyFormExtras()
+    extras.widgets.set('r1', { onState: 'one' })
+    extras.widgets.set('r2', { onState: 'two', defaultState: 'three' })
+    const fields = new Map(
+      buildFormFields(
+        [
+          radio('r1', 'one', 'three'),
+          radio('r2', 'two', 'three'),
+          list('good', 'a'),
+          list('bad', 'z'),
+        ],
+        extras
+      ).map((f) => [f.name, f])
+    )
+    expect(fields.get('pick')!.defaultValue).toBeUndefined()
+    expect(fields.get('good')!.defaultValue).toBe('a')
+    expect(fields.get('bad')!.defaultValue).toBeUndefined()
   })
 })

@@ -44,9 +44,25 @@ export interface FormExtras {
   lockAll: boolean
   /** Page `/Tabs`, by page index, for pages that set one. */
   tabs: Map<number, 'R' | 'C' | 'S' | 'W'>
+  /** What each widget's own dictionary adds, by PDF.js widget id (`12R`). */
   widgets: Map<string, WidgetExtras>
-  /** Page index of a GoTo action's explicit destination, by widget id. */
+  /**
+   * The page a widget's GoTo goes to, by widget id: from its `/A`, or its `/Dest` when it has no
+   * `/A`. Named destinations are in only when the reader was given a resolver.
+   */
   destPages: Map<string, number>
+  /** Widgets whose own `/A` is a JavaScript action (not one that only has JavaScript in `/Next`). */
+  scriptActions: Set<string>
+  /**
+   * The GoTo, URI, Named, ResetForm and SubmitForm actions in each widget `/A`'s `/Next` chain,
+   * in order, by widget id.
+   */
+  next: Map<string, WidgetAction[]>
+}
+
+export interface ReadFormExtrasOptions {
+  /** The page index a named destination points at, if any. */
+  destinationPage?: (name: string) => Promise<number | undefined>
 }
 
 export function emptyFormExtras(): FormExtras {
@@ -58,6 +74,8 @@ export function emptyFormExtras(): FormExtras {
     tabs: new Map(),
     widgets: new Map(),
     destPages: new Map(),
+    scriptActions: new Set(),
+    next: new Map(),
   }
 }
 
@@ -240,6 +258,8 @@ async function fileSpecUrl(objs: PdfObjects, v: PdfValue | undefined) {
   )
 }
 
+/** ResetForm `/Flags` bit 1: `/Fields` lists the fields to leave alone. */
+const RESET_EXCLUDE = 1
 const SUBMIT_EXCLUDE = 1
 const SUBMIT_HTML = 4
 const SUBMIT_GET = 8
@@ -267,6 +287,61 @@ async function readSubmit(
 }
 
 const FF_PUSHBUTTON = 1 << 16
+
+/** A widget's GoTo destination: its `/A`'s when that is a GoTo, else `/Dest` when it has no `/A`. */
+async function destinationOf(
+  objs: PdfObjects,
+  widget: PdfDict,
+  action: PdfDict | undefined
+) {
+  if (!action) return objs.resolve(dictGet(widget, 'Dest'))
+  const s = await objs.resolve(dictGet(action, 'S'))
+  return isName(s, 'GoTo') ? objs.resolve(dictGet(action, 'D')) : undefined
+}
+
+/** A string object's bytes as a Latin-1 string: how PDF.js keys a name tree. */
+function rawString(v: PdfValue | undefined): string | undefined {
+  if (typeof v !== 'object' || v === null || Array.isArray(v) || v.kind !== 'string')
+    return undefined
+  let out = ''
+  for (const c of v.bytes) out += String.fromCharCode(c)
+  return out
+}
+
+/**
+ * The actions an action's `/Next` runs after it, in order (ISO 32000 §12.6.2): each entry,
+ * then that entry's own `/Next`, depth first. A cycle (back to the `/A` itself, `ref`, too) or a
+ * chain deeper than `MAX_DEPTH` stops.
+ */
+async function nextChain(
+  objs: PdfObjects,
+  action: PdfDict,
+  ref: PdfValue | undefined
+): Promise<PdfDict[]> {
+  const out: PdfDict[] = []
+  const seen = new Set<string>(isRef(ref) ? [refKey(ref.num, ref.gen)] : [])
+  /** False for a ref already visited; marks it visited. */
+  const fresh = (v: PdfValue | undefined) => {
+    if (!isRef(v)) return true
+    const key = refKey(v.num, v.gen)
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  }
+  const visit = async (v: PdfValue | undefined, depth: number) => {
+    if (depth > MAX_DEPTH || v === undefined || !fresh(v)) return
+    const next = await objs.resolve(v)
+    for (const item of Array.isArray(next) ? next : [next]) {
+      if (!fresh(item)) continue
+      const d = await dictOf(objs, item)
+      if (!d) continue
+      out.push(d)
+      await visit(dictGet(d, 'Next'), depth + 1)
+    }
+  }
+  await visit(dictGet(action, 'Next'), 0)
+  return out
+}
 
 async function readWidget(
   objs: PdfObjects,
@@ -302,12 +377,14 @@ async function readWidget(
 
 /**
  * Reads what PDF.js leaves out of widget data: SubmitForm actions, certificate signatures and
- * the locks they set, DocMDP, page `/Tabs`, explicit GoTo pages, and per-widget on states,
+ * the locks they set, DocMDP, page `/Tabs`, GoTo pages, which `/A`s are JavaScript, the
+ * actions in each `/A`'s `/Next` chain, and per-widget on states,
  * stored and default state names, `/DA` fonts, captions and barcode marks. Never throws: what cannot be read is left out.
  */
 export async function readFormExtras(
   objs: PdfObjects | undefined,
-  widgetIds: readonly string[]
+  widgetIds: readonly string[],
+  options: ReadFormExtrasOptions = {}
 ): Promise<FormExtras> {
   const extras = emptyFormExtras()
   if (!objs) return extras
@@ -351,11 +428,43 @@ export async function readFormExtras(
           const submit = await readSubmit(objs, action, names)
           if (submit) extras.submits.set(id, submit)
         }
-        const dest =
-          action && isName(s, 'GoTo') ? dictGet(action, 'D') : dictGet(widget, 'Dest')
-        const target = (await arrayOf(objs, dest))[0]
-        const page = isRef(target) ? pages.get(refKey(target.num, target.gen)) : undefined
+        const pageOf = async (dest: PdfValue | undefined) => {
+          const name = isName(dest) ? dest.name : rawString(dest)
+          if (name !== undefined) return options.destinationPage?.(name)
+          const target = (await arrayOf(objs, dest))[0]
+          return isRef(target) ? pages.get(refKey(target.num, target.gen)) : undefined
+        }
+        const page = await pageOf(await destinationOf(objs, widget, action))
         if (page !== undefined) extras.destPages.set(id, page)
+        if (!action) continue
+        if (isName(s, 'JavaScript')) extras.scriptActions.add(id)
+        const next: WidgetAction[] = []
+        for (const a of await nextChain(objs, action, dictGet(widget, 'A'))) {
+          const ns = await objs.resolve(dictGet(a, 'S'))
+          if (isName(ns, 'GoTo')) {
+            const p = await pageOf(await objs.resolve(dictGet(a, 'D')))
+            if (p !== undefined) next.push({ kind: 'goto', page: p })
+          } else if (isName(ns, 'URI')) {
+            const url = textString(await objs.resolve(dictGet(a, 'URI')))
+            if (url) next.push({ kind: 'uri', url })
+          } else if (isName(ns, 'Named')) {
+            const n = await objs.resolve(dictGet(a, 'N'))
+            if (isName(n)) next.push({ kind: 'named', name: n.name })
+          } else if (isName(ns, 'ResetForm')) {
+            const flags = await objs.resolve(dictGet(a, 'Flags'))
+            next.push({
+              kind: 'reset',
+              fields: await fieldNames(objs, dictGet(a, 'Fields'), names),
+              include: typeof flags !== 'number' || (flags & RESET_EXCLUDE) === 0,
+            })
+          } else if (isName(ns, 'SubmitForm')) {
+            const submit = await readSubmit(objs, a, names)
+            if (submit) next.push(submit)
+          }
+          // JavaScript in the chain runs with the widget's Action scripts; other kinds are
+          // not supported.
+        }
+        if (next.length > 0) extras.next.set(id, next)
       } catch {
         // One unreadable widget does not stop the others.
       }

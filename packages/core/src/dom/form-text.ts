@@ -145,6 +145,13 @@ export function createTextWidget(
   let focused = false
   /** Text was typed since focus or the last commit. */
   let typed = false
+  /** Text the form refused on Enter and still holds as typed; not committed again on blur. */
+  let refused: string | undefined
+  /**
+   * Focus is in a form script's alert (`[data-ink-form-alert]`), which a refusing validator
+   * often shows. The field has not been left: its text stays, and focus comes back after.
+   */
+  let paused = false
   let composing = false
   let before: Snapshot = { value: '', start: 0, end: 0 }
 
@@ -272,17 +279,30 @@ export function createTextWidget(
     if (el.value !== text) el.value = text
   }
 
-  const commit = () => {
+  /**
+   * Commits the typed text. Refused on Enter (`leaving` false), the text stays, as the form
+   * keeps it, to be corrected. Leaving the field drops it: the caller dispatches Blur and shows
+   * the stored value, so a text already refused is not validated a second time.
+   */
+  const commit = (leaving: boolean) => {
     if (!typed) return
     typed = false
     const text = valueOf(el.value)
+    if (leaving && text === refused) return
+    refused = undefined
     if (text === raw()) {
       show()
       return
     }
     const result = form.set({ [field.name]: text })
-    ctx.setInvalid(result.rejected.length > 0)
-    // A rejected commit leaves the stored value, which nothing re-sends: show it again.
+    const rejected = result.rejected.length > 0
+    ctx.setInvalid(rejected)
+    if (rejected && !leaving) {
+      refused = text
+      typed = true
+      style()
+      return
+    }
     show()
     style()
   }
@@ -312,7 +332,40 @@ export function createTextWidget(
     fn: (ev: HTMLElementEventMap[K]) => void
   ) => el.addEventListener(type, fn as EventListener)
 
+  /** Focus is going into a form script's alert. */
+  const toAlert = (target: EventTarget | null) =>
+    target instanceof Element && target.closest('[data-ink-form-alert]') !== null
+
+  /** Leaves the field: commits, drops what is left uncommitted, and shows the stored value. */
+  const leave = () => {
+    commit(true)
+    focused = false
+    composing = false
+    typed = false
+    refused = undefined
+    form._dispatch({ widget: widget.id, name: 'Blur' })
+    show()
+    style()
+    ctx.redraw()
+  }
+
+  /** While paused: focus that moves on from the alert to anywhere but the field leaves it. */
+  const onFocusIn = (e: FocusEvent) => {
+    if (e.target === el || toAlert(e.target)) return
+    resume()
+    leave()
+  }
+  const resume = () => {
+    paused = false
+    el.ownerDocument.removeEventListener('focusin', onFocusIn, true)
+  }
+
   on('focus', () => {
+    if (paused) {
+      // Back from the alert: the field was never left, so nothing starts over.
+      resume()
+      return
+    }
     focused = true
     typed = false
     show()
@@ -321,14 +374,13 @@ export function createTextWidget(
     ctx.redraw()
     form._dispatch({ widget: widget.id, name: 'Focus' })
   })
-  on('blur', () => {
-    commit()
-    focused = false
-    composing = false
-    form._dispatch({ widget: widget.id, name: 'Blur' })
-    show()
-    style()
-    ctx.redraw()
+  on('blur', (e) => {
+    if (toAlert(e.relatedTarget)) {
+      paused = true
+      el.ownerDocument.addEventListener('focusin', onFocusIn, true)
+      return
+    }
+    leave()
   })
   on('beforeinput', () => {
     if (!composing) before = snap()
@@ -347,7 +399,7 @@ export function createTextWidget(
   on('keydown', (e) => {
     if (e.key !== 'Enter' || multiline || e.isComposing) return
     e.preventDefault()
-    commit()
+    commit(false)
     before = snap()
   })
 
@@ -375,6 +427,7 @@ export function createTextWidget(
       style()
     },
     destroy() {
+      resume()
       el.remove()
       datalist?.remove()
     },

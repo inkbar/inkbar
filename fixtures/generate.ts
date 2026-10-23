@@ -1360,6 +1360,130 @@ async function formSharedScripted() {
   )
 }
 
+/** Buttons whose GoTo actions name their page explicitly, by a name-tree name and by a /Dests name. */
+async function formGoto() {
+  const { d, font } = await doc()
+  const ctx = d.context
+  const page = d.addPage([612, 792])
+  const p2 = d.addPage([612, 792])
+  const p3 = d.addPage([612, 792])
+  text(page, font, ['GoTo form'], 740)
+  text(p2, font, ['Page 2'], 740)
+  text(p3, font, ['Page 3'], 740)
+  const form = d.getForm()
+  const buttons: [string, string, number][] = [
+    ['explicit', 'Page 3', 640],
+    ['named', 'Chapter 3', 590],
+    ['legacy', 'Chapter 2', 540],
+    ['missing', 'Nowhere', 490],
+    ['scripted', 'Script', 440],
+    ['goto-script', 'Page 2 + script', 390],
+    ['chain', 'Chain', 340],
+  ]
+  const btn: Record<string, PDFField> = {}
+  for (const [n, caption, y] of buttons) {
+    const b = form.createButton(n)
+    b.addToPage(caption, page, { x: 72, y, width: 120, height: 24 })
+    btn[n] = b
+  }
+  form.updateFieldAppearances(font)
+  addHelv(d, form)
+  const goto = (dest: PDFString | PDFName | [PDFRef, string]) => {
+    const a = ctx.obj({ S: 'GoTo' })
+    a.set(PDFName.of('D'), Array.isArray(dest) ? ctx.obj(dest) : dest)
+    return a
+  }
+  const action = (n: string, a: PDFDict) => widgetDict(btn[n]!).set(PDFName.of('A'), a)
+  action('explicit', goto([p3.ref, 'Fit']))
+  action('named', goto(PDFString.of('chapter-3')))
+  action('legacy', goto(PDFName.of('ch2')))
+  action('missing', goto(PDFString.of('nowhere')))
+  const script = js(ctx, 'app.alert("Going to chapter 3")')
+  script.set(PDFName.of('Next'), goto(PDFString.of('chapter-3')))
+  action('scripted', script)
+  // A GoTo that runs JavaScript after it, as Acrobat's action lists write it.
+  const then = goto([p2.ref, 'Fit'])
+  then.set(PDFName.of('Next'), js(ctx, 'var went = true'))
+  action('goto-script', then)
+  // A JavaScript /A whose /Next chain opens a URL, goes to page 2, then prints.
+  const print = goto([p2.ref, 'Fit'])
+  print.set(PDFName.of('Next'), ctx.obj({ S: 'Named', N: 'Print' }))
+  const chain = js(ctx, 'var chained = true')
+  chain.set(
+    PDFName.of('Next'),
+    ctx.obj([ctx.obj({ S: 'URI', URI: PDFString.of('https://example.com/next') }), print])
+  )
+  action('chain', chain)
+  d.catalog.set(
+    PDFName.of('Names'),
+    ctx.obj({ Dests: { Names: [PDFString.of('chapter-3'), [p3.ref, 'Fit']] } } as never)
+  )
+  d.catalog.set(PDFName.of('Dests'), ctx.obj({ ch2: [p2.ref, 'Fit'] } as never))
+  await save(
+    'form-goto',
+    d,
+    {
+      pages: 3,
+      opens: true,
+      describes:
+        "Push buttons with GoTo actions: an explicit destination, a name-tree name, a catalog /Dests name, a name with no destination, a JavaScript action whose /Next is a named GoTo, a GoTo whose /Next is JavaScript, and a JavaScript action whose /Next chain holds a URI, a GoTo and that GoTo's /Next Print",
+      annotations: { Widget: 7 },
+    },
+    { appearances: false }
+  )
+}
+
+/** A field whose validator, `AFRange_Validate`, refuses an out-of-range value with an alert. */
+async function formRange() {
+  const { d, font } = await doc()
+  const page = d.addPage([612, 792])
+  text(page, font, ['Range form'], 740)
+  const form = d.getForm()
+  const score = form.createTextField('score')
+  score.addToPage(page, { x: 72, y: 600, width: 200, height: 22 })
+  label(page, font, 'score (0 to 10; a value outside alerts)', 72, 600, 22)
+  const note = form.createTextField('note')
+  note.addToPage(page, { x: 72, y: 540, width: 200, height: 22 })
+  label(page, font, 'note (no scripts)', 72, 540, 22)
+  const clear = form.createButton('clear')
+  clear.addToPage('Clear', page, { x: 72, y: 480, width: 120, height: 24 })
+  form.updateFieldAppearances(font)
+  addHelv(d, form)
+  // A script, then a reset of note and an HTML submit, as an Acrobat action list writes them.
+  const ctx = d.context
+  const press = js(ctx, 'this.getField("score").value = "3"')
+  press.set(
+    PDFName.of('Next'),
+    ctx.obj([
+      ctx.obj({ S: 'ResetForm', Fields: [PDFString.of('note')], Flags: 0 }),
+      ctx.obj({
+        S: 'SubmitForm',
+        F: PDFString.of('https://example.com/range'),
+        Flags: 4,
+      }),
+    ])
+  )
+  widgetDict(clear).set(PDFName.of('A'), press)
+  setDA(score, HELV_12)
+  setDA(note, HELV_12)
+  score.acroField.dict.set(
+    PDFName.of('AA'),
+    d.context.obj({ V: js(d.context, 'AFRange_Validate(true, 0, true, 10)') })
+  )
+  await save(
+    'form-range',
+    d,
+    {
+      pages: 1,
+      opens: true,
+      describes:
+        'A text field whose AFRange_Validate (0 to 10) alerts and refuses a value outside the range, a plain text field, and a button whose JavaScript sets score and whose /Next resets note and submits, for checking that a refused value stays as typed through the alert and that /Next resets and submits run',
+      annotations: { Widget: 3 },
+    },
+    { appearances: false }
+  )
+}
+
 async function formBareAppearances() {
   const { d, font } = await doc()
   const page = d.addPage([612, 792])
@@ -1552,6 +1676,8 @@ async function main() {
   await formUppercase()
   await formSharedScripted()
   await formBareAppearances()
+  await formGoto()
+  await formRange()
   await incrementalSaved()
   await objectStreams()
   await encrypted('encrypted-aes')

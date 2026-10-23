@@ -167,6 +167,50 @@ describe('signField', () => {
     doc.destroy()
   })
 
+  it('a pinned signature takes patches that leave its look, place and signer alone', async () => {
+    const doc = await open()
+    const widget = fieldOf(doc.form.fields.get(), 'sig').widgets[0]!
+    const id = signField(doc, 'sig', widget.id, image)
+    const custom = { acme: { reviewed: true } }
+    const after = doc.annotations.update(id, { contents: 'ok', custom })
+    expect(after).toMatchObject({ contents: 'ok', custom })
+    const before = doc.annotations.get(id)!
+    // Its image, signer, label, rotation, lock and Inkbar's own data stay as signing made them.
+    expect(
+      doc.annotations.update(id, { imagedata: PNG.replace('=', 'A=') })
+    ).toBeUndefined()
+    expect(doc.annotations.update(id, { author: 'Ada' })).toBeUndefined()
+    expect(doc.annotations.update(id, { subject: 'Approved' })).toBeUndefined()
+    expect(doc.annotations.update(id, { rotation: 90 })).toBeUndefined()
+    expect(doc.annotations.update(id, { locked: true })).toBeUndefined()
+    expect(
+      doc.annotations.update(id, { custom: { ...custom, inkbar: { pressure: [1] } } })
+    ).toBeUndefined()
+    expect(doc.annotations.update(id, { contents: 'x', rotation: 90 })).toBeUndefined()
+    expect(doc.annotations.get(id)).toEqual(before)
+    doc.destroy()
+  })
+
+  it("a pinned signature takes Inkbar's own data back in any key order", async () => {
+    const doc = await open()
+    const widget = fieldOf(doc.form.fields.get(), 'sig').widgets[0]!
+    const id = signField(doc, 'sig', widget.id, ink)
+    // Give it Inkbar data while unpinned, then pin it again.
+    doc.annotations._setPinned(new Set())
+    doc.annotations.update(id, { custom: { inkbar: { a: 1, b: { c: [1, 2], d: 'x' } } } })
+    doc.annotations._setPinned(new Set([id]))
+    const after = doc.annotations.update(id, {
+      custom: { acme: { ok: 1 }, inkbar: { b: { d: 'x', c: [1, 2] }, a: 1 } },
+    })
+    expect(after?.custom).toMatchObject({ acme: { ok: 1 } })
+    expect(
+      doc.annotations.update(id, {
+        custom: { inkbar: { a: 1, b: { c: [2, 1], d: 'x' } } },
+      })
+    ).toBeUndefined()
+    doc.destroy()
+  })
+
   it('fits the box as a rotated page shows it, centred', async () => {
     const doc = await open()
     const widget = fieldOf(doc.form.fields.get(), 'sig2').widgets[0]!
@@ -236,9 +280,30 @@ describe('signField', () => {
 
     // A proposal the host lets lapse without pushing frees the field again.
     doc.annotations.setControlledValue([])
-    signField(doc, 'sig', widget.id, ink)
-    await new Promise((resolve) => setTimeout(resolve, 10))
+    const second = signField(doc, 'sig', widget.id, ink)
+    await vi.waitFor(() => expect(doc.annotations._getProposed(second)).toBeUndefined())
     expect(() => signField(doc, 'sig', widget.id, ink)).not.toThrow()
+    doc.destroy()
+  })
+
+  it('asking whether a field waits leaves a lapsed proposal to land late', async () => {
+    const proposals: Annotation[][] = []
+    const doc = await open('form-fields', {
+      annotations: {
+        mode: 'controlled',
+        initial: [],
+        onChange: (next) => proposals.push(next),
+      },
+    })
+    const widget = fieldOf(doc.form.fields.get(), 'sig').widgets[0]!
+    const id = signField(doc, 'sig', widget.id, ink)
+    // The proposal lapses once the store stops holding it.
+    await vi.waitFor(() => expect(doc.annotations._getProposed(id)).toBeUndefined())
+    expect(doc.form._awaitingSignature('sig')).toBe(false)
+    expect(doc.form._awaitingSignature('sig')).toBe(false)
+    // A slow host applies the proposal after all: the field it was for is signed.
+    doc.annotations.setControlledValue(proposals[0]!)
+    expect(doc.form.get('sig')).toEqual({ signature: id })
     doc.destroy()
   })
 
@@ -288,6 +353,37 @@ describe('signField', () => {
     doc.annotations.remove(id)
     expect(onChange).toHaveBeenCalledTimes(2)
     expect(onChange.mock.calls[1]![0].sig).toBeUndefined()
+    doc.destroy()
+  })
+
+  it('controlled fields: undo then redo brings the signature back pinned', async () => {
+    const host: { doc?: Awaited<ReturnType<typeof open>> } = {}
+    const onChange = vi.fn((next: FieldValues) => host.doc?.form.setControlledValue(next))
+    const doc = await open('form-fields', {
+      fields: { mode: 'controlled', initial: {}, onChange },
+    })
+    host.doc = doc
+    const widget = fieldOf(doc.form.fields.get(), 'sig').widgets[0]!
+    const id = signField(doc, 'sig', widget.id, image)
+    expect(doc.annotations._isPinned(id)).toBe(true)
+    doc.history.undo()
+    expect(doc.annotations.get(id)).toBeUndefined()
+    expect(doc.form.get('sig')).toBeUndefined()
+    doc.history.redo()
+    expect(doc.annotations.get(id)).toBeDefined()
+    expect(doc.form.get('sig')).toEqual({ signature: id })
+    expect(doc.annotations._isPinned(id)).toBe(true)
+    expect(onChange.mock.calls.map(([next]) => next.sig)).toEqual([
+      { signature: id },
+      undefined,
+      { signature: id },
+    ])
+    // Undoing the deletion of a signature brings it back pinned too.
+    doc.annotations.remove(id)
+    expect(doc.form.get('sig')).toBeUndefined()
+    doc.history.undo()
+    expect(doc.form.get('sig')).toEqual({ signature: id })
+    expect(doc.annotations._isPinned(id)).toBe(true)
     doc.destroy()
   })
 

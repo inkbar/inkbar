@@ -1,6 +1,8 @@
 import { fontFromBaseName } from '../../pdf/annotation-fields'
 import { pdfColorToHex } from '../annotations/embedded'
 
+import { suits } from './values'
+
 import type {
   FieldFlags,
   FieldOption,
@@ -38,6 +40,7 @@ const FF = {
 
 // Annotation `/F` bits.
 const F_HIDDEN = 1 << 1
+const F_PRINT = 1 << 2
 const F_NO_VIEW = 1 << 5
 
 const BORDER_STYLES = ['solid', 'dashed', 'beveled', 'inset', 'underline'] as const
@@ -128,6 +131,18 @@ function appearanceOf(
   return appearance
 }
 
+/** Whether the widget's own `/A` is JavaScript: read from the file, else from PDF.js. */
+function scriptAction(d: PdfjsAnnotationData, id: string, extras: FormExtras): boolean {
+  // PDF.js's `actions.Action` holds the JavaScript of the whole `/A` chain, `/Next` included,
+  // so it is only the answer when the file's own objects could not be read.
+  return extras.widgets.has(id) ? extras.scriptActions.has(id) : hasActionScript(d)
+}
+
+const uriOf = (d: PdfjsAnnotationData): WidgetAction | undefined =>
+  d.url
+    ? { kind: 'uri', url: d.url, ...(d.newWindow ? { newWindow: true } : {}) }
+    : undefined
+
 function actionOf(
   d: PdfjsAnnotationData,
   id: string,
@@ -136,6 +151,8 @@ function actionOf(
 ): WidgetAction | undefined {
   const submit = extras.submits.get(id)
   if (submit) return submit
+  // A JavaScript `/A`'s URL is its fallback, not a second action: see `fallbackOf`.
+  if (scriptAction(d, id, extras)) return undefined
   if (d.resetForm) {
     const refs = d.resetForm.refs.flatMap((r) => namesById.get(r) ?? [])
     return {
@@ -144,13 +161,24 @@ function actionOf(
       include: d.resetForm.include,
     }
   }
-  // PDF.js also fills `url` from a JavaScript `/A` that calls `app.launchURL`; the script
-  // reports that call itself, so it is not a second action.
-  if (d.url && !hasActionScript(d)) return { kind: 'uri', url: d.url }
+  const uri = uriOf(d)
+  if (uri) return uri
   if (d.action) return { kind: 'named', name: d.action }
   const page = extras.destPages.get(id)
   if (page !== undefined) return { kind: 'goto', page }
   return undefined
+}
+
+/**
+ * The URL a JavaScript `/A` opens: PDF.js fills `url` and `newWindow` from its
+ * `app.launchURL`. The script opens it itself when it runs.
+ */
+function fallbackOf(
+  d: PdfjsAnnotationData,
+  id: string,
+  extras: FormExtras
+): WidgetAction | undefined {
+  return scriptAction(d, id, extras) ? uriOf(d) : undefined
 }
 
 function hasActionScript(d: PdfjsAnnotationData): boolean {
@@ -185,7 +213,7 @@ function widgetOf(
     },
     rotation: rotationOf(d.rotation),
     hidden: (flags & F_HIDDEN) !== 0 || d.hidden === true,
-    printOnly: (flags & F_NO_VIEW) !== 0,
+    printOnly: (flags & F_NO_VIEW) !== 0 && (flags & F_PRINT) !== 0,
     appearance: appearanceOf(d, type, extra),
     hasScripts: hasScripts(d.actions),
   }
@@ -195,6 +223,10 @@ function widgetOf(
   }
   const action = actionOf(d, d.id, extras, namesById)
   if (action) widget.action = action
+  const fallback = fallbackOf(d, d.id, extras)
+  if (fallback) widget.fallback = fallback
+  const next = extras.next.get(d.id)
+  if (next) widget.next = next
   return widget
 }
 
@@ -288,7 +320,10 @@ function buildField(
       barcode,
   }
   if (type === 'text' && d.maxLen) field.maxLength = d.maxLen
-  if (defaultValue !== undefined) field.defaultValue = defaultValue
+  // Like a value a host sets, a default the field cannot hold is dropped: a reset then
+  // empties the field instead.
+  if (defaultValue !== undefined && suits(field, defaultValue))
+    field.defaultValue = defaultValue
   if (value !== undefined) field.value = value
   const tooltip = d.alternativeText || extras.widgets.get(d.id)?.tooltip
   if (tooltip) field.tooltip = tooltip

@@ -12,8 +12,8 @@ export interface PluginHistory {
   batch(fn: () => void): void
   /**
    * Makes the store's changes undo steps: on their own, or joining the open batch or edit. The
-   * returned function stops tracking; existing entries keep their snapshot of the store but undo
-   * and redo no longer replay it.
+   * returned function stops tracking: existing entries forget the store, so undo and redo never
+   * replay it again, even once it is tracked again, and an entry left with nothing is dropped.
    */
   track(store: RecordStore<RecordBase>): () => void
   /**
@@ -429,7 +429,9 @@ export function createHistory(
         if (tracked.get(recordStore)?.unsubscribe !== unsubscribeStore) return
         unsubscribeStore()
         tracked.delete(recordStore)
-        overrides.delete(recordStore)
+        // As a reset does: no step replays the store again, even if it is tracked again,
+        // so none can rewind a baseline write or a change made while it was untracked.
+        dropEntries(recordStore)
         start?.records.delete(recordStore)
       }
     },

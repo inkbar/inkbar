@@ -2556,6 +2556,41 @@ describe('forms', () => {
     expect(onError).toHaveBeenCalledWith(error)
   })
 
+  it('keeps a value a validator refuses with an alert, and validates it once', async () => {
+    const { viewer } = make('form-range')
+    const { doc } = await ready(viewer)
+    const alerts: string[] = []
+    doc.form.on('alert', (m) => alerts.push(m))
+    await until(() => widgetBox(viewer, 'score') !== null)
+    const score = widgetBox(viewer, 'score')!.querySelector('input')!
+    await userEvent.click(score)
+    await userEvent.keyboard('50{Enter}')
+    await until(() => document.querySelector('[data-ink-form-alert]') !== null)
+    expect(alerts).toHaveLength(1)
+    expect(doc.form.get('score')).toBe('')
+    expect(score.value).toBe('50')
+    expect(score.getAttribute('aria-invalid')).toBe('true')
+    await userEvent.keyboard('{Escape}')
+    expect(document.querySelector('[data-ink-form-alert]')).toBeNull()
+    expect(document.activeElement).toBe(score)
+    expect(score.value).toBe('50')
+    // Typing builds on the kept text.
+    await userEvent.keyboard('{Backspace}{Enter}')
+    expect(doc.form.get('score')).toBe('5')
+    expect(score.hasAttribute('aria-invalid')).toBe(false)
+
+    // Refused again, then left: the stored value shows, and Validate does not run twice.
+    score.select()
+    await userEvent.keyboard('99{Enter}')
+    await until(() => alerts.length === 2)
+    await userEvent.keyboard('{Escape}')
+    expect(score.value).toBe('99')
+    const note = widgetBox(viewer, 'note')!.querySelector('input')!
+    await userEvent.click(note)
+    expect(alerts).toHaveLength(2)
+    expect(score.value).toBe('5')
+  })
+
   it('reports a sandbox that fails while the document opens to onError', async () => {
     vi.spyOn(sandboxLoader, 'load').mockRejectedValue(new Error('offline'))
     cleanup.push(() => vi.restoreAllMocks())
@@ -2564,6 +2599,34 @@ describe('forms', () => {
     await ready(viewer)
     await until(() => onError.mock.calls.length > 0)
     expect(onError.mock.calls.map(([e]) => e.code)).toEqual(['FormScriptError'])
+  })
+
+  it('reports an error from while the document opened only after onReady', async () => {
+    vi.spyOn(sandboxLoader, 'load').mockRejectedValue(new Error('offline'))
+    cleanup.push(() => vi.restoreAllMocks())
+    const heard: string[] = []
+    const { viewer } = make('form-scripted', {
+      onReady: () => heard.push('ready'),
+      onError: (e) => heard.push(e.code),
+    })
+    await ready(viewer)
+    await until(() => heard.length > 1)
+    expect(heard).toEqual(['ready', 'FormScriptError'])
+  })
+
+  it('keeps open-time errors for onError when onReady listens to the form too', async () => {
+    vi.spyOn(sandboxLoader, 'load').mockRejectedValue(new Error('offline'))
+    cleanup.push(() => vi.restoreAllMocks())
+    const heard: string[] = []
+    const { viewer } = make('form-scripted', {
+      onReady: (doc) => {
+        doc.form.on('error', (e) => heard.push(`host ${e.code}`))
+      },
+      onError: (e) => heard.push(e.code),
+    })
+    await ready(viewer)
+    await until(() => heard.includes('FormScriptError'))
+    expect(heard).toEqual(['FormScriptError'])
   })
 
   it('controlled fields round-trip through onFieldsChange', async () => {
