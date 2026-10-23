@@ -144,6 +144,10 @@ A plugin from `definePlugin` (in `@inkbar/core/dom`) adds commands, tools, decor
 
 Plugin stores undo with annotations. In controlled mode with `:history="true"`, each undo step also snapshots the plugin stores, so accepting something and undoing it restores both.
 
+## Search
+
+`InkFindBar` is the find bar and `InkSearchButton` opens it. Place the bar anywhere inside `InkRoot`, once `InkViewport` is there; Ctrl/Cmd+F opens it while it is mounted. `useSearch()` returns the search `state` and its actions (`open`, `setQuery`, `next`, `previous`, `close`) for your own control. See the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#search) for the API.
+
 ## Custom rendering
 
 Slots let you render parts yourself. `InkViewport` has `loading`, `empty`, `error`, `annotation` and `page-error` slots. `InkThreadPopover` has a scoped default slot that receives the popover's props, and the default slot of `InkToolButton` receives `{ active, label }`. The props are typed as `AnnotationSlotProps` and `ThreadPopoverSlotProps`, the same types the React and Svelte packages export.
