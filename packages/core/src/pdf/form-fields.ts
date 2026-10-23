@@ -16,6 +16,8 @@ import type { WidgetAction } from '../model/form/types'
 export interface WidgetExtras {
   /** A checkbox or radio widget's on state: the first `/AP /N` key that is not `Off`. */
   onState?: string
+  /** A checkbox or radio widget's `/AP /N` has an `Off` appearance. */
+  offAppearance?: true
   /** A checkbox or radio field's `/V` state name, which PDF.js reports as an export value. */
   state?: string
   /** A checkbox or radio field's `/DV` state name. */
@@ -279,6 +281,7 @@ async function readWidget(
     const n = ap && (await dictOf(objs, dictGet(ap, 'N')))
     const on = n && [...n.entries.keys()].find((k) => k !== 'Off')
     if (on !== undefined) extras.onState = on
+    if (n?.entries.has('Off')) extras.offAppearance = true
     const v = await inherited(objs, widget, 'V')
     if (isName(v)) extras.state = v.name
     const dv = await inherited(objs, widget, 'DV')

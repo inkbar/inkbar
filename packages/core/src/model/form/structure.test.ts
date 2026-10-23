@@ -143,6 +143,22 @@ describe('buildFormFields', () => {
     expect(fields.get('name')!.widgets[0]!.appearance.onAppearance).toBeUndefined()
   })
 
+  it('reads which appearances the file has', async () => {
+    const full = await fieldsOf('form-fields')
+    expect(full.get('name')!.widgets[0]!.appearance.fileAppearance).toBe(true)
+    expect(full.get('agree')!.widgets[0]!.appearance).toMatchObject({
+      onAppearance: true,
+      offAppearance: true,
+    })
+    const bare = await fieldsOf('form-bare-appearances')
+    // On, with no /Off look: off, the file draws nothing for it.
+    expect(bare.get('agree')!.widgets[0]!.appearance).toMatchObject({
+      onAppearance: true,
+      offAppearance: false,
+    })
+    expect(bare.get('note')!.widgets[0]!.appearance.fileAppearance).toBe(false)
+  })
+
   it('reads a /DA font through the resource dictionary', async () => {
     const styled = (await fieldsOf('form-fields')).get('styled')!
     expect(styled.widgets[0]!.appearance).toMatchObject({

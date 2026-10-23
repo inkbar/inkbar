@@ -57,6 +57,13 @@ export interface WidgetAppearance {
   checkStyle?: string
   /** A checkbox or radio widget has its own on appearance: `/AP /N` holds its on state. */
   onAppearance?: boolean
+  /** A checkbox or radio widget has its own off appearance: `/AP /N` holds `Off`. */
+  offAppearance?: boolean
+  /**
+   * The file has an `/AP /N` appearance for the widget (a checkbox or radio: for its current
+   * `/AS`). Without one, PDF.js draws nothing for it unless it makes one from the value.
+   */
+  fileAppearance?: boolean
 }
 
 export type WidgetAction =

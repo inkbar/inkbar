@@ -1351,6 +1351,44 @@ async function formSharedScripted() {
   )
 }
 
+async function formBareAppearances() {
+  const { d, font } = await doc()
+  const page = d.addPage([612, 792])
+  text(page, font, ['Bare appearances form'], 740)
+  const form = d.getForm()
+  const agree = form.createCheckBox('agree')
+  agree.addToPage(page, { x: 72, y: 600, width: 18, height: 18 })
+  label(page, font, 'agree (no /Off appearance)', 72, 600, 18)
+  const note = form.createTextField('note')
+  note.addToPage(page, { x: 72, y: 540, width: 200, height: 22 })
+  label(page, font, 'note (no /AP)', 72, 540, 22)
+  form.updateFieldAppearances(font)
+  addHelv(d, form)
+  setDA(note, HELV_12)
+  // The checkbox draws only when on: its /AP holds /Yes and no /Off, as many generators write.
+  const box = widgetDict(agree)
+  for (const key of ['N', 'D']) {
+    const states = box
+      .lookupMaybe(PDFName.of('AP'), PDFDict)
+      ?.lookupMaybe(PDFName.of(key), PDFDict)
+    states?.delete(PDFName.of('Off'))
+  }
+  box.set(PDFName.of('AS'), PDFName.of('Off'))
+  widgetDict(note).delete(PDFName.of('AP'))
+  await save(
+    'form-bare-appearances',
+    d,
+    {
+      pages: 1,
+      opens: true,
+      describes:
+        'A checkbox whose /AP has an on state and no /Off, and a text field with no /AP, for checking that widgets the file draws nothing for are not reported as missing',
+      annotations: { Widget: 2 },
+    },
+    { appearances: false }
+  )
+}
+
 /**
  * A real incremental update: the base revision is written by pdf-lib, then the changed page
  * object and the new Highlight are appended with their own xref section and a trailer whose
@@ -1504,6 +1542,7 @@ async function main() {
   await formTimer()
   await formUppercase()
   await formSharedScripted()
+  await formBareAppearances()
   await incrementalSaved()
   await objectStreams()
   await encrypted('encrypted-aes')
