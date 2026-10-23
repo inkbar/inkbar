@@ -8,13 +8,24 @@ import { useSearch } from '../../src/hooks/useSearch'
 import type { DocumentSource, PdfAssets } from '@inkbar/core'
 
 function SearchProbe() {
-  const { state, setQuery } = useSearch()
+  const { state, setQuery, next, previous } = useSearch()
   return (
     <>
       <output data-testid="query">{state.query}</output>
       <output data-testid="open">{String(state.open)}</output>
       <button type="button" data-testid="set-query" onClick={() => setQuery('Inkbar')}>
         Set
+      </button>
+      {/* Steps forward and back in one task, to check the live region sees both. */}
+      <button
+        type="button"
+        data-testid="there-and-back"
+        onClick={() => {
+          next()
+          previous()
+        }}
+      >
+        Step
       </button>
     </>
   )
@@ -36,7 +47,8 @@ export function FindHarness({
       </button>
       <InkRoot src={src} assets={assets} zoom={1}>
         <InkToolbar>
-          <InkSearchButton />
+          {/* Its own label must win over these. */}
+          <InkSearchButton aria-label="Search the PDF" title="Search the PDF" />
         </InkToolbar>
         {/* Test-only box: the scroll container needs a bounded height to scroll. */}
         <div style={{ height: 600, width: 900 }}>

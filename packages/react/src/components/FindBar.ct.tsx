@@ -119,3 +119,79 @@ test('the bar passes axe while open', async ({ mount, page }) => {
   const results = await new AxeBuilder({ page }).include('[data-ink-find-bar]').analyze()
   expect(results.violations.map((v) => v.id)).toEqual([])
 })
+
+test('Ctrl+F takes the selected page text as the query', async ({ mount, page }) => {
+  await mount(<Harness {...props} />)
+  await page
+    .locator('[data-ink-text-layer] span', { hasText: 'QQ123456C' })
+    .first()
+    .waitFor()
+  await page.locator('[data-ink-scroll]').evaluate((scroll) => {
+    const span = [...scroll.querySelectorAll('[data-ink-text-layer] span')].find((s) =>
+      s.textContent?.includes('QQ123456C')
+    )!
+    const node = span.firstChild!
+    const at = node.textContent!.indexOf('QQ123456C')
+    const range = document.createRange()
+    range.setStart(node, at)
+    range.setEnd(node, at + 'QQ123456C'.length)
+    window.getSelection()!.removeAllRanges()
+    window.getSelection()!.addRange(range)
+    ;(scroll as HTMLElement).focus()
+  })
+  await page.keyboard.press('Control+f')
+  const field = page.getByRole('textbox', { name: 'Find in document' })
+  await expect(field).toBeFocused()
+  await expect(field).toHaveValue('QQ123456C')
+  await expect(page.getByTestId('query')).toHaveText('QQ123456C')
+})
+
+test('the live region follows each step, even two in one task', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(<Harness {...props} />)
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  await page.getByRole('button', { name: 'Find', exact: true }).click()
+  await page.keyboard.type('QQ123456C')
+  const live = page.locator('[data-ink-find-status]')
+  await expect(live).toHaveText('Match 1 of 3, page 1')
+  const seen = await live.evaluate(async (el) => {
+    const texts: string[] = []
+    const observer = new MutationObserver((records) => {
+      for (const r of records)
+        for (const n of r.addedNodes) texts.push(n.textContent ?? '')
+    })
+    observer.observe(el, { childList: true, characterData: true, subtree: true })
+    document.querySelector<HTMLElement>('[data-testid="there-and-back"]')!.click()
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    observer.disconnect()
+    return texts
+  })
+  expect(seen).toEqual(['Match 2 of 3, page 2', 'Match 1 of 3, page 1'])
+})
+
+test('Escape in the bar stops before the root sees it', async ({ mount, page }) => {
+  const cmp = await mount(<Harness {...props} />)
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  await page.locator('[data-ink-viewport-root]').evaluate((root) => {
+    root.addEventListener('keydown', (e) => {
+      if ((e as KeyboardEvent).key === 'Escape') root.setAttribute('data-saw-escape', '')
+    })
+  })
+  await page.getByRole('button', { name: 'Find', exact: true }).click()
+  await expect(page.getByRole('textbox', { name: 'Find in document' })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(page.locator('[data-ink-find-bar]')).toBeHidden()
+  await expect(page.locator('[data-ink-viewport-root]')).not.toHaveAttribute(
+    'data-saw-escape'
+  )
+})
+
+test("keeps the search button's own label over a caller's", async ({ mount, page }) => {
+  const cmp = await mount(<Harness {...props} />)
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  const button = page.locator('[data-ink-search-button]')
+  await expect(button).toHaveAttribute('aria-label', 'Find')
+  await expect(button).toHaveAttribute('title', 'Find')
+})
