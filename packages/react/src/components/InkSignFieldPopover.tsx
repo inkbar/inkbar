@@ -11,12 +11,14 @@ import {
   handleMenuKeys,
   SIGNATURE_LABELS,
   signatureMenuModel,
+  watchDetached,
   type SignFieldRequest,
 } from '@inkbar/core/dom'
 import { Popover } from 'radix-ui'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { useInkContext } from '../context'
+import { useLatest } from '../use-latest'
 import { useReadable } from '../use-readable'
 
 import { InkSignatureDialog } from './InkSignatureDialog'
@@ -44,7 +46,10 @@ export function InkSignFieldPopover({
   /** The field the dialog signs once its signature is saved. */
   const [creatingFor, setCreatingFor] = useState<SignFieldRequest | null>(null)
   const menu = useRef<HTMLDivElement>(null)
-  /** The request the menu last opened for, kept to return focus once it closes. */
+  /**
+   * The request the menu was last open for, kept to return focus once it closes. A request
+   * that replaces the open one takes over, so focus returns to the field asked for last.
+   */
   const last = useRef<SignFieldRequest | null>(null)
   /** Set while the menu closes for the dialog, which takes focus instead of the field. */
   const toDialog = useRef(false)
@@ -55,6 +60,21 @@ export function InkSignFieldPopover({
   useEffect(() => {
     if (request) signatures.clearRemoveError()
   }, [request, signatures])
+
+  // The field's box went (its page unmounted, its layer rebuilt): the menu has nothing to
+  // stand by.
+  const close = useLatest(onClose)
+  useEffect(() => {
+    if (!request) return
+    last.current = request
+    return watchDetached(request.anchor, () => close.current())
+  }, [request, close])
+
+  /** Focus goes back to the field's button, or to the scroll element once the field's box has gone. */
+  const returnFocus = (req: SignFieldRequest | null): void => {
+    const c = control(req)
+    ;(c?.isConnected ? c : ctx.viewportEl.get())?.focus({ preventScroll: true })
+  }
 
   /** Signs the request's field with `t`; a refusal (signed, read-only by now) goes to `onError`. */
   const sign = (req: SignFieldRequest, t: SignatureTemplate): void => {
@@ -87,13 +107,11 @@ export function InkSignFieldPopover({
               collisionPadding={8}
               onOpenAutoFocus={(e) => {
                 e.preventDefault()
-                last.current = request
                 focusInitialMenuItem(e.currentTarget as HTMLElement)
               }}
               onCloseAutoFocus={(e) => {
                 e.preventDefault()
-                if (!toDialog.current)
-                  control(last.current)?.focus({ preventScroll: true })
+                if (!toDialog.current) returnFocus(last.current)
                 toDialog.current = false
               }}
               onInteractOutside={(e) => {
@@ -133,7 +151,7 @@ export function InkSignFieldPopover({
         }}
         onCloseAutoFocus={(e) => {
           e.preventDefault()
-          control(last.current)?.focus({ preventScroll: true })
+          returnFocus(last.current)
         }}
       />
     </>

@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { createFocusReturn, shouldKeepOpenOnAnnotation } from './popover-focus'
+import {
+  createFocusReturn,
+  shouldKeepOpenOnAnnotation,
+  watchDetached,
+} from './popover-focus'
+import { until } from './test-utils'
 
 let root: HTMLElement
 afterEach(() => root?.remove())
@@ -116,5 +121,70 @@ describe('createFocusReturn', () => {
     expect(document.activeElement).toBe(document.body)
     fr.onCloseAutoFocus(new Event('x', { cancelable: true }), els[0]!)
     expect(document.activeElement).toBe(els[0])
+  })
+})
+
+describe('watchDetached', () => {
+  it('calls back once when the element leaves the document, however it goes', async () => {
+    root = document.createElement('div')
+    const box = document.createElement('div')
+    const el = document.createElement('div')
+    box.append(el)
+    root.append(box)
+    document.body.append(root)
+    let calls = 0
+    const stop = watchDetached(el, () => calls++)
+    root.append(document.createElement('span'))
+    await Promise.resolve()
+    expect(calls).toBe(0)
+    // Its parent goes, not the element itself.
+    box.remove()
+    await until(() => calls > 0)
+    root.append(box)
+    box.remove()
+    await new Promise((r) => setTimeout(r, 20))
+    expect(calls).toBe(1)
+    stop()
+  })
+
+  it('sees a removal inside nested shadow roots', async () => {
+    root = document.createElement('div')
+    document.body.append(root)
+    const outer = root.attachShadow({ mode: 'open' })
+    const hostEl = document.createElement('div')
+    outer.append(hostEl)
+    const inner = hostEl.attachShadow({ mode: 'open' })
+    const box = document.createElement('div')
+    const el = document.createElement('div')
+    box.append(el)
+    inner.append(box)
+    let calls = 0
+    watchDetached(el, () => calls++)
+    box.remove()
+    await until(() => calls === 1)
+    // And a removal in the outer shadow root, of an ancestor host.
+    const box2 = document.createElement('div')
+    const el2 = document.createElement('div')
+    box2.append(el2)
+    outer.append(box2)
+    let calls2 = 0
+    watchDetached(el2, () => calls2++)
+    box2.remove()
+    await until(() => calls2 === 1)
+  })
+
+  it('calls back for an element already detached, and not once stopped', async () => {
+    let calls = 0
+    watchDetached(document.createElement('div'), () => calls++)
+    await until(() => calls === 1)
+    root = document.createElement('div')
+    const el = document.createElement('div')
+    root.append(el)
+    document.body.append(root)
+    let late = 0
+    watchDetached(el, () => late++)()
+    el.remove()
+    await new Promise((r) => setTimeout(r, 20))
+    expect(late).toBe(0)
   })
 })

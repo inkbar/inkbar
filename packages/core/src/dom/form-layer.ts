@@ -101,6 +101,8 @@ export interface FormLayer {
   tabStops(): HTMLElement[]
   /** Reads `isActive()` again, after the active tool changed. */
   refresh(): void
+  /** Tints the fields or stops, in place, as `highlight` does at creation. */
+  setHighlight(on: boolean): void
   destroy(): void
 }
 
@@ -594,6 +596,9 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
     },
     refresh() {
       if (!destroyed) setActive()
+    },
+    setHighlight(on) {
+      element.dataset.inkFormHighlight = on ? 'on' : 'off'
     },
     destroy() {
       if (destroyed) return

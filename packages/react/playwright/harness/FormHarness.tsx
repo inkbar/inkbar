@@ -59,9 +59,20 @@ export interface FormHarnessProps {
   swapTo?: { src: string; initial?: FieldValues }
   templates?: SignatureTemplate[]
   formHighlight?: boolean
+  /** `onReady` throws once it has recorded `ready`, as a broken host's would. */
+  throwOnReady?: boolean
   onFormAction?: (action: FormAction) => void
   onError?: (error: InkError) => void
   onChanged?: (next: FieldValues, change: FieldsChange) => void
+}
+
+/**
+ * Records what the root reported, in order, in the page, where a test can read it in the same
+ * task as the cause: `ready`, then each error's code.
+ */
+function record(entry: string): void {
+  const w = window as Window & { __inkHeard?: string[] }
+  ;(w.__inkHeard ??= []).push(entry)
 }
 
 /** A host that owns the values through `fields`, the way an app would. */
@@ -74,6 +85,7 @@ export function FormHarness({
   swapTo,
   templates = [],
   formHighlight,
+  throwOnReady = false,
   onFormAction,
   onError,
   onChanged,
@@ -96,7 +108,14 @@ export function FormHarness({
       }}
       formHighlight={formHighlight}
       onFormAction={onFormAction}
-      onError={onError}
+      onReady={() => {
+        record('ready')
+        if (throwOnReady) throw new Error('host onReady failed')
+      }}
+      onError={(e) => {
+        record(e.code)
+        onError?.(e)
+      }}
     >
       <InkToolbar>
         <InkUndo />

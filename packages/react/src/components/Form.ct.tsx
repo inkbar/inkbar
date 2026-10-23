@@ -165,6 +165,23 @@ test('a value a validator refuses with an alert stays as typed', async ({
   await expect(page.getByTestId('form')).toHaveAttribute('data-values', /"score":"7"/)
 })
 
+test('closing the alert leaves focus where the user moved it', async ({
+  mount,
+  page,
+}) => {
+  await mount(harness({ src: fixtureUrl('form-scripted') }))
+  const hello = widget(page, 'hello').locator('button')
+  await hello.click()
+  const alert = page.getByRole('alertdialog', { name: 'Message' })
+  await expect(alert).toBeVisible()
+  const qty = widget(page, 'qty').locator('input')
+  await qty.focus()
+  // A click with no press: OK closes the alert without taking focus first.
+  await alert.getByRole('button', { name: 'OK' }).dispatchEvent('click')
+  await expect(alert).toBeHidden()
+  await expect(qty).toBeFocused()
+})
+
 test('a form script error reaches onError', async ({ mount, page }) => {
   const errors: { code: string }[] = []
   await mount(
@@ -199,6 +216,66 @@ test('a sandbox that fails while the document opens reaches onError', async ({
     .poll(() => errors)
     .toEqual(["The form's scripts could not start; it can still be filled in"])
   guard.clear()
+})
+
+const heardInPage = (page: Page): Promise<string[]> =>
+  page.evaluate(() => (window as Window & { __inkHeard?: string[] }).__inkHeard ?? [])
+
+test('an error from while the document opened reaches onError after onReady', async ({
+  mount,
+  page,
+}) => {
+  await mount(
+    <FormHarness
+      assets={{ ...assets, wasm: '/missing/' }}
+      src={fixtureUrl('form-scripted')}
+    />
+  )
+  await expect.poll(() => heardInPage(page)).toEqual(['ready', 'FormScriptError'])
+  guard.clear()
+})
+
+test('an onReady that throws does not strand the form errors', async ({
+  mount,
+  page,
+}) => {
+  await mount(
+    <FormHarness
+      assets={{ ...assets, wasm: '/missing/' }}
+      src={fixtureUrl('form-scripted')}
+      throwOnReady
+    />
+  )
+  await expect.poll(() => heardInPage(page)).toContain('FormScriptError')
+  // A later error still reaches onError.
+  await page.locator('[data-ink-root]').evaluate((el) => {
+    const doc = (
+      el as HTMLElement & { __inkDocument?: { form: { _error(e: unknown): void } } }
+    ).__inkDocument!
+    doc.form._error({ code: 'FieldSigned', message: 'later' })
+  })
+  await expect.poll(() => heardInPage(page)).toContain('FieldSigned')
+  guard.clear()
+})
+
+test('a form script error reaches onError one microtask later', async ({
+  mount,
+  page,
+}) => {
+  await mount(harness({ src: fixtureUrl('form-scripted') }))
+  await expect(widget(page, 'hello')).toBeVisible()
+  const [sync, next] = await page.locator('[data-ink-root]').evaluate(async (el) => {
+    const doc = (
+      el as HTMLElement & { __inkDocument?: { form: { _error(e: unknown): void } } }
+    ).__inkDocument!
+    const heard = () => (window as Window & { __inkHeard?: string[] }).__inkHeard ?? []
+    doc.form._error({ code: 'FormScriptError', message: 'A form script failed' })
+    const now = heard().length
+    await Promise.resolve()
+    return [now, heard().length]
+  })
+  expect(sync).toBe(1)
+  expect(next).toBe(2)
 })
 
 test.describe('signature fields', () => {
@@ -308,6 +385,44 @@ test.describe('signature fields', () => {
     await expect(page.getByTestId('probe')).toHaveAttribute('data-tool', 'select-text')
     await expect(page.getByTestId('probe')).toHaveAttribute('data-annotations', '1')
   })
+
+  test('closes when its field box leaves the page for any reason', async ({
+    mount,
+    page,
+  }) => {
+    await mount(harness({ src: fixtureUrl('form-fields'), templates: [IMAGE] }))
+    const button = widget(page, 'sig').locator('[data-ink-sign-field]')
+    const menu = page.locator('[data-ink-sign-field-menu="sig"]')
+    await button.scrollIntoViewIfNeeded()
+    await button.click()
+    await expect(menu).toBeVisible()
+    // Not a page unmount: only the box goes.
+    await widget(page, 'sig').evaluate((el) => el.remove())
+    await expect(menu).toBeHidden()
+    // The field's button went with its box: focus goes to the scroll element.
+    await expect(page.locator('[data-ink-scroll]')).toBeFocused()
+  })
+
+  test('returns focus to the field that replaced the open one', async ({
+    mount,
+    page,
+  }) => {
+    await mount(harness({ src: fixtureUrl('form-fields'), templates: [IMAGE] }))
+    const button = widget(page, 'sig').locator('[data-ink-sign-field]')
+    const other = widget(page, 'sig2').locator('[data-ink-sign-field]')
+    await button.scrollIntoViewIfNeeded()
+    await button.click()
+    await expect(page.locator('[data-ink-sign-field-menu="sig"]')).toBeVisible()
+    // A click with no press first: the open menu sees nothing outside it, and the request is
+    // replaced while it stays open.
+    await other.evaluate((el) => (el as HTMLElement).click())
+    const menu = page.locator('[data-ink-sign-field-menu="sig2"]')
+    await expect(menu).toBeVisible()
+    await menu.getByRole('menuitem', { name: 'Create signature' }).focus()
+    await page.keyboard.press('Escape')
+    await expect(menu).toBeHidden()
+    await expect(other).toBeFocused()
+  })
 })
 
 test('useForm exposes values', async ({ mount, page }) => {
@@ -329,6 +444,31 @@ test('useForm exposes values', async ({ mount, page }) => {
   await page.getByTestId('form-reset').click()
   await expect(probe).not.toHaveAttribute('data-values', /"name":"Set"/)
   await expect(input).not.toHaveValue('Set')
+})
+
+test('uncontrolled fields never call onFieldsChange', async ({ mount, page }) => {
+  const changes: unknown[] = []
+  await mount(
+    harness({
+      src: fixtureUrl('form-fields'),
+      onChanged: (_next, change) => changes.push(change),
+    })
+  )
+  const input = widget(page, 'name').locator('input')
+  await input.click()
+  await page.keyboard.press('ControlOrMeta+a')
+  await page.keyboard.type('Grace')
+  await page.keyboard.press('Enter')
+  await expect(page.getByTestId('form')).toHaveAttribute('data-values', /"name":"Grace"/)
+  await page.getByTestId('form-set').click()
+  await expect(input).toHaveValue('Set')
+  await page.getByTestId('form-reset').click()
+  await expect(input).not.toHaveValue('Set')
+  await page.locator('[data-ink-toolbar] [data-ink-undo]').click()
+  await expect(input).toHaveValue('Set')
+  await page.waitForTimeout(100)
+  expect(changes).toEqual([])
+  await expect(page.getByTestId('host-fields')).toHaveAttribute('data-heard', '0')
 })
 
 test("uncontrolled fields undo with the toolbar's undo", async ({ mount, page }) => {
@@ -354,6 +494,20 @@ test('formHighlight false turns the tint off', async ({ mount, page }) => {
     'data-ink-form-highlight',
     'off'
   )
+})
+
+test('a formHighlight change applies in place', async ({ mount, page }) => {
+  const src = fixtureUrl('form-fields')
+  const c = await mount(harness({ src, formHighlight: false }))
+  const layer = page.locator('[data-ink-form-layer]').first()
+  await expect(layer).toHaveAttribute('data-ink-form-highlight', 'off')
+  // Marks the layer, so a rebuilt one would show.
+  await layer.evaluate((el) => el.setAttribute('data-test-mark', ''))
+  await c.update(harness({ src, formHighlight: true }))
+  await expect(layer).toHaveAttribute('data-ink-form-highlight', 'on')
+  await expect(layer).toHaveAttribute('data-test-mark', '')
+  await c.update(harness({ src, formHighlight: false }))
+  await expect(layer).toHaveAttribute('data-ink-form-highlight', 'off')
 })
 
 test.describe('a new source', () => {

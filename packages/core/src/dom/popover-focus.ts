@@ -79,3 +79,36 @@ export function createFocusReturn(opts: FocusReturnOptions): FocusReturn {
     },
   }
 }
+
+/**
+ * Calls `onDetach` once when `el` leaves its document for any reason: its page unmounted, its
+ * layer rebuilt, or an ancestor removed, inside a shadow root too. Already detached, it calls
+ * on the next microtask. Returns the stop function.
+ */
+export function watchDetached(el: Element, onDetach: () => void): () => void {
+  let done = false
+  const fire = (): void => {
+    if (done || el.isConnected) return
+    done = true
+    observer?.disconnect()
+    onDetach()
+  }
+  const doc = el.ownerDocument
+  const Observer = doc.defaultView?.MutationObserver
+  const observer = Observer ? new Observer(fire) : undefined
+  if (observer) {
+    // A document's observer never sees inside a shadow tree, so each shadow root the element
+    // sits in is watched as well.
+    const opts = { childList: true, subtree: true }
+    observer.observe(doc, opts)
+    for (let root = el.getRootNode(); root instanceof doc.defaultView!.ShadowRoot;) {
+      observer.observe(root, opts)
+      root = root.host.getRootNode()
+    }
+  }
+  if (!el.isConnected) queueMicrotask(fire)
+  return () => {
+    done = true
+    observer?.disconnect()
+  }
+}

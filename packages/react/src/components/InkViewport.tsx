@@ -262,6 +262,10 @@ export function InkViewport({
     const tc = engine.current?.tools
     if (tc && tc.active.get() !== ctx.tool) tc.set(ctx.tool)
   }, [ctx.tool])
+  // The tint follows `formHighlight` in place, without a new document.
+  useEffect(() => {
+    engine.current?.setFormHighlight(ctx.formHighlight ?? true)
+  }, [ctx.formHighlight])
   // The build applied both; these only act on a later change, not on mount.
   useEffect(() => {
     const vp = engine.current?.viewport

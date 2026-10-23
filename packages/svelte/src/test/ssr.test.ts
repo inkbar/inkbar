@@ -90,6 +90,9 @@ describe('@inkbar/svelte on the server', () => {
     // The search button renders (disabled); the find bar waits for the viewport to mount.
     expect(body).toContain('data-ink-search-button')
     expect(body).not.toContain('data-ink-find-bar')
+    expect(body).toMatch(/<output data-testid="form" data-fields="0" data-values="\{}"/)
+    expect(body).not.toContain('data-ink-form-alert')
+    expect(body).not.toContain('data-ink-sign-field-menu')
     // Pages are `.ink-page[data-page]`; the toolbar's page input and count are not pages.
     expect(body).not.toContain('data-page=')
     expect(body).not.toMatch(/class="ink-page[ "]/)

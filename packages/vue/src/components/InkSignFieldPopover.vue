@@ -11,9 +11,10 @@ import {
   focusInitialMenuItem,
   SIGNATURE_LABELS,
   signatureMenuModel,
+  watchDetached,
 } from '@inkbar/core/dom'
 import { PopoverContent, PopoverPortal, PopoverRoot } from 'reka-ui'
-import { computed, onBeforeUnmount, shallowRef } from 'vue'
+import { computed, onBeforeUnmount, shallowRef, watch } from 'vue'
 
 import { useInkContext } from '../context'
 import { useReadable } from '../use-readable'
@@ -45,7 +46,10 @@ const creating = computed({
     if (!next) creatingFor.value = null
   },
 })
-/** The request the menu last opened for, kept to return focus once it closes. */
+/**
+ * The request the menu was last open for, kept to return focus once it closes. A request that
+ * replaces the open one takes over, so focus returns to the field asked for last.
+ */
 let last: SignFieldRequest | null = null
 /** Set while the menu closes for the dialog, which takes focus instead of the field. */
 let toDialog = false
@@ -55,8 +59,26 @@ onBeforeUnmount(() => {
   alive = false
 })
 
+// The field's box went (its page unmounted, its layer rebuilt): the menu has nothing to stand
+// by.
+watch(
+  () => props.request,
+  (req, _, onCleanup) => {
+    if (!req) return
+    last = req
+    onCleanup(watchDetached(req.anchor, () => emit('close')))
+  },
+  { immediate: true }
+)
+
 const control = (req: SignFieldRequest | null): HTMLElement | null =>
   req?.anchor.querySelector<HTMLElement>('button.ink-form-control') ?? null
+
+/** Focus goes back to the field's button, or to the scroll element once the field's box has gone. */
+function returnFocus(req: SignFieldRequest | null): void {
+  const c = control(req)
+  ;(c?.isConnected ? c : ctx.viewportEl.value)?.focus({ preventScroll: true })
+}
 
 /** Signs the request's field with `t`; a refusal (signed, read-only by now) goes to `error`. */
 function sign(req: SignFieldRequest, doc: InkDocument, t: SignatureTemplate): void {
@@ -102,7 +124,6 @@ function onInteractOutside(e: CustomEvent<{ originalEvent: Event }>): void {
 
 function onOpenAutoFocus(e: Event): void {
   e.preventDefault()
-  last = props.request
   // An old removal error is not news when the menu opens again.
   ctx.signatures.value.clearRemoveError()
   const menu = (e.target as HTMLElement | null)?.querySelector<HTMLElement>(
@@ -113,13 +134,13 @@ function onOpenAutoFocus(e: Event): void {
 
 function onCloseAutoFocus(e: Event): void {
   e.preventDefault()
-  if (!toDialog) control(last)?.focus({ preventScroll: true })
+  if (!toDialog) returnFocus(last)
   toDialog = false
 }
 
 function onDialogCloseAutoFocus(e: Event): void {
   e.preventDefault()
-  control(last)?.focus({ preventScroll: true })
+  returnFocus(last)
 }
 
 function onOpenChange(next: boolean): void {

@@ -15,6 +15,8 @@
   import InkZoomOut from '../../lib/components/InkZoomOut.svelte'
   import InkZoomSelect from '../../lib/components/InkZoomSelect.svelte'
 
+  import FormProbe from './FormProbe.svelte'
+
   import type { PdfAssets } from '@inkbar/core'
   import type { InkPlugin } from '@inkbar/core/dom'
 
@@ -22,15 +24,17 @@
     $props()
 </script>
 
-<InkRoot src="/doc.pdf" {assets} {plugins}>
+<InkRoot src="/doc.pdf" {assets} {plugins} fields={{}} formHighlight={false}>
   <p>slot</p>
   <InkToolbar>
     <InkToolButton tool="highlight" />
     <InkCommand id="sandbox.ping" />
     <InkSearchButton />
   </InkToolbar>
+  <!-- With the field menu and the form alert it mounts, and a form that is still empty. -->
   <InkViewport />
   <InkFindBar />
+  <FormProbe />
   <InkToolbar label="Page and zoom">
     <InkPrevPage />
     <InkPageInput />

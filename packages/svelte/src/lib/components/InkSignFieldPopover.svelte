@@ -8,7 +8,12 @@
    * nothing.
    */
   import { InkError, signField } from '@inkbar/core'
-  import { handleMenuKeys, SIGNATURE_LABELS, signatureMenuModel } from '@inkbar/core/dom'
+  import {
+    handleMenuKeys,
+    SIGNATURE_LABELS,
+    signatureMenuModel,
+    watchDetached,
+  } from '@inkbar/core/dom'
   import { Popover } from 'bits-ui'
   import { untrack } from 'svelte'
 
@@ -58,6 +63,13 @@
   $effect(() => {
     if (request) last = request
   })
+  // The field's box went (its page unmounted, its layer rebuilt): the menu has nothing to
+  // stand by.
+  $effect(() => {
+    const req = request
+    if (!req) return
+    return watchDetached(req.anchor, () => untrack(onClose))
+  })
   // An old removal error is not news when the menu opens again.
   $effect(() => {
     if (open) untrack(() => ctx.signatures.clearRemoveError())
@@ -70,6 +82,12 @@
   /** The field's own button, which focus returns to. */
   const control = (req: SignFieldRequest | null): HTMLElement | null =>
     req?.anchor.querySelector<HTMLElement>('button.ink-form-control') ?? null
+
+  /** Focus goes back to the field's button, or to the scroll element once the field's box has gone. */
+  function returnFocus(req: SignFieldRequest | null): void {
+    const c = control(req)
+    ;(c?.isConnected ? c : ctx.viewportEl.get())?.focus({ preventScroll: true })
+  }
 
   /** Signs the request's field with `t`; a refusal (signed, read-only by now) goes to `onError`. */
   function sign(req: SignFieldRequest, doc: InkDocument, t: SignatureTemplate): void {
@@ -134,7 +152,7 @@
         onfocusin={openFocus.onfocusin}
         onCloseAutoFocus={(e) => {
           e.preventDefault()
-          if (!toDialog) control(last)?.focus({ preventScroll: true })
+          if (!toDialog) returnFocus(last)
           toDialog = false
         }}
         {onInteractOutside}
@@ -164,6 +182,6 @@
   }}
   onCloseAutoFocus={(e) => {
     e.preventDefault()
-    control(last)?.focus({ preventScroll: true })
+    returnFocus(last)
   }}
 />

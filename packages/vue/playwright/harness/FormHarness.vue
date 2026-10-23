@@ -4,6 +4,7 @@ import {
   type FieldsChange,
   type FieldValues,
   type FormAction,
+  type InkDocument,
   type InkError,
   type PdfAssets,
   type SignatureTemplate,
@@ -31,6 +32,7 @@ const props = withDefaults(
     formHighlight?: boolean | undefined
     /** What the Swap button opens next, and the controlled values it starts from. */
     swapTo?: { src: string; initial?: FieldValues } | undefined
+    listenOnReady?: boolean
   }>(),
   {
     controlled: false,
@@ -39,6 +41,7 @@ const props = withDefaults(
     templates: () => [],
     formHighlight: undefined,
     swapTo: undefined,
+    listenOnReady: false,
   }
 )
 const emit = defineEmits<{
@@ -46,6 +49,24 @@ const emit = defineEmits<{
   error: [error: InkError]
   changed: [next: FieldValues, change: FieldsChange | undefined]
 }>()
+
+/**
+ * Records what the root reported, in order, in the page, where a test can read it in the same
+ * task as the cause: `ready`, then each error's code. With `listenOnReady`, the host's own
+ * `form.on('error')` from `ready` records `listener:` and the code.
+ */
+function record(entry: string): void {
+  const w = window as Window & { __inkHeard?: string[] }
+  ;(w.__inkHeard ??= []).push(entry)
+}
+function onReady(doc: InkDocument): void {
+  record('ready')
+  if (props.listenOnReady) doc.form.on('error', (e) => record(`listener:${e.code}`))
+}
+function onError(e: InkError): void {
+  record(e.code)
+  emit('error', e)
+}
 
 /** A host that owns the values through v-model, the way an app would. */
 const values = ref<FieldValues>(props.initial)
@@ -78,7 +99,8 @@ function onSwap(): void {
     :form-highlight="props.formHighlight"
     @update:fields="onFields"
     @form-action="emit('form-action', $event)"
-    @error="emit('error', $event)"
+    @ready="onReady"
+    @error="onError"
   >
     <InkToolbar>
       <InkUndo />

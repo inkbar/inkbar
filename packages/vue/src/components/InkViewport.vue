@@ -246,6 +246,11 @@ watch(
   () => ctx.decorateAnnotation.value,
   () => engine.value?.redecorate()
 )
+// The tint follows `formHighlight` in place, without a new document.
+watch(
+  () => ctx.formHighlight.value,
+  (on) => engine.value?.setFormHighlight(on ?? true)
+)
 watch(
   () => ctx.zoomModel.value,
   (z: ZoomValue | undefined) => {

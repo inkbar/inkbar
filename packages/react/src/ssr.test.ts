@@ -86,7 +86,7 @@ describe('@inkbar/react on the server', () => {
     const html = renderToString(
       createElement(
         entry.InkRoot,
-        { src: '/doc.pdf', assets, plugins: [plugin] },
+        { src: '/doc.pdf', assets, plugins: [plugin], fields: {}, formHighlight: false },
         createElement('p', null, 'slot'),
         createElement(
           entry.InkToolbar,

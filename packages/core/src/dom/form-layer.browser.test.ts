@@ -795,6 +795,22 @@ describe('form layer', () => {
     expect(getComputedStyle(off.control('name')).boxShadow).toBe('none')
   })
 
+  it('setHighlight turns the tint off and on in place', async () => {
+    addTheme()
+    const doc = await open('form-fields')
+    const m = mountPage(doc)
+    const layer = m.host.querySelector<HTMLElement>('[data-ink-form-layer]')!
+    const input = m.control('name')
+    m.mount.form!.setHighlight(false)
+    expect(layer.dataset.inkFormHighlight).toBe('off')
+    expect(getComputedStyle(input).boxShadow).toBe('none')
+    m.mount.form!.setHighlight(true)
+    expect(layer.dataset.inkFormHighlight).toBe('on')
+    expect(getComputedStyle(input).boxShadow).not.toBe('none')
+    // In place: the same control is kept.
+    expect(m.control('name')).toBe(input)
+  })
+
   it('an empty signature field asks to be signed; a signed one does not', async () => {
     const doc = await open('form-fields')
     const requests: SignFieldRequest[] = []

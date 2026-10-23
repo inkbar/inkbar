@@ -5,6 +5,7 @@ import { render } from 'vitest-browser-svelte'
 
 import { guardConsole } from './console-guard.js'
 import { attr, count, focused, q, sleep } from './dom.js'
+import DeepFieldsHost from './harness/DeepFieldsHost.svelte'
 import FormHarness, { type FormHarnessProps } from './harness/FormHarness.svelte'
 
 const assets = browserAssets()
@@ -103,6 +104,42 @@ describe('form filling', () => {
     expect(heard()).toBe('1')
   })
 
+  it('a host holding the fields in deep $state hears each commit once', async () => {
+    await render(DeepFieldsHost, {
+      src: fixtureUrl('form-fields'),
+      assets,
+      initial: { name: 'Ada' },
+    })
+    const el = await input('name')
+    await expect.poll(valueOf(el)).toBe('Ada')
+    await commit('name', 'x', { replace: false })
+    await expect.poll(heard).toBe('1')
+    expect(hostValues()).toMatchObject({ name: 'Adax' })
+    // The proxy written back is the same values: pushed again, it reports nothing.
+    await sleep(100)
+    expect(heard()).toBe('1')
+    expect(el.value).toBe('Adax')
+  })
+
+  it('uncontrolled fields never call onFieldsChange', async () => {
+    const changes: unknown[] = []
+    await harness({
+      src: fixtureUrl('form-fields'),
+      onChanged: (_next, change) => changes.push(change),
+    })
+    const el = await commit('name', 'Grace')
+    await expect.poll(() => formValues().name).toBe('Grace')
+    await loc(await testButton('form-set')).click()
+    await expect.poll(valueOf(el)).toBe('Set')
+    await loc(await testButton('form-reset')).click()
+    await expect.poll(valueOf(el)).not.toBe('Set')
+    await loc(await q<HTMLButtonElement>('[data-ink-toolbar] [data-ink-undo]')).click()
+    await expect.poll(valueOf(el)).toBe('Set')
+    await sleep(100)
+    expect(changes).toEqual([])
+    expect(heard()).toBe('0')
+  })
+
   it('a host push updates the field', async () => {
     await harness({
       src: fixtureUrl('form-fields'),
@@ -183,6 +220,18 @@ describe('form filling', () => {
     expect(count(ALERT)()).toBe(1)
   })
 
+  it('closing the alert leaves focus where the user moved it', async () => {
+    await harness({ src: fixtureUrl('form-scripted') })
+    await loc(await button('hello')).click()
+    const alert = await q(ALERT)
+    const qty = await input('qty')
+    qty.focus()
+    // A click with no press: OK closes the alert without taking focus first.
+    alert.querySelector<HTMLButtonElement>('[data-ink-form-alert-ok]')!.click()
+    await expect.poll(count(ALERT)).toBe(0)
+    expect(focused()).toBe(qty)
+  })
+
   it('a form script error reaches onError', async () => {
     const errors: { code: string }[] = []
     await harness({ src: fixtureUrl('form-scripted'), onError: (e) => errors.push(e) })
@@ -191,6 +240,37 @@ describe('form filling', () => {
     const doc = root.__inkDocument as { form: { _error(e: unknown): void } }
     doc.form._error({ code: 'FormScriptError', message: 'A form script failed' })
     await expect.poll(() => errors.map((e) => e.code)).toEqual(['FormScriptError'])
+  })
+
+  it('an error from while the document opened reaches onError after onReady', async () => {
+    const heard: string[] = []
+    await render(FormHarness, {
+      assets: { ...assets, wasm: '/missing/' },
+      src: fixtureUrl('form-scripted'),
+      onReady: () => heard.push('ready'),
+      onError: (e) => heard.push(e.code),
+    })
+    await expect.poll(() => heard).toEqual(['ready', 'FormScriptError'])
+    guard.clear()
+  })
+
+  it('an onReady that throws does not strand the form errors', async () => {
+    const heard: string[] = []
+    await render(FormHarness, {
+      assets: { ...assets, wasm: '/missing/' },
+      src: fixtureUrl('form-scripted'),
+      onReady: () => {
+        throw new Error('host onReady failed')
+      },
+      onError: (e) => heard.push(e.code),
+    })
+    await expect.poll(() => heard).toContain('FormScriptError')
+    // A later error still reaches onError.
+    const root = await q<HTMLElement & { __inkDocument?: unknown }>('[data-ink-root]')
+    const doc = root.__inkDocument as { form: { _error(e: unknown): void } }
+    doc.form._error({ code: 'FieldSigned', message: 'later' })
+    await expect.poll(() => heard).toContain('FieldSigned')
+    guard.clear()
   })
 
   it('a sandbox that fails while the document opens reaches onError', async () => {
@@ -305,6 +385,32 @@ describe('form filling', () => {
       await openSignMenu()
       await expect.poll(count(SIGN_MENU)).toBe(1)
     })
+
+    it('closes when its field box leaves the page for any reason', async () => {
+      await harness({ src: fixtureUrl('form-fields'), templates: [IMAGE] })
+      await openSignMenu()
+      // Not a page unmount: only the box goes.
+      ;(await widget('sig')).remove()
+      await expect.poll(count(SIGN_MENU)).toBe(0)
+      // The field's button went with its box: focus goes to the scroll element.
+      await expect.poll(focused).toBe(document.querySelector(SCROLL))
+    })
+
+    it('returns focus to the field that replaced the open one', async () => {
+      await harness({ src: fixtureUrl('form-fields'), templates: [IMAGE] })
+      await openSignMenu()
+      const other = await q<HTMLButtonElement>(
+        '[data-ink-form-layer] [data-ink-field="sig2"] [data-ink-sign-field]'
+      )
+      // A click with no press first: the open menu sees nothing outside it, and the request
+      // is replaced while it stays open.
+      other.click()
+      const menu = await q('[data-ink-sign-field-menu="sig2"]')
+      menu.querySelector<HTMLElement>('[role="menuitem"]')!.focus()
+      await userEvent.keyboard('{Escape}')
+      await expect.poll(count('[data-ink-sign-field-menu]')).toBe(0)
+      await expect.poll(focused).toBe(other)
+    })
   })
 
   it('useForm exposes values', async () => {
@@ -342,6 +448,18 @@ describe('form filling', () => {
     await expect
       .poll(attr('[data-ink-form-layer]', 'data-ink-form-highlight'))
       .toBe('off')
+  })
+
+  it('a formHighlight change applies in place', async () => {
+    const screen = await harness({ src: fixtureUrl('form-fields'), formHighlight: false })
+    const layer = await q('[data-ink-form-layer]')
+    await expect.poll(() => layer.dataset.inkFormHighlight).toBe('off')
+    await screen.rerender({ formHighlight: true })
+    await expect.poll(() => layer.dataset.inkFormHighlight).toBe('on')
+    // The same layer: no new document or build.
+    expect(document.querySelector('[data-ink-form-layer]')).toBe(layer)
+    await screen.rerender({ formHighlight: false })
+    await expect.poll(() => layer.dataset.inkFormHighlight).toBe('off')
   })
 
   describe('a new source', () => {

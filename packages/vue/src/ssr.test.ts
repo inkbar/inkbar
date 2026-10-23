@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest'
-import { createSSRApp, h } from 'vue'
+import { createSSRApp, defineComponent, h } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 
 import type * as Entry from './index'
@@ -60,6 +60,8 @@ describe('@inkbar/vue on the server', () => {
         'InkThreadPopover',
         'InkCommand',
         'useCommand',
+        'InkViewport',
+        'useForm',
       ])
     )
     expect(evaluated.pdfjs).toBe(false)
@@ -69,30 +71,55 @@ describe('@inkbar/vue on the server', () => {
     const { definePlugin } = await import('@inkbar/core/dom')
     const setup = vi.fn()
     const plugin = definePlugin({ id: 'sandbox', setup })
+    const FormProbe = defineComponent(() => {
+      const { fields, values } = entry.useForm()
+      return () =>
+        h('output', {
+          'data-fields': fields.value.length,
+          'data-values': JSON.stringify(values.value),
+        })
+    })
     const app = createSSRApp({
       render: () =>
-        h(entry.InkRoot, { src: '/doc.pdf', assets, plugins: [plugin] }, () => [
-          h('p', 'slot'),
-          h(entry.InkToolbar, null, () => [
-            h(entry.InkToolButton, { tool: 'highlight' }),
-            h(entry.InkCommand, { id: 'sandbox.ping' }),
-          ]),
-          h(entry.InkToolbar, { label: 'Page and zoom' }, () => [
-            h(entry.InkPrevPage),
-            h(entry.InkPageInput),
-            h(entry.InkPageCount),
-            h(entry.InkNextPage),
-            h(entry.InkZoomOut),
-            h(entry.InkZoomSelect),
-            h(entry.InkZoomIn),
-          ]),
-          h(entry.InkThreadPopover),
-        ]),
+        h(
+          entry.InkRoot,
+          {
+            src: '/doc.pdf',
+            assets,
+            plugins: [plugin],
+            fields: {},
+            formHighlight: false,
+          },
+          () => [
+            h('p', 'slot'),
+            h(entry.InkToolbar, null, () => [
+              h(entry.InkToolButton, { tool: 'highlight' }),
+              h(entry.InkCommand, { id: 'sandbox.ping' }),
+            ]),
+            h(entry.InkToolbar, { label: 'Page and zoom' }, () => [
+              h(entry.InkPrevPage),
+              h(entry.InkPageInput),
+              h(entry.InkPageCount),
+              h(entry.InkNextPage),
+              h(entry.InkZoomOut),
+              h(entry.InkZoomSelect),
+              h(entry.InkZoomIn),
+            ]),
+            h(entry.InkThreadPopover),
+            // With the field menu and the form alert it mounts, and a form that is still empty.
+            h(entry.InkViewport),
+            h(FormProbe),
+          ]
+        ),
     })
     const html = await renderToString(app)
     expect(html).toContain('data-ink-root')
     expect(html).toContain('data-state="idle"')
     expect(html).toContain('<p>slot</p>')
+    expect(html).toContain('data-ink-viewport-root')
+    expect(html).toContain('<output data-fields="0" data-values="{}"></output>')
+    expect(html).not.toContain('data-ink-form-alert')
+    expect(html).not.toContain('data-ink-sign-field-menu')
     expect(html).toContain('data-ink-toolbar')
     expect(html).toContain('aria-label="Document tools"')
     // Disabled and out of the accessibility tree while it has no name to give.

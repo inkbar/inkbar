@@ -99,6 +99,7 @@
     /**
      * Opening failed, or later: a form script failed (`FormScriptError`; the form stays
      * fillable), or a signature field refused its signing (`FieldSigned`, `FieldReadOnly`).
+     * An error from while the document opened comes after `onReady`.
      */
     onError?: ((error: InkError) => void) | undefined
     onActivate?: ((id: string) => void) | undefined
@@ -325,7 +326,13 @@
         const currentFields = untrack(() => fields)
         if (currentFields !== undefined) doc.form.setControlledValue(currentFields)
         // A form script that fails leaves the form fillable; the failure goes to `onError`.
-        stopFormErrors = doc.form.on('error', (e) => onError?.(e))
+        // Subscribed before anyone hears of the document, so the form replays the errors from
+        // while it opened here; they are held until `onReady` has run.
+        let held: InkError[] | undefined = []
+        stopFormErrors = doc.form.on('error', (e) => {
+          if (held) held.push(e)
+          else onError?.(e)
+        })
         documentNow = doc
         document = doc
         // Controlled edits run the plugins' reactions inside their own snapshot step.
@@ -336,8 +343,15 @@
         override = null
         setTestHook(ref, doc)
         const s = doc.status.get()
-        if (s.state === 'ready') onReady?.(doc)
-        else if (s.state === 'error') onError?.(s.error)
+        try {
+          if (s.state === 'ready') onReady?.(doc)
+          else if (s.state === 'error') onError?.(s.error)
+        } finally {
+          // A host whose `onReady` throws still hears the held errors and every later one.
+          const early = held
+          held = undefined
+          if (!cancelled) for (const e of early) onError?.(e)
+        }
       } catch (cause) {
         if (cancelled) return
         const error =
