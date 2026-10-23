@@ -24,6 +24,8 @@ import {
   type StoreMode,
 } from './annotations/store'
 import { InkError, isInkError } from './errors'
+import { createFormController, type FormController } from './form/controller'
+import { fieldsToGloss } from './form/gloss'
 import { buildFormFields, type RawWidget } from './form/structure'
 import { canvasMeasureChar } from './measure-char'
 import { createPageCache, type PageCache } from './page-cache'
@@ -40,7 +42,7 @@ import { resolveSource, type DocumentSource } from './source'
 import { textContentFromPdfjs, type TextContent } from './text'
 
 import type { AnnotationDocument, ForeignAnnotation } from './annotations/types'
-import type { FormField } from './form/types'
+import type { FieldsMode, FormField } from './form/types'
 import type {
   PdfAssets,
   PdfjsAnnotationData,
@@ -72,11 +74,17 @@ export interface OpenOptions {
    * in `list` whatever the host pushes back.
    */
   annotations?: StoreMode | undefined
+  /**
+   * Form field values; defaults to uncontrolled, starting from the PDF's. In controlled mode a
+   * commit applies at once and is reported with the full map, and the host's push wins.
+   */
+  fields?: FieldsMode | undefined
   /** Colour defaults. Pass `cssVariableDefaults(element)` from the DOM layer to read theme variables. */
   defaults?: AnnotationDefaults | undefined
   /**
    * Undo history, on by default. `false` disables it. In controlled mode history is always
-   * inert: the host owns the list, so it owns undo too.
+   * inert: the host owns the list, so it owns undo too. Field values join it only while both
+   * annotations and fields are uncontrolled.
    */
   history?: boolean | { limit?: number | undefined } | undefined
   /** PDF.js verbosity level; 0 = errors only. Defaults to PDF.js's own level. */
@@ -109,9 +117,17 @@ export interface InkDocument {
   /** What the file contained, by PDF subtype, including subtypes Inkbar does not show. */
   readonly embedded: readonly EmbeddedSummary[]
   readonly history: History
-  /** Session annotations only, plus unknown-type items kept from earlier imports. */
+  /** The form's fields and values; empty when the file has no fields. */
+  readonly form: FormController
+  /**
+   * Session annotations only, plus unknown-type items kept from earlier imports, and `fields`
+   * with every field value that is not no-export.
+   */
   exportAnnotations(format: 'json'): AnnotationDocument
-  /** Defaults to `{ mode: 'replace' }`. Embedded annotations are never touched. */
+  /**
+   * Defaults to `{ mode: 'replace' }`. Embedded annotations are never touched. `fields`, when
+   * present, sets the values it names and leaves the rest; that is not an undo step.
+   */
   importAnnotations(data: AnnotationDocument | string, opts?: ImportOptions): ImportResult
   /** Writes the document with its annotations. Needs @inkbar/engine; rejects with EngineUnavailable otherwise. */
   save(): Promise<Uint8Array>
@@ -159,10 +175,22 @@ export async function openDocument(
   /** Embedded annotations whose PDF.js data lacks fields the file holds; read after `ready`. */
   const targets: EmbeddedTarget[] = []
   /** The file's form fields and what was read for them from its objects, filled before `ready`. */
-  const form: { fields: FormField[]; extras: FormExtras } = {
+  const formData: { fields: FormField[]; extras: FormExtras } = {
     fields: [],
     extras: emptyFormExtras(),
   }
+  const fieldsMode = options.fields ?? { mode: 'uncontrolled' }
+  /** One undo step once the history exists, which is after `ready`. */
+  let step = (fn: () => void): void => fn()
+  // Built before the fields are read, so it exists from the start; they load before `ready`.
+  const form = createFormController({
+    fields: [],
+    mode: fieldsMode,
+    // Script errors stay off `status`: the document has no error event, so they reach the
+    // form's own `on('error')`, which the form layer subscribes to.
+    onError: () => undefined,
+    batch: (fn) => step(fn),
+  })
 
   const destroyedError = (): InkError =>
     new InkError('DocumentDestroyed', 'The document has been destroyed')
@@ -232,12 +260,13 @@ export async function openDocument(
         .getData()
         .then(openPdfObjects)
         .catch(() => undefined)
-      form.extras = await readFormExtras(
+      formData.extras = await readFormExtras(
         objs,
         widgets.map((w) => w.data.id)
       )
-      form.fields = buildFormFields(widgets, form.extras)
+      formData.fields = buildFormFields(widgets, formData.extras)
     }
+    form._load(formData.fields)
   })()
 
   const ready = load.then(
@@ -264,6 +293,13 @@ export async function openDocument(
     store,
     historyLimit === undefined ? {} : { limit: historyLimit }
   )
+  if (
+    historyOption !== false &&
+    store.mode === 'uncontrolled' &&
+    fieldsMode.mode === 'uncontrolled'
+  )
+    history.track(form._store)
+  step = (fn) => history.batch(fn)
 
   // Fills in fields PDF.js leaves out, read from the file's own bytes. It runs after `ready`
   // so it never delays it, and a failure leaves the annotations as PDF.js imported them.
@@ -388,19 +424,26 @@ export async function openDocument(
     annotations: store,
     embedded,
     history,
+    form,
     exportAnnotations(format) {
       if (format !== 'json')
         throw new TypeError(`Unsupported export format ${String(format)}`)
-      return exportAnnotations(store, preserved, resolved.key)
+      return exportAnnotations(
+        store,
+        preserved,
+        resolved.key,
+        fieldsToGloss(form.values.get(), form.fields.get())
+      )
     },
     importAnnotations(data, opts = { mode: 'replace' }) {
-      const plan = planImport(store, data, opts)
+      const plan = planImport(store, data, opts, form.fields.get())
       // Staged before the store publishes, so a change listener that exports sees it.
       preserved =
         opts.mode === 'replace'
           ? plan.result.unknown
           : [...preserved.filter((u) => !plan.ids.has(u.id)), ...plan.result.unknown]
       plan.apply()
+      form._import(plan.fieldValues)
       return plan.result
     },
     save() {
@@ -415,6 +458,7 @@ export async function openDocument(
       if (destroyed) return
       destroyed = true
       history.destroy()
+      form._destroy()
       store.destroy()
       pageCache?.clear()
       searchable.clear()

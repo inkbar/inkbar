@@ -1,4 +1,5 @@
 import { isProduction } from '../env'
+import { fieldsFromGloss, type GlossRejection } from '../form/gloss'
 
 import { fromFile, toFile } from './gloss-mapping'
 import {
@@ -12,6 +13,7 @@ import {
 } from './types'
 
 import type { AnnotationStore } from './store'
+import type { FieldValue, FieldValues, FormField } from '../form/types'
 import type { Annotation as GlossAnnotation } from 'gloss-format'
 
 export interface ImportResult {
@@ -22,6 +24,8 @@ export interface ImportResult {
    */
   unknown: ForeignAnnotation[]
   errors: { index: number; issues: string[] }[]
+  /** The document's `fields` names that were applied, and the ones that were not, with why. */
+  fields: { applied: string[]; rejected: GlossRejection[] }
 }
 
 export interface ImportOptions {
@@ -53,13 +57,16 @@ export const KNOWN_TYPES: ReadonlySet<string> = new Set(
  * under `custom.inkbar`, with loupes and masks as the circle or square they draw. Every other key
  * under `custom` goes out as it is.
  *
+ * `fields`, when given and not empty, goes out as the document's `fields` (see `fieldsToGloss`).
+ *
  * The result validates against the Gloss schema (`gloss-format/schema.json`). Foreign items
  * validate as unknown annotations while their type is one Gloss does not define.
  */
 export function exportAnnotations(
   store: AnnotationStore,
   preserved: readonly ForeignAnnotation[] = [],
-  documentKey?: string
+  documentKey?: string,
+  fields: Readonly<Record<string, FieldValue>> = {}
 ): AnnotationDocument {
   const session: GlossAnnotation[] = store.list
     .get()
@@ -72,6 +79,9 @@ export function exportAnnotations(
     annotations: JSON.parse(JSON.stringify([...session, ...preserved])) as Array<
       GlossAnnotation | ForeignAnnotation
     >,
+    ...(Object.keys(fields).length === 0
+      ? {}
+      : { fields: JSON.parse(JSON.stringify(fields)) as Record<string, FieldValue> }),
   }
 }
 
@@ -80,6 +90,8 @@ export interface ImportPlan {
   result: ImportResult
   /** Every id the payload brings in, known or foreign. */
   ids: ReadonlySet<string>
+  /** The `fields` values that suit the form, for the document to apply. */
+  fieldValues: FieldValues
   /** Applies the plan to the store (one `replaceAll(..., 'import')`). */
   apply(): void
 }
@@ -87,7 +99,8 @@ export interface ImportPlan {
 /**
  * Validates the envelope (throws a TypeError when it is not a gloss v1 document),
  * then each item on its own. Embedded annotations are never touched; imported items become
- * session annotations.
+ * session annotations. With no form to apply them to, every `fields` name is reported as
+ * unknown; `InkDocument.importAnnotations` applies them to the document's form.
  */
 export function importAnnotations(
   store: AnnotationStore,
@@ -111,7 +124,8 @@ export function importAnnotations(
 export function planImport(
   store: AnnotationStore,
   data: AnnotationDocument | string,
-  opts: ImportOptions
+  opts: ImportOptions,
+  formFields: readonly FormField[] = []
 ): ImportPlan {
   const raw: unknown = typeof data === 'string' ? JSON.parse(data) : data
   const envelope = AnnotationDocumentSchema.safeParse(raw)
@@ -128,7 +142,13 @@ export function planImport(
       .filter((a) => a.source === 'pdf')
       .map((a) => a.id)
   )
-  const result: ImportResult = { imported: 0, unknown: [], errors: [] }
+  const fields = fieldsFromGloss(envelope.data.fields, formFields)
+  const result: ImportResult = {
+    imported: 0,
+    unknown: [],
+    errors: [],
+    fields: { applied: Object.keys(fields.values), rejected: fields.rejected },
+  }
   const incoming: Annotation[] = []
   /** id -> index of the first item that used it, whether that item was accepted or not. */
   const seen = new Map<string, number>()
@@ -212,6 +232,7 @@ export function planImport(
   return {
     result,
     ids,
+    fieldValues: fields.values,
     apply() {
       const current = store.list.get()
       const embedded = current.filter((a) => a.source === 'pdf')

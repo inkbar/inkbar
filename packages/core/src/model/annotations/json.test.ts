@@ -7,6 +7,7 @@ import { createAnnotationStore } from './store'
 import { ExportedAnnotationSchema, GLOSS_FORMAT, type AnnotationDocument } from './types'
 
 const rect = { x: 0, y: 0, width: 20, height: 20 }
+const noFields = { applied: [], rejected: [] }
 
 describe('json import/export', () => {
   // Restores console.warn spies even when an assertion fails first.
@@ -34,7 +35,7 @@ describe('json import/export', () => {
       defaults: staticDefaults,
     })
     const result = importAnnotations(s2, JSON.stringify(out), { mode: 'replace' })
-    expect(result).toEqual({ imported: 1, unknown: [], errors: [] })
+    expect(result).toEqual({ imported: 1, unknown: [], errors: [], fields: noFields })
     expect(s2.list.get()).toEqual([a])
   })
 
@@ -394,7 +395,7 @@ describe('json import/export', () => {
       { format: GLOSS_FORMAT, version: 1, annotations: items },
       { mode: 'replace' }
     )
-    expect(result).toEqual({ imported: 0, unknown: items, errors: [] })
+    expect(result).toEqual({ imported: 0, unknown: items, errors: [], fields: noFields })
     expect(s.list.get()).toEqual([])
   })
 
@@ -420,7 +421,7 @@ describe('json import/export', () => {
       { format: GLOSS_FORMAT, version: 1, annotations: [ink] },
       { mode: 'replace' }
     )
-    expect(result).toEqual({ imported: 1, unknown: [], errors: [] })
+    expect(result).toEqual({ imported: 1, unknown: [], errors: [], fields: noFields })
     expect(s.list.get()[0]).not.toHaveProperty('pressure')
   })
 
@@ -587,5 +588,35 @@ describe('json import/export', () => {
     expect(s.get(a.id)).toEqual(a)
     expect(s.get(a.id)?.rect.x).toBe(0)
     expect(foreign.nested.n).toBe(1)
+  })
+
+  it('reports every field as unknown when there is no form to apply them to', () => {
+    const s = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const result = importAnnotations(
+      s,
+      { format: GLOSS_FORMAT, version: 1, annotations: [], fields: { name: 'Ada' } },
+      { mode: 'replace' }
+    )
+    expect(result.fields).toEqual({
+      applied: [],
+      rejected: [{ name: 'name', reason: 'unknown' }],
+    })
+  })
+
+  it('rejects a fields value that is not a map', () => {
+    const s = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    expect(() =>
+      importAnnotations(
+        s,
+        JSON.stringify({ format: GLOSS_FORMAT, version: 1, annotations: [], fields: [] }),
+        { mode: 'replace' }
+      )
+    ).toThrow(TypeError)
   })
 })

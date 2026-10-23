@@ -70,6 +70,24 @@ export { exportAnnotations, importAnnotations } from './model/annotations/json'
 export { recogniseStroke, RECOGNISE_THRESHOLD } from './model/recognise'
 export type { Recognised } from './model/recognise'
 export type { ImportOptions, ImportResult } from './model/annotations/json'
+export type { FormController, FormScripting } from './model/form/controller'
+export type {
+  FieldFlags,
+  FieldOption,
+  FieldsChange,
+  FieldsMode,
+  FieldValue,
+  FieldValues,
+  FormAction,
+  FormEvent,
+  FormField,
+  FormFieldType,
+  FormSetResult,
+  FormWidget,
+  WidgetAction,
+  WidgetAppearance,
+  WidgetOverride,
+} from './model/form/types'
 export {
   createImageTemplate,
   createInkTemplate,

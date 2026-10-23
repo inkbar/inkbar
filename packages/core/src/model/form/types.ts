@@ -105,3 +105,86 @@ export interface FormField {
   /** Nothing may change the value: certificate-signed, locked by a signature, or unsupported. */
   locked: boolean
 }
+
+/** Script-driven state for one widget. Absent keys leave the PDF's own state. */
+export interface WidgetOverride {
+  hidden?: boolean
+  readOnly?: boolean
+  required?: boolean
+  /** `#rrggbb`. */
+  textColor?: string
+  fillColor?: string
+  strokeColor?: string
+  /** Points; 0 means auto size. */
+  textSize?: number
+}
+
+/** An event the form layer sends a widget's scripts. */
+export interface FormEvent {
+  widget: string
+  name:
+    | 'Keystroke'
+    | 'Format'
+    | 'Validate'
+    | 'Focus'
+    | 'Blur'
+    | 'Mouse Enter'
+    | 'Mouse Exit'
+    | 'Mouse Down'
+    | 'Mouse Up'
+    | 'Action'
+  value?: string | string[]
+  change?: string
+  selStart?: number
+  selEnd?: number
+  willCommit?: boolean
+  commitKey?: number
+}
+
+/** Something a form asks the host to do. Inkbar itself never sends, opens, mails or prints. */
+export type FormAction =
+  | {
+      kind: 'submit'
+      url: string
+      fields: FieldValues
+      format: 'fdf' | 'xfdf' | 'html' | 'pdf'
+      method?: 'GET' | 'POST'
+    }
+  | { kind: 'open-url'; url: string; newWindow: boolean }
+  | {
+      kind: 'mail'
+      to?: string
+      cc?: string
+      bcc?: string
+      subject?: string
+      body?: string
+      withData: boolean
+    }
+  | { kind: 'print' }
+  | { kind: 'prompt'; message: string }
+
+/** What changed the values reported to a controlled host. */
+export type FieldsChange =
+  | { kind: 'commit'; names: string[] }
+  | { kind: 'reset'; names: string[] }
+  | { kind: 'import'; names: string[] }
+  | { kind: 'history' }
+  | { kind: 'calculate'; names: string[] }
+
+/**
+ * Defaults to uncontrolled, starting from the PDF's values with `initial` over them. In
+ * controlled mode a change applies at once and is then reported with the full map; the host's
+ * push wins.
+ */
+export type FieldsMode =
+  | { mode: 'uncontrolled'; initial?: FieldValues }
+  | {
+      mode: 'controlled'
+      initial: FieldValues
+      onChange(next: FieldValues, change: FieldsChange): void
+    }
+
+export interface FormSetResult {
+  applied: string[]
+  rejected: { name: string; reason: 'unknown' | 'readOnly' | 'invalid' | 'script' }[]
+}
