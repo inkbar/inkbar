@@ -1023,6 +1023,16 @@ async function formFields() {
   )
   country.acroField.dict.set(PDFName.of('V'), PDFString.of('gb'))
   widgetDict(reset).set(PDFName.of('A'), ctx.obj({ S: 'ResetForm' }))
+  // shared's second widget comes after country in /Annots, apart from its first, so /Annots
+  // order differs from the order the fields list their widgets.
+  const annots = p1.node.lookup(PDFName.of('Annots'), PDFArray)
+  const second = ctx.getObjectRef(widgetDict(shared, 1))!
+  const at = annots.asArray().findIndex((r) => r === second)
+  annots.remove(at)
+  const after = annots
+    .asArray()
+    .findIndex((r) => r === ctx.getObjectRef(widgetDict(country)))
+  annots.insert(after + 1, second)
 
   await save(
     'form-fields',
@@ -1646,6 +1656,72 @@ async function scannedNoText() {
   })
 }
 
+async function formStructure() {
+  const { d, font } = await doc()
+  const page = d.addPage([612, 792])
+  page.node.set(PDFName.of('Tabs'), PDFName.of('S'))
+  text(page, font, ['Structure form'], 740)
+  const form = d.getForm()
+  // /Annots order is first, second, third, top to bottom on the page.
+  const names = ['first', 'second', 'third'] as const
+  const fields = names.map((name, i) => {
+    const f = form.createTextField(name)
+    f.addToPage(page, { x: 72, y: 640 - i * 60, width: 200, height: 22 })
+    label(page, font, name, 72, 640 - i * 60, 22)
+    return f
+  })
+  form.updateFieldAppearances(font)
+  addHelv(d, form)
+  // The structure tree reads third, then first; second is not in it. The widgets sit deep in
+  // it (Document > Sect > Form > OBJR), and third's Form element also holds marked content.
+  const ctx = d.context
+  const rootRef = ctx.nextRef()
+  const docRef = ctx.nextRef()
+  const sectRef = ctx.nextRef()
+  const widgetRef = (i: number) => ctx.getObjectRef(widgetDict(fields[i]!))!
+  const objr = (i: number) => ctx.obj({ Type: 'OBJR', Obj: widgetRef(i), Pg: page.ref })
+  const elems = [2, 0].map((i, n) => {
+    const ref = ctx.register(
+      ctx.obj({
+        Type: 'StructElem',
+        S: 'Form',
+        P: sectRef,
+        Pg: page.ref,
+        K: n === 0 ? ctx.obj([0, objr(i)]) : objr(i),
+      })
+    )
+    widgetDict(fields[i]!).set(PDFName.of('StructParent'), PDFNumber.of(n))
+    return ref
+  })
+  ctx.assign(sectRef, ctx.obj({ Type: 'StructElem', S: 'Sect', P: docRef, K: elems }))
+  ctx.assign(
+    docRef,
+    ctx.obj({ Type: 'StructElem', S: 'Document', P: rootRef, K: [sectRef] })
+  )
+  ctx.assign(
+    rootRef,
+    ctx.obj({
+      Type: 'StructTreeRoot',
+      K: [docRef],
+      ParentTree: ctx.obj({ Nums: [0, elems[0]!, 1, elems[1]!] }),
+      ParentTreeNextKey: 2,
+    })
+  )
+  d.catalog.set(PDFName.of('StructTreeRoot'), rootRef)
+  d.catalog.set(PDFName.of('MarkInfo'), ctx.obj({ Marked: true }))
+  // A second page with /Tabs S and no fields: its tree is not read.
+  const blank = d.addPage([612, 792])
+  blank.node.set(PDFName.of('Tabs'), PDFName.of('S'))
+  text(blank, font, ['No fields here'], 740)
+  await save('form-structure', d, {
+    pages: 2,
+    opens: true,
+    describes:
+      'Three text fields (first, second, third, in that /Annots and top-to-bottom order) on a page with /Tabs S, whose structure tree (Document > Sect > Form > OBJR, one Form also holding an MCID) lists third, then first, and leaves second out; a second /Tabs S page has no fields',
+    annotations: { Widget: 3 },
+  })
+}
+
 async function main() {
   mkdirSync(out, { recursive: true })
   const simple = await textSimple()
@@ -1678,6 +1754,7 @@ async function main() {
   await formBareAppearances()
   await formGoto()
   await formRange()
+  await formStructure()
   await incrementalSaved()
   await objectStreams()
   await encrypted('encrypted-aes')

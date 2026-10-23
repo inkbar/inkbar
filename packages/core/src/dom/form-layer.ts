@@ -22,15 +22,17 @@
 // A checkbox or radio has both its on and off appearances drawn, and shows the one for its
 // state: a toggle, like an edit, paints nothing.
 //
-// The widget boxes are in the page's Tab order (its `/Tabs`), so Tab within a page is the
-// browser's own. A radio group is one stop: its chosen radio, else its first. The engine moves
-// Tab on from a page's last stop to the next page's first.
+// The widget boxes are in the page's Tab order (its `/Tabs`: rows, columns or the structure
+// tree, else `/Annots` order), so Tab within a page is the browser's own. A radio group is one
+// stop: its chosen radio, else its first. The engine moves Tab on from a page's last stop to
+// the next page's first. The appearances, and the boxes over them, stack in `/Annots` order,
+// as the file paints its widgets; a focused or marked box rises above the rest.
 import { sameValue } from '../model/form/values'
 
 import { createWidgetAppearances, type WidgetAppearances } from './form-appearance'
 import { createButtonWidget } from './form-button'
 import { createChoiceWidget, createToggleWidget } from './form-choice'
-import { tabOrder } from './form-order'
+import { annotsOrder, pageTabOrder } from './form-order'
 import { createSignatureWidget } from './form-signature'
 import { createTextWidget } from './form-text'
 import { normalizeRotation, type PageTransform, type ViewRotation } from './transform'
@@ -246,11 +248,12 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
   element.className = 'ink-form-layer'
   element.dataset.inkFormLayer = ''
   element.dataset.inkFormHighlight = opts.highlight ? 'on' : 'off'
-  element.style.cssText = 'position:absolute;inset:0;pointer-events:none;'
+  // Isolated, so the boxes' z-index orders them among themselves only.
+  element.style.cssText =
+    'position:absolute;inset:0;pointer-events:none;isolation:isolate;'
   host.append(element)
 
   const fields = form.fields.get()
-  const order = new Map(tabOrder(fields, form._tabs, doc.pages).map((id, i) => [id, i]))
   const entries: Entry[] = []
   for (const field of fields)
     for (const widget of field.widgets) {
@@ -269,8 +272,41 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
         value: form.values.get()[field.name],
       })
     }
+  // The page's Tab order, worked out once: the boxes go in it, so Tab is the browser's own.
+  const order = new Map(
+    pageTabOrder(
+      entries.map((e) => e.widget),
+      form._tabs.get(page),
+      doc.pages[page],
+      page,
+      form._structure.get(page)
+    ).map((id, i) => [id, i])
+  )
+  // The appearances paint in `/Annots` order, as the file stacks its widgets.
+  const painted = annotsOrder(entries, (e) => e.widget)
+  // The boxes stack in that order too, whatever their Tab order, so where widgets overlap a
+  // press goes to the one whose appearance shows on top.
+  const stackAt = new Map(painted.map((e, i) => [e, i]))
+  /**
+   * Stacks the box at its `/Annots` place, or above every other box while it is focused or
+   * marked invalid, so no neighbour covers its focus ring or mark.
+   */
+  const restack = (e: Entry) => {
+    const raised =
+      e.box.hasAttribute('data-ink-focused') || e.box.hasAttribute('data-ink-invalid')
+    e.box.style.zIndex = String((raised ? painted.length : 0) + (stackAt.get(e) ?? 0))
+  }
+  for (const e of painted) restack(e)
   entries.sort((a, b) => (order.get(a.widget.id) ?? 0) - (order.get(b.widget.id) ?? 0))
   for (const e of entries) element.append(e.box)
+  /** Each radio group's entries on the page, in Tab order. */
+  const radios = new Map<FormField, Entry[]>()
+  for (const e of entries)
+    if (e.field.type === 'radio') {
+      const group = radios.get(e.field)
+      if (group) group.push(e)
+      else radios.set(e.field, [e])
+    }
 
   // The PDF's own widget appearances: right above the page canvas, under the text layer and
   // the annotations.
@@ -281,7 +317,7 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
       document: doc,
       page,
       transform,
-      widgets: entries.map((e) => ({
+      widgets: painted.map((e) => ({
         id: e.widget.id,
         rect: e.widget.rect,
         toggle: isToggle(e.field),
@@ -300,6 +336,7 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
 
   const setInvalid = (e: Entry, invalid: boolean) => {
     toggle(e.box, 'data-ink-invalid', invalid)
+    restack(e)
     if (invalid) e.view?.control.setAttribute('aria-invalid', 'true')
     else e.view?.control.removeAttribute('aria-invalid')
   }
@@ -318,21 +355,19 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
   const hiddenOf = (e: Entry): boolean =>
     form.widgetState.get()[e.widget.id]?.hidden ?? (e.widget.hidden || e.widget.printOnly)
 
-  /** Shows each widget's own appearance, unless the layer draws it or it is hidden. */
-  const showAppearances = () => {
+  /** Shows the widget's own appearance, unless the layer draws it or it is hidden. */
+  const showAppearance = (e: Entry) => {
     if (!appearances) return
-    const values = form.values.get()
-    for (const e of entries) {
-      const look =
-        e.view?.drawn || hiddenOf(e)
-          ? null
-          : isToggle(e.field)
-            ? e.widget.onState !== undefined && values[e.field.name] === e.widget.onState
-              ? 'checked'
-              : 'unchecked'
-            : 'own'
-      appearances.show(e.widget.id, look)
-    }
+    const look =
+      e.view?.drawn || hiddenOf(e)
+        ? null
+        : isToggle(e.field)
+          ? e.widget.onState !== undefined &&
+            form.values.get()[e.field.name] === e.widget.onState
+            ? 'checked'
+            : 'unchecked'
+          : 'own'
+    appearances.show(e.widget.id, look)
   }
 
   const place = (e: Entry) => {
@@ -360,7 +395,8 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
 
   const syncEntry = (e: Entry) => {
     const state = stateOf(e)
-    // A new value (a commit, a reset, a host's push, a script) clears a refused commit's mark.
+    // A new value (a commit, a reset, a host's push, a script) clears a refused commit's mark;
+    // so does a set or reset of the value it holds (`_onPut`).
     if (!sameValue(state.value, e.value)) {
       e.value = state.value
       setInvalid(e, false)
@@ -379,47 +415,81 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
     toggle(e.box, 'data-ink-drawn', e.view?.drawn === true)
   }
 
-  /** A radio group is one Tab stop on the page: its chosen radio, else its first. */
-  const isStop = (e: Entry): boolean => {
-    if (e.view?.tabbable === false) return false
-    if (e.field.type !== 'radio') return true
-    const value = form.values.get()[e.field.name]
-    const group = entries.filter((g) => g.field === e.field && g.view && !hiddenOf(g))
-    return e === (group.find((g) => g.widget.onState === value) ?? group[0])
-  }
+  /** A radio group's widgets on the page a person can see and pick, in Tab order. */
+  const shownOf = (group: readonly Entry[]) => group.filter((g) => g.view && !hiddenOf(g))
 
   /** Numbers each radio group's shown widgets on the page for assistive technology. */
   const numberRadios = () => {
-    for (const e of entries) {
-      const control = e.view?.control
-      if (!control || e.field.type !== 'radio') continue
-      const group = entries.filter((g) => g.field === e.field && g.view && !hiddenOf(g))
-      const at = group.indexOf(e)
-      if (at < 0) {
-        control.removeAttribute('aria-posinset')
-        control.removeAttribute('aria-setsize')
-      } else {
-        control.setAttribute('aria-posinset', String(at + 1))
-        control.setAttribute('aria-setsize', String(group.length))
+    for (const group of radios.values()) {
+      const shown = shownOf(group)
+      for (const e of group) {
+        const control = e.view?.control
+        if (!control) continue
+        const at = shown.indexOf(e)
+        if (at < 0) {
+          control.removeAttribute('aria-posinset')
+          control.removeAttribute('aria-setsize')
+        } else {
+          control.setAttribute('aria-posinset', String(at + 1))
+          control.setAttribute('aria-setsize', String(shown.length))
+        }
       }
     }
   }
 
   const setActive = () => {
     const active = opts.isActive()
+    // A radio group is one Tab stop on the page: its chosen radio, else its first.
+    const values = form.values.get()
+    const stops = new Set<Entry>()
+    for (const group of radios.values()) {
+      const shown = shownOf(group)
+      const value = values[group[0]!.field.name]
+      const stop = shown.find((g) => g.widget.onState === value) ?? shown[0]
+      if (stop) stops.add(stop)
+    }
     for (const e of entries) {
       if (!e.view) continue
+      const stop = e.view.tabbable !== false && (e.field.type !== 'radio' || stops.has(e))
       e.box.style.pointerEvents = active ? 'auto' : 'none'
-      e.view.control.tabIndex = active && isStop(e) ? 0 : -1
+      e.view.control.tabIndex = active && stop ? 0 : -1
     }
   }
 
-  const syncAll = () => {
-    if (destroyed) return
-    for (const e of entries) syncEntry(e)
-    showAppearances()
+  /** The field values, formatted text and widget state the widgets were last synced with. */
+  let synced = {
+    values: form.values.get(),
+    formatted: form.formatted.get(),
+    state: form.widgetState.get(),
+  }
+
+  /** Syncs `list`, then the page's Tab stops and radio numbering, which span widgets. */
+  const syncEntries = (list: readonly Entry[]) => {
+    for (const e of list) {
+      syncEntry(e)
+      showAppearance(e)
+    }
     numberRadios()
     setActive()
+  }
+
+  /** Syncs the widgets whose field's value or formatted text, or own state, changed. */
+  const syncChanged = () => {
+    if (destroyed) return
+    const was = synced
+    synced = {
+      values: form.values.get(),
+      formatted: form.formatted.get(),
+      state: form.widgetState.get(),
+    }
+    const now = synced
+    const dirty = entries.filter(
+      (e) =>
+        now.values[e.field.name] !== was.values[e.field.name] ||
+        now.formatted[e.field.name] !== was.formatted[e.field.name] ||
+        now.state[e.widget.id] !== was.state[e.widget.id]
+    )
+    if (dirty.length > 0) syncEntries(dirty)
   }
 
   const listeners: (() => void)[] = []
@@ -447,7 +517,7 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
         redraw: () => {
           if (destroyed) return
           toggle(box, 'data-ink-drawn', e.view?.drawn === true)
-          showAppearances()
+          showAppearance(e)
         },
         setInvalid: (invalid) => setInvalid(e, invalid),
         siblings: () =>
@@ -460,8 +530,14 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
           ),
         ...(opts.onSignField ? { onSignField: (req) => opts.onSignField?.(req) } : {}),
       })
-      listen(box, 'focusin', () => toggle(box, 'data-ink-focused', true))
-      listen(box, 'focusout', () => toggle(box, 'data-ink-focused', false))
+      listen(box, 'focusin', () => {
+        toggle(box, 'data-ink-focused', true)
+        restack(e)
+      })
+      listen(box, 'focusout', () => {
+        toggle(box, 'data-ink-focused', false)
+        restack(e)
+      })
       if (e.widget.hasScripts) {
         const mouse =
           (name: 'Mouse Enter' | 'Mouse Exit' | 'Mouse Down' | 'Mouse Up') => () => {
@@ -475,17 +551,23 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
     }
     place(e)
   }
-  syncAll()
+  syncEntries(entries)
 
   const stops = [
-    form.values.subscribe(syncAll),
-    form.formatted.subscribe(syncAll),
-    form.widgetState.subscribe(syncAll),
+    form.values.subscribe(syncChanged),
+    form.formatted.subscribe(syncChanged),
+    form.widgetState.subscribe(syncChanged),
+    // A set or a reset clears a refused commit's mark, even when it puts back the value the
+    // field held.
+    form._onPut((names) => {
+      if (destroyed) return
+      const put = new Set(names)
+      for (const e of entries) if (put.has(e.field.name)) setInvalid(e, false)
+    }),
     form.on('focus', (id) => {
       layer.focusWidget(id)
     }),
   ]
-  void form._pageEvent(page, 'PageOpen')
 
   const layer: FormLayer = {
     element,
@@ -521,7 +603,6 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
       for (const e of entries) e.view?.destroy()
       appearances?.destroy()
       element.remove()
-      void form._pageEvent(page, 'PageClose')
     },
   }
   return layer

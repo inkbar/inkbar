@@ -6,11 +6,10 @@
 // a row even though their tops differ.
 import { createPageTransform, type CssRect } from './transform'
 
-import type { FormField } from '../model/form/types'
+import type { FormField, FormWidget, TabsOrder } from '../model/form/types'
 import type { PageInfo } from '../model/pages'
 
-/** A page's `/Tabs`: rows, columns, structure or widget (annotation) order. */
-export type TabsOrder = 'R' | 'C' | 'S' | 'W'
+export type { TabsOrder }
 
 const unturned = (index: number): PageInfo => ({
   index,
@@ -23,7 +22,7 @@ const unturned = (index: number): PageInfo => ({
 
 interface Placed {
   id: string
-  /** Position in widget order on its page. */
+  /** Position in `/Annots` order on its page. */
   index: number
   box: CssRect
 }
@@ -60,58 +59,94 @@ function banded(
 }
 
 /**
- * Widget ids in Tab order. Pages go in order; on each page, `R` reads rows top to bottom and
- * each row left to right, `C` reads columns left to right and each column top to bottom, and
- * `S`, `W` or no `/Tabs` keep widget order (PDF.js gives no structure tree, so `S` falls back
- * to it). Widget order is the order the fields list their widgets. Positions are taken as the
- * page displays, after its `/Rotate`; a page missing from `pages` is read unturned.
+ * A page's widgets in paint order: their `/Annots` order (`FormWidget.order`), else the order
+ * they are listed in.
+ */
+export function annotsOrder<T>(
+  items: readonly T[],
+  widget: (item: T) => Pick<FormWidget, 'order'>
+): T[] {
+  return items
+    .map((item, i) => ({ item, i, at: widget(item).order ?? i }))
+    .sort((a, b) => a.at - b.at || a.i - b.i)
+    .map(({ item }) => item)
+}
+
+/**
+ * One page's widget ids in Tab order: `R` reads rows top to bottom and each row left to right,
+ * `C` reads columns left to right and each column top to bottom, and `S` follows `structure`
+ * (the page's annotation ids in structure-tree order), with widgets the tree leaves out after
+ * the rest in `/Annots` order. `W`, `A` or no `/Tabs` keep `/Annots` order. Positions are taken
+ * as the page displays, after its `/Rotate`; without `info` the page is read unturned.
+ */
+export function pageTabOrder(
+  widgets: readonly Pick<FormWidget, 'id' | 'rect' | 'order'>[],
+  order: TabsOrder | undefined,
+  info: PageInfo | undefined,
+  page = 0,
+  structure: readonly string[] = []
+): string[] {
+  const listed = annotsOrder(widgets, (w) => w)
+  if (order === 'S') {
+    const at = new Map(structure.map((id, i) => [id, i]))
+    return listed
+      .map((w, i) => ({ id: w.id, i, at: at.get(w.id) ?? Infinity }))
+      .sort((a, b) => a.at - b.at || a.i - b.i)
+      .map((w) => w.id)
+  }
+  if (order !== 'R' && order !== 'C') return listed.map((w) => w.id)
+  // Only the order matters, so a page without `info` is read through an unturned stand-in of
+  // no size.
+  const transform = createPageTransform(info ?? unturned(page), 1)
+  const placed = listed.map((w, index): Placed => ({
+    id: w.id,
+    index,
+    box: transform.toCssRect(w.rect),
+  }))
+  const sorted =
+    order === 'R'
+      ? banded(
+          placed,
+          (b) => b.top,
+          (b) => b.height,
+          (b) => b.left
+        )
+      : banded(
+          placed,
+          (b) => b.left,
+          (b) => b.width,
+          (b) => b.top
+        )
+  return sorted.map((p) => p.id)
+}
+
+/**
+ * Widget ids in Tab order: pages in order, each by its `/Tabs` (`pageTabOrder`), with
+ * `structure` the structure order of each `S` page. A page missing from `pages` is read
+ * unturned.
  */
 export function tabOrder(
   fields: readonly FormField[],
   tabs: ReadonlyMap<number, TabsOrder>,
-  pages: readonly PageInfo[] = []
+  pages: readonly PageInfo[] = [],
+  structure: ReadonlyMap<number, readonly string[]> = new Map()
 ): string[] {
-  const byPage = new Map<
-    number,
-    { id: string; rect: FormField['widgets'][number]['rect'] }[]
-  >()
+  const byPage = new Map<number, FormWidget[]>()
   for (const field of fields)
     for (const w of field.widgets) {
       const list = byPage.get(w.page) ?? []
-      list.push({ id: w.id, rect: w.rect })
+      list.push(w)
       byPage.set(w.page, list)
     }
-  const out: string[] = []
-  for (const page of [...byPage.keys()].sort((a, b) => a - b)) {
-    const widgets = byPage.get(page)!
-    const order = tabs.get(page)
-    if (order !== 'R' && order !== 'C') {
-      out.push(...widgets.map((w) => w.id))
-      continue
-    }
-    // Only the order matters, so a page missing from `pages` is read through an unturned
-    // stand-in of no size.
-    const transform = createPageTransform(pages[page] ?? unturned(page), 1)
-    const placed = widgets.map((w, index): Placed => ({
-      id: w.id,
-      index,
-      box: transform.toCssRect(w.rect),
-    }))
-    const sorted =
-      order === 'R'
-        ? banded(
-            placed,
-            (b) => b.top,
-            (b) => b.height,
-            (b) => b.left
-          )
-        : banded(
-            placed,
-            (b) => b.left,
-            (b) => b.width,
-            (b) => b.top
-          )
-    out.push(...sorted.map((p) => p.id))
-  }
-  return out
+  return [...byPage.keys()]
+    .sort((a, b) => a - b)
+    .flatMap((page) =>
+      pageTabOrder(
+        byPage.get(page)!,
+        tabs.get(page),
+        pages[page],
+        page,
+        structure.get(page)
+      )
+    )
 }

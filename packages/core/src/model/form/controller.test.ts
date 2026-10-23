@@ -123,6 +123,28 @@ describe('FormController', () => {
     expect(form.get('locked')).toBe('')
   })
 
+  it('tells the form layer of fields a set or reset put, changed or not', () => {
+    const form = controller()
+    const put = vi.fn()
+    form._onPut(put)
+    form.set({ name: 'Sam', nope: 'x' })
+    expect(put).toHaveBeenLastCalledWith(['name'])
+    // Read-only fields reset too.
+    form.reset(['notes', 'locked'])
+    expect(put).toHaveBeenLastCalledWith(['notes', 'locked'])
+    const host = createFormController({
+      fields,
+      mode: { mode: 'controlled', initial: {}, onChange: () => undefined },
+      onError: () => undefined,
+    })
+    const pushed = vi.fn()
+    host._onPut(pushed)
+    // A host's push, an echo included, is not one.
+    host.setControlledValue({ name: host.get('name')! })
+    host.setControlledValue({ name: 'Ada' })
+    expect(pushed).not.toHaveBeenCalled()
+  })
+
   it('reset leaves a locked field alone', () => {
     const form = createFormController({
       fields: fields.map((f) => (f.name === 'name' ? { ...f, locked: true } : f)),
@@ -155,6 +177,31 @@ describe('FormController', () => {
       selStart: 5,
       selEnd: 5,
     })
+    expect(form.get('name')).toBe('Sam')
+  })
+
+  it("an editable combo's keystrokes build on the label it shows, not the export value", () => {
+    const city = fields.find((f) => f.name === 'city')!
+    const form = createFormController({
+      fields: [
+        {
+          ...city,
+          options: [{ value: 'ld', label: 'Leeds' }],
+          value: 'ld',
+        },
+      ],
+      mode: { mode: 'uncontrolled' },
+      onError: () => undefined,
+    })
+    expect(form._keystroke(city.widgets[0]!.id, 's', 5, 5).value).toBe('Leedss')
+  })
+
+  it('revert drops the typed text, so the next keystroke builds on the value', () => {
+    const form = controller()
+    const widget = fields.find((f) => f.name === 'name')!.widgets[0]!.id
+    form._keystroke(widget, 'a', 3, 3)
+    form._revert(widget)
+    expect(form._keystroke(widget, 'b', 3, 3).value).toBe('Samb')
     expect(form.get('name')).toBe('Sam')
   })
 

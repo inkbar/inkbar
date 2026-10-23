@@ -213,6 +213,23 @@ describe('form layer', () => {
     expect(styled.color).toBe('rgb(0, 0, 255)')
   })
 
+  it('restyles only the widgets whose field or widget state changed', async () => {
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    const name = p.control('name')
+    // A mark only a sync of `name` would overwrite.
+    name.style.color = 'rgb(1, 2, 3)'
+    doc.form.set({ notes: 'other' })
+    doc.form._setFormatted('pin', '****')
+    doc.form._setWidgetState(p.widgetOf('email').id, { textColor: '#ff0000' })
+    expect(name.style.color).toBe('rgb(1, 2, 3)')
+    doc.form._setWidgetState(p.widgetOf('name').id, { textSize: 10 })
+    expect(name.style.color).not.toBe('rgb(1, 2, 3)')
+    name.style.color = 'rgb(1, 2, 3)'
+    doc.form.set({ name: 'Ada' })
+    expect(name.style.color).not.toBe('rgb(1, 2, 3)')
+  })
+
   it('the two widgets of one field stay in step', async () => {
     const doc = await open('form-fields')
     const p0 = mountPage(doc, { page: 0 })
@@ -502,6 +519,115 @@ describe('form layer', () => {
     expect(shownCanvas(p.host, p.widgetOf('name').id)).toBeDefined()
   })
 
+  it('waits for a look that shows while its idle pass is running', async () => {
+    // The browser goes idle only when the test says so.
+    const idle: (() => void)[] = []
+    vi.spyOn(window, 'requestIdleCallback').mockImplementation((fn) => {
+      idle.push(() => fn({ didTimeout: false, timeRemaining: () => 50 }))
+      return idle.length
+    })
+    const doc = await open('form-fields')
+    const page = await doc._pdfjs.getPage(0)
+    const render = page.render.bind(page)
+    let release!: () => void
+    const hold = new Promise<void>((resolve) => (release = resolve))
+    const gate = { holding: false }
+    vi.spyOn(page, 'render').mockImplementation((params) => {
+      const task = render(params)
+      if (!gate.holding) return task
+      return {
+        ...task,
+        promise: hold.then(() => task.promise),
+        cancel: () => task.cancel(),
+      } as typeof task
+    })
+    // No toggle is on, so every checked look waits for the browser to go idle.
+    doc.form.set({ plan: 'Off' })
+    const p = mountPage(doc)
+    await settled(p)
+    const agree = widgetsOf(doc, 'agree')[0]!
+    const checked = () =>
+      p.host.querySelector(
+        `[data-ink-appearance="${agree.id}"] [data-ink-look="checked"]`
+      )
+    expect(shownCanvas(p.host, agree.id)?.dataset.inkLook).toBe('unchecked')
+    expect(checked()).toBeNull()
+    gate.holding = true
+    // The checked looks' idle pass starts, and is held.
+    expect(idle).toHaveLength(1)
+    idle.splice(0).forEach((fn) => fn())
+    await nextFrame()
+    doc.form.set({ agree: agree.onState! })
+    let done = false
+    void p.mount.form!.rendered.then(() => (done = true))
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(checked()).toBeNull()
+    expect(done).toBe(false)
+    release()
+    await until(() => done)
+    expect(shownCanvas(p.host, agree.id)?.dataset.inkLook).toBe('checked')
+  })
+
+  it('waits for a look that shows while its idle pass is queued', async () => {
+    const idle: (() => void)[] = []
+    vi.spyOn(window, 'requestIdleCallback').mockImplementation((fn) => {
+      idle.push(() => fn({ didTimeout: false, timeRemaining: () => 50 }))
+      return idle.length
+    })
+    const doc = await open('form-fields')
+    const page = await doc._pdfjs.getPage(0)
+    const render = page.render.bind(page)
+    // Once gated, each appearance render waits until the test lets it go.
+    const gate = { on: false, waiting: [] as (() => void)[] }
+    vi.spyOn(page, 'render').mockImplementation((params) => {
+      const task = render(params)
+      if (!gate.on || params.canvas?.hasAttribute('data-ink-canvas')) return task
+      const go = new Promise<void>((resolve) => gate.waiting.push(resolve))
+      return {
+        ...task,
+        promise: go.then(() => task.promise),
+        cancel: () => task.cancel(),
+      } as typeof task
+    })
+    doc.form.set({ plan: 'Off' })
+    const p = mountPage(doc)
+    await settled(p)
+    idle.splice(0).forEach((fn) => fn())
+    await until(() => p.host.querySelector('[data-ink-look="checked"]') !== null)
+    await settled(p)
+    const agree = widgetsOf(doc, 'agree')[0]!
+    const checked = () =>
+      p.host.querySelector<HTMLCanvasElement>(
+        `[data-ink-appearance="${agree.id}"] [data-ink-look="checked"]`
+      )
+    // The checked look's canvas at this zoom; until its new one lands, it is shown stretched.
+    const old = checked()!
+    gate.on = true
+    // A new zoom draws the shown looks again (one pass runs, held), and the checked looks'
+    // idle pass queues behind them.
+    p.update(createPageTransform(doc.pages[0]!, 1.25, 0))
+    await until(() => gate.waiting.length === 1)
+    await until(() => idle.length > 0)
+    idle.splice(0).forEach((fn) => fn())
+    doc.form.set({ agree: agree.onState! })
+    let done = false
+    let early = false
+    void p.mount.form!.rendered.then(() => {
+      done = true
+      early = checked() === old
+    })
+    // Let the held renders go one at a time.
+    while (!done) {
+      await until(() => gate.waiting.length > 0 || done)
+      gate.waiting.shift()?.()
+      await nextFrame()
+    }
+    gate.on = false
+    gate.waiting.splice(0).forEach((go) => go())
+    expect(early).toBe(false)
+    expect(shownCanvas(p.host, agree.id)?.dataset.inkLook).toBe('checked')
+  })
+
   it('touching widgets share a pass', async () => {
     const doc = await open('form-fields')
     const name = widgetsOf(doc, 'name')[0]!
@@ -522,6 +648,49 @@ describe('form layer', () => {
     const p = mountPage(doc)
     await settled(p)
     expect(renders.all()).toBeLessThanOrEqual(4)
+  })
+
+  it('keeps a touching neighbour’s edge out of each widget’s canvas', async () => {
+    const doc = await open('form-fields')
+    const name = widgetsOf(doc, 'name')[0]!
+    // pin sits right under name, edge to edge, where the two share a pixel row.
+    const moved = doc.form.fields.get().map((f): FormField =>
+      f.name === 'pin'
+        ? {
+            ...f,
+            widgets: f.widgets.map((w) => ({
+              ...w,
+              rect: { ...w.rect, x: name.rect.x, y: name.rect.y - w.rect.height },
+            })),
+          }
+        : f
+    )
+    doc.form._load(moved, doc.form._tabs)
+    const p = mountPage(doc)
+    await settled(p)
+    /** Painted pixels in `of`'s canvas on rows inside `other`'s rect and outside its own. */
+    const strays = (of: string, other: string) => {
+      const canvas = shownCanvas(p.host, p.widgetOf(of).id)!
+      const top = Math.round(parseFloat(canvas.style.top))
+      const own = p.transform.toCssRect(p.widgetOf(of).rect)
+      const near = p.transform.toCssRect(p.widgetOf(other).rect)
+      const rows = [...Array(canvas.height).keys()].filter((r) => {
+        const y = top + r
+        const inOwn = y >= Math.floor(own.top) && y < Math.ceil(own.top + own.height)
+        const inNear = y >= Math.floor(near.top) && y < Math.ceil(near.top + near.height)
+        return inNear && !inOwn
+      })
+      expect(rows.length).toBeGreaterThan(0)
+      const ctx = canvas.getContext('2d')!
+      let painted = 0
+      for (const r of rows) {
+        const data = ctx.getImageData(0, r, canvas.width, 1).data
+        for (let i = 3; i < data.length; i += 4) if (data[i]! > 0) painted++
+      }
+      return painted
+    }
+    expect(strays('name', 'pin')).toBe(0)
+    expect(strays('pin', 'name')).toBe(0)
   })
 
   it('draws a look again after its pass fails', async () => {
@@ -663,13 +832,35 @@ describe('form layer', () => {
     expect(p.mount.form!.focusWidget('nope')).toBe(false)
   })
 
-  it('sends the page its open and close events', async () => {
+  it('sends page open and close events for the current page only', async () => {
     const doc = await open('form-fields')
     const spy = vi.spyOn(doc.form, '_pageEvent')
+    // A page alone mounts no page event: only the viewer's current page does.
     const p = mountPage(doc)
-    expect(spy).toHaveBeenCalledWith(0, 'PageOpen')
     p.mount.destroy()
-    expect(spy).toHaveBeenCalledWith(0, 'PageClose')
+    expect(spy).not.toHaveBeenCalled()
+
+    const container = mountContainer(800, 600)
+    container.style.overflow = 'auto'
+    // Page 1 mounts in the buffer, and is not opened for that.
+    const engine = mountViewer({ container, document: doc, zoom: 1, buffer: 2 })
+    cleanup.push(() => (engine.destroy(), container.remove()))
+    await until(() => engine.pages.has(1))
+    expect(spy.mock.calls).toEqual([[0, 'PageOpen']])
+    engine.viewport.scrollToPage(1)
+    await until(() => engine.viewport.currentPage.get() === 1)
+    expect(spy.mock.calls).toEqual([
+      [0, 'PageOpen'],
+      [0, 'PageClose'],
+      [1, 'PageOpen'],
+    ])
+    // A rebuild keeps the current page open.
+    engine.rebuild({ gap: 24 })
+    expect(engine.viewport.currentPage.get()).toBe(1)
+    expect(spy).toHaveBeenCalledTimes(3)
+    engine.destroy()
+    expect(spy.mock.calls.at(-1)).toEqual([1, 'PageClose'])
+    expect(spy).toHaveBeenCalledTimes(4)
   })
 
   it('stacks the widget appearances above the page canvas, under text and annotations', async () => {
@@ -684,6 +875,45 @@ describe('form layer', () => {
     expect(
       p.host.querySelector('[data-ink-form-layer] [data-ink-form-appearance]')
     ).toBeNull()
+  })
+
+  it('stacks the widget appearances in /Annots order', async () => {
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    const widgets = doc.form.fields
+      .get()
+      .flatMap((f) => f.widgets)
+      .filter((w) => w.page === 0)
+    expect(widgets.every((w) => w.order !== undefined)).toBe(true)
+    const annots = [...widgets].sort((a, b) => a.order! - b.order!).map((w) => w.id)
+    const stacked = [
+      ...p.host.querySelectorAll<HTMLElement>(
+        '[data-ink-form-appearance] > [data-ink-appearance]'
+      ),
+    ].map((el) => el.dataset.inkAppearance)
+    expect(stacked).toEqual(annots)
+    // The fixture puts shared's two widgets apart in /Annots, so this is not field order.
+    expect(stacked).not.toEqual(widgets.map((w) => w.id))
+    // The control boxes stack the same way, so presses go to the widget shown on top.
+    const z = (id: string) =>
+      Number(p.host.querySelector<HTMLElement>(`[data-ink-widget="${id}"]`)!.style.zIndex)
+    expect(annots.map(z)).toEqual(annots.map((_, i) => i))
+    // A focused or invalid box rises above all the others, and goes back after.
+    const first = annots[0]!
+    const control = p.host.querySelector<HTMLElement>(
+      `[data-ink-widget="${first}"] .ink-form-control`
+    )!
+    control.focus()
+    expect(z(first)).toBeGreaterThan(Math.max(...annots.slice(1).map(z)))
+    control.blur()
+    expect(z(first)).toBe(0)
+    // The control boxes stay in Tab order (this page reads by rows).
+    const boxes = [
+      ...p.host.querySelectorAll<HTMLElement>(
+        '[data-ink-form-layer] > [data-ink-widget]'
+      ),
+    ].map((el) => el.dataset.inkWidget)
+    expect(boxes).not.toEqual(annots)
   })
 
   it('reports an appearance canvas that fails to render as a form layer error', async () => {
@@ -719,6 +949,53 @@ describe('form layer', () => {
     expect(onError.mock.calls.every(([, layer]) => layer === 'form')).toBe(true)
   })
 
+  it('reports a pass that keeps failing once per geometry, after its retry', async () => {
+    const doc = await open('form-fields')
+    const page = await doc._pdfjs.getPage(0)
+    const render = page.render.bind(page)
+    let attempts = 0
+    vi.spyOn(page, 'render').mockImplementation((params) => {
+      const task = render(params)
+      if (params.canvas?.hasAttribute('data-ink-canvas')) return task
+      attempts++
+      task.promise.catch(() => undefined)
+      task.cancel()
+      return {
+        promise: Promise.reject(new Error('broken')),
+        cancel: () => undefined,
+      } as unknown as typeof task
+    })
+    const t = createPageTransform(doc.pages[0]!, 1, 0)
+    const host = mountContainer(t.cssWidth, t.cssHeight)
+    const onError = vi.fn()
+    const mount = createPageMount({
+      document: doc,
+      page: 0,
+      host,
+      transform: t,
+      store: doc.annotations,
+      devicePixelRatio: 1,
+      onError,
+    })
+    cleanup.push(() => (mount.destroy(), host.remove()))
+    // Each look's pass fails, is retried once, and fails again: one report per pass.
+    const quiet = async () => {
+      let seen = -1
+      while (seen !== attempts) {
+        seen = attempts
+        await new Promise((resolve) => setTimeout(resolve, 700))
+      }
+    }
+    await quiet()
+    const passes = attempts / 2
+    expect(Number.isInteger(passes)).toBe(true)
+    expect(onError).toHaveBeenCalledTimes(passes)
+    mount.update(createPageTransform(doc.pages[0]!, 1.5, 0))
+    await quiet()
+    expect(onError.mock.calls.length).toBeLessThanOrEqual(attempts / 2)
+    expect(onError.mock.calls.length).toBeGreaterThan(passes)
+  })
+
   it('keeps a value a script refuses on Enter, so it can be corrected', async () => {
     const doc = await open('form-scripted')
     const p = mountPage(doc)
@@ -735,6 +1012,72 @@ describe('form layer', () => {
     expect(age.hasAttribute('aria-invalid')).toBe(false)
   })
 
+  it('refuses text that would overflow a field that does not scroll', async () => {
+    const doc = await open('form-fields')
+    for (const name of ['name', 'notes']) {
+      const field = doc.form.fields.get().find((f) => f.name === name)!
+      ;(field.flags as { doNotScroll: boolean }).doNotScroll = true
+    }
+    const p = mountPage(doc)
+    const name = p.control('name')
+    await typeOver(name, 'W'.repeat(200))
+    expect(name.value.length).toBeGreaterThan(0)
+    expect(name.value.length).toBeLessThan(200)
+    expect(name.scrollWidth).toBeLessThanOrEqual(name.clientWidth + 1)
+    const kept = name.value
+    // Deleting is never refused.
+    await userEvent.keyboard('{Backspace}')
+    expect(name.value).toBe(kept.slice(0, -1))
+    name.blur()
+    expect(doc.form.get('name')).toBe(kept.slice(0, -1))
+
+    // Typing over a selection with wider text is refused too, though the text gets no longer.
+    await typeOver(name, 'i'.repeat(300))
+    const full = name.value
+    expect(full.length).toBeLessThan(300)
+    name.setSelectionRange(0, 1)
+    await userEvent.keyboard('W')
+    expect(name.value).toBe(full)
+
+    const notes = p.control('notes')
+    await typeOver(notes, 'line{Enter}'.repeat(40))
+    expect(notes.value.split('\n').length).toBeLessThan(40)
+    expect(notes.scrollHeight).toBeLessThanOrEqual(notes.clientHeight + 1)
+  })
+
+  it('Escape puts back the committed text and keeps focus', async () => {
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    const name = p.control('name')
+    await userEvent.click(name)
+    await userEvent.keyboard('{End}xyz')
+    expect(name.value).toBe('Samxyz')
+    await userEvent.keyboard('{Escape}')
+    expect(name.value).toBe('Sam')
+    expect(document.activeElement).toBe(name)
+    // Typing goes on from the committed text, not the text dropped.
+    await userEvent.keyboard('{End}a')
+    expect(name.value).toBe('Sama')
+    name.blur()
+    expect(doc.form.get('name')).toBe('Sama')
+  })
+
+  it('Escape drops a refused value and its mark', async () => {
+    const doc = await open('form-scripted')
+    const p = mountPage(doc)
+    const age = p.control('age')
+    await typeOver(age, '5')
+    await userEvent.keyboard('{Enter}')
+    expect(age.getAttribute('aria-invalid')).toBe('true')
+    await userEvent.keyboard('{Escape}')
+    expect(age.value).toBe('')
+    expect(age.hasAttribute('aria-invalid')).toBe(false)
+    expect(document.activeElement).toBe(age)
+    await userEvent.keyboard('42')
+    age.blur()
+    expect(doc.form.get('age')).toBe('42')
+  })
+
   it('clears a refused value’s mark once the value changes', async () => {
     const doc = await open('form-scripted')
     const p = mountPage(doc)
@@ -746,12 +1089,76 @@ describe('form layer', () => {
       expect(age.getAttribute('aria-invalid')).toBe('true')
     }
     await refuse()
+    // Marked and no longer focused, the box stays above the others.
+    const z = (el: HTMLElement) => Number(el.style.zIndex)
+    const others = [...p.host.querySelectorAll<HTMLElement>('[data-ink-widget]')].filter(
+      (b) => b !== p.box('age')
+    )
+    expect(z(p.box('age'))).toBeGreaterThan(Math.max(...others.map(z)))
     doc.form.set({ age: '40' })
     expect(p.box('age').hasAttribute('data-ink-invalid')).toBe(false)
     expect(age.hasAttribute('aria-invalid')).toBe(false)
+    expect(z(p.box('age'))).toBeLessThan(others.length + 1)
     await refuse()
     doc.form.reset(['age'])
     expect(doc.form.get('age')).toBe('')
+    expect(p.box('age').hasAttribute('data-ink-invalid')).toBe(false)
+  })
+
+  it('clears a refused value’s mark on a push or reset of the value it holds', async () => {
+    const doc = await open('form-scripted')
+    const p = mountPage(doc)
+    const age = p.control('age')
+    const refuse = async () => {
+      await typeOver(age, '5')
+      age.blur()
+      expect(p.box('age').hasAttribute('data-ink-invalid')).toBe(true)
+    }
+    await refuse()
+    expect(doc.form.get('age')).toBe('')
+    doc.form.reset(['age'])
+    expect(p.box('age').hasAttribute('data-ink-invalid')).toBe(false)
+    expect(age.hasAttribute('aria-invalid')).toBe(false)
+    doc.form.set({ age: '40' })
+    await refuse()
+    doc.form.set({ age: '40' })
+    expect(p.box('age').hasAttribute('data-ink-invalid')).toBe(false)
+  })
+
+  it('a controlled host’s echo leaves other fields’ refused marks alone', async () => {
+    let echoes = 0
+    const host: { doc?: InkDocument } = {}
+    const doc = await openFixtureInBrowser('form-scripted', {
+      fields: {
+        mode: 'controlled',
+        initial: {},
+        // The host pushes the whole map back, as the bindings do.
+        onChange: (next) => {
+          echoes++
+          queueMicrotask(() => host.doc?.form.setControlledValue({ ...next }))
+        },
+      },
+    })
+    host.doc = doc
+    cleanup.push(() => doc.destroy())
+    const p = mountPage(doc)
+    const age = p.control('age')
+    await typeOver(age, '5')
+    age.blur()
+    expect(p.box('age').hasAttribute('data-ink-invalid')).toBe(true)
+    const other = doc.form.fields
+      .get()
+      .find(
+        (f) => f.type === 'text' && f.name !== 'age' && !f.flags.readOnly && !f.locked
+      )!
+    const before = echoes
+    expect(doc.form.set({ [other.name]: '3' }).applied).toEqual([other.name])
+    await Promise.resolve()
+    await nextFrame()
+    expect(echoes).toBeGreaterThan(before)
+    expect(p.box('age').hasAttribute('data-ink-invalid')).toBe(true)
+    // A push that changes the field clears it.
+    doc.form.setControlledValue({ ...doc.form.values.get(), age: '30' })
     expect(p.box('age').hasAttribute('data-ink-invalid')).toBe(false)
   })
 
@@ -1126,6 +1533,48 @@ describe('checkboxes, radios, choices and buttons', () => {
     expect(control.textContent).toBe('')
   })
 
+  it('draws a script’s colours and size on a checkbox', async () => {
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    const w = widgetsOf(doc, 'agree')[0]!
+    const control = controlOf(p.host, w)
+    const look = () =>
+      p.host.querySelector<HTMLElement>(`[data-ink-appearance="${w.id}"]`)!
+    doc.form.set({ agree: w.onState! })
+    expect(p.box('agree').hasAttribute('data-ink-drawn')).toBe(false)
+    expect(control.textContent).toBe('')
+    doc.form._setWidgetState(w.id, {
+      textColor: '#ff0000',
+      fillColor: '#00ff00',
+      strokeColor: '#0000ff',
+      textSize: 9,
+    })
+    // The control draws the widget, and the file's appearance hides.
+    expect(p.box('agree').hasAttribute('data-ink-drawn')).toBe(true)
+    await until(() =>
+      [...look().querySelectorAll('canvas')].every((c) => c.style.display === 'none')
+    )
+    expect(control.textContent).not.toBe('')
+    expect(control.style.color).toBe('rgb(255, 0, 0)')
+    expect(control.style.backgroundColor).toBe('rgb(0, 255, 0)')
+    expect(control.style.borderColor).toBe('rgb(0, 0, 255)')
+    expect(control.style.fontSize).toBe('9px')
+    // Off, it draws the box without the check.
+    doc.form.set({ agree: 'Off' })
+    expect(p.box('agree').hasAttribute('data-ink-drawn')).toBe(true)
+    expect(control.textContent).toBe('')
+    expect(control.style.backgroundColor).toBe('rgb(0, 255, 0)')
+    expect(control.style.borderRadius).toBe('')
+    // A radio draws round.
+    const plan = widgetsOf(doc, 'plan')[0]!
+    doc.form._setWidgetState(plan.id, { fillColor: '#00ff00' })
+    expect(controlOf(p.host, plan).style.borderRadius).toBe('50%')
+    // Cleared, the file's appearance shows again.
+    doc.form._setWidgetState(w.id, undefined)
+    expect(p.box('agree').hasAttribute('data-ink-drawn')).toBe(false)
+    expect(control.style.backgroundColor).toBe('transparent')
+  })
+
   it('a checkbox’s Mouse Up script sees its new state', async () => {
     const doc = await open('form-scripted')
     const p = mountPage(doc)
@@ -1262,6 +1711,47 @@ describe('checkboxes, radios, choices and buttons', () => {
     expect(select.value).toBe('gb')
   })
 
+  it('a read-only combo or list box does not open or change', async () => {
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    for (const name of ['country', 'interests']) {
+      doc.form._setWidgetState(p.widgetOf(name).id, { readOnly: true })
+      const select = controlOf<HTMLSelectElement>(p.host, p.widgetOf(name))
+      const press = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
+      select.dispatchEvent(press)
+      expect(press.defaultPrevented).toBe(true)
+      // A press still focuses it.
+      expect(document.activeElement).toBe(select)
+      const key = (init: KeyboardEventInit) => {
+        const down = new KeyboardEvent('keydown', {
+          bubbles: true,
+          cancelable: true,
+          ...init,
+        })
+        select.dispatchEvent(down)
+        return down.defaultPrevented
+      }
+      for (const k of ['ArrowDown', ' ', 'Enter', 'End', 'F4', 'f'])
+        expect(key({ key: k })).toBe(true)
+      expect(key({ key: 'ArrowDown', altKey: true })).toBe(true)
+      // A character outside the BMP, and Option typing another character, pick.
+      expect(key({ key: '😀' })).toBe(true)
+      expect(key({ key: 'å', code: 'KeyA', altKey: true })).toBe(true)
+      // Alt on a letter that still types it is a shortcut.
+      expect(key({ key: 'a', code: 'KeyA', altKey: true })).toBe(false)
+      // Tab, Escape and shortcuts pass through.
+      expect(key({ key: 'Tab' })).toBe(false)
+      expect(key({ key: 'Escape' })).toBe(false)
+      expect(key({ key: 'z', ctrlKey: true })).toBe(false)
+      expect(key({ key: 'z', metaKey: true, shiftKey: true })).toBe(false)
+    }
+    doc.form._setWidgetState(p.widgetOf('country').id, { readOnly: false })
+    const select = controlOf<HTMLSelectElement>(p.host, p.widgetOf('country'))
+    const press = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
+    select.dispatchEvent(press)
+    expect(press.defaultPrevented).toBe(false)
+  })
+
   it('editable combo accepts free text', async () => {
     const doc = await open('form-fields')
     const p = mountPage(doc)
@@ -1359,6 +1849,8 @@ describe('checkboxes, radios, choices and buttons', () => {
       'reset',
     ])
     expect(pageOf(document.activeElement)).toBe(0)
+    // Page 1 is not mounted yet: Tab mounts it.
+    expect(engine.pages.has(1)).toBe(false)
     await userEvent.keyboard('{Tab}')
     expect(fieldOf(document.activeElement)).toBe('header.ref')
     expect(pageOf(document.activeElement)).toBe(1)
@@ -1399,6 +1891,99 @@ describe('checkboxes, radios, choices and buttons', () => {
     expect(prevented).toBe(true)
     await until(() => pageOf(document.activeElement) === 1)
     expect(fieldOf(document.activeElement)).toBe('header.ref')
+  })
+
+  it('Tab moves on to the next focusable when the next page never mounts', async () => {
+    const { container, engine, fieldOf } = await viewer()
+    // The view never gets to page 1.
+    vi.spyOn(engine.viewport, 'scrollToRect').mockImplementation(() => undefined)
+    // Passed over: a positive tabindex, a hidden button and one in a disabled fieldset.
+    const positive = document.createElement('button')
+    positive.tabIndex = 2
+    const hidden = document.createElement('button')
+    hidden.style.visibility = 'hidden'
+    const fieldset = document.createElement('fieldset')
+    fieldset.disabled = true
+    fieldset.append(document.createElement('button'))
+    const after = document.createElement('button')
+    after.textContent = 'after'
+    container.after(positive, hidden, fieldset, after)
+    cleanup.push(() => [positive, hidden, fieldset, after].forEach((e) => e.remove()))
+    const reset = container.querySelector<HTMLElement>('[data-ink-field="reset"] button')!
+    reset.focus({ preventScroll: true })
+    await nextFrame()
+    expect(engine.pages.has(1)).toBe(false)
+    await userEvent.keyboard('{Tab}')
+    await until(() => document.activeElement !== reset)
+    expect(fieldOf(document.activeElement)).toBeUndefined()
+    expect(document.activeElement).toBe(after)
+  })
+
+  it('Shift+Tab moves back to the previous focusable when the page before never mounts', async () => {
+    const { container, engine, fieldOf } = await viewer()
+    engine.viewport.scrollToPage(1)
+    const first = () =>
+      container.querySelector<HTMLInputElement>(
+        '.ink-page[data-page="1"] [data-ink-field="header.ref"] input'
+      )
+    await until(() => first() !== null)
+    // Just past page 0, so it unmounts.
+    await until(() => {
+      container.scrollTop += 40
+      return !engine.pages.has(0) && first() !== null
+    })
+    vi.spyOn(engine.viewport, 'scrollToRect').mockImplementation(() => undefined)
+    const before = document.createElement('button')
+    before.textContent = 'before'
+    const positive = document.createElement('button')
+    positive.tabIndex = 3
+    container.before(positive, before)
+    cleanup.push(() => (positive.remove(), before.remove()))
+    first()!.focus({ preventScroll: true })
+    await userEvent.keyboard('{Shift>}{Tab}{/Shift}')
+    await until(() => fieldOf(document.activeElement) === undefined)
+    expect(document.activeElement).toBe(before)
+    // With no tabindex-0 element before, the last positive one.
+    before.remove()
+    first()!.focus({ preventScroll: true })
+    await userEvent.keyboard('{Shift>}{Tab}{/Shift}')
+    await until(() => fieldOf(document.activeElement) === undefined)
+    expect(document.activeElement).toBe(positive)
+  })
+
+  it('Tab gives focus back to the document when nothing follows an unmounted page', async () => {
+    const { container, engine } = await viewer()
+    vi.spyOn(engine.viewport, 'scrollToRect').mockImplementation(() => undefined)
+    // Nothing focusable after the viewer.
+    const later = [...document.querySelectorAll<HTMLElement>('body *')].filter(
+      (e) =>
+        (container.compareDocumentPosition(e) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0 &&
+        !container.contains(e)
+    )
+    for (const e of later) e.setAttribute('inert', '')
+    cleanup.push(() => later.forEach((e) => e.removeAttribute('inert')))
+    const reset = container.querySelector<HTMLElement>('[data-ink-field="reset"] button')!
+    reset.focus({ preventScroll: true })
+    await userEvent.keyboard('{Tab}')
+    await until(() => document.activeElement !== reset)
+    expect(document.activeElement).toBe(document.body)
+  })
+
+  it('Tab follows the structure tree on /Tabs S', async () => {
+    const doc = await open('form-structure')
+    const ids = (names: string[]) =>
+      names.map((n) => doc.form.fields.get().find((f) => f.name === n)!.widgets[0]!.id)
+    // The tree lists third, then first; second is left out.
+    expect(doc.form._structure.get(0)).toEqual(ids(['third', 'first']))
+    // Page 1 is S too, but has no fields, so its tree is not read.
+    expect(doc.form._tabs.get(1)).toBe('S')
+    expect(doc.form._structure.has(1)).toBe(false)
+    const p = mountPage(doc)
+    expect(
+      p.mount
+        .form!.tabStops()
+        .map((el) => el.closest<HTMLElement>('[data-ink-widget]')!.dataset.inkField)
+    ).toEqual(['third', 'first', 'second'])
   })
 
   it('Shift+Tab goes back', async () => {

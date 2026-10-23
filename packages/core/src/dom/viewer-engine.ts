@@ -199,6 +199,50 @@ export interface ViewerEngine {
   destroy(): void
 }
 
+const FOCUSABLE = [
+  'a[href]',
+  'area[href]',
+  'button',
+  'input',
+  'select',
+  'textarea',
+  'iframe',
+  'summary',
+  '[tabindex]',
+  '[contenteditable]',
+].join(', ')
+
+/** Whether `c` takes focus from Tab: enabled, rendered, visible and not inert. */
+function tabbable(c: HTMLElement): boolean {
+  if (c.matches(':disabled') || c.closest('[inert]') || c.getClientRects().length === 0)
+    return false
+  return c.ownerDocument.defaultView?.getComputedStyle(c).visibility === 'visible'
+}
+
+/**
+ * The element the browser's Tab moves to from `from` (`back`: Shift+Tab), skipping `from`'s
+ * own descendants (`from` may be the viewer). Forward, that is the next element in document
+ * order with tabindex 0: from a tabindex-0 control the browser never moves to a positive one.
+ * Back, it is the previous tabindex-0 element, else the last of the positive tabindex ones,
+ * which the browser visits first.
+ */
+function nextFocusable(from: Element, back: boolean): HTMLElement | undefined {
+  const all = [...from.ownerDocument.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+    (c) => c.tabIndex >= 0 && !from.contains(c) && tabbable(c)
+  )
+  const after = (c: Element) =>
+    (from.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+  const zero = all.filter((c) => c.tabIndex === 0)
+  if (!back) return zero.find(after)
+  const before = zero.filter((c) => !after(c)).at(-1)
+  if (before) return before
+  // Positive tabindex elements go first, by tabindex and then document order.
+  return all
+    .filter((c) => c.tabIndex > 0)
+    .sort((a, b) => a.tabIndex - b.tabIndex)
+    .at(-1)
+}
+
 /** The tools under which form fields take input: the pointer tools, which make nothing. */
 const FORM_TOOLS: ReadonlySet<ToolId> = new Set<ToolId>(['select-text', 'select'])
 
@@ -214,6 +258,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
   let stopKeys: () => void = () => undefined
   let stopActive: () => void = () => undefined
   let stopFormTools: () => void = () => undefined
+  let stopPageEvents: () => void = () => undefined
   let destroyed = false
   const plugins = opts.plugins
   const hostTools = [...(opts.tools ?? []), ...(plugins?.tools ?? [])]
@@ -317,7 +362,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     )
     const state = doc.form.widgetState.get()
     const edges = new Map<number, FormWidget>()
-    for (const id of tabOrder(fields, doc.form._tabs, doc.pages)) {
+    for (const id of tabOrder(fields, doc.form._tabs, doc.pages, doc.form._structure)) {
       const w = byId.get(id)
       if (!w || (state[id]?.hidden ?? (w.hidden || w.printOnly))) continue
       if (last || !edges.has(w.page)) edges.set(w.page, w)
@@ -336,16 +381,29 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
 
   /**
    * Focuses `page`'s edge stop when the page mounts, or on the next animation frame,
-   * whichever comes first. Tries once; when the page still has no stop, focus stays put.
+   * whichever comes first. Tries once; when the page still has no stop, Tab goes where the
+   * browser would have taken it from `from` (`nextFocusable`), or past the viewer when `from`
+   * has unmounted. With nowhere to go, focus returns to the document.
    */
-  function awaitTabStop(page: number, back: boolean): void {
+  function awaitTabStop(page: number, back: boolean, from: Element): void {
     tabWait?.cancel()
     const frame = requestAnimationFrame(() => wait.retry())
     const wait = {
       page,
       retry: () => {
         wait.cancel()
-        if (!destroyed) edgeStop(page, back)?.focus()
+        if (destroyed) return
+        const stop = edgeStop(page, back)
+        if (stop) {
+          stop.focus()
+          return
+        }
+        const next = nextFocusable(from.isConnected ? from : el, back)
+        if (next) next.focus()
+        // Nothing to move to: give focus back to the document, as the browser would leave the
+        // page, so the next Tab starts over from there.
+        else if (from instanceof HTMLElement && from.isConnected) from.blur()
+        else (el.ownerDocument.activeElement as HTMLElement | null)?.blur()
       },
       cancel: () => {
         cancelAnimationFrame(frame)
@@ -359,7 +417,8 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
    * Tab on a page's last field stop (Shift+Tab on its first) goes to the first (last) stop of
    * the next (previous) page that has fields, mounting it and scrolling it into view. A page
    * that has not mounted once the view scrolls to it gets one more try, when it mounts or on the
-   * next frame. Past the last page's fields, Tab leaves the viewer as usual.
+   * next frame; after that, focus moves on as the browser's Tab would. Past the last page's
+   * fields, Tab leaves the viewer as usual.
    */
   function onFormTab(e: KeyboardEvent): void {
     if (e.key !== 'Tab' || e.altKey || e.ctrlKey || e.metaKey || e.defaultPrevented)
@@ -385,7 +444,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       }
       if (!pages.get(next)?.form) {
         e.preventDefault()
-        awaitTabStop(next, back)
+        awaitTabStop(next, back, target)
         return
       }
     }
@@ -400,6 +459,19 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       if (!destroyed && page >= 0 && page < doc.pages.length) viewport.scrollToPage(page)
     }),
   ]
+
+  /**
+   * The page whose open scripts ran last, and has not closed since. Page open and close events
+   * follow the viewport's current page, as Acrobat runs them for the page a person is on, not for
+   * the pages mounted around it; a rebuild that keeps the page sends neither.
+   */
+  let openPage: number | undefined
+  function openPageEvents(next: number | undefined): void {
+    if (next === openPage) return
+    if (openPage !== undefined) void doc.form._pageEvent(openPage, 'PageClose')
+    openPage = next
+    if (next !== undefined) void doc.form._pageEvent(next, 'PageOpen')
+  }
 
   function unmountPage(page: number): void {
     const mount = pages.get(page)
@@ -522,6 +594,8 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     else if (state.page !== undefined && state.page !== vp.currentPage.get())
       vp.scrollToPage(state.page)
     if (state.anchor) restoreScroll(vp, state.anchor)
+    openPageEvents(vp.currentPage.get())
+    stopPageEvents = vp.currentPage.subscribe(openPageEvents)
     opts.onBuild?.(vp, tc)
   }
 
@@ -529,6 +603,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     stopKeys()
     stopActive()
     stopFormTools()
+    stopPageEvents()
     tools.destroy()
     // The viewport unmounts every page it mounted, which destroys the page mounts.
     viewport.destroy()
@@ -581,6 +656,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       if (destroyed) return
       destroyed = true
       teardown()
+      openPageEvents(undefined)
       layers?.destroy()
       highlights?.destroy()
       stopRedecorate?.()

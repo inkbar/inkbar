@@ -10,7 +10,7 @@ import {
 } from './lexer'
 
 import type { PdfObjects } from './objects'
-import type { WidgetAction } from '../model/form/types'
+import type { TabsOrder, WidgetAction } from '../model/form/types'
 
 /** What a widget's dictionary holds that PDF.js does not report. */
 export interface WidgetExtras {
@@ -43,7 +43,7 @@ export interface FormExtras {
   /** DocMDP with P 1: no changes at all. */
   lockAll: boolean
   /** Page `/Tabs`, by page index, for pages that set one. */
-  tabs: Map<number, 'R' | 'C' | 'S' | 'W'>
+  tabs: Map<number, TabsOrder>
   /** What each widget's own dictionary adds, by PDF.js widget id (`12R`). */
   widgets: Map<string, WidgetExtras>
   /**
@@ -82,7 +82,7 @@ export function emptyFormExtras(): FormExtras {
 /** Deep enough for any real form; it also stops a /Parent or /Kids cycle. */
 const MAX_DEPTH = 32
 
-const TABS = new Set(['R', 'C', 'S', 'W'])
+const TABS = new Set(['R', 'C', 'S', 'W', 'A'])
 
 const refKey = (num: number, gen: number) => (gen === 0 ? `${num}R` : `${num}R${gen}`)
 
@@ -221,7 +221,7 @@ async function readDocMdp(objs: PdfObjects, root: PdfDict): Promise<boolean> {
 /** Page refs in page order, and each page's `/Tabs`. */
 async function walkPages(objs: PdfObjects, root: PdfDict) {
   const pages = new Map<string, number>()
-  const tabs = new Map<number, 'R' | 'C' | 'S' | 'W'>()
+  const tabs = new Map<number, TabsOrder>()
   const seen = new Set<string>()
   const visit = async (v: PdfValue | undefined, depth: number) => {
     if (depth > MAX_DEPTH) return
@@ -240,7 +240,7 @@ async function walkPages(objs: PdfObjects, root: PdfDict) {
     const index = pages.size
     pages.set(isRef(v) ? refKey(v.num, v.gen) : `#${index}`, index)
     const t = await objs.resolve(dictGet(node, 'Tabs'))
-    if (isName(t) && TABS.has(t.name)) tabs.set(index, t.name as 'R' | 'C' | 'S' | 'W')
+    if (isName(t) && TABS.has(t.name)) tabs.set(index, t.name as TabsOrder)
   }
   await visit(dictGet(root, 'Pages'), 0)
   return { pages, tabs }

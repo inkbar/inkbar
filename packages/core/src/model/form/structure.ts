@@ -196,7 +196,8 @@ function widgetOf(
   raw: RawWidget,
   type: FormFieldType,
   extras: FormExtras,
-  namesById: ReadonlyMap<string, string>
+  namesById: ReadonlyMap<string, string>,
+  order: ReadonlyMap<RawWidget, number>
 ): FormWidget {
   const { data: d, page } = raw
   const extra = extras.widgets.get(d.id)
@@ -217,6 +218,8 @@ function widgetOf(
     appearance: appearanceOf(d, type, extra),
     hasScripts: hasScripts(d.actions),
   }
+  const at = order.get(raw)
+  if (at !== undefined) widget.order = at
   if (type === 'checkbox' || type === 'radio') {
     const on = extra?.onState ?? (type === 'radio' ? d.buttonValue : d.exportValue)
     if (on) widget.onState = on
@@ -272,13 +275,14 @@ function buildField(
   name: string,
   widgets: readonly RawWidget[],
   extras: FormExtras,
-  namesById: ReadonlyMap<string, string>
+  namesById: ReadonlyMap<string, string>,
+  order: ReadonlyMap<RawWidget, number>
 ): FormField | undefined {
   const d = widgets[0]!.data
   const type = fieldType(d)
   if (!type) return undefined
   const flags = flagsOf(type, d.fieldFlags ?? 0)
-  const built = widgets.map((w) => widgetOf(w, type, extras, namesById))
+  const built = widgets.map((w) => widgetOf(w, type, extras, namesById, order))
   let options: FieldOption[] = []
   let value: FieldValue | undefined
   let defaultValue: FieldValue | undefined
@@ -333,7 +337,8 @@ function buildField(
 
 /**
  * Terminal fields from the widgets PDF.js reports, grouped by full name, in the order of each
- * field's first widget. Widgets of unknown field types are left out.
+ * field's first widget. `raw` lists each page's widgets in its `/Annots` order, which each
+ * widget's `order` keeps. Widgets of unknown field types are left out.
  */
 export function buildFormFields(
   raw: readonly RawWidget[],
@@ -341,9 +346,14 @@ export function buildFormFields(
 ): FormField[] {
   const groups = new Map<string, RawWidget[]>()
   const namesById = new Map<string, string>()
+  const order = new Map<RawWidget, number>()
+  const perPage = new Map<number, number>()
   for (const w of raw) {
     const name = w.data.fieldName
     if (w.data.subtype !== 'Widget' || !name) continue
+    const at = perPage.get(w.page) ?? 0
+    order.set(w, at)
+    perPage.set(w.page, at + 1)
     namesById.set(w.data.id, name)
     let group = groups.get(name)
     if (!group) groups.set(name, (group = []))
@@ -351,7 +361,7 @@ export function buildFormFields(
   }
   const fields: FormField[] = []
   for (const [name, widgets] of groups) {
-    const field = buildField(name, widgets, extras, namesById)
+    const field = buildField(name, widgets, extras, namesById, order)
     if (field) fields.push(field)
   }
   return fields

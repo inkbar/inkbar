@@ -2,10 +2,12 @@
 // (multiline), so keyboard, IME and screen readers work as anywhere else on the page.
 //
 // Every keystroke goes through `form._keystroke`, so keystroke scripts can refuse or change it;
-// the value commits through `form.set` on blur and on Enter in a single-line field. While the
-// control is focused it shows the raw value; otherwise the formatted one. The text it draws
+// the value commits through `form.set` on blur and on Enter in a single-line field, and Escape
+// puts back the committed text. While the control is focused it shows the raw value; otherwise
+// the formatted one. The text it draws
 // takes the field's `/DA` font, size and colour, `/Q` alignment and `/MK` border and
-// background, or a script's colours and size over them.
+// background, or a script's colours and size over them. A field that does not scroll refuses
+// a keystroke that would take its text past the box.
 //
 // An editable combo box is the same control with a `<datalist>` of its options: a person picks
 // one or types their own text. It shows each option's label and stores its export value.
@@ -307,15 +309,39 @@ export function createTextWidget(
     style()
   }
 
+  /** The text no longer fits the box, at the smallest size for auto size. */
+  const overflows = (): boolean => {
+    if (!frame) return false
+    style()
+    if (multiline) return el.scrollHeight > el.clientHeight + 1
+    const inner = frame.width - 2 * (borderPx() + PADDING * frame.scale)
+    const shown = field.flags.password ? '•'.repeat(el.value.length) : el.value
+    return textWidth(shown, fontPx()) > inner + 1
+  }
+
   const keystroke = () => {
     const prev = before
     const next = el.value
     if (next === prev.value) return
-    const { start, end, change } = editOf(prev, next)
-    const result = form._keystroke(widget.id, change, start, end)
-    if (!result.accepted) {
+    const refuse = () => {
       el.value = prev.value
       el.setSelectionRange(prev.start, prev.end)
+    }
+    const { start, end, change } = editOf(prev, next)
+    // A field that does not scroll (`/Ff` DoNotScroll) takes no more text than it shows: any
+    // edit that puts text in (typing, typing over a selection, a paste, autocorrect) is refused
+    // when the result overflows. Deleting alone is always allowed, even from text the file
+    // overfilled. This measures the text as typed, before keystroke scripts run: a script
+    // that changes the text afterwards is not measured, as the sandbox has already taken the
+    // keystroke and the draft cannot be rolled back.
+    if (field.flags.doNotScroll && !comb && change !== '' && overflows()) {
+      refuse()
+      style()
+      return
+    }
+    const result = form._keystroke(widget.id, change, start, end)
+    if (!result.accepted) {
+      refuse()
       return
     }
     typed = true
@@ -396,8 +422,30 @@ export function createTextWidget(
     if (composing || e.isComposing) return
     keystroke()
   })
+  /**
+   * Puts back the committed text, dropping what was typed and a refused value with its mark.
+   * Focus stays, and typing goes on from the committed text.
+   */
+  const revert = () => {
+    typed = false
+    refused = undefined
+    form._revert(widget.id)
+    ctx.setInvalid(false)
+    show()
+    el.setSelectionRange(el.value.length, el.value.length)
+    before = snap()
+    style()
+  }
+
   on('keydown', (e) => {
-    if (e.key !== 'Enter' || multiline || e.isComposing) return
+    if (e.isComposing) return
+    if (e.key === 'Escape') {
+      if (!typed && refused === undefined) return
+      e.preventDefault()
+      revert()
+      return
+    }
+    if (e.key !== 'Enter' || multiline) return
     e.preventDefault()
     commit(false)
     before = snap()

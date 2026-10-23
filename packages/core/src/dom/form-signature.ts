@@ -54,6 +54,9 @@ export function createSignatureWidget(ctx: WidgetViewContext): WidgetView {
       if (isSigned) {
         el.dataset.inkSigned = ''
         el.setAttribute('aria-disabled', 'true')
+        // No menu is open on a signed field: a host's signature menu leaves no state behind.
+        el.removeAttribute('aria-expanded')
+        delete el.dataset.state
       } else {
         delete el.dataset.inkSigned
         el.removeAttribute('aria-disabled')

@@ -2,10 +2,10 @@
 //
 // Checkboxes and radios are `<button role="checkbox|radio">`, clear over the PDF's own
 // appearance. The form layer shows the widget's own on or off appearance under it, as its state
-// says. Only a widget whose file has no on appearance
-// draws itself, with its `/MK /CA` character in ZapfDingbats style. A click, or Space, commits
-// the new state and then runs the widget's Mouse Up and Action; arrow keys move through a radio
-// group's shown, editable widgets on the page and pick as they go.
+// says. A widget whose file has no on appearance draws itself while on, with its `/MK /CA`
+// character in ZapfDingbats style, and so does one a script gives colours or a size. A click,
+// or Space, commits the new state and then runs the widget's Mouse Up and Action; arrow keys
+// move through a radio group's shown, editable widgets on the page and pick as they go.
 //
 // A combo box is a native `<select>` (an editable one is a text input with a `<datalist>`, in
 // form-text.ts), and a list box a `<select>` with a `size`, or `multiple` for a multi-select.
@@ -43,6 +43,36 @@ const LINE_FACTOR = 1.35
 /** Auto size (`/DA` size 0) in a list box, in points. */
 const LIST_AUTO = 12
 
+/** Keys a `<select>` opens its list or moves its choice on. */
+const SELECT_KEYS = new Set([
+  'ArrowUp',
+  'ArrowDown',
+  'ArrowLeft',
+  'ArrowRight',
+  'Home',
+  'End',
+  'PageUp',
+  'PageDown',
+  ' ',
+  'Enter',
+  'F4',
+])
+
+/**
+ * Whether the key opens a select or changes its choice: the keys above (Alt+Down and Alt+Up
+ * included), and a key that types a character (one code point, astral ones too), which picks
+ * the option it starts. Ctrl or Cmd makes a key a shortcut, and so does Alt on a letter or
+ * digit key that still types that letter or digit; Alt that types another character (Option
+ * on macOS) still picks.
+ */
+function opensOrPicks(e: KeyboardEvent): boolean {
+  if (e.ctrlKey || e.metaKey) return false
+  if (SELECT_KEYS.has(e.key)) return true
+  if ([...e.key].length !== 1) return false
+  const plain = /^(?:Key|Digit)(.)$/.exec(e.code)?.[1]
+  return !(e.altKey && plain !== undefined && e.key.toUpperCase() === plain)
+}
+
 /** Focus and Blur reach the widget's scripts. */
 function sendFocus(ctx: WidgetViewContext, el: HTMLElement, onChange: () => void) {
   el.addEventListener('focus', () => {
@@ -70,21 +100,65 @@ export function createToggleWidget(ctx: WidgetViewContext): WidgetView {
   el.style.cssText =
     'position:absolute;box-sizing:border-box;margin:0;padding:0;border:none;' +
     'background:transparent;display:flex;align-items:center;justify-content:center;' +
-    'line-height:1;overflow:hidden;transform-origin:center;' +
-    `color:${appearance.color ?? '#000000'};`
+    'line-height:1;overflow:hidden;transform-origin:center;'
   ctx.box.append(el)
 
   let state: WidgetState | undefined
+  let frame: WidgetFrame | undefined
   const on = () => onState !== undefined && state?.value === onState
-  /** Only a widget without its own on appearance draws itself, and only while on. */
-  const drawn = () => appearance.onAppearance === false && on()
+  /** Script state the PDF's appearance does not show. */
+  const restyled = () => {
+    const o = state?.override ?? {}
+    return (
+      o.textColor !== undefined ||
+      o.fillColor !== undefined ||
+      o.strokeColor !== undefined ||
+      o.textSize !== undefined ||
+      (o.hidden === false && (widget.hidden || widget.printOnly))
+    )
+  }
+  /**
+   * The widget draws itself while a script restyles it, and while it is on without an on
+   * appearance of its own.
+   */
+  const drawn = () => restyled() || (appearance.onAppearance === false && on())
   const glyph = () =>
     DINGBATS[appearance.checkStyle ?? ''] ?? (radio ? DINGBATS.l! : DINGBATS['4']!)
 
+  /** Colours, border and check size: the `/MK` and `/DA` ones, or a script's over them. */
+  const style = () => {
+    const s = el.style
+    const o = state?.override ?? {}
+    const shows = drawn()
+    s.color = o.textColor ?? appearance.color ?? '#000000'
+    s.backgroundColor = shows
+      ? (o.fillColor ?? appearance.background ?? 'transparent')
+      : 'transparent'
+    const border = appearance.border
+    const stroke = o.strokeColor ?? border?.color
+    const bw = border && frame ? border.width * frame.scale : 0
+    if (shows && border && bw > 0 && stroke && stroke !== 'transparent') {
+      s.borderWidth = `${bw}px`
+      s.borderColor = stroke
+      s.borderStyle = 'none'
+      if (border.style === 'underline') s.borderBottomStyle = 'solid'
+      else s.borderStyle = BORDER_STYLES[border.style]
+    } else s.border = 'none'
+    // A radio draws round, as PDF radios are, unless its `/MK /CA` asks for a square check.
+    s.borderRadius = radio && appearance.checkStyle !== 'n' ? '50%' : ''
+    if (!frame) return
+    const size = o.textSize ?? appearance.fontSize
+    s.fontSize =
+      size > 0
+        ? `${size * frame.scale}px`
+        : `${Math.min(frame.width, frame.height) * GLYPH_RATIO}px`
+  }
+
   const show = () => {
     el.setAttribute('aria-checked', on() ? 'true' : 'false')
-    const text = drawn() ? glyph() : ''
+    const text = drawn() && on() ? glyph() : ''
     if (el.textContent !== text) el.textContent = text
+    style()
   }
 
   const activate = () => {
@@ -139,8 +213,9 @@ export function createToggleWidget(ctx: WidgetViewContext): WidgetView {
       state = next
       show()
     },
-    layout(frame: WidgetFrame) {
-      el.style.fontSize = `${Math.min(frame.width, frame.height) * GLYPH_RATIO}px`
+    layout(next) {
+      frame = next
+      style()
     },
     destroy() {
       el.remove()
@@ -254,7 +329,8 @@ function createSelectWidget(ctx: WidgetViewContext): WidgetView {
   }
 
   const commit = () => {
-    // A select cannot be read-only: a change to a read-only field is put back.
+    // A select has no read-only state of its own: a change that got past the guards above is
+    // put back.
     if (state.readOnly) {
       show()
       return
@@ -270,6 +346,16 @@ function createSelectWidget(ctx: WidgetViewContext): WidgetView {
     style()
   }
 
+  // A read-only select does not open or move its choice. It still takes focus, from a press
+  // too, so a screen reader can land on it, and other keys and shortcuts pass through.
+  el.addEventListener('mousedown', (e) => {
+    if (!state.readOnly) return
+    e.preventDefault()
+    el.focus()
+  })
+  el.addEventListener('keydown', (e) => {
+    if (state.readOnly && opensOrPicks(e)) e.preventDefault()
+  })
   el.addEventListener('change', commit)
   sendFocus(ctx, el, () => {
     focused = ownerDoc.activeElement === el

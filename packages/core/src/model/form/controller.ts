@@ -18,6 +18,7 @@ import type {
   FormField,
   FormSetResult,
   FormWidget,
+  TabsOrder,
   WidgetAction,
   WidgetOverride,
 } from './types'
@@ -90,8 +91,9 @@ export interface FormController {
   _step(fn: () => void): void
   /**
    * Applies a keystroke to the widget's text as typed so far (its uncommitted text, else the
-   * field's value). Without scripting it accepts every keystroke. The uncommitted text is dropped
-   * when the field's value changes or the widget blurs.
+   * field's value as shown: a combo's option label for its export value). Without scripting it
+   * accepts every keystroke. The uncommitted text is dropped when the field's value changes or
+   * the widget blurs.
    */
   _keystroke(
     widget: string,
@@ -100,8 +102,13 @@ export interface FormController {
     selEnd: number
   ): KeystrokeResult
   /**
-   * @internal A page's form layer mounted (`PageOpen`) or went (`PageClose`): runs the page's
-   * open or close scripts. Resolves once they ran; nothing runs without scripts.
+   * @internal Drops the widget's uncommitted text (Escape in a text field), and the sandbox,
+   * which saw each keystroke, goes back to the stored value. Its next keystroke builds on that.
+   */
+  _revert(widget: string): void
+  /**
+   * @internal The viewer's current page became `page` (`PageOpen`) or another (`PageClose`):
+   * runs the page's open or close scripts. Resolves once they ran; nothing runs without scripts.
    */
   _pageEvent(page: number, name: PageEventName): Promise<void>
   /** @internal Sets a field's formatted text; `undefined` clears it. */
@@ -123,11 +130,17 @@ export interface FormController {
    */
   _scriptValues(values: FieldValues): void
   /** @internal Each page's `/Tabs`, for pages that set one; set with the fields. */
-  readonly _tabs: ReadonlyMap<number, 'R' | 'C' | 'S' | 'W'>
+  readonly _tabs: ReadonlyMap<number, TabsOrder>
+  /**
+   * @internal For each page whose `/Tabs` is `S`, its annotation ids in structure-tree order;
+   * set with the fields.
+   */
+  readonly _structure: ReadonlyMap<number, readonly string[]>
   /** @internal Sets the structure once the file's fields are read, applying any waiting push. */
   _load(
     fields: readonly FormField[],
-    tabs?: ReadonlyMap<number, 'R' | 'C' | 'S' | 'W'>
+    tabs?: ReadonlyMap<number, TabsOrder>,
+    structure?: ReadonlyMap<number, readonly string[]>
   ): void
   /**
    * @internal Applies values already checked by `fieldsFromGloss`, as an import: neither the
@@ -153,6 +166,12 @@ export interface FormController {
    * applied or dropped yet.
    */
   _awaitingSignature(name: string): boolean
+  /**
+   * @internal `set` or `reset` gave these fields a value, whether or not it differs from the
+   * one they held. The form layer clears a refused commit's mark on them. A host's push is not
+   * reported: it clears a mark only where it changes the value.
+   */
+  _onPut(fn: (names: readonly string[]) => void): () => void
   /** @internal Destroys the scripting and drops every listener. */
   _destroy(): void
 }
@@ -235,7 +254,8 @@ export function createFormController(opts: FormControllerOptions): FormControlle
   let byWidget = new Map<string, FormField>()
   let widgets = new Map<string, FormWidget>()
   let loaded = false
-  let tabs: ReadonlyMap<number, 'R' | 'C' | 'S' | 'W'> = new Map()
+  let tabs: ReadonlyMap<number, TabsOrder> = new Map()
+  let structure: ReadonlyMap<number, readonly string[]> = new Map()
   /** A push that arrived before the fields loaded. */
   let waiting: FieldValues | undefined
   let scripting: FormScripting | undefined
@@ -246,6 +266,7 @@ export function createFormController(opts: FormControllerOptions): FormControlle
     error: InkError
     focus: string
     goto: number
+    put: readonly string[]
   }>()
   /**
    * Errors reported before anything listened for them, the newest `UNHEARD_LIMIT`;
@@ -422,10 +443,12 @@ export function createFormController(opts: FormControllerOptions): FormControlle
 
   const load = (
     list: readonly FormField[],
-    pageTabs?: ReadonlyMap<number, 'R' | 'C' | 'S' | 'W'>
+    pageTabs?: ReadonlyMap<number, TabsOrder>,
+    pageStructure?: ReadonlyMap<number, readonly string[]>
   ) => {
     loaded = true
     tabs = pageTabs ?? new Map()
+    structure = pageStructure ?? new Map()
     fields.set(list)
     byName = new Map(list.map((f) => [f.name, f]))
     byWidget = new Map(list.flatMap((f) => f.widgets.map((w) => [w.id, f] as const)))
@@ -561,6 +584,7 @@ export function createFormController(opts: FormControllerOptions): FormControlle
           names: [...new Set([...result.applied, ...changedNames])],
         })
       )
+      if (result.applied.length > 0 && !destroyed) emitter.emit('put', result.applied)
       return result
     },
     reset(names) {
@@ -575,6 +599,8 @@ export function createFormController(opts: FormControllerOptions): FormControlle
         },
         (changedNames) => ({ kind: 'reset', names: changedNames })
       )
+      const put = targets.flatMap((f) => (f.locked ? [] : [f.name]))
+      if (put.length > 0 && !destroyed) emitter.emit('put', put)
     },
     setControlledValue(next) {
       if (!controlled || destroyed) return
@@ -582,6 +608,8 @@ export function createFormController(opts: FormControllerOptions): FormControlle
         waiting = { ...waiting, ...next }
         return
       }
+      // A push clears a refused mark only by changing the value (which the form layer sees):
+      // hosts echo the whole map after every change, and an echo is no push of its own.
       const pushed = valid(next).filter(
         ([name, value]) => !sameValue(store.get(name)?.value, value)
       )
@@ -652,7 +680,13 @@ export function createFormController(opts: FormControllerOptions): FormControlle
     _keystroke(widget, change, selStart, selEnd) {
       const field = byWidget.get(widget)
       const stored = field ? store.get(field.name)?.value : undefined
-      const before = pending.get(widget) ?? (typeof stored === 'string' ? stored : '')
+      const text = typeof stored === 'string' ? stored : ''
+      // An editable combo shows an option's label for its export value, and is typed into.
+      const shown =
+        field?.type === 'combo'
+          ? (field.options.find((o) => o.value === text)?.label ?? text)
+          : text
+      const before = pending.get(widget) ?? shown
       const caret = selStart + change.length
       const result = (!destroyed &&
         scripting?.keystroke(widget, before, change, selStart, selEnd)) || {
@@ -663,6 +697,10 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       }
       if (!destroyed && result.accepted) pending.set(widget, result.value)
       return result
+    },
+    _revert(widget) {
+      if (destroyed || !pending.delete(widget)) return
+      within(() => scripting?.sync(current(), false))
     },
     _pageEvent(page, name) {
       if (destroyed || !scripting) return Promise.resolve()
@@ -715,6 +753,9 @@ export function createFormController(opts: FormControllerOptions): FormControlle
     },
     get _tabs() {
       return tabs
+    },
+    get _structure() {
+      return structure
     },
     _load: load,
     _import(next) {
@@ -781,6 +822,9 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       for (const [id, field] of awaiting)
         if (field === name && annotations?._getProposed(id)) return true
       return false
+    },
+    _onPut(fn) {
+      return emitter.on('put', fn)
     },
     _destroy() {
       if (destroyed) return

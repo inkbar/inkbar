@@ -82,6 +82,35 @@ describe('buildFormFields', () => {
     expect(names.slice(-2)).toEqual(['rotated', 'sig2'])
   })
 
+  it("numbers each widget by its place in its page's /Annots", () => {
+    const widget = (id: string, page: number, field: string): RawWidget => ({
+      page,
+      data: {
+        id,
+        subtype: 'Widget',
+        annotationType: 20,
+        rect: [0, 0, 10, 10],
+        fieldName: field,
+        fieldType: 'Tx',
+      },
+    })
+    // One field's two widgets on page 0 sit either side of another field's.
+    const fields = buildFormFields(
+      [
+        widget('a1', 0, 'a'),
+        widget('b1', 0, 'b'),
+        widget('a2', 0, 'a'),
+        widget('b2', 1, 'b'),
+        widget('c1', 1, 'c'),
+      ],
+      emptyFormExtras()
+    )
+    const order = Object.fromEntries(
+      fields.flatMap((f) => f.widgets.map((w) => [w.id, w.order]))
+    )
+    expect(order).toEqual({ a1: 0, a2: 2, b1: 1, b2: 0, c1: 1 })
+  })
+
   it('reads flags', async () => {
     const fields = await fieldsOf('form-fields')
     const f = (n: string) => fields.get(n)!
