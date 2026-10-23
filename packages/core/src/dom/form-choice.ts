@@ -43,6 +43,32 @@ const LINE_FACTOR = 1.35
 /** Auto size (`/DA` size 0) in a list box, in points. */
 const LIST_AUTO = 12
 
+/** Keys a `<select>` opens its list or moves its choice on. */
+const SELECT_KEYS = new Set([
+  'ArrowUp',
+  'ArrowDown',
+  'ArrowLeft',
+  'ArrowRight',
+  'Home',
+  'End',
+  'PageUp',
+  'PageDown',
+  ' ',
+  'Enter',
+  'F4',
+])
+
+/**
+ * Whether the key opens a select or changes its choice: the keys above (Alt+Down and Alt+Up
+ * included), and a printable key, which picks the option it starts, unless Ctrl or Cmd makes it
+ * a shortcut.
+ */
+function opensOrPicks(e: KeyboardEvent): boolean {
+  if (e.ctrlKey || e.metaKey) return false
+  if (SELECT_KEYS.has(e.key)) return true
+  return !e.altKey && e.key.length === 1
+}
+
 /** Focus and Blur reach the widget's scripts. */
 function sendFocus(ctx: WidgetViewContext, el: HTMLElement, onChange: () => void) {
   el.addEventListener('focus', () => {
@@ -314,12 +340,15 @@ function createSelectWidget(ctx: WidgetViewContext): WidgetView {
     style()
   }
 
-  // A read-only select does not open or move its choice; Tab still leaves it.
+  // A read-only select does not open or move its choice. It still takes focus, from a press
+  // too, so a screen reader can land on it, and other keys and shortcuts pass through.
   el.addEventListener('mousedown', (e) => {
-    if (state.readOnly) e.preventDefault()
+    if (!state.readOnly) return
+    e.preventDefault()
+    el.focus()
   })
   el.addEventListener('keydown', (e) => {
-    if (state.readOnly && e.key !== 'Tab' && e.key !== 'Escape') e.preventDefault()
+    if (state.readOnly && opensOrPicks(e)) e.preventDefault()
   })
   el.addEventListener('change', commit)
   sendFocus(ctx, el, () => {

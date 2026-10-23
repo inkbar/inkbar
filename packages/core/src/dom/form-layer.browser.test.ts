@@ -1633,23 +1633,25 @@ describe('checkboxes, radios, choices and buttons', () => {
       const press = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
       select.dispatchEvent(press)
       expect(press.defaultPrevented).toBe(true)
-      for (const key of ['ArrowDown', ' ', 'Enter', 'End']) {
+      // A press still focuses it.
+      expect(document.activeElement).toBe(select)
+      const key = (init: KeyboardEventInit) => {
         const down = new KeyboardEvent('keydown', {
-          key,
           bubbles: true,
           cancelable: true,
+          ...init,
         })
         select.dispatchEvent(down)
-        expect(down.defaultPrevented).toBe(true)
+        return down.defaultPrevented
       }
-      // Tab still leaves it.
-      const tab = new KeyboardEvent('keydown', {
-        key: 'Tab',
-        bubbles: true,
-        cancelable: true,
-      })
-      select.dispatchEvent(tab)
-      expect(tab.defaultPrevented).toBe(false)
+      for (const k of ['ArrowDown', ' ', 'Enter', 'End', 'F4', 'f'])
+        expect(key({ key: k })).toBe(true)
+      expect(key({ key: 'ArrowDown', altKey: true })).toBe(true)
+      // Tab, Escape and shortcuts pass through.
+      expect(key({ key: 'Tab' })).toBe(false)
+      expect(key({ key: 'Escape' })).toBe(false)
+      expect(key({ key: 'z', ctrlKey: true })).toBe(false)
+      expect(key({ key: 'z', metaKey: true, shiftKey: true })).toBe(false)
     }
     doc.form._setWidgetState(p.widgetOf('country').id, { readOnly: false })
     const select = controlOf<HTMLSelectElement>(p.host, p.widgetOf('country'))
