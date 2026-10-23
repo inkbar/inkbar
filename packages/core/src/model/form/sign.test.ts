@@ -331,6 +331,37 @@ describe('signField', () => {
     doc.destroy()
   })
 
+  it('controlled fields: undo then redo brings the signature back pinned', async () => {
+    const host: { doc?: Awaited<ReturnType<typeof open>> } = {}
+    const onChange = vi.fn((next: FieldValues) => host.doc?.form.setControlledValue(next))
+    const doc = await open('form-fields', {
+      fields: { mode: 'controlled', initial: {}, onChange },
+    })
+    host.doc = doc
+    const widget = fieldOf(doc.form.fields.get(), 'sig').widgets[0]!
+    const id = signField(doc, 'sig', widget.id, image)
+    expect(doc.annotations._isPinned(id)).toBe(true)
+    doc.history.undo()
+    expect(doc.annotations.get(id)).toBeUndefined()
+    expect(doc.form.get('sig')).toBeUndefined()
+    doc.history.redo()
+    expect(doc.annotations.get(id)).toBeDefined()
+    expect(doc.form.get('sig')).toEqual({ signature: id })
+    expect(doc.annotations._isPinned(id)).toBe(true)
+    expect(onChange.mock.calls.map(([next]) => next.sig)).toEqual([
+      { signature: id },
+      undefined,
+      { signature: id },
+    ])
+    // Undoing the deletion of a signature brings it back pinned too.
+    doc.annotations.remove(id)
+    expect(doc.form.get('sig')).toBeUndefined()
+    doc.history.undo()
+    expect(doc.form.get('sig')).toEqual({ signature: id })
+    expect(doc.annotations._isPinned(id)).toBe(true)
+    doc.destroy()
+  })
+
   it('a signed field cannot be signed again until cleared', async () => {
     const doc = await open()
     const widget = fieldOf(doc.form.fields.get(), 'sig').widgets[0]!

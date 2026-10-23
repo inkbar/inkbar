@@ -256,8 +256,16 @@ export function createFormController(opts: FormControllerOptions): FormControlle
   const store = createRecordStore<FieldRecord>('form.fields')
   /** The annotations signature fields are signed with, once linked. */
   let annotations: AnnotationStore | undefined
+  /** Whether undo and redo replay the field values along with the annotations. */
+  let replays = false
   /** Signatures proposed to a controlled host and not in the list yet: annotation id to field. */
   const awaiting = new Map<string, string>()
+  /**
+   * Signatures whose annotation went and cleared their field, by annotation id, when the
+   * field values have no undo history of their own (controlled fields). Undo or redo that
+   * brings the annotation back signs its field again.
+   */
+  const dropped = new Map<string, string>()
   const unlink: (() => void)[] = []
 
   let cachedList: readonly FieldRecord[] | undefined
@@ -456,11 +464,27 @@ export function createFormController(opts: FormControllerOptions): FormControlle
     if (gone.length > 0)
       reporting(
         () => {
-          for (const [name] of gone) write(name, undefined)
+          for (const [name, id] of gone) {
+            if (!replays) dropped.set(id, name)
+            write(name, undefined)
+          }
         },
         (names) => ({ kind: 'commit', names })
       )
     pin()
+  }
+
+  /** Signs again the fields whose dropped signature an undo or redo brought back. */
+  const restore = () => {
+    const linked = annotations
+    if (!linked || destroyed) return
+    for (const [id, name] of [...dropped]) {
+      if (!linked.get(id)) continue
+      dropped.delete(id)
+      const field = byName.get(name)
+      if (field?.type === 'signature' && !field.locked && signatureOf(name) === undefined)
+        sign(name, id)
+    }
   }
 
   /** Writes a signature, as a commit. */
@@ -699,6 +723,7 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       if (destroyed || annotations) return
       const linked = link.store
       annotations = linked
+      replays = link.replays
       let signed = signedFields()
       unlink.push(
         store.on('change', (change) => {
@@ -715,10 +740,12 @@ export function createFormController(opts: FormControllerOptions): FormControlle
           dropDangling()
         }),
         linked.on('change', (change) => {
-          if (change.kind === 'replace' && change.reason === 'history' && link.replays) {
+          const replay = change.kind === 'replace' && change.reason === 'history'
+          if (replay && link.replays) {
             pin()
             return
           }
+          if (replay) restore()
           land()
           dropDangling()
         }),
@@ -746,6 +773,7 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       destroyed = true
       for (const stop of unlink.splice(0)) stop()
       awaiting.clear()
+      dropped.clear()
       unheard = undefined
       scripting?.destroy()
       scripting = undefined
