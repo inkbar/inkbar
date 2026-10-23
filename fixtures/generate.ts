@@ -1023,6 +1023,16 @@ async function formFields() {
   )
   country.acroField.dict.set(PDFName.of('V'), PDFString.of('gb'))
   widgetDict(reset).set(PDFName.of('A'), ctx.obj({ S: 'ResetForm' }))
+  // shared's second widget comes after country in /Annots, apart from its first, so /Annots
+  // order differs from the order the fields list their widgets.
+  const annots = p1.node.lookup(PDFName.of('Annots'), PDFArray)
+  const second = ctx.getObjectRef(widgetDict(shared, 1))!
+  const at = annots.asArray().findIndex((r) => r === second)
+  annots.remove(at)
+  const after = annots
+    .asArray()
+    .findIndex((r) => r === ctx.getObjectRef(widgetDict(country)))
+  annots.insert(after + 1, second)
 
   await save(
     'form-fields',

@@ -832,6 +832,8 @@ describe('form layer', () => {
       ),
     ].map((el) => el.dataset.inkAppearance)
     expect(stacked).toEqual(annots)
+    // The fixture puts shared's two widgets apart in /Annots, so this is not field order.
+    expect(stacked).not.toEqual(widgets.map((w) => w.id))
     // The control boxes stay in Tab order (this page reads by rows).
     const boxes = [
       ...p.host.querySelectorAll<HTMLElement>(
