@@ -1,3 +1,5 @@
+import { emptyFormExtras, readFormExtras, type FormExtras } from '../pdf/form-fields'
+import { openPdfObjects } from '../pdf/objects'
 import { pageGlyphs } from '../pdfjs/glyphs'
 import { assertAssets, loadPdfjs, openProxy } from '../pdfjs/load'
 
@@ -22,6 +24,7 @@ import {
   type StoreMode,
 } from './annotations/store'
 import { InkError, isInkError } from './errors'
+import { buildFormFields, type RawWidget } from './form/structure'
 import { canvasMeasureChar } from './measure-char'
 import { createPageCache, type PageCache } from './page-cache'
 import { pageInfoFromProxy, type PageInfo } from './pages'
@@ -37,6 +40,7 @@ import { resolveSource, type DocumentSource } from './source'
 import { textContentFromPdfjs, type TextContent } from './text'
 
 import type { AnnotationDocument, ForeignAnnotation } from './annotations/types'
+import type { FormField } from './form/types'
 import type {
   PdfAssets,
   PdfjsAnnotationData,
@@ -154,6 +158,11 @@ export async function openDocument(
   let preserved: ForeignAnnotation[] = []
   /** Embedded annotations whose PDF.js data lacks fields the file holds; read after `ready`. */
   const targets: EmbeddedTarget[] = []
+  /** The file's form fields and what was read for them from its objects, filled before `ready`. */
+  const form: { fields: FormField[]; extras: FormExtras } = {
+    fields: [],
+    extras: emptyFormExtras(),
+  }
 
   const destroyedError = (): InkError =>
     new InkError('DocumentDestroyed', 'The document has been destroyed')
@@ -206,12 +215,29 @@ export async function openDocument(
         // A page whose annotations PDF.js cannot parse still renders; it just has none to show.
         return []
       })
-      return importEmbeddedPage(i, raw, importedAt)
+      const widgets = raw.flatMap((data): RawWidget[] =>
+        data.subtype === 'Widget' ? [{ page: i, data }] : []
+      )
+      return { ...importEmbeddedPage(i, raw, importedAt), widgets }
     })
     embedded.push(...summarise(perPage.map((r) => r.counts)))
     const fromFile = perPage.flatMap((r) => r.annotations)
     targets.push(...perPage.flatMap((r) => r.targets))
     if (fromFile.length > 0) store._setEmbedded(fromFile)
+
+    const widgets = perPage.flatMap((r) => r.widgets)
+    if (widgets.length > 0) {
+      // PDF.js has detached the bytes it was given, so the file's objects are read from a copy.
+      const objs = await proxy
+        .getData()
+        .then(openPdfObjects)
+        .catch(() => undefined)
+      form.extras = await readFormExtras(
+        objs,
+        widgets.map((w) => w.data.id)
+      )
+      form.fields = buildFormFields(widgets, form.extras)
+    }
   })()
 
   const ready = load.then(

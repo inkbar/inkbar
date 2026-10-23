@@ -88,7 +88,15 @@ async function baseFontIn(objs: PdfObjects, dr: PdfValue | undefined, resource: 
   return isName(base) ? base.name : undefined
 }
 
-async function readFont(objs: PdfObjects, annot: PdfDict, daFont: string) {
+/**
+ * The font a `/DA` font name selects: its `/BaseFont` in the annotation's `/DR`, then the
+ * AcroForm's `/DR`, else the name itself when it is a standard family.
+ */
+export async function readFont(
+  objs: PdfObjects,
+  annot: PdfDict,
+  daFont: string
+): Promise<FontFields | undefined> {
   const root = await dictOf(objs, dictGet(objs.trailer, 'Root'))
   const acroForm = root && (await dictOf(objs, dictGet(root, 'AcroForm')))
   const sources = [dictGet(annot, 'DR'), acroForm && dictGet(acroForm, 'DR')]

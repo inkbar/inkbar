@@ -38,7 +38,7 @@ async function open(name: FixtureName, password?: string) {
 // The field names and widget counts are the contract the form tests build on.
 const FORMS = {
   'form-fields': {
-    widgets: 21,
+    widgets: 22,
     fields: [
       'agree',
       'auto',
@@ -60,6 +60,7 @@ const FORMS = {
       'rotated',
       'shared',
       'sig',
+      'styled',
     ],
   },
   'form-scripted': {

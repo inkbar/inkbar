@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { dictGet, isName, parseIndirect, parseValue, PdfSyntaxError } from './lexer'
+import {
+  dictGet,
+  isName,
+  parseIndirect,
+  parseValue,
+  PdfSyntaxError,
+  textString,
+} from './lexer'
 
 const b = (s: string): Uint8Array => Uint8Array.from(s, (c) => c.charCodeAt(0))
 
@@ -29,13 +36,33 @@ describe('parseValue', () => {
     ])
   })
 
-  it('skips literal strings with nested and escaped parens, and hex strings', () => {
+  it('reads literal strings with nested and escaped parens, and hex strings', () => {
     const literal = '(a(b)\\)c)'
     expect(parseValue(b(`${literal} x`), 0)).toEqual({
-      value: { kind: 'string' },
+      value: { kind: 'string', bytes: b('a(b))c') },
       end: literal.length,
     })
-    expect(parseValue(b('<41 42>'), 0)).toEqual({ value: { kind: 'string' }, end: 7 })
+    expect(parseValue(b('<41 42>'), 0)).toEqual({
+      value: { kind: 'string', bytes: b('AB') },
+      end: 7,
+    })
+    expect(parseValue(b('<414>'), 0).value).toEqual({ kind: 'string', bytes: b('A@') })
+  })
+
+  it('decodes escapes in literal strings', () => {
+    const s = parseValue(b('(a\\nb\\101\\\nc\\\\)'), 0).value
+    expect(s).toEqual({ kind: 'string', bytes: b('a\nbAc\\') })
+  })
+
+  it('decodes text strings', () => {
+    const utf16 = Uint8Array.from([0xfe, 0xff, 0x00, 0xa3, 0x00, 0x31])
+    expect(textString({ kind: 'string', bytes: utf16 })).toBe('£1')
+    const utf8 = Uint8Array.from([0xef, 0xbb, 0xbf, 0xc2, 0xa3])
+    expect(textString({ kind: 'string', bytes: utf8 })).toBe('£')
+    expect(textString({ kind: 'string', bytes: Uint8Array.from([0x41, 0x84]) })).toBe(
+      'A—'
+    )
+    expect(textString({ kind: 'name', name: 'x' })).toBeUndefined()
   })
 
   it('parses nested dicts and arrays', () => {

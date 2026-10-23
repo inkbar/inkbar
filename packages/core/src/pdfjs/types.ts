@@ -28,7 +28,6 @@ export interface PdfjsAnnotationData {
   name?: string
   /** The intent (`/IT`), a PDF name. PDF.js 6.4 does not pass FreeText `/CL`, `/RD` or `/LE`. */
   it?: string
-  borderStyle?: { width: number } | null
   lineCoordinates?: [number, number, number, number]
   vertices?: Float32Array | number[]
   inkLists?: Array<Float32Array | number[]>
@@ -43,6 +42,44 @@ export interface PdfjsAnnotationData {
   hasAppearance?: boolean
   hidden?: boolean
   noView?: boolean
+  /** `/F`, the annotation flags. */
+  annotationFlags?: number
+  // Widget keys, as PDF.js 6.4's WidgetAnnotation and its subclasses set them.
+  fieldName?: string
+  fieldType?: string | null
+  fieldValue?: string | string[] | null
+  defaultFieldValue?: string | string[] | null
+  fieldFlags?: number
+  checkBox?: boolean
+  radioButton?: boolean
+  pushButton?: boolean
+  /** A checkbox's on value, mapped through `/Opt`. */
+  exportValue?: string | null
+  /** A radio widget's on value, mapped through `/Opt`. */
+  buttonValue?: string | null
+  options?: { exportValue: string; displayValue: string }[]
+  combo?: boolean
+  multiSelect?: boolean
+  multiLine?: boolean
+  password?: boolean
+  comb?: boolean
+  maxLen?: number | null
+  /** `/Q`: 0 left, 1 centre, 2 right. */
+  textAlignment?: number | null
+  borderStyle?: { width: number; style?: number } | null
+  borderColor?: Uint8ClampedArray | null
+  backgroundColor?: Uint8ClampedArray | null
+  /** `/TU`. */
+  alternativeText?: string
+  /** `/MK /R`. */
+  rotation?: number
+  /** JavaScript actions by event name; null when there are none. */
+  actions?: Map<string, string[]> | Record<string, string[]> | null
+  resetForm?: { fields: string[]; refs: string[]; include: boolean }
+  url?: string
+  /** A Named action's name. */
+  action?: string
+  dest?: string | unknown[]
 }
 
 export interface PdfAssets {

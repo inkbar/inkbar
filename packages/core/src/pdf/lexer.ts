@@ -11,9 +11,10 @@ export interface PdfRef {
   gen: number
 }
 
-/** A string object. Its contents are skipped, not decoded. */
+/** A string object: its bytes after escapes and hex are decoded. See `textString` for text. */
 export interface PdfString {
   kind: 'string'
+  bytes: Uint8Array
 }
 
 /** A dictionary object. */
@@ -104,15 +105,73 @@ function parseName(bytes: Uint8Array, offset: number): { value: PdfName; end: nu
   return { value: { kind: 'name', name }, end }
 }
 
-function skipLiteralString(bytes: Uint8Array, offset: number): number {
+const ESCAPES: Record<number, number> = {
+  0x6e: 10, // n
+  0x72: 13, // r
+  0x74: 9, // t
+  0x62: 8, // b
+  0x66: 12, // f
+}
+
+const isOctal = (c: number | undefined): c is number =>
+  c !== undefined && c >= 0x30 && c <= 0x37
+
+function parseLiteralString(
+  bytes: Uint8Array,
+  offset: number
+): { value: PdfString; end: number } {
+  const out: number[] = []
   let depth = 0
   for (let i = offset; i < bytes.length; i++) {
-    const c = bytes[i]
-    if (c === 0x5c) i++
-    else if (c === 0x28) depth++
-    else if (c === 0x29 && --depth === 0) return i + 1
+    const c = bytes[i]!
+    if (c === 0x5c) {
+      const e = bytes[++i]
+      if (e === undefined) break
+      if (isOctal(e)) {
+        let n = e - 0x30
+        for (let k = 0; k < 2 && isOctal(bytes[i + 1]); k++)
+          n = n * 8 + bytes[++i]! - 0x30
+        out.push(n & 0xff)
+      } else if (e === 13) {
+        // A backslash before an end of line continues the string on the next line.
+        if (bytes[i + 1] === 10) i++
+      } else if (e !== 10) {
+        out.push(ESCAPES[e] ?? e)
+      }
+      continue
+    }
+    if (c === 0x28 && depth++ === 0) continue
+    if (c === 0x29 && --depth === 0) {
+      return { value: { kind: 'string', bytes: Uint8Array.from(out) }, end: i + 1 }
+    }
+    out.push(c)
   }
   throw new PdfSyntaxError('Unterminated string')
+}
+
+function parseHexString(
+  bytes: Uint8Array,
+  offset: number
+): { value: PdfString; end: number } {
+  const out: number[] = []
+  let hi = -1
+  for (let i = offset + 1; i < bytes.length; i++) {
+    const c = bytes[i]!
+    if (c === 0x3e) {
+      // An odd final digit is read as if followed by 0.
+      if (hi >= 0) out.push(hi * 16)
+      return { value: { kind: 'string', bytes: Uint8Array.from(out) }, end: i + 1 }
+    }
+    const v = hexValue(c)
+    if (v < 0) continue
+    if (hi < 0) {
+      hi = v
+    } else {
+      out.push(hi * 16 + v)
+      hi = -1
+    }
+  }
+  throw new PdfSyntaxError('Unterminated hex string')
 }
 
 /** After a non-negative integer ending at `end`, looks for `gen R`. */
@@ -164,14 +223,9 @@ export function parseValue(
   if (i >= bytes.length) throw new PdfSyntaxError('Unexpected end of data')
   const c = bytes[i]!
   if (c === 0x2f) return parseName(bytes, i)
-  if (c === 0x28) return { value: { kind: 'string' }, end: skipLiteralString(bytes, i) }
+  if (c === 0x28) return parseLiteralString(bytes, i)
   if (c === 0x3c && bytes[i + 1] === 0x3c) return parseDict(bytes, i + 2)
-  if (c === 0x3c) {
-    let j = i + 1
-    while (j < bytes.length && bytes[j] !== 0x3e) j++
-    if (j >= bytes.length) throw new PdfSyntaxError('Unterminated hex string')
-    return { value: { kind: 'string' }, end: j + 1 }
-  }
+  if (c === 0x3c) return parseHexString(bytes, i)
   if (c === 0x5b) return parseArray(bytes, i + 1)
   if (isRegular(c)) return parseNumberOrKeyword(bytes, i)
   throw new PdfSyntaxError(`Unexpected "${String.fromCharCode(c)}" at ${i}`)
@@ -263,3 +317,28 @@ export const isDict = (v: PdfValue | undefined): v is PdfDict =>
 /** True for an indirect reference. */
 export const isRef = (v: PdfValue | undefined): v is PdfRef =>
   typeof v === 'object' && v !== null && !Array.isArray(v) && v.kind === 'ref'
+
+/** PDFDocEncoding where it differs from Latin-1: 0x18–0x1f, and 0x80–0x9e. */
+const PDF_DOC_18 = '\u02d8\u02c7\u02c6\u02d9\u02dd\u02db\u02da\u02dc'
+const PDF_DOC_80 = '•†‡…—–ƒ⁄‹›−‰„“”‘’‚™ﬁﬂŁŒŠŸŽıłœšž'
+
+/**
+ * A string object read as a text string: UTF-16BE or UTF-8 after a byte-order mark, else
+ * PDFDocEncoding. Undefined for anything that is not a string.
+ */
+export function textString(v: PdfValue | undefined): string | undefined {
+  if (typeof v !== 'object' || v === null || Array.isArray(v) || v.kind !== 'string')
+    return undefined
+  const b = v.bytes
+  if (b[0] === 0xfe && b[1] === 0xff)
+    return new TextDecoder('utf-16be').decode(b.subarray(2))
+  if (b[0] === 0xef && b[1] === 0xbb && b[2] === 0xbf)
+    return new TextDecoder().decode(b.subarray(3))
+  let out = ''
+  for (const c of b) {
+    if (c >= 0x18 && c <= 0x1f) out += PDF_DOC_18[c - 0x18]
+    else if (c >= 0x80 && c <= 0x9e) out += PDF_DOC_80[c - 0x80]
+    else out += String.fromCharCode(c)
+  }
+  return out
+}
