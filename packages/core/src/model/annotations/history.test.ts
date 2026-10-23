@@ -668,6 +668,61 @@ describe('history.baseline', () => {
     expect(h.canUndo.get()).toBe(false)
   })
 
+  it("keeps a mixed step's annotation half when a baseline write takes its record", () => {
+    const { s, h, notes } = setup()
+    let id = ''
+    h.batch(() => {
+      id = s.add({ type: 'text', page: 0, rect }).id
+      notes.update('n2', { status: 'mine' })
+    })
+    h.baseline(() => notes.update('n2', { status: 'theirs' }))
+    expect(h.canUndo.get()).toBe(true)
+    h.undo()
+    expect(s.get(id)).toBeUndefined()
+    expect(notes.get('n2')?.status).toBe('theirs')
+    expect(h.canUndo.get()).toBe(false)
+    h.redo()
+    expect(s.get(id)).toBeDefined()
+    expect(notes.get('n2')?.status).toBe('theirs')
+  })
+
+  it('folds every baseline write into each step it undoes or redoes through', () => {
+    const { h, notes } = setup()
+    notes.update('n1', { status: 'a' })
+    h.baseline(() => notes.update('n2', { status: '1' }))
+    notes.update('n1', { status: 'b' })
+    h.baseline(() => notes.update('n2', { status: '2' }))
+    h.baseline(() => notes.add({ id: 'n3', status: 'new' }))
+    h.undo()
+    expect(notes.get('n1')?.status).toBe('a')
+    h.baseline(() => notes.update('n2', { status: '3' }))
+    h.undo()
+    expect(notes.get('n1')?.status).toBe('open')
+    expect(notes.get('n2')?.status).toBe('3')
+    expect(notes.get('n3')?.status).toBe('new')
+    h.baseline(() => notes.remove('n3'))
+    h.redo()
+    h.redo()
+    expect(notes.get('n1')?.status).toBe('b')
+    expect(notes.get('n2')?.status).toBe('3')
+    expect(notes.get('n3')).toBeUndefined()
+  })
+
+  it('drops a step once baseline writes take every record it changed', () => {
+    const { h, notes } = setup()
+    h.batch(() => {
+      notes.update('n1', { status: 'mine' })
+      notes.update('n2', { status: 'mine' })
+    })
+    h.baseline(() => {
+      h.batch(() => {
+        notes.update('n2', { status: 'theirs' })
+        notes.update('n1', { status: 'theirs' })
+      })
+    })
+    expect(h.canUndo.get()).toBe(false)
+  })
+
   it('inside a batch, leaves its writes out of the batch step', () => {
     const { h, notes } = setup()
     h.batch(() => {
