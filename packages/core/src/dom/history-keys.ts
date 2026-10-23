@@ -45,7 +45,9 @@ export function attachHistoryKeys(
     if (e.defaultPrevented || e.isComposing) return
     const action = historyAction(e)
     if (!action) return
-    if (e.target instanceof Element && e.target.closest(EDITABLE)) return
+    // The innermost target: inside a shadow root, `e.target` is retargeted to its host.
+    const target = e.composedPath()[0] ?? e.target
+    if (target instanceof Element && target.closest(EDITABLE)) return
     const h = history()
     if (!h || !on(action === 'undo' ? h.canUndo : h.canRedo)) return
     e.preventDefault()

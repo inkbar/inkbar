@@ -2881,6 +2881,27 @@ describe('undo and redo keys', () => {
     expect(doc.history.canUndo.get()).toBe(true)
   })
 
+  it('leave the keys to a text field inside a shadow root', async () => {
+    const { viewer } = make('form-fields')
+    const { doc } = await ready(viewer)
+    doc.form.set({ name: 'Ada' })
+    const host = document.createElement('div')
+    const input = document.createElement('input')
+    host.attachShadow({ mode: 'open' }).append(input)
+    viewer.element.append(host)
+    const e = new KeyboardEvent('keydown', {
+      key: 'z',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+    })
+    input.dispatchEvent(e)
+    expect(e.defaultPrevented).toBe(false)
+    expect(doc.form.get('name')).toBe('Ada')
+    host.remove()
+  })
+
   it('step back on each repeat of a held chord, and stop at the first step', async () => {
     const { viewer } = make('form-fields')
     const { doc } = await ready(viewer)
