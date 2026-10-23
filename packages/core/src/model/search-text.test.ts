@@ -145,6 +145,21 @@ describe('searchableText', () => {
     expect(t.norm).toBe(t.raw)
   })
 
+  it('spaces two RTL words that sit apart, reading right to left', () => {
+    // The first word is on the right; the second ends 10 to its left.
+    const t = searchableText(
+      content(item('שלום', 40, 30, { dir: 'rtl' }), item('עולם', 0, 30, { dir: 'rtl' }))
+    )
+    expect(t.raw).toBe('שלום עולם')
+  })
+
+  it('joins two RTL pieces of one word that touch', () => {
+    const t = searchableText(
+      content(item('של', 30, 15, { dir: 'rtl' }), item('ום', 15, 15, { dir: 'rtl' }))
+    )
+    expect(t.raw).toBe('שלום')
+  })
+
   it('handles an empty page', () => {
     const t = searchableText(content())
     expect(t.raw).toBe('')
