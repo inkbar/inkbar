@@ -123,6 +123,26 @@ describe('FormController', () => {
     expect(form.get('locked')).toBe('')
   })
 
+  it('tells the form layer of fields a set, reset or push put, changed or not', () => {
+    const form = controller()
+    const put = vi.fn()
+    form._onPut(put)
+    form.set({ name: 'Sam', nope: 'x' })
+    expect(put).toHaveBeenLastCalledWith(['name'])
+    // Read-only fields reset too.
+    form.reset(['notes', 'locked'])
+    expect(put).toHaveBeenLastCalledWith(['notes', 'locked'])
+    const host = createFormController({
+      fields,
+      mode: { mode: 'controlled', initial: {}, onChange: () => undefined },
+      onError: () => undefined,
+    })
+    const pushed = vi.fn()
+    host._onPut(pushed)
+    host.setControlledValue({ name: host.get('name')! })
+    expect(pushed).toHaveBeenLastCalledWith(['name'])
+  })
+
   it('reset leaves a locked field alone', () => {
     const form = createFormController({
       fields: fields.map((f) => (f.name === 'name' ? { ...f, locked: true } : f)),

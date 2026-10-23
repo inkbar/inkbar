@@ -153,6 +153,11 @@ export interface FormController {
    * applied or dropped yet.
    */
   _awaitingSignature(name: string): boolean
+  /**
+   * @internal `set`, `reset` or a host's push gave these fields a value, whether or not it
+   * differs from the one they held. The form layer clears a refused commit's mark on them.
+   */
+  _onPut(fn: (names: readonly string[]) => void): () => void
   /** @internal Destroys the scripting and drops every listener. */
   _destroy(): void
 }
@@ -246,6 +251,7 @@ export function createFormController(opts: FormControllerOptions): FormControlle
     error: InkError
     focus: string
     goto: number
+    put: readonly string[]
   }>()
   /**
    * Errors reported before anything listened for them, the newest `UNHEARD_LIMIT`;
@@ -561,6 +567,7 @@ export function createFormController(opts: FormControllerOptions): FormControlle
           names: [...new Set([...result.applied, ...changedNames])],
         })
       )
+      if (result.applied.length > 0 && !destroyed) emitter.emit('put', result.applied)
       return result
     },
     reset(names) {
@@ -575,6 +582,8 @@ export function createFormController(opts: FormControllerOptions): FormControlle
         },
         (changedNames) => ({ kind: 'reset', names: changedNames })
       )
+      const put = targets.flatMap((f) => (f.locked ? [] : [f.name]))
+      if (put.length > 0 && !destroyed) emitter.emit('put', put)
     },
     setControlledValue(next) {
       if (!controlled || destroyed) return
@@ -582,7 +591,13 @@ export function createFormController(opts: FormControllerOptions): FormControlle
         waiting = { ...waiting, ...next }
         return
       }
-      const pushed = valid(next).filter(
+      const accepted = valid(next)
+      if (accepted.length > 0)
+        emitter.emit(
+          'put',
+          accepted.map(([name]) => name)
+        )
+      const pushed = accepted.filter(
         ([name, value]) => !sameValue(store.get(name)?.value, value)
       )
       if (pushed.length === 0) return
@@ -781,6 +796,9 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       for (const [id, field] of awaiting)
         if (field === name && annotations?._getProposed(id)) return true
       return false
+    },
+    _onPut(fn) {
+      return emitter.on('put', fn)
     },
     _destroy() {
       if (destroyed) return

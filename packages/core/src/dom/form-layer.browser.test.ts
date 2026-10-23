@@ -801,6 +801,26 @@ describe('form layer', () => {
     expect(p.box('age').hasAttribute('data-ink-invalid')).toBe(false)
   })
 
+  it('clears a refused value’s mark on a push or reset of the value it holds', async () => {
+    const doc = await open('form-scripted')
+    const p = mountPage(doc)
+    const age = p.control('age')
+    const refuse = async () => {
+      await typeOver(age, '5')
+      age.blur()
+      expect(p.box('age').hasAttribute('data-ink-invalid')).toBe(true)
+    }
+    await refuse()
+    expect(doc.form.get('age')).toBe('')
+    doc.form.reset(['age'])
+    expect(p.box('age').hasAttribute('data-ink-invalid')).toBe(false)
+    expect(age.hasAttribute('aria-invalid')).toBe(false)
+    doc.form.set({ age: '40' })
+    await refuse()
+    doc.form.set({ age: '40' })
+    expect(p.box('age').hasAttribute('data-ink-invalid')).toBe(false)
+  })
+
   it('an untouched field matches the PDF’s own appearance', async () => {
     // The theme keeps the text layer's glyphs clear, as on any real page.
     addTheme()

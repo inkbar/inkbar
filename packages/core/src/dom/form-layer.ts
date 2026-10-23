@@ -378,7 +378,8 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
 
   const syncEntry = (e: Entry) => {
     const state = stateOf(e)
-    // A new value (a commit, a reset, a host's push, a script) clears a refused commit's mark.
+    // A new value (a commit, a reset, a host's push, a script) clears a refused commit's mark;
+    // so does a reset or push of the value it holds (`_onPut`).
     if (!sameValue(state.value, e.value)) {
       e.value = state.value
       setInvalid(e, false)
@@ -505,6 +506,13 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
     form.values.subscribe(syncAll),
     form.formatted.subscribe(syncAll),
     form.widgetState.subscribe(syncAll),
+    // A reset or a push clears a refused commit's mark, even when it puts back the value the
+    // field held.
+    form._onPut((names) => {
+      if (destroyed) return
+      const put = new Set(names)
+      for (const e of entries) if (put.has(e.field.name)) setInvalid(e, false)
+    }),
     form.on('focus', (id) => {
       layer.focusWidget(id)
     }),
