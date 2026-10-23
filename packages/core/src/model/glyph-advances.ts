@@ -1,41 +1,60 @@
+import type { Point } from './geometry'
 import type { TextItem } from './text'
 
 /**
- * One glyph as the page draws it, in content order: its text and how far it moves the pen, in
- * text space. `spacing` is the part of `advance` that character and word spacing add. A kerning
- * gap is a glyph with no text.
+ * One glyph as the page draws it, in content order: its text, where the pen starts it and where
+ * its own width ends, before any character or word spacing. Both points are in user space.
  */
 export interface PageGlyph {
   text: string
-  advance: number
-  spacing?: number
+  start: Point
+  end: Point
 }
 
-/** How many glyphs past the last match to look for the start of the next item. */
+/** A text item's baseline: where it starts, its unit direction and its width, in user space. */
+export interface TextRun extends Pick<TextItem, 'str' | 'dir' | 'fontSize'> {
+  origin: Point
+  along: Point
+  width: number
+}
+
+/** How many glyphs past the last match to look for the start of the next item first. */
 const LOOKAHEAD = 256
+/** How far, as a fraction of the font size, a glyph may start from the item origin and still match. */
+const START_SLACK = 0.05
+/** How far off the baseline, as a fraction of the font size, a glyph may sit (text rise). */
+const RISE_SLACK = 1
 
 /**
  * Each item's character boundaries as fractions of its width (see `TextItem.advances`), from the
- * glyphs that drew it. PDF.js builds text items from the same glyphs in the same order, so the
- * items are matched against the glyph stream in turn. An item that cannot be matched, or that
- * runs right to left or top to bottom, gets undefined.
+ * glyphs that drew it. PDF.js builds text items from the same glyphs in the same order. An item
+ * matches a glyph sequence that spells its text and whose first glyph starts at the item's origin.
+ * Boundaries are where the pen put each glyph, projected onto the item's baseline, so they hold
+ * through moves, scaling and spacing inside an item, and may run past 1 when PDF.js reports a
+ * width shorter than the glyphs it drew. An item that cannot be matched, or that runs right to
+ * left or top to bottom, gets undefined.
  */
 export function glyphAdvances(
-  items: readonly Pick<TextItem, 'str' | 'dir'>[],
+  runs: readonly TextRun[],
   glyphs: readonly PageGlyph[]
 ): (number[] | undefined)[] {
   let next = 0
-  return items.map((item) => {
-    if (item.dir !== 'ltr' || item.str === '') return undefined
-    const end = Math.min(glyphs.length, next + LOOKAHEAD)
-    for (let start = next; start < end; start++) {
-      const m = matchItem(item.str, glyphs, start)
-      if (m) {
-        next = m.next
-        return m.advances
+  return runs.map((run) => {
+    if (run.dir !== 'ltr' || run.str.trim() === '' || !(run.width > 0)) return undefined
+    const tryFrom = (from: number, to: number) => {
+      for (let start = from; start < to; start++) {
+        const m = matchRun(run, glyphs, start)
+        if (m) return m
       }
+      return undefined
     }
-    return undefined
+    // Look just past the last match first; items PDF.js reorders or drops are found by a full pass.
+    const m =
+      tryFrom(next, Math.min(glyphs.length, next + LOOKAHEAD)) ??
+      tryFrom(0, glyphs.length)
+    if (!m) return undefined
+    next = m.next
+    return m.advances
   })
 }
 
@@ -45,42 +64,45 @@ function variants(text: string): string[] {
   return n === text ? [text] : [text, n]
 }
 
-function matchItem(
-  str: string,
+/** A glyph the item may leave out: a space, or a character that draws nothing. */
+const skippable = (text: string) => /^[\s\p{Cf}]*$/u.test(text)
+
+function matchRun(
+  run: TextRun,
   glyphs: readonly PageGlyph[],
   start: number
-): { advances: number[] | undefined; next: number } | undefined {
-  const widths: number[] = []
-  // Gaps and spaces the item leaves out, waiting to widen the character before the next one.
-  let pending = 0
-  // PDF.js leaves the last glyph's spacing out of an item's width, so the run ends before it.
-  let trailing = 0
+): { advances: number[]; next: number } | undefined {
+  const { str, origin, along, width, fontSize } = run
+  const t = (p: Point) =>
+    ((p.x - origin.x) * along.x + (p.y - origin.y) * along.y) / width
+  const off = (p: Point) =>
+    Math.abs((p.x - origin.x) * along.y - (p.y - origin.y) * along.x)
+  const first = glyphs[start]
+  if (
+    !first ||
+    Math.abs(t(first.start) * width) > START_SLACK * fontSize ||
+    off(first.start) > RISE_SLACK * fontSize
+  )
+    return undefined
+  const bounds: number[] = []
+  let end = 0
   let g = start
-  while (widths.length < str.length) {
+  while (bounds.length < str.length) {
     const glyph = glyphs[g]
-    const at = widths.length
+    const at = bounds.length
     const text =
-      glyph && variants(glyph.text).find((t) => t !== '' && str.startsWith(t, at))
+      glyph && variants(glyph.text).find((v) => v !== '' && str.startsWith(v, at))
     if (glyph && text) {
-      if (at > 0) widths[at - 1]! += pending
-      pending = 0
-      for (let k = 0; k < text.length; k++) widths.push(glyph.advance / text.length)
-      trailing = glyph.spacing ?? 0
+      const t0 = t(glyph.start)
+      end = t(glyph.end)
+      for (let k = 0; k < text.length; k++)
+        bounds.push(t0 + ((end - t0) * k) / text.length)
       g++
     } else if (at > 0 && /\s/u.test(str[at]!)) {
-      // A space PDF.js inserted for a gap: it takes the gap's width.
-      widths.push(pending)
-      pending = 0
-      trailing = 0
-    } else if (at > 0 && glyph && glyph.text.trim() === '') {
-      pending += glyph.advance
-      g++
-    } else return undefined
+      // A space PDF.js inserted for a gap: it runs from the last glyph to the next one.
+      bounds.push(end)
+    } else if (at > 0 && glyph && skippable(glyph.text)) g++
+    else return undefined
   }
-  const total = widths.reduce((s, w) => s + w, 0) - trailing
-  if (!(total > 0)) return { advances: undefined, next: g }
-  let sum = 0
-  const advances = [0, ...widths.map((w) => Math.min(1, (sum += w) / total))]
-  advances[advances.length - 1] = 1
-  return { advances, next: g }
+  return { advances: [...bounds, end], next: g }
 }

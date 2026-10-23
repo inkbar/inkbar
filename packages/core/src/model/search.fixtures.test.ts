@@ -8,10 +8,14 @@ import { openDocument, type InkDocument } from './document'
 // Helvetica advances per 1000 em, from its AFM.
 const HELVETICA: Record<string, number> = {
   ' ': 278,
+  H: 722,
+  W: 944,
   a: 556,
   c: 500,
   d: 556,
   e: 556,
+  f: 278,
+  h: 556,
   i: 222,
   k: 500,
   l: 222,
@@ -20,6 +24,7 @@ const HELVETICA: Record<string, number> = {
   p: 556,
   r: 333,
   s: 500,
+  u: 556,
   w: 722,
   y: 500,
 }
@@ -185,5 +190,19 @@ describe('InkDocument.search', () => {
     expect(words!.rect.width).toBeCloseTo(spaced('words') - 1, 2)
     expect(rned!.rect.x).toBeCloseTo(72 + spaced('ke') + (20 * 14) / 1000, 2)
     expect(rned!.rect.width).toBeCloseTo(spaced('rned') - 1, 2)
+  })
+
+  it('follows a move and a scaling change inside one line of text', async () => {
+    const doc = await open('text-search')
+    const [world] = await doc.search('World').all()
+    const [full] = await doc.search('full').all()
+    doc.destroy()
+    const plain = (s: string) =>
+      [...s].reduce((x, ch) => x + (HELVETICA[ch]! * 14) / 1000, 0)
+    // "World" starts after a 40 pt move from x = 72; "full" follows "half " drawn at 50% width.
+    expect(world!.rect.x).toBeCloseTo(112, 2)
+    expect(world!.rect.width).toBeCloseTo(plain('World'), 2)
+    expect(full!.rect.x).toBeCloseTo(72 + plain('half ') / 2, 2)
+    expect(full!.rect.width).toBeCloseTo(plain('full'), 2)
   })
 })

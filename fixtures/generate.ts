@@ -126,13 +126,32 @@ async function textSearch() {
     setFontAndSize(key, size),
     moveText(72, 476),
     PDFOperator.of(PDFOperatorNames.ShowTextAdjusted, [kerned]),
+    endText(),
+    // "Hello", then a move 40 pt along for "World" in the same text object.
+    beginText(),
+    setFontAndSize(key, size),
+    setCharacterSpacing(0),
+    setWordSpacing(0),
+    moveText(72, 440),
+    showText(font.encodeText('Hello')),
+    moveText(40, 0),
+    showText(font.encodeText('World')),
+    endText(),
+    // "half " at 50% horizontal scaling, then "full" at 100%.
+    beginText(),
+    setFontAndSize(key, size),
+    moveText(72, 416),
+    PDFOperator.of(PDFOperatorNames.SetTextHorizontalScaling, [PDFNumber.of(50)]),
+    showText(font.encodeText('half ')),
+    PDFOperator.of(PDFOperatorNames.SetTextHorizontalScaling, [PDFNumber.of(100)]),
+    showText(font.encodeText('full')),
     endText()
   )
   return save('text-search', d, {
     pages: 1,
     opens: true,
     describes:
-      'Search cases: split-font word, hyphenated line break, accents, curly quotes, two columns, character and word spacing, a kerned word',
+      'Search cases: split-font word, hyphenated line break, accents, curly quotes, two columns, character and word spacing, a kerned word, a move and a scaling change inside one line',
   })
 }
 

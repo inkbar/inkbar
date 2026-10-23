@@ -314,7 +314,7 @@ export async function openDocument(
       // A page with no text (a scan) has no glyphs worth reading its drawing commands for.
       const glyphs =
         tc.items.length > 0
-          ? await pageGlyphs(p, handles.module.OPS).catch(() => undefined)
+          ? await pageGlyphs(p, handles.module).catch(() => undefined)
           : undefined
       return textContentFromPdfjs(page, tc, measure, glyphs)
     },
