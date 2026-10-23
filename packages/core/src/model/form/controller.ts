@@ -100,6 +100,11 @@ export interface FormController {
     selEnd: number
   ): KeystrokeResult
   /**
+   * @internal Drops the widget's uncommitted text (Escape in a text field), and the sandbox,
+   * which saw each keystroke, goes back to the stored value. Its next keystroke builds on that.
+   */
+  _revert(widget: string): void
+  /**
    * @internal The viewer's current page became `page` (`PageOpen`) or another (`PageClose`):
    * runs the page's open or close scripts. Resolves once they ran; nothing runs without scripts.
    */
@@ -678,6 +683,10 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       }
       if (!destroyed && result.accepted) pending.set(widget, result.value)
       return result
+    },
+    _revert(widget) {
+      if (destroyed || !pending.delete(widget)) return
+      within(() => scripting?.sync(current(), false))
     },
     _pageEvent(page, name) {
       if (destroyed || !scripting) return Promise.resolve()

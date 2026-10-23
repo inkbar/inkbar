@@ -2,8 +2,9 @@
 // (multiline), so keyboard, IME and screen readers work as anywhere else on the page.
 //
 // Every keystroke goes through `form._keystroke`, so keystroke scripts can refuse or change it;
-// the value commits through `form.set` on blur and on Enter in a single-line field. While the
-// control is focused it shows the raw value; otherwise the formatted one. The text it draws
+// the value commits through `form.set` on blur and on Enter in a single-line field, and Escape
+// puts back the committed text. While the control is focused it shows the raw value; otherwise
+// the formatted one. The text it draws
 // takes the field's `/DA` font, size and colour, `/Q` alignment and `/MK` border and
 // background, or a script's colours and size over them.
 //
@@ -396,8 +397,30 @@ export function createTextWidget(
     if (composing || e.isComposing) return
     keystroke()
   })
+  /**
+   * Puts back the committed text, dropping what was typed and a refused value with its mark.
+   * Focus stays, and typing goes on from the committed text.
+   */
+  const revert = () => {
+    typed = false
+    refused = undefined
+    form._revert(widget.id)
+    ctx.setInvalid(false)
+    show()
+    el.setSelectionRange(el.value.length, el.value.length)
+    before = snap()
+    style()
+  }
+
   on('keydown', (e) => {
-    if (e.key !== 'Enter' || multiline || e.isComposing) return
+    if (e.isComposing) return
+    if (e.key === 'Escape') {
+      if (!typed && refused === undefined) return
+      e.preventDefault()
+      revert()
+      return
+    }
+    if (e.key !== 'Enter' || multiline) return
     e.preventDefault()
     commit(false)
     before = snap()

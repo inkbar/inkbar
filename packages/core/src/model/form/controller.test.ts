@@ -178,6 +178,15 @@ describe('FormController', () => {
     expect(form.get('name')).toBe('Sam')
   })
 
+  it('revert drops the typed text, so the next keystroke builds on the value', () => {
+    const form = controller()
+    const widget = fields.find((f) => f.name === 'name')!.widgets[0]!.id
+    form._keystroke(widget, 'a', 3, 3)
+    form._revert(widget)
+    expect(form._keystroke(widget, 'b', 3, 3).value).toBe('Samb')
+    expect(form.get('name')).toBe('Sam')
+  })
+
   it('a commit, a blur or a value change drops the typed text', () => {
     const form = controller()
     const widget = fields.find((f) => f.name === 'name')!.widgets[0]!.id

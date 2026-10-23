@@ -798,6 +798,39 @@ describe('form layer', () => {
     expect(age.hasAttribute('aria-invalid')).toBe(false)
   })
 
+  it('Escape puts back the committed text and keeps focus', async () => {
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    const name = p.control('name')
+    await userEvent.click(name)
+    await userEvent.keyboard('{End}xyz')
+    expect(name.value).toBe('Samxyz')
+    await userEvent.keyboard('{Escape}')
+    expect(name.value).toBe('Sam')
+    expect(document.activeElement).toBe(name)
+    // Typing goes on from the committed text, not the text dropped.
+    await userEvent.keyboard('{End}a')
+    expect(name.value).toBe('Sama')
+    name.blur()
+    expect(doc.form.get('name')).toBe('Sama')
+  })
+
+  it('Escape drops a refused value and its mark', async () => {
+    const doc = await open('form-scripted')
+    const p = mountPage(doc)
+    const age = p.control('age')
+    await typeOver(age, '5')
+    await userEvent.keyboard('{Enter}')
+    expect(age.getAttribute('aria-invalid')).toBe('true')
+    await userEvent.keyboard('{Escape}')
+    expect(age.value).toBe('')
+    expect(age.hasAttribute('aria-invalid')).toBe(false)
+    expect(document.activeElement).toBe(age)
+    await userEvent.keyboard('42')
+    age.blur()
+    expect(doc.form.get('age')).toBe('42')
+  })
+
   it('clears a refused value’s mark once the value changes', async () => {
     const doc = await open('form-scripted')
     const p = mountPage(doc)
