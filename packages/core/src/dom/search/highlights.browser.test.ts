@@ -93,9 +93,10 @@ describe('search highlights', () => {
     await settle()
     const { hits, current } = search.state.get()
     const hit = hits[current]!
-    // The hit stepped to may be on another page; this page marks it only when it is here.
-    expect(marked()).toHaveLength(hit.page === 0 ? hit.quads.length : 0)
-    if (hit.page === 0) expect(marked()).not.toEqual(before)
+    // The scan starts on page 0, which has more than one hit, so the step stays on it.
+    expect(hit.page).toBe(0)
+    expect(marked()).toHaveLength(hit.quads.length)
+    expect(marked()).not.toEqual(before)
   })
 
   it('builds a page of hits once rather than once per hit', async () => {

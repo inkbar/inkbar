@@ -11,6 +11,8 @@ import { createViewer, searchControllerOf, type Viewer } from '../viewer/create-
 
 import { createFindBar } from './find-bar'
 
+import type { Readable } from '../../model/readable'
+
 beforeAll(() => {
   const style = document.createElement('style')
   style.textContent = themeCss
@@ -133,8 +135,11 @@ describe('find bar', () => {
     document.body.append(bar!)
     cleanup.push(() => bar!.remove())
     await until(() => !searchControllerOf(viewer).barAttached.get())
+    expect(bar!.isConnected).toBe(true)
+    expect(searchControllerOf(viewer).barAttached.get()).toBe(false)
     viewer.element.querySelector('[data-ink-viewport-root]')!.append(bar!)
     await attached(viewer)
+    expect(searchControllerOf(viewer).barAttached.get()).toBe(true)
   })
 
   it('leaves the key to the browser with no bar mounted', async () => {
@@ -392,18 +397,25 @@ describe('find bar', () => {
 
   it('lets go of the viewer when it is destroyed', async () => {
     const { viewer } = await make(false)
-    const state = viewer.search.state
-    const subscribe = state.subscribe.bind(state)
-    const stops: ReturnType<typeof vi.fn>[] = []
-    vi.spyOn(state, 'subscribe').mockImplementation((fn) => {
-      const stop = vi.fn(subscribe(fn))
-      stops.push(stop)
-      return stop
-    })
+    /** Records the unsubscribe of every subscription made to `store` from here on. */
+    const watch = <T>(store: Readable<T>) => {
+      const subscribe = store.subscribe.bind(store)
+      const stops: ReturnType<typeof vi.fn>[] = []
+      vi.spyOn(store, 'subscribe').mockImplementation((fn) => {
+        const stop = vi.fn(subscribe(fn))
+        stops.push(stop)
+        return stop
+      })
+      return stops
+    }
+    const stops = watch(viewer.search.state)
+    const documentStops = watch(viewer.document)
     const button = createSearchButton(viewer)
     expect(stops).toHaveLength(1)
+    expect(documentStops).toHaveLength(1)
     viewer.destroy()
     expect(stops[0]).toHaveBeenCalled()
+    expect(documentStops[0]).toHaveBeenCalled()
 
     // A bar made after the viewer is gone lets go of its observer and state at once.
     const disconnect = vi.spyOn(MutationObserver.prototype, 'disconnect')
