@@ -1,0 +1,77 @@
+fixtures/manifest.json
+  s_e6109f66fbb4ed::t_d3f066b28d51b6 225-233
+packages/core/src/model/form/controller.ts
+  s_e6109f66fbb4ed::t_c695535c69b3d5 5,19-20,63-66,71-74,86,93-103,115-121,130-142,165,171-179,214,247-252,272-296,301-302,304-308,313,315-323,329,402,409-410,412-415,430-443,450-458,481-503,511
+  s_e6109f66fbb4ed::t_44fe4cf42bb4ee 123-127,364-365,369
+  s_e6109f66fbb4ed::t_e44be3c51baac4 6,297-300,303,309-312,314
+packages/core/vitest.config.ts
+  s_e6109f66fbb4ed::t_13e8cab5df1a1b 27
+packages/core/src/pdfjs/scripting.ts
+  s_e6109f66fbb4ed::t_630e73d46a6f54 662-690
+  s_e6109f66fbb4ed::t_d85aadd414390f 1-2,4-7,9-25,28-34,41-64,69-80,84-105,110-197,201,204-227,237-239,241-246,255-259,261-311,313,348-377,379-417,420-496,502-510,512-514,521-522,524-541,549-563,566-584,586-614,616-631,635-647,650-657
+  s_e6109f66fbb4ed::t_abad1796b1af15 8,26-27,65-66,81-83,198-200,202-203,314-319,378,418-419,497-501,511,515-520,523,542-548,585,632-634,659-661
+  s_e6109f66fbb4ed::t_e44be3c51baac4 3,228-236,240,247-254,260,564-565,615,648-649,658
+  s_e6109f66fbb4ed::t_b9c523e2bf67d8 35-40,67-68,106-109,312,320-347
+packages/core/src/model/form/submit.ts
+  s_e6109f66fbb4ed::t_5b406f3e240409 24
+  s_e6109f66fbb4ed::t_3ac0b169e9a194 1-23
+packages/core/src/pdfjs/sandbox-shim.d.ts
+  s_e6109f66fbb4ed::t_04f5eb1afc418c 1-20
+packages/core/src/pdfjs/scripting.browser.test.ts
+  s_e6109f66fbb4ed::t_d8999f7ebedd5e 1-8,10-133,135-147,158-177,180-201,203-282,292-296,299-331,338-382,406
+  s_e6109f66fbb4ed::t_abad1796b1af15 9,134,148-157,178-179,202,283-291,297-298,332-337
+  s_e6109f66fbb4ed::t_77a6a75cdedc24 383-405
+  s_e6109f66fbb4ed::t_c830afc1df953a 407-514
+packages/core/src/model/form/controller.controlled.test.ts
+  s_e6109f66fbb4ed::t_44fe4cf42bb4ee 91,111
+  s_e6109f66fbb4ed::t_a080336bb554f4 96-97,110,112-116
+packages/core/src/model/document.ts
+  s_e6109f66fbb4ed::t_b9c523e2bf67d8 275,281
+  s_e6109f66fbb4ed::t_3865e1cfe3b559 5,271,276-280,282-293
+  s_e6109f66fbb4ed::t_403ca6097143ff 272-274
+packages/core/src/model/form/types.ts
+  s_e6109f66fbb4ed::t_2218a19bb5ebaf 114
+packages/core/tsdown.config.ts
+  s_e6109f66fbb4ed::t_d707a975132e9b 23
+fixtures/fixtures.test.ts
+  s_e6109f66fbb4ed::t_d3f066b28d51b6 90
+packages/core/src/model/form/controller.test.ts
+  s_e6109f66fbb4ed::t_44fe4cf42bb4ee 11,212-214
+  s_e6109f66fbb4ed::t_956ac3e64438c6 216-217,233-242
+packages/core/src/pdfjs/sandbox-patch.ts
+  s_e6109f66fbb4ed::t_c89b5621cdd596 1-67
+  s_e6109f66fbb4ed::t_dd8e338f5b53a8 68-74
+packages/core/src/model/form/url.ts
+  s_e6109f66fbb4ed::t_93b2b78910f405 1-26
+packages/core/src/model/form/structure.test.ts
+  s_e6109f66fbb4ed::t_6820811d02ef22 186-187
+packages/core/src/pdfjs/sandbox-patch.test.ts
+  s_e6109f66fbb4ed::t_1f8643cc875d46 1-91
+  s_e6109f66fbb4ed::t_a16f385524654e 92
+fixtures/generate.ts
+  s_e6109f66fbb4ed::t_d3f066b28d51b6 1280-1308,1460
+packages/core/package.json
+  s_e6109f66fbb4ed::t_58748dc82d5ea0 41-42
+packages/core/src/model/form/structure.ts
+  s_e6109f66fbb4ed::t_ee6fbc7976dac9 142-144,151-156
+fixtures/urls.ts
+  s_e6109f66fbb4ed::t_d3f066b28d51b6 31
+packages/core/src/model/form/url.test.ts
+  s_e6109f66fbb4ed::t_926eda20684084 1-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7b9626133f8916296e3fb6916e1304196bd35bdc",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": null
+    }
+  }
+}

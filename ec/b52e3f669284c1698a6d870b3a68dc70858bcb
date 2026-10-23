@@ -1,0 +1,85 @@
+apps/sandbox/src/vanilla/Demo.ts
+  s_e6109f66fbb4ed::t_fd667ed6c7740f 76-79
+  s_e6109f66fbb4ed::t_6bea5f55760ae9 3-7,38,41,56-66,69-75,80-98,100,107-114,118-123
+  s_e6109f66fbb4ed::t_ec68123aa375ab 67-68
+  s_e6109f66fbb4ed::t_b6b1cd8eabd2e4 124
+apps/sandbox/e2e/smoke.spec.ts
+  s_e6109f66fbb4ed::t_212edf73541914 311
+  s_e6109f66fbb4ed::t_4d35275a9d0c10 20
+  s_e6109f66fbb4ed::t_62d70b0a5b3e40 54-55,69,75,80,111,126
+apps/sandbox/src/shared/form.ts
+  s_e6109f66fbb4ed::t_c735ab21993258 1-41
+apps/sandbox/vite/make-sample.test.ts
+  s_e6109f66fbb4ed::t_5a3508bcc96eb2 2,9,11,31-58,63-72,75-80
+  s_e6109f66fbb4ed::t_e3063ee5354b68 5,73-74
+  s_e6109f66fbb4ed::t_33e386ee630e3e 59-62
+apps/e2e-vue/src/FormPage.vue
+  s_e6109f66fbb4ed::t_ba2a11594f14f2 1-66
+apps/sandbox/src/vue/Demo.vue
+  s_e6109f66fbb4ed::t_777be1a3dfe533 3,6-9,39,43,46,49-50,52-67,77,79-81,110-111,114,118-126
+  s_e6109f66fbb4ed::t_fd667ed6c7740f 115-117
+  s_e6109f66fbb4ed::t_f424919d7b8d77 112
+  s_e6109f66fbb4ed::t_ec68123aa375ab 113
+  s_e6109f66fbb4ed::t_8c60c5dea4dfaf 4-5,51
+apps/e2e-svelte/src/App.svelte
+  s_e6109f66fbb4ed::t_d2b63bcba08514 2,5,15-19
+apps/sandbox/src/styles/framework.css
+  s_e6109f66fbb4ed::t_28a8bd9be3f0ca 178-239
+apps/e2e-shared/e2e/forms.spec.ts
+  s_e6109f66fbb4ed::t_f4bcb8d2ec68f0 76
+  s_e6109f66fbb4ed::t_1d61e34e23a823 1-75,77-97
+apps/e2e-shared/e2e/helpers.ts
+  s_e6109f66fbb4ed::t_40f5d072fae63c 10,12
+apps/e2e-vue/src/App.vue
+  s_e6109f66fbb4ed::t_ba2a11594f14f2 2,5,16-17
+apps/e2e-react/src/App.tsx
+  s_e6109f66fbb4ed::t_d2b63bcba08514 1,4,15-19
+apps/e2e-react/src/FormPage.tsx
+  s_e6109f66fbb4ed::t_fd667ed6c7740f 60-64
+  s_e6109f66fbb4ed::t_d2b63bcba08514 1-59,65-74
+apps/sandbox/src/shell/shell.ts
+  s_e6109f66fbb4ed::t_5ce8e52ac86a25 99
+apps/e2e-shared/src/form-actions.ts
+  s_e6109f66fbb4ed::t_2b327fb862627e 1-19
+apps/sandbox/e2e/forms.spec.ts
+  s_e6109f66fbb4ed::t_8bfc537419360d 1-39,45,48-58,60-79,81-90
+  s_e6109f66fbb4ed::t_ca02efa28301f1 40-41,44,59
+  s_e6109f66fbb4ed::t_45c4d573eef802 80
+  s_e6109f66fbb4ed::t_49e3f5478ef1b7 42-43,46-47
+apps/sandbox/src/react/Demo.tsx
+  s_e6109f66fbb4ed::t_f424919d7b8d77 108
+  s_e6109f66fbb4ed::t_38a143b67bad8a 28,33,36,39-44,47-65,73-76,106-107,110,114-127
+  s_e6109f66fbb4ed::t_ec68123aa375ab 109
+  s_e6109f66fbb4ed::t_fd667ed6c7740f 111-113
+apps/sandbox/vite/make-sample.ts
+  s_e6109f66fbb4ed::t_29c10f2f934b96 2-6,281
+  s_e6109f66fbb4ed::t_eea005f89c3545 865-866,883,911,929,950-951
+  s_e6109f66fbb4ed::t_a9ea11fc907864 13,15,19,22-23,25,27,34,228-229,607-727,729-823,825-830,832-837,839-864,868-877,879-882,884-899,907-910,912-928,930-949,953-981,988-1034,1039-1075,1096-1099,1136-1137
+  s_e6109f66fbb4ed::t_fd667ed6c7740f 982-987,1035-1038
+  s_e6109f66fbb4ed::t_72fd96b4d84fd0 267-268,274,900-906
+  s_e6109f66fbb4ed::t_ebdd4e29009c2b 728,824,831,838,867,878,952
+apps/sandbox/src/svelte/Demo.svelte
+  s_e6109f66fbb4ed::t_ec68123aa375ab 104-106
+  s_e6109f66fbb4ed::t_6bea5f55760ae9 49
+  s_e6109f66fbb4ed::t_38a143b67bad8a 3-8,41,44,47-48,50-60,69-72,102-103,107-122
+apps/e2e-svelte/src/FormPage.svelte
+  s_e6109f66fbb4ed::t_d2b63bcba08514 1-65
+apps/e2e-shared/package.json
+  s_e6109f66fbb4ed::t_2b327fb862627e 8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ecb52e3f669284c1698a6d870b3a68dc70858bcb",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}

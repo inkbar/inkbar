@@ -1,0 +1,25 @@
+packages/react/src/components/InkRoot.tsx
+  s_e6109f66fbb4ed::t_8fbe552bccb667 156-157,494-500,514-516,593-597
+  s_e6109f66fbb4ed::t_24e888cbf04e17 300-313,549,598
+packages/react/playwright/harness/FormHarness.tsx
+  s_e6109f66fbb4ed::t_d8556e1cfca274 67-75,108-112
+packages/react/src/components/Form.ct.tsx
+  s_e6109f66fbb4ed::t_d8556e1cfca274 204-234
+  s_e6109f66fbb4ed::t_d41326f49aaa88 235-240
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f1cb5eba9120cef1f3ac99be3a9e976a12ad83ef",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}

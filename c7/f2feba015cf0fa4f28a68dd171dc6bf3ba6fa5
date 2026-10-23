@@ -1,0 +1,35 @@
+packages/svelte/src/lib/components/InkSignFieldPopover.svelte
+  s_e6109f66fbb4ed::t_db119813223f1c 11-16,66-71
+  s_e6109f66fbb4ed::t_ee78b8203b6d65 72
+packages/vue/src/components/InkSignFieldPopover.vue
+  s_e6109f66fbb4ed::t_db119813223f1c 14,17,59-68
+  s_e6109f66fbb4ed::t_aebf024b342a83 69
+packages/react/src/components/InkSignFieldPopover.tsx
+  s_e6109f66fbb4ed::t_58c19415601b95 14,61-62,64-65
+  s_e6109f66fbb4ed::t_5ac31db9eb40c7 21,63,66-67
+  s_e6109f66fbb4ed::t_e1e59b3765e831 68
+packages/svelte/src/test/Form.browser.test.ts
+  s_e6109f66fbb4ed::t_ae6ecfd5fcd3fc 308-315
+packages/vue/src/components/Form.ct.ts
+  s_e6109f66fbb4ed::t_3aec3d00a31174 253
+  s_e6109f66fbb4ed::t_370d9f572de992 252,254-268
+packages/react/src/components/Form.ct.tsx
+  s_e6109f66fbb4ed::t_370d9f572de992 311,313-325
+  s_e6109f66fbb4ed::t_3aec3d00a31174 312
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c7f2feba015cf0fa4f28a68dd171dc6bf3ba6fa5",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}

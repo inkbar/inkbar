@@ -1,0 +1,23 @@
+packages/core/src/model/form/controller.ts
+  s_e6109f66fbb4ed::t_ec84e499865b42 103-104
+packages/core/src/dom/form-layer.browser.test.ts
+  s_e6109f66fbb4ed::t_c23e2c13c2b50d 666,669,672-694
+packages/core/src/dom/viewer-engine.ts
+  s_e6109f66fbb4ed::t_fa325b9a775d1d 217,405-417,539-540,548,601
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3d3361298a527309b82bf916b92f680c7d049027",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}

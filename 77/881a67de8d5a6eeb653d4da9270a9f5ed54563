@@ -1,0 +1,22 @@
+packages/svelte/src/test/harness/DeepFieldsHost.svelte
+  s_e6109f66fbb4ed::t_5cdfc8f636226f 13-14
+  s_e6109f66fbb4ed::t_0c49fee02596a1 1-12,15-30
+packages/svelte/src/test/Form.browser.test.ts
+  s_e6109f66fbb4ed::t_28cfe86380ae51 8,107-123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "77881a67de8d5a6eeb653d4da9270a9f5ed54563",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
