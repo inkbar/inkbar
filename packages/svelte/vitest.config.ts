@@ -10,6 +10,8 @@ import { defineConfig } from 'vitest/config'
 // same module core imports, instead of discovering it mid-run and reloading the test page.
 const fromCore = createRequire(import.meta.resolve('@inkbar/core/package.json'))
 const pdfjs = fromCore.resolve('pdfjs-dist')
+// The form scripting sandbox, which core loads on demand for a PDF with form scripts.
+const pdfjsSandbox = fromCore.resolve('pdfjs-dist/build/pdf.sandbox.mjs')
 
 // Two projects, each with its own Svelte plugin instance: the node project compiles components
 // for the server (the SSR test), the browser project for the client.
@@ -27,12 +29,24 @@ export default defineConfig({
       },
       {
         plugins: [svelte(), serveFixtures()],
-        // Pre-bundled up front: discovering it mid-run makes Vite reload the test page.
-        // A regex, so only the bare id is aliased: a string key would also rewrite
+        // Pre-bundled up front: discovering one mid-run makes Vite reload the test page.
+        // Regexes, so only these exact ids are aliased: a string key would also rewrite
         // `pdfjs-dist/...` subpaths by prefix.
-        resolve: { alias: [{ find: /^pdfjs-dist$/, replacement: pdfjs }] },
+        resolve: {
+          alias: [
+            { find: /^pdfjs-dist$/, replacement: pdfjs },
+            { find: /^pdfjs-dist\/build\/pdf\.sandbox\.mjs$/, replacement: pdfjsSandbox },
+          ],
+        },
         optimizeDeps: {
-          include: ['pdfjs-dist', 'esm-env', 'bits-ui', '@inkbar/icons', 'axe-core'],
+          include: [
+            'pdfjs-dist',
+            'pdfjs-dist/build/pdf.sandbox.mjs',
+            'esm-env',
+            'bits-ui',
+            '@inkbar/icons',
+            'axe-core',
+          ],
         },
         test: {
           name: 'browser',
