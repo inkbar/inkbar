@@ -64,6 +64,15 @@ export interface FormHarnessProps {
   onChanged?: (next: FieldValues, change: FieldsChange) => void
 }
 
+/**
+ * Records what the root reported, in order, in the page, where a test can read it in the same
+ * task as the cause: `ready`, then each error's code.
+ */
+function record(entry: string): void {
+  const w = window as Window & { __inkHeard?: string[] }
+  ;(w.__inkHeard ??= []).push(entry)
+}
+
 /** A host that owns the values through `fields`, the way an app would. */
 export function FormHarness({
   src: initialSrc,
@@ -96,7 +105,11 @@ export function FormHarness({
       }}
       formHighlight={formHighlight}
       onFormAction={onFormAction}
-      onError={onError}
+      onReady={() => record('ready')}
+      onError={(e) => {
+        record(e.code)
+        onError?.(e)
+      }}
     >
       <InkToolbar>
         <InkUndo />

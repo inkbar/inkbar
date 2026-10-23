@@ -201,6 +201,43 @@ test('a sandbox that fails while the document opens reaches onError', async ({
   guard.clear()
 })
 
+const heardInPage = (page: Page): Promise<string[]> =>
+  page.evaluate(() => (window as Window & { __inkHeard?: string[] }).__inkHeard ?? [])
+
+test('an error from while the document opened reaches onError after onReady', async ({
+  mount,
+  page,
+}) => {
+  await mount(
+    <FormHarness
+      assets={{ ...assets, wasm: '/missing/' }}
+      src={fixtureUrl('form-scripted')}
+    />
+  )
+  await expect.poll(() => heardInPage(page)).toEqual(['ready', 'FormScriptError'])
+  guard.clear()
+})
+
+test('a form script error reaches onError one microtask later', async ({
+  mount,
+  page,
+}) => {
+  await mount(harness({ src: fixtureUrl('form-scripted') }))
+  await expect(widget(page, 'hello')).toBeVisible()
+  const [sync, next] = await page.locator('[data-ink-root]').evaluate(async (el) => {
+    const doc = (
+      el as HTMLElement & { __inkDocument?: { form: { _error(e: unknown): void } } }
+    ).__inkDocument!
+    const heard = () => (window as Window & { __inkHeard?: string[] }).__inkHeard ?? []
+    doc.form._error({ code: 'FormScriptError', message: 'A form script failed' })
+    const now = heard().length
+    await Promise.resolve()
+    return [now, heard().length]
+  })
+  expect(sync).toBe(1)
+  expect(next).toBe(2)
+})
+
 test.describe('signature fields', () => {
   test('clicking a signature field opens the popover and signs', async ({
     mount,
