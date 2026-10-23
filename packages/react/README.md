@@ -194,6 +194,7 @@ The scroll area takes focus. From there:
 - With the `highlight` or `redact-area` tool active, `Enter` turns the text selection into a mark.
 - With the `note` tool active, `Enter` places a note at the centre of the current page and opens it.
 - With the `signature` tool active, `Enter` places the chosen signature at the centre of the current page.
+- `Ctrl` or `Cmd` + `Z` undoes. `Ctrl` or `Cmd` + `Shift` + `Z`, or `Ctrl` + `Y`, redoes. They do what `InkUndo` and `InkRedo` do, from anywhere in `InkRoot`, toolbars included. In a text field they undo the typing instead.
 
 On a focused annotation:
 
