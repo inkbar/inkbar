@@ -25,21 +25,44 @@ import {
   InkZoomSelect,
 } from '@inkbar/react'
 import '@inkbar/theme/theme.css'
+import { useState } from 'react'
 import { assets } from 'virtual:inkbar-assets'
 
 import { suggestionsPlugin } from '../plugin/suggestions'
 import '../plugin/suggestions.css'
+import { glossFields, logAction, type LoggedAction } from '../shared/form'
 import { signatureFonts, signatures } from '../shared/signatures'
 
-import type { DocumentSource } from '@inkbar/core'
+import type { DocumentSource, FieldValues, FormAction, InkDocument } from '@inkbar/core'
 
 /*
- * Uncontrolled: the document keeps its own annotations and undo history. The toolbars are
- * built from Inkbar's components, so each control is yours to keep, move or drop. Pass a
- * button your own icon to replace the one it shows. Suggest redactions is a plugin
- * (src/plugin/suggestions.ts): registered in `plugins`, with its button placed by InkCommand.
+ * The document keeps its own annotations and undo history. The page owns the form's values
+ * (fields and onFieldsChange) and hears the form's requests (onFormAction), which the Form
+ * panel lists. The toolbars are built from Inkbar's components, so each control is yours to
+ * keep, move or drop. Pass a button your own icon to replace the one it shows. Suggest
+ * redactions is a plugin (src/plugin/suggestions.ts): registered in `plugins`, with its button
+ * placed by InkCommand.
  */
 export function Demo({ source }: { source: DocumentSource }) {
+  const [doc, setDoc] = useState<InkDocument | null>(null)
+  const [fields, setFields] = useState<FieldValues>({})
+  const [actions, setActions] = useState<LoggedAction[]>([])
+  const [gloss, setGloss] = useState('')
+
+  function onReady(d: InkDocument) {
+    setDoc(d)
+    setGloss(glossFields(d))
+  }
+
+  function onFieldsChange(next: FieldValues) {
+    setFields(next)
+    setGloss(glossFields(doc))
+  }
+
+  function onFormAction(a: FormAction) {
+    setActions((log) => logAction(log, a))
+  }
+
   return (
     <InkRoot
       src={source}
@@ -47,6 +70,10 @@ export function Demo({ source }: { source: DocumentSource }) {
       signatures={signatures}
       signatureFonts={signatureFonts}
       plugins={[suggestionsPlugin()]}
+      fields={fields}
+      onFieldsChange={onFieldsChange}
+      onFormAction={onFormAction}
+      onReady={onReady}
       className="demo-root"
     >
       <InkToolbar className="demo-toolbar">
@@ -76,7 +103,28 @@ export function Demo({ source }: { source: DocumentSource }) {
           <InkCommand id="sandbox.suggest" />
         </div>
       </InkToolbar>
-      <InkViewport />
+      <div className="demo-body">
+        <InkViewport />
+        {/* It scrolls, so it takes focus for keyboard scrolling. */}
+        <section className="demo-form" aria-labelledby="demo-form-title" tabIndex={0}>
+          <h2 id="demo-form-title">Form</h2>
+          <p>
+            Inkbar never sends, opens or prints anything. The form's requests come here.
+          </p>
+          <h3>Actions</h3>
+          {actions.length > 0 ? (
+            <ol>
+              {actions.map((a) => (
+                <li key={a.id}>{a.text}</li>
+              ))}
+            </ol>
+          ) : (
+            <p>None yet. Try the buttons on page 6.</p>
+          )}
+          <h3>Fields as Gloss</h3>
+          <pre>{gloss}</pre>
+        </section>
+      </div>
       <InkFindBar />
       <InkToolbar label="Page and zoom" className="demo-status-bar">
         <div className="demo-group" role="group" aria-label="Page">

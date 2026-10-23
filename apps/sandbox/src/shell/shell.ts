@@ -96,7 +96,7 @@ export function startShell(opts: ShellOptions): void {
   </div>
   <section class="viewer-section" aria-label="Viewer">
     <div class="viewer-bar">
-      <p class="caption">A tour of every annotation. Drop a PDF on the viewer to try your own. It stays in your browser.</p>
+      <p class="caption">A tour of every annotation, then a form to fill in. Drop a PDF on the viewer to try your own. It stays in your browser.</p>
       <p class="caption" role="status" data-file-status></p>
       <label class="file-link">
         <input type="file" accept="application/pdf,.pdf" class="visually-hidden" />
