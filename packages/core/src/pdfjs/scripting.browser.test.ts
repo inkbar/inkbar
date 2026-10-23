@@ -531,6 +531,23 @@ describe('rewritten methods', () => {
 })
 
 describe('fix round', () => {
+  it('a JavaScript button follows its link when the sandbox cannot load', async () => {
+    vi.spyOn(sandboxLoader, 'load').mockRejectedValue(new Error('offline'))
+    const { form } = await open('form-scripted')
+    const actions = actionsOf(form)
+    press(form, 'link')
+    expect(actions).toEqual([
+      { kind: 'open-url', url: 'https://example.com/', newWindow: false },
+    ])
+  })
+
+  it('a JavaScript button with a working sandbox opens its link once', async () => {
+    const { form } = await open('form-scripted')
+    const actions = actionsOf(form)
+    press(form, 'link')
+    expect(actions.filter((a) => a.kind === 'open-url')).toHaveLength(1)
+  })
+
   it('drops script URLs that are not http, https, mailto or tel', async () => {
     const { form, actions } = await scripted([
       {

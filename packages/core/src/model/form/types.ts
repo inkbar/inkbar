@@ -98,6 +98,12 @@ export interface FormWidget {
   printOnly: boolean
   appearance: WidgetAppearance
   action?: WidgetAction
+  /**
+   * A link that a JavaScript `/A` also carries: the URL its `app.launchURL` opens, or the GoTo
+   * in its `/Next`. Followed on Action only when the form runs no scripts, such as when the
+   * sandbox failed to load; with scripts running, the script acts for itself.
+   */
+  fallback?: WidgetAction
   hasScripts: boolean
 }
 

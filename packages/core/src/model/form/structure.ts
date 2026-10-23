@@ -147,13 +147,28 @@ function actionOf(
       include: d.resetForm.include,
     }
   }
-  // PDF.js also fills `url` from a JavaScript `/A` that calls `app.launchURL`; the script
-  // reports that call itself, so it is not a second action.
-  if (d.url && !hasActionScript(d)) return { kind: 'uri', url: d.url }
+  // A JavaScript `/A`'s link is its fallback, not a second action: see `fallbackOf`.
+  if (hasActionScript(d)) return undefined
+  if (d.url) return { kind: 'uri', url: d.url }
   if (d.action) return { kind: 'named', name: d.action }
   const page = extras.destPages.get(id)
   if (page !== undefined) return { kind: 'goto', page }
   return undefined
+}
+
+/**
+ * The link a JavaScript `/A` carries: PDF.js fills `url` from its `app.launchURL`, and the
+ * reader finds the GoTo in its `/Next`. The script reports these itself when it runs.
+ */
+function fallbackOf(
+  d: PdfjsAnnotationData,
+  id: string,
+  extras: FormExtras
+): WidgetAction | undefined {
+  if (!hasActionScript(d)) return undefined
+  if (d.url) return { kind: 'uri', url: d.url }
+  const page = extras.destPages.get(id)
+  return page === undefined ? undefined : { kind: 'goto', page }
 }
 
 function hasActionScript(d: PdfjsAnnotationData): boolean {
@@ -198,6 +213,8 @@ function widgetOf(
   }
   const action = actionOf(d, d.id, extras, namesById)
   if (action) widget.action = action
+  const fallback = fallbackOf(d, d.id, extras)
+  if (fallback) widget.fallback = fallback
   return widget
 }
 

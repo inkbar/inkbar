@@ -250,6 +250,41 @@ describe('FormController', () => {
 })
 
 describe('doc.form', () => {
+  it("follows a JavaScript button's link only while no scripts run", async () => {
+    const scripting = {
+      commit: vi.fn((_: string, value: FieldValue) => value),
+      sync: vi.fn(),
+      dispatch: vi.fn(),
+      keystroke: vi.fn(() => undefined),
+      pageEvent: vi.fn(() => Promise.resolve()),
+      destroy: vi.fn(),
+    }
+    const run = (list: FormField[], name: string, withScripts: boolean) => {
+      const form = createFormController({
+        fields: list,
+        mode: { mode: 'uncontrolled' },
+        onError: () => undefined,
+      })
+      if (withScripts) form._attachScripting(scripting)
+      const seen: unknown[] = []
+      form.on('action', (a) => seen.push(a))
+      form.on('goto', (page) => seen.push({ goto: page }))
+      const widget = list.find((f) => f.name === name)!.widgets[0]!.id
+      form._dispatch({ widget, name: 'Action' })
+      form._destroy()
+      return seen
+    }
+    const scripted = await formFieldsOf('form-scripted')
+    const goto = await formFieldsOf('form-goto')
+    // `link` runs app.launchURL; `scripted` runs an alert whose /Next goes to chapter 3.
+    expect(run(scripted, 'link', false)).toEqual([
+      { kind: 'open-url', url: 'https://example.com/', newWindow: false },
+    ])
+    expect(run(goto, 'scripted', false)).toEqual([{ goto: 2 }])
+    expect(run(scripted, 'link', true)).toEqual([])
+    expect(run(goto, 'scripted', true)).toEqual([])
+  })
+
   it("runs a widget's non-script action on Action", () => {
     const form = controller()
     const reset = fields.find((f) => f.name === 'reset')!.widgets[0]!.id

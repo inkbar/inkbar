@@ -590,7 +590,9 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       // Text typed and then left uncommitted is dropped, and the sandbox, which saw each
       // keystroke, goes back to the stored value.
       const abandoned = event.name === 'Blur' && pending.delete(event.widget)
-      const action = widgets.get(event.widget)?.action
+      const widget = widgets.get(event.widget)
+      // Without scripts, a JavaScript button still follows the link it carries.
+      const action = widget?.action ?? (scripting ? undefined : widget?.fallback)
       // An Action's scripts and the reset it runs are one step.
       batch(() => {
         if (scripting)
