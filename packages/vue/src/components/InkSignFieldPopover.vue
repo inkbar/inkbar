@@ -46,7 +46,10 @@ const creating = computed({
     if (!next) creatingFor.value = null
   },
 })
-/** The request the menu last opened for, kept to return focus once it closes. */
+/**
+ * The request the menu was last open for, kept to return focus once it closes. A request that
+ * replaces the open one takes over, so focus returns to the field asked for last.
+ */
 let last: SignFieldRequest | null = null
 /** Set while the menu closes for the dialog, which takes focus instead of the field. */
 let toDialog = false
@@ -62,6 +65,7 @@ watch(
   () => props.request,
   (req, _, onCleanup) => {
     if (!req) return
+    last = req
     onCleanup(watchDetached(req.anchor, () => emit('close')))
   },
   { immediate: true }
@@ -114,7 +118,6 @@ function onInteractOutside(e: CustomEvent<{ originalEvent: Event }>): void {
 
 function onOpenAutoFocus(e: Event): void {
   e.preventDefault()
-  last = props.request
   // An old removal error is not news when the menu opens again.
   ctx.signatures.value.clearRemoveError()
   const menu = (e.target as HTMLElement | null)?.querySelector<HTMLElement>(

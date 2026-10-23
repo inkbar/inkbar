@@ -313,6 +313,22 @@ describe('form filling', () => {
       ;(await widget('sig')).remove()
       await expect.poll(count(SIGN_MENU)).toBe(0)
     })
+
+    it('returns focus to the field that replaced the open one', async () => {
+      await harness({ src: fixtureUrl('form-fields'), templates: [IMAGE] })
+      await openSignMenu()
+      const other = await q<HTMLButtonElement>(
+        '[data-ink-form-layer] [data-ink-field="sig2"] [data-ink-sign-field]'
+      )
+      // A click with no press first: the open menu sees nothing outside it, and the request
+      // is replaced while it stays open.
+      other.click()
+      const menu = await q('[data-ink-sign-field-menu="sig2"]')
+      menu.querySelector<HTMLElement>('[role="menuitem"]')!.focus()
+      await userEvent.keyboard('{Escape}')
+      await expect.poll(count('[data-ink-sign-field-menu]')).toBe(0)
+      await expect.poll(focused).toBe(other)
+    })
   })
 
   it('useForm exposes values', async () => {

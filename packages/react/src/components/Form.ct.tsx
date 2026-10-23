@@ -323,6 +323,27 @@ test.describe('signature fields', () => {
     await widget(page, 'sig').evaluate((el) => el.remove())
     await expect(menu).toBeHidden()
   })
+
+  test('returns focus to the field that replaced the open one', async ({
+    mount,
+    page,
+  }) => {
+    await mount(harness({ src: fixtureUrl('form-fields'), templates: [IMAGE] }))
+    const button = widget(page, 'sig').locator('[data-ink-sign-field]')
+    const other = widget(page, 'sig2').locator('[data-ink-sign-field]')
+    await button.scrollIntoViewIfNeeded()
+    await button.click()
+    await expect(page.locator('[data-ink-sign-field-menu="sig"]')).toBeVisible()
+    // A click with no press first: the open menu sees nothing outside it, and the request is
+    // replaced while it stays open.
+    await other.evaluate((el) => (el as HTMLElement).click())
+    const menu = page.locator('[data-ink-sign-field-menu="sig2"]')
+    await expect(menu).toBeVisible()
+    await menu.getByRole('menuitem', { name: 'Create signature' }).focus()
+    await page.keyboard.press('Escape')
+    await expect(menu).toBeHidden()
+    await expect(other).toBeFocused()
+  })
 })
 
 test('useForm exposes values', async ({ mount, page }) => {

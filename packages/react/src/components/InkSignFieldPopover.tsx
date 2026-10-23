@@ -46,7 +46,10 @@ export function InkSignFieldPopover({
   /** The field the dialog signs once its signature is saved. */
   const [creatingFor, setCreatingFor] = useState<SignFieldRequest | null>(null)
   const menu = useRef<HTMLDivElement>(null)
-  /** The request the menu last opened for, kept to return focus once it closes. */
+  /**
+   * The request the menu was last open for, kept to return focus once it closes. A request
+   * that replaces the open one takes over, so focus returns to the field asked for last.
+   */
   const last = useRef<SignFieldRequest | null>(null)
   /** Set while the menu closes for the dialog, which takes focus instead of the field. */
   const toDialog = useRef(false)
@@ -63,6 +66,7 @@ export function InkSignFieldPopover({
   const close = useLatest(onClose)
   useEffect(() => {
     if (!request) return
+    last.current = request
     return watchDetached(request.anchor, () => close.current())
   }, [request, close])
 
@@ -97,7 +101,6 @@ export function InkSignFieldPopover({
               collisionPadding={8}
               onOpenAutoFocus={(e) => {
                 e.preventDefault()
-                last.current = request
                 focusInitialMenuItem(e.currentTarget as HTMLElement)
               }}
               onCloseAutoFocus={(e) => {
