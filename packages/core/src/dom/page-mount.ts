@@ -3,6 +3,7 @@ import { createPageRenderer, type PageRenderer } from './page-renderer'
 import { createTextLayer, type TextLayerHandle } from './text-layer'
 
 import type { PluginLayers } from './plugins/layer'
+import type { SearchHighlights } from './search/highlights'
 import type { PageTransform } from './transform'
 import type { AnnotationStore } from '../model/annotations/store'
 import type { Annotation } from '../model/annotations/types'
@@ -24,6 +25,8 @@ export interface PageMountOptions {
   devicePixelRatio?: number
   /** Plugin layers, mounted above the overlay. The engine passes them for its pages only. */
   layers?: PluginLayers
+  /** Search match highlights, mounted below the overlay. */
+  highlights?: SearchHighlights
   /**
    * Canvas and text layer failures, with the layer that failed (cancellations are not
    * reported).
@@ -76,6 +79,7 @@ export function createPageMount(opts: PageMountOptions): PageMount {
     transform,
     ...callbacks('text'),
   })
+  const marks = opts.highlights?.mount(page, host, transform)
   const overlay = createOverlay({
     host,
     page,
@@ -101,10 +105,12 @@ export function createPageMount(opts: PageMountOptions): PageMount {
       textLayer.update(next)
       overlay.update(next)
       layers?.update(next)
+      marks?.update(next)
     },
     destroy() {
       layers?.destroy()
       overlay.destroy()
+      marks?.destroy()
       textLayer.destroy()
       renderer.destroy()
     },

@@ -120,6 +120,27 @@ describe('theme.css', () => {
     }
   })
 
+  it('defines the search match tokens in light and dark', () => {
+    const declaring = (prop: string) =>
+      rules.filter((r) => r.nodes.some((d) => d.type === 'decl' && d.prop === prop))
+    for (const token of ['--ink-search-hit', '--ink-search-current']) {
+      const found = declaring(token)
+      expect(found.length, token).toBeGreaterThanOrEqual(3)
+      // One light rule at the top of the layer, and dark values in the media query and the class.
+      expect(
+        found.some(
+          (r) => r.parent?.type === 'atrule' && (r.parent as AtRule).name === 'media'
+        ),
+        token
+      ).toBe(true)
+      expect(
+        found.some((r) => r.selector.includes('.dark')),
+        token
+      ).toBe(true)
+    }
+    expect(css).toMatch(/\[data-search-hit\]\[data-current\]/)
+  })
+
   it('uses shadcn token names with fallbacks', () => {
     expect(css).toMatch(/var\(--primary,/)
     expect(css).toMatch(/var\(--border,/)

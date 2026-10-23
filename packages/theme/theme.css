@@ -29,6 +29,9 @@
     --ink-ink: #151820;
     --ink-redact: #c0392b;
     --ink-redact-fill: #000000;
+    --ink-search-hit: color-mix(in srgb, var(--ink-highlight), transparent 60%);
+    --ink-search-current: color-mix(in srgb, #f28c28, transparent 25%);
+    --ink-search-current-outline: #c96a00;
 
     --ink-bg: var(--muted, #f1f2f5);
     --ink-fg: var(--foreground, #151820);
@@ -62,6 +65,8 @@
       --ink-accent-fg: var(--primary-foreground, #151820);
       --ink-ring: var(--ring, #7aa5e6);
       --ink-page-shadow: 0 1px 3px rgb(0 0 0 / 0.6);
+      --ink-search-hit: color-mix(in srgb, var(--ink-highlight), transparent 50%);
+      --ink-search-current: color-mix(in srgb, #f28c28, transparent 15%);
     }
   }
 
@@ -83,6 +88,8 @@
     --ink-accent-fg: var(--primary-foreground, #151820);
     --ink-ring: var(--ring, #7aa5e6);
     --ink-page-shadow: 0 1px 3px rgb(0 0 0 / 0.6);
+    --ink-search-hit: color-mix(in srgb, var(--ink-highlight), transparent 50%);
+    --ink-search-current: color-mix(in srgb, #f28c28, transparent 15%);
   }
 
   /* Layout: root and viewport fill their parent; the scroll area takes the space left over. */
@@ -316,6 +323,22 @@
 
   :where(.ink-handle[data-handle='start'], .ink-handle[data-handle='end']) {
     border-radius: 50%;
+  }
+
+  /* Search matches sit under the annotations: before the overlay in the page, same level. */
+  :where(.ink-search-layer) {
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  :where([data-search-hit]) {
+    background: var(--ink-search-hit);
+    border-radius: 2px;
+  }
+
+  :where([data-search-hit][data-current]) {
+    background: var(--ink-search-current);
+    outline: 1.5px solid var(--ink-search-current-outline);
   }
 
   /* Annotations */
