@@ -32,7 +32,7 @@ import {
 import { unknownCommand } from '../plugins/commands'
 import { TOOL_LABELS, ZOOM_LEVELS } from '../ui'
 
-import { hostCommandIdsOf, hostToolsOf } from './create-viewer'
+import { hostCommandIdsOf, hostToolsOf, onViewerDestroy } from './create-viewer'
 import { h } from './dom'
 
 import type { InkDocument } from '../../model/document'
@@ -139,7 +139,7 @@ export function createSearchButton(viewer: Viewer): HTMLButtonElement {
     b.setAttribute('aria-pressed', String(s.open))
   }
   show(viewer.search.state.get())
-  viewer.search.state.subscribe(show)
+  onViewerDestroy(viewer, viewer.search.state.subscribe(show))
   follow(viewer.document, b, () => undefined)
   return b
 }

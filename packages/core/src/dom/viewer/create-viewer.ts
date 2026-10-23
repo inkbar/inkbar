@@ -414,7 +414,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   }
   toolsByViewer.set(viewer, [...(view.tools ?? []), ...host.tools])
   commandIdsByViewer.set(viewer, () => [...host.commands.keys()])
-  internals.set(viewer, { search, destroyers })
+  internals.set(viewer, { search, destroyers, destroyed: () => destroyed })
   return viewer
 }
 
@@ -434,7 +434,7 @@ export function hostCommandIdsOf(viewer: Viewer): string[] {
 
 const internals = new WeakMap<
   Viewer,
-  { search: SearchController; destroyers: (() => void)[] }
+  { search: SearchController; destroyers: (() => void)[]; destroyed: () => boolean }
 >()
 
 /** @internal The viewer's search controller, which the find bar registers with. */
@@ -444,7 +444,13 @@ export function searchControllerOf(viewer: Viewer): SearchController {
   return found.search
 }
 
-/** @internal Runs `fn` when the viewer is destroyed, for what a control set up on it. */
+/**
+ * @internal Runs `fn` when the viewer is destroyed, for what a control set up on it; at once
+ * when it already is.
+ */
 export function onViewerDestroy(viewer: Viewer, fn: () => void): void {
-  internals.get(viewer)?.destroyers.push(fn)
+  const found = internals.get(viewer)
+  if (!found) return
+  if (found.destroyed()) fn()
+  else found.destroyers.push(fn)
 }
