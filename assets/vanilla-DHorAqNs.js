@@ -1,4 +1,4 @@
-import{Jt as e}from"./signatures-AZxQmB3u.js";import{t}from"./Demo-B7LCebB7.js";e({page:`vanilla`,files:[{path:`src/vanilla/Demo.ts`,source:{html:`<pre class="shiki inkbar-ink" style="background-color:#0D1026;color:#C9CEE6" tabindex="0"><code><span class="line"><span style="color:#A9AFCB">/*</span></span>
+import{on as e}from"./signatures-DPJVn45B.js";import{t}from"./Demo-D9NXrfVu.js";e({page:`vanilla`,files:[{path:`src/vanilla/Demo.ts`,source:{html:`<pre class="shiki inkbar-ink" style="background-color:#0D1026;color:#C9CEE6" tabindex="0"><code><span class="line"><span style="color:#A9AFCB">/*</span></span>
 <span class="line"><span style="color:#A9AFCB"> * Inkbar without a framework: createViewer opens the document and renders the viewer and its</span></span>
 <span class="line"><span style="color:#A9AFCB"> * popovers. The toolbars are built from Inkbar's controls, so each one is yours to keep, move</span></span>
 <span class="line"><span style="color:#A9AFCB"> * or drop, and each button takes your own icon in place of the one it shows. Suggest</span></span>
@@ -8,6 +8,7 @@ import{Jt as e}from"./signatures-AZxQmB3u.js";import{t}from"./Demo-B7LCebB7.js";
 <span class="line"><span style="color:#9DABFF">import</span><span style="color:#C9CEE6"> {</span></span>
 <span class="line"><span style="color:#C9CEE6">  createColorMenu,</span></span>
 <span class="line"><span style="color:#C9CEE6">  createCommandButton,</span></span>
+<span class="line"><span style="color:#C9CEE6">  createFindBar,</span></span>
 <span class="line"><span style="color:#C9CEE6">  createHighlightMenu,</span></span>
 <span class="line"><span style="color:#C9CEE6">  createLineStyleMenu,</span></span>
 <span class="line"><span style="color:#C9CEE6">  createTextStyleMenu,</span></span>
@@ -16,6 +17,7 @@ import{Jt as e}from"./signatures-AZxQmB3u.js";import{t}from"./Demo-B7LCebB7.js";
 <span class="line"><span style="color:#C9CEE6">  createPageInput,</span></span>
 <span class="line"><span style="color:#C9CEE6">  createPrevPage,</span></span>
 <span class="line"><span style="color:#C9CEE6">  createRedo,</span></span>
+<span class="line"><span style="color:#C9CEE6">  createSearchButton,</span></span>
 <span class="line"><span style="color:#C9CEE6">  createShapeMenu,</span></span>
 <span class="line"><span style="color:#C9CEE6">  createSignatureMenu,</span></span>
 <span class="line"><span style="color:#C9CEE6">  createToolbar,</span></span>
@@ -87,6 +89,7 @@ import{Jt as e}from"./signatures-AZxQmB3u.js";import{t}from"./Demo-B7LCebB7.js";
 <span class="line"><span style="color:#C9CEE6">    ),</span></span>
 <span class="line"><span style="color:#FFFFFF">    createUndo</span><span style="color:#C9CEE6">(viewer),</span></span>
 <span class="line"><span style="color:#FFFFFF">    createRedo</span><span style="color:#C9CEE6">(viewer),</span></span>
+<span class="line"><span style="color:#FFFFFF">    createSearchButton</span><span style="color:#C9CEE6">(viewer),</span></span>
 <span class="line"><span style="color:#FFFFFF">    group</span><span style="color:#C9CEE6">(</span><span style="color:#E4FF4A">'Suggest'</span><span style="color:#C9CEE6">, </span><span style="color:#E4FF4A">'demo-actions'</span><span style="color:#C9CEE6">, </span><span style="color:#FFFFFF">createCommandButton</span><span style="color:#C9CEE6">(viewer, </span><span style="color:#E4FF4A">'sandbox.suggest'</span><span style="color:#C9CEE6">))</span></span>
 <span class="line"><span style="color:#C9CEE6">  )</span></span>
 <span class="line"></span>
@@ -110,6 +113,7 @@ import{Jt as e}from"./signatures-AZxQmB3u.js";import{t}from"./Demo-B7LCebB7.js";
 <span class="line"><span style="color:#C9CEE6">    )</span></span>
 <span class="line"><span style="color:#C9CEE6">  )</span></span>
 <span class="line"></span>
+<span class="line"><span style="color:#C9CEE6">  viewer.element.</span><span style="color:#FFFFFF">querySelector</span><span style="color:#C9CEE6">(</span><span style="color:#E4FF4A">'[data-ink-viewport-root]'</span><span style="color:#C9CEE6">)?.</span><span style="color:#FFFFFF">append</span><span style="color:#C9CEE6">(</span><span style="color:#FFFFFF">createFindBar</span><span style="color:#C9CEE6">(viewer))</span></span>
 <span class="line"><span style="color:#C9CEE6">  viewer.element.</span><span style="color:#FFFFFF">prepend</span><span style="color:#C9CEE6">(tools)</span></span>
 <span class="line"><span style="color:#C9CEE6">  viewer.element.</span><span style="color:#FFFFFF">append</span><span style="color:#C9CEE6">(status)</span></span>
 <span class="line"><span style="color:#9DABFF">  return</span><span style="color:#C9CEE6"> () </span><span style="color:#9DABFF">=></span><span style="color:#C9CEE6"> viewer.</span><span style="color:#FFFFFF">destroy</span><span style="color:#C9CEE6">()</span></span>
@@ -124,6 +128,7 @@ import{Jt as e}from"./signatures-AZxQmB3u.js";import{t}from"./Demo-B7LCebB7.js";
 import {
   createColorMenu,
   createCommandButton,
+  createFindBar,
   createHighlightMenu,
   createLineStyleMenu,
   createTextStyleMenu,
@@ -132,6 +137,7 @@ import {
   createPageInput,
   createPrevPage,
   createRedo,
+  createSearchButton,
   createShapeMenu,
   createSignatureMenu,
   createToolbar,
@@ -203,6 +209,7 @@ export function mountDemo(el: HTMLElement, source: DocumentSource): () => void {
     ),
     createUndo(viewer),
     createRedo(viewer),
+    createSearchButton(viewer),
     group('Suggest', 'demo-actions', createCommandButton(viewer, 'sandbox.suggest'))
   )
 
@@ -226,6 +233,7 @@ export function mountDemo(el: HTMLElement, source: DocumentSource): () => void {
     )
   )
 
+  viewer.element.querySelector('[data-ink-viewport-root]')?.append(createFindBar(viewer))
   viewer.element.prepend(tools)
   viewer.element.append(status)
   return () => viewer.destroy()
