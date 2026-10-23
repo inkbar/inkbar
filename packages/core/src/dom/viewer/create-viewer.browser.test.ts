@@ -2564,6 +2564,34 @@ describe('forms', () => {
     expect(onError).toHaveBeenCalledWith(error)
   })
 
+  it('Escape closes a validator’s alert, and a second Escape puts the value back', async () => {
+    const { viewer } = make('form-range')
+    const { doc } = await ready(viewer)
+    await until(() => widgetBox(viewer, 'score') !== null)
+    const score = widgetBox(viewer, 'score')!.querySelector('input')!
+    await userEvent.click(score)
+    await userEvent.keyboard('7{Enter}')
+    expect(doc.form.get('score')).toBe('7')
+    await userEvent.keyboard('{Backspace}50{Enter}')
+    await until(() => document.querySelector('[data-ink-form-alert]') !== null)
+    expect(score.getAttribute('aria-invalid')).toBe('true')
+    // The first Escape is the alert's: the refused text stays, still marked.
+    await userEvent.keyboard('{Escape}')
+    expect(document.querySelector('[data-ink-form-alert]')).toBeNull()
+    expect(document.activeElement).toBe(score)
+    expect(score.value).toBe('50')
+    expect(score.getAttribute('aria-invalid')).toBe('true')
+    // The second is the field's: the committed value comes back, unmarked, and focus stays.
+    await userEvent.keyboard('{Escape}')
+    expect(score.value).toBe('7')
+    expect(score.hasAttribute('aria-invalid')).toBe(false)
+    expect(document.activeElement).toBe(score)
+    expect(doc.form.get('score')).toBe('7')
+    // Typing goes on from the committed value.
+    await userEvent.keyboard('{End}{Backspace}3{Enter}')
+    expect(doc.form.get('score')).toBe('3')
+  })
+
   it('keeps a value a validator refuses with an alert, and validates it once', async () => {
     const { viewer } = make('form-range')
     const { doc } = await ready(viewer)
