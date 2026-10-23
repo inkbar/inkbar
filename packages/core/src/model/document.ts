@@ -254,18 +254,50 @@ export async function openDocument(
     () => undefined
   )
 
-  const searchable = new Map<number, Promise<SearchableText>>()
+  /**
+   * A page's text with item boundaries measured or, with `glyphs`, taken from where the page
+   * draws each glyph. Reading the glyphs means reading the page's drawing commands, which also
+   * decodes its images, so search does it only for pages with hits.
+   */
+  async function pageContent(page: number, glyphs: boolean): Promise<TextContent> {
+    if (destroyed) throw destroyedError()
+    if (!handles) throw statusError(status.get())
+    const p = await handles.getPage(page)
+    const tc = await p.getTextContent()
+    // A page with no text (a scan) has no glyphs worth reading its drawing commands for.
+    const placed =
+      glyphs && tc.items.length > 0
+        ? await pageGlyphs(p, handles.module).catch(() => undefined)
+        : undefined
+    return textContentFromPdfjs(page, tc, measure, placed)
+  }
+
+  /** Each page's searchable text, and whether its boundaries come from the page's glyphs. */
+  const searchable = new Map<number, Promise<{ st: SearchableText; placed: boolean }>>()
   const abortError = (signal: AbortSignal | undefined): unknown =>
     signal?.reason ?? new DOMException('Aborted', 'AbortError')
-  const searchableFor = (page: number): Promise<SearchableText> => {
+  const searchableFor = (page: number, placed: boolean): Promise<SearchableText> => {
     let cached = searchable.get(page)
     if (!cached) {
-      cached = doc.text(page).then(searchableText)
-      searchable.set(page, cached)
-      // A failed page is not cached: the next search asks again.
-      cached.catch(() => searchable.delete(page))
-    }
-    return cached
+      cached = pageContent(page, placed).then((c) => ({ st: searchableText(c), placed }))
+    } else if (placed) {
+      // Only the boundaries change, so hits found in the measured text keep their offsets.
+      cached = cached.then((c) =>
+        c.placed
+          ? c
+          : pageContent(page, true).then((pc) => ({
+              st: searchableText(pc),
+              placed: true,
+            }))
+      )
+    } else return cached.then((c) => c.st)
+    const entry = cached
+    searchable.set(page, entry)
+    // A failed page is not cached: the next search asks again.
+    entry.catch(() => {
+      if (searchable.get(page) === entry) searchable.delete(page)
+    })
+    return entry.then((c) => c.st)
   }
 
   async function* scan(
@@ -285,15 +317,20 @@ export async function openDocument(
     for (let n = 0; n < order.length; n++) {
       if (n > 0) await new Promise<void>((r) => setTimeout(r))
       check()
-      let st: SearchableText
+      let hits: SearchHit[]
       try {
-        st = await searchableFor(order[n]!)
+        hits = matchPage(await searchableFor(order[n]!, false), query, matchOpts)
+        // Hit boxes are cut where the page draws its glyphs, read only for pages with hits.
+        if (hits.length > 0) {
+          check()
+          hits = matchPage(await searchableFor(order[n]!, true), query, matchOpts)
+        }
       } catch (error) {
         check()
         throw error
       }
       check()
-      for (const hit of matchPage(st, query, matchOpts)) {
+      for (const hit of hits) {
         yield hit
         check()
       }
@@ -306,17 +343,8 @@ export async function openDocument(
     ready,
     pages,
     info,
-    async text(page) {
-      if (destroyed) throw destroyedError()
-      if (!handles) throw statusError(status.get())
-      const p = await handles.getPage(page)
-      const tc = await p.getTextContent()
-      // A page with no text (a scan) has no glyphs worth reading its drawing commands for.
-      const glyphs =
-        tc.items.length > 0
-          ? await pageGlyphs(p, handles.module).catch(() => undefined)
-          : undefined
-      return textContentFromPdfjs(page, tc, measure, glyphs)
+    text(page) {
+      return pageContent(page, true)
     },
     async pageText(page) {
       return searchableText(await doc.text(page)).raw
