@@ -312,7 +312,7 @@ for await (const hit of doc.search('invoice')) {
 const refs = await doc.search(/\b[A-Z]{2}\d{6}[A-D]\b/, { signal }).all()
 ```
 
-Options: `matchCase` (default false; a `RegExp` keeps its own `i` flag), `wholeWord`, `pages` (indices to search, in the order given; all pages in order by default) and `signal`, which stops the scan. A string matches the way the page reads: it finds text across line breaks and a hyphenated line end, and ignores accents, ligatures and curly quotes.
+Options: `matchCase` (default false; a `RegExp` keeps its own `i` flag), `wholeWord` (a hit must not have a letter, digit or underscore on either side), `pages` (indices to search, in the order given; all pages in order by default) and `signal`, which stops the scan. A string matches the way the page reads: it finds text across line breaks and a hyphenated line end, and ignores accents, ligatures and curly quotes.
 
 Each `SearchHit` has:
 
