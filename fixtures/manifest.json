@@ -258,6 +258,15 @@
       "Widget": 7
     }
   },
+  "form-range": {
+    "file": "form-range.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A text field whose AFRange_Validate (0 to 10) alerts and refuses a value outside the range, and a plain text field, for checking that a refused value stays as typed through the alert",
+    "annotations": {
+      "Widget": 2
+    }
+  },
   "incremental-saved": {
     "file": "incremental-saved.pdf",
     "pages": 1,

@@ -1433,6 +1433,40 @@ async function formGoto() {
   )
 }
 
+/** A field whose validator, `AFRange_Validate`, refuses an out-of-range value with an alert. */
+async function formRange() {
+  const { d, font } = await doc()
+  const page = d.addPage([612, 792])
+  text(page, font, ['Range form'], 740)
+  const form = d.getForm()
+  const score = form.createTextField('score')
+  score.addToPage(page, { x: 72, y: 600, width: 200, height: 22 })
+  label(page, font, 'score (0 to 10; a value outside alerts)', 72, 600, 22)
+  const note = form.createTextField('note')
+  note.addToPage(page, { x: 72, y: 540, width: 200, height: 22 })
+  label(page, font, 'note (no scripts)', 72, 540, 22)
+  form.updateFieldAppearances(font)
+  addHelv(d, form)
+  setDA(score, HELV_12)
+  setDA(note, HELV_12)
+  score.acroField.dict.set(
+    PDFName.of('AA'),
+    d.context.obj({ V: js(d.context, 'AFRange_Validate(true, 0, true, 10)') })
+  )
+  await save(
+    'form-range',
+    d,
+    {
+      pages: 1,
+      opens: true,
+      describes:
+        'A text field whose AFRange_Validate (0 to 10) alerts and refuses a value outside the range, and a plain text field, for checking that a refused value stays as typed through the alert',
+      annotations: { Widget: 2 },
+    },
+    { appearances: false }
+  )
+}
+
 async function formBareAppearances() {
   const { d, font } = await doc()
   const page = d.addPage([612, 792])
@@ -1626,6 +1660,7 @@ async function main() {
   await formSharedScripted()
   await formBareAppearances()
   await formGoto()
+  await formRange()
   await incrementalSaved()
   await objectStreams()
   await encrypted('encrypted-aes')

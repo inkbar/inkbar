@@ -136,6 +136,35 @@ test('a script alert shows the dialog', async ({ mount, page }) => {
   await expect(alert).toBeVisible()
 })
 
+test('a value a validator refuses with an alert stays as typed', async ({
+  mount,
+  page,
+}) => {
+  await mount(harness({ src: fixtureUrl('form-range') }))
+  const score = widget(page, 'score').locator('input')
+  await score.click()
+  await page.keyboard.type('50')
+  await page.keyboard.press('Enter')
+  const alert = page.getByRole('alertdialog', { name: 'Message' })
+  await expect(alert).toBeVisible()
+  await expect(score).toHaveValue('50')
+  await page.keyboard.press('Escape')
+  await expect(alert).toBeHidden()
+  await expect(score).toBeFocused()
+  await expect(score).toHaveValue('50')
+  await expect(score).toHaveAttribute('aria-invalid', 'true')
+  // Leaving drops the refused text without validating it again.
+  await widget(page, 'note').locator('input').click()
+  await expect(score).toHaveValue('')
+  await page.waitForTimeout(200)
+  await expect(alert).toBeHidden()
+  // Corrected, it commits.
+  await score.click()
+  await page.keyboard.type('7')
+  await page.keyboard.press('Enter')
+  await expect(page.getByTestId('form')).toHaveAttribute('data-values', /"score":"7"/)
+})
+
 test('a form script error reaches onError', async ({ mount, page }) => {
   const errors: { code: string }[] = []
   await mount(
