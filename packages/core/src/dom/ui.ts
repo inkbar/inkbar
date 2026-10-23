@@ -638,9 +638,19 @@ export function signatureMenuModel(
 }
 
 /**
- * Words the form layer adds to the page's form fields. A field is named by its own tooltip
- * (`/TU`), else the last part of its name; `unnamed` stands in when it has neither.
+ * Words the form layer and the form dialogs add to the page's form fields, shared so every
+ * binding says the same. A field is named by its own tooltip (`/TU`), else the last part of its
+ * name; `unnamed` stands in when it has neither.
  */
 export const FORM_LABELS = {
   unnamed: 'Form field',
+  /** An empty signature field's affordance. */
+  sign: 'Sign',
+  /** Its tooltip, and the start of its accessible name. */
+  signField: 'Sign this field',
+  /** A control that clears a signed field, removing its signature. */
+  clearSignature: 'Clear signature',
+  /** The title of the dialog a form's script message shows in. */
+  alert: 'Message',
+  ok: 'OK',
 } as const

@@ -82,7 +82,7 @@ export interface ToolStyle {
    * Updates the active tool's group, or under a select tool (no active group) the group that
    * owns each prop on each selected annotation (a speech bubble's outline is `shape`'s, its
    * text `text`'s). With `apply` it also updates every selected, unlocked annotation that has
-   * the props, in one history step. `apply` defaults to true under a select tool, and to
+   * the props, in one history step; a pinned one keeps its style. `apply` defaults to true under a select tool, and to
    * whether the selection is wholly in the group otherwise. `group` names the group explicitly.
    */
   set(patch: StyleProps, opts?: { group?: StyleGroup; apply?: boolean }): void
@@ -205,6 +205,7 @@ export function createToolStyle(deps: ToolStyleDeps): ToolStyle {
   const sources: Readable<unknown>[] = [
     store.list,
     store.selection,
+    store._pinned,
     ...groups.values(),
     ...(deps.active ? [deps.active] : []),
   ]
@@ -222,9 +223,13 @@ export function createToolStyle(deps: ToolStyleDeps): ToolStyle {
     return out
   }
 
+  /** A pinned annotation (a signature filling its field) keeps its style: it offers none. */
   const propsOf = (items: readonly Annotation[]): ReadonlySet<StyleKey> => {
     const out = new Set<StyleKey>()
-    for (const a of items) for (const key of supportedProps(a.type)) out.add(key)
+    for (const a of items) {
+      if (store._isPinned(a.id)) continue
+      for (const key of supportedProps(a.type)) out.add(key)
+    }
     return out
   }
 
@@ -321,7 +326,7 @@ export function createToolStyle(deps: ToolStyleDeps): ToolStyle {
     }
     if (!(opts.apply ?? (active === undefined || selectedIn(active) !== null))) return
     const edits = items
-      .filter((a) => !a.locked)
+      .filter((a) => !a.locked && !store._isPinned(a.id))
       .map((a) => ({ id: a.id, fields: refit(a, toFields(a.type, patch)) }))
       .filter((e) => Object.keys(e.fields).length > 0)
     if (edits.length === 0) return

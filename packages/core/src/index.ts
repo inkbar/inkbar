@@ -71,6 +71,7 @@ export { recogniseStroke, RECOGNISE_THRESHOLD } from './model/recognise'
 export type { Recognised } from './model/recognise'
 export type { ImportOptions, ImportResult } from './model/annotations/json'
 export type { FormController, FormScripting } from './model/form/controller'
+export { signField } from './model/form/sign'
 export type {
   FieldFlags,
   FieldOption,

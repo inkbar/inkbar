@@ -14,6 +14,10 @@ export type InkErrorCode =
   | 'InvalidCommandLabel'
   | 'UnknownCommand'
   | 'FormScriptError'
+  | 'UnknownField'
+  | 'NotSignatureField'
+  | 'FieldReadOnly'
+  | 'FieldSigned'
 
 export class InkError extends Error {
   override readonly name = 'InkError'

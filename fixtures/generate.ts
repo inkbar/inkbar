@@ -971,6 +971,12 @@ async function formFields() {
     Rect: [L, row(9), L + 200, row(9) + 40],
   })
   put('sig (empty signature)', L, 9, 40)
+  // A signature box on the rotated page: wide as the reader sees it, so tall in user space.
+  addRawField(form, p2, {
+    FT: 'Sig',
+    T: PDFString.of('sig2'),
+    Rect: [300, 400, 340, 600],
+  })
 
   const reset = form.createButton('reset')
   reset.addToPage('Reset', p1, box(R, 9, 100, 24))
@@ -1025,8 +1031,8 @@ async function formFields() {
       pages: 2,
       opens: true,
       describes:
-        'Every AcroForm field type and flag: text variants, checkbox, radios (named on-states, and two widgets sharing one export value), combo, list, a two-widget field across pages, a rotated page 2, a /DA font named only through /DR, an empty signature and a reset button',
-      annotations: { Widget: 22 },
+        'Every AcroForm field type and flag: text variants, checkbox, radios (named on-states, and two widgets sharing one export value), combo, list, a two-widget field across pages, a rotated page 2, a /DA font named only through /DR, empty signatures on both pages and a reset button',
+      annotations: { Widget: 23 },
     },
     { appearances: false }
   )

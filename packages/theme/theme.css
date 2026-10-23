@@ -17,7 +17,8 @@
     [data-ink-thread-popover],
     [data-ink-popover],
     [data-ink-select-content],
-    [data-ink-signature-dialog]
+    [data-ink-signature-dialog],
+    [data-ink-form-alert]
   ) {
     --ink-highlight: #f2c230;
     --ink-underline: #2b5a9e;
@@ -58,7 +59,8 @@
       [data-ink-thread-popover]:not(.light *),
       [data-ink-popover]:not(.light *),
       [data-ink-select-content]:not(.light *),
-      [data-ink-signature-dialog]:not(.light *)
+      [data-ink-signature-dialog]:not(.light *),
+      [data-ink-form-alert]:not(.light *)
     ) {
       --ink-bg: var(--muted, #0f1217);
       --ink-fg: var(--foreground, #e6e9ef);
@@ -82,7 +84,8 @@
     .dark [data-ink-thread-popover]:not(.dark .light *),
     .dark [data-ink-popover]:not(.dark .light *),
     .dark [data-ink-select-content]:not(.dark .light *),
-    .dark [data-ink-signature-dialog]:not(.dark .light *)
+    .dark [data-ink-signature-dialog]:not(.dark .light *),
+    .dark [data-ink-form-alert]:not(.dark .light *)
   ) {
     --ink-bg: var(--muted, #0f1217);
     --ink-fg: var(--foreground, #e6e9ef);
@@ -364,8 +367,9 @@
     pointer-events: auto;
   }
 
-  /* Form fields: over the annotations, under the plugin layers. A field is tinted until it is
-     read-only, ringed while focused and marked when a value was refused. */
+  /* Form fields: over the text layer, under the annotations (after the overlay in the page, at
+     the same level), so a press on an annotation's shape is the annotation's. A field is
+     tinted unless it is read-only, ringed while focused and marked when a value was refused. */
   :where(.ink-form-layer) {
     z-index: 1;
   }
@@ -380,6 +384,19 @@
     .ink-form-widget[data-ink-readonly] .ink-form-control
   ) {
     box-shadow: none;
+  }
+
+  /* An empty signature field's "Sign"; a signed one shows its signature, drawn above it. */
+  :where(.ink-form-sign) {
+    color: var(--ink-form-field-focus);
+    font-family: system-ui, sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  :where(.ink-form-sign[data-ink-signed]) {
+    box-shadow: none;
+    cursor: default;
   }
 
   :where(.ink-form-widget[data-ink-focused] .ink-form-control) {
@@ -1338,6 +1355,13 @@
 
   :where(.ink-dialog:focus) {
     outline: none;
+  }
+
+  /* A form script's message: non-modal, so no overlay dims the page behind it. */
+  :where(.ink-form-alert-message) {
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
   }
 
   :where(.ink-dialog-title) {

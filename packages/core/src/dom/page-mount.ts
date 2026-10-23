@@ -33,7 +33,7 @@ export interface PageMountOptions {
   formActive?(): boolean
   /** A signature field asked to be signed. */
   onSignField?(req: SignFieldRequest): void
-  /** Plugin layers, mounted above the form layer. The engine passes them for its pages only. */
+  /** Plugin layers, mounted above the overlay. The engine passes them for its pages only. */
   layers?: PluginLayers
   /** Search match highlights, mounted below the overlay. */
   highlights?: SearchHighlights
@@ -66,7 +66,7 @@ export interface PageMount {
 }
 
 /**
- * Canvas, text layer, annotation overlay, form layer and any plugin layers for one page, stacked
+ * Canvas, text layer, form layer, annotation overlay and any plugin layers for one page, stacked
  * in that order.
  */
 export function createPageMount(opts: PageMountOptions): PageMount {
@@ -95,21 +95,9 @@ export function createPageMount(opts: PageMountOptions): PageMount {
     ...callbacks('text'),
   })
   const marks = opts.highlights?.mount(page, host, transform)
-  const overlay = createOverlay({
-    host,
-    page,
-    store: opts.store,
-    transform,
-    document,
-    ...(opts.devicePixelRatio === undefined
-      ? {}
-      : { devicePixelRatio: opts.devicePixelRatio }),
-    ...(opts.onActivate ? { onActivate: (id: string) => opts.onActivate?.(id) } : {}),
-    ...(opts.isCustom
-      ? { isCustom: (a: Annotation) => opts.isCustom?.(a) === true }
-      : {}),
-    ...(opts.decorate ? { decorate: opts.decorate } : {}),
-  })
+  // The fields sit under the annotations: a press on an annotation's shape is the
+  // annotation's (to select or delete a signature that fills a field), and a press anywhere
+  // else in a field's box is the field's.
   const form =
     document.form.fields.get().length > 0
       ? createFormLayer({
@@ -128,6 +116,21 @@ export function createPageMount(opts: PageMountOptions): PageMount {
           ...callbacks('form'),
         })
       : undefined
+  const overlay = createOverlay({
+    host,
+    page,
+    store: opts.store,
+    transform,
+    document,
+    ...(opts.devicePixelRatio === undefined
+      ? {}
+      : { devicePixelRatio: opts.devicePixelRatio }),
+    ...(opts.onActivate ? { onActivate: (id: string) => opts.onActivate?.(id) } : {}),
+    ...(opts.isCustom
+      ? { isCustom: (a: Annotation) => opts.isCustom?.(a) === true }
+      : {}),
+    ...(opts.decorate ? { decorate: opts.decorate } : {}),
+  })
   const layers = opts.layers?.mount(page, host, transform)
   return {
     renderer,

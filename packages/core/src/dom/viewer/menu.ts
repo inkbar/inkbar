@@ -28,12 +28,19 @@ export interface MenuOptions {
    * in the DOM). Presses, focus and Escape inside it neither dismiss this menu nor close it.
    */
   owns?(target: Node): boolean
+  /**
+   * The menu opens only through `open()`; the trigger's own clicks and keys stay its own. For a
+   * menu a control opens as one of several things it does, such as a signature field's.
+   */
+  manual?: boolean
   /** Builds the items on first call and updates them in place after; called on open and `refresh`. */
   render(menu: HTMLElement): void
 }
 
 export interface Menu {
   readonly isOpen: boolean
+  /** Opens the menu with its initial item focused, as a click on the trigger does. */
+  open(): void
   /** Re-renders an open menu, and closes it if the trigger has become disabled. */
   refresh(): void
   close(restoreFocus?: boolean): void
@@ -115,18 +122,21 @@ export function createMenu(trigger: HTMLButtonElement, opts: MenuOptions): Menu 
     }
   }
 
-  trigger.addEventListener('click', () => (panel ? close(true) : open('initial')))
-  trigger.addEventListener('keydown', (e) => {
-    // An enclosing menu that already moved focus on this key keeps it.
-    if (e.key !== 'ArrowDown' || e.defaultPrevented || panel || trigger.disabled) return
-    e.preventDefault()
-    open('first')
-  })
+  if (!opts.manual) {
+    trigger.addEventListener('click', () => (panel ? close(true) : open('initial')))
+    trigger.addEventListener('keydown', (e) => {
+      // An enclosing menu that already moved focus on this key keeps it.
+      if (e.key !== 'ArrowDown' || e.defaultPrevented || panel || trigger.disabled) return
+      e.preventDefault()
+      open('first')
+    })
+  }
 
   return {
     get isOpen() {
       return panel !== null
     },
+    open: () => open('initial'),
     refresh() {
       if (!panel) return
       if (trigger.disabled) close()

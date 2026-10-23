@@ -240,6 +240,14 @@ export {
 export type { SignaturePad, TypedSignatureOptions } from './signature-pad'
 export { createSignatureDraft } from './signature-draft'
 export type { SignatureDraft, SignatureDraftState } from './signature-draft'
-export { createSignatureMenu, createSignaturePreview } from './viewer/signature-menu'
+export {
+  createSignatureMenu,
+  createSignaturePreview,
+  createSignFieldMenu,
+} from './viewer/signature-menu'
+export type { SignFieldMenu, SignFieldMenuOptions } from './viewer/signature-menu'
+export { createFormAlert } from './viewer/form-alert'
+export type { FormAlert } from './viewer/form-alert'
+export { signField } from '../model/form/sign'
 export { createSignatureDialog } from './viewer/signature-dialog'
 export type { SignatureDialog, SignatureDialogOptions } from './viewer/signature-dialog'

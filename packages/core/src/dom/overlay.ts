@@ -6,7 +6,7 @@
 // `PageTransform.toCssRect(a.rect)` for custom elements. Hit-testing
 // follows the drawn shape, not the box: elements are `pointer-events:none` and their shapes
 // opt back in (overlay-render.ts), so a press beside a shape still reaches the text layer.
-// Edit handles (`.ink-handle[data-handle]`) are 8px `position:absolute;
+// Edit handles (`.ink-handle[data-handle]`, none on a pinned annotation) are 8px `position:absolute;
 // pointer-events:auto` boxes on the element's corners or a line's ends, placed with
 // left/top; their look is the theme's.
 // Custom elements are the exception and stay `pointer-events:auto`: the host draws them and
@@ -265,9 +265,11 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     node.setAttribute('aria-pressed', String(state === 'selected'))
     node.tabIndex = !anyHere || state === 'selected' ? 0 : -1
     const a = store.get(id)
+    // A pinned annotation (a signature filling its field) is selected to be deleted, never
+    // moved or resized.
     syncHandles(
       node,
-      a && !a.locked && state === 'selected' && editsSelection()
+      a && !a.locked && !store._isPinned(id) && state === 'selected' && editsSelection()
         ? handleSpec(node, a)
         : { kind: 'none' }
     )
@@ -347,6 +349,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     node.dataset.type = a.type
     node.dataset.source = a.source
     setFlag(node, 'locked', a.locked === true)
+    setFlag(node, 'inkPinned', store._isPinned(a.id))
     node.setAttribute('aria-label', ariaLabel(a))
     applyDecoration(node, a)
   }
@@ -543,7 +546,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     if (!step || !e.shiftKey) return false
     e.preventDefault()
     const a = store.get(id)
-    if (!a || a.locked) return true
+    if (!a || a.locked || store._isPinned(id)) return true
     if (e.ctrlKey || e.metaKey) {
       if (a.type === 'freetext')
         store.update(id, resizedBox(a, resizedRect(freeTextBox(a), step.x, -step.y)))
@@ -622,6 +625,11 @@ export function createOverlay(opts: OverlayOptions): Overlay {
       }
       // A tool listening on the page root must not start a drag from this press.
       e.stopPropagation()
+      // A form field keeps its keys (Delete edits its text), so a press on an annotation over
+      // the fields takes focus from it: Delete then removes the annotation, a signature
+      // filling its field included.
+      if (doc.activeElement?.closest('[data-ink-form-layer]'))
+        node.focus({ preventScroll: true })
       activate(id)
     })
     node.addEventListener('dblclick', (e) => {
@@ -723,6 +731,13 @@ export function createOverlay(opts: OverlayOptions): Overlay {
   const offSelection = store.selection.subscribe(() => {
     for (const [id, node] of elements) applyState(node, id)
   })
+  const offPinned = store._pinned.subscribe(() => {
+    if (destroyed) return
+    for (const [id, node] of elements) {
+      setFlag(node, 'inkPinned', store._isPinned(id))
+      applyState(node, id)
+    }
+  })
   render()
 
   return {
@@ -750,6 +765,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
       markupPress?.()
       offList()
       offSelection()
+      offPinned()
       toolObserver?.disconnect()
       loupes?.destroy()
       masks.destroy()

@@ -35,6 +35,7 @@ import { createLineStyleMenu } from './style-menu'
 import { createTextStyleMenu } from './text-style-menu'
 
 import type { InkDocument } from '../../model/document'
+import type { FieldsChange, FieldValues } from '../../model/form/types'
 import type { RecordStore } from '../../model/records'
 import type { Tool } from '../tools/controller'
 import type { ViewerEngine } from '../viewer-engine'
@@ -2350,5 +2351,255 @@ describe('createViewer plugins', () => {
     second.add({ id: 'two' })
     doc.history.undo()
     expect(second.list.get()).toEqual([])
+  })
+})
+
+describe('forms', () => {
+  const PNG =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAABCAYAAAAb4BS0AAAADklEQVR4nGP4z8DwH4YBJuYF+2EsXwgAAAAASUVORK5CYII='
+  const IMAGE: SignatureTemplate = {
+    id: 'sig-img',
+    kind: 'image',
+    imagedata: PNG,
+    aspect: 3,
+  }
+
+  const widgetBox = (viewer: Viewer, field: string): HTMLElement | null =>
+    viewer.element.querySelector<HTMLElement>(
+      `[data-ink-form-layer] [data-ink-field="${field}"]`
+    )
+  const fieldMenu = (field: string): HTMLElement | null =>
+    document.querySelector<HTMLElement>(`[data-ink-sign-field-menu="${field}"]`)
+
+  async function signatures(opts: Partial<CreateViewerOptions> = {}) {
+    const store = createMemorySignatureStore([IMAGE])
+    const { viewer, host } = make('form-fields', { signatures: store, ...opts })
+    const { doc, engine } = await ready(viewer)
+    await until(() => engine.signatures.templates.get().length === 1)
+    const sig = doc.form.fields.get().find((f) => f.name === 'sig')!
+    engine.viewport.scrollToRect(0, sig.widgets[0]!.rect)
+    await until(() => widgetBox(viewer, 'sig') !== null)
+    const box = widgetBox(viewer, 'sig')!
+    const button = box.querySelector<HTMLButtonElement>('[data-ink-sign-field]')!
+    return { viewer, host, doc, engine, store, box, button }
+  }
+
+  it('clicking an empty signature field opens the signature menu anchored to it', async () => {
+    const { viewer, box, button } = await signatures()
+    expect(viewer.form.get()).toBe(viewer.document.get()!.form)
+    expect(button.textContent).toBe('Sign')
+    expect(button.getAttribute('aria-label')).toBe('Sign this field: sig')
+    button.click()
+    const menu = fieldMenu('sig')!
+    expect(menu.getAttribute('role')).toBe('menu')
+    expect(menu.getAttribute('data-ink-menu')).toBe('signature')
+    expect(menu.querySelectorAll('.ink-signature-item')).toHaveLength(1)
+    expect(menu.querySelector('[data-ink-signature-create]')).not.toBeNull()
+    const b = box.getBoundingClientRect()
+    const m = menu.getBoundingClientRect()
+    expect(Math.abs(m.left - Math.max(8, b.left))).toBeLessThanOrEqual(1)
+    expect(
+      Math.abs(m.top - (b.bottom + 6)) <= 1 || Math.abs(m.bottom - (b.top - 6)) <= 1
+    ).toBe(true)
+    // The first signature has focus, as in the toolbar's menu.
+    expect(document.activeElement?.classList.contains('ink-signature-item')).toBe(true)
+  })
+
+  it('picking a template signs the field', async () => {
+    const { viewer, doc, button } = await signatures()
+    button.click()
+    fieldMenu('sig')!.querySelector<HTMLButtonElement>('.ink-signature-item')!.click()
+    expect(fieldMenu('sig')).toBeNull()
+    const value = doc.form.get('sig') as { signature: string }
+    expect(typeof value.signature).toBe('string')
+    const a = doc.annotations.get(value.signature)!
+    expect(a).toMatchObject({ type: 'stamp', subject: 'Signature', imagedata: PNG })
+    // Signed: no "Sign", and the signature shows over the box, pinned.
+    expect(button.textContent).toBe('')
+    expect(button.hasAttribute('data-ink-signed')).toBe(true)
+    expect(button.getAttribute('aria-label')).toBe('sig')
+    expect(document.activeElement).toBe(button)
+    await until(() => annotationEl(viewer, a.id) !== null)
+    expect(annotationEl(viewer, a.id)!.hasAttribute('data-ink-pinned')).toBe(true)
+    // A signed field asks nothing more.
+    button.click()
+    expect(fieldMenu('sig')).toBeNull()
+    // One undo step.
+    doc.history.undo()
+    expect(doc.form.get('sig')).toBeUndefined()
+    expect(doc.annotations.get(a.id)).toBeUndefined()
+    expect(button.textContent).toBe('Sign')
+  })
+
+  it('a signature created from the field menu signs the field', async () => {
+    const { doc, store, button } = await signatures()
+    button.click()
+    fieldMenu('sig')!
+      .querySelector<HTMLButtonElement>('[data-ink-signature-create]')!
+      .click()
+    const dialog = document.querySelector<HTMLElement>('[data-ink-signature-dialog]')!
+    const pad = dialog.querySelector('[data-ink-signature-pad]')!
+    const r = pad.getBoundingClientRect()
+    const at = (type: string, x: number, y: number) =>
+      pad.dispatchEvent(
+        new PointerEvent(type, {
+          clientX: r.left + x,
+          clientY: r.top + y,
+          bubbles: true,
+          pointerId: 3,
+          buttons: type === 'pointerup' ? 0 : 1,
+          isPrimary: true,
+        })
+      )
+    at('pointerdown', 10, 40)
+    at('pointermove', 60, 10)
+    at('pointermove', 120, 50)
+    at('pointerup', 120, 50)
+    dialog.querySelector<HTMLButtonElement>('[data-ink-signature-save]')!.click()
+    await until(() => doc.form.get('sig') !== undefined)
+    expect(await store.list()).toHaveLength(2)
+    const { signature } = doc.form.get('sig') as { signature: string }
+    expect(doc.annotations.get(signature)?.type).toBe('ink')
+    expect(document.activeElement).toBe(button)
+  })
+
+  it('an annotation over a field takes presses on its shape; the field takes the rest', async () => {
+    const { viewer, doc, box, button } = await signatures({ tool: 'select' })
+    button.click()
+    fieldMenu('sig')!.querySelector<HTMLButtonElement>('.ink-signature-item')!.click()
+    const { signature: id } = doc.form.get('sig') as { signature: string }
+    await until(() => annotationEl(viewer, id)?.querySelector('img') !== null)
+    const el = annotationEl(viewer, id)!
+    const s = el.getBoundingClientRect()
+    const b = box.getBoundingClientRect()
+    const hit = (x: number, y: number) => document.elementFromPoint(x, y)
+    expect(
+      hit(s.left + s.width / 2, s.top + s.height / 2)?.closest('[data-annotation]')
+    ).toBe(el)
+    expect(hit(b.left + 2, b.top + 2)?.closest('[data-ink-widget]')).toBe(box)
+
+    // The signature selects for deletion, but has no handles to move or resize it.
+    await userEvent.click(el.querySelector('img')!)
+    expect(doc.annotations.selection.get()).toEqual([id])
+    expect(el.querySelectorAll('[data-handle]')).toHaveLength(0)
+    expect(document.activeElement).toBe(el)
+    await userEvent.keyboard('{Delete}')
+    expect(doc.annotations.get(id)).toBeUndefined()
+    expect(doc.form.get('sig')).toBeUndefined()
+    expect(button.textContent).toBe('Sign')
+
+    // Any annotation over a field works the same; unpinned, it gets its handles.
+    const name = doc.form.fields.get().find((f) => f.name === 'name')!.widgets[0]!
+    const stamp = doc.annotations.add({
+      type: 'stamp',
+      page: 0,
+      imagedata: PNG,
+      rect: {
+        x: name.rect.x + 20,
+        y: name.rect.y,
+        width: name.rect.height * 3,
+        height: name.rect.height,
+      },
+    })
+    viewer.viewport.get()!.scrollToRect(0, name.rect)
+    await until(() => annotationEl(viewer, stamp.id)?.querySelector('img') !== null)
+    await settle()
+    const over = annotationEl(viewer, stamp.id)!
+    const o = over.getBoundingClientRect()
+    const nameBox = widgetBox(viewer, 'name')!.getBoundingClientRect()
+    expect(
+      hit(o.left + o.width / 2, o.top + o.height / 2)?.closest('[data-annotation]')
+    ).toBe(over)
+    expect(
+      hit(nameBox.left + 4, nameBox.top + nameBox.height / 2)?.closest('input')
+    ).toBe(widgetBox(viewer, 'name')!.querySelector('input'))
+    await userEvent.click(over.querySelector('img')!)
+    expect(doc.annotations.selection.get()).toEqual([stamp.id])
+    expect(over.querySelectorAll('[data-handle]').length).toBeGreaterThan(0)
+  })
+
+  it('onFormAction receives a submit action', async () => {
+    const onFormAction = vi.fn()
+    const { viewer } = make('form-scripted', { onFormAction })
+    await ready(viewer)
+    await until(() => widgetBox(viewer, 'send') !== null)
+    widgetBox(viewer, 'send')!.querySelector<HTMLButtonElement>('button')!.click()
+    expect(onFormAction).toHaveBeenCalledTimes(1)
+    expect(onFormAction.mock.calls[0]![0]).toMatchObject({
+      kind: 'submit',
+      url: 'https://example.com/xfdf',
+      format: 'xfdf',
+    })
+  })
+
+  it('shows a script alert, and reports script errors to onError', async () => {
+    const onError = vi.fn()
+    const { viewer } = make('form-scripted', { onError })
+    const { doc } = await ready(viewer)
+    await until(() => widgetBox(viewer, 'hello') !== null)
+    const hello = widgetBox(viewer, 'hello')!.querySelector<HTMLButtonElement>('button')!
+    hello.focus()
+    hello.click()
+    await until(() => document.querySelector('[data-ink-form-alert]') !== null)
+    const alert = document.querySelector<HTMLElement>('[data-ink-form-alert]')!
+    expect(alert.querySelector('[data-ink-form-alert-message]')!.textContent).toBe(
+      'Hello'
+    )
+    expect(document.activeElement).toBe(alert.querySelector('[data-ink-form-alert-ok]'))
+    await userEvent.keyboard('{Escape}')
+    expect(document.querySelector('[data-ink-form-alert]')).toBeNull()
+    expect(document.activeElement).toBe(hello)
+
+    const error = new InkError('FormScriptError', 'A form script failed')
+    doc.form._error(error)
+    expect(onError).toHaveBeenCalledWith(error)
+  })
+
+  it('controlled fields round-trip through onFieldsChange', async () => {
+    const onChange = vi.fn<(next: FieldValues, change: FieldsChange) => void>()
+    const { viewer } = make('form-fields', {
+      fields: { mode: 'controlled', initial: { name: 'Ada' }, onChange },
+    })
+    await ready(viewer)
+    const form = viewer.form.get()!
+    expect(form.get('name')).toBe('Ada')
+    await until(() => widgetBox(viewer, 'name') !== null)
+    const input = widgetBox(viewer, 'name')!.querySelector('input')!
+    expect(input.value).toBe('Ada')
+    await userEvent.click(input)
+    await userEvent.keyboard('{End}x{Enter}')
+    expect(onChange).toHaveBeenCalledTimes(1)
+    const [next, change] = onChange.mock.calls[0]!
+    expect(next).toMatchObject({ name: 'Adax' })
+    expect(change).toEqual({ kind: 'commit', names: ['name'] })
+    // The host pushes back what it heard: nothing more is reported.
+    form.setControlledValue(next)
+    expect(onChange).toHaveBeenCalledTimes(1)
+    // The host's own push wins and shows.
+    form.setControlledValue({ ...next, name: 'Bo' })
+    expect(form.get('name')).toBe('Bo')
+    input.blur()
+    await until(() => input.value === 'Bo')
+    expect(onChange).toHaveBeenCalledTimes(1)
+  })
+
+  it('formHighlight false turns the tint off', async () => {
+    const { viewer } = make('form-fields', { formHighlight: false })
+    await ready(viewer)
+    await until(() => viewer.element.querySelector('[data-ink-form-layer]') !== null)
+    expect(
+      viewer.element
+        .querySelector('[data-ink-form-layer]')!
+        .getAttribute('data-ink-form-highlight')
+    ).toBe('off')
+  })
+
+  it('viewer.form is null until a document is ready', async () => {
+    const { viewer } = make('form-fields')
+    expect(viewer.form.get()).toBeNull()
+    await ready(viewer)
+    expect(viewer.form.get()).not.toBeNull()
+    viewer.destroy()
+    expect(viewer.form.get()).toBeNull()
   })
 })
