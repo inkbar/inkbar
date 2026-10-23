@@ -262,6 +262,26 @@ describe('signField', () => {
     doc.destroy()
   })
 
+  it('asking whether a field waits leaves a lapsed proposal to land late', async () => {
+    const proposals: Annotation[][] = []
+    const doc = await open('form-fields', {
+      annotations: {
+        mode: 'controlled',
+        initial: [],
+        onChange: (next) => proposals.push(next),
+      },
+    })
+    const widget = fieldOf(doc.form.fields.get(), 'sig').widgets[0]!
+    const id = signField(doc, 'sig', widget.id, ink)
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    expect(doc.form._awaitingSignature('sig')).toBe(false)
+    expect(doc.form._awaitingSignature('sig')).toBe(false)
+    // A slow host applies the proposal after all: the field it was for is signed.
+    doc.annotations.setControlledValue(proposals[0]!)
+    expect(doc.form.get('sig')).toEqual({ signature: id })
+    doc.destroy()
+  })
+
   it('controlled annotations: a host that drops the signature clears the field', async () => {
     let list: Annotation[] = []
     const proposals: Annotation[][] = []

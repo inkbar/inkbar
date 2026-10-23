@@ -734,12 +734,11 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       else awaiting.set(id, name)
     },
     _awaitingSignature(name) {
-      for (const [id, field] of [...awaiting]) {
-        if (field !== name) continue
-        // A proposal the host let lapse without pushing a list is gone too.
-        if (annotations?._getProposed(id)) return true
-        awaiting.delete(id)
-      }
+      // A proposal the host let lapse without pushing a list no longer counts. The query
+      // forgets nothing: `land` does that when the list next changes, so a late push still
+      // signs the field.
+      for (const [id, field] of awaiting)
+        if (field === name && annotations?._getProposed(id)) return true
       return false
     },
     _destroy() {
