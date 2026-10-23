@@ -43,9 +43,8 @@ function hitBox(doc: Document, t: PageTransform, quad: Quad): HTMLElement {
   el.dataset.searchHit = ''
   let css = `position:absolute;left:${left}px;top:${top}px;width:${width}px;height:${height}px;`
   const upright =
-    Math.abs(p1.y - p2.y) < 0.01 && Math.abs(p3.y - p4.y) < 0.01
-      ? true
-      : Math.abs(p1.x - p2.x) < 0.01 && Math.abs(p3.x - p4.x) < 0.01
+    (Math.abs(p1.y - p2.y) < 0.01 && Math.abs(p3.y - p4.y) < 0.01) ||
+    (Math.abs(p1.x - p2.x) < 0.01 && Math.abs(p3.x - p4.x) < 0.01)
   if (!upright && width > 0 && height > 0) {
     const pt = (p: { x: number; y: number }) =>
       `${(((p.x - left) / width) * 100).toFixed(3)}% ${(((p.y - top) / height) * 100).toFixed(3)}%`
