@@ -6,6 +6,7 @@ packages/svelte/src/test/ssr.test.ts
 packages/svelte/vitest.config.ts
   s_e6109f66fbb4ed::t_c5e9c64d1586d2 13-14,33,35-40,42-47,49
   s_e6109f66fbb4ed::t_3516c2bb0e4998 32
+  s_e6109f66fbb4ed::t_c5a99af30f83c7 48
 packages/svelte/src/lib/context.ts
   s_e6109f66fbb4ed::t_f3d10129797745 5,7,109-114
 packages/svelte/src/lib/index.ts
