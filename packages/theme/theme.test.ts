@@ -120,7 +120,7 @@ describe('theme.css', () => {
     }
   })
 
-  it('defines the search match tokens in light and dark', () => {
+  it('defines the search match tokens once and multiplies the search layer with the page', () => {
     const declaring = (prop: string) =>
       rules.filter((r) => r.nodes.some((d) => d.type === 'decl' && d.prop === prop))
     for (const token of [
@@ -128,20 +128,15 @@ describe('theme.css', () => {
       '--ink-search-current',
       '--ink-search-current-outline',
     ]) {
-      const found = declaring(token)
-      expect(found.length, token).toBeGreaterThanOrEqual(3)
-      // One light rule at the top of the layer, and dark values in the media query and the class.
-      expect(
-        found.some(
-          (r) => r.parent?.type === 'atrule' && (r.parent as AtRule).name === 'media'
-        ),
-        token
-      ).toBe(true)
-      expect(
-        found.some((r) => r.selector.includes('.dark')),
-        token
-      ).toBe(true)
+      // Pages stay white in dark mode, so the light values serve both.
+      expect(declaring(token), token).toHaveLength(1)
     }
+    const layer = rules.find((r) => r.selector.includes('.ink-search-layer'))
+    expect(
+      layer?.nodes.some(
+        (d) => d.type === 'decl' && d.prop === 'mix-blend-mode' && d.value === 'multiply'
+      )
+    ).toBe(true)
     expect(css).toMatch(/\[data-search-hit\]\[data-current\]/)
   })
 
