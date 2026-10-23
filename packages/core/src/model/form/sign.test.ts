@@ -191,6 +191,26 @@ describe('signField', () => {
     doc.destroy()
   })
 
+  it("a pinned signature takes Inkbar's own data back in any key order", async () => {
+    const doc = await open()
+    const widget = fieldOf(doc.form.fields.get(), 'sig').widgets[0]!
+    const id = signField(doc, 'sig', widget.id, ink)
+    // Give it Inkbar data while unpinned, then pin it again.
+    doc.annotations._setPinned(new Set())
+    doc.annotations.update(id, { custom: { inkbar: { a: 1, b: { c: [1, 2], d: 'x' } } } })
+    doc.annotations._setPinned(new Set([id]))
+    const after = doc.annotations.update(id, {
+      custom: { acme: { ok: 1 }, inkbar: { b: { d: 'x', c: [1, 2] }, a: 1 } },
+    })
+    expect(after?.custom).toMatchObject({ acme: { ok: 1 } })
+    expect(
+      doc.annotations.update(id, {
+        custom: { inkbar: { a: 1, b: { c: [2, 1], d: 'x' } } },
+      })
+    ).toBeUndefined()
+    doc.destroy()
+  })
+
   it('fits the box as a rotated page shows it, centred', async () => {
     const doc = await open()
     const widget = fieldOf(doc.form.fields.get(), 'sig2').widgets[0]!

@@ -157,9 +157,8 @@ const PINNED_KEYS = new Set(['contents', 'custom'])
 function pinnedAccepts(before: Annotation, patch: Record<string, unknown>): boolean {
   if (Object.keys(patch).some((k) => !PINNED_KEYS.has(k))) return false
   if (!('custom' in patch)) return true
-  const inkbar = (c: unknown) =>
-    JSON.stringify((c as { inkbar?: unknown } | undefined)?.inkbar ?? null)
-  return inkbar(patch.custom) === inkbar(before.custom)
+  const inkbar = (c: unknown) => (c as { inkbar?: unknown } | undefined)?.inkbar
+  return deepEqual(inkbar(patch.custom), inkbar(before.custom))
 }
 
 function keepKey(target: Record<string, unknown>, from: Annotation, key: string): void {
