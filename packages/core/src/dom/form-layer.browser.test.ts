@@ -708,6 +708,30 @@ describe('form layer', () => {
     ).toBeNull()
   })
 
+  it('stacks the widget appearances in /Annots order', async () => {
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    const widgets = doc.form.fields
+      .get()
+      .flatMap((f) => f.widgets)
+      .filter((w) => w.page === 0)
+    expect(widgets.every((w) => w.order !== undefined)).toBe(true)
+    const annots = [...widgets].sort((a, b) => a.order! - b.order!).map((w) => w.id)
+    const stacked = [
+      ...p.host.querySelectorAll<HTMLElement>(
+        '[data-ink-form-appearance] > [data-ink-appearance]'
+      ),
+    ].map((el) => el.dataset.inkAppearance)
+    expect(stacked).toEqual(annots)
+    // The control boxes stay in Tab order (this page reads by rows).
+    const boxes = [
+      ...p.host.querySelectorAll<HTMLElement>(
+        '[data-ink-form-layer] > [data-ink-widget]'
+      ),
+    ].map((el) => el.dataset.inkWidget)
+    expect(boxes).not.toEqual(annots)
+  })
+
   it('reports an appearance canvas that fails to render as a form layer error', async () => {
     const doc = await open('form-fields')
     const page = await doc._pdfjs.getPage(0)

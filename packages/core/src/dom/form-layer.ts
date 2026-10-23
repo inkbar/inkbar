@@ -30,7 +30,7 @@ import { sameValue } from '../model/form/values'
 import { createWidgetAppearances, type WidgetAppearances } from './form-appearance'
 import { createButtonWidget } from './form-button'
 import { createChoiceWidget, createToggleWidget } from './form-choice'
-import { tabOrder } from './form-order'
+import { annotsOrder, pageTabOrder } from './form-order'
 import { createSignatureWidget } from './form-signature'
 import { createTextWidget } from './form-text'
 import { normalizeRotation, type PageTransform, type ViewRotation } from './transform'
@@ -250,7 +250,6 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
   host.append(element)
 
   const fields = form.fields.get()
-  const order = new Map(tabOrder(fields, form._tabs, doc.pages).map((id, i) => [id, i]))
   const entries: Entry[] = []
   for (const field of fields)
     for (const widget of field.widgets) {
@@ -269,6 +268,17 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
         value: form.values.get()[field.name],
       })
     }
+  // The page's Tab order, worked out once: the boxes go in it, so Tab is the browser's own.
+  const order = new Map(
+    pageTabOrder(
+      entries.map((e) => e.widget),
+      form._tabs.get(page),
+      doc.pages[page],
+      page
+    ).map((id, i) => [id, i])
+  )
+  // The appearances paint in `/Annots` order, as the file stacks its widgets.
+  const painted = annotsOrder(entries, (e) => e.widget)
   entries.sort((a, b) => (order.get(a.widget.id) ?? 0) - (order.get(b.widget.id) ?? 0))
   for (const e of entries) element.append(e.box)
 
@@ -281,7 +291,7 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
       document: doc,
       page,
       transform,
-      widgets: entries.map((e) => ({
+      widgets: painted.map((e) => ({
         id: e.widget.id,
         rect: e.widget.rect,
         toggle: isToggle(e.field),

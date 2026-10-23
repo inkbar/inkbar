@@ -76,6 +76,26 @@ describe('tabOrder', () => {
     expect(tabOrder(LAYOUT, new Map([[0, 'W']]), [page(0)])).toEqual(['c', 'b', 'a', 'd'])
   })
 
+  it('widget order is /Annots order, not the order fields list their widgets', () => {
+    // Field x has widgets first and third in /Annots; field y's sits between them.
+    const [x, y] = fields(['x1', 0, 72, 700], ['y1', 0, 72, 600])
+    const xs: FormField = {
+      ...x!,
+      widgets: [
+        { ...x!.widgets[0]!, order: 0 },
+        {
+          ...x!.widgets[0]!,
+          id: 'x2',
+          rect: { x: 72, y: 100, width: 100, height: 20 },
+          order: 2,
+        },
+      ],
+    }
+    const ys: FormField = { ...y!, widgets: [{ ...y!.widgets[0]!, order: 1 }] }
+    expect(tabOrder([xs, ys], new Map(), [page(0)])).toEqual(['x1', 'y1', 'x2'])
+    expect(tabOrder([xs, ys], new Map([[0, 'S']]), [page(0)])).toEqual(['x1', 'y1', 'x2'])
+  })
+
   it('row order on a /Rotate 90 page follows the displayed rows', () => {
     // Turned a quarter clockwise, user space's left edge is the top of the page on screen:
     // a and b share the top row (b further right), and c sits below a.
