@@ -32,6 +32,7 @@
 </script>
 
 <Toolbar.Button
+  {...asBitsProps(rest)}
   class={['ink-search-button', className]}
   data-ink-search-button=""
   aria-label="Find"
@@ -40,7 +41,6 @@
   data-state={search.state.open ? 'on' : 'off'}
   disabled={!doc.isReady || !!disabled}
   {...child ? { child } : {}}
-  {...asBitsProps(rest)}
   onclick={async (e) => {
     onclick?.(e)
     if (e.defaultPrevented) return
