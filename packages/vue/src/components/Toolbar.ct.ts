@@ -334,6 +334,38 @@ test('undoing the only step from a focused Undo keeps focus in the viewer, so Sh
   await expect(probe).toHaveAttribute('data-annotations', '1')
 })
 
+test('unmounting the root removes its key listeners', async ({ mount, page }) => {
+  await page.evaluate(() => {
+    const live = new Set<unknown>()
+    ;(window as unknown as { __inkKeys: Set<unknown> }).__inkKeys = live
+    // Read through the descriptors: the originals run with whatever `this` they are called on.
+    const proto = EventTarget.prototype
+    const own = (name: 'addEventListener' | 'removeEventListener') =>
+      Object.getOwnPropertyDescriptor(proto, name)!.value as typeof proto.addEventListener
+    const add = own('addEventListener')
+    const remove = own('removeEventListener')
+    const watched = (el: EventTarget, type: string) =>
+      (type === 'keydown' || type === 'focusout') &&
+      el instanceof HTMLElement &&
+      el.hasAttribute('data-ink-root')
+    EventTarget.prototype.addEventListener = function (type, fn, opts) {
+      if (watched(this, type)) live.add(fn)
+      add.call(this, type, fn, opts)
+    }
+    EventTarget.prototype.removeEventListener = function (type, fn, opts) {
+      if (watched(this, type)) live.delete(fn)
+      remove.call(this, type, fn, opts)
+    }
+  })
+  const cmp = await mount(Harness, { props: { src: fixtureUrl('text-simple'), assets } })
+  await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+  const count = () =>
+    page.evaluate(() => (window as unknown as { __inkKeys: Set<unknown> }).__inkKeys.size)
+  expect(await count()).toBeGreaterThanOrEqual(2)
+  await cmp.unmount()
+  expect(await count()).toBe(0)
+})
+
 test.describe('style menu triggers and the host', () => {
   const cases = [
     { harness: 'line', name: 'Line style', role: 'menu', add: 'add-line-1' },

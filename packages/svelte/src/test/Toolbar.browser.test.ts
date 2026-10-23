@@ -415,6 +415,42 @@ describe('toolbar', () => {
     await expect.element(probe).toHaveAttribute('data-annotations', '1')
   })
 
+  // React: 'unmounting the root removes its key listeners'
+  it('unmounting the root removes its key listeners', async () => {
+    const live = new Set<unknown>()
+    // Read through the descriptors: the originals run with whatever `this` they are called on.
+    const proto = EventTarget.prototype
+    const own = (name: 'addEventListener' | 'removeEventListener') =>
+      Object.getOwnPropertyDescriptor(proto, name)!.value as typeof proto.addEventListener
+    const add = own('addEventListener')
+    const remove = own('removeEventListener')
+    const watched = (el: EventTarget, type: string) =>
+      (type === 'keydown' || type === 'focusout') &&
+      el instanceof HTMLElement &&
+      el.hasAttribute('data-ink-root')
+    EventTarget.prototype.addEventListener = function (type, fn, opts) {
+      if (watched(this, type)) live.add(fn)
+      add.call(this, type, fn, opts)
+    }
+    EventTarget.prototype.removeEventListener = function (type, fn, opts) {
+      if (watched(this, type)) live.delete(fn)
+      remove.call(this, type, fn, opts)
+    }
+    try {
+      const { unmount } = await render(ToolbarHarness, {
+        src: fixtureUrl('text-simple'),
+        assets,
+      })
+      await q('.ink-page canvas')
+      expect(live.size).toBeGreaterThanOrEqual(2)
+      await unmount()
+      expect(live.size).toBe(0)
+    } finally {
+      EventTarget.prototype.addEventListener = add
+      EventTarget.prototype.removeEventListener = remove
+    }
+  })
+
   describe('style menu triggers and the host', () => {
     const cases = [
       { harness: LineStyleHarness, name: 'Line style', role: 'menu', add: 'add-line-1' },
