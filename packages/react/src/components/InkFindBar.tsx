@@ -1,13 +1,6 @@
 import { findAnnouncer, findCountText } from '@inkbar/core/dom'
 import { CaseSensitive, ChevronDown, ChevronUp, X } from '@inkbar/icons'
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type ComponentPropsWithoutRef,
-  type KeyboardEvent,
-} from 'react'
+import { useEffect, useLayoutEffect, useRef, type ComponentPropsWithoutRef } from 'react'
 import { createPortal } from 'react-dom'
 
 import { cx } from '../class-names'
@@ -16,6 +9,8 @@ import { useSearch } from '../hooks/useSearch'
 import { useReadable } from '../use-readable'
 
 import { InkIcon } from './InkIcon'
+
+import type { SearchState } from '@inkbar/core/dom'
 
 export type InkFindBarProps = Omit<ComponentPropsWithoutRef<'div'>, 'children'>
 
@@ -31,7 +26,7 @@ export type InkFindBarProps = Omit<ComponentPropsWithoutRef<'div'>, 'children'>
  * Enter in the field steps to the next match, Shift+Enter to the previous, Escape closes.
  * Closing returns focus to where it was before the bar opened, else to the document.
  */
-export function InkFindBar({ className, onKeyDown, ...rest }: InkFindBarProps) {
+export function InkFindBar({ className, ...rest }: InkFindBarProps) {
   const ctx = useInkContext('InkFindBar')
   const { state, setQuery, setMatchCase, next, previous, close } = useSearch()
   const scroll = useReadable(ctx.viewportEl, null)
@@ -39,10 +34,10 @@ export function InkFindBar({ className, onKeyDown, ...rest }: InkFindBarProps) {
   const target = scroll?.parentElement ?? null
   const bar = useRef<HTMLDivElement>(null)
   const field = useRef<HTMLInputElement>(null)
+  const live = useRef<HTMLDivElement>(null)
   /** Where focus was when the bar opened, and whether it was open on the last pass. */
   const before = useRef<HTMLElement | null>(null)
   const wasOpen = useRef(false)
-  const [announce] = useState(findAnnouncer)
 
   // After the commit, so the bar is shown (and can take focus) when it opens.
   useLayoutEffect(() => {
@@ -78,7 +73,7 @@ export function InkFindBar({ className, onKeyDown, ...rest }: InkFindBarProps) {
       // A query set from code arrives after the bar opened: keep the new text selected.
       if (el.ownerDocument.activeElement === input) input.select()
     }
-  }, [state.open, state.query, scroll, target])
+  }, [state.open, state.query, scroll])
 
   // Registered while mounted.
   const { search } = ctx
@@ -87,9 +82,38 @@ export function InkFindBar({ className, onKeyDown, ...rest }: InkFindBarProps) {
     return search.attachBar()
   }, [search, target])
 
+  // The live region follows the controller's state change by change, as the vanilla bar does,
+  // and is written directly. A render shows only the last of the changes batched into it, so
+  // two steps in one task that end where they began would otherwise say nothing.
+  useEffect(() => {
+    const el = live.current
+    if (!search || !el) return
+    const announce = findAnnouncer()
+    const say = (s: SearchState): void => {
+      const text = announce(s)
+      if (el.textContent !== text) el.textContent = text
+    }
+    say(search.state.get())
+    return search.state.subscribe(say)
+  }, [search, target])
+
+  // A native listener, so Escape stops at the bar as it does in the vanilla and Vue bars;
+  // React's delegated events would stop it only after the root's own listeners saw it.
+  useEffect(() => {
+    const el = bar.current
+    if (!search || !el) return
+    const onKeyDown = (e: globalThis.KeyboardEvent): void => {
+      if (e.key !== 'Escape' || e.defaultPrevented || e.isComposing) return
+      e.preventDefault()
+      e.stopPropagation()
+      search.close()
+    }
+    el.addEventListener('keydown', onKeyDown)
+    return () => el.removeEventListener('keydown', onKeyDown)
+  }, [search, target])
+
   if (!target) return null
 
-  const status = announce(state)
   return createPortal(
     <div
       {...rest}
@@ -98,13 +122,6 @@ export function InkFindBar({ className, onKeyDown, ...rest }: InkFindBarProps) {
       data-ink-find-bar=""
       role="search"
       hidden={!state.open}
-      onKeyDown={(e: KeyboardEvent<HTMLDivElement>) => {
-        onKeyDown?.(e)
-        if (e.key !== 'Escape' || e.defaultPrevented || e.nativeEvent.isComposing) return
-        e.preventDefault()
-        e.stopPropagation()
-        close()
-      }}
     >
       <input
         ref={field}
@@ -160,9 +177,12 @@ export function InkFindBar({ className, onKeyDown, ...rest }: InkFindBarProps) {
       >
         <InkIcon icon={X} />
       </button>
-      <div className="ink-visually-hidden" data-ink-find-status="" aria-live="polite">
-        {status}
-      </div>
+      <div
+        ref={live}
+        className="ink-visually-hidden"
+        data-ink-find-status=""
+        aria-live="polite"
+      />
     </div>,
     target
   )
