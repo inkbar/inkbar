@@ -369,7 +369,8 @@
 
   /* Form fields: over the text layer, under the annotations (after the overlay in the page, at
      the same level), so a press on an annotation's shape is the annotation's. A field is
-     tinted unless it is read-only, ringed while focused and marked when a value was refused. */
+     tinted, except while it is read-only or signed or highlighting is off. It is ringed while
+     focused and marked when a value was refused. */
   :where(.ink-form-layer) {
     z-index: 1;
   }

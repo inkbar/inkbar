@@ -22,9 +22,10 @@
 // A checkbox or radio has both its on and off appearances drawn, and shows the one for its
 // state: a toggle, like an edit, paints nothing.
 //
-// The widget boxes are in the page's Tab order (its `/Tabs`), so Tab within a page is the
-// browser's own. A radio group is one stop: its chosen radio, else its first. The engine moves
-// Tab on from a page's last stop to the next page's first.
+// The widget boxes are in the page's Tab order (its `/Tabs`, else `/Annots` order), so Tab
+// within a page is the browser's own. A radio group is one stop: its chosen radio, else its
+// first. The engine moves Tab on from a page's last stop to the next page's first. The
+// appearances stack in `/Annots` order, as the file paints its widgets.
 import { sameValue } from '../model/form/values'
 
 import { createWidgetAppearances, type WidgetAppearances } from './form-appearance'

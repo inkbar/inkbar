@@ -44,7 +44,8 @@ export interface PageMountOptions {
   onError?(error: unknown, layer: PageLayer): void
   /**
    * A layer finished without error: the canvas or the form appearances painted, or the text
-   * layer mounted or applied an update. Pair it with `onError` to tell when a failed layer has recovered.
+   * layer mounted or applied an update. Pair it with `onError` to tell when a failed layer has
+   * recovered.
    */
   onRendered?(layer: PageLayer): void
 }
