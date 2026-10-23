@@ -1267,6 +1267,43 @@ describe('checkboxes, radios, choices and buttons', () => {
     expect(control.textContent).toBe('')
   })
 
+  it('draws a script’s colours and size on a checkbox', async () => {
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    const w = widgetsOf(doc, 'agree')[0]!
+    const control = controlOf(p.host, w)
+    const look = () =>
+      p.host.querySelector<HTMLElement>(`[data-ink-appearance="${w.id}"]`)!
+    doc.form.set({ agree: w.onState! })
+    expect(p.box('agree').hasAttribute('data-ink-drawn')).toBe(false)
+    expect(control.textContent).toBe('')
+    doc.form._setWidgetState(w.id, {
+      textColor: '#ff0000',
+      fillColor: '#00ff00',
+      strokeColor: '#0000ff',
+      textSize: 9,
+    })
+    // The control draws the widget, and the file's appearance hides.
+    expect(p.box('agree').hasAttribute('data-ink-drawn')).toBe(true)
+    await until(() =>
+      [...look().querySelectorAll('canvas')].every((c) => c.style.display === 'none')
+    )
+    expect(control.textContent).not.toBe('')
+    expect(control.style.color).toBe('rgb(255, 0, 0)')
+    expect(control.style.backgroundColor).toBe('rgb(0, 255, 0)')
+    expect(control.style.borderColor).toBe('rgb(0, 0, 255)')
+    expect(control.style.fontSize).toBe('9px')
+    // Off, it draws the box without the check.
+    doc.form.set({ agree: 'Off' })
+    expect(p.box('agree').hasAttribute('data-ink-drawn')).toBe(true)
+    expect(control.textContent).toBe('')
+    expect(control.style.backgroundColor).toBe('rgb(0, 255, 0)')
+    // Cleared, the file's appearance shows again.
+    doc.form._setWidgetState(w.id, undefined)
+    expect(p.box('agree').hasAttribute('data-ink-drawn')).toBe(false)
+    expect(control.style.backgroundColor).toBe('transparent')
+  })
+
   it('a checkbox’s Mouse Up script sees its new state', async () => {
     const doc = await open('form-scripted')
     const p = mountPage(doc)
