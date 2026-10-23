@@ -8,7 +8,7 @@ import { InkError } from '../errors'
 
 import { createFormController, type FormController } from './controller'
 
-import type { FieldValue, FieldValues, FormEvent, FormField } from './types'
+import type { FieldsChange, FieldValue, FieldValues, FormEvent, FormField } from './types'
 
 let fields: FormField[]
 
@@ -370,6 +370,34 @@ describe('doc.form', () => {
     expect(form.get('notes')).toBe('mine')
     history.undo()
     expect(history.canUndo.get()).toBe(false)
+    doc.destroy()
+  })
+
+  it("an import's calculation is no undo step, and undo leaves it", async () => {
+    const { doc, form, history } = await openForm()
+    form._import({ name: 'Imported' })
+    expect(form.get('notes')).toBe('calculated')
+    expect(history.canUndo.get()).toBe(false)
+    form.set({ email: 'me@example.com' })
+    history.undo()
+    expect(form.get('name')).toBe('Imported')
+    expect(form.get('notes')).toBe('calculated')
+    expect(history.canUndo.get()).toBe(false)
+    doc.destroy()
+  })
+
+  it('an import reports the fields its calculation changed to a controlled host', async () => {
+    const onChange = vi.fn((_next: FieldValues, _change: FieldsChange) => undefined)
+    const doc = await openDocument(await fixtureBytes('form-fields'), {
+      assets: nodeAssets(),
+      fields: { mode: 'controlled', initial: {}, onChange },
+    })
+    doc.form._attachScripting(fakeScripting(doc.form))
+    doc.form._import({ name: 'Imported' })
+    expect(onChange).toHaveBeenCalledExactlyOnceWith(doc.form.values.get(), {
+      kind: 'import',
+      names: ['name', 'notes'],
+    })
     doc.destroy()
   })
 

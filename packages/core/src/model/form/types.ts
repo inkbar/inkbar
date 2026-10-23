@@ -181,7 +181,7 @@ export type FormAction =
  *   committed, including fields a calculation changed.
  * - `reset`: a reset (the API's or a reset button's) restored defaults, with what it
  *   calculated.
- * - `import`: a Gloss import set values.
+ * - `import`: a Gloss import set values, with what it calculated.
  * - `calculate`: a script set values outside a commit or reset (a timer, a page's open or close
  *   script, a widget's event script), or calculated after a host's push.
  */

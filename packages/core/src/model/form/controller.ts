@@ -130,8 +130,9 @@ export interface FormController {
     tabs?: ReadonlyMap<number, 'R' | 'C' | 'S' | 'W'>
   ): void
   /**
-   * @internal Applies values already checked by `fieldsFromGloss`, as an import: not an undo
-   * step, and reported to a controlled host as `import`.
+   * @internal Applies values already checked by `fieldsFromGloss`, as an import: neither the
+   * values nor what they calculate are an undo step. A controlled host hears of both as one
+   * `import`.
    */
   _import(values: FieldValues): void
   /**
@@ -684,10 +685,12 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       // Nothing to change: no reset reaches the store, so the undo steps stay.
       if (entries.length === 0) return
       writeAll(entries)
+      if (changed(before, current()).length === 0) return
+      // What the import calculates is no undo step either.
+      quiet(() => within(() => scripting?.sync(current(), true)))
       const names = changed(before, current())
-      if (names.length === 0) return
-      within(() => scripting?.sync(current(), true))
-      if (controlled) controlled.onChange(current(), { kind: 'import', names })
+      if (controlled && names.length > 0)
+        controlled.onChange(current(), { kind: 'import', names })
     },
     _linkAnnotations(link) {
       if (destroyed || annotations) return
