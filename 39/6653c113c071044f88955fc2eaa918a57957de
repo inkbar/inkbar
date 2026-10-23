@@ -1,0 +1,24 @@
+packages/core/src/model/search.fixtures.test.ts
+  s_a9eee6338cf60a::t_7390f56a3bcd8d 177-179,182
+  s_a9eee6338cf60a::t_66d0ce816d9076 145-147,153
+  s_a9eee6338cf60a::t_3fcbd73fde0b16 222-236
+packages/core/src/model/document.ts
+  s_a9eee6338cf60a::t_944fd87728309c 288-291
+  s_a9eee6338cf60a::t_977600f8bc6d81 257-276,279,282-287,292-300,320,322-327,333,346-347
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "396653c113c071044f88955fc2eaa918a57957de",
+  "prompts": {},
+  "sessions": {
+    "s_a9eee6338cf60a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c2869588-dbba-445a-be19-91e3d8b07d87",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
