@@ -2,7 +2,7 @@ import { fixtureBytes, type FixtureName } from '@inkbar/fixtures'
 import { describe, expect, it } from 'vitest'
 
 import { readFormExtras, type FormExtras } from './form-fields'
-import { isDict, isName } from './lexer'
+import { isDict, isName, type PdfValue } from './lexer'
 import { openPdfObjects, type PdfObjects } from './objects'
 
 /** PDF.js-style ids (`12R`) of every Widget object in the file. */
@@ -142,5 +142,35 @@ describe('readFormExtras', () => {
       destinationPage: (name) => (asked.push(name), Promise.resolve(undefined)),
     })
     expect(asked).toEqual(['c\u00e9'])
+  })
+
+  it('stops a /Next chain that cycles back to an indirect /A', async () => {
+    const objs = (await openPdfObjects(await fixtureBytes('form-goto')))!
+    // 13R's /A becomes 900 0 R: a GoTo to page 3 whose /Next is itself.
+    const looped = {
+      kind: 'dict',
+      entries: new Map<string, PdfValue>([
+        ['S', { kind: 'name', name: 'GoTo' }],
+        [
+          'D',
+          [
+            { kind: 'ref', num: 7, gen: 0 },
+            { kind: 'name', name: 'Fit' },
+          ],
+        ],
+        ['Next', { kind: 'ref', num: 900, gen: 0 }],
+      ]),
+    } as const
+    const get = objs.get.bind(objs)
+    objs.get = async (ref) => {
+      if (ref.num === 900) return looped
+      const v = await get(ref)
+      if (ref.num === 13 && isDict(v))
+        v.entries.set('A', { kind: 'ref', num: 900, gen: 0 })
+      return v
+    }
+    const extras = await readFormExtras(objs, ['13R'])
+    expect(extras.destPages.get('13R')).toBe(2)
+    expect(extras.next.has('13R')).toBe(false)
   })
 })

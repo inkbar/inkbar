@@ -305,20 +305,29 @@ function rawString(v: PdfValue | undefined): string | undefined {
 
 /**
  * The actions an action's `/Next` runs after it, in order (ISO 32000 §12.6.2): each entry,
- * then that entry's own `/Next`, depth first. A cycle or a chain deeper than `MAX_DEPTH` stops.
+ * then that entry's own `/Next`, depth first. A cycle (back to the `/A` itself, `ref`, too) or a
+ * chain deeper than `MAX_DEPTH` stops.
  */
-async function nextChain(objs: PdfObjects, action: PdfDict): Promise<PdfDict[]> {
+async function nextChain(
+  objs: PdfObjects,
+  action: PdfDict,
+  ref: PdfValue | undefined
+): Promise<PdfDict[]> {
   const out: PdfDict[] = []
-  const seen = new Set<string>()
+  const seen = new Set<string>(isRef(ref) ? [refKey(ref.num, ref.gen)] : [])
+  /** False for a ref already visited; marks it visited. */
+  const fresh = (v: PdfValue | undefined) => {
+    if (!isRef(v)) return true
+    const key = refKey(v.num, v.gen)
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  }
   const visit = async (v: PdfValue | undefined, depth: number) => {
-    if (depth > MAX_DEPTH || v === undefined) return
+    if (depth > MAX_DEPTH || v === undefined || !fresh(v)) return
     const next = await objs.resolve(v)
     for (const item of Array.isArray(next) ? next : [next]) {
-      if (isRef(item)) {
-        const key = refKey(item.num, item.gen)
-        if (seen.has(key)) continue
-        seen.add(key)
-      }
+      if (!fresh(item)) continue
       const d = await dictOf(objs, item)
       if (!d) continue
       out.push(d)
@@ -425,7 +434,7 @@ export async function readFormExtras(
         if (!action) continue
         if (isName(s, 'JavaScript')) extras.scriptActions.add(id)
         const next: WidgetAction[] = []
-        for (const a of await nextChain(objs, action)) {
+        for (const a of await nextChain(objs, action, dictGet(widget, 'A'))) {
           const ns = await objs.resolve(dictGet(a, 'S'))
           if (isName(ns, 'GoTo')) {
             const p = await pageOf(await objs.resolve(dictGet(a, 'D')))
