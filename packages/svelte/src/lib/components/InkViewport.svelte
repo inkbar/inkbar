@@ -34,16 +34,28 @@
    * Two-way zoom and page: the viewport's own changes are reported through the context, and
    * the host's props are applied only when they differ from the viewport's state, so the echo
    * of a reported value does nothing.
+   *
+   * Form fields render in the engine's form layer. A signature field's "Sign" opens
+   * `InkSignFieldPopover`, and a form script's alert shows in `InkFormAlert`; both are mounted
+   * here, so hosts compose nothing for them.
    */
   import { mountViewer } from '@inkbar/core/dom'
   import { untrack } from 'svelte'
 
   import { useInkContext } from '../context.js'
 
+  import InkFormAlert from './InkFormAlert.svelte'
   import InkPage from './InkPage.svelte'
+  import InkSignFieldPopover from './InkSignFieldPopover.svelte'
 
   import type { InkDocument, InkStatus } from '@inkbar/core'
-  import type { PageMount, ToolId, ViewerEngine, ZoomValue } from '@inkbar/core/dom'
+  import type {
+    PageMount,
+    SignFieldRequest,
+    ToolId,
+    ViewerEngine,
+    ZoomValue,
+  } from '@inkbar/core/dom'
 
   let {
     mode = 'continuous',
@@ -74,6 +86,10 @@
   let scroll = $state<HTMLDivElement | null>(null)
   /** Page hosts, mounts and errors the engine reported; InkPage renders portals for them. */
   let pages = $state.raw<MountedPage[]>([])
+  /** The signature field whose menu is open. */
+  let signRequest = $state.raw<SignFieldRequest | null>(null)
+  /** The form script's message on show, and how many have been shown. */
+  let alert = $state.raw<{ message: string; shown: number } | null>(null)
 
   let engine: ViewerEngine | null = null
   /**
@@ -101,6 +117,9 @@
     builtWith = null
     ctx.setViewport(null, null)
     if (pages.length > 0) pages = []
+    // Their fields and the document they came from are gone.
+    signRequest = null
+    alert = null
   }
 
   function setup(
@@ -140,6 +159,15 @@
       // Read through, so a new `signatures` store reaches the tool as well as the menus.
       signatureLibrary: () => ctx.signatures,
       customAnnotations: custom,
+      ...(ctx.formHighlight === undefined ? {} : { formHighlight: ctx.formHighlight }),
+      // The field's own button again, while its menu is open, closes the menu.
+      onSignField: (req) => {
+        signRequest = signRequest?.widget === req.widget ? null : req
+      },
+      onFormAction: (a) => ctx.reportFormAction(a),
+      onFormAlert: (message) => {
+        alert = { message, shown: (alert?.shown ?? 0) + 1 }
+      },
       onActivate: (id) => ctx.setActivated(id),
       onBuild: (vp, tc) => {
         ctx.setViewport(vp, tc)
@@ -189,6 +217,8 @@
       },
       onPageUnmount: (page) => {
         pages = pages.filter((p) => p.page !== page)
+        // The field's box went with its page: the menu has nothing left to stand by.
+        if (signRequest?.page === page) signRequest = null
       },
       onPageError: (page, err) => {
         pages = pages.map((p) => (p.page === page ? { ...p, error: err } : p))
@@ -342,4 +372,14 @@
       {pageError}
     />
   {/each}
+  <!-- Keyed by document, so the menu and its dialog start afresh for each one. -->
+  {#key buildDocument}
+    <InkSignFieldPopover request={signRequest} onClose={() => (signRequest = null)} />
+  {/key}
+  <InkFormAlert
+    message={alert?.message ?? null}
+    shown={alert?.shown ?? 0}
+    fallback={() => scroll}
+    onClose={() => (alert = null)}
+  />
 </div>

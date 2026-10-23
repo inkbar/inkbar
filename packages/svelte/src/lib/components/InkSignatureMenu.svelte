@@ -20,15 +20,10 @@
 </script>
 
 <script lang="ts">
-  import {
-    handleMenuKeys,
-    SIGNATURE_LABELS,
-    signatureMenuModel,
-    signaturePreview,
-  } from '@inkbar/core/dom'
-  import { ChevronDown, Plus, Signature, Trash2 } from '@inkbar/icons'
+  import { handleMenuKeys, SIGNATURE_LABELS, signatureMenuModel } from '@inkbar/core/dom'
+  import { ChevronDown, Signature } from '@inkbar/icons'
   import { Popover, Toolbar } from 'bits-ui'
-  import { tick, untrack } from 'svelte'
+  import { untrack } from 'svelte'
 
   import { useInkContext } from '../context.js'
   import { useTool } from '../hooks/useTool.svelte.js'
@@ -38,6 +33,7 @@
   import InkIcon from './InkIcon.svelte'
   import InkSignatureDialog from './InkSignatureDialog.svelte'
   import { createMenuOpenFocus } from './menu-open-focus.js'
+  import SignatureMenuPanel from './SignatureMenuPanel.svelte'
 
   import type { SignatureOptions, SignatureTemplate } from '@inkbar/core'
 
@@ -49,7 +45,6 @@
   const current = useTool()
   const signature = useToolOptions<SignatureOptions>('signature')
   const templates = useReadable(() => ctx.signatures.templates, NO_TEMPLATES)
-  const removeError = useReadable(() => ctx.signatures.removeError, undefined)
   // An old removal error is not news when the menu opens again.
   $effect(() => {
     if (open) untrack(() => ctx.signatures.clearRemoveError())
@@ -87,24 +82,6 @@
     signature.setOptions({ templateId: id })
     current.setTool('signature')
     open = false
-  }
-
-  /** Removes a template; focus moves to the signature now in its row, else "Create signature". */
-  function remove(id: string, row: number): void {
-    ctx.signatures.remove(id).then(
-      async () => {
-        await tick()
-        if (!menu) return
-        const rows = menu.querySelectorAll<HTMLElement>('.ink-signature-item')
-        const next =
-          rows[Math.min(row, rows.length - 1)] ??
-          menu.querySelector<HTMLElement>('[data-ink-signature-create]')
-        next?.focus({ preventScroll: true })
-      },
-      () => {
-        // The host's store refused: the signature stays.
-      }
-    )
   }
 
   function create(): void {
@@ -174,78 +151,12 @@
         }}
         onkeydown={(e) => menu && handleMenuKeys(e, menu)}
       >
-        {#if model.items.length > 0}
-          <div
-            role="group"
-            aria-label={SIGNATURE_LABELS.saved}
-            class="ink-signature-list"
-            data-ink-menu-columns="2"
-          >
-            {#each model.items as item, row (item.id)}
-              {@const preview =
-                item.template.kind === 'ink' ? signaturePreview(item.template) : null}
-              <button
-                type="button"
-                role="menuitemradio"
-                aria-checked={item.checked}
-                aria-label={item.label}
-                tabindex={-1}
-                class="ink-select-item ink-menu-item ink-signature-item"
-                data-ink-select-item=""
-                data-key={item.id}
-                data-state={item.checked ? 'checked' : 'unchecked'}
-                onclick={() => choose(item.id)}
-              >
-                <span class="ink-signature-preview" data-kind={item.template.kind}>
-                  {#if item.template.kind === 'image'}
-                    <img src={item.template.imagedata} alt="" draggable="false" />
-                  {:else if preview}
-                    <svg viewBox={preview.viewBox} aria-hidden="true">
-                      {#each preview.paths as d, i (i)}
-                        <path {d} fill="currentColor" />
-                      {/each}
-                    </svg>
-                  {/if}
-                </span>
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                aria-label={item.removeLabel}
-                title={item.removeLabel}
-                tabindex={-1}
-                class="ink-menu-item ink-signature-remove"
-                data-ink-signature-remove=""
-                data-key={item.id}
-                onclick={() => remove(item.id, row)}
-              >
-                <InkIcon icon={Trash2} size={16} />
-              </button>
-            {/each}
-          </div>
-          <div role="separator" class="ink-select-separator"></div>
-        {/if}
-        <button
-          type="button"
-          role="menuitem"
-          tabindex={-1}
-          class="ink-select-item ink-menu-item ink-signature-create"
-          data-ink-select-item=""
-          data-ink-signature-create=""
-          onclick={create}
-        >
-          <InkIcon icon={Plus} size={16} />
-          {SIGNATURE_LABELS.create}
-        </button>
-        {#if removeError.current}
-          <p
-            class="ink-field-error ink-signature-remove-error"
-            role="alert"
-            data-ink-signature-remove-error=""
-          >
-            {removeError.current}
-          </p>
-        {/if}
+        <SignatureMenuPanel
+          items={model.items}
+          menu={() => menu}
+          onChoose={(t) => choose(t.id)}
+          onCreate={create}
+        />
       </Popover.Content>
     </Popover.Portal>
   </Popover.Root>

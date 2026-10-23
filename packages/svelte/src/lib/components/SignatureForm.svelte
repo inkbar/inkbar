@@ -24,10 +24,13 @@
 
   let {
     fonts,
+    select,
     onSaved,
     onClose,
   }: {
     fonts: readonly string[] | undefined
+    /** Whether saving selects the new signature for the `signature` tool. */
+    select: boolean
     onSaved: (t: SignatureTemplate) => void
     onClose: () => void
   } = $props()
@@ -54,8 +57,10 @@
     draft.save(ctx.signatures).then(
       (t) => {
         if (!t) return
-        signature.setOptions({ templateId: t.id })
-        current.setTool('signature')
+        if (select) {
+          signature.setOptions({ templateId: t.id })
+          current.setTool('signature')
+        }
         onSaved(t)
         onClose()
       },

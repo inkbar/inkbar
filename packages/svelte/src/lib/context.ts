@@ -2,7 +2,9 @@ import { getContext, setContext } from 'svelte'
 
 import type {
   Annotation,
+  FormAction,
   InkDocument,
+  InkError,
   InkStatus,
   PdfAssets,
   PluginHistory,
@@ -104,6 +106,12 @@ export interface InkContext {
   readonly history: InkHistory
   readonly rootEl: HTMLElement | null
   setViewport(viewport: Viewport | null, tools: ToolController | null): void
+  /** InkRoot's `formHighlight`; InkViewport reads it when it builds the viewer. */
+  readonly formHighlight: boolean | undefined
+  /** Calls InkRoot's `onformaction`. */
+  reportFormAction(action: FormAction): void
+  /** Calls InkRoot's `onError`, for failures after the document opened (a refused signing). */
+  reportError(error: InkError): void
 }
 
 const KEY = Symbol('inkbar')

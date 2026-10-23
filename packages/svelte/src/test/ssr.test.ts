@@ -59,6 +59,7 @@ describe('@inkbar/svelte on the server', () => {
         'useEmbedded',
         'InkCommand',
         'useCommand',
+        'useForm',
       ])
     )
     expect(evaluated.pdfjs).toBe(false)

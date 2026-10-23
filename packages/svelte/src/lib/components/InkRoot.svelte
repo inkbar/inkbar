@@ -5,6 +5,9 @@
     AnnotationChange,
     AnnotationDefaults,
     DocumentSource,
+    FieldsChange,
+    FieldValues,
+    FormAction,
     InkDocument,
     InkError,
     InkStatus,
@@ -38,6 +41,21 @@
     annotations?: Annotation[] | undefined
     onAnnotationsChange?: ((next: Annotation[]) => void) | undefined
     onChange?: ((change: AnnotationChange) => void) | undefined
+    /**
+     * Pass (with `bind:`) to put the form's field values under the host's control. A commit
+     * shows at once and is reported after; the host's push wins. The mode is fixed when a
+     * document opens, as for `annotations`.
+     */
+    fields?: FieldValues | undefined
+    /**
+     * Committed field values, in full, with what changed them. Called only while the fields
+     * are controlled, after the bound value is written.
+     */
+    onFieldsChange?: ((next: FieldValues, change: FieldsChange) => void) | undefined
+    /** The form asked to submit, open a link, send mail, print or prompt. Inkbar does none. */
+    onformaction?: ((action: FormAction) => void) | undefined
+    /** Tints fillable form fields. Default true. Read when the viewer is built for a document. */
+    formHighlight?: boolean | undefined
     tool?: ToolId | undefined
     onToolChange?: ((tool: ToolId) => void) | undefined
     /**
@@ -78,6 +96,10 @@
     /** Undo history. Defaults to on for uncontrolled, off for controlled. */
     history?: boolean | undefined
     onReady?: ((doc: InkDocument) => void) | undefined
+    /**
+     * Opening failed, or later: a form script failed (`FormScriptError`; the form stays
+     * fillable), or a signature field refused its signing (`FieldSigned`, `FieldReadOnly`).
+     */
     onError?: ((error: InkError) => void) | undefined
     onActivate?: ((id: string) => void) | undefined
     /** The root element, for hosts that bind it. */
@@ -136,6 +158,10 @@
     annotations = $bindable(),
     onAnnotationsChange,
     onChange,
+    fields = $bindable(),
+    onFieldsChange,
+    onformaction,
+    formHighlight,
     tool = $bindable(),
     onToolChange,
     tools: hostTools,
@@ -237,6 +263,7 @@
     let opened: InkDocument | null = null
     /** The snapshot history's hold on a controlled document's store. */
     let detach: () => void = noop
+    let stopFormErrors: () => void = noop
     untrack(() => snapshotHistory.clear())
     const source = untrack(() => src)
     if (source === null) {
@@ -269,6 +296,20 @@
                   },
                 }
               : { mode: 'uncontrolled' as const },
+            fields:
+              fields !== undefined
+                ? {
+                    mode: 'controlled' as const,
+                    initial: fields,
+                    onChange: (next: FieldValues, change: FieldsChange) => {
+                      // As for annotations: a commit made in the tick this root unmounts or
+                      // reopens never reaches the host.
+                      if (cancelled) return
+                      fields = next
+                      onFieldsChange?.(next, change)
+                    },
+                  }
+                : { mode: 'uncontrolled' as const },
           }))
         )
         if (cancelled) {
@@ -280,6 +321,11 @@
         const current = untrack(() => annotations)
         if (doc.annotations.mode === 'controlled' && current !== undefined)
           doc.annotations.setControlledValue(current)
+        // The same for the fields; a document whose fields opened uncontrolled ignores the push.
+        const currentFields = untrack(() => fields)
+        if (currentFields !== undefined) doc.form.setControlledValue(currentFields)
+        // A form script that fails leaves the form fillable; the failure goes to `onError`.
+        stopFormErrors = doc.form.on('error', (e) => onError?.(e))
         documentNow = doc
         document = doc
         // Controlled edits run the plugins' reactions inside their own snapshot step.
@@ -312,6 +358,7 @@
       // Cleared first, so the plugins close their stores while the document is still alive.
       hostDocument.set(null)
       detach()
+      stopFormErrors()
       opened?.destroy()
       documentNow = null
       document = null
@@ -325,6 +372,15 @@
     const doc = document
     if (list && doc?.annotations.mode === 'controlled')
       untrack(() => doc.annotations.setControlledValue(list))
+  })
+
+  // The host's field values reach the form; the echo of a commit it applied changes nothing.
+  // Read through a derived, so a host that spreads its props pushes only a new value.
+  const pushedFields = $derived(fields)
+  $effect(() => {
+    const values = pushedFields
+    const doc = document
+    if (values && doc) untrack(() => doc.form.setControlledValue(values))
   })
 
   function setTool(id: ToolId): void {
@@ -545,6 +601,11 @@
       viewport = vp
       tools = tc
     },
+    get formHighlight() {
+      return formHighlight
+    },
+    reportFormAction: (a) => onformaction?.(a),
+    reportError: (e) => onError?.(e),
   }
   setInkContext(context, () => activatedNow)
 

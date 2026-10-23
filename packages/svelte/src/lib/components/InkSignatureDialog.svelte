@@ -4,15 +4,21 @@
   /**
    * "Create signature": a modal with Draw, Type and Image tabs. Draw is a pad with the draw
    * tool's renderer; Type sets a name in one of the host's handwriting fonts; Image takes a PNG
-   * or JPEG scan. Save stores the template through InkRoot's signature store and selects it
-   * for the `signature` tool. Escape, Cancel or a press outside closes it.
+   * or JPEG scan. Save stores the template through InkRoot's signature store and, unless
+   * `select` is false, selects it for the `signature` tool. Escape, Cancel or a press outside
+   * closes it.
    */
   export interface InkSignatureDialogProps {
     open?: boolean
     onOpenChange?: ((open: boolean) => void) | undefined
     /** The fonts the Type tab offers. Default: InkRoot's `signatureFonts`. */
     fonts?: readonly string[] | undefined
-    /** Called with the new template once it is saved and selected. */
+    /**
+     * Whether saving selects the new signature for the `signature` tool. Default true. False
+     * leaves the tool alone, for a dialog that signs a field with it through `onSave`.
+     */
+    select?: boolean | undefined
+    /** Called with the new template once it is saved (and selected, with `select`). */
     onSave?: ((template: SignatureTemplate) => void) | undefined
     /** Where focus goes on close; by default, back to what had it before. */
     onCloseAutoFocus?: ((event: Event) => void) | undefined
@@ -30,6 +36,7 @@
     open = $bindable(false),
     onOpenChange,
     fonts,
+    select = true,
     onSave,
     onCloseAutoFocus,
     class: className,
@@ -62,6 +69,7 @@
       <Dialog.Title class="ink-dialog-title">{SIGNATURE_LABELS.dialog}</Dialog.Title>
       <SignatureForm
         {fonts}
+        {select}
         onSaved={(t) => onSave?.(t)}
         onClose={() => setOpen(false)}
       />
