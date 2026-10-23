@@ -1,0 +1,39 @@
+packages/core/src/dom/search/find-text.ts
+  s_a9eee6338cf60a::t_63d809ae740be4 4-5,7,15,21,23-28,30-50
+packages/react/src/components/InkFindBar.tsx
+  s_a9eee6338cf60a::t_0b3051af802dc5 1,7,45,92
+packages/core/src/dom/search/find-bar.ts
+  s_a9eee6338cf60a::t_f1a45f9958cfcf 13,85,127
+packages/core/src/dom/search/find-text.test.ts
+  s_a9eee6338cf60a::t_95d4186e0b19f9 1-89
+packages/core/src/dom/search/find-bar.browser.test.ts
+  s_a9eee6338cf60a::t_7d322fc57869c0 1,38-45,50,170-224
+  s_a9eee6338cf60a::t_77834bea3f3ade 225
+packages/core/src/dom/search/controller.ts
+  s_a9eee6338cf60a::t_63d809ae740be4 7,186,199,232
+packages/svelte/src/lib/components/InkFindBar.svelte
+  s_a9eee6338cf60a::t_0b3051af802dc5 20,94-95
+packages/core/src/dom/index.ts
+  s_a9eee6338cf60a::t_63d809ae740be4 190
+packages/core/src/dom/search/controller.test.ts
+  s_a9eee6338cf60a::t_5134250242273b 268-272
+  s_a9eee6338cf60a::t_9d24ecbb11374a 263-267,273-276
+packages/vue/src/components/InkFindBar.vue
+  s_a9eee6338cf60a::t_0b3051af802dc5 13,33,36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e6a079ec88fa7ab5ce6e15827d0f28e9befca2a1",
+  "prompts": {},
+  "sessions": {
+    "s_a9eee6338cf60a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c2869588-dbba-445a-be19-91e3d8b07d87",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
