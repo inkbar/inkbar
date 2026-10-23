@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import {
+  PDFArray,
   PDFDict,
   PDFDocument,
   PDFName,
@@ -11,7 +12,16 @@ import {
   PDFRef as PDFRefClass,
   PDFString,
   StandardFonts,
+  beginText,
   degrees,
+  endText,
+  moveText,
+  PDFOperator,
+  PDFOperatorNames,
+  setCharacterSpacing,
+  setFontAndSize,
+  setWordSpacing,
+  showText,
   rgb,
   type PDFContext,
   type PDFPage,
@@ -98,11 +108,31 @@ async function textSearch() {
   page.drawText('right column', { x: 320, y: 560, size, font })
   page.drawText('left second line', { x: 72, y: 544, size, font })
   page.drawText('right second line', { x: 320, y: 544, size, font })
+  // Character spacing 1 and word spacing 4, then a word kerned apart by a TJ adjustment of -20.
+  const key = page.node.newFontDictionary(font.name, font.ref)
+  const kerned = PDFArray.withContext(d.context)
+  kerned.push(font.encodeText('ke'))
+  kerned.push(PDFNumber.of(-20))
+  kerned.push(font.encodeText('rned word'))
+  page.pushOperators(
+    beginText(),
+    setFontAndSize(key, size),
+    setCharacterSpacing(1),
+    setWordSpacing(4),
+    moveText(72, 500),
+    showText(font.encodeText('widely spaced words')),
+    endText(),
+    beginText(),
+    setFontAndSize(key, size),
+    moveText(72, 476),
+    PDFOperator.of(PDFOperatorNames.ShowTextAdjusted, [kerned]),
+    endText()
+  )
   return save('text-search', d, {
     pages: 1,
     opens: true,
     describes:
-      'Search cases: split-font word, hyphenated line break, accents, curly quotes, two columns',
+      'Search cases: split-font word, hyphenated line break, accents, curly quotes, two columns, character and word spacing, a kerned word',
   })
 }
 

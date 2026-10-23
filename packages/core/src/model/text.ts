@@ -1,4 +1,5 @@
 import { rectFromQuad, type Point, type Quad, type Rect } from './geometry'
+import { glyphAdvances, type PageGlyph } from './glyph-advances'
 
 import type { PdfjsTextContent, PdfjsTextItem } from '../pdfjs/types'
 
@@ -14,8 +15,9 @@ export interface TextItem {
   rect: Rect
   /**
    * How far along the run each character boundary lies, as a fraction of its width: `str.length + 1`
-   * entries from 0 to 1, from measured glyph widths. Absent when the run could not be measured, in
-   * which case every character takes an equal share.
+   * entries from 0 to 1. Taken from the glyphs the page draws when they can be matched to the run,
+   * else measured in the run's fallback font. Absent when neither works, in which case every
+   * character takes an equal share.
    */
   advances?: readonly number[]
 }
@@ -48,7 +50,8 @@ const FALLBACK_DESCENT = 0.25
 export function textContentFromPdfjs(
   page: number,
   tc: PdfjsTextContent,
-  measure?: MeasureChar
+  measure?: MeasureChar,
+  glyphs?: readonly PageGlyph[]
 ): TextContent {
   const items: TextItem[] = []
   for (const raw of tc.items) {
@@ -89,6 +92,12 @@ export function textContentFromPdfjs(
       quad,
       rect: rectFromQuad(quad),
       ...(advances && { advances }),
+    })
+  }
+  if (glyphs) {
+    const exact = glyphAdvances(items, glyphs)
+    items.forEach((it, i) => {
+      if (exact[i]) it.advances = exact[i]
     })
   }
   return { page, items }
