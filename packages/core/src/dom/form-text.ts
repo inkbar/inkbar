@@ -281,8 +281,15 @@ export function createTextWidget(
       return
     }
     const result = form.set({ [field.name]: text })
-    ctx.setInvalid(result.rejected.length > 0)
-    // A rejected commit leaves the stored value, which nothing re-sends: show it again.
+    const refused = result.rejected.length > 0
+    ctx.setInvalid(refused)
+    if (refused && focused) {
+      // The form keeps the refused text as typed, so the field shows it to be corrected.
+      typed = true
+      style()
+      return
+    }
+    // A rejected commit on blur leaves the stored value, which nothing re-sends: show it again.
     show()
     style()
   }

@@ -509,13 +509,14 @@ export function createFormController(opts: FormControllerOptions): FormControlle
               result.rejected.push({ name, reason: reason ?? 'unknown' })
               continue
             }
-            dropPending(name)
             const stored = normaliseValue(field, value)
             const kept = scripting ? scripting.commit(name, stored) : stored
+            // A value the scripts reject leaves the typed text, so the user can correct it.
             if (kept === undefined) {
               result.rejected.push({ name, reason: 'script' })
               continue
             }
+            dropPending(name)
             write(name, suits(field, kept) ? normaliseValue(field, kept) : stored)
             result.applied.push(name)
           }

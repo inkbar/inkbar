@@ -172,6 +172,44 @@ describe('FormController', () => {
     expect(form._keystroke(widget, 'x', 0, 0).value).toBe('x')
   })
 
+  it('a value a script rejects keeps the typed text', () => {
+    const form = controller()
+    form._attachScripting({
+      commit: vi.fn(() => undefined),
+      sync: vi.fn(),
+      dispatch: vi.fn(),
+      keystroke: vi.fn(() => undefined),
+      pageEvent: vi.fn(() => Promise.resolve()),
+      destroy: vi.fn(),
+    })
+    const widget = fields.find((f) => f.name === 'name')!.widgets[0]!.id
+    form._keystroke(widget, 'a', 3, 3)
+    expect(form.set({ name: 'Sama' }).rejected).toEqual([
+      { name: 'name', reason: 'script' },
+    ])
+    expect(form._keystroke(widget, '!', 4, 4).value).toBe('Sama!')
+  })
+
+  it('undo and redo drop only the typed text of fields they change', async () => {
+    const doc = await openDocument(await fixtureBytes('form-fields'), {
+      assets: nodeAssets(),
+    })
+    const { form, history } = doc
+    const name = form.fields.get().find((f) => f.name === 'name')!.widgets[0]!.id
+    const notes = form.fields.get().find((f) => f.name === 'notes')!.widgets[0]!.id
+    form.set({ notes: 'n' })
+    form._keystroke(name, 'a', 3, 3)
+    form._keystroke(notes, 'x', 1, 1)
+    history.undo()
+    expect(form._keystroke(name, 'b', 4, 4).value).toBe('Samab')
+    expect(form._keystroke(notes, 'y', 0, 0).value).toBe('y')
+    form._keystroke(notes, 'z', 1, 1)
+    history.redo()
+    expect(form._keystroke(name, 'c', 5, 5).value).toBe('Samabc')
+    expect(form._keystroke(notes, '!', 1, 1).value).toBe('n!')
+    doc.destroy()
+  })
+
   it('keeps formatted text and widget overrides set by scripts', () => {
     const form = controller()
     form._setFormatted('name', '£2.50')

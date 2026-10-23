@@ -719,6 +719,22 @@ describe('form layer', () => {
     expect(onError.mock.calls.every(([, layer]) => layer === 'form')).toBe(true)
   })
 
+  it('keeps a value a script refuses on Enter, so it can be corrected', async () => {
+    const doc = await open('form-scripted')
+    const p = mountPage(doc)
+    const age = p.control('age')
+    await typeOver(age, '5')
+    await userEvent.keyboard('{Enter}')
+    expect(doc.form.get('age')).toBe('')
+    expect(age.value).toBe('5')
+    expect(age.getAttribute('aria-invalid')).toBe('true')
+    await userEvent.keyboard('0')
+    expect(age.value).toBe('50')
+    await userEvent.keyboard('{Enter}')
+    expect(doc.form.get('age')).toBe('50')
+    expect(age.hasAttribute('aria-invalid')).toBe(false)
+  })
+
   it('clears a refused value’s mark once the value changes', async () => {
     const doc = await open('form-scripted')
     const p = mountPage(doc)
