@@ -2,7 +2,7 @@ import { generateLarge } from '@inkbar/fixtures/generate-large'
 import { browserAssets, fixtureUrl } from '@inkbar/fixtures/urls'
 import themeCss from '@inkbar/theme/theme.css?inline'
 import { run as runAxe } from 'axe-core'
-import { afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { userEvent } from 'vitest/browser'
 
 import { mountContainer, until } from '../test-utils'
@@ -19,6 +19,7 @@ beforeAll(() => {
 
 let cleanup: (() => void)[] = []
 afterEach(() => {
+  vi.restoreAllMocks()
   cleanup.forEach((f) => f())
   cleanup = []
   window.getSelection()?.removeAllRanges()
@@ -80,10 +81,15 @@ const attached = (viewer: Viewer): Promise<void> =>
   until(() => searchControllerOf(viewer).barAttached.get())
 
 /** Dispatches Ctrl+F (or Meta+F) at `target`; false when something prevented it. */
-function findKey(target: Element, mod: 'ctrlKey' | 'metaKey' = 'ctrlKey'): boolean {
+function findKey(
+  target: Element,
+  mod: 'ctrlKey' | 'metaKey' = 'ctrlKey',
+  { key = 'f', code = 'KeyF' }: { key?: string; code?: string } = {}
+): boolean {
   return target.dispatchEvent(
     new KeyboardEvent('keydown', {
-      key: 'f',
+      key,
+      code,
       [mod]: true,
       bubbles: true,
       cancelable: true,
@@ -103,6 +109,33 @@ describe('find bar', () => {
       expect(bar!.hidden).toBe(false)
     }
   )
+
+  it('takes F by its place on a layout without Latin letters', async () => {
+    const { viewer, scroll } = await make()
+    await attached(viewer)
+    expect(findKey(scroll, 'ctrlKey', { key: 'а', code: 'KeyF' })).toBe(false)
+    expect(viewer.search.state.get().open).toBe(true)
+  })
+
+  it('takes F by its letter wherever it sits, and leaves another letter on that key', async () => {
+    const { viewer, scroll } = await make()
+    await attached(viewer)
+    // Dvorak: the key labelled F on QWERTY types "u", and F sits on another key.
+    expect(findKey(scroll, 'ctrlKey', { key: 'u', code: 'KeyF' })).toBe(true)
+    expect(viewer.search.state.get().open).toBe(false)
+    expect(findKey(scroll, 'ctrlKey', { key: 'f', code: 'KeyY' })).toBe(false)
+    expect(viewer.search.state.get().open).toBe(true)
+  })
+
+  it('does not register a bar placed outside the viewer', async () => {
+    const { viewer, bar } = await make()
+    await attached(viewer)
+    document.body.append(bar!)
+    cleanup.push(() => bar!.remove())
+    await until(() => !searchControllerOf(viewer).barAttached.get())
+    viewer.element.querySelector('[data-ink-viewport-root]')!.append(bar!)
+    await attached(viewer)
+  })
 
   it('leaves the key to the browser with no bar mounted', async () => {
     const { viewer, scroll } = await make(false)
@@ -148,6 +181,43 @@ describe('find bar', () => {
     expect(viewer.search.state.get().query).toBe('QQ123456C')
     expect(field().value).toBe('QQ123456C')
     expect(document.activeElement).toBe(field())
+  })
+
+  /** Selects all of `node`'s text. */
+  function select(node: Node): void {
+    const range = document.createRange()
+    range.selectNodeContents(node)
+    window.getSelection()!.removeAllRanges()
+    window.getSelection()!.addRange(range)
+  }
+
+  it('takes a selection of up to 200 characters and ignores a longer one', async () => {
+    const { viewer, scroll } = await make()
+    await attached(viewer)
+    const layer = viewer.element.querySelector('[data-ink-text-layer]')!
+    const long = document.createElement('span')
+    layer.append(long)
+    long.textContent = 'a'.repeat(200)
+    select(long)
+    expect(findKey(scroll)).toBe(false)
+    expect(viewer.search.state.get().query).toBe('a'.repeat(200))
+    viewer.search.close()
+    viewer.search.setQuery('')
+    long.textContent = 'b'.repeat(201)
+    select(long)
+    expect(findKey(scroll)).toBe(false)
+    expect(viewer.search.state.get().open).toBe(true)
+    expect(viewer.search.state.get().query).toBe('')
+  })
+
+  it('ignores a selection outside the viewer', async () => {
+    const { viewer, scroll, outside } = await make()
+    await attached(viewer)
+    select(outside)
+    expect(window.getSelection()!.toString()).toBe('Outside')
+    expect(findKey(scroll)).toBe(false)
+    expect(viewer.search.state.get().open).toBe(true)
+    expect(viewer.search.state.get().query).toBe('')
   })
 
   it('counts, steps, wraps and announces', async () => {
@@ -318,6 +388,29 @@ describe('find bar', () => {
     expect(document.activeElement).toBe(field())
     viewer.search.close()
     expect(button.getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('lets go of the viewer when it is destroyed', async () => {
+    const { viewer } = await make(false)
+    const state = viewer.search.state
+    const subscribe = state.subscribe.bind(state)
+    const stops: ReturnType<typeof vi.fn>[] = []
+    vi.spyOn(state, 'subscribe').mockImplementation((fn) => {
+      const stop = vi.fn(subscribe(fn))
+      stops.push(stop)
+      return stop
+    })
+    const button = createSearchButton(viewer)
+    expect(stops).toHaveLength(1)
+    viewer.destroy()
+    expect(stops[0]).toHaveBeenCalled()
+
+    // A bar made after the viewer is gone lets go of its observer and state at once.
+    const disconnect = vi.spyOn(MutationObserver.prototype, 'disconnect')
+    createFindBar(viewer)
+    expect(disconnect).toHaveBeenCalledTimes(1)
+    expect(stops[1]).toHaveBeenCalled()
+    button.remove()
   })
 
   it('passes axe while open', async () => {
