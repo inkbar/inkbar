@@ -78,29 +78,51 @@ const latin1 = (bytes: Uint8Array) => Buffer.from(bytes).toString('latin1')
 const fromLatin1 = (s: string) => new Uint8Array(Buffer.from(s, 'latin1'))
 
 /**
- * qpdf's decrypted rewrite of `file` without the trailer /ID, whose first half qpdf keeps from
- * the random one it wrote when it encrypted. Equal content gives equal strings.
+ * What qpdf reads from `file` with the owner password: its content, decrypted, without the
+ * trailer /ID (whose first half qpdf keeps from the random one it wrote when it encrypted), and
+ * its encryption settings (revision, permissions, methods, and whether the password still opens
+ * it as owner). Equal files give equal strings.
  */
-function decrypted(file: string, password: string) {
-  return latin1(
-    execFileSync('qpdf', [`--password=${password}`, '--decrypt', file, '-'])
+function readEncrypted(file: string, owner: string): string {
+  const content = latin1(
+    execFileSync('qpdf', [`--password=${owner}`, '--decrypt', file, '-'])
   ).replace(/\/ID \[<[0-9a-f]*><[0-9a-f]*>\]/, '')
+  const settings = execFileSync(
+    'qpdf',
+    [`--password=${owner}`, '--show-encryption', file],
+    { encoding: 'latin1' }
+  )
+  return `${settings}\n${content}`
+}
+
+/** `readEncrypted` for the existing fixture, or nothing when it is missing or unreadable. */
+function readExisting(file: string, owner: string): string | undefined {
+  if (!existsSync(file)) return undefined
+  try {
+    return readEncrypted(file, owner)
+  } catch {
+    // A changed password, or a damaged file: replace it.
+    return undefined
+  }
 }
 
 /**
  * Encrypts `plain` into fixture `name` with qpdf, then deletes `plain`. qpdf writes a random /ID
- * (and random AES salts and IVs) on every run, so when the existing fixture decrypts to the same
- * content the existing file is kept and a regenerate leaves it untouched.
+ * (and random AES salts and IVs) on every run, so when the existing fixture holds the same
+ * content under the same encryption settings it is kept, and a regenerate leaves it untouched.
+ * `args` are qpdf's options; they include `--encrypt <user> <owner> ...`.
  */
-function encrypt(name: FixtureName, plain: string, args: string[], password: string) {
+function encrypt(name: FixtureName, plain: string, args: string[], owner: string) {
   const target = join(out, `${name}.pdf`)
   const fresh = join(out, `${name}.new.pdf`)
-  execFileSync('qpdf', [...args, '--', plain, fresh])
-  rmSync(plain)
-  if (existsSync(target) && decrypted(target, password) === decrypted(fresh, password)) {
-    rmSync(fresh)
-  } else {
+  try {
+    execFileSync('qpdf', [...args, '--', plain, fresh])
+    const old = readExisting(target, owner)
+    if (old !== undefined && old === readEncrypted(fresh, owner)) return
     renameSync(fresh, target)
+  } finally {
+    rmSync(plain, { force: true })
+    rmSync(fresh, { force: true })
   }
 }
 
@@ -606,7 +628,12 @@ async function calloutEncrypted() {
     plain,
     await (await buildStandardCallout()).save({ useObjectStreams: false })
   )
-  encrypt('callout-encrypted', plain, ['--encrypt', '', 'owner-secret', '256'], '')
+  encrypt(
+    'callout-encrypted',
+    plain,
+    ['--encrypt', '', 'owner-secret', '256'],
+    'owner-secret'
+  )
   note('callout-encrypted', {
     pages: 1,
     opens: true,
@@ -1621,7 +1648,7 @@ async function encrypted(name: 'encrypted-aes' | 'encrypted-rc4') {
     name,
     plain,
     ['--allow-weak-crypto', '--encrypt', 'inkbar', 'owner-secret', ...keyArgs],
-    'inkbar'
+    'owner-secret'
   )
   note(name, {
     pages: 1,
