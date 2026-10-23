@@ -1,6 +1,8 @@
 import { fontFromBaseName } from '../../pdf/annotation-fields'
 import { pdfColorToHex } from '../annotations/embedded'
 
+import { suits } from './values'
+
 import type {
   FieldFlags,
   FieldOption,
@@ -289,7 +291,10 @@ function buildField(
       barcode,
   }
   if (type === 'text' && d.maxLen) field.maxLength = d.maxLen
-  if (defaultValue !== undefined) field.defaultValue = defaultValue
+  // Like a value a host sets, a default the field cannot hold is dropped: a reset then
+  // empties the field instead.
+  if (defaultValue !== undefined && suits(field, defaultValue))
+    field.defaultValue = defaultValue
   if (value !== undefined) field.value = value
   const tooltip = d.alternativeText || extras.widgets.get(d.id)?.tooltip
   if (tooltip) field.tooltip = tooltip

@@ -265,4 +265,51 @@ describe('buildFormFields', () => {
     expect([w(1).hidden, w(1).printOnly]).toEqual([true, true])
     expect([w(2).hidden, w(2).printOnly]).toEqual([true, false])
   })
+
+  it('drops a /DV that is not one of the options', () => {
+    const base = { subtype: 'Widget', annotationType: 20, rect: [0, 0, 10, 10] } as const
+    const radio = (id: string, state: string, dv: string): RawWidget => ({
+      page: 0,
+      data: {
+        ...base,
+        rect: [0, 0, 10, 10],
+        id,
+        fieldName: 'pick',
+        fieldType: 'Btn',
+        radioButton: true,
+        buttonValue: state,
+        fieldValue: 'Off',
+        defaultFieldValue: dv,
+      },
+    })
+    const list = (name: string, dv: string): RawWidget => ({
+      page: 0,
+      data: {
+        ...base,
+        rect: [0, 0, 10, 10],
+        id: `${name}1`,
+        fieldName: name,
+        fieldType: 'Ch',
+        options: [{ exportValue: 'a', displayValue: 'A' }],
+        defaultFieldValue: dv,
+      },
+    })
+    const extras = emptyFormExtras()
+    extras.widgets.set('r1', { onState: 'one' })
+    extras.widgets.set('r2', { onState: 'two', defaultState: 'three' })
+    const fields = new Map(
+      buildFormFields(
+        [
+          radio('r1', 'one', 'three'),
+          radio('r2', 'two', 'three'),
+          list('good', 'a'),
+          list('bad', 'z'),
+        ],
+        extras
+      ).map((f) => [f.name, f])
+    )
+    expect(fields.get('pick')!.defaultValue).toBeUndefined()
+    expect(fields.get('good')!.defaultValue).toBe('a')
+    expect(fields.get('bad')!.defaultValue).toBeUndefined()
+  })
 })
