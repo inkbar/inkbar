@@ -23,9 +23,11 @@ export interface PageRendererOptions {
   /**
    * Whether form widgets are drawn into the canvas as the PDF draws them. By default they are
    * drawn only when the document has no form fields; a document with fields leaves its
-   * fillable widgets to the form layer (PDF.js `AnnotationMode.ENABLE_FORMS`).
+   * fillable widgets to the form layer (PDF.js `AnnotationMode.ENABLE_FORMS`). `'stored'`
+   * draws them too, each checkbox and radio in the state the form layer stored for it
+   * (`storeButtonStates`, PDF.js `AnnotationMode.ENABLE_STORAGE`).
    */
-  drawWidgets?: boolean
+  drawWidgets?: boolean | 'stored'
   onRendered?(): void
   /** Called for any render failure other than a superseded render's cancellation. */
   onError?(error: unknown): void
@@ -123,7 +125,12 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
         viewport,
         // Pages are paper: an opaque white canvas, whatever the theme puts behind it.
         background: '#ffffff',
-        annotationMode: drawWidgets ? AnnotationMode.ENABLE : AnnotationMode.ENABLE_FORMS,
+        annotationMode:
+          drawWidgets === 'stored'
+            ? AnnotationMode.ENABLE_STORAGE
+            : drawWidgets
+              ? AnnotationMode.ENABLE
+              : AnnotationMode.ENABLE_FORMS,
         ...(dpr === 1 ? {} : { transform: [dpr, 0, 0, dpr, 0, 0] }),
       })
       task = ownTask

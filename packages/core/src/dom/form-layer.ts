@@ -15,8 +15,20 @@
 // annotations, in the layer. A widget's
 // control is clear until it is focused or shows something the PDF's appearance does not (a
 // changed value, a script's colour or size); then the clip leaves it out and the control draws.
+//
+// Checkboxes and radios never change the clip as they change state: the layer stores each one's
+// state for PDF.js and draws the appearance canvas again, so it shows the PDF's own on or off
+// appearance (`AnnotationMode.ENABLE_STORAGE`).
+//
+// The widget boxes are in the page's Tab order (its `/Tabs`), so Tab within a page is the
+// browser's own. A radio group is one stop: its chosen radio, else its first. The engine moves
+// Tab on from a page's last stop to the next page's first.
 import { sameValue } from '../model/form/values'
+import { storeButtonStates } from '../pdfjs/widget-states'
 
+import { createButtonWidget } from './form-button'
+import { createChoiceWidget, createToggleWidget } from './form-choice'
+import { tabOrder } from './form-order'
 import { createTextWidget } from './form-text'
 import { createPageRenderer, type PageRenderer } from './page-renderer'
 import { normalizeRotation, type PageTransform, type ViewRotation } from './transform'
@@ -76,6 +88,8 @@ export interface FormLayer {
   update(t: PageTransform): void
   /** Focuses the widget's control. False when the widget is not on this page or is hidden. */
   focusWidget(id: string): boolean
+  /** The controls Tab stops at, in Tab order: none while fields take no input. */
+  tabStops(): HTMLElement[]
   /** Reads `isActive()` again, after the active tool changed. */
   refresh(): void
   destroy(): void
@@ -115,6 +129,8 @@ export interface WidgetViewContext {
   readonly label: string
   /** The view's `drawn` may have changed. */
   redraw(): void
+  /** The controls of this field's widgets on the page, in Tab order, this one included. */
+  siblings(): HTMLElement[]
   /** Marks the widget invalid (a rejected commit) or valid again. */
   setInvalid(invalid: boolean): void
   onSignField?(req: SignFieldRequest): void
@@ -129,6 +145,11 @@ export interface WidgetView {
    * clear control.
    */
   readonly drawn: boolean
+  /**
+   * The view runs the widget's Mouse Up itself when activated (after any change of value), so
+   * the layer does not send one on pointer up.
+   */
+  readonly activates?: boolean
   sync(state: WidgetState): void
   /** The control was placed in a new frame (zoom or rotation). */
   layout(frame: WidgetFrame): void
@@ -139,8 +160,20 @@ export type WidgetRenderer = (ctx: WidgetViewContext) => WidgetView
 
 /** The field types the layer draws controls for. Widgets of other types keep their appearance. */
 const RENDERERS: Partial<Record<FormFieldType, WidgetRenderer>> = {
-  text: createTextWidget,
+  text: (ctx) => createTextWidget(ctx),
+  checkbox: createToggleWidget,
+  radio: createToggleWidget,
+  combo: createChoiceWidget,
+  list: createChoiceWidget,
+  button: createButtonWidget,
 }
+
+/** Whether the layer gives the field a control: its type has one and nothing locks it. */
+export function hasControl(field: FormField): boolean {
+  return !field.locked && RENDERERS[field.type] !== undefined
+}
+
+const isToggle = (field: FormField) => field.type === 'checkbox' || field.type === 'radio'
 
 /** CSS px the appearance clip reaches past a widget's rect, to keep its anti-aliased edge. */
 const CLIP_PAD = 1
@@ -181,8 +214,10 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
   element.style.cssText = 'position:absolute;inset:0;pointer-events:none;'
   host.append(element)
 
+  const fields = form.fields.get()
+  const order = new Map(tabOrder(fields, form._tabs, doc.pages).map((id, i) => [id, i]))
   const entries: Entry[] = []
-  for (const field of form.fields.get())
+  for (const field of fields)
     for (const widget of field.widgets) {
       if (widget.page !== page) continue
       const box = ownerDoc.createElement('div')
@@ -191,7 +226,6 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
       box.dataset.inkField = field.name
       box.dataset.inkType = field.type
       box.style.cssText = 'position:absolute;pointer-events:none;'
-      element.append(box)
       entries.push({
         field,
         widget,
@@ -200,6 +234,27 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
         value: form.values.get()[field.name],
       })
     }
+  entries.sort((a, b) => (order.get(a.widget.id) ?? 0) - (order.get(b.widget.id) ?? 0))
+  for (const e of entries) element.append(e.box)
+
+  /** The on or off state last stored for PDF.js, by checkbox or radio widget id. */
+  const stored = new Map<string, boolean>()
+  /** Stores what changed; true when anything did. */
+  const storeStates = (): boolean => {
+    const values = form.values.get()
+    const changes: [string, boolean][] = []
+    for (const e of entries) {
+      if (!isToggle(e.field)) continue
+      const on =
+        e.widget.onState !== undefined && values[e.field.name] === e.widget.onState
+      if (stored.get(e.widget.id) === on) continue
+      stored.set(e.widget.id, on)
+      changes.push([e.widget.id, on])
+    }
+    if (changes.length > 0) storeButtonStates(doc._pdfjs.proxy, changes)
+    return changes.length > 0
+  }
+  storeStates()
 
   // The PDF's own widget appearances: right above the page canvas, under the text layer and
   // the annotations.
@@ -210,7 +265,7 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
       page,
       host,
       transform,
-      drawWidgets: true,
+      drawWidgets: 'stored',
       ...(opts.devicePixelRatio === undefined
         ? {}
         : { devicePixelRatio: opts.devicePixelRatio }),
@@ -309,10 +364,12 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
     toggle(e.box, 'data-ink-drawn', e.view?.drawn === true)
   }
 
-  const syncAll = () => {
-    if (destroyed) return
-    for (const e of entries) syncEntry(e)
-    clip()
+  /** A radio group is one Tab stop on the page: its chosen radio, else its first. */
+  const isStop = (e: Entry): boolean => {
+    if (e.field.type !== 'radio') return true
+    const value = form.values.get()[e.field.name]
+    const group = entries.filter((g) => g.field === e.field && g.view && !hiddenOf(g))
+    return e === (group.find((g) => g.widget.onState === value) ?? group[0])
   }
 
   const setActive = () => {
@@ -320,8 +377,17 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
     for (const e of entries) {
       if (!e.view) continue
       e.box.style.pointerEvents = active ? 'auto' : 'none'
-      e.view.control.tabIndex = active ? 0 : -1
+      e.view.control.tabIndex = active && isStop(e) ? 0 : -1
     }
+  }
+
+  const syncAll = () => {
+    if (destroyed) return
+    for (const e of entries) syncEntry(e)
+    clip()
+    setActive()
+    // A checkbox or radio changed: draw the appearances again in the new states.
+    if (storeStates()) appearance?.update(transform)
   }
 
   const listeners: (() => void)[] = []
@@ -352,6 +418,8 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
           clip()
         },
         setInvalid: (invalid) => setInvalid(e, invalid),
+        siblings: () =>
+          entries.flatMap((x) => (x.field === e.field && x.view ? [x.view.control] : [])),
         ...(opts.onSignField ? { onSignField: (req) => opts.onSignField?.(req) } : {}),
       })
       listen(box, 'focusin', () => toggle(box, 'data-ink-focused', true))
@@ -364,13 +432,12 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
         listen(box, 'pointerenter', mouse('Mouse Enter'))
         listen(box, 'pointerleave', mouse('Mouse Exit'))
         listen(box, 'pointerdown', mouse('Mouse Down'))
-        listen(box, 'pointerup', mouse('Mouse Up'))
+        if (!e.view.activates) listen(box, 'pointerup', mouse('Mouse Up'))
       }
     }
     place(e)
   }
   syncAll()
-  setActive()
 
   const stops = [
     form.values.subscribe(syncAll),
@@ -396,6 +463,12 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
       if (destroyed || !e?.view || hiddenOf(e)) return false
       e.view.control.focus()
       return ownerDoc.activeElement === e.view.control
+    },
+    tabStops() {
+      if (destroyed) return []
+      return entries.flatMap((e) =>
+        e.view && !hiddenOf(e) && e.view.control.tabIndex >= 0 ? [e.view.control] : []
+      )
     },
     refresh() {
       if (!destroyed) setActive()

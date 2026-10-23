@@ -2,14 +2,17 @@ import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { page as browserPage, userEvent } from 'vitest/browser'
 
+import { storeButtonStates } from '../pdfjs/widget-states'
+
 import { createPageMount, type PageMount } from './page-mount'
 import { createPageRenderer } from './page-renderer'
-import { mountContainer, openFixtureInBrowser, until } from './test-utils'
+import { mountContainer, nextFrame, openFixtureInBrowser, until } from './test-utils'
 import { createPageTransform, type PageTransform, type ViewRotation } from './transform'
 import { mountViewer } from './viewer-engine'
 
 import type { InkDocument } from '../model/document'
-import type { FormWidget } from '../model/form/types'
+import type { FormField, FormWidget } from '../model/form/types'
+import type { Rect } from '../model/geometry'
 import type { FixtureName } from '@inkbar/fixtures/urls'
 
 const cleanup: (() => void)[] = []
@@ -128,9 +131,9 @@ describe('form layer', () => {
     const layer = p.host.querySelector('div.ink-form-layer[data-ink-form-layer]')
     expect(layer).not.toBeNull()
     expect(p.mount.form).toBeDefined()
-    expect(layer!.querySelectorAll('input, textarea')).toHaveLength(
-      TEXT_FIELDS_PAGE_0.length
-    )
+    expect(
+      layer!.querySelectorAll('[data-ink-type="text"] :is(input, textarea)')
+    ).toHaveLength(TEXT_FIELDS_PAGE_0.length)
     for (const name of TEXT_FIELDS_PAGE_0) {
       const w = p.widgetOf(name)
       expect(p.box(name).dataset.inkField).toBe(name)
@@ -350,7 +353,8 @@ describe('form layer', () => {
     const { AnnotationMode } = doc._pdfjs.module
     await until(() => modes.length === 2)
     expect(modes).toContain(AnnotationMode.ENABLE_FORMS)
-    expect(modes).toContain(AnnotationMode.ENABLE)
+    // The widgets' own appearances, checkboxes and radios in the states the layer stored.
+    expect(modes).toContain(AnnotationMode.ENABLE_STORAGE)
   })
 
   it('inactive while an annotation tool is active', async () => {
@@ -426,7 +430,7 @@ describe('form layer', () => {
     const render = page.render.bind(page)
     vi.spyOn(page, 'render').mockImplementation((params) => {
       const task = render(params)
-      if (params.annotationMode !== AnnotationMode.ENABLE) return task
+      if (params.annotationMode !== AnnotationMode.ENABLE_STORAGE) return task
       task.promise.catch(() => undefined)
       task.cancel()
       return {
@@ -586,5 +590,428 @@ describe('form layer', () => {
       if (d[i]! > 200 && d[i + 1]! < 80 && d[i + 2]! < 80) red++
     // Most of the 60 by 14 pt square shows.
     expect(red).toBeGreaterThan(60 * 14 * 0.8)
+  })
+})
+
+/** Every widget of `name` on `page`, in the order the field lists them. */
+function widgetsOf(doc: InkDocument, name: string, page = 0): FormWidget[] {
+  return doc.form.fields
+    .get()
+    .find((f) => f.name === name)!
+    .widgets.filter((w) => w.page === page)
+}
+
+/** The control of one widget in `root`. */
+function controlOf<T extends HTMLElement = HTMLElement>(
+  root: ParentNode,
+  w: FormWidget
+): T {
+  return root.querySelector<T>(`[data-ink-widget="${w.id}"] .ink-form-control`)!
+}
+
+/** The appearance canvas's renders of `page`: the stored-state ones, as they start. */
+async function watchAppearance(doc: InkDocument, page = 0) {
+  const pdfPage = await doc._pdfjs.getPage(page)
+  const { AnnotationMode } = doc._pdfjs.module
+  const tasks: Promise<unknown>[] = []
+  const render = pdfPage.render.bind(pdfPage)
+  vi.spyOn(pdfPage, 'render').mockImplementation((params) => {
+    const task = render(params)
+    if (params.annotationMode === AnnotationMode.ENABLE_STORAGE) tasks.push(task.promise)
+    return task
+  })
+  return {
+    /** Resolves once the `n`th render painted. */
+    async painted(n: number) {
+      await until(() => tasks.length >= n, 10_000)
+      await tasks[n - 1]
+      await nextFrame()
+    },
+  }
+}
+
+/** A page of `doc` drawn by PDF.js alone, to compare the layer with. */
+async function reference(
+  doc: InkDocument,
+  transform: PageTransform,
+  drawWidgets: boolean | 'stored'
+) {
+  const host = mountContainer(transform.cssWidth, transform.cssHeight)
+  const r = createPageRenderer({
+    document: doc,
+    page: transform.page.index,
+    host,
+    transform,
+    devicePixelRatio: 1,
+    drawWidgets,
+  })
+  cleanup.push(() => (r.destroy(), host.remove()))
+  await r.rendered
+  return host
+}
+
+/** A screenshot of `rect` (user space) of the page in `host`. */
+async function shot(host: HTMLElement, transform: PageTransform, rect: Rect) {
+  const css = transform.toCssRect(rect)
+  const probe = document.createElement('div')
+  probe.style.cssText = `position:absolute;left:${css.left}px;top:${css.top}px;width:${css.width}px;height:${css.height}px;pointer-events:none;`
+  host.append(probe)
+  host.scrollIntoView()
+  const base64 = await browserPage.screenshot({
+    element: probe,
+    base64: true,
+    save: false,
+  })
+  probe.remove()
+  const img = new Image()
+  img.src = `data:image/png;base64,${base64}`
+  await img.decode()
+  const c = document.createElement('canvas')
+  c.width = img.width
+  c.height = img.height
+  const ctx = c.getContext('2d')!
+  ctx.drawImage(img, 0, 0)
+  return ctx.getImageData(0, 0, c.width, c.height)
+}
+
+/** The share of pixels where any channel differs by more than 8. */
+function differing(a: ImageData, b: ImageData) {
+  expect([a.width, a.height]).toEqual([b.width, b.height])
+  let n = 0
+  for (let i = 0; i < a.data.length; i += 4) {
+    const d = Math.max(
+      Math.abs(a.data[i]! - b.data[i]!),
+      Math.abs(a.data[i + 1]! - b.data[i + 1]!),
+      Math.abs(a.data[i + 2]! - b.data[i + 2]!)
+    )
+    if (d > 8) n++
+  }
+  return n / (a.width * a.height)
+}
+
+describe('checkboxes, radios, choices and buttons', () => {
+  it('checkbox toggles between its on-state and Off', async () => {
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    const [w] = widgetsOf(doc, 'agree')
+    const box = controlOf(p.host, w!)
+    expect(box.tagName).toBe('BUTTON')
+    expect(box.getAttribute('role')).toBe('checkbox')
+    expect(box.getAttribute('aria-checked')).toBe('false')
+    expect(doc.form.get('agree')).toBe('Off')
+    await userEvent.click(box)
+    expect(doc.form.get('agree')).toBe('Yes')
+    expect(box.getAttribute('aria-checked')).toBe('true')
+    await userEvent.click(box)
+    expect(doc.form.get('agree')).toBe('Off')
+    // One history entry each.
+    doc.history.undo()
+    expect(doc.form.get('agree')).toBe('Yes')
+    doc.history.undo()
+    expect(doc.form.get('agree')).toBe('Off')
+    expect(doc.history.canUndo.get()).toBe(false)
+  })
+
+  it('checkbox and radio draw the PDF’s on and off appearance', async () => {
+    addTheme()
+    const doc = await open('form-fields')
+    const renders = await watchAppearance(doc)
+    const p = mountPage(doc, { highlight: false })
+    await p.mount.renderer.rendered
+    await renders.painted(1)
+    const t = p.transform
+    // The file has agree off, monthly on and yearly off.
+    const pdf = await reference(doc, t, true)
+    const [agree] = widgetsOf(doc, 'agree')
+    const [monthly, yearly] = widgetsOf(doc, 'plan')
+    expect(
+      differing(await shot(p.host, t, agree!.rect), await shot(pdf, t, agree!.rect))
+    ).toBeLessThanOrEqual(0.02)
+
+    // The radios swap: yearly now shows the file's on look, and monthly its off look. The
+    // file draws its two radios alike, so each is compared with the other as the file has it.
+    await userEvent.click(controlOf(p.host, yearly!))
+    controlOf(p.host, yearly!).blur()
+    await renders.painted(2)
+    const yearlyOn = await shot(p.host, t, yearly!.rect)
+    expect(differing(yearlyOn, await shot(pdf, t, monthly!.rect))).toBeLessThanOrEqual(
+      0.02
+    )
+    expect(
+      differing(await shot(p.host, t, monthly!.rect), await shot(pdf, t, yearly!.rect))
+    ).toBeLessThanOrEqual(0.02)
+    // The check can fail: yearly no longer looks as the file draws it.
+    expect(differing(yearlyOn, await shot(pdf, t, yearly!.rect))).toBeGreaterThan(0.02)
+
+    // The checkbox's on look is its own /AP /N /Yes, as PDF.js draws it in that state.
+    await userEvent.click(controlOf(p.host, agree!))
+    controlOf(p.host, agree!).blur()
+    await renders.painted(3)
+    const copy = await open('form-fields')
+    storeButtonStates(copy._pdfjs.proxy, [[agree!.id, true]])
+    const checked = await reference(
+      copy,
+      createPageTransform(copy.pages[0]!, 1),
+      'stored'
+    )
+    const agreeOn = await shot(p.host, t, agree!.rect)
+    expect(differing(agreeOn, await shot(checked, t, agree!.rect))).toBeLessThanOrEqual(
+      0.02
+    )
+    expect(differing(agreeOn, await shot(pdf, t, agree!.rect))).toBeGreaterThan(0.02)
+
+    // And back off.
+    await userEvent.click(controlOf(p.host, agree!))
+    controlOf(p.host, agree!).blur()
+    await renders.painted(4)
+    expect(
+      differing(await shot(p.host, t, agree!.rect), await shot(pdf, t, agree!.rect))
+    ).toBeLessThanOrEqual(0.02)
+  })
+
+  it('draws the /MK /CA character for a widget without an on appearance', async () => {
+    const doc = await open('form-fields')
+    const bare = doc.form.fields.get().map((f): FormField =>
+      f.name === 'agree'
+        ? {
+            ...f,
+            widgets: f.widgets.map((w) => ({
+              ...w,
+              appearance: { ...w.appearance, onAppearance: false, checkStyle: '8' },
+            })),
+          }
+        : f
+    )
+    doc.form._load(bare, doc.form._tabs)
+    const p = mountPage(doc)
+    const control = controlOf(p.host, widgetsOf(doc, 'agree')[0]!)
+    expect(p.box('agree').hasAttribute('data-ink-drawn')).toBe(false)
+    expect(control.textContent).toBe('')
+    await userEvent.click(control)
+    expect(p.box('agree').hasAttribute('data-ink-drawn')).toBe(true)
+    expect(control.textContent).toBe('✘')
+    await userEvent.click(control)
+    expect(p.box('agree').hasAttribute('data-ink-drawn')).toBe(false)
+    expect(control.textContent).toBe('')
+  })
+
+  it('a checkbox’s Mouse Up script sees its new state', async () => {
+    const doc = await open('form-scripted')
+    const p = mountPage(doc)
+    const extra = p.widgetOf('extra')
+    expect(getComputedStyle(p.box('extra')).display).toBe('none')
+    await userEvent.click(controlOf(p.host, p.widgetOf('more')))
+    expect(doc.form.get('more')).toBe('Yes')
+    expect(doc.form.widgetState.get()[extra.id]?.hidden).toBe(false)
+    expect(getComputedStyle(p.box('extra')).display).not.toBe('none')
+    await userEvent.click(controlOf(p.host, p.widgetOf('more')))
+    expect(doc.form.widgetState.get()[extra.id]?.hidden).toBe(true)
+  })
+
+  it('radio picks one', async () => {
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    const [monthly, yearly] = widgetsOf(doc, 'plan').map((w) => controlOf(p.host, w))
+    expect(monthly!.getAttribute('role')).toBe('radio')
+    expect(doc.form.get('plan')).toBe('monthly')
+    await userEvent.click(yearly!)
+    expect(doc.form.get('plan')).toBe('yearly')
+    expect(yearly!.getAttribute('aria-checked')).toBe('true')
+    expect(monthly!.getAttribute('aria-checked')).toBe('false')
+    // Clicking the chosen radio keeps it.
+    await userEvent.click(yearly!)
+    expect(doc.form.get('plan')).toBe('yearly')
+  })
+
+  it('shared export values stay apart', async () => {
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    const widgets = widgetsOf(doc, 'shared')
+    const [first, second] = widgets.map((w) => controlOf(p.host, w))
+    await userEvent.click(second!)
+    expect(doc.form.get('shared')).toBe('1')
+    expect(second!.getAttribute('aria-checked')).toBe('true')
+    expect(first!.getAttribute('aria-checked')).toBe('false')
+    // PDF.js is told only the second widget is on.
+    const storage = doc._pdfjs.proxy.annotationStorage
+    expect(storage.getValue(widgets[0]!.id, {})).toEqual({ value: false })
+    expect(storage.getValue(widgets[1]!.id, {})).toEqual({ value: true })
+  })
+
+  it('Space toggles a focused checkbox, and arrows move within a radio group', async () => {
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    const agree = controlOf(p.host, widgetsOf(doc, 'agree')[0]!)
+    agree.focus()
+    await userEvent.keyboard(' ')
+    expect(doc.form.get('agree')).toBe('Yes')
+    await userEvent.keyboard('{Enter}')
+    expect(doc.form.get('agree')).toBe('Yes')
+
+    const [monthly, yearly] = widgetsOf(doc, 'plan').map((w) => controlOf(p.host, w))
+    // The group is one Tab stop: its chosen radio.
+    expect([monthly!.tabIndex, yearly!.tabIndex]).toEqual([0, -1])
+    monthly!.focus()
+    await userEvent.keyboard('{ArrowRight}')
+    expect(document.activeElement).toBe(yearly)
+    expect(doc.form.get('plan')).toBe('yearly')
+    expect([monthly!.tabIndex, yearly!.tabIndex]).toEqual([-1, 0])
+    await userEvent.keyboard('{ArrowDown}')
+    expect(document.activeElement).toBe(monthly)
+    expect(doc.form.get('plan')).toBe('monthly')
+    await userEvent.keyboard('{ArrowLeft}')
+    expect(document.activeElement).toBe(yearly)
+  })
+
+  it('combo shows labels and stores export values', async () => {
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    const select = controlOf<HTMLSelectElement>(p.host, p.widgetOf('country'))
+    expect(select.tagName).toBe('SELECT')
+    expect([...select.options].map((o) => o.textContent)).toEqual([
+      'United Kingdom',
+      'France',
+    ])
+    expect(select.value).toBe('gb')
+    const france = [...select.options].find((o) => o.textContent === 'France')!
+    await userEvent.selectOptions(select, [france])
+    expect(doc.form.get('country')).toBe('fr')
+    doc.history.undo()
+    expect(doc.form.get('country')).toBe('gb')
+    expect(select.value).toBe('gb')
+  })
+
+  it('editable combo accepts free text', async () => {
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    const input = controlOf<HTMLInputElement>(p.host, p.widgetOf('city'))
+    expect(input.tagName).toBe('INPUT')
+    const list = p.box('city').querySelector('datalist')!
+    expect(input.getAttribute('list')).toBe(list.id)
+    expect([...list.options].map((o) => o.value)).toEqual(['Leeds', 'Lyon', 'Lisbon'])
+    await typeOver(input, 'Lyon')
+    input.blur()
+    expect(doc.form.get('city')).toBe('Lyon')
+    await typeOver(input, 'Nice')
+    input.blur()
+    expect(doc.form.get('city')).toBe('Nice')
+  })
+
+  it('multi-select list stores an array in option order', async () => {
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    const select = controlOf<HTMLSelectElement>(p.host, p.widgetOf('interests'))
+    expect(select.multiple).toBe(true)
+    const option = (v: string) => [...select.options].find((o) => o.value === v)!
+    await userEvent.selectOptions(select, [option('poetry')])
+    expect(doc.form.get('interests')).toEqual(['poetry'])
+    await userEvent.selectOptions(select, [option('poetry'), option('maths')])
+    expect(doc.form.get('interests')).toEqual(['maths', 'poetry'])
+  })
+
+  it('push button runs its action', async () => {
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    doc.form.set({ name: 'Ada', agree: 'Yes', plan: 'monthly', country: 'fr' })
+    const reset = controlOf(p.host, p.widgetOf('reset'))
+    expect(reset.tagName).toBe('BUTTON')
+    expect(reset.getAttribute('aria-label')).toBe('Reset')
+    await userEvent.click(reset)
+    // The PDF's defaults: plan's /DV, and empty or Off where there is none.
+    expect(doc.form.get('plan')).toBe('yearly')
+    expect(doc.form.get('agree')).toBe('Off')
+    expect(doc.form.get('name')).toBe('')
+    expect(doc.form.get('country')).toBe('')
+  })
+
+  /** The form-fields fixture in a viewer, with page 0's fields ready. */
+  async function viewer() {
+    const doc = await open('form-fields')
+    const container = mountContainer(800, 600)
+    container.style.overflow = 'auto'
+    const engine = mountViewer({ container, document: doc, zoom: 1, buffer: 0 })
+    cleanup.push(() => (engine.destroy(), container.remove()))
+    await until(() => container.querySelector('[data-ink-field="name"] input') !== null)
+    const fieldOf = (el: Element | null) =>
+      el?.closest<HTMLElement>('[data-ink-widget]')?.dataset.inkField
+    const pageOf = (el: Element | null) =>
+      Number(el?.closest<HTMLElement>('.ink-page')?.dataset.page)
+    return { doc, container, engine, fieldOf, pageOf }
+  }
+
+  /** Whether `el` is inside the container's visible area. */
+  function inView(container: HTMLElement, el: Element) {
+    const c = container.getBoundingClientRect()
+    const r = el.getBoundingClientRect()
+    return (
+      r.top >= c.top && r.bottom <= c.bottom && r.left >= c.left && r.right <= c.right
+    )
+  }
+
+  it('Tab follows /Tabs R and moves to the next page’s first field', async () => {
+    const { container, engine, fieldOf, pageOf } = await viewer()
+    container.querySelector<HTMLInputElement>('[data-ink-field="name"] input')!.focus()
+    const visited = [fieldOf(document.activeElement)]
+    for (let i = 0; i < 16; i++) {
+      await userEvent.keyboard('{Tab}')
+      visited.push(fieldOf(document.activeElement))
+    }
+    // Row by row as page 0 reads; a radio group is one stop, and the signature box has none.
+    expect(visited).toEqual([
+      'name',
+      'notes',
+      'pin',
+      'code',
+      'auto',
+      'locked',
+      'email',
+      'internal',
+      'agree',
+      'plan',
+      'shared',
+      'country',
+      'city',
+      'header.ref',
+      'interests',
+      'styled',
+      'reset',
+    ])
+    expect(pageOf(document.activeElement)).toBe(0)
+    await userEvent.keyboard('{Tab}')
+    expect(fieldOf(document.activeElement)).toBe('header.ref')
+    expect(pageOf(document.activeElement)).toBe(1)
+    expect(engine.pages.has(1)).toBe(true)
+    expect(inView(container, document.activeElement!)).toBe(true)
+    await userEvent.keyboard('{Tab}')
+    expect(fieldOf(document.activeElement)).toBe('rotated')
+
+    // From the last field of the last page, Tab leaves the viewer as usual.
+    let prevented: boolean | undefined
+    const spy = (e: KeyboardEvent) => (prevented = e.defaultPrevented)
+    document.addEventListener('keydown', spy)
+    cleanup.push(() => document.removeEventListener('keydown', spy))
+    await userEvent.keyboard('{Tab}')
+    expect(prevented).toBe(false)
+  })
+
+  it('Shift+Tab goes back', async () => {
+    const { container, engine, fieldOf, pageOf } = await viewer()
+    engine.viewport.scrollToPage(1)
+    await until(
+      () =>
+        container.querySelector(
+          '.ink-page[data-page="1"] [data-ink-field="header.ref"] input'
+        ) !== null
+    )
+    const first = container.querySelector<HTMLInputElement>(
+      '.ink-page[data-page="1"] [data-ink-field="header.ref"] input'
+    )!
+    first.focus()
+    await userEvent.keyboard('{Shift>}{Tab}{/Shift}')
+    expect(fieldOf(document.activeElement)).toBe('reset')
+    expect(pageOf(document.activeElement)).toBe(0)
+    expect(inView(container, document.activeElement!)).toBe(true)
+    await userEvent.keyboard('{Shift>}{Tab}{/Shift}')
+    expect(fieldOf(document.activeElement)).toBe('styled')
   })
 })

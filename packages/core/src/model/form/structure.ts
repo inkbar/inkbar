@@ -120,6 +120,8 @@ function appearanceOf(
     else if (type === 'checkbox' || type === 'radio')
       appearance.checkStyle = extra.caption
   }
+  if (type === 'checkbox' || type === 'radio')
+    appearance.onAppearance = extra?.onState !== undefined
   return appearance
 }
 

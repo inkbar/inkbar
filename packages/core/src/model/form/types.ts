@@ -55,6 +55,8 @@ export interface WidgetAppearance {
   caption?: string
   /** A checkbox or radio's `/MK /CA`: the ZapfDingbats character drawn when on. */
   checkStyle?: string
+  /** A checkbox or radio widget has its own on appearance: `/AP /N` holds its on state. */
+  onAppearance?: boolean
 }
 
 export type WidgetAction =
