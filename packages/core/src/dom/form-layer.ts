@@ -46,6 +46,7 @@ import type {
   WidgetOverride,
 } from '../model/form/types'
 import type { Rect } from '../model/geometry'
+import type { AppearanceLook } from '../pdfjs/widget-appearance'
 
 /** A signature field asked to be signed, anchored to its widget's box. */
 export interface SignFieldRequest {
@@ -187,6 +188,31 @@ export function hasControl(field: FormField): boolean {
 
 const isToggle = (field: FormField) => field.type === 'checkbox' || field.type === 'radio'
 
+/**
+ * The appearances PDF.js has for a widget, by the file's appearance states: none for a widget
+ * the file hides; a toggle's on and off looks where `/AP /N` holds them; any other widget's own
+ * where the file has an `/AP`.
+ */
+function expectedLooks(
+  field: FormField,
+  widget: FormWidget
+): ReadonlySet<AppearanceLook> {
+  const looks = new Set<AppearanceLook>()
+  if (
+    widget.hidden ||
+    widget.printOnly ||
+    widget.rect.width <= 0 ||
+    widget.rect.height <= 0
+  )
+    return looks
+  const a = widget.appearance
+  if (isToggle(field)) {
+    if (a.onAppearance) looks.add('checked')
+    if (a.offAppearance) looks.add('unchecked')
+  } else if (a.fileAppearance) looks.add('own')
+  return looks
+}
+
 interface Entry {
   field: FormField
   widget: FormWidget
@@ -259,10 +285,7 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
         id: e.widget.id,
         rect: e.widget.rect,
         toggle: isToggle(e.field),
-        expected:
-          !e.widget.hidden &&
-          !e.widget.printOnly &&
-          !(e.field.type === 'signature' && !e.field.signed),
+        expects: expectedLooks(e.field, e.widget),
       })),
       ...(opts.devicePixelRatio === undefined
         ? {}

@@ -2,6 +2,7 @@ import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { page as browserPage, userEvent } from 'vitest/browser'
 
+import { SCRATCH_BUDGET } from './form-appearance'
 import { createPageMount, type PageMount } from './page-mount'
 import { createPageRenderer } from './page-renderer'
 import { mountContainer, nextFrame, openFixtureInBrowser, until } from './test-utils'
@@ -431,6 +432,117 @@ describe('form layer', () => {
     await settled(p)
     const late = shownCanvas(p.host, id)!
     expect(Math.abs(parseFloat(late.style.width) - css.width)).toBeLessThanOrEqual(3)
+  })
+
+  it('does not report widgets the file draws nothing for', async () => {
+    const doc = await open('form-bare-appearances')
+    const t = createPageTransform(doc.pages[0]!, 1, 0)
+    const host = mountContainer(t.cssWidth, t.cssHeight)
+    const onError = vi.fn()
+    const mount = createPageMount({
+      document: doc,
+      page: 0,
+      host,
+      transform: t,
+      store: doc.annotations,
+      devicePixelRatio: 1,
+      onError,
+    })
+    cleanup.push(() => (mount.destroy(), host.remove()))
+    await mount.renderer.rendered
+    await mount.form!.rendered
+    // The checkbox off has no /Off look, and the text field no /AP: PDF.js has no run for
+    // either. Checking the box draws its on look.
+    const agree = doc.form.fields.get().find((f) => f.name === 'agree')!.widgets[0]!
+    await userEvent.click(controlOf(host, agree))
+    await mount.form!.rendered
+    await new Promise((resolve) => setTimeout(resolve, 700))
+    expect(onError).not.toHaveBeenCalled()
+    expect(shownCanvas(host, agree.id)?.dataset.inkLook).toBe('checked')
+  })
+
+  it('keeps each scratch canvas under its budget, one at a time, at high zoom', async () => {
+    const doc = await open('form-fields')
+    const page = await doc._pdfjs.getPage(0)
+    const render = page.render.bind(page)
+    const areas: number[] = []
+    let live = 0
+    let most = 0
+    vi.spyOn(page, 'render').mockImplementation((params) => {
+      const task = render(params)
+      if (params.canvas?.hasAttribute('data-ink-canvas')) return task
+      areas.push(params.canvas!.width * params.canvas!.height)
+      most = Math.max(most, ++live)
+      task.promise.then(
+        () => live--,
+        () => live--
+      )
+      return task
+    })
+    // At zoom 6 the page is 3672 by 4752 device px, 17M: its widgets span more than 4M.
+    const p = mountPage(doc, { zoom: 6 })
+    await settled(p)
+    expect(areas.length).toBeGreaterThan(3)
+    for (const area of areas) expect(area).toBeLessThanOrEqual(SCRATCH_BUDGET)
+    expect(most).toBe(1)
+    expect(shownCanvas(p.host, p.widgetOf('notes').id)).toBeDefined()
+  })
+
+  it('settles once the shown looks land, without waiting for idle work', async () => {
+    // The browser never goes idle.
+    vi.spyOn(window, 'requestIdleCallback').mockImplementation(() => 0)
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    await p.mount.renderer.rendered
+    const settledInTime = await Promise.race([
+      p.mount.form!.rendered.then(() => true),
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 2_000)),
+    ])
+    expect(settledInTime).toBe(true)
+    expect(shownCanvas(p.host, p.widgetOf('name').id)).toBeDefined()
+  })
+
+  it('touching widgets share a pass', async () => {
+    const doc = await open('form-fields')
+    const name = widgetsOf(doc, 'name')[0]!
+    // pin sits right under name, edge to edge, as table cells do.
+    const moved = doc.form.fields.get().map((f): FormField =>
+      f.name === 'pin'
+        ? {
+            ...f,
+            widgets: f.widgets.map((w) => ({
+              ...w,
+              rect: { ...w.rect, x: name.rect.x, y: name.rect.y - w.rect.height },
+            })),
+          }
+        : f
+    )
+    doc.form._load(moved, doc.form._tabs)
+    const renders = await watchRenders(doc)
+    const p = mountPage(doc)
+    await settled(p)
+    expect(renders.all()).toBeLessThanOrEqual(4)
+  })
+
+  it('draws a look again after its pass fails', async () => {
+    const doc = await open('form-fields')
+    const page = await doc._pdfjs.getPage(0)
+    const render = page.render.bind(page)
+    let failures = 0
+    vi.spyOn(page, 'render').mockImplementation((params) => {
+      const task = render(params)
+      if (params.canvas?.hasAttribute('data-ink-canvas') || failures > 0) return task
+      failures++
+      task.promise.catch(() => undefined)
+      task.cancel()
+      return {
+        promise: Promise.reject(new Error('broken')),
+        cancel: () => undefined,
+      } as unknown as typeof task
+    })
+    const p = mountPage(doc)
+    await until(() => shownCanvas(p.host, p.widgetOf('name').id) !== undefined, 5_000)
+    expect(failures).toBe(1)
   })
 
   it('reports a page whose widget appearances it cannot find', async () => {

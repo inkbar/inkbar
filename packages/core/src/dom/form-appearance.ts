@@ -4,10 +4,13 @@
 // The page canvas leaves form widgets out, and this layer draws their appearances apart from
 // it, on the page canvas's pixel grid, so together they look as PDF.js draws the whole page.
 // The widgets are drawn in batched passes: one render per look (the widgets' own appearances, a
-// toggle's checked ones, its unchecked ones) into a scratch canvas over all their rects, which
-// is then cut into one canvas per widget. Widgets that overlap go in a pass of their own, so
-// none picks up another's pixels. A checkbox or radio has both looks drawn, the one it does not
-// show when the browser is idle, and shows the one for its state. Showing, hiding or swapping
+// toggle's checked ones, its unchecked ones) into a scratch canvas over their rects, which is
+// then cut into one canvas per widget. Widgets whose rects overlap go in a pass of their own,
+// so none picks up another's pixels; touching ones share a pass, as PDF.js clips each
+// appearance to its rect. A pass's scratch canvas stays under a pixel budget, and a page runs
+// its passes one at a time, so one scratch canvas at most is alive per page. A checkbox or
+// radio has both looks drawn, the one it does not show when the browser is idle, and shows the
+// one for its state. Showing, hiding or swapping
 // an appearance paints nothing; only a new zoom, rotation or pixel ratio draws the shown
 // widgets again.
 //
@@ -32,10 +35,11 @@ export interface AppearanceWidget {
   /** A checkbox or radio, with an on and an off appearance. */
   toggle: boolean
   /**
-   * PDF.js should have an appearance for it: shown in the file and not an empty signature
-   * field. A pass that finds none of these reports an error.
+   * The looks PDF.js should have a run for, by the file's appearance states: shown in the file
+   * and with an appearance stream for the look. A pass that finds none of the widgets that
+   * expect its look reports an error.
    */
-  expected: boolean
+  expects: ReadonlySet<AppearanceLook>
 }
 
 export interface WidgetAppearancesOptions {
@@ -51,15 +55,15 @@ export interface WidgetAppearancesOptions {
   devicePixelRatio?: number
   /** A pass of appearances failed to render (cancellations are not reported). */
   onError?(error: unknown): void
-  /** Every appearance asked for has painted, with no failure since the last such call. */
+  /** Every look shown has painted, with no failure since the last such call. */
   onRendered?(): void
 }
 
 export interface WidgetAppearances {
   readonly element: HTMLElement
   /**
-   * Resolves once every pass asked for so far, idle ones included, has painted, failed or been
-   * superseded. Never rejects.
+   * Resolves once the looks shown so far have painted, failed or been superseded. A toggle's
+   * look it does not show is drawn later, when the browser is idle. Never rejects.
    */
   readonly rendered: Promise<void>
   /** Shows the widget's `look`, drawing it first if it is not drawn at the current geometry. */
@@ -69,8 +73,14 @@ export interface WidgetAppearances {
   destroy(): void
 }
 
-/** CSS px an appearance canvas reaches past its widget's rect, to keep its anti-aliased edge. */
+/** Device px an appearance canvas reaches past its widget's rect, for its anti-aliased edge. */
 const PAD = 1
+
+/** Device px a pass's scratch canvas may cover, unless one widget alone needs more. */
+export const SCRATCH_BUDGET = 4_000_000
+
+/** Failed draws of one look at one geometry before the layer stops retrying it. */
+const ATTEMPTS = 2
 
 type Look = AppearanceLook
 
@@ -81,11 +91,21 @@ interface Geometry {
   height: number
 }
 
+interface Member {
+  item: Item
+  /** The widget's canvas, padded. */
+  g: Geometry
+}
+
 interface Pass {
   key: string
+  look: Look
+  members: Member[]
   abort: AbortController
   /** Slots still waiting on this pass; at none it is aborted. */
   users: number
+  /** Draws a look a widget shows: `rendered` waits for it. */
+  shown: boolean
 }
 
 interface Slot {
@@ -96,6 +116,9 @@ interface Slot {
   /** Queued for, or being drawn by, a pass at the geometry `key`. */
   queued: string | undefined
   pending: Pass | undefined
+  /** Failed draws at the geometry `failedKey`. */
+  failedKey: string | undefined
+  failures: number
 }
 
 interface Item {
@@ -116,11 +139,40 @@ function release(canvas: HTMLCanvasElement): void {
   canvas.remove()
 }
 
+/**
+ * Whether two padded canvases' widget rects (the pads left off) overlap by more than the one
+ * device pixel that rects meeting edge to edge between pixels both cover.
+ */
 const overlaps = (a: Geometry, b: Geometry) =>
-  a.x < b.x + b.width &&
-  b.x < a.x + a.width &&
-  a.y < b.y + b.height &&
-  b.y < a.y + a.height
+  a.x + PAD + 1 < b.x + b.width - PAD &&
+  b.x + PAD + 1 < a.x + a.width - PAD &&
+  a.y + PAD + 1 < b.y + b.height - PAD &&
+  b.y + PAD + 1 < a.y + a.height - PAD
+
+const union = (members: readonly Member[]): Geometry => {
+  const x = Math.min(...members.map((m) => m.g.x))
+  const y = Math.min(...members.map((m) => m.g.y))
+  const right = Math.max(...members.map((m) => m.g.x + m.g.width))
+  const bottom = Math.max(...members.map((m) => m.g.y + m.g.height))
+  return { x, y, width: right - x, height: bottom - y }
+}
+
+/** Splits members, top to bottom, into runs whose union stays within the scratch budget. */
+function chunks(members: Member[]): Member[][] {
+  const sorted = [...members].sort((a, b) => a.g.y - b.g.y || a.g.x - b.g.x)
+  const out: Member[][] = []
+  let run: Member[] = []
+  for (const m of sorted) {
+    const next = [...run, m]
+    const u = union(next)
+    if (run.length > 0 && u.width * u.height > SCRATCH_BUDGET) {
+      out.push(run)
+      run = [m]
+    } else run = next
+  }
+  if (run.length > 0) out.push(run)
+  return out
+}
 
 /** The widget appearances of one page. */
 export function createWidgetAppearances(
@@ -152,6 +204,7 @@ export function createWidgetAppearances(
     items.set(widget.id, { widget, box, slots: new Map(), shown: null })
   }
 
+  // Work on shown looks: `rendered` and `onRendered` wait for it, not for idle work.
   let busy = 0
   let failed = false
   let resolveBusy: (() => void) | undefined
@@ -171,10 +224,10 @@ export function createWidgetAppearances(
   /** The widget's canvas rect now, in device pixels of the page canvas. */
   const geometry = (w: AppearanceWidget): Geometry => {
     const r = transform.toCssRect(w.rect)
-    const x = Math.floor((r.left - PAD) * dpr)
-    const y = Math.floor((r.top - PAD) * dpr)
-    const width = Math.max(1, Math.ceil((r.left + r.width + PAD) * dpr) - x)
-    const height = Math.max(1, Math.ceil((r.top + r.height + PAD) * dpr) - y)
+    const x = Math.floor(r.left * dpr) - PAD
+    const y = Math.floor(r.top * dpr) - PAD
+    const width = Math.max(1, Math.ceil((r.left + r.width) * dpr) + PAD - x)
+    const height = Math.max(1, Math.ceil((r.top + r.height) * dpr) + PAD - y)
     return { x, y, width, height }
   }
 
@@ -195,6 +248,8 @@ export function createWidgetAppearances(
         rotation: undefined,
         queued: undefined,
         pending: undefined,
+        failedKey: undefined,
+        failures: 0,
       }
       item.slots.set(look, slot)
     }
@@ -247,6 +302,7 @@ export function createWidgetAppearances(
     const slot = slotOf(item, look)
     if (slot.key === key && slot.canvas) return
     if (slot.pending?.key === key) return
+    if (slot.failedKey === key && slot.failures >= ATTEMPTS) return
     if (slot.queued === key && (!urgent || soon.get(look)?.has(item))) return
     if (slot.pending) drop(slot)
     slot.queued = key
@@ -264,11 +320,9 @@ export function createWidgetAppearances(
         end()
       })
     } else if (!urgent && !idleHandle) {
-      begin()
       idleHandle = idle(() => {
         idleHandle = undefined
         flush(later)
-        end()
       })
     }
   }
@@ -277,7 +331,11 @@ export function createWidgetAppearances(
     wantedOf(item).forEach((look, i) => request(item, look, i === 0))
   }
 
-  /** Starts a pass per look for the widgets queued in `queue`. */
+  // Passes waiting to run, and the one running: one scratch canvas at a time.
+  const jobs: Pass[] = []
+  let running = false
+
+  /** Queues a pass per look, per group of widgets that do not overlap, for `queue`. */
   const flush = (queue: Map<Look, Set<Item>>) => {
     if (destroyed) return
     for (const [look, set] of queue) {
@@ -288,108 +346,158 @@ export function createWidgetAppearances(
       )
       set.clear()
       idleToo?.clear()
-      // Widgets whose canvases overlap go in separate passes.
-      const groups: { item: Item; g: Geometry }[][] = []
+      const groups: Member[][] = []
       for (const item of ready) {
         const g = geometry(item.widget)
         const group = groups.find((members) => members.every((m) => !overlaps(m.g, g)))
         if (group) group.push({ item, g })
         else groups.push([{ item, g }])
       }
-      for (const group of groups) startPass(look, group)
+      for (const group of groups)
+        for (const members of chunks(group)) {
+          const pass: Pass = {
+            key,
+            look,
+            members,
+            abort: new AbortController(),
+            users: members.length,
+            shown: members.some((m) => m.item.shown === look),
+          }
+          for (const { item } of members) slotOf(item, look).pending = pass
+          if (pass.shown) {
+            begin()
+            // Shown looks go before idle work already waiting.
+            const at = jobs.findIndex((j) => !j.shown)
+            jobs.splice(at < 0 ? jobs.length : at, 0, pass)
+          } else jobs.push(pass)
+        }
     }
     queue.clear()
+    pump()
   }
 
-  const startPass = (look: Look, members: { item: Item; g: Geometry }[]) => {
-    const x = Math.min(...members.map((m) => m.g.x))
-    const y = Math.min(...members.map((m) => m.g.y))
-    const right = Math.max(...members.map((m) => m.g.x + m.g.width))
-    const bottom = Math.max(...members.map((m) => m.g.y + m.g.height))
+  const pump = () => {
+    if (running || destroyed) return
+    const pass = jobs.shift()
+    if (!pass) return
+    running = true
+    void run(pass).finally(() => {
+      running = false
+      if (pass.shown) end()
+      pump()
+    })
+  }
+
+  const fail = (pass: Pass, error: unknown) => {
+    for (const { item } of pass.members) {
+      const slot = slotOf(item, pass.look)
+      if (slot.failedKey !== pass.key) slot.failures = 0
+      slot.failedKey = pass.key
+      slot.failures++
+    }
+    if (pass.shown) failed = true
+    opts.onError?.(error)
+    // Try once more; a look that keeps failing waits for a new geometry.
+    for (const { item } of pass.members)
+      if (wantedOf(item).includes(pass.look)) request(item, pass.look, false)
+  }
+
+  const run = async (pass: Pass): Promise<void> => {
+    const { look, members } = pass
+    if (pass.abort.signal.aborted || pass.key !== key) {
+      for (const { item } of members) {
+        const slot = slotOf(item, look)
+        if (slot.pending === pass) drop(slot)
+      }
+      // Dropped for a new geometry: the widgets that still want the look ask again.
+      for (const { item } of members) ensure(item)
+      return
+    }
+    const u = union(members)
     const scratch = ownerDoc.createElement('canvas')
-    scratch.width = right - x
-    scratch.height = bottom - y
-    const pass: Pass = { key, abort: new AbortController(), users: members.length }
+    scratch.width = u.width
+    scratch.height = u.height
     const rotation = transform.totalRotation
-    for (const { item } of members) slotOf(item, look).pending = pass
-    begin()
-    renderAppearances(
-      doc,
-      {
-        page,
-        look,
-        ids: new Set(members.map((m) => m.item.widget.id)),
-        canvas: scratch,
-        zoom: transform.zoom,
-        rotation,
-        devicePixelRatio: dpr,
-        x,
-        y,
-      },
-      pass.abort.signal
-    )
-      .then((found) => {
-        if (destroyed) return
-        for (const { item, g } of members) {
-          const slot = slotOf(item, look)
-          // Superseded, no longer wanted, or drawn for a geometry that has since changed.
-          if (slot.pending !== pass) continue
+    try {
+      const found = await renderAppearances(
+        doc,
+        {
+          page,
+          look,
+          ids: new Set(members.map((m) => m.item.widget.id)),
+          canvas: scratch,
+          zoom: transform.zoom,
+          rotation,
+          devicePixelRatio: dpr,
+          x: u.x,
+          y: u.y,
+        },
+        pass.abort.signal
+      )
+      if (destroyed) return
+      for (const { item, g } of members) {
+        const slot = slotOf(item, look)
+        // Superseded, no longer wanted, or drawn for a geometry that has since changed.
+        if (slot.pending !== pass) continue
+        slot.pending = undefined
+        slot.queued = undefined
+        if (pass.key !== key) {
+          ensure(item)
+          continue
+        }
+        const canvas = ownerDoc.createElement('canvas')
+        canvas.setAttribute('aria-hidden', 'true')
+        canvas.dataset.inkLook = look
+        canvas.width = g.width
+        canvas.height = g.height
+        canvas.style.cssText = 'position:absolute;'
+        place(canvas, g)
+        canvas
+          .getContext('2d')
+          ?.drawImage(
+            scratch,
+            g.x - u.x,
+            g.y - u.y,
+            g.width,
+            g.height,
+            0,
+            0,
+            g.width,
+            g.height
+          )
+        if (slot.canvas) release(slot.canvas)
+        slot.canvas = canvas
+        slot.key = pass.key
+        slot.rotation = rotation
+        slot.failures = 0
+        item.box.append(canvas)
+        applyShown(item)
+      }
+      const expecting = members.filter((m) => m.item.widget.expects.has(look))
+      if (expecting.length > 0 && expecting.every((m) => !found.has(m.item.widget.id)))
+        fail(
+          pass,
+          new Error(
+            `Page ${page + 1}: no form widget appearances found in the page's operator list`
+          )
+        )
+    } catch (error) {
+      for (const { item } of members) {
+        const slot = slotOf(item, look)
+        if (slot.pending === pass) {
           slot.pending = undefined
           slot.queued = undefined
-          if (pass.key !== key) continue
-          const canvas = ownerDoc.createElement('canvas')
-          canvas.setAttribute('aria-hidden', 'true')
-          canvas.dataset.inkLook = look
-          canvas.width = g.width
-          canvas.height = g.height
-          canvas.style.cssText = 'position:absolute;'
-          place(canvas, g)
-          canvas
-            .getContext('2d')
-            ?.drawImage(
-              scratch,
-              g.x - x,
-              g.y - y,
-              g.width,
-              g.height,
-              0,
-              0,
-              g.width,
-              g.height
-            )
-          if (slot.canvas) release(slot.canvas)
-          slot.canvas = canvas
-          slot.key = pass.key
-          slot.rotation = rotation
-          item.box.append(canvas)
-          applyShown(item)
         }
-        const expected = members.filter((m) => m.item.widget.expected)
-        if (expected.length > 0 && expected.every((m) => !found.has(m.item.widget.id))) {
-          failed = true
-          opts.onError?.(
-            new Error(
-              `Page ${page + 1}: no form widget appearances found in the page's operator list`
-            )
-          )
-        }
-      })
-      .catch((error: unknown) => {
-        for (const { item } of members) {
-          const slot = slotOf(item, look)
-          if (slot.pending === pass) {
-            slot.pending = undefined
-            slot.queued = undefined
-          }
-        }
-        if (destroyed || (pass.abort.signal.aborted && isAbort(error))) return
-        failed = true
-        opts.onError?.(error)
-      })
-      .finally(() => {
-        release(scratch)
-        end()
-      })
+      }
+      if (destroyed) return
+      if (pass.abort.signal.aborted && isAbort(error)) {
+        for (const { item } of members) ensure(item)
+        return
+      }
+      fail(pass, error)
+    } finally {
+      release(scratch)
+    }
   }
 
   // Draw again when the device pixel ratio changes, unless the caller fixed it.
@@ -406,11 +514,14 @@ export function createWidgetAppearances(
     },
     show(id, look) {
       const item = items.get(id)
-      if (destroyed || !item || item.shown === look) return
-      item.shown = look
-      const wanted = new Set(wantedOf(item))
-      for (const [l, slot] of item.slots) if (!wanted.has(l)) drop(slot)
-      applyShown(item)
+      if (destroyed || !item) return
+      if (item.shown !== look) {
+        item.shown = look
+        const wanted = new Set(wantedOf(item))
+        for (const [l, slot] of item.slots) if (!wanted.has(l)) drop(slot)
+        applyShown(item)
+      }
+      // Also after a pass failed or was dropped: a look drawn or on its way asks for nothing.
       ensure(item)
     },
     update(next) {
@@ -446,8 +557,8 @@ export function createWidgetAppearances(
       destroyed = true
       dprWatch?.destroy()
       idleHandle?.()
-      if (idleHandle) end()
       idleHandle = undefined
+      for (const pass of jobs.splice(0)) if (pass.shown) end()
       for (const item of items.values())
         for (const slot of item.slots.values()) {
           slot.pending?.abort.abort()
