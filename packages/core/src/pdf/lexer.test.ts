@@ -54,6 +54,18 @@ describe('parseValue', () => {
     expect(s).toEqual({ kind: 'string', bytes: b('a\nbAc\\') })
   })
 
+  it('normalises CR and CRLF line ends in literal strings to LF', () => {
+    expect(parseValue(b('(a\r\nb\rc\nd)'), 0).value).toEqual({
+      kind: 'string',
+      bytes: b('a\nb\nc\nd'),
+    })
+    // An escaped \r stays a CR.
+    expect(parseValue(b('(a\\rb)'), 0).value).toEqual({
+      kind: 'string',
+      bytes: b('a\rb'),
+    })
+  })
+
   it('decodes text strings', () => {
     const utf16 = Uint8Array.from([0xfe, 0xff, 0x00, 0xa3, 0x00, 0x31])
     expect(textString({ kind: 'string', bytes: utf16 })).toBe('£1')
@@ -61,6 +73,9 @@ describe('parseValue', () => {
     expect(textString({ kind: 'string', bytes: utf8 })).toBe('£')
     expect(textString({ kind: 'string', bytes: Uint8Array.from([0x41, 0x84]) })).toBe(
       'A—'
+    )
+    expect(textString({ kind: 'string', bytes: Uint8Array.from([0xa0, 0x35]) })).toBe(
+      '€5'
     )
     expect(textString({ kind: 'name', name: 'x' })).toBeUndefined()
   })
