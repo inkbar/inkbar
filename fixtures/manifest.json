@@ -5,6 +5,12 @@
     "opens": true,
     "describes": "Three Letter pages of Helvetica text, no annotations"
   },
+  "text-search": {
+    "file": "text-search.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Search cases: split-font word, hyphenated line break, accents, curly quotes, two columns"
+  },
   "text-rotated-90": {
     "file": "text-rotated-90.pdf",
     "pages": 1,

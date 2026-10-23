@@ -24,6 +24,7 @@ import { InkError, isInkError } from './errors'
 import { createPageCache, type PageCache } from './page-cache'
 import { pageInfoFromProxy, type PageInfo } from './pages'
 import { readonly, writable, type Readable } from './readable'
+import { searchableText } from './search-text'
 import { resolveSource, type DocumentSource } from './source'
 import { textContentFromPdfjs, type TextContent } from './text'
 
@@ -252,7 +253,7 @@ export async function openDocument(
       return textContentFromPdfjs(page, await p.getTextContent())
     },
     async pageText(page) {
-      return (await doc.text(page)).items.map((item) => item.str).join(' ')
+      return searchableText(await doc.text(page)).raw
     },
     annotations: store,
     embedded,

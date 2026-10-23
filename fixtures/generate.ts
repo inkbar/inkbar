@@ -10,6 +10,7 @@ import {
   PDFNumber,
   PDFRef as PDFRefClass,
   PDFString,
+  StandardFonts,
   degrees,
   rgb,
   type PDFContext,
@@ -68,6 +69,40 @@ async function textSimple() {
     pages: 3,
     opens: true,
     describes: 'Three Letter pages of Helvetica text, no annotations',
+  })
+}
+
+async function textSearch() {
+  const { d, font } = await doc()
+  const bold = await d.embedFont(StandardFonts.HelveticaBold)
+  const page = d.addPage([612, 792])
+  const size = 14
+  // "Invoice" in two fonts, the second run starting exactly where the first ends.
+  page.drawText('Inv', { x: 72, y: 700, size, font })
+  page.drawText('oice', {
+    x: 72 + font.widthOfTextAtSize('Inv', size),
+    y: 700,
+    size,
+    font: bold,
+  })
+  page.drawText('A long docu-', { x: 72, y: 676, size, font })
+  page.drawText('ment ends here.', { x: 72, y: 660, size, font })
+  page.drawText('caf\u00e9 cr\u00e8me', { x: 72, y: 636, size, font })
+  page.drawText('\u201cquoted\u201d and \u2018single\u2019', {
+    x: 72,
+    y: 612,
+    size,
+    font,
+  })
+  page.drawText('left column', { x: 72, y: 560, size, font })
+  page.drawText('right column', { x: 320, y: 560, size, font })
+  page.drawText('left second line', { x: 72, y: 544, size, font })
+  page.drawText('right second line', { x: 320, y: 544, size, font })
+  return save('text-search', d, {
+    pages: 1,
+    opens: true,
+    describes:
+      'Search cases: split-font word, hyphenated line break, accents, curly quotes, two columns',
   })
 }
 
@@ -760,6 +795,7 @@ async function scannedNoText() {
 async function main() {
   mkdirSync(out, { recursive: true })
   const simple = await textSimple()
+  await textSearch()
   await textRotated(90)
   await textRotated(180)
   await textRotated(270)
