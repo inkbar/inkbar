@@ -173,14 +173,17 @@ export type FormAction =
   | { kind: 'prompt'; message: string }
 
 /**
- * What changed the values reported to a controlled host, and the fields it changed. A
- * controlled document keeps no undo history, so no change comes from undo or redo.
+ * What changed the values reported to a controlled host, and the fields it changed. Undo
+ * history needs uncontrolled fields and annotations, so a controlled host never hears of an
+ * undo or redo, and no change has a `history` kind.
  *
  * - `commit`: a person, `set` or a signature committed values; `names` lists the fields
  *   committed, including fields a calculation changed.
- * - `reset`: a reset (the API's or a reset button's) restored defaults.
+ * - `reset`: a reset (the API's or a reset button's) restored defaults, with what it
+ *   calculated.
  * - `import`: a Gloss import set values.
- * - `calculate`: a script set values outside a commit, or calculated after a host's push.
+ * - `calculate`: a script set values outside a commit or reset (a timer, a page's open or close
+ *   script, a widget's event script), or calculated after a host's push.
  */
 export type FieldsChange =
   | { kind: 'commit'; names: string[] }
