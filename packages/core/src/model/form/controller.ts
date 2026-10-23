@@ -36,13 +36,18 @@ export interface FormController {
   readonly formatted: Readable<Readonly<Record<string, string>>>
   /** Script-driven widget state: hidden, readOnly, required, colours, by widget id. */
   readonly widgetState: Readable<Readonly<Record<string, WidgetOverride>>>
+  /**
+   * Whether the form has JavaScript: a widget's scripts, or document-level or page scripts
+   * running in the sandbox.
+   */
   readonly hasScripts: boolean
   get(name: string): FieldValue | undefined
   /**
    * Commits `values` as a person would: each runs its validate and calculate scripts, and the
    * whole call is one undo step. A value that is unknown, read-only, invalid for the field or
    * rejected by a script is left out and listed in `rejected`. In controlled mode the full map
-   * is reported once afterwards.
+   * is reported once afterwards, as a `commit` naming the fields set and the fields a
+   * calculation changed.
    */
   set(values: FieldValues): FormSetResult
   /**
@@ -59,7 +64,11 @@ export interface FormController {
   setControlledValue(next: FieldValues): void
   on(event: 'action', fn: (a: FormAction) => void): () => void
   on(event: 'alert', fn: (message: string) => void): () => void
-  /** A script failed. The document keeps working; the form layer shows or logs it. */
+  /**
+   * A script failed. The document keeps working; the form layer shows or logs it. Errors from
+   * before the first listener (a sandbox that failed to start while the document opened) go to
+   * that listener once, as it subscribes.
+   */
   on(event: 'error', fn: (e: InkError) => void): () => void
   /** A script asked to move focus to this widget (by id). */
   on(event: 'focus', fn: (widgetId: string) => void): () => void
@@ -222,6 +231,8 @@ export function createFormController(opts: FormControllerOptions): FormControlle
     focus: string
     goto: number
   }>()
+  /** Errors reported before anything listened for them; `undefined` once something has. */
+  let unheard: InkError[] | undefined = []
   /** How many changes are running whose values are reported when they finish. */
   let depth = 0
   /** Text typed into a widget and not yet committed, by widget id. */
@@ -262,9 +273,9 @@ export function createFormController(opts: FormControllerOptions): FormControlle
     else
       for (const id of [...change.added, ...change.updated, ...change.removed])
         dropPending(id)
+    // Only an uncontrolled document has undo history, so no controlled host hears of this.
     if (change.kind !== 'replace' || change.reason !== 'history') return
     within(() => scripting?.sync(current(), false))
-    if (controlled) controlled.onChange(current(), { kind: 'history' })
   })
 
   /** Writes one value (none removes it), skipping one equal to what is stored. */
@@ -463,7 +474,10 @@ export function createFormController(opts: FormControllerOptions): FormControlle
     formatted: readonly(formatted),
     widgetState: readonly(widgetState),
     get hasScripts() {
-      return fields.get().some((f) => f.widgets.some((w) => w.hasScripts))
+      return (
+        scripting !== undefined ||
+        fields.get().some((f) => f.widgets.some((w) => w.hasScripts))
+      )
     },
     get: (name) => store.get(name)?.value,
     set(next) {
@@ -489,7 +503,10 @@ export function createFormController(opts: FormControllerOptions): FormControlle
             result.applied.push(name)
           }
         },
-        () => ({ kind: 'commit', names: result.applied })
+        (changedNames) => ({
+          kind: 'commit',
+          names: [...new Set([...result.applied, ...changedNames])],
+        })
       )
       return result
     },
@@ -528,10 +545,16 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       event: 'action' | 'alert' | 'error' | 'focus' | 'goto',
       fn: (payload: never) => void
     ) {
-      return emitter.on(
+      const stop = emitter.on(
         event,
         fn as (payload: FormAction | string | InkError | number) => void
       )
+      if (event === 'error' && unheard) {
+        const early = unheard
+        unheard = undefined
+        for (const e of early) (fn as (e: InkError) => void)(e)
+      }
+      return stop
     },
     _store: store,
     _attachScripting(s) {
@@ -599,7 +622,8 @@ export function createFormController(opts: FormControllerOptions): FormControlle
     _error(e) {
       if (destroyed) return
       opts.onError(e)
-      emitter.emit('error', e)
+      if (unheard) unheard.push(e)
+      else emitter.emit('error', e)
     },
     _alert(message) {
       if (!destroyed) emitter.emit('alert', message)
@@ -689,6 +713,7 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       destroyed = true
       for (const stop of unlink.splice(0)) stop()
       awaiting.clear()
+      unheard = undefined
       scripting?.destroy()
       scripting = undefined
       emitter.clear()

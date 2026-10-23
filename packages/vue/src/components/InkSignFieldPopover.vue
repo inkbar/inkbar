@@ -4,7 +4,7 @@
  * to its box. It lists the saved signatures and "Create signature", as `InkSignatureMenu`
  * does. Picking one signs the field with it (`signField`); a signature made in
  * `InkSignatureDialog` signs the field once saved, without picking the signature tool. Focus
- * returns to the field. InkViewport mounts it; hosts compose nothing.
+ * returns to the field. InkViewport mounts it, one per document; hosts compose nothing.
  */
 import { InkError, signField, type SignatureTemplate } from '@inkbar/core'
 import {
@@ -13,7 +13,7 @@ import {
   signatureMenuModel,
 } from '@inkbar/core/dom'
 import { PopoverContent, PopoverPortal, PopoverRoot } from 'reka-ui'
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, shallowRef } from 'vue'
 
 import { useInkContext } from '../context'
 import { useReadable } from '../use-readable'
@@ -21,6 +21,7 @@ import { useReadable } from '../use-readable'
 import InkSignatureDialog from './InkSignatureDialog.vue'
 import SignatureMenuPanel from './SignatureMenuPanel.vue'
 
+import type { InkDocument } from '@inkbar/core'
 import type { SignFieldRequest } from '@inkbar/core/dom'
 
 const props = defineProps<{
@@ -36,8 +37,8 @@ const templates = useReadable(() => ctx.signatures.value.templates, NO_TEMPLATES
 // No signature is "chosen" here: each signing picks its own.
 const model = computed(() => signatureMenuModel(templates.value, {}))
 const open = computed(() => props.request !== null)
-/** The field the dialog signs once its signature is saved. */
-const creatingFor = ref<SignFieldRequest | null>(null)
+/** The field the dialog signs once its signature is saved, and the document it is in. */
+const creatingFor = shallowRef<{ req: SignFieldRequest; doc: InkDocument } | null>(null)
 const creating = computed({
   get: () => creatingFor.value !== null,
   set: (next) => {
@@ -48,14 +49,19 @@ const creating = computed({
 let last: SignFieldRequest | null = null
 /** Set while the menu closes for the dialog, which takes focus instead of the field. */
 let toDialog = false
+/** Cleared on unmount, so a dialog save that settles after the document went signs nothing. */
+let alive = true
+onBeforeUnmount(() => {
+  alive = false
+})
 
 const control = (req: SignFieldRequest | null): HTMLElement | null =>
   req?.anchor.querySelector<HTMLElement>('button.ink-form-control') ?? null
 
 /** Signs the request's field with `t`; a refusal (signed, read-only by now) goes to `error`. */
-function sign(req: SignFieldRequest, t: SignatureTemplate): void {
-  const doc = ctx.document.value
-  if (!doc) return
+function sign(req: SignFieldRequest, doc: InkDocument, t: SignatureTemplate): void {
+  // The document the request came from is still the open one.
+  if (!alive || ctx.document.value !== doc) return
   try {
     signField(doc, req.field, req.widget, t)
   } catch (e) {
@@ -66,19 +72,32 @@ function sign(req: SignFieldRequest, t: SignatureTemplate): void {
 
 function choose(t: SignatureTemplate): void {
   const req = props.request
+  const doc = ctx.document.value
   emit('close')
-  if (req) sign(req, t)
+  if (req && doc) sign(req, doc, t)
 }
 
 function create(): void {
+  const req = props.request
+  const doc = ctx.document.value
+  if (!req || !doc) return
   toDialog = true
-  creatingFor.value = props.request
+  creatingFor.value = { req, doc }
   emit('close')
 }
 
 function onSaved(t: SignatureTemplate): void {
-  const req = creatingFor.value
-  if (req) sign(req, t)
+  const c = creatingFor.value
+  if (c) sign(c.req, c.doc, t)
+}
+
+/**
+ * A press on this field's own button toggles the menu through the engine; it must not also
+ * close it here first, or the click would open it again.
+ */
+function onInteractOutside(e: CustomEvent<{ originalEvent: Event }>): void {
+  const target = e.detail.originalEvent.target
+  if (target instanceof Node && props.request?.anchor.contains(target)) e.preventDefault()
 }
 
 function onOpenAutoFocus(e: Event): void {
@@ -128,6 +147,7 @@ const menuAttrs = { 'aria-label': SIGNATURE_LABELS.menu }
         v-bind="menuAttrs"
         @open-auto-focus="onOpenAutoFocus"
         @close-auto-focus="onCloseAutoFocus"
+        @interact-outside="onInteractOutside"
       >
         <SignatureMenuPanel :items="model.items" @choose="choose" @create="create" />
       </PopoverContent>

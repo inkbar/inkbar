@@ -648,8 +648,6 @@ export const FORM_LABELS = {
   sign: 'Sign',
   /** Its tooltip, and the start of its accessible name. */
   signField: 'Sign this field',
-  /** A control that clears a signed field, removing its signature. */
-  clearSignature: 'Clear signature',
   /** The title of the dialog a form's script message shows in. */
   alert: 'Message',
   ok: 'OK',

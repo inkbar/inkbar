@@ -196,6 +196,23 @@ describe('FormController', () => {
     expect(fn).toHaveBeenCalledWith(e)
   })
 
+  it('replays errors from before the first listener to it once', () => {
+    const form = controller()
+    const early = new InkError('FormScriptError', 'early')
+    form._error(early)
+    const first = vi.fn()
+    const second = vi.fn()
+    form.on('error', first)
+    form.on('error', second)
+    expect(first).toHaveBeenCalledTimes(1)
+    expect(first).toHaveBeenCalledWith(early)
+    expect(second).not.toHaveBeenCalled()
+    const late = new InkError('FormScriptError', 'late')
+    form._error(late)
+    expect(first).toHaveBeenLastCalledWith(late)
+    expect(second).toHaveBeenCalledWith(late)
+  })
+
   it('emits actions', () => {
     const form = controller()
     const fn = vi.fn()
@@ -218,8 +235,10 @@ describe('FormController', () => {
       pageEvent: vi.fn(() => Promise.resolve()),
       destroy: vi.fn(),
     }
-    form._attachScripting(scripting)
+    // form-fields has no widget scripts; a sandbox running document scripts counts.
     expect(form.hasScripts).toBe(false)
+    form._attachScripting(scripting)
+    expect(form.hasScripts).toBe(true)
     expect(form.set({ name: 'Ada', notes: 'n' })).toEqual({
       applied: ['name'],
       rejected: [{ name: 'notes', reason: 'script' }],

@@ -1,7 +1,8 @@
 <script lang="ts">
   /*
-   * The document keeps its own annotations and undo history. The page owns the form's values
-   * (bind:fields) and hears the form's requests (onformaction), which the Form panel lists.
+   * The document keeps its own annotations, form values and undo history, so Undo covers field
+   * edits too. The page follows the form's values (`doc.form.values`) for the Gloss view and
+   * hears the form's requests (onformaction), which the Form panel lists.
    * The toolbars are built from Inkbar's components, so each control is yours to keep, move or
    * drop. Pass a button your own icon to replace the one it shows. Suggest redactions is a
    * plugin (src/plugin/suggestions.ts): registered in `plugins`, with its button placed by
@@ -41,18 +42,24 @@
   import { glossFields, logAction, type LoggedAction } from '../shared/form'
   import { signatureFonts, signatures } from '../shared/signatures'
 
-  import type { DocumentSource, FieldValues, FormAction, InkDocument } from '@inkbar/core'
+  import type { DocumentSource, FormAction, InkDocument } from '@inkbar/core'
 
   let { source }: { source: DocumentSource } = $props()
 
-  let doc: InkDocument | null = null
-  let fields = $state.raw<FieldValues>({})
+  let doc = $state.raw<InkDocument | null>(null)
   let actions = $state<LoggedAction[]>([])
   let gloss = $state('')
 
+  // The Gloss view follows each change to the open document's values.
+  $effect(() => {
+    const d = doc
+    if (!d) return
+    gloss = glossFields(d)
+    return d.form.values.subscribe(() => (gloss = glossFields(d)))
+  })
+
   function onReady(d: InkDocument): void {
     doc = d
-    gloss = glossFields(d)
   }
 
   function onformaction(a: FormAction): void {
@@ -66,8 +73,6 @@
   {signatures}
   {signatureFonts}
   plugins={[suggestionsPlugin()]}
-  bind:fields
-  onFieldsChange={() => (gloss = glossFields(doc))}
   {onformaction}
   {onReady}
   class="demo-root"

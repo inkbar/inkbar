@@ -60,6 +60,19 @@ for (const framework of FRAMEWORKS) {
       await expect(field(page, 6, 'extra')).toBeVisible()
     })
 
+    test('Undo takes back a field edit, and the panel follows', async ({ page }) => {
+      await open(page, framework)
+      await goToPage(page, 5)
+      const name = field(page, 5, 'name').locator('input')
+      const before = await name.inputValue()
+      await name.fill('Robin Hale')
+      await name.press('Enter')
+      await expect(gloss(page)).toContainText('"name": "Robin Hale"')
+      await page.getByRole('button', { name: 'Undo', exact: true }).click()
+      await expect(name).toHaveValue(before)
+      await expect(gloss(page)).not.toContainText('Robin Hale')
+    })
+
     test('the panel shows actions and Gloss fields', async ({ page }) => {
       await open(page, framework)
       await expect(actions(page)).toHaveCount(0)

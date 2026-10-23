@@ -31,7 +31,7 @@ import InkPage from './InkPage.vue'
 import InkSignFieldPopover from './InkSignFieldPopover.vue'
 
 import type { AnnotationSlotProps } from './annotation-slot'
-import type { InkError } from '@inkbar/core'
+import type { InkDocument, InkError } from '@inkbar/core'
 import type {
   LayoutMode,
   PageMount,
@@ -76,6 +76,19 @@ interface MountedPage {
   /** Whether the build that mounted the page renders the annotation slot. */
   custom: boolean
 }
+/** A key per document, so the field menu and its dialog start afresh for each one. */
+const documentKeys = new WeakMap<InkDocument, number>()
+let documentKeyCount = 0
+function documentKey(doc: InkDocument | null): number {
+  if (!doc) return 0
+  let key = documentKeys.get(doc)
+  if (key === undefined) {
+    key = ++documentKeyCount
+    documentKeys.set(doc, key)
+  }
+  return key
+}
+
 /** Page hosts, mounts and errors the engine reported; InkPage renders Teleports for them. */
 const pages = shallowRef<MountedPage[]>([])
 
@@ -164,7 +177,10 @@ function setup(): void {
     ...(ctx.formHighlight.value === undefined
       ? {}
       : { formHighlight: ctx.formHighlight.value }),
-    onSignField: (req) => (signRequest.value = req),
+    // The field's own button again, while its menu is open, closes the menu.
+    onSignField: (req) => {
+      signRequest.value = signRequest.value?.widget === req.widget ? null : req
+    },
     onFormAction: (a) => ctx.reportFormAction(a),
     onFormAlert: (message) => {
       alertMessage.value = message
@@ -325,7 +341,12 @@ onBeforeUnmount(() => {
         <slot name="page-error" v-bind="slotProps" />
       </template>
     </InkPage>
-    <InkSignFieldPopover :request="signRequest" @close="signRequest = null" />
+    <!-- Keyed by document, so the menu and its dialog start afresh for each one. -->
+    <InkSignFieldPopover
+      :key="documentKey(ctx.document.value)"
+      :request="signRequest"
+      @close="signRequest = null"
+    />
     <InkFormAlert
       :message="alertMessage"
       :shown="alertsShown"

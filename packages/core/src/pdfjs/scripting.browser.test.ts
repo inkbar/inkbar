@@ -476,6 +476,21 @@ describe('fix round', () => {
     expect(form.get('total')).toBe('5')
   })
 
+  it('keeps a committed date as typed', async () => {
+    const { form } = await open('form-scripted')
+    expect(form.set({ when: '25/12/2026' }).applied).toEqual(['when'])
+    expect(form.get('when')).toBe('25/12/2026')
+    expect(form.formatted.get().when).toBe('25/12/2026')
+  })
+
+  it('keeps the radio chosen from two that share an export value', async () => {
+    const { form } = await open('form-shared-scripted')
+    expect(form.set({ shared: '1' }).applied).toEqual(['shared'])
+    expect(form.get('shared')).toBe('1')
+    expect(form.set({ shared: '0' }).applied).toEqual(['shared'])
+    expect(form.get('shared')).toBe('0')
+  })
+
   it('a document without fields or scripts loads nothing', async () => {
     const first = await open('form-fields')
     const proto = Object.getPrototypeOf(first._pdfjs.proxy) as PdfjsDocument

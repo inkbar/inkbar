@@ -7,7 +7,7 @@ import FormHarness from '../../playwright/harness/FormHarness.vue'
 import type { Locator, Page } from '@playwright/test'
 
 const assets = browserAssets()
-guardConsole(test)
+const guard = guardConsole(test)
 
 const PNG =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAABCAYAAAAb4BS0AAAADklEQVR4nGP4z8DwH4YBJuYF+2EsXwgAAAAASUVORK5CYII='
@@ -123,6 +123,24 @@ test('a form script error reaches error', async ({ mount, page }) => {
   await expect.poll(() => errors.map((e) => e.code)).toEqual(['FormScriptError'])
 })
 
+test('a sandbox that fails while the document opens reaches error', async ({
+  mount,
+  page,
+}) => {
+  // The error crosses to the test as a plain `Error`, so its message stands for its code.
+  const errors: string[] = []
+  // Without the sandbox's engine, the scripts cannot start.
+  await mount(FormHarness, {
+    props: { src: fixtureUrl('form-scripted'), assets: { ...assets, wasm: '/missing/' } },
+    on: { error: (e: Error) => errors.push(e.message) },
+  })
+  await expect(widget(page, 'hello')).toBeVisible()
+  await expect
+    .poll(() => errors)
+    .toEqual(["The form's scripts could not start; it can still be filled in"])
+  guard.clear()
+})
+
 test.describe('signature fields', () => {
   const menu = (page: Page) => page.locator('[data-ink-sign-field-menu="sig"]')
 
@@ -168,6 +186,43 @@ test.describe('signature fields', () => {
     await expect(menu(page)).toBeHidden()
   })
 
+  test('pressing Sign while its menu is open closes the menu', async ({
+    mount,
+    page,
+  }) => {
+    await mount(FormHarness, {
+      props: { src: fixtureUrl('form-fields'), assets, templates: [IMAGE] },
+    })
+    const button = widget(page, 'sig').locator('[data-ink-sign-field]')
+    await button.scrollIntoViewIfNeeded()
+    await button.click()
+    await expect(menu(page)).toBeVisible()
+    // Count the menus that open from here on: closing and opening again would add one.
+    await page.evaluate(() => {
+      const w = window as Window & { __menusOpened?: number }
+      w.__menusOpened = 0
+      new MutationObserver((records) => {
+        for (const r of records)
+          for (const n of r.addedNodes)
+            if (n instanceof HTMLElement && n.querySelector('[data-ink-sign-field-menu]'))
+              w.__menusOpened! += 1
+      }).observe(document.body, { childList: true, subtree: true })
+    })
+    await button.click()
+    await expect(menu(page)).toBeHidden()
+    await page.waitForTimeout(200)
+    await expect(menu(page)).toBeHidden()
+    expect(
+      await page.evaluate(
+        () => (window as Window & { __menusOpened?: number }).__menusOpened
+      )
+    ).toBe(0)
+    await expect(button).toBeFocused()
+    // And it opens again on the next press.
+    await button.click()
+    await expect(menu(page)).toBeVisible()
+  })
+
   test('a signature created from the popover signs the field', async ({
     mount,
     page,
@@ -194,6 +249,37 @@ test.describe('signature fields', () => {
     await expect(page.getByTestId('probe')).toHaveAttribute('data-tool', 'select-text')
     await expect(page.getByTestId('probe')).toHaveAttribute('data-annotations', '1')
   })
+})
+
+test('a new source closes a "Create signature" dialog opened for the old field', async ({
+  mount,
+  page,
+}) => {
+  await mount(FormHarness, {
+    props: {
+      src: fixtureUrl('form-fields'),
+      assets,
+      swapTo: { src: `${fixtureUrl('form-fields')}?again` },
+    },
+  })
+  const button = () => widget(page, 'sig').locator('[data-ink-sign-field]')
+  const menu = page.locator('[data-ink-sign-field-menu="sig"]')
+  await button().scrollIntoViewIfNeeded()
+  await button().click()
+  await menu.getByRole('menuitem', { name: 'Create signature' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Create signature' })
+  await expect(dialog).toBeVisible()
+  // A click event without a press, so the dialog does not close as for a press outside it.
+  await page.getByTestId('swap').dispatchEvent('click')
+  await expect(dialog).toBeHidden()
+  // The new document's field opens its own menu, and nothing from before signs it.
+  await expect(button()).toHaveText('Sign')
+  await button().scrollIntoViewIfNeeded()
+  await button().click()
+  await expect(menu).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(menu).toBeHidden()
+  expect(await formValues(page)).not.toHaveProperty('sig')
 })
 
 test('useForm exposes values', async ({ mount, page }) => {

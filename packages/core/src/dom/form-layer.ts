@@ -134,7 +134,10 @@ export interface WidgetViewContext {
   readonly label: string
   /** The view's `drawn` may have changed. */
   redraw(): void
-  /** The controls of this field's widgets on the page, in Tab order, this one included. */
+  /**
+   * The controls of this field's widgets on the page a person can pick (shown and not
+   * read-only), in Tab order, this one included.
+   */
   siblings(): HTMLElement[]
   /** Marks the widget invalid (a rejected commit) or valid again. */
   setInvalid(invalid: boolean): void
@@ -155,6 +158,8 @@ export interface WidgetView {
    * the layer does not send one on pointer up.
    */
   readonly activates?: boolean
+  /** False keeps the control out of the Tab order (a signed signature field). */
+  readonly tabbable?: boolean
   sync(state: WidgetState): void
   /** The control was placed in a new frame (zoom or rotation). */
   layout(frame: WidgetFrame): void
@@ -372,10 +377,28 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
 
   /** A radio group is one Tab stop on the page: its chosen radio, else its first. */
   const isStop = (e: Entry): boolean => {
+    if (e.view?.tabbable === false) return false
     if (e.field.type !== 'radio') return true
     const value = form.values.get()[e.field.name]
     const group = entries.filter((g) => g.field === e.field && g.view && !hiddenOf(g))
     return e === (group.find((g) => g.widget.onState === value) ?? group[0])
+  }
+
+  /** Numbers each radio group's shown widgets on the page for assistive technology. */
+  const numberRadios = () => {
+    for (const e of entries) {
+      const control = e.view?.control
+      if (!control || e.field.type !== 'radio') continue
+      const group = entries.filter((g) => g.field === e.field && g.view && !hiddenOf(g))
+      const at = group.indexOf(e)
+      if (at < 0) {
+        control.removeAttribute('aria-posinset')
+        control.removeAttribute('aria-setsize')
+      } else {
+        control.setAttribute('aria-posinset', String(at + 1))
+        control.setAttribute('aria-setsize', String(group.length))
+      }
+    }
   }
 
   const setActive = () => {
@@ -391,6 +414,7 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
     if (destroyed) return
     for (const e of entries) syncEntry(e)
     clip()
+    numberRadios()
     setActive()
     // A checkbox or radio changed: draw the appearances again in the new states.
     if (storeStates()) appearance?.update(transform)
@@ -425,7 +449,13 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
         },
         setInvalid: (invalid) => setInvalid(e, invalid),
         siblings: () =>
-          entries.flatMap((x) => (x.field === e.field && x.view ? [x.view.control] : [])),
+          entries.flatMap((x) =>
+            x.field === e.field &&
+            x.view &&
+            (x === e || (!hiddenOf(x) && !stateOf(x).readOnly))
+              ? [x.view.control]
+              : []
+          ),
         ...(opts.onSignField ? { onSignField: (req) => opts.onSignField?.(req) } : {}),
       })
       listen(box, 'focusin', () => toggle(box, 'data-ink-focused', true))

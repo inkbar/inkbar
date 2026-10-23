@@ -263,6 +263,18 @@ describe('form layer', () => {
     expect(price.value).toBe('£5.00')
   })
 
+  it('shows a committed date as typed when focused again', async () => {
+    const doc = await open('form-scripted')
+    const p = mountPage(doc)
+    const when = p.control('when')
+    await typeOver(when, '25/12/2026')
+    when.blur()
+    expect(doc.form.get('when')).toBe('25/12/2026')
+    expect(when.value).toBe('25/12/2026')
+    await userEvent.click(when)
+    expect(when.value).toBe('25/12/2026')
+  })
+
   it('refuses keystrokes a script rejects', async () => {
     const doc = await open('form-scripted')
     const p = mountPage(doc)
@@ -412,6 +424,9 @@ describe('form layer', () => {
     doc.form._signWith('sig', 'ink-1')
     expect(button.textContent).toBe('')
     expect(button.hasAttribute('data-ink-signed')).toBe(true)
+    expect(button.getAttribute('aria-disabled')).toBe('true')
+    expect(button.tabIndex).toBe(-1)
+    expect(p.mount.form!.tabStops()).not.toContain(button)
     button.click()
     expect(requests).toHaveLength(1)
     // The PDF's own appearance of the box stays under the button.
@@ -891,6 +906,43 @@ describe('checkboxes, radios, choices and buttons', () => {
     expect(document.activeElement).toBe(yearly)
   })
 
+  it('numbers a radio group and passes over hidden and read-only radios', async () => {
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    const widgets = widgetsOf(doc, 'plan')
+    const [monthly, yearly] = widgets.map((w) => controlOf(p.host, w))
+    const numbers = () =>
+      [monthly!, yearly!].map((c) => [
+        c.getAttribute('aria-posinset'),
+        c.getAttribute('aria-setsize'),
+      ])
+    expect(numbers()).toEqual([
+      ['1', '2'],
+      ['2', '2'],
+    ])
+
+    doc.form._setWidgetState(widgets[1]!.id, { readOnly: true })
+    monthly!.focus()
+    await userEvent.keyboard('{ArrowRight}')
+    expect(document.activeElement).toBe(monthly)
+    expect(doc.form.get('plan')).toBe('monthly')
+
+    doc.form._setWidgetState(widgets[1]!.id, { readOnly: false, hidden: true })
+    expect(numbers()).toEqual([
+      ['1', '1'],
+      [null, null],
+    ])
+    await userEvent.keyboard('{ArrowRight}')
+    expect(document.activeElement).toBe(monthly)
+    expect(doc.form.get('plan')).toBe('monthly')
+
+    // A read-only radio picks nothing from the keyboard.
+    doc.form._setWidgetState(widgets[1]!.id, { hidden: false })
+    doc.form._setWidgetState(widgets[0]!.id, { readOnly: true })
+    await userEvent.keyboard('{ArrowRight}')
+    expect(doc.form.get('plan')).toBe('monthly')
+  })
+
   it('combo shows labels and stores export values', async () => {
     const doc = await open('form-fields')
     const p = mountPage(doc)
@@ -1023,6 +1075,29 @@ describe('checkboxes, radios, choices and buttons', () => {
     cleanup.push(() => document.removeEventListener('keydown', spy))
     await userEvent.keyboard('{Tab}')
     expect(prevented).toBe(false)
+  })
+
+  it('Tab waits once for a next page that mounts after the scroll', async () => {
+    const { container, engine, fieldOf, pageOf } = await viewer()
+    // The view lands on page 1 a frame later, as a smooth scroll would.
+    const scrollToRect = engine.viewport.scrollToRect.bind(engine.viewport)
+    vi.spyOn(engine.viewport, 'scrollToRect').mockImplementation((...args) => {
+      requestAnimationFrame(() => scrollToRect(...args))
+    })
+    let prevented: boolean | undefined
+    const spy = (e: KeyboardEvent) => (prevented = e.defaultPrevented)
+    document.addEventListener('keydown', spy)
+    cleanup.push(() => document.removeEventListener('keydown', spy))
+    container
+      .querySelector<HTMLElement>('[data-ink-field="reset"] button')!
+      .focus({ preventScroll: true })
+    await nextFrame()
+    expect(engine.pages.has(1)).toBe(false)
+    await userEvent.keyboard('{Tab}')
+    // Focus does not leave the viewer while the page mounts.
+    expect(prevented).toBe(true)
+    await until(() => pageOf(document.activeElement) === 1)
+    expect(fieldOf(document.activeElement)).toBe('header.ref')
   })
 
   it('Shift+Tab goes back', async () => {

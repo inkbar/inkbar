@@ -29,6 +29,7 @@ export const FIXTURE_NAMES = [
   'form-fieldmdp',
   'form-timer',
   'form-uppercase',
+  'form-shared-scripted',
   'incremental-saved',
   'object-streams',
   'encrypted-aes',

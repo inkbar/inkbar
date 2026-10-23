@@ -231,6 +231,15 @@
       "Widget": 1
     }
   },
+  "form-shared-scripted": {
+    "file": "form-shared-scripted.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A radio group whose two widgets share the export value \"A\", with a validate script, for checking that the widget chosen is the one kept",
+    "annotations": {
+      "Widget": 2
+    }
+  },
   "incremental-saved": {
     "file": "incremental-saved.pdf",
     "pages": 1,

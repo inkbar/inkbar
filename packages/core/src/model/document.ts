@@ -188,7 +188,7 @@ export async function openDocument(
     fields: [],
     mode: fieldsMode,
     // Script errors stay off `status`: the document has no error event, so they reach the
-    // form's own `on('error')`, which the form layer subscribes to.
+    // form's own `on('error')`. One from before `ready` waits for the first listener.
     onError: () => undefined,
     batch: (fn) => step(fn),
   })
