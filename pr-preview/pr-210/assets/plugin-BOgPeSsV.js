@@ -1,4 +1,4 @@
-import{Jt as e}from"./signatures-7Nys8iD1.js";import{t}from"./Demo-DKKvihn7.js";e({page:`plugin`,files:[{path:`src/plugin/suggestions.ts`,source:{html:`<pre class="shiki inkbar-ink" style="background-color:#0D1026;color:#C9CEE6" tabindex="0"><code><span class="line"><span style="color:#A9AFCB">/*</span></span>
+import{on as e}from"./signatures-DG2kjCf_.js";import{t}from"./Demo-CLrAxV6K.js";e({page:`plugin`,files:[{path:`src/plugin/suggestions.ts`,source:{html:`<pre class="shiki inkbar-ink" style="background-color:#0D1026;color:#C9CEE6" tabindex="0"><code><span class="line"><span style="color:#A9AFCB">/*</span></span>
 <span class="line"><span style="color:#A9AFCB"> * Suggest redactions, written as an Inkbar plugin. It uses only Inkbar's public API, and the</span></span>
 <span class="line"><span style="color:#A9AFCB"> * same plugin runs on every framework page: each registers it in \`plugins\` and places its</span></span>
 <span class="line"><span style="color:#A9AFCB"> * Suggest button where it wants.</span></span>
