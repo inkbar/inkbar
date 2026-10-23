@@ -1,0 +1,21 @@
+fixtures/generate.ts
+  s_e6109f66fbb4ed::t_0f16cfc6a423d5 7,933-942
+packages/core/src/dom/form-layer.browser.test.ts
+  s_e6109f66fbb4ed::t_af887450e54b09 835-836
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4cf4c1ff5ccd0f106f8dd16ef9868b0578260f4d",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
