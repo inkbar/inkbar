@@ -373,6 +373,17 @@ describe('doc.form', () => {
     doc.destroy()
   })
 
+  it('an import with no values changes nothing and keeps the undo steps', async () => {
+    const { doc, form, history } = await openForm()
+    form.set({ name: 'Ada' })
+    const heard = vi.fn()
+    form._store.on('change', heard)
+    form._import({})
+    expect(heard).not.toHaveBeenCalled()
+    expect(history.canUndo.get()).toBe(true)
+    doc.destroy()
+  })
+
   it('no history when fields are controlled', async () => {
     const doc = await openDocument(await fixtureBytes('form-fields'), {
       assets: nodeAssets(),

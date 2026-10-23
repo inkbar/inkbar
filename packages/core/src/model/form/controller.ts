@@ -678,7 +678,12 @@ export function createFormController(opts: FormControllerOptions): FormControlle
     _import(next) {
       if (destroyed) return
       const before = current()
-      writeAll(Object.entries(next))
+      const entries = Object.entries(next).filter(
+        ([name, value]) => !sameValue(before[name], value)
+      )
+      // Nothing to change: no reset reaches the store, so the undo steps stay.
+      if (entries.length === 0) return
+      writeAll(entries)
       const names = changed(before, current())
       if (names.length === 0) return
       within(() => scripting?.sync(current(), true))
