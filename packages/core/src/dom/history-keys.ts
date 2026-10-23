@@ -40,6 +40,8 @@ export function attachHistoryKeys(
   history: () => HistoryKeysTarget | null | undefined
 ): () => void {
   const onKeydown = (e: KeyboardEvent): void => {
+    // A held chord repeats, stepping through the history as native apps do. Each repeat reads
+    // the flags again, so the last step stops it.
     if (e.defaultPrevented || e.isComposing) return
     const action = historyAction(e)
     if (!action) return

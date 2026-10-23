@@ -2881,6 +2881,18 @@ describe('undo and redo keys', () => {
     expect(doc.history.canUndo.get()).toBe(true)
   })
 
+  it('step back on each repeat of a held chord, and stop at the first step', async () => {
+    const { viewer } = make('form-fields')
+    const { doc } = await ready(viewer)
+    doc.form.set({ name: 'Ada' })
+    doc.form.set({ name: 'Grace' })
+    const held = { key: 'z', ctrlKey: true, repeat: true }
+    expect(chord(viewer.element, { key: 'z', ctrlKey: true }).defaultPrevented).toBe(true)
+    expect(chord(viewer.element, held).defaultPrevented).toBe(true)
+    expect(doc.form.get('name')).toBe('Sam')
+    expect(chord(viewer.element, held).defaultPrevented).toBe(false)
+  })
+
   it('leave the keys to a focused text field, a select and editable content', async () => {
     const { viewer } = make('form-fields')
     const { doc } = await ready(viewer)

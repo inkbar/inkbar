@@ -648,7 +648,20 @@ export function InkRoot({
   // button undoes or redoes the last step and disables itself, focus goes back to the document.
   useEffect(() => {
     if (!rootEl) return
-    const stopKeys = attachHistoryKeys(rootEl, () => latestHistory.current)
+    // The flags are read from the stacks, not from the last render: a held key repeats before
+    // React renders again, and a stale `canUndo` would prevent a key that undoes nothing.
+    const stopKeys = attachHistoryKeys(rootEl, () => {
+      const doc = documentRef.current
+      if (!doc) return null
+      const snap = doc.annotations.mode === 'controlled'
+      const on = latest.current.historyEnabled
+      return {
+        canUndo: snap ? on && snapshotHistory.canUndo.get() : doc.history.canUndo.get(),
+        canRedo: snap ? on && snapshotHistory.canRedo.get() : doc.history.canRedo.get(),
+        undo: () => latestHistory.current.undo(),
+        redo: () => latestHistory.current.redo(),
+      }
+    })
     const stopFocus = keepHistoryFocus(rootEl, () =>
       rootEl.querySelector<HTMLElement>('[data-ink-scroll]')
     )
@@ -656,7 +669,7 @@ export function InkRoot({
       stopKeys()
       stopFocus()
     }
-  }, [rootEl, latestHistory])
+  }, [rootEl, latestHistory, latest, snapshotHistory])
 
   /** The document's tool style; it batches through `history`, whichever mode is on. */
   const styleTracker = useMemo(

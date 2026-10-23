@@ -436,6 +436,34 @@ test('undoing the only step from a focused Undo keeps focus in the viewer, so Sh
   await expect(probe).toHaveAttribute('data-annotations', '1')
 })
 
+test('a repeat that arrives before React renders again does not act on a stale flag', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(
+    <ToolbarHarness src={fixtureUrl('text-simple')} assets={assets} />
+  )
+  await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+  await page.getByTestId('add').click()
+  await expect(page.getByTestId('probe')).toHaveAttribute('data-annotations', '1')
+  // Both in one task: the second sees the stacks, not the render before the first.
+  const prevented = await cmp.locator('[data-ink-scroll]').evaluate((el) =>
+    [false, true].map((repeat) => {
+      const e = new KeyboardEvent('keydown', {
+        key: 'z',
+        ctrlKey: true,
+        repeat,
+        bubbles: true,
+        cancelable: true,
+      })
+      el.dispatchEvent(e)
+      return e.defaultPrevented
+    })
+  )
+  expect(prevented).toEqual([true, false])
+  await expect(page.getByTestId('probe')).toHaveAttribute('data-annotations', '0')
+})
+
 test('unmounting the root removes its key listeners', async ({ mount, page }) => {
   await page.evaluate(() => {
     const live = new Set<unknown>()
