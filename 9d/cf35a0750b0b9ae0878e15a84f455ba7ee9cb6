@@ -1,0 +1,18 @@
+packages/react/tsconfig.json
+  h_13c4e797d6e9d2 8-14
+packages/svelte/tsconfig.json
+  h_13c4e797d6e9d2 7-12
+packages/vue/tsconfig.json
+  h_13c4e797d6e9d2 8-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9dcf35a0750b0b9ae0878e15a84f455ba7ee9cb6",
+  "prompts": {},
+  "humans": {
+    "h_13c4e797d6e9d2": {
+      "author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
