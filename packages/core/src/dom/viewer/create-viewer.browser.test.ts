@@ -2863,6 +2863,24 @@ describe('undo and redo keys', () => {
     expect(document.activeElement).toBe(scroll)
   })
 
+  it('ignore a chord while composing text, and one already handled', async () => {
+    const { viewer } = make('form-fields')
+    const { doc } = await ready(viewer)
+    doc.form.set({ name: 'Ada' })
+    expect(
+      chord(viewer.element, { key: 'z', ctrlKey: true, isComposing: true })
+        .defaultPrevented
+    ).toBe(false)
+    expect(doc.form.get('name')).toBe('Ada')
+    const scroll = viewer.element.querySelector<HTMLElement>('[data-ink-scroll]')!
+    const handled = (e: Event) => e.preventDefault()
+    scroll.addEventListener('keydown', handled)
+    chord(scroll, { key: 'z', ctrlKey: true })
+    scroll.removeEventListener('keydown', handled)
+    expect(doc.form.get('name')).toBe('Ada')
+    expect(doc.history.canUndo.get()).toBe(true)
+  })
+
   it('leave the keys to a focused text field, a select and editable content', async () => {
     const { viewer } = make('form-fields')
     const { doc } = await ready(viewer)
