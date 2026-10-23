@@ -386,6 +386,11 @@ export function createSignFieldMenu(
         manual: true,
         attrs: { 'data-ink-menu': 'signature', 'data-ink-sign-field-menu': req.field },
         render: (panel) => content.paint(panel),
+        // The field's button is a menu trigger only while its menu is open.
+        onClose: () => {
+          control.removeAttribute('aria-expanded')
+          delete control.dataset.state
+        },
       })
       menu = own
       own.open()

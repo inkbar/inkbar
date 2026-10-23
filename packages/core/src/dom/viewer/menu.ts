@@ -33,6 +33,8 @@ export interface MenuOptions {
    * menu a control opens as one of several things it does, such as a signature field's.
    */
   manual?: boolean
+  /** The menu closed, for any reason; the trigger's `aria-expanded` and `data-state` are set. */
+  onClose?(): void
   /** Builds the items on first call and updates them in place after; called on open and `refresh`. */
   render(menu: HTMLElement): void
 }
@@ -66,6 +68,7 @@ export function createMenu(trigger: HTMLButtonElement, opts: MenuOptions): Menu 
     panel = null
     trigger.setAttribute('aria-expanded', 'false')
     trigger.dataset.state = 'closed'
+    opts.onClose?.()
     if (restoreFocus) trigger.focus()
   }
 

@@ -2404,6 +2404,12 @@ describe('forms', () => {
     ).toBe(true)
     // The first signature has focus, as in the toolbar's menu.
     expect(document.activeElement?.classList.contains('ink-signature-item')).toBe(true)
+    expect(button.getAttribute('aria-expanded')).toBe('true')
+    // Closed, the button is no menu trigger: it keeps no menu state.
+    await userEvent.keyboard('{Escape}')
+    expect(fieldMenu('sig')).toBeNull()
+    expect(button.hasAttribute('aria-expanded')).toBe(false)
+    expect(button.hasAttribute('data-state')).toBe(false)
   })
 
   it('picking a template signs the field', async () => {
@@ -2419,6 +2425,8 @@ describe('forms', () => {
     expect(button.textContent).toBe('')
     expect(button.hasAttribute('data-ink-signed')).toBe(true)
     expect(button.getAttribute('aria-label')).toBe('sig')
+    expect(button.hasAttribute('aria-expanded')).toBe(false)
+    expect(button.hasAttribute('data-state')).toBe(false)
     expect(document.activeElement).toBe(button)
     await until(() => annotationEl(viewer, a.id) !== null)
     expect(annotationEl(viewer, a.id)!.hasAttribute('data-ink-pinned')).toBe(true)
