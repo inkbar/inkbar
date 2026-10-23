@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { rectFromQuad, unionRects } from './geometry'
 import { CONTEXT_CHARS, matchPage } from './search'
@@ -178,21 +178,44 @@ describe('matchPage', () => {
     expect(lower).toMatchObject({ text: 'İstanbul', start: 3, end: 11 })
   })
 
-  it('finds a word in the second of two RTL items, inside that item', () => {
+  it('ignores case the same way whatever the default locale', () => {
+    // Turkish lower-cases "I" to dotless "ı", so "INVOICE" would not match "invoice".
+    const turkish = vi
+      .spyOn(String.prototype, 'toLocaleLowerCase')
+      .mockImplementation(function (this: string) {
+        return this.replace(/I/g, 'ı').replace(/İ/g, 'i').toLowerCase()
+      })
+    try {
+      expect(matchPage(one('INVOICE Invoice'), 'invoice', OPTS)).toHaveLength(2)
+    } finally {
+      turkish.mockRestore()
+    }
+  })
+
+  it('finds a word, or part of one, in the second of two RTL items, inside that item', () => {
     // Read right to left: "שלום " sits right of "עולם" on the line.
     const second = item('עולם', 0, 30, { dir: 'rtl' })
     const st = page(item('שלום ', 40, 35, { dir: 'rtl' }), second)
     expect(st.raw).toBe('שלום עולם')
-    const hits = matchPage(st, 'עולם', OPTS)
-    expect(hits).toHaveLength(1)
-    expect(hits[0]).toMatchObject({ text: 'עולם', start: 5, end: 9 })
     const run = rectFromQuad(second.quad)
-    for (const q of hits[0]!.quads)
-      for (const p of [q.p1, q.p2, q.p3, q.p4]) {
+    // The whole item, then its last three letters, whose cut is an estimate.
+    for (const [query, start] of [
+      ['עולם', 5],
+      ['ולם', 6],
+    ] as const) {
+      const hits = matchPage(st, query, OPTS)
+      expect(hits).toHaveLength(1)
+      expect(hits[0]).toMatchObject({ text: query, start, end: 9 })
+      const [quad] = hits[0]!.quads
+      expect(hits[0]!.quads).toHaveLength(1)
+      for (const p of [quad!.p1, quad!.p2, quad!.p3, quad!.p4]) {
         expect(p.x).toBeGreaterThanOrEqual(run.x)
         expect(p.x).toBeLessThanOrEqual(run.x + run.width)
         expect(p.y).toBeGreaterThanOrEqual(run.y)
         expect(p.y).toBeLessThanOrEqual(run.y + run.height)
       }
+      const width = rectFromQuad(quad!).width
+      expect(width).toBeCloseTo((run.width * query.length) / 4, 5)
+    }
   })
 })
