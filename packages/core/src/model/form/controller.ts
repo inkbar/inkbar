@@ -100,8 +100,8 @@ export interface FormController {
     selEnd: number
   ): KeystrokeResult
   /**
-   * @internal A page's form layer mounted (`PageOpen`) or went (`PageClose`): runs the page's
-   * open or close scripts. Resolves once they ran; nothing runs without scripts.
+   * @internal The viewer's current page became `page` (`PageOpen`) or another (`PageClose`):
+   * runs the page's open or close scripts. Resolves once they ran; nothing runs without scripts.
    */
   _pageEvent(page: number, name: PageEventName): Promise<void>
   /** @internal Sets a field's formatted text; `undefined` clears it. */

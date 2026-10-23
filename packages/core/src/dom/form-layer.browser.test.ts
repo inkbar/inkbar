@@ -663,13 +663,35 @@ describe('form layer', () => {
     expect(p.mount.form!.focusWidget('nope')).toBe(false)
   })
 
-  it('sends the page its open and close events', async () => {
+  it('sends page open and close events for the current page only', async () => {
     const doc = await open('form-fields')
     const spy = vi.spyOn(doc.form, '_pageEvent')
+    // A page alone mounts no page event: only the viewer's current page does.
     const p = mountPage(doc)
-    expect(spy).toHaveBeenCalledWith(0, 'PageOpen')
     p.mount.destroy()
-    expect(spy).toHaveBeenCalledWith(0, 'PageClose')
+    expect(spy).not.toHaveBeenCalled()
+
+    const container = mountContainer(800, 600)
+    container.style.overflow = 'auto'
+    // Page 1 mounts in the buffer, and is not opened for that.
+    const engine = mountViewer({ container, document: doc, zoom: 1, buffer: 2 })
+    cleanup.push(() => (engine.destroy(), container.remove()))
+    await until(() => engine.pages.has(1))
+    expect(spy.mock.calls).toEqual([[0, 'PageOpen']])
+    engine.viewport.scrollToPage(1)
+    await until(() => engine.viewport.currentPage.get() === 1)
+    expect(spy.mock.calls).toEqual([
+      [0, 'PageOpen'],
+      [0, 'PageClose'],
+      [1, 'PageOpen'],
+    ])
+    // A rebuild keeps the current page open.
+    engine.rebuild({ gap: 24 })
+    expect(engine.viewport.currentPage.get()).toBe(1)
+    expect(spy).toHaveBeenCalledTimes(3)
+    engine.destroy()
+    expect(spy.mock.calls.at(-1)).toEqual([1, 'PageClose'])
+    expect(spy).toHaveBeenCalledTimes(4)
   })
 
   it('stacks the widget appearances above the page canvas, under text and annotations', async () => {

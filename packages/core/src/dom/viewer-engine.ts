@@ -214,6 +214,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
   let stopKeys: () => void = () => undefined
   let stopActive: () => void = () => undefined
   let stopFormTools: () => void = () => undefined
+  let stopPageEvents: () => void = () => undefined
   let destroyed = false
   const plugins = opts.plugins
   const hostTools = [...(opts.tools ?? []), ...(plugins?.tools ?? [])]
@@ -401,6 +402,19 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     }),
   ]
 
+  /**
+   * The page whose open scripts ran last, and has not closed since. Page open and close events
+   * follow the viewport's current page, as Acrobat runs them for the page a person is on, not for
+   * the pages mounted around it; a rebuild that keeps the page sends neither.
+   */
+  let openPage: number | undefined
+  function openPageEvents(next: number | undefined): void {
+    if (next === openPage) return
+    if (openPage !== undefined) void doc.form._pageEvent(openPage, 'PageClose')
+    openPage = next
+    if (next !== undefined) void doc.form._pageEvent(next, 'PageOpen')
+  }
+
   function unmountPage(page: number): void {
     const mount = pages.get(page)
     if (!mount) return
@@ -522,6 +536,8 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     else if (state.page !== undefined && state.page !== vp.currentPage.get())
       vp.scrollToPage(state.page)
     if (state.anchor) restoreScroll(vp, state.anchor)
+    openPageEvents(vp.currentPage.get())
+    stopPageEvents = vp.currentPage.subscribe(openPageEvents)
     opts.onBuild?.(vp, tc)
   }
 
@@ -529,6 +545,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     stopKeys()
     stopActive()
     stopFormTools()
+    stopPageEvents()
     tools.destroy()
     // The viewport unmounts every page it mounted, which destroys the page mounts.
     viewport.destroy()
@@ -581,6 +598,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       if (destroyed) return
       destroyed = true
       teardown()
+      openPageEvents(undefined)
       layers?.destroy()
       highlights?.destroy()
       stopRedecorate?.()

@@ -485,7 +485,6 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
       layer.focusWidget(id)
     }),
   ]
-  void form._pageEvent(page, 'PageOpen')
 
   const layer: FormLayer = {
     element,
@@ -521,7 +520,6 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
       for (const e of entries) e.view?.destroy()
       appearances?.destroy()
       element.remove()
-      void form._pageEvent(page, 'PageClose')
     },
   }
   return layer
