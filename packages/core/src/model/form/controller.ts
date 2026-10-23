@@ -159,8 +159,9 @@ export interface FormController {
    */
   _awaitingSignature(name: string): boolean
   /**
-   * @internal `set`, `reset` or a host's push gave these fields a value, whether or not it
-   * differs from the one they held. The form layer clears a refused commit's mark on them.
+   * @internal `set` or `reset` gave these fields a value, whether or not it differs from the
+   * one they held. The form layer clears a refused commit's mark on them. A host's push is not
+   * reported: it clears a mark only where it changes the value.
    */
   _onPut(fn: (names: readonly string[]) => void): () => void
   /** @internal Destroys the scripting and drops every listener. */
@@ -596,13 +597,9 @@ export function createFormController(opts: FormControllerOptions): FormControlle
         waiting = { ...waiting, ...next }
         return
       }
-      const accepted = valid(next)
-      if (accepted.length > 0)
-        emitter.emit(
-          'put',
-          accepted.map(([name]) => name)
-        )
-      const pushed = accepted.filter(
+      // A push clears a refused mark only by changing the value (which the form layer sees):
+      // hosts echo the whole map after every change, and an echo is no push of its own.
+      const pushed = valid(next).filter(
         ([name, value]) => !sameValue(store.get(name)?.value, value)
       )
       if (pushed.length === 0) return

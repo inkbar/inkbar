@@ -1035,6 +1035,43 @@ describe('form layer', () => {
     expect(p.box('age').hasAttribute('data-ink-invalid')).toBe(false)
   })
 
+  it('a controlled host’s echo leaves other fields’ refused marks alone', async () => {
+    let echoes = 0
+    const host: { doc?: InkDocument } = {}
+    const doc = await openFixtureInBrowser('form-scripted', {
+      fields: {
+        mode: 'controlled',
+        initial: {},
+        // The host pushes the whole map back, as the bindings do.
+        onChange: (next) => {
+          echoes++
+          queueMicrotask(() => host.doc?.form.setControlledValue({ ...next }))
+        },
+      },
+    })
+    host.doc = doc
+    cleanup.push(() => doc.destroy())
+    const p = mountPage(doc)
+    const age = p.control('age')
+    await typeOver(age, '5')
+    age.blur()
+    expect(p.box('age').hasAttribute('data-ink-invalid')).toBe(true)
+    const other = doc.form.fields
+      .get()
+      .find(
+        (f) => f.type === 'text' && f.name !== 'age' && !f.flags.readOnly && !f.locked
+      )!
+    const before = echoes
+    expect(doc.form.set({ [other.name]: '3' }).applied).toEqual([other.name])
+    await Promise.resolve()
+    await nextFrame()
+    expect(echoes).toBeGreaterThan(before)
+    expect(p.box('age').hasAttribute('data-ink-invalid')).toBe(true)
+    // A push that changes the field clears it.
+    doc.form.setControlledValue({ ...doc.form.values.get(), age: '30' })
+    expect(p.box('age').hasAttribute('data-ink-invalid')).toBe(false)
+  })
+
   it('an untouched field matches the PDF’s own appearance', async () => {
     // The theme keeps the text layer's glyphs clear, as on any real page.
     addTheme()

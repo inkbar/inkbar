@@ -123,7 +123,7 @@ describe('FormController', () => {
     expect(form.get('locked')).toBe('')
   })
 
-  it('tells the form layer of fields a set, reset or push put, changed or not', () => {
+  it('tells the form layer of fields a set or reset put, changed or not', () => {
     const form = controller()
     const put = vi.fn()
     form._onPut(put)
@@ -139,8 +139,10 @@ describe('FormController', () => {
     })
     const pushed = vi.fn()
     host._onPut(pushed)
+    // A host's push, an echo included, is not one.
     host.setControlledValue({ name: host.get('name')! })
-    expect(pushed).toHaveBeenLastCalledWith(['name'])
+    host.setControlledValue({ name: 'Ada' })
+    expect(pushed).not.toHaveBeenCalled()
   })
 
   it('reset leaves a locked field alone', () => {
