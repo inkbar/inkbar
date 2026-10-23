@@ -3,9 +3,9 @@
 // Checkboxes and radios are `<button role="checkbox|radio">`, clear over the PDF's own
 // appearance. The form layer shows the widget's own on or off appearance under it, as its state
 // says. A widget whose file has no on appearance draws itself while on, with its `/MK /CA`
-// character in ZapfDingbats style, and so does one a script gives colours or a size. A click, or Space, commits the new state and then runs the
-// widget's Mouse Up and Action; arrow keys move through a radio group's shown, editable widgets
-// on the page and pick as they go.
+// character in ZapfDingbats style, and so does one a script gives colours or a size. A click,
+// or Space, commits the new state and then runs the widget's Mouse Up and Action; arrow keys
+// move through a radio group's shown, editable widgets on the page and pick as they go.
 //
 // A combo box is a native `<select>` (an editable one is a text input with a `<datalist>`, in
 // form-text.ts), and a list box a `<select>` with a `size`, or `multiple` for a multi-select.

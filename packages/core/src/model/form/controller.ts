@@ -91,8 +91,9 @@ export interface FormController {
   _step(fn: () => void): void
   /**
    * Applies a keystroke to the widget's text as typed so far (its uncommitted text, else the
-   * field's value as shown: a combo's option label for its export value). Without scripting it accepts every keystroke. The uncommitted text is dropped
-   * when the field's value changes or the widget blurs.
+   * field's value as shown: a combo's option label for its export value). Without scripting it
+   * accepts every keystroke. The uncommitted text is dropped when the field's value changes or
+   * the widget blurs.
    */
   _keystroke(
     widget: string,

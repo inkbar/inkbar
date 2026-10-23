@@ -7,9 +7,11 @@
 // toggle's checked ones, its unchecked ones) into a scratch canvas over their rects, which is
 // then cut into one canvas per widget. Widgets whose rects overlap go in a pass of their own,
 // so none picks up another's pixels; touching ones share a pass, as PDF.js clips each
-// appearance to its rect, and each widget's canvas has its neighbours' edges cleared out of
-// its padding. A pass's scratch canvas stays under a pixel budget, and a page runs
-// its passes one at a time, so one scratch canvas at most is alive per page. A checkbox or
+// appearance to its rect. Each widget's canvas has the parts of its neighbours' rects that its
+// padding reaches cleared, except the one pixel row or column that two touching rects share:
+// that row holds both widgets' edges, so it stays in both canvases, drawn twice, and a sliver
+// of a hidden neighbour's edge stays in it. A pass's scratch canvas stays under a pixel budget,
+// and a page runs its passes one at a time, so one scratch canvas at most is alive per page. A checkbox or
 // radio has both looks drawn, the one it does not show when the browser is idle, and shows the
 // one for its state. Showing, hiding or swapping an appearance paints nothing; only a new zoom,
 // rotation or pixel ratio draws the shown widgets again.
@@ -523,8 +525,8 @@ export function createWidgetAppearances(
           g.width,
           g.height
         )
-        // A touching neighbour's edge is its own canvas's to show: clear it from this one, so
-        // it is not drawn twice, nor left behind once the neighbour hides.
+        // A touching neighbour's rect is its own canvas's to show: clear what this one's
+        // padding reaches of it, bar the pixel row or column the two rects share.
         for (const other of members) {
           if (other.item === item) continue
           const strip = neighbourStrip(g, other.g)

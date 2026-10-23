@@ -199,8 +199,18 @@ export interface ViewerEngine {
   destroy(): void
 }
 
-const FOCUSABLE =
-  'a[href], area[href], button, input, select, textarea, iframe, summary, [tabindex], [contenteditable]'
+const FOCUSABLE = [
+  'a[href]',
+  'area[href]',
+  'button',
+  'input',
+  'select',
+  'textarea',
+  'iframe',
+  'summary',
+  '[tabindex]',
+  '[contenteditable]',
+].join(', ')
 
 /** Whether `c` takes focus from Tab: enabled, rendered, visible and not inert. */
 function tabbable(c: HTMLElement): boolean {

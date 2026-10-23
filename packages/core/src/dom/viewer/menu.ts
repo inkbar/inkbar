@@ -35,7 +35,10 @@ export interface MenuOptions {
   manual?: boolean
   /** The menu closed, for any reason; the trigger's `aria-expanded` and `data-state` are set. */
   onClose?(): void
-  /** Builds the items on first call and updates them in place after; called on open and `refresh`. */
+  /**
+   * Builds the items on first call and updates them in place after; called on open and
+   * `refresh`.
+   */
   render(menu: HTMLElement): void
 }
 
