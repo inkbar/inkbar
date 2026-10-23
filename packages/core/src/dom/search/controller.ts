@@ -204,10 +204,13 @@ export function createSearchController(opts: SearchControllerOptions): SearchCon
   }
 
   function step(by: 1 | -1): void {
+    const shown = currentHit !== undefined
     flush(false)
     const { hits, current } = state.get()
     if (hits.length === 0) return
-    const index = (Math.max(current, 0) + by + hits.length) % hits.length
+    // With nothing current yet, a step lands on the hit the waiting page made current, the first
+    // at or after the page in view, rather than moving past it unseen.
+    const index = shown ? (current + by + hits.length) % hits.length : current
     const hit = hits[index] as SearchHit
     currentHit = hit
     currentIndex = index
