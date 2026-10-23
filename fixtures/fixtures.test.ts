@@ -35,6 +35,61 @@ async function open(name: FixtureName, password?: string) {
   })
 }
 
+// The field names and widget counts are the contract the form tests build on.
+const FORMS = {
+  'form-fields': {
+    widgets: 21,
+    fields: [
+      'agree',
+      'auto',
+      'city',
+      'code',
+      'country',
+      'email',
+      // PDF.js also reports the non-terminal parent of header.ref.
+      'header',
+      'header.ref',
+      'interests',
+      'internal',
+      'locked',
+      'name',
+      'notes',
+      'pin',
+      'plan',
+      'reset',
+      'rotated',
+      'shared',
+      'sig',
+    ],
+  },
+  'form-scripted': {
+    widgets: 16,
+    fields: [
+      'age',
+      'ask',
+      'clear',
+      'extra',
+      'hello',
+      'link',
+      'mail',
+      'more',
+      'price',
+      'print',
+      'qty',
+      'send',
+      'site',
+      'submit',
+      'total',
+      'when',
+    ],
+  },
+  'form-signed': { widgets: 2, fields: ['cert', 'name'] },
+  'form-fieldmdp': { widgets: 3, fields: ['amount', 'approved', 'memo'] },
+  'form-timer': { widgets: 1, fields: ['ticker'] },
+} as const satisfies Partial<Record<FixtureName, { widgets: number; fields: string[] }>>
+
+const formNames = Object.keys(FORMS) as (keyof typeof FORMS)[]
+
 describe('fixtures corpus', () => {
   const names = Object.keys(manifest) as FixtureName[]
 
@@ -80,6 +135,35 @@ describe('fixtures corpus', () => {
     async (name) => {
       const task = await open(name)
       await expect(task.promise).rejects.toMatchObject({ name: 'PasswordException' })
+    }
+  )
+
+  it.each(formNames)(
+    'form fixtures open and report their widget counts: %s',
+    async (name) => {
+      expect(manifest[name].annotations?.Widget).toBe(FORMS[name].widgets)
+      const task = await open(name)
+      const doc = await task.promise
+      let widgets = 0
+      for (let i = 1; i <= doc.numPages; i++) {
+        const annots = await (await doc.getPage(i)).getAnnotations()
+        widgets += annots.filter(
+          (a: { subtype: string }) => a.subtype === 'Widget'
+        ).length
+      }
+      expect(widgets).toBe(FORMS[name].widgets)
+      await task.destroy()
+    }
+  )
+
+  it.each(formNames)(
+    'PDF.js reports fieldObjects with the expected names: %s',
+    async (name) => {
+      const task = await open(name)
+      const doc = await task.promise
+      const objects = await doc.getFieldObjects()
+      expect([...(objects?.keys() ?? [])].sort()).toEqual([...FORMS[name].fields].sort())
+      await task.destroy()
     }
   )
 })
