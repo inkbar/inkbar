@@ -656,6 +656,35 @@ describe('history.baseline', () => {
     expect(h.canRedo.get()).toBe(false)
   })
 
+  it('a store untracked and tracked again never rewinds a baseline write', () => {
+    const { s, h } = setup()
+    const notes = createRecordStore<Note>('plugin', {
+      initial: [
+        { id: 'n1', status: 'open' },
+        { id: 'n2', status: 'a' },
+      ],
+    })
+    const untrack = h.track(notes)
+    const a = s.add({
+      type: 'text',
+      page: 0,
+      rect: { x: 0, y: 0, width: 10, height: 10 },
+    })
+    h.batch(() => {
+      s.update(a.id, { contents: 'two' })
+      notes.update('n1', { status: 'done' })
+      notes.update('n2', { status: 'b' })
+    })
+    h.baseline(() => notes.update('n2', { status: 'c' }))
+    untrack()
+    h.track(notes)
+    h.undo()
+    expect(s.get(a.id)?.contents).toBeUndefined()
+    expect(notes.get('n2')?.status).toBe('c')
+    h.redo()
+    expect(notes.get('n2')?.status).toBe('c')
+  })
+
   it('drops a step left with nothing to undo once a baseline write takes its record', () => {
     const { s, h, notes } = setup()
     const a = s.add({ type: 'text', page: 0, rect })
