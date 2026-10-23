@@ -1078,6 +1078,26 @@ describe('form layer', () => {
     expect(doc.form.get('name')).toBe('Sama')
   })
 
+  it('leaving a refused value drops its mark with it, as the stored value shows', async () => {
+    const doc = await open('form-scripted')
+    const p = mountPage(doc)
+    const age = p.control('age')
+    // Refused as focus leaves.
+    await typeOver(age, '5')
+    age.blur()
+    expect(age.value).toBe('')
+    expect(p.box('age').hasAttribute('data-ink-invalid')).toBe(false)
+    expect(age.hasAttribute('aria-invalid')).toBe(false)
+    // Refused on Enter, then left: the refused text and the mark go together.
+    await typeOver(age, '5')
+    await userEvent.keyboard('{Enter}')
+    expect(age.getAttribute('aria-invalid')).toBe('true')
+    age.blur()
+    expect(age.value).toBe('')
+    expect(p.box('age').hasAttribute('data-ink-invalid')).toBe(false)
+    expect(age.hasAttribute('aria-invalid')).toBe(false)
+  })
+
   it('Escape drops a refused value and its mark', async () => {
     const doc = await open('form-scripted')
     const p = mountPage(doc)
@@ -1098,14 +1118,14 @@ describe('form layer', () => {
     const doc = await open('form-scripted')
     const p = mountPage(doc)
     const age = p.control('age')
+    // Refused on Enter, the text stays to be corrected, marked.
     const refuse = async () => {
       await typeOver(age, '5')
-      age.blur()
+      await userEvent.keyboard('{Enter}')
       expect(p.box('age').hasAttribute('data-ink-invalid')).toBe(true)
       expect(age.getAttribute('aria-invalid')).toBe('true')
     }
     await refuse()
-    // Marked and no longer focused, the box stays above the others.
     const z = (el: HTMLElement) => Number(el.style.zIndex)
     const others = [...p.host.querySelectorAll<HTMLElement>('[data-ink-widget]')].filter(
       (b) => b !== p.box('age')
@@ -1114,6 +1134,7 @@ describe('form layer', () => {
     doc.form.set({ age: '40' })
     expect(p.box('age').hasAttribute('data-ink-invalid')).toBe(false)
     expect(age.hasAttribute('aria-invalid')).toBe(false)
+    age.blur()
     expect(z(p.box('age'))).toBeLessThan(others.length + 1)
     await refuse()
     doc.form.reset(['age'])
@@ -1127,7 +1148,7 @@ describe('form layer', () => {
     const age = p.control('age')
     const refuse = async () => {
       await typeOver(age, '5')
-      age.blur()
+      await userEvent.keyboard('{Enter}')
       expect(p.box('age').hasAttribute('data-ink-invalid')).toBe(true)
     }
     await refuse()
@@ -1160,7 +1181,7 @@ describe('form layer', () => {
     const p = mountPage(doc)
     const age = p.control('age')
     await typeOver(age, '5')
-    age.blur()
+    await userEvent.keyboard('{Enter}')
     expect(p.box('age').hasAttribute('data-ink-invalid')).toBe(true)
     const other = doc.form.fields
       .get()

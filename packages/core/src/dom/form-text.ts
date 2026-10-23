@@ -283,8 +283,9 @@ export function createTextWidget(
 
   /**
    * Commits the typed text. Refused on Enter (`leaving` false), the text stays, as the form
-   * keeps it, to be corrected. Leaving the field drops it: the caller dispatches Blur and shows
-   * the stored value, so a text already refused is not validated a second time.
+   * keeps it, to be corrected, and the field is marked. Leaving the field drops it: the caller
+   * dispatches Blur, shows the stored value and clears the mark, so a text already refused is
+   * not validated a second time.
    */
   const commit = (leaving: boolean) => {
     if (!typed) return
@@ -365,6 +366,9 @@ export function createTextWidget(
   /** Leaves the field: commits, drops what is left uncommitted, and shows the stored value. */
   const leave = () => {
     commit(true)
+    // Leaving shows the stored value, which no script refused: a refused text's mark goes
+    // with the text.
+    ctx.setInvalid(false)
     focused = false
     composing = false
     typed = false
