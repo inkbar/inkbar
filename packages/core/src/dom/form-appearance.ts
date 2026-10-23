@@ -7,7 +7,8 @@
 // toggle's checked ones, its unchecked ones) into a scratch canvas over their rects, which is
 // then cut into one canvas per widget. Widgets whose rects overlap go in a pass of their own,
 // so none picks up another's pixels; touching ones share a pass, as PDF.js clips each
-// appearance to its rect. A pass's scratch canvas stays under a pixel budget, and a page runs
+// appearance to its rect, and each widget's canvas has its neighbours' edges cleared out of
+// its padding. A pass's scratch canvas stays under a pixel budget, and a page runs
 // its passes one at a time, so one scratch canvas at most is alive per page. A checkbox or
 // radio has both looks drawn, the one it does not show when the browser is idle, and shows the
 // one for its state. Showing, hiding or swapping an appearance paints nothing; only a new zoom,
@@ -147,6 +148,40 @@ const overlaps = (a: Geometry, b: Geometry) =>
   b.x + PAD + 1 < a.x + a.width - PAD &&
   a.y + PAD + 1 < b.y + b.height - PAD &&
   b.y + PAD + 1 < a.y + a.height - PAD
+
+/** A padded canvas's widget rect, the pads left off, as edges in device px. */
+const inner = (g: Geometry) => ({
+  x0: g.x + PAD,
+  x1: g.x + g.width - PAD,
+  y0: g.y + PAD,
+  y1: g.y + g.height - PAD,
+})
+
+/**
+ * The part of `of`'s padded canvas that a neighbour in its pass draws and `of` does not: the
+ * neighbour's rect, less the pixel row or column the two rects share where they touch.
+ */
+function neighbourStrip(of: Geometry, near: Geometry): Geometry | undefined {
+  const a = inner(of)
+  const b = inner(near)
+  let { x0, x1, y0, y1 } = b
+  // Along an axis where the rects meet (sharing at most a pixel), keep what `of` covers.
+  if (Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) <= 1) {
+    if (b.x0 >= a.x0) x0 = Math.max(x0, a.x1)
+    else x1 = Math.min(x1, a.x0)
+  }
+  if (Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) <= 1) {
+    if (b.y0 >= a.y0) y0 = Math.max(y0, a.y1)
+    else y1 = Math.min(y1, a.y0)
+  }
+  x0 = Math.max(x0, of.x)
+  y0 = Math.max(y0, of.y)
+  x1 = Math.min(x1, of.x + of.width)
+  y1 = Math.min(y1, of.y + of.height)
+  return x1 > x0 && y1 > y0
+    ? { x: x0, y: y0, width: x1 - x0, height: y1 - y0 }
+    : undefined
+}
 
 const union = (members: readonly Member[]): Geometry => {
   const x = Math.min(...members.map((m) => m.g.x))
@@ -451,19 +486,26 @@ export function createWidgetAppearances(
         canvas.height = g.height
         canvas.style.cssText = 'position:absolute;'
         place(canvas, g)
-        canvas
-          .getContext('2d')
-          ?.drawImage(
-            scratch,
-            g.x - u.x,
-            g.y - u.y,
-            g.width,
-            g.height,
-            0,
-            0,
-            g.width,
-            g.height
-          )
+        const ctx = canvas.getContext('2d')
+        ctx?.drawImage(
+          scratch,
+          g.x - u.x,
+          g.y - u.y,
+          g.width,
+          g.height,
+          0,
+          0,
+          g.width,
+          g.height
+        )
+        // A touching neighbour's edge is its own canvas's to show: clear it from this one, so
+        // it is not drawn twice, nor left behind once the neighbour hides.
+        for (const other of members) {
+          if (other.item === item) continue
+          const strip = neighbourStrip(g, other.g)
+          if (strip)
+            ctx?.clearRect(strip.x - g.x, strip.y - g.y, strip.width, strip.height)
+        }
         if (slot.canvas) release(slot.canvas)
         slot.canvas = canvas
         slot.key = pass.key

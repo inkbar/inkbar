@@ -541,6 +541,49 @@ describe('form layer', () => {
     expect(renders.all()).toBeLessThanOrEqual(4)
   })
 
+  it('keeps a touching neighbour’s edge out of each widget’s canvas', async () => {
+    const doc = await open('form-fields')
+    const name = widgetsOf(doc, 'name')[0]!
+    // pin sits right under name, edge to edge, where the two share a pixel row.
+    const moved = doc.form.fields.get().map((f): FormField =>
+      f.name === 'pin'
+        ? {
+            ...f,
+            widgets: f.widgets.map((w) => ({
+              ...w,
+              rect: { ...w.rect, x: name.rect.x, y: name.rect.y - w.rect.height },
+            })),
+          }
+        : f
+    )
+    doc.form._load(moved, doc.form._tabs)
+    const p = mountPage(doc)
+    await settled(p)
+    /** Painted pixels in `of`'s canvas on rows inside `other`'s rect and outside its own. */
+    const strays = (of: string, other: string) => {
+      const canvas = shownCanvas(p.host, p.widgetOf(of).id)!
+      const top = Math.round(parseFloat(canvas.style.top))
+      const own = p.transform.toCssRect(p.widgetOf(of).rect)
+      const near = p.transform.toCssRect(p.widgetOf(other).rect)
+      const rows = [...Array(canvas.height).keys()].filter((r) => {
+        const y = top + r
+        const inOwn = y >= Math.floor(own.top) && y < Math.ceil(own.top + own.height)
+        const inNear = y >= Math.floor(near.top) && y < Math.ceil(near.top + near.height)
+        return inNear && !inOwn
+      })
+      expect(rows.length).toBeGreaterThan(0)
+      const ctx = canvas.getContext('2d')!
+      let painted = 0
+      for (const r of rows) {
+        const data = ctx.getImageData(0, r, canvas.width, 1).data
+        for (let i = 3; i < data.length; i += 4) if (data[i]! > 0) painted++
+      }
+      return painted
+    }
+    expect(strays('name', 'pin')).toBe(0)
+    expect(strays('pin', 'name')).toBe(0)
+  })
+
   it('draws a look again after its pass fails', async () => {
     const doc = await open('form-fields')
     const page = await doc._pdfjs.getPage(0)
