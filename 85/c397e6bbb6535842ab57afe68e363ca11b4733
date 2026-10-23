@@ -1,0 +1,25 @@
+apps/sandbox/package.json
+  s_e6109f66fbb4ed::t_d23912c0e6009f 20
+apps/sandbox/src/shared/form.ts
+  s_e6109f66fbb4ed::t_c2e6c79b3337e2 1-2
+apps/e2e-shared/src/form-actions.ts
+  s_e6109f66fbb4ed::t_d23912c0e6009f 3
+pnpm-lock.yaml
+  s_e6109f66fbb4ed::t_806f9f87232720 416-418
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "85c397e6bbb6535842ab57afe68e363ca11b4733",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
