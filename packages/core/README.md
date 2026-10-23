@@ -222,6 +222,8 @@ import { attachHistoryKeys } from '@inkbar/core/dom'
 const detach = attachHistoryKeys(root, () => doc.history)
 ```
 
+An Undo or Redo button that undoes or redoes the last step disables itself, and the browser would move focus to `<body>`, out of reach of the keys. `createUndo`, `createRedo` and the binding buttons move it to the scroll element instead. For your own buttons, mark them `data-ink-undo` or `data-ink-redo` and call `keepHistoryFocus(root, () => scrollElement)`.
+
 On a focused annotation, `Enter` or `Space` selects it and calls `onActivate`; what activation opens is up to the host.
 
 Locked annotations, such as those embedded in the file, ignore move, resize and delete. Without a text selection, `Enter` in the `highlight` and `redact-area` tools does nothing.
