@@ -400,6 +400,21 @@ describe('toolbar', () => {
     })
   }
 
+  // React: 'undoing the only step from a focused Undo keeps focus in the viewer, so Shift+Z redoes'
+  it('undoing the only step from a focused Undo keeps focus in the viewer, so Shift+Z redoes', async () => {
+    await render(ToolbarHarness, { src: fixtureUrl('text-simple'), assets })
+    await q('.ink-page canvas')
+    const undo = toolbar().getByRole('button', { name: 'Undo', exact: true })
+    const probe = browserPage.getByTestId('probe')
+    await browserPage.getByTestId('add').click()
+    await undo.click()
+    await expect.element(probe).toHaveAttribute('data-annotations', '0')
+    await expect.element(undo).toBeDisabled()
+    expect(document.activeElement).toBe(await q(SCROLL))
+    await userEvent.keyboard('{ControlOrMeta>}{Shift>}z{/Shift}{/ControlOrMeta}')
+    await expect.element(probe).toHaveAttribute('data-annotations', '1')
+  })
+
   describe('style menu triggers and the host', () => {
     const cases = [
       { harness: LineStyleHarness, name: 'Line style', role: 'menu', add: 'add-line-1' },

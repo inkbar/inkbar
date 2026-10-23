@@ -15,6 +15,7 @@ import {
   cssVariableDefaults,
   FONT_FAMILIES,
   handleFindKey,
+  keepHistoryFocus,
   pageSelectionText,
   SIGNATURE_FONTS,
   trackToolStyle,
@@ -643,10 +644,18 @@ export function InkRoot({
 
   const latestHistory = useLatest(inkHistory)
 
-  // The undo and redo keys anywhere in the root do what InkUndo and InkRedo do.
+  // The undo and redo keys anywhere in the root do what InkUndo and InkRedo do. When either
+  // button undoes or redoes the last step and disables itself, focus goes back to the document.
   useEffect(() => {
     if (!rootEl) return
-    return attachHistoryKeys(rootEl, () => latestHistory.current)
+    const stopKeys = attachHistoryKeys(rootEl, () => latestHistory.current)
+    const stopFocus = keepHistoryFocus(rootEl, () =>
+      rootEl.querySelector<HTMLElement>('[data-ink-scroll]')
+    )
+    return () => {
+      stopKeys()
+      stopFocus()
+    }
   }, [rootEl, latestHistory])
 
   /** The document's tool style; it batches through `history`, whichever mode is on. */

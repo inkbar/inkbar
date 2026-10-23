@@ -314,6 +314,26 @@ for (const controlled of [false, true]) {
   })
 }
 
+test('undoing the only step from a focused Undo keeps focus in the viewer, so Shift+Z redoes', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(Harness, { props: { src: fixtureUrl('text-simple'), assets } })
+  await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+  const undo = page.getByRole('toolbar', { name: 'Document tools' }).getByRole('button', {
+    name: 'Undo',
+    exact: true,
+  })
+  const probe = page.getByTestId('probe')
+  await page.getByTestId('add').click()
+  await undo.click()
+  await expect(probe).toHaveAttribute('data-annotations', '0')
+  await expect(undo).toBeDisabled()
+  await expect(cmp.locator('[data-ink-scroll]')).toBeFocused()
+  await page.keyboard.press('ControlOrMeta+Shift+z')
+  await expect(probe).toHaveAttribute('data-annotations', '1')
+})
+
 test.describe('style menu triggers and the host', () => {
   const cases = [
     { harness: 'line', name: 'Line style', role: 'menu', add: 'add-line-1' },

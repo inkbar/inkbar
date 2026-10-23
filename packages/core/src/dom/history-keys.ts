@@ -52,3 +52,29 @@ export function attachHistoryKeys(
   el.addEventListener('keydown', onKeydown)
   return () => el.removeEventListener('keydown', onKeydown)
 }
+
+/**
+ * Keeps focus in the viewer when a focused Undo or Redo button inside `el` turns disabled
+ * (it undid or redid the last step), which would otherwise drop focus to `<body>`, out of
+ * reach of the undo and redo keys. Focus moves to `scroll()`, the viewer's scroll element,
+ * without scrolling. Returns a function that removes the listener.
+ */
+export function keepHistoryFocus(
+  el: HTMLElement,
+  scroll: () => HTMLElement | null | undefined
+): () => void {
+  const onFocusout = (e: FocusEvent): void => {
+    const button = e.target
+    // A disabled control loses focus with nowhere to go; a move elsewhere names its target.
+    if (!(button instanceof HTMLButtonElement) || !button.disabled) return
+    if (e.relatedTarget !== null || !button.matches('[data-ink-undo], [data-ink-redo]'))
+      return
+    const target = scroll()
+    if (!target?.isConnected) return
+    // A container the host did not make focusable still takes focus from script.
+    if (!target.hasAttribute('tabindex')) target.tabIndex = -1
+    target.focus({ preventScroll: true })
+  }
+  el.addEventListener('focusout', onFocusout)
+  return () => el.removeEventListener('focusout', onFocusout)
+}

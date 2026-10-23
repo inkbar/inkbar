@@ -29,6 +29,7 @@ import {
   type IconNode,
 } from '@inkbar/icons'
 
+import { keepHistoryFocus } from '../history-keys'
 import { unknownCommand } from '../plugins/commands'
 import { TOOL_LABELS, ZOOM_LEVELS } from '../ui'
 
@@ -198,6 +199,10 @@ function historyButton(viewer: Viewer, action: 'undo' | 'redo'): HTMLButtonEleme
     action === 'undo' ? Undo2 : Redo2
   )
   b.addEventListener('click', () => viewer.document.get()?.history[action]())
+  // Undoing the last step disables the focused button: focus goes back to the document.
+  keepHistoryFocus(b, () =>
+    viewer.element.querySelector<HTMLElement>('[data-ink-scroll]')
+  )
   follow<InkDocument>(viewer.document, b, (doc, watch) =>
     watch(action === 'undo' ? doc.history.canUndo : doc.history.canRedo, (can) => {
       b.disabled = !can

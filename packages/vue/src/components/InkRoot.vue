@@ -17,6 +17,7 @@ import {
   viewerSearchOf,
   cssVariableDefaults,
   FONT_FAMILIES,
+  keepHistoryFocus,
   SIGNATURE_FONTS,
   trackToolStyle,
 } from '@inkbar/core/dom'
@@ -336,19 +337,25 @@ const inkHistory: InkHistory = {
     controlled.value ? refHistory.react(fn) : (document.value?.history.react(fn) ?? noop),
 }
 
-// The undo and redo keys anywhere in the root do what InkUndo and InkRedo do.
+// The undo and redo keys anywhere in the root do what InkUndo and InkRedo do. When either
+// button undoes or redoes the last step and disables itself, focus goes back to the document.
 watch(
   rootEl,
   (el, _prev, onCleanup) => {
     if (!el) return
-    onCleanup(
-      attachHistoryKeys(el, () => ({
-        canUndo: inkHistory.canUndo.value,
-        canRedo: inkHistory.canRedo.value,
-        undo: inkHistory.undo,
-        redo: inkHistory.redo,
-      }))
+    const stopKeys = attachHistoryKeys(el, () => ({
+      canUndo: inkHistory.canUndo.value,
+      canRedo: inkHistory.canRedo.value,
+      undo: inkHistory.undo,
+      redo: inkHistory.redo,
+    }))
+    const stopFocus = keepHistoryFocus(el, () =>
+      el.querySelector<HTMLElement>('[data-ink-scroll]')
     )
+    onCleanup(() => {
+      stopKeys()
+      stopFocus()
+    })
   },
   { immediate: true }
 )

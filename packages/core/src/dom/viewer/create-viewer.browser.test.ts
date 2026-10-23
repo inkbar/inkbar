@@ -2838,6 +2838,31 @@ describe('undo and redo keys', () => {
     expect(doc.annotations.get(s.id)).toBeUndefined()
   })
 
+  it('keep focus in the viewer when Undo undoes the only step, so Shift+Z redoes', async () => {
+    const { viewer } = make('form-fields')
+    const { doc } = await ready(viewer)
+    // A toolbar outside the root, as a host may place it.
+    const bar = createToolbar()
+    const undo = createUndo(viewer)
+    bar.append(undo)
+    document.body.append(bar)
+    cleanup.push(() => bar.remove())
+    doc.form.set({ name: 'Ada' })
+    await userEvent.click(undo)
+    expect(doc.form.get('name')).toBe('Sam')
+    expect(undo.disabled).toBe(true)
+    const scroll = viewer.element.querySelector('[data-ink-scroll]')
+    expect(document.activeElement).toBe(scroll)
+    await userEvent.keyboard('{ControlOrMeta>}{Shift>}z{/Shift}{/ControlOrMeta}')
+    expect(doc.form.get('name')).toBe('Ada')
+    // The same from the key with focus on Undo, in a toolbar inside the root.
+    viewer.element.prepend(bar)
+    undo.focus()
+    await userEvent.keyboard('{ControlOrMeta>}z{/ControlOrMeta}')
+    expect(doc.form.get('name')).toBe('Sam')
+    expect(document.activeElement).toBe(scroll)
+  })
+
   it('leave the keys to a focused text field, a select and editable content', async () => {
     const { viewer } = make('form-fields')
     const { doc } = await ready(viewer)
