@@ -39,15 +39,17 @@ const attrs = computed(() => ({
   'data-state': state.value.open ? 'on' : 'off',
   onClick,
 }))
+/** Disabled until a document is open, whatever the caller's `disabled` says, as in React and Svelte. */
+const disabled = (fromCaller: unknown): boolean =>
+  !isReady.value || (fromCaller != null && fromCaller !== false)
 </script>
 
 <template>
   <ToolbarButton
     :as-child="asChild"
-    :disabled="!isReady"
     class="ink-search-button"
     data-ink-search-button
-    v-bind="mergeProps($attrs, attrs)"
+    v-bind="mergeProps($attrs, attrs, { disabled: disabled($attrs.disabled) })"
   >
     <slot><InkIcon :icon="Search" /></slot>
   </ToolbarButton>
