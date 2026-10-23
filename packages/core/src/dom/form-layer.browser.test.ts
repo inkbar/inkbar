@@ -1956,6 +1956,29 @@ describe('checkboxes, radios, choices and buttons', () => {
     expect(document.activeElement).toBe(after)
   })
 
+  it('Tab moves on to the next focusable in the shadow root that hosts the viewer', async () => {
+    const doc = await open('form-fields')
+    const host = document.createElement('div')
+    document.body.append(host)
+    const shadow = host.attachShadow({ mode: 'open' })
+    const container = document.createElement('div')
+    container.style.cssText = 'width:800px;height:600px;position:relative;overflow:auto;'
+    const after = document.createElement('button')
+    after.textContent = 'after'
+    shadow.append(container, after)
+    const engine = mountViewer({ container, document: doc, zoom: 1, buffer: 0 })
+    cleanup.push(() => (engine.destroy(), host.remove()))
+    await until(() => container.querySelector('[data-ink-field="reset"] button') !== null)
+    vi.spyOn(engine.viewport, 'scrollToRect').mockImplementation(() => undefined)
+    const reset = container.querySelector<HTMLElement>('[data-ink-field="reset"] button')!
+    reset.focus({ preventScroll: true })
+    await nextFrame()
+    expect(engine.pages.has(1)).toBe(false)
+    await userEvent.keyboard('{Tab}')
+    await until(() => shadow.activeElement !== reset)
+    expect(shadow.activeElement).toBe(after)
+  })
+
   it('Shift+Tab moves back to the previous focusable when the page before never mounts', async () => {
     const { container, engine, fieldOf } = await viewer()
     engine.viewport.scrollToPage(1)
