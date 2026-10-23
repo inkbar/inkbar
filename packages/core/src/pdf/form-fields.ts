@@ -294,6 +294,15 @@ async function destinationOf(
   return isName(s, 'GoTo') ? objs.resolve(dictGet(action, 'D')) : undefined
 }
 
+/** A string object's bytes as a Latin-1 string: how PDF.js keys a name tree. */
+function rawString(v: PdfValue | undefined): string | undefined {
+  if (typeof v !== 'object' || v === null || Array.isArray(v) || v.kind !== 'string')
+    return undefined
+  let out = ''
+  for (const c of v.bytes) out += String.fromCharCode(c)
+  return out
+}
+
 /**
  * The actions an action's `/Next` runs after it, in order (ISO 32000 §12.6.2): each entry,
  * then that entry's own `/Next`, depth first. A cycle or a chain deeper than `MAX_DEPTH` stops.
@@ -406,7 +415,7 @@ export async function readFormExtras(
           if (submit) extras.submits.set(id, submit)
         }
         const pageOf = async (dest: PdfValue | undefined) => {
-          const name = isName(dest) ? dest.name : textString(dest)
+          const name = isName(dest) ? dest.name : rawString(dest)
           if (name !== undefined) return options.destinationPage?.(name)
           const target = (await arrayOf(objs, dest))[0]
           return isRef(target) ? pages.get(refKey(target.num, target.gen)) : undefined

@@ -122,4 +122,25 @@ describe('readFormExtras', () => {
       ],
     })
   })
+
+  it('looks a string destination name up by its raw bytes', async () => {
+    const objs = (await openPdfObjects(await fixtureBytes('form-goto')))!
+    const asked: string[] = []
+    const raw = { kind: 'string', bytes: Uint8Array.from([0x63, 0xe9]) } as const
+    // A GoTo to (c\351): PDF.js keys its name tree by the bytes, not the decoded text.
+    const get = objs.get.bind(objs)
+    objs.get = async (ref) => {
+      const v = await get(ref)
+      if (ref.num === 13 && isDict(v)) {
+        const a = v.entries.get('A')
+        const action = isDict(a) ? a : undefined
+        action?.entries.set('D', raw)
+      }
+      return v
+    }
+    await readFormExtras(objs, ['13R'], {
+      destinationPage: (name) => (asked.push(name), Promise.resolve(undefined)),
+    })
+    expect(asked).toEqual(['c\u00e9'])
+  })
 })
