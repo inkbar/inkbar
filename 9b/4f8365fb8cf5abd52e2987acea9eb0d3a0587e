@@ -1,0 +1,21 @@
+apps/e2e-shared/playwright.ts
+  s_e0e8977f4801ea::t_97a6ee93644a41 8,10-11
+apps/e2e-svelte/playwright.config.ts
+  s_e0e8977f4801ea::t_07af1f9a97d356 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9b4f8365fb8cf5abd52e2987acea9eb0d3a0587e",
+  "prompts": {},
+  "sessions": {
+    "s_e0e8977f4801ea": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a9cdad7b2dc56f3f4",
+        "model": "unknown"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
