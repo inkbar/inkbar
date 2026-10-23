@@ -109,6 +109,7 @@ describe('text content', () => {
       ]
     )
     expect(tc.items[0]!.advances).toEqual([0, 0.2, 1])
+    expect(tc.items[0]!.glyphEnds).toEqual([0.2, 1])
     expect(measure).not.toHaveBeenCalled()
   })
 

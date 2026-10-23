@@ -20,6 +20,12 @@ export interface TextItem {
    * works, in which case every character takes an equal share.
    */
   advances?: readonly number[]
+  /**
+   * Where each character's glyph ends, as a fraction of the run's width: `str.length` entries, set
+   * with `advances` when they come from the page's glyphs. Kerning can pull the next character
+   * back over the end of a glyph, so a glyph may end past the next boundary.
+   */
+  glyphEnds?: readonly number[]
 }
 
 /** How far `char` advances in `fontFamily`, in any unit; only ratios within a run are used. */
@@ -104,12 +110,14 @@ export function textContentFromPdfjs(
   // The glyphs the page draws give exact boundaries; measuring is the fallback for the rest.
   const exact = glyphs ? glyphAdvances(runs, glyphs) : []
   items.forEach((it, i) => {
-    const advances =
-      exact[i] ??
-      (measure && it.dir === 'ltr'
-        ? advancesOf(it.str, families[i]!, measure)
-        : undefined)
-    if (advances) it.advances = advances
+    const bounds = exact[i]
+    if (bounds) {
+      it.advances = bounds.advances
+      it.glyphEnds = bounds.ends
+    } else if (measure && it.dir === 'ltr') {
+      const advances = advancesOf(it.str, families[i]!, measure)
+      if (advances) it.advances = advances
+    }
   })
   return { page, items }
 }

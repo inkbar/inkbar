@@ -18,6 +18,14 @@ export interface TextRun extends Pick<TextItem, 'str' | 'dir' | 'fontSize'> {
   width: number
 }
 
+/** Where each character of a run starts and where its glyph ends, as fractions of the run's width. */
+export interface GlyphBounds {
+  /** `str.length + 1` boundaries: see `TextItem.advances`. */
+  advances: number[]
+  /** `str.length` glyph ends: see `TextItem.glyphEnds`. */
+  ends: number[]
+}
+
 /** How many glyphs past the last match to look for the start of the next item first. */
 const LOOKAHEAD = 256
 /** How far, as a fraction of the font size, a glyph may start from the item origin and still match. */
@@ -37,7 +45,7 @@ const RISE_SLACK = 1
 export function glyphAdvances(
   runs: readonly TextRun[],
   glyphs: readonly PageGlyph[]
-): (number[] | undefined)[] {
+): (GlyphBounds | undefined)[] {
   let next = 0
   return runs.map((run) => {
     if (run.dir !== 'ltr' || run.str.trim() === '' || !(run.width > 0)) return undefined
@@ -54,7 +62,7 @@ export function glyphAdvances(
       tryFrom(0, glyphs.length)
     if (!m) return undefined
     next = m.next
-    return m.advances
+    return m.bounds
   })
 }
 
@@ -71,7 +79,7 @@ function matchRun(
   run: TextRun,
   glyphs: readonly PageGlyph[],
   start: number
-): { advances: number[]; next: number } | undefined {
+): { bounds: GlyphBounds; next: number } | undefined {
   const { str, origin, along, width, fontSize } = run
   const t = (p: Point) =>
     ((p.x - origin.x) * along.x + (p.y - origin.y) * along.y) / width
@@ -85,6 +93,7 @@ function matchRun(
   )
     return undefined
   const bounds: number[] = []
+  const ends: number[] = []
   let end = 0
   let g = start
   while (bounds.length < str.length) {
@@ -95,14 +104,17 @@ function matchRun(
     if (glyph && text) {
       const t0 = t(glyph.start)
       end = t(glyph.end)
-      for (let k = 0; k < text.length; k++)
+      for (let k = 0; k < text.length; k++) {
         bounds.push(t0 + ((end - t0) * k) / text.length)
+        ends.push(t0 + ((end - t0) * (k + 1)) / text.length)
+      }
       g++
     } else if (at > 0 && /\s/u.test(str[at]!)) {
       // A space PDF.js inserted for a gap: it runs from the last glyph to the next one.
       bounds.push(end)
+      ends.push(end)
     } else if (at > 0 && glyph && skippable(glyph.text)) g++
     else return undefined
   }
-  return { advances: [...bounds, end], next: g }
+  return { bounds: { advances: [...bounds, end], ends }, next: g }
 }

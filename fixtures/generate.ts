@@ -110,6 +110,10 @@ async function textSearch() {
   page.drawText('right second line', { x: 320, y: 544, size, font })
   // Character spacing 1 and word spacing 4, then a word kerned apart by a TJ adjustment of -20.
   const key = page.node.newFontDictionary(font.name, font.ref)
+  const tucked = PDFArray.withContext(d.context)
+  tucked.push(font.encodeText('T'))
+  tucked.push(PDFNumber.of(120))
+  tucked.push(font.encodeText('o'))
   const kerned = PDFArray.withContext(d.context)
   kerned.push(font.encodeText('ke'))
   kerned.push(PDFNumber.of(-20))
@@ -145,13 +149,19 @@ async function textSearch() {
     showText(font.encodeText('half ')),
     PDFOperator.of(PDFOperatorNames.SetTextHorizontalScaling, [PDFNumber.of(100)]),
     showText(font.encodeText('full')),
+    endText(),
+    // "To" with the "o" kerned 120 back under the T's crossbar.
+    beginText(),
+    setFontAndSize(key, size),
+    moveText(72, 392),
+    PDFOperator.of(PDFOperatorNames.ShowTextAdjusted, [tucked]),
     endText()
   )
   return save('text-search', d, {
     pages: 1,
     opens: true,
     describes:
-      'Search cases: split-font word, hyphenated line break, accents, curly quotes, two columns, character and word spacing, a kerned word, a move and a scaling change inside one line',
+      'Search cases: split-font word, hyphenated line break, accents, curly quotes, two columns, character and word spacing, a kerned word, a move and a scaling change inside one line, a kerned pair',
   })
 }
 

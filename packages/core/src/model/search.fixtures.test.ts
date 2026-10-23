@@ -205,4 +205,13 @@ describe('InkDocument.search', () => {
     expect(full!.rect.x).toBeCloseTo(72 + plain('half ') / 2, 2)
     expect(full!.rect.width).toBeCloseTo(plain('full'), 2)
   })
+
+  it('covers the whole of a glyph that kerning tucks the next one under', async () => {
+    const doc = await open('text-search')
+    const [t] = await doc.search('T', { matchCase: true }).all()
+    doc.destroy()
+    // The fixture draws "To" at x = 72 with the "o" kerned 120 back; the T is 611 wide.
+    expect(t!.rect.x).toBeCloseTo(72, 2)
+    expect(t!.rect.width).toBeCloseTo((611 * 14) / 1000, 2)
+  })
 })

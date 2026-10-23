@@ -9,7 +9,7 @@
     "file": "text-search.pdf",
     "pages": 1,
     "opens": true,
-    "describes": "Search cases: split-font word, hyphenated line break, accents, curly quotes, two columns, character and word spacing, a kerned word, a move and a scaling change inside one line"
+    "describes": "Search cases: split-font word, hyphenated line break, accents, curly quotes, two columns, character and word spacing, a kerned word, a move and a scaling change inside one line, a kerned pair"
   },
   "text-rotated-90": {
     "file": "text-rotated-90.pdf",
