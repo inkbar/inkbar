@@ -281,6 +281,14 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
   const painted = annotsOrder(entries, (e) => e.widget)
   entries.sort((a, b) => (order.get(a.widget.id) ?? 0) - (order.get(b.widget.id) ?? 0))
   for (const e of entries) element.append(e.box)
+  /** Each radio group's entries on the page, in Tab order. */
+  const radios = new Map<FormField, Entry[]>()
+  for (const e of entries)
+    if (e.field.type === 'radio') {
+      const group = radios.get(e.field)
+      if (group) group.push(e)
+      else radios.set(e.field, [e])
+    }
 
   // The PDF's own widget appearances: right above the page canvas, under the text layer and
   // the annotations.
@@ -389,38 +397,44 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
     toggle(e.box, 'data-ink-drawn', e.view?.drawn === true)
   }
 
-  /** A radio group is one Tab stop on the page: its chosen radio, else its first. */
-  const isStop = (e: Entry): boolean => {
-    if (e.view?.tabbable === false) return false
-    if (e.field.type !== 'radio') return true
-    const value = form.values.get()[e.field.name]
-    const group = entries.filter((g) => g.field === e.field && g.view && !hiddenOf(g))
-    return e === (group.find((g) => g.widget.onState === value) ?? group[0])
-  }
+  /** A radio group's widgets on the page a person can see and pick, in Tab order. */
+  const shownOf = (group: readonly Entry[]) => group.filter((g) => g.view && !hiddenOf(g))
 
   /** Numbers each radio group's shown widgets on the page for assistive technology. */
   const numberRadios = () => {
-    for (const e of entries) {
-      const control = e.view?.control
-      if (!control || e.field.type !== 'radio') continue
-      const group = entries.filter((g) => g.field === e.field && g.view && !hiddenOf(g))
-      const at = group.indexOf(e)
-      if (at < 0) {
-        control.removeAttribute('aria-posinset')
-        control.removeAttribute('aria-setsize')
-      } else {
-        control.setAttribute('aria-posinset', String(at + 1))
-        control.setAttribute('aria-setsize', String(group.length))
+    for (const group of radios.values()) {
+      const shown = shownOf(group)
+      for (const e of group) {
+        const control = e.view?.control
+        if (!control) continue
+        const at = shown.indexOf(e)
+        if (at < 0) {
+          control.removeAttribute('aria-posinset')
+          control.removeAttribute('aria-setsize')
+        } else {
+          control.setAttribute('aria-posinset', String(at + 1))
+          control.setAttribute('aria-setsize', String(shown.length))
+        }
       }
     }
   }
 
   const setActive = () => {
     const active = opts.isActive()
+    // A radio group is one Tab stop on the page: its chosen radio, else its first.
+    const values = form.values.get()
+    const stops = new Set<Entry>()
+    for (const group of radios.values()) {
+      const shown = shownOf(group)
+      const value = values[group[0]!.field.name]
+      const stop = shown.find((g) => g.widget.onState === value) ?? shown[0]
+      if (stop) stops.add(stop)
+    }
     for (const e of entries) {
       if (!e.view) continue
+      const stop = e.view.tabbable !== false && (e.field.type !== 'radio' || stops.has(e))
       e.box.style.pointerEvents = active ? 'auto' : 'none'
-      e.view.control.tabIndex = active && isStop(e) ? 0 : -1
+      e.view.control.tabIndex = active && stop ? 0 : -1
     }
   }
 
