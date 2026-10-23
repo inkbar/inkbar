@@ -1,0 +1,24 @@
+packages/core/src/dom/popover-focus.ts
+  s_e6109f66fbb4ed::t_90032e122d0191 82-103
+packages/core/src/dom/popover-focus.browser.test.ts
+  s_e6109f66fbb4ed::t_036f956de45566 3-8,126-159
+  s_e6109f66fbb4ed::t_8d8e570e6ffbba 160-164
+packages/core/src/dom/index.ts
+  s_e6109f66fbb4ed::t_90032e122d0191 184-188
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6d9c4ccd1b50e6638b0f492ef44bbb70944f240d",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
