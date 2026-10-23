@@ -240,6 +240,15 @@
       "Widget": 2
     }
   },
+  "form-bare-appearances": {
+    "file": "form-bare-appearances.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A checkbox whose /AP has an on state and no /Off, and a text field with no /AP, for checking that widgets the file draws nothing for are not reported as missing",
+    "annotations": {
+      "Widget": 2
+    }
+  },
   "incremental-saved": {
     "file": "incremental-saved.pdf",
     "pages": 1,

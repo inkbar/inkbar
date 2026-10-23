@@ -92,6 +92,7 @@ function appearanceOf(
   const appearance: WidgetAppearance = {
     fontSize: da && Number.isFinite(da.fontSize) ? da.fontSize : 0,
     align: ALIGN[d.textAlignment ?? 0] ?? 'left',
+    fileAppearance: d.hasAppearance === true,
   }
   const font =
     extra?.font ?? (da?.fontName ? fontFromBaseName(da.fontName, true) : undefined)
@@ -120,8 +121,10 @@ function appearanceOf(
     else if (type === 'checkbox' || type === 'radio')
       appearance.checkStyle = extra.caption
   }
-  if (type === 'checkbox' || type === 'radio')
+  if (type === 'checkbox' || type === 'radio') {
     appearance.onAppearance = extra?.onState !== undefined
+    appearance.offAppearance = extra?.offAppearance === true
+  }
   return appearance
 }
 

@@ -2,8 +2,7 @@ import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { page as browserPage, userEvent } from 'vitest/browser'
 
-import { storeButtonStates } from '../pdfjs/widget-states'
-
+import { SCRATCH_BUDGET } from './form-appearance'
 import { createPageMount, type PageMount } from './page-mount'
 import { createPageRenderer } from './page-renderer'
 import { mountContainer, nextFrame, openFixtureInBrowser, until } from './test-utils'
@@ -288,6 +287,18 @@ describe('form layer', () => {
     expect(doc.form.get('qty')).toBe('4')
   })
 
+  it('hides a widget’s appearance while a script hides the widget', async () => {
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    await settled(p)
+    const id = p.widgetOf('name').id
+    expect(shownCanvas(p.host, id)).toBeDefined()
+    doc.form._setWidgetState(id, { hidden: true })
+    expect(shownCanvas(p.host, id)).toBeUndefined()
+    doc.form._setWidgetState(id, { hidden: false })
+    expect(shownCanvas(p.host, id)).toBeDefined()
+  })
+
   it('applies script-driven widget state', async () => {
     const doc = await open('form-fields')
     const p = mountPage(doc)
@@ -355,21 +366,230 @@ describe('form layer', () => {
     expect(modes).toEqual([doc._pdfjs.module.AnnotationMode.ENABLE])
   })
 
-  it('renders a form page without widgets and draws their appearance in the layer', async () => {
+  it('renders a form page once, into one canvas, and each widget’s appearance apart', async () => {
+    const doc = await open('form-fields')
+    const renders = await watchRenders(doc)
+    const p = mountPage(doc)
+    await settled(p)
+    expect(p.host.querySelectorAll('[data-ink-canvas]')).toHaveLength(1)
+    expect(renders.page()).toBe(1)
+    // Every shown widget has its own appearance, drawn over its rect only.
+    const shown = widgetsOf(doc, 'name')[0]!
+    const canvas = shownCanvas(p.host, shown.id)!
+    const css = p.transform.toCssRect(shown.rect)
+    expect(canvas.width).toBeLessThanOrEqual(Math.ceil(css.width) + 3)
+    expect(canvas.height).toBeLessThanOrEqual(Math.ceil(css.height) + 3)
+    expect(canvas.hasAttribute('data-ink-canvas')).toBe(false)
+  })
+
+  it('draws a page’s widget appearances in a few batched renders, whatever their number', async () => {
+    const doc = await open('form-fields')
+    const renders = await watchRenders(doc)
+    const p = mountPage(doc)
+    await settled(p)
+    // The page canvas, then one pass each for the widgets' own appearances and a toggle's
+    // checked and unchecked ones: 19 widgets, 4 renders.
+    expect(widgetsOnPage(doc, 0).length).toBeGreaterThan(10)
+    expect(renders.all()).toBeLessThanOrEqual(4)
+    // A new zoom draws them again in as few.
+    p.update(createPageTransform(doc.pages[0]!, 1.5, 0))
+    await settled(p)
+    expect(renders.all()).toBeLessThanOrEqual(8)
+  })
+
+  it('hides an appearance drawn at another rotation until its new one lands', async () => {
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    await settled(p)
+    const id = p.widgetOf('name').id
+    expect(shownCanvas(p.host, id)).toBeDefined()
+    p.update(createPageTransform(doc.pages[0]!, 1, 90))
+    expect(shownCanvas(p.host, id)).toBeUndefined()
+    await settled(p)
+    expect(shownCanvas(p.host, id)).toBeDefined()
+    // A zoom keeps the old bitmap, stretched to the new rect, until the new one lands.
+    p.update(createPageTransform(doc.pages[0]!, 2, 90))
+    const stretched = shownCanvas(p.host, id)!
+    const css = p.transform.toCssRect(p.widgetOf('name').rect)
+    expect(Math.abs(parseFloat(stretched.style.width) - css.width)).toBeLessThanOrEqual(3)
+  })
+
+  it('drops a draw for a geometry that changed before it landed', async () => {
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    const id = p.widgetOf('name').id
+    // The first draw is under way; the field is focused, so it no longer shows, and the zoom
+    // changes.
+    p.control('name').focus()
+    p.update(createPageTransform(doc.pages[0]!, 2, 0))
+    await settled(p)
+    p.control('name').blur()
+    // Shown again: nothing at the old zoom's place, only the new draw once it lands.
+    const early = shownCanvas(p.host, id)
+    const css = p.transform.toCssRect(p.widgetOf('name').rect)
+    if (early)
+      expect(Math.abs(parseFloat(early.style.width) - css.width)).toBeLessThanOrEqual(3)
+    await settled(p)
+    const late = shownCanvas(p.host, id)!
+    expect(Math.abs(parseFloat(late.style.width) - css.width)).toBeLessThanOrEqual(3)
+  })
+
+  it('does not report widgets the file draws nothing for', async () => {
+    const doc = await open('form-bare-appearances')
+    const t = createPageTransform(doc.pages[0]!, 1, 0)
+    const host = mountContainer(t.cssWidth, t.cssHeight)
+    const onError = vi.fn()
+    const mount = createPageMount({
+      document: doc,
+      page: 0,
+      host,
+      transform: t,
+      store: doc.annotations,
+      devicePixelRatio: 1,
+      onError,
+    })
+    cleanup.push(() => (mount.destroy(), host.remove()))
+    await mount.renderer.rendered
+    await mount.form!.rendered
+    // The checkbox off has no /Off look, and the text field no /AP: PDF.js has no run for
+    // either. Checking the box draws its on look.
+    const agree = doc.form.fields.get().find((f) => f.name === 'agree')!.widgets[0]!
+    await userEvent.click(controlOf(host, agree))
+    await mount.form!.rendered
+    await new Promise((resolve) => setTimeout(resolve, 700))
+    expect(onError).not.toHaveBeenCalled()
+    expect(shownCanvas(host, agree.id)?.dataset.inkLook).toBe('checked')
+  })
+
+  it('keeps each scratch canvas under its budget, one at a time, at high zoom', async () => {
     const doc = await open('form-fields')
     const page = await doc._pdfjs.getPage(0)
-    const modes: unknown[] = []
     const render = page.render.bind(page)
+    const areas: number[] = []
+    let live = 0
+    let most = 0
     vi.spyOn(page, 'render').mockImplementation((params) => {
-      modes.push(params.annotationMode)
-      return render(params)
+      const task = render(params)
+      if (params.canvas?.hasAttribute('data-ink-canvas')) return task
+      areas.push(params.canvas!.width * params.canvas!.height)
+      most = Math.max(most, ++live)
+      task.promise.then(
+        () => live--,
+        () => live--
+      )
+      return task
     })
-    mountPage(doc)
-    const { AnnotationMode } = doc._pdfjs.module
-    await until(() => modes.length === 2)
-    expect(modes).toContain(AnnotationMode.ENABLE_FORMS)
-    // The widgets' own appearances, checkboxes and radios in the states the layer stored.
-    expect(modes).toContain(AnnotationMode.ENABLE_STORAGE)
+    // At zoom 6 the page is 3672 by 4752 device px, 17M: its widgets span more than 4M.
+    const p = mountPage(doc, { zoom: 6 })
+    await settled(p)
+    expect(areas.length).toBeGreaterThan(3)
+    for (const area of areas) expect(area).toBeLessThanOrEqual(SCRATCH_BUDGET)
+    expect(most).toBe(1)
+    expect(shownCanvas(p.host, p.widgetOf('notes').id)).toBeDefined()
+  })
+
+  it('settles once the shown looks land, without waiting for idle work', async () => {
+    // The browser never goes idle.
+    vi.spyOn(window, 'requestIdleCallback').mockImplementation(() => 0)
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    await p.mount.renderer.rendered
+    const settledInTime = await Promise.race([
+      p.mount.form!.rendered.then(() => true),
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 2_000)),
+    ])
+    expect(settledInTime).toBe(true)
+    expect(shownCanvas(p.host, p.widgetOf('name').id)).toBeDefined()
+  })
+
+  it('touching widgets share a pass', async () => {
+    const doc = await open('form-fields')
+    const name = widgetsOf(doc, 'name')[0]!
+    // pin sits right under name, edge to edge, as table cells do.
+    const moved = doc.form.fields.get().map((f): FormField =>
+      f.name === 'pin'
+        ? {
+            ...f,
+            widgets: f.widgets.map((w) => ({
+              ...w,
+              rect: { ...w.rect, x: name.rect.x, y: name.rect.y - w.rect.height },
+            })),
+          }
+        : f
+    )
+    doc.form._load(moved, doc.form._tabs)
+    const renders = await watchRenders(doc)
+    const p = mountPage(doc)
+    await settled(p)
+    expect(renders.all()).toBeLessThanOrEqual(4)
+  })
+
+  it('draws a look again after its pass fails', async () => {
+    const doc = await open('form-fields')
+    const page = await doc._pdfjs.getPage(0)
+    const render = page.render.bind(page)
+    let failures = 0
+    vi.spyOn(page, 'render').mockImplementation((params) => {
+      const task = render(params)
+      if (params.canvas?.hasAttribute('data-ink-canvas') || failures > 0) return task
+      failures++
+      task.promise.catch(() => undefined)
+      task.cancel()
+      return {
+        promise: Promise.reject(new Error('broken')),
+        cancel: () => undefined,
+      } as unknown as typeof task
+    })
+    const p = mountPage(doc)
+    await until(() => shownCanvas(p.host, p.widgetOf('name').id) !== undefined, 5_000)
+    expect(failures).toBe(1)
+  })
+
+  it('reports a page whose widget appearances it cannot find', async () => {
+    const doc = await open('form-fields')
+    const page = await doc._pdfjs.getPage(0)
+    const render = page.render.bind(page)
+    // Every widget pass finds nothing, as if PDF.js laid out its operator list differently.
+    vi.spyOn(page, 'render').mockImplementation((params) => {
+      if (params.canvas?.hasAttribute('data-ink-canvas')) return render(params)
+      return render({ ...params, operationsFilter: () => false })
+    })
+    const t = createPageTransform(doc.pages[0]!, 1, 0)
+    const host = mountContainer(t.cssWidth, t.cssHeight)
+    const onError = vi.fn()
+    const mount = createPageMount({
+      document: doc,
+      page: 0,
+      host,
+      transform: t,
+      store: doc.annotations,
+      devicePixelRatio: 1,
+      onError,
+    })
+    cleanup.push(() => (mount.destroy(), host.remove()))
+    await until(() => onError.mock.calls.length > 0)
+    expect(onError).toHaveBeenCalledWith(expect.any(Error), 'form')
+  })
+
+  it('a toggle or an edit paints nothing', async () => {
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    await settled(p)
+    const renders = await watchRenders(doc)
+    const agree = controlOf(p.host, widgetsOf(doc, 'agree')[0]!)
+    await userEvent.click(agree)
+    await userEvent.click(controlOf(p.host, widgetsOf(doc, 'plan')[1]!))
+    await typeOver(p.control('name'), 'Alex')
+    p.control('name').blur()
+    expect(doc.form.get('agree')).toBe('Yes')
+    expect(doc.form.get('name')).toBe('Alex')
+    await settled(p)
+    expect(renders.all()).toBe(0)
+    // Undo shows the file's appearance again, without painting either.
+    doc.history.undo()
+    await settled(p)
+    expect(shownCanvas(p.host, widgetsOf(doc, 'name')[0]!.id)).toBeDefined()
+    expect(renders.all()).toBe(0)
   })
 
   it('inactive while an annotation tool is active', async () => {
@@ -469,11 +689,11 @@ describe('form layer', () => {
   it('reports an appearance canvas that fails to render as a form layer error', async () => {
     const doc = await open('form-fields')
     const page = await doc._pdfjs.getPage(0)
-    const { AnnotationMode } = doc._pdfjs.module
     const render = page.render.bind(page)
     vi.spyOn(page, 'render').mockImplementation((params) => {
       const task = render(params)
-      if (params.annotationMode !== AnnotationMode.ENABLE_STORAGE) return task
+      // Only the widget appearances fail, not the page canvas.
+      if (params.canvas?.hasAttribute('data-ink-canvas')) return task
       task.promise.catch(() => undefined)
       task.cancel()
       return {
@@ -524,12 +744,8 @@ describe('form layer', () => {
     addTheme()
     const doc = await open('form-fields')
     const p = mountPage(doc, { highlight: false })
-    await p.mount.renderer.rendered
+    await settled(p)
     const rect = p.transform.toCssRect(p.widgetOf('name').rect)
-    await until(
-      () => p.host.querySelector('[data-ink-form-appearance] canvas') !== null,
-      10_000
-    )
 
     // The same page drawn by PDF.js with every widget's appearance, and with none.
     const reference = (drawWidgets: boolean) => {
@@ -570,19 +786,6 @@ describe('form layer', () => {
       ctx.drawImage(img, 0, 0)
       return ctx.getImageData(0, 0, c.width, c.height)
     }
-    const differing = (a: ImageData, b: ImageData) => {
-      expect([a.width, a.height]).toEqual([b.width, b.height])
-      let n = 0
-      for (let i = 0; i < a.data.length; i += 4) {
-        const d = Math.max(
-          Math.abs(a.data[i]! - b.data[i]!),
-          Math.abs(a.data[i + 1]! - b.data[i + 1]!),
-          Math.abs(a.data[i + 2]! - b.data[i + 2]!)
-        )
-        if (d > 8) n++
-      }
-      return n / (a.width * a.height)
-    }
     const expected = await shot(pdf.host)
     const layered = await shot(p.host)
     const without = await shot(bare.host)
@@ -590,6 +793,32 @@ describe('form layer', () => {
     // The check can fail: the page without the widget's appearance differs.
     expect(differing(without, expected)).toBeGreaterThan(0.02)
   })
+
+  it.each([
+    [1.5, 0],
+    [1, 90],
+  ] as const)(
+    'an untouched field still matches at zoom %s and view rotation %i',
+    async (zoom, rotation: ViewRotation) => {
+      addTheme()
+      const doc = await open('form-fields')
+      const p = mountPage(doc, { highlight: false })
+      await settled(p)
+      const t = createPageTransform(doc.pages[0]!, zoom, rotation)
+      // The viewer sizes the page host to the page; so does the test.
+      p.host.style.width = `${t.cssWidth}px`
+      p.host.style.height = `${t.cssHeight}px`
+      p.update(t)
+      await settled(p)
+      const pdf = await reference(doc, t, true)
+      for (const name of ['name', 'agree']) {
+        const rect = p.widgetOf(name).rect
+        expect(
+          differing(await shot(p.host, t, rect), await shot(pdf, t, rect))
+        ).toBeLessThanOrEqual(0.02)
+      }
+    }
+  )
 
   it('keeps an annotation over an untouched field visible', async () => {
     addTheme()
@@ -603,11 +832,7 @@ describe('form layer', () => {
       color: '#ff0000',
       interiorColor: '#ff0000',
     })
-    await p.mount.renderer.rendered
-    await until(
-      () => p.host.querySelector('[data-ink-form-appearance] canvas') !== null,
-      10_000
-    )
+    await settled(p)
     const rect = p.transform.toCssRect(w.rect)
     const probe = document.createElement('div')
     probe.style.cssText = `position:absolute;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;pointer-events:none;`
@@ -636,6 +861,11 @@ describe('form layer', () => {
   })
 })
 
+/** Every widget on `page`. */
+function widgetsOnPage(doc: InkDocument, page: number): FormWidget[] {
+  return doc.form.fields.get().flatMap((f) => f.widgets.filter((w) => w.page === page))
+}
+
 /** Every widget of `name` on `page`, in the order the field lists them. */
 function widgetsOf(doc: InkDocument, name: string, page = 0): FormWidget[] {
   return doc.form.fields
@@ -652,32 +882,39 @@ function controlOf<T extends HTMLElement = HTMLElement>(
   return root.querySelector<T>(`[data-ink-widget="${w.id}"] .ink-form-control`)!
 }
 
-/** The appearance canvas's renders of `page`: the stored-state ones, as they start. */
-async function watchAppearance(doc: InkDocument, page = 0) {
+/** Counts `page`'s renders from now on: all of them, and those of the whole page canvas. */
+async function watchRenders(doc: InkDocument, page = 0) {
   const pdfPage = await doc._pdfjs.getPage(page)
-  const { AnnotationMode } = doc._pdfjs.module
-  const tasks: Promise<unknown>[] = []
+  let all = 0
+  let whole = 0
   const render = pdfPage.render.bind(pdfPage)
   vi.spyOn(pdfPage, 'render').mockImplementation((params) => {
-    const task = render(params)
-    if (params.annotationMode === AnnotationMode.ENABLE_STORAGE) tasks.push(task.promise)
-    return task
+    all++
+    if (params.canvas?.hasAttribute('data-ink-canvas')) whole++
+    return render(params)
   })
-  return {
-    /** Resolves once the `n`th render painted. */
-    async painted(n: number) {
-      await until(() => tasks.length >= n, 10_000)
-      await tasks[n - 1]
-      await nextFrame()
-    },
-  }
+  return { all: () => all, page: () => whole }
+}
+
+/** Waits for a mounted page's canvas and widget appearances to paint. */
+async function settled(p: { mount: PageMount }) {
+  await p.mount.renderer.rendered
+  await p.mount.form!.rendered
+  await nextFrame()
+}
+
+/** The widget's appearance canvas showing now, if any. */
+function shownCanvas(host: HTMLElement, id: string): HTMLCanvasElement | undefined {
+  return [
+    ...host.querySelectorAll<HTMLCanvasElement>(`[data-ink-appearance="${id}"] canvas`),
+  ].find((c) => c.style.display !== 'none')
 }
 
 /** A page of `doc` drawn by PDF.js alone, to compare the layer with. */
 async function reference(
   doc: InkDocument,
   transform: PageTransform,
-  drawWidgets: boolean | 'stored'
+  drawWidgets: boolean
 ) {
   const host = mountContainer(transform.cssWidth, transform.cssHeight)
   const r = createPageRenderer({
@@ -690,6 +927,37 @@ async function reference(
   })
   cleanup.push(() => (r.destroy(), host.remove()))
   await r.rendered
+  return host
+}
+
+/**
+ * A page of `doc` drawn by PDF.js alone, each checkbox or radio in `states` on or off, as
+ * PDF.js draws a form's stored states.
+ */
+async function storedReference(
+  doc: InkDocument,
+  transform: PageTransform,
+  states: [string, boolean][]
+) {
+  const host = mountContainer(transform.cssWidth, transform.cssHeight)
+  cleanup.push(() => host.remove())
+  for (const [id, on] of states)
+    doc._pdfjs.proxy.annotationStorage.setValue(id, { value: on })
+  const pdfPage = await doc._pdfjs.getPage(transform.page.index)
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(transform.cssWidth)
+  canvas.height = Math.round(transform.cssHeight)
+  canvas.style.cssText = `position:absolute;left:0;top:0;width:${transform.cssWidth}px;height:${transform.cssHeight}px;`
+  await pdfPage.render({
+    canvas,
+    viewport: pdfPage.getViewport({
+      scale: transform.zoom,
+      rotation: transform.totalRotation,
+    }),
+    background: '#ffffff',
+    annotationMode: doc._pdfjs.module.AnnotationMode.ENABLE_STORAGE,
+  }).promise
+  host.append(canvas)
   return host
 }
 
@@ -717,17 +985,26 @@ async function shot(host: HTMLElement, transform: PageTransform, rect: Rect) {
   return ctx.getImageData(0, 0, c.width, c.height)
 }
 
-/** The share of pixels where any channel differs by more than 8. */
+/**
+ * The share of pixels whose brightness (the mean of the three channels) differs by more than 32.
+ * Not each channel: Chrome on Linux gives text on the opaque page canvas coloured subpixel
+ * edges and text on a transparent appearance canvas grey ones, which differ in colour, not in
+ * brightness.
+ */
 function differing(a: ImageData, b: ImageData) {
   expect([a.width, a.height]).toEqual([b.width, b.height])
   let n = 0
   for (let i = 0; i < a.data.length; i += 4) {
-    const d = Math.max(
-      Math.abs(a.data[i]! - b.data[i]!),
-      Math.abs(a.data[i + 1]! - b.data[i + 1]!),
-      Math.abs(a.data[i + 2]! - b.data[i + 2]!)
-    )
-    if (d > 8) n++
+    const d =
+      Math.abs(
+        a.data[i]! +
+          a.data[i + 1]! +
+          a.data[i + 2]! -
+          b.data[i]! -
+          b.data[i + 1]! -
+          b.data[i + 2]!
+      ) / 3
+    if (d > 32) n++
   }
   return n / (a.width * a.height)
 }
@@ -758,10 +1035,8 @@ describe('checkboxes, radios, choices and buttons', () => {
   it('checkbox and radio draw the PDF’s on and off appearance', async () => {
     addTheme()
     const doc = await open('form-fields')
-    const renders = await watchAppearance(doc)
     const p = mountPage(doc, { highlight: false })
-    await p.mount.renderer.rendered
-    await renders.painted(1)
+    await settled(p)
     const t = p.transform
     // The file has agree off, monthly on and yearly off.
     const pdf = await reference(doc, t, true)
@@ -775,7 +1050,7 @@ describe('checkboxes, radios, choices and buttons', () => {
     // file draws its two radios alike, so each is compared with the other as the file has it.
     await userEvent.click(controlOf(p.host, yearly!))
     controlOf(p.host, yearly!).blur()
-    await renders.painted(2)
+    await settled(p)
     const yearlyOn = await shot(p.host, t, yearly!.rect)
     expect(differing(yearlyOn, await shot(pdf, t, monthly!.rect))).toBeLessThanOrEqual(
       0.02
@@ -789,14 +1064,11 @@ describe('checkboxes, radios, choices and buttons', () => {
     // The checkbox's on look is its own /AP /N /Yes, as PDF.js draws it in that state.
     await userEvent.click(controlOf(p.host, agree!))
     controlOf(p.host, agree!).blur()
-    await renders.painted(3)
+    await settled(p)
     const copy = await open('form-fields')
-    storeButtonStates(copy._pdfjs.proxy, [[agree!.id, true]])
-    const checked = await reference(
-      copy,
-      createPageTransform(copy.pages[0]!, 1),
-      'stored'
-    )
+    const checked = await storedReference(copy, createPageTransform(copy.pages[0]!, 1), [
+      [agree!.id, true],
+    ])
     const agreeOn = await shot(p.host, t, agree!.rect)
     expect(differing(agreeOn, await shot(checked, t, agree!.rect))).toBeLessThanOrEqual(
       0.02
@@ -806,7 +1078,7 @@ describe('checkboxes, radios, choices and buttons', () => {
     // And back off.
     await userEvent.click(controlOf(p.host, agree!))
     controlOf(p.host, agree!).blur()
-    await renders.painted(4)
+    await settled(p)
     expect(
       differing(await shot(p.host, t, agree!.rect), await shot(pdf, t, agree!.rect))
     ).toBeLessThanOrEqual(0.02)
@@ -875,10 +1147,10 @@ describe('checkboxes, radios, choices and buttons', () => {
     expect(doc.form.get('shared')).toBe('1')
     expect(second!.getAttribute('aria-checked')).toBe('true')
     expect(first!.getAttribute('aria-checked')).toBe('false')
-    // PDF.js is told only the second widget is on.
-    const storage = doc._pdfjs.proxy.annotationStorage
-    expect(storage.getValue(widgets[0]!.id, {})).toEqual({ value: false })
-    expect(storage.getValue(widgets[1]!.id, {})).toEqual({ value: true })
+    // Only the second widget shows its on appearance.
+    await p.mount.form!.rendered
+    expect(shownCanvas(p.host, widgets[0]!.id)?.dataset.inkLook).toBe('unchecked')
+    expect(shownCanvas(p.host, widgets[1]!.id)?.dataset.inkLook).toBe('checked')
   })
 
   it('Space toggles a focused checkbox, and arrows move within a radio group', async () => {

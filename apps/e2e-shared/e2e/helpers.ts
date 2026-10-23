@@ -7,9 +7,8 @@ export async function waitForFirstPage(page: Page, timeout = 15_000): Promise<vo
   await expect(page.locator('[data-ink-root]')).toHaveAttribute('data-state', 'ready', {
     timeout,
   })
-  // A page with form fields has a second canvas under its fields, for their appearances.
   await expect(
-    page.locator('.ink-page[data-page="0"] canvas[data-ink-canvas]').first()
+    page.locator('.ink-page[data-page="0"] canvas[data-ink-canvas]')
   ).toBeVisible({
     timeout,
   })
