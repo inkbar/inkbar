@@ -17,6 +17,7 @@
     "@fontsource-variable/open-sans": "^5.3.0",
     "@fontsource-variable/urbanist": "^5.3.0",
     "@inkbar/core": "workspace:*",
+    "@inkbar/e2e-shared": "workspace:*",
     "@inkbar/react": "workspace:*",
     "@inkbar/svelte": "workspace:*",
     "@inkbar/theme": "workspace:*",
@@ -28,7 +29,6 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
-    "@inkbar/e2e-shared": "workspace:*",
     "@playwright/test": "1.62.1",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@types/node": "^24",

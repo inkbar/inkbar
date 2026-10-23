@@ -1,3 +1,5 @@
+import { describeAction } from '@inkbar/e2e-shared/form-actions'
+
 import type { FormAction, InkDocument } from '@inkbar/core'
 
 /*
@@ -12,22 +14,6 @@ export interface LoggedAction {
 }
 
 let nextId = 0
-
-/** One line for an action: its kind and what it points at. */
-export function describeAction(a: FormAction): string {
-  switch (a.kind) {
-    case 'submit':
-      return `submit ${a.url}`
-    case 'open-url':
-      return `open-url ${a.url}`
-    case 'mail':
-      return a.to ? `mail ${a.to}` : 'mail'
-    case 'prompt':
-      return `prompt ${a.message}`
-    case 'print':
-      return 'print'
-  }
-}
 
 /** The log with `a` added: the last ten, newest first. */
 export function logAction(log: readonly LoggedAction[], a: FormAction): LoggedAction[] {
