@@ -18,6 +18,7 @@ import type {
   FormField,
   FormSetResult,
   FormWidget,
+  TabsOrder,
   WidgetAction,
   WidgetOverride,
 } from './types'
@@ -128,7 +129,7 @@ export interface FormController {
    */
   _scriptValues(values: FieldValues): void
   /** @internal Each page's `/Tabs`, for pages that set one; set with the fields. */
-  readonly _tabs: ReadonlyMap<number, 'R' | 'C' | 'S' | 'W'>
+  readonly _tabs: ReadonlyMap<number, TabsOrder>
   /**
    * @internal For each page whose `/Tabs` is `S`, its annotation ids in structure-tree order;
    * set with the fields.
@@ -137,7 +138,7 @@ export interface FormController {
   /** @internal Sets the structure once the file's fields are read, applying any waiting push. */
   _load(
     fields: readonly FormField[],
-    tabs?: ReadonlyMap<number, 'R' | 'C' | 'S' | 'W'>,
+    tabs?: ReadonlyMap<number, TabsOrder>,
     structure?: ReadonlyMap<number, readonly string[]>
   ): void
   /**
@@ -252,7 +253,7 @@ export function createFormController(opts: FormControllerOptions): FormControlle
   let byWidget = new Map<string, FormField>()
   let widgets = new Map<string, FormWidget>()
   let loaded = false
-  let tabs: ReadonlyMap<number, 'R' | 'C' | 'S' | 'W'> = new Map()
+  let tabs: ReadonlyMap<number, TabsOrder> = new Map()
   let structure: ReadonlyMap<number, readonly string[]> = new Map()
   /** A push that arrived before the fields loaded. */
   let waiting: FieldValues | undefined
@@ -441,7 +442,7 @@ export function createFormController(opts: FormControllerOptions): FormControlle
 
   const load = (
     list: readonly FormField[],
-    pageTabs?: ReadonlyMap<number, 'R' | 'C' | 'S' | 'W'>,
+    pageTabs?: ReadonlyMap<number, TabsOrder>,
     pageStructure?: ReadonlyMap<number, readonly string[]>
   ) => {
     loaded = true

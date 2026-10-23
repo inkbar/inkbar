@@ -6,11 +6,10 @@
 // a row even though their tops differ.
 import { createPageTransform, type CssRect } from './transform'
 
-import type { FormField, FormWidget } from '../model/form/types'
+import type { FormField, FormWidget, TabsOrder } from '../model/form/types'
 import type { PageInfo } from '../model/pages'
 
-/** A page's `/Tabs`: rows, columns, structure or widget (annotation) order. */
-export type TabsOrder = 'R' | 'C' | 'S' | 'W'
+export type { TabsOrder }
 
 const unturned = (index: number): PageInfo => ({
   index,

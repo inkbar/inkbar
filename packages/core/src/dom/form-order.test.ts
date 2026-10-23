@@ -74,6 +74,7 @@ describe('tabOrder', () => {
     expect(tabOrder(LAYOUT, new Map(), [page(0)])).toEqual(['c', 'b', 'a', 'd'])
     expect(tabOrder(LAYOUT, new Map([[0, 'S']]), [page(0)])).toEqual(['c', 'b', 'a', 'd'])
     expect(tabOrder(LAYOUT, new Map([[0, 'W']]), [page(0)])).toEqual(['c', 'b', 'a', 'd'])
+    expect(tabOrder(LAYOUT, new Map([[0, 'A']]), [page(0)])).toEqual(['c', 'b', 'a', 'd'])
   })
 
   it('widget order is /Annots order, not the order fields list their widgets', () => {

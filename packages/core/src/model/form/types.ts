@@ -82,6 +82,12 @@ export type WidgetAction =
   | { kind: 'named'; name: string }
   | { kind: 'goto'; page: number }
 
+/**
+ * A page's `/Tabs`: rows, columns, structure, widgets first (PDF 2.0; Inkbar's fields come
+ * before annotations anyway) or annotation array order (PDF 2.0).
+ */
+export type TabsOrder = 'R' | 'C' | 'S' | 'W' | 'A'
+
 export interface FormWidget {
   /** The PDF.js annotation id, such as `12R`. */
   id: string
