@@ -11,12 +11,14 @@ import {
   handleMenuKeys,
   SIGNATURE_LABELS,
   signatureMenuModel,
+  watchDetached,
   type SignFieldRequest,
 } from '@inkbar/core/dom'
 import { Popover } from 'radix-ui'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { useInkContext } from '../context'
+import { useLatest } from '../use-latest'
 import { useReadable } from '../use-readable'
 
 import { InkSignatureDialog } from './InkSignatureDialog'
@@ -55,6 +57,14 @@ export function InkSignFieldPopover({
   useEffect(() => {
     if (request) signatures.clearRemoveError()
   }, [request, signatures])
+
+  // The field's box went (its page unmounted, its layer rebuilt): the menu has nothing to
+  // stand by.
+  const close = useLatest(onClose)
+  useEffect(() => {
+    if (!request) return
+    return watchDetached(request.anchor, () => close.current())
+  }, [request, close])
 
   /** Signs the request's field with `t`; a refusal (signed, read-only by now) goes to `onError`. */
   const sign = (req: SignFieldRequest, t: SignatureTemplate): void => {

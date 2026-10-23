@@ -249,6 +249,23 @@ test.describe('signature fields', () => {
     await expect(page.getByTestId('probe')).toHaveAttribute('data-tool', 'select-text')
     await expect(page.getByTestId('probe')).toHaveAttribute('data-annotations', '1')
   })
+
+  test('closes when its field box leaves the page for any reason', async ({
+    mount,
+    page,
+  }) => {
+    await mount(FormHarness, {
+      props: { src: fixtureUrl('form-fields'), assets, templates: [IMAGE] },
+    })
+    const button = widget(page, 'sig').locator('[data-ink-sign-field]')
+    const menu = page.locator('[data-ink-sign-field-menu="sig"]')
+    await button.scrollIntoViewIfNeeded()
+    await button.click()
+    await expect(menu).toBeVisible()
+    // Not a page unmount: only the box goes.
+    await widget(page, 'sig').evaluate((el) => el.remove())
+    await expect(menu).toBeHidden()
+  })
 })
 
 test('a new source closes a "Create signature" dialog opened for the old field', async ({

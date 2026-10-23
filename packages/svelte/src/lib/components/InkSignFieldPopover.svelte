@@ -8,7 +8,12 @@
    * nothing.
    */
   import { InkError, signField } from '@inkbar/core'
-  import { handleMenuKeys, SIGNATURE_LABELS, signatureMenuModel } from '@inkbar/core/dom'
+  import {
+    handleMenuKeys,
+    SIGNATURE_LABELS,
+    signatureMenuModel,
+    watchDetached,
+  } from '@inkbar/core/dom'
   import { Popover } from 'bits-ui'
   import { untrack } from 'svelte'
 
@@ -57,6 +62,13 @@
 
   $effect(() => {
     if (request) last = request
+  })
+  // The field's box went (its page unmounted, its layer rebuilt): the menu has nothing to
+  // stand by.
+  $effect(() => {
+    const req = request
+    if (!req) return
+    return watchDetached(req.anchor, () => untrack(onClose))
   })
   // An old removal error is not news when the menu opens again.
   $effect(() => {

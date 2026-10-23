@@ -217,8 +217,6 @@
       },
       onPageUnmount: (page) => {
         pages = pages.filter((p) => p.page !== page)
-        // The field's box went with its page: the menu has nothing left to stand by.
-        if (signRequest?.page === page) signRequest = null
       },
       onPageError: (page, err) => {
         pages = pages.map((p) => (p.page === page ? { ...p, error: err } : p))

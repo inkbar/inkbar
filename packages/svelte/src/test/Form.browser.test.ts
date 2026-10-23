@@ -305,6 +305,14 @@ describe('form filling', () => {
       await openSignMenu()
       await expect.poll(count(SIGN_MENU)).toBe(1)
     })
+
+    it('closes when its field box leaves the page for any reason', async () => {
+      await harness({ src: fixtureUrl('form-fields'), templates: [IMAGE] })
+      await openSignMenu()
+      // Not a page unmount: only the box goes.
+      ;(await widget('sig')).remove()
+      await expect.poll(count(SIGN_MENU)).toBe(0)
+    })
   })
 
   it('useForm exposes values', async () => {

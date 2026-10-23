@@ -11,9 +11,10 @@ import {
   focusInitialMenuItem,
   SIGNATURE_LABELS,
   signatureMenuModel,
+  watchDetached,
 } from '@inkbar/core/dom'
 import { PopoverContent, PopoverPortal, PopoverRoot } from 'reka-ui'
-import { computed, onBeforeUnmount, shallowRef } from 'vue'
+import { computed, onBeforeUnmount, shallowRef, watch } from 'vue'
 
 import { useInkContext } from '../context'
 import { useReadable } from '../use-readable'
@@ -54,6 +55,17 @@ let alive = true
 onBeforeUnmount(() => {
   alive = false
 })
+
+// The field's box went (its page unmounted, its layer rebuilt): the menu has nothing to stand
+// by.
+watch(
+  () => props.request,
+  (req, _, onCleanup) => {
+    if (!req) return
+    onCleanup(watchDetached(req.anchor, () => emit('close')))
+  },
+  { immediate: true }
+)
 
 const control = (req: SignFieldRequest | null): HTMLElement | null =>
   req?.anchor.querySelector<HTMLElement>('button.ink-form-control') ?? null
