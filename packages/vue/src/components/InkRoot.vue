@@ -41,6 +41,9 @@ import type {
   AnnotationChange,
   AnnotationDefaults,
   DocumentSource,
+  FieldsChange,
+  FieldValues,
+  FormAction,
   InkDocument,
   PdfAssets,
   SignatureStore,
@@ -70,6 +73,14 @@ const props = withDefaults(
      * document opens: passing or dropping this prop later takes effect on the next open.
      */
     annotations?: Annotation[] | undefined
+    /**
+     * Pass (with `v-model:fields`) to put the form's field values under the host's control. A
+     * commit shows at once and is reported after; the host's push wins. The mode is fixed when
+     * a document opens, as for `annotations`.
+     */
+    fields?: FieldValues | undefined
+    /** Tints fillable form fields. Default true. Read when the viewer is built for a document. */
+    formHighlight?: boolean | undefined
     tool?: ToolId | undefined
     /**
      * Host tools, added to the built-ins; one with a built-in's id replaces it. Read when a
@@ -112,6 +123,8 @@ const props = withDefaults(
     password: undefined,
     defaults: undefined,
     annotations: undefined,
+    fields: undefined,
+    formHighlight: undefined,
     tool: undefined,
     tools: undefined,
     plugins: undefined,
@@ -129,6 +142,10 @@ const props = withDefaults(
 const emit = defineEmits<{
   'update:annotations': [next: Annotation[]]
   change: [change: AnnotationChange]
+  /** Committed field values, in full, with what changed them. */
+  'update:fields': [next: FieldValues, change: FieldsChange]
+  /** The form asked to submit, open a link, send mail, print or prompt. Inkbar does none. */
+  'form-action': [action: FormAction]
   'update:tool': [tool: ToolId]
   'update:page': [page: number]
   'update:zoom': [zoom: ZoomValue]
@@ -167,6 +184,7 @@ const internalTool = ref<ToolId>(props.tool ?? 'select-text')
 const activated = ref<string | null>(null)
 
 const controlled = computed(() => props.annotations !== undefined)
+const fieldsControlled = computed(() => props.fields !== undefined)
 
 function setActivated(id: string | null): void {
   activated.value = id
@@ -227,6 +245,13 @@ async function open(): Promise<void> {
             },
           }
         : { mode: 'uncontrolled' },
+      fields: fieldsControlled.value
+        ? {
+            mode: 'controlled',
+            initial: props.fields ?? {},
+            onChange: (next, change) => emit('update:fields', next, change),
+          }
+        : { mode: 'uncontrolled' },
     })
   } catch (cause) {
     if (gen !== generation) return
@@ -250,6 +275,8 @@ async function open(): Promise<void> {
   // The prop may have changed while the file loaded, when there was no store to apply it to.
   if (doc.annotations.mode === 'controlled' && props.annotations !== undefined)
     doc.annotations.setControlledValue(props.annotations)
+  // The same for the fields; a document whose fields opened uncontrolled ignores the push.
+  if (props.fields !== undefined) doc.form.setControlledValue(props.fields)
   document.value = doc
   override.value = null
   setTestHook(doc)
@@ -393,6 +420,18 @@ watch(
 )
 
 watch(
+  () => props.fields,
+  (next) => {
+    if (next) document.value?.form.setControlledValue(next)
+  }
+)
+
+// A form script that fails leaves the form fillable; the failure goes to `error`.
+watch(document, (doc, _previous, onCleanup) => {
+  if (doc) onCleanup(doc.form.on('error', (e) => emit('error', e)))
+})
+
+watch(
   () => props.tool,
   (t) => {
     if (t) internalTool.value = t
@@ -456,6 +495,9 @@ provideInkContext({
   viewportEl,
   history: inkHistory,
   rootEl,
+  formHighlight: computed(() => props.formHighlight),
+  reportFormAction: (a) => emit('form-action', a),
+  reportError: (e) => emit('error', e),
 })
 
 // `history` is what `useHistory()` returns inside the root, for hosts that hold a template ref:

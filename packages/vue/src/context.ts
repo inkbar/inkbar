@@ -3,7 +3,9 @@ import { getCurrentInstance } from 'vue'
 
 import type {
   Annotation,
+  FormAction,
   InkDocument,
+  InkError,
   InkStatus,
   PdfAssets,
   PluginHistory,
@@ -100,6 +102,12 @@ export interface InkContext {
   setActivated(id: string | null): void
   history: InkHistory
   rootEl: Readonly<Ref<HTMLElement | null>>
+  /** InkRoot's `formHighlight`; InkViewport reads it when it builds the viewer. */
+  formHighlight: Readonly<Ref<boolean | undefined>>
+  /** Emits InkRoot's `form-action`. */
+  reportFormAction(action: FormAction): void
+  /** Emits InkRoot's `error`, for failures after the document opened (a refused signing). */
+  reportError(error: InkError): void
 }
 
 export const [injectInkContext, provideInkContext] = createContext<InkContext>('InkRoot')
