@@ -1359,6 +1359,8 @@ describe('checkboxes, radios, choices and buttons', () => {
       'reset',
     ])
     expect(pageOf(document.activeElement)).toBe(0)
+    // Page 1 is not mounted yet: Tab mounts it.
+    expect(engine.pages.has(1)).toBe(false)
     await userEvent.keyboard('{Tab}')
     expect(fieldOf(document.activeElement)).toBe('header.ref')
     expect(pageOf(document.activeElement)).toBe(1)
