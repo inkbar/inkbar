@@ -319,7 +319,8 @@ Each `SearchHit` has:
 - `page`: 0-based page index.
 - `start`, `end`: offsets into `doc.pageText(page)`.
 - `text`: the page text the hit covers.
-- `quads`, `rect`: where it is, in PDF user space. `quads` has one entry per run of text the hit touches, and can go straight into a text markup annotation. Each quad is cut at the widths the PDF's own font gives the glyphs, with the page's character spacing, word spacing and kerning, and spans the font's full height, so it covers ascenders and descenders.
+- `quads`, `rect`: where it is, in PDF user space. `quads` has one entry per run of text the hit touches, and can go straight into a text markup annotation. Each quad is cut where the page draws its glyphs and spans the font's full height, so it covers ascenders and descenders.
+- `exact`: `true` when every quad comes from where the page draws its glyphs. `false` when some of the text could not be matched to them (right-to-left or vertical text, or an unusual file) and its quad is cut at estimated widths, which can fall short. Pad those before using them to cover text, as a redaction does.
 - `before`, `after`: up to 40 characters of page text either side.
 
 `viewer.search` is the state and actions behind the viewer's find bar: `state` (a readable of `open`, `query`, `matchCase`, `hits`, `current` and `scanning`), `open(query?)`, `setQuery`, `setMatchCase`, `next`, `previous` and `close`. `open()` runs the search and draws the highlights even with no find bar on the page. Plugins get the same object as `ctx.search`.

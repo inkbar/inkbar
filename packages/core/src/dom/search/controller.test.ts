@@ -16,6 +16,7 @@ function hit(page: number, start: number): SearchHit {
     text: 'foo',
     quads: [],
     rect: { x: page, y: start, width: 10, height: 10 },
+    exact: true,
     before: '',
     after: '',
   }
