@@ -34,6 +34,15 @@ export function pageSelectionText(root: HTMLElement): string {
 }
 
 /**
+ * F by its letter, or by its place on a layout without Latin letters (Cyrillic, Greek), where
+ * `key` is that layout's letter. A Latin layout with another letter there keeps that letter.
+ */
+function isFindKey(e: KeyboardEvent): boolean {
+  if (e.key.toLowerCase() === 'f') return true
+  return e.code === 'KeyF' && !/^[a-z]$/i.test(e.key)
+}
+
+/**
  * Ctrl/Cmd+F on a viewer's root. Call it from a `keydown` listener on that root (it reads
  * `currentTarget`). Takes the key only when a find bar is mounted for this viewer and the event
  * comes from inside the root; otherwise the browser keeps it. Opens the search with the page selection as
@@ -46,8 +55,7 @@ export function handleFindKey(
   controller: SearchController,
   selection: () => string
 ): boolean {
-  if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== 'f')
-    return false
+  if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || !isFindKey(e)) return false
   if (!controller.barAttached.get()) return false
   const root = e.currentTarget
   if (!(root instanceof HTMLElement)) return false
