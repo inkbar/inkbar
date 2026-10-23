@@ -427,6 +427,29 @@ test('useForm exposes values', async ({ mount, page }) => {
   await expect(input).not.toHaveValue('Set')
 })
 
+test('uncontrolled fields never emit update:fields', async ({ mount, page }) => {
+  const changes: unknown[] = []
+  await mount(FormHarness, {
+    props: { src: fixtureUrl('form-fields'), assets },
+    on: { changed: (_next: unknown, change: unknown) => changes.push(change) },
+  })
+  const input = widget(page, 'name').locator('input')
+  await input.click()
+  await page.keyboard.press('ControlOrMeta+a')
+  await page.keyboard.type('Grace')
+  await page.keyboard.press('Enter')
+  await expect(page.getByTestId('form')).toHaveAttribute('data-values', /"name":"Grace"/)
+  await page.getByTestId('form-set').click()
+  await expect(input).toHaveValue('Set')
+  await page.getByTestId('form-reset').click()
+  await expect(input).not.toHaveValue('Set')
+  await page.locator('[data-ink-toolbar] [data-ink-undo]').click()
+  await expect(input).toHaveValue('Set')
+  await page.waitForTimeout(100)
+  expect(changes).toEqual([])
+  await expect(page.getByTestId('host-fields')).toHaveAttribute('data-heard', '0')
+})
+
 test("uncontrolled fields undo with the toolbar's undo", async ({ mount, page }) => {
   await mount(FormHarness, { props: { src: fixtureUrl('form-fields'), assets } })
   const input = widget(page, 'name').locator('input')

@@ -103,6 +103,25 @@ describe('form filling', () => {
     expect(heard()).toBe('1')
   })
 
+  it('uncontrolled fields never call onFieldsChange', async () => {
+    const changes: unknown[] = []
+    await harness({
+      src: fixtureUrl('form-fields'),
+      onChanged: (_next, change) => changes.push(change),
+    })
+    const el = await commit('name', 'Grace')
+    await expect.poll(() => formValues().name).toBe('Grace')
+    await loc(await testButton('form-set')).click()
+    await expect.poll(valueOf(el)).toBe('Set')
+    await loc(await testButton('form-reset')).click()
+    await expect.poll(valueOf(el)).not.toBe('Set')
+    await loc(await q<HTMLButtonElement>('[data-ink-toolbar] [data-ink-undo]')).click()
+    await expect.poll(valueOf(el)).toBe('Set')
+    await sleep(100)
+    expect(changes).toEqual([])
+    expect(heard()).toBe('0')
+  })
+
   it('a host push updates the field', async () => {
     await harness({
       src: fixtureUrl('form-fields'),
