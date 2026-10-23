@@ -1,0 +1,23 @@
+packages/react/src/components/InkRoot.tsx
+  s_e6109f66fbb4ed::t_fd2697ba15eac3 105
+packages/svelte/src/lib/components/InkRoot.svelte
+  s_e6109f66fbb4ed::t_7d27c0db38ae57 57
+packages/vue/src/components/InkRoot.vue
+  s_e6109f66fbb4ed::t_dec433e29375f8 77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6dd3013d2243c56134a328727e73f0d46452d4a5",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
