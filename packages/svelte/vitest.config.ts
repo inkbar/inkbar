@@ -32,7 +32,7 @@ export default defineConfig({
         // `pdfjs-dist/...` subpaths by prefix.
         resolve: { alias: [{ find: /^pdfjs-dist$/, replacement: pdfjs }] },
         optimizeDeps: {
-          include: ['pdfjs-dist', 'esm-env', 'bits-ui', '@inkbar/icons'],
+          include: ['pdfjs-dist', 'esm-env', 'bits-ui', '@inkbar/icons', 'axe-core'],
         },
         test: {
           name: 'browser',

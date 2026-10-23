@@ -53,6 +53,9 @@ describe('@inkbar/svelte on the server', () => {
         'useZoom',
         'usePage',
         'useHistory',
+        'useSearch',
+        'InkSearchButton',
+        'InkFindBar',
         'useEmbedded',
         'InkCommand',
         'useCommand',
@@ -83,6 +86,9 @@ describe('@inkbar/svelte on the server', () => {
     // Once on the root and once on the viewport, which renders its empty scroll element.
     expect(body.match(/data-state="idle"/g)).toHaveLength(2)
     expect(body).toContain('data-ink-scroll')
+    // The search button renders (disabled); the find bar waits for the viewport to mount.
+    expect(body).toContain('data-ink-search-button')
+    expect(body).not.toContain('data-ink-find-bar')
     // Pages are `.ink-page[data-page]`; the toolbar's page input and count are not pages.
     expect(body).not.toContain('data-page=')
     expect(body).not.toMatch(/class="ink-page[ "]/)

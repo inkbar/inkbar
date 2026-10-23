@@ -12,6 +12,7 @@ import type {
 import type {
   DecorateAnnotation,
   PluginHost,
+  SearchController,
   Tool,
   ToolController,
   ToolId,
@@ -59,6 +60,12 @@ export interface InkContext {
    * InkCommand places its commands.
    */
   readonly pluginHost: PluginHost | null
+  /**
+   * The root's search controller, built with the plugin host and kept for its life; `null`
+   * before the root has mounted, and on the server. InkViewport hands it to the engine, which
+   * draws the highlights; `useSearch` and the find bar read it.
+   */
+  readonly search: SearchController | null
   /** InkViewport's scroll element while it is mounted: the plugins' `root`. */
   readonly viewportEl: Writable<HTMLElement | null>
   /** Set by InkViewport once it has built its viewport and tool controller. */

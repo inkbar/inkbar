@@ -8,6 +8,7 @@
   import {
     InkColorMenu,
     InkCommand,
+    InkFindBar,
     InkHighlightMenu,
     InkLineStyleMenu,
     InkTextStyleMenu,
@@ -16,6 +17,7 @@
     InkPageInput,
     InkPrevPage,
     InkRoot,
+    InkSearchButton,
     InkShapeMenu,
     InkSignatureMenu,
     InkThreadPopover,
@@ -71,11 +73,13 @@
     </div>
     <InkUndo />
     <InkRedo />
+    <InkSearchButton />
     <div class="demo-actions" role="group" aria-label="Suggest">
       <InkCommand id="sandbox.suggest" />
     </div>
   </InkToolbar>
   <InkViewport />
+  <InkFindBar />
   <InkToolbar label="Page and zoom" class="demo-status-bar">
     <div class="demo-group" role="group" aria-label="Page">
       <InkPrevPage />

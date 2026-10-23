@@ -9,6 +9,7 @@ import { useDocument } from '../lib/hooks/useDocument.svelte.js'
 import { useEmbedded } from '../lib/hooks/useEmbedded.svelte.js'
 import { useHistory } from '../lib/hooks/useHistory.svelte.js'
 import { usePage } from '../lib/hooks/usePage.svelte.js'
+import { useSearch } from '../lib/hooks/useSearch.svelte.js'
 import { useSelection } from '../lib/hooks/useSelection.svelte.js'
 import { useTool } from '../lib/hooks/useTool.svelte.js'
 import { useToolOptions } from '../lib/hooks/useToolOptions.svelte.js'
@@ -27,6 +28,7 @@ describe('hooks outside InkRoot', () => {
     ['useZoom()', useZoom],
     ['usePage()', usePage],
     ['useHistory()', useHistory],
+    ['useSearch()', useSearch],
     ['useEmbedded()', useEmbedded],
     ['useToolStyle()', useToolStyle],
     ['useToolOptions()', () => useToolOptions('note')],

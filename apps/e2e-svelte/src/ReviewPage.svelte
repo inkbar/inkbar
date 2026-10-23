@@ -17,12 +17,14 @@
   import { recordReady } from '@inkbar/e2e-shared/metrics'
   import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
   import {
+    InkFindBar,
     InkNextPage,
     InkThreadPopover,
     InkPageCount,
     InkPageInput,
     InkPrevPage,
     InkRoot,
+    InkSearchButton,
     InkToolbar,
     InkToolButton,
     InkViewport,
@@ -199,6 +201,7 @@
       <InkToolButton tool="highlight" />
       <InkToolButton tool="redact-area" />
       <InkToolButton tool="note" />
+      <InkSearchButton />
       <div class="sandbox-actions" role="group" aria-label="Review">
         <button type="button" data-testid="resign" onclick={resign}>Re-sign</button>
         <button type="button" data-testid="new-version" onclick={() => void newVersion()}>
@@ -210,6 +213,7 @@
   <EmbeddedBanner />
   <div inert={loading} class="sandbox-editor" data-testid="editor-gate">
     <InkViewport />
+    <InkFindBar />
     <InkToolbar label="Page and zoom">
       <InkPrevPage />
       <InkPageInput />
