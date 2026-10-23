@@ -1,11 +1,17 @@
 import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterEach, describe, expect, it } from 'vitest'
+import { userEvent } from 'vitest/browser'
 
+import { rectFromQuad, type Quad } from '../../model/geometry'
 import { writable } from '../../model/readable'
 import { mountContainer, openFixtureInBrowser, settle, until } from '../test-utils'
+import { createPageTransform } from '../transform'
 import { mountViewer } from '../viewer-engine'
 
 import { createSearchController } from './controller'
+import { createSearchHighlights } from './highlights'
+
+import type { SearchHit } from '../../model/search'
 
 const cleanup: (() => void)[] = []
 afterEach(() => cleanup.splice(0).forEach((f) => f()))
@@ -79,14 +85,17 @@ describe('search highlights', () => {
 
   it('moves data-current with next()', async () => {
     const { search, boxes } = await setup('a')
-    const hits = search.state.get().hits
-    expect(hits.length).toBeGreaterThan(1)
-    const currentIndex = () => boxes().findIndex((b) => b.hasAttribute('data-current'))
-    const before = currentIndex()
+    const onPage = search.state.get().hits.filter((h) => h.page === 0)
+    expect(onPage.length).toBeGreaterThan(1)
+    const marked = () => boxes().filter((b) => b.hasAttribute('data-current'))
+    const before = marked()
     search.next()
     await settle()
-    expect(currentIndex()).not.toBe(before)
-    expect(boxes().filter((b) => b.hasAttribute('data-current'))).not.toHaveLength(0)
+    const { hits, current } = search.state.get()
+    const hit = hits[current]!
+    // The hit stepped to may be on another page; this page marks it only when it is here.
+    expect(marked()).toHaveLength(hit.page === 0 ? hit.quads.length : 0)
+    if (hit.page === 0) expect(marked()).not.toEqual(before)
   })
 
   it('builds a page of hits once rather than once per hit', async () => {
@@ -137,15 +146,89 @@ describe('search highlights', () => {
     expect(layer().children).toHaveLength(0)
   })
 
-  it('sits before the overlay, and a click on a hit reaches the overlay', async () => {
+  it('sits before the overlay, and a click on a hit reaches what is under it', async () => {
     const { host, layer, boxes } = await setup()
-    const overlay = host().querySelector('.ink-overlay')!
+    const overlay = host().querySelector<HTMLElement>('.ink-overlay')!
     expect(
       layer().compareDocumentPosition(overlay) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy()
     const b = boxes()[0]!.getBoundingClientRect()
-    const top = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2)
+    const x = b.left + b.width / 2
+    const y = b.top + b.height / 2
+    const top = document.elementFromPoint(x, y)
     expect(top).not.toBeNull()
     expect(layer().contains(top)).toBe(false)
+    expect(host().contains(top)).toBe(true)
+    const clicks: EventTarget[] = []
+    const record = (e: Event) => clicks.push(e.target!)
+    host().addEventListener('click', record)
+    const t = (top as HTMLElement).getBoundingClientRect()
+    await userEvent.click(top as HTMLElement, {
+      position: { x: x - t.left, y: y - t.top },
+    })
+    host().removeEventListener('click', record)
+    expect(clicks).toEqual([top])
+  })
+
+  it('clips a box to a quad that is not upright', async () => {
+    const { doc, host } = await setup()
+    const tilted = {
+      p1: { x: 100, y: 120 },
+      p2: { x: 140, y: 160 },
+      p3: { x: 110, y: 110 },
+      p4: { x: 150, y: 150 },
+    }
+    const upright = {
+      p1: { x: 100, y: 220 },
+      p2: { x: 160, y: 220 },
+      p3: { x: 100, y: 210 },
+      p4: { x: 160, y: 210 },
+    }
+    const hit = (quad: Quad): SearchHit => ({
+      page: 0,
+      start: 0,
+      end: 1,
+      text: 'x',
+      quads: [quad],
+      rect: rectFromQuad(quad),
+      before: '',
+      after: '',
+    })
+    const state = writable({
+      open: true,
+      query: 'x',
+      matchCase: false,
+      hits: [hit(tilted), hit(upright)],
+      current: 0,
+      scanning: false,
+    })
+    const layers = createSearchHighlights({ state })
+    const el = document.createElement('div')
+    host().append(el)
+    const transform = createPageTransform(doc.pages[0]!, 1)
+    const page = layers.mount(0, el, transform)
+    const [a, b] = [...el.querySelectorAll<HTMLElement>('[data-search-hit]')]
+    expect(a!.style.clipPath).toMatch(/^polygon\(/)
+    expect(b!.style.clipPath).toBe('')
+    // The polygon's corners are the quad's (p1, p2, p4, p3), as percentages of the box.
+    const css = a!.style
+    const [left, top, width, height] = [css.left, css.top, css.width, css.height].map(
+      parseFloat
+    )
+    const corners = [tilted.p1, tilted.p2, tilted.p4, tilted.p3].map((p) =>
+      transform.toCss(p)
+    )
+    const pct = css.clipPath
+      .slice('polygon('.length, -1)
+      .split(',')
+      .map((pair) => pair.trim().split(/\s+/).map(parseFloat))
+    expect(pct).toHaveLength(4)
+    pct.forEach(([px, py], i) => {
+      expect(left! + (px! / 100) * width!).toBeCloseTo(corners[i]!.x, 1)
+      expect(top! + (py! / 100) * height!).toBeCloseTo(corners[i]!.y, 1)
+    })
+    page.destroy()
+    layers.destroy()
+    el.remove()
   })
 })

@@ -181,6 +181,30 @@ describe('find bar', () => {
     expect(live()).toBe('Match 2 of 200, page 2')
   })
 
+  it('leaves a fully visible hit where it is and centres one off screen', async () => {
+    const { viewer, scroll } = await make()
+    await attached(viewer)
+    scroll.scrollTop = 30
+    await until(() => scroll.scrollTop === 30)
+    const current = () => viewer.element.querySelector<HTMLElement>('[data-current]')
+    viewer.search.open('QQ123456C')
+    await until(() => !viewer.search.state.get().scanning && current() !== null)
+    const view = scroll.getBoundingClientRect()
+    const first = current()!.getBoundingClientRect()
+    expect(first.top).toBeGreaterThanOrEqual(view.top)
+    expect(first.bottom).toBeLessThanOrEqual(view.bottom)
+    expect(scroll.scrollTop).toBe(30)
+
+    viewer.search.next()
+    expect(viewer.search.state.get().hits[viewer.search.state.get().current]!.page).toBe(
+      1
+    )
+    await until(() => !!current()?.closest('[data-page="1"]'))
+    const box = current()!.getBoundingClientRect()
+    const middle = (box.top + box.bottom) / 2
+    expect(Math.abs(middle - (view.top + scroll.clientHeight / 2))).toBeLessThan(2)
+  })
+
   it('keeps the query and shows only the new hits after a document swap', async () => {
     const { viewer, field, count } = await make()
     await attached(viewer)
