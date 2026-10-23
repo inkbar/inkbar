@@ -2,6 +2,9 @@ import { browserAssets } from '@inkbar/fixtures/browser-assets'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { openFixtureInBrowser } from '../dom/test-utils'
+import { staticDefaults } from '../model/annotations/defaults'
+import { createHistory } from '../model/annotations/history'
+import { createAnnotationStore } from '../model/annotations/store'
 import { createFormController, type FormController } from '../model/form/controller'
 
 import { createFormScripting, sandboxLoader } from './scripting'
@@ -298,6 +301,10 @@ function stage(
   docActions?: Record<string, string[]>,
   pageActions?: Record<string, string[]>
 ) {
+  // An undo history over the fields, wired as a document wires it.
+  const history = createHistory(
+    createAnnotationStore({ mode: { mode: 'uncontrolled' }, defaults: staticDefaults })
+  )
   const fields: FormField[] = specs.map((s, i) => ({
     name: s.name,
     type: s.type,
@@ -336,7 +343,10 @@ function stage(
     fields,
     mode: { mode: 'uncontrolled' },
     onError: (e) => errors.push(e),
+    batch: (fn) => history.batch(fn),
+    quiet: (fn) => history.baseline(fn),
   })
+  history.track(form._store)
   const objects = new Map(
     specs.map((s, i) => [
       s.name,
@@ -360,10 +370,13 @@ function stage(
     getPage: () =>
       Promise.resolve({ getJSActions: () => Promise.resolve(pageActions ?? null) }),
   } as unknown as PdfjsDocument
-  cleanup.push(() => form._destroy())
+  cleanup.push(() => {
+    form._destroy()
+    history.destroy()
+  })
   const start = () =>
     createFormScripting({ proxy, assets: browserAssets(), form, info: { pageCount: 1 } })
-  return { form, errors, start }
+  return { form, errors, start, history }
 }
 
 async function scripted(
@@ -371,10 +384,10 @@ async function scripted(
   docActions?: Record<string, string[]>,
   pageActions?: Record<string, string[]>
 ) {
-  const { form, errors, start } = stage(specs, docActions, pageActions)
+  const { form, errors, start, history } = stage(specs, docActions, pageActions)
   const scripting = await start()
   if (scripting) form._attachScripting(scripting)
-  return { form, scripting, errors, actions: actionsOf(form) }
+  return { form, scripting, errors, history, actions: actionsOf(form) }
 }
 
 describe('rewritten methods', () => {
@@ -480,6 +493,29 @@ describe('rewritten methods', () => {
     expect(form.get('out')).toBe('closed')
     await form._pageEvent(0, 'PageOpen')
     expect(form.get('out')).toBe('opened 0')
+  })
+
+  it('page scripts that run after open are no undo step, and undo leaves them', async () => {
+    const out: Spec = {
+      name: 'out',
+      type: 'text',
+      actions: { Keystroke: ['event.rc = true'] },
+    }
+    const note: Spec = { name: 'note', type: 'text' }
+    const { form, history } = await scripted([out, note], undefined, {
+      PageOpen: ['this.getField("out").value = "opened"'],
+      PageClose: ['this.getField("out").value = "closed"'],
+    })
+    await form._pageEvent(0, 'PageOpen')
+    expect(form.get('out')).toBe('opened')
+    expect(history.canUndo.get()).toBe(false)
+    form.set({ note: 'mine' })
+    await form._pageEvent(0, 'PageClose')
+    expect(form.get('out')).toBe('closed')
+    history.undo()
+    expect(form.get('note')).toBe('')
+    expect(form.get('out')).toBe('closed')
+    expect(history.canUndo.get()).toBe(false)
   })
 
   it('a sandbox that cannot load is a FormScriptError and no scripts run', async () => {
