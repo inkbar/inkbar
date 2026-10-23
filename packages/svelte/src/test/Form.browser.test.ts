@@ -183,6 +183,18 @@ describe('form filling', () => {
     expect(count(ALERT)()).toBe(1)
   })
 
+  it('closing the alert leaves focus where the user moved it', async () => {
+    await harness({ src: fixtureUrl('form-scripted') })
+    await loc(await button('hello')).click()
+    const alert = await q(ALERT)
+    const qty = await input('qty')
+    qty.focus()
+    // A click with no press: OK closes the alert without taking focus first.
+    alert.querySelector<HTMLButtonElement>('[data-ink-form-alert-ok]')!.click()
+    await expect.poll(count(ALERT)).toBe(0)
+    expect(focused()).toBe(qty)
+  })
+
   it('a form script error reaches onError', async () => {
     const errors: { code: string }[] = []
     await harness({ src: fixtureUrl('form-scripted'), onError: (e) => errors.push(e) })

@@ -165,6 +165,23 @@ test('a value a validator refuses with an alert stays as typed', async ({
   await expect(page.getByTestId('form')).toHaveAttribute('data-values', /"score":"7"/)
 })
 
+test('closing the alert leaves focus where the user moved it', async ({
+  mount,
+  page,
+}) => {
+  await mount(harness({ src: fixtureUrl('form-scripted') }))
+  const hello = widget(page, 'hello').locator('button')
+  await hello.click()
+  const alert = page.getByRole('alertdialog', { name: 'Message' })
+  await expect(alert).toBeVisible()
+  const qty = widget(page, 'qty').locator('input')
+  await qty.focus()
+  // A click with no press: OK closes the alert without taking focus first.
+  await alert.getByRole('button', { name: 'OK' }).dispatchEvent('click')
+  await expect(alert).toBeHidden()
+  await expect(qty).toBeFocused()
+})
+
 test('a form script error reaches onError', async ({ mount, page }) => {
   const errors: { code: string }[] = []
   await mount(
