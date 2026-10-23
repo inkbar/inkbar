@@ -339,6 +339,7 @@ const inkHistory: InkHistory = {
 
 // The undo and redo keys anywhere in the root do what InkUndo and InkRedo do. When either
 // button undoes or redoes the last step and disables itself, focus goes back to the document.
+// The find key listens here too.
 watch(
   rootEl,
   (el, _prev, onCleanup) => {
@@ -352,9 +353,12 @@ watch(
     const stopFocus = keepHistoryFocus(el, () =>
       el.querySelector<HTMLElement>('[data-ink-scroll]')
     )
+    // Not a template listener: Vue leaves those on the element when it unmounts.
+    el.addEventListener('keydown', onKeydown)
     onCleanup(() => {
       stopKeys()
       stopFocus()
+      el.removeEventListener('keydown', onKeydown)
     })
   },
   { immediate: true }
@@ -398,9 +402,6 @@ function setUpPlugins(): void {
     search: viewerSearchOf(controller),
   })
 }
-
-// Reka's typed props stop at its own; listeners go through a bound object.
-const rootListeners = { onKeydown }
 
 /** Ctrl/Cmd+F while focus is in the root and a find bar is mounted; else the browser's. */
 function onKeydown(e: KeyboardEvent): void {
@@ -550,7 +551,6 @@ defineExpose({ document, status, rootEl, history: inkHistory })
     as="div"
     data-ink-root
     :data-state="status.state"
-    v-bind="rootListeners"
   >
     <slot :status="status" :document="document" />
   </Primitive>
