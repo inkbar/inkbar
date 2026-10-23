@@ -150,6 +150,10 @@ const emit = defineEmits<{
   'update:page': [page: number]
   'update:zoom': [zoom: ZoomValue]
   ready: [doc: InkDocument]
+  /**
+   * Opening failed, or later a form script failed or a signature field refused its signing.
+   * An error from while the document opened comes after `ready`.
+   */
   error: [error: InkError]
   activate: [id: string]
 }>()
@@ -207,7 +211,10 @@ function setTestHook(doc: InkDocument | undefined): void {
 }
 
 let generation = 0
+let stopFormErrors: () => void = noop
 function release(): void {
+  stopFormErrors()
+  stopFormErrors = noop
   // Cleared first, so the plugins close their stores while the document is still alive.
   const doc = document.value
   document.value = null
@@ -277,12 +284,23 @@ async function open(): Promise<void> {
     doc.annotations.setControlledValue(props.annotations)
   // The same for the fields; a document whose fields opened uncontrolled ignores the push.
   if (props.fields !== undefined) doc.form.setControlledValue(props.fields)
+  // A form script that fails leaves the form fillable; the failure goes to `error`. Subscribed
+  // before anyone hears of the document, so the form replays the errors from while it opened
+  // here, not to a listener added in `ready`; they are held until `ready` has gone out.
+  let held: InkError[] | undefined = []
+  stopFormErrors = doc.form.on('error', (e) => {
+    if (held) held.push(e)
+    else emit('error', e)
+  })
   document.value = doc
   override.value = null
   setTestHook(doc)
   const s = doc.status.get()
   if (s.state === 'ready') emit('ready', doc)
   else if (s.state === 'error') emit('error', s.error)
+  const early = held
+  held = undefined
+  if (gen === generation) for (const e of early) emit('error', e)
 }
 
 const refHistory = createRefHistory({
@@ -425,11 +443,6 @@ watch(
     if (next) document.value?.form.setControlledValue(next)
   }
 )
-
-// A form script that fails leaves the form fillable; the failure goes to `error`.
-watch(document, (doc, _previous, onCleanup) => {
-  if (doc) onCleanup(doc.form.on('error', (e) => emit('error', e)))
-})
 
 watch(
   () => props.tool,

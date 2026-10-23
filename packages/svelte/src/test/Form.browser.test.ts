@@ -193,6 +193,18 @@ describe('form filling', () => {
     await expect.poll(() => errors.map((e) => e.code)).toEqual(['FormScriptError'])
   })
 
+  it('an error from while the document opened reaches onError after onReady', async () => {
+    const heard: string[] = []
+    await render(FormHarness, {
+      assets: { ...assets, wasm: '/missing/' },
+      src: fixtureUrl('form-scripted'),
+      onReady: () => heard.push('ready'),
+      onError: (e) => heard.push(e.code),
+    })
+    await expect.poll(() => heard).toEqual(['ready', 'FormScriptError'])
+    guard.clear()
+  })
+
   it('a sandbox that fails while the document opens reaches onError', async () => {
     const errors: { code: string }[] = []
     // Without the sandbox's engine, the scripts cannot start.

@@ -3,6 +3,7 @@
     FieldsChange,
     FieldValues,
     FormAction,
+    InkDocument,
     InkError,
     PdfAssets,
     SignatureTemplate,
@@ -21,6 +22,7 @@
     templates?: SignatureTemplate[]
     formHighlight?: boolean
     onformaction?: (action: FormAction) => void
+    onReady?: (doc: InkDocument) => void
     onError?: (error: InkError) => void
     onChanged?: (next: FieldValues, change: FieldsChange) => void
   }
@@ -49,6 +51,7 @@
     templates = [],
     formHighlight,
     onformaction,
+    onReady,
     onError,
     onChanged,
   }: FormHarnessProps = $props()
@@ -74,6 +77,7 @@
   }}
   {formHighlight}
   {onformaction}
+  {onReady}
   {onError}
 >
   <InkToolbar>

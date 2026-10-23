@@ -141,6 +141,36 @@ test('a sandbox that fails while the document opens reaches error', async ({
   guard.clear()
 })
 
+const heardInPage = (page: Page): Promise<string[]> =>
+  page.evaluate(() => (window as Window & { __inkHeard?: string[] }).__inkHeard ?? [])
+
+test('an error from while the document opened comes after ready', async ({
+  mount,
+  page,
+}) => {
+  await mount(FormHarness, {
+    props: { src: fixtureUrl('form-scripted'), assets: { ...assets, wasm: '/missing/' } },
+  })
+  await expect.poll(() => heardInPage(page)).toEqual(['ready', 'FormScriptError'])
+  guard.clear()
+})
+
+test('a host listening from ready does not take the open-time errors from error', async ({
+  mount,
+  page,
+}) => {
+  await mount(FormHarness, {
+    props: {
+      src: fixtureUrl('form-scripted'),
+      assets: { ...assets, wasm: '/missing/' },
+      listenOnReady: true,
+    },
+  })
+  await expect.poll(() => heardInPage(page)).toContain('FormScriptError')
+  expect(await heardInPage(page)).toEqual(['ready', 'FormScriptError'])
+  guard.clear()
+})
+
 test.describe('signature fields', () => {
   const menu = (page: Page) => page.locator('[data-ink-sign-field-menu="sig"]')
 
