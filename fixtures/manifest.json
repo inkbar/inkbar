@@ -190,9 +190,9 @@
     "file": "form-scripted.pdf",
     "pages": 1,
     "opens": true,
-    "describes": "Fields with keystroke, format, validate and calculate scripts, a mouse-up script that shows a hidden field, JavaScript and non-JavaScript button actions, a reset button whose mouse-up script zeroes qty first, and a document-level script",
+    "describes": "Fields with keystroke, format, validate and calculate scripts (a percent field and a hand-written calculation among them), a mouse-up script that shows a hidden field, JavaScript and non-JavaScript button actions, a reset button whose mouse-up script zeroes qty first, and a document-level script",
     "annotations": {
-      "Widget": 16
+      "Widget": 18
     }
   },
   "form-signed": {

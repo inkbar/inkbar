@@ -62,6 +62,8 @@ void test('the form keeps the scripts of the scripted fixture', async () => {
     .replace(/\\([()\\])/g, '$1')
   for (const script of [
     'AFSimple_Calculate("PRD", new Array("qty", "price"))',
+    'AFPercent_Format(1, 0)',
+    'event.value = total * (1 - off);',
     'AFDate_FormatEx("dd/mm/yyyy")',
     'event.rc = event.value >= 18 && event.value <= 120',
     'app.alert("Hello")',

@@ -65,11 +65,13 @@ const FORMS = {
     ],
   },
   'form-scripted': {
-    widgets: 16,
+    widgets: 18,
     fields: [
       'age',
       'ask',
       'clear',
+      'discount',
+      'due',
       'extra',
       'hello',
       'link',

@@ -54,6 +54,14 @@ for (const framework of FRAMEWORKS) {
       await qty.fill('3')
       await qty.press('Enter')
       await expect(field(page, 6, 'total').locator('input')).toHaveValue('£37.50')
+      // A percent field, and a calculation script written for this form.
+      const discount = field(page, 6, 'discount').locator('input')
+      await discount.fill('0.1')
+      await discount.press('Enter')
+      // A focused field shows the value as typed, and the format once focus leaves.
+      await discount.blur()
+      await expect(discount).toHaveValue('10.0%')
+      await expect(field(page, 6, 'due').locator('input')).toHaveValue('£33.75')
       // A script shows the hidden field when the box is ticked.
       await expect(field(page, 6, 'extra')).toBeHidden()
       await field(page, 6, 'more').getByRole('checkbox').check()

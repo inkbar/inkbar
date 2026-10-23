@@ -1066,6 +1066,10 @@ async function formFields() {
   )
 }
 
+/** A Calculate script of its own, not one of the AF helpers: the total less the discount. */
+const DUE_CALCULATE =
+  'var total = this.getField("total").value; var off = this.getField("discount").value; event.value = total * (1 - off);'
+
 async function formScripted() {
   const { d, font } = await doc()
   const ctx = d.context
@@ -1133,6 +1137,15 @@ async function formScripted() {
     btn[n] = b
   }
 
+  // After the buttons in /Annots order, so the Tab order of the fields above stays as it was.
+  const discount = form.createTextField('discount')
+  discount.addToPage(page, box(L, 6, 120))
+  put('discount (0.1 is 10%)', L, 6)
+  const due = form.createTextField('due')
+  due.enableReadOnly()
+  due.addToPage(page, box(L + 160, 6, 120))
+  put('due (total less discount)', L + 160, 6)
+
   form.updateFieldAppearances(font)
 
   addHelv(d, form)
@@ -1155,7 +1168,9 @@ async function formScripted() {
     F: 'AFDate_FormatEx("dd/mm/yyyy");',
   })
   fieldAA(age, { V: 'event.rc = event.value >= 18 && event.value <= 120' })
-  form.acroForm.dict.set(PDFName.of('CO'), ctx.obj([total.ref]))
+  fieldAA(discount, { K: 'AFPercent_Keystroke(1, 0)', F: 'AFPercent_Format(1, 0)' })
+  fieldAA(due, { C: DUE_CALCULATE, F: `AFNumber_Format(${pounds})` })
+  form.acroForm.dict.set(PDFName.of('CO'), ctx.obj([total.ref, due.ref]))
 
   widgetDict(more).set(
     PDFName.of('AA'),
@@ -1195,8 +1210,8 @@ async function formScripted() {
       pages: 1,
       opens: true,
       describes:
-        'Fields with keystroke, format, validate and calculate scripts, a mouse-up script that shows a hidden field, JavaScript and non-JavaScript button actions, a reset button whose mouse-up script zeroes qty first, and a document-level script',
-      annotations: { Widget: 16 },
+        'Fields with keystroke, format, validate and calculate scripts (a percent field and a hand-written calculation among them), a mouse-up script that shows a hidden field, JavaScript and non-JavaScript button actions, a reset button whose mouse-up script zeroes qty first, and a document-level script',
+      annotations: { Widget: 18 },
     },
     { appearances: false }
   )

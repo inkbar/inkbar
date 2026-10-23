@@ -50,6 +50,21 @@ describe('form scripts', () => {
     expect(form.formatted.get().total).toBe('£7.50')
   })
 
+  it('formats a percent field and runs a hand-written calculation after the total', async () => {
+    const { form } = await open('form-scripted')
+    form.set({ qty: '4', price: '12.5' })
+    expect(form.get('due')).toBe('50')
+    expect(form.set({ discount: '0.1' }).applied).toEqual(['discount'])
+    expect(form.formatted.get().discount).toBe('10.0%')
+    expect(form.get('due')).toBe('45')
+    expect(form.formatted.get().due).toBe('£45.00')
+    // The calculation order puts the total first, so the discount applies to the new total.
+    form.set({ qty: '2' })
+    expect(form.get('total')).toBe('25')
+    expect(form.formatted.get().due).toBe('£22.50')
+    expect(form._keystroke(widgetOf(form, 'discount'), '%', 0, 0).accepted).toBe(false)
+  })
+
   it('rejects a keystroke AFNumber_Keystroke refuses', async () => {
     const { form } = await open('form-scripted')
     const qty = widgetOf(form, 'qty')
