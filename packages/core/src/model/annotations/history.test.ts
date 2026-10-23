@@ -607,3 +607,145 @@ describe('history over record stores', () => {
     expect(notes.get('n1')?.status).toBe('other')
   })
 })
+
+describe('history.baseline', () => {
+  interface Note {
+    id: string
+    status: string
+  }
+  const setup = () => {
+    const s = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const h = createHistory(s)
+    const notes = createRecordStore<Note>('sandbox', {
+      initial: [
+        { id: 'n1', status: 'open' },
+        { id: 'n2', status: '0' },
+      ],
+    })
+    h.track(notes)
+    return { s, h, notes }
+  }
+
+  it('records nothing for what fn changes in a tracked store', () => {
+    const { h, notes } = setup()
+    h.baseline(() => notes.update('n2', { status: '1' }))
+    h.baseline(() => notes.add({ id: 'n3', status: 'new' }))
+    expect(notes.get('n2')?.status).toBe('1')
+    expect(h.canUndo.get()).toBe(false)
+  })
+
+  it('undo and redo keep a baseline write made between them', () => {
+    const { h, notes } = setup()
+    notes.update('n1', { status: 'done' })
+    h.baseline(() => notes.update('n2', { status: '1' }))
+    h.baseline(() => notes.add({ id: 'n3', status: 'new' }))
+    h.undo()
+    expect(notes.get('n1')?.status).toBe('open')
+    expect(notes.get('n2')?.status).toBe('1')
+    expect(notes.get('n3')?.status).toBe('new')
+    h.baseline(() => notes.update('n2', { status: '2' }))
+    h.baseline(() => notes.remove('n3'))
+    h.redo()
+    expect(notes.get('n1')?.status).toBe('done')
+    expect(notes.get('n2')?.status).toBe('2')
+    expect(notes.get('n3')).toBeUndefined()
+    expect(h.canUndo.get()).toBe(true)
+    expect(h.canRedo.get()).toBe(false)
+  })
+
+  it('drops a step left with nothing to undo once a baseline write takes its record', () => {
+    const { s, h, notes } = setup()
+    const a = s.add({ type: 'text', page: 0, rect })
+    notes.update('n2', { status: 'mine' })
+    h.baseline(() => notes.update('n2', { status: 'theirs' }))
+    h.undo()
+    // The record step went; the undo took the annotation.
+    expect(s.get(a.id)).toBeUndefined()
+    expect(notes.get('n2')?.status).toBe('theirs')
+    expect(h.canUndo.get()).toBe(false)
+  })
+
+  it("keeps a mixed step's annotation half when a baseline write takes its record", () => {
+    const { s, h, notes } = setup()
+    let id = ''
+    h.batch(() => {
+      id = s.add({ type: 'text', page: 0, rect }).id
+      notes.update('n2', { status: 'mine' })
+    })
+    h.baseline(() => notes.update('n2', { status: 'theirs' }))
+    expect(h.canUndo.get()).toBe(true)
+    h.undo()
+    expect(s.get(id)).toBeUndefined()
+    expect(notes.get('n2')?.status).toBe('theirs')
+    expect(h.canUndo.get()).toBe(false)
+    h.redo()
+    expect(s.get(id)).toBeDefined()
+    expect(notes.get('n2')?.status).toBe('theirs')
+  })
+
+  it('folds every baseline write into each step it undoes or redoes through', () => {
+    const { h, notes } = setup()
+    notes.update('n1', { status: 'a' })
+    h.baseline(() => notes.update('n2', { status: '1' }))
+    notes.update('n1', { status: 'b' })
+    h.baseline(() => notes.update('n2', { status: '2' }))
+    h.baseline(() => notes.add({ id: 'n3', status: 'new' }))
+    h.undo()
+    expect(notes.get('n1')?.status).toBe('a')
+    h.baseline(() => notes.update('n2', { status: '3' }))
+    h.undo()
+    expect(notes.get('n1')?.status).toBe('open')
+    expect(notes.get('n2')?.status).toBe('3')
+    expect(notes.get('n3')?.status).toBe('new')
+    h.baseline(() => notes.remove('n3'))
+    h.redo()
+    h.redo()
+    expect(notes.get('n1')?.status).toBe('b')
+    expect(notes.get('n2')?.status).toBe('3')
+    expect(notes.get('n3')).toBeUndefined()
+  })
+
+  it('drops a step once baseline writes take every record it changed', () => {
+    const { h, notes } = setup()
+    h.batch(() => {
+      notes.update('n1', { status: 'mine' })
+      notes.update('n2', { status: 'mine' })
+    })
+    h.baseline(() => {
+      h.batch(() => {
+        notes.update('n2', { status: 'theirs' })
+        notes.update('n1', { status: 'theirs' })
+      })
+    })
+    expect(h.canUndo.get()).toBe(false)
+  })
+
+  it('inside a batch, leaves its writes out of the batch step', () => {
+    const { h, notes } = setup()
+    h.batch(() => {
+      notes.update('n1', { status: 'done' })
+      h.baseline(() => notes.update('n2', { status: '1' }))
+    })
+    expect(h.canUndo.get()).toBe(true)
+    h.undo()
+    expect(notes.get('n1')?.status).toBe('open')
+    expect(notes.get('n2')?.status).toBe('1')
+  })
+
+  it('on a controlled or destroyed history it only runs fn', () => {
+    const controlled = createAnnotationStore({
+      mode: { mode: 'controlled', initial: [], onChange: () => undefined },
+      defaults: staticDefaults,
+    })
+    const fn = vi.fn()
+    createHistory(controlled).baseline(fn)
+    const { h, notes } = setup()
+    h.destroy()
+    h.baseline(() => notes.update('n2', { status: '1' }))
+    expect(fn).toHaveBeenCalledOnce()
+    expect(notes.get('n2')?.status).toBe('1')
+  })
+})

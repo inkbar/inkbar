@@ -84,6 +84,11 @@ export interface FormController {
    */
   _dispatch(event: FormEvent): void
   /**
+   * @internal Runs `fn` as one undo step, so a widget's activation (its new value, its Mouse Up
+   * and its Action, with the scripts and reset they run) undoes at once.
+   */
+  _step(fn: () => void): void
+  /**
    * Applies a keystroke to the widget's text as typed so far (its uncommitted text, else the
    * field's value). Without scripting it accepts every keystroke. The uncommitted text is dropped
    * when the field's value changes or the widget blurs.
@@ -111,9 +116,10 @@ export interface FormController {
   _focus(widgetId: string): void
   /**
    * @internal Values a script set (a calculation, or a script assigning a field). Read-only
-   * fields take them; locked fields and values that do not suit the field are skipped. Outside
-   * a commit or other change they are one undo step, reported to a controlled host as
-   * `calculate`.
+   * fields take them; locked fields and values that do not suit the field are skipped. Inside
+   * a commit, reset or widget event they join its undo step. Outside one (a timer, a page's
+   * open or close script, a keystroke script) they are no undo step: they become the history's
+   * baseline, so undo never rewinds them. A controlled host hears of them as `calculate`.
    */
   _scriptValues(values: FieldValues): void
   /** @internal Each page's `/Tabs`, for pages that set one; set with the fields. */
@@ -124,8 +130,9 @@ export interface FormController {
     tabs?: ReadonlyMap<number, 'R' | 'C' | 'S' | 'W'>
   ): void
   /**
-   * @internal Applies values already checked by `fieldsFromGloss`, as an import: not an undo
-   * step, and reported to a controlled host as `import`.
+   * @internal Applies values already checked by `fieldsFromGloss`, as an import: neither the
+   * values nor what they calculate are an undo step. A controlled host hears of both as one
+   * `import`.
    */
   _import(values: FieldValues): void
   /**
@@ -204,6 +211,11 @@ export interface FormControllerOptions {
   onError(e: InkError): void
   /** Runs `fn` as one undo step. Defaults to running it. */
   batch?: ((fn: () => void) => void) | undefined
+  /**
+   * Runs `fn` without an undo step: what it changes becomes the history's baseline. Defaults
+   * to running it.
+   */
+  quiet?: ((fn: () => void) => void) | undefined
 }
 
 /**
@@ -214,6 +226,7 @@ export interface FormControllerOptions {
 export function createFormController(opts: FormControllerOptions): FormController {
   const controlled = opts.mode.mode === 'controlled' ? opts.mode : undefined
   const batch = opts.batch ?? ((fn: () => void) => fn())
+  const quiet = opts.quiet ?? ((fn: () => void) => fn())
   const fields = writable<readonly FormField[]>([])
   let byName = new Map<string, FormField>()
   let byWidget = new Map<string, FormField>()
@@ -301,15 +314,19 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       (name) => !sameValue(a[name], b[name])
     )
 
-  /** Runs `fn`, then reports to a controlled host when the values changed. */
+  /**
+   * Runs `fn` as one undo step (or through `step`), then reports to a controlled host when the
+   * values changed.
+   */
   const reporting = (
     fn: () => void,
-    change: (names: string[]) => FieldsChange | undefined
+    change: (names: string[]) => FieldsChange | undefined,
+    step = batch
   ) => {
     const before = current()
     depth++
     try {
-      batch(fn)
+      step(fn)
     } finally {
       depth--
     }
@@ -573,16 +590,23 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       // Text typed and then left uncommitted is dropped, and the sandbox, which saw each
       // keystroke, goes back to the stored value.
       const abandoned = event.name === 'Blur' && pending.delete(event.widget)
-      if (scripting)
-        reporting(
-          () => {
-            scripting?.dispatch(event)
-            if (abandoned) scripting?.sync(current(), false)
-          },
-          (names) => ({ kind: 'calculate', names })
-        )
       const action = widgets.get(event.widget)?.action
-      if (event.name === 'Action' && action && !destroyed) runAction(action)
+      // An Action's scripts and the reset it runs are one step.
+      batch(() => {
+        if (scripting)
+          reporting(
+            () => {
+              scripting?.dispatch(event)
+              if (abandoned) scripting?.sync(current(), false)
+            },
+            (names) => ({ kind: 'calculate', names })
+          )
+        if (event.name === 'Action' && action && !destroyed) runAction(action)
+      })
+    },
+    _step(fn) {
+      if (destroyed) return
+      batch(fn)
     },
     _keystroke(widget, change, selStart, selEnd) {
       const field = byWidget.get(widget)
@@ -646,7 +670,7 @@ export function createFormController(opts: FormControllerOptions): FormControlle
         for (const [name, value] of entries) write(name, value)
       }
       if (depth > 0) apply()
-      else reporting(apply, (names) => ({ kind: 'calculate', names }))
+      else reporting(apply, (names) => ({ kind: 'calculate', names }), quiet)
     },
     get _tabs() {
       return tabs
@@ -655,11 +679,18 @@ export function createFormController(opts: FormControllerOptions): FormControlle
     _import(next) {
       if (destroyed) return
       const before = current()
-      writeAll(Object.entries(next))
+      const entries = Object.entries(next).filter(
+        ([name, value]) => !sameValue(before[name], value)
+      )
+      // Nothing to change: no reset reaches the store, so the undo steps stay.
+      if (entries.length === 0) return
+      writeAll(entries)
+      if (changed(before, current()).length === 0) return
+      // What the import calculates is no undo step either.
+      quiet(() => within(() => scripting?.sync(current(), true)))
       const names = changed(before, current())
-      if (names.length === 0) return
-      within(() => scripting?.sync(current(), true))
-      if (controlled) controlled.onChange(current(), { kind: 'import', names })
+      if (controlled && names.length > 0)
+        controlled.onChange(current(), { kind: 'import', names })
     },
     _linkAnnotations(link) {
       if (destroyed || annotations) return

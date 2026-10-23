@@ -2,6 +2,9 @@ import { browserAssets } from '@inkbar/fixtures/browser-assets'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { openFixtureInBrowser } from '../dom/test-utils'
+import { staticDefaults } from '../model/annotations/defaults'
+import { createHistory } from '../model/annotations/history'
+import { createAnnotationStore } from '../model/annotations/store'
 import { createFormController, type FormController } from '../model/form/controller'
 
 import { createFormScripting, sandboxLoader } from './scripting'
@@ -222,6 +225,63 @@ describe('form scripts', () => {
     expect(form.get('total')).toBe('6')
   })
 
+  it('timer writes are no undo step, and undo keeps the timer going', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+    const { form, history } = await open('form-timer')
+    vi.advanceTimersByTime(260)
+    expect(form.get('ticker')).toBe('5')
+    expect(history.canUndo.get()).toBe(false)
+    form.set({ note: 'mine' })
+    form.set({ note: 'later' })
+    vi.advanceTimersByTime(100)
+    expect(form.get('ticker')).toBe('7')
+    history.undo()
+    expect(form.get('note')).toBe('mine')
+    // Undo does not rewind what the timer wrote, and the timer goes on from there.
+    expect(form.get('ticker')).toBe('7')
+    vi.advanceTimersByTime(50)
+    expect(form.get('ticker')).toBe('8')
+    history.undo()
+    expect(form.get('note')).toBeFalsy()
+    expect(history.canUndo.get()).toBe(false)
+    history.redo()
+    expect(form.get('note')).toBe('mine')
+    expect(form.get('ticker')).toBe('8')
+  })
+
+  it('a commit and the calculation it causes are one step', async () => {
+    const { form, history } = await open('form-scripted')
+    form.set({ qty: '3' })
+    form.set({ price: '2' })
+    expect(form.get('total')).toBe('6')
+    history.undo()
+    expect(form.get('price')).toBeFalsy()
+    expect(form.get('total')).toBe('0')
+    history.undo()
+    expect(form.get('qty')).toBeFalsy()
+    expect(history.canUndo.get()).toBe(false)
+  })
+
+  it("a reset button's mouse-up script and its reset are one step", async () => {
+    const { form, history } = await open('form-scripted')
+    form.set({ qty: '3', price: '2' })
+    expect(form.get('total')).toBe('6')
+    const clear = widgetOf(form, 'clear')
+    // As the button runs them.
+    form._step(() => {
+      form._dispatch({ widget: clear, name: 'Mouse Up' })
+      form._dispatch({ widget: clear, name: 'Action' })
+    })
+    expect(form.get('qty')).toBeFalsy()
+    expect(form.get('price')).toBeFalsy()
+    history.undo()
+    expect(form.get('qty')).toBe('3')
+    expect(form.get('price')).toBe('2')
+    expect(form.get('total')).toBe('6')
+    history.undo()
+    expect(history.canUndo.get()).toBe(false)
+  })
+
   it('a field typed into and left reverts in the sandbox', async () => {
     const { form } = await open('form-scripted')
     form.set({ qty: '3', price: '2' })
@@ -241,6 +301,10 @@ function stage(
   docActions?: Record<string, string[]>,
   pageActions?: Record<string, string[]>
 ) {
+  // An undo history over the fields, wired as a document wires it.
+  const history = createHistory(
+    createAnnotationStore({ mode: { mode: 'uncontrolled' }, defaults: staticDefaults })
+  )
   const fields: FormField[] = specs.map((s, i) => ({
     name: s.name,
     type: s.type,
@@ -279,7 +343,10 @@ function stage(
     fields,
     mode: { mode: 'uncontrolled' },
     onError: (e) => errors.push(e),
+    batch: (fn) => history.batch(fn),
+    quiet: (fn) => history.baseline(fn),
   })
+  history.track(form._store)
   const objects = new Map(
     specs.map((s, i) => [
       s.name,
@@ -303,10 +370,13 @@ function stage(
     getPage: () =>
       Promise.resolve({ getJSActions: () => Promise.resolve(pageActions ?? null) }),
   } as unknown as PdfjsDocument
-  cleanup.push(() => form._destroy())
+  cleanup.push(() => {
+    form._destroy()
+    history.destroy()
+  })
   const start = () =>
     createFormScripting({ proxy, assets: browserAssets(), form, info: { pageCount: 1 } })
-  return { form, errors, start }
+  return { form, errors, start, history }
 }
 
 async function scripted(
@@ -314,10 +384,10 @@ async function scripted(
   docActions?: Record<string, string[]>,
   pageActions?: Record<string, string[]>
 ) {
-  const { form, errors, start } = stage(specs, docActions, pageActions)
+  const { form, errors, start, history } = stage(specs, docActions, pageActions)
   const scripting = await start()
   if (scripting) form._attachScripting(scripting)
-  return { form, scripting, errors, actions: actionsOf(form) }
+  return { form, scripting, errors, history, actions: actionsOf(form) }
 }
 
 describe('rewritten methods', () => {
@@ -423,6 +493,29 @@ describe('rewritten methods', () => {
     expect(form.get('out')).toBe('closed')
     await form._pageEvent(0, 'PageOpen')
     expect(form.get('out')).toBe('opened 0')
+  })
+
+  it('page scripts that run after open are no undo step, and undo leaves them', async () => {
+    const out: Spec = {
+      name: 'out',
+      type: 'text',
+      actions: { Keystroke: ['event.rc = true'] },
+    }
+    const note: Spec = { name: 'note', type: 'text' }
+    const { form, history } = await scripted([out, note], undefined, {
+      PageOpen: ['this.getField("out").value = "opened"'],
+      PageClose: ['this.getField("out").value = "closed"'],
+    })
+    await form._pageEvent(0, 'PageOpen')
+    expect(form.get('out')).toBe('opened')
+    expect(history.canUndo.get()).toBe(false)
+    form.set({ note: 'mine' })
+    await form._pageEvent(0, 'PageClose')
+    expect(form.get('out')).toBe('closed')
+    history.undo()
+    expect(form.get('note')).toBe('')
+    expect(form.get('out')).toBe('closed')
+    expect(history.canUndo.get()).toBe(false)
   })
 
   it('a sandbox that cannot load is a FormScriptError and no scripts run', async () => {

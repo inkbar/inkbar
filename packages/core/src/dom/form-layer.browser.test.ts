@@ -1123,6 +1123,19 @@ describe('checkboxes, radios, choices and buttons', () => {
     expect(doc.form.widgetState.get()[extra.id]?.hidden).toBe(true)
   })
 
+  it('pressing a reset button with a Mouse Up script is one undo step', async () => {
+    const doc = await open('form-scripted')
+    const p = mountPage(doc)
+    doc.form.set({ qty: '3', price: '2' })
+    await userEvent.click(controlOf(p.host, p.widgetOf('clear')))
+    expect(doc.form.get('qty')).toBeFalsy()
+    doc.history.undo()
+    expect(doc.form.get('qty')).toBe('3')
+    expect(doc.form.get('total')).toBe('6')
+    doc.history.undo()
+    expect(doc.history.canUndo.get()).toBe(false)
+  })
+
   it('radio picks one', async () => {
     const doc = await open('form-fields')
     const p = mountPage(doc)

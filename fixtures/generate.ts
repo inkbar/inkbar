@@ -1152,6 +1152,11 @@ async function formScripted() {
   )
   action('site', ctx.obj({ S: 'URI', URI: PDFString.of('https://example.com') }))
   action('clear', ctx.obj({ S: 'ResetForm' }))
+  // Runs before the reset, so the press undoes in one step only if both share it.
+  widgetDict(btn.clear!).set(
+    PDFName.of('AA'),
+    ctx.obj({ U: js(ctx, 'this.getField("qty").value = 0') })
+  )
 
   d.addJavaScript('init', 'var formReady = true;')
 
@@ -1162,7 +1167,7 @@ async function formScripted() {
       pages: 1,
       opens: true,
       describes:
-        'Fields with keystroke, format, validate and calculate scripts, a mouse-up script that shows a hidden field, JavaScript and non-JavaScript button actions, and a document-level script',
+        'Fields with keystroke, format, validate and calculate scripts, a mouse-up script that shows a hidden field, JavaScript and non-JavaScript button actions, a reset button whose mouse-up script zeroes qty first, and a document-level script',
       annotations: { Widget: 16 },
     },
     { appearances: false }
@@ -1269,9 +1274,13 @@ async function formTimer() {
   const ticker = form.createTextField('ticker')
   ticker.addToPage(page, { x: 72, y: 600, width: 200, height: 22 })
   label(page, font, 'ticker (counts up every 50 ms)', 72, 600, 22)
+  const note = form.createTextField('note')
+  note.addToPage(page, { x: 72, y: 540, width: 200, height: 22 })
+  label(page, font, 'note (no scripts)', 72, 540, 22)
   form.updateFieldAppearances(font)
   addHelv(d, form)
   setDA(ticker, HELV_12)
+  setDA(note, HELV_12)
   d.addJavaScript(
     'tick',
     `var ticking = app.setInterval("this.getField('ticker').value = String(Number(this.getField('ticker').value || 0) + 1)", 50)`
@@ -1283,8 +1292,8 @@ async function formTimer() {
       pages: 1,
       opens: true,
       describes:
-        'One text field and a document-level script whose app.setInterval bumps it every 50 ms, for checking that teardown clears sandbox timers',
-      annotations: { Widget: 1 },
+        'A text field a document-level app.setInterval bumps every 50 ms and a plain text field, for checking that teardown clears sandbox timers and that timer writes are no undo step',
+      annotations: { Widget: 2 },
     },
     { appearances: false }
   )
