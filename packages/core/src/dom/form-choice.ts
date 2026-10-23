@@ -140,6 +140,8 @@ export function createToggleWidget(ctx: WidgetViewContext): WidgetView {
       if (border.style === 'underline') s.borderBottomStyle = 'solid'
       else s.borderStyle = BORDER_STYLES[border.style]
     } else s.border = 'none'
+    // A radio draws round, as PDF radios are, unless its `/MK /CA` asks for a square check.
+    s.borderRadius = radio && appearance.checkStyle !== 'n' ? '50%' : ''
     if (!frame) return
     const size = o.textSize ?? appearance.fontSize
     s.fontSize =

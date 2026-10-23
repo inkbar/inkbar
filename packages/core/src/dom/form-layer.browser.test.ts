@@ -1548,6 +1548,11 @@ describe('checkboxes, radios, choices and buttons', () => {
     expect(p.box('agree').hasAttribute('data-ink-drawn')).toBe(true)
     expect(control.textContent).toBe('')
     expect(control.style.backgroundColor).toBe('rgb(0, 255, 0)')
+    expect(control.style.borderRadius).toBe('')
+    // A radio draws round.
+    const plan = widgetsOf(doc, 'plan')[0]!
+    doc.form._setWidgetState(plan.id, { fillColor: '#00ff00' })
+    expect(controlOf(p.host, plan).style.borderRadius).toBe('50%')
     // Cleared, the file's appearance shows again.
     doc.form._setWidgetState(w.id, undefined)
     expect(p.box('agree').hasAttribute('data-ink-drawn')).toBe(false)
