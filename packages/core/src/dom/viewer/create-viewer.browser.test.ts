@@ -2579,6 +2579,21 @@ describe('forms', () => {
     expect(heard).toEqual(['ready', 'FormScriptError'])
   })
 
+  it('keeps open-time errors for onError when onReady listens to the form too', async () => {
+    vi.spyOn(sandboxLoader, 'load').mockRejectedValue(new Error('offline'))
+    cleanup.push(() => vi.restoreAllMocks())
+    const heard: string[] = []
+    const { viewer } = make('form-scripted', {
+      onReady: (doc) => {
+        doc.form.on('error', (e) => heard.push(`host ${e.code}`))
+      },
+      onError: (e) => heard.push(e.code),
+    })
+    await ready(viewer)
+    await until(() => heard.includes('FormScriptError'))
+    expect(heard).toEqual(['FormScriptError'])
+  })
+
   it('controlled fields round-trip through onFieldsChange', async () => {
     const onChange = vi.fn<(next: FieldValues, change: FieldsChange) => void>()
     const { viewer } = make('form-fields', {
