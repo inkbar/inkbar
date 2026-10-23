@@ -310,6 +310,11 @@
     const tc = engine?.tools
     if (tc && tc.active.get() !== t) untrack(() => tc.set(t))
   })
+  // The tint follows `formHighlight` in place, without a new document.
+  $effect(() => {
+    const on = ctx.formHighlight ?? true
+    untrack(() => engine?.setFormHighlight(on))
+  })
   // The build applied both; these only act on a later change, not on mount.
   $effect(() => {
     const m = mode

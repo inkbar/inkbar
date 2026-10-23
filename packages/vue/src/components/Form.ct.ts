@@ -329,3 +329,17 @@ test('formHighlight false turns the tint off', async ({ mount, page }) => {
     'off'
   )
 })
+
+test('a formHighlight change applies in place', async ({ mount, page }) => {
+  const props = { src: fixtureUrl('form-fields'), assets }
+  const c = await mount(FormHarness, { props: { ...props, formHighlight: false } })
+  const layer = page.locator('[data-ink-form-layer]').first()
+  await expect(layer).toHaveAttribute('data-ink-form-highlight', 'off')
+  // Marks the layer, so a rebuilt one would show.
+  await layer.evaluate((el) => el.setAttribute('data-test-mark', ''))
+  await c.update({ props: { ...props, formHighlight: true } })
+  await expect(layer).toHaveAttribute('data-ink-form-highlight', 'on')
+  await expect(layer).toHaveAttribute('data-test-mark', '')
+  await c.update({ props: { ...props, formHighlight: false } })
+  await expect(layer).toHaveAttribute('data-ink-form-highlight', 'off')
+})

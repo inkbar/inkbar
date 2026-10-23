@@ -356,6 +356,20 @@ test('formHighlight false turns the tint off', async ({ mount, page }) => {
   )
 })
 
+test('a formHighlight change applies in place', async ({ mount, page }) => {
+  const src = fixtureUrl('form-fields')
+  const c = await mount(harness({ src, formHighlight: false }))
+  const layer = page.locator('[data-ink-form-layer]').first()
+  await expect(layer).toHaveAttribute('data-ink-form-highlight', 'off')
+  // Marks the layer, so a rebuilt one would show.
+  await layer.evaluate((el) => el.setAttribute('data-test-mark', ''))
+  await c.update(harness({ src, formHighlight: true }))
+  await expect(layer).toHaveAttribute('data-ink-form-highlight', 'on')
+  await expect(layer).toHaveAttribute('data-test-mark', '')
+  await c.update(harness({ src, formHighlight: false }))
+  await expect(layer).toHaveAttribute('data-ink-form-highlight', 'off')
+})
+
 test.describe('a new source', () => {
   test('resets controlled values to the new initial and closes the field menu', async ({
     mount,

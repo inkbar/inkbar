@@ -344,6 +344,18 @@ describe('form filling', () => {
       .toBe('off')
   })
 
+  it('a formHighlight change applies in place', async () => {
+    const screen = await harness({ src: fixtureUrl('form-fields'), formHighlight: false })
+    const layer = await q('[data-ink-form-layer]')
+    await expect.poll(() => layer.dataset.inkFormHighlight).toBe('off')
+    await screen.rerender({ formHighlight: true })
+    await expect.poll(() => layer.dataset.inkFormHighlight).toBe('on')
+    // The same layer: no new document or build.
+    expect(document.querySelector('[data-ink-form-layer]')).toBe(layer)
+    await screen.rerender({ formHighlight: false })
+    await expect.poll(() => layer.dataset.inkFormHighlight).toBe('off')
+  })
+
   describe('a new source', () => {
     it('resets bound values to the new initial and closes the field menu', async () => {
       await harness({
