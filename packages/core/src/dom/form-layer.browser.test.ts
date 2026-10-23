@@ -898,6 +898,15 @@ describe('form layer', () => {
     const z = (id: string) =>
       Number(p.host.querySelector<HTMLElement>(`[data-ink-widget="${id}"]`)!.style.zIndex)
     expect(annots.map(z)).toEqual(annots.map((_, i) => i))
+    // A focused or invalid box rises above all the others, and goes back after.
+    const first = annots[0]!
+    const control = p.host.querySelector<HTMLElement>(
+      `[data-ink-widget="${first}"] .ink-form-control`
+    )!
+    control.focus()
+    expect(z(first)).toBeGreaterThan(Math.max(...annots.slice(1).map(z)))
+    control.blur()
+    expect(z(first)).toBe(0)
     // The control boxes stay in Tab order (this page reads by rows).
     const boxes = [
       ...p.host.querySelectorAll<HTMLElement>(
@@ -1080,9 +1089,16 @@ describe('form layer', () => {
       expect(age.getAttribute('aria-invalid')).toBe('true')
     }
     await refuse()
+    // Marked and no longer focused, the box stays above the others.
+    const z = (el: HTMLElement) => Number(el.style.zIndex)
+    const others = [...p.host.querySelectorAll<HTMLElement>('[data-ink-widget]')].filter(
+      (b) => b !== p.box('age')
+    )
+    expect(z(p.box('age'))).toBeGreaterThan(Math.max(...others.map(z)))
     doc.form.set({ age: '40' })
     expect(p.box('age').hasAttribute('data-ink-invalid')).toBe(false)
     expect(age.hasAttribute('aria-invalid')).toBe(false)
+    expect(z(p.box('age'))).toBeLessThan(others.length + 1)
     await refuse()
     doc.form.reset(['age'])
     expect(doc.form.get('age')).toBe('')

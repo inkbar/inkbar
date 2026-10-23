@@ -287,7 +287,17 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
   const painted = annotsOrder(entries, (e) => e.widget)
   // The boxes stack in that order too, whatever their Tab order, so where widgets overlap a
   // press goes to the one whose appearance shows on top.
-  painted.forEach((e, i) => (e.box.style.zIndex = String(i)))
+  const stackAt = new Map(painted.map((e, i) => [e, i]))
+  /**
+   * Stacks the box at its `/Annots` place, or above every other box while it is focused or
+   * marked invalid, so no neighbour covers its focus ring or mark.
+   */
+  const restack = (e: Entry) => {
+    const raised =
+      e.box.hasAttribute('data-ink-focused') || e.box.hasAttribute('data-ink-invalid')
+    e.box.style.zIndex = String((raised ? painted.length : 0) + (stackAt.get(e) ?? 0))
+  }
+  for (const e of painted) restack(e)
   entries.sort((a, b) => (order.get(a.widget.id) ?? 0) - (order.get(b.widget.id) ?? 0))
   for (const e of entries) element.append(e.box)
   /** Each radio group's entries on the page, in Tab order. */
@@ -327,6 +337,7 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
 
   const setInvalid = (e: Entry, invalid: boolean) => {
     toggle(e.box, 'data-ink-invalid', invalid)
+    restack(e)
     if (invalid) e.view?.control.setAttribute('aria-invalid', 'true')
     else e.view?.control.removeAttribute('aria-invalid')
   }
@@ -520,8 +531,14 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
           ),
         ...(opts.onSignField ? { onSignField: (req) => opts.onSignField?.(req) } : {}),
       })
-      listen(box, 'focusin', () => toggle(box, 'data-ink-focused', true))
-      listen(box, 'focusout', () => toggle(box, 'data-ink-focused', false))
+      listen(box, 'focusin', () => {
+        toggle(box, 'data-ink-focused', true)
+        restack(e)
+      })
+      listen(box, 'focusout', () => {
+        toggle(box, 'data-ink-focused', false)
+        restack(e)
+      })
       if (e.widget.hasScripts) {
         const mouse =
           (name: 'Mouse Enter' | 'Mouse Exit' | 'Mouse Down' | 'Mouse Up') => () => {
