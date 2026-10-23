@@ -1,0 +1,19 @@
+packages/vue/src/components/InkSearchButton.vue
+  s_a9eee6338cf60a::t_9fc3072fee590b 8,16-18,50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fb56839e4f5cf65943e1d7a66614a9dc7f4fc55d",
+  "prompts": {},
+  "sessions": {
+    "s_a9eee6338cf60a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c2869588-dbba-445a-be19-91e3d8b07d87",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}

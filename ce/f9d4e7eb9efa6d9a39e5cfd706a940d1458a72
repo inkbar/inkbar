@@ -1,0 +1,20 @@
+packages/vue/src/components/InkFindBar.vue
+  s_a9eee6338cf60a::t_4e4e2d8b73a394 15,34,37-40,42-53,188-192
+  s_a9eee6338cf60a::t_dbc3c260162b9d 193
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cef9d4e7eb9efa6d9a39e5cfd706a940d1458a72",
+  "prompts": {},
+  "sessions": {
+    "s_a9eee6338cf60a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c2869588-dbba-445a-be19-91e3d8b07d87",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
