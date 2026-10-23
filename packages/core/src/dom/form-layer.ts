@@ -259,6 +259,10 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
         id: e.widget.id,
         rect: e.widget.rect,
         toggle: isToggle(e.field),
+        expected:
+          !e.widget.hidden &&
+          !e.widget.printOnly &&
+          !(e.field.type === 'signature' && !e.field.signed),
       })),
       ...(opts.devicePixelRatio === undefined
         ? {}

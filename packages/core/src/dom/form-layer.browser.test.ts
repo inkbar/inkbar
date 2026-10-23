@@ -381,6 +381,84 @@ describe('form layer', () => {
     expect(canvas.hasAttribute('data-ink-canvas')).toBe(false)
   })
 
+  it('draws a page’s widget appearances in a few batched renders, whatever their number', async () => {
+    const doc = await open('form-fields')
+    const renders = await watchRenders(doc)
+    const p = mountPage(doc)
+    await settled(p)
+    // The page canvas, then one pass each for the widgets' own appearances and a toggle's
+    // checked and unchecked ones: 19 widgets, 4 renders.
+    expect(widgetsOnPage(doc, 0).length).toBeGreaterThan(10)
+    expect(renders.all()).toBeLessThanOrEqual(4)
+    // A new zoom draws them again in as few.
+    p.update(createPageTransform(doc.pages[0]!, 1.5, 0))
+    await settled(p)
+    expect(renders.all()).toBeLessThanOrEqual(8)
+  })
+
+  it('hides an appearance drawn at another rotation until its new one lands', async () => {
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    await settled(p)
+    const id = p.widgetOf('name').id
+    expect(shownCanvas(p.host, id)).toBeDefined()
+    p.update(createPageTransform(doc.pages[0]!, 1, 90))
+    expect(shownCanvas(p.host, id)).toBeUndefined()
+    await settled(p)
+    expect(shownCanvas(p.host, id)).toBeDefined()
+    // A zoom keeps the old bitmap, stretched to the new rect, until the new one lands.
+    p.update(createPageTransform(doc.pages[0]!, 2, 90))
+    const stretched = shownCanvas(p.host, id)!
+    const css = p.transform.toCssRect(p.widgetOf('name').rect)
+    expect(Math.abs(parseFloat(stretched.style.width) - css.width)).toBeLessThanOrEqual(3)
+  })
+
+  it('drops a draw for a geometry that changed before it landed', async () => {
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    const id = p.widgetOf('name').id
+    // The first draw is under way; the field is focused, so it no longer shows, and the zoom
+    // changes.
+    p.control('name').focus()
+    p.update(createPageTransform(doc.pages[0]!, 2, 0))
+    await settled(p)
+    p.control('name').blur()
+    // Shown again: nothing at the old zoom's place, only the new draw once it lands.
+    const early = shownCanvas(p.host, id)
+    const css = p.transform.toCssRect(p.widgetOf('name').rect)
+    if (early)
+      expect(Math.abs(parseFloat(early.style.width) - css.width)).toBeLessThanOrEqual(3)
+    await settled(p)
+    const late = shownCanvas(p.host, id)!
+    expect(Math.abs(parseFloat(late.style.width) - css.width)).toBeLessThanOrEqual(3)
+  })
+
+  it('reports a page whose widget appearances it cannot find', async () => {
+    const doc = await open('form-fields')
+    const page = await doc._pdfjs.getPage(0)
+    const render = page.render.bind(page)
+    // Every widget pass finds nothing, as if PDF.js laid out its operator list differently.
+    vi.spyOn(page, 'render').mockImplementation((params) => {
+      if (params.canvas?.hasAttribute('data-ink-canvas')) return render(params)
+      return render({ ...params, operationsFilter: () => false })
+    })
+    const t = createPageTransform(doc.pages[0]!, 1, 0)
+    const host = mountContainer(t.cssWidth, t.cssHeight)
+    const onError = vi.fn()
+    const mount = createPageMount({
+      document: doc,
+      page: 0,
+      host,
+      transform: t,
+      store: doc.annotations,
+      devicePixelRatio: 1,
+      onError,
+    })
+    cleanup.push(() => (mount.destroy(), host.remove()))
+    await until(() => onError.mock.calls.length > 0)
+    expect(onError).toHaveBeenCalledWith(expect.any(Error), 'form')
+  })
+
   it('a toggle or an edit paints nothing', async () => {
     const doc = await open('form-fields')
     const p = mountPage(doc)
@@ -683,6 +761,11 @@ describe('form layer', () => {
     expect(red).toBeGreaterThan(60 * 14 * 0.8)
   })
 })
+
+/** Every widget on `page`. */
+function widgetsOnPage(doc: InkDocument, page: number): FormWidget[] {
+  return doc.form.fields.get().flatMap((f) => f.widgets.filter((w) => w.page === page))
+}
 
 /** Every widget of `name` on `page`, in the order the field lists them. */
 function widgetsOf(doc: InkDocument, name: string, page = 0): FormWidget[] {
