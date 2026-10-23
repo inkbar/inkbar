@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -76,6 +76,33 @@ async function save(
 
 const latin1 = (bytes: Uint8Array) => Buffer.from(bytes).toString('latin1')
 const fromLatin1 = (s: string) => new Uint8Array(Buffer.from(s, 'latin1'))
+
+/**
+ * qpdf's decrypted rewrite of `file` without the trailer /ID, whose first half qpdf keeps from
+ * the random one it wrote when it encrypted. Equal content gives equal strings.
+ */
+function decrypted(file: string, password: string) {
+  return latin1(
+    execFileSync('qpdf', [`--password=${password}`, '--decrypt', file, '-'])
+  ).replace(/\/ID \[<[0-9a-f]*><[0-9a-f]*>\]/, '')
+}
+
+/**
+ * Encrypts `plain` into fixture `name` with qpdf, then deletes `plain`. qpdf writes a random /ID
+ * (and random AES salts and IVs) on every run, so when the existing fixture decrypts to the same
+ * content the existing file is kept and a regenerate leaves it untouched.
+ */
+function encrypt(name: FixtureName, plain: string, args: string[], password: string) {
+  const target = join(out, `${name}.pdf`)
+  const fresh = join(out, `${name}.new.pdf`)
+  execFileSync('qpdf', [...args, '--', plain, fresh])
+  rmSync(plain)
+  if (existsSync(target) && decrypted(target, password) === decrypted(fresh, password)) {
+    rmSync(fresh)
+  } else {
+    renameSync(fresh, target)
+  }
+}
 
 async function textSimple() {
   const { d, font } = await doc()
@@ -558,7 +585,7 @@ function appendRevision(base: Uint8Array, ctx: PDFContext, refs: PDFRef[], who: 
 /** standard-callout plus an incremental update that moves the leader tip to (80, 560). */
 async function calloutIncremental() {
   const base = await (await buildStandardCallout()).save({ useObjectStreams: false })
-  const d2 = await PDFDocument.load(base)
+  const d2 = await PDFDocument.load(base, { updateMetadata: false })
   const ctx = d2.context
   const ref = d2.getPage(0).node.Annots()?.get(0)
   if (!(ref instanceof PDFRefClass)) throw new Error('callout-incremental: no annotation')
@@ -579,16 +606,7 @@ async function calloutEncrypted() {
     plain,
     await (await buildStandardCallout()).save({ useObjectStreams: false })
   )
-  execFileSync('qpdf', [
-    '--encrypt',
-    '',
-    'owner-secret',
-    '256',
-    '--',
-    plain,
-    join(out, 'callout-encrypted.pdf'),
-  ])
-  rmSync(plain)
+  encrypt('callout-encrypted', plain, ['--encrypt', '', 'owner-secret', '256'], '')
   note('callout-encrypted', {
     pages: 1,
     opens: true,
@@ -1543,7 +1561,7 @@ async function incrementalSaved() {
   text(page, font, ['Base revision', ...BODY])
   const base = await d.save({ useObjectStreams: false })
 
-  const d2 = await PDFDocument.load(base)
+  const d2 = await PDFDocument.load(base, { updateMetadata: false })
   const p2 = d2.getPage(0)
   const ctx = d2.context
   const hl = annot(ctx, {
@@ -1584,17 +1602,12 @@ async function encrypted(name: 'encrypted-aes' | 'encrypted-rc4') {
   const plain = join(out, `${name}.plain.pdf`)
   writeFileSync(plain, await d.save({ useObjectStreams: false }))
   const keyArgs = name === 'encrypted-aes' ? ['256'] : ['128', '--use-aes=n']
-  execFileSync('qpdf', [
-    '--allow-weak-crypto',
-    '--encrypt',
-    'inkbar',
-    'owner-secret',
-    ...keyArgs,
-    '--',
+  encrypt(
+    name,
     plain,
-    join(out, `${name}.pdf`),
-  ])
-  rmSync(plain)
+    ['--allow-weak-crypto', '--encrypt', 'inkbar', 'owner-secret', ...keyArgs],
+    'inkbar'
+  )
   note(name, {
     pages: 1,
     opens: true,
