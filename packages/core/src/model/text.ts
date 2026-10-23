@@ -1,4 +1,5 @@
 import { rectFromQuad, type Point, type Quad, type Rect } from './geometry'
+import { glyphAdvances, type PageGlyph, type TextRun } from './glyph-advances'
 
 import type { PdfjsTextContent, PdfjsTextItem } from '../pdfjs/types'
 
@@ -14,10 +15,17 @@ export interface TextItem {
   rect: Rect
   /**
    * How far along the run each character boundary lies, as a fraction of its width: `str.length + 1`
-   * entries from 0 to 1, from measured glyph widths. Absent when the run could not be measured, in
-   * which case every character takes an equal share.
+   * entries, from 0 to 1 or a little past it. Taken from where the page draws each glyph when the
+   * glyphs can be matched to the run, else measured in the run's fallback font. Absent when neither
+   * works, in which case every character takes an equal share.
    */
   advances?: readonly number[]
+  /**
+   * Where each character's glyph ends, as a fraction of the run's width: `str.length` entries, set
+   * with `advances` when they come from the page's glyphs. Kerning can pull the next character
+   * back over the end of a glyph, so a glyph may end past the next boundary.
+   */
+  glyphEnds?: readonly number[]
 }
 
 /** How far `char` advances in `fontFamily`, in any unit; only ratios within a run are used. */
@@ -48,9 +56,12 @@ const FALLBACK_DESCENT = 0.25
 export function textContentFromPdfjs(
   page: number,
   tc: PdfjsTextContent,
-  measure?: MeasureChar
+  measure?: MeasureChar,
+  glyphs?: readonly PageGlyph[]
 ): TextContent {
   const items: TextItem[] = []
+  const runs: TextRun[] = []
+  const families: string[] = []
   for (const raw of tc.items) {
     if (!('str' in raw)) continue
     const item: PdfjsTextItem = raw
@@ -77,9 +88,6 @@ export function textContentFromPdfjs(
     const p2 = { x: p4.x + v.x * total, y: p4.y + v.y * total }
     const quad: Quad = { p1, p2, p3, p4 }
     const dir = isDir(item.dir) ? item.dir : 'ltr'
-    const family = tc.styles[item.fontName]?.fontFamily ?? 'sans-serif'
-    const advances =
-      measure && dir === 'ltr' ? advancesOf(item.str, family, measure) : undefined
     items.push({
       str: item.str,
       dir,
@@ -88,9 +96,29 @@ export function textContentFromPdfjs(
       hasEOL: item.hasEOL,
       quad,
       rect: rectFromQuad(quad),
-      ...(advances && { advances }),
     })
+    runs.push({
+      str: item.str,
+      dir,
+      fontSize,
+      origin: { x: e, y: f },
+      along: u,
+      width: w,
+    })
+    families.push(tc.styles[item.fontName]?.fontFamily ?? 'sans-serif')
   }
+  // The glyphs the page draws give exact boundaries; measuring is the fallback for the rest.
+  const exact = glyphs ? glyphAdvances(runs, glyphs) : []
+  items.forEach((it, i) => {
+    const bounds = exact[i]
+    if (bounds) {
+      it.advances = bounds.advances
+      it.glyphEnds = bounds.ends
+    } else if (measure && it.dir === 'ltr') {
+      const advances = advancesOf(it.str, families[i]!, measure)
+      if (advances) it.advances = advances
+    }
+  })
   return { page, items }
 }
 

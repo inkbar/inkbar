@@ -89,6 +89,19 @@ describe('matchPage', () => {
     expect(hit!.quads[0]!.p4.x).toBeCloseTo(50, 5)
   })
 
+  it('spans every boundary in the match when glyphs were drawn out of order', () => {
+    const it = { ...item('abc', 0, 10), advances: [0, 0.6, 0.4, 1] }
+    const [hit] = matchPage(page(it), 'b', OPTS)
+    expect(hit!.quads[0]!.p3.x).toBeCloseTo(4, 5)
+    expect(hit!.quads[0]!.p4.x).toBeCloseTo(6, 5)
+  })
+
+  it('covers a glyph that kerning overlaps with the next one', () => {
+    const it = { ...item('To', 0, 10), advances: [0, 0.5, 1], glyphEnds: [0.6, 1] }
+    const [hit] = matchPage(page(it), 't', OPTS)
+    expect(hit!.quads[0]!.p4.x).toBeCloseTo(6, 5)
+  })
+
   it('cuts along a rotated baseline', () => {
     const it = item('abcd', 0, 40)
     it.quad = {

@@ -1,3 +1,4 @@
+import { pageGlyphs } from '../pdfjs/glyphs'
 import { assertAssets, loadPdfjs, openProxy } from '../pdfjs/load'
 
 import { staticDefaults, type AnnotationDefaults } from './annotations/defaults'
@@ -309,7 +310,13 @@ export async function openDocument(
       if (destroyed) throw destroyedError()
       if (!handles) throw statusError(status.get())
       const p = await handles.getPage(page)
-      return textContentFromPdfjs(page, await p.getTextContent(), measure)
+      const tc = await p.getTextContent()
+      // A page with no text (a scan) has no glyphs worth reading its drawing commands for.
+      const glyphs =
+        tc.items.length > 0
+          ? await pageGlyphs(p, handles.module).catch(() => undefined)
+          : undefined
+      return textContentFromPdfjs(page, tc, measure, glyphs)
     },
     async pageText(page) {
       return searchableText(await doc.text(page)).raw

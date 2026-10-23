@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import {
+  PDFArray,
   PDFDict,
   PDFDocument,
   PDFName,
@@ -11,7 +12,16 @@ import {
   PDFRef as PDFRefClass,
   PDFString,
   StandardFonts,
+  beginText,
   degrees,
+  endText,
+  moveText,
+  PDFOperator,
+  PDFOperatorNames,
+  setCharacterSpacing,
+  setFontAndSize,
+  setWordSpacing,
+  showText,
   rgb,
   type PDFContext,
   type PDFPage,
@@ -98,11 +108,60 @@ async function textSearch() {
   page.drawText('right column', { x: 320, y: 560, size, font })
   page.drawText('left second line', { x: 72, y: 544, size, font })
   page.drawText('right second line', { x: 320, y: 544, size, font })
+  // Character spacing 1 and word spacing 4, then a word kerned apart by a TJ adjustment of -20.
+  const key = page.node.newFontDictionary(font.name, font.ref)
+  const tucked = PDFArray.withContext(d.context)
+  tucked.push(font.encodeText('T'))
+  tucked.push(PDFNumber.of(120))
+  tucked.push(font.encodeText('o'))
+  const kerned = PDFArray.withContext(d.context)
+  kerned.push(font.encodeText('ke'))
+  kerned.push(PDFNumber.of(-20))
+  kerned.push(font.encodeText('rned word'))
+  page.pushOperators(
+    beginText(),
+    setFontAndSize(key, size),
+    setCharacterSpacing(1),
+    setWordSpacing(4),
+    moveText(72, 500),
+    showText(font.encodeText('widely spaced words')),
+    endText(),
+    beginText(),
+    setFontAndSize(key, size),
+    moveText(72, 476),
+    PDFOperator.of(PDFOperatorNames.ShowTextAdjusted, [kerned]),
+    endText(),
+    // "Hello", then a move 40 pt along for "World" in the same text object.
+    beginText(),
+    setFontAndSize(key, size),
+    setCharacterSpacing(0),
+    setWordSpacing(0),
+    moveText(72, 440),
+    showText(font.encodeText('Hello')),
+    moveText(40, 0),
+    showText(font.encodeText('World')),
+    endText(),
+    // "half " at 50% horizontal scaling, then "full" at 100%.
+    beginText(),
+    setFontAndSize(key, size),
+    moveText(72, 416),
+    PDFOperator.of(PDFOperatorNames.SetTextHorizontalScaling, [PDFNumber.of(50)]),
+    showText(font.encodeText('half ')),
+    PDFOperator.of(PDFOperatorNames.SetTextHorizontalScaling, [PDFNumber.of(100)]),
+    showText(font.encodeText('full')),
+    endText(),
+    // "To" with the "o" kerned 120 back under the T's crossbar.
+    beginText(),
+    setFontAndSize(key, size),
+    moveText(72, 392),
+    PDFOperator.of(PDFOperatorNames.ShowTextAdjusted, [tucked]),
+    endText()
+  )
   return save('text-search', d, {
     pages: 1,
     opens: true,
     describes:
-      'Search cases: split-font word, hyphenated line break, accents, curly quotes, two columns',
+      'Search cases: split-font word, hyphenated line break, accents, curly quotes, two columns, character and word spacing, a kerned word, a move and a scaling change inside one line, a kerned pair',
   })
 }
 

@@ -1,5 +1,5 @@
 import { fixtureBytes } from '@inkbar/fixtures'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { nodeAssets } from '../pdfjs/node-assets'
 
@@ -82,6 +82,35 @@ describe('text content', () => {
     expect(tc.items[0]!.advances).toEqual([0, 0.1, 0.2, 0.6, 1])
     expect(tc.items[1]!.advances).toBeUndefined()
     expect(tc.items[2]!.advances).toBeUndefined()
+  })
+
+  it('prefers where the page draws the glyphs over measuring them', () => {
+    const measure = vi.fn(() => 1)
+    const tc = textContentFromPdfjs(
+      0,
+      {
+        items: [
+          {
+            str: 'iW',
+            dir: 'ltr',
+            transform: [12, 0, 0, 12, 100, 200],
+            width: 10,
+            height: 12,
+            fontName: 'f',
+            hasEOL: false,
+          },
+        ],
+        styles: {},
+      } as never,
+      measure,
+      [
+        { text: 'i', start: { x: 100, y: 200 }, end: { x: 102, y: 200 } },
+        { text: 'W', start: { x: 102, y: 200 }, end: { x: 110, y: 200 } },
+      ]
+    )
+    expect(tc.items[0]!.advances).toEqual([0, 0.2, 1])
+    expect(tc.items[0]!.glyphEnds).toEqual([0.2, 1])
+    expect(measure).not.toHaveBeenCalled()
   })
 
   it('records no advances without a measurer or when nothing measures', () => {

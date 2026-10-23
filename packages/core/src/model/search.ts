@@ -92,13 +92,17 @@ const lerp = (a: Point, b: Point, t: number): Point => ({
 
 /**
  * The part of an item's quad from character `a` to `b`, cut along its baseline at the item's
- * measured `advances`, or at an equal share per character when it has none.
+ * `advances`, or at an equal share per character when it has none. With advances it spans every
+ * boundary from `a` to `b` and the end of every glyph in between, so glyphs the pen drew out of
+ * order, or that kerning overlaps with the next one, stay inside it.
  */
 function cutQuad(it: TextItem, a: number, b: number): Quad {
   const q = it.quad
   const len = it.str.length
-  const t0 = it.advances ? it.advances[a]! : a / len
-  const t1 = it.advances ? it.advances[b]! : b / len
+  const span = it.advances?.slice(a, b + 1)
+  const ends = it.glyphEnds?.slice(a, b) ?? []
+  const t0 = span ? Math.min(...span) : a / len
+  const t1 = span ? Math.max(...span, ...ends) : b / len
   return {
     p1: lerp(q.p1, q.p2, t0),
     p2: lerp(q.p1, q.p2, t1),
