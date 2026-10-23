@@ -395,6 +395,12 @@ export async function readFormExtras(
     const { terminals, names } = await walkFields(objs, acroForm)
     const all = terminals.map((t) => t.name)
     const acroFormDa = acroForm && textString(await objs.resolve(dictGet(acroForm, 'DA')))
+    /** Each named destination's page, asked of the resolver once per name. */
+    const named = new Map<string, Promise<number | undefined> | undefined>()
+    const namedPage = (name: string) => {
+      if (!named.has(name)) named.set(name, options.destinationPage?.(name))
+      return named.get(name)
+    }
 
     for (const { name, dict } of terminals) {
       try {
@@ -430,7 +436,7 @@ export async function readFormExtras(
         }
         const pageOf = async (dest: PdfValue | undefined) => {
           const name = isName(dest) ? dest.name : rawString(dest)
-          if (name !== undefined) return options.destinationPage?.(name)
+          if (name !== undefined) return namedPage(name)
           const target = (await arrayOf(objs, dest))[0]
           return isRef(target) ? pages.get(refKey(target.num, target.gen)) : undefined
         }

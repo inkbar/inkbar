@@ -2741,3 +2741,236 @@ describe('forms', () => {
     expect(viewer.form.get()).toBeNull()
   })
 })
+
+describe('undo and redo keys', () => {
+  const chord = (el: Element, init: KeyboardEventInit): KeyboardEvent => {
+    const e = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init })
+    el.dispatchEvent(e)
+    return e
+  }
+  const square = (doc: InkDocument) =>
+    doc.annotations.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 300, y: 100, width: 40, height: 40 },
+    })
+
+  it('undo with Ctrl or Cmd+Z, redo with Ctrl or Cmd+Shift+Z and Ctrl+Y', async () => {
+    const { viewer } = make('form-fields')
+    const { doc } = await ready(viewer)
+    const root = viewer.element
+    doc.form.set({ name: 'Ada' })
+    expect(chord(root, { key: 'z', ctrlKey: true }).defaultPrevented).toBe(true)
+    expect(doc.form.get('name')).toBe('Sam')
+    chord(root, { key: 'Z', ctrlKey: true, shiftKey: true })
+    expect(doc.form.get('name')).toBe('Ada')
+    chord(root, { key: 'z', metaKey: true })
+    expect(doc.form.get('name')).toBe('Sam')
+    chord(root, { key: 'z', metaKey: true, shiftKey: true })
+    expect(doc.form.get('name')).toBe('Ada')
+    chord(root, { key: 'z', ctrlKey: true })
+    chord(root, { key: 'y', ctrlKey: true })
+    expect(doc.form.get('name')).toBe('Ada')
+    // Alt chords and Cmd+Y are not the shortcut.
+    expect(chord(root, { key: 'z', ctrlKey: true, altKey: true }).defaultPrevented).toBe(
+      false
+    )
+    chord(root, { key: 'y', metaKey: true })
+    expect(doc.form.get('name')).toBe('Ada')
+  })
+
+  it('act only while the Undo or Redo button is enabled', async () => {
+    const { viewer } = make('form-fields')
+    const { doc } = await ready(viewer)
+    const undo = createUndo(viewer)
+    const redo = createRedo(viewer)
+    expect(undo.disabled).toBe(true)
+    expect(chord(viewer.element, { key: 'z', ctrlKey: true }).defaultPrevented).toBe(
+      false
+    )
+    expect(chord(viewer.element, { key: 'y', ctrlKey: true }).defaultPrevented).toBe(
+      false
+    )
+    doc.form.set({ name: 'Ada' })
+    expect(undo.disabled).toBe(false)
+    expect(chord(viewer.element, { key: 'z', ctrlKey: true }).defaultPrevented).toBe(true)
+    expect(redo.disabled).toBe(false)
+    expect(undo.disabled).toBe(true)
+    expect(chord(viewer.element, { key: 'z', ctrlKey: true }).defaultPrevented).toBe(
+      false
+    )
+  })
+
+  it('work from a toolbar in the root, a checkbox and an annotation', async () => {
+    const { viewer } = make('form-fields')
+    const { doc } = await ready(viewer)
+    const bar = createToolbar()
+    const undo = createUndo(viewer)
+    bar.append(createToolButton(viewer, 'select'), undo)
+    viewer.element.prepend(bar)
+    doc.form.set({ name: 'Ada' })
+    doc.form.set({ name: 'Grace' })
+    await userEvent.click(undo)
+    expect(doc.form.get('name')).toBe('Ada')
+    // Focus is on the Undo button, which still has a step to undo.
+    expect(document.activeElement).toBe(undo)
+    await userEvent.keyboard('{ControlOrMeta>}z{/ControlOrMeta}')
+    expect(doc.form.get('name')).toBe('Sam')
+    bar.querySelector<HTMLElement>('[data-tool="select"]')!.focus()
+    await userEvent.keyboard('{ControlOrMeta>}{Shift>}z{/Shift}{/ControlOrMeta}')
+    expect(doc.form.get('name')).toBe('Ada')
+    await userEvent.keyboard('{Control>}y{/Control}')
+    expect(doc.form.get('name')).toBe('Grace')
+
+    const root = viewer.element
+    await until(() => root.querySelector('[data-ink-field="agree"] button') !== null)
+    const agree = root.querySelector<HTMLElement>('[data-ink-field="agree"] button')!
+    const before = doc.form.get('agree')
+    await userEvent.click(agree)
+    expect(doc.form.get('agree')).not.toEqual(before)
+    await userEvent.keyboard('{ControlOrMeta>}z{/ControlOrMeta}')
+    expect(doc.form.get('agree')).toEqual(before)
+
+    const s = square(doc)
+    await until(() => root.querySelector(`[data-annotation="${s.id}"]`) !== null)
+    root.querySelector<HTMLElement>(`[data-annotation="${s.id}"]`)!.focus()
+    await userEvent.keyboard('{ControlOrMeta>}z{/ControlOrMeta}')
+    expect(doc.annotations.get(s.id)).toBeUndefined()
+  })
+
+  it('keep focus in the viewer when Undo undoes the only step, so Shift+Z redoes', async () => {
+    const { viewer } = make('form-fields')
+    const { doc } = await ready(viewer)
+    // A toolbar outside the root, as a host may place it.
+    const bar = createToolbar()
+    const undo = createUndo(viewer)
+    bar.append(undo)
+    document.body.append(bar)
+    cleanup.push(() => bar.remove())
+    doc.form.set({ name: 'Ada' })
+    await userEvent.click(undo)
+    expect(doc.form.get('name')).toBe('Sam')
+    expect(undo.disabled).toBe(true)
+    const scroll = viewer.element.querySelector('[data-ink-scroll]')
+    expect(document.activeElement).toBe(scroll)
+    await userEvent.keyboard('{ControlOrMeta>}{Shift>}z{/Shift}{/ControlOrMeta}')
+    expect(doc.form.get('name')).toBe('Ada')
+    // The same from the key with focus on Undo, in a toolbar inside the root.
+    viewer.element.prepend(bar)
+    undo.focus()
+    await userEvent.keyboard('{ControlOrMeta>}z{/ControlOrMeta}')
+    expect(doc.form.get('name')).toBe('Sam')
+    expect(document.activeElement).toBe(scroll)
+  })
+
+  it('ignore a chord while composing text, and one already handled', async () => {
+    const { viewer } = make('form-fields')
+    const { doc } = await ready(viewer)
+    doc.form.set({ name: 'Ada' })
+    expect(
+      chord(viewer.element, { key: 'z', ctrlKey: true, isComposing: true })
+        .defaultPrevented
+    ).toBe(false)
+    expect(doc.form.get('name')).toBe('Ada')
+    const scroll = viewer.element.querySelector<HTMLElement>('[data-ink-scroll]')!
+    const handled = (e: Event) => e.preventDefault()
+    scroll.addEventListener('keydown', handled)
+    chord(scroll, { key: 'z', ctrlKey: true })
+    scroll.removeEventListener('keydown', handled)
+    expect(doc.form.get('name')).toBe('Ada')
+    expect(doc.history.canUndo.get()).toBe(true)
+  })
+
+  it('leave the keys to a text field inside a shadow root', async () => {
+    const { viewer } = make('form-fields')
+    const { doc } = await ready(viewer)
+    doc.form.set({ name: 'Ada' })
+    const host = document.createElement('div')
+    const input = document.createElement('input')
+    host.attachShadow({ mode: 'open' }).append(input)
+    viewer.element.append(host)
+    const e = new KeyboardEvent('keydown', {
+      key: 'z',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+    })
+    input.dispatchEvent(e)
+    expect(e.defaultPrevented).toBe(false)
+    expect(doc.form.get('name')).toBe('Ada')
+    host.remove()
+  })
+
+  it('step back on each repeat of a held chord, and stop at the first step', async () => {
+    const { viewer } = make('form-fields')
+    const { doc } = await ready(viewer)
+    doc.form.set({ name: 'Ada' })
+    doc.form.set({ name: 'Grace' })
+    const held = { key: 'z', ctrlKey: true, repeat: true }
+    expect(chord(viewer.element, { key: 'z', ctrlKey: true }).defaultPrevented).toBe(true)
+    expect(chord(viewer.element, held).defaultPrevented).toBe(true)
+    expect(doc.form.get('name')).toBe('Sam')
+    expect(chord(viewer.element, held).defaultPrevented).toBe(false)
+  })
+
+  it('leave the keys to a focused text field, a select and editable content', async () => {
+    const { viewer } = make('form-fields')
+    const { doc } = await ready(viewer)
+    const root = viewer.element
+    await until(() => root.querySelector('[data-ink-field="name"] input') !== null)
+    doc.form.set({ name: 'Ada' })
+    const input = root.querySelector<HTMLInputElement>('[data-ink-field="name"] input')!
+    await userEvent.click(input)
+    await userEvent.keyboard('{End}x')
+    expect(input.value).toBe('Adax')
+    await userEvent.keyboard('{ControlOrMeta>}z{/ControlOrMeta}')
+    // The field's native undo took the typed letter back; the history kept its step.
+    expect(input.value).toBe('Ada')
+    expect(doc.form.get('name')).toBe('Ada')
+    expect(doc.history.canUndo.get()).toBe(true)
+    for (const el of [
+      document.createElement('textarea'),
+      document.createElement('select'),
+      Object.assign(document.createElement('div'), { contentEditable: 'true' }),
+    ]) {
+      root.append(el)
+      expect(chord(el, { key: 'z', ctrlKey: true }).defaultPrevented).toBe(false)
+      el.remove()
+    }
+    expect(doc.form.get('name')).toBe('Ada')
+  })
+
+  it('undo annotations when the host controls the fields, as the Undo button does', async () => {
+    const { viewer } = make('form-fields', {
+      fields: { mode: 'controlled', initial: {}, onChange: () => undefined },
+    })
+    const { doc } = await ready(viewer)
+    const undo = createUndo(viewer)
+    const s = square(doc)
+    expect(undo.disabled).toBe(false)
+    expect(chord(viewer.element, { key: 'z', ctrlKey: true }).defaultPrevented).toBe(true)
+    expect(doc.annotations.get(s.id)).toBeUndefined()
+  })
+
+  it('do nothing with history off', async () => {
+    const { viewer } = make('form-fields', { history: false })
+    const { doc } = await ready(viewer)
+    doc.form.set({ name: 'Ada' })
+    expect(chord(viewer.element, { key: 'z', ctrlKey: true }).defaultPrevented).toBe(
+      false
+    )
+    expect(doc.form.get('name')).toBe('Ada')
+  })
+
+  it('stop when the viewer is destroyed', async () => {
+    const { viewer } = make('form-fields')
+    const { doc } = await ready(viewer)
+    const root = viewer.element
+    doc.form.set({ name: 'Ada' })
+    const spy = vi.spyOn(doc.history, 'undo')
+    viewer.destroy()
+    chord(root, { key: 'z', ctrlKey: true })
+    expect(spy).not.toHaveBeenCalled()
+  })
+})

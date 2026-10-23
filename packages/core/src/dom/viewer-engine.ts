@@ -229,10 +229,13 @@ function tabbable(c: HTMLElement): boolean {
  * own descendants (`from` may be the viewer). Forward, that is the next element in document
  * order with tabindex 0: from a tabindex-0 control the browser never moves to a positive one.
  * Back, it is the previous tabindex-0 element, else the last of the positive tabindex ones,
- * which the browser visits first.
+ * which the browser visits first. Inside a shadow root it looks only within that root.
  */
 function nextFocusable(from: Element, back: boolean): HTMLElement | undefined {
-  const all = [...from.ownerDocument.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+  // The tree the viewer lives in: a shadow root that hosts it, else the document.
+  const root = from.getRootNode()
+  const scope: ParentNode = root instanceof ShadowRoot ? root : from.ownerDocument
+  const all = [...scope.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
     (c) => c.tabIndex >= 0 && !from.contains(c) && tabbable(c)
   )
   const after = (c: Element) =>

@@ -20,6 +20,7 @@ describe('@inkbar/core/dom entry', () => {
       expect.arrayContaining([
         'createViewport',
         'attachViewportKeys',
+        'attachHistoryKeys',
         'computeCssLayout',
         'createPageTransform',
         'createPageRenderer',

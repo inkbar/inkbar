@@ -413,6 +413,9 @@ importers:
       '@inkbar/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@inkbar/e2e-shared':
+        specifier: workspace:*
+        version: link:../e2e-shared
       '@inkbar/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -441,9 +444,6 @@ importers:
       '@axe-core/playwright':
         specifier: ^4.13.0
         version: 4.13.0(playwright-core@1.62.1)
-      '@inkbar/e2e-shared':
-        specifier: workspace:*
-        version: link:../e2e-shared
       '@playwright/test':
         specifier: 1.62.1
         version: 1.62.1

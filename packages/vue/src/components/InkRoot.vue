@@ -8,6 +8,7 @@ import {
   writable,
 } from '@inkbar/core'
 import {
+  attachHistoryKeys,
   createPluginHost,
   createSearchController,
   createToolOptions,
@@ -16,6 +17,7 @@ import {
   viewerSearchOf,
   cssVariableDefaults,
   FONT_FAMILIES,
+  keepHistoryFocus,
   SIGNATURE_FONTS,
   trackToolStyle,
 } from '@inkbar/core/dom'
@@ -79,7 +81,7 @@ const props = withDefaults(
      * a document opens, as for `annotations`.
      */
     fields?: FieldValues | undefined
-    /** Tints fillable form fields. Default true. Read when the viewer is built for a document. */
+    /** Tints fillable form fields. Default true. A change applies to the open document in place. */
     formHighlight?: boolean | undefined
     tool?: ToolId | undefined
     /**
@@ -335,6 +337,33 @@ const inkHistory: InkHistory = {
     controlled.value ? refHistory.react(fn) : (document.value?.history.react(fn) ?? noop),
 }
 
+// The undo and redo keys anywhere in the root do what InkUndo and InkRedo do. When either
+// button undoes or redoes the last step and disables itself, focus goes back to the document.
+// The find key listens here too.
+watch(
+  rootEl,
+  (el, _prev, onCleanup) => {
+    if (!el) return
+    const stopKeys = attachHistoryKeys(el, () => ({
+      canUndo: inkHistory.canUndo.value,
+      canRedo: inkHistory.canRedo.value,
+      undo: inkHistory.undo,
+      redo: inkHistory.redo,
+    }))
+    const stopFocus = keepHistoryFocus(el, () =>
+      el.querySelector<HTMLElement>('[data-ink-scroll]')
+    )
+    // Not a template listener: Vue leaves those on the element when it unmounts.
+    el.addEventListener('keydown', onKeydown)
+    onCleanup(() => {
+      stopKeys()
+      stopFocus()
+      el.removeEventListener('keydown', onKeydown)
+    })
+  },
+  { immediate: true }
+)
+
 /*
  * One plugin host for the root's life, built once mounted so that no `setup` runs on the
  * server, where nothing would clean it up. Until then `pluginHost` is null, and InkCommand
@@ -373,9 +402,6 @@ function setUpPlugins(): void {
     search: viewerSearchOf(controller),
   })
 }
-
-// Reka's typed props stop at its own; listeners go through a bound object.
-const rootListeners = { onKeydown }
 
 /** Ctrl/Cmd+F while focus is in the root and a find bar is mounted; else the browser's. */
 function onKeydown(e: KeyboardEvent): void {
@@ -525,7 +551,6 @@ defineExpose({ document, status, rootEl, history: inkHistory })
     as="div"
     data-ink-root
     :data-state="status.state"
-    v-bind="rootListeners"
   >
     <slot :status="status" :document="document" />
   </Primitive>

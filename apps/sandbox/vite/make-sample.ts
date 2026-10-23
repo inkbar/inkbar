@@ -880,10 +880,10 @@ function formRows(d: PDFDocument, fonts: Fonts): { fields: Row[]; scripted: Row[
   }
 
   const calculations: Row = {
-    weight: 0.85,
+    weight: 1.05,
     title: 'Calculations and formats',
     body: 'Scripts in the PDF format numbers, money and dates, check what you type and work out totals as you go.',
-    tryIt: 'Try it: order 3 at 12.50 and watch the total.',
+    tryIt: 'Try it: order 3 at 12.50, then give a discount of 0.1 and watch what is due.',
     demo(s, b) {
       boxTitle(s, b, 'Order', 'Prices in pounds')
       const g = grid(b)
@@ -895,12 +895,18 @@ function formRows(d: PDFDocument, fonts: Fonts): { fields: Row[]; scripted: Row[
         top: g.top(0),
         w: third,
       }).enableReadOnly()
-      text(s, 'when', 'Delivery date (dd/mm/yyyy)', { x: g.left, top: g.top(1), w: g.w })
-      text(s, 'age', 'Age (18 to 120)', { x: g.right, top: g.top(1), w: 56 })
+      text(s, 'discount', 'Discount (0.1 is 10%)', { x: b.x, top: g.top(1), w: third })
+      text(s, 'due', 'Due', {
+        x: b.x + (third + 10) * 2,
+        top: g.top(1),
+        w: third,
+      }).enableReadOnly()
+      text(s, 'when', 'Delivery date (dd/mm/yyyy)', { x: g.left, top: g.top(2), w: g.w })
+      text(s, 'age', 'Age (18 to 120)', { x: g.right, top: g.top(2), w: 56 })
       s.para(
-        'The total is quantity × unit price, worked out by a script in the PDF. An age outside 18 to 120 is refused.',
+        'Scripts in the PDF work out the total and the amount due after the discount. An age outside 18 to 120 is refused.',
         b.x,
-        g.top(2) + 4,
+        g.top(3) + 4,
         b.w,
         { size: 9.75, leading: 14, color: MUTED }
       )
@@ -926,7 +932,7 @@ function formRows(d: PDFDocument, fonts: Fonts): { fields: Row[]; scripted: Row[
   }
 
   const buttons: Row = {
-    weight: 1.45,
+    weight: 1.25,
     title: 'Buttons and actions',
     body: 'Buttons can submit the form, send mail, open a link, print or show a message. Inkbar never sends or opens anything itself: it hands each request to the page.',
     tryIt: 'Try it: press Submit, then look at the Form panel beside the viewer.',
@@ -1040,12 +1046,21 @@ function finishForm(d: PDFDocument, fonts: Fonts): void {
     C: 'AFSimple_Calculate("PRD", new Array("qty", "price"))',
     F: `AFNumber_Format(${pounds})`,
   })
+  scripts('discount', { K: 'AFPercent_Keystroke(1, 0)', F: 'AFPercent_Format(1, 0)' })
+  scripts('due', {
+    // A Calculate script of its own, not one of the AF helpers.
+    C: 'var total = this.getField("total").value; var off = this.getField("discount").value; event.value = total * (1 - off);',
+    F: `AFNumber_Format(${pounds})`,
+  })
   scripts('when', {
     K: 'AFDate_KeystrokeEx("dd/mm/yyyy")',
     F: 'AFDate_FormatEx("dd/mm/yyyy")',
   })
   scripts('age', { V: 'event.rc = event.value >= 18 && event.value <= 120' })
-  acro.set(PDFName.of('CO'), ctx.obj([form.getTextField('total').ref]))
+  acro.set(
+    PDFName.of('CO'),
+    ctx.obj([form.getTextField('total').ref, form.getTextField('due').ref])
+  )
   widgetDict(form.getCheckBox('more')).set(
     PDFName.of('AA'),
     ctx.obj({

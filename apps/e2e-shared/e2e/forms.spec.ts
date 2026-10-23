@@ -44,6 +44,50 @@ test('fills, calculates and undoes', async ({ page }) => {
   await expect(total).toHaveValue('£37.50')
 })
 
+test('undoes and redoes from the keyboard, and a field keeps its own text undo', async ({
+  page,
+}) => {
+  await openScripted(page)
+  const qty = field(page, 'qty').locator('input')
+  const price = field(page, 'price').locator('input')
+  const total = field(page, 'total').locator('input')
+  await price.fill('12.5')
+  await price.press('Enter')
+  await qty.fill('2')
+  await qty.press('Enter')
+  await qty.fill('3')
+  await qty.press('Enter')
+  await expect(total).toHaveValue('£37.50')
+
+  // In the field, the chord is the field's own undo: the typed text goes, the commit stays.
+  await qty.press('End')
+  await qty.press('5')
+  await expect(qty).toHaveValue('35')
+  await qty.press('ControlOrMeta+z')
+  await expect(qty).toHaveValue('3')
+  await expect(total).toHaveValue('£37.50')
+
+  // On the viewer, the chord undoes the last commit and the total it recalculated.
+  await qty.blur()
+  await page.locator('[data-ink-scroll]').focus()
+  await page.keyboard.press('ControlOrMeta+z')
+  await expect(qty).toHaveValue('2')
+  await expect(total).toHaveValue('£25.00')
+  await page.keyboard.press('ControlOrMeta+Shift+z')
+  await expect(qty).toHaveValue('3')
+  await expect(total).toHaveValue('£37.50')
+  await page.keyboard.press('ControlOrMeta+z')
+  await expect(qty).toHaveValue('2')
+  await page.keyboard.press('Control+y')
+  await expect(qty).toHaveValue('3')
+
+  // From the toolbar too: focus stays on Undo after a press, and the key redoes from there.
+  await page.getByRole('button', { name: 'Undo', exact: true }).click()
+  await expect(qty).toHaveValue('2')
+  await page.keyboard.press('ControlOrMeta+Shift+z')
+  await expect(qty).toHaveValue('3')
+})
+
 test('Tab moves through fields', async ({ page }) => {
   await openScripted(page)
   await field(page, 'qty').locator('input').focus()

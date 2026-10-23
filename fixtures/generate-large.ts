@@ -16,10 +16,15 @@ export function drawLines(page: PDFPage, font: PDFFont, lines: string[], y = 700
   )
 }
 
+/** Every fixture carries this date, so regenerating an unchanged fixture rewrites no bytes. */
+export const FIXTURE_DATE = new Date('2026-10-12T11:00:00Z')
+
 export async function newFixtureDoc(): Promise<{ d: PDFDocument; font: PDFFont }> {
   const d = await PDFDocument.create()
   d.setTitle('Inkbar fixture')
   d.setAuthor('Inkbar')
+  d.setCreationDate(FIXTURE_DATE)
+  d.setModificationDate(FIXTURE_DATE)
   const font = await d.embedFont(StandardFonts.Helvetica)
   return { d, font }
 }

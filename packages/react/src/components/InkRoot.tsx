@@ -8,12 +8,14 @@ import {
   writable,
 } from '@inkbar/core'
 import {
+  attachHistoryKeys,
   createPluginHost,
   createSearchController,
   createToolOptions,
   cssVariableDefaults,
   FONT_FAMILIES,
   handleFindKey,
+  keepHistoryFocus,
   pageSelectionText,
   SIGNATURE_FONTS,
   trackToolStyle,
@@ -107,7 +109,7 @@ export interface InkRootProps extends Omit<
   onFieldsChange?: ((next: FieldValues, change: FieldsChange) => void) | undefined
   /** The form asked to submit, open a link, send mail, print or prompt. Inkbar does none. */
   onFormAction?: ((action: FormAction) => void) | undefined
-  /** Tints fillable form fields. Default true. Read when the viewer is built for a document. */
+  /** Tints fillable form fields. Default true. A change applies to the open document in place. */
   formHighlight?: boolean | undefined
   tool?: ToolId | undefined
   onToolChange?: ((tool: ToolId) => void) | undefined
@@ -641,6 +643,33 @@ export function InkRoot({
   )
 
   const latestHistory = useLatest(inkHistory)
+
+  // The undo and redo keys anywhere in the root do what InkUndo and InkRedo do. When either
+  // button undoes or redoes the last step and disables itself, focus goes back to the document.
+  useEffect(() => {
+    if (!rootEl) return
+    // The flags are read from the stacks, not from the last render: a held key repeats before
+    // React renders again, and a stale `canUndo` would prevent a key that undoes nothing.
+    const stopKeys = attachHistoryKeys(rootEl, () => {
+      const doc = documentRef.current
+      if (!doc) return null
+      const snap = doc.annotations.mode === 'controlled'
+      const on = latest.current.historyEnabled
+      return {
+        canUndo: snap ? on && snapshotHistory.canUndo.get() : doc.history.canUndo.get(),
+        canRedo: snap ? on && snapshotHistory.canRedo.get() : doc.history.canRedo.get(),
+        undo: () => latestHistory.current.undo(),
+        redo: () => latestHistory.current.redo(),
+      }
+    })
+    const stopFocus = keepHistoryFocus(rootEl, () =>
+      rootEl.querySelector<HTMLElement>('[data-ink-scroll]')
+    )
+    return () => {
+      stopKeys()
+      stopFocus()
+    }
+  }, [rootEl, latestHistory, latest, snapshotHistory])
 
   /** The document's tool style; it batches through `history`, whichever mode is on. */
   const styleTracker = useMemo(

@@ -54,7 +54,7 @@
     onFieldsChange?: ((next: FieldValues, change: FieldsChange) => void) | undefined
     /** The form asked to submit, open a link, send mail, print or prompt. Inkbar does none. */
     onformaction?: ((action: FormAction) => void) | undefined
-    /** Tints fillable form fields. Default true. Read when the viewer is built for a document. */
+    /** Tints fillable form fields. Default true. A change applies to the open document in place. */
     formHighlight?: boolean | undefined
     tool?: ToolId | undefined
     onToolChange?: ((tool: ToolId) => void) | undefined
@@ -125,12 +125,14 @@
     writable,
   } from '@inkbar/core'
   import {
+    attachHistoryKeys,
     createPluginHost,
     createSearchController,
     createToolOptions,
     cssVariableDefaults,
     FONT_FAMILIES,
     handleFindKey,
+    keepHistoryFocus,
     pageSelectionText,
     SIGNATURE_FONTS,
     trackToolStyle,
@@ -440,6 +442,21 @@
     track: (store) => pluginHistory.track(store),
     react: (fn) => pluginHistory.react(fn),
   }
+
+  // The undo and redo keys anywhere in the root do what InkUndo and InkRedo do. When either
+  // button undoes or redoes the last step and disables itself, focus goes back to the document.
+  $effect(() => {
+    const el = ref
+    if (!el) return
+    const stopKeys = attachHistoryKeys(el, () => inkHistory)
+    const stopFocus = keepHistoryFocus(el, () =>
+      el.querySelector<HTMLElement>('[data-ink-scroll]')
+    )
+    return () => {
+      stopKeys()
+      stopFocus()
+    }
+  })
 
   /**
    * The history the plugins reach, picked by the open document's mode when they call. The host

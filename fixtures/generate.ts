@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -76,6 +76,55 @@ async function save(
 
 const latin1 = (bytes: Uint8Array) => Buffer.from(bytes).toString('latin1')
 const fromLatin1 = (s: string) => new Uint8Array(Buffer.from(s, 'latin1'))
+
+/**
+ * What qpdf reads from `file` with the owner password: its content, decrypted, without the
+ * trailer /ID (whose first half qpdf keeps from the random one it wrote when it encrypted), and
+ * its encryption settings (revision, permissions, methods, and whether the password still opens
+ * it as owner). Equal files give equal strings.
+ */
+function readEncrypted(file: string, owner: string): string {
+  const content = latin1(
+    execFileSync('qpdf', [`--password=${owner}`, '--decrypt', file, '-'])
+  ).replace(/\/ID \[<[0-9a-f]*><[0-9a-f]*>\]/, '')
+  const settings = execFileSync(
+    'qpdf',
+    [`--password=${owner}`, '--show-encryption', file],
+    { encoding: 'latin1' }
+  )
+  return `${settings}\n${content}`
+}
+
+/** `readEncrypted` for the existing fixture, or nothing when it is missing or unreadable. */
+function readExisting(file: string, owner: string): string | undefined {
+  if (!existsSync(file)) return undefined
+  try {
+    return readEncrypted(file, owner)
+  } catch {
+    // A changed password, or a damaged file: replace it.
+    return undefined
+  }
+}
+
+/**
+ * Encrypts `plain` into fixture `name` with qpdf, then deletes `plain`. qpdf writes a random /ID
+ * (and random AES salts and IVs) on every run, so when the existing fixture holds the same
+ * content under the same encryption settings it is kept, and a regenerate leaves it untouched.
+ * `args` are qpdf's options; they include `--encrypt <user> <owner> ...`.
+ */
+function encrypt(name: FixtureName, plain: string, args: string[], owner: string) {
+  const target = join(out, `${name}.pdf`)
+  const fresh = join(out, `${name}.new.pdf`)
+  try {
+    execFileSync('qpdf', [...args, '--', plain, fresh])
+    const old = readExisting(target, owner)
+    if (old !== undefined && old === readEncrypted(fresh, owner)) return
+    renameSync(fresh, target)
+  } finally {
+    rmSync(plain, { force: true })
+    rmSync(fresh, { force: true })
+  }
+}
 
 async function textSimple() {
   const { d, font } = await doc()
@@ -558,7 +607,7 @@ function appendRevision(base: Uint8Array, ctx: PDFContext, refs: PDFRef[], who: 
 /** standard-callout plus an incremental update that moves the leader tip to (80, 560). */
 async function calloutIncremental() {
   const base = await (await buildStandardCallout()).save({ useObjectStreams: false })
-  const d2 = await PDFDocument.load(base)
+  const d2 = await PDFDocument.load(base, { updateMetadata: false })
   const ctx = d2.context
   const ref = d2.getPage(0).node.Annots()?.get(0)
   if (!(ref instanceof PDFRefClass)) throw new Error('callout-incremental: no annotation')
@@ -579,16 +628,12 @@ async function calloutEncrypted() {
     plain,
     await (await buildStandardCallout()).save({ useObjectStreams: false })
   )
-  execFileSync('qpdf', [
-    '--encrypt',
-    '',
-    'owner-secret',
-    '256',
-    '--',
+  encrypt(
+    'callout-encrypted',
     plain,
-    join(out, 'callout-encrypted.pdf'),
-  ])
-  rmSync(plain)
+    ['--encrypt', '', 'owner-secret', '256'],
+    'owner-secret'
+  )
   note('callout-encrypted', {
     pages: 1,
     opens: true,
@@ -1048,6 +1093,10 @@ async function formFields() {
   )
 }
 
+/** A Calculate script of its own, not one of the AF helpers: the total less the discount. */
+const DUE_CALCULATE =
+  'var total = this.getField("total").value; var off = this.getField("discount").value; event.value = total * (1 - off);'
+
 async function formScripted() {
   const { d, font } = await doc()
   const ctx = d.context
@@ -1115,6 +1164,15 @@ async function formScripted() {
     btn[n] = b
   }
 
+  // After the buttons in /Annots order, so the Tab order of the fields above stays as it was.
+  const discount = form.createTextField('discount')
+  discount.addToPage(page, box(L, 6, 120))
+  put('discount (0.1 is 10%)', L, 6)
+  const due = form.createTextField('due')
+  due.enableReadOnly()
+  due.addToPage(page, box(L + 160, 6, 120))
+  put('due (total less discount)', L + 160, 6)
+
   form.updateFieldAppearances(font)
 
   addHelv(d, form)
@@ -1137,7 +1195,9 @@ async function formScripted() {
     F: 'AFDate_FormatEx("dd/mm/yyyy");',
   })
   fieldAA(age, { V: 'event.rc = event.value >= 18 && event.value <= 120' })
-  form.acroForm.dict.set(PDFName.of('CO'), ctx.obj([total.ref]))
+  fieldAA(discount, { K: 'AFPercent_Keystroke(1, 0)', F: 'AFPercent_Format(1, 0)' })
+  fieldAA(due, { C: DUE_CALCULATE, F: `AFNumber_Format(${pounds})` })
+  form.acroForm.dict.set(PDFName.of('CO'), ctx.obj([total.ref, due.ref]))
 
   widgetDict(more).set(
     PDFName.of('AA'),
@@ -1177,8 +1237,8 @@ async function formScripted() {
       pages: 1,
       opens: true,
       describes:
-        'Fields with keystroke, format, validate and calculate scripts, a mouse-up script that shows a hidden field, JavaScript and non-JavaScript button actions, a reset button whose mouse-up script zeroes qty first, and a document-level script',
-      annotations: { Widget: 16 },
+        'Fields with keystroke, format, validate and calculate scripts (a percent field and a hand-written calculation among them), a mouse-up script that shows a hidden field, JavaScript and non-JavaScript button actions, a reset button whose mouse-up script zeroes qty first, and a document-level script',
+      annotations: { Widget: 18 },
     },
     { appearances: false }
   )
@@ -1543,7 +1603,7 @@ async function incrementalSaved() {
   text(page, font, ['Base revision', ...BODY])
   const base = await d.save({ useObjectStreams: false })
 
-  const d2 = await PDFDocument.load(base)
+  const d2 = await PDFDocument.load(base, { updateMetadata: false })
   const p2 = d2.getPage(0)
   const ctx = d2.context
   const hl = annot(ctx, {
@@ -1584,17 +1644,12 @@ async function encrypted(name: 'encrypted-aes' | 'encrypted-rc4') {
   const plain = join(out, `${name}.plain.pdf`)
   writeFileSync(plain, await d.save({ useObjectStreams: false }))
   const keyArgs = name === 'encrypted-aes' ? ['256'] : ['128', '--use-aes=n']
-  execFileSync('qpdf', [
-    '--allow-weak-crypto',
-    '--encrypt',
-    'inkbar',
-    'owner-secret',
-    ...keyArgs,
-    '--',
+  encrypt(
+    name,
     plain,
-    join(out, `${name}.pdf`),
-  ])
-  rmSync(plain)
+    ['--allow-weak-crypto', '--encrypt', 'inkbar', 'owner-secret', ...keyArgs],
+    'owner-secret'
+  )
   note(name, {
     pages: 1,
     opens: true,
