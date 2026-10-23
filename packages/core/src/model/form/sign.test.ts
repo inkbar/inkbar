@@ -167,6 +167,26 @@ describe('signField', () => {
     doc.destroy()
   })
 
+  it('a pinned signature takes patches that leave its look and place alone', async () => {
+    const doc = await open()
+    const widget = fieldOf(doc.form.fields.get(), 'sig').widgets[0]!
+    const id = signField(doc, 'sig', widget.id, image)
+    const custom = { acme: { reviewed: true } }
+    const after = doc.annotations.update(id, { contents: 'ok', author: 'Sam', custom })
+    expect(after).toMatchObject({ contents: 'ok', author: 'Sam', custom })
+    const before = doc.annotations.get(id)!
+    // Its image, label, rotation and lock stay as signing made them.
+    expect(
+      doc.annotations.update(id, { imagedata: PNG.replace('=', 'A=') })
+    ).toBeUndefined()
+    expect(doc.annotations.update(id, { subject: 'Approved' })).toBeUndefined()
+    expect(doc.annotations.update(id, { rotation: 90 })).toBeUndefined()
+    expect(doc.annotations.update(id, { locked: true })).toBeUndefined()
+    expect(doc.annotations.update(id, { author: 'Ada', rotation: 90 })).toBeUndefined()
+    expect(doc.annotations.get(id)).toEqual(before)
+    doc.destroy()
+  })
+
   it('fits the box as a rotated page shows it, centred', async () => {
     const doc = await open()
     const widget = fieldOf(doc.form.fields.get(), 'sig2').widgets[0]!

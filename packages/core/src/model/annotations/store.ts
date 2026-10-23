@@ -102,8 +102,9 @@ export interface AnnotationStore {
   _getProposed(id: string): Annotation | undefined
   /**
    * @internal Pins annotations to what they fill (a signature to its signature field): a
-   * pinned annotation refuses every patch but one to its `contents` (no move, resize or
-   * restyle), while `remove` still works. Replaces the whole set.
+   * pinned annotation takes patches only to `contents`, `author` and `custom`, and refuses any
+   * other (no move, resize, restyle or new image), while `remove` still works. Replaces the
+   * whole set.
    */
   _setPinned(ids: ReadonlySet<string>): void
   /** @internal Whether `_setPinned` pinned `id`. */
@@ -142,6 +143,12 @@ const LOCKED_KEYS = new Set([
   'imagedata',
   'rotation',
 ])
+
+/**
+ * Keys a pinned annotation still takes: its comment, author and the host's own data. Geometry,
+ * style, its image or ink, its subject, rotation and lock are refused.
+ */
+const PINNED_KEYS = new Set(['contents', 'author', 'custom'])
 
 function keepKey(target: Record<string, unknown>, from: Annotation, key: string): void {
   if (Object.prototype.hasOwnProperty.call(from, key))
@@ -454,8 +461,9 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
       if (destroyed || !before) return undefined
       if (before.locked && Object.keys(patch).some((k) => LOCKED_KEYS.has(k)))
         return undefined
-      // A pinned annotation is what fills its field, as it is: only its comment changes.
-      if (pinned.get().has(id) && Object.keys(patch).some((k) => k !== 'contents'))
+      // A pinned annotation is what fills its field, as it is: only keys that leave its look
+      // and place alone change.
+      if (pinned.get().has(id) && Object.keys(patch).some((k) => !PINNED_KEYS.has(k)))
         return undefined
       const candidate: Record<string, unknown> = {
         ...before,
