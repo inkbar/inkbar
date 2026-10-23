@@ -1,0 +1,51 @@
+packages/core/src/model/text.ts
+  s_a9eee6338cf60a::t_bfd0b19285ad66 94-100,109-111
+  s_a9eee6338cf60a::t_15d56cda38a945 2,18-20,57-58,102,104-108,112-113
+packages/core/src/model/search.test.ts
+  s_a9eee6338cf60a::t_ac763d64374c73 92-98
+fixtures/manifest.json
+  s_a9eee6338cf60a::t_db4c9231e9b813 12
+packages/core/src/model/glyph-advances.test.ts
+  s_a9eee6338cf60a::t_2ea42295ffa8b3 3,5-27,30-31,37-38,46-52,55-57,60-62,65-69,73-79,82-87,99,102-107,109
+  s_a9eee6338cf60a::t_bfd0b19285ad66 91-94
+fixtures/generate.ts
+  s_a9eee6338cf60a::t_db4c9231e9b813 129-147,154
+packages/core/src/model/search.fixtures.test.ts
+  s_a9eee6338cf60a::t_bfd0b19285ad66 200-201
+  s_a9eee6338cf60a::t_6d4e86025d744a 11-12,17-18,27,194-199,202-206
+  s_a9eee6338cf60a::t_5e21e7e36b3474 207
+packages/core/src/pdfjs/glyphs.ts
+  s_a9eee6338cf60a::t_bfd0b19285ad66 48,51-53,116-120
+  s_a9eee6338cf60a::t_8da1de03c61317 1-2,12-29,31,34-36,40-44,50,55-110,112,114-115,121-125,128,130,133-138,140-164,167-175,178,181-187,190
+  s_a9eee6338cf60a::t_2da827d3f01d41 111,113
+packages/core/src/model/text.test.ts
+  s_a9eee6338cf60a::t_ac763d64374c73 2,87-112
+  s_a9eee6338cf60a::t_3f95df9de82ab5 113-114
+packages/core/src/model/search.ts
+  s_a9eee6338cf60a::t_30aa3fbacba675 95-96,101-103
+packages/core/src/model/glyph-advances.ts
+  s_a9eee6338cf60a::t_bfd0b19285ad66 53-54,76-79,94,98-99
+  s_a9eee6338cf60a::t_9958fa22227481 1,5-6,10-11,14-21,23-26,30-35,38,42-47,49,51-52,55-57,67-71,74-75,80-88,90,92,96-97,102-105,107
+packages/core/src/pdfjs/glyphs.test.ts
+  s_a9eee6338cf60a::t_b09a84856acf2c 1-2,6,8,15-16,21-27,29,32-35,37-48,50-51,57-109,113-119,122-153,157-161,163-164,166
+  s_a9eee6338cf60a::t_bfd0b19285ad66 17-20,52-54
+  s_a9eee6338cf60a::t_2da827d3f01d41 120
+packages/core/src/model/document.ts
+  s_a9eee6338cf60a::t_15d56cda38a945 317
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0b5cf57c4a9c1d63cfe9b67b1f6cf83fa7ef6b05",
+  "prompts": {},
+  "sessions": {
+    "s_a9eee6338cf60a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c2869588-dbba-445a-be19-91e3d8b07d87",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
