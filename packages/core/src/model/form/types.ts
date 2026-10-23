@@ -78,7 +78,7 @@ export type WidgetAction =
       format: 'fdf' | 'xfdf' | 'html' | 'pdf'
       method?: 'GET' | 'POST'
     }
-  | { kind: 'uri'; url: string }
+  | { kind: 'uri'; url: string; newWindow?: boolean }
   | { kind: 'named'; name: string }
   | { kind: 'goto'; page: number }
 

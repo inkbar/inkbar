@@ -537,7 +537,7 @@ describe('fix round', () => {
     const actions = actionsOf(form)
     press(form, 'link')
     expect(actions).toEqual([
-      { kind: 'open-url', url: 'https://example.com/', newWindow: false },
+      { kind: 'open-url', url: 'https://example.com/', newWindow: true },
     ])
   })
 

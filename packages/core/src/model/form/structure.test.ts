@@ -262,6 +262,15 @@ describe('buildFormFields', () => {
     ])
   })
 
+  it("keeps app.launchURL's new-window flag on a script button's fallback", async () => {
+    const fields = await fieldsOf('form-scripted')
+    expect(fields.get('link')!.widgets[0]!.fallback).toEqual({
+      kind: 'uri',
+      url: 'https://example.com/',
+      newWindow: true,
+    })
+  })
+
   it('opening a document resolves named GoTo destinations', async () => {
     const doc = await openDocument(await fixtureBytes('form-goto'), {
       assets: nodeAssets(),

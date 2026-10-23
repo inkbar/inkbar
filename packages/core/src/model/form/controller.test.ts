@@ -323,9 +323,9 @@ describe('doc.form', () => {
     }
     const scripted = await formFieldsOf('form-scripted')
     const goto = await formFieldsOf('form-goto')
-    // `link` runs app.launchURL: the script opens it while scripts run.
+    // `link` runs app.launchURL(url, true): the script opens it while scripts run.
     expect(run(scripted, 'link', false)).toEqual([
-      { kind: 'open-url', url: 'https://example.com/', newWindow: false },
+      { kind: 'open-url', url: 'https://example.com/', newWindow: true },
     ])
     expect(run(scripted, 'link', true)).toEqual([])
     // /Next actions run in order after the scripts, with or without them.

@@ -403,7 +403,12 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       }
       case 'uri': {
         const url = safeUrl(action.url)
-        if (url) form._emitAction({ kind: 'open-url', url, newWindow: false })
+        if (url)
+          form._emitAction({
+            kind: 'open-url',
+            url,
+            newWindow: action.newWindow === true,
+          })
         break
       }
       case 'named':

@@ -139,7 +139,9 @@ function scriptAction(d: PdfjsAnnotationData, id: string, extras: FormExtras): b
 }
 
 const uriOf = (d: PdfjsAnnotationData): WidgetAction | undefined =>
-  d.url ? { kind: 'uri', url: d.url } : undefined
+  d.url
+    ? { kind: 'uri', url: d.url, ...(d.newWindow ? { newWindow: true } : {}) }
+    : undefined
 
 function actionOf(
   d: PdfjsAnnotationData,
@@ -168,7 +170,7 @@ function actionOf(
 }
 
 /**
- * The URL a JavaScript `/A` opens: PDF.js fills `url` from its
+ * The URL a JavaScript `/A` opens: PDF.js fills `url` and `newWindow` from its
  * `app.launchURL`. The script opens it itself when it runs.
  */
 function fallbackOf(
