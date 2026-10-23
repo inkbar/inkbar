@@ -786,19 +786,6 @@ describe('form layer', () => {
       ctx.drawImage(img, 0, 0)
       return ctx.getImageData(0, 0, c.width, c.height)
     }
-    const differing = (a: ImageData, b: ImageData) => {
-      expect([a.width, a.height]).toEqual([b.width, b.height])
-      let n = 0
-      for (let i = 0; i < a.data.length; i += 4) {
-        const d = Math.max(
-          Math.abs(a.data[i]! - b.data[i]!),
-          Math.abs(a.data[i + 1]! - b.data[i + 1]!),
-          Math.abs(a.data[i + 2]! - b.data[i + 2]!)
-        )
-        if (d > 8) n++
-      }
-      return n / (a.width * a.height)
-    }
     const expected = await shot(pdf.host)
     const layered = await shot(p.host)
     const without = await shot(bare.host)
@@ -998,17 +985,26 @@ async function shot(host: HTMLElement, transform: PageTransform, rect: Rect) {
   return ctx.getImageData(0, 0, c.width, c.height)
 }
 
-/** The share of pixels where any channel differs by more than 8. */
+/**
+ * The share of pixels whose brightness (the mean of the three channels) differs by more than 32.
+ * Not each channel: Chrome on Linux gives text on the opaque page canvas coloured subpixel
+ * edges and text on a transparent appearance canvas grey ones, which differ in colour, not in
+ * brightness.
+ */
 function differing(a: ImageData, b: ImageData) {
   expect([a.width, a.height]).toEqual([b.width, b.height])
   let n = 0
   for (let i = 0; i < a.data.length; i += 4) {
-    const d = Math.max(
-      Math.abs(a.data[i]! - b.data[i]!),
-      Math.abs(a.data[i + 1]! - b.data[i + 1]!),
-      Math.abs(a.data[i + 2]! - b.data[i + 2]!)
-    )
-    if (d > 8) n++
+    const d =
+      Math.abs(
+        a.data[i]! +
+          a.data[i + 1]! +
+          a.data[i + 2]! -
+          b.data[i]! -
+          b.data[i + 1]! -
+          b.data[i + 2]!
+      ) / 3
+    if (d > 32) n++
   }
   return n / (a.width * a.height)
 }
