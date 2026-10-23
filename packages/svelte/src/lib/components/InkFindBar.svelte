@@ -130,7 +130,8 @@
   /**
    * Moves the bar itself into the viewport root, leaving nothing where it is written. Svelte
    * removes it when its own `{#if}` branch goes, but not when an ancestor's block goes and
-   * takes only the nodes still in place, so the cleanup removes it too.
+   * takes only the nodes still in place, so the cleanup removes it too. A keyed `{#each}` that
+   * reorders would move the bar back to where it is written, so keep `InkFindBar` out of one.
    */
   const into = (to: Element) => (el: HTMLElement) => {
     to.appendChild(el)
