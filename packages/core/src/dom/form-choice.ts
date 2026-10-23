@@ -254,7 +254,8 @@ function createSelectWidget(ctx: WidgetViewContext): WidgetView {
   }
 
   const commit = () => {
-    // A select cannot be read-only: a change to a read-only field is put back.
+    // A select has no read-only state of its own: a change that got past the guards above is
+    // put back.
     if (state.readOnly) {
       show()
       return
@@ -270,6 +271,13 @@ function createSelectWidget(ctx: WidgetViewContext): WidgetView {
     style()
   }
 
+  // A read-only select does not open or move its choice; Tab still leaves it.
+  el.addEventListener('mousedown', (e) => {
+    if (state.readOnly) e.preventDefault()
+  })
+  el.addEventListener('keydown', (e) => {
+    if (state.readOnly && e.key !== 'Tab' && e.key !== 'Escape') e.preventDefault()
+  })
   el.addEventListener('change', commit)
   sendFocus(ctx, el, () => {
     focused = ownerDoc.activeElement === el

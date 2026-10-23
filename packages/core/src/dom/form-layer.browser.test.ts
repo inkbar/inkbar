@@ -1403,6 +1403,40 @@ describe('checkboxes, radios, choices and buttons', () => {
     expect(select.value).toBe('gb')
   })
 
+  it('a read-only combo or list box does not open or change', async () => {
+    const doc = await open('form-fields')
+    const p = mountPage(doc)
+    for (const name of ['country', 'interests']) {
+      doc.form._setWidgetState(p.widgetOf(name).id, { readOnly: true })
+      const select = controlOf<HTMLSelectElement>(p.host, p.widgetOf(name))
+      const press = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
+      select.dispatchEvent(press)
+      expect(press.defaultPrevented).toBe(true)
+      for (const key of ['ArrowDown', ' ', 'Enter', 'End']) {
+        const down = new KeyboardEvent('keydown', {
+          key,
+          bubbles: true,
+          cancelable: true,
+        })
+        select.dispatchEvent(down)
+        expect(down.defaultPrevented).toBe(true)
+      }
+      // Tab still leaves it.
+      const tab = new KeyboardEvent('keydown', {
+        key: 'Tab',
+        bubbles: true,
+        cancelable: true,
+      })
+      select.dispatchEvent(tab)
+      expect(tab.defaultPrevented).toBe(false)
+    }
+    doc.form._setWidgetState(p.widgetOf('country').id, { readOnly: false })
+    const select = controlOf<HTMLSelectElement>(p.host, p.widgetOf('country'))
+    const press = new MouseEvent('mousedown', { bubbles: true, cancelable: true })
+    select.dispatchEvent(press)
+    expect(press.defaultPrevented).toBe(false)
+  })
+
   it('editable combo accepts free text', async () => {
     const doc = await open('form-fields')
     const p = mountPage(doc)
