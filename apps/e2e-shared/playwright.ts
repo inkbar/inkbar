@@ -5,17 +5,12 @@ import { defineConfig, devices, type PlaywrightTestConfig } from '@playwright/te
 /**
  * The Playwright config both sandboxes run. The suite lives beside this file; each sandbox
  * passes its own dev-server port. The command runs in the sandbox's directory (the directory
- * of the config that calls this), so `pnpm dev` starts that sandbox. `testIgnore` leaves out
- * specs for features a sandbox does not have yet.
+ * of the config that calls this), so `pnpm dev` starts that sandbox.
  */
-export function defineSandboxConfig(opts: {
-  port: number
-  testIgnore?: string[]
-}): PlaywrightTestConfig {
-  const { port, testIgnore } = opts
+export function defineSandboxConfig(opts: { port: number }): PlaywrightTestConfig {
+  const { port } = opts
   return defineConfig({
     testDir: fileURLToPath(new URL('./e2e', import.meta.url)),
-    ...(testIgnore && { testIgnore }),
     timeout: 60_000,
     // The performance checks measure frame times; parallel workers would skew them.
     workers: 1,
