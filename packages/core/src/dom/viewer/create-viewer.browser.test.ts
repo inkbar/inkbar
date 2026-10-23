@@ -2704,6 +2704,34 @@ describe('forms', () => {
     ).toBe('off')
   })
 
+  it('setFormHighlight applies to the open document and the next one', async () => {
+    const { viewer } = make('form-fields', { formHighlight: false })
+    await ready(viewer)
+    await until(() => viewer.element.querySelector('[data-ink-form-layer]') !== null)
+    const layer = () =>
+      viewer.element
+        .querySelector('[data-ink-form-layer]')!
+        .getAttribute('data-ink-form-highlight')
+    const scroll = viewer.element.querySelector<HTMLElement>('[data-ink-scroll]')!
+    const doc = viewer.document.get()
+    expect(scroll.dataset.inkFormHighlight).toBe('off')
+    viewer.setFormHighlight(true)
+    expect(layer()).toBe('on')
+    expect(scroll.dataset.inkFormHighlight).toBeUndefined()
+    // No new document: the open one keeps going.
+    expect(viewer.document.get()).toBe(doc)
+    viewer.setFormHighlight(false)
+    expect(layer()).toBe('off')
+    expect(scroll.dataset.inkFormHighlight).toBe('off')
+    viewer.setFormHighlight(true)
+    viewer.open(fixtureUrl('form-fields'))
+    await until(
+      () => viewer.document.get() !== doc && viewer.status.get().state === 'ready'
+    )
+    await until(() => viewer.element.querySelector('[data-ink-form-layer]') !== null)
+    expect(layer()).toBe('on')
+  })
+
   it('viewer.form is null until a document is ready', async () => {
     const { viewer } = make('form-fields')
     expect(viewer.form.get()).toBeNull()

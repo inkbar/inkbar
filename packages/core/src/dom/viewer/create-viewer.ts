@@ -117,6 +117,11 @@ export interface Viewer {
    * not in the open document's annotations is ignored.
    */
   setActivated(id: string | null): void
+  /**
+   * Turns the form field tint on or off (the `formHighlight` option) for the open document,
+   * in place, and for the documents opened after it.
+   */
+  setFormHighlight(on: boolean): void
   /** The plugins' commands by namespaced id (`sandbox.suggest`); place one with `createCommandButton`. */
   readonly commands: { get(id: string): Command | undefined }
   /**
@@ -156,6 +161,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     onPageMount,
     onPageUnmount,
     onPageError,
+    formHighlight: initialHighlight,
     // Not options (see the type), but a caller without types could still pass them.
     toolStyle: _toolStyle,
     toolOptions: _toolOptions,
@@ -189,6 +195,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   const tools = writable<ToolController | null>(null)
   /** The activated annotation: the note thread opens from it. */
   const activated = writable<string | null>(null)
+  let formHighlight = initialHighlight ?? true
 
   const rootEl = writable<HTMLElement | null>(null)
   const root = h('div', { 'data-ink-root': '', 'data-state': 'idle' })
@@ -315,6 +322,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       search,
       container: scroll,
       document: doc,
+      formHighlight,
       toolOptions,
       signatureLibrary: signatures,
       onFormAlert: (message) => formAlert.show(message),
@@ -462,6 +470,10 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     activated: readonly(activated),
     setActivated: (id) => {
       if (id === null || current.get()?.annotations.get(id)) activated.set(id)
+    },
+    setFormHighlight(on) {
+      formHighlight = on
+      engine.get()?.setFormHighlight(on)
     },
     commands: { get: (id) => host.command(id) },
     search: viewerSearch,

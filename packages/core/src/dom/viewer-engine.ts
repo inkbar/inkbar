@@ -196,6 +196,11 @@ export interface ViewerEngine {
    * no annotation did.
    */
   redecorate(): void
+  /**
+   * Turns the form field tint on or off for the mounted pages and those mounted later, in
+   * place: no page renders again and no field loses focus or typed text.
+   */
+  setFormHighlight(on: boolean): void
   destroy(): void
 }
 
@@ -248,7 +253,8 @@ const FORM_TOOLS: ReadonlySet<ToolId> = new Set<ToolId>(['select-text', 'select'
 
 export function mountViewer(opts: MountViewerOptions): ViewerEngine {
   const { container: el, document: doc } = opts
-  if (opts.formHighlight === false) el.dataset.inkFormHighlight = 'off'
+  let highlight = opts.formHighlight ?? true
+  if (!highlight) el.dataset.inkFormHighlight = 'off'
   const pages = new Map<number, PageMount>()
   let gap = opts.gap
   let buffer = opts.buffer
@@ -308,7 +314,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       onActivate: (id) => opts.onActivate?.(id),
       isCustom: () => isCustom,
       decorate,
-      formHighlight: opts.formHighlight ?? true,
+      formHighlight: highlight,
       // While a build mounts its pages, `tools` is unset or the old controller; the build
       // refreshes the fields once its controller exists.
       formActive: formsActive,
@@ -652,6 +658,13 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       if (destroyed) return
       for (const mount of pages.values()) mount.overlay.redecorate()
     },
+    setFormHighlight(on) {
+      if (destroyed || on === highlight) return
+      highlight = on
+      if (on) delete el.dataset.inkFormHighlight
+      else el.dataset.inkFormHighlight = 'off'
+      for (const mount of pages.values()) mount.form?.setHighlight(on)
+    },
     destroy() {
       if (destroyed) return
       destroyed = true
@@ -663,7 +676,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       el.removeEventListener('keydown', onFormTab)
       tabWait?.cancel()
       for (const stop of stopForm) stop()
-      if (opts.formHighlight === false) delete el.dataset.inkFormHighlight
+      if (!highlight) delete el.dataset.inkFormHighlight
     },
   }
 }
