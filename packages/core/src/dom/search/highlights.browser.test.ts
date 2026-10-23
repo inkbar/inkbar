@@ -89,6 +89,27 @@ describe('search highlights', () => {
     expect(boxes().filter((b) => b.hasAttribute('data-current'))).not.toHaveLength(0)
   })
 
+  it('builds a page of hits once rather than once per hit', async () => {
+    const { search, layer, boxes } = await setup()
+    const draws: number[] = []
+    const el = layer()
+    const replace = el.replaceChildren.bind(el)
+    el.replaceChildren = (...nodes) => {
+      draws.push(nodes.length)
+      replace(...nodes)
+    }
+    search.setQuery('a')
+    await until(() => !search.state.get().scanning && search.state.get().hits.length > 0)
+    const quads = search.state
+      .get()
+      .hits.filter((h) => h.page === 0)
+      .reduce((n, h) => n + h.quads.length, 0)
+    expect(quads).toBeGreaterThan(1)
+    // Emptied for the new query, then drawn once with every hit on the page.
+    expect(draws).toEqual([0, quads])
+    expect(boxes()).toHaveLength(quads)
+  })
+
   it('keeps each box over its text across zoom and rotation', async () => {
     const { engine, host, boxes } = await setup()
     expect(boxes().length).toBeGreaterThan(0)

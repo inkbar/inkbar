@@ -1,9 +1,10 @@
-import { findAnnouncement, findCountText } from '@inkbar/core/dom'
+import { findAnnouncer, findCountText } from '@inkbar/core/dom'
 import { CaseSensitive, ChevronDown, ChevronUp, X } from '@inkbar/icons'
 import {
   useEffect,
   useLayoutEffect,
   useRef,
+  useState,
   type ComponentPropsWithoutRef,
   type KeyboardEvent,
 } from 'react'
@@ -41,6 +42,7 @@ export function InkFindBar({ className, onKeyDown, ...rest }: InkFindBarProps) {
   /** Where focus was when the bar opened, and whether it was open on the last pass. */
   const before = useRef<HTMLElement | null>(null)
   const wasOpen = useRef(false)
+  const [announce] = useState(findAnnouncer)
 
   // After the commit, so the bar is shown (and can take focus) when it opens.
   useLayoutEffect(() => {
@@ -87,7 +89,7 @@ export function InkFindBar({ className, onKeyDown, ...rest }: InkFindBarProps) {
 
   if (!target) return null
 
-  const status = findAnnouncement(state)
+  const status = announce(state)
   return createPortal(
     <div
       {...rest}

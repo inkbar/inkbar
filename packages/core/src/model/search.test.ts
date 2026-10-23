@@ -111,6 +111,18 @@ describe('matchPage', () => {
     expect(hits.map((h) => h.text)).toEqual(['a', 'a', 'a'])
   })
 
+  it('steps past an astral character after a zero-length unicode match', () => {
+    const st = one('x😀aa😀y')
+    expect(matchPage(st, /a*/u, OPTS).map((h) => h.text)).toEqual(['aa'])
+    expect(matchPage(st, /\b/u, OPTS)).toEqual([])
+    expect(matchPage(st, /(?:)/u, OPTS)).toEqual([])
+    expect(matchPage(st, new RegExp('a*', 'v'), OPTS).map((h) => h.text)).toEqual(['aa'])
+  })
+
+  it('finds every match for a sticky regular expression', () => {
+    expect(matchPage(one('banana'), /a/y, OPTS)).toHaveLength(3)
+  })
+
   it('leaves the caller regular expression alone', () => {
     const re = /an/
     const before = { source: re.source, flags: re.flags }
@@ -147,6 +159,11 @@ describe('matchPage', () => {
 
   it('finds nothing for an empty query', () => {
     expect(matchPage(one('Invoice'), '', OPTS)).toEqual([])
+  })
+
+  it('finds nothing for a query of only whitespace', () => {
+    expect(matchPage(one('a b  c'), ' ', OPTS)).toEqual([])
+    expect(matchPage(one('a b  c'), ' \t\u00a0', OPTS)).toEqual([])
   })
 
   it('keeps indexes in step when lower-casing changes a length', () => {

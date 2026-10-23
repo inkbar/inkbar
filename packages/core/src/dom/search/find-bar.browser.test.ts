@@ -1,3 +1,4 @@
+import { generateLarge } from '@inkbar/fixtures/generate-large'
 import { browserAssets, fixtureUrl } from '@inkbar/fixtures/urls'
 import themeCss from '@inkbar/theme/theme.css?inline'
 import { run as runAxe } from 'axe-core'
@@ -34,13 +35,19 @@ interface Setup {
   outside: HTMLButtonElement
 }
 
-async function make(withBar = true): Promise<Setup> {
-  const host = mountContainer(800, 600)
+async function make(
+  withBar = true,
+  {
+    source = fixtureUrl('text-simple'),
+    width = 800,
+  }: { source?: Uint8Array | string; width?: number } = {}
+): Promise<Setup> {
+  const host = mountContainer(width, 600)
   const outside = document.createElement('button')
   outside.textContent = 'Outside'
   host.before(outside)
   const viewer = createViewer(host, {
-    source: fixtureUrl('text-simple'),
+    source,
     assets: browserAssets(),
     zoom: 1,
   })
@@ -158,6 +165,62 @@ describe('find bar', () => {
     await userEvent.keyboard('{Shift>}{Enter}{/Shift}')
     await until(() => count() === '3 of 3')
     expect(live()).toBe('Match 3 of 3, page 3')
+  })
+
+  it('announces a step taken while the scan is still running, then the settled count', async () => {
+    const { viewer, live } = await make(true, { source: await generateLarge(200) })
+    await attached(viewer)
+    viewer.search.open()
+    await userEvent.keyboard('Page')
+    await until(() => viewer.search.state.get().hits.length >= 2, 10_000)
+    expect(viewer.search.state.get().scanning).toBe(true)
+    await userEvent.keyboard('{Enter}')
+    await until(() => live() !== '')
+    expect(live()).toMatch(/^Match 2 of \d+ so far, page 2$/)
+    await until(() => !viewer.search.state.get().scanning, 20_000)
+    expect(live()).toBe('Match 2 of 200, page 2')
+  })
+
+  it('keeps the query and shows only the new hits after a document swap', async () => {
+    const { viewer, field, count } = await make()
+    await attached(viewer)
+    viewer.search.open('QQ123456C')
+    await until(() => count() === '1 of 3')
+    await until(() => viewer.element.querySelectorAll('[data-search-hit]').length > 0)
+    const before = viewer.document.get()
+    viewer.open(fixtureUrl('mixed-page-sizes'))
+    await until(
+      () => viewer.document.get() !== before && viewer.status.get().state === 'ready'
+    )
+    const expected = await viewer.document.get()!.search('QQ123456C').all()
+    await until(() => !viewer.search.state.get().scanning && viewer.engine.get() !== null)
+    expect(field().value).toBe('QQ123456C')
+    expect(viewer.search.state.get().hits).toEqual(expected)
+    await until(
+      () => count() === (expected.length ? `1 of ${expected.length}` : 'No results')
+    )
+    const pages = viewer.engine.get()!.pages
+    await until(() => [...pages.keys()].length > 0)
+    // Every box drawn belongs to a hit in the new document.
+    const quads = expected
+      .filter((h) => pages.has(h.page))
+      .reduce((n, h) => n + h.quads.length, 0)
+    await until(
+      () => viewer.element.querySelectorAll('[data-search-hit]').length === quads
+    )
+  })
+
+  it('fits inside a phone-width viewer', async () => {
+    const { viewer, bar } = await make(true, { width: 360 })
+    await attached(viewer)
+    viewer.search.open('QQ123456C')
+    const root = viewer.element
+      .querySelector('[data-ink-viewport-root]')!
+      .getBoundingClientRect()
+    const box = bar!.getBoundingClientRect()
+    expect(box.width).toBeGreaterThan(0)
+    expect(box.left).toBeGreaterThanOrEqual(root.left)
+    expect(box.right).toBeLessThanOrEqual(root.right)
   })
 
   it('shows "No results"', async () => {

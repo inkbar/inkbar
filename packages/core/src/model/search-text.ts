@@ -26,6 +26,9 @@ for (const c of '‘’‚‛') FOLD[c] = "'"
 for (const c of '“”„‟') FOLD[c] = '"'
 for (const c of '‐‑‒–—―') FOLD[c] = '-'
 
+/** A line ending in one of these joins to the next line's word: hyphen, U+2010, U+2011, soft hyphen. */
+const JOINING_HYPHENS = new Set(['-', '\u2010', '\u2011', '\u00ad'])
+
 const MARKS = /\p{M}/gu
 const WHITESPACE = /^\s$/u
 const LETTER = /^\p{L}/u
@@ -99,13 +102,12 @@ export function searchableText(content: TextContent): SearchableText {
   const map: number[] = []
   for (let r = 0; r < raw.length;) {
     const ch = String.fromCodePoint(raw.codePointAt(r)!)
-    const folded = fold(ch)
-    if (folded === '-' && eolSpace.has(r + 1) && LETTER.test(raw.slice(r + 2))) {
+    if (JOINING_HYPHENS.has(ch) && eolSpace.has(r + 1) && LETTER.test(raw.slice(r + 2))) {
       // "docu-⏎ment": drop the hyphen and the space the line end added.
       r += 2
       continue
     }
-    for (const c of folded) {
+    for (const c of fold(ch)) {
       const out = isSpace(c) ? ' ' : c
       if (out === ' ' && norm.endsWith(' ')) continue
       norm += out
@@ -133,4 +135,9 @@ export function normalizeQuery(query: string, matchCase: boolean): string {
   for (const ch of query) out += fold(ch)
   out = out.replace(/\s+/gu, ' ')
   return matchCase ? out : out.toLowerCase()
+}
+
+/** Whether `query` folds to nothing but whitespace, which a search treats as no query at all. */
+export function isBlankQuery(query: string): boolean {
+  return normalizeQuery(query, true).trim() === ''
 }

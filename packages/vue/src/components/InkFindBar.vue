@@ -10,7 +10,7 @@
  * Enter in the field steps to the next match, Shift+Enter to the previous, Escape closes.
  * Closing returns focus to where it was before the bar opened, else to the document.
  */
-import { findAnnouncement, findCountText } from '@inkbar/core/dom'
+import { findAnnouncer, findCountText } from '@inkbar/core/dom'
 import { CaseSensitive, ChevronDown, ChevronUp, X } from '@inkbar/icons'
 import { computed, onBeforeUnmount, shallowRef, useTemplateRef, watch } from 'vue'
 
@@ -21,6 +21,9 @@ import InkIcon from './InkIcon.vue'
 
 import type { SearchState } from '@inkbar/core/dom'
 
+// The root is a Teleport, so attributes such as `class` are bound to the bar itself.
+defineOptions({ inheritAttrs: false })
+
 const ctx = useInkContext('InkFindBar')
 const { state, setQuery, setMatchCase, next, previous, close } = useSearch()
 
@@ -30,9 +33,10 @@ const bar = useTemplateRef<HTMLElement>('bar')
 const field = useTemplateRef<HTMLInputElement>('field')
 
 const count = computed(() => findCountText(state.value))
+const announce = findAnnouncer()
 const announcement = shallowRef('')
 watch(
-  () => findAnnouncement(state.value),
+  () => announce(state.value),
   (say) => (announcement.value = say),
   { immediate: true }
 )
@@ -114,6 +118,7 @@ onBeforeUnmount(() => {
 <template>
   <Teleport v-if="target" :to="target">
     <div
+      v-bind="$attrs"
       ref="bar"
       class="ink-find-bar"
       data-ink-find-bar
