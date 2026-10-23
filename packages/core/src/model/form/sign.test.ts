@@ -167,22 +167,26 @@ describe('signField', () => {
     doc.destroy()
   })
 
-  it('a pinned signature takes patches that leave its look and place alone', async () => {
+  it('a pinned signature takes patches that leave its look, place and signer alone', async () => {
     const doc = await open()
     const widget = fieldOf(doc.form.fields.get(), 'sig').widgets[0]!
     const id = signField(doc, 'sig', widget.id, image)
     const custom = { acme: { reviewed: true } }
-    const after = doc.annotations.update(id, { contents: 'ok', author: 'Sam', custom })
-    expect(after).toMatchObject({ contents: 'ok', author: 'Sam', custom })
+    const after = doc.annotations.update(id, { contents: 'ok', custom })
+    expect(after).toMatchObject({ contents: 'ok', custom })
     const before = doc.annotations.get(id)!
-    // Its image, label, rotation and lock stay as signing made them.
+    // Its image, signer, label, rotation, lock and Inkbar's own data stay as signing made them.
     expect(
       doc.annotations.update(id, { imagedata: PNG.replace('=', 'A=') })
     ).toBeUndefined()
+    expect(doc.annotations.update(id, { author: 'Ada' })).toBeUndefined()
     expect(doc.annotations.update(id, { subject: 'Approved' })).toBeUndefined()
     expect(doc.annotations.update(id, { rotation: 90 })).toBeUndefined()
     expect(doc.annotations.update(id, { locked: true })).toBeUndefined()
-    expect(doc.annotations.update(id, { author: 'Ada', rotation: 90 })).toBeUndefined()
+    expect(
+      doc.annotations.update(id, { custom: { ...custom, inkbar: { pressure: [1] } } })
+    ).toBeUndefined()
+    expect(doc.annotations.update(id, { contents: 'x', rotation: 90 })).toBeUndefined()
     expect(doc.annotations.get(id)).toEqual(before)
     doc.destroy()
   })
