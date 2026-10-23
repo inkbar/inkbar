@@ -131,12 +131,13 @@ export function createFindBar(viewer: Viewer): HTMLElement {
     }
   }
 
-  // Registered while in the document. The observer sees the bar added and removed wherever
-  // the host puts it inside the viewer's root.
+  // Registered while inside the viewer's root, where Ctrl/Cmd+F looks for the field. The
+  // observer sees the bar added and removed wherever the host puts it in there.
   let detach: (() => void) | null = null
   const sync = (): void => {
-    if (bar.isConnected && !detach) detach = controller.attachBar()
-    else if (!bar.isConnected && detach) {
+    const inside = viewer.element.contains(bar)
+    if (inside && !detach) detach = controller.attachBar()
+    else if (!inside && detach) {
       detach()
       detach = null
     }
