@@ -9,3 +9,14 @@
 <button type="button" data-testid="set-query" onclick={() => search.setQuery('Inkbar')}>
   Set
 </button>
+<!-- Steps forward and back in one task, to check the live region sees both. -->
+<button
+  type="button"
+  data-testid="there-and-back"
+  onclick={() => {
+    search.next()
+    search.previous()
+  }}
+>
+  Step
+</button>
