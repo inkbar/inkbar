@@ -1,0 +1,26 @@
+packages/react/src/components/Toolbar.ct.tsx
+  s_e6109f66fbb4ed::t_919224ec94af86 443-448
+  s_e6109f66fbb4ed::t_0ac473a4f3b46c 439-442,449-472
+packages/svelte/src/test/Toolbar.browser.test.ts
+  s_e6109f66fbb4ed::t_919224ec94af86 421-426
+  s_e6109f66fbb4ed::t_c183afc2d85bf7 418-420,427-453
+packages/vue/src/components/Toolbar.ct.ts
+  s_e6109f66fbb4ed::t_0ac473a4f3b46c 337-340,347-368
+  s_e6109f66fbb4ed::t_919224ec94af86 341-346
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b934ccc3002f26ff7bd501c93da526e726565e0b",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}

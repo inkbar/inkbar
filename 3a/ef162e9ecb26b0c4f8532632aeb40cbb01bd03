@@ -1,0 +1,25 @@
+packages/svelte/src/test/harness/SsrHost.svelte
+  s_e6109f66fbb4ed::t_c989e2e8a23664 18-19,27,34,37
+packages/svelte/src/test/ssr.test.ts
+  s_e6109f66fbb4ed::t_c989e2e8a23664 93-95
+packages/vue/src/ssr.test.ts
+  s_e6109f66fbb4ed::t_c989e2e8a23664 2,63-64,74-81,84-113,119-122
+packages/react/src/ssr.test.ts
+  s_e6109f66fbb4ed::t_598d55438af220 89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3aef162e9ecb26b0c4f8532632aeb40cbb01bd03",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}

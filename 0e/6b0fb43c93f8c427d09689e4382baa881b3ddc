@@ -1,0 +1,27 @@
+packages/react/src/components/Form.ct.tsx
+  s_e6109f66fbb4ed::t_497ee752513318 326-346
+packages/react/src/components/InkSignFieldPopover.tsx
+  s_e6109f66fbb4ed::t_d0c1281a9fc4c5 49-52,69
+packages/svelte/src/test/Form.browser.test.ts
+  s_e6109f66fbb4ed::t_153c975e7733be 316-331
+packages/vue/src/components/Form.ct.ts
+  s_e6109f66fbb4ed::t_c83f54e9333459 269-291
+packages/vue/src/components/InkSignFieldPopover.vue
+  s_e6109f66fbb4ed::t_97320d5b01bcef 49-52,68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0e6b0fb43c93f8c427d09689e4382baa881b3ddc",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
