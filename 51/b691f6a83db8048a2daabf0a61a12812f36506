@@ -1,0 +1,28 @@
+packages/core/src/dom/form-layer.browser.test.ts
+  s_e6109f66fbb4ed::t_146f055d2708bd 1039,1064,1068
+  s_e6109f66fbb4ed::t_482982fa88b2a7 1046-1049
+  s_e6109f66fbb4ed::t_cca524095234c4 1040-1041,1052,1065
+  s_e6109f66fbb4ed::t_fe402a833316ed 1038,1042-1045,1050-1051,1053-1063,1066-1067,1069-1074
+packages/core/src/dom/form-layer.ts
+  s_e6109f66fbb4ed::t_65c003d00a3b68 381,536
+packages/core/src/model/form/controller.ts
+  s_e6109f66fbb4ed::t_65c003d00a3b68 162-164,600-602
+packages/core/src/model/form/controller.test.ts
+  s_e6109f66fbb4ed::t_65c003d00a3b68 126,142,144-145
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "51b691f6a83db8048a2daabf0a61a12812f36506",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
