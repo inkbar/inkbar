@@ -100,7 +100,8 @@ describe('readFormExtras', () => {
         return Promise.resolve(named[name])
       },
     })
-    expect(asked).toEqual(['chapter-3', 'ch2', 'nowhere', 'chapter-3'])
+    // Each name is asked once, however many widgets go to it.
+    expect(asked).toEqual(['chapter-3', 'ch2', 'nowhere'])
     // explicit, named, legacy and goto-script; `missing` names nothing.
     expect([...extras.destPages.values()]).toEqual([2, 2, 1, 1])
   })
