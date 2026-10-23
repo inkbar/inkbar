@@ -105,8 +105,11 @@ export interface FormWidget {
    */
   fallback?: WidgetAction
   /**
-   * The GoTo, URI and Named actions in the `/A`'s `/Next` chain, in order. They run on Action
-   * after the widget's scripts and its own action, whether or not scripts run.
+   * The GoTo, URI, Named, ResetForm and SubmitForm actions in the `/A`'s `/Next` chain, in
+   * order. They run on Action after the widget's scripts and its own action, whether or not
+   * scripts run, in the same undo step. JavaScript anywhere in the chain runs first, with the
+   * widget's other Action scripts (PDF.js collects them into one), so its position in the
+   * chain is not kept: a GoTo whose `/Next` is JavaScript runs the script, then the GoTo.
    */
   next?: readonly WidgetAction[]
   hasScripts: boolean
