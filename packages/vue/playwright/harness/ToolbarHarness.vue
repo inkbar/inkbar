@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+
 import InkColorMenu from '../../src/components/InkColorMenu.vue'
 import InkHighlightMenu from '../../src/components/InkHighlightMenu.vue'
 import InkLineStyleMenu from '../../src/components/InkLineStyleMenu.vue'
@@ -21,11 +23,18 @@ import InkZoomSelect from '../../src/components/InkZoomSelect.vue'
 
 import ComposableProbe from './ComposableProbe.vue'
 
-import type { DocumentSource, PdfAssets } from '@inkbar/core'
+import type { Annotation, DocumentSource, PdfAssets } from '@inkbar/core'
 import type { ToolId } from '@inkbar/core/dom'
 
-defineProps<{ src: DocumentSource; assets: PdfAssets; tool?: ToolId }>()
+defineProps<{
+  src: DocumentSource
+  assets: PdfAssets
+  tool?: ToolId
+  /** The host owns the annotation list, with the root's snapshot history. */
+  controlled?: boolean
+}>()
 const emit = defineEmits<{ 'update:tool': [t: ToolId] }>()
+const list = ref<Annotation[]>([])
 </script>
 
 <template>
@@ -34,7 +43,10 @@ const emit = defineEmits<{ 'update:tool': [t: ToolId] }>()
     :assets="assets"
     :zoom="1"
     :tool="tool"
+    :annotations="controlled ? list : undefined"
+    :history="controlled ? true : undefined"
     @update:tool="emit('update:tool', $event)"
+    @update:annotations="list = $event"
   >
     <InkToolbar>
       <InkHighlightMenu />

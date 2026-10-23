@@ -285,6 +285,35 @@ test('undo and redo follow the history; the separator divides the toolbar', asyn
   await expect(redo).toBeDisabled()
 })
 
+for (const controlled of [false, true]) {
+  test(`the undo and redo keys do what the buttons do, ${controlled ? 'controlled with history' : 'uncontrolled'}`, async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mount(Harness, {
+      props: { src: fixtureUrl('text-simple'), assets, controlled },
+    })
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    const toolbar = page.getByRole('toolbar', { name: 'Document tools' })
+    const undo = toolbar.getByRole('button', { name: 'Undo', exact: true })
+    const probe = page.getByTestId('probe')
+    await page.getByTestId('add').click()
+    await expect(probe).toHaveAttribute('data-annotations', '1')
+    await expect(undo).toBeEnabled()
+    // From the toolbar, then from the viewport.
+    await cmp.locator(toolButton('select')).focus()
+    await page.keyboard.press('ControlOrMeta+z')
+    await expect(probe).toHaveAttribute('data-annotations', '0')
+    await cmp.locator('[data-ink-scroll]').focus()
+    await page.keyboard.press('ControlOrMeta+Shift+z')
+    await expect(probe).toHaveAttribute('data-annotations', '1')
+    await page.keyboard.press('ControlOrMeta+z')
+    await expect(probe).toHaveAttribute('data-annotations', '0')
+    await page.keyboard.press('Control+y')
+    await expect(probe).toHaveAttribute('data-annotations', '1')
+  })
+}
+
 test.describe('style menu triggers and the host', () => {
   const cases = [
     { harness: 'line', name: 'Line style', role: 'menu', add: 'add-line-1' },

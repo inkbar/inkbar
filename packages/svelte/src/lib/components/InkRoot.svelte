@@ -125,6 +125,7 @@
     writable,
   } from '@inkbar/core'
   import {
+    attachHistoryKeys,
     createPluginHost,
     createSearchController,
     createToolOptions,
@@ -440,6 +441,13 @@
     track: (store) => pluginHistory.track(store),
     react: (fn) => pluginHistory.react(fn),
   }
+
+  // The undo and redo keys anywhere in the root do what InkUndo and InkRedo do.
+  $effect(() => {
+    const el = ref
+    if (!el) return
+    return attachHistoryKeys(el, () => inkHistory)
+  })
 
   /**
    * The history the plugins reach, picked by the open document's mode when they call. The host

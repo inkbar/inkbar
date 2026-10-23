@@ -185,20 +185,22 @@ Most creation tools are one-shot: `shape`, `freetext`, `note`, `redact-area` and
 
 A host tool says which it is with `kind: 'one-shot' | 'sticky'` (no `kind` is sticky). A one-shot tool adds and selects what it makes, then calls `ctx.made(ids)`; `ctx.done()` clears the selection and switches to `select-text` itself. Under a sticky tool, `ctx.made` does nothing. The controller's `active` readable reports every switch, including one a one-shot tool makes.
 
-| Where focus is               | Key                                 | Effect                                                                                              |
-| ---------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Viewport, `highlight` tool   | `Enter`                             | Turns the text selection into a highlight                                                           |
-| Viewport, `redact-area` tool | `Enter`                             | Turns the text selection into text redactions                                                       |
-| Viewport, `note` tool        | `Enter`                             | Places a note at the centre of the current page and focuses it                                      |
-| Viewport, `signature` tool   | `Enter`                             | Places the chosen signature at the centre of the current page                                       |
-| Viewport                     | `+` or `=`, `-`                     | Zoom in, zoom out                                                                                   |
-| Viewport                     | `Home`, `End`, `PageUp`, `PageDown` | First, last, previous, next page                                                                    |
-| Annotation                   | `Enter` or `Space`                  | Selects and activates it                                                                            |
-| Annotation                   | `ArrowUp`, `ArrowDown`              | Previous or next annotation on the page, in reading order                                           |
-| Annotation                   | `Shift` + arrow                     | Moves it 1 pt (`Shift` + `Alt` + arrow: 10 pt)                                                      |
-| Annotation                   | `Ctrl` or `Cmd` + `Shift` + arrow   | Resizes an area redaction, text box or shape by 1 pt. Right and Down grow it, Left and Up shrink it |
-| Annotation                   | `Delete` or `Backspace`             | Removes it                                                                                          |
-| Annotation                   | `Escape`                            | Clears the selection                                                                                |
+| Where focus is               | Key                                           | Effect                                                                                              |
+| ---------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Viewport, `highlight` tool   | `Enter`                                       | Turns the text selection into a highlight                                                           |
+| Viewport, `redact-area` tool | `Enter`                                       | Turns the text selection into text redactions                                                       |
+| Viewport, `note` tool        | `Enter`                                       | Places a note at the centre of the current page and focuses it                                      |
+| Viewport, `signature` tool   | `Enter`                                       | Places the chosen signature at the centre of the current page                                       |
+| Viewport                     | `+` or `=`, `-`                               | Zoom in, zoom out                                                                                   |
+| Viewport                     | `Home`, `End`, `PageUp`, `PageDown`           | First, last, previous, next page                                                                    |
+| Viewer root, toolbars too    | `Ctrl` or `Cmd` + `Z`                         | Undo                                                                                                |
+| Viewer root, toolbars too    | `Ctrl` or `Cmd` + `Shift` + `Z`, `Ctrl` + `Y` | Redo                                                                                                |
+| Annotation                   | `Enter` or `Space`                            | Selects and activates it                                                                            |
+| Annotation                   | `ArrowUp`, `ArrowDown`                        | Previous or next annotation on the page, in reading order                                           |
+| Annotation                   | `Shift` + arrow                               | Moves it 1 pt (`Shift` + `Alt` + arrow: 10 pt)                                                      |
+| Annotation                   | `Ctrl` or `Cmd` + `Shift` + arrow             | Resizes an area redaction, text box or shape by 1 pt. Right and Down grow it, Left and Up shrink it |
+| Annotation                   | `Delete` or `Backspace`                       | Removes it                                                                                          |
+| Annotation                   | `Escape`                                      | Clears the selection                                                                                |
 
 The tool controller and the overlay handle the tool and annotation keys. The zoom and page keys (`+`, `=`, `-`, `Home`, `End`, `PageUp`, `PageDown`) come from `attachViewportKeys`, which the tool controller does not install. Attach it to the same container:
 
@@ -210,6 +212,14 @@ const detach = attachViewportKeys(container, {
   pageCount: () => doc.pages.length,
 })
 // later: detach()
+```
+
+`createViewer` and each binding's `InkRoot` put the undo and redo keys on the root element, so they work from the toolbars inside it as well as from the viewport. A key does what the Undo or Redo button does, and acts only while that button is enabled. In a text field, a select or editable content the keys stay with the element, so a field keeps its own text undo. With `mountViewer` or `createToolController`, attach them yourself:
+
+```ts
+import { attachHistoryKeys } from '@inkbar/core/dom'
+
+const detach = attachHistoryKeys(root, () => doc.history)
 ```
 
 On a focused annotation, `Enter` or `Space` selects it and calls `onActivate`; what activation opens is up to the host.

@@ -8,6 +8,7 @@ import {
   writable,
 } from '@inkbar/core'
 import {
+  attachHistoryKeys,
   createPluginHost,
   createSearchController,
   createToolOptions,
@@ -334,6 +335,23 @@ const inkHistory: InkHistory = {
   react: (fn) =>
     controlled.value ? refHistory.react(fn) : (document.value?.history.react(fn) ?? noop),
 }
+
+// The undo and redo keys anywhere in the root do what InkUndo and InkRedo do.
+watch(
+  rootEl,
+  (el, _prev, onCleanup) => {
+    if (!el) return
+    onCleanup(
+      attachHistoryKeys(el, () => ({
+        canUndo: inkHistory.canUndo.value,
+        canRedo: inkHistory.canRedo.value,
+        undo: inkHistory.undo,
+        redo: inkHistory.redo,
+      }))
+    )
+  },
+  { immediate: true }
+)
 
 /*
  * One plugin host for the root's life, built once mounted so that no `setup` runs on the

@@ -376,6 +376,30 @@ describe('toolbar', () => {
     await expect.element(redo).toBeDisabled()
   })
 
+  // React: 'the undo and redo keys do what the buttons do, …'
+  for (const controlled of [false, true]) {
+    it(`the undo and redo keys do what the buttons do, ${controlled ? 'controlled with history' : 'uncontrolled'}`, async () => {
+      await render(ToolbarHarness, { src: fixtureUrl('text-simple'), assets, controlled })
+      await q('.ink-page canvas')
+      const undo = toolbar().getByRole('button', { name: 'Undo', exact: true })
+      const probe = browserPage.getByTestId('probe')
+      await browserPage.getByTestId('add').click()
+      await expect.element(probe).toHaveAttribute('data-annotations', '1')
+      await expect.element(undo).toBeEnabled()
+      // From the toolbar, then from the viewport.
+      ;(await q<HTMLElement>(toolButton('select'))).focus()
+      await userEvent.keyboard('{ControlOrMeta>}z{/ControlOrMeta}')
+      await expect.element(probe).toHaveAttribute('data-annotations', '0')
+      ;(await q<HTMLElement>(SCROLL)).focus()
+      await userEvent.keyboard('{ControlOrMeta>}{Shift>}z{/Shift}{/ControlOrMeta}')
+      await expect.element(probe).toHaveAttribute('data-annotations', '1')
+      await userEvent.keyboard('{ControlOrMeta>}z{/ControlOrMeta}')
+      await expect.element(probe).toHaveAttribute('data-annotations', '0')
+      await userEvent.keyboard('{Control>}y{/Control}')
+      await expect.element(probe).toHaveAttribute('data-annotations', '1')
+    })
+  }
+
   describe('style menu triggers and the host', () => {
     const cases = [
       { harness: LineStyleHarness, name: 'Line style', role: 'menu', add: 'add-line-1' },

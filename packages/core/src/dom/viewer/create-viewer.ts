@@ -20,6 +20,7 @@ import {
   createMemorySignatureStore,
   createSignatureLibrary,
 } from '../../model/signatures'
+import { attachHistoryKeys } from '../history-keys'
 import { createPluginHost, type PluginHost } from '../plugins/host'
 import { createFocusReturn } from '../popover-focus'
 import {
@@ -213,6 +214,8 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   )
   root.append(viewportRoot)
   el.append(root)
+  // Anywhere in the root, toolbars included: the keys do what createUndo and createRedo do.
+  const stopHistoryKeys = attachHistoryKeys(root, () => current.get()?.history)
   rootEl.set(scroll)
 
   /** One controller for the viewer's life: the host, the engine and the find bar share it. */
@@ -488,6 +491,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       signFieldMenu?.destroy()
       formAlert.destroy()
       host.destroy()
+      stopHistoryKeys()
       root.remove()
     },
   }

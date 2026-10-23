@@ -8,6 +8,7 @@ import {
   writable,
 } from '@inkbar/core'
 import {
+  attachHistoryKeys,
   createPluginHost,
   createSearchController,
   createToolOptions,
@@ -641,6 +642,12 @@ export function InkRoot({
   )
 
   const latestHistory = useLatest(inkHistory)
+
+  // The undo and redo keys anywhere in the root do what InkUndo and InkRedo do.
+  useEffect(() => {
+    if (!rootEl) return
+    return attachHistoryKeys(rootEl, () => latestHistory.current)
+  }, [rootEl, latestHistory])
 
   /** The document's tool style; it batches through `history`, whichever mode is on. */
   const styleTracker = useMemo(
