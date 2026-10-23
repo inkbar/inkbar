@@ -251,6 +251,14 @@ describe('FormController', () => {
     expect(second).toHaveBeenCalledWith(late)
   })
 
+  it('keeps only the newest 20 errors from before the first listener', () => {
+    const form = controller()
+    for (let i = 0; i < 25; i++) form._error(new InkError('FormScriptError', `e${i}`))
+    const heard: string[] = []
+    form.on('error', (e) => heard.push(e.message))
+    expect(heard).toEqual(Array.from({ length: 20 }, (_, i) => `e${i + 5}`))
+  })
+
   it('emits actions', () => {
     const form = controller()
     const fn = vi.fn()

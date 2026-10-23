@@ -223,6 +223,9 @@ export interface FormControllerOptions {
  * In controlled mode the store is the working copy: a change shows and reaches the sandbox at
  * once, and the host hears of it after.
  */
+/** How many errors from before the first `error` listener are kept for it. */
+const UNHEARD_LIMIT = 20
+
 export function createFormController(opts: FormControllerOptions): FormController {
   const controlled = opts.mode.mode === 'controlled' ? opts.mode : undefined
   const batch = opts.batch ?? ((fn: () => void) => fn())
@@ -244,7 +247,10 @@ export function createFormController(opts: FormControllerOptions): FormControlle
     focus: string
     goto: number
   }>()
-  /** Errors reported before anything listened for them; `undefined` once something has. */
+  /**
+   * Errors reported before anything listened for them, the newest `UNHEARD_LIMIT`;
+   * `undefined` once something has.
+   */
   let unheard: InkError[] | undefined = []
   /** How many changes are running whose values are reported when they finish. */
   let depth = 0
@@ -673,8 +679,8 @@ export function createFormController(opts: FormControllerOptions): FormControlle
     _error(e) {
       if (destroyed) return
       opts.onError(e)
-      if (unheard) unheard.push(e)
-      else emitter.emit('error', e)
+      if (!unheard) emitter.emit('error', e)
+      else if (unheard.push(e) > UNHEARD_LIMIT) unheard.shift()
     },
     _alert(message) {
       if (!destroyed) emitter.emit('alert', message)
