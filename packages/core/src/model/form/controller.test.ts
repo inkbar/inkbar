@@ -340,6 +340,26 @@ describe('doc.form', () => {
     }
   })
 
+  it('runs a reset and a submit in /Next as one undo step with the scripts', async () => {
+    const doc = await openDocument(await fixtureBytes('form-range'), {
+      assets: nodeAssets(),
+    })
+    await doc.ready
+    const { form, history } = doc
+    const seen: unknown[] = []
+    form.on('action', (a) => seen.push(a))
+    form.set({ note: 'hi' })
+    const clear = form.fields.get().find((f) => f.name === 'clear')!.widgets[0]!.id
+    form._dispatch({ widget: clear, name: 'Action' })
+    expect(form.get('note')).toBe('')
+    expect(seen).toEqual([
+      expect.objectContaining({ kind: 'submit', url: 'https://example.com/range' }),
+    ])
+    history.undo()
+    expect(form.get('note')).toBe('hi')
+    doc.destroy()
+  })
+
   it("runs a widget's non-script action on Action", () => {
     const form = controller()
     const reset = fields.find((f) => f.name === 'reset')!.widgets[0]!.id

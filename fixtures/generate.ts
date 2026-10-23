@@ -1445,8 +1445,25 @@ async function formRange() {
   const note = form.createTextField('note')
   note.addToPage(page, { x: 72, y: 540, width: 200, height: 22 })
   label(page, font, 'note (no scripts)', 72, 540, 22)
+  const clear = form.createButton('clear')
+  clear.addToPage('Clear', page, { x: 72, y: 480, width: 120, height: 24 })
   form.updateFieldAppearances(font)
   addHelv(d, form)
+  // A script, then a reset of note and an HTML submit, as an Acrobat action list writes them.
+  const ctx = d.context
+  const press = js(ctx, 'this.getField("score").value = "3"')
+  press.set(
+    PDFName.of('Next'),
+    ctx.obj([
+      ctx.obj({ S: 'ResetForm', Fields: [PDFString.of('note')], Flags: 0 }),
+      ctx.obj({
+        S: 'SubmitForm',
+        F: PDFString.of('https://example.com/range'),
+        Flags: 4,
+      }),
+    ])
+  )
+  widgetDict(clear).set(PDFName.of('A'), press)
   setDA(score, HELV_12)
   setDA(note, HELV_12)
   score.acroField.dict.set(
@@ -1460,8 +1477,8 @@ async function formRange() {
       pages: 1,
       opens: true,
       describes:
-        'A text field whose AFRange_Validate (0 to 10) alerts and refuses a value outside the range, and a plain text field, for checking that a refused value stays as typed through the alert',
-      annotations: { Widget: 2 },
+        'A text field whose AFRange_Validate (0 to 10) alerts and refuses a value outside the range, a plain text field, and a button whose JavaScript sets score and whose /Next resets note and submits, for checking that a refused value stays as typed through the alert and that /Next resets and submits run',
+      annotations: { Widget: 3 },
     },
     { appearances: false }
   )

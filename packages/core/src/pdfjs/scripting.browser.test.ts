@@ -541,6 +541,19 @@ describe('fix round', () => {
     ])
   })
 
+  it('a script and its /Next reset and submit are one undo step', async () => {
+    const { form, history } = await open('form-range')
+    const actions = actionsOf(form)
+    form.set({ note: 'hi' })
+    press(form, 'clear')
+    expect(form.get('score')).toBe('3')
+    expect(form.get('note')).toBe('')
+    expect(actions.map((a) => a.kind)).toEqual(['submit'])
+    history.undo()
+    expect(form.get('score')).toBe('')
+    expect(form.get('note')).toBe('hi')
+  })
+
   it('a GoTo with JavaScript in its /Next runs both', async () => {
     const { form } = await open('form-goto')
     const pages: number[] = []

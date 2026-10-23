@@ -53,7 +53,10 @@ export interface FormExtras {
   destPages: Map<string, number>
   /** Widgets whose own `/A` is a JavaScript action (not one that only has JavaScript in `/Next`). */
   scriptActions: Set<string>
-  /** The GoTo, URI and Named actions in each widget `/A`'s `/Next` chain, in order, by widget id. */
+  /**
+   * The GoTo, URI, Named, ResetForm and SubmitForm actions in each widget `/A`'s `/Next` chain,
+   * in order, by widget id.
+   */
   next: Map<string, WidgetAction[]>
 }
 
@@ -255,6 +258,8 @@ async function fileSpecUrl(objs: PdfObjects, v: PdfValue | undefined) {
   )
 }
 
+/** ResetForm `/Flags` bit 1: `/Fields` lists the fields to leave alone. */
+const RESET_EXCLUDE = 1
 const SUBMIT_EXCLUDE = 1
 const SUBMIT_HTML = 4
 const SUBMIT_GET = 8
@@ -445,6 +450,16 @@ export async function readFormExtras(
           } else if (isName(ns, 'Named')) {
             const n = await objs.resolve(dictGet(a, 'N'))
             if (isName(n)) next.push({ kind: 'named', name: n.name })
+          } else if (isName(ns, 'ResetForm')) {
+            const flags = await objs.resolve(dictGet(a, 'Flags'))
+            next.push({
+              kind: 'reset',
+              fields: await fieldNames(objs, dictGet(a, 'Fields'), names),
+              include: typeof flags !== 'number' || (flags & RESET_EXCLUDE) === 0,
+            })
+          } else if (isName(ns, 'SubmitForm')) {
+            const submit = await readSubmit(objs, a, names)
+            if (submit) next.push(submit)
           }
           // JavaScript in the chain runs with the widget's Action scripts; other kinds are
           // not supported.

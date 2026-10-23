@@ -173,4 +173,23 @@ describe('readFormExtras', () => {
     expect(extras.destPages.get('13R')).toBe(2)
     expect(extras.next.has('13R')).toBe(false)
   })
+
+  it('reads ResetForm and SubmitForm in a /Next chain', async () => {
+    const objs = (await openPdfObjects(await fixtureBytes('form-range')))!
+    const ids = await widgetIds(objs)
+    const extras = await readFormExtras(objs, ids)
+    expect([...extras.next.values()]).toEqual([
+      [
+        { kind: 'reset', fields: ['note'], include: true },
+        {
+          kind: 'submit',
+          url: 'https://example.com/range',
+          fields: [],
+          include: true,
+          format: 'html',
+          method: 'POST',
+        },
+      ],
+    ])
+  })
 })

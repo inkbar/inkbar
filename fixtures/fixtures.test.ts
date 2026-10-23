@@ -90,7 +90,7 @@ const FORMS = {
   'form-timer': { widgets: 2, fields: ['note', 'ticker'] },
   'form-uppercase': { widgets: 1, fields: ['code'] },
   'form-shared-scripted': { widgets: 2, fields: ['shared'] },
-  'form-range': { widgets: 2, fields: ['note', 'score'] },
+  'form-range': { widgets: 3, fields: ['clear', 'note', 'score'] },
   'form-goto': {
     widgets: 7,
     fields: [
