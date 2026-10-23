@@ -58,6 +58,56 @@ describe('text content', () => {
     expect(item.rect).toEqual({ x: 91, y: 200, width: 12, height: 50 })
   })
 
+  it('records glyph advances for left-to-right runs that can be measured', () => {
+    const run = (str: string, dir: string) => ({
+      str,
+      dir,
+      transform: [12, 0, 0, 12, 0, 0],
+      width: 40,
+      height: 12,
+      fontName: 'f',
+      hasEOL: false,
+    })
+    const widths: Record<string, number> = { i: 1, W: 4 }
+    const tc = textContentFromPdfjs(
+      0,
+      {
+        items: [run('iiWW', 'ltr'), run('iW', 'rtl'), run('iW', 'ttb')],
+        styles: {
+          f: { fontFamily: 'sans-serif', ascent: 0.75, descent: -0.25, vertical: false },
+        },
+      } as never,
+      (char, family) => (family === 'sans-serif' ? widths[char]! : 0)
+    )
+    expect(tc.items[0]!.advances).toEqual([0, 0.1, 0.2, 0.6, 1])
+    expect(tc.items[1]!.advances).toBeUndefined()
+    expect(tc.items[2]!.advances).toBeUndefined()
+  })
+
+  it('records no advances without a measurer or when nothing measures', () => {
+    const tc = (measure?: (c: string, f: string) => number) =>
+      textContentFromPdfjs(
+        0,
+        {
+          items: [
+            {
+              str: 'ab',
+              dir: 'ltr',
+              transform: [12, 0, 0, 12, 0, 0],
+              width: 20,
+              height: 12,
+              fontName: 'f',
+              hasEOL: false,
+            },
+          ],
+          styles: {},
+        } as never,
+        measure
+      ).items[0]!
+    expect(tc().advances).toBeUndefined()
+    expect(tc(() => 0).advances).toBeUndefined()
+  })
+
   it('skips marked-content items', () => {
     const tc = textContentFromPdfjs(0, {
       items: [{ type: 'beginMarkedContent', id: 'mc0' }],

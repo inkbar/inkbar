@@ -81,6 +81,14 @@ describe('matchPage', () => {
     expect(q.p1.y).toBe(110)
   })
 
+  it('cuts a quad by the item glyph advances when it has them', () => {
+    // "iiWW": the narrow i's take a fifth of the run, the W's the rest.
+    const it = { ...item('iiWW', 10, 40), advances: [0, 0.1, 0.2, 0.6, 1] }
+    const [hit] = matchPage(page(it), 'ww', OPTS)
+    expect(hit!.quads[0]!.p3.x).toBeCloseTo(18, 5)
+    expect(hit!.quads[0]!.p4.x).toBeCloseTo(50, 5)
+  })
+
   it('cuts along a rotated baseline', () => {
     const it = item('abcd', 0, 40)
     it.quad = {

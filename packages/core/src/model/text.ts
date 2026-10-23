@@ -12,7 +12,16 @@ export interface TextItem {
   quad: Quad
   /** Axis-aligned bounds of `quad`. */
   rect: Rect
+  /**
+   * How far along the run each character boundary lies, as a fraction of its width: `str.length + 1`
+   * entries from 0 to 1, from measured glyph widths. Absent when the run could not be measured, in
+   * which case every character takes an equal share.
+   */
+  advances?: readonly number[]
 }
+
+/** How far `char` advances in `fontFamily`, in any unit; only ratios within a run are used. */
+export type MeasureChar = (char: string, fontFamily: string) => number
 
 export interface TextContent {
   page: number
@@ -36,7 +45,11 @@ const FALLBACK_DESCENT = 0.25
  * So p3 = (e, f) - v * descent * fontSize, p4 = p3 + u * width, p1 = p3 + v * (ascent + descent) * fontSize,
  * p2 = p4 + (p1 - p3). `rect` is the axis-aligned bounding box of the quad.
  */
-export function textContentFromPdfjs(page: number, tc: PdfjsTextContent): TextContent {
+export function textContentFromPdfjs(
+  page: number,
+  tc: PdfjsTextContent,
+  measure?: MeasureChar
+): TextContent {
   const items: TextItem[] = []
   for (const raw of tc.items) {
     if (!('str' in raw)) continue
@@ -63,17 +76,44 @@ export function textContentFromPdfjs(page: number, tc: PdfjsTextContent): TextCo
     const p1 = { x: p3.x + v.x * total, y: p3.y + v.y * total }
     const p2 = { x: p4.x + v.x * total, y: p4.y + v.y * total }
     const quad: Quad = { p1, p2, p3, p4 }
+    const dir = isDir(item.dir) ? item.dir : 'ltr'
+    const family = tc.styles[item.fontName]?.fontFamily ?? 'sans-serif'
+    const advances =
+      measure && dir === 'ltr' ? advancesOf(item.str, family, measure) : undefined
     items.push({
       str: item.str,
-      dir: isDir(item.dir) ? item.dir : 'ltr',
+      dir,
       fontName: item.fontName,
       fontSize,
       hasEOL: item.hasEOL,
       quad,
       rect: rectFromQuad(quad),
+      ...(advances && { advances }),
     })
   }
   return { page, items }
+}
+
+/** Each character boundary of `str` as a fraction of its measured width, or undefined if it measures 0. */
+function advancesOf(
+  str: string,
+  family: string,
+  measure: MeasureChar
+): number[] | undefined {
+  const ends = [0]
+  let sum = 0
+  for (let i = 0; i < str.length; i++) {
+    const cp = str.codePointAt(i)!
+    // A surrogate pair is measured whole on its first unit; the second unit adds nothing.
+    if (cp > 0xffff) {
+      sum += measure(String.fromCodePoint(cp), family)
+      ends.push(sum)
+      i++
+    } else sum += measure(str[i]!, family)
+    ends.push(sum)
+  }
+  if (!(sum > 0)) return undefined
+  return ends.map((e) => e / sum)
 }
 
 function metrics(style: PdfjsTextContent['styles'][string] | undefined): {

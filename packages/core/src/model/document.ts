@@ -21,6 +21,7 @@ import {
   type StoreMode,
 } from './annotations/store'
 import { InkError, isInkError } from './errors'
+import { canvasMeasureChar } from './measure-char'
 import { createPageCache, type PageCache } from './page-cache'
 import { pageInfoFromProxy, type PageInfo } from './pages'
 import { readonly, writable, type Readable } from './readable'
@@ -141,6 +142,7 @@ export async function openDocument(
   let pageCache: PageCache<PdfjsPage> | undefined
   let destroyed = false
   let handles: InkDocument['_pdfjs'] | undefined
+  const measure = canvasMeasureChar()
   let destroyTask: (() => Promise<void>) | undefined
 
   const store = createAnnotationStore({
@@ -307,7 +309,7 @@ export async function openDocument(
       if (destroyed) throw destroyedError()
       if (!handles) throw statusError(status.get())
       const p = await handles.getPage(page)
-      return textContentFromPdfjs(page, await p.getTextContent())
+      return textContentFromPdfjs(page, await p.getTextContent(), measure)
     },
     async pageText(page) {
       return searchableText(await doc.text(page)).raw
