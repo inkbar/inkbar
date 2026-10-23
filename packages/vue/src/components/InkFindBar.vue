@@ -12,7 +12,7 @@
  */
 import { findAnnouncer, findCountText } from '@inkbar/core/dom'
 import { CaseSensitive, ChevronDown, ChevronUp, X } from '@inkbar/icons'
-import { computed, onBeforeUnmount, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, onBeforeUnmount, useTemplateRef, watch } from 'vue'
 
 import { useSearch } from '../composables/useSearch'
 import { useInkContext } from '../context'
@@ -31,14 +31,26 @@ const { state, setQuery, setMatchCase, next, previous, close } = useSearch()
 const target = computed(() => ctx.viewportEl.value?.parentElement ?? null)
 const bar = useTemplateRef<HTMLElement>('bar')
 const field = useTemplateRef<HTMLInputElement>('field')
+const live = useTemplateRef<HTMLElement>('live')
 
 const count = computed(() => findCountText(state.value))
-const announce = findAnnouncer()
-const announcement = shallowRef('')
+
+// The live region follows the controller's state change by change, as the vanilla bar does,
+// and is written directly. A render shows only the last of the changes since the one before,
+// so two steps in one tick that end where they began would otherwise say nothing.
 watch(
-  () => announce(state.value),
-  (say) => (announcement.value = say),
-  { immediate: true }
+  [() => ctx.search.value, live],
+  ([controller, el], _, onCleanup) => {
+    if (!controller || !el) return
+    const announce = findAnnouncer()
+    const say = (s: SearchState): void => {
+      const text = announce(s)
+      if (el.textContent !== text) el.textContent = text
+    }
+    say(controller.state.get())
+    onCleanup(controller.state.subscribe(say))
+  },
+  { flush: 'post', immediate: true }
 )
 
 function onFieldKeydown(e: KeyboardEvent): void {
@@ -173,9 +185,12 @@ onBeforeUnmount(() => {
       >
         <InkIcon :icon="X" />
       </button>
-      <div class="ink-visually-hidden" data-ink-find-status aria-live="polite">
-        {{ announcement }}
-      </div>
+      <div
+        ref="live"
+        class="ink-visually-hidden"
+        data-ink-find-status
+        aria-live="polite"
+      />
     </div>
   </Teleport>
 </template>
