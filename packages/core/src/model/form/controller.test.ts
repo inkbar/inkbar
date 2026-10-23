@@ -178,6 +178,22 @@ describe('FormController', () => {
     expect(form.get('name')).toBe('Sam')
   })
 
+  it("an editable combo's keystrokes build on the label it shows, not the export value", () => {
+    const city = fields.find((f) => f.name === 'city')!
+    const form = createFormController({
+      fields: [
+        {
+          ...city,
+          options: [{ value: 'ld', label: 'Leeds' }],
+          value: 'ld',
+        },
+      ],
+      mode: { mode: 'uncontrolled' },
+      onError: () => undefined,
+    })
+    expect(form._keystroke(city.widgets[0]!.id, 's', 5, 5).value).toBe('Leedss')
+  })
+
   it('revert drops the typed text, so the next keystroke builds on the value', () => {
     const form = controller()
     const widget = fields.find((f) => f.name === 'name')!.widgets[0]!.id

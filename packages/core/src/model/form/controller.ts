@@ -90,7 +90,7 @@ export interface FormController {
   _step(fn: () => void): void
   /**
    * Applies a keystroke to the widget's text as typed so far (its uncommitted text, else the
-   * field's value). Without scripting it accepts every keystroke. The uncommitted text is dropped
+   * field's value as shown: a combo's option label for its export value). Without scripting it accepts every keystroke. The uncommitted text is dropped
    * when the field's value changes or the widget blurs.
    */
   _keystroke(
@@ -672,7 +672,13 @@ export function createFormController(opts: FormControllerOptions): FormControlle
     _keystroke(widget, change, selStart, selEnd) {
       const field = byWidget.get(widget)
       const stored = field ? store.get(field.name)?.value : undefined
-      const before = pending.get(widget) ?? (typeof stored === 'string' ? stored : '')
+      const text = typeof stored === 'string' ? stored : ''
+      // An editable combo shows an option's label for its export value, and is typed into.
+      const shown =
+        field?.type === 'combo'
+          ? (field.options.find((o) => o.value === text)?.label ?? text)
+          : text
+      const before = pending.get(widget) ?? shown
       const caret = selStart + change.length
       const result = (!destroyed &&
         scripting?.keystroke(widget, before, change, selStart, selEnd)) || {
