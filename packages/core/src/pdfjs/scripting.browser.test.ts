@@ -612,6 +612,39 @@ describe('fix round', () => {
     expect(load).not.toHaveBeenCalled()
   })
 
+  it.each([
+    ['has no engine', { support: null, _module: null }],
+    [
+      'fails to start',
+      {
+        support: { win: null },
+        _module: { stringToNewUTF8: () => 0 },
+        create: () => {
+          throw new Error('no start')
+        },
+      },
+    ],
+  ])('a sandbox that %s is torn down', async (_, parts) => {
+    const nukeSandbox = vi.fn(() => {
+      throw new Error('half-built')
+    })
+    const fake = {
+      create: () => undefined,
+      dispatchEvent: () => undefined,
+      nukeSandbox,
+      ...parts,
+    }
+    vi.spyOn(sandboxLoader, 'load').mockResolvedValue({
+      QuickJSSandbox: () => Promise.resolve(fake),
+    })
+    const { scripting, errors } = await scripted([
+      { name: 'out', type: 'text', actions: { Keystroke: ['event.rc = false'] } },
+    ])
+    expect(scripting).toBeUndefined()
+    expect(errors.map((e) => e.code)).toEqual(['FormScriptError'])
+    expect(nukeSandbox).toHaveBeenCalledTimes(1)
+  })
+
   it('a sandbox that never loads times out without scripts', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     vi.spyOn(sandboxLoader, 'load').mockReturnValue(new Promise(() => undefined))

@@ -109,7 +109,7 @@ export async function createFormScripting(
   }
 
   const win = createWindow(form, onSend, report, () => dead)
-  let sandbox: PdfjsSandbox
+  let sandbox: PdfjsSandbox | undefined
   try {
     sandbox = await withTimeout(
       sandboxLoader.load().then(({ QuickJSSandbox }) => QuickJSSandbox(assets.wasm)),
@@ -140,6 +140,13 @@ export async function createFormScripting(
     }
   } catch (cause) {
     dead = true
+    // A sandbox that loaded but has no engine, or did not start, is still torn down.
+    // PDF.js's `nukeSandbox` can throw on a half-built one.
+    try {
+      sandbox?.nukeSandbox()
+    } catch {
+      // Nothing else holds it.
+    }
     form._error(
       new InkError(
         'FormScriptError',
