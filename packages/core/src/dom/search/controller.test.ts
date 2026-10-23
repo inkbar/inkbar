@@ -199,7 +199,7 @@ describe('createSearchController', () => {
     expect(controller.state.get().current).toBe(0)
   })
 
-  it('scrolls only to the stepped-to hit when a step lands before the first page shows', async () => {
+  it('lands a step taken before the first page shows on the first hit, scrolling only on steps', async () => {
     const { controller, doc, scrollToRect } = setup({})
     // One page of hits that arrives without a timer, then a scan that never ends.
     ;(doc as unknown as { search: unknown }).search = () => ({
@@ -215,10 +215,29 @@ describe('createSearchController', () => {
     for (let i = 0; i < 10; i++) await Promise.resolve()
     expect(controller.state.get().hits).toEqual([])
     controller.next()
+    expect(controller.state.get().current).toBe(0)
+    expect(scrollToRect.mock.calls).toEqual([[0, hit(0, 1).rect]])
+    controller.next()
     expect(controller.state.get().current).toBe(1)
-    expect(scrollToRect.mock.calls).toEqual([[0, hit(0, 5).rect]])
     await settle()
-    expect(scrollToRect).toHaveBeenCalledTimes(1)
+    expect(scrollToRect).toHaveBeenCalledTimes(2)
+  })
+
+  it('lands a previous step taken before the first page shows on the first hit too', async () => {
+    const { controller, doc } = setup({})
+    ;(doc as unknown as { search: unknown }).search = () => ({
+      async *[Symbol.asyncIterator]() {
+        await Promise.resolve()
+        yield hit(0, 1)
+        yield hit(0, 5)
+        await new Promise(() => {})
+      },
+    })
+    controller.setQuery('foo')
+    controller.setMatchCase(false)
+    for (let i = 0; i < 10; i++) await Promise.resolve()
+    controller.previous()
+    expect(controller.state.get().current).toBe(0)
   })
 
   it('does not scroll to the first hit after a step', async () => {
