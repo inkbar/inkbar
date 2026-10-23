@@ -343,11 +343,15 @@
         override = null
         setTestHook(ref, doc)
         const s = doc.status.get()
-        if (s.state === 'ready') onReady?.(doc)
-        else if (s.state === 'error') onError?.(s.error)
-        const early = held
-        held = undefined
-        if (!cancelled) for (const e of early) onError?.(e)
+        try {
+          if (s.state === 'ready') onReady?.(doc)
+          else if (s.state === 'error') onError?.(s.error)
+        } finally {
+          // A host whose `onReady` throws still hears the held errors and every later one.
+          const early = held
+          held = undefined
+          if (!cancelled) for (const e of early) onError?.(e)
+        }
       } catch (cause) {
         if (cancelled) return
         const error =

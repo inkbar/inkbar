@@ -509,11 +509,15 @@ export function InkRoot({
         setOverride(null)
         setTestHook(rootElRef.current, doc)
         const s = doc.status.get()
-        if (s.state === 'ready') latest.current.onReady?.(doc)
-        else if (s.state === 'error') latest.current.onError?.(s.error)
-        const early = held
-        held = undefined
-        for (const e of early) reportErrorFor(doc, e)
+        try {
+          if (s.state === 'ready') latest.current.onReady?.(doc)
+          else if (s.state === 'error') latest.current.onError?.(s.error)
+        } finally {
+          // A host whose `onReady` throws still hears the held errors and every later one.
+          const early = held
+          held = undefined
+          for (const e of early) reportErrorFor(doc, e)
+        }
       } catch (cause) {
         if (cancelled) return
         const error =

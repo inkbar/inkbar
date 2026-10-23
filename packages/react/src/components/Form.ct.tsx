@@ -235,6 +235,29 @@ test('an error from while the document opened reaches onError after onReady', as
   guard.clear()
 })
 
+test('an onReady that throws does not strand the form errors', async ({
+  mount,
+  page,
+}) => {
+  await mount(
+    <FormHarness
+      assets={{ ...assets, wasm: '/missing/' }}
+      src={fixtureUrl('form-scripted')}
+      throwOnReady
+    />
+  )
+  await expect.poll(() => heardInPage(page)).toContain('FormScriptError')
+  // A later error still reaches onError.
+  await page.locator('[data-ink-root]').evaluate((el) => {
+    const doc = (
+      el as HTMLElement & { __inkDocument?: { form: { _error(e: unknown): void } } }
+    ).__inkDocument!
+    doc.form._error({ code: 'FieldSigned', message: 'later' })
+  })
+  await expect.poll(() => heardInPage(page)).toContain('FieldSigned')
+  guard.clear()
+})
+
 test('a form script error reaches onError one microtask later', async ({
   mount,
   page,

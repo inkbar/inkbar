@@ -254,6 +254,25 @@ describe('form filling', () => {
     guard.clear()
   })
 
+  it('an onReady that throws does not strand the form errors', async () => {
+    const heard: string[] = []
+    await render(FormHarness, {
+      assets: { ...assets, wasm: '/missing/' },
+      src: fixtureUrl('form-scripted'),
+      onReady: () => {
+        throw new Error('host onReady failed')
+      },
+      onError: (e) => heard.push(e.code),
+    })
+    await expect.poll(() => heard).toContain('FormScriptError')
+    // A later error still reaches onError.
+    const root = await q<HTMLElement & { __inkDocument?: unknown }>('[data-ink-root]')
+    const doc = root.__inkDocument as { form: { _error(e: unknown): void } }
+    doc.form._error({ code: 'FieldSigned', message: 'later' })
+    await expect.poll(() => heard).toContain('FieldSigned')
+    guard.clear()
+  })
+
   it('a sandbox that fails while the document opens reaches onError', async () => {
     const errors: { code: string }[] = []
     // Without the sandbox's engine, the scripts cannot start.

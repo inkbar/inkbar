@@ -59,6 +59,8 @@ export interface FormHarnessProps {
   swapTo?: { src: string; initial?: FieldValues }
   templates?: SignatureTemplate[]
   formHighlight?: boolean
+  /** `onReady` throws once it has recorded `ready`, as a broken host's would. */
+  throwOnReady?: boolean
   onFormAction?: (action: FormAction) => void
   onError?: (error: InkError) => void
   onChanged?: (next: FieldValues, change: FieldsChange) => void
@@ -83,6 +85,7 @@ export function FormHarness({
   swapTo,
   templates = [],
   formHighlight,
+  throwOnReady = false,
   onFormAction,
   onError,
   onChanged,
@@ -105,7 +108,10 @@ export function FormHarness({
       }}
       formHighlight={formHighlight}
       onFormAction={onFormAction}
-      onReady={() => record('ready')}
+      onReady={() => {
+        record('ready')
+        if (throwOnReady) throw new Error('host onReady failed')
+      }}
       onError={(e) => {
         record(e.code)
         onError?.(e)
