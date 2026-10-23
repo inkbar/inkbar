@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.8.0](https://github.com/inkbar/inkbar/compare/v0.7.0...v0.8.0) (2026-10-23)
+
+
+### Features
+
+* add a form tour to the sandbox ([#219](https://github.com/inkbar/inkbar/issues/219)) ([ac0640f](https://github.com/inkbar/inkbar/commit/ac0640fffaf5e8fe408f95bd77010da197485022))
+* fill checkboxes, radios and choice fields ([#214](https://github.com/inkbar/inkbar/issues/214)) ([5ddfd60](https://github.com/inkbar/inkbar/commit/5ddfd60c05c781774c7d941f6c02fcc93303c2af))
+* fill forms in the react binding ([#217](https://github.com/inkbar/inkbar/issues/217)) ([14d3da8](https://github.com/inkbar/inkbar/commit/14d3da81f7c71aa00ec94a53bf085564280a260e))
+* fill forms in the svelte binding ([#218](https://github.com/inkbar/inkbar/issues/218)) ([2614f32](https://github.com/inkbar/inkbar/commit/2614f3296c52bfcaa56f4d1d71dc87681af4a5d7))
+* fill forms in the vue binding ([#216](https://github.com/inkbar/inkbar/issues/216)) ([54fa07e](https://github.com/inkbar/inkbar/commit/54fa07e5ec6887b61187112e12fa963b62e8db65))
+* fill text fields on the page ([#213](https://github.com/inkbar/inkbar/issues/213)) ([6dd472c](https://github.com/inkbar/inkbar/commit/6dd472cd8a2af7e9ac23fac01f4e9d918e3d9df9))
+* keep form field values on the document ([#211](https://github.com/inkbar/inkbar/issues/211)) ([881fbf8](https://github.com/inkbar/inkbar/commit/881fbf83ffa61c487f172524fabcf52024a9a0f8))
+* read form fields from a pdf ([#210](https://github.com/inkbar/inkbar/issues/210)) ([a871a21](https://github.com/inkbar/inkbar/commit/a871a215bd2515beae1f82d07872f2d000b58349))
+* run form scripts in an isolated sandbox ([#212](https://github.com/inkbar/inkbar/issues/212)) ([c162b52](https://github.com/inkbar/inkbar/commit/c162b52b991fd3e08f4d4edfbcf9907c5513e95b))
+* sign signature fields and report form actions ([#215](https://github.com/inkbar/inkbar/issues/215)) ([876d2b5](https://github.com/inkbar/inkbar/commit/876d2b541cf52569c4da85d6c3b563d0b0162e7c))
+* undo and redo from the keyboard ([#241](https://github.com/inkbar/inkbar/issues/241)) ([91baedc](https://github.com/inkbar/inkbar/commit/91baedcb1f40d8c14e962cc46ec4c34c407fdbed))
+
+
+### Bug Fixes
+
+* keep form script writes off the undo stack ([#237](https://github.com/inkbar/inkbar/issues/237)) ([352b78f](https://github.com/inkbar/inkbar/commit/352b78f833b9251f75ed23bbf5e6f2c509d628f7))
+* tighten form field controls ([#239](https://github.com/inkbar/inkbar/issues/239)) ([f64c7d9](https://github.com/inkbar/inkbar/commit/f64c7d93d9291ef77dfb9d55305230b5f11a60e9))
+* tighten form filling after review ([#220](https://github.com/inkbar/inkbar/issues/220)) ([e36e67c](https://github.com/inkbar/inkbar/commit/e36e67c7a7d400a4c0c7e2afacea6e244f1c816b))
+* tighten form handling in the bindings ([#240](https://github.com/inkbar/inkbar/issues/240)) ([e5fd48c](https://github.com/inkbar/inkbar/commit/e5fd48cbbd20a510cf988c66f0f35a2298172c04))
+* tighten the form model and reader ([#238](https://github.com/inkbar/inkbar/issues/238)) ([b8efcb1](https://github.com/inkbar/inkbar/commit/b8efcb1fca801afd332eaf507f0d5b0b81476f97))
+
+
+### Performance
+
+* render each form page once ([#236](https://github.com/inkbar/inkbar/issues/236)) ([6424d0a](https://github.com/inkbar/inkbar/commit/6424d0a8301877c7949078b89f17894af7a36110))
+
 ## [0.7.0](https://github.com/inkbar/inkbar/compare/v0.6.0...v0.7.0) (2026-10-23)
 
 
