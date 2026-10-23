@@ -1277,6 +1277,35 @@ async function formTimer() {
   )
 }
 
+async function formUppercase() {
+  const { d, font } = await doc()
+  const page = d.addPage([612, 792])
+  text(page, font, ['Uppercase form'], 740)
+  const form = d.getForm()
+  const code = form.createTextField('code')
+  code.addToPage(page, { x: 72, y: 600, width: 200, height: 22 })
+  label(page, font, 'code (a validate script upper-cases it)', 72, 600, 22)
+  form.updateFieldAppearances(font)
+  addHelv(d, form)
+  setDA(code, HELV_12)
+  code.acroField.dict.set(
+    PDFName.of('AA'),
+    d.context.obj({ V: js(d.context, 'event.value = event.value.toUpperCase()') })
+  )
+  await save(
+    'form-uppercase',
+    d,
+    {
+      pages: 1,
+      opens: true,
+      describes:
+        'One text field whose validate script upper-cases the committed value, for checking that a value a script changes is the one kept',
+      annotations: { Widget: 1 },
+    },
+    { appearances: false }
+  )
+}
+
 /**
  * A real incremental update: the base revision is written by pdf-lib, then the changed page
  * object and the new Highlight are appended with their own xref section and a trailer whose
@@ -1428,6 +1457,7 @@ async function main() {
   await formScripted()
   await formSigned()
   await formTimer()
+  await formUppercase()
   await incrementalSaved()
   await objectStreams()
   await encrypted('encrypted-aes')

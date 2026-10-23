@@ -5,6 +5,12 @@
     "jsx": "preserve",
     "types": ["node", "vite/client"]
   },
-  "include": ["src/**/*.ts", "src/**/*.vue", "playwright/**/*.ts", "playwright/**/*.vue"],
+  "include": [
+    "../core/src/pdfjs/sandbox-shim.d.ts",
+    "src/**/*.ts",
+    "src/**/*.vue",
+    "playwright/**/*.ts",
+    "playwright/**/*.vue"
+  ],
   "vueCompilerOptions": { "strictTemplates": true, "dataAttributes": ["data-*"] }
 }

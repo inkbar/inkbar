@@ -183,6 +183,8 @@ describe('buildFormFields', () => {
       url: 'https://example.com/',
     })
     expect(fields.get('send')!.widgets[0]!.action).toMatchObject({ kind: 'submit' })
+    // PDF.js reads a URL out of `app.launchURL(...)`; the script reports that call itself.
+    expect(fields.get('link')!.widgets[0]!.action).toBeUndefined()
   })
 
   it('locks a certificate-signed field and everything under DocMDP P=1', async () => {

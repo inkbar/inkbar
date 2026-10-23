@@ -4,5 +4,10 @@
     "noEmit": true,
     "types": ["node", "vite/client", "vitest-browser-svelte"]
   },
-  "include": ["src/**/*.ts", "src/**/*.svelte", "vitest.config.ts"]
+  "include": [
+    "../core/src/pdfjs/sandbox-shim.d.ts",
+    "src/**/*.ts",
+    "src/**/*.svelte",
+    "vitest.config.ts"
+  ]
 }

@@ -8,7 +8,7 @@ import { InkError } from '../errors'
 
 import { createFormController } from './controller'
 
-import type { FormField } from './types'
+import type { FieldValue, FormField } from './types'
 
 let fields: FormField[]
 
@@ -209,8 +209,12 @@ describe('FormController', () => {
   it('reports scripting rejections and syncs after a reset', () => {
     const form = controller()
     const scripting = {
-      commit: vi.fn((name: string) => name !== 'notes'),
+      commit: vi.fn((name: string, value: FieldValue) =>
+        name !== 'notes' ? value : undefined
+      ),
       sync: vi.fn(),
+      dispatch: vi.fn(),
+      keystroke: vi.fn(() => undefined),
       destroy: vi.fn(),
     }
     form._attachScripting(scripting)
@@ -226,6 +230,16 @@ describe('FormController', () => {
 })
 
 describe('doc.form', () => {
+  it("runs a widget's non-script action on Action", () => {
+    const form = controller()
+    const reset = fields.find((f) => f.name === 'reset')!.widgets[0]!.id
+    form.set({ name: 'Ada' })
+    form._dispatch({ widget: reset, name: 'Mouse Up' })
+    expect(form.get('name')).toBe('Ada')
+    form._dispatch({ widget: reset, name: 'Action' })
+    expect(form.get('name')).toBe('')
+  })
+
   it('is empty for a document without fields', async () => {
     const doc = await openDocument(await fixtureBytes('text-simple'), {
       assets: nodeAssets(),

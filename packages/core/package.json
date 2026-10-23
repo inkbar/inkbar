@@ -38,7 +38,8 @@
     "#pdfjs": {
       "node": "pdfjs-dist/legacy/build/pdf.mjs",
       "default": "pdfjs-dist"
-    }
+    },
+    "#pdfjs-sandbox": "pdfjs-dist/build/pdf.sandbox.mjs"
   },
   "scripts": {
     "build": "tsdown",

@@ -5,5 +5,11 @@
     "jsx": "react-jsx",
     "types": ["node", "vite/client"]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "playwright/**/*.ts", "playwright/**/*.tsx"]
+  "include": [
+    "../core/src/pdfjs/sandbox-shim.d.ts",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "playwright/**/*.ts",
+    "playwright/**/*.tsx"
+  ]
 }

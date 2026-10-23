@@ -222,6 +222,15 @@
       "Widget": 1
     }
   },
+  "form-uppercase": {
+    "file": "form-uppercase.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "One text field whose validate script upper-cases the committed value, for checking that a value a script changes is the one kept",
+    "annotations": {
+      "Widget": 1
+    }
+  },
   "incremental-saved": {
     "file": "incremental-saved.pdf",
     "pages": 1,
