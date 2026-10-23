@@ -40,6 +40,14 @@ export interface History extends PluginHistory {
    * history this only runs `fn`, and a history destroyed inside `fn` records nothing.
    */
   batch(fn: () => void): void
+  /**
+   * Runs `fn` and records none of what it changes in the tracked record stores: each changed
+   * record becomes part of the baseline, written into every step on both stacks (and the open
+   * step), so undo and redo leave it as `fn` left it. A step left with nothing else to replay is
+   * dropped. Nested calls, and calls inside a batch, work the same way. Annotation changes inside
+   * `fn` are recorded as usual. On a controlled or destroyed history this only runs `fn`.
+   */
+  baseline(fn: () => void): void
   /** Unsubscribes from the store and empties both stacks; undo and redo become no-ops. */
   destroy(): void
 }
@@ -87,6 +95,9 @@ export function createHistory(
       batch(fn) {
         fn()
       },
+      baseline(fn) {
+        fn()
+      },
       track: () => noop,
       react: () => noop,
       destroy() {},
@@ -103,6 +114,8 @@ export function createHistory(
    * update the baselines but push no entry.
    */
   let depth = 0
+  /** Open `baseline` depth; while above zero, tracked record changes rebase every step. */
+  let quiet = 0
   /** The lists when the outermost step opened (or were restarted by a replace). */
   let start: Start | null = null
   /** Each tracked store with its list as of the last change history saw. */
@@ -134,6 +147,36 @@ export function createHistory(
         if (!entry.records.delete(recordStore)) return true
         const { before, after } = entry.annotations
         return entry.records.size > 0 || !sameList(before, after)
+      })
+      stack.splice(0, stack.length, ...kept)
+    }
+    sync()
+  }
+
+  /**
+   * Writes a tracked store's change from `before` to `after` into every step's snapshots of it
+   * and the open step's start, then drops the steps left with nothing to replay.
+   */
+  const rebase = (
+    recordStore: RecordStore<RecordBase>,
+    before: readonly RecordBase[],
+    after: readonly RecordBase[]
+  ) => {
+    const delta = changesBetween(before, after)
+    if (delta.size === 0) return
+    const startRecords = start?.records.get(recordStore)
+    if (start && startRecords)
+      start.records.set(recordStore, withChanges(startRecords, delta))
+    for (const stack of [undoStack, redoStack]) {
+      const kept = stack.filter((entry) => {
+        const snapshot = entry.records.get(recordStore)
+        if (!snapshot) return true
+        snapshot.before = withChanges(snapshot.before, delta)
+        snapshot.after = withChanges(snapshot.after, delta)
+        if (!sameRecords(snapshot.before, snapshot.after)) return true
+        entry.records.delete(recordStore)
+        const { before: b, after: a } = entry.annotations
+        return entry.records.size > 0 || !sameList(b, a)
       })
       stack.splice(0, stack.length, ...kept)
     }
@@ -276,6 +319,18 @@ export function createHistory(
         if (--depth === 0 && !destroyed) close()
       }
     },
+    baseline(fn) {
+      if (destroyed) {
+        fn()
+        return
+      }
+      quiet++
+      try {
+        fn()
+      } finally {
+        quiet--
+      }
+    },
     track(recordStore) {
       if (destroyed || tracked.has(recordStore)) return noop
       const unsubscribeStore = recordStore.on('change', (change) => {
@@ -287,6 +342,10 @@ export function createHistory(
         // Our own replays (and any other history replace) never become entries.
         if (replaying || (change.kind === 'replace' && change.reason === 'history'))
           return
+        if (quiet > 0 && change.kind !== 'replace') {
+          rebase(recordStore, before, current)
+          return
+        }
         if (change.kind === 'replace') {
           // A reset starts the store over, so no older step holding its records can be replayed.
           if (depth > 0 && start) start.records.set(recordStore, current)
@@ -336,6 +395,48 @@ export function createHistory(
       resetStacks()
     },
   }
+}
+
+/** Each record that differs between two lists, by id; `undefined` for one removed. */
+function changesBetween(
+  before: readonly RecordBase[],
+  after: readonly RecordBase[]
+): Map<string, RecordBase | undefined> {
+  const was = new Map(before.map((r) => [r.id, r]))
+  const delta = new Map<string, RecordBase | undefined>()
+  for (const r of after) {
+    if (was.get(r.id) !== r) delta.set(r.id, r)
+    was.delete(r.id)
+  }
+  for (const id of was.keys()) delta.set(id, undefined)
+  return delta
+}
+
+/** `list` with `delta` written in: changed records replaced, removed ones dropped, new ones added. */
+function withChanges(
+  list: readonly RecordBase[],
+  delta: ReadonlyMap<string, RecordBase | undefined>
+): readonly RecordBase[] {
+  const seen = new Set<string>()
+  const out: RecordBase[] = []
+  for (const r of list) {
+    if (!delta.has(r.id)) {
+      out.push(r)
+      continue
+    }
+    seen.add(r.id)
+    const next = delta.get(r.id)
+    if (next) out.push(next)
+  }
+  for (const [id, r] of delta) if (r && !seen.has(id)) out.push(r)
+  return out
+}
+
+/** The same records, by id and identity, in any order. */
+function sameRecords(a: readonly RecordBase[], b: readonly RecordBase[]): boolean {
+  if (a.length !== b.length) return false
+  const byId = new Map(a.map((r) => [r.id, r]))
+  return b.every((r) => byId.get(r.id) === r)
 }
 
 /** The same objects in the same order. */
