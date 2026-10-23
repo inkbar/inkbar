@@ -48,8 +48,8 @@ function normRanges(
   if (typeof query === 'string') {
     if (isBlankQuery(query)) return out
     const needle = normalizeQuery(query, true)
-    const haystack = matchCase ? norm : norm.toLocaleLowerCase()
-    const target = matchCase ? needle : needle.toLocaleLowerCase()
+    const haystack = matchCase ? norm : norm.toLowerCase()
+    const target = matchCase ? needle : needle.toLowerCase()
     // Indexes into `norm` only carry over when folding case kept every length.
     if (haystack.length === norm.length && target.length === needle.length) {
       for (
