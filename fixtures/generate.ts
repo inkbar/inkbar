@@ -1377,6 +1377,8 @@ async function formGoto() {
     ['legacy', 'Chapter 2', 540],
     ['missing', 'Nowhere', 490],
     ['scripted', 'Script', 440],
+    ['goto-script', 'Page 2 + script', 390],
+    ['chain', 'Chain', 340],
   ]
   const btn: Record<string, PDFField> = {}
   for (const [n, caption, y] of buttons) {
@@ -1399,6 +1401,19 @@ async function formGoto() {
   const script = js(ctx, 'app.alert("Going to chapter 3")')
   script.set(PDFName.of('Next'), goto(PDFString.of('chapter-3')))
   action('scripted', script)
+  // A GoTo that runs JavaScript after it, as Acrobat's action lists write it.
+  const then = goto([p2.ref, 'Fit'])
+  then.set(PDFName.of('Next'), js(ctx, 'var went = true'))
+  action('goto-script', then)
+  // A JavaScript /A whose /Next chain opens a URL, goes to page 2, then prints.
+  const print = goto([p2.ref, 'Fit'])
+  print.set(PDFName.of('Next'), ctx.obj({ S: 'Named', N: 'Print' }))
+  const chain = js(ctx, 'var chained = true')
+  chain.set(
+    PDFName.of('Next'),
+    ctx.obj([ctx.obj({ S: 'URI', URI: PDFString.of('https://example.com/next') }), print])
+  )
+  action('chain', chain)
   d.catalog.set(
     PDFName.of('Names'),
     ctx.obj({ Dests: { Names: [PDFString.of('chapter-3'), [p3.ref, 'Fit']] } } as never)
@@ -1411,8 +1426,8 @@ async function formGoto() {
       pages: 3,
       opens: true,
       describes:
-        'Push buttons with GoTo actions: an explicit destination, a name-tree name, a catalog /Dests name, a name with no destination, and a JavaScript action whose /Next is a named GoTo',
-      annotations: { Widget: 5 },
+        "Push buttons with GoTo actions: an explicit destination, a name-tree name, a catalog /Dests name, a name with no destination, a JavaScript action whose /Next is a named GoTo, a GoTo whose /Next is JavaScript, and a JavaScript action whose /Next chain holds a URI, a GoTo and that GoTo's /Next Print",
+      annotations: { Widget: 7 },
     },
     { appearances: false }
   )

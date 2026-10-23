@@ -99,11 +99,16 @@ export interface FormWidget {
   appearance: WidgetAppearance
   action?: WidgetAction
   /**
-   * A link that a JavaScript `/A` also carries: the URL its `app.launchURL` opens, or the GoTo
-   * in its `/Next`. Followed on Action only when the form runs no scripts, such as when the
-   * sandbox failed to load; with scripts running, the script acts for itself.
+   * The URL a JavaScript `/A`'s `app.launchURL` opens, as PDF.js reads it out of the script.
+   * Followed on Action only when the form runs no scripts, such as when the sandbox failed to
+   * load; with scripts running, the script opens it itself.
    */
   fallback?: WidgetAction
+  /**
+   * The GoTo, URI and Named actions in the `/A`'s `/Next` chain, in order. They run on Action
+   * after the widget's scripts and its own action, whether or not scripts run.
+   */
+  next?: readonly WidgetAction[]
   hasScripts: boolean
 }
 

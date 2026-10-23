@@ -218,14 +218,14 @@ export interface FormControllerOptions {
   quiet?: ((fn: () => void) => void) | undefined
 }
 
+/** How many errors from before the first `error` listener are kept for it. */
+const UNHEARD_LIMIT = 20
+
 /**
  * The document's form values, in a record store keyed by field name (`{ id: name, value }`).
  * In controlled mode the store is the working copy: a change shows and reaches the sandbox at
  * once, and the host hears of it after.
  */
-/** How many errors from before the first `error` listener are kept for it. */
-const UNHEARD_LIMIT = 20
-
 export function createFormController(opts: FormControllerOptions): FormController {
   const controlled = opts.mode.mode === 'controlled' ? opts.mode : undefined
   const batch = opts.batch ?? ((fn: () => void) => fn())
@@ -622,8 +622,10 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       // keystroke, goes back to the stored value.
       const abandoned = event.name === 'Blur' && pending.delete(event.widget)
       const widget = widgets.get(event.widget)
-      // Without scripts, a JavaScript button still follows the link it carries.
+      // Without scripts, a JavaScript button still opens the URL its script would.
       const action = widget?.action ?? (scripting ? undefined : widget?.fallback)
+      // The `/A`'s `/Next` actions follow it, scripts or not.
+      const next = event.name === 'Action' ? (widget?.next ?? []) : []
       // An Action's scripts and the reset it runs are one step.
       batch(() => {
         if (scripting)
@@ -635,6 +637,7 @@ export function createFormController(opts: FormControllerOptions): FormControlle
             (names) => ({ kind: 'calculate', names })
           )
         if (event.name === 'Action' && action && !destroyed) runAction(action)
+        for (const n of next) if (!destroyed) runAction(n)
       })
     },
     _step(fn) {

@@ -296,7 +296,7 @@ describe('FormController', () => {
 })
 
 describe('doc.form', () => {
-  it("follows a JavaScript button's link only while no scripts run", async () => {
+  it("opens a script button's URL only while no scripts run, and runs /Next always", async () => {
     const scripting = {
       commit: vi.fn((_: string, value: FieldValue) => value),
       sync: vi.fn(),
@@ -317,18 +317,27 @@ describe('doc.form', () => {
       form.on('goto', (page) => seen.push({ goto: page }))
       const widget = list.find((f) => f.name === name)!.widgets[0]!.id
       form._dispatch({ widget, name: 'Action' })
+      form._dispatch({ widget, name: 'Mouse Up' })
       form._destroy()
       return seen
     }
     const scripted = await formFieldsOf('form-scripted')
     const goto = await formFieldsOf('form-goto')
-    // `link` runs app.launchURL; `scripted` runs an alert whose /Next goes to chapter 3.
+    // `link` runs app.launchURL: the script opens it while scripts run.
     expect(run(scripted, 'link', false)).toEqual([
       { kind: 'open-url', url: 'https://example.com/', newWindow: false },
     ])
-    expect(run(goto, 'scripted', false)).toEqual([{ goto: 2 }])
     expect(run(scripted, 'link', true)).toEqual([])
-    expect(run(goto, 'scripted', true)).toEqual([])
+    // /Next actions run in order after the scripts, with or without them.
+    for (const withScripts of [false, true]) {
+      expect(run(goto, 'scripted', withScripts)).toEqual([{ goto: 2 }])
+      expect(run(goto, 'goto-script', withScripts)).toEqual([{ goto: 1 }])
+      expect(run(goto, 'chain', withScripts)).toEqual([
+        { kind: 'open-url', url: 'https://example.com/next', newWindow: false },
+        { goto: 1 },
+        { kind: 'print' },
+      ])
+    }
   })
 
   it("runs a widget's non-script action on Action", () => {

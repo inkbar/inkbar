@@ -91,8 +91,16 @@ const FORMS = {
   'form-uppercase': { widgets: 1, fields: ['code'] },
   'form-shared-scripted': { widgets: 2, fields: ['shared'] },
   'form-goto': {
-    widgets: 5,
-    fields: ['explicit', 'legacy', 'missing', 'named', 'scripted'],
+    widgets: 7,
+    fields: [
+      'chain',
+      'explicit',
+      'goto-script',
+      'legacy',
+      'missing',
+      'named',
+      'scripted',
+    ],
   },
 } as const satisfies Partial<Record<FixtureName, { widgets: number; fields: string[] }>>
 

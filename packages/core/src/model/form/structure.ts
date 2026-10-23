@@ -131,6 +131,16 @@ function appearanceOf(
   return appearance
 }
 
+/** Whether the widget's own `/A` is JavaScript: read from the file, else from PDF.js. */
+function scriptAction(d: PdfjsAnnotationData, id: string, extras: FormExtras): boolean {
+  // PDF.js's `actions.Action` holds the JavaScript of the whole `/A` chain, `/Next` included,
+  // so it is only the answer when the file's own objects could not be read.
+  return extras.widgets.has(id) ? extras.scriptActions.has(id) : hasActionScript(d)
+}
+
+const uriOf = (d: PdfjsAnnotationData): WidgetAction | undefined =>
+  d.url ? { kind: 'uri', url: d.url } : undefined
+
 function actionOf(
   d: PdfjsAnnotationData,
   id: string,
@@ -139,6 +149,8 @@ function actionOf(
 ): WidgetAction | undefined {
   const submit = extras.submits.get(id)
   if (submit) return submit
+  // A JavaScript `/A`'s URL is its fallback, not a second action: see `fallbackOf`.
+  if (scriptAction(d, id, extras)) return undefined
   if (d.resetForm) {
     const refs = d.resetForm.refs.flatMap((r) => namesById.get(r) ?? [])
     return {
@@ -147,9 +159,8 @@ function actionOf(
       include: d.resetForm.include,
     }
   }
-  // A JavaScript `/A`'s link is its fallback, not a second action: see `fallbackOf`.
-  if (hasActionScript(d)) return undefined
-  if (d.url) return { kind: 'uri', url: d.url }
+  const uri = uriOf(d)
+  if (uri) return uri
   if (d.action) return { kind: 'named', name: d.action }
   const page = extras.destPages.get(id)
   if (page !== undefined) return { kind: 'goto', page }
@@ -157,18 +168,15 @@ function actionOf(
 }
 
 /**
- * The link a JavaScript `/A` carries: PDF.js fills `url` from its `app.launchURL`, and the
- * reader finds the GoTo in its `/Next`. The script reports these itself when it runs.
+ * The URL a JavaScript `/A` opens: PDF.js fills `url` from its
+ * `app.launchURL`. The script opens it itself when it runs.
  */
 function fallbackOf(
   d: PdfjsAnnotationData,
   id: string,
   extras: FormExtras
 ): WidgetAction | undefined {
-  if (!hasActionScript(d)) return undefined
-  if (d.url) return { kind: 'uri', url: d.url }
-  const page = extras.destPages.get(id)
-  return page === undefined ? undefined : { kind: 'goto', page }
+  return scriptAction(d, id, extras) ? uriOf(d) : undefined
 }
 
 function hasActionScript(d: PdfjsAnnotationData): boolean {
@@ -215,6 +223,8 @@ function widgetOf(
   if (action) widget.action = action
   const fallback = fallbackOf(d, d.id, extras)
   if (fallback) widget.fallback = fallback
+  const next = extras.next.get(d.id)
+  if (next) widget.next = next
   return widget
 }
 

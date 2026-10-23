@@ -81,6 +81,8 @@ describe('readFormExtras', () => {
       tabs: new Map(),
       widgets: new Map(),
       destPages: new Map(),
+      scriptActions: new Set(),
+      next: new Map(),
     })
   })
 
@@ -88,8 +90,8 @@ describe('readFormExtras', () => {
     const objs = (await openPdfObjects(await fixtureBytes('form-goto')))!
     const ids = await widgetIds(objs)
     const plain = await readFormExtras(objs, ids)
-    // Without a resolver only the explicit destination has a page.
-    expect([...plain.destPages.values()]).toEqual([2])
+    // Without a resolver only the explicit destinations have a page.
+    expect([...plain.destPages.values()]).toEqual([2, 1])
     const asked: string[] = []
     const named = { 'chapter-3': 2, ch2: 1 } as Record<string, number>
     const extras = await readFormExtras(objs, ids, {
@@ -99,7 +101,25 @@ describe('readFormExtras', () => {
       },
     })
     expect(asked).toEqual(['chapter-3', 'ch2', 'nowhere', 'chapter-3'])
-    // explicit, named, legacy, then the script's /Next; `missing` names nothing.
-    expect([...extras.destPages.values()]).toEqual([2, 2, 1, 2])
+    // explicit, named, legacy and goto-script; `missing` names nothing.
+    expect([...extras.destPages.values()]).toEqual([2, 2, 1, 1])
+  })
+
+  it('reads JavaScript /A actions from their own /S and walks the /Next chain', async () => {
+    const objs = (await openPdfObjects(await fixtureBytes('form-goto')))!
+    const ids = await widgetIds(objs)
+    const extras = await readFormExtras(objs, ids, {
+      destinationPage: (name) => Promise.resolve(name === 'chapter-3' ? 2 : undefined),
+    })
+    // scripted and chain; goto-script is a GoTo with JavaScript only in its /Next.
+    expect([...extras.scriptActions]).toEqual(['30R', '38R'])
+    expect(Object.fromEntries(extras.next)).toEqual({
+      '30R': [{ kind: 'goto', page: 2 }],
+      '38R': [
+        { kind: 'uri', url: 'https://example.com/next' },
+        { kind: 'goto', page: 1 },
+        { kind: 'named', name: 'Print' },
+      ],
+    })
   })
 })

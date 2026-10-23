@@ -541,6 +541,16 @@ describe('fix round', () => {
     ])
   })
 
+  it('a GoTo with JavaScript in its /Next runs both', async () => {
+    const { form } = await open('form-goto')
+    const pages: number[] = []
+    form.on('goto', (p) => pages.push(p))
+    expect(form.hasScripts).toBe(true)
+    press(form, 'goto-script')
+    press(form, 'chain')
+    expect(pages).toEqual([1, 1])
+  })
+
   it('a JavaScript button with a working sandbox opens its link once', async () => {
     const { form } = await open('form-scripted')
     const actions = actionsOf(form)

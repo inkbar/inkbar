@@ -253,9 +253,9 @@
     "file": "form-goto.pdf",
     "pages": 3,
     "opens": true,
-    "describes": "Push buttons with GoTo actions: an explicit destination, a name-tree name, a catalog /Dests name, a name with no destination, and a JavaScript action whose /Next is a named GoTo",
+    "describes": "Push buttons with GoTo actions: an explicit destination, a name-tree name, a catalog /Dests name, a name with no destination, a JavaScript action whose /Next is a named GoTo, a GoTo whose /Next is JavaScript, and a JavaScript action whose /Next chain holds a URI, a GoTo and that GoTo's /Next Print",
     "annotations": {
-      "Widget": 5
+      "Widget": 7
     }
   },
   "incremental-saved": {

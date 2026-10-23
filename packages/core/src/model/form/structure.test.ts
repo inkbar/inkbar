@@ -250,6 +250,16 @@ describe('buildFormFields', () => {
     expect(action('named')).toEqual({ kind: 'goto', page: 2 })
     expect(action('legacy')).toEqual({ kind: 'goto', page: 1 })
     expect(action('missing')).toBeUndefined()
+    // A GoTo with JavaScript in its /Next keeps its GoTo, and its widget has scripts.
+    expect(action('goto-script')).toEqual({ kind: 'goto', page: 1 })
+    expect(fields.get('goto-script')!.widgets[0]!.hasScripts).toBe(true)
+    expect(action('scripted')).toBeUndefined()
+    expect(fields.get('scripted')!.widgets[0]!.next).toEqual([{ kind: 'goto', page: 2 }])
+    expect(fields.get('chain')!.widgets[0]!.next).toEqual([
+      { kind: 'uri', url: 'https://example.com/next' },
+      { kind: 'goto', page: 1 },
+      { kind: 'named', name: 'Print' },
+    ])
   })
 
   it('opening a document resolves named GoTo destinations', async () => {
