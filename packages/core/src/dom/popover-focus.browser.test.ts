@@ -147,6 +147,32 @@ describe('watchDetached', () => {
     stop()
   })
 
+  it('sees a removal inside nested shadow roots', async () => {
+    root = document.createElement('div')
+    document.body.append(root)
+    const outer = root.attachShadow({ mode: 'open' })
+    const hostEl = document.createElement('div')
+    outer.append(hostEl)
+    const inner = hostEl.attachShadow({ mode: 'open' })
+    const box = document.createElement('div')
+    const el = document.createElement('div')
+    box.append(el)
+    inner.append(box)
+    let calls = 0
+    watchDetached(el, () => calls++)
+    box.remove()
+    await until(() => calls === 1)
+    // And a removal in the outer shadow root, of an ancestor host.
+    const box2 = document.createElement('div')
+    const el2 = document.createElement('div')
+    box2.append(el2)
+    outer.append(box2)
+    let calls2 = 0
+    watchDetached(el2, () => calls2++)
+    box2.remove()
+    await until(() => calls2 === 1)
+  })
+
   it('calls back for an element already detached, and not once stopped', async () => {
     let calls = 0
     watchDetached(document.createElement('div'), () => calls++)
