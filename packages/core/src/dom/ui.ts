@@ -636,3 +636,11 @@ export function signatureMenuModel(
   }))
   return { selected: items.find((i) => i.checked)?.template, items }
 }
+
+/**
+ * Words the form layer adds to the page's form fields. A field is named by its own tooltip
+ * (`/TU`), else the last part of its name; `unnamed` stands in when it has neither.
+ */
+export const FORM_LABELS = {
+  unnamed: 'Form field',
+} as const

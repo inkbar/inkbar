@@ -285,7 +285,8 @@ function buildField(
   if (type === 'text' && d.maxLen) field.maxLength = d.maxLen
   if (defaultValue !== undefined) field.defaultValue = defaultValue
   if (value !== undefined) field.value = value
-  if (d.alternativeText) field.tooltip = d.alternativeText
+  const tooltip = d.alternativeText || extras.widgets.get(d.id)?.tooltip
+  if (tooltip) field.tooltip = tooltip
   if (signed) field.signed = 'certificate'
   return field
 }

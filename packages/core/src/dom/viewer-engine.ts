@@ -102,6 +102,11 @@ export interface MountViewerOptions {
    * Default `SIGNATURE_FONTS`.
    */
   signatureFonts?: string[]
+  /**
+   * Tints fillable form fields, as other PDF viewers do. Default true. False sets
+   * `data-ink-form-highlight="off"` on the container and each page's form layer.
+   */
+  formHighlight?: boolean
   /** Annotation content is rendered by the host (custom slots). Changing it needs `rebuild`. */
   customAnnotations?: boolean
   /**
@@ -178,8 +183,12 @@ export interface ViewerEngine {
   destroy(): void
 }
 
+/** The tools under which form fields take input: the pointer tools, which make nothing. */
+const FORM_TOOLS: ReadonlySet<ToolId> = new Set<ToolId>(['select-text', 'select'])
+
 export function mountViewer(opts: MountViewerOptions): ViewerEngine {
   const { container: el, document: doc } = opts
+  if (opts.formHighlight === false) el.dataset.inkFormHighlight = 'off'
   const pages = new Map<number, PageMount>()
   let gap = opts.gap
   let buffer = opts.buffer
@@ -188,6 +197,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
   let tools: ToolController
   let stopKeys: () => void = () => undefined
   let stopActive: () => void = () => undefined
+  let stopFormTools: () => void = () => undefined
   let destroyed = false
   const plugins = opts.plugins
   const hostTools = [...(opts.tools ?? []), ...(plugins?.tools ?? [])]
@@ -237,6 +247,13 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       onActivate: (id) => opts.onActivate?.(id),
       isCustom: () => isCustom,
       decorate,
+      formHighlight: opts.formHighlight ?? true,
+      // While a build mounts its pages, `tools` is unset or the old controller; the build
+      // refreshes the fields once its controller exists.
+      formActive: () => {
+        const id = (tools as ToolController | undefined)?.active.get()
+        return id !== undefined && FORM_TOOLS.has(id)
+      },
       ...(layers ? { layers } : {}),
       ...(highlights ? { highlights } : {}),
       onError: (cause, layer) => {
@@ -375,6 +392,11 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       tracker.setTool(tc.active.get())
       stopActive = tc.active.subscribe((id) => tracker.setTool(id))
     }
+    const refreshForms = () => {
+      for (const mount of pages.values()) mount.form?.refresh()
+    }
+    stopFormTools = tc.active.subscribe(refreshForms)
+    refreshForms()
     stopKeys = attachViewportKeys(el, { viewport: vp, pageCount: () => doc.pages.length })
     // A view resting in a gap lands on the page below it, not on the most visible page.
     // The scroll position resets on teardown, so the guard below must not skip a gap anchor.
@@ -388,6 +410,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
   function teardown(): void {
     stopKeys()
     stopActive()
+    stopFormTools()
     tools.destroy()
     // The viewport unmounts every page it mounted, which destroys the page mounts.
     viewport.destroy()
@@ -443,6 +466,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       layers?.destroy()
       highlights?.destroy()
       stopRedecorate?.()
+      if (opts.formHighlight === false) delete el.dataset.inkFormHighlight
     },
   }
 }

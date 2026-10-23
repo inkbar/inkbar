@@ -998,6 +998,11 @@ async function formFields() {
       )
     )
   setDA(styled, '/F1 10 Tf 0 0 1 rg')
+  email.acroField.dict.set(PDFName.of('TU'), PDFString.of('Email address'))
+  // /TU names one field and is not inherited: header.ref has none of its own.
+  ref.acroField.dict
+    .lookup(PDFName.of('Parent'), PDFDict)
+    .set(PDFName.of('TU'), PDFString.of('Header'))
   agree.acroField.dict.set(PDFName.of('V'), PDFName.of('Off'))
   nameRadioStates(plan, ['monthly', 'yearly'], 'monthly')
   plan.acroField.dict.set(PDFName.of('DV'), PDFName.of('yearly'))

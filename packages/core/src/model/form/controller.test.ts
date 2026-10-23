@@ -215,6 +215,7 @@ describe('FormController', () => {
       sync: vi.fn(),
       dispatch: vi.fn(),
       keystroke: vi.fn(() => undefined),
+      pageEvent: vi.fn(() => Promise.resolve()),
       destroy: vi.fn(),
     }
     form._attachScripting(scripting)

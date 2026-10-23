@@ -95,6 +95,7 @@ describe('FormController (controlled)', () => {
       },
       dispatch: () => undefined,
       keystroke: () => undefined,
+      pageEvent: () => Promise.resolve(),
       destroy: () => undefined,
     })
     form.setControlledValue({ ...form.values.get(), name: 'Bo' })
@@ -112,6 +113,7 @@ describe('FormController (controlled)', () => {
       sync,
       dispatch: () => undefined,
       keystroke: () => undefined,
+      pageEvent: () => Promise.resolve(),
       destroy: () => undefined,
     })
     form.setControlledValue({ ...form.values.get() })

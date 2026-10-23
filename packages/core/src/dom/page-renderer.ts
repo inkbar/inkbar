@@ -20,6 +20,12 @@ export interface PageRendererOptions {
    * and the page re-renders when it changes (browser zoom, moving to another screen).
    */
   devicePixelRatio?: number
+  /**
+   * Whether form widgets are drawn into the canvas as the PDF draws them. By default they are
+   * drawn only when the document has no form fields; a document with fields leaves its
+   * fillable widgets to the form layer (PDF.js `AnnotationMode.ENABLE_FORMS`).
+   */
+  drawWidgets?: boolean
   onRendered?(): void
   /** Called for any render failure other than a superseded render's cancellation. */
   onError?(error: unknown): void
@@ -100,6 +106,7 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
       const pdfPage = await doc._pdfjs.getPage(page)
       if (destroyed || gen !== generation) return
       const { AnnotationMode } = doc._pdfjs.module
+      const drawWidgets = opts.drawWidgets ?? doc.form.fields.get().length === 0
       const viewport = pdfPage.getViewport({
         scale: transform.zoom,
         rotation: transform.totalRotation,
@@ -116,7 +123,7 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
         viewport,
         // Pages are paper: an opaque white canvas, whatever the theme puts behind it.
         background: '#ffffff',
-        annotationMode: AnnotationMode.ENABLE,
+        annotationMode: drawWidgets ? AnnotationMode.ENABLE : AnnotationMode.ENABLE_FORMS,
         ...(dpr === 1 ? {} : { transform: [dpr, 0, 0, dpr, 0, 0] }),
       })
       task = ownTask

@@ -11,7 +11,9 @@ import type { Rect } from '../model/geometry'
 const cleanup: (() => void)[] = []
 afterEach(() => cleanup.splice(0).forEach((f) => f()))
 
-async function open(name: 'text-simple' | 'text-rotated-90'): Promise<InkDocument> {
+async function open(
+  name: 'text-simple' | 'text-rotated-90' | 'form-fields'
+): Promise<InkDocument> {
   const doc = await openFixtureInBrowser(name)
   cleanup.push(() => void doc.destroy())
   return doc
@@ -57,6 +59,17 @@ const darkCount = (d: Uint8ClampedArray): number => {
 const REGION: Rect = { x: 72, y: 700, width: 50, height: 50 }
 
 describe('renderRegion', () => {
+  it('magnifies form widgets as the file draws them', async () => {
+    const doc = await open('form-fields')
+    const name = doc.form.fields.get().find((f) => f.name === 'name')!.widgets[0]!
+    const canvas = document.createElement('canvas')
+    await renderRegion(doc, 0, name.rect, 2, canvas)
+    // The field's "Sam" and its border, which the page canvas leaves to the form layer.
+    expect(darkCount(pixels(canvas, 0, 0, canvas.width, canvas.height))).toBeGreaterThan(
+      20
+    )
+  })
+
   it('fills the canvas with the region, matching a full render at the same scale', async () => {
     const doc = await open('text-simple')
     const canvas = document.createElement('canvas')

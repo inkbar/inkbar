@@ -143,6 +143,11 @@ export async function createFormScripting(
     return undefined
   }
 
+  /** Page events run one after another. */
+  let pages: Promise<void> = Promise.resolve()
+  /** Pages whose actions the sandbox already has. */
+  const visited = new Set<number>()
+
   /** Dispatches `event` and returns what the scripts sent while it ran. */
   const run = (event: SandboxEvent): Update[] => {
     const outer = buffer
@@ -293,6 +298,22 @@ export async function createFormScripting(
       mirror.delete(field.name)
       apply(updates, { values: true, source: { field, accepted: false } })
       return keystrokeResult(updates, field, text, change, selStart, selEnd)
+    },
+    pageEvent(page, name) {
+      if (dead) return Promise.resolve()
+      // In order, so a page's close follows its open. Like PDF.js's viewer, the page's own
+      // actions go with its first open; the sandbox keeps them for later events.
+      const step = pages.then(async () => {
+        let actions: unknown = null
+        if (name === 'PageOpen' && !visited.has(page)) {
+          visited.add(page)
+          actions = await (await proxy.getPage(page + 1)).getJSActions()
+        }
+        if (dead) return
+        apply(run({ id: 'page', name, pageNumber: page + 1, actions }), { values: true })
+      })
+      pages = step.catch(report)
+      return pages
     },
     destroy() {
       if (dead) return
