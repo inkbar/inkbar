@@ -1,0 +1,36 @@
+fixtures/manifest.json
+  s_a9eee6338cf60a::t_0bc8d74cdd8edf 12
+packages/core/src/model/search.fixtures.test.ts
+  s_a9eee6338cf60a::t_0bc8d74cdd8edf 208-216
+packages/core/src/model/search.ts
+  s_a9eee6338cf60a::t_088311ff880974 96-97,103,105
+fixtures/generate.ts
+  s_a9eee6338cf60a::t_0bc8d74cdd8edf 113-116,152-157,164
+packages/core/src/model/search.test.ts
+  s_a9eee6338cf60a::t_088311ff880974 99-104
+packages/core/src/model/text.test.ts
+  s_a9eee6338cf60a::t_088311ff880974 112
+packages/core/src/model/text.ts
+  s_a9eee6338cf60a::t_088311ff880974 23-28,113-120
+packages/core/src/model/glyph-advances.test.ts
+  s_a9eee6338cf60a::t_45501c2ae33569 99
+  s_a9eee6338cf60a::t_088311ff880974 5-7,34,39,53,59,63-67,69,74,83,91,105
+packages/core/src/model/glyph-advances.ts
+  s_a9eee6338cf60a::t_088311ff880974 21-28,48,65,82,96,107,109-110,115,119
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "004b3c912268acd64dd95f80798e0f1255233bbf",
+  "prompts": {},
+  "sessions": {
+    "s_a9eee6338cf60a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c2869588-dbba-445a-be19-91e3d8b07d87",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
