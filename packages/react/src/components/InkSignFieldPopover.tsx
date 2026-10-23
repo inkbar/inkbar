@@ -70,6 +70,12 @@ export function InkSignFieldPopover({
     return watchDetached(request.anchor, () => close.current())
   }, [request, close])
 
+  /** Focus goes back to the field's button, or to the scroll element once the field's box has gone. */
+  const returnFocus = (req: SignFieldRequest | null): void => {
+    const c = control(req)
+    ;(c?.isConnected ? c : ctx.viewportEl.get())?.focus({ preventScroll: true })
+  }
+
   /** Signs the request's field with `t`; a refusal (signed, read-only by now) goes to `onError`. */
   const sign = (req: SignFieldRequest, t: SignatureTemplate): void => {
     if (!doc) return
@@ -105,8 +111,7 @@ export function InkSignFieldPopover({
               }}
               onCloseAutoFocus={(e) => {
                 e.preventDefault()
-                if (!toDialog.current)
-                  control(last.current)?.focus({ preventScroll: true })
+                if (!toDialog.current) returnFocus(last.current)
                 toDialog.current = false
               }}
               onInteractOutside={(e) => {
@@ -146,7 +151,7 @@ export function InkSignFieldPopover({
         }}
         onCloseAutoFocus={(e) => {
           e.preventDefault()
-          control(last.current)?.focus({ preventScroll: true })
+          returnFocus(last.current)
         }}
       />
     </>

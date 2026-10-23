@@ -83,6 +83,12 @@
   const control = (req: SignFieldRequest | null): HTMLElement | null =>
     req?.anchor.querySelector<HTMLElement>('button.ink-form-control') ?? null
 
+  /** Focus goes back to the field's button, or to the scroll element once the field's box has gone. */
+  function returnFocus(req: SignFieldRequest | null): void {
+    const c = control(req)
+    ;(c?.isConnected ? c : ctx.viewportEl.get())?.focus({ preventScroll: true })
+  }
+
   /** Signs the request's field with `t`; a refusal (signed, read-only by now) goes to `onError`. */
   function sign(req: SignFieldRequest, doc: InkDocument, t: SignatureTemplate): void {
     // The document the request came from is still the open one.
@@ -146,7 +152,7 @@
         onfocusin={openFocus.onfocusin}
         onCloseAutoFocus={(e) => {
           e.preventDefault()
-          if (!toDialog) control(last)?.focus({ preventScroll: true })
+          if (!toDialog) returnFocus(last)
           toDialog = false
         }}
         {onInteractOutside}
@@ -176,6 +182,6 @@
   }}
   onCloseAutoFocus={(e) => {
     e.preventDefault()
-    control(last)?.focus({ preventScroll: true })
+    returnFocus(last)
   }}
 />

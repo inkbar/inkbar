@@ -399,6 +399,8 @@ test.describe('signature fields', () => {
     // Not a page unmount: only the box goes.
     await widget(page, 'sig').evaluate((el) => el.remove())
     await expect(menu).toBeHidden()
+    // The field's button went with its box: focus goes to the scroll element.
+    await expect(page.locator('[data-ink-scroll]')).toBeFocused()
   })
 
   test('returns focus to the field that replaced the open one', async ({

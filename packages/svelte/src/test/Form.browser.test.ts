@@ -392,6 +392,8 @@ describe('form filling', () => {
       // Not a page unmount: only the box goes.
       ;(await widget('sig')).remove()
       await expect.poll(count(SIGN_MENU)).toBe(0)
+      // The field's button went with its box: focus goes to the scroll element.
+      await expect.poll(focused).toBe(document.querySelector(SCROLL))
     })
 
     it('returns focus to the field that replaced the open one', async () => {
