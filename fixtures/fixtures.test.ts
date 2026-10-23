@@ -87,7 +87,7 @@ const FORMS = {
   },
   'form-signed': { widgets: 2, fields: ['cert', 'name'] },
   'form-fieldmdp': { widgets: 3, fields: ['amount', 'approved', 'memo'] },
-  'form-timer': { widgets: 1, fields: ['ticker'] },
+  'form-timer': { widgets: 2, fields: ['note', 'ticker'] },
   'form-uppercase': { widgets: 1, fields: ['code'] },
   'form-shared-scripted': { widgets: 2, fields: ['shared'] },
 } as const satisfies Partial<Record<FixtureName, { widgets: number; fields: string[] }>>

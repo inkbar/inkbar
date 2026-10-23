@@ -6,9 +6,9 @@ import { formFieldsOf } from '../../test-support/form'
 import { openDocument } from '../document'
 import { InkError } from '../errors'
 
-import { createFormController } from './controller'
+import { createFormController, type FormController } from './controller'
 
-import type { FieldValue, FormField } from './types'
+import type { FieldValue, FieldValues, FormEvent, FormField } from './types'
 
 let fields: FormField[]
 
@@ -282,6 +282,64 @@ describe('doc.form', () => {
     expect(doc.history.canUndo.get()).toBe(false)
     doc.history.redo()
     expect(doc.form.get('name')).toBe('Ada')
+    doc.destroy()
+  })
+
+  const fakeScripting = (form: FormController) => ({
+    commit: vi.fn((_name: string, value: FieldValue) => value),
+    sync: vi.fn((_values: FieldValues, calculate: boolean) => {
+      // A calculation the change caused.
+      if (calculate) form._scriptValues({ notes: 'calculated' })
+    }),
+    dispatch: vi.fn((event: FormEvent) => {
+      if (event.name === 'Mouse Up') form._scriptValues({ email: 'up@example.com' })
+      if (event.name === 'Action') form._scriptValues({ notes: 'pressed' })
+    }),
+    keystroke: vi.fn(() => undefined),
+    pageEvent: vi.fn(() => Promise.resolve()),
+    destroy: vi.fn(),
+  })
+
+  const openForm = async () => {
+    const doc = await openDocument(await fixtureBytes('form-fields'), {
+      assets: nodeAssets(),
+    })
+    const scripting = fakeScripting(doc.form)
+    doc.form._attachScripting(scripting)
+    return { doc, form: doc.form, history: doc.history, scripting }
+  }
+
+  it('a script write outside a change is no undo step, and undo leaves it', async () => {
+    const { doc, form, history } = await openForm()
+    form._scriptValues({ email: 'tick@example.com' })
+    expect(form.get('email')).toBe('tick@example.com')
+    expect(history.canUndo.get()).toBe(false)
+    form.set({ name: 'Ada' })
+    form._scriptValues({ email: 'tock@example.com' })
+    history.undo()
+    expect(form.get('name')).toBe('Sam')
+    expect(form.get('email')).toBe('tock@example.com')
+    expect(history.canUndo.get()).toBe(false)
+    form._scriptValues({ email: 'later@example.com' })
+    history.redo()
+    expect(form.get('name')).toBe('Ada')
+    expect(form.get('email')).toBe('later@example.com')
+    doc.destroy()
+  })
+
+  it('reset and the calculation it causes are one step, and undo syncs without calculating', async () => {
+    const { doc, form, history, scripting } = await openForm()
+    form.set({ name: 'Ada', notes: 'mine' })
+    form.reset()
+    expect(form.get('name')).toBe('')
+    expect(form.get('notes')).toBe('calculated')
+    scripting.sync.mockClear()
+    history.undo()
+    expect(form.get('name')).toBe('Ada')
+    expect(form.get('notes')).toBe('mine')
+    expect(scripting.sync).toHaveBeenCalledExactlyOnceWith(form.values.get(), false)
+    history.undo()
+    expect(history.canUndo.get()).toBe(false)
     doc.destroy()
   })
 

@@ -111,9 +111,10 @@ export interface FormController {
   _focus(widgetId: string): void
   /**
    * @internal Values a script set (a calculation, or a script assigning a field). Read-only
-   * fields take them; locked fields and values that do not suit the field are skipped. Outside
-   * a commit or other change they are one undo step, reported to a controlled host as
-   * `calculate`.
+   * fields take them; locked fields and values that do not suit the field are skipped. Inside
+   * a commit, reset or widget event they join its undo step. Outside one (a timer, a page's
+   * open or close script, a keystroke script) they are no undo step: they become the history's
+   * baseline, so undo never rewinds them. A controlled host hears of them as `calculate`.
    */
   _scriptValues(values: FieldValues): void
   /** @internal Each page's `/Tabs`, for pages that set one; set with the fields. */
@@ -204,6 +205,11 @@ export interface FormControllerOptions {
   onError(e: InkError): void
   /** Runs `fn` as one undo step. Defaults to running it. */
   batch?: ((fn: () => void) => void) | undefined
+  /**
+   * Runs `fn` without an undo step: what it changes becomes the history's baseline. Defaults
+   * to running it.
+   */
+  quiet?: ((fn: () => void) => void) | undefined
 }
 
 /**
@@ -214,6 +220,7 @@ export interface FormControllerOptions {
 export function createFormController(opts: FormControllerOptions): FormController {
   const controlled = opts.mode.mode === 'controlled' ? opts.mode : undefined
   const batch = opts.batch ?? ((fn: () => void) => fn())
+  const quiet = opts.quiet ?? ((fn: () => void) => fn())
   const fields = writable<readonly FormField[]>([])
   let byName = new Map<string, FormField>()
   let byWidget = new Map<string, FormField>()
@@ -301,15 +308,19 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       (name) => !sameValue(a[name], b[name])
     )
 
-  /** Runs `fn`, then reports to a controlled host when the values changed. */
+  /**
+   * Runs `fn` as one undo step (or through `step`), then reports to a controlled host when the
+   * values changed.
+   */
   const reporting = (
     fn: () => void,
-    change: (names: string[]) => FieldsChange | undefined
+    change: (names: string[]) => FieldsChange | undefined,
+    step = batch
   ) => {
     const before = current()
     depth++
     try {
-      batch(fn)
+      step(fn)
     } finally {
       depth--
     }
@@ -646,7 +657,7 @@ export function createFormController(opts: FormControllerOptions): FormControlle
         for (const [name, value] of entries) write(name, value)
       }
       if (depth > 0) apply()
-      else reporting(apply, (names) => ({ kind: 'calculate', names }))
+      else reporting(apply, (names) => ({ kind: 'calculate', names }), quiet)
     },
     get _tabs() {
       return tabs

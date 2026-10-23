@@ -183,6 +183,8 @@ export async function openDocument(
   const fieldsMode = options.fields ?? { mode: 'uncontrolled' }
   /** One undo step once the history exists, which is after `ready`. */
   let step = (fn: () => void): void => fn()
+  /** No undo step: changes join the history's baseline once it exists. */
+  let quietly = (fn: () => void): void => fn()
   // Built before the fields are read, so it exists from the start; they load before `ready`.
   const form = createFormController({
     fields: [],
@@ -191,6 +193,7 @@ export async function openDocument(
     // form's own `on('error')`. One from before `ready` waits for the first listener.
     onError: () => undefined,
     batch: (fn) => step(fn),
+    quiet: (fn) => quietly(fn),
   })
 
   const destroyedError = (): InkError =>
@@ -323,6 +326,7 @@ export async function openDocument(
     fieldsMode.mode === 'uncontrolled'
   if (replays) history.track(form._store)
   step = (fn) => history.batch(fn)
+  quietly = (fn) => history.baseline(fn)
   // Signature fields and the annotations that sign them change together from here.
   form._linkAnnotations({ store, react: (fn) => history.react(fn), replays })
 

@@ -222,6 +222,43 @@ describe('form scripts', () => {
     expect(form.get('total')).toBe('6')
   })
 
+  it('timer writes are no undo step, and undo keeps the timer going', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+    const { form, history } = await open('form-timer')
+    vi.advanceTimersByTime(260)
+    expect(form.get('ticker')).toBe('5')
+    expect(history.canUndo.get()).toBe(false)
+    form.set({ note: 'mine' })
+    form.set({ note: 'later' })
+    vi.advanceTimersByTime(100)
+    expect(form.get('ticker')).toBe('7')
+    history.undo()
+    expect(form.get('note')).toBe('mine')
+    // Undo does not rewind what the timer wrote, and the timer goes on from there.
+    expect(form.get('ticker')).toBe('7')
+    vi.advanceTimersByTime(50)
+    expect(form.get('ticker')).toBe('8')
+    history.undo()
+    expect(form.get('note')).toBeFalsy()
+    expect(history.canUndo.get()).toBe(false)
+    history.redo()
+    expect(form.get('note')).toBe('mine')
+    expect(form.get('ticker')).toBe('8')
+  })
+
+  it('a commit and the calculation it causes are one step', async () => {
+    const { form, history } = await open('form-scripted')
+    form.set({ qty: '3' })
+    form.set({ price: '2' })
+    expect(form.get('total')).toBe('6')
+    history.undo()
+    expect(form.get('price')).toBeFalsy()
+    expect(form.get('total')).toBe('0')
+    history.undo()
+    expect(form.get('qty')).toBeFalsy()
+    expect(history.canUndo.get()).toBe(false)
+  })
+
   it('a field typed into and left reverts in the sandbox', async () => {
     const { form } = await open('form-scripted')
     form.set({ qty: '3', price: '2' })
