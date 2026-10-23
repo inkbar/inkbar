@@ -32,7 +32,6 @@
     /* Pages stay white in dark mode and the search layer multiplies, so these serve both. */
     --ink-search-hit: #f1ffa0;
     --ink-search-current: #e4ff4a;
-    --ink-search-current-outline: #2740f5;
 
     --ink-bg: var(--muted, #f1f2f5);
     --ink-fg: var(--foreground, #151820);
@@ -337,7 +336,6 @@
 
   :where([data-search-hit][data-current]) {
     background: var(--ink-search-current);
-    outline: 1.5px solid var(--ink-search-current-outline);
   }
 
   /* Annotations */

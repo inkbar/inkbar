@@ -335,7 +335,7 @@ viewer.element.querySelector('[data-ink-viewport-root]')!.append(createFindBar(v
 
 Ctrl/Cmd+F opens the bar when one is mounted and the key comes from inside the viewer, with the page selection (up to 200 characters) as the query. Without a bar, or from outside the viewer, the browser keeps the key.
 
-Hits are drawn as a layer over the page. `@inkbar/theme` styles them with `--ink-search-hit` and, for the current hit, `--ink-search-current` and `--ink-search-current-outline`.
+Hits are drawn as a layer over the page that multiplies with it, so the text shows through. `@inkbar/theme` styles them with `--ink-search-hit` and, for the current hit, `--ink-search-current`.
 
 ## Signatures
 

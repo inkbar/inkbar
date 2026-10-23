@@ -123,11 +123,7 @@ describe('theme.css', () => {
   it('defines the search match tokens once and multiplies the search layer with the page', () => {
     const declaring = (prop: string) =>
       rules.filter((r) => r.nodes.some((d) => d.type === 'decl' && d.prop === prop))
-    for (const token of [
-      '--ink-search-hit',
-      '--ink-search-current',
-      '--ink-search-current-outline',
-    ]) {
+    for (const token of ['--ink-search-hit', '--ink-search-current']) {
       // Pages stay white in dark mode, so the light values serve both.
       expect(declaring(token), token).toHaveLength(1)
     }
