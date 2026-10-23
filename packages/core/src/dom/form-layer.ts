@@ -23,11 +23,10 @@
 // state: a toggle, like an edit, paints nothing.
 //
 // The widget boxes are in the page's Tab order (its `/Tabs`: rows, columns or the structure
-// tree, else `/Annots` order), so Tab
-// within a page is the browser's own. A radio group is one stop: its chosen radio, else its
-// first. The engine moves Tab on from a page's last stop to the next page's first. The
-// appearances, and the boxes over them, stack in `/Annots` order, as the file paints its
-// widgets.
+// tree, else `/Annots` order), so Tab within a page is the browser's own. A radio group is one
+// stop: its chosen radio, else its first. The engine moves Tab on from a page's last stop to
+// the next page's first. The appearances, and the boxes over them, stack in `/Annots` order,
+// as the file paints its widgets; a focused or marked box rises above the rest.
 import { sameValue } from '../model/form/values'
 
 import { createWidgetAppearances, type WidgetAppearances } from './form-appearance'
