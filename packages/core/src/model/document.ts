@@ -278,13 +278,20 @@ export async function openDocument(
         { destinationPage: (name) => destinationPage(proxy, name) }
       )
       formData.fields = buildFormFields(widgets, formData.extras)
-      // A page whose `/Tabs` is `S` is read in its structure tree's order.
-      for (const [page, order] of formData.extras.tabs)
-        if (order === 'S')
-          formData.structure.set(
-            page,
-            await structureAnnotationOrder(await getPage(page))
-          )
+      // A page whose `/Tabs` is `S` and that holds fields is read in its structure tree's
+      // order. Tagged files often set S on every page, so pages without fields are skipped.
+      const withFields = new Set(
+        formData.fields.flatMap((f) => f.widgets.map((w) => w.page))
+      )
+      const structured = [...formData.extras.tabs].flatMap(([page, order]) =>
+        order === 'S' && withFields.has(page) ? [page] : []
+      )
+      const orders = await mapInOrder(
+        structured.length,
+        EMBEDDED_CONCURRENCY,
+        async (i) => structureAnnotationOrder(await getPage(structured[i]!))
+      )
+      structured.forEach((page, i) => formData.structure.set(page, orders[i]!))
     }
     form._load(formData.fields, formData.extras.tabs, formData.structure)
     // Scripts start before `ready`, so the form a host first sees has run its open scripts,
