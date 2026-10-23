@@ -298,3 +298,17 @@ export const Trash2: IconNode = [
   ['path', { d: 'M3 6h18' }],
   ['path', { d: 'M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2' }],
 ]
+
+export const ChevronUp: IconNode = [['path', { d: 'm18 15-6-6-6 6' }]]
+
+export const X: IconNode = [
+  ['path', { d: 'M18 6 6 18' }],
+  ['path', { d: 'm6 6 12 12' }],
+]
+
+export const CaseSensitive: IconNode = [
+  ['path', { d: 'm2 16 4.039-9.69a.5.5 0 0 1 .923 0L11 16' }],
+  ['path', { d: 'M22 9v7' }],
+  ['path', { d: 'M3.304 13h6.392' }],
+  ['circle', { cx: '18.5', cy: '12.5', r: '3.5' }],
+]

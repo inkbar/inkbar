@@ -43,4 +43,7 @@ export const ICONS = [
   'MessageSquareText',
   'Signature',
   'Trash2',
+  'ChevronUp',
+  'X',
+  'CaseSensitive',
 ] as const

@@ -16,6 +16,7 @@ import {
   MessageSquare,
   PenLine,
   PenTool,
+  Search,
   Signature,
   Redo2,
   Square,
@@ -104,13 +105,42 @@ export function createIcon(icon: IconNode): SVGSVGElement {
   return svg
 }
 
-function button(
+/** @internal A labelled icon button, as the toolbar controls make them. */
+export function button(
   label: string,
   attrs: Record<string, string>,
   icon: IconNode | undefined
 ): HTMLButtonElement {
   const b = h('button', { type: 'button', ...attrs, 'aria-label': label, title: label })
   if (icon) b.append(createIcon(icon))
+  return b
+}
+
+/**
+ * Opens the viewer's find bar; pressed while it is open. Pressing it again focuses the field.
+ * The bar itself is `createFindBar`.
+ */
+export function createSearchButton(viewer: Viewer): HTMLButtonElement {
+  const b = button(
+    'Find',
+    { class: 'ink-search-button', 'data-ink-search-button': '', 'aria-pressed': 'false' },
+    Search
+  )
+  b.addEventListener('click', () => {
+    viewer.search.open()
+    const field = viewer.element.querySelector<HTMLInputElement>(
+      '[data-ink-find-bar] input'
+    )
+    field?.focus()
+    field?.select()
+  })
+  const show = (s: { open: boolean }): void => {
+    b.dataset.state = s.open ? 'on' : 'off'
+    b.setAttribute('aria-pressed', String(s.open))
+  }
+  show(viewer.search.state.get())
+  viewer.search.state.subscribe(show)
+  follow(viewer.document, b, () => undefined)
   return b
 }
 

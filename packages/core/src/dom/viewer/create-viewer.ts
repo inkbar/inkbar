@@ -21,6 +21,12 @@ import {
 } from '../../model/signatures'
 import { createPluginHost, type PluginHost } from '../plugins/host'
 import { createFocusReturn } from '../popover-focus'
+import {
+  createSearchController,
+  type SearchController,
+  type ViewerSearch,
+} from '../search/controller'
+import { handleFindKey, pageSelectionText } from '../search/find-key'
 import { createToolOptions } from '../tools'
 import { mountViewer, type MountViewerOptions, type ViewerEngine } from '../viewer-engine'
 
@@ -48,6 +54,7 @@ export interface CreateViewerOptions extends Omit<
   | 'toolOptions'
   | 'signatureLibrary'
   | 'plugins'
+  | 'search'
 > {
   source: DocumentSource
   assets: PdfAssets
@@ -96,6 +103,11 @@ export interface Viewer {
   /** The plugins' commands by namespaced id (`sandbox.suggest`); place one with `createCommandButton`. */
   readonly commands: { get(id: string): Command | undefined }
   /**
+   * The search state and its actions, shared by the find bar, the toolbar button and plugins.
+   * `open()` runs the search and draws the highlights even when no find bar is mounted.
+   */
+  readonly search: ViewerSearch
+  /**
    * Opens another document in place; the previous one is destroyed. Latest call wins.
    * `password` is used for this load only; without it, the constructor's `password` applies.
    */
@@ -131,9 +143,10 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     toolOptions: _toolOptions,
     signatureLibrary: _signatureLibrary,
     signatures: signatureStore,
+    search: _search,
     ...view
   } = opts as CreateViewerOptions &
-    Pick<MountViewerOptions, 'toolStyle' | 'toolOptions' | 'signatureLibrary'>
+    Pick<MountViewerOptions, 'toolStyle' | 'toolOptions' | 'signatureLibrary' | 'search'>
   /** One library for the viewer's life, so templates and the menu outlive each document. */
   const signatures = createSignatureLibrary(
     signatureStore ?? createMemorySignatureStore()
@@ -166,6 +179,25 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   el.append(root)
   rootEl.set(scroll)
 
+  /** One controller for the viewer's life: the host, the engine and the find bar share it. */
+  const search = createSearchController({
+    document: readonly(current),
+    viewport: () => viewport.get(),
+  })
+  /** What callers get: the actions, not the bar registration. */
+  const viewerSearch: ViewerSearch = {
+    state: search.state,
+    open: (query) => search.open(query),
+    setQuery: (query) => search.setQuery(query),
+    setMatchCase: (on) => search.setMatchCase(on),
+    next: () => search.next(),
+    previous: () => search.previous(),
+    close: () => search.close(),
+  }
+  root.addEventListener('keydown', (e) => {
+    handleFindKey(e, search, () => pageSelectionText(root))
+  })
+
   /**
    * One host for the viewer's life. It reads the history when a document opens, and `current`
    * is set before it notifies, so that is the new document's. With no document open, a
@@ -182,6 +214,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     root: readonly(rootEl),
     decorate: () => view.decorateAnnotation,
     viewport: () => viewport.get(),
+    search: viewerSearch,
   })
 
   const focusReturn = createFocusReturn({
@@ -242,6 +275,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     const mounted = mountViewer({
       ...view,
       plugins: host,
+      search,
       container: scroll,
       document: doc,
       toolOptions,
@@ -296,6 +330,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
 
   let loads = 0
   let destroyed = false
+  const destroyers: (() => void)[] = []
   let stop: () => void = () => undefined
 
   /** Tears down the open document, if any, and destroys it. */
@@ -371,18 +406,22 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       if (id === null || current.get()?.annotations.get(id)) activated.set(id)
     },
     commands: { get: (id) => host.command(id) },
+    search: viewerSearch,
     open,
     destroy() {
       if (destroyed) return
       destroyed = true
       loads++
       close()
+      for (const fn of destroyers) fn()
+      search.destroy()
       host.destroy()
       root.remove()
     },
   }
   toolsByViewer.set(viewer, [...(view.tools ?? []), ...host.tools])
   commandIdsByViewer.set(viewer, () => [...host.commands.keys()])
+  internals.set(viewer, { search, destroyers })
   return viewer
 }
 
@@ -398,4 +437,21 @@ const commandIdsByViewer = new WeakMap<Viewer, () => string[]>()
 /** The ids of the commands a viewer's plugins registered, for the error on an unknown one. */
 export function hostCommandIdsOf(viewer: Viewer): string[] {
   return commandIdsByViewer.get(viewer)?.() ?? []
+}
+
+const internals = new WeakMap<
+  Viewer,
+  { search: SearchController; destroyers: (() => void)[] }
+>()
+
+/** @internal The viewer's search controller, which the find bar registers with. */
+export function searchControllerOf(viewer: Viewer): SearchController {
+  const found = internals.get(viewer)
+  if (!found) throw new Error('Not a viewer made by createViewer')
+  return found.search
+}
+
+/** @internal Runs `fn` when the viewer is destroyed, for what a control set up on it. */
+export function onViewerDestroy(viewer: Viewer, fn: () => void): void {
+  internals.get(viewer)?.destroyers.push(fn)
 }
