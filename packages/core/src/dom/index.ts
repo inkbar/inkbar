@@ -181,7 +181,11 @@ export {
   trapTab,
 } from './menu-keys'
 export { annotationElementFor, observeAnnotationElement } from './annotation-element'
-export { createFocusReturn, shouldKeepOpenOnAnnotation } from './popover-focus'
+export {
+  createFocusReturn,
+  shouldKeepOpenOnAnnotation,
+  watchDetached,
+} from './popover-focus'
 export type { FocusReturn, FocusReturnOptions } from './popover-focus'
 export { createPopover, placePanel } from './viewer/popover'
 export type { Popover, PopoverOptions } from './viewer/popover'

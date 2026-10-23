@@ -79,3 +79,25 @@ export function createFocusReturn(opts: FocusReturnOptions): FocusReturn {
     },
   }
 }
+
+/**
+ * Calls `onDetach` once when `el` leaves its document for any reason: its page unmounted, its
+ * layer rebuilt, or an ancestor removed. Already detached, it calls on the next microtask.
+ * Returns the stop function.
+ */
+export function watchDetached(el: Element, onDetach: () => void): () => void {
+  let done = false
+  const fire = (): void => {
+    if (done || el.isConnected) return
+    done = true
+    observer.disconnect()
+    onDetach()
+  }
+  const observer = new MutationObserver(fire)
+  observer.observe(el.ownerDocument, { childList: true, subtree: true })
+  if (!el.isConnected) queueMicrotask(fire)
+  return () => {
+    done = true
+    observer.disconnect()
+  }
+}
