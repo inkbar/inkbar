@@ -40,7 +40,7 @@ describe('InkDocument.search', () => {
     const hit = hits[0]!
     expect(hit.text).toBe('Invoice')
     expect(hit.quads).toHaveLength(2)
-    const runs = [items[0]!.rect, items[1]!.rect]
+    const runs = ['Inv', 'oice'].map((str) => items.find((i) => i.str === str)!.rect)
     const left = Math.min(...runs.map((r) => r.x))
     const right = Math.max(...runs.map((r) => r.x + r.width))
     expect(hit.rect.x).toBeCloseTo(left, 1)
@@ -77,6 +77,10 @@ describe('InkDocument.search', () => {
     const hits = await doc.search('right column').all()
     expect(hits).toHaveLength(1)
     expect(hits[0]!.rect.x).toBeGreaterThan(300)
+    // The columns sit on one baseline: the gap between them is a space, not a join.
+    expect(await doc.search('columnright').all()).toEqual([])
+    expect(await doc.search('lineright').all()).toEqual([])
+    expect(await doc.search('column right', { wholeWord: true }).all()).toHaveLength(1)
     doc.destroy()
   })
 

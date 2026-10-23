@@ -204,6 +204,14 @@ describe('openDocument', () => {
     const text = await search.pageText(0)
     expect(text).toContain('Invoice')
     expect(text).not.toContain('  ')
+    // The hyphen and line break stay in the page text; search joins them.
+    expect(text).toContain('docu- ment')
+    expect((await search.search('document').all()).map((h) => h.text)).toEqual([
+      'docu- ment',
+    ])
+    // Two columns on one baseline read as separate words.
+    expect(text).toMatch(/left column right column/)
+    expect(text).not.toMatch(/column(right|left)/)
     search.destroy()
   })
 })

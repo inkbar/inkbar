@@ -13,12 +13,12 @@ function item(
   str: string,
   x: number,
   width: number,
-  opts: Partial<Pick<TextItem, 'hasEOL'>> & { y?: number } = {}
+  opts: Partial<Pick<TextItem, 'hasEOL' | 'dir'>> & { y?: number } = {}
 ): TextItem {
   const y = opts.y ?? 100
   return {
     str,
-    dir: 'ltr',
+    dir: opts.dir ?? 'ltr',
     fontName: 'f',
     fontSize: SIZE,
     hasEOL: opts.hasEOL ?? false,
@@ -174,5 +174,25 @@ describe('matchPage', () => {
     expect(hits[0]!.text).toBe('invoice')
     expect(st.raw.slice(hits[0]!.start, hits[0]!.end)).toBe('invoice')
     expect(matchPage(st, 'ISTANBUL', OPTS)).toHaveLength(1)
+    const [lower] = matchPage(st, 'istanbul', OPTS)
+    expect(lower).toMatchObject({ text: 'İstanbul', start: 3, end: 11 })
+  })
+
+  it('finds a word in the second of two RTL items, inside that item', () => {
+    // Read right to left: "שלום " sits right of "עולם" on the line.
+    const second = item('עולם', 0, 30, { dir: 'rtl' })
+    const st = page(item('שלום ', 40, 35, { dir: 'rtl' }), second)
+    expect(st.raw).toBe('שלום עולם')
+    const hits = matchPage(st, 'עולם', OPTS)
+    expect(hits).toHaveLength(1)
+    expect(hits[0]).toMatchObject({ text: 'עולם', start: 5, end: 9 })
+    const run = rectFromQuad(second.quad)
+    for (const q of hits[0]!.quads)
+      for (const p of [q.p1, q.p2, q.p3, q.p4]) {
+        expect(p.x).toBeGreaterThanOrEqual(run.x)
+        expect(p.x).toBeLessThanOrEqual(run.x + run.width)
+        expect(p.y).toBeGreaterThanOrEqual(run.y)
+        expect(p.y).toBeLessThanOrEqual(run.y + run.height)
+      }
   })
 })
