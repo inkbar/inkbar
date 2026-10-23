@@ -37,6 +37,7 @@ export interface EmbeddedSummary {
   supported: boolean
 }
 
+/** An RGB colour in 0–255 as upper-case `#RRGGBB`; `fallback` when it has fewer than three parts. */
 export function pdfColorToHex(
   c: ArrayLike<number> | null | undefined,
   fallback: string

@@ -42,14 +42,16 @@ export interface WidgetAppearance {
   font?: { family: string; fontWeight?: 'bold'; fontStyle?: 'italic' }
   /** Points; 0 means auto size. */
   fontSize: number
-  /** `#rrggbb`. */
+  /** Upper-case `#RRGGBB`, as `pdfColorToHex` gives it. */
   color?: string
   align: 'left' | 'center' | 'right'
   border?: {
+    /** Upper-case `#RRGGBB`. */
     color?: string
     width: number
     style: 'solid' | 'dashed' | 'beveled' | 'inset' | 'underline'
   }
+  /** Upper-case `#RRGGBB`. */
   background?: string
   /** A push button's `/MK /CA`. */
   caption?: string
@@ -122,7 +124,7 @@ export interface WidgetOverride {
   hidden?: boolean
   readOnly?: boolean
   required?: boolean
-  /** `#rrggbb`, or `transparent` for none. */
+  /** Lower-case `#rrggbb`, or `transparent` for none. */
   textColor?: string
   fillColor?: string
   strokeColor?: string

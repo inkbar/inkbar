@@ -44,6 +44,7 @@ export interface FormExtras {
   lockAll: boolean
   /** Page `/Tabs`, by page index, for pages that set one. */
   tabs: Map<number, 'R' | 'C' | 'S' | 'W'>
+  /** What each widget's own dictionary adds, by PDF.js widget id (`12R`). */
   widgets: Map<string, WidgetExtras>
   /** Page index of a GoTo action's explicit destination, by widget id. */
   destPages: Map<string, number>

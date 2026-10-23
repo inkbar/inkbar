@@ -15,7 +15,8 @@ export function safeUrl(url: string): string | undefined {
 
 /**
  * A mail address, kept unless it reads as a URL with another scheme (a script passing
- * `javascript:…` as a recipient).
+ * `javascript:…` as a recipient). A `mailto:` or `tel:` prefix is kept as it was given, not
+ * stripped, so the host may see `mailto:a@example.com` as a recipient.
  */
 export function safeAddress(address: string): string | undefined {
   try {
