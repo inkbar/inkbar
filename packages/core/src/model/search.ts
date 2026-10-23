@@ -1,6 +1,8 @@
 import { rectFromQuads, type Point, type Quad, type Rect } from './geometry'
 import { isBlankQuery, normalizeQuery, type SearchableText } from './search-text'
 
+import type { TextItem } from './text'
+
 /** How much page text `before` and `after` carry on each side of a hit. */
 export const CONTEXT_CHARS = 40
 
@@ -88,10 +90,15 @@ const lerp = (a: Point, b: Point, t: number): Point => ({
   y: a.y + (b.y - a.y) * t,
 })
 
-/** The part of an item's quad from character `a` to `b` of `len`, cut along its baseline. */
-function cutQuad(q: Quad, a: number, b: number, len: number): Quad {
-  const t0 = a / len
-  const t1 = b / len
+/**
+ * The part of an item's quad from character `a` to `b`, cut along its baseline at the item's
+ * measured `advances`, or at an equal share per character when it has none.
+ */
+function cutQuad(it: TextItem, a: number, b: number): Quad {
+  const q = it.quad
+  const len = it.str.length
+  const t0 = it.advances ? it.advances[a]! : a / len
+  const t1 = it.advances ? it.advances[b]! : b / len
   return {
     p1: lerp(q.p1, q.p2, t0),
     p2: lerp(q.p1, q.p2, t1),
@@ -115,7 +122,7 @@ function quadsFor(st: SearchableText, start: number, end: number): Quad[] {
   const quads: Quad[] = []
   for (const [i, [a, b]] of spans) {
     const it = st.content.items[i]!
-    quads.push(cutQuad(it.quad, a, b, it.str.length))
+    quads.push(cutQuad(it, a, b))
   }
   return quads
 }
