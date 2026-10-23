@@ -80,7 +80,7 @@ const props = withDefaults(
      * a document opens, as for `annotations`.
      */
     fields?: FieldValues | undefined
-    /** Tints fillable form fields. Default true. Read when the viewer is built for a document. */
+    /** Tints fillable form fields. Default true. A change applies to the open document in place. */
     formHighlight?: boolean | undefined
     tool?: ToolId | undefined
     /**
