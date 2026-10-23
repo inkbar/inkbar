@@ -23,6 +23,7 @@ import { createPluginHost, type PluginHost } from '../plugins/host'
 import { createFocusReturn } from '../popover-focus'
 import {
   createSearchController,
+  viewerSearchOf,
   type SearchController,
   type ViewerSearch,
 } from '../search/controller'
@@ -185,15 +186,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     viewport: () => viewport.get(),
   })
   /** What callers get: the actions, not the bar registration. */
-  const viewerSearch: ViewerSearch = {
-    state: search.state,
-    open: (query) => search.open(query),
-    setQuery: (query) => search.setQuery(query),
-    setMatchCase: (on) => search.setMatchCase(on),
-    next: () => search.next(),
-    previous: () => search.previous(),
-    close: () => search.close(),
-  }
+  const viewerSearch: ViewerSearch = viewerSearchOf(search)
   root.addEventListener('keydown', (e) => {
     handleFindKey(e, search, () => pageSelectionText(root))
   })

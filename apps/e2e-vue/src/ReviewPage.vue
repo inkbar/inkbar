@@ -15,12 +15,14 @@ import { createFakeServer } from '@inkbar/e2e-shared/fake-server'
 import { recordReady } from '@inkbar/e2e-shared/metrics'
 import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
 import {
+  InkFindBar,
   InkNextPage,
   InkThreadPopover,
   InkPageCount,
   InkPageInput,
   InkPrevPage,
   InkRoot,
+  InkSearchButton,
   InkToolbar,
   InkToolButton,
   InkViewport,
@@ -195,6 +197,7 @@ async function newVersion(): Promise<void> {
         <InkToolButton tool="highlight" />
         <InkToolButton tool="redact-area" />
         <InkToolButton tool="note" />
+        <InkSearchButton />
         <div class="sandbox-actions" role="group" aria-label="Review">
           <button type="button" data-testid="resign" @click="resign">Re-sign</button>
           <button type="button" data-testid="new-version" @click="newVersion">
@@ -216,6 +219,7 @@ async function newVersion(): Promise<void> {
         <InkZoomIn />
       </InkToolbar>
       <InkThreadPopover />
+      <InkFindBar />
     </div>
     <p
       class="sandbox-status"

@@ -135,6 +135,8 @@ function setup(): void {
     // The engine adds the plugins' tools and layers, and decorates through the host, which
     // reads `decorateAnnotation` first.
     ...(ctx.pluginHost.value ? { plugins: ctx.pluginHost.value } : {}),
+    // The engine draws the search matches on the pages.
+    ...(ctx.search.value ? { search: ctx.search.value } : {}),
     // Read through, so the watch below can re-apply a new function without a rebuild.
     decorateAnnotation: (a) => ctx.decorateAnnotation.value?.(a),
     ...(ctx.toolStyle.value ? { toolStyle: ctx.toolStyle.value } : {}),

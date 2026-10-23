@@ -237,3 +237,21 @@ export function createSearchController(opts: SearchControllerOptions): SearchCon
     },
   }
 }
+
+/**
+ * The actions and state of `controller` without the bar registration: what callers of a viewer
+ * or a plugin get.
+ *
+ * @internal Shared with the framework bindings.
+ */
+export function viewerSearchOf(controller: SearchController): ViewerSearch {
+  return {
+    state: controller.state,
+    open: (query) => controller.open(query),
+    setQuery: (query) => controller.setQuery(query),
+    setMatchCase: (on) => controller.setMatchCase(on),
+    next: () => controller.next(),
+    previous: () => controller.previous(),
+    close: () => controller.close(),
+  }
+}

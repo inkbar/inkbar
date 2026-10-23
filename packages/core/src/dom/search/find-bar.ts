@@ -10,22 +10,9 @@ import { button } from '../viewer/controls'
 import { searchControllerOf, onViewerDestroy, type Viewer } from '../viewer/create-viewer'
 import { h } from '../viewer/dom'
 
+import { findAnnouncement, findCountText } from './find-text'
+
 import type { SearchState } from './controller'
-
-/** The count beside the field: "3 of 17", "3 of 12…" while scanning, "No results". */
-function countText(s: SearchState): string {
-  if (s.query === '') return ''
-  if (s.hits.length === 0) return s.scanning ? '' : 'No results'
-  return `${s.current + 1} of ${s.hits.length}${s.scanning ? '…' : ''}`
-}
-
-/** The announcement for a settled scan, or '' while there is nothing to say. */
-function announcement(s: SearchState): string {
-  if (!s.open || s.scanning || s.query === '') return ''
-  const hit = s.hits[s.current]
-  if (!hit) return 'No results'
-  return `Match ${s.current + 1} of ${s.hits.length}, page ${hit.page + 1}`
-}
 
 /**
  * The find bar for `viewer`: a field, the match count, previous and next, a match-case toggle
@@ -134,9 +121,9 @@ export function createFindBar(viewer: Viewer): HTMLElement {
       // A query set from code arrives after the bar opened: keep the new text selected.
       if (bar.ownerDocument.activeElement === field) field.select()
     }
-    count.textContent = countText(s)
+    count.textContent = findCountText(s)
     matchCase.setAttribute('aria-pressed', String(s.matchCase))
-    const say = announcement(s)
+    const say = findAnnouncement(s)
     if (say !== announced) {
       announced = say
       live.textContent = say
