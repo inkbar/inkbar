@@ -1,6 +1,7 @@
 import {
   InkColorMenu,
   InkCommand,
+  InkFindBar,
   InkHighlightMenu,
   InkLineStyleMenu,
   InkNextPage,
@@ -9,6 +10,7 @@ import {
   InkPrevPage,
   InkRedo,
   InkRoot,
+  InkSearchButton,
   InkShapeMenu,
   InkSignatureMenu,
   InkTextStyleMenu,
@@ -69,11 +71,13 @@ export function Demo({ source }: { source: DocumentSource }) {
         </div>
         <InkUndo />
         <InkRedo />
+        <InkSearchButton />
         <div className="demo-actions" role="group" aria-label="Suggest">
           <InkCommand id="sandbox.suggest" />
         </div>
       </InkToolbar>
       <InkViewport />
+      <InkFindBar />
       <InkToolbar label="Page and zoom" className="demo-status-bar">
         <div className="demo-group" role="group" aria-label="Page">
           <InkPrevPage />

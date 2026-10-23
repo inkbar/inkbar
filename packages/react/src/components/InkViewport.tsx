@@ -120,6 +120,8 @@ export function InkViewport({
       // The engine adds the plugins' tools and layers, and decorates through the host, which
       // reads `decorateAnnotation` first.
       ...(c.pluginHost ? { plugins: c.pluginHost } : {}),
+      // The highlights draw from the shared search.
+      ...(c.search ? { search: c.search } : {}),
       // Reads InkRoot's current prop; the effect below re-applies it when it changes.
       decorateAnnotation: (a) => latest.current.ctx.decorateAnnotation(a),
       ...(c.toolStyle ? { toolStyle: c.toolStyle } : {}),
@@ -182,7 +184,7 @@ export function InkViewport({
       c.setViewport(null, null)
       setPages((prev) => (prev.length === 0 ? prev : []))
     }
-  }, [ctx.document, ctx.status.state, ctx.pluginHost, latest])
+  }, [ctx.document, ctx.status.state, ctx.pluginHost, ctx.search, latest])
 
   // The plugins' `root`. A layout effect, so it is set before the build above runs.
   const { viewportEl } = ctx
