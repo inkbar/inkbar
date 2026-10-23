@@ -55,8 +55,13 @@ function lineGap(prev: TextItem, next: TextItem): { gap: number; sameLine: boole
   const len = Math.hypot(dx, dy)
   const ux = len === 0 ? 1 : dx / len
   const uy = len === 0 ? 0 : dy / len
-  const sx = next.quad.p3.x - prev.quad.p4.x
-  const sy = next.quad.p3.y - prev.quad.p4.y
+  // Boxes run along the baseline whatever the text direction, so right-to-left text reads from
+  // the end of one box back to the start of the one before it.
+  const rtl = prev.dir === 'rtl' && next.dir === 'rtl'
+  const from = rtl ? next.quad.p4 : prev.quad.p4
+  const to = rtl ? prev.quad.p3 : next.quad.p3
+  const sx = to.x - from.x
+  const sy = to.y - from.y
   const size = Math.max(prev.fontSize, next.fontSize)
   return {
     gap: sx * ux + sy * uy,
