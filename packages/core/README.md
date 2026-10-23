@@ -358,7 +358,7 @@ doc.form.set({ name: 'Grace' }) // runs the scripts; one undo step
 doc.form.reset() // every field back to the PDF's default
 ```
 
-Pass `fields: { mode: 'controlled', initial, onChange }` to `openDocument` or `createViewer` to hold the values in your own state. The form never submits, opens a link, sends mail or prints. `onFormAction` hands each request to you.
+Pass `fields: { mode: 'controlled', initial, onChange }` to `openDocument` or `createViewer` to hold the values in your own state. The form never submits, opens a link, sends mail or prints. It hands each request to you: through `onFormAction` on `createViewer` or `mountViewer`, or through `doc.form.on('action', fn)` on a document you opened with `openDocument`.
 
 Each fillable field has a light tint. `formHighlight: false` turns it off when the viewer opens. To change it later, call `viewer.setFormHighlight(on)` on a `createViewer` viewer, or `engine.setFormHighlight(on)` on a `mountViewer` engine. Neither renders a page again, and a focused field keeps its focus and typed text.
 
