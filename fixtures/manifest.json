@@ -267,6 +267,15 @@
       "Widget": 3
     }
   },
+  "form-structure": {
+    "file": "form-structure.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Three text fields (first, second, third, in that /Annots and top-to-bottom order) on a page with /Tabs S, whose structure tree lists third, then first, and leaves second out",
+    "annotations": {
+      "Widget": 3
+    }
+  },
   "incremental-saved": {
     "file": "incremental-saved.pdf",
     "pages": 1,

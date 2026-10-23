@@ -96,6 +96,20 @@ describe('tabOrder', () => {
     expect(tabOrder([xs, ys], new Map([[0, 'S']]), [page(0)])).toEqual(['x1', 'y1', 'x2'])
   })
 
+  it('structure order on /Tabs S, then the widgets the tree leaves out', () => {
+    const list = fields(
+      ['a', 0, 72, 700],
+      ['b', 0, 72, 600],
+      ['c', 0, 72, 500],
+      ['d', 0, 72, 400]
+    )
+    expect(
+      tabOrder(list, new Map([[0, 'S']]), [page(0)], new Map([[0, ['c', 'x', 'a']]]))
+    ).toEqual(['c', 'a', 'b', 'd'])
+    // No tree: /Annots order.
+    expect(tabOrder(list, new Map([[0, 'S']]), [page(0)])).toEqual(['a', 'b', 'c', 'd'])
+  })
+
   it('row order on a /Rotate 90 page follows the displayed rows', () => {
     // Turned a quarter clockwise, user space's left edge is the top of the page on screen:
     // a and b share the top row (b further right), and c sits below a.

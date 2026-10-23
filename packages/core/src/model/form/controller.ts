@@ -129,10 +129,16 @@ export interface FormController {
   _scriptValues(values: FieldValues): void
   /** @internal Each page's `/Tabs`, for pages that set one; set with the fields. */
   readonly _tabs: ReadonlyMap<number, 'R' | 'C' | 'S' | 'W'>
+  /**
+   * @internal For each page whose `/Tabs` is `S`, its annotation ids in structure-tree order;
+   * set with the fields.
+   */
+  readonly _structure: ReadonlyMap<number, readonly string[]>
   /** @internal Sets the structure once the file's fields are read, applying any waiting push. */
   _load(
     fields: readonly FormField[],
-    tabs?: ReadonlyMap<number, 'R' | 'C' | 'S' | 'W'>
+    tabs?: ReadonlyMap<number, 'R' | 'C' | 'S' | 'W'>,
+    structure?: ReadonlyMap<number, readonly string[]>
   ): void
   /**
    * @internal Applies values already checked by `fieldsFromGloss`, as an import: neither the
@@ -247,6 +253,7 @@ export function createFormController(opts: FormControllerOptions): FormControlle
   let widgets = new Map<string, FormWidget>()
   let loaded = false
   let tabs: ReadonlyMap<number, 'R' | 'C' | 'S' | 'W'> = new Map()
+  let structure: ReadonlyMap<number, readonly string[]> = new Map()
   /** A push that arrived before the fields loaded. */
   let waiting: FieldValues | undefined
   let scripting: FormScripting | undefined
@@ -434,10 +441,12 @@ export function createFormController(opts: FormControllerOptions): FormControlle
 
   const load = (
     list: readonly FormField[],
-    pageTabs?: ReadonlyMap<number, 'R' | 'C' | 'S' | 'W'>
+    pageTabs?: ReadonlyMap<number, 'R' | 'C' | 'S' | 'W'>,
+    pageStructure?: ReadonlyMap<number, readonly string[]>
   ) => {
     loaded = true
     tabs = pageTabs ?? new Map()
+    structure = pageStructure ?? new Map()
     fields.set(list)
     byName = new Map(list.map((f) => [f.name, f]))
     byWidget = new Map(list.flatMap((f) => f.widgets.map((w) => [w.id, f] as const)))
@@ -742,6 +751,9 @@ export function createFormController(opts: FormControllerOptions): FormControlle
     },
     get _tabs() {
       return tabs
+    },
+    get _structure() {
+      return structure
     },
     _load: load,
     _import(next) {

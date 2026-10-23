@@ -22,7 +22,8 @@
 // A checkbox or radio has both its on and off appearances drawn, and shows the one for its
 // state: a toggle, like an edit, paints nothing.
 //
-// The widget boxes are in the page's Tab order (its `/Tabs`, else `/Annots` order), so Tab
+// The widget boxes are in the page's Tab order (its `/Tabs`: rows, columns or the structure
+// tree, else `/Annots` order), so Tab
 // within a page is the browser's own. A radio group is one stop: its chosen radio, else its
 // first. The engine moves Tab on from a page's last stop to the next page's first. The
 // appearances stack in `/Annots` order, as the file paints its widgets.
@@ -275,7 +276,8 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
       entries.map((e) => e.widget),
       form._tabs.get(page),
       doc.pages[page],
-      page
+      page,
+      form._structure.get(page)
     ).map((id, i) => [id, i])
   )
   // The appearances paint in `/Annots` order, as the file stacks its widgets.

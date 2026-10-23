@@ -4,6 +4,7 @@ import { destinationPage } from '../pdfjs/destinations'
 import { pageGlyphs } from '../pdfjs/glyphs'
 import { assertAssets, loadPdfjs, openProxy } from '../pdfjs/load'
 import { createFormScripting } from '../pdfjs/scripting'
+import { structureAnnotationOrder } from '../pdfjs/structure'
 
 import { staticDefaults, type AnnotationDefaults } from './annotations/defaults'
 import {
@@ -177,9 +178,15 @@ export async function openDocument(
   /** Embedded annotations whose PDF.js data lacks fields the file holds; read after `ready`. */
   const targets: EmbeddedTarget[] = []
   /** The file's form fields and what was read for them from its objects, filled before `ready`. */
-  const formData: { fields: FormField[]; extras: FormExtras } = {
+  const formData: {
+    fields: FormField[]
+    extras: FormExtras
+    /** Annotation ids in structure order, for pages whose `/Tabs` is `S`. */
+    structure: Map<number, string[]>
+  } = {
     fields: [],
     extras: emptyFormExtras(),
+    structure: new Map(),
   }
   const fieldsMode = options.fields ?? { mode: 'uncontrolled' }
   /** One undo step once the history exists, which is after `ready`. */
@@ -271,8 +278,15 @@ export async function openDocument(
         { destinationPage: (name) => destinationPage(proxy, name) }
       )
       formData.fields = buildFormFields(widgets, formData.extras)
+      // A page whose `/Tabs` is `S` is read in its structure tree's order.
+      for (const [page, order] of formData.extras.tabs)
+        if (order === 'S')
+          formData.structure.set(
+            page,
+            await structureAnnotationOrder(await getPage(page))
+          )
     }
-    form._load(formData.fields, formData.extras.tabs)
+    form._load(formData.fields, formData.extras.tabs, formData.structure)
     // Scripts start before `ready`, so the form a host first sees has run its open scripts,
     // and they are not an undo step. Only a document with fields and JavaScript loads the
     // sandbox; one without fields does no extra work. A failure, or a sandbox that does not

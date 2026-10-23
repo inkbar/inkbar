@@ -33,6 +33,7 @@ export const FIXTURE_NAMES = [
   'form-bare-appearances',
   'form-goto',
   'form-range',
+  'form-structure',
   'incremental-saved',
   'object-streams',
   'encrypted-aes',

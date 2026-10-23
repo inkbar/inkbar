@@ -340,7 +340,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     )
     const state = doc.form.widgetState.get()
     const edges = new Map<number, FormWidget>()
-    for (const id of tabOrder(fields, doc.form._tabs, doc.pages)) {
+    for (const id of tabOrder(fields, doc.form._tabs, doc.pages, doc.form._structure)) {
       const w = byId.get(id)
       if (!w || (state[id]?.hidden ?? (w.hidden || w.printOnly))) continue
       if (last || !edges.has(w.page)) edges.set(w.page, w)

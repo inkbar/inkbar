@@ -1646,6 +1646,59 @@ async function scannedNoText() {
   })
 }
 
+async function formStructure() {
+  const { d, font } = await doc()
+  const page = d.addPage([612, 792])
+  page.node.set(PDFName.of('Tabs'), PDFName.of('S'))
+  text(page, font, ['Structure form'], 740)
+  const form = d.getForm()
+  // /Annots order is first, second, third, top to bottom on the page.
+  const names = ['first', 'second', 'third'] as const
+  const fields = names.map((name, i) => {
+    const f = form.createTextField(name)
+    f.addToPage(page, { x: 72, y: 640 - i * 60, width: 200, height: 22 })
+    label(page, font, name, 72, 640 - i * 60, 22)
+    return f
+  })
+  form.updateFieldAppearances(font)
+  addHelv(d, form)
+  // The structure tree reads third, then first; second is not in it.
+  const ctx = d.context
+  const rootRef = ctx.nextRef()
+  const widgetRef = (i: number) => ctx.getObjectRef(widgetDict(fields[i]!))!
+  const elems = [2, 0].map((i, n) => {
+    const ref = ctx.register(
+      ctx.obj({
+        Type: 'StructElem',
+        S: 'Form',
+        P: rootRef,
+        Pg: page.ref,
+        K: ctx.obj({ Type: 'OBJR', Obj: widgetRef(i), Pg: page.ref }),
+      })
+    )
+    widgetDict(fields[i]!).set(PDFName.of('StructParent'), PDFNumber.of(n))
+    return ref
+  })
+  ctx.assign(
+    rootRef,
+    ctx.obj({
+      Type: 'StructTreeRoot',
+      K: elems,
+      ParentTree: ctx.obj({ Nums: [0, elems[0]!, 1, elems[1]!] }),
+      ParentTreeNextKey: 2,
+    })
+  )
+  d.catalog.set(PDFName.of('StructTreeRoot'), rootRef)
+  d.catalog.set(PDFName.of('MarkInfo'), ctx.obj({ Marked: true }))
+  await save('form-structure', d, {
+    pages: 1,
+    opens: true,
+    describes:
+      'Three text fields (first, second, third, in that /Annots and top-to-bottom order) on a page with /Tabs S, whose structure tree lists third, then first, and leaves second out',
+    annotations: { Widget: 3 },
+  })
+}
+
 async function main() {
   mkdirSync(out, { recursive: true })
   const simple = await textSimple()
@@ -1678,6 +1731,7 @@ async function main() {
   await formBareAppearances()
   await formGoto()
   await formRange()
+  await formStructure()
   await incrementalSaved()
   await objectStreams()
   await encrypted('encrypted-aes')

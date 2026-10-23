@@ -75,17 +75,26 @@ export function annotsOrder<T>(
 
 /**
  * One page's widget ids in Tab order: `R` reads rows top to bottom and each row left to right,
- * `C` reads columns left to right and each column top to bottom, and `S`, `W` or no `/Tabs`
- * keep `/Annots` order (PDF.js gives no structure tree, so `S` falls back to it). Positions are
- * taken as the page displays, after its `/Rotate`; without `info` the page is read unturned.
+ * `C` reads columns left to right and each column top to bottom, and `S` follows `structure`
+ * (the page's annotation ids in structure-tree order), with widgets the tree leaves out after
+ * the rest in `/Annots` order. `W`, `A` or no `/Tabs` keep `/Annots` order. Positions are taken
+ * as the page displays, after its `/Rotate`; without `info` the page is read unturned.
  */
 export function pageTabOrder(
   widgets: readonly Pick<FormWidget, 'id' | 'rect' | 'order'>[],
   order: TabsOrder | undefined,
   info: PageInfo | undefined,
-  page = 0
+  page = 0,
+  structure: readonly string[] = []
 ): string[] {
   const listed = annotsOrder(widgets, (w) => w)
+  if (order === 'S') {
+    const at = new Map(structure.map((id, i) => [id, i]))
+    return listed
+      .map((w, i) => ({ id: w.id, i, at: at.get(w.id) ?? Infinity }))
+      .sort((a, b) => a.at - b.at || a.i - b.i)
+      .map((w) => w.id)
+  }
   if (order !== 'R' && order !== 'C') return listed.map((w) => w.id)
   // Only the order matters, so a page without `info` is read through an unturned stand-in of
   // no size.
@@ -113,13 +122,15 @@ export function pageTabOrder(
 }
 
 /**
- * Widget ids in Tab order: pages in order, each by its `/Tabs` (`pageTabOrder`). A page missing
- * from `pages` is read unturned.
+ * Widget ids in Tab order: pages in order, each by its `/Tabs` (`pageTabOrder`), with
+ * `structure` the structure order of each `S` page. A page missing from `pages` is read
+ * unturned.
  */
 export function tabOrder(
   fields: readonly FormField[],
   tabs: ReadonlyMap<number, TabsOrder>,
-  pages: readonly PageInfo[] = []
+  pages: readonly PageInfo[] = [],
+  structure: ReadonlyMap<number, readonly string[]> = new Map()
 ): string[] {
   const byPage = new Map<number, FormWidget[]>()
   for (const field of fields)
@@ -130,5 +141,13 @@ export function tabOrder(
     }
   return [...byPage.keys()]
     .sort((a, b) => a - b)
-    .flatMap((page) => pageTabOrder(byPage.get(page)!, tabs.get(page), pages[page], page))
+    .flatMap((page) =>
+      pageTabOrder(
+        byPage.get(page)!,
+        tabs.get(page),
+        pages[page],
+        page,
+        structure.get(page)
+      )
+    )
 }

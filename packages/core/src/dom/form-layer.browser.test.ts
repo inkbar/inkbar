@@ -1809,6 +1809,20 @@ describe('checkboxes, radios, choices and buttons', () => {
     expect(document.activeElement).toBe(after)
   })
 
+  it('Tab follows the structure tree on /Tabs S', async () => {
+    const doc = await open('form-structure')
+    const ids = (names: string[]) =>
+      names.map((n) => doc.form.fields.get().find((f) => f.name === n)!.widgets[0]!.id)
+    // The tree lists third, then first; second is left out.
+    expect(doc.form._structure.get(0)).toEqual(ids(['third', 'first']))
+    const p = mountPage(doc)
+    expect(
+      p.mount
+        .form!.tabStops()
+        .map((el) => el.closest<HTMLElement>('[data-ink-widget]')!.dataset.inkField)
+    ).toEqual(['third', 'first', 'second'])
+  })
+
   it('Shift+Tab goes back', async () => {
     const { container, engine, fieldOf, pageOf } = await viewer()
     engine.viewport.scrollToPage(1)
