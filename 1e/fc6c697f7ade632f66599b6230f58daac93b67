@@ -1,0 +1,19 @@
+packages/core/src/dom/search/find-bar.ts
+  s_a9eee6338cf60a::t_5aa908b0281083 134-135,138-140
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1efc6c697f7ade632f66599b6230f58daac93b67",
+  "prompts": {},
+  "sessions": {
+    "s_a9eee6338cf60a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c2869588-dbba-445a-be19-91e3d8b07d87",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}

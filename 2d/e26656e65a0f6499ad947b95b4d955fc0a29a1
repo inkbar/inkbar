@@ -1,0 +1,19 @@
+packages/svelte/src/lib/components/InkFindBar.svelte
+  s_a9eee6338cf60a::t_14348451c81ee8 30-32,42,96-138,142-157,159,161-162,164-173,175-210
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2de26656e65a0f6499ad947b95b4d955fc0a29a1",
+  "prompts": {},
+  "sessions": {
+    "s_a9eee6338cf60a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c2869588-dbba-445a-be19-91e3d8b07d87",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}

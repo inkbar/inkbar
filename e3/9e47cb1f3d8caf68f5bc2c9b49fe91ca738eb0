@@ -1,0 +1,22 @@
+packages/react/src/components/FindBar.ct.tsx
+  s_a9eee6338cf60a::t_25378b45cfb777 122-178,180-197
+  s_a9eee6338cf60a::t_14263cb7405832 179
+packages/react/playwright/harness/FindHarness.tsx
+  s_a9eee6338cf60a::t_25378b45cfb777 11,19-29,50-51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e39e47cb1f3d8caf68f5bc2c9b49fe91ca738eb0",
+  "prompts": {},
+  "sessions": {
+    "s_a9eee6338cf60a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c2869588-dbba-445a-be19-91e3d8b07d87",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
