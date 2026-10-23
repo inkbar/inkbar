@@ -26,7 +26,8 @@
 // tree, else `/Annots` order), so Tab
 // within a page is the browser's own. A radio group is one stop: its chosen radio, else its
 // first. The engine moves Tab on from a page's last stop to the next page's first. The
-// appearances stack in `/Annots` order, as the file paints its widgets.
+// appearances, and the boxes over them, stack in `/Annots` order, as the file paints its
+// widgets.
 import { sameValue } from '../model/form/values'
 
 import { createWidgetAppearances, type WidgetAppearances } from './form-appearance'
@@ -248,7 +249,9 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
   element.className = 'ink-form-layer'
   element.dataset.inkFormLayer = ''
   element.dataset.inkFormHighlight = opts.highlight ? 'on' : 'off'
-  element.style.cssText = 'position:absolute;inset:0;pointer-events:none;'
+  // Isolated, so the boxes' z-index orders them among themselves only.
+  element.style.cssText =
+    'position:absolute;inset:0;pointer-events:none;isolation:isolate;'
   host.append(element)
 
   const fields = form.fields.get()
@@ -282,6 +285,9 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
   )
   // The appearances paint in `/Annots` order, as the file stacks its widgets.
   const painted = annotsOrder(entries, (e) => e.widget)
+  // The boxes stack in that order too, whatever their Tab order, so where widgets overlap a
+  // press goes to the one whose appearance shows on top.
+  painted.forEach((e, i) => (e.box.style.zIndex = String(i)))
   entries.sort((a, b) => (order.get(a.widget.id) ?? 0) - (order.get(b.widget.id) ?? 0))
   for (const e of entries) element.append(e.box)
   /** Each radio group's entries on the page, in Tab order. */
