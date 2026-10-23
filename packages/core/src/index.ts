@@ -22,6 +22,7 @@ export type {
 export type { DocumentSource } from './model/source'
 export type { PageInfo, PageRotation } from './model/pages'
 export type { TextContent, TextItem } from './model/text'
+export type { SearchHit, SearchOptions, SearchResults } from './model/search'
 export type { PdfAssets } from './pdfjs/types'
 export * from './model/annotations/types'
 export { FringeSchema, type Fringe } from './model/annotations/callout'

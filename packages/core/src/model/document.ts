@@ -24,7 +24,13 @@ import { InkError, isInkError } from './errors'
 import { createPageCache, type PageCache } from './page-cache'
 import { pageInfoFromProxy, type PageInfo } from './pages'
 import { readonly, writable, type Readable } from './readable'
-import { searchableText } from './search-text'
+import {
+  matchPage,
+  type SearchHit,
+  type SearchOptions,
+  type SearchResults,
+} from './search'
+import { searchableText, type SearchableText } from './search-text'
 import { resolveSource, type DocumentSource } from './source'
 import { textContentFromPdfjs, type TextContent } from './text'
 
@@ -79,8 +85,13 @@ export interface InkDocument {
   readonly pages: readonly PageInfo[]
   readonly info: DocumentInfo
   text(page: number): Promise<TextContent>
-  /** The page's text items joined with a single space. */
+  /** The page's text as search sees it: items joined the way the page reads. */
   pageText(page: number): Promise<string>
+  /**
+   * Finds `query` in the document's text, a page at a time. A string matches ignoring case,
+   * accents and quote style; a `RegExp` runs on the same normalised text.
+   */
+  search(query: string | RegExp, opts?: SearchOptions): SearchResults
   /**
    * Annotations embedded in the file arrive here as `source: 'pdf'`, `locked: true` before
    * `ready` resolves. They stay in `list` in both modes and cannot be removed; in controlled
@@ -240,6 +251,52 @@ export async function openDocument(
     () => undefined
   )
 
+  const searchable = new Map<number, Promise<SearchableText>>()
+  const abortError = (signal: AbortSignal | undefined): unknown =>
+    signal?.reason ?? new DOMException('Aborted', 'AbortError')
+  const searchableFor = (page: number): Promise<SearchableText> => {
+    let cached = searchable.get(page)
+    if (!cached) {
+      cached = doc.text(page).then(searchableText)
+      searchable.set(page, cached)
+      // A failed page is not cached: the next search asks again.
+      cached.catch(() => searchable.delete(page))
+    }
+    return cached
+  }
+
+  async function* scan(
+    query: string | RegExp,
+    opts: SearchOptions
+  ): AsyncGenerator<SearchHit> {
+    const { signal } = opts
+    const matchOpts = {
+      matchCase: opts.matchCase ?? false,
+      wholeWord: opts.wholeWord ?? false,
+    }
+    const order = opts.pages ?? Array.from({ length: pages.length }, (_, i) => i)
+    const check = () => {
+      if (signal?.aborted || destroyed) throw abortError(signal)
+    }
+    check()
+    for (let n = 0; n < order.length; n++) {
+      if (n > 0) await new Promise<void>((r) => setTimeout(r))
+      check()
+      let st: SearchableText
+      try {
+        st = await searchableFor(order[n]!)
+      } catch (error) {
+        check()
+        throw error
+      }
+      check()
+      for (const hit of matchPage(st, query, matchOpts)) {
+        yield hit
+        check()
+      }
+    }
+  }
+
   const doc: InkDocument = {
     key: resolved.key,
     status: readonly(status),
@@ -254,6 +311,16 @@ export async function openDocument(
     },
     async pageText(page) {
       return searchableText(await doc.text(page)).raw
+    },
+    search(query, opts = {}) {
+      return {
+        [Symbol.asyncIterator]: () => scan(query, opts),
+        async all() {
+          const hits: SearchHit[] = []
+          for await (const hit of scan(query, opts)) hits.push(hit)
+          return hits
+        },
+      }
     },
     annotations: store,
     embedded,
@@ -287,6 +354,7 @@ export async function openDocument(
       history.destroy()
       store.destroy()
       pageCache?.clear()
+      searchable.clear()
       if (destroyTask) {
         teardown(destroyTask)
       }
