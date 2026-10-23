@@ -332,10 +332,32 @@ export function createWidgetAppearances(
     return () => clearTimeout(handle)
   }
 
+  // Passes waiting to run, and the one running: one scratch canvas at a time.
+  const jobs: Pass[] = []
+  let running = false
+
+  /**
+   * An idle pass now draws a look a widget shows: `rendered` waits for it, and a queued one
+   * goes before the idle work.
+   */
+  const promote = (pass: Pass) => {
+    if (pass.shown) return
+    pass.shown = true
+    begin()
+    const at = jobs.indexOf(pass)
+    if (at < 0) return
+    jobs.splice(at, 1)
+    const first = jobs.findIndex((j) => !j.shown)
+    jobs.splice(first < 0 ? jobs.length : first, 0, pass)
+  }
+
   const request = (item: Item, look: Look, urgent: boolean) => {
     const slot = slotOf(item, look)
     if (slot.key === key && slot.canvas) return
-    if (slot.pending?.key === key) return
+    if (slot.pending?.key === key) {
+      if (urgent) promote(slot.pending)
+      return
+    }
     if (slot.failedKey === key && slot.failures >= ATTEMPTS) return
     if (slot.queued === key && (!urgent || soon.get(look)?.has(item))) return
     if (slot.pending) drop(slot)
@@ -364,10 +386,6 @@ export function createWidgetAppearances(
   const ensure = (item: Item) => {
     wantedOf(item).forEach((look, i) => request(item, look, i === 0))
   }
-
-  // Passes waiting to run, and the one running: one scratch canvas at a time.
-  const jobs: Pass[] = []
-  let running = false
 
   /** Queues a pass per look, per group of widgets that do not overlap, for `queue`. */
   const flush = (queue: Map<Look, Set<Item>>) => {

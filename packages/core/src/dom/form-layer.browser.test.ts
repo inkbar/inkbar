@@ -519,6 +519,55 @@ describe('form layer', () => {
     expect(shownCanvas(p.host, p.widgetOf('name').id)).toBeDefined()
   })
 
+  it('waits for a look that shows while its idle pass is running', async () => {
+    // The browser goes idle only when the test says so.
+    const idle: (() => void)[] = []
+    vi.spyOn(window, 'requestIdleCallback').mockImplementation((fn) => {
+      idle.push(() => fn({ didTimeout: false, timeRemaining: () => 50 }))
+      return idle.length
+    })
+    const doc = await open('form-fields')
+    const page = await doc._pdfjs.getPage(0)
+    const render = page.render.bind(page)
+    let release!: () => void
+    const hold = new Promise<void>((resolve) => (release = resolve))
+    const gate = { holding: false }
+    vi.spyOn(page, 'render').mockImplementation((params) => {
+      const task = render(params)
+      if (!gate.holding) return task
+      return {
+        ...task,
+        promise: hold.then(() => task.promise),
+        cancel: () => task.cancel(),
+      } as typeof task
+    })
+    // No toggle is on, so every checked look waits for the browser to go idle.
+    doc.form.set({ plan: 'Off' })
+    const p = mountPage(doc)
+    await settled(p)
+    const agree = widgetsOf(doc, 'agree')[0]!
+    const checked = () =>
+      p.host.querySelector(
+        `[data-ink-appearance="${agree.id}"] [data-ink-look="checked"]`
+      )
+    expect(shownCanvas(p.host, agree.id)?.dataset.inkLook).toBe('unchecked')
+    expect(checked()).toBeNull()
+    gate.holding = true
+    // The checked looks' idle pass starts, and is held.
+    expect(idle).toHaveLength(1)
+    idle.splice(0).forEach((fn) => fn())
+    await nextFrame()
+    doc.form.set({ agree: agree.onState! })
+    let done = false
+    void p.mount.form!.rendered.then(() => (done = true))
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(checked()).toBeNull()
+    expect(done).toBe(false)
+    release()
+    await until(() => done)
+    expect(shownCanvas(p.host, agree.id)?.dataset.inkLook).toBe('checked')
+  })
+
   it('touching widgets share a pass', async () => {
     const doc = await open('form-fields')
     const name = widgetsOf(doc, 'name')[0]!
