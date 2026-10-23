@@ -1672,39 +1672,52 @@ async function formStructure() {
   })
   form.updateFieldAppearances(font)
   addHelv(d, form)
-  // The structure tree reads third, then first; second is not in it.
+  // The structure tree reads third, then first; second is not in it. The widgets sit deep in
+  // it (Document > Sect > Form > OBJR), and third's Form element also holds marked content.
   const ctx = d.context
   const rootRef = ctx.nextRef()
+  const docRef = ctx.nextRef()
+  const sectRef = ctx.nextRef()
   const widgetRef = (i: number) => ctx.getObjectRef(widgetDict(fields[i]!))!
+  const objr = (i: number) => ctx.obj({ Type: 'OBJR', Obj: widgetRef(i), Pg: page.ref })
   const elems = [2, 0].map((i, n) => {
     const ref = ctx.register(
       ctx.obj({
         Type: 'StructElem',
         S: 'Form',
-        P: rootRef,
+        P: sectRef,
         Pg: page.ref,
-        K: ctx.obj({ Type: 'OBJR', Obj: widgetRef(i), Pg: page.ref }),
+        K: n === 0 ? ctx.obj([0, objr(i)]) : objr(i),
       })
     )
     widgetDict(fields[i]!).set(PDFName.of('StructParent'), PDFNumber.of(n))
     return ref
   })
+  ctx.assign(sectRef, ctx.obj({ Type: 'StructElem', S: 'Sect', P: docRef, K: elems }))
+  ctx.assign(
+    docRef,
+    ctx.obj({ Type: 'StructElem', S: 'Document', P: rootRef, K: [sectRef] })
+  )
   ctx.assign(
     rootRef,
     ctx.obj({
       Type: 'StructTreeRoot',
-      K: elems,
+      K: [docRef],
       ParentTree: ctx.obj({ Nums: [0, elems[0]!, 1, elems[1]!] }),
       ParentTreeNextKey: 2,
     })
   )
   d.catalog.set(PDFName.of('StructTreeRoot'), rootRef)
   d.catalog.set(PDFName.of('MarkInfo'), ctx.obj({ Marked: true }))
+  // A second page with /Tabs S and no fields: its tree is not read.
+  const blank = d.addPage([612, 792])
+  blank.node.set(PDFName.of('Tabs'), PDFName.of('S'))
+  text(blank, font, ['No fields here'], 740)
   await save('form-structure', d, {
-    pages: 1,
+    pages: 2,
     opens: true,
     describes:
-      'Three text fields (first, second, third, in that /Annots and top-to-bottom order) on a page with /Tabs S, whose structure tree lists third, then first, and leaves second out',
+      'Three text fields (first, second, third, in that /Annots and top-to-bottom order) on a page with /Tabs S, whose structure tree (Document > Sect > Form > OBJR, one Form also holding an MCID) lists third, then first, and leaves second out; a second /Tabs S page has no fields',
     annotations: { Widget: 3 },
   })
 }

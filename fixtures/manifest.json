@@ -269,9 +269,9 @@
   },
   "form-structure": {
     "file": "form-structure.pdf",
-    "pages": 1,
+    "pages": 2,
     "opens": true,
-    "describes": "Three text fields (first, second, third, in that /Annots and top-to-bottom order) on a page with /Tabs S, whose structure tree lists third, then first, and leaves second out",
+    "describes": "Three text fields (first, second, third, in that /Annots and top-to-bottom order) on a page with /Tabs S, whose structure tree (Document > Sect > Form > OBJR, one Form also holding an MCID) lists third, then first, and leaves second out; a second /Tabs S page has no fields",
     "annotations": {
       "Widget": 3
     }

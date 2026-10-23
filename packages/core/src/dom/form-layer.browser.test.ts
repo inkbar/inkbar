@@ -1954,6 +1954,9 @@ describe('checkboxes, radios, choices and buttons', () => {
       names.map((n) => doc.form.fields.get().find((f) => f.name === n)!.widgets[0]!.id)
     // The tree lists third, then first; second is left out.
     expect(doc.form._structure.get(0)).toEqual(ids(['third', 'first']))
+    // Page 1 is S too, but has no fields, so its tree is not read.
+    expect(doc.form._tabs.get(1)).toBe('S')
+    expect(doc.form._structure.has(1)).toBe(false)
     const p = mountPage(doc)
     expect(
       p.mount
