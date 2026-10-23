@@ -2566,6 +2566,19 @@ describe('forms', () => {
     expect(onError.mock.calls.map(([e]) => e.code)).toEqual(['FormScriptError'])
   })
 
+  it('reports an error from while the document opened only after onReady', async () => {
+    vi.spyOn(sandboxLoader, 'load').mockRejectedValue(new Error('offline'))
+    cleanup.push(() => vi.restoreAllMocks())
+    const heard: string[] = []
+    const { viewer } = make('form-scripted', {
+      onReady: () => heard.push('ready'),
+      onError: (e) => heard.push(e.code),
+    })
+    await ready(viewer)
+    await until(() => heard.length > 1)
+    expect(heard).toEqual(['ready', 'FormScriptError'])
+  })
+
   it('controlled fields round-trip through onFieldsChange', async () => {
     const onChange = vi.fn<(next: FieldValues, change: FieldsChange) => void>()
     const { viewer } = make('form-fields', {

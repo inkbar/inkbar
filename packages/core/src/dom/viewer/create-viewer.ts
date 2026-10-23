@@ -296,8 +296,6 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       errors.get(page)?.remove()
       errors.delete(page)
     }
-    // A failed script leaves the form fillable; its error reaches the host.
-    const stopForm = doc.form.on('error', (error) => onError?.(error))
     const mounted = mountViewer({
       ...view,
       plugins: host,
@@ -354,6 +352,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     engine.set(mounted)
     return () => {
       stopForm()
+      stopForm = () => undefined
       signFieldMenu?.close()
       formAlert.close()
       stopList()
@@ -370,6 +369,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   let destroyed = false
   const destroyers: (() => void)[] = []
   let stop: () => void = () => undefined
+  let stopForm: () => void = () => undefined
 
   /** Tears down the open document, if any, and destroys it. */
   function close(): void {
@@ -414,7 +414,11 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
         form.set(doc.form)
         status.set({ state: 'ready' })
         // A status subscriber may have opened another document already.
-        if (load === loads) onReady?.(doc)
+        if (load !== loads) return
+        onReady?.(doc)
+        // A failed script leaves the form fillable; its error reaches the host. Listening
+        // only now replays the errors from while the document opened after `onReady`.
+        if (load === loads) stopForm = doc.form.on('error', (error) => onError?.(error))
       },
       (cause: unknown) => {
         // Only a programmer error (missing assets) rejects; it gets the error state too.
