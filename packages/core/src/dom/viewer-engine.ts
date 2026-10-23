@@ -202,23 +202,35 @@ export interface ViewerEngine {
 const FOCUSABLE =
   'a[href], area[href], button, input, select, textarea, iframe, summary, [tabindex], [contenteditable]'
 
+/** Whether `c` takes focus from Tab: enabled, rendered, visible and not inert. */
+function tabbable(c: HTMLElement): boolean {
+  if (c.matches(':disabled') || c.closest('[inert]') || c.getClientRects().length === 0)
+    return false
+  return c.ownerDocument.defaultView?.getComputedStyle(c).visibility === 'visible'
+}
+
 /**
- * The element sequential focus moves to from `from` (`back`: the one before), in document order:
- * enabled, shown and with a non-negative tabindex. For an element that holds others (`from`
- * being the viewer), its own descendants are skipped. Positive tabindex order is not followed.
+ * The element the browser's Tab moves to from `from` (`back`: Shift+Tab), skipping `from`'s
+ * own descendants (`from` may be the viewer). Forward, that is the next element in document
+ * order with tabindex 0: from a tabindex-0 control the browser never moves to a positive one.
+ * Back, it is the previous tabindex-0 element, else the last of the positive tabindex ones,
+ * which the browser visits first.
  */
 function nextFocusable(from: Element, back: boolean): HTMLElement | undefined {
   const all = [...from.ownerDocument.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
-    (c) =>
-      c.tabIndex >= 0 &&
-      !(c as HTMLButtonElement).disabled &&
-      !c.closest('[inert]') &&
-      c.getClientRects().length > 0 &&
-      !from.contains(c)
+    (c) => c.tabIndex >= 0 && !from.contains(c) && tabbable(c)
   )
   const after = (c: Element) =>
     (from.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
-  return back ? all.filter((c) => !after(c)).at(-1) : all.find(after)
+  const zero = all.filter((c) => c.tabIndex === 0)
+  if (!back) return zero.find(after)
+  const before = zero.filter((c) => !after(c)).at(-1)
+  if (before) return before
+  // Positive tabindex elements go first, by tabindex and then document order.
+  return all
+    .filter((c) => c.tabIndex > 0)
+    .sort((a, b) => a.tabIndex - b.tabIndex)
+    .at(-1)
 }
 
 /** The tools under which form fields take input: the pointer tools, which make nothing. */
@@ -360,8 +372,8 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
   /**
    * Focuses `page`'s edge stop when the page mounts, or on the next animation frame,
    * whichever comes first. Tries once; when the page still has no stop, Tab goes where the
-   * browser would have taken it from `from`: the next focusable element (`back`: the one
-   * before), or the next one past the viewer when `from` has unmounted.
+   * browser would have taken it from `from` (`nextFocusable`), or past the viewer when `from`
+   * has unmounted. With nowhere to go, focus returns to the document.
    */
   function awaitTabStop(page: number, back: boolean, from: Element): void {
     tabWait?.cancel()
@@ -372,8 +384,16 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
         wait.cancel()
         if (destroyed) return
         const stop = edgeStop(page, back)
-        if (stop) stop.focus()
-        else nextFocusable(from.isConnected ? from : el, back)?.focus()
+        if (stop) {
+          stop.focus()
+          return
+        }
+        const next = nextFocusable(from.isConnected ? from : el, back)
+        if (next) next.focus()
+        // Nothing to move to: give focus back to the document, as the browser would leave the
+        // page, so the next Tab starts over from there.
+        else if (from instanceof HTMLElement && from.isConnected) from.blur()
+        else (el.ownerDocument.activeElement as HTMLElement | null)?.blur()
       },
       cancel: () => {
         cancelAnimationFrame(frame)

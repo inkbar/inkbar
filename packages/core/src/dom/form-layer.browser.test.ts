@@ -1803,10 +1803,18 @@ describe('checkboxes, radios, choices and buttons', () => {
     const { container, engine, fieldOf } = await viewer()
     // The view never gets to page 1.
     vi.spyOn(engine.viewport, 'scrollToRect').mockImplementation(() => undefined)
+    // Passed over: a positive tabindex, a hidden button and one in a disabled fieldset.
+    const positive = document.createElement('button')
+    positive.tabIndex = 2
+    const hidden = document.createElement('button')
+    hidden.style.visibility = 'hidden'
+    const fieldset = document.createElement('fieldset')
+    fieldset.disabled = true
+    fieldset.append(document.createElement('button'))
     const after = document.createElement('button')
     after.textContent = 'after'
-    container.after(after)
-    cleanup.push(() => after.remove())
+    container.after(positive, hidden, fieldset, after)
+    cleanup.push(() => [positive, hidden, fieldset, after].forEach((e) => e.remove()))
     const reset = container.querySelector<HTMLElement>('[data-ink-field="reset"] button')!
     reset.focus({ preventScroll: true })
     await nextFrame()
@@ -1815,6 +1823,56 @@ describe('checkboxes, radios, choices and buttons', () => {
     await until(() => document.activeElement !== reset)
     expect(fieldOf(document.activeElement)).toBeUndefined()
     expect(document.activeElement).toBe(after)
+  })
+
+  it('Shift+Tab moves back to the previous focusable when the page before never mounts', async () => {
+    const { container, engine, fieldOf } = await viewer()
+    engine.viewport.scrollToPage(1)
+    const first = () =>
+      container.querySelector<HTMLInputElement>(
+        '.ink-page[data-page="1"] [data-ink-field="header.ref"] input'
+      )
+    await until(() => first() !== null)
+    // Just past page 0, so it unmounts.
+    await until(() => {
+      container.scrollTop += 40
+      return !engine.pages.has(0) && first() !== null
+    })
+    vi.spyOn(engine.viewport, 'scrollToRect').mockImplementation(() => undefined)
+    const before = document.createElement('button')
+    before.textContent = 'before'
+    const positive = document.createElement('button')
+    positive.tabIndex = 3
+    container.before(positive, before)
+    cleanup.push(() => (positive.remove(), before.remove()))
+    first()!.focus({ preventScroll: true })
+    await userEvent.keyboard('{Shift>}{Tab}{/Shift}')
+    await until(() => fieldOf(document.activeElement) === undefined)
+    expect(document.activeElement).toBe(before)
+    // With no tabindex-0 element before, the last positive one.
+    before.remove()
+    first()!.focus({ preventScroll: true })
+    await userEvent.keyboard('{Shift>}{Tab}{/Shift}')
+    await until(() => fieldOf(document.activeElement) === undefined)
+    expect(document.activeElement).toBe(positive)
+  })
+
+  it('Tab gives focus back to the document when nothing follows an unmounted page', async () => {
+    const { container, engine } = await viewer()
+    vi.spyOn(engine.viewport, 'scrollToRect').mockImplementation(() => undefined)
+    // Nothing focusable after the viewer.
+    const later = [...document.querySelectorAll<HTMLElement>('body *')].filter(
+      (e) =>
+        (container.compareDocumentPosition(e) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0 &&
+        !container.contains(e)
+    )
+    for (const e of later) e.setAttribute('inert', '')
+    cleanup.push(() => later.forEach((e) => e.removeAttribute('inert')))
+    const reset = container.querySelector<HTMLElement>('[data-ink-field="reset"] button')!
+    reset.focus({ preventScroll: true })
+    await userEvent.keyboard('{Tab}')
+    await until(() => document.activeElement !== reset)
+    expect(document.activeElement).toBe(document.body)
   })
 
   it('Tab follows the structure tree on /Tabs S', async () => {
