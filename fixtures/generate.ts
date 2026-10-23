@@ -1152,6 +1152,11 @@ async function formScripted() {
   )
   action('site', ctx.obj({ S: 'URI', URI: PDFString.of('https://example.com') }))
   action('clear', ctx.obj({ S: 'ResetForm' }))
+  // Runs before the reset, so the press undoes in one step only if both share it.
+  widgetDict(btn.clear!).set(
+    PDFName.of('AA'),
+    ctx.obj({ U: js(ctx, 'this.getField("qty").value = 0') })
+  )
 
   d.addJavaScript('init', 'var formReady = true;')
 
@@ -1162,7 +1167,7 @@ async function formScripted() {
       pages: 1,
       opens: true,
       describes:
-        'Fields with keystroke, format, validate and calculate scripts, a mouse-up script that shows a hidden field, JavaScript and non-JavaScript button actions, and a document-level script',
+        'Fields with keystroke, format, validate and calculate scripts, a mouse-up script that shows a hidden field, JavaScript and non-JavaScript button actions, a reset button whose mouse-up script zeroes qty first, and a document-level script',
       annotations: { Widget: 16 },
     },
     { appearances: false }

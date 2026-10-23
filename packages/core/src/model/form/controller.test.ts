@@ -343,6 +343,36 @@ describe('doc.form', () => {
     doc.destroy()
   })
 
+  it("a reset button's scripts and its reset are one step", async () => {
+    const { doc, form, history } = await openForm()
+    const reset = fields.find((f) => f.name === 'reset')!.widgets[0]!.id
+    form.set({ name: 'Ada', notes: 'mine' })
+    form._step(() => {
+      form._dispatch({ widget: reset, name: 'Mouse Up' })
+      form._dispatch({ widget: reset, name: 'Action' })
+    })
+    expect(form.get('name')).toBe('')
+    history.undo()
+    expect(form.get('name')).toBe('Ada')
+    expect(form.get('notes')).toBe('mine')
+    expect(form.get('email')).not.toBe('up@example.com')
+    history.undo()
+    expect(history.canUndo.get()).toBe(false)
+    doc.destroy()
+  })
+
+  it("an Action's scripts and its reset are one step", async () => {
+    const { doc, form, history } = await openForm()
+    const reset = fields.find((f) => f.name === 'reset')!.widgets[0]!.id
+    form.set({ notes: 'mine' })
+    form._dispatch({ widget: reset, name: 'Action' })
+    history.undo()
+    expect(form.get('notes')).toBe('mine')
+    history.undo()
+    expect(history.canUndo.get()).toBe(false)
+    doc.destroy()
+  })
+
   it('no history when fields are controlled', async () => {
     const doc = await openDocument(await fixtureBytes('form-fields'), {
       assets: nodeAssets(),

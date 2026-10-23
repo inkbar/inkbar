@@ -259,6 +259,26 @@ describe('form scripts', () => {
     expect(history.canUndo.get()).toBe(false)
   })
 
+  it("a reset button's mouse-up script and its reset are one step", async () => {
+    const { form, history } = await open('form-scripted')
+    form.set({ qty: '3', price: '2' })
+    expect(form.get('total')).toBe('6')
+    const clear = widgetOf(form, 'clear')
+    // As the button runs them.
+    form._step(() => {
+      form._dispatch({ widget: clear, name: 'Mouse Up' })
+      form._dispatch({ widget: clear, name: 'Action' })
+    })
+    expect(form.get('qty')).toBeFalsy()
+    expect(form.get('price')).toBeFalsy()
+    history.undo()
+    expect(form.get('qty')).toBe('3')
+    expect(form.get('price')).toBe('2')
+    expect(form.get('total')).toBe('6')
+    history.undo()
+    expect(history.canUndo.get()).toBe(false)
+  })
+
   it('a field typed into and left reverts in the sandbox', async () => {
     const { form } = await open('form-scripted')
     form.set({ qty: '3', price: '2' })

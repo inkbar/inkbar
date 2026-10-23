@@ -23,8 +23,11 @@ export function createButtonWidget(ctx: WidgetViewContext): WidgetView {
   let state: WidgetState | undefined
   el.addEventListener('click', () => {
     if (!state || state.readOnly) return
-    if (widget.hasScripts) form._dispatch({ widget: widget.id, name: 'Mouse Up' })
-    form._dispatch({ widget: widget.id, name: 'Action' })
+    // One undo step: the Mouse Up's and the Action's scripts and the reset it may run.
+    form._step(() => {
+      if (widget.hasScripts) form._dispatch({ widget: widget.id, name: 'Mouse Up' })
+      form._dispatch({ widget: widget.id, name: 'Action' })
+    })
   })
   el.addEventListener('focus', () => form._dispatch({ widget: widget.id, name: 'Focus' }))
   el.addEventListener('blur', () => form._dispatch({ widget: widget.id, name: 'Blur' }))

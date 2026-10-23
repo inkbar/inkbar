@@ -90,12 +90,15 @@ export function createToggleWidget(ctx: WidgetViewContext): WidgetView {
   const activate = () => {
     if (!state || state.readOnly || onState === undefined) return
     const next = radio ? onState : on() ? 'Off' : onState
-    if (next !== state.value) {
-      const result = form.set({ [field.name]: next })
-      ctx.setInvalid(result.rejected.length > 0)
-    }
-    if (widget.hasScripts) form._dispatch({ widget: widget.id, name: 'Mouse Up' })
-    form._dispatch({ widget: widget.id, name: 'Action' })
+    // One undo step: the new state and the scripts its Mouse Up and Action run.
+    form._step(() => {
+      if (next !== state?.value) {
+        const result = form.set({ [field.name]: next })
+        ctx.setInvalid(result.rejected.length > 0)
+      }
+      if (widget.hasScripts) form._dispatch({ widget: widget.id, name: 'Mouse Up' })
+      form._dispatch({ widget: widget.id, name: 'Action' })
+    })
   }
 
   el.addEventListener('click', activate)

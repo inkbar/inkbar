@@ -84,6 +84,11 @@ export interface FormController {
    */
   _dispatch(event: FormEvent): void
   /**
+   * @internal Runs `fn` as one undo step, so a widget's activation (its new value, its Mouse Up
+   * and its Action, with the scripts and reset they run) undoes at once.
+   */
+  _step(fn: () => void): void
+  /**
    * Applies a keystroke to the widget's text as typed so far (its uncommitted text, else the
    * field's value). Without scripting it accepts every keystroke. The uncommitted text is dropped
    * when the field's value changes or the widget blurs.
@@ -584,16 +589,23 @@ export function createFormController(opts: FormControllerOptions): FormControlle
       // Text typed and then left uncommitted is dropped, and the sandbox, which saw each
       // keystroke, goes back to the stored value.
       const abandoned = event.name === 'Blur' && pending.delete(event.widget)
-      if (scripting)
-        reporting(
-          () => {
-            scripting?.dispatch(event)
-            if (abandoned) scripting?.sync(current(), false)
-          },
-          (names) => ({ kind: 'calculate', names })
-        )
       const action = widgets.get(event.widget)?.action
-      if (event.name === 'Action' && action && !destroyed) runAction(action)
+      // An Action's scripts and the reset it runs are one step.
+      batch(() => {
+        if (scripting)
+          reporting(
+            () => {
+              scripting?.dispatch(event)
+              if (abandoned) scripting?.sync(current(), false)
+            },
+            (names) => ({ kind: 'calculate', names })
+          )
+        if (event.name === 'Action' && action && !destroyed) runAction(action)
+      })
+    },
+    _step(fn) {
+      if (destroyed) return
+      batch(fn)
     },
     _keystroke(widget, change, selStart, selEnd) {
       const field = byWidget.get(widget)
