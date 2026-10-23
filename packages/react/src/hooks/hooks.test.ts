@@ -9,6 +9,7 @@ import { InkContextObject, type InkContext } from '../context'
 import { useAnnotations } from './useAnnotations'
 import { useDocument } from './useDocument'
 import { useEmbedded } from './useEmbedded'
+import { useForm } from './useForm'
 import { useHistory } from './useHistory'
 import { usePage } from './usePage'
 import { useSearch } from './useSearch'
@@ -29,6 +30,7 @@ describe('hooks outside InkRoot', () => {
     ['usePage()', usePage],
     ['useHistory()', useHistory],
     ['useEmbedded()', useEmbedded],
+    ['useForm()', useForm],
     ['useToolStyle()', useToolStyle],
     ['useToolOptions()', () => useToolOptions('note')],
   ])('%s throws a readable error', (name, use) => {

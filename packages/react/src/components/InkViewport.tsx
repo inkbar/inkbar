@@ -7,6 +7,10 @@
  * Two-way zoom and page: the viewport's own changes are reported through the context, and
  * the host's props are applied only when they differ from the viewport's state, so the echo
  * of a reported value does nothing.
+ *
+ * Form fields render in the engine's form layer. A signature field's "Sign" opens
+ * `InkSignFieldPopover`, and a form script's alert shows in `InkFormAlert`; both are mounted
+ * here, so hosts compose nothing for them.
  */
 import { mountViewer } from '@inkbar/core/dom'
 import {
@@ -22,13 +26,16 @@ import { cx } from '../class-names'
 import { useInkContext } from '../context'
 import { useLatest } from '../use-latest'
 
+import { InkFormAlert } from './InkFormAlert'
 import { InkPage } from './InkPage'
+import { InkSignFieldPopover } from './InkSignFieldPopover'
 
-import type { InkError } from '@inkbar/core'
+import type { InkDocument, InkError } from '@inkbar/core'
 import type {
   AnnotationSlotProps,
   LayoutMode,
   PageMount,
+  SignFieldRequest,
   ToolId,
   ViewerEngine,
   ViewRotation,
@@ -59,6 +66,19 @@ interface MountedPage {
   error: InkError | null
   /** Whether the build that mounted the page renders the annotation slot. */
   custom: boolean
+}
+
+/** A key per document, so the field menu and its dialog start afresh for each one. */
+const documentKeys = new WeakMap<InkDocument, number>()
+let documentKeyCount = 0
+function documentKey(doc: InkDocument | null): number {
+  if (!doc) return 0
+  let key = documentKeys.get(doc)
+  if (key === undefined) {
+    key = ++documentKeyCount
+    documentKeys.set(doc, key)
+  }
+  return key
 }
 
 export function InkViewport({
@@ -93,6 +113,10 @@ export function InkViewport({
   /** The zoom and page last reported to the host. */
   const lastReportedZoom = useRef<ZoomValue | undefined>(undefined)
   const lastReportedPage = useRef<number | undefined>(undefined)
+  /** The signature field whose menu is open. */
+  const [signRequest, setSignRequest] = useState<SignFieldRequest | null>(null)
+  /** The form script's message on show, and how many have been shown. */
+  const [alert, setAlert] = useState<{ message: string; shown: number } | null>(null)
 
   // Build for a new document or status; tear down on the next change and on unmount.
   useEffect(() => {
@@ -131,6 +155,13 @@ export function InkViewport({
       // Read through, so a new `signatures` store reaches the tool as well as the menus.
       signatureLibrary: () => latest.current.ctx.signatures,
       customAnnotations: cu,
+      ...(c.formHighlight === undefined ? {} : { formHighlight: c.formHighlight }),
+      // The field's own button again, while its menu is open, closes the menu.
+      onSignField: (req) =>
+        setSignRequest((open) => (open?.widget === req.widget ? null : req)),
+      onFormAction: (a) => latest.current.ctx.reportFormAction(a),
+      onFormAlert: (message) =>
+        setAlert((prev) => ({ message, shown: (prev?.shown ?? 0) + 1 })),
       onActivate: (id) => latest.current.ctx.setActivated(id),
       onBuild: (vp, tc) => {
         latest.current.ctx.setViewport(vp, tc)
@@ -183,6 +214,9 @@ export function InkViewport({
       builtWith.current = null
       c.setViewport(null, null)
       setPages((prev) => (prev.length === 0 ? prev : []))
+      // Their fields and the document they came from are gone.
+      setSignRequest(null)
+      setAlert(null)
     }
   }, [ctx.document, ctx.status.state, ctx.pluginHost, ctx.search, latest])
 
@@ -294,6 +328,17 @@ export function InkViewport({
           renderPageError={renderPageError}
         />
       ))}
+      <InkSignFieldPopover
+        key={documentKey(ctx.document)}
+        request={signRequest}
+        onClose={() => setSignRequest(null)}
+      />
+      <InkFormAlert
+        message={alert?.message ?? null}
+        shown={alert?.shown ?? 0}
+        fallback={() => scroll.current}
+        onClose={() => setAlert(null)}
+      />
     </div>
   )
 }

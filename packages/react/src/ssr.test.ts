@@ -66,6 +66,7 @@ describe('@inkbar/react on the server', () => {
         'InkAnnotation',
         'InkCommand',
         'useCommand',
+        'useForm',
       ])
     )
     expect(evaluated.pdfjs).toBe(false)
@@ -75,6 +76,13 @@ describe('@inkbar/react on the server', () => {
     const { definePlugin } = await import('@inkbar/core/dom')
     const setup = vi.fn()
     const plugin = definePlugin({ id: 'sandbox', setup })
+    function FormProbe() {
+      const { fields, values } = entry.useForm()
+      return createElement('output', {
+        'data-fields': fields.length,
+        'data-values': JSON.stringify(values),
+      })
+    }
     const html = renderToString(
       createElement(
         entry.InkRoot,
@@ -97,12 +105,19 @@ describe('@inkbar/react on the server', () => {
           createElement(entry.InkZoomSelect),
           createElement(entry.InkZoomIn)
         ),
-        createElement(entry.InkThreadPopover)
+        createElement(entry.InkThreadPopover),
+        // With the field menu and the form alert it mounts, and a form that is still empty.
+        createElement(entry.InkViewport),
+        createElement(FormProbe)
       )
     )
     expect(html).toContain('data-ink-root')
     expect(html).toContain('data-state="idle"')
     expect(html).toContain('<p>slot</p>')
+    expect(html).toContain('data-ink-viewport-root')
+    expect(html).toContain('<output data-fields="0" data-values="{}"></output>')
+    expect(html).not.toContain('data-ink-form-alert')
+    expect(html).not.toContain('data-ink-sign-field-menu')
     expect(html).toContain('data-ink-toolbar')
     expect(html).toContain('aria-label="Document tools"')
     // Disabled and out of the accessibility tree while it has no name to give.
