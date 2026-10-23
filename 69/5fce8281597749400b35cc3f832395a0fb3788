@@ -1,0 +1,21 @@
+packages/core/src/model/annotations/store.ts
+  s_e6109f66fbb4ed::t_13c923b63f3b6a 105-107,147-152,464-466
+packages/core/src/model/form/sign.test.ts
+  s_e6109f66fbb4ed::t_13a5652389c8e0 170-189
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "695fce8281597749400b35cc3f832395a0fb3788",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}

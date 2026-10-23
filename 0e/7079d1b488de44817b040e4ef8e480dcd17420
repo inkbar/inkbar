@@ -1,0 +1,40 @@
+apps/sandbox/e2e/forms.spec.ts
+  s_e6109f66fbb4ed::t_c2e6c79b3337e2 57-60,63-64
+fixtures/fixtures.test.ts
+  s_e6109f66fbb4ed::t_9f23b7516b70d6 68,73-74
+fixtures/generate.ts
+  s_e6109f66fbb4ed::t_0ceeefba063ce4 1069-1072,1140-1148,1171-1173,1213-1214
+fixtures/manifest.json
+  s_e6109f66fbb4ed::t_10dc378fb3c4b2 193,195
+apps/sandbox/vite/make-sample.test.ts
+  s_e6109f66fbb4ed::t_a6c25a6452de8e 65-66
+apps/sandbox/vite/make-sample.ts
+  s_e6109f66fbb4ed::t_c314aa331ce753 883,907,935
+  s_e6109f66fbb4ed::t_a6c25a6452de8e 886,898-905,909,1049-1054,1060-1063
+packages/core/src/pdfjs/scripting.browser.test.ts
+  s_e6109f66fbb4ed::t_8ed064638c78ee 53-67
+apps/sandbox/package.json
+  s_e6109f66fbb4ed::t_d23912c0e6009f 20
+apps/sandbox/src/shared/form.ts
+  s_e6109f66fbb4ed::t_c2e6c79b3337e2 1-2
+apps/e2e-shared/src/form-actions.ts
+  s_e6109f66fbb4ed::t_d23912c0e6009f 3
+pnpm-lock.yaml
+  s_e6109f66fbb4ed::t_806f9f87232720 416-418
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0e7079d1b488de44817b040e4ef8e480dcd17420",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}

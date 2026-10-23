@@ -1,0 +1,21 @@
+packages/core/src/pdfjs/scripting.browser.test.ts
+  s_e6109f66fbb4ed::t_60b202d822923d 304-307,346-347,349,373-376,379,387,390,498-519
+  s_e6109f66fbb4ed::t_0834cadc4183f9 5-7
+  s_e6109f66fbb4ed::t_4bc73bf67b8c92 520
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b0671ced9bd4c5443889d9a897bde65789ace173",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}

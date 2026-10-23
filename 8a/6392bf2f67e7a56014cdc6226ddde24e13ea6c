@@ -1,0 +1,20 @@
+packages/vue/src/components/InkRoot.vue
+  s_e6109f66fbb4ed::t_dfd4e227afdd9b 342,356
+  s_e6109f66fbb4ed::t_780b9fdf1008af 357,361
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8a6392bf2f67e7a56014cdc6226ddde24e13ea6c",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,27 @@
+packages/vue/src/components/Form.ct.ts
+  s_e6109f66fbb4ed::t_067ea31f345eb4 189-225,254-282
+  s_e6109f66fbb4ed::t_bef74b19bd4a3b 283-284
+packages/vue/src/components/InkSignFieldPopover.vue
+  s_e6109f66fbb4ed::t_2b3d4ee5b44016 7,16,24,40-41,52-56,62-64,75,77,81-83,85,90-100,150
+packages/vue/playwright/harness/FormHarness.vue
+  s_e6109f66fbb4ed::t_067ea31f345eb4 32-33,41,52,64-68,73,96
+packages/vue/src/components/InkViewport.vue
+  s_e6109f66fbb4ed::t_067ea31f345eb4 34,79-91
+  s_e6109f66fbb4ed::t_2b3d4ee5b44016 180-183,344-349
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0e62417ffd6cb901da9898c78db1b276c64376cf",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}

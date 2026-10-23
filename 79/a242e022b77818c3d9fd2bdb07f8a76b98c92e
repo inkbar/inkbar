@@ -1,0 +1,14 @@
+packages/core/src/dom/form-layer.browser.test.ts
+  h_13c4e797d6e9d2 988-993,998-1007
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "79a242e022b77818c3d9fd2bdb07f8a76b98c92e",
+  "prompts": {},
+  "humans": {
+    "h_13c4e797d6e9d2": {
+      "author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+packages/core/src/model/form/controller.test.ts
+  h_13c4e797d6e9d2 376-386
+packages/core/src/model/form/controller.ts
+  h_13c4e797d6e9d2 681-686
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fa01d82bcc0b86d5ba966dea1208410b2de7cf80",
+  "prompts": {},
+  "humans": {
+    "h_13c4e797d6e9d2": {
+      "author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}

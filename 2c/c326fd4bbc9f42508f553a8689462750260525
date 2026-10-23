@@ -1,0 +1,97 @@
+packages/core/src/dom/tools/controller.ts
+  s_e6109f66fbb4ed::t_a8cad3c6309e39 521,528-529
+packages/core/src/pdfjs/render-region.ts
+  s_e6109f66fbb4ed::t_c8eb963a2c5c06 15-17
+packages/core/src/dom/page-renderer.ts
+  s_e6109f66fbb4ed::t_f6455e460ce489 23-28,109,126
+packages/core/src/pdf/form-fields.ts
+  s_e6109f66fbb4ed::t_c8eb963a2c5c06 29,90-102,295
+  s_e6109f66fbb4ed::t_793aa620ac4809 30,296
+packages/core/src/dom/viewer-engine.ts
+  s_e6109f66fbb4ed::t_a8cad3c6309e39 105-109,186-188,191,200,250,253-256,395-399,413,469
+  s_e6109f66fbb4ed::t_dcc76d7b37cb2e 251-252
+packages/core/src/dom/ui.ts
+  s_e6109f66fbb4ed::t_9435a1329ed556 639-646
+packages/vue/tsconfig.json
+  s_e6109f66fbb4ed::t_ae6aefe39a1855 8-14
+packages/core/src/dom/form-layer.ts
+  s_e6109f66fbb4ed::t_729540b2ab0580 169
+  s_e6109f66fbb4ed::t_8520aeba1c7092 1-11,16-17,20-66,71-152,155-168,170-185,203,206-210,212-216,219-224,234,236-292,298-337,339-353,355-359,362-415
+  s_e6109f66fbb4ed::t_7b4a2c60bcb7d0 12-15,67-70,153-154,195-201,204-205,211,217-218,225-233,293-297,354
+  s_e6109f66fbb4ed::t_3917ca4797f2da 186-194,202,338
+  s_e6109f66fbb4ed::t_f2dce98c4ce150 360-361
+  s_e6109f66fbb4ed::t_a3af81d2e6cb29 18-19
+  s_e6109f66fbb4ed::t_671cb1862a2e3d 235
+packages/core/src/model/form/structure.ts
+  s_e6109f66fbb4ed::t_793aa620ac4809 288-289
+packages/core/src/pdfjs/scripting.ts
+  s_e6109f66fbb4ed::t_ad815845168821 313
+  s_e6109f66fbb4ed::t_101314374f022c 146-150,302-312,314-316
+  s_e6109f66fbb4ed::t_61180fdc2a188f 317
+fixtures/generate.ts
+  s_e6109f66fbb4ed::t_be08f464307c95 1002-1005
+  s_e6109f66fbb4ed::t_3b73d1641165ad 1001
+packages/core/src/pdfjs/render-region.browser.test.ts
+  s_e6109f66fbb4ed::t_f0bdf3ee1ef27f 14-16,62-67,71-72
+  s_e6109f66fbb4ed::t_a3af81d2e6cb29 68-70
+packages/svelte/tsconfig.json
+  s_e6109f66fbb4ed::t_ae6aefe39a1855 7-12
+packages/core/src/dom/page-mount.ts
+  s_e6109f66fbb4ed::t_eedd7f10a5c352 41-42,46-47
+  s_e6109f66fbb4ed::t_7b4a2c60bcb7d0 52-56,128
+  s_e6109f66fbb4ed::t_729540b2ab0580 1,27-36,62-63,69-70,113-127,129-130,136,141,147
+packages/core/src/model/form/controller.ts
+  s_e6109f66fbb4ed::t_101314374f022c 87-91,120-122,151-152,470-472
+  s_e6109f66fbb4ed::t_fcc534c80322de 473
+packages/theme/theme.css
+  s_e6109f66fbb4ed::t_d2778686ee532e 47-50,72-74,96-98,367-393
+  s_e6109f66fbb4ed::t_42b6e049c18306 394
+packages/core/src/dom/form-layer.browser.test.ts
+  s_e6109f66fbb4ed::t_a3af81d2e6cb29 413-415,417-419,569,573
+  s_e6109f66fbb4ed::t_cc9376a6dd0c57 430,432-435,476-477,548
+  s_e6109f66fbb4ed::t_beb6efb2286a75 1-362,366-381,385-407,475,478-509,511-513,515-544,589-590
+  s_e6109f66fbb4ed::t_f2dce98c4ce150 363-365,382-384,510,514
+  s_e6109f66fbb4ed::t_f0bdf3ee1ef27f 408-412,416,420-429,431,436-474,545-547,549-568,570-572,574-588
+packages/theme/theme.test.ts
+  s_e6109f66fbb4ed::t_7710dfbfd22eb0 339,345-349,354-370
+  s_e6109f66fbb4ed::t_f2dce98c4ce150 340-344,350-353
+packages/core/src/dom/form-text.ts
+  s_e6109f66fbb4ed::t_c651a37a4b5f09 1-10,17-29,34-216,221-311,313-327,329-330,339-349
+  s_e6109f66fbb4ed::t_28d013386c0cde 220
+  s_e6109f66fbb4ed::t_f2dce98c4ce150 11-16,30-33,217-219,312
+  s_e6109f66fbb4ed::t_729540b2ab0580 328,331-338
+packages/core/src/model/form/controller.test.ts
+  s_e6109f66fbb4ed::t_d3c608c4250f71 218
+packages/core/src/model/form/controller.controlled.test.ts
+  s_e6109f66fbb4ed::t_d3c608c4250f71 98,116
+packages/core/src/model/form/structure.test.ts
+  s_e6109f66fbb4ed::t_d8738bce52d923 147-150,153-154
+  s_e6109f66fbb4ed::t_be08f464307c95 151-152
+packages/core/src/dom/index.ts
+  s_e6109f66fbb4ed::t_9435a1329ed556 123
+  s_e6109f66fbb4ed::t_21e8f877b6d819 63
+packages/core/src/pdfjs/scripting.browser.test.ts
+  s_e6109f66fbb4ed::t_4a11365781bea7 420
+  s_e6109f66fbb4ed::t_52a8a039f27aed 426-427
+  s_e6109f66fbb4ed::t_f2dce98c4ce150 303-304,410-414
+  s_e6109f66fbb4ed::t_ad815845168821 409,415
+  s_e6109f66fbb4ed::t_1dd952de88e88b 239-243,312-317,408,416-419,421-425
+packages/react/tsconfig.json
+  s_e6109f66fbb4ed::t_ae6aefe39a1855 8-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2cc326fd4bbc9f42508f553a8689462750260525",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": null
+    }
+  }
+}
