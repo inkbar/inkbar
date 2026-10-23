@@ -46,8 +46,16 @@ export interface FormExtras {
   tabs: Map<number, 'R' | 'C' | 'S' | 'W'>
   /** What each widget's own dictionary adds, by PDF.js widget id (`12R`). */
   widgets: Map<string, WidgetExtras>
-  /** Page index of a GoTo action's explicit destination, by widget id. */
+  /**
+   * The page a widget's GoTo goes to, by widget id: from its `/A`, the `/Next` of a JavaScript
+   * `/A`, or its `/Dest`. Named destinations are in only when the reader was given a resolver.
+   */
   destPages: Map<string, number>
+}
+
+export interface ReadFormExtrasOptions {
+  /** The page index a named destination points at, if any. */
+  destinationPage?: (name: string) => Promise<number | undefined>
 }
 
 export function emptyFormExtras(): FormExtras {
@@ -269,6 +277,22 @@ async function readSubmit(
 
 const FF_PUSHBUTTON = 1 << 16
 
+/** The destination of a widget's GoTo: its `/A`, the first `/Next` of a JavaScript `/A`, or `/Dest`. */
+async function destinationOf(
+  objs: PdfObjects,
+  widget: PdfDict,
+  action: PdfDict | undefined
+) {
+  if (!action) return objs.resolve(dictGet(widget, 'Dest'))
+  const s = await objs.resolve(dictGet(action, 'S'))
+  if (isName(s, 'GoTo')) return objs.resolve(dictGet(action, 'D'))
+  if (!isName(s, 'JavaScript')) return undefined
+  const next = await objs.resolve(dictGet(action, 'Next'))
+  const first = await dictOf(objs, Array.isArray(next) ? next[0] : next)
+  const ns = first && (await objs.resolve(dictGet(first, 'S')))
+  return first && isName(ns, 'GoTo') ? objs.resolve(dictGet(first, 'D')) : undefined
+}
+
 async function readWidget(
   objs: PdfObjects,
   widget: PdfDict,
@@ -303,12 +327,13 @@ async function readWidget(
 
 /**
  * Reads what PDF.js leaves out of widget data: SubmitForm actions, certificate signatures and
- * the locks they set, DocMDP, page `/Tabs`, explicit GoTo pages, and per-widget on states,
+ * the locks they set, DocMDP, page `/Tabs`, GoTo pages, and per-widget on states,
  * stored and default state names, `/DA` fonts, captions and barcode marks. Never throws: what cannot be read is left out.
  */
 export async function readFormExtras(
   objs: PdfObjects | undefined,
-  widgetIds: readonly string[]
+  widgetIds: readonly string[],
+  options: ReadFormExtrasOptions = {}
 ): Promise<FormExtras> {
   const extras = emptyFormExtras()
   if (!objs) return extras
@@ -352,10 +377,14 @@ export async function readFormExtras(
           const submit = await readSubmit(objs, action, names)
           if (submit) extras.submits.set(id, submit)
         }
-        const dest =
-          action && isName(s, 'GoTo') ? dictGet(action, 'D') : dictGet(widget, 'Dest')
-        const target = (await arrayOf(objs, dest))[0]
-        const page = isRef(target) ? pages.get(refKey(target.num, target.gen)) : undefined
+        const dest = await destinationOf(objs, widget, action)
+        const name = isName(dest) ? dest.name : textString(dest)
+        let page: number | undefined
+        if (name !== undefined) page = await options.destinationPage?.(name)
+        else {
+          const target = (await arrayOf(objs, dest))[0]
+          page = isRef(target) ? pages.get(refKey(target.num, target.gen)) : undefined
+        }
         if (page !== undefined) extras.destPages.set(id, page)
       } catch {
         // One unreadable widget does not stop the others.

@@ -4,6 +4,7 @@ import { openDocument } from '../model/document'
 import { buildFormFields, type RawWidget } from '../model/form/structure'
 import { readFormExtras } from '../pdf/form-fields'
 import { openPdfObjects } from '../pdf/objects'
+import { destinationPage } from '../pdfjs/destinations'
 import { nodeAssets } from '../pdfjs/node-assets'
 
 import type { FormField } from '../model/form/types'
@@ -20,11 +21,12 @@ export async function formFieldsOf(name: FixtureName): Promise<FormField[]> {
     ).getAnnotations()) as PdfjsAnnotationData[]
     for (const data of annots) if (data.subtype === 'Widget') raw.push({ page, data })
   }
-  doc.destroy()
   const objs = await openPdfObjects(await fixtureBytes(name))
   const extras = await readFormExtras(
     objs,
-    raw.map((r) => r.data.id)
+    raw.map((r) => r.data.id),
+    { destinationPage: (dest) => destinationPage(doc._pdfjs.proxy, dest) }
   )
+  doc.destroy()
   return buildFormFields(raw, extras)
 }

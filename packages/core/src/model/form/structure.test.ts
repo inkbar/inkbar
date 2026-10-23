@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import { emptyFormExtras, readFormExtras } from '../../pdf/form-fields'
 import { openPdfObjects } from '../../pdf/objects'
+import { destinationPage } from '../../pdfjs/destinations'
 import { nodeAssets } from '../../pdfjs/node-assets'
 import { openDocument } from '../document'
 
@@ -23,12 +24,13 @@ async function fieldsOf(name: FixtureName): Promise<Map<string, FormField>> {
     ).getAnnotations()) as PdfjsAnnotationData[]
     for (const data of annots) if (data.subtype === 'Widget') raw.push({ page, data })
   }
-  doc.destroy()
   const objs = (await openPdfObjects(await fixtureBytes(name)))!
   const extras = await readFormExtras(
     objs,
-    raw.map((r) => r.data.id)
+    raw.map((r) => r.data.id),
+    { destinationPage: (dest) => destinationPage(doc._pdfjs.proxy, dest) }
   )
+  doc.destroy()
   return new Map(buildFormFields(raw, extras).map((f) => [f.name, f]))
 }
 
@@ -238,6 +240,25 @@ describe('buildFormFields', () => {
     })
     await expect(doc.ready).resolves.toBeUndefined()
     expect(doc.annotations.list.get()).toEqual([])
+    doc.destroy()
+  })
+
+  it('reads GoTo actions to explicit and named destinations', async () => {
+    const fields = await fieldsOf('form-goto')
+    const action = (name: string) => fields.get(name)!.widgets[0]!.action
+    expect(action('explicit')).toEqual({ kind: 'goto', page: 2 })
+    expect(action('named')).toEqual({ kind: 'goto', page: 2 })
+    expect(action('legacy')).toEqual({ kind: 'goto', page: 1 })
+    expect(action('missing')).toBeUndefined()
+  })
+
+  it('opening a document resolves named GoTo destinations', async () => {
+    const doc = await openDocument(await fixtureBytes('form-goto'), {
+      assets: nodeAssets(),
+    })
+    await doc.ready
+    const named = doc.form.fields.get().find((f) => f.name === 'named')!
+    expect(named.widgets[0]!.action).toEqual({ kind: 'goto', page: 2 })
     doc.destroy()
   })
 

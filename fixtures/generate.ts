@@ -1360,6 +1360,64 @@ async function formSharedScripted() {
   )
 }
 
+/** Buttons whose GoTo actions name their page explicitly, by a name-tree name and by a /Dests name. */
+async function formGoto() {
+  const { d, font } = await doc()
+  const ctx = d.context
+  const page = d.addPage([612, 792])
+  const p2 = d.addPage([612, 792])
+  const p3 = d.addPage([612, 792])
+  text(page, font, ['GoTo form'], 740)
+  text(p2, font, ['Page 2'], 740)
+  text(p3, font, ['Page 3'], 740)
+  const form = d.getForm()
+  const buttons: [string, string, number][] = [
+    ['explicit', 'Page 3', 640],
+    ['named', 'Chapter 3', 590],
+    ['legacy', 'Chapter 2', 540],
+    ['missing', 'Nowhere', 490],
+    ['scripted', 'Script', 440],
+  ]
+  const btn: Record<string, PDFField> = {}
+  for (const [n, caption, y] of buttons) {
+    const b = form.createButton(n)
+    b.addToPage(caption, page, { x: 72, y, width: 120, height: 24 })
+    btn[n] = b
+  }
+  form.updateFieldAppearances(font)
+  addHelv(d, form)
+  const goto = (dest: PDFString | PDFName | [PDFRef, string]) => {
+    const a = ctx.obj({ S: 'GoTo' })
+    a.set(PDFName.of('D'), Array.isArray(dest) ? ctx.obj(dest) : dest)
+    return a
+  }
+  const action = (n: string, a: PDFDict) => widgetDict(btn[n]!).set(PDFName.of('A'), a)
+  action('explicit', goto([p3.ref, 'Fit']))
+  action('named', goto(PDFString.of('chapter-3')))
+  action('legacy', goto(PDFName.of('ch2')))
+  action('missing', goto(PDFString.of('nowhere')))
+  const script = js(ctx, 'app.alert("Going to chapter 3")')
+  script.set(PDFName.of('Next'), goto(PDFString.of('chapter-3')))
+  action('scripted', script)
+  d.catalog.set(
+    PDFName.of('Names'),
+    ctx.obj({ Dests: { Names: [PDFString.of('chapter-3'), [p3.ref, 'Fit']] } } as never)
+  )
+  d.catalog.set(PDFName.of('Dests'), ctx.obj({ ch2: [p2.ref, 'Fit'] } as never))
+  await save(
+    'form-goto',
+    d,
+    {
+      pages: 3,
+      opens: true,
+      describes:
+        'Push buttons with GoTo actions: an explicit destination, a name-tree name, a catalog /Dests name, a name with no destination, and a JavaScript action whose /Next is a named GoTo',
+      annotations: { Widget: 5 },
+    },
+    { appearances: false }
+  )
+}
+
 async function formBareAppearances() {
   const { d, font } = await doc()
   const page = d.addPage([612, 792])
@@ -1552,6 +1610,7 @@ async function main() {
   await formUppercase()
   await formSharedScripted()
   await formBareAppearances()
+  await formGoto()
   await incrementalSaved()
   await objectStreams()
   await encrypted('encrypted-aes')

@@ -1,5 +1,6 @@
 import { emptyFormExtras, readFormExtras, type FormExtras } from '../pdf/form-fields'
 import { openPdfObjects } from '../pdf/objects'
+import { destinationPage } from '../pdfjs/destinations'
 import { pageGlyphs } from '../pdfjs/glyphs'
 import { assertAssets, loadPdfjs, openProxy } from '../pdfjs/load'
 import { createFormScripting } from '../pdfjs/scripting'
@@ -266,7 +267,8 @@ export async function openDocument(
         .catch(() => undefined)
       formData.extras = await readFormExtras(
         objs,
-        widgets.map((w) => w.data.id)
+        widgets.map((w) => w.data.id),
+        { destinationPage: (name) => destinationPage(proxy, name) }
       )
       formData.fields = buildFormFields(widgets, formData.extras)
     }

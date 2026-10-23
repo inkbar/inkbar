@@ -249,6 +249,15 @@
       "Widget": 2
     }
   },
+  "form-goto": {
+    "file": "form-goto.pdf",
+    "pages": 3,
+    "opens": true,
+    "describes": "Push buttons with GoTo actions: an explicit destination, a name-tree name, a catalog /Dests name, a name with no destination, and a JavaScript action whose /Next is a named GoTo",
+    "annotations": {
+      "Widget": 5
+    }
+  },
   "incremental-saved": {
     "file": "incremental-saved.pdf",
     "pages": 1,

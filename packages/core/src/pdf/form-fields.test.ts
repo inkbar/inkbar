@@ -83,4 +83,23 @@ describe('readFormExtras', () => {
       destPages: new Map(),
     })
   })
+
+  it('reads explicit GoTo pages, and named ones through the resolver', async () => {
+    const objs = (await openPdfObjects(await fixtureBytes('form-goto')))!
+    const ids = await widgetIds(objs)
+    const plain = await readFormExtras(objs, ids)
+    // Without a resolver only the explicit destination has a page.
+    expect([...plain.destPages.values()]).toEqual([2])
+    const asked: string[] = []
+    const named = { 'chapter-3': 2, ch2: 1 } as Record<string, number>
+    const extras = await readFormExtras(objs, ids, {
+      destinationPage: (name) => {
+        asked.push(name)
+        return Promise.resolve(named[name])
+      },
+    })
+    expect(asked).toEqual(['chapter-3', 'ch2', 'nowhere', 'chapter-3'])
+    // explicit, named, legacy, then the script's /Next; `missing` names nothing.
+    expect([...extras.destPages.values()]).toEqual([2, 2, 1, 2])
+  })
 })

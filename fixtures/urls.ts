@@ -31,6 +31,7 @@ export const FIXTURE_NAMES = [
   'form-uppercase',
   'form-shared-scripted',
   'form-bare-appearances',
+  'form-goto',
   'incremental-saved',
   'object-streams',
   'encrypted-aes',
