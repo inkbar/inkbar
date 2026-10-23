@@ -5,6 +5,7 @@ import { render } from 'vitest-browser-svelte'
 
 import { guardConsole } from './console-guard.js'
 import { attr, count, focused, q, sleep } from './dom.js'
+import DeepFieldsHost from './harness/DeepFieldsHost.svelte'
 import FormHarness, { type FormHarnessProps } from './harness/FormHarness.svelte'
 
 const assets = browserAssets()
@@ -101,6 +102,23 @@ describe('form filling', () => {
     await expect.poll(() => formValues().name).toBe('Adax')
     await sleep(100)
     expect(heard()).toBe('1')
+  })
+
+  it('a host holding the fields in deep $state hears each commit once', async () => {
+    await render(DeepFieldsHost, {
+      src: fixtureUrl('form-fields'),
+      assets,
+      initial: { name: 'Ada' },
+    })
+    const el = await input('name')
+    await expect.poll(valueOf(el)).toBe('Ada')
+    await commit('name', 'x', { replace: false })
+    await expect.poll(heard).toBe('1')
+    expect(hostValues()).toMatchObject({ name: 'Adax' })
+    // The proxy written back is the same values: pushed again, it reports nothing.
+    await sleep(100)
+    expect(heard()).toBe('1')
+    expect(el.value).toBe('Adax')
   })
 
   it('uncontrolled fields never call onFieldsChange', async () => {
