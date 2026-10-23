@@ -956,6 +956,14 @@ describe('form layer', () => {
     name.blur()
     expect(doc.form.get('name')).toBe(kept.slice(0, -1))
 
+    // Typing over a selection with wider text is refused too, though the text gets no longer.
+    await typeOver(name, 'i'.repeat(300))
+    const full = name.value
+    expect(full.length).toBeLessThan(300)
+    name.setSelectionRange(0, 1)
+    await userEvent.keyboard('W')
+    expect(name.value).toBe(full)
+
     const notes = p.control('notes')
     await typeOver(notes, 'line{Enter}'.repeat(40))
     expect(notes.value.split('\n').length).toBeLessThan(40)

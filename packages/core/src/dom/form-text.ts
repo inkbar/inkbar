@@ -327,19 +327,18 @@ export function createTextWidget(
       el.value = prev.value
       el.setSelectionRange(prev.start, prev.end)
     }
-    // A field that does not scroll (`/Ff` DoNotScroll) takes no more text than it shows.
-    // Deleting is always allowed, even from text the file overfilled.
-    if (
-      field.flags.doNotScroll &&
-      !comb &&
-      next.length > prev.value.length &&
-      overflows()
-    ) {
+    const { start, end, change } = editOf(prev, next)
+    // A field that does not scroll (`/Ff` DoNotScroll) takes no more text than it shows: any
+    // edit that puts text in (typing, typing over a selection, a paste, autocorrect) is refused
+    // when the result overflows. Deleting alone is always allowed, even from text the file
+    // overfilled. This measures the text as typed, before keystroke scripts run: a script
+    // that changes the text afterwards is not measured, as the sandbox has already taken the
+    // keystroke and the draft cannot be rolled back.
+    if (field.flags.doNotScroll && !comb && change !== '' && overflows()) {
       refuse()
       style()
       return
     }
-    const { start, end, change } = editOf(prev, next)
     const result = form._keystroke(widget.id, change, start, end)
     if (!result.accepted) {
       refuse()
