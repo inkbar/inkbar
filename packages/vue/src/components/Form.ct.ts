@@ -321,6 +321,43 @@ test.describe('signature fields', () => {
   })
 })
 
+test('a new source resets controlled values to the new initial and closes the field menu', async ({
+  mount,
+  page,
+}) => {
+  await mount(FormHarness, {
+    props: {
+      src: fixtureUrl('form-fields'),
+      assets,
+      controlled: true,
+      initial: { name: 'Ada' },
+      swapTo: { src: `${fixtureUrl('form-fields')}?again`, initial: { name: 'Bea' } },
+      templates: [IMAGE],
+    },
+  })
+  const input = widget(page, 'name').locator('input')
+  await expect(input).toHaveValue('Ada')
+  await input.click()
+  await page.keyboard.press('End')
+  await page.keyboard.type('x')
+  await page.keyboard.press('Enter')
+  await expect(page.getByTestId('host-fields')).toHaveAttribute('data-heard', '1')
+  const sign = widget(page, 'sig').locator('[data-ink-sign-field]')
+  const menu = page.locator('[data-ink-sign-field-menu="sig"]')
+  await sign.scrollIntoViewIfNeeded()
+  await sign.click()
+  await expect(menu).toBeVisible()
+  // A click event without a press, so the menu does not close as for a press outside it.
+  await page.getByTestId('swap').dispatchEvent('click')
+  await expect(menu).toBeHidden()
+  await expect(input).toHaveValue('Bea')
+  await expect(page.getByTestId('form')).toHaveAttribute('data-values', /"name":"Bea"/)
+  expect(await hostValues(page)).toEqual({ name: 'Bea' })
+  // Opening the new document reports nothing.
+  await page.waitForTimeout(100)
+  await expect(page.getByTestId('host-fields')).toHaveAttribute('data-heard', '1')
+})
+
 test('a new source closes a "Create signature" dialog opened for the old field', async ({
   mount,
   page,
