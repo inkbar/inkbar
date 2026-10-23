@@ -192,6 +192,7 @@ describe('search highlights', () => {
       text: 'x',
       quads: [quad],
       rect: rectFromQuad(quad),
+      exact: true,
       before: '',
       after: '',
     })

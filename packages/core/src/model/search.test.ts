@@ -96,6 +96,18 @@ describe('matchPage', () => {
     expect(hit!.quads[0]!.p4.x).toBeCloseTo(6, 5)
   })
 
+  it('marks a hit exact only when every item it touches has the page glyph positions', () => {
+    const placed = (str: string, x: number) => ({
+      ...item(str, x, str.length * 5),
+      advances: [...str, ''].map((_, i) => i / str.length),
+      glyphEnds: [...str].map((_, i) => (i + 1) / str.length),
+    })
+    const st = page(placed('exact ', 0), item('guess', 30, 25))
+    expect(matchPage(st, 'exact', OPTS)[0]!.exact).toBe(true)
+    expect(matchPage(st, 'guess', OPTS)[0]!.exact).toBe(false)
+    expect(matchPage(st, 'act gu', OPTS)[0]!.exact).toBe(false)
+  })
+
   it('covers a glyph that kerning overlaps with the next one', () => {
     const it = { ...item('To', 0, 10), advances: [0, 0.5, 1], glyphEnds: [0.6, 1] }
     const [hit] = matchPage(page(it), 't', OPTS)

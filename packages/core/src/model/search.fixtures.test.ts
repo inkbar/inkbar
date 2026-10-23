@@ -186,6 +186,7 @@ describe('InkDocument.search', () => {
     doc.destroy()
     // The fixture draws "widely spaced words" at x = 72 and "ke", a -20 TJ gap, then "rned word"
     // at x = 72 below it. A box ends before the character spacing after its last glyph.
+    expect(words!.exact).toBe(true)
     expect(words!.rect.x).toBeCloseTo(72 + spaced('widely spaced '), 2)
     expect(words!.rect.width).toBeCloseTo(spaced('words') - 1, 2)
     expect(rned!.rect.x).toBeCloseTo(72 + spaced('ke') + (20 * 14) / 1000, 2)

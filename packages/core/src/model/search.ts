@@ -26,6 +26,13 @@ export interface SearchHit {
   /** One quad per run of text the hit touches. */
   quads: Quad[]
   rect: Rect
+  /**
+   * True when every quad is cut where the page draws its glyphs. False when some text could not
+   * be matched to the page's glyphs (right-to-left or vertical text, or an unusual file) and its
+   * quad is cut at estimated widths, which can fall short of the glyphs; pad those before
+   * covering text with them.
+   */
+  exact: boolean
   /** Up to `CONTEXT_CHARS` of page text either side of the hit, whitespace collapsed. */
   before: string
   after: string
@@ -111,7 +118,11 @@ function cutQuad(it: TextItem, a: number, b: number): Quad {
   }
 }
 
-function quadsFor(st: SearchableText, start: number, end: number): Quad[] {
+function quadsFor(
+  st: SearchableText,
+  start: number,
+  end: number
+): { quads: Quad[]; exact: boolean } {
   const spans = new Map<number, [number, number]>()
   for (let r = start; r < end; r++) {
     const i = st.rawToItem[r]!
@@ -124,11 +135,14 @@ function quadsFor(st: SearchableText, start: number, end: number): Quad[] {
     } else spans.set(i, [k, k + 1])
   }
   const quads: Quad[] = []
+  let exact = true
   for (const [i, [a, b]] of spans) {
     const it = st.content.items[i]!
     quads.push(cutQuad(it, a, b))
+    // Glyph ends are only set when the item's boundaries come from the page's glyphs.
+    if (!it.glyphEnds) exact = false
   }
-  return quads
+  return { quads, exact }
 }
 
 const collapse = (s: string) => s.replace(/\s+/gu, ' ')
@@ -148,7 +162,7 @@ export function matchPage(
     const start = st.normToRaw[ns]!
     const last = st.normToRaw[ne - 1]!
     const end = last + (st.raw.codePointAt(last)! > 0xffff ? 2 : 1)
-    const quads = quadsFor(st, start, end)
+    const { quads, exact } = quadsFor(st, start, end)
     if (quads.length === 0) continue
     hits.push({
       page: st.page,
@@ -157,6 +171,7 @@ export function matchPage(
       text: st.raw.slice(start, end),
       quads,
       rect: rectFromQuads(quads),
+      exact,
       before: collapse(st.raw.slice(Math.max(0, start - CONTEXT_CHARS), start)),
       after: collapse(st.raw.slice(end, end + CONTEXT_CHARS)),
     })
