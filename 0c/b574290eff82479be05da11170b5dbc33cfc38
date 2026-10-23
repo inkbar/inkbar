@@ -1,0 +1,21 @@
+packages/core/src/dom/history-keys.ts
+  s_e6109f66fbb4ed::t_e3d53667953d23 64-69,75-79,86-106,108-111
+packages/core/src/dom/history-keys.browser.test.ts
+  s_e6109f66fbb4ed::t_e3d53667953d23 1-84
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0cb574290eff82479be05da11170b5dbc33cfc38",
+  "prompts": {},
+  "sessions": {
+    "s_e6109f66fbb4ed": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "05debb7a-28e3-41cd-ba81-971c90bba7df",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
