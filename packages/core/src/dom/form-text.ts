@@ -6,7 +6,8 @@
 // puts back the committed text. While the control is focused it shows the raw value; otherwise
 // the formatted one. The text it draws
 // takes the field's `/DA` font, size and colour, `/Q` alignment and `/MK` border and
-// background, or a script's colours and size over them.
+// background, or a script's colours and size over them. A field that does not scroll refuses
+// a keystroke that would take its text past the box.
 //
 // An editable combo box is the same control with a `<datalist>` of its options: a person picks
 // one or types their own text. It shows each option's label and stores its export value.
@@ -308,15 +309,40 @@ export function createTextWidget(
     style()
   }
 
+  /** The text no longer fits the box, at the smallest size for auto size. */
+  const overflows = (): boolean => {
+    if (!frame) return false
+    style()
+    if (multiline) return el.scrollHeight > el.clientHeight + 1
+    const inner = frame.width - 2 * (borderPx() + PADDING * frame.scale)
+    const shown = field.flags.password ? '•'.repeat(el.value.length) : el.value
+    return textWidth(shown, fontPx()) > inner + 1
+  }
+
   const keystroke = () => {
     const prev = before
     const next = el.value
     if (next === prev.value) return
+    const refuse = () => {
+      el.value = prev.value
+      el.setSelectionRange(prev.start, prev.end)
+    }
+    // A field that does not scroll (`/Ff` DoNotScroll) takes no more text than it shows.
+    // Deleting is always allowed, even from text the file overfilled.
+    if (
+      field.flags.doNotScroll &&
+      !comb &&
+      next.length > prev.value.length &&
+      overflows()
+    ) {
+      refuse()
+      style()
+      return
+    }
     const { start, end, change } = editOf(prev, next)
     const result = form._keystroke(widget.id, change, start, end)
     if (!result.accepted) {
-      el.value = prev.value
-      el.setSelectionRange(prev.start, prev.end)
+      refuse()
       return
     }
     typed = true

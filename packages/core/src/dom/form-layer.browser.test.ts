@@ -798,6 +798,31 @@ describe('form layer', () => {
     expect(age.hasAttribute('aria-invalid')).toBe(false)
   })
 
+  it('refuses text that would overflow a field that does not scroll', async () => {
+    const doc = await open('form-fields')
+    for (const name of ['name', 'notes']) {
+      const field = doc.form.fields.get().find((f) => f.name === name)!
+      ;(field.flags as { doNotScroll: boolean }).doNotScroll = true
+    }
+    const p = mountPage(doc)
+    const name = p.control('name')
+    await typeOver(name, 'W'.repeat(200))
+    expect(name.value.length).toBeGreaterThan(0)
+    expect(name.value.length).toBeLessThan(200)
+    expect(name.scrollWidth).toBeLessThanOrEqual(name.clientWidth + 1)
+    const kept = name.value
+    // Deleting is never refused.
+    await userEvent.keyboard('{Backspace}')
+    expect(name.value).toBe(kept.slice(0, -1))
+    name.blur()
+    expect(doc.form.get('name')).toBe(kept.slice(0, -1))
+
+    const notes = p.control('notes')
+    await typeOver(notes, 'line{Enter}'.repeat(40))
+    expect(notes.value.split('\n').length).toBeLessThan(40)
+    expect(notes.scrollHeight).toBeLessThanOrEqual(notes.clientHeight + 1)
+  })
+
   it('Escape puts back the committed text and keeps focus', async () => {
     const doc = await open('form-fields')
     const p = mountPage(doc)
