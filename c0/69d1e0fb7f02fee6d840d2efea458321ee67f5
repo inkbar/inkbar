@@ -15,6 +15,8 @@ packages/core/src/dom/viewer/create-viewer.ts
   s_e6109f66fbb4ed::t_f6d559dc47ec8e 3-4,36-37,41-42,64-65,74-79,89,98-99,149,163-164,169-170,177,186,245-247,311-317,357-358,379,395,414,442,460-461
   s_e6109f66fbb4ed::t_e9dcdbab75eb9f 299-300,309,356
   s_e6109f66fbb4ed::t_ba947f96c250b3 310
+  s_e6109f66fbb4ed::t_03713fc66813ce 172-176
+  s_e6109f66fbb4ed::t_927f5cc7f3ac7c 171
 packages/core/src/dom/tools/selection-edit.ts
   s_e6109f66fbb4ed::t_98679c20847375 24-25,134-135,241,344,355,407,432,445
 packages/core/src/dom/viewer/menu.ts
