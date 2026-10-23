@@ -2,6 +2,8 @@
 // (`position:absolute; inset:0; overflow:hidden`), and each canvas is pinned to the top-left
 // with its CSS size set from the transform (`position:absolute; left:0; top:0; width; height`).
 // Everything cosmetic (background, shadow, border) belongs to the theme.
+import { omitAppearances } from '../pdfjs/widget-appearance'
+
 import { watchDevicePixelRatio } from './dpr-watch'
 
 import type { PageTransform } from './transform'
@@ -22,12 +24,10 @@ export interface PageRendererOptions {
   devicePixelRatio?: number
   /**
    * Whether form widgets are drawn into the canvas as the PDF draws them. By default they are
-   * drawn only when the document has no form fields; a document with fields leaves its
-   * fillable widgets to the form layer (PDF.js `AnnotationMode.ENABLE_FORMS`). `'stored'`
-   * draws them too, each checkbox and radio in the state the form layer stored for it
-   * (`storeButtonStates`, PDF.js `AnnotationMode.ENABLE_STORAGE`).
+   * drawn only when the document has no form fields; a document with fields leaves the
+   * widgets of its fields on the page out, and the form layer draws each one's appearance.
    */
-  drawWidgets?: boolean | 'stored'
+  drawWidgets?: boolean
   onRendered?(): void
   /** Called for any render failure other than a superseded render's cancellation. */
   onError?(error: unknown): void
@@ -108,7 +108,8 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
       const pdfPage = await doc._pdfjs.getPage(page)
       if (destroyed || gen !== generation) return
       const { AnnotationMode } = doc._pdfjs.module
-      const drawWidgets = opts.drawWidgets ?? doc.form.fields.get().length === 0
+      const fields = doc.form.fields.get()
+      const drawWidgets = opts.drawWidgets ?? fields.length === 0
       const viewport = pdfPage.getViewport({
         scale: transform.zoom,
         rotation: transform.totalRotation,
@@ -125,12 +126,21 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
         viewport,
         // Pages are paper: an opaque white canvas, whatever the theme puts behind it.
         background: '#ffffff',
-        annotationMode:
-          drawWidgets === 'stored'
-            ? AnnotationMode.ENABLE_STORAGE
-            : drawWidgets
-              ? AnnotationMode.ENABLE
-              : AnnotationMode.ENABLE_FORMS,
+        // The same operator list the form layer draws widget appearances from, and the loupe
+        // draws regions from.
+        annotationMode: AnnotationMode.ENABLE,
+        ...(drawWidgets
+          ? {}
+          : {
+              operationsFilter: omitAppearances(
+                doc,
+                new Set(
+                  fields.flatMap((f) =>
+                    f.widgets.flatMap((w) => (w.page === page ? [w.id] : []))
+                  )
+                )
+              ),
+            }),
         ...(dpr === 1 ? {} : { transform: [dpr, 0, 0, dpr, 0, 0] }),
       })
       task = ownTask

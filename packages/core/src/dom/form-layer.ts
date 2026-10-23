@@ -7,35 +7,32 @@
 // background) is the field's own appearance from the PDF or a script, as an annotation's colours
 // are its own. The tint, focus ring and invalid mark are the theme's.
 //
-// Untouched widgets look exactly as the PDF draws them: the page canvas leaves fillable widgets
-// out (`AnnotationMode.ENABLE_FORMS`), and the layer keeps a second canvas with every widget's
-// own appearance (`ENABLE`), clipped to the widgets the layer is not drawing itself. That canvas
-// sits in the page's stack right above the page canvas, under the text layer and the
-// annotations, so annotations over a field stay visible. The layer itself sits above the text
-// layer and under the annotations: a press on an annotation's shape selects the annotation, and
-// a press anywhere else in a field's box is the field's. A widget's
+// Untouched widgets look exactly as the PDF draws them: the page canvas leaves the widgets out,
+// and the layer draws each widget's own appearance into a small canvas over its rect
+// (form-appearance.ts). Those canvases sit in the page's stack right above the page canvas,
+// under the text layer and the annotations, so annotations over a field stay visible. The layer
+// itself sits above the text layer and under the annotations: a press on an annotation's shape
+// selects the annotation, and a press anywhere else in a field's box is the field's. A widget's
 // control is clear until it is focused or shows something the PDF's appearance does not (a
-// changed value, a script's colour or size); then the clip leaves it out and the control draws.
+// changed value, a script's colour or size); then its appearance hides and the control draws.
 //
 // A signature field is a button: "Sign" while it is empty, which asks the host to sign it
 // (`onSignField`), and clear once signed, when the signature annotation shows over it.
 //
-// Checkboxes and radios never change the clip as they change state: the layer stores each one's
-// state for PDF.js and draws the appearance canvas again, so it shows the PDF's own on or off
-// appearance (`AnnotationMode.ENABLE_STORAGE`).
+// A checkbox or radio has both its on and off appearances drawn, and shows the one for its
+// state: a toggle, like an edit, paints nothing.
 //
 // The widget boxes are in the page's Tab order (its `/Tabs`), so Tab within a page is the
 // browser's own. A radio group is one stop: its chosen radio, else its first. The engine moves
 // Tab on from a page's last stop to the next page's first.
 import { sameValue } from '../model/form/values'
-import { storeButtonStates } from '../pdfjs/widget-states'
 
+import { createWidgetAppearances, type WidgetAppearances } from './form-appearance'
 import { createButtonWidget } from './form-button'
 import { createChoiceWidget, createToggleWidget } from './form-choice'
 import { tabOrder } from './form-order'
 import { createSignatureWidget } from './form-signature'
 import { createTextWidget } from './form-text'
-import { createPageRenderer, type PageRenderer } from './page-renderer'
 import { normalizeRotation, type PageTransform, type ViewRotation } from './transform'
 import { FORM_LABELS } from './ui'
 
@@ -79,16 +76,20 @@ export interface FormLayerOptions {
    * `refresh()` and when the layer is built.
    */
   isActive(): boolean
-  /** Device pixel ratio for the appearance canvas; `window.devicePixelRatio` when omitted. */
+  /** Device pixel ratio for the widget appearances; `window.devicePixelRatio` when omitted. */
   devicePixelRatio?: number
-  /** The appearance canvas failed to render (cancellations are not reported). */
+  /** A widget's appearance failed to render (cancellations are not reported). */
   onError?(error: unknown): void
-  /** The appearance canvas painted. */
+  /** The widget appearances shown painted. */
   onRendered?(): void
 }
 
 export interface FormLayer {
   readonly element: HTMLElement
+  /**
+   * Resolves once the widget appearances shown now have painted (or failed). Never rejects.
+   */
+  readonly rendered: Promise<void>
   /** Places every widget for a new zoom or rotation, in place: focus, caret and typed text stay. */
   update(t: PageTransform): void
   /** Focuses the widget's control. False when the widget is not on this page or is hidden. */
@@ -186,9 +187,6 @@ export function hasControl(field: FormField): boolean {
 
 const isToggle = (field: FormField) => field.type === 'checkbox' || field.type === 'radio'
 
-/** CSS px the appearance clip reaches past a widget's rect, to keep its anti-aliased edge. */
-const CLIP_PAD = 1
-
 interface Entry {
   field: FormField
   widget: FormWidget
@@ -248,49 +246,29 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
   entries.sort((a, b) => (order.get(a.widget.id) ?? 0) - (order.get(b.widget.id) ?? 0))
   for (const e of entries) element.append(e.box)
 
-  /** The on or off state last stored for PDF.js, by checkbox or radio widget id. */
-  const stored = new Map<string, boolean>()
-  /** Stores what changed; true when anything did. */
-  const storeStates = (): boolean => {
-    const values = form.values.get()
-    const changes: [string, boolean][] = []
-    for (const e of entries) {
-      if (!isToggle(e.field)) continue
-      const on =
-        e.widget.onState !== undefined && values[e.field.name] === e.widget.onState
-      if (stored.get(e.widget.id) === on) continue
-      stored.set(e.widget.id, on)
-      changes.push([e.widget.id, on])
-    }
-    if (changes.length > 0) storeButtonStates(doc._pdfjs.proxy, changes)
-    return changes.length > 0
-  }
-  storeStates()
-
   // The PDF's own widget appearances: right above the page canvas, under the text layer and
   // the annotations.
-  let appearance: PageRenderer | undefined
+  let appearances: WidgetAppearances | undefined
   if (entries.length > 0) {
-    appearance = createPageRenderer({
+    appearances = createWidgetAppearances({
+      host,
       document: doc,
       page,
-      host,
       transform,
-      drawWidgets: 'stored',
+      widgets: entries.map((e) => ({
+        id: e.widget.id,
+        rect: e.widget.rect,
+        toggle: isToggle(e.field),
+      })),
       ...(opts.devicePixelRatio === undefined
         ? {}
         : { devicePixelRatio: opts.devicePixelRatio }),
       ...(opts.onError ? { onError: (error: unknown) => opts.onError?.(error) } : {}),
       ...(opts.onRendered ? { onRendered: () => opts.onRendered?.() } : {}),
     })
-    const wrapper = appearance.element
-    wrapper.className = 'ink-form-appearance'
-    delete wrapper.dataset.inkCanvasLayer
-    wrapper.dataset.inkFormAppearance = ''
-    wrapper.style.pointerEvents = 'none'
     const canvasLayer = host.querySelector(':scope > [data-ink-canvas-layer]')
-    if (canvasLayer) canvasLayer.after(wrapper)
-    else host.prepend(wrapper)
+    if (canvasLayer) canvasLayer.after(appearances.element)
+    else host.prepend(appearances.element)
   }
 
   const setInvalid = (e: Entry, invalid: boolean) => {
@@ -313,22 +291,21 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
   const hiddenOf = (e: Entry): boolean =>
     form.widgetState.get()[e.widget.id]?.hidden ?? (e.widget.hidden || e.widget.printOnly)
 
-  /** Clips the appearance canvas to the widgets that show the PDF's own appearance. */
-  const clip = () => {
-    const wrapper = appearance?.element
-    if (!wrapper) return
-    const parts: string[] = []
+  /** Shows each widget's own appearance, unless the layer draws it or it is hidden. */
+  const showAppearances = () => {
+    if (!appearances) return
+    const values = form.values.get()
     for (const e of entries) {
-      if (e.view?.drawn || hiddenOf(e)) continue
-      const r = transform.toCssRect(e.widget.rect)
-      const x = r.left - CLIP_PAD
-      const y = r.top - CLIP_PAD
-      const w = r.width + 2 * CLIP_PAD
-      const h = r.height + 2 * CLIP_PAD
-      parts.push(`M${x} ${y}h${w}v${h}h${-w}Z`)
+      const look =
+        e.view?.drawn || hiddenOf(e)
+          ? null
+          : isToggle(e.field)
+            ? e.widget.onState !== undefined && values[e.field.name] === e.widget.onState
+              ? 'checked'
+              : 'unchecked'
+            : 'own'
+      appearances.show(e.widget.id, look)
     }
-    wrapper.style.visibility = parts.length > 0 ? '' : 'hidden'
-    wrapper.style.clipPath = parts.length > 0 ? `path('${parts.join('')}')` : ''
   }
 
   const place = (e: Entry) => {
@@ -413,11 +390,9 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
   const syncAll = () => {
     if (destroyed) return
     for (const e of entries) syncEntry(e)
-    clip()
+    showAppearances()
     numberRadios()
     setActive()
-    // A checkbox or radio changed: draw the appearances again in the new states.
-    if (storeStates()) appearance?.update(transform)
   }
 
   const listeners: (() => void)[] = []
@@ -445,7 +420,7 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
         redraw: () => {
           if (destroyed) return
           toggle(box, 'data-ink-drawn', e.view?.drawn === true)
-          clip()
+          showAppearances()
         },
         setInvalid: (invalid) => setInvalid(e, invalid),
         siblings: () =>
@@ -487,12 +462,14 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
 
   const layer: FormLayer = {
     element,
+    get rendered() {
+      return appearances?.rendered ?? Promise.resolve()
+    },
     update(next) {
       if (destroyed) return
       transform = next
-      appearance?.update(next)
+      appearances?.update(next)
       for (const e of entries) place(e)
-      clip()
     },
     focusWidget(id) {
       const e = entries.find((x) => x.widget.id === id)
@@ -515,7 +492,7 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
       stops.forEach((stop) => stop())
       listeners.forEach((stop) => stop())
       for (const e of entries) e.view?.destroy()
-      appearance?.destroy()
+      appearances?.destroy()
       element.remove()
       void form._pageEvent(page, 'PageClose')
     },
