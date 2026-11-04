@@ -44,12 +44,12 @@ app.innerHTML = `
 <div class="app-body">
   <nav class="app-nav" aria-label="Scenarios"></nav>
   <main class="app-main">
-    <div class="scenario-head">
-      <h1 data-scenario-title></h1>
-      <p data-scenario-blurb></p>
-      <p data-scenario-note hidden></p>
-    </div>
     <div class="stage" data-view="preview">
+      <div class="scenario-head">
+        <h1 data-scenario-title></h1>
+        <p data-scenario-blurb></p>
+        <p data-scenario-note hidden></p>
+      </div>
       <div class="stage-bar">
         <div class="view-tabs" role="tablist" aria-label="View">
           ${tabMarkup('tab-preview', 'panel-preview', 'Preview')}
