@@ -2,8 +2,10 @@ import { fileURLToPath } from 'node:url'
 
 import { guardConsole } from '@inkbar/e2e-shared/console-guard'
 import { expect, test, type Page } from '@playwright/test'
+import { PDFArray, PDFDict, PDFDocument, PDFName } from 'pdf-lib'
 
 import { FRAMEWORK_ORDER } from '../src/shell/frameworks.ts'
+import { makeDocument } from '../vite/documents/index.ts'
 
 guardConsole(test)
 
@@ -11,6 +13,36 @@ guardConsole(test)
 const standardCallout = fileURLToPath(
   new URL('../../../fixtures/pdf/standard-callout.pdf', import.meta.url)
 )
+
+const MARK_TYPES: Record<string, string> = {
+  Highlight: 'highlight',
+  Underline: 'underline',
+  Squiggly: 'squiggly',
+  StrikeOut: 'strikeout',
+  Square: 'square',
+  Circle: 'circle',
+  Line: 'line',
+  Polygon: 'polygon',
+  Ink: 'ink',
+  FreeText: 'freetext',
+  Text: 'text',
+}
+
+/**
+ * The marks the viewer draws per page, read from the tour document itself. A reply (it has
+ * /IRT) lives in its note's thread, and the signature stamp is painted into the page by PDF.js
+ * with no overlay of its own, so neither is a mark.
+ */
+async function embeddedMarksByPage(): Promise<string[][]> {
+  const d = await PDFDocument.load(await makeDocument('tour'))
+  return d.getPages().map((p) =>
+    (p.node.lookupMaybe(PDFName.of('Annots'), PDFArray)?.asArray() ?? [])
+      .map((ref) => d.context.lookup(ref, PDFDict))
+      .filter((a) => !a.has(PDFName.of('IRT')))
+      .map((a) => MARK_TYPES[String(a.get(PDFName.of('Subtype'))).slice(1)])
+      .filter((t): t is string => t !== undefined)
+  )
+}
 
 async function waitForFirstPage(page: Page): Promise<void> {
   await expect(page.locator('[data-scenario-viewer] [data-ink-root]')).toHaveAttribute(
@@ -43,13 +75,52 @@ const sessionShape = (page: Page, type: string) =>
 
 for (const framework of FRAMEWORK_ORDER) {
   test.describe(`${framework} tour`, () => {
-    test('renders the document with its embedded annotations', async ({ page }) => {
+    test('renders page 1 with its embedded highlight and note', async ({ page }) => {
       await page.goto(`./#/${framework}/tour`)
       await waitForFirstPage(page)
       await expect(page.locator('[data-scenario-viewer] [data-ink-root]')).toHaveCount(1)
+      const marks = page.locator('.ink-page[data-page="0"] .ink-annotation')
+      // The note's reply shows in its thread, not as a mark of its own.
+      await expect(marks).toHaveCount(2)
       await expect(
-        page.locator('.ink-page[data-page="0"] .ink-annotation[data-source="pdf"]')
-      ).not.toHaveCount(0)
+        marks.evaluateAll((els) => els.map((e) => e.dataset.type))
+      ).resolves.toEqual(['highlight', 'text'])
+      await expect(
+        marks.evaluateAll((els) => els.map((e) => e.dataset.source))
+      ).resolves.toEqual(['pdf', 'pdf'])
+    })
+
+    test('renders every embedded annotation type of the tour document', async ({
+      page,
+    }) => {
+      const expected = await embeddedMarksByPage()
+      // Each type in the document shows up somewhere, so a dropped type cannot hide.
+      expect(new Set(expected.flat())).toEqual(
+        new Set([
+          'highlight',
+          'text',
+          'underline',
+          'squiggly',
+          'strikeout',
+          'freetext',
+          'circle',
+          'line',
+          'polygon',
+          'ink',
+          'square',
+        ])
+      )
+      await page.goto(`./#/${framework}/tour`)
+      await waitForFirstPage(page)
+      for (const [index, types] of expected.entries()) {
+        await page.locator('input[aria-label="Page"]').fill(String(index + 1))
+        await page.keyboard.press('Enter')
+        const marks = page.locator(`.ink-page[data-page="${index}"] .ink-annotation`)
+        await expect(marks).toHaveCount(types.length)
+        await expect(
+          marks.evaluateAll((els) => els.map((e) => e.dataset.type))
+        ).resolves.toEqual(types)
+      }
     })
 
     test('opens a PDF with a standard callout and gives it a hit area', async ({

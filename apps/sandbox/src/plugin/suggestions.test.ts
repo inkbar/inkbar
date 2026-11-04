@@ -41,6 +41,24 @@ async function openBytes(bytes: Uint8Array): Promise<InkDocument> {
   return doc
 }
 
+/**
+ * What the redactions document yields, in reading order. A kind's first hit takes the kind's
+ * id and each later hit, of any value, takes the next number: the second email is `email-2`.
+ */
+const REDACTIONS_IDS = [
+  'ni-number',
+  'email',
+  'phone',
+  'email-2',
+  'ni-number-2',
+  'email-3',
+  'phone-2',
+  'phone-3',
+  'email-4',
+  'email-5',
+  'phone-4',
+]
+
 /** A fresh copy of the redactions document, open and ready. */
 const openRedactions = () => openBytes(redactionsBytes)
 
@@ -101,6 +119,15 @@ void test('findSuggestions marks where the text is on the page', async () => {
   assert.ok(ni!.rect.x > 0 && ni!.rect.y > 0)
 })
 
+void test('findSuggestions numbers repeated kinds in reading order', async () => {
+  const found = await findSuggestions(await openRedactions())
+  assert.deepEqual(
+    found.map((s) => s.id),
+    REDACTIONS_IDS
+  )
+  assert.equal(found[3]!.text, found[1]!.text, 'email-2 repeats the first email')
+})
+
 void test('findSuggestions finds every NI number, email and phone in the redactions document', async () => {
   const doc = await openBytes(await makeRedactions())
   const found = await findSuggestions(doc)
@@ -141,15 +168,14 @@ void test('Suggest adds the suggestions once, in one undo step, and saves them',
   })
   assert.equal(suggest.label, 'Suggest redactions')
   await suggest.run()
-  const found = await findSuggestions(doc)
-  assert.equal(suggest.status?.get(), `${found.length} suggestions`)
+  assert.equal(suggest.status?.get(), '11 suggestions')
   assert.deepEqual(
     saved.map((s) => s.id),
-    found.map((s) => s.id)
+    REDACTIONS_IDS
   )
   await suggest.run()
   assert.equal(suggest.status?.get(), '0 suggestions')
-  assert.equal(saved.length, found.length)
+  assert.equal(saved.length, 11)
   doc.history.undo()
   assert.equal(saved.length, 0)
 })
