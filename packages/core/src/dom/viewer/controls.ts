@@ -24,6 +24,7 @@ import {
 
 import { keepHistoryFocus } from '../history-keys'
 import { unknownCommand } from '../plugins/commands'
+import { unknownTool } from '../tools/unknown'
 import { TOOL_LABELS, ZOOM_LEVELS } from '../ui'
 
 import { hostCommandIdsOf, toolsOf, onViewerDestroy } from './create-viewer'
@@ -199,15 +200,46 @@ function historyButton(viewer: Viewer, action: 'undo' | 'redo'): HTMLButtonEleme
 }
 
 /**
+ * True for `select-text` and `select`, which every viewer registers, and for any other tool id
+ * the viewer was given.
+ */
+export function registeredTool(viewer: Viewer, id: ToolId): boolean {
+  return toolsOf(viewer).some((t) => t.id === id)
+}
+
+/** The error for a control whose tool is not registered, logged once as the control is made. */
+export function logUnknownTool(viewer: Viewer, id: ToolId): void {
+  console.error(
+    unknownTool(
+      id,
+      toolsOf(viewer).map((t) => t.id)
+    )
+  )
+}
+
+/**
  * Sets the tool; pressed while it is the active one. A creation, host or plugin tool's button
  * takes the tool's own `label` and `icon`; `opts.label` wins, and without either it is named by
- * the tool id.
+ * the tool id. For an id no tool registered it logs `InkError('UnknownTool')` to the console and
+ * returns the same markup disabled, `aria-hidden` and unnamed.
  */
 export function createToolButton(
   viewer: Viewer,
   tool: ToolId,
   opts: { label?: string } = {}
 ): HTMLButtonElement {
+  if (!registeredTool(viewer, tool)) {
+    logUnknownTool(viewer, tool)
+    const pending = h('button', {
+      type: 'button',
+      class: 'ink-tool-button',
+      'data-ink-tool-button': '',
+      'data-tool': tool,
+      'aria-hidden': 'true',
+    })
+    pending.disabled = true
+    return pending
+  }
   const own = toolsOf(viewer).find((t) => t.id === tool)
   const label = opts.label ?? TOOL_LABELS[tool] ?? own?.label ?? tool
   const b = button(

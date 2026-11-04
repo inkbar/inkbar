@@ -15,6 +15,7 @@ import {
   type SignatureTab,
 } from '../ui'
 
+import { registeredTool } from './controls'
 import { h } from './dom'
 
 import type { Viewer } from './create-viewer'
@@ -206,7 +207,9 @@ export function createSignatureDialog(
             o.onSave(t)
             return
           }
-          viewer.tools.get()?.set('signature', { templateId: t.id })
+          // Without the signature tool the template is only stored, as form signing needs.
+          if (registeredTool(viewer, 'signature'))
+            viewer.tools.get()?.set('signature', { templateId: t.id })
           close()
         },
         () => {

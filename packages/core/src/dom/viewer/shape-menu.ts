@@ -10,7 +10,7 @@ import { SHAPE_ICONS } from '../shape-icons'
 import { SHAPE_KINDS, type ShapeKind, type ToolController } from '../tools'
 import { SHAPE_COLUMNS, shapeMenuModel, type ShapeMenuModel } from '../ui'
 
-import { createIcon } from './controls'
+import { createIcon, logUnknownTool, registeredTool } from './controls'
 import { h } from './dom'
 import { createMenu } from './menu'
 
@@ -18,6 +18,10 @@ import type { Viewer } from './create-viewer'
 
 /** A split button: the main part draws with the current shape kind, the chevron picks the kind. */
 export function createShapeMenu(viewer: Viewer): HTMLElement {
+  if (!registeredTool(viewer, 'shape')) {
+    logUnknownTool(viewer, 'shape')
+    return h('div', { hidden: '' })
+  }
   const main = h('button', {
     type: 'button',
     class: 'ink-tool-button ink-shape-button',

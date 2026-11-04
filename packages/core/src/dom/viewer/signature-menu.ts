@@ -15,7 +15,7 @@ import { signField } from '../../model/form/sign'
 import { signaturePreview } from '../signature-pad'
 import { SIGNATURE_LABELS, signatureMenuModel, type SignatureMenuModel } from '../ui'
 
-import { createIcon } from './controls'
+import { createIcon, logUnknownTool, registeredTool } from './controls'
 import { h } from './dom'
 import { createMenu, type Menu } from './menu'
 import { createSignatureDialog, type SignatureDialogOptions } from './signature-dialog'
@@ -174,6 +174,10 @@ export function createSignatureMenu(
   viewer: Viewer,
   opts: SignatureDialogOptions = {}
 ): HTMLElement {
+  if (!registeredTool(viewer, 'signature')) {
+    logUnknownTool(viewer, 'signature')
+    return h('div', { hidden: '' })
+  }
   const main = h('button', {
     type: 'button',
     class: 'ink-tool-button ink-signature-button',
