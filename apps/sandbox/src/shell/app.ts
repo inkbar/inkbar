@@ -21,7 +21,7 @@ import { createTabs, tabMarkup } from './tabs.ts'
 import { createValuesPanel } from './values.ts'
 
 import type { Log, MountedScenario } from '../frameworks/types.ts'
-import type { InkDocument } from '@inkbar/core'
+import type { DocumentSource, InkDocument } from '@inkbar/core'
 
 const REPO = 'https://github.com/inkbar/inkbar'
 const BASE = import.meta.env.BASE_URL
@@ -108,12 +108,21 @@ let route: Route = parseRoute(location.hash)
 /** Bumped by each selection; work begun for an older one is dropped. */
 let generation = 0
 let mounted: MountedScenario | null = null
+/** Whether the current selection's scenario is still loading. */
+let mounting = false
+/** A PDF dropped while the scenario was loading; the mount receives it once it lands. */
+let queued: DocumentSource | null = null
 
 const drops = handleDrops({
   target: viewer,
   input: $<HTMLInputElement>('input[type=file]'),
   status: $('[data-file-status]'),
-  open: (source) => mounted?.update(source),
+  open(source) {
+    if (mounted) mounted.update(source)
+    else if (mounting) queued = source
+    else return false
+    return true
+  },
 })
 
 async function select(next: Route): Promise<void> {
@@ -147,6 +156,8 @@ async function select(next: Route): Promise<void> {
 
   mounted?.unmount()
   mounted = null
+  mounting = false
+  queued = null
   drops.reset()
   events.clear()
   values.show(null)
@@ -168,6 +179,7 @@ async function select(next: Route): Promise<void> {
     if (gen === generation) values.show(doc)
   }
   let m: MountedScenario
+  mounting = true
   try {
     m = await mountScenario(next.framework, next.scenario, host, {
       source: documentSource(scenario.document),
@@ -176,6 +188,8 @@ async function select(next: Route): Promise<void> {
     })
   } catch (error) {
     if (gen !== generation) return
+    mounting = false
+    queued = null
     host.innerHTML = '<p class="coming">This scenario could not be loaded.</p>'
     throw error
   }
@@ -183,7 +197,12 @@ async function select(next: Route): Promise<void> {
     m.unmount()
     return
   }
+  mounting = false
   mounted = m
+  if (queued) {
+    m.update(queued)
+    queued = null
+  }
 }
 
 let codeFor = ''
@@ -193,7 +212,19 @@ async function showCode(): Promise<void> {
   if (codeFor === want) return
   codeFor = want
   const { framework, scenario } = route
-  const files = await loadSources(framework, scenario)
+  // Drop the previous scenario's source at once, so it is never shown under the new title.
+  codePanel.innerHTML = '<p class="code-status" role="status">Loading the code…</p>'
+  let files: SourceFile[]
+  try {
+    files = await loadSources(framework, scenario)
+  } catch {
+    if (codeFor !== want) return
+    // Forget the attempt so showing the tab again tries once more.
+    codeFor = ''
+    codePanel.innerHTML =
+      '<p class="code-status" role="alert">The code could not be loaded. Switch tabs to try again.</p>'
+    return
+  }
   if (codeFor !== want) return
   renderCode(framework, files)
 }

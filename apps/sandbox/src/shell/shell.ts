@@ -135,6 +135,7 @@ export function startShell(opts: ShellOptions): void {
     open(source) {
       unmount()
       unmount = opts.mount(viewer, source)
+      return true
     },
   })
 
