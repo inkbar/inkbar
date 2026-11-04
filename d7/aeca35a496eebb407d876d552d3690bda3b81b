@@ -1,0 +1,71 @@
+packages/svelte/src/lib/components/InkViewport.svelte
+  s_d6f92c10539fe3::t_1407960270ea08 46,119,139-140
+packages/svelte/src/lib/context.ts
+  s_d6f92c10539fe3::t_1407960270ea08 81-86
+packages/svelte/src/lib/components/InkShapeMenu.svelte
+  s_d6f92c10539fe3::t_1407960270ea08 32,34,42-44,73,159
+  s_d6f92c10539fe3::t_84a0310e3d18c7 74-80,82-118,120-130,132-158
+packages/svelte/src/lib/components/SignatureForm.svelte
+  s_d6f92c10539fe3::t_1407960270ea08 19,21,41-46,66
+packages/svelte/src/test/harness/ToolbarHarness.svelte
+  s_d6f92c10539fe3::t_d591fb6735d184 49-58
+  s_d6f92c10539fe3::t_51ddc8dbe5351a 2-3,44,62
+packages/svelte/src/lib/components/InkSignatureMenu.svelte
+  s_d6f92c10539fe3::t_84a0310e3d18c7 49-52,101-103,105-107,109-159,161-178
+  s_d6f92c10539fe3::t_1407960270ea08 29,31,47-48,100,179
+packages/svelte/src/test/harness/MissingToolsHarness.svelte
+  s_d6f92c10539fe3::t_780c1515bc8437 1-43
+packages/svelte/src/test/Toolbar.browser.test.ts
+  s_d6f92c10539fe3::t_055d7d880bf1c4 11,18,1307-1322,1324-1377,1380-1405
+  s_d6f92c10539fe3::t_84a0310e3d18c7 1378-1379
+  s_d6f92c10539fe3::t_17a845934e4576 1323
+packages/svelte/src/test/harness/UncontrolledHost.svelte
+  s_d6f92c10539fe3::t_51ddc8dbe5351a 2-3,16,19
+packages/svelte/src/lib/hooks/useToolOptions.svelte.ts
+  s_d6f92c10539fe3::t_1407960270ea08 16-25,29-32,37-39
+  s_d6f92c10539fe3::t_e9d9baaee07821 15
+packages/svelte/src/test/harness/TextStyleHarness.svelte
+  s_d6f92c10539fe3::t_d591fb6735d184 2-3,25,28
+packages/svelte/src/test/harness/SignatureHarness.svelte
+  s_d6f92c10539fe3::t_780c1515bc8437 2-3,5,21,27-28,30-31,40-41,44-48,50,55
+  s_d6f92c10539fe3::t_84a0310e3d18c7 34-39
+packages/svelte/src/test/harness/ToolSetHarness.svelte
+  s_d6f92c10539fe3::t_055d7d880bf1c4 3,29
+  s_d6f92c10539fe3::t_780c1515bc8437 1-2,4-28,30-48
+packages/svelte/src/lib/hooks/useRegisteredTool.svelte.ts
+  s_d6f92c10539fe3::t_728acd285a1304 1-71
+packages/svelte/src/test/InkRoot.browser.test.ts
+  s_d6f92c10539fe3::t_055d7d880bf1c4 16,629-688
+  s_d6f92c10539fe3::t_a708aa0d50534c 689
+packages/svelte/src/test/harness/PopoverHarness.svelte
+  s_d6f92c10539fe3::t_d591fb6735d184 25-26,45,79
+packages/svelte/src/lib/components/InkToolButton.svelte
+  s_d6f92c10539fe3::t_1407960270ea08 21,47,64-68,72
+packages/svelte/README.md
+  s_d6f92c10539fe3::t_ed62f0267e818b 56,64,67,92-93,168
+packages/svelte/src/lib/components/InkSignatureDialog.svelte
+  s_d6f92c10539fe3::t_1407960270ea08 8,17-19
+packages/svelte/src/lib/components/InkHighlightMenu.svelte
+  s_d6f92c10539fe3::t_84a0310e3d18c7 47-50,82-88,90-138,140-168,170-175
+  s_d6f92c10539fe3::t_1407960270ea08 33,35,45-46,81,176
+packages/svelte/src/lib/components/InkRoot.svelte
+  s_d6f92c10539fe3::t_1407960270ea08 62-68,144,152,410-414,592,597,631,637-642
+  s_d6f92c10539fe3::t_17a845934e4576 541-564
+  s_d6f92c10539fe3::t_e2ffeb7ea72b9b 565-566
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d7aeca35a496eebb407d876d552d3690bda3b81b",
+  "prompts": {},
+  "sessions": {
+    "s_d6f92c10539fe3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db98c1ef-4c5a-4c88-b425-330912eecf03",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
