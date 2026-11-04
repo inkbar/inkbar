@@ -3,6 +3,8 @@ import AxeBuilder from '@axe-core/playwright'
 import { guardConsole } from '@inkbar/e2e-shared/console-guard'
 import { expect, test, type Page } from '@playwright/test'
 
+import { FRAMEWORK_ORDER } from '../src/shell/frameworks.ts'
+
 const guard = guardConsole(test)
 
 /** Each framework with its sidebar name and the names its callbacks log under. */
@@ -12,6 +14,9 @@ const FRAMEWORKS = [
   { id: 'svelte', name: 'Svelte', ready: 'onReady', tool: 'onToolChange' },
   { id: 'vanilla', name: 'TypeScript', ready: 'onReady', tool: 'tools.active' },
 ] as const
+
+/** The sidebar name of a framework. */
+const nameOf = (id: string): string => FRAMEWORKS.find((f) => f.id === id)!.name
 
 const SCENARIO_TITLES = [
   'Annotation tour',
@@ -204,63 +209,112 @@ test('a scenario that fails to load says so, and a dropped PDF has no viewer', a
   )
 })
 
-test('a dropped PDF stays until the scenario changes', async ({ page, request }) => {
-  await page.goto('./')
-  await waitForViewer(page)
-  const pageCount = viewer(page).locator('[data-ink-page-count]')
-  await expect(pageCount).toHaveText('of 4')
+test('a PDF dropped while a scenario loads is reported as unopened when the load fails', async ({
+  page,
+  request,
+}) => {
+  let release!: () => void
+  const gate = new Promise<void>((resolve) => (release = resolve))
+  // The scenario's own Vue chunks wait for the drop, then fail.
+  await page.route('**/assets/vue*.js', async (route) => {
+    const response = await route.fetch()
+    if ((await response.text()).includes('shiki')) await route.fulfill({ response })
+    else {
+      await gate
+      await route.abort()
+    }
+  })
+  await page.goto('./#/vue/tools')
   const letter = await (await request.get('documents/letter.pdf')).body()
   await drop(page, letter, 'letter.pdf', 'application/pdf')
   await expect(page.locator('[data-file-status]')).toHaveText('Opened letter.pdf.')
-  await expect(pageCount).toHaveText('of 1')
-  // The Code tab and back keep the dropped file.
-  await page.getByRole('tab', { name: 'Code' }).click()
-  await page.getByRole('tab', { name: 'Preview' }).click()
-  await expect(pageCount).toHaveText('of 1')
-  await scenarioLink(page, 'React', 'Pick your tools').click()
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Pick your tools')
-  await scenarioLink(page, 'React', 'Annotation tour').click()
-  await waitForViewer(page)
-  await expect(pageCount).toHaveText('of 4')
-  await expect(page.locator('[data-file-status]')).toHaveText('')
-})
-
-test('refuses a non-PDF and recovers from a broken one', async ({ page, request }) => {
-  await page.goto('./')
-  await waitForViewer(page)
-  const pageCount = viewer(page).locator('[data-ink-page-count]')
-  await page.locator('input[type=file]').setInputFiles({
-    name: 'notes.txt',
-    mimeType: 'text/plain',
-    buffer: Buffer.from('not a pdf'),
-  })
-  await expect(page.locator('[data-file-status]')).toHaveText('notes.txt is not a PDF.')
-  await expect(pageCount).toHaveText('of 4')
-  await drop(page, Buffer.from('not a pdf either'), 'notes.txt', 'text/plain')
-  await expect(pageCount).toHaveText('of 4')
-
-  await page.locator('input[type=file]').setInputFiles({
-    name: 'broken.pdf',
-    mimeType: 'application/pdf',
-    buffer: Buffer.from('%PDF-1.7 this is not really a PDF'),
-  })
-  await expect(viewer(page).locator('[data-ink-root]')).toHaveAttribute(
-    'data-state',
-    'error'
+  release()
+  await expect(viewer(page)).toContainText('This scenario could not be loaded.')
+  await expect(page.locator('[data-file-status]')).toHaveText(
+    'There is no viewer to open letter.pdf in.'
   )
-  await expect(viewer(page).getByText('This document could not be opened.')).toBeVisible()
-  // PDF.js logs its parse failure; that is the expected outcome of this file.
-  guard.take(/./)
-  const letter = await (await request.get('documents/letter.pdf')).body()
-  await page.locator('input[type=file]').setInputFiles({
-    name: 'letter.pdf',
-    mimeType: 'application/pdf',
-    buffer: letter,
-  })
-  await waitForViewer(page)
-  await expect(page.locator('[data-file-status]')).toHaveText('Opened letter.pdf.')
-  await expect(pageCount).toHaveText('of 1')
+  guard.take(/ERR_FAILED|dynamically imported module/)
 })
+
+test('an unknown hash is replaced by the default route', async ({ page }) => {
+  await page.goto('./#/vue/forms')
+  await waitForViewer(page)
+  await page.evaluate(() => {
+    location.hash = '#/nowhere/at-all'
+  })
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Annotation tour')
+  await expect.poll(() => page.evaluate(() => location.hash)).toBe('#/react/tour')
+})
+
+for (const fw of FRAMEWORK_ORDER) {
+  test(`${fw}: a dropped PDF stays until the scenario changes`, async ({
+    page,
+    request,
+  }) => {
+    await page.goto(`./#/${fw}/tour`)
+    await waitForViewer(page)
+    const pageCount = viewer(page).locator('[data-ink-page-count]')
+    await expect(pageCount).toHaveText('of 4')
+    const letter = await (await request.get('documents/letter.pdf')).body()
+    await drop(page, letter, 'letter.pdf', 'application/pdf')
+    await expect(page.locator('[data-file-status]')).toHaveText('Opened letter.pdf.')
+    await expect(pageCount).toHaveText('of 1')
+    // The Code tab and back keep the dropped file.
+    await page.getByRole('tab', { name: 'Code' }).click()
+    await page.getByRole('tab', { name: 'Preview' }).click()
+    await expect(pageCount).toHaveText('of 1')
+    await scenarioLink(page, nameOf(fw), 'Pick your tools').click()
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Pick your tools')
+    await scenarioLink(page, nameOf(fw), 'Annotation tour').click()
+    await waitForViewer(page)
+    await expect(pageCount).toHaveText('of 4')
+    await expect(page.locator('[data-file-status]')).toHaveText('')
+  })
+}
+
+for (const fw of FRAMEWORK_ORDER) {
+  test(`${fw}: refuses a non-PDF and recovers from a broken one`, async ({
+    page,
+    request,
+  }) => {
+    await page.goto(`./#/${fw}/tour`)
+    await waitForViewer(page)
+    const pageCount = viewer(page).locator('[data-ink-page-count]')
+    await page.locator('input[type=file]').setInputFiles({
+      name: 'notes.txt',
+      mimeType: 'text/plain',
+      buffer: Buffer.from('not a pdf'),
+    })
+    await expect(page.locator('[data-file-status]')).toHaveText('notes.txt is not a PDF.')
+    await expect(pageCount).toHaveText('of 4')
+    await drop(page, Buffer.from('not a pdf either'), 'notes.txt', 'text/plain')
+    await expect(pageCount).toHaveText('of 4')
+
+    await page.locator('input[type=file]').setInputFiles({
+      name: 'broken.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.7 this is not really a PDF'),
+    })
+    await expect(viewer(page).locator('[data-ink-root]')).toHaveAttribute(
+      'data-state',
+      'error'
+    )
+    await expect(
+      viewer(page).getByText('This document could not be opened.')
+    ).toBeVisible()
+    // PDF.js logs its parse failure; that is the expected outcome of this file.
+    guard.take(/^Warning: Indexing all PDF objects$/)
+    const letter = await (await request.get('documents/letter.pdf')).body()
+    await page.locator('input[type=file]').setInputFiles({
+      name: 'letter.pdf',
+      mimeType: 'application/pdf',
+      buffer: letter,
+    })
+    await waitForViewer(page)
+    await expect(page.locator('[data-file-status]')).toHaveText('Opened letter.pdf.')
+    await expect(pageCount).toHaveText('of 1')
+  })
+}
 
 test('the events log keeps the newest 200', async ({ page }) => {
   await page.goto('./?debug#/react/tools')
@@ -372,15 +426,17 @@ test('no axe violations', async ({ page }) => {
   expect(code.violations).toEqual([])
 })
 
-test('no horizontal scroll at phone width', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('./')
-  await waitForViewer(page)
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth
-  )
-  expect(overflow).toBe(0)
-})
+for (const fw of FRAMEWORK_ORDER) {
+  test(`${fw}: no horizontal scroll at phone width`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto(`./#/${fw}/tour`)
+    await waitForViewer(page)
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+    )
+    expect(overflow).toBe(0)
+  })
+}
 
 test('the TypeScript controlled page has no note', async ({ page }) => {
   await page.goto('./#/vanilla/controlled')
