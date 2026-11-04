@@ -1,0 +1,19 @@
+packages/svelte/src/test/Toolbar.browser.test.ts
+  s_d6f92c10539fe3::t_ee177620c781dc 1315-1348
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "afd26ba69c3e84f5a3ff70ba34eaaf9886e1820e",
+  "prompts": {},
+  "sessions": {
+    "s_d6f92c10539fe3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db98c1ef-4c5a-4c88-b425-330912eecf03",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
