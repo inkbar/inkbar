@@ -1,0 +1,50 @@
+apps/sandbox/src/scenarios/redactions/vanilla.ts
+  s_d6f92c10539fe3::t_f60f5b701d765b 69-74
+  s_d6f92c10539fe3::t_a834c507fedab6 1-68,75-137
+apps/sandbox/src/scenarios/search/SearchLog.svelte
+  s_d6f92c10539fe3::t_79eba9100954a1 1-17
+apps/sandbox/src/scenarios/search/vue.vue
+  s_d6f92c10539fe3::t_79eba9100954a1 1-82
+apps/sandbox/e2e/scenarios.spec.ts
+  s_d6f92c10539fe3::t_7cc51390b338f7 42-43
+apps/sandbox/src/scenarios/redactions/react.tsx
+  s_d6f92c10539fe3::t_28728b942e6e4a 1-117
+apps/sandbox/e2e/redactions.spec.ts
+  s_d6f92c10539fe3::t_c094d86eba103d 1-80,85-149,153-219,223-242,246-256
+  s_d6f92c10539fe3::t_411ed921216489 81-84
+  s_d6f92c10539fe3::t_fd11edbcef76c9 150-152,220-222,243-245
+apps/sandbox/e2e/search.spec.ts
+  s_d6f92c10539fe3::t_7cc51390b338f7 1-44,48-67,69-73,80-86
+  s_d6f92c10539fe3::t_fd11edbcef76c9 74-79
+  s_d6f92c10539fe3::t_8b9e761a87c396 45-47,68
+apps/sandbox/src/scenarios/redactions/CommandLog.svelte
+  s_d6f92c10539fe3::t_9654a6e87a2788 1-13
+apps/sandbox/src/scenarios/redactions/svelte.svelte
+  s_d6f92c10539fe3::t_9654a6e87a2788 1-109
+apps/sandbox/src/scenarios/search/svelte.svelte
+  s_d6f92c10539fe3::t_79eba9100954a1 1-63
+apps/sandbox/src/scenarios/search/vanilla.ts
+  s_d6f92c10539fe3::t_79eba9100954a1 1-105
+apps/sandbox/src/scenarios/search/react.tsx
+  s_d6f92c10539fe3::t_019baf0c69fed4 1-73
+apps/sandbox/src/styles/app.css
+  s_d6f92c10539fe3::t_d43391e9e5e534 390-414
+apps/sandbox/src/scenarios/redactions/vue.vue
+  s_d6f92c10539fe3::t_0035f9607f7b31 1-123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "51e3b8a8ab6cc83ac65e6761752d015981418a55",
+  "prompts": {},
+  "sessions": {
+    "s_d6f92c10539fe3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db98c1ef-4c5a-4c88-b425-330912eecf03",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
