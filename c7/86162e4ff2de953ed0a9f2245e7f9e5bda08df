@@ -1,0 +1,22 @@
+apps/sandbox/src/scenarios/registry.ts
+  s_d6f92c10539fe3::t_12cd0a8dd2164c 48-49
+  s_d6f92c10539fe3::t_a2b6145e36e482 47
+apps/sandbox/e2e/shell.spec.ts
+  s_d6f92c10539fe3::t_a2b6145e36e482 25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c786162e4ff2de953ed0a9f2245e7f9e5bda08df",
+  "prompts": {},
+  "sessions": {
+    "s_d6f92c10539fe3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db98c1ef-4c5a-4c88-b425-330912eecf03",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
