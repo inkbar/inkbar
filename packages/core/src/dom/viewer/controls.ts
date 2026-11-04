@@ -11,18 +11,11 @@
 import {
   ChevronLeft,
   ChevronRight,
-  Highlighter,
   ICON_ATTRIBUTES,
-  MessageSquare,
-  PenLine,
-  PenTool,
   Search,
-  Signature,
   Redo2,
-  Square,
   SquareDashedMousePointer,
   TextCursor,
-  Type,
   Undo2,
   ZoomIn,
   ZoomOut,
@@ -81,13 +74,6 @@ const SVG = 'http://www.w3.org/2000/svg'
 const TOOL_ICONS: Readonly<Partial<Record<ToolId, IconNode>>> = {
   'select-text': TextCursor,
   select: SquareDashedMousePointer,
-  highlight: Highlighter,
-  'redact-area': Square,
-  sketch: PenTool,
-  draw: PenLine,
-  note: MessageSquare,
-  freetext: Type,
-  signature: Signature,
 }
 
 /**

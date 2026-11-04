@@ -1,15 +1,5 @@
-import { TOOL_LABELS, type ToolId } from '@inkbar/core/dom'
-import {
-  Highlighter,
-  MessageSquare,
-  PenLine,
-  PenTool,
-  Signature,
-  Square,
-  SquareDashedMousePointer,
-  TextCursor,
-  Type,
-} from '@inkbar/icons'
+import { TOOL_LABELS, withHostTools, type ToolId } from '@inkbar/core/dom'
+import { SquareDashedMousePointer, TextCursor } from '@inkbar/icons'
 import { Toolbar } from 'radix-ui'
 
 import { cx } from '../class-names'
@@ -24,13 +14,6 @@ import type { ComponentPropsWithoutRef, ReactNode } from 'react'
 const ICONS: Readonly<Partial<Record<ToolId, IconNode>>> = {
   'select-text': TextCursor,
   select: SquareDashedMousePointer,
-  highlight: Highlighter,
-  'redact-area': Square,
-  sketch: PenTool,
-  draw: PenLine,
-  note: MessageSquare,
-  freetext: Type,
-  signature: Signature,
 }
 
 export interface InkToolButtonProps extends Omit<
@@ -55,8 +38,8 @@ export function InkToolButton({
   const { hostTools, pluginHost } = useInkContext('InkToolButton')
   const { tool: current, setTool } = useTool()
   const active = current === tool
-  /** A host or plugin tool by this id, for the name and icon core has none for. */
-  const own = [...(hostTools ?? []), ...(pluginHost?.tools ?? [])].find(
+  /** The registered tool by this id, for the name and icon core has none for. */
+  const own = withHostTools([...(hostTools ?? []), ...(pluginHost?.tools ?? [])]).find(
     (t) => t.id === tool
   )
   // `label` and `children` win; then core's name and icon; then the tool's own.

@@ -3,6 +3,8 @@
 // draft is `position:absolute; pointer-events:none`, a box over the shape's bounds holding an
 // SVG preview: geometry only, the look comes from the theme
 // (`.ink-draft[data-ink-draft='shape']`).
+import { Shapes } from '@inkbar/icons'
+
 import {
   calloutStroke,
   freeTextBox,
@@ -239,6 +241,8 @@ export function shapeTool(): Tool<ShapeOptions> {
 
   return {
     id: 'shape',
+    label: 'Shape',
+    icon: Shapes,
     kind: 'one-shot',
     cursor: 'crosshair',
     styleGroup: 'shape',

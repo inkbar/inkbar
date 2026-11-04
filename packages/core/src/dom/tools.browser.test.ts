@@ -1,3 +1,14 @@
+import {
+  Highlighter,
+  MessageSquare,
+  PenLine,
+  PenTool,
+  Shapes,
+  Signature,
+  Square,
+  Type,
+  type IconNode,
+} from '@inkbar/icons'
 import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { userEvent } from 'vitest/browser'
@@ -2227,10 +2238,29 @@ describe('sketch tool', () => {
     })
   }
 
+  it('every creation tool names itself', () => {
+    const expected: Record<string, [string, IconNode]> = {
+      highlight: ['Highlight', Highlighter],
+      'redact-area': ['Mark for redaction', Square],
+      sketch: ['Sketch', PenTool],
+      draw: ['Draw', PenLine],
+      note: ['Add note', MessageSquare],
+      shape: ['Shape', Shapes],
+      freetext: ['Text box', Type],
+      signature: ['Signature', Signature],
+    }
+    const tools = builtinTools()
+    for (const [id, [label, icon]] of Object.entries(expected)) {
+      const tool = tools.find((t) => t.id === id)
+      expect(tool?.label, id).toBe(label)
+      expect(tool?.icon, id).toBe(icon)
+    }
+  })
+
   it('is a built-in tool in the ink style group, labelled Sketch', () => {
     const sketch = builtinTools().find((t) => t.id === 'sketch')
     expect(sketch?.styleGroup).toBe('ink')
-    expect(TOOL_LABELS.sketch).toBe('Sketch')
+    expect(sketch?.label).toBe('Sketch')
   })
 
   it('a rough circle becomes a circle annotation with the shape group style', async () => {
@@ -2603,10 +2633,10 @@ describe('freetext tool', () => {
       new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
     )
 
-  it('is a built-in tool in the text style group, labelled Text', () => {
+  it('is a built-in tool in the text style group, labelled Text box', () => {
     const tool = builtinTools().find((t) => t.id === 'freetext')
     expect(tool?.styleGroup).toBe('text')
-    expect(TOOL_LABELS.freetext).toBe('Text')
+    expect(tool?.label).toBe('Text box')
   })
 
   /** The stand-in a new box is typed into before it joins the store. */

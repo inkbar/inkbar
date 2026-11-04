@@ -52,11 +52,11 @@ describe('toolbar', () => {
     await expect.poll(attr(SCROLL, 'data-ink-tool')).toBe('highlight')
   })
 
-  // React: 'the text tool button is named Text, shows its icon and picks the text box tool'
-  it('the text tool button is named Text, shows its icon and picks the text box tool', async () => {
+  // React: 'the text tool button is named Text box, shows its icon and picks the text box tool'
+  it('the text tool button is named Text box, shows its icon and picks the text box tool', async () => {
     await render(ToolbarHarness, { src: fixtureUrl('text-simple'), assets })
     await q('.ink-page canvas')
-    const text = toolbar().getByRole('button', { name: 'Text', exact: true })
+    const text = toolbar().getByRole('button', { name: 'Text box', exact: true })
     await expect.element(text).toHaveAttribute('data-tool', 'freetext')
     expect(text.element().querySelectorAll('svg')).toHaveLength(1)
     await text.click()
@@ -146,7 +146,7 @@ describe('toolbar', () => {
       'Choose highlight',
       'Mark for redaction',
       'Add note',
-      'Text',
+      'Text box',
       'Line style',
       'Text style',
       'Border colour',

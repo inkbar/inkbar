@@ -3,6 +3,8 @@
 // into the in-place editor, and joins the store, selected, once it has text. The live draft is
 // `.ink-draft[data-ink-draft='freetext']`, `position:absolute; pointer-events:none`: geometry
 // only, the look is the theme's.
+import { Type } from '@inkbar/icons'
+
 import { closedEditor, editFreeText, type FreeTextEditor } from '../freetext-editor'
 import { renderAnnotationContent } from '../overlay-render'
 
@@ -157,6 +159,8 @@ export function freetextTool(): Tool {
 
   return {
     id: 'freetext',
+    label: 'Text box',
+    icon: Type,
     kind: 'one-shot',
     cursor: 'text',
     styleGroup: 'text',

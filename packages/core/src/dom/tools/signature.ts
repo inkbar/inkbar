@@ -4,6 +4,8 @@
 // rotation is the viewer's, and turns it with the page like any annotation. Ink takes the
 // `ink` group's colour at the template's own width; an image is placed as it is. Either way
 // the new annotation is selected and one undo step.
+import { Signature } from '@inkbar/icons'
+
 import {
   DEFAULT_SIGNATURE_WIDTH,
   placeSignature,
@@ -74,6 +76,8 @@ export function signatureTool(): Tool<SignatureOptions> {
 
   return {
     id: 'signature',
+    label: 'Signature',
+    icon: Signature,
     kind: 'one-shot',
     cursor: 'copy',
     defaultOptions: {},

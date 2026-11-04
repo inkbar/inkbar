@@ -11,6 +11,7 @@ import {
 import { sandboxLoader } from '../../pdfjs/scripting'
 import { definePlugin } from '../plugins/define'
 import { mountContainer, settle, until } from '../test-utils'
+import { shapeTool } from '../tools/shape'
 
 import { createColorMenu } from './color-menu'
 import {
@@ -450,17 +451,27 @@ describe('createViewer', () => {
       expect(field.selectionStart).toBe(0)
     })
 
-    it('the text tool button is named Text, shows its icon and picks the text box tool', async () => {
+    it('the text tool button is named Text box, shows its icon and picks the text box tool', async () => {
       const { viewer } = make('text-simple')
       const { tools: t } = bars(viewer)
       const text = createToolButton(viewer, 'freetext')
       t.append(text)
       const { engine } = await ready(viewer)
-      expect(text.getAttribute('aria-label')).toBe('Text')
+      expect(text.getAttribute('aria-label')).toBe('Text box')
       expect(text.querySelector('svg.ink-icon')).not.toBeNull()
       text.click()
       expect(text.getAttribute('aria-pressed')).toBe('true')
       expect(engine.tools.active.get()).toBe('freetext')
+    })
+
+    it("a tool button takes the tool's own label and icon", async () => {
+      const { viewer } = make('text-simple', { tools: [shapeTool()] })
+      const { tools: t } = bars(viewer)
+      const shape = createToolButton(viewer, 'shape')
+      t.append(shape)
+      await ready(viewer)
+      expect(shape.getAttribute('aria-label')).toBe('Shape')
+      expect(shape.querySelector('svg')).not.toBeNull()
     })
 
     it('the sketch tool button is named Sketch, shows its icon and picks the sketch tool', async () => {
