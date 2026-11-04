@@ -1,0 +1,22 @@
+apps/sandbox/vite/documents/letter.ts
+  s_d6f92c10539fe3::t_ff0b39bbed846a 9-10,15,19
+apps/sandbox/vite/documents/redactions.ts
+  s_d6f92c10539fe3::t_ff0b39bbed846a 43,54,65
+  s_d6f92c10539fe3::t_a687055bdba625 4-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b29ffbc8245eb8c0c78f37044d06e8dc50a98000",
+  "prompts": {},
+  "sessions": {
+    "s_d6f92c10539fe3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db98c1ef-4c5a-4c88-b425-330912eecf03",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
