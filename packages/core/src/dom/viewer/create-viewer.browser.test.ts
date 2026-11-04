@@ -3005,15 +3005,21 @@ describe('forms', () => {
     hostList = next
 
     // A reopened document starts from `initial`; the host pushes its own list in onReady.
-    hooks.onReady = (d) => d.annotations.setControlledValue(hostList)
+    let startedWith: string[] = []
+    hooks.onReady = (d) => {
+      startedWith = d.annotations.list.get().map((a) => a.id)
+      d.annotations.setControlledValue(hostList)
+    }
     viewer.open(fixtureUrl('text-simple'))
     await until(() => viewer.document.get() !== doc && viewer.document.get() !== null)
     const reopened = viewer.document.get()!
     await until(() => annotationEl(viewer, note.id) !== null)
     expect(reopened.annotations.list.get().map((a) => a.id)).toEqual([seed.id, note.id])
     onChange.mockClear()
+    expect(startedWith).toEqual([seed.id])
     reopened.annotations.remove(note.id)
     expect(onChange).toHaveBeenCalledTimes(1)
+    expect(onChange.mock.calls.at(-1)![0].map((a) => a.id)).toEqual([seed.id])
   })
 
   it('formHighlight false turns the tint off', async () => {

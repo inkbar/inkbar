@@ -76,6 +76,7 @@ export interface CreateViewerOptions extends Omit<
    * Form field values; defaults to uncontrolled, starting from the PDF's. Controlled:
    * `{ mode: 'controlled', initial, onChange }`, where `onChange` hears every commit with the
    * full map and the host pushes back with `viewer.form.get()?.setControlledValue(next)`.
+   * `initial` applies to every document the viewer opens; push your values once the new one is ready.
    */
   fields?: FieldsMode
   /**
