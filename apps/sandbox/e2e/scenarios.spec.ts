@@ -37,6 +37,7 @@ const CREATION_TOOLS = [
 const TOOLBARS: Record<string, string[]> = {
   tour: [...SELECT_TOOLS, ...CREATION_TOOLS],
   tools: [...SELECT_TOOLS, 'highlight', 'note'],
+  forms: SELECT_TOOLS,
   controlled: [...SELECT_TOOLS, ...CREATION_TOOLS],
 }
 
