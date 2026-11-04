@@ -57,10 +57,6 @@ export const SCENARIOS: readonly Scenario[] = [
     blurb: 'Your app owns the annotation list and hears every change.',
     document: 'tour',
     panels: ['events'],
-    notes: {
-      vanilla:
-        "createViewer can't take a controlled annotation list yet, so this page follows the list instead.",
-    },
   },
   {
     id: 'search',

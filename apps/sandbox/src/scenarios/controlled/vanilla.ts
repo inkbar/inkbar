@@ -1,9 +1,8 @@
 /*
- * Your app hears every change to the annotation list, without a framework. createViewer has no
- * controlled-annotations option yet, so the list stays Inkbar's and this file follows it: the
- * document's `annotations.list` readable reports each change as the framework bindings'
- * `annotations` callbacks do. Embedded annotations stay in the file; only the ones made in this
- * session are counted.
+ * Your app owns the annotation list, without a framework. Pass `annotations` with
+ * `mode: 'controlled'` and Inkbar stops keeping its own: every change arrives in `onChange`, and
+ * what you push back with `setControlledValue` is what the viewer shows. Embedded annotations
+ * stay in the file and never pass through here.
  */
 import {
   allTools,
@@ -14,14 +13,12 @@ import {
   createPageCount,
   createPageInput,
   createPrevPage,
-  createRedo,
   createShapeMenu,
   createSignatureMenu,
   createTextStyleMenu,
   createToolbar,
   createToolbarSeparator,
   createToolButton,
-  createUndo,
   createViewer,
   createZoomIn,
   createZoomOut,
@@ -33,7 +30,7 @@ import { assets } from 'virtual:inkbar-assets'
 import { signatureFonts, signatures } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
-import type { DocumentSource } from '@inkbar/core'
+import type { Annotation, DocumentSource } from '@inkbar/core'
 
 function group(
   label: string,
@@ -49,24 +46,25 @@ function group(
 }
 
 export function mount(el: HTMLElement, { source, log, onDocument }: ScenarioProps) {
-  /** Stops following the open document's annotations. */
-  let unfollow = (): void => undefined
+  /** The list this app holds; the viewer shows what is pushed back into it. */
+  let annotations: Annotation[] = []
   const viewer = createViewer(el, {
     source,
     assets,
     tools: allTools(),
     signatures,
     signatureFonts,
+    annotations: {
+      mode: 'controlled',
+      initial: annotations,
+      onChange: (next) => {
+        annotations = next
+        log('onAnnotationsChange', { count: next.length })
+        viewer.document.get()?.annotations.setControlledValue(next)
+      },
+    },
     onReady: (doc) => {
       log('onReady', { pages: doc.pages.length })
-      unfollow()
-      // The readable replays its current value on subscribe; only later changes are news.
-      let first = true
-      unfollow = doc.annotations.list.subscribe((list) => {
-        if (first) first = false
-        else
-          log('annotations', { count: list.filter((a) => a.source === 'session').length })
-      })
       onDocument(doc)
     },
     onActivate: (id) => log('onActivate', id),
@@ -107,9 +105,7 @@ export function mount(el: HTMLElement, { source, log, onDocument }: ScenarioProp
       createColorMenu(viewer, { property: 'border' }),
       createColorMenu(viewer, { property: 'fill' }),
       createTextStyleMenu(viewer)
-    ),
-    createUndo(viewer),
-    createRedo(viewer)
+    )
   )
 
   const status = createToolbar({ label: 'Page and zoom' })
@@ -138,7 +134,6 @@ export function mount(el: HTMLElement, { source, log, onDocument }: ScenarioProp
   return {
     open: (next: DocumentSource) => viewer.open(next),
     destroy() {
-      unfollow()
       unfollowTool()
       unfollowTools()
       viewer.destroy()
