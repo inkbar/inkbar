@@ -1312,6 +1312,40 @@ describe('signature menu', () => {
     await expect.poll(() => page.querySelectorAll('img.ink-stamp').length).toBe(1)
   })
 
+  it('releases the page lock on Escape, on Cancel and when the root unmounts', async () => {
+    const released = () => {
+      expect(getComputedStyle(document.body).pointerEvents).not.toBe('none')
+      expect(getComputedStyle(document.body).overflow).not.toBe('hidden')
+      expect(document.body.style.pointerEvents).toBe('')
+      expect(document.body.style.overflow).toBe('')
+    }
+    const store = createMemorySignatureStore()
+    const screen = await render(SignatureHarness, {
+      src: fixtureUrl('text-simple'),
+      assets,
+      store,
+    })
+    await q('.ink-page canvas')
+    released()
+
+    await createSignature()
+    expect(getComputedStyle(document.body).pointerEvents).toBe('none')
+    await userEvent.keyboard('{Escape}')
+    await expect.poll(() => dialog().elements().length).toBe(0)
+    released()
+
+    await createSignature()
+    expect(getComputedStyle(document.body).pointerEvents).toBe('none')
+    await dialog().getByRole('button', { name: 'Cancel' }).click()
+    await expect.poll(() => dialog().elements().length).toBe(0)
+    released()
+
+    await createSignature()
+    expect(getComputedStyle(document.body).pointerEvents).toBe('none')
+    await screen.unmount()
+    released()
+  })
+
   it('a save the store refuses shows an error and keeps the dialog open', async () => {
     const store = createMemorySignatureStore()
     store.save = () => Promise.reject(new Error('full'))
