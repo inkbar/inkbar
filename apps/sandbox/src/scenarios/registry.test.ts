@@ -26,6 +26,17 @@ void test('only forms has a values panel', () => {
   ])
 })
 
+void test('the Svelte helpers show in their scenarios', () => {
+  const files = (id: string) => SCENARIOS.find((s) => s.id === id)?.frameworkFiles
+  assert.deepEqual(files('redactions'), {
+    svelte: ['src/scenarios/redactions/CommandLog.svelte'],
+  })
+  assert.deepEqual(files('search'), { svelte: ['src/scenarios/search/SearchLog.svelte'] })
+  for (const s of SCENARIOS)
+    if (s.id !== 'redactions' && s.id !== 'search')
+      assert.equal(s.frameworkFiles, undefined, s.id)
+})
+
 void test('controlled notes that the TypeScript page only follows the list', () => {
   const controlled = SCENARIOS.find((s) => s.id === 'controlled')
   assert.match(controlled?.notes?.vanilla ?? '', /follows the list/)

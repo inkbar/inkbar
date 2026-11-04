@@ -27,13 +27,16 @@ import { assets } from 'virtual:inkbar-assets'
 import type { Log, ScenarioProps } from '../../frameworks/types'
 import type { InkDocument } from '@inkbar/core'
 
-/** Logs each finished search and each step to a hit. It sits inside InkRoot to reach search. */
+/**
+ * Logs each finished search and each step to a hit, while the find bar is open. It sits inside
+ * InkRoot to reach search.
+ */
 function SearchLog({ log }: { log: Log }) {
-  const { query, hits, current, scanning } = useSearch().state
+  const { open, query, hits, current, scanning } = useSearch().state
   const count = hits.length
   useEffect(() => {
-    if (query && !scanning) log('search', { query, hits: count, current })
-  }, [query, count, current, scanning, log])
+    if (open && query && !scanning) log('search', { query, hits: count, current })
+  }, [open, query, count, current, scanning, log])
   return null
 }
 

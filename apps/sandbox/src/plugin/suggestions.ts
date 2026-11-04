@@ -42,6 +42,7 @@ interface Kind {
   values: readonly string[]
 }
 
+// Names and addresses are left out on purpose: the reader redacts those by hand.
 /** Every value is made up, like the documents that hold them. */
 const KINDS: readonly Kind[] = [
   {

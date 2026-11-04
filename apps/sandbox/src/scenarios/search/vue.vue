@@ -30,18 +30,22 @@ import type { InkDocument } from '@inkbar/core'
 
 const { source, log, onDocument } = defineProps<ScenarioProps>()
 
-/** Logs each finished search and each step to a hit. It sits inside InkRoot to reach search. */
+/**
+ * Logs each finished search and each step to a hit, while the find bar is open. It sits inside
+ * InkRoot to reach search.
+ */
 const SearchLog = defineComponent(() => {
   const { state } = useSearch()
   watch(
     [
+      () => state.value.open,
       () => state.value.query,
       () => state.value.hits.length,
       () => state.value.current,
       () => state.value.scanning,
     ],
-    ([query, hits, current, scanning]) => {
-      if (query && !scanning) log('search', { query, hits, current })
+    ([open, query, hits, current, scanning]) => {
+      if (open && query && !scanning) log('search', { query, hits, current })
     }
   )
   return () => null

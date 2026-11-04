@@ -10,7 +10,10 @@ export interface Scenario {
   blurb: string
   document: DocumentName
   panels: readonly ('events' | 'values')[]
+  /** More Code tabs for every framework, after the scenario's own file. */
   extraFiles?: readonly string[]
+  /** More Code tabs for one framework, such as a component the scenario file renders. */
+  frameworkFiles?: Partial<Record<FrameworkId, readonly string[]>>
   /** A line shown under the blurb for one framework, where it differs from the rest. */
   notes?: Partial<Record<FrameworkId, string>>
 }
@@ -46,6 +49,7 @@ export const SCENARIOS: readonly Scenario[] = [
     document: 'redactions',
     panels: ['events'],
     extraFiles: ['src/plugin/suggestions.ts'],
+    frameworkFiles: { svelte: ['src/scenarios/redactions/CommandLog.svelte'] },
   },
   {
     id: 'controlled',
@@ -65,5 +69,6 @@ export const SCENARIOS: readonly Scenario[] = [
       'Two hundred pages. Only the pages near the viewport render, and search runs across all of them.',
     document: 'long',
     panels: ['events'],
+    frameworkFiles: { svelte: ['src/scenarios/search/SearchLog.svelte'] },
   },
 ]

@@ -246,7 +246,8 @@ for (const framework of FRAMEWORK_ORDER) {
       await open(page, framework)
       await page.getByRole('tab', { name: 'Code' }).click()
       const files = page.getByRole('tablist', { name: 'Files' })
-      await expect(files.getByRole('tab')).toHaveCount(2)
+      // Svelte adds the component that logs the command's status.
+      await expect(files.getByRole('tab')).toHaveCount(framework === 'svelte' ? 3 : 2)
       await files.getByRole('tab', { name: 'suggestions.ts' }).click()
       await expect(page.getByRole('tabpanel', { name: 'Code' })).toContainText(
         "definePlugin<SuggestionsOptions>('sandbox'"

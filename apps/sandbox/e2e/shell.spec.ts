@@ -182,6 +182,28 @@ test('the Code tab says when the source fails to load, then recovers', async ({
   await expect(code).toContainText('tools/vue.vue')
 })
 
+test('a scenario that fails to load says so, and a dropped PDF has no viewer', async ({
+  page,
+  request,
+}) => {
+  // The scenario's own Vue chunks fail; the highlighted sources (Shiki's markup) still load.
+  await page.route('**/assets/vue*.js', async (route) => {
+    const response = await route.fetch()
+    if ((await response.text()).includes('shiki')) await route.fulfill({ response })
+    else await route.abort()
+  })
+  await page.goto('app.html#/vue/tools')
+  await expect(viewer(page)).toContainText('This scenario could not be loaded.')
+  await expect(viewer(page).locator('[data-ink-root]')).toHaveCount(0)
+  // The aborted imports are the expected outcome of this route.
+  guard.take(/ERR_FAILED|dynamically imported module/)
+  const letter = await (await request.get('documents/letter.pdf')).body()
+  await drop(page, letter, 'letter.pdf', 'application/pdf')
+  await expect(page.locator('[data-file-status]')).toHaveText(
+    'There is no viewer to open letter.pdf in.'
+  )
+})
+
 test('a dropped PDF stays until the scenario changes', async ({ page, request }) => {
   await page.goto('app.html')
   await waitForViewer(page)

@@ -48,13 +48,13 @@ export function mount(el: HTMLElement, { source, log, onDocument }: ScenarioProp
   })
   viewer.element.classList.add('scenario-root')
 
-  // Log each finished search and each step to a hit.
+  // Log each finished search and each step to a hit, while the find bar is open.
   let last = viewer.search.state.get()
   const unfollowSearch = viewer.search.state.subscribe((s) => {
     const finished = last.scanning && !s.scanning
-    const stepped = !s.scanning && s.current !== last.current
+    const stepped = !s.scanning && s.current >= 0 && s.current !== last.current
     last = s
-    if (s.query && (finished || stepped))
+    if (s.open && s.query && (finished || stepped))
       log('search', { query: s.query, hits: s.hits.length, current: s.current })
   })
 
