@@ -37,10 +37,6 @@ void test('the Svelte helpers show in their scenarios', () => {
       assert.equal(s.frameworkFiles, undefined, s.id)
 })
 
-void test('controlled notes that the TypeScript page only follows the list', () => {
-  const controlled = SCENARIOS.find((s) => s.id === 'controlled')
-  assert.match(controlled?.notes?.vanilla ?? '', /follows the list/)
-  assert.equal(controlled?.notes?.react, undefined)
-  for (const s of SCENARIOS)
-    if (s.id !== 'controlled') assert.equal(s.notes, undefined, s.id)
+void test('no scenario carries a per-framework note', () => {
+  for (const s of SCENARIOS) assert.equal(s.notes, undefined, s.id)
 })
