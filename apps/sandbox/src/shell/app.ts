@@ -191,7 +191,10 @@ async function select(next: Route): Promise<void> {
     mounting = false
     queued = null
     host.innerHTML = '<p class="scenario-error">This scenario could not be loaded.</p>'
-    throw error
+    // A file dropped while this loaded was reported as opened; no viewer took it.
+    drops.noViewer()
+    console.error(error)
+    return
   }
   if (gen !== generation) {
     m.unmount()
@@ -270,7 +273,14 @@ ${files
   }
 }
 
-window.addEventListener('hashchange', () => void select(parseRoute(location.hash)))
+/** Follows the hash; an unknown one is replaced by the default route, as at first load. */
+function followHash(): void {
+  const next = parseRoute(location.hash)
+  if (location.hash !== formatRoute(next))
+    history.replaceState(null, '', formatRoute(next))
+  void select(next)
+}
+window.addEventListener('hashchange', followHash)
 if (location.hash !== formatRoute(route))
   history.replaceState(null, '', formatRoute(route))
 void select(route)

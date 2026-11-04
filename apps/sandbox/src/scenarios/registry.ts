@@ -48,7 +48,7 @@ export const SCENARIOS: readonly Scenario[] = [
     blurb: 'A plugin adds a command, its own records and a card per suggestion.',
     document: 'redactions',
     panels: ['events'],
-    extraFiles: ['src/plugin/suggestions.ts'],
+    extraFiles: ['src/plugin/suggestions.ts', 'src/plugin/suggestions.css'],
     frameworkFiles: { svelte: ['src/scenarios/redactions/CommandLog.svelte'] },
   },
   {
