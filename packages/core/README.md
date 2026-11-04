@@ -57,11 +57,13 @@ The DOM layer (`@inkbar/core/dom`) provides the viewport, canvas renderer, text 
 
 ### Without a framework
 
-`createViewer` opens a document and renders it into an element, with a comment thread popover for notes and highlights. The toolbars are yours: build them from the controls below, which use the same markup as the framework packages, so `@inkbar/theme` styles them.
+`createViewer` opens a document and renders it into an element, with a comment thread popover for notes and highlights. The toolbars are yours: build them from the controls below, which use the same markup as the framework packages, so `@inkbar/theme` styles them. A viewer registers only `select-text` and `select` until you pass `tools`; `allTools()` returns all eight creation tools if you want every one.
 
 ```ts
 import {
   createViewer,
+  highlightTool,
+  noteTool,
   createToolbar,
   createToolButton,
   createPageInput,
@@ -72,13 +74,19 @@ import {
 } from '@inkbar/core/dom'
 import '@inkbar/theme/theme.css'
 
-const viewer = createViewer(el, { source: file, assets, zoom: 'fit-width' })
+const viewer = createViewer(el, {
+  source: file,
+  assets,
+  zoom: 'fit-width',
+  tools: [highlightTool(), noteTool()],
+})
 
 const tools = createToolbar()
 tools.append(
   createToolButton(viewer, 'select-text'),
   createToolButton(viewer, 'select'),
-  createToolButton(viewer, 'highlight')
+  createToolButton(viewer, 'highlight'),
+  createToolButton(viewer, 'note')
 )
 
 const undo = document.createElement('button')
