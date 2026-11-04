@@ -206,7 +206,11 @@ export function hitFor(
   return { ...hit, css, user: hit.transform.fromCss(css) }
 }
 
-const NO_OPTIONS: Readable<object> = { get: () => ({}), subscribe: () => () => {} }
+const NO_OPTIONS_VALUE: object = Object.freeze({})
+const NO_OPTIONS: Readable<object> = {
+  get: () => NO_OPTIONS_VALUE,
+  subscribe: () => () => {},
+}
 
 export function createToolController(opts: ToolControllerOptions): ToolController {
   const byId = new Map(opts.tools.map((t) => [t.id, t]))

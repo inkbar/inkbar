@@ -5222,9 +5222,11 @@ describe('unknown tools', () => {
     const { tools } = await setup()
     const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     try {
-      tools.options('nope')
+      const first = tools.options('nope')
       const readable = tools.options('nope')
       expect(readable.get()).toEqual({})
+      expect(readable.get()).toBe(readable.get())
+      expect(first.get()).toBe(readable.get())
       expect(readable.subscribe(() => undefined)).toBeTypeOf('function')
       expect(spy).toHaveBeenCalledTimes(1)
     } finally {
