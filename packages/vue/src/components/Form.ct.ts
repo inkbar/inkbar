@@ -270,7 +270,7 @@ test.describe('signature fields', () => {
     await expect(menu(page)).toBeVisible()
   })
 
-  test('a signature created from the popover signs the field', async ({
+  test('a signature created from the popover signs the field with no signature tool', async ({
     mount,
     page,
   }) => {

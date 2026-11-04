@@ -16,6 +16,7 @@ describe('@inkbar/core/dom entry', () => {
     const entry = await import('./index')
     expect(evaluated.pdfjs).toBe(false)
     expect(Object.keys(entry)).not.toContain('confidenceAttr')
+    expect(Object.keys(entry)).not.toContain('builtinTools')
     expect(Object.keys(entry)).toEqual(
       expect.arrayContaining([
         'createViewport',
@@ -33,6 +34,8 @@ describe('@inkbar/core/dom entry', () => {
         'createPageMount',
         'createToolController',
         'allTools',
+        'unknownTool',
+        'withHostTools',
         'drawTool',
         'sketchTool',
         'hitFor',

@@ -95,6 +95,7 @@ export function FormHarness({
   const [heard, setHeard] = useState(0)
   const [store] = useState(() => createMemorySignatureStore(templates))
   return (
+    // No tools on purpose: form signing must work without the signature tool.
     <InkRoot
       src={src}
       assets={assets}

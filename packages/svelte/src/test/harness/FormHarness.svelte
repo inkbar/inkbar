@@ -65,6 +65,7 @@
   const store = untrack(() => createMemorySignatureStore(templates))
 </script>
 
+<!-- No tools on purpose: form signing must work without the signature tool. -->
 <InkRoot
   {src}
   {assets}

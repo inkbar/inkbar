@@ -356,7 +356,7 @@ describe('form filling', () => {
       await expect.poll(count(SIGN_MENU)).toBe(1)
     })
 
-    it('a signature created from the popover signs the field', async () => {
+    it('a signature created from the popover signs the field with no signature tool', async () => {
       await harness({ src: fixtureUrl('form-fields') })
       const menu = await openSignMenu()
       await loc(menu).getByRole('menuitem', { name: 'Create signature' }).click()

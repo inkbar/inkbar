@@ -650,7 +650,7 @@ describe('InkRoot', () => {
     consoleGuard.clear()
   })
 
-  it('a controlled tool naming a missing tool reports select-text once', async () => {
+  it('a controlled tool the host keeps on a missing id is not applied again', async () => {
     const tools: string[] = []
     const props = {
       src: fixtureUrl('text-simple'),

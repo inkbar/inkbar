@@ -75,9 +75,11 @@ export function InkToolButton({
       // unnamed, whatever the host passed.
       {...(registered ? {} : MISSING)}
     >
-      {typeof children === 'function'
-        ? children({ active, label: name })
-        : (children ?? (icon ? <InkIcon icon={icon} /> : null))}
+      {!registered
+        ? null
+        : typeof children === 'function'
+          ? children({ active, label: name })
+          : (children ?? (icon ? <InkIcon icon={icon} /> : null))}
     </Toolbar.Button>
   )
 }

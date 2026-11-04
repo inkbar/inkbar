@@ -22,7 +22,9 @@
   }: {
     src: DocumentSource
     assets: PdfAssets
-    controls: ('highlight-button' | 'highlight' | 'shape' | 'signature')[]
+    controls: (
+      'highlight-button' | 'hostile-button' | 'highlight' | 'shape' | 'signature'
+    )[]
     /** Passes the highlight tool. */
     highlight?: boolean
   } = $props()
@@ -33,6 +35,11 @@
   <InkToolbar>
     <InkToolButton tool="select-text" />
     {#if controls.includes('highlight-button')}<InkToolButton tool="highlight" />{/if}
+    {#if controls.includes('hostile-button')}<InkToolButton
+        tool="highlight"
+        aria-label="X"
+        title="Hostile"><span>child</span></InkToolButton
+      >{/if}
     {#if controls.includes('highlight')}<InkHighlightMenu />{/if}
     {#if controls.includes('shape')}<InkShapeMenu />{/if}
     {#if controls.includes('signature')}<InkSignatureMenu />{/if}
