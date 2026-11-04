@@ -1,0 +1,23 @@
+apps/sandbox/src/shell/app.ts
+  s_d6f92c10539fe3::t_a3b3859d86a74d 48-52
+apps/sandbox/src/styles/app.css
+  s_d6f92c10539fe3::t_8776dee1343fb4 757-765
+  s_d6f92c10539fe3::t_07f874b2256ce3 37-60,260,264,266,281-283,290-293,300,521
+  s_d6f92c10539fe3::t_cece43f08b1167 744-756
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ae79df09fac80077a190e0110c0f367f07aa3772",
+  "prompts": {},
+  "sessions": {
+    "s_d6f92c10539fe3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db98c1ef-4c5a-4c88-b425-330912eecf03",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
