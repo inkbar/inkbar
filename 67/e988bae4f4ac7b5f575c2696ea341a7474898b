@@ -1,0 +1,38 @@
+apps/sandbox/src/vanilla/Demo.ts
+  s_d6f92c10539fe3::t_880ec6866b038c 30,111
+apps/e2e-vue/src/ReviewPage.vue
+  s_d6f92c10539fe3::t_be79686bba66e1 14,55,188
+apps/e2e-react/src/ReviewPage.tsx
+  s_d6f92c10539fe3::t_880ec6866b038c 14,220
+  s_d6f92c10539fe3::t_3554904e00a209 45-46
+apps/sandbox/src/react/Demo.tsx
+  s_d6f92c10539fe3::t_55c540b1a424d8 1
+  s_d6f92c10539fe3::t_880ec6866b038c 71
+  s_d6f92c10539fe3::t_3554904e00a209 39-40
+apps/sandbox/src/svelte/Demo.svelte
+  s_d6f92c10539fe3::t_55c540b1a424d8 11
+  s_d6f92c10539fe3::t_3554904e00a209 50,77
+apps/e2e-svelte/src/ReviewPage.svelte
+  s_d6f92c10539fe3::t_be79686bba66e1 16,61,192
+apps/sandbox/src/vue/Demo.vue
+  s_d6f92c10539fe3::t_3554904e00a209 51,78
+  s_d6f92c10539fe3::t_55c540b1a424d8 11
+packages/core/README.md
+  s_d6f92c10539fe3::t_be79686bba66e1 60,65-66,77-82,88-89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "67e988bae4f4ac7b5f575c2696ea341a7474898b",
+  "prompts": {},
+  "sessions": {
+    "s_d6f92c10539fe3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db98c1ef-4c5a-4c88-b425-330912eecf03",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
