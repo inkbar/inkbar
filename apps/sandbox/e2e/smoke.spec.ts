@@ -671,7 +671,7 @@ for (const framework of FRAMEWORKS) {
     test('type into a new text box', async ({ page }) => {
       await page.goto(`${framework}/`)
       await waitForFirstPage(page)
-      const text = page.getByRole('button', { name: 'Text', exact: true })
+      const text = page.getByRole('button', { name: 'Text box', exact: true })
       await text.click()
       await expect(text).toHaveAttribute('aria-pressed', 'true')
       const box = (await page.locator('.ink-page[data-page="0"]').boundingBox())!
@@ -762,7 +762,7 @@ for (const framework of FRAMEWORKS) {
     }) => {
       await page.goto(`${framework}/`)
       await waitForFirstPage(page)
-      const text = page.getByRole('button', { name: 'Text', exact: true })
+      const text = page.locator('[data-ink-tool-button][data-tool="freetext"]')
       await text.click()
       const box = (await page.locator('.ink-page[data-page="0"]').boundingBox())!
       await page.mouse.click(box.x + 40, box.y + 30)
@@ -804,7 +804,7 @@ for (const framework of FRAMEWORKS) {
     test('make a text box bold and centred', async ({ page }) => {
       await page.goto(`${framework}/`)
       await waitForFirstPage(page)
-      await page.getByRole('button', { name: 'Text', exact: true }).click()
+      await page.getByRole('button', { name: 'Text box', exact: true }).click()
       const box = (await page.locator('.ink-page[data-page="0"]').boundingBox())!
       await page.mouse.click(box.x + 40, box.y + 30)
       await expect(page.getByRole('textbox', { name: 'Text box' })).toBeFocused()
@@ -835,7 +835,7 @@ for (const framework of FRAMEWORKS) {
     }) => {
       await page.goto(`${framework}/`)
       await waitForFirstPage(page)
-      await page.getByRole('button', { name: 'Text', exact: true }).click()
+      await page.getByRole('button', { name: 'Text box', exact: true }).click()
       const box = (await page.locator('.ink-page[data-page="0"]').boundingBox())!
       await page.mouse.click(box.x + 40, box.y + 30)
       const editor = page.getByRole('textbox', { name: 'Text box' })
