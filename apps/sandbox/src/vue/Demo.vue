@@ -8,6 +8,7 @@
  * plugin (src/plugin/suggestions.ts): registered in `plugins`, with its button placed by
  * InkCommand.
  */
+import { allTools } from '@inkbar/core/dom'
 import {
   InkColorMenu,
   InkCommand,
@@ -47,6 +48,7 @@ import type { DocumentSource, FormAction, InkDocument } from '@inkbar/core'
 
 defineProps<{ source: DocumentSource }>()
 
+const tools = allTools()
 const doc = shallowRef<InkDocument | null>(null)
 const actions = ref<LoggedAction[]>([])
 const gloss = ref('')
@@ -73,6 +75,7 @@ function onFormAction(a: FormAction): void {
     :assets="assets"
     :signatures="signatures"
     :signature-fonts="signatureFonts"
+    :tools="tools"
     :plugins="[suggestionsPlugin()]"
     class="demo-root"
     @form-action="onFormAction"
