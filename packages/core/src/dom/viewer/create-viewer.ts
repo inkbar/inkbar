@@ -83,7 +83,10 @@ export interface CreateViewerOptions extends Omit<
    * onChange }`, where the host owns the session annotations and `onChange` hears every
    * proposed list. Nothing shows until the host pushes it back with
    * `viewer.document.get()?.annotations.setControlledValue(next)`. Embedded annotations stay in
-   * the file and never pass through `onChange`. Undo and redo history is inert in controlled
+   * the file and never pass through `onChange`. `initial` applies to every document the viewer
+   * opens, including after `viewer.open()`. A host that keeps its own list pushes it with
+   * `viewer.document.get()?.annotations.setControlledValue(list)` once the new document is
+   * ready (in `onReady`). Undo and redo history is inert in controlled
    * mode: the host owns the list, so it owns undo too.
    */
   annotations?: OpenOptions['annotations']

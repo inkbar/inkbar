@@ -60,11 +60,13 @@ export function mount(el: HTMLElement, { source, log, onDocument }: ScenarioProp
       onChange: (next) => {
         annotations = next
         log('onAnnotationsChange', { count: next.length })
-        viewer.document.get()?.annotations.setControlledValue(next)
+        viewer.document.get()?.annotations.setControlledValue(annotations)
       },
     },
     onReady: (doc) => {
       log('onReady', { pages: doc.pages.length })
+      // A reopened document starts from `initial`; keep showing what this app holds.
+      doc.annotations.setControlledValue(annotations)
       onDocument(doc)
     },
     onActivate: (id) => log('onActivate', id),

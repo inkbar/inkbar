@@ -2963,7 +2963,8 @@ describe('forms', () => {
 
   it('createViewer takes a controlled annotation list', async () => {
     // Borrow a complete annotation from an uncontrolled viewer.
-    const donor = await ready(make('text-simple').viewer)
+    const donorViewer = make('text-simple').viewer
+    const donor = await ready(donorViewer)
     const seed = donor.doc.annotations.add({
       type: 'highlight',
       page: 0,
@@ -2976,9 +2977,13 @@ describe('forms', () => {
         },
       ],
     })
+    donorViewer.destroy()
     const onChange = vi.fn<(next: Annotation[], change: AnnotationChange) => void>()
+    let hostList: Annotation[] = [seed]
+    const hooks: { onReady?: (doc: InkDocument) => void } = {}
     const { viewer } = make('text-simple', {
       annotations: { mode: 'controlled', initial: [seed], onChange },
+      onReady: (doc) => hooks.onReady?.(doc),
     })
     const { doc } = await ready(viewer)
     await until(() => annotationEl(viewer, seed.id) !== null)
@@ -2996,6 +3001,18 @@ describe('forms', () => {
     expect(annotationEl(viewer, note.id)).toBeNull()
     doc.annotations.setControlledValue(next)
     await until(() => annotationEl(viewer, note.id) !== null)
+    expect(onChange).toHaveBeenCalledTimes(1)
+    hostList = next
+
+    // A reopened document starts from `initial`; the host pushes its own list in onReady.
+    hooks.onReady = (d) => d.annotations.setControlledValue(hostList)
+    viewer.open(fixtureUrl('text-simple'))
+    await until(() => viewer.document.get() !== doc && viewer.document.get() !== null)
+    const reopened = viewer.document.get()!
+    await until(() => annotationEl(viewer, note.id) !== null)
+    expect(reopened.annotations.list.get().map((a) => a.id)).toEqual([seed.id, note.id])
+    onChange.mockClear()
+    reopened.annotations.remove(note.id)
     expect(onChange).toHaveBeenCalledTimes(1)
   })
 
