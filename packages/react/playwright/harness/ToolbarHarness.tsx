@@ -1,3 +1,4 @@
+import { allTools } from '@inkbar/core/dom'
 import { useState } from 'react'
 
 import { InkColorMenu } from '../../src/components/InkColorMenu'
@@ -40,11 +41,13 @@ export function ToolbarHarness({
   controlled?: boolean
 }) {
   const [list, setList] = useState<Annotation[]>([])
+  const [tools] = useState(allTools)
   return (
     <InkRoot
       src={src}
       assets={assets}
       zoom={1}
+      tools={tools}
       onToolChange={onToolChange}
       {...(tool ? { tool } : {})}
       {...(controlled

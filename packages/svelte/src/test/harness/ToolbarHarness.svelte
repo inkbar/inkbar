@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { allTools } from '@inkbar/core/dom'
+
   import InkColorMenu from '../../lib/components/InkColorMenu.svelte'
   import InkHighlightMenu from '../../lib/components/InkHighlightMenu.svelte'
   import InkLineStyleMenu from '../../lib/components/InkLineStyleMenu.svelte'
@@ -39,15 +41,25 @@
     controlled?: boolean
   } = $props()
 
+  const tools = allTools()
   let list = $state<Annotation[]>([])
 </script>
 
 {#if controlled}
-  <InkRoot {src} {assets} zoom={1} {tool} {onToolChange} bind:annotations={list} history>
+  <InkRoot
+    {src}
+    {assets}
+    zoom={1}
+    {tool}
+    {tools}
+    {onToolChange}
+    bind:annotations={list}
+    history
+  >
     {@render content()}
   </InkRoot>
 {:else}
-  <InkRoot {src} {assets} zoom={1} {tool} {onToolChange}>
+  <InkRoot {src} {assets} zoom={1} {tool} {tools} {onToolChange}>
     {@render content()}
   </InkRoot>
 {/if}

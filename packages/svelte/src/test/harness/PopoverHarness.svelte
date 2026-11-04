@@ -22,6 +22,8 @@
 </script>
 
 <script lang="ts">
+  import { allTools } from '@inkbar/core/dom'
+
   import InkRoot from '../../lib/components/InkRoot.svelte'
   import InkThreadPopover from '../../lib/components/InkThreadPopover.svelte'
   import InkViewport from '../../lib/components/InkViewport.svelte'
@@ -40,6 +42,7 @@
     tool,
   }: PopoverHarnessProps = $props()
 
+  const tools = allTools()
   let list = $state.raw<Annotation[]>([])
   let proposals = $state(0)
   // The binding's type includes the unbound `undefined`; InkRoot only ever proposes a list.
@@ -73,6 +76,7 @@
   {assets}
   zoom={1}
   {tool}
+  {tools}
   bind:annotations={() => (controlled ? list : undefined), onProposal}
 >
   <output data-testid="proposals">{proposals}</output>

@@ -11,6 +11,7 @@ import {
   type DocumentSource,
   type InkDocument,
 } from '@inkbar/core'
+import { allTools } from '@inkbar/core/dom'
 import { createFakeServer } from '@inkbar/e2e-shared/fake-server'
 import { recordReady } from '@inkbar/e2e-shared/metrics'
 import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
@@ -51,6 +52,7 @@ const props = defineProps<{ fixture: string; largePages: number }>()
 const SAVE_DEBOUNCE_MS = 150
 
 const server = createFakeServer({ latency: 150 })
+const tools = allTools()
 const version = ref(1)
 const signature = ref(1)
 const annotations = ref<Annotation[]>([])
@@ -183,6 +185,7 @@ async function newVersion(): Promise<void> {
     ref="root"
     v-model:annotations="annotations"
     v-model:tool="tool"
+    :tools="tools"
     :history="true"
     :src="src"
     :assets="assets"

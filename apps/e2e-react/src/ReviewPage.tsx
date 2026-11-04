@@ -11,6 +11,7 @@ import {
   type DocumentSource,
   type InkDocument,
 } from '@inkbar/core'
+import { allTools } from '@inkbar/core/dom'
 import { createFakeServer } from '@inkbar/e2e-shared/fake-server'
 import { recordReady } from '@inkbar/e2e-shared/metrics'
 import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
@@ -40,6 +41,8 @@ import type { ToolId } from '@inkbar/core/dom'
 
 /** Saves wait this long after the last change, so a drag or a burst of edits saves once. */
 const SAVE_DEBOUNCE_MS = 150
+
+const tools = allTools()
 
 /** One generated file per page count, shared across StrictMode's double-invoked effects. */
 const largeFiles = new Map<number, Promise<Uint8Array>>()
@@ -214,6 +217,7 @@ export function ReviewPage({
       tool={tool}
       onToolChange={setTool}
       history={true}
+      tools={tools}
       src={src}
       assets={assets}
       className="sandbox-root"

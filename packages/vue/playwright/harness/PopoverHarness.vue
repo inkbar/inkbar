@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { allTools } from '@inkbar/core/dom'
 import { onBeforeUnmount, ref, shallowRef } from 'vue'
 
 import InkRoot from '../../src/components/InkRoot.vue'
@@ -24,6 +25,7 @@ const props = defineProps<{
 
 const list = shallowRef<Annotation[]>([])
 const proposals = ref(0)
+const tools = allTools()
 
 function onUpdate(next: Annotation[]): void {
   proposals.value += 1
@@ -45,6 +47,7 @@ onBeforeUnmount(() => ((window as HostWindow).__inkHostRemove = undefined))
     :assets="assets"
     :zoom="1"
     :tool="tool"
+    :tools="tools"
     :annotations="controlled ? list : undefined"
     @update:annotations="onUpdate"
   >

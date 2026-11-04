@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { allTools } from '@inkbar/core/dom'
 import { ref } from 'vue'
 
 import InkColorMenu from '../../src/components/InkColorMenu.vue'
@@ -35,6 +36,7 @@ defineProps<{
 }>()
 const emit = defineEmits<{ 'update:tool': [t: ToolId] }>()
 const list = ref<Annotation[]>([])
+const tools = allTools()
 </script>
 
 <template>
@@ -43,6 +45,7 @@ const list = ref<Annotation[]>([])
     :assets="assets"
     :zoom="1"
     :tool="tool"
+    :tools="tools"
     :annotations="controlled ? list : undefined"
     :history="controlled ? true : undefined"
     @update:tool="emit('update:tool', $event)"

@@ -6,6 +6,7 @@ import {
   type SignatureStore,
   type SignatureTemplate,
 } from '@inkbar/core'
+import { allTools } from '@inkbar/core/dom'
 import { useMemo, useState } from 'react'
 
 import { InkRoot } from '../../src/components/InkRoot'
@@ -46,6 +47,7 @@ export function SignatureHarness({
   /** Templates of a second store that the `swap-store` button hands to InkRoot. */
   swapTo?: SignatureTemplate[]
 }) {
+  const [tools] = useState(allTools)
   const [saved, setSaved] = useState<SignatureTemplate[]>(initial)
   const [swapped, setSwapped] = useState(false)
   const next = useMemo(
@@ -80,6 +82,7 @@ export function SignatureHarness({
       zoom={1}
       signatures={swapped ? next : store}
       signatureFonts={fonts}
+      tools={tools}
     >
       <InkToolbar>
         <InkToolButton tool="select" />
