@@ -6,17 +6,17 @@ import { MUTED, SIDE, W, newDocument, save } from './layout.ts'
 
 const SENDER = [
   'Harbour Lane Ltd',
-  '14 Harbour Lane',
-  'Leeds LS1 4AB',
+  '14 Fennick Close',
+  'Tarnwick ZZ2 1ZZ',
   'lettings@example.com',
   '07700 900417',
 ]
 
-const RECIPIENT = ['Joseph Mensah', 'Flat 3, 22 Kirkgate', 'Leeds LS2 7DJ']
+const RECIPIENT = ['Joseph Mensah', 'Flat 3, 22 Quillon Row', 'Marlowby ZZ1 3ZZ']
 
 const BODY = [
   'Dear Mr Mensah,',
-  'Your tenancy of Flat 3, 22 Kirkgate renews on 1 January 2027. This letter sets out what changes and what you need to do before then.',
+  'Your tenancy of Flat 3, 22 Quillon Row renews on 1 January 2027. This letter sets out what changes and what you need to do before then.',
   'The monthly rent stays at £975. Your deposit remains with the deposit scheme under the same reference, and you do not need to pay anything more into it.',
   'We will inspect the flat on Tuesday 8 December between 10am and noon. The inspection covers the smoke alarms, the boiler and the condition of the kitchen and bathroom. You do not need to be at home, but please tell us by 1 December if you would rather we came on another day.',
   'The boiler service is booked for the same visit. The engineer will need about forty minutes and access to the airing cupboard.',
