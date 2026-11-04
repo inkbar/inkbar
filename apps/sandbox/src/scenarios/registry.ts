@@ -44,8 +44,9 @@ export const SCENARIOS: readonly Scenario[] = [
   },
   {
     id: 'redactions',
-    title: 'Suggest redactions',
-    blurb: 'A plugin adds a command, its own records and a card per suggestion.',
+    title: 'Custom plugins',
+    blurb:
+      'A plugin adds its own command, records, marks and cards, and runs in every framework. This one suggests redactions.',
     document: 'redactions',
     panels: ['events'],
     extraFiles: ['src/plugin/suggestions.ts', 'src/plugin/suggestions.css'],
