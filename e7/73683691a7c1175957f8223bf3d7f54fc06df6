@@ -1,0 +1,32 @@
+packages/vue/src/components/InkRoot.vue
+  s_d6f92c10539fe3::t_0996e70a1f054a 91-96
+  s_d6f92c10539fe3::t_c88ac9e299a94d 488-492,559
+packages/vue/src/components/Toolbar.ct.ts
+  s_d6f92c10539fe3::t_2266f5c4b5ef07 1414-1419
+  s_d6f92c10539fe3::t_17d3c8392ec8b7 1412-1413,1420-1442
+packages/vue/src/components/InkViewport.vue
+  s_d6f92c10539fe3::t_817c62487ee37e 128,154-155
+  s_d6f92c10539fe3::t_4583c9b40dde05 27
+packages/vue/src/context.ts
+  s_d6f92c10539fe3::t_c88ac9e299a94d 78-82
+packages/vue/playwright/harness/MissingToolsHarness.vue
+  s_d6f92c10539fe3::t_17d3c8392ec8b7 2-3,16,21-22,24,28
+packages/vue/src/composables/useRegisteredTool.ts
+  s_d6f92c10539fe3::t_c88ac9e299a94d 9,18-35,41,59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e773683691a7c1175957f8223bf3d7f54fc06df6",
+  "prompts": {},
+  "sessions": {
+    "s_d6f92c10539fe3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db98c1ef-4c5a-4c88-b425-330912eecf03",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
