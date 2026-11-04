@@ -134,9 +134,29 @@ for (const framework of FRAMEWORK_ORDER) {
       await open(page, framework)
       await goToPage(page, 2)
       await field(page, 2, 'submit').locator('button').click()
-      const newest = events(page).first()
-      await expect(newest.locator('[data-event-name]')).toHaveText(FORM_EVENT[framework])
+      // Calculated fields may log a form.values entry after the click; find the action's.
+      const newest = events(page)
+        .filter({
+          has: page.locator('[data-event-name]', { hasText: FORM_EVENT[framework] }),
+        })
+        .first()
+      await expect(newest).toBeVisible()
       await expect(newest.locator('.event-payload')).toContainText('submit')
+    })
+
+    test(`${framework} forms: typing in a field logs a form.values event`, async ({
+      page,
+    }) => {
+      await open(page, framework)
+      await goToPage(page, 1)
+      const name = fullName(page)
+      await name.fill('Robin Hale')
+      await name.press('Enter')
+      const change = events(page)
+        .filter({ has: page.locator('[data-event-name]', { hasText: /^form\.values$/ }) })
+        .first()
+      await expect(change).toBeVisible()
+      await expect(change.locator('.event-payload')).toContainText('"name"')
     })
 
     test(`${framework} forms: a link button logs an open-url action`, async ({
@@ -145,8 +165,13 @@ for (const framework of FRAMEWORK_ORDER) {
       await open(page, framework)
       await goToPage(page, 2)
       await field(page, 2, 'link').locator('button').click()
-      const newest = events(page).first()
-      await expect(newest.locator('[data-event-name]')).toHaveText(FORM_EVENT[framework])
+      // Calculated fields may log a form.values entry after the click; find the action's.
+      const newest = events(page)
+        .filter({
+          has: page.locator('[data-event-name]', { hasText: FORM_EVENT[framework] }),
+        })
+        .first()
+      await expect(newest).toBeVisible()
       await expect(newest.locator('.event-payload')).toContainText('open-url')
       await expect(newest.locator('.event-payload')).toContainText('https://example.com')
     })
