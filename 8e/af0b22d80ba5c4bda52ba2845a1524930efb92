@@ -1,0 +1,55 @@
+apps/sandbox/vite/documents/long-text.ts
+  s_d6f92c10539fe3::t_4d3e6975a45e26 63-70,77-78,82-83,120-124
+  s_d6f92c10539fe3::t_217156b927a7e6 1-62,71-76,79-81,84-119,125-130
+apps/sandbox/vite/documents/form.ts
+  s_d6f92c10539fe3::t_9c922c6b757ec8 123-126
+  s_d6f92c10539fe3::t_534252f4e0e4ff 1-122,127-526
+apps/sandbox/vite/documents/long.ts
+  s_d6f92c10539fe3::t_14753d04631289 1-7,15-25,33-47
+  s_d6f92c10539fe3::t_9c922c6b757ec8 8-14,26-32
+apps/sandbox/vite.config.ts
+  s_d6f92c10539fe3::t_01c147760329f4 11,25
+apps/sandbox/package.json
+  s_d6f92c10539fe3::t_01c147760329f4 12
+apps/sandbox/vite/documents/index.ts
+  s_d6f92c10539fe3::t_d8ecb69a02135d 1-25
+apps/sandbox/vite/documents/redactions.ts
+  s_d6f92c10539fe3::t_8df9da2b7342f0 1-81,84-93,95-99,103-105,107-111
+  s_d6f92c10539fe3::t_abe67c76683e02 82-83,94,100-102,106
+apps/sandbox/vite/documents/tour.ts
+  s_d6f92c10539fe3::t_7ed9c037337bff 1-6,8-336,584
+  s_d6f92c10539fe3::t_2380f98095208b 446,532
+  s_d6f92c10539fe3::t_c7e0fd61860dea 7,337-371,373-445,447-531,533-580,583
+  s_d6f92c10539fe3::t_9c922c6b757ec8 581-582
+  s_d6f92c10539fe3::t_726d3bf6cf0ce0 372
+apps/sandbox/vite/sample.ts
+  s_d6f92c10539fe3::t_bf07e84d3401cd 1,6-13,15-17,19-25,27,31-34,42-43
+apps/sandbox/vite/documents/layout.ts
+  s_d6f92c10539fe3::t_4dbf2364ce80ad 133,142
+  s_d6f92c10539fe3::t_8a0aab4560ba7c 355-357,359,368
+  s_d6f92c10539fe3::t_7c2b875ee5256f 1-132,134-141,143-354,358,360-367,369-370
+apps/sandbox/vite/documents/documents.test.ts
+  s_d6f92c10539fe3::t_9c922c6b757ec8 14-20,80-83,87-90,92-95,108-111,152-155
+  s_d6f92c10539fe3::t_14753d04631289 156,158
+  s_d6f92c10539fe3::t_378864ea4b1ca9 1-13,21-79,84-86,91,96-107,112-151,157,159-167
+apps/sandbox/vite/make-sample.ts
+  s_d6f92c10539fe3::t_2a85bfa5987939 2-7,9-12,14-24,27,44-45,48-59,61-62,100
+apps/sandbox/vite/documents/letter.ts
+  s_d6f92c10539fe3::t_6b76aea52521fd 1-58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8eaf0b22d80ba5c4bda52ba2845a1524930efb92",
+  "prompts": {},
+  "sessions": {
+    "s_d6f92c10539fe3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db98c1ef-4c5a-4c88-b425-330912eecf03",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
