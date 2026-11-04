@@ -251,9 +251,14 @@ test('refuses a non-PDF and recovers from a broken one', async ({ page, request 
 })
 
 test('the events log keeps the newest 200', async ({ page }) => {
-  // A scenario still to come mounts no viewer, so only these calls reach the log.
   await page.goto('app.html?debug#/react/tools')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Pick your tools')
+  // Let the viewer's own start-up entries land, then clear them so only these calls remain.
+  await waitForViewer(page)
+  await page
+    .locator('aside[aria-label="Events"]')
+    .getByRole('button', { name: 'Clear' })
+    .click()
   await page.evaluate(() => {
     const log = (window as unknown as { __sandboxLog: (n: string, v: unknown) => void })
       .__sandboxLog
