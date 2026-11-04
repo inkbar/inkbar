@@ -13,6 +13,7 @@ export type InkErrorCode =
   | 'InvalidPluginId'
   | 'InvalidCommandLabel'
   | 'UnknownCommand'
+  | 'UnknownTool'
   | 'FormScriptError'
   | 'UnknownField'
   | 'NotSignatureField'

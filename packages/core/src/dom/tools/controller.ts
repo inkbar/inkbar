@@ -45,6 +45,7 @@ import { canEditFreeText, editFreeTextIn, editorFor } from '../freetext-editor'
 
 import { createToolOptions, type ToolOptions } from './options'
 import { createSelectionEdit, type SelectionEdit } from './selection-edit'
+import { unknownTool } from './unknown'
 
 import type { AnnotationStore } from '../../model/annotations/store'
 import type { Point } from '../../model/geometry'
@@ -204,6 +205,8 @@ export function hitFor(
   const css = cssIn(hit.host, e)
   return { ...hit, css, user: hit.transform.fromCss(css) }
 }
+
+const NO_OPTIONS: Readable<object> = { get: () => ({}), subscribe: () => () => {} }
 
 export function createToolController(opts: ToolControllerOptions): ToolController {
   const byId = new Map(opts.tools.map((t) => [t.id, t]))
@@ -427,9 +430,19 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
   ctx.root.addEventListener('keydown', onKey)
   ctx.root.addEventListener('keydown', onEditorEscape, { capture: true })
 
+  const loggedUnknown = new Set<ToolId>()
+  function logUnknownOnce(id: ToolId): void {
+    if (loggedUnknown.has(id)) return
+    loggedUnknown.add(id)
+    console.error(unknownTool(id, [...byId.keys()]))
+  }
+
   function set(id: ToolId, options?: object): void {
     const next = byId.get(id)
-    if (!next) throw new RangeError(`Unknown tool ${id}`)
+    if (!next) {
+      console.error(unknownTool(id, [...byId.keys()]))
+      return
+    }
     if (options) registry.merge(id, options)
     if (pressed !== undefined) {
       // Mid-press: end the old tool's gesture here and keep its release from the new tool.
@@ -454,16 +467,25 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     active.set(id)
   }
   set(opts.initial ?? 'select-text')
+  if (
+    current === undefined &&
+    opts.initial !== undefined &&
+    opts.initial !== 'select-text'
+  )
+    set('select-text')
 
   return {
     active: readonly(active),
     set,
     setOptions(id, patch) {
-      if (!byId.has(id)) throw new RangeError(`Unknown tool ${id}`)
+      if (!byId.has(id)) return logUnknownOnce(id)
       registry.merge(id, patch)
     },
     options(id) {
-      if (!byId.has(id)) throw new RangeError(`Unknown tool ${id}`)
+      if (!byId.has(id)) {
+        logUnknownOnce(id)
+        return NO_OPTIONS
+      }
       return registry.readable(id)
     },
     destroy() {

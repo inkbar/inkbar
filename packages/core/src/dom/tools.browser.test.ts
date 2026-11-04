@@ -24,6 +24,7 @@ import { isBubble } from '../model/annotations/edit'
 import { exportAnnotations, importAnnotations } from '../model/annotations/json'
 import { createSnapshotHistory } from '../model/annotations/snapshot-history'
 import { createAnnotationStore } from '../model/annotations/store'
+import { InkError } from '../model/errors'
 import { readonly, writable } from '../model/readable'
 import { createMemorySignatureStore, createSignatureLibrary } from '../model/signatures'
 
@@ -4417,10 +4418,16 @@ describe('selection editing', () => {
     })
   })
 
-  it('view is gone: tools.set("view") throws like any unknown id', async () => {
+  it('view is gone: tools.set("view") logs UnknownTool like any unknown id', async () => {
     const { tools } = await setup()
     // Like any unknown id.
-    expect(() => tools.set('view')).toThrow(RangeError)
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      tools.set('view')
+      expect((spy.mock.calls[0]?.[0] as InkError).code).toBe('UnknownTool')
+    } finally {
+      spy.mockRestore()
+    }
     expect(tools.active.get()).toBe('select-text')
     expect(builtinTools().map((t) => t.id)).not.toContain('view')
   })
@@ -5164,5 +5171,78 @@ describe('one-shot tools', () => {
     await userEvent.keyboard('!{Escape}')
     expect(doc.annotations.get(box!.id)).toMatchObject({ contents: 'Hi!' })
     expect(tools.active.get()).toBe('select-text')
+  })
+})
+
+describe('unknown tools', () => {
+  function unknownLogs(spy: { mock: { calls: unknown[][] } }): unknown[] {
+    return spy.mock.calls.map((call) => call[0])
+  }
+
+  it('set with an unknown id logs UnknownTool and keeps the active tool', async () => {
+    const { tools } = await setup()
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      tools.set('nope')
+      expect(tools.active.get()).toBe('select-text')
+      expect(spy).toHaveBeenCalledTimes(1)
+      const err = unknownLogs(spy)[0] as InkError
+      expect(err).toBeInstanceOf(InkError)
+      expect(err.code).toBe('UnknownTool')
+      expect(err.details.id).toBe('nope')
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('an unknown initial tool falls back to select-text', async () => {
+    const { doc, viewport } = await setup()
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      const c = createToolController({
+        ctx: {
+          store: doc.annotations,
+          viewport,
+          root: document.createElement('div'),
+          selectionQuads: () => [],
+          clearSelection: () => undefined,
+        },
+        initial: 'nope',
+      })
+      expect(c.active.get()).toBe('select-text')
+      expect(spy).toHaveBeenCalledTimes(1)
+      expect((unknownLogs(spy)[0] as InkError).code).toBe('UnknownTool')
+      c.destroy()
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('options for an unknown id is empty and logs once', async () => {
+    const { tools } = await setup()
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      tools.options('nope')
+      const readable = tools.options('nope')
+      expect(readable.get()).toEqual({})
+      expect(readable.subscribe(() => undefined)).toBeTypeOf('function')
+      expect(spy).toHaveBeenCalledTimes(1)
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('setOptions for an unknown id does nothing and logs once', async () => {
+    const { tools } = await setup()
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      expect(() => {
+        tools.setOptions('nope', { a: 1 })
+        tools.setOptions('nope', { a: 2 })
+      }).not.toThrow()
+      expect(spy).toHaveBeenCalledTimes(1)
+    } finally {
+      spy.mockRestore()
+    }
   })
 })

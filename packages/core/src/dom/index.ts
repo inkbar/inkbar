@@ -77,6 +77,7 @@ export {
   shapeTool,
   signatureTool,
   trackToolStyle,
+  unknownTool,
   withHostTools,
 } from './tools'
 export type {
