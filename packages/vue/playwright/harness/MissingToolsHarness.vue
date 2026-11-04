@@ -37,8 +37,9 @@ const hostile: Record<string, string> = { 'aria-label': 'X', title: 'Hostile' }
         v-if="controls.includes('hostile-button')"
         tool="highlight"
         v-bind="hostile"
-        ><span>child</span></InkToolButton
       >
+        <span>child</span>
+      </InkToolButton>
       <InkHighlightMenu v-if="controls.includes('highlight')" />
       <InkShapeMenu v-if="controls.includes('shape')" />
       <InkSignatureMenu v-if="controls.includes('signature')" />
