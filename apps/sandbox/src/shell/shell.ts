@@ -6,6 +6,7 @@
  */
 import '../styles/framework.css'
 
+import { handleDrops } from './drop'
 import { FRAMEWORK_ORDER, FRAMEWORKS, PLUGIN_PAGE, type PageId } from './frameworks'
 import { LOGO_SVG } from './logo'
 
@@ -29,9 +30,6 @@ export interface ShellOptions {
 const REPO = 'https://github.com/inkbar/inkbar'
 const BASE = import.meta.env.BASE_URL
 const SAMPLE: DocumentSource = { url: `${BASE}sample.pdf`, key: 'sample' }
-
-const isPdf = (file: File): boolean =>
-  file.type === 'application/pdf' || /\.pdf$/i.test(file.name)
 
 function fileSection(file: SourceFile, index: number): string {
   const name = file.path.split('/').pop() ?? file.path
@@ -130,61 +128,14 @@ export function startShell(opts: ShellOptions): void {
   const status = app.querySelector<HTMLElement>('[data-file-status]')!
 
   let unmount = opts.mount(viewer, SAMPLE)
-  /** Latest wins: each call takes a number, and a read that finishes after a newer call began is dropped. */
-  let latest = 0
-
-  async function open(file: File): Promise<void> {
-    const request = ++latest
-    if (!isPdf(file)) {
-      status.textContent = `${file.name} is not a PDF.`
-      return
-    }
-    let data: Uint8Array
-    try {
-      data = new Uint8Array(await file.arrayBuffer())
-    } catch {
-      if (request === latest) status.textContent = `${file.name} could not be read.`
-      return
-    }
-    if (request !== latest) return
-    status.textContent = `Opened ${file.name}.`
-    unmount()
-    unmount = opts.mount(viewer, {
-      data,
-      key: `file:${file.name}:${file.size}:${file.lastModified}`,
-    })
-  }
-
-  input.addEventListener('change', () => {
-    const file = input.files?.[0]
-    input.value = ''
-    if (file) void open(file)
-  })
-  viewer.addEventListener('dragover', (e) => {
-    if (!e.dataTransfer?.types.includes('Files')) return
-    e.preventDefault()
-    viewer.dataset.drop = ''
-  })
-  viewer.addEventListener('dragleave', (e) => {
-    // Moving over a child of the viewer fires dragleave too; only clear when truly outside.
-    if (e.relatedTarget instanceof Node && viewer.contains(e.relatedTarget)) return
-    delete viewer.dataset.drop
-  })
-  // A file dropped outside the viewer would make the browser navigate to it.
-  const isFileDrag = (e: DragEvent): boolean =>
-    e.dataTransfer?.types.includes('Files') ?? false
-  window.addEventListener('dragover', (e) => {
-    if (isFileDrag(e)) e.preventDefault()
-  })
-  window.addEventListener('drop', (e) => {
-    if (isFileDrag(e)) e.preventDefault()
-  })
-  viewer.addEventListener('drop', (e) => {
-    const file = e.dataTransfer?.files[0]
-    if (!file) return
-    e.preventDefault()
-    delete viewer.dataset.drop
-    void open(file)
+  handleDrops({
+    target: viewer,
+    input,
+    status,
+    open(source) {
+      unmount()
+      unmount = opts.mount(viewer, source)
+    },
   })
 
   for (const button of app.querySelectorAll<HTMLButtonElement>('[data-copy]')) {
