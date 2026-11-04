@@ -1,0 +1,31 @@
+apps/sandbox/e2e/redactions.spec.ts
+  s_d6f92c10539fe3::t_68fb8d542f9e1b 270
+apps/sandbox/src/scenarios/registry.ts
+  s_d6f92c10539fe3::t_68fb8d542f9e1b 51
+apps/sandbox/src/shell/drop.ts
+  s_d6f92c10539fe3::t_68fb8d542f9e1b 20-21,48-49,69,100-102,105
+apps/sandbox/src/styles/app.css
+  s_d6f92c10539fe3::t_68fb8d542f9e1b 264
+apps/sandbox/src/scenarios/registry.test.ts
+  s_d6f92c10539fe3::t_42bfb9525c07ea 41-42
+  s_d6f92c10539fe3::t_68fb8d542f9e1b 26
+apps/sandbox/src/shell/app.ts
+  s_d6f92c10539fe3::t_68fb8d542f9e1b 194-197,276-278,281-283
+  s_d6f92c10539fe3::t_9170ce2a63989e 279-280
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "87de0b192e37d7b407cb43d827a67a34e9d73e56",
+  "prompts": {},
+  "sessions": {
+    "s_d6f92c10539fe3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db98c1ef-4c5a-4c88-b425-330912eecf03",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
