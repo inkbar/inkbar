@@ -52,6 +52,7 @@ import {
   InkZoomSelect,
   InkThreadPopover,
 } from '@inkbar/vue'
+import { highlightTool, noteTool, redactAreaTool } from '@inkbar/core/dom'
 import type { Annotation } from '@inkbar/core'
 import { assets } from 'virtual:inkbar-assets'
 import '@inkbar/theme/theme.css'
@@ -59,12 +60,14 @@ import '@inkbar/theme/theme.css'
 defineProps<{ signedUrl: string; documentId: string }>()
 
 const annotations = ref<Annotation[]>([])
+const tools = [highlightTool(), redactAreaTool(), noteTool()]
 </script>
 
 <template>
   <InkRoot
     :src="{ url: signedUrl, key: documentId }"
     :assets="assets"
+    :tools="tools"
     v-model:annotations="annotations"
   >
     <InkToolbar>
@@ -89,6 +92,8 @@ const annotations = ref<Annotation[]>([])
   </InkRoot>
 </template>
 ```
+
+`select-text` and `select` are always there. Every other tool is opt-in: pass the ones you offer through `tools`, from the tool factories in `@inkbar/core/dom`, or `allTools()` for all of them. A button for a tool you did not pass renders disabled and hidden, a tool menu renders nothing, and each logs an `InkError('UnknownTool')` to the console once. If the active tool leaves `tools`, the viewer switches to `select-text` and reports it through `update:tool`.
 
 Each control is a separate component, so put them in any order or leave some out. Buttons show icons from `@inkbar/icons`. Put your own in a button's default slot to replace one, and use `InkIcon` to put the same icons on your own buttons.
 
@@ -130,7 +135,7 @@ The highlight tool leaves `contents` free for the comment. `doc.text(page)` retu
 
 ## Signatures
 
-`InkSignatureMenu` lists saved signatures, picks one for the `signature` tool, removes them, and opens `InkSignatureDialog` to draw, type or upload a new one. These are marks on the page, not cryptographic signatures. Pass `signatures` to `InkRoot` to keep them somewhere: `createLocalSignatureStore(key)` from `@inkbar/core` uses `localStorage`, and without it they last until reload. `signatureFonts` lists the handwriting fonts the Type tab offers; load them with `@font-face`. A placed signature keeps its aspect ratio when resized.
+`InkSignatureMenu` lists saved signatures, picks one for the `signature` tool, removes them, and opens `InkSignatureDialog` to draw, type or upload a new one. The menu needs `signatureTool()` in `tools`. The dialog and signature form fields work without it; the dialog then only saves the signature. These are marks on the page, not cryptographic signatures. Pass `signatures` to `InkRoot` to keep them somewhere: `createLocalSignatureStore(key)` from `@inkbar/core` uses `localStorage`, and without it they last until reload. `signatureFonts` lists the handwriting fonts the Type tab offers; load them with `@font-face`. A placed signature keeps its aspect ratio when resized.
 
 ## Plugins
 

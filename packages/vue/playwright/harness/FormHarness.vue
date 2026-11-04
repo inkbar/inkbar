@@ -9,7 +9,6 @@ import {
   type PdfAssets,
   type SignatureTemplate,
 } from '@inkbar/core'
-import { allTools } from '@inkbar/core/dom'
 import { ref, shallowRef } from 'vue'
 
 import InkRoot from '../../src/components/InkRoot.vue'
@@ -74,7 +73,6 @@ const values = ref<FieldValues>(props.initial)
 const src = ref(props.src)
 const heard = ref(0)
 const store = shallowRef(createMemorySignatureStore(props.templates))
-const tools = allTools()
 
 function onFields(next: FieldValues, change?: FieldsChange): void {
   heard.value++
@@ -97,7 +95,6 @@ function onSwap(): void {
     :assets="props.assets"
     :zoom="1"
     :signatures="store"
-    :tools="tools"
     :fields="props.controlled ? values : undefined"
     :form-highlight="props.formHighlight"
     @update:fields="onFields"

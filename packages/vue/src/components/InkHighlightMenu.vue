@@ -27,15 +27,21 @@ import {
 import { computed, ref } from 'vue'
 
 import { useDocument } from '../composables/useDocument'
+import { useRegisteredTool } from '../composables/useRegisteredTool'
 import { useTool } from '../composables/useTool'
-import { useToolOptions } from '../composables/useToolOptions'
+import { useToolOptionsWhile } from '../composables/useToolOptions'
 
 import InkColorMenu from './InkColorMenu.vue'
 import InkIcon from './InkIcon.vue'
 
 defineOptions({ inheritAttrs: false })
 const { tool, setTool } = useTool()
-const { options, setOptions } = useToolOptions<HighlightOptions>('highlight')
+// Nothing renders while no `highlight` tool is registered.
+const registered = useRegisteredTool('highlight')
+const { options, setOptions } = useToolOptionsWhile<HighlightOptions>(
+  'highlight',
+  registered
+)
 const { document: doc } = useDocument()
 const open = ref(false)
 
@@ -98,7 +104,7 @@ const innerAttrs = {
 </script>
 
 <template>
-  <PopoverRoot v-model:open="open">
+  <PopoverRoot v-if="registered" v-model:open="open">
     <PopoverAnchor as-child>
       <div
         role="group"

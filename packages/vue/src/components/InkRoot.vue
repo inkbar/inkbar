@@ -20,6 +20,7 @@ import {
   keepHistoryFocus,
   SIGNATURE_FONTS,
   trackToolStyle,
+  unknownTool,
 } from '@inkbar/core/dom'
 import { Primitive } from 'reka-ui'
 import {
@@ -34,6 +35,7 @@ import {
   watch,
 } from 'vue'
 
+import { registeredToolIds } from '../composables/useRegisteredTool'
 import { provideInkContext, type InkHistory, type InkStatus } from '../context'
 import { createRefHistory } from '../ref-history'
 import { useReadable } from '../use-readable'
@@ -85,8 +87,10 @@ const props = withDefaults(
     formHighlight?: boolean | undefined
     tool?: ToolId | undefined
     /**
-     * Host tools, added to the built-ins; one with a built-in's id replaces it. Read when a
-     * document opens.
+     * The creation tools, such as `allTools()` or a pick of the tool factories. `select-text`
+     * and `select` are always present; a tool with either id replaces it. The viewer reads
+     * them when a document opens. When the active tool leaves this list, the viewer switches
+     * to `select-text` and emits `update:tool`.
      */
     tools?: Tool[] | undefined
     /**
@@ -447,6 +451,7 @@ onMounted(() => {
   try {
     setUpPlugins()
   } finally {
+    mounted.value = true
     void open()
   }
 })
@@ -470,14 +475,41 @@ watch(
   }
 )
 
+/*
+ * The tools are known once the plugins are set up on mount. A tool id nobody registered is
+ * logged as `UnknownTool`; as the active tool, from a `tool` prop or because it left `tools`,
+ * it falls back to `select-text`, reported through `update:tool`. A controlled `tool` that
+ * stays on the missing id is not applied again.
+ */
+const mounted = ref(false)
+const toolIds = computed(() => registeredToolIds(props.tools, pluginHost.value))
+const isRegistered = (id: ToolId): boolean => !mounted.value || toolIds.value.includes(id)
+const logUnknownTool = (id: ToolId): void => console.error(unknownTool(id, toolIds.value))
+
+function fallBack(id: ToolId): void {
+  logUnknownTool(id)
+  internalTool.value = 'select-text'
+  emit('update:tool', 'select-text')
+}
+
 watch(
   () => props.tool,
   (t) => {
-    if (t) internalTool.value = t
+    if (!t) return
+    if (isRegistered(t)) internalTool.value = t
+    else fallBack(t)
   }
 )
+watch([mounted, toolIds], () => {
+  if (!isRegistered(internalTool.value)) fallBack(internalTool.value)
+})
 
 function setTool(id: ToolId): void {
+  // As the tool controller does: a missing tool is logged and nothing changes.
+  if (!isRegistered(id)) {
+    logUnknownTool(id)
+    return
+  }
   // Picking the active tool again starts it afresh, as after a one-shot tool's use.
   const tc = toolController.value
   if (internalTool.value === id && tc?.active.get() === id) tc.set(id)

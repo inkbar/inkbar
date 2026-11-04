@@ -4,6 +4,7 @@ import { SquareDashedMousePointer, TextCursor } from '@inkbar/icons'
 import { ToolbarButton } from 'reka-ui'
 import { computed } from 'vue'
 
+import { useRegisteredTool } from '../composables/useRegisteredTool'
 import { useTool } from '../composables/useTool'
 import { useInkContext } from '../context'
 
@@ -25,6 +26,7 @@ const props = withDefaults(
 const ctx = useInkContext('InkToolButton')
 const { tool: current, setTool } = useTool()
 const active = computed(() => current.value === props.tool)
+const registered = useRegisteredTool(() => props.tool)
 /** The registered tool by this id, for the name and icon core has none for. */
 const own = computed(() =>
   withHostTools([
@@ -37,13 +39,18 @@ const name = computed(
   () => props.label ?? TOOL_LABELS[props.tool] ?? own.value?.label ?? props.tool
 )
 const icon = computed(() => ICONS[props.tool] ?? own.value?.icon)
-// Reka's typed props stop at its own; ARIA and listeners go through a bound object.
-const attrs = computed(() => ({
-  'aria-pressed': String(active.value),
-  'aria-label': name.value,
-  title: name.value,
-  onClick: () => setTool(props.tool),
-}))
+// Reka's typed props stop at its own; ARIA and listeners go through a bound object. A tool
+// nobody registered leaves the button disabled, hidden from assistive tech and unnamed.
+const attrs = computed(() =>
+  registered.value
+    ? {
+        'aria-pressed': String(active.value),
+        'aria-label': name.value,
+        title: name.value,
+        onClick: () => setTool(props.tool),
+      }
+    : { 'aria-hidden': 'true' as const, disabled: true }
+)
 </script>
 
 <template>

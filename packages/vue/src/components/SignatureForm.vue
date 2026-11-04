@@ -16,8 +16,9 @@ import {
 import { DialogClose } from 'reka-ui'
 import { computed, onBeforeUnmount, onMounted, useId, useTemplateRef } from 'vue'
 
+import { useHasTool } from '../composables/useRegisteredTool'
 import { useTool } from '../composables/useTool'
-import { useToolOptions } from '../composables/useToolOptions'
+import { useToolOptionsWhile } from '../composables/useToolOptions'
 import { useInkContext } from '../context'
 import { useReadable } from '../use-readable'
 
@@ -31,7 +32,12 @@ const emit = defineEmits<{ saved: [template: SignatureTemplate]; close: [] }>()
 
 const ctx = useInkContext('InkSignatureDialog')
 const { setTool } = useTool()
-const { setOptions } = useToolOptions<SignatureOptions>('signature')
+// Without the signature tool, Save only stores the template, as signing a form field needs.
+const hasSignatureTool = useHasTool(ctx, 'signature')
+const { setOptions } = useToolOptionsWhile<SignatureOptions>(
+  'signature',
+  hasSignatureTool
+)
 const draft = createSignatureDraft({ fonts: props.fonts ?? ctx.signatureFonts.value })
 const IDLE: SignatureDraftState = draft.state.get()
 const s = useReadable(draft.state, IDLE)
@@ -51,7 +57,7 @@ function save(): void {
   draft.save(ctx.signatures.value).then(
     (t) => {
       if (!t) return
-      if (props.select) {
+      if (props.select && hasSignatureTool.value) {
         setOptions({ templateId: t.id })
         setTool('signature')
       }

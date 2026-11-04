@@ -26,14 +26,17 @@ import {
 } from 'reka-ui'
 import { computed, ref } from 'vue'
 
+import { useRegisteredTool } from '../composables/useRegisteredTool'
 import { useTool } from '../composables/useTool'
-import { useToolOptions } from '../composables/useToolOptions'
+import { useToolOptionsWhile } from '../composables/useToolOptions'
 
 import InkIcon from './InkIcon.vue'
 
 defineOptions({ inheritAttrs: false })
 const { tool, setTool } = useTool()
-const { options, setOptions } = useToolOptions<ShapeOptions>('shape')
+// Nothing renders while no `shape` tool is registered.
+const registered = useRegisteredTool('shape')
+const { options, setOptions } = useToolOptionsWhile<ShapeOptions>('shape', registered)
 const open = ref(false)
 
 const model = computed(() => shapeMenuModel(options.value, SHAPE_KINDS))
@@ -88,7 +91,7 @@ const innerAttrs = {
 </script>
 
 <template>
-  <PopoverRoot v-model:open="open">
+  <PopoverRoot v-if="registered" v-model:open="open">
     <PopoverAnchor as-child>
       <div
         role="group"
