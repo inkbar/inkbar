@@ -1,0 +1,1 @@
+import{B as e,E as t,O as n,it as r,nt as i}from"./client-1m3KnP2g.js";function a(a,o,s){let c=r(s.source),l=t(a,{target:o,props:{get source(){return e(c)},log:s.log,onDocument:s.onDocument}});return{update(e){i(c,e)},unmount:()=>void n(l)}}export{a as mountSvelte};
