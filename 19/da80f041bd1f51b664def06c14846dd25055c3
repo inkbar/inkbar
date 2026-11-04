@@ -1,0 +1,286 @@
+packages/core/src/dom/tools/unknown.ts
+  s_d6f92c10539fe3::t_0f919c4154b818 1-15
+  s_d6f92c10539fe3::t_b404cede04aee9 16-19
+packages/core/src/dom/tools/index.ts
+  s_d6f92c10539fe3::t_f8595f8c708749 35
+  s_d6f92c10539fe3::t_be6035f404b7a8 116
+  s_d6f92c10539fe3::t_671dcdb8dab0f2 25,65-66,79-82,84-87,92-95,99,110
+packages/core/src/dom/tools.browser.test.ts
+  s_d6f92c10539fe3::t_455b1d7272c609 5196-5240,5264-5267,5269-5270,5273-5293
+  s_d6f92c10539fe3::t_3041bba6a72c7d 4422,4425-4431
+  s_d6f92c10539fe3::t_0f919c4154b818 27
+  s_d6f92c10539fe3::t_4bfc1f52299d5d 5268,5271-5272
+  s_d6f92c10539fe3::t_d51cd1065b8c56 41,46
+  s_d6f92c10539fe3::t_d73dd3c247625f 2262,2638
+  s_d6f92c10539fe3::t_7ca36ef7151e9a 2254,2263,2639,4433,4488,4927
+  s_d6f92c10539fe3::t_4fcdb94e23faa3 44,763
+  s_d6f92c10539fe3::t_2a2cd23487eaac 87,157
+  s_d6f92c10539fe3::t_167be7fc8efa9a 4452-4484
+  s_d6f92c10539fe3::t_1f0db2d690bde2 95
+  s_d6f92c10539fe3::t_65d981807bb091 4513,4524
+  s_d6f92c10539fe3::t_b3544cbff779b7 159
+  s_d6f92c10539fe3::t_ccd7fa52427bef 5241-5262
+  s_d6f92c10539fe3::t_071f95cb59bae9 5240
+packages/core/src/dom/tools/controller.ts
+  s_d6f92c10539fe3::t_f8595f8c708749 48
+  s_d6f92c10539fe3::t_0f919c4154b818 428-434,437-440,476
+  s_d6f92c10539fe3::t_7c214953d6dafd 205,465-466
+  s_d6f92c10539fe3::t_37b8c6e815a0f6 467-470,480-483
+  s_d6f92c10539fe3::t_99770da3e72415 200-204
+  s_d6f92c10539fe3::t_671dcdb8dab0f2 57-60
+packages/core/src/model/errors.ts
+  s_d6f92c10539fe3::t_0f919c4154b818 16
+packages/core/src/dom/index.ts
+  s_d6f92c10539fe3::t_f8595f8c708749 82
+  s_d6f92c10539fe3::t_671dcdb8dab0f2 67,86
+  s_d6f92c10539fe3::t_51716caeefaa2c 70,80
+packages/core/src/dom/viewer-engine.ts
+  s_d6f92c10539fe3::t_671dcdb8dab0f2 64-66
+packages/core/src/dom/viewer/create-viewer.ts
+  s_d6f92c10539fe3::t_13ad6716885dba 506-510
+packages/core/src/dom/viewer/create-viewer.browser.test.ts
+  s_d6f92c10539fe3::t_fe493f6aede723 2090-2091
+  s_d6f92c10539fe3::t_5ad6a8019708da 12,347,418,436,464,477,487,500,594,1407-1410
+  s_d6f92c10539fe3::t_2e61b990577b45 2084-2089,2098-2117,2133-2163,2294-2319
+  s_d6f92c10539fe3::t_7e2e8fafe1a40a 15-22,269,513,945,1117,1132,1154,1246,1276,1309,1578,1657,1696,1714
+  s_d6f92c10539fe3::t_ccd7fa52427bef 43,2092-2097,2118-2132,2164-2257,2261-2277
+  s_d6f92c10539fe3::t_791cf3ea2ff41f 1170,1208,1325
+  s_d6f92c10539fe3::t_32a747bdb00c7d 2258-2260
+  s_d6f92c10539fe3::t_1b9a8969073245 1263,1498-1501,1522-1525,2278-2279,2281-2292
+  s_d6f92c10539fe3::t_e45f5f4dab917e 2280
+  s_d6f92c10539fe3::t_78e818fa09d98d 2293
+packages/core/src/dom/form-layer.browser.test.ts
+  s_d6f92c10539fe3::t_76dfee7f8e1ea9 9
+  s_d6f92c10539fe3::t_b0fb1dd56a9d73 769-775
+packages/core/src/test-support/annotations.ts
+  s_d6f92c10539fe3::t_3c450299b69cb1 1-36,43-44,52-87
+  s_d6f92c10539fe3::t_5ad6a8019708da 37-42,45-51
+packages/core/src/dom/index.test.ts
+  s_d6f92c10539fe3::t_51716caeefaa2c 36-37
+  s_d6f92c10539fe3::t_671dcdb8dab0f2 35
+packages/core/src/dom/viewer/controls.ts
+  s_d6f92c10539fe3::t_13ad6716885dba 30,75,221-222,243
+  s_d6f92c10539fe3::t_eaa9481856f923 27,202-219,223-224,231-242
+packages/core/src/dom/tree-shake.test.ts
+  s_d6f92c10539fe3::t_5ad6a8019708da 76-78
+  s_d6f92c10539fe3::t_c28f27b5f5908b 40-51
+  s_d6f92c10539fe3::t_4b42439d73308a 66-75,79-80
+packages/core/src/dom/viewer-engine.browser.test.ts
+  s_d6f92c10539fe3::t_b0fb1dd56a9d73 10,89-92,311,314,343
+packages/core/src/dom/ui.ts
+  s_d6f92c10539fe3::t_13ad6716885dba 24-25
+packages/core/src/dom/viewer/highlight-menu.ts
+  s_d6f92c10539fe3::t_eaa9481856f923 17,28-31
+packages/core/src/dom/viewer/shape-menu.ts
+  s_d6f92c10539fe3::t_eaa9481856f923 13,21-24
+packages/core/src/dom/viewer/signature-dialog.ts
+  s_d6f92c10539fe3::t_eaa9481856f923 18,210-212
+packages/core/src/dom/viewer/signature-menu.ts
+  s_d6f92c10539fe3::t_eaa9481856f923 18,177-180
+packages/vue/README.md
+  s_d6f92c10539fe3::t_ed449816197795 55,63,70,96-97,138
+packages/vue/src/components/InkToolButton.vue
+  s_d6f92c10539fe3::t_fd87e84c510de4 7,29,42-53
+packages/vue/src/components/InkRoot.vue
+  s_d6f92c10539fe3::t_60bffd96cc5a41 516-519
+  s_d6f92c10539fe3::t_91fceeaec8c1eb 23,38,90,457,481-487,493-501,505-507,510-512,515
+  s_d6f92c10539fe3::t_0996e70a1f054a 91-96
+  s_d6f92c10539fe3::t_c88ac9e299a94d 488-492,559
+packages/vue/src/components/InkShapeMenu.vue
+  s_d6f92c10539fe3::t_8f1c0cdd08c68d 29,31,37-39,94
+packages/vue/src/components/InkHighlightMenu.vue
+  s_d6f92c10539fe3::t_bcf59772d7b70d 41-44
+  s_d6f92c10539fe3::t_8f1c0cdd08c68d 30,32,39-40,107
+packages/vue/src/components/InkSignatureMenu.vue
+  s_d6f92c10539fe3::t_bcf59772d7b70d 48-51
+  s_d6f92c10539fe3::t_8f1c0cdd08c68d 25,27,46-47,136
+packages/vue/playwright/harness/MissingToolsHarness.vue
+  s_d6f92c10539fe3::t_dce6bd29704421 1,4-15,17-20,23,25-27,29-40
+  s_d6f92c10539fe3::t_17d3c8392ec8b7 2-3,16,21-22,24,28
+packages/vue/playwright/harness/ToolbarHarness.vue
+  s_d6f92c10539fe3::t_70567dc5089973 2,39,48
+packages/vue/playwright/harness/TextStyleHarness.vue
+  s_d6f92c10539fe3::t_29b06b4929b39d 2-3,21
+  s_d6f92c10539fe3::t_bcf59772d7b70d 25-31
+packages/vue/src/composables/useRegisteredTool.ts
+  s_d6f92c10539fe3::t_bcf59772d7b70d 13-15
+  s_d6f92c10539fe3::t_4653c1dfa47e58 54
+  s_d6f92c10539fe3::t_9ad23c663b4b8d 1-8,10-12,16-17,36-40,42-53,55-58,60-64
+  s_d6f92c10539fe3::t_c88ac9e299a94d 9,18-35,41,59
+packages/vue/playwright/harness/UncontrolledHost.vue
+  s_d6f92c10539fe3::t_70567dc5089973 2-3,11,15
+packages/vue/src/components/InkRoot.ct.ts
+  s_d6f92c10539fe3::t_932be126180c84 8,14,468-481,483-484,486-488,491-509,514-536
+  s_d6f92c10539fe3::t_89effab10f3c83 482,485,489-490,510-513
+packages/vue/src/components/InkSignatureDialog.vue
+  s_d6f92c10539fe3::t_91fceeaec8c1eb 6-7,27-29
+packages/vue/playwright/harness/PopoverHarness.vue
+  s_d6f92c10539fe3::t_70567dc5089973 2,28,50
+packages/vue/src/components/SignatureForm.vue
+  s_d6f92c10539fe3::t_a9d047a9a3fa3a 21
+  s_d6f92c10539fe3::t_bcf59772d7b70d 37-40
+  s_d6f92c10539fe3::t_5c41602c1eb5dc 19,35-36,60
+packages/vue/playwright/harness/SignatureHarness.vue
+  s_d6f92c10539fe3::t_b02167129e6143 9-10,13,32-33,35,37-38,68,72-73,75,86
+packages/vue/src/components/Toolbar.ct.ts
+  s_d6f92c10539fe3::t_7013a6e0099177 7,17,1352-1411
+  s_d6f92c10539fe3::t_2266f5c4b5ef07 1414-1419
+  s_d6f92c10539fe3::t_17d3c8392ec8b7 1412-1413,1420-1442
+packages/vue/src/composables/useToolOptions.ts
+  s_d6f92c10539fe3::t_fb1f47d890add2 17-26,30,35-37
+  s_d6f92c10539fe3::t_e095e26d2d9850 16
+packages/vue/playwright/harness/ToolSetHarness.vue
+  s_d6f92c10539fe3::t_dce6bd29704421 1-42
+packages/vue/src/components/InkViewport.vue
+  s_d6f92c10539fe3::t_817c62487ee37e 128,154-155
+  s_d6f92c10539fe3::t_4583c9b40dde05 27
+packages/vue/src/context.ts
+  s_d6f92c10539fe3::t_c88ac9e299a94d 78-82
+packages/react/src/components/InkSignatureDialog.tsx
+  s_d6f92c10539fe3::t_3092a14e8958ed 5-6,24,36-38,115-117,138-140
+packages/react/src/components/InkToolButton.tsx
+  s_d6f92c10539fe3::t_8892269bbc1449 7,20-28,51,74-76
+packages/react/src/components/InkHighlightMenu.tsx
+  s_d6f92c10539fe3::t_5f7a43881b38e7 22,37-42
+  s_d6f92c10539fe3::t_393b8140bf5ad1 43
+packages/react/playwright/harness/PopoverHarness.tsx
+  s_d6f92c10539fe3::t_3d50246113789e 1,30,53
+packages/react/playwright/harness/UncontrolledHost.tsx
+  s_d6f92c10539fe3::t_3d50246113789e 1-3,11,13
+packages/react/src/components/InkSignatureMenu.tsx
+  s_d6f92c10539fe3::t_5f7a43881b38e7 26,49-54
+  s_d6f92c10539fe3::t_393b8140bf5ad1 55
+packages/react/playwright/harness/TextStyleHarness.tsx
+  s_d6f92c10539fe3::t_3d50246113789e 96,98
+  s_d6f92c10539fe3::t_5692af87d5b060 1-3
+packages/react/README.md
+  s_d6f92c10539fe3::t_8f34ff63c624f7 54,59-60,73,101-102,164
+packages/react/src/components/Toolbar.ct.tsx
+  s_d6f92c10539fe3::t_8b6be3834c4cb1 7,16,1523-1629
+packages/react/src/components/InkViewport.tsx
+  s_d6f92c10539fe3::t_8fc997f4cab497 219
+  s_d6f92c10539fe3::t_b33e4a6848404f 134-135
+  s_d6f92c10539fe3::t_42348991d87ecb 27
+packages/react/src/components/InkRoot.tsx
+  s_d6f92c10539fe3::t_93c2efbb6c5f15 583-584
+  s_d6f92c10539fe3::t_0884dc996f47ef 606-610,612-619
+  s_d6f92c10539fe3::t_5599e0195e90b7 22,46,119-125,573-582,585-605,623-627,634,809-810,845
+packages/react/playwright/harness/ToolbarHarness.tsx
+  s_d6f92c10539fe3::t_3d50246113789e 1,44,50
+packages/react/src/components/InkRoot.ct.tsx
+  s_d6f92c10539fe3::t_3e5a4b8be0469b 10,633-755
+packages/react/src/hooks/useRegisteredTool.ts
+  s_d6f92c10539fe3::t_8a7769d329ff30 1-4,6-53,55-58,60-61
+  s_d6f92c10539fe3::t_4b5b8b3b7909ef 5,54,59
+packages/react/playwright/harness/MissingToolsHarness.tsx
+  s_d6f92c10539fe3::t_393b8140bf5ad1 34-36
+  s_d6f92c10539fe3::t_8f9bfc3187f93f 1-33,37-48
+packages/react/playwright/harness/SignatureHarness.tsx
+  s_d6f92c10539fe3::t_9af48d33d66982 9,13,39,51-52,54-55,90,94-100,102,116
+packages/react/playwright/harness/ToolSetHarness.tsx
+  s_d6f92c10539fe3::t_8f9bfc3187f93f 1-48
+packages/react/src/context.ts
+  s_d6f92c10539fe3::t_9964a8b0588e9b 78-83
+  s_2f2aa7b05b1d5b::t_28ba3b2bfa2663 77
+packages/react/src/components/InkShapeMenu.tsx
+  s_d6f92c10539fe3::t_5f7a43881b38e7 21,35-41
+packages/svelte/src/lib/components/InkViewport.svelte
+  s_d6f92c10539fe3::t_1407960270ea08 46,119,139-140
+packages/svelte/src/lib/context.ts
+  s_d6f92c10539fe3::t_1407960270ea08 81-86
+packages/svelte/src/lib/components/InkShapeMenu.svelte
+  s_d6f92c10539fe3::t_1407960270ea08 32,34,42-44,73,159
+  s_d6f92c10539fe3::t_84a0310e3d18c7 74-80,82-118,120-130,132-158
+packages/svelte/src/lib/components/SignatureForm.svelte
+  s_d6f92c10539fe3::t_1407960270ea08 19,21,41-46,66
+packages/svelte/src/test/harness/ToolbarHarness.svelte
+  s_d6f92c10539fe3::t_d591fb6735d184 49-58
+  s_d6f92c10539fe3::t_51ddc8dbe5351a 2-3,44,62
+packages/svelte/src/lib/components/InkSignatureMenu.svelte
+  s_d6f92c10539fe3::t_84a0310e3d18c7 49-52,101-103,105-107,109-159,161-178
+  s_d6f92c10539fe3::t_1407960270ea08 29,31,47-48,100,179
+packages/svelte/src/test/harness/MissingToolsHarness.svelte
+  s_d6f92c10539fe3::t_780c1515bc8437 1-43
+packages/svelte/src/test/Toolbar.browser.test.ts
+  s_d6f92c10539fe3::t_055d7d880bf1c4 11,18,1307-1322,1324-1377,1380-1405
+  s_d6f92c10539fe3::t_84a0310e3d18c7 1378-1379
+  s_d6f92c10539fe3::t_17a845934e4576 1323
+packages/svelte/src/test/harness/UncontrolledHost.svelte
+  s_d6f92c10539fe3::t_51ddc8dbe5351a 2-3,16,19
+packages/svelte/src/lib/hooks/useToolOptions.svelte.ts
+  s_d6f92c10539fe3::t_1407960270ea08 16-25,29-32,37-39
+  s_d6f92c10539fe3::t_e9d9baaee07821 15
+packages/svelte/src/test/harness/TextStyleHarness.svelte
+  s_d6f92c10539fe3::t_d591fb6735d184 2-3,25,28
+packages/svelte/src/test/harness/SignatureHarness.svelte
+  s_d6f92c10539fe3::t_780c1515bc8437 2-3,5,21,27-28,30-31,40-41,44-48,50,55
+  s_d6f92c10539fe3::t_84a0310e3d18c7 34-39
+packages/svelte/src/test/harness/ToolSetHarness.svelte
+  s_d6f92c10539fe3::t_055d7d880bf1c4 3,29
+  s_d6f92c10539fe3::t_780c1515bc8437 1-2,4-28,30-48
+packages/svelte/src/lib/hooks/useRegisteredTool.svelte.ts
+  s_d6f92c10539fe3::t_728acd285a1304 1-71
+packages/svelte/src/test/InkRoot.browser.test.ts
+  s_d6f92c10539fe3::t_055d7d880bf1c4 16,629-688
+  s_d6f92c10539fe3::t_a708aa0d50534c 689
+packages/svelte/src/test/harness/PopoverHarness.svelte
+  s_d6f92c10539fe3::t_d591fb6735d184 25-26,45,79
+packages/svelte/src/lib/components/InkToolButton.svelte
+  s_d6f92c10539fe3::t_1407960270ea08 21,47,64-68,72
+packages/svelte/README.md
+  s_d6f92c10539fe3::t_ed62f0267e818b 56,64,67,92-93,168
+packages/svelte/src/lib/components/InkSignatureDialog.svelte
+  s_d6f92c10539fe3::t_1407960270ea08 8,17-19
+packages/svelte/src/lib/components/InkHighlightMenu.svelte
+  s_d6f92c10539fe3::t_84a0310e3d18c7 47-50,82-88,90-138,140-168,170-175
+  s_d6f92c10539fe3::t_1407960270ea08 33,35,45-46,81,176
+packages/svelte/src/lib/components/InkRoot.svelte
+  s_d6f92c10539fe3::t_1407960270ea08 62-68,144,152,410-414,592,597,631,637-642
+  s_d6f92c10539fe3::t_17a845934e4576 541-564
+  s_d6f92c10539fe3::t_e2ffeb7ea72b9b 565-566
+apps/sandbox/src/vanilla/Demo.ts
+  s_d6f92c10539fe3::t_880ec6866b038c 30,111
+apps/e2e-vue/src/ReviewPage.vue
+  s_d6f92c10539fe3::t_be79686bba66e1 14,55,188
+apps/e2e-react/src/ReviewPage.tsx
+  s_d6f92c10539fe3::t_880ec6866b038c 14,220
+  s_d6f92c10539fe3::t_3554904e00a209 45-46
+apps/sandbox/src/react/Demo.tsx
+  s_d6f92c10539fe3::t_55c540b1a424d8 1
+  s_d6f92c10539fe3::t_880ec6866b038c 71
+  s_d6f92c10539fe3::t_3554904e00a209 39-40
+apps/sandbox/src/svelte/Demo.svelte
+  s_d6f92c10539fe3::t_55c540b1a424d8 11
+  s_d6f92c10539fe3::t_3554904e00a209 50,77
+apps/e2e-svelte/src/ReviewPage.svelte
+  s_d6f92c10539fe3::t_be79686bba66e1 16,61,192
+apps/sandbox/src/vue/Demo.vue
+  s_d6f92c10539fe3::t_3554904e00a209 51,78
+  s_d6f92c10539fe3::t_55c540b1a424d8 11
+packages/core/README.md
+  s_d6f92c10539fe3::t_be79686bba66e1 60,65-66,77-82,88-89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "19da80f041bd1f51b664def06c14846dd25055c3",
+  "prompts": {},
+  "sessions": {
+    "s_2f2aa7b05b1d5b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "983e363b-60e9-43d0-b430-c77497560484",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    },
+    "s_d6f92c10539fe3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db98c1ef-4c5a-4c88-b425-330912eecf03",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
