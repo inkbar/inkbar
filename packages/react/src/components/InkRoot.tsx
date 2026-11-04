@@ -19,6 +19,7 @@ import {
   pageSelectionText,
   SIGNATURE_FONTS,
   trackToolStyle,
+  unknownTool,
   viewerSearchOf,
 } from '@inkbar/core/dom'
 import { Slot } from 'radix-ui'
@@ -42,6 +43,7 @@ import {
   type InkHistory,
   type InkStatus,
 } from '../context'
+import { registeredToolIds } from '../hooks/useRegisteredTool'
 import { useLatest } from '../use-latest'
 import { useReadable } from '../use-readable'
 
@@ -114,8 +116,13 @@ export interface InkRootProps extends Omit<
   tool?: ToolId | undefined
   onToolChange?: ((tool: ToolId) => void) | undefined
   /**
-   * Host tools, added to the built-ins; one with a built-in's id replaces it. Read when a
-   * document opens.
+   * The creation tools, such as `allTools()` or a pick of the tool factories. `select-text`
+   * and `select` are always present; a tool with either id replaces it. They are read when a
+   * document opens: a tool added later is usable from the next open, one removed stops at
+   * once. When the active tool goes, the viewer switches to `select-text` and calls
+   * `onToolChange`. A controlled `tool` naming a missing tool is reported back as
+   * `select-text` and is not applied again when the tool appears later. Each mounted control
+   * for a missing tool logs its own `UnknownTool`.
    */
   tools?: Tool[] | undefined
   /**
@@ -563,19 +570,68 @@ export function InkRoot({
     if (fields && document) document.form.setControlledValue(fields)
   }, [fields, document])
 
+  /*
+   * The tools are known once the plugin host is set up on mount. A tool id nobody registered is
+   * logged as `UnknownTool`; as the active tool, from a `tool` prop or because it left `tools`,
+   * it falls back to `select-text`, reported through `onToolChange`. A controlled `tool` that
+   * stays on the missing id is not applied again: only a change to the prop is.
+   */
+  const ready = pluginHost !== null
+  /** The ids of the tools the current viewer was built with; InkViewport sets them. */
+  const [openedToolIds, setOpenedToolIds] = useState<readonly ToolId[] | null>(null)
+  // Keyed by the ids, so a host that passes a new array of the same tools changes nothing.
+  const toolKey = registeredToolIds(hostTools, pluginHost, openedToolIds).join('\n')
+  const toolIds = useMemo(() => toolKey.split('\n'), [toolKey])
+  const registration = useLatest({ ready, toolIds })
+  const isRegistered = useCallback(
+    (id: ToolId): boolean => {
+      const r = registration.current
+      return !r.ready || r.toolIds.includes(id)
+    },
+    [registration]
+  )
+  const logUnknownTool = useCallback(
+    (id: ToolId) => console.error(unknownTool(id, registration.current.toolIds)),
+    [registration]
+  )
+  const fallBack = useCallback(
+    (id: ToolId) => {
+      logUnknownTool(id)
+      setInternalTool('select-text')
+      latest.current.onToolChange?.('select-text')
+    },
+    [latest, logUnknownTool]
+  )
+
+  /** The `tool` prop last applied, so a host that keeps passing it does not apply it again. */
+  const appliedTool = useRef<ToolId | undefined>(tool)
+  // One check for a new `tool` prop, a bad first one once the plugins are known, and an active
+  // tool that left `tools`, so a commit that changes several reports once. A new prop is
+  // checked before it is applied, so a missing id never reaches the engine.
   useEffect(() => {
-    if (tool) setInternalTool(tool)
-  }, [tool])
+    let next = internalTool
+    if (tool !== appliedTool.current) {
+      appliedTool.current = tool
+      if (tool) next = tool
+    }
+    if (!isRegistered(next)) fallBack(next)
+    else if (next !== internalTool) setInternalTool(next)
+  }, [tool, ready, toolIds, internalTool, isRegistered, fallBack])
 
   const setTool = useCallback(
     (id: ToolId) => {
+      // As the tool controller does: a missing tool is logged and nothing changes.
+      if (!isRegistered(id)) {
+        logUnknownTool(id)
+        return
+      }
       // Picking the active tool again starts it afresh, as after a one-shot tool's use.
       const tc = latest.current.tools
       if (latest.current.tool === id && tc?.active.get() === id) tc.set(id)
       setInternalTool(id)
       latest.current.onToolChange?.(id)
     },
-    [latest]
+    [latest, isRegistered, logUnknownTool]
   )
   const reportZoom = useCallback(
     (z: ZoomValue) => latest.current.onZoomChange?.(z),
@@ -750,6 +806,8 @@ export function InkRoot({
       tool: internalTool,
       setTool,
       hostTools,
+      openedToolIds,
+      setOpenedToolIds,
       decorateAnnotation: decorate,
       onDecorateAnnotationChange,
       fonts,
@@ -784,6 +842,7 @@ export function InkRoot({
       internalTool,
       setTool,
       hostTools,
+      openedToolIds,
       decorate,
       onDecorateAnnotationChange,
       fonts,

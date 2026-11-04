@@ -4,6 +4,7 @@ import { Toolbar } from 'radix-ui'
 
 import { cx } from '../class-names'
 import { useInkContext } from '../context'
+import { useRegisteredTool } from '../hooks/useRegisteredTool'
 import { useTool } from '../hooks/useTool'
 
 import { InkIcon } from './InkIcon'
@@ -15,6 +16,15 @@ const ICONS: Readonly<Partial<Record<ToolId, IconNode>>> = {
   'select-text': TextCursor,
   select: SquareDashedMousePointer,
 }
+
+const MISSING = {
+  disabled: true,
+  'aria-hidden': true,
+  'aria-pressed': undefined,
+  'aria-label': undefined,
+  title: undefined,
+  onClick: undefined,
+} as const
 
 export interface InkToolButtonProps extends Omit<
   ComponentPropsWithoutRef<'button'>,
@@ -38,6 +48,7 @@ export function InkToolButton({
   const { hostTools, pluginHost } = useInkContext('InkToolButton')
   const { tool: current, setTool } = useTool()
   const active = current === tool
+  const registered = useRegisteredTool(tool)
   /** The registered tool by this id, for the name and icon core has none for. */
   const own = withHostTools([...(hostTools ?? []), ...(pluginHost?.tools ?? [])]).find(
     (t) => t.id === tool
@@ -60,6 +71,9 @@ export function InkToolButton({
         if (!e.defaultPrevented) setTool(tool)
       }}
       {...rest}
+      // A tool nobody registered leaves the button disabled, hidden from assistive tech and
+      // unnamed, whatever the host passed.
+      {...(registered ? {} : MISSING)}
     >
       {typeof children === 'function'
         ? children({ active, label: name })

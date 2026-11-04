@@ -7,6 +7,7 @@ import { EventHost } from '../../playwright/harness/EventHost'
 import { PluginHarness, StrictPluginHost } from '../../playwright/harness/PluginHarness'
 import { StrictHost } from '../../playwright/harness/StrictHost'
 import { ToolbarHarness } from '../../playwright/harness/ToolbarHarness'
+import { ToolSetHarness } from '../../playwright/harness/ToolSetHarness'
 import { UncontrolledHost } from '../../playwright/harness/UncontrolledHost'
 
 import { InkRoot } from './InkRoot'
@@ -628,4 +629,127 @@ test('StrictMode sets the plugins up once, and their stores still undo', async (
   await expect(probe).toHaveAttribute('data-marks', 'suggested')
   await expect(probe).toHaveAttribute('data-annotations', '0')
   await expect(cmp.getByTestId('setups')).toHaveText('1')
+})
+
+/** The console errors seen so far, each for a tool nobody registered. */
+const unknownTools = () =>
+  consoleGuard.problems.map((m) => /No tool (\S+) is registered/.exec(m)?.[1] ?? m)
+
+test('dropping the active tool falls back to select-text', async ({ mount }) => {
+  const tools: string[] = []
+  const onToolChange = (t: string) => tools.push(t)
+  const src = fixtureUrl('text-simple')
+  const cmp = await mount(
+    <ToolSetHarness
+      src={src}
+      assets={assets}
+      tool="shape"
+      follow
+      onToolChange={onToolChange}
+    />
+  )
+  const scroll = cmp.locator('[data-ink-scroll]')
+  await expect(scroll).toHaveAttribute('data-ink-tool', 'shape')
+  await cmp.update(
+    <ToolSetHarness
+      src={src}
+      assets={assets}
+      tool="shape"
+      follow
+      bare
+      onToolChange={onToolChange}
+    />
+  )
+  await expect(scroll).toHaveAttribute('data-ink-tool', 'select-text')
+  expect(tools).toEqual(['select-text'])
+  expect(unknownTools()).toEqual(['shape'])
+  consoleGuard.clear()
+})
+
+test('a controlled tool naming a missing tool reports select-text once', async ({
+  mount,
+}) => {
+  const tools: string[] = []
+  const onToolChange = (t: string) => tools.push(t)
+  const src = fixtureUrl('text-simple')
+  // The host feeds each reported tool back into `tool`.
+  const cmp = await mount(
+    <ToolSetHarness
+      src={src}
+      assets={assets}
+      tool="highlight"
+      bare
+      follow
+      onToolChange={onToolChange}
+    />
+  )
+  const scroll = cmp.locator('[data-ink-scroll]')
+  await expect(scroll).toHaveAttribute('data-ink-tool', 'select-text')
+  await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+  // A re-render with a new callback changes nothing.
+  await cmp.update(
+    <ToolSetHarness
+      src={src}
+      assets={assets}
+      tool="highlight"
+      bare
+      follow
+      onToolChange={(t) => tools.push(t)}
+    />
+  )
+  await expect(scroll).toHaveAttribute('data-ink-tool', 'select-text')
+  expect(tools).toEqual(['select-text'])
+  expect(unknownTools()).toEqual(['highlight'])
+  consoleGuard.clear()
+})
+
+test('a controlled tool the host keeps on a missing id is not applied again', async ({
+  mount,
+}) => {
+  const tools: string[] = []
+  const src = fixtureUrl('text-simple')
+  const cmp = await mount(
+    <ToolSetHarness
+      src={src}
+      assets={assets}
+      tool="highlight"
+      bare
+      onToolChange={(t) => tools.push(t)}
+    />
+  )
+  const scroll = cmp.locator('[data-ink-scroll]')
+  await expect(scroll).toHaveAttribute('data-ink-tool', 'select-text')
+  await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+  // The host keeps passing the missing tool; a re-render does not apply it again.
+  await cmp.update(
+    <ToolSetHarness
+      src={src}
+      assets={assets}
+      tool="highlight"
+      bare
+      onToolChange={(t) => tools.push(t)}
+    />
+  )
+  await expect(scroll).toHaveAttribute('data-ink-tool', 'select-text')
+  expect(tools).toEqual(['select-text'])
+  expect(unknownTools()).toEqual(['highlight'])
+  consoleGuard.clear()
+})
+
+test('a plugin tool works with no tools prop', async ({ mount }) => {
+  const cmp = await mount(
+    <PluginHarness src={fixtureUrl('text-simple')} assets={assets} />
+  )
+  await expect(cmp).toHaveAttribute('data-state', 'ready')
+  const button = cmp.locator('[data-ink-tool-button][data-tool="sandbox.stamp"]')
+  await expect(button).toHaveAccessibleName('Stamp')
+  await expect(button).toBeEnabled()
+  await expect(button).not.toHaveAttribute('aria-hidden')
+  await button.click()
+  await expect(button).toHaveAttribute('aria-pressed', 'true')
+  await expect(cmp.locator('[data-ink-scroll]')).toHaveAttribute(
+    'data-ink-tool',
+    'sandbox.stamp'
+  )
+  expect(unknownTools()).toEqual([])
 })

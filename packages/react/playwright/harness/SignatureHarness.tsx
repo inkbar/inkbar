@@ -10,6 +10,7 @@ import { allTools } from '@inkbar/core/dom'
 import { useMemo, useState } from 'react'
 
 import { InkRoot } from '../../src/components/InkRoot'
+import { InkSignatureDialog } from '../../src/components/InkSignatureDialog'
 import { InkSignatureMenu } from '../../src/components/InkSignatureMenu'
 import { InkToolbar } from '../../src/components/InkToolbar'
 import { InkToolButton } from '../../src/components/InkToolButton'
@@ -35,6 +36,7 @@ export function SignatureHarness({
   failSave = false,
   failRemove = false,
   swapTo,
+  bare = false,
 }: {
   src: DocumentSource
   assets: PdfAssets
@@ -46,8 +48,11 @@ export function SignatureHarness({
   failRemove?: boolean
   /** Templates of a second store that the `swap-store` button hands to InkRoot. */
   swapTo?: SignatureTemplate[]
+  /** No tools: a plain button opens the dialog in place of the menu. */
+  bare?: boolean
 }) {
   const [tools] = useState(allTools)
+  const [dialog, setDialog] = useState(false)
   const [saved, setSaved] = useState<SignatureTemplate[]>(initial)
   const [swapped, setSwapped] = useState(false)
   const next = useMemo(
@@ -82,12 +87,19 @@ export function SignatureHarness({
       zoom={1}
       signatures={swapped ? next : store}
       signatureFonts={fonts}
-      tools={tools}
+      tools={bare ? undefined : tools}
     >
       <InkToolbar>
         <InkToolButton tool="select" />
-        <InkSignatureMenu />
+        {bare ? (
+          <button type="button" onClick={() => setDialog(true)}>
+            Open dialog
+          </button>
+        ) : (
+          <InkSignatureMenu />
+        )}
       </InkToolbar>
+      {bare ? <InkSignatureDialog open={dialog} onOpenChange={setDialog} /> : null}
       {/* Test-only box: the scroll container needs a bounded height to scroll. */}
       <div style={{ height: 600, width: 900 }}>
         <InkViewport />
@@ -101,7 +113,7 @@ export function SignatureHarness({
       <button data-testid="swap-store" onClick={() => setSwapped(true)}>
         swap
       </button>
-      <OptionsProbe />
+      {bare ? null : <OptionsProbe />}
       <HookProbe />
     </InkRoot>
   )

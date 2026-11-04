@@ -24,6 +24,7 @@ import {
 
 import { cx } from '../class-names'
 import { useInkContext } from '../context'
+import { toolIdsOf } from '../hooks/useRegisteredTool'
 import { useLatest } from '../use-latest'
 
 import { InkFormAlert } from './InkFormAlert'
@@ -130,6 +131,8 @@ export function InkViewport({
     let stops: (() => void)[] = []
     buildCount.current += 1
     builtWith.current = { gap: g, buffer: b, custom: cu }
+    // The tools this viewer registers, from the same inputs; a later `tools` waits for a rebuild.
+    c.setOpenedToolIds(toolIdsOf(c.hostTools, c.pluginHost))
     const e = mountViewer({
       container: el,
       document: doc,
@@ -213,6 +216,7 @@ export function InkViewport({
       engine.current = null
       builtWith.current = null
       c.setViewport(null, null)
+      c.setOpenedToolIds(null)
       setPages((prev) => (prev.length === 0 ? prev : []))
       // Their fields and the document they came from are gone.
       setSignRequest(null)
