@@ -1,0 +1,27 @@
+packages/svelte/src/lib/components/body-lock.ts
+  s_d6f92c10539fe3::t_fa40839f05f3d1 1-45
+packages/svelte/src/lib/components/InkSignatureDialog.svelte
+  s_d6f92c10539fe3::t_94800f38eadc46 34
+  s_d6f92c10539fe3::t_fc728437969303 63-64
+packages/svelte/src/test/Toolbar.browser.test.ts
+  s_d6f92c10539fe3::t_d16a594d74ff14 1294-1297,1309-1311
+  s_d6f92c10539fe3::t_8fdadb409f10fc 1278-1282,1286-1289,1292-1293,1298-1308,1312-1314
+  s_d6f92c10539fe3::t_8f09bf4b7417ad 1290-1291
+  s_d6f92c10539fe3::t_3fdb4b09f2951a 1283-1285
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "eddbdc52828bbc2b5b1792b62916a6b7e12385e9",
+  "prompts": {},
+  "sessions": {
+    "s_d6f92c10539fe3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db98c1ef-4c5a-4c88-b425-330912eecf03",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
