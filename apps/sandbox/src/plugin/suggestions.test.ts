@@ -7,11 +7,12 @@ import { fileURLToPath } from 'node:url'
 import { openDocument, writable, type InkDocument } from '@inkbar/core'
 import { createPluginHost } from '@inkbar/core/dom'
 
+import { makeLetter } from '../../vite/documents/letter.ts'
+import { makeRedactions, redactionRecords } from '../../vite/documents/redactions.ts'
 import { makeSample } from '../../vite/make-sample.ts'
 
 import {
   findSuggestions,
-  SAMPLE_SUGGESTIONS,
   suggestionsPlugin,
   type Suggestion,
   type SuggestionsOptions,
@@ -33,13 +34,19 @@ function nodeAssets() {
 let sampleBytes: Uint8Array
 const opened: InkDocument[] = []
 
-/** A fresh copy of the sandbox's sample PDF, open and ready. */
-async function openSample(): Promise<InkDocument> {
-  const doc = await openDocument(sampleBytes.slice(), { assets: nodeAssets() })
+/** A fresh copy of `bytes`, open and ready. */
+async function openBytes(bytes: Uint8Array): Promise<InkDocument> {
+  const doc = await openDocument(bytes.slice(), { assets: nodeAssets() })
   opened.push(doc)
   await doc.ready
   return doc
 }
+
+/** A fresh copy of the sandbox's sample PDF, open and ready. */
+const openSample = () => openBytes(sampleBytes)
+
+/** The sample's customer record on page 4, in reading order. */
+const SAMPLE_IDS = ['ni-number', 'email', 'phone', 'email-2']
 
 before(async () => {
   sampleBytes = await makeSample()
@@ -71,21 +78,47 @@ void test('findSuggestions finds the four sample values in the sample, in readin
   const doc = await openSample()
   const found = await findSuggestions(doc)
   assert.deepEqual(
-    found.map((s) => [s.reason, s.confidence, s.status, s.page]),
+    found.map((s) => [s.id, s.reason, s.confidence, s.status, s.page, s.text]),
     [
-      ['National Insurance number', 0.95, 'suggested', 3],
-      ['Email address', 0.85, 'suggested', 3],
-      ['Phone number', 0.6, 'suggested', 3],
-      ['Email address', 0.85, 'suggested', 3],
+      ['ni-number', 'National Insurance number', 0.95, 'suggested', 3, 'QQ123456C'],
+      ['email', 'Email address', 0.85, 'suggested', 3, 'm.okafor@example.com'],
+      ['phone', 'Phone number', 0.6, 'suggested', 3, '07700 900123'],
+      ['email-2', 'Email address', 0.85, 'suggested', 3, 'm.okafor@example.com'],
     ]
   )
 })
 
+void test('findSuggestions marks where the text is on the page', async () => {
+  const doc = await openSample()
+  const [ni] = await findSuggestions(doc)
+  // The sample draws the NI number at x 383, on a line from about 247 to 259 pt.
+  assert.ok(Math.abs(ni!.rect.x - 383) < 1, `x is ${ni!.rect.x}`)
+  assert.ok(ni!.rect.y > 244 && ni!.rect.y + ni!.rect.height < 262, `y is ${ni!.rect.y}`)
+  assert.ok(ni!.quads.length > 0)
+})
+
+void test('findSuggestions finds every NI number, email and phone in the redactions document', async () => {
+  const doc = await openBytes(await makeRedactions())
+  const found = await findSuggestions(doc)
+  // Each value, as often as the records and their call notes hold it.
+  const expected = new Map<string, number>()
+  for (const r of redactionRecords())
+    for (const value of [...r.ni, ...r.emails, ...r.phones])
+      expected.set(value, 1 + r.note.split(value).length - 1 + (expected.get(value) ?? 0))
+  const counts = new Map<string, number>()
+  for (const s of found) counts.set(s.text, (counts.get(s.text) ?? 0) + 1)
+  assert.deepEqual(new Map([...counts].sort()), new Map([...expected].sort()))
+  assert.deepEqual(
+    new Set(found.map((s) => s.reason)),
+    new Set(['National Insurance number', 'Email address', 'Phone number'])
+  )
+  assert.equal(new Set(found.map((s) => s.id)).size, found.length, 'ids are unique')
+  // Each value sits on one line, so its mark is one tight box.
+  for (const s of found) assert.equal(s.quads.length, 1, `${s.id} wraps`)
+})
+
 void test('findSuggestions finds nothing when the text is absent', async () => {
-  const doc = {
-    pages: [0, 1, 2, 3].map((index) => ({ index })),
-    pageText: () => Promise.resolve('Nothing to see here.'),
-  } as unknown as InkDocument
+  const doc = await openBytes(await makeLetter())
   assert.deepEqual(await findSuggestions(doc), [])
 })
 
@@ -107,7 +140,7 @@ void test('Suggest adds the four suggestions once, in one undo step, and saves t
   assert.equal(suggest.status?.get(), '4 suggestions')
   assert.deepEqual(
     saved.map((s) => s.id),
-    SAMPLE_SUGGESTIONS.map((s) => s.id)
+    SAMPLE_IDS
   )
   await suggest.run()
   assert.equal(suggest.status?.get(), '0 suggestions')
@@ -130,7 +163,7 @@ void test('a Suggest run that a new document interrupts adds nothing to either',
 
 void test('deleting an accepted redaction restores its suggestion, in the same undo step', async () => {
   let saved: readonly Suggestion[] = []
-  const [first] = SAMPLE_SUGGESTIONS
+  const [first] = await findSuggestions(await openSample())
   const { doc } = await setUp({
     records: {
       suggestions: {
