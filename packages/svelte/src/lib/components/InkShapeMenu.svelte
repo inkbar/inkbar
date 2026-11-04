@@ -29,8 +29,9 @@
   import { ChevronDown } from '@inkbar/icons'
   import { Popover, Toolbar } from 'bits-ui'
 
+  import { useRegisteredTool } from '../hooks/useRegisteredTool.svelte.js'
   import { useTool } from '../hooks/useTool.svelte.js'
-  import { useToolOptions } from '../hooks/useToolOptions.svelte.js'
+  import { useToolOptionsWhile } from '../hooks/useToolOptions.svelte.js'
 
   import InkIcon from './InkIcon.svelte'
   import { createMenuOpenFocus } from './menu-open-focus.js'
@@ -38,7 +39,9 @@
   let { class: className, children, ...rest }: InkShapeMenuProps = $props()
 
   const current = useTool()
-  const shape = useToolOptions<ShapeOptions>('shape')
+  // Nothing renders while no `shape` tool is registered.
+  const registered = useRegisteredTool('shape')
+  const shape = useToolOptionsWhile<ShapeOptions>('shape', () => registered.current)
   let open = $state(false)
   /** The split button: the panel lines up under it rather than the chevron. */
   let group = $state<HTMLElement | null>(null)
@@ -67,88 +70,90 @@
   }
 </script>
 
-<div
-  bind:this={group}
-  role="group"
-  aria-label="Shape"
-  class={['ink-split-button ink-shape-menu', className]}
-  data-ink-shape-menu=""
-  {...rest}
->
-  <Toolbar.Button
-    class="ink-tool-button ink-shape-button"
-    data-ink-tool-button=""
-    data-ink-shape-button=""
-    data-tool="shape"
-    data-kind={model.kind}
-    data-state={active ? 'on' : 'off'}
-    aria-pressed={active}
-    aria-label={model.label}
-    title={model.label}
-    onclick={() => current.setTool('shape')}
+{#if registered.current}
+  <div
+    bind:this={group}
+    role="group"
+    aria-label="Shape"
+    class={['ink-split-button ink-shape-menu', className]}
+    data-ink-shape-menu=""
+    {...rest}
   >
-    {#if children}{@render children()}{:else}<InkIcon
-        icon={SHAPE_ICONS[model.kind]}
-      />{/if}
-  </Toolbar.Button>
-  <Popover.Root bind:open>
-    <Popover.Trigger>
-      {#snippet child({ props })}
-        <Toolbar.Button
-          {...props}
-          class="ink-menu-trigger ink-shape-menu-trigger"
-          data-ink-shape-menu-trigger=""
-          data-state={open ? 'open' : 'closed'}
-          aria-label="Choose shape"
-          title="Choose shape"
-          aria-haspopup="menu"
-          onkeydown={onTriggerKeydown}
-        >
-          <InkIcon icon={ChevronDown} />
-        </Toolbar.Button>
-      {/snippet}
-    </Popover.Trigger>
-    <Popover.Portal>
-      <Popover.Content
-        bind:ref={menu}
-        role="menu"
-        aria-label="Shapes"
-        class="ink-select-content ink-menu-content"
-        data-ink-select-content=""
-        data-ink-menu="shape"
-        customAnchor={group}
-        side="bottom"
-        align="start"
-        sideOffset={4}
-        collisionPadding={8}
-        onOpenAutoFocus={(e) => openFocus.onOpenAutoFocus(e, menu)}
-        onfocusin={openFocus.onfocusin}
-        onkeydown={(e) => menu && handleMenuKeys(e, menu)}
-      >
-        <div
-          role="group"
+    <Toolbar.Button
+      class="ink-tool-button ink-shape-button"
+      data-ink-tool-button=""
+      data-ink-shape-button=""
+      data-tool="shape"
+      data-kind={model.kind}
+      data-state={active ? 'on' : 'off'}
+      aria-pressed={active}
+      aria-label={model.label}
+      title={model.label}
+      onclick={() => current.setTool('shape')}
+    >
+      {#if children}{@render children()}{:else}<InkIcon
+          icon={SHAPE_ICONS[model.kind]}
+        />{/if}
+    </Toolbar.Button>
+    <Popover.Root bind:open>
+      <Popover.Trigger>
+        {#snippet child({ props })}
+          <Toolbar.Button
+            {...props}
+            class="ink-menu-trigger ink-shape-menu-trigger"
+            data-ink-shape-menu-trigger=""
+            data-state={open ? 'open' : 'closed'}
+            aria-label="Choose shape"
+            title="Choose shape"
+            aria-haspopup="menu"
+            onkeydown={onTriggerKeydown}
+          >
+            <InkIcon icon={ChevronDown} />
+          </Toolbar.Button>
+        {/snippet}
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          bind:ref={menu}
+          role="menu"
           aria-label="Shapes"
-          class="ink-shape-grid"
-          data-ink-menu-columns={SHAPE_COLUMNS}
+          class="ink-select-content ink-menu-content"
+          data-ink-select-content=""
+          data-ink-menu="shape"
+          customAnchor={group}
+          side="bottom"
+          align="start"
+          sideOffset={4}
+          collisionPadding={8}
+          onOpenAutoFocus={(e) => openFocus.onOpenAutoFocus(e, menu)}
+          onfocusin={openFocus.onfocusin}
+          onkeydown={(e) => menu && handleMenuKeys(e, menu)}
         >
-          {#each model.items as item (item.kind)}
-            <button
-              type="button"
-              role="menuitemradio"
-              class="ink-select-item ink-menu-item ink-shape-item"
-              data-ink-select-item=""
-              tabindex={-1}
-              data-key={item.kind}
-              aria-checked={item.checked}
-              data-state={item.checked ? 'checked' : 'unchecked'}
-              onclick={() => choose(item.kind)}
-            >
-              <InkIcon icon={SHAPE_ICONS[item.kind]} size={16} />
-              {item.label}
-            </button>
-          {/each}
-        </div>
-      </Popover.Content>
-    </Popover.Portal>
-  </Popover.Root>
-</div>
+          <div
+            role="group"
+            aria-label="Shapes"
+            class="ink-shape-grid"
+            data-ink-menu-columns={SHAPE_COLUMNS}
+          >
+            {#each model.items as item (item.kind)}
+              <button
+                type="button"
+                role="menuitemradio"
+                class="ink-select-item ink-menu-item ink-shape-item"
+                data-ink-select-item=""
+                tabindex={-1}
+                data-key={item.kind}
+                aria-checked={item.checked}
+                data-state={item.checked ? 'checked' : 'unchecked'}
+                onclick={() => choose(item.kind)}
+              >
+                <InkIcon icon={SHAPE_ICONS[item.kind]} size={16} />
+                {item.label}
+              </button>
+            {/each}
+          </div>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  </div>
+{/if}

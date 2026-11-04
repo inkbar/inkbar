@@ -13,13 +13,29 @@ const NO_OPTIONS: object = {}
 export function useToolOptions<O extends object = object>(
   id: ToolId | (() => ToolId)
 ): { readonly options: O; setOptions: (patch: Partial<O>) => void } {
+  return useToolOptionsWhile<O>(id, () => true)
+}
+
+/**
+ * `useToolOptions` that reads and sets nothing while `active` is false, so a control for a
+ * missing tool leaves the controller's own `UnknownTool` log alone.
+ */
+export function useToolOptionsWhile<O extends object = object>(
+  id: ToolId | (() => ToolId),
+  active: () => boolean
+): { readonly options: O; setOptions: (patch: Partial<O>) => void } {
   const ctx = useInkContext('useToolOptions()')
   const toolId = (): ToolId => (typeof id === 'function' ? id() : id)
-  const options = useReadable(() => ctx.tools?.options(toolId()), NO_OPTIONS)
+  const options = useReadable(
+    () => (active() ? ctx.tools?.options(toolId()) : null),
+    NO_OPTIONS
+  )
   return {
     get options() {
       return options.current as O
     },
-    setOptions: (patch) => ctx.tools?.setOptions(toolId(), patch),
+    setOptions: (patch) => {
+      if (active()) ctx.tools?.setOptions(toolId(), patch)
+    },
   }
 }

@@ -8,13 +8,14 @@ import { guardConsole } from './console-guard.js'
 import { attr, cssOf, focused, q, scrollTopOf, sleep } from './dom.js'
 import ColorMenuHarness from './harness/ColorMenuHarness.svelte'
 import LineStyleHarness from './harness/LineStyleHarness.svelte'
+import MissingToolsHarness from './harness/MissingToolsHarness.svelte'
 import SignatureHarness from './harness/SignatureHarness.svelte'
 import TextStyleHarness from './harness/TextStyleHarness.svelte'
 import ToolbarHarness from './harness/ToolbarHarness.svelte'
 import ZoomClickHarness from './harness/ZoomClickHarness.svelte'
 
 const assets = browserAssets()
-guardConsole()
+const consoleGuard = guardConsole()
 
 /** Toolbar buttons carry `data-tool`; scope to the toolbar so nothing else can match. */
 const toolButton = (id: string) => `[data-ink-toolbar] [data-tool="${id}"]`
@@ -1302,5 +1303,104 @@ describe('signature menu', () => {
     expect(error.textContent).toMatch(/could not be removed/)
     expect(menu().getByRole('menuitemradio').elements()).toHaveLength(2)
     expect((await store.list()).length).toBe(2)
+  })
+
+  it('the signature dialog saves without the signature tool', async () => {
+    const store = createMemorySignatureStore()
+    await render(SignatureHarness, {
+      src: fixtureUrl('text-simple'),
+      assets,
+      store,
+      bare: true,
+    })
+    await q('.ink-page canvas')
+    await browserPage.getByRole('button', { name: 'Open dialog' }).click()
+    await expect.element(dialog()).toBeVisible()
+    await dialog().getByRole('tab', { name: 'Type' }).click()
+    await dialog().getByLabelText('Name').fill('Ada')
+    await dialog().getByRole('button', { name: 'Save' }).click()
+    await expect.poll(() => dialog().elements().length).toBe(0)
+    expect((await store.list()).map((t) => t.kind)).toEqual(['image'])
+    expect(probe('data-tool')()).toBe('select-text')
+    expect(attr(SCROLL, 'data-ink-tool')()).toBe('select-text')
+  })
+})
+
+describe('missing tools', () => {
+  /** The ids the console reported as missing so far, each from a tool nobody registered. */
+  const unknown = () =>
+    consoleGuard.problems.map((m) => /No tool (\S+) is registered/.exec(m)?.[1] ?? m)
+
+  it('a tool button for a missing tool is disabled and hidden', async () => {
+    await render(MissingToolsHarness, {
+      src: fixtureUrl('text-simple'),
+      assets,
+      controls: ['highlight-button'],
+    })
+    await q('.ink-page canvas')
+    const button = await q<HTMLButtonElement>(toolButton('highlight'))
+    expect(button.disabled).toBe(true)
+    expect(button.getAttribute('aria-hidden')).toBe('true')
+    expect(button.hasAttribute('aria-label')).toBe(false)
+    expect(button.hasAttribute('title')).toBe(false)
+    button.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await sleep(100)
+    expect(attr('[data-testid="probe"]', 'data-tool')()).toBe('select-text')
+    expect(unknown()).toEqual(['highlight'])
+    consoleGuard.clear()
+  })
+
+  it('menus for missing tools render nothing', async () => {
+    await render(MissingToolsHarness, {
+      src: fixtureUrl('text-simple'),
+      assets,
+      controls: ['highlight', 'shape', 'signature'],
+    })
+    await q('.ink-page canvas')
+    await sleep(100)
+    expect(document.querySelectorAll('[data-ink-toolbar] [data-tool]')).toHaveLength(1)
+    expect(document.querySelectorAll('[data-ink-highlight-menu]')).toHaveLength(0)
+    expect(document.querySelectorAll('[data-ink-shape-menu]')).toHaveLength(0)
+    expect(document.querySelectorAll('[data-ink-signature-menu]')).toHaveLength(0)
+    expect(unknown().sort()).toEqual(['highlight', 'shape', 'signature'])
+    consoleGuard.clear()
+  })
+
+  it('a tool added after open becomes usable on the next open', async () => {
+    const props = {
+      src: fixtureUrl('text-simple'),
+      assets,
+      controls: ['highlight-button' as const],
+      highlight: false,
+    }
+    const screen = await render(MissingToolsHarness, props)
+    await q('.ink-page canvas')
+    const button = () =>
+      document.querySelector<HTMLButtonElement>(toolButton('highlight'))!
+    expect(button().disabled).toBe(true)
+    // The open viewer has no highlight tool, so the button waits for the next open.
+    await screen.rerender({ ...props, highlight: true })
+    await sleep(100)
+    expect(button().disabled).toBe(true)
+    expect(button().getAttribute('aria-hidden')).toBe('true')
+    button().dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await sleep(100)
+    expect(attr(SCROLL, 'data-ink-tool')()).toBe('select-text')
+    await screen.rerender({
+      ...props,
+      highlight: true,
+      src: fixtureUrl('annotated-markup'),
+    })
+    await expect.poll(() => button().disabled).toBe(false)
+    await expect
+      .element(browserPage.getByRole('button', { name: 'Highlight', exact: true }))
+      .toBeVisible()
+    expect(button().hasAttribute('aria-hidden')).toBe(false)
+    await browserPage.elementLocator(button()).click()
+    await expect.poll(attr(SCROLL, 'data-ink-tool')).toBe('highlight')
+    // Only the button's own report, from before the tool was added: the viewer was never asked
+    // for a tool it did not have.
+    expect(unknown()).toEqual(['highlight'])
+    consoleGuard.clear()
   })
 })

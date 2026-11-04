@@ -13,6 +13,7 @@ import ControlledHost from './harness/ControlledHost.svelte'
 import EventHost from './harness/EventHost.svelte'
 import PluginHarness from './harness/PluginHarness.svelte'
 import ToolbarHarness from './harness/ToolbarHarness.svelte'
+import ToolSetHarness from './harness/ToolSetHarness.svelte'
 import UnboundHost from './harness/UnboundHost.svelte'
 import UncontrolledHost from './harness/UncontrolledHost.svelte'
 
@@ -623,6 +624,67 @@ describe('InkRoot', () => {
       .toBe('true')
     expect(count('[data-annotation]')()).toBe(1)
     expect(tools).toEqual(['select-text'])
+  })
+
+  /** The ids of the tools the console reported as missing so far. */
+  const missingTools = () =>
+    consoleGuard.problems.map((m) => /No tool (\S+) is registered/.exec(m)?.[1] ?? m)
+
+  it('dropping the active tool falls back to select-text', async () => {
+    const tools: string[] = []
+    const props = {
+      src: fixtureUrl('text-simple'),
+      assets,
+      tool: 'shape',
+      follow: true,
+      onToolChange: (t: string) => tools.push(t),
+    }
+    const screen = await render(ToolSetHarness, props)
+    await q('.ink-page canvas')
+    await expect.poll(attr('[data-ink-scroll]', 'data-ink-tool')).toBe('shape')
+    await screen.rerender({ ...props, bare: true })
+    await expect.poll(attr('[data-ink-scroll]', 'data-ink-tool')).toBe('select-text')
+    await sleep(100)
+    expect(tools).toEqual(['select-text'])
+    expect(missingTools()).toEqual(['shape'])
+    consoleGuard.clear()
+  })
+
+  it('a controlled tool naming a missing tool reports select-text once', async () => {
+    const tools: string[] = []
+    const props = {
+      src: fixtureUrl('text-simple'),
+      assets,
+      tool: 'highlight',
+      bare: true,
+      onToolChange: (t: string) => tools.push(t),
+    }
+    const screen = await render(ToolSetHarness, props)
+    await q('.ink-page canvas')
+    await expect.poll(attr('[data-ink-scroll]', 'data-ink-tool')).toBe('select-text')
+    // The host keeps passing the missing tool; a re-render does not apply it again.
+    await screen.rerender({ ...props })
+    await sleep(100)
+    expect(attr('[data-ink-scroll]', 'data-ink-tool')()).toBe('select-text')
+    expect(tools).toEqual(['select-text'])
+    expect(missingTools()).toEqual(['highlight'])
+    consoleGuard.clear()
+  })
+
+  it('a plugin tool works with no tools prop', async () => {
+    await render(PluginHarness, { src: fixtureUrl('text-simple'), assets })
+    await expect.poll(attr('[data-ink-root]', 'data-state')).toBe('ready')
+    const stamp = '[data-ink-tool-button][data-tool="sandbox.stamp"]'
+    const button = await q<HTMLButtonElement>(stamp)
+    await expect
+      .element(browserPage.getByRole('button', { name: 'Stamp', exact: true }))
+      .toBeVisible()
+    expect(button.disabled).toBe(false)
+    expect(button.hasAttribute('aria-hidden')).toBe(false)
+    await browserPage.elementLocator(button).click()
+    await expect.poll(attr(stamp, 'aria-pressed')).toBe('true')
+    await expect.poll(attr('[data-ink-scroll]', 'data-ink-tool')).toBe('sandbox.stamp')
+    expect(missingTools()).toEqual([])
   })
 
   describe('plugins', () => {

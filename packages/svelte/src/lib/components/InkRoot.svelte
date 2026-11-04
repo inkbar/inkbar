@@ -59,8 +59,13 @@
     tool?: ToolId | undefined
     onToolChange?: ((tool: ToolId) => void) | undefined
     /**
-     * Host tools, added to the built-ins; one with a built-in's id replaces it. Read when a
-     * document opens.
+     * The creation tools, such as `allTools()` or a pick of the tool factories. `select-text`
+     * and `select` are always present; a tool with either id replaces it. They are read when a
+     * document opens: a tool added later is usable from the next open, one removed stops at
+     * once. When the active tool goes, the viewer switches to `select-text` and calls
+     * `onToolChange`. A controlled `tool` naming a missing tool is reported back as
+     * `select-text` and is not applied again when the tool appears later. Each mounted control
+     * for a missing tool logs its own `UnknownTool`.
      */
     tools?: Tool[] | undefined
     /**
@@ -136,6 +141,7 @@
     pageSelectionText,
     SIGNATURE_FONTS,
     trackToolStyle,
+    unknownTool,
     viewerSearchOf,
   } from '@inkbar/core/dom'
   import { DEV } from 'esm-env'
@@ -143,6 +149,7 @@
   import { createAttachmentKey } from 'svelte/attachments'
 
   import { setInkContext, type InkContext, type InkHistory } from '../context.js'
+  import { registeredToolIds } from '../hooks/useRegisteredTool.svelte.js'
   import { useReadable } from '../use-readable.svelte.js'
 
   import type { PluginHistory } from '@inkbar/core'
@@ -400,6 +407,11 @@
   })
 
   function setTool(id: ToolId): void {
+    // As the tool controller does: a missing tool is logged and nothing changes.
+    if (!isRegistered(id)) {
+      logUnknownTool(id)
+      return
+    }
     // Picking the active tool again starts it afresh, as after a one-shot tool's use.
     if (currentTool === id && tools?.active.get() === id) tools.set(id)
     tool = id
@@ -527,6 +539,32 @@
   })
 
   /*
+   * The tools are known once the plugins are set up on mount. A tool id nobody registered is
+   * logged as `UnknownTool`; as the active tool, from a `tool` prop or because it left `tools`,
+   * it falls back to `select-text`, reported through `onToolChange`. A controlled `tool` that
+   * stays on the missing id is not applied again.
+   */
+  /** The ids of the tools the current viewer was built with; InkViewport sets them. */
+  let openedToolIds = $state.raw<readonly ToolId[] | null>(null)
+  const toolIds = $derived(registeredToolIds(hostTools, pluginHost, openedToolIds))
+  const isRegistered = (id: ToolId): boolean =>
+    pluginHost === null || toolIds.includes(id)
+  /** The tool the engine and the controls see: a missing one never reaches them. */
+  const effectiveTool = $derived<ToolId>(
+    isRegistered(currentTool) ? currentTool : 'select-text'
+  )
+  const logUnknownTool = (id: ToolId): void => console.error(unknownTool(id, toolIds))
+  $effect(() => {
+    const id = currentTool
+    if (isRegistered(id)) return
+    untrack(() => {
+      logUnknownTool(id)
+      tool = 'select-text'
+      onToolChange?.('select-text')
+    })
+  })
+
+  /*
    * Ctrl/Cmd+F while focus is in the root and a find bar is mounted; else the browser's. A
    * native listener: the handler reads the event's `currentTarget`, which is the root here.
    */
@@ -551,12 +589,12 @@
         history: { batch: (fn) => inkHistory.batch(fn) },
         // The plugins' tools too, so a plugin tool's style group applies.
         tools: [...(hostTools ?? []), ...(pluginHost?.tools ?? [])],
-        tool: currentTool,
+        tool: effectiveTool,
       })
     )
   })
   $effect(() => {
-    const id = currentTool
+    const id = effectiveTool
     styleTracker?.setTool(id)
   })
 
@@ -590,11 +628,17 @@
       return tools
     },
     get tool() {
-      return currentTool
+      return effectiveTool
     },
     setTool,
     get hostTools() {
       return hostTools
+    },
+    get openedToolIds() {
+      return openedToolIds
+    },
+    setOpenedToolIds(ids) {
+      openedToolIds = ids
     },
     get decorateAnnotation() {
       return decorateAnnotation
