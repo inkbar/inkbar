@@ -8,7 +8,7 @@ export interface ScenarioProps {
   source: DocumentSource
   log: Log
   /** Passed to the scenario's viewer ready callback. */
-  onDocument(doc: InkDocument): void
+  onDocument(this: void, doc: InkDocument): void
 }
 
 export interface MountedScenario {

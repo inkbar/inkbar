@@ -1,0 +1,622 @@
+@import './fonts.css';
+@import './tokens.css';
+@import './base.css';
+@import './chrome.css';
+
+/* The theme reads shadcn token names. Set on :root so portalled popovers inherit them too. */
+:root {
+  --background: var(--sheet);
+  --foreground: var(--ink);
+  --muted: var(--viewer-ground);
+  --muted-foreground: var(--caption);
+  --border: var(--line);
+  --primary: var(--ink);
+  --primary-foreground: #ffffff;
+  --ring: var(--ballpoint);
+  --radius: var(--radius-control);
+  --header-height: 60px;
+  --nav-width: 264px;
+  --side-width: 320px;
+}
+
+body {
+  font-size: 14px;
+}
+
+/* Header: the mark, the breadcrumb, then Docs and GitHub. */
+.app-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 20px;
+  min-height: var(--header-height);
+  padding: 4px 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--sheet);
+}
+.app-header .brand svg {
+  width: 28px;
+  height: 28px;
+}
+.app-header .wordmark,
+.app-header .wordmark-suffix {
+  font-size: 20px;
+}
+.breadcrumb {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.breadcrumb ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--caption);
+  font-size: 13px;
+}
+.breadcrumb li + li::before {
+  margin-right: 8px;
+  content: '/';
+}
+.breadcrumb [aria-current] {
+  color: var(--ink);
+  font-weight: 600;
+}
+.app-links {
+  display: flex;
+  gap: 20px;
+  font-size: 14px;
+}
+.app-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--ballpoint);
+}
+.app-links a:hover {
+  color: var(--ink);
+}
+
+/* Three columns on a wide screen; the Events panel drops below the main area, then all stack. */
+.app-body {
+  display: grid;
+  grid-template-areas: 'nav' 'main' 'side';
+  grid-template-columns: minmax(0, 1fr);
+}
+.app-nav {
+  grid-area: nav;
+}
+.app-main {
+  grid-area: main;
+}
+.app-side {
+  grid-area: side;
+}
+@media (min-width: 860px) {
+  .app-body {
+    grid-template-areas: 'nav main' 'nav side';
+    grid-template-columns: var(--nav-width) minmax(0, 1fr);
+    /* The main area keeps its own height; the Events panel takes what the list leaves. */
+    grid-template-rows: auto 1fr;
+  }
+}
+@media (min-width: 1180px) {
+  .app-body {
+    grid-template-areas: 'nav main side';
+    grid-template-columns: var(--nav-width) minmax(0, 1fr) var(--side-width);
+    grid-template-rows: minmax(0, 1fr);
+    height: calc(100dvh - var(--header-height));
+  }
+  .app-body > * {
+    min-height: 0;
+    overflow: auto;
+  }
+  .app-side {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+}
+
+/* The scenario list. */
+.app-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 12px;
+  border-right: 1px solid var(--line);
+  background: var(--sheet);
+}
+@media (max-width: 859px) {
+  .app-nav {
+    max-height: 320px;
+    overflow: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+}
+.nav-search {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--caption);
+  font-size: 13px;
+}
+.nav-search input {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+}
+.nav-group h2 {
+  font-size: inherit;
+}
+.nav-group h2 button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+}
+.nav-group h2 button:hover {
+  background: var(--paper);
+}
+.chevron {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: var(--caption);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.nav-group button[aria-expanded='false'] .chevron {
+  transform: rotate(-90deg);
+}
+.nav-group ul {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0 0 0 4px;
+  list-style: none;
+}
+.nav-group ul[hidden] {
+  display: none;
+}
+.nav-group a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 10px;
+  border-radius: 6px;
+  color: var(--body);
+  text-decoration: none;
+}
+.nav-group a:hover {
+  background: var(--paper);
+  color: var(--ink);
+}
+.nav-group a[aria-current='page'] {
+  background: var(--highlighter);
+  color: var(--ink);
+  font-weight: 600;
+}
+.nav-empty {
+  margin: 8px;
+  color: var(--caption);
+  font-size: 13px;
+}
+
+/* The main area: title, blurb and the Preview and Code tabs. */
+.app-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px 20px 20px;
+}
+.scenario-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 16px;
+}
+.scenario-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.scenario-copy h1 {
+  font-size: 26px;
+  line-height: 1.15;
+}
+.scenario-copy p {
+  max-width: 640px;
+  color: var(--caption);
+}
+.segmented,
+.side-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--viewer-ground);
+}
+.segmented [role='tab'],
+.side-tabs [role='tab'] {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--body);
+  font-weight: 600;
+}
+.segmented [aria-selected='true'],
+.side-tabs [aria-selected='true'] {
+  background: var(--sheet);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgb(13 16 38 / 12%);
+}
+.side-tabs[hidden] {
+  display: none;
+}
+
+.preview {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+.preview[hidden],
+.code[hidden] {
+  display: none;
+}
+.viewer-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 20px;
+}
+.viewer-bar .caption:first-child {
+  margin-right: auto;
+}
+.file-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--ballpoint);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
+  cursor: pointer;
+}
+.file-link .icon {
+  width: 18px;
+  height: 18px;
+}
+.file-link:has(input:focus-visible) {
+  outline: 3px solid var(--ballpoint);
+  outline-offset: 2px;
+}
+.scenario-viewer {
+  display: flex;
+  flex-direction: column;
+  height: min(78vh, 880px);
+  min-height: 480px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--sheet);
+}
+@media (min-width: 1180px) {
+  .scenario-viewer {
+    flex: 1 1 auto;
+    height: auto;
+  }
+}
+.scenario-viewer[data-drop] {
+  outline: 3px dashed var(--ballpoint);
+  outline-offset: -3px;
+}
+.scenario-host {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.coming {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  background: var(--viewer-ground);
+  color: var(--caption);
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+/* What the scenario files lay out: tools above the document, page and zoom below it. */
+.scenario-root {
+  --ink-highlight: #e4ff4a;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.scenario-root .ink-viewport-root {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.scenario-toolbar {
+  border-bottom: 1px solid var(--ink-border);
+}
+.scenario-status-bar {
+  --ink-control-size: 2rem;
+  --ink-icon-size: 1rem;
+  border-top: 1px solid var(--ink-border);
+  font-size: 14px;
+}
+.scenario-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.scenario-zoom {
+  margin-left: auto;
+}
+/* The TypeScript viewer hides its popovers with `hidden`; the theme's layered display rule would win otherwise. */
+[data-ink-thread-popover][hidden] {
+  display: none;
+}
+/* The zoom list marks the focused option with its highlight; the page-wide focus ring would double it. */
+[data-ink-select-item]:focus-visible {
+  outline: none;
+}
+
+/* The Code tab: a tab per file, then its name, install line, Copy and the source. */
+.code {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+.file-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.file-tabs [role='tab'] {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--sheet);
+  color: var(--body);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.file-tabs [aria-selected='true'] {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #ffffff;
+}
+.source-file {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--ink);
+  color: var(--on-ink);
+}
+.source-file[hidden] {
+  display: none;
+}
+.source-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--ink-line);
+}
+.source-path {
+  margin-right: auto;
+  color: var(--paper);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.source-install {
+  flex: 1 0 100%;
+  order: 1;
+  min-width: 0;
+  padding-bottom: 6px;
+  color: var(--on-ink-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.source-install span {
+  user-select: none;
+}
+.ghost-button {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--ink-line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--paper);
+}
+.ghost-button:hover {
+  border-color: var(--on-ink-muted);
+}
+.source-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--on-ink);
+  font-weight: 600;
+  text-decoration-color: var(--highlighter);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
+}
+.source-link:hover {
+  color: #ffffff;
+}
+.source-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 78vh;
+  overflow: auto;
+  --focus-ring: var(--highlighter);
+}
+@media (min-width: 1180px) {
+  .source-body {
+    max-height: none;
+  }
+}
+.source-body pre {
+  margin: 0;
+  padding: 16px 18px 20px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+/* The Events panel, and Values beside it for a form. */
+.app-side {
+  border-top: 1px solid var(--line);
+  background: var(--sheet);
+}
+@media (min-width: 1180px) {
+  .app-side {
+    border-top: 0;
+    border-left: 1px solid var(--line);
+  }
+}
+.side-tabs {
+  margin: 12px 16px 0;
+}
+.side-panel {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+.side-panel[hidden] {
+  display: none;
+}
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.panel-head h2 {
+  font-size: 17px;
+}
+.event-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  background: var(--viewer-ground);
+  color: var(--body);
+  font-size: 12px;
+}
+.link-button {
+  min-height: 44px;
+  margin-left: auto;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: var(--ballpoint);
+  text-decoration: underline;
+}
+.event-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 480px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+@media (min-width: 1180px) {
+  .event-list {
+    max-height: none;
+  }
+}
+.event-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--paper);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.event-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.event-name {
+  color: var(--ballpoint);
+  font-weight: 500;
+}
+.event-time {
+  margin-left: auto;
+  color: var(--caption);
+  font-size: 11px;
+}
+.event-payload {
+  color: var(--body);
+  overflow-wrap: anywhere;
+}
+.panel-empty,
+.panel-note {
+  margin: 16px;
+  color: var(--caption);
+  font-size: 13px;
+}
+.panel-empty[hidden] {
+  display: none;
+}
+.values {
+  margin: 0 16px 16px;
+  padding: 10px 12px;
+  overflow: auto;
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
