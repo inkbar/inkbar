@@ -1,0 +1,79 @@
+apps/sandbox/e2e/search.spec.ts
+  s_d6f92c10539fe3::t_f27c53479d08b7 108-115,117-126,133-134
+  s_d6f92c10539fe3::t_6e7d9d80d0aabf 127-132
+  s_d6f92c10539fe3::t_2ef6e0f354c72e 17
+  s_d6f92c10539fe3::t_7678d9de17813a 116
+apps/sandbox/e2e/shell.spec.ts
+  s_d6f92c10539fe3::t_2ef6e0f354c72e 65,77,112,133,147,167,195,208,229,266,292,299,320,335,365,377,387,392
+apps/sandbox/vanilla/index.html
+  s_d6f92c10539fe3::t_672add472da6b0 11-13
+  s_d6f92c10539fe3::t_2fdb08a85af5b1 6-7,10
+apps/sandbox/e2e/index.spec.ts
+  s_d6f92c10539fe3::t_7678d9de17813a 20-23
+  s_d6f92c10539fe3::t_f27c53479d08b7 6-12,14-19,27,29-30
+  s_d6f92c10539fe3::t_0b8bedb78b7737 24
+apps/sandbox/vite/highlight.ts
+  s_d6f92c10539fe3::t_fe8a93dc73361b 2
+apps/sandbox/src/shared/signatures.ts
+  s_d6f92c10539fe3::t_fe8a93dc73361b 5
+apps/sandbox/src/styles/app.css
+  s_d6f92c10539fe3::t_266fd1ca35bb2a 346
+apps/sandbox/e2e/redactions.spec.ts
+  s_d6f92c10539fe3::t_f3048fe11482f4 1-2,19-23,86-96
+  s_d6f92c10539fe3::t_2ef6e0f354c72e 46
+  s_d6f92c10539fe3::t_284b508fd42d6d 97-98
+eslint.config.js
+  s_d6f92c10539fe3::t_672add472da6b0 104
+apps/sandbox/vite/sample.ts
+  s_d6f92c10539fe3::t_266fd1ca35bb2a 13
+apps/sandbox/vite/highlight.test.ts
+  s_d6f92c10539fe3::t_fe8a93dc73361b 14-17
+apps/sandbox/src/shell/app.ts
+  s_d6f92c10539fe3::t_266fd1ca35bb2a 9,193
+apps/sandbox/react/index.html
+  s_d6f92c10539fe3::t_672add472da6b0 11-13
+  s_d6f92c10539fe3::t_bf009353af5d9f 6-7,10
+apps/sandbox/vue/index.html
+  s_d6f92c10539fe3::t_672add472da6b0 11-13
+  s_d6f92c10539fe3::t_b34b521c815e86 6-7,10
+apps/sandbox/src/plugin/suggestions.test.ts
+  s_d6f92c10539fe3::t_0a619af09f47c5 33,44-45,48,55,57,74,95,130,163,171
+  s_d6f92c10539fe3::t_7678d9de17813a 76,78,80-82,85-86,91,97,99-101,137,144-145,148,152
+  s_d6f92c10539fe3::t_a341bb1344238c 87-90
+  s_d6f92c10539fe3::t_6d3c86f5ba7d67 73
+apps/sandbox/src/plugin/suggestions.ts
+  s_d6f92c10539fe3::t_fe8a93dc73361b 3
+apps/sandbox/svelte/index.html
+  s_d6f92c10539fe3::t_672add472da6b0 11-13
+  s_d6f92c10539fe3::t_37280dff08f538 6-7,10
+apps/sandbox/e2e/tour.spec.ts
+  s_d6f92c10539fe3::t_2ef6e0f354c72e 47,58,75,126,161,210,266,297,315,332,347,365,395,419,439,459,486,510,528,559,608,622,643
+  s_d6f92c10539fe3::t_f3048fe11482f4 1-2,10-14,46,48-57,59-73
+apps/sandbox/e2e/forms-scenario.spec.ts
+  s_d6f92c10539fe3::t_2ef6e0f354c72e 21
+apps/sandbox/e2e/scenarios.spec.ts
+  s_d6f92c10539fe3::t_2ef6e0f354c72e 64,74,85
+apps/sandbox/tsconfig.json
+  s_d6f92c10539fe3::t_266fd1ca35bb2a 17
+apps/sandbox/plugin/index.html
+  s_d6f92c10539fe3::t_672add472da6b0 11-13
+  s_d6f92c10539fe3::t_11088bb5f9b688 6-7,10
+apps/sandbox/index.html
+  s_d6f92c10539fe3::t_26641bbb16fa80 8,11,14-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c42b90800be0424339c67b5a2d645d3ad20eb38a",
+  "prompts": {},
+  "sessions": {
+    "s_d6f92c10539fe3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db98c1ef-4c5a-4c88-b425-330912eecf03",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}

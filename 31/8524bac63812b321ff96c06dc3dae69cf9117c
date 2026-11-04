@@ -1,0 +1,24 @@
+apps/sandbox/e2e/forms-scenario.spec.ts
+  s_d6f92c10539fe3::t_349b3a796780ac 142-153
+apps/sandbox/e2e/tour.spec.ts
+  s_d6f92c10539fe3::t_d7f689472a6859 5,17-46,78,82-87,89-123
+  s_d6f92c10539fe3::t_54fe7ace9fdd49 8
+apps/sandbox/src/plugin/suggestions.test.ts
+  s_d6f92c10539fe3::t_ee858260680a32 44-61,122-130,171,174,178
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "318524bac63812b321ff96c06dc3dae69cf9117c",
+  "prompts": {},
+  "sessions": {
+    "s_d6f92c10539fe3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db98c1ef-4c5a-4c88-b425-330912eecf03",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
