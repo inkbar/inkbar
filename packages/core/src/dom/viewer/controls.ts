@@ -26,7 +26,7 @@ import { keepHistoryFocus } from '../history-keys'
 import { unknownCommand } from '../plugins/commands'
 import { TOOL_LABELS, ZOOM_LEVELS } from '../ui'
 
-import { hostCommandIdsOf, hostToolsOf, onViewerDestroy } from './create-viewer'
+import { hostCommandIdsOf, toolsOf, onViewerDestroy } from './create-viewer'
 import { h } from './dom'
 
 import type { InkDocument } from '../../model/document'
@@ -71,6 +71,7 @@ function follow<T>(
 
 const SVG = 'http://www.w3.org/2000/svg'
 
+/** Icons of the two core select tools. Every other tool carries its own `icon`. */
 const TOOL_ICONS: Readonly<Partial<Record<ToolId, IconNode>>> = {
   'select-text': TextCursor,
   select: SquareDashedMousePointer,
@@ -198,15 +199,16 @@ function historyButton(viewer: Viewer, action: 'undo' | 'redo'): HTMLButtonEleme
 }
 
 /**
- * Sets the tool; pressed while it is the active one. A host or plugin tool's button takes the
- * tool's own `label` and `icon`; `opts.label` wins, and without either it is named by the tool id.
+ * Sets the tool; pressed while it is the active one. A creation, host or plugin tool's button
+ * takes the tool's own `label` and `icon`; `opts.label` wins, and without either it is named by
+ * the tool id.
  */
 export function createToolButton(
   viewer: Viewer,
   tool: ToolId,
   opts: { label?: string } = {}
 ): HTMLButtonElement {
-  const own = hostToolsOf(viewer).find((t) => t.id === tool)
+  const own = toolsOf(viewer).find((t) => t.id === tool)
   const label = opts.label ?? TOOL_LABELS[tool] ?? own?.label ?? tool
   const b = button(
     label,

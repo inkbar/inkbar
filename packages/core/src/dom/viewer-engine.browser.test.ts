@@ -7,7 +7,7 @@ import {
 } from '../model/signatures'
 
 import { mountContainer, openFixtureInBrowser, settle, until } from './test-utils'
-import { createToolOptions } from './tools'
+import { createToolOptions, highlightTool, shapeTool, signatureTool } from './tools'
 import { mountViewer, type MountViewerOptions, type ViewerEngine } from './viewer-engine'
 
 import type { InkError } from '../model/errors'
@@ -86,7 +86,10 @@ describe('mountViewer', () => {
     const before = engine.viewport.scale.get()
     key(container, '+')
     expect(engine.viewport.scale.get()).toBeGreaterThan(before)
-    const other = await setup('text-simple', { tool: 'highlight' })
+    const other = await setup('text-simple', {
+      tool: 'highlight',
+      tools: [highlightTool()],
+    })
     expect(other.engine.tools.active.get()).toBe('highlight')
   })
 
@@ -305,10 +308,10 @@ describe('mountViewer', () => {
 
   it('shares a host tool-options registry, so options outlive the engine', async () => {
     const toolOptions = createToolOptions()
-    const first = await setup('text-simple', { toolOptions })
+    const first = await setup('text-simple', { toolOptions, tools: [shapeTool()] })
     first.engine.tools.set('shape', { kind: 'star', points: 6 })
     first.engine.destroy()
-    const next = await setup('text-simple', { toolOptions })
+    const next = await setup('text-simple', { toolOptions, tools: [shapeTool()] })
     expect(next.engine.tools.options('shape').get()).toMatchObject({
       kind: 'star',
       points: 6,
@@ -337,6 +340,7 @@ describe('mountViewer', () => {
     const { doc, container, engine } = await setup('text-simple', {
       zoom: 1,
       signatureLibrary: () => current,
+      tools: [signatureTool()],
     })
     expect(engine.signatures).toBe(empty)
     current = next

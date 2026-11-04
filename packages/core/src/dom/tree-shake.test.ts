@@ -37,6 +37,18 @@ async function bundle(code: string): Promise<string> {
 
 const VIEWER_UI = ['ink-thread-popover', 'data-ink-zoom-select', 'data-ink-prev-page']
 
+// One marker per tool module. Their string literals ('Signature', 'OpenArrow'…) also appear
+// in modules the engine keeps, so the markers are the modules' own function names, which an
+// unminified bundle keeps: the sketch tool, the stroke recogniser it alone uses, the signature
+// tool and the shape tool.
+const OTHER_TOOLS = [
+  'function sketchTool',
+  'function recogniseStroke',
+  'function signatureTool',
+  'function shapeTool',
+]
+const HIGHLIGHT = 'function highlightTool'
+
 describe('tree shaking @inkbar/core/dom', () => {
   it('importing only mountViewer leaves the controls and popovers out', async () => {
     const code = await bundle(`export { mountViewer } from ${JSON.stringify(INDEX)}`)
@@ -50,5 +62,20 @@ describe('tree shaking @inkbar/core/dom', () => {
       `export { createViewer, createZoomSelect, createPrevPage } from ${JSON.stringify(INDEX)}`
     )
     for (const marker of VIEWER_UI) expect(code).toContain(marker)
+  })
+
+  it('importing one tool leaves the others out', async () => {
+    const code = await bundle(
+      `export { mountViewer, highlightTool } from ${JSON.stringify(INDEX)}`
+    )
+    for (const marker of OTHER_TOOLS) expect(code).not.toContain(marker)
+    expect(code).toContain(HIGHLIGHT)
+  })
+
+  it('importing allTools brings every tool in', async () => {
+    const code = await bundle(
+      `export { mountViewer, allTools } from ${JSON.stringify(INDEX)}`
+    )
+    for (const marker of [...OTHER_TOOLS, HIGHLIGHT]) expect(code).toContain(marker)
   })
 })
