@@ -1,0 +1,61 @@
+packages/core/src/dom/index.test.ts
+  s_d6f92c10539fe3::t_1b9c52f0ef3b51 19,37-38
+packages/vue/playwright/harness/MissingToolsHarness.vue
+  s_d6f92c10539fe3::t_3c3580953ebd54 20-22
+  s_d6f92c10539fe3::t_3c8eb4d80d4191 27-28,39
+  s_d6f92c10539fe3::t_f87a4d099e302a 36-38,40-41
+packages/svelte/src/test/harness/MissingToolsHarness.svelte
+  s_d6f92c10539fe3::t_f87a4d099e302a 38-42
+  s_d6f92c10539fe3::t_3c3580953ebd54 25-27
+packages/vue/src/components/Toolbar.ct.ts
+  s_d6f92c10539fe3::t_f87a4d099e302a 1396-1413
+packages/vue/src/components/Form.ct.ts
+  s_d6f92c10539fe3::t_b6c9faff5f561e 273
+packages/vue/src/components/InkRoot.ct.ts
+  s_d6f92c10539fe3::t_b6c9faff5f561e 496
+packages/react/src/components/InkToolButton.tsx
+  s_d6f92c10539fe3::t_dd964d3a354729 78-82
+packages/core/README.md
+  s_d6f92c10539fe3::t_1b9c52f0ef3b51 192,385
+  s_d6f92c10539fe3::t_73bd624df2d69a 114
+packages/svelte/src/test/Form.browser.test.ts
+  s_d6f92c10539fe3::t_b6c9faff5f561e 359
+packages/svelte/src/test/harness/FormHarness.svelte
+  s_d6f92c10539fe3::t_b6c9faff5f561e 68
+packages/svelte/src/test/Toolbar.browser.test.ts
+  s_d6f92c10539fe3::t_f87a4d099e302a 1353-1369
+packages/vue/playwright/harness/FormHarness.vue
+  s_d6f92c10539fe3::t_b6c9faff5f561e 93
+packages/vue/src/components/InkToolButton.vue
+  s_d6f92c10539fe3::t_540c584e41a56c 5,21-22,46-48,50-66,77,79-81
+packages/react/src/components/Toolbar.ct.tsx
+  s_d6f92c10539fe3::t_f87a4d099e302a 1571-1592
+packages/react/src/components/Form.ct.tsx
+  s_d6f92c10539fe3::t_b6c9faff5f561e 361
+packages/svelte/src/test/InkRoot.browser.test.ts
+  s_d6f92c10539fe3::t_b6c9faff5f561e 653
+packages/react/playwright/harness/FormHarness.tsx
+  s_d6f92c10539fe3::t_540c584e41a56c 98
+packages/react/playwright/harness/MissingToolsHarness.tsx
+  s_d6f92c10539fe3::t_3c3580953ebd54 25-27
+  s_d6f92c10539fe3::t_f87a4d099e302a 39-42
+  s_d6f92c10539fe3::t_0d82d6a364253d 43
+packages/svelte/src/lib/components/InkToolButton.svelte
+  s_d6f92c10539fe3::t_540c584e41a56c 34-44,75-77,84,86-90
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f3059f56768d24b41e7a0fd7a5665f3e9f4811d6",
+  "prompts": {},
+  "sessions": {
+    "s_d6f92c10539fe3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db98c1ef-4c5a-4c88-b425-330912eecf03",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
