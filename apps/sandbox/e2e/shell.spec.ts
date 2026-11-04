@@ -184,7 +184,8 @@ test('the Code tab says when the source fails to load, then recovers', async ({
   const code = page.getByRole('tabpanel', { name: 'Code' })
   await expect(code).toContainText('The code could not be loaded')
   await expect(code).not.toContainText('tour/react.tsx')
-  guard.take(/./)
+  // The aborted import is the expected outcome of this route.
+  guard.take(/ERR_FAILED|dynamically imported module/)
   failing = false
   // The failure does not wedge the tab: the next scenario shows its source. (A browser keeps a
   // failed module import for the page's life, so the same file is not tried again until reload.)
@@ -377,4 +378,15 @@ test('no horizontal scroll at phone width', async ({ page }) => {
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth
   )
   expect(overflow).toBe(0)
+})
+
+test('only the TypeScript controlled page says it follows the list', async ({ page }) => {
+  const note = page.locator('[data-scenario-note]')
+  await page.goto('app.html#/vanilla/controlled')
+  await expect(note).toBeVisible()
+  await expect(note).toHaveText(
+    "createViewer can't take a controlled annotation list yet, so this page follows the list instead."
+  )
+  await page.goto('app.html#/react/controlled')
+  await expect(note).toBeHidden()
 })

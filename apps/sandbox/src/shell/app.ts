@@ -48,6 +48,7 @@ app.innerHTML = `
       <div class="scenario-copy">
         <h1 data-scenario-title></h1>
         <p data-scenario-blurb></p>
+        <p data-scenario-note hidden></p>
       </div>
       <div class="segmented" role="tablist" aria-label="View">
         ${tabMarkup('tab-preview', 'panel-preview', 'Preview')}
@@ -135,6 +136,9 @@ async function select(next: Route): Promise<void> {
   $('[data-crumb-scenario]').textContent = scenario.title
   $('[data-scenario-title]').textContent = scenario.title
   $('[data-scenario-blurb]').textContent = scenario.blurb
+  const note = scenario.notes?.[next.framework]
+  $('[data-scenario-note]').textContent = note ?? ''
+  $('[data-scenario-note]').hidden = !note
   sidebar.select(next)
 
   const hasValues = scenario.panels.includes('values')

@@ -25,3 +25,11 @@ void test('only forms has a values panel', () => {
     'src/plugin/suggestions.ts',
   ])
 })
+
+void test('controlled notes that the TypeScript page only follows the list', () => {
+  const controlled = SCENARIOS.find((s) => s.id === 'controlled')
+  assert.match(controlled?.notes?.vanilla ?? '', /follows the list/)
+  assert.equal(controlled?.notes?.react, undefined)
+  for (const s of SCENARIOS)
+    if (s.id !== 'controlled') assert.equal(s.notes, undefined, s.id)
+})

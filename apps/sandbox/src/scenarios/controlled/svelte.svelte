@@ -14,7 +14,6 @@
     InkPageCount,
     InkPageInput,
     InkPrevPage,
-    InkRedo,
     InkRoot,
     InkShapeMenu,
     InkSignatureMenu,
@@ -23,7 +22,6 @@
     InkToolbar,
     InkToolbarSeparator,
     InkToolButton,
-    InkUndo,
     InkViewport,
     InkZoomIn,
     InkZoomOut,
@@ -55,7 +53,7 @@
   {signatures}
   {signatureFonts}
   bind:annotations
-  onAnnotationsChange={(next) => log('annotations', { count: next.length })}
+  onAnnotationsChange={(next) => log('onAnnotationsChange', { count: next.length })}
   {onReady}
   onToolChange={(tool) => log('onToolChange', tool)}
   onActivate={(id) => log('onActivate', id)}
@@ -81,8 +79,6 @@
       <InkColorMenu property="fill" />
       <InkTextStyleMenu />
     </div>
-    <InkUndo />
-    <InkRedo />
   </InkToolbar>
   <InkViewport />
   <InkToolbar label="Page and zoom" class="scenario-status-bar">

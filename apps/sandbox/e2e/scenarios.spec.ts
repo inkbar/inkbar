@@ -13,6 +13,14 @@ const TOOL_EVENT = {
   vanilla: 'tools.active',
 } as const
 
+/** The event each page logs when its annotation list changes. */
+const CONTROLLED_EVENT = {
+  react: 'onAnnotationsChange',
+  vue: '@update:annotations',
+  svelte: 'onAnnotationsChange',
+  vanilla: 'annotations',
+} as const
+
 const SELECT_TOOLS = ['select-text', 'select']
 const CREATION_TOOLS = [
   'highlight',
@@ -68,30 +76,35 @@ for (const framework of FRAMEWORK_ORDER) {
       await expect(newest.locator('.event-payload')).toHaveText('note')
     })
 
-    test(`${framework} controlled: adding a highlight reports the new count`, async ({
+    test(`${framework} controlled: adding highlights reports the new count`, async ({
       page,
     }) => {
       await page.goto(`app.html#/${framework}/controlled`)
       await waitForViewer(page)
-      const line = (await viewer(page)
-        .locator('.ink-page[data-page="0"] [data-ink-text-layer] span')
-        .filter({ hasText: /\w{8}/ })
-        .first()
-        .boundingBox())!
-      const midY = line.y + line.height / 2
-      await viewer(page).getByRole('button', { name: 'Highlight', exact: true }).click()
-      await page.mouse.move(line.x + 1, midY)
-      await page.mouse.down()
-      await page.mouse.move(line.x + line.width - 1, midY, { steps: 5 })
-      await page.mouse.up()
-      await expect(
-        events(page)
-          .filter({
-            has: page.locator('[data-event-name]', { hasText: /^annotations$/ }),
-          })
-          .first()
-          .locator('.event-payload')
-      ).toHaveText('{"count":1}')
+      // Where the host's controlled callback logs; TypeScript only follows the list.
+      const name = CONTROLLED_EVENT[framework]
+      const changes = events(page).filter({
+        has: page.locator('[data-event-name]', { hasText: new RegExp(`^${name}$`) }),
+      })
+      const highlight = async (index: number) => {
+        const line = (await viewer(page)
+          .locator('.ink-page[data-page="0"] [data-ink-text-layer] span')
+          .filter({ hasText: /\w{8}/ })
+          .nth(index)
+          .boundingBox())!
+        const midY = line.y + line.height / 2
+        await viewer(page).locator('button[data-tool="highlight"]').click()
+        await page.mouse.move(line.x + 1, midY)
+        await page.mouse.down()
+        await page.mouse.move(line.x + line.width - 1, midY, { steps: 5 })
+        await page.mouse.up()
+      }
+      if (framework === 'vanilla')
+        await expect(page.locator('[data-scenario-note]')).toBeVisible()
+      await highlight(0)
+      await expect(changes.first().locator('.event-payload')).toHaveText('{"count":1}')
+      await highlight(1)
+      await expect(changes.first().locator('.event-payload')).toHaveText('{"count":2}')
     })
   })
 }

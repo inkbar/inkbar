@@ -12,7 +12,6 @@ import {
   InkPageCount,
   InkPageInput,
   InkPrevPage,
-  InkRedo,
   InkRoot,
   InkShapeMenu,
   InkSignatureMenu,
@@ -21,7 +20,6 @@ import {
   InkToolbar,
   InkToolbarSeparator,
   InkToolButton,
-  InkUndo,
   InkViewport,
   InkZoomIn,
   InkZoomOut,
@@ -47,7 +45,7 @@ export default function ControlledAnnotations({
 
   function onChange(next: Annotation[]) {
     setAnnotations(next)
-    log('annotations', { count: next.length })
+    log('onAnnotationsChange', { count: next.length })
   }
 
   function onReady(doc: InkDocument) {
@@ -89,8 +87,6 @@ export default function ControlledAnnotations({
           <InkColorMenu property="fill" />
           <InkTextStyleMenu />
         </div>
-        <InkUndo />
-        <InkRedo />
       </InkToolbar>
       <InkViewport />
       <InkToolbar label="Page and zoom" className="scenario-status-bar">

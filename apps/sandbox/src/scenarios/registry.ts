@@ -1,4 +1,5 @@
 import type { DocumentName } from '../../vite/documents/index.ts'
+import type { FrameworkId } from '../shell/frameworks.ts'
 
 export type ScenarioId =
   'tour' | 'tools' | 'forms' | 'redactions' | 'controlled' | 'search'
@@ -10,6 +11,8 @@ export interface Scenario {
   document: DocumentName
   panels: readonly ('events' | 'values')[]
   extraFiles?: readonly string[]
+  /** A line shown under the blurb for one framework, where it differs from the rest. */
+  notes?: Partial<Record<FrameworkId, string>>
 }
 
 export const SCENARIOS: readonly Scenario[] = [
@@ -50,6 +53,10 @@ export const SCENARIOS: readonly Scenario[] = [
     blurb: 'Your app owns the annotation list and hears every change.',
     document: 'tour',
     panels: ['events'],
+    notes: {
+      vanilla:
+        "createViewer can't take a controlled annotation list yet, so this page follows the list instead.",
+    },
   },
   {
     id: 'search',

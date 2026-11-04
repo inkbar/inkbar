@@ -13,7 +13,6 @@ import {
   InkPageCount,
   InkPageInput,
   InkPrevPage,
-  InkRedo,
   InkRoot,
   InkShapeMenu,
   InkSignatureMenu,
@@ -22,7 +21,6 @@ import {
   InkToolbar,
   InkToolbarSeparator,
   InkToolButton,
-  InkUndo,
   InkViewport,
   InkZoomIn,
   InkZoomOut,
@@ -45,7 +43,7 @@ const annotations = shallowRef<Annotation[]>([])
 
 function onChange(next: Annotation[]): void {
   annotations.value = next
-  log('annotations', { count: next.length })
+  log('@update:annotations', { count: next.length })
 }
 
 function onReady(doc: InkDocument): void {
@@ -96,8 +94,6 @@ function onActivate(id: string): void {
         <InkColorMenu property="fill" />
         <InkTextStyleMenu />
       </div>
-      <InkUndo />
-      <InkRedo />
     </InkToolbar>
     <InkViewport />
     <InkToolbar label="Page and zoom" class="scenario-status-bar">
