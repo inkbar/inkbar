@@ -24,6 +24,7 @@ import {
   watch,
 } from 'vue'
 
+import { toolIdsOf } from '../composables/useRegisteredTool'
 import { injectInkContext } from '../context'
 
 import InkFormAlert from './InkFormAlert.vue'
@@ -124,6 +125,7 @@ function teardown(): void {
   engine.value = null
   if (ctx.viewport.value) ctx.viewport.value = null
   if (ctx.tools.value) ctx.tools.value = null
+  ctx.openedToolIds.value = null
   pages.value = []
   // Their fields and the document they came from are gone.
   signRequest.value = null
@@ -149,6 +151,8 @@ function setup(): void {
   let first = true
   build += 1
   custom = !!slots.annotation
+  // The tools this viewer registers, from the same inputs; a later `tools` waits for a rebuild.
+  ctx.openedToolIds.value = toolIdsOf(ctx.hostTools.value, ctx.pluginHost.value)
   engine.value = mountViewer({
     container: el,
     document: doc,

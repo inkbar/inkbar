@@ -88,9 +88,12 @@ const props = withDefaults(
     tool?: ToolId | undefined
     /**
      * The creation tools, such as `allTools()` or a pick of the tool factories. `select-text`
-     * and `select` are always present; a tool with either id replaces it. The viewer reads
-     * them when a document opens. When the active tool leaves this list, the viewer switches
-     * to `select-text` and emits `update:tool`.
+     * and `select` are always present; a tool with either id replaces it. They are read when a
+     * document opens: a tool added later is usable from the next open, one removed stops at
+     * once. When the active tool goes, the viewer switches to `select-text` and emits
+     * `update:tool`. A controlled `tool` naming a missing tool is reported back as
+     * `select-text` and is not applied again when the tool appears later. Each mounted control
+     * for a missing tool logs its own `UnknownTool`.
      */
     tools?: Tool[] | undefined
     /**
@@ -482,7 +485,11 @@ watch(
  * stays on the missing id is not applied again.
  */
 const mounted = ref(false)
-const toolIds = computed(() => registeredToolIds(props.tools, pluginHost.value))
+/** The ids of the tools the current viewer was built with; InkViewport sets them. */
+const openedToolIds = shallowRef<readonly ToolId[] | null>(null)
+const toolIds = computed(() =>
+  registeredToolIds(props.tools, pluginHost.value, openedToolIds.value)
+)
 const isRegistered = (id: ToolId): boolean => !mounted.value || toolIds.value.includes(id)
 const logUnknownTool = (id: ToolId): void => console.error(unknownTool(id, toolIds.value))
 
@@ -549,6 +556,7 @@ provideInkContext({
   tool: internalTool,
   setTool,
   hostTools: computed(() => props.tools),
+  openedToolIds,
   decorateAnnotation: computed(() => props.decorateAnnotation),
   fonts: computed(() => props.fonts ?? FONT_FAMILIES),
   toolOptions,

@@ -1409,4 +1409,35 @@ test.describe('missing tools', () => {
     expect(unknown().sort()).toEqual(['highlight', 'shape', 'signature'])
     consoleGuard.clear()
   })
+
+  test('a tool added after open becomes usable on the next open', async ({ mount }) => {
+    const props = {
+      src: fixtureUrl('text-simple'),
+      assets,
+      controls: ['highlight-button' as const],
+      highlight: false,
+    }
+    const cmp = await mount(MissingToolsHarness, { props })
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    const button = cmp.locator(toolButton('highlight'))
+    const scroll = cmp.locator('[data-ink-scroll]')
+    await expect(button).toBeDisabled()
+    // The open viewer has no highlight tool, so the button waits for the next open.
+    await cmp.update({ props: { ...props, highlight: true } })
+    await expect(button).toBeDisabled()
+    await expect(button).toHaveAttribute('aria-hidden', 'true')
+    await button.dispatchEvent('click')
+    await expect(scroll).toHaveAttribute('data-ink-tool', 'select-text')
+    await cmp.update({
+      props: { ...props, highlight: true, src: fixtureUrl('annotated-markup') },
+    })
+    await expect(button).toBeEnabled()
+    await expect(button).toHaveAccessibleName('Highlight')
+    await button.click()
+    await expect(scroll).toHaveAttribute('data-ink-tool', 'highlight')
+    // Only the button's own report, from before the tool was added: the viewer was never asked
+    // for a tool it did not have.
+    expect(unknown()).toEqual(['highlight'])
+    consoleGuard.clear()
+  })
 })
