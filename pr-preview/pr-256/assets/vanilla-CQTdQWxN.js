@@ -1,4 +1,4 @@
-import{ln as e}from"./signatures-DRfttsen.js";import{t}from"./Demo-BHo8bH3x.js";e({page:`vanilla`,files:[{path:`src/vanilla/Demo.ts`,source:{html:`<pre class="shiki inkbar-ink" style="background-color:#0D1026;color:#C9CEE6" tabindex="0"><code><span class="line"><span style="color:#A9AFCB">/*</span></span>
+import{un as e}from"./signatures-3XJHkBWZ.js";import{t}from"./Demo-Cl1l9r0P.js";e({page:`vanilla`,files:[{path:`src/vanilla/Demo.ts`,source:{html:`<pre class="shiki inkbar-ink" style="background-color:#0D1026;color:#C9CEE6" tabindex="0"><code><span class="line"><span style="color:#A9AFCB">/*</span></span>
 <span class="line"><span style="color:#A9AFCB"> * Inkbar without a framework: createViewer opens the document and renders the viewer and its</span></span>
 <span class="line"><span style="color:#A9AFCB"> * popovers. The document keeps its own form values and undo history, so Undo covers field</span></span>
 <span class="line"><span style="color:#A9AFCB"> * edits too. The page follows the form's values (\`doc.form.values\`) for the Gloss view and</span></span>
@@ -27,6 +27,7 @@ import{ln as e}from"./signatures-DRfttsen.js";import{t}from"./Demo-BHo8bH3x.js";
 <span class="line"><span style="color:#C9CEE6">  createToolbarSeparator,</span></span>
 <span class="line"><span style="color:#C9CEE6">  createToolButton,</span></span>
 <span class="line"><span style="color:#C9CEE6">  createUndo,</span></span>
+<span class="line"><span style="color:#C9CEE6">  allTools,</span></span>
 <span class="line"><span style="color:#C9CEE6">  createViewer,</span></span>
 <span class="line"><span style="color:#C9CEE6">  createZoomIn,</span></span>
 <span class="line"><span style="color:#C9CEE6">  createZoomOut,</span></span>
@@ -107,6 +108,7 @@ import{ln as e}from"./signatures-DRfttsen.js";import{t}from"./Demo-BHo8bH3x.js";
 <span class="line"><span style="color:#C9CEE6">    assets,</span></span>
 <span class="line"><span style="color:#C9CEE6">    signatures,</span></span>
 <span class="line"><span style="color:#C9CEE6">    signatureFonts,</span></span>
+<span class="line"><span style="color:#C9CEE6">    tools: </span><span style="color:#FFFFFF">allTools</span><span style="color:#C9CEE6">(),</span></span>
 <span class="line"><span style="color:#C9CEE6">    plugins: [</span><span style="color:#FFFFFF">suggestionsPlugin</span><span style="color:#C9CEE6">()],</span></span>
 <span class="line"><span style="color:#FFFFFF">    onFormAction</span><span style="color:#C9CEE6">: (a) </span><span style="color:#9DABFF">=></span><span style="color:#C9CEE6"> panel.</span><span style="color:#FFFFFF">action</span><span style="color:#C9CEE6">(a),</span></span>
 <span class="line"><span style="color:#A9AFCB">    // The Gloss view follows each change to the open document's values.</span></span>
@@ -214,6 +216,7 @@ import {
   createToolbarSeparator,
   createToolButton,
   createUndo,
+  allTools,
   createViewer,
   createZoomIn,
   createZoomOut,
@@ -294,6 +297,7 @@ export function mountDemo(el: HTMLElement, source: DocumentSource): () => void {
     assets,
     signatures,
     signatureFonts,
+    tools: allTools(),
     plugins: [suggestionsPlugin()],
     onFormAction: (a) => panel.action(a),
     // The Gloss view follows each change to the open document's values.
