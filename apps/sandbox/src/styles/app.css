@@ -343,7 +343,7 @@ body {
   flex: 1 1 auto;
   min-height: 0;
 }
-.coming {
+.scenario-error {
   display: grid;
   place-items: center;
   height: 100%;

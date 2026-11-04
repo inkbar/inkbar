@@ -14,7 +14,7 @@ const named = (page: Page, name: string) =>
   })
 
 async function open(page: Page, framework: string): Promise<void> {
-  await page.goto(`app.html#/${framework}/search`)
+  await page.goto(`./#/${framework}/search`)
   await expect(viewer(page).locator('[data-ink-root]')).toHaveAttribute(
     'data-state',
     'ready',
@@ -105,3 +105,30 @@ test('the Svelte search Code tab lists its log component', async ({ page }) => {
   await files.getByRole('tab', { name: 'SearchLog.svelte' }).click()
   await expect(page.getByRole('tabpanel', { name: 'Code' })).toContainText('useSearch()')
 })
+
+for (const framework of FRAMEWORK_ORDER) {
+  test(`${framework} search: reopening the find bar over a kept query logs nothing new`, async ({
+    page,
+  }) => {
+    await open(page, framework)
+    await find(page)
+    await expect(count(page)).toHaveText(`1 of ${LONG_HITS}`, { timeout: 20_000 })
+    const settled = [JSON.stringify({ query: SEARCH_WORD, hits: LONG_HITS, current: 0 })]
+    await expect(named(page, 'search').locator('.event-payload')).toHaveText(settled)
+    await page.keyboard.press('Escape')
+    await expect(
+      viewer(page).getByRole('textbox', { name: 'Find in document' })
+    ).toBeHidden()
+    await viewer(page).getByRole('button', { name: 'Find', exact: true }).click()
+    await expect(
+      viewer(page).getByRole('textbox', { name: 'Find in document' })
+    ).toHaveValue(SEARCH_WORD)
+    await expect(count(page)).toHaveText(`1 of ${LONG_HITS}`, { timeout: 20_000 })
+    // The scan runs again over the kept query and logs the same result. There is no
+    // zero-hit entry from the moment the bar opened, before the scan began.
+    await expect(named(page, 'search').locator('.event-payload')).toHaveText([
+      ...settled,
+      ...settled,
+    ])
+  })
+}

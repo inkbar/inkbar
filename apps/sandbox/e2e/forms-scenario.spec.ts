@@ -18,7 +18,7 @@ const events = (page: Page) => page.locator('aside[aria-label="Events"] ol > li'
 const values = (page: Page) => page.locator('#panel-values pre')
 
 async function open(page: Page, framework: string): Promise<void> {
-  await page.goto(`app.html#/${framework}/forms`)
+  await page.goto(`./#/${framework}/forms`)
   await expect(viewer(page).locator('[data-ink-root]')).toHaveAttribute(
     'data-state',
     'ready',

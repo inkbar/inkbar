@@ -6,7 +6,7 @@
  */
 import '../styles/app.css'
 
-import { hasScenario, mountScenario } from '../frameworks/index.ts'
+import { mountScenario } from '../frameworks/index.ts'
 import { SCENARIOS } from '../scenarios/registry.ts'
 
 import { loadSources, type SourceFile } from './code.ts'
@@ -172,10 +172,6 @@ async function select(next: Route): Promise<void> {
   host.className = 'scenario-host'
   viewer.replaceChildren(host)
 
-  if (!hasScenario(next.framework, next.scenario)) {
-    host.innerHTML = '<p class="coming">Coming in this release</p>'
-    return
-  }
   const log: Log = (name, value) => {
     if (gen === generation) events.log(name, value)
   }
@@ -194,7 +190,7 @@ async function select(next: Route): Promise<void> {
     if (gen !== generation) return
     mounting = false
     queued = null
-    host.innerHTML = '<p class="coming">This scenario could not be loaded.</p>'
+    host.innerHTML = '<p class="scenario-error">This scenario could not be loaded.</p>'
     throw error
   }
   if (gen !== generation) {

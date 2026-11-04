@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url'
+
 // eslint-disable-next-line import-x/no-named-as-default
 import AxeBuilder from '@axe-core/playwright'
 import { guardConsole } from '@inkbar/e2e-shared/console-guard'
@@ -13,6 +15,11 @@ guardConsole(test)
  */
 const FOUND = '11 suggestions'
 const COUNT = 11
+
+/** One page and no annotations, unlike the redactions document, so a swap is unmistakable. */
+const onePage = fileURLToPath(
+  new URL('../../../fixtures/pdf/text-cjk.pdf', import.meta.url)
+)
 
 const viewer = (page: Page) => page.locator('[data-scenario-viewer]')
 const events = (page: Page) => page.locator('aside[aria-label="Events"] ol > li')
@@ -36,7 +43,7 @@ const redactions = (page: Page) =>
   page.locator('.ink-page[data-page="0"] .ink-annotation[data-type="redact"]')
 
 async function open(page: Page, framework: string): Promise<void> {
-  await page.goto(`app.html#/${framework}/redactions`)
+  await page.goto(`./#/${framework}/redactions`)
   await expect(viewer(page).locator('[data-ink-root]')).toHaveAttribute(
     'data-state',
     'ready',
@@ -74,6 +81,19 @@ for (const framework of FRAMEWORK_ORDER) {
       await suggestButton(page).click()
       await expect(page.locator(RESULT)).toHaveText('0 suggestions')
       await expect(page.locator(SUGGESTED)).toHaveCount(COUNT)
+    })
+
+    test(`${framework} redactions: ignores a suggestion run that a new file interrupts`, async ({
+      page,
+    }) => {
+      await open(page, framework)
+      await suggestButton(page).click()
+      // Straight away, inside the run's delay: the old document is destroyed under it.
+      await page.locator('input[type=file]').setInputFiles(onePage)
+      await expect(viewer(page).locator('[data-ink-page-count]')).toHaveText('of 1')
+      // Let the interrupted run's 400 ms delay end, so a rejection would reach the console guard.
+      await page.waitForTimeout(800)
+      await expect(page.locator(RESULT)).not.toHaveText('Could not check this document.')
     })
 
     test(`${framework} redactions: logs the command's status`, async ({ page }) => {

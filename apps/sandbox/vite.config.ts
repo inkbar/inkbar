@@ -29,7 +29,6 @@ export default defineConfig({
     rollupOptions: {
       input: {
         index: entry('./index.html'),
-        app: entry('./app.html'),
         react: entry('./react/index.html'),
         vue: entry('./vue/index.html'),
         svelte: entry('./svelte/index.html'),

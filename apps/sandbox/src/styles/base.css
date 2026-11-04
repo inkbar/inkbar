@@ -52,24 +52,6 @@ button {
   outline-offset: 2px;
 }
 
-.container {
-  max-width: var(--content-width);
-  margin: 0 auto;
-  padding-inline: var(--gutter);
-}
-
-.text-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  color: var(--ink);
-  font-weight: 600;
-  text-decoration: underline;
-  text-decoration-color: var(--ballpoint);
-  text-decoration-thickness: 2px;
-  text-underline-offset: 5px;
-}
-
 .icon {
   width: 22px;
   height: 22px;

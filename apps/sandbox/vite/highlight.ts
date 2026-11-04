@@ -1,5 +1,5 @@
 /*
- * `import source from './Demo.tsx?highlight'` gives `{ html, code }`: the file highlighted by
+ * `import source from './react.tsx?highlight'` gives `{ html, code }`: the file highlighted by
  * Shiki at build time, and its raw text for the copy button. Shiki never reaches the browser.
  */
 import { readFile } from 'node:fs/promises'

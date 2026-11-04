@@ -46,13 +46,6 @@ export default defineConfig(
     },
   },
   {
-    name: 'inkbar/sandbox-highlight-imports',
-    // A Vite plugin resolves `?highlight` imports; ESLint cannot see their default export.
-    // Only each page's entry file imports them.
-    files: ['apps/sandbox/src/*/main.{ts,tsx}'],
-    rules: { 'import-x/default': 'off' },
-  },
-  {
     name: 'inkbar/sandbox-query-imports',
     files: ['apps/sandbox/src/**/*.{ts,tsx}'],
     rules: { 'import-x/no-duplicates': ['error', { considerQueryString: true }] },
@@ -62,7 +55,6 @@ export default defineConfig(
     files: [
       'packages/react/**/*.{ts,tsx}',
       'apps/e2e-react/**/*.{ts,tsx}',
-      'apps/sandbox/src/react/**/*.{ts,tsx}',
       'apps/sandbox/src/**/*.tsx',
     ],
     plugins: { 'react-hooks': pluginReactHooks },
@@ -109,11 +101,7 @@ export default defineConfig(
   {
     // The same `any` reaches the TypeScript files that import components.
     name: 'inkbar/svelte-untyped-imports-in-ts',
-    files: [
-      'packages/svelte/src/test/**/*.ts',
-      'apps/e2e-svelte/**/*.ts',
-      'apps/sandbox/src/svelte/**/*.ts',
-    ],
+    files: ['packages/svelte/src/test/**/*.ts', 'apps/e2e-svelte/**/*.ts'],
     rules: {
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-call': 'off',

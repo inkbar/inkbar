@@ -39,11 +39,6 @@ export const SCENARIO_FILE: Record<FrameworkId, string> = {
 const key = (framework: FrameworkId, scenario: ScenarioId): string =>
   `../scenarios/${scenario}/${SCENARIO_FILE[framework]}`
 
-/** Whether the scenario has been written for this framework yet. */
-export function hasScenario(framework: FrameworkId, scenario: ScenarioId): boolean {
-  return key(framework, scenario) in SCENARIO_FILES[framework]
-}
-
 function load<T>(files: Loaders<T>, path: string): Promise<T> {
   const loader = files[path]
   if (!loader) return Promise.reject(new Error(`No scenario file at ${path}`))

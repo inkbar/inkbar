@@ -1,34 +1,31 @@
-// eslint-disable-next-line import-x/no-named-as-default
-import AxeBuilder from '@axe-core/playwright'
 import { guardConsole } from '@inkbar/e2e-shared/console-guard'
 import { expect, test } from '@playwright/test'
 
 guardConsole(test)
 
-test('links to each framework page', async ({ page, request }) => {
-  await page.goto('./')
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-  const names = ['React', 'Vue', 'Svelte', 'TypeScript']
-  for (const name of names) {
-    const link = page.getByRole('link', { name, exact: true })
-    const href = await link.getAttribute('href')
-    expect(href).toBeTruthy()
-    const response = await request.get(new URL(href!, page.url()).toString())
-    expect(response.status(), name).toBe(200)
+const REDIRECTS = [
+  { page: 'react/', hash: '#/react/tour' },
+  { page: 'vue/', hash: '#/vue/tour' },
+  { page: 'svelte/', hash: '#/svelte/tour' },
+  { page: 'vanilla/', hash: '#/vanilla/tour' },
+  { page: 'plugin/', hash: '#/react/redactions' },
+]
+
+test('each old page redirects to its scenario', async ({ page }) => {
+  for (const { page: path, hash } of REDIRECTS) {
+    await page.goto(path)
+    await expect.poll(() => new URL(page.url()).hash, { message: path }).toBe(hash)
+    // The redirect lands on the shell root, under the base, not on the old directory.
+    expect(new URL(page.url()).pathname, path).toBe('/sandbox/')
+    await expect(
+      page.locator('[data-scenario-viewer] [data-ink-root]'),
+      path
+    ).toHaveAttribute('data-state', 'ready', { timeout: 20_000 })
   }
 })
 
-test('has no axe violations', async ({ page }) => {
+test('the root is the shell', async ({ page }) => {
   await page.goto('./')
-  const { violations } = await new AxeBuilder({ page }).analyze()
-  expect(violations).toEqual([])
-})
-
-test('has no horizontal scroll at phone width', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('./')
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth
-  )
-  expect(overflow).toBe(0)
+  await expect(page.getByRole('navigation', { name: 'Scenarios' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Annotation tour')
 })

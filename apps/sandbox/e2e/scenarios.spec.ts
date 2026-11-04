@@ -61,7 +61,7 @@ for (const framework of FRAMEWORK_ORDER) {
   test.describe(framework, () => {
     for (const [scenario, expected] of Object.entries(TOOLBARS)) {
       test(`${framework} ${scenario} loads with its tools`, async ({ page }) => {
-        await page.goto(`app.html#/${framework}/${scenario}`)
+        await page.goto(`./#/${framework}/${scenario}`)
         await waitForViewer(page)
         const tools = await viewer(page)
           .locator('[data-tool]')
@@ -71,7 +71,7 @@ for (const framework of FRAMEWORK_ORDER) {
     }
 
     test(`${framework} tools: picking note logs the tool change`, async ({ page }) => {
-      await page.goto(`app.html#/${framework}/tools`)
+      await page.goto(`./#/${framework}/tools`)
       await waitForViewer(page)
       await viewer(page).getByRole('button', { name: 'Add note', exact: true }).click()
       const newest = events(page).first()
@@ -82,7 +82,7 @@ for (const framework of FRAMEWORK_ORDER) {
     test(`${framework} controlled: adding highlights reports the new count`, async ({
       page,
     }) => {
-      await page.goto(`app.html#/${framework}/controlled`)
+      await page.goto(`./#/${framework}/controlled`)
       await waitForViewer(page)
       // Where the host's controlled callback logs; TypeScript only follows the list.
       const name = CONTROLLED_EVENT[framework]
