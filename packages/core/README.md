@@ -120,12 +120,13 @@ It takes the [`mountViewer` options](#mounting-a-viewer) except `container` and 
 `mountViewer` wires the viewport, page layers, tools and zoom and page keys onto a scroll container. You render the chrome around it.
 
 ```ts
-import { mountViewer } from '@inkbar/core/dom'
+import { mountViewer, highlightTool } from '@inkbar/core/dom'
 
 const engine = mountViewer({
   container, // a focusable, scrollable element
   document: doc,
   zoom: 'fit-width',
+  tools: [highlightTool()],
   onPageError: (page, error) => console.warn(page, error),
 })
 engine.tools.set('highlight')
@@ -136,6 +137,7 @@ engine.destroy()
 Options:
 
 - `container` and `document`, both required.
+- `tools`: the creation tools to register (`allTools()` or the ones you import from `@inkbar/core/dom`). `select-text` and `select` are always present.
 - `zoom` (a number, `'fit-width'` or `'fit-page'`; default `'fit-width'`), `page`, `mode`, `rotation` and `tool` set the starting view. Change them later through `engine.viewport` and `engine.tools`.
 - `gap`, `buffer` and `customAnnotations` are fixed for a build. Change them with `engine.rebuild`.
 - `toolOptions` holds the tools' options, such as the shape kind. Pass one from `createToolOptions()` and keep it to carry the options over to the next document; `createViewer` keeps one for its whole life. The tool style (colours, line style, text style) belongs to the document: each new document starts from the theme's defaults.
