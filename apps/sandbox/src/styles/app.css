@@ -387,6 +387,31 @@ body {
 .scenario-zoom {
   margin-left: auto;
 }
+/* A plugin's command and its status, at the end of the toolbar. */
+.scenario-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+.scenario-actions button {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ballpoint);
+  font-size: 14px;
+  font-weight: 600;
+}
+.scenario-actions button:hover:not(:disabled) {
+  background: var(--paper);
+}
+.scenario-actions button:disabled {
+  color: var(--caption);
+  cursor: default;
+}
 /* The TypeScript viewer hides its popovers with `hidden`; the theme's layered display rule would win otherwise. */
 [data-ink-thread-popover][hidden] {
   display: none;

@@ -140,17 +140,6 @@ test('a PDF dropped while the scenario loads opens once it has', async ({
   await expect(viewer(page).locator('[data-ink-page-count]')).toHaveText('of 1')
 })
 
-test('a PDF dropped where no viewer is showing says so', async ({ page, request }) => {
-  // Not every scenario exists yet in every framework; one that does not mounts no viewer.
-  await page.goto('app.html#/svelte/search')
-  await expect(viewer(page)).toContainText('Coming in this release')
-  const letter = await (await request.get('documents/letter.pdf')).body()
-  await drop(page, letter, 'letter.pdf', 'application/pdf')
-  await expect(page.locator('[data-file-status]')).toHaveText(
-    'There is no viewer to open letter.pdf in.'
-  )
-})
-
 test('the Code tab drops the old source while the new one loads', async ({ page }) => {
   await page.route('**/assets/vue*.js', (route) => {
     setTimeout(() => void route.continue(), 1500)
@@ -348,15 +337,6 @@ test('the sidebar search filters scenarios', async ({ page }) => {
   await expect(toggle).toHaveAttribute('aria-expanded', 'false')
   await expect(scenarioLink(page, 'Vue', 'Annotation tour')).toBeHidden()
   await expect(scenarioLink(page, 'React', 'Annotation tour')).toBeVisible()
-})
-
-test('a scenario still to come says so', async ({ page }) => {
-  await page.goto('app.html#/svelte/search')
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-    'Search a long document'
-  )
-  await expect(viewer(page)).toContainText('Coming in this release')
-  await expect(viewer(page).locator('[data-ink-root]')).toHaveCount(0)
 })
 
 test('no axe violations', async ({ page }) => {
