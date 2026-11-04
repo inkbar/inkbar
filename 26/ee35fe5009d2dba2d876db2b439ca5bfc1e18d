@@ -1,0 +1,39 @@
+apps/sandbox/src/scenarios/registry.ts
+  s_d6f92c10539fe3::t_8b67a5491fdbc0 2
+  s_d6f92c10539fe3::t_44ca2d9c808a97 14-15,56-59
+apps/sandbox/e2e/scenarios.spec.ts
+  s_d6f92c10539fe3::t_8e2654ce7ea402 16-23,79,84-95,97-107
+  s_d6f92c10539fe3::t_79d8944f9bc243 96
+apps/sandbox/src/scenarios/controlled/react.tsx
+  s_d6f92c10539fe3::t_44ca2d9c808a97 48
+apps/sandbox/src/scenarios/controlled/svelte.svelte
+  s_d6f92c10539fe3::t_44ca2d9c808a97 56
+apps/sandbox/e2e/shell.spec.ts
+  s_d6f92c10539fe3::t_8e2654ce7ea402 187-188,382-391
+  s_d6f92c10539fe3::t_f5723a79d590a8 392
+apps/sandbox/src/scenarios/registry.test.ts
+  s_d6f92c10539fe3::t_44ca2d9c808a97 28-32,35
+  s_d6f92c10539fe3::t_8e2654ce7ea402 33-34
+apps/sandbox/src/shell/app.ts
+  s_d6f92c10539fe3::t_44ca2d9c808a97 51,139-141
+apps/sandbox/src/scenarios/controlled/vue.vue
+  s_d6f92c10539fe3::t_44ca2d9c808a97 46
+apps/sandbox/e2e/tour.spec.ts
+  s_d6f92c10539fe3::t_44ca2d9c808a97 623-625
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "26ee35fe5009d2dba2d876db2b439ca5bfc1e18d",
+  "prompts": {},
+  "sessions": {
+    "s_d6f92c10539fe3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db98c1ef-4c5a-4c88-b425-330912eecf03",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
