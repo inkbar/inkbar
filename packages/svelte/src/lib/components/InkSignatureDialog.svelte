@@ -31,6 +31,7 @@
   import { SIGNATURE_LABELS } from '@inkbar/core/dom'
   import { Dialog } from 'bits-ui'
 
+  import { lockBody } from './body-lock.js'
   import SignatureForm from './SignatureForm.svelte'
 
   let {
@@ -59,6 +60,8 @@
       class={['ink-dialog ink-signature-dialog', className]}
       data-ink-signature-dialog=""
       aria-modal="true"
+      preventScroll={false}
+      {@attach lockBody}
       onOpenAutoFocus={(e) => {
         e.preventDefault()
         content

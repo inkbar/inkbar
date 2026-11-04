@@ -1275,6 +1275,43 @@ describe('signature menu', () => {
     expect((await store.list()).map((t) => t.kind)).toEqual(['image'])
   })
 
+  it('a click right after Save reaches the page', async () => {
+    await start([], ['serif'])
+    await createSignature()
+    await dialog().getByRole('tab', { name: 'Type' }).click()
+    await dialog().getByLabelText('Name').fill('Ada Lovelace')
+    // While open, the dialog locks the page.
+    expect(getComputedStyle(document.body).pointerEvents).toBe('none')
+    expect(getComputedStyle(document.body).overflow).toBe('hidden')
+    const page = document.querySelector<HTMLElement>(FIRST)!
+    const r = page.getBoundingClientRect()
+    const x = r.left + 150
+    const y = r.top + 60
+    // Hit-test the moment the dialog and its overlay leave the DOM, before any timer or frame
+    // runs: that is where a click straight after Save lands.
+    const hit = new Promise<Element | null>((resolve) => {
+      const observer = new MutationObserver(() => {
+        if (
+          document.querySelector('[data-ink-signature-dialog], [data-ink-dialog-overlay]')
+        )
+          return
+        observer.disconnect()
+        resolve(document.elementFromPoint(x, y))
+      })
+      observer.observe(document.body, { childList: true, subtree: true })
+    })
+    await dialog().getByRole('button', { name: 'Save' }).click()
+    const target = await hit
+    expect(target?.closest(FIRST)).toBe(page)
+    expect(getComputedStyle(document.body).pointerEvents).not.toBe('none')
+    // And the click places the new signature.
+    await expect.poll(attr(main, 'aria-pressed')).toBe('true')
+    await userEvent.click(browserPage.elementLocator(page), {
+      position: { x: 150, y: 60 },
+    })
+    await expect.poll(() => page.querySelectorAll('img.ink-stamp').length).toBe(1)
+  })
+
   it('a save the store refuses shows an error and keeps the dialog open', async () => {
     const store = createMemorySignatureStore()
     store.save = () => Promise.reject(new Error('full'))
