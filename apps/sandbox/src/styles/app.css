@@ -330,9 +330,6 @@ body {
   gap: 16px;
   min-width: 0;
 }
-.stage-files .file-link {
-  flex: 0 0 auto;
-}
 /* One line only: the strip keeps its rule straight, so long text is cut rather than wrapped. */
 .stage-hint,
 .stage-status {
@@ -341,7 +338,7 @@ body {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-/* Where the strip is narrow, the hint goes and Open a PDF stays beside the tabs. */
+/* Where the strip is narrow, the hint goes; Open a PDF is in the viewer's toolbar. */
 @container (max-width: 640px) {
   .stage-hint {
     display: none;
@@ -391,27 +388,8 @@ body {
 .code[hidden] {
   display: none;
 }
-.file-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  font-weight: 600;
-  text-decoration: underline;
-  text-decoration-color: var(--ballpoint);
-  text-decoration-thickness: 2px;
-  text-underline-offset: 5px;
-  cursor: pointer;
-}
-.file-link .icon {
-  width: 18px;
-  height: 18px;
-}
-.file-link:has(input:focus-visible) {
-  outline: 3px solid var(--ballpoint);
-  outline-offset: 2px;
-}
 .scenario-viewer {
+  container: viewer / inline-size;
   display: flex;
   flex-direction: column;
   height: min(78vh, 880px);
@@ -477,6 +455,26 @@ body {
 .scenario-zoom {
   margin-left: auto;
 }
+/*
+ * The sandbox's own section at the end of the toolbar: Open, an InkToolbarButton the scenario
+ * adds. Ballpoint text sets it apart from Inkbar's controls.
+ */
+.scenario-file {
+  margin-left: auto;
+}
+.scenario-actions + .scenario-file {
+  margin-left: 0;
+}
+.scenario-file button {
+  gap: 6px;
+}
+/* In a narrow viewer, Open keeps its icon and drops its word, so the tools stay on one row. */
+@container viewer (max-width: 480px) {
+  .scenario-viewer .scenario-file button {
+    padding: 0 8px;
+    font-size: 0;
+  }
+}
 /* A plugin's command and its status, at the end of the toolbar. */
 .scenario-actions {
   display: flex;
@@ -485,7 +483,8 @@ body {
   gap: 2px;
   margin-left: auto;
 }
-.scenario-actions button {
+.scenario-actions button,
+.scenario-file button {
   min-height: 44px;
   padding: 0 12px;
   border: 0;
@@ -495,7 +494,8 @@ body {
   font-size: 14px;
   font-weight: 600;
 }
-.scenario-actions button:hover:not(:disabled) {
+.scenario-actions button:hover:not(:disabled),
+.scenario-file button:hover {
   background: var(--paper);
 }
 .scenario-actions button:disabled {

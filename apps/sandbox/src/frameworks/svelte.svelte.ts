@@ -20,6 +20,7 @@ export function mountSvelte(
       },
       log: props.log,
       onDocument: props.onDocument,
+      openFile: props.openFile,
     },
   })
   return {

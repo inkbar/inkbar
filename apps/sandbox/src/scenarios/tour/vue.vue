@@ -19,7 +19,9 @@ import {
   InkSignatureMenu,
   InkTextStyleMenu,
   InkThreadPopover,
+  InkIcon,
   InkToolbar,
+  InkToolbarButton,
   InkToolbarSeparator,
   InkToolButton,
   InkUndo,
@@ -32,13 +34,14 @@ import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 import { onBeforeUnmount } from 'vue'
 
+import { FileUp } from '../../shared/file-up'
 import { signatureFonts, signatures } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
 import type { InkDocument } from '@inkbar/core'
 import type { ToolId } from '@inkbar/core/dom'
 
-const { source, log, onDocument } = defineProps<ScenarioProps>()
+const { source, log, onDocument, openFile } = defineProps<ScenarioProps>()
 
 const tools = allTools()
 /** Stops following the open document's annotations. */
@@ -98,6 +101,12 @@ function onActivate(id: string): void {
       </div>
       <InkUndo />
       <InkRedo />
+      <div class="scenario-group scenario-file" role="group" aria-label="File">
+        <InkToolbarButton aria-label="Open a PDF" title="Open a PDF" @click="openFile">
+          <InkIcon :icon="FileUp" />
+          Open
+        </InkToolbarButton>
+      </div>
     </InkToolbar>
     <InkViewport />
     <InkToolbar label="Page and zoom" class="scenario-status-bar">

@@ -18,7 +18,9 @@ import {
   InkSignatureMenu,
   InkTextStyleMenu,
   InkThreadPopover,
+  InkIcon,
   InkToolbar,
+  InkToolbarButton,
   InkToolbarSeparator,
   InkToolButton,
   InkUndo,
@@ -31,6 +33,7 @@ import '@inkbar/theme/theme.css'
 import { useEffect, useRef } from 'react'
 import { assets } from 'virtual:inkbar-assets'
 
+import { FileUp } from '../../shared/file-up'
 import { signatureFonts, signatures } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
@@ -38,7 +41,12 @@ import type { InkDocument } from '@inkbar/core'
 
 const tools = allTools()
 
-export default function AnnotationTour({ source, log, onDocument }: ScenarioProps) {
+export default function AnnotationTour({
+  source,
+  log,
+  onDocument,
+  openFile,
+}: ScenarioProps) {
   /** Stops following the open document's annotations. */
   const unfollow = useRef<() => void>(undefined)
   useEffect(() => () => unfollow.current?.(), [])
@@ -87,6 +95,12 @@ export default function AnnotationTour({ source, log, onDocument }: ScenarioProp
         </div>
         <InkUndo />
         <InkRedo />
+        <div className="scenario-group scenario-file" role="group" aria-label="File">
+          <InkToolbarButton aria-label="Open a PDF" title="Open a PDF" onClick={openFile}>
+            <InkIcon icon={FileUp} />
+            Open
+          </InkToolbarButton>
+        </div>
       </InkToolbar>
       <InkViewport />
       <InkToolbar label="Page and zoom" className="scenario-status-bar">

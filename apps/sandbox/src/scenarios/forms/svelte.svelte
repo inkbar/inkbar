@@ -14,7 +14,9 @@
     InkRedo,
     InkRoot,
     InkThreadPopover,
+    InkIcon,
     InkToolbar,
+    InkToolbarButton,
     InkToolButton,
     InkUndo,
     InkViewport,
@@ -26,13 +28,14 @@
   import { onDestroy } from 'svelte'
   import { assets } from 'virtual:inkbar-assets'
 
+  import { FileUp } from '../../shared/file-up'
   import { changedFields } from '../../shared/form'
   import { signatureFonts, signatures } from '../../shared/signatures'
 
   import type { ScenarioProps } from '../../frameworks/types'
   import type { FieldValues, FormAction, InkDocument } from '@inkbar/core'
 
-  let { source, log, onDocument }: ScenarioProps = $props()
+  let { source, log, onDocument, openFile }: ScenarioProps = $props()
 
   /** Stops following the open document's field values. */
   let unfollow = (): void => undefined
@@ -71,6 +74,12 @@
     </div>
     <InkUndo />
     <InkRedo />
+    <div class="scenario-group scenario-file" role="group" aria-label="File">
+      <InkToolbarButton aria-label="Open a PDF" title="Open a PDF" onclick={openFile}>
+        <InkIcon icon={FileUp} />
+        Open
+      </InkToolbarButton>
+    </div>
   </InkToolbar>
   <InkViewport />
   <InkToolbar label="Page and zoom" class="scenario-status-bar">

@@ -26,9 +26,6 @@ import type { DocumentSource, InkDocument } from '@inkbar/core'
 const REPO = 'https://github.com/inkbar/inkbar'
 const BASE = import.meta.env.BASE_URL
 
-const FILE_ICON =
-  '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M12 18v-6M9 15l3-3 3 3"/></svg>'
-
 const app = document.getElementById('app')!
 app.innerHTML = `
 <header class="app-header">
@@ -41,6 +38,7 @@ app.innerHTML = `
     <a href="${REPO}">GitHub</a>
   </nav>
 </header>
+<input type="file" accept="application/pdf,.pdf" class="visually-hidden" tabindex="-1" aria-hidden="true" data-file-input />
 <div class="app-body">
   <nav class="app-nav" aria-label="Scenarios"></nav>
   <main class="app-main">
@@ -56,13 +54,8 @@ app.innerHTML = `
           ${tabMarkup('tab-code', 'panel-code', 'Code')}
         </div>
         <div class="stage-files">
-          <p class="caption stage-hint">Drop your own PDF on the viewer. It stays in your browser.</p>
+          <p class="caption stage-hint">Open or drop your own PDF. It stays in your browser.</p>
           <p class="caption stage-status" role="status" data-file-status></p>
-          <label class="file-link">
-            <input type="file" accept="application/pdf,.pdf" class="visually-hidden" />
-            ${FILE_ICON}
-            Open a PDF
-          </label>
         </div>
       </div>
       <section class="preview" id="panel-preview" role="tabpanel" aria-labelledby="tab-preview">
@@ -90,12 +83,15 @@ const events = createEventLog($('[data-events]'))
 const values = createValuesPanel($('#panel-values'))
 const sidebar = createSidebar($('nav[aria-label="Scenarios"]'))
 const sideTabs = $('.side-tabs')
+/** The scenarios' Open a PDF buttons pick a file through this one input. */
+const fileInput = $<HTMLInputElement>('[data-file-input]')
+const openFile = (): void => fileInput.click()
 
 const viewTabs = createTabs(
   [$('#tab-preview'), $('#tab-code')],
   [$('#panel-preview'), codePanel],
   (index) => {
-    // The file controls act on the viewer, so they show with Preview only.
+    // The file hint is about the viewer, so it shows with Preview only.
     $('.stage').dataset.view = index === 1 ? 'code' : 'preview'
     if (index === 1) void showCode()
   }
@@ -120,7 +116,7 @@ let queued: DocumentSource | null = null
 
 const drops = handleDrops({
   target: viewer,
-  input: $<HTMLInputElement>('input[type=file]'),
+  input: fileInput,
   status: $('[data-file-status]'),
   open(source) {
     if (mounted) mounted.update(source)
@@ -189,6 +185,7 @@ async function select(next: Route): Promise<void> {
       source: documentSource(scenario.document),
       log,
       onDocument,
+      openFile,
     })
   } catch (error) {
     if (gen !== generation) return

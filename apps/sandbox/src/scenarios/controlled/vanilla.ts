@@ -8,6 +8,7 @@ import {
   allTools,
   createColorMenu,
   createHighlightMenu,
+  createIcon,
   createLineStyleMenu,
   createNextPage,
   createPageCount,
@@ -27,6 +28,7 @@ import {
 import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 
+import { FileUp } from '../../shared/file-up'
 import { signatureFonts, signatures } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
@@ -45,7 +47,10 @@ function group(
   return g
 }
 
-export function mount(el: HTMLElement, { source, log, onDocument }: ScenarioProps) {
+export function mount(
+  el: HTMLElement,
+  { source, log, onDocument, openFile }: ScenarioProps
+) {
   /** The list this app holds; the viewer shows what is pushed back into it. */
   let annotations: Annotation[] = []
   const viewer = createViewer(el, {
@@ -129,6 +134,15 @@ export function mount(el: HTMLElement, { source, log, onDocument }: ScenarioProp
       createZoomIn(viewer)
     )
   )
+
+  // Your own button joins the toolbar like the built-in ones: arrow keys reach it.
+  const openButton = document.createElement('button')
+  openButton.type = 'button'
+  openButton.setAttribute('aria-label', 'Open a PDF')
+  openButton.title = 'Open a PDF'
+  openButton.append(createIcon(FileUp), 'Open')
+  openButton.addEventListener('click', openFile)
+  tools.append(group('File', 'scenario-group scenario-file', openButton))
 
   viewer.element.prepend(tools)
   viewer.element.append(status)

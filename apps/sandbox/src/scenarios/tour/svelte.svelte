@@ -19,7 +19,9 @@
     InkSignatureMenu,
     InkTextStyleMenu,
     InkThreadPopover,
+    InkIcon,
     InkToolbar,
+    InkToolbarButton,
     InkToolbarSeparator,
     InkToolButton,
     InkUndo,
@@ -32,12 +34,13 @@
   import { onDestroy } from 'svelte'
   import { assets } from 'virtual:inkbar-assets'
 
+  import { FileUp } from '../../shared/file-up'
   import { signatureFonts, signatures } from '../../shared/signatures'
 
   import type { ScenarioProps } from '../../frameworks/types'
   import type { InkDocument } from '@inkbar/core'
 
-  let { source, log, onDocument }: ScenarioProps = $props()
+  let { source, log, onDocument, openFile }: ScenarioProps = $props()
 
   const tools = allTools()
   /** Stops following the open document's annotations. */
@@ -88,6 +91,12 @@
     </div>
     <InkUndo />
     <InkRedo />
+    <div class="scenario-group scenario-file" role="group" aria-label="File">
+      <InkToolbarButton aria-label="Open a PDF" title="Open a PDF" onclick={openFile}>
+        <InkIcon icon={FileUp} />
+        Open
+      </InkToolbarButton>
+    </div>
   </InkToolbar>
   <InkViewport />
   <InkToolbar label="Page and zoom" class="scenario-status-bar">
