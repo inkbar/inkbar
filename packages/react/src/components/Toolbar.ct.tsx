@@ -7,6 +7,7 @@ import { LineStyleHarness } from '../../playwright/harness/LineStyleHarness'
 import { MissingToolsHarness } from '../../playwright/harness/MissingToolsHarness'
 import { SignatureHarness } from '../../playwright/harness/SignatureHarness'
 import { TextStyleHarness } from '../../playwright/harness/TextStyleHarness'
+import { ToolbarButtonHarness } from '../../playwright/harness/ToolbarButtonHarness'
 import { ToolbarHarness } from '../../playwright/harness/ToolbarHarness'
 import { ZoomClickHarness } from '../../playwright/harness/ZoomClickHarness'
 
@@ -307,6 +308,27 @@ test('toolbar is keyboard operable', async ({ mount, page }) => {
   await expect(page.getByRole('button', { name: 'Choose highlight' })).toBeFocused()
   await page.keyboard.press('ArrowLeft')
   await expect(cmp.locator(toolButton('highlight'))).toBeFocused()
+})
+
+test('a host button joins the toolbar: arrow keys reach it and it takes the toolbar styles', async ({
+  mount,
+  page,
+}) => {
+  let opened = 0
+  await mount(<ToolbarButtonHarness onOpen={() => opened++} />)
+  const share = page.getByRole('button', { name: 'Share' })
+  const open = page.getByRole('button', { name: 'Open a PDF' })
+  await expect(open).toHaveAttribute('type', 'button')
+  await expect(open).toHaveClass(/ink-toolbar-button/)
+  await expect(open).toHaveClass(/host-open/)
+  await expect(open).toHaveAttribute('data-ink-toolbar-button', '')
+  await share.focus()
+  await page.keyboard.press('ArrowRight')
+  await expect(open).toBeFocused()
+  await page.keyboard.press('Enter')
+  expect(opened).toBe(1)
+  await page.keyboard.press('ArrowLeft')
+  await expect(share).toBeFocused()
 })
 
 test('blurring an untouched page input does not move the viewport', async ({

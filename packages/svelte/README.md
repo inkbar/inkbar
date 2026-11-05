@@ -91,7 +91,7 @@ Svelte 5.46.4 or later is a peer dependency. Add the Vite plugin from `@inkbar/c
 
 `select-text` and `select` are always there. Every other tool is opt-in: pass the ones you offer through `tools`, from the tool factories in `@inkbar/core/dom`, or `allTools()` for all of them. A button for a tool you did not pass renders disabled and hidden, a tool menu renders nothing, and each logs an `InkError('UnknownTool')` to the console once. If the active tool leaves `tools`, the viewer switches to `select-text` and reports it through `onToolChange`.
 
-Each toolbar control is a component, so keep the ones you need and put them where you like. Buttons show icons from `@inkbar/icons`. Pass your own as `children` to replace one, and use `InkIcon` to put the same icons on your own buttons. `bind:annotations` makes your list the source of truth. Leave it off and Inkbar keeps the state itself, with undo and redo.
+Each toolbar control is a component, so keep the ones you need and put them where you like. Buttons show icons from `@inkbar/icons`. Pass your own as `children` to replace one, and use `InkIcon` to put the same icons on your own buttons. For a button of your own, such as `<InkToolbarButton onclick={download}>Download</InkToolbarButton>`, use `InkToolbarButton`: it joins the toolbar's arrow-key focus and looks like the other buttons. `bind:annotations` makes your list the source of truth. Leave it off and Inkbar keeps the state itself, with undo and redo.
 
 ## Controlled mode
 
