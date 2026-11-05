@@ -206,8 +206,9 @@ export function recordsSource<T extends RecordBase & { page: number }>(
 }
 
 /**
- * The viewer's search hits: one item per hit, id `<page>:<index>` with `index` into
- * `state.hits`, its page as the card's meta and its context as the excerpt, with no actions.
+ * The viewer's search hits: one item per hit, id `<page>:<n>` with `n` its place among its
+ * page's hits, so an id stays put while a scan adds other pages' hits before it. Its page is the
+ * card's meta and its context the excerpt, with no actions.
  * Selecting one makes it the current hit, as the find bar's next and previous do, and the
  * current hit is the selected item. It announces the result count once a scan settles.
  */
@@ -215,16 +216,26 @@ export function searchSource(search: ViewerSearch): RecordListSource {
   const hitOf = new WeakMap<ListItem, { hit: SearchHit; index: number }>()
   let lastHits: readonly SearchHit[] | null = null
   let lastItems: readonly ListItem[] = NO_ITEMS
+  /** Each id's index into `lastHits`. */
+  let indexOf = new Map<string, number>()
+  /** Each listed hit's id. */
+  let idOf = new Map<SearchHit, string>()
   const itemsFor = (hits: readonly SearchHit[]): readonly ListItem[] => {
     if (hits === lastHits) return lastItems
     lastHits = hits
+    indexOf = new Map()
+    idOf = new Map()
+    // Hits are in (page, start) order: count each page's from 0.
+    let page = -1
+    let n = 0
     lastItems = hits.map((hit, index) => {
-      const item: ListItem = {
-        id: `${hit.page}:${index}`,
-        page: hit.page,
-        rect: hit.rect,
-      }
+      n = hit.page === page ? n + 1 : 0
+      page = hit.page
+      const id = `${hit.page}:${n}`
+      const item: ListItem = { id, page: hit.page, rect: hit.rect }
       hitOf.set(item, { hit, index })
+      indexOf.set(id, index)
+      idOf.set(hit, id)
       return item
     })
     return lastItems
@@ -256,12 +267,15 @@ export function searchSource(search: ViewerSearch): RecordListSource {
     },
     selected: derived(search.state, (s) => {
       const hit = s.hits[s.current]
-      return hit ? `${hit.page}:${s.current}` : null
+      if (!hit) return null
+      itemsFor(s.hits)
+      return idOf.get(hit) ?? null
     }),
     select(id) {
       if (id === null) return
-      const index = Number(id.slice(id.indexOf(':') + 1))
-      search.select(index)
+      itemsFor(search.state.get().hits)
+      const index = indexOf.get(id)
+      if (index !== undefined) search.select(index)
     },
     // Making a hit current scrolls to it already.
     reveal() {},

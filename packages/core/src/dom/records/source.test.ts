@@ -15,6 +15,7 @@ import type { Rect } from '../../model/geometry'
 import type { RecordBase } from '../../model/records'
 import type { SearchHit } from '../../model/search'
 import type { MarksRegistration } from '../plugins/registry'
+import type { SearchState, ViewerSearch } from '../search/controller'
 import type { Viewport } from '../viewport'
 
 interface Suggestion extends RecordBase {
@@ -257,7 +258,7 @@ describe('searchSource', () => {
     const select = vi.spyOn(search, 'select')
     const src = searchSource(search)
     const items = src.items.get()
-    expect(ids(items)).toEqual(['0:0', '0:1', '2:2'])
+    expect(ids(items)).toEqual(['0:0', '0:1', '2:0'])
     expect(items[2]).toMatchObject({ page: 2, rect: hit(2, 3, 'word').rect })
     expect(src.card(items[1]!)).toEqual({
       title: 'Match 2',
@@ -279,8 +280,8 @@ describe('searchSource', () => {
     src.selected.subscribe(seen)
     expect(src.selected.get()).toBe('0:0')
     search.next()
-    expect(src.selected.get()).toBe('1:1')
-    expect(seen).toHaveBeenLastCalledWith('1:1')
+    expect(src.selected.get()).toBe('1:0')
+    expect(seen).toHaveBeenLastCalledWith('1:0')
     search.close()
     expect(src.selected.get()).toBeNull()
     search.destroy()
@@ -293,5 +294,39 @@ describe('searchSource', () => {
     search.setQuery('')
     expect(src.announcement!.get()).toBe('')
     search.destroy()
+  })
+
+  it('search source ids stay put as earlier pages land', () => {
+    // As a scan from page 2 finds page 2's hits, then wraps round to page 0.
+    const state = writable<SearchState>({
+      open: true,
+      query: 'word',
+      matchCase: false,
+      hits: [hit(2, 3, 'word'), hit(2, 9, 'word')],
+      current: 1,
+      scanning: true,
+    })
+    const select = vi.fn()
+    const search = { state, select } as unknown as ViewerSearch
+    const src = searchSource(search)
+    const seen = vi.fn()
+    src.items.subscribe(() => {})
+    src.selected.subscribe(seen)
+    expect(ids(src.items.get())).toEqual(['2:0', '2:1'])
+    expect(src.selected.get()).toBe('2:1')
+    // Page 0's hits go in before them, and the current index moves with them.
+    state.set({
+      ...state.get(),
+      hits: [hit(0, 1, 'word'), hit(0, 5, 'word'), hit(2, 3, 'word'), hit(2, 9, 'word')],
+      current: 3,
+    })
+    expect(ids(src.items.get())).toEqual(['0:0', '0:1', '2:0', '2:1'])
+    expect(src.selected.get()).toBe('2:1')
+    expect(seen).not.toHaveBeenCalled()
+    // An id maps back to the hit's index in the whole list.
+    src.select('2:0')
+    expect(select).toHaveBeenCalledWith(2)
+    src.select('9:9')
+    expect(select).toHaveBeenCalledTimes(1)
   })
 })

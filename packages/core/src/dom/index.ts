@@ -202,7 +202,11 @@ export type { Popover, PopoverOptions } from './viewer/popover'
 export { mountViewer } from './viewer-engine'
 export type { MountViewerOptions, ViewerEngine } from './viewer-engine'
 export { createFindBar } from './search/find-bar'
-export { handleFindKey, pageSelectionText } from './search/find-key'
+export {
+  handleFindKey,
+  handleResultsFieldKey,
+  pageSelectionText,
+} from './search/find-key'
 export { findAnnouncer, findCountText } from './search/find-text'
 export { createSearchController, viewerSearchOf } from './search/controller'
 export type {

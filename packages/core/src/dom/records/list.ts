@@ -7,8 +7,9 @@
  *
  * Choosing a row (click, or Enter on it) selects its item and scrolls the viewport there; focus
  * stays in the list and no popover opens. When the selection moves from elsewhere (a mark, the
- * find bar), the selected row scrolls into view inside the list. After an action removes its
- * row, focus moves to the next row, else the previous, else the list.
+ * find bar), the selected row scrolls into view inside the list. When the focused row goes, by
+ * an action, undo or anything else, focus moves to the next row, else the previous, else the
+ * list.
  */
 import { readonly, writable, type Readable } from '../../model/readable'
 import { cardClass, cardParts } from '../plugins/api/card'
@@ -87,9 +88,29 @@ export function createRecordListController(
     rowEls().find((row) => row.getAttribute(ROW_ATTR) === id)
   const idOf = (row: HTMLElement) => row.getAttribute(ROW_ATTR) ?? ''
 
-  const focusInside = (): boolean => {
+  /** The id of the row focus is in (the row or a control in it), or null. */
+  const focusedRow = (): string | null => {
     const active = el?.ownerDocument?.activeElement
-    return !!active && !!el?.contains(active)
+    if (!active || !el?.contains(active)) return null
+    const row = rowEls().find((r) => r === active || r.contains(active))
+    return row ? idOf(row) : null
+  }
+
+  /**
+   * Focus was in row `gone`, which `before` listed and the items no longer do: focus the next
+   * row still listed, else the previous, else the list.
+   */
+  function rehome(before: readonly ListItem[], gone: string): void {
+    if (!el) return
+    const ids = before.map((x) => x.id)
+    const i = ids.indexOf(gone)
+    const after = [...ids.slice(i + 1), ...ids.slice(0, i).reverse()]
+    const next = after.find((x) => items.some((item) => item.id === x))
+    const target = (next !== undefined && rowEl(next)) || el
+    rove = next ?? null
+    syncTabIndex()
+    target.focus({ preventScroll: true })
+    if (target !== el) scrollWithin(target)
   }
 
   function syncTabIndex(): void {
@@ -144,12 +165,18 @@ export function createRecordListController(
   }
 
   const stopItems = source.items.subscribe((next) => {
+    const before = items
+    // Read before the rows re-render: a removed row takes focus with it.
+    const focused = focusedRow()
     items = next
     const n = next.length
     if (!source.announcement && n !== count.get() && !source.replaying())
       announcement.set(itemsText(n))
     count.set(n)
     publish()
+    // Whatever removed the focused row (an action, undo, another list), focus stays in the list.
+    if (focused !== null && !next.some((item) => item.id === focused))
+      rehome(before, focused)
   })
   const stopSelected = source.selected.subscribe((next) => {
     selected = next
@@ -172,22 +199,10 @@ export function createRecordListController(
 
   function act(id: string, action: string): void {
     if (destroyed) return
-    const i = items.findIndex((item) => item.id === id)
-    const item = items[i]
+    const item = items.find((x) => x.id === id)
     const fn = item && source.card(item)?.actions[action]
-    if (!item || !fn) return
-    const before = items.map((x) => x.id)
-    const hadFocus = focusInside()
-    source.run(item, fn)
-    if (!el || !hadFocus || items.some((x) => x.id === id)) return
-    // The row went: focus the next row still listed, else the previous, else the list.
-    const after = [...before.slice(i + 1), ...before.slice(0, i).reverse()]
-    const next = after.find((x) => items.some((item) => item.id === x))
-    const target = (next !== undefined && rowEl(next)) || el
-    if (next !== undefined) rove = next
-    syncTabIndex()
-    target.focus({ preventScroll: true })
-    if (target !== el) scrollWithin(target)
+    // When the action removes the row, the items' update moves focus on.
+    if (item && fn) source.run(item, fn)
   }
 
   let unbind: (() => void) | null = null

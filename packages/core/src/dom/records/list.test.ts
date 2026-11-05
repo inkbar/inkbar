@@ -8,11 +8,13 @@ import { definePlugin } from '../plugins/define'
 import { createPluginHost } from '../plugins/host'
 
 import { createRecordListController, type RecordListController } from './list'
-import { recordsSource } from './source'
+import { recordsSource, searchSource } from './source'
 
 import type { DocumentStatus, InkDocument } from '../../model/document'
 import type { Rect } from '../../model/geometry'
 import type { RecordBase } from '../../model/records'
+import type { SearchHit } from '../../model/search'
+import type { SearchState, ViewerSearch } from '../search/controller'
 import type { Viewport } from '../viewport'
 
 interface Suggestion extends RecordBase {
@@ -109,6 +111,7 @@ interface FakeEl {
   getAttribute(name: string): string | null
   setAttribute(name: string, value: string): void
   hasAttribute(name: string): boolean
+  contains(node: unknown): boolean
 }
 
 /**
@@ -129,6 +132,7 @@ function fakeList(controller: RecordListController) {
         name === 'data-ink-record' ? id : (attrs.get(name) ?? null),
       setAttribute: (name, value) => attrs.set(name, value),
       hasAttribute: (name) => attrs.has(name),
+      contains: (node) => node === el,
     }
     return el
   }
@@ -312,5 +316,45 @@ describe('createRecordListController', () => {
     records.add(suggestion('b', 400))
     expect(rowIds(controller)).toEqual(['a'])
     expect(controller.count.get()).toBe(1)
+  })
+
+  it('focus moves on when undo or redo removes the focused row', () => {
+    const { controller, history } = setup({
+      a: [suggestion('a', 500), suggestion('b', 400), suggestion('c', 300)],
+    })
+    const { el, doc, row } = fakeList(controller)
+    controller.attach(el)
+    controller.act('b', 'Accept')
+    history.undo()
+    expect(rowIds(controller)).toEqual(['a', 'b', 'c'])
+    row('b').focus()
+    history.redo()
+    expect(doc.activeElement).toBe(row('c'))
+    // Focus elsewhere in the list stays put.
+    history.undo()
+    history.redo()
+    expect(doc.activeElement).toBe(row('c'))
+  })
+
+  it('a focused search result keeps focus as an earlier page lands', () => {
+    const hit = (page: number, start: number) =>
+      ({ page, start, end: start + 4, text: 'word', before: '', after: '' }) as SearchHit
+    const state = writable<SearchState>({
+      open: true,
+      query: 'word',
+      matchCase: false,
+      hits: [hit(2, 3), hit(2, 9)],
+      current: 0,
+      scanning: true,
+    })
+    const controller = createRecordListController(
+      searchSource({ state, select: vi.fn() } as unknown as ViewerSearch)
+    )
+    const { el, doc, row } = fakeList(controller)
+    controller.attach(el)
+    row('2:1').focus()
+    state.set({ ...state.get(), hits: [hit(0, 1), hit(2, 3), hit(2, 9)], current: 1 })
+    expect(rowIds(controller)).toEqual(['0:0', '2:0', '2:1'])
+    expect(doc.activeElement).toBe(row('2:1'))
   })
 })

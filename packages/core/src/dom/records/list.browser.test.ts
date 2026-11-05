@@ -231,11 +231,10 @@ describe('createSearchResults', () => {
     )
     // The bar's current hit is the selected row, and choosing a row makes it current.
     expect(rows[0]!.getAttribute('aria-current')).toBe('true')
-    if (rows.length > 1) {
-      await userEvent.click(rows[1]!.querySelector('.ink-card-title')!)
-      expect(viewer.search.state.get().current).toBe(1)
-      expect(bar.querySelector('[data-ink-find-count]')!.textContent).toMatch(/^2 of /)
-    }
+    expect(rows.length).toBeGreaterThan(1)
+    await userEvent.click(rows[1]!.querySelector('.ink-card-title')!)
+    expect(viewer.search.state.get().current).toBe(1)
+    expect(bar.querySelector('[data-ink-find-count]')!.textContent).toMatch(/^2 of /)
     // A query typed in the bar shows in the panel.
     viewer.search.setQuery('zzqqzz')
     await until(() => !viewer.search.state.get().scanning)

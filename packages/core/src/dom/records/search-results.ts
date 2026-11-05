@@ -4,6 +4,7 @@
  * bar share the viewer's search state, so they never disagree.
  */
 import { isBlankQuery } from '../../model/search-text'
+import { handleResultsFieldKey } from '../search/find-key'
 import { findCountText } from '../search/find-text'
 import { onViewerDestroy, type Viewer } from '../viewer/create-viewer'
 import { h } from '../viewer/dom'
@@ -60,12 +61,7 @@ export function createSearchResults(
   )
 
   field?.addEventListener('input', () => search.setQuery(field.value))
-  field?.addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter' || e.isComposing) return
-    e.preventDefault()
-    if (e.shiftKey) search.previous()
-    else search.next()
-  })
+  field?.addEventListener('keydown', (e) => handleResultsFieldKey(e, search))
 
   const show = () => {
     const s = state.get()
