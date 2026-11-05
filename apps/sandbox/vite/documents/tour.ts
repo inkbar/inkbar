@@ -4,6 +4,16 @@
  * already holds one annotation of each type Inkbar reads, plus a signature stamp, as if a
  * reviewer had left them.
  */
+import {
+  ChevronDown,
+  Highlighter,
+  MessageSquare,
+  PenLine,
+  PenTool,
+  Signature,
+  Square,
+  Type,
+} from '@inkbar/icons'
 import { PDFName, PDFString, type Color, type PDFDocument, type PDFRef } from 'pdf-lib'
 
 import {
@@ -27,6 +37,7 @@ import {
   save,
   type Box,
   type FontName,
+  type GuideButton,
   type Row,
   type Sheet,
 } from './layout.ts'
@@ -82,11 +93,22 @@ export function cover(s: Sheet, copy: CoverCopy): Box {
   return highlight
 }
 
+/** The toolbar buttons the guides point at, named as the toolbar names them. */
+const CHOOSE_SHAPE: GuideButton = { icon: ChevronDown, label: 'Choose shape' }
+
 export const markup: Row = {
   title: 'Highlight, underline and strike',
-  body: 'Select text and mark it four ways: highlight, underline, strikethrough or a squiggly underline. Each mark follows the text it covers, across line breaks.',
-  tryIt:
-    'Try it: highlight “good and substantial repair”, then strike out “fair wear and tear excepted”.',
+  body: 'Mark text four ways: highlight, underline, strikethrough or squiggly.',
+  guide: {
+    buttons: [
+      { icon: Highlighter, label: 'Highlight' },
+      { icon: ChevronDown, label: 'Choose highlight' },
+    ],
+    steps: [
+      'Press Highlight and drag across “good and substantial repair”.',
+      'Pick Strikethrough under Choose highlight, then drag across “fair wear and tear excepted”.',
+    ],
+  },
   demo(s, b) {
     s.text('Clause 4.2 · Repairs', b.x, b.top + 8, {
       size: 9.4,
@@ -113,8 +135,15 @@ export const markup: Row = {
 
 export const notes: Row = {
   title: 'Notes and replies',
-  body: 'Pin a note anywhere on the page. Each note opens into a thread, so reviewers can reply to each other without leaving the document.',
-  tryIt: 'Try it: pin a note to the total and ask where the travel cost came from.',
+  body: 'Pin a note anywhere. Each note opens a thread, so reviewers can reply without leaving the document.',
+  guide: {
+    buttons: [{ icon: MessageSquare, label: 'Add note' }],
+    steps: [
+      'Press Add note, then click beside the total.',
+      'Ask where the travel cost came from and press Comment.',
+      'Click the note again to reply.',
+    ],
+  },
   demo(s, b) {
     boxTitle(s, b, 'Invoice 2041', 'Due 14 November 2026')
     const qty = b.x + b.w - 84
@@ -141,9 +170,14 @@ export const notes: Row = {
 
 export const textBoxes: Row = {
   title: 'Text boxes and callouts',
-  body: 'Type straight onto the page, in any font, size, colour or alignment. A callout adds a leader line so the text points at what it’s about.',
-  tryIt:
-    'Try it: fill in the form with text boxes, then point a callout at the postcode.',
+  body: 'Type onto the page in any font, size or colour.',
+  guide: {
+    buttons: [{ icon: Type, label: 'Text box' }, CHOOSE_SHAPE],
+    steps: [
+      'Press Text box, click a line and type a name.',
+      'Pick Speech bubble under Choose shape and drag one out above the postcode.',
+    ],
+  },
   demo(s, b) {
     boxTitle(s, b, 'Delivery details')
     const fields: [string, number][] = [
@@ -174,8 +208,15 @@ const MONTHS: [string, number][] = [
 
 export const shapes: Row = {
   title: 'Shapes and lines',
-  body: 'Rectangles, ellipses, lines, arrows, open polylines and closed polygons. Set the stroke colour, width and fill on each one.',
-  tryIt: 'Try it: circle the month that missed target and box the best one.',
+  body: 'Lines, arrows, rectangles, ellipses, stars and polygons, each with its own colour, weight and fill.',
+  guide: {
+    buttons: [CHOOSE_SHAPE],
+    steps: [
+      'Open Choose shape and pick Ellipse.',
+      'Drag around the month that missed target. Hold Shift for a circle.',
+      'Pick Rectangle the same way and drag around the best month.',
+    ],
+  },
   demo(s, b) {
     boxTitle(s, b, 'Signed contracts per month', 'Target 40')
     const axis = b.top + b.h - 20
@@ -197,8 +238,18 @@ export const shapes: Row = {
 
 export const ink: Row = {
   title: 'Freehand ink',
-  body: 'Draw with a mouse, pen or finger. Sketch a rough line, arrow, rectangle, ellipse, polygon or star and Inkbar can turn it into a clean shape.',
-  tryIt: 'Try it: draw a wobbly star in the grid and watch it straighten out.',
+  body: 'Draw with a mouse, pen or finger. Sketch turns a rough line, arrow, box, ellipse or star into a clean shape.',
+  guide: {
+    buttons: [
+      { icon: PenLine, label: 'Draw' },
+      { icon: PenTool, label: 'Sketch' },
+    ],
+    steps: [
+      'Press Draw and scribble in the grid. It stays on until you pick another tool.',
+      'Press Sketch and draw a wobbly star in one stroke.',
+      'Let go and it snaps to a clean star. Undo once to get your rough one back.',
+    ],
+  },
   demo(s, b) {
     // The dots run out to the box's own edge, inside its padding.
     const step = 15
@@ -221,8 +272,18 @@ export const ink: Row = {
 
 export const signatures: Row = {
   title: 'Images and signatures',
-  body: 'Place a PNG or JPEG anywhere on the page. Draw, type or upload a signature once, then drop it onto any line that needs it.',
-  tryIt: 'Try it: sign for the tenant and add today’s date.',
+  body: 'Draw, type or upload a signature once, then drop it onto any line that needs it.',
+  guide: {
+    buttons: [
+      { icon: Signature, label: 'Sign' },
+      { icon: Type, label: 'Text box' },
+    ],
+    steps: [
+      'Press Sign, then Create signature. Draw, type or upload one and press Save.',
+      'Pick it in the Sign menu and click the tenant’s line.',
+      'Add today’s date with a Text box.',
+    ],
+  },
   demo(s, b) {
     s.text('Signed by both parties on the date written below.', b.x, b.top + 10, {
       size: 10.5,
@@ -243,7 +304,10 @@ export const loupe: Row = {
   weight: 0.85,
   title: 'Loupe',
   body: 'A magnifier you leave on the page. It shows what sits under its centre at twice the size or more.',
-  tryIt: 'Try it: put a loupe over the serial number.',
+  guide: {
+    buttons: [CHOOSE_SHAPE],
+    steps: ['Open Choose shape and pick Loupe.', 'Drag a circle over the serial number.'],
+  },
   demo(s, b) {
     boxTitle(s, b, 'Rating plate')
     const cells = [
@@ -270,7 +334,13 @@ export const mask: Row = {
   weight: 0.95,
   title: 'Mask',
   body: 'Dim the whole page except one rectangle or ellipse, to point a reader at a single row or figure.',
-  tryIt: 'Try it: mask everything but the delayed train.',
+  guide: {
+    buttons: [CHOOSE_SHAPE],
+    steps: [
+      'Open Choose shape and pick Mask.',
+      'Drag around the delayed train. The rest of the page dims.',
+    ],
+  },
   demo(s, b) {
     const dest = b.x + 48
     const platform = b.x + b.w - 70
@@ -343,7 +413,7 @@ const TOUR_COVER: CoverCopy = {
   label: LABEL,
   total: TOUR_PAGES,
   paras: [
-    'This PDF is a tour of the annotations Inkbar supports. Each page pairs a short note on the left with a box on the right that is yours to mark up.',
+    'This PDF is a tour of the annotations Inkbar supports. Each feature comes with a box to mark up and steps that name the toolbar buttons to press.',
     'It already holds one annotation of each type, as a reviewer might leave them. Inkbar opens what a PDF already has.',
   ],
   contents: [
@@ -363,7 +433,13 @@ const TOUR_COVER: CoverCopy = {
 const tourRedaction: Row = {
   ...redaction,
   body: 'Mark text or an area for removal. A redaction covers what is under it on the page.',
-  tryIt: 'Try it: redact the NI number and the phone number.',
+  guide: {
+    buttons: [{ icon: Square, label: 'Mark for redaction' }],
+    steps: [
+      'Press Mark for redaction and drag a box over the NI number.',
+      'It switches off after each one, so press it again for the phone number.',
+    ],
+  },
 }
 
 /** Ballpoint blue and the highlighter, as PDF colours from 0 to 1. */
