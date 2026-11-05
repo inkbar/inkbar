@@ -50,7 +50,13 @@ export const SCENARIOS: readonly Scenario[] = [
     document: 'redactions',
     panels: ['events'],
     extraFiles: ['src/plugin/suggestions.ts', 'src/plugin/suggestions.css'],
-    frameworkFiles: { svelte: ['src/scenarios/redactions/CommandLog.svelte'] },
+    frameworkFiles: {
+      vue: ['src/scenarios/redactions/ReviewSidebar.vue'],
+      svelte: [
+        'src/scenarios/redactions/ReviewSidebar.svelte',
+        'src/scenarios/redactions/CommandLog.svelte',
+      ],
+    },
   },
   {
     id: 'controlled',

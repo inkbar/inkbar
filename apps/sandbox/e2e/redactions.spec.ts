@@ -24,8 +24,11 @@ const onePage = fileURLToPath(
 const viewer = (page: Page) => page.locator('[data-scenario-viewer]')
 const events = (page: Page) => page.locator('aside[aria-label="Events"] ol > li')
 
-/** A suggestion still to review: the plugin draws each as a mark in its page layer. */
-const SUGGESTED = '[data-record][data-plugin="sandbox"]'
+/**
+ * A suggestion still to review: the plugin draws each as a mark in its page layer. Thumbnails
+ * copy the marks, so look only in the viewer's pages.
+ */
+const SUGGESTED = '.ink-plugin-layer [data-record][data-plugin="sandbox"]'
 
 /** Where Suggest redactions reports what it found: its command's status. */
 const RESULT = '.ink-command-status'
@@ -37,10 +40,26 @@ const suggestionCard = (page: Page) =>
   page.getByRole('dialog', { name: 'Suggested redaction' })
 
 const mark = (page: Page, id: string) =>
-  page.locator(`[data-record="${id}"][data-plugin="sandbox"]`)
+  page.locator(`.ink-plugin-layer [data-record="${id}"][data-plugin="sandbox"]`)
 
 const redactions = (page: Page) =>
   page.locator('.ink-page[data-page="0"] .ink-annotation[data-type="redact"]')
+
+const sidebar = (page: Page, side: 'left' | 'right') =>
+  viewer(page).locator(`.ink-sidebar[data-side="${side}"]`)
+
+/** A panel's rail button, named by its label and badge ("Suggestions, 11"). */
+const railButton = (page: Page, side: 'left' | 'right', label: string) =>
+  sidebar(page, side).getByRole('tab', { name: new RegExp(`^${label}(, |$)`) })
+
+const panel = (page: Page, label: string) =>
+  viewer(page).getByRole('tabpanel', { name: new RegExp(`^${label}(, |$)`) })
+
+/** A suggestion's card in the Suggestions panel. */
+const row = (page: Page, id: string) =>
+  panel(page, 'Suggestions').locator(`[data-ink-record="${id}"]`)
+
+const undoButton = (page: Page) => viewer(page).getByRole('button', { name: 'Undo' })
 
 async function open(page: Page, framework: string): Promise<void> {
   await page.goto(`./#/${framework}/redactions`)
@@ -260,14 +279,137 @@ for (const framework of FRAMEWORK_ORDER) {
       expect(violations).toEqual([])
     })
 
+    test(`${framework} redactions: thumbnails navigate and show accepted redactions`, async ({
+      page,
+    }) => {
+      await suggest(page, framework)
+      // The Pages panel starts closed.
+      const pages = panel(page, 'Pages')
+      await expect(pages).toBeHidden()
+      await railButton(page, 'left', 'Pages').click()
+      await expect(pages).toBeVisible()
+      const first = pages.getByRole('button', { name: 'Page 1', exact: true })
+      await expect(first).toHaveAttribute('aria-current', 'page')
+      // Zoomed in, the page is taller than the view: scroll to its foot, then back up.
+      const scroll = viewer(page).locator('.ink-scroll')
+      const zoomIn = viewer(page).getByRole('button', { name: 'Zoom in' })
+      await expect
+        .poll(async () => {
+          const room = await scroll.evaluate((el) => el.scrollHeight - el.clientHeight)
+          if (room <= 200) await zoomIn.click()
+          return room
+        })
+        .toBeGreaterThan(200)
+      await scroll.evaluate((el) => (el.scrollTop = el.scrollHeight))
+      await expect.poll(() => scroll.evaluate((el) => el.scrollTop)).toBeGreaterThan(200)
+      await first.click()
+      await expect.poll(() => scroll.evaluate((el) => el.scrollTop)).toBeLessThan(100)
+
+      const drawn = first.locator('.ink-thumbnail-annotation[data-type="redact"]')
+      await expect(drawn).toHaveCount(0)
+      await mark(page, 'ni-number').click()
+      await suggestionCard(page).getByRole('button', { name: 'Accept' }).click()
+      await expect(drawn).toHaveCount(1)
+      await undoButton(page).click()
+      await expect(drawn).toHaveCount(0)
+    })
+
+    test(`${framework} redactions: suggestion rows and marks select each other`, async ({
+      page,
+    }) => {
+      await open(page, framework)
+      const suggestions = railButton(page, 'right', 'Suggestions')
+      await expect(suggestions).toHaveAttribute('aria-selected', 'false')
+      await suggestButton(page).click()
+      await expect(page.locator(RESULT)).toHaveText(FOUND)
+      // Suggest opens the panel once it finishes, with the open suggestions as its badge.
+      await expect(suggestions).toHaveAttribute('aria-selected', 'true')
+      await expect(suggestions).toHaveAccessibleName(`Suggestions, ${COUNT}`)
+      await expect(panel(page, 'Suggestions').getByRole('listitem')).toHaveCount(COUNT)
+
+      await row(page, 'email').click()
+      await expect(row(page, 'email')).toHaveAttribute('aria-current', 'true')
+      await expect(mark(page, 'email')).toHaveAttribute('data-selected')
+      await expect(suggestionCard(page)).toHaveCount(0)
+
+      await mark(page, 'phone').click()
+      await expect(suggestionCard(page)).toContainText('Phone number')
+      await expect(row(page, 'phone')).toHaveAttribute('aria-current', 'true')
+      await expect(row(page, 'email')).not.toHaveAttribute('aria-current')
+      await expect(mark(page, 'email')).not.toHaveAttribute('data-selected')
+    })
+
+    test(`${framework} redactions: accepting from the list is one undo step`, async ({
+      page,
+    }) => {
+      await suggest(page, framework)
+      await row(page, 'ni-number').getByRole('button', { name: 'Accept' }).click()
+      await expect(redactions(page)).toHaveCount(1)
+      await expect(row(page, 'ni-number')).toHaveCount(0)
+      await expect(page.locator(SUGGESTED)).toHaveCount(COUNT - 1)
+      await expect(railButton(page, 'right', 'Suggestions')).toHaveAccessibleName(
+        `Suggestions, ${COUNT - 1}`
+      )
+      await undoButton(page).click()
+      await expect(redactions(page)).toHaveCount(0)
+      await expect(row(page, 'ni-number')).toHaveCount(1)
+      await expect(page.locator(SUGGESTED)).toHaveCount(COUNT)
+      // The suggestion run is still there to undo: one step undid the accept alone.
+      await expect(undoButton(page)).toBeEnabled()
+    })
+
+    test(`${framework} redactions: Undo accept in the host panel restores the suggestion`, async ({
+      page,
+    }) => {
+      await suggest(page, framework)
+      await mark(page, 'ni-number').click()
+      await suggestionCard(page).getByRole('button', { name: 'Accept' }).click()
+      await expect(redactions(page)).toHaveCount(1)
+
+      await railButton(page, 'right', 'Accepted').click()
+      const accepted = panel(page, 'Accepted')
+      await expect(accepted).toBeVisible()
+      await expect(accepted.getByRole('listitem')).toHaveCount(1)
+      await expect(accepted.getByRole('listitem')).toContainText(
+        'National Insurance number'
+      )
+      await accepted.getByRole('button', { name: 'Undo accept' }).click()
+      await expect(redactions(page)).toHaveCount(0)
+      await expect(mark(page, 'ni-number')).toHaveCount(1)
+      await expect(page.locator(SUGGESTED)).toHaveCount(COUNT)
+      await expect(accepted.getByRole('listitem')).toHaveCount(0)
+      await expect(accepted).toContainText('Nothing accepted yet.')
+
+      // One step: Undo puts the acceptance back whole.
+      await undoButton(page).click()
+      await expect(redactions(page)).toHaveCount(1)
+      await expect(mark(page, 'ni-number')).toHaveCount(0)
+      await expect(accepted.getByRole('listitem')).toHaveCount(1)
+    })
+
+    test(`${framework} redactions: axe passes with both sidebars open`, async ({
+      page,
+    }) => {
+      await suggest(page, framework)
+      await railButton(page, 'left', 'Pages').click()
+      await expect(panel(page, 'Pages')).toBeVisible()
+      await expect(panel(page, 'Suggestions')).toBeVisible()
+      await expect(
+        panel(page, 'Pages').getByRole('img', { name: 'Page 1' })
+      ).toBeVisible()
+      const { violations } = await new AxeBuilder({ page }).analyze()
+      expect(violations).toEqual([])
+    })
+
     test(`${framework} redactions: Code tab shows the plugin source`, async ({
       page,
     }) => {
       await open(page, framework)
       await page.getByRole('tab', { name: 'Code' }).click()
       const files = page.getByRole('tablist', { name: 'Files' })
-      // Svelte adds the component that logs the command's status.
-      await expect(files.getByRole('tab')).toHaveCount(framework === 'svelte' ? 4 : 3)
+      // Vue and Svelte add the right sidebar's component; Svelte also the command's log.
+      const extra = framework === 'svelte' ? 2 : framework === 'vue' ? 1 : 0
+      await expect(files.getByRole('tab')).toHaveCount(3 + extra)
       await files.getByRole('tab', { name: 'suggestions.ts' }).click()
       await expect(page.getByRole('tabpanel', { name: 'Code' })).toContainText(
         "definePlugin<SuggestionsOptions>('sandbox'"

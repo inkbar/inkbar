@@ -27,10 +27,14 @@ void test('only forms has a values panel', () => {
   ])
 })
 
-void test('the Svelte helpers show in their scenarios', () => {
+void test('the component files show in their scenarios', () => {
   const files = (id: string) => SCENARIOS.find((s) => s.id === id)?.frameworkFiles
   assert.deepEqual(files('redactions'), {
-    svelte: ['src/scenarios/redactions/CommandLog.svelte'],
+    vue: ['src/scenarios/redactions/ReviewSidebar.vue'],
+    svelte: [
+      'src/scenarios/redactions/ReviewSidebar.svelte',
+      'src/scenarios/redactions/CommandLog.svelte',
+    ],
   })
   assert.deepEqual(files('search'), { svelte: ['src/scenarios/search/SearchLog.svelte'] })
   for (const s of SCENARIOS)

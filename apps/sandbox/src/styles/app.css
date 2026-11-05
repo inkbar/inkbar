@@ -532,6 +532,69 @@ body {
   flex: 1 1 auto;
   min-height: 0;
 }
+/* Sidebars either side of the pages, where a scenario has them. */
+.scenario-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.scenario-body .ink-viewport-root {
+  min-width: 0;
+}
+/* The sandbox's viewer is narrow, so its sidebars are too. */
+.scenario-body .ink-sidebar {
+  --ink-sidebar-width: 240px;
+}
+/* The redactions scenario's Accepted panel: a list of its own, on the plugin's records. */
+.accepted {
+  height: 100%;
+  overflow: auto;
+}
+.accepted ul {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 12px;
+  list-style: none;
+}
+.accepted li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px;
+  border: 1px solid var(--ink-border);
+  border-radius: 8px;
+  background: var(--ink-surface);
+}
+.accepted-reason {
+  font-weight: 600;
+}
+.accepted-meta,
+.accepted-empty {
+  color: var(--ink-muted-fg);
+  font-size: 14px;
+}
+.accepted-empty {
+  margin: 0;
+  padding: 16px 12px;
+}
+.accepted button {
+  align-self: flex-start;
+  min-height: 44px;
+  margin-top: 6px;
+  padding: 0 12px;
+  border: 1px solid var(--ink-border);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.accepted button:hover {
+  background: var(--paper);
+}
 .scenario-toolbar {
   border-bottom: 1px solid var(--ink-border);
 }

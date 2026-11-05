@@ -1,8 +1,9 @@
 /*
  * Two hundred pages, and no creation tools. The viewer renders only the pages near the
  * viewport, but search reads every page's text, so the find bar counts every hit and steps to
- * any of them. Find opens the bar, as does Ctrl+F or Cmd+F. `viewer.search` holds the same
- * state the bar shows, for a control of your own.
+ * any of them. Find opens the bar, as does Ctrl+F or Cmd+F. The Results panel lists every hit
+ * and follows the bar. `viewer.search` holds the same state the bar shows, for a control of your
+ * own.
  */
 import {
   createFindBar,
@@ -12,6 +13,8 @@ import {
   createPageInput,
   createPrevPage,
   createSearchButton,
+  createSearchResults,
+  createSidebar,
   createToolbar,
   createToolButton,
   createViewer,
@@ -19,6 +22,7 @@ import {
   createZoomOut,
   createZoomSelect,
 } from '@inkbar/core/dom'
+import { Search } from '@inkbar/icons'
 import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 
@@ -105,15 +109,29 @@ export function mount(
   openButton.addEventListener('click', openFile)
   tools.append(group('File', 'scenario-group scenario-file', openButton))
 
+  // Every hit, in a sidebar right of the pages. The find bar is the query field.
+  const results = createSidebar({
+    side: 'right',
+    layout: 'tabs',
+    panels: [{ id: 'results', label: 'Results', icon: Search }],
+    content: { results: createSearchResults(viewer, { field: false }) },
+  })
+  const body = document.createElement('div')
+  body.className = 'scenario-body'
+  const viewport = viewer.element.querySelector('[data-ink-viewport-root]')
+  viewport?.replaceWith(body)
+  body.append(...(viewport ? [viewport] : []), results.element)
+
   viewer.element.prepend(tools)
   viewer.element.append(status)
   // The find bar floats over the pages, so it goes in the viewport.
-  viewer.element.querySelector('[data-ink-viewport-root]')?.append(createFindBar(viewer))
+  viewport?.append(createFindBar(viewer))
 
   return {
     open: (next: DocumentSource) => viewer.open(next),
     destroy() {
       unfollowSearch()
+      results.controller.destroy()
       viewer.destroy()
     },
   }

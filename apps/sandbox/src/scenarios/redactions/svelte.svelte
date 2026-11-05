@@ -3,9 +3,11 @@
    * Suggest redactions is a plugin (src/plugin/suggestions.ts). Register it in `plugins` and
    * place its command where you want with InkCommand. Suggest adds the plugin's own records,
    * draws a mark on each and opens a card when you press one. Accept turns a suggestion into a
-   * redaction. CommandLog, beside this file, logs each result of the command.
+   * redaction. CommandLog, beside this file, logs each result of the command. Thumbnails of
+   * the pages sit in the left sidebar; ReviewSidebar, beside this file, is the right.
    */
-  import { allTools } from '@inkbar/core/dom'
+  import { allTools, type SidebarOpen } from '@inkbar/core/dom'
+  import { Square } from '@inkbar/icons'
   import {
     InkColorMenu,
     InkCommand,
@@ -13,14 +15,17 @@
     InkLineStyleMenu,
     InkNextPage,
     InkPageCount,
+    InkPanel,
     InkPageInput,
     InkPrevPage,
     InkRedo,
     InkRoot,
     InkShapeMenu,
+    InkSidebar,
     InkSignatureMenu,
     InkTextStyleMenu,
     InkThreadPopover,
+    InkThumbnails,
     InkIcon,
     InkToolbar,
     InkToolbarButton,
@@ -41,6 +46,7 @@
   import { signatureFonts, signatures } from '../../shared/signatures'
 
   import CommandLog from './CommandLog.svelte'
+  import ReviewSidebar from './ReviewSidebar.svelte'
 
   import type { ScenarioProps } from '../../frameworks/types'
   import type { InkDocument } from '@inkbar/core'
@@ -49,6 +55,9 @@
 
   const tools = allTools()
   const plugins = [suggestionsPlugin()]
+
+  /** The Pages panel starts closed, leaving the pages the room. */
+  let pagesOpen = $state<SidebarOpen>(null)
 
   function onReady(doc: InkDocument): void {
     log('onReady', { pages: doc.pages.length })
@@ -99,7 +108,15 @@
       </InkToolbarButton>
     </div>
   </InkToolbar>
-  <InkViewport />
+  <div class="scenario-body">
+    <InkSidebar side="left" layout="rail" bind:open={pagesOpen}>
+      <InkPanel id="pages" label="Pages" icon={Square}>
+        <InkThumbnails />
+      </InkPanel>
+    </InkSidebar>
+    <InkViewport />
+    <ReviewSidebar />
+  </div>
   <InkToolbar label="Page and zoom" class="scenario-status-bar">
     <div class="scenario-group" role="group" aria-label="Page">
       <InkPrevPage />

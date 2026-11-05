@@ -2,8 +2,10 @@
  * Suggest redactions is a plugin (src/plugin/suggestions.ts). Register it in `plugins` and place
  * its command where you want with InkCommand. Suggest adds the plugin's own records, draws a mark
  * on each and opens a card when you press one. Accept turns a suggestion into a redaction.
+ * Thumbnails of the pages sit in the left sidebar; ReviewSidebar is the right.
  */
-import { allTools } from '@inkbar/core/dom'
+import { allTools, type SidebarOpen } from '@inkbar/core/dom'
+import { Check, Square, SquareDashed } from '@inkbar/icons'
 import {
   InkColorMenu,
   InkCommand,
@@ -11,14 +13,18 @@ import {
   InkLineStyleMenu,
   InkNextPage,
   InkPageCount,
+  InkPanel,
   InkPageInput,
   InkPrevPage,
+  InkRecordList,
   InkRedo,
   InkRoot,
   InkShapeMenu,
+  InkSidebar,
   InkSignatureMenu,
   InkTextStyleMenu,
   InkThreadPopover,
+  InkThumbnails,
   InkIcon,
   InkToolbar,
   InkToolbarButton,
@@ -29,13 +35,19 @@ import {
   InkZoomIn,
   InkZoomOut,
   InkZoomSelect,
+  useAnnotations,
   useCommand,
+  useRecords,
 } from '@inkbar/react'
 import '@inkbar/theme/theme.css'
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { assets } from 'virtual:inkbar-assets'
 
-import { suggestionsPlugin } from '../../plugin/suggestions'
+import {
+  acceptedFrom,
+  suggestionsPlugin,
+  type Suggestion,
+} from '../../plugin/suggestions'
 import '../../plugin/suggestions.css'
 import { FileUp } from '../../shared/file-up'
 import { signatureFonts, signatures } from '../../shared/signatures'
@@ -53,6 +65,70 @@ function CommandLog({ log }: { log: Log }) {
     if (status) log('command', status)
   }, [status, log])
   return null
+}
+
+/**
+ * The right sidebar. Suggestions lists the plugin's open suggestions as the cards their marks
+ * open. Accepted is your own component on useRecords: Undo accept puts a suggestion back up for
+ * review and removes its redaction, in one undo step. The sidebar opens Suggestions when the
+ * Suggest command finishes. It sits inside InkRoot to reach the records and the command.
+ */
+function ReviewSidebar() {
+  const { records, handle } = useRecords<Suggestion>('sandbox.suggestions')
+  const { annotations, remove } = useAnnotations()
+  const { busy } = useCommand('sandbox.suggest')
+
+  // Closed until Suggest has something to show.
+  const [open, setOpen] = useState<SidebarOpen>(null)
+  const wasBusy = useRef(busy)
+  useEffect(() => {
+    if (wasBusy.current && !busy) setOpen('suggestions')
+    wasBusy.current = busy
+  }, [busy])
+
+  const openCount = records.filter((s) => s.status === 'suggested').length
+  const accepted = records.filter((s) => s.status === 'accepted')
+
+  function undoAccept(suggestion: Suggestion) {
+    handle?.batch(() => {
+      handle.update(suggestion.id, { status: 'suggested' })
+      for (const a of annotations) if (acceptedFrom(a) === suggestion.id) remove(a.id)
+    })
+  }
+
+  return (
+    <InkSidebar side="right" layout="rail" open={open} onOpenChange={setOpen}>
+      <InkPanel
+        id="suggestions"
+        label="Suggestions"
+        icon={SquareDashed}
+        badge={openCount}
+      >
+        <InkRecordList records="sandbox.suggestions" />
+      </InkPanel>
+      <InkPanel id="accepted" label="Accepted" icon={Check}>
+        <div className="accepted">
+          {accepted.length > 0 ? (
+            <ul>
+              {accepted.map((s) => (
+                <li key={s.id}>
+                  <span className="accepted-reason">{s.reason}</span>
+                  <span className="accepted-meta">
+                    {s.text}, page {s.page + 1}
+                  </span>
+                  <button type="button" onClick={() => undoAccept(s)}>
+                    Undo accept
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="accepted-empty">Nothing accepted yet.</p>
+          )}
+        </div>
+      </InkPanel>
+    </InkSidebar>
+  )
 }
 
 export default function SuggestRedactions({
@@ -110,7 +186,16 @@ export default function SuggestRedactions({
           </InkToolbarButton>
         </div>
       </InkToolbar>
-      <InkViewport />
+      <div className="scenario-body">
+        {/* The Pages panel starts closed, leaving the pages the room. */}
+        <InkSidebar side="left" layout="rail" defaultOpen={null}>
+          <InkPanel id="pages" label="Pages" icon={Square}>
+            <InkThumbnails />
+          </InkPanel>
+        </InkSidebar>
+        <InkViewport />
+        <ReviewSidebar />
+      </div>
       <InkToolbar label="Page and zoom" className="scenario-status-bar">
         <div className="scenario-group" role="group" aria-label="Page">
           <InkPrevPage />

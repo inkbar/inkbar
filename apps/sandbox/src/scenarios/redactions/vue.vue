@@ -3,8 +3,10 @@
  * Suggest redactions is a plugin (src/plugin/suggestions.ts). Register it in `plugins` and place
  * its command where you want with InkCommand. Suggest adds the plugin's own records, draws a mark
  * on each and opens a card when you press one. Accept turns a suggestion into a redaction.
+ * Thumbnails of the pages sit in the left sidebar; ReviewSidebar, beside this file, is the right.
  */
-import { allTools } from '@inkbar/core/dom'
+import { allTools, type SidebarOpen } from '@inkbar/core/dom'
+import { Square } from '@inkbar/icons'
 import {
   InkColorMenu,
   InkCommand,
@@ -12,14 +14,17 @@ import {
   InkLineStyleMenu,
   InkNextPage,
   InkPageCount,
+  InkPanel,
   InkPageInput,
   InkPrevPage,
   InkRedo,
   InkRoot,
   InkShapeMenu,
+  InkSidebar,
   InkSignatureMenu,
   InkTextStyleMenu,
   InkThreadPopover,
+  InkThumbnails,
   InkIcon,
   InkToolbar,
   InkToolbarButton,
@@ -34,12 +39,14 @@ import {
 } from '@inkbar/vue'
 import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
-import { defineComponent, watch } from 'vue'
+import { defineComponent, ref, watch } from 'vue'
 
 import { suggestionsPlugin } from '../../plugin/suggestions'
 import '../../plugin/suggestions.css'
 import { FileUp } from '../../shared/file-up'
 import { signatureFonts, signatures } from '../../shared/signatures'
+
+import ReviewSidebar from './ReviewSidebar.vue'
 
 import type { ScenarioProps } from '../../frameworks/types'
 import type { InkDocument } from '@inkbar/core'
@@ -48,6 +55,9 @@ const { source, log, onDocument, openFile } = defineProps<ScenarioProps>()
 
 const tools = allTools()
 const plugins = [suggestionsPlugin()]
+
+/** The Pages panel starts closed, leaving the pages the room. */
+const pagesOpen = ref<SidebarOpen | undefined>(null)
 
 /** Logs each result of the Suggest command. It sits inside InkRoot to reach the command. */
 const CommandLog = defineComponent(() => {
@@ -112,7 +122,15 @@ function onActivate(id: string): void {
         </InkToolbarButton>
       </div>
     </InkToolbar>
-    <InkViewport />
+    <div class="scenario-body">
+      <InkSidebar v-model:open="pagesOpen" side="left" layout="rail">
+        <InkPanel id="pages" label="Pages" :icon="Square">
+          <InkThumbnails />
+        </InkPanel>
+      </InkSidebar>
+      <InkViewport />
+      <ReviewSidebar />
+    </div>
     <InkToolbar label="Page and zoom" class="scenario-status-bar">
       <div class="scenario-group" role="group" aria-label="Page">
         <InkPrevPage />

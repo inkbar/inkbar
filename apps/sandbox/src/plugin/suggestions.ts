@@ -14,7 +14,14 @@
  */
 import { definePlugin, type PluginStoreOptions } from '@inkbar/core/dom'
 
-import type { InkDocument, Quad, Rect, RecordBase, SearchHit } from '@inkbar/core'
+import type {
+  Annotation,
+  InkDocument,
+  Quad,
+  Rect,
+  RecordBase,
+  SearchHit,
+} from '@inkbar/core'
 
 export interface Suggestion extends RecordBase {
   /** Page index, from 0. */
@@ -77,6 +84,19 @@ const COLORS = { Low: '#D4A017', Medium: '#E67E22', High: '#C0392B' }
 /** The colour a suggestion is drawn in. */
 export function confidenceColor(confidence: number): string {
   return COLORS[confidenceLevel(confidence)]
+}
+
+/**
+ * The id of the suggestion a redaction was accepted from, if it was. Accept stores the link on
+ * the redaction, at `custom.sandbox.suggestions`, so a host can find it.
+ */
+export function acceptedFrom(annotation: Annotation): string | undefined {
+  const own = annotation.custom?.['sandbox']
+  const id =
+    own && typeof own === 'object'
+      ? (own as Record<string, unknown>)['suggestions']
+      : undefined
+  return typeof id === 'string' ? id : undefined
 }
 
 export function suggestionCount(n: number): string {
