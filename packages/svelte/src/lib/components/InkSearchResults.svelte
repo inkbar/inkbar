@@ -48,6 +48,7 @@
       <input
         type="text"
         aria-label="Find in document"
+        placeholder="Find in document"
         autocomplete="off"
         spellcheck={false}
         value={search.state.query}
@@ -59,5 +60,7 @@
       >{findCountText(search.state)}</span
     >
   </div>
-  <RecordCards {source} emptyShown={blank} />
+  <RecordCards {source} emptyShown={blank}>
+    {#snippet empty()}Search to list every match.{/snippet}
+  </RecordCards>
 </div>

@@ -61,6 +61,7 @@ export function InkSearchResults({
             ref={input}
             type="text"
             aria-label="Find in document"
+            placeholder="Find in document"
             autoComplete="off"
             spellCheck={false}
             defaultValue={state.query}
@@ -73,7 +74,11 @@ export function InkSearchResults({
         </span>
       </div>
       {/* Nothing found yet is the count's to say while a query is in: "No results", or a scan. */}
-      <RecordCards source={source} emptyShown={isBlankQuery(state.query)} />
+      <RecordCards
+        source={source}
+        emptyShown={isBlankQuery(state.query)}
+        empty="Search to list every match."
+      />
     </div>
   )
 }

@@ -229,6 +229,10 @@ describe('createSearchResults', () => {
     const { viewer, bar, results } = await makeResults()
     const field = results.querySelector<HTMLInputElement>('input')!
     expect(field.getAttribute('aria-label')).toBe('Find in document')
+    expect(field.placeholder).toBe('Find in document')
+    expect(results.querySelector('.ink-record-list-empty')!.textContent).toBe(
+      'Search to list every match.'
+    )
     await userEvent.type(field, 'Inkbar')
     await until(() => {
       const s = viewer.search.state.get()

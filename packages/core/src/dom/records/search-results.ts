@@ -40,6 +40,7 @@ export function createSearchResults(
       : h('input', {
           type: 'text',
           'aria-label': 'Find in document',
+          placeholder: 'Find in document',
           autocomplete: 'off',
           spellcheck: 'false',
         })
@@ -50,8 +51,10 @@ export function createSearchResults(
     count
   )
   // Nothing found yet is the count's to say while a query is in: "No results", or a scan.
-  const rendered = renderRecordList(searchSource(search), () =>
-    isBlankQuery(state.get().query)
+  const rendered = renderRecordList(
+    searchSource(search),
+    () => isBlankQuery(state.get().query),
+    'Search to list every match.'
   )
   const root = h(
     'div',

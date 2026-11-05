@@ -84,7 +84,7 @@ for (const framework of FRAMEWORK_ORDER) {
       await open(page, framework)
       const results = viewer(page).getByRole('tabpanel', { name: 'Results' })
       await expect(results).toBeVisible()
-      await expect(results).toContainText('Nothing here yet.')
+      await expect(results).toContainText('Search to list every match.')
       await find(page)
       await expect(count(page)).toHaveText(`1 of ${LONG_HITS}`, { timeout: 20_000 })
       await expect(results.getByRole('listitem')).toHaveCount(LONG_HITS)

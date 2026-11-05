@@ -197,8 +197,11 @@ test('InkSearchResults and InkFindBar agree on query and current', async ({
   await expect(results).toHaveClass(/ink-search-results/)
   const field = results.getByRole('textbox', { name: 'Find in document' })
   await expect(results.getByRole('search')).toBeVisible()
+  await expect(field).toHaveAttribute('placeholder', 'Find in document')
   // Nothing searched yet: the empty text.
-  await expect(results.locator('.ink-record-list-empty')).toHaveText('Nothing here yet.')
+  await expect(results.locator('.ink-record-list-empty')).toHaveText(
+    'Search to list every match.'
+  )
 
   await field.fill('Inkbar')
   const rows = results.locator('[data-ink-record]')

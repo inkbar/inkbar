@@ -40,6 +40,7 @@ const blank = computed(() => isBlankQuery(state.value.query))
         v-if="field"
         type="text"
         aria-label="Find in document"
+        placeholder="Find in document"
         autocomplete="off"
         spellcheck="false"
         :value="state.query"
@@ -48,6 +49,8 @@ const blank = computed(() => isBlankQuery(state.value.query))
       />
       <span class="ink-find-count" data-ink-search-results-count>{{ count }}</span>
     </div>
-    <RecordCards :source="source" :empty-shown="blank" />
+    <RecordCards :source="source" :empty-shown="blank">
+      <template #empty>Search to list every match.</template>
+    </RecordCards>
   </div>
 </template>
