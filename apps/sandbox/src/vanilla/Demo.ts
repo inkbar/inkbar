@@ -27,6 +27,7 @@ import {
   createToolbarSeparator,
   createToolButton,
   createUndo,
+  allTools,
   createViewer,
   createZoomIn,
   createZoomOut,
@@ -107,6 +108,7 @@ export function mountDemo(el: HTMLElement, source: DocumentSource): () => void {
     assets,
     signatures,
     signatureFonts,
+    tools: allTools(),
     plugins: [suggestionsPlugin()],
     onFormAction: (a) => panel.action(a),
     // The Gloss view follows each change to the open document's values.

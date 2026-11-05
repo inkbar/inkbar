@@ -8,6 +8,7 @@
    * plugin (src/plugin/suggestions.ts): registered in `plugins`, with its button placed by
    * InkCommand.
    */
+  import { allTools } from '@inkbar/core/dom'
   import {
     InkColorMenu,
     InkCommand,
@@ -46,6 +47,7 @@
 
   let { source }: { source: DocumentSource } = $props()
 
+  const tools = allTools()
   let doc = $state.raw<InkDocument | null>(null)
   let actions = $state<LoggedAction[]>([])
   let gloss = $state('')
@@ -72,6 +74,7 @@
   {assets}
   {signatures}
   {signatureFonts}
+  {tools}
   plugins={[suggestionsPlugin()]}
   {onformaction}
   {onReady}

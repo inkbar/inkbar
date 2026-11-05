@@ -6,6 +6,7 @@ import {
   type SignatureStore,
   type SignatureTemplate,
 } from '@inkbar/core'
+import { allTools } from '@inkbar/core/dom'
 import { shallowRef } from 'vue'
 
 import InkRoot from '../../src/components/InkRoot.vue'
@@ -30,6 +31,7 @@ const props = withDefaults(
   }>(),
   { initial: () => [], fonts: undefined, failSave: false, failRemove: false }
 )
+const tools = allTools()
 
 /** A memory store whose contents the page shows. */
 const saved = shallowRef<SignatureTemplate[]>(props.initial)
@@ -59,6 +61,7 @@ const store: SignatureStore = {
     :zoom="1"
     :signatures="store"
     :signature-fonts="props.fonts"
+    :tools="tools"
   >
     <InkToolbar>
       <InkToolButton tool="select" />

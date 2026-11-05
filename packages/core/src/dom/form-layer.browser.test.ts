@@ -6,6 +6,7 @@ import { SCRATCH_BUDGET } from './form-appearance'
 import { createPageMount, type PageMount } from './page-mount'
 import { createPageRenderer } from './page-renderer'
 import { mountContainer, nextFrame, openFixtureInBrowser, until } from './test-utils'
+import { drawTool } from './tools'
 import { createPageTransform, type PageTransform, type ViewRotation } from './transform'
 import { mountViewer } from './viewer-engine'
 
@@ -765,7 +766,13 @@ describe('form layer', () => {
     const doc = await open('form-fields')
     const container = mountContainer(800, 600)
     container.style.overflow = 'auto'
-    const engine = mountViewer({ container, document: doc, zoom: 1, tool: 'draw' })
+    const engine = mountViewer({
+      container,
+      document: doc,
+      zoom: 1,
+      tool: 'draw',
+      tools: [drawTool()],
+    })
     cleanup.push(() => (engine.destroy(), container.remove()))
     await until(() => container.querySelector('[data-ink-field="name"] input') !== null)
     const input = container.querySelector<HTMLInputElement>(

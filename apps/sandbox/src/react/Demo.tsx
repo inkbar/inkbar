@@ -1,3 +1,4 @@
+import { allTools } from '@inkbar/core/dom'
 import {
   InkColorMenu,
   InkCommand,
@@ -35,6 +36,8 @@ import { signatureFonts, signatures } from '../shared/signatures'
 
 import type { DocumentSource, FormAction, InkDocument } from '@inkbar/core'
 
+const tools = allTools()
+
 /*
  * The document keeps its own annotations, form values and undo history, so Undo covers field
  * edits too. The page follows the form's values (`doc.form.values`) for the Gloss view and
@@ -65,6 +68,7 @@ export function Demo({ source }: { source: DocumentSource }) {
       assets={assets}
       signatures={signatures}
       signatureFonts={signatureFonts}
+      tools={tools}
       plugins={[suggestionsPlugin()]}
       onFormAction={onFormAction}
       onReady={setDoc}

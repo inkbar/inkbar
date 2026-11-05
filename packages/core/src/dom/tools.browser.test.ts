@@ -39,10 +39,12 @@ import {
   until,
 } from './test-utils'
 import {
-  builtinTools,
+  allTools,
   createToolController,
   DEFAULT_FREETEXT_WIDTH,
+  noteTool,
   trackToolStyle,
+  withHostTools,
   type Tool,
   type ToolContext,
   type ToolController,
@@ -85,7 +87,7 @@ async function setup(
     controlled = false,
     refuseAdds = false,
     custom = false,
-    tools: hostTools,
+    tools: hostTools = allTools(),
     snapshotHistory = false,
     signatures,
   }: {
@@ -93,6 +95,7 @@ async function setup(
     /** Controlled only: the host applies every change but an add. */
     refuseAdds?: boolean
     custom?: boolean
+    /** Default `allTools()`; `select-text` and `select` are always added. */
     tools?: Tool[]
     /** The signature templates the `signature` tool places from. */
     signatures?: SignatureLibrary
@@ -154,9 +157,9 @@ async function setup(
       mounts.delete(page)
     },
   })
-  const tracker = trackToolStyle({ store: doc.annotations, history })
+  const tracker = trackToolStyle({ store: doc.annotations, history, tools: hostTools })
   const tools: ToolController = createToolController({
-    ...(hostTools ? { tools: hostTools } : {}),
+    tools: withHostTools(hostTools),
     ctx: {
       toolStyle: tracker.toolStyle,
       store: doc.annotations,
@@ -760,6 +763,7 @@ describe('controller and gesture edges', () => {
         clearSelection: () => undefined,
       },
       initial: 'note',
+      tools: withHostTools([noteTool()]),
     })
     expect(root.style.cursor).toBe('copy')
     c.destroy()
@@ -2250,7 +2254,7 @@ describe('sketch tool', () => {
       freetext: ['Text box', Type],
       signature: ['Signature', Signature],
     }
-    const tools = builtinTools()
+    const tools = allTools()
     for (const [id, [label, icon]] of Object.entries(expected)) {
       const tool = tools.find((t) => t.id === id)
       expect(tool?.label, id).toBe(label)
@@ -2258,8 +2262,8 @@ describe('sketch tool', () => {
     }
   })
 
-  it('is a built-in tool in the ink style group, labelled Sketch', () => {
-    const sketch = builtinTools().find((t) => t.id === 'sketch')
+  it('is a creation tool in the ink style group, labelled Sketch', () => {
+    const sketch = allTools().find((t) => t.id === 'sketch')
     expect(sketch?.styleGroup).toBe('ink')
     expect(sketch?.label).toBe('Sketch')
   })
@@ -2634,8 +2638,8 @@ describe('freetext tool', () => {
       new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
     )
 
-  it('is a built-in tool in the text style group, labelled Text box', () => {
-    const tool = builtinTools().find((t) => t.id === 'freetext')
+  it('is a creation tool in the text style group, labelled Text box', () => {
+    const tool = allTools().find((t) => t.id === 'freetext')
     expect(tool?.styleGroup).toBe('text')
     expect(tool?.label).toBe('Text box')
   })
@@ -4429,7 +4433,7 @@ describe('selection editing', () => {
       spy.mockRestore()
     }
     expect(tools.active.get()).toBe('select-text')
-    expect(builtinTools().map((t) => t.id)).not.toContain('view')
+    expect(allTools().map((t) => t.id)).not.toContain('view')
   })
 })
 
@@ -4448,10 +4452,43 @@ describe('tool registry and options', () => {
     }
   }
 
+  it('a bare controller has only the select tools', () => {
+    expect(withHostTools().map((t) => t.id)).toEqual(['select-text', 'select'])
+  })
+
+  it('allTools returns every creation tool in toolbar order', () => {
+    const first = allTools()
+    expect(first.map((t) => t.id)).toEqual([
+      'highlight',
+      'redact-area',
+      'sketch',
+      'draw',
+      'note',
+      'shape',
+      'freetext',
+      'signature',
+    ])
+    const second = allTools()
+    first.forEach((t, i) => expect(t).not.toBe(second[i]))
+  })
+
+  it('a host tool replaces an allTools tool with its id', () => {
+    const custom: Tool = {
+      id: 'highlight',
+      cursor: 'text',
+      activate() {},
+      deactivate() {},
+    }
+    const tools = withHostTools([...allTools(), custom])
+    const highlights = tools.filter((t) => t.id === 'highlight')
+    expect(highlights).toHaveLength(1)
+    expect(highlights[0]).toBe(custom)
+  })
+
   it('set(id, options) merges options and they persist across switches', async () => {
     const seen: object[] = []
     const { tools } = await setup('text-simple', {
-      tools: [...builtinTools(), optionTool(seen)],
+      tools: [...allTools(), optionTool(seen)],
     })
     expect(tools.options('stand-in').get()).toEqual({ kind: 'rectangle', sides: 6 })
     tools.set('stand-in', { kind: 'ellipse' })
@@ -4476,7 +4513,7 @@ describe('tool registry and options', () => {
       container,
       document: doc,
       zoom: 0.5,
-      tools: [{ id: 'stamp-x', cursor: 'copy', activate, deactivate }],
+      tools: [...allTools(), { id: 'stamp-x', cursor: 'copy', activate, deactivate }],
     })
     cleanup.push(() => {
       engine.destroy()
@@ -4487,7 +4524,7 @@ describe('tool registry and options', () => {
     expect(container.dataset.inkTool).toBe('stamp-x')
     expect(container.style.cursor).toBe('copy')
     expect(activate).toHaveBeenCalledTimes(1)
-    // The built-ins are still there.
+    // The creation tools passed with it are there too.
     engine.tools.set('note')
     expect(deactivate).toHaveBeenCalledTimes(1)
     // Options outlive a rebuild.
@@ -4904,7 +4941,7 @@ describe('one-shot tools', () => {
       },
     }
     const { doc, container, viewport, tools } = await setup('text-simple', {
-      tools: [...builtinTools(), stamp],
+      tools: [...allTools(), stamp],
     })
     tools.set('stamp-x')
     click(container, viewport, 200, 300)

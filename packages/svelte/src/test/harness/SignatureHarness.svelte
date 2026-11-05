@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { allTools } from '@inkbar/core/dom'
+
   import InkRoot from '../../lib/components/InkRoot.svelte'
   import InkSignatureMenu from '../../lib/components/InkSignatureMenu.svelte'
   import InkToolbar from '../../lib/components/InkToolbar.svelte'
@@ -21,9 +23,10 @@
     store: SignatureStore
     fonts?: string[] | undefined
   } = $props()
+  const tools = allTools()
 </script>
 
-<InkRoot {src} {assets} zoom={1} signatures={store} signatureFonts={fonts}>
+<InkRoot {src} {assets} zoom={1} signatures={store} signatureFonts={fonts} {tools}>
   <InkToolbar>
     <InkToolButton tool="select" />
     <InkSignatureMenu />

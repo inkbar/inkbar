@@ -61,8 +61,9 @@ export interface MountViewerOptions {
   buffer?: number
   tool?: ToolId
   /**
-   * Host tools, added to the built-ins. A host tool with a built-in's id replaces it. The same
-   * instances are reused when the engine rebuilds.
+   * The creation tools (`allTools()`, or the ones the host imports); `select-text` and `select`
+   * are always present. A later tool replaces an earlier one with its id, so a host tool can
+   * replace a core one. The same instances are reused when the engine rebuilds.
    */
   tools?: Tool[]
   /**

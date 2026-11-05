@@ -1,3 +1,6 @@
+import { allTools } from '@inkbar/core/dom'
+import { useState } from 'react'
+
 import { InkRoot } from '../../src/components/InkRoot'
 import { InkTextStyleMenu } from '../../src/components/InkTextStyleMenu'
 import { InkToolbar } from '../../src/components/InkToolbar'
@@ -90,8 +93,9 @@ export function TextStyleHarness({
   /** Passed to the trigger as a host would. */
   disabled?: boolean
 }) {
+  const [tools] = useState(allTools)
   return (
-    <InkRoot src={src} assets={assets} zoom={1} fonts={fonts}>
+    <InkRoot src={src} assets={assets} zoom={1} fonts={fonts} tools={tools}>
       <InkToolbar>
         <InkTextStyleMenu disabled={disabled} />
       </InkToolbar>

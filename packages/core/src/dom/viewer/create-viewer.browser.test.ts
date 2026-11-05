@@ -9,9 +9,17 @@ import {
   type SignatureTemplate,
 } from '../../model/signatures'
 import { sandboxLoader } from '../../pdfjs/scripting'
+import { oneOfEach } from '../../test-support/annotations'
 import { definePlugin } from '../plugins/define'
 import { mountContainer, settle, until } from '../test-utils'
-import { shapeTool } from '../tools/shape'
+import {
+  allTools,
+  freetextTool,
+  highlightTool,
+  noteTool,
+  shapeTool,
+  signatureTool,
+} from '../tools'
 
 import { createColorMenu } from './color-menu'
 import {
@@ -257,7 +265,7 @@ describe('createViewer', () => {
   })
 
   it('keeps tool options across documents', async () => {
-    const { viewer } = make('text-simple')
+    const { viewer } = make('text-simple', { tools: [shapeTool()] })
     const { engine: first } = await ready(viewer)
     first.tools.set('shape', { kind: 'ellipse' })
     viewer.open(fixtureUrl('annotated-notes-threaded'))
@@ -335,7 +343,7 @@ describe('createViewer', () => {
 
   describe('controls', () => {
     it('roves between buttons; the select and the page input are their own Tab stops', async () => {
-      const { viewer } = make('text-simple')
+      const { viewer } = make('text-simple', { tools: allTools() })
       const { tools, status } = bars(viewer)
       // Disabled until a document is ready.
       expect([...status.querySelectorAll('button')].every((b) => b.disabled)).toBe(true)
@@ -406,7 +414,7 @@ describe('createViewer', () => {
     })
 
     it("keeps a host field's own tabindex", async () => {
-      const { viewer } = make('text-simple')
+      const { viewer } = make('text-simple', { tools: allTools() })
       const { tools } = bars(viewer)
       await ready(viewer)
       const skipped = document.createElement('input')
@@ -424,7 +432,7 @@ describe('createViewer', () => {
     })
 
     it('roves to buttons a host adds and leaves a host text input its keys', async () => {
-      const { viewer } = make('text-simple')
+      const { viewer } = make('text-simple', { tools: allTools() })
       const { tools } = bars(viewer)
       await ready(viewer)
       const extra = document.createElement('button')
@@ -452,7 +460,7 @@ describe('createViewer', () => {
     })
 
     it('the text tool button is named Text box, shows its icon and picks the text box tool', async () => {
-      const { viewer } = make('text-simple')
+      const { viewer } = make('text-simple', { tools: allTools() })
       const { tools: t } = bars(viewer)
       const text = createToolButton(viewer, 'freetext')
       t.append(text)
@@ -465,7 +473,7 @@ describe('createViewer', () => {
     })
 
     it("a tool button takes the tool's own label and icon", async () => {
-      const { viewer } = make('text-simple', { tools: [shapeTool()] })
+      const { viewer } = make('text-simple', { tools: allTools() })
       const { tools: t } = bars(viewer)
       const shape = createToolButton(viewer, 'shape')
       t.append(shape)
@@ -475,7 +483,7 @@ describe('createViewer', () => {
     })
 
     it('the sketch tool button is named Sketch, shows its icon and picks the sketch tool', async () => {
-      const { viewer } = make('text-simple')
+      const { viewer } = make('text-simple', { tools: allTools() })
       const { tools: t } = bars(viewer)
       const sketch = createToolButton(viewer, 'sketch')
       t.append(sketch)
@@ -488,7 +496,7 @@ describe('createViewer', () => {
     })
 
     it('the draw tool button is named Draw, shows its icon and picks the draw tool', async () => {
-      const { viewer } = make('text-simple')
+      const { viewer } = make('text-simple', { tools: allTools() })
       const { tools: t } = bars(viewer)
       const draw = createToolButton(viewer, 'draw')
       t.append(draw)
@@ -501,7 +509,7 @@ describe('createViewer', () => {
     })
 
     it('drives the tools, zoom and page', async () => {
-      const { viewer } = make('text-simple')
+      const { viewer } = make('text-simple', { tools: allTools() })
       const { tools: t, status: s } = bars(viewer)
       const { engine } = await ready(viewer)
       const highlight = t.querySelector<HTMLButtonElement>('[data-tool="highlight"]')!
@@ -582,7 +590,7 @@ describe('createViewer', () => {
     })
 
     it('follows the new viewport after a rebuild and disables while nothing is open', async () => {
-      const { viewer } = make('text-simple')
+      const { viewer } = make('text-simple', { tools: allTools() })
       const { status: s } = bars(viewer)
       const { engine } = await ready(viewer)
       const before = viewer.viewport.get()
@@ -933,7 +941,7 @@ describe('createViewer', () => {
     const byLabel = <T extends HTMLElement>(label: string): T =>
       panel()!.querySelector<T>(`[aria-label="${label}"]`)!
     const setup = async () => {
-      const { viewer } = make('text-simple')
+      const { viewer } = make('text-simple', { tools: [freetextTool()] })
       const trigger = createTextStyleMenu(viewer)
       viewer.element.prepend(trigger)
       const { doc, engine } = await ready(viewer)
@@ -1105,7 +1113,7 @@ describe('createViewer', () => {
     })
 
     it('the main button activates the highlight tool with the current kind', async () => {
-      const { viewer } = make('text-simple')
+      const { viewer } = make('text-simple', { tools: [highlightTool()] })
       const root = createHighlightMenu(viewer)
       viewer.element.prepend(root)
       const { main, chevron } = parts(root)
@@ -1120,7 +1128,7 @@ describe('createViewer', () => {
     })
 
     it('choosing underline activates highlight with kind underline', async () => {
-      const { viewer } = make('text-simple')
+      const { viewer } = make('text-simple', { tools: [highlightTool()] })
       const root = createHighlightMenu(viewer)
       viewer.element.prepend(root)
       const { main, chevron } = parts(root)
@@ -1142,7 +1150,7 @@ describe('createViewer', () => {
     })
 
     it("the colour row shows the chosen kind's default colour until a colour is picked", async () => {
-      const { viewer } = make('text-simple')
+      const { viewer } = make('text-simple', { tools: [highlightTool()] })
       const root = createHighlightMenu(viewer)
       viewer.element.prepend(root)
       const { chevron } = parts(root)
@@ -1234,7 +1242,7 @@ describe('createViewer', () => {
     })
 
     it('the main button activates the shape tool with the current kind', async () => {
-      const { viewer } = make('text-simple')
+      const { viewer } = make('text-simple', { tools: [shapeTool()] })
       const root = createShapeMenu(viewer)
       viewer.element.prepend(root)
       const { main, chevron } = parts(root)
@@ -1264,7 +1272,7 @@ describe('createViewer', () => {
     })
 
     it('choosing ellipse activates shape with kind ellipse', async () => {
-      const { viewer } = make('text-simple')
+      const { viewer } = make('text-simple', { tools: [shapeTool()] })
       const root = createShapeMenu(viewer)
       viewer.element.prepend(root)
       const { chevron } = parts(root)
@@ -1297,7 +1305,7 @@ describe('createViewer', () => {
     })
 
     it('the trigger icon follows the current kind', async () => {
-      const { viewer } = make('text-simple')
+      const { viewer } = make('text-simple', { tools: [shapeTool()] })
       const root = createShapeMenu(viewer)
       viewer.element.prepend(root)
       const { main } = parts(root)
@@ -1395,7 +1403,10 @@ describe('createViewer', () => {
     }
     async function mounted(templates: SignatureTemplate[] = []) {
       const store = createMemorySignatureStore(templates)
-      const { viewer } = make('text-simple', { signatures: store })
+      const { viewer } = make('text-simple', {
+        signatures: store,
+        tools: [signatureTool()],
+      })
       const root = createSignatureMenu(viewer)
       viewer.element.prepend(root)
       const { engine } = await ready(viewer)
@@ -1557,6 +1568,7 @@ describe('createViewer', () => {
       const store = createMemorySignatureStore()
       const { viewer } = make('text-simple', {
         signatures: store,
+        tools: [signatureTool()],
         signatureFonts: ['serif', 'cursive'],
       })
       const root = createSignatureMenu(viewer)
@@ -1635,7 +1647,7 @@ describe('createViewer', () => {
     })
 
     it('writes a new note, keeps the draft through list changes, and removes an abandoned one', async () => {
-      const { viewer } = make('text-simple')
+      const { viewer } = make('text-simple', { tools: [noteTool()] })
       const { doc, engine } = await ready(viewer)
       engine.tools.set('note')
       const scroll = viewer.element.querySelector<HTMLElement>('.ink-scroll')!
@@ -1674,7 +1686,7 @@ describe('createViewer', () => {
     })
 
     it('an outside press that drops an empty note switches without placing another', async () => {
-      const { viewer } = make('text-simple')
+      const { viewer } = make('text-simple', { tools: [noteTool()] })
       const { doc, engine } = await ready(viewer)
       await until(() => engine.viewport.hostFor(0) !== undefined)
       engine.tools.set('note')
@@ -1692,7 +1704,7 @@ describe('createViewer', () => {
     })
 
     it('a written comment turns the form into a reply', async () => {
-      const { viewer } = make('text-simple')
+      const { viewer } = make('text-simple', { tools: [noteTool()] })
       const { doc, engine } = await ready(viewer)
       engine.tools.set('note')
       const scroll = viewer.element.querySelector<HTMLElement>('.ink-scroll')!
@@ -2061,6 +2073,94 @@ function bars(viewer: Viewer): { tools: HTMLElement; status: HTMLElement } {
   viewer.element.append(status)
   return { tools, status }
 }
+
+describe('a viewer with no creation tools', () => {
+  it('a bare viewer shows and edits every annotation already in the file', async () => {
+    const { viewer } = make('text-simple')
+    const lineStyle = createLineStyleMenu(viewer)
+    viewer.element.prepend(lineStyle)
+    const { doc, engine } = await ready(viewer)
+    // No creation tool is registered.
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    engine.tools.set('highlight')
+    expect((error.mock.calls[0]?.[0] as InkError).code).toBe('UnknownTool')
+    error.mockRestore()
+    const ids = oneOfEach().map((a) => doc.annotations.add(a).id)
+    doc.annotations.select([])
+    await until(() => ids.every((id) => annotationEl(viewer, id) !== null))
+    const byType = (type: string) =>
+      doc.annotations.list.get().find((a) => a.type === type)!
+
+    engine.tools.set('select')
+    const scroll = viewer.element.querySelector<HTMLElement>('.ink-scroll')!
+    const h = engine.viewport.hostFor(0)!.getBoundingClientRect()
+
+    // A drag on the square moves it.
+    const square = byType('square')
+    const sq = annotationEl(viewer, square.id)!
+    const at = { x: h.left + 100, y: h.top + (792 - 540) }
+    pointer(sq, 'pointerdown', at.x, at.y)
+    pointer(scroll, 'pointermove', at.x + 20, at.y + 10)
+    pointer(scroll, 'pointermove', at.x + 40, at.y + 20)
+    pointer(scroll, 'pointerup', at.x + 40, at.y + 20)
+    expect(doc.annotations.get(square.id)!.rect).toMatchObject({ x: 112, y: 480 })
+
+    // The line style menu restyles the selected line.
+    const line = byType('line')
+    doc.annotations.select([line.id])
+    lineStyle.click()
+    ;[
+      ...document.querySelectorAll<HTMLButtonElement>(
+        '[data-ink-menu="line-style"] [role="menuitemradio"]'
+      ),
+    ]
+      .find((b) => b.textContent?.trim() === '4 pt')!
+      .click()
+    expect(doc.annotations.get(line.id)).toMatchObject({ width: 4 })
+
+    // Delete removes the selected circle.
+    const circle = byType('circle')
+    doc.annotations.select([circle.id])
+    const el = annotationEl(viewer, circle.id)!
+    el.focus()
+    await userEvent.keyboard('{Delete}')
+    expect(doc.annotations.get(circle.id)).toBeUndefined()
+
+    // Enter reopens the text box's editor.
+    const box = byType('freetext')
+    doc.annotations.select([box.id])
+    const boxEl = annotationEl(viewer, box.id)!
+    boxEl.focus()
+    key(boxEl, 'Enter')
+    const editor = boxEl.querySelector<HTMLElement>('[data-ink-editor]')
+    expect(editor?.textContent).toBe('Box')
+  })
+
+  it('a plugin tool works with no creation tools', async () => {
+    const activate = vi.fn()
+    const plugin = definePlugin({
+      id: 'p',
+      setup(ctx) {
+        ctx.tools.add({
+          id: 'stamp',
+          label: 'Stamp',
+          cursor: 'crosshair',
+          activate,
+          deactivate: () => undefined,
+        })
+      },
+    })
+    const { viewer } = make('text-simple', { plugins: [plugin] })
+    const b = createToolButton(viewer, 'p.stamp')
+    viewer.element.append(b)
+    expect(b.getAttribute('aria-label')).toBe('Stamp')
+    const { engine } = await ready(viewer)
+    await until(() => !b.disabled)
+    b.click()
+    expect(engine.tools.active.get()).toBe('p.stamp')
+    expect(activate).toHaveBeenCalled()
+  })
+})
 
 describe('createViewer plugins', () => {
   it('runs a plugin command from createCommandButton and reports busy and status', async () => {

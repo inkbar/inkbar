@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { allTools } from '@inkbar/core/dom'
+
   import InkRoot from '../../lib/components/InkRoot.svelte'
   import InkViewport from '../../lib/components/InkViewport.svelte'
 
@@ -11,9 +13,10 @@
     assets,
     withViewport = false,
   }: { src: string; assets: PdfAssets; withViewport?: boolean } = $props()
+  const tools = allTools()
 </script>
 
-<InkRoot {src} {assets} zoom={withViewport ? 1 : undefined}>
+<InkRoot {src} {assets} {tools} zoom={withViewport ? 1 : undefined}>
   <HookProbe />
   {#if withViewport}
     <!-- Test-only box: the scroll container needs a bounded height to scroll. -->

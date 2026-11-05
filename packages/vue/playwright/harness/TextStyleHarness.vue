@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { allTools } from '@inkbar/core/dom'
+
 import InkRoot from '../../src/components/InkRoot.vue'
 import InkTextStyleMenu from '../../src/components/InkTextStyleMenu.vue'
 import InkToolbar from '../../src/components/InkToolbar.vue'
@@ -16,10 +18,17 @@ const props = defineProps<{
   hostDisabled?: 'true' | 'false'
 }>()
 const host = useHostTrigger(() => props.hostDisabled)
+const tools = allTools()
 </script>
 
 <template>
-  <InkRoot :src="props.src" :assets="props.assets" :zoom="1" :fonts="props.fonts">
+  <InkRoot
+    :src="props.src"
+    :assets="props.assets"
+    :zoom="1"
+    :fonts="props.fonts"
+    :tools="tools"
+  >
     <InkToolbar><InkTextStyleMenu v-bind="host.attrs.value" /></InkToolbar>
     <div style="height: 600px; width: 900px"><InkViewport /></div>
     <TextStyleControls />

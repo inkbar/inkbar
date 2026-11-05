@@ -21,8 +21,8 @@ import type {
 import type { SignatureOptions, SignatureTemplate } from '../model/signatures'
 
 /**
- * Accessible names of the built-in tools, as the toolbar buttons announce them. A host tool has
- * no entry: its button takes the host's `label`, else the tool id.
+ * Accessible names of the two core select tools, as the toolbar buttons announce them. Every
+ * other tool has no entry: its button takes the tool's own `label`, else the tool id.
  */
 export const TOOL_LABELS: Readonly<Partial<Record<ToolId, string>>> = {
   'select-text': 'Select text',

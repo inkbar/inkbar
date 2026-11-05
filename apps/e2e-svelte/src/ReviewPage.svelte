@@ -13,6 +13,7 @@
     type DocumentSource,
     type InkDocument,
   } from '@inkbar/core'
+  import { allTools } from '@inkbar/core/dom'
   import { createFakeServer } from '@inkbar/e2e-shared/fake-server'
   import { recordReady } from '@inkbar/e2e-shared/metrics'
   import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
@@ -57,6 +58,7 @@
   )
   let readyCount = $state(0)
   let openDoc = $state.raw<InkDocument | null>(null)
+  const tools = allTools()
   let root = $state<InkRootHandle | undefined>(undefined)
   let largeBytes = $state.raw<Uint8Array | null>(null)
   /** The key whose saved annotations have been loaded; saving waits for it. */
@@ -187,6 +189,7 @@
   bind:this={root}
   bind:annotations
   bind:tool
+  {tools}
   history={true}
   {src}
   {assets}

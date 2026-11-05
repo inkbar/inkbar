@@ -1,3 +1,4 @@
+import { allTools } from '@inkbar/core/dom'
 import { useEffect, useState } from 'react'
 
 import { InkRoot } from '../../src/components/InkRoot'
@@ -26,6 +27,7 @@ type HostWindow = Window & { __inkHostRemove?: ((id: string) => void) | undefine
 export function PopoverHarness(props: PopoverHarnessProps) {
   const [list, setList] = useState<Annotation[]>([])
   const [proposals, setProposals] = useState(0)
+  const [tools] = useState(allTools)
   const delay = props.applyDelay
   function onAnnotationsChange(next: Annotation[]): void {
     setProposals((n) => n + 1)
@@ -48,6 +50,7 @@ export function PopoverHarness(props: PopoverHarnessProps) {
       assets={props.assets}
       zoom={1}
       tool={props.tool}
+      tools={tools}
       annotations={props.controlled ? list : undefined}
       onAnnotationsChange={onAnnotationsChange}
     >

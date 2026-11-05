@@ -64,9 +64,10 @@ export { createPageMount } from './page-mount'
 export type { PageLayer, PageMount, PageMountOptions } from './page-mount'
 export type { FormLayer, SignFieldRequest } from './form-layer'
 export {
-  builtinTools,
+  allTools,
   createToolController,
   createToolOptions,
+  drawTool,
   freetextTool,
   highlightTool,
   hitFor,
@@ -76,12 +77,13 @@ export {
   selectTool,
   shapeTool,
   signatureTool,
+  sketchTool,
   trackToolStyle,
   unknownTool,
   withHostTools,
 } from './tools'
 export type {
-  BuiltinToolId,
+  CoreToolId,
   PageHit,
   Tool,
   ToolContext,

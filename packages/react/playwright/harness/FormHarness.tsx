@@ -7,6 +7,7 @@ import {
   type PdfAssets,
   type SignatureTemplate,
 } from '@inkbar/core'
+import { allTools } from '@inkbar/core/dom'
 import { StrictMode, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 
@@ -94,12 +95,14 @@ export function FormHarness({
   const [values, setValues] = useState<FieldValues>(initial)
   const [heard, setHeard] = useState(0)
   const [store] = useState(() => createMemorySignatureStore(templates))
+  const [tools] = useState(allTools)
   return (
     <InkRoot
       src={src}
       assets={assets}
       zoom={1}
       signatures={store}
+      tools={tools}
       fields={controlled ? values : undefined}
       onFieldsChange={(next, change) => {
         setHeard((n) => n + 1)

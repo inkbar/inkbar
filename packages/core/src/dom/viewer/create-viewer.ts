@@ -503,8 +503,11 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
 
 const toolsByViewer = new WeakMap<Viewer, readonly Tool[]>()
 
-/** The tools a viewer registers (the built-ins, then its own and its plugins'), for the controls' labels and icons. */
-export function hostToolsOf(viewer: Viewer): readonly Tool[] {
+/**
+ * Every tool a viewer registers (`select-text` and `select`, then its own and its plugins'), for
+ * the controls' labels and icons.
+ */
+export function toolsOf(viewer: Viewer): readonly Tool[] {
   return toolsByViewer.get(viewer) ?? []
 }
 

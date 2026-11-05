@@ -22,7 +22,7 @@ import { sketchTool } from './sketch'
 import type { AnnotationStore } from '../../model/annotations/store'
 
 export type {
-  BuiltinToolId,
+  CoreToolId,
   PageHit,
   Tool,
   ToolContext,
@@ -62,11 +62,9 @@ export {
   type ShapeOptions,
 } from './shape'
 
-/** Fresh instances of every built-in tool. */
-export function builtinTools(): Tool[] {
+/** Fresh instances of every creation tool, in toolbar order. */
+export function allTools(): Tool[] {
   return [
-    selectTextTool(),
-    selectTool(),
     highlightTool(),
     redactAreaTool(),
     sketchTool(),
@@ -78,18 +76,27 @@ export function builtinTools(): Tool[] {
   ]
 }
 
-/** The built-in tools with a host's tools added, a host tool replacing a built-in by id. */
+/**
+ * `select-text` and `select` with a host's tools added by id, a later tool replacing an earlier
+ * one with its id.
+ */
 export function withHostTools(host: readonly Tool[] = []): Tool[] {
-  const byId = new Map(builtinTools().map((t) => [t.id, t]))
+  const byId = new Map<ToolId, Tool>([
+    ['select-text', selectTextTool()],
+    ['select', selectTool()],
+  ])
   for (const t of host) byId.set(t.id, t)
   return [...byId.values()]
 }
 
-/** Listens on `ctx.root` and routes pointer and key events to the active tool. */
+/**
+ * Listens on `ctx.root` and routes pointer and key events to the active tool. Without `tools`
+ * it has only `select-text` and `select`.
+ */
 export function createToolController(
   opts: Omit<ToolControllerOptions, 'tools'> & { tools?: Tool[] }
 ): ToolController {
-  return createWith({ ...opts, tools: opts.tools ?? builtinTools() })
+  return createWith({ ...opts, tools: opts.tools ?? withHostTools() })
 }
 
 export interface ToolStyleTracker {
@@ -100,13 +107,13 @@ export interface ToolStyleTracker {
 
 /**
  * A `ToolStyle` whose active group is the style group of the active tool among `tools` (the
- * built-ins plus a host's). The engine makes one when it is not handed a style; a binding
+ * select tools plus a host's). The engine makes one when it is not handed a style; a binding
  * makes its own per document, so its style controls work before the viewport mounts.
  */
 export function trackToolStyle(opts: {
   store: AnnotationStore
   history: { batch(fn: () => void): void }
-  /** Host tools, as passed to `mountViewer`. */
+  /** The creation tools, as passed to `mountViewer`. */
   tools?: readonly Tool[] | undefined
   tool?: ToolId | undefined
 }): ToolStyleTracker {

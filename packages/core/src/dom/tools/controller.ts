@@ -54,19 +54,10 @@ import type { SelectionQuads } from '../selection'
 import type { Viewport, ViewportHit } from '../viewport'
 import type { IconNode } from '@inkbar/icons'
 
-export type BuiltinToolId =
-  | 'select-text'
-  | 'select'
-  | 'highlight'
-  | 'redact-area'
-  | 'note'
-  | 'shape'
-  | 'freetext'
-  | 'draw'
-  | 'sketch'
-  | 'signature'
-/** A built-in tool's id, or any id a host registers its own tool under. */
-export type ToolId = BuiltinToolId | (string & {})
+/** The tools every viewer has. Creation tools are the host's to pass. */
+export type CoreToolId = 'select-text' | 'select'
+/** A core tool's id, or any id a host registers a tool under. */
+export type ToolId = CoreToolId | (string & {})
 
 /**
  * A one-shot tool switches back to `select-text` once it has made something and the user moves
