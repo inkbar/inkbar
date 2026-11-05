@@ -1618,7 +1618,7 @@
     font-size: 0.875rem;
   }
 
-  :where(.ink-card-title, .ink-card-meta, .ink-card-body) {
+  :where(.ink-card-title, .ink-card-meta, .ink-card-body, .ink-card-excerpt) {
     margin: 0;
   }
 
@@ -1645,6 +1645,17 @@
   :where(.ink-card-body) {
     margin-top: 0.25rem;
     color: var(--ink-muted-fg);
+  }
+
+  :where(.ink-card-excerpt) {
+    margin-top: 0.25rem;
+    color: var(--ink-muted-fg);
+  }
+
+  :where(.ink-card-excerpt mark) {
+    background: var(--ink-search-hit);
+    /* The hit colour is light in both themes, so the text on it stays dark. */
+    color: var(--ink-free-text);
   }
 
   :where(.ink-card-actions) {

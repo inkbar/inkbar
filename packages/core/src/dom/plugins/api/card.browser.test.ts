@@ -137,6 +137,19 @@ describe('plugin.marks card', () => {
     expect(Math.abs(c.left - m.left)).toBeLessThan(1)
   })
 
+  it('renders an excerpt with the match marked', async () => {
+    const { markFor } = await setup([finding('a')], (f) => ({
+      title: f.reason,
+      excerpt: { before: 'see the ', match: 'Acme', after: ' clause' },
+      actions: { Accept: () => {} },
+    }))
+    await userEvent.click(markFor('a')!)
+    const excerpt = openCard()!.querySelector('.ink-card-excerpt')!
+    expect(excerpt.tagName).toBe('P')
+    expect(excerpt.querySelector('mark')?.textContent).toBe('Acme')
+    expect(excerpt.textContent).toBe('see the Acme clause')
+  })
+
   it('leaves meta and body out when not given', async () => {
     const { markFor } = await setup([finding('a')])
     await userEvent.click(markFor('a')!)

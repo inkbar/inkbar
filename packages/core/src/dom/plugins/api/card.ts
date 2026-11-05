@@ -25,6 +25,8 @@ export interface CardSpec {
   swatch?: string
   /** Text under the meta line (`.ink-card-body`). */
   body?: string
+  /** A line of context with the match marked, after `body` (`.ink-card-excerpt`). */
+  excerpt?: { before: string; match: string; after: string }
   /**
    * One button per key, in order (`.ink-card-actions`). The first takes focus on open and is
    * styled as the primary action. Each action runs synchronously in one undo step: writes after
@@ -132,6 +134,10 @@ export function createCard<T extends RecordBase>(
       parts.push(meta)
     }
     if (spec.body !== undefined) parts.push(el('p', 'ink-card-body', spec.body))
+    if (spec.excerpt !== undefined) {
+      const { before, match, after } = spec.excerpt
+      parts.push(el('p', 'ink-card-excerpt', before, el('mark', '', match), after))
+    }
     const actions = el('div', 'ink-card-actions')
     for (const [label, fn] of Object.entries(spec.actions)) {
       const button = el('button', '', label) as HTMLButtonElement

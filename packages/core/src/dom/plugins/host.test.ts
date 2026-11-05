@@ -526,6 +526,7 @@ describe('ctx.search', () => {
       setMatchCase: vi.fn(),
       next: vi.fn(),
       previous: vi.fn(),
+      select: vi.fn(),
       close: vi.fn(),
     }
     hostWith([plugin], { search })
