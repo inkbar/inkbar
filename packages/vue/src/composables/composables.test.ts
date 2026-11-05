@@ -268,7 +268,7 @@ describe('records composables', () => {
     unmount()
   })
 
-  it('useRecordSelection follows mark clicks', async () => {
+  it('useRecordSelection follows the host selection', async () => {
     const { pluginHost, result, unmount } = mountWithHost(() =>
       useRecordSelection('sandbox.suggestions')
     )

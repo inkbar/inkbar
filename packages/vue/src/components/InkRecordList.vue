@@ -11,9 +11,18 @@
  * so pass functions defined once rather than inline. `update:count` gives the number listed
  * whenever it changes; the `empty` slot replaces "Nothing here yet.". It fills its parent's
  * height. Inside `InkRoot`; it renders empty on the server.
+ *
+ * In place of `records`, `source` takes a host's own `RecordListSource` and lists it with the
+ * same controller and cards; `card`, `where` and `sort` do not apply to it. Give one of the two:
+ * with both, `source` wins and a development build warns.
  */
-import { recordsSource, type CardSpec, type RecordsSourceOptions } from '@inkbar/core/dom'
-import { computed } from 'vue'
+import {
+  recordsSource,
+  type CardSpec,
+  type RecordListSource,
+  type RecordsSourceOptions,
+} from '@inkbar/core/dom'
+import { computed, watch } from 'vue'
 
 import { injectInkContext } from '../context'
 import { toReadable } from '../to-readable'
@@ -23,7 +32,8 @@ import RecordCards from './RecordCards.vue'
 import type { RecordBase } from '@inkbar/core'
 
 const props = defineProps<{
-  records: string
+  records?: string | undefined
+  source?: RecordListSource | undefined
   card?: ((record: T) => CardSpec) | undefined
   where?: ((record: T) => boolean) | undefined
   sort?: ((a: T, b: T) => number) | undefined
@@ -36,9 +46,22 @@ defineSlots<{ empty?(): unknown }>()
 const ctx = injectInkContext()
 const viewport = toReadable(() => ctx.viewport.value)
 
-const source = computed(() => {
+if (import.meta.env.DEV)
+  watch(
+    () => props.records !== undefined && props.source !== undefined,
+    (both) => {
+      if (both)
+        console.warn(
+          '[inkbar] InkRecordList takes `records` or `source`, not both: it lists `source`.'
+        )
+    },
+    { immediate: true }
+  )
+
+const source = computed((): RecordListSource | null => {
+  if (props.source) return props.source
   const pluginHost = ctx.pluginHost.value
-  if (!pluginHost) return null
+  if (!pluginHost || props.records === undefined) return null
   const opts: RecordsSourceOptions<T> = {}
   if (props.card) opts.card = props.card
   if (props.where) opts.where = props.where

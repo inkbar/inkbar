@@ -5,6 +5,7 @@ import { expect, test } from '@playwright/experimental-ct-vue'
 import { guardConsole } from '../../playwright/console-guard'
 import Harness from '../../playwright/harness/RecordsHarness.vue'
 import SearchHarness from '../../playwright/harness/SearchResultsHarness.vue'
+import SourceHarness from '../../playwright/harness/SourceHarness.vue'
 
 import type { Page } from '@playwright/test'
 
@@ -134,6 +135,19 @@ test('focus after accept moves to the next row', async ({ mount, page }) => {
   // None left: the list itself.
   await row('s0').getByRole('button', { name: 'Accept' }).click()
   await expect(list).toBeFocused()
+})
+
+test('lists a host source and selects through it', async ({ mount, page }) => {
+  await mount(SourceHarness, { props: { assets } })
+  const { list, rows, row } = parts(page)
+  await expect(rows).toHaveCount(2)
+  await expect(row('a').locator('.ink-card-title')).toHaveText('Item a')
+  await expect(row('b').locator('.ink-card-meta')).toHaveText('Page 2')
+  await expect(list.locator('.ink-record-list-empty')).toBeHidden()
+  await row('b').locator('.ink-card-title').click()
+  await expect(page.getByTestId('selects')).toHaveText('b')
+  await expect(row('b')).toHaveAttribute('aria-current', 'true')
+  await expect(row('b')).toBeFocused()
 })
 
 test('#empty renders when nothing is listed', async ({ mount, page }) => {

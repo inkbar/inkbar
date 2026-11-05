@@ -8,7 +8,12 @@
  * Field and find bar share the search state, so they never disagree. It fills its parent's
  * height. Inside `InkRoot`; it renders empty on the server.
  */
-import { findCountText, handleResultsFieldKey, searchSource } from '@inkbar/core/dom'
+import {
+  findCountText,
+  handleResultsFieldKey,
+  isBlankQuery,
+  searchSource,
+} from '@inkbar/core/dom'
 import { computed } from 'vue'
 
 import { useSearch } from '../composables/useSearch'
@@ -24,9 +29,8 @@ const { state } = search
 
 const source = computed(() => (ctx.search.value ? searchSource(ctx.search.value) : null))
 const count = computed(() => findCountText(state.value))
-// Nothing found yet is the count's to say while a query is in: "No results", or a scan. The
-// count says nothing and no scan runs only while the query is blank.
-const blank = computed(() => count.value === '' && !state.value.scanning)
+// Nothing found yet is the count's to say while a query is in: "No results", or a scan.
+const blank = computed(() => isBlankQuery(state.value.query))
 </script>
 
 <template>

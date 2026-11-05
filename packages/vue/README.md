@@ -211,7 +211,7 @@ An item's height is worked out from its page alone, so position what you add abs
 </InkPanel>
 ```
 
-The list and the marks share one selection: choosing a card selects its mark and scrolls the viewer there, and activating a mark selects its card. Each action runs in one undo step. `card`, `where` and `sort` replace the marks' card, filter and reading order. Changing one rebuilds the list, so define them once in your script, not inline in the template. `update:count` gives the number listed whenever it changes, ready for a panel badge. The `empty` slot replaces "Nothing here yet.".
+The list and the marks share one selection: choosing a card selects its mark and scrolls the viewer there, and activating a mark selects its card. Each action runs in one undo step. `card`, `where` and `sort` replace the marks' card, filter and reading order. Changing one rebuilds the list, so define them once in your script, not inline in the template. `update:count` gives the number listed whenever it changes, ready for a panel badge. The `empty` slot replaces "Nothing here yet.". To list something of your own, pass a `source` (a `RecordListSource`, as core's `recordsSource` and `searchSource` build) in place of `records`: it gets the same cards, keys and selection. With both, `source` wins.
 
 `InkSearchResults` is the same list over the document search: one card per hit, with its page and the text around it. Choosing a card makes its hit current, as the find bar's next and previous do. It has its own field, labelled "Find in document", and the find bar's match count; `:field="false"` leaves the field out when a find bar is on the page. Field and find bar share the search state, so they never disagree.
 
