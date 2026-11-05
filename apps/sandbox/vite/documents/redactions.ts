@@ -1,7 +1,8 @@
 /*
  * The redactions document: one page of three customer records holding the personal data the
  * Suggest redactions plugin looks for. Every value is made up: `QQ` National Insurance prefixes
- * are never issued, the phone numbers are in Ofcom's drama range and the domain is
+ * are never issued, the phone numbers are in Ofcom's drama range, the towns and streets are
+ * invented, the postcodes use the unissued `ZZ` area and the domain is
  * `example.com`.
  */
 import {
@@ -39,7 +40,7 @@ const RECORDS: readonly CustomerRecord[] = [
     ni: ['QQ123456C'],
     emails: ['m.okafor@example.com'],
     phones: ['07700 900123'],
-    address: '41 Station Road, Hebden Bridge HX7 8AD',
+    address: '41 Quillon Row, Marlowby ZZ1 1ZZ',
     plan: 'Household, billed monthly',
     note: 'Called on 2 October about a duplicate charge. Refund agreed; confirmation sent to m.okafor@example.com.',
   },
@@ -50,7 +51,7 @@ const RECORDS: readonly CustomerRecord[] = [
     ni: ['QQ654321A'],
     emails: ['dan.price@example.com'],
     phones: ['07700 900456'],
-    address: '9 Mill Close, Ilkley LS29 9QT',
+    address: '9 Fennick Close, Tarnwick ZZ2 2ZZ',
     plan: 'Household, billed quarterly',
     note: 'Moving house in December. Asked us to call 07700 900456 first, then send the final bill to dan.price@example.com.',
   },
@@ -61,7 +62,7 @@ const RECORDS: readonly CustomerRecord[] = [
     ni: [],
     emails: ['aisha.rahman@example.com'],
     phones: ['07700 900789'],
-    address: 'Flat 12, 3 Canal Wharf, Leeds LS11 5PS',
+    address: 'Flat 12, 3 Osprey Wharf, Marlowby ZZ1 2ZZ',
     plan: 'Business, billed monthly',
     note: 'Wants invoices addressed to the business, not to Aisha Rahman. Updated the account on 14 October.',
   },

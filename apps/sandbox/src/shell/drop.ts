@@ -17,6 +17,8 @@ export interface DropOptions {
 }
 
 export interface DropHandle {
+  /** Says the file opened last has no viewer after all, such as when the mount it waited for failed. */
+  noViewer(): void
   /** Forgets any read still under way and clears the status. */
   reset(): void
 }
@@ -43,6 +45,8 @@ function guardWindow(): void {
 
 export function handleDrops({ target, input, status, open }: DropOptions): DropHandle {
   let latest = 0
+  /** The name of the file a viewer last took, for `noViewer`. */
+  let opened: string | null = null
 
   async function read(file: File): Promise<void> {
     const request = ++latest
@@ -62,6 +66,7 @@ export function handleDrops({ target, input, status, open }: DropOptions): DropH
       data,
       key: `file:${file.name}:${file.size}:${file.lastModified}`,
     })
+    opened = taken ? file.name : null
     status.textContent = taken
       ? `Opened ${file.name}.`
       : `There is no viewer to open ${file.name} in.`
@@ -92,8 +97,12 @@ export function handleDrops({ target, input, status, open }: DropOptions): DropH
   })
 
   return {
+    noViewer() {
+      if (opened) status.textContent = `There is no viewer to open ${opened} in.`
+    },
     reset() {
       latest++
+      opened = null
       status.textContent = ''
     },
   }

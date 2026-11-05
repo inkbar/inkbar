@@ -22,10 +22,11 @@ import {
 import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 
+import { changedFields } from '../../shared/form'
 import { signatureFonts, signatures } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
-import type { DocumentSource } from '@inkbar/core'
+import type { DocumentSource, FieldValues } from '@inkbar/core'
 
 function group(
   label: string,
@@ -41,6 +42,8 @@ function group(
 }
 
 export function mount(el: HTMLElement, { source, log, onDocument }: ScenarioProps) {
+  /** Stops following the last document's field values. */
+  let unfollow = (): void => undefined
   const viewer = createViewer(el, {
     source,
     assets,
@@ -49,6 +52,13 @@ export function mount(el: HTMLElement, { source, log, onDocument }: ScenarioProp
     onFormAction: (action) => log('onFormAction', action),
     onReady: (doc) => {
       log('onReady', { pages: doc.pages.length })
+      // The field values are a readable on the form: follow them while the document is open.
+      unfollow()
+      let before: FieldValues = doc.form.values.get()
+      unfollow = doc.form.values.subscribe((values) => {
+        log('form.values', { fields: changedFields(before, values) })
+        before = values
+      })
       onDocument(doc)
     },
   })
@@ -92,6 +102,9 @@ export function mount(el: HTMLElement, { source, log, onDocument }: ScenarioProp
 
   return {
     open: (next: DocumentSource) => viewer.open(next),
-    destroy: () => viewer.destroy(),
+    destroy() {
+      unfollow()
+      viewer.destroy()
+    },
   }
 }

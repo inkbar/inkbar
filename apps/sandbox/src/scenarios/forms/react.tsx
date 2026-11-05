@@ -21,14 +21,33 @@ import {
   InkZoomOut,
   InkZoomSelect,
 } from '@inkbar/react'
+import { useEffect, useRef } from 'react'
 import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 
+import { changedFields } from '../../shared/form'
 import { signatureFonts, signatures } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
+import type { FieldValues, InkDocument } from '@inkbar/core'
 
 export default function FillAForm({ source, log, onDocument }: ScenarioProps) {
+  /** Stops following the open document's field values. */
+  const unfollow = useRef<() => void>(undefined)
+  useEffect(() => () => unfollow.current?.(), [])
+
+  function onReady(doc: InkDocument) {
+    log('onReady', { pages: doc.pages.length })
+    // The field values are a readable on the form: follow them while the document is open.
+    unfollow.current?.()
+    let before: FieldValues = doc.form.values.get()
+    unfollow.current = doc.form.values.subscribe((values) => {
+      log('form.values', { fields: changedFields(before, values) })
+      before = values
+    })
+    onDocument(doc)
+  }
+
   return (
     <InkRoot
       src={source}
@@ -36,10 +55,7 @@ export default function FillAForm({ source, log, onDocument }: ScenarioProps) {
       signatures={signatures}
       signatureFonts={signatureFonts}
       onFormAction={(action) => log('onFormAction', action)}
-      onReady={(doc) => {
-        log('onReady', { pages: doc.pages.length })
-        onDocument(doc)
-      }}
+      onReady={onReady}
       className="scenario-root"
     >
       <InkToolbar className="scenario-toolbar">
