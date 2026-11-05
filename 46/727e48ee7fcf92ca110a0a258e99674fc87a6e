@@ -1,0 +1,69 @@
+apps/sandbox/src/scenarios/redactions/ReviewSidebar.vue
+  s_1effe0625d7c7b::t_d6a9e53cfae142 28
+  s_1effe0625d7c7b::t_32cd5e2a24fc63 1-27,29-41,43-48,55-70
+  s_1effe0625d7c7b::t_7caebadbae14f7 42,49-54
+apps/sandbox/e2e/search.spec.ts
+  s_1effe0625d7c7b::t_1c76cceb93f3b7 81-106
+apps/sandbox/src/styles/app.css
+  s_1effe0625d7c7b::t_a34c8ab6a2415f 535-543,548-574,576-597
+  s_1effe0625d7c7b::t_0752a18e5cb933 544-547
+  s_1effe0625d7c7b::t_d3e3b6f7c28dfa 575
+apps/sandbox/src/scenarios/registry.ts
+  s_1effe0625d7c7b::t_9eb39b80076a7a 53-59
+apps/sandbox/src/scenarios/search/vue.vue
+  s_1effe0625d7c7b::t_b8eb7030a99d20 5-6,8,14,18-19,83-90
+apps/sandbox/src/scenarios/search/vanilla.ts
+  s_1effe0625d7c7b::t_b8eb7030a99d20 4-6,16-17,25,112-124,128,134
+apps/sandbox/src/scenarios/redactions/vanilla.ts
+  s_1effe0625d7c7b::t_7caebadbae14f7 40-44
+  s_1effe0625d7c7b::t_0752a18e5cb933 151-152,157,159
+  s_1effe0625d7c7b::t_417013f59f1976 5-6,19,22,25,34,36,153-156,158,160-244,252-255
+apps/sandbox/src/scenarios/search/react.tsx
+  s_1effe0625d7c7b::t_b8eb7030a99d20 4-5,7,13,17-18,77-84
+apps/sandbox/src/scenarios/redactions/vue.vue
+  s_1effe0625d7c7b::t_0752a18e5cb933 8,42,59-60,126
+  s_1effe0625d7c7b::t_08a8ea19f13f25 6,9,17,23,27,49-50,125,127-133
+  s_1effe0625d7c7b::t_dc585562897357 61
+apps/sandbox/src/scenarios/registry.test.ts
+  s_1effe0625d7c7b::t_60a54d60974554 30,33-37
+apps/sandbox/src/scenarios/search/svelte.svelte
+  s_1effe0625d7c7b::t_b8eb7030a99d20 5-7,9,15,19-20,62-69
+apps/sandbox/src/scenarios/redactions/svelte.svelte
+  s_1effe0625d7c7b::t_5eaa5b54ac0bc4 6-7,10,18,24,28,49,111,113-119
+  s_1effe0625d7c7b::t_0752a18e5cb933 9,59-61,112
+apps/sandbox/src/scenarios/redactions/ReviewSidebar.svelte
+  s_1effe0625d7c7b::t_c8ca850be334e2 1-71
+apps/sandbox/src/plugin/suggestions.css
+  s_1effe0625d7c7b::t_3e249c2cbcf9da 23,25-27
+apps/sandbox/src/scenarios/redactions/react.tsx
+  s_1effe0625d7c7b::t_7caebadbae14f7 46-50,101-106
+  s_1effe0625d7c7b::t_0752a18e5cb933 190-191
+  s_1effe0625d7c7b::t_698bd487ac1aaf 5,7-8,16,19,23,27,38,40,43,70-100,107-133,189,192-198
+apps/sandbox/src/plugin/suggestions.ts
+  s_1effe0625d7c7b::t_3e249c2cbcf9da 17-24,89-95,99
+  s_1effe0625d7c7b::t_7caebadbae14f7 96-98
+  s_1effe0625d7c7b::t_163ded6c0da2a6 100-101
+apps/sandbox/e2e/redactions.spec.ts
+  s_1effe0625d7c7b::t_ac4cf746898b7d 410-412
+  s_1effe0625d7c7b::t_0752a18e5cb933 286,288-289,293,295,297-298,300-301,303,394
+  s_1effe0625d7c7b::t_7caebadbae14f7 373-375,390-392,397-399
+  s_1effe0625d7c7b::t_53db2826019c44 299,302,304
+  s_1effe0625d7c7b::t_ddef207f86417b 27-31,43,48-63,282-285,287,290-292,294,296,305-372,376-389,393,395-396,402
+  s_1effe0625d7c7b::t_b86be266cc89e1 400-401,403
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "46727e48ee7fcf92ca110a0a258e99674fc87a6e",
+  "prompts": {},
+  "sessions": {
+    "s_1effe0625d7c7b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3adafbc8-4f4c-4ced-a223-6be21f4f163c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
