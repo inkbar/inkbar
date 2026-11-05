@@ -1,0 +1,57 @@
+packages/svelte/README.md
+  s_1effe0625d7c7b::t_a9318c69dff686 234-251,254,291
+packages/svelte/src/test/hooks.test.ts
+  s_1effe0625d7c7b::t_77aa5b5d6378b4 13-14,40-41
+packages/svelte/src/lib/hooks/useRecordSelection.svelte.ts
+  s_1effe0625d7c7b::t_b6c84bea791e67 1-23
+packages/svelte/src/test/harness/RecordListSsrHost.svelte
+  s_1effe0625d7c7b::t_28fb49d0d6801f 1-15
+packages/svelte/src/lib/components/RecordCards.svelte
+  s_1effe0625d7c7b::t_2d9663564a8059 1-173
+packages/svelte/src/test/ssr.test.ts
+  s_1effe0625d7c7b::t_77aa5b5d6378b4 68-71,172-183
+  s_1effe0625d7c7b::t_5360ee036f1cfe 184
+packages/svelte/src/test/harness/RecordsHarness.svelte
+  s_1effe0625d7c7b::t_28fb49d0d6801f 1-62
+packages/svelte/src/lib/hooks/useRecords.svelte.ts
+  s_1effe0625d7c7b::t_b6c84bea791e67 1-31
+packages/svelte/src/test/harness/RecordsProbe.svelte
+  s_1effe0625d7c7b::t_28fb49d0d6801f 1-35
+packages/svelte/src/test/RecordList.browser.test.ts
+  s_1effe0625d7c7b::t_2eff36d9d1474b 14,189-197
+  s_1effe0625d7c7b::t_1719d9466ef5b3 27-28,56-58,182-184
+  s_1effe0625d7c7b::t_304d5eb2955fde 171-172,241
+  s_1effe0625d7c7b::t_92b76dd6334b79 1-13,15-26,29-55,59-170,173-181,185-188,198-240,242-272,274-314
+  s_1effe0625d7c7b::t_226b2e324e6f0c 273
+packages/svelte/src/lib/components/InkSearchResults.svelte
+  s_1effe0625d7c7b::t_7f262872e49059 1-63
+packages/svelte/src/lib/components/InkRecordList.svelte
+  s_1effe0625d7c7b::t_226b2e324e6f0c 61-62
+  s_1effe0625d7c7b::t_7f262872e49059 1-60,63-91
+packages/svelte/src/test/harness/suggestions-plugin.ts
+  s_1effe0625d7c7b::t_cc79920cca34bb 1-43
+packages/svelte/src/test/harness/SearchResultsHarness.svelte
+  s_1effe0625d7c7b::t_28fb49d0d6801f 1-31
+packages/svelte/src/lib/index.ts
+  s_1effe0625d7c7b::t_179793641ac761 36-37,109
+  s_1effe0625d7c7b::t_7f262872e49059 105-108
+packages/svelte/src/test/harness/RecordSourceHarness.svelte
+  s_1effe0625d7c7b::t_28fb49d0d6801f 1-10,19-47,49-50
+  s_1effe0625d7c7b::t_2eff36d9d1474b 11-18,48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b09500f458297ec61d0ff15fc5fcd08df897cd1c",
+  "prompts": {},
+  "sessions": {
+    "s_1effe0625d7c7b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3adafbc8-4f4c-4ced-a223-6be21f4f163c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
