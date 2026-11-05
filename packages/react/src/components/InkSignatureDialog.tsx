@@ -2,7 +2,8 @@
  * "Create signature": a modal with Draw, Type and Image tabs. Draw is a pad with the draw
  * tool's renderer; Type sets a name in one of the host's handwriting fonts; Image takes a PNG
  * or JPEG scan. Save stores the template through InkRoot's signature store and, unless `select`
- * is false, selects it for the `signature` tool. Escape, Cancel or a press outside closes it.
+ * is false or no `signature` tool is registered, selects it for that tool. Escape, Cancel or a
+ * press outside closes it.
  */
 import {
   createSignatureDraft,
@@ -20,8 +21,8 @@ import { useEffect, useId, useRef, useState } from 'react'
 
 import { cx } from '../class-names'
 import { useInkContext } from '../context'
+import { useHasTool } from '../hooks/useRegisteredTool'
 import { useTool } from '../hooks/useTool'
-import { useToolOptions } from '../hooks/useToolOptions'
 import { useReadable } from '../use-readable'
 
 import type { SignatureOptions, SignatureTemplate } from '@inkbar/core'
@@ -32,8 +33,9 @@ export interface InkSignatureDialogProps {
   /** The fonts the Type tab offers. Default: InkRoot's `signatureFonts`. */
   fonts?: readonly string[] | undefined
   /**
-   * Whether saving selects the new signature for the `signature` tool. Default true. False
-   * leaves the tool alone, for a dialog that signs a field with it through `onSave`.
+   * Whether saving selects the new signature for the `signature` tool, when one is registered.
+   * Default true. False leaves the tool alone, for a dialog that signs a field with it through
+   * `onSave`.
    */
   select?: boolean | undefined
   /** Called with the new template once it is saved (and selected, with `select`). */
@@ -110,7 +112,9 @@ function SignatureForm({
 }) {
   const ctx = useInkContext('InkSignatureDialog')
   const { setTool } = useTool()
-  const [, setOptions] = useToolOptions<SignatureOptions>('signature')
+  // Without the signature tool, Save only stores the template, as signing a form field needs;
+  // its options are never read, which would log the missing tool.
+  const hasSignatureTool = useHasTool('signature')
   const [draft] = useState<SignatureDraft>(() =>
     createSignatureDraft({ fonts: fonts ?? ctx.signatureFonts })
   )
@@ -131,8 +135,9 @@ function SignatureForm({
     draft.save(ctx.signatures).then(
       (t) => {
         if (!t) return
-        if (select) {
-          setOptions({ templateId: t.id })
+        if (select && hasSignatureTool) {
+          const patch: Partial<SignatureOptions> = { templateId: t.id }
+          ctx.tools?.setOptions('signature', patch)
           setTool('signature')
         }
         onSave?.(t)

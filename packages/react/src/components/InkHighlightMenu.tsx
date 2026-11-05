@@ -19,6 +19,7 @@ import { useRef, useState, type ComponentPropsWithoutRef, type ReactNode } from 
 
 import { cx } from '../class-names'
 import { useDocument } from '../hooks/useDocument'
+import { useRegisteredTool } from '../hooks/useRegisteredTool'
 import { useTool } from '../hooks/useTool'
 import { useToolOptions } from '../hooks/useToolOptions'
 
@@ -33,11 +34,13 @@ export interface InkHighlightMenuProps extends Omit<
   children?: ReactNode
 }
 
-export function InkHighlightMenu({
-  className,
-  children,
-  ...rest
-}: InkHighlightMenuProps) {
+/** Renders nothing while no `highlight` tool is registered. */
+export function InkHighlightMenu(props: InkHighlightMenuProps) {
+  // The inner menu reads the tool's options, which would log a missing tool a second time.
+  return useRegisteredTool('highlight') ? <HighlightMenu {...props} /> : null
+}
+
+function HighlightMenu({ className, children, ...rest }: InkHighlightMenuProps) {
   const { tool, setTool } = useTool()
   const [options, setOptions] = useToolOptions<HighlightOptions>('highlight')
   const { document: doc } = useDocument()

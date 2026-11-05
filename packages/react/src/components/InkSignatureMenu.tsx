@@ -23,6 +23,7 @@ import {
 
 import { cx } from '../class-names'
 import { useInkContext } from '../context'
+import { useRegisteredTool } from '../hooks/useRegisteredTool'
 import { useTool } from '../hooks/useTool'
 import { useToolOptions } from '../hooks/useToolOptions'
 import { useReadable } from '../use-readable'
@@ -45,12 +46,13 @@ export interface InkSignatureMenuProps extends Omit<
 
 const NO_TEMPLATES: readonly SignatureTemplate[] = []
 
-export function InkSignatureMenu({
-  className,
-  children,
-  fonts,
-  ...rest
-}: InkSignatureMenuProps) {
+/** Renders nothing while no `signature` tool is registered. */
+export function InkSignatureMenu(props: InkSignatureMenuProps) {
+  // The inner menu reads the tool's options, which would log a missing tool a second time.
+  return useRegisteredTool('signature') ? <SignatureMenu {...props} /> : null
+}
+
+function SignatureMenu({ className, children, fonts, ...rest }: InkSignatureMenuProps) {
   const { tool, setTool } = useTool()
   const [options, setOptions] = useToolOptions<SignatureOptions>('signature')
   const { signatures } = useInkContext('InkSignatureMenu')

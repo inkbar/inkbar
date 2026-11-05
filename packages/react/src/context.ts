@@ -75,6 +75,13 @@ export interface InkContext {
   /** Host tools from InkRoot's `tools` prop; InkViewport registers them. */
   hostTools: Tool[] | undefined
   /**
+   * The ids of the tools the current viewer was built with, set by InkViewport through
+   * `setOpenedToolIds`; `null` while there is none. A tool added to `tools` later is
+   * registered from the next build.
+   */
+  openedToolIds: readonly ToolId[] | null
+  setOpenedToolIds: (ids: readonly ToolId[] | null) => void
+  /**
    * Calls InkRoot's current `decorateAnnotation` prop. The function itself stays the same
    * across renders, so a new prop does not re-render the context's consumers.
    */

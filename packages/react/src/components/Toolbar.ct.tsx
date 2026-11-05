@@ -4,6 +4,7 @@ import { expect, test } from '@playwright/experimental-ct-react'
 import { guardConsole } from '../../playwright/console-guard'
 import { ColorMenuHarness } from '../../playwright/harness/ColorMenuHarness'
 import { LineStyleHarness } from '../../playwright/harness/LineStyleHarness'
+import { MissingToolsHarness } from '../../playwright/harness/MissingToolsHarness'
 import { SignatureHarness } from '../../playwright/harness/SignatureHarness'
 import { TextStyleHarness } from '../../playwright/harness/TextStyleHarness'
 import { ToolbarHarness } from '../../playwright/harness/ToolbarHarness'
@@ -12,7 +13,7 @@ import { ZoomClickHarness } from '../../playwright/harness/ZoomClickHarness'
 import type { Page } from '@playwright/test'
 
 const assets = browserAssets()
-guardConsole(test)
+const consoleGuard = guardConsole(test)
 
 /** Toolbar buttons carry `data-tool`; scope to the toolbar so nothing else can match. */
 const toolButton = (id: string) => `[data-ink-toolbar] [data-tool="${id}"]`
@@ -1518,5 +1519,112 @@ test.describe('signature menu', () => {
     await expect(menu(page).getByRole('alert')).toHaveText(/could not be removed/)
     await expect(menu(page).getByRole('menuitemradio')).toHaveCount(2)
     await expect(store(page)).toHaveAttribute('data-count', '2')
+  })
+
+  test('the signature dialog saves without the signature tool', async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mount(
+      <SignatureHarness src={fixtureUrl('text-simple')} assets={assets} bare />
+    )
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    await page.getByRole('button', { name: 'Open dialog' }).click()
+    await dialog(page).getByRole('tab', { name: 'Type' }).click()
+    await dialog(page).getByLabel('Name').fill('Ada')
+    await dialog(page).getByRole('button', { name: 'Save' }).click()
+    await expect(dialog(page)).toBeHidden()
+    await expect(store(page)).toHaveAttribute('data-count', '1')
+    await expect(page.getByTestId('probe')).toHaveAttribute('data-tool', 'select-text')
+    await expect(cmp.locator('[data-ink-scroll]')).toHaveAttribute(
+      'data-ink-tool',
+      'select-text'
+    )
+  })
+})
+
+test.describe('missing tools', () => {
+  /** The console errors seen so far, each for a tool nobody registered. */
+  const unknown = () =>
+    consoleGuard.problems.map((m) => /No tool (\S+) is registered/.exec(m)?.[1] ?? m)
+
+  test('a tool button for a missing tool is disabled and hidden', async ({ mount }) => {
+    const cmp = await mount(
+      <MissingToolsHarness
+        src={fixtureUrl('text-simple')}
+        assets={assets}
+        controls={['highlight-button']}
+      />
+    )
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    const button = cmp.locator(toolButton('highlight'))
+    await expect(button).toBeDisabled()
+    await expect(button).toHaveAttribute('aria-hidden', 'true')
+    await expect(button).not.toHaveAttribute('aria-label')
+    await expect(button).not.toHaveAttribute('title')
+    await button.dispatchEvent('click')
+    await expect(cmp.getByTestId('probe')).toHaveAttribute('data-tool', 'select-text')
+    expect(unknown()).toEqual(['highlight'])
+    consoleGuard.clear()
+  })
+
+  test('menus for missing tools render nothing', async ({ mount }) => {
+    const cmp = await mount(
+      <MissingToolsHarness
+        src={fixtureUrl('text-simple')}
+        assets={assets}
+        controls={['highlight', 'shape', 'signature']}
+      />
+    )
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    await expect(cmp.locator('[data-ink-toolbar] [data-tool]')).toHaveCount(1)
+    await expect(cmp.locator('[data-ink-highlight-menu]')).toHaveCount(0)
+    await expect(cmp.locator('[data-ink-shape-menu]')).toHaveCount(0)
+    await expect(cmp.locator('[data-ink-signature-menu]')).toHaveCount(0)
+    expect(unknown().sort()).toEqual(['highlight', 'shape', 'signature'])
+    consoleGuard.clear()
+  })
+
+  test('a tool added after open becomes usable on the next open', async ({ mount }) => {
+    const cmp = await mount(
+      <MissingToolsHarness
+        src={fixtureUrl('text-simple')}
+        assets={assets}
+        controls={['highlight-button']}
+      />
+    )
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    const button = cmp.locator(toolButton('highlight'))
+    const scroll = cmp.locator('[data-ink-scroll]')
+    await expect(button).toBeDisabled()
+    // The open viewer has no highlight tool, so the button waits for the next open.
+    await cmp.update(
+      <MissingToolsHarness
+        src={fixtureUrl('text-simple')}
+        assets={assets}
+        controls={['highlight-button']}
+        highlight
+      />
+    )
+    await expect(button).toBeDisabled()
+    await expect(button).toHaveAttribute('aria-hidden', 'true')
+    await button.dispatchEvent('click')
+    await expect(scroll).toHaveAttribute('data-ink-tool', 'select-text')
+    await cmp.update(
+      <MissingToolsHarness
+        src={fixtureUrl('annotated-markup')}
+        assets={assets}
+        controls={['highlight-button']}
+        highlight
+      />
+    )
+    await expect(button).toBeEnabled()
+    await expect(button).toHaveAccessibleName('Highlight')
+    await button.click()
+    await expect(scroll).toHaveAttribute('data-ink-tool', 'highlight')
+    // Only the button's own report, from before the tool was added: the viewer was never asked
+    // for a tool it did not have.
+    expect(unknown()).toEqual(['highlight'])
+    consoleGuard.clear()
   })
 })

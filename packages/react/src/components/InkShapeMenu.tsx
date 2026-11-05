@@ -18,6 +18,7 @@ import { Popover, Toolbar } from 'radix-ui'
 import { useRef, useState, type ComponentPropsWithoutRef, type ReactNode } from 'react'
 
 import { cx } from '../class-names'
+import { useRegisteredTool } from '../hooks/useRegisteredTool'
 import { useTool } from '../hooks/useTool'
 import { useToolOptions } from '../hooks/useToolOptions'
 
@@ -31,7 +32,13 @@ export interface InkShapeMenuProps extends Omit<
   children?: ReactNode
 }
 
-export function InkShapeMenu({ className, children, ...rest }: InkShapeMenuProps) {
+/** Renders nothing while no `shape` tool is registered. */
+export function InkShapeMenu(props: InkShapeMenuProps) {
+  // The inner menu reads the tool's options, which would log a missing tool a second time.
+  return useRegisteredTool('shape') ? <ShapeMenu {...props} /> : null
+}
+
+function ShapeMenu({ className, children, ...rest }: InkShapeMenuProps) {
   const { tool, setTool } = useTool()
   const [options, setOptions] = useToolOptions<ShapeOptions>('shape')
   const [open, setOpen] = useState(false)
