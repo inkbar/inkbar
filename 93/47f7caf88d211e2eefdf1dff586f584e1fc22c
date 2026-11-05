@@ -1,0 +1,33 @@
+apps/sandbox/vite/documents/tour.ts
+  s_d6f92c10539fe3::t_87e9c40d3ac028 101,108-109,173,175,177-178,213,308,338
+  s_d6f92c10539fe3::t_7d6f43f74923e1 416
+  s_d6f92c10539fe3::t_4551693b4595c0 7-16,40,96-98,102-107,110-111,138-146,174,176,179-180,211-212,214-219,241-252,275-286,307,309-310,337,339-343,436-442
+apps/sandbox/vite/documents/layout.ts
+  s_d6f92c10539fe3::t_7cff5da5bc1171 204-222,257-260,262-279
+  s_d6f92c10539fe3::t_2bdb5bb08d2061 223-255,261
+  s_d6f92c10539fe3::t_783c1b8f173a43 9,21-22,256
+  s_d6f92c10539fe3::t_51a516995c571b 42-43,327-338,343-345,349-374,401-408
+apps/sandbox/vite/documents/documents.test.ts
+  s_d6f92c10539fe3::t_f9ca49dc29f264 4
+  s_d6f92c10539fe3::t_ee9f40f56e9424 190
+  s_d6f92c10539fe3::t_7d6f43f74923e1 17,172,174,188
+  s_d6f92c10539fe3::t_1e871820347058 182-186
+  s_d6f92c10539fe3::t_2729c33d200abc 11-12,173,175-181,187,189,191
+  s_d6f92c10539fe3::t_8f8f59a6203584 192
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9347f7caf88d211e2eefdf1dff586f584e1fc22c",
+  "prompts": {},
+  "sessions": {
+    "s_d6f92c10539fe3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db98c1ef-4c5a-4c88-b425-330912eecf03",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
