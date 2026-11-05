@@ -726,10 +726,6 @@ for (const framework of FRAMEWORK_ORDER) {
         .toBe(true)
       await dialog.getByRole('button', { name: 'Save' }).click()
       await expect(dialog).toHaveCount(0)
-      // The Svelte binding releases the dialog's pointer-events lock on the body a few frames
-      // after it closes (a binding bug, to be reported), so a click in that gap lands on
-      // nothing. Wait for the lock to clear; the other bindings clear it at once.
-      await expect(page.locator('body')).not.toHaveCSS('pointer-events', 'none')
       const sign = page.getByRole('button', { name: 'Sign', exact: true })
       await expect(sign).toHaveAttribute('aria-pressed', 'true')
       const box = (await page.locator('.ink-page[data-page="0"]').boundingBox())!
