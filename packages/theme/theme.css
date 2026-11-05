@@ -1036,6 +1036,69 @@
     display: none;
   }
 
+  /*
+   * The thumbnail list (createThumbnails and the bindings' list): it fills its parent's height
+   * and scrolls, with only the items near the visible part mounted, each placed absolutely at
+   * its offset over a spacer of the full height. An item is its thumbnail plus 32px (padding,
+   * gap and label), the height the list controller counts on.
+   */
+  :where(.ink-thumbnails) {
+    position: relative;
+    box-sizing: border-box;
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  :where(.ink-thumbnails-entry) {
+    position: absolute;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+  }
+
+  :where(.ink-thumbnails-item) {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: calc(var(--ink-thumbnail-width) + 16px);
+    height: 100%;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: var(--ink-radius);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  :where(.ink-thumbnails-item:hover) {
+    background: color-mix(in srgb, var(--ink-fg) 8%, transparent);
+  }
+
+  :where(.ink-thumbnails-item:focus-visible) {
+    outline: 2px solid var(--ink-ring);
+    outline-offset: -2px;
+  }
+
+  :where(.ink-thumbnails-item[aria-current='page'] .ink-thumbnail) {
+    outline: 2px solid var(--ink-accent);
+    outline-offset: 2px;
+  }
+
+  :where(.ink-thumbnails-label) {
+    font-size: 0.75rem;
+    line-height: 16px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  :where(.ink-thumbnails-item[aria-current='page'] .ink-thumbnails-label) {
+    font-weight: 600;
+  }
+
   /* Text for assistive technology only, such as the find bar's live region. */
   :where(.ink-visually-hidden) {
     position: absolute;
