@@ -18,7 +18,7 @@ const events = (page: Page) => page.locator('aside[aria-label="Events"] ol > li'
 const values = (page: Page) => page.locator('#panel-values pre')
 
 async function open(page: Page, framework: string): Promise<void> {
-  await page.goto(`app.html#/${framework}/forms`)
+  await page.goto(`./#/${framework}/forms`)
   await expect(viewer(page).locator('[data-ink-root]')).toHaveAttribute(
     'data-state',
     'ready',
@@ -137,6 +137,18 @@ for (const framework of FRAMEWORK_ORDER) {
       const newest = events(page).first()
       await expect(newest.locator('[data-event-name]')).toHaveText(FORM_EVENT[framework])
       await expect(newest.locator('.event-payload')).toContainText('submit')
+    })
+
+    test(`${framework} forms: a link button logs an open-url action`, async ({
+      page,
+    }) => {
+      await open(page, framework)
+      await goToPage(page, 2)
+      await field(page, 2, 'link').locator('button').click()
+      const newest = events(page).first()
+      await expect(newest.locator('[data-event-name]')).toHaveText(FORM_EVENT[framework])
+      await expect(newest.locator('.event-payload')).toContainText('open-url')
+      await expect(newest.locator('.event-payload')).toContainText('https://example.com')
     })
 
     test(`${framework} forms: a signature field signs with no signature tool`, async ({

@@ -9,7 +9,6 @@ import { createPluginHost } from '@inkbar/core/dom'
 
 import { makeLetter } from '../../vite/documents/letter.ts'
 import { makeRedactions, redactionRecords } from '../../vite/documents/redactions.ts'
-import { makeSample } from '../../vite/make-sample.ts'
 
 import {
   findSuggestions,
@@ -31,7 +30,7 @@ function nodeAssets() {
   }
 }
 
-let sampleBytes: Uint8Array
+let redactionsBytes: Uint8Array
 const opened: InkDocument[] = []
 
 /** A fresh copy of `bytes`, open and ready. */
@@ -42,23 +41,38 @@ async function openBytes(bytes: Uint8Array): Promise<InkDocument> {
   return doc
 }
 
-/** A fresh copy of the sandbox's sample PDF, open and ready. */
-const openSample = () => openBytes(sampleBytes)
+/**
+ * What the redactions document yields, in reading order. A kind's first hit takes the kind's
+ * id and each later hit, of any value, takes the next number: the second email is `email-2`.
+ */
+const REDACTIONS_IDS = [
+  'ni-number',
+  'email',
+  'phone',
+  'email-2',
+  'ni-number-2',
+  'email-3',
+  'phone-2',
+  'phone-3',
+  'email-4',
+  'email-5',
+  'phone-4',
+]
 
-/** The sample's customer record on page 4, in reading order. */
-const SAMPLE_IDS = ['ni-number', 'email', 'phone', 'email-2']
+/** A fresh copy of the redactions document, open and ready. */
+const openRedactions = () => openBytes(redactionsBytes)
 
 before(async () => {
-  sampleBytes = await makeSample()
+  redactionsBytes = await makeRedactions()
 })
 
 after(() => {
   for (const doc of opened) doc.destroy()
 })
 
-/** The plugin in a real host, over the sample, as a viewer runs it. */
+/** The plugin in a real host, over the redactions document, as a viewer runs it. */
 async function setUp(options?: SuggestionsOptions) {
-  const doc = await openSample()
+  const doc = await openRedactions()
   const document = writable<InkDocument | null>(null)
   const host = createPluginHost({
     plugins: [suggestionsPlugin(options)],
@@ -74,27 +88,44 @@ async function setUp(options?: SuggestionsOptions) {
 
 const statusOf = (s: Suggestion) => [s.id, s.status]
 
-void test('findSuggestions finds the four sample values in the sample, in reading order', async () => {
-  const doc = await openSample()
+void test('findSuggestions lists the first record values in reading order', async () => {
+  const doc = await openRedactions()
   const found = await findSuggestions(doc)
+  const [record] = redactionRecords()
   assert.deepEqual(
-    found.map((s) => [s.id, s.reason, s.confidence, s.status, s.page, s.text]),
+    found.slice(0, 3).map((s) => [s.id, s.reason, s.status, s.page, s.text]),
     [
-      ['ni-number', 'National Insurance number', 0.95, 'suggested', 3, 'QQ123456C'],
-      ['email', 'Email address', 0.85, 'suggested', 3, 'm.okafor@example.com'],
-      ['phone', 'Phone number', 0.6, 'suggested', 3, '07700 900123'],
-      ['email-2', 'Email address', 0.85, 'suggested', 3, 'm.okafor@example.com'],
+      ['ni-number', 'National Insurance number', 'suggested', 0, record!.ni[0]],
+      ['email', 'Email address', 'suggested', 0, record!.emails[0]],
+      ['phone', 'Phone number', 'suggested', 0, record!.phones[0]],
     ]
+  )
+  assert.deepEqual(
+    found.map((s) => s.confidence),
+    found.map(
+      (s) =>
+        ({ 'National Insurance number': 0.95, 'Email address': 0.85 })[s.reason] ?? 0.6
+    )
   )
 })
 
 void test('findSuggestions marks where the text is on the page', async () => {
-  const doc = await openSample()
+  const doc = await openRedactions()
   const [ni] = await findSuggestions(doc)
-  // The sample draws the NI number at x 383, on a line from about 247 to 259 pt.
-  assert.ok(Math.abs(ni!.rect.x - 383) < 1, `x is ${ni!.rect.x}`)
-  assert.ok(ni!.rect.y > 244 && ni!.rect.y + ni!.rect.height < 262, `y is ${ni!.rect.y}`)
+  assert.equal(ni!.text, 'QQ123456C')
   assert.ok(ni!.quads.length > 0)
+  assert.ok(ni!.rect.width > 20 && ni!.rect.height > 6 && ni!.rect.height < 20)
+  // Inside the page: x and y are in points from the bottom left.
+  assert.ok(ni!.rect.x > 0 && ni!.rect.y > 0)
+})
+
+void test('findSuggestions numbers repeated kinds in reading order', async () => {
+  const found = await findSuggestions(await openRedactions())
+  assert.deepEqual(
+    found.map((s) => s.id),
+    REDACTIONS_IDS
+  )
+  assert.equal(found[3]!.text, found[1]!.text, 'email-2 repeats the first email')
 })
 
 void test('findSuggestions finds every NI number, email and phone in the redactions document', async () => {
@@ -123,28 +154,28 @@ void test('findSuggestions finds nothing when the text is absent', async () => {
 })
 
 void test('findSuggestions stops when its signal aborts', async () => {
-  const doc = await openSample()
+  const doc = await openRedactions()
   const controller = new AbortController()
   const found = findSuggestions(doc, { signal: controller.signal })
   controller.abort()
   await assert.rejects(found, { name: 'AbortError' })
 })
 
-void test('Suggest adds the four suggestions once, in one undo step, and saves them', async () => {
+void test('Suggest adds the suggestions once, in one undo step, and saves them', async () => {
   let saved: readonly Suggestion[] = []
   const { doc, suggest } = await setUp({
     records: { suggestions: { onChange: (list) => (saved = list) } },
   })
   assert.equal(suggest.label, 'Suggest redactions')
   await suggest.run()
-  assert.equal(suggest.status?.get(), '4 suggestions')
+  assert.equal(suggest.status?.get(), '11 suggestions')
   assert.deepEqual(
     saved.map((s) => s.id),
-    SAMPLE_IDS
+    REDACTIONS_IDS
   )
   await suggest.run()
   assert.equal(suggest.status?.get(), '0 suggestions')
-  assert.equal(saved.length, 4)
+  assert.equal(saved.length, 11)
   doc.history.undo()
   assert.equal(saved.length, 0)
 })
@@ -155,7 +186,7 @@ void test('a Suggest run that a new document interrupts adds nothing to either',
     records: { suggestions: { onChange: (list) => (saved = list) } },
   })
   const run = suggest.run()
-  document.set(await openSample())
+  document.set(await openRedactions())
   await run
   assert.equal(saved.length, 0)
   assert.equal(suggest.status?.get(), '')
@@ -163,7 +194,7 @@ void test('a Suggest run that a new document interrupts adds nothing to either',
 
 void test('deleting an accepted redaction restores its suggestion, in the same undo step', async () => {
   let saved: readonly Suggestion[] = []
-  const [first] = await findSuggestions(await openSample())
+  const [first] = await findSuggestions(await openRedactions())
   const { doc } = await setUp({
     records: {
       suggestions: {

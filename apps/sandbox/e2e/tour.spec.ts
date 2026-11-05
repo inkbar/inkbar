@@ -1,9 +1,48 @@
+import { fileURLToPath } from 'node:url'
+
 import { guardConsole } from '@inkbar/e2e-shared/console-guard'
 import { expect, test, type Page } from '@playwright/test'
+import { PDFArray, PDFDict, PDFDocument, PDFName } from 'pdf-lib'
 
 import { FRAMEWORK_ORDER } from '../src/shell/frameworks.ts'
+import { makeDocument } from '../vite/documents/index.ts'
 
 guardConsole(test)
+
+/** A FreeText callout stored the standard way, with its own appearance. */
+const standardCallout = fileURLToPath(
+  new URL('../../../fixtures/pdf/standard-callout.pdf', import.meta.url)
+)
+
+const MARK_TYPES: Record<string, string> = {
+  Highlight: 'highlight',
+  Underline: 'underline',
+  Squiggly: 'squiggly',
+  StrikeOut: 'strikeout',
+  Square: 'square',
+  Circle: 'circle',
+  Line: 'line',
+  Polygon: 'polygon',
+  Ink: 'ink',
+  FreeText: 'freetext',
+  Text: 'text',
+}
+
+/**
+ * The marks the viewer draws per page, read from the tour document itself. A reply (it has
+ * /IRT) lives in its note's thread, and the signature stamp is painted into the page by PDF.js
+ * with no overlay of its own, so neither is a mark.
+ */
+async function embeddedMarksByPage(): Promise<string[][]> {
+  const d = await PDFDocument.load(await makeDocument('tour'))
+  return d.getPages().map((p) =>
+    (p.node.lookupMaybe(PDFName.of('Annots'), PDFArray)?.asArray() ?? [])
+      .map((ref) => d.context.lookup(ref, PDFDict))
+      .filter((a) => !a.has(PDFName.of('IRT')))
+      .map((a) => MARK_TYPES[String(a.get(PDFName.of('Subtype'))).slice(1)])
+      .filter((t): t is string => t !== undefined)
+  )
+}
 
 async function waitForFirstPage(page: Page): Promise<void> {
   await expect(page.locator('[data-scenario-viewer] [data-ink-root]')).toHaveAttribute(
@@ -36,8 +75,75 @@ const sessionShape = (page: Page, type: string) =>
 
 for (const framework of FRAMEWORK_ORDER) {
   test.describe(`${framework} tour`, () => {
+    test('renders page 1 with its embedded highlight and note', async ({ page }) => {
+      await page.goto(`./#/${framework}/tour`)
+      await waitForFirstPage(page)
+      await expect(page.locator('[data-scenario-viewer] [data-ink-root]')).toHaveCount(1)
+      const marks = page.locator('.ink-page[data-page="0"] .ink-annotation')
+      // The note's reply shows in its thread, not as a mark of its own.
+      await expect(marks).toHaveCount(2)
+      await expect(
+        marks.evaluateAll((els) => els.map((e) => e.dataset.type))
+      ).resolves.toEqual(['highlight', 'text'])
+      await expect(
+        marks.evaluateAll((els) => els.map((e) => e.dataset.source))
+      ).resolves.toEqual(['pdf', 'pdf'])
+    })
+
+    test('renders every embedded annotation type of the tour document', async ({
+      page,
+    }) => {
+      const expected = await embeddedMarksByPage()
+      // Each type in the document shows up somewhere, so a dropped type cannot hide.
+      expect(new Set(expected.flat())).toEqual(
+        new Set([
+          'highlight',
+          'text',
+          'underline',
+          'squiggly',
+          'strikeout',
+          'freetext',
+          'circle',
+          'line',
+          'polygon',
+          'ink',
+          'square',
+        ])
+      )
+      await page.goto(`./#/${framework}/tour`)
+      await waitForFirstPage(page)
+      for (const [index, types] of expected.entries()) {
+        await page.locator('input[aria-label="Page"]').fill(String(index + 1))
+        await page.keyboard.press('Enter')
+        const marks = page.locator(`.ink-page[data-page="${index}"] .ink-annotation`)
+        await expect(marks).toHaveCount(types.length)
+        await expect(
+          marks.evaluateAll((els) => els.map((e) => e.dataset.type))
+        ).resolves.toEqual(types)
+      }
+    })
+
+    test('opens a PDF with a standard callout and gives it a hit area', async ({
+      page,
+    }) => {
+      await page.goto(`./#/${framework}/tour`)
+      await waitForFirstPage(page)
+      await page.locator('input[type=file]').setInputFiles(standardCallout)
+      await expect(page.locator('[data-file-status]')).toHaveText(
+        'Opened standard-callout.pdf.'
+      )
+      await waitForFirstPage(page)
+      const callout = page.locator(
+        '.ink-page[data-page="0"] .ink-annotation[data-type="freetext"][data-source="pdf"]'
+      )
+      await expect(callout).toHaveCount(1)
+      await expect(callout).toHaveAttribute('data-locked', '')
+      // PDF.js paints the callout; Inkbar adds only the invisible hit area over it.
+      await expect(callout.locator('svg[data-ink-hit]')).toHaveCount(1)
+    })
+
     test('select text then rectangle select a note', async ({ page }) => {
-      await page.goto(`app.html#/${framework}/tour`)
+      await page.goto(`./#/${framework}/tour`)
       await waitForFirstPage(page)
       const selectText = page.getByRole('button', { name: 'Select text', exact: true })
       await expect(selectText).toHaveAttribute('aria-pressed', 'true')
@@ -88,7 +194,7 @@ for (const framework of FRAMEWORK_ORDER) {
     test('select text: a drag across text clears the annotation selection', async ({
       page,
     }) => {
-      await page.goto(`app.html#/${framework}/tour`)
+      await page.goto(`./#/${framework}/tour`)
       await waitForFirstPage(page)
       const pageBox = (await page.locator('.ink-page[data-page="0"]').boundingBox())!
       await page.getByRole('button', { name: 'Add note' }).click()
@@ -123,7 +229,7 @@ for (const framework of FRAMEWORK_ORDER) {
     test('a drag that starts on a highlight selects text, not the highlight', async ({
       page,
     }) => {
-      await page.goto(`app.html#/${framework}/tour`)
+      await page.goto(`./#/${framework}/tour`)
       await waitForFirstPage(page)
       const span = page
         .locator('.ink-page[data-page="0"] [data-ink-text-layer] span')
@@ -172,7 +278,7 @@ for (const framework of FRAMEWORK_ORDER) {
     })
 
     test('highlight text and comment on it', async ({ page }) => {
-      await page.goto(`app.html#/${framework}/tour`)
+      await page.goto(`./#/${framework}/tour`)
       await waitForFirstPage(page)
       const span = page
         .locator('.ink-page[data-page="0"] [data-ink-text-layer] span')
@@ -228,7 +334,7 @@ for (const framework of FRAMEWORK_ORDER) {
     })
 
     test('a drag across a just-made highlight selects text', async ({ page }) => {
-      await page.goto(`app.html#/${framework}/tour`)
+      await page.goto(`./#/${framework}/tour`)
       await waitForFirstPage(page)
       const span = page
         .locator('.ink-page[data-page="0"] [data-ink-text-layer] span')
@@ -259,7 +365,7 @@ for (const framework of FRAMEWORK_ORDER) {
     })
 
     test('line style changes a drawn rectangle', async ({ page }) => {
-      await page.goto(`app.html#/${framework}/tour`)
+      await page.goto(`./#/${framework}/tour`)
       await waitForFirstPage(page)
       await shapeButton(page).click()
       await dragShape(page)
@@ -277,7 +383,7 @@ for (const framework of FRAMEWORK_ORDER) {
     })
 
     test('fill colour applies to a selected rectangle', async ({ page }) => {
-      await page.goto(`app.html#/${framework}/tour`)
+      await page.goto(`./#/${framework}/tour`)
       await waitForFirstPage(page)
       await shapeButton(page).click()
       await dragShape(page)
@@ -294,7 +400,7 @@ for (const framework of FRAMEWORK_ORDER) {
     test('a click on empty page after a shape switches back to Select text', async ({
       page,
     }) => {
-      await page.goto(`app.html#/${framework}/tour`)
+      await page.goto(`./#/${framework}/tour`)
       await waitForFirstPage(page)
       await shapeButton(page).click()
       await dragShape(page)
@@ -309,7 +415,7 @@ for (const framework of FRAMEWORK_ORDER) {
     })
 
     test('draw a rectangle and an arrow', async ({ page }) => {
-      await page.goto(`app.html#/${framework}/tour`)
+      await page.goto(`./#/${framework}/tour`)
       await waitForFirstPage(page)
       await shapeButton(page).click()
       await expect(shapeButton(page)).toHaveAttribute('aria-pressed', 'true')
@@ -327,7 +433,7 @@ for (const framework of FRAMEWORK_ORDER) {
     })
 
     test('the line style arrowheads apply to new lines and arrows', async ({ page }) => {
-      await page.goto(`app.html#/${framework}/tour`)
+      await page.goto(`./#/${framework}/tour`)
       await waitForFirstPage(page)
       await shapeButton(page).click()
       const kind = async (name: string) => {
@@ -357,7 +463,7 @@ for (const framework of FRAMEWORK_ORDER) {
     })
 
     test('type into a new text box', async ({ page }) => {
-      await page.goto(`app.html#/${framework}/tour`)
+      await page.goto(`./#/${framework}/tour`)
       await waitForFirstPage(page)
       const text = page.getByRole('button', { name: 'Text box', exact: true })
       await text.click()
@@ -381,7 +487,7 @@ for (const framework of FRAMEWORK_ORDER) {
     })
 
     test('add a speech bubble with text', async ({ page }) => {
-      await page.goto(`app.html#/${framework}/tour`)
+      await page.goto(`./#/${framework}/tour`)
       await waitForFirstPage(page)
       await page.getByRole('button', { name: 'Choose shape' }).click()
       await page
@@ -401,7 +507,7 @@ for (const framework of FRAMEWORK_ORDER) {
     })
 
     test('add a loupe', async ({ page }) => {
-      await page.goto(`app.html#/${framework}/tour`)
+      await page.goto(`./#/${framework}/tour`)
       await waitForFirstPage(page)
       await page.getByRole('button', { name: 'Choose shape' }).click()
       await page.getByRole('menuitemradio', { name: 'Loupe', exact: true }).click()
@@ -421,7 +527,7 @@ for (const framework of FRAMEWORK_ORDER) {
     })
 
     test('add a mask', async ({ page }) => {
-      await page.goto(`app.html#/${framework}/tour`)
+      await page.goto(`./#/${framework}/tour`)
       await waitForFirstPage(page)
       await page.getByRole('button', { name: 'Choose shape' }).click()
       await page.getByRole('menuitemradio', { name: 'Mask', exact: true }).click()
@@ -448,7 +554,7 @@ for (const framework of FRAMEWORK_ORDER) {
     test('a click on a text box committed by focus leaving keeps the Text tool', async ({
       page,
     }) => {
-      await page.goto(`app.html#/${framework}/tour`)
+      await page.goto(`./#/${framework}/tour`)
       await waitForFirstPage(page)
       const text = page.locator('[data-ink-tool-button][data-tool="freetext"]')
       await text.click()
@@ -472,7 +578,7 @@ for (const framework of FRAMEWORK_ORDER) {
     test('a click elsewhere after placing a note drops it and switches to Select text', async ({
       page,
     }) => {
-      await page.goto(`app.html#/${framework}/tour`)
+      await page.goto(`./#/${framework}/tour`)
       await waitForFirstPage(page)
       await page.getByRole('button', { name: 'Add note', exact: true }).click()
       const box = (await page.locator('.ink-page[data-page="0"]').boundingBox())!
@@ -490,7 +596,7 @@ for (const framework of FRAMEWORK_ORDER) {
     })
 
     test('make a text box bold and centred', async ({ page }) => {
-      await page.goto(`app.html#/${framework}/tour`)
+      await page.goto(`./#/${framework}/tour`)
       await waitForFirstPage(page)
       await page.getByRole('button', { name: 'Text box', exact: true }).click()
       const box = (await page.locator('.ink-page[data-page="0"]').boundingBox())!
@@ -521,7 +627,7 @@ for (const framework of FRAMEWORK_ORDER) {
     test('a click inside a text box edits it at the click, a drag on its edge moves it', async ({
       page,
     }) => {
-      await page.goto(`app.html#/${framework}/tour`)
+      await page.goto(`./#/${framework}/tour`)
       await waitForFirstPage(page)
       await page.getByRole('button', { name: 'Text box', exact: true }).click()
       const box = (await page.locator('.ink-page[data-page="0"]').boundingBox())!
@@ -570,7 +676,7 @@ for (const framework of FRAMEWORK_ORDER) {
     })
 
     test('draw two joined strokes', async ({ page }) => {
-      await page.goto(`app.html#/${framework}/tour`)
+      await page.goto(`./#/${framework}/tour`)
       await waitForFirstPage(page)
       await page.getByRole('button', { name: 'Draw', exact: true }).click()
       await dragShape(page, [40, 30], [200, 60])
@@ -584,7 +690,7 @@ for (const framework of FRAMEWORK_ORDER) {
     })
 
     test('sketch a circle', async ({ page }) => {
-      await page.goto(`app.html#/${framework}/tour`)
+      await page.goto(`./#/${framework}/tour`)
       await waitForFirstPage(page)
       await page.getByRole('button', { name: 'Sketch', exact: true }).click()
       const box = (await page.locator('.ink-page[data-page="0"]').boundingBox())!
@@ -605,7 +711,7 @@ for (const framework of FRAMEWORK_ORDER) {
     })
 
     test('create and place a typed signature', async ({ page }) => {
-      await page.goto(`app.html#/${framework}/tour`)
+      await page.goto(`./#/${framework}/tour`)
       await waitForFirstPage(page)
       await page.getByRole('button', { name: 'Choose signature' }).click()
       await page.getByRole('menuitem', { name: 'Create signature' }).click()

@@ -62,7 +62,7 @@ async function drop(
 }
 
 test('opens react tour by default', async ({ page }) => {
-  await page.goto('app.html')
+  await page.goto('./')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Annotation tour')
   await expect(breadcrumb(page)).toContainText('React')
   await expect(viewer(page).locator('.ink-page').first()).toBeVisible({ timeout: 20_000 })
@@ -74,7 +74,7 @@ test('opens react tour by default', async ({ page }) => {
 
 test('a deep link opens that framework', async ({ page }) => {
   for (const fw of FRAMEWORKS) {
-    await page.goto(`app.html#/${fw.id}/tour`)
+    await page.goto(`./#/${fw.id}/tour`)
     await page.reload()
     await expect(breadcrumb(page)).toContainText(fw.name)
     await waitForViewer(page)
@@ -109,7 +109,7 @@ test('switching quickly leaves one viewer', async ({ page }) => {
     delayed++
     setTimeout(() => void route.continue(), 1500)
   })
-  await page.goto('app.html')
+  await page.goto('./')
   await waitForViewer(page)
   await scenarioLink(page, 'Vue', 'Annotation tour').click()
   await scenarioLink(page, 'Svelte', 'Annotation tour').click()
@@ -130,7 +130,7 @@ test('a PDF dropped while the scenario loads opens once it has', async ({
   await page.route('**/assets/vue*.js', (route) => {
     setTimeout(() => void route.continue(), 1500)
   })
-  await page.goto('app.html')
+  await page.goto('./')
   await waitForViewer(page)
   await scenarioLink(page, 'Vue', 'Annotation tour').click()
   const letter = await (await request.get('documents/letter.pdf')).body()
@@ -144,7 +144,7 @@ test('the Code tab drops the old source while the new one loads', async ({ page 
   await page.route('**/assets/vue*.js', (route) => {
     setTimeout(() => void route.continue(), 1500)
   })
-  await page.goto('app.html')
+  await page.goto('./')
   await page.getByRole('tab', { name: 'Code' }).click()
   const code = page.getByRole('tabpanel', { name: 'Code' })
   await expect(code).toContainText('tour/react.tsx')
@@ -164,7 +164,7 @@ test('the Code tab says when the source fails to load, then recovers', async ({
     if (failing && (await response.text()).includes('shiki')) await route.abort()
     else await route.fulfill({ response })
   })
-  await page.goto('app.html')
+  await page.goto('./')
   await page.getByRole('tab', { name: 'Code' }).click()
   await expect(page.getByRole('tabpanel', { name: 'Code' })).toContainText(
     'tour/react.tsx'
@@ -192,7 +192,7 @@ test('a scenario that fails to load says so, and a dropped PDF has no viewer', a
     if ((await response.text()).includes('shiki')) await route.fulfill({ response })
     else await route.abort()
   })
-  await page.goto('app.html#/vue/tools')
+  await page.goto('./#/vue/tools')
   await expect(viewer(page)).toContainText('This scenario could not be loaded.')
   await expect(viewer(page).locator('[data-ink-root]')).toHaveCount(0)
   // The aborted imports are the expected outcome of this route.
@@ -205,7 +205,7 @@ test('a scenario that fails to load says so, and a dropped PDF has no viewer', a
 })
 
 test('a dropped PDF stays until the scenario changes', async ({ page, request }) => {
-  await page.goto('app.html')
+  await page.goto('./')
   await waitForViewer(page)
   const pageCount = viewer(page).locator('[data-ink-page-count]')
   await expect(pageCount).toHaveText('of 4')
@@ -226,7 +226,7 @@ test('a dropped PDF stays until the scenario changes', async ({ page, request })
 })
 
 test('refuses a non-PDF and recovers from a broken one', async ({ page, request }) => {
-  await page.goto('app.html')
+  await page.goto('./')
   await waitForViewer(page)
   const pageCount = viewer(page).locator('[data-ink-page-count]')
   await page.locator('input[type=file]').setInputFiles({
@@ -263,7 +263,7 @@ test('refuses a non-PDF and recovers from a broken one', async ({ page, request 
 })
 
 test('the events log keeps the newest 200', async ({ page }) => {
-  await page.goto('app.html?debug#/react/tools')
+  await page.goto('./?debug#/react/tools')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Pick your tools')
   // Let the viewer's own start-up entries land, then clear them so only these calls remain.
   await waitForViewer(page)
@@ -289,14 +289,14 @@ test('the events log keeps the newest 200', async ({ page }) => {
 test('the events log is hidden from the page without the debug flag', async ({
   page,
 }) => {
-  await page.goto('app.html#/react/tools')
+  await page.goto('./#/react/tools')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Pick your tools')
   expect(await page.evaluate(() => '__sandboxLog' in window)).toBe(false)
 })
 
 test('Code tab shows the scenario source', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
-  await page.goto('app.html')
+  await page.goto('./')
   await page.getByRole('tab', { name: 'Code' }).click()
   const code = page.getByRole('tabpanel', { name: 'Code' })
   await expect(code).toContainText('tour/react.tsx')
@@ -317,7 +317,7 @@ test('Code tab shows the scenario source', async ({ page, context }) => {
 })
 
 test('tabs work from the keyboard', async ({ page }) => {
-  await page.goto('app.html')
+  await page.goto('./')
   const preview = page.getByRole('tab', { name: 'Preview' })
   const code = page.getByRole('tab', { name: 'Code' })
   await expect(preview).toHaveAttribute('aria-selected', 'true')
@@ -332,7 +332,7 @@ test('tabs work from the keyboard', async ({ page }) => {
 })
 
 test('the sidebar search filters scenarios', async ({ page }) => {
-  await page.goto('app.html')
+  await page.goto('./')
   for (const fw of FRAMEWORKS)
     for (const title of SCENARIO_TITLES)
       await expect(scenarioLink(page, fw.name, title)).toBeVisible()
@@ -362,7 +362,7 @@ test('the sidebar search filters scenarios', async ({ page }) => {
 })
 
 test('no axe violations', async ({ page }) => {
-  await page.goto('app.html')
+  await page.goto('./')
   await waitForViewer(page)
   const { violations } = await new AxeBuilder({ page }).analyze()
   expect(violations).toEqual([])
@@ -374,7 +374,7 @@ test('no axe violations', async ({ page }) => {
 
 test('no horizontal scroll at phone width', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('app.html')
+  await page.goto('./')
   await waitForViewer(page)
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth
@@ -384,11 +384,11 @@ test('no horizontal scroll at phone width', async ({ page }) => {
 
 test('only the TypeScript controlled page says it follows the list', async ({ page }) => {
   const note = page.locator('[data-scenario-note]')
-  await page.goto('app.html#/vanilla/controlled')
+  await page.goto('./#/vanilla/controlled')
   await expect(note).toBeVisible()
   await expect(note).toHaveText(
     "createViewer can't take a controlled annotation list yet, so this page follows the list instead."
   )
-  await page.goto('app.html#/react/controlled')
+  await page.goto('./#/react/controlled')
   await expect(note).toBeHidden()
 })

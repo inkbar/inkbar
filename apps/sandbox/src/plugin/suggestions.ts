@@ -1,6 +1,6 @@
 /*
  * Suggest redactions, written as an Inkbar plugin. It uses only Inkbar's public API, and the
- * same plugin runs on every framework page: each registers it in `plugins` and places its
+ * same plugin runs on every framework: each registers it in `plugins` and places its
  * Suggest button where it wants.
  *
  * A suggestion is the plugin's own record, not an annotation. Suggest adds them; each open one
