@@ -22,7 +22,7 @@ const SCENARIO_TITLES = [
   'Annotation tour',
   'Pick your tools',
   'Fill a form',
-  'Suggest redactions',
+  'Custom plugins',
   'Controlled annotations',
   'Search a long document',
 ]

@@ -44,30 +44,32 @@ app.innerHTML = `
 <div class="app-body">
   <nav class="app-nav" aria-label="Scenarios"></nav>
   <main class="app-main">
-    <div class="scenario-head">
-      <div class="scenario-copy">
+    <div class="stage" data-view="preview">
+      <div class="scenario-head">
         <h1 data-scenario-title></h1>
         <p data-scenario-blurb></p>
         <p data-scenario-note hidden></p>
       </div>
-      <div class="segmented" role="tablist" aria-label="View">
-        ${tabMarkup('tab-preview', 'panel-preview', 'Preview')}
-        ${tabMarkup('tab-code', 'panel-code', 'Code')}
+      <div class="stage-bar">
+        <div class="view-tabs" role="tablist" aria-label="View">
+          ${tabMarkup('tab-preview', 'panel-preview', 'Preview')}
+          ${tabMarkup('tab-code', 'panel-code', 'Code')}
+        </div>
+        <div class="stage-files">
+          <p class="caption stage-hint">Drop your own PDF on the viewer. It stays in your browser.</p>
+          <p class="caption stage-status" role="status" data-file-status></p>
+          <label class="file-link">
+            <input type="file" accept="application/pdf,.pdf" class="visually-hidden" />
+            ${FILE_ICON}
+            Open a PDF
+          </label>
+        </div>
       </div>
+      <section class="preview" id="panel-preview" role="tabpanel" aria-labelledby="tab-preview">
+        <div class="scenario-viewer" data-scenario-viewer></div>
+      </section>
+      <section class="code" id="panel-code" role="tabpanel" aria-labelledby="tab-code" hidden></section>
     </div>
-    <section class="preview" id="panel-preview" role="tabpanel" aria-labelledby="tab-preview">
-      <div class="viewer-bar">
-        <p class="caption">Drop a PDF on the viewer to try your own. It stays in your browser.</p>
-        <p class="caption" role="status" data-file-status></p>
-        <label class="file-link">
-          <input type="file" accept="application/pdf,.pdf" class="visually-hidden" />
-          ${FILE_ICON}
-          Open a PDF
-        </label>
-      </div>
-      <div class="scenario-viewer" data-scenario-viewer></div>
-    </section>
-    <section class="code" id="panel-code" role="tabpanel" aria-labelledby="tab-code" hidden></section>
   </main>
   <aside class="app-side" aria-label="Events">
     <div class="side-tabs" role="tablist" aria-label="Panels" hidden>
@@ -93,6 +95,8 @@ const viewTabs = createTabs(
   [$('#tab-preview'), $('#tab-code')],
   [$('#panel-preview'), codePanel],
   (index) => {
+    // The file controls act on the viewer, so they show with Preview only.
+    $('.stage').dataset.view = index === 1 ? 'code' : 'preview'
     if (index === 1) void showCode()
   }
 )
