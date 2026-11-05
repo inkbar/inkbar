@@ -203,6 +203,43 @@ describe('createThumbnails', () => {
     await until(() => inView(list, item(20)))
   })
 
+  it('follows the current page without scrolling the host page', async () => {
+    const { viewport, item, list } = await make(await pagesDoc(40))
+    // The list sits partly below the fold of a scrolling host container.
+    const box = list.parentElement!
+    const host = document.createElement('div')
+    host.style.cssText = 'height:300px;overflow:auto;'
+    const above = document.createElement('div')
+    above.style.height = '200px'
+    const below = document.createElement('div')
+    below.style.height = '1000px'
+    box.before(host)
+    host.append(above, box, below)
+    cleanup.push(() => host.remove())
+    host.scrollTop = 100
+    const page = document.scrollingElement!.scrollTop
+    await nextFrame()
+    await nextFrame()
+
+    viewport.scrollToPage(30)
+    await until(() => list.scrollTop > 0 && item(30) !== null)
+    await settle(100)
+    // The item's bottom meets the list's bottom: nearest.
+    expect(inView(list, item(30))).toBe(true)
+    expect(host.scrollTop).toBe(100)
+    expect(document.scrollingElement!.scrollTop).toBe(page)
+  })
+
+  it('sizes items as the controller counts them, theme included', async () => {
+    const { item } = await make()
+    const button = item(0)!
+    const entry = button.parentElement!
+    const counted = parseFloat(entry.style.height)
+    // Unsized, the item takes its content's height: padding, thumbnail, gap and label.
+    entry.style.height = ''
+    expect(button.getBoundingClientRect().height).toBeCloseTo(counted, 1)
+  })
+
   it('shows the new document when another one opens', async () => {
     const { viewer, list, items } = await make(await pagesDoc(40))
     list.scrollTop = 2000

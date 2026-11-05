@@ -186,8 +186,9 @@ export function createThumbnailsController(
     firstVisible = first
     let start = Math.max(0, first - OVERSCAN)
     let end = Math.min(n, last + OVERSCAN)
-    // An item about to be revealed or focused is mounted wherever the list is scrolled.
-    for (const page of [reveal, pendingFocus]) {
+    // An item about to be focused, or revealed in a list that does not scroll itself, is
+    // mounted wherever the list is scrolled.
+    for (const page of [scrollsItself(scroller) ? null : reveal, pendingFocus]) {
       const i = page === null ? -1 : pages.indexOf(page)
       if (i < 0 || (i >= start && i < end)) continue
       start = Math.max(0, i - OVERSCAN)
@@ -221,6 +222,9 @@ export function createThumbnailsController(
     scroller?.querySelector<HTMLElement>(`[data-ink-thumbnail-item="${page}"]`) ?? null
 
   const pageOf = (el: HTMLElement): number => Number(el.dataset.inkThumbnailItem)
+
+  /** Whether the list is its own scroll container, as opposed to growing in a scrolling parent. */
+  const scrollsItself = (el: HTMLElement): boolean => el.scrollHeight > el.clientHeight
 
   /** Marks the next scroll event as ours. Scroll events run before the frame's callbacks. */
   function markOwnScroll(): void {
@@ -269,8 +273,31 @@ export function createThumbnailsController(
     }
     // A hidden list keeps the reveal for when it shows.
     if (reveal !== null && scroller.clientHeight > 0) {
+      const i = pages.indexOf(reveal)
       const el = itemFor(reveal)
-      if (el) {
+      if (i < 0) reveal = null
+      else if (scrollsItself(scroller)) {
+        // Scrolled from the offsets, so no ancestor (the host page) moves.
+        reveal = null
+        const view = {
+          top: scroller.scrollTop,
+          bottom: scroller.scrollTop + scroller.clientHeight,
+        }
+        const top = offsets[i]!
+        const bottom = offsets[i + 1]!
+        const to =
+          top < view.top
+            ? top
+            : bottom > view.bottom
+              ? Math.min(top, bottom - scroller.clientHeight)
+              : null
+        if (to !== null) {
+          markOwnScroll()
+          scroller.scrollTop = to
+          moved = true
+        }
+      } else if (el) {
+        // A list that does not scroll itself (in a scrolling sidebar) is revealed by its item.
         reveal = null
         markOwnScroll()
         el.scrollIntoView({ block: 'nearest' })
@@ -383,7 +410,9 @@ export function createThumbnailsController(
       const t = e.target
       // The list's own scroll or an ancestor's; the viewport's scrolling is not ours.
       if (t !== owner && !(t instanceof Node && t.contains(el))) return
-      if (!ownScroll) {
+      // An ancestor's scroll moves the list only when the list does not scroll itself.
+      const listMoved = t === el || !scrollsItself(el)
+      if (!ownScroll && listMoved) {
         userScrolledAt = Date.now()
         // The user took over: drop what was waiting to be focused or shown.
         pendingFocus = null
