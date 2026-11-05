@@ -187,9 +187,47 @@ Plugin stores undo with annotations. In controlled mode with `history`, each und
 
 The bar handles Escape itself and stops it there, so an `onKeyDown` you pass to `InkFindBar` never sees Escape.
 
+## Sidebars
+
+`InkSidebar` holds `InkPanel`s and places nothing itself: put it beside `InkViewport` with your own flex or grid layout. Each panel has an `id`, a `label`, an optional `icon` (an `IconNode` from `@inkbar/icons`) and an optional `badge`, a number or short string hidden when empty or 0. Its children are the panel's content, your own component or one of Inkbar's.
+
+```tsx
+<InkRoot src={src} assets={assets}>
+  <div className="app">
+    <InkSidebar side="left" layout="rail" open={open} onOpenChange={setOpen}>
+      <InkPanel id="pages" label="Pages" icon={Square}>
+        <InkThumbnails />
+      </InkPanel>
+      <InkPanel id="notes" label="Notes" icon={MessageSquare} badge={noteCount}>
+        <MyNotes />
+      </InkPanel>
+    </InkSidebar>
+    <InkViewport />
+  </div>
+</InkRoot>
+```
+
+`layout` is `rail` (default: icon buttons on the outer edge, and activating the open panel's button closes it), `tabs` (labelled tabs, one panel open) or `stack` (a header per panel, any number expanded). `side` (`left` by default) decides which edge the rail and border sit on. `open` is the open panel's id, or `null`, for rail and tabs, and the expanded ids for stack. Pass it with `onOpenChange` to control the sidebar, or pass `defaultOpen` to set only where it starts. With neither, the first panel starts open. When the open panel goes (rendered conditionally), rail and tabs open the first one left and stack drops it, and `onOpenChange` receives the new value.
+
+Panels take their place in the order they appear in the DOM, including one rendered later. A closed panel stays mounted and hidden, so its content keeps its state and scroll position, across layout changes too. The keys and ARIA are core's: see the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#sidebars). The sidebar needs no document and works outside `InkRoot`. On the server it renders its frame with the open panel showing, and the stack headers; rail and tab buttons follow once it has mounted.
+
+## Thumbnails
+
+`InkThumbnail` draws one page (0-based `page`) as a small image, with its annotations and plugin marks. Give it a `width` or a `height` and the other follows the page; with neither it is 120px wide. `annotations={false}` and `marks={false}` leave those out, and `label` replaces its accessible name ("Page 4" for page 3). It is an image with no focus or click behaviour, so wrap it in the control you need, a checkbox label in a dialog for instance.
+
+`InkThumbnails` lists the pages as thumbnails, each a button that scrolls the viewport to its page, with the current page marked `aria-current="page"`. It fills its parent's height and scrolls. `pages` lists the pages to show, in order; `width`, `annotations` and `marks` pass to each thumbnail. Only the items near the visible part are mounted. `renderItem` adds to each item after its page number:
+
+```tsx
+<InkThumbnails
+  renderItem={({ page }) => <span className="page-count">{counts[page]}</span>}
+/>
+```
+
+An item's height is worked out from its page alone, so position what you add absolutely. Both need `InkRoot` and render empty on the server.
+
 ## Custom rendering
 
-Slots are render props. `InkViewport` takes `loading`, `empty`, `error`, `renderAnnotation` and `renderPageError`; `InkThreadPopover` takes a function as `children`; `InkToolButton` takes a node or a function of `{ active, label }`; `InkCommand` a node or a function of `{ label, busy }`. The props each receives are typed as `AnnotationSlotProps` and `ThreadPopoverSlotProps`, the same types the Vue package exports.
+Slots are render props. `InkViewport` takes `loading`, `empty`, `error`, `renderAnnotation` and `renderPageError`; `InkThreadPopover` takes a function as `children`; `InkToolButton` takes a node or a function of `{ active, label }`; `InkCommand` a node or a function of `{ label, busy }`; `InkThumbnails` takes `renderItem`. The props each receives are typed as `AnnotationSlotProps` and `ThreadPopoverSlotProps`, the same types the Vue package exports.
 
 `InkRoot`, `InkToolbar`, `InkToolButton`, `InkCommand`, `InkUndo`, `InkRedo`, `InkPrevPage`, `InkNextPage`, `InkZoomIn` and `InkZoomOut` take `asChild` to render your own element in place of theirs, such as a button from your design system. Pass that element as the only child. The control keeps its behaviour and accessible name.
 

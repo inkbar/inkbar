@@ -68,6 +68,10 @@ describe('@inkbar/react on the server', () => {
         'InkCommand',
         'useCommand',
         'useForm',
+        'InkSidebar',
+        'InkPanel',
+        'InkThumbnail',
+        'InkThumbnails',
       ])
     )
     expect(evaluated.pdfjs).toBe(false)
@@ -133,5 +137,89 @@ describe('@inkbar/react on the server', () => {
     const { openDocument } = await import('@inkbar/core')
     await openDocument(new Uint8Array([1]), { assets })
     expect(evaluated.pdfjs).toBe(true)
+  })
+
+  it('InkSidebar renders its chrome on the server; thumbnails render empty', async () => {
+    const { Search, Square } = await import('@inkbar/icons')
+    const sidebar = (layout: 'rail' | 'tabs' | 'stack') =>
+      createElement(
+        entry.InkSidebar,
+        { layout, side: 'right' },
+        createElement(
+          entry.InkPanel,
+          { id: 'pages', label: 'Pages', icon: Square },
+          createElement(entry.InkThumbnails)
+        ),
+        createElement(
+          entry.InkPanel,
+          { id: 'search', label: 'Search', icon: Search, badge: 2 },
+          createElement(entry.InkThumbnail, { page: 0 })
+        )
+      )
+    const render = (layout: 'rail' | 'tabs' | 'stack') =>
+      renderToString(
+        createElement(entry.InkRoot, { src: '/doc.pdf', assets }, sidebar(layout))
+      )
+
+    for (const layout of ['rail', 'tabs'] as const) {
+      const html = render(layout)
+      expect(html).toMatch(/<div class="ink-sidebar"[^>]*data-ink-sidebar/)
+      expect(html).toContain(`data-layout="${layout}"`)
+      expect(html).toContain('data-side="right"')
+      expect(html).toContain('role="tablist"')
+      // The first panel is open; the others are hidden, with their content mounted.
+      const panels = html.match(/<div[^>]*role="tabpanel"[^>]*>/g) ?? []
+      expect(panels).toHaveLength(2)
+      expect(panels[0]).toContain('data-ink-sidebar-panel="pages"')
+      expect(panels[0]).not.toMatch(/\shidden/)
+      expect(panels[1]).toContain('data-ink-sidebar-panel="search"')
+      expect(panels[1]).toMatch(/\shidden/)
+      // The frame shows the open panel: the root is open and the strip is there for the
+      // buttons that follow once mounted.
+      const rootTag = /<div class="ink-sidebar"[^>]*>/.exec(html)?.[0] ?? ''
+      expect(rootTag).toContain('data-state="open"')
+      expect(html).toContain(`ink-sidebar-${layout === 'rail' ? 'rail' : 'tabs'}`)
+      // The panels sit in the slot hook the theme lays out.
+      expect(html).toMatch(/<div class="ink-sidebar-slot"/)
+    }
+
+    // An open panel the host gives shows on the server, though it registers after the first
+    // one; controlled or as the uncontrolled start.
+    for (const props of [{ open: 'search' }, { defaultOpen: 'search' }]) {
+      const html = renderToString(
+        createElement(
+          entry.InkRoot,
+          { src: '/doc.pdf', assets },
+          createElement(
+            entry.InkSidebar,
+            { layout: 'rail', ...props },
+            createElement(entry.InkPanel, { id: 'pages', label: 'Pages' }, 'A'),
+            createElement(entry.InkPanel, { id: 'search', label: 'Search' }, 'B')
+          )
+        )
+      )
+      expect(/<div class="ink-sidebar"[^>]*>/.exec(html)?.[0]).toContain(
+        'data-state="open"'
+      )
+      const shown = html.match(/<div[^>]*role="tabpanel"[^>]*>/g) ?? []
+      expect(shown[0]).toMatch(/\shidden/)
+      expect(shown[1]).toContain('data-ink-sidebar-panel="search"')
+      expect(shown[1]).not.toMatch(/\shidden/)
+    }
+
+    const html = render('stack')
+    expect(html).toContain('data-layout="stack"')
+    expect(html).not.toContain('role="tablist"')
+    // Stack headers are the panels' own: they render on the server.
+    const headers = html.match(/<button[^>]*class="ink-sidebar-header"[^>]*>/g) ?? []
+    expect(headers).toHaveLength(2)
+    expect(headers[0]).toContain('aria-expanded="true"')
+    expect(headers[1]).toContain('aria-expanded="false"')
+    expect(headers[1]).toContain('aria-label="Search, 2"')
+    expect(html).toContain('<span class="ink-sidebar-label">Pages</span>')
+    // The list renders empty: no items until a document opens in the browser.
+    expect(html).toMatch(/<div class="ink-thumbnails"[^>]*role="list"/)
+    expect(html).not.toContain('data-ink-thumbnail-item')
+    expect(html).not.toContain('<canvas')
   })
 })
