@@ -33,6 +33,8 @@
     /* Pages stay white in dark mode and the search layer multiplies, so these serve both. */
     --ink-search-hit: #f1ffa0;
     --ink-search-current: #e4ff4a;
+    /* The selected record's mark; pages stay white in dark mode, so this serves both. */
+    --ink-mark-selected-outline: 2px solid #2740f5;
 
     --ink-bg: var(--muted, #f1f2f5);
     --ink-fg: var(--foreground, #151820);
@@ -365,6 +367,11 @@
 
   :where(.ink-plugin-layer > *) {
     pointer-events: auto;
+  }
+
+  /* The mark of the record selected in a list, the page or the host app. */
+  :where(.ink-plugin-layer > button[data-selected]) {
+    outline: var(--ink-mark-selected-outline);
   }
 
   /* Form fields: over the text layer, under the annotations (after the overlay in the page, at

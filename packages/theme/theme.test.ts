@@ -292,6 +292,19 @@ describe('theme.css', () => {
       expect(declsFor(`${surface})`), surface).toMatch(/background:\s*#fff\b/)
   })
 
+  it("'[data-selected]' marks use --ink-mark-selected-outline", () => {
+    const declaring = rules.filter((r) =>
+      r.nodes.some((d) => d.type === 'decl' && d.prop === '--ink-mark-selected-outline')
+    )
+    expect(declaring).toHaveLength(1)
+    expect(declaring[0]!.toString()).toMatch(
+      /--ink-mark-selected-outline:\s*2px solid #2740f5/i
+    )
+    expect(declsFor('.ink-plugin-layer > button[data-selected])')).toMatch(
+      /outline:\s*var\(--ink-mark-selected-outline\)/
+    )
+  })
+
   it('has no suggested-redaction styles', () => {
     expect(css).not.toMatch(/suggestion/i)
     expect(css).not.toMatch(/confidence/i)

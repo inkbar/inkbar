@@ -15,6 +15,13 @@ import { createRecordStore, type RecordBase, type RecordStore } from '../../mode
 import { createRecords, type Records } from './api/records'
 import { createCommandRegistry } from './commands'
 import { createLayerRegistry, type LayerSource, type PluginLayer } from './layer'
+import {
+  createMarksRegistry,
+  createRecordSelection,
+  type HostRecordSelection,
+  type MarksRegistry,
+  type RecordSelection,
+} from './registry'
 
 import type {
   Command,
@@ -86,6 +93,13 @@ export interface PluginHost extends LayerSource {
    * logs a warning once.
    */
   records<T extends RecordBase>(key: string): HostRecords<T>
+  /** What each `plugin.marks` call drew, by records key. */
+  readonly marks: MarksRegistry
+  /**
+   * The selected record under `key`, shared by the marks, every list and the host app. The
+   * same object on each call.
+   */
+  selection(key: string): RecordSelection
   readonly commands: ReadonlyMap<string, Command>
   command(id: string): Command | undefined
   readonly tools: readonly Tool[]
@@ -111,6 +125,42 @@ interface Opened {
   /** Untrack and unregister functions from the document's history. */
   detach: (() => void)[]
   cleanups: (() => void)[]
+}
+
+/** What the host shares with the plugin API's helpers, but not with plugins. */
+interface HostInternals {
+  marks: MarksRegistry
+  selection(key: string): RecordSelection
+}
+
+const internals = new WeakMap<PluginContext, HostInternals>()
+
+/**
+ * The marks registry and selections of the host that built `ctx`. A context no host built gets
+ * a registry and selections of its own, over no records.
+ *
+ * @internal For the plugin API (`plugin.marks`); not for plugin authors.
+ */
+export function hostInternalsOf(ctx: PluginContext): HostInternals {
+  let found = internals.get(ctx)
+  if (!found) {
+    const marks = createMarksRegistry()
+    const none = { get: () => null, subscribe: () => () => {} }
+    const selections = new Map<string, RecordSelection>()
+    found = {
+      marks,
+      selection(key) {
+        let selection = selections.get(key)
+        if (!selection) {
+          selection = createRecordSelection(none, () => false)
+          selections.set(key, selection)
+        }
+        return selection
+      },
+    }
+    internals.set(ctx, found)
+  }
+  return found
 }
 
 /**
@@ -199,6 +249,8 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
   const editFns: ((edit: AnnotationEdit) => void)[] = []
   const setupCleanups: (() => void)[] = []
   const redecorators = new Set<() => void>()
+  const marks = createMarksRegistry()
+  const selections = new Map<string, HostRecordSelection>()
   let opened: Opened | null = null
   let destroyed = false
 
@@ -242,7 +294,7 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
 
   const contextFor = (plugin: InkPlugin): PluginContext => {
     const storeNames = new Set<string>()
-    return {
+    const ctx: PluginContext = {
       id: plugin.id,
       document: opts.document,
       history: { batch: (fn) => opts.history().batch(fn) },
@@ -301,6 +353,8 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
       },
       search: opts.search ?? inertSearch,
     }
+    internals.set(ctx, { marks, selection: (key) => selectionFor(key) })
+    return ctx
   }
 
   /** The store requested under `key` now, null for none; emits when either changes. */
@@ -331,6 +385,25 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
       }
     },
   })
+
+  /**
+   * Made on first use and kept for the host's life. A key with no registrations resolves
+   * every record; with some, a record must pass one's `where`.
+   */
+  const selectionFor = (key: string): RecordSelection => {
+    let selection = selections.get(key)
+    if (!selection) {
+      selection = createRecordSelection(
+        sourceFor(key),
+        (record) =>
+          marks.of(key).length === 0 ||
+          marks.resolve(key, record as RecordBase & { page: number }) !== undefined,
+        (listener) => marks.watch(listener)
+      )
+      selections.set(key, selection)
+    }
+    return selection
+  }
 
   const recordsFor = (key: string): HostRecords<RecordBase> => {
     const cached = hostRecords.get(key)
@@ -379,6 +452,8 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
 
   return {
     records: ((key: string) => recordsFor(key)) as PluginHost['records'],
+    marks,
+    selection: selectionFor,
     commands: registry.commands,
     command: (id) => registry.commands.get(id),
     tools,
@@ -413,6 +488,7 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
       stopDocument()
       close()
       for (const cleanup of setupCleanups.reverse()) guard(cleanup)
+      for (const selection of selections.values()) selection.destroy()
     },
   }
 }
