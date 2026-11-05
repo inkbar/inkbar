@@ -31,7 +31,7 @@ export interface InkRecordListProps<
   sort?: ((a: T, b: T) => number) | undefined
   /** Called with the number listed whenever it changes. */
   onCountChange?: ((count: number) => void) | undefined
-  /** Replaces "Nothing here yet.". */
+  /** Replaces "Nothing here yet."; null shows nothing. */
   empty?: ReactNode
 }
 

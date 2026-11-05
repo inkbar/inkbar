@@ -23,7 +23,7 @@ export interface RecordCardsProps extends Omit<
   source: RecordListSource | null
   /** Whether the empty text shows when there are no rows. Default true. */
   emptyShown?: boolean | undefined
-  /** Replaces "Nothing here yet.". */
+  /** Replaces "Nothing here yet."; null shows nothing. */
   empty?: ReactNode
   /** Called with the number listed whenever it changes. */
   onCountChange?: ((count: number) => void) | undefined
@@ -174,7 +174,7 @@ export function RecordCards({
         ))}
       </ul>
       <p className="ink-record-list-empty" hidden={!showEmpty}>
-        {empty ?? 'Nothing here yet.'}
+        {empty === undefined ? 'Nothing here yet.' : empty}
       </p>
       <div className="ink-visually-hidden" aria-live="polite" data-ink-record-status="">
         {announcement}
