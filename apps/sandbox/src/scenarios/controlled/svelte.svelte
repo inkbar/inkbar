@@ -9,6 +9,7 @@
   import {
     InkColorMenu,
     InkHighlightMenu,
+    InkIcon,
     InkLineStyleMenu,
     InkNextPage,
     InkPageCount,
@@ -20,6 +21,7 @@
     InkTextStyleMenu,
     InkThreadPopover,
     InkToolbar,
+    InkToolbarButton,
     InkToolbarSeparator,
     InkToolButton,
     InkViewport,
@@ -30,12 +32,13 @@
   import '@inkbar/theme/theme.css'
   import { assets } from 'virtual:inkbar-assets'
 
+  import { FileUp } from '../../shared/file-up'
   import { signatureFonts, signatures } from '../../shared/signatures'
 
   import type { ScenarioProps } from '../../frameworks/types'
   import type { Annotation, InkDocument } from '@inkbar/core'
 
-  let { source, log, onDocument }: ScenarioProps = $props()
+  let { source, log, onDocument, openFile }: ScenarioProps = $props()
 
   const tools = allTools()
   let annotations = $state.raw<Annotation[]>([])
@@ -78,6 +81,12 @@
       <InkColorMenu property="border" />
       <InkColorMenu property="fill" />
       <InkTextStyleMenu />
+    </div>
+    <div class="scenario-group scenario-file" role="group" aria-label="File">
+      <InkToolbarButton aria-label="Open a PDF" title="Open a PDF" onclick={openFile}>
+        <InkIcon icon={FileUp} />
+        Open
+      </InkToolbarButton>
     </div>
   </InkToolbar>
   <InkViewport />

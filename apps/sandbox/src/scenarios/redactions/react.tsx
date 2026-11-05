@@ -19,7 +19,9 @@ import {
   InkSignatureMenu,
   InkTextStyleMenu,
   InkThreadPopover,
+  InkIcon,
   InkToolbar,
+  InkToolbarButton,
   InkToolbarSeparator,
   InkToolButton,
   InkUndo,
@@ -35,6 +37,7 @@ import { assets } from 'virtual:inkbar-assets'
 
 import { suggestionsPlugin } from '../../plugin/suggestions'
 import '../../plugin/suggestions.css'
+import { FileUp } from '../../shared/file-up'
 import { signatureFonts, signatures } from '../../shared/signatures'
 
 import type { Log, ScenarioProps } from '../../frameworks/types'
@@ -52,7 +55,12 @@ function CommandLog({ log }: { log: Log }) {
   return null
 }
 
-export default function SuggestRedactions({ source, log, onDocument }: ScenarioProps) {
+export default function SuggestRedactions({
+  source,
+  log,
+  onDocument,
+  openFile,
+}: ScenarioProps) {
   function onReady(doc: InkDocument) {
     log('onReady', { pages: doc.pages.length })
     onDocument(doc)
@@ -94,6 +102,12 @@ export default function SuggestRedactions({ source, log, onDocument }: ScenarioP
         <InkRedo />
         <div className="scenario-actions" role="group" aria-label="Suggest">
           <InkCommand id="sandbox.suggest" />
+        </div>
+        <div className="scenario-group scenario-file" role="group" aria-label="File">
+          <InkToolbarButton aria-label="Open a PDF" title="Open a PDF" onClick={openFile}>
+            <InkIcon icon={FileUp} />
+            Open
+          </InkToolbarButton>
         </div>
       </InkToolbar>
       <InkViewport />

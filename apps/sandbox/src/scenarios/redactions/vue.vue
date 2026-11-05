@@ -20,7 +20,9 @@ import {
   InkSignatureMenu,
   InkTextStyleMenu,
   InkThreadPopover,
+  InkIcon,
   InkToolbar,
+  InkToolbarButton,
   InkToolbarSeparator,
   InkToolButton,
   InkUndo,
@@ -36,12 +38,13 @@ import { defineComponent, watch } from 'vue'
 
 import { suggestionsPlugin } from '../../plugin/suggestions'
 import '../../plugin/suggestions.css'
+import { FileUp } from '../../shared/file-up'
 import { signatureFonts, signatures } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
 import type { InkDocument } from '@inkbar/core'
 
-const { source, log, onDocument } = defineProps<ScenarioProps>()
+const { source, log, onDocument, openFile } = defineProps<ScenarioProps>()
 
 const tools = allTools()
 const plugins = [suggestionsPlugin()]
@@ -101,6 +104,12 @@ function onActivate(id: string): void {
       <InkRedo />
       <div class="scenario-actions" role="group" aria-label="Suggest">
         <InkCommand id="sandbox.suggest" />
+      </div>
+      <div class="scenario-group scenario-file" role="group" aria-label="File">
+        <InkToolbarButton aria-label="Open a PDF" title="Open a PDF" @click="openFile">
+          <InkIcon :icon="FileUp" />
+          Open
+        </InkToolbarButton>
       </div>
     </InkToolbar>
     <InkViewport />

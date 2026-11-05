@@ -21,7 +21,9 @@
     InkSignatureMenu,
     InkTextStyleMenu,
     InkThreadPopover,
+    InkIcon,
     InkToolbar,
+    InkToolbarButton,
     InkToolbarSeparator,
     InkToolButton,
     InkUndo,
@@ -35,6 +37,7 @@
 
   import { suggestionsPlugin } from '../../plugin/suggestions'
   import '../../plugin/suggestions.css'
+  import { FileUp } from '../../shared/file-up'
   import { signatureFonts, signatures } from '../../shared/signatures'
 
   import CommandLog from './CommandLog.svelte'
@@ -42,7 +45,7 @@
   import type { ScenarioProps } from '../../frameworks/types'
   import type { InkDocument } from '@inkbar/core'
 
-  let { source, log, onDocument }: ScenarioProps = $props()
+  let { source, log, onDocument, openFile }: ScenarioProps = $props()
 
   const tools = allTools()
   const plugins = [suggestionsPlugin()]
@@ -88,6 +91,12 @@
     <InkRedo />
     <div class="scenario-actions" role="group" aria-label="Suggest">
       <InkCommand id="sandbox.suggest" />
+    </div>
+    <div class="scenario-group scenario-file" role="group" aria-label="File">
+      <InkToolbarButton aria-label="Open a PDF" title="Open a PDF" onclick={openFile}>
+        <InkIcon icon={FileUp} />
+        Open
+      </InkToolbarButton>
     </div>
   </InkToolbar>
   <InkViewport />

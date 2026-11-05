@@ -10,7 +10,12 @@ export function mountVue(
   const source = shallowRef(props.source)
   const app = createApp({
     render: () =>
-      h(Scenario, { source: source.value, log: props.log, onDocument: props.onDocument }),
+      h(Scenario, {
+        source: source.value,
+        log: props.log,
+        onDocument: props.onDocument,
+        openFile: props.openFile,
+      }),
   })
   app.mount(el)
   return {

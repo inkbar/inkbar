@@ -7,6 +7,7 @@ import { allTools } from '@inkbar/core/dom'
 import {
   InkColorMenu,
   InkHighlightMenu,
+  InkIcon,
   InkLineStyleMenu,
   InkNextPage,
   InkPageCount,
@@ -18,6 +19,7 @@ import {
   InkTextStyleMenu,
   InkThreadPopover,
   InkToolbar,
+  InkToolbarButton,
   InkToolbarSeparator,
   InkToolButton,
   InkViewport,
@@ -29,6 +31,7 @@ import '@inkbar/theme/theme.css'
 import { useState } from 'react'
 import { assets } from 'virtual:inkbar-assets'
 
+import { FileUp } from '../../shared/file-up'
 import { signatureFonts, signatures } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
@@ -40,6 +43,7 @@ export default function ControlledAnnotations({
   source,
   log,
   onDocument,
+  openFile,
 }: ScenarioProps) {
   const [annotations, setAnnotations] = useState<Annotation[]>([])
 
@@ -86,6 +90,12 @@ export default function ControlledAnnotations({
           <InkColorMenu property="border" />
           <InkColorMenu property="fill" />
           <InkTextStyleMenu />
+        </div>
+        <div className="scenario-group scenario-file" role="group" aria-label="File">
+          <InkToolbarButton aria-label="Open a PDF" title="Open a PDF" onClick={openFile}>
+            <InkIcon icon={FileUp} />
+            Open
+          </InkToolbarButton>
         </div>
       </InkToolbar>
       <InkViewport />

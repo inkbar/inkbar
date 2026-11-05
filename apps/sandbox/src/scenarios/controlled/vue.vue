@@ -8,6 +8,7 @@ import { allTools } from '@inkbar/core/dom'
 import {
   InkColorMenu,
   InkHighlightMenu,
+  InkIcon,
   InkLineStyleMenu,
   InkNextPage,
   InkPageCount,
@@ -19,6 +20,7 @@ import {
   InkTextStyleMenu,
   InkThreadPopover,
   InkToolbar,
+  InkToolbarButton,
   InkToolbarSeparator,
   InkToolButton,
   InkViewport,
@@ -30,13 +32,14 @@ import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 import { shallowRef } from 'vue'
 
+import { FileUp } from '../../shared/file-up'
 import { signatureFonts, signatures } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
 import type { Annotation, InkDocument } from '@inkbar/core'
 import type { ToolId } from '@inkbar/core/dom'
 
-const { source, log, onDocument } = defineProps<ScenarioProps>()
+const { source, log, onDocument, openFile } = defineProps<ScenarioProps>()
 
 const tools = allTools()
 const annotations = shallowRef<Annotation[]>([])
@@ -93,6 +96,12 @@ function onActivate(id: string): void {
         <InkColorMenu property="border" />
         <InkColorMenu property="fill" />
         <InkTextStyleMenu />
+      </div>
+      <div class="scenario-group scenario-file" role="group" aria-label="File">
+        <InkToolbarButton aria-label="Open a PDF" title="Open a PDF" @click="openFile">
+          <InkIcon :icon="FileUp" />
+          Open
+        </InkToolbarButton>
       </div>
     </InkToolbar>
     <InkViewport />

@@ -13,7 +13,9 @@ import {
   InkPrevPage,
   InkRoot,
   InkSearchButton,
+  InkIcon,
   InkToolbar,
+  InkToolbarButton,
   InkToolButton,
   InkViewport,
   InkZoomIn,
@@ -25,10 +27,12 @@ import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 import { defineComponent, watch } from 'vue'
 
+import { FileUp } from '../../shared/file-up'
+
 import type { ScenarioProps } from '../../frameworks/types'
 import type { InkDocument } from '@inkbar/core'
 
-const { source, log, onDocument } = defineProps<ScenarioProps>()
+const { source, log, onDocument, openFile } = defineProps<ScenarioProps>()
 
 /**
  * Logs each finished search and each step to a hit, while the find bar is open. It sits inside
@@ -65,6 +69,12 @@ function onReady(doc: InkDocument): void {
         <InkToolButton tool="select" />
       </div>
       <InkSearchButton />
+      <div class="scenario-group scenario-file" role="group" aria-label="File">
+        <InkToolbarButton aria-label="Open a PDF" title="Open a PDF" @click="openFile">
+          <InkIcon :icon="FileUp" />
+          Open
+        </InkToolbarButton>
+      </div>
     </InkToolbar>
     <InkViewport />
     <InkFindBar />

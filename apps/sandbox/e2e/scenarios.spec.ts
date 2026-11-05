@@ -67,6 +67,13 @@ for (const framework of FRAMEWORK_ORDER) {
           .locator('[data-tool]')
           .evaluateAll((els) => els.map((el) => el.getAttribute('data-tool')))
         expect([...new Set(tools)].sort()).toEqual([...expected].sort())
+        // The scenario's own section ends the toolbar.
+        await expect(
+          viewer(page)
+            .getByRole('toolbar', { name: 'Document tools' })
+            .getByRole('group', { name: 'File' })
+            .getByRole('button', { name: 'Open a PDF' })
+        ).toBeVisible()
       })
     }
 

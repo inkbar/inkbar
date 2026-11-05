@@ -9,6 +9,8 @@ export interface ScenarioProps {
   log: Log
   /** Passed to the scenario's viewer ready callback. */
   onDocument(this: void, doc: InkDocument): void
+  /** Asks for a PDF from your computer and opens it in this scenario, as a drop would. */
+  openFile(this: void): void
 }
 
 export interface MountedScenario {

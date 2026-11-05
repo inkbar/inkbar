@@ -12,7 +12,9 @@ import {
   InkPrevPage,
   InkRoot,
   InkSearchButton,
+  InkIcon,
   InkToolbar,
+  InkToolbarButton,
   InkToolButton,
   InkViewport,
   InkZoomIn,
@@ -23,6 +25,8 @@ import {
 import '@inkbar/theme/theme.css'
 import { useEffect } from 'react'
 import { assets } from 'virtual:inkbar-assets'
+
+import { FileUp } from '../../shared/file-up'
 
 import type { Log, ScenarioProps } from '../../frameworks/types'
 import type { InkDocument } from '@inkbar/core'
@@ -40,7 +44,12 @@ function SearchLog({ log }: { log: Log }) {
   return null
 }
 
-export default function SearchLongDocument({ source, log, onDocument }: ScenarioProps) {
+export default function SearchLongDocument({
+  source,
+  log,
+  onDocument,
+  openFile,
+}: ScenarioProps) {
   function onReady(doc: InkDocument) {
     log('onReady', { pages: doc.pages.length })
     onDocument(doc)
@@ -54,6 +63,12 @@ export default function SearchLongDocument({ source, log, onDocument }: Scenario
           <InkToolButton tool="select" />
         </div>
         <InkSearchButton />
+        <div className="scenario-group scenario-file" role="group" aria-label="File">
+          <InkToolbarButton aria-label="Open a PDF" title="Open a PDF" onClick={openFile}>
+            <InkIcon icon={FileUp} />
+            Open
+          </InkToolbarButton>
+        </div>
       </InkToolbar>
       <InkViewport />
       <InkFindBar />

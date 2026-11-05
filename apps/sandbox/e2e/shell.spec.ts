@@ -316,6 +316,31 @@ for (const fw of FRAMEWORK_ORDER) {
   })
 }
 
+for (const fw of FRAMEWORK_ORDER) {
+  test(`${fw}: Open a PDF in the toolbar opens the file you pick`, async ({
+    page,
+    request,
+  }) => {
+    await page.goto(`./#/${fw}/tour`)
+    await waitForViewer(page)
+    const open = viewer(page)
+      .getByRole('toolbar', { name: 'Document tools' })
+      .getByRole('button', { name: 'Open a PDF' })
+    const chooser = page.waitForEvent('filechooser')
+    await open.click()
+    const letter = await (await request.get('documents/letter.pdf')).body()
+    await (
+      await chooser
+    ).setFiles({
+      name: 'letter.pdf',
+      mimeType: 'application/pdf',
+      buffer: letter,
+    })
+    await expect(page.locator('[data-file-status]')).toHaveText('Opened letter.pdf.')
+    await expect(viewer(page).locator('[data-ink-page-count]')).toHaveText('of 1')
+  })
+}
+
 test('the events log keeps the newest 200', async ({ page }) => {
   await page.goto('./?debug#/react/tools')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Pick your tools')

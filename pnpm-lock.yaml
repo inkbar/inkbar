@@ -416,6 +416,9 @@ importers:
       '@inkbar/e2e-shared':
         specifier: workspace:*
         version: link:../e2e-shared
+      '@inkbar/icons':
+        specifier: workspace:*
+        version: link:../../packages/icons
       '@inkbar/react':
         specifier: workspace:*
         version: link:../../packages/react

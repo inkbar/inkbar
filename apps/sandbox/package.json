@@ -18,6 +18,7 @@
     "@fontsource-variable/urbanist": "^5.3.0",
     "@inkbar/core": "workspace:*",
     "@inkbar/e2e-shared": "workspace:*",
+    "@inkbar/icons": "workspace:*",
     "@inkbar/react": "workspace:*",
     "@inkbar/svelte": "workspace:*",
     "@inkbar/theme": "workspace:*",

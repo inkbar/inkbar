@@ -14,7 +14,9 @@
     InkRedo,
     InkRoot,
     InkThreadPopover,
+    InkIcon,
     InkToolbar,
+    InkToolbarButton,
     InkToolButton,
     InkUndo,
     InkViewport,
@@ -25,10 +27,12 @@
   import '@inkbar/theme/theme.css'
   import { assets } from 'virtual:inkbar-assets'
 
+  import { FileUp } from '../../shared/file-up'
+
   import type { ScenarioProps } from '../../frameworks/types'
   import type { InkDocument } from '@inkbar/core'
 
-  let { source, log, onDocument }: ScenarioProps = $props()
+  let { source, log, onDocument, openFile }: ScenarioProps = $props()
 
   const tools = [highlightTool(), noteTool()]
 
@@ -55,6 +59,12 @@
     </div>
     <InkUndo />
     <InkRedo />
+    <div class="scenario-group scenario-file" role="group" aria-label="File">
+      <InkToolbarButton aria-label="Open a PDF" title="Open a PDF" onclick={openFile}>
+        <InkIcon icon={FileUp} />
+        Open
+      </InkToolbarButton>
+    </div>
   </InkToolbar>
   <InkViewport />
   <InkToolbar label="Page and zoom" class="scenario-status-bar">
