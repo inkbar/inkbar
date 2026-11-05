@@ -63,6 +63,7 @@ export default defineConfig(
       'packages/react/**/*.{ts,tsx}',
       'apps/e2e-react/**/*.{ts,tsx}',
       'apps/sandbox/src/react/**/*.{ts,tsx}',
+      'apps/sandbox/src/**/*.tsx',
     ],
     plugins: { 'react-hooks': pluginReactHooks },
     // The React Compiler rules in the plugin's recommended set stay off: this package syncs an

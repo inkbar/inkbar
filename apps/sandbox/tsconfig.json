@@ -10,9 +10,10 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     "src/**/*.vue",
+    "src/scenarios/**/*.svelte",
     "vite/**/*.ts",
     "e2e/**/*.ts"
   ],
-  "exclude": ["src/svelte/**"],
+  "exclude": ["src/svelte/**", "src/**/*.svelte.ts"],
   "vueCompilerOptions": { "strictTemplates": true, "dataAttributes": ["data-*"] }
 }

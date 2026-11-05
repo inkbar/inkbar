@@ -3,11 +3,14 @@
   "compilerOptions": {
     "noEmit": true,
     "allowImportingTsExtensions": true,
+    "jsx": "react-jsx",
     "types": ["node", "vite/client", "@inkbar/core/vite/client"]
   },
   "include": [
     "src/svelte/**/*.ts",
     "src/svelte/**/*.svelte",
+    "src/scenarios/**/*.svelte",
+    "src/frameworks/**/*.svelte.ts",
     "src/shared/**/*.ts",
     "src/shell/**/*.ts",
     "src/env.d.ts"

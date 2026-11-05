@@ -17,7 +17,7 @@ export default defineConfig({
   // sub-path to catch URLs that ignore the base.
   base: process.env.SANDBOX_BASE ?? '/',
   plugins: [
-    react({ include: /\/src\/react\// }),
+    react({ include: /\.tsx$/ }),
     vue(),
     svelte(),
     inkbar(),
@@ -29,6 +29,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         index: entry('./index.html'),
+        app: entry('./app.html'),
         react: entry('./react/index.html'),
         vue: entry('./vue/index.html'),
         svelte: entry('./svelte/index.html'),
