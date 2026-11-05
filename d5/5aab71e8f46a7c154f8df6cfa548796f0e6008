@@ -1,0 +1,58 @@
+packages/svelte/src/test/harness/ToolbarButtonHarness.svelte
+  s_d6f92c10539fe3::t_8df963c362f988 1-12
+packages/react/src/index.ts
+  s_d6f92c10539fe3::t_a70bc634722978 46-47
+packages/react/playwright/harness/ToolbarButtonHarness.tsx
+  s_d6f92c10539fe3::t_8df963c362f988 1-14
+packages/vue/playwright/harness/ToolbarButtonHarness.vue
+  s_d6f92c10539fe3::t_d8a482ed5fc7f8 6,12
+  s_d6f92c10539fe3::t_8df963c362f988 1-5,7-11,13-14
+packages/svelte/src/test/Toolbar.browser.test.ts
+  s_d6f92c10539fe3::t_339cf083aad1d1 329-334
+  s_d6f92c10539fe3::t_13dc7a4cd2edef 14,325-328,335-345
+  s_d6f92c10539fe3::t_7c5ecbd0aedb42 346-347
+packages/react/src/components/InkToolbarButton.tsx
+  s_d6f92c10539fe3::t_a70bc634722978 1-30
+packages/vue/README.md
+  s_d6f92c10539fe3::t_849a6dd9b895e3 98
+packages/svelte/README.md
+  s_d6f92c10539fe3::t_849a6dd9b895e3 94
+packages/svelte/src/test/ssr.test.ts
+  s_d6f92c10539fe3::t_c7e1b786b96300 36
+packages/svelte/src/lib/index.ts
+  s_d6f92c10539fe3::t_a70bc634722978 54-55
+packages/react/src/ssr.test.ts
+  s_d6f92c10539fe3::t_c7e1b786b96300 53
+packages/vue/src/index.ts
+  s_d6f92c10539fe3::t_a70bc634722978 34
+packages/react/src/components/Toolbar.ct.tsx
+  s_d6f92c10539fe3::t_de63e9ef65e4e4 10,313-331
+  s_d6f92c10539fe3::t_8ae2c670689765 332-333
+packages/vue/src/components/Toolbar.ct.ts
+  s_d6f92c10539fe3::t_de63e9ef65e4e4 10,265-283
+  s_d6f92c10539fe3::t_1a4f07f28fffd7 284-285
+packages/vue/src/components/InkToolbarButton.vue
+  s_d6f92c10539fe3::t_d8a482ed5fc7f8 4,8-12,20,23
+  s_d6f92c10539fe3::t_a70bc634722978 1-3,5-7,15-19,21-22,24-27
+  s_d6f92c10539fe3::t_210f31c939b2be 13-14
+packages/svelte/src/lib/components/InkToolbarButton.svelte
+  s_d6f92c10539fe3::t_a70bc634722978 1-33
+packages/react/README.md
+  s_d6f92c10539fe3::t_849a6dd9b895e3 103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d55aab71e8f46a7c154f8df6cfa548796f0e6008",
+  "prompts": {},
+  "sessions": {
+    "s_d6f92c10539fe3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db98c1ef-4c5a-4c88-b425-330912eecf03",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
