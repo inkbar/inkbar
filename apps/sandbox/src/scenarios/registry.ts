@@ -2,7 +2,7 @@ import type { DocumentName } from '../../vite/documents/index.ts'
 import type { FrameworkId } from '../shell/frameworks.ts'
 
 export type ScenarioId =
-  'tour' | 'tools' | 'forms' | 'redactions' | 'controlled' | 'search'
+  'tour' | 'tools' | 'forms' | 'redactions' | 'controlled' | 'search' | 'sidebars'
 
 export interface Scenario {
   id: ScenarioId
@@ -73,5 +73,13 @@ export const SCENARIOS: readonly Scenario[] = [
     document: 'long',
     panels: ['events'],
     frameworkFiles: { svelte: ['src/scenarios/search/SearchLog.svelte'] },
+  },
+  {
+    id: 'sidebars',
+    title: 'Sidebars',
+    blurb:
+      'Thumbnails and panels in a rail, tabs or a stack, on either side. One thumbnail works on its own, too.',
+    document: 'tour',
+    panels: ['events'],
   },
 ]
