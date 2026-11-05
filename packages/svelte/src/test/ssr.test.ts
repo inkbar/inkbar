@@ -33,6 +33,7 @@ describe('@inkbar/svelte on the server', () => {
         'InkAnnotation',
         'InkToolbar',
         'InkToolButton',
+        'InkToolbarButton',
         'InkToolbarSeparator',
         'InkUndo',
         'InkRedo',

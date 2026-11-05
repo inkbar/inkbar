@@ -11,6 +11,7 @@ import LineStyleHarness from './harness/LineStyleHarness.svelte'
 import MissingToolsHarness from './harness/MissingToolsHarness.svelte'
 import SignatureHarness from './harness/SignatureHarness.svelte'
 import TextStyleHarness from './harness/TextStyleHarness.svelte'
+import ToolbarButtonHarness from './harness/ToolbarButtonHarness.svelte'
 import ToolbarHarness from './harness/ToolbarHarness.svelte'
 import ZoomClickHarness from './harness/ZoomClickHarness.svelte'
 
@@ -319,6 +320,29 @@ describe('toolbar', () => {
       .toBe(browserPage.getByRole('button', { name: 'Choose highlight' }).element())
     await userEvent.keyboard('{ArrowLeft}')
     await expect.poll(focused).toBe(document.querySelector(toolButton('highlight')))
+  })
+
+  // React: 'a host button joins the toolbar: arrow keys reach it and it takes the toolbar styles'
+  it('a host button joins the toolbar: arrow keys reach it and it takes the toolbar styles', async () => {
+    let opened = 0
+    await render(ToolbarButtonHarness, { onOpen: () => opened++ })
+    const share = browserPage
+      .getByRole('button', { name: 'Share' })
+      .element() as HTMLElement
+    const open = browserPage
+      .getByRole('button', { name: 'Open a PDF' })
+      .element() as HTMLElement
+    expect(open.getAttribute('type')).toBe('button')
+    expect(open.classList).toContain('ink-toolbar-button')
+    expect(open.classList).toContain('host-open')
+    expect(open.hasAttribute('data-ink-toolbar-button')).toBe(true)
+    share.focus()
+    await userEvent.keyboard('{ArrowRight}')
+    await expect.poll(focused).toBe(open)
+    await userEvent.keyboard('{Enter}')
+    expect(opened).toBe(1)
+    await userEvent.keyboard('{ArrowLeft}')
+    await expect.poll(focused).toBe(share)
   })
 
   // React: 'blurring an untouched page input does not move the viewport'

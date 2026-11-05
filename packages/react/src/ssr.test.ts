@@ -50,6 +50,7 @@ describe('@inkbar/react on the server', () => {
         'useEmbedded',
         'InkToolbar',
         'InkToolButton',
+        'InkToolbarButton',
         'InkToolbarSeparator',
         'InkUndo',
         'InkRedo',
