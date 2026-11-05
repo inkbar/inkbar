@@ -32,6 +32,7 @@ export type {
   ToolKind,
 } from './controller'
 export { hitFor } from './controller'
+export { unknownTool } from './unknown'
 export { createToolOptions, type ToolOptions } from './options'
 export {
   DEFAULT_FREETEXT_WIDTH,
