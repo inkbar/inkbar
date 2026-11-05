@@ -211,7 +211,7 @@ The bar handles Escape itself and stops it there, so an `onkeydown` you pass to 
 </InkRoot>
 ```
 
-`layout` is `rail` (default: icon buttons on the outer edge, and activating the open panel's button closes it), `tabs` (labelled tabs, one panel open) or `stack` (a header per panel, any number expanded). `side` (`left` by default) decides which edge the rail and border sit on. `bind:open` is the open panel's id, or `null`, for rail and tabs, and the expanded ids for stack. Left out, the first panel starts open. When the open panel goes (an `{#if}`), rail and tabs open the first one left and stack drops it, and the bound `open` receives the new value.
+`layout` is `rail` (default: icon buttons beside the document, and activating the open panel's button closes it), `tabs` (labelled tabs, one panel open) or `stack` (a header per panel, any number expanded). `side` (`left` by default) decides which edge the rail and border sit on. `bind:open` is the open panel's id, or `null`, for rail and tabs, and the expanded ids for stack. Left out, the first panel starts open. When the open panel goes (an `{#if}`), rail and tabs open the first one left and stack drops it, and the bound `open` receives the new value.
 
 Panels take their place in the order they appear in the markup, including one added later with `{#if}`. A closed panel stays mounted and hidden, so its content keeps its state and scroll position, across layout changes too. The keys and ARIA are core's: see the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#sidebars). The sidebar needs no document and works outside `InkRoot`. On the server it renders its frame with the open panel showing, and the stack headers; rail and tab buttons follow once it has mounted.
 

@@ -400,7 +400,7 @@ Each panel has an `id`, a `label`, an optional `icon` (an `IconNode` from `@inkb
 
 `layout` is one of:
 
-- `rail` (default): a vertical strip of icon buttons on the outer edge, with the label as a tooltip. One panel is open at a time; activating the open panel's button closes it, leaving only the rail.
+- `rail` (default): a vertical strip of icon buttons on the inner edge, beside the document, with the label as a tooltip. One panel is open at a time; activating the open panel's button closes it, leaving only the rail.
 - `tabs`: labelled tabs across the top with one panel open. Pass `open: null` to collapse the sidebar, from a toolbar button of your own for instance.
 - `stack`: every panel as a section with a header button, one under another, any number expanded.
 
@@ -410,7 +410,7 @@ Closed panels stay in the document with `hidden`, so their content keeps its sta
 
 To render your own markup, use `createSidebarController(options)`, which holds the same state and behaviour. Spread `rootAttrs()` on the root, `tablistAttrs()` on the element holding the buttons, `triggerAttrs(id)` on each button and `panelAttrs(id)` on each panel, then call `bindTriggers(element)` once on an element containing the buttons. It handles clicks and keys and keeps the Tab stop right as buttons are re-rendered. `sidebarBadge(badge)` gives the text a badge shows, or `null` when it is hidden. Pass `idPrefix` when the markup is rendered on the server, so the element ids match on the client. A binding whose panels register one by one passes `pending: true` until they are all in, then `update({ pending: false })`: meanwhile a controlled `open` id not registered yet is kept instead of falling back, and the root reports the open state it will have. An uncontrolled sidebar created with no panels opens the first one to arrive.
 
-`@inkbar/theme` sizes the sidebar with `--ink-sidebar-width` (280px) and the rail with `--ink-sidebar-rail-width` (44px). Override either per sidebar with CSS.
+`@inkbar/theme` sizes the sidebar with `--ink-sidebar-width` (280px) and the rail with `--ink-sidebar-rail-width` (48px). Override either per sidebar with CSS.
 
 ## Thumbnails
 

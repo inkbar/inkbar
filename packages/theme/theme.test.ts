@@ -337,7 +337,7 @@ describe('theme.css', () => {
     const decl = (prop: string) =>
       rootRule?.nodes.find((d) => d.type === 'decl' && d.prop === prop)?.toString()
     expect(decl('--ink-sidebar-width')).toMatch(/:\s*280px$/)
-    expect(decl('--ink-sidebar-rail-width')).toMatch(/:\s*44px$/)
+    expect(decl('--ink-sidebar-rail-width')).toMatch(/:\s*48px$/)
     expect(decl('--ink-thumbnail-width')).toMatch(/:\s*120px$/)
     expect(decl('--ink-mark-selected-outline')).toMatch(/:\s*2px solid #2740f5$/i)
     expect(rootRule?.selector).toContain('[data-ink-sidebar]')
@@ -355,6 +355,33 @@ describe('theme.css', () => {
     expect(declsFor('.ink-sidebar-panel[hidden])')).toMatch(/display:\s*none/)
     expect(declsFor('.ink-sidebar-badge[hidden])')).toMatch(/display:\s*none/)
     expect(declsFor('.ink-sidebar)')).toMatch(/var\(--ink-sidebar-width\)/)
+  })
+
+  it('sizes rail buttons like toolbar buttons and keeps a 44px hit area around them', () => {
+    const button = declsFor('.ink-sidebar-rail button)')
+    expect(button).toMatch(/width:\s*var\(--ink-control-size, 2\.25rem\)/)
+    expect(button).toMatch(/height:\s*var\(--ink-control-size, 2\.25rem\)/)
+    // 36px plus 4px on each side.
+    expect(declsFor('.ink-sidebar-rail button)::after')).toMatch(/inset:\s*-4px/)
+  })
+
+  it('puts the rail on the inner edge, beside the document', () => {
+    expect(declsFor(".ink-sidebar[data-layout='rail'])")).toMatch(
+      /flex-direction:\s*row-reverse/
+    )
+    expect(declsFor(".ink-sidebar[data-layout='rail'][data-side='right'])")).toMatch(
+      /flex-direction:\s*row;/
+    )
+  })
+
+  it('shows thumbnails on the page canvas, the current one ringed in the accent', () => {
+    expect(declsFor('.ink-thumbnails)')).toMatch(/background:\s*var\(--ink-bg\)/)
+    expect(declsFor(".ink-thumbnails-item[aria-current='page'] .ink-thumbnail)")).toMatch(
+      /0 0 0 2px var\(--ink-accent\)/
+    )
+    expect(
+      declsFor(".ink-thumbnails-item[aria-current='page'] .ink-thumbnails-label)")
+    ).toMatch(/background:\s*var\(--ink-accent\)/)
   })
 
   it("hides a closed rail sidebar's panels after the rule that shows them", () => {
