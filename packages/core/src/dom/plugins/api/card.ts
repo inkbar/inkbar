@@ -61,6 +61,51 @@ function el(tag: string, className: string, ...children: (Node | string)[]): HTM
   return e
 }
 
+/**
+ * The class list of a card's root: `ink-card` and the spec's own.
+ *
+ * @internal Shared with the record list.
+ */
+export function cardClass(spec: CardSpec): string {
+  return spec.className ? `ink-card ${spec.className}` : 'ink-card'
+}
+
+/**
+ * A card's parts, as the theme styles them: title, meta with its swatch, body, excerpt and the
+ * actions, whose buttons call `act` with their label and function.
+ *
+ * @internal Shared with the record list, whose rows are cards with no dialog around them.
+ */
+export function cardParts(
+  spec: CardSpec,
+  act: (label: string, fn: () => void) => void
+): HTMLElement[] {
+  const parts: HTMLElement[] = [el('p', 'ink-card-title', spec.title)]
+  if (spec.meta !== undefined) {
+    const meta = el('p', 'ink-card-meta', spec.meta)
+    if (spec.swatch !== undefined) {
+      const swatch = el('span', 'ink-card-swatch')
+      swatch.style.background = spec.swatch
+      meta.prepend(swatch)
+    }
+    parts.push(meta)
+  }
+  if (spec.body !== undefined) parts.push(el('p', 'ink-card-body', spec.body))
+  if (spec.excerpt !== undefined) {
+    const { before, match, after } = spec.excerpt
+    parts.push(el('p', 'ink-card-excerpt', before, el('mark', '', match), after))
+  }
+  const actions = el('div', 'ink-card-actions')
+  for (const [label, fn] of Object.entries(spec.actions)) {
+    const button = el('button', '', label) as HTMLButtonElement
+    button.type = 'button'
+    button.addEventListener('click', () => act(label, fn))
+    actions.append(button)
+  }
+  parts.push(actions)
+  return parts
+}
+
 export function createCard<T extends RecordBase>(
   ctx: PluginContext,
   records: Records<T>,
@@ -121,32 +166,9 @@ export function createCard<T extends RecordBase>(
       ...panel.querySelectorAll<HTMLButtonElement>('.ink-card-actions > button'),
     ]
     const focused = buttons().indexOf(document.activeElement as HTMLButtonElement)
-    panel.className = spec.className ? `ink-card ${spec.className}` : 'ink-card'
+    panel.className = cardClass(spec)
     panel.setAttribute('aria-label', spec.label ?? spec.title)
-    const parts: HTMLElement[] = [el('p', 'ink-card-title', spec.title)]
-    if (spec.meta !== undefined) {
-      const meta = el('p', 'ink-card-meta', spec.meta)
-      if (spec.swatch !== undefined) {
-        const swatch = el('span', 'ink-card-swatch')
-        swatch.style.background = spec.swatch
-        meta.prepend(swatch)
-      }
-      parts.push(meta)
-    }
-    if (spec.body !== undefined) parts.push(el('p', 'ink-card-body', spec.body))
-    if (spec.excerpt !== undefined) {
-      const { before, match, after } = spec.excerpt
-      parts.push(el('p', 'ink-card-excerpt', before, el('mark', '', match), after))
-    }
-    const actions = el('div', 'ink-card-actions')
-    for (const [label, fn] of Object.entries(spec.actions)) {
-      const button = el('button', '', label) as HTMLButtonElement
-      button.type = 'button'
-      button.addEventListener('click', () => act(fn))
-      actions.append(button)
-    }
-    parts.push(actions)
-    panel.replaceChildren(...parts)
+    panel.replaceChildren(...cardParts(spec, (_, fn) => act(fn)))
     if (focused >= 0) {
       const now = buttons()
       ;(now[focused] ?? now[0])?.focus({ preventScroll: true })

@@ -241,6 +241,24 @@ describe('theme.css', () => {
     expect(declsFor('.ink-card-excerpt')).not.toBe('')
   })
 
+  it('draws record list rows as cards in the list, not floating, with 44px actions', () => {
+    const row = rules.findIndex((r) => r.selector === ':where(.ink-record > .ink-card)')
+    const card = rules.findIndex((r) => r.selector === ':where(.ink-card)')
+    // After the popover card's rule, so the row's wins at equal (zero) specificity.
+    expect(row).toBeGreaterThan(card)
+    expect(rules[row]!.toString()).toMatch(/box-shadow:\s*none/)
+    expect(rules[row]!.toString()).toMatch(/width:\s*auto/)
+    expect(declsFor('.ink-record-list)')).toMatch(/overflow-y:\s*auto/)
+    expect(declsFor(".ink-record[aria-current='true'] > .ink-card)")).toMatch(
+      /var\(--ink-accent\)/
+    )
+    expect(declsFor('.ink-record .ink-card-actions button)')).toMatch(
+      /min-height:\s*44px/
+    )
+    expect(declsFor('.ink-search-results-bar input)')).toMatch(/min-height:\s*44px/)
+    expect(declsFor('.ink-record-list-empty)')).toMatch(/var\(--ink-muted-fg\)/)
+  })
+
   it('marks a mixed menu trigger', () => {
     expect(declsFor('.ink-menu-trigger[data-mixed]')).toMatch(/border-style:\s*dashed/)
   })

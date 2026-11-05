@@ -211,6 +211,17 @@ export type {
   SearchState,
   ViewerSearch,
 } from './search/controller'
+export { createRecordList, createRecordListController } from './records/list'
+export type { RecordListController, RecordListRow } from './records/list'
+export { recordsSource, searchSource } from './records/source'
+export type {
+  ListItem,
+  RecordListSource,
+  RecordsSourceDeps,
+  RecordsSourceOptions,
+} from './records/source'
+export { createSearchResults } from './records/search-results'
+export type { SearchResultsOptions } from './records/search-results'
 export { createSidebarController, sidebarBadge } from './sidebar/controller'
 export type {
   SidebarController,

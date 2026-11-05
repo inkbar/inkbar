@@ -303,6 +303,8 @@ A command's `run` gets `doc`, the document open when it started, and a `signal` 
 
 Marks redraw when their records change, undo and redo included, and keep their elements, so focus and an open card survive a zoom. Chain `.scrollToFirst()` onto `plugin.marks(…)` to scroll the viewer to new marks: when records start to get a mark, it scrolls to the first in reading order, unless that one is in view already. It moves no focus, and the records a document opens with, undo and redo never scroll. Each carries `data-record` and `data-plugin`; `style` (custom properties included), `className` and `attrs` add your own look. A card has a `title`, optional `label`, `meta`, `swatch` and `body`, and `actions`. Actions must be synchronous: a write after an `await` falls outside the action's undo step. The first action is the primary one and takes focus. After an action that removes the mark, focus moves to the next of this `marks()` call's marks, else the previous one, else the viewport. A mark with a card has `aria-haspopup="dialog"`, and `aria-expanded` is true while its card is open. Escape or a press outside closes the card and returns focus to the mark. `@inkbar/theme` styles `.ink-card`, `.ink-card-title`, `.ink-card-meta`, `.ink-card-swatch`, `.ink-card-body` and `.ink-card-actions`, and the card's `className` adds your own class.
 
+Your marks' card also gives you a list. `createRecordList(viewer, { records: 'review.suggestions' })` (`InkRecordList` in the framework packages) lists the records that have a mark, each as the card the mark opens, with the same actions in the same undo step. See [Record lists](#record-lists).
+
 `suggestions.annotates('redact', { from, onRemoved })` links records to the annotations made from them. Its `add(record)` adds an annotation from `from(record)`, stores the link at `custom.<plugin>.<records name>` (here `custom.review.suggestions`) and fills the type's default colour when `from` gives none. `of(record)` returns the linked annotations. `onRemoved(record, annotation)` and `onChanged(record, annotation)` run inside the user's undo step, never on undo or redo. Call it in `setup`. The link travels with the annotation through a Gloss export and import.
 
 `quadsFromRect(rect)` and `rectFromQuads(quads)` from `@inkbar/core` convert between a box and the quads that text markup takes, and `doc.pageText(page)` resolves to a page's text joined the way the page reads: nothing between touching items, a space at line ends and at wide gaps.
@@ -442,6 +444,28 @@ panel.append(createThumbnails(viewer, { pages: [0, 3, 7], width: 96 }))
 Only the items near the visible part of the list are in the document, so a 500-page file stays cheap. When the list scrolls away from the focused item, focus moves to the first visible one without scrolling back.
 
 To render your own items, use `createThumbnailsController({ document, pluginHost, viewport }, options)`. Its `state` gives the `pages` listed, the `current` page (-1 with no viewport), the `window` of indexes into `pages` to mount and the `offsets` of each item from the top of the list (the last is the total height). Render a spacer of the total height and each item in the window at its offset, as a button with `data-ink-thumbnail-item` set to its page and a `createThumbnailPainter` inside. An item's height is its thumbnail's plus 32px for its label and padding, as the theme draws it. Call `attach(scrollElement)` once the list is in the document: it follows scrolling, handles clicks and keys, and sets each item's `tabindex`. `activate(page)` scrolls the viewer to a page, and `update(options)` takes new options.
+
+## Record lists
+
+`createRecordList(viewer, { records })` lists a plugin's records as cards, the same cards their marks open, with the same actions. It fills its parent's height and scrolls, so put it in a sidebar panel or any box with a height.
+
+```ts
+import { createRecordList, createSearchResults } from '@inkbar/core/dom'
+
+panel.append(createRecordList(viewer, { records: 'review.suggestions' }))
+```
+
+Each record takes its card from the first `plugin.marks` call over those records whose `where` it passes, and the list shows only records that pass one. Records that no `marks` call covers are all listed, titled with their id, with no actions. Pass `where`, `card` or `sort` to choose for yourself; actions on a card you pass run in one undo step too. The default order is by page, then top to bottom and left to right by the mark's rect.
+
+The list and the marks share one selection per records key, so every list over the same records agrees with the marks. Clicking a card, or Enter on it, selects the record, gives its mark `data-selected` and scrolls the viewer to it. Focus stays in the list and no popover opens. Activating a mark selects its card and scrolls every list over those records to it, inside the list, without moving the page. Escape in the list clears the selection, and so does removing the record or undoing it away.
+
+The list is one Tab stop: arrow keys move between cards, Home and End go to the first and last. After an action removes a card, focus moves to the next card, else the previous one, else the list. A polite live region says "3 items" when an action or your app adds or removes cards, but not on undo or redo. With nothing listed it shows "Nothing here yet."
+
+`createSearchResults(viewer)` is the same list over the viewer's search: one card per hit, with its page and the text around it. Choosing a card makes its hit current, as next and previous in the find bar do, and the find bar's current hit is the selected card. It has its own query field, labelled "Find in document", and the find bar's match count. Both share the viewer's search state, so they never disagree. Pass `{ field: false }` to leave the field out when a find bar is on the page.
+
+To render your own cards, build a source with `recordsSource({ pluginHost, viewport }, key, options)` or `searchSource(search)` and pass it to `createRecordListController(source)`. Its `rows` give each item, its card and whether it is selected, and `count` and `announcement` give the count and the live-region text. Render each row as an element with `data-ink-record` set to the item's id, call `attach(element)` on the element holding them, and call `act(id, label)` from each action button. `attach` handles clicks and keys, sets each row's `tabindex` and scrolls the selected row into view. `choose(id)` selects and reveals an item from code. A source of your own needs `items` (each with an `id`, a 0-based `page` and an optional `rect`), `card`, `selected`, `select`, `reveal`, `run` and `replaying`.
+
+`@inkbar/theme` styles the list with `.ink-records`, `.ink-record-list`, `.ink-record` and `.ink-record-list-empty`, and the selected card with `aria-current="true"`.
 
 ## Forms
 

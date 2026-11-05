@@ -14,6 +14,7 @@
  * the host's selection for that key, and the selected record's mark carries `data-selected`.
  */
 import { hostInternalsOf } from '../host'
+import { readingOrder } from '../registry'
 
 import { createCard, type CardSpec } from './card'
 
@@ -245,15 +246,6 @@ export function createMarks<T extends RecordBase & { page: number }>(
     },
   }
   return handle
-}
-
-/** Page first, then top to bottom and left to right, by each record's rect in user space. */
-function readingOrder<T extends { page: number }>(rect: (record: T) => Rect) {
-  return (a: T, b: T) => {
-    const ra = rect(a)
-    const rb = rect(b)
-    return a.page - b.page || rb.y + rb.height - (ra.y + ra.height) || ra.x - rb.x
-  }
 }
 
 function reducedMotion(): boolean {
