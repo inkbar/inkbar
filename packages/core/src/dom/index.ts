@@ -222,6 +222,17 @@ export type {
   SidebarState,
 } from './sidebar/controller'
 export { createSidebar } from './sidebar/sidebar'
+export {
+  createThumbnail,
+  createThumbnailPainter,
+  THUMBNAIL_WIDTH,
+  thumbnailSize,
+} from './thumbnails/thumbnail'
+export type {
+  ThumbnailDeps,
+  ThumbnailOptions,
+  ThumbnailPainter,
+} from './thumbnails/thumbnail'
 export { createViewer } from './viewer/create-viewer'
 export type { CreateViewerOptions, Viewer } from './viewer/create-viewer'
 export {

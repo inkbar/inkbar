@@ -410,6 +410,22 @@ To render your own markup, use `createSidebarController(options)`, which holds t
 
 `@inkbar/theme` sizes the sidebar with `--ink-sidebar-width` (280px) and the rail with `--ink-sidebar-rail-width` (44px). Override either per sidebar with CSS.
 
+## Thumbnails
+
+`createThumbnail(viewer, { page })` draws one page of the open document as a small image, with its annotations and plugin marks on top. Put it anywhere: a sidebar panel, a dialog, a card.
+
+```ts
+import { createThumbnail } from '@inkbar/core/dom'
+
+panel.append(createThumbnail(viewer, { page: 3, width: 120 }))
+```
+
+`page` is 0-based. Give `width` or `height` in CSS pixels and the other follows the page's shape and its own /Rotate (the viewer's rotation does not apply); `width` wins when you give both, and with neither the width is 120px. `annotations: false` and `marks: false` leave those layers out. `label` replaces the accessible name, "Page 4" for page 3.
+
+A thumbnail is an image to assistive technology (`role="img"`), with no focus and no click behaviour of its own: wrap it in a button or link for that. It renders once it comes within 200px of the visible area and shows a placeholder of the right size before then, and while no document is open. Form fields show the values saved in the PDF. Annotations follow edits, undo and redo, and marks are drawn with the plugin's class and style but take no presses.
+
+To paint into your own element, call `createThumbnailPainter(element, { document, pluginHost }, options)` with readables of the document and, for marks, the plugin host. It adds the `ink-thumbnail` class, its role, name, size and layers, and leaves the element's own classes and children alone. `update(options)` applies changed options and `destroy()` removes everything it added. `thumbnailSize(pageInfo, { width, height })` gives the size and zoom a thumbnail of that page gets.
+
 ## Forms
 
 Inkbar fills the AcroForm fields in a PDF and runs the form's scripts. `doc.form` reads and sets the values:
