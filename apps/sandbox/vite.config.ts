@@ -8,7 +8,7 @@ import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vite'
 
 import { highlightSource } from './vite/highlight.ts'
-import { samplePdf } from './vite/sample.ts'
+import { generatedPdfs } from './vite/sample.ts'
 
 const entry = (path: string): string => fileURLToPath(new URL(path, import.meta.url))
 
@@ -22,7 +22,7 @@ export default defineConfig({
     svelte(),
     inkbar(),
     prebundlePdfEngine(),
-    samplePdf(),
+    generatedPdfs(),
     highlightSource(),
   ],
   build: {
