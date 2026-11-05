@@ -66,6 +66,10 @@ describe('@inkbar/vue on the server', () => {
         'InkPanel',
         'InkThumbnail',
         'InkThumbnails',
+        'InkRecordList',
+        'InkSearchResults',
+        'useRecords',
+        'useRecordSelection',
       ])
     )
     expect(evaluated.pdfjs).toBe(false)
@@ -217,5 +221,26 @@ describe('@inkbar/vue on the server', () => {
     expect(html).toMatch(/<div class="ink-thumbnails"[^>]*role="list"/)
     expect(html).not.toContain('data-ink-thumbnail-item')
     expect(html).not.toContain('<canvas')
+  })
+
+  it('InkRecordList and InkSearchResults render empty on the server', async () => {
+    const html = await renderToString(
+      createSSRApp({
+        render: () =>
+          h(entry.InkRoot, { src: '/doc.pdf', assets }, () => [
+            h(entry.InkRecordList, { records: 'sandbox.suggestions' }),
+            h(entry.InkSearchResults),
+          ]),
+      })
+    )
+    const lists = html.match(/<div class="ink-records"[^>]*>/g) ?? []
+    expect(lists).toHaveLength(2)
+    expect(html).not.toContain('data-ink-record=')
+    // No plugins or search yet: not "Nothing here yet." until the list knows.
+    const empties = html.match(/<p class="ink-record-list-empty"[^>]*>/g) ?? []
+    expect(empties).toHaveLength(2)
+    for (const empty of empties) expect(empty).toMatch(/\shidden/)
+    expect(html).toContain('aria-label="Find in document"')
+    expect(html).toMatch(/<div class="ink-search-results"[^>]*data-ink-search-results/)
   })
 })

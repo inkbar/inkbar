@@ -199,6 +199,24 @@ Panels take their place in the order they appear in the template, including one 
 
 An item's height is worked out from its page alone, so position what you add absolutely. Both need `InkRoot` and render empty on the server.
 
+## Record lists
+
+`InkRecordList` lists a plugin's records as cards, the same cards their marks open, with the same actions. Name the records `<plugin>.<name>`:
+
+```vue
+<InkPanel id="suggestions" label="Suggestions" :icon="MessageSquare" :badge="count">
+  <InkRecordList records="review.suggestions" @update:count="count = $event">
+    <template #empty>No suggestions left.</template>
+  </InkRecordList>
+</InkPanel>
+```
+
+The list and the marks share one selection: choosing a card selects its mark and scrolls the viewer there, and activating a mark selects its card. Each action runs in one undo step. `card`, `where` and `sort` replace the marks' card, filter and reading order. Changing one rebuilds the list, so define them once in your script, not inline in the template. `update:count` gives the number listed whenever it changes, ready for a panel badge. The `empty` slot replaces "Nothing here yet.".
+
+`InkSearchResults` is the same list over the document search: one card per hit, with its page and the text around it. Choosing a card makes its hit current, as the find bar's next and previous do. It has its own field, labelled "Find in document", and the find bar's match count; `:field="false"` leaves the field out when a find bar is on the page. Field and find bar share the search state, so they never disagree.
+
+To build your own, `useRecords<T>(name)` returns the live `records` and the `handle` to read and write them, each write one undo step, and `useRecordSelection(name)` returns `selected` and `select(id | null)`. Both need `InkRoot`. Plugins are set up once it has mounted, so until then `handle` is null, `records` is empty and nothing is selected. Both lists fill their parent's height and render empty on the server. The keys, focus and announcements are core's: see the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#record-lists).
+
 ## Custom rendering
 
 Slots let you render parts yourself. `InkViewport` has `loading`, `empty`, `error`, `annotation` and `page-error` slots. `InkThreadPopover` has a scoped default slot that receives the popover's props, and the default slot of `InkToolButton` receives `{ active, label }`. The props are typed as `AnnotationSlotProps` and `ThreadPopoverSlotProps`, the same types the React and Svelte packages export.
@@ -230,7 +248,7 @@ Components carry state on data attributes, for example `[data-annotation][data-s
 
 ## Composables
 
-`useDocument`, `useAnnotations`, `useTool`, `useSelection`, `useZoom`, `usePage`, `useHistory`, `useEmbedded` and `useCommand` read the state of the nearest `InkRoot`. Build your own toolbar or side panel from them. Tool options, such as the shape kind, last as long as `InkRoot`. The tool style that `useToolStyle` reads and sets (colours, line style, text style) belongs to the document: opening another one starts again from the theme's defaults.
+`useDocument`, `useAnnotations`, `useTool`, `useSelection`, `useZoom`, `usePage`, `useHistory`, `useEmbedded`, `useCommand`, `useRecords` and `useRecordSelection` read the state of the nearest `InkRoot`. Build your own toolbar or side panel from them. Tool options, such as the shape kind, last as long as `InkRoot`. The tool style that `useToolStyle` reads and sets (colours, line style, text style) belongs to the document: opening another one starts again from the theme's defaults.
 
 ## Licence
 
