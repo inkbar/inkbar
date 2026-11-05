@@ -212,8 +212,8 @@ test('InkSearchResults and InkFindBar agree on query and current', async ({
   expect(total).toBeGreaterThan(1)
   await expect(rows).toHaveCount(total)
   await expect(rows.first().locator('.ink-card-excerpt mark')).toHaveText(/inkbar/i)
-  await expect(rows.first().locator('.ink-card-meta')).toHaveText(/^Page \d+$/)
-  await expect(rows.first().locator('.ink-card-title')).toHaveText('Match 1')
+  await expect(rows.first().locator('.ink-card-title')).toHaveText(/^Page \d+$/)
+  await expect(rows.first().locator('.ink-card-meta')).toHaveText('Match 1')
   await expect(rows.first()).toHaveAttribute('aria-current', 'true')
 
   // Choosing a row makes its hit current in the bar.

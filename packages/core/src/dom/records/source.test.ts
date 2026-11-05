@@ -261,8 +261,8 @@ describe('searchSource', () => {
     expect(ids(items)).toEqual(['0:0', '0:1', '2:0'])
     expect(items[2]).toMatchObject({ page: 2, rect: hit(2, 3, 'word').rect })
     expect(src.card(items[1]!)).toEqual({
-      title: 'Match 2',
-      meta: 'Page 1',
+      title: 'Page 1',
+      meta: 'Match 2',
       excerpt: { before: 'before 20 ', match: 'word', after: ' after 20' },
       actions: {},
     })
@@ -328,5 +328,30 @@ describe('searchSource', () => {
     expect(select).toHaveBeenCalledWith(2)
     src.select('9:9')
     expect(select).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the items and cards of listed hits as earlier pages land', () => {
+    const later = [hit(2, 3, 'word'), hit(2, 9, 'word')]
+    const state = writable<SearchState>({
+      open: true,
+      query: 'word',
+      matchCase: false,
+      hits: later,
+      current: 0,
+      scanning: true,
+    })
+    const src = searchSource({ state, select: vi.fn() } as unknown as ViewerSearch)
+    src.items.subscribe(() => {})
+    const before = src.items.get()
+    const cards = before.map((item) => src.card(item))
+    expect(cards[1]).toMatchObject({ title: 'Page 3', meta: 'Match 2' })
+    // The same hit objects, after page 0's: a new array, as the scan's flush makes.
+    state.set({ ...state.get(), hits: [hit(0, 1, 'word'), ...later], current: 1 })
+    const after = src.items.get()
+    expect(after).toHaveLength(3)
+    expect(after[1]).toBe(before[0])
+    expect(after[2]).toBe(before[1])
+    expect(src.card(after[2]!)).toEqual(cards[1])
+    expect(src.card(after[0]!)).toMatchObject({ title: 'Page 1', meta: 'Match 1' })
   })
 })

@@ -207,13 +207,18 @@ export function recordsSource<T extends RecordBase & { page: number }>(
 
 /**
  * The viewer's search hits: one item per hit, id `<page>:<n>` with `n` its place among its
- * page's hits, so an id stays put while a scan adds other pages' hits before it. Its page is the
- * card's meta and its context the excerpt, with no actions.
+ * page's hits, so an id stays put while a scan adds other pages' hits before it. A listed hit
+ * keeps its item too, so its card is not rebuilt as the scan goes on. The card's title is the
+ * hit's page, its meta the hit's place on that page and its excerpt the text around it, with no
+ * actions.
  * Selecting one makes it the current hit, as the find bar's next and previous do, and the
  * current hit is the selected item. It announces the result count once a scan settles.
  */
 export function searchSource(search: ViewerSearch): RecordListSource {
-  const hitOf = new WeakMap<ListItem, { hit: SearchHit; index: number }>()
+  /** Each hit's item, kept while the hit is: the scan adds hits but keeps the objects. */
+  const itemOf = new WeakMap<SearchHit, ListItem>()
+  /** Each item's hit and its place among its page's hits, from 0. */
+  const hitOf = new WeakMap<ListItem, { hit: SearchHit; n: number }>()
   let lastHits: readonly SearchHit[] | null = null
   let lastItems: readonly ListItem[] = NO_ITEMS
   /** Each id's index into `lastHits`. */
@@ -232,8 +237,12 @@ export function searchSource(search: ViewerSearch): RecordListSource {
       n = hit.page === page ? n + 1 : 0
       page = hit.page
       const id = `${hit.page}:${n}`
-      const item: ListItem = { id, page: hit.page, rect: hit.rect }
-      hitOf.set(item, { hit, index })
+      let item = itemOf.get(hit)
+      if (item?.id !== id) {
+        item = { id, page: hit.page, rect: hit.rect }
+        itemOf.set(hit, item)
+        hitOf.set(item, { hit, n })
+      }
       indexOf.set(id, index)
       idOf.set(hit, id)
       return item
@@ -257,10 +266,10 @@ export function searchSource(search: ViewerSearch): RecordListSource {
     card(item) {
       const found = hitOf.get(item)
       if (!found) return null
-      const { hit, index } = found
+      const { hit, n } = found
       return {
-        title: `Match ${index + 1}`,
-        meta: `Page ${hit.page + 1}`,
+        title: `Page ${hit.page + 1}`,
+        meta: `Match ${n + 1}`,
         excerpt: { before: hit.before, match: hit.text, after: hit.after },
         actions: {},
       }
