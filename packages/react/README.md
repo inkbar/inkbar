@@ -225,9 +225,29 @@ Panels take their place in the order they appear in the DOM, including one rende
 
 An item's height is worked out from its page alone, so position what you add absolutely. Both need `InkRoot` and render empty on the server.
 
+## Record lists
+
+`InkRecordList` lists a plugin's records as cards, the same cards their marks open, with the same actions. Name the records `<plugin>.<name>`:
+
+```tsx
+<InkPanel id="suggestions" label="Suggestions" icon={MessageSquare} badge={count}>
+  <InkRecordList
+    records="review.suggestions"
+    onCountChange={setCount}
+    empty="No suggestions left."
+  />
+</InkPanel>
+```
+
+The list and the marks share one selection: choosing a card selects its mark and scrolls the viewer there, and activating a mark selects its card. Each action runs in one undo step. `card`, `where` and `sort` replace the marks' card, filter and reading order. A new function rebuilds the list, so wrap them in `useCallback` or define them outside the component, never inline. `onCountChange` gets the number listed whenever it changes, ready for a panel badge. `empty` replaces "Nothing here yet.". To list something of your own, pass a `source` (a `RecordListSource`, as core's `recordsSource` and `searchSource` build) in place of `records`: it gets the same cards, keys and selection. With both, `source` wins.
+
+`InkSearchResults` is the same list over the document search: one card per hit, with its page and the text around it. Choosing a card makes its hit current, as the find bar's next and previous do. It has its own field, labelled "Find in document", and the find bar's match count; `field={false}` leaves the field out when a find bar is on the page. Field and find bar share the search state, so they never disagree.
+
+To build your own, `useRecords<T>(name)` returns the live `records` and the `handle` to read and write them, each write one undo step, and `useRecordSelection(name)` returns `selected` and `select(id | null)`. Both need `InkRoot`. Plugins are set up once it has mounted, so until then `handle` is null, `records` is empty and nothing is selected. Both lists fill their parent's height and render empty on the server. The keys, focus and announcements are core's: see the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#record-lists).
+
 ## Custom rendering
 
-Slots are render props. `InkViewport` takes `loading`, `empty`, `error`, `renderAnnotation` and `renderPageError`; `InkThreadPopover` takes a function as `children`; `InkToolButton` takes a node or a function of `{ active, label }`; `InkCommand` a node or a function of `{ label, busy }`; `InkThumbnails` takes `renderItem`. The props each receives are typed as `AnnotationSlotProps` and `ThreadPopoverSlotProps`, the same types the Vue package exports.
+Slots are render props. `InkViewport` takes `loading`, `empty`, `error`, `renderAnnotation` and `renderPageError`; `InkThreadPopover` takes a function as `children`; `InkToolButton` takes a node or a function of `{ active, label }`; `InkCommand` a node or a function of `{ label, busy }`; `InkThumbnails` takes `renderItem`; `InkRecordList` takes `empty`. The props each receives are typed as `AnnotationSlotProps` and `ThreadPopoverSlotProps`, the same types the Vue package exports.
 
 `InkRoot`, `InkToolbar`, `InkToolButton`, `InkCommand`, `InkUndo`, `InkRedo`, `InkPrevPage`, `InkNextPage`, `InkZoomIn` and `InkZoomOut` take `asChild` to render your own element in place of theirs, such as a button from your design system. Pass that element as the only child. The control keeps its behaviour and accessible name.
 
@@ -256,7 +276,7 @@ Components carry state on data attributes, for example `[data-annotation][data-s
 
 ## Hooks
 
-`useDocument`, `useAnnotations`, `useTool`, `useSelection`, `useZoom`, `usePage`, `useHistory`, `useEmbedded` and `useCommand` read the state of the nearest `InkRoot`. Build your own toolbar or side panel from them. Tool options, such as the shape kind, last as long as `InkRoot`. The tool style that `useToolStyle` reads and sets (colours, line style, text style) belongs to the document: opening another one starts again from the theme's defaults.
+`useDocument`, `useAnnotations`, `useTool`, `useSelection`, `useZoom`, `usePage`, `useHistory`, `useEmbedded`, `useCommand`, `useRecords` and `useRecordSelection` read the state of the nearest `InkRoot`. Build your own toolbar or side panel from them. Tool options, such as the shape kind, last as long as `InkRoot`. The tool style that `useToolStyle` reads and sets (colours, line style, text style) belongs to the document: opening another one starts again from the theme's defaults.
 
 ## Licence
 

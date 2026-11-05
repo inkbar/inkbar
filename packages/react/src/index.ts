@@ -15,6 +15,8 @@ export { useHistory } from './hooks/useHistory'
 export { useEmbedded } from './hooks/useEmbedded'
 export { useCommand } from './hooks/useCommand'
 export { useForm } from './hooks/useForm'
+export { useRecords } from './hooks/useRecords'
+export { useRecordSelection } from './hooks/useRecordSelection'
 export type { FormHandle } from './hooks/useForm'
 export type { CommandHandle } from './hooks/useCommand'
 export type {
@@ -89,4 +91,14 @@ export { InkThumbnail } from './components/InkThumbnail'
 export type { InkThumbnailProps } from './components/InkThumbnail'
 export { InkThumbnails } from './components/InkThumbnails'
 export type { InkThumbnailsProps } from './components/InkThumbnails'
-export type { SidebarLayout, SidebarOpen, SidebarSide } from '@inkbar/core/dom'
+export { InkRecordList } from './components/InkRecordList'
+export type { InkRecordListProps } from './components/InkRecordList'
+export { InkSearchResults } from './components/InkSearchResults'
+export type { InkSearchResultsProps } from './components/InkSearchResults'
+export type {
+  CardSpec,
+  HostRecords,
+  SidebarLayout,
+  SidebarOpen,
+  SidebarSide,
+} from '@inkbar/core/dom'
