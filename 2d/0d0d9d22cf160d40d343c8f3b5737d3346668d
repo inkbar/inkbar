@@ -1,0 +1,23 @@
+packages/core/README.md
+  s_1effe0625d7c7b::t_e25929ed8054b8 464
+packages/core/src/dom/index.ts
+  s_1effe0625d7c7b::t_7c419e1a8980a6 211
+packages/core/src/dom/index.test.ts
+  s_1effe0625d7c7b::t_b3c4a8aad10562 50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2d0d0d9d22cf160d40d343c8f3b5737d3346668d",
+  "prompts": {},
+  "sessions": {
+    "s_1effe0625d7c7b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3adafbc8-4f4c-4ced-a223-6be21f4f163c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
