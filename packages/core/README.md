@@ -467,6 +467,8 @@ To render your own cards, build a source with `recordsSource({ pluginHost, viewp
 
 `@inkbar/theme` styles the list with `.ink-records`, `.ink-record-list`, `.ink-record` and `.ink-record-list-empty`, and the selected card with `aria-current="true"`.
 
+`createThumbnail`, `createThumbnails`, `createRecordList` and `createSearchResults` follow the viewer and stop when it is destroyed, not when you remove their element. For a short-lived use, a dialog or a popover for instance, call `createThumbnailPainter(element, deps, options)` or `createRecordListController(source)` and its `destroy()` when you close it.
+
 ## Forms
 
 Inkbar fills the AcroForm fields in a PDF and runs the form's scripts. `doc.form` reads and sets the values:

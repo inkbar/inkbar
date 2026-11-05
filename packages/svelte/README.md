@@ -219,7 +219,7 @@ Panels take their place in the order they appear in the markup, including one ad
 
 `InkThumbnail` draws one page (0-based `page`) as a small image, with its annotations and plugin marks. Give it a `width` or a `height` and the other follows the page; with neither it is 120px wide. `annotations={false}` and `marks={false}` leave those out, and `label` replaces its accessible name ("Page 4" for page 3). It is an image with no focus or click behaviour, so wrap it in the control you need, a checkbox label in a dialog for instance.
 
-`InkThumbnails` lists the pages as thumbnails, each a button that scrolls the viewport to its page, with the current page marked `aria-current="page"`. It fills its parent's height and scrolls. `pages` lists the pages to show, in order; `width`, `annotations` and `marks` pass to each thumbnail. Only the items near the visible part are mounted. The `item` snippet adds to each item after its page number, inside the item's button:
+`InkThumbnails` lists the pages as thumbnails, each a button that scrolls the viewport to its page, with the current page marked `aria-current="page"`. It fills its parent's height and scrolls. `pages` lists the pages to show, in order; `width`, `annotations` and `marks` pass to each thumbnail. Only the items near the visible part are mounted. The `item` snippet adds to each item after its page number:
 
 ```svelte
 <InkThumbnails>
@@ -229,7 +229,7 @@ Panels take their place in the order they appear in the markup, including one ad
 </InkThumbnails>
 ```
 
-An item's height is worked out from its page alone, so position what you add absolutely. Both need `InkRoot` and render empty on the server.
+An item's height is worked out from its page alone, so position what you add absolutely. The `item` snippet renders inside the item's `<button>`: keep it non-interactive, with no links, buttons or inputs. Both need `InkRoot` and render empty on the server.
 
 ## Record lists
 

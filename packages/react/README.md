@@ -223,7 +223,7 @@ Panels take their place in the order they appear in the DOM, including one rende
 />
 ```
 
-An item's height is worked out from its page alone, so position what you add absolutely. Both need `InkRoot` and render empty on the server.
+An item's height is worked out from its page alone, so position what you add absolutely. What `renderItem` returns renders inside the item's `<button>`: keep it non-interactive, with no links, buttons or inputs. Both need `InkRoot` and render empty on the server.
 
 ## Record lists
 
