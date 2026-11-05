@@ -75,6 +75,11 @@ export interface InkContext {
   setTool(id: ToolId): void
   /** Host tools from InkRoot's `tools` prop; InkViewport registers them. */
   hostTools: Readonly<Ref<Tool[] | undefined>>
+  /**
+   * The ids of the tools the current viewer was built with, set by InkViewport; `null` while
+   * there is none. A tool added to `tools` later is registered from the next build.
+   */
+  openedToolIds: ShallowRef<readonly ToolId[] | null>
   /** InkRoot's `decorateAnnotation` prop. InkViewport re-applies decorations when it changes. */
   decorateAnnotation: Readonly<Ref<DecorateAnnotation | undefined>>
   /** The font families text boxes offer: InkRoot's `fonts`, else `FONT_FAMILIES`. */

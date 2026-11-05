@@ -5,11 +5,13 @@ import ControlledHost from '../../playwright/harness/ControlledHost.vue'
 import EventHost from '../../playwright/harness/EventHost.vue'
 import PluginHarness from '../../playwright/harness/PluginHarness.vue'
 import ToolbarHarness from '../../playwright/harness/ToolbarHarness.vue'
+import ToolSetHarness from '../../playwright/harness/ToolSetHarness.vue'
 import UncontrolledHost from '../../playwright/harness/UncontrolledHost.vue'
 
 import InkRoot from './InkRoot.vue'
 
 import type { Annotation } from '@inkbar/core'
+import type { Page } from '@playwright/test'
 
 const assets = browserAssets()
 
@@ -462,4 +464,73 @@ test('unmounting tears down the plugin layers before the plugins', async ({
       page.evaluate(() => (window as Window & { pluginLog?: string[] }).pluginLog)
     )
     .toEqual(['layer destroyed', 'plugin cleaned up'])
+})
+
+/** The ids of the tools the console reported as missing, from now on. */
+function missingTools(page: Page): string[] {
+  const ids: string[] = []
+  page.on('console', (m) => {
+    const id = /No tool (\S+) is registered/.exec(m.text())?.[1]
+    if (m.type() === 'error' && id) ids.push(id)
+  })
+  return ids
+}
+
+test('dropping the active tool falls back to select-text', async ({ mount, page }) => {
+  const missing = missingTools(page)
+  const tools: string[] = []
+  const on = { 'update:tool': (t: string) => tools.push(t) }
+  const cmp = await mount(ToolSetHarness, {
+    props: { src: fixtureUrl('text-simple'), assets, tool: 'shape', follow: true },
+    on,
+  })
+  const scroll = cmp.locator('[data-ink-scroll]')
+  await expect(scroll).toHaveAttribute('data-ink-tool', 'shape')
+  // An update replaces the listeners, so it passes them again.
+  await cmp.update({ props: { bare: true }, on })
+  await expect(scroll).toHaveAttribute('data-ink-tool', 'select-text')
+  expect(tools).toEqual(['select-text'])
+  expect(missing).toEqual(['shape'])
+})
+
+test('a controlled tool naming a missing tool reports select-text once', async ({
+  mount,
+  page,
+}) => {
+  const missing = missingTools(page)
+  const tools: string[] = []
+  const cmp = await mount(ToolSetHarness, {
+    props: { src: fixtureUrl('text-simple'), assets, tool: 'highlight', bare: true },
+    on: { 'update:tool': (t: string) => tools.push(t) },
+  })
+  const scroll = cmp.locator('[data-ink-scroll]')
+  await expect(scroll).toHaveAttribute('data-ink-tool', 'select-text')
+  await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+  // The host keeps passing the missing tool; a re-render does not apply it again.
+  await cmp.update({
+    props: { bare: true },
+    on: { 'update:tool': (t: string) => tools.push(t) },
+  })
+  await expect(scroll).toHaveAttribute('data-ink-tool', 'select-text')
+  expect(tools).toEqual(['select-text'])
+  expect(missing).toEqual(['highlight'])
+})
+
+test('a plugin tool works with no tools prop', async ({ mount, page }) => {
+  const missing = missingTools(page)
+  const cmp = await mount(PluginHarness, {
+    props: { src: fixtureUrl('text-simple'), assets },
+  })
+  await expect(cmp).toHaveAttribute('data-state', 'ready')
+  const button = cmp.locator('[data-ink-tool-button][data-tool="sandbox.stamp"]')
+  await expect(button).toHaveAccessibleName('Stamp')
+  await expect(button).toBeEnabled()
+  await expect(button).not.toHaveAttribute('aria-hidden')
+  await button.click()
+  await expect(button).toHaveAttribute('aria-pressed', 'true')
+  await expect(cmp.locator('[data-ink-scroll]')).toHaveAttribute(
+    'data-ink-tool',
+    'sandbox.stamp'
+  )
+  expect(missing).toEqual([])
 })

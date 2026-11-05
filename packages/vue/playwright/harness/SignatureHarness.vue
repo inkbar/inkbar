@@ -7,9 +7,10 @@ import {
   type SignatureTemplate,
 } from '@inkbar/core'
 import { allTools } from '@inkbar/core/dom'
-import { shallowRef } from 'vue'
+import { ref, shallowRef } from 'vue'
 
 import InkRoot from '../../src/components/InkRoot.vue'
+import InkSignatureDialog from '../../src/components/InkSignatureDialog.vue'
 import InkSignatureMenu from '../../src/components/InkSignatureMenu.vue'
 import InkToolbar from '../../src/components/InkToolbar.vue'
 import InkToolButton from '../../src/components/InkToolButton.vue'
@@ -28,10 +29,13 @@ const props = withDefaults(
     failSave?: boolean
     /** The store refuses every removal. */
     failRemove?: boolean
+    /** No tools: a plain button opens the dialog in place of the menu. */
+    bare?: boolean
   }>(),
-  { initial: () => [], fonts: undefined, failSave: false, failRemove: false }
+  { initial: () => [], fonts: undefined, failSave: false, failRemove: false, bare: false }
 )
 const tools = allTools()
+const dialog = ref(false)
 
 /** A memory store whose contents the page shows. */
 const saved = shallowRef<SignatureTemplate[]>(props.initial)
@@ -61,12 +65,14 @@ const store: SignatureStore = {
     :zoom="1"
     :signatures="store"
     :signature-fonts="props.fonts"
-    :tools="tools"
+    :tools="props.bare ? undefined : tools"
   >
     <InkToolbar>
       <InkToolButton tool="select" />
-      <InkSignatureMenu />
+      <button v-if="props.bare" type="button" @click="dialog = true">Open dialog</button>
+      <InkSignatureMenu v-else />
     </InkToolbar>
+    <InkSignatureDialog v-if="props.bare" v-model:open="dialog" />
     <!-- Test-only box: the scroll container needs a bounded height to scroll. -->
     <div style="height: 600px; width: 900px">
       <InkViewport />
@@ -77,7 +83,7 @@ const store: SignatureStore = {
       :data-ids="saved.map((t) => t.id).join(',')"
       :data-kinds="saved.map((t) => t.kind).join(',')"
     />
-    <SignatureOptionsProbe />
+    <SignatureOptionsProbe v-if="!props.bare" />
     <ComposableProbe />
   </InkRoot>
 </template>

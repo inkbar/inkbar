@@ -22,8 +22,9 @@ import {
 } from 'reka-ui'
 import { computed, ref, useTemplateRef, watch } from 'vue'
 
+import { useRegisteredTool } from '../composables/useRegisteredTool'
 import { useTool } from '../composables/useTool'
-import { useToolOptions } from '../composables/useToolOptions'
+import { useToolOptionsWhile } from '../composables/useToolOptions'
 import { useInkContext } from '../context'
 import { useReadable } from '../use-readable'
 
@@ -42,7 +43,12 @@ const props = defineProps<{
 const NO_TEMPLATES: readonly SignatureTemplate[] = []
 
 const { tool, setTool } = useTool()
-const { options, setOptions } = useToolOptions<SignatureOptions>('signature')
+// Nothing renders while no `signature` tool is registered.
+const registered = useRegisteredTool('signature')
+const { options, setOptions } = useToolOptionsWhile<SignatureOptions>(
+  'signature',
+  registered
+)
 const ctx = useInkContext('InkSignatureMenu')
 const templates = useReadable(() => ctx.signatures.value.templates, NO_TEMPLATES)
 const model = computed(() => signatureMenuModel(templates.value, options.value))
@@ -127,7 +133,7 @@ const menuAttrs = { 'aria-label': SIGNATURE_LABELS.menu }
 </script>
 
 <template>
-  <PopoverRoot v-model:open="open">
+  <PopoverRoot v-if="registered" v-model:open="open">
     <PopoverAnchor as-child>
       <div
         role="group"

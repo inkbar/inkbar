@@ -3,7 +3,8 @@
  * "Create signature": a modal with Draw, Type and Image tabs. Draw is a pad with the draw
  * tool's renderer; Type sets a name in one of the host's handwriting fonts; Image takes a PNG
  * or JPEG scan. Save stores the template through InkRoot's signature store and, unless `select`
- * is false, selects it for the `signature` tool. Escape, Cancel or a press outside closes it.
+ * is false or no `signature` tool is registered, selects it for that tool. Escape, Cancel or a
+ * press outside closes it.
  */
 import { SIGNATURE_LABELS } from '@inkbar/core/dom'
 import {
@@ -23,8 +24,9 @@ const props = withDefaults(
     /** The fonts the Type tab offers. Default: InkRoot's `signatureFonts`. */
     fonts?: readonly string[] | undefined
     /**
-     * Whether saving selects the new signature for the `signature` tool. False leaves the tool
-     * alone, for a dialog that signs a field with it through `save`.
+     * Whether saving selects the new signature for the `signature` tool, when one is
+     * registered. False leaves the tool alone, for a dialog that signs a field with it through
+     * `save`.
      */
     select?: boolean
   }>(),
