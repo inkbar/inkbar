@@ -25,7 +25,6 @@ import { exportAnnotations, importAnnotations } from '../model/annotations/json'
 import { createSnapshotHistory } from '../model/annotations/snapshot-history'
 import { createAnnotationStore } from '../model/annotations/store'
 import { InkError } from '../model/errors'
-import { readonly, writable } from '../model/readable'
 import { createMemorySignatureStore, createSignatureLibrary } from '../model/signatures'
 
 import { JOIN_GAP_MS } from './ink-stroke'
@@ -50,8 +49,6 @@ import {
   type ToolController,
 } from './tools'
 import { createPageTransform } from './transform'
-import { TOOL_LABELS } from './ui'
-import { createToolButton } from './viewer/controls'
 import { mountViewer } from './viewer-engine'
 import { createViewport, type Viewport } from './viewport'
 
@@ -4533,20 +4530,6 @@ describe('tool registry and options', () => {
     expect(engine.tools.options('stamp-x').get()).toEqual({ size: 2 })
     expect(engine.toolStyle.get('shape')).toEqual({})
   })
-
-  it('an unknown id label falls back', () => {
-    expect(TOOL_LABELS['stamp-x']).toBeUndefined()
-    const tools = writable<ToolController | null>(null)
-    const viewer = { tools: readonly(tools) } as unknown as Parameters<
-      typeof createToolButton
-    >[0]
-    const labelled = createToolButton(viewer, 'stamp-x', { label: 'Stamp' })
-    document.body.append(labelled)
-    cleanup.push(() => labelled.remove())
-    expect(labelled.getAttribute('aria-label')).toBe('Stamp')
-    const bare = createToolButton(viewer, 'stamp-x')
-    expect(bare.getAttribute('aria-label')).toBe('stamp-x')
-  })
 })
 
 describe('one-shot tools', () => {
@@ -5246,6 +5229,29 @@ describe('unknown tools', () => {
         },
         initial: 'nope',
       })
+      expect(c.active.get()).toBe('select-text')
+      expect(spy).toHaveBeenCalledTimes(1)
+      expect((unknownLogs(spy)[0] as InkError).code).toBe('UnknownTool')
+      c.destroy()
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('a controller built without tools logs UnknownTool on set("highlight")', async () => {
+    const { doc, viewport } = await setup()
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      const c = createToolController({
+        ctx: {
+          store: doc.annotations,
+          viewport,
+          root: document.createElement('div'),
+          selectionQuads: () => [],
+          clearSelection: () => undefined,
+        },
+      })
+      c.set('highlight')
       expect(c.active.get()).toBe('select-text')
       expect(spy).toHaveBeenCalledTimes(1)
       expect((unknownLogs(spy)[0] as InkError).code).toBe('UnknownTool')

@@ -40,6 +40,7 @@ import {
 import { createViewer, type CreateViewerOptions, type Viewer } from './create-viewer'
 import { createHighlightMenu } from './highlight-menu'
 import { createShapeMenu } from './shape-menu'
+import { createSignatureDialog } from './signature-dialog'
 import { createSignatureMenu } from './signature-menu'
 import { createLineStyleMenu } from './style-menu'
 import { createTextStyleMenu } from './text-style-menu'
@@ -1166,7 +1167,7 @@ describe('createViewer', () => {
     })
 
     it('the colour sets the markup group under any tool, and recolours selected markup', async () => {
-      const { viewer } = make('text-simple')
+      const { viewer } = make('text-simple', { tools: [highlightTool()] })
       const root = createHighlightMenu(viewer)
       viewer.element.prepend(root)
       const { chevron } = parts(root)
@@ -1204,7 +1205,7 @@ describe('createViewer', () => {
     })
 
     it('keyboard: ArrowDown opens on the first kind and moves on to the colour', async () => {
-      const { viewer } = make('text-simple')
+      const { viewer } = make('text-simple', { tools: [highlightTool()] })
       const root = createHighlightMenu(viewer)
       viewer.element.prepend(root)
       const { chevron } = parts(root)
@@ -1259,7 +1260,7 @@ describe('createViewer', () => {
     })
 
     it('the panel lines up under the whole split button, not the chevron', async () => {
-      const { viewer } = make('text-simple')
+      const { viewer } = make('text-simple', { tools: [shapeTool()] })
       const root = createShapeMenu(viewer)
       root.style.marginLeft = '120px'
       viewer.element.prepend(root)
@@ -1321,7 +1322,7 @@ describe('createViewer', () => {
     })
 
     it('keyboard: ArrowDown opens on the first kind, arrows move through the grid, Escape returns focus', async () => {
-      const { viewer } = make('text-simple')
+      const { viewer } = make('text-simple', { tools: [shapeTool()] })
       const root = createShapeMenu(viewer)
       viewer.element.prepend(root)
       const { chevron } = parts(root)
@@ -1494,7 +1495,10 @@ describe('createViewer', () => {
     it('a save the store refuses shows an error and keeps the dialog open', async () => {
       const store = createMemorySignatureStore()
       store.save = () => Promise.reject(new Error('full'))
-      const { viewer } = make('text-simple', { signatures: store })
+      const { viewer } = make('text-simple', {
+        signatures: store,
+        tools: [signatureTool()],
+      })
       const root = createSignatureMenu(viewer)
       viewer.element.prepend(root)
       await ready(viewer)
@@ -1515,7 +1519,10 @@ describe('createViewer', () => {
     it('a removal the store refuses shows an error in the menu', async () => {
       const store = createMemorySignatureStore([INK, IMAGE])
       store.remove = () => Promise.reject(new Error('full'))
-      const { viewer } = make('text-simple', { signatures: store })
+      const { viewer } = make('text-simple', {
+        signatures: store,
+        tools: [signatureTool()],
+      })
       const root = createSignatureMenu(viewer)
       viewer.element.prepend(root)
       const { engine } = await ready(viewer)
@@ -2082,9 +2089,12 @@ describe('a viewer with no creation tools', () => {
     const { doc, engine } = await ready(viewer)
     // No creation tool is registered.
     const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    engine.tools.set('highlight')
-    expect((error.mock.calls[0]?.[0] as InkError).code).toBe('UnknownTool')
-    error.mockRestore()
+    try {
+      engine.tools.set('highlight')
+      expect((error.mock.calls[0]?.[0] as InkError).code).toBe('UnknownTool')
+    } finally {
+      error.mockRestore()
+    }
     const ids = oneOfEach().map((a) => doc.annotations.add(a).id)
     doc.annotations.select([])
     await until(() => ids.every((id) => annotationEl(viewer, id) !== null))
@@ -2104,6 +2114,21 @@ describe('a viewer with no creation tools', () => {
     pointer(scroll, 'pointermove', at.x + 40, at.y + 20)
     pointer(scroll, 'pointerup', at.x + 40, at.y + 20)
     expect(doc.annotations.get(square.id)!.rect).toMatchObject({ x: 112, y: 480 })
+
+    // A drag on a corner handle resizes it.
+    doc.annotations.select([square.id])
+    const grip = sq.querySelector<HTMLElement>(':scope > [data-handle="se"]')!
+    const before = doc.annotations.get(square.id)!.rect
+    const g = grip.getBoundingClientRect()
+    const gx = g.left + g.width / 2
+    const gy = g.top + g.height / 2
+    pointer(grip, 'pointerdown', gx, gy)
+    pointer(scroll, 'pointermove', gx + 10, gy + 10)
+    pointer(scroll, 'pointermove', gx + 20, gy + 20)
+    pointer(scroll, 'pointerup', gx + 20, gy + 20)
+    const after = doc.annotations.get(square.id)!.rect
+    expect(after.width).toBeGreaterThan(before.width)
+    expect(after.height).toBeGreaterThan(before.height)
 
     // The line style menu restyles the selected line.
     const line = byType('line')
@@ -2134,6 +2159,136 @@ describe('a viewer with no creation tools', () => {
     key(boxEl, 'Enter')
     const editor = boxEl.querySelector<HTMLElement>('[data-ink-editor]')
     expect(editor?.textContent).toBe('Box')
+  })
+
+  describe('missing tools', () => {
+    const errors = () => vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const codes = (spy: { mock: { calls: unknown[][] } }) =>
+      spy.mock.calls.map((c) => (c[0] as InkError).code)
+    const FACTORIES = {
+      highlight: createHighlightMenu,
+      shape: createShapeMenu,
+      signature: (v: Viewer) => createSignatureMenu(v),
+    }
+
+    it('a tool button for a missing tool is disabled and hidden', async () => {
+      const { viewer } = make('text-simple')
+      const spy = errors()
+      try {
+        const b = createToolButton(viewer, 'highlight')
+        viewer.element.prepend(b)
+        await ready(viewer)
+        expect(b.disabled).toBe(true)
+        expect(b.getAttribute('aria-hidden')).toBe('true')
+        expect(b.hasAttribute('aria-label')).toBe(false)
+        expect(b.hasAttribute('title')).toBe(false)
+        expect(codes(spy)).toEqual(['UnknownTool'])
+      } finally {
+        spy.mockRestore()
+      }
+    })
+
+    it('a menu for a missing tool renders nothing', async () => {
+      for (const [id, create] of Object.entries(FACTORIES)) {
+        const { viewer } = make('text-simple')
+        const spy = errors()
+        try {
+          const root = create(viewer)
+          viewer.element.prepend(root)
+          const { engine } = await ready(viewer)
+          const set = vi.spyOn(engine.tools, 'set')
+          expect(root.hidden, id).toBe(true)
+          expect(root.childElementCount, id).toBe(0)
+          root.click()
+          expect(set, id).not.toHaveBeenCalled()
+          expect(codes(spy), id).toEqual(['UnknownTool'])
+        } finally {
+          spy.mockRestore()
+        }
+      }
+    })
+
+    it('a menu for a present tool still works', async () => {
+      for (const [id, create] of Object.entries(FACTORIES)) {
+        const { viewer } = make('text-simple', { tools: allTools() })
+        const spy = errors()
+        try {
+          const root = create(viewer)
+          viewer.element.prepend(root)
+          await ready(viewer)
+          expect(root.hidden, id).toBe(false)
+          expect(root.childElementCount, id).toBeGreaterThan(0)
+          expect(codes(spy), id).toEqual([])
+        } finally {
+          spy.mockRestore()
+        }
+      }
+    })
+
+    it('the signature dialog saves without the signature tool', async () => {
+      const store = createMemorySignatureStore([])
+      const { viewer } = make('text-simple', { signatures: store })
+      const spy = errors()
+      try {
+        const { engine } = await ready(viewer)
+        const set = vi.spyOn(engine.tools, 'set')
+        const dialog = createSignatureDialog(viewer)
+        const scribble = (pad: Element) => {
+          const r = pad.getBoundingClientRect()
+          const at = (type: string, x: number, y: number) =>
+            pad.dispatchEvent(
+              new PointerEvent(type, {
+                clientX: r.left + x,
+                clientY: r.top + y,
+                bubbles: true,
+                pointerId: 3,
+                buttons: type === 'pointerup' ? 0 : 1,
+                isPrimary: true,
+              })
+            )
+          at('pointerdown', 10, 40)
+          at('pointermove', 60, 10)
+          at('pointermove', 120, 50)
+          at('pointerup', 120, 50)
+        }
+        const save = async () => {
+          const d = document.querySelector<HTMLElement>('[data-ink-signature-dialog]')!
+          scribble(d.querySelector('[data-ink-signature-pad]')!)
+          d.querySelector<HTMLButtonElement>('[data-ink-signature-save]')!.click()
+          await until(
+            () => document.querySelector('[data-ink-signature-dialog]') === null
+          )
+        }
+        dialog.open()
+        await save()
+        expect(await store.list()).toHaveLength(1)
+        expect(set).not.toHaveBeenCalled()
+
+        const onSave = vi.fn()
+        dialog.open({ onSave })
+        await save()
+        expect(onSave).toHaveBeenCalledOnce()
+        expect(onSave.mock.calls[0]![0]).toMatchObject({ kind: 'ink' })
+        expect(set).not.toHaveBeenCalled()
+        expect(codes(spy)).toEqual([])
+      } finally {
+        spy.mockRestore()
+      }
+    })
+  })
+
+  it('a registered tool without a label is named by its id', () => {
+    const stamp: Tool = {
+      id: 'stamp-x',
+      cursor: 'crosshair',
+      activate: () => undefined,
+      deactivate: () => undefined,
+    }
+    const { viewer } = make('text-simple', { tools: [stamp] })
+    const labelled = createToolButton(viewer, 'stamp-x', { label: 'Stamp' })
+    const bare = createToolButton(viewer, 'stamp-x')
+    expect(labelled.getAttribute('aria-label')).toBe('Stamp')
+    expect(bare.getAttribute('aria-label')).toBe('stamp-x')
   })
 
   it('a plugin tool works with no creation tools', async () => {

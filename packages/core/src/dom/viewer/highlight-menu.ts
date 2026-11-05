@@ -14,7 +14,7 @@ import { MARKUP_KINDS, type MarkupKind, type ToolController } from '../tools'
 import { highlightMenuModel, type HighlightMenuModel } from '../ui'
 
 import { createColorMenu } from './color-menu'
-import { createIcon } from './controls'
+import { createIcon, logUnknownTool, registeredTool } from './controls'
 import { h } from './dom'
 import { createMenu } from './menu'
 
@@ -25,6 +25,10 @@ const COLOUR_LABEL = 'Highlight colour'
 
 /** A split button: the main part marks text with the current kind, the chevron picks it. */
 export function createHighlightMenu(viewer: Viewer): HTMLElement {
+  if (!registeredTool(viewer, 'highlight')) {
+    logUnknownTool(viewer, 'highlight')
+    return h('div', { hidden: '' })
+  }
   const main = h('button', {
     type: 'button',
     class: 'ink-tool-button ink-highlight-button',
