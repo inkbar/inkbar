@@ -362,7 +362,8 @@ export function formRows(
     weight: 1.25,
     title: 'Buttons and actions',
     body: 'Buttons can submit the form, send mail, open a link, print or show a message. Inkbar never sends or opens anything itself: it hands each request to the page.',
-    tryIt: 'Try it: press Submit, then look at the Form panel beside the viewer.',
+    tryIt:
+      'Try it: press Submit, then check the Events tab. The Values tab shows your fields.',
     demo(s, b) {
       boxTitle(s, b, 'Actions')
       const captions: [string, string][] = [
