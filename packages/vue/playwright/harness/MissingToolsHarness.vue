@@ -17,11 +17,15 @@ import type { DocumentSource, PdfAssets } from '@inkbar/core'
 defineProps<{
   src: DocumentSource
   assets: PdfAssets
-  controls: ('highlight-button' | 'highlight' | 'shape' | 'signature')[]
+  controls: (
+    'highlight-button' | 'hostile-button' | 'highlight' | 'shape' | 'signature'
+  )[]
   /** Passes the highlight tool. */
   highlight?: boolean
 }>()
 const tools = [highlightTool()]
+// Fallthrough attributes the button must ignore when its tool is missing.
+const hostile: Record<string, string> = { 'aria-label': 'X', title: 'Hostile' }
 </script>
 
 <template>
@@ -29,6 +33,13 @@ const tools = [highlightTool()]
     <InkToolbar>
       <InkToolButton tool="select-text" />
       <InkToolButton v-if="controls.includes('highlight-button')" tool="highlight" />
+      <InkToolButton
+        v-if="controls.includes('hostile-button')"
+        tool="highlight"
+        v-bind="hostile"
+      >
+        <span>child</span>
+      </InkToolButton>
       <InkHighlightMenu v-if="controls.includes('highlight')" />
       <InkShapeMenu v-if="controls.includes('shape')" />
       <InkSignatureMenu v-if="controls.includes('signature')" />

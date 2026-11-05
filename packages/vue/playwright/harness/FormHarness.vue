@@ -90,6 +90,7 @@ function onSwap(): void {
 </script>
 
 <template>
+  <!-- No tools on purpose: form signing must work without the signature tool. -->
   <InkRoot
     :src="src"
     :assets="props.assets"

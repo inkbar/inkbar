@@ -22,7 +22,9 @@ export function MissingToolsHarness({
 }: {
   src: DocumentSource
   assets: PdfAssets
-  controls: ('highlight-button' | 'highlight' | 'shape' | 'signature')[]
+  controls: (
+    'highlight-button' | 'hostile-button' | 'highlight' | 'shape' | 'signature'
+  )[]
   /** Passes the highlight tool. */
   highlight?: boolean
 }) {
@@ -33,6 +35,11 @@ export function MissingToolsHarness({
         <InkToolButton tool="select-text" />
         {controls.includes('highlight-button') ? (
           <InkToolButton tool="highlight" />
+        ) : null}
+        {controls.includes('hostile-button') ? (
+          <InkToolButton tool="highlight" aria-label="X" title="Hostile">
+            <span>child</span>
+          </InkToolButton>
         ) : null}
         {controls.includes('highlight') ? <InkHighlightMenu /> : null}
         {controls.includes('shape') ? <InkShapeMenu /> : null}

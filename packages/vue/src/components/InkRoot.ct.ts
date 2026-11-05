@@ -493,7 +493,7 @@ test('dropping the active tool falls back to select-text', async ({ mount, page 
   expect(missing).toEqual(['shape'])
 })
 
-test('a controlled tool naming a missing tool reports select-text once', async ({
+test('a controlled tool the host keeps on a missing id is not applied again', async ({
   mount,
   page,
 }) => {

@@ -31,6 +31,17 @@
     select: SquareDashedMousePointer,
   }
 
+  // A tool nobody registered leaves the button disabled, hidden from assistive tech, unnamed
+  // and inert, whatever the host passed.
+  const MISSING = {
+    disabled: true,
+    'aria-hidden': 'true',
+    'aria-pressed': undefined,
+    'aria-label': undefined,
+    title: undefined,
+    onclick: undefined,
+  } as const
+
   let {
     tool,
     label,
@@ -61,20 +72,20 @@
   data-ink-tool-button=""
   data-tool={tool}
   data-state={active ? 'on' : 'off'}
-  aria-pressed={registered.current ? active : undefined}
-  aria-label={registered.current ? name : undefined}
-  title={registered.current ? name : undefined}
-  aria-hidden={registered.current ? undefined : 'true'}
-  disabled={!registered.current}
+  aria-pressed={active}
+  aria-label={name}
+  title={name}
   {...child ? { child } : {}}
   {...asBitsProps(rest)}
   onclick={(e) => {
-    if (!registered.current) return
     onclick?.(e)
     if (!e.defaultPrevented) current.setTool(tool)
   }}
+  {...registered.current ? {} : MISSING}
 >
-  {#if children}{@render children({ active, label: name })}{:else if icon}<InkIcon
-      {icon}
-    />{/if}
+  {#if registered.current}
+    {#if children}{@render children({ active, label: name })}{:else if icon}<InkIcon
+        {icon}
+      />{/if}
+  {/if}
 </Toolbar.Button>

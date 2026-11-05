@@ -1393,6 +1393,24 @@ test.describe('missing tools', () => {
     consoleGuard.clear()
   })
 
+  test('host props and children cannot revive a missing tool button', async ({
+    mount,
+  }) => {
+    const cmp = await mount(MissingToolsHarness, {
+      props: { src: fixtureUrl('text-simple'), assets, controls: ['hostile-button'] },
+    })
+    await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
+    const button = cmp.locator(toolButton('highlight'))
+    await expect(button).toBeDisabled()
+    await expect(button).toHaveAttribute('aria-hidden', 'true')
+    await expect(button).not.toHaveAttribute('aria-label')
+    await expect(button).not.toHaveAttribute('title')
+    await expect(button).toHaveText('')
+    await expect(button).toHaveCount(1)
+    await expect(button.locator('*')).toHaveCount(0)
+    consoleGuard.clear()
+  })
+
   test('menus for missing tools render nothing', async ({ mount }) => {
     const cmp = await mount(MissingToolsHarness, {
       props: {

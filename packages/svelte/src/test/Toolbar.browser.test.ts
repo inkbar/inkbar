@@ -1350,6 +1350,23 @@ describe('missing tools', () => {
     consoleGuard.clear()
   })
 
+  it('host props and children cannot revive a missing tool button', async () => {
+    await render(MissingToolsHarness, {
+      src: fixtureUrl('text-simple'),
+      assets,
+      controls: ['hostile-button'],
+    })
+    await q('.ink-page canvas')
+    const button = await q<HTMLButtonElement>(toolButton('highlight'))
+    expect(button.disabled).toBe(true)
+    expect(button.getAttribute('aria-hidden')).toBe('true')
+    expect(button.hasAttribute('aria-label')).toBe(false)
+    expect(button.hasAttribute('title')).toBe(false)
+    expect(button.textContent).toBe('')
+    expect(button.children).toHaveLength(0)
+    consoleGuard.clear()
+  })
+
   it('menus for missing tools render nothing', async () => {
     await render(MissingToolsHarness, {
       src: fixtureUrl('text-simple'),
