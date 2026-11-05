@@ -382,13 +382,8 @@ test('no horizontal scroll at phone width', async ({ page }) => {
   expect(overflow).toBe(0)
 })
 
-test('only the TypeScript controlled page says it follows the list', async ({ page }) => {
-  const note = page.locator('[data-scenario-note]')
+test('the TypeScript controlled page has no note', async ({ page }) => {
   await page.goto('./#/vanilla/controlled')
-  await expect(note).toBeVisible()
-  await expect(note).toHaveText(
-    "createViewer can't take a controlled annotation list yet, so this page follows the list instead."
-  )
-  await page.goto('./#/react/controlled')
-  await expect(note).toBeHidden()
+  await waitForViewer(page)
+  await expect(page.locator('[data-scenario-note]')).toBeHidden()
 })

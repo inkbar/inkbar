@@ -18,7 +18,7 @@ const CONTROLLED_EVENT = {
   react: 'onAnnotationsChange',
   vue: '@update:annotations',
   svelte: 'onAnnotationsChange',
-  vanilla: 'annotations',
+  vanilla: 'onAnnotationsChange',
 } as const
 
 const SELECT_TOOLS = ['select-text', 'select']
@@ -102,12 +102,14 @@ for (const framework of FRAMEWORK_ORDER) {
         await page.mouse.move(line.x + line.width - 1, midY, { steps: 5 })
         await page.mouse.up()
       }
-      if (framework === 'vanilla')
-        await expect(page.locator('[data-scenario-note]')).toBeVisible()
+      const marks = viewer(page).locator('[data-annotation][data-type="highlight"]')
+      const before = await marks.count()
       await highlight(0)
       await expect(changes.first().locator('.event-payload')).toHaveText('{"count":1}')
+      await expect(marks).toHaveCount(before + 1)
       await highlight(1)
       await expect(changes.first().locator('.event-payload')).toHaveText('{"count":2}')
+      await expect(marks).toHaveCount(before + 2)
     })
   })
 }

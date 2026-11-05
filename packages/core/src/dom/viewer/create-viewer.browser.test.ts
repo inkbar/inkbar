@@ -45,6 +45,8 @@ import { createSignatureMenu } from './signature-menu'
 import { createLineStyleMenu } from './style-menu'
 import { createTextStyleMenu } from './text-style-menu'
 
+import type { AnnotationChange } from '../../model/annotations/store'
+import type { Annotation } from '../../model/annotations/types'
 import type { InkDocument } from '../../model/document'
 import type { FieldsChange, FieldValues } from '../../model/form/types'
 import type { RecordStore } from '../../model/records'
@@ -2957,6 +2959,67 @@ describe('forms', () => {
     input.blur()
     await until(() => input.value === 'Bo')
     expect(onChange).toHaveBeenCalledTimes(1)
+  })
+
+  it('createViewer takes a controlled annotation list', async () => {
+    // Borrow a complete annotation from an uncontrolled viewer.
+    const donorViewer = make('text-simple').viewer
+    const donor = await ready(donorViewer)
+    const seed = donor.doc.annotations.add({
+      type: 'highlight',
+      page: 0,
+      quads: [
+        {
+          p1: { x: 72, y: 715 },
+          p2: { x: 300, y: 715 },
+          p3: { x: 72, y: 695 },
+          p4: { x: 300, y: 695 },
+        },
+      ],
+    })
+    donorViewer.destroy()
+    const onChange = vi.fn<(next: Annotation[], change: AnnotationChange) => void>()
+    let hostList: Annotation[] = [seed]
+    const hooks: { onReady?: (doc: InkDocument) => void } = {}
+    const { viewer } = make('text-simple', {
+      annotations: { mode: 'controlled', initial: [seed], onChange },
+      onReady: (doc) => hooks.onReady?.(doc),
+    })
+    const { doc } = await ready(viewer)
+    await until(() => annotationEl(viewer, seed.id) !== null)
+    expect(doc.annotations.mode).toBe('controlled')
+
+    const note = doc.annotations.add({
+      type: 'text',
+      page: 0,
+      rect: { x: 400, y: 600, width: 20, height: 20 },
+    })
+    expect(onChange).toHaveBeenCalledTimes(1)
+    const [next] = onChange.mock.calls[0]!
+    expect(next.map((a) => a.id)).toEqual([seed.id, note.id])
+    // The host has not pushed yet, so the viewer shows nothing new.
+    expect(annotationEl(viewer, note.id)).toBeNull()
+    doc.annotations.setControlledValue(next)
+    await until(() => annotationEl(viewer, note.id) !== null)
+    expect(onChange).toHaveBeenCalledTimes(1)
+    hostList = next
+
+    // A reopened document starts from `initial`; the host pushes its own list in onReady.
+    let startedWith: string[] = []
+    hooks.onReady = (d) => {
+      startedWith = d.annotations.list.get().map((a) => a.id)
+      d.annotations.setControlledValue(hostList)
+    }
+    viewer.open(fixtureUrl('text-simple'))
+    await until(() => viewer.document.get() !== doc && viewer.document.get() !== null)
+    const reopened = viewer.document.get()!
+    await until(() => annotationEl(viewer, note.id) !== null)
+    expect(reopened.annotations.list.get().map((a) => a.id)).toEqual([seed.id, note.id])
+    onChange.mockClear()
+    expect(startedWith).toEqual([seed.id])
+    reopened.annotations.remove(note.id)
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(onChange.mock.calls.at(-1)![0].map((a) => a.id)).toEqual([seed.id])
   })
 
   it('formHighlight false turns the tint off', async () => {

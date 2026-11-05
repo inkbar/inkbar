@@ -76,8 +76,21 @@ export interface CreateViewerOptions extends Omit<
    * Form field values; defaults to uncontrolled, starting from the PDF's. Controlled:
    * `{ mode: 'controlled', initial, onChange }`, where `onChange` hears every commit with the
    * full map and the host pushes back with `viewer.form.get()?.setControlledValue(next)`.
+   * `initial` applies to every document the viewer opens; push your values once the new one is ready.
    */
   fields?: FieldsMode
+  /**
+   * The annotation list; defaults to uncontrolled. Controlled: `{ mode: 'controlled', initial,
+   * onChange }`, where the host owns the session annotations and `onChange` hears every
+   * proposed list. Nothing shows until the host pushes it back with
+   * `viewer.document.get()?.annotations.setControlledValue(next)`. Embedded annotations stay in
+   * the file and never pass through `onChange`. `initial` applies to every document the viewer
+   * opens, including after `viewer.open()`. A host that keeps its own list pushes it with
+   * `viewer.document.get()?.annotations.setControlledValue(list)` once the new document is
+   * ready (in `onReady`). Undo and redo history is inert in controlled
+   * mode: the host owns the list, so it owns undo too.
+   */
+  annotations?: OpenOptions['annotations']
   /**
    * Plugins, set up once for the viewer's life. Their tools join the viewer's tools, their
    * decoration and page layers apply to every document, and their commands are placed with
@@ -153,6 +166,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     defaults,
     history,
     fields,
+    annotations,
     plugins,
     threads: withThreads = true,
     onReady,
@@ -418,6 +432,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       defaults: defaults ?? cssVariableDefaults(root),
       history,
       fields,
+      annotations,
     }).then(
       (doc) => {
         // A later `open` or `destroy` superseded this load.
