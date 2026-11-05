@@ -899,6 +899,12 @@
     display: none;
   }
 
+  /* The bindings wrap each panel in .ink-sidebar-slot, the stack's section in that layout. In
+     rail and tabs it steps out of the layout, so the panel fills the panels area. */
+  :where(.ink-sidebar-panels > .ink-sidebar-slot) {
+    display: contents;
+  }
+
   /* The stack scrolls as a whole; each expanded panel takes the height of its content. */
   :where(.ink-sidebar[data-layout='stack']) {
     overflow: auto;

@@ -45,13 +45,9 @@ const view = computed(() => {
 </script>
 
 <template>
-  <!-- A section in a stack; in rail and tabs it leaves the layout to the panel. Kept in every
-       layout, so the content is never remounted. -->
-  <div
-    ref="wrapper"
-    :class="{ 'ink-sidebar-section': view.stack }"
-    :style="view.stack ? undefined : { display: 'contents' }"
-  >
+  <!-- A section in a stack; in rail and tabs the theme leaves the layout to the panel. Kept in
+       every layout, so the content is never remounted. -->
+  <div ref="wrapper" :class="['ink-sidebar-slot', { 'ink-sidebar-section': view.stack }]">
     <button v-if="view.stack" class="ink-sidebar-header" v-bind="view.trigger">
       <SidebarTrigger :panel="info()" :rail="false" />
     </button>

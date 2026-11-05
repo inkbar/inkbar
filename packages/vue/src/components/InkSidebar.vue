@@ -9,8 +9,9 @@
  *
  * `v-model:open` is the open panel's id (or null) for rail and tabs, and the expanded ids for
  * stack. Left unbound, the first panel starts open. It needs no document, so it works outside
- * `InkRoot`. The server renders the root, the panels and the stack headers; rail and tab
- * triggers follow once mounted.
+ * `InkRoot`. The server renders the root, the panels (the open one shown) and the stack
+ * headers; rail and tab buttons follow once mounted, as the panels register after the root
+ * has rendered.
  */
 import {
   createSidebarController,
@@ -37,41 +38,20 @@ const props = withDefaults(
   defineProps<{ side?: SidebarSide | undefined; layout?: SidebarLayout | undefined }>(),
   { side: 'left', layout: 'rail' }
 )
-/** Undefined until bound or first changed: the first panel is open then. */
+/** Undefined while unbound and untouched: the controller then opens the first panel. */
 const open = defineModel<SidebarOpen | undefined>('open')
 
 const entries = shallowRef<readonly SidebarPanelEntry[]>([])
 const panels = computed(() => entries.value.map((e) => e.info()))
-/**
- * What the controller is given as open: the model, else the first panel. The controller is
- * always controlled; the model, which keeps its own value when unbound, is the state.
- */
-const wanted = computed<SidebarOpen>(() => {
-  if (open.value !== undefined) return open.value
-  const first = panels.value[0]?.id
-  if (props.layout === 'stack') return first === undefined ? [] : [first]
-  return first ?? null
-})
 
-/**
- * Until mounted, panels are still registering one by one: an open id not registered yet is
- * left out rather than taken for a removed panel, which would open another in its place.
- */
-const mounted = shallowRef(false)
-const given = computed<SidebarOpen>(() => {
-  const value = wanted.value
-  if (mounted.value) return value
-  const has = (id: string) => panels.value.some((p) => p.id === id)
-  if (value === null || typeof value === 'string')
-    return value !== null && has(value) ? value : null
-  return value.filter(has)
-})
-
+// Pending until mounted: the panels register one by one while they are set up, and an open id
+// not registered yet is not a removed panel.
 const controller = createSidebarController({
   layout: props.layout,
   side: props.side,
   panels: [],
-  open: given.value,
+  ...(open.value !== undefined && { open: open.value }),
+  pending: true,
   onOpenChange: (value) => {
     open.value = value
   },
@@ -80,9 +60,14 @@ const controller = createSidebarController({
 })
 // Sync, so a panel set up next reads the attributes its registration gives (on the server too).
 watch(
-  () => [props.layout, props.side, panels.value, given.value] as const,
+  () => [props.layout, props.side, panels.value, open.value] as const,
   ([layout, side, list, value]) =>
-    controller.update({ layout, side, panels: list, open: value }),
+    controller.update({
+      layout,
+      side,
+      panels: list,
+      ...(value !== undefined && { open: value }),
+    }),
   { flush: 'sync' }
 )
 const state = useReadable(controller.state, controller.state.get())
@@ -123,7 +108,7 @@ const root = useTemplateRef<HTMLElement>('root')
 // The controller handles the triggers' clicks and keys, stack headers included.
 onMounted(() => {
   controller.bindTriggers(root.value!)
-  mounted.value = true
+  controller.update({ pending: false })
 })
 onBeforeUnmount(() => controller.destroy())
 </script>

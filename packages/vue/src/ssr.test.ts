@@ -174,7 +174,34 @@ describe('@inkbar/vue on the server', () => {
       expect(panels[0]).not.toMatch(/\shidden/)
       expect(panels[1]).toContain('data-ink-sidebar-panel="search"')
       expect(panels[1]).toMatch(/\shidden/)
+      // The frame shows the open panel: the root is open and the strip is there for the
+      // buttons that follow once mounted.
+      const rootTag = /<div class="ink-sidebar"[^>]*>/.exec(html)?.[0] ?? ''
+      expect(rootTag).toContain('data-state="open"')
+      expect(html).toContain(`ink-sidebar-${layout === 'rail' ? 'rail' : 'tabs'}`)
+      // The panels sit in the slot hook the theme lays out.
+      expect(html).toMatch(/<div class="ink-sidebar-slot"/)
     }
+
+    // A controlled open panel shows on the server, though it registers after the first one.
+    const controlled = await renderToString(
+      createSSRApp({
+        render: () =>
+          h(entry.InkRoot, { src: '/doc.pdf', assets }, () => [
+            h(entry.InkSidebar, { layout: 'rail', open: 'search' }, () => [
+              h(entry.InkPanel, { id: 'pages', label: 'Pages' }, () => [h('p', 'A')]),
+              h(entry.InkPanel, { id: 'search', label: 'Search' }, () => [h('p', 'B')]),
+            ]),
+          ]),
+      })
+    )
+    expect(/<div class="ink-sidebar"[^>]*>/.exec(controlled)?.[0]).toContain(
+      'data-state="open"'
+    )
+    const shown = controlled.match(/<div[^>]*role="tabpanel"[^>]*>/g) ?? []
+    expect(shown[0]).toMatch(/\shidden/)
+    expect(shown[1]).toContain('data-ink-sidebar-panel="search"')
+    expect(shown[1]).not.toMatch(/\shidden/)
 
     const html = await render('stack')
     expect(html).toContain('data-layout="stack"')
