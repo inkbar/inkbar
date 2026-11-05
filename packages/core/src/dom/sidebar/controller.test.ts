@@ -201,6 +201,38 @@ describe('createSidebarController', () => {
     expect(c.rootAttrs()['data-state']).toBe('closed')
   })
 
+  it('does not publish an update that changes nothing', () => {
+    const { c } = make({ layout: 'stack', open: ['a'] })
+    const seen = vi.fn()
+    c.state.subscribe(seen)
+    c.update({ onOpenChange: vi.fn() })
+    c.update({ open: ['a'] })
+    c.update({ panels: panels.map((p) => ({ ...p })), layout: 'stack', side: 'left' })
+    expect(seen).not.toHaveBeenCalled()
+    c.update({ panels: panels.map((p) => (p.id === 'b' ? { ...p, badge: 4 } : p)) })
+    expect(seen).toHaveBeenCalledTimes(1)
+  })
+
+  it('a new onOpenChange alone is used without publishing', () => {
+    const { c, onOpenChange } = make()
+    const next = vi.fn()
+    const seen = vi.fn()
+    c.state.subscribe(seen)
+    c.update({ onOpenChange: next })
+    expect(seen).not.toHaveBeenCalled()
+    c.toggle('b')
+    expect(next).toHaveBeenCalledWith('b')
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
+
+  it('takes ids from idPrefix when given', () => {
+    const { c } = make({ idPrefix: 'left-bar' })
+    expect(c.triggerAttrs('a').id).toBe('left-bar-trigger-a')
+    expect(c.panelAttrs('a').id).toBe('left-bar-panel-a')
+    expect(c.triggerAttrs('a')['aria-controls']).toBe('left-bar-panel-a')
+    expect(c.panelAttrs('a')['aria-labelledby']).toBe('left-bar-trigger-a')
+  })
+
   it('does nothing after destroy', () => {
     const { c, onOpenChange } = make()
     c.destroy()

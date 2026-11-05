@@ -33,6 +33,11 @@ export interface SidebarControllerOptions {
   /** Controlled when given: `toggle` only reports through `onOpenChange`. */
   open?: SidebarOpen
   onOpenChange?(open: SidebarOpen): void
+  /**
+   * Makes the ids `<idPrefix>-trigger-<id>` and `<idPrefix>-panel-<id>`, the same on the server
+   * and the client. Without it they come from a counter.
+   */
+  idPrefix?: string
 }
 
 export interface SidebarState {
@@ -85,6 +90,26 @@ const TRIGGER = '[data-ink-sidebar-trigger]'
 
 let count = 0
 
+function sameIds(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((id, i) => id === b[i])
+}
+
+/** Whether a binding's new panels show the same as the current ones. */
+function samePanels(
+  a: readonly SidebarPanelInfo[],
+  b: readonly SidebarPanelInfo[]
+): boolean {
+  return (
+    a.length === b.length &&
+    a.every((p, i) => {
+      const q = b[i]!
+      return (
+        p.id === q.id && p.label === q.label && p.icon === q.icon && p.badge === q.badge
+      )
+    })
+  )
+}
+
 const destroyHooks = new WeakMap<SidebarController, (() => void)[]>()
 
 /** @internal Runs `fn` when `controller` is destroyed. */
@@ -95,7 +120,7 @@ export function onSidebarDestroy(controller: SidebarController, fn: () => void):
 export function createSidebarController(
   opts: SidebarControllerOptions
 ): SidebarController {
-  const n = ++count
+  const prefix = opts.idPrefix ?? `ink-sb-${++count}`
   let layout: SidebarLayout = opts.layout ?? 'rail'
   let side: SidebarSide = opts.side ?? 'left'
   let panels: readonly SidebarPanelInfo[] = opts.panels
@@ -141,16 +166,24 @@ export function createSidebarController(
 
   function update(next: Partial<SidebarControllerOptions>): void {
     if (destroyed) return
-    const before = store.get().open
+    const before = store.get()
     if (next.layout !== undefined) layout = next.layout
     if (next.side !== undefined) side = next.side
-    if (next.panels !== undefined) panels = next.panels
+    if (next.panels !== undefined && !samePanels(next.panels, panels))
+      panels = next.panels
     if ('onOpenChange' in next) handler = next
     if (next.open !== undefined) controlled = true
     // What the host asked for, else what was open.
-    const asked = next.open !== undefined ? idsOf(next.open) : before
+    const asked = next.open !== undefined ? idsOf(next.open) : before.open
     const open = resolve(asked)
-    publish(open)
+    // A binding calls this on every render: publish only what changed.
+    if (
+      layout !== before.layout ||
+      side !== before.side ||
+      panels !== before.panels ||
+      !sameIds(open, before.open)
+    )
+      publish(open)
     // Whatever differs from that (a panel gone, stack to rail) is ours to report.
     const same =
       open.length === new Set(asked).size && open.every((id) => asked.includes(id))
@@ -172,8 +205,8 @@ export function createSidebarController(
     handler.onOpenChange?.(toValue(next))
   }
 
-  const triggerId = (id: string): string => `ink-sb-${n}-trigger-${id}`
-  const panelId = (id: string): string => `ink-sb-${n}-panel-${id}`
+  const triggerId = (id: string): string => `${prefix}-trigger-${id}`
+  const panelId = (id: string): string => `${prefix}-panel-${id}`
 
   /** The rail or tabs trigger in the Tab order. */
   const tabStop = (): string | null => {
@@ -227,17 +260,22 @@ export function createSidebarController(
   const bindings = new Set<() => void>()
 
   function bindTriggers(el: HTMLElement): () => void {
+    // A sidebar nested in a panel has triggers of its own: only this one's ids count.
+    const ours = (t: Element): t is HTMLElement =>
+      t instanceof HTMLElement &&
+      t.dataset.inkSidebarTrigger !== undefined &&
+      t.id === triggerId(t.dataset.inkSidebarTrigger)
+    const all = (): HTMLElement[] =>
+      [...el.querySelectorAll<HTMLElement>(TRIGGER)].filter(ours)
     const triggers = (): HTMLElement[] =>
-      [...el.querySelectorAll<HTMLElement>(TRIGGER)].filter(
-        (t) => !(t as HTMLButtonElement).disabled
-      )
+      all().filter((t) => !(t as HTMLButtonElement).disabled)
     const triggerOf = (target: EventTarget | null): HTMLElement | null => {
       const t = target instanceof Element ? target.closest<HTMLElement>(TRIGGER) : null
-      return t && el.contains(t) ? t : null
+      return t && el.contains(t) && ours(t) ? t : null
     }
     const sync = (): void => {
       const stop = layout === 'stack' ? null : tabStop()
-      for (const t of el.querySelectorAll<HTMLElement>(TRIGGER)) {
+      for (const t of all()) {
         const index = stop === null || t.dataset.inkSidebarTrigger === stop ? 0 : -1
         if (t.tabIndex !== index) t.tabIndex = index
       }
@@ -284,12 +322,25 @@ export function createSidebarController(
       toggle(id)
     }
     // A framework may replace the triggers at any time: new ones get the right tabindex.
-    const observer = new MutationObserver(sync)
+    // Only added nodes and changed trigger attributes matter; content churn returns early.
+    const touchesOurs = (records: MutationRecord[]): boolean =>
+      records.some((r) =>
+        r.type === 'attributes'
+          ? ours(r.target as Element)
+          : [...r.addedNodes].some(
+              (node) =>
+                node instanceof Element &&
+                (ours(node) || [...node.querySelectorAll(TRIGGER)].some(ours))
+            )
+      )
+    const observer = new MutationObserver((records) => {
+      if (touchesOurs(records)) sync()
+    })
     observer.observe(el, {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ['data-ink-sidebar-trigger'],
+      attributeFilter: ['data-ink-sidebar-trigger', 'id'],
     })
     const stopState = store.subscribe(sync)
     el.addEventListener('focusin', onFocusIn)

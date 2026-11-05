@@ -101,18 +101,14 @@ export function createSidebar(
 
   /** Attributes, labels and badges, in place: the focused trigger keeps focus. */
   function paint(s: SidebarState): void {
-    setAttrs(root, { class: 'ink-sidebar', ...controller.rootAttrs() })
-    if (list)
-      setAttrs(list, {
-        class: s.layout === 'rail' ? 'ink-sidebar-rail' : 'ink-sidebar-tabs',
-        ...controller.tablistAttrs(),
-      })
+    // Classes are set once when built, so a host's own classes stay.
+    setAttrs(root, controller.rootAttrs())
+    if (list) setAttrs(list, controller.tablistAttrs())
     for (const p of s.panels) {
       const t = triggers.get(p.id)
       const panel = panels.get(p.id)
       if (t) {
-        const cls = s.layout === 'stack' ? { class: 'ink-sidebar-header' } : {}
-        setAttrs(t, { ...cls, ...controller.triggerAttrs(p.id) })
+        setAttrs(t, controller.triggerAttrs(p.id))
         const label = t.querySelector('.ink-sidebar-label')
         if (label && label.textContent !== p.label) label.textContent = p.label
         const badge = t.querySelector<HTMLElement>('.ink-sidebar-badge')!
@@ -120,8 +116,7 @@ export function createSidebar(
         badge.textContent = text ?? ''
         badge.hidden = text === null
       }
-      if (panel)
-        setAttrs(panel, { class: 'ink-sidebar-panel', ...controller.panelAttrs(p.id) })
+      if (panel) setAttrs(panel, controller.panelAttrs(p.id))
     }
   }
 

@@ -169,6 +169,47 @@ describe('createSidebar', () => {
     expect(content.a.isConnected).toBe(true)
   })
 
+  it('keeps a host class on the root', async () => {
+    const { element, triggers } = setup()
+    element.classList.add('host-sidebar')
+    await userEvent.click(triggers()[1]!)
+    expect(element.classList.contains('host-sidebar')).toBe(true)
+    expect(element.classList.contains('ink-sidebar')).toBe(true)
+  })
+
+  it('a nested sidebar inside a panel keeps its own tabindex', async () => {
+    const outer = setup()
+    const inner = createSidebar({
+      layout: 'tabs',
+      panels: [
+        { id: 'x', label: 'X' },
+        { id: 'y', label: 'Y' },
+      ],
+      content: {},
+    })
+    cleanup.push(() => inner.controller.destroy())
+    outer.content.a.append(inner.element)
+    await Promise.resolve()
+    const innerTriggers = [
+      ...inner.element.querySelectorAll<HTMLButtonElement>('[data-ink-sidebar-trigger]'),
+    ]
+    const outerTriggers = () => outer.triggers().filter((t) => !inner.element.contains(t))
+    expect(innerTriggers.map((t) => t.tabIndex)).toEqual([0, -1])
+    outerTriggers()[0]!.focus()
+    await userEvent.keyboard('{ArrowDown}')
+    expect(document.activeElement).toBe(outerTriggers()[1])
+    expect(innerTriggers.map((t) => t.tabIndex)).toEqual([0, -1])
+    innerTriggers[0]!.focus()
+    await userEvent.keyboard('{ArrowRight}')
+    expect(document.activeElement).toBe(innerTriggers[1])
+    expect(innerTriggers.map((t) => t.tabIndex)).toEqual([-1, 0])
+    // The outer sidebar ignores the inner one's keys and clicks.
+    await userEvent.keyboard('{Enter}')
+    expect(inner.controller.state.get().open).toEqual(['y'])
+    expect(outer.controller.state.get().open).toEqual(['a'])
+    expect(outerTriggers().map((t) => t.tabIndex)).toEqual([-1, 0, -1])
+  })
+
   it('keeps content and focus across a layout change', () => {
     const { element, controller, content, triggers } = setup()
     triggers()[1]!.focus()
