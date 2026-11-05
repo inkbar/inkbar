@@ -44,19 +44,19 @@ export interface ThumbnailOptions {
   /** Zero-based page index. */
   page: number
   /** Width in CSS pixels; the height follows the page's shape. Wins over `height`. */
-  width?: number
+  width?: number | undefined
   /** Height in CSS pixels, used when `width` is absent; the width follows the page's shape. */
-  height?: number
+  height?: number | undefined
   /** Draw the page's annotations. Default true. */
-  annotations?: boolean
+  annotations?: boolean | undefined
   /** Draw plugin marks. Default true. */
-  marks?: boolean
+  marks?: boolean | undefined
   /** The accessible name. Default "Page N", N being `page + 1`. */
-  label?: string
+  label?: string | undefined
 }
 
 export interface ThumbnailPainter {
-  /** Applies changed options; the others stay as they were. */
+  /** Applies changed options; the others stay as they were. An option given as `undefined` goes back to its default. */
   update(opts: Partial<ThumbnailOptions>): void
   /** Stops painting and removes everything the painter added to the element. */
   destroy(): void
