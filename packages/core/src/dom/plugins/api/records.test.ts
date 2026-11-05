@@ -60,6 +60,15 @@ function notesPlugin(
 }
 
 describe('plugin.records', () => {
+  it('exposes its key', () => {
+    let key = ''
+    const factory = definePlugin('sandbox', (plugin) => {
+      key = plugin.records('suggestions').key
+    })
+    hostWith([factory()])
+    expect(key).toBe('sandbox.suggestions')
+  })
+
   it('reads are empty and writes do nothing with no document open', () => {
     const { notes } = notesPlugin()
     expect(notes.all()).toEqual([])

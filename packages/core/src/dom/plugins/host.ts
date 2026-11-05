@@ -12,6 +12,7 @@ import { InkError } from '../../model/errors'
 import { readonly, writable, type Readable, type Writable } from '../../model/readable'
 import { createRecordStore, type RecordBase, type RecordStore } from '../../model/records'
 
+import { createRecords, type Records } from './api/records'
 import { createCommandRegistry } from './commands'
 import { createLayerRegistry, type LayerSource, type PluginLayer } from './layer'
 
@@ -68,7 +69,23 @@ const inertSearch: ViewerSearch = {
   close() {},
 }
 
+/**
+ * A plugin's records as the host app sees them: the plugin's own handle without `annotates`
+ * (a plugin links its records to marks in `setup`), plus `batch` to make several writes one
+ * undo step.
+ */
+export type HostRecords<T extends RecordBase> = Omit<Records<T>, 'annotates'> & {
+  /** Makes everything `fn` changes one undo step. */
+  batch(fn: () => void): void
+}
+
 export interface PluginHost extends LayerSource {
+  /**
+   * The records a plugin keeps under `key` (`<plugin>.<name>`), following the open document.
+   * The same handle on each call. An unknown key gives an empty handle that ignores writes, and
+   * logs a warning once.
+   */
+  records<T extends RecordBase>(key: string): HostRecords<T>
   readonly commands: ReadonlyMap<string, Command>
   command(id: string): Command | undefined
   readonly tools: readonly Tool[]
@@ -173,6 +190,11 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
   const decorators: DecorateAnnotation[] = []
   const layers = createLayerRegistry()
   const requests: StoreRequest[] = []
+  const requestsByKey = new Map<string, StoreRequest>()
+  /** Bumped when a store is requested, so a handle made earlier finds a late one. */
+  const requested = writable(0)
+  const hostRecords = new Map<string, HostRecords<RecordBase>>()
+  const warned = new Set<string>()
   const documentFns: ((doc: InkDocument) => void | (() => void))[] = []
   const editFns: ((edit: AnnotationEdit) => void)[] = []
   const setupCleanups: (() => void)[] = []
@@ -257,6 +279,8 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
           current: writable<RecordStore<RecordBase> | null>(null),
         }
         requests.push(request)
+        requestsByKey.set(key, request)
+        requested.set(requested.get() + 1)
         // Asked for while a document is open (from `onDocument`, say): create it now.
         if (opened) openStore(request, opened, opts.history())
         return readonly(request.current) as Readable<RecordStore<T> | null>
@@ -279,6 +303,61 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
     }
   }
 
+  /** The store requested under `key` now, null for none; emits when either changes. */
+  const sourceFor = (key: string): Readable<RecordStore<RecordBase> | null> => ({
+    get: () => requestsByKey.get(key)?.current.get() ?? null,
+    subscribe(fn) {
+      let stopCurrent: (() => void) | undefined
+      let last = requestsByKey.get(key)?.current.get() ?? null
+      const follow = () => {
+        stopCurrent?.()
+        stopCurrent = requestsByKey.get(key)?.current.subscribe((store) => {
+          if (store === last) return
+          last = store
+          fn(store)
+        })
+      }
+      follow()
+      const stopRequested = requested.subscribe(() => {
+        follow()
+        const store = requestsByKey.get(key)?.current.get() ?? null
+        if (store === last) return
+        last = store
+        fn(store)
+      })
+      return () => {
+        stopRequested()
+        stopCurrent?.()
+      }
+    },
+  })
+
+  const recordsFor = (key: string): HostRecords<RecordBase> => {
+    const cached = hostRecords.get(key)
+    if (cached) return cached
+    if (!requestsByKey.has(key) && !warned.has(key)) {
+      warned.add(key)
+      console.warn(`No plugin records named ${key}`)
+    }
+    const dot = key.indexOf('.')
+    const batch = (fn: () => void) => opts.history().batch(fn)
+    const full = createRecords<RecordBase>(
+      {
+        batch,
+        storesDocument: () => opened?.doc ?? null,
+        plugin: dot < 0 ? key : key.slice(0, dot),
+        name: dot < 0 ? '' : key.slice(dot + 1),
+        onAnnotationEdit() {},
+      },
+      sourceFor(key)
+    )
+    const handle: Partial<Records<RecordBase>> = { ...full }
+    delete handle.annotates
+    const made = { ...handle, batch } as HostRecords<RecordBase>
+    hostRecords.set(key, made)
+    return made
+  }
+
   for (const plugin of opts.plugins) {
     let cleanup: void | (() => void)
     try {
@@ -299,6 +378,7 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
   })
 
   return {
+    records: ((key: string) => recordsFor(key)) as PluginHost['records'],
     commands: registry.commands,
     command: (id) => registry.commands.get(id),
     tools,

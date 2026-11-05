@@ -21,7 +21,7 @@ import {
   createSignatureLibrary,
 } from '../../model/signatures'
 import { attachHistoryKeys } from '../history-keys'
-import { createPluginHost, type PluginHost } from '../plugins/host'
+import { createPluginHost, type HostRecords, type PluginHost } from '../plugins/host'
 import { createFocusReturn } from '../popover-focus'
 import {
   createSearchController,
@@ -41,6 +41,7 @@ import { createThreadPopover } from './thread-popover'
 import type { PluginHistory } from '../../model/annotations/history'
 import type { FormController } from '../../model/form/controller'
 import type { FieldsMode } from '../../model/form/types'
+import type { RecordBase } from '../../model/records'
 import type { DocumentSource } from '../../model/source'
 import type { PdfAssets } from '../../pdfjs/types'
 import type { Command, InkPlugin } from '../plugins/define'
@@ -143,6 +144,11 @@ export interface Viewer {
    * `open()` runs the search and draws the highlights even when no find bar is mounted.
    */
   readonly search: ViewerSearch
+  /**
+   * The records a plugin keeps under `key` (`<plugin>.<name>`), following the open document;
+   * the same handle on each call. An unknown key gives an empty handle and logs a warning once.
+   */
+  records<T extends RecordBase>(key: string): HostRecords<T>
   /**
    * Opens another document in place; the previous one is destroyed. Latest call wins.
    * `password` is used for this load only; without it, the constructor's `password` applies.
@@ -495,6 +501,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     },
     commands: { get: (id) => host.command(id) },
     search: viewerSearch,
+    records: (key) => host.records(key),
     open,
     destroy() {
       if (destroyed) return
@@ -512,7 +519,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   }
   toolsByViewer.set(viewer, withHostTools([...(view.tools ?? []), ...host.tools]))
   commandIdsByViewer.set(viewer, () => [...host.commands.keys()])
-  internals.set(viewer, { search, destroyers, destroyed: () => destroyed })
+  internals.set(viewer, { search, host, destroyers, destroyed: () => destroyed })
   return viewer
 }
 
@@ -535,7 +542,12 @@ export function hostCommandIdsOf(viewer: Viewer): string[] {
 
 const internals = new WeakMap<
   Viewer,
-  { search: SearchController; destroyers: (() => void)[]; destroyed: () => boolean }
+  {
+    search: SearchController
+    host: PluginHost
+    destroyers: (() => void)[]
+    destroyed: () => boolean
+  }
 >()
 
 /** @internal The viewer's search controller, which the find bar registers with. */
@@ -543,6 +555,13 @@ export function searchControllerOf(viewer: Viewer): SearchController {
   const found = internals.get(viewer)
   if (!found) throw new Error('Not a viewer made by createViewer')
   return found.search
+}
+
+/** @internal The viewer's plugin host, for builders that read plugin records and layers. */
+export function pluginHostOf(viewer: Viewer): PluginHost {
+  const found = internals.get(viewer)
+  if (!found) throw new Error('Not a viewer made by createViewer')
+  return found.host
 }
 
 /**
