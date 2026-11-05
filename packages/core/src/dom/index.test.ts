@@ -44,6 +44,9 @@ describe('@inkbar/core/dom entry', () => {
         'definePlugin',
         'createPluginHost',
         'createPluginLayers',
+        'createSidebarController',
+        'createSidebar',
+        'sidebarBadge',
       ])
     )
 

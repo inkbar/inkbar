@@ -310,6 +310,35 @@ describe('theme.css', () => {
     )
   })
 
+  it('defines the sidebar size tokens on the root, which a sidebar outside it gets too', () => {
+    const rootRule = rules.find(
+      (r) =>
+        r.selector.includes('[data-ink-root]') &&
+        r.nodes.some((d) => d.type === 'decl' && d.prop === '--ink-highlight')
+    )
+    const decl = (prop: string) =>
+      rootRule?.nodes.find((d) => d.type === 'decl' && d.prop === prop)?.toString()
+    expect(decl('--ink-sidebar-width')).toMatch(/:\s*280px$/)
+    expect(decl('--ink-sidebar-rail-width')).toMatch(/:\s*44px$/)
+    expect(decl('--ink-thumbnail-width')).toMatch(/:\s*120px$/)
+    expect(decl('--ink-mark-selected-outline')).toMatch(/:\s*2px solid #2740f5$/i)
+    expect(rootRule?.selector).toContain('[data-ink-sidebar]')
+  })
+
+  it('keeps sidebar controls at least 44px and hides closed panels', () => {
+    const control = rules.find(
+      (r) =>
+        r.selector.includes('.ink-sidebar-rail button,') &&
+        r.selector.includes('.ink-sidebar-tabs button,') &&
+        r.selector.includes('.ink-sidebar-header)')
+    )
+    expect(control?.toString()).toMatch(/min-height:\s*44px/)
+    expect(control?.toString()).toMatch(/min-width:\s*44px/)
+    expect(declsFor('.ink-sidebar-panel[hidden])')).toMatch(/display:\s*none/)
+    expect(declsFor('.ink-sidebar-badge[hidden])')).toMatch(/display:\s*none/)
+    expect(declsFor('.ink-sidebar)')).toMatch(/var\(--ink-sidebar-width\)/)
+  })
+
   it('has no suggested-redaction styles', () => {
     expect(css).not.toMatch(/suggestion/i)
     expect(css).not.toMatch(/confidence/i)

@@ -11,9 +11,13 @@
  * new annotations only.
  */
 @layer inkbar {
-  /* Tokens. Popovers are portalled out of the root, so they carry the tokens too. */
+  /*
+   * Tokens. Popovers are portalled out of the root, and a sidebar may sit outside it, so they
+   * carry the tokens too.
+   */
   :where(
     [data-ink-root],
+    [data-ink-sidebar],
     [data-ink-thread-popover],
     [data-ink-popover],
     [data-ink-select-content],
@@ -35,6 +39,10 @@
     --ink-search-current: #e4ff4a;
     /* The selected record's mark; pages stay white in dark mode, so this serves both. */
     --ink-mark-selected-outline: 2px solid #2740f5;
+    /* Sidebars (createSidebar and the bindings' sidebar): the open sidebar and its rail. */
+    --ink-sidebar-width: 280px;
+    --ink-sidebar-rail-width: 44px;
+    --ink-thumbnail-width: 120px;
 
     --ink-bg: var(--muted, #f1f2f5);
     --ink-fg: var(--foreground, #151820);
@@ -58,6 +66,7 @@
   @media (prefers-color-scheme: dark) {
     :where(
       [data-ink-root]:not(.light, .light *),
+      [data-ink-sidebar]:not(.light, .light *),
       [data-ink-thread-popover]:not(.light *),
       [data-ink-popover]:not(.light *),
       [data-ink-select-content]:not(.light *),
@@ -83,6 +92,8 @@
   :where(
     .dark [data-ink-root]:not(.light, .dark .light *),
     [data-ink-root].dark,
+    .dark [data-ink-sidebar]:not(.light, .dark .light *),
+    [data-ink-sidebar].dark,
     .dark [data-ink-thread-popover]:not(.dark .light *),
     .dark [data-ink-popover]:not(.dark .light *),
     .dark [data-ink-select-content]:not(.dark .light *),
@@ -807,6 +818,193 @@
   :where(.ink-find-bar input:focus-visible, .ink-find-bar button:focus-visible) {
     outline: 2px solid var(--ink-ring);
     outline-offset: 2px;
+  }
+
+  /*
+   * Sidebars (createSidebar and the bindings' sidebar): a plain block the app places with its
+   * own layout. --ink-sidebar-width sets the open width and --ink-sidebar-rail-width the rail's.
+   * The rail and border sit on the outer edge: data-side="right" mirrors them.
+   */
+  :where(.ink-sidebar) {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    width: var(--ink-sidebar-width);
+    min-height: 0;
+    border-right: 1px solid var(--ink-border);
+    background: var(--ink-surface);
+    color: var(--ink-fg);
+  }
+
+  :where(.ink-sidebar[data-side='right']) {
+    border-right: 0;
+    border-left: 1px solid var(--ink-border);
+  }
+
+  /* The rail: icon buttons on the outer edge; the sidebar narrows to it with no panel open. */
+  :where(.ink-sidebar[data-layout='rail']) {
+    flex-direction: row;
+    width: auto;
+  }
+
+  :where(.ink-sidebar[data-layout='rail'][data-side='right']) {
+    flex-direction: row-reverse;
+  }
+
+  :where(.ink-sidebar-rail) {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    gap: 0.25rem;
+    width: var(--ink-sidebar-rail-width);
+    padding: 0.25rem 0;
+    align-items: center;
+  }
+
+  :where(.ink-sidebar[data-layout='rail'] .ink-sidebar-panels) {
+    width: calc(var(--ink-sidebar-width) - var(--ink-sidebar-rail-width));
+    border-left: 1px solid var(--ink-border);
+  }
+
+  :where(.ink-sidebar[data-layout='rail'][data-side='right'] .ink-sidebar-panels) {
+    border-left: 0;
+    border-right: 1px solid var(--ink-border);
+  }
+
+  :where(.ink-sidebar[data-layout='rail'][data-state='closed'] .ink-sidebar-panels) {
+    display: none;
+  }
+
+  :where(.ink-sidebar-tabs) {
+    display: flex;
+    flex: none;
+    border-bottom: 1px solid var(--ink-border);
+  }
+
+  :where(.ink-sidebar-panels) {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  :where(.ink-sidebar-panel) {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  :where(.ink-sidebar-panel[hidden]) {
+    display: none;
+  }
+
+  /* The stack scrolls as a whole; each expanded panel takes the height of its content. */
+  :where(.ink-sidebar[data-layout='stack']) {
+    overflow: auto;
+  }
+
+  :where(.ink-sidebar-section) {
+    border-bottom: 1px solid var(--ink-border);
+  }
+
+  :where(.ink-sidebar-section > .ink-sidebar-panel) {
+    overflow: visible;
+  }
+
+  :where(.ink-sidebar-rail button, .ink-sidebar-tabs button, .ink-sidebar-header) {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-sizing: border-box;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 0.75rem;
+    border: 0;
+    border-radius: calc(var(--ink-radius) - 2px);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  :where(.ink-sidebar-rail button) {
+    justify-content: center;
+    width: 44px;
+    padding: 0;
+  }
+
+  :where(.ink-sidebar-tabs button) {
+    flex: 1;
+    justify-content: center;
+    border-radius: 0;
+    border-bottom: 2px solid transparent;
+  }
+
+  :where(.ink-sidebar-header) {
+    width: 100%;
+    border-radius: 0;
+    text-align: start;
+    font-weight: 600;
+  }
+
+  :where(
+    .ink-sidebar-rail button:hover,
+    .ink-sidebar-tabs button:hover,
+    .ink-sidebar-header:hover
+  ) {
+    background: color-mix(in srgb, var(--ink-fg) 8%, transparent);
+  }
+
+  :where(.ink-sidebar-rail button[aria-selected='true']) {
+    background: var(--ink-accent);
+    color: var(--ink-accent-fg);
+  }
+
+  :where(.ink-sidebar-tabs button[aria-selected='true']) {
+    border-bottom-color: var(--ink-accent);
+  }
+
+  :where(
+    .ink-sidebar-rail button:focus-visible,
+    .ink-sidebar-tabs button:focus-visible,
+    .ink-sidebar-header:focus-visible
+  ) {
+    outline: 2px solid var(--ink-ring);
+    outline-offset: -2px;
+  }
+
+  :where(.ink-sidebar-badge) {
+    min-width: 1.125rem;
+    padding: 0 0.3125rem;
+    border-radius: 999px;
+    background: var(--ink-accent);
+    color: var(--ink-accent-fg);
+    font-size: 0.75rem;
+    line-height: 1.125rem;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+
+  :where(.ink-sidebar-header .ink-sidebar-badge) {
+    margin-inline-start: auto;
+  }
+
+  /* On the rail the badge sits on the icon's corner. */
+  :where(.ink-sidebar-rail .ink-sidebar-badge) {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+  }
+
+  :where(.ink-sidebar-rail button[aria-selected='true'] .ink-sidebar-badge) {
+    background: var(--ink-accent-fg);
+    color: var(--ink-accent);
+  }
+
+  :where(.ink-sidebar-badge[hidden]) {
+    display: none;
   }
 
   /* Text for assistive technology only, such as the find bar's live region. */
