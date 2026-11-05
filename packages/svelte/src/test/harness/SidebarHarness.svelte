@@ -22,6 +22,7 @@
   const controlled = untrack(() => initial !== undefined)
   let open = $state<SidebarOpen | undefined>(untrack(() => initial))
   let withSearch = $state(true)
+  let withSidebar = $state(true)
   let badge = $state(3)
 </script>
 
@@ -39,12 +40,21 @@
 >
   Open notes
 </button>
+<button
+  type="button"
+  data-testid="toggle-sidebar"
+  onclick={() => (withSidebar = !withSidebar)}
+>
+  Toggle sidebar
+</button>
 <button type="button" data-testid="clear-badge" onclick={() => (badge = 0)}>
   Clear badge
 </button>
 <output data-testid="open">{JSON.stringify(open ?? null)}</output>
 <div style="display: flex; height: 400px">
-  {#if controlled}
+  {#if !withSidebar}
+    <!-- The whole sidebar out. -->
+  {:else if controlled}
     <InkSidebar bind:open {layout} {side} data-testid="sidebar">
       <InkPanel id="pages" label="Pages" icon={Square}><p>Pages content</p></InkPanel>
       {#if withSearch}

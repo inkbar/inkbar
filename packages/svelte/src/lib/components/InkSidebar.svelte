@@ -75,6 +75,10 @@
     })
   )
   const current = useReadable(() => controller.state, controller.state.get())
+  // Destroyed before the panels go: this pre-effect comes before the template's, so its
+  // teardown runs first. Unregistering into a live controller would take each panel for a
+  // removed one and write the fallback to the bound `open`.
+  $effect.pre(() => () => controller.destroy())
 
   // Before the DOM updates, so the panels render the attributes these give.
   $effect.pre(() => {
@@ -144,11 +148,9 @@
   $effect(() => {
     const el = root
     if (!el) return
-    untrack(() => {
-      controller.bindTriggers(el)
-      controller.update({ pending: false })
-    })
-    return () => controller.destroy()
+    const unbind = untrack(() => controller.bindTriggers(el))
+    untrack(() => controller.update({ pending: false }))
+    return unbind
   })
 </script>
 
