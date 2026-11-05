@@ -1,0 +1,1 @@
+import{pn as e}from"./file-up-BdS_N75q.js";var t=e(`inkbar-sandbox-signatures`),n=[`Dancing Script`];export{t as n,n as t};
