@@ -1,0 +1,46 @@
+packages/svelte/src/lib/components/InkThumbnails.svelte
+  s_1effe0625d7c7b::t_e1029bcf07f4b8 104-106,126
+packages/vue/src/components/InkThumbnails.vue
+  s_1effe0625d7c7b::t_e1029bcf07f4b8 67
+  s_1effe0625d7c7b::t_dc012a127b623a 73-75,110
+packages/vue/src/components/Thumbnails.ct.ts
+  s_1effe0625d7c7b::t_4f1415918e7249 79-81
+packages/react/src/components/InkThumbnails.tsx
+  s_1effe0625d7c7b::t_6b9b7a7dda4104 17
+  s_1effe0625d7c7b::t_dc012a127b623a 102-104,124
+packages/core/src/dom/thumbnails/list.browser.test.ts
+  s_1effe0625d7c7b::t_4f1415918e7249 91-93
+packages/core/src/dom/thumbnails/list.ts
+  s_1effe0625d7c7b::t_7f60d6a9df43b9 82-87,542-546,638-639
+  s_1effe0625d7c7b::t_c6521ed320d0c1 608-609,637
+packages/core/src/dom/thumbnails/list.test.ts
+  s_1effe0625d7c7b::t_7f60d6a9df43b9 76
+  s_1effe0625d7c7b::t_45a3423cb8277d 84-87
+  s_1effe0625d7c7b::t_4f1415918e7249 77-83,88-89
+packages/svelte/src/test/Thumbnails.browser.test.ts
+  s_1effe0625d7c7b::t_4f1415918e7249 85-88
+packages/core/src/dom/plugins/host.test.ts
+  s_1effe0625d7c7b::t_dee854369d16ae 578-599
+packages/core/src/dom/plugins/host.ts
+  s_1effe0625d7c7b::t_eedc6e61974188 83,85-87,430-439
+packages/core/README.md
+  s_1effe0625d7c7b::t_6d9e8321013fc6 446
+packages/react/src/components/Thumbnails.ct.tsx
+  s_1effe0625d7c7b::t_4f1415918e7249 79-81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e2b1bc602b70228e86925606e4f82aefe92035a7",
+  "prompts": {},
+  "sessions": {
+    "s_1effe0625d7c7b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3adafbc8-4f4c-4ced-a223-6be21f4f163c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
