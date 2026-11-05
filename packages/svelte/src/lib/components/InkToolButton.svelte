@@ -18,6 +18,7 @@
   import { Toolbar } from 'bits-ui'
 
   import { useInkContext } from '../context.js'
+  import { useRegisteredTool } from '../hooks/useRegisteredTool.svelte.js'
   import { useTool } from '../hooks/useTool.svelte.js'
 
   import { asBitsProps } from './child-snippet.js'
@@ -43,6 +44,7 @@
   const ctx = useInkContext('InkToolButton')
   const current = useTool()
   const active = $derived(current.tool === tool)
+  const registered = useRegisteredTool(() => tool)
   /** The registered tool by this id, for the name and icon core has none for. */
   const own = $derived(
     withHostTools([...(ctx.hostTools ?? []), ...(ctx.pluginHost?.tools ?? [])]).find(
@@ -59,12 +61,15 @@
   data-ink-tool-button=""
   data-tool={tool}
   data-state={active ? 'on' : 'off'}
-  aria-pressed={active}
-  aria-label={name}
-  title={name}
+  aria-pressed={registered.current ? active : undefined}
+  aria-label={registered.current ? name : undefined}
+  title={registered.current ? name : undefined}
+  aria-hidden={registered.current ? undefined : 'true'}
+  disabled={!registered.current}
   {...child ? { child } : {}}
   {...asBitsProps(rest)}
   onclick={(e) => {
+    if (!registered.current) return
     onclick?.(e)
     if (!e.defaultPrevented) current.setTool(tool)
   }}

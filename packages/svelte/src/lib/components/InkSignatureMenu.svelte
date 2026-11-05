@@ -26,8 +26,9 @@
   import { untrack } from 'svelte'
 
   import { useInkContext } from '../context.js'
+  import { useRegisteredTool } from '../hooks/useRegisteredTool.svelte.js'
   import { useTool } from '../hooks/useTool.svelte.js'
-  import { useToolOptions } from '../hooks/useToolOptions.svelte.js'
+  import { useToolOptionsWhile } from '../hooks/useToolOptions.svelte.js'
   import { useReadable } from '../use-readable.svelte.js'
 
   import InkIcon from './InkIcon.svelte'
@@ -43,7 +44,12 @@
 
   const ctx = useInkContext('InkSignatureMenu')
   const current = useTool()
-  const signature = useToolOptions<SignatureOptions>('signature')
+  // Nothing renders while no `signature` tool is registered.
+  const registered = useRegisteredTool('signature')
+  const signature = useToolOptionsWhile<SignatureOptions>(
+    'signature',
+    () => registered.current
+  )
   const templates = useReadable(() => ctx.signatures.templates, NO_TEMPLATES)
   // An old removal error is not news when the menu opens again.
   $effect(() => {
@@ -91,81 +97,83 @@
   }
 </script>
 
-<div
-  bind:this={group}
-  role="group"
-  aria-label={SIGNATURE_LABELS.sign}
-  class={['ink-split-button ink-signature-menu', className]}
-  data-ink-signature-menu=""
-  {...rest}
->
-  <Toolbar.Button
-    bind:ref={main}
-    class="ink-tool-button ink-signature-button"
-    data-ink-tool-button=""
-    data-ink-signature-button=""
-    data-tool="signature"
-    data-state={active ? 'on' : 'off'}
-    aria-pressed={active}
+{#if registered.current}
+  <div
+    bind:this={group}
+    role="group"
     aria-label={SIGNATURE_LABELS.sign}
-    title={SIGNATURE_LABELS.sign}
-    onclick={onMain}
+    class={['ink-split-button ink-signature-menu', className]}
+    data-ink-signature-menu=""
+    {...rest}
   >
-    {#if children}{@render children()}{:else}<InkIcon icon={Signature} />{/if}
-  </Toolbar.Button>
-  <Popover.Root bind:open>
-    <Popover.Trigger>
-      {#snippet child({ props })}
-        <Toolbar.Button
-          {...props}
-          class="ink-menu-trigger ink-signature-menu-trigger"
-          data-ink-signature-menu-trigger=""
-          data-state={open ? 'open' : 'closed'}
-          aria-label={SIGNATURE_LABELS.trigger}
-          title={SIGNATURE_LABELS.trigger}
-          aria-haspopup="menu"
-          onkeydown={onTriggerKeydown}
+    <Toolbar.Button
+      bind:ref={main}
+      class="ink-tool-button ink-signature-button"
+      data-ink-tool-button=""
+      data-ink-signature-button=""
+      data-tool="signature"
+      data-state={active ? 'on' : 'off'}
+      aria-pressed={active}
+      aria-label={SIGNATURE_LABELS.sign}
+      title={SIGNATURE_LABELS.sign}
+      onclick={onMain}
+    >
+      {#if children}{@render children()}{:else}<InkIcon icon={Signature} />{/if}
+    </Toolbar.Button>
+    <Popover.Root bind:open>
+      <Popover.Trigger>
+        {#snippet child({ props })}
+          <Toolbar.Button
+            {...props}
+            class="ink-menu-trigger ink-signature-menu-trigger"
+            data-ink-signature-menu-trigger=""
+            data-state={open ? 'open' : 'closed'}
+            aria-label={SIGNATURE_LABELS.trigger}
+            title={SIGNATURE_LABELS.trigger}
+            aria-haspopup="menu"
+            onkeydown={onTriggerKeydown}
+          >
+            <InkIcon icon={ChevronDown} />
+          </Toolbar.Button>
+        {/snippet}
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          bind:ref={menu}
+          role="menu"
+          aria-label={SIGNATURE_LABELS.menu}
+          class="ink-select-content ink-menu-content"
+          data-ink-select-content=""
+          data-ink-menu="signature"
+          customAnchor={group}
+          side="bottom"
+          align="start"
+          sideOffset={4}
+          collisionPadding={8}
+          onOpenAutoFocus={(e) => openFocus.onOpenAutoFocus(e, menu)}
+          onfocusin={openFocus.onfocusin}
+          onCloseAutoFocus={(e) => {
+            if (toDialog) e.preventDefault()
+            toDialog = false
+          }}
+          onkeydown={(e) => menu && handleMenuKeys(e, menu)}
         >
-          <InkIcon icon={ChevronDown} />
-        </Toolbar.Button>
-      {/snippet}
-    </Popover.Trigger>
-    <Popover.Portal>
-      <Popover.Content
-        bind:ref={menu}
-        role="menu"
-        aria-label={SIGNATURE_LABELS.menu}
-        class="ink-select-content ink-menu-content"
-        data-ink-select-content=""
-        data-ink-menu="signature"
-        customAnchor={group}
-        side="bottom"
-        align="start"
-        sideOffset={4}
-        collisionPadding={8}
-        onOpenAutoFocus={(e) => openFocus.onOpenAutoFocus(e, menu)}
-        onfocusin={openFocus.onfocusin}
-        onCloseAutoFocus={(e) => {
-          if (toDialog) e.preventDefault()
-          toDialog = false
-        }}
-        onkeydown={(e) => menu && handleMenuKeys(e, menu)}
-      >
-        <SignatureMenuPanel
-          items={model.items}
-          menu={() => menu}
-          onChoose={(t) => choose(t.id)}
-          onCreate={create}
-        />
-      </Popover.Content>
-    </Popover.Portal>
-  </Popover.Root>
-  <InkSignatureDialog
-    bind:open={creating}
-    {fonts}
-    onCloseAutoFocus={(e) => {
-      e.preventDefault()
-      main?.focus({ preventScroll: true })
-    }}
-  />
-</div>
+          <SignatureMenuPanel
+            items={model.items}
+            menu={() => menu}
+            onChoose={(t) => choose(t.id)}
+            onCreate={create}
+          />
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+    <InkSignatureDialog
+      bind:open={creating}
+      {fonts}
+      onCloseAutoFocus={(e) => {
+        e.preventDefault()
+        main?.focus({ preventScroll: true })
+      }}
+    />
+  </div>
+{/if}

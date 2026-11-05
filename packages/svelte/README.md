@@ -53,6 +53,7 @@ Svelte 5.46.4 or later is a peer dependency. Add the Vite plugin from `@inkbar/c
     InkZoomIn,
     InkThreadPopover,
   } from '@inkbar/svelte'
+  import { highlightTool, noteTool, redactAreaTool } from '@inkbar/core/dom'
   import type { Annotation } from '@inkbar/core'
   import { assets } from 'virtual:inkbar-assets'
   import '@inkbar/theme/theme.css'
@@ -60,9 +61,10 @@ Svelte 5.46.4 or later is a peer dependency. Add the Vite plugin from `@inkbar/c
   let { signedUrl, documentId }: { signedUrl: string; documentId: string } = $props()
 
   let annotations = $state.raw<Annotation[]>([])
+  const tools = [highlightTool(), redactAreaTool(), noteTool()]
 </script>
 
-<InkRoot src={{ url: signedUrl, key: documentId }} {assets} bind:annotations>
+<InkRoot src={{ url: signedUrl, key: documentId }} {assets} {tools} bind:annotations>
   <InkToolbar>
     <InkToolButton tool="select-text" />
     <InkToolButton tool="select" />
@@ -86,6 +88,8 @@ Svelte 5.46.4 or later is a peer dependency. Add the Vite plugin from `@inkbar/c
   <InkThreadPopover />
 </InkRoot>
 ```
+
+`select-text` and `select` are always there. Every other tool is opt-in: pass the ones you offer through `tools`, from the tool factories in `@inkbar/core/dom`, or `allTools()` for all of them. A button for a tool you did not pass renders disabled and hidden, a tool menu renders nothing, and each logs an `InkError('UnknownTool')` to the console once. If the active tool leaves `tools`, the viewer switches to `select-text` and reports it through `onToolChange`.
 
 Each toolbar control is a component, so keep the ones you need and put them where you like. Buttons show icons from `@inkbar/icons`. Pass your own as `children` to replace one, and use `InkIcon` to put the same icons on your own buttons. `bind:annotations` makes your list the source of truth. Leave it off and Inkbar keeps the state itself, with undo and redo.
 
@@ -161,7 +165,7 @@ The highlight tool leaves `contents` free for the comment. `doc.text(page)` retu
 
 ## Signatures
 
-`InkSignatureMenu` lists saved signatures, picks one for the `signature` tool, removes them, and opens `InkSignatureDialog` to draw, type or upload a new one. These are marks on the page, not cryptographic signatures. Pass `signatures` to `InkRoot` to keep them somewhere: `createLocalSignatureStore(key)` from `@inkbar/core` uses `localStorage`, and without it they last until reload. `signatureFonts` lists the handwriting fonts the Type tab offers; load them with `@font-face`. A placed signature keeps its aspect ratio when resized.
+`InkSignatureMenu` lists saved signatures, picks one for the `signature` tool, removes them, and opens `InkSignatureDialog` to draw, type or upload a new one. The menu needs `signatureTool()` in `tools`. The dialog and signature form fields work without it; the dialog then only saves the signature. These are marks on the page, not cryptographic signatures. Pass `signatures` to `InkRoot` to keep them somewhere: `createLocalSignatureStore(key)` from `@inkbar/core` uses `localStorage`, and without it they last until reload. `signatureFonts` lists the handwriting fonts the Type tab offers; load them with `@font-face`. A placed signature keeps its aspect ratio when resized.
 
 ## Plugins
 

@@ -30,8 +30,9 @@
   import { Popover, Toolbar } from 'bits-ui'
 
   import { useDocument } from '../hooks/useDocument.svelte.js'
+  import { useRegisteredTool } from '../hooks/useRegisteredTool.svelte.js'
   import { useTool } from '../hooks/useTool.svelte.js'
-  import { useToolOptions } from '../hooks/useToolOptions.svelte.js'
+  import { useToolOptionsWhile } from '../hooks/useToolOptions.svelte.js'
 
   import InkColorMenu from './InkColorMenu.svelte'
   import InkIcon from './InkIcon.svelte'
@@ -41,7 +42,12 @@
 
   const current = useTool()
   const inkDocument = useDocument()
-  const highlight = useToolOptions<HighlightOptions>('highlight')
+  // Nothing renders while no `highlight` tool is registered.
+  const registered = useRegisteredTool('highlight')
+  const highlight = useToolOptionsWhile<HighlightOptions>(
+    'highlight',
+    () => registered.current
+  )
   let open = $state(false)
   /** The split button: the panel lines up under it rather than the chevron. */
   let group = $state<HTMLElement | null>(null)
@@ -72,97 +78,99 @@
   }
 </script>
 
-<div
-  bind:this={group}
-  role="group"
-  aria-label="Highlight"
-  class={['ink-split-button ink-highlight-menu', className]}
-  data-ink-highlight-menu=""
-  {...rest}
->
-  <Toolbar.Button
-    class="ink-tool-button ink-highlight-button"
-    data-ink-tool-button=""
-    data-ink-highlight-button=""
-    data-tool="highlight"
-    data-kind={model.kind}
-    data-state={active ? 'on' : 'off'}
-    aria-pressed={active}
-    aria-label={model.label}
-    title={model.label}
-    onclick={() => current.setTool('highlight')}
+{#if registered.current}
+  <div
+    bind:this={group}
+    role="group"
+    aria-label="Highlight"
+    class={['ink-split-button ink-highlight-menu', className]}
+    data-ink-highlight-menu=""
+    {...rest}
   >
-    {#if children}{@render children()}{:else}<InkIcon
-        icon={MARKUP_ICONS[model.kind]}
-      />{/if}
-  </Toolbar.Button>
-  <Popover.Root bind:open>
-    <Popover.Trigger>
-      {#snippet child({ props })}
-        <Toolbar.Button
-          {...props}
-          class="ink-menu-trigger ink-highlight-menu-trigger"
-          data-ink-highlight-menu-trigger=""
-          data-state={open ? 'open' : 'closed'}
-          aria-label="Choose highlight"
-          title="Choose highlight"
-          aria-haspopup="menu"
-          onkeydown={onTriggerKeydown}
+    <Toolbar.Button
+      class="ink-tool-button ink-highlight-button"
+      data-ink-tool-button=""
+      data-ink-highlight-button=""
+      data-tool="highlight"
+      data-kind={model.kind}
+      data-state={active ? 'on' : 'off'}
+      aria-pressed={active}
+      aria-label={model.label}
+      title={model.label}
+      onclick={() => current.setTool('highlight')}
+    >
+      {#if children}{@render children()}{:else}<InkIcon
+          icon={MARKUP_ICONS[model.kind]}
+        />{/if}
+    </Toolbar.Button>
+    <Popover.Root bind:open>
+      <Popover.Trigger>
+        {#snippet child({ props })}
+          <Toolbar.Button
+            {...props}
+            class="ink-menu-trigger ink-highlight-menu-trigger"
+            data-ink-highlight-menu-trigger=""
+            data-state={open ? 'open' : 'closed'}
+            aria-label="Choose highlight"
+            title="Choose highlight"
+            aria-haspopup="menu"
+            onkeydown={onTriggerKeydown}
+          >
+            <InkIcon icon={ChevronDown} />
+          </Toolbar.Button>
+        {/snippet}
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          bind:ref={menu}
+          role="menu"
+          aria-label="Highlights"
+          class="ink-select-content ink-menu-content"
+          data-ink-select-content=""
+          data-ink-menu="highlight"
+          customAnchor={group}
+          side="bottom"
+          align="start"
+          sideOffset={4}
+          collisionPadding={8}
+          onOpenAutoFocus={(e) => openFocus.onOpenAutoFocus(e, menu)}
+          onfocusin={openFocus.onfocusin}
+          onkeydowncapture={(e: KeyboardEvent) => menu && handleMenuKeys(e, menu)}
         >
-          <InkIcon icon={ChevronDown} />
-        </Toolbar.Button>
-      {/snippet}
-    </Popover.Trigger>
-    <Popover.Portal>
-      <Popover.Content
-        bind:ref={menu}
-        role="menu"
-        aria-label="Highlights"
-        class="ink-select-content ink-menu-content"
-        data-ink-select-content=""
-        data-ink-menu="highlight"
-        customAnchor={group}
-        side="bottom"
-        align="start"
-        sideOffset={4}
-        collisionPadding={8}
-        onOpenAutoFocus={(e) => openFocus.onOpenAutoFocus(e, menu)}
-        onfocusin={openFocus.onfocusin}
-        onkeydowncapture={(e: KeyboardEvent) => menu && handleMenuKeys(e, menu)}
-      >
-        <div role="group" aria-label="Kinds" class="ink-highlight-kinds">
-          {#each model.items as item (item.kind)}
-            <button
-              type="button"
-              role="menuitemradio"
-              class="ink-select-item ink-menu-item ink-highlight-item"
-              data-ink-select-item=""
+          <div role="group" aria-label="Kinds" class="ink-highlight-kinds">
+            {#each model.items as item (item.kind)}
+              <button
+                type="button"
+                role="menuitemradio"
+                class="ink-select-item ink-menu-item ink-highlight-item"
+                data-ink-select-item=""
+                tabindex={-1}
+                data-key={item.kind}
+                aria-checked={item.checked}
+                data-state={item.checked ? 'checked' : 'unchecked'}
+                onclick={() => choose(item.kind)}
+              >
+                <InkIcon icon={MARKUP_ICONS[item.kind]} size={16} />
+                {item.label}
+              </button>
+            {/each}
+          </div>
+          <div role="separator" class="ink-select-separator"></div>
+          <div role="group" aria-label="Colour" class="ink-highlight-colour">
+            <span class="ink-highlight-colour-label" aria-hidden="true">Colour</span>
+            <!-- Capture on the panel moves on from this item before its own ArrowDown opens it. -->
+            <InkColorMenu
+              property="border"
+              group="markup"
+              label="Highlight colour"
+              standalone
+              {fallback}
+              role="menuitem"
               tabindex={-1}
-              data-key={item.kind}
-              aria-checked={item.checked}
-              data-state={item.checked ? 'checked' : 'unchecked'}
-              onclick={() => choose(item.kind)}
-            >
-              <InkIcon icon={MARKUP_ICONS[item.kind]} size={16} />
-              {item.label}
-            </button>
-          {/each}
-        </div>
-        <div role="separator" class="ink-select-separator"></div>
-        <div role="group" aria-label="Colour" class="ink-highlight-colour">
-          <span class="ink-highlight-colour-label" aria-hidden="true">Colour</span>
-          <!-- Capture on the panel moves on from this item before its own ArrowDown opens it. -->
-          <InkColorMenu
-            property="border"
-            group="markup"
-            label="Highlight colour"
-            standalone
-            {fallback}
-            role="menuitem"
-            tabindex={-1}
-          />
-        </div>
-      </Popover.Content>
-    </Popover.Portal>
-  </Popover.Root>
-</div>
+            />
+          </div>
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  </div>
+{/if}

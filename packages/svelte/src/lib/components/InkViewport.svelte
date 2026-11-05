@@ -43,6 +43,7 @@
   import { untrack } from 'svelte'
 
   import { useInkContext } from '../context.js'
+  import { toolIdsOf } from '../hooks/useRegisteredTool.svelte.js'
 
   import InkFormAlert from './InkFormAlert.svelte'
   import InkPage from './InkPage.svelte'
@@ -115,6 +116,7 @@
     engine?.destroy()
     engine = null
     builtWith = null
+    ctx.setOpenedToolIds(null)
     ctx.setViewport(null, null)
     if (pages.length > 0) pages = []
     // Their fields and the document they came from are gone.
@@ -134,6 +136,8 @@
     build += 1
     const custom = !!annotation
     builtWith = { gap, buffer, custom }
+    // The tools this viewer registers, from the same inputs; a later `tools` waits for a rebuild.
+    ctx.setOpenedToolIds(toolIdsOf(ctx.hostTools, ctx.pluginHost))
     engine = mountViewer({
       container: el,
       document: doc,

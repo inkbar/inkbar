@@ -16,8 +16,9 @@
   import { untrack } from 'svelte'
 
   import { useInkContext } from '../context.js'
+  import { useHasTool } from '../hooks/useRegisteredTool.svelte.js'
   import { useTool } from '../hooks/useTool.svelte.js'
-  import { useToolOptions } from '../hooks/useToolOptions.svelte.js'
+  import { useToolOptionsWhile } from '../hooks/useToolOptions.svelte.js'
   import { useReadable } from '../use-readable.svelte.js'
 
   import type { SignatureOptions, SignatureTemplate } from '@inkbar/core'
@@ -37,7 +38,12 @@
 
   const ctx = useInkContext('InkSignatureDialog')
   const current = useTool()
-  const signature = useToolOptions<SignatureOptions>('signature')
+  // Without the signature tool, Save only stores the template, as signing a form field needs.
+  const hasSignatureTool = useHasTool(ctx, 'signature')
+  const signature = useToolOptionsWhile<SignatureOptions>(
+    'signature',
+    () => hasSignatureTool.current
+  )
   // One draft per opening: the fonts are read once.
   const draft = untrack(() =>
     createSignatureDraft({ fonts: fonts ?? ctx.signatureFonts })
@@ -57,7 +63,7 @@
     draft.save(ctx.signatures).then(
       (t) => {
         if (!t) return
-        if (select) {
+        if (select && hasSignatureTool.current) {
           signature.setOptions({ templateId: t.id })
           current.setTool('signature')
         }
