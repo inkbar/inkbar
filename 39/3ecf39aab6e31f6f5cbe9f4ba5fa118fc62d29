@@ -1,0 +1,30 @@
+packages/react/src/components/RecordList.ct.tsx
+  s_1effe0625d7c7b::t_94ebdbba1fdaa8 165-168,219-222
+packages/react/README.md
+  s_1effe0625d7c7b::t_579425ea523a9f 242
+packages/react/src/hooks/useRecordSelection.ts
+  s_1effe0625d7c7b::t_5f4115ab45dc16 1-2,19,21-25
+packages/react/playwright/harness/RecordsHarness.tsx
+  s_1effe0625d7c7b::t_94ebdbba1fdaa8 2,19-22,32,62-63,73,96
+packages/react/src/components/RecordCards.tsx
+  s_1effe0625d7c7b::t_5f4115ab45dc16 177
+  s_1effe0625d7c7b::t_579425ea523a9f 26
+packages/react/src/components/InkRecordList.tsx
+  s_1effe0625d7c7b::t_579425ea523a9f 34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "393ecf39aab6e31f6f5cbe9f4ba5fa118fc62d29",
+  "prompts": {},
+  "sessions": {
+    "s_1effe0625d7c7b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3adafbc8-4f4c-4ced-a223-6be21f4f163c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
