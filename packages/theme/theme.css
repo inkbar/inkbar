@@ -890,6 +890,11 @@
     display: none;
   }
 
+  /* Tabs collapse as a whole, strip and all: the host's own button sets `open` to reopen it. */
+  :where(.ink-sidebar[data-layout='tabs'][data-state='closed']) {
+    display: none;
+  }
+
   :where(.ink-sidebar-panel) {
     flex: 1;
     min-height: 0;

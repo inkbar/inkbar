@@ -202,7 +202,11 @@ export function createSidebarController(
         : arrived !== undefined
           ? [arrived]
           : before.open
-    const open = resolve(asked)
+    let open = resolve(asked)
+    // Tabs collapse only through a controlled `open`: uncontrolled, with nothing open (a closed
+    // rail switched to tabs), the first panel opens rather than the whole sidebar hiding.
+    if (!controlled && layout === 'tabs' && open.length === 0 && panels[0] !== undefined)
+      open = [panels[0].id]
     // A binding calls this on every render: publish only what changed. The root's state
     // depends on `pending` too.
     if (

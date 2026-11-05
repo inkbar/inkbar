@@ -170,6 +170,20 @@ test('v-model:open is honoured and updated', async ({ mount, page }) => {
   await expect(panel(page, 'Notes')).toBeVisible()
 })
 
+test('a tabs sidebar with open = null collapses as a whole', async ({ mount, page }) => {
+  await mount(Harness, { props: { layout: 'tabs', open: null } })
+  const sidebar = page.getByTestId('sidebar')
+  await expect(sidebar).toHaveAttribute('data-state', 'closed')
+  // No tab strip, no panel, no width: the host's own button brings it back.
+  await expect(sidebar).toBeHidden()
+  await expect(page.getByRole('tablist')).toBeHidden()
+  expect(await sidebar.evaluate((el) => el.getBoundingClientRect().width)).toBe(0)
+  await page.getByTestId('open-notes').click()
+  await expect(sidebar).toHaveAttribute('data-state', 'open')
+  await expect(panel(page, 'Notes')).toBeVisible()
+  await expect(page.getByRole('tablist')).toBeVisible()
+})
+
 test('v-model:open is honoured and updated (stack)', async ({ mount, page }) => {
   await mount(Harness, { props: { layout: 'stack', open: ['search', 'notes'] } })
   await expect(page.getByRole('region', { name: 'Notes' })).toBeVisible()
