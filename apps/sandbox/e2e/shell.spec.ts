@@ -140,17 +140,6 @@ test('a PDF dropped while the scenario loads opens once it has', async ({
   await expect(viewer(page).locator('[data-ink-page-count]')).toHaveText('of 1')
 })
 
-test('a PDF dropped where no viewer is showing says so', async ({ page, request }) => {
-  // Not every scenario exists yet in every framework; one that does not mounts no viewer.
-  await page.goto('app.html#/svelte/search')
-  await expect(viewer(page)).toContainText('Coming in this release')
-  const letter = await (await request.get('documents/letter.pdf')).body()
-  await drop(page, letter, 'letter.pdf', 'application/pdf')
-  await expect(page.locator('[data-file-status]')).toHaveText(
-    'There is no viewer to open letter.pdf in.'
-  )
-})
-
 test('the Code tab drops the old source while the new one loads', async ({ page }) => {
   await page.route('**/assets/vue*.js', (route) => {
     setTimeout(() => void route.continue(), 1500)
@@ -191,6 +180,28 @@ test('the Code tab says when the source fails to load, then recovers', async ({
   // failed module import for the page's life, so the same file is not tried again until reload.)
   await scenarioLink(page, 'Vue', 'Pick your tools').click()
   await expect(code).toContainText('tools/vue.vue')
+})
+
+test('a scenario that fails to load says so, and a dropped PDF has no viewer', async ({
+  page,
+  request,
+}) => {
+  // The scenario's own Vue chunks fail; the highlighted sources (Shiki's markup) still load.
+  await page.route('**/assets/vue*.js', async (route) => {
+    const response = await route.fetch()
+    if ((await response.text()).includes('shiki')) await route.fulfill({ response })
+    else await route.abort()
+  })
+  await page.goto('app.html#/vue/tools')
+  await expect(viewer(page)).toContainText('This scenario could not be loaded.')
+  await expect(viewer(page).locator('[data-ink-root]')).toHaveCount(0)
+  // The aborted imports are the expected outcome of this route.
+  guard.take(/ERR_FAILED|dynamically imported module/)
+  const letter = await (await request.get('documents/letter.pdf')).body()
+  await drop(page, letter, 'letter.pdf', 'application/pdf')
+  await expect(page.locator('[data-file-status]')).toHaveText(
+    'There is no viewer to open letter.pdf in.'
+  )
 })
 
 test('a dropped PDF stays until the scenario changes', async ({ page, request }) => {
@@ -348,15 +359,6 @@ test('the sidebar search filters scenarios', async ({ page }) => {
   await expect(toggle).toHaveAttribute('aria-expanded', 'false')
   await expect(scenarioLink(page, 'Vue', 'Annotation tour')).toBeHidden()
   await expect(scenarioLink(page, 'React', 'Annotation tour')).toBeVisible()
-})
-
-test('a scenario still to come says so', async ({ page }) => {
-  await page.goto('app.html#/svelte/search')
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-    'Search a long document'
-  )
-  await expect(viewer(page)).toContainText('Coming in this release')
-  await expect(viewer(page).locator('[data-ink-root]')).toHaveCount(0)
 })
 
 test('no axe violations', async ({ page }) => {

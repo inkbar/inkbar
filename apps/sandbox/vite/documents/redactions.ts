@@ -52,7 +52,7 @@ const RECORDS: readonly CustomerRecord[] = [
     phones: ['07700 900456'],
     address: '9 Mill Close, Ilkley LS29 9QT',
     plan: 'Household, billed quarterly',
-    note: 'Moving house in December. Asked to send the final bill to dan.price@example.com and to call 07700 900456 first.',
+    note: 'Moving house in December. Asked us to call 07700 900456 first, then send the final bill to dan.price@example.com.',
   },
   {
     ref: 'C-32550',

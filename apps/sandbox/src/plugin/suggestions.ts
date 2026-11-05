@@ -8,17 +8,13 @@
  * redaction, Dismiss sets it aside, and deleting that redaction puts the suggestion back. Every
  * one of those is one undo step.
  *
- * The suggestions are static: the four values on page 4 of the sample. A real plugin would ask
- * its own service, or receive them from the host through `initial`.
+ * Suggest searches the open document for a fixed list of made-up values: the customer records
+ * in the sandbox's documents. A real plugin would ask its own service, or receive them from the
+ * host through `initial`.
  */
-import {
-  quadsFromRect,
-  type InkDocument,
-  type Quad,
-  type Rect,
-  type RecordBase,
-} from '@inkbar/core'
 import { definePlugin, type PluginStoreOptions } from '@inkbar/core/dom'
+
+import type { InkDocument, Quad, Rect, RecordBase, SearchHit } from '@inkbar/core'
 
 export interface Suggestion extends RecordBase {
   /** Page index, from 0. */
@@ -31,61 +27,44 @@ export interface Suggestion extends RecordBase {
   confidence: number
   reason: string
   explanation?: string
-  /** The text the quads cover; Suggest adds a suggestion only when its page's text contains it. */
+  /** The text the quads cover. */
   text: string
   status: 'suggested' | 'accepted' | 'dismissed'
 }
 
-/** One line of text from `left` to `right` and `bottom` to `top`, in PDF points. */
-function line(left: number, bottom: number, right: number, top: number) {
-  const rect = { x: left, y: bottom, width: right - left, height: top - bottom }
-  return { rect, quads: quadsFromRect(rect) }
+/** A kind of personal data, and the values of it that Suggest looks for. */
+interface Kind {
+  /** The first suggestion of this kind takes it as its id, the next `<id>-2`, and so on. */
+  id: string
+  reason: string
+  confidence: number
+  explanation: string
+  values: readonly string[]
 }
 
-/**
- * The sample's customer record on page 4 (index 3), in reading order. The positions come from
- * the sample's own text layer, rounded to 0.01 pt.
- */
-export const SAMPLE_SUGGESTIONS: readonly Suggestion[] = [
+// Names and addresses are left out on purpose: the reader redacts those by hand.
+/** Every value is made up, like the documents that hold them. */
+const KINDS: readonly Kind[] = [
   {
     id: 'ni-number',
-    page: 3,
-    ...line(383, 246.9, 443.35, 258.91),
-    confidence: 0.95,
     reason: 'National Insurance number',
+    confidence: 0.95,
     explanation: 'Two letters, six digits and a final letter.',
-    text: 'QQ123456C',
-    status: 'suggested',
+    values: ['QQ123456C', 'QQ654321A'],
   },
   {
     id: 'email',
-    page: 3,
-    ...line(383, 224.9, 499.65, 236.91),
-    confidence: 0.85,
     reason: 'Email address',
-    explanation: 'The customer’s email address.',
-    text: 'm.okafor@example.com',
-    status: 'suggested',
+    confidence: 0.85,
+    explanation: 'A customer’s email address.',
+    values: ['m.okafor@example.com', 'dan.price@example.com', 'aisha.rahman@example.com'],
   },
   {
     id: 'phone',
-    page: 3,
-    ...line(383, 202.9, 451.74, 214.91),
-    confidence: 0.6,
     reason: 'Phone number',
+    confidence: 0.6,
     explanation: 'Eleven digits starting 07, like a UK mobile number.',
-    text: '07700 900123',
-    status: 'suggested',
-  },
-  {
-    id: 'email-in-note',
-    page: 3,
-    ...line(411.32, 135.95, 524.99, 147.68),
-    confidence: 0.85,
-    reason: 'Email address',
-    explanation: 'The same email address, repeated in the call note.',
-    text: 'm.okafor@example.com',
-    status: 'suggested',
+    values: ['07700 900123', '07700 900456', '07700 900789'],
   },
 ]
 
@@ -105,9 +84,9 @@ export function suggestionCount(n: number): string {
 }
 
 /**
- * The sample suggestions whose text this document holds. Waits 400 ms first, like a network
- * round trip, and stops there if `signal` has aborted. On any other PDF the text is not
- * there, so it finds none.
+ * Every place the document holds one of the values in `KINDS`, in reading order. Waits 400 ms
+ * first, like a network round trip, and stops if `signal` aborts. A PDF without those values
+ * gets none.
  */
 export async function findSuggestions(
   doc: InkDocument,
@@ -115,11 +94,31 @@ export async function findSuggestions(
 ): Promise<Suggestion[]> {
   await new Promise((resolve) => setTimeout(resolve, 400))
   signal?.throwIfAborted()
-  const found: Suggestion[] = []
-  for (const s of SAMPLE_SUGGESTIONS)
-    if (s.page < doc.pages.length && (await doc.pageText(s.page)).includes(s.text))
-      found.push(s)
-  return found
+  // `doc.search` is the find bar's search: each hit has its page, text offsets and quads.
+  const options = { matchCase: true, ...(signal && { signal }) }
+  const found: { kind: Kind; hit: SearchHit }[] = []
+  for (const kind of KINDS)
+    for (const value of kind.values)
+      for (const hit of await doc.search(value, options).all()) found.push({ kind, hit })
+  // Reading order: page by page, then where each hit starts in its page's text.
+  found.sort((a, b) => a.hit.page - b.hit.page || a.hit.start - b.hit.start)
+
+  const seen = new Map<string, number>()
+  return found.map(({ kind, hit }) => {
+    const n = (seen.get(kind.id) ?? 0) + 1
+    seen.set(kind.id, n)
+    return {
+      id: n === 1 ? kind.id : `${kind.id}-${n}`,
+      page: hit.page,
+      quads: hit.quads,
+      rect: hit.rect,
+      confidence: kind.confidence,
+      reason: kind.reason,
+      explanation: kind.explanation,
+      text: hit.text,
+      status: 'suggested',
+    }
+  })
 }
 
 export interface SuggestionsOptions {

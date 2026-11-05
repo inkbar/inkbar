@@ -1,6 +1,6 @@
 /*
- * The Code tab's files: the scenario's file for the framework, then any extra files it names.
- * Each is highlighted at build time (`?highlight`), and each loads only when it is shown.
+ * The Code tab's files: the scenario's file for the framework, any files of that framework's
+ * own, then any extra files it names. Each is highlighted at build time (`?highlight`), and each loads only when it is shown.
  */
 import { SCENARIO_FILE } from '../frameworks/index.ts'
 import { SCENARIOS, type ScenarioId } from '../scenarios/registry.ts'
@@ -46,9 +46,12 @@ export function loadSources(
   framework: FrameworkId,
   scenario: ScenarioId
 ): Promise<SourceFile[]> {
-  const extra = SCENARIOS.find((s) => s.id === scenario)?.extraFiles ?? []
+  const entry = SCENARIOS.find((s) => s.id === scenario)
+  const own = entry?.frameworkFiles?.[framework] ?? []
+  const extra = entry?.extraFiles ?? []
   return Promise.all([
     loadOne(SCENARIO_SOURCES, `src/scenarios/${scenario}/${SCENARIO_FILE[framework]}`),
+    ...own.map((path) => loadOne(SCENARIO_SOURCES, path)),
     ...extra.map((path) => loadOne(EXTRA_SOURCES, path)),
   ])
 }
