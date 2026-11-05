@@ -1,0 +1,53 @@
+packages/react/src/index.ts
+  s_1effe0625d7c7b::t_64af98e2acca64 18-19,94-104
+packages/react/src/hooks/hooks.test.ts
+  s_1effe0625d7c7b::t_0e62bdeafae175 1-15,28-29,51-52,172-183,185-191,193-202,211-220,224-229,233-236,240-243,250-265
+  s_1effe0625d7c7b::t_fd4b3f89a9cf94 184,192,203-210
+  s_1effe0625d7c7b::t_2d1ab11f541dc0 221-223,230-232,237-239,244-249
+packages/react/src/hooks/useRecordSelection.ts
+  s_1effe0625d7c7b::t_39d537f08975c4 1-22
+packages/react/playwright/harness/SourceHarness.tsx
+  s_1effe0625d7c7b::t_aa9145cc2eff01 1-45
+packages/react/README.md
+  s_1effe0625d7c7b::t_bdae313a722887 228-247,250,279
+packages/react/playwright/harness/SearchResultsHarness.tsx
+  s_1effe0625d7c7b::t_2d1ab11f541dc0 27-29
+  s_1effe0625d7c7b::t_aa9145cc2eff01 1-26,30-39
+packages/react/playwright/harness/suggestions-plugin.ts
+  s_1effe0625d7c7b::t_aa9145cc2eff01 1-43
+packages/react/src/components/RecordList.ct.tsx
+  s_1effe0625d7c7b::t_6372b395b49b1a 1-295
+packages/react/src/hooks/useRecords.ts
+  s_1effe0625d7c7b::t_39d537f08975c4 1-22
+packages/react/src/components/InkRecordList.tsx
+  s_1effe0625d7c7b::t_d9cdd52a5ca2d5 1-61,72-97
+  s_1effe0625d7c7b::t_2d1ab11f541dc0 62-71
+packages/react/src/components/InkSearchResults.tsx
+  s_1effe0625d7c7b::t_2d1ab11f541dc0 32-36
+  s_1effe0625d7c7b::t_d9cdd52a5ca2d5 1-31,37-79
+packages/react/src/components/RecordCards.tsx
+  s_1effe0625d7c7b::t_2d1ab11f541dc0 19-22
+  s_1effe0625d7c7b::t_d9cdd52a5ca2d5 1-18,23-184
+packages/react/src/ssr.test.ts
+  s_1effe0625d7c7b::t_6f07b3b1e709af 75-78,229-246
+  s_1effe0625d7c7b::t_20b0c598470222 247
+packages/react/playwright/harness/RecordsHarness.tsx
+  s_1effe0625d7c7b::t_2d1ab11f541dc0 80-82,88-90
+  s_1effe0625d7c7b::t_aa9145cc2eff01 1-79,83-87,91-101
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4e544aa3aae9d53b66c00082a1f5927c42fe95f3",
+  "prompts": {},
+  "sessions": {
+    "s_1effe0625d7c7b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3adafbc8-4f4c-4ced-a223-6be21f4f163c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
