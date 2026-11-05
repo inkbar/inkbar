@@ -1,16 +1,20 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
+import * as icons from '@inkbar/icons'
 import {
   PDFArray,
   PDFDict,
   PDFDocument,
   PDFDropdown,
   PDFName,
+  PDFRawStream,
+  decodePDFRawStream,
   type PDFObject,
 } from 'pdf-lib'
 
 import { DOCUMENT_NAMES, makeDocument } from './index.ts'
+import { Sheet, type Fonts } from './layout.ts'
 import {
   LONG_HITS,
   LONG_HIT_PAGES,
@@ -164,4 +168,25 @@ void test('long builds quickly', async () => {
   const ms = performance.now() - start
   assert.ok(ms < 2000, `took ${Math.round(ms)} ms`)
   assert.ok(bytes.length < 1.5 * 1024 * 1024, `${bytes.length} bytes`)
+})
+
+void test('every toolbar icon draws in a guide as readable path operators', async () => {
+  const d = await PDFDocument.create()
+  const drawn = Object.entries(icons).filter(([, icon]) => Array.isArray(icon))
+  for (const [, icon] of drawn)
+    new Sheet(d.addPage(), {} as Fonts).icon(icon as icons.IconNode, 0, 0, 12)
+  const saved = await PDFDocument.load(await d.save())
+  saved.getPages().forEach((page, i) => {
+    const streams = page.node.lookup(PDFName.of('Contents'), PDFArray).asArray()
+    const ops = streams
+      .map((ref) => {
+        const stream = saved.context.lookup(ref)
+        assert.ok(stream instanceof PDFRawStream)
+        return new TextDecoder().decode(decodePDFRawStream(stream).decode())
+      })
+      .join('\n')
+    // pdf-lib writes NaN for path data it cannot read, such as arc flags run together.
+    assert.doesNotMatch(ops, /NaN/, drawn[i]![0])
+    assert.match(ops, /^S$/m, drawn[i]![0])
+  })
 })

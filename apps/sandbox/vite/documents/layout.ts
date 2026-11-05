@@ -6,6 +6,7 @@
  * is `example.com`.
  */
 import {
+  LineCapStyle,
   PDFDocument,
   PDFString,
   StandardFonts,
@@ -16,6 +17,8 @@ import {
   type PDFPage,
   type PDFRef,
 } from 'pdf-lib'
+
+import type { IconNode } from '@inkbar/icons'
 
 export const W = 595.28
 export const H = 841.89
@@ -36,6 +39,8 @@ export const MUTED = hex('#4A4F66')
 export const HIGHLIGHTER = hex('#E4FF4A')
 export const BAR = hex('#6B7190')
 export const DOT = hex('#A3A8BD')
+/** Ballpoint, for the step numbers of a guide. */
+export const ACCENT = hex('#2740F5')
 export const WHITE = rgb(1, 1, 1)
 
 export interface Fonts {
@@ -196,6 +201,82 @@ export class Sheet {
   dot(x: number, top: number, r: number, color: Color): void {
     this.page.drawCircle({ x, y: H - top, size: r, color })
   }
+
+  /** Strokes a 24-unit Lucide icon at `size` points, its top left corner at `x`, `top`. */
+  icon(icon: IconNode, x: number, top: number, size: number, color: Color = INK): void {
+    const scale = size / 24
+    for (const [tag, a] of icon) {
+      const d = iconPath(tag, a)
+      if (!d) continue
+      this.page.drawSvgPath(d, {
+        x,
+        y: H - top,
+        scale,
+        borderColor: color,
+        borderWidth: 2,
+        borderLineCap: LineCapStyle.Round,
+      })
+    }
+  }
+}
+
+/**
+ * Path data with every token apart. An arc's two flags may be written run together, as in
+ * `a4 4 0 00-2.756-3.266`, and pdf-lib's parser reads `00` as one number.
+ */
+function spaceArcFlags(d: string): string {
+  const out: string[] = []
+  const number = /^[+-]?(?:\d+\.?\d*|\.\d+)/
+  let command = ''
+  let arg = 0
+  let i = 0
+  while (i < d.length) {
+    const c = d[i]!
+    if (/[a-z]/i.test(c)) {
+      command = c
+      arg = 0
+      out.push(c)
+      i++
+    } else if (/[\s,]/.test(c)) i++
+    else if (/a/i.test(command) && (arg % 7 === 3 || arg % 7 === 4)) {
+      out.push(c)
+      arg++
+      i++
+    } else {
+      const m = number.exec(d.slice(i))
+      if (!m) throw new Error(`Unreadable path data at ${i}: ${d}`)
+      out.push(m[0])
+      arg++
+      i += m[0].length
+    }
+  }
+  return out.join(' ')
+}
+
+/** One element of a Lucide icon as SVG path data; @inkbar/icons uses only these four. */
+function iconPath(tag: string, a: Readonly<Record<string, string>>): string | null {
+  const n = (k: string): number => Number(a[k] ?? 0)
+  switch (tag) {
+    case 'path':
+      return a.d ? spaceArcFlags(a.d) : null
+    case 'line':
+      return `M ${n('x1')} ${n('y1')} L ${n('x2')} ${n('y2')}`
+    case 'circle': {
+      const [cx, cy, r] = [n('cx'), n('cy'), n('r')]
+      return `M ${cx - r} ${cy} A ${r} ${r} 0 1 0 ${cx + r} ${cy} A ${r} ${r} 0 1 0 ${cx - r} ${cy} Z`
+    }
+    case 'rect': {
+      const [x, y, w, h] = [n('x'), n('y'), n('width'), n('height')]
+      const r = Math.min(n('rx'), w / 2, h / 2)
+      return r
+        ? `M ${x + r} ${y} H ${x + w - r} A ${r} ${r} 0 0 1 ${x + w} ${y + r} V ${y + h - r} ` +
+            `A ${r} ${r} 0 0 1 ${x + w - r} ${y + h} H ${x + r} A ${r} ${r} 0 0 1 ${x} ${y + h - r} ` +
+            `V ${y + r} A ${r} ${r} 0 0 1 ${x + r} ${y} Z`
+        : `M ${x} ${y} H ${x + w} V ${y + h} H ${x} Z`
+    }
+    default:
+      return null
+  }
 }
 
 /** The mark: a lowercase "i" standing on a highlighter bar in a dark rounded tile. */
@@ -243,12 +324,52 @@ export function footer(s: Sheet, n: number, total: number, left: string): void {
 }
 
 /** One row of a feature page: the feature on the left, a box of content to try it on. */
+/** A toolbar button as a guide draws it: its icon on a key, then its name. */
+export interface GuideButton {
+  icon: IconNode
+  label: string
+}
+
+/** How to try a feature: the toolbar buttons it takes, then the steps in order. */
+export interface Guide {
+  buttons: GuideButton[]
+  steps: string[]
+}
+
 export interface Row {
   weight?: number
   title: string
   body: string
-  tryIt: string
+  /** One line in italics: for features that need no toolbar button. */
+  tryIt?: string
+  guide?: Guide
   demo(s: Sheet, box: Box): void
+}
+
+const KEY = 17
+const STEP = { size: 9.75, leading: 13 }
+
+/** Draws `guide` in the feature column from `top` down. */
+function drawGuide(s: Sheet, guide: Guide, top: number): void {
+  // The buttons, as keys that wrap across the column.
+  let x = SIDE
+  let y = top
+  for (const b of guide.buttons) {
+    const w = KEY + 5 + s.width(b.label, 9.75, 'bold')
+    if (x > SIDE && x + w > SIDE + COLUMN) {
+      x = SIDE
+      y += KEY + 5
+    }
+    s.rect({ x, top: y, w: KEY, h: KEY }, { fill: WHITE, stroke: RULE, radius: 3.5 })
+    s.icon(b.icon, x + 3, y + 3, KEY - 6)
+    s.text(b.label, x + KEY + 5, y + 12, { size: 9.75, font: 'bold' })
+    x += w + 10
+  }
+  y += KEY + 6
+  guide.steps.forEach((step, i) => {
+    s.text(String(i + 1), SIDE, y + 9.5, { size: 9.75, font: 'bold', color: ACCENT })
+    y = s.para(step, SIDE + 12, y + 9.5, COLUMN - 12, { ...STEP, color: MUTED }) - 9.5 + 4
+  })
 }
 
 export const PAD = 18
@@ -277,12 +398,14 @@ export function featurePage(
       font: 'bold',
     })
     y = s.para(row.body, SIDE, y + 9, COLUMN, { size: 10.75, leading: 16 })
-    s.para(row.tryIt, SIDE, y + 7, COLUMN, {
-      size: 9.75,
-      leading: 14,
-      font: 'italic',
-      color: MUTED,
-    })
+    if (row.guide) drawGuide(s, row.guide, y + 3)
+    else if (row.tryIt)
+      s.para(row.tryIt, SIDE, y + 7, COLUMN, {
+        size: 9.75,
+        leading: 14,
+        font: 'italic',
+        color: MUTED,
+      })
 
     const box = { x: DEMO_X, top: top + pad, w: W - SIDE - DEMO_X, h: height - pad * 2 }
     s.rect(box, { fill: PAPER, stroke: RULE, radius: 7.5 })
