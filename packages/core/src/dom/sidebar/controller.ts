@@ -34,6 +34,14 @@ export interface SidebarControllerOptions {
   open?: SidebarOpen
   onOpenChange?(open: SidebarOpen): void
   /**
+   * True while a binding's panels are still registering, one by one, before it has mounted.
+   * Meanwhile a controlled `open` id not in `panels` yet is kept rather than taken for a
+   * removed panel, and `rootAttrs()` reports the open state expected once they are all in.
+   * Set it back to false (through `update`) once the panels are in: an id still missing then
+   * falls back as a removed one does.
+   */
+  pending?: boolean
+  /**
    * Makes the ids `<idPrefix>-trigger-<id>` and `<idPrefix>-panel-<id>`, the same on the server
    * and the client. Without it they come from a counter.
    */
@@ -60,8 +68,8 @@ export interface SidebarController {
   toggle(id: string): void
   isOpen(id: string): boolean
   /**
-   * `data-ink-sidebar`, `data-layout`, `data-side` and `data-state` (`open` while any panel is)
-   * for the root.
+   * `data-ink-sidebar`, `data-layout`, `data-side` and `data-state` (`open` while any panel is,
+   * and while pending and uncontrolled, as the first panel will open) for the root.
    */
   rootAttrs(): Record<string, string>
   /** ARIA for the element holding the triggers: a tablist for rail and tabs. */
@@ -125,6 +133,7 @@ export function createSidebarController(
   let side: SidebarSide = opts.side ?? 'left'
   let panels: readonly SidebarPanelInfo[] = opts.panels
   let controlled = opts.open !== undefined
+  let pending = opts.pending ?? false
   /** The options that last gave `onOpenChange`, called as a method of them. */
   let handler: Pick<SidebarControllerOptions, 'onOpenChange'> = opts
   /** The trigger that holds the Tab stop in rail and tabs, once one has had focus. */
@@ -143,11 +152,17 @@ export function createSidebarController(
   /**
    * The ids `value` opens among the current panels. Stack keeps those that exist, in panel
    * order. Rail and tabs keep the first that exists; when none does, the first panel opens, as
-   * there was an open one to replace.
+   * there was an open one to replace. While pending, a controlled id not registered yet is kept:
+   * after the registered ones in stack, as the one open in rail and tabs.
    */
   const resolve = (value: SidebarOpen): string[] => {
     const ids = idsOf(value)
-    if (layout === 'stack') return inOrder(ids)
+    const waiting = pending && controlled
+    if (layout === 'stack') {
+      const known = inOrder(ids)
+      return waiting ? [...new Set([...known, ...ids.filter((id) => !has(id))])] : known
+    }
+    if (waiting && ids.length > 0) return [ids.find(has) ?? ids[0]!]
     const first = ids.find(has) ?? (ids.length > 0 ? panels[0]?.id : undefined)
     return first === undefined ? [] : [first]
   }
@@ -167,17 +182,31 @@ export function createSidebarController(
   function update(next: Partial<SidebarControllerOptions>): void {
     if (destroyed) return
     const before = store.get()
+    const wasPending = pending
+    if (next.pending !== undefined) pending = next.pending
     if (next.layout !== undefined) layout = next.layout
     if (next.side !== undefined) side = next.side
     if (next.panels !== undefined && !samePanels(next.panels, panels))
       panels = next.panels
     if ('onOpenChange' in next) handler = next
     if (next.open !== undefined) controlled = true
-    // What the host asked for, else what was open.
-    const asked = next.open !== undefined ? idsOf(next.open) : before.open
+    // What the host asked for, else what was open. Uncontrolled, the first panel to arrive in
+    // an empty sidebar opens, as it would have had it been there from the start.
+    const arrived =
+      !controlled && before.panels.length === 0 && before.open.length === 0
+        ? panels[0]?.id
+        : undefined
+    const asked =
+      next.open !== undefined
+        ? idsOf(next.open)
+        : arrived !== undefined
+          ? [arrived]
+          : before.open
     const open = resolve(asked)
-    // A binding calls this on every render: publish only what changed.
+    // A binding calls this on every render: publish only what changed. The root's state
+    // depends on `pending` too.
     if (
+      pending !== wasPending ||
       layout !== before.layout ||
       side !== before.side ||
       panels !== before.panels ||
@@ -368,7 +397,8 @@ export function createSidebarController(
       'data-ink-sidebar': '',
       'data-layout': layout,
       'data-side': side,
-      'data-state': store.get().open.length > 0 ? 'open' : 'closed',
+      'data-state':
+        store.get().open.length > 0 || (pending && !controlled) ? 'open' : 'closed',
     }),
     tablistAttrs,
     triggerAttrs,
