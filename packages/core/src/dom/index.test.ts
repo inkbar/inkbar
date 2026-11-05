@@ -47,6 +47,7 @@ describe('@inkbar/core/dom entry', () => {
         'createSidebarController',
         'createSidebar',
         'sidebarBadge',
+        'isBlankQuery',
       ])
     )
 

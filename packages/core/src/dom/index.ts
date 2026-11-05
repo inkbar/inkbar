@@ -208,6 +208,7 @@ export {
   pageSelectionText,
 } from './search/find-key'
 export { findAnnouncer, findCountText } from './search/find-text'
+export { isBlankQuery } from '../model/search-text'
 export { createSearchController, viewerSearchOf } from './search/controller'
 export type {
   SearchController,
