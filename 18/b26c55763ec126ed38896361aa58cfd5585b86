@@ -1,0 +1,177 @@
+packages/svelte/src/test/harness/ToolbarButtonHarness.svelte
+  s_d6f92c10539fe3::t_8df963c362f988 1-12
+packages/react/src/index.ts
+  s_d6f92c10539fe3::t_a70bc634722978 46-47
+packages/react/playwright/harness/ToolbarButtonHarness.tsx
+  s_d6f92c10539fe3::t_8df963c362f988 1-14
+packages/vue/playwright/harness/ToolbarButtonHarness.vue
+  s_d6f92c10539fe3::t_d8a482ed5fc7f8 6,12
+  s_d6f92c10539fe3::t_8df963c362f988 1-5,7-11,13-14
+packages/svelte/src/test/Toolbar.browser.test.ts
+  s_d6f92c10539fe3::t_339cf083aad1d1 329-334
+  s_d6f92c10539fe3::t_13dc7a4cd2edef 14,325-328,335-345
+  s_d6f92c10539fe3::t_7c5ecbd0aedb42 346-347
+packages/react/src/components/InkToolbarButton.tsx
+  s_d6f92c10539fe3::t_a70bc634722978 1-30
+packages/vue/README.md
+  s_d6f92c10539fe3::t_849a6dd9b895e3 98
+packages/svelte/README.md
+  s_d6f92c10539fe3::t_849a6dd9b895e3 94
+packages/svelte/src/test/ssr.test.ts
+  s_d6f92c10539fe3::t_c7e1b786b96300 36
+packages/svelte/src/lib/index.ts
+  s_d6f92c10539fe3::t_a70bc634722978 54-55
+packages/react/src/ssr.test.ts
+  s_d6f92c10539fe3::t_c7e1b786b96300 53
+packages/vue/src/index.ts
+  s_d6f92c10539fe3::t_a70bc634722978 34
+packages/react/src/components/Toolbar.ct.tsx
+  s_d6f92c10539fe3::t_de63e9ef65e4e4 10,313-331
+  s_d6f92c10539fe3::t_8ae2c670689765 332-333
+packages/vue/src/components/Toolbar.ct.ts
+  s_d6f92c10539fe3::t_de63e9ef65e4e4 10,265-283
+  s_d6f92c10539fe3::t_1a4f07f28fffd7 284-285
+packages/vue/src/components/InkToolbarButton.vue
+  s_d6f92c10539fe3::t_d8a482ed5fc7f8 24,27
+  s_d6f92c10539fe3::t_a70bc634722978 1-3,6-8,19-23,25-26,28-31
+packages/svelte/src/lib/components/InkToolbarButton.svelte
+  s_d6f92c10539fe3::t_a70bc634722978 1-33
+packages/react/README.md
+  s_d6f92c10539fe3::t_849a6dd9b895e3 103
+apps/sandbox/src/scenarios/controlled/vanilla.ts
+  s_d6f92c10539fe3::t_0977d4e95af6d7 138-140,144-145
+  s_d6f92c10539fe3::t_fe352c975dd451 11,31,141-143
+  s_d6f92c10539fe3::t_5bd068f615ffc8 50-53
+  s_d6f92c10539fe3::t_a0ea1a57c7130d 146
+apps/sandbox/src/scenarios/tour/react.tsx
+  s_d6f92c10539fe3::t_694953a1976215 21,36,99-102
+  s_d6f92c10539fe3::t_0977d4e95af6d7 23,98,103
+  s_d6f92c10539fe3::t_5bd068f615ffc8 44-49
+apps/sandbox/src/scenarios/controlled/svelte.svelte
+  s_d6f92c10539fe3::t_fe352c975dd451 12,35,86-89
+  s_d6f92c10539fe3::t_0977d4e95af6d7 24,41,85
+  s_d6f92c10539fe3::t_dbff946044da62 90
+apps/sandbox/src/scenarios/redactions/react.tsx
+  s_d6f92c10539fe3::t_5bd068f615ffc8 58-63
+  s_d6f92c10539fe3::t_0977d4e95af6d7 24,106
+  s_d6f92c10539fe3::t_694953a1976215 22,40,107-110
+  s_d6f92c10539fe3::t_58019f1d669b9b 111
+apps/sandbox/src/frameworks/types.ts
+  s_d6f92c10539fe3::t_e7300fb97a95d9 12-13
+apps/sandbox/src/shell/app.ts
+  s_d6f92c10539fe3::t_e7300fb97a95d9 41,57,86-88,94,119,188
+apps/sandbox/src/scenarios/tour/svelte.svelte
+  s_d6f92c10539fe3::t_0977d4e95af6d7 24,43,94,99
+  s_d6f92c10539fe3::t_694953a1976215 22,37,95-98
+apps/sandbox/src/scenarios/tools/svelte.svelte
+  s_d6f92c10539fe3::t_694953a1976215 17,30-31,63-66
+  s_d6f92c10539fe3::t_0977d4e95af6d7 19,35,62,67
+apps/sandbox/package.json
+  s_d6f92c10539fe3::t_fe352c975dd451 21
+apps/sandbox/src/frameworks/svelte.svelte.ts
+  s_d6f92c10539fe3::t_e7300fb97a95d9 23
+apps/sandbox/src/scenarios/tools/react.tsx
+  s_d6f92c10539fe3::t_0977d4e95af6d7 18,62,67
+  s_d6f92c10539fe3::t_694953a1976215 16,29-30,63-66
+  s_d6f92c10539fe3::t_5bd068f615ffc8 35-40
+apps/sandbox/src/scenarios/tour/vue.vue
+  s_d6f92c10539fe3::t_694953a1976215 22,37,105-108
+  s_d6f92c10539fe3::t_0977d4e95af6d7 24,44,104,109
+apps/sandbox/src/frameworks/vue.ts
+  s_d6f92c10539fe3::t_e7300fb97a95d9 13-18
+apps/sandbox/src/scenarios/controlled/react.tsx
+  s_d6f92c10539fe3::t_0977d4e95af6d7 22,46,94
+  s_d6f92c10539fe3::t_fe352c975dd451 10,34,95-98
+  s_d6f92c10539fe3::t_0d84fb891fc6ad 99
+apps/sandbox/src/scenarios/redactions/vanilla.ts
+  s_d6f92c10539fe3::t_cbd0a0813bb1de 12
+  s_d6f92c10539fe3::t_0977d4e95af6d7 132-134,138-139
+  s_d6f92c10539fe3::t_5bd068f615ffc8 55-58
+  s_d6f92c10539fe3::t_694953a1976215 36,135-137
+  s_d6f92c10539fe3::t_550e9b603f119f 140
+apps/sandbox/src/shared/file-up.ts
+  s_d6f92c10539fe3::t_fe352c975dd451 1-17
+apps/sandbox/src/scenarios/forms/react.tsx
+  s_d6f92c10539fe3::t_0977d4e95af6d7 18,37,71,76
+  s_d6f92c10539fe3::t_e84fe7c1e73174 16,30,72-75
+apps/sandbox/src/scenarios/search/vanilla.ts
+  s_d6f92c10539fe3::t_0977d4e95af6d7 99-101,105-106
+  s_d6f92c10539fe3::t_5bd068f615ffc8 43-46
+  s_d6f92c10539fe3::t_cbd0a0813bb1de 9
+  s_d6f92c10539fe3::t_694953a1976215 25-26,102-104
+  s_d6f92c10539fe3::t_3316fd2c2b8530 107
+apps/sandbox/src/scenarios/redactions/vue.vue
+  s_d6f92c10539fe3::t_0977d4e95af6d7 25,47,108
+  s_d6f92c10539fe3::t_694953a1976215 23,41,109-112
+  s_d6f92c10539fe3::t_e1846b67d46d34 113
+apps/sandbox/src/styles/app.css
+  s_d6f92c10539fe3::t_43efe50385cae0 341,458,461-466,486-487,497-498
+  s_d6f92c10539fe3::t_0d32889753d154 392,470-472,474-477
+  s_d6f92c10539fe3::t_0f334b2b8b9e66 473
+  s_d6f92c10539fe3::t_cd50ef9a493cb0 459-460,467-469
+apps/sandbox/src/scenarios/forms/vue.vue
+  s_d6f92c10539fe3::t_0977d4e95af6d7 19,38,78,83
+  s_d6f92c10539fe3::t_e84fe7c1e73174 17,31,79-82
+apps/sandbox/e2e/scenarios.spec.ts
+  s_d6f92c10539fe3::t_b0d39365acc7e4 70-76
+apps/sandbox/src/scenarios/forms/vanilla.ts
+  s_d6f92c10539fe3::t_5bd068f615ffc8 46-49
+  s_d6f92c10539fe3::t_0977d4e95af6d7 105-107,111-112
+  s_d6f92c10539fe3::t_e84fe7c1e73174 9,26,108-110
+  s_d6f92c10539fe3::t_a22e0bd4b5acd9 113
+apps/sandbox/src/scenarios/search/svelte.svelte
+  s_d6f92c10539fe3::t_0977d4e95af6d7 18,35,50,55
+  s_d6f92c10539fe3::t_694953a1976215 16,28-29,51-54
+apps/sandbox/src/scenarios/search/vue.vue
+  s_d6f92c10539fe3::t_694953a1976215 16,30-31,73-76
+  s_d6f92c10539fe3::t_0977d4e95af6d7 18,35,72,77
+apps/sandbox/src/scenarios/search/react.tsx
+  s_d6f92c10539fe3::t_5bd068f615ffc8 47-52
+  s_d6f92c10539fe3::t_694953a1976215 15,29-30,67-70
+  s_d6f92c10539fe3::t_0977d4e95af6d7 17,66,71
+apps/sandbox/src/scenarios/forms/svelte.svelte
+  s_d6f92c10539fe3::t_0977d4e95af6d7 19,38,77,82
+  s_d6f92c10539fe3::t_e84fe7c1e73174 17,31,78-81
+apps/sandbox/src/scenarios/tour/vanilla.ts
+  s_d6f92c10539fe3::t_0977d4e95af6d7 136-138,142-143
+  s_d6f92c10539fe3::t_694953a1976215 33,139-141
+  s_d6f92c10539fe3::t_cbd0a0813bb1de 11
+  s_d6f92c10539fe3::t_5bd068f615ffc8 52-55
+  s_d6f92c10539fe3::t_8ff80fc43f5ef8 144
+apps/sandbox/src/scenarios/redactions/svelte.svelte
+  s_d6f92c10539fe3::t_694953a1976215 24,40,96-99
+  s_d6f92c10539fe3::t_0977d4e95af6d7 26,48,95
+  s_d6f92c10539fe3::t_058ca06bed2473 100
+apps/sandbox/src/scenarios/controlled/vue.vue
+  s_d6f92c10539fe3::t_0977d4e95af6d7 23,42,100
+  s_d6f92c10539fe3::t_fe352c975dd451 11,35,101-104
+  s_d6f92c10539fe3::t_f6fc1bb4dc25ca 105
+apps/sandbox/src/scenarios/tools/vue.vue
+  s_d6f92c10539fe3::t_0977d4e95af6d7 19,36,68,73
+  s_d6f92c10539fe3::t_694953a1976215 17,30-31,69-72
+apps/sandbox/src/scenarios/tools/vanilla.ts
+  s_d6f92c10539fe3::t_694953a1976215 28-29,108-110
+  s_d6f92c10539fe3::t_cbd0a0813bb1de 9
+  s_d6f92c10539fe3::t_5bd068f615ffc8 46-49
+  s_d6f92c10539fe3::t_0977d4e95af6d7 105-107,111-112
+  s_d6f92c10539fe3::t_8a05641c9ee050 113
+apps/sandbox/e2e/shell.spec.ts
+  s_d6f92c10539fe3::t_b0d39365acc7e4 319-331,335-343
+  s_d6f92c10539fe3::t_5bd068f615ffc8 332-334
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "18b26c55763ec126ed38896361aa58cfd5585b86",
+  "prompts": {},
+  "sessions": {
+    "s_d6f92c10539fe3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "db98c1ef-4c5a-4c88-b425-330912eecf03",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
