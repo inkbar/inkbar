@@ -144,6 +144,19 @@ describe('createRecordList', () => {
     expect(window.scrollY).toBe(pageY)
   })
 
+  it('a mark selected while the list is hidden scrolls to its row once it shows', async () => {
+    const { box, list, row, markFor, selection } = await makeList(findings(20), 200)
+    const scroller = list.querySelector<HTMLElement>('.ink-record-list')!
+    // As in a closed sidebar panel.
+    box.style.display = 'none'
+    await userEvent.click(markFor('f19')!)
+    expect(selection.selected.get()).toBe('f19')
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    box.style.display = 'flex'
+    expect(scroller.scrollHeight).toBeGreaterThan(scroller.clientHeight)
+    await until(() => inView(scroller, row('f19')))
+  })
+
   it('selecting a row marks the mark data-selected and does not open the popover', async () => {
     const { viewer, row, markFor, selection } = await makeList()
     const scrollToRect = vi.spyOn(viewer.viewport.get()!, 'scrollToRect')

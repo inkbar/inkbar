@@ -288,6 +288,35 @@ describe('createRecordListController', () => {
     expect(said).toHaveBeenCalledTimes(3)
   })
 
+  it('announces the same count again, clearing the region first', async () => {
+    const { controller, history } = setup({
+      a: [suggestion('a', 500), suggestion('b', 400), suggestion('c', 300)],
+    })
+    const said: string[] = []
+    controller.announcement.subscribe((text) => said.push(text))
+    controller.act('a', 'Accept')
+    expect(said).toEqual(['2 items'])
+    history.undo()
+    controller.act('a', 'Accept')
+    // Cleared now and said again after the region has rendered empty, so it is heard twice.
+    expect(said).toEqual(['2 items', ''])
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(said).toEqual(['2 items', '', '2 items'])
+    expect(controller.announcement.get()).toBe('2 items')
+  })
+
+  it('drops a repeat it has not said yet when destroyed', async () => {
+    const { controller, history } = setup({
+      a: [suggestion('a', 500), suggestion('b', 400)],
+    })
+    controller.act('a', 'Accept')
+    history.undo()
+    controller.act('a', 'Accept')
+    controller.destroy()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(controller.announcement.get()).toBe('')
+  })
+
   it('resets on document change', () => {
     const { controller, document, selection } = setup({
       a: [suggestion('a', 500), suggestion('b', 400)],
