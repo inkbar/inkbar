@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.9.0](https://github.com/inkbar/inkbar/compare/v0.8.0...v0.9.0) (2026-11-05)
+
+
+### Features
+
+* add InkToolbarButton for your own toolbar buttons ([#271](https://github.com/inkbar/inkbar/issues/271)) ([e86b29a](https://github.com/inkbar/inkbar/commit/e86b29ae63c5452278a5076ee5f64dda8e82aa6d))
+* add the form scenario and its values panel ([#264](https://github.com/inkbar/inkbar/issues/264)) ([a8850dd](https://github.com/inkbar/inkbar/commit/a8850dd09883139a9416b34a5d40c3ef09c960f4))
+* add the redaction and long document scenarios ([#265](https://github.com/inkbar/inkbar/issues/265)) ([4427030](https://github.com/inkbar/inkbar/commit/4427030fb4566cba6a09a8348feac23c01964ce9))
+* add the sandbox scenario registry and routes ([#261](https://github.com/inkbar/inkbar/issues/261)) ([5dfdc24](https://github.com/inkbar/inkbar/commit/5dfdc24be7c92f0df5b1948bfe34ce9e6b47a019))
+* add the scenario shell to the sandbox ([#262](https://github.com/inkbar/inkbar/issues/262)) ([0afd6b2](https://github.com/inkbar/inkbar/commit/0afd6b2c0ae1289ac9a6e4cc722c0c210cba1edb))
+* add the tools and controlled annotation scenarios ([#263](https://github.com/inkbar/inkbar/issues/263)) ([39b6a25](https://github.com/inkbar/inkbar/commit/39b6a251af965a5e1f77aa9e7821c9a9871805d3))
+* generate a document per sandbox scenario ([#260](https://github.com/inkbar/inkbar/issues/260)) ([18c2476](https://github.com/inkbar/inkbar/commit/18c2476d64ef7273abe0275d31878ba6aecd823d))
+* guide each annotation tour feature with its toolbar buttons and steps ([#274](https://github.com/inkbar/inkbar/issues/274)) ([c9870b0](https://github.com/inkbar/inkbar/commit/c9870b0f1cdae4227b8173d6f2a531d2a338e6fe))
+* hide tool buttons and menus for a missing tool ([#253](https://github.com/inkbar/inkbar/issues/253)) ([39a9756](https://github.com/inkbar/inkbar/commit/39a97561f416bc226ee8304ccb8b0a0a00d13fe1))
+* let createViewer take a controlled annotation list ([#267](https://github.com/inkbar/inkbar/issues/267)) ([d1f89f0](https://github.com/inkbar/inkbar/commit/d1f89f0fcad5bc6d7dc0f5fa9c65ac764404272d))
+* log UnknownTool for a tool id nobody registered ([#251](https://github.com/inkbar/inkbar/issues/251)) ([fe5cc83](https://github.com/inkbar/inkbar/commit/fe5cc832385483fc5decdbb8ee764705db4c65d9))
+* make creation tools opt-in and add allTools ([#252](https://github.com/inkbar/inkbar/issues/252)) ([4e2ddec](https://github.com/inkbar/inkbar/commit/4e2ddec450331faedde772e0769c874ad8edb853))
+* make the scenario shell the sandbox home ([#266](https://github.com/inkbar/inkbar/issues/266)) ([f212ae7](https://github.com/inkbar/inkbar/commit/f212ae75776482f127b03eb9a70a9e2db93411af))
+* open a PDF from each sandbox scenario's toolbar ([#272](https://github.com/inkbar/inkbar/issues/272)) ([9762be0](https://github.com/inkbar/inkbar/commit/9762be078eca7df7697ba52a2e09b0d055960a97))
+* pass creation tools explicitly in the React binding ([#255](https://github.com/inkbar/inkbar/issues/255)) ([6ba1b3a](https://github.com/inkbar/inkbar/commit/6ba1b3a1bb4d603f62eb5fc395cbce2babe068ac))
+* pass creation tools explicitly in the Svelte binding ([#256](https://github.com/inkbar/inkbar/issues/256)) ([6cfedab](https://github.com/inkbar/inkbar/commit/6cfedaba2c8a1bc784a929ab1a790a5bbe4b3bc4))
+* pass creation tools explicitly in the Vue binding ([#254](https://github.com/inkbar/inkbar/issues/254)) ([c61226c](https://github.com/inkbar/inkbar/commit/c61226c2cea536e6229d8cc46aa7b0e417d666e1))
+* pick the sandbox framework from a menu ([#273](https://github.com/inkbar/inkbar/issues/273)) ([c6ef12a](https://github.com/inkbar/inkbar/commit/c6ef12ad9cfc2f6fc27ac20eec5af8dd5fa1bc17))
+* put the sandbox view tabs and file controls on one strip ([#270](https://github.com/inkbar/inkbar/issues/270)) ([eb1a7d8](https://github.com/inkbar/inkbar/commit/eb1a7d8de2076b6e29157beb68d7d026de58186f))
+
+
+### Bug Fixes
+
+* lock down missing tool buttons and tidy the docs ([#258](https://github.com/inkbar/inkbar/issues/258)) ([fca453f](https://github.com/inkbar/inkbar/commit/fca453f814e22748c7c6c404d26b7fa8e1302322))
+* release the svelte signature dialog's pointer lock on close ([#268](https://github.com/inkbar/inkbar/issues/268)) ([daea09f](https://github.com/inkbar/inkbar/commit/daea09f7ef0ebfc9b76603fdca5482deff22f425))
+* use fictional addresses and log form field changes ([#269](https://github.com/inkbar/inkbar/issues/269)) ([50ee78d](https://github.com/inkbar/inkbar/commit/50ee78dab707c8c7a9ebf251cc2dea5045ef7946))
+
 ## [0.8.0](https://github.com/inkbar/inkbar/compare/v0.7.0...v0.8.0) (2026-10-23)
 
 
