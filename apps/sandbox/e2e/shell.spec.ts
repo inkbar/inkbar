@@ -15,7 +15,7 @@ const FRAMEWORKS = [
   { id: 'vanilla', name: 'TypeScript', ready: 'onReady', tool: 'tools.active' },
 ] as const
 
-/** The sidebar name of a framework. */
+/** The picker name of a framework. */
 const nameOf = (id: string): string => FRAMEWORKS.find((f) => f.id === id)!.name
 
 const SCENARIO_TITLES = [
@@ -28,10 +28,22 @@ const SCENARIO_TITLES = [
 ]
 
 const nav = (page: Page) => page.getByRole('navigation', { name: 'Scenarios' })
-const group = (page: Page, framework: string) =>
-  nav(page).getByRole('group', { name: framework, exact: true })
-const scenarioLink = (page: Page, framework: string, title: string) =>
-  group(page, framework).getByRole('link', { name: title, exact: true })
+const picker = (page: Page) => nav(page).getByRole('button', { name: /^Framework/ })
+const frameworkMenu = (page: Page) => nav(page).locator('#fw-menu')
+const scenarioLink = (page: Page, title: string) =>
+  nav(page).locator('.nav-scenarios').getByRole('link', { name: title, exact: true })
+
+/** Picks `framework` in the sidebar, then `title` among its scenarios. */
+async function choose(page: Page, framework: string, title: string): Promise<void> {
+  if ((await picker(page).getAttribute('aria-label')) !== `Framework: ${framework}`) {
+    await picker(page).click()
+    await frameworkMenu(page)
+      .getByRole('link', { name: new RegExp(`^${framework} `) })
+      .click()
+    await expect(picker(page)).toHaveAccessibleName(`Framework: ${framework}`)
+  }
+  await scenarioLink(page, title).click()
+}
 const breadcrumb = (page: Page) => page.getByRole('navigation', { name: 'Breadcrumb' })
 const viewer = (page: Page) => page.locator('[data-scenario-viewer]')
 const events = (page: Page) => page.locator('aside[aria-label="Events"] ol > li')
@@ -71,7 +83,8 @@ test('opens react tour by default', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Annotation tour')
   await expect(breadcrumb(page)).toContainText('React')
   await expect(viewer(page).locator('.ink-page').first()).toBeVisible({ timeout: 20_000 })
-  await expect(scenarioLink(page, 'React', 'Annotation tour')).toHaveAttribute(
+  await expect(picker(page)).toHaveAccessibleName('Framework: React')
+  await expect(scenarioLink(page, 'Annotation tour')).toHaveAttribute(
     'aria-current',
     'page'
   )
@@ -116,9 +129,9 @@ test('switching quickly leaves one viewer', async ({ page }) => {
   })
   await page.goto('./')
   await waitForViewer(page)
-  await scenarioLink(page, 'Vue', 'Annotation tour').click()
-  await scenarioLink(page, 'Svelte', 'Annotation tour').click()
-  await scenarioLink(page, 'TypeScript', 'Annotation tour').click()
+  await choose(page, 'Vue', 'Annotation tour')
+  await choose(page, 'Svelte', 'Annotation tour')
+  await choose(page, 'TypeScript', 'Annotation tour')
   await expect(breadcrumb(page)).toContainText('TypeScript')
   await waitForViewer(page)
   // Wait out the delayed chunks: the stale Vue mount lands now and must be discarded.
@@ -137,7 +150,7 @@ test('a PDF dropped while the scenario loads opens once it has', async ({
   })
   await page.goto('./')
   await waitForViewer(page)
-  await scenarioLink(page, 'Vue', 'Annotation tour').click()
+  await choose(page, 'Vue', 'Annotation tour')
   const letter = await (await request.get('documents/letter.pdf')).body()
   await drop(page, letter, 'letter.pdf', 'application/pdf')
   await waitForViewer(page)
@@ -153,7 +166,7 @@ test('the Code tab drops the old source while the new one loads', async ({ page 
   await page.getByRole('tab', { name: 'Code' }).click()
   const code = page.getByRole('tabpanel', { name: 'Code' })
   await expect(code).toContainText('tour/react.tsx')
-  await scenarioLink(page, 'Vue', 'Pick your tools').click()
+  await choose(page, 'Vue', 'Pick your tools')
   await expect(code).not.toContainText('tour/react.tsx')
   await expect(code).toContainText('Loading the code')
   await expect(code).toContainText('tools/vue.vue', { timeout: 10_000 })
@@ -174,7 +187,7 @@ test('the Code tab says when the source fails to load, then recovers', async ({
   await expect(page.getByRole('tabpanel', { name: 'Code' })).toContainText(
     'tour/react.tsx'
   )
-  await scenarioLink(page, 'Vue', 'Annotation tour').click()
+  await choose(page, 'Vue', 'Annotation tour')
   const code = page.getByRole('tabpanel', { name: 'Code' })
   await expect(code).toContainText('The code could not be loaded')
   await expect(code).not.toContainText('tour/react.tsx')
@@ -183,7 +196,7 @@ test('the Code tab says when the source fails to load, then recovers', async ({
   failing = false
   // The failure does not wedge the tab: the next scenario shows its source. (A browser keeps a
   // failed module import for the page's life, so the same file is not tried again until reload.)
-  await scenarioLink(page, 'Vue', 'Pick your tools').click()
+  await choose(page, 'Vue', 'Pick your tools')
   await expect(code).toContainText('tools/vue.vue')
 })
 
@@ -263,9 +276,9 @@ for (const fw of FRAMEWORK_ORDER) {
     await page.getByRole('tab', { name: 'Code' }).click()
     await page.getByRole('tab', { name: 'Preview' }).click()
     await expect(pageCount).toHaveText('of 1')
-    await scenarioLink(page, nameOf(fw), 'Pick your tools').click()
+    await choose(page, nameOf(fw), 'Pick your tools')
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Pick your tools')
-    await scenarioLink(page, nameOf(fw), 'Annotation tour').click()
+    await choose(page, nameOf(fw), 'Annotation tour')
     await waitForViewer(page)
     await expect(pageCount).toHaveText('of 4')
     await expect(page.locator('[data-file-status]')).toHaveText('')
@@ -391,7 +404,7 @@ test('Code tab shows the scenario source', async ({ page, context }) => {
   expect(copied).toContain('allTools()')
   expect(copied).toContain('export default function')
 
-  await scenarioLink(page, 'Vue', 'Annotation tour').click()
+  await choose(page, 'Vue', 'Annotation tour')
   await expect(code).toContainText('tour/vue.vue')
 })
 
@@ -410,34 +423,75 @@ test('tabs work from the keyboard', async ({ page }) => {
   await expect(preview).toHaveAttribute('aria-selected', 'true')
 })
 
-test('the sidebar search filters scenarios', async ({ page }) => {
-  await page.goto('./')
+test('the framework picker lists the frameworks and keeps the scenario', async ({
+  page,
+}) => {
+  await page.goto('./#/react/forms')
+  await expect(picker(page)).toHaveAccessibleName('Framework: React')
+  await expect(nav(page).locator('.nav-scenarios').getByRole('link')).toHaveText(
+    SCENARIO_TITLES
+  )
+  await expect(scenarioLink(page, 'Fill a form')).toHaveAttribute('aria-current', 'page')
+
+  await picker(page).click()
+  await expect(picker(page)).toHaveAttribute('aria-expanded', 'true')
+  const menu = frameworkMenu(page)
+  await expect(menu.getByRole('link')).toHaveCount(FRAMEWORKS.length)
   for (const fw of FRAMEWORKS)
-    for (const title of SCENARIO_TITLES)
-      await expect(scenarioLink(page, fw.name, title)).toBeVisible()
-  const search = nav(page).getByRole('searchbox', { name: 'Find a scenario' })
+    await expect(
+      menu.getByRole('link', { name: new RegExp(`^${fw.name} `) })
+    ).toHaveAttribute('href', `#/${fw.id}/forms`)
+  await expect(menu.getByRole('link', { name: /^React / })).toHaveAttribute(
+    'aria-current',
+    'true'
+  )
 
-  await search.fill('form')
-  for (const fw of FRAMEWORKS) {
-    await expect(group(page, fw.name).getByRole('link')).toHaveCount(1)
-    await expect(scenarioLink(page, fw.name, 'Fill a form')).toBeVisible()
-  }
+  await menu.getByRole('link', { name: /^Vue / }).click()
+  await expect(page).toHaveURL(/#\/vue\/forms$/)
+  await expect(menu).toBeHidden()
+  await expect(picker(page)).toBeFocused()
+  await expect(picker(page)).toHaveAccessibleName('Framework: Vue')
+  await expect(breadcrumb(page)).toContainText('Vue')
+  await expect(scenarioLink(page, 'Fill a form')).toHaveAttribute('aria-current', 'page')
+  await expect(scenarioLink(page, 'Annotation tour')).toHaveAttribute(
+    'href',
+    '#/vue/tour'
+  )
 
-  await search.fill('vue')
-  await expect(nav(page).getByRole('group')).toHaveCount(1)
-  await expect(group(page, 'Vue').getByRole('link')).toHaveCount(6)
+  // A press outside closes the menu.
+  await picker(page).click()
+  await expect(menu).toBeVisible()
+  await page.getByRole('heading', { level: 1 }).click()
+  await expect(menu).toBeHidden()
+})
 
-  await search.fill('nothing like this')
-  await expect(nav(page).getByRole('group')).toHaveCount(0)
-  await expect(nav(page)).toContainText('No scenario matches')
+test('the framework picker works from the keyboard', async ({ page }) => {
+  await page.goto('./#/svelte/tools')
+  await picker(page).focus()
+  await page.keyboard.press('ArrowDown')
+  const menu = frameworkMenu(page)
+  await expect(menu.getByRole('link', { name: /^Svelte / })).toBeFocused()
+  await page.keyboard.press('ArrowDown')
+  await expect(menu.getByRole('link', { name: /^TypeScript / })).toBeFocused()
+  await page.keyboard.press('ArrowDown')
+  await expect(menu.getByRole('link', { name: /^React / })).toBeFocused()
+  await page.keyboard.press('End')
+  await expect(menu.getByRole('link', { name: /^TypeScript / })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(menu).toBeHidden()
+  await expect(picker(page)).toBeFocused()
 
-  await search.fill('')
-  const toggle = group(page, 'Vue').getByRole('button', { name: 'Vue' })
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true')
-  await toggle.click()
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
-  await expect(scenarioLink(page, 'Vue', 'Annotation tour')).toBeHidden()
-  await expect(scenarioLink(page, 'React', 'Annotation tour')).toBeVisible()
+  await page.keyboard.press('ArrowUp')
+  await expect(menu.getByRole('link', { name: /^TypeScript / })).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(/#\/vanilla\/tools$/)
+  await expect(picker(page)).toHaveAccessibleName('Framework: TypeScript')
+  // Tab from the last framework leaves the menu, and the menu closes.
+  await page.keyboard.press('ArrowDown')
+  await expect(menu.getByRole('link', { name: /^TypeScript / })).toBeFocused()
+  await page.keyboard.press('Tab')
+  await expect(scenarioLink(page, 'Annotation tour')).toBeFocused()
+  await expect(menu).toBeHidden()
 })
 
 test('no axe violations', async ({ page }) => {
