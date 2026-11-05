@@ -1,0 +1,64 @@
+packages/react/src/dom-attrs.ts
+  s_1effe0625d7c7b::t_f7f0231a4b6666 1-22
+packages/react/src/components/InkThumbnail.tsx
+  s_1effe0625d7c7b::t_e2754258edd7af 9-12,59-63
+  s_1effe0625d7c7b::t_e98cc0af2cb4e0 1-8,13-58,64-73
+packages/react/src/components/sidebar-context.ts
+  s_1effe0625d7c7b::t_b27e96daefb7e1 1-49
+packages/react/src/components/InkSidebar.tsx
+  s_1effe0625d7c7b::t_241193f5b42cd1 1-29,34-64,68-198,202-205
+  s_1effe0625d7c7b::t_877bbbf7e060d3 65-67
+  s_1effe0625d7c7b::t_e2754258edd7af 30-33,199-201
+packages/react/src/ssr.test.ts
+  s_1effe0625d7c7b::t_dd6dfb32c0c610 71-74,141-159,163-223
+  s_1effe0625d7c7b::t_e2754258edd7af 160-162
+  s_1effe0625d7c7b::t_ebb730a6b7a908 224
+packages/react/src/components/InkPanel.tsx
+  s_1effe0625d7c7b::t_241193f5b42cd1 1-75
+packages/react/playwright/harness/SidebarHarness.tsx
+  s_1effe0625d7c7b::t_c7842eafede13e 28-29,50-56,74-80
+  s_1effe0625d7c7b::t_16aced8f1d0701 4-5,116-141
+  s_1effe0625d7c7b::t_62672a7ccea02a 1-3,6-27,30-49,57-73,81-115,142
+packages/react/README.md
+  s_1effe0625d7c7b::t_ccea43ccc93c6c 190-221,223-227,230
+  s_1effe0625d7c7b::t_91a0947bacc523 222
+packages/react/src/index.ts
+  s_1effe0625d7c7b::t_e98cc0af2cb4e0 84-92
+packages/react/src/components/SidebarTrigger.tsx
+  s_1effe0625d7c7b::t_e2754258edd7af 10-16,21-23
+  s_1effe0625d7c7b::t_241193f5b42cd1 1-9,17-20,24-29
+packages/react/playwright/harness/ThumbnailsHarness.tsx
+  s_1effe0625d7c7b::t_e2754258edd7af 42-46
+  s_1effe0625d7c7b::t_5c68dc5ef99c6e 1-41,47-82
+packages/react/src/components/Sidebar.ct.tsx
+  s_1effe0625d7c7b::t_e148b47a631e7a 45-46,170-171,222-268
+  s_1effe0625d7c7b::t_e4b0fc30ef0196 1-6,8-21,23-44,47-82,84-121,123-164,166-169,172-180,186-198,200-211,217-221,269-270,281,283-291,333
+  s_1effe0625d7c7b::t_16aced8f1d0701 7,292-294,299-302,311-320,325-332
+  s_1effe0625d7c7b::t_e2754258edd7af 181-184,212-215,295-298,303-306,321-324
+  s_1effe0625d7c7b::t_966661f6f8c100 307-310
+  s_1effe0625d7c7b::t_c7842eafede13e 271-280
+  s_1effe0625d7c7b::t_68af2f6dbbf522 22,83,122,165,185,199,216,282
+packages/react/src/components/InkThumbnails.tsx
+  s_1effe0625d7c7b::t_e2754258edd7af 23-26
+  s_1effe0625d7c7b::t_e98cc0af2cb4e0 1-22,27-147
+packages/react/src/components/Thumbnails.ct.tsx
+  s_1effe0625d7c7b::t_5c68dc5ef99c6e 1-107
+packages/react/src/to-readable.ts
+  s_1effe0625d7c7b::t_eb032c009405c8 1-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ca72722637e842adb52cccaa827de6024641b53a",
+  "prompts": {},
+  "sessions": {
+    "s_1effe0625d7c7b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3adafbc8-4f4c-4ced-a223-6be21f4f163c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
