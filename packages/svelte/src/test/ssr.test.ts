@@ -61,6 +61,10 @@ describe('@inkbar/svelte on the server', () => {
         'InkCommand',
         'useCommand',
         'useForm',
+        'InkSidebar',
+        'InkPanel',
+        'InkThumbnail',
+        'InkThumbnails',
       ])
     )
     expect(evaluated.pdfjs).toBe(false)
@@ -107,5 +111,58 @@ describe('@inkbar/svelte on the server', () => {
     // about 2.3 s of the 2.6 s is the import of Bits UI's single entry, where the Svelte compiler
     // goes through some 230 components, measured alone on a fast machine. Warm, the whole test
     // takes 0.5 s. The default 5 s is too close to that when other packages' tasks run beside it.
+  }, 30_000)
+  it('InkSidebar renders its chrome on the server; thumbnails render empty', async () => {
+    const { default: Host } = await import('./harness/SidebarSsrHost.svelte')
+    const html = (layout: 'rail' | 'tabs' | 'stack', open?: string) =>
+      render(Host, { props: { assets, layout, ...(open !== undefined && { open }) } })
+        .body
+
+    for (const layout of ['rail', 'tabs'] as const) {
+      const body = html(layout)
+      expect(body).toMatch(/<div class="ink-sidebar"[^>]*data-ink-sidebar/)
+      expect(body).toContain(`data-layout="${layout}"`)
+      expect(body).toContain('data-side="right"')
+      expect(body).toContain('role="tablist"')
+      // The first panel is open; the others are hidden, with their content mounted.
+      const panels = body.match(/<div[^>]*role="tabpanel"[^>]*>/g) ?? []
+      expect(panels).toHaveLength(2)
+      expect(panels[0]).toContain('data-ink-sidebar-panel="pages"')
+      expect(panels[0]).not.toMatch(/\shidden/)
+      expect(panels[1]).toContain('data-ink-sidebar-panel="search"')
+      expect(panels[1]).toMatch(/\shidden/)
+      // The frame shows the open panel: the root is open and the strip is there for the
+      // buttons that follow once mounted.
+      const rootTag = /<div class="ink-sidebar"[^>]*>/.exec(body)?.[0] ?? ''
+      expect(rootTag).toContain('data-state="open"')
+      expect(body).toContain(`ink-sidebar-${layout === 'rail' ? 'rail' : 'tabs'}`)
+      // The panels sit in the slot hook the theme lays out.
+      expect(body).toMatch(/<div class="ink-sidebar-slot/)
+    }
+
+    // A given open panel shows on the server, though it registers after the first one.
+    const controlled = html('rail', 'search')
+    expect(/<div class="ink-sidebar"[^>]*>/.exec(controlled)?.[0]).toContain(
+      'data-state="open"'
+    )
+    const shown = controlled.match(/<div[^>]*role="tabpanel"[^>]*>/g) ?? []
+    expect(shown[0]).toMatch(/\shidden/)
+    expect(shown[1]).toContain('data-ink-sidebar-panel="search"')
+    expect(shown[1]).not.toMatch(/\shidden/)
+
+    const body = html('stack')
+    expect(body).toContain('data-layout="stack"')
+    expect(body).not.toContain('role="tablist"')
+    // Stack headers are the panels' own: they render on the server.
+    const headers = body.match(/<button[^>]*class="ink-sidebar-header"[^>]*>/g) ?? []
+    expect(headers).toHaveLength(2)
+    expect(headers[0]).toContain('aria-expanded="true"')
+    expect(headers[1]).toContain('aria-expanded="false"')
+    expect(headers[1]).toContain('aria-label="Search, 2"')
+    expect(body).toContain('<span class="ink-sidebar-label">Pages</span>')
+    // The list renders empty: no items until a document opens in the browser.
+    expect(body).toMatch(/<div class="ink-thumbnails"[^>]*role="list"/)
+    expect(body).not.toContain('data-ink-thumbnail-item')
+    expect(body).not.toContain('<canvas')
   }, 30_000)
 })

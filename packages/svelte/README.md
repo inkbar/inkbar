@@ -191,6 +191,46 @@ Plugin stores undo with annotations. In controlled mode with `history`, each und
 
 The bar handles Escape itself and stops it there, so an `onkeydown` you pass to `InkFindBar` never sees Escape.
 
+## Sidebars
+
+`InkSidebar` holds `InkPanel`s and places nothing itself: put it beside `InkViewport` with your own flex or grid layout. Each panel has an `id`, a `label`, an optional `icon` (an `IconNode` from `@inkbar/icons`) and an optional `badge`, a number or short string hidden when empty or 0. Its children are the panel's content, your own component or one of Inkbar's.
+
+```svelte
+<InkRoot {src} {assets}>
+  <div class="app">
+    <InkSidebar side="left" layout="rail" bind:open>
+      <InkPanel id="pages" label="Pages" icon={Square}>
+        <InkThumbnails />
+      </InkPanel>
+      <InkPanel id="notes" label="Notes" icon={MessageSquare} badge={noteCount}>
+        <MyNotes />
+      </InkPanel>
+    </InkSidebar>
+    <InkViewport />
+  </div>
+</InkRoot>
+```
+
+`layout` is `rail` (default: icon buttons on the outer edge, and activating the open panel's button closes it), `tabs` (labelled tabs, one panel open) or `stack` (a header per panel, any number expanded). `side` (`left` by default) decides which edge the rail and border sit on. `bind:open` is the open panel's id, or `null`, for rail and tabs, and the expanded ids for stack. Left out, the first panel starts open. When the open panel goes (an `{#if}`), rail and tabs open the first one left and stack drops it, and the bound `open` receives the new value.
+
+Panels take their place in the order they appear in the markup, including one added later with `{#if}`. A closed panel stays mounted and hidden, so its content keeps its state and scroll position, across layout changes too. The keys and ARIA are core's: see the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#sidebars). The sidebar needs no document and works outside `InkRoot`. On the server it renders its frame with the open panel showing, and the stack headers; rail and tab buttons follow once it has mounted.
+
+## Thumbnails
+
+`InkThumbnail` draws one page (0-based `page`) as a small image, with its annotations and plugin marks. Give it a `width` or a `height` and the other follows the page; with neither it is 120px wide. `annotations={false}` and `marks={false}` leave those out, and `label` replaces its accessible name ("Page 4" for page 3). It is an image with no focus or click behaviour, so wrap it in the control you need, a checkbox label in a dialog for instance.
+
+`InkThumbnails` lists the pages as thumbnails, each a button that scrolls the viewport to its page, with the current page marked `aria-current="page"`. It fills its parent's height and scrolls. `pages` lists the pages to show, in order; `width`, `annotations` and `marks` pass to each thumbnail. Only the items near the visible part are mounted. The `item` snippet adds to each item after its page number, inside the item's button:
+
+```svelte
+<InkThumbnails>
+  {#snippet item({ page, current })}
+    <span class="page-count">{counts[page]}</span>
+  {/snippet}
+</InkThumbnails>
+```
+
+An item's height is worked out from its page alone, so position what you add absolutely. Both need `InkRoot` and render empty on the server.
+
 ## Custom rendering
 
 Slots are snippets. `InkViewport` takes `loading`, `empty`, `error`, `annotation` and `pageError`. `InkThreadPopover` takes `children` as a snippet that receives the popover's props. `InkToolButton` takes `children` as a snippet of `{ active, label }`, and `InkCommand` one of `{ label, busy }`. The props each receives are typed as `AnnotationSlotProps` and `ThreadPopoverSlotProps`, the same types the Vue and React packages export.
