@@ -1,3 +1,5 @@
+import { Highlighter } from '@inkbar/icons'
+
 import { isViewportEnter, type Tool, type ToolContext } from './controller'
 
 import type { TextMarkupAnnotation } from '../../model/annotations/types'
@@ -45,6 +47,8 @@ export function highlightTool(): Tool<HighlightOptions> {
   }
   return {
     id: 'highlight',
+    label: 'Highlight',
+    icon: Highlighter,
     kind: 'sticky',
     cursor: 'text',
     styleGroup: 'markup',

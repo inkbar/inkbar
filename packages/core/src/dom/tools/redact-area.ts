@@ -1,5 +1,7 @@
 // The live draft is `position:absolute; pointer-events:none` with left/top/width/height from
 // the drag: geometry only. Its look comes from the theme (`.ink-draft[data-ink-draft]`).
+import { Square } from '@inkbar/icons'
+
 import { isTextMarkup } from '../../model/annotations/edit'
 
 import {
@@ -49,6 +51,8 @@ export function redactAreaTool(): Tool {
 
   return {
     id: 'redact-area',
+    label: 'Mark for redaction',
+    icon: Square,
     kind: 'one-shot',
     cursor: 'crosshair',
     styleGroup: 'redact',

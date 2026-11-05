@@ -13,18 +13,8 @@
 </script>
 
 <script lang="ts">
-  import { TOOL_LABELS } from '@inkbar/core/dom'
-  import {
-    Highlighter,
-    MessageSquare,
-    PenLine,
-    PenTool,
-    Signature,
-    Square,
-    SquareDashedMousePointer,
-    TextCursor,
-    Type,
-  } from '@inkbar/icons'
+  import { TOOL_LABELS, withHostTools } from '@inkbar/core/dom'
+  import { SquareDashedMousePointer, TextCursor } from '@inkbar/icons'
   import { Toolbar } from 'bits-ui'
 
   import { useInkContext } from '../context.js'
@@ -38,13 +28,6 @@
   const ICONS: Readonly<Partial<Record<ToolId, IconNode>>> = {
     'select-text': TextCursor,
     select: SquareDashedMousePointer,
-    highlight: Highlighter,
-    'redact-area': Square,
-    sketch: PenTool,
-    draw: PenLine,
-    note: MessageSquare,
-    freetext: Type,
-    signature: Signature,
   }
 
   let {
@@ -60,9 +43,9 @@
   const ctx = useInkContext('InkToolButton')
   const current = useTool()
   const active = $derived(current.tool === tool)
-  /** A host or plugin tool by this id, for the name and icon core has none for. */
+  /** The registered tool by this id, for the name and icon core has none for. */
   const own = $derived(
-    [...(ctx.hostTools ?? []), ...(ctx.pluginHost?.tools ?? [])].find(
+    withHostTools([...(ctx.hostTools ?? []), ...(ctx.pluginHost?.tools ?? [])]).find(
       (t) => t.id === tool
     )
   )

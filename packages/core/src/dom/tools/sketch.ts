@@ -7,6 +7,8 @@
 // A controlled host applies the ink later, or never. The swap waits until the ink is in the
 // list, then a task more, so the host's own history records the ink as a step before the swap.
 // Deactivating the tool cancels a swap still waiting.
+import { PenTool } from '@inkbar/icons'
+
 import { DEFAULT_SHAPE_OPTIONS, shapeInput } from '../../model/annotations/shape-geometry'
 import {
   recogniseStroke,
@@ -100,6 +102,8 @@ export function sketchTool(): Tool {
   const pending = new Set<() => void>()
   return freehandTool({
     id: 'sketch',
+    label: 'Sketch',
+    icon: PenTool,
     // Switching tools or tearing the viewer down drops any swap still waiting: the stroke
     // stays ink, and nothing fires against a store that may be gone.
     deactivate() {

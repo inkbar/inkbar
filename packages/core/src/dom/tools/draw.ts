@@ -3,6 +3,8 @@
 // own undo step: the first is an `add`, the rest are `update`s that append to `inklist`.
 // Switching tools or pressing Escape ends the annotation. Pen and touch report pressure;
 // a mouse, or a device that always reports 0 or 0.5, leaves it out.
+import { PenLine } from '@inkbar/icons'
+
 import { deriveRect } from '../../model/annotations/store'
 import { JOIN_GAP_MS } from '../ink-stroke'
 
@@ -44,6 +46,8 @@ export function drawTool(): Tool {
 
   return freehandTool({
     id: 'draw',
+    label: 'Draw',
+    icon: PenLine,
     end() {
       session = undefined
     },

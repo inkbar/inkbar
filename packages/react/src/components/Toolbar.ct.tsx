@@ -48,7 +48,7 @@ test('tool buttons reflect and set the active tool with aria-pressed and onToolC
   )
 })
 
-test('the text tool button is named Text, shows its icon and picks the text box tool', async ({
+test('the text tool button is named Text box, shows its icon and picks the text box tool', async ({
   mount,
   page,
 }) => {
@@ -58,7 +58,7 @@ test('the text tool button is named Text, shows its icon and picks the text box 
   await expect(cmp.locator('.ink-page canvas').first()).toBeVisible()
   const text = page
     .getByRole('toolbar', { name: 'Document tools' })
-    .getByRole('button', { name: 'Text', exact: true })
+    .getByRole('button', { name: 'Text box', exact: true })
   await expect(text).toHaveAttribute('data-tool', 'freetext')
   await expect(text.locator('svg')).toHaveCount(1)
   await text.click()
@@ -153,7 +153,7 @@ test('every toolbar control has an accessible name', async ({ mount, page }) => 
     'Choose highlight',
     'Mark for redaction',
     'Add note',
-    'Text',
+    'Text box',
     'Line style',
     'Border colour',
     'Fill colour',

@@ -14,6 +14,7 @@ import {
 
 import type { AnnotationInput } from '../../model/annotations/types'
 import type { Point } from '../../model/geometry'
+import type { IconNode } from '@inkbar/icons'
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
 
@@ -32,6 +33,10 @@ export interface FreehandStroke {
 
 export interface FreehandOptions {
   id: ToolId
+  /** The tool's accessible name. */
+  label: string
+  /** The tool's toolbar icon. */
+  icon: IconNode
   /** Writes a finished stroke. */
   commit(ctx: ToolContext, stroke: FreehandStroke): void
   /** Escape, or the tool deactivating. */
@@ -126,6 +131,8 @@ export function freehandTool(opts: FreehandOptions): Tool {
 
   return {
     id: opts.id,
+    label: opts.label,
+    icon: opts.icon,
     kind: 'sticky',
     cursor: 'crosshair',
     styleGroup: 'ink',

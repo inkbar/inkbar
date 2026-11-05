@@ -30,7 +30,7 @@ import {
   type ViewerSearch,
 } from '../search/controller'
 import { handleFindKey, pageSelectionText } from '../search/find-key'
-import { createToolOptions } from '../tools'
+import { createToolOptions, withHostTools } from '../tools'
 import { mountViewer, type MountViewerOptions, type ViewerEngine } from '../viewer-engine'
 
 import { h } from './dom'
@@ -495,7 +495,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       root.remove()
     },
   }
-  toolsByViewer.set(viewer, [...(view.tools ?? []), ...host.tools])
+  toolsByViewer.set(viewer, withHostTools([...(view.tools ?? []), ...host.tools]))
   commandIdsByViewer.set(viewer, () => [...host.commands.keys()])
   internals.set(viewer, { search, destroyers, destroyed: () => destroyed })
   return viewer
@@ -503,7 +503,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
 
 const toolsByViewer = new WeakMap<Viewer, readonly Tool[]>()
 
-/** The host tools a viewer was given (its own and its plugins'), for the controls' labels and icons. */
+/** The tools a viewer registers (the built-ins, then its own and its plugins'), for the controls' labels and icons. */
 export function hostToolsOf(viewer: Viewer): readonly Tool[] {
   return toolsByViewer.get(viewer) ?? []
 }

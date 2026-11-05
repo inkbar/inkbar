@@ -1,3 +1,5 @@
+import { MessageSquare } from '@inkbar/icons'
+
 import { isViewportEnter, type PageHit, type Tool, type ToolContext } from './controller'
 
 import type { Point } from '../../model/geometry'
@@ -30,6 +32,8 @@ export function noteTool(): Tool {
 
   return {
     id: 'note',
+    label: 'Add note',
+    icon: MessageSquare,
     kind: 'one-shot',
     cursor: 'copy',
     activate(c) {
