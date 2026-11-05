@@ -64,17 +64,19 @@ const state = shallowRef<ThumbnailsState>({
   window: { start: 0, end: 0 },
   offsets: [0],
 })
+let controller: ThumbnailsController | null = null
 const items = computed(() => {
   const { pages, current, window, offsets } = state.value
   return pages.slice(window.start, window.end).map((page, k) => {
     const top = offsets[window.start + k]!
     const bottom = offsets[window.start + k + 1]!
-    return { page, current: page === current, top, height: bottom - top }
+    // Only a mounted controller has a window, so `controller` is set here.
+    const attrs = controller?.itemAttrs(window.start + k) ?? {}
+    return { page, current: page === current, top, height: bottom - top, attrs }
   })
 })
 
 const scroller = useTemplateRef<HTMLElement>('scroller')
-let controller: ThumbnailsController | null = null
 let stopState: (() => void) | null = null
 onMounted(() => {
   const c = createThumbnailsController(deps, options())
@@ -105,7 +107,7 @@ onBeforeUnmount(() => {
       v-for="item in items"
       :key="item.page"
       class="ink-thumbnails-entry"
-      role="listitem"
+      v-bind="item.attrs"
       :style="{ top: `${item.top}px`, height: `${item.height}px` }"
     >
       <!-- The controller sets the tabindex. The thumbnail names the button "Page N"; the

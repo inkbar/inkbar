@@ -79,6 +79,12 @@ export interface ThumbnailsController {
    * render one. Attaching another element unbinds the previous one. Returns the unbind.
    */
   attach(scroller: HTMLElement): () => void
+  /**
+   * The attributes of the list item wrapping item `index` (into `pages`): `role="listitem"`
+   * and, as only the window is mounted, `aria-setsize` and `aria-posinset` for its place in
+   * the whole list.
+   */
+  itemAttrs(index: number): Record<string, string>
   /** Scrolls the viewport to `page`. */
   activate(page: number): void
   destroy(): void
@@ -533,6 +539,11 @@ export function createThumbnailsController(
       }
     },
     attach,
+    itemAttrs: (index) => ({
+      role: 'listitem',
+      'aria-setsize': String(store.get().pages.length),
+      'aria-posinset': String(index + 1),
+    }),
     activate,
     destroy() {
       if (destroyed) return
@@ -594,7 +605,8 @@ export function createThumbnails(
         String(page + 1)
       )
     )
-    const entry = h('div', { class: 'ink-thumbnails-entry', role: 'listitem' }, button)
+    // `render` gives it the controller's item attributes, its role included.
+    const entry = h('div', { class: 'ink-thumbnails-entry' }, button)
     const painter = createThumbnailPainter(thumb, deps, {
       page,
       ...(opts.width !== undefined && { width: opts.width }),
@@ -622,6 +634,9 @@ export function createThumbnails(
     shown.forEach((page, k) => {
       const i = s.window.start + k
       const item = mounted.get(page) ?? mount(page)
+      // Set on each render: a page's place moves when the pages listed change.
+      for (const [name, value] of Object.entries(controller.itemAttrs(i)))
+        if (item.entry.getAttribute(name) !== value) item.entry.setAttribute(name, value)
       item.entry.style.top = `${s.offsets[i]}px`
       item.entry.style.height = `${s.offsets[i + 1]! - s.offsets[i]!}px`
       if (page === s.current) item.button.setAttribute('aria-current', 'page')

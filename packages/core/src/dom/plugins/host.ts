@@ -80,9 +80,11 @@ const inertSearch: ViewerSearch = {
 /**
  * A plugin's records as the host app sees them: the plugin's own handle without `annotates`
  * (a plugin links its records to marks in `setup`), plus `batch` to make several writes one
- * undo step.
+ * undo step. `in(doc)` gives a host handle too.
  */
-export type HostRecords<T extends RecordBase> = Omit<Records<T>, 'annotates'> & {
+export type HostRecords<T extends RecordBase> = Omit<Records<T>, 'annotates' | 'in'> & {
+  /** The same handle bound to `doc`'s store, as `Records.in` binds it. */
+  in(doc: InkDocument): HostRecords<T>
   /** Makes everything `fn` changes one undo step. */
   batch(fn: () => void): void
 }
@@ -425,9 +427,16 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
       },
       sourceFor(key)
     )
-    const handle: Partial<Records<RecordBase>> = { ...full }
-    delete handle.annotates
-    const made = { ...handle, batch } as HostRecords<RecordBase>
+    const toHost = (records: Records<RecordBase>): HostRecords<RecordBase> => {
+      const handle: Partial<Records<RecordBase>> = { ...records }
+      delete handle.annotates
+      return {
+        ...handle,
+        in: (doc: InkDocument) => toHost(records.in(doc)),
+        batch,
+      } as HostRecords<RecordBase>
+    }
+    const made = toHost(full)
     hostRecords.set(key, made)
     return made
   }

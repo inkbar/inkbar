@@ -575,6 +575,28 @@ describe('host records', () => {
     expect(host.records('p.items')).toBe(handle)
   })
 
+  it('host records bound to a document are host records too', () => {
+    const { plugin, out } = itemsPlugin()
+    const { host, document, history } = realHost([plugin])
+    const doc = fakeDocument('a')
+    document.set(doc)
+    const bound = host.records<Suggestion>('p.items').in(doc)
+    expect('annotates' in bound).toBe(false)
+    bound.batch(() => {
+      bound.add({ id: 'a', status: 'open' })
+      bound.add({ id: 'b', status: 'open' })
+    })
+    expect(out.items?.all()).toHaveLength(2)
+    history.undo()
+    expect(out.items?.all()).toEqual([])
+    // Bound again, it stays a host handle on the same document.
+    const again = bound.in(doc)
+    expect('annotates' in again).toBe(false)
+    expect(typeof again.batch).toBe('function')
+    // @ts-expect-error A host handle has no annotates, bound or not.
+    void bound.annotates
+  })
+
   it('host records follow the open document', () => {
     const { plugin } = itemsPlugin()
     const { host, document } = realHost([plugin])

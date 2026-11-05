@@ -14,6 +14,7 @@ import {
 
 import { cx } from '../class-names'
 import { useInkContext } from '../context'
+import { domAttrs } from '../dom-attrs'
 import { useToReadable } from '../to-readable'
 import { useLatest } from '../use-latest'
 import { useReadable } from '../use-readable'
@@ -98,7 +99,9 @@ export function InkThumbnails({
   const items = state.pages.slice(win.start, win.end).map((page, k) => {
     const top = offsets[win.start + k]!
     const bottom = offsets[win.start + k + 1]!
-    return { page, current: page === state.current, top, height: bottom - top }
+    // Only a mounted controller has a window, so `controller` is set here.
+    const attrs = controller?.itemAttrs(win.start + k) ?? {}
+    return { page, current: page === state.current, top, height: bottom - top, attrs }
   })
 
   return (
@@ -118,7 +121,7 @@ export function InkThumbnails({
         <div
           key={item.page}
           className="ink-thumbnails-entry"
-          role="listitem"
+          {...domAttrs(item.attrs)}
           style={{ top: `${item.top}px`, height: `${item.height}px` }}
         >
           {/* The controller sets the tabindex. The thumbnail names the button "Page N"; the
