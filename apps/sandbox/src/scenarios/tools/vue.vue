@@ -1,0 +1,81 @@
+<script setup lang="ts">
+/*
+ * Only the tools you import end up in your bundle. This viewer registers highlight and note;
+ * every other creation tool stays out, and its button has nothing to switch on. Select text and
+ * Select come with every viewer.
+ */
+import { highlightTool, noteTool } from '@inkbar/core/dom'
+import {
+  InkHighlightMenu,
+  InkNextPage,
+  InkPageCount,
+  InkPageInput,
+  InkPrevPage,
+  InkRedo,
+  InkRoot,
+  InkThreadPopover,
+  InkToolbar,
+  InkToolButton,
+  InkUndo,
+  InkViewport,
+  InkZoomIn,
+  InkZoomOut,
+  InkZoomSelect,
+} from '@inkbar/vue'
+import '@inkbar/theme/theme.css'
+import { assets } from 'virtual:inkbar-assets'
+
+import type { ScenarioProps } from '../../frameworks/types'
+import type { InkDocument } from '@inkbar/core'
+import type { ToolId } from '@inkbar/core/dom'
+
+const { source, log, onDocument } = defineProps<ScenarioProps>()
+
+const tools = [highlightTool(), noteTool()]
+
+function onReady(doc: InkDocument): void {
+  log('@ready', { pages: doc.pages.length })
+  onDocument(doc)
+}
+
+function onTool(tool: ToolId): void {
+  log('@update:tool', tool)
+}
+</script>
+
+<template>
+  <InkRoot
+    :src="source"
+    :assets="assets"
+    :tools="tools"
+    class="scenario-root"
+    @ready="onReady"
+    @update:tool="onTool"
+  >
+    <InkToolbar class="scenario-toolbar">
+      <InkHighlightMenu />
+      <div class="scenario-group" role="group" aria-label="Tools">
+        <InkToolButton tool="select-text" />
+        <InkToolButton tool="select" />
+        <InkToolButton tool="note" />
+      </div>
+      <InkUndo />
+      <InkRedo />
+    </InkToolbar>
+    <InkViewport />
+    <InkToolbar label="Page and zoom" class="scenario-status-bar">
+      <div class="scenario-group" role="group" aria-label="Page">
+        <InkPrevPage />
+        <InkPageInput />
+        <InkPageCount />
+        <InkNextPage />
+      </div>
+      <div class="scenario-group scenario-zoom" role="group" aria-label="Zoom">
+        <InkZoomOut />
+        <InkZoomSelect />
+        <InkZoomIn />
+      </div>
+    </InkToolbar>
+    <InkThreadPopover />
+  </InkRoot>
+</template>

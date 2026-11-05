@@ -353,6 +353,11 @@ body {
   font-size: 18px;
   font-weight: 700;
 }
+.code-status {
+  margin: 0;
+  padding: 24px 0;
+  color: var(--caption);
+}
 
 /* What the scenario files lay out: tools above the document, page and zoom below it. */
 .scenario-root {

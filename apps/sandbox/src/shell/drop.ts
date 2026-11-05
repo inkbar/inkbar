@@ -12,7 +12,8 @@ export interface DropOptions {
   input: HTMLInputElement
   /** Where "Opened…" and "…is not a PDF." are written. */
   status: HTMLElement
-  open(this: void, source: DocumentSource): void
+  /** Returns whether a viewer took the source; false when no viewer can. */
+  open(this: void, source: DocumentSource): boolean
 }
 
 export interface DropHandle {
@@ -57,8 +58,13 @@ export function handleDrops({ target, input, status, open }: DropOptions): DropH
       return
     }
     if (request !== latest) return
-    status.textContent = `Opened ${file.name}.`
-    open({ data, key: `file:${file.name}:${file.size}:${file.lastModified}` })
+    const taken = open({
+      data,
+      key: `file:${file.name}:${file.size}:${file.lastModified}`,
+    })
+    status.textContent = taken
+      ? `Opened ${file.name}.`
+      : `There is no viewer to open ${file.name} in.`
   }
 
   guardWindow()

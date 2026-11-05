@@ -103,16 +103,94 @@ test('a deep link opens that framework', async ({ page }) => {
 })
 
 test('switching quickly leaves one viewer', async ({ page }) => {
+  // Vue's chunks arrive last, so its mount resolves after the newer selections have landed.
+  let delayed = 0
+  await page.route('**/assets/vue*.js', (route) => {
+    delayed++
+    setTimeout(() => void route.continue(), 1500)
+  })
   await page.goto('app.html')
+  await waitForViewer(page)
   await scenarioLink(page, 'Vue', 'Annotation tour').click()
   await scenarioLink(page, 'Svelte', 'Annotation tour').click()
   await scenarioLink(page, 'TypeScript', 'Annotation tour').click()
   await expect(breadcrumb(page)).toContainText('TypeScript')
   await waitForViewer(page)
-  // Give any slower, older mount time to land.
-  await page.waitForTimeout(1500)
+  // Wait out the delayed chunks: the stale Vue mount lands now and must be discarded.
+  await expect.poll(() => delayed).toBeGreaterThan(0)
+  await page.waitForTimeout(2500)
   await expect(viewer(page).locator('[data-ink-root]')).toHaveCount(1)
   await expect(page).toHaveURL(/#\/vanilla\/tour$/)
+})
+
+test('a PDF dropped while the scenario loads opens once it has', async ({
+  page,
+  request,
+}) => {
+  await page.route('**/assets/vue*.js', (route) => {
+    setTimeout(() => void route.continue(), 1500)
+  })
+  await page.goto('app.html')
+  await waitForViewer(page)
+  await scenarioLink(page, 'Vue', 'Annotation tour').click()
+  const letter = await (await request.get('documents/letter.pdf')).body()
+  await drop(page, letter, 'letter.pdf', 'application/pdf')
+  await waitForViewer(page)
+  await expect(page.locator('[data-file-status]')).toHaveText('Opened letter.pdf.')
+  await expect(viewer(page).locator('[data-ink-page-count]')).toHaveText('of 1')
+})
+
+test('a PDF dropped where no viewer is showing says so', async ({ page, request }) => {
+  // Not every scenario exists yet in every framework; one that does not mounts no viewer.
+  await page.goto('app.html#/svelte/search')
+  await expect(viewer(page)).toContainText('Coming in this release')
+  const letter = await (await request.get('documents/letter.pdf')).body()
+  await drop(page, letter, 'letter.pdf', 'application/pdf')
+  await expect(page.locator('[data-file-status]')).toHaveText(
+    'There is no viewer to open letter.pdf in.'
+  )
+})
+
+test('the Code tab drops the old source while the new one loads', async ({ page }) => {
+  await page.route('**/assets/vue*.js', (route) => {
+    setTimeout(() => void route.continue(), 1500)
+  })
+  await page.goto('app.html')
+  await page.getByRole('tab', { name: 'Code' }).click()
+  const code = page.getByRole('tabpanel', { name: 'Code' })
+  await expect(code).toContainText('tour/react.tsx')
+  await scenarioLink(page, 'Vue', 'Pick your tools').click()
+  await expect(code).not.toContainText('tour/react.tsx')
+  await expect(code).toContainText('Loading the code')
+  await expect(code).toContainText('tools/vue.vue', { timeout: 10_000 })
+})
+
+test('the Code tab says when the source fails to load, then recovers', async ({
+  page,
+}) => {
+  let failing = true
+  // The highlighted source modules carry Shiki's markup; the scenario's own chunks do not.
+  await page.route('**/assets/vue*.js', async (route) => {
+    const response = await route.fetch()
+    if (failing && (await response.text()).includes('shiki')) await route.abort()
+    else await route.fulfill({ response })
+  })
+  await page.goto('app.html')
+  await page.getByRole('tab', { name: 'Code' }).click()
+  await expect(page.getByRole('tabpanel', { name: 'Code' })).toContainText(
+    'tour/react.tsx'
+  )
+  await scenarioLink(page, 'Vue', 'Annotation tour').click()
+  const code = page.getByRole('tabpanel', { name: 'Code' })
+  await expect(code).toContainText('The code could not be loaded')
+  await expect(code).not.toContainText('tour/react.tsx')
+  // The aborted import is the expected outcome of this route.
+  guard.take(/ERR_FAILED|dynamically imported module/)
+  failing = false
+  // The failure does not wedge the tab: the next scenario shows its source. (A browser keeps a
+  // failed module import for the page's life, so the same file is not tried again until reload.)
+  await scenarioLink(page, 'Vue', 'Pick your tools').click()
+  await expect(code).toContainText('tools/vue.vue')
 })
 
 test('a dropped PDF stays until the scenario changes', async ({ page, request }) => {
@@ -174,9 +252,14 @@ test('refuses a non-PDF and recovers from a broken one', async ({ page, request 
 })
 
 test('the events log keeps the newest 200', async ({ page }) => {
-  // A scenario still to come mounts no viewer, so only these calls reach the log.
   await page.goto('app.html?debug#/react/tools')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Pick your tools')
+  // Let the viewer's own start-up entries land, then clear them so only these calls remain.
+  await waitForViewer(page)
+  await page
+    .locator('aside[aria-label="Events"]')
+    .getByRole('button', { name: 'Clear' })
+    .click()
   await page.evaluate(() => {
     const log = (window as unknown as { __sandboxLog: (n: string, v: unknown) => void })
       .__sandboxLog
@@ -295,4 +378,15 @@ test('no horizontal scroll at phone width', async ({ page }) => {
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth
   )
   expect(overflow).toBe(0)
+})
+
+test('only the TypeScript controlled page says it follows the list', async ({ page }) => {
+  const note = page.locator('[data-scenario-note]')
+  await page.goto('app.html#/vanilla/controlled')
+  await expect(note).toBeVisible()
+  await expect(note).toHaveText(
+    "createViewer can't take a controlled annotation list yet, so this page follows the list instead."
+  )
+  await page.goto('app.html#/react/controlled')
+  await expect(note).toBeHidden()
 })
