@@ -1,0 +1,62 @@
+packages/core/src/dom/records/source.test.ts
+  s_1effe0625d7c7b::t_d22de9f96e7a93 104,252-256
+  s_1effe0625d7c7b::t_aa628759eb8f91 1-103,105-160,162-176,178,184-251,257-297
+  s_1effe0625d7c7b::t_b0c4289ab47f81 161
+  s_1effe0625d7c7b::t_31fc37a4e54c28 177,179-183
+packages/core/src/dom/index.ts
+  s_1effe0625d7c7b::t_a46e2159c01be8 215-224
+  s_1effe0625d7c7b::t_d22de9f96e7a93 214
+packages/theme/theme.css
+  s_1effe0625d7c7b::t_709f95438772ec 1974-2088
+packages/theme/theme.test.ts
+  s_1effe0625d7c7b::t_d22de9f96e7a93 255-257
+  s_1effe0625d7c7b::t_7985ba10f4d56f 244-254,258-261
+packages/core/src/dom/records/list.ts
+  s_1effe0625d7c7b::t_fb36c5a465874f 445
+  s_1effe0625d7c7b::t_da882bfeedf0bf 1-24,26-63,67-74,80-99,103-158,162-210,213-381,387-395,399-441,443-444,446-450
+  s_1effe0625d7c7b::t_d22de9f96e7a93 25,64-66,75-79,159-161,211-212,382-386,396-398,442
+  s_1effe0625d7c7b::t_e2f62f72a245c3 100-102
+packages/core/src/dom/plugins/api/card.ts
+  s_1effe0625d7c7b::t_39f5f995ee60e5 64-108,169,171
+packages/core/src/dom/records/list.test.ts
+  s_1effe0625d7c7b::t_3cfe0ef16bc9f9 2-107,109-124,126-143,149-158,162-316
+  s_1effe0625d7c7b::t_d22de9f96e7a93 1,108,125,144-148,159
+  s_1effe0625d7c7b::t_cdac3fbeae7368 160-161
+packages/core/src/dom/records/list.browser.test.ts
+  s_1effe0625d7c7b::t_9f24deb9ff0736 10
+  s_1effe0625d7c7b::t_ed9425ce6ee95f 1-9,11-86,88-89,91-117,121-182,186-225,229-259,263-274
+  s_1effe0625d7c7b::t_d22de9f96e7a93 87,118-120,183-185,226-228,260-262
+  s_1effe0625d7c7b::t_e2f62f72a245c3 90
+packages/core/src/dom/plugins/registry.ts
+  s_1effe0625d7c7b::t_2b4a11d0587fb8 147-148,151-158,160-162
+  s_1effe0625d7c7b::t_4a9eb3a706d1d3 149-150,159
+packages/core/README.md
+  s_1effe0625d7c7b::t_8439b81b4f6281 306-307,448-459,461-468
+  s_1effe0625d7c7b::t_ed5887549020ea 460
+  s_1effe0625d7c7b::t_4e3cd4385d2c45 469
+packages/core/src/dom/records/search-results.ts
+  s_1effe0625d7c7b::t_5a14f392cdcf5f 1-31,36-83
+  s_1effe0625d7c7b::t_d22de9f96e7a93 32-35
+packages/core/src/dom/records/source.ts
+  s_1effe0625d7c7b::t_f8fe86fe408864 1-184,188-199,203-221,227-272
+  s_1effe0625d7c7b::t_d22de9f96e7a93 185-187,222-226
+  s_1effe0625d7c7b::t_cd77ff58cf6a64 200-202
+packages/core/src/dom/plugins/api/marks.ts
+  s_1effe0625d7c7b::t_2b4a11d0587fb8 17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b764d23dc5e53faa765667313f36f16ec141dd93",
+  "prompts": {},
+  "sessions": {
+    "s_1effe0625d7c7b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3adafbc8-4f4c-4ced-a223-6be21f4f163c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
