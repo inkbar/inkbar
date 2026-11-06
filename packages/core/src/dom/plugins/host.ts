@@ -114,8 +114,9 @@ export interface PluginHost extends LayerSource {
   /** Calls `listener` on every `ctx.redecorate()`; returns a stop function. */
   watchRedecorate(listener: () => void): () => void
   /**
-   * Tells every `onPress` (or, for a long press, `onLongPress`) listener, plugin by plugin in
-   * registration order. A listener that throws is logged and the rest still run.
+   * Tells every `onPress` (or, for a long press, `onLongPress`) listener, in the order the
+   * listeners were added, across plugins. A listener that throws is logged and the rest still
+   * run.
    *
    * @internal For the viewer engine, which passes the tool controller's presses on.
    */

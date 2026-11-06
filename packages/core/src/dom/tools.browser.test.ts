@@ -5405,6 +5405,56 @@ describe('presses', () => {
     expect(onPress).toHaveBeenCalledOnce()
   })
 
+  it('a press that commits an open free-text editor reports nothing', async () => {
+    const { doc, container, viewport, onPress, h } = await pressSetup()
+    const t = viewport.transformFor(0)
+    const a = doc.annotations.add({
+      type: 'freetext',
+      page: 0,
+      rect: t.fromCssRect({ left: 60, top: 160, width: 160, height: 40 }),
+      contents: 'Hi',
+    })
+    await settle()
+    doc.annotations.select([a.id])
+    const el = viewport
+      .hostFor(0)!
+      .querySelector<HTMLElement>(`[data-annotation="${a.id}"]`)!
+    el.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
+    )
+    await until(() => container.querySelector('[data-ink-editor]') !== null)
+    const at = { x: h.left + 300, y: h.top + 700 }
+    tap(container, at.x, at.y)
+    expect(container.querySelector('[data-ink-editor]')).toBeNull()
+    expect(onPress).not.toHaveBeenCalled()
+    // Control: the next press on the same spot does report.
+    tap(container, at.x, at.y)
+    expect(onPress).toHaveBeenCalledOnce()
+  })
+
+  it('a press that closes an open popover reports nothing', async () => {
+    const { container, onPress, h } = await pressSetup()
+    // Stands in for an Inkbar popover: open, and closed by a press outside it.
+    const panel = document.createElement('div')
+    panel.dataset.inkPopover = ''
+    document.body.append(panel)
+    const close = (): void => {
+      panel.hidden = true
+    }
+    document.addEventListener('pointerdown', close, true)
+    try {
+      const at = { x: h.left + 300, y: h.top + 700 }
+      tap(container, at.x, at.y)
+      expect(panel.hidden).toBe(true)
+      expect(onPress).not.toHaveBeenCalled()
+      tap(container, at.x, at.y)
+      expect(onPress).toHaveBeenCalledOnce()
+    } finally {
+      document.removeEventListener('pointerdown', close, true)
+      panel.remove()
+    }
+  })
+
   it('a press in the gap between pages reports nothing', async () => {
     const { container, viewport, onPress, h } = await pressSetup()
     const x = h.left + 100

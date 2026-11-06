@@ -1,5 +1,5 @@
 /*
- * Pinch zoom. Two touch pointers on the viewport's container scale the document around the
+ * Pinch zoom. Two fingers on the viewport's container scale the document around the
  * point between them. While the fingers are down nothing is re-laid out or re-rendered: a CSS
  * transform on the pages element previews the zoom, and the viewport commits one zoom change
  * when a finger lifts (or, for a trackpad pinch, when the events stop). All points here are container-relative CSS px.
@@ -73,13 +73,18 @@ export function createZoomPreview(
     frame = 0
     if (timer !== undefined) clearTimeout(timer)
     timer = undefined
-    pagesEl.removeEventListener('transitionend', settled)
+    pagesEl.removeEventListener('transitionend', onTransitionEnd)
     pagesEl.style.removeProperty('transition')
   }
 
   function settled(): void {
     stopSettling()
     pagesEl.style.removeProperty('transform')
+  }
+
+  // Transitions inside the pages (a theme's, a host's) bubble here too.
+  const onTransitionEnd = (e: TransitionEvent): void => {
+    if (e.target === pagesEl && e.propertyName === 'transform') settled()
   }
 
   function clear(): void {
@@ -106,7 +111,7 @@ export function createZoomPreview(
         void getComputedStyle(pagesEl).transform
         pagesEl.style.transition = `transform ${SETTLE_MS}ms ease-out`
         pagesEl.style.removeProperty('transform')
-        pagesEl.addEventListener('transitionend', settled)
+        pagesEl.addEventListener('transitionend', onTransitionEnd)
         timer = setTimeout(settled, SETTLE_MS + 50)
       })
     },
@@ -126,89 +131,119 @@ export interface TouchPinchOptions {
 }
 
 /**
- * Tracks touch pointers on the container. The first two down start a pinch; a third is
- * ignored. The pinch ends when either of its fingers lifts or is cancelled, and any finger
- * still down then starts nothing until every finger has lifted. The listeners are passive:
- * the container's `touch-action: pan-x pan-y` is what keeps the browser from zooming the page.
+ * Tracks touches on the container with touch events, which every touch browser sends as one
+ * stream (pointer events may be cancelled once the browser decides to pan). The first two
+ * fingers down start a pinch; a third is ignored. The pinch ends when either of its fingers
+ * lifts or is cancelled, and any finger still down then starts nothing until every finger has
+ * lifted. While two fingers are down their moves are prevented, so the browser neither pans
+ * nor zooms underneath; one finger's moves never are, so a one-finger scroll stays native.
+ * The container's `touch-action: pan-x pan-y` keeps the page from zooming as well. A finger
+ * that lands alone starts afresh, so an end the browser never sent leaves nothing behind.
  */
 export function attachTouchPinch(opts: TouchPinchOptions): { destroy(): void } {
   const { container, preview } = opts
-  const down = new Map<number, Point>()
   let pinch:
     | { ids: [number, number]; start: [Point, Point]; scale: number; last: PinchFrame }
     | undefined
   let spent = false
+  /** The touches that went down on the container, by identifier. */
+  const mine = new Set<number>()
+  const down = (list: TouchList): Touch[] =>
+    [...list].filter((t) => mine.has(t.identifier))
 
-  function at(e: PointerEvent): Point {
+  function at(t: Touch): Point {
     const r = container.getBoundingClientRect()
     return {
-      x: e.clientX - r.left - container.clientLeft,
-      y: e.clientY - r.top - container.clientTop,
+      x: t.clientX - r.left - container.clientLeft,
+      y: t.clientY - r.top - container.clientTop,
     }
   }
 
-  const onDown = (e: PointerEvent): void => {
-    if (e.pointerType !== 'touch') return
-    down.set(e.pointerId, at(e))
-    if (pinch || spent || down.size !== 2) return
-    const [[a, pa], [b, pb]] = [...down] as [[number, Point], [number, Point]]
-    const start: [Point, Point] = [pa, pb]
+  const onStart = (e: TouchEvent): void => {
+    // Forget fingers that are no longer down anywhere: their end never reached the container.
+    const live = new Set([...e.touches].map((t) => t.identifier))
+    for (const id of mine) if (!live.has(id)) mine.delete(id)
+    for (const t of e.changedTouches) mine.add(t.identifier)
+    const fingers = down(e.touches)
+    if (fingers.length === 1) {
+      if (pinch) preview.clear()
+      pinch = undefined
+      spent = false
+    }
+    if (pinch || spent || fingers.length < 2) return
+    const [a, b] = fingers as [Touch, Touch]
+    const start: [Point, Point] = [at(a), at(b)]
     const scale = opts.scale()
     pinch = {
-      ids: [a, b],
+      ids: [a.identifier, b.identifier],
       start,
       scale,
       last: pinchFrame(start, start, scale, opts.minZoom, opts.maxZoom),
     }
   }
 
-  const onMove = (e: PointerEvent): void => {
-    if (e.pointerType !== 'touch' || !down.has(e.pointerId)) return
-    down.set(e.pointerId, at(e))
-    if (!pinch || !pinch.ids.includes(e.pointerId)) return
-    const now: [Point, Point] = [down.get(pinch.ids[0])!, down.get(pinch.ids[1])!]
-    pinch.last = pinchFrame(pinch.start, now, pinch.scale, opts.minZoom, opts.maxZoom)
+  const onMove = (e: TouchEvent): void => {
+    if (down(e.touches).length >= 2 && e.cancelable) e.preventDefault()
+    if (!pinch) return
+    const ids = pinch.ids
+    const touches = [...e.touches]
+    const a = touches.find((t) => t.identifier === ids[0])
+    const b = touches.find((t) => t.identifier === ids[1])
+    if (!a || !b) return
+    pinch.last = pinchFrame(
+      pinch.start,
+      [at(a), at(b)],
+      pinch.scale,
+      opts.minZoom,
+      opts.maxZoom
+    )
     preview.show(pinch.last.factor, pinch.last.anchor, pinch.last.pan)
   }
 
-  const onUp = (e: PointerEvent): void => {
-    if (e.pointerType !== 'touch' || !down.delete(e.pointerId)) return
-    if (pinch?.ids.includes(e.pointerId)) {
+  const onEnd = (e: TouchEvent): void => {
+    const ended = [...e.changedTouches].map((t) => t.identifier)
+    for (const id of ended) mine.delete(id)
+    if (pinch && pinch.ids.some((id) => ended.includes(id))) {
       const { last } = pinch
       pinch = undefined
       spent = true
       preview.clear()
       opts.commit(last)
     }
-    if (down.size === 0) spent = false
+    if (down(e.touches).length === 0) spent = false
   }
 
-  const listen = { passive: true }
-  container.addEventListener('pointerdown', onDown, listen)
-  container.addEventListener('pointermove', onMove, listen)
-  container.addEventListener('pointerup', onUp, listen)
-  container.addEventListener('pointercancel', onUp, listen)
+  // Not passive: a two-finger move is prevented.
+  const listen = { passive: false }
+  container.addEventListener('touchstart', onStart, listen)
+  container.addEventListener('touchmove', onMove, listen)
+  container.addEventListener('touchend', onEnd, listen)
+  container.addEventListener('touchcancel', onEnd, listen)
 
   return {
     destroy() {
-      container.removeEventListener('pointerdown', onDown)
-      container.removeEventListener('pointermove', onMove)
-      container.removeEventListener('pointerup', onUp)
-      container.removeEventListener('pointercancel', onUp)
-      down.clear()
+      container.removeEventListener('touchstart', onStart)
+      container.removeEventListener('touchmove', onMove)
+      container.removeEventListener('touchend', onEnd)
+      container.removeEventListener('touchcancel', onEnd)
+      mine.clear()
       pinch = undefined
+      spent = false
     },
   }
 }
 
+const WHEEL_STEP = 1.1
+
 /**
  * The zoom factor one wheel event stands for. A trackpad pinch arrives as ctrl+wheel events
- * whose `deltaY` is in pixels; line and page modes (a mouse wheel with ctrl held) are converted
- * to the same scale.
+ * with small pixel deltas, which zoom smoothly. A mouse wheel notch with ctrl held arrives in
+ * line or page mode, or as one large pixel delta, and is one small step, whatever its size.
  */
 export function wheelFactor(e: { deltaY: number; deltaMode: number }): number {
-  const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 800 : 1
-  return Math.exp(-(e.deltaY * unit) / 100)
+  if (e.deltaMode !== 0 || Math.abs(e.deltaY) >= 50)
+    return e.deltaY < 0 ? WHEEL_STEP : e.deltaY > 0 ? 1 / WHEEL_STEP : 1
+  return Math.exp(-e.deltaY / 100)
 }
 
 /** Safari's gesture events, which the DOM typings do not include. */
@@ -230,19 +265,26 @@ export interface TrackpadPinchOptions {
 }
 
 const IDLE_MS = 150
+const TOUCH_TYPES = ['touchstart', 'touchend', 'touchcancel'] as const
 
 /**
  * A trackpad pinch over the container. Browsers report it as ctrl+wheel events, which are
  * taken over so the page does not zoom; a run of them is one pinch, anchored at the pointer
- * where it began and committed once the events stop. Safari also has gesture events, which give
- * the scale directly; while one of those runs, ctrl+wheel is ignored so nothing counts twice.
- * The wheel listener is non-passive because it has to call `preventDefault`.
+ * where it began and committed once the events stop, or as soon as the container scrolls (a
+ * plain wheel, a scroll bar), so the scroll moves the committed layout and not the preview.
+ * Safari also has gesture events, which give the scale directly; while one of those runs,
+ * ctrl+wheel is ignored so nothing counts twice. Safari on a touch screen sends gesture events
+ * for a touch pinch too, which `attachTouchPinch` already handles: while a finger is down on
+ * the container they are prevented and otherwise ignored. The wheel listener is non-passive
+ * because it has to call `preventDefault`.
  */
 export function attachTrackpadPinch(opts: TrackpadPinchOptions): { destroy(): void } {
   const { container, preview } = opts
   const win = container.ownerDocument.defaultView ?? window
   let run: { anchor: Point; scale: number; factor: number; last: PinchFrame } | undefined
   let gesturing = false
+  /** A finger is down on the container. */
+  let touching = false
   let timer: ReturnType<typeof setTimeout> | undefined
 
   function at(e: { clientX: number; clientY: number }): Point {
@@ -291,15 +333,28 @@ export function attachTrackpadPinch(opts: TrackpadPinchOptions): { destroy(): vo
   }
 
   const onWheel = (e: WheelEvent): void => {
-    if (!e.ctrlKey || gesturing) return
+    if (!e.ctrlKey) {
+      if (!gesturing) end()
+      return
+    }
+    if (gesturing) return
     e.preventDefault()
     update(e, (f) => f * wheelFactor(e))
     if (timer !== undefined) clearTimeout(timer)
     timer = setTimeout(end, IDLE_MS)
   }
 
+  const onScroll = (): void => {
+    if (!gesturing) end()
+  }
+
+  const onTouch = (e: TouchEvent): void => {
+    touching = e.type === 'touchstart' || e.touches.length > 0
+  }
+
   const onGestureStart = (e: Event): void => {
     e.preventDefault()
+    if (touching) return
     if (timer !== undefined) clearTimeout(timer)
     timer = undefined
     // Anything a ctrl+wheel run left behind commits first, so the gesture starts from it.
@@ -322,8 +377,11 @@ export function attachTrackpadPinch(opts: TrackpadPinchOptions): { destroy(): vo
   }
 
   container.addEventListener('wheel', onWheel, { passive: false })
+  container.addEventListener('scroll', onScroll, { passive: true })
   const hasGestures = 'GestureEvent' in win
   if (hasGestures) {
+    for (const type of TOUCH_TYPES)
+      container.addEventListener(type, onTouch, { passive: true })
     container.addEventListener('gesturestart', onGestureStart)
     container.addEventListener('gesturechange', onGestureChange)
     container.addEventListener('gestureend', onGestureEnd)
@@ -332,7 +390,9 @@ export function attachTrackpadPinch(opts: TrackpadPinchOptions): { destroy(): vo
   return {
     destroy() {
       container.removeEventListener('wheel', onWheel)
+      container.removeEventListener('scroll', onScroll)
       if (hasGestures) {
+        for (const type of TOUCH_TYPES) container.removeEventListener(type, onTouch)
         container.removeEventListener('gesturestart', onGestureStart)
         container.removeEventListener('gesturechange', onGestureChange)
         container.removeEventListener('gestureend', onGestureEnd)

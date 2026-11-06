@@ -114,9 +114,10 @@ for (const framework of FRAMEWORK_ORDER) {
           await touch(cdp, 'touchMove', fingers(50 + step * 10))
         await touch(cdp, 'touchEnd', [])
 
-        // The browser did not zoom the page itself.
-        expect(await page.evaluate(() => window.visualViewport?.scale)).toBe(1)
         await expect.poll(() => shownZoom(page)).toBeCloseTo(startZoom * 2, 1)
+        // The browser did not zoom the page itself, read once the pinch has had its effect.
+        const pageScale = () => page.evaluate(() => window.visualViewport?.scale)
+        expect(await pageScale()).toBe(1)
 
         // Every visible page re-renders sharp at the new size.
         await expect
@@ -143,6 +144,7 @@ for (const framework of FRAMEWORK_ORDER) {
             { timeout: 10_000 }
           )
           .toBe(true)
+        expect(await pageScale()).toBe(1)
         const endWidth = (await firstPage(page).boundingBox())!.width
         expect(endWidth / startWidth).toBeCloseTo(2, 1)
       }
@@ -172,6 +174,8 @@ for (const framework of FRAMEWORK_ORDER) {
         await expect(
           firstPage(page).locator('.presses-marker[data-kind="long-press"]')
         ).toBeVisible()
+        // Still none once the release has had time to land.
+        await expect(named(page, 'onPress')).toHaveCount(0)
       }
     )
   })

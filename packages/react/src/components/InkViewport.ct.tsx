@@ -636,6 +636,7 @@ test('decorateAnnotation reaches the annotation elements', async ({ mount, page 
 })
 
 test('pinchZoom defaults on', async ({ mount, page }) => {
+  // No pinchZoom: the harness leaves it off InkViewport, so this is the component's default.
   const cmp = await mount(
     <ViewportHarness src={fixtureUrl('text-simple')} assets={assets} />
   )

@@ -98,11 +98,24 @@ describe('pinchFrame', () => {
 })
 
 describe('wheelFactor', () => {
-  it('wheelFactor zooms in on negative deltaY', () => {
-    expect(wheelFactor({ deltaY: -100, deltaMode: 0 })).toBeCloseTo(Math.E, 10)
+  it('a small pixel delta zooms smoothly: in on negative deltaY, out on positive', () => {
+    expect(wheelFactor({ deltaY: -20, deltaMode: 0 })).toBeCloseTo(Math.exp(0.2), 10)
+    expect(wheelFactor({ deltaY: 49, deltaMode: 0 })).toBeCloseTo(Math.exp(-0.49), 10)
   })
 
-  it('wheelFactor scales line mode by 16', () => {
-    expect(wheelFactor({ deltaY: 1, deltaMode: 1 })).toBeCloseTo(Math.exp(-0.16), 10)
+  it('a pixel delta of 50 or more is one 1.1 step', () => {
+    expect(wheelFactor({ deltaY: -50, deltaMode: 0 })).toBeCloseTo(1.1, 10)
+    expect(wheelFactor({ deltaY: -120, deltaMode: 0 })).toBeCloseTo(1.1, 10)
+    expect(wheelFactor({ deltaY: 100, deltaMode: 0 })).toBeCloseTo(1 / 1.1, 10)
+  })
+
+  it('line and page modes are one 1.1 step, whatever the delta', () => {
+    expect(wheelFactor({ deltaY: -1, deltaMode: 1 })).toBeCloseTo(1.1, 10)
+    expect(wheelFactor({ deltaY: 3, deltaMode: 1 })).toBeCloseTo(1 / 1.1, 10)
+    expect(wheelFactor({ deltaY: 1, deltaMode: 2 })).toBeCloseTo(1 / 1.1, 10)
+  })
+
+  it('no delta is no zoom', () => {
+    expect(wheelFactor({ deltaY: 0, deltaMode: 1 })).toBe(1)
   })
 })

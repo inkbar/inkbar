@@ -140,7 +140,7 @@ Options:
 - `tools`: the creation tools to register (`allTools()` or the ones you import from `@inkbar/core/dom`). `select-text` and `select` are always present.
 - `zoom` (a number, `'fit-width'` or `'fit-page'`; default `'fit-width'`), `page`, `mode`, `rotation` and `tool` set the starting view. Change them later through `engine.viewport` and `engine.tools`.
 - `gap`, `buffer`, `pinchZoom` and `customAnnotations` are fixed for a build. Change them with `engine.rebuild`.
-- `pinchZoom` (default `true`) zooms the document when two fingers pinch over the container, and on a trackpad pinch or ctrl+wheel. Set it to `false` to leave pinching to the browser, which then zooms the whole page.
+- `pinchZoom` (default `true`): a two-finger pinch over the container, a trackpad pinch or ctrl+wheel zooms the document. One mouse wheel notch with ctrl held zooms by 10%. Set it to `false` and the browser handles pinches itself, zooming the whole page.
 - `toolOptions` holds the tools' options, such as the shape kind. Pass one from `createToolOptions()` and keep it to carry the options over to the next document; `createViewer` keeps one for its whole life. The tool style (colours, line style, text style) belongs to the document: each new document starts from the theme's defaults.
 - `signatures` is where saved signatures live (see [Signatures](#signatures)); `signatureFonts` lists the handwriting fonts a typed signature offers.
 - `decorateAnnotation(annotation)` returns your own `data`, `classes` and `description` for an annotation's element, or `undefined`. `{ data: { 'my-flag': 'on' } }` writes `data-my-flag="on"`, and `description` becomes the element's `aria-description`. Inkbar re-applies them whenever the annotations change. Call `engine.redecorate()` when they depend on anything else. Core's own attributes and `ink-` classes always win.
@@ -349,9 +349,9 @@ ctx.onLongPress(({ page, point }) => openMenu(page, point))
 
 The payload is `{ page, point, pointerType }`. `page` is a zero-based index, `point` is in user space on that page (points, origin bottom-left, before `/Rotate`), and `pointerType` is `'mouse'`, `'touch'` or `'pen'`.
 
-A press is a pointer that goes down and up on a page without moving more than a few pixels, within about half a second. A mouse click is a press. A long press is a touch or pen held still for about half a second; it fires while the finger is still down, and its release is not also a press. A mouse never long-presses. A touch that joins a pinch, or that starts a scroll, is neither.
+A press is a pointer going down and up on a page without moving more than a few pixels. A mouse click is a press. A touch or pen held still for about half a second is a long press instead: it fires while the finger is still down, and the release reports nothing more. A mouse never long-presses. A touch that becomes part of a pinch before a long press fires is neither, and so is one that starts a scroll.
 
-Both fire only under the text and rectangle select tools. Under any other tool, the tool owns every press. They do not fire when something else took the press: an annotation, a resize handle, a link, a form field, a plugin mark or a text editor. Inkbar does not stop the browser's own long-press behaviour, so text selection and context menus still happen.
+Both fire only under the text and rectangle select tools; any other tool owns every press. They stay silent when something else took the press: an annotation, a resize handle, a link, a form field, a plugin mark or a text editor. A press that commits an open text editor or closes a popover reports nothing either. Inkbar leaves the browser's own long-press behaviour alone, so text selection and context menus still work.
 
 ## Search
 
