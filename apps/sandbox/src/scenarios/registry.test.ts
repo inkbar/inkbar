@@ -60,7 +60,13 @@ void test('the component files show in their scenarios', () => {
       'src/scenarios/redactions/CommandLog.svelte',
     ],
   })
-  assert.deepEqual(files('search'), { svelte: ['src/scenarios/search/SearchLog.svelte'] })
+  assert.deepEqual(files('search'), {
+    vue: ['src/scenarios/search/ResultsSidebar.vue'],
+    svelte: [
+      'src/scenarios/search/ResultsSidebar.svelte',
+      'src/scenarios/search/SearchLog.svelte',
+    ],
+  })
   for (const s of SCENARIOS)
     if (s.id !== 'redactions' && s.id !== 'search')
       assert.equal(s.frameworkFiles, undefined, s.id)

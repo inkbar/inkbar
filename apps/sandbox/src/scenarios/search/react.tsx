@@ -1,8 +1,9 @@
 /*
  * Two hundred pages, and no creation tools. The viewer renders only the pages near the
  * viewport, but search reads every page's text, so the find bar counts every hit and steps to
- * any of them. Find opens the bar, as does Ctrl+F or Cmd+F. The Results panel lists every hit
- * and follows the bar. useSearch gives the same state the bar shows, for a control of your own.
+ * any of them. Find opens the bar, as does Ctrl+F or Cmd+F. The results sidebar lists every
+ * hit and shows only while there are hits. useSearch gives the same state the bar shows, for a
+ * control of your own.
  */
 import { Search } from '@inkbar/icons'
 import {
@@ -34,6 +35,22 @@ import { FileUp } from '../../shared/file-up'
 
 import type { Log, ScenarioProps } from '../../frameworks/types'
 import type { InkDocument } from '@inkbar/core'
+
+/**
+ * Every hit, in a rail sidebar right of the pages; the find bar is the query field. Your code
+ * decides when the sidebar shows: here, while the search has hits. It sits inside InkRoot to
+ * reach search.
+ */
+function ResultsSidebar() {
+  const hasResults = useSearch().state.hits.length > 0
+  return (
+    <InkSidebar side="right" visible={hasResults}>
+      <InkPanel id="results" label="Search results" icon={Search}>
+        <InkSearchResults field={false} />
+      </InkPanel>
+    </InkSidebar>
+  )
+}
 
 /**
  * Logs each finished search and each step to a hit, while the find bar is open. It sits inside
@@ -76,11 +93,7 @@ export default function SearchLongDocument({
       </InkToolbar>
       <div className="scenario-body">
         <InkViewport />
-        <InkSidebar side="right" layout="tabs">
-          <InkPanel id="results" label="Results" icon={Search}>
-            <InkSearchResults field={false} />
-          </InkPanel>
-        </InkSidebar>
+        <ResultsSidebar />
       </div>
       <InkFindBar />
       <InkToolbar label="Page and zoom" className="scenario-status-bar">

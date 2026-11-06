@@ -1,9 +1,9 @@
 /*
  * Two hundred pages, and no creation tools. The viewer renders only the pages near the
  * viewport, but search reads every page's text, so the find bar counts every hit and steps to
- * any of them. Find opens the bar, as does Ctrl+F or Cmd+F. The Results panel lists every hit
- * and follows the bar. `viewer.search` holds the same state the bar shows, for a control of your
- * own.
+ * any of them. Find opens the bar, as does Ctrl+F or Cmd+F. The results sidebar lists every
+ * hit and shows only while there are hits. `viewer.search` holds the same state the bar shows,
+ * for a control of your own.
  */
 import {
   createFindBar,
@@ -109,13 +109,18 @@ export function mount(
   openButton.addEventListener('click', openFile)
   tools.append(group('File', 'scenario-group scenario-file', openButton))
 
-  // Every hit, in a sidebar right of the pages. The find bar is the query field.
+  // Every hit, in a rail sidebar right of the pages; the find bar is the query field. Your
+  // code decides when the sidebar shows: here, while the search has hits.
+  const hasResults = () => viewer.search.state.get().hits.length > 0
   const results = createSidebar({
     side: 'right',
-    layout: 'tabs',
-    panels: [{ id: 'results', label: 'Results', icon: Search }],
+    visible: hasResults(),
+    panels: [{ id: 'results', label: 'Search results', icon: Search }],
     content: { results: createSearchResults(viewer, { field: false }) },
   })
+  const unfollowResults = viewer.search.state.subscribe(() =>
+    results.controller.update({ visible: hasResults() })
+  )
   const body = document.createElement('div')
   body.className = 'scenario-body'
   const viewport = viewer.element.querySelector('[data-ink-viewport-root]')
@@ -131,6 +136,7 @@ export function mount(
     open: (next: DocumentSource) => viewer.open(next),
     destroy() {
       unfollowSearch()
+      unfollowResults()
       results.controller.destroy()
       viewer.destroy()
     },

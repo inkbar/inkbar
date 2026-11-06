@@ -82,11 +82,13 @@ for (const framework of FRAMEWORK_ORDER) {
       page,
     }) => {
       await open(page, framework)
-      const results = viewer(page).getByRole('tabpanel', { name: 'Results' })
-      await expect(results).toBeVisible()
-      await expect(results).toContainText('Search to list every match.')
+      // The scenario shows the results sidebar only while the search has hits.
+      const sidebar = viewer(page).locator('.ink-sidebar[data-side="right"]')
+      await expect(sidebar).toBeHidden()
+      const results = viewer(page).getByRole('tabpanel', { name: 'Search results' })
       await find(page)
       await expect(count(page)).toHaveText(`1 of ${LONG_HITS}`, { timeout: 20_000 })
+      await expect(results).toBeVisible()
       await expect(results.getByRole('listitem')).toHaveCount(LONG_HITS)
       await expect(results.locator('[data-ink-search-results-count]')).toHaveText(
         `1 of ${LONG_HITS}`
@@ -102,6 +104,19 @@ for (const framework of FRAMEWORK_ORDER) {
       await expect(count(page)).toHaveText(`3 of ${LONG_HITS}`)
       await expect(card('24:0')).toHaveAttribute('aria-current', 'true')
       await expect(viewer(page).locator('.ink-page[data-page="24"]')).toBeInViewport()
+
+      // The rail button closes the panel and opens it again; a search with no hits hides it all.
+      const button = sidebar.getByRole('tab', { name: 'Search results' })
+      await button.click()
+      await expect(results).toBeHidden()
+      await expect(button).toBeVisible()
+      await button.click()
+      await expect(results).toBeVisible()
+      await viewer(page)
+        .getByRole('textbox', { name: 'Find in document' })
+        .fill('nowhere in this log')
+      await expect(count(page)).toHaveText('No results', { timeout: 20_000 })
+      await expect(sidebar).toBeHidden()
     })
 
     test(`${framework} search: logs only settled searches when the query changes`, async ({
@@ -123,11 +138,17 @@ for (const framework of FRAMEWORK_ORDER) {
   })
 }
 
-test('the Svelte search Code tab lists its log component', async ({ page }) => {
+test('the Svelte search Code tab lists its sidebar and log components', async ({
+  page,
+}) => {
   await open(page, 'svelte')
   await page.getByRole('tab', { name: 'Code' }).click()
   const files = page.getByRole('tablist', { name: 'Files' })
-  await expect(files.getByRole('tab')).toHaveText(['svelte.svelte', 'SearchLog.svelte'])
+  await expect(files.getByRole('tab')).toHaveText([
+    'svelte.svelte',
+    'ResultsSidebar.svelte',
+    'SearchLog.svelte',
+  ])
   await files.getByRole('tab', { name: 'SearchLog.svelte' }).click()
   await expect(page.getByRole('tabpanel', { name: 'Code' })).toContainText('useSearch()')
 })

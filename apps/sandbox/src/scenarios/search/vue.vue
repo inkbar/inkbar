@@ -2,21 +2,18 @@
 /*
  * Two hundred pages, and no creation tools. The viewer renders only the pages near the
  * viewport, but search reads every page's text, so the find bar counts every hit and steps to
- * any of them. Find opens the bar, as does Ctrl+F or Cmd+F. The Results panel lists every hit
- * and follows the bar. useSearch gives the same state the bar shows, for a control of your own.
+ * any of them. Find opens the bar, as does Ctrl+F or Cmd+F. ResultsSidebar, beside this file,
+ * lists every hit and shows only while there are hits. useSearch gives the same state the bar
+ * shows, for a control of your own.
  */
-import { Search } from '@inkbar/icons'
 import {
   InkFindBar,
   InkNextPage,
   InkPageCount,
   InkPageInput,
-  InkPanel,
   InkPrevPage,
   InkRoot,
   InkSearchButton,
-  InkSearchResults,
-  InkSidebar,
   InkIcon,
   InkToolbar,
   InkToolbarButton,
@@ -32,6 +29,8 @@ import { assets } from 'virtual:inkbar-assets'
 import { defineComponent, watch } from 'vue'
 
 import { FileUp } from '../../shared/file-up'
+
+import ResultsSidebar from './ResultsSidebar.vue'
 
 import type { ScenarioProps } from '../../frameworks/types'
 import type { InkDocument } from '@inkbar/core'
@@ -82,11 +81,7 @@ function onReady(doc: InkDocument): void {
     </InkToolbar>
     <div class="scenario-body">
       <InkViewport />
-      <InkSidebar side="right" layout="tabs">
-        <InkPanel id="results" label="Results" :icon="Search">
-          <InkSearchResults :field="false" />
-        </InkPanel>
-      </InkSidebar>
+      <ResultsSidebar />
     </div>
     <InkFindBar />
     <InkToolbar label="Page and zoom" class="scenario-status-bar">
