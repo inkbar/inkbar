@@ -365,6 +365,31 @@ describe('mountViewer', () => {
     ])
   })
 
+  it('draws the icon of an embedded note the file gives no appearance', async () => {
+    // PDF.js paints no note without an appearance stream, so the overlay draws its icon.
+    const { container } = await setup('annotated-notes-threaded', { zoom: 1 })
+    await until(
+      () => container.querySelector('[data-annotation][data-type="text"]') !== null
+    )
+    const notes = [
+      ...container.querySelectorAll<HTMLElement>('[data-annotation][data-type="text"]'),
+    ]
+    expect(notes.length).toBeGreaterThan(0)
+    for (const note of notes) expect(note.querySelector('.ink-note-icon')).not.toBeNull()
+  })
+
+  it('leaves an embedded note with its own appearance to the canvas', async () => {
+    const { container } = await setup('note-icon-ap', { zoom: 1 })
+    await until(
+      () => container.querySelector('[data-annotation][data-type="text"]') !== null
+    )
+    const note = container.querySelector<HTMLElement>(
+      '[data-annotation][data-type="text"]'
+    )!
+    expect(note.querySelector('.ink-note-icon')).toBeNull()
+    expect(note.querySelector('[data-ink-hit]')).not.toBeNull()
+  })
+
   it('renders annotation shells for the host when customAnnotations is on', async () => {
     const { container, engine } = await setup('annotated-notes-threaded', {
       zoom: 1,

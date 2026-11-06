@@ -154,6 +154,23 @@ describe('createThumbnail', () => {
     expect(child.getAttribute('role')).toBeNull()
   })
 
+  it('draws an embedded note the file gives no appearance, but not its replies', async () => {
+    const doc = await openDoc('annotated-notes-threaded')
+    const el = place(document.createElement('div'))
+    const painter = createThumbnailPainter(el, { document: writable(doc) }, { page: 0 })
+    cleanup.push(() => painter.destroy())
+    await painted(el)
+    // Two notes start threads, and two notes reply to the first: only the two show.
+    const roots = doc.annotations
+      .byPage(0)
+      .filter((a) => a.type === 'text' && a.inReplyTo === undefined)
+    expect(roots).toHaveLength(2)
+    await until(() => annotationsOf(el) === 2)
+    expect(el.querySelectorAll('.ink-thumbnail-annotations .ink-note-icon')).toHaveLength(
+      2
+    )
+  })
+
   it('follows annotation edits and undo', async () => {
     const viewer = await viewerWith()
     const doc = viewer.document.get()!

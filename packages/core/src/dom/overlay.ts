@@ -34,6 +34,7 @@ import {
   handleBox,
   freeTextLocalBox,
   hasComment,
+  paintedByCanvas,
   renderAnnotationContent,
   renderHitArea,
   syncHandles,
@@ -410,9 +411,8 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     }
     const last = drawn.get(a.id)
     if (last?.a === a && last.t === transform) return
-    // Embedded annotations are already painted on the canvas by PDF.js, so they get only an
-    // invisible hit area.
-    if (a.source === 'pdf') renderHitArea(node, a, transform)
+    // Annotations PDF.js already painted on the canvas get only an invisible hit area.
+    if (paintedByCanvas(a)) renderHitArea(node, a, transform)
     else renderAnnotationContent(node, a, transform)
     if (a.type === 'loupe') loupes?.attach(node, a, transform)
     drawn.set(a.id, { a, t: transform })

@@ -12,7 +12,12 @@
  *
  * Thumbnails ignore the viewer's rotation; only the page's own /Rotate applies.
  */
-import { annotationBox, renderAnnotationContent } from '../overlay-render'
+import { withoutReplies } from '../../model/annotations/threads'
+import {
+  annotationBox,
+  paintedByCanvas,
+  renderAnnotationContent,
+} from '../overlay-render'
 import { createPageRenderer, type PageRenderer } from '../page-renderer'
 import { toCssName } from '../plugins/api/marks'
 import { createPageTransform, type PageTransform } from '../transform'
@@ -198,10 +203,12 @@ export function createThumbnailPainter(
 
   function drawAnnotations(): void {
     if (!annotationsLayer) return
-    // Embedded annotations are on the canvas already, as the viewport draws them.
+    // What the page's overlay draws: no replies, and nothing the canvas has painted already.
     const list =
       seen && current && transform
-        ? current.annotations.byPage(opts.page).filter((a) => a.source !== 'pdf')
+        ? withoutReplies(current.annotations.list.get()).filter(
+            (a) => a.page === opts.page && !paintedByCanvas(a)
+          )
         : []
     const t = transform!
     const ids = new Set(list.map((a) => a.id))
