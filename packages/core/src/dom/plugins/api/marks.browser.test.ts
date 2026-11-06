@@ -91,7 +91,7 @@ async function setup(
   ]
   const markFor = (id: string) =>
     container.querySelector<HTMLButtonElement>(`button[data-record="${id}"]`)
-  return { doc, current, container, engine, findings, handle, marksOn, markFor }
+  return { doc, current, container, engine, plugins, findings, handle, marksOn, markFor }
 }
 
 describe('plugin.marks', () => {
@@ -294,6 +294,63 @@ describe('plugin.marks', () => {
     expect(marksOn(0)).toHaveLength(1)
     handle.refresh()
     expect(marksOn(0)).toHaveLength(0)
+  })
+
+  describe('registry and selection', () => {
+    it('registers its options under the records key', async () => {
+      const label = (f: Finding) => `Label ${f.id}`
+      const card = (f: Finding) => ({ title: f.reason, actions: {} })
+      const { plugins } = await setup([finding('a', 0)], {
+        label,
+        card,
+        className: 'sandbox-finding',
+      })
+      const [reg, ...rest] = plugins.marks.of('sandbox.findings')
+      expect(rest).toEqual([])
+      expect(reg!.plugin).toBe('sandbox')
+      // Bound to the options, as the marks call them.
+      expect(reg!.label(finding('a', 0))).toBe('Label a')
+      expect(reg!.rect(finding('a', 0))).toEqual(finding('a', 0).rect)
+      expect(reg!.className).toBe('sandbox-finding')
+      expect(reg!.card?.(finding('a', 0)).title).toBe('Reason a')
+      expect(reg!.where(finding('a', 0))).toBe(true)
+      expect(reg!.where({ ...finding('a', 0), open: false })).toBe(false)
+      expect(plugins.marks.keys()).toEqual(['sandbox.findings'])
+    })
+
+    it('clicking a mark selects its record', async () => {
+      const { container, plugins, markFor } = await setup(
+        [finding('a', 0), finding('b', 0, 200)],
+        { card: (f) => ({ title: f.reason, actions: { Accept() {} } }) }
+      )
+      // The card opens in the viewer root the mark is in.
+      container.setAttribute('data-ink-root', '')
+      const selection = plugins.selection('sandbox.findings')
+      await userEvent.click(markFor('a')!)
+      expect(selection.selected.get()).toBe('a')
+      expect(markFor('a')!.hasAttribute('data-selected')).toBe(true)
+      expect(markFor('b')!.hasAttribute('data-selected')).toBe(false)
+      expect(markFor('a')!.getAttribute('aria-expanded')).toBe('true')
+      expect(document.querySelector('.ink-card')).not.toBeNull()
+    })
+
+    it('select from outside marks the mark', async () => {
+      const { plugins, findings, markFor } = await setup([finding('a', 0)])
+      const selection = plugins.selection('sandbox.findings')
+      selection.select('a')
+      const mark = markFor('a')!
+      expect(mark.hasAttribute('data-selected')).toBe(true)
+      selection.select(null)
+      expect(markFor('a')).toBe(mark)
+      expect(mark.hasAttribute('data-selected')).toBe(false)
+
+      // A record that stops passing `where` loses its mark and the selection.
+      selection.select('a')
+      findings.update('a', { open: false })
+      expect(selection.selected.get()).toBeNull()
+      findings.update('a', { open: true })
+      expect(markFor('a')!.hasAttribute('data-selected')).toBe(false)
+    })
   })
 
   describe('scrollToFirst()', () => {

@@ -8,7 +8,13 @@
  *
  * Presses and clicks on a mark are the plugin's: they go no further, so neither the active tool
  * nor listeners on the viewer's root see them. Enter and Space activate it, as on any button.
+ *
+ * Each call registers its options with the host's marks registry under the records' key, so
+ * lists and thumbnails show a record as its mark does. Activating a mark selects its record in
+ * the host's selection for that key, and the selected record's mark carries `data-selected`.
  */
+import { hostInternalsOf } from '../host'
+
 import { createCard, type CardSpec } from './card'
 
 import type { Records } from './records'
@@ -32,9 +38,9 @@ export interface MarksOptions<T extends RecordBase & { page: number }> {
   /** Classes every mark gets. */
   className?: string
   /**
-   * More attributes (`data-*`, `aria-*`). `data-record`, `data-plugin` and `aria-label` stay
-   * core's, and so do `aria-haspopup` and `aria-expanded` on a mark with a card; `style`,
-   * `class` and `type` are skipped (use `style` and `className`).
+   * More attributes (`data-*`, `aria-*`). `data-record`, `data-plugin`, `data-selected` and
+   * `aria-label` stay core's, and so do `aria-haspopup` and `aria-expanded` on a mark with a
+   * card; `style`, `class` and `type` are skipped (use `style` and `className`).
    */
   attrs?(record: T): Record<string, string>
   /**
@@ -81,6 +87,18 @@ export function createMarks<T extends RecordBase & { page: number }>(
   const marked = (record: T) => opts.where?.(record) ?? true
 
   const spec = opts.card?.bind(opts)
+  const host = hostInternalsOf(ctx)
+  const selection = host.selection(records.key)
+  host.marks.add(records.key, {
+    plugin: ctx.id,
+    where: marked,
+    label: opts.label.bind(opts),
+    rect: opts.rect.bind(opts),
+    ...(spec && { card: spec }),
+    ...(opts.className !== undefined && { className: opts.className }),
+    ...(opts.style && { style: opts.style.bind(opts) }),
+    batch: (fn) => ctx.history.batch(fn),
+  })
   const card =
     spec &&
     createCard(ctx, records, {
@@ -96,6 +114,7 @@ export function createMarks<T extends RecordBase & { page: number }>(
 
   /** What activating a mark does. */
   const activate = (record: T, mark: HTMLButtonElement) => {
+    selection.select(record.id)
     card?.open(record, mark)
     opts.onActivate?.(record, mark)
   }
@@ -134,6 +153,7 @@ export function createMarks<T extends RecordBase & { page: number }>(
     mark.dataset.record = record.id
     mark.dataset.plugin = ctx.id
     mark.setAttribute('aria-label', opts.label(record))
+    mark.toggleAttribute('data-selected', selection.selected.get() === record.id)
     if (card) {
       mark.setAttribute('aria-haspopup', 'dialog')
       mark.setAttribute('aria-expanded', String(card.expanded(mark)))
@@ -205,11 +225,13 @@ export function createMarks<T extends RecordBase & { page: number }>(
   const layer = ctx.layer({ render: draw })
   ctx.onDocument(() => {
     const stopDraw = records.list.subscribe(() => layer.invalidate())
+    const stopSelected = selection.selected.subscribe(() => layer.invalidate())
     const stopWatch = records.store()?.on('change', (change) => {
       if (scrolling) watch(change)
     })
     return () => {
       stopDraw()
+      stopSelected()
       stopWatch?.()
       // A reveal still pending belongs to this document, not the next one.
       fresh.clear()

@@ -52,6 +52,11 @@ export type {
 export { unknownCommand } from './plugins/commands'
 export { createPluginHost } from './plugins/host'
 export type { HostRecords, PluginHost, PluginHostOptions } from './plugins/host'
+export type {
+  MarksRegistration,
+  MarksRegistry,
+  RecordSelection,
+} from './plugins/registry'
 export { createPluginLayers } from './plugins/layer'
 export type {
   LayerEvent,
