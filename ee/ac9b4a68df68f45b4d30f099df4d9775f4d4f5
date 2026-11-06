@@ -1,0 +1,40 @@
+packages/core/src/dom/index.ts
+  s_bbae2197bdc5fa::t_e56d88c69d0dc0 16-17
+packages/core/src/dom/viewer-engine.ts
+  s_bbae2197bdc5fa::t_97cebce98ef752 62-63,195-200,272,569,667
+packages/core/src/dom/tools/controller.ts
+  s_bbae2197bdc5fa::t_97cebce98ef752 12-13
+packages/core/src/dom/pinch.browser.test.ts
+  s_bbae2197bdc5fa::t_f03f417c4b7497 268-269,272-274,300-307,312-313,332-333
+  s_bbae2197bdc5fa::t_5a722f90ae18f6 1-2,10-105,114-266,334-357
+  s_bbae2197bdc5fa::t_36b7a2881ddfa7 267,270-271,275-299,308-311,314-330
+  s_bbae2197bdc5fa::t_6a076e6a7e5137 3-9,106-113
+  s_bbae2197bdc5fa::t_9e098e107a7189 331
+packages/core/src/dom/viewport.ts
+  s_bbae2197bdc5fa::t_36b7a2881ddfa7 380-381
+  s_bbae2197bdc5fa::t_ce2bf47932edbd 25-30,354-372,374-376,383,396-397,401-406
+  s_bbae2197bdc5fa::t_2b4890a4acda18 4-7,12,55-59,121,125-126,315-327,340,343-344,346-349,353,373,377-379,382,384-395,398-400,407-417,496-497,511
+packages/core/src/dom/pinch.test.ts
+  s_bbae2197bdc5fa::t_797b38447d4a03 1-98
+packages/core/src/dom/pinch.ts
+  s_bbae2197bdc5fa::t_cba449c758c38f 60-61
+  s_bbae2197bdc5fa::t_6a076e6a7e5137 20-23,35,63-66
+  s_bbae2197bdc5fa::t_ea231c8f742d98 45-59,62,67-202
+  s_bbae2197bdc5fa::t_caeab948e09697 1-19,24-34,36-44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "eeac9b4a68df68f45b4d30f099df4d9775f4d4f5",
+  "prompts": {},
+  "sessions": {
+    "s_bbae2197bdc5fa": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6689b872-6bb0-43d6-ae15-c0abc346f21e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": null
+    }
+  }
+}
