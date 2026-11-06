@@ -5,18 +5,15 @@
  * hit and shows only while there are hits. useSearch gives the same state the bar shows, for a
  * control of your own.
  */
-import { Search } from '@inkbar/icons'
 import {
   InkFindBar,
   InkNextPage,
   InkPageCount,
   InkPageInput,
-  InkPanel,
   InkPrevPage,
   InkRoot,
   InkSearchButton,
   InkSearchResults,
-  InkSidebar,
   InkIcon,
   InkToolbar,
   InkToolbarButton,
@@ -37,18 +34,19 @@ import type { Log, ScenarioProps } from '../../frameworks/types'
 import type { InkDocument } from '@inkbar/core'
 
 /**
- * Every hit, in a rail sidebar right of the pages; the find bar is the query field. Your code
- * decides when the sidebar shows: here, while the search has hits. It sits inside InkRoot to
- * reach search.
+ * Every hit, in a panel right of the pages; the find bar is the query field. Your code decides
+ * when it shows: here, while the search has hits. It sits inside InkRoot to reach search.
  */
 function ResultsSidebar() {
   const hasResults = useSearch().state.hits.length > 0
+  // Hidden rather than removed, so the list keeps its scroll between searches.
   return (
-    <InkSidebar side="right" visible={hasResults}>
-      <InkPanel id="results" label="Search results" icon={Search}>
-        <InkSearchResults field={false} />
-      </InkPanel>
-    </InkSidebar>
+    <aside className="results-aside" aria-labelledby="results-title" hidden={!hasResults}>
+      <h2 id="results-title" className="results-aside-title">
+        Search results
+      </h2>
+      <InkSearchResults field={false} />
+    </aside>
   )
 }
 

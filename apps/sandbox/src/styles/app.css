@@ -545,6 +545,37 @@ body {
 .scenario-body .ink-sidebar {
   --ink-sidebar-width: 240px;
 }
+/* The search scenario's results: a panel of its own, shown while the search has hits, with the
+   title strip a rail panel has. */
+.results-aside {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  width: 240px;
+  min-height: 0;
+  border-left: 1px solid var(--ink-border);
+  background: var(--ink-surface);
+  color: var(--ink-fg);
+}
+.results-aside[hidden] {
+  display: none;
+}
+.results-aside-title {
+  display: flex;
+  flex: none;
+  align-items: center;
+  min-height: 48px;
+  margin: 0;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--ink-border);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+}
+.results-aside .ink-search-results {
+  flex: 1;
+  height: auto;
+}
 /* The redactions scenario's Accepted panel: a list of its own, on the plugin's records. */
 .accepted {
   height: 100%;

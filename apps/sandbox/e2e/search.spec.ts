@@ -82,10 +82,9 @@ for (const framework of FRAMEWORK_ORDER) {
       page,
     }) => {
       await open(page, framework)
-      // The scenario shows the results sidebar only while the search has hits.
-      const sidebar = viewer(page).locator('.ink-sidebar[data-side="right"]')
-      await expect(sidebar).toBeHidden()
-      const results = viewer(page).getByRole('tabpanel', { name: 'Search results' })
+      // The scenario shows the results only while the search has hits.
+      const results = viewer(page).getByRole('complementary', { name: 'Search results' })
+      await expect(results).toBeHidden()
       await find(page)
       await expect(count(page)).toHaveText(`1 of ${LONG_HITS}`, { timeout: 20_000 })
       await expect(results).toBeVisible()
@@ -105,18 +104,12 @@ for (const framework of FRAMEWORK_ORDER) {
       await expect(card('24:0')).toHaveAttribute('aria-current', 'true')
       await expect(viewer(page).locator('.ink-page[data-page="24"]')).toBeInViewport()
 
-      // The rail button closes the panel and opens it again; a search with no hits hides it all.
-      const button = sidebar.getByRole('tab', { name: 'Search results' })
-      await button.click()
-      await expect(results).toBeHidden()
-      await expect(button).toBeVisible()
-      await button.click()
-      await expect(results).toBeVisible()
+      // A search with no hits hides them.
       await viewer(page)
         .getByRole('textbox', { name: 'Find in document' })
         .fill('nowhere in this log')
       await expect(count(page)).toHaveText('No results', { timeout: 20_000 })
-      await expect(sidebar).toBeHidden()
+      await expect(results).toBeHidden()
     })
 
     test(`${framework} search: logs only settled searches when the query changes`, async ({

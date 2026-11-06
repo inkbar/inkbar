@@ -14,7 +14,6 @@ import {
   createPrevPage,
   createSearchButton,
   createSearchResults,
-  createSidebar,
   createToolbar,
   createToolButton,
   createViewer,
@@ -22,7 +21,6 @@ import {
   createZoomOut,
   createZoomSelect,
 } from '@inkbar/core/dom'
-import { Search } from '@inkbar/icons'
 import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 
@@ -109,23 +107,27 @@ export function mount(
   openButton.addEventListener('click', openFile)
   tools.append(group('File', 'scenario-group scenario-file', openButton))
 
-  // Every hit, in a rail sidebar right of the pages; the find bar is the query field. Your
-  // code decides when the sidebar shows: here, while the search has hits.
-  const hasResults = () => viewer.search.state.get().hits.length > 0
-  const results = createSidebar({
-    side: 'right',
-    visible: hasResults(),
-    panels: [{ id: 'results', label: 'Search results', icon: Search }],
-    content: { results: createSearchResults(viewer, { field: false }) },
-  })
-  const unfollowResults = viewer.search.state.subscribe(() =>
-    results.controller.update({ visible: hasResults() })
-  )
+  // Every hit, in a panel right of the pages; the find bar is the query field. Your code
+  // decides when it shows: here, while the search has hits. Hidden rather than removed, so
+  // the list keeps its scroll between searches.
+  const results = document.createElement('aside')
+  results.className = 'results-aside'
+  results.setAttribute('aria-labelledby', 'results-title')
+  const title = document.createElement('h2')
+  title.id = 'results-title'
+  title.className = 'results-aside-title'
+  title.textContent = 'Search results'
+  results.append(title, createSearchResults(viewer, { field: false }))
+  const showResults = () => {
+    results.hidden = viewer.search.state.get().hits.length === 0
+  }
+  showResults()
+  const unfollowResults = viewer.search.state.subscribe(showResults)
   const body = document.createElement('div')
   body.className = 'scenario-body'
   const viewport = viewer.element.querySelector('[data-ink-viewport-root]')
   viewport?.replaceWith(body)
-  body.append(...(viewport ? [viewport] : []), results.element)
+  body.append(...(viewport ? [viewport] : []), results)
 
   viewer.element.prepend(tools)
   viewer.element.append(status)
@@ -137,7 +139,6 @@ export function mount(
     destroy() {
       unfollowSearch()
       unfollowResults()
-      results.controller.destroy()
       viewer.destroy()
     },
   }
