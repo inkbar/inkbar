@@ -1,0 +1,21 @@
+packages/core/src/dom/thumbnails/list.browser.test.ts
+  s_1effe0625d7c7b::t_ce6cfd796df5f4 99-100,102
+packages/svelte/src/test/Sidebar.browser.test.ts
+  s_1effe0625d7c7b::t_978df4727460e8 62-64,146-148
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c4b8186330d460a1db169359789cebfd33ef6090",
+  "prompts": {},
+  "sessions": {
+    "s_1effe0625d7c7b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3adafbc8-4f4c-4ced-a223-6be21f4f163c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
