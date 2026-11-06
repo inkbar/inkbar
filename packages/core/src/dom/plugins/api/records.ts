@@ -13,6 +13,8 @@ import type { InkDocument } from '../../../model/document'
 import type { RecordBase, RecordStore } from '../../../model/records'
 
 export interface Records<T extends RecordBase> {
+  /** The store's key, `<plugin>.<name>`. */
+  readonly key: string
   /** The open document's records; `[]` while none is open. Emits when the document changes. */
   readonly list: Readable<readonly T[]>
   all(): readonly T[]
@@ -118,6 +120,7 @@ export function createRecords<T extends RecordBase>(
   const current = () => source.get()
   const all = () => current()?.list.get() ?? EMPTY
   return {
+    key: `${deps.plugin}.${deps.name}`,
     list: listOf(source),
     all,
     find: (id) => current()?.get(id),

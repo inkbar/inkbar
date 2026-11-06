@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 
+import { staticDefaults } from '../../model/annotations/defaults'
+import { createHistory } from '../../model/annotations/history'
+import { createAnnotationStore } from '../../model/annotations/store'
 import { writable } from '../../model/readable'
 
 import { definePlugin, type InkPlugin, type PluginContext } from './define'
@@ -529,5 +532,99 @@ describe('ctx.search', () => {
     expect(ctx.search.state.get().query).toBe('q')
     ctx.search.next()
     expect(search.next).toHaveBeenCalled()
+  })
+})
+
+describe('host records', () => {
+  /** A host over a real history, so tests can undo. */
+  function realHost(plugins: InkPlugin[]) {
+    const document = writable<InkDocument | null>(null)
+    const history = createHistory(
+      createAnnotationStore({ mode: { mode: 'uncontrolled' }, defaults: staticDefaults })
+    )
+    const host = createPluginHost({
+      plugins,
+      document,
+      history: () => history,
+      activated: writable<string | null>(null),
+      setActivated() {},
+      root: writable<HTMLElement | null>(null),
+    })
+    return { host, document, history }
+  }
+
+  function itemsPlugin() {
+    const out: { items?: Records<Suggestion> } = {}
+    const plugin = definePlugin('p', (api) => {
+      out.items = api.records<Suggestion>('items')
+    })
+    return { plugin: plugin(), out }
+  }
+
+  it('host records read and write a plugin store', () => {
+    const { plugin, out } = itemsPlugin()
+    const { host, document, history } = realHost([plugin])
+    document.set(fakeDocument('a'))
+    const handle = host.records<Suggestion>('p.items')
+    handle.add({ id: 'a', status: 'open' })
+    expect(out.items?.has('a')).toBe(true)
+    history.undo()
+    expect(out.items?.has('a')).toBe(false)
+    expect(handle.key).toBe('p.items')
+    expect(host.records('p.items')).toBe(handle)
+  })
+
+  it('host records follow the open document', () => {
+    const { plugin } = itemsPlugin()
+    const { host, document } = realHost([plugin])
+    document.set(fakeDocument('a'))
+    const list = host.records<Suggestion>('p.items')
+    list.add({ id: 'a', status: 'open' })
+    expect(list.list.get()).toHaveLength(1)
+    document.set(fakeDocument('b'))
+    expect(list.list.get()).toEqual([])
+  })
+
+  it('host records batch is one undo step', () => {
+    const { plugin } = itemsPlugin()
+    const { host, document, history } = realHost([plugin])
+    document.set(fakeDocument('a'))
+    const handle = host.records<Suggestion>('p.items')
+    handle.batch(() => {
+      handle.add({ id: 'a', status: 'open' })
+      handle.add({ id: 'b', status: 'open' })
+    })
+    expect(handle.all()).toHaveLength(2)
+    history.undo()
+    expect(handle.all()).toEqual([])
+  })
+
+  it('unknown key is inert and warns once', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { host, document } = realHost([])
+    document.set(fakeDocument('a'))
+    const first = host.records<Suggestion>('nope.x')
+    host.records<Suggestion>('nope.x')
+    expect(first.list.get()).toEqual([])
+    expect(first.add({ id: 'a', status: 'open' })).toBeUndefined()
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn).toHaveBeenCalledWith('No plugin records named nope.x')
+    warn.mockRestore()
+  })
+
+  it('stores created from onDocument are reachable', () => {
+    const plugin = definePlugin({
+      id: 'p',
+      setup(ctx) {
+        ctx.onDocument(() => {
+          ctx.store('late')
+        })
+      },
+    })
+    const { host, document } = realHost([plugin])
+    document.set(fakeDocument('a'))
+    const late = host.records<Suggestion>('p.late')
+    expect(late.add({ id: 'a', status: 'open' })).toEqual({ id: 'a', status: 'open' })
+    expect(late.has('a')).toBe(true)
   })
 })

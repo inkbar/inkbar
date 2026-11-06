@@ -307,6 +307,19 @@ Marks redraw when their records change, undo and redo included, and keep their e
 
 `quadsFromRect(rect)` and `rectFromQuads(quads)` from `@inkbar/core` convert between a box and the quads that text markup takes, and `doc.pageText(page)` resolves to a page's text joined the way the page reads: nothing between touching items, a space at line ends and at wide gaps.
 
+### Reading records from your app
+
+`viewer.records(key)` gives your app the records a plugin keeps, under the key `<plugin>.<name>` (`review.suggestions`). It is the plugin's own handle less `annotates`, and it follows the open document: `list` is a readable that emits as records change, and `[]` while nothing is open. The same key returns the same handle. Writes are undo steps like the plugin's own, and `batch(fn)` makes several one step. An unknown key returns an empty handle that ignores writes, and logs a warning once.
+
+```ts
+const suggestions = viewer.records<Suggestion>('review.suggestions')
+suggestions.list.subscribe((items) => render(items))
+suggestions.batch(() => {
+  suggestions.update('s1', { status: 'accepted' })
+  suggestions.remove('s2')
+})
+```
+
 ### Going further
 
 The `plugin` that `setup` receives is also the plugin's context, so everything below works in the new form. The object form, `definePlugin({ id, setup(ctx) { … } })`, still works and returns the plugin itself: pass `plugins: [plugin]`.
