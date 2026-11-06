@@ -503,6 +503,14 @@
     cursor: default;
   }
 
+  /* A locked note still opens its thread on a click. */
+  :where(
+    [data-ink-tool='select'] .ink-annotation[data-locked][data-type='text'],
+    [data-ink-tool='select-text'] .ink-annotation[data-locked][data-type='text']
+  ) {
+    cursor: pointer;
+  }
+
   /* While an annotation is moved the whole viewport shows it, over any element's own cursor.
      The one rule here that is not zero specificity: it has to beat them. */
   [data-ink-dragging],
@@ -544,14 +552,12 @@
     outline-style: dotted;
   }
 
+  /* The icon fills the note's box, so it scales with the zoom as the PDF's own icons do. */
   :where(.ink-note-icon) {
     position: absolute;
-    left: 0;
-    top: 0;
+    inset: 0;
     display: block;
-    width: 20px;
-    height: 20px;
-    border-radius: 3px 3px 3px 0;
+    border-radius: 15% 15% 15% 0;
     background: var(--ink-note);
     box-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
     pointer-events: none;
@@ -1099,8 +1105,6 @@
   /* A note's icon fills its box instead of keeping its on-page size; comment glyphs, which keep
      a fixed size at every zoom, would cover a small page, so they are left out. */
   :where(.ink-thumbnail-annotation .ink-note-icon) {
-    width: 100%;
-    height: 100%;
     box-shadow: none;
   }
 
