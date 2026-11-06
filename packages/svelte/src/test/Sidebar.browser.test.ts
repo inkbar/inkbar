@@ -59,7 +59,9 @@ describe('sidebar', () => {
     ).toBe('Pages content')
     // The rail shows the open panel's title, which the rail button carries for assistive technology.
     await expect
-      .element(panel('Pages').element().querySelector('.ink-sidebar-panel-title'))
+      .element(
+        panel('Pages').element().querySelector<HTMLElement>('.ink-sidebar-panel-title')
+      )
       .toBeVisible()
     await expect.element(panel('Pages')).toHaveClass('ink-sidebar-panel')
 
@@ -141,7 +143,9 @@ describe('sidebar', () => {
     ).toBe('Pages content')
     // A stack's header names the section: no title.
     await expect
-      .element(region('Pages').element().querySelector('.ink-sidebar-panel-title'))
+      .element(
+        region('Pages').element().querySelector<HTMLElement>('.ink-sidebar-panel-title')
+      )
       .not.toBeVisible()
 
     // Any number expanded.

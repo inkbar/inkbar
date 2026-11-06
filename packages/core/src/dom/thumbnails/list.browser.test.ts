@@ -96,9 +96,10 @@ describe('createThumbnails', () => {
       )
       expect(b.querySelector('.ink-thumbnails-label')!.textContent).toBe(String(i + 1))
     }
-    // The thumbnail fits the 200px list less a 16px gutter each side.
+    // The thumbnail fits the list less a 16px gutter each side. The list's width is 200px less
+    // any scrollbar gutters, which classic scrollbars reserve on both edges.
     expect(items()[0]!.querySelector<HTMLElement>('.ink-thumbnail')!.offsetWidth).toBe(
-      168
+      Math.floor(list.clientWidth - 32)
     )
     const results = await runAxe(list)
     expect(results.violations.map((v) => v.id)).toEqual([])
