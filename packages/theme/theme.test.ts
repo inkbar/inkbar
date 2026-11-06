@@ -384,6 +384,16 @@ describe('theme.css', () => {
     ).toMatch(/background:\s*var\(--ink-accent\)/)
   })
 
+  it('gives thumbnails a lighter shadow than the main view pages', () => {
+    expect(css).toMatch(/--ink-thumbnail-shadow:[^;]*rgb\(0 0 0 \/ 0\.08\)/)
+    expect(declsFor('.ink-thumbnail)')).toMatch(
+      /box-shadow:\s*var\(--ink-thumbnail-shadow\)/
+    )
+    expect(declsFor('.ink-thumbnails-item:hover .ink-thumbnail)')).not.toMatch(
+      /--ink-page-shadow/
+    )
+  })
+
   it("hides a closed rail sidebar's panels after the rule that shows them", () => {
     const at = (selector: string) => rules.findIndex((r) => r.selector === selector)
     const shown = at(':where(.ink-sidebar-panels)')

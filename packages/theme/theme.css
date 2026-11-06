@@ -54,6 +54,8 @@
     --ink-ring: var(--ring, #2b5a9e);
     --ink-radius: var(--radius, 0.5rem);
     --ink-page-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+    /* Thumbnails are small, so the page shadow reads heavy on them: a hairline edge and a soft lift. */
+    --ink-thumbnail-shadow: 0 0 0 1px rgb(0 0 0 / 0.05), 0 1px 2px rgb(0 0 0 / 0.08);
     --ink-text-selection: color-mix(in srgb, AccentColor, transparent 50%);
     /* Form fields sit on the white page, in light and dark alike. */
     --ink-form-field-bg: rgb(43 90 158 / 0.12);
@@ -82,6 +84,7 @@
       --ink-accent-fg: var(--primary-foreground, #151820);
       --ink-ring: var(--ring, #7aa5e6);
       --ink-page-shadow: 0 1px 3px rgb(0 0 0 / 0.6);
+      --ink-thumbnail-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
       --ink-form-field-bg: rgb(43 90 158 / 0.16);
       --ink-form-field-focus: #3d73c4;
       --ink-form-field-invalid: #c0392b;
@@ -109,6 +112,7 @@
     --ink-accent-fg: var(--primary-foreground, #151820);
     --ink-ring: var(--ring, #7aa5e6);
     --ink-page-shadow: 0 1px 3px rgb(0 0 0 / 0.6);
+    --ink-thumbnail-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
     --ink-form-field-bg: rgb(43 90 158 / 0.16);
     --ink-form-field-focus: #3d73c4;
     --ink-form-field-invalid: #c0392b;
@@ -1042,7 +1046,7 @@
     flex: none;
     overflow: hidden;
     background: #ffffff;
-    box-shadow: var(--ink-page-shadow);
+    box-shadow: var(--ink-thumbnail-shadow);
   }
 
   :where(.ink-thumbnail-annotation > svg) {
@@ -1108,7 +1112,7 @@
      on the current page, and its number in the accent like a pressed toolbar button. */
   :where(.ink-thumbnails-item:hover .ink-thumbnail) {
     box-shadow:
-      var(--ink-page-shadow),
+      var(--ink-thumbnail-shadow),
       0 0 0 2px color-mix(in srgb, var(--ink-fg) 20%, transparent);
   }
 
@@ -1123,7 +1127,7 @@
 
   :where(.ink-thumbnails-item[aria-current='page'] .ink-thumbnail) {
     box-shadow:
-      var(--ink-page-shadow),
+      var(--ink-thumbnail-shadow),
       0 0 0 2px var(--ink-accent);
   }
 
