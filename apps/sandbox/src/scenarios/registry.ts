@@ -78,7 +78,7 @@ export const SCENARIOS: readonly Scenario[] = [
     id: 'sidebars',
     title: 'Sidebars',
     blurb:
-      'Thumbnails and panels in a rail, tabs or a stack, on either side. One thumbnail works on its own, too.',
+      'Thumbnails, search and a panel of your own in a rail, tabs or a stack, on either side.',
     document: 'tour',
     panels: ['events'],
   },

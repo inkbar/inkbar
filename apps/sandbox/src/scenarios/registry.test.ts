@@ -20,7 +20,7 @@ void test('sidebars is registered for every framework', () => {
   assert.equal(sidebars.title, 'Sidebars')
   assert.equal(
     sidebars.blurb,
-    'Thumbnails and panels in a rail, tabs or a stack, on either side. One thumbnail works on its own, too.'
+    'Thumbnails, search and a panel of your own in a rail, tabs or a stack, on either side.'
   )
   assert.equal(sidebars.document, 'tour')
   const file = {
