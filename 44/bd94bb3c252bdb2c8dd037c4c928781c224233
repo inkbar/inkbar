@@ -1,0 +1,36 @@
+packages/core/src/dom/overlay-render.ts
+  s_1effe0625d7c7b::t_e9101127cca694 854-861
+  s_1effe0625d7c7b::t_66d654c50bbf40 853
+packages/core/src/model/annotations/embedded.ts
+  s_1effe0625d7c7b::t_e9101127cca694 196
+packages/core/src/dom/overlay.ts
+  s_1effe0625d7c7b::t_e9101127cca694 37,414-415
+packages/core/src/model/annotations/store.ts
+  s_1effe0625d7c7b::t_e9101127cca694 181,489-493
+packages/core/src/dom/thumbnails/thumbnail.browser.test.ts
+  s_1effe0625d7c7b::t_a8080ca35d4be2 157-172
+  s_1effe0625d7c7b::t_d7f605e8d1db68 156
+packages/core/src/model/annotations/types.ts
+  s_1effe0625d7c7b::t_e9101127cca694 64-69,245
+packages/core/src/dom/viewer-engine.browser.test.ts
+  s_1effe0625d7c7b::t_f2548885e12594 368-392
+packages/core/src/dom/thumbnails/thumbnail.ts
+  s_1effe0625d7c7b::t_f7bd3a9963e9e7 15-20
+  s_1effe0625d7c7b::t_f2dd1e08243aef 206,209-211
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "44bd94bb3c252bdb2c8dd037c4c928781c224233",
+  "prompts": {},
+  "sessions": {
+    "s_1effe0625d7c7b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3adafbc8-4f4c-4ced-a223-6be21f4f163c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
