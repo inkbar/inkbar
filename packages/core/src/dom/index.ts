@@ -202,7 +202,11 @@ export type { Popover, PopoverOptions } from './viewer/popover'
 export { mountViewer } from './viewer-engine'
 export type { MountViewerOptions, ViewerEngine } from './viewer-engine'
 export { createFindBar } from './search/find-bar'
-export { handleFindKey, pageSelectionText } from './search/find-key'
+export {
+  handleFindKey,
+  handleResultsFieldKey,
+  pageSelectionText,
+} from './search/find-key'
 export { findAnnouncer, findCountText } from './search/find-text'
 export { createSearchController, viewerSearchOf } from './search/controller'
 export type {
@@ -211,6 +215,17 @@ export type {
   SearchState,
   ViewerSearch,
 } from './search/controller'
+export { createRecordList, createRecordListController } from './records/list'
+export type { RecordListController, RecordListRow } from './records/list'
+export { recordsSource, searchSource } from './records/source'
+export type {
+  ListItem,
+  RecordListSource,
+  RecordsSourceDeps,
+  RecordsSourceOptions,
+} from './records/source'
+export { createSearchResults } from './records/search-results'
+export type { SearchResultsOptions } from './records/search-results'
 export { createSidebarController, sidebarBadge } from './sidebar/controller'
 export type {
   SidebarController,

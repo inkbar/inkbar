@@ -2,7 +2,7 @@
  * Ctrl/Cmd+F for a viewer's root, and the page selection it takes as the query. Shared by
  * createViewer and the framework bindings.
  */
-import type { SearchController } from './controller'
+import type { SearchController, ViewerSearch } from './controller'
 
 /** Longest page selection that becomes the query. */
 const MAX_SELECTION = 200
@@ -66,5 +66,24 @@ export function handleFindKey(
   const field = root.querySelector<HTMLInputElement>(FIELD)
   field?.focus()
   field?.select()
+  return true
+}
+
+/**
+ * Enter in a search field other than the find bar's (the search results' own): steps to the
+ * next match, Shift+Enter to the previous, as in the find bar. Returns whether it handled the
+ * key; when it did, the default is prevented.
+ *
+ * @internal Shared with the framework bindings.
+ */
+export function handleResultsFieldKey(
+  e: KeyboardEvent,
+  search: Pick<ViewerSearch, 'next' | 'previous'>
+): boolean {
+  if (e.key !== 'Enter' || e.isComposing || e.defaultPrevented) return false
+  if (e.altKey || e.ctrlKey || e.metaKey) return false
+  e.preventDefault()
+  if (e.shiftKey) search.previous()
+  else search.next()
   return true
 }

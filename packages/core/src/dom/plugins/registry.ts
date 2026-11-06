@@ -144,3 +144,19 @@ export function createRecordSelection(
     },
   }
 }
+
+/**
+ * Page first, then top to bottom and left to right, by each record's rect in user space. Records
+ * with no rect go after the others on their page, in the order they came.
+ */
+export function readingOrder<T extends { page: number }>(
+  rect: (record: T) => Rect | undefined
+): (a: T, b: T) => number {
+  return (a, b) => {
+    if (a.page !== b.page) return a.page - b.page
+    const ra = rect(a)
+    const rb = rect(b)
+    if (!ra || !rb) return (ra ? 0 : 1) - (rb ? 0 : 1)
+    return rb.y + rb.height - (ra.y + ra.height) || ra.x - rb.x
+  }
+}

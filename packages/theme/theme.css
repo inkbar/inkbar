@@ -1971,6 +1971,121 @@
     color: var(--ink-accent-fg);
   }
 
+  /*
+   * Record lists (createRecordList, createSearchResults and the bindings' lists): the same
+   * cards as the popover, in a list that fills its parent's height and scrolls. These follow the
+   * card rules so a row's card drops the popover's float, width and shadow.
+   */
+  :where(.ink-records) {
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    height: 100%;
+    min-height: 0;
+  }
+
+  :where(.ink-records:focus-visible) {
+    outline: 2px solid var(--ink-ring);
+    outline-offset: -2px;
+  }
+
+  :where(.ink-record-list) {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-height: 0;
+    margin: 0;
+    padding: 0.5rem;
+    overflow-x: hidden;
+    overflow-y: auto;
+    list-style: none;
+  }
+
+  :where(.ink-record-list[hidden], .ink-record-list-empty[hidden]) {
+    display: none;
+  }
+
+  :where(.ink-record) {
+    border-radius: var(--ink-radius);
+    cursor: pointer;
+  }
+
+  :where(.ink-record > .ink-card) {
+    z-index: auto;
+    width: auto;
+    max-width: none;
+    box-shadow: none;
+  }
+
+  :where(.ink-record:hover > .ink-card) {
+    background: color-mix(in srgb, var(--ink-fg) 4%, var(--ink-surface));
+  }
+
+  :where(.ink-record:focus-visible) {
+    outline: 2px solid var(--ink-ring);
+    outline-offset: 2px;
+  }
+
+  :where(.ink-record[aria-current='true'] > .ink-card) {
+    border-color: var(--ink-accent);
+    box-shadow: inset 0 0 0 1px var(--ink-accent);
+  }
+
+  :where(.ink-record .ink-card-actions:empty) {
+    display: none;
+  }
+
+  :where(.ink-record .ink-card-actions button) {
+    min-height: 44px;
+  }
+
+  :where(.ink-record-list-empty) {
+    margin: 0;
+    padding: 1rem 0.75rem;
+    color: var(--ink-muted-fg);
+    font-size: 0.875rem;
+  }
+
+  :where(.ink-search-results) {
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    height: 100%;
+    min-height: 0;
+  }
+
+  :where(.ink-search-results-bar) {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem 0.5rem 0;
+  }
+
+  :where(.ink-search-results-bar input) {
+    box-sizing: border-box;
+    flex: 1;
+    min-width: 0;
+    min-height: 44px;
+    padding: 0 0.5rem;
+    border: 1px solid var(--ink-border);
+    border-radius: calc(var(--ink-radius) - 2px);
+    background: var(--ink-surface);
+    color: inherit;
+    font: inherit;
+  }
+
+  :where(.ink-search-results-bar input:focus-visible) {
+    outline: 2px solid var(--ink-ring);
+    outline-offset: 2px;
+  }
+
+  :where(.ink-search-results > .ink-records) {
+    flex: 1;
+    height: auto;
+  }
+
   :where(.ink-select-item:focus-visible) {
     outline: none;
   }
