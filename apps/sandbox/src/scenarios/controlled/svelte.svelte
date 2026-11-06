@@ -7,6 +7,8 @@
    */
   import { allTools } from '@inkbar/core/dom'
   import {
+    InkDownloadButton,
+    InkPrintButton,
     InkColorMenu,
     InkHighlightMenu,
     InkIcon,
@@ -87,6 +89,8 @@
         <InkIcon icon={FileUp} />
         Open
       </InkToolbarButton>
+      <InkDownloadButton />
+      <InkPrintButton />
     </div>
   </InkToolbar>
   <InkViewport />

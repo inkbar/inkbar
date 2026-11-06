@@ -7,6 +7,8 @@
 import { allTools, type SidebarOpen } from '@inkbar/core/dom'
 import { Check, Square, SquareDashed } from '@inkbar/icons'
 import {
+  InkDownloadButton,
+  InkPrintButton,
   InkColorMenu,
   InkCommand,
   InkHighlightMenu,
@@ -184,6 +186,8 @@ export default function SuggestRedactions({
             <InkIcon icon={FileUp} />
             Open
           </InkToolbarButton>
+          <InkDownloadButton />
+          <InkPrintButton />
         </div>
       </InkToolbar>
       <div className="scenario-body">

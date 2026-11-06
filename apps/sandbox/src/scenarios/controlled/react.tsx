@@ -5,6 +5,8 @@
  */
 import { allTools } from '@inkbar/core/dom'
 import {
+  InkDownloadButton,
+  InkPrintButton,
   InkColorMenu,
   InkHighlightMenu,
   InkIcon,
@@ -96,6 +98,8 @@ export default function ControlledAnnotations({
             <InkIcon icon={FileUp} />
             Open
           </InkToolbarButton>
+          <InkDownloadButton />
+          <InkPrintButton />
         </div>
       </InkToolbar>
       <InkViewport />

@@ -6,6 +6,8 @@
 import { type SidebarLayout } from '@inkbar/core/dom'
 import { Info, Search, Square } from '@inkbar/icons'
 import {
+  InkDownloadButton,
+  InkPrintButton,
   InkIcon,
   InkNextPage,
   InkPageCount,
@@ -65,6 +67,8 @@ export default function Sidebars({ source, log, onDocument, openFile }: Scenario
             <InkIcon icon={FileUp} />
             Open
           </InkToolbarButton>
+          <InkDownloadButton />
+          <InkPrintButton />
         </div>
       </InkToolbar>
       <div className="scenario-body">

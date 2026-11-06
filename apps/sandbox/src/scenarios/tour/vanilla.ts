@@ -8,7 +8,9 @@ import {
   allTools,
   createColorMenu,
   createHighlightMenu,
+  createDownloadButton,
   createIcon,
+  createPrintButton,
   createLineStyleMenu,
   createNextPage,
   createPageCount,
@@ -140,7 +142,15 @@ export function mount(
   openButton.title = 'Open a PDF'
   openButton.append(createIcon(FileUp), 'Open')
   openButton.addEventListener('click', openFile)
-  tools.append(group('File', 'scenario-group scenario-file', openButton))
+  tools.append(
+    group(
+      'File',
+      'scenario-group scenario-file',
+      openButton,
+      createDownloadButton(viewer),
+      createPrintButton(viewer)
+    )
+  )
 
   viewer.element.prepend(tools)
   viewer.element.append(status)

@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises'
+
 import { guardConsole } from '@inkbar/e2e-shared/console-guard'
 import { expect, test, type Page } from '@playwright/test'
 
@@ -68,15 +70,32 @@ for (const framework of FRAMEWORK_ORDER) {
           .locator('[data-tool]')
           .evaluateAll((els) => els.map((el) => el.getAttribute('data-tool')))
         expect([...new Set(tools)].sort()).toEqual([...expected].sort())
-        // The scenario's own section ends the toolbar.
-        await expect(
-          viewer(page)
-            .getByRole('toolbar', { name: 'Document tools' })
-            .getByRole('group', { name: 'File' })
-            .getByRole('button', { name: 'Open a PDF' })
-        ).toBeVisible()
+        // The scenario's own section ends the toolbar: Open, Download and Print.
+        const file = viewer(page)
+          .getByRole('toolbar', { name: 'Document tools' })
+          .getByRole('group', { name: 'File' })
+        await expect
+          .poll(() =>
+            file
+              .getByRole('button')
+              .evaluateAll((els) => els.map((el) => el.getAttribute('aria-label')))
+          )
+          .toEqual(['Open a PDF', 'Download', 'Print'])
       })
     }
+
+    test(`${framework} tour: Download saves the open PDF under its name`, async ({
+      page,
+    }) => {
+      await page.goto(`./#/${framework}/tour`)
+      await waitForViewer(page)
+      const saving = page.waitForEvent('download')
+      await viewer(page).getByRole('button', { name: 'Download' }).click()
+      const file = await saving
+      expect(file.suggestedFilename()).toBe('tour.pdf')
+      const bytes = await readFile(await file.path())
+      expect(bytes.subarray(0, 5).toString()).toBe('%PDF-')
+    })
 
     test(`${framework} tools: picking note logs the tool change`, async ({ page }) => {
       await page.goto(`./#/${framework}/tools`)

@@ -7,7 +7,9 @@
  */
 import {
   createFindBar,
+  createDownloadButton,
   createIcon,
+  createPrintButton,
   createNextPage,
   createPageCount,
   createPageInput,
@@ -105,7 +107,15 @@ export function mount(
   openButton.title = 'Open a PDF'
   openButton.append(createIcon(FileUp), 'Open')
   openButton.addEventListener('click', openFile)
-  tools.append(group('File', 'scenario-group scenario-file', openButton))
+  tools.append(
+    group(
+      'File',
+      'scenario-group scenario-file',
+      openButton,
+      createDownloadButton(viewer),
+      createPrintButton(viewer)
+    )
+  )
 
   // Every hit, in a panel right of the pages; the find bar is the query field. Your code
   // decides when it shows: here, while the search has hits. Hidden rather than removed, so

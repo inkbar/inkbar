@@ -7,6 +7,8 @@
    * the bar shows, for a control of your own: SearchLog, beside this file, logs it.
    */
   import {
+    InkDownloadButton,
+    InkPrintButton,
     InkFindBar,
     InkNextPage,
     InkPageCount,
@@ -54,6 +56,8 @@
         <InkIcon icon={FileUp} />
         Open
       </InkToolbarButton>
+      <InkDownloadButton />
+      <InkPrintButton />
     </div>
   </InkToolbar>
   <div class="scenario-body">

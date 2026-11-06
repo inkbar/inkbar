@@ -9,6 +9,8 @@
   import { allTools, type SidebarOpen } from '@inkbar/core/dom'
   import { Square } from '@inkbar/icons'
   import {
+    InkDownloadButton,
+    InkPrintButton,
     InkColorMenu,
     InkCommand,
     InkHighlightMenu,
@@ -106,6 +108,8 @@
         <InkIcon icon={FileUp} />
         Open
       </InkToolbarButton>
+      <InkDownloadButton />
+      <InkPrintButton />
     </div>
   </InkToolbar>
   <div class="scenario-body">
