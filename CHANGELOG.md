@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.10.0](https://github.com/inkbar/inkbar/compare/v0.9.0...v0.10.0) (2026-11-06)
+
+
+### Features
+
+* add a sidebars scenario to the sandbox ([#290](https://github.com/inkbar/inkbar/issues/290)) ([c0ac6fa](https://github.com/inkbar/inkbar/commit/c0ac6fafc0c4e4819996e8fd2b3ea1da0bdcbb66))
+* add record lists and search results to the React bindings ([#286](https://github.com/inkbar/inkbar/issues/286)) ([cbdcb7a](https://github.com/inkbar/inkbar/commit/cbdcb7a361837dfbd3ecfbd07cb47c2fc6ddbcc3))
+* add record lists and search results to the Svelte bindings ([#288](https://github.com/inkbar/inkbar/issues/288)) ([ff00d81](https://github.com/inkbar/inkbar/commit/ff00d81e73f14239ad3c5818909d9b14eff8c749))
+* add record lists and search results to the Vue bindings ([#284](https://github.com/inkbar/inkbar/issues/284)) ([517f93f](https://github.com/inkbar/inkbar/commit/517f93f1d5a1d9018d7b2fdb24f92b9e27d18f3e))
+* add sidebar and thumbnail components to the React bindings ([#285](https://github.com/inkbar/inkbar/issues/285)) ([533239b](https://github.com/inkbar/inkbar/commit/533239b643be9e83c3392f33d2778e51438b6279))
+* add sidebar and thumbnail components to the Svelte bindings ([#287](https://github.com/inkbar/inkbar/issues/287)) ([642ed25](https://github.com/inkbar/inkbar/commit/642ed25c44eb18f98170fee8467a4c7c91535035))
+* add sidebar and thumbnail components to the Vue bindings ([#283](https://github.com/inkbar/inkbar/issues/283)) ([2dd6125](https://github.com/inkbar/inkbar/commit/2dd61250eb0242ab99820f45be648bf38ae99fbb))
+* add sidebars to the redactions and search scenarios ([#289](https://github.com/inkbar/inkbar/issues/289)) ([003afa0](https://github.com/inkbar/inkbar/commit/003afa09cbf901d2553e4dd100fd808908790274))
+* add sidebars with rail, tabs and stack layouts ([#279](https://github.com/inkbar/inkbar/issues/279)) ([b5dc359](https://github.com/inkbar/inkbar/commit/b5dc3597e7207f9c3fa8bb27a3af901fbc7446a1))
+* download and print the open PDF ([#295](https://github.com/inkbar/inkbar/issues/295)) ([80c9b33](https://github.com/inkbar/inkbar/commit/80c9b33b93d160943b42816d0342f2d5c1163b40))
+* list page thumbnails that follow the current page ([#281](https://github.com/inkbar/inkbar/issues/281)) ([2c45a9f](https://github.com/inkbar/inkbar/commit/2c45a9f37ebfeb2ec36776b32a42dd80b7a20cdc))
+* list plugin records and search results as cards ([#282](https://github.com/inkbar/inkbar/issues/282)) ([1519794](https://github.com/inkbar/inkbar/commit/1519794ace1e06cc1d71c452f77ded6004bd5f56))
+* polish sidebars, thumbnails and search, and hide sidebars on demand ([#293](https://github.com/inkbar/inkbar/issues/293)) ([66d14fd](https://github.com/inkbar/inkbar/commit/66d14fd2562c03ae588dca080a453eef7b610ffd))
+* read and write plugin records from the host ([#276](https://github.com/inkbar/inkbar/issues/276)) ([f8dbf35](https://github.com/inkbar/inkbar/commit/f8dbf35828d6ed8cf15152ed5d3eab3afb6e77f0))
+* render a page thumbnail with its live annotations ([#280](https://github.com/inkbar/inkbar/issues/280)) ([4a63e91](https://github.com/inkbar/inkbar/commit/4a63e9124e3af6a56c026fa865a2c8cb4bb7c741))
+* select a search hit by index and show excerpts on cards ([#278](https://github.com/inkbar/inkbar/issues/278)) ([9355d8f](https://github.com/inkbar/inkbar/commit/9355d8fb27406c6509335bf5a02d085e440443a1))
+* share each marks call's card and a selection per records store ([#277](https://github.com/inkbar/inkbar/issues/277)) ([f9a829b](https://github.com/inkbar/inkbar/commit/f9a829b6d0b0de0cfe87ec10bf24bdce7c0d365c))
+
+
+### Bug Fixes
+
+* draw the icon of an embedded note that has no appearance of its own ([#296](https://github.com/inkbar/inkbar/issues/296)) ([0b86b6a](https://github.com/inkbar/inkbar/commit/0b86b6a7fcdbb289394502c76dbcce1c0c12b483))
+* **theme:** fill the note's box with its icon ([#297](https://github.com/inkbar/inkbar/issues/297)) ([5e7daee](https://github.com/inkbar/inkbar/commit/5e7daee009421a8296d4e5ba204dab1b73ebf051))
+* tidy sidebars, thumbnails and record lists after review ([#291](https://github.com/inkbar/inkbar/issues/291)) ([db74eef](https://github.com/inkbar/inkbar/commit/db74eef0c9835c3f28eed6e5138e4c8ded12ca71))
+
 ## [0.9.0](https://github.com/inkbar/inkbar/compare/v0.8.0...v0.9.0) (2026-11-05)
 
 
