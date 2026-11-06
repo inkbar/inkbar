@@ -1,5 +1,5 @@
 import { findAnnouncer, findCountText } from '@inkbar/core/dom'
-import { CaseSensitive, ChevronDown, ChevronUp, X } from '@inkbar/icons'
+import { CaseSensitive, ChevronDown, ChevronUp, Search, X } from '@inkbar/icons'
 import { useEffect, useLayoutEffect, useRef, type ComponentPropsWithoutRef } from 'react'
 import { createPortal } from 'react-dom'
 
@@ -123,20 +123,25 @@ export function InkFindBar({ className, ...rest }: InkFindBarProps) {
       role="search"
       hidden={!state.open}
     >
-      <input
-        ref={field}
-        type="text"
-        aria-label="Find in document"
-        autoComplete="off"
-        spellCheck={false}
-        onInput={(e) => setQuery(e.currentTarget.value)}
-        onKeyDown={(e) => {
-          if (e.key !== 'Enter' || e.nativeEvent.isComposing) return
-          e.preventDefault()
-          if (e.shiftKey) previous()
-          else next()
-        }}
-      />
+      <div className="ink-input-group">
+        <span className="ink-input-accessory">
+          <InkIcon icon={Search} />
+        </span>
+        <input
+          ref={field}
+          type="text"
+          aria-label="Find in document"
+          autoComplete="off"
+          spellCheck={false}
+          onInput={(e) => setQuery(e.currentTarget.value)}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter' || e.nativeEvent.isComposing) return
+            e.preventDefault()
+            if (e.shiftKey) previous()
+            else next()
+          }}
+        />
+      </div>
       <span className="ink-find-count" data-ink-find-count="">
         {findCountText(state)}
       </span>

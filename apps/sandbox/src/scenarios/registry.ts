@@ -72,13 +72,19 @@ export const SCENARIOS: readonly Scenario[] = [
       'Two hundred pages. Only the pages near the viewport render, and search runs across all of them.',
     document: 'long',
     panels: ['events'],
-    frameworkFiles: { svelte: ['src/scenarios/search/SearchLog.svelte'] },
+    frameworkFiles: {
+      vue: ['src/scenarios/search/ResultsSidebar.vue'],
+      svelte: [
+        'src/scenarios/search/ResultsSidebar.svelte',
+        'src/scenarios/search/SearchLog.svelte',
+      ],
+    },
   },
   {
     id: 'sidebars',
     title: 'Sidebars',
     blurb:
-      'Thumbnails and panels in a rail, tabs or a stack, on either side. One thumbnail works on its own, too.',
+      'Thumbnails, search and a panel of your own in a rail, tabs or a stack, on either side.',
     document: 'tour',
     panels: ['events'],
   },

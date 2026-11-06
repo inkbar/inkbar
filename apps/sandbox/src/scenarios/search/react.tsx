@@ -1,21 +1,19 @@
 /*
  * Two hundred pages, and no creation tools. The viewer renders only the pages near the
  * viewport, but search reads every page's text, so the find bar counts every hit and steps to
- * any of them. Find opens the bar, as does Ctrl+F or Cmd+F. The Results panel lists every hit
- * and follows the bar. useSearch gives the same state the bar shows, for a control of your own.
+ * any of them. Find opens the bar, as does Ctrl+F or Cmd+F. The results sidebar lists every
+ * hit and shows only while there are hits. useSearch gives the same state the bar shows, for a
+ * control of your own.
  */
-import { Search } from '@inkbar/icons'
 import {
   InkFindBar,
   InkNextPage,
   InkPageCount,
   InkPageInput,
-  InkPanel,
   InkPrevPage,
   InkRoot,
   InkSearchButton,
   InkSearchResults,
-  InkSidebar,
   InkIcon,
   InkToolbar,
   InkToolbarButton,
@@ -34,6 +32,23 @@ import { FileUp } from '../../shared/file-up'
 
 import type { Log, ScenarioProps } from '../../frameworks/types'
 import type { InkDocument } from '@inkbar/core'
+
+/**
+ * Every hit, in a panel right of the pages; the find bar is the query field. Your code decides
+ * when it shows: here, while the search has hits. It sits inside InkRoot to reach search.
+ */
+function ResultsSidebar() {
+  const hasResults = useSearch().state.hits.length > 0
+  // Hidden rather than removed, so the list keeps its scroll between searches.
+  return (
+    <aside className="results-aside" aria-labelledby="results-title" hidden={!hasResults}>
+      <h2 id="results-title" className="results-aside-title">
+        Search results
+      </h2>
+      <InkSearchResults field={false} />
+    </aside>
+  )
+}
 
 /**
  * Logs each finished search and each step to a hit, while the find bar is open. It sits inside
@@ -76,11 +91,7 @@ export default function SearchLongDocument({
       </InkToolbar>
       <div className="scenario-body">
         <InkViewport />
-        <InkSidebar side="right" layout="tabs">
-          <InkPanel id="results" label="Results" icon={Search}>
-            <InkSearchResults field={false} />
-          </InkPanel>
-        </InkSidebar>
+        <ResultsSidebar />
       </div>
       <InkFindBar />
       <InkToolbar label="Page and zoom" className="scenario-status-bar">

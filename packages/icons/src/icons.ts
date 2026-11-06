@@ -312,3 +312,9 @@ export const CaseSensitive: IconNode = [
   ['path', { d: 'M3.304 13h6.392' }],
   ['circle', { cx: '18.5', cy: '12.5', r: '3.5' }],
 ]
+
+export const Info: IconNode = [
+  ['circle', { cx: '12', cy: '12', r: '10' }],
+  ['path', { d: 'M12 16v-4' }],
+  ['path', { d: 'M12 8h.01' }],
+]

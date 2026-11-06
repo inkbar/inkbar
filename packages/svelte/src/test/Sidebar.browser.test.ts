@@ -51,7 +51,18 @@ describe('sidebar', () => {
     expect(first!.querySelector<HTMLElement>('.ink-sidebar-badge')!.hidden).toBe(true)
     // The first panel starts open.
     await expect.element(tab('Pages')).toHaveAttribute('aria-selected', 'true')
-    await expect.element(panel('Pages')).toHaveTextContent('Pages content')
+    expect(
+      panel('Pages')
+        .element()
+        .querySelector('.ink-sidebar-panel-body')!
+        .textContent.trim()
+    ).toBe('Pages content')
+    // The rail shows the open panel's title, which the rail button carries for assistive technology.
+    await expect
+      .element(
+        panel('Pages').element().querySelector<HTMLElement>('.ink-sidebar-panel-title')
+      )
+      .toBeVisible()
     await expect.element(panel('Pages')).toHaveClass('ink-sidebar-panel')
 
     await tab('Notes').click()
@@ -124,7 +135,18 @@ describe('sidebar', () => {
     const notes = header('Notes')
     await expect.element(pages).toHaveAttribute('aria-expanded', 'true')
     await expect.element(search).toHaveAttribute('aria-expanded', 'false')
-    await expect.element(region('Pages')).toHaveTextContent('Pages content')
+    expect(
+      region('Pages')
+        .element()
+        .querySelector('.ink-sidebar-panel-body')!
+        .textContent.trim()
+    ).toBe('Pages content')
+    // A stack's header names the section: no title.
+    await expect
+      .element(
+        region('Pages').element().querySelector<HTMLElement>('.ink-sidebar-panel-title')
+      )
+      .not.toBeVisible()
 
     // Any number expanded.
     await search.click()
@@ -140,7 +162,12 @@ describe('sidebar', () => {
     await userEvent.tab()
     await expect.poll(focused).toBe(notes.element())
     await userEvent.keyboard('{Enter}')
-    await expect.element(region('Notes')).toHaveTextContent('Notes content')
+    expect(
+      region('Notes')
+        .element()
+        .querySelector('.ink-sidebar-panel-body')!
+        .textContent.trim()
+    ).toBe('Notes content')
     ;(pages.element() as HTMLElement).focus()
     await userEvent.keyboard('[Space]')
     await expect.element(pages).toHaveAttribute('aria-expanded', 'false')

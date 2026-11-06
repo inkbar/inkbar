@@ -44,6 +44,14 @@ function setup(opts: Partial<SidebarControllerOptions> = {}) {
 }
 
 describe('createSidebar', () => {
+  it('hides the whole sidebar while not visible, its open panel kept', () => {
+    const { element, controller } = setup({ visible: false })
+    expect(element.hidden).toBe(true)
+    controller.update({ visible: true })
+    expect(element.hidden).toBe(false)
+    expect(controller.isOpen('a')).toBe(true)
+  })
+
   it('builds the rail with its panels', () => {
     const { element, triggers, content } = setup({ side: 'right' })
     expect(element.matches('.ink-sidebar[data-layout="rail"][data-side="right"]')).toBe(
@@ -58,7 +66,14 @@ describe('createSidebar', () => {
     expect(panels).toHaveLength(3)
     expect(panels[0]!.hidden).toBe(false)
     expect(panels[1]!.hidden).toBe(true)
-    expect(content.a.parentElement).toBe(panels[0])
+    // The content sits in the panel's body, under its title, which repeats the label on screen.
+    expect(content.a.parentElement!.classList.contains('ink-sidebar-panel-body')).toBe(
+      true
+    )
+    expect(content.a.parentElement!.parentElement).toBe(panels[0])
+    const title = panels[0]!.querySelector('.ink-sidebar-panel-title')!
+    expect(title.textContent).toBe('Pages')
+    expect(title.getAttribute('aria-hidden')).toBe('true')
     expect(panels[0]!.getAttribute('aria-labelledby')).toBe(triggers()[0]!.id)
   })
 

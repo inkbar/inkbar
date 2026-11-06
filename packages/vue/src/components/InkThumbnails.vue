@@ -13,6 +13,7 @@
  */
 import {
   createThumbnailsController,
+  THUMBNAIL_WIDTH,
   type ThumbnailsController,
   type ThumbnailsOptions,
   type ThumbnailsState,
@@ -63,6 +64,7 @@ const state = shallowRef<ThumbnailsState>({
   current: -1,
   window: { start: 0, end: 0 },
   offsets: [0],
+  width: THUMBNAIL_WIDTH,
 })
 let controller: ThumbnailsController | null = null
 const items = computed(() => {
@@ -120,7 +122,7 @@ onBeforeUnmount(() => {
       >
         <InkThumbnail
           :page="item.page"
-          :width="width"
+          :width="state.width"
           :annotations="annotations"
           :marks="marks"
         />

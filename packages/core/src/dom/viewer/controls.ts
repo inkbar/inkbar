@@ -333,7 +333,11 @@ export function createZoomSelect(viewer: Viewer): HTMLSelectElement {
   const custom = h('option', { value: 'custom' })
   const select = h(
     'select',
-    { class: 'ink-zoom-select', 'data-ink-zoom-select': '', 'aria-label': 'Zoom' },
+    {
+      class: 'ink-select ink-zoom-select',
+      'data-ink-zoom-select': '',
+      'aria-label': 'Zoom',
+    },
     h('option', { value: 'fit-width' }, 'Fit width'),
     h('option', { value: 'fit-page' }, 'Fit page'),
     ...ZOOM_LEVELS.map((l) =>

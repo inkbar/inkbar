@@ -8,7 +8,12 @@ import { definePlugin } from '../plugins/define'
 import { createPluginHost } from '../plugins/host'
 import { createSearchController } from '../search/controller'
 
-import { recordsSource, searchSource, type RecordsSourceOptions } from './source'
+import {
+  excerptOf,
+  recordsSource,
+  searchSource,
+  type RecordsSourceOptions,
+} from './source'
 
 import type { DocumentStatus, InkDocument } from '../../model/document'
 import type { Rect } from '../../model/geometry'
@@ -353,5 +358,38 @@ describe('searchSource', () => {
     expect(after[2]).toBe(before[1])
     expect(src.card(after[2]!)).toEqual(cards[1])
     expect(src.card(after[0]!)).toMatchObject({ title: 'Page 1', meta: 'Match 1' })
+  })
+})
+
+describe('excerptOf', () => {
+  const ctx = (start: number, before: string, after: string): SearchHit => ({
+    ...hit(0, start, 'top'),
+    before,
+    after,
+  })
+
+  it('cuts a clipped start at a whole word and marks it', () => {
+    const before = 'g, entry 1 of 200 The stair rail on the '
+    expect(excerptOf(ctx(500, before, ' landing.'))).toEqual({
+      before: '…entry 1 of 200 The stair rail on the ',
+      match: 'top',
+      after: ' landing.',
+    })
+  })
+
+  it('keeps the start of the page whole', () => {
+    expect(excerptOf(ctx(12, 'Annotation ', ' tour')).before).toBe('Annotation ')
+  })
+
+  it('cuts a full end at a whole word and marks it', () => {
+    const after = 'ped for an hour while the rain passed. T'
+    expect(after).toHaveLength(40)
+    expect(excerptOf(ctx(0, '', after)).after).toBe(
+      'ped for an hour while the rain passed.…'
+    )
+  })
+
+  it('keeps a short end, where the page text stops', () => {
+    expect(excerptOf(ctx(0, '', ' landing.')).after).toBe(' landing.')
   })
 })

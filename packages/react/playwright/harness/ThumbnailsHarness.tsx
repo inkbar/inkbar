@@ -48,8 +48,8 @@ export function ThumbnailsHarness({
       </button>
       <PageProbe />
       <div style={{ display: 'flex' }}>
-        {/* Test-only box: the list fills its parent's height. */}
-        <div style={{ height: 400, width: 200 }}>
+        {/* Test-only box: the list fills its parent's height; 152px fits 120px thumbnails. */}
+        <div style={{ height: 600, width: 152 }}>
           {withList ? (
             <InkThumbnails
               pages={pages}

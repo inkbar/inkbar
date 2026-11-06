@@ -7,9 +7,6 @@ import { FRAMEWORK_ORDER } from '../src/shell/frameworks.ts'
 
 guardConsole(test)
 
-/** The tour document's pages. */
-const PAGES = 4
-
 const LAYOUTS = ['rail', 'tabs', 'stack'] as const
 
 const viewer = (page: Page) => page.locator('[data-scenario-viewer]')
@@ -35,13 +32,8 @@ function panel(page: Page, layout: (typeof LAYOUTS)[number], label: string) {
 
 const layoutPicker = (page: Page) => viewer(page).getByLabel('Layout')
 
-const removeButton = (page: Page) =>
-  viewer(page).getByRole('button', { name: 'Remove pages…' })
-
-const dialog = (page: Page) => page.getByRole('dialog', { name: 'Remove pages' })
-
 async function open(page: Page, framework: string): Promise<void> {
-  // The dialog is the page's own: a browser alert or confirm would fail the test.
+  // A browser alert or confirm would fail the test.
   page.on('dialog', (d) => {
     throw new Error(`Unexpected browser dialog: ${d.type()}`)
   })
@@ -134,65 +126,19 @@ for (const framework of FRAMEWORK_ORDER) {
       await expect(panel(page, 'stack', 'Pages')).toBeVisible()
     })
 
-    test(`${framework} sidebars: a note survives a layout change`, async ({ page }) => {
-      await open(page, framework)
-      // Notes is the right sidebar's first panel, so it starts open.
-      const field = viewer(page).getByRole('textbox', { name: 'Notes' })
-      await field.fill('Check the totals on page 3.')
-      for (const layout of LAYOUTS) {
-        await pick(page, layout)
-        await expect(field).toHaveValue('Check the totals on page 3.')
-      }
-    })
-
-    test(`${framework} sidebars: the remove pages dialog shows a thumbnail per page`, async ({
+    test(`${framework} sidebars: the right sidebar holds your own panel`, async ({
       page,
     }) => {
       await open(page, framework)
-      await expect(dialog(page)).toHaveCount(0)
-      await removeButton(page).click()
-      await expect(dialog(page)).toBeVisible()
-
-      const boxes = dialog(page).getByRole('checkbox')
-      await expect(boxes).toHaveCount(PAGES)
-      for (let i = 0; i < PAGES; i++) {
-        const name = `Page ${i + 1}`
-        await expect(
-          dialog(page).getByRole('checkbox', { name, exact: true })
-        ).not.toBeChecked()
-        // Each checkbox's label wraps a thumbnail of its page, 96px wide, drawn.
-        const thumbnail = dialog(page)
-          .locator('label')
-          .filter({ has: page.getByRole('checkbox', { name, exact: true }) })
-          .getByRole('img', { name, exact: true })
-        await expect(thumbnail).toBeVisible()
-        await expect
-          .poll(async () => Math.round((await thumbnail.boundingBox())?.width ?? 0))
-          .toBe(96)
-        await expect(thumbnail.locator('canvas')).toHaveCount(1)
+      // About is the right sidebar's only panel, so it starts open, in every layout.
+      for (const layout of LAYOUTS) {
+        await pick(page, layout)
+        const about = sidebar(page, 'right').getByRole(
+          layout === 'stack' ? 'region' : 'tabpanel',
+          { name: 'About', exact: true }
+        )
+        await expect(about).toContainText('plugin records')
       }
-      // Focus starts in the dialog, and Space checks a page.
-      await expect(boxes.first()).toBeFocused()
-      await page.keyboard.press('Space')
-      await expect(boxes.first()).toBeChecked()
-
-      const { violations } = await new AxeBuilder({ page }).analyze()
-      expect(violations).toEqual([])
-
-      // Confirm only closes the dialog: every page is still there, and focus goes back.
-      await dialog(page).getByRole('button', { name: 'Remove', exact: true }).click()
-      await expect(dialog(page)).toHaveCount(0)
-      await expect(viewer(page).locator('[data-ink-page-count]')).toHaveText(
-        `of ${PAGES}`
-      )
-      await expect(removeButton(page)).toBeFocused()
-
-      // Escape closes it too.
-      await removeButton(page).click()
-      await expect(dialog(page)).toBeVisible()
-      await page.keyboard.press('Escape')
-      await expect(dialog(page)).toHaveCount(0)
-      await expect(removeButton(page)).toBeFocused()
     })
 
     test(`${framework} sidebars: axe passes in each layout`, async ({ page }) => {

@@ -35,6 +35,8 @@ export interface InkSidebarProps extends Omit<
   side?: SidebarSide | undefined
   /** `'rail'` (default), `'tabs'` or `'stack'`. */
   layout?: SidebarLayout | undefined
+  /** Default true. False hides the whole sidebar and keeps its open panel, content and scroll for when it shows again. */
+  visible?: boolean | undefined
   /**
    * Controlled: the open panel's id (or null) for rail and tabs, the expanded ids for stack.
    * Leave it out for an uncontrolled sidebar.
@@ -130,6 +132,7 @@ function createRegistry(controller: SidebarController) {
 export function InkSidebar({
   side = 'left',
   layout = 'rail',
+  visible = true,
   open,
   defaultOpen,
   onOpenChange,
@@ -150,6 +153,7 @@ export function InkSidebar({
       createSidebarController({
         layout,
         side,
+        visible,
         panels: [],
         ...(value !== undefined && { open: value }),
         pending: true,
@@ -166,8 +170,13 @@ export function InkSidebar({
 
   // A no-op change publishes nothing, so this cannot loop.
   useLayoutEffect(() => {
-    controller.update({ layout, side, ...(value !== undefined && { open: value }) })
-  }, [controller, layout, side, value])
+    controller.update({
+      layout,
+      side,
+      visible,
+      ...(value !== undefined && { open: value }),
+    })
+  }, [controller, layout, side, visible, value])
 
   // After the panels' own layout effects: they are registered by now. The controller handles
   // the triggers' clicks and keys, stack headers included.

@@ -29,8 +29,11 @@ import {
 import type { InkDocument } from '../../model/document'
 import type { Viewport } from '../viewport'
 
-/** Height an item adds to its thumbnail: the label and padding, in CSS px. */
-const ITEM_CHROME = 32
+/** Space around the thumbnails in CSS px: each side, above the first, after each number and below the last. */
+const GUTTER = 16
+
+/** Height an item adds to its thumbnail, in CSS px: the gutter above it, the gap and its 16px number. */
+const ITEM_CHROME = GUTTER + 6 + 16
 
 /** Items mounted beyond each end of the visible ones. */
 const OVERSCAN = 3
@@ -48,7 +51,10 @@ export interface ThumbnailsDeps extends ThumbnailDeps {
 export interface ThumbnailsOptions {
   /** Zero-based pages to list, in this order. Default: every page. Missing pages and repeats are dropped. */
   pages?: readonly number[] | undefined
-  /** Thumbnail width in CSS pixels. Default `THUMBNAIL_WIDTH`. */
+  /**
+   * Thumbnail width in CSS pixels. Default: the list's width less a 16px gutter on each side,
+   * following the list as it resizes (`THUMBNAIL_WIDTH` until the list is attached and shown).
+   */
   width?: number | undefined
   /** Draw each page's annotations. Default true. */
   annotations?: boolean | undefined
@@ -65,6 +71,8 @@ export interface ThumbnailsState {
   window: { start: number; end: number }
   /** Top of each item in CSS px from the top of the list; the last entry is the total height. */
   offsets: readonly number[]
+  /** The width each thumbnail is drawn at, in CSS px: `width`, else the measured fit. */
+  width: number
 }
 
 export interface ThumbnailsController {
@@ -114,6 +122,9 @@ export function createThumbnailsController(
   initial: ThumbnailsOptions = {}
 ): ThumbnailsController {
   let opts: ThumbnailsOptions = { ...initial }
+  /** The list's width less its gutters, once measured; null before. */
+  let fitted: number | null = null
+  const thumbWidth = (): number => opts.width ?? fitted ?? THUMBNAIL_WIDTH
   let doc = deps.document.get()
   let pages: readonly number[] = pagesFor(doc, opts.pages)
   let offsets: readonly number[] = offsetsFor(pages)
@@ -140,10 +151,11 @@ export function createThumbnailsController(
     current,
     window: { start: 0, end: 0 },
     offsets,
+    width: thumbWidth(),
   })
 
   function offsetsFor(list: readonly number[]): number[] {
-    const width = opts.width ?? THUMBNAIL_WIDTH
+    const width = thumbWidth()
     const out = [0]
     let top = 0
     for (const p of list) {
@@ -211,10 +223,17 @@ export function createThumbnailsController(
       same &&
       pages === before.pages &&
       offsets === before.offsets &&
-      current === before.current
+      current === before.current &&
+      thumbWidth() === before.width
     )
       return
-    store.set({ pages, current, window: same ? before.window : win, offsets })
+    store.set({
+      pages,
+      current,
+      window: same ? before.window : win,
+      offsets,
+      width: thumbWidth(),
+    })
   }
 
   /** Recomputes the window and does what waits on mounted items. */
@@ -351,6 +370,15 @@ export function createThumbnailsController(
     follow(next ? next.currentPage.get() : -1)
   }
 
+  /** Fits the thumbnails to the scroller's width; a hidden scroller keeps the last fit. */
+  function measure(): void {
+    if (!scroller || !(scroller.clientWidth > 0)) return
+    const next = Math.max(1, Math.floor(scroller.clientWidth - 2 * GUTTER))
+    if (next === fitted) return
+    fitted = next
+    if (opts.width === undefined) relist()
+  }
+
   function relist(): void {
     const next = pagesFor(doc, opts.pages)
     if (!sameNumbers(next, pages)) pages = next
@@ -401,11 +429,15 @@ export function createThumbnailsController(
       const lost = focused
       focused = null
       if (active && active !== owner.body) return
+      // The first item starting in view, else the first one partly in view.
+      const shown = [...el.querySelectorAll<HTMLElement>(ITEM)].filter(
+        (item) => pages.indexOf(pageOf(item)) >= firstVisible
+      )
+      const { top } = visibleRange(el)
       const target =
         itemFor(pageOf(lost)) ??
-        [...el.querySelectorAll<HTMLElement>(ITEM)].find(
-          (item) => pages.indexOf(pageOf(item)) >= firstVisible
-        )
+        shown.find((item) => offsets[pages.indexOf(pageOf(item))]! >= top) ??
+        shown[0]
       if (!target) return
       rove = pageOf(target)
       syncTabIndex()
@@ -426,7 +458,10 @@ export function createThumbnailsController(
       }
       refresh()
     }
-    const onResize = (): void => refresh()
+    const onResize = (): void => {
+      measure()
+      refresh()
+    }
     const onFocusIn = (e: FocusEvent): void => {
       const item = itemOf(e.target)
       if (!item) return
@@ -496,6 +531,7 @@ export function createThumbnailsController(
 
     // The list opens on the current page.
     if (pages.includes(current)) reveal = current
+    measure()
     refresh()
 
     const off = (): void => {
@@ -527,13 +563,10 @@ export function createThumbnailsController(
     state: readonly(store),
     update(patch) {
       if (destroyed) return
-      const width = opts.width
+      const width = thumbWidth()
       const wanted = opts.pages
       opts = { ...opts, ...patch }
-      if (
-        (opts.width ?? THUMBNAIL_WIDTH) !== (width ?? THUMBNAIL_WIDTH) ||
-        opts.pages !== wanted
-      ) {
+      if (thumbWidth() !== width || opts.pages !== wanted) {
         relist()
         refresh()
       }
@@ -585,10 +618,11 @@ export function createThumbnails(
     entry: HTMLElement
     button: HTMLButtonElement
     painter: ThumbnailPainter
+    width: number
   }
   const mounted = new Map<number, Item>()
 
-  function mount(page: number): Item {
+  function mount(page: number, width: number): Item {
     const thumb = h('div')
     const button = h(
       'button',
@@ -609,11 +643,11 @@ export function createThumbnails(
     const entry = h('div', { class: 'ink-thumbnails-entry' }, button)
     const painter = createThumbnailPainter(thumb, deps, {
       page,
-      ...(opts.width !== undefined && { width: opts.width }),
+      width,
       ...(opts.annotations !== undefined && { annotations: opts.annotations }),
       ...(opts.marks !== undefined && { marks: opts.marks }),
     })
-    const item = { entry, button, painter }
+    const item = { entry, button, painter, width }
     mounted.set(page, item)
     return item
   }
@@ -633,7 +667,11 @@ export function createThumbnails(
     let previous: Element = spacer
     shown.forEach((page, k) => {
       const i = s.window.start + k
-      const item = mounted.get(page) ?? mount(page)
+      const item = mounted.get(page) ?? mount(page, s.width)
+      if (item.width !== s.width) {
+        item.width = s.width
+        item.painter.update({ width: s.width })
+      }
       // Set on each render: a page's place moves when the pages listed change.
       for (const [name, value] of Object.entries(controller.itemAttrs(i)))
         if (item.entry.getAttribute(name) !== value) item.entry.setAttribute(name, value)

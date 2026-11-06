@@ -545,6 +545,37 @@ body {
 .scenario-body .ink-sidebar {
   --ink-sidebar-width: 240px;
 }
+/* The search scenario's results: a panel of its own, shown while the search has hits, with the
+   title strip a rail panel has. */
+.results-aside {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  width: 240px;
+  min-height: 0;
+  border-left: 1px solid var(--ink-border);
+  background: var(--ink-surface);
+  color: var(--ink-fg);
+}
+.results-aside[hidden] {
+  display: none;
+}
+.results-aside-title {
+  display: flex;
+  flex: none;
+  align-items: center;
+  min-height: 48px;
+  margin: 0;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--ink-border);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+}
+.results-aside .ink-search-results {
+  flex: 1;
+  height: auto;
+}
 /* The redactions scenario's Accepted panel: a list of its own, on the plugin's records. */
 .accepted {
   height: 100%;
@@ -595,28 +626,15 @@ body {
 .accepted button:hover {
   background: var(--paper);
 }
-/* The sidebars scenario's own panels: a notes field and a line on the keys. */
-.sidebar-notes {
-  display: flex;
-  height: 100%;
-  padding: 12px;
-}
-.sidebar-notes textarea {
-  flex: 1 1 auto;
-  min-height: 120px;
-  padding: 8px;
-  border: 1px solid var(--ink-border);
-  border-radius: 8px;
-  background: var(--ink-surface);
-  color: inherit;
-  font: inherit;
+/* The sidebars scenario's own panel: a few lines on what a sidebar can hold. */
+.sidebar-about {
+  padding: 16px;
+  color: var(--ink-muted-fg);
   font-size: 14px;
-  resize: none;
+  line-height: 1.5;
 }
-.sidebar-keys {
-  margin: 0;
-  padding: 16px 12px;
-  font-size: 14px;
+.sidebar-about p {
+  margin: 0 0 12px;
 }
 /* Its layout picker, in the toolbar. */
 .scenario-layout {
@@ -625,77 +643,6 @@ body {
   gap: 6px;
   margin-left: 8px;
   font-size: 14px;
-}
-.scenario-layout select {
-  min-height: 44px;
-  padding: 0 8px;
-  border: 1px solid var(--ink-border);
-  border-radius: 8px;
-  background: var(--ink-surface);
-  color: inherit;
-  font: inherit;
-}
-/* Its Remove pages dialog: a checkbox per page, around a thumbnail of it. */
-.remove-pages {
-  max-width: min(560px, calc(100vw - 32px));
-  padding: 24px;
-  border: 1px solid var(--ink-border);
-  border-radius: var(--radius-card);
-  background: var(--ink-surface);
-  color: var(--ink-fg);
-}
-.remove-pages::backdrop {
-  background: rgb(13 16 38 / 40%);
-}
-.remove-pages h2 {
-  margin: 0 0 16px;
-  font-family: var(--font-display);
-  font-size: 20px;
-}
-.remove-pages ul {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.remove-pages label {
-  display: grid;
-  grid-template-columns: auto auto;
-  align-items: start;
-  gap: 4px 6px;
-  font-size: 14px;
-  cursor: pointer;
-}
-.remove-pages label input {
-  width: 20px;
-  height: 20px;
-  margin: 0;
-}
-.remove-pages label span {
-  grid-column: 2;
-  text-align: center;
-}
-.remove-pages-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 20px;
-}
-.remove-pages-actions button {
-  min-height: 44px;
-  padding: 0 16px;
-  border: 1px solid var(--ink-border);
-  border-radius: 8px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-size: 14px;
-  cursor: pointer;
-}
-.remove-pages-actions button:hover {
-  background: var(--paper);
 }
 .scenario-toolbar {
   border-bottom: 1px solid var(--ink-border);

@@ -20,7 +20,7 @@ void test('sidebars is registered for every framework', () => {
   assert.equal(sidebars.title, 'Sidebars')
   assert.equal(
     sidebars.blurb,
-    'Thumbnails and panels in a rail, tabs or a stack, on either side. One thumbnail works on its own, too.'
+    'Thumbnails, search and a panel of your own in a rail, tabs or a stack, on either side.'
   )
   assert.equal(sidebars.document, 'tour')
   const file = {
@@ -60,7 +60,13 @@ void test('the component files show in their scenarios', () => {
       'src/scenarios/redactions/CommandLog.svelte',
     ],
   })
-  assert.deepEqual(files('search'), { svelte: ['src/scenarios/search/SearchLog.svelte'] })
+  assert.deepEqual(files('search'), {
+    vue: ['src/scenarios/search/ResultsSidebar.vue'],
+    svelte: [
+      'src/scenarios/search/ResultsSidebar.svelte',
+      'src/scenarios/search/SearchLog.svelte',
+    ],
+  })
   for (const s of SCENARIOS)
     if (s.id !== 'redactions' && s.id !== 'search')
       assert.equal(s.frameworkFiles, undefined, s.id)

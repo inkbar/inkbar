@@ -63,7 +63,7 @@ const levels = computed(() => {
 <template>
   <SelectRoot :model-value="value" @update:model-value="onChange">
     <SelectTrigger
-      class="ink-zoom-select ink-select-trigger"
+      class="ink-select ink-select-trigger ink-zoom-select"
       data-ink-zoom-select
       v-bind="triggerAttrs"
     >

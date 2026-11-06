@@ -65,5 +65,9 @@
       <SidebarTrigger panel={info()} rail={false} />
     </button>
   {/if}
-  <div class="ink-sidebar-panel" {...view.panel}>{@render children?.()}</div>
+  <div class="ink-sidebar-panel" {...view.panel}>
+    <!-- The rail button names the panel for assistive technology; this repeats it on screen. -->
+    <div class="ink-sidebar-panel-title" aria-hidden="true">{label}</div>
+    <div class="ink-sidebar-panel-body">{@render children?.()}</div>
+  </div>
 </div>

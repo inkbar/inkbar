@@ -35,10 +35,11 @@ function viewportAt(current: number) {
 }
 
 /** A scroller with no layout engine: what it shows is its scrollTop and clientHeight. */
-function scrollerOf(clientHeight: number, scrollTop = 0) {
+function scrollerOf(clientHeight: number, scrollTop = 0, clientWidth = 0) {
   return {
     scrollTop,
     clientHeight,
+    clientWidth,
     clientTop: 0,
     addEventListener() {},
     removeEventListener() {},
@@ -56,8 +57,8 @@ function make(doc: InkDocument | null, opts?: ThumbnailsOptions, current = 0) {
   return { c, document, viewport, vp }
 }
 
-/** Item height for a page at width 120: the thumbnail plus 32px for the label and padding. */
-const itemHeight = (p: PageInfo) => (120 * p.height) / p.width + 32
+/** Item height for a page at width 120: the thumbnail plus 38px for the gutter, gap and number. */
+const itemHeight = (p: PageInfo, width = 120) => (width * p.height) / p.width + 38
 
 describe('createThumbnailsController', () => {
   it('lists all pages by default', () => {
@@ -96,6 +97,29 @@ describe('createThumbnailsController', () => {
     })
   })
 
+  it('fits the thumbnails to the list, less a 16px gutter each side', () => {
+    const { c } = make(letters(3))
+    expect(c.state.get().width).toBe(120)
+    c.attach(scrollerOf(600, 0, 232.5))
+    expect(c.state.get().width).toBe(200)
+    expect(c.state.get().offsets[1]).toBeCloseTo(itemHeight(letter(0), 200), 6)
+  })
+
+  it('keeps a given width whatever the list measures', () => {
+    const { c } = make(letters(3), { width: 96 })
+    c.attach(scrollerOf(600, 0, 300))
+    expect(c.state.get().width).toBe(96)
+    c.update({ width: undefined })
+    expect(c.state.get().width).toBe(268)
+  })
+
+  it('keeps the last fit while the list is hidden', () => {
+    const { c } = make(letters(3))
+    c.attach(scrollerOf(600, 0, 232))
+    c.attach(scrollerOf(0, 0, 0))
+    expect(c.state.get().width).toBe(200)
+  })
+
   it('offsets follow each page size', () => {
     const pages = [letter(0), landscape(1), letter(2)]
     const { c } = make(docOf(pages))
@@ -110,7 +134,7 @@ describe('createThumbnailsController', () => {
     expect(c.state.get().offsets[1]).toBeCloseTo(itemHeight(pages[1]!), 6)
     // Width scales every thumbnail.
     c.update({ pages: undefined, width: 60 })
-    expect(c.state.get().offsets[1]).toBeCloseTo((60 * 792) / 612 + 32, 6)
+    expect(c.state.get().offsets[1]).toBeCloseTo((60 * 792) / 612 + 38, 6)
   })
 
   it('window covers the visible range plus overscan', () => {

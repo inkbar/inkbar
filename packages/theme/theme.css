@@ -41,7 +41,7 @@
     --ink-mark-selected-outline: 2px solid #2740f5;
     /* Sidebars (createSidebar and the bindings' sidebar): the open sidebar and its rail. */
     --ink-sidebar-width: 280px;
-    --ink-sidebar-rail-width: 44px;
+    --ink-sidebar-rail-width: 48px;
     --ink-thumbnail-width: 120px;
 
     --ink-bg: var(--muted, #f1f2f5);
@@ -54,6 +54,8 @@
     --ink-ring: var(--ring, #2b5a9e);
     --ink-radius: var(--radius, 0.5rem);
     --ink-page-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+    /* Thumbnails are small, so the page shadow reads heavy on them: a hairline edge and a soft lift. */
+    --ink-thumbnail-shadow: 0 0 0 1px rgb(0 0 0 / 0.05), 0 1px 2px rgb(0 0 0 / 0.08);
     --ink-text-selection: color-mix(in srgb, AccentColor, transparent 50%);
     /* Form fields sit on the white page, in light and dark alike. */
     --ink-form-field-bg: rgb(43 90 158 / 0.12);
@@ -82,6 +84,7 @@
       --ink-accent-fg: var(--primary-foreground, #151820);
       --ink-ring: var(--ring, #7aa5e6);
       --ink-page-shadow: 0 1px 3px rgb(0 0 0 / 0.6);
+      --ink-thumbnail-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
       --ink-form-field-bg: rgb(43 90 158 / 0.16);
       --ink-form-field-focus: #3d73c4;
       --ink-form-field-invalid: #c0392b;
@@ -109,6 +112,7 @@
     --ink-accent-fg: var(--primary-foreground, #151820);
     --ink-ring: var(--ring, #7aa5e6);
     --ink-page-shadow: 0 1px 3px rgb(0 0 0 / 0.6);
+    --ink-thumbnail-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
     --ink-form-field-bg: rgb(43 90 158 / 0.16);
     --ink-form-field-focus: #3d73c4;
     --ink-form-field-invalid: #c0392b;
@@ -823,7 +827,8 @@
   /*
    * Sidebars (createSidebar and the bindings' sidebar): a plain block the app places with its
    * own layout. --ink-sidebar-width sets the open width and --ink-sidebar-rail-width the rail's.
-   * The rail and border sit on the outer edge: data-side="right" mirrors them.
+   * The border and the rail sit on the inner edge, beside the document: data-side="right"
+   * mirrors them.
    */
   :where(.ink-sidebar) {
     box-sizing: border-box;
@@ -841,14 +846,15 @@
     border-left: 1px solid var(--ink-border);
   }
 
-  /* The rail: icon buttons on the outer edge; the sidebar narrows to it with no panel open. */
+  /* The rail: icon buttons beside the document, so they stay put as the panel opens and closes;
+     the sidebar narrows to the rail with no panel open. The rail comes first in the markup. */
   :where(.ink-sidebar[data-layout='rail']) {
-    flex-direction: row;
+    flex-direction: row-reverse;
     width: auto;
   }
 
   :where(.ink-sidebar[data-layout='rail'][data-side='right']) {
-    flex-direction: row-reverse;
+    flex-direction: row;
   }
 
   :where(.ink-sidebar-rail) {
@@ -856,19 +862,20 @@
     flex: none;
     flex-direction: column;
     gap: 0.25rem;
+    box-sizing: border-box;
     width: var(--ink-sidebar-rail-width);
-    padding: 0.25rem 0;
+    padding: 0.375rem 0;
     align-items: center;
   }
 
   :where(.ink-sidebar[data-layout='rail'] .ink-sidebar-panels) {
     width: calc(var(--ink-sidebar-width) - var(--ink-sidebar-rail-width));
-    border-left: 1px solid var(--ink-border);
+    border-right: 1px solid var(--ink-border);
   }
 
   :where(.ink-sidebar[data-layout='rail'][data-side='right'] .ink-sidebar-panels) {
-    border-left: 0;
-    border-right: 1px solid var(--ink-border);
+    border-right: 0;
+    border-left: 1px solid var(--ink-border);
   }
 
   :where(.ink-sidebar-tabs) {
@@ -903,6 +910,47 @@
 
   :where(.ink-sidebar-panel[hidden]) {
     display: none;
+  }
+
+  /* Not visible: the whole sidebar goes, its state kept. After every display rule above. */
+  :where(.ink-sidebar[hidden]) {
+    display: none;
+  }
+
+  /* The panel's title shows in the rail only, where the buttons carry no text: a strip as tall
+     as the rail is wide, so it lines up with the first button. Tabs and stack name the panel in
+     their own triggers, and there the body steps out of the layout. */
+  :where(.ink-sidebar-panel-title) {
+    display: none;
+  }
+
+  :where(.ink-sidebar-panel-body) {
+    display: contents;
+  }
+
+  :where(.ink-sidebar-panel[data-layout='rail']:not([hidden])) {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  :where(.ink-sidebar-panel[data-layout='rail'] > .ink-sidebar-panel-title) {
+    display: flex;
+    flex: none;
+    align-items: center;
+    box-sizing: border-box;
+    min-height: var(--ink-sidebar-rail-width);
+    padding: 0 1rem;
+    border-bottom: 1px solid var(--ink-border);
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+
+  :where(.ink-sidebar-panel[data-layout='rail'] > .ink-sidebar-panel-body) {
+    display: block;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
   }
 
   /* The bindings wrap each panel in .ink-sidebar-slot, the stack's section in that layout. In
@@ -941,10 +989,20 @@
     cursor: pointer;
   }
 
+  /* Rail buttons match the toolbar's (--ink-control-size); a halo keeps the 44px hit area. */
   :where(.ink-sidebar-rail button) {
     justify-content: center;
-    width: 44px;
+    width: var(--ink-control-size, 2.25rem);
+    min-width: 0;
+    height: var(--ink-control-size, 2.25rem);
+    min-height: 0;
     padding: 0;
+  }
+
+  :where(.ink-sidebar-rail button)::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
   }
 
   :where(.ink-sidebar-tabs button) {
@@ -1003,11 +1061,13 @@
     margin-inline-start: auto;
   }
 
-  /* On the rail the badge sits on the icon's corner. */
+  /* On the rail the badge sits on the button's corner. */
   :where(.ink-sidebar-rail .ink-sidebar-badge) {
     position: absolute;
-    top: 2px;
-    right: 2px;
+    top: -5px;
+    right: -5px;
+    z-index: 1;
+    box-shadow: 0 0 0 2px var(--ink-surface);
   }
 
   :where(.ink-sidebar-rail button[aria-selected='true'] .ink-sidebar-badge) {
@@ -1027,7 +1087,7 @@
     flex: none;
     overflow: hidden;
     background: #ffffff;
-    box-shadow: var(--ink-page-shadow);
+    box-shadow: var(--ink-thumbnail-shadow);
   }
 
   :where(.ink-thumbnail-annotation > svg) {
@@ -1051,15 +1111,21 @@
   /*
    * The thumbnail list (createThumbnails and the bindings' list): it fills its parent's height
    * and scrolls, with only the items near the visible part mounted, each placed absolutely at
-   * its offset over a spacer of the full height. An item is its thumbnail plus 32px (padding,
-   * gap and label), the height the list controller counts on.
+   * its offset over a spacer of the full height. The controller fits each thumbnail to the list
+   * less a 16px gutter each side, and counts an item as its thumbnail plus 38px: the 16px gutter
+   * above, a 6px gap and the 16px number. The list's own 16px padding closes the last one.
    */
+  /* The list is a small viewport: pages on the same canvas, with the same shadow. */
   :where(.ink-thumbnails) {
     position: relative;
     box-sizing: border-box;
     height: 100%;
+    padding-bottom: 16px;
     overflow-x: hidden;
     overflow-y: auto;
+    /* A scrollbar takes the same room on both sides, so the gutters stay even. */
+    scrollbar-gutter: stable both-edges;
+    background: var(--ink-bg);
   }
 
   :where(.ink-thumbnails-entry) {
@@ -1075,10 +1141,10 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
-    min-width: calc(var(--ink-thumbnail-width) + 16px);
+    gap: 6px;
+    width: 100%;
     height: 100%;
-    padding: 6px 8px;
+    padding: 16px 16px 0;
     border: 0;
     border-radius: var(--ink-radius);
     background: transparent;
@@ -1087,27 +1153,43 @@
     cursor: pointer;
   }
 
-  :where(.ink-thumbnails-item:hover) {
-    background: color-mix(in srgb, var(--ink-fg) 8%, transparent);
+  /* The page carries the states, as the main view's pages do: a ring on hover, the accent ring
+     on the current page, and its number in the accent like a pressed toolbar button. */
+  :where(.ink-thumbnails-item:hover .ink-thumbnail) {
+    box-shadow:
+      var(--ink-thumbnail-shadow),
+      0 0 0 2px color-mix(in srgb, var(--ink-fg) 20%, transparent);
   }
 
   :where(.ink-thumbnails-item:focus-visible) {
+    outline: none;
+  }
+
+  :where(.ink-thumbnails-item:focus-visible .ink-thumbnail) {
     outline: 2px solid var(--ink-ring);
-    outline-offset: -2px;
+    outline-offset: 3px;
   }
 
   :where(.ink-thumbnails-item[aria-current='page'] .ink-thumbnail) {
-    outline: 2px solid var(--ink-accent);
-    outline-offset: 2px;
+    box-shadow:
+      var(--ink-thumbnail-shadow),
+      0 0 0 2px var(--ink-accent);
   }
 
   :where(.ink-thumbnails-label) {
+    min-width: 1.5rem;
+    padding: 0 0.375rem;
+    border-radius: 999px;
+    color: var(--ink-muted-fg);
     font-size: 0.75rem;
     line-height: 16px;
+    text-align: center;
     font-variant-numeric: tabular-nums;
   }
 
   :where(.ink-thumbnails-item[aria-current='page'] .ink-thumbnails-label) {
+    background: var(--ink-accent);
+    color: var(--ink-accent-fg);
     font-weight: 600;
   }
 
@@ -1157,47 +1239,52 @@
   }
 
   /*
-   * Zoom select. The bindings render a button trigger (`.ink-select-trigger`) and a portalled
-   * listbox; createViewer renders a native select. Both take the same box and chevron.
+   * Select. `.ink-select` is the toolbar's select box, for a native select or a button trigger
+   * (`.ink-select-trigger`) with a portalled listbox. The zoom select uses it in every binding,
+   * and an app's own toolbar select takes the class to match.
    */
-  :where(.ink-toolbar .ink-zoom-select) {
+  :where(.ink-select) {
     box-sizing: border-box;
     display: inline-flex;
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
-    width: 7.5rem;
     height: var(--ink-control-size, 2.25rem);
     padding: 0 0.5rem 0 0.75rem;
     border: 1px solid var(--ink-border);
     border-radius: calc(var(--ink-radius) - 2px);
-    background: var(--ink-surface);
+    background-color: var(--ink-surface);
     color: inherit;
     font: inherit;
     font-size: 0.875rem;
-    font-variant-numeric: tabular-nums;
     text-align: left;
     white-space: nowrap;
     cursor: pointer;
   }
 
-  :where(.ink-toolbar .ink-zoom-select:hover) {
-    background: color-mix(in srgb, var(--ink-fg) 4%, var(--ink-surface));
+  :where(.ink-select:hover) {
+    background-color: color-mix(in srgb, var(--ink-fg) 4%, var(--ink-surface));
   }
 
-  :where(.ink-toolbar .ink-zoom-select:disabled) {
+  :where(.ink-select:disabled) {
     opacity: 0.5;
     cursor: default;
   }
 
-  /* The native select draws the same chevron as the trigger's icon: Lucide's ChevronDown; see LICENSE. */
-  :where(.ink-toolbar select.ink-zoom-select) {
+  /* A native select draws the same chevron as the trigger's icon: Lucide's ChevronDown; see LICENSE. */
+  :where(select.ink-select) {
     padding-right: 2rem;
     appearance: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235a6170' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-position: right 0.5rem center;
     background-repeat: no-repeat;
     background-size: 1rem;
+  }
+
+  /* The zoom select keeps one width as its value changes. */
+  :where(.ink-zoom-select) {
+    width: 7.5rem;
+    font-variant-numeric: tabular-nums;
   }
 
   :where(.ink-select-value) {
@@ -2059,20 +2146,43 @@
     font-size: 0.875rem;
   }
 
+  /*
+   * Search results frame their cards as the viewer frames its pages: the field on the surface
+   * at the top, the cards on the page canvas, and the count in a footer on the surface at the
+   * bottom, shown only when it has something to say.
+   */
   :where(.ink-search-results) {
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
     height: 100%;
     min-height: 0;
+    background: var(--ink-bg);
   }
 
   :where(.ink-search-results-bar) {
     display: flex;
     flex: none;
     align-items: center;
-    gap: 0.25rem;
-    padding: 0.5rem 0.5rem 0;
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--ink-border);
+    background: var(--ink-surface);
+  }
+
+  :where(.ink-search-results-count) {
+    flex: none;
+    min-width: 0;
+    padding: 0.5rem 0.75rem;
+    border-top: 1px solid var(--ink-border);
+    background: var(--ink-surface);
+    color: var(--ink-muted-fg);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    line-height: 1rem;
+  }
+
+  :where(.ink-search-results-count:empty) {
+    display: none;
   }
 
   :where(.ink-search-results-bar input) {
@@ -2093,9 +2203,134 @@
     outline-offset: 2px;
   }
 
+  /*
+   * An input with an accessory icon: wrap the input in `.ink-input-group` with an
+   * `.ink-input-accessory` before it (at the start) or after it (at the end). The icon is
+   * decorative and lets clicks through to the field. The group holds only the input and its
+   * accessories, so an input that is not first or last has one beside it (no :has(), which
+   * costs frames on long documents). After the find bar's and search results' input rules, so
+   * its padding wins over theirs.
+   */
+  :where(.ink-input-group) {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+
+  :where(.ink-input-group > input) {
+    flex: 1;
+    min-width: 0;
+  }
+
+  :where(.ink-input-accessory) {
+    position: absolute;
+    display: inline-flex;
+    color: var(--ink-muted-fg);
+    pointer-events: none;
+  }
+
+  :where(.ink-input-accessory:first-child) {
+    left: 0.625rem;
+  }
+
+  :where(.ink-input-accessory:last-child) {
+    right: 0.625rem;
+  }
+
+  :where(.ink-input-accessory .ink-icon) {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  :where(.ink-input-group > input:not(:first-child)) {
+    padding-left: 2rem;
+  }
+
+  :where(.ink-input-group > input:not(:last-child)) {
+    padding-right: 2rem;
+  }
+
+  /* In the find bar and the search results, the group takes the field's place in the row. */
+  :where(.ink-find-bar .ink-input-group, .ink-search-results-bar .ink-input-group) {
+    flex: 1;
+  }
+
   :where(.ink-search-results > .ink-records) {
     flex: 1;
     height: auto;
+  }
+
+  /*
+   * Search result cards: the matched text leads, at full strength, and its page and place sit
+   * in a small footer under a hairline. The cards are surfaces on the page canvas, as the
+   * thumbnails are. The card's markup stays title, meta, excerpt; the grid reorders it.
+   */
+  :where(.ink-search-results .ink-record > .ink-card) {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      'excerpt excerpt'
+      'title meta';
+    padding: 0;
+    overflow: hidden;
+    border-color: color-mix(in srgb, var(--ink-fg) 10%, transparent);
+    box-shadow: var(--ink-thumbnail-shadow);
+  }
+
+  /* The ring sits outside: an inset one would go under the footer's background. */
+  :where(.ink-search-results .ink-record[aria-current='true'] > .ink-card) {
+    border-color: var(--ink-accent);
+    box-shadow:
+      0 0 0 1px var(--ink-accent),
+      var(--ink-thumbnail-shadow);
+  }
+
+  :where(.ink-search-results .ink-card-excerpt) {
+    display: -webkit-box;
+    grid-area: excerpt;
+    margin: 0;
+    /* The space below is a border: a clamped box shows its next line through its padding, and
+       an app's reset of p margins would win over the theme's layer. */
+    padding: 0.625rem 0.75rem 0;
+    border-bottom: 0.75rem solid transparent;
+    overflow: hidden;
+    color: var(--ink-fg);
+    line-height: 1.45;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+  }
+
+  :where(.ink-search-results .ink-card-excerpt mark) {
+    padding: 0 1px;
+    border-radius: 2px;
+  }
+
+  /* The current match's text takes the current hit's colour, as it does on the page. */
+  :where(.ink-search-results .ink-record[aria-current='true'] .ink-card-excerpt mark) {
+    background: var(--ink-search-current);
+  }
+
+  :where(.ink-search-results .ink-card-title, .ink-search-results .ink-card-meta) {
+    margin: 0;
+    padding: 0.3125rem 0.75rem;
+    border-top: 1px solid color-mix(in srgb, var(--ink-fg) 8%, transparent);
+    background: color-mix(in srgb, var(--ink-fg) 3%, var(--ink-surface));
+    font-size: 0.6875rem;
+    line-height: 1rem;
+  }
+
+  :where(.ink-search-results .ink-card-title) {
+    grid-area: title;
+    padding-right: 0;
+    font-weight: 600;
+  }
+
+  :where(.ink-search-results .ink-card-meta) {
+    grid-area: meta;
+    color: var(--ink-muted-fg);
+    font-weight: 400;
   }
 
   :where(.ink-select-item:focus-visible) {
@@ -2110,7 +2345,7 @@
   :where(
     .ink-toolbar button:focus-visible,
     .ink-toolbar select:focus-visible,
-    .ink-select-trigger:focus-visible,
+    .ink-select:focus-visible,
     .ink-toolbar input:focus-visible,
     .ink-thread-actions button:focus-visible,
     .ink-thread-reply textarea:focus-visible,

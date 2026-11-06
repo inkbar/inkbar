@@ -1,9 +1,9 @@
 /*
  * Two hundred pages, and no creation tools. The viewer renders only the pages near the
  * viewport, but search reads every page's text, so the find bar counts every hit and steps to
- * any of them. Find opens the bar, as does Ctrl+F or Cmd+F. The Results panel lists every hit
- * and follows the bar. `viewer.search` holds the same state the bar shows, for a control of your
- * own.
+ * any of them. Find opens the bar, as does Ctrl+F or Cmd+F. The results sidebar lists every
+ * hit and shows only while there are hits. `viewer.search` holds the same state the bar shows,
+ * for a control of your own.
  */
 import {
   createFindBar,
@@ -14,7 +14,6 @@ import {
   createPrevPage,
   createSearchButton,
   createSearchResults,
-  createSidebar,
   createToolbar,
   createToolButton,
   createViewer,
@@ -22,7 +21,6 @@ import {
   createZoomOut,
   createZoomSelect,
 } from '@inkbar/core/dom'
-import { Search } from '@inkbar/icons'
 import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 
@@ -109,18 +107,27 @@ export function mount(
   openButton.addEventListener('click', openFile)
   tools.append(group('File', 'scenario-group scenario-file', openButton))
 
-  // Every hit, in a sidebar right of the pages. The find bar is the query field.
-  const results = createSidebar({
-    side: 'right',
-    layout: 'tabs',
-    panels: [{ id: 'results', label: 'Results', icon: Search }],
-    content: { results: createSearchResults(viewer, { field: false }) },
-  })
+  // Every hit, in a panel right of the pages; the find bar is the query field. Your code
+  // decides when it shows: here, while the search has hits. Hidden rather than removed, so
+  // the list keeps its scroll between searches.
+  const results = document.createElement('aside')
+  results.className = 'results-aside'
+  results.setAttribute('aria-labelledby', 'results-title')
+  const title = document.createElement('h2')
+  title.id = 'results-title'
+  title.className = 'results-aside-title'
+  title.textContent = 'Search results'
+  results.append(title, createSearchResults(viewer, { field: false }))
+  const showResults = () => {
+    results.hidden = viewer.search.state.get().hits.length === 0
+  }
+  showResults()
+  const unfollowResults = viewer.search.state.subscribe(showResults)
   const body = document.createElement('div')
   body.className = 'scenario-body'
   const viewport = viewer.element.querySelector('[data-ink-viewport-root]')
   viewport?.replaceWith(body)
-  body.append(...(viewport ? [viewport] : []), results.element)
+  body.append(...(viewport ? [viewport] : []), results)
 
   viewer.element.prepend(tools)
   viewer.element.append(status)
@@ -131,7 +138,7 @@ export function mount(
     open: (next: DocumentSource) => viewer.open(next),
     destroy() {
       unfollowSearch()
-      results.controller.destroy()
+      unfollowResults()
       viewer.destroy()
     },
   }

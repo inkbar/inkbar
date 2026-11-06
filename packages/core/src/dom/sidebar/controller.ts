@@ -34,6 +34,12 @@ export interface SidebarControllerOptions {
   open?: SidebarOpen
   onOpenChange?(open: SidebarOpen): void
   /**
+   * Default true. False hides the whole sidebar (the root gets `hidden`) and keeps its open
+   * panels, their content and scroll, for when it shows again. Your code decides: a results
+   * sidebar shown only while there are results, for instance.
+   */
+  visible?: boolean
+  /**
    * True while a binding's panels are still registering, one by one, before it has mounted.
    * Meanwhile a controlled `open` id not in `panels` yet is kept rather than taken for a
    * removed panel, and `rootAttrs()` reports the open state expected once they are all in.
@@ -54,6 +60,7 @@ export interface SidebarState {
   panels: readonly SidebarPanelInfo[]
   /** The open panels' ids, in panel order: at most one for rail and tabs. */
   open: readonly string[]
+  visible: boolean
 }
 
 export interface SidebarController {
@@ -69,14 +76,18 @@ export interface SidebarController {
   isOpen(id: string): boolean
   /**
    * `data-ink-sidebar`, `data-layout`, `data-side` and `data-state` (`open` while any panel is,
-   * and while pending and uncontrolled, as the first panel will open) for the root.
+   * and while pending and uncontrolled, as the first panel will open) for the root, and
+   * `hidden` while it is not `visible`.
    */
   rootAttrs(): Record<string, string>
   /** ARIA for the element holding the triggers: a tablist for rail and tabs. */
   tablistAttrs(): Record<string, string>
   /** ARIA for the rail button / tab / stack header of `id`. */
   triggerAttrs(id: string): Record<string, string>
-  /** ARIA for `id`'s panel, including `hidden` when closed. */
+  /**
+   * ARIA for `id`'s panel, including `hidden` when closed, and its sidebar's `data-layout`: the
+   * theme shows the panel's title (`.ink-sidebar-panel-title`) in the rail only.
+   */
   panelAttrs(id: string): Record<string, string>
   /**
    * Roving tabindex, arrow keys, Home and End, and clicks over `[data-ink-sidebar-trigger]`
@@ -134,6 +145,7 @@ export function createSidebarController(
   let panels: readonly SidebarPanelInfo[] = opts.panels
   let controlled = opts.open !== undefined
   let pending = opts.pending ?? false
+  let visible = opts.visible ?? true
   /** The options that last gave `onOpenChange`, called as a method of them. */
   let handler: Pick<SidebarControllerOptions, 'onOpenChange'> = opts
   /** The trigger that holds the Tab stop in rail and tabs, once one has had focus. */
@@ -172,10 +184,11 @@ export function createSidebarController(
     side,
     panels,
     open: resolve(opts.open !== undefined ? opts.open : (panels[0]?.id ?? null)),
+    visible,
   })
 
   const publish = (open: readonly string[]): void =>
-    store.set({ layout, side, panels, open })
+    store.set({ layout, side, panels, open, visible })
 
   const isOpen = (id: string): boolean => store.get().open.includes(id)
 
@@ -186,6 +199,7 @@ export function createSidebarController(
     if (next.pending !== undefined) pending = next.pending
     if (next.layout !== undefined) layout = next.layout
     if (next.side !== undefined) side = next.side
+    if (next.visible !== undefined) visible = next.visible
     if (next.panels !== undefined && !samePanels(next.panels, panels))
       panels = next.panels
     if ('onOpenChange' in next) handler = next
@@ -213,6 +227,7 @@ export function createSidebarController(
       pending !== wasPending ||
       layout !== before.layout ||
       side !== before.side ||
+      visible !== before.visible ||
       panels !== before.panels ||
       !sameIds(open, before.open)
     )
@@ -277,6 +292,7 @@ export function createSidebarController(
       role: layout === 'stack' ? 'region' : 'tabpanel',
       'aria-labelledby': triggerId(id),
       'data-ink-sidebar-panel': id,
+      'data-layout': layout,
     }
     if (!isOpen(id)) attrs.hidden = ''
     return attrs
@@ -403,6 +419,7 @@ export function createSidebarController(
       'data-side': side,
       'data-state':
         store.get().open.length > 0 || (pending && !controlled) ? 'open' : 'closed',
+      ...(!visible && { hidden: '' }),
     }),
     tablistAttrs,
     triggerAttrs,

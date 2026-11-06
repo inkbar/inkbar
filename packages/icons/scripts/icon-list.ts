@@ -46,4 +46,5 @@ export const ICONS = [
   'ChevronUp',
   'X',
   'CaseSensitive',
+  'Info',
 ] as const

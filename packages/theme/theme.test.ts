@@ -337,7 +337,7 @@ describe('theme.css', () => {
     const decl = (prop: string) =>
       rootRule?.nodes.find((d) => d.type === 'decl' && d.prop === prop)?.toString()
     expect(decl('--ink-sidebar-width')).toMatch(/:\s*280px$/)
-    expect(decl('--ink-sidebar-rail-width')).toMatch(/:\s*44px$/)
+    expect(decl('--ink-sidebar-rail-width')).toMatch(/:\s*48px$/)
     expect(decl('--ink-thumbnail-width')).toMatch(/:\s*120px$/)
     expect(decl('--ink-mark-selected-outline')).toMatch(/:\s*2px solid #2740f5$/i)
     expect(rootRule?.selector).toContain('[data-ink-sidebar]')
@@ -355,6 +355,103 @@ describe('theme.css', () => {
     expect(declsFor('.ink-sidebar-panel[hidden])')).toMatch(/display:\s*none/)
     expect(declsFor('.ink-sidebar-badge[hidden])')).toMatch(/display:\s*none/)
     expect(declsFor('.ink-sidebar)')).toMatch(/var\(--ink-sidebar-width\)/)
+  })
+
+  it('sizes rail buttons like toolbar buttons and keeps a 44px hit area around them', () => {
+    const button = declsFor('.ink-sidebar-rail button)')
+    expect(button).toMatch(/width:\s*var\(--ink-control-size, 2\.25rem\)/)
+    expect(button).toMatch(/height:\s*var\(--ink-control-size, 2\.25rem\)/)
+    // 36px plus 4px on each side.
+    expect(declsFor('.ink-sidebar-rail button)::after')).toMatch(/inset:\s*-4px/)
+  })
+
+  it('puts the rail on the inner edge, beside the document', () => {
+    expect(declsFor(".ink-sidebar[data-layout='rail'])")).toMatch(
+      /flex-direction:\s*row-reverse/
+    )
+    expect(declsFor(".ink-sidebar[data-layout='rail'][data-side='right'])")).toMatch(
+      /flex-direction:\s*row;/
+    )
+  })
+
+  it('shows thumbnails on the page canvas, the current one ringed in the accent', () => {
+    expect(declsFor('.ink-thumbnails)')).toMatch(/background:\s*var\(--ink-bg\)/)
+    expect(declsFor(".ink-thumbnails-item[aria-current='page'] .ink-thumbnail)")).toMatch(
+      /0 0 0 2px var\(--ink-accent\)/
+    )
+    expect(
+      declsFor(".ink-thumbnails-item[aria-current='page'] .ink-thumbnails-label)")
+    ).toMatch(/background:\s*var\(--ink-accent\)/)
+  })
+
+  it('hides a sidebar that is not visible, after its display rules', () => {
+    const at = (sel: string) => rules.findIndex((r) => r.selector === sel)
+    expect(declsFor('.ink-sidebar[hidden])')).toMatch(/display:\s*none/)
+    expect(at(':where(.ink-sidebar[hidden])')).toBeGreaterThan(
+      at(":where(.ink-sidebar[data-layout='rail'])")
+    )
+  })
+
+  it('titles a panel in the rail only, level with the rail', () => {
+    expect(declsFor('.ink-sidebar-panel-title)')).toMatch(/display:\s*none/)
+    expect(
+      declsFor(".ink-sidebar-panel[data-layout='rail'] > .ink-sidebar-panel-title)")
+    ).toMatch(/min-height:\s*var\(--ink-sidebar-rail-width\)/)
+    expect(
+      declsFor(".ink-sidebar-panel[data-layout='rail'] > .ink-sidebar-panel-body)")
+    ).toMatch(/overflow:\s*auto/)
+  })
+
+  it('frames search results on the canvas with the count in a footer', () => {
+    expect(declsFor('.ink-search-results)')).toMatch(/background:\s*var\(--ink-bg\)/)
+    expect(declsFor('.ink-search-results-count)')).toMatch(/border-top:/)
+    expect(declsFor('.ink-search-results-count:empty)')).toMatch(/display:\s*none/)
+  })
+
+  it('leads search result cards with the excerpt, page and match in a footer', () => {
+    expect(declsFor('.ink-search-results .ink-record > .ink-card)')).toMatch(
+      /grid-template-areas:\s*'excerpt excerpt'\s*'title meta'/
+    )
+    expect(declsFor('.ink-search-results .ink-card-excerpt)')).toMatch(/line-clamp:\s*3/)
+    expect(
+      declsFor('.ink-search-results .ink-card-title, .ink-search-results .ink-card-meta)')
+    ).toMatch(/border-top:/)
+  })
+
+  it('places an input accessory at the start or end and pads the input around it', () => {
+    expect(declsFor('.ink-input-accessory)')).toMatch(/pointer-events:\s*none/)
+    expect(declsFor('.ink-input-accessory:first-child)')).toMatch(/left:/)
+    expect(declsFor('.ink-input-accessory:last-child)')).toMatch(/right:/)
+    expect(declsFor('.ink-input-group > input:not(:first-child))')).toMatch(
+      /padding-left:\s*2rem/
+    )
+    expect(declsFor('.ink-input-group > input:not(:last-child))')).toMatch(
+      /padding-right:\s*2rem/
+    )
+    // After the search inputs' own padding, which would otherwise win.
+    const at = (sel: string) => rules.findIndex((r) => r.selector === sel)
+    expect(at(':where(.ink-input-group > input:not(:first-child))')).toBeGreaterThan(
+      at(':where(.ink-search-results-bar input)')
+    )
+  })
+
+  it('styles any .ink-select like the zoom select, chevron included', () => {
+    expect(declsFor('.ink-select)')).toMatch(/height:\s*var\(--ink-control-size/)
+    expect(declsFor('select.ink-select)')).toMatch(/appearance:\s*none/)
+    expect(declsFor('select.ink-select)')).toMatch(
+      /background-position:\s*right 0\.5rem center/
+    )
+    expect(declsFor('.ink-zoom-select)')).not.toMatch(/border|appearance/)
+  })
+
+  it('gives thumbnails a lighter shadow than the main view pages', () => {
+    expect(css).toMatch(/--ink-thumbnail-shadow:[^;]*rgb\(0 0 0 \/ 0\.08\)/)
+    expect(declsFor('.ink-thumbnail)')).toMatch(
+      /box-shadow:\s*var\(--ink-thumbnail-shadow\)/
+    )
+    expect(declsFor('.ink-thumbnails-item:hover .ink-thumbnail)')).not.toMatch(
+      /--ink-page-shadow/
+    )
   })
 
   it("hides a closed rail sidebar's panels after the rule that shows them", () => {

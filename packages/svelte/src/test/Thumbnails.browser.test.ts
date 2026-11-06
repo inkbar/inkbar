@@ -53,8 +53,11 @@ describe('thumbnails', () => {
     const thumbHeights = qa('.ink-thumbnail', list).map((el) =>
       Math.round(el.getBoundingClientRect().height)
     )
-    expect(heights).toEqual(thumbHeights.map((h) => h + 32))
-    expect(getComputedStyle(qa('.ink-thumbnail', list)[0]!).width).toBe('120px')
+    expect(heights).toEqual(thumbHeights.map((h) => h + 38))
+    // Fluid: the list's width less a 16px gutter each side.
+    expect(getComputedStyle(qa('.ink-thumbnail', list)[0]!).width).toBe(
+      `${Math.floor(list.clientWidth - 32)}px`
+    )
 
     // Activating an item scrolls the viewport there.
     await item('Page 3').click()

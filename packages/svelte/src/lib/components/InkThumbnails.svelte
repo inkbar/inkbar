@@ -8,7 +8,7 @@
   > {
     /** 0-based pages to list, in order. Default: every page. */
     pages?: readonly number[] | undefined
-    /** Thumbnail width in CSS pixels. Default 120. */
+    /** Thumbnail width in CSS pixels. Default: the list's width less a 16px gutter each side. */
     width?: number | undefined
     /** Draw each page's annotations. Default true. */
     annotations?: boolean | undefined
@@ -33,6 +33,7 @@
    */
   import {
     createThumbnailsController,
+    THUMBNAIL_WIDTH,
     type ThumbnailsController,
     type ThumbnailsState,
   } from '@inkbar/core/dom'
@@ -69,6 +70,7 @@
     current: -1,
     window: { start: 0, end: 0 },
     offsets: [0],
+    width: THUMBNAIL_WIDTH,
   })
 
   // A list unchanged in content publishes nothing, so an inline `pages` array cannot loop.
@@ -135,7 +137,7 @@
         data-ink-thumbnail-item={entry.page}
         aria-current={entry.current ? 'page' : undefined}
       >
-        <InkThumbnail page={entry.page} {width} {annotations} {marks} />
+        <InkThumbnail page={entry.page} width={listed.width} {annotations} {marks} />
         <span class="ink-thumbnails-label" aria-hidden="true">{entry.page + 1}</span>
         {@render item?.({ page: entry.page, current: entry.current })}
       </button>

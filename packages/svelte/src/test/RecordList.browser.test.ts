@@ -256,14 +256,20 @@ describe('search results', () => {
     expect(results.classList.contains('ink-search-results')).toBe(true)
     const field = results.querySelector<HTMLInputElement>('input')!
     expect(field.getAttribute('aria-label')).toBe('Find in document')
-    expect(results.querySelector('[role="search"]')).toBe(field.parentElement)
+    expect(field.placeholder).toBe('Search for a word or phrase')
+    // The field sits in the search landmark, after its search icon.
+    expect(results.querySelector('[role="search"]')!.contains(field)).toBe(true)
+    expect(field.previousElementSibling!.classList.contains('ink-input-accessory')).toBe(
+      true
+    )
     const empty = () => results.querySelector<HTMLElement>('.ink-record-list-empty')!
     const resultRows = () => qa<HTMLElement>('[data-ink-record]', results)
-    const resultsCount = () => results.querySelector('.ink-find-count')!.textContent
+    const resultsCount = () =>
+      results.querySelector('[data-ink-search-results-count]')!.textContent
     const barCount = () => bar.querySelector('[data-ink-find-count]')!.textContent
     // Nothing searched yet: the empty text.
     await expect.poll(() => empty().hidden).toBe(false)
-    expect(empty().textContent).toBe('Nothing here yet.')
+    expect(empty().textContent).toBe('Search to list every match.')
 
     await userEvent.fill(field, 'Inkbar')
     await expect.poll(resultsCount).toMatch(/^1 of \d+$/)

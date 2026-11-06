@@ -68,7 +68,11 @@ export function InkPanel({ id, label, icon, badge, children }: InkPanelProps) {
         </button>
       ) : null}
       <div className="ink-sidebar-panel" {...domAttrs(controller.panelAttrs(id))}>
-        {children}
+        {/* The rail button names the panel for assistive technology; this repeats it on screen. */}
+        <div className="ink-sidebar-panel-title" aria-hidden="true">
+          {label}
+        </div>
+        <div className="ink-sidebar-panel-body">{children}</div>
       </div>
     </div>
   )

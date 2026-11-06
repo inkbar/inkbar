@@ -379,11 +379,13 @@ export interface RenderedList {
 export function renderRecordList(
   source: RecordListSource,
   /** Whether the empty text shows when there are no rows. Default: always. */
-  emptyShown: () => boolean = () => true
+  emptyShown: () => boolean = () => true,
+  /** The empty text. Default: "Nothing here yet." */
+  emptyText = 'Nothing here yet.'
 ): RenderedList {
   const controller = createRecordListController(source)
   const list = h('ul', { class: 'ink-record-list', role: 'list' })
-  const empty = h('p', { class: 'ink-record-list-empty' }, 'Nothing here yet.')
+  const empty = h('p', { class: 'ink-record-list-empty' }, emptyText)
   const live = h('div', {
     class: 'ink-visually-hidden',
     'aria-live': 'polite',

@@ -35,8 +35,8 @@ const withList = ref(true)
     </button>
     <PageProbe />
     <div style="display: flex">
-      <!-- Test-only box: the list fills its parent's height. -->
-      <div style="height: 400px; width: 200px">
+      <!-- Test-only box: the list fills its parent's height; 152px fits 120px thumbnails. -->
+      <div style="height: 600px; width: 152px">
         <InkThumbnails v-if="withList" :pages="pages" :width="width" data-testid="list">
           <template #item="{ page, current }">
             <span class="harness-item" :data-page="page" :data-current="current">

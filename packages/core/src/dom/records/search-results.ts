@@ -1,11 +1,14 @@
 /*
  * The viewer's search hits as a list of cards, for a sidebar panel: the record list over
- * `searchSource`, under a query field and the find bar's match count. The field and the find
+ * `searchSource`, under a query field and over the find bar's match count. The field and the find
  * bar share the viewer's search state, so they never disagree.
  */
+import { Search } from '@inkbar/icons'
+
 import { isBlankQuery } from '../../model/search-text'
 import { handleResultsFieldKey } from '../search/find-key'
 import { findCountText } from '../search/find-text'
+import { createIcon } from '../viewer/controls'
 import { onViewerDestroy, type Viewer } from '../viewer/create-viewer'
 import { h } from '../viewer/dom'
 
@@ -30,8 +33,9 @@ export function createSearchResults(
   const search = viewer.search
   const { state } = search
 
-  const count = h('span', {
-    class: 'ink-find-count',
+  // A footer under the cards, empty (and hidden) until there is a count to give.
+  const count = h('div', {
+    class: 'ink-search-results-count',
     'data-ink-search-results-count': '',
   })
   const field =
@@ -40,24 +44,34 @@ export function createSearchResults(
       : h('input', {
           type: 'text',
           'aria-label': 'Find in document',
+          placeholder: 'Search for a word or phrase',
           autocomplete: 'off',
           spellcheck: 'false',
         })
-  const bar = h(
-    'div',
-    { class: 'ink-search-results-bar', ...(field && { role: 'search' }) },
-    ...(field ? [field] : []),
-    count
-  )
+  const bar = field
+    ? h(
+        'div',
+        { class: 'ink-search-results-bar', role: 'search' },
+        h(
+          'div',
+          { class: 'ink-input-group' },
+          h('span', { class: 'ink-input-accessory' }, createIcon(Search)),
+          field
+        )
+      )
+    : null
   // Nothing found yet is the count's to say while a query is in: "No results", or a scan.
-  const rendered = renderRecordList(searchSource(search), () =>
-    isBlankQuery(state.get().query)
+  const rendered = renderRecordList(
+    searchSource(search),
+    () => isBlankQuery(state.get().query),
+    'Search to list every match.'
   )
   const root = h(
     'div',
     { class: 'ink-search-results', 'data-ink-search-results': '' },
-    bar,
-    rendered.element
+    ...(bar ? [bar] : []),
+    rendered.element,
+    count
   )
 
   field?.addEventListener('input', () => search.setQuery(field.value))

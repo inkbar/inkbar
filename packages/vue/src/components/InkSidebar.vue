@@ -35,8 +35,13 @@ import { provideSidebarContext, type SidebarPanelEntry } from './sidebar-context
 import SidebarTrigger from './SidebarTrigger.vue'
 
 const props = withDefaults(
-  defineProps<{ side?: SidebarSide | undefined; layout?: SidebarLayout | undefined }>(),
-  { side: 'left', layout: 'rail' }
+  defineProps<{
+    side?: SidebarSide | undefined
+    layout?: SidebarLayout | undefined
+    /** Default true. False hides the whole sidebar and keeps its open panel, content and scroll for when it shows again. */
+    visible?: boolean | undefined
+  }>(),
+  { side: 'left', layout: 'rail', visible: true }
 )
 /** Undefined while unbound and untouched: the controller then opens the first panel. */
 const open = defineModel<SidebarOpen | undefined>('open')
@@ -49,6 +54,7 @@ const panels = computed(() => entries.value.map((e) => e.info()))
 const controller = createSidebarController({
   layout: props.layout,
   side: props.side,
+  visible: props.visible,
   panels: [],
   ...(open.value !== undefined && { open: open.value }),
   pending: true,
@@ -60,11 +66,12 @@ const controller = createSidebarController({
 })
 // Sync, so a panel set up next reads the attributes its registration gives (on the server too).
 watch(
-  () => [props.layout, props.side, panels.value, open.value] as const,
-  ([layout, side, list, value]) =>
+  () => [props.layout, props.side, props.visible, panels.value, open.value] as const,
+  ([layout, side, visible, list, value]) =>
     controller.update({
       layout,
       side,
+      visible,
       panels: list,
       ...(value !== undefined && { open: value }),
     }),

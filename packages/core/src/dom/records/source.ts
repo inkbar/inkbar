@@ -5,12 +5,12 @@
  * A host can write its own.
  */
 import { derived, type Readable } from '../../model/readable'
+import { CONTEXT_CHARS, type SearchHit } from '../../model/search'
 import { isBlankQuery } from '../../model/search-text'
 import { readingOrder } from '../plugins/registry'
 
 import type { Rect } from '../../model/geometry'
 import type { RecordBase, RecordChange, RecordStore } from '../../model/records'
-import type { SearchHit } from '../../model/search'
 import type { CardSpec } from '../plugins/api/card'
 import type { PluginHost } from '../plugins/host'
 import type { ViewerSearch } from '../search/controller'
@@ -214,6 +214,24 @@ export function recordsSource<T extends RecordBase & { page: number }>(
  * Selecting one makes it the current hit, as the find bar's next and previous do, and the
  * current hit is the selected item. It announces the result count once a scan settles.
  */
+/**
+ * A hit's context for its card, cut at whole words: a side cut short of the page text loses
+ * its partial word and gets an ellipsis. The start is cut when the hit sits further into the
+ * page than the context reaches; the end when its context is full, as the page text carries on.
+ */
+export function excerptOf(hit: SearchHit): {
+  before: string
+  match: string
+  after: string
+} {
+  let { before, after } = hit
+  if (hit.start > CONTEXT_CHARS && /\s/u.test(before))
+    before = `…${before.replace(/^\S*\s+/u, '')}`
+  if (after.length >= CONTEXT_CHARS && /\s/u.test(after))
+    after = `${after.replace(/\s+\S*$/u, '')}…`
+  return { before, match: hit.text, after }
+}
+
 export function searchSource(search: ViewerSearch): RecordListSource {
   /** Each hit's item, kept while the hit is: the scan adds hits but keeps the objects. */
   const itemOf = new WeakMap<SearchHit, ListItem>()
@@ -270,7 +288,7 @@ export function searchSource(search: ViewerSearch): RecordListSource {
       return {
         title: `Page ${hit.page + 1}`,
         meta: `Match ${n + 1}`,
-        excerpt: { before: hit.before, match: hit.text, after: hit.after },
+        excerpt: excerptOf(hit),
         actions: {},
       }
     },

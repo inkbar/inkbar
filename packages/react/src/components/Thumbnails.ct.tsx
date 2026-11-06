@@ -47,8 +47,10 @@ test('InkThumbnails navigates and marks the current page', async ({ mount, page 
   const thumbHeights = await list
     .locator('.ink-thumbnail')
     .evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().height)))
-  expect(heights).toEqual(thumbHeights.map((h) => h + 32))
-  await expect(list.locator('.ink-thumbnail').first()).toHaveCSS('width', '120px')
+  expect(heights).toEqual(thumbHeights.map((h) => h + 38))
+  // Fluid: the list's width less a 16px gutter each side.
+  const fit = await list.evaluate((el) => Math.floor(el.clientWidth - 32))
+  await expect(list.locator('.ink-thumbnail').first()).toHaveCSS('width', `${fit}px`)
 
   // Activating an item scrolls the viewport there.
   await page.getByRole('button', { name: 'Page 3' }).click()
