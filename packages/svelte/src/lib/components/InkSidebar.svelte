@@ -11,6 +11,8 @@
     side?: SidebarSide | undefined
     /** `'rail'` (default), `'tabs'` or `'stack'`. */
     layout?: SidebarLayout | undefined
+    /** Default true. False hides the whole sidebar and keeps its open panel, content and scroll for when it shows again. */
+    visible?: boolean | undefined
     /**
      * Bindable: the open panel's id (or null) for rail and tabs, the expanded ids for stack.
      * Left out, the first panel starts open.
@@ -47,6 +49,7 @@
   let {
     side = 'left',
     layout = 'rail',
+    visible = true,
     open = $bindable(),
     class: className,
     children,
@@ -65,6 +68,7 @@
     createSidebarController({
       layout,
       side,
+      visible,
       panels: [],
       ...(open !== undefined && { open }),
       pending: true,
@@ -82,11 +86,12 @@
 
   // Before the DOM updates, so the panels render the attributes these give.
   $effect.pre(() => {
-    const next = { layout, side, open }
+    const next = { layout, side, visible, open }
     untrack(() =>
       controller.update({
         layout: next.layout,
         side: next.side,
+        visible: next.visible,
         ...(next.open !== undefined && { open: next.open }),
       })
     )

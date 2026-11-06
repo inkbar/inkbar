@@ -229,7 +229,11 @@ describe('createSearchResults', () => {
     const { viewer, bar, results } = await makeResults()
     const field = results.querySelector<HTMLInputElement>('input')!
     expect(field.getAttribute('aria-label')).toBe('Find in document')
-    expect(field.placeholder).toBe('Find in document')
+    expect(field.placeholder).toBe('Search for a word or phrase')
+    // The count is a footer under the cards.
+    expect(results.lastElementChild!.hasAttribute('data-ink-search-results-count')).toBe(
+      true
+    )
     // A search icon sits before the field, in its input group.
     expect(field.previousElementSibling!.classList.contains('ink-input-accessory')).toBe(
       true
@@ -244,7 +248,9 @@ describe('createSearchResults', () => {
     })
     const barCount = bar.querySelector('[data-ink-find-count]')!.textContent
     expect(bar.querySelector('input')!.value).toBe('Inkbar')
-    expect(results.querySelector('.ink-find-count')!.textContent).toBe(barCount)
+    expect(results.querySelector('[data-ink-search-results-count]')!.textContent).toBe(
+      barCount
+    )
     const rows = [...results.querySelectorAll<HTMLElement>('[data-ink-record]')]
     const { hits } = viewer.search.state.get()
     expect(rows).toHaveLength(hits.length)
@@ -265,7 +271,9 @@ describe('createSearchResults', () => {
     viewer.search.setQuery('zzqqzz')
     await until(() => !viewer.search.state.get().scanning)
     expect(field.value).toBe('zzqqzz')
-    expect(results.querySelector('.ink-find-count')!.textContent).toBe('No results')
+    expect(results.querySelector('[data-ink-search-results-count]')!.textContent).toBe(
+      'No results'
+    )
     expect(results.querySelectorAll('[data-ink-record]')).toHaveLength(0)
   })
 

@@ -24,6 +24,25 @@ describe('createSidebarController', () => {
     expect(c.isOpen('b')).toBe(false)
   })
 
+  it('hides the whole sidebar while not visible and keeps what was open', () => {
+    const c = createSidebarController({ panels, visible: false })
+    expect(c.rootAttrs().hidden).toBe('')
+    expect(c.state.get().visible).toBe(false)
+    c.toggle('b')
+    c.update({ visible: true })
+    expect(c.rootAttrs()).not.toHaveProperty('hidden')
+    expect(c.state.get().open).toEqual(['b'])
+    c.update({ visible: false })
+    expect(c.state.get().open).toEqual(['b'])
+  })
+
+  it('tells a panel its layout, for the rail-only title', () => {
+    const c = createSidebarController({ panels })
+    expect(c.panelAttrs('a')['data-layout']).toBe('rail')
+    c.update({ layout: 'tabs' })
+    expect(c.panelAttrs('a')['data-layout']).toBe('tabs')
+  })
+
   it('toggling the open rail panel closes it', () => {
     const { c, onOpenChange } = make()
     c.toggle('a')

@@ -36,7 +36,11 @@ test('rail, tabs and stack render and switch by mouse and keyboard (rail)', asyn
     'aria-selected',
     'true'
   )
-  await expect(panel(page, 'Pages')).toHaveText('Pages content')
+  await expect(panel(page, 'Pages').locator('.ink-sidebar-panel-body')).toHaveText(
+    'Pages content'
+  )
+  // The rail shows the open panel's title, which the rail button carries for assistive technology.
+  await expect(panel(page, 'Pages').locator('.ink-sidebar-panel-title')).toBeVisible()
   await expect(panel(page, 'Pages')).toHaveClass(/ink-sidebar-panel/)
 
   await page.getByRole('tab', { name: 'Notes' }).click()
@@ -127,7 +131,11 @@ test('rail, tabs and stack render and switch by mouse and keyboard (stack)', asy
   const notes = page.getByRole('button', { name: 'Notes', exact: true })
   await expect(pages).toHaveAttribute('aria-expanded', 'true')
   await expect(search).toHaveAttribute('aria-expanded', 'false')
-  await expect(region(page, 'Pages')).toHaveText('Pages content')
+  await expect(region(page, 'Pages').locator('.ink-sidebar-panel-body')).toHaveText(
+    'Pages content'
+  )
+  // A stack's header names the section: no title.
+  await expect(region(page, 'Pages').locator('.ink-sidebar-panel-title')).toBeHidden()
 
   // Any number expanded.
   await search.click()
@@ -143,7 +151,9 @@ test('rail, tabs and stack render and switch by mouse and keyboard (stack)', asy
   await page.keyboard.press('Tab')
   await expect(notes).toBeFocused()
   await page.keyboard.press('Enter')
-  await expect(region(page, 'Notes')).toHaveText('Notes content')
+  await expect(region(page, 'Notes').locator('.ink-sidebar-panel-body')).toHaveText(
+    'Notes content'
+  )
   await pages.focus()
   await page.keyboard.press('Space')
   await expect(pages).toHaveAttribute('aria-expanded', 'false')

@@ -26,8 +26,8 @@ export interface InkSearchResultsProps extends Omit<
  * The search hits as a list of cards, for a sidebar panel: `createSearchResults` on core's
  * record list controller over the root's search. One card per hit, with its page and the text
  * around it. Choosing a card makes its hit current, as the find bar's next and previous do, and
- * the current hit is the selected card. Above the cards, a query field ("Find in document";
- * `field={false}` leaves it out when a find bar is on the page) and the find bar's match count.
+ * the current hit is the selected card. Above the cards, a query field (`field={false}`
+ * leaves it out when a find bar is on the page); under them, the find bar's match count.
  * Field and find bar share the search state, so they never disagree. It fills its parent's
  * height. Inside `InkRoot`; it renders empty on the server.
  */
@@ -57,8 +57,8 @@ export function InkSearchResults({
       className={cx('ink-search-results', className)}
       data-ink-search-results=""
     >
-      <div className="ink-search-results-bar" role={field ? 'search' : undefined}>
-        {field ? (
+      {field ? (
+        <div className="ink-search-results-bar" role="search">
           <div className="ink-input-group">
             <span className="ink-input-accessory">
               <InkIcon icon={Search} />
@@ -67,7 +67,7 @@ export function InkSearchResults({
               ref={input}
               type="text"
               aria-label="Find in document"
-              placeholder="Find in document"
+              placeholder="Search for a word or phrase"
               autoComplete="off"
               spellCheck={false}
               defaultValue={state.query}
@@ -75,17 +75,18 @@ export function InkSearchResults({
               onKeyDown={(e) => handleResultsFieldKey(e.nativeEvent, search)}
             />
           </div>
-        ) : null}
-        <span className="ink-find-count" data-ink-search-results-count="">
-          {findCountText(state)}
-        </span>
-      </div>
+        </div>
+      ) : null}
       {/* Nothing found yet is the count's to say while a query is in: "No results", or a scan. */}
       <RecordCards
         source={source}
         emptyShown={isBlankQuery(state.query)}
         empty="Search to list every match."
       />
+      {/* A footer under the cards, hidden while empty. */}
+      <div className="ink-search-results-count" data-ink-search-results-count="">
+        {findCountText(state)}
+      </div>
     </div>
   )
 }

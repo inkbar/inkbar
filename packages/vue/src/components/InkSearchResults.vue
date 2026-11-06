@@ -3,8 +3,8 @@
  * The search hits as a list of cards, for a sidebar panel: `createSearchResults` on core's
  * record list controller over the root's search. One card per hit, with its page and the text
  * around it. Choosing a card makes its hit current, as the find bar's next and previous do, and
- * the current hit is the selected card. Above the cards, a query field ("Find in document";
- * `:field="false"` leaves it out when a find bar is on the page) and the find bar's match count.
+ * the current hit is the selected card. Above the cards, a query field (`:field="false"`
+ * leaves it out when a find bar is on the page); under them, the find bar's match count.
  * Field and find bar share the search state, so they never disagree. It fills its parent's
  * height. Inside `InkRoot`; it renders empty on the server.
  */
@@ -37,13 +37,13 @@ const blank = computed(() => isBlankQuery(state.value.query))
 
 <template>
   <div class="ink-search-results" data-ink-search-results>
-    <div class="ink-search-results-bar" :role="field ? 'search' : undefined">
-      <div v-if="field" class="ink-input-group">
+    <div v-if="field" class="ink-search-results-bar" role="search">
+      <div class="ink-input-group">
         <span class="ink-input-accessory"><InkIcon :icon="Search" /></span>
         <input
           type="text"
           aria-label="Find in document"
-          placeholder="Find in document"
+          placeholder="Search for a word or phrase"
           autocomplete="off"
           spellcheck="false"
           :value="state.query"
@@ -51,10 +51,11 @@ const blank = computed(() => isBlankQuery(state.value.query))
           @keydown="handleResultsFieldKey($event, search)"
         />
       </div>
-      <span class="ink-find-count" data-ink-search-results-count>{{ count }}</span>
     </div>
     <RecordCards :source="source" :empty-shown="blank">
       <template #empty>Search to list every match.</template>
     </RecordCards>
+    <!-- A footer under the cards, hidden while empty. -->
+    <div class="ink-search-results-count" data-ink-search-results-count>{{ count }}</div>
   </div>
 </template>

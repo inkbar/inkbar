@@ -51,6 +51,10 @@ const view = computed(() => {
     <button v-if="view.stack" class="ink-sidebar-header" v-bind="view.trigger">
       <SidebarTrigger :panel="info()" :rail="false" />
     </button>
-    <div class="ink-sidebar-panel" v-bind="view.panel"><slot /></div>
+    <div class="ink-sidebar-panel" v-bind="view.panel">
+      <!-- The rail button names the panel for assistive technology; this repeats it on screen. -->
+      <div class="ink-sidebar-panel-title" aria-hidden="true">{{ label }}</div>
+      <div class="ink-sidebar-panel-body"><slot /></div>
+    </div>
   </div>
 </template>

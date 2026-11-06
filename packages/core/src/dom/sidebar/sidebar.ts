@@ -53,10 +53,20 @@ export function createSidebar(
     return b
   }
 
+  /** A panel: its title, shown in the rail, over a body holding its content. */
   function makePanel(p: SidebarPanelInfo): HTMLElement {
-    const panel = panels.get(p.id) ?? h('div', { class: 'ink-sidebar-panel' })
+    const panel =
+      panels.get(p.id) ??
+      h(
+        'div',
+        { class: 'ink-sidebar-panel' },
+        // The rail button names the panel for assistive technology; this repeats it on screen.
+        h('div', { class: 'ink-sidebar-panel-title', 'aria-hidden': 'true' }, p.label),
+        h('div', { class: 'ink-sidebar-panel-body' })
+      )
+    const body = panel.lastElementChild!
     const own = content[p.id]
-    if (own && own.parentElement !== panel) panel.append(own)
+    if (own && own.parentElement !== body) body.append(own)
     return panel
   }
 
@@ -116,7 +126,11 @@ export function createSidebar(
         badge.textContent = text ?? ''
         badge.hidden = text === null
       }
-      if (panel) setAttrs(panel, controller.panelAttrs(p.id))
+      if (panel) {
+        setAttrs(panel, controller.panelAttrs(p.id))
+        const title = panel.firstElementChild!
+        if (title.textContent !== p.label) title.textContent = p.label
+      }
     }
   }
 

@@ -384,6 +384,30 @@ describe('theme.css', () => {
     ).toMatch(/background:\s*var\(--ink-accent\)/)
   })
 
+  it('hides a sidebar that is not visible, after its display rules', () => {
+    const at = (sel: string) => rules.findIndex((r) => r.selector === sel)
+    expect(declsFor('.ink-sidebar[hidden])')).toMatch(/display:\s*none/)
+    expect(at(':where(.ink-sidebar[hidden])')).toBeGreaterThan(
+      at(":where(.ink-sidebar[data-layout='rail'])")
+    )
+  })
+
+  it('titles a panel in the rail only, level with the rail', () => {
+    expect(declsFor('.ink-sidebar-panel-title)')).toMatch(/display:\s*none/)
+    expect(
+      declsFor(".ink-sidebar-panel[data-layout='rail'] > .ink-sidebar-panel-title)")
+    ).toMatch(/min-height:\s*var\(--ink-sidebar-rail-width\)/)
+    expect(
+      declsFor(".ink-sidebar-panel[data-layout='rail'] > .ink-sidebar-panel-body)")
+    ).toMatch(/overflow:\s*auto/)
+  })
+
+  it('frames search results on the canvas with the count in a footer', () => {
+    expect(declsFor('.ink-search-results)')).toMatch(/background:\s*var\(--ink-bg\)/)
+    expect(declsFor('.ink-search-results-count)')).toMatch(/border-top:/)
+    expect(declsFor('.ink-search-results-count:empty)')).toMatch(/display:\s*none/)
+  })
+
   it('leads search result cards with the excerpt, page and match in a footer', () => {
     expect(declsFor('.ink-search-results .ink-record > .ink-card)')).toMatch(
       /grid-template-areas:\s*'excerpt excerpt'\s*'title meta'/
@@ -392,9 +416,6 @@ describe('theme.css', () => {
     expect(
       declsFor('.ink-search-results .ink-card-title, .ink-search-results .ink-card-meta)')
     ).toMatch(/border-top:/)
-    expect(declsFor('.ink-search-results .ink-record-list)')).toMatch(
-      /background:\s*var\(--ink-bg\)/
-    )
   })
 
   it('places an input accessory at the start or end and pads the input around it', () => {

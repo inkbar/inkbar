@@ -912,6 +912,47 @@
     display: none;
   }
 
+  /* Not visible: the whole sidebar goes, its state kept. After every display rule above. */
+  :where(.ink-sidebar[hidden]) {
+    display: none;
+  }
+
+  /* The panel's title shows in the rail only, where the buttons carry no text: a strip as tall
+     as the rail is wide, so it lines up with the first button. Tabs and stack name the panel in
+     their own triggers, and there the body steps out of the layout. */
+  :where(.ink-sidebar-panel-title) {
+    display: none;
+  }
+
+  :where(.ink-sidebar-panel-body) {
+    display: contents;
+  }
+
+  :where(.ink-sidebar-panel[data-layout='rail']:not([hidden])) {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  :where(.ink-sidebar-panel[data-layout='rail'] > .ink-sidebar-panel-title) {
+    display: flex;
+    flex: none;
+    align-items: center;
+    box-sizing: border-box;
+    min-height: var(--ink-sidebar-rail-width);
+    padding: 0 1rem;
+    border-bottom: 1px solid var(--ink-border);
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+
+  :where(.ink-sidebar-panel[data-layout='rail'] > .ink-sidebar-panel-body) {
+    display: block;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+  }
+
   /* The bindings wrap each panel in .ink-sidebar-slot, the stack's section in that layout. In
      rail and tabs it steps out of the layout, so the panel fills the panels area. */
   :where(.ink-sidebar-panels > .ink-sidebar-slot) {
@@ -2105,34 +2146,42 @@
     font-size: 0.875rem;
   }
 
+  /*
+   * Search results frame their cards as the viewer frames its pages: the field on the surface
+   * at the top, the cards on the page canvas, and the count in a footer on the surface at the
+   * bottom, shown only when it has something to say.
+   */
   :where(.ink-search-results) {
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
     height: 100%;
     min-height: 0;
+    background: var(--ink-bg);
   }
 
-  /* The field spans the panel; the count sits on its own line under it, and only when it has
-     something to say. */
   :where(.ink-search-results-bar) {
     display: flex;
     flex: none;
-    flex-wrap: wrap;
     align-items: center;
-    gap: 0.25rem;
-    padding: 0.5rem 0.5rem 0;
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--ink-border);
+    background: var(--ink-surface);
   }
 
-  :where(.ink-search-results-bar .ink-find-count) {
-    flex-basis: 100%;
+  :where(.ink-search-results-count) {
+    flex: none;
     min-width: 0;
-    padding: 0 0.25rem;
+    padding: 0.5rem 0.75rem;
+    border-top: 1px solid var(--ink-border);
+    background: var(--ink-surface);
+    color: var(--ink-muted-fg);
     font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
     line-height: 1rem;
   }
 
-  :where(.ink-search-results-bar .ink-find-count:empty) {
+  :where(.ink-search-results-count:empty) {
     display: none;
   }
 
@@ -2217,10 +2266,6 @@
    * in a small footer under a hairline. The cards are surfaces on the page canvas, as the
    * thumbnails are. The card's markup stays title, meta, excerpt; the grid reorders it.
    */
-  :where(.ink-search-results .ink-record-list) {
-    background: var(--ink-bg);
-  }
-
   :where(.ink-search-results .ink-record > .ink-card) {
     display: grid;
     grid-template-columns: auto 1fr;
