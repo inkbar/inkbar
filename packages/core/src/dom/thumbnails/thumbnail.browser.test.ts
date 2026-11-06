@@ -274,6 +274,11 @@ describe('createThumbnail', () => {
     expect(el.getAttribute('aria-label')).toBe('Second')
     painter.update({ annotations: true })
     expect(annotationsOf(el)).toBe(1)
+    // An option given as undefined, as a binding's unset prop is, goes back to its default.
+    painter.update({ width: undefined, label: undefined, annotations: undefined })
+    expect(el.style.width).toBe('120px')
+    expect(el.getAttribute('aria-label')).toBe('Page 2')
+    expect(annotationsOf(el)).toBe(1)
   })
 
   it('leaves the host element as it found it', async () => {

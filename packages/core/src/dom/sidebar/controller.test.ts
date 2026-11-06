@@ -112,6 +112,71 @@ describe('createSidebarController', () => {
     expect(onOpenChange).toHaveBeenCalledTimes(1)
   })
 
+  it('an uncontrolled sidebar opens its first panel once panels arrive, quietly', () => {
+    const { c, onOpenChange } = make({ panels: [] })
+    expect(c.state.get().open).toEqual([])
+    c.update({ panels: panels.slice(0, 1) })
+    expect(c.state.get().open).toEqual(['a'])
+    c.update({ panels })
+    expect(c.state.get().open).toEqual(['a'])
+    const stack = make({ panels: [], layout: 'stack' })
+    stack.c.update({ panels: panels.slice(1) })
+    expect(stack.c.state.get().open).toEqual(['b'])
+    expect(onOpenChange).not.toHaveBeenCalled()
+    expect(stack.onOpenChange).not.toHaveBeenCalled()
+  })
+
+  it('while pending, a controlled open id not registered yet is kept, not replaced', () => {
+    const { c, onOpenChange } = make({ panels: [], open: 'b', pending: true })
+    expect(c.rootAttrs()['data-state']).toBe('open')
+    expect(c.isOpen('b')).toBe(true)
+    c.update({ panels: panels.slice(0, 1), open: 'b' })
+    expect(c.state.get().open).toEqual(['b'])
+    expect(c.isOpen('a')).toBe(false)
+    c.update({ panels: panels.slice(0, 2), open: 'b' })
+    expect(c.state.get().open).toEqual(['b'])
+    expect(onOpenChange).not.toHaveBeenCalled()
+    // Done registering: an id still missing is a removed panel, and falls back as one.
+    const late = make({ panels: [], open: 'z', pending: true })
+    late.c.update({ panels })
+    expect(late.c.state.get().open).toEqual(['z'])
+    late.c.update({ pending: false })
+    expect(late.c.state.get().open).toEqual(['a'])
+    expect(late.onOpenChange).toHaveBeenCalledWith('a')
+  })
+
+  it('while pending, stack keeps the expanded ids in panel order, unregistered ones last', () => {
+    const { c, onOpenChange } = make({
+      panels: [],
+      layout: 'stack',
+      open: ['c', 'a'],
+      pending: true,
+    })
+    c.update({ panels: panels.slice(0, 1), open: ['c', 'a'] })
+    expect(c.state.get().open).toEqual(['a', 'c'])
+    c.update({ panels, open: ['c', 'a'] })
+    expect(c.state.get().open).toEqual(['a', 'c'])
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
+
+  it('while pending, the root reports the open state it expects', () => {
+    // Uncontrolled: the first panel will open once it registers.
+    const free = make({ panels: [], pending: true })
+    expect(free.c.rootAttrs()['data-state']).toBe('open')
+    free.c.update({ pending: false })
+    expect(free.c.rootAttrs()['data-state']).toBe('closed')
+    // Controlled closed stays closed.
+    const shut = make({ panels: [], open: null, pending: true })
+    expect(shut.c.rootAttrs()['data-state']).toBe('closed')
+    // Leaving pending publishes, so a binding re-renders the root.
+    const seen = vi.fn()
+    free.c.update({ pending: true })
+    free.c.state.subscribe(seen)
+    seen.mockClear()
+    free.c.update({ pending: false })
+    expect(seen).toHaveBeenCalled()
+  })
+
   it('switching from stack to rail keeps the first expanded panel', () => {
     const { c, onOpenChange } = make({ layout: 'stack', open: ['b', 'c'] })
     c.update({ layout: 'rail' })

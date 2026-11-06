@@ -159,6 +159,46 @@ Plugin stores undo with annotations. In controlled mode with `:history="true"`, 
 
 `InkFindBar` is the find bar and `InkSearchButton` opens it. Place the bar anywhere inside `InkRoot`, once `InkViewport` is there; Ctrl/Cmd+F opens it while it is mounted. `useSearch()` returns the search `state` and its actions (`open`, `setQuery`, `setMatchCase`, `next`, `previous`, `close`) for your own control. See the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#search) for the API.
 
+## Sidebars
+
+`InkSidebar` holds `InkPanel`s and places nothing itself: put it beside `InkViewport` with your own flex or grid layout. Each panel has an `id`, a `label`, an optional `icon` (an `IconNode` from `@inkbar/icons`) and an optional `badge`, a number or short string hidden when empty or 0. Its default slot is the panel's content, your own component or one of Inkbar's.
+
+```vue
+<InkRoot :src="src" :assets="assets">
+  <div class="app">
+    <InkSidebar side="left" layout="rail" v-model:open="open">
+      <InkPanel id="pages" label="Pages" :icon="Square">
+        <InkThumbnails />
+      </InkPanel>
+      <InkPanel id="notes" label="Notes" :icon="MessageSquare" :badge="noteCount">
+        <MyNotes />
+      </InkPanel>
+    </InkSidebar>
+    <InkViewport />
+  </div>
+</InkRoot>
+```
+
+`layout` is `rail` (default: icon buttons on the outer edge, and activating the open panel's button closes it), `tabs` (labelled tabs, one panel open) or `stack` (a header per panel, any number expanded). `side` (`left` by default) decides which edge the rail and border sit on. `v-model:open` is the open panel's id, or `null`, for rail and tabs, and the expanded ids for stack. Left unbound, the first panel starts open. When the open panel goes (a `v-if`), rail and tabs open the first one left and stack drops it, and `v-model:open` receives the new value.
+
+Panels take their place in the order they appear in the template, including one added later with `v-if`. A closed panel stays mounted and hidden, so its content keeps its state and scroll position, across layout changes too. The keys and ARIA are core's: see the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#sidebars). The sidebar needs no document and works outside `InkRoot`. On the server it renders its frame with the open panel showing, and the stack headers; rail and tab buttons follow once it has mounted.
+
+## Thumbnails
+
+`InkThumbnail` draws one page (0-based `page`) as a small image, with its annotations and plugin marks. Give it a `width` or a `height` and the other follows the page; with neither it is 120px wide. `:annotations="false"` and `:marks="false"` leave those out, and `label` replaces its accessible name ("Page 4" for page 3). It is an image with no focus or click behaviour, so wrap it in the control you need, a checkbox label in a dialog for instance.
+
+`InkThumbnails` lists the pages as thumbnails, each a button that scrolls the viewport to its page, with the current page marked `aria-current="page"`. It fills its parent's height and scrolls. `pages` lists the pages to show, in order; `width`, `annotations` and `marks` pass to each thumbnail. Only the items near the visible part are mounted. The `item` slot adds to each item after its page number:
+
+```vue
+<InkThumbnails>
+  <template #item="{ page, current }">
+    <span class="page-count">{{ counts[page] }}</span>
+  </template>
+</InkThumbnails>
+```
+
+An item's height is worked out from its page alone, so position what you add absolutely. Both need `InkRoot` and render empty on the server.
+
 ## Custom rendering
 
 Slots let you render parts yourself. `InkViewport` has `loading`, `empty`, `error`, `annotation` and `page-error` slots. `InkThreadPopover` has a scoped default slot that receives the popover's props, and the default slot of `InkToolButton` receives `{ active, label }`. The props are typed as `AnnotationSlotProps` and `ThreadPopoverSlotProps`, the same types the React and Svelte packages export.

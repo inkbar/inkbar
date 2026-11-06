@@ -357,6 +357,12 @@ describe('theme.css', () => {
     expect(declsFor('.ink-sidebar)')).toMatch(/var\(--ink-sidebar-width\)/)
   })
 
+  it("lets a binding's panel wrapper leave the layout to its panel in rail and tabs", () => {
+    expect(declsFor('.ink-sidebar-panels > .ink-sidebar-slot)')).toMatch(
+      /display:\s*contents/
+    )
+  })
+
   it('has no suggested-redaction styles', () => {
     expect(css).not.toMatch(/suggestion/i)
     expect(css).not.toMatch(/confidence/i)
