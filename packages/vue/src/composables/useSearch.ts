@@ -31,6 +31,7 @@ export function useSearch(): { state: Readonly<Ref<SearchState>> } & Omit<
     setMatchCase: (on) => search.value?.setMatchCase(on),
     next: () => search.value?.next(),
     previous: () => search.value?.previous(),
+    select: (index) => search.value?.select(index),
     close: () => search.value?.close(),
   }
 }

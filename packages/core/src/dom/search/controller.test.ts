@@ -199,6 +199,37 @@ describe('createSearchController', () => {
     expect(controller.state.get().current).toBe(0)
   })
 
+  it('select makes a hit current and scrolls to it', async () => {
+    const { controller, scrollToRect } = setup({
+      0: [hit(0, 1)],
+      1: [hit(1, 1)],
+      2: [hit(2, 1)],
+    })
+    controller.setQuery('foo')
+    await settle()
+    controller.select(2)
+    expect(controller.state.get().current).toBe(2)
+    expect(scrollToRect).toHaveBeenLastCalledWith(2, hit(2, 1).rect)
+    controller.next()
+    expect(controller.state.get().current).toBe(0)
+  })
+
+  it('select ignores out-of-range indexes', async () => {
+    const { controller, scrollToRect } = setup({
+      0: [hit(0, 1)],
+      1: [hit(1, 1)],
+      2: [hit(2, 1)],
+    })
+    controller.setQuery('foo')
+    await settle()
+    const calls = scrollToRect.mock.calls.length
+    controller.select(5)
+    controller.select(-1)
+    controller.select(1.5)
+    expect(controller.state.get().current).toBe(0)
+    expect(scrollToRect).toHaveBeenCalledTimes(calls)
+  })
+
   it('lands a step taken before the first page shows on the first hit, scrolling only on steps', async () => {
     const { controller, doc, scrollToRect } = setup({})
     // One page of hits that arrives without a timer, then a scan that never ends.

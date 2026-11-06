@@ -30,6 +30,7 @@ export function useSearch(): { state: SearchState } & Omit<ViewerSearch, 'state'
     setMatchCase: search ? (on) => search.setMatchCase(on) : noop,
     next: search ? () => search.next() : noop,
     previous: search ? () => search.previous() : noop,
+    select: search ? (index) => search.select(index) : noop,
     close: search ? () => search.close() : noop,
   }
 }

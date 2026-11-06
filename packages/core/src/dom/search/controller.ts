@@ -29,6 +29,8 @@ export interface ViewerSearch {
   setMatchCase(on: boolean): void
   next(): void
   previous(): void
+  /** Makes hit `index` current and scrolls to it as `next()` does. Out of range or non-integer does nothing. */
+  select(index: number): void
   /** Hides the bar and clears the hits; the query and match case are kept. */
   close(): void
 }
@@ -218,6 +220,17 @@ export function createSearchController(opts: SearchControllerOptions): SearchCon
     scrollTo(hit)
   }
 
+  function select(index: number): void {
+    flush(false)
+    const { hits } = state.get()
+    if (!Number.isInteger(index) || index < 0 || index >= hits.length) return
+    const hit = hits[index] as SearchHit
+    currentHit = hit
+    currentIndex = index
+    patch({ current: index })
+    scrollTo(hit)
+  }
+
   const stopDocument = opts.document.subscribe(() => {
     if (destroyed) return
     reset()
@@ -246,6 +259,7 @@ export function createSearchController(opts: SearchControllerOptions): SearchCon
     },
     next: () => step(1),
     previous: () => step(-1),
+    select,
     close() {
       reset()
       patch({ open: false })
@@ -292,6 +306,7 @@ export function viewerSearchOf(controller: SearchController): ViewerSearch {
     setMatchCase: (on) => controller.setMatchCase(on),
     next: () => controller.next(),
     previous: () => controller.previous(),
+    select: (index) => controller.select(index),
     close: () => controller.close(),
   }
 }

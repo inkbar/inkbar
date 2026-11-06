@@ -236,6 +236,11 @@ describe('theme.css', () => {
     )
   })
 
+  it('marks the match in a card excerpt with the search highlight token', () => {
+    expect(declsFor('.ink-card-excerpt mark')).toMatch(/var\(--ink-search-hit\)/)
+    expect(declsFor('.ink-card-excerpt')).not.toBe('')
+  })
+
   it('marks a mixed menu trigger', () => {
     expect(declsFor('.ink-menu-trigger[data-mixed]')).toMatch(/border-style:\s*dashed/)
   })

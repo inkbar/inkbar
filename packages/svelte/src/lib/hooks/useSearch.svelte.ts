@@ -33,6 +33,7 @@ export function useSearch(): { readonly state: SearchState } & Omit<
     setMatchCase: (on) => ctx.search?.setMatchCase(on),
     next: () => ctx.search?.next(),
     previous: () => ctx.search?.previous(),
+    select: (index) => ctx.search?.select(index),
     close: () => ctx.search?.close(),
   }
 }

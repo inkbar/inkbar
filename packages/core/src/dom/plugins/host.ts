@@ -73,6 +73,7 @@ const inertSearch: ViewerSearch = {
   setMatchCase() {},
   next() {},
   previous() {},
+  select() {},
   close() {},
 }
 
