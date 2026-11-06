@@ -65,7 +65,7 @@
     </div>
     <label class="scenario-layout">
       Layout
-      <select bind:value={layout}>
+      <select class="ink-select" bind:value={layout}>
         <option value="rail">Rail</option>
         <option value="tabs">Tabs</option>
         <option value="stack">Stack</option>

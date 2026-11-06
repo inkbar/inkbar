@@ -384,6 +384,15 @@ describe('theme.css', () => {
     ).toMatch(/background:\s*var\(--ink-accent\)/)
   })
 
+  it('styles any .ink-select like the zoom select, chevron included', () => {
+    expect(declsFor('.ink-select)')).toMatch(/height:\s*var\(--ink-control-size/)
+    expect(declsFor('select.ink-select)')).toMatch(/appearance:\s*none/)
+    expect(declsFor('select.ink-select)')).toMatch(
+      /background-position:\s*right 0\.5rem center/
+    )
+    expect(declsFor('.ink-zoom-select)')).not.toMatch(/border|appearance/)
+  })
+
   it('gives thumbnails a lighter shadow than the main view pages', () => {
     expect(css).toMatch(/--ink-thumbnail-shadow:[^;]*rgb\(0 0 0 \/ 0\.08\)/)
     expect(declsFor('.ink-thumbnail)')).toMatch(

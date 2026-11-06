@@ -67,7 +67,7 @@ function onReady(doc: InkDocument): void {
       </div>
       <label class="scenario-layout">
         Layout
-        <select v-model="layout">
+        <select v-model="layout" class="ink-select">
           <option value="rail">Rail</option>
           <option value="tabs">Tabs</option>
           <option value="stack">Stack</option>

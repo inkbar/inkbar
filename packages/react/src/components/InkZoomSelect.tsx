@@ -60,7 +60,7 @@ export function InkZoomSelect({ className, ...rest }: InkZoomSelectProps) {
   return (
     <Select.Root value={value} onValueChange={onValueChange}>
       <Select.Trigger
-        className={cx('ink-zoom-select ink-select-trigger', className)}
+        className={cx('ink-select ink-select-trigger ink-zoom-select', className)}
         data-ink-zoom-select=""
         aria-label="Zoom"
         {...rest}

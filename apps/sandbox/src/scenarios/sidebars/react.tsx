@@ -65,6 +65,7 @@ export default function Sidebars({ source, log, onDocument, openFile }: Scenario
         <label className="scenario-layout">
           Layout
           <select
+            className="ink-select"
             value={layout}
             onChange={(e) => setLayout(e.target.value as SidebarLayout)}
           >

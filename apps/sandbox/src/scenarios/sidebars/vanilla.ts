@@ -68,6 +68,7 @@ export function mount(
 
   // The layout picker: a select of your own, setting both sidebars.
   const picker = document.createElement('select')
+  picker.className = 'ink-select'
   for (const [value, text] of [
     ['rail', 'Rail'],
     ['tabs', 'Tabs'],

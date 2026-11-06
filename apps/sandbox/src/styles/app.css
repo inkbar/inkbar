@@ -626,15 +626,6 @@ body {
   margin-left: 8px;
   font-size: 14px;
 }
-.scenario-layout select {
-  min-height: 44px;
-  padding: 0 8px;
-  border: 1px solid var(--ink-border);
-  border-radius: 8px;
-  background: var(--ink-surface);
-  color: inherit;
-  font: inherit;
-}
 /* Its Remove pages dialog: a checkbox per page, around a thumbnail of it. */
 .remove-pages {
   max-width: min(560px, calc(100vw - 32px));

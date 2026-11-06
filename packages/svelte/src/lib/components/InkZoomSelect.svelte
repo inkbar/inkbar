@@ -59,7 +59,7 @@
      select-only combobox of the ARIA pattern, as Reka UI and Radix render it. -->
 <Select.Root type="single" {items} bind:value={() => value, onValueChange}>
   <Select.Trigger
-    class={['ink-zoom-select', 'ink-select-trigger', className]}
+    class={['ink-select', 'ink-select-trigger', 'ink-zoom-select', className]}
     data-ink-zoom-select=""
     role="combobox"
     aria-label="Zoom"
