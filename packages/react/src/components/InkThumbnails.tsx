@@ -1,5 +1,6 @@
 import {
   createThumbnailsController,
+  THUMBNAIL_WIDTH,
   type ThumbnailsController,
   type ThumbnailsState,
 } from '@inkbar/core/dom'
@@ -27,7 +28,7 @@ export interface InkThumbnailsProps extends Omit<
 > {
   /** 0-based pages to list, in order. Default: every page. */
   pages?: readonly number[] | undefined
-  /** Thumbnail width in CSS pixels. Default 120. */
+  /** Thumbnail width in CSS pixels. Default: the list's width less a 16px gutter each side. */
   width?: number | undefined
   /** Draw each page's annotations. Default true. */
   annotations?: boolean | undefined
@@ -46,6 +47,7 @@ const EMPTY: ThumbnailsState = {
   current: -1,
   window: { start: 0, end: 0 },
   offsets: [0],
+  width: THUMBNAIL_WIDTH,
 }
 
 /**
@@ -134,7 +136,7 @@ export function InkThumbnails({
           >
             <InkThumbnail
               page={item.page}
-              width={width}
+              width={state.width}
               annotations={annotations}
               marks={marks}
             />

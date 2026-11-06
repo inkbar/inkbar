@@ -96,9 +96,9 @@ describe('createThumbnails', () => {
       )
       expect(b.querySelector('.ink-thumbnails-label')!.textContent).toBe(String(i + 1))
     }
-    // The item width comes from the theme token.
+    // The thumbnail fits the 200px list less a 16px gutter each side.
     expect(items()[0]!.querySelector<HTMLElement>('.ink-thumbnail')!.offsetWidth).toBe(
-      120
+      168
     )
     const results = await runAxe(list)
     expect(results.violations.map((v) => v.id)).toEqual([])
@@ -173,7 +173,11 @@ describe('createThumbnails', () => {
     list.scrollTop = list.scrollHeight / 2
     await until(() => item(0) === null)
     await until(() => list.contains(document.activeElement))
-    expect(inView(list, document.activeElement as HTMLElement)).toBe(true)
+    // The first item starting in view: items can be taller than what fits beside another.
+    const l = list.getBoundingClientRect()
+    const r = (document.activeElement as HTMLElement).getBoundingClientRect()
+    expect(r.top).toBeGreaterThanOrEqual(l.top - 1)
+    expect(r.top).toBeLessThan(l.bottom)
     expect((document.activeElement as HTMLElement).tabIndex).toBe(0)
   })
 

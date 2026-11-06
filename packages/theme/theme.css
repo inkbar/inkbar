@@ -1070,16 +1070,20 @@
   /*
    * The thumbnail list (createThumbnails and the bindings' list): it fills its parent's height
    * and scrolls, with only the items near the visible part mounted, each placed absolutely at
-   * its offset over a spacer of the full height. An item is its thumbnail plus 32px (padding,
-   * gap and label), the height the list controller counts on.
+   * its offset over a spacer of the full height. The controller fits each thumbnail to the list
+   * less a 16px gutter each side, and counts an item as its thumbnail plus 38px: the 16px gutter
+   * above, a 6px gap and the 16px number. The list's own 16px padding closes the last one.
    */
   /* The list is a small viewport: pages on the same canvas, with the same shadow. */
   :where(.ink-thumbnails) {
     position: relative;
     box-sizing: border-box;
     height: 100%;
+    padding-bottom: 16px;
     overflow-x: hidden;
     overflow-y: auto;
+    /* A scrollbar takes the same room on both sides, so the gutters stay even. */
+    scrollbar-gutter: stable both-edges;
     background: var(--ink-bg);
   }
 
@@ -1096,10 +1100,10 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
-    min-width: calc(var(--ink-thumbnail-width) + 16px);
+    gap: 6px;
+    width: 100%;
     height: 100%;
-    padding: 6px 8px;
+    padding: 16px 16px 0;
     border: 0;
     border-radius: var(--ink-radius);
     background: transparent;

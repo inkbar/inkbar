@@ -37,8 +37,8 @@
   </button>
   <PageProbe />
   <div style="display: flex">
-    <!-- Test-only box: the list fills its parent's height. -->
-    <div style="height: 400px; width: 200px">
+    <!-- Test-only box: the list fills its parent's height; 152px fits 120px thumbnails. -->
+    <div style="height: 600px; width: 152px">
       {#if withList}
         <InkThumbnails {pages} {width} data-testid="list">
           {#snippet item({ page, current })}
