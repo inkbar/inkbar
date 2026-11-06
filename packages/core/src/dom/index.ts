@@ -222,6 +222,13 @@ export type {
   SidebarState,
 } from './sidebar/controller'
 export { createSidebar } from './sidebar/sidebar'
+export { createThumbnails, createThumbnailsController } from './thumbnails/list'
+export type {
+  ThumbnailsController,
+  ThumbnailsDeps,
+  ThumbnailsOptions,
+  ThumbnailsState,
+} from './thumbnails/list'
 export {
   createThumbnail,
   createThumbnailPainter,

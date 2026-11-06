@@ -426,6 +426,23 @@ A thumbnail is an image to assistive technology (`role="img"`), with no focus an
 
 To paint into your own element, call `createThumbnailPainter(element, { document, pluginHost }, options)` with readables of the document and, for marks, the plugin host. It adds the `ink-thumbnail` class, its role, name, size and layers, and leaves the element's own classes and children alone. `update(options)` applies changed options and `destroy()` removes everything it added. `thumbnailSize(pageInfo, { width, height })` gives the size and zoom a thumbnail of that page gets.
 
+### A list of pages
+
+`createThumbnails(viewer, options)` lists the pages as thumbnails, each a button that scrolls the viewer to its page. It fills its parent's height and scrolls, so put it in a sidebar panel or any box with a height.
+
+```ts
+import { createThumbnails } from '@inkbar/core/dom'
+
+panel.append(createThumbnails(viewer))
+panel.append(createThumbnails(viewer, { pages: [0, 3, 7], width: 96 }))
+```
+
+`pages` lists those pages in that order (0-based); without it every page is listed. `width`, `annotations` and `marks` work as they do for one thumbnail. The current page has `aria-current="page"` and scrolls into view in the list when it changes, unless the list was scrolled by hand in the last second. The list is one Tab stop: arrow keys move between pages, Home and End go to the first and last, Enter or Space opens one.
+
+Only the items near the visible part of the list are in the document, so a 500-page file stays cheap. When the list scrolls away from the focused item, focus moves to the first visible one without scrolling back.
+
+To render your own items, use `createThumbnailsController({ document, pluginHost, viewport }, options)`. Its `state` gives the `pages` listed, the `current` page (-1 with no viewport), the `window` of indexes into `pages` to mount and the `offsets` of each item from the top of the list (the last is the total height). Render a spacer of the total height and each item in the window at its offset, as a button with `data-ink-thumbnail-item` set to its page and a `createThumbnailPainter` inside. An item's height is its thumbnail's plus 32px for its label and padding, as the theme draws it. Call `attach(scrollElement)` once the list is in the document: it follows scrolling, handles clicks and keys, and sets each item's `tabindex`. `activate(page)` scrolls the viewer to a page, and `update(options)` takes new options.
+
 ## Forms
 
 Inkbar fills the AcroForm fields in a PDF and runs the form's scripts. `doc.form` reads and sets the values:
