@@ -1,0 +1,101 @@
+packages/core/src/dom/file-actions.ts
+  s_1effe0625d7c7b::t_0b7bc01e4d2301 1-40,43-106
+  s_1effe0625d7c7b::t_fd4717c2fc2e97 41-42
+packages/core/src/dom/index.ts
+  s_1effe0625d7c7b::t_821cd46f493ba5 16-17,274-275
+packages/core/src/dom/viewer/create-viewer.ts
+  s_1effe0625d7c7b::t_f15c85afeb1ec0 23-28,163-174,257-258,508-515,545
+packages/core/src/model/document.ts
+  s_1effe0625d7c7b::t_9663fcd3354169 44
+  s_1effe0625d7c7b::t_27f556386266b9 135-144,466-473
+packages/vue/src/index.ts
+  s_1effe0625d7c7b::t_2f0836771b2317 39-40
+packages/svelte/src/test/harness/FileHarness.svelte
+  s_1effe0625d7c7b::t_e4b03d19a2c808 1-25
+packages/icons/src/icons.ts
+  s_1effe0625d7c7b::t_a27be18e276b6a 321-335
+packages/core/src/dom/viewer/controls.ts
+  s_1effe0625d7c7b::t_0e601c6fa3b80e 37
+  s_1effe0625d7c7b::t_f15c85afeb1ec0 175-212
+  s_1effe0625d7c7b::t_821cd46f493ba5 14,16
+packages/icons/scripts/icon-list.ts
+  s_1effe0625d7c7b::t_a27be18e276b6a 50-51
+packages/svelte/src/lib/index.ts
+  s_1effe0625d7c7b::t_2f0836771b2317 61-62
+packages/core/src/model/document.test.ts
+  s_1effe0625d7c7b::t_92b2d1eb9bcc41 32-49
+packages/core/src/model/source.test.ts
+  s_1effe0625d7c7b::t_92b2d1eb9bcc41 3,66-92
+  s_1effe0625d7c7b::t_31448daac30c38 93
+packages/react/src/index.ts
+  s_1effe0625d7c7b::t_2f0836771b2317 53-56
+packages/vue/src/components/InkRoot.vue
+  s_1effe0625d7c7b::t_2f0836771b2317 11,364-365,371
+packages/svelte/src/test/FileButtons.browser.test.ts
+  s_1effe0625d7c7b::t_5af62ec625ced9 1-67
+packages/svelte/src/lib/components/InkPrintButton.svelte
+  s_1effe0625d7c7b::t_ff8fd3b4ce32f6 1-57
+packages/vue/src/components/InkDownloadButton.vue
+  s_1effe0625d7c7b::t_c1c5d9c752f324 1-15,23,27-29,35-50
+  s_1effe0625d7c7b::t_2f0836771b2317 16-22,24-26,30-34
+packages/svelte/src/lib/components/InkDownloadButton.svelte
+  s_1effe0625d7c7b::t_ff8fd3b4ce32f6 1-55,59-62
+  s_1effe0625d7c7b::t_2f0836771b2317 56-58
+packages/react/src/components/InkRoot.tsx
+  s_1effe0625d7c7b::t_2f0836771b2317 11,725-726,730
+packages/react/src/components/InkPrintButton.tsx
+  s_1effe0625d7c7b::t_ff8fd3b4ce32f6 1-48
+packages/core/src/model/source.ts
+  s_1effe0625d7c7b::t_27f556386266b9 44-79
+packages/core/src/dom/viewer/file-buttons.browser.test.ts
+  s_1effe0625d7c7b::t_3e055862866091 2-3,5-94
+  s_1effe0625d7c7b::t_a24ef41584d00d 1,4
+packages/vue/src/components/FileButtons.ct.ts
+  s_1effe0625d7c7b::t_cdff811ac3245b 29
+  s_1effe0625d7c7b::t_e4b03d19a2c808 1-28,30-56
+packages/icons/README.md
+  s_1effe0625d7c7b::t_a27be18e276b6a 23
+packages/core/src/dom/file-actions.browser.test.ts
+  s_1effe0625d7c7b::t_474fcc410b7cff 1-11,15,17-18,20-139,141-148,150-153
+  s_1effe0625d7c7b::t_572d0b73a02751 12-14,16,19,140,149
+packages/vue/playwright/harness/FileHarness.vue
+  s_1effe0625d7c7b::t_e4b03d19a2c808 1-23
+packages/react/src/components/InkDownloadButton.tsx
+  s_1effe0625d7c7b::t_ff8fd3b4ce32f6 1-53
+packages/react/playwright/harness/FileHarness.tsx
+  s_1effe0625d7c7b::t_e4b03d19a2c808 1-31
+packages/svelte/src/lib/components/InkRoot.svelte
+  s_1effe0625d7c7b::t_2f0836771b2317 133,468-469,473
+packages/vue/src/components/InkPrintButton.vue
+  s_1effe0625d7c7b::t_c1c5d9c752f324 1-15,17-19,23-42
+  s_1effe0625d7c7b::t_2f0836771b2317 20-22
+  s_1effe0625d7c7b::t_9ba8944f9c7744 16
+packages/react/src/components/FileButtons.ct.tsx
+  s_1effe0625d7c7b::t_d4b08535883c40 29
+  s_1effe0625d7c7b::t_b126b5b7bc36b5 16,44-46
+  s_1effe0625d7c7b::t_e4b03d19a2c808 1-15,17-28,30-43,47-56
+packages/core/README.md
+  s_1effe0625d7c7b::t_4ce0778ee4ff66 114
+packages/react/README.md
+  s_1effe0625d7c7b::t_ef159489387fbd 252-254,264
+packages/svelte/README.md
+  s_1effe0625d7c7b::t_fc912033793799 256-258,276
+packages/vue/README.md
+  s_1effe0625d7c7b::t_39911568491d60 224-226,236
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6c6bf3d26b6aec6b4ec956e4ce6f94f89734fd40",
+  "prompts": {},
+  "sessions": {
+    "s_1effe0625d7c7b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3adafbc8-4f4c-4ced-a223-6be21f4f163c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
