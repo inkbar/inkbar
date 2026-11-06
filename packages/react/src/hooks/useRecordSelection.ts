@@ -1,3 +1,5 @@
+import { useCallback } from 'react'
+
 import { useInkContext } from '../context'
 import { useReadable } from '../use-readable'
 
@@ -14,9 +16,11 @@ export function useRecordSelection(key: string): {
   select: (id: string | null) => void
 } {
   const { pluginHost } = useInkContext('useRecordSelection()')
+  // The host keeps one selection per key, so `select` keeps its identity across renders.
   const selection = pluginHost?.selection(key) ?? null
-  return {
-    selected: useReadable(selection?.selected, null),
-    select: selection ? (id) => selection.select(id) : noop,
-  }
+  const select = useCallback(
+    (id: string | null) => (selection ? selection.select(id) : noop()),
+    [selection]
+  )
+  return { selected: useReadable(selection?.selected, null), select }
 }

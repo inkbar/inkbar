@@ -71,6 +71,10 @@ export function createRecordListController(
   let el: HTMLElement | null = null
   /** The row holding the Tab stop while the user works in the list. */
   let rove: string | null = null
+  /** The row to scroll to once the list shows: it was selected while the list was hidden. */
+  let pendingReveal: string | null = null
+  /** The repeat `say` puts back after clearing the live region. */
+  let repeat: ReturnType<typeof setTimeout> | undefined
 
   const build = (): RecordListRow[] =>
     items.map((item) => ({
@@ -147,8 +151,31 @@ export function createRecordListController(
       scroller.scrollTop += Math.min(r.bottom - box.bottom, r.top - box.top)
   }
 
-  /** Scrolls `id`'s row into view in the list, once it is rendered. */
+  /**
+   * Puts `text` in the live region. The same text again is cleared first and put back on the
+   * next task, once a binding has rendered the empty region, so a screen reader hears it again.
+   */
+  function say(text: string): void {
+    clearTimeout(repeat)
+    repeat = undefined
+    if (text === '' || text !== announcement.get()) return announcement.set(text)
+    announcement.set('')
+    repeat = setTimeout(() => {
+      repeat = undefined
+      if (!destroyed) announcement.set(text)
+    }, 0)
+  }
+
+  /**
+   * Scrolls `id`'s row into view in the list, once it is rendered. A hidden list (a closed
+   * sidebar panel) keeps it for when it shows.
+   */
   function revealRow(id: string): void {
+    if (el?.clientHeight === 0) {
+      pendingReveal = id
+      return
+    }
+    pendingReveal = null
     const row = rowEl(id)
     if (row) return scrollWithin(row)
     // A renderer that updates after this (a framework's next tick) has it by the next frame.
@@ -171,7 +198,7 @@ export function createRecordListController(
     items = next
     const n = next.length
     if (!source.announcement && n !== count.get() && !source.replaying())
-      announcement.set(itemsText(n))
+      say(itemsText(n))
     count.set(n)
     publish()
     // Whatever removed the focused row (an action, undo, another list), focus stays in the list.
@@ -183,9 +210,7 @@ export function createRecordListController(
     publish()
     if (next !== null && el) revealRow(next)
   })
-  const stopAnnouncement = source.announcement?.subscribe((text) =>
-    announcement.set(text)
-  )
+  const stopAnnouncement = source.announcement?.subscribe(say)
 
   function choose(id: string): void {
     if (destroyed) return
@@ -282,6 +307,17 @@ export function createRecordListController(
     const mutations =
       view && 'MutationObserver' in view ? new view.MutationObserver(syncTabIndex) : null
     mutations?.observe(target, { childList: true, subtree: true })
+    // A list that was hidden shows: scroll to the row selected meanwhile, if it still is.
+    const resize =
+      view && 'ResizeObserver' in view
+        ? new view.ResizeObserver(() => {
+            const id = pendingReveal
+            if (id === null || target.clientHeight === 0) return
+            pendingReveal = null
+            if (selected === id) revealRow(id)
+          })
+        : null
+    resize?.observe(target)
     target.addEventListener('keydown', onKeyDown)
     target.addEventListener('click', onClick)
     target.addEventListener('focusin', onFocusIn)
@@ -292,6 +328,8 @@ export function createRecordListController(
       if (unbind !== off) return
       unbind = null
       mutations?.disconnect()
+      resize?.disconnect()
+      pendingReveal = null
       target.removeEventListener('keydown', onKeyDown)
       target.removeEventListener('click', onClick)
       target.removeEventListener('focusin', onFocusIn)
@@ -313,6 +351,7 @@ export function createRecordListController(
       if (destroyed) return
       unbind?.()
       destroyed = true
+      clearTimeout(repeat)
       stopItems()
       stopSelected()
       stopAnnouncement?.()

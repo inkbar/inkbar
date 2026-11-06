@@ -1,5 +1,5 @@
 /* A record list of the suggestions plugin beside the viewport, with undo and a hooks probe. */
-import { StrictMode, useState } from 'react'
+import { StrictMode, useRef, useState } from 'react'
 
 import { InkRecordList } from '../../src/components/InkRecordList'
 import { InkRoot } from '../../src/components/InkRoot'
@@ -16,6 +16,10 @@ import type { DocumentSource, PdfAssets } from '@inkbar/core'
 function RecordsProbe() {
   const { records, handle } = useRecords<Suggestion>('sandbox.suggestions')
   const { selected, select } = useRecordSelection('sandbox.suggestions')
+  // Every `select` seen: one before the root mounts (a no-op) and one after, however often the
+  // probe re-renders.
+  const selects = useRef(new Set<unknown>())
+  selects.current.add(select)
   // What the first render saw: the plugins are set up only once the root has mounted.
   const [first] = useState(() => `${handle !== null}/${records.length}/${selected}`)
   const open = records.filter((s) => s.status === 'open').length
@@ -25,6 +29,7 @@ function RecordsProbe() {
       <output data-testid="ready">{String(handle !== null)}</output>
       <output data-testid="open-count">{open}</output>
       <output data-testid="selected">{selected ?? 'none'}</output>
+      <output data-testid="selects">{selects.current.size}</output>
       <button type="button" data-testid="select-s2" onClick={() => select('s2')}>
         Select s2
       </button>
@@ -54,6 +59,8 @@ export interface RecordsHarnessProps {
   initial: number
   /** Render a custom `empty`. */
   customEmpty?: boolean | undefined
+  /** Pass `empty={null}`. */
+  noEmpty?: boolean | undefined
   /** Render under StrictMode, which replays effects. */
   strict?: boolean | undefined
 }
@@ -63,6 +70,7 @@ export function RecordsHarness({
   assets,
   initial,
   customEmpty,
+  noEmpty,
   strict,
 }: RecordsHarnessProps) {
   // Plugins hold functions, which a component test cannot pass as props: the harness builds it.
@@ -85,7 +93,7 @@ export function RecordsHarness({
             data-testid="list"
             onCountChange={setCount}
             empty={
-              customEmpty ? (
+              noEmpty ? null : customEmpty ? (
                 <span data-testid="custom-empty">All caught up</span>
               ) : undefined
             }

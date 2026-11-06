@@ -101,7 +101,9 @@
     return list.slice(window.start, window.end).map((page, k) => {
       const top = offsets[window.start + k]!
       const bottom = offsets[window.start + k + 1]!
-      return { page, current: page === current, top, height: bottom - top }
+      // Only a mounted controller has a window, so `controller` is set here.
+      const attrs = controller?.itemAttrs(window.start + k) ?? {}
+      return { page, current: page === current, top, height: bottom - top, attrs }
     })
   })
 </script>
@@ -121,7 +123,7 @@
   {#each items as entry (entry.page)}
     <div
       class="ink-thumbnails-entry"
-      role="listitem"
+      {...entry.attrs}
       style:top="{entry.top}px"
       style:height="{entry.height}px"
     >

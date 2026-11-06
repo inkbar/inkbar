@@ -76,6 +76,9 @@ test('InkThumbnails lists the given pages at the given width', async ({
   await expect(items).toHaveCount(2)
   await expect(items.locator('.ink-thumbnails-label')).toHaveText(['3', '1'])
   await expect(items.first().locator('.ink-thumbnail')).toHaveCSS('width', '90px')
+  const entries = page.getByTestId('list').getByRole('listitem')
+  await expect(entries.nth(1)).toHaveAttribute('aria-setsize', '2')
+  await expect(entries.nth(1)).toHaveAttribute('aria-posinset', '2')
 })
 
 test('#item slot renders per item', async ({ mount, page }) => {

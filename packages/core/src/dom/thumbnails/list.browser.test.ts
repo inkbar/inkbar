@@ -88,6 +88,9 @@ describe('createThumbnails', () => {
       expect(b.tagName).toBe('BUTTON')
       expect(b.classList.contains('ink-thumbnails-item')).toBe(true)
       expect(b.parentElement!.getAttribute('role')).toBe('listitem')
+      // Windowed, so each item says where it sits among all of them.
+      expect(b.parentElement!.getAttribute('aria-setsize')).toBe('3')
+      expect(b.parentElement!.getAttribute('aria-posinset')).toBe(String(i + 1))
       expect(b.querySelector('.ink-thumbnail')!.getAttribute('aria-label')).toBe(
         `Page ${i + 1}`
       )

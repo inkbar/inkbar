@@ -275,8 +275,8 @@ describe('search results', () => {
     await expect.poll(() => resultRows().length).toBe(total)
     const first = resultRows()[0]!
     expect(first.querySelector('.ink-card-excerpt mark')!.textContent).toMatch(/inkbar/i)
-    expect(first.querySelector('.ink-card-meta')!.textContent).toMatch(/^Page \d+$/)
-    expect(first.querySelector('.ink-card-title')!.textContent).toBe('Match 1')
+    expect(first.querySelector('.ink-card-title')!.textContent).toMatch(/^Page \d+$/)
+    expect(first.querySelector('.ink-card-meta')!.textContent).toBe('Match 1')
     await expect.poll(() => first.getAttribute('aria-current')).toBe('true')
 
     // Choosing a row makes its hit current in the bar.

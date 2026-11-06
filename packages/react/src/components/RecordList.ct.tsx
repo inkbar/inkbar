@@ -162,6 +162,10 @@ test('useRecordSelection follows mark clicks', async ({ mount, page }) => {
   await expect(page.getByTestId('selected')).toHaveText('s1')
   await mark('s0').click()
   await expect(page.getByTestId('selected')).toHaveText('s0')
+  // `select` keeps its identity across those re-renders: a no-op before mount, then one.
+  await page.getByTestId('select-s2').click()
+  await expect(page.getByTestId('selected')).toHaveText('s2')
+  await expect(page.getByTestId('selects')).toHaveText('2')
 })
 
 test('survives StrictMode replaying its effects', async ({ mount, page }) => {
@@ -212,6 +216,10 @@ test('empty renders when nothing is listed', async ({ mount, page }) => {
   await component.update(<Harness {...props} initial={1} customEmpty />)
   await expect(empty.getByTestId('custom-empty')).toHaveText('All caught up')
   await expect(empty).not.toContainText('Nothing here yet.')
+  // null is an empty text of nothing, not the default.
+  await component.update(<Harness {...props} initial={1} noEmpty />)
+  await expect(empty).toHaveText('')
+  await component.update(<Harness {...props} initial={1} customEmpty />)
 
   const results = await new AxeBuilder({ page }).include('[data-testid=list]').analyze()
   expect(results.violations.map((v) => v.id)).toEqual([])
@@ -258,8 +266,8 @@ test('InkSearchResults and InkFindBar agree on query and current', async ({
   expect(total).toBeGreaterThan(1)
   await expect(rows).toHaveCount(total)
   await expect(rows.first().locator('.ink-card-excerpt mark')).toHaveText(/inkbar/i)
-  await expect(rows.first().locator('.ink-card-meta')).toHaveText(/^Page \d+$/)
-  await expect(rows.first().locator('.ink-card-title')).toHaveText('Match 1')
+  await expect(rows.first().locator('.ink-card-title')).toHaveText(/^Page \d+$/)
+  await expect(rows.first().locator('.ink-card-meta')).toHaveText('Match 1')
   await expect(rows.first()).toHaveAttribute('aria-current', 'true')
 
   // Choosing a row makes its hit current in the bar.

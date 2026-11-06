@@ -4,16 +4,20 @@ import { run as runAxe } from 'axe-core'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { userEvent } from 'vitest/browser'
 
+import { writable } from '../../model/readable'
 import { definePlugin } from '../plugins/define'
 import { createFindBar } from '../search/find-bar'
 import { mountContainer, until } from '../test-utils'
 import { createViewer, pluginHostOf } from '../viewer/create-viewer'
 
-import { createRecordList } from './list'
+import { createRecordList, renderRecordList } from './list'
 import { createSearchResults } from './search-results'
+import { searchSource } from './source'
 
 import type { Rect } from '../../model/geometry'
 import type { RecordBase } from '../../model/records'
+import type { SearchHit } from '../../model/search'
+import type { SearchState, ViewerSearch } from '../search/controller'
 
 beforeAll(() => {
   const style = document.createElement('style')
@@ -140,6 +144,19 @@ describe('createRecordList', () => {
     expect(window.scrollY).toBe(pageY)
   })
 
+  it('a mark selected while the list is hidden scrolls to its row once it shows', async () => {
+    const { box, list, row, markFor, selection } = await makeList(findings(20), 200)
+    const scroller = list.querySelector<HTMLElement>('.ink-record-list')!
+    // As in a closed sidebar panel.
+    box.style.display = 'none'
+    await userEvent.click(markFor('f19')!)
+    expect(selection.selected.get()).toBe('f19')
+    await new Promise((resolve) => requestAnimationFrame(resolve))
+    box.style.display = 'flex'
+    expect(scroller.scrollHeight).toBeGreaterThan(scroller.clientHeight)
+    await until(() => inView(scroller, row('f19')))
+  })
+
   it('selecting a row marks the mark data-selected and does not open the popover', async () => {
     const { viewer, row, markFor, selection } = await makeList()
     const scrollToRect = vi.spyOn(viewer.viewport.get()!, 'scrollToRect')
@@ -226,9 +243,10 @@ describe('createSearchResults', () => {
     expect(rows[0]!.querySelector('.ink-card-excerpt mark')!.textContent).toBe(
       hits[0]!.text
     )
-    expect(rows[0]!.querySelector('.ink-card-meta')!.textContent).toBe(
+    expect(rows[0]!.querySelector('.ink-card-title')!.textContent).toBe(
       `Page ${hits[0]!.page + 1}`
     )
+    expect(rows[0]!.querySelector('.ink-card-meta')!.textContent).toBe('Match 1')
     // The bar's current hit is the selected row, and choosing a row makes it current.
     expect(rows[0]!.getAttribute('aria-current')).toBe('true')
     expect(rows.length).toBeGreaterThan(1)
@@ -241,6 +259,43 @@ describe('createSearchResults', () => {
     expect(field.value).toBe('zzqqzz')
     expect(results.querySelector('.ink-find-count')!.textContent).toBe('No results')
     expect(results.querySelectorAll('[data-ink-record]')).toHaveLength(0)
+  })
+
+  it("keeps an existing row's card as a scan adds hits before it", () => {
+    const hit = (page: number, start: number): SearchHit => ({
+      page,
+      start,
+      end: start + 4,
+      text: 'word',
+      quads: [],
+      rect: { x: start, y: 700, width: 10, height: 10 },
+      exact: true,
+      before: 'a ',
+      after: ' b',
+    })
+    const later = [hit(2, 3)]
+    const state = writable<SearchState>({
+      open: true,
+      query: 'word',
+      matchCase: false,
+      hits: later,
+      current: 0,
+      scanning: true,
+    })
+    const search = { state, select: vi.fn() } as unknown as ViewerSearch
+    const rendered = renderRecordList(searchSource(search))
+    document.body.append(rendered.element)
+    cleanup.push(() => {
+      rendered.destroy()
+      rendered.element.remove()
+    })
+    const title = () =>
+      rendered.element.querySelector('[data-ink-record="2:0"] .ink-card-title')
+    const first = title()
+    expect(first?.textContent).toBe('Page 3')
+    state.set({ ...state.get(), hits: [hit(0, 1), ...later], current: 1 })
+    expect(rendered.element.querySelectorAll('[data-ink-record]')).toHaveLength(2)
+    expect(title()).toBe(first)
   })
 
   it('leaves the field out with field: false', async () => {

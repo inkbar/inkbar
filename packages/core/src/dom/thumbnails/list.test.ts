@@ -73,6 +73,20 @@ describe('createThumbnailsController', () => {
     expect(c.state.get().pages).toEqual([2, 5])
   })
 
+  it('gives each item its list item role and its place in the whole list', () => {
+    const { c } = make(letters(500), { pages: [7, 0, 3] })
+    expect(c.itemAttrs(2)).toEqual({
+      role: 'listitem',
+      'aria-setsize': '3',
+      'aria-posinset': '3',
+    })
+    c.update({ pages: undefined })
+    expect(c.itemAttrs(249)).toMatchObject({
+      'aria-setsize': '500',
+      'aria-posinset': '250',
+    })
+  })
+
   it('lists nothing with no document', () => {
     const { c } = make(null, { pages: [1, 2] })
     expect(c.state.get()).toMatchObject({

@@ -18,9 +18,9 @@ export interface SearchResultsOptions {
 }
 
 /**
- * One card per search hit, with its page and the text around it. Choosing a card makes its hit
- * current, as the find bar's next and previous do, and the find bar's current hit is the
- * selected card. The count shows the scan's progress and "No results". It stops when the
+ * One card per search hit: its page, its place on that page and the text around it. Choosing
+ * a card makes its hit current, as the find bar's next and previous do, and the find bar's
+ * current hit is the selected card. The count shows the scan's progress and "No results". It stops when the
  * viewer is destroyed.
  */
 export function createSearchResults(

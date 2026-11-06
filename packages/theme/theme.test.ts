@@ -368,6 +368,15 @@ describe('theme.css', () => {
     expect(rules[closed]?.toString()).toMatch(/display:\s*none/)
   })
 
+  it('collapses a closed tabs sidebar as a whole after the rule that shows it', () => {
+    const at = (selector: string) => rules.findIndex((r) => r.selector === selector)
+    const shown = at(':where(.ink-sidebar)')
+    const closed = at(":where(.ink-sidebar[data-layout='tabs'][data-state='closed'])")
+    expect(shown).toBeGreaterThanOrEqual(0)
+    expect(closed).toBeGreaterThan(shown)
+    expect(rules[closed]?.toString()).toMatch(/display:\s*none/)
+  })
+
   it("lets a binding's panel wrapper leave the layout to its panel in rail and tabs", () => {
     expect(declsFor('.ink-sidebar-panels > .ink-sidebar-slot)')).toMatch(
       /display:\s*contents/

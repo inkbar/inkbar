@@ -184,6 +184,17 @@ describe('createSidebarController', () => {
     expect(onOpenChange).toHaveBeenLastCalledWith('b')
   })
 
+  it('an uncontrolled sidebar switched to tabs with nothing open opens its first panel', () => {
+    // Tabs collapse only through a controlled open, so an uncontrolled one never hides itself.
+    const { c, onOpenChange } = make()
+    c.toggle('a')
+    expect(c.state.get().open).toEqual([])
+    c.update({ layout: 'tabs' })
+    expect(c.state.get().open).toEqual(['a'])
+    expect(onOpenChange).toHaveBeenLastCalledWith('a')
+    expect(c.rootAttrs()['data-state']).toBe('open')
+  })
+
   it('rail and tabs triggers are tabs', () => {
     for (const layout of ['rail', 'tabs'] as const) {
       const { c } = make({ layout })

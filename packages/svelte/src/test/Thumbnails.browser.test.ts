@@ -82,6 +82,10 @@ describe('thumbnails', () => {
     await expect
       .poll(() => getComputedStyle(items()[0]!.querySelector('.ink-thumbnail')!).width)
       .toBe('90px')
+    const entry = items()[1]!.parentElement!
+    expect(entry.getAttribute('role')).toBe('listitem')
+    expect(entry.getAttribute('aria-setsize')).toBe('2')
+    expect(entry.getAttribute('aria-posinset')).toBe('2')
   })
 
   it('the item snippet renders per item', async () => {

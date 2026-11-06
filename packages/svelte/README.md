@@ -219,7 +219,7 @@ Panels take their place in the order they appear in the markup, including one ad
 
 `InkThumbnail` draws one page (0-based `page`) as a small image, with its annotations and plugin marks. Give it a `width` or a `height` and the other follows the page; with neither it is 120px wide. `annotations={false}` and `marks={false}` leave those out, and `label` replaces its accessible name ("Page 4" for page 3). It is an image with no focus or click behaviour, so wrap it in the control you need, a checkbox label in a dialog for instance.
 
-`InkThumbnails` lists the pages as thumbnails, each a button that scrolls the viewport to its page, with the current page marked `aria-current="page"`. It fills its parent's height and scrolls. `pages` lists the pages to show, in order; `width`, `annotations` and `marks` pass to each thumbnail. Only the items near the visible part are mounted. The `item` snippet adds to each item after its page number, inside the item's button:
+`InkThumbnails` lists the pages as thumbnails, each a button that scrolls the viewport to its page, with the current page marked `aria-current="page"`. It fills its parent's height and scrolls. `pages` lists the pages to show, in order; `width`, `annotations` and `marks` pass to each thumbnail. Only the items near the visible part are mounted. The `item` snippet adds to each item after its page number:
 
 ```svelte
 <InkThumbnails>
@@ -229,7 +229,7 @@ Panels take their place in the order they appear in the markup, including one ad
 </InkThumbnails>
 ```
 
-An item's height is worked out from its page alone, so position what you add absolutely. Both need `InkRoot` and render empty on the server.
+An item's height is worked out from its page alone, so position what you add absolutely. The `item` snippet renders inside the item's `<button>`: keep it non-interactive, with no links, buttons or inputs. Both need `InkRoot` and render empty on the server.
 
 ## Record lists
 
@@ -245,7 +245,7 @@ An item's height is worked out from its page alone, so position what you add abs
 
 The list and the marks share one selection: choosing a card selects its mark and scrolls the viewer there, and activating a mark selects its card. Each action runs in one undo step. `card`, `where` and `sort` replace the marks' card, filter and reading order. A new function rebuilds the list, so define them once in the script, never inline in the markup. `bind:count` receives the number listed whenever it changes, ready for a panel badge. The `empty` snippet replaces "Nothing here yet.". To list something of your own, pass a `source` (a `RecordListSource`, as core's `recordsSource` and `searchSource` build) in place of `records`: it gets the same cards, keys and selection. With both, `source` wins.
 
-`InkSearchResults` is the same list over the document search: one card per hit, with its page and the text around it. Choosing a card makes its hit current, as the find bar's next and previous do. It has its own field, labelled "Find in document", and the find bar's match count; `field={false}` leaves the field out when a find bar is on the page. Field and find bar share the search state, so they never disagree.
+`InkSearchResults` is the same list over the document search: one card per hit, titled with its page ("Page 2"), with its place on that page ("Match 3") and the text around it. Choosing a card makes its hit current, as the find bar's next and previous do. It has its own field, labelled "Find in document", and the find bar's match count; `field={false}` leaves the field out when a find bar is on the page. Field and find bar share the search state, so they never disagree.
 
 To build your own, `useRecords<T>(name)` returns the live `records` and the `handle` to read and write them, each write one undo step, and `useRecordSelection(name)` returns `selected` and `select(id | null)`. Both need `InkRoot`. Plugins are set up once it has mounted, so until then `handle` is null, `records` is empty and nothing is selected. Both lists fill their parent's height and render empty on the server. The keys, focus and announcements are core's: see the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#record-lists).
 
