@@ -111,6 +111,8 @@ export type {
   ToolControllerOptions,
   ToolId,
   ToolKind,
+  PagePress,
+  PressKind,
   ToolOptions,
   ToolStyleTracker,
 } from './tools'

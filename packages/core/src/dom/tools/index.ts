@@ -32,6 +32,7 @@ export type {
   ToolKind,
 } from './controller'
 export { hitFor } from './controller'
+export type { PagePress, PressKind } from './press'
 export { unknownTool } from './unknown'
 export { createToolOptions, type ToolOptions } from './options'
 export {
