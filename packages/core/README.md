@@ -373,6 +373,43 @@ Ctrl/Cmd+F opens the bar when one is mounted and the key comes from inside the v
 
 Hits are drawn as a layer over the page that multiplies with it, so the text shows through. `@inkbar/theme` styles them with `--ink-search-hit` and, for the current hit, `--ink-search-current`.
 
+## Sidebars
+
+`createSidebar` builds a sidebar of panels, each showing an element you give it. It needs no document or viewer: place it beside the viewer with your own flex or grid layout.
+
+```ts
+import { createSidebar } from '@inkbar/core/dom'
+import { Square } from '@inkbar/icons'
+
+const { element, controller } = createSidebar({
+  layout: 'rail',
+  side: 'left',
+  panels: [
+    { id: 'pages', label: 'Pages', icon: Square },
+    { id: 'notes', label: 'Notes', badge: 3 },
+  ],
+  content: { pages: pagesElement, notes: notesElement },
+  onOpenChange: (open) => console.log(open),
+})
+shell.prepend(element)
+```
+
+Each panel has an `id`, a `label`, an optional `icon` (an `IconNode` from `@inkbar/icons`) and an optional `badge`, a number or short string hidden when empty or 0.
+
+`layout` is one of:
+
+- `rail` (default): a vertical strip of icon buttons on the outer edge, with the label as a tooltip. One panel is open at a time; activating the open panel's button closes it, leaving only the rail.
+- `tabs`: labelled tabs across the top with one panel open. Pass `open: null` to collapse the sidebar, from a toolbar button of your own for instance.
+- `stack`: every panel as a section with a header button, one under another, any number expanded.
+
+`side` (`left` by default) decides which edge the rail and border sit on. `open` is the open panel id (`string | null`) for rail and tabs, and the expanded ids (`string[]`) for stack. Without it the sidebar starts with the first panel open and keeps its own state. With it the sidebar is controlled: a click reports the new value through `onOpenChange` and nothing changes until you call `controller.update({ open })`. When `update({ panels })` removes the open panel, rail and tabs open the first one left and stack drops it; the new value goes to `onOpenChange` either way.
+
+Closed panels stay in the document with `hidden`, so their content keeps its state and scroll position. Rail and tabs follow the WAI-ARIA tabs pattern: one Tab stop, arrow keys (Up and Down on the rail, Left and Right for tabs), Home and End to move, Enter or Space to open. Stack headers follow the accordion pattern: each is a Tab stop with `aria-expanded`, and Up and Down move between them.
+
+To render your own markup, use `createSidebarController(options)`, which holds the same state and behaviour. Spread `rootAttrs()` on the root, `tablistAttrs()` on the element holding the buttons, `triggerAttrs(id)` on each button and `panelAttrs(id)` on each panel, then call `bindTriggers(element)` once on an element containing the buttons. It handles clicks and keys and keeps the Tab stop right as buttons are re-rendered. `sidebarBadge(badge)` gives the text a badge shows, or `null` when it is hidden. Pass `idPrefix` when the markup is rendered on the server, so the element ids match on the client.
+
+`@inkbar/theme` sizes the sidebar with `--ink-sidebar-width` (280px) and the rail with `--ink-sidebar-rail-width` (44px). Override either per sidebar with CSS.
+
 ## Forms
 
 Inkbar fills the AcroForm fields in a PDF and runs the form's scripts. `doc.form` reads and sets the values:

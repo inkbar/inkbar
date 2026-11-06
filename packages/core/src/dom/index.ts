@@ -211,6 +211,17 @@ export type {
   SearchState,
   ViewerSearch,
 } from './search/controller'
+export { createSidebarController, sidebarBadge } from './sidebar/controller'
+export type {
+  SidebarController,
+  SidebarControllerOptions,
+  SidebarLayout,
+  SidebarOpen,
+  SidebarPanelInfo,
+  SidebarSide,
+  SidebarState,
+} from './sidebar/controller'
+export { createSidebar } from './sidebar/sidebar'
 export { createViewer } from './viewer/create-viewer'
 export type { CreateViewerOptions, Viewer } from './viewer/create-viewer'
 export {
