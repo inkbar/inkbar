@@ -851,6 +851,15 @@ function dash(
 }
 
 /**
+ * Whether the page canvas draws `a`, so the overlay gives it only a hit area. PDF.js paints
+ * embedded annotations, with a stand-in for most that have no appearance stream, but draws no
+ * icon for a note without one: the overlay draws that note's icon itself.
+ */
+export function paintedByCanvas(a: Annotation): boolean {
+  return a.source === 'pdf' && !(a.type === 'text' && a.hasAppearance === false)
+}
+
+/**
  * An invisible hit area for an annotation the overlay does not draw (embedded ones, which
  * PDF.js paints on the canvas): polygons over its quads, or its rect. Selection chrome only.
  */

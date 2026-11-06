@@ -178,6 +178,7 @@ function guardEmbedded(current: Annotation, proposed: Annotation): Annotation {
     source: 'pdf',
   }
   keepKey(candidate, current, 'locked')
+  keepKey(candidate, current, 'hasAppearance')
   if (current.locked) for (const key of LOCKED_KEYS) keepKey(candidate, current, key)
   const parsed = AnnotationSchema.safeParse(candidate)
   return parsed.success ? parsed.data : current
@@ -485,8 +486,11 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
         source: before.source,
         modifiedAt: now(),
       }
-      // An embedded annotation's lock belongs to the file: a `locked` key in the patch is ignored.
-      if (before.source === 'pdf') keepKey(candidate, before, 'locked')
+      // An embedded annotation's lock and appearance belong to the file: the patch's are ignored.
+      if (before.source === 'pdf') {
+        keepKey(candidate, before, 'locked')
+        keepKey(candidate, before, 'hasAppearance')
+      }
       const after = AnnotationSchema.parse(candidate)
       const swap = (items: readonly Annotation[]): Annotation[] =>
         items.map((a) => (a.id === id ? after : a))

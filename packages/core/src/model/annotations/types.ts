@@ -61,6 +61,12 @@ const Base = {
   source: z.enum(['session', 'pdf']),
   /** Embedded annotations are locked until the engine can rewrite the file. Viewer state, never exported. */
   locked: z.boolean().optional(),
+  /**
+   * Embedded annotations only: whether the file carries its own appearance stream for it. PDF.js
+   * paints the page with it; without one, it paints a stand-in for most types but nothing for a
+   * note. Viewer state, never exported.
+   */
+  hasAppearance: z.boolean().optional(),
 }
 
 const Quads = z.array(QuadSchema).min(1)
@@ -236,7 +242,7 @@ export const AnnotationSchema = z.discriminatedUnion('type', [
 ])
 
 /** The viewer's own state on an annotation, left out of exports. */
-const VIEWER_STATE = { source: true, locked: true } as const
+const VIEWER_STATE = { source: true, locked: true, hasAppearance: true } as const
 
 /** One exported annotation: the stored annotation without its viewer state. */
 export const ExportedAnnotationSchema = z.discriminatedUnion('type', [

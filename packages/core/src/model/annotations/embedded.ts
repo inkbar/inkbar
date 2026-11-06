@@ -193,6 +193,7 @@ function convert(
     modifiedAt: parsePdfDate(d.modificationDate, created),
     source: 'pdf' as const,
     locked: true,
+    hasAppearance: d.hasAppearance === true,
   })
   const fillOf = (c: ArrayLike<number> | null | undefined) =>
     c && c.length >= 3 ? { interiorColor: pdfColorToHex(c, '#FFFFFF') } : {}
