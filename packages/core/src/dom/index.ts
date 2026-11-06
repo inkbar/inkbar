@@ -13,6 +13,8 @@ export { createViewport } from './viewport'
 export type { Viewport, ViewportHit, ViewportOptions, ZoomValue } from './viewport'
 export { attachViewportKeys } from './viewport-keys'
 export type { ViewportKeysOptions } from './viewport-keys'
+export { attachFileKeys, downloadDocument, printDocument } from './file-actions'
+export type { DownloadOptions } from './file-actions'
 export { attachHistoryKeys, keepHistoryFocus } from './history-keys'
 export type { HistoryKeysTarget } from './history-keys'
 export { createPageRenderer } from './page-renderer'
@@ -269,6 +271,8 @@ export {
   createToolbar,
   createToolbarSeparator,
   createToolButton,
+  createDownloadButton,
+  createPrintButton,
   createUndo,
   createZoomIn,
   createZoomOut,

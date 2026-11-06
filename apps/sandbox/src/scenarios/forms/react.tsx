@@ -6,6 +6,8 @@
  * sends, opens or prints anything itself.
  */
 import {
+  InkDownloadButton,
+  InkPrintButton,
   InkNextPage,
   InkPageCount,
   InkPageInput,
@@ -73,6 +75,8 @@ export default function FillAForm({ source, log, onDocument, openFile }: Scenari
             <InkIcon icon={FileUp} />
             Open
           </InkToolbarButton>
+          <InkDownloadButton />
+          <InkPrintButton />
         </div>
       </InkToolbar>
       <InkViewport />

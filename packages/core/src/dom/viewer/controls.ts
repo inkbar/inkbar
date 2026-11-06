@@ -11,7 +11,9 @@
 import {
   ChevronLeft,
   ChevronRight,
+  Download,
   ICON_ATTRIBUTES,
+  Printer,
   Search,
   Redo2,
   SquareDashedMousePointer,
@@ -32,6 +34,7 @@ import { h } from './dom'
 
 import type { InkDocument } from '../../model/document'
 import type { Readable } from '../../model/readable'
+import type { DownloadOptions } from '../file-actions'
 import type { ToolController, ToolId } from '../tools'
 import type { Viewport } from '../viewport'
 import type { Viewer } from './create-viewer'
@@ -167,6 +170,44 @@ export function createToolbarSeparator(): HTMLDivElement {
     class: 'ink-toolbar-separator',
     'data-ink-toolbar-separator': '',
   })
+}
+
+/**
+ * Saves the document's file (`viewer.download()`); disabled until a document is ready. Today
+ * that is the file as it was opened, without this session's annotations.
+ */
+export function createDownloadButton(
+  viewer: Viewer,
+  opts: DownloadOptions = {}
+): HTMLButtonElement {
+  return fileButton(viewer, 'download', () => viewer.download(opts))
+}
+
+/**
+ * Prints the document's file (`viewer.print()`); disabled until a document is ready. Today
+ * that is the file as it was opened, without this session's annotations.
+ */
+export function createPrintButton(viewer: Viewer): HTMLButtonElement {
+  return fileButton(viewer, 'print', () => viewer.print())
+}
+
+function fileButton(
+  viewer: Viewer,
+  action: 'download' | 'print',
+  run: () => Promise<void>
+): HTMLButtonElement {
+  const b = button(
+    action === 'download' ? 'Download' : 'Print',
+    { class: `ink-${action}`, [`data-ink-${action}`]: '' },
+    action === 'download' ? Download : Printer
+  )
+  b.addEventListener('click', () => void run().catch(() => undefined))
+  follow<InkDocument>(viewer.document, b, (doc, watch) =>
+    watch(doc.status, (s) => {
+      b.disabled = s.state !== 'ready'
+    })
+  )
+  return b
 }
 
 /** Undoes the last change to the document's annotations; disabled when there is none. */

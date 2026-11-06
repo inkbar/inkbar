@@ -8,6 +8,7 @@ import {
   writable,
 } from '@inkbar/core'
 import {
+  attachFileKeys,
   attachHistoryKeys,
   createPluginHost,
   createSearchController,
@@ -721,9 +722,12 @@ export function InkRoot({
     const stopFocus = keepHistoryFocus(rootEl, () =>
       rootEl.querySelector<HTMLElement>('[data-ink-scroll]')
     )
+    // Ctrl or Cmd+P prints and +S downloads, as InkPrintButton and InkDownloadButton do.
+    const stopFileKeys = attachFileKeys(rootEl, () => documentRef.current)
     return () => {
       stopKeys()
       stopFocus()
+      stopFileKeys()
     }
   }, [rootEl, latestHistory, latest, snapshotHistory])
 

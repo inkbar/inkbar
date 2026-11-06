@@ -7,6 +7,8 @@
  * sends, opens or prints anything itself.
  */
 import {
+  InkDownloadButton,
+  InkPrintButton,
   InkNextPage,
   InkPageCount,
   InkPageInput,
@@ -80,6 +82,8 @@ function onFormAction(action: FormAction): void {
           <InkIcon :icon="FileUp" />
           Open
         </InkToolbarButton>
+        <InkDownloadButton />
+        <InkPrintButton />
       </div>
     </InkToolbar>
     <InkViewport />

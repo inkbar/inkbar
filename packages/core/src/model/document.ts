@@ -41,7 +41,7 @@ import {
   type SearchResults,
 } from './search'
 import { searchableText, type SearchableText } from './search-text'
-import { resolveSource, type DocumentSource } from './source'
+import { resolveSource, sourceFileName, type DocumentSource } from './source'
 import { textContentFromPdfjs, type TextContent } from './text'
 
 import type { AnnotationDocument, ForeignAnnotation } from './annotations/types'
@@ -132,6 +132,16 @@ export interface InkDocument {
    * present, sets the values it names and leaves the rest; that is not an undo step.
    */
   importAnnotations(data: AnnotationDocument | string, opts?: ImportOptions): ImportResult
+  /**
+   * The name to save the file under: the opened File's name, else the URL's last path segment,
+   * else `document.pdf`.
+   */
+  readonly fileName: string
+  /**
+   * The PDF as a file, for download and print: today the bytes it was opened from, without
+   * this session's annotations. Waits for `ready`; rejects as `ready` does.
+   */
+  getData(): Promise<Uint8Array>
   /** Writes the document with its annotations. Needs @inkbar/engine; rejects with EngineUnavailable otherwise. */
   save(): Promise<Uint8Array>
   destroy(): void
@@ -453,6 +463,14 @@ export async function openDocument(
 
   const doc: InkDocument = {
     key: resolved.key,
+    fileName: sourceFileName(source),
+    async getData() {
+      if (destroyed) throw destroyedError()
+      await ready
+      if (destroyed) throw destroyedError()
+      if (!handles) throw statusError(status.get())
+      return handles.proxy.getData()
+    },
     status: readonly(status),
     ready,
     pages,

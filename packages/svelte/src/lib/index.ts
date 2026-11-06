@@ -58,6 +58,8 @@ export type { InkToolbarButtonProps } from './components/InkToolbarButton.svelte
 export { default as InkToolbarSeparator } from './components/InkToolbarSeparator.svelte'
 export type { InkToolbarSeparatorProps } from './components/InkToolbarSeparator.svelte'
 export { default as InkUndo } from './components/InkUndo.svelte'
+export { default as InkDownloadButton } from './components/InkDownloadButton.svelte'
+export { default as InkPrintButton } from './components/InkPrintButton.svelte'
 export { default as InkRedo } from './components/InkRedo.svelte'
 export type { InkHistoryButtonProps } from './components/history-button.js'
 export { default as InkZoomIn } from './components/InkZoomIn.svelte'

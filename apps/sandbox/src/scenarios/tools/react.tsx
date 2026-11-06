@@ -5,6 +5,8 @@
  */
 import { highlightTool, noteTool } from '@inkbar/core/dom'
 import {
+  InkDownloadButton,
+  InkPrintButton,
   InkHighlightMenu,
   InkNextPage,
   InkPageCount,
@@ -64,6 +66,8 @@ export default function PickYourTools({
             <InkIcon icon={FileUp} />
             Open
           </InkToolbarButton>
+          <InkDownloadButton />
+          <InkPrintButton />
         </div>
       </InkToolbar>
       <InkViewport />

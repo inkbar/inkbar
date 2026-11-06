@@ -221,7 +221,9 @@ To build your own, `useRecords<T>(name)` returns the live `records` and the `han
 
 Slots let you render parts yourself. `InkViewport` has `loading`, `empty`, `error`, `annotation` and `page-error` slots. `InkThreadPopover` has a scoped default slot that receives the popover's props, and the default slot of `InkToolButton` receives `{ active, label }`. The props are typed as `AnnotationSlotProps` and `ThreadPopoverSlotProps`, the same types the React and Svelte packages export.
 
-`InkRoot`, `InkToolbar`, `InkToolButton`, `InkCommand`, `InkUndo`, `InkRedo`, `InkPrevPage`, `InkNextPage`, `InkZoomIn` and `InkZoomOut` take `as-child` to render your own element in place of theirs, such as a button from your design system. Put that element in the default slot. The control keeps its behaviour and accessible name.
+`InkDownloadButton` and `InkPrintButton` download and print the open PDF; `filename` names the download (the opened `File`'s name, else the URL's last segment, else `document.pdf`). Printing loads the file into a hidden frame and opens the browser's print dialog for it; on iOS the PDF opens in a new tab instead. Until saving into the PDF ships, both give the file as it was opened, without this session's annotations.
+
+`InkRoot`, `InkToolbar`, `InkToolButton`, `InkCommand`, `InkUndo`, `InkRedo`, `InkDownloadButton`, `InkPrintButton`, `InkPrevPage`, `InkNextPage`, `InkZoomIn` and `InkZoomOut` take `as-child` to render your own element in place of theirs, such as a button from your design system. Put that element in the default slot. The control keeps its behaviour and accessible name.
 
 ## Keyboard
 
@@ -231,6 +233,7 @@ The scroll area takes focus. From there:
 - With the `note` tool active, `Enter` places a note at the centre of the current page and opens it.
 - With the `signature` tool active, `Enter` places the chosen signature at the centre of the current page.
 - `Ctrl` or `Cmd` + `Z` undoes. `Ctrl` or `Cmd` + `Shift` + `Z`, or `Ctrl` + `Y`, redoes. `Ctrl` and `Cmd` both work on every platform. The keys do what `InkUndo` and `InkRedo` do, from anywhere in `InkRoot`, toolbars included, and act only while that button is enabled. In a text field or editable content the keys stay with the element, so a field keeps its own text undo. In a `<select>` they are left to the browser, which does nothing with them.
+- `Ctrl` or `Cmd` + `P` prints the PDF and `Ctrl` or `Cmd` + `S` downloads it, as `InkPrintButton` and `InkDownloadButton` do, from anywhere in `InkRoot` once the document is ready. Outside `InkRoot` the browser keeps them.
 
 On a focused annotation:
 

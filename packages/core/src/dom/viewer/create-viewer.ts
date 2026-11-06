@@ -20,6 +20,12 @@ import {
   createMemorySignatureStore,
   createSignatureLibrary,
 } from '../../model/signatures'
+import {
+  attachFileKeys,
+  downloadDocument,
+  printDocument,
+  type DownloadOptions,
+} from '../file-actions'
 import { attachHistoryKeys } from '../history-keys'
 import { createPluginHost, type HostRecords, type PluginHost } from '../plugins/host'
 import { createFocusReturn } from '../popover-focus'
@@ -154,6 +160,18 @@ export interface Viewer {
    * `password` is used for this load only; without it, the constructor's `password` applies.
    */
   open(source: DocumentSource, opts?: { password?: string }): void
+  /**
+   * Saves the open document's file through the browser's download, under its `fileName` or
+   * `opts.filename`. Today that is the file as it was opened, without this session's
+   * annotations. Does nothing while no document is open.
+   */
+  download(opts?: DownloadOptions): Promise<void>
+  /**
+   * Prints the open document's file with the browser's own PDF viewer; on iOS the PDF opens
+   * in a new tab instead. As with `download`, today that is the file as it was opened. Does
+   * nothing while no document is open.
+   */
+  print(): Promise<void>
   destroy(): void
 }
 
@@ -236,6 +254,8 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   el.append(root)
   // Anywhere in the root, toolbars included: the keys do what createUndo and createRedo do.
   const stopHistoryKeys = attachHistoryKeys(root, () => current.get()?.history)
+  // Ctrl or Cmd+P and +S inside the root: what viewer.print and viewer.download do.
+  const stopFileKeys = attachFileKeys(root, () => current.get())
   rootEl.set(scroll)
 
   /** One controller for the viewer's life: the host, the engine and the find bar share it. */
@@ -485,6 +505,14 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
 
   const viewer: Viewer = {
     element: root,
+    async download(opts) {
+      const doc = current.get()
+      if (doc) await downloadDocument(doc, opts)
+    },
+    async print() {
+      const doc = current.get()
+      if (doc) await printDocument(doc)
+    },
     status: readonly(status),
     document: readonly(current),
     form: readonly(form),
@@ -514,6 +542,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       formAlert.destroy()
       host.destroy()
       stopHistoryKeys()
+      stopFileKeys()
       root.remove()
     },
   }

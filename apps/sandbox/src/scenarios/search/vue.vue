@@ -7,6 +7,8 @@
  * shows, for a control of your own.
  */
 import {
+  InkDownloadButton,
+  InkPrintButton,
   InkFindBar,
   InkNextPage,
   InkPageCount,
@@ -77,6 +79,8 @@ function onReady(doc: InkDocument): void {
           <InkIcon :icon="FileUp" />
           Open
         </InkToolbarButton>
+        <InkDownloadButton />
+        <InkPrintButton />
       </div>
     </InkToolbar>
     <div class="scenario-body">

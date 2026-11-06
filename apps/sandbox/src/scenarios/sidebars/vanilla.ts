@@ -4,7 +4,9 @@
  * sidebars between a rail, tabs and a stack.
  */
 import {
+  createDownloadButton,
   createIcon,
+  createPrintButton,
   createNextPage,
   createPageCount,
   createPageInput,
@@ -108,7 +110,15 @@ export function mount(
   openButton.title = 'Open a PDF'
   openButton.append(createIcon(FileUp), 'Open')
   openButton.addEventListener('click', openFile)
-  tools.append(group('File', 'scenario-group scenario-file', openButton))
+  tools.append(
+    group(
+      'File',
+      'scenario-group scenario-file',
+      openButton,
+      createDownloadButton(viewer),
+      createPrintButton(viewer)
+    )
+  )
 
   // Thumbnails and search on the left; your own About on the right.
   const left = createSidebar({

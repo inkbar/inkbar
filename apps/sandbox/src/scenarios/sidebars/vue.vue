@@ -6,6 +6,8 @@
  */
 import { Info, Search, Square } from '@inkbar/icons'
 import {
+  InkDownloadButton,
+  InkPrintButton,
   InkIcon,
   InkNextPage,
   InkPageCount,
@@ -64,6 +66,8 @@ function onReady(doc: InkDocument): void {
           <InkIcon :icon="FileUp" />
           Open
         </InkToolbarButton>
+        <InkDownloadButton />
+        <InkPrintButton />
       </div>
     </InkToolbar>
     <div class="scenario-body">

@@ -6,6 +6,8 @@
  * control of your own.
  */
 import {
+  InkDownloadButton,
+  InkPrintButton,
   InkFindBar,
   InkNextPage,
   InkPageCount,
@@ -87,6 +89,8 @@ export default function SearchLongDocument({
             <InkIcon icon={FileUp} />
             Open
           </InkToolbarButton>
+          <InkDownloadButton />
+          <InkPrintButton />
         </div>
       </InkToolbar>
       <div className="scenario-body">
