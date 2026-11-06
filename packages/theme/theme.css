@@ -1007,6 +1007,35 @@
     display: none;
   }
 
+  /* Thumbnails: a page as paper, its placeholder the same shape until it renders. The painter
+     sets the size inline; the layers inside are inert copies. */
+  :where(.ink-thumbnail) {
+    position: relative;
+    display: block;
+    flex: none;
+    overflow: hidden;
+    background: #ffffff;
+    box-shadow: var(--ink-page-shadow);
+  }
+
+  :where(.ink-thumbnail-annotation > svg) {
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+
+  /* A note's icon fills its box instead of keeping its on-page size; comment glyphs, which keep
+     a fixed size at every zoom, would cover a small page, so they are left out. */
+  :where(.ink-thumbnail-annotation .ink-note-icon) {
+    width: 100%;
+    height: 100%;
+    box-shadow: none;
+  }
+
+  :where(.ink-thumbnail-annotation .ink-comment-marker) {
+    display: none;
+  }
+
   /* Text for assistive technology only, such as the find bar's live region. */
   :where(.ink-visually-hidden) {
     position: absolute;

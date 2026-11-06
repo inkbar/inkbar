@@ -260,7 +260,10 @@ function reducedMotion(): boolean {
   return globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 }
 
-/** `borderColor` → `border-color`, as `setProperty` takes it; `--custom` names stay as given. */
-function toCssName(key: string): string {
+/**
+ * `borderColor` → `border-color`, as `setProperty` takes it; `--custom` names stay as given.
+ * @internal For thumbnails, which copy a mark's style.
+ */
+export function toCssName(key: string): string {
   return key.startsWith('--') ? key : key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)
 }
