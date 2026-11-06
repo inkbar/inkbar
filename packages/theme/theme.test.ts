@@ -384,6 +384,19 @@ describe('theme.css', () => {
     ).toMatch(/background:\s*var\(--ink-accent\)/)
   })
 
+  it('leads search result cards with the excerpt, page and match in a footer', () => {
+    expect(declsFor('.ink-search-results .ink-record > .ink-card)')).toMatch(
+      /grid-template-areas:\s*'excerpt excerpt'\s*'title meta'/
+    )
+    expect(declsFor('.ink-search-results .ink-card-excerpt)')).toMatch(/line-clamp:\s*3/)
+    expect(
+      declsFor('.ink-search-results .ink-card-title, .ink-search-results .ink-card-meta)')
+    ).toMatch(/border-top:/)
+    expect(declsFor('.ink-search-results .ink-record-list)')).toMatch(
+      /background:\s*var\(--ink-bg\)/
+    )
+  })
+
   it('places an input accessory at the start or end and pads the input around it', () => {
     expect(declsFor('.ink-input-accessory)')).toMatch(/pointer-events:\s*none/)
     expect(declsFor('.ink-input-accessory:first-child)')).toMatch(/left:/)

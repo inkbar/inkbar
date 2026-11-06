@@ -2212,6 +2212,82 @@
     height: auto;
   }
 
+  /*
+   * Search result cards: the matched text leads, at full strength, and its page and place sit
+   * in a small footer under a hairline. The cards are surfaces on the page canvas, as the
+   * thumbnails are. The card's markup stays title, meta, excerpt; the grid reorders it.
+   */
+  :where(.ink-search-results .ink-record-list) {
+    background: var(--ink-bg);
+  }
+
+  :where(.ink-search-results .ink-record > .ink-card) {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      'excerpt excerpt'
+      'title meta';
+    padding: 0;
+    overflow: hidden;
+    border-color: color-mix(in srgb, var(--ink-fg) 10%, transparent);
+    box-shadow: var(--ink-thumbnail-shadow);
+  }
+
+  /* The ring sits outside: an inset one would go under the footer's background. */
+  :where(.ink-search-results .ink-record[aria-current='true'] > .ink-card) {
+    border-color: var(--ink-accent);
+    box-shadow:
+      0 0 0 1px var(--ink-accent),
+      var(--ink-thumbnail-shadow);
+  }
+
+  :where(.ink-search-results .ink-card-excerpt) {
+    display: -webkit-box;
+    grid-area: excerpt;
+    margin: 0;
+    /* The space below is a border: a clamped box shows its next line through its padding, and
+       an app's reset of p margins would win over the theme's layer. */
+    padding: 0.625rem 0.75rem 0;
+    border-bottom: 0.75rem solid transparent;
+    overflow: hidden;
+    color: var(--ink-fg);
+    line-height: 1.45;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+  }
+
+  :where(.ink-search-results .ink-card-excerpt mark) {
+    padding: 0 1px;
+    border-radius: 2px;
+  }
+
+  /* The current match's text takes the current hit's colour, as it does on the page. */
+  :where(.ink-search-results .ink-record[aria-current='true'] .ink-card-excerpt mark) {
+    background: var(--ink-search-current);
+  }
+
+  :where(.ink-search-results .ink-card-title, .ink-search-results .ink-card-meta) {
+    margin: 0;
+    padding: 0.3125rem 0.75rem;
+    border-top: 1px solid color-mix(in srgb, var(--ink-fg) 8%, transparent);
+    background: color-mix(in srgb, var(--ink-fg) 3%, var(--ink-surface));
+    font-size: 0.6875rem;
+    line-height: 1rem;
+  }
+
+  :where(.ink-search-results .ink-card-title) {
+    grid-area: title;
+    padding-right: 0;
+    font-weight: 600;
+  }
+
+  :where(.ink-search-results .ink-card-meta) {
+    grid-area: meta;
+    color: var(--ink-muted-fg);
+    font-weight: 400;
+  }
+
   :where(.ink-select-item:focus-visible) {
     outline: none;
   }
