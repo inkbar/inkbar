@@ -1,0 +1,65 @@
+packages/vue/README.md
+  s_1effe0625d7c7b::t_bfd1140be76c44 190
+packages/svelte/src/test/harness/ThumbnailsHarness.svelte
+  s_1effe0625d7c7b::t_8d0493d5c77914 40
+  s_1effe0625d7c7b::t_308bb72f08fe3c 41
+packages/svelte/src/test/Thumbnails.browser.test.ts
+  s_1effe0625d7c7b::t_e49eb4b70bddd8 56-60
+packages/svelte/README.md
+  s_1effe0625d7c7b::t_bfd1140be76c44 222
+packages/core/src/dom/thumbnails/list.browser.test.ts
+  s_1effe0625d7c7b::t_8796293b6118f5 176-180
+  s_1effe0625d7c7b::t_459be8d38d87ba 99,101
+packages/react/src/components/InkThumbnails.tsx
+  s_1effe0625d7c7b::t_dba3037861045b 3
+  s_1effe0625d7c7b::t_059a43002e7217 31
+  s_1effe0625d7c7b::t_6f41cc104357c4 50,139
+packages/vue/playwright/harness/ThumbnailsHarness.vue
+  s_1effe0625d7c7b::t_308bb72f08fe3c 39
+  s_1effe0625d7c7b::t_8d0493d5c77914 38
+packages/core/README.md
+  s_1effe0625d7c7b::t_bfd1140be76c44 442
+  s_1effe0625d7c7b::t_39332f5a40c55b 446
+packages/core/src/dom/thumbnails/list.ts
+  s_1effe0625d7c7b::t_95d58e3d23edb6 375
+  s_1effe0625d7c7b::t_459be8d38d87ba 432-436,439-440
+  s_1effe0625d7c7b::t_19c769635e107d 32-36,54-57,74-75,125-127,154,158,226-227,230-236,373-374,376-381,461-464,534,566,569,621,625,646,650,670-674
+packages/react/README.md
+  s_1effe0625d7c7b::t_bfd1140be76c44 218
+packages/core/src/dom/thumbnails/list.test.ts
+  s_1effe0625d7c7b::t_95d58e3d23edb6 38,42,60-61,100-122,137
+packages/theme/theme.css
+  s_1effe0625d7c7b::t_3363c5333db87a 1073-1075,1082,1085-1086,1103-1104,1106
+packages/svelte/src/lib/components/InkThumbnails.svelte
+  s_1effe0625d7c7b::t_dba3037861045b 36
+  s_1effe0625d7c7b::t_059a43002e7217 11
+  s_1effe0625d7c7b::t_6f41cc104357c4 73,140
+packages/vue/src/components/InkThumbnails.vue
+  s_1effe0625d7c7b::t_6f41cc104357c4 67,125
+  s_1effe0625d7c7b::t_dba3037861045b 16
+packages/react/src/components/Thumbnails.ct.tsx
+  s_1effe0625d7c7b::t_e49eb4b70bddd8 51-53
+  s_1effe0625d7c7b::t_059a43002e7217 50
+packages/vue/src/components/Thumbnails.ct.ts
+  s_1effe0625d7c7b::t_e49eb4b70bddd8 51-53
+  s_1effe0625d7c7b::t_059a43002e7217 50
+packages/react/playwright/harness/ThumbnailsHarness.tsx
+  s_1effe0625d7c7b::t_8d0493d5c77914 51
+  s_1effe0625d7c7b::t_308bb72f08fe3c 52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5e251681c6c4511c2a4008c3bb9c3b2a126edfd9",
+  "prompts": {},
+  "sessions": {
+    "s_1effe0625d7c7b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3adafbc8-4f4c-4ced-a223-6be21f4f163c",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
