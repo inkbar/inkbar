@@ -100,6 +100,17 @@ function findKey(
 }
 
 describe('find bar', () => {
+  it('shows a search icon before the field, hidden from assistive technology', async () => {
+    const { field } = await make()
+    const group = field().parentElement!
+    expect(group.classList.contains('ink-input-group')).toBe(true)
+    const accessory = group.firstElementChild!
+    expect(accessory.classList.contains('ink-input-accessory')).toBe(true)
+    expect(accessory.querySelector('svg')!.getAttribute('aria-hidden')).toBe('true')
+    // Padded clear of the icon.
+    expect(parseFloat(getComputedStyle(field()).paddingLeft)).toBeGreaterThanOrEqual(32)
+  })
+
   it.each(['ctrlKey', 'metaKey'] as const)(
     '%s+F inside the root opens it, focuses the field and is prevented',
     async (mod) => {

@@ -2154,6 +2154,59 @@
     outline-offset: 2px;
   }
 
+  /*
+   * An input with an accessory icon: wrap the input in `.ink-input-group` with an
+   * `.ink-input-accessory` before it (at the start) or after it (at the end). The icon is
+   * decorative and lets clicks through to the field. The group holds only the input and its
+   * accessories, so an input that is not first or last has one beside it (no :has(), which
+   * costs frames on long documents). After the find bar's and search results' input rules, so
+   * its padding wins over theirs.
+   */
+  :where(.ink-input-group) {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+
+  :where(.ink-input-group > input) {
+    flex: 1;
+    min-width: 0;
+  }
+
+  :where(.ink-input-accessory) {
+    position: absolute;
+    display: inline-flex;
+    color: var(--ink-muted-fg);
+    pointer-events: none;
+  }
+
+  :where(.ink-input-accessory:first-child) {
+    left: 0.625rem;
+  }
+
+  :where(.ink-input-accessory:last-child) {
+    right: 0.625rem;
+  }
+
+  :where(.ink-input-accessory .ink-icon) {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  :where(.ink-input-group > input:not(:first-child)) {
+    padding-left: 2rem;
+  }
+
+  :where(.ink-input-group > input:not(:last-child)) {
+    padding-right: 2rem;
+  }
+
+  /* In the find bar and the search results, the group takes the field's place in the row. */
+  :where(.ink-find-bar .ink-input-group, .ink-search-results-bar .ink-input-group) {
+    flex: 1;
+  }
+
   :where(.ink-search-results > .ink-records) {
     flex: 1;
     height: auto;

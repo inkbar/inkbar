@@ -257,7 +257,11 @@ describe('search results', () => {
     const field = results.querySelector<HTMLInputElement>('input')!
     expect(field.getAttribute('aria-label')).toBe('Find in document')
     expect(field.placeholder).toBe('Find in document')
-    expect(results.querySelector('[role="search"]')).toBe(field.parentElement)
+    // The field sits in the search landmark, after its search icon.
+    expect(results.querySelector('[role="search"]')!.contains(field)).toBe(true)
+    expect(field.previousElementSibling!.classList.contains('ink-input-accessory')).toBe(
+      true
+    )
     const empty = () => results.querySelector<HTMLElement>('.ink-record-list-empty')!
     const resultRows = () => qa<HTMLElement>('[data-ink-record]', results)
     const resultsCount = () => results.querySelector('.ink-find-count')!.textContent

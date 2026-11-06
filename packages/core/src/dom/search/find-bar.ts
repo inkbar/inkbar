@@ -4,9 +4,9 @@
  * the top-right of the pages. It is hidden while the search is closed, and while it is in the
  * document it registers with the search controller, which is what lets Ctrl/Cmd+F open it.
  */
-import { ChevronDown, ChevronUp, CaseSensitive, X } from '@inkbar/icons'
+import { ChevronDown, ChevronUp, CaseSensitive, Search, X } from '@inkbar/icons'
 
-import { button } from '../viewer/controls'
+import { button, createIcon } from '../viewer/controls'
 import { searchControllerOf, onViewerDestroy, type Viewer } from '../viewer/create-viewer'
 import { h } from '../viewer/dom'
 
@@ -50,7 +50,12 @@ export function createFindBar(viewer: Viewer): HTMLElement {
   const bar = h(
     'div',
     { class: 'ink-find-bar', 'data-ink-find-bar': '', role: 'search', hidden: '' },
-    field,
+    h(
+      'div',
+      { class: 'ink-input-group' },
+      h('span', { class: 'ink-input-accessory' }, createIcon(Search)),
+      field
+    ),
     count,
     previous,
     next,

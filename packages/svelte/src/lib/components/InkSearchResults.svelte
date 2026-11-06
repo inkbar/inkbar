@@ -26,10 +26,12 @@
     isBlankQuery,
     searchSource,
   } from '@inkbar/core/dom'
+  import { Search } from '@inkbar/icons'
 
   import { useInkContext } from '../context.js'
   import { useSearch } from '../hooks/useSearch.svelte.js'
 
+  import InkIcon from './InkIcon.svelte'
   import RecordCards from './RecordCards.svelte'
 
   let { field = true, class: className, ...rest }: InkSearchResultsProps = $props()
@@ -45,16 +47,19 @@
   <div class="ink-search-results-bar" role={field ? 'search' : undefined}>
     {#if field}
       <!-- The field is the search state's: a query typed in the find bar shows here. -->
-      <input
-        type="text"
-        aria-label="Find in document"
-        placeholder="Find in document"
-        autocomplete="off"
-        spellcheck={false}
-        value={search.state.query}
-        oninput={(e) => search.setQuery(e.currentTarget.value)}
-        onkeydown={(e) => handleResultsFieldKey(e, search)}
-      />
+      <div class="ink-input-group">
+        <span class="ink-input-accessory"><InkIcon icon={Search} /></span>
+        <input
+          type="text"
+          aria-label="Find in document"
+          placeholder="Find in document"
+          autocomplete="off"
+          spellcheck={false}
+          value={search.state.query}
+          oninput={(e) => search.setQuery(e.currentTarget.value)}
+          onkeydown={(e) => handleResultsFieldKey(e, search)}
+        />
+      </div>
     {/if}
     <span class="ink-find-count" data-ink-search-results-count=""
       >{findCountText(search.state)}</span

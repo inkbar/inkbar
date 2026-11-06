@@ -14,11 +14,13 @@ import {
   isBlankQuery,
   searchSource,
 } from '@inkbar/core/dom'
+import { Search } from '@inkbar/icons'
 import { computed } from 'vue'
 
 import { useSearch } from '../composables/useSearch'
 import { injectInkContext } from '../context'
 
+import InkIcon from './InkIcon.vue'
 import RecordCards from './RecordCards.vue'
 
 withDefaults(defineProps<{ field?: boolean }>(), { field: true })
@@ -36,17 +38,19 @@ const blank = computed(() => isBlankQuery(state.value.query))
 <template>
   <div class="ink-search-results" data-ink-search-results>
     <div class="ink-search-results-bar" :role="field ? 'search' : undefined">
-      <input
-        v-if="field"
-        type="text"
-        aria-label="Find in document"
-        placeholder="Find in document"
-        autocomplete="off"
-        spellcheck="false"
-        :value="state.query"
-        @input="search.setQuery(($event.target as HTMLInputElement).value)"
-        @keydown="handleResultsFieldKey($event, search)"
-      />
+      <div v-if="field" class="ink-input-group">
+        <span class="ink-input-accessory"><InkIcon :icon="Search" /></span>
+        <input
+          type="text"
+          aria-label="Find in document"
+          placeholder="Find in document"
+          autocomplete="off"
+          spellcheck="false"
+          :value="state.query"
+          @input="search.setQuery(($event.target as HTMLInputElement).value)"
+          @keydown="handleResultsFieldKey($event, search)"
+        />
+      </div>
       <span class="ink-find-count" data-ink-search-results-count>{{ count }}</span>
     </div>
     <RecordCards :source="source" :empty-shown="blank">

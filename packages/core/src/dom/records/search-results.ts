@@ -3,9 +3,12 @@
  * `searchSource`, under a query field and the find bar's match count. The field and the find
  * bar share the viewer's search state, so they never disagree.
  */
+import { Search } from '@inkbar/icons'
+
 import { isBlankQuery } from '../../model/search-text'
 import { handleResultsFieldKey } from '../search/find-key'
 import { findCountText } from '../search/find-text'
+import { createIcon } from '../viewer/controls'
 import { onViewerDestroy, type Viewer } from '../viewer/create-viewer'
 import { h } from '../viewer/dom'
 
@@ -47,7 +50,16 @@ export function createSearchResults(
   const bar = h(
     'div',
     { class: 'ink-search-results-bar', ...(field && { role: 'search' }) },
-    ...(field ? [field] : []),
+    ...(field
+      ? [
+          h(
+            'div',
+            { class: 'ink-input-group' },
+            h('span', { class: 'ink-input-accessory' }, createIcon(Search)),
+            field
+          ),
+        ]
+      : []),
     count
   )
   // Nothing found yet is the count's to say while a query is in: "No results", or a scan.

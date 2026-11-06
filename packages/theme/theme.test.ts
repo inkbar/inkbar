@@ -384,6 +384,23 @@ describe('theme.css', () => {
     ).toMatch(/background:\s*var\(--ink-accent\)/)
   })
 
+  it('places an input accessory at the start or end and pads the input around it', () => {
+    expect(declsFor('.ink-input-accessory)')).toMatch(/pointer-events:\s*none/)
+    expect(declsFor('.ink-input-accessory:first-child)')).toMatch(/left:/)
+    expect(declsFor('.ink-input-accessory:last-child)')).toMatch(/right:/)
+    expect(declsFor('.ink-input-group > input:not(:first-child))')).toMatch(
+      /padding-left:\s*2rem/
+    )
+    expect(declsFor('.ink-input-group > input:not(:last-child))')).toMatch(
+      /padding-right:\s*2rem/
+    )
+    // After the search inputs' own padding, which would otherwise win.
+    const at = (sel: string) => rules.findIndex((r) => r.selector === sel)
+    expect(at(':where(.ink-input-group > input:not(:first-child))')).toBeGreaterThan(
+      at(':where(.ink-search-results-bar input)')
+    )
+  })
+
   it('styles any .ink-select like the zoom select, chevron included', () => {
     expect(declsFor('.ink-select)')).toMatch(/height:\s*var\(--ink-control-size/)
     expect(declsFor('select.ink-select)')).toMatch(/appearance:\s*none/)

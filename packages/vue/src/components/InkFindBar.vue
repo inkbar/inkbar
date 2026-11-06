@@ -11,7 +11,7 @@
  * Closing returns focus to where it was before the bar opened, else to the document.
  */
 import { findAnnouncer, findCountText } from '@inkbar/core/dom'
-import { CaseSensitive, ChevronDown, ChevronUp, X } from '@inkbar/icons'
+import { CaseSensitive, ChevronDown, ChevronUp, Search, X } from '@inkbar/icons'
 import { computed, onBeforeUnmount, useTemplateRef, watch } from 'vue'
 
 import { useSearch } from '../composables/useSearch'
@@ -138,15 +138,18 @@ onBeforeUnmount(() => {
       :hidden="!state.open"
       @keydown="onBarKeydown"
     >
-      <input
-        ref="field"
-        type="text"
-        aria-label="Find in document"
-        autocomplete="off"
-        spellcheck="false"
-        @input="setQuery(($event.target as HTMLInputElement).value)"
-        @keydown="onFieldKeydown"
-      />
+      <div class="ink-input-group">
+        <span class="ink-input-accessory"><InkIcon :icon="Search" /></span>
+        <input
+          ref="field"
+          type="text"
+          aria-label="Find in document"
+          autocomplete="off"
+          spellcheck="false"
+          @input="setQuery(($event.target as HTMLInputElement).value)"
+          @keydown="onFieldKeydown"
+        />
+      </div>
       <span class="ink-find-count" data-ink-find-count>{{ count }}</span>
       <button
         type="button"

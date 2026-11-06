@@ -230,6 +230,10 @@ describe('createSearchResults', () => {
     const field = results.querySelector<HTMLInputElement>('input')!
     expect(field.getAttribute('aria-label')).toBe('Find in document')
     expect(field.placeholder).toBe('Find in document')
+    // A search icon sits before the field, in its input group.
+    expect(field.previousElementSibling!.classList.contains('ink-input-accessory')).toBe(
+      true
+    )
     expect(results.querySelector('.ink-record-list-empty')!.textContent).toBe(
       'Search to list every match.'
     )

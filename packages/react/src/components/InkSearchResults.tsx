@@ -4,12 +4,14 @@ import {
   isBlankQuery,
   searchSource,
 } from '@inkbar/core/dom'
+import { Search } from '@inkbar/icons'
 import { useLayoutEffect, useMemo, useRef, type ComponentPropsWithoutRef } from 'react'
 
 import { cx } from '../class-names'
 import { useInkContext } from '../context'
 import { useSearch } from '../hooks/useSearch'
 
+import { InkIcon } from './InkIcon'
 import { RecordCards } from './RecordCards'
 
 export interface InkSearchResultsProps extends Omit<
@@ -57,17 +59,22 @@ export function InkSearchResults({
     >
       <div className="ink-search-results-bar" role={field ? 'search' : undefined}>
         {field ? (
-          <input
-            ref={input}
-            type="text"
-            aria-label="Find in document"
-            placeholder="Find in document"
-            autoComplete="off"
-            spellCheck={false}
-            defaultValue={state.query}
-            onInput={(e) => search.setQuery(e.currentTarget.value)}
-            onKeyDown={(e) => handleResultsFieldKey(e.nativeEvent, search)}
-          />
+          <div className="ink-input-group">
+            <span className="ink-input-accessory">
+              <InkIcon icon={Search} />
+            </span>
+            <input
+              ref={input}
+              type="text"
+              aria-label="Find in document"
+              placeholder="Find in document"
+              autoComplete="off"
+              spellCheck={false}
+              defaultValue={state.query}
+              onInput={(e) => search.setQuery(e.currentTarget.value)}
+              onKeyDown={(e) => handleResultsFieldKey(e.nativeEvent, search)}
+            />
+          </div>
         ) : null}
         <span className="ink-find-count" data-ink-search-results-count="">
           {findCountText(state)}

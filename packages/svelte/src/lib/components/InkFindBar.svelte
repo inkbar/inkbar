@@ -18,7 +18,7 @@
    * Closing returns focus to where it was before the bar opened, else to the document.
    */
   import { findAnnouncer, findCountText } from '@inkbar/core/dom'
-  import { CaseSensitive, ChevronDown, ChevronUp, X } from '@inkbar/icons'
+  import { CaseSensitive, ChevronDown, ChevronUp, Search, X } from '@inkbar/icons'
   import { untrack } from 'svelte'
 
   import { useInkContext } from '../context.js'
@@ -149,20 +149,23 @@
     hidden={!open}
     {@attach into(target)}
   >
-    <input
-      bind:this={field}
-      type="text"
-      aria-label="Find in document"
-      autocomplete="off"
-      spellcheck={false}
-      oninput={(e) => search.setQuery(e.currentTarget.value)}
-      onkeydown={(e) => {
-        if (e.key !== 'Enter' || e.isComposing) return
-        e.preventDefault()
-        if (e.shiftKey) search.previous()
-        else search.next()
-      }}
-    />
+    <div class="ink-input-group">
+      <span class="ink-input-accessory"><InkIcon icon={Search} /></span>
+      <input
+        bind:this={field}
+        type="text"
+        aria-label="Find in document"
+        autocomplete="off"
+        spellcheck={false}
+        oninput={(e) => search.setQuery(e.currentTarget.value)}
+        onkeydown={(e) => {
+          if (e.key !== 'Enter' || e.isComposing) return
+          e.preventDefault()
+          if (e.shiftKey) search.previous()
+          else search.next()
+        }}
+      />
+    </div>
     <span class="ink-find-count" data-ink-find-count=""
       >{findCountText(search.state)}</span
     >
