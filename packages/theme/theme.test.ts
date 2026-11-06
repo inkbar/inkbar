@@ -357,6 +357,17 @@ describe('theme.css', () => {
     expect(declsFor('.ink-sidebar)')).toMatch(/var\(--ink-sidebar-width\)/)
   })
 
+  it("hides a closed rail sidebar's panels after the rule that shows them", () => {
+    const at = (selector: string) => rules.findIndex((r) => r.selector === selector)
+    const shown = at(':where(.ink-sidebar-panels)')
+    const closed = at(
+      ":where(.ink-sidebar[data-layout='rail'][data-state='closed'] .ink-sidebar-panels)"
+    )
+    expect(shown).toBeGreaterThanOrEqual(0)
+    expect(closed).toBeGreaterThan(shown)
+    expect(rules[closed]?.toString()).toMatch(/display:\s*none/)
+  })
+
   it("lets a binding's panel wrapper leave the layout to its panel in rail and tabs", () => {
     expect(declsFor('.ink-sidebar-panels > .ink-sidebar-slot)')).toMatch(
       /display:\s*contents/

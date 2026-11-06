@@ -78,6 +78,32 @@ for (const framework of FRAMEWORK_ORDER) {
       )
     })
 
+    test(`${framework} search: search results list hits and follow the find bar`, async ({
+      page,
+    }) => {
+      await open(page, framework)
+      const results = viewer(page).getByRole('tabpanel', { name: 'Results' })
+      await expect(results).toBeVisible()
+      await expect(results).toContainText('Nothing here yet.')
+      await find(page)
+      await expect(count(page)).toHaveText(`1 of ${LONG_HITS}`, { timeout: 20_000 })
+      await expect(results.getByRole('listitem')).toHaveCount(LONG_HITS)
+      await expect(results.locator('[data-ink-search-results-count]')).toHaveText(
+        `1 of ${LONG_HITS}`
+      )
+      // Hits fall on pages 19 and 25 first (0-based 18 and 24), two on 19.
+      const card = (id: string) => results.locator(`[data-ink-record="${id}"]`)
+      await expect(card('18:0')).toHaveAttribute('aria-current', 'true')
+      await viewer(page).getByRole('button', { name: 'Next match' }).click()
+      await expect(card('18:1')).toHaveAttribute('aria-current', 'true')
+      await expect(card('18:0')).not.toHaveAttribute('aria-current')
+      // Choosing a card makes its hit the find bar's current one.
+      await card('24:0').click()
+      await expect(count(page)).toHaveText(`3 of ${LONG_HITS}`)
+      await expect(card('24:0')).toHaveAttribute('aria-current', 'true')
+      await expect(viewer(page).locator('.ink-page[data-page="24"]')).toBeInViewport()
+    })
+
     test(`${framework} search: logs only settled searches when the query changes`, async ({
       page,
     }) => {

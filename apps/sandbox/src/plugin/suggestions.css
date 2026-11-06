@@ -20,7 +20,9 @@
 .sandbox-suggestion:hover {
   background: rgb(0 0 0 / 0.06);
 }
+/* A ring of its own: the theme outlines the mark of the record selected in a list. */
 .sandbox-suggestion:focus-visible {
-  outline: 2px solid var(--ink-ring);
-  outline-offset: 2px;
+  box-shadow:
+    0 0 0 2px var(--ink-surface),
+    0 0 0 4px var(--ink-ring);
 }

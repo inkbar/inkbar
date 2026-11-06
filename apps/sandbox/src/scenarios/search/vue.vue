@@ -2,17 +2,21 @@
 /*
  * Two hundred pages, and no creation tools. The viewer renders only the pages near the
  * viewport, but search reads every page's text, so the find bar counts every hit and steps to
- * any of them. Find opens the bar, as does Ctrl+F or Cmd+F. useSearch gives the same state the
- * bar shows, for a control of your own.
+ * any of them. Find opens the bar, as does Ctrl+F or Cmd+F. The Results panel lists every hit
+ * and follows the bar. useSearch gives the same state the bar shows, for a control of your own.
  */
+import { Search } from '@inkbar/icons'
 import {
   InkFindBar,
   InkNextPage,
   InkPageCount,
   InkPageInput,
+  InkPanel,
   InkPrevPage,
   InkRoot,
   InkSearchButton,
+  InkSearchResults,
+  InkSidebar,
   InkIcon,
   InkToolbar,
   InkToolbarButton,
@@ -76,7 +80,14 @@ function onReady(doc: InkDocument): void {
         </InkToolbarButton>
       </div>
     </InkToolbar>
-    <InkViewport />
+    <div class="scenario-body">
+      <InkViewport />
+      <InkSidebar side="right" layout="tabs">
+        <InkPanel id="results" label="Results" :icon="Search">
+          <InkSearchResults :field="false" />
+        </InkPanel>
+      </InkSidebar>
+    </div>
     <InkFindBar />
     <InkToolbar label="Page and zoom" class="scenario-status-bar">
       <div class="scenario-group" role="group" aria-label="Page">

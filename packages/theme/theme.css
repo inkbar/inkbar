@@ -871,10 +871,6 @@
     border-right: 1px solid var(--ink-border);
   }
 
-  :where(.ink-sidebar[data-layout='rail'][data-state='closed'] .ink-sidebar-panels) {
-    display: none;
-  }
-
   :where(.ink-sidebar-tabs) {
     display: flex;
     flex: none;
@@ -887,6 +883,11 @@
     flex-direction: column;
     min-width: 0;
     min-height: 0;
+  }
+
+  /* After the rule above, which it overrides at the same specificity. */
+  :where(.ink-sidebar[data-layout='rail'][data-state='closed'] .ink-sidebar-panels) {
+    display: none;
   }
 
   :where(.ink-sidebar-panel) {
