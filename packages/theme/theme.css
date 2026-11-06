@@ -503,6 +503,14 @@
     cursor: default;
   }
 
+  /* A locked note still opens its thread on a click. */
+  :where(
+    [data-ink-tool='select'] .ink-annotation[data-locked][data-type='text'],
+    [data-ink-tool='select-text'] .ink-annotation[data-locked][data-type='text']
+  ) {
+    cursor: pointer;
+  }
+
   /* While an annotation is moved the whole viewport shows it, over any element's own cursor.
      The one rule here that is not zero specificity: it has to beat them. */
   [data-ink-dragging],
