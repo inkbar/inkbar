@@ -51,8 +51,10 @@ const props = withDefaults(
     gap?: number
     /** Pages kept mounted either side of the visible ones. */
     buffer?: number
+    /** Pinch to zoom the pages. Off leaves the browser's own touch handling alone. */
+    pinchZoom?: boolean
   }>(),
-  { mode: 'continuous', rotation: 0, gap: 16, buffer: 2 }
+  { mode: 'continuous', rotation: 0, gap: 16, buffer: 2, pinchZoom: true }
 )
 
 const slots = defineSlots<{
@@ -162,6 +164,7 @@ function setup(): void {
     rotation: props.rotation,
     gap: props.gap,
     buffer: props.buffer,
+    pinchZoom: props.pinchZoom,
     tool: ctx.tool.value,
     ...(ctx.hostTools.value ? { tools: ctx.hostTools.value } : {}),
     // The engine adds the plugins' tools and layers, and decorates through the host, which
@@ -285,11 +288,13 @@ watch(
   () => props.rotation,
   (r) => engine.value?.viewport.setRotation(r)
 )
-// Gap and buffer are construction options: rebuild for the same document, keeping zoom and page.
+// Gap, buffer and pinch zoom are construction options: rebuild for the same document, keeping zoom and page.
 // The slots are already updated when this runs, so it carries the annotation slot too: a slot
 // toggle in the same tick is then recorded here and `onBeforeUpdate` finds nothing left to do.
-watch([() => props.gap, () => props.buffer], ([gap, buffer]) =>
-  rebuild({ gap, buffer, customAnnotations: !!slots.annotation })
+watch(
+  [() => props.gap, () => props.buffer, () => props.pinchZoom],
+  ([gap, buffer, pinchZoom]) =>
+    rebuild({ gap, buffer, pinchZoom, customAnnotations: !!slots.annotation })
 )
 
 // Slots are not reactive, so a change to whether the annotation slot is given is caught here.

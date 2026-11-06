@@ -7,23 +7,28 @@ import InkViewport from '../../src/components/InkViewport.vue'
 import type { Annotation, DocumentSource, InkDocument, PdfAssets } from '@inkbar/core'
 import type { ToolId, ZoomValue } from '@inkbar/core/dom'
 
-const props = defineProps<{
-  src: DocumentSource | null
-  assets: PdfAssets
-  zoom?: ZoomValue | undefined
-  page?: number | undefined
-  buffer?: number | undefined
-  gap?: number | undefined
-  customAnnotations?: boolean | undefined
-  customLoading?: boolean | undefined
-  tool?: ToolId | undefined
-  /** Marks text annotations with `data-test-mark`; a function cannot cross the mount boundary. */
-  decorateMark?: string | undefined
-  /** Zero-based page whose page lookups reject until the Heal button is pressed. */
-  failPage?: number | undefined
-  /** Zero-based page whose text content fails to load (its canvas still renders). */
-  failText?: number | undefined
-}>()
+const props = withDefaults(
+  defineProps<{
+    src: DocumentSource | null
+    assets: PdfAssets
+    zoom?: ZoomValue | undefined
+    page?: number | undefined
+    buffer?: number | undefined
+    gap?: number | undefined
+    pinchZoom?: boolean | undefined
+    customAnnotations?: boolean | undefined
+    customLoading?: boolean | undefined
+    tool?: ToolId | undefined
+    /** Marks text annotations with `data-test-mark`; a function cannot cross the mount boundary. */
+    decorateMark?: string | undefined
+    /** Zero-based page whose page lookups reject until the Heal button is pressed. */
+    failPage?: number | undefined
+    /** Zero-based page whose text content fails to load (its canvas still renders). */
+    failText?: number | undefined
+  }>(),
+  // An absent boolean prop is false in Vue; the viewport's own default is on.
+  { pinchZoom: true }
+)
 const emit = defineEmits<{ 'update:zoom': [z: ZoomValue]; 'update:page': [p: number] }>()
 const clicks = ref(0)
 const decorate = computed(() => {
@@ -80,7 +85,7 @@ function onReady(doc: InkDocument): void {
     >
       <!-- Test-only box: the scroll container needs a bounded height to scroll. -->
       <div style="height: 700px; width: 900px">
-        <InkViewport :buffer="buffer ?? 2" :gap="gap ?? 16">
+        <InkViewport :buffer="buffer ?? 2" :gap="gap ?? 16" :pinch-zoom="pinchZoom">
           <template v-if="customLoading" #loading>
             <span data-testid="custom-loading">Opening the file</span>
           </template>

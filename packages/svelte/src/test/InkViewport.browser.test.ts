@@ -650,4 +650,33 @@ describe('InkViewport', () => {
     await expect.poll(attr(note, 'data-test-mark')).toBe('other')
     expect(document.querySelector(note)).toBe(element)
   })
+
+  // React: 'pinchZoom defaults on'
+  it('pinchZoom defaults on', async () => {
+    await render(ViewportHarness, { src: fixtureUrl('text-simple'), assets })
+    await q(`${FIRST} canvas`)
+    expect(scroll().style.touchAction).toBe('pan-x pan-y')
+  })
+
+  // React: 'pinchZoom false clears touch-action and survives a toggle'
+  it('pinchZoom false clears touch-action and survives a toggle', async () => {
+    const pages: number[] = []
+    const screen = await render(ViewportHarness, {
+      src: fixtureUrl('text-simple'),
+      assets,
+      zoom: 1.5,
+      onPageChange: (p: number) => pages.push(p),
+    })
+    await q(`${FIRST} canvas`)
+    scroll().focus()
+    await userEvent.keyboard('{End}')
+    await expect.poll(() => pages.at(-1)).toBe(2)
+
+    await screen.rerender({ pinchZoom: false })
+    await expect.poll(() => scroll().style.touchAction).toBe('')
+    await screen.rerender({ pinchZoom: true })
+    await expect.poll(() => scroll().style.touchAction).toBe('pan-x pan-y')
+    await q('.ink-page[data-page="2"] canvas')
+    expect(pages.at(-1)).toBe(2)
+  })
 })
