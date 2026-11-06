@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   mountContainer,
@@ -353,5 +353,70 @@ describe('touch pinch zoom', () => {
     touch(container, 'pointerup', 2, { x: 500, y: 200 })
     expect(viewport.zoom.get()).toBe(1)
     expect(updates.count).toBe(0)
+  })
+})
+
+/** Dispatches `count` ctrl+wheel events 16 ms apart at `at` (container-relative). */
+async function wheelRun(
+  container: HTMLElement,
+  at: Point,
+  count: number,
+  init: WheelEventInit = {}
+): Promise<WheelEvent[]> {
+  const r = container.getBoundingClientRect()
+  const events: WheelEvent[] = []
+  for (let i = 0; i < count; i++) {
+    const e = new WheelEvent('wheel', {
+      bubbles: true,
+      cancelable: true,
+      ctrlKey: true,
+      deltaY: -20,
+      clientX: r.left + container.clientLeft + at.x,
+      clientY: r.top + container.clientTop + at.y,
+      ...init,
+    })
+    container.dispatchEvent(e)
+    events.push(e)
+    if (i < count - 1) await new Promise((res) => setTimeout(res, 16))
+  }
+  return events
+}
+
+describe('trackpad pinch zoom', () => {
+  it('ctrl+wheel is prevented and commits once after 150 ms idle', async () => {
+    const { container, viewport, pages } = await setup({ zoom: 0.5 })
+    const events = await wheelRun(container, { x: 400, y: 300 }, 5)
+    expect(events.every((e) => e.defaultPrevented)).toBe(true)
+    expect(viewport.zoom.get()).toBe(0.5)
+    expect(pages.style.transform).toContain('scale(')
+    await vi.waitFor(() => expect(viewport.zoom.get()).toBeCloseTo(0.5 * Math.exp(1), 6))
+    expect(pages.style.transform).not.toContain('scale(')
+  })
+
+  it('the point under the cursor stays put', async () => {
+    const { container, viewport } = await setup({ zoom: 0.5 })
+    const at = { x: 300, y: 250 }
+    const before = userPointAt(viewport, container, at)
+    await wheelRun(container, at, 5)
+    await vi.waitFor(() => expect(viewport.zoom.get()).toBeGreaterThan(0.5))
+    const after = containerPointOf(viewport, container, before.page, before.point)
+    expect(Math.abs(after.x - at.x)).toBeLessThan(1)
+    expect(Math.abs(after.y - at.y)).toBeLessThan(1)
+  })
+
+  it('plain wheel scrolls as before', async () => {
+    const { container, viewport } = await setup()
+    const events = await wheelRun(container, { x: 400, y: 300 }, 2, { ctrlKey: false })
+    expect(events.some((e) => e.defaultPrevented)).toBe(false)
+    await new Promise((res) => setTimeout(res, 250))
+    expect(viewport.zoom.get()).toBe(1)
+  })
+
+  it('pinchZoom false ignores ctrl+wheel', async () => {
+    const { container, viewport } = await setup({ pinchZoom: false })
+    const events = await wheelRun(container, { x: 400, y: 300 }, 2)
+    expect(events.some((e) => e.defaultPrevented)).toBe(false)
+    await new Promise((res) => setTimeout(res, 250))
+    expect(viewport.zoom.get()).toBe(1)
   })
 })

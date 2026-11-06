@@ -24,6 +24,7 @@ import {
 } from './layout'
 import {
   attachTouchPinch,
+  attachTrackpadPinch,
   createZoomPreview,
   type PinchFrame,
   type ZoomPreview,
@@ -414,6 +415,16 @@ export function createViewport(opts: ViewportOptions): Viewport {
         commit: commitPinch,
       })
     : undefined
+  const trackpadPinch = preview
+    ? attachTrackpadPinch({
+        container,
+        preview,
+        scale: () => scale.get(),
+        minZoom,
+        maxZoom,
+        commit: commitPinch,
+      })
+    : undefined
 
   const viewport: Viewport = {
     zoom: readonly(zoom),
@@ -494,6 +505,7 @@ export function createViewport(opts: ViewportOptions): Viewport {
       if (destroyed) return
       destroyed = true
       pinch?.destroy()
+      trackpadPinch?.destroy()
       preview?.destroy()
       ro.disconnect()
       container.removeEventListener('scroll', onScroll)
