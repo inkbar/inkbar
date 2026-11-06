@@ -44,6 +44,7 @@ const TOOLBARS: Record<string, string[]> = {
   redactions: [...SELECT_TOOLS, ...CREATION_TOOLS],
   search: SELECT_TOOLS,
   sidebars: SELECT_TOOLS,
+  events: SELECT_TOOLS,
 }
 
 const viewer = (page: Page) => page.locator('[data-scenario-viewer]')

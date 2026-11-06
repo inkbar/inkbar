@@ -1,0 +1,24 @@
+/*
+ * The presses plugin's markers: a 16 px ring centred on the point. A press is a hollow ring in
+ * the accent colour; a long press is a disc filled with the accent colour inside a ring in the
+ * text colour, so the two differ by fill as well as colour.
+ *
+ * Markers only show where a press landed. They let presses through to the page, so pressing
+ * the same spot again still reaches the viewer.
+ */
+.presses-marker {
+  position: absolute;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border: 2px solid var(--ink-accent);
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: 0 0 0 1px var(--ink-surface);
+  pointer-events: none;
+}
+.presses-marker[data-kind='long-press'] {
+  border-color: var(--ink-fg);
+  background: var(--ink-accent);
+}

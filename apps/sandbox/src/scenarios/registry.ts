@@ -2,7 +2,14 @@ import type { DocumentName } from '../../vite/documents/index.ts'
 import type { FrameworkId } from '../shell/frameworks.ts'
 
 export type ScenarioId =
-  'tour' | 'tools' | 'forms' | 'redactions' | 'controlled' | 'search' | 'sidebars'
+  | 'tour'
+  | 'tools'
+  | 'forms'
+  | 'redactions'
+  | 'controlled'
+  | 'search'
+  | 'sidebars'
+  | 'events'
 
 export interface Scenario {
   id: ScenarioId
@@ -87,5 +94,14 @@ export const SCENARIOS: readonly Scenario[] = [
       'Thumbnails, search and a panel of your own in a rail, tabs or a stack, on either side.',
     document: 'tour',
     panels: ['events'],
+  },
+  {
+    id: 'events',
+    title: 'Press and long press',
+    blurb:
+      'A plugin hears presses and long presses on the page. On a phone or tablet, pinch to zoom the document.',
+    document: 'letter',
+    panels: ['events'],
+    extraFiles: ['src/plugin/presses.ts', 'src/plugin/presses.css'],
   },
 ]

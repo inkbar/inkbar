@@ -7,11 +7,25 @@ import { FRAMEWORK_ORDER } from '../shell/frameworks.ts'
 
 import { SCENARIOS } from './registry.ts'
 
-void test('seven scenarios in order', () => {
+void test('eight scenarios in order', () => {
   assert.deepEqual(
     SCENARIOS.map((s) => s.id),
-    ['tour', 'tools', 'forms', 'redactions', 'controlled', 'search', 'sidebars']
+    ['tour', 'tools', 'forms', 'redactions', 'controlled', 'search', 'sidebars', 'events']
   )
+})
+
+void test('events is registered for every framework, with its plugin', () => {
+  const events = SCENARIOS.find((s) => s.id === 'events')
+  assert.ok(events)
+  assert.equal(events.title, 'Press and long press')
+  assert.equal(
+    events.blurb,
+    'A plugin hears presses and long presses on the page. On a phone or tablet, pinch to zoom the document.'
+  )
+  assert.equal(events.document, 'letter')
+  assert.deepEqual(events.extraFiles, ['src/plugin/presses.ts', 'src/plugin/presses.css'])
+  for (const file of ['react.tsx', 'vue.vue', 'svelte.svelte', 'vanilla.ts'])
+    assert.ok(existsSync(new URL(`./events/${file}`, import.meta.url)), file)
 })
 
 void test('sidebars is registered for every framework', () => {
