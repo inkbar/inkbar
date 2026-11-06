@@ -20,6 +20,8 @@ export { useHistory } from './composables/useHistory'
 export { useEmbedded } from './composables/useEmbedded'
 export { useSearch } from './composables/useSearch'
 export { useCommand } from './composables/useCommand'
+export { useRecords } from './composables/useRecords'
+export { useRecordSelection } from './composables/useRecordSelection'
 export { useForm } from './composables/useForm'
 export type { FormHandle } from './composables/useForm'
 export type { CommandHandle } from './composables/useCommand'
@@ -57,4 +59,12 @@ export { default as InkSidebar } from './components/InkSidebar.vue'
 export { default as InkPanel } from './components/InkPanel.vue'
 export { default as InkThumbnail } from './components/InkThumbnail.vue'
 export { default as InkThumbnails } from './components/InkThumbnails.vue'
-export type { SidebarLayout, SidebarOpen, SidebarSide } from '@inkbar/core/dom'
+export { default as InkRecordList } from './components/InkRecordList.vue'
+export { default as InkSearchResults } from './components/InkSearchResults.vue'
+export type {
+  CardSpec,
+  HostRecords,
+  SidebarLayout,
+  SidebarOpen,
+  SidebarSide,
+} from '@inkbar/core/dom'
