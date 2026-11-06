@@ -1,15 +1,39 @@
 import assert from 'node:assert/strict'
+import { existsSync } from 'node:fs'
 import { test } from 'node:test'
 
 import { DOCUMENT_NAMES } from '../../vite/documents/index.ts'
+import { FRAMEWORK_ORDER } from '../shell/frameworks.ts'
 
 import { SCENARIOS } from './registry.ts'
 
-void test('six scenarios in order', () => {
+void test('seven scenarios in order', () => {
   assert.deepEqual(
     SCENARIOS.map((s) => s.id),
-    ['tour', 'tools', 'forms', 'redactions', 'controlled', 'search']
+    ['tour', 'tools', 'forms', 'redactions', 'controlled', 'search', 'sidebars']
   )
+})
+
+void test('sidebars is registered for every framework', () => {
+  const sidebars = SCENARIOS.find((s) => s.id === 'sidebars')
+  assert.ok(sidebars)
+  assert.equal(sidebars.title, 'Sidebars')
+  assert.equal(
+    sidebars.blurb,
+    'Thumbnails and panels in a rail, tabs or a stack, on either side. One thumbnail works on its own, too.'
+  )
+  assert.equal(sidebars.document, 'tour')
+  const file = {
+    react: 'react.tsx',
+    vue: 'vue.vue',
+    svelte: 'svelte.svelte',
+    vanilla: 'vanilla.ts',
+  }
+  for (const framework of FRAMEWORK_ORDER)
+    assert.ok(
+      existsSync(new URL(`./sidebars/${file[framework]}`, import.meta.url)),
+      framework
+    )
 })
 
 void test('every scenario names a document', () => {
