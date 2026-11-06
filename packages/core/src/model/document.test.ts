@@ -29,6 +29,24 @@ describe('openDocument', () => {
     doc.destroy()
   })
 
+  it('gives the file it was opened from, and a name for it', async () => {
+    const bytes = await fixtureBytes('text-simple')
+    const doc = await openDocument(new File([bytes.slice()], 'notes.pdf'), {
+      assets: nodeAssets(),
+    })
+    expect(doc.fileName).toBe('notes.pdf')
+    expect([...(await doc.getData())]).toEqual([...bytes])
+    doc.destroy()
+  })
+
+  it('rejects getData for a document that failed to load', async () => {
+    const doc = await openDocument(await fixtureBytes('malformed-truncated'), {
+      assets: nodeAssets(),
+    })
+    await expect(doc.getData()).rejects.toMatchObject({ code: 'InvalidPdf' })
+    doc.destroy()
+  })
+
   it('exposes the CropBox offset in box', async () => {
     const doc = await openDocument(await fixtureBytes('cropbox-offset'), {
       assets: nodeAssets(),

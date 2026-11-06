@@ -41,6 +41,42 @@ export function resolveSource(
   }
 }
 
+const DEFAULT_FILE_NAME = 'document.pdf'
+
+/** `name` ending in `.pdf` (any case), else with it added. */
+const asPdf = (name: string): string => (/\.pdf$/i.test(name) ? name : `${name}.pdf`)
+
+/** A URL's last path segment, decoded, without its query or hash; null when it has none. */
+function urlFileName(url: string): string | null {
+  let path: string
+  try {
+    path = new URL(url, 'http://localhost').pathname
+  } catch {
+    return null
+  }
+  const last = path.split('/').pop() ?? ''
+  if (last === '') return null
+  try {
+    return decodeURIComponent(last)
+  } catch {
+    return last
+  }
+}
+
+/**
+ * The name to save `src` under: a File's name, else a URL's last path segment, with `.pdf`
+ * added when it has none; `document.pdf` when neither gives one.
+ */
+export function sourceFileName(src: DocumentSource): string {
+  let name: string | null = null
+  if (typeof src === 'string') name = urlFileName(src)
+  else if (src instanceof ArrayBuffer || src instanceof Uint8Array) name = null
+  else if ('url' in src) name = urlFileName(src.url)
+  else if ('data' in src) name = null
+  else if (typeof (src as Partial<File>).name === 'string') name = (src as File).name
+  return name ? asPdf(name) : DEFAULT_FILE_NAME
+}
+
 /**
  * A view over the host's bytes. `bytes()` hands PDF.js a copy each time: PDF.js transfers the
  * buffer it is given to its worker, which would empty the host's array and break a reopen

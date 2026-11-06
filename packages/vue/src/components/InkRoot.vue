@@ -8,6 +8,7 @@ import {
   writable,
 } from '@inkbar/core'
 import {
+  attachFileKeys,
   attachHistoryKeys,
   createPluginHost,
   createSearchController,
@@ -360,11 +361,14 @@ watch(
     const stopFocus = keepHistoryFocus(el, () =>
       el.querySelector<HTMLElement>('[data-ink-scroll]')
     )
+    // Ctrl or Cmd+P prints and +S downloads, as InkPrintButton and InkDownloadButton do.
+    const stopFileKeys = attachFileKeys(el, () => document.value)
     // Not a template listener: Vue leaves those on the element when it unmounts.
     el.addEventListener('keydown', onKeydown)
     onCleanup(() => {
       stopKeys()
       stopFocus()
+      stopFileKeys()
       el.removeEventListener('keydown', onKeydown)
     })
   },

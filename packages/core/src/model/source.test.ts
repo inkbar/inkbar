@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { resolveSource } from './source'
+import { resolveSource, sourceFileName } from './source'
 
 describe('resolveSource', () => {
   it('uses the URL string as the key', async () => {
@@ -61,5 +61,33 @@ describe('resolveSource', () => {
       code: 'SourceFetchFailed',
       cause: network,
     })
+  })
+})
+
+describe('sourceFileName', () => {
+  it("takes a URL's last path segment, decoded, without its query", () => {
+    expect(sourceFileName('https://x/files/Site%20survey.pdf?sig=1#page=2')).toBe(
+      'Site survey.pdf'
+    )
+    expect(sourceFileName({ url: '/docs/lease.pdf', key: 'lease' })).toBe('lease.pdf')
+  })
+
+  it("takes a File's name", () => {
+    const file = new File([new Uint8Array([1])], 'Invoice 2041.pdf')
+    expect(sourceFileName(file)).toBe('Invoice 2041.pdf')
+  })
+
+  it('adds .pdf to a name without it', () => {
+    expect(sourceFileName('https://x/download/12345')).toBe('12345.pdf')
+    expect(sourceFileName(new File([], 'scan'))).toBe('scan.pdf')
+    expect(sourceFileName('https://x/report.PDF')).toBe('report.PDF')
+  })
+
+  it('falls back to document.pdf with no name to take', () => {
+    expect(sourceFileName(new Uint8Array([1]))).toBe('document.pdf')
+    expect(sourceFileName(new ArrayBuffer(1))).toBe('document.pdf')
+    expect(sourceFileName({ data: new Uint8Array([1]), key: 'k' })).toBe('document.pdf')
+    expect(sourceFileName(new Blob([]))).toBe('document.pdf')
+    expect(sourceFileName('https://x/')).toBe('document.pdf')
   })
 })
