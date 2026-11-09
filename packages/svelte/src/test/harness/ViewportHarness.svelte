@@ -17,6 +17,7 @@
     page,
     buffer = 2,
     gap = 16,
+    pinchZoom = true,
     customAnnotations = false,
     customLoading = false,
     tool,
@@ -32,6 +33,7 @@
     page?: number | undefined
     buffer?: number
     gap?: number
+    pinchZoom?: boolean
     customAnnotations?: boolean
     customLoading?: boolean
     tool?: ToolId | undefined
@@ -128,6 +130,7 @@
       <InkViewport
         buffer={options.buffer}
         gap={options.gap}
+        {pinchZoom}
         loading={customLoading ? loadingSlot : undefined}
         annotation={customAnnotations ? pin : undefined}
       />

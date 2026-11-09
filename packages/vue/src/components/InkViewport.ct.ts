@@ -629,3 +629,33 @@ test('decorateAnnotation reaches the annotation elements', async ({ mount, page 
   await expect(note).toHaveAttribute('data-test-mark', 'other')
   await expect(note).toHaveAttribute('data-before-swap', '')
 })
+
+test('pinchZoom defaults on', async ({ mount, page }) => {
+  const cmp = await mount(ViewportHarness, {
+    props: { src: fixtureUrl('text-simple'), assets },
+  })
+  await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
+  await expect(page.locator('[data-ink-scroll]')).toHaveCSS('touch-action', 'pan-x pan-y')
+})
+
+test('pinchZoom false clears touch-action and survives a toggle', async ({
+  mount,
+  page,
+}) => {
+  const pages: number[] = []
+  const on = { 'update:page': (p: number) => pages.push(p) }
+  const props = { src: fixtureUrl('text-simple'), assets, zoom: 1.5 }
+  const cmp = await mount(ViewportHarness, { props, on })
+  await expect(cmp.locator('.ink-page[data-page="0"] canvas')).toBeVisible()
+  const scroll = page.locator('[data-ink-scroll]')
+  await scroll.focus()
+  await page.keyboard.press('End')
+  await expect.poll(() => pages.at(-1)).toBe(2)
+
+  await cmp.update({ props: { ...props, pinchZoom: false }, on })
+  await expect(scroll).toHaveCSS('touch-action', 'auto')
+  await cmp.update({ props: { ...props, pinchZoom: true }, on })
+  await expect(scroll).toHaveCSS('touch-action', 'pan-x pan-y')
+  await expect(cmp.locator('.ink-page[data-page="2"] canvas')).toBeVisible()
+  expect(pages.at(-1)).toBe(2)
+})

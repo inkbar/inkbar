@@ -14,6 +14,8 @@
     gap?: number
     /** Pages kept mounted either side of the visible ones. */
     buffer?: number
+    /** Pinch to zoom the pages. Off leaves the browser's own touch handling alone. */
+    pinchZoom?: boolean
     loading?: Snippet | undefined
     empty?: Snippet | undefined
     error?: Snippet<[{ error: InkError }]> | undefined
@@ -63,6 +65,7 @@
     rotation = 0,
     gap = 16,
     buffer = 2,
+    pinchZoom = true,
     loading,
     empty,
     error,
@@ -100,7 +103,12 @@
    */
   let build = 0
   /** The construction options the engine was last built with, so a rebuild runs only on a change. */
-  let builtWith: { gap: number; buffer: number; custom: boolean } | null = null
+  let builtWith: {
+    gap: number
+    buffer: number
+    pinchZoom: boolean
+    custom: boolean
+  } | null = null
   let stops: (() => void)[] = []
   /** The zoom and page last reported to the host. */
   let lastReportedZoom: ZoomValue | undefined
@@ -135,7 +143,7 @@
     let first = true
     build += 1
     const custom = !!annotation
-    builtWith = { gap, buffer, custom }
+    builtWith = { gap, buffer, pinchZoom, custom }
     // The tools this viewer registers, from the same inputs; a later `tools` waits for a rebuild.
     ctx.setOpenedToolIds(toolIdsOf(ctx.hostTools, ctx.pluginHost))
     engine = mountViewer({
@@ -147,6 +155,7 @@
       rotation,
       gap,
       buffer,
+      pinchZoom,
       tool: ctx.tool,
       ...(ctx.hostTools ? { tools: ctx.hostTools } : {}),
       // The engine adds the plugins' tools and layers, and decorates through the host, which
@@ -253,7 +262,7 @@
 
   // Construction-only options rebuild the engine for the same document, keeping zoom and page.
   // The deriveds notify only on a real change: a host that spreads its props invalidates `gap`
-  // and `buffer` without changing them. One effect for all three, so a gap and a snippet change
+  // and `buffer` without changing them. One effect for all of them, so a gap and a snippet change
   // in the same tick rebuild once. It skips its first run (and any run after a build that
   // already used these values) by comparing with `builtWith`.
   //
@@ -264,15 +273,22 @@
   // `pages` for the new build's pages. The rebuild keeps the scroll position.
   const buildGap = $derived(gap)
   const buildBuffer = $derived(buffer)
+  const buildPinchZoom = $derived(pinchZoom)
   const buildCustom = $derived(!!annotation)
   $effect(() => {
-    const next = { gap: buildGap, buffer: buildBuffer, custom: buildCustom }
+    const next = {
+      gap: buildGap,
+      buffer: buildBuffer,
+      pinchZoom: buildPinchZoom,
+      custom: buildCustom,
+    }
     untrack(() => {
       const built = builtWith
       if (!engine || !built) return
       if (
         built.gap === next.gap &&
         built.buffer === next.buffer &&
+        built.pinchZoom === next.pinchZoom &&
         built.custom === next.custom
       )
         return
@@ -281,6 +297,7 @@
       engine.rebuild({
         gap: next.gap,
         buffer: next.buffer,
+        pinchZoom: next.pinchZoom,
         customAnnotations: next.custom,
       })
     })

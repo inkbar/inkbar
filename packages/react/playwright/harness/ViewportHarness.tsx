@@ -13,6 +13,7 @@ export interface ViewportHarnessProps {
   page?: number | undefined
   buffer?: number | undefined
   gap?: number | undefined
+  pinchZoom?: boolean | undefined
   customAnnotations?: boolean | undefined
   customLoading?: boolean | undefined
   tool?: ToolId | undefined
@@ -84,6 +85,7 @@ export function ViewportHarness(props: ViewportHarnessProps) {
           <InkViewport
             buffer={props.buffer ?? 2}
             gap={props.gap ?? 16}
+            pinchZoom={props.pinchZoom ?? true}
             loading={
               props.customLoading ? (
                 <span data-testid="custom-loading">Opening the file</span>

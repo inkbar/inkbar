@@ -50,6 +50,8 @@ export interface InkViewportProps extends ComponentPropsWithoutRef<'div'> {
   gap?: number
   /** Pages kept mounted either side of the visible ones. */
   buffer?: number
+  /** Pinch to zoom the pages. Off leaves the browser's own touch handling alone. */
+  pinchZoom?: boolean
   loading?: ReactNode
   empty?: ReactNode
   error?: ReactNode | ((props: { error: InkError }) => ReactNode)
@@ -87,6 +89,7 @@ export function InkViewport({
   rotation = 0,
   gap = 16,
   buffer = 2,
+  pinchZoom = true,
   loading,
   empty,
   error,
@@ -98,7 +101,7 @@ export function InkViewport({
   const ctx = useInkContext('InkViewport')
   const scroll = useRef<HTMLDivElement>(null)
   const custom = !!renderAnnotation
-  const latest = useLatest({ ctx, mode, rotation, gap, buffer, custom })
+  const latest = useLatest({ ctx, mode, rotation, gap, buffer, pinchZoom, custom })
 
   const engine = useRef<ViewerEngine | null>(null)
   /** Page hosts, mounts and errors the engine reported; InkPage renders portals for them. */
@@ -110,7 +113,12 @@ export function InkViewport({
    */
   const buildCount = useRef(0)
   /** The construction options the engine was last built with, so a rebuild runs only on a change. */
-  const builtWith = useRef<{ gap: number; buffer: number; custom: boolean } | null>(null)
+  const builtWith = useRef<{
+    gap: number
+    buffer: number
+    pinchZoom: boolean
+    custom: boolean
+  } | null>(null)
   /** The zoom and page last reported to the host. */
   const lastReportedZoom = useRef<ZoomValue | undefined>(undefined)
   const lastReportedPage = useRef<number | undefined>(undefined)
@@ -121,7 +129,15 @@ export function InkViewport({
 
   // Build for a new document or status; tear down on the next change and on unmount.
   useEffect(() => {
-    const { ctx: c, mode: m, rotation: r, gap: g, buffer: b, custom: cu } = latest.current
+    const {
+      ctx: c,
+      mode: m,
+      rotation: r,
+      gap: g,
+      buffer: b,
+      pinchZoom: pz,
+      custom: cu,
+    } = latest.current
     const doc = c.document
     const el = scroll.current
     lastReportedZoom.current = undefined
@@ -130,7 +146,7 @@ export function InkViewport({
     let first = true
     let stops: (() => void)[] = []
     buildCount.current += 1
-    builtWith.current = { gap: g, buffer: b, custom: cu }
+    builtWith.current = { gap: g, buffer: b, pinchZoom: pz, custom: cu }
     // The tools this viewer registers, from the same inputs; a later `tools` waits for a rebuild.
     c.setOpenedToolIds(toolIdsOf(c.hostTools, c.pluginHost))
     const e = mountViewer({
@@ -142,6 +158,7 @@ export function InkViewport({
       rotation: r,
       gap: g,
       buffer: b,
+      pinchZoom: pz,
       tool: c.tool,
       ...(c.hostTools ? { tools: c.hostTools } : {}),
       // The engine adds the plugins' tools and layers, and decorates through the host, which
@@ -245,11 +262,17 @@ export function InkViewport({
   useEffect(() => {
     const built = builtWith.current
     if (!engine.current || !built) return
-    if (built.gap === gap && built.buffer === buffer && built.custom === custom) return
+    if (
+      built.gap === gap &&
+      built.buffer === buffer &&
+      built.pinchZoom === pinchZoom &&
+      built.custom === custom
+    )
+      return
     buildCount.current += 1
-    builtWith.current = { gap, buffer, custom }
-    engine.current.rebuild({ gap, buffer, customAnnotations: custom })
-  }, [gap, buffer, custom])
+    builtWith.current = { gap, buffer, pinchZoom, custom }
+    engine.current.rebuild({ gap, buffer, pinchZoom, customAnnotations: custom })
+  }, [gap, buffer, pinchZoom, custom])
 
   useEffect(() => {
     const vp = engine.current?.viewport
