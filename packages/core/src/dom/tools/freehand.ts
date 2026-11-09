@@ -134,6 +134,7 @@ export function freehandTool(opts: FreehandOptions): Tool {
     label: opts.label,
     icon: opts.icon,
     kind: 'sticky',
+    claimsTouch: true,
     cursor: 'crosshair',
     styleGroup: 'ink',
     activate(c) {

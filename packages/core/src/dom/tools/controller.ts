@@ -10,7 +10,10 @@
 // When a tool starts a gesture (its `onPointerDown` returns true) the controller captures the
 // pointer on the root, so the release still arrives when it happens outside. `pointercancel`
 // and `lostpointercapture` reach the tool as `onPointerCancel`. `touch-action` is the theme's or
-// host's, except that the viewport claims pinch (`pan-x pan-y`) unless `pinchZoom` is false.
+// host's, except for two claims: the viewport claims pinch on the container (`pan-x pan-y`)
+// unless `pinchZoom` is false, and this controller sets `pinch-zoom` on the pages element
+// (a direct child of the root, `data-ink-pages`) while a tool with `claimsTouch` is ready, so
+// one finger drags with the tool instead of panning. Two fingers still scroll and zoom.
 //
 // The controller tracks the pressed pointer. Switching tools mid-press cancels the old tool's
 // gesture and swallows that pointer's release, so the new tool never sees half a gesture.
@@ -128,6 +131,12 @@ export interface Tool<O extends object = object> {
   /** Default sticky. */
   kind?: ToolKind
   cursor: string
+  /**
+   * When true, one finger drags with the tool over the document instead of scrolling it,
+   * while the tool is active (and, for a one-shot tool, until it has made something). Two
+   * fingers still scroll and zoom.
+   */
+  claimsTouch?: boolean
   /** Style group the tool creates into; select tools have none. */
   styleGroup?: StyleGroup
   /** Option defaults. Options persist per tool for the viewer's life. */
@@ -253,6 +262,7 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
       clearMade()
       made = [...ids]
       ctx.root.dataset.inkMade = ''
+      applyClaim()
       stopMade = [
         ctx.store.list.subscribe(checkMade),
         ctx.store.selection.subscribe(checkMade),
@@ -292,6 +302,19 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     stopMade = []
     made = undefined
     delete ctx.root.dataset.inkMade
+    applyClaim()
+  }
+  /**
+   * Turns off one-finger panning on the pages element while a claiming tool is ready. The
+   * viewport never sets `touch-action` there, so removing the property restores it. A host
+   * without a pages element (no `createViewport`) gets no claim.
+   */
+  function applyClaim(): void {
+    const pages = ctx.root.querySelector<HTMLElement>(':scope > [data-ink-pages]')
+    if (!pages) return
+    if (current?.claimsTouch === true && made === undefined)
+      pages.style.touchAction = 'pinch-zoom'
+    else pages.style.removeProperty('touch-action')
   }
   /** Leaves the made state when its items are gone, or switches when the selection moved on. */
   function checkMade(): void {
@@ -507,6 +530,7 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     next.activate(ctx)
     ctx.root.dataset.inkTool = id
     ctx.root.style.cursor = next.cursor
+    applyClaim()
     active.set(id)
   }
   /** Ends the live press's gesture, if any, and keeps its release from every tool. */
@@ -549,8 +573,8 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
       madeEdit?.reset()
       madeEdit = undefined
       current?.deactivate()
-      clearMade()
       current = undefined
+      clearMade()
       doc.defaultView?.removeEventListener('pointerdown', readFirst, { capture: true })
       doc.removeEventListener('pointerdown', readAfterEditor, { capture: true })
       ctx.root.removeEventListener('pointerdown', onDown, { capture: true })

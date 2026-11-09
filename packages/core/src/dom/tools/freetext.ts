@@ -162,6 +162,7 @@ export function freetextTool(): Tool {
     label: 'Text box',
     icon: Type,
     kind: 'one-shot',
+    claimsTouch: true,
     cursor: 'text',
     styleGroup: 'text',
     defaultOptions: {},

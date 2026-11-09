@@ -54,6 +54,7 @@ export function redactAreaTool(): Tool {
     label: 'Mark for redaction',
     icon: Square,
     kind: 'one-shot',
+    claimsTouch: true,
     cursor: 'crosshair',
     styleGroup: 'redact',
     activate(c) {
