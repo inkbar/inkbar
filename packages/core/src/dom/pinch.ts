@@ -137,7 +137,9 @@ export interface TouchPinchOptions {
  * lifts or is cancelled, and any finger still down then starts nothing until every finger has
  * lifted. While two fingers are down their moves are prevented, so the browser neither pans
  * nor zooms underneath; one finger's moves never are, so a one-finger scroll stays native.
- * The container's `touch-action: pan-x pan-y` keeps the page from zooming as well. A finger
+ * The viewport claims pinch on the container (`touch-action: pan-x pan-y`), which keeps the
+ * page from zooming as well; the tool controller turns off one-finger panning on the pages
+ * element while a drag tool is ready, and two fingers still land here. A finger
  * that lands alone starts afresh, so an end the browser never sent leaves nothing behind.
  */
 export function attachTouchPinch(opts: TouchPinchOptions): { destroy(): void } {

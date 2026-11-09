@@ -245,6 +245,7 @@ export function shapeTool(): Tool<ShapeOptions> {
     icon: Shapes,
     kind: 'one-shot',
     cursor: 'crosshair',
+    claimsTouch: true,
     styleGroup: 'shape',
     defaultOptions: { ...DEFAULT_SHAPE_OPTIONS },
     activate(c) {

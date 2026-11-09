@@ -5544,3 +5544,72 @@ describe('presses', () => {
     expect(onPress).not.toHaveBeenCalled()
   })
 })
+
+describe('claiming touch', () => {
+  const pagesOf = (container: HTMLElement) =>
+    container.querySelector<HTMLElement>(':scope > [data-ink-pages]')!
+
+  it('each drag tool claims touch, and no other core tool does', () => {
+    const ids = allTools()
+      .filter((t) => t.claimsTouch)
+      .map((t) => t.id)
+      .sort()
+    expect(ids).toEqual(['draw', 'freetext', 'redact-area', 'shape', 'sketch'])
+  })
+
+  it('sets touch-action on the pages element while a claiming tool is active', async () => {
+    const { container, tools } = await setup()
+    const pages = pagesOf(container)
+    expect(pages.style.touchAction).toBe('')
+    tools.set('draw')
+    expect(pages.style.touchAction).toBe('pinch-zoom')
+    tools.set('select-text')
+    expect(pages.style.touchAction).toBe('')
+    tools.set('shape')
+    expect(pages.style.touchAction).toBe('pinch-zoom')
+    tools.destroy()
+    expect(pages.style.touchAction).toBe('')
+  })
+
+  it('a one-shot tool lifts the claim once it has made something', async () => {
+    const { container, viewport, tools, history } = await setup()
+    const pages = pagesOf(container)
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    tools.set('shape')
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointermove', h.left + 160, h.top + 140)
+    pointer(container, 'pointerup', h.left + 160, h.top + 140)
+    expect(pages.style.touchAction).toBe('')
+    history.undo()
+    expect(pages.style.touchAction).toBe('pinch-zoom')
+  })
+
+  it("leaves the container's touch-action alone", async () => {
+    const { container, tools } = await setup()
+    expect(container.style.touchAction).toBe('pan-x pan-y')
+    tools.set('draw')
+    expect(container.style.touchAction).toBe('pan-x pan-y')
+    tools.destroy()
+    expect(container.style.touchAction).toBe('pan-x pan-y')
+  })
+
+  it.each(['shape', 'redact-area', 'freetext'] as const)(
+    'a second touch removes the %s draft and adds nothing',
+    async (id) => {
+      const { doc, container, viewport, tools } = await setup()
+      const h = viewport.hostFor(0)!.getBoundingClientRect()
+      tools.set(id)
+      const touch = { pointerType: 'touch' }
+      pointer(container, 'pointerdown', h.left + 100, h.top + 100, touch)
+      pointer(container, 'pointermove', h.left + 140, h.top + 140, touch)
+      pointer(container, 'pointerdown', h.left + 300, h.top + 300, {
+        ...touch,
+        pointerId: 2,
+        isPrimary: false,
+      })
+      expect(container.querySelector('[data-ink-draft]')).toBeNull()
+      pointer(container, 'pointerup', h.left + 140, h.top + 140, touch)
+      expect(doc.annotations.list.get()).toEqual([])
+    }
+  )
+})

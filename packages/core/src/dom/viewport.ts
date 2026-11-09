@@ -2,7 +2,8 @@
  * Inline styles. The headless DOM layer sets only what it cannot work without:
  * - container: `overflow: auto`, and `position: relative` when its computed position is static;
  * - container: `touch-action: pan-x pan-y` unless `pinchZoom` is false, so one finger still
- *   scrolls natively but a pinch zooms the document rather than the page;
+ *   scrolls natively but a pinch zooms the document rather than the page (the tool controller
+ *   turns off one-finger panning on the pages element while a drag tool is ready);
  * - pages element: `position: relative`, plus `width`/`height` from the layout, and a
  *   `transform` (with its origin and, as it settles, a `transition`) while a pinch is previewed;
  * - page hosts: `position: absolute` and `left`/`top`/`width`/`height` from the layout;
