@@ -5584,6 +5584,37 @@ describe('claiming touch', () => {
     expect(pages.style.touchAction).toBe('pinch-zoom')
   })
 
+  it('cancels a claimed one-finger touchmove on the pages, and no other', async () => {
+    const { container, viewport, tools } = await setup()
+    const host = viewport.hostFor(0)!
+    const move = (target: Element, fingers: number): boolean => {
+      const touches = Array.from(
+        { length: fingers },
+        (_, i) =>
+          new Touch({ identifier: i, target, clientX: 100 + i * 50, clientY: 100 })
+      )
+      const e = new TouchEvent('touchmove', {
+        bubbles: true,
+        cancelable: true,
+        touches,
+        targetTouches: touches,
+        changedTouches: touches,
+      })
+      target.dispatchEvent(e)
+      return e.defaultPrevented
+    }
+    expect(move(host, 1)).toBe(false)
+    tools.set('draw')
+    expect(move(host, 1)).toBe(true)
+    expect(move(host, 2)).toBe(false)
+    expect(move(container, 1)).toBe(false)
+    tools.set('select-text')
+    expect(move(host, 1)).toBe(false)
+    tools.set('draw')
+    tools.destroy()
+    expect(move(host, 1)).toBe(false)
+  })
+
   it("leaves the container's touch-action alone", async () => {
     const { container, tools } = await setup()
     expect(container.style.touchAction).toBe('pan-x pan-y')

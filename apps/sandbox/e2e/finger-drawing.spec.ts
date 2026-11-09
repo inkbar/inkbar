@@ -85,6 +85,7 @@ for (const framework of FRAMEWORK_ORDER) {
         await expect(session(page, 'ink')).toHaveCount(1)
         await settle(page)
         expect(await scrollTop(page)).toBe(before)
+        await expect(sessionAll(page)).toHaveCount(1)
       }
     )
 

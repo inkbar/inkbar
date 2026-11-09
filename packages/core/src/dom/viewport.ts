@@ -417,8 +417,13 @@ export function createViewport(opts: ViewportOptions): Viewport {
         maxZoom,
         scrollBy: (delta) => {
           const { scrollLeft, scrollTop } = container
-          container.scrollLeft -= delta.x
-          container.scrollTop -= delta.y
+          // Instant whatever the host's scroll-behavior: a smooth scroll would still be at the
+          // old position when read back, and the next move would ask for the same travel again.
+          container.scrollTo({
+            left: scrollLeft - delta.x,
+            top: scrollTop - delta.y,
+            behavior: 'instant',
+          })
           return {
             x: scrollLeft - container.scrollLeft,
             y: scrollTop - container.scrollTop,

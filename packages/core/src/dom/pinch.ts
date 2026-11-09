@@ -2,11 +2,12 @@
  * Pinch zoom. Two fingers on the viewport's container scale the document around the
  * point between them. As the point between the fingers travels, the container scrolls with it,
  * so pages mount and render as they do in any scroll; two fingers are the only way to scroll
- * while a drag tool is ready. The scale is never laid out or rendered while the fingers are
- * down: a CSS transform on the pages element previews it, along with any travel the scroll
- * cannot follow past the content edges, and the viewport commits one zoom change when a
- * finger lifts (or, for a trackpad pinch, when the events stop). All points here are
- * container-relative CSS px.
+ * while a drag tool is ready. When a second finger joins a one-finger scroll the browser is
+ * already running, the browser keeps scrolling and the pinch handles only the scale. The scale
+ * is never laid out or rendered while the fingers are down: a CSS transform on the pages
+ * element previews it, along with any travel the scroll cannot follow past the content edges,
+ * and the viewport commits one zoom change when a finger lifts (or, for a trackpad pinch, when
+ * the events stop). All points here are container-relative CSS px.
  */
 import type { Point } from '../model/geometry'
 
@@ -149,7 +150,9 @@ export interface TouchPinchOptions {
  * fingers down start a pinch; a third is ignored. The pinch ends when either of its fingers
  * lifts or is cancelled, and any finger still down then starts nothing until every finger has
  * lifted. While two fingers are down their moves are prevented, so the browser neither pans
- * nor zooms underneath; one finger's moves never are, so a one-finger scroll stays native.
+ * nor zooms underneath; one finger's moves never are, so a one-finger scroll stays native. A
+ * move the browser will not let us cancel means it is scrolling natively already: that travel
+ * is left to it, and only what the fingers do after it is scrolled here.
  * The viewport claims pinch on the container (`touch-action: pan-x pan-y`), which keeps the
  * page from zooming as well; the tool controller turns off one-finger panning on the pages
  * element while a drag tool is ready, and two fingers still land here. A finger
@@ -166,6 +169,8 @@ export function attachTouchPinch(opts: TouchPinchOptions): { destroy(): void } {
         last: PinchFrame
         /** How far the pinch has scrolled the content so far. */
         scrolled: Point
+        /** The midpoint between the fingers at the latest move. */
+        mid: Point
       }
     | undefined
   let spent = false
@@ -203,6 +208,7 @@ export function attachTouchPinch(opts: TouchPinchOptions): { destroy(): void } {
       scale,
       last: pinchFrame(start, start, scale, opts.minZoom, opts.maxZoom),
       scrolled: { x: 0, y: 0 },
+      mid: midpoint(start[0], start[1]),
     }
   }
 
@@ -214,23 +220,34 @@ export function attachTouchPinch(opts: TouchPinchOptions): { destroy(): void } {
     const a = touches.find((t) => t.identifier === ids[0])
     const b = touches.find((t) => t.identifier === ids[1])
     if (!a || !b) return
-    const frame = pinchFrame(
-      pinch.start,
-      [at(a), at(b)],
-      pinch.scale,
-      opts.minZoom,
-      opts.maxZoom
-    )
+    const now: [Point, Point] = [at(a), at(b)]
+    const mid = midpoint(now[0], now[1])
+    // A move we cannot cancel belongs to a native scroll, which carries the content with the
+    // fingers by itself. Moving the start points by this move's travel keeps that travel out of
+    // the pan, so neither the scroll below, the preview nor the commit moves the content twice.
+    const native = !e.cancelable
+    if (native) {
+      const dx = mid.x - pinch.mid.x
+      const dy = mid.y - pinch.mid.y
+      pinch.start = [
+        { x: pinch.start[0].x + dx, y: pinch.start[0].y + dy },
+        { x: pinch.start[1].x + dx, y: pinch.start[1].y + dy },
+      ]
+    }
+    pinch.mid = mid
+    const frame = pinchFrame(pinch.start, now, pinch.scale, opts.minZoom, opts.maxZoom)
     // Scroll the content along with the travel not yet scrolled. What the scroll takes moves
     // the start point with it; the preview's pan covers the rest, so the start point stays
     // under the fingers either way.
     const { scrolled } = pinch
-    const took = opts.scrollBy({
-      x: frame.pan.x - scrolled.x,
-      y: frame.pan.y - scrolled.y,
-    })
-    scrolled.x += took.x
-    scrolled.y += took.y
+    if (!native) {
+      const took = opts.scrollBy({
+        x: frame.pan.x - scrolled.x,
+        y: frame.pan.y - scrolled.y,
+      })
+      scrolled.x += took.x
+      scrolled.y += took.y
+    }
     pinch.last = {
       ...frame,
       anchor: { x: frame.anchor.x + scrolled.x, y: frame.anchor.y + scrolled.y },
