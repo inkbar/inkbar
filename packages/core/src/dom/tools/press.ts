@@ -41,7 +41,11 @@ export interface PressTrackerOptions {
   slop?: (pointerType: string) => number
 }
 
-const defaultSlop = (pointerType: string): number => (pointerType === 'mouse' ? 4 : 10)
+/** How far, in client px, a touch or pen may move and still count as a tap. */
+export const TOUCH_SLOP = 10
+
+const defaultSlop = (pointerType: string): number =>
+  pointerType === 'mouse' ? 4 : TOUCH_SLOP
 
 export function createPressTracker(opts: PressTrackerOptions): PressTracker {
   const longPressMs = opts.longPressMs ?? 500

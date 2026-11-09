@@ -5613,3 +5613,113 @@ describe('claiming touch', () => {
     }
   )
 })
+
+describe('drawing with a finger', () => {
+  const touch = { pointerType: 'touch' }
+  const inks = (doc: InkDocument) =>
+    doc.annotations.list.get().filter((a) => a.type === 'ink')
+
+  it.each(['draw', 'sketch'] as const)(
+    '%s: a touch that stays within 10 px adds nothing',
+    async (tool) => {
+      const { doc, container, viewport, tools, history } = await setup()
+      tools.set(tool)
+      const h = viewport.hostFor(0)!.getBoundingClientRect()
+      pointer(container, 'pointerdown', h.left + 100, h.top + 100, touch)
+      pointer(container, 'pointermove', h.left + 106, h.top + 100, touch)
+      pointer(container, 'pointerup', h.left + 106, h.top + 100, touch)
+      await settle()
+      expect(doc.annotations.list.get()).toEqual([])
+      expect(container.querySelector('.ink-draft')).toBeNull()
+      expect(history.canUndo.get()).toBe(false)
+    }
+  )
+
+  it.each(['draw', 'sketch'] as const)(
+    '%s: a touch tap does not start the join window',
+    async (tool) => {
+      const { doc, container, viewport, tools } = await setup()
+      tools.set(tool)
+      const h = viewport.hostFor(0)!.getBoundingClientRect()
+      pointer(container, 'pointerdown', h.left + 100, h.top + 100, touch)
+      pointer(container, 'pointerup', h.left + 100, h.top + 100, touch)
+      pointer(container, 'pointerdown', h.left + 200, h.top + 200)
+      pointer(container, 'pointermove', h.left + 240, h.top + 200)
+      pointer(container, 'pointerup', h.left + 240, h.top + 200)
+      await settle()
+      // Sketch may swap a straight stroke for a shape, so only draw's ink entries are counted.
+      const list = doc.annotations.list.get()
+      expect(list).toHaveLength(1)
+      if (tool === 'draw')
+        expect(list[0]?.type === 'ink' && list[0].inklist).toHaveLength(1)
+    }
+  )
+
+  it.each(['draw', 'sketch'] as const)(
+    '%s: a touch that travels more than 10 px draws',
+    async (tool) => {
+      const { doc, container, viewport, tools } = await setup()
+      tools.set(tool)
+      const h = viewport.hostFor(0)!.getBoundingClientRect()
+      pointer(container, 'pointerdown', h.left + 100, h.top + 100, touch)
+      pointer(container, 'pointermove', h.left + 130, h.top + 100, touch)
+      pointer(container, 'pointerup', h.left + 130, h.top + 100, touch)
+      await settle()
+      expect(doc.annotations.list.get()).toHaveLength(1)
+    }
+  )
+
+  it.each(['draw', 'sketch'] as const)(
+    '%s: a touch that wanders out and back still draws',
+    async (tool) => {
+      const { doc, container, viewport, tools } = await setup()
+      tools.set(tool)
+      const h = viewport.hostFor(0)!.getBoundingClientRect()
+      pointer(container, 'pointerdown', h.left + 100, h.top + 100, touch)
+      pointer(container, 'pointermove', h.left + 130, h.top + 100, touch)
+      pointer(container, 'pointermove', h.left + 102, h.top + 100, touch)
+      pointer(container, 'pointerup', h.left + 102, h.top + 100, touch)
+      await settle()
+      expect(doc.annotations.list.get()).toHaveLength(1)
+    }
+  )
+
+  it.each([
+    ['draw', 'pen'],
+    ['draw', 'mouse'],
+    ['sketch', 'pen'],
+    ['sketch', 'mouse'],
+  ] as const)('%s: a %s tap still makes a dot', async (tool, pointerType) => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set(tool)
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100, { pointerType })
+    pointer(container, 'pointerup', h.left + 100, h.top + 100, { pointerType })
+    await settle()
+    expect(doc.annotations.list.get()).toHaveLength(1)
+  })
+
+  it('a cancelled stroke neither joins nor is joined', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('draw')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointermove', h.left + 140, h.top + 100)
+    pointer(container, 'pointerup', h.left + 140, h.top + 100)
+    pointer(container, 'pointerdown', h.left + 100, h.top + 200, touch)
+    pointer(container, 'pointermove', h.left + 130, h.top + 200, touch)
+    pointer(container, 'pointerdown', h.left + 300, h.top + 300, {
+      ...touch,
+      pointerId: 2,
+      isPrimary: false,
+    })
+    pointer(container, 'pointerup', h.left + 130, h.top + 200, touch)
+    pointer(container, 'pointerdown', h.left + 100, h.top + 300)
+    pointer(container, 'pointermove', h.left + 140, h.top + 300)
+    pointer(container, 'pointerup', h.left + 140, h.top + 300)
+    await settle()
+    const [ink, ...rest] = inks(doc)
+    expect(rest).toEqual([])
+    expect(ink?.type === 'ink' && ink.inklist).toHaveLength(2)
+  })
+})
