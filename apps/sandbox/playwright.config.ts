@@ -25,11 +25,11 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 900 } },
       grepInvert: /@touch/,
     },
-    // A phone, for the tests tagged @touch: pinch and long press.
+    // A phone, for the tests tagged @touch: pinch, long press and drawing with a finger.
     {
       name: 'touch',
       use: { ...devices['Pixel 7'] },
-      testMatch: 'events.spec.ts',
+      testMatch: ['events.spec.ts', 'finger-drawing.spec.ts'],
       grep: /@touch/,
     },
   ],
