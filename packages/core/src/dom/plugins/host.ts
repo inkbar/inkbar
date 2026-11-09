@@ -36,6 +36,7 @@ import type { InkDocument } from '../../model/document'
 import type { AnnotationDecoration, DecorateAnnotation } from '../overlay'
 import type { SearchState, ViewerSearch } from '../search/controller'
 import type { Tool } from '../tools/controller'
+import type { PagePress, PressKind } from '../tools/press'
 import type { Viewport } from '../viewport'
 
 export interface PluginHostOptions {
@@ -112,6 +113,13 @@ export interface PluginHost extends LayerSource {
   readonly layers: readonly PluginLayer[]
   /** Calls `listener` on every `ctx.redecorate()`; returns a stop function. */
   watchRedecorate(listener: () => void): () => void
+  /**
+   * Tells every `onPress` (or, for a long press, `onLongPress`) listener, plugin by plugin in
+   * registration order. A listener that throws is logged and the rest still run.
+   *
+   * @internal For the viewer engine, which passes the tool controller's presses on.
+   */
+  emitPress(kind: PressKind, press: PagePress): void
   destroy(): void
 }
 
@@ -119,6 +127,13 @@ interface StoreRequest {
   key: string
   opts: PluginStoreOptions<RecordBase>
   current: Writable<RecordStore<RecordBase> | null>
+}
+
+/** One `onPress` or `onLongPress` registration. */
+interface PressListener {
+  plugin: string
+  kind: PressKind
+  fn: (press: PagePress) => void
 }
 
 /** What one open document holds; undone in reverse when it closes. */
@@ -252,6 +267,7 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
   const editFns: ((edit: AnnotationEdit) => void)[] = []
   const setupCleanups: (() => void)[] = []
   const redecorators = new Set<() => void>()
+  const pressListeners = new Set<PressListener>()
   const marks = createMarksRegistry()
   const selections = new Map<string, HostRecordSelection>()
   let opened: Opened | null = null
@@ -295,8 +311,19 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
     for (const cleanup of state.cleanups.reverse()) guard(cleanup)
   }
 
-  const contextFor = (plugin: InkPlugin): PluginContext => {
+  const contextFor = (plugin: InkPlugin, owned: Set<PressListener>): PluginContext => {
     const storeNames = new Set<string>()
+    const listenForPress =
+      (kind: PressKind) =>
+      (fn: (press: PagePress) => void): (() => void) => {
+        const entry: PressListener = { plugin: plugin.id, kind, fn }
+        pressListeners.add(entry)
+        owned.add(entry)
+        return () => {
+          pressListeners.delete(entry)
+          owned.delete(entry)
+        }
+      }
     const ctx: PluginContext = {
       id: plugin.id,
       document: opts.document,
@@ -355,6 +382,8 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
         opts.viewport?.()?.scrollToRect(page, rect, scrollOpts)
       },
       search: opts.search ?? inertSearch,
+      onPress: listenForPress('press'),
+      onLongPress: listenForPress('long-press'),
     }
     internals.set(ctx, { marks, selection: (key) => selectionFor(key) })
     return ctx
@@ -443,14 +472,24 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
 
   for (const plugin of opts.plugins) {
     let cleanup: void | (() => void)
+    const owned = new Set<PressListener>()
+    // Dropping a plugin's press listeners belongs to its teardown, whether or not it returns one.
+    const dropPresses = () => {
+      for (const entry of owned) pressListeners.delete(entry)
+      owned.clear()
+    }
     try {
-      cleanup = plugin.setup(contextFor(plugin))
+      cleanup = plugin.setup(contextFor(plugin, owned))
     } catch (error) {
       // No host comes back to destroy, so undo the plugins already set up here.
+      dropPresses()
       for (const done of setupCleanups.reverse()) guard(done)
       throw error
     }
-    if (typeof cleanup === 'function') setupCleanups.push(cleanup)
+    setupCleanups.push(() => {
+      dropPresses()
+      if (typeof cleanup === 'function') cleanup()
+    })
   }
 
   const current = opts.document.get()
@@ -490,6 +529,16 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
       redecorators.add(run)
       return () => {
         redecorators.delete(run)
+      }
+    },
+    emitPress(kind, press) {
+      for (const entry of [...pressListeners]) {
+        if (entry.kind !== kind || !pressListeners.has(entry)) continue
+        try {
+          entry.fn(press)
+        } catch (error) {
+          console.error(`Plugin ${entry.plugin} threw in a ${kind} listener`, error)
+        }
       }
     },
     destroy() {

@@ -17,6 +17,7 @@ import type { RecordBase, RecordChange, RecordStore } from '../../model/records'
 import type { DecorateAnnotation } from '../overlay'
 import type { ViewerSearch } from '../search/controller'
 import type { Tool } from '../tools/controller'
+import type { PagePress } from '../tools/press'
 import type { PageTransform } from '../transform'
 import type { IconNode } from '@inkbar/icons'
 
@@ -131,6 +132,16 @@ export interface PluginContext {
    * hits) when the host has no search.
    */
   readonly search: ViewerSearch
+  /**
+   * A press on a page that nothing in Inkbar acted on. Returns a function that stops listening.
+   * Fires only under the text and rectangle select tools.
+   */
+  onPress(fn: (press: PagePress) => void): () => void
+  /**
+   * A touch or pen held still on a page that nothing in Inkbar acted on. Returns a function that
+   * stops listening. Fires only under the text and rectangle select tools.
+   */
+  onLongPress(fn: (press: PagePress) => void): () => void
 }
 
 /** A factory's parameters: its options, optional only when `O` has no required field. */

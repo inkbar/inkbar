@@ -499,6 +499,129 @@ describe('createPluginHost', () => {
   })
 })
 
+describe('presses', () => {
+  const press = { page: 0, point: { x: 1, y: 2 }, pointerType: 'mouse' } as const
+
+  it('emitPress reaches onPress listeners only', () => {
+    const pressed = vi.fn()
+    const longPressed = vi.fn()
+    const { host } = hostWith([
+      definePlugin({
+        id: 'probe',
+        setup(ctx) {
+          ctx.onPress(pressed)
+          ctx.onLongPress(longPressed)
+        },
+      }),
+    ])
+    host.emitPress('press', press)
+    expect(pressed).toHaveBeenCalledExactlyOnceWith(press)
+    expect(longPressed).not.toHaveBeenCalled()
+  })
+
+  it("emitPress('long-press') reaches onLongPress listeners only", () => {
+    const pressed = vi.fn()
+    const longPressed = vi.fn()
+    const { host } = hostWith([
+      definePlugin({
+        id: 'probe',
+        setup(ctx) {
+          ctx.onPress(pressed)
+          ctx.onLongPress(longPressed)
+        },
+      }),
+    ])
+    host.emitPress('long-press', { ...press, pointerType: 'touch' })
+    expect(longPressed).toHaveBeenCalledOnce()
+    expect(pressed).not.toHaveBeenCalled()
+  })
+
+  it('calls listeners in plugin order, then registration order', () => {
+    const order: string[] = []
+    const { host } = hostWith([
+      definePlugin({
+        id: 'one',
+        setup(ctx) {
+          ctx.onPress(() => order.push('one-a'))
+          ctx.onPress(() => order.push('one-b'))
+        },
+      }),
+      definePlugin({
+        id: 'two',
+        setup(ctx) {
+          ctx.onPress(() => order.push('two'))
+        },
+      }),
+    ])
+    host.emitPress('press', press)
+    expect(order).toEqual(['one-a', 'one-b', 'two'])
+  })
+
+  it('the returned function stops one listener, and twice is harmless', () => {
+    const first = vi.fn()
+    const second = vi.fn()
+    const { host } = hostWith([
+      definePlugin({
+        id: 'probe',
+        setup(ctx) {
+          const stop = ctx.onPress(first)
+          ctx.onPress(second)
+          stop()
+          stop()
+        },
+      }),
+    ])
+    host.emitPress('press', press)
+    expect(first).not.toHaveBeenCalled()
+    expect(second).toHaveBeenCalledOnce()
+  })
+
+  it('a throwing listener is logged and the next still runs', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const next = vi.fn()
+    const { host } = hostWith([
+      definePlugin({
+        id: 'bad',
+        setup(ctx) {
+          ctx.onPress(() => {
+            throw new Error('boom')
+          })
+        },
+      }),
+      definePlugin({
+        id: 'good',
+        setup(ctx) {
+          ctx.onPress(next)
+        },
+      }),
+    ])
+    host.emitPress('press', press)
+    expect(next).toHaveBeenCalledOnce()
+    expect(error).toHaveBeenCalledOnce()
+    expect(error.mock.calls[0]?.[0]).toContain('bad')
+    error.mockRestore()
+  })
+
+  it('destroy drops all listeners', () => {
+    const pressed = vi.fn()
+    const longPressed = vi.fn()
+    const { host } = hostWith([
+      definePlugin({
+        id: 'probe',
+        setup(ctx) {
+          ctx.onPress(pressed)
+          ctx.onLongPress(longPressed)
+        },
+      }),
+    ])
+    host.destroy()
+    host.emitPress('press', press)
+    host.emitPress('long-press', press)
+    expect(pressed).not.toHaveBeenCalled()
+    expect(longPressed).not.toHaveBeenCalled()
+  })
+})
+
 describe('ctx.search', () => {
   it('is the host search when one is given, and an inert closed stub otherwise', () => {
     let ctx!: PluginContext

@@ -139,7 +139,8 @@ Options:
 - `container` and `document`, both required.
 - `tools`: the creation tools to register (`allTools()` or the ones you import from `@inkbar/core/dom`). `select-text` and `select` are always present.
 - `zoom` (a number, `'fit-width'` or `'fit-page'`; default `'fit-width'`), `page`, `mode`, `rotation` and `tool` set the starting view. Change them later through `engine.viewport` and `engine.tools`.
-- `gap`, `buffer` and `customAnnotations` are fixed for a build. Change them with `engine.rebuild`.
+- `gap`, `buffer`, `pinchZoom` and `customAnnotations` are fixed for a build. Change them with `engine.rebuild`.
+- `pinchZoom` (default `true`) zooms the document when two fingers pinch over the container, and on a trackpad pinch or ctrl+wheel. Set it to `false` to leave pinching to the browser, which then zooms the whole page.
 - `toolOptions` holds the tools' options, such as the shape kind. Pass one from `createToolOptions()` and keep it to carry the options over to the next document; `createViewer` keeps one for its whole life. The tool style (colours, line style, text style) belongs to the document: each new document starts from the theme's defaults.
 - `signatures` is where saved signatures live (see [Signatures](#signatures)); `signatureFonts` lists the handwriting fonts a typed signature offers.
 - `decorateAnnotation(annotation)` returns your own `data`, `classes` and `description` for an annotation's element, or `undefined`. `{ data: { 'my-flag': 'on' } }` writes `data-my-flag="on"`, and `description` becomes the element's `aria-description`. Inkbar re-applies them whenever the annotations change. Call `engine.redecorate()` when they depend on anything else. Core's own attributes and `ink-` classes always win.
@@ -336,6 +337,21 @@ A command added with `ctx.commands.add` is disabled until a document is ready, u
 - A layer's `destroy` can run after the document's stores have closed, so check `store.get()` for `null` there.
 - Decorations from `ctx.decorate` re-apply when the annotations change. Call `ctx.redecorate()` when one reads state of your own that changed. Marks from `plugin.marks` take `refresh()` for the same job.
 - The framework packages run `setup` once the viewer has mounted in the browser, never while rendering on the server. Until then the plugin's commands are disabled, and anything `setup` creates, such as a store, doesn't exist yet.
+
+### Presses
+
+`ctx.onPress(fn)` and `ctx.onLongPress(fn)` tell a plugin about a press on a page that nothing in Inkbar acted on. Each returns a function that stops listening, and listeners are removed when the plugin is torn down.
+
+```ts
+ctx.onPress(({ page, point, pointerType }) => console.log(page, point, pointerType))
+ctx.onLongPress(({ page, point }) => openMenu(page, point))
+```
+
+The payload is `{ page, point, pointerType }`. `page` is a zero-based index, `point` is in user space on that page (points, origin bottom-left, before `/Rotate`), and `pointerType` is `'mouse'`, `'touch'` or `'pen'`.
+
+A press is a pointer that goes down and up on a page without moving more than a few pixels, within about half a second. A mouse click is a press. A long press is a touch or pen held still for about half a second; it fires while the finger is still down, and its release is not also a press. A mouse never long-presses. A touch that joins a pinch, or that starts a scroll, is neither.
+
+Both fire only under the text and rectangle select tools. Under any other tool, the tool owns every press. They do not fire when something else took the press: an annotation, a resize handle, a link, a form field, a plugin mark or a text editor. Inkbar does not stop the browser's own long-press behaviour, so text selection and context menus still happen.
 
 ## Search
 

@@ -576,6 +576,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       ...(state.tool === undefined ? {} : { initial: state.tool }),
       tools: list,
       options: toolOptions,
+      ...(plugins && { onPress: (kind, press) => plugins.emitPress(kind, press) }),
       ctx: {
         toolStyle,
         store: doc.annotations,
