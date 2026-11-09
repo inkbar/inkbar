@@ -26,8 +26,9 @@ const props = withDefaults(
     /** Zero-based page whose text content fails to load (its canvas still renders). */
     failText?: number | undefined
   }>(),
-  // An absent boolean prop is false in Vue; the viewport's own default is on.
-  { pinchZoom: true }
+  // An absent boolean prop is false in Vue. Undefined instead, so it can be left off the
+  // viewport and the viewport's own default applies.
+  { pinchZoom: undefined }
 )
 const emit = defineEmits<{ 'update:zoom': [z: ZoomValue]; 'update:page': [p: number] }>()
 const clicks = ref(0)
@@ -85,7 +86,11 @@ function onReady(doc: InkDocument): void {
     >
       <!-- Test-only box: the scroll container needs a bounded height to scroll. -->
       <div style="height: 700px; width: 900px">
-        <InkViewport :buffer="buffer ?? 2" :gap="gap ?? 16" :pinch-zoom="pinchZoom">
+        <InkViewport
+          :buffer="buffer ?? 2"
+          :gap="gap ?? 16"
+          v-bind="pinchZoom === undefined ? {} : { pinchZoom }"
+        >
           <template v-if="customLoading" #loading>
             <span data-testid="custom-loading">Opening the file</span>
           </template>

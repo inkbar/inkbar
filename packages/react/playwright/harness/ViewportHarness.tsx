@@ -85,7 +85,8 @@ export function ViewportHarness(props: ViewportHarnessProps) {
           <InkViewport
             buffer={props.buffer ?? 2}
             gap={props.gap ?? 16}
-            pinchZoom={props.pinchZoom ?? true}
+            // Left unset unless a test passes it, so the component's own default applies.
+            {...(props.pinchZoom === undefined ? {} : { pinchZoom: props.pinchZoom })}
             loading={
               props.customLoading ? (
                 <span data-testid="custom-loading">Opening the file</span>

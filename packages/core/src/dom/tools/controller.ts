@@ -39,7 +39,9 @@
 // press or a touch or pen long press on a mounted page, under `select-text` or `select` only.
 // A creation tool owns every press, even a still click that makes nothing. Presses on an
 // annotation, a resize handle, a link, a form field, a plugin mark or a free-text editor, the
-// press that ends a made one-shot tool, and presses off any page report nothing. Under `select`
+// press that ends a made one-shot tool, a press that commits an open free-text editor or closes
+// an open popover, and presses off any page report nothing. Like the made state, whether a
+// press commits or closes something is read on the window, before the editor or popover sees it. Under `select`
 // an empty press starts a marquee, and one that never grows past the slop is still a press.
 // Clearing the selection does not count as acting on a press. A second touch drops the first
 // touch's press and its tool's gesture (it is a pinch, not a press). Nothing here prevents a
@@ -51,7 +53,12 @@ import {
   type ToolStyle,
 } from '../../model/annotations/tool-style'
 import { readonly, writable, type Readable } from '../../model/readable'
-import { canEditFreeText, editFreeTextIn, editorFor } from '../freetext-editor'
+import {
+  canEditFreeText,
+  closedEditor,
+  editFreeTextIn,
+  editorFor,
+} from '../freetext-editor'
 
 import { createToolOptions, type ToolOptions } from './options'
 import { createPressTracker, type PagePress, type PressKind } from './press'
@@ -269,6 +276,8 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
   let stopMade: (() => void)[] = []
   /** Whether the press now under way found the tool made (see the top of the file). */
   let pressFoundMade = false
+  /** Whether the press now under way commits an open editor or closes an open popover. */
+  let pressDismisses = false
   /** Moves and resizes what the active one-shot tool made. */
   let madeEdit: SelectionEdit | undefined
   /** The press now under way went to `madeEdit`, not the tool. */
@@ -300,8 +309,9 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
   const foreign = (e: PointerEvent): boolean =>
     pressed !== undefined && pressed !== e.pointerId
 
-  const readFirst = (): void => {
+  const readFirst = (e: PointerEvent): void => {
     pressFoundMade = made !== undefined
+    pressDismisses = dismisses(e.target, ctx.root.ownerDocument)
   }
   const readAfterEditor = (): void => {
     pressFoundMade ||= made !== undefined
@@ -327,6 +337,8 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
       (current?.id === 'select-text' || current?.id === 'select') &&
       annotationId === undefined &&
       target?.closest('a[href], [data-handle]') == null &&
+      !pressDismisses &&
+      !closedEditor(e) &&
       hit !== undefined
     presses.cancel()
     if (current?.kind === 'one-shot') {
@@ -572,6 +584,18 @@ export function isViewportEnter(e: KeyboardEvent, root: HTMLElement): boolean {
 
 function pointerTypeOf(e: PointerEvent): PagePress['pointerType'] {
   return e.pointerType === 'touch' || e.pointerType === 'pen' ? e.pointerType : 'mouse'
+}
+
+/**
+ * True when a press on `target` commits an open free-text editor (which has focus while open) or
+ * closes an open Inkbar popover (a press outside it does).
+ */
+function dismisses(target: EventTarget | null, doc: Document): boolean {
+  if (doc.activeElement?.closest('[data-ink-editor]')) return true
+  const node = target instanceof Node ? target : null
+  return [...doc.querySelectorAll<HTMLElement>('[data-ink-popover]')].some(
+    (panel) => !panel.hidden && !panel.contains(node)
+  )
 }
 
 /**

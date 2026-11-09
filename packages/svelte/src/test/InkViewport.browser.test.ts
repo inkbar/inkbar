@@ -653,6 +653,7 @@ describe('InkViewport', () => {
 
   // React: 'pinchZoom defaults on'
   it('pinchZoom defaults on', async () => {
+    // No pinchZoom: the harness leaves it off InkViewport, so this is the component's default.
     await render(ViewportHarness, { src: fixtureUrl('text-simple'), assets })
     await q(`${FIRST} canvas`)
     expect(scroll().style.touchAction).toBe('pan-x pan-y')

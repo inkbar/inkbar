@@ -374,15 +374,16 @@ export function createViewport(opts: ViewportOptions): Viewport {
    * Ends a pinch: one zoom change around where it started, then the midpoint's travel as a
    * scroll, so the point that was between the fingers ends up where the preview last showed it.
    * When the scroll's edges stop it getting there, the preview eases the difference out. A
-   * pinch that neither zoomed nor moved (a two-finger tap) changes nothing, so a fit mode stays.
+   * pinch that did not zoom changes no zoom, so a fit mode stays: a two-finger pan only
+   * scrolls, and a two-finger tap changes nothing.
    */
   function commitPinch(frame: PinchFrame): void {
     if (destroyed) return
-    if (Math.abs(frame.factor - 1) < 0.001 && Math.hypot(frame.pan.x, frame.pan.y) < 1)
-      return
+    const zoomed = Math.abs(frame.factor - 1) >= 0.001
+    if (!zoomed && Math.hypot(frame.pan.x, frame.pan.y) < 1) return
     const at = userAt(frame.anchor)
     const shown = previewPan(frame.factor, frame.anchor, frame.pan)
-    withAnchor(frame.anchor, () => zoom.set(clamp(frame.zoom)))
+    if (zoomed) withAnchor(frame.anchor, () => zoom.set(clamp(frame.zoom)))
     container.scrollLeft -= frame.pan.x
     container.scrollTop -= frame.pan.y
     sync()

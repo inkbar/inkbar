@@ -536,12 +536,14 @@ describe('presses', () => {
     expect(pressed).not.toHaveBeenCalled()
   })
 
-  it('calls listeners in plugin order, then registration order', () => {
+  it('calls listeners in the order they were added, across plugins', () => {
     const order: string[] = []
+    let later: PluginContext | undefined
     const { host } = hostWith([
       definePlugin({
         id: 'one',
         setup(ctx) {
+          later = ctx
           ctx.onPress(() => order.push('one-a'))
           ctx.onPress(() => order.push('one-b'))
         },
@@ -553,8 +555,10 @@ describe('presses', () => {
         },
       }),
     ])
+    // Added after plugin two's: it runs after it.
+    later!.onPress(() => order.push('one-c'))
     host.emitPress('press', press)
-    expect(order).toEqual(['one-a', 'one-b', 'two'])
+    expect(order).toEqual(['one-a', 'one-b', 'two', 'one-c'])
   })
 
   it('the returned function stops one listener, and twice is harmless', () => {
