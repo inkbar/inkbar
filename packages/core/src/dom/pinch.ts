@@ -1,8 +1,12 @@
 /*
  * Pinch zoom. Two fingers on the viewport's container scale the document around the
- * point between them. While the fingers are down nothing is re-laid out or re-rendered: a CSS
- * transform on the pages element previews the zoom, and the viewport commits one zoom change
- * when a finger lifts (or, for a trackpad pinch, when the events stop). All points here are container-relative CSS px.
+ * point between them. As the point between the fingers travels, the container scrolls with it,
+ * so pages mount and render as they do in any scroll; two fingers are the only way to scroll
+ * while a drag tool is ready. The scale is never laid out or rendered while the fingers are
+ * down: a CSS transform on the pages element previews it, along with any travel the scroll
+ * cannot follow past the content edges, and the viewport commits one zoom change when a
+ * finger lifts (or, for a trackpad pinch, when the events stop). All points here are
+ * container-relative CSS px.
  */
 import type { Point } from '../model/geometry'
 
@@ -126,7 +130,16 @@ export interface TouchPinchOptions {
   scale(): number
   minZoom: number
   maxZoom: number
-  /** Called once per pinch, when either finger lifts or is cancelled, after the preview clears. */
+  /**
+   * Scrolls the container so the content moves by `delta`, and returns how much of it the
+   * scroll took: less than `delta` where the scroll stops at the content edges.
+   */
+  scrollBy(delta: Point): Point
+  /**
+   * Called once per pinch, when either finger lifts or is cancelled, after the preview clears.
+   * The frame's `anchor` is where the point that started between the fingers sits now, after
+   * the scrolling, and its `pan` is only the travel the scroll could not take.
+   */
   commit(frame: PinchFrame): void
 }
 
@@ -145,7 +158,15 @@ export interface TouchPinchOptions {
 export function attachTouchPinch(opts: TouchPinchOptions): { destroy(): void } {
   const { container, preview } = opts
   let pinch:
-    | { ids: [number, number]; start: [Point, Point]; scale: number; last: PinchFrame }
+    | {
+        ids: [number, number]
+        start: [Point, Point]
+        scale: number
+        /** The latest frame, with the scrolling so far taken out of its pan. */
+        last: PinchFrame
+        /** How far the pinch has scrolled the content so far. */
+        scrolled: Point
+      }
     | undefined
   let spent = false
   /** The touches that went down on the container, by identifier. */
@@ -181,6 +202,7 @@ export function attachTouchPinch(opts: TouchPinchOptions): { destroy(): void } {
       start,
       scale,
       last: pinchFrame(start, start, scale, opts.minZoom, opts.maxZoom),
+      scrolled: { x: 0, y: 0 },
     }
   }
 
@@ -192,13 +214,28 @@ export function attachTouchPinch(opts: TouchPinchOptions): { destroy(): void } {
     const a = touches.find((t) => t.identifier === ids[0])
     const b = touches.find((t) => t.identifier === ids[1])
     if (!a || !b) return
-    pinch.last = pinchFrame(
+    const frame = pinchFrame(
       pinch.start,
       [at(a), at(b)],
       pinch.scale,
       opts.minZoom,
       opts.maxZoom
     )
+    // Scroll the content along with the travel not yet scrolled. What the scroll takes moves
+    // the start point with it; the preview's pan covers the rest, so the start point stays
+    // under the fingers either way.
+    const { scrolled } = pinch
+    const took = opts.scrollBy({
+      x: frame.pan.x - scrolled.x,
+      y: frame.pan.y - scrolled.y,
+    })
+    scrolled.x += took.x
+    scrolled.y += took.y
+    pinch.last = {
+      ...frame,
+      anchor: { x: frame.anchor.x + scrolled.x, y: frame.anchor.y + scrolled.y },
+      pan: { x: frame.pan.x - scrolled.x, y: frame.pan.y - scrolled.y },
+    }
     preview.show(pinch.last.factor, pinch.last.anchor, pinch.last.pan)
   }
 
