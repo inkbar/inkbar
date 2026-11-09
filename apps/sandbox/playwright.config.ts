@@ -23,6 +23,14 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 900 } },
+      grepInvert: /@touch/,
+    },
+    // A phone, for the tests tagged @touch: pinch and long press.
+    {
+      name: 'touch',
+      use: { ...devices['Pixel 7'] },
+      testMatch: 'events.spec.ts',
+      grep: /@touch/,
     },
   ],
 })

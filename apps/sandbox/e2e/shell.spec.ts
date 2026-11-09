@@ -26,6 +26,7 @@ const SCENARIO_TITLES = [
   'Controlled annotations',
   'Search a long document',
   'Sidebars',
+  'Press and long press',
 ]
 
 const nav = (page: Page) => page.getByRole('navigation', { name: 'Scenarios' })
