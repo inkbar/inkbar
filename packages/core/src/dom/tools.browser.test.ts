@@ -42,11 +42,13 @@ import {
   createToolController,
   DEFAULT_FREETEXT_WIDTH,
   noteTool,
+  selectTool,
   trackToolStyle,
   withHostTools,
   type Tool,
   type ToolContext,
   type ToolController,
+  type ToolControllerOptions,
 } from './tools'
 import { createPageTransform } from './transform'
 import { mountViewer } from './viewer-engine'
@@ -87,6 +89,7 @@ async function setup(
     tools: hostTools = allTools(),
     snapshotHistory = false,
     signatures,
+    onPress,
   }: {
     controlled?: boolean
     /** Controlled only: the host applies every change but an add. */
@@ -98,6 +101,7 @@ async function setup(
     signatures?: SignatureLibrary
     /** Controlled only: undo and redo over the host's list, as the bindings give such hosts. */
     snapshotHistory?: boolean
+    onPress?: ToolControllerOptions['onPress']
   } = {}
 ) {
   let host: Annotation[] = []
@@ -172,6 +176,7 @@ async function setup(
       history,
       ...(signatures ? { signatures } : {}),
     },
+    ...(onPress ? { onPress } : {}),
   })
   tools.active.subscribe((id) => tracker.setTool(id))
   cleanup.push(() => {
@@ -5289,5 +5294,203 @@ describe('unknown tools', () => {
     } finally {
       spy.mockRestore()
     }
+  })
+})
+
+describe('presses', () => {
+  async function pressSetup(opts: Parameters<typeof setup>[1] = {}) {
+    const onPress = vi.fn<NonNullable<ToolControllerOptions['onPress']>>()
+    const s = await setup('text-simple', { ...opts, onPress })
+    const h = s.viewport.hostFor(0)!.getBoundingClientRect()
+    return { ...s, onPress, h }
+  }
+  /** A still press and release on `el` at a client point. */
+  function tap(el: Element, x: number, y: number, init: PointerEventInit = {}): void {
+    pointer(el, 'pointerdown', x, y, init)
+    pointer(el, 'pointerup', x, y, init)
+  }
+
+  it('select-text: a click on empty page reports a press with the page and user point', async () => {
+    const { container, viewport, onPress, h } = await pressSetup()
+    tap(container, h.left + 300, h.top + 700)
+    expect(onPress).toHaveBeenCalledOnce()
+    const [kind, press] = onPress.mock.calls[0]!
+    expect(kind).toBe('press')
+    expect(press.page).toBe(0)
+    expect(press.pointerType).toBe('mouse')
+    const want = viewport.transformFor(0).fromCss({ x: 300, y: 700 })
+    expect(press.point.x).toBeCloseTo(want.x, 2)
+    expect(press.point.y).toBeCloseTo(want.y, 2)
+  })
+
+  it('reports the pointer type of a touch or pen press', async () => {
+    const { container, onPress, h } = await pressSetup()
+    tap(container, h.left + 300, h.top + 700, { pointerType: 'pen' })
+    expect(onPress.mock.calls[0]![1].pointerType).toBe('pen')
+  })
+
+  it('select: a still click reports a press; a marquee drag does not', async () => {
+    const { container, tools, onPress, h } = await pressSetup()
+    tools.set('select')
+    tap(container, h.left + 300, h.top + 700)
+    expect(onPress).toHaveBeenCalledOnce()
+    expect(onPress.mock.calls[0]![0]).toBe('press')
+    onPress.mockClear()
+    pointer(container, 'pointerdown', h.left + 80, h.top + 100)
+    pointer(container, 'pointermove', h.left + 400, h.top + 250)
+    expect(container.querySelector('[data-ink-marquee]')).not.toBeNull()
+    pointer(container, 'pointerup', h.left + 400, h.top + 250)
+    expect(onPress).not.toHaveBeenCalled()
+  })
+
+  it('a creation tool owns every press', async () => {
+    const { container, tools, onPress, h } = await pressSetup()
+    tools.set('draw')
+    tap(container, h.left + 300, h.top + 700)
+    expect(onPress).not.toHaveBeenCalled()
+  })
+
+  it('presses on an annotation, a resize handle, a link, a form widget, a plugin mark or a free-text editor report nothing', async () => {
+    const { doc, container, viewport, tools, onPress, h } = await pressSetup()
+    const host = viewport.hostFor(0)!
+    const a = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 100, y: 600, width: 50, height: 30 },
+    })
+    await settle()
+    const el = host.querySelector(`[data-annotation="${a.id}"]`)!
+    tap(el, h.left + 110, h.top + (792 - 620))
+    expect(doc.annotations.selection.get()).toEqual([a.id])
+
+    tools.set('select')
+    await settle()
+    const handle = el.querySelector('[data-handle]')!
+    expect(handle).not.toBeNull()
+    const r = handle.getBoundingClientRect()
+    tap(handle, r.left + r.width / 2, r.top + r.height / 2)
+    tools.set('select-text')
+
+    const at = { x: h.left + 300, y: h.top + 700 }
+    const link = document.createElement('a')
+    link.href = '#nowhere'
+    link.addEventListener('click', (e) => e.preventDefault())
+    host.append(link)
+    tap(link, at.x, at.y)
+
+    const formLayer = document.createElement('div')
+    formLayer.dataset.inkFormLayer = ''
+    const widget = document.createElement('input')
+    widget.dataset.inkWidget = ''
+    formLayer.append(widget)
+    host.append(formLayer)
+    tap(widget, at.x, at.y)
+
+    const layer = document.createElement('div')
+    layer.className = 'ink-plugin-layer'
+    const mark = document.createElement('button')
+    layer.append(mark)
+    host.append(layer)
+    tap(mark, at.x, at.y)
+
+    const editor = document.createElement('div')
+    editor.dataset.inkEditor = ''
+    host.append(editor)
+    tap(editor, at.x, at.y)
+
+    for (const e of [link, formLayer, layer, editor]) e.remove()
+    expect(onPress).not.toHaveBeenCalled()
+    // Control: the same point on bare page does report.
+    tap(container, at.x, at.y)
+    expect(onPress).toHaveBeenCalledOnce()
+  })
+
+  it('a press in the gap between pages reports nothing', async () => {
+    const { container, viewport, onPress, h } = await pressSetup()
+    const x = h.left + 100
+    const y = h.bottom + 4
+    expect(viewport.pageAtCss(x, y)).toBeUndefined()
+    tap(container, x, y)
+    expect(onPress).not.toHaveBeenCalled()
+  })
+
+  it("a second touch cancels the first touch's press and the tool's gesture (Review Focus 2)", async () => {
+    const select = selectTool()
+    const onUp = vi.spyOn(select, 'onPointerUp')
+    const onToolCancel = vi.spyOn(select, 'onPointerCancel')
+    const { container, tools, onPress, h } = await pressSetup({
+      tools: [...allTools(), select],
+    })
+    tools.set('select')
+    const touch = { pointerType: 'touch' }
+    const second = { ...touch, pointerId: 2, isPrimary: false }
+    pointer(container, 'pointerdown', h.left + 300, h.top + 400, touch)
+    expect(container.querySelector('[data-ink-marquee]')).not.toBeNull()
+    pointer(container, 'pointerdown', h.left + 500, h.top + 400, second)
+    expect(onToolCancel).toHaveBeenCalledOnce()
+    expect(container.querySelector('[data-ink-marquee]')).toBeNull()
+    pointer(container, 'pointerup', h.left + 500, h.top + 400, second)
+    pointer(container, 'pointerup', h.left + 300, h.top + 400, touch)
+    expect(onUp).not.toHaveBeenCalled()
+    await new Promise((r) => setTimeout(r, 600))
+    expect(onPress).not.toHaveBeenCalled()
+  })
+
+  it('long press on text fires and does not prevent default', async () => {
+    const { viewport, onPress } = await pressSetup()
+    const span = [
+      ...viewport.hostFor(0)!.querySelectorAll('[data-ink-text-layer] span'),
+    ].find((s) => s.textContent?.trim())!
+    const r = span.getBoundingClientRect()
+    const down = new PointerEvent('pointerdown', {
+      clientX: r.left + 2,
+      clientY: r.top + r.height / 2,
+      bubbles: true,
+      cancelable: true,
+      pointerId: 1,
+      pointerType: 'touch',
+      button: 0,
+      buttons: 1,
+      isPrimary: true,
+    })
+    span.dispatchEvent(down)
+    expect(down.defaultPrevented).toBe(false)
+    await new Promise((r) => setTimeout(r, 450))
+    expect(onPress).not.toHaveBeenCalled()
+    await until(() => onPress.mock.calls.length > 0)
+    expect(onPress).toHaveBeenCalledOnce()
+    const [kind, press] = onPress.mock.calls[0]!
+    expect(kind).toBe('long-press')
+    expect(press).toMatchObject({ page: 0, pointerType: 'touch' })
+    pointer(span, 'pointerup', r.left + 2, r.top + r.height / 2, { pointerType: 'touch' })
+    expect(onPress).toHaveBeenCalledOnce()
+  })
+
+  it('touches while a pen draws do not end its stroke', async () => {
+    const { doc, container, tools, h } = await pressSetup()
+    tools.set('draw')
+    const pen = { pointerType: 'pen', pointerId: 5 }
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100, pen)
+    pointer(container, 'pointerdown', h.left + 400, h.top + 600, {
+      pointerType: 'touch',
+      pointerId: 6,
+    })
+    pointer(container, 'pointerdown', h.left + 450, h.top + 600, {
+      pointerType: 'touch',
+      pointerId: 7,
+      isPrimary: false,
+    })
+    pointer(container, 'pointermove', h.left + 150, h.top + 150, pen)
+    pointer(container, 'pointermove', h.left + 200, h.top + 120, pen)
+    pointer(container, 'pointerup', h.left + 200, h.top + 120, pen)
+    expect(doc.annotations.list.get().map((a) => a.type)).toEqual(['ink'])
+  })
+
+  it('a tool switch mid-press drops the press', async () => {
+    const { container, tools, onPress, h } = await pressSetup()
+    pointer(container, 'pointerdown', h.left + 300, h.top + 700)
+    tools.set('select')
+    pointer(container, 'pointerup', h.left + 300, h.top + 700)
+    expect(onPress).not.toHaveBeenCalled()
   })
 })

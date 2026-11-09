@@ -34,6 +34,16 @@
 // and made. Escape in an editor on a made text box (opened that way, or by Enter or a
 // double-click) commits and ends the tool, as in a new box. Delete and
 // Backspace go to the selection editor too, so the made item can be removed without switching.
+//
+// The controller reports presses nothing else acted on (`onPress`, timed by press.ts): a still
+// press or a touch or pen long press on a mounted page, under `select-text` or `select` only.
+// A creation tool owns every press, even a still click that makes nothing. Presses on an
+// annotation, a resize handle, a link, a form field, a plugin mark or a free-text editor, the
+// press that ends a made one-shot tool, and presses off any page report nothing. Under `select`
+// an empty press starts a marquee, and one that never grows past the slop is still a press.
+// Clearing the selection does not count as acting on a press. A second touch drops the first
+// touch's press and its tool's gesture (it is a pinch, not a press). Nothing here prevents a
+// long press's default, so text selection and the browser's own menus behave as before.
 import { isTextMarkup } from '../../model/annotations/edit'
 import {
   createToolStyle,
@@ -44,6 +54,7 @@ import { readonly, writable, type Readable } from '../../model/readable'
 import { canEditFreeText, editFreeTextIn, editorFor } from '../freetext-editor'
 
 import { createToolOptions, type ToolOptions } from './options'
+import { createPressTracker, type PagePress, type PressKind } from './press'
 import { createSelectionEdit, type SelectionEdit } from './selection-edit'
 import { unknownTool } from './unknown'
 
@@ -166,6 +177,11 @@ export interface ToolControllerOptions {
    * rebuild) so options persist; by default the controller keeps its own.
    */
   options?: ToolOptions
+  /**
+   * A press or long press on a page that nothing in Inkbar acted on (see the top of
+   * controller.ts for which presses count).
+   */
+  onPress?(kind: PressKind, press: PagePress): void
 }
 
 /** Host-relative CSS point for a client point. */
@@ -244,6 +260,8 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
   const originalCursor = ctx.root.style.cursor
   /** The pointer between a primary press and its release or cancel. */
   let pressed: number | undefined
+  /** Whether `pressed` is a touch, which a second touch turns into a pinch. */
+  let pressedTouch = false
   /** Pointers whose release belongs to a tool that is no longer active. */
   const swallow = new Set<number>()
   /** What the active one-shot tool made; undefined while it is ready. */
@@ -255,6 +273,10 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
   let madeEdit: SelectionEdit | undefined
   /** The press now under way went to `madeEdit`, not the tool. */
   let editingMade = false
+  const presses = createPressTracker({
+    onPress: (press) => opts.onPress?.('press', press),
+    onLongPress: (press) => opts.onPress?.('long-press', press),
+  })
 
   function clearMade(): void {
     stopMade.forEach((stop) => stop())
@@ -285,13 +307,28 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     pressFoundMade ||= made !== undefined
   }
   const onDown = (e: PointerEvent): void => {
+    // A second touch is a pinch: the first touch's press and its tool's gesture are over. A
+    // pen's stroke survives a resting palm.
+    if (e.pointerType === 'touch' && !e.isPrimary) {
+      presses.cancel()
+      if (pressedTouch) cancelPressed()
+      return
+    }
     if (!e.isPrimary || e.button !== 0 || inCustomContent(e.target)) return
     // One gesture at a time: a second pointer pressing mid-gesture is ignored.
     if (foreign(e)) return
     swallow.delete(e.pointerId)
+    pressedTouch = e.pointerType === 'touch'
     const target = e.target instanceof Element ? e.target : null
     const annotationId =
       target?.closest('[data-annotation]')?.getAttribute('data-annotation') ?? undefined
+    const hit = hitFor(ctx, e)
+    const reportable =
+      (current?.id === 'select-text' || current?.id === 'select') &&
+      annotationId === undefined &&
+      target?.closest('a[href], [data-handle]') == null &&
+      hit !== undefined
+    presses.cancel()
     if (current?.kind === 'one-shot') {
       // Empty page is a page or the gaps between pages, not the viewport's own scroll bars.
       if (pressFoundMade && annotationId === undefined && !onScrollBar(e, ctx.root)) {
@@ -307,7 +344,7 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
       if (a && made?.includes(a.id) && madeEdit) {
         pressed = e.pointerId
         editingMade = true
-        if (madeEdit.onPointerDown(e, hitFor(ctx, e), a.id) === true) capture(e.pointerId)
+        if (madeEdit.onPointerDown(e, hit, a.id) === true) capture(e.pointerId)
         return
       }
       // Text markup counts as another annotation once the tool has made something; while it
@@ -315,15 +352,20 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
       if (a && (!isTextMarkup(a) || pressFoundMade)) set('select-text')
     }
     pressed = e.pointerId
-    if (current?.onPointerDown?.(e, hitFor(ctx, e), annotationId) === true)
-      capture(e.pointerId)
+    if (current?.onPointerDown?.(e, hit, annotationId) === true) capture(e.pointerId)
+    // Whatever the tool returned: a marquee that stays within the slop is still a press.
+    if (reportable && pressed === e.pointerId)
+      presses.down(e, { page: hit.page, point: hit.user, pointerType: pointerTypeOf(e) })
   }
   const onMove = (e: PointerEvent): void => {
     if (!e.isPrimary || foreign(e)) return
     // A buttonless move means the release was missed: the press is over (tools drop their
     // own gesture on the same signal), so another pointer may press again.
     const missed = pressed === e.pointerId && e.buttons === 0
-    if (missed) pressed = undefined
+    if (missed) {
+      pressed = undefined
+      presses.cancel()
+    } else presses.move(e)
     if (editingMade) {
       madeEdit?.onPointerMove(e, hitFor(ctx, e))
       if (missed) editingMade = false
@@ -343,6 +385,7 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
       madeEdit?.onPointerUp(e, hitFor(ctx, e))
     } else current?.onPointerUp?.(e, hitFor(ctx, e))
     release(e.pointerId)
+    presses.up(e)
   }
   const onCancel = (e: PointerEvent): void => {
     if (!e.isPrimary || foreign(e)) return
@@ -350,6 +393,7 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     if (e.type === 'lostpointercapture' && pressed !== e.pointerId) return
     if (pressed === e.pointerId) pressed = undefined
     swallow.delete(e.pointerId)
+    presses.cancel()
     if (editingMade) {
       editingMade = false
       madeEdit?.onPointerCancel()
@@ -439,16 +483,8 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
       return
     }
     if (options) registry.merge(id, options)
-    if (pressed !== undefined) {
-      // Mid-press: end the old tool's gesture here and keep its release from the new tool.
-      if (editingMade) madeEdit?.onPointerCancel()
-      else
-        current?.onPointerCancel?.(
-          new PointerEvent('pointercancel', { pointerId: pressed, isPrimary: true })
-        )
-      swallow.add(pressed)
-      pressed = undefined
-    }
+    presses.cancel()
+    cancelPressed()
     editingMade = false
     madeEdit?.reset()
     current?.deactivate()
@@ -460,6 +496,19 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     ctx.root.dataset.inkTool = id
     ctx.root.style.cursor = next.cursor
     active.set(id)
+  }
+  /** Ends the live press's gesture, if any, and keeps its release from every tool. */
+  function cancelPressed(): void {
+    if (pressed === undefined) return
+    if (editingMade) {
+      editingMade = false
+      madeEdit?.onPointerCancel()
+    } else
+      current?.onPointerCancel?.(
+        new PointerEvent('pointercancel', { pointerId: pressed, isPrimary: true })
+      )
+    swallow.add(pressed)
+    pressed = undefined
   }
   set(opts.initial ?? 'select-text')
   if (
@@ -484,6 +533,7 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
       return registry.readable(id)
     },
     destroy() {
+      presses.destroy()
       madeEdit?.reset()
       madeEdit = undefined
       current?.deactivate()
@@ -518,6 +568,10 @@ export function isViewportEnter(e: KeyboardEvent, root: HTMLElement): boolean {
   if (!(target instanceof Element) || !root.contains(target)) return false
   if (target.matches('.ink-page[data-page]')) return true
   return target.closest('[data-ink-text-layer], [data-ink-canvas-layer]') !== null
+}
+
+function pointerTypeOf(e: PointerEvent): PagePress['pointerType'] {
+  return e.pointerType === 'touch' || e.pointerType === 'pen' ? e.pointerType : 'mouse'
 }
 
 /**
