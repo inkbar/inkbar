@@ -12,7 +12,7 @@ const firstPage = (page: Page) => viewer(page).locator('.ink-page[data-page="0"]
 const session = (page: Page, type: string) =>
   firstPage(page).locator(`.ink-annotation[data-type="${type}"][data-source="session"]`)
 const sessionAll = (page: Page) =>
-  firstPage(page).locator('.ink-annotation[data-source="session"]')
+  viewer(page).locator('.ink-annotation[data-source="session"]')
 
 /** The tour has every drawing tool in its toolbar. */
 async function open(page: Page, framework: string): Promise<void> {
@@ -100,6 +100,7 @@ for (const framework of FRAMEWORK_ORDER) {
         await drag(cdp, await lower(page), 0, -200)
 
         await expect.poll(() => scrollTop(page)).toBeGreaterThan(before + 50)
+        await settle(page)
         await expect(sessionAll(page)).toHaveCount(0)
       }
     )
@@ -131,6 +132,7 @@ for (const framework of FRAMEWORK_ORDER) {
           const moved = (await scrollTop(page)) - before
           expect(Math.abs(moved - 300)).toBeLessThanOrEqual(60)
         }).toPass({ timeout: 5_000 })
+        await settle(page)
         await expect(sessionAll(page)).toHaveCount(0)
       }
     )
