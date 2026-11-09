@@ -13,7 +13,9 @@
 // host's, except for two claims: the viewport claims pinch on the container (`pan-x pan-y`)
 // unless `pinchZoom` is false, and this controller sets `pinch-zoom` on the pages element
 // (a direct child of the root, `data-ink-pages`) while a tool with `claimsTouch` is ready, so
-// one finger drags with the tool instead of panning. Two fingers still scroll and zoom.
+// one finger drags with the tool instead of panning. Two fingers still scroll and zoom. Safari on
+// iPad can still scroll under that value, so a claimed one-finger `touchmove` on the pages is
+// also cancelled (a non-passive listener on the root).
 //
 // One gesture runs at a time, except that a pen takes over from a touch: a press by a pen cancels
 // the live touch gesture (a resting palm) and starts its own.
@@ -313,11 +315,27 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
    * without a pages element (no `createViewport`) gets no claim.
    */
   function applyClaim(): void {
-    const pages = ctx.root.querySelector<HTMLElement>(':scope > [data-ink-pages]')
+    const pages = pagesOf()
     if (!pages) return
-    if (current?.claimsTouch === true && made === undefined)
-      pages.style.touchAction = 'pinch-zoom'
+    if (claiming()) pages.style.touchAction = 'pinch-zoom'
     else pages.style.removeProperty('touch-action')
+  }
+  function pagesOf(): HTMLElement | null {
+    return ctx.root.querySelector<HTMLElement>(':scope > [data-ink-pages]')
+  }
+  /** True while the active tool claims touch: it claims it and, if one-shot, is still ready. */
+  function claiming(): boolean {
+    return current?.claimsTouch === true && made === undefined
+  }
+  /**
+   * Safari on iPad can let a one-finger drag scroll the container despite the claim's
+   * `touch-action`, then cancel the tool's gesture. So a claimed one-finger move on the pages
+   * also cancels the browser's scroll. Two fingers are left to the pinch handler or the browser.
+   */
+  const onTouchMove = (e: TouchEvent): void => {
+    if (!e.cancelable || e.touches.length !== 1 || !claiming()) return
+    const pages = pagesOf()
+    if (pages && e.target instanceof Node && pages.contains(e.target)) e.preventDefault()
   }
   /** Leaves the made state when its items are gone, or switches when the selection moved on. */
   function checkMade(): void {
@@ -513,6 +531,7 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
   ctx.root.addEventListener('lostpointercapture', onCancel)
   ctx.root.addEventListener('keydown', onKey)
   ctx.root.addEventListener('keydown', onEditorEscape, { capture: true })
+  ctx.root.addEventListener('touchmove', onTouchMove, { passive: false })
 
   const loggedUnknown = new Set<ToolId>()
   function logUnknownOnce(id: ToolId): void {
@@ -594,6 +613,7 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
       ctx.root.removeEventListener('lostpointercapture', onCancel)
       ctx.root.removeEventListener('keydown', onKey)
       ctx.root.removeEventListener('keydown', onEditorEscape, { capture: true })
+      ctx.root.removeEventListener('touchmove', onTouchMove)
       delete ctx.root.dataset.inkTool
       ctx.root.style.cursor = originalCursor
     },
