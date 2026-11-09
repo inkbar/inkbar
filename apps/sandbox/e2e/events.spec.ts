@@ -1,8 +1,10 @@
 import { guardConsole } from '@inkbar/e2e-shared/console-guard'
-import { expect, test, type CDPSession, type Page } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 
 import { FRAMEWORK_ORDER } from '../src/shell/frameworks.ts'
 import { H as PAGE_HEIGHT, W as PAGE_WIDTH } from '../vite/documents/layout.ts'
+
+import { touch, type TouchPoint } from './touch.ts'
 
 guardConsole(test)
 
@@ -50,14 +52,6 @@ async function shownZoom(page: Page): Promise<number> {
     )
   return Number.parseFloat(text) / 100
 }
-
-type TouchPoint = { x: number; y: number; id: number }
-
-const touch = (
-  cdp: CDPSession,
-  type: 'touchStart' | 'touchMove' | 'touchEnd',
-  touchPoints: TouchPoint[]
-) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints })
 
 for (const framework of FRAMEWORK_ORDER) {
   test.describe(framework, () => {
