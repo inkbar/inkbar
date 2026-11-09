@@ -52,6 +52,36 @@ function userPointAt(viewport: Viewport, container: HTMLElement, anchor: Point) 
   return { page: hit.page, point }
 }
 
+/** Fingers on the container as touch events, at points relative to its top-left. */
+function fingers(container: HTMLElement) {
+  const live = new Map<number, Touch>()
+  function fire(type: string, id: number, p: Point): void {
+    const r = container.getBoundingClientRect()
+    const t = new Touch({
+      identifier: id,
+      target: container,
+      clientX: r.left + p.x,
+      clientY: r.top + p.y,
+    })
+    if (type === 'touchend') live.delete(id)
+    else live.set(id, t)
+    container.dispatchEvent(
+      new TouchEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        touches: [...live.values()],
+        targetTouches: [...live.values()],
+        changedTouches: [t],
+      })
+    )
+  }
+  return {
+    down: (id: number, p: Point) => fire('touchstart', id, p),
+    move: (id: number, p: Point) => fire('touchmove', id, p),
+    up: (id: number, p: Point) => fire('touchend', id, p),
+  }
+}
+
 describe('createViewport', () => {
   it('builds the DOM contract and mounts visible pages plus buffer', async () => {
     const { container, viewport, mounted } = await setup()
@@ -373,6 +403,39 @@ describe('createViewport', () => {
     const box = viewport.layout.get().boxes[0]!
     expect(viewport.pageAtCss(c.left + box.left + 10, c.top + box.top + 10)?.page).toBe(0)
     expect(viewport.pageAtCss(c.left + box.left + 10, c.top + GAP / 2)).toBeUndefined()
+  })
+
+  it('a long two-finger pan mounts pages before the fingers lift', async () => {
+    const { container, viewport } = await setup()
+    await until(() => viewport.mounted.get().length > 0)
+    expect(viewport.mounted.get()).not.toContain(2)
+    const f = fingers(container)
+    // Fifteen hundred pixels up, well over a page height, in steps a finger would take.
+    f.down(1, { x: 350, y: 500 })
+    f.down(2, { x: 450, y: 500 })
+    for (let i = 1; i <= 30; i++) {
+      f.move(1, { x: 350, y: 500 - i * 50 })
+      f.move(2, { x: 450, y: 500 - i * 50 })
+    }
+    await until(() => viewport.mounted.get().includes(2))
+    f.up(2, { x: 450, y: -1000 })
+    f.up(1, { x: 350, y: -1000 })
+  })
+
+  it('a two-finger pan keeps fit-width', async () => {
+    const { container, viewport } = await setup('text-simple', 'fit-width')
+    await until(() => viewport.mounted.get().length > 0)
+    const f = fingers(container)
+    f.down(1, { x: 350, y: 400 })
+    f.down(2, { x: 450, y: 400 })
+    for (let i = 1; i <= 5; i++) {
+      f.move(1, { x: 350, y: 400 - i * 40 })
+      f.move(2, { x: 450, y: 400 - i * 40 })
+    }
+    expect(container.scrollTop).toBeGreaterThan(150)
+    f.up(2, { x: 450, y: 200 })
+    f.up(1, { x: 350, y: 200 })
+    expect(viewport.zoom.get()).toBe('fit-width')
   })
 
   it('destroy removes what it created and calls onUnmount', async () => {

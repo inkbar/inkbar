@@ -372,8 +372,9 @@ export function createViewport(opts: ViewportOptions): Viewport {
   }
 
   /**
-   * Ends a pinch: one zoom change around where it started, then the midpoint's travel as a
-   * scroll, so the point that was between the fingers ends up where the preview last showed it.
+   * Ends a pinch: one zoom change around the point that started between the fingers, then any
+   * travel the touch pinch could not scroll as it went (all of it, for a trackpad pinch) as a
+   * scroll, so that point ends up where the preview last showed it.
    * When the scroll's edges stop it getting there, the preview eases the difference out. A
    * pinch that did not zoom changes no zoom, so a fit mode stays: a two-finger pan only
    * scrolls, and a two-finger tap changes nothing.
@@ -414,6 +415,15 @@ export function createViewport(opts: ViewportOptions): Viewport {
         scale: () => scale.get(),
         minZoom,
         maxZoom,
+        scrollBy: (delta) => {
+          const { scrollLeft, scrollTop } = container
+          container.scrollLeft -= delta.x
+          container.scrollTop -= delta.y
+          return {
+            x: scrollLeft - container.scrollLeft,
+            y: scrollTop - container.scrollTop,
+          }
+        },
         commit: commitPinch,
       })
     : undefined

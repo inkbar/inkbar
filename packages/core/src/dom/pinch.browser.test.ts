@@ -387,6 +387,54 @@ describe('touch pinch zoom', () => {
     expect(container.scrollTop).toBe(450)
   })
 
+  it('a two-finger pan scrolls the container while the fingers move', async () => {
+    const { container, pages, f } = await setup()
+    await settle()
+    expect(container.scrollTop).toBe(0)
+    pinch(
+      f,
+      [
+        { x: 350, y: 450 },
+        { x: 450, y: 450 },
+      ],
+      [
+        { x: 350, y: 150 },
+        { x: 450, y: 150 },
+      ],
+      10
+    )
+    expect(Math.abs(container.scrollTop - 300)).toBeLessThanOrEqual(1)
+    const shown = new DOMMatrix(getComputedStyle(pages).transform)
+    expect(Math.abs(shown.m41)).toBeLessThanOrEqual(1)
+    expect(Math.abs(shown.m42)).toBeLessThanOrEqual(1)
+    f.up(2, { x: 450, y: 150 })
+    f.up(1, { x: 350, y: 150 })
+    expect(Math.abs(container.scrollTop - 300)).toBeLessThanOrEqual(1)
+  })
+
+  it('a two-finger pan at the top edge previews the rest', async () => {
+    const { container, pages, f } = await setup()
+    await settle()
+    pinch(
+      f,
+      [
+        { x: 350, y: 200 },
+        { x: 450, y: 200 },
+      ],
+      [
+        { x: 350, y: 250 },
+        { x: 450, y: 250 },
+      ]
+    )
+    expect(container.scrollTop).toBe(0)
+    const shown = new DOMMatrix(getComputedStyle(pages).transform)
+    expect(shown.m42).toBeCloseTo(50, 3)
+    f.up(2, { x: 450, y: 250 })
+    expect(container.scrollTop).toBe(0)
+    expect(pages.style.transform).toMatch(/^translate\(/)
+    await until(() => pages.style.transform === '', 1000)
+  })
+
   it('prevents moves only while two fingers are down', async () => {
     const { f } = await setup()
     await settle()
