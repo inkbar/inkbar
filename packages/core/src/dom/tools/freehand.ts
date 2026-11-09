@@ -11,6 +11,7 @@ import {
   type ToolContext,
   type ToolId,
 } from './controller'
+import { TOUCH_SLOP } from './press'
 
 import type { AnnotationInput } from '../../model/annotations/types'
 import type { Point } from '../../model/geometry'
@@ -53,6 +54,11 @@ interface Stroke {
   /** One value per sample for pen and touch, else undefined. */
   pressure: number[] | undefined
   startedAt: number
+  pointerType: string
+  /** Where the press landed, in client px. */
+  origin: Point
+  /** The farthest the pointer has been from `origin`, in client px. */
+  travel: number
 }
 
 /** Pressure from a device that reports it, else undefined. Shared with the signature pad. */
@@ -85,6 +91,10 @@ export function freehandTool(opts: FreehandOptions): Tool {
   /** Adds a sample. A release reports 0 pressure, so it repeats the last sample's instead. */
   const sample = (s: Stroke, e: PointerEvent, release = false): void => {
     const css = clampedCssIn(s.from.host, e)
+    s.travel = Math.max(
+      s.travel,
+      Math.hypot(e.clientX - s.origin.x, e.clientY - s.origin.y)
+    )
     s.css.push(css)
     s.user.push(s.from.transform.fromCss(css))
     const p = release ? s.pressure?.[s.pressure.length - 1] : pressureOf(e)
@@ -154,6 +164,9 @@ export function freehandTool(opts: FreehandOptions): Tool {
         user: [],
         pressure: undefined,
         startedAt: Date.now(),
+        pointerType: e.pointerType,
+        origin: { x: e.clientX, y: e.clientY },
+        travel: 0,
       }
       sample(stroke, e)
       // Drawing over an annotation draws; it neither selects it nor starts a text selection.
@@ -187,6 +200,8 @@ export function freehandTool(opts: FreehandOptions): Tool {
       const end = clampedCssIn(s.from.host, e)
       if (end.x !== last.x || end.y !== last.y) sample(s, e, true)
       clear()
+      // A finger that barely moved was a tap, not a stroke. A pen or mouse tap makes a dot.
+      if (s.pointerType === 'touch' && s.travel <= TOUCH_SLOP) return
       opts.commit(ctx, {
         page: s.from.page,
         points: s.user,
