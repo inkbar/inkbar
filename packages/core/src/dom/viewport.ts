@@ -1,12 +1,15 @@
 /*
  * Inline styles. The headless DOM layer sets only what it cannot work without:
  * - container: `overflow: auto`, and `position: relative` when its computed position is static;
- * - pages element: `position: relative`, plus `width`/`height` from the layout;
+ * - container: `touch-action: pan-x pan-y` unless `pinchZoom` is false, so one finger still
+ *   scrolls natively but a pinch zooms the document rather than the page;
+ * - pages element: `position: relative`, plus `width`/`height` from the layout, and a
+ *   `transform` (with its origin and, as it settles, a `transition`) while a pinch is previewed;
  * - page hosts: `position: absolute` and `left`/`top`/`width`/`height` from the layout;
  * - page hosts: the `--scale-factor` (zoom) and `--total-scale-factor` (zoom × /UserUnit)
  *   custom properties.
  * Nothing cosmetic (colours, borders, backgrounds, fonts) is ever set inline; that belongs to
- * the stylesheet. `destroy()` restores the container's overflow and position.
+ * the stylesheet. `destroy()` restores the container's overflow, position and touch-action.
  */
 import { readonly, writable, type Readable } from '../model/readable'
 
@@ -19,6 +22,12 @@ import {
   type CssPageBox,
   type LayoutMode,
 } from './layout'
+import {
+  attachTouchPinch,
+  createZoomPreview,
+  type PinchFrame,
+  type ZoomPreview,
+} from './pinch'
 import { createPageTransform, type PageTransform, type ViewRotation } from './transform'
 
 import type { InkDocument } from '../model/document'
@@ -43,6 +52,11 @@ export interface ViewportOptions {
   minZoom?: number
   /** Default 8. */
   maxZoom?: number
+  /**
+   * Zoom the document when two fingers pinch over the container. Default `true`. When false the
+   * viewport leaves `touch-action` alone and the browser zooms the page as it would anyway.
+   */
+  pinchZoom?: boolean
   onMount(page: number, host: HTMLElement, transform: PageTransform): void
   onUpdate(page: number, host: HTMLElement, transform: PageTransform): void
   onUnmount(page: number, host: HTMLElement): void
@@ -104,9 +118,12 @@ export function createViewport(opts: ViewportOptions): Viewport {
   const previousStyle = {
     overflow: container.style.overflow,
     position: container.style.position,
+    touchAction: container.style.touchAction,
   }
   container.dataset.inkViewport = ''
   container.style.overflow = 'auto'
+  const pinchZoom = opts.pinchZoom ?? true
+  if (pinchZoom) container.style.touchAction = 'pan-x pan-y'
   if (getComputedStyle(container).position === 'static')
     container.style.position = 'relative'
 
@@ -295,6 +312,19 @@ export function createViewport(opts: ViewportOptions): Viewport {
     return best
   }
 
+  /** The page and user-space point under `anchor` (container-relative), from the current layout. */
+  function userAt(anchor: Point): { page: number; user: Point } | undefined {
+    const o = origin()
+    const x = container.scrollLeft + anchor.x - o.x
+    const y = container.scrollTop + anchor.y - o.y
+    const box = anchorBox(layout.get(), y)
+    if (!box) return undefined
+    return {
+      page: box.index,
+      user: transformFor(box.index).fromCss({ x: x - box.left, y: y - box.top }),
+    }
+  }
+
   /**
    * Keeps the user-space point under `anchorCss` still while `change` alters the layout.
    * The anchor is taken in layout space, so it holds in the margins and gaps too: there it
@@ -307,24 +337,83 @@ export function createViewport(opts: ViewportOptions): Viewport {
       y: container.clientHeight / 2,
     }
     // Read everything from the old layout before relayout() clears the cached transforms.
-    const o = origin()
-    const x = container.scrollLeft + anchor.x - o.x
-    const y = container.scrollTop + anchor.y - o.y
-    const old = anchorBox(layout.get(), y)
-    const user = old
-      ? transformFor(old.index).fromCss({ x: x - old.left, y: y - old.top })
-      : undefined
+    const at = userAt(anchor)
     change()
     relayout()
-    if (!old || !user) return
-    const box = boxFor(old.index)
+    if (!at) return
+    const box = boxFor(at.page)
     if (!box) return
-    const after = transformFor(old.index).toCss(user)
-    const o2 = origin()
-    container.scrollLeft = o2.x + box.left + after.x - anchor.x
-    container.scrollTop = o2.y + box.top + after.y - anchor.y
+    const after = transformFor(at.page).toCss(at.user)
+    const o = origin()
+    container.scrollLeft = o.x + box.left + after.x - anchor.x
+    container.scrollTop = o.y + box.top + after.y - anchor.y
     sync()
   }
+
+  /**
+   * The translation a pinch preview applies, from the current layout. While the zoomed pages
+   * would still be narrower than the container, the committed layout centres them (and leaves
+   * nothing to scroll sideways), so the preview puts them there instead of following the fingers.
+   */
+  function previewPan(factor: number, anchor: Point, pan: Point): Point {
+    const l = layout.get()
+    const widest = l.boxes.reduce((max, b) => Math.max(max, b.width), 0)
+    const inner = innerSize().width
+    if (widest * factor >= inner) return pan
+    // The pages' centre line in the preview, and where the committed layout will put it, both
+    // container-relative: the scale is around the anchor, in the pages element's coordinates.
+    const o = origin()
+    const ox = anchor.x + container.scrollLeft - o.x
+    const shown = o.x - container.scrollLeft + ox + (l.width / 2 - ox) * factor + pan.x
+    const centred = o.x + inner / 2
+    return { x: pan.x + centred - shown, y: pan.y }
+  }
+
+  /**
+   * Ends a pinch: one zoom change around where it started, then the midpoint's travel as a
+   * scroll, so the point that was between the fingers ends up where the preview last showed it.
+   * When the scroll's edges stop it getting there, the preview eases the difference out. A
+   * pinch that neither zoomed nor moved (a two-finger tap) changes nothing, so a fit mode stays.
+   */
+  function commitPinch(frame: PinchFrame): void {
+    if (destroyed) return
+    if (Math.abs(frame.factor - 1) < 0.001 && Math.hypot(frame.pan.x, frame.pan.y) < 1)
+      return
+    const at = userAt(frame.anchor)
+    const shown = previewPan(frame.factor, frame.anchor, frame.pan)
+    withAnchor(frame.anchor, () => zoom.set(clamp(frame.zoom)))
+    container.scrollLeft -= frame.pan.x
+    container.scrollTop -= frame.pan.y
+    sync()
+    const box = at && boxFor(at.page)
+    if (!at || !box) return
+    const css = transformFor(at.page).toCss(at.user)
+    const o = origin()
+    const actual = {
+      x: o.x + box.left + css.x - container.scrollLeft,
+      y: o.y + box.top + css.y - container.scrollTop,
+    }
+    const dx = frame.anchor.x + shown.x - actual.x
+    const dy = frame.anchor.y + shown.y - actual.y
+    if (Math.abs(dx) > 1 || Math.abs(dy) > 1) preview?.settle({ x: dx, y: dy })
+  }
+
+  const basePreview = pinchZoom ? createZoomPreview(container, pagesEl) : undefined
+  const preview: ZoomPreview | undefined = basePreview && {
+    ...basePreview,
+    show: (factor, anchor, pan) =>
+      basePreview.show(factor, anchor, previewPan(factor, anchor, pan)),
+  }
+  const pinch = preview
+    ? attachTouchPinch({
+        container,
+        preview,
+        scale: () => scale.get(),
+        minZoom,
+        maxZoom,
+        commit: commitPinch,
+      })
+    : undefined
 
   const viewport: Viewport = {
     zoom: readonly(zoom),
@@ -404,6 +493,8 @@ export function createViewport(opts: ViewportOptions): Viewport {
     destroy() {
       if (destroyed) return
       destroyed = true
+      pinch?.destroy()
+      preview?.destroy()
       ro.disconnect()
       container.removeEventListener('scroll', onScroll)
       if (scrollFrame) cancelAnimationFrame(scrollFrame)
@@ -417,6 +508,7 @@ export function createViewport(opts: ViewportOptions): Viewport {
       delete container.dataset.inkViewport
       container.style.overflow = previousStyle.overflow
       container.style.position = previousStyle.position
+      container.style.touchAction = previousStyle.touchAction
     },
   }
 

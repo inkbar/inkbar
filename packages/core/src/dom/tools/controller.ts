@@ -9,8 +9,8 @@
 //
 // When a tool starts a gesture (its `onPointerDown` returns true) the controller captures the
 // pointer on the root, so the release still arrives when it happens outside. `pointercancel`
-// and `lostpointercapture` reach the tool as `onPointerCancel`. `touch-action` is left to the
-// theme or host: touch gestures are theirs to arbitrate.
+// and `lostpointercapture` reach the tool as `onPointerCancel`. `touch-action` is the theme's or
+// host's, except that the viewport claims pinch (`pan-x pan-y`) unless `pinchZoom` is false.
 //
 // The controller tracks the pressed pointer. Switching tools mid-press cancels the old tool's
 // gesture and swallows that pointer's release, so the new tool never sees half a gesture.

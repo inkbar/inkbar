@@ -59,6 +59,8 @@ export interface MountViewerOptions {
   rotation?: ViewRotation
   gap?: number
   buffer?: number
+  /** Zoom the document on a two-finger pinch. Default `true`; see `ViewportOptions.pinchZoom`. */
+  pinchZoom?: boolean
   tool?: ToolId
   /**
    * The creation tools (`allTools()`, or the ones the host imports); `select-text` and `select`
@@ -190,7 +192,12 @@ export interface ViewerEngine {
    * visible area stays there. When that corner is in a gap rather than on a page, the page below
    * the gap lands where `scrollToPage` puts it, with the new gap above it.
    */
-  rebuild(opts: { gap?: number; buffer?: number; customAnnotations?: boolean }): void
+  rebuild(opts: {
+    gap?: number
+    buffer?: number
+    pinchZoom?: boolean
+    customAnnotations?: boolean
+  }): void
   /**
    * Runs `decorateAnnotation` (or the plugins' `decorate`) again for every mounted annotation
    * element, without re-rendering anything else. Call it when the decorations would change but
@@ -262,6 +269,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
   const pages = new Map<number, PageMount>()
   let gap = opts.gap
   let buffer = opts.buffer
+  let pinchZoom = opts.pinchZoom
   let custom = opts.customAnnotations ?? false
   let viewport: Viewport
   let tools: ToolController
@@ -558,6 +566,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       ...(state.rotation === undefined ? {} : { rotation: state.rotation }),
       ...(gap === undefined ? {} : { gap }),
       ...(buffer === undefined ? {} : { buffer }),
+      ...(pinchZoom === undefined ? {} : { pinchZoom }),
       onMount: mountPage,
       onUpdate: (page, _host, transform) => pages.get(page)?.update(transform),
       onUnmount: unmountPage,
@@ -655,6 +664,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       teardown()
       if (next.gap !== undefined) gap = next.gap
       if (next.buffer !== undefined) buffer = next.buffer
+      if (next.pinchZoom !== undefined) pinchZoom = next.pinchZoom
       if (next.customAnnotations !== undefined) custom = next.customAnnotations
       build(state)
     },
