@@ -2,7 +2,7 @@
  * Pinch zoom. Two touch pointers on the viewport's container scale the document around the
  * point between them. While the fingers are down nothing is re-laid out or re-rendered: a CSS
  * transform on the pages element previews the zoom, and the viewport commits one zoom change
- * when a finger lifts. All points here are container-relative CSS px.
+ * when a finger lifts (or, for a trackpad pinch, when the events stop). All points here are container-relative CSS px.
  */
 import type { Point } from '../model/geometry'
 
@@ -197,6 +197,151 @@ export function attachTouchPinch(opts: TouchPinchOptions): { destroy(): void } {
       container.removeEventListener('pointercancel', onUp)
       down.clear()
       pinch = undefined
+    },
+  }
+}
+
+/**
+ * The zoom factor one wheel event stands for. A trackpad pinch arrives as ctrl+wheel events
+ * whose `deltaY` is in pixels; line and page modes (a mouse wheel with ctrl held) are converted
+ * to the same scale.
+ */
+export function wheelFactor(e: { deltaY: number; deltaMode: number }): number {
+  const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 800 : 1
+  return Math.exp(-(e.deltaY * unit) / 100)
+}
+
+/** Safari's gesture events, which the DOM typings do not include. */
+interface GestureLike extends UIEvent {
+  scale: number
+  clientX: number
+  clientY: number
+}
+
+export interface TrackpadPinchOptions {
+  container: HTMLElement
+  preview: ZoomPreview
+  /** The effective zoom when a pinch starts. */
+  scale(): number
+  minZoom: number
+  maxZoom: number
+  /** Called once per pinch, after the preview clears. */
+  commit(frame: PinchFrame): void
+}
+
+const IDLE_MS = 150
+
+/**
+ * A trackpad pinch over the container. Browsers report it as ctrl+wheel events, which are
+ * taken over so the page does not zoom; a run of them is one pinch, anchored at the pointer
+ * where it began and committed once the events stop. Safari also has gesture events, which give
+ * the scale directly; while one of those runs, ctrl+wheel is ignored so nothing counts twice.
+ * The wheel listener is non-passive because it has to call `preventDefault`.
+ */
+export function attachTrackpadPinch(opts: TrackpadPinchOptions): { destroy(): void } {
+  const { container, preview } = opts
+  const win = container.ownerDocument.defaultView ?? window
+  let run: { anchor: Point; scale: number; factor: number; last: PinchFrame } | undefined
+  let gesturing = false
+  let timer: ReturnType<typeof setTimeout> | undefined
+
+  function at(e: { clientX: number; clientY: number }): Point {
+    const r = container.getBoundingClientRect()
+    return {
+      x: e.clientX - r.left - container.clientLeft,
+      y: e.clientY - r.top - container.clientTop,
+    }
+  }
+
+  function update(
+    e: { clientX: number; clientY: number },
+    next: (factor: number) => number
+  ): void {
+    if (!run) {
+      const scale = opts.scale()
+      const anchor = at(e)
+      const last = pinchFrame(
+        [anchor, anchor],
+        [anchor, anchor],
+        scale,
+        opts.minZoom,
+        opts.maxZoom
+      )
+      run = { anchor, scale, factor: 1, last }
+    }
+    run.factor = next(run.factor)
+    const zoom = Math.min(opts.maxZoom, Math.max(opts.minZoom, run.scale * run.factor))
+    run.last = {
+      zoom,
+      factor: zoom / run.scale,
+      anchor: run.anchor,
+      pan: { x: 0, y: 0 },
+    }
+    preview.show(run.last.factor, run.last.anchor, run.last.pan)
+  }
+
+  function end(): void {
+    if (timer !== undefined) clearTimeout(timer)
+    timer = undefined
+    if (!run) return
+    const { last } = run
+    run = undefined
+    preview.clear()
+    opts.commit(last)
+  }
+
+  const onWheel = (e: WheelEvent): void => {
+    if (!e.ctrlKey || gesturing) return
+    e.preventDefault()
+    update(e, (f) => f * wheelFactor(e))
+    if (timer !== undefined) clearTimeout(timer)
+    timer = setTimeout(end, IDLE_MS)
+  }
+
+  const onGestureStart = (e: Event): void => {
+    e.preventDefault()
+    if (timer !== undefined) clearTimeout(timer)
+    timer = undefined
+    // Anything a ctrl+wheel run left behind commits first, so the gesture starts from it.
+    end()
+    gesturing = true
+    update(e as GestureLike, () => 1)
+  }
+
+  const onGestureChange = (e: Event): void => {
+    e.preventDefault()
+    if (!gesturing) return
+    update(e as GestureLike, () => (e as GestureLike).scale)
+  }
+
+  const onGestureEnd = (e: Event): void => {
+    e.preventDefault()
+    if (!gesturing) return
+    gesturing = false
+    end()
+  }
+
+  container.addEventListener('wheel', onWheel, { passive: false })
+  const hasGestures = 'GestureEvent' in win
+  if (hasGestures) {
+    container.addEventListener('gesturestart', onGestureStart)
+    container.addEventListener('gesturechange', onGestureChange)
+    container.addEventListener('gestureend', onGestureEnd)
+  }
+
+  return {
+    destroy() {
+      container.removeEventListener('wheel', onWheel)
+      if (hasGestures) {
+        container.removeEventListener('gesturestart', onGestureStart)
+        container.removeEventListener('gesturechange', onGestureChange)
+        container.removeEventListener('gestureend', onGestureEnd)
+      }
+      if (timer !== undefined) clearTimeout(timer)
+      timer = undefined
+      run = undefined
+      gesturing = false
+      preview.clear()
     },
   }
 }

@@ -13,8 +13,19 @@ export { createViewport } from './viewport'
 export type { Viewport, ViewportHit, ViewportOptions, ZoomValue } from './viewport'
 export { attachViewportKeys } from './viewport-keys'
 export type { ViewportKeysOptions } from './viewport-keys'
-export { attachTouchPinch, createZoomPreview, pinchFrame } from './pinch'
-export type { PinchFrame, TouchPinchOptions, ZoomPreview } from './pinch'
+export {
+  attachTouchPinch,
+  attachTrackpadPinch,
+  createZoomPreview,
+  pinchFrame,
+  wheelFactor,
+} from './pinch'
+export type {
+  PinchFrame,
+  TouchPinchOptions,
+  TrackpadPinchOptions,
+  ZoomPreview,
+} from './pinch'
 export { attachFileKeys, downloadDocument, printDocument } from './file-actions'
 export type { DownloadOptions } from './file-actions'
 export { attachHistoryKeys, keepHistoryFocus } from './history-keys'

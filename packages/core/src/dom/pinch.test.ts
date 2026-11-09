@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { pinchFrame } from './pinch'
+import { pinchFrame, wheelFactor } from './pinch'
 
 describe('pinchFrame', () => {
   it('pinchFrame doubles zoom when fingers spread to twice the distance', () => {
@@ -94,5 +94,15 @@ describe('pinchFrame', () => {
     )
     expect(frame.factor).toBe(1)
     expect(frame.zoom).toBe(1.5)
+  })
+})
+
+describe('wheelFactor', () => {
+  it('wheelFactor zooms in on negative deltaY', () => {
+    expect(wheelFactor({ deltaY: -100, deltaMode: 0 })).toBeCloseTo(Math.E, 10)
+  })
+
+  it('wheelFactor scales line mode by 16', () => {
+    expect(wheelFactor({ deltaY: 1, deltaMode: 1 })).toBeCloseTo(Math.exp(-0.16), 10)
   })
 })
