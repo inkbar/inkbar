@@ -54,6 +54,8 @@ async function setup(
  */
 function fingers(container: HTMLElement) {
   const live = new Map<number, Touch>()
+  // A browser sends moves it will not let a listener cancel once it is scrolling natively.
+  let cancelable = true
   function touchAt(id: number, p: Point): Touch {
     const r = container.getBoundingClientRect()
     return new Touch({
@@ -66,7 +68,7 @@ function fingers(container: HTMLElement) {
   function fire(type: string, changed: Touch): TouchEvent {
     const e = new TouchEvent(type, {
       bubbles: true,
-      cancelable: true,
+      cancelable: type !== 'touchmove' || cancelable,
       touches: [...live.values()],
       targetTouches: [...live.values()],
       changedTouches: [changed],
@@ -88,6 +90,10 @@ function fingers(container: HTMLElement) {
     up(id: number, p: Point, type: 'touchend' | 'touchcancel' = 'touchend'): TouchEvent {
       live.delete(id)
       return fire(type, touchAt(id, p))
+    },
+    /** Whether the moves that follow can be cancelled, as when the browser is not scrolling. */
+    cancelable(value: boolean): void {
+      cancelable = value
     },
     /** Forgets a finger without telling the container, as when the browser loses its end. */
     lose(id: number): void {
@@ -433,6 +439,78 @@ describe('touch pinch zoom', () => {
     expect(container.scrollTop).toBe(0)
     expect(pages.style.transform).toMatch(/^translate\(/)
     await until(() => pages.style.transform === '', 1000)
+  })
+
+  it('a two-finger pan near the top scrolls what it can and previews the rest', async () => {
+    const { container, pages, f } = await setup()
+    container.scrollTop = 20
+    await settle()
+    pinch(
+      f,
+      [
+        { x: 350, y: 200 },
+        { x: 450, y: 200 },
+      ],
+      [
+        { x: 350, y: 250 },
+        { x: 450, y: 250 },
+      ]
+    )
+    expect(container.scrollTop).toBe(0)
+    const shown = new DOMMatrix(getComputedStyle(pages).transform)
+    expect(shown.m42).toBeCloseTo(30, 3)
+    f.up(2, { x: 450, y: 250 })
+    f.up(1, { x: 350, y: 250 })
+    expect(container.scrollTop).toBe(0)
+  })
+
+  it('a two-finger pan scrolls in step under a smooth scroll-behavior', async () => {
+    const { container, f } = await setup()
+    container.style.scrollBehavior = 'smooth'
+    await settle()
+    pinch(
+      f,
+      [
+        { x: 350, y: 450 },
+        { x: 450, y: 450 },
+      ],
+      [
+        { x: 350, y: 250 },
+        { x: 450, y: 250 },
+      ],
+      10
+    )
+    expect(Math.abs(container.scrollTop - 200)).toBeLessThanOrEqual(1)
+    f.up(2, { x: 450, y: 250 })
+    f.up(1, { x: 350, y: 250 })
+  })
+
+  it('a second finger joining a native one-finger scroll leaves the scrolling to the browser', async () => {
+    const { container, pages, viewport, f } = await setup()
+    container.scrollTop = 400
+    await settle()
+    // One finger starts a native scroll, so every move from here on is not cancelable.
+    f.down(1, { x: 350, y: 450 })
+    f.cancelable(false)
+    f.move(1, { x: 350, y: 440 })
+    container.scrollTop += 10
+    f.down(2, { x: 450, y: 440 })
+    // Both fingers travel 200 px up; the browser scrolls the container with them.
+    for (let i = 1; i <= 10; i++) {
+      const y = 440 - 20 * i
+      container.scrollTop += 20
+      expect(f.move(1, { x: 350, y }).defaultPrevented).toBe(false)
+      f.move(2, { x: 450, y })
+      expect(container.scrollTop).toBe(410 + 20 * i)
+    }
+    const shown = new DOMMatrix(getComputedStyle(pages).transform)
+    expect(Math.abs(shown.m41)).toBeLessThanOrEqual(1)
+    expect(Math.abs(shown.m42)).toBeLessThanOrEqual(1)
+    f.up(2, { x: 450, y: 240 })
+    f.up(1, { x: 350, y: 240 })
+    expect(container.scrollTop).toBe(610)
+    expect(viewport.zoom.get()).toBe(1)
+    expect(pages.style.transform).toBe('')
   })
 
   it('prevents moves only while two fingers are down', async () => {

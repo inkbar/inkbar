@@ -7,7 +7,13 @@ import {
 } from '../model/signatures'
 
 import { mountContainer, openFixtureInBrowser, settle, until } from './test-utils'
-import { createToolOptions, highlightTool, shapeTool, signatureTool } from './tools'
+import {
+  createToolOptions,
+  drawTool,
+  highlightTool,
+  shapeTool,
+  signatureTool,
+} from './tools'
 import { mountViewer, type MountViewerOptions, type ViewerEngine } from './viewer-engine'
 
 import type { InkError } from '../model/errors'
@@ -180,6 +186,22 @@ describe('mountViewer', () => {
       .map((c: unknown[]) => c[0] as number)
     expect(torn.sort()).toEqual([...oldPages].sort())
     await until(() => engine.pages.size > 0)
+  })
+
+  it("keeps a drag tool's claim on one-finger touches across a pinchZoom rebuild", async () => {
+    const { container, engine } = await setup('text-simple', { tools: [drawTool()] })
+    await until(() => engine.pages.size > 0)
+    engine.tools.set('draw')
+    const pagesEl = () =>
+      container.querySelector<HTMLElement>(':scope > [data-ink-pages]')!
+    const old = pagesEl()
+    expect(old.style.touchAction).toBe('pinch-zoom')
+    engine.rebuild({ pinchZoom: false })
+    expect(pagesEl()).not.toBe(old)
+    expect(pagesEl().style.touchAction).toBe('pinch-zoom')
+    engine.rebuild({ pinchZoom: true })
+    expect(engine.tools.active.get()).toBe('draw')
+    expect(pagesEl().style.touchAction).toBe('pinch-zoom')
   })
 
   it("fires a build's page mounts before its onBuild, on the first build and on a rebuild", async () => {
