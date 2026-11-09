@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.11.0](https://github.com/inkbar/inkbar/compare/v0.10.0...v0.11.0) (2026-11-09)
+
+
+### Features
+
+* add a pinchZoom prop to InkViewport ([#302](https://github.com/inkbar/inkbar/issues/302)) ([f5f993e](https://github.com/inkbar/inkbar/commit/f5f993e915c8860fc04537c800c898f02a1a53a7))
+* add a press and long press scenario to the sandbox ([#303](https://github.com/inkbar/inkbar/issues/303)) ([a9576ba](https://github.com/inkbar/inkbar/commit/a9576baafa574f1c0f43e89178496c85d504167c))
+* detect presses and long presses on pages ([#300](https://github.com/inkbar/inkbar/issues/300)) ([014653f](https://github.com/inkbar/inkbar/commit/014653fda37e5ec30396f6402d1b0821e7b78886))
+* ignore finger taps with the drawing tools ([#308](https://github.com/inkbar/inkbar/issues/308)) ([3717cc9](https://github.com/inkbar/inkbar/commit/3717cc9e629508633646fa529cb1b66877dc4a65))
+* let a pen take over from a resting palm ([#309](https://github.com/inkbar/inkbar/issues/309)) ([28a8226](https://github.com/inkbar/inkbar/commit/28a822605bec29c7d3b437161fe622cc13354a24))
+* let drawing tools take one-finger drags on touch screens ([#307](https://github.com/inkbar/inkbar/issues/307)) ([938a47d](https://github.com/inkbar/inkbar/commit/938a47dc4fb62c91ed911eeac755d37e44cd31c2))
+* let plugins listen for presses and long presses ([#301](https://github.com/inkbar/inkbar/issues/301)) ([1c3b950](https://github.com/inkbar/inkbar/commit/1c3b9504bbf655c19688939f3935ba7918160162))
+* scroll the document live under a two-finger pan ([#310](https://github.com/inkbar/inkbar/issues/310)) ([897b844](https://github.com/inkbar/inkbar/commit/897b844b7a18d09dac12a0b672672432a06081cb))
+* zoom the document on pinch instead of the page ([#298](https://github.com/inkbar/inkbar/issues/298)) ([893f2d4](https://github.com/inkbar/inkbar/commit/893f2d46f219f07ef429fd277e84714fd4298668))
+* zoom the document on trackpad pinch ([#299](https://github.com/inkbar/inkbar/issues/299)) ([d933c01](https://github.com/inkbar/inkbar/commit/d933c0119da9c19035f463b29e884004cc63f2e9))
+
+
+### Bug Fixes
+
+* harden pinch zoom and press reporting ([#304](https://github.com/inkbar/inkbar/issues/304)) ([b51ae31](https://github.com/inkbar/inkbar/commit/b51ae3100fe1bd82c503e9f8380cdf39ceb9eb15))
+* keep two-finger scrolling in step with the fingers ([#312](https://github.com/inkbar/inkbar/issues/312)) ([4208e75](https://github.com/inkbar/inkbar/commit/4208e7576f0bd2a4627eeafcf56aefde59445a68))
+
 ## [0.10.0](https://github.com/inkbar/inkbar/compare/v0.9.0...v0.10.0) (2026-11-06)
 
 
