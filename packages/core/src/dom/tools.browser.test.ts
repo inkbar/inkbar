@@ -5723,3 +5723,66 @@ describe('drawing with a finger', () => {
     expect(ink?.type === 'ink' && ink.inklist).toHaveLength(2)
   })
 })
+
+describe('pen and palm', () => {
+  const touch = { pointerType: 'touch' }
+  const pen = { pointerType: 'pen', pointerId: 2 }
+  const inks = (doc: InkDocument) =>
+    doc.annotations.list.get().filter((a) => a.type === 'ink')
+
+  async function takeover() {
+    const ctx = await setup()
+    ctx.tools.set('draw')
+    const h = ctx.viewport.hostFor(0)!.getBoundingClientRect()
+    const { container } = ctx
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100, touch)
+    pointer(container, 'pointermove', h.left + 130, h.top + 100, touch)
+    pointer(container, 'pointerdown', h.left + 100, h.top + 200, pen)
+    pointer(container, 'pointermove', h.left + 140, h.top + 240, pen)
+    pointer(container, 'pointerup', h.left + 140, h.top + 240, pen)
+    pointer(container, 'pointerup', h.left + 130, h.top + 100, touch)
+    await settle()
+    return { ...ctx, h }
+  }
+
+  it('a pen press cancels a live touch stroke and draws', async () => {
+    const { doc } = await takeover()
+    const list = inks(doc)
+    expect(list).toHaveLength(1)
+    const ink = list[0]
+    if (ink?.type !== 'ink') throw new Error('expected ink')
+    expect(ink.inklist).toHaveLength(1)
+    // The pen's line runs 40 px across and 40 down, so its extent is square. The touch's line
+    // was flat, and would have left the extent with no height.
+    const pts = ink.inklist[0]!
+    const span = (axis: 'x' | 'y') => {
+      const v = pts.map((p) => p[axis])
+      return Math.max(...v) - Math.min(...v)
+    }
+    expect(span('y')).toBeGreaterThan(1)
+    expect(span('x')).toBeCloseTo(span('y'), 0)
+  })
+
+  it("the touch's release after a pen takeover commits nothing", async () => {
+    const { doc, history } = await takeover()
+    expect(doc.annotations.list.get()).toHaveLength(1)
+    history.undo()
+    expect(doc.annotations.list.get()).toHaveLength(0)
+    expect(history.canUndo.get()).toBe(false)
+  })
+
+  it('a palm after a pen stroke is still ignored', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('draw')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 200, pen)
+    pointer(container, 'pointermove', h.left + 140, h.top + 200, pen)
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100, touch)
+    pointer(container, 'pointermove', h.left + 140, h.top + 100, touch)
+    pointer(container, 'pointerup', h.left + 140, h.top + 100, touch)
+    pointer(container, 'pointermove', h.left + 160, h.top + 200, pen)
+    pointer(container, 'pointerup', h.left + 160, h.top + 200, pen)
+    await settle()
+    expect(doc.annotations.list.get()).toHaveLength(1)
+  })
+})

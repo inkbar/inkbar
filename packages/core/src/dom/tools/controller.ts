@@ -15,6 +15,9 @@
 // (a direct child of the root, `data-ink-pages`) while a tool with `claimsTouch` is ready, so
 // one finger drags with the tool instead of panning. Two fingers still scroll and zoom.
 //
+// One gesture runs at a time, except that a pen takes over from a touch: a press by a pen cancels
+// the live touch gesture (a resting palm) and starts its own.
+//
 // The controller tracks the pressed pointer. Switching tools mid-press cancels the old tool's
 // gesture and swallows that pointer's release, so the new tool never sees half a gesture.
 // `lostpointercapture` after a completed release is not a cancel. Only primary-button presses
@@ -346,6 +349,13 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
       presses.cancel()
       if (pressedTouch) cancelPressed()
       return
+    }
+    // A pen means the hand is drawing, so a touch that began first was a resting palm: drop it
+    // and let the pen's press through. `isPrimary` is per pointer type, so the pen's press is
+    // primary even while the touch is down.
+    if (e.pointerType === 'pen' && pressedTouch && pressed !== undefined) {
+      presses.cancel()
+      cancelPressed()
     }
     if (!e.isPrimary || e.button !== 0 || inCustomContent(e.target)) return
     // One gesture at a time: a second pointer pressing mid-gesture is ignored.
