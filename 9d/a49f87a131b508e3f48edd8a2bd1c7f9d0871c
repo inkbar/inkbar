@@ -1,0 +1,31 @@
+apps/sandbox/e2e/touch.ts
+  s_bbae2197bdc5fa::t_1074bd78d1de79 10
+  s_bbae2197bdc5fa::t_e59e03c6b79848 1-9
+apps/sandbox/e2e/events.spec.ts
+  s_bbae2197bdc5fa::t_e59e03c6b79848 2,7
+  s_bbae2197bdc5fa::t_5bc9460b642cac 8
+apps/sandbox/e2e/finger-drawing.spec.ts
+  s_bbae2197bdc5fa::t_894999237f56b8 32,35,41
+  s_bbae2197bdc5fa::t_3f66e30b47d885 114-115
+  s_bbae2197bdc5fa::t_e16004ded29145 48-53,100,173
+  s_bbae2197bdc5fa::t_e59e03c6b79848 1-31,33-34,36-40,42-47,54-99,101-113,116-172,174-179
+apps/sandbox/playwright.config.ts
+  s_bbae2197bdc5fa::t_e16004ded29145 32
+  s_bbae2197bdc5fa::t_e59e03c6b79848 28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9da49f87a131b508e3f48edd8a2bd1c7f9d0871c",
+  "prompts": {},
+  "sessions": {
+    "s_bbae2197bdc5fa": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6689b872-6bb0-43d6-ae15-c0abc346f21e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
