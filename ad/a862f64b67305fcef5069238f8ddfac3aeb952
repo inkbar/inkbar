@@ -1,0 +1,19 @@
+apps/sandbox/e2e/finger-drawing.spec.ts
+  s_bbae2197bdc5fa::t_05c4c14df5d8b5 15,103,135
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ada862f64b67305fcef5069238f8ddfac3aeb952",
+  "prompts": {},
+  "sessions": {
+    "s_bbae2197bdc5fa": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6689b872-6bb0-43d6-ae15-c0abc346f21e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
