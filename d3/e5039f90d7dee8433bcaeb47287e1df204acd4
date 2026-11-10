@@ -1,0 +1,23 @@
+packages/core/src/dom/viewport.ts
+  s_b0e6b2d5bd6b31::t_fe10ece5362278 330,335,615-617
+packages/core/src/dom/viewport.browser.test.ts
+  s_b0e6b2d5bd6b31::t_93ef0605cfc3b9 445
+  s_b0e6b2d5bd6b31::t_503d3a5a4b606e 355,363,370
+  s_b0e6b2d5bd6b31::t_fe10ece5362278 366-369,371-378,401-444
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d3e5039f90d7dee8433bcaeb47287e1df204acd4",
+  "prompts": {},
+  "sessions": {
+    "s_b0e6b2d5bd6b31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0c0efc0-e561-4d1e-a89e-c758b277f97e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": null
+    }
+  }
+}
