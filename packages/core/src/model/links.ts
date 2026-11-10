@@ -33,7 +33,17 @@ function unsafeReason(unsafeUrl: string): 'remote' | 'launch' | 'unsafe-url' {
   return unsafeUrl.includes('#') ? 'remote' : 'launch'
 }
 
-function targetOf(data: PdfjsAnnotationData): LinkTarget {
+/** The fields PDF.js gives a link, and an outline item, for where it goes. */
+export type PdfjsTargetFields = Pick<
+  PdfjsAnnotationData,
+  'dest' | 'action' | 'url' | 'unsafeUrl' | 'newWindow'
+>
+
+/**
+ * Where a link or outline item goes, from what PDF.js read of its `/Dest` or `/A`. A
+ * destination stays raw (`dest`); a URL is passed only through `safeUrl`.
+ */
+export function targetOf(data: PdfjsTargetFields): LinkTarget {
   if (data.dest !== undefined && data.dest !== null)
     return { kind: 'dest', raw: data.dest }
   if (isNamedAction(data.action)) return { kind: 'named', action: data.action }

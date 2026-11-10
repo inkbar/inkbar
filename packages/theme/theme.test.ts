@@ -586,6 +586,40 @@ describe('theme.css', () => {
     )
   })
 
+  it('draws the outline from its tokens, with 44px items and the current one marked', () => {
+    const rootRule = rules.find(
+      (r) =>
+        r.selector.includes('[data-ink-sidebar]') &&
+        r.nodes.some((d) => d.type === 'decl' && d.prop === '--ink-highlight')
+    )
+    const decl = (prop: string) =>
+      rootRule?.nodes.find((d) => d.type === 'decl' && d.prop === prop)?.toString()
+    expect(decl('--ink-outline-indent')).toMatch(/:\s*16px$/)
+    expect(decl('--ink-outline-item-height')).toMatch(/:\s*44px$/)
+    expect(declsFor('.ink-outline)')).toMatch(/overflow-y:\s*auto/)
+    const item = declsFor('.ink-outline-item)')
+    // With fallbacks, for an outline placed outside the root and any sidebar.
+    expect(item).toMatch(/min-height:\s*var\(--ink-outline-item-height, 44px\)/)
+    expect(item).toMatch(/var\(--ink-outline-indent, 16px\)/)
+    expect(item).toMatch(/var\(--ink-outline-level/)
+    expect(declsFor(".ink-outline-item[aria-current='location'])")).toMatch(
+      /var\(--ink-outline-current-bg\)/
+    )
+    expect(declsFor('.ink-outline-item[data-bold])')).toMatch(/font-weight:\s*600/)
+    expect(declsFor('.ink-outline-item[data-italic])')).toMatch(/font-style:\s*italic/)
+    expect(declsFor(".ink-outline-item[aria-disabled='true'])")).toMatch(
+      /var\(--ink-muted-fg\)/
+    )
+    expect(declsFor('.ink-outline-item:focus-visible)')).toMatch(
+      /outline:\s*2px solid var\(--ink-ring\)/
+    )
+    expect(declsFor('.ink-outline-group[hidden]')).toMatch(/display:\s*none/)
+    expect(
+      declsFor(".ink-outline-item[aria-expanded='true'] > .ink-outline-toggle")
+    ).toMatch(/rotate\(90deg\)/)
+    expect(declsFor('.ink-outline-empty)')).toMatch(/var\(--ink-muted-fg\)/)
+  })
+
   it('draws edit handles and hides them outside the select tools and the made state', () => {
     const handle = rules.find((r) => r.selector === ':where(.ink-handle)')
     expect(handle?.toString()).toMatch(/border:\s*1px solid var\(--ink-accent\)/)

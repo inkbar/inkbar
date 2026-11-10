@@ -45,6 +45,11 @@
     --ink-sidebar-width: 280px;
     --ink-sidebar-rail-width: 48px;
     --ink-thumbnail-width: 120px;
+    /* The outline (createOutline and the bindings' outline): indent per level, item height and
+       the current item's tint. */
+    --ink-outline-indent: 16px;
+    --ink-outline-item-height: 44px;
+    --ink-outline-current-bg: color-mix(in srgb, var(--ink-accent) 10%, transparent);
 
     --ink-bg: var(--muted, #f1f2f5);
     --ink-fg: var(--foreground, #151820);
@@ -2177,6 +2182,116 @@
   }
 
   /*
+   * The outline (createOutline and the bindings' outline): a tree that fills its parent's height
+   * and scrolls. Each item is indented by its level, which the renderer sets as
+   * --ink-outline-level (0 at the top), and is at least 44px tall to stay easy to tap.
+   */
+  :where(.ink-outline) {
+    box-sizing: border-box;
+    height: 100%;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  :where(.ink-outline-tree, .ink-outline-group) {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  :where(.ink-outline-tree) {
+    padding: 0.5rem;
+  }
+
+  :where(
+    .ink-outline-tree[hidden],
+    .ink-outline-group[hidden],
+    .ink-outline-empty[hidden]
+  ) {
+    display: none;
+  }
+
+  :where(.ink-outline-item) {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-height: var(--ink-outline-item-height, 44px);
+    padding: 0.25rem 0.5rem 0.25rem
+      calc(0.25rem + var(--ink-outline-level, 0) * var(--ink-outline-indent, 16px));
+    border-radius: calc(var(--ink-radius) - 2px);
+    font-size: 0.875rem;
+    line-height: 1.3;
+    cursor: pointer;
+    outline: none;
+  }
+
+  :where(.ink-outline-item:hover) {
+    background: color-mix(in srgb, var(--ink-fg) 6%, transparent);
+  }
+
+  :where(.ink-outline-item:focus-visible) {
+    outline: 2px solid var(--ink-ring);
+    outline-offset: -2px;
+  }
+
+  :where(.ink-outline-item[aria-current='location']) {
+    background: var(--ink-outline-current-bg);
+    color: var(--ink-fg);
+    box-shadow: inset 2px 0 0 var(--ink-accent);
+  }
+
+  :where(.ink-outline-item[data-bold]) {
+    font-weight: 600;
+  }
+
+  :where(.ink-outline-item[data-italic]) {
+    font-style: italic;
+  }
+
+  /* Items Inkbar cannot follow (another file, an app, an unsafe URL) stay listed, greyed out. */
+  :where(.ink-outline-item[aria-disabled='true']) {
+    color: var(--ink-muted-fg);
+    cursor: default;
+  }
+
+  :where(.ink-outline-item[aria-disabled='true']:hover) {
+    background: transparent;
+  }
+
+  :where(.ink-outline-toggle, .ink-outline-spacer) {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    color: var(--ink-muted-fg);
+  }
+
+  :where(.ink-outline-toggle > svg) {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  :where(.ink-outline-item[aria-expanded='true'] > .ink-outline-toggle > svg) {
+    transform: rotate(90deg);
+  }
+
+  :where(.ink-outline-title) {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  :where(.ink-outline-empty) {
+    margin: 0;
+    padding: 1rem 0.75rem;
+    color: var(--ink-muted-fg);
+    font-size: 0.875rem;
+  }
+
+  /*
    * Search results frame their cards as the viewer frames its pages: the field on the surface
    * at the top, the cards on the page canvas, and the count in a footer on the surface at the
    * bottom, shown only when it has something to say.
@@ -2388,6 +2503,10 @@
   @media (prefers-reduced-motion: no-preference) {
     :where(.ink-annotation) {
       transition: outline-color 120ms ease;
+    }
+
+    :where(.ink-outline-toggle > svg) {
+      transition: transform 120ms ease-out;
     }
   }
 }

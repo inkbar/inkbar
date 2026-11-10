@@ -274,6 +274,10 @@ export type {
   ThumbnailPainter,
 } from './thumbnails/thumbnail'
 export type { Navigation, NavigationDeps } from './navigation'
+export { createOutlineController } from './outline/controller'
+export type { OutlineController, OutlineControllerDeps } from './outline/controller'
+export { createOutline } from './outline/outline'
+export type { OutlineOptions } from './outline/outline'
 export { createViewer } from './viewer/create-viewer'
 export type { CreateViewerOptions, Viewer } from './viewer/create-viewer'
 export {

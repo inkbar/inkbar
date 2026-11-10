@@ -462,6 +462,18 @@ describe('createViewport', () => {
     expect(viewport.readingLine.get()).toBe(500 + 200 - originY)
   })
 
+  it('reading line is the bottom of the view at the end of the scroll', async () => {
+    const { container, viewport } = await setup('outline')
+    const originY = (container.querySelector('[data-ink-pages]') as HTMLElement).offsetTop
+    const end = container.scrollHeight - container.clientHeight
+    container.scrollTo({ top: end })
+    await until(() => container.scrollTop === end)
+    // The last page's destinations can never reach one third down; the bottom counts instead.
+    await until(() => viewport.readingLine.get() === end + 600 - originY)
+    container.scrollTo({ top: end - 10 })
+    await until(() => viewport.readingLine.get() === end - 10 + 200 - originY)
+  })
+
   it('destinationY matches the scroll it would cause', async () => {
     const { container, viewport } = await setup('outline')
     const originY = (container.querySelector('[data-ink-pages]') as HTMLElement).offsetTop

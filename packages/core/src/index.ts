@@ -30,6 +30,7 @@ export type {
   RawDestination,
 } from './model/destination'
 export { linkFromPdfjs, type PageLink } from './model/links'
+export type { OutlineItem } from './model/outline'
 export type { SearchHit, SearchOptions, SearchResults } from './model/search'
 export type { PdfAssets } from './pdfjs/types'
 export * from './model/annotations/types'
