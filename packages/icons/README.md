@@ -26,7 +26,7 @@ You don't need to install this package to get the icons. Install it when you wan
 
 ## Usage
 
-Each icon is an array of `[tag, attributes]` pairs. Draw it inside an `<svg>` with `ICON_ATTRIBUTES` and a size. The framework packages export an `InkIcon` component that does this:
+Each icon is an array of `[tag, attributes]` pairs. Draw it inside an `<svg>` with `ICON_ATTRIBUTES` and a size. Add the class `ink-icon` too if you want `--ink-icon-size` from `@inkbar/theme` to size it. The framework packages export an `InkIcon` component that does this:
 
 ```vue
 <script setup lang="ts">

@@ -69,6 +69,7 @@ const tools = [highlightTool(), redactAreaTool(), noteTool()]
     :assets="assets"
     :tools="tools"
     v-model:annotations="annotations"
+    :history="true"
   >
     <InkToolbar>
       <InkToolButton tool="select-text" />
@@ -93,11 +94,19 @@ const tools = [highlightTool(), redactAreaTool(), noteTool()]
 </template>
 ```
 
-`select-text` and `select` are always there. Every other tool is opt-in: pass the ones you offer through `tools`, from the tool factories in `@inkbar/core/dom`, or `allTools()` for all of them. A button for a tool you did not pass renders disabled and hidden, a tool menu renders nothing, and each logs an `InkError('UnknownTool')` to the console once. If the active tool leaves `tools`, the viewer switches to `select-text` and reports it through `update:tool`.
+`select-text` and `select` are always there. Every other tool is opt-in: pass the ones you offer through `tools`, from the tool factories in `@inkbar/core/dom`, or `allTools()` for all of them. A button for a tool you did not pass renders empty and disabled, and is hidden from assistive technology but still takes its place in the layout. The highlight, shape and signature menus render nothing. Each logs an `InkError('UnknownTool')` to the console once. If the active tool leaves `tools`, the viewer switches to `select-text` and reports it through `update:tool`.
 
 Each control is a separate component, so put them in any order or leave some out. Buttons show icons from `@inkbar/icons`. Put your own in a button's default slot to replace one, and use `InkIcon` to put the same icons on your own buttons. For a button of your own, such as `<InkToolbarButton @click="download">Download</InkToolbarButton>`, use `InkToolbarButton`: it joins the toolbar's arrow-key focus and looks like the other buttons.
 
-`v-model:annotations` makes your list the source of truth. Leave it off and Inkbar keeps the state itself, with undo and redo.
+`v-model:annotations` makes your list the source of truth. Leave it off and Inkbar keeps the state itself, with undo and redo on by default. In controlled mode undo and redo need `:history="true"`, as in the example; see Controlled mode.
+
+`InkRoot` also takes `password` for an encrypted file, `defaults` for annotation colours, `fonts` for the families the text style menu offers, `decorateAnnotation` (a `DecorateAnnotation` function that adds `data-*` attributes, classes and a screen-reader description to each annotation), and `v-model:tool`, `v-model:page` and `v-model:zoom`. It emits `ready` with the `InkDocument`, `error` with an `InkError`, `change` with each annotation change and `activate` with an annotation id. Its default slot receives `{ status, document }`.
+
+## Viewport
+
+`InkViewport` takes `mode`, `rotation`, `gap` (CSS pixels between pages, 16), `buffer` (pages kept mounted either side of the visible ones, 2) and `pinchZoom` (default `true`; `false` leaves pinches to the browser, which zooms the whole page). Changing `gap`, `buffer` or `pinchZoom` rebuilds the engine.
+
+On a touch screen, two fingers pinch to zoom the document and scroll it. With `draw`, `sketch`, `shape`, `redact-area` and `freetext`, one finger draws; a finger tap draws nothing, and a pen that lands while a palm rests on the screen takes over. A shape, area redaction or text box gives one-finger scrolling back once it has made something.
 
 ## Controlled mode
 
@@ -106,6 +115,10 @@ With `v-model:annotations`, Inkbar proposes each change through `update:annotati
 Undo and redo are off in controlled mode unless you pass `:history="true"`. Inkbar then keeps a stack of your list's past values and applies undo and redo through `v-model`. Every change to the list is a step, including the list you load from your server when the document opens. Clear the history once that load has reached the viewer, so the first undo does not empty the list:
 
 ```ts
+import { nextTick, useTemplateRef } from 'vue'
+import type { InkDocument } from '@inkbar/core'
+
+// <InkRoot ref="root" @ready="onReady" ...>
 const root = useTemplateRef<InstanceType<typeof InkRoot>>('root')
 
 async function onReady(doc: InkDocument) {
@@ -121,7 +134,7 @@ Inside `InkRoot`, `useHistory()` returns the same object. Its `batch(fn)` runs `
 
 ## Forms
 
-`InkViewport` fills the PDF's form fields and runs the form's scripts. `useForm()` returns the fields, their values, and `set` and `reset`. Bind `v-model:fields` to hold the values in your own state. The form never submits, opens a link, sends mail or prints: `@form-action` hands each request to you. `:form-highlight="false"` turns off the field tint, and a change applies to the open document in place.
+`InkViewport` fills the PDF's form fields and runs the form's scripts; the form props belong to `InkRoot`. `useForm()` returns the fields, their values, and `set` and `reset`. Bind `v-model:fields` on `InkRoot` to hold the values in your own state. The form never submits, opens a link, sends mail or prints: `@form-action` on `InkRoot` hands each request to you. `:form-highlight="false"` turns off the field tint, and a change applies to the open document in place. A form script that fails is reported through `InkRoot`'s `error` event.
 
 The [forms guide](https://inkbar.dev/docs/guides/forms/) covers controlled fields, form actions, scripts, signature fields and saving values as Gloss.
 
@@ -131,7 +144,7 @@ The [forms guide](https://inkbar.dev/docs/guides/forms/) covers controlled field
 
 A root note with no text and no replies is removed when its popover closes, or when activation moves to another annotation, so abandoned notes do not stay on the page. A highlight stays: the mark is the point. Locked annotations are never removed. If you add notes yourself (`add({ type: 'text', ... })`), give them `contents`, or they will be removed the first time someone opens and closes them.
 
-The highlight tool leaves `contents` free for the comment. `doc.text(page)` returns the page's text items; match the markup's `quads` against them to get the marked text. `InkHighlightMenu` is a split button for the tool: it picks the markup kind and its colour.
+The highlight tool leaves `contents` free for the comment. `await doc.text(page)` returns the page's text content; match the markup's `quads` against its `items` to get the marked text. `InkHighlightMenu` is a split button for the tool: it picks the markup kind and its colour.
 
 ## Signatures
 
@@ -157,13 +170,17 @@ Plugin stores undo with annotations. In controlled mode with `:history="true"`, 
 
 ## Search
 
-`InkFindBar` is the find bar and `InkSearchButton` opens it. Place the bar anywhere inside `InkRoot`, once `InkViewport` is there; Ctrl/Cmd+F opens it while it is mounted. `useSearch()` returns the search `state` and its actions (`open`, `setQuery`, `setMatchCase`, `next`, `previous`, `close`) for your own control. See the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#search) for the API.
+`InkFindBar` is the find bar and `InkSearchButton` opens it. Place the bar anywhere inside `InkRoot`, once `InkViewport` is there; Ctrl/Cmd+F opens it while it is mounted. `useSearch()` returns the search `state` and its actions (`open(query?)`, `setQuery`, `setMatchCase`, `next`, `previous`, `select(index)`, `close`) for your own control. See the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#search) for the API.
 
 ## Sidebars
 
-`InkSidebar` holds `InkPanel`s and places nothing itself: put it beside `InkViewport` with your own flex or grid layout. Each panel has an `id`, a `label`, an optional `icon` (an `IconNode` from `@inkbar/icons`) and an optional `badge`, a number or short string hidden when empty or 0. Its default slot is the panel's content, your own component or one of Inkbar's.
+`InkSidebar` holds `InkPanel`s and places nothing itself: put it beside `InkViewport` with your own flex or grid layout. Each panel has an `id`, a `label`, an optional `icon` (an `IconNode` from `@inkbar/icons`, which you install alongside `@inkbar/vue`) and an optional `badge`, a number or short string hidden when empty or 0. Its default slot is the panel's content, your own component or one of Inkbar's.
 
 ```vue
+<script setup lang="ts">
+import { Square, MessageSquare } from '@inkbar/icons'
+</script>
+
 <InkRoot :src="src" :assets="assets">
   <div class="app">
     <InkSidebar side="left" layout="rail" v-model:open="open">
@@ -219,11 +236,11 @@ To build your own, `useRecords<T>(name)` returns the live `records` and the `han
 
 ## Custom rendering
 
-Slots let you render parts yourself. `InkViewport` has `loading`, `empty`, `error`, `annotation` and `page-error` slots. `InkThreadPopover` has a scoped default slot that receives the popover's props, and the default slot of `InkToolButton` receives `{ active, label }`. The props are typed as `AnnotationSlotProps` and `ThreadPopoverSlotProps`, the same types the React and Svelte packages export.
+Slots let you render parts yourself. `InkViewport` has `loading`, `empty`, `error`, `annotation` and `page-error` slots. `InkThreadPopover` has a scoped default slot that receives `{ root, replies, reply, update, remove, close }`, and the default slot of `InkToolButton` receives `{ active, label }`. The props are typed as `AnnotationSlotProps` and `ThreadPopoverSlotProps`, the same types the React and Svelte packages export.
 
 `InkDownloadButton` and `InkPrintButton` download and print the open PDF; `filename` names the download (the opened `File`'s name, else the URL's last segment, else `document.pdf`). Printing loads the file into a hidden frame and opens the browser's print dialog for it; on iOS the PDF opens in a new tab instead. Until saving into the PDF ships, both give the file as it was opened, without this session's annotations.
 
-`InkRoot`, `InkToolbar`, `InkToolButton`, `InkCommand`, `InkUndo`, `InkRedo`, `InkDownloadButton`, `InkPrintButton`, `InkPrevPage`, `InkNextPage`, `InkZoomIn` and `InkZoomOut` take `as-child` to render your own element in place of theirs, such as a button from your design system. Put that element in the default slot. The control keeps its behaviour and accessible name.
+`InkRoot`, `InkToolbar`, `InkToolButton`, `InkCommand`, `InkUndo`, `InkRedo`, `InkDownloadButton`, `InkPrintButton`, `InkPrevPage`, `InkNextPage`, `InkZoomIn`, `InkZoomOut`, `InkSearchButton` and `InkToolbarButton` take `as-child` to render your own element in place of theirs, such as a button from your design system. Put that element in the default slot. The control keeps its behaviour and accessible name.
 
 ## Keyboard
 
@@ -237,13 +254,18 @@ The scroll area takes focus. From there:
 
 On a focused annotation:
 
-- `Enter` or `Space` selects and activates it. A note or text markup opens its thread; other types are only selected.
+- `Enter` or `Space` selects and activates it. A note or text markup opens its thread; other types are only selected. `Enter` on an editable text box opens its editor instead.
 - `ArrowUp` and `ArrowDown` move to the previous or next annotation on the page.
 - `Shift` + arrow moves it by 1 pt, or by 10 pt with `Alt` as well.
 - `Ctrl` or `Cmd` + `Shift` + arrow resizes an area redaction, text box or shape.
 - `Delete` or `Backspace` removes it.
+- `Escape` clears the selection.
 
 The full table, with the zoom and page keys, is in the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#tools-and-keyboard).
+
+## Style menus
+
+`InkColorMenu` (with `property="border"`, `"fill"` or `"text"`), `InkLineStyleMenu` (weight, dashes, arrowheads) and `InkTextStyleMenu` (font, size, colour, bold, italic, underline, alignment) edit the selection, or the active tool's style when nothing is selected. They disable when nothing supports their properties. `InkShapeMenu` is a split button for the `shape` tool and renders nothing unless `shapeTool` is in `tools`. `fonts` on `InkRoot` sets the families the text style menu offers.
 
 ## Styling
 
@@ -251,7 +273,7 @@ Components carry state on data attributes, for example `[data-annotation][data-s
 
 ## Composables
 
-`useDocument`, `useAnnotations`, `useTool`, `useSelection`, `useZoom`, `usePage`, `useHistory`, `useEmbedded`, `useCommand`, `useRecords` and `useRecordSelection` read the state of the nearest `InkRoot`. Build your own toolbar or side panel from them. Tool options, such as the shape kind, last as long as `InkRoot`. The tool style that `useToolStyle` reads and sets (colours, line style, text style) belongs to the document: opening another one starts again from the theme's defaults.
+`useDocument`, `useAnnotations`, `useTool`, `useSelection`, `useZoom`, `usePage`, `useHistory`, `useEmbedded`, `useCommand`, `useRecords`, `useRecordSelection`, `useSearch`, `useForm`, `useToolStyle` and `useToolOptions` read the state of the nearest `InkRoot`. Build your own toolbar or side panel from them. `useToolOptions(id)` reads and sets a tool's options, such as the shape kind, without switching tools; they last as long as `InkRoot`. The tool style that `useToolStyle` reads and sets (colours, line style, text style) belongs to the document: opening another one starts again from the theme's defaults.
 
 ## Licence
 
