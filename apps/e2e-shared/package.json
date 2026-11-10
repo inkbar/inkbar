@@ -6,6 +6,7 @@
   "exports": {
     "./fake-server": "./src/fake-server.ts",
     "./form-actions": "./src/form-actions.ts",
+    "./links-fixture": "./src/links-fixture.ts",
     "./page-count": "./src/page-count.ts",
     "./metrics": "./src/metrics.ts",
     "./console-guard": "./e2e/console-guard.ts",
