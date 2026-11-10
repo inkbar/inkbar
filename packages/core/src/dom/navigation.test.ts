@@ -67,6 +67,26 @@ describe('createNavigation', () => {
     expect(nav.canGoBack.get()).toBe(false)
   })
 
+  it('a jump that goes nowhere records nothing', () => {
+    const { nav, at, scrollToDestination } = setup()
+    nav.goTo(page(5))
+    nav.goTo(page(5))
+    expect(scrollToDestination).toHaveBeenCalledTimes(2)
+    // One Back returns from the item clicked twice.
+    nav.back()
+    expect(at()).toEqual(page(0))
+    expect(nav.canGoBack.get()).toBe(false)
+    // Within a point of rounding is the same place; further is a move.
+    nav.goTo({ page: 2, fit: 'xyz', left: 10, top: 500 })
+    nav.goTo({ page: 2, fit: 'xyz', left: 10.4, top: 500.6 })
+    nav.goTo({ page: 2, fit: 'xyz', left: 10, top: 400 })
+    nav.back()
+    expect(at()).toEqual({ page: 2, fit: 'xyz', left: 10.4, top: 500.6 })
+    nav.back()
+    expect(at()).toEqual(page(0))
+    expect(nav.canGoBack.get()).toBe(false)
+  })
+
   it('back then forward returns', () => {
     const { nav, at } = setup()
     nav.goTo(page(3))

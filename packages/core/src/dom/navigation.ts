@@ -38,7 +38,10 @@ export interface Navigation {
   back(): void
   /** Undoes the last `back()`. */
   forward(): void
-  /** Records where the view is, then goes to `dest`. A page the document lacks does nothing. */
+  /**
+   * Records where the view is, then goes to `dest`. A page the document lacks does nothing, and
+   * a jump that leaves the view where it was records nothing.
+   */
   goTo(dest: Destination): void
   /**
    * Resolves and follows any target. URLs go to `report` as `open-url` (only http, https,
@@ -86,6 +89,18 @@ function namedPage(action: NamedAction, current: number, count: number): number 
   return Math.min(Math.max(to, 0), count - 1)
 }
 
+/** Within a point: closer than that, two positions show the same view. */
+const near = (a: number | undefined, b: number | undefined): boolean =>
+  a === undefined || b === undefined ? a === b : Math.abs(a - b) <= 1
+
+/** Whether `b` is where `a` was, give or take a point of rounding. */
+function samePlace(a: Destination, b: Destination | undefined): boolean {
+  if (!b || a.page !== b.page || a.fit !== b.fit) return false
+  const p = a as { left?: number | undefined; top?: number | undefined }
+  const q = b as typeof p
+  return near(p.left, q.left) && near(p.top, q.top)
+}
+
 export function createNavigation(deps: NavigationDeps): Navigation {
   const backStack: Destination[] = []
   const forwardStack: Destination[] = []
@@ -123,9 +138,12 @@ export function createNavigation(deps: NavigationDeps): Navigation {
     const vp = deps.viewport()
     if (!vp || !inRange(dest.page)) return
     const here = deps.here()
-    if (here) push(backStack, here)
-    forwardStack.length = 0
     vp.scrollToDestination(dest)
+    // A jump that lands where the view already was (the same outline item twice) records
+    // nothing, so one Back always moves.
+    if (!here || samePlace(here, deps.here())) return
+    push(backStack, here)
+    forwardStack.length = 0
     sync()
   }
 
