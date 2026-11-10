@@ -217,6 +217,92 @@ describe('following links with the pointer', () => {
     expect(scrolled).not.toHaveBeenCalled()
   })
 
+  it('Shift+click on a link extends the selection and does not follow', async () => {
+    const { engine, scrolled } = await setup()
+    const title = spanOf(engine, 'Links')
+    const range = document.createRange()
+    range.setStart(title.firstChild!, 0)
+    range.setEnd(title.firstChild!, 1)
+    window.getSelection()!.removeAllRanges()
+    window.getSelection()!.addRange(range)
+    await userEvent.click(spanOf(engine, 'Chapter 2'), { modifiers: ['Shift'] })
+    await settle()
+    // From the start of the title to the click, inside the link's text.
+    expect(window.getSelection()!.toString()).toMatch(/^Links\s+Chap/)
+    expect(scrolled).not.toHaveBeenCalled()
+  })
+
+  it('Ctrl+click or Cmd+click on a link does not follow; plugins hear a press', async () => {
+    const { engine, scrolled, onPress } = await setup({ withPlugins: true })
+    tap(clientOf(engine, 0, CHAPTER_2), { ctrlKey: true })
+    tap(clientOf(engine, 0, CHAPTER_2), { metaKey: true })
+    tap(clientOf(engine, 0, CHAPTER_2), { altKey: true })
+    await settle()
+    expect(scrolled).not.toHaveBeenCalled()
+    expect(onPress).toHaveBeenCalledTimes(3)
+  })
+
+  it('a press that closes an open popover over a link does not follow', async () => {
+    const { engine, scrolled } = await setup()
+    const popover = document.createElement('div')
+    popover.dataset.inkPopover = ''
+    document.body.append(popover)
+    cleanup.push(() => popover.remove())
+    tap(clientOf(engine, 0, CHAPTER_2))
+    await settle()
+    expect(scrolled).not.toHaveBeenCalled()
+    // Control: with the popover gone, the same press follows.
+    popover.hidden = true
+    tap(clientOf(engine, 0, CHAPTER_2))
+    await until(() => scrolled.mock.calls.length > 0)
+  })
+
+  it('overlapping links: the topmost (last in the file) wins', async () => {
+    const at = (id: string, url: string): PageLink => ({
+      id,
+      page: 0,
+      rect: { x: 68, y: 696, width: 70, height: 18 },
+      target: { kind: 'url', url, newWindow: false },
+    })
+    const onAction = vi.fn<(a: ViewerAction) => void>()
+    const { engine } = await setup({
+      onAction,
+      links: [
+        at('under', 'https://example.com/under'),
+        at('over', 'https://example.com/over'),
+      ],
+    })
+    tap(clientOf(engine, 0, CHAPTER_2))
+    await until(() => onAction.mock.calls.length > 0)
+    expect(onAction.mock.calls[0]![0]).toMatchObject({ url: 'https://example.com/over' })
+  })
+
+  it('a dead link over a live one does not hide it', async () => {
+    const dead: PageLink = {
+      id: 'dead',
+      page: 0,
+      rect: { x: 68, y: 696, width: 70, height: 18 },
+      target: { kind: 'dest', raw: 'no-such-destination' },
+    }
+    const live: PageLink = {
+      ...dead,
+      id: 'live',
+      target: { kind: 'url', url: 'https://example.com/live', newWindow: false },
+    }
+    const onAction = vi.fn<(a: ViewerAction) => void>()
+    const { engine } = await setup({ onAction, links: [live, dead] })
+    await until(
+      () =>
+        engine.viewport
+          .hostFor(0)!
+          .querySelector('[data-ink-link="dead"]')
+          ?.getAttribute('aria-disabled') === 'true'
+    )
+    tap(clientOf(engine, 0, CHAPTER_2))
+    await until(() => onAction.mock.calls.length > 0)
+    expect(onAction.mock.calls[0]![0]).toMatchObject({ url: 'https://example.com/live' })
+  })
+
   it('external link with no handler does nothing', async () => {
     const error = vi.spyOn(console, 'error')
     const { engine } = await setup()

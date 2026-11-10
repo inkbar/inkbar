@@ -57,7 +57,8 @@
 //
 // Links in the file (`linkAt`, the engine's hit test in user space) are found the same way, as
 // the link layer takes no pointer events: a still press that would be reported and lands on a
-// link goes to `onLink` instead of `onPress`. So does a touch tap. A drag past the slop selects
+// link goes to `onLink` instead of `onPress`. So does a touch tap. A press with Shift, Ctrl,
+// Cmd or Alt down never follows (Shift extends the text selection): it is an ordinary press. A drag past the slop selects
 // text or draws a marquee, a long press still goes to `onPress`, and a press on an annotation,
 // a field or an editor over a link never follows it. A creation or plugin tool never asks. While
 // no press is under way, a move under `select-text` or `select` sets the root's cursor to
@@ -315,9 +316,11 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
   let editingMade = false
   /** The root's cursor is the pointer for a link under it. */
   let overLink = false
+  /** The press now under way had a modifier key down, so it does not follow a link. */
+  let pressModified = false
   const presses = createPressTracker({
     onPress: (press) => {
-      const link = opts.onLink && opts.linkAt?.(press.page, press.point)
+      const link = !pressModified && opts.onLink && opts.linkAt?.(press.page, press.point)
       if (link) opts.onLink!(link)
       else opts.onPress?.('press', press)
     },
@@ -442,6 +445,7 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     pressed = e.pointerId
     if (current?.onPointerDown?.(e, hit, annotationId) === true) capture(e.pointerId)
     // Whatever the tool returned: a marquee that stays within the slop is still a press.
+    pressModified = e.shiftKey || e.ctrlKey || e.metaKey || e.altKey
     if (reportable && pressed === e.pointerId)
       presses.down(e, { page: hit.page, point: hit.user, pointerType: pointerTypeOf(e) })
   }

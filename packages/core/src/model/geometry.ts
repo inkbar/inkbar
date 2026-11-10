@@ -97,10 +97,18 @@ export function rectContainsPoint(r: Rect, p: Point): boolean {
 /**
  * Whether `p` is inside `q` or on its edge. A quad's corners run top-left, top-right,
  * bottom-left, bottom-right (PDF QuadPoints order), so its outline is p1, p2, p4, p3. Works for
- * any convex quad, whichever way round it winds.
+ * any convex quad, whichever way round it winds. A quad with no area (a point or a line, as a
+ * malformed file may give) contains nothing.
  */
 export function quadContainsPoint(q: Quad, p: Point): boolean {
   const ring = [q.p1, q.p2, q.p4, q.p3]
+  let area = 0
+  for (let i = 0; i < 4; i++) {
+    const a = ring[i]!
+    const b = ring[(i + 1) % 4]!
+    area += a.x * b.y - b.x * a.y
+  }
+  if (area === 0) return false
   let sign = 0
   for (let i = 0; i < 4; i++) {
     const a = ring[i]!

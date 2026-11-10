@@ -100,6 +100,19 @@ describe('geometry', () => {
     const r = { x: 0, y: 0, width: 10, height: 5 }
     expect(quadContainsPoint(quadFromRect(r), { x: 5, y: 2 })).toBe(true)
     expect(quadContainsPoint(quadFromRect(r), { x: 11, y: 2 })).toBe(false)
+    // Zero-area quads contain nothing: a point, and a line (collinear corners).
+    const dot = { x: 5, y: 5 }
+    const point = { p1: dot, p2: dot, p3: dot, p4: dot }
+    expect(quadContainsPoint(point, dot)).toBe(false)
+    expect(quadContainsPoint(point, { x: 100, y: -40 })).toBe(false)
+    const line = {
+      p1: { x: 0, y: 0 },
+      p2: { x: 10, y: 10 },
+      p3: { x: 0, y: 0 },
+      p4: { x: 10, y: 10 },
+    }
+    expect(quadContainsPoint(line, { x: 5, y: 5 })).toBe(false)
+    expect(quadContainsPoint(line, { x: 5, y: 0 })).toBe(false)
   })
 
   it('matrix inverse undoes apply', () => {
