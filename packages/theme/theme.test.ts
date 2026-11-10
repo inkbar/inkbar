@@ -625,10 +625,13 @@ describe('theme.css', () => {
       )
     ).toMatch(/rotate\(90deg\)/)
     // A chevron is the only way to expand by touch: its hit area is a full 44px target.
-    expect(declsFor('.ink-outline-toggle)')).toMatch(/position:\s*relative/)
-    const target = declsFor('.ink-outline-toggle)::before')
-    expect(target).toMatch(/width:\s*44px/)
-    expect(target).toMatch(/height:\s*44px/)
+    // A column of the row, not an overlay: it never covers the title.
+    const toggle = declsFor('.ink-outline-toggle,')
+    expect(toggle).toMatch(/width:\s*44px/)
+    expect(toggle).toMatch(/min-height:\s*44px/)
+    expect(toggle).toMatch(/align-self:\s*stretch/)
+    expect(toggle).toMatch(/flex:\s*none/)
+    expect(declsFor('.ink-outline-toggle)::before')).toBe('')
     expect(declsFor('.ink-outline-empty)')).toMatch(/var\(--ink-muted-fg\)/)
   })
 

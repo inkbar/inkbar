@@ -2223,8 +2223,8 @@
     align-items: center;
     gap: 0.25rem;
     min-height: var(--ink-outline-item-height, 44px);
-    padding: 0.25rem 0.5rem 0.25rem
-      calc(0.25rem + var(--ink-outline-level, 0) * var(--ink-outline-indent, 16px));
+    padding: 0 0.5rem 0
+      calc(var(--ink-outline-level, 0) * var(--ink-outline-indent, 16px));
     border-radius: calc(var(--ink-radius) - 2px);
     font-size: 0.875rem;
     line-height: 1.3;
@@ -2264,30 +2264,18 @@
     background: transparent;
   }
 
+  /* Touch can only expand an item by its chevron, and a near miss follows the item instead, so
+     the chevron gets a full 44px column of the row. A leaf keeps the column empty, so titles
+     line up. */
   :where(.ink-outline-toggle, .ink-outline-spacer) {
     display: inline-flex;
     flex: none;
     align-items: center;
+    align-self: stretch;
     justify-content: center;
-    width: 1.25rem;
-    height: 1.25rem;
-    color: var(--ink-muted-fg);
-  }
-
-  /* Touch can only expand an item by its chevron, and a near miss follows the item instead, so
-     the chevron takes presses over a full 44px square around it. */
-  :where(.ink-outline-toggle) {
-    position: relative;
-  }
-
-  :where(.ink-outline-toggle)::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
     width: 44px;
-    height: 44px;
-    transform: translate(-50%, -50%);
+    min-height: 44px;
+    color: var(--ink-muted-fg);
   }
 
   :where(.ink-outline-toggle > svg) {
@@ -2303,6 +2291,7 @@
 
   :where(.ink-outline-title) {
     min-width: 0;
+    padding-block: 0.375rem;
     overflow-wrap: anywhere;
   }
 

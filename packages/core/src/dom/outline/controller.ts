@@ -67,7 +67,7 @@ export interface OutlineController {
    * ```html
    * <ul class="ink-outline-tree" {...treeAttrs()} onkeydown>
    *   <li class="ink-outline-item" {...itemAttrs(id)} style="--ink-outline-level: 0">
-   *     <div class="ink-outline-row">
+   *     <div class="ink-outline-row" {...rowAttrs(id)}>
    *       <span class="ink-outline-toggle" aria-hidden="true">chevron</span>
    *       <span class="ink-outline-title" {...titleAttrs(id)}>Title</span>
    *     </div>
@@ -83,6 +83,11 @@ export interface OutlineController {
   itemAttrs(id: string): Record<string, string | undefined>
   /** The `id` of an item's title element, which names the item. */
   titleAttrs(id: string): Record<string, string>
+  /**
+   * The `id` of an item's row (its chevron and title, without its children), which `bindScroll`
+   * measures to keep the current item in view.
+   */
+  rowAttrs(id: string): Record<string, string>
   /** The tree's key handler: put it on the element with `treeAttrs()`. */
   onKeydown(e: KeyboardEvent): void
   /** Scrolls the current item into view inside `scroller` unless focus is in the tree. */
@@ -244,6 +249,10 @@ export function createOutlineController(deps: OutlineControllerDeps): OutlineCon
 
   const elementFor = (id: string): HTMLElement | null =>
     ownerDoc?.getElementById(domId(id)) ?? null
+
+  /** The item's own row: the item element holds its children too, which can run far below. */
+  const rowFor = (id: string): HTMLElement | null =>
+    ownerDoc?.getElementById(`${domId(id)}-row`) ?? null
 
   const focusInTree = (): boolean => {
     const active = ownerDoc?.activeElement
@@ -456,13 +465,13 @@ export function createOutlineController(deps: OutlineControllerDeps): OutlineCon
         return
       }
       pending = false
-      const row = elementFor(id)
+      const row = rowFor(id)
       if (row && scroller.contains(row)) return scrollWithin(scroller, row)
       // A renderer that updates after this (a framework's next tick) has it by the next frame.
       if (view) {
         view.cancelAnimationFrame(frame)
         frame = view.requestAnimationFrame(() => {
-          const later = current.get() === id ? elementFor(id) : null
+          const later = current.get() === id ? rowFor(id) : null
           if (later && scroller.contains(later)) scrollWithin(scroller, later)
         })
       }
@@ -508,6 +517,7 @@ export function createOutlineController(deps: OutlineControllerDeps): OutlineCon
     activate,
     treeAttrs: () => ({ role: 'tree', 'aria-label': 'Outline' }),
     titleAttrs: (id) => ({ id: `${domId(id)}-title` }),
+    rowAttrs: (id) => ({ id: `${domId(id)}-row` }),
     itemAttrs(id) {
       const node = byId.get(id)
       return {

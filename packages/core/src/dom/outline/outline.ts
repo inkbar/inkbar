@@ -45,7 +45,7 @@ export function createOutline(viewer: Viewer, opts: OutlineOptions = {}): HTMLEl
         { class: 'ink-outline-item', 'data-ink-outline-item': item.id },
         h(
           'div',
-          { class: 'ink-outline-row' },
+          { class: 'ink-outline-row', ...controller.rowAttrs(item.id) },
           parent
             ? h(
                 'span',

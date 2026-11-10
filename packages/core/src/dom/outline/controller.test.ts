@@ -387,6 +387,7 @@ describe('createOutlineController', () => {
       tabindex: '-1',
     })
     expect(c.titleAttrs('0.1')).toEqual({ id: 'o-0-1-title' })
+    expect(c.rowAttrs('0.1')).toEqual({ id: 'o-0-1-row' })
     expect(c.itemAttrs('3')['aria-disabled']).toBe('true')
     expect(c.itemAttrs('1')['aria-expanded']).toBe('false')
     // With nothing focused, the current item is the Tab stop.

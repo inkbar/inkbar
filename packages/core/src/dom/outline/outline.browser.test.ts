@@ -142,6 +142,10 @@ describe('createOutline', () => {
       const hit = document.elementFromPoint(cx + dx, cy + dy)
       expect(hit?.closest('.ink-outline-toggle')).toBe(toggle)
     }
+    // The toggle's column ends where the title starts: the title takes its own clicks.
+    const title = item('Part One')!.querySelector<HTMLElement>('.ink-outline-title')!
+    const t = title.getBoundingClientRect()
+    expect(document.elementFromPoint(t.left + 2, t.top + t.height / 2)).toBe(title)
     await userEvent.click(toggle)
     expect(item('Part One')!.getAttribute('aria-expanded')).toBe('true')
     expect(item('Chapter 1')?.checkVisibility()).toBe(true)
@@ -153,6 +157,24 @@ describe('createOutline', () => {
     expect(document.activeElement).toBe(item('Chapter 2'))
     await userEvent.keyboard('{Enter}')
     await until(() => viewport.currentPage.get() === 1)
+  })
+
+  it('an expanded current parent whose row shows does not scroll for its subtree', async () => {
+    const { viewport, outline, item } = await make('outline', 120)
+    const partTwo = item('Part Two')!
+    expect(partTwo.getAttribute('aria-expanded')).toBe('true')
+    // Part Two's row 40px down the panel: in view, with its children running past the bottom.
+    const row = partTwo.querySelector<HTMLElement>(':scope > .ink-outline-row')!
+    outline.scrollTop +=
+      row.getBoundingClientRect().top - outline.getBoundingClientRect().top - 40
+    const kept = outline.scrollTop
+    expect(partTwo.getBoundingClientRect().bottom).toBeGreaterThan(
+      outline.getBoundingClientRect().bottom
+    )
+    viewport.scrollToDestination({ page: 2, fit: 'fitv', left: 144 })
+    await until(() => partTwo.getAttribute('aria-current') === 'location')
+    await settle(100)
+    expect(outline.scrollTop).toBe(kept)
   })
 
   it('current item scrolls into view unless focus is in the tree', async () => {

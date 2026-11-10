@@ -529,7 +529,7 @@ const controller = createOutlineController({
 })
 ```
 
-Spread `treeAttrs()` on the tree (a `ul`) and `itemAttrs(id)` on each item (an `li`). Each item holds a row with the chevron and the title, which gets `titleAttrs(id)` and names the item, then its children in a `role="group"` list shown only while `expanded` has its id. The controller's JSDoc has the full markup. Pass `onKeydown` to the tree's keydown, call `activate(id)` on a row click and `toggle(id)` from the chevron, and call `bindScroll(scrollElement)` to keep the current item in view. `@inkbar/theme` styles `.ink-outline`, `.ink-outline-item`, `.ink-outline-row` (indented by `--ink-outline-level`), `.ink-outline-toggle` (a 44px touch target), `.ink-outline-title` and `.ink-outline-empty`, with the `--ink-outline-indent`, `--ink-outline-item-height` and `--ink-outline-current-bg` tokens.
+Spread `treeAttrs()` on the tree (a `ul`) and `itemAttrs(id)` on each item (an `li`). Each item holds a row, with `rowAttrs(id)`, holding the chevron and the title, which gets `titleAttrs(id)` and names the item, then its children in a `role="group"` list shown only while `expanded` has its id. The controller's JSDoc has the full markup. Pass `onKeydown` to the tree's keydown, call `activate(id)` on a row click and `toggle(id)` from the chevron, and call `bindScroll(scrollElement)` to keep the current item in view. `@inkbar/theme` styles `.ink-outline`, `.ink-outline-item`, `.ink-outline-row` (indented by `--ink-outline-level`), `.ink-outline-toggle` (a 44px column, a full touch target), `.ink-outline-title` and `.ink-outline-empty`, with the `--ink-outline-indent`, `--ink-outline-item-height` and `--ink-outline-current-bg` tokens.
 
 ## Forms
 
