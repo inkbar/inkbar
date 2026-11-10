@@ -42,7 +42,10 @@ const count = (text: string, word: string): number =>
   text.toLowerCase().split(word.toLowerCase()).length - 1
 
 void test('every document builds and parses', async () => {
-  assert.deepEqual([...DOCUMENT_NAMES], ['tour', 'letter', 'form', 'redactions', 'long'])
+  assert.deepEqual(
+    [...DOCUMENT_NAMES],
+    ['tour', 'letter', 'form', 'redactions', 'long', 'handbook']
+  )
   for (const doc of DOCUMENT_NAMES) {
     const d = await load(doc)
     assert.ok(d.getPageCount() > 0, `${doc} has no pages`)
