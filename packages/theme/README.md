@@ -20,7 +20,7 @@
 
 ---
 
-`@inkbar/theme` styles the viewer, toolbar controls and note threads from `@inkbar/vue`, `@inkbar/react`, `@inkbar/svelte` and `createViewer` in `@inkbar/core`. Import it and ship, or override any part of it with your own CSS. If your app already defines shadcn tokens, the theme picks up your colours and radius.
+`@inkbar/theme` styles the viewer and what it draws over pages (annotations, form fields, search matches), the toolbar controls and menus, sidebars and thumbnails, the find bar and search results, the signature dialog, note threads, and plugin cards and command buttons, from `@inkbar/vue`, `@inkbar/react`, `@inkbar/svelte` and `createViewer` in `@inkbar/core`. Import it and ship, or override any part of it with your own CSS. If your app already defines shadcn tokens, the theme picks up your colours and radius.
 
 ## Install
 
@@ -34,7 +34,7 @@ Import the stylesheet once in your app:
 import '@inkbar/theme/theme.css'
 ```
 
-Every rule sits in `@layer inkbar` and inside `:where()`, so each selector has zero specificity. Your unlayered CSS overrides it without `!important`.
+Every rule sits in `@layer inkbar` and inside `:where()`, so each selector has zero specificity. Your unlayered CSS overrides it without `!important`. The one exception is the move cursor while an annotation is dragged (`[data-ink-dragging]`), which uses `!important` to show over every element's own cursor.
 
 ## Layer order
 
@@ -66,14 +66,15 @@ Set these variables on `[data-ink-root]` to change the default colour for new an
 | `--ink-note`, `--ink-free-text`                                           | Notes and text boxes        |
 | `--ink-shape`, `--ink-ink`                                                | Shapes and freehand drawing |
 | `--ink-redact`, `--ink-redact-fill`                                       | Redaction outline and fill  |
+| `--ink-mask`                                                              | Masks                       |
 
-Inkbar reads a colour when you create the annotation and stores it on the annotation, because the colour goes into the PDF. Changing a variable later affects new annotations only.
+Inkbar reads a colour when you create the annotation and stores it on the annotation, because the colour goes into the PDF. Changing a variable later affects new annotations only. Write these as hex (`#f2c230`) or `rgb()`: Inkbar ignores other formats and uses its own default.
 
 ## Layout
 
 The root and viewport fill their parent as a column, and the scroll area takes the remaining height. Give the parent a height and the document scrolls inside it.
 
-The theme gives a toolbar a background and padding and styles the controls in it. You decide where the toolbar sits, how to group its controls and what separates it from the document. Set `--ink-control-size` on a toolbar to change the height of its buttons, fields and zoom select (default `2.25rem`), and `--ink-icon-size` to change the size of their icons (default `1.125rem`).
+The theme gives a toolbar a background and padding and styles the controls in it. You decide where the toolbar sits, how to group its controls and what separates it from the document. Set `--ink-control-size` on a toolbar to change the height of its buttons, fields and zoom select (default `2.25rem`), and `--ink-icon-size` to change the size of their icons (default `1.125rem`). `--ink-control-size` also sizes the sidebar rail's buttons and any `ink-select`.
 
 ```css
 .my-page-bar {
@@ -83,9 +84,21 @@ The theme gives a toolbar a background and padding and styles the controls in it
 }
 ```
 
+Sidebars and thumbnails have their own sizes:
+
+| Variable                   | Default | Sets                               |
+| -------------------------- | ------- | ---------------------------------- |
+| `--ink-sidebar-width`      | `280px` | The width of an open sidebar       |
+| `--ink-sidebar-rail-width` | `48px`  | The width of a sidebar's icon rail |
+| `--ink-thumbnail-width`    | `120px` | The width of a page thumbnail      |
+
+## Search and form colours
+
+`--ink-search-hit` and `--ink-search-current` colour search matches and the current match. `--ink-mark-selected-outline` outlines a plugin mark whose record is selected (default `2px solid #2740f5`). `--ink-form-field-bg`, `--ink-form-field-focus` and `--ink-form-field-invalid` colour form fields, the focused field and a field that fails its check.
+
 ## Your own controls
 
-Two classes give your own controls the look of the built-in ones. Add `ink-select` to a `<select>` to give it the zoom select's box and chevron. To put an icon in a field, wrap the input in `ink-input-group` and add an `ink-input-accessory` before it for an icon at the start, or after it for one at the end. The icon lets clicks through to the field, and the input makes room for it. The find bar and the search results field use this for their search icon.
+Three classes give your own controls the look of the built-in ones. Add `ink-select` to a `<select>` to give it the zoom select's box and chevron. To put an icon in a field, wrap the input in `ink-input-group` and add an `ink-input-accessory` before it for an icon at the start, or after it for one at the end. The icon lets clicks through to the field, and the input makes room for it. The find bar and the search results field use this for their search icon.
 
 ```html
 <select class="ink-select">
