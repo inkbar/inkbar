@@ -47,7 +47,9 @@ async function make(
   await until(() => outline.getAttribute('aria-busy') !== 'true', 10_000)
   const item = (title: string) =>
     [...outline.querySelectorAll<HTMLElement>('[role="treeitem"]')].find(
-      (el) => el.querySelector('.ink-outline-title')?.textContent === title
+      (el) =>
+        el.querySelector(':scope > .ink-outline-row > .ink-outline-title')
+          ?.textContent === title
     ) ?? null
   return { viewer, viewport: viewer.viewport.get()!, outline, item }
 }
@@ -84,6 +86,14 @@ describe('createOutline', () => {
     // A closed item's children are not shown.
     expect(item('Chapter 1')?.checkVisibility()).toBe(false)
     expect(item('Part Two')!.getAttribute('aria-expanded')).toBe('true')
+    // Each item holds its own group, and is named by its title alone.
+    const partTwo = item('Part Two')!
+    expect(partTwo.querySelector(':scope > [role="group"] > [role="treeitem"]')).toBe(
+      item('Section A')
+    )
+    expect(
+      document.getElementById(partTwo.getAttribute('aria-labelledby')!)?.textContent
+    ).toBe('Part Two')
     expect(item('Section A')?.getAttribute('aria-level')).toBe('2')
     expect(item('Section B')?.hasAttribute('data-italic')).toBe(true)
     expect(item('Broken')?.getAttribute('aria-disabled')).toBe('true')
@@ -120,6 +130,18 @@ describe('createOutline', () => {
 
     // The twisty opens a closed item without navigating.
     const toggle = item('Part One')!.querySelector<HTMLElement>('.ink-outline-toggle')!
+    // A touch target of at least 44px around the 16px chevron.
+    const r = toggle.getBoundingClientRect()
+    const [cx, cy] = [r.left + r.width / 2, r.top + r.height / 2]
+    for (const [dx, dy] of [
+      [-20, -20],
+      [20, -20],
+      [-20, 20],
+      [20, 20],
+    ] as const) {
+      const hit = document.elementFromPoint(cx + dx, cy + dy)
+      expect(hit?.closest('.ink-outline-toggle')).toBe(toggle)
+    }
     await userEvent.click(toggle)
     expect(item('Part One')!.getAttribute('aria-expanded')).toBe('true')
     expect(item('Chapter 1')?.checkVisibility()).toBe(true)

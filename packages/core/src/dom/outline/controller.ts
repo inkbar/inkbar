@@ -58,10 +58,31 @@ export interface OutlineController {
   /**
    * For each item's element: `role="treeitem"`, its `id`, `aria-level`, `aria-setsize`,
    * `aria-posinset`, `aria-expanded` (items with children), `aria-current="location"` on the
-   * current item, `aria-disabled` on items Inkbar cannot follow, and `tabindex` (one item has 0).
-   * An item's children go in a `role="group"` element after it, shown only while expanded.
+   * current item, `aria-disabled` on items Inkbar cannot follow, `aria-labelledby` (its title)
+   * and `tabindex` (one item has 0).
+   *
+   * The item element contains its own children, as the WAI-ARIA tree pattern has it, so it is
+   * named by its title rather than by everything inside it:
+   *
+   * ```html
+   * <ul class="ink-outline-tree" {...treeAttrs()} onkeydown>
+   *   <li class="ink-outline-item" {...itemAttrs(id)} style="--ink-outline-level: 0">
+   *     <div class="ink-outline-row">
+   *       <span class="ink-outline-toggle" aria-hidden="true">chevron</span>
+   *       <span class="ink-outline-title" {...titleAttrs(id)}>Title</span>
+   *     </div>
+   *     <ul class="ink-outline-group" role="group">children, shown only while expanded</ul>
+   *   </li>
+   * </ul>
+   * ```
+   *
+   * An item without children has `ink-outline-spacer` in place of the toggle and no group.
+   * `--ink-outline-level` is its depth, 0 at the top; `data-bold` and `data-italic` go on the
+   * item. A click on the toggle calls `toggle(id)`, anywhere else on the row `activate(id)`.
    */
   itemAttrs(id: string): Record<string, string | undefined>
+  /** The `id` of an item's title element, which names the item. */
+  titleAttrs(id: string): Record<string, string>
   /** The tree's key handler: put it on the element with `treeAttrs()`. */
   onKeydown(e: KeyboardEvent): void
   /** Scrolls the current item into view inside `scroller` unless focus is in the tree. */
@@ -172,11 +193,16 @@ export function createOutlineController(deps: OutlineControllerDeps): OutlineCon
     const vp = deps.viewport.get()
     placed = []
     if (vp) {
+      const shown = vp.currentPage.get()
       for (const node of nodes) {
         const target = node.item.target
         if (target.kind !== 'resolved') continue
         const y = vp.destinationY(target.dest)
         if (y !== undefined && Number.isFinite(y)) placed.push({ node, y })
+        // A page without a box (single-page mode shows one) is ordered by its page: above the
+        // reading line before the shown page, below it after.
+        else if (y === undefined && target.dest.page !== shown)
+          placed.push({ node, y: target.dest.page < shown ? -Infinity : Infinity })
       }
     }
     suffixMin = new Array<number>(placed.length)
@@ -281,13 +307,17 @@ export function createOutlineController(deps: OutlineControllerDeps): OutlineCon
     stopLine = null
     if (vp) {
       const offLine = vp.readingLine.subscribe(reach)
-      const offLayout = vp.layout.subscribe(() => {
+      const replace = (): void => {
         place()
         reach()
-      })
+      }
+      const offLayout = vp.layout.subscribe(replace)
+      // In single-page mode another page shows without a new layout.
+      const offPage = vp.currentPage.subscribe(replace)
       stopLine = () => {
         offLine()
         offLayout()
+        offPage()
       }
     }
     place()
@@ -404,6 +434,9 @@ export function createOutlineController(deps: OutlineControllerDeps): OutlineCon
       scroller.scrollTop += Math.min(r.bottom - box.bottom, r.top - box.top)
   }
 
+  /** The live `bindScroll` bindings, undone by `destroy`. */
+  const bindings = new Set<() => void>()
+
   function bindScroll(scroller: HTMLElement): () => void {
     if (destroyed) return () => undefined
     ownerDoc = scroller.ownerDocument
@@ -446,12 +479,15 @@ export function createOutlineController(deps: OutlineControllerDeps): OutlineCon
         : null
     resize?.observe(scroller)
     reveal()
-    return () => {
+    const unbind = (): void => {
+      if (!bindings.delete(unbind)) return
       stopCurrent()
       stopItems()
       resize?.disconnect()
       if (view) view.cancelAnimationFrame(frame)
     }
+    bindings.add(unbind)
+    return unbind
   }
 
   return {
@@ -471,6 +507,7 @@ export function createOutlineController(deps: OutlineControllerDeps): OutlineCon
     },
     activate,
     treeAttrs: () => ({ role: 'tree', 'aria-label': 'Outline' }),
+    titleAttrs: (id) => ({ id: `${domId(id)}-title` }),
     itemAttrs(id) {
       const node = byId.get(id)
       return {
@@ -482,6 +519,7 @@ export function createOutlineController(deps: OutlineControllerDeps): OutlineCon
         'aria-expanded': node && hasChildren(node) ? String(isExpanded(node)) : undefined,
         'aria-current': current.get() === id ? 'location' : undefined,
         'aria-disabled': node?.item.target.kind === 'unsupported' ? 'true' : undefined,
+        'aria-labelledby': `${domId(id)}-title`,
         tabindex: tabStop() === id ? '0' : '-1',
       }
     },
@@ -489,6 +527,7 @@ export function createOutlineController(deps: OutlineControllerDeps): OutlineCon
     bindScroll,
     destroy() {
       if (destroyed) return
+      for (const unbind of [...bindings]) unbind()
       destroyed = true
       generation++
       clearTimeout(typedTimer)

@@ -597,26 +597,38 @@ describe('theme.css', () => {
     expect(decl('--ink-outline-indent')).toMatch(/:\s*16px$/)
     expect(decl('--ink-outline-item-height')).toMatch(/:\s*44px$/)
     expect(declsFor('.ink-outline)')).toMatch(/overflow-y:\s*auto/)
-    const item = declsFor('.ink-outline-item)')
+    // The item holds its children, so a row carries what belongs to the item alone.
+    const row = declsFor('.ink-outline-row)')
     // With fallbacks, for an outline placed outside the root and any sidebar.
-    expect(item).toMatch(/min-height:\s*var\(--ink-outline-item-height, 44px\)/)
-    expect(item).toMatch(/var\(--ink-outline-indent, 16px\)/)
-    expect(item).toMatch(/var\(--ink-outline-level/)
-    expect(declsFor(".ink-outline-item[aria-current='location'])")).toMatch(
-      /var\(--ink-outline-current-bg\)/
+    expect(row).toMatch(/min-height:\s*var\(--ink-outline-item-height, 44px\)/)
+    expect(row).toMatch(/var\(--ink-outline-indent, 16px\)/)
+    expect(row).toMatch(/var\(--ink-outline-level/)
+    expect(
+      declsFor(".ink-outline-item[aria-current='location'] > .ink-outline-row)")
+    ).toMatch(/var\(--ink-outline-current-bg\)/)
+    expect(declsFor('.ink-outline-item[data-bold] > .ink-outline-row)')).toMatch(
+      /font-weight:\s*600/
     )
-    expect(declsFor('.ink-outline-item[data-bold])')).toMatch(/font-weight:\s*600/)
-    expect(declsFor('.ink-outline-item[data-italic])')).toMatch(/font-style:\s*italic/)
-    expect(declsFor(".ink-outline-item[aria-disabled='true'])")).toMatch(
-      /var\(--ink-muted-fg\)/
+    expect(declsFor('.ink-outline-item[data-italic] > .ink-outline-row)')).toMatch(
+      /font-style:\s*italic/
     )
-    expect(declsFor('.ink-outline-item:focus-visible)')).toMatch(
+    expect(
+      declsFor(".ink-outline-item[aria-disabled='true'] > .ink-outline-row)")
+    ).toMatch(/var\(--ink-muted-fg\)/)
+    expect(declsFor('.ink-outline-item:focus-visible > .ink-outline-row)')).toMatch(
       /outline:\s*2px solid var\(--ink-ring\)/
     )
     expect(declsFor('.ink-outline-group[hidden]')).toMatch(/display:\s*none/)
     expect(
-      declsFor(".ink-outline-item[aria-expanded='true'] > .ink-outline-toggle")
+      declsFor(
+        ".ink-outline-item[aria-expanded='true'] > .ink-outline-row > .ink-outline-toggle"
+      )
     ).toMatch(/rotate\(90deg\)/)
+    // A chevron is the only way to expand by touch: its hit area is a full 44px target.
+    expect(declsFor('.ink-outline-toggle)')).toMatch(/position:\s*relative/)
+    const target = declsFor('.ink-outline-toggle)::before')
+    expect(target).toMatch(/width:\s*44px/)
+    expect(target).toMatch(/height:\s*44px/)
     expect(declsFor('.ink-outline-empty)')).toMatch(/var\(--ink-muted-fg\)/)
   })
 

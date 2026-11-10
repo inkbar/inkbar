@@ -36,33 +36,41 @@ export function createOutline(viewer: Viewer, opts: OutlineOptions = {}): HTMLEl
   /** Each item's element and, for items with children, its group. */
   const rows = new Map<string, { row: HTMLElement; group: HTMLElement | null }>()
 
+  // The markup `itemAttrs` documents: each item holds its row and its children's group.
   function build(list: readonly OutlineItem[], into: HTMLElement): void {
     for (const item of list) {
       const parent = item.children.length > 0
       const row = h(
-        'div',
+        'li',
         { class: 'ink-outline-item', 'data-ink-outline-item': item.id },
-        parent
-          ? h(
-              'span',
-              { class: 'ink-outline-toggle', 'aria-hidden': 'true' },
-              createIcon(ChevronRight)
-            )
-          : h('span', { class: 'ink-outline-spacer', 'aria-hidden': 'true' }),
-        h('span', { class: 'ink-outline-title' }, item.title)
+        h(
+          'div',
+          { class: 'ink-outline-row' },
+          parent
+            ? h(
+                'span',
+                { class: 'ink-outline-toggle', 'aria-hidden': 'true' },
+                createIcon(ChevronRight)
+              )
+            : h('span', { class: 'ink-outline-spacer', 'aria-hidden': 'true' }),
+          h(
+            'span',
+            { class: 'ink-outline-title', ...controller.titleAttrs(item.id) },
+            item.title
+          )
+        )
       )
       if (item.bold) row.setAttribute('data-bold', '')
       if (item.italic) row.setAttribute('data-italic', '')
       row.style.setProperty('--ink-outline-level', String(item.id.split('.').length - 1))
-      const entry = h('li', { class: 'ink-outline-entry', role: 'none' }, row)
       let group: HTMLElement | null = null
       if (parent) {
         group = h('ul', { class: 'ink-outline-group', role: 'group' })
         build(item.children, group)
-        entry.append(group)
+        row.append(group)
       }
       rows.set(item.id, { row, group })
-      into.append(entry)
+      into.append(row)
     }
   }
 
@@ -97,8 +105,11 @@ export function createOutline(viewer: Viewer, opts: OutlineOptions = {}): HTMLEl
   }
 
   const itemOf = (target: EventTarget | null): string | null => {
+    // The innermost item: an item contains its children's.
     const row =
-      target instanceof Element ? target.closest<HTMLElement>('.ink-outline-item') : null
+      target instanceof Element
+        ? target.closest<HTMLElement>('[data-ink-outline-item]')
+        : null
     return row && root.contains(row) ? (row.dataset.inkOutlineItem ?? null) : null
   }
 

@@ -73,7 +73,14 @@ function fakeViewport() {
     destinationY,
     scrollToDestination,
   } as unknown as Viewport
-  return { viewport, readingLine, layout, scrollToDestination, here: () => position }
+  return {
+    viewport,
+    readingLine,
+    layout,
+    currentPage,
+    scrollToDestination,
+    here: () => position,
+  }
 }
 
 let made: OutlineController[] = []
@@ -178,6 +185,61 @@ describe('createOutlineController', () => {
       'top' in dest && dest.top !== undefined ? 5 * PAGE : dest.page * PAGE
     vp.layout.set({ boxes: [], width: 1, height: 1 })
     expect(c.current.get()).toBe('0')
+  })
+
+  it('single-page mode orders items on other pages by their page', async () => {
+    const { c, vp } = await setup()
+    // Only the shown page has a box; the reading line is near its top.
+    const shownOnly = (page: number) => (dest: Destination) =>
+      dest.page === page
+        ? 100 + ('top' in dest && dest.top !== undefined ? 800 - dest.top : 0)
+        : undefined
+    vp.viewport.destinationY = shownOnly(2)
+    vp.currentPage.set(2)
+    vp.layout.set({ boxes: [], width: 2, height: 2 })
+    vp.readingLine.set(50)
+    // Nothing on page 2 is reached yet; Avocado (page 1) is the last item above it.
+    expect(c.current.get()).toBe('0.1')
+    vp.readingLine.set(150)
+    expect(c.current.get()).toBe('1')
+    // Turning the page alone, with no new layout, re-places the items.
+    vp.viewport.destinationY = shownOnly(3)
+    vp.currentPage.set(3)
+    expect(c.current.get()).toBe('2')
+    vp.viewport.destinationY = shownOnly(0)
+    vp.currentPage.set(0)
+    vp.readingLine.set(50)
+    expect(c.current.get()).toBeNull()
+  })
+
+  it('destroy unbinds a bound scroller', async () => {
+    const { c } = await setup()
+    const frames: number[] = []
+    const observers: { disconnect: ReturnType<typeof vi.fn> }[] = []
+    const view = {
+      requestAnimationFrame: vi.fn(() => frames.push(1)),
+      cancelAnimationFrame: vi.fn(),
+      ResizeObserver: class {
+        disconnect = vi.fn()
+        constructor() {
+          observers.push(this)
+        }
+        observe() {}
+      },
+    }
+    const scroller = {
+      ownerDocument: {
+        defaultView: view,
+        activeElement: null,
+        getElementById: () => null,
+      },
+      clientHeight: 100,
+      contains: () => false,
+    } as unknown as HTMLElement
+    c.bindScroll(scroller)
+    c.destroy()
+    expect(observers[0]?.disconnect).toHaveBeenCalled()
+    expect(view.cancelAnimationFrame).toHaveBeenCalled()
   })
 
   it('collapsed parent is marked', async () => {
@@ -296,12 +358,12 @@ describe('createOutlineController', () => {
       }
     })
 
-    it('leaves modified keys alone', async () => {
+    it.each(['altKey', 'ctrlKey', 'metaKey'])('leaves %s chords alone', async (mod) => {
       const { c } = await setup()
       const e = {
         ...key(c, 'Home'),
         key: 'ArrowDown',
-        altKey: true,
+        [mod]: true,
         preventDefault: vi.fn(),
       }
       c.onKeydown(e as unknown as KeyboardEvent)
@@ -321,8 +383,10 @@ describe('createOutlineController', () => {
       'aria-expanded': undefined,
       'aria-current': undefined,
       'aria-disabled': undefined,
+      'aria-labelledby': 'o-0-1-title',
       tabindex: '-1',
     })
+    expect(c.titleAttrs('0.1')).toEqual({ id: 'o-0-1-title' })
     expect(c.itemAttrs('3')['aria-disabled']).toBe('true')
     expect(c.itemAttrs('1')['aria-expanded']).toBe('false')
     // With nothing focused, the current item is the Tab stop.

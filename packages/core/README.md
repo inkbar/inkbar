@@ -501,7 +501,7 @@ panel.append(createOutline(viewer, { emptyText: 'No sections' }))
 toolbar.append(createBack(viewer), createForward(viewer))
 ```
 
-Clicking an item, or Enter on it, goes to its destination without changing the zoom. Its chevron expands and collapses it. Items start expanded or collapsed as the file says, bold and italic titles keep their style, and the file's colours are ignored. Items Inkbar cannot follow, such as one pointing into another file, are greyed out with `aria-disabled`. The item the reader has reached is marked with `aria-current="location"` and scrolls into view unless focus is in the tree. It is the last item whose destination is at or above a line one third down the view. Inside a collapsed parent, the parent is marked instead. With no outline the panel shows "This document has no outline", or your `emptyText`.
+Clicking an item, or Enter on it, goes to its destination without changing the zoom. Its chevron expands and collapses it. Items start expanded or collapsed as the file says, bold and italic titles keep their style, and the file's colours are ignored. Items Inkbar cannot follow, such as one pointing into another file, are greyed out with `aria-disabled`. The item the reader has reached is marked with `aria-current="location"` and scrolls into view unless focus is in the tree. It is the last item whose destination is at or above a line one third down the view, or at the bottom of the view once it is scrolled to the end, so the last sections can be reached. Inside a collapsed parent, the parent is marked instead. With no outline the panel shows "This document has no outline", or your `emptyText`.
 
 The tree follows the WAI-ARIA tree pattern and is one Tab stop. Up and Down move between items. Right expands an item, then moves to its first child. Left collapses an item, then moves to its parent. Home and End go to the first and last items, `*` expands the item's siblings, and typing jumps to the next title starting with what you typed.
 
@@ -519,7 +519,17 @@ createViewer(el, {
 
 Following a link or an outline item records where you were. `viewer.back()` and `viewer.forward()` move through those positions, `canGoBack` and `canGoForward` say whether they can, and `createBack(viewer)` and `createForward(viewer)` are toolbar buttons for them. Scrolling and the page buttons record nothing. The history keeps 50 positions and clears when another document opens. There are no keyboard shortcuts for it, so Alt+Left stays the browser's.
 
-`doc.outline()` gives the outline as data: `OutlineItem`s with an `id` (its path, such as `"1.0"`), `title`, `target`, `bold`, `italic`, `open` and `children`. It is read on the first call and cached. To render your own tree, use `createOutlineController({ document, viewport, navigation })`, with readables of the document, the viewport and the `mountViewer` engine's `navigation`. Spread `treeAttrs()` on the tree and `itemAttrs(id)` on each item, and put each item's children in a `role="group"` element shown only while `expanded` has its id. Pass `onKeydown` to the tree's keydown, call `activate(id)` on click and `toggle(id)` from the chevron, and call `bindScroll(scrollElement)` to keep the current item in view. `@inkbar/theme` styles `.ink-outline`, `.ink-outline-item` (indented by `--ink-outline-level`), `.ink-outline-toggle`, `.ink-outline-title` and `.ink-outline-empty`, with the `--ink-outline-indent`, `--ink-outline-item-height` and `--ink-outline-current-bg` tokens.
+`doc.outline()` gives the outline as data: `OutlineItem`s with an `id` (its path, such as `"1.0"`), `title`, `target`, `bold`, `italic`, `open` and `children`. It is read on the first call and cached. To render your own tree, use `createOutlineController({ document, viewport, navigation })` with readables of the document, the viewport and the navigation. A `mountViewer` engine's `navigation` is a plain object, so wrap it, and the viewport too (a readable of your own should publish the new viewport after `engine.rebuild`):
+
+```ts
+const controller = createOutlineController({
+  document: { get: () => doc, subscribe: () => () => {} },
+  viewport: { get: () => engine.viewport, subscribe: () => () => {} },
+  navigation: { get: () => engine.navigation, subscribe: () => () => {} },
+})
+```
+
+Spread `treeAttrs()` on the tree (a `ul`) and `itemAttrs(id)` on each item (an `li`). Each item holds a row with the chevron and the title, which gets `titleAttrs(id)` and names the item, then its children in a `role="group"` list shown only while `expanded` has its id. The controller's JSDoc has the full markup. Pass `onKeydown` to the tree's keydown, call `activate(id)` on a row click and `toggle(id)` from the chevron, and call `bindScroll(scrollElement)` to keep the current item in view. `@inkbar/theme` styles `.ink-outline`, `.ink-outline-item`, `.ink-outline-row` (indented by `--ink-outline-level`), `.ink-outline-toggle` (a 44px touch target), `.ink-outline-title` and `.ink-outline-empty`, with the `--ink-outline-indent`, `--ink-outline-item-height` and `--ink-outline-current-bg` tokens.
 
 ## Forms
 
