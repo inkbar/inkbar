@@ -32,6 +32,7 @@ import {
 } from './pinch'
 import { createPageTransform, type PageTransform, type ViewRotation } from './transform'
 
+import type { Destination } from '../model/destination'
 import type { InkDocument } from '../model/document'
 import type { Point, Rect } from '../model/geometry'
 
@@ -88,6 +89,28 @@ export interface Viewport {
   scrollToPage(index: number, opts?: { behavior?: ScrollBehavior }): void
   /** Scrolls so `rect` (user space on `page`) is visible, centring it when it was not. */
   scrollToRect(page: number, rect: Rect, opts?: { behavior?: ScrollBehavior }): void
+  /**
+   * Scrolls to a PDF destination without touching zoom. The destination's own zoom is ignored.
+   * `xyz` puts (`left`, `top`) at the container's top-left; a missing `left` keeps the horizontal
+   * scroll and a missing `top` lands at the page top as `scrollToPage` does. `fith`/`fitbh` put
+   * `top` at the top, `fitv`/`fitbv` put `left` at the left, `fitr` centres the rect (always
+   * scrolling), and `fit`/`fitb` act as `scrollToPage`. Single-page mode switches page first.
+   * "Top" and "left" are those of the converted point, so a rotated page is framed as it looks.
+   */
+  scrollToDestination(dest: Destination, opts?: { behavior?: ScrollBehavior }): void
+  /**
+   * The layout-space CSS y (measured from the pages element, as `readingLine` is) that
+   * `scrollToDestination` puts at the container's top. `undefined` when the page has no box
+   * (another page in single-page mode, or out of range).
+   */
+  destinationY(dest: Destination): number | undefined
+  /**
+   * Layout-space CSS y of the line one third down the visible area:
+   * `scrollTop + clientHeight / 3`, less where the pages element starts. Compare it with
+   * `destinationY` to tell which destination the reader has reached. Updates on scroll, resize
+   * and layout.
+   */
+  readonly readingLine: Readable<number>
   transformFor(page: number): PageTransform
   hostFor(page: number): HTMLElement | undefined
   /** The mounted page under a viewport (client) point, if any. */
@@ -114,6 +137,7 @@ export function createViewport(opts: ViewportOptions): Viewport {
   const rotation = writable<ViewRotation>(opts.rotation ?? 0)
   const mode = writable<LayoutMode>(opts.mode ?? 'continuous')
   const currentPage = writable(0)
+  const readingLine = writable(0)
   const mounted = writable<readonly number[]>([])
   const layout = writable<CssLayout>({ boxes: [], width: 0, height: 0 })
 
@@ -234,6 +258,7 @@ export function createViewport(opts: ViewportOptions): Viewport {
     if (destroyed) return
     const l = layout.get()
     const top = container.scrollTop - origin().y
+    readingLine.set(top + container.clientHeight / 3)
     const wanted = visibleRangeCss(l, top, container.clientHeight, buffer)
     const wantedSet = new Set(wanted)
     for (const [page, host] of [...hosts]) {
@@ -256,6 +281,77 @@ export function createViewport(opts: ViewportOptions): Viewport {
     if (!sameList(mounted.get(), wanted)) mounted.set(wanted)
     if (mode.get() === 'continuous') {
       currentPage.set(mostVisiblePageCss(l, top, container.clientHeight))
+    }
+  }
+
+  /**
+   * Absolute container scroll positions that frame `dest`, or `undefined` when its page has no
+   * box. No `left` means "leave the horizontal scroll where it is". Shared by
+   * `scrollToDestination` and `destinationY` so they cannot disagree.
+   */
+  function destinationScroll(
+    dest: Destination
+  ): { top: number; left?: number } | undefined {
+    const box = boxFor(dest.page)
+    if (!box) return undefined
+    const t = transformFor(dest.page)
+    const at = origin()
+    const pageTop = mode.get() === 'single' ? 0 : Math.max(0, at.y + box.top - gap)
+    const absTop = (css: number): number => Math.max(0, at.y + box.top + css)
+    const absLeft = (css: number): number => Math.max(0, at.x + box.left + css)
+    // Under /Rotate a CSS axis follows the other user axis, so a CSS axis is only known when
+    // every user coordinate it depends on was given.
+    const known = (
+      x: number | undefined,
+      y: number | undefined
+    ): { top?: number; left?: number } => {
+      const o = t.toCss({ x: 0, y: 0 })
+      const dx = t.toCss({ x: 1, y: 0 })
+      const dy = t.toCss({ x: 0, y: 1 })
+      const p = t.toCss({ x: x ?? 0, y: y ?? 0 })
+      const r: { top?: number; left?: number } = {}
+      if ((x !== undefined || dx.y === o.y) && (y !== undefined || dy.y === o.y))
+        r.top = p.y
+      if ((x !== undefined || dx.x === o.x) && (y !== undefined || dy.x === o.x))
+        r.left = p.x
+      return r
+    }
+    switch (dest.fit) {
+      case 'xyz': {
+        const c = known(dest.left, dest.top)
+        const r: { top: number; left?: number } = {
+          top: c.top === undefined ? pageTop : absTop(c.top),
+        }
+        if (c.left !== undefined) r.left = absLeft(c.left)
+        return r
+      }
+      case 'fith':
+      case 'fitbh': {
+        const c = known(0, dest.top)
+        return { top: c.top === undefined ? pageTop : absTop(c.top) }
+      }
+      case 'fitv':
+      case 'fitbv': {
+        const c = known(dest.left, 0)
+        const r: { top: number; left?: number } = { top: pageTop }
+        if (c.left !== undefined) r.left = absLeft(c.left)
+        return r
+      }
+      case 'fitr': {
+        const css = t.toCssRect(dest.rect)
+        return {
+          top: Math.max(
+            0,
+            at.y + box.top + css.top - (container.clientHeight - css.height) / 2
+          ),
+          left: Math.max(
+            0,
+            at.x + box.left + css.left - (container.clientWidth - css.width) / 2
+          ),
+        }
+      }
+      default:
+        return { top: pageTop }
     }
   }
 
@@ -515,6 +611,23 @@ export function createViewport(opts: ViewportOptions): Viewport {
       if (to.top !== undefined || to.left !== undefined) container.scrollTo(to)
       sync()
     },
+    scrollToDestination(dest, o) {
+      if (mode.get() === 'single' && currentPage.get() !== dest.page) {
+        currentPage.set(dest.page)
+        relayout()
+      }
+      const to = destinationScroll(dest)
+      if (!to) return
+      const scroll: ScrollToOptions = { top: to.top, behavior: o?.behavior ?? 'auto' }
+      if (to.left !== undefined) scroll.left = to.left
+      container.scrollTo(scroll)
+      sync()
+    },
+    destinationY(dest) {
+      const to = destinationScroll(dest)
+      return to ? to.top - origin().y : undefined
+    },
+    readingLine: readonly(readingLine),
     transformFor,
     hostFor: (page) => hosts.get(page),
     pageAtCss,

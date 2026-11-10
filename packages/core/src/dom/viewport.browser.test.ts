@@ -307,6 +307,118 @@ describe('createViewport', () => {
     expect(scrollTo).not.toHaveBeenCalled()
   })
 
+  it('xyz puts the point at the top-left', async () => {
+    const { container, viewport } = await setup('links')
+    viewport.scrollToDestination({ page: 1, fit: 'xyz', left: 72, top: 700 })
+    await settle()
+    const box = viewport.layout.get().boxes[1]!
+    const css = viewport.transformFor(1).toCss({ x: 72, y: 700 })
+    const originY = (container.querySelector('[data-ink-pages]') as HTMLElement).offsetTop
+    const originX = (container.querySelector('[data-ink-pages]') as HTMLElement)
+      .offsetLeft
+    expect(
+      Math.abs(container.scrollTop - (originY + box.top + css.y))
+    ).toBeLessThanOrEqual(1)
+    // The page is narrower than the container, so the left edge is clamped to the scroll range.
+    const wantLeft = Math.min(
+      originX + box.left + css.x,
+      container.scrollWidth - container.clientWidth
+    )
+    expect(Math.abs(container.scrollLeft - wantLeft)).toBeLessThanOrEqual(1)
+  })
+
+  it('xyz without top lands at the page top', async () => {
+    const { container, viewport } = await setup('links')
+    viewport.scrollToPage(1)
+    await settle()
+    const expected = container.scrollTop
+    container.scrollTo({ top: 0 })
+    await settle()
+    viewport.scrollToDestination({ page: 1, fit: 'xyz', left: 72 })
+    await settle()
+    expect(container.scrollTop).toBe(expected)
+  })
+
+  it('xyz keeps zoom', async () => {
+    const { viewport } = await setup('links')
+    const before = viewport.scale.get()
+    viewport.scrollToDestination({ page: 1, fit: 'xyz', left: 72, top: 600, zoom: 4 })
+    expect(viewport.scale.get()).toBe(before)
+  })
+
+  it('fitr scrolls even when partly visible', async () => {
+    const { container, viewport } = await setup('links')
+    const scrollTo = vi.spyOn(container, 'scrollTo')
+    viewport.scrollToDestination({
+      page: 0,
+      fit: 'fitr',
+      rect: { x: 72, y: 600, width: 100, height: 20 },
+    })
+    expect(scrollTo).toHaveBeenCalledTimes(1)
+    await settle()
+    scrollTo.mockClear()
+    viewport.scrollToDestination({
+      page: 0,
+      fit: 'fitr',
+      rect: { x: 72, y: 600, width: 100, height: 20 },
+    })
+    expect(scrollTo).toHaveBeenCalledTimes(1)
+  })
+
+  it('rotated page puts the converted point at the top-left', async () => {
+    const { container, viewport } = await setup('links')
+    const dest = { page: 2, fit: 'xyz', left: 10, top: 300 } as const
+    viewport.scrollToDestination(dest)
+    await settle()
+    const pagesEl = container.querySelector('[data-ink-pages]') as HTMLElement
+    const box = viewport.layout.get().boxes[2]!
+    const css = viewport.transformFor(2).toCss({ x: 10, y: 300 })
+    expect(viewport.transformFor(2).totalRotation).toBe(90)
+    // The last page cannot scroll its top to the container top, so allow for the scroll range.
+    const want = Math.min(
+      pagesEl.offsetTop + box.top + css.y,
+      container.scrollHeight - container.clientHeight
+    )
+    expect(Math.abs(container.scrollTop - want)).toBeLessThanOrEqual(1)
+    expect(pagesEl.offsetTop + box.top + css.y).toBeLessThan(
+      container.scrollHeight - container.clientHeight
+    )
+  })
+
+  it('single-page mode switches page', async () => {
+    const { viewport } = await setup('links')
+    viewport.setMode('single')
+    viewport.scrollToDestination({ page: 2, fit: 'fit' })
+    await settle()
+    expect(viewport.currentPage.get()).toBe(2)
+    expect(viewport.layout.get().boxes.map((b) => b.index)).toEqual([2])
+  })
+
+  it('reading line tracks scroll', async () => {
+    const { container, viewport } = await setup('outline')
+    container.scrollTo({ top: 500 })
+    await until(() => container.scrollTop === 500)
+    const originY = (container.querySelector('[data-ink-pages]') as HTMLElement).offsetTop
+    await until(() => viewport.readingLine.get() === 500 + 200 - originY)
+    expect(container.clientHeight).toBe(600)
+    expect(viewport.readingLine.get()).toBe(500 + 200 - originY)
+  })
+
+  it('destinationY matches the scroll it would cause', async () => {
+    const { container, viewport } = await setup('outline')
+    const originY = (container.querySelector('[data-ink-pages]') as HTMLElement).offsetTop
+    for (const dest of [
+      { page: 0, fit: 'xyz', top: 700 },
+      { page: 1, fit: 'fith', top: 600 },
+      { page: 4, fit: 'fit' },
+    ] as const) {
+      const y = viewport.destinationY(dest)!
+      viewport.scrollToDestination(dest)
+      await settle()
+      expect(Math.abs(container.scrollTop - originY - y)).toBeLessThan(1)
+    }
+  })
+
   it('scrollToPage puts the page top just below the gap', async () => {
     const { container, viewport } = await setup()
     viewport.scrollToPage(1)
