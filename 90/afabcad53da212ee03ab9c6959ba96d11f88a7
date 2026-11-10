@@ -1,0 +1,53 @@
+packages/core/src/dom/link-layer.ts
+  s_b0e6b2d5bd6b31::t_7775f03be5fe57 1-261
+packages/theme/theme.css
+  s_b0e6b2d5bd6b31::t_1f4be915400f04 40-41,356-378
+  s_b0e6b2d5bd6b31::t_fea824aaa8ae66 379
+packages/core/src/dom/link-layer.browser.test.ts
+  s_b0e6b2d5bd6b31::t_ef823b3b21ffbd 43
+  s_b0e6b2d5bd6b31::t_2db58e89206b2c 1-4,7-42,44-264,269-278
+  s_b0e6b2d5bd6b31::t_26160a82d70bfc 5-6,265-268
+packages/core/src/model/document.ts
+  s_b0e6b2d5bd6b31::t_f69e95aacdb940 282-284,286
+packages/core/src/model/links.ts
+  s_b0e6b2d5bd6b31::t_f69e95aacdb940 18-19,55-56,60-61,73
+packages/core/src/model/form/structure.ts
+  s_b0e6b2d5bd6b31::t_f69e95aacdb940 23-24,357
+packages/theme/README.md
+  s_b0e6b2d5bd6b31::t_6a6e843ade5972 95,97
+packages/theme/theme.test.ts
+  s_b0e6b2d5bd6b31::t_6a6e843ade5972 573-580,587-588
+  s_b0e6b2d5bd6b31::t_1ad358992a1368 581-586
+packages/core/src/dom/form-order.test.ts
+  s_b0e6b2d5bd6b31::t_facace3e13aeac 3,6,139-195
+  s_b0e6b2d5bd6b31::t_2de8a6ac9bb8a1 196
+packages/core/src/model/form/types.ts
+  s_b0e6b2d5bd6b31::t_405ea8b47c85d0 96-98
+packages/core/src/dom/page-mount.ts
+  s_b0e6b2d5bd6b31::t_0afe9b4f5ac10c 2-3,13,39-40,70-73,79-80,83-84,101-103,109-116,118-139,178-197,200-202,208-216,218,221,232
+  s_b0e6b2d5bd6b31::t_26160a82d70bfc 198-199
+packages/core/src/dom/viewer-engine.ts
+  s_b0e6b2d5bd6b31::t_effca197e96d80 17,381-383,385-389,391-397,401-411,417,419,458-464,466,470-474,476-478,481-508,515,522,769
+  s_b0e6b2d5bd6b31::t_d9f8240eb958f1 343
+  s_b0e6b2d5bd6b31::t_26160a82d70bfc 8,398-400
+packages/core/src/dom/form-order.ts
+  s_b0e6b2d5bd6b31::t_26160a82d70bfc 10
+  s_b0e6b2d5bd6b31::t_7596d16133a294 1,4-5,7-9,14,29,73-83,85-89,91-93,96-97,100,102,104-108,110,112,118,126-177
+  s_b0e6b2d5bd6b31::t_e5617025242a59 178
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "90afabcad53da212ee03ab9c6959ba96d11f88a7",
+  "prompts": {},
+  "sessions": {
+    "s_b0e6b2d5bd6b31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0c0efc0-e561-4d1e-a89e-c758b277f97e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
