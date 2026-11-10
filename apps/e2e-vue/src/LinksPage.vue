@@ -14,6 +14,7 @@ import {
   InkPageInput,
   InkPanel,
   InkRoot,
+  InkUndo,
   InkSidebar,
   InkToolbar,
   InkToolButton,
@@ -49,6 +50,7 @@ function swap(): void {
     :src="src"
     :assets="assets"
     :tools="tools"
+    :history="true"
     class="sandbox-root"
     @ready="status = 'ready'"
     @error="status = 'error'"
@@ -59,6 +61,7 @@ function swap(): void {
       <InkForward />
       <InkToolButton tool="select-text" />
       <InkToolButton tool="highlight" />
+      <InkUndo />
       <button type="button" data-testid="swap" @click="swap">
         Open {{ name === 'outline' ? 'links' : 'outline' }}
       </button>

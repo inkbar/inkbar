@@ -14,6 +14,7 @@
     InkPageInput,
     InkPanel,
     InkRoot,
+    InkUndo,
     InkSidebar,
     InkToolbar,
     InkToolButton,
@@ -46,6 +47,7 @@
   {src}
   {assets}
   {tools}
+  history={true}
   class="sandbox-root"
   onReady={() => (status = 'ready')}
   onError={() => (status = 'error')}
@@ -56,6 +58,7 @@
     <InkForward />
     <InkToolButton tool="select-text" />
     <InkToolButton tool="highlight" />
+    <InkUndo />
     <button type="button" data-testid="swap" onclick={swap}>
       Open {name === 'outline' ? 'links' : 'outline'}
     </button>

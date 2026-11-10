@@ -24,9 +24,25 @@ async function open(page: Page, doc: 'outline' | 'links'): Promise<void> {
   await expect(pageInput(page)).toHaveValue('1')
 }
 
+/** The element's box once it has stopped moving: scrolled into view, then two reads that match. */
+async function settledBox(page: Page, selector: string) {
+  const el = page.locator(selector).first()
+  await el.scrollIntoViewIfNeeded()
+  let last = ''
+  await expect
+    .poll(async () => {
+      const now = JSON.stringify(await el.boundingBox())
+      const same = now === last
+      last = now
+      return same
+    })
+    .toBe(true)
+  return (await el.boundingBox())!
+}
+
 /** Clicks the page at the middle of a link's box; link elements never take the pointer. */
 async function clickLink(page: Page, selector: string): Promise<void> {
-  const box = (await page.locator(selector).first().boundingBox())!
+  const box = await settledBox(page, selector)
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
 }
 
@@ -73,10 +89,10 @@ test('external link reports and does not navigate', async ({ page }) => {
   await expect(page.locator(anchor)).toBeAttached()
   await clickLink(page, anchor)
   await expect.poll(() => actions(page)).toHaveLength(1)
-  expect((await actions(page))[0]).toMatchObject({
-    kind: 'open-url',
-    url: 'https://example.com/a',
-  })
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => r(null))))
+  expect(await actions(page)).toEqual([
+    expect.objectContaining({ kind: 'open-url', url: 'https://example.com/a' }),
+  ])
   expect(page.url()).toBe(before)
   await expect(pageInput(page)).toHaveValue('1')
 })
@@ -84,13 +100,20 @@ test('external link reports and does not navigate', async ({ page }) => {
 test('a highlight over a link does not follow it', async ({ page }) => {
   await open(page, 'links')
   await expect(page.locator(link(1))).toBeAttached()
+  const marks = page.locator('[data-annotation][data-type="highlight"]')
+  await expect(marks).toHaveCount(0)
   await page.locator('[data-tool="highlight"]').click()
-  const box = (await page.locator(link(1)).first().boundingBox())!
+  // Link 1 covers the line "Chapter 2"; drag across that text, which lies under the link.
+  const text = '.ink-page[data-page="0"] [data-ink-text-layer] span:text-is("Chapter 2")'
+  const box = await settledBox(page, text)
   const y = box.y + box.height / 2
-  await page.mouse.move(box.x + 2, y)
+  await page.mouse.move(box.x + 1, y)
   await page.mouse.down()
-  await page.mouse.move(box.x + box.width - 2, y, { steps: 8 })
+  await page.mouse.move(box.x + box.width - 1, y, { steps: 8 })
   await page.mouse.up()
+  // The drag made a highlight, and did not follow the link.
+  await expect(marks).toHaveCount(1)
+  await expect(page.getByRole('button', { name: 'Undo' })).toBeEnabled()
   await expect(pageInput(page)).toHaveValue('1')
   await expect(back(page)).toBeDisabled()
   expect(await actions(page)).toEqual([])
@@ -107,6 +130,13 @@ test('Tab reaches links and Enter follows', async ({ page }) => {
     )
   }
   expect(reached).toBe(true)
+  // The first link in the layer: the one that goes to page 2.
+  expect(
+    await page.evaluate(() => {
+      const first = document.querySelector('[data-ink-link-layer] [data-ink-link]')
+      return document.activeElement === first
+    })
+  ).toBe(true)
   await page.keyboard.press('Enter')
   await expect(pageInput(page)).toHaveValue('2')
   await expect(back(page)).toBeEnabled()
@@ -122,6 +152,8 @@ test('opening another document clears Back and the outline', async ({ page }) =>
   await expect(forward(page)).toBeDisabled()
   await expect(page.getByRole('treeitem')).toHaveCount(0)
   await expect(page.getByText('This document has no outline')).toBeVisible()
+  // The document now open is `links`: its first page has link elements.
+  await expect(page.locator(link(1))).toBeAttached()
 })
 
 test('the outline panel has no axe violations', async ({ page }) => {

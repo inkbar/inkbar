@@ -8,6 +8,7 @@ import {
   InkPageInput,
   InkPanel,
   InkRoot,
+  InkUndo,
   InkSidebar,
   InkToolbar,
   InkToolButton,
@@ -37,6 +38,7 @@ export function LinksPage({ fixture }: { fixture: string }) {
       src={src}
       assets={assets}
       tools={tools}
+      history={true}
       className="sandbox-root"
       onReady={() => setStatus('ready')}
       onError={() => setStatus('error')}
@@ -47,6 +49,7 @@ export function LinksPage({ fixture }: { fixture: string }) {
         <InkForward />
         <InkToolButton tool="select-text" />
         <InkToolButton tool="highlight" />
+        <InkUndo />
         <button
           type="button"
           data-testid="swap"
