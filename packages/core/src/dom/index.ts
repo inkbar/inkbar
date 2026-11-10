@@ -273,10 +273,13 @@ export type {
   ThumbnailOptions,
   ThumbnailPainter,
 } from './thumbnails/thumbnail'
+export type { Navigation, NavigationDeps } from './navigation'
 export { createViewer } from './viewer/create-viewer'
 export type { CreateViewerOptions, Viewer } from './viewer/create-viewer'
 export {
+  createBack,
   createCommandButton,
+  createForward,
   createIcon,
   createNextPage,
   createPageCount,

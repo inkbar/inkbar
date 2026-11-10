@@ -23,7 +23,12 @@ export type { DocumentSource } from './model/source'
 export type { PageInfo, PageRotation } from './model/pages'
 export type { TextContent, TextItem } from './model/text'
 export { isNamedAction } from './model/destination'
-export type { Destination, NamedAction, RawDestination } from './model/destination'
+export type {
+  Destination,
+  LinkTarget,
+  NamedAction,
+  RawDestination,
+} from './model/destination'
 export type { SearchHit, SearchOptions, SearchResults } from './model/search'
 export type { PdfAssets } from './pdfjs/types'
 export * from './model/annotations/types'

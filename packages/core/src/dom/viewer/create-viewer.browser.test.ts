@@ -23,7 +23,9 @@ import {
 
 import { createColorMenu } from './color-menu'
 import {
+  createBack,
   createCommandButton,
+  createForward,
   createNextPage,
   createPageCount,
   createPageInput,
@@ -3301,5 +3303,86 @@ describe('undo and redo keys', () => {
     viewer.destroy()
     chord(root, { key: 'z', ctrlKey: true })
     expect(spy).not.toHaveBeenCalled()
+  })
+})
+
+describe('back and forward', () => {
+  it('Back button follows history', async () => {
+    const { viewer } = make('outline')
+    const { engine } = await ready(viewer)
+    const back = createBack(viewer)
+    const forward = createForward(viewer)
+    expect(back.getAttribute('aria-label')).toBe('Back')
+    expect(back.hasAttribute('data-ink-back')).toBe(true)
+    expect(forward.getAttribute('aria-label')).toBe('Forward')
+    expect(forward.hasAttribute('data-ink-forward')).toBe(true)
+    expect(back.disabled).toBe(true)
+    expect(forward.disabled).toBe(true)
+
+    await viewer.follow({ kind: 'resolved', dest: { page: 3, fit: 'fit' } })
+    await until(() => engine.viewport.currentPage.get() === 3)
+    expect(viewer.canGoBack.get()).toBe(true)
+    expect(back.disabled).toBe(false)
+    expect(forward.disabled).toBe(true)
+
+    back.click()
+    await until(() => engine.viewport.currentPage.get() === 0)
+    expect(back.disabled).toBe(true)
+    expect(forward.disabled).toBe(false)
+    expect(viewer.canGoForward.get()).toBe(true)
+
+    forward.click()
+    await until(() => engine.viewport.currentPage.get() === 3)
+    expect(forward.disabled).toBe(true)
+    viewer.back()
+    await until(() => engine.viewport.currentPage.get() === 0)
+    viewer.forward()
+    await until(() => engine.viewport.currentPage.get() === 3)
+  })
+
+  it('opening another document clears history', async () => {
+    const { viewer } = make('outline')
+    await ready(viewer)
+    const back = createBack(viewer)
+    await viewer.follow({ kind: 'named', action: 'LastPage' })
+    expect(viewer.canGoBack.get()).toBe(true)
+    expect(back.disabled).toBe(false)
+    viewer.open(fixtureUrl('outline'))
+    // Disabled while the next document loads, and still once it is ready.
+    expect(back.disabled).toBe(true)
+    await ready(viewer)
+    expect(viewer.canGoBack.get()).toBe(false)
+    expect(back.disabled).toBe(true)
+  })
+
+  it('form goto is undoable with Back', async () => {
+    const { viewer } = make('form-goto')
+    const { doc, engine } = await ready(viewer)
+    const scroll = viewer.element.querySelector<HTMLElement>('[data-ink-scroll]')!
+    // Partway down the first page: Back returns to this point, not to the page top.
+    scroll.scrollTop = 200
+    await settle()
+    const widget = doc.form.fields.get().find((f) => f.name === 'explicit')!.widgets[0]!
+    doc.form._dispatch({ widget: widget.id, name: 'Action' })
+    await until(() => engine.viewport.currentPage.get() === 2)
+    expect(viewer.canGoBack.get()).toBe(true)
+    viewer.back()
+    await until(() => engine.viewport.currentPage.get() === 0)
+    expect(scroll.scrollTop).toBeCloseTo(200, 0)
+  })
+
+  it('reports a URL target to the host and never opens it', async () => {
+    const onFormAction = vi.fn()
+    const { viewer } = make('outline', { onFormAction })
+    await ready(viewer)
+    const open = vi.spyOn(window, 'open')
+    await viewer.follow({ kind: 'url', url: 'https://example.com/x', newWindow: false })
+    expect(onFormAction).toHaveBeenCalledWith({
+      kind: 'open-url',
+      url: 'https://example.com/x',
+      newWindow: false,
+    })
+    expect(open).not.toHaveBeenCalled()
+    open.mockRestore()
   })
 })

@@ -14,6 +14,7 @@ import {
 
 import { hasControl, type SignFieldRequest } from './form-layer'
 import { tabOrder } from './form-order'
+import { createNavigation, type Navigation } from './navigation'
 import { createPageMount, type PageLayer, type PageMount } from './page-mount'
 import { createPluginLayers } from './plugins/layer'
 import { createSearchHighlights } from './search/highlights'
@@ -186,6 +187,12 @@ export interface ViewerEngine {
   /** The fonts a typed signature offers: the `signatureFonts` option, else `SIGNATURE_FONTS`. */
   readonly signatureFonts: readonly string[]
   readonly pages: ReadonlyMap<number, PageMount>
+  /**
+   * Back and forward through the document's jumps: links, outline items and form buttons that
+   * go to a page. It lasts as long as the engine, across rebuilds, and starts empty for each
+   * document. URL targets reach `onFormAction`.
+   */
+  readonly navigation: Navigation
   /**
    * Recreates the viewport for construction-only options, keeping zoom, page, mode, rotation
    * and tool. The scroll position is kept too: the user-space point at the top-left of the
@@ -469,13 +476,34 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
   }
   el.addEventListener('keydown', onFormTab)
 
-  // What the form asks of the host, and a field's go-to action, which the viewer runs itself.
+  /**
+   * History of the jumps made in this document. "Here" is the point the rebuild anchor keeps:
+   * the top-left of the visible area as an `xyz` destination, so Back puts the view where it
+   * was. When that corner is in a gap, `top` is left out and the page lands at its top.
+   */
+  const navigation = createNavigation({
+    viewport: () => (destroyed ? undefined : viewport),
+    document: () => (destroyed ? undefined : doc),
+    here: () => {
+      const a = scrollAnchor(viewport)
+      return (
+        a && {
+          page: a.page,
+          fit: 'xyz',
+          left: a.user.x,
+          top: a.vertical ? a.user.y : undefined,
+        }
+      )
+    },
+    report: (a) => opts.onFormAction?.(a),
+  })
+
+  // What the form asks of the host, and a field's go-to action, which the viewer runs itself
+  // as a jump Back returns from.
   const stopForm = [
     doc.form.on('action', (a) => opts.onFormAction?.(a)),
     doc.form.on('alert', (message) => opts.onFormAlert?.(message)),
-    doc.form.on('goto', (page) => {
-      if (!destroyed && page >= 0 && page < doc.pages.length) viewport.scrollToPage(page)
-    }),
+    doc.form.on('goto', (page) => navigation.goTo({ page, fit: 'fit' })),
   ]
 
   /**
@@ -652,6 +680,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     },
     signatureFonts: opts.signatureFonts ? [...opts.signatureFonts] : SIGNATURE_FONTS,
     pages,
+    navigation,
     rebuild(next) {
       if (destroyed) return
       const state = {
@@ -691,6 +720,8 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       el.removeEventListener('keydown', onFormTab)
       tabWait?.cancel()
       for (const stop of stopForm) stop()
+      // The engine is one document's: its history goes with it.
+      navigation.clear()
       if (!highlight) delete el.dataset.inkFormHighlight
     },
   }

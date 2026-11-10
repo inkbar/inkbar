@@ -9,6 +9,8 @@
  * belongs: `viewer.element.prepend(bar)` above the document, `append` below it.
  */
 import {
+  ArrowLeft,
+  ArrowRight,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -237,6 +239,40 @@ function historyButton(viewer: Viewer, action: 'undo' | 'redo'): HTMLButtonEleme
       b.disabled = !can
     })
   )
+  return b
+}
+
+/**
+ * Returns to where the view was before the last jump (`viewer.back()`): a link, an outline
+ * item or a form button that went to a page. Disabled while there is nowhere to go back to.
+ */
+export function createBack(viewer: Viewer): HTMLButtonElement {
+  return navigationButton(viewer, 'back')
+}
+
+/** Goes forward again after `createBack` (`viewer.forward()`); disabled until Back is used. */
+export function createForward(viewer: Viewer): HTMLButtonElement {
+  return navigationButton(viewer, 'forward')
+}
+
+function navigationButton(viewer: Viewer, action: 'back' | 'forward'): HTMLButtonElement {
+  const back = action === 'back'
+  const b = button(
+    back ? 'Back' : 'Forward',
+    { class: `ink-${action}`, [`data-ink-${action}`]: '' },
+    back ? ArrowLeft : ArrowRight
+  )
+  b.addEventListener('click', () => viewer[action]())
+  // The last step back disables the focused button: focus goes back to the document.
+  keepHistoryFocus(b, () =>
+    viewer.element.querySelector<HTMLElement>('[data-ink-scroll]')
+  )
+  const can = back ? viewer.canGoBack : viewer.canGoForward
+  const show = (on: boolean): void => {
+    b.disabled = !on
+  }
+  show(can.get())
+  onViewerDestroy(viewer, can.subscribe(show))
   return b
 }
 
