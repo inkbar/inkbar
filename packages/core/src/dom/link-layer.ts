@@ -8,6 +8,7 @@
  */
 import { rectFromQuad, type Rect } from '../model/geometry'
 
+import type { FollowOptions } from './navigation'
 import type { CssRect, PageTransform } from './transform'
 import type { LinkTarget, NamedAction } from '../model/destination'
 import type { InkDocument } from '../model/document'
@@ -20,8 +21,8 @@ export interface LinkLayerOptions {
   page: number
   transform: PageTransform
   document: InkDocument
-  /** Follows a link's target; the engine passes `Navigation.follow`. */
-  follow(target: LinkTarget): void
+  /** Follows a link's target from its page; the engine passes `Navigation.follow`. */
+  follow(target: LinkTarget, opts: FollowOptions): void
   /** Text the text layer has under `rect`, or '' when none. */
   textUnder(rect: Rect): string
 }
@@ -96,7 +97,7 @@ export function createLinkLayer(opts: LinkLayerOptions): LinkLayer {
 
   const follow = (e: Entry) => {
     if (!destroyed && !e.dead && e.link.target.kind !== 'unsupported')
-      opts.follow(e.link.target)
+      opts.follow(e.link.target, { from: e.link.page })
   }
 
   /** Marks every piece of a wrapped link while its stop has a visible focus ring. */

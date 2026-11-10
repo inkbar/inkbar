@@ -19,6 +19,16 @@ import type { ViewerAction } from '../model/form/types'
 /** The positions kept on each side; past this, the oldest goes. */
 const LIMIT = 50
 
+/** Where a followed target comes from. */
+export interface FollowOptions {
+  /**
+   * The page the target was pressed on: a link's own page. Next and previous page run from it,
+   * as the link layer names them; without it they run from the current page, as an outline
+   * item's do.
+   */
+  from?: number
+}
+
 export interface Navigation {
   /** Whether `back()` has somewhere to go. */
   readonly canGoBack: Readable<boolean>
@@ -34,7 +44,7 @@ export interface Navigation {
    * Resolves and follows any target. URLs go to `report` as `open-url` (only http, https,
    * mailto and tel); unsupported targets and destinations that resolve to nothing do nothing.
    */
-  follow(target: LinkTarget): Promise<void>
+  follow(target: LinkTarget, opts?: FollowOptions): Promise<void>
   /** Forgets every position, as when another document opens. */
   clear(): void
 }
@@ -125,7 +135,7 @@ export function createNavigation(deps: NavigationDeps): Navigation {
     back: () => step(backStack, forwardStack),
     forward: () => step(forwardStack, backStack),
     goTo,
-    async follow(target) {
+    async follow(target, opts) {
       switch (target.kind) {
         case 'resolved':
           goTo(target.dest)
@@ -142,7 +152,7 @@ export function createNavigation(deps: NavigationDeps): Navigation {
           const vp = deps.viewport()
           const count = deps.document()?.pages.length ?? 0
           if (!vp || count === 0) return
-          const current = vp.currentPage.get()
+          const current = opts?.from ?? vp.currentPage.get()
           const page = namedPage(target.action, current, count)
           // Next on the last page (previous on the first) goes nowhere and records nothing.
           if (page !== current) goTo({ page, fit: 'fit' })

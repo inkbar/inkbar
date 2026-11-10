@@ -41,7 +41,7 @@ function mountPage(doc: InkDocument, page = 0, rotation: ViewRotation = 0) {
   const host = mountContainer(transform.cssWidth, transform.cssHeight)
   host.dataset.inkRoot = ''
   host.style.setProperty('--total-scale-factor', String(transform.scale))
-  const follow = vi.fn<(target: LinkTarget) => void>()
+  const follow = vi.fn<(target: LinkTarget, opts: { from?: number }) => void>()
   const mount: PageMount = createPageMount({
     document: doc,
     page,
@@ -161,7 +161,7 @@ describe('link layer', () => {
     const click = new MouseEvent('click', { bubbles: true, cancelable: true })
     a.dispatchEvent(click)
     expect(click.defaultPrevented).toBe(true)
-    expect(follow).toHaveBeenCalledExactlyOnceWith(link.target)
+    expect(follow).toHaveBeenCalledExactlyOnceWith(link.target, { from: link.page })
     // The second line of a wrapped link is decoration: hidden and never a stop.
     const [first, second] = elementsOf(host, linkAt(doc, 462))
     expect(first!.tagName).toBe('A')
@@ -227,12 +227,14 @@ describe('link layer', () => {
     const internal = linkAt(doc, 696)
     stopOf(host, internal).focus()
     await userEvent.keyboard('{Enter}')
-    expect(follow).toHaveBeenCalledExactlyOnceWith(internal.target)
+    expect(follow).toHaveBeenCalledExactlyOnceWith(internal.target, {
+      from: internal.page,
+    })
     follow.mockClear()
     const url = linkAt(doc, 636)
     stopOf(host, url).focus()
     await userEvent.keyboard('{Enter}')
-    expect(follow).toHaveBeenCalledExactlyOnceWith(url.target)
+    expect(follow).toHaveBeenCalledExactlyOnceWith(url.target, { from: url.page })
   })
 
   it('layer never takes pointer events', async () => {

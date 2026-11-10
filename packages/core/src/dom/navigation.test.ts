@@ -133,6 +133,17 @@ describe('createNavigation', () => {
     expect(at().page).toBe(4)
   })
 
+  it("named actions from a link run from the link's page", async () => {
+    const { nav, at, currentPage } = setup(10)
+    // The link sits on page 5 while the view counts page 2 as current.
+    currentPage.set(2)
+    await nav.follow({ kind: 'named', action: 'NextPage' }, { from: 5 })
+    expect(at().page).toBe(6)
+    currentPage.set(2)
+    await nav.follow({ kind: 'named', action: 'PrevPage' }, { from: 5 })
+    expect(at().page).toBe(4)
+  })
+
   it('url targets are reported, not followed', async () => {
     const { nav, report, scrollToDestination } = setup()
     await nav.follow({ kind: 'url', url: 'https://example.com/a', newWindow: true })

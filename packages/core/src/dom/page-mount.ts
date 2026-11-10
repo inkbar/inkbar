@@ -11,6 +11,7 @@ import { createOverlay, type DecorateAnnotation, type Overlay } from './overlay'
 import { createPageRenderer, type PageRenderer } from './page-renderer'
 import { createTextLayer, type TextLayerHandle } from './text-layer'
 
+import type { FollowOptions } from './navigation'
 import type { PluginLayers } from './plugins/layer'
 import type { SearchHighlights } from './search/highlights'
 import type { PageTransform } from './transform'
@@ -43,7 +44,7 @@ export interface PageMountOptions {
   /** A signature field asked to be signed. */
   onSignField?(req: SignFieldRequest): void
   /** A link was activated from the keyboard or by assistive technology. */
-  followLink?(target: LinkTarget): void
+  followLink?(target: LinkTarget, opts: FollowOptions): void
   /** Plugin layers, mounted above the overlay. The engine passes them for its pages only. */
   layers?: PluginLayers
   /** Search match highlights, mounted below the overlay. */
@@ -129,7 +130,7 @@ export function createPageMount(opts: PageMountOptions): PageMount {
           page,
           transform,
           document,
-          follow: (target) => opts.followLink?.(target),
+          follow: (target, o) => opts.followLink?.(target, o),
           textUnder: (rect) => {
             // A relabel asks for every link at once: the text is measured once for all of them.
             if (!measured) {

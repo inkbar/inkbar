@@ -347,7 +347,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       // refreshes the fields once its controller exists.
       formActive: formsActive,
       onSignField: (req) => opts.onSignField?.(req),
-      followLink: (target) => void navigation.follow(target),
+      followLink: (target, o) => void navigation.follow(target, o),
       ...(layers ? { layers } : {}),
       ...(highlights ? { highlights } : {}),
       onError: (cause, layer) => {
@@ -725,7 +725,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       options: toolOptions,
       ...(plugins && { onPress: (kind, press) => plugins.emitPress(kind, press) }),
       linkAt: (page, point) => linkAt(vp, page, point),
-      onLink: (link) => void navigation.follow(link.target),
+      onLink: (link) => void navigation.follow(link.target, { from: link.page }),
       ctx: {
         toolStyle,
         store: doc.annotations,
