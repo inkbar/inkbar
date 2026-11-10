@@ -92,9 +92,9 @@ Sidebars and thumbnails have their own sizes:
 | `--ink-sidebar-rail-width` | `48px`  | The width of a sidebar's icon rail |
 | `--ink-thumbnail-width`    | `120px` | The width of a page thumbnail      |
 
-## Search and form colours
+## Search, form and link colours
 
-`--ink-search-hit` and `--ink-search-current` colour search matches and the current match. `--ink-mark-selected-outline` outlines a plugin mark whose record is selected (default `2px solid #2740f5`). `--ink-form-field-bg`, `--ink-form-field-focus` and `--ink-form-field-invalid` colour form fields, the focused field and a field that fails its check.
+`--ink-search-hit` and `--ink-search-current` colour search matches and the current match. `--ink-mark-selected-outline` outlines a plugin mark whose record is selected (default `2px solid #2740f5`). `--ink-form-field-bg`, `--ink-form-field-focus` and `--ink-form-field-invalid` colour form fields, the focused field and a field that fails its check. `--ink-link-hover` tints a link under the pointer (default `transparent`, so links show no box).
 
 ## Your own controls
 

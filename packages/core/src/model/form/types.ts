@@ -93,8 +93,9 @@ export interface FormWidget {
   id: string
   page: number
   /**
-   * Its place among the page's widgets in the page's `/Annots`, from 0. Widgets paint in this
-   * order, and Tab follows it unless the page's `/Tabs` reads rows or columns.
+   * Its place in the page's `/Annots`, from 0, counting the page's other annotations too, so
+   * widgets and links share it. Widgets paint in this order, and Tab follows it unless the
+   * page's `/Tabs` reads rows or columns.
    */
   order?: number
   /** User space, before the page's /Rotate. */

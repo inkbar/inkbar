@@ -15,6 +15,8 @@ export interface PageLink {
   rect: Rect
   /** One quad per line when the link wraps; the rect is their bounds. */
   quads?: Quad[]
+  /** Position in the page's `/Annots`, which Tab follows unless the page's `/Tabs` says otherwise. */
+  order?: number
   target: LinkTarget
 }
 
@@ -50,11 +52,13 @@ function targetOf(data: PdfjsAnnotationData): LinkTarget {
 
 /**
  * A link annotation read from PDF.js, or `undefined` for anything that is not a visible link.
- * Links are never Gloss annotations: they are read-only structure of the file.
+ * Links are never Gloss annotations: they are read-only structure of the file. `order` is its
+ * position in the page's `/Annots`.
  */
 export function linkFromPdfjs(
   page: number,
-  data: PdfjsAnnotationData
+  data: PdfjsAnnotationData,
+  order?: number
 ): PageLink | undefined {
   if (data.subtype !== 'Link' || data.hidden || data.noView) return undefined
   const quads = data.quadPoints ? quadsFromFlat(data.quadPoints) : []
@@ -66,6 +70,7 @@ export function linkFromPdfjs(
       { x: data.rect[2], y: data.rect[3] }
     ),
     ...(quads.length > 0 ? { quads } : {}),
+    ...(order === undefined ? {} : { order }),
     target: targetOf(data),
   }
 }

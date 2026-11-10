@@ -5,6 +5,7 @@
  * errors back through the callbacks.
  */
 import { InkError, isInkError } from '../model/errors'
+import { rectFromQuad, type Point, type Rect } from '../model/geometry'
 import {
   createMemorySignatureStore,
   createSignatureLibrary,
@@ -13,7 +14,7 @@ import {
 } from '../model/signatures'
 
 import { hasControl, type SignFieldRequest } from './form-layer'
-import { tabOrder } from './form-order'
+import { pageStopOrder } from './form-order'
 import { createNavigation, type Navigation } from './navigation'
 import { createPageMount, type PageLayer, type PageMount } from './page-mount'
 import { createPluginLayers } from './plugins/layer'
@@ -41,7 +42,6 @@ import type { PageTransform, ViewRotation } from './transform'
 import type { ToolStyle } from '../model/annotations/tool-style'
 import type { InkDocument } from '../model/document'
 import type { FormWidget, ViewerAction } from '../model/form/types'
-import type { Point } from '../model/geometry'
 
 /** A user-space point on a page, used to put the scroll position back after a rebuild. */
 interface ScrollAnchor {
@@ -340,6 +340,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       // refreshes the fields once its controller exists.
       formActive: formsActive,
       onSignField: (req) => opts.onSignField?.(req),
+      followLink: (target) => void navigation.follow(target),
       ...(layers ? { layers } : {}),
       ...(highlights ? { highlights } : {}),
       onError: (cause, layer) => {
@@ -377,32 +378,45 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
   }
 
   /**
-   * The first widget (`last`: the last) in Tab order on each page with a control to stop at,
-   * by page index.
+   * The first stop (`last`: the last) in Tab order on `page`, by its user-space rect, among the
+   * fields with a control to stop at (while fields take input) and the links Inkbar follows.
+   * `widgets` holds those fields' widgets by page.
    */
-  function tabEdges(last: boolean): Map<number, FormWidget> {
-    const fields = doc.form.fields.get()
-    const byId = new Map(
-      fields.flatMap((f) =>
-        hasControl(f) ? f.widgets.map((w) => [w.id, w] as const) : []
-      )
-    )
+  function tabEdge(
+    page: number,
+    last: boolean,
+    widgets: ReadonlyMap<number, readonly FormWidget[]>
+  ): Rect | undefined {
     const state = doc.form.widgetState.get()
-    const edges = new Map<number, FormWidget>()
-    for (const id of tabOrder(fields, doc.form._tabs, doc.pages, doc.form._structure)) {
-      const w = byId.get(id)
-      if (!w || (state[id]?.hidden ?? (w.hidden || w.printOnly))) continue
-      if (last || !edges.has(w.page)) edges.set(w.page, w)
-    }
-    return edges
+    const shown = (widgets.get(page) ?? []).filter(
+      (w) => !(state[w.id]?.hidden ?? (w.hidden || w.printOnly))
+    )
+    const links = doc.links(page).filter((l) => l.target.kind !== 'unsupported')
+    if (shown.length === 0 && links.length === 0) return undefined
+    const rects = new Map<string, Rect>([
+      ...shown.map((w) => [w.id, w.rect] as const),
+      ...links.map(
+        (l) => [l.id, l.quads?.[0] ? rectFromQuad(l.quads[0]) : l.rect] as const
+      ),
+    ])
+    const order = pageStopOrder(
+      shown,
+      links,
+      doc.form._tabs.get(page),
+      doc.pages[page],
+      page,
+      doc.form._structure.get(page)
+    )
+    const id = last ? order.at(-1) : order[0]
+    return id === undefined ? undefined : rects.get(id)
   }
 
   /** The page a Tab waits for: its stops were not mounted when the view scrolled to it. */
   let tabWait: { page: number; retry: () => void; cancel: () => void } | undefined
 
-  /** The first stop of `page` (`back`: its last), once its form layer is mounted. */
+  /** The first stop of `page` (`back`: its last), once the page is mounted. */
   const edgeStop = (page: number, back: boolean): HTMLElement | undefined => {
-    const stops = pages.get(page)?.form?.tabStops() ?? []
+    const stops = pages.get(page)?.tabStops() ?? []
     return back ? stops.at(-1) : stops[0]
   }
 
@@ -441,42 +455,71 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
   }
 
   /**
-   * Tab on a page's last field stop (Shift+Tab on its first) goes to the first (last) stop of
-   * the next (previous) page that has fields, mounting it and scrolling it into view. A page
-   * that has not mounted once the view scrolls to it gets one more try, when it mounts or on the
-   * next frame; after that, focus moves on as the browser's Tab would. Past the last page's
-   * fields, Tab leaves the viewer as usual.
+   * Tab among a page's fields and links, and across pages. On a page with both, Tab follows the
+   * page's one order of them: they sit in two layers, so the browser's own Tab would visit one
+   * layer and then the other. Tab on a page's last stop (Shift+Tab on its first) goes to the
+   * first (last) stop of the next (previous) page that has any, mounting it and scrolling it
+   * into view. A page that has not mounted once the view scrolls to it gets one more try, when
+   * it mounts or on the next frame; after that, focus moves on as the browser's Tab would. Past
+   * the last page's stops, Tab leaves the viewer as usual.
    */
-  function onFormTab(e: KeyboardEvent): void {
+  function onPageTab(e: KeyboardEvent): void {
     if (e.key !== 'Tab' || e.altKey || e.ctrlKey || e.metaKey || e.defaultPrevented)
       return
     const target = e.target
-    if (!(target instanceof Element) || !target.closest('[data-ink-form-layer]')) return
-    if (!formsActive()) return
+    if (
+      !(target instanceof HTMLElement) ||
+      !target.closest('[data-ink-form-layer], [data-ink-link-layer]')
+    )
+      return
     const back = e.shiftKey
-    const from = [...pages].find(([, m]) => m.form?.element.contains(target))
+    const from = [...pages].find(
+      ([, m]) => m.form?.element.contains(target) || m.links?.element.contains(target)
+    )
     if (!from) return
     const [page, mount] = from
-    if (mount.form?.tabStops().at(back ? 0 : -1) !== target) return
-    const edges = [...tabEdges(back)]
-      .filter(([p]) => (back ? p < page : p > page))
-      .sort(([a], [b]) => (back ? b - a : a - b))
-    for (const [next, widget] of edges) {
-      viewport.scrollToRect(next, widget.rect)
+    const stops = mount.tabStops()
+    const at = stops.indexOf(target)
+    if (at < 0) return
+    const within = stops[back ? at - 1 : at + 1]
+    if (within) {
+      if (mount.form && mount.links) {
+        e.preventDefault()
+        within.focus()
+      }
+      return
+    }
+    const fields = formsActive() ? doc.form.fields.get() : []
+    const widgets = new Map<number, FormWidget[]>()
+    for (const f of fields)
+      if (hasControl(f))
+        for (const w of f.widgets) {
+          const list = widgets.get(w.page) ?? []
+          list.push(w)
+          widgets.set(w.page, list)
+        }
+    for (
+      let next = page + (back ? -1 : 1);
+      next >= 0 && next < doc.pages.length;
+      next += back ? -1 : 1
+    ) {
+      const rect = tabEdge(next, back, widgets)
+      if (!rect) continue
+      viewport.scrollToRect(next, rect)
       const to = edgeStop(next, back)
       if (to) {
         e.preventDefault()
         to.focus()
         return
       }
-      if (!pages.get(next)?.form) {
+      if (!pages.has(next)) {
         e.preventDefault()
         awaitTabStop(next, back, target)
         return
       }
     }
   }
-  el.addEventListener('keydown', onFormTab)
+  el.addEventListener('keydown', onPageTab)
 
   // `onAction` wins; the old `onFormAction` is only a fallback while it lasts.
   const reportAction = (a: ViewerAction): void =>
@@ -723,7 +766,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       layers?.destroy()
       highlights?.destroy()
       stopRedecorate?.()
-      el.removeEventListener('keydown', onFormTab)
+      el.removeEventListener('keydown', onPageTab)
       tabWait?.cancel()
       for (const stop of stopForm) stop()
       // The engine is one document's: its history goes with it.
