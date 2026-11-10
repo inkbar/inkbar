@@ -160,6 +160,7 @@
 
   import type { PluginHistory } from '@inkbar/core'
   import type {
+    Navigation,
     PluginHost,
     SearchController,
     ToolController,
@@ -239,6 +240,7 @@
   let activatedNow: string | null = null
   let viewport = $state.raw<Viewport | null>(null)
   let tools = $state.raw<ToolController | null>(null)
+  let navigation = $state.raw<Navigation | null>(null)
 
   const documentStatus = useReadable<InkStatus>(() => document?.status, IDLE)
   const status = $derived(override ?? documentStatus.current)
@@ -633,6 +635,12 @@
     viewportEl,
     get viewport() {
       return viewport
+    },
+    get navigation() {
+      return navigation
+    },
+    setNavigation(n) {
+      navigation = n
     },
     get tools() {
       return tools

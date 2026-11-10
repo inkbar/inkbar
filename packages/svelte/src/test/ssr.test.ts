@@ -65,6 +65,9 @@ describe('@inkbar/svelte on the server', () => {
         'InkPanel',
         'InkThumbnail',
         'InkThumbnails',
+        'InkOutline',
+        'InkBack',
+        'InkForward',
         'InkRecordList',
         'InkSearchResults',
         'useRecords',
@@ -115,6 +118,17 @@ describe('@inkbar/svelte on the server', () => {
     // about 2.3 s of the 2.6 s is the import of Bits UI's single entry, where the Svelte compiler
     // goes through some 230 components, measured alone on a fast machine. Warm, the whole test
     // takes 0.5 s. The default 5 s is too close to that when other packages' tasks run beside it.
+  }, 30_000)
+  it('InkOutline renders an empty tree on the server', async () => {
+    const { default: Host } = await import('./harness/OutlineSsrHost.svelte')
+    const { body } = render(Host, { props: { assets } })
+    const tree = /<ul[^>]*class="[^"]*ink-outline-tree[^"]*"[^>]*>/.exec(body)?.[0] ?? ''
+    expect(tree).toContain('role="tree"')
+    expect(tree).toContain('aria-label="Outline"')
+    expect(body).not.toContain('ink-outline-item')
+    expect(body).not.toContain('ink-outline-empty')
+    expect(body).toMatch(/<button[^>]*data-ink-back[^>]*disabled/)
+    expect(body).toMatch(/<button[^>]*data-ink-forward[^>]*disabled/)
   }, 30_000)
   it('InkSidebar renders its chrome on the server; thumbnails render empty', async () => {
     const { default: Host } = await import('./harness/SidebarSsrHost.svelte')
