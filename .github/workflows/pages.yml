@@ -64,6 +64,34 @@ jobs:
           # Previews push to the same branch alongside this deploy.
           attempt-limit: 10
 
+      # A preview is removed when its pull request closes, but a removal run can still be lost.
+      # Leftovers grew gh-pages until Pages timed out publishing it, so every deploy of the root
+      # also drops previews of pull requests that are no longer open.
+      - if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          open=$(gh pr list --state open --limit 1000 --json number -q '.[].number')
+          for _ in 1 2 3 4 5; do
+            rm -rf "$RUNNER_TEMP/pages"
+            git fetch --depth=1 origin gh-pages
+            git worktree add --detach "$RUNNER_TEMP/pages" FETCH_HEAD
+            cd "$RUNNER_TEMP/pages"
+            for dir in pr-preview/pr-*; do
+              [ -d "$dir" ] || continue
+              grep -qx "${dir#pr-preview/pr-}" <<< "$open" || git rm -rq "$dir"
+            done
+            git diff --cached --quiet && exit 0
+            git commit -qm 'chore: remove previews of closed pull requests'
+            git push origin HEAD:gh-pages && exit 0
+            cd "$GITHUB_WORKSPACE"
+            git worktree remove --force "$RUNNER_TEMP/pages"
+            sleep $((RANDOM % 20 + 5))
+          done
+          exit 1
+
       # The preview action rebases a rejected push three times. With a whole stack deploying at
       # once that can run out, so a failed attempt waits a moment and tries once more.
       - id: preview
