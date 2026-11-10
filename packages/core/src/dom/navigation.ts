@@ -15,7 +15,7 @@ import type {
   RawDestination,
 } from '../model/destination'
 import type { InkDocument } from '../model/document'
-import type { FormAction } from '../model/form/types'
+import type { ViewerAction } from '../model/form/types'
 
 /** The positions kept on each side; past this, the oldest goes. */
 const LIMIT = 50
@@ -46,7 +46,7 @@ export interface NavigationDeps {
   /** Where the view is now, as a destination to come back to. */
   here: () => Destination | undefined
   /** Hands a URL to the host: Inkbar never opens one itself. */
-  report: (a: FormAction) => void
+  report: (a: ViewerAction) => void
 }
 
 /**

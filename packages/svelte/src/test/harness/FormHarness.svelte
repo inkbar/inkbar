@@ -2,11 +2,11 @@
   import type {
     FieldsChange,
     FieldValues,
-    FormAction,
     InkDocument,
     InkError,
     PdfAssets,
     SignatureTemplate,
+    ViewerAction,
   } from '@inkbar/core'
 
   export interface FormHarnessProps {
@@ -21,7 +21,8 @@
     swapTo?: { src: string; initial?: FieldValues }
     templates?: SignatureTemplate[]
     formHighlight?: boolean
-    onformaction?: (action: FormAction) => void
+    onaction?: (action: ViewerAction) => void
+    onformaction?: (action: ViewerAction) => void
     onReady?: (doc: InkDocument) => void
     onError?: (error: InkError) => void
     onChanged?: (next: FieldValues, change: FieldsChange) => void
@@ -50,6 +51,7 @@
     swapTo,
     templates = [],
     formHighlight,
+    onaction,
     onformaction,
     onReady,
     onError,
@@ -77,6 +79,7 @@
     onChanged?.(next, change)
   }}
   {formHighlight}
+  {onaction}
   {onformaction}
   {onReady}
   {onError}

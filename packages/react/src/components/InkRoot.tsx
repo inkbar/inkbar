@@ -55,7 +55,7 @@ import type {
   DocumentSource,
   FieldsChange,
   FieldValues,
-  FormAction,
+  ViewerAction,
   InkDocument,
   PdfAssets,
   PluginHistory,
@@ -110,8 +110,13 @@ export interface InkRootProps extends Omit<
    * Called only while the fields are controlled.
    */
   onFieldsChange?: ((next: FieldValues, change: FieldsChange) => void) | undefined
-  /** The form asked to submit, open a link, send mail, print or prompt. Inkbar does none. */
-  onFormAction?: ((action: FormAction) => void) | undefined
+  /**
+   * The viewer asked the host to submit a form, open a link, send mail, print or prompt. Inkbar
+   * does none of these.
+   */
+  onAction?: ((action: ViewerAction) => void) | undefined
+  /** @deprecated Use `onAction`. Removed in 0.13.0. Ignored when `onAction` is given. */
+  onFormAction?: ((action: ViewerAction) => void) | undefined
   /** Tints fillable form fields. Default true. A change applies to the open document in place. */
   formHighlight?: boolean | undefined
   tool?: ToolId | undefined
@@ -228,6 +233,7 @@ export function InkRoot({
   onChange,
   fields,
   onFieldsChange,
+  onAction,
   onFormAction,
   formHighlight,
   tool,
@@ -289,6 +295,7 @@ export function InkRoot({
     controlled: controlledProp,
     fields,
     onFieldsChange,
+    onAction,
     onFormAction,
     history,
     historyEnabled,
@@ -308,7 +315,7 @@ export function InkRoot({
   })
 
   /**
-   * Hands `e` to `onError` one microtask later, as `onFieldsChange` and `onFormAction` are: a
+   * Hands `e` to `onError` one microtask later, as `onFieldsChange` and `onAction` are: a
    * script or a press reports from inside its own work. Dropped once `doc` is no longer open.
    */
   const reportErrorFor = useCallback(
@@ -642,13 +649,16 @@ export function InkRoot({
     (p: number) => latest.current.onPageChange?.(p),
     [latest]
   )
-  const reportFormAction = useCallback(
-    (a: FormAction) => {
+  const reportAction = useCallback(
+    (a: ViewerAction) => {
       // As for `onFieldsChange`: the engine reports from inside a press or a script.
       const doc = documentRef.current
       queueMicrotask(() => {
         if (documentRef.current !== doc) return
-        flushSync(() => latest.current.onFormAction?.(a))
+        flushSync(() => {
+          const { onAction, onFormAction } = latest.current
+          ;(onAction ?? onFormAction)?.(a)
+        })
       })
     },
     [latest]
@@ -832,7 +842,7 @@ export function InkRoot({
       rootEl,
       setViewport,
       formHighlight,
-      reportFormAction,
+      reportAction,
       reportError,
     }),
     [
@@ -867,7 +877,7 @@ export function InkRoot({
       rootEl,
       setViewport,
       formHighlight,
-      reportFormAction,
+      reportAction,
       reportError,
     ]
   )

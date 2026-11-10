@@ -179,7 +179,7 @@ export function InkViewport({
       // The field's own button again, while its menu is open, closes the menu.
       onSignField: (req) =>
         setSignRequest((open) => (open?.widget === req.widget ? null : req)),
-      onFormAction: (a) => latest.current.ctx.reportFormAction(a),
+      onAction: (a) => latest.current.ctx.reportAction(a),
       onFormAlert: (message) =>
         setAlert((prev) => ({ message, shown: (prev?.shown ?? 0) + 1 })),
       onActivate: (id) => latest.current.ctx.setActivated(id),

@@ -14,7 +14,7 @@ import type {
 } from '../model/form/controller'
 import type {
   FieldValue,
-  FormAction,
+  ViewerAction,
   FormEvent,
   FormField,
   FormWidget,
@@ -663,7 +663,7 @@ function scriptAction(
   method: unknown,
   args: unknown,
   form: FormController
-): FormAction | undefined {
+): ViewerAction | undefined {
   const list = Array.isArray(args) ? (args as unknown[]) : []
   const first = list[0]
   const named =
@@ -701,7 +701,7 @@ function scriptAction(
     }
     case 'mailDoc':
     case 'mailForm': {
-      const out: FormAction & { kind: 'mail' } = {
+      const out: ViewerAction & { kind: 'mail' } = {
         kind: 'mail',
         withData: method === 'mailForm',
       }

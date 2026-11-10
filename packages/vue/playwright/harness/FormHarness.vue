@@ -3,13 +3,13 @@ import {
   createMemorySignatureStore,
   type FieldsChange,
   type FieldValues,
-  type FormAction,
   type InkDocument,
   type InkError,
   type PdfAssets,
   type SignatureTemplate,
+  type ViewerAction,
 } from '@inkbar/core'
-import { ref, shallowRef } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
 
 import InkRoot from '../../src/components/InkRoot.vue'
 import InkToolbar from '../../src/components/InkToolbar.vue'
@@ -33,6 +33,8 @@ const props = withDefaults(
     /** What the Swap button opens next, and the controlled values it starts from. */
     swapTo?: { src: string; initial?: FieldValues } | undefined
     listenOnReady?: boolean
+    /** Which of InkRoot's two action listeners to attach: the new, the deprecated, or both. */
+    listen?: 'action' | 'form-action' | 'both'
   }>(),
   {
     controlled: false,
@@ -42,10 +44,12 @@ const props = withDefaults(
     formHighlight: undefined,
     swapTo: undefined,
     listenOnReady: false,
+    listen: 'both',
   }
 )
 const emit = defineEmits<{
-  'form-action': [action: FormAction]
+  action: [action: ViewerAction]
+  'form-action': [action: ViewerAction]
   error: [error: InkError]
   changed: [next: FieldValues, change: FieldsChange | undefined]
 }>()
@@ -67,6 +71,16 @@ function onError(e: InkError): void {
   record(e.code)
   emit('error', e)
 }
+
+/** Only the listeners the test asked for, as InkRoot sees which of the two are set. */
+const actionListeners = computed(() => ({
+  ...(props.listen !== 'form-action' && {
+    onAction: (a: ViewerAction) => emit('action', a),
+  }),
+  ...(props.listen !== 'action' && {
+    onFormAction: (a: ViewerAction) => emit('form-action', a),
+  }),
+}))
 
 /** A host that owns the values through v-model, the way an app would. */
 const values = ref<FieldValues>(props.initial)
@@ -92,6 +106,7 @@ function onSwap(): void {
 <template>
   <!-- No tools on purpose: form signing must work without the signature tool. -->
   <InkRoot
+    v-bind="actionListeners"
     :src="src"
     :assets="props.assets"
     :zoom="1"
@@ -99,7 +114,6 @@ function onSwap(): void {
     :fields="props.controlled ? values : undefined"
     :form-highlight="props.formHighlight"
     @update:fields="onFields"
-    @form-action="emit('form-action', $event)"
     @ready="onReady"
     @error="onError"
   >

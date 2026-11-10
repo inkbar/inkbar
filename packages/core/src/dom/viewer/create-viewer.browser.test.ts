@@ -2797,14 +2797,14 @@ describe('forms', () => {
     expect(over.querySelectorAll('[data-handle]').length).toBeGreaterThan(0)
   })
 
-  it('onFormAction receives a submit action', async () => {
-    const onFormAction = vi.fn()
-    const { viewer } = make('form-scripted', { onFormAction })
+  it('onAction receives a form submit action', async () => {
+    const onAction = vi.fn()
+    const { viewer } = make('form-scripted', { onAction })
     await ready(viewer)
     await until(() => widgetBox(viewer, 'send') !== null)
     widgetBox(viewer, 'send')!.querySelector<HTMLButtonElement>('button')!.click()
-    expect(onFormAction).toHaveBeenCalledTimes(1)
-    expect(onFormAction.mock.calls[0]![0]).toMatchObject({
+    expect(onAction).toHaveBeenCalledTimes(1)
+    expect(onAction.mock.calls[0]![0]).toMatchObject({
       kind: 'submit',
       url: 'https://example.com/xfdf',
       format: 'xfdf',
@@ -3371,18 +3371,40 @@ describe('back and forward', () => {
     expect(scroll.scrollTop).toBeCloseTo(200, 0)
   })
 
-  it('reports a URL target to the host and never opens it', async () => {
-    const onFormAction = vi.fn()
-    const { viewer } = make('outline', { onFormAction })
+  it('onAction receives open-url and the viewer never opens it', async () => {
+    const onAction = vi.fn()
+    const { viewer } = make('outline', { onAction })
     await ready(viewer)
     const open = vi.spyOn(window, 'open')
     await viewer.follow({ kind: 'url', url: 'https://example.com/x', newWindow: false })
-    expect(onFormAction).toHaveBeenCalledWith({
+    expect(onAction).toHaveBeenCalledWith({
       kind: 'open-url',
       url: 'https://example.com/x',
       newWindow: false,
     })
     expect(open).not.toHaveBeenCalled()
     open.mockRestore()
+  })
+
+  it('onFormAction still works', async () => {
+    const onFormAction = vi.fn()
+    const { viewer } = make('outline', { onFormAction })
+    await ready(viewer)
+    await viewer.follow({ kind: 'url', url: 'https://example.com/x', newWindow: true })
+    expect(onFormAction).toHaveBeenCalledWith({
+      kind: 'open-url',
+      url: 'https://example.com/x',
+      newWindow: true,
+    })
+  })
+
+  it('onAction wins over onFormAction', async () => {
+    const onAction = vi.fn()
+    const onFormAction = vi.fn()
+    const { viewer } = make('outline', { onAction, onFormAction })
+    await ready(viewer)
+    await viewer.follow({ kind: 'url', url: 'https://example.com/x', newWindow: false })
+    expect(onAction).toHaveBeenCalledTimes(1)
+    expect(onFormAction).not.toHaveBeenCalled()
   })
 })

@@ -157,11 +157,11 @@ describe('form filling', () => {
     expect(heard()).toBe('0')
   })
 
-  it('onformaction receives submit', async () => {
+  it('onaction receives submit', async () => {
     const actions: unknown[] = []
     await harness({
       src: fixtureUrl('form-scripted'),
-      onformaction: (a) => actions.push(a),
+      onaction: (a) => actions.push(a),
     })
     await loc(await button('send')).click()
     await expect.poll(() => actions.length).toBe(1)
@@ -170,6 +170,42 @@ describe('form filling', () => {
       url: 'https://example.com/xfdf',
       format: 'xfdf',
     })
+  })
+
+  it('onaction receives open-url', async () => {
+    const actions: unknown[] = []
+    await harness({
+      src: fixtureUrl('form-scripted'),
+      onaction: (a) => actions.push(a),
+    })
+    await loc(await button('site')).click()
+    await expect
+      .poll(() => actions)
+      .toEqual([{ kind: 'open-url', url: 'https://example.com/', newWindow: false }])
+  })
+
+  it('onformaction still works', async () => {
+    const actions: unknown[] = []
+    await harness({
+      src: fixtureUrl('form-scripted'),
+      onformaction: (a) => actions.push(a),
+    })
+    await loc(await button('send')).click()
+    await expect.poll(() => actions.length).toBe(1)
+  })
+
+  it('onaction wins over onformaction', async () => {
+    const actions: unknown[] = []
+    const old: unknown[] = []
+    await harness({
+      src: fixtureUrl('form-scripted'),
+      onaction: (a) => actions.push(a),
+      onformaction: (a) => old.push(a),
+    })
+    await loc(await button('send')).click()
+    await expect.poll(() => actions.length).toBe(1)
+    await sleep(100)
+    expect(old).toEqual([])
   })
 
   it('a script alert shows the dialog', async () => {

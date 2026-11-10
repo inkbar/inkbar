@@ -21,7 +21,7 @@ import {
 import { assets } from 'virtual:inkbar-assets'
 import { ref } from 'vue'
 
-import type { FormAction } from '@inkbar/core'
+import type { ViewerAction } from '@inkbar/core'
 
 const props = defineProps<{ fixture: string }>()
 
@@ -29,7 +29,7 @@ const src = { url: fixtureUrl(props.fixture as FixtureName), key: props.fixture 
 const status = ref('loading')
 const actions = ref<string[]>([])
 
-function onAction(a: FormAction): void {
+function onAction(a: ViewerAction): void {
   actions.value = [describeAction(a), ...actions.value]
 }
 </script>
@@ -41,7 +41,7 @@ function onAction(a: FormAction): void {
     class="sandbox-root"
     @ready="status = 'ready'"
     @error="status = 'error'"
-    @form-action="onAction"
+    @action="onAction"
   >
     <InkToolbar>
       <InkToolButton tool="select-text" />

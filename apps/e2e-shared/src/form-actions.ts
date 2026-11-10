@@ -1,7 +1,7 @@
-import type { FormAction } from '@inkbar/core'
+import type { ViewerAction } from '@inkbar/core'
 
 /** One line per form action, for the action lists of the review apps and the sandbox: its kind and its target. */
-export function describeAction(a: FormAction): string {
+export function describeAction(a: ViewerAction): string {
   switch (a.kind) {
     case 'submit':
     case 'open-url':

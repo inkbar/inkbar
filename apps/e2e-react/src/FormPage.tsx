@@ -15,7 +15,7 @@ import {
 import { useCallback, useMemo, useState } from 'react'
 import { assets } from 'virtual:inkbar-assets'
 
-import type { FormAction } from '@inkbar/core'
+import type { ViewerAction } from '@inkbar/core'
 
 /*
  * A form fixture, opened with Inkbar keeping both annotations and field values, so its own
@@ -29,8 +29,8 @@ export function FormPage({ fixture }: { fixture: string }) {
   )
   const [status, setStatus] = useState('loading')
   const [actions, setActions] = useState<string[]>([])
-  const onFormAction = useCallback(
-    (a: FormAction) => setActions((list) => [describeAction(a), ...list]),
+  const onAction = useCallback(
+    (a: ViewerAction) => setActions((list) => [describeAction(a), ...list]),
     []
   )
   return (
@@ -40,7 +40,7 @@ export function FormPage({ fixture }: { fixture: string }) {
       className="sandbox-root"
       onReady={() => setStatus('ready')}
       onError={() => setStatus('error')}
-      onFormAction={onFormAction}
+      onAction={onAction}
     >
       <InkToolbar>
         <InkToolButton tool="select-text" />

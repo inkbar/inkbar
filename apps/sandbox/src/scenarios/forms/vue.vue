@@ -3,7 +3,7 @@
  * Form filling needs no creation tools: the viewer passes none. Fields edit in place, and the
  * document keeps their values and undo history, so Undo covers field edits too. Signature
  * fields sign from a popover with a saved signature, from the store and fonts passed here. The
- * form's requests (submit, open a link, print) come to @form-action, because Inkbar never
+ * form's requests (submit, open a link, print) come to @action, because Inkbar never
  * sends, opens or prints anything itself.
  */
 import {
@@ -35,7 +35,7 @@ import { changedFields } from '../../shared/form'
 import { signatureFonts, signatures } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
-import type { FieldValues, FormAction, InkDocument } from '@inkbar/core'
+import type { FieldValues, ViewerAction, InkDocument } from '@inkbar/core'
 
 const { source, log, onDocument, openFile } = defineProps<ScenarioProps>()
 
@@ -55,8 +55,8 @@ function onReady(doc: InkDocument): void {
   onDocument(doc)
 }
 
-function onFormAction(action: FormAction): void {
-  log('@form-action', action)
+function onAction(action: ViewerAction): void {
+  log('@action', action)
 }
 </script>
 
@@ -68,7 +68,7 @@ function onFormAction(action: FormAction): void {
     :signature-fonts="signatureFonts"
     class="scenario-root"
     @ready="onReady"
-    @form-action="onFormAction"
+    @action="onAction"
   >
     <InkToolbar class="scenario-toolbar">
       <div class="scenario-group" role="group" aria-label="Tools">

@@ -13,7 +13,7 @@ import type {
   FieldsMode,
   FieldValue,
   FieldValues,
-  FormAction,
+  ViewerAction,
   FormEvent,
   FormField,
   FormSetResult,
@@ -63,7 +63,7 @@ export interface FormController {
    * them.
    */
   setControlledValue(next: FieldValues): void
-  on(event: 'action', fn: (a: FormAction) => void): () => void
+  on(event: 'action', fn: (a: ViewerAction) => void): () => void
   on(event: 'alert', fn: (message: string) => void): () => void
   /**
    * A script failed. The document keeps working; the form layer shows or logs it. Errors from
@@ -78,7 +78,7 @@ export interface FormController {
   /** @internal The scripting seam and the form layer. */
   readonly _store: RecordStore<FieldRecord>
   _attachScripting(s: FormScripting): void
-  _emitAction(a: FormAction): void
+  _emitAction(a: ViewerAction): void
   /**
    * Runs the widget's scripts for `event`, and on `Action` its non-script action (reset,
    * submit, URI, named Print, GoTo). A Blur drops the widget's uncommitted text.
@@ -261,7 +261,7 @@ export function createFormController(opts: FormControllerOptions): FormControlle
   let scripting: FormScripting | undefined
   let destroyed = false
   const emitter = new Emitter<{
-    action: FormAction
+    action: ViewerAction
     alert: string
     error: InkError
     focus: string
@@ -628,7 +628,7 @@ export function createFormController(opts: FormControllerOptions): FormControlle
     ) {
       const stop = emitter.on(
         event,
-        fn as (payload: FormAction | string | InkError | number) => void
+        fn as (payload: ViewerAction | string | InkError | number) => void
       )
       if (event === 'error' && unheard) {
         const early = unheard

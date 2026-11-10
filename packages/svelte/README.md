@@ -159,7 +159,7 @@ On a touch screen, two fingers pinch to zoom the document and scroll it. With `d
 
 ## Forms
 
-`InkViewport` fills the PDF's form fields and runs the form's scripts. `useForm()` returns the fields, their values, and `set` and `reset`. Use `bind:fields` to hold the values in your own state. The form never submits, opens a link, sends mail or prints: `onformaction` hands each request to you. `formHighlight={false}` turns off the field tint, and a change applies to the open document in place.
+`InkViewport` fills the PDF's form fields and runs the form's scripts. `useForm()` returns the fields, their values, and `set` and `reset`. Use `bind:fields` to hold the values in your own state. The form never submits, opens a link, sends mail or prints: `onaction` hands each request to you; so does a link to a URL. `onformaction` still works until 0.13.0. `formHighlight={false}` turns off the field tint, and a change applies to the open document in place.
 
 The [forms guide](https://inkbar.dev/docs/guides/forms/) covers controlled fields, form actions, scripts, signature fields and saving values as Gloss.
 

@@ -74,10 +74,10 @@ test('a host push updates the field', async ({ mount, page }) => {
   await expect(page.getByTestId('host-fields')).toHaveAttribute('data-heard', '0')
 })
 
-test('onFormAction receives submit', async ({ mount, page }) => {
+test('onAction receives submit', async ({ mount, page }) => {
   const actions: unknown[] = []
   await mount(
-    harness({ src: fixtureUrl('form-scripted'), onFormAction: (a) => actions.push(a) })
+    harness({ src: fixtureUrl('form-scripted'), onAction: (a) => actions.push(a) })
   )
   await widget(page, 'send').locator('button').click()
   await expect.poll(() => actions.length).toBe(1)
@@ -86,6 +86,42 @@ test('onFormAction receives submit', async ({ mount, page }) => {
     url: 'https://example.com/xfdf',
     format: 'xfdf',
   })
+})
+
+test('onAction receives open-url', async ({ mount, page }) => {
+  const actions: unknown[] = []
+  await mount(
+    harness({ src: fixtureUrl('form-scripted'), onAction: (a) => actions.push(a) })
+  )
+  await widget(page, 'site').locator('button').click()
+  await expect
+    .poll(() => actions)
+    .toEqual([{ kind: 'open-url', url: 'https://example.com/', newWindow: false }])
+})
+
+test('onFormAction still works', async ({ mount, page }) => {
+  const actions: unknown[] = []
+  await mount(
+    harness({ src: fixtureUrl('form-scripted'), onFormAction: (a) => actions.push(a) })
+  )
+  await widget(page, 'send').locator('button').click()
+  await expect.poll(() => actions.length).toBe(1)
+})
+
+test('onAction wins over onFormAction', async ({ mount, page }) => {
+  const actions: unknown[] = []
+  const old: unknown[] = []
+  await mount(
+    harness({
+      src: fixtureUrl('form-scripted'),
+      onAction: (a) => actions.push(a),
+      onFormAction: (a) => old.push(a),
+    })
+  )
+  await widget(page, 'send').locator('button').click()
+  await expect.poll(() => actions.length).toBe(1)
+  await page.waitForTimeout(100)
+  expect(old).toEqual([])
 })
 
 test('a script alert shows the dialog', async ({ mount, page }) => {
