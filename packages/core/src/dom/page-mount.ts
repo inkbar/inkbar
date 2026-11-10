@@ -1,6 +1,12 @@
 import { createFormLayer, type FormLayer, type SignFieldRequest } from './form-layer'
 import { pageStopOrder } from './form-order'
-import { createLinkLayer, textInBox, type LinkLayer } from './link-layer'
+import {
+  createLinkLayer,
+  textInBox,
+  textRuns,
+  type LinkLayer,
+  type TextRun,
+} from './link-layer'
 import { createOverlay, type DecorateAnnotation, type Overlay } from './overlay'
 import { createPageRenderer, type PageRenderer } from './page-renderer'
 import { createTextLayer, type TextLayerHandle } from './text-layer'
@@ -56,10 +62,10 @@ export interface PageMountOptions {
 }
 
 /**
- * The page layers that can fail and recover: the canvas, the text layer and the form layer's
- * canvas of widget appearances.
+ * The page's layers: the canvas, the text layer and the form layer's canvas of widget
+ * appearances, which can fail and recover, and the links, which draw no pixels and never report.
  */
-export type PageLayer = 'canvas' | 'text' | 'form'
+export type PageLayer = 'canvas' | 'text' | 'links' | 'form'
 
 export interface PageMount {
   readonly renderer: PageRenderer
@@ -115,6 +121,7 @@ export function createPageMount(opts: PageMountOptions): PageMount {
       text.onRendered?.()
     },
   })
+  let measured: { runs: TextRun[]; origin: DOMRect } | undefined
   const links =
     document.links(page).length > 0
       ? createLinkLayer({
@@ -124,11 +131,18 @@ export function createPageMount(opts: PageMountOptions): PageMount {
           document,
           follow: (target) => opts.followLink?.(target),
           textUnder: (rect) => {
+            // A relabel asks for every link at once: the text is measured once for all of them.
+            if (!measured) {
+              measured = {
+                runs: textRuns(textLayer.element),
+                origin: host.getBoundingClientRect(),
+              }
+              queueMicrotask(() => (measured = undefined))
+            }
             const box = transform.toCssRect(rect)
-            const origin = host.getBoundingClientRect()
-            const left = origin.left + box.left
-            const top = origin.top + box.top
-            return textInBox(textLayer.element, {
+            const left = measured.origin.left + box.left
+            const top = measured.origin.top + box.top
+            return textInBox(measured.runs, {
               left,
               top,
               right: left + box.width,

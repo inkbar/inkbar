@@ -94,6 +94,23 @@ describe('link layer', () => {
     }
   })
 
+  it('moves its links when the page is zoomed', async () => {
+    const doc = await open()
+    const { host, mount } = mountPage(doc)
+    const zoomed = createPageTransform(doc.pages[0]!, 1.5)
+    mount.update(zoomed)
+    const origin = host.getBoundingClientRect()
+    const link = linkAt(doc, 462)
+    elementsOf(host, link).forEach((el, i) => {
+      const want = zoomed.toCssRect(rectFromQuad(link.quads![i]!))
+      const got = el.getBoundingClientRect()
+      expect(Math.abs(got.left - origin.left - want.left)).toBeLessThan(1)
+      expect(Math.abs(got.top - origin.top - want.top)).toBeLessThan(1)
+      expect(Math.abs(got.width - want.width)).toBeLessThan(1)
+      expect(Math.abs(got.height - want.height)).toBeLessThan(1)
+    })
+  })
+
   it('names come from the text under the link', async () => {
     const doc = await open()
     const { host, mount } = mountPage(doc)
@@ -172,6 +189,36 @@ describe('link layer', () => {
     expect(internal.getAttribute('role')).toBe('link')
     expect(internal.tabIndex).toBe(0)
     expect(mount.tabStops()).toHaveLength(5)
+  })
+
+  it('a destination that names no page is inert', async () => {
+    const doc = await open()
+    const real = doc.links(0)
+    const dead = (id: string, raw: string): PageLink => ({
+      ...real[0]!,
+      id,
+      target: { kind: 'dest', raw },
+    })
+    vi.spyOn(doc, 'links').mockImplementation((page) =>
+      page === 0
+        ? [...real, dead('nowhere', 'no-such-name'), dead('broken', 'fails')]
+        : []
+    )
+    const resolve = doc.resolveDestination.bind(doc)
+    vi.spyOn(doc, 'resolveDestination').mockImplementation((raw) =>
+      raw === 'fails' ? Promise.reject(new Error('unreadable')) : resolve(raw)
+    )
+    const { host, mount, follow } = mountPage(doc)
+    for (const id of ['nowhere', 'broken']) {
+      const el = host.querySelector<HTMLElement>(`[data-ink-link="${id}"]`)!
+      await until(() => el.getAttribute('aria-disabled') === 'true')
+      expect(el.tabIndex).toBe(-1)
+      expect(el.title).toBe('This link is not supported')
+      expect(mount.tabStops()).not.toContain(el)
+      el.click()
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    }
+    expect(follow).not.toHaveBeenCalled()
   })
 
   it('Enter follows', async () => {
@@ -253,6 +300,49 @@ describe('link tab order', () => {
     expect(nameOf(document.activeElement)).toBe('header.ref')
     await userEvent.keyboard('{Shift>}{Tab}{/Shift}')
     expect(nameOf(document.activeElement)).toBe('link-bottom')
+  })
+
+  it('Tab into a page starts at its first stop, Shift+Tab at its last', async () => {
+    const doc = await open('form-fields')
+    const at = (id: string, y: number): PageLink => ({
+      id,
+      page: 0,
+      rect: { x: 72, y, width: 80, height: 10 },
+      target: { kind: 'url', url: `https://example.com/${id}`, newWindow: false },
+    })
+    // The first link is halfway down: fields above it come first in the page's order, though
+    // the links come first in the DOM. The last stop is a link below every field.
+    const fake = [at('link-mid', 400), at('link-bottom', 2)]
+    vi.spyOn(doc, 'links').mockImplementation((page) => (page === 0 ? fake : []))
+    const before = document.createElement('button')
+    before.textContent = 'before'
+    document.body.append(before)
+    const container = mountContainer(800, 600)
+    container.style.overflow = 'auto'
+    const after = document.createElement('button')
+    after.textContent = 'after'
+    document.body.append(after)
+    const engine = mountViewer({ container, document: doc, zoom: 1, buffer: 0 })
+    cleanup.push(
+      () => (engine.destroy(), container.remove(), before.remove(), after.remove())
+    )
+    await until(() => container.querySelector('[data-ink-field="name"] input') !== null)
+    const nameOf = (el: Element | null) =>
+      el?.closest<HTMLElement>('[data-ink-widget]')?.dataset.inkField ??
+      el?.closest<HTMLElement>('[data-ink-link]')?.dataset.inkLink
+    const onPage = () =>
+      document.activeElement?.closest('[data-ink-form-layer], [data-ink-link-layer]')
+    before.focus()
+    for (let i = 0; i < 5 && !onPage(); i++) await userEvent.keyboard('{Tab}')
+    expect(nameOf(document.activeElement)).toBe('name')
+    after.focus()
+    for (let i = 0; i < 5 && !onPage(); i++)
+      await userEvent.keyboard('{Shift>}{Tab}{/Shift}')
+    expect(nameOf(document.activeElement)).toBe('link-bottom')
+    // A press on a field is never moved.
+    const city = container.querySelector<HTMLElement>('[data-ink-field="city"] input')!
+    await userEvent.click(city)
+    expect(nameOf(document.activeElement)).toBe('city')
   })
 
   it('Tab from the last link on a page goes to the next page that has links', async () => {

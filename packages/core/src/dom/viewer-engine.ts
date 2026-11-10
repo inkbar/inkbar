@@ -521,6 +521,46 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
   }
   el.addEventListener('keydown', onPageTab)
 
+  /**
+   * The Tab key pressed now, and whether with Shift: set on its keydown, wherever focus is, and
+   * cleared once the browser has moved focus for it, so a pointer press never counts.
+   */
+  let tabbing: { back: boolean } | undefined
+  const onTabKey = (e: KeyboardEvent): void => {
+    if (e.key !== 'Tab') return
+    const press = { back: e.shiftKey }
+    tabbing = press
+    setTimeout(() => {
+      if (tabbing === press) tabbing = undefined
+    })
+  }
+  el.ownerDocument.addEventListener('keydown', onTabKey, true)
+
+  /**
+   * Tab from outside a page onto its fields and links starts at the page's first stop (Shift+Tab
+   * at its last). The browser enters by DOM order, which on a page with both is the first link or
+   * the last field, so stops before it in the page's order would be skipped.
+   */
+  function onStopFocus(e: FocusEvent): void {
+    const target = e.target
+    if (!tabbing || !(target instanceof HTMLElement)) return
+    const on = [...pages.values()].find(
+      (m) => m.form?.element.contains(target) || m.links?.element.contains(target)
+    )
+    if (!on?.form || !on.links) return
+    const from = e.relatedTarget
+    if (
+      from instanceof Node &&
+      (on.form.element.contains(from) || on.links.element.contains(from))
+    )
+      return
+    const stops = on.tabStops()
+    if (!stops.includes(target)) return
+    const edge = tabbing.back ? stops.at(-1) : stops[0]
+    if (edge && edge !== target) edge.focus()
+  }
+  el.addEventListener('focusin', onStopFocus)
+
   // `onAction` wins; the old `onFormAction` is only a fallback while it lasts.
   const reportAction = (a: ViewerAction): void =>
     (opts.onAction ?? opts.onFormAction)?.(a)
@@ -767,6 +807,8 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       highlights?.destroy()
       stopRedecorate?.()
       el.removeEventListener('keydown', onPageTab)
+      el.ownerDocument.removeEventListener('keydown', onTabKey, true)
+      el.removeEventListener('focusin', onStopFocus)
       tabWait?.cancel()
       for (const stop of stopForm) stop()
       // The engine is one document's: its history goes with it.

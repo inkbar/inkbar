@@ -60,6 +60,8 @@ interface Entry {
   text: string
   /** The page an internal link goes to, once known. */
   to: number | undefined
+  /** Its destination names no page, so it goes nowhere and is treated as unsupported. */
+  dead: boolean
 }
 
 /** Draws `page`'s links (`document.links(page)`) over the page in `host`. */
@@ -79,7 +81,7 @@ export function createLinkLayer(opts: LinkLayerOptions): LinkLayer {
     if (e.text) return e.text
     const target = e.link.target
     if (target.kind === 'url') return target.url
-    if (target.kind === 'unsupported') return UNSUPPORTED
+    if (target.kind === 'unsupported' || e.dead) return UNSUPPORTED
     // Until the destination is looked up, the page is not known.
     return e.to === undefined ? 'Go to link' : `Go to page ${e.to + 1}`
   }
@@ -93,12 +95,20 @@ export function createLinkLayer(opts: LinkLayerOptions): LinkLayer {
   }
 
   const follow = (e: Entry) => {
-    if (!destroyed && e.link.target.kind !== 'unsupported') opts.follow(e.link.target)
+    if (!destroyed && !e.dead && e.link.target.kind !== 'unsupported')
+      opts.follow(e.link.target)
   }
 
   /** Marks every piece of a wrapped link while its stop has a visible focus ring. */
   const markFocus = (e: Entry, on: boolean) => {
     for (const { el } of e.pieces) el.toggleAttribute('data-ink-focused', on)
+  }
+
+  /** Makes a link's stop inert: not followed, not a Tab stop, and titled with why. */
+  const disable = (el: HTMLElement) => {
+    el.title = UNSUPPORTED
+    el.setAttribute('aria-disabled', 'true')
+    el.tabIndex = -1
   }
 
   const readText = (e: Entry) =>
@@ -114,6 +124,7 @@ export function createLinkLayer(opts: LinkLayerOptions): LinkLayer {
       link,
       pieces: [],
       text: '',
+      dead: false,
       to:
         target.kind === 'resolved'
           ? target.dest.page
@@ -135,11 +146,8 @@ export function createLinkLayer(opts: LinkLayerOptions): LinkLayer {
           el.setAttribute('aria-hidden', 'true')
         } else {
           el.setAttribute('role', 'link')
-          if (target.kind === 'unsupported') {
-            el.title = UNSUPPORTED
-            el.setAttribute('aria-disabled', 'true')
-            el.tabIndex = -1
-          } else el.tabIndex = 0
+          if (target.kind === 'unsupported') disable(el)
+          else el.tabIndex = 0
         }
       }
       el.className = 'ink-link'
@@ -181,14 +189,21 @@ export function createLinkLayer(opts: LinkLayerOptions): LinkLayer {
   for (const e of entries) {
     const target = e.link.target
     if (target.kind !== 'dest') continue
-    doc
-      .resolveDestination(target.raw)
-      .then((dest) => {
-        if (destroyed || !dest) return
-        e.to = dest.page
-        e.pieces[0]!.el.setAttribute('aria-label', name(e))
-      })
-      .catch(() => {})
+    const stop = e.pieces[0]!.el
+    // A destination that names no page goes nowhere, so it is inert like an unsupported link
+    // rather than a Tab stop that does nothing.
+    const settle = (page: number | undefined) => {
+      if (destroyed) return
+      if (page === undefined) {
+        e.dead = true
+        disable(stop)
+      } else e.to = page
+      stop.setAttribute('aria-label', name(e))
+    }
+    doc.resolveDestination(target.raw).then(
+      (dest) => settle(dest?.page),
+      () => settle(undefined)
+    )
   }
 
   return {
@@ -214,26 +229,38 @@ export function createLinkLayer(opts: LinkLayerOptions): LinkLayer {
   }
 }
 
+/** A run of a text layer's text and where it shows, in client coordinates. */
+export interface TextRun {
+  node: Text
+  rect: DOMRect
+}
+
+/** The text runs of `layer` (a text layer), measured once for any number of `textInBox` calls. */
+export function textRuns(layer: HTMLElement): TextRun[] {
+  const walker = layer.ownerDocument.createTreeWalker(layer, NodeFilter.SHOW_TEXT)
+  const runs: TextRun[] = []
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const rect = node.parentElement?.getBoundingClientRect()
+    if (rect) runs.push({ node: node as Text, rect })
+  }
+  return runs
+}
+
 /**
- * The text of `layer` (a text layer) whose characters sit in `box`, a client-coordinate box.
- * Text runs that lie wholly inside count whole; runs that cross the edge count the characters
- * whose centre is inside, so a link over one word of a line is named by that word.
+ * The text of `runs` (from `textRuns`) whose characters sit in `box`, a client-coordinate box.
+ * Runs that lie wholly inside count whole; runs that cross the edge count the characters whose
+ * centre is inside, so a link over one word of a line is named by that word.
  */
 export function textInBox(
-  layer: HTMLElement,
+  runs: readonly TextRun[],
   box: { left: number; top: number; right: number; bottom: number }
 ): string {
-  const ownerDoc = layer.ownerDocument
   const inside = (x: number, y: number) =>
     x >= box.left && x <= box.right && y >= box.top && y <= box.bottom
-  const walker = ownerDoc.createTreeWalker(layer, NodeFilter.SHOW_TEXT)
-  const range = ownerDoc.createRange()
   const parts: string[] = []
-  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    const text = node as Text
-    const run = text.parentElement?.getBoundingClientRect()
+  let range: Range | undefined
+  for (const { node: text, rect: run } of runs) {
     if (
-      !run ||
       run.right < box.left ||
       run.left > box.right ||
       run.bottom < box.top ||
@@ -248,13 +275,15 @@ export function textInBox(
       run.bottom <= box.bottom
     )
       out = text.data
-    else
+    else {
+      range ??= text.ownerDocument.createRange()
       for (let i = 0; i < text.data.length; i++) {
         range.setStart(text, i)
         range.setEnd(text, i + 1)
         const c = range.getBoundingClientRect()
         if (inside(c.left + c.width / 2, c.top + c.height / 2)) out += text.data[i]
       }
+    }
     if (out.trim()) parts.push(out.trim())
   }
   return parts.join(' ').replace(/\s+/g, ' ')
