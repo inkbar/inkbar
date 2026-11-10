@@ -227,12 +227,15 @@ export function InkViewport({
         setPages((prev) => prev.map((p) => (p.page === page ? { ...p, error: err } : p))),
     })
     engine.current = e
+    // The engine exists from here; its navigation lasts for its life, across rebuilds.
+    c.setNavigation(e.navigation)
     return () => {
       for (const stop of stops) stop()
       e.destroy()
       engine.current = null
       builtWith.current = null
       c.setViewport(null, null)
+      c.setNavigation(null)
       c.setOpenedToolIds(null)
       setPages((prev) => (prev.length === 0 ? prev : []))
       // Their fields and the document they came from are gone.

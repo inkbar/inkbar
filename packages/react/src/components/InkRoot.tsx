@@ -65,6 +65,7 @@ import type {
 import type {
   DecorateAnnotation,
   InkPlugin,
+  Navigation,
   PluginHost,
   SearchController,
   Tool,
@@ -669,6 +670,7 @@ export function InkRoot({
     },
     [reportErrorFor]
   )
+  const [navigation, setNavigation] = useState<Navigation | null>(null)
   const setViewport = useCallback((vp: Viewport | null, tc: ToolController | null) => {
     viewportRef.current = vp
     setViewportState(vp)
@@ -817,6 +819,8 @@ export function InkRoot({
       selection,
       viewport,
       tools,
+      navigation,
+      setNavigation,
       tool: internalTool,
       setTool,
       hostTools,
@@ -853,6 +857,7 @@ export function InkRoot({
       selection,
       viewport,
       tools,
+      navigation,
       internalTool,
       setTool,
       hostTools,

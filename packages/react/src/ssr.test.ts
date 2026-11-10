@@ -72,6 +72,9 @@ describe('@inkbar/react on the server', () => {
         'InkPanel',
         'InkThumbnail',
         'InkThumbnails',
+        'InkOutline',
+        'InkBack',
+        'InkForward',
         'InkRecordList',
         'InkSearchResults',
         'useRecords',
@@ -141,6 +144,29 @@ describe('@inkbar/react on the server', () => {
     const { openDocument } = await import('@inkbar/core')
     await openDocument(new Uint8Array([1]), { assets })
     expect(evaluated.pdfjs).toBe(true)
+  })
+
+  it('InkOutline renders an empty tree on the server', () => {
+    const html = renderToString(
+      createElement(
+        entry.InkRoot,
+        { src: '/doc.pdf', assets },
+        createElement(entry.InkOutline),
+        createElement(
+          entry.InkToolbar,
+          null,
+          createElement(entry.InkBack),
+          createElement(entry.InkForward)
+        )
+      )
+    )
+    const tree = /<ul[^>]*class="ink-outline-tree"[^>]*>/.exec(html)?.[0] ?? ''
+    expect(tree).toContain('role="tree"')
+    expect(tree).toContain('aria-label="Outline"')
+    expect(html).not.toContain('ink-outline-item')
+    expect(html).not.toContain('ink-outline-empty')
+    expect(html).toMatch(/<button[^>]*data-ink-back[^>]*disabled/)
+    expect(html).toMatch(/<button[^>]*data-ink-forward[^>]*disabled/)
   })
 
   it('InkSidebar renders its chrome on the server; thumbnails render empty', async () => {
