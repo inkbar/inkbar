@@ -1,0 +1,1 @@
+import{En as e}from"./file-up-CllqWiGS.js";var t=e(`inkbar-sandbox-signatures`),n=[`Dancing Script`];export{t as n,n as t};
