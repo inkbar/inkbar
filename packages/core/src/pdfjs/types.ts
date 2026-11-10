@@ -81,7 +81,12 @@ export interface PdfjsAnnotationData {
   newWindow?: boolean
   /** A Named action's name. */
   action?: string
+  /** A Link's destination: a name, or an explicit `[page, /Fit, ...]` array. */
   dest?: string | unknown[]
+  /** A Link's URI or file as written, kept when PDF.js does not pass it on as `url`. */
+  unsafeUrl?: string
+  /** A Link to an embedded file; Inkbar does not follow it. */
+  attachment?: unknown
 }
 
 export interface PdfAssets {

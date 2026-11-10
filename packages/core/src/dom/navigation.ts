@@ -5,7 +5,6 @@
  */
 import { safeUrl } from '../model/form/url'
 import { readonly, writable, type Readable } from '../model/readable'
-import { resolveDestination } from '../pdfjs/destinations'
 
 import type { Viewport } from './viewport'
 import type {
@@ -50,7 +49,7 @@ export interface NavigationDeps {
 }
 
 /**
- * Looks `raw` up in `doc`. Kept apart so a cached per-document resolver can replace it.
+ * Looks `raw` up in `doc` through its cached resolver.
  * `undefined` for anything unreadable, or when the document is not ready.
  */
 async function resolve(
@@ -58,7 +57,7 @@ async function resolve(
   raw: RawDestination
 ): Promise<Destination | undefined> {
   try {
-    return await resolveDestination(doc._pdfjs.proxy, raw)
+    return await doc.resolveDestination(raw)
   } catch {
     return undefined
   }
