@@ -94,6 +94,26 @@ export function rectContainsPoint(r: Rect, p: Point): boolean {
   return p.x >= r.x && p.x <= r.x + r.width && p.y >= r.y && p.y <= r.y + r.height
 }
 
+/**
+ * Whether `p` is inside `q` or on its edge. A quad's corners run top-left, top-right,
+ * bottom-left, bottom-right (PDF QuadPoints order), so its outline is p1, p2, p4, p3. Works for
+ * any convex quad, whichever way round it winds.
+ */
+export function quadContainsPoint(q: Quad, p: Point): boolean {
+  const ring = [q.p1, q.p2, q.p4, q.p3]
+  let sign = 0
+  for (let i = 0; i < 4; i++) {
+    const a = ring[i]!
+    const b = ring[(i + 1) % 4]!
+    const cross = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x)
+    if (cross === 0) continue
+    const s = Math.sign(cross)
+    if (sign === 0) sign = s
+    else if (s !== sign) return false
+  }
+  return true
+}
+
 export function translateRect(r: Rect, dx: number, dy: number): Rect {
   return { x: r.x + dx, y: r.y + dy, width: r.width, height: r.height }
 }

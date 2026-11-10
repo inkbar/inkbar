@@ -54,6 +54,14 @@
 // Clearing the selection does not count as acting on a press. A second touch drops the first
 // touch's press and its tool's gesture (it is a pinch, not a press). Nothing here prevents a
 // long press's default, so text selection and the browser's own menus behave as before.
+//
+// Links in the file (`linkAt`, the engine's hit test in user space) are found the same way, as
+// the link layer takes no pointer events: a still press that would be reported and lands on a
+// link goes to `onLink` instead of `onPress`. So does a touch tap. A drag past the slop selects
+// text or draws a marquee, a long press still goes to `onPress`, and a press on an annotation,
+// a field or an editor over a link never follows it. A creation or plugin tool never asks. While
+// no press is under way, a move under `select-text` or `select` sets the root's cursor to
+// `pointer` over a link and back to the tool's off it.
 import { isTextMarkup } from '../../model/annotations/edit'
 import {
   createToolStyle,
@@ -75,6 +83,7 @@ import { unknownTool } from './unknown'
 
 import type { AnnotationStore } from '../../model/annotations/store'
 import type { Point } from '../../model/geometry'
+import type { PageLink } from '../../model/links'
 import type { SignatureLibrary } from '../../model/signatures'
 import type { SelectionQuads } from '../selection'
 import type { Viewport, ViewportHit } from '../viewport'
@@ -203,6 +212,13 @@ export interface ToolControllerOptions {
    * controller.ts for which presses count).
    */
   onPress?(kind: PressKind, press: PagePress): void
+  /**
+   * The link at a user-space point on a page, if one is followed there. Asked only under
+   * `select-text` and `select`.
+   */
+  linkAt?(page: number, point: Point): PageLink | undefined
+  /** A still press or a tap on a link (see the top of controller.ts); it is not an `onPress`. */
+  onLink?(link: PageLink): void
 }
 
 /** Host-relative CSS point for a client point. */
@@ -297,8 +313,14 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
   let madeEdit: SelectionEdit | undefined
   /** The press now under way went to `madeEdit`, not the tool. */
   let editingMade = false
+  /** The root's cursor is the pointer for a link under it. */
+  let overLink = false
   const presses = createPressTracker({
-    onPress: (press) => opts.onPress?.('press', press),
+    onPress: (press) => {
+      const link = opts.onLink && opts.linkAt?.(press.page, press.point)
+      if (link) opts.onLink!(link)
+      else opts.onPress?.('press', press)
+    },
     onLongPress: (press) => opts.onPress?.('long-press', press),
   })
 
@@ -349,6 +371,10 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     if (!made.some((id) => selected.includes(id))) set('select-text')
   }
 
+  /** True under the tools whose still presses are reported and may follow a link. */
+  const selecting = (): boolean =>
+    current?.id === 'select-text' || current?.id === 'select'
+
   /** True for events from a pointer other than the one whose press is live. */
   const foreign = (e: PointerEvent): boolean =>
     pressed !== undefined && pressed !== e.pointerId
@@ -385,9 +411,8 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
       target?.closest('[data-annotation]')?.getAttribute('data-annotation') ?? undefined
     const hit = hitFor(ctx, e)
     const reportable =
-      (current?.id === 'select-text' || current?.id === 'select') &&
-      annotationId === undefined &&
-      target?.closest('a[href], [data-handle]') == null &&
+      selecting() &&
+      !onAnnotation(target) &&
       !pressDismisses &&
       !closedEditor(e) &&
       hit !== undefined
@@ -435,6 +460,19 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
       return
     }
     current?.onPointerMove?.(e, hitFor(ctx, e))
+    if (pressed === undefined) hoverLink(e)
+  }
+  /** Shows the pointer cursor over a link a press would follow (see the top of the file). */
+  function hoverLink(e: PointerEvent): void {
+    const over = selecting() && !onAnnotation(e.target) && linkUnder(e) !== undefined
+    if (over === overLink || !current) return
+    overLink = over
+    ctx.root.style.cursor = over ? 'pointer' : current.cursor
+  }
+  function linkUnder(e: PointerEvent): PageLink | undefined {
+    if (!opts.linkAt || inCustomContent(e.target)) return undefined
+    const hit = hitFor(ctx, e)
+    return hit && opts.linkAt(hit.page, hit.user)
   }
   const onUp = (e: PointerEvent): void => {
     if (!e.isPrimary || e.button !== 0 || foreign(e)) return
@@ -559,6 +597,7 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     next.activate(ctx)
     ctx.root.dataset.inkTool = id
     ctx.root.style.cursor = next.cursor
+    overLink = false
     applyClaim()
     active.set(id)
   }
@@ -634,6 +673,12 @@ export function isViewportEnter(e: KeyboardEvent, root: HTMLElement): boolean {
   if (!(target instanceof Element) || !root.contains(target)) return false
   if (target.matches('.ink-page[data-page]')) return true
   return target.closest('[data-ink-text-layer], [data-ink-canvas-layer]') !== null
+}
+
+/** True for a target on an annotation, a resize handle or a host's own link. */
+function onAnnotation(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false
+  return target.closest('[data-annotation], a[href], [data-handle]') !== null
 }
 
 function pointerTypeOf(e: PointerEvent): PagePress['pointerType'] {
