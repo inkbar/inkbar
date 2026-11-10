@@ -258,6 +258,21 @@
       "Widget": 7
     }
   },
+  "outline": {
+    "file": "outline.pdf",
+    "pages": 6,
+    "opens": true,
+    "describes": "Six pages with an outline. Destinations are 0-based; null left or top is undefined. Tree: Cover (page 0 xyz top 700, left and zoom null); Part One (bold, closed with /Count -2, page 1 fit) > Chapter 1 (page 1 fith top 600), Chapter 2 (name chapter-2 in /Names /Dests: page 1 xyz left 72 top 500, zoom null); Part Two (open, page 2 fitv left 144) > Section A (page 3 fitr x 72 y 100 width 228 height 300), Section B (italic, page 3 fitb); Appendix (name appendix in catalog /Dests: page 4 fit); Website (URI https://example.com/outline); Next page (Named NextPage); Broken (destination to the catalog, not a page: no destination)"
+  },
+  "links": {
+    "file": "links.pdf",
+    "pages": 3,
+    "opens": true,
+    "describes": "Link annotations over drawn text, rects as [x1, y1, x2, y2] in user space, pages 0-based. Page 0: [68, 696, 138, 714] explicit xyz to page 1 (left 72, top 600, zoom null); [68, 666, 138, 684] name chapter-3 to page 2 (fit); [68, 636, 144, 654] URI https://example.com/a; [68, 606, 140, 624] URI javascript:alert(1); [68, 576, 140, 594] Named NextPage; [68, 546, 133, 564] GoToR other.pdf; [68, 516, 149, 534] Launch tool.exe; [68, 462, 161, 504] URI https://example.com/wrapped, /QuadPoints one quad per line: [68, 486, 158, 504] and [68, 462, 161, 480]. Page 2 (/Rotate 90): [68, 696, 155, 714] explicit fit to page 0",
+    "annotations": {
+      "Link": 9
+    }
+  },
   "form-range": {
     "file": "form-range.pdf",
     "pages": 1,
