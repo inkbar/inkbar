@@ -1,0 +1,39 @@
+packages/icons/README.md
+  s_bbae2197bdc5fa::t_8e15e1eec6cbbf 29
+packages/react/README.md
+  s_bbae2197bdc5fa::t_f94e2aee145020 102
+  s_bbae2197bdc5fa::t_297bb7230b20a6 283
+  s_bbae2197bdc5fa::t_68e261c3c19e03 76,106-118,179-180,201,269,288,298
+  s_bbae2197bdc5fa::t_440b6086a41778 267
+packages/core/README.md
+  s_bbae2197bdc5fa::t_bf013d5a0019b3 23,50,58,217,243,253,255,326,384,500,507
+  s_bbae2197bdc5fa::t_d579828d18dd3a 52,144
+  s_bbae2197bdc5fa::t_297bb7230b20a6 116,204-216,218-219,310
+  s_bbae2197bdc5fa::t_86b7410ddc9f53 51,508
+packages/theme/README.md
+  s_bbae2197bdc5fa::t_8e15e1eec6cbbf 77,89-91,93
+  s_bbae2197bdc5fa::t_4b2feff1bcbd6f 23,37,69,71,87-88,92,94-98,101
+packages/svelte/README.md
+  s_bbae2197bdc5fa::t_297bb7230b20a6 296
+  s_bbae2197bdc5fa::t_3f4dce26e8477f 33,67,92,94,152-159,174-177,202,262,274,301,311
+  s_bbae2197bdc5fa::t_b573f8c0bb9ced 211-214
+packages/vue/README.md
+  s_bbae2197bdc5fa::t_297bb7230b20a6 257
+  s_bbae2197bdc5fa::t_d3d9e65937149f 72,97,101-109,118-121,137,147,173,177,180-183,239,243,262,266-269,276
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0796df715709ed54ce6359ea0eba090b3009a48e",
+  "prompts": {},
+  "sessions": {
+    "s_bbae2197bdc5fa": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6689b872-6bb0-43d6-ae15-c0abc346f21e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
