@@ -19,6 +19,9 @@ describe('package entry', () => {
     expect(evaluated.pdfjs).toBe(false)
     expect(Object.keys(entry)).not.toContain('loadPdfjs')
     expect(Object.keys(entry)).not.toContain('openProxy')
+    // Link parsing is the document's own; only its types are public.
+    expect(Object.keys(entry)).not.toContain('linkFromPdfjs')
+    expect(Object.keys(entry)).not.toContain('isNamedAction')
 
     // Control: the same mock does fire once the loader runs, so the false above is meaningful.
     await loadPdfjs(nodeAssets())
