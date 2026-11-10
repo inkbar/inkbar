@@ -9,6 +9,7 @@ export type ScenarioId =
   | 'controlled'
   | 'search'
   | 'sidebars'
+  | 'outline'
   | 'events'
 
 export interface Scenario {
@@ -93,6 +94,14 @@ export const SCENARIOS: readonly Scenario[] = [
     blurb:
       'Thumbnails, search and a panel of your own in a rail, tabs or a stack, on either side.',
     document: 'tour',
+    panels: ['events'],
+  },
+  {
+    id: 'outline',
+    title: 'Outline and links',
+    blurb:
+      'Jump around a long document from its outline, its table of contents, its index and its cross-references.',
+    document: 'handbook',
     panels: ['events'],
   },
   {

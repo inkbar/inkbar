@@ -26,6 +26,7 @@ const SCENARIO_TITLES = [
   'Controlled annotations',
   'Search a long document',
   'Sidebars',
+  'Outline and links',
   'Press and long press',
 ]
 

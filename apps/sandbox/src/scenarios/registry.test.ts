@@ -7,10 +7,20 @@ import { FRAMEWORK_ORDER } from '../shell/frameworks.ts'
 
 import { SCENARIOS } from './registry.ts'
 
-void test('eight scenarios in order', () => {
+void test('nine scenarios in order', () => {
   assert.deepEqual(
     SCENARIOS.map((s) => s.id),
-    ['tour', 'tools', 'forms', 'redactions', 'controlled', 'search', 'sidebars', 'events']
+    [
+      'tour',
+      'tools',
+      'forms',
+      'redactions',
+      'controlled',
+      'search',
+      'sidebars',
+      'outline',
+      'events',
+    ]
   )
 })
 
