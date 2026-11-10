@@ -1,0 +1,48 @@
+packages/core/src/dom/viewer-engine.ts
+  s_b0e6b2d5bd6b31::t_d45ad741f018f4 17,190-195,479-502,506,683,723-724
+packages/core/src/model/destination.ts
+  s_b0e6b2d5bd6b31::t_36740f74018339 33-44
+packages/core/src/dom/viewer/create-viewer.ts
+  s_b0e6b2d5bd6b31::t_0180a1f8043c5c 48,54,148-164,254-257,440-447,449-452,565-569,591-597,623,643-650
+  s_b0e6b2d5bd6b31::t_2068b15b3df1b7 651-652
+packages/core/src/dom/viewer/controls.ts
+  s_b0e6b2d5bd6b31::t_fa89ff1c126695 12-13,245-275,277
+  s_b0e6b2d5bd6b31::t_9d71ff3011dad5 276,278
+packages/core/src/dom/index.ts
+  s_b0e6b2d5bd6b31::t_acad40c99eeb51 276,280,282
+packages/icons/README.md
+  s_b0e6b2d5bd6b31::t_5703f1155eca85 23
+packages/icons/scripts/icon-list.ts
+  s_b0e6b2d5bd6b31::t_5703f1155eca85 52-53
+packages/core/src/dom/navigation.test.ts
+  s_b0e6b2d5bd6b31::t_aebbc8368f4304 1-25,28-182
+  s_b0e6b2d5bd6b31::t_1e120783bb7f07 26-27
+packages/core/src/index.ts
+  s_b0e6b2d5bd6b31::t_f29d285297d75f 26-31
+packages/core/src/dom/navigation.ts
+  s_b0e6b2d5bd6b31::t_41b0d896128a06 1-167
+packages/core/src/dom/viewer/create-viewer.browser.test.ts
+  s_b0e6b2d5bd6b31::t_27ec558f30f9a3 26,28,3308-3360,3365-3370,3372-3387
+  s_b0e6b2d5bd6b31::t_8d84669345942a 3361-3364,3371
+  s_b0e6b2d5bd6b31::t_be7d2c42429411 3388
+packages/icons/src/icons.ts
+  s_b0e6b2d5bd6b31::t_5703f1155eca85 336-345
+packages/core/src/dom/history-keys.ts
+  s_b0e6b2d5bd6b31::t_acad40c99eeb51 61-63,78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "05bfe05349c17c32a69ef90efe042c741642b8e4",
+  "prompts": {},
+  "sessions": {
+    "s_b0e6b2d5bd6b31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0c0efc0-e561-4d1e-a89e-c758b277f97e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
