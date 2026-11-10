@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import { orderStops, pageStopOrder, tabOrder } from './form-order'
+import { orderStops, pageStopOrder, pageTabOrder } from './form-order'
 
-import type { FormField, FormWidget } from '../model/form/types'
+import type { FormField, FormWidget, TabsOrder } from '../model/form/types'
 import type { PageLink } from '../model/links'
 import type { PageInfo } from '../model/pages'
 
@@ -61,21 +61,36 @@ const LAYOUT = fields(
   ['d', 0, 320, 400]
 )
 
-describe('tabOrder', () => {
+/** Page 0's widget ids in Tab order under `tabs`. */
+const order = (
+  list: readonly FormField[],
+  tabs?: TabsOrder,
+  info: PageInfo = page(0),
+  structure?: readonly string[]
+) =>
+  pageTabOrder(
+    list.flatMap((f) => f.widgets),
+    tabs,
+    info,
+    0,
+    structure
+  )
+
+describe('pageTabOrder', () => {
   it('row order on /Tabs R', () => {
     // b is taller than a, but they share a row: a is left of it.
-    expect(tabOrder(LAYOUT, new Map([[0, 'R']]), [page(0)])).toEqual(['a', 'b', 'c', 'd'])
+    expect(order(LAYOUT, 'R')).toEqual(['a', 'b', 'c', 'd'])
   })
 
   it('column order on /Tabs C', () => {
-    expect(tabOrder(LAYOUT, new Map([[0, 'C']]), [page(0)])).toEqual(['a', 'c', 'b', 'd'])
+    expect(order(LAYOUT, 'C')).toEqual(['a', 'c', 'b', 'd'])
   })
 
   it('widget order when absent', () => {
-    expect(tabOrder(LAYOUT, new Map(), [page(0)])).toEqual(['c', 'b', 'a', 'd'])
-    expect(tabOrder(LAYOUT, new Map([[0, 'S']]), [page(0)])).toEqual(['c', 'b', 'a', 'd'])
-    expect(tabOrder(LAYOUT, new Map([[0, 'W']]), [page(0)])).toEqual(['c', 'b', 'a', 'd'])
-    expect(tabOrder(LAYOUT, new Map([[0, 'A']]), [page(0)])).toEqual(['c', 'b', 'a', 'd'])
+    expect(order(LAYOUT)).toEqual(['c', 'b', 'a', 'd'])
+    expect(order(LAYOUT, 'S')).toEqual(['c', 'b', 'a', 'd'])
+    expect(order(LAYOUT, 'W')).toEqual(['c', 'b', 'a', 'd'])
+    expect(order(LAYOUT, 'A')).toEqual(['c', 'b', 'a', 'd'])
   })
 
   it('widget order is /Annots order, not the order fields list their widgets', () => {
@@ -94,8 +109,8 @@ describe('tabOrder', () => {
       ],
     }
     const ys: FormField = { ...y!, widgets: [{ ...y!.widgets[0]!, order: 1 }] }
-    expect(tabOrder([xs, ys], new Map(), [page(0)])).toEqual(['x1', 'y1', 'x2'])
-    expect(tabOrder([xs, ys], new Map([[0, 'S']]), [page(0)])).toEqual(['x1', 'y1', 'x2'])
+    expect(order([xs, ys])).toEqual(['x1', 'y1', 'x2'])
+    expect(order([xs, ys], 'S')).toEqual(['x1', 'y1', 'x2'])
   })
 
   it('structure order on /Tabs S, then the widgets the tree leaves out', () => {
@@ -105,35 +120,18 @@ describe('tabOrder', () => {
       ['c', 0, 72, 500],
       ['d', 0, 72, 400]
     )
-    expect(
-      tabOrder(list, new Map([[0, 'S']]), [page(0)], new Map([[0, ['c', 'x', 'a']]]))
-    ).toEqual(['c', 'a', 'b', 'd'])
+    expect(order(list, 'S', page(0), ['c', 'x', 'a'])).toEqual(['c', 'a', 'b', 'd'])
     // No tree: /Annots order.
-    expect(tabOrder(list, new Map([[0, 'S']]), [page(0)])).toEqual(['a', 'b', 'c', 'd'])
+    expect(order(list, 'S')).toEqual(['a', 'b', 'c', 'd'])
   })
 
   it('row order on a /Rotate 90 page follows the displayed rows', () => {
     // Turned a quarter clockwise, user space's left edge is the top of the page on screen:
     // a and b share the top row (b further right), and c sits below a.
     const list = fields(['c', 0, 300, 100], ['b', 0, 100, 500], ['a', 0, 100, 100])
-    expect(tabOrder(list, new Map([[0, 'R']]), [page(0, 90)])).toEqual(['a', 'b', 'c'])
+    expect(order(list, 'R', page(0, 90))).toEqual(['a', 'b', 'c'])
     // The same widgets unturned read b first: it is highest on the page.
-    expect(tabOrder(list, new Map([[0, 'R']]), [page(0)])).toEqual(['b', 'a', 'c'])
-  })
-
-  it('goes page by page, each page by its own /Tabs', () => {
-    const list = fields(
-      ['p1-low', 1, 72, 100],
-      ['p0-low', 0, 72, 100],
-      ['p1-high', 1, 72, 700],
-      ['p0-high', 0, 72, 700]
-    )
-    expect(tabOrder(list, new Map([[1, 'R']]), [page(0), page(1)])).toEqual([
-      'p0-low',
-      'p0-high',
-      'p1-high',
-      'p1-low',
-    ])
+    expect(order(list, 'R')).toEqual(['b', 'a', 'c'])
   })
 })
 

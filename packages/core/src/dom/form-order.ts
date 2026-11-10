@@ -10,7 +10,7 @@ import { rectFromQuad } from '../model/geometry'
 
 import { createPageTransform, type CssRect } from './transform'
 
-import type { FormField, FormWidget, TabsOrder } from '../model/form/types'
+import type { FormWidget, TabsOrder } from '../model/form/types'
 import type { PageLink } from '../model/links'
 import type { PageInfo } from '../model/pages'
 
@@ -174,35 +174,4 @@ export function pageTabOrder(
   structure: readonly string[] = []
 ): string[] {
   return pageStopOrder(widgets, [], order, info, page, structure)
-}
-
-/**
- * Widget ids in Tab order: pages in order, each by its `/Tabs` (`pageTabOrder`), with
- * `structure` the structure order of each `S` page. A page missing from `pages` is read
- * unturned.
- */
-export function tabOrder(
-  fields: readonly FormField[],
-  tabs: ReadonlyMap<number, TabsOrder>,
-  pages: readonly PageInfo[] = [],
-  structure: ReadonlyMap<number, readonly string[]> = new Map()
-): string[] {
-  const byPage = new Map<number, FormWidget[]>()
-  for (const field of fields)
-    for (const w of field.widgets) {
-      const list = byPage.get(w.page) ?? []
-      list.push(w)
-      byPage.set(w.page, list)
-    }
-  return [...byPage.keys()]
-    .sort((a, b) => a - b)
-    .flatMap((page) =>
-      pageTabOrder(
-        byPage.get(page)!,
-        tabs.get(page),
-        pages[page],
-        page,
-        structure.get(page)
-      )
-    )
 }

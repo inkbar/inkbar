@@ -4,7 +4,7 @@
  * chapters on the left; click an entry to jump to it, and press the right arrow on
  * "3. Recording and checking" to open it. Click a line of the contents on page 2, or a page
  * number in the index on the last page, then use Back to return. The web link in section 3.3
- * is not opened by Inkbar: it comes to onAction, and this code opens the tab.
+ * is not opened by Inkbar: it comes to the `action` event, and this code opens the tab.
  */
 import { List, Search, Square } from '@inkbar/icons'
 import {
