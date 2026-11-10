@@ -32,28 +32,36 @@ Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, gi
 
 - **Your framework.** Components and hooks for Vue 3, React 19 and Svelte 5, plus `createViewer` for apps with no framework at all. All four share one engine and one stylesheet.
 - **Toolbars you assemble.** You build each toolbar in your own markup from Inkbar's controls: tool buttons, undo and redo, the zoom select, the page input. Keep the ones you need, place them where they fit and add your own. The theme styles them with zero-specificity rules, so your CSS wins without `!important`, and it reads shadcn token names if your app defines them.
-- **Annotations as plain data.** Highlights, notes and redactions are typed objects. Keep them in your own state and save them to your own backend, or let Inkbar hold them. Undo and redo work either way.
+- **Annotations as plain data.** Highlights, notes, drawings and redactions are typed objects. Keep them in your own state and save them to your own backend, or let Inkbar hold them. Undo and redo work either way.
 - **Redaction marks.** Mark text or areas for redaction by hand, or add marks from your own detector through the same API. Anything your review needs, such as a reason or a score, goes in the annotation's `custom` data.
-- **Keyboard first.** Select text and press Enter to highlight it, move between annotations with the arrow keys, and nudge them a point at a time. Drawing an area redaction is the one thing that still needs a pointer.
+- **Keyboard first.** Select text and press Enter to highlight it, move between annotations with the arrow keys, and nudge them a point at a time. Area redactions, freehand drawing, loupes and masks are the ones that need a pointer.
+- **Touch screens too.** Pinch to zoom the document, not the page. Under a drawing tool one finger draws and two fingers scroll.
 - **Fits a real app.** Pass a signed URL and a stable key, and Inkbar won't reload the document when the URL rotates. You can import the document model during server rendering.
 
 ### What it does today
 
-| Area        | Available now                                                                                                                                                  |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Viewing     | Rendering, zoom, fit to width or page, page navigation, text selection                                                                                         |
-| Markup      | Highlights from a text selection                                                                                                                               |
-| Notes       | Notes with reply threads                                                                                                                                       |
-| Redaction   | Text and area redaction marks                                                                                                                                  |
-| Annotations | JSON import and export. Underline, strikeout, squiggly, ink, shapes and lines display from imported data and from the PDF's own annotations, which stay locked |
-| History     | Undo and redo, with grouped steps, whether Inkbar or your app holds the annotations                                                                            |
+| Area        | Available now                                                                                                                                 |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Viewing     | Rendering with a selectable text layer, zoom, pinch zoom, fit to width or page, continuous or single-page layout, page navigation, thumbnails |
+| Search      | A find bar and Ctrl/Cmd+F in the viewer, and `doc.search` for code                                                                            |
+| Forms       | Text, checkbox, radio, choice and signature fields, with the form's scripts                                                                   |
+| Signatures  | Draw, type or upload a signature, save it and place it on any page or in a signature field                                                    |
+| Markup      | Highlights, underlines, strikeouts and squiggly underlines from a text selection                                                              |
+| Notes       | Notes with reply threads                                                                                                                      |
+| Redaction   | Text and area redaction marks                                                                                                                 |
+| Drawing     | Freehand ink, shapes, lines, arrows, speech bubbles, loupes, masks and text boxes                                                             |
+| Annotations | JSON export and import, and the PDF's own annotations shown as locked                                                                         |
+| History     | Undo and redo with grouped steps, whether Inkbar or your app holds the annotations                                                            |
+| Files       | Download and print the open PDF                                                                                                               |
+| Touch       | Pinch zoom, drawing with a finger, and press and long press events for plugins                                                                |
+| Plugins     | Add commands, tools, page layers, marks and records from a plugin                                                                             |
 
-### Coming soon
+### Not there yet
 
-- **Forms.** Read and fill form fields in the viewer.
-- **Search.** Find text across the document.
-- **Drawing tools.** Draw freehand ink, shapes, lines and text boxes. Ink, shapes and lines already display from imported data.
-- **Saving into the PDF.** Write annotations and applied redactions back into the file. Until then, store `exportAnnotations('json')` and load it on the next open.
+- **Saving into the PDF.** Store `exportAnnotations('json')` in your own backend and import it on the next open. Download and print give the file as it was opened.
+- **Applying redactions.** A redaction mark is a tinted box over the content. The text under it still renders and can be copied. Inkbar will remove content once saving into the PDF ships.
+- **Saving field values into the PDF.** Values stay in memory. Export them with the annotations.
+- **XFA forms, an outline, translations and a password prompt.** The [docs](https://inkbar.dev/docs/) say what to do meanwhile.
 
 ## Install
 
@@ -99,15 +107,18 @@ import {
   InkZoomSelect,
   InkThreadPopover,
 } from '@inkbar/react'
+import { highlightTool, noteTool, redactAreaTool } from '@inkbar/core/dom'
 import { assets } from 'virtual:inkbar-assets'
 import '@inkbar/theme/theme.css'
+
+const tools = [highlightTool(), redactAreaTool(), noteTool()]
 
 export function Review({ url }: { url: string }) {
   return (
     <div style={{ height: '100vh' }}>
-      <InkRoot src={url} assets={assets}>
+      <InkRoot src={url} assets={assets} tools={tools}>
         <InkToolbar>
-          <InkToolButton tool="view" />
+          <InkToolButton tool="select-text" />
           <InkToolButton tool="select" />
           <InkToolButton tool="highlight" />
           <InkToolButton tool="redact-area" />
@@ -131,7 +142,7 @@ export function Review({ url }: { url: string }) {
 }
 ```
 
-The viewer fills its parent, so give the parent a height. The same example for each framework, and how to keep annotations in your own state:
+`select-text` and `select` are always there; every other tool is opt-in through `tools`, or pass `allTools()` for all of them. The viewer fills its parent, so give the parent a height. The same example for each framework, and how to keep annotations in your own state:
 
 - [Vue](packages/vue/README.md)
 - [React](packages/react/README.md)
@@ -198,6 +209,7 @@ pnpm test:browser                                        # component and end-to-
 | `packages/react`  | `@inkbar/react`                                                            |
 | `packages/svelte` | `@inkbar/svelte`                                                           |
 | `packages/theme`  | `@inkbar/theme`                                                            |
+| `packages/icons`  | `@inkbar/icons`                                                            |
 | `apps/sandbox`    | The sandbox at sandbox.inkbar.dev                                          |
 | `apps/e2e-*`      | The review apps for each framework and the end-to-end suite they share     |
 | `fixtures`        | Test PDFs, the script that generates them, and helpers for the test suites |
