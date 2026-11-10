@@ -19,10 +19,14 @@ permissions:
   contents: write
   pull-requests: write
 
-# Every run pushes to gh-pages, so runs queue rather than race.
+# One group per pull request (and one for main). A single shared group dropped previews: GitHub
+# keeps one pending run per group and cancels the rest, so pushing a stack of pull requests left
+# most of them without one. Runs for different pull requests now build side by side; when two
+# push to gh-pages at once, the deploy action rebases and pushes again. A newer push to the same
+# pull request replaces its older run.
 concurrency:
-  group: gh-pages
-  cancel-in-progress: false
+  group: pages-${{ github.event.pull_request.number || 'main' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   deploy:
@@ -57,8 +61,24 @@ jobs:
           folder: apps/sandbox/dist
           branch: gh-pages
           clean-exclude: pr-preview/
+          # Previews push to the same branch alongside this deploy.
+          attempt-limit: 10
 
-      - if: github.event_name == 'pull_request'
+      # The preview action rebases a rejected push three times. With a whole stack deploying at
+      # once that can run out, so a failed attempt waits a moment and tries once more.
+      - id: preview
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        uses: rossjrw/pr-preview-action@v1
+        with:
+          source-dir: apps/sandbox/dist
+          preview-branch: gh-pages
+          umbrella-dir: pr-preview
+          pages-base-url: sandbox.inkbar.dev
+          qr-code: false
+      - if: github.event_name == 'pull_request' && steps.preview.outcome == 'failure'
+        run: sleep $((RANDOM % 30 + 15))
+      - if: github.event_name == 'pull_request' && steps.preview.outcome == 'failure'
         uses: rossjrw/pr-preview-action@v1
         with:
           source-dir: apps/sandbox/dist
