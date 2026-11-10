@@ -1,0 +1,100 @@
+packages/react/src/components/Form.ct.tsx
+  s_b0e6b2d5bd6b31::t_e4f12532e7e29a 94,96-99
+  s_b0e6b2d5bd6b31::t_533ffa818ac010 77,80,91-93,95,100-125
+  s_b0e6b2d5bd6b31::t_f55633ba99834e 126
+packages/vue/playwright/harness/FormHarness.vue
+  s_b0e6b2d5bd6b31::t_b7eb641adb5c86 10,12,36-37,47,51-52,75-84,109
+apps/e2e-react/src/FormPage.tsx
+  s_b0e6b2d5bd6b31::t_2271a8c5c7166a 18,32-33,43
+packages/core/README.md
+  s_b0e6b2d5bd6b31::t_160321544b2281 503
+packages/react/src/components/InkViewport.tsx
+  s_b0e6b2d5bd6b31::t_e40cf64475033f 182
+packages/core/src/model/form/controller.ts
+  s_b0e6b2d5bd6b31::t_e127ab3a11da4a 16,66,81,264,631
+packages/react/src/context.ts
+  s_b0e6b2d5bd6b31::t_e40cf64475033f 5,122-123
+packages/svelte/src/lib/components/InkRoot.svelte
+  s_b0e6b2d5bd6b31::t_e40cf64475033f 10,55-61,179,692
+packages/react/README.md
+  s_b0e6b2d5bd6b31::t_160321544b2281 163
+apps/sandbox/src/scenarios/forms/react.tsx
+  s_b0e6b2d5bd6b31::t_2271a8c5c7166a 5,62
+packages/svelte/src/lib/components/InkViewport.svelte
+  s_b0e6b2d5bd6b31::t_e40cf64475033f 180
+packages/svelte/src/lib/context.ts
+  s_b0e6b2d5bd6b31::t_e40cf64475033f 5,117-118
+packages/vue/src/context.ts
+  s_b0e6b2d5bd6b31::t_e40cf64475033f 6,112-113
+packages/core/src/dom/viewer/create-viewer.browser.test.ts
+  s_b0e6b2d5bd6b31::t_084cbe1e42a18f 2800-2802,2806-2807,3374-3376,3380,3388-3409
+apps/sandbox/src/scenarios/forms/vue.vue
+  s_b0e6b2d5bd6b31::t_2271a8c5c7166a 6,38,58-59,71
+apps/e2e-shared/src/form-actions.ts
+  s_b0e6b2d5bd6b31::t_2271a8c5c7166a 1,4
+packages/vue/src/components/InkRoot.vue
+  s_b0e6b2d5bd6b31::t_e40cf64475033f 29,52,158-164,176,589-594
+apps/e2e-svelte/src/FormPage.svelte
+  s_b0e6b2d5bd6b31::t_2271a8c5c7166a 23,31,42
+packages/core/src/pdfjs/scripting.browser.test.ts
+  s_b0e6b2d5bd6b31::t_e127ab3a11da4a 15,34-35
+apps/e2e-vue/src/FormPage.vue
+  s_b0e6b2d5bd6b31::t_2271a8c5c7166a 24,32,44
+packages/core/src/dom/navigation.ts
+  s_b0e6b2d5bd6b31::t_e127ab3a11da4a 18,49
+apps/sandbox/e2e/forms-scenario.spec.ts
+  s_b0e6b2d5bd6b31::t_2271a8c5c7166a 10-13
+packages/core/src/dom/viewer/create-viewer.ts
+  s_b0e6b2d5bd6b31::t_e127ab3a11da4a 161
+packages/svelte/src/test/harness/FormHarness.svelte
+  s_b0e6b2d5bd6b31::t_9f58639aa042ed 9,24-25,54,82
+packages/core/src/model/form/types.ts
+  s_b0e6b2d5bd6b31::t_829055f65f2002 182-186,207-208
+  s_b0e6b2d5bd6b31::t_683167993cb06e 209
+packages/core/src/dom/viewer-engine.ts
+  s_b0e6b2d5bd6b31::t_3007ec2be4ec33 43,124-125,127-129,195,481,484,504,510
+  s_b0e6b2d5bd6b31::t_1dd623d80d4a68 482-483
+packages/vue/src/components/InkViewport.vue
+  s_b0e6b2d5bd6b31::t_e40cf64475033f 191
+packages/core/src/index.ts
+  s_b0e6b2d5bd6b31::t_a4539e4f338329 95
+packages/react/src/components/InkRoot.tsx
+  s_b0e6b2d5bd6b31::t_e40cf64475033f 58,113-119,236,298,318,652-653,658-661,845,880
+packages/svelte/src/test/Form.browser.test.ts
+  s_b0e6b2d5bd6b31::t_9f58639aa042ed 160,164,175-209
+  s_b0e6b2d5bd6b31::t_024dfb2e91886b 210
+packages/core/src/dom/navigation.test.ts
+  s_b0e6b2d5bd6b31::t_e127ab3a11da4a 10,33
+packages/vue/src/components/Form.ct.ts
+  s_b0e6b2d5bd6b31::t_50b4d1ad69d4e9 71,75,86-100,102-122
+  s_b0e6b2d5bd6b31::t_b7eb641adb5c86 101
+  s_b0e6b2d5bd6b31::t_c8f0c676599257 123
+packages/svelte/README.md
+  s_b0e6b2d5bd6b31::t_160321544b2281 162
+packages/vue/README.md
+  s_b0e6b2d5bd6b31::t_160321544b2281 137
+packages/core/src/pdfjs/scripting.ts
+  s_b0e6b2d5bd6b31::t_e127ab3a11da4a 17,666,704
+apps/sandbox/src/scenarios/forms/svelte.svelte
+  s_b0e6b2d5bd6b31::t_2271a8c5c7166a 6,38,58-59,69
+apps/sandbox/src/scenarios/forms/vanilla.ts
+  s_b0e6b2d5bd6b31::t_2271a8c5c7166a 5,59
+packages/react/playwright/harness/FormHarness.tsx
+  s_b0e6b2d5bd6b31::t_533ffa818ac010 5,64-65,90,113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6349672f56c9b5a26108d58ae0b97edec738e0a5",
+  "prompts": {},
+  "sessions": {
+    "s_b0e6b2d5bd6b31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0c0efc0-e561-4d1e-a89e-c758b277f97e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
