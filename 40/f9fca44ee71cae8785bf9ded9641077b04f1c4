@@ -1,0 +1,43 @@
+packages/react/src/components/Outline.ct.tsx
+  s_b0e6b2d5bd6b31::t_b2f1c6ee516bdf 1-130,134-135
+  s_b0e6b2d5bd6b31::t_7c379cd764883b 131-133
+packages/react/src/ssr.test.ts
+  s_b0e6b2d5bd6b31::t_b2f1c6ee516bdf 75-77,149-169
+  s_b0e6b2d5bd6b31::t_0910fbb529b1d9 170-171
+packages/react/src/components/InkForward.tsx
+  s_b0e6b2d5bd6b31::t_72724678d250f6 1-40
+packages/react/src/context.ts
+  s_b0e6b2d5bd6b31::t_4180de7632aada 16,73-78
+packages/react/src/components/InkBack.tsx
+  s_b0e6b2d5bd6b31::t_72724678d250f6 1-40
+packages/react/src/components/InkRoot.tsx
+  s_b0e6b2d5bd6b31::t_7c379cd764883b 68
+  s_b0e6b2d5bd6b31::t_4180de7632aada 673,822-823,860
+packages/react/README.md
+  s_b0e6b2d5bd6b31::t_7a9cda064ce3eb 243-256,279,283
+packages/react/playwright/harness/OutlineHarness.tsx
+  s_b0e6b2d5bd6b31::t_b2f1c6ee516bdf 1-42,48-81
+  s_b0e6b2d5bd6b31::t_7c379cd764883b 43-47
+packages/react/src/components/InkOutline.tsx
+  s_b0e6b2d5bd6b31::t_72724678d250f6 1-158
+packages/react/src/components/InkViewport.tsx
+  s_b0e6b2d5bd6b31::t_4180de7632aada 230-231,238
+packages/react/src/index.ts
+  s_b0e6b2d5bd6b31::t_72724678d250f6 74-77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "40f9fca44ee71cae8785bf9ded9641077b04f1c4",
+  "prompts": {},
+  "sessions": {
+    "s_b0e6b2d5bd6b31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0c0efc0-e561-4d1e-a89e-c758b277f97e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
