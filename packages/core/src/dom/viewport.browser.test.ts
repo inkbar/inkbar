@@ -352,7 +352,7 @@ describe('createViewport', () => {
     viewport.scrollToDestination({
       page: 0,
       fit: 'fitr',
-      rect: { x: 72, y: 600, width: 100, height: 20 },
+      rect: { x: 72, y: 100, width: 100, height: 20 },
     })
     expect(scrollTo).toHaveBeenCalledTimes(1)
     await settle()
@@ -360,9 +360,22 @@ describe('createViewport', () => {
     viewport.scrollToDestination({
       page: 0,
       fit: 'fitr',
-      rect: { x: 72, y: 600, width: 100, height: 20 },
+      rect: { x: 72, y: 100, width: 100, height: 20 },
     })
     expect(scrollTo).toHaveBeenCalledTimes(1)
+    await settle()
+    const box = viewport.layout.get().boxes[0]!
+    const css = viewport
+      .transformFor(0)
+      .toCssRect({ x: 72, y: 100, width: 100, height: 20 })
+    const originY = (container.querySelector('[data-ink-pages]') as HTMLElement).offsetTop
+    const centred =
+      originY + box.top + css.top - (container.clientHeight - css.height) / 2
+    const want = Math.min(
+      Math.max(0, centred),
+      container.scrollHeight - container.clientHeight
+    )
+    expect(Math.abs(container.scrollTop - want)).toBeLessThanOrEqual(1)
   })
 
   it('rotated page puts the converted point at the top-left', async () => {
@@ -384,6 +397,51 @@ describe('createViewport', () => {
       container.scrollHeight - container.clientHeight
     )
   })
+
+  it('an out-of-range page moves nothing, in either mode', async () => {
+    const { container, viewport } = await setup('links')
+    viewport.scrollToPage(1)
+    await settle()
+    const top = container.scrollTop
+    viewport.scrollToDestination({ page: 9, fit: 'fit' })
+    viewport.scrollToDestination({ page: -1, fit: 'xyz', top: 10 })
+    await settle()
+    expect(container.scrollTop).toBe(top)
+    viewport.setMode('single')
+    await settle()
+    const page = viewport.currentPage.get()
+    const single = container.scrollTop
+    viewport.scrollToDestination({ page: 9, fit: 'fit' })
+    await settle()
+    expect(viewport.currentPage.get()).toBe(page)
+    expect(viewport.layout.get().boxes.map((b) => b.index)).toEqual([page])
+    expect(container.scrollTop).toBe(single)
+  })
+
+  for (const rotation of [90, 270] as const) {
+    it(`fith and fitv stay on the page at ${rotation} degrees`, async () => {
+      const { container, viewport } = await setup('links')
+      viewport.setRotation(rotation)
+      await settle()
+      viewport.scrollToPage(1)
+      await settle()
+      const pageTop = container.scrollTop
+      expect(pageTop).toBeGreaterThan(0)
+      container.scrollTo({ top: 0 })
+      await settle()
+      viewport.scrollToDestination({ page: 1, fit: 'fith', top: 600 })
+      await settle()
+      expect(container.scrollTop).toBe(pageTop)
+      container.scrollTo({ top: 0 })
+      await settle()
+      viewport.scrollToDestination({ page: 1, fit: 'fitv', left: 72 })
+      await settle()
+      expect(container.scrollTop).toBe(pageTop)
+      expect(viewport.destinationY({ page: 1, fit: 'fith', top: 600 })).toBe(
+        pageTop - (container.querySelector('[data-ink-pages]') as HTMLElement).offsetTop
+      )
+    })
+  }
 
   it('single-page mode switches page', async () => {
     const { viewport } = await setup('links')

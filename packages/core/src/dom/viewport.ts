@@ -327,12 +327,12 @@ export function createViewport(opts: ViewportOptions): Viewport {
       }
       case 'fith':
       case 'fitbh': {
-        const c = known(0, dest.top)
+        const c = known(undefined, dest.top)
         return { top: c.top === undefined ? pageTop : absTop(c.top) }
       }
       case 'fitv':
       case 'fitbv': {
-        const c = known(dest.left, 0)
+        const c = known(dest.left, undefined)
         const r: { top: number; left?: number } = { top: pageTop }
         if (c.left !== undefined) r.left = absLeft(c.left)
         return r
@@ -612,6 +612,9 @@ export function createViewport(opts: ViewportOptions): Viewport {
       sync()
     },
     scrollToDestination(dest, o) {
+      // Destinations come from untrusted files: a page that does not exist moves nothing.
+      if (!Number.isInteger(dest.page) || dest.page < 0 || dest.page >= doc.pages.length)
+        return
       if (mode.get() === 'single' && currentPage.get() !== dest.page) {
         currentPage.set(dest.page)
         relayout()
