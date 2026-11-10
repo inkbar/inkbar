@@ -1,0 +1,44 @@
+packages/core/src/index.ts
+  s_b0e6b2d5bd6b31::t_ddb988301ab5e0 25-26
+packages/core/src/pdfjs/destinations.ts
+  s_b0e6b2d5bd6b31::t_85eb404e3886da 4-7,10-12,14,16-17,19-22,29-78,84-94
+  s_b0e6b2d5bd6b31::t_6d5022a465b730 2
+  s_b0e6b2d5bd6b31::t_378a302985feec 3
+fixtures/generate.ts
+  s_b0e6b2d5bd6b31::t_95b7d0b8d6649b 1506-1533,1538-1630,1637,1642-1703,2009-2010
+  s_b0e6b2d5bd6b31::t_6d5022a465b730 1534-1537,1631-1636,1638-1641
+packages/core/src/pdfjs/destinations.test.ts
+  s_b0e6b2d5bd6b31::t_4a5bf59f14e97d 1-30,32-79,81-98
+  s_b0e6b2d5bd6b31::t_6d5022a465b730 31,80
+fixtures/urls.ts
+  s_b0e6b2d5bd6b31::t_95b7d0b8d6649b 37-38
+packages/core/src/model/destination.ts
+  s_b0e6b2d5bd6b31::t_85eb404e3886da 1-8,16,19-32
+  s_b0e6b2d5bd6b31::t_ce2857194044b4 9-15,17-18
+fixtures/manifest.json
+  s_90bbd628c62506::t_ef8acf2f2a409e 261-275
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "82d2b522877f9fd7d126477bb1a3df4fd2e464b1",
+  "prompts": {},
+  "sessions": {
+    "s_90bbd628c62506": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-aea661a39f9ac9d8e",
+        "model": "unknown"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    },
+    "s_b0e6b2d5bd6b31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0c0efc0-e561-4d1e-a89e-c758b277f97e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
