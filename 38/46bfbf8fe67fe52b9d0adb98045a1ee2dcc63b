@@ -1,0 +1,35 @@
+packages/core/src/model/geometry.ts
+  s_b0e6b2d5bd6b31::t_b55ca9a1634176 97-116
+packages/core/src/model/geometry.test.ts
+  s_b0e6b2d5bd6b31::t_b55ca9a1634176 12,88-102
+  s_b0e6b2d5bd6b31::t_0025fa081c6778 103-104
+packages/core/src/dom/links-press.browser.test.ts
+  s_b0e6b2d5bd6b31::t_a09272319f0211 172-175,194-195
+  s_b0e6b2d5bd6b31::t_e909f4f35442fc 1-10,12,14-24,26-171,176-182,184-188,190-193,196-244,246-268,275-292,294-297,299-326
+  s_b0e6b2d5bd6b31::t_e6d534913f6d20 11,13,25,183,245,269-274,293,298
+  s_b0e6b2d5bd6b31::t_58a4ea54d6eb67 189
+packages/core/src/dom/viewer-engine.ts
+  s_b0e6b2d5bd6b31::t_420891aa9692d3 9-14,51
+  s_b0e6b2d5bd6b31::t_748de66cfe18bd 677-698,726-727
+  s_b0e6b2d5bd6b31::t_2d2265ccbead26 8
+packages/core/src/dom/tools/controller.ts
+  s_b0e6b2d5bd6b31::t_4adaa1070b7587 57-64,86,215-221,316-317,319-323,374,414-415,463-475,600,678-681
+  s_b0e6b2d5bd6b31::t_a09272319f0211 375-376
+  s_b0e6b2d5bd6b31::t_f0c2bd5a7bd9f8 377,682-683
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3846bfbf8fe67fe52b9d0adb98045a1ee2dcc63b",
+  "prompts": {},
+  "sessions": {
+    "s_b0e6b2d5bd6b31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0c0efc0-e561-4d1e-a89e-c758b277f97e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
