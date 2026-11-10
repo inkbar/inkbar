@@ -428,7 +428,16 @@
     zoom = z
     onZoomChange?.(z)
   }
+  /**
+   * Whether the host has given `page` a value of its own, as React's `page` prop. Until then the
+   * page written back below is only a report, so the next document opens at its first page
+   * instead of the last one's. Not reactive: it flips only with a change to `page`, which
+   * `pageModel`'s readers already track.
+   */
+  let hostPage = untrack(() => page) !== undefined
+  let reportedPage: number | undefined
   function reportPage(p: number): void {
+    reportedPage = p
     page = p
     onPageChange?.(p)
   }
@@ -664,7 +673,8 @@
       return zoom
     },
     get pageModel() {
-      return page
+      if (page !== undefined && page !== reportedPage) hostPage = true
+      return hostPage ? page : undefined
     },
     reportZoom,
     reportPage,

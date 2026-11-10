@@ -7,6 +7,7 @@ import { render } from 'vitest-browser-svelte'
 import { guardConsole } from './console-guard.js'
 import { attr, count, cssOf, gateFetch, q, qa, scrollTopOf, sleep } from './dom.js'
 import BoundViewportHost from './harness/BoundViewportHost.svelte'
+import UnpagedHost from './harness/UnpagedHost.svelte'
 import ViewportHarness from './harness/ViewportHarness.svelte'
 
 import type { Annotation, PageInfo } from '@inkbar/core'
@@ -561,6 +562,35 @@ describe('InkViewport', () => {
     await expect.poll(cssOf(FIRST, 'width')).toBe(`${612 * 2}px`)
     await expect.element(screen.getByTestId('bound-zoom')).toHaveTextContent('2')
     await expect.element(screen.getByTestId('bound-page')).toHaveTextContent('2')
+  })
+
+  // React gets this from its `page` prop being undefined; a Svelte bindable holds what it reports.
+  it('opens another document at its first page when the host passes no page', async () => {
+    const pages: number[] = []
+    const screen = await render(UnpagedHost, {
+      src: fixtureUrl('text-simple'),
+      assets,
+      onPageChange: (p: number) => pages.push(p),
+    })
+    await q(`${FIRST} canvas`)
+    scroll().focus()
+    await userEvent.keyboard('{End}')
+    await expect.poll(() => pages.at(-1)).toBe(2)
+
+    const before = pages.length
+    await screen.rerender({ src: fixtureUrl('mixed-page-sizes') })
+    await expect.poll(attr('[data-ink-viewport-root]', 'data-state')).toBe('ready')
+    // mixed-page-sizes' second page is A4 portrait; text-simple's is US Letter.
+    const ratio = () => {
+      const r = document.querySelector(SECOND)?.getBoundingClientRect()
+      return r ? Math.round((r.height / r.width) * 100) / 100 : 0
+    }
+    await expect.poll(ratio).toBeGreaterThan(1.35)
+    await q(`${FIRST} canvas`)
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+    // A document that opens on its first page reports nothing: page 0 is where it starts.
+    expect(pages.slice(before)).toEqual([])
+    expect(scroll().scrollTop).toBeLessThan(50)
   })
 
   // No React counterpart: a function binding can refuse what the viewport reports.
