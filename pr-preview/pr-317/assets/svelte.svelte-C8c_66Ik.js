@@ -1,0 +1,1 @@
+import{A as e,M as t,W as n,ct as r,ot as i}from"./client-DlM7410A.js";function a(a,o,s){let c=r(s.source),l=e(a,{target:o,props:{get source(){return n(c)},log:s.log,onDocument:s.onDocument,openFile:s.openFile}});return{update(e){i(c,e)},unmount:()=>void t(l)}}export{a as mountSvelte};
