@@ -8,7 +8,11 @@
  * The `item` slot, given `{ item, current, expanded }`, replaces an item's title. `emptyText`
  * is shown when the document has no outline. Inside `InkRoot`; the tree is empty on the server.
  */
-import { createOutlineController, type OutlineController } from '@inkbar/core/dom'
+import {
+  createOutlineController,
+  outlineTreeAttrs,
+  type OutlineController,
+} from '@inkbar/core/dom'
 import { onBeforeUnmount, onMounted, shallowRef, useTemplateRef } from 'vue'
 
 import { injectInkContext } from '../context'
@@ -32,6 +36,9 @@ const deps = {
   viewport: toReadable(() => ctx.viewport.value),
   navigation: toReadable(() => ctx.navigation.value),
 }
+
+/** The tree's role and label, from core so every binding names it alike. */
+const treeAttrs = outlineTreeAttrs()
 
 // The controller is built on mount, as the other controller-backed components do: it
 // subscribes to the document, so nothing is created while rendering on the server.
@@ -84,8 +91,7 @@ onBeforeUnmount(() => {
   >
     <ul
       class="ink-outline-tree"
-      role="tree"
-      aria-label="Outline"
+      v-bind="treeAttrs"
       :hidden="items.length === 0"
       @keydown="controller?.onKeydown($event)"
     >

@@ -3,7 +3,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { writable } from '../../model/readable'
 import { createNavigation, type Navigation } from '../navigation'
 
-import { createOutlineController, type OutlineController } from './controller'
+import {
+  createOutlineController,
+  outlineTreeAttrs,
+  type OutlineController,
+} from './controller'
 
 import type { Destination, LinkTarget } from '../../model/destination'
 import type { InkDocument } from '../../model/document'
@@ -135,6 +139,7 @@ describe('createOutlineController', () => {
     ])
     expect([...c.expanded.get()]).toEqual(['0'])
     expect(c.treeAttrs()).toEqual({ role: 'tree', 'aria-label': 'Outline' })
+    expect(c.treeAttrs()).toEqual(outlineTreeAttrs())
   })
 
   it('current item follows the reading line', async () => {

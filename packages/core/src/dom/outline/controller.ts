@@ -115,6 +115,14 @@ let instances = 0
 
 const hasChildren = (node: Node): boolean => node.item.children.length > 0
 
+/**
+ * `role="tree"` and its label, for the element holding an outline's items. The same as a
+ * controller's `treeAttrs()`, without one, so markup rendered on the server has them too.
+ */
+export function outlineTreeAttrs(): Record<string, string> {
+  return { role: 'tree', 'aria-label': 'Outline' }
+}
+
 export function createOutlineController(deps: OutlineControllerDeps): OutlineController {
   const prefix = deps.idPrefix ?? `ink-outline-${++instances}`
   const domId = (id: string): string => `${prefix}-${id.replaceAll('.', '-')}`
@@ -572,7 +580,7 @@ export function createOutlineController(deps: OutlineControllerDeps): OutlineCon
       setExpanded(new Set())
     },
     activate,
-    treeAttrs: () => ({ role: 'tree', 'aria-label': 'Outline' }),
+    treeAttrs: outlineTreeAttrs,
     titleAttrs: (id) => ({ id: `${domId(id)}-title` }),
     rowAttrs: (id) => ({ id: `${domId(id)}-row` }),
     itemAttrs(id) {

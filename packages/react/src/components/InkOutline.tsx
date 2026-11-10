@@ -1,4 +1,8 @@
-import { createOutlineController, type OutlineController } from '@inkbar/core/dom'
+import {
+  createOutlineController,
+  outlineTreeAttrs,
+  type OutlineController,
+} from '@inkbar/core/dom'
 import { ChevronRight } from '@inkbar/icons'
 import {
   useLayoutEffect,
@@ -143,8 +147,7 @@ export function InkOutline({
     >
       <ul
         className="ink-outline-tree"
-        role="tree"
-        aria-label="Outline"
+        {...outlineTreeAttrs()}
         hidden={items.length === 0}
         onKeyDown={(e) => controller?.onKeydown(e.nativeEvent)}
       >
