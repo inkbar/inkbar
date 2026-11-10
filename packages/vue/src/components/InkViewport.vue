@@ -127,6 +127,7 @@ function teardown(): void {
   engine.value = null
   if (ctx.viewport.value) ctx.viewport.value = null
   if (ctx.tools.value) ctx.tools.value = null
+  if (ctx.navigation.value) ctx.navigation.value = null
   ctx.openedToolIds.value = null
   pages.value = []
   // Their fields and the document they came from are gone.
@@ -239,6 +240,8 @@ function setup(): void {
       pages.value = pages.value.map((p) => (p.page === page ? { ...p, error: err } : p))
     },
   })
+  // The engine exists from here; its navigation lasts for its life, across rebuilds.
+  ctx.navigation.value = engine.value.navigation
 }
 
 onMounted(() => {

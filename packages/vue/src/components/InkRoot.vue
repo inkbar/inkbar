@@ -57,6 +57,7 @@ import type {
 import type {
   DecorateAnnotation,
   InkPlugin,
+  Navigation,
   PluginHost,
   SearchController,
   Tool,
@@ -201,6 +202,7 @@ const selection = useReadable<readonly string[]>(
 )
 const viewport = shallowRef<Viewport | null>(null)
 const toolController = shallowRef<ToolController | null>(null)
+const navigation = shallowRef<Navigation | null>(null)
 const internalTool = ref<ToolId>(props.tool ?? 'select-text')
 const activated = ref<string | null>(null)
 
@@ -564,6 +566,7 @@ provideInkContext({
   selection,
   viewport,
   tools: toolController,
+  navigation,
   tool: internalTool,
   setTool,
   hostTools: computed(() => props.tools),

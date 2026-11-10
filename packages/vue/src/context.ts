@@ -13,6 +13,7 @@ import type {
 } from '@inkbar/core'
 import type {
   DecorateAnnotation,
+  Navigation,
   PluginHost,
   SearchController,
   Tool,
@@ -70,6 +71,11 @@ export interface InkContext {
   /** Set by InkViewport once it has mounted its viewport and tool controller. */
   viewport: ShallowRef<Viewport | null>
   tools: ShallowRef<ToolController | null>
+  /**
+   * The engine's navigation (jumps with Back and Forward), set by InkViewport when it builds
+   * the engine and cleared when it is torn down.
+   */
+  navigation: ShallowRef<Navigation | null>
   /** Desired tool; InkViewport applies it to the controller. */
   tool: Readonly<Ref<ToolId>>
   setTool(id: ToolId): void
