@@ -1,0 +1,39 @@
+apps/e2e-shared/package.json
+  s_b0e6b2d5bd6b31::t_b79d2762f0ffaf 9
+apps/e2e-shared/e2e/links.spec.ts
+  s_b0e6b2d5bd6b31::t_d07e9e26086c57 1-38,40-41,48-144
+  s_b0e6b2d5bd6b31::t_55a94cce150b16 39,42-47
+apps/e2e-react/src/App.tsx
+  s_b0e6b2d5bd6b31::t_0954d8c4eb2350 2,6,19-20
+apps/e2e-vue/src/App.vue
+  s_b0e6b2d5bd6b31::t_0954d8c4eb2350 3,7,19
+apps/e2e-svelte/src/App.svelte
+  s_b0e6b2d5bd6b31::t_0954d8c4eb2350 3,7,19-20
+apps/e2e-shared/src/links-fixture.ts
+  s_b0e6b2d5bd6b31::t_b79d2762f0ffaf 1-9
+  s_b0e6b2d5bd6b31::t_0954d8c4eb2350 10-12
+apps/e2e-vue/src/LinksPage.vue
+  s_b0e6b2d5bd6b31::t_0954d8c4eb2350 1-32,34-82
+  s_b0e6b2d5bd6b31::t_62b650f7449f26 33
+apps/e2e-svelte/src/LinksPage.svelte
+  s_b0e6b2d5bd6b31::t_0954d8c4eb2350 1-77
+  s_b0e6b2d5bd6b31::t_e8af91627588ec 78
+apps/e2e-react/src/LinksPage.tsx
+  s_b0e6b2d5bd6b31::t_0954d8c4eb2350 1-80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "df4d3ac497b819cd1a01dd3ae0b8d95a84765d60",
+  "prompts": {},
+  "sessions": {
+    "s_b0e6b2d5bd6b31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0c0efc0-e561-4d1e-a89e-c758b277f97e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
