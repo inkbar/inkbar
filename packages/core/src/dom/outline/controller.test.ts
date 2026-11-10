@@ -424,6 +424,58 @@ describe('createOutlineController', () => {
     )
   })
 
+  describe('the item jumped to', () => {
+    /** Upper sits at y 500 (top 300); Lower, after it in the outline, at y 0 above it. */
+    const outOfOrder = () => [
+      item('0', 'Upper', at(0, 300)),
+      item('1', 'Lower', at(0)),
+      item('2', 'Site', { kind: 'url', url: 'https://example.com', newWindow: false }),
+    ]
+    /** Lets the jump settle: the controller records where it landed on the next frame. */
+    const settled = () => new Promise((r) => setTimeout(r, 20))
+
+    it('stays current until the reader scrolls away', async () => {
+      const { c, vp } = await setup(outOfOrder())
+      vp.readingLine.set(10)
+      expect(c.current.get()).toBe('1')
+      c.activate('0')
+      await vi.waitFor(() => expect(vp.scrollToDestination).toHaveBeenCalled())
+      // The rule alone would mark Lower, which is above the line and later in the outline.
+      expect(c.current.get()).toBe('0')
+      await settled()
+      expect(c.current.get()).toBe('0')
+      // A pixel or two of drift keeps it.
+      vp.readingLine.set(vp.readingLine.get() + 2)
+      expect(c.current.get()).toBe('0')
+      vp.readingLine.set(vp.readingLine.get() + 50)
+      expect(c.current.get()).toBe('1')
+    })
+
+    it('is released by a new layout or another document', async () => {
+      const { c, vp, document } = await setup(outOfOrder())
+      c.activate('0')
+      await settled()
+      expect(c.current.get()).toBe('0')
+      vp.layout.set({ boxes: [], width: 3, height: 3 })
+      expect(c.current.get()).toBe('1')
+
+      c.activate('0')
+      await settled()
+      expect(c.current.get()).toBe('0')
+      document.set(docOf(outOfOrder()))
+      await vi.waitFor(() => expect(c.loading.get()).toBe(false))
+      expect(c.current.get()).toBe('1')
+    })
+
+    it('is not pinned for a URL', async () => {
+      const { c, vp } = await setup(outOfOrder())
+      vp.readingLine.set(10)
+      c.activate('2')
+      await settled()
+      expect(c.current.get()).toBe('1')
+    })
+  })
+
   it('new document resets', async () => {
     const { c, document, vp } = await setup()
     c.expandAll()

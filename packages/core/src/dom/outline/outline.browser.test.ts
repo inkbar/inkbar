@@ -159,6 +159,39 @@ describe('createOutline', () => {
     await until(() => viewport.currentPage.get() === 1)
   })
 
+  it('the item jumped to is current until the reader scrolls away', async () => {
+    const { viewport, item } = await make()
+    // Section A centres its rect, so Section B (same page, at its top) is above the line.
+    await userEvent.click(
+      item('Section A')!.querySelector<HTMLElement>('.ink-outline-title')!
+    )
+    await until(() => viewport.currentPage.get() === 3)
+    await until(() => item('Section A')!.getAttribute('aria-current') === 'location')
+    await settle(100)
+    expect(item('Section A')!.getAttribute('aria-current')).toBe('location')
+    // Scrolling on hands the mark back to the rule.
+    const scroll = document.querySelector<HTMLElement>('[data-ink-scroll]')!
+    scroll.scrollTop += 100
+    await until(() => item('Section B')!.getAttribute('aria-current') === 'location')
+    expect(item('Section A')!.hasAttribute('aria-current')).toBe(false)
+  })
+
+  it('the item jumped to is current, though its next sibling is just below it', async () => {
+    const { viewport, item } = await make()
+    await userEvent.click(
+      item('Part One')!.querySelector<HTMLElement>('.ink-outline-toggle')!
+    )
+    // Chapter 2 is 100pt below Chapter 1 on the same page.
+    await userEvent.click(
+      item('Chapter 1')!.querySelector<HTMLElement>('.ink-outline-title')!
+    )
+    await until(() => viewport.currentPage.get() === 1)
+    await until(() => item('Chapter 1')!.getAttribute('aria-current') === 'location')
+    await settle(100)
+    expect(item('Chapter 1')!.getAttribute('aria-current')).toBe('location')
+    expect(item('Chapter 2')!.hasAttribute('aria-current')).toBe(false)
+  })
+
   it('an expanded current parent whose row shows does not scroll for its subtree', async () => {
     const { viewport, outline, item } = await make('outline', 120)
     const partTwo = item('Part Two')!

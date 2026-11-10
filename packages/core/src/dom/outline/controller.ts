@@ -7,7 +7,8 @@
  * viewport's reading line. Destinations are placed once per layout, and the reading line is
  * found among them by binary search, so a long outline costs little per scroll. When that item
  * sits inside a collapsed parent, the outermost collapsed ancestor is marked instead; nothing
- * expands by itself.
+ * expands by itself. An item activated from the outline stays current until the reader scrolls
+ * away from where it landed, so the item jumped to is the one marked.
  */
 import { readonly, writable, type Readable } from '../../model/readable'
 
@@ -15,6 +16,9 @@ import type { InkDocument } from '../../model/document'
 import type { OutlineItem } from '../../model/outline'
 import type { Navigation } from '../navigation'
 import type { Viewport } from '../viewport'
+
+/** How far, in CSS px, the view may drift after a jump before the jumped-to item lets go. */
+const PIN_SLACK = 2
 
 /** How long typed characters keep adding to one type-ahead search, in ms. */
 const TYPE_AHEAD_MS = 500
@@ -39,7 +43,8 @@ export interface OutlineController {
   readonly expanded: Readable<ReadonlySet<string>>
   /**
    * The id of the item marked as where the reader is: the item reached, or its outermost
-   * collapsed ancestor. Null before the first item's destination.
+   * collapsed ancestor; the item last activated, until the reader scrolls away from it. Null
+   * before the first item's destination.
    */
   readonly current: Readable<string | null>
   /** The id of the item the user last moved to or activated; null until they do. */
@@ -135,6 +140,16 @@ export function createOutlineController(deps: OutlineControllerDeps): OutlineCon
   let generation = 0
   /** The document the tree's elements live in, once a key or `bindScroll` has shown it. */
   let ownerDoc: Document | null = null
+
+  /**
+   * The item last jumped to from the outline. It stays current until the reader scrolls away
+   * from where the jump landed (`line`, recorded once the jump settles): a destination centred
+   * in the view, or one sharing a page with later items, may otherwise not be the one the rule
+   * picks there.
+   */
+  let pin: { node: Node; line: number | undefined } | null = null
+  /** Cancels the wait for the jump to settle. */
+  let cancelSettle: (() => void) | null = null
 
   let typed = ''
   let typedTimer: ReturnType<typeof setTimeout> | undefined
@@ -236,6 +251,8 @@ export function createOutlineController(deps: OutlineControllerDeps): OutlineCon
         else hi = mid
       }
       reached = lo > 0 ? placed[lo - 1]!.node : null
+      if (pin && pin.line !== undefined && Math.abs(line - pin.line) > PIN_SLACK) unpin()
+      if (pin) reached = pin.node
     }
     mark()
   }
@@ -280,8 +297,26 @@ export function createOutlineController(deps: OutlineControllerDeps): OutlineCon
     mark()
   }
 
+  function unpin(): void {
+    pin = null
+    cancelSettle?.()
+    cancelSettle = null
+  }
+
+  /** Runs `fn` once the scroll a jump started has landed: on the next frame. */
+  function afterFrame(fn: () => void): () => void {
+    const view = ownerDoc?.defaultView ?? globalThis
+    if (typeof view.requestAnimationFrame === 'function') {
+      const handle = view.requestAnimationFrame(fn)
+      return () => view.cancelAnimationFrame(handle)
+    }
+    const timer = setTimeout(fn, 0)
+    return () => clearTimeout(timer)
+  }
+
   function load(doc: InkDocument | null): void {
     const mine = ++generation
+    unpin()
     index([])
     items.set([])
     expanded.set(new Set())
@@ -320,7 +355,12 @@ export function createOutlineController(deps: OutlineControllerDeps): OutlineCon
         place()
         reach()
       }
-      const offLayout = vp.layout.subscribe(replace)
+      const offLayout = vp.layout.subscribe(() => {
+        // A new layout (zoom, rotation, resize) moves every destination: back to the rule. The
+        // jump's own relayout, before it settles, keeps the pin.
+        if (pin?.line !== undefined) unpin()
+        replace()
+      })
       // In single-page mode another page shows without a new layout.
       const offPage = vp.currentPage.subscribe(replace)
       stopLine = () => {
@@ -350,8 +390,25 @@ export function createOutlineController(deps: OutlineControllerDeps): OutlineCon
     const node = byId.get(id)
     if (destroyed || !node) return
     focused.set(id)
-    if (node.item.target.kind === 'unsupported') return
-    void deps.navigation.get()?.follow(node.item.target)
+    const target = node.item.target
+    const navigation = deps.navigation.get()
+    if (target.kind === 'unsupported' || !navigation) return
+    const follow = navigation.follow(target)
+    if (target.kind !== 'resolved') return
+    unpin()
+    const mine = { node, line: undefined as number | undefined }
+    pin = mine
+    reach()
+    void follow.then(() => {
+      if (pin !== mine) return
+      cancelSettle = afterFrame(() => {
+        cancelSettle = null
+        const vp = deps.viewport.get()
+        if (pin !== mine || !vp) return
+        mine.line = vp.readingLine.get()
+        reach()
+      })
+    })
   }
 
   /** The visible item whose title starts with what was typed, searching on from `from`. */
@@ -539,6 +596,7 @@ export function createOutlineController(deps: OutlineControllerDeps): OutlineCon
       if (destroyed) return
       for (const unbind of [...bindings]) unbind()
       destroyed = true
+      unpin()
       generation++
       clearTimeout(typedTimer)
       stopDocument()
