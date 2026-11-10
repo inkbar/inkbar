@@ -35,8 +35,8 @@ export async function resolveDestination(
       return undefined
     }
     const name = (array[1] as { name?: unknown } | null | undefined)?.name
-    if (typeof name !== 'string') return undefined
-    switch (name.toLowerCase()) {
+    // Lenient files omit or misspell the fit; the page alone is still a usable target.
+    switch (typeof name === 'string' ? name.toLowerCase() : '') {
       case 'xyz':
         return {
           page,
@@ -67,14 +67,20 @@ export async function resolveDestination(
         ) {
           return undefined
         }
+        // Some writers give the corners in the other order.
         return {
           page,
           fit: 'fitr',
-          rect: { x: left, y: bottom, width: right - left, height: top - bottom },
+          rect: {
+            x: Math.min(left, right),
+            y: Math.min(bottom, top),
+            width: Math.abs(right - left),
+            height: Math.abs(top - bottom),
+          },
         }
       }
       default:
-        return undefined
+        return { page, fit: 'fit' }
     }
   } catch {
     // An unreadable name tree, or a reference that is not a page.

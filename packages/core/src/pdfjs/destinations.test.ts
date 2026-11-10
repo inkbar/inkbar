@@ -75,6 +75,27 @@ describe('resolveDestination', () => {
     })
   })
 
+  it('falls back to fit when the fit is missing or unknown', async () => {
+    const proxy = await proxyOf('outline')
+    expect(await resolveDestination(proxy, [2])).toEqual({ page: 2, fit: 'fit' })
+    expect(await resolveDestination(proxy, [2, { name: 'Bogus' }])).toEqual({
+      page: 2,
+      fit: 'fit',
+    })
+    expect(await resolveDestination(proxy, [2, 'Fit'])).toEqual({ page: 2, fit: 'fit' })
+  })
+
+  it('normalises a reversed FitR rectangle', async () => {
+    const proxy = await proxyOf('outline')
+    expect(
+      await resolveDestination(proxy, [1, { name: 'FitR' }, 300, 400, 72, 100])
+    ).toEqual({
+      page: 1,
+      fit: 'fitr',
+      rect: { x: 72, y: 100, width: 228, height: 300 },
+    })
+  })
+
   it('unreadable destinations resolve to undefined', async () => {
     const proxy = await proxyOf('outline')
     const items = new Map(flatten(await proxy.getOutline()))
@@ -84,12 +105,20 @@ describe('resolveDestination', () => {
     expect(await resolveDestination(proxy, items.get('Broken')!)).toBeUndefined()
     expect(await resolveDestination(proxy, [6, { name: 'Fit' }])).toBeUndefined()
     expect(await resolveDestination(proxy, [-1, { name: 'Fit' }])).toBeUndefined()
-    expect(await resolveDestination(proxy, [0, { name: 'Bogus' }])).toBeUndefined()
     expect(await resolveDestination(proxy, [0, { name: 'FitR' }, 1, 2])).toBeUndefined()
   })
 })
 
 describe('destinationPage', () => {
+  it('accepts a destination that names only a page', async () => {
+    const real = await proxyOf('outline')
+    const proxy = {
+      numPages: real.numPages,
+      getDestination: () => Promise.resolve([3]),
+    } as unknown as PdfjsDocument
+    expect(await destinationPage(proxy, 'bare')).toBe(3)
+  })
+
   it('still returns a page', async () => {
     const proxy = await proxyOf('form-goto')
     expect(await destinationPage(proxy, 'chapter-3')).toBe(2)
