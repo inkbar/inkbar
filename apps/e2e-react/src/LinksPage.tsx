@@ -1,3 +1,4 @@
+import { createLocalStorage, type ViewerAction } from '@inkbar/core'
 import { allTools } from '@inkbar/core/dom'
 import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
 import {
@@ -17,9 +18,8 @@ import {
 import { useCallback, useMemo, useState } from 'react'
 import { assets } from 'virtual:inkbar-assets'
 
-import type { ViewerAction } from '@inkbar/core'
-
 const tools = allTools()
+const storage = createLocalStorage('inkbar-e2e')
 
 /*
  * The outline and links fixtures, with the outline in a left sidebar and Back and Forward in
@@ -39,6 +39,7 @@ export function LinksPage({ fixture }: { fixture: string }) {
       assets={assets}
       tools={tools}
       history={true}
+      storage={storage}
       className="sandbox-root"
       onReady={() => setStatus('ready')}
       onError={() => setStatus('error')}
