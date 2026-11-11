@@ -130,6 +130,35 @@ describe('@inkbar/svelte on the server', () => {
     expect(body).toMatch(/<button[^>]*data-ink-back[^>]*disabled/)
     expect(body).toMatch(/<button[^>]*data-ink-forward[^>]*disabled/)
   }, 30_000)
+  it('InkSidebar renders the default width and a handle on the server', async () => {
+    const { createMemoryStorage } = await import('@inkbar/core')
+    const { default: Host } = await import('./harness/SidebarWidthSsrHost.svelte')
+    const html = render(Host, { props: { assets, root: true } }).body
+    const rootTag = /<div class="ink-sidebar"[^>]*>/.exec(html)?.[0] ?? ''
+    expect(rootTag).toContain('--ink-sidebar-width: 320px')
+    const handle = /<div[^>]*class="ink-sidebar-handle"[^>]*>/.exec(html)?.[0] ?? ''
+    expect(handle).toContain('role="separator"')
+    expect(handle).toContain('aria-label="Resize sidebar"')
+    expect(handle).toContain('aria-valuenow="320"')
+    expect(handle).not.toMatch(/\shidden/)
+    // The handle names the panels element.
+    const id = /aria-controls="([^"]+)"/.exec(handle)?.[1]
+    expect(id).toBeTruthy()
+    expect(html).toMatch(
+      new RegExp(
+        `class="ink-sidebar-panels"[^>]*id="${id}"|id="${id}"[^>]*class="ink-sidebar-panels"`
+      )
+    )
+
+    // A store that answers at once shows its width on the server too; a bound number wins.
+    const storage = createMemoryStorage({ 'sidebar.left.width': 400 })
+    expect(render(Host, { props: { assets, storage } }).body).toContain(
+      '--ink-sidebar-width: 400px'
+    )
+    expect(render(Host, { props: { assets, storage, width: 280 } }).body).toContain(
+      '--ink-sidebar-width: 280px'
+    )
+  }, 30_000)
   it('InkSidebar renders its chrome on the server; thumbnails render empty', async () => {
     const { default: Host } = await import('./harness/SidebarSsrHost.svelte')
     const html = (layout: 'rail' | 'tabs' | 'stack', open?: string) =>

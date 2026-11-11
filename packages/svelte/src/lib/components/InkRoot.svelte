@@ -92,9 +92,16 @@
      */
     fonts?: string[] | undefined
     /**
-     * Where saved signatures live. Default: memory, gone on reload.
-     * `createLocalSignatureStore` keeps them in the browser; a host can keep them anywhere.
-     * A new store takes effect at once, for the menus and the `signature` tool alike.
+     * Where the viewer keeps what lasts between visits: saved signatures, each `InkSidebar`'s
+     * width and the plugins' settings. Default: memory, gone on reload. `createLocalStorage`
+     * keeps them in the browser; a host can keep them anywhere. Read once, when the root is
+     * created.
+     */
+    storage?: InkStorage | undefined
+    /**
+     * Where saved signatures live, in place of `storage`. A new store takes effect at once, for
+     * the menus and the `signature` tool alike.
+     * @deprecated Pass `storage`; signatures are kept in it under `signatures`. Removed in 0.13.0.
      */
     signatures?: SignatureStore | undefined
     /** The handwriting fonts a typed signature offers; the host loads them. */
@@ -126,9 +133,10 @@
 
 <script lang="ts">
   import {
-    createMemorySignatureStore,
+    createMemoryStorage,
     createSignatureLibrary,
     createSnapshotHistory,
+    createStorageSignatureStore,
     InkError as InkErrorClass,
     openDocument,
     readonly,
@@ -158,7 +166,7 @@
   import { registeredToolIds } from '../hooks/useRegisteredTool.svelte.js'
   import { useReadable } from '../use-readable.svelte.js'
 
-  import type { PluginHistory } from '@inkbar/core'
+  import type { InkStorage, PluginHistory } from '@inkbar/core'
   import type {
     Navigation,
     PluginHost,
@@ -186,6 +194,7 @@
     plugins,
     decorateAnnotation,
     fonts,
+    storage: storageProp,
     signatures: signatureStore,
     signatureFonts,
     page = $bindable(),
@@ -204,9 +213,11 @@
 
   type TestHookElement = HTMLElement & { __inkDocument?: InkDocument | undefined }
 
-  const signatures = $derived(
-    createSignatureLibrary(signatureStore ?? createMemorySignatureStore())
-  )
+  // Read once, like `plugins`: the sidebars and the plugins load from it as they are created.
+  const storage = untrack(() => storageProp ?? createMemoryStorage())
+  const storageSignatures = createStorageSignatureStore(storage)
+  // The deprecated `signatures` wins when both are given.
+  const signatures = $derived(createSignatureLibrary(signatureStore ?? storageSignatures))
   $effect(() => {
     void signatures.refresh()
   })
@@ -537,6 +548,7 @@
         decorate: () => decorateAnnotation,
         viewport: () => viewport,
         search: viewerSearchOf(controller),
+        storage,
       })
     )
     search = controller
@@ -665,6 +677,7 @@
       return fonts ?? FONT_FAMILIES
     },
     toolOptions,
+    storage,
     get signatures() {
       return signatures
     },
