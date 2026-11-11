@@ -11,22 +11,27 @@
     root = false,
     storage,
     width,
+    minDocumentWidth,
+    handleLabel,
   }: {
     assets: PdfAssets
     root?: boolean
     storage?: InkStorage | undefined
     width?: number | undefined
+    /** InkRoot's, with `root`. */
+    minDocumentWidth?: number | undefined
+    handleLabel?: string | undefined
   } = $props()
 </script>
 
 {#snippet sidebar()}
-  <InkSidebar layout="rail" {storage} {width}>
+  <InkSidebar layout="rail" {storage} {width} {handleLabel}>
     <InkPanel id="pages" label="Pages"><p>A</p></InkPanel>
   </InkSidebar>
 {/snippet}
 
 {#if root}
-  <InkRoot src="/doc.pdf" {assets}>{@render sidebar()}</InkRoot>
+  <InkRoot src="/doc.pdf" {assets} {minDocumentWidth}>{@render sidebar()}</InkRoot>
 {:else}
   {@render sidebar()}
 {/if}

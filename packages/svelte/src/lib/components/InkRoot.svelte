@@ -99,6 +99,12 @@
      */
     storage?: InkStorage | undefined
     /**
+     * The narrowest the document may get beside the sidebars, in CSS px, before a rail
+     * sidebar's panel floats over the pages instead. Default 480 (`MIN_DOCUMENT_WIDTH`). Every
+     * `InkSidebar` inside takes it unless it has its own. Read once, when the root is created.
+     */
+    minDocumentWidth?: number | undefined
+    /**
      * Where saved signatures live, in place of `storage`. A new store takes effect at once, for
      * the menus and the `signature` tool alike.
      * @deprecated Pass `storage`; signatures are kept in it under `signatures`. Removed in 0.13.0.
@@ -152,6 +158,7 @@
     FONT_FAMILIES,
     handleFindKey,
     keepHistoryFocus,
+    MIN_DOCUMENT_WIDTH,
     pageSelectionText,
     SIGNATURE_FONTS,
     trackToolStyle,
@@ -195,6 +202,7 @@
     decorateAnnotation,
     fonts,
     storage: storageProp,
+    minDocumentWidth: minDocumentWidthProp,
     signatures: signatureStore,
     signatureFonts,
     page = $bindable(),
@@ -216,6 +224,8 @@
   // Read once, like `plugins`: the sidebars and the plugins load from it as they are created.
   const storage = untrack(() => storageProp ?? createMemoryStorage())
   const storageSignatures = createStorageSignatureStore(storage)
+  // Read once, like `storage`: each sidebar reads it as it is created.
+  const minDocumentWidth = untrack(() => minDocumentWidthProp ?? MIN_DOCUMENT_WIDTH)
   // The deprecated `signatures` wins when both are given.
   const signatures = $derived(createSignatureLibrary(signatureStore ?? storageSignatures))
   $effect(() => {
@@ -687,6 +697,7 @@
     },
     toolOptions,
     storage,
+    minDocumentWidth,
     get signatures() {
       return signatures
     },
