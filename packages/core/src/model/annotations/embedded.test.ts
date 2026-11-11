@@ -156,7 +156,7 @@ describe('embedded import', () => {
     expect(u.counts).toEqual({ Link: 1, Stamp: 1, FileAttachment: 1 })
     expect(summarise([u.counts, r.counts])).toEqual([
       { subtype: 'FileAttachment', count: 1, supported: false },
-      { subtype: 'Link', count: 1, supported: false },
+      { subtype: 'Link', count: 1, supported: true },
       { subtype: 'Redact', count: 2, supported: true },
       { subtype: 'Stamp', count: 1, supported: false },
     ])

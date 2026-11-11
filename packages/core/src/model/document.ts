@@ -1,6 +1,6 @@
 import { emptyFormExtras, readFormExtras, type FormExtras } from '../pdf/form-fields'
 import { openPdfObjects } from '../pdf/objects'
-import { destinationPage } from '../pdfjs/destinations'
+import { destinationPage, resolveDestination } from '../pdfjs/destinations'
 import { pageGlyphs } from '../pdfjs/glyphs'
 import { assertAssets, loadPdfjs, openProxy } from '../pdfjs/load'
 import { createFormScripting } from '../pdfjs/scripting'
@@ -30,6 +30,7 @@ import { InkError, isInkError } from './errors'
 import { createFormController, type FormController } from './form/controller'
 import { fieldsToGloss } from './form/gloss'
 import { buildFormFields, type RawWidget } from './form/structure'
+import { linkFromPdfjs, type PageLink } from './links'
 import { canvasMeasureChar } from './measure-char'
 import { createPageCache, type PageCache } from './page-cache'
 import { pageInfoFromProxy, type PageInfo } from './pages'
@@ -45,6 +46,7 @@ import { resolveSource, sourceFileName, type DocumentSource } from './source'
 import { textContentFromPdfjs, type TextContent } from './text'
 
 import type { AnnotationDocument, ForeignAnnotation } from './annotations/types'
+import type { Destination, RawDestination } from './destination'
 import type { FieldsMode, FormField } from './form/types'
 import type {
   PdfAssets,
@@ -117,6 +119,16 @@ export interface InkDocument {
    * `{ kind: 'replace', reason: 'embedded', fields }` change.
    */
   readonly annotations: AnnotationStore
+  /**
+   * The page's links, in file order. Complete once `ready` resolves, `[]` before. Links are
+   * read-only structure of the file and never join `annotations`.
+   */
+  links(page: number): readonly PageLink[]
+  /**
+   * Looks a destination up in the file: a name through its name tree, or an explicit array.
+   * `undefined` when it names no page. Answers are cached per document by the destination.
+   */
+  resolveDestination(raw: RawDestination): Promise<Destination | undefined>
   /** What the file contained, by PDF subtype, including subtypes Inkbar does not show. */
   readonly embedded: readonly EmbeddedSummary[]
   readonly history: History
@@ -184,6 +196,8 @@ export async function openDocument(
     defaults: options.defaults ?? staticDefaults,
   })
   const embedded: EmbeddedSummary[] = []
+  const linksByPage = new Map<number, PageLink[]>()
+  const destinationCache = new Map<string, Promise<Destination | undefined>>()
   let preserved: ForeignAnnotation[] = []
   /** Embedded annotations whose PDF.js data lacks fields the file holds; read after `ready`. */
   const targets: EmbeddedTarget[] = []
@@ -268,7 +282,11 @@ export async function openDocument(
       const widgets = raw.flatMap((data): RawWidget[] =>
         data.subtype === 'Widget' ? [{ page: i, data }] : []
       )
-      return { ...importEmbeddedPage(i, raw, importedAt), widgets }
+      const links = raw.flatMap((data) => linkFromPdfjs(i, data) ?? [])
+      return { ...importEmbeddedPage(i, raw, importedAt), widgets, links }
+    })
+    perPage.forEach((r, i) => {
+      if (r.links.length > 0) linksByPage.set(i, r.links)
     })
     embedded.push(...summarise(perPage.map((r) => r.counts)))
     const fromFile = perPage.flatMap((r) => r.annotations)
@@ -492,6 +510,17 @@ export async function openDocument(
       }
     },
     annotations: store,
+    links: (page) => linksByPage.get(page) ?? [],
+    resolveDestination(raw) {
+      if (destroyed || !handles) return Promise.resolve(undefined)
+      const key = JSON.stringify(raw)
+      let found = destinationCache.get(key)
+      if (!found) {
+        found = resolveDestination(handles.proxy, raw).catch(() => undefined)
+        destinationCache.set(key, found)
+      }
+      return found
+    },
     embedded,
     history,
     form,
@@ -532,6 +561,7 @@ export async function openDocument(
       store.destroy()
       pageCache?.clear()
       searchable.clear()
+      destinationCache.clear()
       if (destroyTask) {
         teardown(destroyTask)
       }

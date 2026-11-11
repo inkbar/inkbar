@@ -31,6 +31,9 @@ export const SUPPORTED_SUBTYPES: ReadonlySet<string> = new Set([
   'Redact',
 ])
 
+/** Subtypes the document reads as links rather than annotations. */
+const LINK_SUBTYPES: ReadonlySet<string> = new Set(['Link'])
+
 export interface EmbeddedSummary {
   subtype: string
   count: number
@@ -157,7 +160,7 @@ export function summarise(perPage: Record<string, number>[]): EmbeddedSummary[] 
     .map(([subtype, count]) => ({
       subtype,
       count,
-      supported: SUPPORTED_SUBTYPES.has(subtype),
+      supported: SUPPORTED_SUBTYPES.has(subtype) || LINK_SUBTYPES.has(subtype),
     }))
     .sort((a, b) => (a.subtype < b.subtype ? -1 : a.subtype > b.subtype ? 1 : 0))
 }
