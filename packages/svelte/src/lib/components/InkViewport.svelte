@@ -126,6 +126,7 @@
     builtWith = null
     ctx.setOpenedToolIds(null)
     ctx.setViewport(null, null)
+    ctx.setNavigation(null)
     if (pages.length > 0) pages = []
     // Their fields and the document they came from are gone.
     signRequest = null
@@ -235,6 +236,8 @@
         pages = pages.map((p) => (p.page === page ? { ...p, error: err } : p))
       },
     })
+    // The engine exists from here; its navigation lasts for its life, across rebuilds.
+    ctx.setNavigation(engine.navigation)
   }
 
   // The plugins' `root`. Before the build below, so it is set when the engine mounts.
