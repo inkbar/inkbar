@@ -52,7 +52,7 @@ import {
 } from '../../plugin/suggestions'
 import '../../plugin/suggestions.css'
 import { FileUp } from '../../shared/file-up'
-import { signatureFonts, signatures } from '../../shared/signatures'
+import { signatureFonts, storage } from '../../shared/signatures'
 
 import type { Log, ScenarioProps } from '../../frameworks/types'
 import type { InkDocument } from '@inkbar/core'
@@ -156,7 +156,7 @@ export default function SuggestRedactions({
       assets={assets}
       tools={tools}
       plugins={plugins}
-      signatures={signatures}
+      storage={storage}
       signatureFonts={signatureFonts}
       onReady={onReady}
       onActivate={(id) => log('onActivate', id)}

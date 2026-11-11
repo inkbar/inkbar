@@ -34,6 +34,7 @@ import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 
 import { FileUp } from '../../shared/file-up'
+import { storage } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
 import type { InkDocument, ViewerAction } from '@inkbar/core'
@@ -53,6 +54,7 @@ export default function Outline({ source, log, onDocument, openFile }: ScenarioP
     <InkRoot
       src={source}
       assets={assets}
+      storage={storage}
       onReady={onReady}
       onAction={onAction}
       className="scenario-root"

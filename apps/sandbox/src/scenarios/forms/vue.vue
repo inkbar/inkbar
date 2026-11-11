@@ -32,7 +32,7 @@ import { onBeforeUnmount } from 'vue'
 
 import { FileUp } from '../../shared/file-up'
 import { changedFields } from '../../shared/form'
-import { signatureFonts, signatures } from '../../shared/signatures'
+import { signatureFonts, storage } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
 import type { FieldValues, ViewerAction, InkDocument } from '@inkbar/core'
@@ -64,7 +64,7 @@ function onAction(action: ViewerAction): void {
   <InkRoot
     :src="source"
     :assets="assets"
-    :signatures="signatures"
+    :storage="storage"
     :signature-fonts="signatureFonts"
     class="scenario-root"
     @ready="onReady"

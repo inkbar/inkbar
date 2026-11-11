@@ -26,6 +26,7 @@ import { assets } from 'virtual:inkbar-assets'
 import { pressesPlugin } from '../../plugin/presses'
 import '../../plugin/presses.css'
 import { FileUp } from '../../shared/file-up'
+import { storage } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
 import type { DocumentSource } from '@inkbar/core'
@@ -48,6 +49,7 @@ export function mount(
   { source, log, onDocument, openFile }: ScenarioProps
 ) {
   const viewer = createViewer(el, {
+    storage,
     source,
     assets,
     plugins: [pressesPlugin({ log })],

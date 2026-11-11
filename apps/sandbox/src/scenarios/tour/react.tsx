@@ -36,7 +36,7 @@ import { useEffect, useRef } from 'react'
 import { assets } from 'virtual:inkbar-assets'
 
 import { FileUp } from '../../shared/file-up'
-import { signatureFonts, signatures } from '../../shared/signatures'
+import { signatureFonts, storage } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
 import type { InkDocument } from '@inkbar/core'
@@ -68,7 +68,7 @@ export default function AnnotationTour({
       src={source}
       assets={assets}
       tools={tools}
-      signatures={signatures}
+      storage={storage}
       signatureFonts={signatureFonts}
       onReady={onReady}
       onToolChange={(tool) => log('onToolChange', tool)}

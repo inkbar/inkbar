@@ -145,5 +145,26 @@ for (const framework of FRAMEWORK_ORDER) {
       await expect(chapter).toHaveAttribute('aria-expanded', 'true')
       await expect(treeItem(page, '3.1 Field notebooks')).toBeVisible()
     })
+
+    test(`${framework} outline: outline sidebar can be resized`, async ({ page }) => {
+      await open(page, framework)
+      const handle = viewer(page).getByRole('separator', { name: 'Resize sidebar' })
+      // The sandbox's viewer is narrow, so the default width is already near the cap: go to
+      // the minimum and widen from there.
+      await handle.focus()
+      await page.keyboard.press('Home')
+      await page.keyboard.press('ArrowRight')
+      await page.keyboard.press('ArrowRight')
+      await expect(handle).toHaveAttribute('aria-valuenow', '272')
+      await page.reload()
+      await expect(viewer(page).locator('[data-ink-root]')).toHaveAttribute(
+        'data-state',
+        'ready',
+        { timeout: 20_000 }
+      )
+      await expect(
+        viewer(page).getByRole('separator', { name: 'Resize sidebar' })
+      ).toHaveAttribute('aria-valuenow', '272')
+    })
   })
 }

@@ -46,7 +46,7 @@ import {
 } from '../../plugin/suggestions'
 import '../../plugin/suggestions.css'
 import { FileUp } from '../../shared/file-up'
-import { signatureFonts, signatures } from '../../shared/signatures'
+import { signatureFonts, storage } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
 import type { DocumentSource } from '@inkbar/core'
@@ -73,7 +73,7 @@ export function mount(
     assets,
     tools: allTools(),
     plugins: [suggestionsPlugin()],
-    signatures,
+    storage,
     signatureFonts,
     onReady: (doc) => {
       log('onReady', { pages: doc.pages.length })
@@ -161,6 +161,7 @@ export function mount(
   // Thumbnails of the pages, in a sidebar on the left. It starts closed, leaving the pages the
   // room.
   const left = createSidebar({
+    storage,
     defaultWidth: 240,
     side: 'left',
     layout: 'rail',
@@ -180,6 +181,7 @@ export function mount(
   const accepted = document.createElement('div')
   accepted.className = 'accepted'
   const right = createSidebar({
+    storage,
     defaultWidth: 240,
     side: 'right',
     layout: 'rail',

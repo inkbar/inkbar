@@ -31,6 +31,7 @@ import { useState } from 'react'
 import { assets } from 'virtual:inkbar-assets'
 
 import { FileUp } from '../../shared/file-up'
+import { storage } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
 import type { InkDocument } from '@inkbar/core'
@@ -44,7 +45,13 @@ export default function Sidebars({ source, log, onDocument, openFile }: Scenario
   }
 
   return (
-    <InkRoot src={source} assets={assets} onReady={onReady} className="scenario-root">
+    <InkRoot
+      src={source}
+      assets={assets}
+      storage={storage}
+      onReady={onReady}
+      className="scenario-root"
+    >
       <InkToolbar className="scenario-toolbar">
         <div className="scenario-group" role="group" aria-label="Tools">
           <InkToolButton tool="select-text" />
