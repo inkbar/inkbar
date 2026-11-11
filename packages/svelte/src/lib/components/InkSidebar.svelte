@@ -104,8 +104,8 @@
    * `width` is the host's only while it holds a number the sidebar did not write itself. The
    * sidebar writes every change back to the binding; on an unbound prop that sets the local
    * value, which would otherwise read as a controlling number and stop the saving. `written` is
-   * the last width we wrote, and `controlled` sticks while the host keeps a number that is
-   * not ours, or started with one.
+   * the last width we wrote. `controlled` turns on once the host gives a number that is not
+   * ours, or starts with one, and then stays on, as in core.
    */
   let written: number | undefined
   let controlled = untrack(() => width !== undefined)
@@ -113,8 +113,7 @@
   function widthOptions(): Partial<
     Record<'defaultWidth' | 'minWidth' | 'maxWidth' | 'width', number>
   > {
-    if (width === undefined) controlled = false
-    else if (width !== written) controlled = true
+    if (width !== undefined && width !== written) controlled = true
     return {
       ...(defaultWidth !== undefined && { defaultWidth }),
       ...(minWidth !== undefined && { minWidth }),
