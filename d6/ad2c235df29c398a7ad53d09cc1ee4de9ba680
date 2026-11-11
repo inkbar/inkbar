@@ -1,0 +1,45 @@
+packages/svelte/src/lib/context.ts
+  s_b0e6b2d5bd6b31::t_3ecc61f273e8dd 9,101-106,174-184
+  s_b0e6b2d5bd6b31::t_17214712bb0031 185
+packages/svelte/src/lib/components/InkSidebar.svelte
+  s_b0e6b2d5bd6b31::t_c35f532d3ad604 257-260
+  s_b0e6b2d5bd6b31::t_8f0d9765b7f7a2 2,22-43,63-67,72,83-88,100-125,136-142,157,164,217-218,229,239-241,261-263,277-281,284-285
+  s_b0e6b2d5bd6b31::t_f38c8b4aa6b63c 206-209,212-213,219,242-253
+  s_b0e6b2d5bd6b31::t_9dad27ad81571a 254
+packages/svelte/src/test/harness/SidebarHarness.svelte
+  s_b0e6b2d5bd6b31::t_0165c1eb7f42e7 2-6,11,14-16,23-27,33-41,46-64,95-106,108-117,126-128,136-138,146-148,155-161,163-168
+  s_b0e6b2d5bd6b31::t_c35f532d3ad604 118-125,129-135,139-145,149-154,162
+packages/svelte/src/test/harness/SignatureStorageProbe.svelte
+  s_b0e6b2d5bd6b31::t_0165c1eb7f42e7 1-25
+packages/svelte/src/test/harness/SidebarWidthSsrHost.svelte
+  s_b0e6b2d5bd6b31::t_ff19b9a68607d0 1-32
+packages/svelte/src/lib/components/InkRoot.svelte
+  s_b0e6b2d5bd6b31::t_3ecc61f273e8dd 95-104,136,139,169,197,216-220,551,680
+packages/svelte/src/test/Sidebar.browser.test.ts
+  s_b0e6b2d5bd6b31::t_ff19b9a68607d0 1,256-263,265-267,272-274,276,302-320,322-365,367-425
+  s_b0e6b2d5bd6b31::t_c76ed2ba984190 268
+  s_b0e6b2d5bd6b31::t_c35f532d3ad604 269-271,275,277-301
+  s_b0e6b2d5bd6b31::t_6b833b677d5846 264,321,366
+  s_b0e6b2d5bd6b31::t_2d9645a80528a6 426
+packages/svelte/src/test/ssr.test.ts
+  s_b0e6b2d5bd6b31::t_ff19b9a68607d0 133-161
+packages/svelte/README.md
+  s_b0e6b2d5bd6b31::t_6e84b5c19a1762 180-193,245-251
+  s_b0e6b2d5bd6b31::t_6061a1db490842 152
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d6ad2c235df29c398a7ad53d09cc1ee4de9ba680",
+  "prompts": {},
+  "sessions": {
+    "s_b0e6b2d5bd6b31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0c0efc0-e561-4d1e-a89e-c758b277f97e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
