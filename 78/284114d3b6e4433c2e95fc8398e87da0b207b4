@@ -1,0 +1,31 @@
+packages/vue/playwright/harness/HydratedSidebarHarness.vue
+  s_b0e6b2d5bd6b31::t_cf663a56ec532a 34-38
+  s_b0e6b2d5bd6b31::t_00832d709cc903 6-13,16,27-28
+  s_b0e6b2d5bd6b31::t_0033a8e6373b86 32-33
+  s_b0e6b2d5bd6b31::t_bd0430946864c1 1-5,14-15,17-26,29-31,39-52
+packages/vue/src/components/InkSidebar.vue
+  s_b0e6b2d5bd6b31::t_0033a8e6373b86 172-176,179-180,185,202-203,206-207,213-220,239-244
+packages/vue/src/components/Sidebar.ct.ts
+  s_b0e6b2d5bd6b31::t_891c65674a185c 6,381-392
+  s_b0e6b2d5bd6b31::t_1e1ff402fd3ca4 393
+packages/vue/playwright/harness/SidebarHarness.vue
+  s_b0e6b2d5bd6b31::t_cf663a56ec532a 31-32,66
+packages/vue/README.md
+  s_b0e6b2d5bd6b31::t_9630c7d2fd977b 216
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "78284114d3b6e4433c2e95fc8398e87da0b207b4",
+  "prompts": {},
+  "sessions": {
+    "s_b0e6b2d5bd6b31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0c0efc0-e561-4d1e-a89e-c758b277f97e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
