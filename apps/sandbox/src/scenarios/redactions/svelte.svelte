@@ -113,7 +113,7 @@
     </div>
   </InkToolbar>
   <div class="scenario-body">
-    <InkSidebar side="left" layout="rail" bind:open={pagesOpen}>
+    <InkSidebar side="left" layout="rail" defaultWidth={240} bind:open={pagesOpen}>
       <InkPanel id="pages" label="Pages" icon={Square}>
         <InkThumbnails />
       </InkPanel>
