@@ -122,6 +122,7 @@ export function mount(
 
   // Thumbnails and search on the left; your own About on the right.
   const left = createSidebar({
+    defaultWidth: 240,
     side: 'left',
     layout: 'rail',
     panels: [
@@ -142,6 +143,7 @@ export function mount(
     about.append(p)
   }
   const right = createSidebar({
+    defaultWidth: 240,
     side: 'right',
     layout: 'rail',
     panels: [{ id: 'about', label: 'About', icon: Info }],
