@@ -557,6 +557,56 @@ Your app owns the templates. Pass a `SignatureStore` (`list`, `save`, `remove`, 
 
 `createSignatureMenu(viewer)` lists the saved signatures, removes them, and opens `createSignatureDialog`, which draws, types or uploads a new one and, when the signature tool is registered, selects it.
 
+## Storage
+
+Inkbar keeps a few small things between visits, such as sidebar widths. Where they go is up to your app. Inkbar never touches `localStorage`, cookies or the network unless the store you pass does.
+
+An `InkStorage` has three methods. Each may return a value or a promise, and values are JSON:
+
+```ts
+interface InkStorage {
+  get(key: string): unknown | Promise<unknown>
+  set(key: string, value: unknown): void | Promise<void>
+  remove(key: string): void | Promise<void>
+}
+```
+
+Core ships two stores:
+
+- `createMemoryStorage(initial?)` is the default. It forgets everything on reload and copies values in and out.
+- `createLocalStorage(prefix = 'inkbar')` writes JSON to `localStorage` under `<prefix>:<key>`. It reads on every call, so another tab's write shows. It falls back to memory where storage is blocked. When storage is full, `set` rejects with an `Error` whose `cause` is the original, and the old value stays.
+
+`scopeStorage(storage, prefix)` wraps a store so every key gains `<prefix>.`. Plugins get one scoped to `plugin.<id>`.
+
+A store that talks to your server:
+
+```ts
+import type { InkStorage } from '@inkbar/core'
+
+const rest: InkStorage = {
+  get: async (key) => {
+    const res = await fetch(`/api/prefs/${encodeURIComponent(key)}`)
+    return res.ok ? res.json() : undefined
+  },
+  set: async (key, value) => {
+    await fetch(`/api/prefs/${encodeURIComponent(key)}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(value),
+    })
+  },
+  remove: async (key) => {
+    await fetch(`/api/prefs/${encodeURIComponent(key)}`, { method: 'DELETE' })
+  },
+}
+```
+
+The keys Inkbar uses:
+
+- `signatures`: an array of signature templates.
+- `sidebar.<name>.width`: a sidebar's width, a number in CSS pixels.
+- `plugin.<id>.<key>`: whatever a plugin stores.
+
 ## Serving PDF.js assets
 
 PDF.js needs a worker script plus directories of CMaps, standard fonts, wasm decoders and ICC profiles. Inkbar loads them from URLs you pass as the `assets` option. The option has no default, because the right URLs depend on how you deploy your app.

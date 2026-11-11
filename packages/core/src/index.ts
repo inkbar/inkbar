@@ -98,6 +98,8 @@ export type {
   WidgetAppearance,
   WidgetOverride,
 } from './model/form/types'
+export { createLocalStorage, createMemoryStorage, scopeStorage } from './model/storage'
+export type { InkStorage } from './model/storage'
 export {
   createImageTemplate,
   createInkTemplate,
