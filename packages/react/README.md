@@ -240,6 +240,20 @@ Panels take their place in the order they appear in the DOM, including one rende
 
 An item's height is worked out from its page alone, so position what you add absolutely. What `renderItem` returns renders inside the item's `<button>`: keep it non-interactive, with no links, buttons or inputs. Both need `InkRoot` and render empty on the server.
 
+## Outline and Back
+
+`InkOutline` shows the document's outline as a tree. Clicking an item, or Enter on it, follows it: a destination scrolls there (without changing the zoom), a web address goes to the host as an `open-url` action. The chevron expands and collapses an item without following it. The item the reader has reached is marked `aria-current="location"` and kept in view. It fills its parent's height and scrolls, so put it in a panel:
+
+```tsx
+<InkPanel id="outline" label="Outline" icon={List}>
+  <InkOutline emptyText="No outline" />
+</InkPanel>
+```
+
+`emptyText` is shown when the document has no outline. `renderItem`, given the item and `{ current, expanded }`, replaces an item's title. The keys and ARIA are core's, as in the thumbnails. Needs `InkRoot`; the tree renders empty on the server.
+
+`InkBack` and `InkForward` return to where the view was before a jump (a link, an outline item) and undo that. Each is disabled until there is somewhere to go, and takes `asChild`. Put them in an `InkToolbar`.
+
 ## Record lists
 
 `InkRecordList` lists a plugin's records as cards, the same cards their marks open, with the same actions. Name the records `<plugin>.<name>`:
@@ -262,11 +276,11 @@ To build your own, `useRecords<T>(name)` returns the live `records` and the `han
 
 ## Custom rendering
 
-Slots are render props. `InkViewport` takes `loading`, `empty`, `error`, `renderAnnotation` and `renderPageError`; `InkThreadPopover` takes a function as `children`; `InkToolButton` takes a node or a function of `{ active, label }`; `InkCommand` a node or a function of `{ label, busy }`; `InkThumbnails` takes `renderItem`; `InkRecordList` takes `empty`. The props each receives are typed as `AnnotationSlotProps` and `ThreadPopoverSlotProps`, the same types the Vue package exports.
+Slots are render props. `InkViewport` takes `loading`, `empty`, `error`, `renderAnnotation` and `renderPageError`; `InkThreadPopover` takes a function as `children`; `InkToolButton` takes a node or a function of `{ active, label }`; `InkCommand` a node or a function of `{ label, busy }`; `InkThumbnails` and `InkOutline` take `renderItem`; `InkRecordList` takes `empty`. The props each receives are typed as `AnnotationSlotProps` and `ThreadPopoverSlotProps`, the same types the Vue package exports.
 
 `InkDownloadButton` and `InkPrintButton` download and print the open PDF; `filename` names the download (the opened `File`'s name, else the URL's last segment, else `document.pdf`; `.pdf` is added to a name without it). Printing loads the file into a hidden frame and opens the browser's print dialog for it; on iOS the PDF opens in a new tab instead. Until saving into the PDF ships, both give the file as it was opened, without this session's annotations.
 
-`InkRoot`, `InkToolbar`, `InkToolButton`, `InkToolbarButton`, `InkSearchButton`, `InkCommand`, `InkUndo`, `InkRedo`, `InkDownloadButton`, `InkPrintButton`, `InkPrevPage`, `InkNextPage`, `InkZoomIn` and `InkZoomOut` take `asChild` to render your own element in place of theirs, such as a button from your design system. Pass that element as the only child. The control keeps its behaviour and accessible name.
+`InkRoot`, `InkToolbar`, `InkToolButton`, `InkToolbarButton`, `InkSearchButton`, `InkCommand`, `InkUndo`, `InkRedo`, `InkDownloadButton`, `InkPrintButton`, `InkPrevPage`, `InkNextPage`, `InkBack`, `InkForward`, `InkZoomIn` and `InkZoomOut` take `asChild` to render your own element in place of theirs, such as a button from your design system. Pass that element as the only child. The control keeps its behaviour and accessible name.
 
 ## Keyboard
 
