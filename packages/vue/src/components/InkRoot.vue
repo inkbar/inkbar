@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import {
-  createMemorySignatureStore,
+  createMemoryStorage,
   createSignatureLibrary,
+  createStorageSignatureStore,
   InkError,
   openDocument,
   readonly,
@@ -51,6 +52,7 @@ import type {
   FieldValues,
   ViewerAction,
   InkDocument,
+  InkStorage,
   PdfAssets,
   SignatureStore,
 } from '@inkbar/core'
@@ -118,9 +120,16 @@ const props = withDefaults(
      */
     fonts?: string[] | undefined
     /**
-     * Where saved signatures live. Default: memory, gone on reload.
-     * `createLocalSignatureStore` keeps them in the browser; a host can keep them anywhere.
-     * A new store takes effect at once, for the menus and the `signature` tool alike.
+     * Where the viewer keeps what lasts between visits: saved signatures, each `InkSidebar`'s
+     * width and the plugins' settings. Default: memory, gone on reload. `createLocalStorage`
+     * keeps them in the browser; a host can keep them anywhere. Read once, when the root is
+     * created.
+     */
+    storage?: InkStorage | undefined
+    /**
+     * Where saved signatures live, in place of `storage`. A new store takes effect at once, for
+     * the menus and the `signature` tool alike.
+     * @deprecated Pass `storage`; signatures are kept in it under `signatures`. Removed in 0.13.0.
      */
     signatures?: SignatureStore | undefined
     /** The handwriting fonts a typed signature offers; the host loads them. */
@@ -142,6 +151,7 @@ const props = withDefaults(
     plugins: undefined,
     decorateAnnotation: undefined,
     fonts: undefined,
+    storage: undefined,
     signatures: undefined,
     signatureFonts: undefined,
     page: undefined,
@@ -398,6 +408,8 @@ const hostRoot = writable<HTMLElement | null>(null)
 watch(viewportEl, (el) => hostRoot.set(el), { flush: 'sync' })
 const hostActivated = writable<string | null>(null)
 watch(activated, (id) => hostActivated.set(id), { flush: 'sync' })
+/** Read once, like `plugins`: the sidebars and the plugins load from it as they are created. */
+const storage = props.storage ?? createMemoryStorage()
 const pluginHost = shallowRef<PluginHost | null>(null)
 /** One search controller for the root's life, built with the plugin host that shares it. */
 const search = shallowRef<SearchController | null>(null)
@@ -420,6 +432,7 @@ function setUpPlugins(): void {
     decorate: () => props.decorateAnnotation,
     viewport: () => viewport.value,
     search: viewerSearchOf(controller),
+    storage,
   })
 }
 
@@ -551,8 +564,10 @@ onUnmounted(() => {
   search.value = null
 })
 
+const storageSignatures = createStorageSignatureStore(storage)
+// The deprecated `signatures` wins when both are given.
 const signatures = computed(() =>
-  createSignatureLibrary(props.signatures ?? createMemorySignatureStore())
+  createSignatureLibrary(props.signatures ?? storageSignatures)
 )
 watch(signatures, (lib) => void lib.refresh(), { immediate: true })
 /** Tool options last as long as the root; the tool style is per document. */
@@ -574,6 +589,7 @@ provideInkContext({
   decorateAnnotation: computed(() => props.decorateAnnotation),
   fonts: computed(() => props.fonts ?? FONT_FAMILIES),
   toolOptions,
+  storage,
   signatures,
   signatureFonts: computed(() => props.signatureFonts ?? SIGNATURE_FONTS),
   toolStyle,

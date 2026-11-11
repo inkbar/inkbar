@@ -100,7 +100,7 @@ Each control is a separate component, so put them in any order or leave some out
 
 `v-model:annotations` makes your list the source of truth. Leave it off and Inkbar keeps the state itself, with undo and redo on by default. In controlled mode undo and redo need `:history="true"`, as in the example; see Controlled mode.
 
-`InkRoot` also takes `password` for an encrypted file, `defaults` for annotation colours, `fonts` for the families the text style menu offers, `decorateAnnotation` (a `DecorateAnnotation` function that adds `data-*` attributes, classes and a screen-reader description to each annotation), and `v-model:tool`, `v-model:page` and `v-model:zoom`. It emits `ready` with the `InkDocument`, `error` with an `InkError`, `change` with each annotation change and `activate` with an annotation id. Its default slot receives `{ status, document }`.
+`InkRoot` also takes `password` for an encrypted file, `storage` for what the viewer keeps between visits (see [Storage](#storage)), `defaults` for annotation colours, `fonts` for the families the text style menu offers, `decorateAnnotation` (a `DecorateAnnotation` function that adds `data-*` attributes, classes and a screen-reader description to each annotation), and `v-model:tool`, `v-model:page` and `v-model:zoom`. It emits `ready` with the `InkDocument`, `error` with an `InkError`, `change` with each annotation change and `activate` with an annotation id. Its default slot receives `{ status, document }`.
 
 ## Viewport
 
@@ -148,7 +148,20 @@ The highlight tool leaves `contents` free for the comment. `await doc.text(page)
 
 ## Signatures
 
-`InkSignatureMenu` lists saved signatures, picks one for the `signature` tool, removes them, and opens `InkSignatureDialog` to draw, type or upload a new one. The menu needs `signatureTool()` in `tools`. The dialog and signature form fields work without it; the dialog then only saves the signature. These are marks on the page, not cryptographic signatures. Pass `signatures` to `InkRoot` to keep them somewhere: `createLocalSignatureStore(key)` from `@inkbar/core` uses `localStorage`, and without it they last until reload. `signatureFonts` lists the handwriting fonts the Type tab offers; load them with `@font-face`. A placed signature keeps its aspect ratio when resized.
+`InkSignatureMenu` lists saved signatures, picks one for the `signature` tool, removes them, and opens `InkSignatureDialog` to draw, type or upload a new one. The menu needs `signatureTool()` in `tools`. The dialog and signature form fields work without it; the dialog then only saves the signature. These are marks on the page, not cryptographic signatures. `InkRoot` keeps them in its `storage` under the key `signatures`, so without a store they last until reload. A `signatures` store of your own still works and wins over `storage` until 0.13.0, which removes it. `signatureFonts` lists the handwriting fonts the Type tab offers; load them with `@font-face`. A placed signature keeps its aspect ratio when resized.
+
+## Storage
+
+`InkRoot` keeps a few small things between visits: saved signatures, sidebar widths and plugin settings. Pass `storage` to choose where. `createLocalStorage()` from `@inkbar/core` keeps them in `localStorage`, and any `InkStorage` works, including an async one that talks to your server. The default is `createMemoryStorage()`, which forgets everything on reload. Inkbar never touches `localStorage`, cookies or the network unless the store you pass does. The root reads `storage` once, when it is created. See the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#storage) for the keys.
+
+```vue
+<script setup lang="ts">
+import { createLocalStorage } from '@inkbar/core'
+const storage = createLocalStorage()
+</script>
+
+<InkRoot :src="src" :assets="assets" :storage="storage">
+```
 
 ## Plugins
 
@@ -198,7 +211,13 @@ import { Square, MessageSquare } from '@inkbar/icons'
 
 `layout` is `rail` (default: icon buttons beside the document, and activating the open panel's button closes it), `tabs` (labelled tabs, one panel open) or `stack` (a header per panel, any number expanded). `side` (`left` by default) decides which edge the rail and border sit on. `v-model:open` is the open panel's id, or `null`, for rail and tabs, and the expanded ids for stack. Left unbound, the first panel starts open. When the open panel goes (a `v-if`), rail and tabs open the first one left and stack drops it, and `v-model:open` receives the new value. In the rail, the open panel shows its label as a title above its content. `visible` (default `true`) shows or hides the whole sidebar; it keeps the open panel, its content and its scroll for when it shows again. Your code decides when: `:visible="hits > 0"` keeps a results sidebar out of the way until a search finds something.
 
-Panels take their place in the order they appear in the template, including one added later with `v-if`. A closed panel stays mounted and hidden, so its content keeps its state and scroll position, across layout changes too. The keys and ARIA are core's: see the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#sidebars). The sidebar needs no document and works outside `InkRoot`. On the server it renders its frame with the open panel showing, and the stack headers; rail and tab buttons follow once it has mounted.
+Panels take their place in the order they appear in the template, including one added later with `v-if`. A closed panel stays mounted and hidden, so its content keeps its state and scroll position, across layout changes too. The keys and ARIA are core's: see the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#sidebars). The sidebar needs no document and works outside `InkRoot`. On the server it renders its frame at its width with the open panel showing, the stack headers and the resize handle; rail and tab buttons follow once it has mounted.
+
+Each sidebar has a resize handle on its inner edge. Drag it, or focus it and use the arrow keys (16px a step), Home and End. Enter or a double-click resets the width. The width starts at `defaultWidth` (320) and stays between `minWidth` (240) and `maxWidth` (480), and never past half of the sidebar's container. Inside `InkRoot` the sidebar saves its width in the root's `storage` under `sidebar.<name>.width`, where `name` defaults to the side; give two sidebars on one side different names. Pass `storage` to the sidebar to use another store, or to save its width outside `InkRoot`. The sidebar reads `storage` and `name` once, when it is created. `v-model:width` hands you the width: the handle then only updates the model, and the sidebar neither reads nor writes storage.
+
+```vue
+<InkSidebar name="tools" side="right" :default-width="360" v-model:width="toolsWidth">
+```
 
 ## Thumbnails
 
