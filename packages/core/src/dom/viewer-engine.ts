@@ -13,11 +13,12 @@ import {
   type Rect,
 } from '../model/geometry'
 import {
-  createMemorySignatureStore,
   createSignatureLibrary,
+  createStorageSignatureStore,
   type SignatureLibrary,
   type SignatureStore,
 } from '../model/signatures'
+import { createMemoryStorage, type InkStorage } from '../model/storage'
 
 import { hasControl, type SignFieldRequest } from './form-layer'
 import { pageStopOrder } from './form-order'
@@ -100,10 +101,16 @@ export interface MountViewerOptions {
    */
   fonts?: string[]
   /**
-   * Where signature templates live. Default: memory, gone on reload
-   * (`createMemorySignatureStore`). `createLocalSignatureStore` keeps them in the browser.
+   * Where signature templates live. Default: they go in `storage`.
+   *
+   * @deprecated Pass `storage` instead. When both are given, this wins.
    */
   signatures?: SignatureStore
+  /**
+   * What the viewer keeps between visits, such as saved signatures. Default: memory, gone on
+   * reload (`createMemoryStorage`). `createLocalStorage()` keeps it in the browser.
+   */
+  storage?: InkStorage
   /**
    * The templates the `signature` tool and the signature controls share. A binding or
    * `createViewer` passes its own, so they outlive one document; it wins over `signatures`.
@@ -193,6 +200,8 @@ export interface ViewerEngine {
   readonly fonts: readonly string[]
   /** The signature templates: the host's current library, or the engine's own. */
   readonly signatures: SignatureLibrary
+  /** The `storage` option, or a new memory store. */
+  readonly storage: InkStorage
   /** The fonts a typed signature offers: the `signatureFonts` option, else `SIGNATURE_FONTS`. */
   readonly signatureFonts: readonly string[]
   readonly pages: ReadonlyMap<number, PageMount>
@@ -319,10 +328,11 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
         tool: opts.tool,
       })
   const toolStyle = opts.toolStyle ?? (tracker as NonNullable<typeof tracker>).toolStyle
+  const storage = opts.storage ?? createMemoryStorage()
   const host = opts.signatureLibrary
   const own = host
     ? undefined
-    : createSignatureLibrary(opts.signatures ?? createMemorySignatureStore())
+    : createSignatureLibrary(opts.signatures ?? createStorageSignatureStore(storage))
   /** The library now: a host getter is read each time, so a swapped library takes effect. */
   const signatures = (): SignatureLibrary =>
     typeof host === 'function' ? host() : (host ?? (own as SignatureLibrary))
@@ -816,6 +826,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     get signatures() {
       return signatures()
     },
+    storage,
     signatureFonts: opts.signatureFonts ? [...opts.signatureFonts] : SIGNATURE_FONTS,
     pages,
     navigation,
