@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { isFormFixture } from '@inkbar/e2e-shared/form-actions'
+import { isLinksFixture } from '@inkbar/e2e-shared/links-fixture'
 import { clampPageCount } from '@inkbar/e2e-shared/page-count'
 
 import FormPage from './FormPage.vue'
+import LinksPage from './LinksPage.vue'
 import ReviewPage from './ReviewPage.vue'
 
 const params = new URLSearchParams(location.search)
@@ -14,6 +16,7 @@ const large = clampPageCount(params.get('large'))
   <main class="sandbox">
     <h1 class="sandbox-title">Inkbar review app</h1>
     <FormPage v-if="isFormFixture(doc)" :fixture="doc" />
+    <LinksPage v-else-if="isLinksFixture(doc)" :fixture="doc" />
     <ReviewPage v-else :fixture="doc" :large-pages="large" />
   </main>
 </template>
