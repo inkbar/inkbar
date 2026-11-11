@@ -106,9 +106,8 @@ export interface MountViewerOptions {
   storage?: InkStorage
   /**
    * The templates the `signature` tool and the signature controls share. A binding or
-   * `createViewer` passes its own, so they outlive one document; it wins over `signatures`.
-   * A function is read each time the library is needed, so a host that swaps its library
-   * after mount reaches the tool too.
+   * `createViewer` passes its own, so they outlive one document. A function is read each time
+   * the library is needed, so a host that swaps its library after mount reaches the tool too.
    */
   signatureLibrary?: SignatureLibrary | (() => SignatureLibrary)
   /**

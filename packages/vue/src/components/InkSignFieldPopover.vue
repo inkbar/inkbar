@@ -34,7 +34,7 @@ const emit = defineEmits<{ close: [] }>()
 const NO_TEMPLATES: readonly SignatureTemplate[] = []
 
 const ctx = useInkContext('InkSignFieldPopover')
-const templates = useReadable(() => ctx.signatures.value.templates, NO_TEMPLATES)
+const templates = useReadable(() => ctx.signatures.templates, NO_TEMPLATES)
 // No signature is "chosen" here: each signing picks its own.
 const model = computed(() => signatureMenuModel(templates.value, {}))
 const open = computed(() => props.request !== null)
@@ -125,7 +125,7 @@ function onInteractOutside(e: CustomEvent<{ originalEvent: Event }>): void {
 function onOpenAutoFocus(e: Event): void {
   e.preventDefault()
   // An old removal error is not news when the menu opens again.
-  ctx.signatures.value.clearRemoveError()
+  ctx.signatures.clearRemoveError()
   const menu = (e.target as HTMLElement | null)?.querySelector<HTMLElement>(
     '[role="menu"]'
   )

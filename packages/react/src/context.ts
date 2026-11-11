@@ -110,7 +110,7 @@ export interface InkContext {
   storage: InkStorage
   /**
    * InkRoot's `minDocumentWidth` (`MIN_DOCUMENT_WIDTH` by default), fixed for the root's life.
-   * Each `InkSidebar` without its own takes it, and the viewer is built with it.
+   * Each `InkSidebar` without its own takes it.
    */
   minDocumentWidth: number
   /** The saved signatures: kept in InkRoot's `storage` under `signatures`. */

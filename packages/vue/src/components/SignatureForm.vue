@@ -54,7 +54,7 @@ onBeforeUnmount(() => {
 })
 
 function save(): void {
-  draft.save(ctx.signatures.value).then(
+  draft.save(ctx.signatures).then(
     (t) => {
       if (!t) return
       if (props.select && hasSignatureTool.value) {

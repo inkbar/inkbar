@@ -179,8 +179,7 @@ function setup(): void {
     toolHistory: { batch: (fn) => ctx.history.batch(fn) },
     toolOptions: ctx.toolOptions,
     fonts: [...ctx.fonts.value],
-    // Read through, so a new `signatures` store reaches the tool as well as the menus.
-    signatureLibrary: () => ctx.signatures.value,
+    signatureLibrary: () => ctx.signatures,
     customAnnotations: custom,
     ...(ctx.formHighlight.value === undefined
       ? {}

@@ -170,7 +170,6 @@
       toolHistory: { batch: (fn) => ctx.history.batch(fn) },
       toolOptions: ctx.toolOptions,
       fonts: [...ctx.fonts],
-      // Read through, so a new `signatures` store reaches the tool as well as the menus.
       signatureLibrary: () => ctx.signatures,
       customAnnotations: custom,
       ...(ctx.formHighlight === undefined ? {} : { formHighlight: ctx.formHighlight }),

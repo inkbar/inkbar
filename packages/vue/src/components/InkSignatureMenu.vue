@@ -50,14 +50,14 @@ const { options, setOptions } = useToolOptionsWhile<SignatureOptions>(
   registered
 )
 const ctx = useInkContext('InkSignatureMenu')
-const templates = useReadable(() => ctx.signatures.value.templates, NO_TEMPLATES)
+const templates = useReadable(() => ctx.signatures.templates, NO_TEMPLATES)
 const model = computed(() => signatureMenuModel(templates.value, options.value))
 const active = computed(() => tool.value === 'signature')
 const open = ref(false)
 const creating = ref(false)
 // An old removal error is not news when the menu opens again.
 watch(open, (isOpen) => {
-  if (isOpen) ctx.signatures.value.clearRemoveError()
+  if (isOpen) ctx.signatures.clearRemoveError()
 })
 const main = useTemplateRef<{ $el: HTMLElement }>('main')
 
