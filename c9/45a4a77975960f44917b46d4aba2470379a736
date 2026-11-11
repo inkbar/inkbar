@@ -1,0 +1,28 @@
+packages/core/src/model/storage.test.ts
+  s_b0e6b2d5bd6b31::t_15a1b4f3d7513d 43,62,138
+  s_b0e6b2d5bd6b31::t_f0bf1c2594635b 1-27,29-42,44-51,53-59,61,63-134,136-137,139-141
+  s_b0e6b2d5bd6b31::t_843f8546f5a730 28,52,60,135
+packages/core/src/index.ts
+  s_b0e6b2d5bd6b31::t_f0bf1c2594635b 101-102
+packages/core/src/model/storage.ts
+  s_b0e6b2d5bd6b31::t_f0bf1c2594635b 1-6,8-126
+  s_b0e6b2d5bd6b31::t_843f8546f5a730 7
+packages/core/README.md
+  s_b0e6b2d5bd6b31::t_f0bf1c2594635b 560-609
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c945a4a77975960f44917b46d4aba2470379a736",
+  "prompts": {},
+  "sessions": {
+    "s_b0e6b2d5bd6b31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0c0efc0-e561-4d1e-a89e-c758b277f97e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
