@@ -1,8 +1,16 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createSidebarController, sidebarBadge } from './controller'
+import { createMemoryStorage } from '../../model/storage'
+
+import {
+  createSidebarController,
+  shownSidebarWidth,
+  sidebarBadge,
+  SIDEBAR_WIDTH,
+} from './controller'
 
 import type { SidebarControllerOptions, SidebarPanelInfo } from './controller'
+import type { InkStorage } from '../../model/storage'
 
 const panels: SidebarPanelInfo[] = [
   { id: 'a', label: 'Pages' },
@@ -345,4 +353,237 @@ describe('sidebarBadge', () => {
     [3, '3'],
     ['new', 'new'],
   ])('%j shows %j', (badge, text) => expect(sidebarBadge(badge)).toBe(text))
+})
+
+/** A storage whose calls are spied on, holding `initial`. */
+function spyStorage(initial: Record<string, unknown> = {}) {
+  const inner = createMemoryStorage(initial)
+  return {
+    get: vi.fn((key: string) => inner.get(key)),
+    set: vi.fn((key: string, value: unknown) => inner.set(key, value)),
+    remove: vi.fn((key: string) => inner.remove(key)),
+  } satisfies InkStorage
+}
+
+/** A storage whose `get` answers when `answer` is called. */
+function lateStorage() {
+  let answer!: (value: unknown) => void
+  const storage = spyStorage()
+  storage.get.mockImplementation(
+    () => new Promise<unknown>((resolve) => (answer = resolve))
+  )
+  return { storage, answer: (value: unknown) => answer(value) }
+}
+
+/** Enough of a handle element to take the controller's listeners in node. */
+function fakeHandle() {
+  const listeners = new Map<string, (e: Event) => void>()
+  const el = {
+    addEventListener: (type: string, fn: (e: Event) => void) => listeners.set(type, fn),
+    removeEventListener: (type: string) => listeners.delete(type),
+    closest: () => null,
+    parentElement: null,
+    setPointerCapture: () => {},
+    releasePointerCapture: () => {},
+    hasPointerCapture: () => false,
+  } as unknown as HTMLElement
+  const key = (key: string) =>
+    listeners.get('keydown')?.({
+      key,
+      altKey: false,
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+      defaultPrevented: false,
+      preventDefault: () => {},
+    } as unknown as Event)
+  return { el, key, listeners }
+}
+
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0))
+
+describe('sidebar width', () => {
+  it('default width is 320', () => {
+    const c = createSidebarController({ panels })
+    expect(SIDEBAR_WIDTH).toEqual({ default: 320, min: 240, max: 480 })
+    expect(c.state.get()).toMatchObject({ width: 320, resizing: false })
+    expect(c.rootStyle()).toEqual({ '--ink-sidebar-width': '320px' })
+  })
+
+  it('sync storage applies before the controller returns', () => {
+    const storage = spyStorage({ 'sidebar.left.width': 400 })
+    const c = createSidebarController({ panels, storage })
+    expect(storage.get).toHaveBeenCalledWith('sidebar.left.width')
+    expect(c.state.get().width).toBe(400)
+    expect(c.rootStyle()['--ink-sidebar-width']).toBe('400px')
+  })
+
+  it('async storage applies later', async () => {
+    const { storage, answer } = lateStorage()
+    const c = createSidebarController({ panels, storage })
+    expect(c.state.get().width).toBe(320)
+    answer(360)
+    await flush()
+    expect(c.state.get().width).toBe(360)
+  })
+
+  it('a late async answer does not overwrite a key move', async () => {
+    const { storage, answer } = lateStorage()
+    const c = createSidebarController({ panels, storage })
+    const h = fakeHandle()
+    c.bindHandle(h.el)
+    h.key('ArrowRight')
+    answer(450)
+    await flush()
+    expect(c.state.get().width).toBe(336)
+  })
+
+  it.each(['abc', -5, NaN, null, 0, Infinity])(
+    'junk in storage gives the default (%s)',
+    (junk) => {
+      const storage = spyStorage()
+      storage.get.mockReturnValue(junk)
+      const c = createSidebarController({ panels, storage })
+      expect(c.state.get().width).toBe(320)
+    }
+  )
+
+  it('a throwing or rejecting storage keeps the default', async () => {
+    const throwing = spyStorage()
+    throwing.get.mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    expect(createSidebarController({ panels, storage: throwing }).state.get().width).toBe(
+      320
+    )
+    const rejecting = spyStorage()
+    rejecting.get.mockReturnValue(Promise.reject(new Error('blocked')))
+    const c = createSidebarController({ panels, storage: rejecting })
+    await flush()
+    expect(c.state.get().width).toBe(320)
+  })
+
+  it('keys move by 16 and save', () => {
+    const storage = spyStorage()
+    const onWidthChange = vi.fn()
+    const c = createSidebarController({ panels, storage, onWidthChange })
+    const h = fakeHandle()
+    c.bindHandle(h.el)
+    h.key('ArrowRight')
+    expect(c.state.get().width).toBe(336)
+    expect(storage.set).toHaveBeenLastCalledWith('sidebar.left.width', 336)
+    expect(onWidthChange).toHaveBeenLastCalledWith(336)
+    h.key('ArrowLeft')
+    expect(c.state.get().width).toBe(320)
+    expect(storage.set).toHaveBeenLastCalledWith('sidebar.left.width', 320)
+  })
+
+  it('right sidebar keys are mirrored', () => {
+    const storage = spyStorage()
+    const c = createSidebarController({ panels, storage, side: 'right' })
+    const h = fakeHandle()
+    c.bindHandle(h.el)
+    h.key('ArrowLeft')
+    expect(c.state.get().width).toBe(336)
+    expect(storage.set).toHaveBeenLastCalledWith('sidebar.right.width', 336)
+    h.key('ArrowRight')
+    h.key('ArrowRight')
+    expect(c.state.get().width).toBe(304)
+  })
+
+  it('Home and End go to min and max', () => {
+    const c = createSidebarController({ panels, minWidth: 200, maxWidth: 600 })
+    const h = fakeHandle()
+    c.bindHandle(h.el)
+    h.key('Home')
+    expect(c.state.get().width).toBe(200)
+    h.key('ArrowLeft')
+    expect(c.state.get().width).toBe(200)
+    h.key('End')
+    expect(c.state.get().width).toBe(600)
+    expect(c.handleAttrs()).toMatchObject({
+      'aria-valuemin': '200',
+      'aria-valuemax': '600',
+      'aria-valuenow': '600',
+    })
+  })
+
+  it('Enter resets and removes the key', () => {
+    const storage = spyStorage({ 'sidebar.left.width': 400 })
+    const c = createSidebarController({ panels, storage })
+    const h = fakeHandle()
+    c.bindHandle(h.el)
+    h.key('Enter')
+    expect(c.state.get().width).toBe(320)
+    expect(storage.remove).toHaveBeenCalledWith('sidebar.left.width')
+    c.update({ defaultWidth: 300 })
+    c.resetWidth()
+    expect(c.state.get().width).toBe(300)
+  })
+
+  it('controlled width only reports and never touches storage', () => {
+    const storage = spyStorage({ 'sidebar.left.width': 400 })
+    const onWidthChange = vi.fn()
+    const c = createSidebarController({ panels, storage, width: 280, onWidthChange })
+    expect(c.state.get().width).toBe(280)
+    const h = fakeHandle()
+    c.bindHandle(h.el)
+    h.key('ArrowRight')
+    expect(onWidthChange).toHaveBeenLastCalledWith(296)
+    expect(c.state.get().width).toBe(280)
+    h.key('Enter')
+    expect(onWidthChange).toHaveBeenLastCalledWith(320)
+    c.update({ width: 296 })
+    expect(c.state.get().width).toBe(296)
+    expect(storage.get).not.toHaveBeenCalled()
+    expect(storage.set).not.toHaveBeenCalled()
+    expect(storage.remove).not.toHaveBeenCalled()
+  })
+
+  it('name sets the key', () => {
+    const storage = spyStorage({ 'sidebar.thumbs.width': 260 })
+    const c = createSidebarController({ panels, storage, name: 'thumbs' })
+    expect(c.state.get().width).toBe(260)
+    const h = fakeHandle()
+    c.bindHandle(h.el)
+    h.key('ArrowRight')
+    expect(storage.set).toHaveBeenLastCalledWith('sidebar.thumbs.width', 276)
+  })
+
+  it('handle hidden while no rail panel is open', () => {
+    const c = createSidebarController({ panels, idPrefix: 'sb' })
+    expect(c.handleAttrs()).toEqual({
+      'data-ink-sidebar-handle': '',
+      role: 'separator',
+      'aria-orientation': 'vertical',
+      'aria-label': 'Resize sidebar',
+      'aria-controls': 'sb-panels',
+      'aria-valuemin': '240',
+      'aria-valuemax': '480',
+      'aria-valuenow': '320',
+      tabindex: '0',
+    })
+    expect(c.panelsAttrs()).toEqual({ id: 'sb-panels' })
+    c.toggle('a')
+    expect(c.handleAttrs().hidden).toBe('')
+    c.toggle('a')
+    c.update({ visible: false })
+    expect(c.handleAttrs().hidden).toBe('')
+  })
+
+  it('panels id comes from the same base as the other ids', () => {
+    const c = createSidebarController({ panels })
+    const base = c.panelAttrs('a').id!.replace(/-panel-a$/, '')
+    expect(c.panelsAttrs().id).toBe(`${base}-panels`)
+    expect(c.handleAttrs()['aria-controls']).toBe(`${base}-panels`)
+  })
+
+  it('shownSidebarWidth clamps to half the container but never below min', () => {
+    const limits = { min: 240, max: 480 }
+    expect(shownSidebarWidth(480, { ...limits, container: 600 })).toBe(300)
+    expect(shownSidebarWidth(480, { ...limits, container: 300 })).toBe(240)
+    expect(shownSidebarWidth(480, { ...limits, container: undefined })).toBe(480)
+    expect(shownSidebarWidth(100, { ...limits, container: undefined })).toBe(240)
+    expect(shownSidebarWidth(900, { ...limits, container: 2000 })).toBe(480)
+  })
 })

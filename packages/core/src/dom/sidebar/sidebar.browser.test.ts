@@ -2,6 +2,8 @@ import { Search, Square } from '@inkbar/icons'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { userEvent } from 'vitest/browser'
 
+import { createMemoryStorage } from '../../model/storage'
+
 import { createSidebar } from './sidebar'
 
 import type { SidebarControllerOptions } from './controller'
@@ -274,5 +276,140 @@ describe('bindTriggers on framework markup', () => {
     expect(a!.tabIndex).toBe(-1)
     await userEvent.keyboard('{Enter}')
     expect(controller.state.get().open).toEqual(['b'])
+  })
+})
+
+describe('the resize handle', () => {
+  /**
+   * A bare root, as createSidebar and the bindings will render it: the root takes `rootAttrs`
+   * and `rootStyle`, the handle `handleAttrs`, and the parent is the container.
+   */
+  async function setupHandle(opts: Partial<SidebarControllerOptions> = {}) {
+    const { createSidebarController } = await import('./controller')
+    const controller = createSidebarController({
+      panels: [{ id: 'a', label: 'A' }],
+      ...opts,
+    })
+    const parent = document.createElement('div')
+    parent.style.width = '1000px'
+    const root = document.createElement('div')
+    const handle = document.createElement('div')
+    handle.style.cssText = 'width: 8px; height: 40px'
+    root.append(handle)
+    parent.append(root)
+    document.body.append(parent)
+    const render = () => {
+      for (const [k, v] of Object.entries(controller.rootAttrs())) root.setAttribute(k, v)
+      if (!('data-resizing' in controller.rootAttrs()))
+        root.removeAttribute('data-resizing')
+      for (const [k, v] of Object.entries(controller.rootStyle()))
+        root.style.setProperty(k, v)
+      for (const [k, v] of Object.entries(controller.handleAttrs()))
+        handle.setAttribute(k, v)
+    }
+    render()
+    const stopRender = controller.state.subscribe(render)
+    const stop = controller.bindHandle(handle)
+    cleanup.push(() => {
+      stop()
+      stopRender()
+      controller.destroy()
+      parent.remove()
+    })
+    const shown = () => root.style.getPropertyValue('--ink-sidebar-width')
+    const pointer = (type: string, clientX: number, init: PointerEventInit = {}) =>
+      handle.dispatchEvent(
+        new PointerEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          pointerId: 1,
+          button: 0,
+          isPrimary: true,
+          pointerType: 'mouse',
+          clientX,
+          ...init,
+        })
+      )
+    return { controller, parent, root, handle, shown, pointer }
+  }
+
+  it('drag widens a left sidebar and saves on release', async () => {
+    const storage = { get: vi.fn(), set: vi.fn(), remove: vi.fn() }
+    const { controller, root, shown, pointer } = await setupHandle({ storage })
+    const down = pointer('pointerdown', 100)
+    expect(down).toBe(false) // preventDefault: no text selection starts
+    expect(controller.state.get().resizing).toBe(true)
+    expect(root.hasAttribute('data-resizing')).toBe(true)
+    pointer('pointermove', 140)
+    pointer('pointermove', 160)
+    expect(shown()).toBe('380px')
+    expect(storage.set).not.toHaveBeenCalled()
+    pointer('pointerup', 160)
+    expect(controller.state.get()).toMatchObject({ width: 380, resizing: false })
+    expect(root.hasAttribute('data-resizing')).toBe(false)
+    expect(storage.set).toHaveBeenCalledExactlyOnceWith('sidebar.left.width', 380)
+  })
+
+  it('a right sidebar widens when dragged left', async () => {
+    const { controller, pointer } = await setupHandle({ side: 'right' })
+    pointer('pointerdown', 500)
+    pointer('pointermove', 460)
+    pointer('pointercancel', 460)
+    expect(controller.state.get()).toMatchObject({ width: 360, resizing: false })
+  })
+
+  it('touch drag works', async () => {
+    const { controller, pointer } = await setupHandle()
+    const touch = { pointerType: 'touch', button: 0 }
+    pointer('pointerdown', 100, touch)
+    pointer('pointermove', 600, touch)
+    pointer('pointerup', 600, touch)
+    expect(controller.state.get().width).toBe(480)
+  })
+
+  it('ignores a secondary mouse button', async () => {
+    const { controller, pointer } = await setupHandle()
+    pointer('pointerdown', 100, { button: 2 })
+    expect(controller.state.get().resizing).toBe(false)
+  })
+
+  it('a double-click resets', async () => {
+    const { controller, handle } = await setupHandle({ defaultWidth: 300 })
+    handle.focus()
+    await userEvent.keyboard('{End}')
+    expect(controller.state.get().width).toBe(480)
+    await userEvent.dblClick(handle)
+    expect(controller.state.get().width).toBe(300)
+  })
+
+  it('a narrow container shows less but keeps the saved width', async () => {
+    const storage = createMemoryStorage({ 'sidebar.left.width': 400 })
+    const { parent, shown, handle } = await setupHandle({ storage })
+    await expect.poll(shown).toBe('400px')
+    parent.style.width = '500px'
+    await expect.poll(shown).toBe('250px')
+    expect(handle.getAttribute('aria-valuenow')).toBe('250')
+    expect(handle.getAttribute('aria-valuemax')).toBe('250')
+    expect(storage.get('sidebar.left.width')).toBe(400)
+    parent.style.width = '1200px'
+    await expect.poll(shown).toBe('400px')
+  })
+
+  it('blocked storage still drags', async () => {
+    const unhandled = vi.fn()
+    window.addEventListener('unhandledrejection', unhandled)
+    cleanup.push(() => window.removeEventListener('unhandledrejection', unhandled))
+    const storage = {
+      get: () => undefined,
+      set: () => Promise.reject(new Error('blocked')),
+      remove: () => Promise.reject(new Error('blocked')),
+    }
+    const { controller, pointer } = await setupHandle({ storage })
+    pointer('pointerdown', 100)
+    pointer('pointermove', 132)
+    pointer('pointerup', 132)
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(controller.state.get().width).toBe(352)
+    expect(unhandled).not.toHaveBeenCalled()
   })
 })
