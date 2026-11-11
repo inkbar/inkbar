@@ -165,6 +165,13 @@ describe('createViewer', () => {
     expect(await storage.get('signatures')).toEqual([sig])
   })
 
+  it('minDocumentWidth defaults to 480 and takes the option', async () => {
+    const { viewer } = make('text-simple')
+    expect((await ready(viewer)).engine.minDocumentWidth).toBe(480)
+    const { viewer: wide } = make('text-simple', { minDocumentWidth: 600 })
+    expect((await ready(wide)).engine.minDocumentWidth).toBe(600)
+  })
+
   it('signatures wins over storage', async () => {
     const storage = createMemoryStorage()
     const store = createMemorySignatureStore()
