@@ -282,6 +282,8 @@ for (const framework of FRAMEWORK_ORDER) {
     test(`${framework} redactions: thumbnails navigate and show accepted redactions`, async ({
       page,
     }) => {
+      // Wide enough for the Pages panel to open beside the pages rather than over the marks.
+      await page.setViewportSize({ width: 1700, height: 900 })
       await suggest(page, framework)
       // The Pages panel starts closed.
       const pages = panel(page, 'Pages')

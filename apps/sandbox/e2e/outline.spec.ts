@@ -107,6 +107,8 @@ for (const framework of FRAMEWORK_ORDER) {
       page,
       context,
     }) => {
+      // Wide enough for the outline to sit beside the pages rather than float over the links.
+      await page.setViewportSize({ width: 1700, height: 900 })
       // Nothing here may reach the network.
       await context.route('https://inkbar.dev/**', (route) =>
         route.fulfill({ contentType: 'text/html', body: '<title>stub</title>' })
@@ -149,8 +151,7 @@ for (const framework of FRAMEWORK_ORDER) {
     test(`${framework} outline: outline sidebar can be resized`, async ({ page }) => {
       await open(page, framework)
       const handle = viewer(page).getByRole('separator', { name: 'Resize left sidebar' })
-      // The sandbox's viewer is narrow, so the default width is already near the cap: go to
-      // the minimum and widen from there.
+      // Go to the minimum and widen from there, so the result doesn't depend on the default.
       await handle.focus()
       await page.keyboard.press('Home')
       await page.keyboard.press('ArrowRight')
