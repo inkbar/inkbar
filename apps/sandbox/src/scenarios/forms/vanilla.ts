@@ -27,7 +27,7 @@ import { assets } from 'virtual:inkbar-assets'
 
 import { FileUp } from '../../shared/file-up'
 import { changedFields } from '../../shared/form'
-import { signatureFonts, signatures } from '../../shared/signatures'
+import { signatureFonts, storage } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
 import type { DocumentSource, FieldValues } from '@inkbar/core'
@@ -54,7 +54,7 @@ export function mount(
   const viewer = createViewer(el, {
     source,
     assets,
-    signatures,
+    storage,
     signatureFonts,
     onAction: (action) => log('onAction', action),
     onReady: (doc) => {

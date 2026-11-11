@@ -1,10 +1,11 @@
-import { createLocalSignatureStore } from '@inkbar/core'
+import { createLocalStorage } from '@inkbar/core'
 
 /*
- * Signatures made in the sandbox stay in this browser's localStorage, shared by every
- * scenario. A host would keep them wherever its users' data lives.
+ * What the sandbox keeps between visits (signatures, sidebar widths) lives in this browser's
+ * localStorage under the `inkbar-sandbox` prefix, shared by every scenario. A host would keep
+ * it wherever its users' data lives.
  */
-export const signatures = createLocalSignatureStore('inkbar-sandbox-signatures')
+export const storage = createLocalStorage('inkbar-sandbox')
 
 /** The handwriting fonts a typed signature offers, loaded in styles/fonts.css. */
 export const signatureFonts = ['Dancing Script']

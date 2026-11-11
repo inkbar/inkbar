@@ -31,6 +31,7 @@ import { assets } from 'virtual:inkbar-assets'
 import { ref } from 'vue'
 
 import { FileUp } from '../../shared/file-up'
+import { storage } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
 import type { InkDocument } from '@inkbar/core'
@@ -47,7 +48,13 @@ function onReady(doc: InkDocument): void {
 </script>
 
 <template>
-  <InkRoot :src="source" :assets="assets" class="scenario-root" @ready="onReady">
+  <InkRoot
+    :src="source"
+    :assets="assets"
+    :storage="storage"
+    class="scenario-root"
+    @ready="onReady"
+  >
     <InkToolbar class="scenario-toolbar">
       <div class="scenario-group" role="group" aria-label="Tools">
         <InkToolButton tool="select-text" />

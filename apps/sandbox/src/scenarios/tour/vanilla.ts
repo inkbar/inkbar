@@ -33,7 +33,7 @@ import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 
 import { FileUp } from '../../shared/file-up'
-import { signatureFonts, signatures } from '../../shared/signatures'
+import { signatureFonts, storage } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
 import type { DocumentSource } from '@inkbar/core'
@@ -61,7 +61,7 @@ export function mount(
     source,
     assets,
     tools: allTools(),
-    signatures,
+    storage,
     signatureFonts,
     onReady: (doc) => {
       log('onReady', { pages: doc.pages.length })

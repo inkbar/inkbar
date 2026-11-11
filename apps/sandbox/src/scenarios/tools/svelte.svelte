@@ -30,6 +30,7 @@
   import { assets } from 'virtual:inkbar-assets'
 
   import { FileUp } from '../../shared/file-up'
+  import { storage } from '../../shared/signatures'
 
   import type { ScenarioProps } from '../../frameworks/types'
   import type { InkDocument } from '@inkbar/core'
@@ -47,6 +48,7 @@
 <InkRoot
   src={source}
   {assets}
+  {storage}
   {tools}
   {onReady}
   onToolChange={(tool) => log('onToolChange', tool)}

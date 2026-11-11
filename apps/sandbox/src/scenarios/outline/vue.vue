@@ -36,6 +36,7 @@ import { assets } from 'virtual:inkbar-assets'
 import { ref } from 'vue'
 
 import { FileUp } from '../../shared/file-up'
+import { storage } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
 import type { InkDocument, ViewerAction } from '@inkbar/core'
@@ -61,6 +62,7 @@ function onAction(action: ViewerAction): void {
   <InkRoot
     :src="source"
     :assets="assets"
+    :storage="storage"
     class="scenario-root"
     @ready="onReady"
     @action="onAction"

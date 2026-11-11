@@ -29,6 +29,7 @@
   import { assets } from 'virtual:inkbar-assets'
 
   import { FileUp } from '../../shared/file-up'
+  import { storage } from '../../shared/signatures'
 
   import ResultsSidebar from './ResultsSidebar.svelte'
   import SearchLog from './SearchLog.svelte'
@@ -44,7 +45,7 @@
   }
 </script>
 
-<InkRoot src={source} {assets} {onReady} class="scenario-root">
+<InkRoot src={source} {assets} {storage} {onReady} class="scenario-root">
   <InkToolbar class="scenario-toolbar">
     <div class="scenario-group" role="group" aria-label="Tools">
       <InkToolButton tool="select-text" />

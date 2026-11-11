@@ -27,6 +27,7 @@ import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 
 import { FileUp } from '../../shared/file-up'
+import { storage } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
 import type { DocumentSource } from '@inkbar/core'
@@ -49,6 +50,7 @@ export function mount(
   { source, log, onDocument, openFile }: ScenarioProps
 ) {
   const viewer = createViewer(el, {
+    storage,
     source,
     assets,
     onReady: (doc) => {
@@ -122,6 +124,7 @@ export function mount(
 
   // Thumbnails and search on the left; your own About on the right.
   const left = createSidebar({
+    storage,
     defaultWidth: 240,
     side: 'left',
     layout: 'rail',
@@ -143,6 +146,7 @@ export function mount(
     about.append(p)
   }
   const right = createSidebar({
+    storage,
     defaultWidth: 240,
     side: 'right',
     layout: 'rail',

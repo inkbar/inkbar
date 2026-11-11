@@ -31,7 +31,7 @@ import { assets } from 'virtual:inkbar-assets'
 
 import { FileUp } from '../../shared/file-up'
 import { changedFields } from '../../shared/form'
-import { signatureFonts, signatures } from '../../shared/signatures'
+import { signatureFonts, storage } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
 import type { FieldValues, InkDocument } from '@inkbar/core'
@@ -57,7 +57,7 @@ export default function FillAForm({ source, log, onDocument, openFile }: Scenari
     <InkRoot
       src={source}
       assets={assets}
-      signatures={signatures}
+      storage={storage}
       signatureFonts={signatureFonts}
       onAction={(action) => log('onAction', action)}
       onReady={onReady}

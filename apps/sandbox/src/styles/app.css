@@ -541,10 +541,6 @@ body {
 .scenario-body .ink-viewport-root {
   min-width: 0;
 }
-/* The sandbox's viewer is narrow, so its sidebars are too. */
-.scenario-body .ink-sidebar {
-  --ink-sidebar-width: 240px;
-}
 /* The search scenario's results: a panel of its own, shown while the search has hits, with the
    title strip a rail panel has. */
 .results-aside {

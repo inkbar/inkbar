@@ -32,7 +32,7 @@
 
   import { FileUp } from '../../shared/file-up'
   import { changedFields } from '../../shared/form'
-  import { signatureFonts, signatures } from '../../shared/signatures'
+  import { signatureFonts, storage } from '../../shared/signatures'
 
   import type { ScenarioProps } from '../../frameworks/types'
   import type { FieldValues, ViewerAction, InkDocument } from '@inkbar/core'
@@ -63,7 +63,7 @@
 <InkRoot
   src={source}
   {assets}
-  {signatures}
+  {storage}
   {signatureFonts}
   {onReady}
   {onaction}

@@ -30,6 +30,7 @@ import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 
 import { FileUp } from '../../shared/file-up'
+import { storage } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
 import type { InkDocument } from '@inkbar/core'
@@ -53,6 +54,7 @@ function onTool(tool: ToolId): void {
   <InkRoot
     :src="source"
     :assets="assets"
+    :storage="storage"
     :tools="tools"
     class="scenario-root"
     @ready="onReady"

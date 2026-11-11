@@ -31,6 +31,7 @@ import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 
 import { FileUp } from '../../shared/file-up'
+import { storage } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
 import type { DocumentSource } from '@inkbar/core'
@@ -53,6 +54,7 @@ export function mount(
   { source, log, onDocument, openFile }: ScenarioProps
 ) {
   const viewer = createViewer(el, {
+    storage,
     source,
     assets,
     onAction: (action) => {
@@ -114,6 +116,7 @@ export function mount(
   )
 
   const left = createSidebar({
+    storage,
     side: 'left',
     layout: 'rail',
     open: 'outline',

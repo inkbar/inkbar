@@ -35,7 +35,7 @@ import { assets } from 'virtual:inkbar-assets'
 import { shallowRef } from 'vue'
 
 import { FileUp } from '../../shared/file-up'
-import { signatureFonts, signatures } from '../../shared/signatures'
+import { signatureFonts, storage } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
 import type { Annotation, InkDocument } from '@inkbar/core'
@@ -70,7 +70,7 @@ function onActivate(id: string): void {
     :src="source"
     :assets="assets"
     :tools="tools"
-    :signatures="signatures"
+    :storage="storage"
     :signature-fonts="signatureFonts"
     :annotations="annotations"
     class="scenario-root"

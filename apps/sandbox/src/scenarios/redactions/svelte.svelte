@@ -45,7 +45,7 @@
   import { suggestionsPlugin } from '../../plugin/suggestions'
   import '../../plugin/suggestions.css'
   import { FileUp } from '../../shared/file-up'
-  import { signatureFonts, signatures } from '../../shared/signatures'
+  import { signatureFonts, storage } from '../../shared/signatures'
 
   import CommandLog from './CommandLog.svelte'
   import ReviewSidebar from './ReviewSidebar.svelte'
@@ -72,7 +72,7 @@
   {assets}
   {tools}
   {plugins}
-  {signatures}
+  {storage}
   {signatureFonts}
   {onReady}
   onActivate={(id) => log('onActivate', id)}

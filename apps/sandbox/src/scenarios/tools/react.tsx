@@ -29,6 +29,7 @@ import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 
 import { FileUp } from '../../shared/file-up'
+import { storage } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
 
@@ -44,6 +45,7 @@ export default function PickYourTools({
     <InkRoot
       src={source}
       assets={assets}
+      storage={storage}
       tools={tools}
       onReady={(doc) => {
         log('onReady', { pages: doc.pages.length })
