@@ -586,6 +586,55 @@ describe('theme.css', () => {
     )
   })
 
+  it('draws the outline from its tokens, with 44px items and the current one marked', () => {
+    const rootRule = rules.find(
+      (r) =>
+        r.selector.includes('[data-ink-sidebar]') &&
+        r.nodes.some((d) => d.type === 'decl' && d.prop === '--ink-highlight')
+    )
+    const decl = (prop: string) =>
+      rootRule?.nodes.find((d) => d.type === 'decl' && d.prop === prop)?.toString()
+    expect(decl('--ink-outline-indent')).toMatch(/:\s*16px$/)
+    expect(decl('--ink-outline-item-height')).toMatch(/:\s*44px$/)
+    expect(declsFor('.ink-outline)')).toMatch(/overflow-y:\s*auto/)
+    // The item holds its children, so a row carries what belongs to the item alone.
+    const row = declsFor('.ink-outline-row)')
+    // With fallbacks, for an outline placed outside the root and any sidebar.
+    expect(row).toMatch(/min-height:\s*var\(--ink-outline-item-height, 44px\)/)
+    expect(row).toMatch(/var\(--ink-outline-indent, 16px\)/)
+    expect(row).toMatch(/var\(--ink-outline-level/)
+    expect(
+      declsFor(".ink-outline-item[aria-current='location'] > .ink-outline-row)")
+    ).toMatch(/var\(--ink-outline-current-bg\)/)
+    expect(declsFor('.ink-outline-item[data-bold] > .ink-outline-row)')).toMatch(
+      /font-weight:\s*600/
+    )
+    expect(declsFor('.ink-outline-item[data-italic] > .ink-outline-row)')).toMatch(
+      /font-style:\s*italic/
+    )
+    expect(
+      declsFor(".ink-outline-item[aria-disabled='true'] > .ink-outline-row)")
+    ).toMatch(/var\(--ink-muted-fg\)/)
+    expect(declsFor('.ink-outline-item:focus-visible > .ink-outline-row)')).toMatch(
+      /outline:\s*2px solid var\(--ink-ring\)/
+    )
+    expect(declsFor('.ink-outline-group[hidden]')).toMatch(/display:\s*none/)
+    expect(
+      declsFor(
+        ".ink-outline-item[aria-expanded='true'] > .ink-outline-row > .ink-outline-toggle"
+      )
+    ).toMatch(/rotate\(90deg\)/)
+    // A chevron is the only way to expand by touch: its hit area is a full 44px target.
+    // A column of the row, not an overlay: it never covers the title.
+    const toggle = declsFor('.ink-outline-toggle,')
+    expect(toggle).toMatch(/width:\s*44px/)
+    expect(toggle).toMatch(/min-height:\s*44px/)
+    expect(toggle).toMatch(/align-self:\s*stretch/)
+    expect(toggle).toMatch(/flex:\s*none/)
+    expect(declsFor('.ink-outline-toggle)::before')).toBe('')
+    expect(declsFor('.ink-outline-empty)')).toMatch(/var\(--ink-muted-fg\)/)
+  })
+
   it('draws edit handles and hides them outside the select tools and the made state', () => {
     const handle = rules.find((r) => r.selector === ':where(.ink-handle)')
     expect(handle?.toString()).toMatch(/border:\s*1px solid var\(--ink-accent\)/)

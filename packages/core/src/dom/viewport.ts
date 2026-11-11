@@ -106,9 +106,10 @@ export interface Viewport {
   destinationY(dest: Destination): number | undefined
   /**
    * Layout-space CSS y of the line one third down the visible area:
-   * `scrollTop + clientHeight / 3`, less where the pages element starts. Compare it with
-   * `destinationY` to tell which destination the reader has reached. Updates on scroll, resize
-   * and layout.
+   * `scrollTop + clientHeight / 3`, less where the pages element starts; at the bottom of the
+   * visible area instead while scrolled to the end, so the last destinations can be reached.
+   * Compare it with `destinationY` to tell which destination the reader has reached. Updates
+   * on scroll, resize and layout.
    */
   readonly readingLine: Readable<number>
   transformFor(page: number): PageTransform
@@ -258,7 +259,11 @@ export function createViewport(opts: ViewportOptions): Viewport {
     if (destroyed) return
     const l = layout.get()
     const top = container.scrollTop - origin().y
-    readingLine.set(top + container.clientHeight / 3)
+    // Scrolled to the end, the last destinations can never come one third down; the bottom of
+    // the view counts instead, so they can still be reached.
+    const end = container.scrollHeight - container.clientHeight
+    const atEnd = end > 0 && container.scrollTop >= end - 1
+    readingLine.set(top + (atEnd ? container.clientHeight : container.clientHeight / 3))
     const wanted = visibleRangeCss(l, top, container.clientHeight, buffer)
     const wantedSet = new Set(wanted)
     for (const [page, host] of [...hosts]) {

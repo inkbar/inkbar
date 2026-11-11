@@ -3,6 +3,7 @@ import { openPdfObjects } from '../pdf/objects'
 import { destinationPage, resolveDestination } from '../pdfjs/destinations'
 import { pageGlyphs } from '../pdfjs/glyphs'
 import { assertAssets, loadPdfjs, openProxy } from '../pdfjs/load'
+import { readOutline } from '../pdfjs/outline'
 import { createFormScripting } from '../pdfjs/scripting'
 import { structureAnnotationOrder } from '../pdfjs/structure'
 
@@ -31,6 +32,7 @@ import { createFormController, type FormController } from './form/controller'
 import { fieldsToGloss } from './form/gloss'
 import { buildFormFields, type RawWidget } from './form/structure'
 import { linkFromPdfjs, type PageLink } from './links'
+import { mapInOrder } from './map-in-order'
 import { canvasMeasureChar } from './measure-char'
 import { createPageCache, type PageCache } from './page-cache'
 import { pageInfoFromProxy, type PageInfo } from './pages'
@@ -48,6 +50,7 @@ import { textContentFromPdfjs, type TextContent } from './text'
 import type { AnnotationDocument, ForeignAnnotation } from './annotations/types'
 import type { Destination, RawDestination } from './destination'
 import type { FieldsMode, FormField } from './form/types'
+import type { OutlineItem } from './outline'
 import type {
   PdfAssets,
   PdfjsAnnotationData,
@@ -129,6 +132,11 @@ export interface InkDocument {
    * `undefined` when it names no page. Answers are cached per document by the destination.
    */
   resolveDestination(raw: RawDestination): Promise<Destination | undefined>
+  /**
+   * The document's outline (its bookmarks), each destination already resolved. Read on the first
+   * call, after `ready`, and cached; `[]` when the file has none. Rejects as `ready` does.
+   */
+  outline(): Promise<readonly OutlineItem[]>
   /** What the file contained, by PDF subtype, including subtypes Inkbar does not show. */
   readonly embedded: readonly EmbeddedSummary[]
   readonly history: History
@@ -198,6 +206,8 @@ export async function openDocument(
   const embedded: EmbeddedSummary[] = []
   const linksByPage = new Map<number, PageLink[]>()
   const destinationCache = new Map<string, Promise<Destination | undefined>>()
+  /** The outline, read on the first `outline()` call: most viewers never show it. */
+  let outlineRead: Promise<readonly OutlineItem[]> | undefined
   let preserved: ForeignAnnotation[] = []
   /** Embedded annotations whose PDF.js data lacks fields the file holds; read after `ready`. */
   const targets: EmbeddedTarget[] = []
@@ -522,6 +532,12 @@ export async function openDocument(
       }
       return found
     },
+    outline() {
+      outlineRead ??= ready.then(() =>
+        destroyed || !handles ? [] : readOutline(handles.proxy)
+      )
+      return outlineRead
+    },
     embedded,
     history,
     form,
@@ -576,24 +592,6 @@ export async function openDocument(
 }
 
 const EMBEDDED_CONCURRENCY = 8
-
-/** Runs `task(0..count-1)` with at most `limit` in flight; results come back in index order. */
-async function mapInOrder<T>(
-  count: number,
-  limit: number,
-  task: (index: number) => Promise<T>
-): Promise<T[]> {
-  const results = new Array<T>(count)
-  let next = 0
-  const worker = async (): Promise<void> => {
-    while (next < count) {
-      const i = next++
-      results[i] = await task(i)
-    }
-  }
-  await Promise.all(Array.from({ length: Math.min(limit, count) }, worker))
-  return results
-}
 
 function teardown(destroyTask: () => Promise<void>): void {
   destroyTask().catch(() => {
