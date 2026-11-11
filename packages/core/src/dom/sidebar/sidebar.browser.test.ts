@@ -460,7 +460,18 @@ describe('the handle in createSidebar', () => {
   })
 
   it('axe: a sidebar with a handle has no violations', async () => {
-    const { element } = setup()
+    const { element, controller } = setup()
+    controller.update({ open: 'a' })
+    expect(handleOf(element).hidden).toBe(false)
+    const results = await runAxe(element)
+    expect(results.violations).toEqual([])
+  })
+
+  it('axe: a stacked sidebar with a handle has no violations', async () => {
+    const { element } = setup({ layout: 'stack', open: ['a'] })
+    const handle = handleOf(element)
+    expect(handle.hidden).toBe(false)
+    expect(handle.hasAttribute('aria-controls')).toBe(false)
     const results = await runAxe(element)
     expect(results.violations).toEqual([])
   })

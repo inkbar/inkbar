@@ -560,12 +560,13 @@ export function createSidebarController(
       role: 'separator',
       'aria-orientation': 'vertical',
       'aria-label': 'Resize sidebar',
-      'aria-controls': panelsId,
       'aria-valuemin': String(Math.round(minWidth)),
       'aria-valuemax': String(Math.round(widthLimit(limits()))),
       'aria-valuenow': String(Math.round(shown())),
       tabindex: '0',
     }
+    // The stack has no panels element to name.
+    if (layout !== 'stack') attrs['aria-controls'] = panelsId
     if (!visible || store.get().open.length === 0) attrs.hidden = ''
     return attrs
   }
