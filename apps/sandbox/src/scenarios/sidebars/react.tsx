@@ -72,7 +72,7 @@ export default function Sidebars({ source, log, onDocument, openFile }: Scenario
         </div>
       </InkToolbar>
       <div className="scenario-body">
-        <InkSidebar side="left" layout={layout}>
+        <InkSidebar side="left" layout={layout} defaultWidth={240}>
           <InkPanel id="pages" label="Pages" icon={Square}>
             <InkThumbnails />
           </InkPanel>
@@ -81,7 +81,7 @@ export default function Sidebars({ source, log, onDocument, openFile }: Scenario
           </InkPanel>
         </InkSidebar>
         <InkViewport />
-        <InkSidebar side="right" layout={layout}>
+        <InkSidebar side="right" layout={layout} defaultWidth={240}>
           <InkPanel id="about" label="About" icon={Info}>
             <div className="sidebar-about">
               <p>
