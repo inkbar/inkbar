@@ -645,6 +645,179 @@ describe('floating', () => {
     expect(onOpenChange).not.toHaveBeenCalled()
   })
 
+  /** A rail floating open in a 500px row: it starts closed there, so it is opened again. */
+  async function floatingOpen(opts: Partial<SidebarControllerOptions> = {}) {
+    const r = row(500)
+    const s = r.add(opts)
+    if (opts.open === undefined) {
+      await expect.poll(() => s.controller.state.get().open).toEqual([])
+      s.controller.toggle('pages')
+    }
+    await expect.poll(() => s.element.hasAttribute('data-overlay')).toBe(true)
+    return { ...r, ...s }
+  }
+
+  /** Dispatches pointer `type` from `pointerId` on `el` at client (`x`, 100). */
+  const press = (
+    el: Element,
+    type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel',
+    x: number,
+    init: PointerEventInit = {}
+  ) =>
+    el.dispatchEvent(
+      new PointerEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        pointerId: 1,
+        button: 0,
+        isPrimary: true,
+        pointerType: 'mouse',
+        buttons: type === 'pointerdown' || type === 'pointermove' ? 1 : 0,
+        clientX: x,
+        clientY: 100,
+        ...init,
+      })
+    )
+  const tap = (el: Element, init: PointerEventInit = {}) => {
+    press(el, 'pointerdown', 200, init)
+    press(el, 'pointerup', 204, init)
+  }
+
+  it('a tap on the pages closes the floating panel', async () => {
+    const { doc, controller, element, onOpenChange } = await floatingOpen()
+    onOpenChange.mockClear()
+    const seen = vi.fn()
+    doc.addEventListener('pointerdown', seen)
+    const clicked = vi.fn()
+    doc.addEventListener('click', clicked)
+    tap(doc)
+    doc.click()
+    expect(controller.state.get().open).toEqual([])
+    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(null)
+    expect(element.dataset.state).toBe('closed')
+    // The press and its click are swallowed.
+    expect(seen).not.toHaveBeenCalled()
+    expect(clicked).not.toHaveBeenCalled()
+    // Closed, the pages have their presses back.
+    tap(doc)
+    doc.click()
+    expect(seen).toHaveBeenCalledOnce()
+    expect(clicked).toHaveBeenCalledOnce()
+  })
+
+  it('escape closes it and focus returns to the rail button', async () => {
+    const { controller, element } = await floatingOpen()
+    const inside = document.createElement('button')
+    element.querySelector('.ink-sidebar-panel')!.append(inside)
+    inside.focus()
+    await userEvent.keyboard('{Escape}')
+    expect(controller.state.get().open).toEqual([])
+    expect(document.activeElement).toBe(
+      element.querySelector('[data-ink-sidebar-trigger="pages"]')
+    )
+  })
+
+  it('a press inside another sidebar or a menu does not close', async () => {
+    const { add, controller } = await floatingOpen()
+    const other = add({ side: 'right' })
+    await expect.poll(() => other.controller.state.get().open).toEqual([])
+    expect(controller.state.get().floating).toBe(true)
+    tap(other.element.querySelector('.ink-sidebar-rail')!)
+    expect(controller.state.get().open).toEqual(['pages'])
+    for (const attrs of [
+      { 'data-ink-popover': '' },
+      { role: 'menu' },
+      { role: 'dialog' },
+    ]) {
+      const overlay = document.createElement('div')
+      for (const [k, v] of Object.entries(attrs)) overlay.setAttribute(k, v)
+      document.body.append(overlay)
+      cleanup.push(() => overlay.remove())
+      tap(overlay)
+      const item = document.createElement('button')
+      overlay.append(item)
+      item.focus()
+      await userEvent.keyboard('{Escape}')
+      expect(controller.state.get().open).toEqual(['pages'])
+    }
+  })
+
+  it('a drag on the pages does not close', async () => {
+    const { doc, controller } = await floatingOpen()
+    press(doc, 'pointerdown', 200)
+    press(doc, 'pointermove', 230)
+    press(doc, 'pointerup', 230)
+    expect(controller.state.get().open).toEqual(['pages'])
+    // Moving back near the start does not make it a tap again.
+    press(doc, 'pointerdown', 200)
+    press(doc, 'pointermove', 230)
+    press(doc, 'pointerup', 202)
+    expect(controller.state.get().open).toEqual(['pages'])
+  })
+
+  it('a second pointer cancels the close', async () => {
+    const { doc, controller } = await floatingOpen()
+    const touch = { pointerType: 'touch' }
+    press(doc, 'pointerdown', 200, touch)
+    press(doc, 'pointerdown', 300, { ...touch, pointerId: 2, isPrimary: false })
+    press(doc, 'pointerup', 300, { ...touch, pointerId: 2, isPrimary: false })
+    press(doc, 'pointerup', 200, touch)
+    expect(controller.state.get().open).toEqual(['pages'])
+    // Nor a third finger that lifts while another is still down.
+    press(doc, 'pointerdown', 200, touch)
+    press(doc, 'pointerdown', 300, { ...touch, pointerId: 2, isPrimary: false })
+    press(doc, 'pointerup', 200, touch)
+    press(doc, 'pointerdown', 250, { ...touch, pointerId: 3, isPrimary: false })
+    press(doc, 'pointerup', 250, { ...touch, pointerId: 3, isPrimary: false })
+    press(doc, 'pointerup', 300, { ...touch, pointerId: 2, isPrimary: false })
+    expect(controller.state.get().open).toEqual(['pages'])
+    // A cancelled press does not close either.
+    press(doc, 'pointerdown', 200, touch)
+    press(doc, 'pointercancel', 200, touch)
+    press(doc, 'pointerup', 200, touch)
+    expect(controller.state.get().open).toEqual(['pages'])
+  })
+
+  it('a touch press is not prevented, so the pages still scroll', async () => {
+    const { doc } = await floatingOpen()
+    const down = new PointerEvent('pointerdown', {
+      bubbles: true,
+      cancelable: true,
+      pointerId: 1,
+      isPrimary: true,
+      pointerType: 'touch',
+    })
+    doc.dispatchEvent(down)
+    expect(down.defaultPrevented).toBe(false)
+    const mouse = new PointerEvent('pointerdown', {
+      bubbles: true,
+      cancelable: true,
+      pointerId: 2,
+      isPrimary: true,
+      pointerType: 'mouse',
+    })
+    doc.dispatchEvent(mouse)
+    expect(mouse.defaultPrevented).toBe(true)
+  })
+
+  it('a controlled sidebar only reports', async () => {
+    const { doc, controller, onOpenChange } = await floatingOpen({ open: 'pages' })
+    tap(doc)
+    tap(doc)
+    expect(controller.state.get().open).toEqual(['pages'])
+    expect(onOpenChange.mock.calls).toEqual([[null], [null]])
+  })
+
+  it('stops listening once destroyed', async () => {
+    const { doc, controller, onOpenChange } = await floatingOpen({ open: 'pages' })
+    controller.destroy()
+    const seen = vi.fn()
+    doc.addEventListener('pointerdown', seen)
+    tap(doc)
+    expect(seen).toHaveBeenCalledOnce()
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
+
   it('tabs narrow instead of floating', async () => {
     const storage = createMemoryStorage({ 'sidebar.left.width': 480 })
     const { add, doc } = row(800)

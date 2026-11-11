@@ -180,6 +180,13 @@ function quietly<T>(fn: () => T | Promise<T>, then?: (value: T) => void): void {
 
 const TRIGGER = '[data-ink-sidebar-trigger]'
 
+/** How far a press may travel, in CSS px, and still be a tap that closes a floating panel. */
+const TAP_SLOP = 10
+
+/** Menus, popovers and dialogs, wherever they are portalled: a press or key in one never closes a panel. */
+const inOverlay = (el: Element): boolean =>
+  el.closest("[data-ink-popover], [role='dialog'], [role='menu']") !== null
+
 let count = 0
 /** Each controller's key in its group. */
 let slotCount = 0
@@ -248,6 +255,12 @@ export function createSidebarController(
   /** The sidebar's group, and the container it is for, while the handle is bound. */
   let membership: SidebarGroupMembership | undefined
   let groupParent: HTMLElement | null = null
+  /** The sidebar's root while the handle is bound: the floating panel's rail trigger is in it. */
+  let groupRoot: HTMLElement | null = null
+  /** Unbinds the listeners that close a floating panel, while they are bound. */
+  let stopDismiss: (() => void) | undefined
+  /** Unbinds the listeners that swallow what follows a closing tap. */
+  let stopAfterClose: (() => void) | undefined
   /** The slot as the group last saw it. */
   let lastSlot = ''
   /** Reads the rail's width from the root, once the handle is bound. */
@@ -336,6 +349,131 @@ export function createSidebarController(
     if (store.get().open.length === 0 && open.length > 0) openedAt = ++openCount
     store.set({ layout, side, panels, open, visible, width, resizing, floating })
     tellGroup()
+    syncDismiss()
+  }
+
+  /**
+   * Closes a floating panel the way a drawer closes: on a tap on the pages or on Escape. The
+   * closing press is swallowed, so no tool, link or field sees it; a drag, a scroll or a second
+   * pointer leaves the panel open.
+   */
+  function syncDismiss(): void {
+    const parent = groupParent
+    const root = groupRoot
+    const wanted =
+      !destroyed &&
+      layout === 'rail' &&
+      floating &&
+      visible &&
+      store.get().open.length > 0 &&
+      parent !== null &&
+      root !== null
+    if (!wanted) {
+      stopDismiss?.()
+      return
+    }
+    // A root outside a document, as in node tests, has nothing to listen to.
+    const doc = root.ownerDocument as Document | null | undefined
+    if (stopDismiss || !doc) return
+    /** The press that may close: its pointer and where it started. */
+    let press: { pointer: number; x: number; y: number } | null = null
+    /** The pointers down on the pages: with more than one, it is a gesture. */
+    const down = new Set<number>()
+    const counts = (target: EventTarget | null): target is Element =>
+      target instanceof Element &&
+      parent.contains(target) &&
+      target.closest('[data-ink-sidebar]') === null &&
+      !inOverlay(target)
+    const onDown = (e: PointerEvent): void => {
+      if (!counts(e.target)) return
+      e.stopPropagation()
+      if (e.pointerType !== 'touch') e.preventDefault()
+      down.add(e.pointerId)
+      // A second pointer makes a gesture, a pinch most likely: no press in it closes.
+      press =
+        down.size === 1 && e.button === 0
+          ? { pointer: e.pointerId, x: e.clientX, y: e.clientY }
+          : null
+    }
+    const onMove = (e: PointerEvent): void => {
+      if (!press || e.pointerId !== press.pointer) return
+      if (Math.hypot(e.clientX - press.x, e.clientY - press.y) > TAP_SLOP) press = null
+    }
+    const onUp = (e: PointerEvent): void => {
+      down.delete(e.pointerId)
+      if (!press || e.pointerId !== press.pointer) return
+      const near = Math.hypot(e.clientX - press.x, e.clientY - press.y) <= TAP_SLOP
+      press = null
+      if (near) close(e.target)
+    }
+    const onCancel = (e: PointerEvent): void => {
+      down.delete(e.pointerId)
+      if (press && e.pointerId === press.pointer) press = null
+    }
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return
+      const active = doc.activeElement
+      if (active && inOverlay(active)) return
+      close(null)
+    }
+    /** Reports the close, and moves focus to the rail trigger when it was nowhere in particular. */
+    const close = (target: EventTarget | null): void => {
+      const id = store.get().open[0]
+      if (id === undefined) return
+      const active = doc.activeElement
+      const refocus = !active || active === doc.body || root.contains(active)
+      if (target) swallowAfterClose(doc, target)
+      if (!controlled) publish([])
+      handler.onOpenChange?.(toValue([]))
+      if (refocus)
+        root.querySelector<HTMLElement>(`[id="${CSS.escape(triggerId(id))}"]`)?.focus()
+    }
+    const capture = { capture: true }
+    doc.addEventListener('pointerdown', onDown, capture)
+    doc.addEventListener('pointermove', onMove, capture)
+    doc.addEventListener('pointerup', onUp, capture)
+    doc.addEventListener('pointercancel', onCancel, capture)
+    // Bubbling: an editor or a menu that handles Escape first prevents its default.
+    doc.addEventListener('keydown', onKey)
+    stopDismiss = () => {
+      stopDismiss = undefined
+      doc.removeEventListener('pointerdown', onDown, capture)
+      doc.removeEventListener('pointermove', onMove, capture)
+      doc.removeEventListener('pointerup', onUp, capture)
+      doc.removeEventListener('pointercancel', onCancel, capture)
+      doc.removeEventListener('keydown', onKey)
+    }
+  }
+
+  /**
+   * Swallows the click that follows a closing tap on `target`, and the compatibility mousedown
+   * a touch tap still gets, which would focus a field. Both go at the next press.
+   */
+  function swallowAfterClose(doc: Document, target: EventTarget): void {
+    stopAfterClose?.()
+    const node = target instanceof Node ? target : null
+    const ours = (e: Event): boolean =>
+      node !== null &&
+      e.target instanceof Node &&
+      (e.target === node || e.target.contains(node))
+    const swallow = (e: Event): void => {
+      if (!ours(e)) return
+      e.preventDefault()
+      e.stopPropagation()
+      if (e.type === 'click') stopAfterClose?.()
+    }
+    const onNextPress = (): void => stopAfterClose?.()
+    const capture = { capture: true }
+    doc.addEventListener('mousedown', swallow, capture)
+    doc.addEventListener('click', swallow, capture)
+    // Registered after this press's own listeners have run, so it ends at the next one.
+    doc.addEventListener('pointerdown', onNextPress, capture)
+    stopAfterClose = () => {
+      stopAfterClose = undefined
+      doc.removeEventListener('mousedown', swallow, capture)
+      doc.removeEventListener('click', swallow, capture)
+      doc.removeEventListener('pointerdown', onNextPress, capture)
+    }
   }
 
   /** Where the group puts the sidebar. */
@@ -744,6 +882,8 @@ export function createSidebarController(
       if (membership === ours) {
         membership = undefined
         groupParent = null
+        groupRoot = null
+        syncDismiss()
       }
       ours = undefined
       if (floating || placedShown !== undefined) {
@@ -758,6 +898,7 @@ export function createSidebarController(
       leave()
       if (!parent || destroyed) return
       groupParent = parent
+      groupRoot = root
       lastSlot = signature()
       ours = membership = joinSidebarGroup(parent, { slot, place })
       // Placing on joining may have closed the panel before the group could hear of it.
@@ -839,6 +980,8 @@ export function createSidebarController(
       if (destroyed) return
       destroyed = true
       for (const unbind of [...bindings]) unbind()
+      stopDismiss?.()
+      stopAfterClose?.()
       for (const fn of destroyHooks.get(controller) ?? []) fn()
       destroyHooks.delete(controller)
     },
