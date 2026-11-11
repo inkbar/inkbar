@@ -70,7 +70,7 @@
     </div>
   </InkToolbar>
   <div class="scenario-body">
-    <InkSidebar side="left" {layout} defaultWidth={240}>
+    <InkSidebar name="sidebars-left" side="left" {layout} defaultWidth={240}>
       <InkPanel id="pages" label="Pages" icon={Square}>
         <InkThumbnails />
       </InkPanel>
@@ -79,7 +79,7 @@
       </InkPanel>
     </InkSidebar>
     <InkViewport />
-    <InkSidebar side="right" {layout} defaultWidth={240}>
+    <InkSidebar name="sidebars-right" side="right" {layout} defaultWidth={240}>
       <InkPanel id="about" label="About" icon={Info}>
         <div class="sidebar-about">
           <p>

@@ -73,7 +73,7 @@
     </div>
   </InkToolbar>
   <div class="scenario-body">
-    <InkSidebar side="left" open="outline">
+    <InkSidebar name="outline" side="left" open="outline">
       <InkPanel id="outline" label="Outline" icon={List}>
         <InkOutline />
       </InkPanel>

@@ -397,7 +397,16 @@ function fakeHandle() {
       defaultPrevented: false,
       preventDefault: () => {},
     } as unknown as Event)
-  return { el, key, listeners }
+  const pointer = (type: string, clientX: number) =>
+    listeners.get(type)?.({
+      pointerId: 1,
+      pointerType: 'mouse',
+      button: 0,
+      buttons: type === 'pointerup' ? 0 : 1,
+      clientX,
+      preventDefault: () => {},
+    } as unknown as Event)
+  return { el, key, pointer, listeners }
 }
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0))
@@ -436,6 +445,48 @@ describe('sidebar width', () => {
     answer(450)
     await flush()
     expect(c.state.get().width).toBe(336)
+  })
+
+  it('a press that does not move saves nothing, and a late answer still applies', async () => {
+    const { storage, answer } = lateStorage()
+    const c = createSidebarController({ panels, storage })
+    const h = fakeHandle()
+    c.bindHandle(h.el)
+    h.pointer('pointerdown', 100)
+    h.pointer('pointerup', 100)
+    expect(storage.set).not.toHaveBeenCalled()
+    answer(400)
+    await flush()
+    expect(c.state.get().width).toBe(400)
+  })
+
+  it('a double-click leaves the key removed', () => {
+    const storage = spyStorage({ 'sidebar.left.width': 400 })
+    const c = createSidebarController({ panels, storage })
+    const h = fakeHandle()
+    c.bindHandle(h.el)
+    for (let i = 0; i < 2; i++) {
+      h.pointer('pointerdown', 100)
+      h.pointer('pointerup', 100)
+    }
+    h.listeners.get('dblclick')?.({} as Event)
+    expect(c.state.get().width).toBe(320)
+    expect(storage.set).not.toHaveBeenCalled()
+    expect(storage.get('sidebar.left.width')).toBeUndefined()
+  })
+
+  it('a new maxWidth that leaves the shown width alone still updates aria-valuemax', () => {
+    const c = createSidebarController({ panels })
+    const seen = vi.fn<(max: string | undefined) => void>()
+    c.state.subscribe(() => {
+      seen(c.handleAttrs()['aria-valuemax'])
+    })
+    c.update({ maxWidth: 600 })
+    expect(c.state.get().width).toBe(320)
+    expect(seen).toHaveBeenLastCalledWith('600')
+    c.update({ minWidth: 200 })
+    expect(c.handleAttrs()['aria-valuemin']).toBe('200')
+    expect(seen).toHaveBeenCalledTimes(2)
   })
 
   it.each(['abc', -5, NaN, null, 0, Infinity])(

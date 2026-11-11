@@ -117,6 +117,7 @@ export function mount(
 
   const left = createSidebar({
     storage,
+    name: 'outline',
     side: 'left',
     layout: 'rail',
     open: 'outline',

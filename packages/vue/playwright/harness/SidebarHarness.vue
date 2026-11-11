@@ -28,6 +28,8 @@ const props = defineProps<{
   /** Put the sidebar in an InkRoot that owns the store; needs `assets`. */
   inRoot?: boolean | undefined
   assets?: PdfAssets | undefined
+  /** Keep the store from the sidebar, as a server without it would. */
+  withoutStore?: boolean | undefined
 }>()
 
 const open = ref<SidebarOpen | undefined>(props.open)
@@ -61,7 +63,7 @@ const sidebarProps = computed(() => ({
     width: width.value,
     'onUpdate:width': (v: number) => (width.value = v),
   }),
-  ...(props.stored && !props.inRoot && { storage }),
+  ...(props.stored && !props.inRoot && !props.withoutStore && { storage }),
 }))
 </script>
 

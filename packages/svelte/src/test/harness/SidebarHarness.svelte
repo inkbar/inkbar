@@ -95,6 +95,9 @@
 <button type="button" data-testid="remount" onclick={() => (withSidebar = !withSidebar)}>
   Remount
 </button>
+<button type="button" data-testid="clear-width" onclick={() => (width = undefined)}>
+  Clear width
+</button>
 <output data-testid="width">{JSON.stringify(width ?? null)}</output>
 <output data-testid="stored">{JSON.stringify(saved)}</output>
 

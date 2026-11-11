@@ -169,13 +169,20 @@ function arrange(): void {
 
 provideSidebarContext({ controller, state, register, arrange })
 
+// The panels register after this component has rendered. So the server's and the first
+// render's handle is shown, as the root is (`data-state` is open while pending), and the real
+// `hidden` follows once mounted.
+const mounted = shallowRef(false)
+
 const view = computed(() => {
   const s = state.value
+  const handle = controller.handleAttrs()
+  if (!mounted.value) delete handle.hidden
   return {
     root: controller.rootAttrs(),
     style: controller.rootStyle(),
     panels: controller.panelsAttrs(),
-    handle: controller.handleAttrs(),
+    handle,
     tablist: controller.tablistAttrs(),
     triggers: s.panels.map((panel) => ({
       panel,
@@ -192,15 +199,25 @@ onMounted(() => {
   controller.bindTriggers(root.value!)
   controller.bindHandle(handle.value!)
   controller.update({ pending: false })
-  // Hydration keeps the server's style: a width the client's storage gave applies here.
+  mounted.value = true
+  // Hydration keeps the server's markup: a width the client's storage gave applies here.
   for (const [name, value] of Object.entries(controller.rootStyle()))
     root.value!.style.setProperty(name, value)
+  for (const [name, value] of Object.entries(controller.handleAttrs()))
+    if (name.startsWith('aria-value')) handle.value!.setAttribute(name, value)
 })
 onBeforeUnmount(() => controller.destroy())
 </script>
 
 <template>
-  <div ref="root" class="ink-sidebar" v-bind="view.root" :style="view.style">
+  <!-- The client's storage may hold another width than the server showed; see onMounted. -->
+  <div
+    ref="root"
+    class="ink-sidebar"
+    v-bind="view.root"
+    :style="view.style"
+    data-allow-mismatch="style"
+  >
     <div
       v-if="state.layout !== 'stack'"
       :class="state.layout === 'rail' ? 'ink-sidebar-rail' : 'ink-sidebar-tabs'"
@@ -219,6 +236,11 @@ onBeforeUnmount(() => controller.destroy())
       <slot />
     </div>
     <!-- The last child, on the inner edge. -->
-    <div ref="handle" class="ink-sidebar-handle" v-bind="view.handle" />
+    <div
+      ref="handle"
+      class="ink-sidebar-handle"
+      v-bind="view.handle"
+      data-allow-mismatch="attribute"
+    />
   </div>
 </template>

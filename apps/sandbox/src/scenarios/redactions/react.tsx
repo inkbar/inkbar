@@ -100,6 +100,7 @@ function ReviewSidebar() {
 
   return (
     <InkSidebar
+      name="redactions-right"
       side="right"
       layout="rail"
       defaultWidth={240}
@@ -198,7 +199,13 @@ export default function SuggestRedactions({
       </InkToolbar>
       <div className="scenario-body">
         {/* The Pages panel starts closed, leaving the pages the room. */}
-        <InkSidebar side="left" layout="rail" defaultWidth={240} defaultOpen={null}>
+        <InkSidebar
+          name="redactions-left"
+          side="left"
+          layout="rail"
+          defaultWidth={240}
+          defaultOpen={null}
+        >
           <InkPanel id="pages" label="Pages" icon={Square}>
             <InkThumbnails />
           </InkPanel>

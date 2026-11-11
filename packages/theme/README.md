@@ -92,7 +92,7 @@ Sidebars and thumbnails have their own sizes:
 | `--ink-sidebar-rail-width` | `48px`  | The width of a sidebar's icon rail   |
 | `--ink-thumbnail-width`    | `120px` | The width of a page thumbnail        |
 
-A sidebar's resize handle sets `--ink-sidebar-width` inline on the sidebar, so a dragged or saved width wins over this default. Style the handle with `.ink-sidebar-handle`. It draws a 2px `--ink-accent` line on hover, focus and while dragging.
+The sidebar always sets `--ink-sidebar-width` inline, even when no width is saved, so a CSS override of it no longer applies. Pass the sidebar's `defaultWidth` instead. Style the handle with `.ink-sidebar-handle`. It draws a 2px `--ink-accent` line on hover, focus and while dragging.
 
 ## Search, form and link colours
 

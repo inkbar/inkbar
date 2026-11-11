@@ -373,6 +373,21 @@ describe('sidebar width', () => {
     expect(text('stored')()).toBe('{"sidebar.left.width":450}')
   })
 
+  it('a bound width set back to undefined stays controlled', async () => {
+    await render(SidebarHarness, { layout: 'rail', width: 300, stored: {} })
+    await expect.element(handle()).toHaveAttribute('aria-valuenow', '300')
+    await browserPage.getByTestId('clear-width').click()
+    await expect.poll(text('width')).toBe('null')
+    drag(60)
+    await expect.poll(text('width')).toBe('360')
+    // The handle follows the binding rather than freezing.
+    await expect.element(handle()).toHaveAttribute('aria-valuenow', '360')
+    drag(20)
+    await expect.poll(text('width')).toBe('380')
+    await expect.element(handle()).toHaveAttribute('aria-valuenow', '380')
+    expect(text('stored')()).toBe('{}')
+  })
+
   it('a bound width that starts undefined only reports and keeps saving', async () => {
     await render(SidebarHarness, { layout: 'rail', bindWidth: true, stored: {} })
     handle().element().focus()

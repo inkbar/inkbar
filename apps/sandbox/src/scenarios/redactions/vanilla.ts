@@ -162,6 +162,7 @@ export function mount(
   // room.
   const left = createSidebar({
     storage,
+    name: 'redactions-left',
     defaultWidth: 240,
     side: 'left',
     layout: 'rail',
@@ -182,6 +183,7 @@ export function mount(
   accepted.className = 'accepted'
   const right = createSidebar({
     storage,
+    name: 'redactions-right',
     defaultWidth: 240,
     side: 'right',
     layout: 'rail',
