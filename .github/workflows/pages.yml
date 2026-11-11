@@ -19,10 +19,14 @@ permissions:
   contents: write
   pull-requests: write
 
-# Every run pushes to gh-pages, so runs queue rather than race.
+# One group per pull request (and one for main). A single shared group dropped previews: GitHub
+# keeps one pending run per group and cancels the rest, so pushing a stack of pull requests left
+# most of them without one. Runs for different pull requests now build side by side; when two
+# push to gh-pages at once, the deploy action rebases and pushes again. A newer push to the same
+# pull request replaces its older run.
 concurrency:
-  group: gh-pages
-  cancel-in-progress: false
+  group: pages-${{ github.event.pull_request.number || 'main' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   deploy:
@@ -57,8 +61,52 @@ jobs:
           folder: apps/sandbox/dist
           branch: gh-pages
           clean-exclude: pr-preview/
+          # Previews push to the same branch alongside this deploy.
+          attempt-limit: 10
 
-      - if: github.event_name == 'pull_request'
+      # A preview is removed when its pull request closes, but a removal run can still be lost.
+      # Leftovers grew gh-pages until Pages timed out publishing it, so every deploy of the root
+      # also drops previews of pull requests that are no longer open.
+      - if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          open=$(gh pr list --state open --limit 1000 --json number -q '.[].number')
+          for _ in 1 2 3 4 5; do
+            rm -rf "$RUNNER_TEMP/pages"
+            git fetch --depth=1 origin gh-pages
+            git worktree add --detach "$RUNNER_TEMP/pages" FETCH_HEAD
+            cd "$RUNNER_TEMP/pages"
+            for dir in pr-preview/pr-*; do
+              [ -d "$dir" ] || continue
+              grep -qx "${dir#pr-preview/pr-}" <<< "$open" || git rm -rq "$dir"
+            done
+            git diff --cached --quiet && exit 0
+            git commit -qm 'chore: remove previews of closed pull requests'
+            git push origin HEAD:gh-pages && exit 0
+            cd "$GITHUB_WORKSPACE"
+            git worktree remove --force "$RUNNER_TEMP/pages"
+            sleep $((RANDOM % 20 + 5))
+          done
+          exit 1
+
+      # The preview action rebases a rejected push three times. With a whole stack deploying at
+      # once that can run out, so a failed attempt waits a moment and tries once more.
+      - id: preview
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        uses: rossjrw/pr-preview-action@v1
+        with:
+          source-dir: apps/sandbox/dist
+          preview-branch: gh-pages
+          umbrella-dir: pr-preview
+          pages-base-url: sandbox.inkbar.dev
+          qr-code: false
+      - if: github.event_name == 'pull_request' && steps.preview.outcome == 'failure'
+        run: sleep $((RANDOM % 30 + 15))
+      - if: github.event_name == 'pull_request' && steps.preview.outcome == 'failure'
         uses: rossjrw/pr-preview-action@v1
         with:
           source-dir: apps/sandbox/dist
