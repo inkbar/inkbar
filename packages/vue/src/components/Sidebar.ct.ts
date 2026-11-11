@@ -392,3 +392,101 @@ test('hydration shows the width the client storage holds', async ({ mount, page 
   await expect(handle(page)).toHaveAttribute('aria-valuenow', '400')
   expect(await styleWidth(page)).toBe('400px')
 })
+
+const sidebar = (page: Page) => page.getByTestId('sidebar')
+/** Clicks the pages near their far edge, clear of a floating panel. */
+async function tapPages(page: Page): Promise<void> {
+  const box = (await page.getByTestId('pages').boundingBox())!
+  await page.mouse.click(box.x + box.width - 20, box.y + 20)
+}
+
+test('floats in a narrow container and closes on a tap on the pages', async ({
+  mount,
+  page,
+}) => {
+  await mount(Harness, { props: { layout: 'rail', containerWidth: 600 } })
+  // No room at the first measurement: the panel starts closed.
+  await expect(sidebar(page)).toHaveAttribute('data-state', 'closed')
+  await expect(sidebar(page)).not.toHaveAttribute('data-overlay')
+  await page.getByRole('tab', { name: 'Pages' }).click()
+  await expect(sidebar(page)).toHaveAttribute('data-overlay', '')
+  await expect(panel(page, 'Pages')).toBeVisible()
+  // The pages keep their room.
+  expect(
+    await page.getByTestId('pages').evaluate((el) => el.getBoundingClientRect().width)
+  ).toBeGreaterThanOrEqual(480)
+
+  await tapPages(page)
+  await expect(sidebar(page)).toHaveAttribute('data-state', 'closed')
+  await expect(sidebar(page)).not.toHaveAttribute('data-overlay')
+  await expect(page.getByText('Pages content')).toBeHidden()
+})
+
+test('inherits minDocumentWidth from InkRoot', async ({ mount, page }) => {
+  // 900px leaves the default 480 room; the root asks for 700.
+  await mount(Harness, {
+    props: {
+      layout: 'rail',
+      inRoot: true,
+      assets: browserAssets(),
+      containerWidth: 900,
+      rootMinDocumentWidth: 700,
+    },
+  })
+  await expect(sidebar(page)).toHaveAttribute('data-state', 'closed')
+  await page.getByRole('tab', { name: 'Pages' }).click()
+  await expect(sidebar(page)).toHaveAttribute('data-overlay', '')
+})
+
+test("the sidebar's minDocumentWidth wins over InkRoot's", async ({ mount, page }) => {
+  await mount(Harness, {
+    props: {
+      layout: 'rail',
+      inRoot: true,
+      assets: browserAssets(),
+      containerWidth: 900,
+      rootMinDocumentWidth: 700,
+      minDocumentWidth: 400,
+    },
+  })
+  await expect(panel(page, 'Pages')).toBeVisible()
+  await expect(sidebar(page)).toHaveAttribute('data-state', 'open')
+  await expect(sidebar(page)).not.toHaveAttribute('data-overlay')
+})
+
+test('handleLabel names the handle', async ({ mount, page }) => {
+  await mount(Harness, {
+    props: { layout: 'rail', handleLabel: 'Resize the pages list' },
+  })
+  await expect(
+    page.getByRole('separator', { name: 'Resize the pages list' })
+  ).toHaveAttribute('aria-valuenow', '320')
+})
+
+test('starts closed after hydration without a mismatch', async ({ mount, page }) => {
+  await mount(HydratedHarness, { props: { layout: 'rail', containerWidth: 500 } })
+  // The server showed the panel beside the pages.
+  await expect(page.getByTestId('server-html')).toHaveAttribute(
+    'data-html',
+    /class="ink-sidebar"[^>]*data-state="open"/
+  )
+  await expect(sidebar(page)).toHaveAttribute('data-state', 'closed')
+  await expect(page.getByText('Pages content')).toBeHidden()
+  await expect(page.getByTestId('open')).toHaveText('null')
+  // The console guard fails the test on a hydration warning.
+})
+
+test('a bound open reports the close', async ({ mount, page }) => {
+  await mount(Harness, { props: { layout: 'rail', open: 'pages', containerWidth: 500 } })
+  // Controlled: it stays open, floating.
+  await expect(sidebar(page)).toHaveAttribute('data-overlay', '')
+  await expect(page.getByTestId('open')).toHaveText('"pages"')
+  await page.keyboard.press('Escape')
+  await expect(page.getByTestId('open')).toHaveText('null')
+  await expect(sidebar(page)).toHaveAttribute('data-state', 'closed')
+  await page.getByRole('tab', { name: 'Pages' }).click()
+  await expect(page.getByTestId('open')).toHaveText('"pages"')
+  await tapPages(page)
+  await expect(page.getByTestId('open')).toHaveText('null')
+  await expect(page.getByText('Pages content')).toBeHidden()
+})

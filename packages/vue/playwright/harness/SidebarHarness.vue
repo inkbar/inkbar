@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /*
- * A sidebar of three panels. The Search panel holds a field and can be removed. With `stored`,
- * the sidebar keeps its width in a store the page shows; with `inRoot`, that store is InkRoot's
- * and the sidebar inherits it. The store outlives a remount.
+ * A sidebar of three panels beside a stand-in for the pages. The Search panel holds a field and
+ * can be removed. With `stored`, the sidebar keeps its width in a store the page shows; with
+ * `inRoot`, that store is InkRoot's and the sidebar inherits it. The store outlives a remount.
  */
 import { MessageSquare, Search, Square } from '@inkbar/icons'
 import { computed, ref } from 'vue'
@@ -30,6 +30,13 @@ const props = defineProps<{
   assets?: PdfAssets | undefined
   /** Keep the store from the sidebar, as a server without it would. */
   withoutStore?: boolean | undefined
+  /** The row's width in CSS px, sidebar and pages together. Default: the page's. */
+  containerWidth?: number | undefined
+  /** The sidebar's own `minDocumentWidth`. */
+  minDocumentWidth?: number | undefined
+  /** InkRoot's `minDocumentWidth`, with `inRoot`. */
+  rootMinDocumentWidth?: number | undefined
+  handleLabel?: string | undefined
 }>()
 
 const open = ref<SidebarOpen | undefined>(props.open)
@@ -64,6 +71,18 @@ const sidebarProps = computed(() => ({
     'onUpdate:width': (v: number) => (width.value = v),
   }),
   ...(props.stored && !props.inRoot && !props.withoutStore && { storage }),
+  ...(props.minDocumentWidth !== undefined && {
+    minDocumentWidth: props.minDocumentWidth,
+  }),
+  ...(props.handleLabel !== undefined && { handleLabel: props.handleLabel }),
+}))
+const rootProps = computed(() => ({
+  src: null,
+  assets: props.assets,
+  storage,
+  ...(props.rootMinDocumentWidth !== undefined && {
+    minDocumentWidth: props.rootMinDocumentWidth,
+  }),
 }))
 </script>
 
@@ -83,12 +102,12 @@ const sidebarProps = computed(() => ({
   <output data-testid="open">{{ JSON.stringify(open ?? null) }}</output>
   <output data-testid="width">{{ JSON.stringify(width ?? null) }}</output>
   <output data-testid="stored">{{ JSON.stringify(saved) }}</output>
-  <component
-    :is="inRoot ? InkRoot : 'div'"
-    v-bind="inRoot ? { src: null, assets, storage } : {}"
-  >
+  <component :is="inRoot ? InkRoot : 'div'" v-bind="inRoot ? rootProps : {}">
     <SignatureStorageProbe v-if="inRoot" />
-    <div style="display: flex; height: 400px">
+    <div
+      style="display: flex; height: 400px"
+      :style="containerWidth === undefined ? {} : { width: `${containerWidth}px` }"
+    >
       <InkSidebar v-if="shown" v-bind="sidebarProps" data-testid="sidebar">
         <InkPanel id="pages" label="Pages" :icon="Square"><p>Pages content</p></InkPanel>
         <InkPanel
@@ -104,6 +123,7 @@ const sidebarProps = computed(() => ({
           <p>Notes content</p>
         </InkPanel>
       </InkSidebar>
+      <div data-testid="pages" style="flex: 1; min-width: 0">Pages</div>
     </div>
   </component>
 </template>
