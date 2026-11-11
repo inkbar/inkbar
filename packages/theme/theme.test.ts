@@ -465,6 +465,42 @@ describe('theme.css', () => {
     expect(rules[closed]?.toString()).toMatch(/display:\s*none/)
   })
 
+  it('positions floating sidebar panels over the pages', () => {
+    const panels = declsFor(
+      ".ink-sidebar[data-layout='rail'][data-overlay] .ink-sidebar-panels)"
+    )
+    expect(panels).toMatch(/position:\s*absolute/)
+    expect(panels).toMatch(/top:\s*0/)
+    expect(panels).toMatch(/bottom:\s*0/)
+    expect(panels).toMatch(/left:\s*var\(--ink-sidebar-rail-width\)/)
+    expect(panels).toMatch(/box-shadow:/)
+    expect(declsFor(".ink-sidebar[data-layout='rail'][data-overlay])")).toMatch(
+      /width:\s*var\(--ink-sidebar-rail-width\)/
+    )
+    expect(declsFor("[data-overlay][data-side='right'] .ink-sidebar-panels")).toMatch(
+      /right:\s*var\(--ink-sidebar-rail-width\)/
+    )
+  })
+
+  it('puts the floating handle at the panel edge', () => {
+    expect(declsFor('[data-overlay] .ink-sidebar-handle)')).toMatch(
+      /left:\s*calc\(var\(--ink-sidebar-width\) - 4px\)/
+    )
+    expect(declsFor("[data-overlay][data-side='right'] .ink-sidebar-handle")).toMatch(
+      /right:\s*calc\(var\(--ink-sidebar-width\) - 4px\)/
+    )
+  })
+
+  it('keeps the floating panel under popovers', () => {
+    const z = (selector: string) =>
+      Number(/z-index:\s*(\d+)/.exec(declsFor(selector))?.[1])
+    const panel = z('[data-overlay] .ink-sidebar-panels)')
+    expect(panel).toBeGreaterThan(3)
+    expect(panel).toBeLessThan(z('.ink-thread-popover)'))
+    expect(panel).toBeLessThan(z('.ink-select-content)'))
+    expect(panel).toBeLessThan(z('.ink-dialog-overlay)'))
+  })
+
   it('collapses a closed tabs sidebar as a whole after the rule that shows it', () => {
     const at = (selector: string) => rules.findIndex((r) => r.selector === selector)
     const shown = at(':where(.ink-sidebar)')

@@ -94,6 +94,8 @@ Sidebars and thumbnails have their own sizes:
 
 The sidebar always sets `--ink-sidebar-width` inline, even when no width is saved, so a CSS override of it no longer applies. Pass the sidebar's `defaultWidth` instead. Style the handle with `.ink-sidebar-handle`. It draws a 2px `--ink-accent` line on hover, focus and while dragging.
 
+A rail sidebar floats its panel over the pages when the document has no room for it. The sidebar root then carries `data-overlay`: it takes only the rail's width in the layout, and `.ink-sidebar-panels` becomes an absolutely positioned panel beside the rail, the root's full height, with a shadow and `z-index: 10` (below popovers, menus and dialogs at 50). The handle moves to the panel's document-side edge. Restyle it with `.ink-sidebar[data-overlay] .ink-sidebar-panels`, for instance to change the shadow or the `z-index`. A `data-side="right"` sidebar mirrors all of this. Tabs and stack sidebars never float.
+
 ## Search, form and link colours
 
 `--ink-search-hit` and `--ink-search-current` colour search matches and the current match. `--ink-mark-selected-outline` outlines a plugin mark whose record is selected (default `2px solid #2740f5`). `--ink-form-field-bg`, `--ink-form-field-focus` and `--ink-form-field-invalid` colour form fields, the focused field and a field that fails its check. `--ink-link-hover` tints a link under the pointer (default `transparent`, so links show no box).
