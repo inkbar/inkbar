@@ -343,7 +343,8 @@ test('server markup hydrates without a mismatch (controlled)', async ({
   await expect(page.getByTestId('changes')).toHaveText('[]')
 })
 
-const handle = (page: Page) => page.getByRole('separator', { name: 'Resize sidebar' })
+const handle = (page: Page) =>
+  page.getByRole('separator', { name: /^Resize (left|right) sidebar$/ })
 /** The width the root's style gives the theme. */
 const styleWidth = (page: Page) =>
   page

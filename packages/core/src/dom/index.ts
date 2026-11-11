@@ -259,6 +259,7 @@ export type {
   SidebarState,
 } from './sidebar/controller'
 export { createSidebar } from './sidebar/sidebar'
+export { MIN_DOCUMENT_WIDTH } from './sidebar/placement'
 export { createThumbnails, createThumbnailsController } from './thumbnails/list'
 export type {
   ThumbnailsController,

@@ -1,13 +1,8 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createMemoryStorage } from '../../model/storage'
 
-import {
-  createSidebarController,
-  shownSidebarWidth,
-  sidebarBadge,
-  SIDEBAR_WIDTH,
-} from './controller'
+import { createSidebarController, sidebarBadge, SIDEBAR_WIDTH } from './controller'
 
 import type { SidebarControllerOptions, SidebarPanelInfo } from './controller'
 import type { InkStorage } from '../../model/storage'
@@ -409,6 +404,37 @@ function fakeHandle() {
   return { el, key, pointer, listeners }
 }
 
+/**
+ * A handle inside a root inside a container, with ResizeObserver stubbed: `to(width)` reports
+ * the container at that width.
+ */
+function observedContainer() {
+  const callbacks: ResizeObserverCallback[] = []
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      constructor(cb: ResizeObserverCallback) {
+        callbacks.push(cb)
+      }
+      observe() {}
+      disconnect() {}
+    }
+  )
+  const parent = {}
+  const root = { parentElement: parent }
+  const h = fakeHandle()
+  const handle = Object.assign(h.el, { closest: () => root })
+  const to = (width: number) => {
+    for (const cb of callbacks)
+      cb([{ contentRect: { width } } as ResizeObserverEntry], {} as ResizeObserver)
+  }
+  return { handle, to }
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 describe('sidebar width', () => {
@@ -607,7 +633,7 @@ describe('sidebar width', () => {
       'data-ink-sidebar-handle': '',
       role: 'separator',
       'aria-orientation': 'vertical',
-      'aria-label': 'Resize sidebar',
+      'aria-label': 'Resize left sidebar',
       'aria-controls': 'sb-panels',
       'aria-valuemin': '240',
       'aria-valuemax': '480',
@@ -641,12 +667,51 @@ describe('sidebar width', () => {
     ).not.toHaveProperty('aria-controls')
   })
 
-  it('shownSidebarWidth clamps to half the container but never below min', () => {
-    const limits = { min: 240, max: 480 }
-    expect(shownSidebarWidth(480, { ...limits, container: 600 })).toBe(300)
-    expect(shownSidebarWidth(480, { ...limits, container: 300 })).toBe(240)
-    expect(shownSidebarWidth(480, { ...limits, container: undefined })).toBe(480)
-    expect(shownSidebarWidth(100, { ...limits, container: undefined })).toBe(240)
-    expect(shownSidebarWidth(900, { ...limits, container: 2000 })).toBe(480)
+  it('handle label names the side', () => {
+    expect(createSidebarController({ panels }).handleAttrs()['aria-label']).toBe(
+      'Resize left sidebar'
+    )
+    expect(
+      createSidebarController({ panels, side: 'right' }).handleAttrs()['aria-label']
+    ).toBe('Resize right sidebar')
+    expect(
+      createSidebarController({
+        panels,
+        side: 'right',
+        handleLabel: 'Resize outline',
+      }).handleAttrs()['aria-label']
+    ).toBe('Resize outline')
+  })
+
+  it('aria-valuemax is maxWidth', () => {
+    expect(createSidebarController({ panels }).handleAttrs()['aria-valuemax']).toBe('480')
+    expect(
+      createSidebarController({ panels, maxWidth: 900 }).handleAttrs()['aria-valuemax']
+    ).toBe('900')
+    // A narrow container changes where the sidebar sits, not how wide it may be.
+    const resize = observedContainer()
+    const c = createSidebarController({ panels, open: 'a' })
+    c.bindHandle(resize.handle)
+    resize.to(600)
+    expect(c.handleAttrs()['aria-valuemax']).toBe('480')
+  })
+
+  it('minDocumentWidth defaults to 480', () => {
+    const resize = observedContainer()
+    // Open and controlled, so it stays open whatever the first measurement says.
+    const c = createSidebarController({ panels, open: 'a' })
+    c.bindHandle(resize.handle)
+    // 800 leaves the document 480 beside a 320 rail sidebar; 799 does not.
+    resize.to(800)
+    expect(c.state.get().floating).toBe(false)
+    expect(c.rootAttrs()).not.toHaveProperty('data-overlay')
+    resize.to(799)
+    expect(c.state.get().floating).toBe(true)
+    expect(c.rootAttrs()['data-overlay']).toBe('')
+    const own = createSidebarController({ panels, open: 'a', minDocumentWidth: 400 })
+    const other = observedContainer()
+    own.bindHandle(other.handle)
+    other.to(799)
+    expect(own.state.get().floating).toBe(false)
   })
 })

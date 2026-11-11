@@ -188,7 +188,7 @@ describe('@inkbar/react on the server', () => {
     expect(rootTag).toContain('--ink-sidebar-width:320px')
     const handle = /<div class="ink-sidebar-handle"[^>]*>/.exec(html)?.[0] ?? ''
     expect(handle).toContain('role="separator"')
-    expect(handle).toContain('aria-label="Resize sidebar"')
+    expect(handle).toContain('aria-label="Resize left sidebar"')
     expect(handle).toContain('aria-valuenow="320"')
     expect(handle).not.toMatch(/\shidden/)
     // The handle names the panels element.

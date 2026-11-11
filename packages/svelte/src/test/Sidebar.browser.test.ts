@@ -255,7 +255,8 @@ describe('sidebar', () => {
 })
 
 describe('sidebar width', () => {
-  const handle = () => browserPage.getByRole('separator', { name: 'Resize sidebar' })
+  const handle = () =>
+    browserPage.getByRole('separator', { name: /^Resize (left|right) sidebar$/ })
   const sidebarEl = () => document.querySelector<HTMLElement>(SIDEBAR)!
   const styleWidth = () => sidebarEl().style.getPropertyValue('--ink-sidebar-width')
   const boxWidth = () => sidebarEl().getBoundingClientRect().width

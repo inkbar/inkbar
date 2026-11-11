@@ -148,7 +148,7 @@ for (const framework of FRAMEWORK_ORDER) {
 
     test(`${framework} outline: outline sidebar can be resized`, async ({ page }) => {
       await open(page, framework)
-      const handle = viewer(page).getByRole('separator', { name: 'Resize sidebar' })
+      const handle = viewer(page).getByRole('separator', { name: 'Resize left sidebar' })
       // The sandbox's viewer is narrow, so the default width is already near the cap: go to
       // the minimum and widen from there.
       await handle.focus()
@@ -163,7 +163,7 @@ for (const framework of FRAMEWORK_ORDER) {
         { timeout: 20_000 }
       )
       await expect(
-        viewer(page).getByRole('separator', { name: 'Resize sidebar' })
+        viewer(page).getByRole('separator', { name: 'Resize left sidebar' })
       ).toHaveAttribute('aria-valuenow', '272')
     })
   })

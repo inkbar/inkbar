@@ -8,7 +8,8 @@ guardConsole(test)
 const WCAG_22_AA = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']
 const KEY = 'inkbar-e2e:sidebar.left.width'
 
-const handle = (page: Page) => page.getByRole('separator', { name: 'Resize sidebar' })
+const handle = (page: Page) =>
+  page.getByRole('separator', { name: 'Resize left sidebar' })
 const sidebar = (page: Page) => page.locator('.ink-sidebar').first()
 const valueNow = async (page: Page) =>
   Number(await handle(page).getAttribute('aria-valuenow'))
