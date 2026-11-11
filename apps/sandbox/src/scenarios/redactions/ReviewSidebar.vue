@@ -45,13 +45,7 @@ function undoAccept(suggestion: Suggestion): void {
 </script>
 
 <template>
-  <InkSidebar
-    v-model:open="open"
-    name="redactions-right"
-    side="right"
-    layout="rail"
-    :default-width="240"
-  >
+  <InkSidebar v-model:open="open" name="redactions-right" side="right" layout="rail">
     <InkPanel
       id="suggestions"
       label="Suggestions"

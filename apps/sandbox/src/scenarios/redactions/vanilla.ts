@@ -163,7 +163,6 @@ export function mount(
   const left = createSidebar({
     storage,
     name: 'redactions-left',
-    defaultWidth: 240,
     side: 'left',
     layout: 'rail',
     panels: [{ id: 'pages', label: 'Pages', icon: Square }],
@@ -184,7 +183,6 @@ export function mount(
   const right = createSidebar({
     storage,
     name: 'redactions-right',
-    defaultWidth: 240,
     side: 'right',
     layout: 'rail',
     panels: panels(0),
