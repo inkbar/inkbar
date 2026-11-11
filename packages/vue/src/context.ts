@@ -7,6 +7,7 @@ import type {
   InkDocument,
   InkError,
   InkStatus,
+  InkStorage,
   PdfAssets,
   PluginHistory,
   SignatureLibrary,
@@ -92,7 +93,12 @@ export interface InkContext {
   fonts: Readonly<Ref<readonly string[]>>
   /** The tools' options for InkRoot's life, so they persist across documents. */
   toolOptions: ToolOptions
-  /** The saved signatures, from InkRoot's `signatures` store (memory by default). */
+  /**
+   * InkRoot's `storage` (memory by default), fixed for the root's life. The signatures, the
+   * plugins' settings and each `InkSidebar`'s width are kept in it.
+   */
+  storage: InkStorage
+  /** The saved signatures: InkRoot's `signatures` store, else kept in `storage`. */
   signatures: Readonly<ShallowRef<SignatureLibrary>>
   /** The fonts a typed signature offers: InkRoot's `signatureFonts`, else `SIGNATURE_FONTS`. */
   signatureFonts: Readonly<Ref<readonly string[]>>

@@ -243,6 +243,44 @@ describe('@inkbar/vue on the server', () => {
     expect(html).not.toContain('<canvas')
   })
 
+  it('InkSidebar renders the default width and a handle on the server', async () => {
+    const { createMemoryStorage } = await import('@inkbar/core')
+    const sidebar = (props: Record<string, unknown>) =>
+      h(entry.InkSidebar, props, () => [
+        h(entry.InkPanel, { id: 'pages', label: 'Pages' }, () => [h('p', 'A')]),
+      ])
+    const html = await renderToString(
+      createSSRApp({
+        render: () =>
+          h(entry.InkRoot, { src: '/doc.pdf', assets }, () => [
+            sidebar({ layout: 'rail' }),
+          ]),
+      })
+    )
+    const rootTag = /<div class="ink-sidebar"[^>]*>/.exec(html)?.[0] ?? ''
+    expect(rootTag).toContain('--ink-sidebar-width:320px')
+    const handle = /<div class="ink-sidebar-handle"[^>]*>/.exec(html)?.[0] ?? ''
+    expect(handle).toContain('role="separator"')
+    expect(handle).toContain('aria-label="Resize sidebar"')
+    expect(handle).toContain('aria-valuenow="320"')
+    expect(handle).not.toMatch(/\shidden/)
+    // The handle names the panels element.
+    const id = /aria-controls="([^"]+)"/.exec(handle)?.[1]
+    expect(id).toBeTruthy()
+    expect(html).toContain(`class="ink-sidebar-panels" id="${id}"`)
+
+    // A store that answers at once shows its width on the server too; the model wins over it.
+    const storage = createMemoryStorage({ 'sidebar.left.width': 400 })
+    const saved = await renderToString(
+      createSSRApp({ render: () => sidebar({ storage }) })
+    )
+    expect(saved).toContain('--ink-sidebar-width:400px')
+    const controlled = await renderToString(
+      createSSRApp({ render: () => sidebar({ storage, width: 280 }) })
+    )
+    expect(controlled).toContain('--ink-sidebar-width:280px')
+  })
+
   it('InkRecordList and InkSearchResults render empty on the server', async () => {
     const html = await renderToString(
       createSSRApp({
