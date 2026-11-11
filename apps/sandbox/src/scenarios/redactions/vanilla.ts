@@ -161,6 +161,7 @@ export function mount(
   // Thumbnails of the pages, in a sidebar on the left. It starts closed, leaving the pages the
   // room.
   const left = createSidebar({
+    defaultWidth: 240,
     side: 'left',
     layout: 'rail',
     panels: [{ id: 'pages', label: 'Pages', icon: Square }],
@@ -179,6 +180,7 @@ export function mount(
   const accepted = document.createElement('div')
   accepted.className = 'accepted'
   const right = createSidebar({
+    defaultWidth: 240,
     side: 'right',
     layout: 'rail',
     panels: panels(0),

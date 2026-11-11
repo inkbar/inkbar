@@ -336,7 +336,7 @@ describe('theme.css', () => {
     )
     const decl = (prop: string) =>
       rootRule?.nodes.find((d) => d.type === 'decl' && d.prop === prop)?.toString()
-    expect(decl('--ink-sidebar-width')).toMatch(/:\s*280px$/)
+    expect(decl('--ink-sidebar-width')).toMatch(/:\s*320px$/)
     expect(decl('--ink-sidebar-rail-width')).toMatch(/:\s*48px$/)
     expect(decl('--ink-thumbnail-width')).toMatch(/:\s*120px$/)
     expect(decl('--ink-mark-selected-outline')).toMatch(/:\s*2px solid #2740f5$/i)

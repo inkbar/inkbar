@@ -86,11 +86,13 @@ The theme gives a toolbar a background and padding and styles the controls in it
 
 Sidebars and thumbnails have their own sizes:
 
-| Variable                   | Default | Sets                               |
-| -------------------------- | ------- | ---------------------------------- |
-| `--ink-sidebar-width`      | `280px` | The width of an open sidebar       |
-| `--ink-sidebar-rail-width` | `48px`  | The width of a sidebar's icon rail |
-| `--ink-thumbnail-width`    | `120px` | The width of a page thumbnail      |
+| Variable                   | Default | Sets                                 |
+| -------------------------- | ------- | ------------------------------------ |
+| `--ink-sidebar-width`      | `320px` | The default width of an open sidebar |
+| `--ink-sidebar-rail-width` | `48px`  | The width of a sidebar's icon rail   |
+| `--ink-thumbnail-width`    | `120px` | The width of a page thumbnail        |
+
+A sidebar's resize handle sets `--ink-sidebar-width` inline on the sidebar, so a dragged or saved width wins over this default. Style the handle with `.ink-sidebar-handle`. It draws a 2px `--ink-accent` line on hover, focus and while dragging.
 
 ## Search, form and link colours
 

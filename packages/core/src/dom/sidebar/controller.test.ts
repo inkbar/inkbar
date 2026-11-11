@@ -578,6 +578,18 @@ describe('sidebar width', () => {
     expect(c.handleAttrs()['aria-controls']).toBe(`${base}-panels`)
   })
 
+  it('the handle names no panels element in a stack', () => {
+    expect(
+      createSidebarController({ panels }).handleAttrs()['aria-controls']
+    ).toBeDefined()
+    expect(
+      createSidebarController({ panels, layout: 'tabs' }).handleAttrs()['aria-controls']
+    ).toBeDefined()
+    expect(
+      createSidebarController({ panels, layout: 'stack' }).handleAttrs()
+    ).not.toHaveProperty('aria-controls')
+  })
+
   it('shownSidebarWidth clamps to half the container but never below min', () => {
     const limits = { min: 240, max: 480 }
     expect(shownSidebarWidth(480, { ...limits, container: 600 })).toBe(300)

@@ -38,6 +38,9 @@ export function createSidebar(
   const { content, ...options } = opts
   const controller = createSidebarController(options)
   const root = h('div', { class: 'ink-sidebar' })
+  // The last child, so it sits on the inner edge and `build` puts it back after each rebuild.
+  const handle = h('div', { class: 'ink-sidebar-handle' })
+  let panelsEl: HTMLElement | null = null
 
   let shape = ''
   const triggers = new Map<string, HTMLButtonElement>()
@@ -84,6 +87,7 @@ export function createSidebar(
     for (const [p, panel] of built) panels.set(p.id, panel)
     if (s.layout === 'stack') {
       list = null
+      panelsEl = null
       root.replaceChildren(
         ...built.map(([p, panel]) => {
           const header = makeTrigger(p, 'ink-sidebar-header')
@@ -100,11 +104,14 @@ export function createSidebar(
         triggers.set(p.id, t)
         list.append(t)
       }
-      root.replaceChildren(
-        list,
-        h('div', { class: 'ink-sidebar-panels' }, ...built.map(([, panel]) => panel))
+      panelsEl = h(
+        'div',
+        { class: 'ink-sidebar-panels' },
+        ...built.map(([, panel]) => panel)
       )
+      root.replaceChildren(list, panelsEl)
     }
+    root.append(handle)
     paint(s)
     if (focused !== undefined) triggers.get(focused)?.focus()
   }
@@ -113,7 +120,12 @@ export function createSidebar(
   function paint(s: SidebarState): void {
     // Classes are set once when built, so a host's own classes stay.
     setAttrs(root, controller.rootAttrs())
+    for (const [name, value] of Object.entries(controller.rootStyle()))
+      if (root.style.getPropertyValue(name) !== value) root.style.setProperty(name, value)
     if (list) setAttrs(list, controller.tablistAttrs())
+    // The stack has no panels element; the handle's `aria-controls` then names nothing.
+    if (panelsEl) setAttrs(panelsEl, controller.panelsAttrs())
+    setAttrs(handle, controller.handleAttrs())
     for (const p of s.panels) {
       const t = triggers.get(p.id)
       const panel = panels.get(p.id)
@@ -148,9 +160,11 @@ export function createSidebar(
   show(controller.state.get())
   const stopState = controller.state.subscribe(show)
   const unbind = controller.bindTriggers(root)
+  const unbindHandle = controller.bindHandle(handle)
   onSidebarDestroy(controller, () => {
     stopState()
     unbind()
+    unbindHandle()
   })
   return { element: root, controller }
 }
