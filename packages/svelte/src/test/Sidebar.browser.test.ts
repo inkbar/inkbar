@@ -1,3 +1,4 @@
+import { browserAssets } from '@inkbar/fixtures/urls'
 import { run as runAxe } from 'axe-core'
 import { describe, expect, it } from 'vitest'
 import { page as browserPage, userEvent } from 'vitest/browser'
@@ -250,5 +251,176 @@ describe('sidebar', () => {
     await expect.element(query()).toBeVisible()
     await expect.element(tab('Search, 3')).toHaveAttribute('aria-selected', 'true')
     expect(text('open')()).toBe('"search"')
+  })
+})
+
+describe('sidebar width', () => {
+  const handle = () => browserPage.getByRole('separator', { name: 'Resize sidebar' })
+  const sidebarEl = () => document.querySelector<HTMLElement>(SIDEBAR)!
+  const styleWidth = () => sidebarEl().style.getPropertyValue('--ink-sidebar-width')
+  const boxWidth = () => sidebarEl().getBoundingClientRect().width
+
+  /** Drags the handle `dx` CSS px with the mouse. */
+  function drag(dx: number): void {
+    const box = handle().element().getBoundingClientRect()
+    const x = box.x + box.width / 2
+    const y = box.y + box.height / 2
+    handle()
+      .element()
+      .dispatchEvent(
+        new PointerEvent('pointerdown', {
+          bubbles: true,
+          pointerId: 1,
+          pointerType: 'mouse',
+          button: 0,
+          buttons: 1,
+          clientX: x,
+          clientY: y,
+        })
+      )
+    for (const step of [dx / 2, dx])
+      handle()
+        .element()
+        .dispatchEvent(
+          new PointerEvent('pointermove', {
+            bubbles: true,
+            pointerId: 1,
+            pointerType: 'mouse',
+            buttons: 1,
+            clientX: x + step,
+            clientY: y,
+          })
+        )
+    handle()
+      .element()
+      .dispatchEvent(
+        new PointerEvent('pointerup', {
+          bubbles: true,
+          pointerId: 1,
+          pointerType: 'mouse',
+          clientX: x + dx,
+          clientY: y,
+        })
+      )
+  }
+
+  it('drag widens and remounting with the same storage keeps it', async () => {
+    await render(SidebarHarness, { layout: 'rail', stored: {} })
+    const root = await q(SIDEBAR)
+    // The handle is the root's last child and names the panels it resizes.
+    const last = root.lastElementChild!
+    expect(last.classList.contains('ink-sidebar-handle')).toBe(true)
+    expect(last.getAttribute('role')).toBe('separator')
+    const panelsId = root.querySelector('.ink-sidebar-panels')!.getAttribute('id')
+    expect(panelsId).toBeTruthy()
+    await expect.element(handle()).toHaveAttribute('aria-controls', panelsId!)
+    await expect.element(handle()).toHaveAttribute('aria-valuenow', '320')
+    expect(styleWidth()).toBe('320px')
+    const before = boxWidth()
+
+    drag(80)
+    await expect.element(handle()).toHaveAttribute('aria-valuenow', '400')
+    expect(styleWidth()).toBe('400px')
+    // The theme lays it out at the new width.
+    expect(boxWidth()).toBe(before + 80)
+    await expect.poll(text('stored')).toBe('{"sidebar.left.width":400}')
+
+    await browserPage.getByTestId('remount').click()
+    await expect.poll(() => document.querySelector(SIDEBAR)).toBeNull()
+    await browserPage.getByTestId('remount').click()
+    await expect.element(handle()).toHaveAttribute('aria-valuenow', '400')
+    expect(styleWidth()).toBe('400px')
+    await noAxeViolations()
+  })
+
+  it('keyboard resizes', async () => {
+    await render(SidebarHarness, { layout: 'tabs', side: 'right', stored: {} })
+    handle().element().focus()
+    // On a right sidebar, ArrowLeft is wider.
+    await userEvent.keyboard('{ArrowLeft}')
+    await expect.element(handle()).toHaveAttribute('aria-valuenow', '336')
+    expect(styleWidth()).toBe('336px')
+    await expect.poll(text('stored')).toBe('{"sidebar.right.width":336}')
+    await userEvent.keyboard('{ArrowRight}{ArrowRight}')
+    await expect.element(handle()).toHaveAttribute('aria-valuenow', '304')
+    await userEvent.keyboard('{End}')
+    await expect.element(handle()).toHaveAttribute('aria-valuenow', '480')
+    await userEvent.keyboard('{Home}')
+    await expect.element(handle()).toHaveAttribute('aria-valuenow', '240')
+    expect(styleWidth()).toBe('240px')
+    // Enter resets and forgets the saved width.
+    await userEvent.keyboard('{Enter}')
+    await expect.element(handle()).toHaveAttribute('aria-valuenow', '320')
+    await expect.poll(text('stored')).toBe('{}')
+  })
+
+  it('bind:width is controlled and storage untouched', async () => {
+    await render(SidebarHarness, {
+      layout: 'rail',
+      width: 300,
+      stored: { 'sidebar.left.width': 450 },
+    })
+    // The bound number wins over the saved width.
+    await expect.element(handle()).toHaveAttribute('aria-valuenow', '300')
+    expect(styleWidth()).toBe('300px')
+    drag(60)
+    await expect.poll(text('width')).toBe('360')
+    await expect.element(handle()).toHaveAttribute('aria-valuenow', '360')
+    expect(styleWidth()).toBe('360px')
+    handle().element().focus()
+    await userEvent.keyboard('{ArrowRight}')
+    await expect.poll(text('width')).toBe('376')
+    expect(text('stored')()).toBe('{"sidebar.left.width":450}')
+  })
+
+  it('a bound width that starts undefined only reports and keeps saving', async () => {
+    await render(SidebarHarness, { layout: 'rail', bindWidth: true, stored: {} })
+    handle().element().focus()
+    await userEvent.keyboard('{ArrowRight}')
+    await expect.poll(text('width')).toBe('336')
+    await expect.poll(text('stored')).toBe('{"sidebar.left.width":336}')
+    // Still uncontrolled after its own write came back: the next key saves too.
+    await userEvent.keyboard('{ArrowRight}')
+    await expect.poll(text('stored')).toBe('{"sidebar.left.width":352}')
+  })
+
+  it('an unbound sidebar keeps saving after the first drag', async () => {
+    await render(SidebarHarness, { layout: 'rail', stored: {} })
+    handle().element().focus()
+    await userEvent.keyboard('{ArrowRight}{ArrowRight}')
+    await expect.poll(text('stored')).toBe('{"sidebar.left.width":352}')
+  })
+
+  it('InkSidebar inside InkRoot uses the root storage', async () => {
+    await render(SidebarHarness, {
+      layout: 'rail',
+      inRoot: true,
+      assets: browserAssets(),
+      stored: { 'sidebar.left.width': 360 },
+    })
+    await expect.element(handle()).toHaveAttribute('aria-valuenow', '360')
+    expect(styleWidth()).toBe('360px')
+    handle().element().focus()
+    await userEvent.keyboard('{ArrowRight}')
+    await expect.poll(text('stored')).toBe('{"sidebar.left.width":376}')
+  })
+
+  it('InkRoot signatures go through storage', async () => {
+    const template = {
+      id: 'kept',
+      kind: 'image',
+      imagedata: 'data:image/png;base64,AA==',
+      aspect: 2,
+    }
+    await render(SidebarHarness, {
+      inRoot: true,
+      assets: browserAssets(),
+      stored: { signatures: [template] },
+    })
+    await expect.poll(text('signatures')).toBe('1')
+    await browserPage.getByTestId('save-signature').click()
+    await expect.poll(text('signatures')).toBe('2')
+    const stored = JSON.parse(text('stored')()!) as { signatures: { id: string }[] }
+    expect(stored.signatures.map((t) => t.id)).toEqual(['kept', 'added'])
   })
 })

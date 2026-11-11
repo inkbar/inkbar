@@ -6,6 +6,7 @@ import type {
   InkDocument,
   InkError,
   InkStatus,
+  InkStorage,
   PdfAssets,
   PluginHistory,
   SignatureLibrary,
@@ -97,7 +98,12 @@ export interface InkContext {
   readonly fonts: readonly string[]
   /** The tools' options for InkRoot's life, so they persist across documents. */
   readonly toolOptions: ToolOptions
-  /** The saved signatures, from InkRoot's `signatures` store (memory by default). */
+  /**
+   * What InkRoot's `storage` holds between visits (memory by default): the signatures, each
+   * `InkSidebar`'s width and the plugins' settings. Read once, when the root is created.
+   */
+  readonly storage: InkStorage
+  /** The saved signatures: InkRoot's deprecated `signatures` store, else its `storage`. */
   readonly signatures: SignatureLibrary
   /** The fonts a typed signature offers: InkRoot's `signatureFonts`, else `SIGNATURE_FONTS`. */
   readonly signatureFonts: readonly string[]
@@ -164,4 +170,16 @@ export function useInkContext(consumer: string): InkContext {
       `[inkbar] ${consumer} must be called in a component inside <InkRoot>.`
     )
   return ctx
+}
+
+/**
+ * The context when there is one, else undefined: for components that also work outside
+ * `InkRoot`. Internal to the package.
+ */
+export function useOptionalInkContext(): InkContext | undefined {
+  try {
+    return getContext<InkContext | undefined>(KEY)
+  } catch {
+    return undefined
+  }
 }

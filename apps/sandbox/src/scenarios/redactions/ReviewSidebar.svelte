@@ -47,7 +47,7 @@
   }
 </script>
 
-<InkSidebar side="right" layout="rail" bind:open>
+<InkSidebar side="right" layout="rail" defaultWidth={240} bind:open>
   <InkPanel id="suggestions" label="Suggestions" icon={SquareDashed} badge={openCount}>
     <InkRecordList records="sandbox.suggestions" />
   </InkPanel>

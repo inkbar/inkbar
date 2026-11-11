@@ -149,7 +149,7 @@ Inside `InkRoot`, `useHistory()` returns the same object. Its `batch(fn)` runs `
 
 `key` identifies the document. Reuse the same key when only the signed URL changes and the document is not reloaded.
 
-`InkRoot` takes a few more options. `password` opens an encrypted PDF. `defaults` sets annotation colours; without it the theme's CSS variables apply. `fonts` sets the families the text style menu offers. `decorateAnnotation` adds attributes, classes and a screen-reader description to each annotation. `bind:page` and `bind:zoom` (or `onPageChange` and `onZoomChange`) follow and drive the viewport, and `bind:tool` (or `onToolChange`) does the same for the active tool. `onError` hears failed opens, form script errors and refused signings. `onActivate` hears the id of each activated annotation. `onFieldsChange` hears form value changes.
+`InkRoot` takes a few more options. `password` opens an encrypted PDF. `storage` sets what the viewer keeps between visits (see [Storage](#storage)). `defaults` sets annotation colours; without it the theme's CSS variables apply. `fonts` sets the families the text style menu offers. `decorateAnnotation` adds attributes, classes and a screen-reader description to each annotation. `bind:page` and `bind:zoom` (or `onPageChange` and `onZoomChange`) follow and drive the viewport, and `bind:tool` (or `onToolChange`) does the same for the active tool. `onError` hears failed opens, form script errors and refused signings. `onActivate` hears the id of each activated annotation. `onFieldsChange` hears form value changes.
 
 ## Viewport
 
@@ -177,7 +177,20 @@ The highlight tool leaves `contents` free for the comment. `doc.text(page)` retu
 
 ## Signatures
 
-`InkSignatureMenu` lists saved signatures, picks one for the `signature` tool, removes them, and opens `InkSignatureDialog` to draw, type or upload a new one. The menu needs `signatureTool()` in `tools`. The dialog and signature form fields work without it; the dialog then only saves the signature. These are marks on the page, not cryptographic signatures. Pass `signatures` to `InkRoot` to keep them somewhere: `createLocalSignatureStore(key)` from `@inkbar/core` uses `localStorage`, and without it they last until reload. `signatureFonts` lists the handwriting fonts the Type tab offers; load them with `@font-face`. A placed signature keeps its aspect ratio when resized.
+`InkSignatureMenu` lists saved signatures, picks one for the `signature` tool, removes them, and opens `InkSignatureDialog` to draw, type or upload a new one. The menu needs `signatureTool()` in `tools`. The dialog and signature form fields work without it; the dialog then only saves the signature. These are marks on the page, not cryptographic signatures. `InkRoot` keeps them in its `storage` under the key `signatures`, so without a store they last until reload. A `signatures` store of your own still works and wins over `storage` until 0.13.0, which removes it. `signatureFonts` lists the handwriting fonts the Type tab offers; load them with `@font-face`. A placed signature keeps its aspect ratio when resized.
+
+## Storage
+
+`InkRoot` keeps a few small things between visits: saved signatures, sidebar widths and plugin settings. Pass `storage` to choose where. `createLocalStorage()` from `@inkbar/core` keeps them in `localStorage`, and any `InkStorage` works, including an async one that talks to your server. The default is `createMemoryStorage()`, which forgets everything on reload. Inkbar never touches `localStorage`, cookies or the network unless the store you pass does. The root reads `storage` once, when it is created. See the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#storage) for the keys.
+
+```svelte
+<script lang="ts">
+  import { createLocalStorage } from '@inkbar/core'
+  const storage = createLocalStorage()
+</script>
+
+<InkRoot {src} {assets} {storage}>
+```
 
 ## Plugins
 
@@ -229,7 +242,13 @@ The bar handles Escape itself and stops it there, so an `onkeydown` you pass to 
 
 `layout` is `rail` (default: icon buttons beside the document, and activating the open panel's button closes it), `tabs` (labelled tabs, one panel open) or `stack` (a header per panel, any number expanded). `side` (`left` by default) decides which edge the rail and border sit on. `bind:open` is the open panel's id, or `null`, for rail and tabs, and the expanded ids for stack. Left out, the first panel starts open. When the open panel goes (an `{#if}`), rail and tabs open the first one left and stack drops it, and the bound `open` receives the new value. In the rail, the open panel shows its label as a title above its content. `visible` (default `true`) shows or hides the whole sidebar; it keeps the open panel, its content and its scroll for when it shows again. Your code decides when: `visible={hits > 0}` keeps a results sidebar out of the way until a search finds something.
 
-Panels take their place in the order they appear in the markup, including one added later with `{#if}`. A closed panel stays mounted and hidden, so its content keeps its state and scroll position, across layout changes too. The keys and ARIA are core's: see the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#sidebars). The sidebar needs no document and works outside `InkRoot`. On the server it renders its frame with the open panel showing, and the stack headers; rail and tab buttons follow once it has mounted.
+Panels take their place in the order they appear in the markup, including one added later with `{#if}`. A closed panel stays mounted and hidden, so its content keeps its state and scroll position, across layout changes too. The keys and ARIA are core's: see the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#sidebars). The sidebar needs no document and works outside `InkRoot`. On the server it renders its frame at its width with the open panel showing, the stack headers and the resize handle; rail and tab buttons follow once it has mounted.
+
+Each sidebar has a resize handle on its inner edge. Drag it, or focus it and use the arrow keys (16px a step), Home and End. Enter or a double-click resets the width. The width starts at `defaultWidth` (320) and stays between `minWidth` (240) and `maxWidth` (480), and never past half of the sidebar's container. Inside `InkRoot` the sidebar saves its width in the root's `storage` under `sidebar.<name>.width`, where `name` defaults to the side; give two sidebars on one side different names. Pass `storage` to the sidebar to use another store, or to save its width outside `InkRoot`. The sidebar reads `storage` and `name` once, when it is created. To control the width, bind `width` to a number: the handle then only updates the binding, and the sidebar neither reads nor writes storage. Bind it to a value that starts `undefined` and you only receive the width; the sidebar keeps saving it.
+
+```svelte
+<InkSidebar name="tools" side="right" defaultWidth={360} bind:width={toolsWidth}>
+```
 
 ## Thumbnails
 
