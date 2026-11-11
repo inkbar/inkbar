@@ -105,6 +105,11 @@ export function createMemorySignatureStore(
   }
 }
 
+/** Whether `error` is the browser saying its storage is full. */
+export const isQuotaError = (error: unknown): boolean =>
+  error instanceof DOMException &&
+  (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED')
+
 /** The id of an entry that may not be a template, if it has one. */
 const idOf = (x: unknown): unknown =>
   typeof x === 'object' && x !== null ? (x as { id?: unknown }).id : undefined
@@ -113,8 +118,8 @@ const idOf = (x: unknown): unknown =>
  * Templates under `key` (default `'signatures'`) in `storage`, as a JSON array, read on every
  * call so another tab's write shows. Stored entries it cannot read, such as a later version's
  * templates, are left out of `list`, kept on write, and dropped only when a template takes
- * their id. When `storage.set` rejects, as when it is full, the list stays as it was and `save`
- * or `remove` rejects, so the host can say so.
+ * their id. `save` and `remove` run one at a time. When `storage.set` rejects the list stays as
+ * it was and the call rejects, with a message that says storage is full only for a quota error.
  */
 export function createStorageSignatureStore(
   storage: InkStorage,
@@ -137,26 +142,38 @@ export function createStorageSignatureStore(
     try {
       await storage.set(key, [...next, ...kept])
     } catch (cause) {
-      throw new Error('The signature could not be saved: browser storage is full', {
-        cause,
-      })
+      throw new Error(
+        isQuotaError(cause)
+          ? 'The signature could not be saved: browser storage is full'
+          : 'The signature could not be saved',
+        { cause }
+      )
     }
+  }
+  /** Writes run one after another, so overlapping calls each read what the last wrote. */
+  let queue: Promise<unknown> = Promise.resolve()
+  const enqueue = <T>(task: () => Promise<T>): Promise<T> => {
+    const run = queue.then(task)
+    queue = run.catch(() => undefined)
+    return run
   }
   return {
     async list() {
       return (await read()).items.map(copy)
     },
-    async save(t) {
-      const { items, unread } = await read()
-      await commit(upsert(items, t), unread)
-    },
-    async remove(id) {
-      const { items, unread } = await read()
-      await commit(
-        items.filter((x) => x.id !== id),
-        unread
-      )
-    },
+    save: (t) =>
+      enqueue(async () => {
+        const { items, unread } = await read()
+        await commit(upsert(items, t), unread)
+      }),
+    remove: (id) =>
+      enqueue(async () => {
+        const { items, unread } = await read()
+        await commit(
+          items.filter((x) => x.id !== id),
+          unread
+        )
+      }),
   }
 }
 
