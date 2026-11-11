@@ -244,7 +244,11 @@ export type {
 } from './records/source'
 export { createSearchResults } from './records/search-results'
 export type { SearchResultsOptions } from './records/search-results'
-export { createSidebarController, sidebarBadge } from './sidebar/controller'
+export {
+  createSidebarController,
+  SIDEBAR_WIDTH,
+  sidebarBadge,
+} from './sidebar/controller'
 export type {
   SidebarController,
   SidebarControllerOptions,
