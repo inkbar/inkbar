@@ -717,6 +717,65 @@ describe('floating', () => {
     )
   })
 
+  it('escape during a composition does not close', async () => {
+    const { doc, controller } = await floatingOpen()
+    const input = document.createElement('input')
+    doc.append(input)
+    input.focus()
+    input.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, isComposing: true })
+    )
+    expect(controller.state.get().open).toEqual(['pages'])
+    await userEvent.keyboard('{Escape}')
+    expect(controller.state.get().open).toEqual([])
+  })
+
+  it('escape from a field outside the parent does not close', async () => {
+    const { controller } = await floatingOpen()
+    const input = document.createElement('input')
+    document.body.append(input)
+    cleanup.push(() => input.remove())
+    input.focus()
+    await userEvent.keyboard('{Escape}')
+    expect(controller.state.get().open).toEqual(['pages'])
+    expect(document.activeElement).toBe(input)
+  })
+
+  it('a tap that closes leaves focus in a field outside the sidebar', async () => {
+    const { doc, controller } = await floatingOpen()
+    const input = document.createElement('input')
+    document.body.append(input)
+    cleanup.push(() => input.remove())
+    input.focus()
+    tap(doc)
+    expect(controller.state.get().open).toEqual([])
+    expect(document.activeElement).toBe(input)
+  })
+
+  it('a touch whose end was lost does not stop later taps closing', async () => {
+    const { doc, controller } = await floatingOpen()
+    const touch = { pointerType: 'touch' }
+    // The browser never sends this finger's pointerup or pointercancel.
+    press(doc, 'pointerdown', 200, touch)
+    tap(doc, { ...touch, pointerId: 7 })
+    expect(controller.state.get().open).toEqual([])
+  })
+
+  it('a closing tap stops swallowing once the sidebar leaves its parent', async () => {
+    const { doc, element, controller } = await floatingOpen()
+    tap(doc)
+    expect(controller.state.get().open).toEqual([])
+    element.remove()
+    const seen = vi.fn()
+    doc.addEventListener('mousedown', seen)
+    await expect
+      .poll(() => {
+        doc.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+        return seen.mock.calls.length
+      })
+      .toBeGreaterThan(0)
+  })
+
   it('a press inside another sidebar or a menu does not close', async () => {
     const { add, controller } = await floatingOpen()
     const other = add({ side: 'right' })
