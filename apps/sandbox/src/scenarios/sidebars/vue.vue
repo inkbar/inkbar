@@ -71,7 +71,7 @@ function onReady(doc: InkDocument): void {
       </div>
     </InkToolbar>
     <div class="scenario-body">
-      <InkSidebar side="left" :layout="layout">
+      <InkSidebar side="left" :layout="layout" :default-width="240">
         <InkPanel id="pages" label="Pages" :icon="Square">
           <InkThumbnails />
         </InkPanel>
@@ -80,7 +80,7 @@ function onReady(doc: InkDocument): void {
         </InkPanel>
       </InkSidebar>
       <InkViewport />
-      <InkSidebar side="right" :layout="layout">
+      <InkSidebar side="right" :layout="layout" :default-width="240">
         <InkPanel id="about" label="About" :icon="Info">
           <div class="sidebar-about">
             <p>
