@@ -86,11 +86,11 @@ The theme gives a toolbar a background and padding and styles the controls in it
 
 Sidebars and thumbnails have their own sizes:
 
-| Variable                   | Default | Sets                                 |
-| -------------------------- | ------- | ------------------------------------ |
-| `--ink-sidebar-width`      | `320px` | The default width of an open sidebar |
-| `--ink-sidebar-rail-width` | `48px`  | The width of a sidebar's icon rail   |
-| `--ink-thumbnail-width`    | `120px` | The width of a page thumbnail        |
+| Variable                   | Default | Sets                                                |
+| -------------------------- | ------- | --------------------------------------------------- |
+| `--ink-sidebar-width`      | `320px` | An open sidebar's width; the sidebar sets it inline |
+| `--ink-sidebar-rail-width` | `48px`  | The width of a sidebar's icon rail                  |
+| `--ink-thumbnail-width`    | `120px` | The width of a page thumbnail                       |
 
 The sidebar always sets `--ink-sidebar-width` inline, even when no width is saved, so a CSS override of it no longer applies. Pass the sidebar's `defaultWidth` instead. Style the handle with `.ink-sidebar-handle`. It draws a 2px `--ink-accent` line on hover, focus and while dragging.
 

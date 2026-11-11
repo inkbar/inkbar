@@ -431,7 +431,7 @@ Closed panels stay in the document with `hidden`, so their content keeps its sta
 
 To render your own markup, use `createSidebarController(options)`, which holds the same state and behaviour. Spread `rootAttrs()` on the root, `tablistAttrs()` on the element holding the buttons, `triggerAttrs(id)` on each button and `panelAttrs(id)` on each panel, then call `bindTriggers(element)` once on an element containing the buttons. It handles clicks and keys and keeps the Tab stop right as buttons are re-rendered. `sidebarBadge(badge)` gives the text a badge shows, or `null` when it is hidden. Pass `idPrefix` when the markup is rendered on the server, so the element ids match on the client. A binding whose panels register one by one passes `pending: true` until they are all in, then `update({ pending: false })`: meanwhile a controlled `open` id not registered yet is kept instead of falling back, and the root reports the open state it will have. An uncontrolled sidebar created with no panels opens the first one to arrive.
 
-Every sidebar has a resize handle on its inner edge. Drag it, or focus it and use the arrow keys (16px a step), Home and End. Enter or a double-click resets the width. The width starts at `defaultWidth` (320) and stays between `minWidth` (240) and `maxWidth` (480), and never past half of the sidebar's container. Pass `width` to control it and `onWidthChange` to hear about changes. With custom markup, spread `rootStyle()` on the root, `handleAttrs()` on the handle and `panelsAttrs()` on the panels element, then call `bindHandle(handle)`.
+Every sidebar has a resize handle on its inner edge. Drag it, or focus it and use the arrow keys (16px a step, mirrored on a right-hand sidebar so the arrow points the way the edge moves), Home and End. Enter or a double-click resets the width. The width starts at `defaultWidth` (320) and stays between `minWidth` (240) and `maxWidth` (480), and never past half of the sidebar's container. Pass `width` to control it and `onWidthChange` to hear about changes. With custom markup, spread `rootStyle()` on the root, `handleAttrs()` on the handle and `panelsAttrs()` on the panels element, then call `bindHandle(handle)`.
 
 To keep the width between visits, pass `storage` (see the storage section) and a `name`. The width is saved under `sidebar.<name>.width`. Both are read once, when the sidebar is created.
 
@@ -557,7 +557,7 @@ The [forms guide](https://inkbar.dev/docs/guides/forms/) covers controlled field
 
 A signature here is a mark on the page, not a cryptographic signature of the file. Draw one, type your name in a handwriting font, or upload a scan, and it is saved as a template. The `signature` tool places the chosen template: a click puts it about 150 pt wide, centred on the press, and `Enter` puts it at the centre of the current page. It is turned against the page's `/Rotate`, so it reads upright on the page; a view rotation turns it with the page. A drawn signature becomes `ink` and the others a `stamp` (an image), both with `subject: 'Signature'`. Both keep their aspect ratio when resized.
 
-Your app owns the templates. They are kept in the viewer's `storage` under the key `signatures`. Pass `storage: createLocalStorage()` to keep them in `localStorage`, which falls back to memory where storage is blocked; the default is `createMemoryStorage()`, which forgets everything on reload. Any `InkStorage` works, including an async one that talks to your server. `createStorageSignatureStore(storage, key)` is the same store as a `SignatureStore`. To own the templates yourself, pass a `SignatureStore` (`list`, `save`, `remove`, each returning a promise) as `signatures`, which wins over `storage`. `createLocalSignatureStore(key)` is deprecated in favour of `storage`. When storage is full, `save` rejects and the dialog says the signature was not saved. An uploaded image is scaled to at most 1000 px on its long side before it is stored. Typed signatures use the fonts in `signatureFonts`. Load each one with `@font-face` before offering it.
+Your app owns the templates. They are kept in the viewer's `storage` under the key `signatures`. Pass `storage: createLocalStorage()` to keep them in `localStorage`, which falls back to memory where storage is blocked; the default is `createMemoryStorage()`, which forgets everything on reload. Any `InkStorage` works, including an async one that talks to your server. `createStorageSignatureStore(storage, key)` is the same store as a `SignatureStore`. A `SignatureStore` (`list`, `save`, `remove`, each returning a promise) passed as `signatures` still works and wins over `storage`, and `createLocalSignatureStore(key)` still works too. Both are deprecated in favour of `storage`, and 0.13.0 removes them. When storage is full, `save` rejects and the dialog says the signature was not saved. An uploaded image is scaled to at most 1000 px on its long side before it is stored. Typed signatures use the fonts in `signatureFonts`. Load each one with `@font-face` before offering it.
 
 `createSignatureMenu(viewer)` lists the saved signatures, removes them, and opens `createSignatureDialog`, which draws, types or uploads a new one and, when the signature tool is registered, selects it.
 
@@ -593,11 +593,13 @@ const rest: InkStorage = {
     return res.ok ? res.json() : undefined
   },
   set: async (key, value) => {
-    await fetch(`/api/prefs/${encodeURIComponent(key)}`, {
+    const res = await fetch(`/api/prefs/${encodeURIComponent(key)}`, {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(value),
     })
+    // Reject so the signature dialog can say the signature was not saved.
+    if (!res.ok) throw new Error(`Saving ${key} failed: ${res.status}`)
   },
   remove: async (key) => {
     await fetch(`/api/prefs/${encodeURIComponent(key)}`, { method: 'DELETE' })

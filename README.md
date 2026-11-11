@@ -36,13 +36,15 @@ Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, gi
 - **Redaction marks.** Mark text or areas for redaction by hand, or add marks from your own detector through the same API. Anything your review needs, such as a reason or a score, goes in the annotation's `custom` data.
 - **Keyboard first.** Select text and press Enter to highlight it, move between annotations with the arrow keys, and nudge them a point at a time. Area redactions, freehand drawing, loupes and masks are the ones that need a pointer.
 - **Touch screens too.** Pinch to zoom the document, not the page. Under a drawing tool one finger draws and two fingers scroll.
-- **Fits a real app.** Pass a signed URL and a stable key, and Inkbar won't reload the document when the URL rotates. You can import the document model during server rendering.
+- **Fits a real app.** Pass a signed URL and a stable key, and Inkbar won't reload the document when the URL rotates. You can import the document model during server rendering. Inkbar keeps nothing in `localStorage`, cookies or the network unless you pass a store that does.
 
 ### What it does today
 
 | Area        | Available now                                                                                                                                 |
 | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | Viewing     | Rendering with a selectable text layer, zoom, pinch zoom, fit to width or page, continuous or single-page layout, page navigation, thumbnails |
+| Navigation  | The document's outline, links you can follow by click, tap or keyboard, and back and forward through jumps                                    |
+| Sidebars    | Panels of thumbnails, search results or your own content, resizable, with widths kept in your storage                                         |
 | Search      | A find bar and Ctrl/Cmd+F in the viewer, and `doc.search` for code                                                                            |
 | Forms       | Text, checkbox, radio, choice and signature fields, with the form's scripts                                                                   |
 | Signatures  | Draw, type or upload a signature, save it and place it on any page or in a signature field                                                    |
@@ -61,7 +63,7 @@ Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, gi
 - **Saving into the PDF.** Store `exportAnnotations('json')` in your own backend and import it on the next open. Download and print give the file as it was opened.
 - **Applying redactions.** A redaction mark is a tinted box over the content. The text under it still renders and can be copied. Inkbar will remove content once saving into the PDF ships.
 - **Saving field values into the PDF.** Values stay in memory. Export them with the annotations.
-- **XFA forms, an outline, translations and a password prompt.** The [docs](https://inkbar.dev/docs/) say what to do meanwhile.
+- **XFA forms, translations and a password prompt.** The [docs](https://inkbar.dev/docs/) say what to do meanwhile.
 
 ## Install
 
