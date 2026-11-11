@@ -123,7 +123,7 @@ export function createSidebar(
     for (const [name, value] of Object.entries(controller.rootStyle()))
       if (root.style.getPropertyValue(name) !== value) root.style.setProperty(name, value)
     if (list) setAttrs(list, controller.tablistAttrs())
-    // The stack has no panels element; the handle's `aria-controls` then names nothing.
+    // The stack has no panels element, so its handle has no `aria-controls`.
     if (panelsEl) setAttrs(panelsEl, controller.panelsAttrs())
     setAttrs(handle, controller.handleAttrs())
     for (const p of s.panels) {

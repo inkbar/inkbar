@@ -339,6 +339,8 @@ export function createSidebarController(
     if ('onWidthChange' in next) widthHandler = next
     const shownBefore = shown()
     const widthBefore = width
+    const minBefore = minWidth
+    const limitBefore = widthLimit(limits())
     if (next.defaultWidth !== undefined) defaultWidth = next.defaultWidth
     if (next.minWidth !== undefined) minWidth = next.minWidth
     if (next.maxWidth !== undefined) maxWidth = next.maxWidth
@@ -346,7 +348,12 @@ export function createSidebarController(
       widthControlled = true
       width = next.width
     }
-    const widthChanged = width !== widthBefore || shown() !== shownBefore
+    // The handle's aria-valuemin and aria-valuemax count as well as the width shown.
+    const widthChanged =
+      width !== widthBefore ||
+      shown() !== shownBefore ||
+      minWidth !== minBefore ||
+      widthLimit(limits()) !== limitBefore
     // What the host asked for, else what was open. Uncontrolled, the first panel to arrive in
     // an empty sidebar opens, as it would have had it been there from the start.
     const arrived =
@@ -572,8 +579,17 @@ export function createSidebarController(
   }
 
   function bindHandle(el: HTMLElement): () => void {
-    /** The drag under way: its pointer, where it started, the width then and the last one chosen. */
-    let drag: { pointer: number; x: number; width: number; last: number } | null = null
+    /**
+     * The drag under way: its pointer, where it started, the width then, the last one chosen and
+     * whether it has chosen any.
+     */
+    let drag: {
+      pointer: number
+      x: number
+      width: number
+      last: number
+      moved: boolean
+    } | null = null
     // Toward the document is wider: right for a left sidebar, left for a right one.
     const wider = (): number => (side === 'left' ? 1 : -1)
     const setResizing = (on: boolean): void => {
@@ -590,21 +606,37 @@ export function createSidebarController(
       } catch {
         // A pointer the browser no longer tracks: the drag still follows its events here.
       }
-      drag = { pointer: e.pointerId, x: e.clientX, width: shown(), last: shown() }
+      drag = {
+        pointer: e.pointerId,
+        x: e.clientX,
+        width: shown(),
+        last: shown(),
+        moved: false,
+      }
       setResizing(true)
+    }
+    /** Ends the drag; saves only when it moved, so a press or a double-click writes nothing. */
+    const endDrag = (): void => {
+      if (!drag) return
+      const { moved } = drag
+      drag = null
+      setResizing(false)
+      if (moved && !widthControlled && storage)
+        quietly(() => storage.set(widthKey(), width))
     }
     const onPointerMove = (e: PointerEvent): void => {
       if (!drag || e.pointerId !== drag.pointer) return
+      // The button came up where no pointerup reached us.
+      if (e.pointerType === 'mouse' && e.buttons === 0) return endDrag()
       const next = clampWidth(drag.width + (e.clientX - drag.x) * wider())
       if (next === drag.last) return
       drag.last = next
+      drag.moved = true
       chooseWidth(next, false)
     }
+    // pointerup, pointercancel, and lostpointercapture when the capture goes without either.
     const onPointerEnd = (e: PointerEvent): void => {
-      if (!drag || e.pointerId !== drag.pointer) return
-      drag = null
-      setResizing(false)
-      if (!widthControlled && storage) quietly(() => storage.set(widthKey(), width))
+      if (drag && e.pointerId === drag.pointer) endDrag()
     }
     const onKeyDown = (e: KeyboardEvent): void => {
       if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
@@ -631,9 +663,11 @@ export function createSidebarController(
         const measured = entries[entries.length - 1]?.contentRect.width
         if (measured === undefined || measured === container || destroyed) return
         const before = shown()
+        const limitBefore = widthLimit(limits())
         container = measured
-        // The shown width changed: publish so the bindings read `rootStyle()` again.
-        if (shown() !== before) publish()
+        // The shown width or its cap changed: publish so the bindings read `rootStyle()` and
+        // `handleAttrs()` again.
+        if (shown() !== before || widthLimit(limits()) !== limitBefore) publish()
       })
       observer.observe(parent)
     }
@@ -642,6 +676,7 @@ export function createSidebarController(
     el.addEventListener('pointermove', onPointerMove)
     el.addEventListener('pointerup', onPointerEnd)
     el.addEventListener('pointercancel', onPointerEnd)
+    el.addEventListener('lostpointercapture', onPointerEnd)
     el.addEventListener('keydown', onKeyDown)
     el.addEventListener('dblclick', onDoubleClick)
     const unbind = (): void => {
@@ -651,6 +686,7 @@ export function createSidebarController(
       el.removeEventListener('pointermove', onPointerMove)
       el.removeEventListener('pointerup', onPointerEnd)
       el.removeEventListener('pointercancel', onPointerEnd)
+      el.removeEventListener('lostpointercapture', onPointerEnd)
       el.removeEventListener('keydown', onKeyDown)
       el.removeEventListener('dblclick', onDoubleClick)
       if (drag) {

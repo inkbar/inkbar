@@ -328,6 +328,7 @@ describe('the resize handle', () => {
           button: 0,
           isPrimary: true,
           pointerType: 'mouse',
+          buttons: type === 'pointerdown' || type === 'pointermove' ? 1 : 0,
           clientX,
           ...init,
         })
@@ -395,6 +396,38 @@ describe('the resize handle', () => {
     expect(storage.get('sidebar.left.width')).toBe(400)
     parent.style.width = '1200px'
     await expect.poll(shown).toBe('400px')
+  })
+
+  it('a drag ends when pointer capture is lost', async () => {
+    const storage = { get: vi.fn(), set: vi.fn(), remove: vi.fn() }
+    const { controller, root, handle, shown, pointer } = await setupHandle({ storage })
+    pointer('pointerdown', 100)
+    pointer('pointermove', 140)
+    handle.dispatchEvent(new PointerEvent('lostpointercapture', { pointerId: 1 }))
+    expect(root.hasAttribute('data-resizing')).toBe(false)
+    expect(storage.set).toHaveBeenCalledExactlyOnceWith('sidebar.left.width', 360)
+    pointer('pointermove', 200, { buttons: 0 })
+    expect(shown()).toBe('360px')
+    expect(controller.state.get().resizing).toBe(false)
+  })
+
+  it('a mouse move with no button down ends the drag', async () => {
+    const { controller, root, shown, pointer } = await setupHandle()
+    pointer('pointerdown', 100)
+    pointer('pointermove', 140)
+    pointer('pointermove', 200, { buttons: 0 })
+    expect(shown()).toBe('360px')
+    expect(root.hasAttribute('data-resizing')).toBe(false)
+    pointer('pointermove', 220)
+    expect(controller.state.get().width).toBe(360)
+  })
+
+  it('a container resize that moves only the cap updates aria-valuemax', async () => {
+    const { parent, shown, handle } = await setupHandle({ defaultWidth: 300 })
+    await expect.poll(() => handle.getAttribute('aria-valuemax')).toBe('480')
+    parent.style.width = '700px'
+    await expect.poll(() => handle.getAttribute('aria-valuemax')).toBe('350')
+    expect(shown()).toBe('300px')
   })
 
   it('blocked storage still drags', async () => {

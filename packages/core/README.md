@@ -435,7 +435,7 @@ Every sidebar has a resize handle on its inner edge. Drag it, or focus it and us
 
 To keep the width between visits, pass `storage` (see the storage section) and a `name`. The width is saved under `sidebar.<name>.width`. Both are read once, when the sidebar is created.
 
-`@inkbar/theme` sizes the sidebar with `--ink-sidebar-width` (320px by default, and the handle sets it inline) and the rail with `--ink-sidebar-rail-width` (48px). Override the rail per sidebar with CSS.
+`@inkbar/theme` sizes the sidebar with `--ink-sidebar-width` and the rail with `--ink-sidebar-rail-width` (48px). The sidebar sets `--ink-sidebar-width` inline, so a CSS override of it no longer applies. Pass `defaultWidth` instead. Override the rail per sidebar with CSS.
 
 ## Thumbnails
 
