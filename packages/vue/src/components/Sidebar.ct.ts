@@ -3,6 +3,7 @@ import { browserAssets } from '@inkbar/fixtures/urls'
 import { expect, test } from '@playwright/experimental-ct-vue'
 
 import { guardConsole } from '../../playwright/console-guard'
+import HydratedHarness from '../../playwright/harness/HydratedSidebarHarness.vue'
 import Harness from '../../playwright/harness/SidebarHarness.vue'
 
 import type { Page } from '@playwright/test'
@@ -376,4 +377,17 @@ test('InkRoot signatures go through storage', async ({ mount, page }) => {
     signatures: { id: string }[]
   }
   expect(stored.signatures.map((t) => t.id)).toEqual(['kept', 'added'])
+})
+
+test('hydration shows the width the client storage holds', async ({ mount, page }) => {
+  await mount(HydratedHarness, {
+    props: { layout: 'rail', stored: { 'sidebar.left.width': 400 } },
+  })
+  // The server had no store: its markup is at the default width.
+  await expect(page.getByTestId('server-html')).toHaveAttribute(
+    'data-html',
+    /--ink-sidebar-width:\s?320px/
+  )
+  await expect(handle(page)).toHaveAttribute('aria-valuenow', '400')
+  expect(await styleWidth(page)).toBe('400px')
 })
