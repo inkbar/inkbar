@@ -1,0 +1,25 @@
+packages/svelte/README.md
+  s_b0e6b2d5bd6b31::t_9630c7d2fd977b 247
+packages/svelte/src/test/Sidebar.browser.test.ts
+  s_b0e6b2d5bd6b31::t_b458b2fbf99d53 376-390
+packages/svelte/src/test/harness/SidebarHarness.svelte
+  s_b0e6b2d5bd6b31::t_b458b2fbf99d53 98-100
+packages/svelte/src/lib/components/InkSidebar.svelte
+  s_b0e6b2d5bd6b31::t_86fa1404846b60 107-108,116
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "695131ae1ea26520601247e60e7f82a4e22fde38",
+  "prompts": {},
+  "sessions": {
+    "s_b0e6b2d5bd6b31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0c0efc0-e561-4d1e-a89e-c758b277f97e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
