@@ -1,5 +1,7 @@
 import { Search, Square } from '@inkbar/icons'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import themeCss from '@inkbar/theme/theme.css?inline'
+import { run as runAxe } from 'axe-core'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { userEvent } from 'vitest/browser'
 
 import { createMemoryStorage } from '../../model/storage'
@@ -411,5 +413,55 @@ describe('the resize handle', () => {
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(controller.state.get().width).toBe(352)
     expect(unhandled).not.toHaveBeenCalled()
+  })
+})
+
+describe('the handle in createSidebar', () => {
+  const style = document.createElement('style')
+  beforeAll(() => {
+    style.textContent = themeCss
+    document.head.append(style)
+  })
+  afterAll(() => style.remove())
+
+  const handleOf = (element: HTMLElement) =>
+    element.querySelector<HTMLElement>('.ink-sidebar-handle')!
+
+  it('createSidebar renders a separator with the width', () => {
+    const { element } = setup()
+    const handle = handleOf(element)
+    expect(handle).toBe(element.lastElementChild)
+    expect(handle.getAttribute('role')).toBe('separator')
+    expect(handle.getAttribute('aria-valuenow')).toBe('320')
+    expect(element.style.getPropertyValue('--ink-sidebar-width')).toBe('320px')
+    const panels = element.querySelector('.ink-sidebar-panels')!
+    expect(handle.getAttribute('aria-controls')).toBe(panels.id)
+  })
+
+  it('handle is hidden when the rail closes', () => {
+    const { element, controller } = setup()
+    const handle = handleOf(element)
+    expect(handle.hidden).toBe(false)
+    controller.update({ open: null })
+    expect(handle.hidden).toBe(true)
+    controller.update({ open: 'b' })
+    expect(handle.hidden).toBe(false)
+  })
+
+  it('double-click resets', async () => {
+    const { element } = setup({ defaultWidth: 300 })
+    const handle = handleOf(element)
+    const width = () => element.style.getPropertyValue('--ink-sidebar-width')
+    handle.focus()
+    await userEvent.keyboard('{Home}')
+    expect(width()).toBe('240px')
+    await userEvent.dblClick(handle)
+    expect(width()).toBe('300px')
+  })
+
+  it('axe: a sidebar with a handle has no violations', async () => {
+    const { element } = setup()
+    const results = await runAxe(element)
+    expect(results.violations).toEqual([])
   })
 })

@@ -42,7 +42,7 @@
     /* The selected record's mark; pages stay white in dark mode, so this serves both. */
     --ink-mark-selected-outline: 2px solid #2740f5;
     /* Sidebars (createSidebar and the bindings' sidebar): the open sidebar and its rail. */
-    --ink-sidebar-width: 280px;
+    --ink-sidebar-width: 320px;
     --ink-sidebar-rail-width: 48px;
     --ink-thumbnail-width: 120px;
     /* The outline (createOutline and the bindings' outline): indent per level, item height and
@@ -868,6 +868,7 @@
    * mirrors them.
    */
   :where(.ink-sidebar) {
+    position: relative;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
@@ -947,6 +948,58 @@
 
   :where(.ink-sidebar-panel[hidden]) {
     display: none;
+  }
+
+  /* The resize handle: a strip straddling the inner edge, wider for fingers. touch-action keeps
+     a touch drag from scrolling the page instead. */
+  :where(.ink-sidebar-handle) {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: -4px;
+    width: 8px;
+    cursor: col-resize;
+    touch-action: none;
+    z-index: 1;
+  }
+
+  :where(.ink-sidebar[data-side='right'] .ink-sidebar-handle) {
+    right: auto;
+    left: -4px;
+  }
+
+  @media (pointer: coarse) {
+    :where(.ink-sidebar-handle) {
+      right: -8px;
+      width: 16px;
+    }
+
+    :where(.ink-sidebar[data-side='right'] .ink-sidebar-handle) {
+      right: auto;
+      left: -8px;
+    }
+  }
+
+  :where(.ink-sidebar-handle[hidden]) {
+    display: none;
+  }
+
+  :where(
+    .ink-sidebar-handle:hover,
+    .ink-sidebar-handle:focus-visible,
+    .ink-sidebar[data-resizing] .ink-sidebar-handle
+  ) {
+    background: linear-gradient(
+      to right,
+      transparent calc(50% - 1px),
+      var(--ink-accent) calc(50% - 1px),
+      var(--ink-accent) calc(50% + 1px),
+      transparent calc(50% + 1px)
+    );
+  }
+
+  :where(.ink-sidebar[data-resizing]) {
+    user-select: none;
   }
 
   /* Not visible: the whole sidebar goes, its state kept. After every display rule above. */
