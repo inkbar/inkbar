@@ -159,6 +159,21 @@ describe('createOutline', () => {
     await until(() => viewport.currentPage.get() === 1)
   })
 
+  it('only a row activates its item', async () => {
+    const { viewer, viewport, item } = await make()
+    const part = item('Part One')!
+    await userEvent.click(part.querySelector<HTMLElement>('.ink-outline-toggle')!)
+    expect(part.getAttribute('aria-expanded')).toBe('true')
+    const page = viewport.currentPage.get()
+    // A click on the group's own box (its padding) or the item around the row is no row's.
+    part.querySelector<HTMLElement>(':scope > .ink-outline-group')!.click()
+    part.click()
+    await settle()
+    expect(viewer.canGoBack.get()).toBe(false)
+    expect(viewport.currentPage.get()).toBe(page)
+    expect(part.getAttribute('aria-expanded')).toBe('true')
+  })
+
   it('the item jumped to is current until the reader scrolls away', async () => {
     const { viewport, item } = await make()
     // Section A centres its rect, so Section B (same page, at its top) is above the line.

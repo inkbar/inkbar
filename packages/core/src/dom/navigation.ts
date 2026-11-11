@@ -19,6 +19,16 @@ import type { ViewerAction } from '../model/form/types'
 /** The positions kept on each side; past this, the oldest goes. */
 const LIMIT = 50
 
+/** Where a followed target comes from. */
+export interface FollowOptions {
+  /**
+   * The page the target was pressed on: a link's own page. Next and previous page run from it,
+   * as the link layer names them; without it they run from the current page, as an outline
+   * item's do.
+   */
+  from?: number
+}
+
 export interface Navigation {
   /** Whether `back()` has somewhere to go. */
   readonly canGoBack: Readable<boolean>
@@ -28,13 +38,16 @@ export interface Navigation {
   back(): void
   /** Undoes the last `back()`. */
   forward(): void
-  /** Records where the view is, then goes to `dest`. A page the document lacks does nothing. */
+  /**
+   * Records where the view is, then goes to `dest`. A page the document lacks does nothing, and
+   * a jump that leaves the view where it was records nothing.
+   */
   goTo(dest: Destination): void
   /**
    * Resolves and follows any target. URLs go to `report` as `open-url` (only http, https,
    * mailto and tel); unsupported targets and destinations that resolve to nothing do nothing.
    */
-  follow(target: LinkTarget): Promise<void>
+  follow(target: LinkTarget, opts?: FollowOptions): Promise<void>
   /** Forgets every position, as when another document opens. */
   clear(): void
 }
@@ -76,6 +89,18 @@ function namedPage(action: NamedAction, current: number, count: number): number 
   return Math.min(Math.max(to, 0), count - 1)
 }
 
+/** Within a point: closer than that, two positions show the same view. */
+const near = (a: number | undefined, b: number | undefined): boolean =>
+  a === undefined || b === undefined ? a === b : Math.abs(a - b) <= 1
+
+/** Whether `b` is where `a` was, give or take a point of rounding. */
+function samePlace(a: Destination, b: Destination | undefined): boolean {
+  if (!b || a.page !== b.page || a.fit !== b.fit) return false
+  const p = a as { left?: number | undefined; top?: number | undefined }
+  const q = b as typeof p
+  return near(p.left, q.left) && near(p.top, q.top)
+}
+
 export function createNavigation(deps: NavigationDeps): Navigation {
   const backStack: Destination[] = []
   const forwardStack: Destination[] = []
@@ -113,9 +138,12 @@ export function createNavigation(deps: NavigationDeps): Navigation {
     const vp = deps.viewport()
     if (!vp || !inRange(dest.page)) return
     const here = deps.here()
-    if (here) push(backStack, here)
-    forwardStack.length = 0
     vp.scrollToDestination(dest)
+    // A jump that lands where the view already was (the same outline item twice) records
+    // nothing, so one Back always moves.
+    if (!here || samePlace(here, deps.here())) return
+    push(backStack, here)
+    forwardStack.length = 0
     sync()
   }
 
@@ -125,7 +153,7 @@ export function createNavigation(deps: NavigationDeps): Navigation {
     back: () => step(backStack, forwardStack),
     forward: () => step(forwardStack, backStack),
     goTo,
-    async follow(target) {
+    async follow(target, opts) {
       switch (target.kind) {
         case 'resolved':
           goTo(target.dest)
@@ -142,7 +170,7 @@ export function createNavigation(deps: NavigationDeps): Navigation {
           const vp = deps.viewport()
           const count = deps.document()?.pages.length ?? 0
           if (!vp || count === 0) return
-          const current = vp.currentPage.get()
+          const current = opts?.from ?? vp.currentPage.get()
           const page = namedPage(target.action, current, count)
           // Next on the last page (previous on the first) goes nowhere and records nothing.
           if (page !== current) goTo({ page, fit: 'fit' })

@@ -347,7 +347,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       // refreshes the fields once its controller exists.
       formActive: formsActive,
       onSignField: (req) => opts.onSignField?.(req),
-      followLink: (target) => void navigation.follow(target),
+      followLink: (target, o) => void navigation.follow(target, o),
       ...(layers ? { layers } : {}),
       ...(highlights ? { highlights } : {}),
       onError: (cause, layer) => {
@@ -697,6 +697,22 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     return undefined
   }
 
+  /** The pieces of the hovered link, which carry `data-ink-hover` for the theme's tint. */
+  let hoveredPieces: Element[] = []
+  function markHover(vp: Viewport, link: PageLink | undefined): void {
+    for (const piece of hoveredPieces) piece.removeAttribute('data-ink-hover')
+    hoveredPieces = link
+      ? [
+          ...(vp
+            .hostFor(link.page)
+            ?.querySelectorAll(
+              `[data-ink-link-layer] [data-ink-link="${CSS.escape(link.id)}"]`
+            ) ?? []),
+        ]
+      : []
+    for (const piece of hoveredPieces) piece.setAttribute('data-ink-hover', '')
+  }
+
   function build(state: {
     zoom: ZoomValue
     page: number | undefined
@@ -725,7 +741,8 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       options: toolOptions,
       ...(plugins && { onPress: (kind, press) => plugins.emitPress(kind, press) }),
       linkAt: (page, point) => linkAt(vp, page, point),
-      onLink: (link) => void navigation.follow(link.target),
+      onLink: (link) => void navigation.follow(link.target, { from: link.page }),
+      onLinkHover: (link) => markHover(vp, link),
       ctx: {
         toolStyle,
         store: doc.annotations,

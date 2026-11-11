@@ -62,7 +62,7 @@
 // text or draws a marquee, a long press still goes to `onPress`, and a press on an annotation,
 // a field or an editor over a link never follows it. A creation or plugin tool never asks. While
 // no press is under way, a move under `select-text` or `select` sets the root's cursor to
-// `pointer` over a link and back to the tool's off it.
+// `pointer` over a link and back to the tool's off it, and reports the link to `onLinkHover`.
 import { isTextMarkup } from '../../model/annotations/edit'
 import {
   createToolStyle,
@@ -220,6 +220,12 @@ export interface ToolControllerOptions {
   linkAt?(page: number, point: Point): PageLink | undefined
   /** A still press or a tap on a link (see the top of controller.ts); it is not an `onPress`. */
   onLink?(link: PageLink): void
+  /**
+   * The link a press would follow is now `link`, or none: the pointer moved onto or off it,
+   * left the viewport, or the tool changed. Called once per change, and with `undefined` on
+   * destroy when a link was hovered.
+   */
+  onLinkHover?(link: PageLink | undefined): void
 }
 
 /** Host-relative CSS point for a client point. */
@@ -316,6 +322,8 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
   let editingMade = false
   /** The root's cursor is the pointer for a link under it. */
   let overLink = false
+  /** The link last reported to `onLinkHover`. */
+  let hovered: PageLink | undefined
   /** The press now under way had a modifier key down, so it does not follow a link. */
   let pressModified = false
   const presses = createPressTracker({
@@ -468,11 +476,20 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
   }
   /** Shows the pointer cursor over a link a press would follow (see the top of the file). */
   function hoverLink(e: PointerEvent): void {
-    const over = selecting() && !onAnnotation(e.target) && linkUnder(e) !== undefined
+    const link = selecting() && !onAnnotation(e.target) ? linkUnder(e) : undefined
+    hover(link)
+    const over = link !== undefined
     if (over === overLink || !current) return
     overLink = over
     ctx.root.style.cursor = over ? 'pointer' : current.cursor
   }
+  /** Reports `link` as hovered when it is not already. */
+  function hover(link: PageLink | undefined): void {
+    if (link?.id === hovered?.id && link?.page === hovered?.page) return
+    hovered = link
+    opts.onLinkHover?.(link)
+  }
+  const onLeave = (): void => hover(undefined)
   function linkUnder(e: PointerEvent): PageLink | undefined {
     if (!opts.linkAt || inCustomContent(e.target)) return undefined
     const hit = hitFor(ctx, e)
@@ -568,6 +585,7 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
   doc.addEventListener('pointerdown', readAfterEditor, { capture: true })
   ctx.root.addEventListener('pointerdown', onDown, { capture: true })
   ctx.root.addEventListener('pointermove', onMove)
+  ctx.root.addEventListener('pointerleave', onLeave)
   ctx.root.addEventListener('pointerup', onUp)
   ctx.root.addEventListener('pointercancel', onCancel)
   ctx.root.addEventListener('lostpointercapture', onCancel)
@@ -602,6 +620,7 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     ctx.root.dataset.inkTool = id
     ctx.root.style.cursor = next.cursor
     overLink = false
+    hover(undefined)
     applyClaim()
     active.set(id)
   }
@@ -651,6 +670,8 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
       doc.removeEventListener('pointerdown', readAfterEditor, { capture: true })
       ctx.root.removeEventListener('pointerdown', onDown, { capture: true })
       ctx.root.removeEventListener('pointermove', onMove)
+      ctx.root.removeEventListener('pointerleave', onLeave)
+      hover(undefined)
       ctx.root.removeEventListener('pointerup', onUp)
       ctx.root.removeEventListener('pointercancel', onCancel)
       ctx.root.removeEventListener('lostpointercapture', onCancel)

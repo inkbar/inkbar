@@ -25,7 +25,11 @@
    * its parent's height and scrolls, and keeps the item the reader has reached in view. The
    * `item` snippet replaces an item's title. Inside `InkRoot`; the tree is empty on the server.
    */
-  import { createOutlineController, type OutlineController } from '@inkbar/core/dom'
+  import {
+    createOutlineController,
+    outlineTreeAttrs,
+    type OutlineController,
+  } from '@inkbar/core/dom'
   import { ChevronRight } from '@inkbar/icons'
   import { untrack } from 'svelte'
 
@@ -154,8 +158,7 @@
 >
   <ul
     class="ink-outline-tree"
-    role="tree"
-    aria-label="Outline"
+    {...outlineTreeAttrs()}
     hidden={items.length === 0}
     onkeydown={(e) => controller?.onKeydown(e)}
   >

@@ -345,6 +345,37 @@ describe('following links with the pointer', () => {
     expect(root.style.cursor).toBe(cursor)
   })
 
+  it('hovering a link marks its pieces until the pointer leaves', async () => {
+    const { container: root, engine } = await setup()
+    const hovered = () => [...root.querySelectorAll<HTMLElement>('[data-ink-hover]')]
+    pointer('pointermove', clientOf(engine, 0, CHAPTER_2))
+    const marked = hovered()
+    expect(marked.length).toBeGreaterThan(0)
+    const id = marked[0]!.dataset.inkLink
+    expect(id).toBeTruthy()
+    expect(marked.every((el) => el.dataset.inkLink === id)).toBe(true)
+    // Off the link, onto another, and out of the viewport.
+    pointer('pointermove', clientOf(engine, 0, { x: 300, y: 300 }))
+    expect(hovered()).toEqual([])
+    pointer('pointermove', clientOf(engine, 0, EXAMPLE_A))
+    expect(hovered().length).toBeGreaterThan(0)
+    expect(hovered()[0]!.dataset.inkLink).not.toBe(id)
+    root.dispatchEvent(
+      new PointerEvent('pointerleave', { pointerId: 1, isPrimary: true })
+    )
+    expect(hovered()).toEqual([])
+    // A tool change and a destroy clear it too.
+    pointer('pointermove', clientOf(engine, 0, CHAPTER_2))
+    expect(hovered().length).toBeGreaterThan(0)
+    engine.tools.set('select')
+    expect(hovered()).toEqual([])
+    pointer('pointermove', clientOf(engine, 0, CHAPTER_2))
+    const pieces = hovered()
+    expect(pieces.length).toBeGreaterThan(0)
+    engine.destroy()
+    expect(pieces.some((el) => el.hasAttribute('data-ink-hover'))).toBe(false)
+  })
+
   it('a link whose destination names no page is not followed and gets no pointer', async () => {
     const dead: PageLink = {
       id: 'dead',

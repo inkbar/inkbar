@@ -104,11 +104,16 @@ export function createOutline(viewer: Viewer, opts: OutlineOptions = {}): HTMLEl
     status()
   }
 
+  /**
+   * The item whose row holds `target`. Only rows take clicks, as in the bindings: a click on a
+   * group's padding or the item around its row belongs to no item, not to the parent.
+   */
   const itemOf = (target: EventTarget | null): string | null => {
-    // The innermost item: an item contains its children's.
     const row =
       target instanceof Element
-        ? target.closest<HTMLElement>('[data-ink-outline-item]')
+        ? target
+            .closest<HTMLElement>('.ink-outline-row')
+            ?.closest<HTMLElement>('[data-ink-outline-item]')
         : null
     return row && root.contains(row) ? (row.dataset.inkOutlineItem ?? null) : null
   }

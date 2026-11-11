@@ -67,6 +67,26 @@ describe('createNavigation', () => {
     expect(nav.canGoBack.get()).toBe(false)
   })
 
+  it('a jump that goes nowhere records nothing', () => {
+    const { nav, at, scrollToDestination } = setup()
+    nav.goTo(page(5))
+    nav.goTo(page(5))
+    expect(scrollToDestination).toHaveBeenCalledTimes(2)
+    // One Back returns from the item clicked twice.
+    nav.back()
+    expect(at()).toEqual(page(0))
+    expect(nav.canGoBack.get()).toBe(false)
+    // Within a point of rounding is the same place; further is a move.
+    nav.goTo({ page: 2, fit: 'xyz', left: 10, top: 500 })
+    nav.goTo({ page: 2, fit: 'xyz', left: 10.4, top: 500.6 })
+    nav.goTo({ page: 2, fit: 'xyz', left: 10, top: 400 })
+    nav.back()
+    expect(at()).toEqual({ page: 2, fit: 'xyz', left: 10.4, top: 500.6 })
+    nav.back()
+    expect(at()).toEqual(page(0))
+    expect(nav.canGoBack.get()).toBe(false)
+  })
+
   it('back then forward returns', () => {
     const { nav, at } = setup()
     nav.goTo(page(3))
@@ -130,6 +150,17 @@ describe('createNavigation', () => {
     await nav.follow({ kind: 'named', action: 'PrevPage' })
     expect(scrollToDestination).toHaveBeenCalledTimes(calls + 1)
     nav.back()
+    expect(at().page).toBe(4)
+  })
+
+  it("named actions from a link run from the link's page", async () => {
+    const { nav, at, currentPage } = setup(10)
+    // The link sits on page 5 while the view counts page 2 as current.
+    currentPage.set(2)
+    await nav.follow({ kind: 'named', action: 'NextPage' }, { from: 5 })
+    expect(at().page).toBe(6)
+    currentPage.set(2)
+    await nav.follow({ kind: 'named', action: 'PrevPage' }, { from: 5 })
     expect(at().page).toBe(4)
   })
 
