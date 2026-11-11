@@ -17,9 +17,10 @@ import {
 import { InkError, isInkError } from '../../model/errors'
 import { readonly, writable, type Readable } from '../../model/readable'
 import {
-  createMemorySignatureStore,
   createSignatureLibrary,
+  createStorageSignatureStore,
 } from '../../model/signatures'
+import { createMemoryStorage } from '../../model/storage'
 import {
   attachFileKeys,
   downloadDocument,
@@ -227,6 +228,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     onSignField: _onSignField,
     onFormAlert: _onFormAlert,
     signatures: signatureStore,
+    storage = createMemoryStorage(),
     search: _search,
     ...view
   } = opts as CreateViewerOptions &
@@ -241,7 +243,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     >
   /** One library for the viewer's life, so templates and the menu outlive each document. */
   const signatures = createSignatureLibrary(
-    signatureStore ?? createMemorySignatureStore()
+    signatureStore ?? createStorageSignatureStore(storage)
   )
   /** Tool options persist for the viewer's life; the tool style is per document. */
   const toolOptions = createToolOptions()
@@ -391,6 +393,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       formHighlight,
       toolOptions,
       signatureLibrary: signatures,
+      storage,
       onFormAlert: (message) => formAlert.show(message),
       // Pressed after `createViewer` returned, so `viewer` exists by then.
       onSignField: (req) => {

@@ -8,9 +8,11 @@ import { z } from 'zod'
 
 import { IMAGE_DATA_URL, PointSchema } from './annotations/types'
 import { readonly, writable, type Readable } from './readable'
+import { createRawLocalStorage } from './storage'
 
 import type { AnnotationInput } from './annotations/types'
 import type { Point, Rect } from './geometry'
+import type { InkStorage } from './storage'
 
 /**
  * A saved signature. Ink points lie in a unit box (0 to 1 on both axes, y growing upwards)
@@ -104,99 +106,70 @@ export function createMemorySignatureStore(
   }
 }
 
+/** The id of an entry that may not be a template, if it has one. */
+const idOf = (x: unknown): unknown =>
+  typeof x === 'object' && x !== null ? (x as { id?: unknown }).id : undefined
+
 /**
- * Templates in `localStorage` under `key`, as a JSON array. Where storage is blocked (it refuses
- * even a tiny test write, as in some private windows) the templates stay in memory for the
- * page's life, so signing still works. Where storage works, or is full but holds a saved list,
- * and has no room for a change, the change is undone and `save` or `remove` rejects, so the host can say so. Stored entries it
- * cannot read, such as a later version's templates, are left out of `list` and kept on write.
+ * Templates under `key` (default `'signatures'`) in `storage`, as a JSON array, read on every
+ * call so another tab's write shows. Stored entries it cannot read, such as a later version's
+ * templates, are left out of `list`, kept on write, and dropped only when a template takes
+ * their id. When `storage.set` rejects, as when it is full, the list stays as it was and `save`
+ * or `remove` rejects, so the host can say so.
  */
-export function createLocalSignatureStore(key: string): SignatureStore {
-  /** Usable storage, or undefined when it is missing or blocked. */
-  const storage = ((): Storage | undefined => {
-    try {
-      const s = globalThis.localStorage ?? undefined
-      if (!s) return undefined
-      const probe = `${key}:probe`
-      try {
-        s.setItem(probe, '1')
-        s.removeItem(probe)
-      } catch {
-        // A full store refuses the probe too, but still holds the list: keep it, so the list
-        // shows and saves reject. One that holds nothing of ours is treated as blocked.
-        return s.getItem(key) === null ? undefined : s
-      }
-      return s
-    } catch {
-      return undefined
-    }
-  })()
-  /** What storage holds: the templates, and the entries that are not (kept, never shown). */
-  interface Stored {
-    items: SignatureTemplate[]
-    /** Entries this version cannot read, such as a newer version's: written back unchanged. */
-    unread: unknown[]
-  }
-  /** The stored list; undefined when storage cannot be read. */
-  const read = (): Stored | undefined => {
-    if (!storage) return undefined
-    try {
-      const raw = storage.getItem(key)
-      if (raw === null) return { items: [], unread: [] }
-      const parsed: unknown = JSON.parse(raw)
-      if (!Array.isArray(parsed)) return { items: [], unread: [] }
-      const items = validTemplates(parsed)
-      return { items, unread: parsed.filter((x) => validTemplates([x]).length === 0) }
-    } catch (e) {
-      // Unreadable JSON is an empty list; a storage that throws is no storage.
-      return e instanceof SyntaxError ? { items: [], unread: [] } : undefined
+export function createStorageSignatureStore(
+  storage: InkStorage,
+  key = 'signatures'
+): SignatureStore {
+  /** The stored list: the templates, and the entries that are not (kept, never shown). */
+  const read = async (): Promise<{ items: SignatureTemplate[]; unread: unknown[] }> => {
+    const stored = await storage.get(key)
+    if (!Array.isArray(stored)) return { items: [], unread: [] }
+    const parsed = stored as unknown[]
+    return {
+      items: validTemplates(parsed),
+      unread: parsed.filter((x) => validTemplates([x]).length === 0),
     }
   }
-  let { items, unread } = read() ?? { items: [], unread: [] }
-  /** Picks up what another tab wrote. */
-  const sync = (): void => {
-    const stored = read()
-    if (stored) ({ items, unread } = stored)
-  }
-  /** The id of an entry that may not be a template, if it has one. */
-  const idOf = (x: unknown): unknown =>
-    typeof x === 'object' && x !== null ? (x as { id?: unknown }).id : undefined
-  /**
-   * Writes `next`, then adopts it; leaves everything as it was when storage refuses. Entries
-   * it cannot read go back after the templates, less any whose id a template now has.
-   */
-  const commit = (next: SignatureTemplate[]): Promise<void> => {
+  /** Writes `next` with the unread entries after it, less any whose id a template now has. */
+  const commit = async (next: SignatureTemplate[], unread: unknown[]): Promise<void> => {
     const ids = new Set<unknown>(next.map((t) => t.id))
     const kept = unread.filter((x) => idOf(x) === undefined || !ids.has(idOf(x)))
-    if (storage) {
-      try {
-        storage.setItem(key, JSON.stringify([...next, ...kept]))
-      } catch (cause) {
-        return Promise.reject(
-          new Error('The signature could not be saved: browser storage is full', {
-            cause,
-          })
-        )
-      }
+    try {
+      await storage.set(key, [...next, ...kept])
+    } catch (cause) {
+      throw new Error('The signature could not be saved: browser storage is full', {
+        cause,
+      })
     }
-    items = next
-    unread = kept
-    return Promise.resolve()
   }
   return {
-    list() {
-      sync()
-      return Promise.resolve(items.map(copy))
+    async list() {
+      return (await read()).items.map(copy)
     },
-    save(t) {
-      sync()
-      return commit(upsert(items, t))
+    async save(t) {
+      const { items, unread } = await read()
+      await commit(upsert(items, t), unread)
     },
-    remove(id) {
-      sync()
-      return commit(items.filter((x) => x.id !== id))
+    async remove(id) {
+      const { items, unread } = await read()
+      await commit(
+        items.filter((x) => x.id !== id),
+        unread
+      )
     },
   }
+}
+
+/**
+ * Templates in `localStorage` under `key`, as a JSON array. Where storage is blocked the
+ * templates stay in memory for the page's life, so signing still works. Where storage is full
+ * and has no room for a change, `save` or `remove` rejects.
+ *
+ * @deprecated Pass `storage` (for example `createLocalStorage()`) to the viewer instead.
+ */
+export function createLocalSignatureStore(key: string): SignatureStore {
+  return createStorageSignatureStore(createRawLocalStorage(key), key)
 }
 
 /**

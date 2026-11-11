@@ -106,6 +106,7 @@ export {
   createLocalSignatureStore,
   createMemorySignatureStore,
   createSignatureLibrary,
+  createStorageSignatureStore,
   DEFAULT_SIGNATURE_WIDTH,
   normaliseInk,
   placeSignature,

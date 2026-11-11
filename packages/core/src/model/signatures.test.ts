@@ -6,10 +6,12 @@ import {
   createLocalSignatureStore,
   createMemorySignatureStore,
   createSignatureLibrary,
+  createStorageSignatureStore,
   normaliseInk,
   placeSignature,
   type SignatureTemplate,
 } from './signatures'
+import { createLocalStorage, createMemoryStorage, type InkStorage } from './storage'
 
 import type { Point } from './geometry'
 
@@ -190,6 +192,57 @@ describe('createMemorySignatureStore', () => {
     const [t] = await store.list()
     ;(t as { aspect: number }).aspect = 99
     expect((await store.list())[0]!.aspect).toBe(3)
+  })
+})
+
+describe('createStorageSignatureStore', () => {
+  it('storage signature store round-trips templates', async () => {
+    const storage = createMemoryStorage()
+    const store = createStorageSignatureStore(storage)
+    await store.save(ink)
+    await store.save(image)
+    expect(await storage.get('signatures')).toEqual([ink, image])
+    expect(await store.list()).toEqual([ink, image])
+    await store.remove('ink-1')
+    expect(await store.list()).toEqual([image])
+  })
+
+  it('storage signature store keeps entries it cannot read', async () => {
+    const z = { id: 'z', kind: 'future' }
+    const storage = createMemoryStorage({ signatures: [ink, z] })
+    const store = createStorageSignatureStore(storage)
+    expect(await store.list()).toEqual([ink])
+    await store.save(image)
+    expect(await storage.get('signatures')).toEqual([ink, image, z])
+  })
+
+  it('storage signature store rejects when set rejects', async () => {
+    const storage = createMemoryStorage({ signatures: [ink] })
+    storage.set = () => Promise.reject(new Error('full'))
+    const store = createStorageSignatureStore(storage)
+    const message = 'The signature could not be saved: browser storage is full'
+    await expect(store.save(image)).rejects.toThrow(message)
+    await expect(store.remove('ink-1')).rejects.toThrow(message)
+    expect(await store.list()).toEqual([ink])
+  })
+
+  it('storage signature store works with an async store', async () => {
+    const inner = createMemoryStorage()
+    const storage: InkStorage = {
+      get: (k) => Promise.resolve(inner.get(k)),
+      set: (k, v) => Promise.resolve(inner.set(k, v)),
+      remove: (k) => Promise.resolve(inner.remove(k)),
+    }
+    const store = createStorageSignatureStore(storage)
+    await store.save(ink)
+    expect(await store.list()).toEqual([ink])
+  })
+
+  it('bad JSON under signatures lists nothing', async () => {
+    const local = memoryStorage()
+    local.setItem('inkbar:signatures', '{nope')
+    vi.stubGlobal('localStorage', local)
+    expect(await createStorageSignatureStore(createLocalStorage()).list()).toEqual([])
   })
 })
 

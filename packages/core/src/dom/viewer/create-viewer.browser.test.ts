@@ -8,6 +8,7 @@ import {
   createMemorySignatureStore,
   type SignatureTemplate,
 } from '../../model/signatures'
+import { createMemoryStorage } from '../../model/storage'
 import { sandboxLoader } from '../../pdfjs/scripting'
 import { oneOfEach } from '../../test-support/annotations'
 import { definePlugin } from '../plugins/define'
@@ -141,6 +142,37 @@ async function rootNote(viewer: Viewer, doc: InkDocument): Promise<HTMLElement> 
 }
 
 describe('createViewer', () => {
+  const sig: SignatureTemplate = {
+    id: 'sig-1',
+    kind: 'ink',
+    inklist: [
+      [
+        { x: 0, y: 0 },
+        { x: 1, y: 1 },
+      ],
+    ],
+    aspect: 3,
+  }
+
+  it('createViewer saves signatures through storage', async () => {
+    const storage = createMemoryStorage()
+    const { viewer } = make('text-simple', { storage })
+    const { engine } = await ready(viewer)
+    expect(engine.storage).toBe(storage)
+    await engine.signatures.save(sig)
+    expect(await storage.get('signatures')).toEqual([sig])
+  })
+
+  it('signatures wins over storage', async () => {
+    const storage = createMemoryStorage()
+    const store = createMemorySignatureStore()
+    const { viewer } = make('text-simple', { storage, signatures: store })
+    const { engine } = await ready(viewer)
+    await engine.signatures.save(sig)
+    expect(await store.list()).toEqual([sig])
+    expect(await storage.get('signatures')).toBeUndefined()
+  })
+
   it('opens a document and renders the viewer and pages', async () => {
     const onReady = vi.fn()
     const { viewer } = make('annotated-notes-threaded', { onReady })
