@@ -4,6 +4,7 @@
  * the toolbar. Actions reach `window.__actions`, since Inkbar never opens a URL itself; the
  * button swaps the document in place, as a host opening another file would.
  */
+import { createLocalStorage, type ViewerAction } from '@inkbar/core'
 import { allTools } from '@inkbar/core/dom'
 import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
 import {
@@ -23,11 +24,10 @@ import {
 import { assets } from 'virtual:inkbar-assets'
 import { computed, ref } from 'vue'
 
-import type { ViewerAction } from '@inkbar/core'
-
 const props = defineProps<{ fixture: string }>()
 
 const tools = allTools()
+const storage = createLocalStorage('inkbar-e2e')
 const name = ref(props.fixture)
 const src = computed(() => ({
   url: fixtureUrl(name.value as FixtureName),
@@ -51,6 +51,7 @@ function swap(): void {
     :assets="assets"
     :tools="tools"
     :history="true"
+    :storage="storage"
     class="sandbox-root"
     @ready="status = 'ready'"
     @error="status = 'error'"

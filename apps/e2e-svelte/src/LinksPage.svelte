@@ -4,6 +4,7 @@
    * the toolbar. Actions reach `window.__actions`, since Inkbar never opens a URL itself; the
    * button swaps the document in place, as a host opening another file would.
    */
+  import { createLocalStorage, type ViewerAction } from '@inkbar/core'
   import { allTools } from '@inkbar/core/dom'
   import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
   import {
@@ -22,11 +23,10 @@
   } from '@inkbar/svelte'
   import { assets } from 'virtual:inkbar-assets'
 
-  import type { ViewerAction } from '@inkbar/core'
-
   let { fixture }: { fixture: string } = $props()
 
   const tools = allTools()
+  const storage = createLocalStorage('inkbar-e2e')
   // The route picks the first document; the button swaps it.
   // svelte-ignore state_referenced_locally
   let name = $state(fixture)
@@ -48,6 +48,7 @@
   {assets}
   {tools}
   history={true}
+  {storage}
   class="sandbox-root"
   onReady={() => (status = 'ready')}
   onError={() => (status = 'error')}
