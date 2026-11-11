@@ -1,7 +1,7 @@
 /*
- * A sidebar of three panels. The Search panel holds a field and can be removed. With `stored`,
- * the sidebar keeps its width in a store the page shows; with `inRoot`, that store is InkRoot's
- * and the sidebar inherits it. The store outlives a remount.
+ * A sidebar of three panels beside a stand-in for the pages. The Search panel holds a field and
+ * can be removed. With `stored`, the sidebar keeps its width in a store the page shows; with
+ * `inRoot`, that store is InkRoot's and the sidebar inherits it. The store outlives a remount.
  */
 import { MessageSquare, Search, Square } from '@inkbar/icons'
 import { StrictMode, useEffect, useRef, useState, type ReactNode } from 'react'
@@ -33,6 +33,13 @@ export interface SidebarHarnessProps {
   assets?: PdfAssets | undefined
   /** Keep the store from the sidebar, as a server without it would. */
   withoutStore?: boolean | undefined
+  /** The row's width in CSS px, sidebar and pages together. Default: the page's. */
+  containerWidth?: number | undefined
+  /** The sidebar's own `minDocumentWidth`. */
+  minDocumentWidth?: number | undefined
+  /** InkRoot's `minDocumentWidth`, with `inRoot`. */
+  rootMinDocumentWidth?: number | undefined
+  handleLabel?: string | undefined
 }
 
 export function SidebarHarness({
@@ -45,6 +52,10 @@ export function SidebarHarness({
   inRoot,
   assets,
   withoutStore,
+  containerWidth,
+  minDocumentWidth,
+  rootMinDocumentWidth,
+  handleLabel,
 }: SidebarHarnessProps) {
   const [widthControlled] = useState(width !== undefined)
   const [widthValue, setWidthValue] = useState<number | undefined>(width)
@@ -111,9 +122,20 @@ export function SidebarHarness({
       </button>
       <output data-testid="width">{JSON.stringify(widthValue ?? null)}</output>
       <output data-testid="stored">{JSON.stringify(saved)}</output>
-      <Frame inRoot={inRoot} assets={assets} storage={storage}>
+      <Frame
+        inRoot={inRoot}
+        assets={assets}
+        storage={storage}
+        minDocumentWidth={rootMinDocumentWidth}
+      >
         {inRoot ? <SignatureStorageProbe /> : null}
-        <div style={{ display: 'flex', height: 400 }}>
+        <div
+          style={{
+            display: 'flex',
+            height: 400,
+            ...(containerWidth !== undefined && { width: containerWidth }),
+          }}
+        >
           {shown ? (
             <InkSidebar
               {...(controlled ? { open: value ?? null } : { defaultOpen })}
@@ -122,6 +144,8 @@ export function SidebarHarness({
                 ? { width: widthValue, onWidthChange: setWidthValue }
                 : {})}
               {...(stored && !inRoot && !withoutStore ? { storage } : {})}
+              {...(minDocumentWidth !== undefined && { minDocumentWidth })}
+              {...(handleLabel !== undefined && { handleLabel })}
               layout={layout}
               side={side}
               data-testid="sidebar"
@@ -145,6 +169,9 @@ export function SidebarHarness({
               </InkPanel>
             </InkSidebar>
           ) : null}
+          <div data-testid="pages" style={{ flex: 1, minWidth: 0 }}>
+            Pages
+          </div>
         </div>
       </Frame>
     </>
@@ -155,15 +182,22 @@ function Frame({
   inRoot,
   assets,
   storage,
+  minDocumentWidth,
   children,
 }: {
   inRoot: boolean | undefined
   assets: PdfAssets | undefined
   storage: InkStorage
+  minDocumentWidth: number | undefined
   children: ReactNode
 }) {
   return inRoot ? (
-    <InkRoot src={null} assets={assets!} storage={storage}>
+    <InkRoot
+      src={null}
+      assets={assets!}
+      storage={storage}
+      {...(minDocumentWidth !== undefined && { minDocumentWidth })}
+    >
       {children}
     </InkRoot>
   ) : (
@@ -198,11 +232,12 @@ export function StrictSidebarHarness(props: SidebarHarnessProps) {
 
 /**
  * The harness rendered to a string, as a server would, then hydrated. A markup mismatch logs a
- * console error, which the console guard fails on.
+ * console error, which the console guard fails on. In a narrow `containerWidth`, the client
+ * finds no room for the panel the server showed open.
  */
 export function HydratedSidebarHarness(props: SidebarHarnessProps) {
   const el = useRef<HTMLDivElement>(null)
-  const { layout, side, open, defaultOpen, stored } = props
+  const { layout, side, open, defaultOpen, stored, containerWidth } = props
   const [serverHtml, setServerHtml] = useState('')
   useEffect(() => {
     const tree = (
@@ -212,6 +247,7 @@ export function HydratedSidebarHarness(props: SidebarHarnessProps) {
         open={open}
         defaultOpen={defaultOpen}
         stored={stored}
+        containerWidth={containerWidth}
       />
     )
     const host = el.current!
@@ -223,6 +259,7 @@ export function HydratedSidebarHarness(props: SidebarHarnessProps) {
         open={open}
         defaultOpen={defaultOpen}
         stored={stored}
+        containerWidth={containerWidth}
         withoutStore
       />
     )
@@ -231,7 +268,7 @@ export function HydratedSidebarHarness(props: SidebarHarnessProps) {
     return () => root.unmount()
     // `stored` is a literal that changes identity each render; its content is fixed.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layout, side, open, defaultOpen])
+  }, [layout, side, open, defaultOpen, containerWidth])
   return (
     <>
       <template data-testid="server-html" data-html={serverHtml} />

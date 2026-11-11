@@ -18,6 +18,7 @@ import {
   FONT_FAMILIES,
   handleFindKey,
   keepHistoryFocus,
+  MIN_DOCUMENT_WIDTH,
   pageSelectionText,
   SIGNATURE_FONTS,
   trackToolStyle,
@@ -160,6 +161,12 @@ export interface InkRootProps extends Omit<
    */
   storage?: InkStorage | undefined
   /**
+   * The narrowest the document may get beside the sidebars, in CSS px, before a rail
+   * sidebar's panel floats over the pages instead. Default 480 (`MIN_DOCUMENT_WIDTH`). Every
+   * `InkSidebar` inside takes it unless it has its own. Read once, when the root is created.
+   */
+  minDocumentWidth?: number | undefined
+  /**
    * Where saved signatures live, in place of `storage`. A new store takes effect at once, for
    * the menus and the `signature` tool alike.
    * @deprecated Pass `storage`; signatures are kept in it under `signatures`. Removed in 0.13.0.
@@ -253,6 +260,7 @@ export function InkRoot({
   decorateAnnotation,
   fonts: fontsProp,
   storage: storageProp,
+  minDocumentWidth: minDocumentWidthProp,
   signatures: signatureStore,
   signatureFonts: signatureFontsProp,
   page,
@@ -399,6 +407,8 @@ export function InkRoot({
    */
   // Read once: the sidebars and the plugins load from it as they are created.
   const [storage] = useState(() => storageProp ?? createMemoryStorage())
+  // Read once, like `storage`: each sidebar reads it as it is created.
+  const [minDocumentWidth] = useState(() => minDocumentWidthProp ?? MIN_DOCUMENT_WIDTH)
   const hostRef = useRef<RootHost | null>(null)
   const [pluginHost, setPluginHost] = useState<PluginHost | null>(null)
   const [search, setSearch] = useState<SearchController | null>(null)
@@ -846,6 +856,7 @@ export function InkRoot({
       fonts,
       toolOptions,
       storage,
+      minDocumentWidth,
       signatures,
       signatureFonts,
       toolStyle: styleTracker?.toolStyle ?? null,
@@ -883,6 +894,7 @@ export function InkRoot({
       fonts,
       toolOptions,
       storage,
+      minDocumentWidth,
       signatures,
       signatureFonts,
       styleTracker,
