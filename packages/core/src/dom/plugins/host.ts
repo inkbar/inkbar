@@ -11,6 +11,7 @@
 import { InkError } from '../../model/errors'
 import { readonly, writable, type Readable, type Writable } from '../../model/readable'
 import { createRecordStore, type RecordBase, type RecordStore } from '../../model/records'
+import { createMemoryStorage, scopeStorage, type InkStorage } from '../../model/storage'
 
 import { createRecords, type Records } from './api/records'
 import { createCommandRegistry } from './commands'
@@ -53,6 +54,8 @@ export interface PluginHostOptions {
   viewport?: () => Viewport | null | undefined
   /** The viewer's search; without one, `ctx.search` is inert. */
   search?: ViewerSearch
+  /** Where plugins keep settings, each under `plugin.<id>.`; memory when omitted. */
+  storage?: InkStorage
 }
 
 const inertState = readonly(
@@ -254,6 +257,7 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
     seen.add(plugin.id)
   }
 
+  const storage = opts.storage ?? createMemoryStorage()
   const registry = createCommandRegistry({ document: opts.document })
   const tools: Tool[] = []
   const decorators: DecorateAnnotation[] = []
@@ -383,6 +387,7 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
         opts.viewport?.()?.scrollToRect(page, rect, scrollOpts)
       },
       search: opts.search ?? inertSearch,
+      storage: scopeStorage(storage, `plugin.${plugin.id}`),
       onPress: listenForPress('press'),
       onLongPress: listenForPress('long-press'),
     }

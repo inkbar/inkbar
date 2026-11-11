@@ -301,6 +301,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
    */
   const host: PluginHost = createPluginHost({
     plugins: plugins ?? [],
+    storage,
     document: readonly(current),
     history: () => current.get()?.history ?? passThrough,
     activated: readonly(activated),

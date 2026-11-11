@@ -14,6 +14,7 @@ import type { InkDocument } from '../../model/document'
 import type { Rect } from '../../model/geometry'
 import type { Readable } from '../../model/readable'
 import type { RecordBase, RecordChange, RecordStore } from '../../model/records'
+import type { InkStorage } from '../../model/storage'
 import type { DecorateAnnotation } from '../overlay'
 import type { ViewerSearch } from '../search/controller'
 import type { Tool } from '../tools/controller'
@@ -113,6 +114,12 @@ export interface PluginContext {
     name: string,
     opts?: PluginStoreOptions<T>
   ): Readable<RecordStore<T> | null>
+  /**
+   * Settings that outlive the document and the visit, kept in the viewer's `storage` under
+   * `plugin.<id>.<key>` and visible to no other plugin. Use `store()` for records that belong to
+   * a document and undo with edits; use this for preferences such as a panel width.
+   */
+  readonly storage: InkStorage
   /** Runs for each document that opens; the returned function runs when it closes. */
   onDocument(fn: (doc: InkDocument) => void | (() => void)): void
   /**
