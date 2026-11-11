@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.12.0](https://github.com/inkbar/inkbar/compare/v0.11.0...v0.12.0) (2026-11-11)
+
+
+### Features
+
+* add a handbook document to the sandbox ([#328](https://github.com/inkbar/inkbar/issues/328)) ([7f0184a](https://github.com/inkbar/inkbar/commit/7f0184a388d19bee1a4239eef269dc5a915acb09))
+* add a resize handle to the vanilla sidebar ([#338](https://github.com/inkbar/inkbar/issues/338)) ([0b52f36](https://github.com/inkbar/inkbar/commit/0b52f3621abc8d526afe324cf8b86cdd2d43e3f2))
+* add a storage API for what the viewer keeps between visits ([#334](https://github.com/inkbar/inkbar/issues/334)) ([e00b426](https://github.com/inkbar/inkbar/commit/e00b42619b92640d767f2fb74c302a8c13ee6853))
+* add an outline and links scenario to the sandbox ([#329](https://github.com/inkbar/inkbar/issues/329)) ([e7a9cf4](https://github.com/inkbar/inkbar/commit/e7a9cf468f9e767759734e6c16571c0a6592e0ca))
+* add InkOutline, InkBack and InkForward to React ([#325](https://github.com/inkbar/inkbar/issues/325)) ([ba1e26f](https://github.com/inkbar/inkbar/commit/ba1e26f3272128849430e2417a09bdad8bf67e70))
+* add InkOutline, InkBack and InkForward to Svelte ([#326](https://github.com/inkbar/inkbar/issues/326)) ([bfe1dfa](https://github.com/inkbar/inkbar/commit/bfe1dfa8d7afa4082098ff96ff67ca043b70b6b0))
+* add InkOutline, InkBack and InkForward to Vue ([#324](https://github.com/inkbar/inkbar/issues/324)) ([6c987db](https://github.com/inkbar/inkbar/commit/6c987db39fb8279e4c43957bdc35bff50865a59b))
+* draw links on the page for keyboard and screen readers ([#321](https://github.com/inkbar/inkbar/issues/321)) ([2d48452](https://github.com/inkbar/inkbar/commit/2d4845228dd3f27d4bdd3765856c9ac4549adf92))
+* follow links with a click or tap ([#322](https://github.com/inkbar/inkbar/issues/322)) ([4385c61](https://github.com/inkbar/inkbar/commit/4385c6110b860872f80db9d441edfd4125ce7544))
+* give sidebars a width that can be dragged and saved ([#337](https://github.com/inkbar/inkbar/issues/337)) ([2ac1e36](https://github.com/inkbar/inkbar/commit/2ac1e363ff0cdb88df32436861fc5ed34eaa21ec))
+* go back and forward through jumps in the document ([#318](https://github.com/inkbar/inkbar/issues/318)) ([372d033](https://github.com/inkbar/inkbar/commit/372d0333760cd679631fbbfd6d94257faa5cc5f9))
+* keep sandbox settings between visits ([#343](https://github.com/inkbar/inkbar/issues/343)) ([546f88a](https://github.com/inkbar/inkbar/commit/546f88aa8de1784758c17328857f3c90d45f247e))
+* keep signatures in the viewer's storage ([#335](https://github.com/inkbar/inkbar/issues/335)) ([0628d80](https://github.com/inkbar/inkbar/commit/0628d8042ba1ad3b692064deffa9c43546b105b4))
+* let plugins keep settings in the viewer's storage ([#336](https://github.com/inkbar/inkbar/issues/336)) ([59b3aaa](https://github.com/inkbar/inkbar/commit/59b3aaaade6820561c0765e4f3f06a3788b8acd4))
+* read link annotations into the document ([#320](https://github.com/inkbar/inkbar/issues/320)) ([72b8842](https://github.com/inkbar/inkbar/commit/72b88427ee0d5a197ca188aed165ec1928396543))
+* rename onFormAction to onAction ([#319](https://github.com/inkbar/inkbar/issues/319)) ([69d318c](https://github.com/inkbar/inkbar/commit/69d318c80ff0ed7e8766233a1181ca18ab723ed0))
+* resize sidebars and pass storage in React ([#340](https://github.com/inkbar/inkbar/issues/340)) ([b8709b3](https://github.com/inkbar/inkbar/commit/b8709b3f66262ffe3efde85900fec3a2287ac738))
+* resize sidebars and pass storage in Svelte ([#341](https://github.com/inkbar/inkbar/issues/341)) ([f22772d](https://github.com/inkbar/inkbar/commit/f22772d0f3572414061bd5fcaf1ff38d9f6ee475))
+* resize sidebars and pass storage in Vue ([#339](https://github.com/inkbar/inkbar/issues/339)) ([7bb479a](https://github.com/inkbar/inkbar/commit/7bb479a5db3ad06efaddbcce87e29edf64710eb2))
+* resolve PDF destinations to a page and position ([#316](https://github.com/inkbar/inkbar/issues/316)) ([9fe6846](https://github.com/inkbar/inkbar/commit/9fe684686a2df33ae37086d1d39886833c4c1577))
+* scroll the viewport to a PDF destination ([#317](https://github.com/inkbar/inkbar/issues/317)) ([496e31a](https://github.com/inkbar/inkbar/commit/496e31accd637a9ac7aeede725d85b1ae27dbbbe))
+* show the document outline ([#323](https://github.com/inkbar/inkbar/issues/323)) ([78d1440](https://github.com/inkbar/inkbar/commit/78d1440c444633af60af62b4ab0cc6eacf400c1c))
+
+
+### Bug Fixes
+
+* open a new document at its first page in Svelte ([#332](https://github.com/inkbar/inkbar/issues/332)) ([37d7a54](https://github.com/inkbar/inkbar/commit/37d7a54284a57f3ad2d36ce8d39bbd31bebe86aa))
+* tidy links, hover and outline after review ([#330](https://github.com/inkbar/inkbar/issues/330)) ([b92db4f](https://github.com/inkbar/inkbar/commit/b92db4f499b61b4e13aff679280d14688e466339))
+* tidy sidebar resizing after review ([#344](https://github.com/inkbar/inkbar/issues/344)) ([8a708fc](https://github.com/inkbar/inkbar/commit/8a708fc3aeed70fbf23c0df4498d519d3a2691f7))
+
 ## [0.11.0](https://github.com/inkbar/inkbar/compare/v0.10.0...v0.11.0) (2026-11-09)
 
 
