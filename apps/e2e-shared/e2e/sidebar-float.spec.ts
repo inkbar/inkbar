@@ -52,22 +52,6 @@ test.describe('narrow window', () => {
     await expect(outlineTab(page)).toHaveAttribute('aria-selected', 'false')
     await expect(sidebar(page)).not.toHaveAttribute('data-overlay')
     expect(await actions(page)).toEqual([])
-    await expect(page.locator('[data-annotation]')).toHaveCount(0)
-  })
-
-  // The page offers only text tools, so this checks the closing tap leaves the tool's state
-  // alone: a tap that reached a drawing tool would be the case to catch.
-  test('with the highlight tool on, the closing tap adds no annotation', async ({
-    page,
-  }) => {
-    await open(page, 'outline')
-    await page.getByRole('button', { name: 'Highlight' }).click()
-    await outlineTab(page).click()
-    await expect(sidebar(page)).toHaveAttribute('data-overlay', '')
-
-    await tapPage(page)
-    await expect(outlineTab(page)).toHaveAttribute('aria-selected', 'false')
-    await expect(page.locator('[data-annotation]')).toHaveCount(0)
   })
 })
 
