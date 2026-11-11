@@ -127,7 +127,13 @@ function onActivate(id: string): void {
       </div>
     </InkToolbar>
     <div class="scenario-body">
-      <InkSidebar v-model:open="pagesOpen" side="left" layout="rail" :default-width="240">
+      <InkSidebar
+        v-model:open="pagesOpen"
+        name="redactions-left"
+        side="left"
+        layout="rail"
+        :default-width="240"
+      >
         <InkPanel id="pages" label="Pages" :icon="Square">
           <InkThumbnails />
         </InkPanel>

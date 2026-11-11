@@ -125,6 +125,7 @@ export function mount(
   // Thumbnails and search on the left; your own About on the right.
   const left = createSidebar({
     storage,
+    name: 'sidebars-left',
     defaultWidth: 240,
     side: 'left',
     layout: 'rail',
@@ -147,6 +148,7 @@ export function mount(
   }
   const right = createSidebar({
     storage,
+    name: 'sidebars-right',
     defaultWidth: 240,
     side: 'right',
     layout: 'rail',

@@ -78,7 +78,7 @@ export default function Outline({ source, log, onDocument, openFile }: ScenarioP
         </div>
       </InkToolbar>
       <div className="scenario-body">
-        <InkSidebar side="left" defaultOpen="outline">
+        <InkSidebar name="outline" side="left" defaultOpen="outline">
           <InkPanel id="outline" label="Outline" icon={List}>
             <InkOutline />
           </InkPanel>

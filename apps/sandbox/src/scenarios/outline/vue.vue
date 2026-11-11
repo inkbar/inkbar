@@ -86,7 +86,7 @@ function onAction(action: ViewerAction): void {
       </div>
     </InkToolbar>
     <div class="scenario-body">
-      <InkSidebar v-model:open="openPanel" side="left">
+      <InkSidebar v-model:open="openPanel" name="outline" side="left">
         <InkPanel id="outline" label="Outline" :icon="List">
           <InkOutline />
         </InkPanel>
