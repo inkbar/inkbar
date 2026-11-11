@@ -1503,6 +1503,204 @@ async function formGoto() {
   )
 }
 
+interface OutlineItem {
+  title: string
+  /** Explicit destination array, a destination name, or an /A action dictionary. */
+  to: unknown
+  flags?: number
+  children?: OutlineItem[]
+  /** Collapsed in the viewer: written as a negative /Count. */
+  closed?: boolean
+}
+
+/** Registers `items` as one level of an outline under `parent`, linked by /First, /Last, /Next, /Prev and /Count. */
+function outlineLevel(ctx: PDFContext, parent: PDFRef, items: OutlineItem[]) {
+  const refs = items.map(() => ctx.nextRef())
+  let visible = items.length
+  items.forEach((item, i) => {
+    const dict = ctx.obj({
+      Title: PDFString.of(item.title),
+      Parent: parent,
+      ...(item.flags ? { F: item.flags } : {}),
+    })
+    if (item.to instanceof PDFDict) dict.set(PDFName.of('A'), item.to)
+    else dict.set(PDFName.of('Dest'), ctx.obj(item.to as never))
+    if (i > 0) dict.set(PDFName.of('Prev'), refs[i - 1]!)
+    if (i < items.length - 1) dict.set(PDFName.of('Next'), refs[i + 1]!)
+    if (item.children) {
+      const sub = outlineLevel(ctx, refs[i]!, item.children)
+      dict.set(PDFName.of('First'), sub.first)
+      dict.set(PDFName.of('Last'), sub.last)
+      dict.set(
+        PDFName.of('Count'),
+        PDFNumber.of(item.closed ? -sub.visible : sub.visible)
+      )
+      if (!item.closed) visible += sub.visible
+    }
+    ctx.assign(refs[i]!, dict)
+  })
+  return { first: refs[0]!, last: refs[refs.length - 1]!, visible }
+}
+
+/** A document outline covering every destination type, both name stores, the other actions and item styles. */
+async function outline() {
+  const { d, font } = await doc()
+  const ctx = d.context
+  const pages = Array.from({ length: 6 }, (_, i) => {
+    const page = d.addPage([612, 792])
+    text(page, font, [`Page ${i + 1}`], 740)
+    return page.ref
+  })
+  const [p1, p2, p3, p4, p5] = pages as [PDFRef, PDFRef, PDFRef, PDFRef, PDFRef, PDFRef]
+  const root = ctx.nextRef()
+  const catalogRef = ctx.trailerInfo.Root as PDFRef
+  const top = outlineLevel(ctx, root, [
+    { title: 'Cover', to: [p1, 'XYZ', null, 700, null] },
+    {
+      title: 'Part One',
+      to: [p2, 'Fit'],
+      flags: 2,
+      closed: true,
+      children: [
+        { title: 'Chapter 1', to: [p2, 'FitH', 600] },
+        { title: 'Chapter 2', to: PDFString.of('chapter-2') },
+      ],
+    },
+    {
+      title: 'Part Two',
+      to: [p3, 'FitV', 144],
+      children: [
+        { title: 'Section A', to: [p4, 'FitR', 72, 100, 300, 400] },
+        { title: 'Section B', to: [p4, 'FitB'], flags: 1 },
+      ],
+    },
+    { title: 'Appendix', to: PDFName.of('appendix') },
+    {
+      title: 'Website',
+      to: ctx.obj({ S: 'URI', URI: PDFString.of('https://example.com/outline') }),
+    },
+    { title: 'Next page', to: ctx.obj({ S: 'Named', N: 'NextPage' }) },
+    { title: 'Broken', to: [catalogRef, 'Fit'] },
+  ])
+  ctx.assign(
+    root,
+    ctx.obj({ Type: 'Outlines', First: top.first, Last: top.last, Count: top.visible })
+  )
+  d.catalog.set(PDFName.of('Outlines'), root)
+  d.catalog.set(
+    PDFName.of('Names'),
+    ctx.obj({ Dests: { Names: [PDFString.of('chapter-2'), [p2, 'XYZ', 72, 500, null]] } })
+  )
+  d.catalog.set(PDFName.of('Dests'), ctx.obj({ appendix: [p5, 'Fit'] }))
+  await save('outline', d, {
+    pages: 6,
+    opens: true,
+    describes:
+      'Six pages with an outline. Destinations are 0-based; null left or top is undefined. ' +
+      'Tree: Cover (page 0 xyz top 700, left and zoom null); ' +
+      'Part One (bold, closed with /Count -2, page 1 fit) > Chapter 1 (page 1 fith top 600), ' +
+      'Chapter 2 (name chapter-2 in /Names /Dests: page 1 xyz left 72 top 500, zoom null); ' +
+      'Part Two (open, page 2 fitv left 144) > Section A (page 3 fitr x 72 y 100 width 228 height 300), ' +
+      'Section B (italic, page 3 fitb); ' +
+      'Appendix (name appendix in catalog /Dests: page 4 fit); ' +
+      'Website (URI https://example.com/outline); ' +
+      'Next page (Named NextPage); ' +
+      'Broken (destination to the catalog, not a page: no destination)',
+  })
+}
+
+/** Link annotations of every target kind, each over drawn text, the last on a /Rotate 90 page. */
+async function links() {
+  const { d, font } = await doc()
+  const ctx = d.context
+  const p1 = d.addPage([612, 792])
+  const p2 = d.addPage([612, 792])
+  const p3 = d.addPage([612, 792])
+  p3.setRotation(degrees(90))
+  text(p1, font, ['Links'], 740)
+  text(p2, font, ['Page 2'], 740)
+  text(p3, font, ['Page 3'], 740)
+  const pad = 4
+  const size = 14
+  /** Draws `label` with its baseline at `y` and returns the rect that covers it. */
+  const over = (page: PDFPage, label: string, y: number) => {
+    text(page, font, [label], y)
+    const w = Math.ceil(font.widthOfTextAtSize(label, size))
+    return { rect: [72 - pad, y - pad, 72 + w + pad, y + size] as const, w }
+  }
+  const link = (
+    page: PDFPage,
+    label: string,
+    y: number,
+    extra: Record<string, unknown>
+  ) => {
+    const { rect } = over(page, label, y)
+    return {
+      ref: annot(ctx, { Subtype: 'Link', Rect: [...rect], Border: [0, 0, 0], ...extra }),
+      rect,
+    }
+  }
+  const uri = (u: string) => ({ A: { S: 'URI', URI: PDFString.of(u) } })
+  const made = [
+    link(p1, 'Chapter 2', 700, { Dest: [p2.ref, 'XYZ', 72, 600, null] }),
+    link(p1, 'Chapter 3', 670, { Dest: PDFString.of('chapter-3') }),
+    link(p1, 'Example A', 640, uri('https://example.com/a')),
+    link(p1, 'Run script', 610, uri('javascript:alert(1)')),
+    link(p1, 'Next page', 580, { A: { S: 'Named', N: 'NextPage' } }),
+    link(p1, 'Other file', 550, {
+      A: { S: 'GoToR', F: PDFString.of('other.pdf'), D: [0, 'Fit'] },
+    }),
+    link(p1, 'Launch tool', 520, { A: { S: 'Launch', F: PDFString.of('tool.exe') } }),
+  ]
+  // One link wrapped over two lines: the rect is their union, /QuadPoints one quad per line.
+  const first = over(p1, 'Wrapped link', 490)
+  const second = over(p1, 'over two lines', 466)
+  const quad = (r: readonly number[]) => [r[0], r[3], r[2], r[3], r[0], r[1], r[2], r[1]]
+  const wrapped = [
+    first.rect[0],
+    second.rect[1],
+    Math.max(first.rect[2], second.rect[2]),
+    first.rect[3],
+  ]
+  const wrappedRef = annot(ctx, {
+    Subtype: 'Link',
+    Rect: wrapped,
+    Border: [0, 0, 0],
+    QuadPoints: [...quad(first.rect), ...quad(second.rect)],
+    ...uri('https://example.com/wrapped'),
+  })
+  const rotated = link(p3, 'Back to start', 700, { Dest: [p1.ref, 'Fit'] })
+  setAnnots(p1, [...made.map((m) => m.ref), wrappedRef])
+  setAnnots(p3, [rotated.ref])
+  d.catalog.set(
+    PDFName.of('Names'),
+    ctx.obj({ Dests: { Names: [PDFString.of('chapter-3'), [p3.ref, 'Fit']] } })
+  )
+  const r = (rect: readonly number[]) => `[${rect.join(', ')}]`
+  const targets = [
+    'explicit xyz to page 1 (left 72, top 600, zoom null)',
+    'name chapter-3 to page 2 (fit)',
+    'URI https://example.com/a',
+    'URI javascript:alert(1)',
+    'Named NextPage',
+    'GoToR other.pdf',
+    'Launch tool.exe',
+  ]
+  const lines = [
+    ...made.map((m, i) => `${r(m.rect)} ${targets[i]}`),
+    `${r(wrapped)} URI https://example.com/wrapped, /QuadPoints one quad per line: ${r(first.rect)} and ${r(second.rect)}`,
+  ]
+  await save('links', d, {
+    pages: 3,
+    opens: true,
+    describes:
+      'Link annotations over drawn text, rects as [x1, y1, x2, y2] in user space, pages 0-based. ' +
+      `Page 0: ${lines.join('; ')}. ` +
+      `Page 2 (/Rotate 90): ${r(rotated.rect)} explicit fit to page 0`,
+    annotations: { Link: 9 },
+  })
+}
+
 /** A field whose validator, `AFRange_Validate`, refuses an out-of-range value with an alert. */
 async function formRange() {
   const { d, font } = await doc()
@@ -1808,6 +2006,8 @@ async function main() {
   await formSharedScripted()
   await formBareAppearances()
   await formGoto()
+  await outline()
+  await links()
   await formRange()
   await formStructure()
   await incrementalSaved()
