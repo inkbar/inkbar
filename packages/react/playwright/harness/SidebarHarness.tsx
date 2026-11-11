@@ -1,12 +1,20 @@
-/* A sidebar of three panels, with no viewer. The Search panel holds a field and can be removed. */
+/*
+ * A sidebar of three panels. The Search panel holds a field and can be removed. With `stored`,
+ * the sidebar keeps its width in a store the page shows; with `inRoot`, that store is InkRoot's
+ * and the sidebar inherits it. The store outlives a remount.
+ */
 import { MessageSquare, Search, Square } from '@inkbar/icons'
-import { StrictMode, useEffect, useRef, useState } from 'react'
+import { StrictMode, useEffect, useRef, useState, type ReactNode } from 'react'
 import { createRoot, hydrateRoot } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
 
 import { InkPanel } from '../../src/components/InkPanel'
+import { InkRoot } from '../../src/components/InkRoot'
 import { InkSidebar } from '../../src/components/InkSidebar'
 
+import { SignatureStorageProbe } from './SignatureStorageProbe'
+
+import type { InkStorage, PdfAssets } from '@inkbar/core'
 import type { SidebarLayout, SidebarOpen, SidebarSide } from '@inkbar/core/dom'
 
 export interface SidebarHarnessProps {
@@ -16,9 +24,48 @@ export interface SidebarHarnessProps {
   open?: SidebarOpen | undefined
   /** Uncontrolled, starting at this. */
   defaultOpen?: SidebarOpen | undefined
+  /** Controls `width` from state starting at this; leave it out for an uncontrolled width. */
+  width?: number | undefined
+  /** The store's starting values. Leave it out for a sidebar with no store. */
+  stored?: Record<string, unknown> | undefined
+  /** Put the sidebar in an InkRoot that owns the store; needs `assets`. */
+  inRoot?: boolean | undefined
+  assets?: PdfAssets | undefined
+  /** Keep the store from the sidebar, as a server without it would. */
+  withoutStore?: boolean | undefined
 }
 
-export function SidebarHarness({ layout, side, open, defaultOpen }: SidebarHarnessProps) {
+export function SidebarHarness({
+  layout,
+  side,
+  open,
+  defaultOpen,
+  width,
+  stored,
+  inRoot,
+  assets,
+  withoutStore,
+}: SidebarHarnessProps) {
+  const [widthControlled] = useState(width !== undefined)
+  const [widthValue, setWidthValue] = useState<number | undefined>(width)
+  const [shown, setShown] = useState(true)
+  /** A store whose contents the page shows. */
+  const [saved, setSaved] = useState<Record<string, unknown>>({ ...stored })
+  const [storage] = useState<InkStorage>(() => {
+    let data: Record<string, unknown> = { ...stored }
+    return {
+      get: (key) => data[key],
+      set(key, value) {
+        data = { ...data, [key]: value }
+        setSaved(data)
+      },
+      remove(key) {
+        data = { ...data }
+        delete data[key]
+        setSaved(data)
+      },
+    }
+  })
   const [controlled] = useState(open !== undefined)
   const [value, setValue] = useState<SidebarOpen | undefined>(open)
   /** Every value `onOpenChange` reported, in order. */
@@ -59,34 +106,68 @@ export function SidebarHarness({ layout, side, open, defaultOpen }: SidebarHarne
       </button>
       <output data-testid="open">{JSON.stringify(value ?? null)}</output>
       <output data-testid="changes">{JSON.stringify(changes)}</output>
-      <div style={{ display: 'flex', height: 400 }}>
-        <InkSidebar
-          {...(controlled ? { open: value ?? null } : { defaultOpen })}
-          onOpenChange={onOpenChange}
-          layout={layout}
-          side={side}
-          data-testid="sidebar"
-        >
-          <InkPanel id="pages" label="Pages" icon={Square}>
-            <p>Pages content</p>
-          </InkPanel>
-          {withSearch ? (
-            <InkPanel
-              key={searchKey}
-              id="search"
-              label="Search"
-              icon={Search}
-              badge={badge}
+      <button type="button" data-testid="remount" onClick={() => setShown((v) => !v)}>
+        Remount
+      </button>
+      <output data-testid="width">{JSON.stringify(widthValue ?? null)}</output>
+      <output data-testid="stored">{JSON.stringify(saved)}</output>
+      <Frame inRoot={inRoot} assets={assets} storage={storage}>
+        {inRoot ? <SignatureStorageProbe /> : null}
+        <div style={{ display: 'flex', height: 400 }}>
+          {shown ? (
+            <InkSidebar
+              {...(controlled ? { open: value ?? null } : { defaultOpen })}
+              onOpenChange={onOpenChange}
+              {...(widthControlled
+                ? { width: widthValue, onWidthChange: setWidthValue }
+                : {})}
+              {...(stored && !inRoot && !withoutStore ? { storage } : {})}
+              layout={layout}
+              side={side}
+              data-testid="sidebar"
             >
-              <input aria-label="Query" />
-            </InkPanel>
+              <InkPanel id="pages" label="Pages" icon={Square}>
+                <p>Pages content</p>
+              </InkPanel>
+              {withSearch ? (
+                <InkPanel
+                  key={searchKey}
+                  id="search"
+                  label="Search"
+                  icon={Search}
+                  badge={badge}
+                >
+                  <input aria-label="Query" />
+                </InkPanel>
+              ) : null}
+              <InkPanel id="notes" label="Notes" icon={MessageSquare}>
+                <p>Notes content</p>
+              </InkPanel>
+            </InkSidebar>
           ) : null}
-          <InkPanel id="notes" label="Notes" icon={MessageSquare}>
-            <p>Notes content</p>
-          </InkPanel>
-        </InkSidebar>
-      </div>
+        </div>
+      </Frame>
     </>
+  )
+}
+
+function Frame({
+  inRoot,
+  assets,
+  storage,
+  children,
+}: {
+  inRoot: boolean | undefined
+  assets: PdfAssets | undefined
+  storage: InkStorage
+  children: ReactNode
+}) {
+  return inRoot ? (
+    <InkRoot src={null} assets={assets!} storage={storage}>
+      {children}
+    </InkRoot>
+  ) : (
+    <div>{children}</div>
   )
 }
 
@@ -121,17 +202,35 @@ export function StrictSidebarHarness(props: SidebarHarnessProps) {
  */
 export function HydratedSidebarHarness(props: SidebarHarnessProps) {
   const el = useRef<HTMLDivElement>(null)
-  const { layout, side, open, defaultOpen } = props
+  const { layout, side, open, defaultOpen, stored } = props
   const [serverHtml, setServerHtml] = useState('')
   useEffect(() => {
     const tree = (
-      <SidebarHarness layout={layout} side={side} open={open} defaultOpen={defaultOpen} />
+      <SidebarHarness
+        layout={layout}
+        side={side}
+        open={open}
+        defaultOpen={defaultOpen}
+        stored={stored}
+      />
     )
     const host = el.current!
-    host.innerHTML = renderToString(tree)
+    // The server has no store of its own: the client's gives another width after hydration.
+    host.innerHTML = renderToString(
+      <SidebarHarness
+        layout={layout}
+        side={side}
+        open={open}
+        defaultOpen={defaultOpen}
+        stored={stored}
+        withoutStore
+      />
+    )
     setServerHtml(host.innerHTML)
     const root = hydrateRoot(host, tree)
     return () => root.unmount()
+    // `stored` is a literal that changes identity each render; its content is fixed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout, side, open, defaultOpen])
   return (
     <>

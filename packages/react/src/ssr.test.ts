@@ -169,6 +169,45 @@ describe('@inkbar/react on the server', () => {
     expect(html).toMatch(/<button[^>]*data-ink-forward[^>]*disabled/)
   })
 
+  it('InkSidebar renders the default width and a handle on the server', async () => {
+    const { createMemoryStorage } = await import('@inkbar/core')
+    const sidebar = (props: Record<string, unknown>) =>
+      createElement(
+        entry.InkSidebar,
+        props,
+        createElement(entry.InkPanel, { id: 'pages', label: 'Pages' }, 'A')
+      )
+    const html = renderToString(
+      createElement(
+        entry.InkRoot,
+        { src: '/doc.pdf', assets },
+        sidebar({ layout: 'rail' })
+      )
+    )
+    const rootTag = /<div class="ink-sidebar"[^>]*>/.exec(html)?.[0] ?? ''
+    expect(rootTag).toContain('--ink-sidebar-width:320px')
+    const handle = /<div class="ink-sidebar-handle"[^>]*>/.exec(html)?.[0] ?? ''
+    expect(handle).toContain('role="separator"')
+    expect(handle).toContain('aria-label="Resize sidebar"')
+    expect(handle).toContain('aria-valuenow="320"')
+    expect(handle).not.toMatch(/\shidden/)
+    // The handle names the panels element.
+    const id = /aria-controls="([^"]+)"/.exec(handle)?.[1]
+    expect(id).toBeTruthy()
+    expect(html).toMatch(
+      new RegExp(
+        `class="ink-sidebar-panels"[^>]*id="${id}"|id="${id}"[^>]*class="ink-sidebar-panels"`
+      )
+    )
+
+    // A store that answers at once shows its width on the server too; the prop wins over it.
+    const storage = createMemoryStorage({ 'sidebar.left.width': 400 })
+    expect(renderToString(sidebar({ storage }))).toContain('--ink-sidebar-width:400px')
+    expect(renderToString(sidebar({ storage, width: 280 }))).toContain(
+      '--ink-sidebar-width:280px'
+    )
+  })
+
   it('InkSidebar renders its chrome on the server; thumbnails render empty', async () => {
     const { Search, Square } = await import('@inkbar/icons')
     const sidebar = (layout: 'rail' | 'tabs' | 'stack') =>

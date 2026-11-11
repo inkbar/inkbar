@@ -1,4 +1,5 @@
 import { AxeBuilder } from '@axe-core/playwright'
+import { browserAssets } from '@inkbar/fixtures/urls'
 import { expect, test } from '@playwright/experimental-ct-react'
 
 import { guardConsole } from '../../playwright/console-guard'
@@ -340,4 +341,153 @@ test('server markup hydrates without a mismatch (controlled)', async ({
   await expect(page.getByRole('textbox', { name: 'Query' })).toBeVisible()
   await expect(page.getByRole('tab')).toHaveCount(3)
   await expect(page.getByTestId('changes')).toHaveText('[]')
+})
+
+const handle = (page: Page) => page.getByRole('separator', { name: 'Resize sidebar' })
+/** The width the root's style gives the theme. */
+const styleWidth = (page: Page) =>
+  page
+    .getByTestId('sidebar')
+    .evaluate((el) => (el as HTMLElement).style.getPropertyValue('--ink-sidebar-width'))
+const boxWidth = (page: Page) =>
+  page.getByTestId('sidebar').evaluate((el) => el.getBoundingClientRect().width)
+
+/** Drags the handle `dx` CSS px with the mouse. */
+async function drag(page: Page, dx: number): Promise<void> {
+  const box = (await handle(page).boundingBox())!
+  const x = box.x + box.width / 2
+  const y = box.y + box.height / 2
+  await page.mouse.move(x, y)
+  await page.mouse.down()
+  await page.mouse.move(x + dx / 2, y)
+  await page.mouse.move(x + dx, y)
+  await page.mouse.up()
+}
+
+test('drag widens and remounting with the same storage keeps it', async ({
+  mount,
+  page,
+}) => {
+  await mount(<Harness layout="rail" stored={{}} />)
+  // The handle is the root's last child and names the panels it resizes.
+  const last = page.getByTestId('sidebar').locator(':scope > :last-child')
+  await expect(last).toHaveClass(/ink-sidebar-handle/)
+  await expect(last).toHaveAttribute('role', 'separator')
+  const panelsId = await page
+    .getByTestId('sidebar')
+    .locator('.ink-sidebar-panels')
+    .getAttribute('id')
+  expect(panelsId).toBeTruthy()
+  await expect(handle(page)).toHaveAttribute('aria-controls', panelsId!)
+  await expect(handle(page)).toHaveAttribute('aria-valuenow', '320')
+  expect(await styleWidth(page)).toBe('320px')
+  const before = await boxWidth(page)
+
+  await drag(page, 80)
+  await expect(handle(page)).toHaveAttribute('aria-valuenow', '400')
+  expect(await styleWidth(page)).toBe('400px')
+  // The theme lays it out at the new width.
+  expect(await boxWidth(page)).toBe(before + 80)
+  await expect(page.getByTestId('stored')).toHaveText('{"sidebar.left.width":400}')
+
+  await page.getByTestId('remount').click()
+  await expect(page.getByTestId('sidebar')).toHaveCount(0)
+  await page.getByTestId('remount').click()
+  await expect(handle(page)).toHaveAttribute('aria-valuenow', '400')
+  expect(await styleWidth(page)).toBe('400px')
+
+  const results = await new AxeBuilder({ page })
+    .include('[data-testid=sidebar]')
+    .analyze()
+  expect(results.violations.map((v) => v.id)).toEqual([])
+})
+
+test('keyboard resizes', async ({ mount, page }) => {
+  await mount(<Harness layout="tabs" side="right" stored={{}} />)
+  await handle(page).focus()
+  // On a right sidebar, ArrowLeft is wider.
+  await page.keyboard.press('ArrowLeft')
+  await expect(handle(page)).toHaveAttribute('aria-valuenow', '336')
+  expect(await styleWidth(page)).toBe('336px')
+  await expect(page.getByTestId('stored')).toHaveText('{"sidebar.right.width":336}')
+  await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('ArrowRight')
+  await expect(handle(page)).toHaveAttribute('aria-valuenow', '304')
+  await page.keyboard.press('End')
+  await expect(handle(page)).toHaveAttribute('aria-valuenow', '480')
+  await page.keyboard.press('Home')
+  await expect(handle(page)).toHaveAttribute('aria-valuenow', '240')
+  expect(await styleWidth(page)).toBe('240px')
+  // Enter resets and forgets the saved width.
+  await page.keyboard.press('Enter')
+  await expect(handle(page)).toHaveAttribute('aria-valuenow', '320')
+  await expect(page.getByTestId('stored')).toHaveText('{}')
+})
+
+test('width with onWidthChange is controlled and storage untouched', async ({
+  mount,
+  page,
+}) => {
+  await mount(
+    <Harness layout="rail" width={300} stored={{ 'sidebar.left.width': 450 }} />
+  )
+  // The prop wins over the saved width.
+  await expect(handle(page)).toHaveAttribute('aria-valuenow', '300')
+  expect(await styleWidth(page)).toBe('300px')
+  await drag(page, 60)
+  await expect(page.getByTestId('width')).toHaveText('360')
+  await expect(handle(page)).toHaveAttribute('aria-valuenow', '360')
+  expect(await styleWidth(page)).toBe('360px')
+  await handle(page).focus()
+  await page.keyboard.press('ArrowRight')
+  await expect(page.getByTestId('width')).toHaveText('376')
+  await expect(page.getByTestId('stored')).toHaveText('{"sidebar.left.width":450}')
+})
+
+test('InkSidebar inside InkRoot uses the root storage', async ({ mount, page }) => {
+  await mount(
+    <Harness
+      layout="rail"
+      inRoot
+      assets={browserAssets()}
+      stored={{ 'sidebar.left.width': 360 }}
+    />
+  )
+  await expect(handle(page)).toHaveAttribute('aria-valuenow', '360')
+  expect(await styleWidth(page)).toBe('360px')
+  await handle(page).focus()
+  await page.keyboard.press('ArrowRight')
+  await expect(page.getByTestId('stored')).toHaveText('{"sidebar.left.width":376}')
+})
+
+test('InkRoot signatures go through storage', async ({ mount, page }) => {
+  const template = {
+    id: 'kept',
+    kind: 'image',
+    imagedata: 'data:image/png;base64,AA==',
+    aspect: 2,
+  }
+  await mount(
+    <Harness inRoot assets={browserAssets()} stored={{ signatures: [template] }} />
+  )
+  await expect(page.getByTestId('signatures')).toHaveText('1')
+  await page.getByTestId('save-signature').click()
+  await expect(page.getByTestId('signatures')).toHaveText('2')
+  const stored = JSON.parse((await page.getByTestId('stored').textContent())!) as {
+    signatures: { id: string }[]
+  }
+  expect(stored.signatures.map((t) => t.id)).toEqual(['kept', 'added'])
+})
+
+test('hydration shows the width the client storage holds', async ({ mount, page }) => {
+  await mount(
+    <HydratedSidebarHarness layout="rail" stored={{ 'sidebar.left.width': 400 }} />
+  )
+  // The server had no store: its markup is at the default width.
+  await expect(page.getByTestId('server-html')).toHaveAttribute(
+    'data-html',
+    /--ink-sidebar-width:\s?320px/
+  )
+  await expect(handle(page)).toHaveAttribute('aria-valuenow', '400')
+  expect(await styleWidth(page)).toBe('400px')
 })

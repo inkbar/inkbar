@@ -1,6 +1,7 @@
 import {
-  createMemorySignatureStore,
+  createMemoryStorage,
   createSignatureLibrary,
+  createStorageSignatureStore,
   createSnapshotHistory,
   InkError,
   openDocument,
@@ -57,6 +58,7 @@ import type {
   FieldValues,
   ViewerAction,
   InkDocument,
+  InkStorage,
   PdfAssets,
   PluginHistory,
   SignatureStore,
@@ -151,9 +153,16 @@ export interface InkRootProps extends Omit<
    */
   fonts?: string[] | undefined
   /**
-   * Where saved signatures live. Default: memory, gone on reload. `createLocalSignatureStore`
-   * keeps them in the browser; a host can keep them anywhere. A new store takes effect at
-   * once, for the menus and the `signature` tool alike.
+   * Where the viewer keeps what lasts between visits: saved signatures, each `InkSidebar`'s
+   * width and the plugins' settings. Default: memory, gone on reload. `createLocalStorage`
+   * keeps them in the browser; a host can keep them anywhere. Read once, when the root is
+   * created.
+   */
+  storage?: InkStorage | undefined
+  /**
+   * Where saved signatures live, in place of `storage`. A new store takes effect at once, for
+   * the menus and the `signature` tool alike.
+   * @deprecated Pass `storage`; signatures are kept in it under `signatures`. Removed in 0.13.0.
    */
   signatures?: SignatureStore | undefined
   /** The handwriting fonts a typed signature offers; the host loads them. */
@@ -243,6 +252,7 @@ export function InkRoot({
   plugins: pluginsProp,
   decorateAnnotation,
   fonts: fontsProp,
+  storage: storageProp,
   signatures: signatureStore,
   signatureFonts: signatureFontsProp,
   page,
@@ -387,6 +397,8 @@ export function InkRoot({
    * Layout effects run before the passive effect that opens the document, so the first
    * document opens with the plugins' stores and reactions.
    */
+  // Read once: the sidebars and the plugins load from it as they are created.
+  const [storage] = useState(() => storageProp ?? createMemoryStorage())
   const hostRef = useRef<RootHost | null>(null)
   const [pluginHost, setPluginHost] = useState<PluginHost | null>(null)
   const [search, setSearch] = useState<SearchController | null>(null)
@@ -414,6 +426,7 @@ export function InkRoot({
         decorate: () => latest.current.decorateAnnotation,
         viewport: () => viewportRef.current,
         search: viewerSearchOf(search),
+        storage,
       })
       hostRef.current = { host, search, destroyed: false }
       setPluginHost(host)
@@ -774,9 +787,11 @@ export function InkRoot({
     () => signatureFontsProp ?? SIGNATURE_FONTS,
     [signatureFontsProp]
   )
+  const [storageSignatures] = useState(() => createStorageSignatureStore(storage))
+  // The deprecated `signatures` wins when both are given.
   const signatures = useMemo(
-    () => createSignatureLibrary(signatureStore ?? createMemorySignatureStore()),
-    [signatureStore]
+    () => createSignatureLibrary(signatureStore ?? storageSignatures),
+    [signatureStore, storageSignatures]
   )
   useEffect(() => {
     void signatures.refresh()
@@ -830,6 +845,7 @@ export function InkRoot({
       onDecorateAnnotationChange,
       fonts,
       toolOptions,
+      storage,
       signatures,
       signatureFonts,
       toolStyle: styleTracker?.toolStyle ?? null,
@@ -866,6 +882,7 @@ export function InkRoot({
       onDecorateAnnotationChange,
       fonts,
       toolOptions,
+      storage,
       signatures,
       signatureFonts,
       styleTracker,
