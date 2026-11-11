@@ -51,4 +51,5 @@ export const ICONS = [
   'Download',
   'ArrowLeft',
   'ArrowRight',
+  'List',
 ] as const

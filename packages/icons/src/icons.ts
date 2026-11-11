@@ -343,3 +343,12 @@ export const ArrowRight: IconNode = [
   ['path', { d: 'M5 12h14' }],
   ['path', { d: 'm12 5 7 7-7 7' }],
 ]
+
+export const List: IconNode = [
+  ['path', { d: 'M3 5h.01' }],
+  ['path', { d: 'M3 12h.01' }],
+  ['path', { d: 'M3 19h.01' }],
+  ['path', { d: 'M8 5h13' }],
+  ['path', { d: 'M8 12h13' }],
+  ['path', { d: 'M8 19h13' }],
+]
