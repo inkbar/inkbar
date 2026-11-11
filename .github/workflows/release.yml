@@ -46,9 +46,9 @@ jobs:
               exit 1
             fi
           done
-      - run: sudo apt-get update && sudo apt-get install -y qpdf
+      - uses: ./.github/actions/setup-qpdf
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @inkbar/core exec playwright install --with-deps chromium
+      - run: pnpm --filter @inkbar/core exec playwright install chromium
       - run: pnpm build
       - run: pnpm test
       # pnpm replaces `workspace:*` with the released version at publish time

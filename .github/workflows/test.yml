@@ -23,7 +23,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
-      - run: sudo apt-get update && sudo apt-get install -y qpdf
+      - uses: ./.github/actions/setup-qpdf
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
       - run: pnpm lint
@@ -47,9 +47,9 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
-      - run: sudo apt-get update && sudo apt-get install -y qpdf
+      - uses: ./.github/actions/setup-qpdf
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @inkbar/core exec playwright install --with-deps chromium
+      - run: pnpm --filter @inkbar/core exec playwright install chromium
       - run: pnpm exec turbo run test:browser --filter=@inkbar/${{ matrix.package }}
       - if: failure()
         uses: actions/upload-artifact@v4
