@@ -333,3 +333,13 @@ export const Download: IconNode = [
   ['path', { d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' }],
   ['path', { d: 'm7 10 5 5 5-5' }],
 ]
+
+export const ArrowLeft: IconNode = [
+  ['path', { d: 'm12 19-7-7 7-7' }],
+  ['path', { d: 'M19 12H5' }],
+]
+
+export const ArrowRight: IconNode = [
+  ['path', { d: 'M5 12h14' }],
+  ['path', { d: 'm12 5 7 7-7 7' }],
+]

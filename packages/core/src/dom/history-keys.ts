@@ -58,9 +58,9 @@ export function attachHistoryKeys(
 }
 
 /**
- * Keeps focus in the viewer when a focused Undo or Redo button inside `el` turns disabled
- * (it undid or redid the last step), which would otherwise drop focus to `<body>`, out of
- * reach of the undo and redo keys. Focus moves to `scroll()`, the viewer's scroll element,
+ * Keeps focus in the viewer when a focused Undo, Redo, Back or Forward button inside `el` turns
+ * disabled (it undid, redid or went back over the last step), which would otherwise drop focus
+ * to `<body>`, out of reach of the viewer's keys. Focus moves to `scroll()`, the viewer's scroll element,
  * without scrolling. Returns a function that removes the listeners.
  *
  * Chrome and Firefox blur the button as it is disabled: its `focusout` comes while the
@@ -75,7 +75,7 @@ export function keepHistoryFocus(
   const isHistoryButton = (node: unknown): node is HTMLButtonElement =>
     node instanceof HTMLButtonElement &&
     node.disabled &&
-    node.matches('[data-ink-undo], [data-ink-redo]')
+    node.matches('[data-ink-undo], [data-ink-redo], [data-ink-back], [data-ink-forward]')
   const toScroll = (): void => {
     const target = scroll()
     if (!target?.isConnected) return

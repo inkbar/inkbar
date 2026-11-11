@@ -45,11 +45,13 @@ import { createSignFieldMenu, type SignFieldMenu } from './signature-menu'
 import { createThreadPopover } from './thread-popover'
 
 import type { PluginHistory } from '../../model/annotations/history'
+import type { LinkTarget } from '../../model/destination'
 import type { FormController } from '../../model/form/controller'
 import type { FieldsMode } from '../../model/form/types'
 import type { RecordBase } from '../../model/records'
 import type { DocumentSource } from '../../model/source'
 import type { PdfAssets } from '../../pdfjs/types'
+import type { Navigation } from '../navigation'
 import type { Command, InkPlugin } from '../plugins/define'
 import type { Tool, ToolController } from '../tools'
 import type { Viewport } from '../viewport'
@@ -143,6 +145,23 @@ export interface Viewer {
    * in place, and for the documents opened after it.
    */
   setFormHighlight(on: boolean): void
+  /**
+   * Whether `back()` has somewhere to go: a link, outline item or form button jumped since the
+   * document opened. False while no document is ready.
+   */
+  readonly canGoBack: Readable<boolean>
+  /** Whether `forward()` has somewhere to go. False while no document is ready. */
+  readonly canGoForward: Readable<boolean>
+  /** Returns to where the view was before the last jump. History starts over with each document. */
+  back(): void
+  /** Goes to where the last `back()` left from. */
+  forward(): void
+  /**
+   * Follows a link target as a click on the link would: a destination or Named page action
+   * scrolls (zoom unchanged) and can be gone back from; a URL reaches `onFormAction` as
+   * `open-url` and is never opened by the viewer. Does nothing while no document is ready.
+   */
+  follow(target: LinkTarget): Promise<void>
   /** The plugins' commands by namespaced id (`sandbox.suggest`); place one with `createCommandButton`. */
   readonly commands: { get(id: string): Command | undefined }
   /**
@@ -232,6 +251,10 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   const engine = writable<ViewerEngine | null>(null)
   const viewport = writable<Viewport | null>(null)
   const tools = writable<ToolController | null>(null)
+  /** The open document's history, and whether it can move, following each engine. */
+  const navigation = writable<Navigation | null>(null)
+  const canGoBack = writable(false)
+  const canGoForward = writable(false)
   /** The activated annotation: the note thread opens from it. */
   const activated = writable<string | null>(null)
   let formHighlight = initialHighlight ?? true
@@ -414,7 +437,19 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       },
     })
     engine.set(mounted)
+    const nav = mounted.navigation
+    const stopNav = [
+      nav.canGoBack.subscribe(canGoBack.set),
+      nav.canGoForward.subscribe(canGoForward.set),
+    ]
+    canGoBack.set(nav.canGoBack.get())
+    canGoForward.set(nav.canGoForward.get())
+    navigation.set(nav)
     return () => {
+      for (const s of stopNav) s()
+      navigation.set(null)
+      canGoBack.set(false)
+      canGoForward.set(false)
       stopForm()
       releaseFormErrors = () => undefined
       signFieldMenu?.close()
@@ -527,6 +562,11 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       formHighlight = on
       engine.get()?.setFormHighlight(on)
     },
+    canGoBack: readonly(canGoBack),
+    canGoForward: readonly(canGoForward),
+    back: () => navigation.get()?.back(),
+    forward: () => navigation.get()?.forward(),
+    follow: async (target) => navigation.get()?.follow(target),
     commands: { get: (id) => host.command(id) },
     search: viewerSearch,
     records: (key) => host.records(key),
@@ -548,7 +588,13 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   }
   toolsByViewer.set(viewer, withHostTools([...(view.tools ?? []), ...host.tools]))
   commandIdsByViewer.set(viewer, () => [...host.commands.keys()])
-  internals.set(viewer, { search, host, destroyers, destroyed: () => destroyed })
+  internals.set(viewer, {
+    search,
+    host,
+    navigation: readonly(navigation),
+    destroyers,
+    destroyed: () => destroyed,
+  })
   return viewer
 }
 
@@ -574,6 +620,7 @@ const internals = new WeakMap<
   {
     search: SearchController
     host: PluginHost
+    navigation: Readable<Navigation | null>
     destroyers: (() => void)[]
     destroyed: () => boolean
   }
@@ -591,6 +638,16 @@ export function pluginHostOf(viewer: Viewer): PluginHost {
   const found = internals.get(viewer)
   if (!found) throw new Error('Not a viewer made by createViewer')
   return found.host
+}
+
+/**
+ * @internal The open document's navigation, `null` while none is ready, for controls that jump
+ * (the outline) and so must record history.
+ */
+export function navigationOf(viewer: Viewer): Readable<Navigation | null> {
+  const found = internals.get(viewer)
+  if (!found) throw new Error('Not a viewer made by createViewer')
+  return found.navigation
 }
 
 /**

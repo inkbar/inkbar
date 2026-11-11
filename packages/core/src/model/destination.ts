@@ -30,3 +30,15 @@ const NAMED_ACTIONS: readonly string[] = ['NextPage', 'PrevPage', 'FirstPage', '
 export function isNamedAction(s: unknown): s is NamedAction {
   return typeof s === 'string' && NAMED_ACTIONS.includes(s)
 }
+
+/**
+ * What a link or outline item points at, before it is followed: a destination still to resolve
+ * (`dest`) or already resolved, a URL for the host to open, a page-navigation action, or a target
+ * Inkbar does not follow (another file, an app to launch, a URL with an unsafe scheme).
+ */
+export type LinkTarget =
+  | { kind: 'dest'; raw: RawDestination }
+  | { kind: 'resolved'; dest: Destination }
+  | { kind: 'url'; url: string; newWindow: boolean }
+  | { kind: 'named'; action: NamedAction }
+  | { kind: 'unsupported'; reason: 'remote' | 'launch' | 'unsafe-url' | 'unknown' }
