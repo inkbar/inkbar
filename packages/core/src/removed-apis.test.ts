@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import type { CreateViewerOptions } from './dom/viewer/create-viewer'
 import type { MountViewerOptions } from './dom/viewer-engine'
+// @ts-expect-error `FormAction` is gone: use `ViewerAction`.
+import type { FormAction } from './index'
 import type { SignatureStore } from './model/signatures'
 
 // `pnpm typecheck` covers this file: each `@ts-expect-error` fails the build if its name or
@@ -26,6 +28,11 @@ describe('removed 0.12.0 deprecations are gone', () => {
       onFormAction: () => undefined,
     }
     expect([create, mount, action, mountAction]).toHaveLength(4)
+  })
+
+  it('no longer exports the FormAction type', () => {
+    const action: FormAction = { kind: 'print' }
+    expect(action).toEqual({ kind: 'print' })
   })
 
   it('no longer exports the old helpers', async () => {

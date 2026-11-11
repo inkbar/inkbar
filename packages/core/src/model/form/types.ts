@@ -205,9 +205,6 @@ export type ViewerAction =
   | { kind: 'print' }
   | { kind: 'prompt'; message: string }
 
-/** @deprecated Use ViewerAction. Removed in 0.13.0. */
-export type FormAction = ViewerAction
-
 /**
  * What changed the values reported to a controlled host, and the fields it changed. Undo
  * history needs uncontrolled fields and annotations, so a controlled host never hears of an

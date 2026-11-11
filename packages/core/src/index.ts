@@ -87,7 +87,6 @@ export type {
   FieldsMode,
   FieldValue,
   FieldValues,
-  FormAction,
   FormEvent,
   FormField,
   FormFieldType,
