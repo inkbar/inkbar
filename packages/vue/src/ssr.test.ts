@@ -66,6 +66,9 @@ describe('@inkbar/vue on the server', () => {
         'InkPanel',
         'InkThumbnail',
         'InkThumbnails',
+        'InkOutline',
+        'InkBack',
+        'InkForward',
         'InkRecordList',
         'InkSearchResults',
         'useRecords',
@@ -142,6 +145,23 @@ describe('@inkbar/vue on the server', () => {
     const { openDocument } = await import('@inkbar/core')
     await openDocument(new Uint8Array([1]), { assets })
     expect(evaluated.pdfjs).toBe(true)
+  })
+
+  it('InkOutline renders an empty tree on the server', async () => {
+    const html = await renderToString(
+      createSSRApp({
+        render: () =>
+          h(entry.InkRoot, { src: '/doc.pdf', assets }, () => [
+            h(entry.InkOutline),
+            h(entry.InkToolbar, null, () => [h(entry.InkBack), h(entry.InkForward)]),
+          ]),
+      })
+    )
+    expect(html).toMatch(/<ul class="ink-outline-tree"[^>]*role="tree"/)
+    expect(html).not.toContain('ink-outline-item')
+    expect(html).not.toContain('ink-outline-empty')
+    expect(html).toMatch(/<button[^>]*data-ink-back[^>]*disabled/)
+    expect(html).toMatch(/<button[^>]*data-ink-forward[^>]*disabled/)
   })
 
   it('InkSidebar renders its chrome on the server; thumbnails render empty', async () => {
