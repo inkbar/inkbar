@@ -78,7 +78,15 @@ export { exportAnnotations, importAnnotations } from './model/annotations/json'
 export { recogniseStroke, RECOGNISE_THRESHOLD } from './model/recognise'
 export type { Recognised } from './model/recognise'
 export type { ImportOptions, ImportResult } from './model/annotations/json'
-export type { FormController, FormScripting } from './model/form/controller'
+export type {
+  FieldRecord,
+  FormController,
+  FormScripting,
+  KeystrokeResult,
+  PageEventName,
+  SignatureLink,
+} from './model/form/controller'
+export type { GlossRejection } from './model/form/gloss'
 export { signField } from './model/form/sign'
 export type {
   FieldFlags,
@@ -92,6 +100,7 @@ export type {
   FormFieldType,
   FormSetResult,
   FormWidget,
+  TabsOrder,
   ViewerAction,
   WidgetAction,
   WidgetAppearance,
