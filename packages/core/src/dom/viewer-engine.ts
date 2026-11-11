@@ -5,7 +5,13 @@
  * errors back through the callbacks.
  */
 import { InkError, isInkError } from '../model/errors'
-import { rectFromQuad, type Point, type Rect } from '../model/geometry'
+import {
+  quadContainsPoint,
+  rectContainsPoint,
+  rectFromQuad,
+  type Point,
+  type Rect,
+} from '../model/geometry'
 import {
   createMemorySignatureStore,
   createSignatureLibrary,
@@ -42,6 +48,7 @@ import type { PageTransform, ViewRotation } from './transform'
 import type { ToolStyle } from '../model/annotations/tool-style'
 import type { InkDocument } from '../model/document'
 import type { FormWidget, ViewerAction } from '../model/form/types'
+import type { PageLink } from '../model/links'
 
 /** A user-space point on a page, used to put the scroll position back after a rebuild. */
 interface ScrollAnchor {
@@ -667,6 +674,29 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     if (anchor.vertical) el.scrollTop += o.y + box.top + css.y - corner.y
   }
 
+  /**
+   * The link a press at user-space `point` on `page` follows: of the live links whose quads (or
+   * rect, without quads) hold the point, the topmost, which is the last in the file. Unsupported
+   * links are not live, and nor are destinations the page's link layer found go nowhere (it
+   * marks their stop `aria-disabled`).
+   */
+  function linkAt(vp: Viewport, page: number, point: Point): PageLink | undefined {
+    const host = vp.hostFor(page)
+    const dead = (l: PageLink): boolean =>
+      host
+        ?.querySelector(`[data-ink-link-layer] [data-ink-link="${CSS.escape(l.id)}"]`)
+        ?.getAttribute('aria-disabled') === 'true'
+    const links = doc.links(page)
+    for (let i = links.length - 1; i >= 0; i--) {
+      const l = links[i]!
+      const hit = l.quads?.length
+        ? l.quads.some((q) => quadContainsPoint(q, point))
+        : rectContainsPoint(l.rect, point)
+      if (hit && l.target.kind !== 'unsupported' && !dead(l)) return l
+    }
+    return undefined
+  }
+
   function build(state: {
     zoom: ZoomValue
     page: number | undefined
@@ -694,6 +724,8 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       tools: list,
       options: toolOptions,
       ...(plugins && { onPress: (kind, press) => plugins.emitPress(kind, press) }),
+      linkAt: (page, point) => linkAt(vp, page, point),
+      onLink: (link) => void navigation.follow(link.target),
       ctx: {
         toolStyle,
         store: doc.annotations,

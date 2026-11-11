@@ -9,6 +9,7 @@ import {
   quadFromRect,
   quadsFromFlat,
   quadsFromRect,
+  quadContainsPoint,
   rectContainsPoint,
   rectFromPoints,
   rectFromQuad,
@@ -82,6 +83,36 @@ describe('geometry', () => {
     expect(rectContainsPoint(a, { x: 10, y: 10 })).toBe(true)
     expect(rectContainsPoint(a, { x: 10.01, y: 0 })).toBe(false)
     expect(translateRect(a, 1, -1)).toEqual({ x: 1, y: -1, width: 10, height: 10 })
+  })
+
+  it('quadContainsPoint tests the quad, not its bounds', () => {
+    // A slanted quad in QuadPoints order: top-left, top-right, bottom-left, bottom-right.
+    const q = {
+      p1: { x: 10, y: 20 },
+      p2: { x: 30, y: 20 },
+      p3: { x: 0, y: 10 },
+      p4: { x: 20, y: 10 },
+    }
+    expect(quadContainsPoint(q, { x: 15, y: 15 })).toBe(true)
+    expect(quadContainsPoint(q, { x: 10, y: 20 })).toBe(true)
+    expect(quadContainsPoint(q, { x: 2, y: 19 })).toBe(false)
+    expect(quadContainsPoint(q, { x: 28, y: 11 })).toBe(false)
+    const r = { x: 0, y: 0, width: 10, height: 5 }
+    expect(quadContainsPoint(quadFromRect(r), { x: 5, y: 2 })).toBe(true)
+    expect(quadContainsPoint(quadFromRect(r), { x: 11, y: 2 })).toBe(false)
+    // Zero-area quads contain nothing: a point, and a line (collinear corners).
+    const dot = { x: 5, y: 5 }
+    const point = { p1: dot, p2: dot, p3: dot, p4: dot }
+    expect(quadContainsPoint(point, dot)).toBe(false)
+    expect(quadContainsPoint(point, { x: 100, y: -40 })).toBe(false)
+    const line = {
+      p1: { x: 0, y: 0 },
+      p2: { x: 10, y: 10 },
+      p3: { x: 0, y: 0 },
+      p4: { x: 10, y: 10 },
+    }
+    expect(quadContainsPoint(line, { x: 5, y: 5 })).toBe(false)
+    expect(quadContainsPoint(line, { x: 5, y: 0 })).toBe(false)
   })
 
   it('matrix inverse undoes apply', () => {
