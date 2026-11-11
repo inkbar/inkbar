@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { tabOrder } from './form-order'
+import { orderStops, pageStopOrder, tabOrder } from './form-order'
 
 import type { FormField, FormWidget } from '../model/form/types'
+import type { PageLink } from '../model/links'
 import type { PageInfo } from '../model/pages'
 
 const FLAGS: FormField['flags'] = {
@@ -133,5 +134,63 @@ describe('tabOrder', () => {
       'p1-high',
       'p1-low',
     ])
+  })
+})
+
+describe('orderStops', () => {
+  const link = (id: string, x: number, y: number, order: number): PageLink => ({
+    id,
+    page: 0,
+    rect: { x, y, width: 80, height: 18 },
+    order,
+    target: { kind: 'url', url: 'https://example.com/', newWindow: false },
+  })
+  const widgets = (list: FormField[]) => list.flatMap((f) => f.widgets)
+
+  it('links and fields interleave by position', () => {
+    // Rows: [a, link-top], [c, link-low]; widgets listed before links in /Annots.
+    const list = widgets(fields(['c', 0, 72, 400], ['a', 0, 72, 722]))
+    const links = [link('link-low', 320, 402, 3), link('link-top', 320, 724, 2)]
+    expect(pageStopOrder(list, links, 'R', page(0))).toEqual([
+      'a',
+      'link-top',
+      'c',
+      'link-low',
+    ])
+    expect(pageStopOrder(list, links, 'C', page(0))).toEqual([
+      'a',
+      'c',
+      'link-top',
+      'link-low',
+    ])
+    // Without /Tabs, /Annots order; with W, the widgets come first.
+    const mixed = [link('link-top', 320, 724, 0), link('link-low', 320, 402, 2)]
+    const listed = widgets(fields(['a', 0, 72, 722], ['c', 0, 72, 400])).map((w, i) => ({
+      ...w,
+      order: i === 0 ? 1 : 3,
+    }))
+    expect(pageStopOrder(listed, mixed, undefined, page(0))).toEqual([
+      'link-top',
+      'a',
+      'link-low',
+      'c',
+    ])
+    expect(pageStopOrder(listed, mixed, 'W', page(0))).toEqual([
+      'a',
+      'c',
+      'link-top',
+      'link-low',
+    ])
+  })
+
+  it('orders stops given as boxes', () => {
+    const box = (left: number, top: number) => ({ left, top, width: 50, height: 20 })
+    const items = [
+      { id: 'b', box: box(200, 10), index: 0 },
+      { id: 'c', box: box(10, 100), index: 1 },
+      { id: 'a', box: box(10, 12), index: 2 },
+    ]
+    expect(orderStops(items, 'R')).toEqual(['a', 'b', 'c'])
+    expect(orderStops(items, 'A')).toEqual(['b', 'c', 'a'])
   })
 })

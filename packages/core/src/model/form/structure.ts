@@ -20,6 +20,8 @@ import type { PdfjsAnnotationData } from '../../pdfjs/types'
 export interface RawWidget {
   page: number
   data: PdfjsAnnotationData
+  /** Position among all the page's annotations in `/Annots`; else among its widgets. */
+  at?: number
 }
 
 // `/Ff` bits (PDF 32000-1, tables 221, 226, 228 and 230).
@@ -352,7 +354,7 @@ export function buildFormFields(
     const name = w.data.fieldName
     if (w.data.subtype !== 'Widget' || !name) continue
     const at = perPage.get(w.page) ?? 0
-    order.set(w, at)
+    order.set(w, w.at ?? at)
     perPage.set(w.page, at + 1)
     namesById.set(w.data.id, name)
     let group = groups.get(name)

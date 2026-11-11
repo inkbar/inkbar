@@ -279,10 +279,11 @@ export async function openDocument(
         // A page whose annotations PDF.js cannot parse still renders; it just has none to show.
         return []
       })
-      const widgets = raw.flatMap((data): RawWidget[] =>
-        data.subtype === 'Widget' ? [{ page: i, data }] : []
+      // Widgets and links keep their place in `/Annots`, which Tab order shares between them.
+      const widgets = raw.flatMap((data, at): RawWidget[] =>
+        data.subtype === 'Widget' ? [{ page: i, data, at }] : []
       )
-      const links = raw.flatMap((data) => linkFromPdfjs(i, data) ?? [])
+      const links = raw.flatMap((data, at) => linkFromPdfjs(i, data, at) ?? [])
       return { ...importEmbeddedPage(i, raw, importedAt), widgets, links }
     })
     perPage.forEach((r, i) => {

@@ -37,6 +37,8 @@
     /* Pages stay white in dark mode and the search layer multiplies, so these serve both. */
     --ink-search-hit: #f1ffa0;
     --ink-search-current: #e4ff4a;
+    /* A tint over a link under the pointer; off by default, as desktop readers show no box. */
+    --ink-link-hover: transparent;
     /* The selected record's mark; pages stay white in dark mode, so this serves both. */
     --ink-mark-selected-outline: 2px solid #2740f5;
     /* Sidebars (createSidebar and the bindings' sidebar): the open sidebar and its rail. */
@@ -349,6 +351,30 @@
 
   :where(.ink-handle[data-handle='start'], .ink-handle[data-handle='end']) {
     border-radius: 50%;
+  }
+
+  /* Links: over the text layer, under the search matches, fields and annotations. They never
+     take the pointer (the viewer hit-tests links itself, so selection and tools work over
+     them), so they show only as a ring while focused from the keyboard, on every line of a
+     wrapped link, and as the hover tint the viewer turns on with data-ink-hover. */
+  :where(.ink-link-layer) {
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  :where(.ink-link) {
+    pointer-events: none;
+    border-radius: 2px;
+    outline: none;
+  }
+
+  :where(.ink-link:focus-visible, .ink-link[data-ink-focused]) {
+    outline: 2px solid var(--ink-ring);
+    outline-offset: 1px;
+  }
+
+  :where(.ink-link[data-ink-hover]) {
+    background: var(--ink-link-hover);
   }
 
   /* Search matches sit under the annotations: before the overlay in the page, same level. The

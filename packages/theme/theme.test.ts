@@ -570,6 +570,22 @@ describe('theme.css', () => {
     expect(declsFor('.ink-plugin-layer > *')).toMatch(/pointer-events:\s*auto/)
   })
 
+  it('keeps links out of the pointer, rings them on focus and tints them on hover', () => {
+    const declaring = rules.filter((r) =>
+      r.nodes.some((d) => d.type === 'decl' && d.prop === '--ink-link-hover')
+    )
+    expect(declaring).toHaveLength(1)
+    expect(declaring[0]?.toString()).toMatch(/--ink-link-hover:\s*transparent/)
+    expect(declsFor('.ink-link-layer)')).toMatch(/pointer-events:\s*none/)
+    expect(declsFor('.ink-link)')).toMatch(/pointer-events:\s*none/)
+    expect(declsFor('.ink-link:focus-visible')).toMatch(
+      /outline:\s*2px solid var\(--ink-ring\)/
+    )
+    expect(declsFor('.ink-link[data-ink-hover]')).toMatch(
+      /background:\s*var\(--ink-link-hover\)/
+    )
+  })
+
   it('draws edit handles and hides them outside the select tools and the made state', () => {
     const handle = rules.find((r) => r.selector === ':where(.ink-handle)')
     expect(handle?.toString()).toMatch(/border:\s*1px solid var\(--ink-accent\)/)

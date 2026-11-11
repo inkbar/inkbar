@@ -1,4 +1,12 @@
 import { createFormLayer, type FormLayer, type SignFieldRequest } from './form-layer'
+import { pageStopOrder } from './form-order'
+import {
+  createLinkLayer,
+  textInBox,
+  textRuns,
+  type LinkLayer,
+  type TextRun,
+} from './link-layer'
 import { createOverlay, type DecorateAnnotation, type Overlay } from './overlay'
 import { createPageRenderer, type PageRenderer } from './page-renderer'
 import { createTextLayer, type TextLayerHandle } from './text-layer'
@@ -8,6 +16,7 @@ import type { SearchHighlights } from './search/highlights'
 import type { PageTransform } from './transform'
 import type { AnnotationStore } from '../model/annotations/store'
 import type { Annotation } from '../model/annotations/types'
+import type { LinkTarget } from '../model/destination'
 import type { InkDocument } from '../model/document'
 
 export interface PageMountOptions {
@@ -33,6 +42,8 @@ export interface PageMountOptions {
   formActive?(): boolean
   /** A signature field asked to be signed. */
   onSignField?(req: SignFieldRequest): void
+  /** A link was activated from the keyboard or by assistive technology. */
+  followLink?(target: LinkTarget): void
   /** Plugin layers, mounted above the overlay. The engine passes them for its pages only. */
   layers?: PluginLayers
   /** Search match highlights, mounted below the overlay. */
@@ -51,10 +62,10 @@ export interface PageMountOptions {
 }
 
 /**
- * The page layers that can fail and recover: the canvas, the text layer and the form layer's
- * canvas of widget appearances.
+ * The page's layers: the canvas, the text layer and the form layer's canvas of widget
+ * appearances, which can fail and recover, and the links, which draw no pixels and never report.
  */
-export type PageLayer = 'canvas' | 'text' | 'form'
+export type PageLayer = 'canvas' | 'text' | 'links' | 'form'
 
 export interface PageMount {
   readonly renderer: PageRenderer
@@ -62,16 +73,21 @@ export interface PageMount {
   readonly overlay: Overlay
   /** The page's form fields; undefined when the document has none. */
   readonly form: FormLayer | undefined
+  /** The page's links; undefined when the page has none. */
+  readonly links: LinkLayer | undefined
+  /** The page's fields and links Tab stops at, in the one order they share. */
+  tabStops(): HTMLElement[]
   update(transform: PageTransform): void
   destroy(): void
 }
 
 /**
- * Canvas, text layer, form layer, annotation overlay and any plugin layers for one page, stacked
- * in that order.
+ * Canvas, text layer, links, search highlights, form layer, annotation overlay and any plugin
+ * layers for one page, stacked in that order.
  */
 export function createPageMount(opts: PageMountOptions): PageMount {
-  const { document, page, host, transform } = opts
+  const { document, page, host } = opts
+  let transform = opts.transform
   const callbacks = (layer: PageLayer) => ({
     ...(opts.onError
       ? { onError: (error: unknown) => opts.onError?.(error, layer) }
@@ -88,13 +104,53 @@ export function createPageMount(opts: PageMountOptions): PageMount {
       : { devicePixelRatio: opts.devicePixelRatio }),
     ...callbacks('canvas'),
   })
+  // Links are named by the text under them, which shows once the text layer first mounts.
+  let named = false
+  const text = callbacks('text')
   const textLayer = createTextLayer({
     document,
     page,
     host,
     transform,
-    ...callbacks('text'),
+    ...text,
+    onRendered: () => {
+      if (!named) {
+        named = true
+        links?.relabel()
+      }
+      text.onRendered?.()
+    },
   })
+  let measured: { runs: TextRun[]; origin: DOMRect } | undefined
+  const links =
+    document.links(page).length > 0
+      ? createLinkLayer({
+          host,
+          page,
+          transform,
+          document,
+          follow: (target) => opts.followLink?.(target),
+          textUnder: (rect) => {
+            // A relabel asks for every link at once: the text is measured once for all of them.
+            if (!measured) {
+              measured = {
+                runs: textRuns(textLayer.element),
+                origin: host.getBoundingClientRect(),
+              }
+              queueMicrotask(() => (measured = undefined))
+            }
+            const box = transform.toCssRect(rect)
+            const left = measured.origin.left + box.left
+            const top = measured.origin.top + box.top
+            return textInBox(measured.runs, {
+              left,
+              top,
+              right: left + box.width,
+              bottom: top + box.height,
+            })
+          },
+        })
+      : undefined
   const marks = opts.highlights?.mount(page, host, transform)
   // The fields sit under the annotations: a press on an annotation's shape is the
   // annotation's (to select or delete a signature that fills a field), and a press anywhere
@@ -133,14 +189,50 @@ export function createPageMount(opts: PageMountOptions): PageMount {
     ...(opts.decorate ? { decorate: opts.decorate } : {}),
   })
   const layers = opts.layers?.mount(page, host, transform)
+
+  /**
+   * Each stop's place in the page's one order of fields and links, worked out on first use: the
+   * two sit in separate layers, so the order comes from the page, not the DOM.
+   */
+  let ranks: Map<string, number> | undefined
+  const rankOf = (stop: HTMLElement): number => {
+    ranks ??= new Map(
+      pageStopOrder(
+        document.form.fields
+          .get()
+          .flatMap((f) => f.widgets.filter((w) => w.page === page)),
+        document.links(page),
+        document.form._tabs.get(page),
+        document.pages[page],
+        page,
+        document.form._structure.get(page)
+      ).map((id, i) => [id, i])
+    )
+    const id =
+      stop.dataset.inkLink ??
+      stop.closest<HTMLElement>('[data-ink-widget]')?.dataset.inkWidget
+    return (id === undefined ? undefined : ranks.get(id)) ?? Infinity
+  }
+
   return {
     renderer,
     textLayer,
     overlay,
     form,
+    links,
+    tabStops() {
+      const fields = form?.tabStops() ?? []
+      const linked = links?.tabStops() ?? []
+      if (fields.length === 0) return linked
+      if (linked.length === 0) return fields
+      // A sort is stable, so stops of equal rank keep each layer's own order.
+      return [...fields, ...linked].sort((a, b) => rankOf(a) - rankOf(b))
+    },
     update(next) {
+      transform = next
       renderer.update(next)
       textLayer.update(next)
+      links?.update(next)
       overlay.update(next)
       form?.update(next)
       layers?.update(next)
@@ -151,6 +243,7 @@ export function createPageMount(opts: PageMountOptions): PageMount {
       form?.destroy()
       overlay.destroy()
       marks?.destroy()
+      links?.destroy()
       textLayer.destroy()
       renderer.destroy()
     },
