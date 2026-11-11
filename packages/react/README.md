@@ -105,7 +105,7 @@ Each control is a separate component, so put them in any order or leave some out
 
 `annotations` with `onAnnotationsChange` makes your list the source of truth. Leave them off and Inkbar keeps the state itself, with undo and redo. The example passes `history` so that `InkUndo` and `InkRedo` work with your list; see below.
 
-`InkRoot` takes a few more props. `password` opens an encrypted file. `defaults` sets the colour defaults for new annotations. `fonts` sets the font families the text style menu offers. `decorateAnnotation` adds `data-*` attributes, classes and a screen-reader description to each annotation's element. `page` with `onPageChange`, `zoom` with `onZoomChange` and `tool` with `onToolChange` control those values from your own state. `onChange` gets each annotation change. `onError` hears open failures, form script errors and refused signatures, and `onActivate` gets the id of an activated annotation. `children` can be a function of `{ status, document }`.
+`InkRoot` takes a few more props. `password` opens an encrypted file. `storage` sets what the viewer keeps between visits (see [Storage](#storage)). `defaults` sets the colour defaults for new annotations. `fonts` sets the font families the text style menu offers. `decorateAnnotation` adds `data-*` attributes, classes and a screen-reader description to each annotation's element. `page` with `onPageChange`, `zoom` with `onZoomChange` and `tool` with `onToolChange` control those values from your own state. `onChange` gets each annotation change. `onError` hears open failures, form script errors and refused signatures, and `onActivate` gets the id of an activated annotation. `children` can be a function of `{ status, document }`.
 
 ## Viewport
 
@@ -174,9 +174,19 @@ The highlight tool leaves `contents` free for the comment. `doc.text(page)` retu
 
 ## Signatures
 
-`InkSignatureMenu` lists saved signatures, picks one for the `signature` tool, removes them, and opens `InkSignatureDialog` to draw, type or upload a new one. The menu needs `signatureTool()` in `tools`. The dialog and signature form fields work without it; the dialog then only saves the signature. These are marks on the page, not cryptographic signatures. Pass `signatures` to `InkRoot` to keep them somewhere: `createLocalSignatureStore(key)` from `@inkbar/core` uses `localStorage`, and without it they last until reload. `signatureFonts` lists the handwriting fonts the Type tab offers; load them with `@font-face`. A placed signature keeps its aspect ratio when resized.
+`InkSignatureMenu` lists saved signatures, picks one for the `signature` tool, removes them, and opens `InkSignatureDialog` to draw, type or upload a new one. The menu needs `signatureTool()` in `tools`. The dialog and signature form fields work without it; the dialog then only saves the signature. These are marks on the page, not cryptographic signatures. `InkRoot` keeps them in its `storage` under the key `signatures`, so without a store they last until reload. A `signatures` store of your own still works and wins over `storage` until 0.13.0, which removes it. `signatureFonts` lists the handwriting fonts the Type tab offers; load them with `@font-face`. A placed signature keeps its aspect ratio when resized.
 
 To open the dialog from your own button, render `<InkSignatureDialog open={open} onOpenChange={setOpen} />`. `onSave` receives the new template, and `select={false}` stops it selecting the template for the `signature` tool. `InkSignatureMenu` and the dialog take `fonts` to override `signatureFonts`.
+
+## Storage
+
+`InkRoot` keeps a few small things between visits: saved signatures, sidebar widths and plugin settings. Pass `storage` to choose where. `createLocalStorage()` from `@inkbar/core` keeps them in `localStorage`, and any `InkStorage` works, including an async one that talks to your server. The default is `createMemoryStorage()`, which forgets everything on reload. Inkbar never touches `localStorage`, cookies or the network unless the store you pass does. The root reads `storage` once, when it is created. See the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#storage) for the keys.
+
+```tsx
+const storage = createLocalStorage()
+
+<InkRoot src={src} assets={assets} storage={storage}>
+```
 
 ## Plugins
 
@@ -224,7 +234,13 @@ The bar handles Escape itself and stops it there, so an `onKeyDown` you pass to 
 
 `layout` is `rail` (default: icon buttons beside the document, and activating the open panel's button closes it), `tabs` (labelled tabs, one panel open) or `stack` (a header per panel, any number expanded). `side` (`left` by default) decides which edge the rail and border sit on. `open` is the open panel's id, or `null`, for rail and tabs, and the expanded ids for stack. Pass it with `onOpenChange` to control the sidebar, or pass `defaultOpen` to set only where it starts. With neither, the first panel starts open. When the open panel goes (rendered conditionally), rail and tabs open the first one left and stack drops it, and `onOpenChange` receives the new value. In the rail, the open panel shows its label as a title above its content. `visible` (default `true`) shows or hides the whole sidebar; it keeps the open panel, its content and its scroll for when it shows again. Your code decides when: `visible={hits > 0}` keeps a results sidebar out of the way until a search finds something.
 
-Panels take their place in the order they appear in the DOM, including one rendered later. A closed panel stays mounted and hidden, so its content keeps its state and scroll position, across layout changes too. The keys and ARIA are core's: see the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#sidebars). The sidebar needs no document and works outside `InkRoot`. On the server it renders its frame with the open panel showing, and the stack headers; rail and tab buttons follow once it has mounted.
+Panels take their place in the order they appear in the DOM, including one rendered later. A closed panel stays mounted and hidden, so its content keeps its state and scroll position, across layout changes too. The keys and ARIA are core's: see the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#sidebars). The sidebar needs no document and works outside `InkRoot`. On the server it renders its frame at its width with the open panel showing, the stack headers and the resize handle; rail and tab buttons follow once it has mounted.
+
+Each sidebar has a resize handle on its inner edge. Drag it, or focus it and use the arrow keys (16px a step), Home and End. Enter or a double-click resets the width. The width starts at `defaultWidth` (320) and stays between `minWidth` (240) and `maxWidth` (480), and never past half of the sidebar's container. Inside `InkRoot` the sidebar saves its width in the root's `storage` under `sidebar.<name>.width`, where `name` defaults to the side; give two sidebars on one side different names. Pass `storage` to the sidebar to use another store, or to save its width outside `InkRoot`. The sidebar reads `storage` and `name` once, when it is created. `width` hands you the width: bind it to a number and update it from `onWidthChange`. The handle then only reports, and the sidebar neither reads nor writes storage.
+
+```tsx
+<InkSidebar name="tools" side="right" defaultWidth={360} width={toolsWidth} onWidthChange={setToolsWidth}>
+```
 
 ## Thumbnails
 
