@@ -1,0 +1,37 @@
+packages/core/src/model/signatures.test.ts
+  s_b0e6b2d5bd6b31::t_043df28c862add 9,14,198-246
+  s_b0e6b2d5bd6b31::t_4567c656bd919d 247-248
+packages/core/src/dom/viewer-engine.ts
+  s_b0e6b2d5bd6b31::t_52441926b6cfb6 17,104-106,109-113,203-204,331,335,829
+  s_b0e6b2d5bd6b31::t_dce8f328c7cfa6 21
+packages/core/src/index.ts
+  s_b0e6b2d5bd6b31::t_dce8f328c7cfa6 109
+packages/core/src/model/signatures.ts
+  s_b0e6b2d5bd6b31::t_52441926b6cfb6 11,15,109-112,114-118,120-131,134,138-143,147-148,150-152,154-159,164-172
+  s_b0e6b2d5bd6b31::t_043df28c862add 135
+  s_b0e6b2d5bd6b31::t_35ba22185aeca6 173-174
+packages/core/src/dom/viewer/create-viewer.ts
+  s_b0e6b2d5bd6b31::t_dce8f328c7cfa6 21,23,231,246
+  s_b0e6b2d5bd6b31::t_56f4ed570c9b2e 396
+packages/core/src/dom/viewer/create-viewer.browser.test.ts
+  s_b0e6b2d5bd6b31::t_043df28c862add 11,145-161,163-169,172-175
+  s_b0e6b2d5bd6b31::t_1b8fca8e7e8a0a 162,170-171
+packages/core/README.md
+  s_b0e6b2d5bd6b31::t_96979c3fc6a349 148,556
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d99dd4aae6ac95dc81aaefe74d1b8cdbbca98821",
+  "prompts": {},
+  "sessions": {
+    "s_b0e6b2d5bd6b31": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d0c0efc0-e561-4d1e-a89e-c758b277f97e",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Edward Coleridge Smith <edcoleridgesmith@gmail.com>"
+    }
+  }
+}
