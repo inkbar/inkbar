@@ -188,7 +188,7 @@ function setup(): void {
     onSignField: (req) => {
       signRequest.value = signRequest.value?.widget === req.widget ? null : req
     },
-    onFormAction: (a) => ctx.reportFormAction(a),
+    onAction: (a) => ctx.reportAction(a),
     onFormAlert: (message) => {
       alertMessage.value = message
       alertsShown.value += 1

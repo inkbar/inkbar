@@ -26,6 +26,7 @@ import {
 import { Primitive } from 'reka-ui'
 import {
   computed,
+  getCurrentInstance,
   onBeforeUnmount,
   onUnmounted,
   onMounted,
@@ -48,7 +49,7 @@ import type {
   DocumentSource,
   FieldsChange,
   FieldValues,
-  FormAction,
+  ViewerAction,
   InkDocument,
   PdfAssets,
   SignatureStore,
@@ -154,8 +155,13 @@ const emit = defineEmits<{
   change: [change: AnnotationChange]
   /** Committed field values, in full, with what changed them. */
   'update:fields': [next: FieldValues, change: FieldsChange]
-  /** The form asked to submit, open a link, send mail, print or prompt. Inkbar does none. */
-  'form-action': [action: FormAction]
+  /**
+   * The viewer asked the host to submit a form, open a link, send mail, print or prompt. Inkbar
+   * does none of these.
+   */
+  action: [action: ViewerAction]
+  /** @deprecated Use `action`. Removed in 0.13.0. Not emitted when `action` has a listener. */
+  'form-action': [action: ViewerAction]
   'update:tool': [tool: ToolId]
   'update:page': [page: number]
   'update:zoom': [zoom: ZoomValue]
@@ -167,6 +173,7 @@ const emit = defineEmits<{
   error: [error: InkError]
   activate: [id: string]
 }>()
+const instance = getCurrentInstance()
 
 type TestHookElement = HTMLElement & { __inkDocument?: InkDocument | undefined }
 
@@ -579,7 +586,12 @@ provideInkContext({
   history: inkHistory,
   rootEl,
   formHighlight: computed(() => props.formHighlight),
-  reportFormAction: (a) => emit('form-action', a),
+  reportAction: (a) => {
+    // Emits cannot say who listens, so ask the vnode: `@action` wins over `@form-action`.
+    const listeners = instance?.vnode.props
+    if (!listeners?.onAction && listeners?.onFormAction) emit('form-action', a)
+    else emit('action', a)
+  },
   reportError: (e) => emit('error', e),
 })
 

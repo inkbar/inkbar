@@ -40,7 +40,7 @@ import type { SearchController } from './search/controller'
 import type { PageTransform, ViewRotation } from './transform'
 import type { ToolStyle } from '../model/annotations/tool-style'
 import type { InkDocument } from '../model/document'
-import type { FormAction, FormWidget } from '../model/form/types'
+import type { FormWidget, ViewerAction } from '../model/form/types'
 import type { Point } from '../model/geometry'
 
 /** A user-space point on a page, used to put the scroll position back after a rebuild. */
@@ -121,10 +121,12 @@ export interface MountViewerOptions {
    */
   onSignField?(req: SignFieldRequest): void
   /**
-   * The form asked the host to submit, open a link, send mail, print or prompt. Inkbar itself
-   * never does any of these.
+   * The viewer asked the host to do something: a form's submit, mail, print or prompt, or a
+   * link to a URL. Inkbar itself never does any of these.
    */
-  onFormAction?(action: FormAction): void
+  onAction?(action: ViewerAction): void
+  /** @deprecated Use `onAction`. Removed in 0.13.0. Ignored when `onAction` is given. */
+  onFormAction?(action: ViewerAction): void
   /** A form script called `app.alert`: show `message` (text, not markup) without blocking. */
   onFormAlert?(message: string): void
   /** Annotation content is rendered by the host (custom slots). Changing it needs `rebuild`. */
@@ -190,7 +192,7 @@ export interface ViewerEngine {
   /**
    * Back and forward through the document's jumps: links, outline items and form buttons that
    * go to a page. It lasts as long as the engine, across rebuilds, and starts empty for each
-   * document. URL targets reach `onFormAction`.
+   * document. URL targets reach `onAction`.
    */
   readonly navigation: Navigation
   /**
@@ -476,6 +478,10 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
   }
   el.addEventListener('keydown', onFormTab)
 
+  // `onAction` wins; the old `onFormAction` is only a fallback while it lasts.
+  const reportAction = (a: ViewerAction): void =>
+    (opts.onAction ?? opts.onFormAction)?.(a)
+
   /**
    * History of the jumps made in this document. "Here" is the point the rebuild anchor keeps:
    * the top-left of the visible area as an `xyz` destination, so Back puts the view where it
@@ -495,13 +501,13 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
         }
       )
     },
-    report: (a) => opts.onFormAction?.(a),
+    report: reportAction,
   })
 
   // What the form asks of the host, and a field's go-to action, which the viewer runs itself
   // as a jump Back returns from.
   const stopForm = [
-    doc.form.on('action', (a) => opts.onFormAction?.(a)),
+    doc.form.on('action', reportAction),
     doc.form.on('alert', (message) => opts.onFormAlert?.(message)),
     doc.form.on('goto', (page) => navigation.goTo({ page, fit: 'fit' })),
   ]

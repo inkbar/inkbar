@@ -2,7 +2,7 @@ import {
   createMemorySignatureStore,
   type FieldsChange,
   type FieldValues,
-  type FormAction,
+  type ViewerAction,
   type InkError,
   type PdfAssets,
   type SignatureTemplate,
@@ -61,7 +61,8 @@ export interface FormHarnessProps {
   formHighlight?: boolean
   /** `onReady` throws once it has recorded `ready`, as a broken host's would. */
   throwOnReady?: boolean
-  onFormAction?: (action: FormAction) => void
+  onAction?: (action: ViewerAction) => void
+  onFormAction?: (action: ViewerAction) => void
   onError?: (error: InkError) => void
   onChanged?: (next: FieldValues, change: FieldsChange) => void
 }
@@ -86,6 +87,7 @@ export function FormHarness({
   templates = [],
   formHighlight,
   throwOnReady = false,
+  onAction,
   onFormAction,
   onError,
   onChanged,
@@ -108,6 +110,7 @@ export function FormHarness({
         onChanged?.(next, change)
       }}
       formHighlight={formHighlight}
+      onAction={onAction}
       onFormAction={onFormAction}
       onReady={() => {
         record('ready')

@@ -2,7 +2,7 @@
  * Form filling needs no creation tools: the viewer passes none. Fields edit in place, and the
  * document keeps their values and undo history, so Undo covers field edits too. Signature
  * fields sign from a popover with a saved signature, from the store and fonts passed here. The
- * form's requests (submit, open a link, print) come to onFormAction, because Inkbar never
+ * form's requests (submit, open a link, print) come to onAction, because Inkbar never
  * sends, opens or prints anything itself.
  */
 import {
@@ -59,7 +59,7 @@ export default function FillAForm({ source, log, onDocument, openFile }: Scenari
       assets={assets}
       signatures={signatures}
       signatureFonts={signatureFonts}
-      onFormAction={(action) => log('onFormAction', action)}
+      onAction={(action) => log('onAction', action)}
       onReady={onReady}
       className="scenario-root"
     >

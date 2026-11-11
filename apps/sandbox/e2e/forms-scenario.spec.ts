@@ -7,10 +7,10 @@ guardConsole(test)
 
 /** The name each framework's form-action callback logs under. */
 const FORM_EVENT = {
-  react: 'onFormAction',
-  vue: '@form-action',
-  svelte: 'onformaction',
-  vanilla: 'onFormAction',
+  react: 'onAction',
+  vue: '@action',
+  svelte: 'onaction',
+  vanilla: 'onAction',
 } as const
 
 const viewer = (page: Page) => page.locator('[data-scenario-viewer]')

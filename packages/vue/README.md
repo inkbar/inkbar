@@ -134,7 +134,7 @@ Inside `InkRoot`, `useHistory()` returns the same object. Its `batch(fn)` runs `
 
 ## Forms
 
-`InkViewport` fills the PDF's form fields and runs the form's scripts; the form props belong to `InkRoot`. `useForm()` returns the fields, their values, and `set` and `reset`. Bind `v-model:fields` on `InkRoot` to hold the values in your own state. The form never submits, opens a link, sends mail or prints: `@form-action` on `InkRoot` hands each request to you. `:form-highlight="false"` turns off the field tint, and a change applies to the open document in place. A form script that fails is reported through `InkRoot`'s `error` event.
+`InkViewport` fills the PDF's form fields and runs the form's scripts; the form props belong to `InkRoot`. `useForm()` returns the fields, their values, and `set` and `reset`. Bind `v-model:fields` on `InkRoot` to hold the values in your own state. The form never submits, opens a link, sends mail or prints: `@action` on `InkRoot` hands each request to you; so does a link to a URL. `@form-action` still works until 0.13.0. `:form-highlight="false"` turns off the field tint, and a change applies to the open document in place. A form script that fails is reported through `InkRoot`'s `error` event.
 
 The [forms guide](https://inkbar.dev/docs/guides/forms/) covers controlled fields, form actions, scripts, signature fields and saving values as Gloss.
 

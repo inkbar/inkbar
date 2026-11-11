@@ -179,8 +179,11 @@ export interface FormEvent {
   commitKey?: number
 }
 
-/** Something a form asks the host to do. Inkbar itself never sends, opens, mails or prints. */
-export type FormAction =
+/**
+ * Something the viewer asks the host to do: a form's submit, mail or print request, or a link
+ * to a URL. Inkbar itself never sends, opens, mails or prints.
+ */
+export type ViewerAction =
   | {
       kind: 'submit'
       url: string
@@ -200,6 +203,9 @@ export type FormAction =
     }
   | { kind: 'print' }
   | { kind: 'prompt'; message: string }
+
+/** @deprecated Use ViewerAction. Removed in 0.13.0. */
+export type FormAction = ViewerAction
 
 /**
  * What changed the values reported to a controlled host, and the fields it changed. Undo

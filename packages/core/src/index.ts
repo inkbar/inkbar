@@ -92,6 +92,7 @@ export type {
   FormFieldType,
   FormSetResult,
   FormWidget,
+  ViewerAction,
   WidgetAction,
   WidgetAppearance,
   WidgetOverride,

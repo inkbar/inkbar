@@ -7,7 +7,7 @@
     DocumentSource,
     FieldsChange,
     FieldValues,
-    FormAction,
+    ViewerAction,
     InkDocument,
     InkError,
     InkStatus,
@@ -52,8 +52,13 @@
      * are controlled, after the bound value is written.
      */
     onFieldsChange?: ((next: FieldValues, change: FieldsChange) => void) | undefined
-    /** The form asked to submit, open a link, send mail, print or prompt. Inkbar does none. */
-    onformaction?: ((action: FormAction) => void) | undefined
+    /**
+     * The viewer asked the host to submit a form, open a link, send mail, print or prompt.
+     * Inkbar does none of these.
+     */
+    onaction?: ((action: ViewerAction) => void) | undefined
+    /** @deprecated Use `onaction`. Removed in 0.13.0. Ignored when `onaction` is given. */
+    onformaction?: ((action: ViewerAction) => void) | undefined
     /** Tints fillable form fields. Default true. A change applies to the open document in place. */
     formHighlight?: boolean | undefined
     tool?: ToolId | undefined
@@ -171,6 +176,7 @@
     onChange,
     fields = $bindable(),
     onFieldsChange,
+    onaction,
     onformaction,
     formHighlight,
     tool = $bindable(),
@@ -683,7 +689,7 @@
     get formHighlight() {
       return formHighlight
     },
-    reportFormAction: (a) => onformaction?.(a),
+    reportAction: (a) => (onaction ?? onformaction)?.(a),
     reportError: (e) => onError?.(e),
   }
   setInkContext(context, () => activatedNow)

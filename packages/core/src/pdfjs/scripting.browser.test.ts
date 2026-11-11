@@ -12,7 +12,7 @@ import { createFormScripting, sandboxLoader } from './scripting'
 import type { PdfjsDocument } from './types'
 import type { InkDocument } from '../model/document'
 import type { InkError } from '../model/errors'
-import type { FormAction, FormField, FormFieldType } from '../model/form/types'
+import type { ViewerAction, FormField, FormFieldType } from '../model/form/types'
 import type { FixtureName } from '@inkbar/fixtures/urls'
 
 const cleanup: (() => void)[] = []
@@ -31,8 +31,8 @@ async function open(name: FixtureName): Promise<InkDocument> {
 const widgetOf = (form: FormController, name: string): string =>
   form.fields.get().find((f) => f.name === name)!.widgets[0]!.id
 
-const actionsOf = (form: FormController): FormAction[] => {
-  const list: FormAction[] = []
+const actionsOf = (form: FormController): ViewerAction[] => {
+  const list: ViewerAction[] = []
   form.on('action', (a) => list.push(a))
   return list
 }

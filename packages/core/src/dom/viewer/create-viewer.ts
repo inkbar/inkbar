@@ -158,7 +158,7 @@ export interface Viewer {
   forward(): void
   /**
    * Follows a link target as a click on the link would: a destination or Named page action
-   * scrolls (zoom unchanged) and can be gone back from; a URL reaches `onFormAction` as
+   * scrolls (zoom unchanged) and can be gone back from; a URL reaches `onAction` as
    * `open-url` and is never opened by the viewer. Does nothing while no document is ready.
    */
   follow(target: LinkTarget): Promise<void>

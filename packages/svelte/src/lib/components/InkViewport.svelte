@@ -177,7 +177,7 @@
       onSignField: (req) => {
         signRequest = signRequest?.widget === req.widget ? null : req
       },
-      onFormAction: (a) => ctx.reportFormAction(a),
+      onAction: (a) => ctx.reportAction(a),
       onFormAlert: (message) => {
         alert = { message, shown: (alert?.shown ?? 0) + 1 }
       },

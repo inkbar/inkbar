@@ -3,7 +3,7 @@ import { getCurrentInstance } from 'vue'
 
 import type {
   Annotation,
-  FormAction,
+  ViewerAction,
   InkDocument,
   InkError,
   InkStatus,
@@ -109,8 +109,8 @@ export interface InkContext {
   rootEl: Readonly<Ref<HTMLElement | null>>
   /** InkRoot's `formHighlight`; InkViewport reads it when it builds the viewer. */
   formHighlight: Readonly<Ref<boolean | undefined>>
-  /** Emits InkRoot's `form-action`. */
-  reportFormAction(action: FormAction): void
+  /** Emits InkRoot's `action`, or the deprecated `form-action` when only that has a listener. */
+  reportAction(action: ViewerAction): void
   /** Emits InkRoot's `error`, for failures after the document opened (a refused signing). */
   reportError(error: InkError): void
 }

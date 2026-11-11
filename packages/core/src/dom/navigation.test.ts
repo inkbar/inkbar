@@ -7,7 +7,7 @@ import { createNavigation } from './navigation'
 import type { Viewport } from './viewport'
 import type { Destination } from '../model/destination'
 import type { InkDocument } from '../model/document'
-import type { FormAction } from '../model/form/types'
+import type { ViewerAction } from '../model/form/types'
 
 /**
  * A navigation over a fake viewport whose position is the last destination it scrolled to, and
@@ -30,7 +30,7 @@ function setup(pages = 100, names: Record<string, unknown[]> = {}) {
     pages: Array.from({ length: pages }, (_, index) => ({ index })),
     _pdfjs: { proxy },
   } as unknown as InkDocument
-  const report = vi.fn<(a: FormAction) => void>()
+  const report = vi.fn<(a: ViewerAction) => void>()
   const nav = createNavigation({
     viewport: () => viewport,
     document: () => doc,

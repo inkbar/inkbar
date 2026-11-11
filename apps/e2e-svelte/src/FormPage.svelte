@@ -20,7 +20,7 @@
   } from '@inkbar/svelte'
   import { assets } from 'virtual:inkbar-assets'
 
-  import type { FormAction } from '@inkbar/core'
+  import type { ViewerAction } from '@inkbar/core'
 
   let { fixture }: { fixture: string } = $props()
 
@@ -28,7 +28,7 @@
   let status = $state('loading')
   let actions = $state<string[]>([])
 
-  function onformaction(a: FormAction): void {
+  function onaction(a: ViewerAction): void {
     actions = [describeAction(a), ...actions]
   }
 </script>
@@ -39,7 +39,7 @@
   class="sandbox-root"
   onReady={() => (status = 'ready')}
   onError={() => (status = 'error')}
-  {onformaction}
+  {onaction}
 >
   <InkToolbar>
     <InkToolButton tool="select-text" />
