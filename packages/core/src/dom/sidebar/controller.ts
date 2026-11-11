@@ -71,7 +71,8 @@ export interface SidebarControllerOptions {
   onWidthChange?(width: number): void
   /**
    * The narrowest the document may get beside the sidebars in this sidebar's container, in CSS
-   * px. Default 480. Read once, when the sidebar is created.
+   * px. Default 480, which also replaces a negative or non-finite value. Read once, when the
+   * sidebar is created.
    */
   minDocumentWidth?: number
   /** The resize handle's accessible name. Default `Resize left sidebar` or `Resize right sidebar`. */
@@ -242,7 +243,12 @@ export function createSidebarController(
   let widthControlled = opts.width !== undefined
   let width = opts.width ?? defaultWidth
   let resizing = false
-  const minDocument = opts.minDocumentWidth ?? MIN_DOCUMENT_WIDTH
+  const minDocument =
+    opts.minDocumentWidth !== undefined &&
+    Number.isFinite(opts.minDocumentWidth) &&
+    opts.minDocumentWidth >= 0
+      ? opts.minDocumentWidth
+      : MIN_DOCUMENT_WIDTH
   let handleLabel = opts.handleLabel
   const key = ++slotCount
   /** When a panel last opened with none open before. */

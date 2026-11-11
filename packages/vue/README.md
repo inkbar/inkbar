@@ -100,7 +100,7 @@ Each control is a separate component, so put them in any order or leave some out
 
 `v-model:annotations` makes your list the source of truth. Leave it off and Inkbar keeps the state itself, with undo and redo on by default. In controlled mode undo and redo need `:history="true"`, as in the example; see Controlled mode.
 
-`InkRoot` also takes `password` for an encrypted file, `storage` for what the viewer keeps between visits (see [Storage](#storage)), `defaults` for annotation colours, `fonts` for the families the text style menu offers, `decorateAnnotation` (a `DecorateAnnotation` function that adds `data-*` attributes, classes and a screen-reader description to each annotation), and `v-model:tool`, `v-model:page` and `v-model:zoom`. It emits `ready` with the `InkDocument`, `error` with an `InkError`, `change` with each annotation change and `activate` with an annotation id. Its default slot receives `{ status, document }`.
+`InkRoot` also takes `password` for an encrypted file, `storage` for what the viewer keeps between visits (see [Storage](#storage)), `minDocumentWidth` for how narrow the document may get before a rail sidebar's panel floats over it (see [Sidebars](#sidebars)), `defaults` for annotation colours, `fonts` for the families the text style menu offers, `decorateAnnotation` (a `DecorateAnnotation` function that adds `data-*` attributes, classes and a screen-reader description to each annotation), and `v-model:tool`, `v-model:page` and `v-model:zoom`. It emits `ready` with the `InkDocument`, `error` with an `InkError`, `change` with each annotation change and `activate` with an annotation id. Its default slot receives `{ status, document }`.
 
 ## Viewport
 
