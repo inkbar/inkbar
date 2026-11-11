@@ -73,8 +73,13 @@ async function open(page: Page, framework: string): Promise<void> {
   ).toBeVisible({ timeout: 20_000 })
 }
 
-/** Opens the scenario and runs Suggest redactions. */
+/**
+ * Opens the scenario and runs Suggest redactions, which opens the Suggestions panel. The page is
+ * wide enough for that panel to sit beside the pages: floating, a press on a mark would only
+ * close it.
+ */
 async function suggest(page: Page, framework: string): Promise<void> {
+  await page.setViewportSize({ width: 1700, height: 900 })
   await open(page, framework)
   await suggestButton(page).click()
   await expect(page.locator(RESULT)).toHaveText(FOUND)
@@ -319,6 +324,8 @@ for (const framework of FRAMEWORK_ORDER) {
     test(`${framework} redactions: suggestion rows and marks select each other`, async ({
       page,
     }) => {
+      // Wide enough for the Suggestions panel to open beside the pages rather than over the marks.
+      await page.setViewportSize({ width: 1700, height: 900 })
       await open(page, framework)
       const suggestions = railButton(page, 'right', 'Suggestions')
       await expect(suggestions).toHaveAttribute('aria-selected', 'false')
