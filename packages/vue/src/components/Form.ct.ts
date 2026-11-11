@@ -95,32 +95,6 @@ test('action emits open-url', async ({ mount, page }) => {
     .toEqual([{ kind: 'open-url', url: 'https://example.com/', newWindow: false }])
 })
 
-test('form-action still works', async ({ mount, page }) => {
-  const actions: unknown[] = []
-  await mount(FormHarness, {
-    props: { src: fixtureUrl('form-scripted'), assets, listen: 'form-action' },
-    on: { 'form-action': (a: unknown) => actions.push(a) },
-  })
-  await widget(page, 'send').locator('button').click()
-  await expect.poll(() => actions.length).toBe(1)
-})
-
-test('action wins over form-action', async ({ mount, page }) => {
-  const actions: unknown[] = []
-  const old: unknown[] = []
-  await mount(FormHarness, {
-    props: { src: fixtureUrl('form-scripted'), assets },
-    on: {
-      action: (a: unknown) => actions.push(a),
-      'form-action': (a: unknown) => old.push(a),
-    },
-  })
-  await widget(page, 'send').locator('button').click()
-  await expect.poll(() => actions.length).toBe(1)
-  await page.waitForTimeout(100)
-  expect(old).toEqual([])
-})
-
 test('a script alert shows the dialog', async ({ mount, page }) => {
   await mount(FormHarness, { props: { src: fixtureUrl('form-scripted'), assets } })
   const hello = widget(page, 'hello').locator('button')

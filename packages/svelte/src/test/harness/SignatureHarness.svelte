@@ -11,18 +11,18 @@
   import HookProbe from './HookProbe.svelte'
   import SignatureOptionsProbe from './SignatureOptionsProbe.svelte'
 
-  import type { DocumentSource, PdfAssets, SignatureStore } from '@inkbar/core'
+  import type { DocumentSource, InkStorage, PdfAssets } from '@inkbar/core'
 
   let {
     src,
     assets,
-    store,
+    storage,
     fonts,
     bare = false,
   }: {
     src: DocumentSource
     assets: PdfAssets
-    store: SignatureStore
+    storage: InkStorage
     fonts?: string[] | undefined
     /** No tools: a plain button opens the dialog in place of the menu. */
     bare?: boolean
@@ -35,7 +35,7 @@
   {src}
   {assets}
   zoom={1}
-  signatures={store}
+  {storage}
   signatureFonts={fonts}
   tools={bare ? undefined : tools}
 >

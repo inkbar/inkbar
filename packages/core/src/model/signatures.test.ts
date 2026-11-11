@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   createImageTemplate,
   createInkTemplate,
-  createLocalSignatureStore,
   createMemorySignatureStore,
   createSignatureLibrary,
   createStorageSignatureStore,
@@ -260,108 +259,6 @@ function memoryStorage(): Storage {
     setItem: (k, v) => void map.set(k, v),
   }
 }
-
-describe('createLocalSignatureStore', () => {
-  it('keeps templates in localStorage under its key', async () => {
-    const storage = memoryStorage()
-    vi.stubGlobal('localStorage', storage)
-    await createLocalSignatureStore('sigs').save(ink)
-    expect(JSON.parse(storage.getItem('sigs')!)).toEqual([ink])
-    expect(await createLocalSignatureStore('sigs').list()).toEqual([ink])
-    await createLocalSignatureStore('sigs').remove('ink-1')
-    expect(await createLocalSignatureStore('sigs').list()).toEqual([])
-  })
-
-  it('survives a throwing localStorage by keeping templates in memory', async () => {
-    vi.stubGlobal('localStorage', undefined)
-    Object.defineProperty(globalThis, 'localStorage', {
-      configurable: true,
-      get() {
-        throw new DOMException('denied', 'SecurityError')
-      },
-    })
-    const store = createLocalSignatureStore('sigs')
-    await store.save(ink)
-    await store.save(image)
-    expect(await store.list()).toEqual([ink, image])
-    await store.remove('ink-1')
-    expect(await store.list()).toEqual([image])
-  })
-
-  it('keeps templates in memory where storage refuses every write', async () => {
-    const storage = memoryStorage()
-    storage.setItem = () => {
-      throw new DOMException('blocked', 'QuotaExceededError')
-    }
-    vi.stubGlobal('localStorage', storage)
-    const store = createLocalSignatureStore('sigs')
-    await store.save(ink)
-    expect(await store.list()).toEqual([ink])
-  })
-
-  // A full store fails even the probe's tiny write, but it still holds the saved list.
-  it('reads a full store and rejects saves to it, rather than falling back to memory', async () => {
-    const storage = memoryStorage()
-    storage.setItem('sigs', JSON.stringify([ink]))
-    storage.setItem = () => {
-      throw new DOMException('full', 'QuotaExceededError')
-    }
-    vi.stubGlobal('localStorage', storage)
-    const store = createLocalSignatureStore('sigs')
-    expect(await store.list()).toEqual([ink])
-    await expect(store.save(image)).rejects.toThrow(/could not be saved/)
-    expect(await store.list()).toEqual([ink])
-  })
-
-  it('rejects a save that storage has no room for, and keeps what was there', async () => {
-    const storage = memoryStorage()
-    vi.stubGlobal('localStorage', storage)
-    const store = createLocalSignatureStore('sigs')
-    await store.save(ink)
-    const setItem = storage.setItem.bind(storage)
-    storage.setItem = (k, v) => {
-      if (v.length > JSON.stringify([ink]).length)
-        throw new DOMException('full', 'QuotaExceededError')
-      setItem(k, v)
-    }
-    await expect(store.save(image)).rejects.toThrow(/could not be saved/)
-    expect(await store.list()).toEqual([ink])
-    expect(await createLocalSignatureStore('sigs').list()).toEqual([ink])
-  })
-
-  it('skips stored entries that are not templates', async () => {
-    const storage = memoryStorage()
-    storage.setItem('sigs', JSON.stringify([ink, { id: 'x', kind: 'nope' }, 7]))
-    vi.stubGlobal('localStorage', storage)
-    expect(await createLocalSignatureStore('sigs').list()).toEqual([ink])
-    // Pressure that does not match the strokes would throw when placed: skipped too.
-    storage.setItem('sigs', JSON.stringify([{ ...ink, pressure: [[0.5]] }, image]))
-    expect(await createLocalSignatureStore('sigs').list()).toEqual([image])
-    storage.setItem('sigs', '{not json')
-    expect(await createLocalSignatureStore('sigs').list()).toEqual([])
-  })
-
-  // A newer version's template, or a hand-edited one, must survive this version's writes.
-  it('writes back stored entries it cannot read, unchanged', async () => {
-    const storage = memoryStorage()
-    const future = { id: 'f', kind: 'vector', paths: ['M0 0'] }
-    storage.setItem('sigs', JSON.stringify([ink, future, 7]))
-    vi.stubGlobal('localStorage', storage)
-    const store = createLocalSignatureStore('sigs')
-    await store.save(image)
-    expect(JSON.parse(storage.getItem('sigs')!)).toEqual([ink, image, future, 7])
-    await store.remove('ink-1')
-    expect(JSON.parse(storage.getItem('sigs')!)).toEqual([image, future, 7])
-    expect(await store.list()).toEqual([image])
-    // Saving a template with an unreadable entry's id replaces that entry.
-    await store.save({ ...image, id: 'f' })
-    expect(JSON.parse(storage.getItem('sigs')!)).toEqual([
-      image,
-      { ...image, id: 'f' },
-      7,
-    ])
-  })
-})
 
 describe('createSignatureLibrary', () => {
   it('loads, saves and removes through the store, and finds templates by id', async () => {

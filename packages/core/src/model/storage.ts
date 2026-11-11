@@ -102,19 +102,6 @@ export function createLocalStorage(prefix = 'inkbar'): InkStorage {
   )
 }
 
-/**
- * Like `createLocalStorage`, but keys reach storage exactly as given, with no prefix. Internal:
- * the signature store keeps its caller's key. `own` is the key whose presence marks a full
- * store as ours.
- */
-export function createRawLocalStorage(own: string): InkStorage {
-  return createLocalStore(
-    (key) => key,
-    `${own}:probe`,
-    (s) => s.getItem(own) !== null
-  )
-}
-
 /** Keys under `<prefix>.`: `get('x')` reads `<prefix>.x`. */
 export function scopeStorage(storage: InkStorage, prefix: string): InkStorage {
   const scoped = (key: string): string => `${prefix}.${key}`

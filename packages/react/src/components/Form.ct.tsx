@@ -99,31 +99,6 @@ test('onAction receives open-url', async ({ mount, page }) => {
     .toEqual([{ kind: 'open-url', url: 'https://example.com/', newWindow: false }])
 })
 
-test('onFormAction still works', async ({ mount, page }) => {
-  const actions: unknown[] = []
-  await mount(
-    harness({ src: fixtureUrl('form-scripted'), onFormAction: (a) => actions.push(a) })
-  )
-  await widget(page, 'send').locator('button').click()
-  await expect.poll(() => actions.length).toBe(1)
-})
-
-test('onAction wins over onFormAction', async ({ mount, page }) => {
-  const actions: unknown[] = []
-  const old: unknown[] = []
-  await mount(
-    harness({
-      src: fixtureUrl('form-scripted'),
-      onAction: (a) => actions.push(a),
-      onFormAction: (a) => old.push(a),
-    })
-  )
-  await widget(page, 'send').locator('button').click()
-  await expect.poll(() => actions.length).toBe(1)
-  await page.waitForTimeout(100)
-  expect(old).toEqual([])
-})
-
 test('a script alert shows the dialog', async ({ mount, page }) => {
   await mount(harness({ src: fixtureUrl('form-scripted') }))
   const hello = widget(page, 'hello').locator('button')

@@ -103,7 +103,7 @@ export interface InkContext {
    * Each `InkSidebar` without its own takes it, and the viewer is built with it.
    */
   minDocumentWidth: number
-  /** The saved signatures: InkRoot's `signatures` store, else kept in `storage`. */
+  /** The saved signatures: kept in InkRoot's `storage` under `signatures`. */
   signatures: Readonly<ShallowRef<SignatureLibrary>>
   /** The fonts a typed signature offers: InkRoot's `signatureFonts`, else `SIGNATURE_FONTS`. */
   signatureFonts: Readonly<Ref<readonly string[]>>
@@ -126,7 +126,7 @@ export interface InkContext {
   rootEl: Readonly<Ref<HTMLElement | null>>
   /** InkRoot's `formHighlight`; InkViewport reads it when it builds the viewer. */
   formHighlight: Readonly<Ref<boolean | undefined>>
-  /** Emits InkRoot's `action`, or the deprecated `form-action` when only that has a listener. */
+  /** Emits InkRoot's `action`. */
   reportAction(action: ViewerAction): void
   /** Emits InkRoot's `error`, for failures after the document opened (a refused signing). */
   reportError(error: InkError): void

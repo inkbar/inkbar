@@ -113,7 +113,7 @@ export interface InkContext {
    * Each `InkSidebar` without its own takes it, and the viewer is built with it.
    */
   minDocumentWidth: number
-  /** The saved signatures: InkRoot's `signatures` store, else kept in `storage`. */
+  /** The saved signatures: kept in InkRoot's `storage` under `signatures`. */
   signatures: SignatureLibrary
   /** The fonts a typed signature offers: InkRoot's `signatureFonts`, else `SIGNATURE_FONTS`. */
   signatureFonts: readonly string[]
@@ -137,7 +137,7 @@ export interface InkContext {
   setViewport: (viewport: Viewport | null, tools: ToolController | null) => void
   /** InkRoot's `formHighlight`; InkViewport reads it when it builds the viewer. */
   formHighlight: boolean | undefined
-  /** Calls InkRoot's `onAction`, or the deprecated `onFormAction`, one microtask later. */
+  /** Calls InkRoot's `onAction` one microtask later. */
   reportAction: (action: ViewerAction) => void
   /** Calls InkRoot's `onError`, for failures after the document opened (a refused signing). */
   reportError: (error: InkError) => void

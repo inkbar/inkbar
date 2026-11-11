@@ -12,7 +12,6 @@
     InkError,
     InkStatus,
     PdfAssets,
-    SignatureStore,
   } from '@inkbar/core'
   import type {
     DecorateAnnotation,
@@ -57,8 +56,6 @@
      * Inkbar does none of these.
      */
     onaction?: ((action: ViewerAction) => void) | undefined
-    /** @deprecated Use `onaction`. Removed in 0.13.0. Ignored when `onaction` is given. */
-    onformaction?: ((action: ViewerAction) => void) | undefined
     /** Tints fillable form fields. Default true. A change applies to the open document in place. */
     formHighlight?: boolean | undefined
     tool?: ToolId | undefined
@@ -104,12 +101,6 @@
      * `InkSidebar` inside takes it unless it has its own. Read once, when the root is created.
      */
     minDocumentWidth?: number | undefined
-    /**
-     * Where saved signatures live, in place of `storage`. A new store takes effect at once, for
-     * the menus and the `signature` tool alike.
-     * @deprecated Pass `storage`; signatures are kept in it under `signatures`. Removed in 0.13.0.
-     */
-    signatures?: SignatureStore | undefined
     /** The handwriting fonts a typed signature offers; the host loads them. */
     signatureFonts?: string[] | undefined
     page?: number | undefined
@@ -193,7 +184,6 @@
     fields = $bindable(),
     onFieldsChange,
     onaction,
-    onformaction,
     formHighlight,
     tool = $bindable(),
     onToolChange,
@@ -203,7 +193,6 @@
     fonts,
     storage: storageProp,
     minDocumentWidth: minDocumentWidthProp,
-    signatures: signatureStore,
     signatureFonts,
     page = $bindable(),
     onPageChange,
@@ -226,8 +215,7 @@
   const storageSignatures = createStorageSignatureStore(storage)
   // Read once, like `storage`: each sidebar reads it as it is created.
   const minDocumentWidth = untrack(() => minDocumentWidthProp ?? MIN_DOCUMENT_WIDTH)
-  // The deprecated `signatures` wins when both are given.
-  const signatures = $derived(createSignatureLibrary(signatureStore ?? storageSignatures))
+  const signatures = createSignatureLibrary(storageSignatures)
   $effect(() => {
     void signatures.refresh()
   })
@@ -731,7 +719,7 @@
     get formHighlight() {
       return formHighlight
     },
-    reportAction: (a) => (onaction ?? onformaction)?.(a),
+    reportAction: (a) => onaction?.(a),
     reportError: (e) => onError?.(e),
   }
   setInkContext(context, () => activatedNow)

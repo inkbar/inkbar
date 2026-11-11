@@ -62,7 +62,6 @@ import type {
   InkStorage,
   PdfAssets,
   PluginHistory,
-  SignatureStore,
   Writable,
 } from '@inkbar/core'
 import type {
@@ -119,8 +118,6 @@ export interface InkRootProps extends Omit<
    * does none of these.
    */
   onAction?: ((action: ViewerAction) => void) | undefined
-  /** @deprecated Use `onAction`. Removed in 0.13.0. Ignored when `onAction` is given. */
-  onFormAction?: ((action: ViewerAction) => void) | undefined
   /** Tints fillable form fields. Default true. A change applies to the open document in place. */
   formHighlight?: boolean | undefined
   tool?: ToolId | undefined
@@ -166,12 +163,6 @@ export interface InkRootProps extends Omit<
    * `InkSidebar` inside takes it unless it has its own. Read once, when the root is created.
    */
   minDocumentWidth?: number | undefined
-  /**
-   * Where saved signatures live, in place of `storage`. A new store takes effect at once, for
-   * the menus and the `signature` tool alike.
-   * @deprecated Pass `storage`; signatures are kept in it under `signatures`. Removed in 0.13.0.
-   */
-  signatures?: SignatureStore | undefined
   /** The handwriting fonts a typed signature offers; the host loads them. */
   signatureFonts?: string[] | undefined
   page?: number | undefined
@@ -251,7 +242,6 @@ export function InkRoot({
   fields,
   onFieldsChange,
   onAction,
-  onFormAction,
   formHighlight,
   tool,
   onToolChange,
@@ -261,7 +251,6 @@ export function InkRoot({
   fonts: fontsProp,
   storage: storageProp,
   minDocumentWidth: minDocumentWidthProp,
-  signatures: signatureStore,
   signatureFonts: signatureFontsProp,
   page,
   onPageChange,
@@ -315,7 +304,6 @@ export function InkRoot({
     fields,
     onFieldsChange,
     onAction,
-    onFormAction,
     history,
     historyEnabled,
     onAnnotationsChange,
@@ -680,8 +668,7 @@ export function InkRoot({
       queueMicrotask(() => {
         if (documentRef.current !== doc) return
         flushSync(() => {
-          const { onAction, onFormAction } = latest.current
-          ;(onAction ?? onFormAction)?.(a)
+          latest.current.onAction?.(a)
         })
       })
     },
@@ -798,10 +785,9 @@ export function InkRoot({
     [signatureFontsProp]
   )
   const [storageSignatures] = useState(() => createStorageSignatureStore(storage))
-  // The deprecated `signatures` wins when both are given.
   const signatures = useMemo(
-    () => createSignatureLibrary(signatureStore ?? storageSignatures),
-    [signatureStore, storageSignatures]
+    () => createSignatureLibrary(storageSignatures),
+    [storageSignatures]
   )
   useEffect(() => {
     void signatures.refresh()

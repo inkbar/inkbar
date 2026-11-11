@@ -103,7 +103,6 @@ export type { InkStorage } from './model/storage'
 export {
   createImageTemplate,
   createInkTemplate,
-  createLocalSignatureStore,
   createMemorySignatureStore,
   createSignatureLibrary,
   createStorageSignatureStore,

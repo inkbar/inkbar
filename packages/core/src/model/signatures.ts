@@ -1,6 +1,6 @@
 // Signature templates and where they live. A template is a signature drawn or typed once and
 // placed many times: ink strokes in a unit box, or an image. The host owns storage through a
-// `SignatureStore`; core ships a memory store and a localStorage one as conveniences.
+// `SignatureStore`; core ships a memory store as a convenience.
 //
 // These are visual signatures, a mark on the page. Nothing here signs the file.
 import { v7 as uuidv7 } from 'uuid'
@@ -8,7 +8,6 @@ import { z } from 'zod'
 
 import { IMAGE_DATA_URL, PointSchema } from './annotations/types'
 import { readonly, writable, type Readable } from './readable'
-import { createRawLocalStorage } from './storage'
 
 import type { AnnotationInput } from './annotations/types'
 import type { Point, Rect } from './geometry'
@@ -159,17 +158,6 @@ export function createStorageSignatureStore(
       )
     },
   }
-}
-
-/**
- * Templates in `localStorage` under `key`, as a JSON array. Where storage is blocked the
- * templates stay in memory for the page's life, so signing still works. Where storage is full
- * and has no room for a change, `save` or `remove` rejects.
- *
- * @deprecated Pass `storage` (for example `createLocalStorage()`) to the viewer instead.
- */
-export function createLocalSignatureStore(key: string): SignatureStore {
-  return createStorageSignatureStore(createRawLocalStorage(key), key)
 }
 
 /**

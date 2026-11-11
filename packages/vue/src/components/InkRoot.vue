@@ -28,7 +28,6 @@ import {
 import { Primitive } from 'reka-ui'
 import {
   computed,
-  getCurrentInstance,
   onBeforeUnmount,
   onUnmounted,
   onMounted,
@@ -55,7 +54,6 @@ import type {
   InkDocument,
   InkStorage,
   PdfAssets,
-  SignatureStore,
 } from '@inkbar/core'
 import type {
   DecorateAnnotation,
@@ -133,12 +131,6 @@ const props = withDefaults(
      * `InkSidebar` inside takes it unless it has its own. Read once, when the root is created.
      */
     minDocumentWidth?: number | undefined
-    /**
-     * Where saved signatures live, in place of `storage`. A new store takes effect at once, for
-     * the menus and the `signature` tool alike.
-     * @deprecated Pass `storage`; signatures are kept in it under `signatures`. Removed in 0.13.0.
-     */
-    signatures?: SignatureStore | undefined
     /** The handwriting fonts a typed signature offers; the host loads them. */
     signatureFonts?: string[] | undefined
     page?: number | undefined
@@ -160,7 +152,6 @@ const props = withDefaults(
     fonts: undefined,
     storage: undefined,
     minDocumentWidth: undefined,
-    signatures: undefined,
     signatureFonts: undefined,
     page: undefined,
     zoom: undefined,
@@ -179,8 +170,6 @@ const emit = defineEmits<{
    * does none of these.
    */
   action: [action: ViewerAction]
-  /** @deprecated Use `action`. Removed in 0.13.0. Not emitted when `action` has a listener. */
-  'form-action': [action: ViewerAction]
   'update:tool': [tool: ToolId]
   'update:page': [page: number]
   'update:zoom': [zoom: ZoomValue]
@@ -192,7 +181,6 @@ const emit = defineEmits<{
   error: [error: InkError]
   activate: [id: string]
 }>()
-const instance = getCurrentInstance()
 
 type TestHookElement = HTMLElement & { __inkDocument?: InkDocument | undefined }
 
@@ -575,10 +563,7 @@ onUnmounted(() => {
 })
 
 const storageSignatures = createStorageSignatureStore(storage)
-// The deprecated `signatures` wins when both are given.
-const signatures = computed(() =>
-  createSignatureLibrary(props.signatures ?? storageSignatures)
-)
+const signatures = computed(() => createSignatureLibrary(storageSignatures))
 watch(signatures, (lib) => void lib.refresh(), { immediate: true })
 /** Tool options last as long as the root; the tool style is per document. */
 const toolOptions = createToolOptions()
@@ -616,12 +601,7 @@ provideInkContext({
   history: inkHistory,
   rootEl,
   formHighlight: computed(() => props.formHighlight),
-  reportAction: (a) => {
-    // Emits cannot say who listens, so ask the vnode: `@action` wins over `@form-action`.
-    const listeners = instance?.vnode.props
-    if (!listeners?.onAction && listeners?.onFormAction) emit('form-action', a)
-    else emit('action', a)
-  },
+  reportAction: (a) => emit('action', a),
   reportError: (e) => emit('error', e),
 })
 

@@ -1,9 +1,9 @@
 import {
-  createMemorySignatureStore,
+  createMemoryStorage,
   type DocumentSource,
+  type InkStorage,
   type PdfAssets,
   type SignatureOptions,
-  type SignatureStore,
   type SignatureTemplate,
 } from '@inkbar/core'
 import { allTools } from '@inkbar/core/dom'
@@ -27,7 +27,7 @@ function OptionsProbe() {
   )
 }
 
-/** A viewer with the signature menu over a memory store whose contents the page shows. */
+/** A viewer with the signature menu over a memory storage whose templates the page shows. */
 export function SignatureHarness({
   src,
   assets,
@@ -35,49 +35,43 @@ export function SignatureHarness({
   fonts,
   failSave = false,
   failRemove = false,
-  swapTo,
   bare = false,
 }: {
   src: DocumentSource
   assets: PdfAssets
   initial?: SignatureTemplate[]
   fonts?: string[]
-  /** The store refuses every save, as a full one would. */
+  /** Storage refuses every save, as a full one would. */
   failSave?: boolean
-  /** The store refuses every removal. */
+  /** Storage refuses every removal. */
   failRemove?: boolean
-  /** Templates of a second store that the `swap-store` button hands to InkRoot. */
-  swapTo?: SignatureTemplate[]
   /** No tools: a plain button opens the dialog in place of the menu. */
   bare?: boolean
 }) {
   const [tools] = useState(allTools)
   const [dialog, setDialog] = useState(false)
   const [saved, setSaved] = useState<SignatureTemplate[]>(initial)
-  const [swapped, setSwapped] = useState(false)
-  const next = useMemo(
-    () => createMemorySignatureStore(swapTo ?? []),
-    // Made once, from the first `swapTo`.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
-  )
-  const store = useMemo<SignatureStore>(() => {
-    const inner = createMemorySignatureStore(initial)
-    const sync = async () => setSaved(await inner.list())
+  const storage = useMemo<InkStorage>(() => {
+    const inner = createMemoryStorage({ signatures: initial })
+    const read = async () =>
+      ((await inner.get('signatures')) ?? []) as SignatureTemplate[]
     return {
-      list: () => inner.list(),
-      save: async (t) => {
-        if (failSave) throw new Error('full')
-        await inner.save(t)
-        await sync()
+      get: (key) => inner.get(key),
+      set: async (key, value) => {
+        if (key === 'signatures') {
+          const before = await read()
+          const after = value as SignatureTemplate[]
+          if (failSave && after.length > before.length) throw new Error('full')
+          if (failRemove && after.length < before.length) throw new Error('full')
+          await inner.set(key, value)
+          setSaved(await read())
+          return
+        }
+        await inner.set(key, value)
       },
-      remove: async (id) => {
-        if (failRemove) throw new Error('full')
-        await inner.remove(id)
-        await sync()
-      },
+      remove: (key) => inner.remove(key),
     }
-    // The store is made once, from the first `initial`.
+    // The storage is made once, from the first `initial`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   return (
@@ -85,7 +79,7 @@ export function SignatureHarness({
       src={src}
       assets={assets}
       zoom={1}
-      signatures={swapped ? next : store}
+      storage={storage}
       signatureFonts={fonts}
       tools={bare ? undefined : tools}
     >
@@ -110,9 +104,6 @@ export function SignatureHarness({
         data-ids={saved.map((t) => t.id).join(',')}
         data-kinds={saved.map((t) => t.kind).join(',')}
       />
-      <button data-testid="swap-store" onClick={() => setSwapped(true)}>
-        swap
-      </button>
       {bare ? null : <OptionsProbe />}
       <HookProbe />
     </InkRoot>

@@ -1,4 +1,8 @@
-import { createMemorySignatureStore, type SignatureTemplate } from '@inkbar/core'
+import {
+  createMemoryStorage,
+  createStorageSignatureStore,
+  type SignatureTemplate,
+} from '@inkbar/core'
 import { browserAssets, fixtureUrl } from '@inkbar/fixtures/urls'
 import { describe, expect, it } from 'vitest'
 import { page as browserPage, userEvent } from 'vitest/browser'
@@ -1176,11 +1180,12 @@ describe('signature menu', () => {
   const dialog = () => browserPage.getByRole('dialog', { name: 'Create signature' })
   const probe = (name: string) => attr('[data-testid="probe"]', name)
   const start = async (templates: SignatureTemplate[] = [], fonts?: string[]) => {
-    const store = createMemorySignatureStore(templates)
+    const storage = createMemoryStorage({ signatures: templates })
+    const store = createStorageSignatureStore(storage)
     await render(SignatureHarness, {
       src: fixtureUrl('text-simple'),
       assets,
-      store,
+      storage,
       ...(fonts ? { fonts } : {}),
     })
     await q('.ink-page canvas')
@@ -1343,11 +1348,10 @@ describe('signature menu', () => {
       expect(document.body.style.pointerEvents).toBe('')
       expect(document.body.style.overflow).toBe('')
     }
-    const store = createMemorySignatureStore()
     const screen = await render(SignatureHarness, {
       src: fixtureUrl('text-simple'),
       assets,
-      store,
+      storage: createMemoryStorage(),
     })
     await q('.ink-page canvas')
     released()
@@ -1371,9 +1375,10 @@ describe('signature menu', () => {
   })
 
   it('a save the store refuses shows an error and keeps the dialog open', async () => {
-    const store = createMemorySignatureStore()
-    store.save = () => Promise.reject(new Error('full'))
-    await render(SignatureHarness, { src: fixtureUrl('text-simple'), assets, store })
+    const storage = createMemoryStorage()
+    const store = createStorageSignatureStore(storage)
+    storage.set = () => Promise.reject(new Error('full'))
+    await render(SignatureHarness, { src: fixtureUrl('text-simple'), assets, storage })
     await q('.ink-page canvas')
     await createSignature()
     await dialog().getByRole('tab', { name: 'Type' }).click()
@@ -1387,25 +1392,27 @@ describe('signature menu', () => {
   })
 
   it('a removal the store refuses shows an error in the menu', async () => {
-    const store = createMemorySignatureStore([INK, IMAGE])
-    store.remove = () => Promise.reject(new Error('full'))
-    await render(SignatureHarness, { src: fixtureUrl('text-simple'), assets, store })
+    const storage = createMemoryStorage({ signatures: [INK, IMAGE] })
+    const store = createStorageSignatureStore(storage)
+    storage.set = () => Promise.reject(new Error('full'))
+    await render(SignatureHarness, { src: fixtureUrl('text-simple'), assets, storage })
     await q('.ink-page canvas')
     await chevron().click()
     await menu().getByRole('menuitem', { name: 'Remove signature 1' }).click()
     const error = await q('[data-ink-signature-remove-error]')
     expect(error.getAttribute('role')).toBe('alert')
-    expect(error.textContent).toMatch(/could not be removed/)
+    await expect.poll(() => error.textContent).toMatch(/could not be removed/)
     expect(menu().getByRole('menuitemradio').elements()).toHaveLength(2)
     expect((await store.list()).length).toBe(2)
   })
 
   it('the signature dialog saves without the signature tool', async () => {
-    const store = createMemorySignatureStore()
+    const storage = createMemoryStorage()
+    const store = createStorageSignatureStore(storage)
     await render(SignatureHarness, {
       src: fixtureUrl('text-simple'),
       assets,
-      store,
+      storage,
       bare: true,
     })
     await q('.ink-page canvas')
