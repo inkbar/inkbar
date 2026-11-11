@@ -4,6 +4,7 @@ import { staticDefaults } from '../../model/annotations/defaults'
 import { createHistory } from '../../model/annotations/history'
 import { createAnnotationStore } from '../../model/annotations/store'
 import { writable } from '../../model/readable'
+import { createMemoryStorage } from '../../model/storage'
 
 import { definePlugin, type InkPlugin, type PluginContext } from './define'
 import { createPluginHost, type PluginHostOptions } from './host'
@@ -776,5 +777,45 @@ describe('host records', () => {
     const late = host.records<Suggestion>('p.late')
     expect(late.add({ id: 'a', status: 'open' })).toEqual({ id: 'a', status: 'open' })
     expect(late.has('a')).toBe(true)
+  })
+})
+
+describe('ctx.storage', () => {
+  const capture = (id: string) => {
+    let ctx!: PluginContext
+    return {
+      plugin: definePlugin({
+        id,
+        setup(c) {
+          ctx = c
+        },
+      }),
+      ctx: () => ctx,
+    }
+  }
+
+  it('writes under plugin.<id>.', async () => {
+    const storage = createMemoryStorage()
+    const a = capture('review')
+    hostWith([a.plugin], { storage })
+    await a.ctx().storage.set('width', 300)
+    expect(await storage.get('plugin.review.width')).toBe(300)
+    expect(await a.ctx().storage.get('width')).toBe(300)
+  })
+
+  it("two plugins do not see each other's keys", async () => {
+    const storage = createMemoryStorage()
+    const a = capture('one')
+    const b = capture('two')
+    hostWith([a.plugin, b.plugin], { storage })
+    await a.ctx().storage.set('k', 1)
+    expect(await b.ctx().storage.get('k')).toBeUndefined()
+  })
+
+  it('ctx.storage cannot read signatures', async () => {
+    const storage = createMemoryStorage({ signatures: [{ id: 's' }] })
+    const a = capture('review')
+    hostWith([a.plugin], { storage })
+    expect(await a.ctx().storage.get('signatures')).toBeUndefined()
   })
 })
