@@ -980,6 +980,60 @@
     }
   }
 
+  /*
+   * A floating rail (data-overlay, set while the document has no room for the open panel): the
+   * root keeps only the rail's width, and the panels float over the pages beside it, above the
+   * viewport and below popovers, menus and dialogs (z-index 50). The handle moves to the panel's
+   * document-side edge. data-side="right" mirrors it.
+   */
+  :where(.ink-sidebar[data-layout='rail'][data-overlay]) {
+    width: var(--ink-sidebar-rail-width);
+  }
+
+  :where(.ink-sidebar[data-layout='rail'][data-overlay] .ink-sidebar-panels) {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: var(--ink-sidebar-rail-width);
+    z-index: 10;
+    background: var(--ink-surface);
+    box-shadow: 0 8px 24px rgb(0 0 0 / 0.15);
+  }
+
+  :where(
+    .ink-sidebar[data-layout='rail'][data-overlay][data-side='right'] .ink-sidebar-panels
+  ) {
+    right: var(--ink-sidebar-rail-width);
+    left: auto;
+  }
+
+  :where(.ink-sidebar[data-layout='rail'][data-overlay] .ink-sidebar-handle) {
+    right: auto;
+    left: calc(var(--ink-sidebar-width) - 4px);
+    z-index: 11;
+  }
+
+  :where(
+    .ink-sidebar[data-layout='rail'][data-overlay][data-side='right'] .ink-sidebar-handle
+  ) {
+    right: calc(var(--ink-sidebar-width) - 4px);
+    left: auto;
+  }
+
+  @media (pointer: coarse) {
+    :where(.ink-sidebar[data-layout='rail'][data-overlay] .ink-sidebar-handle) {
+      left: calc(var(--ink-sidebar-width) - 8px);
+    }
+
+    :where(
+      .ink-sidebar[data-layout='rail'][data-overlay][data-side='right']
+        .ink-sidebar-handle
+    ) {
+      right: calc(var(--ink-sidebar-width) - 8px);
+      left: auto;
+    }
+  }
+
   :where(.ink-sidebar-handle[hidden]) {
     display: none;
   }
