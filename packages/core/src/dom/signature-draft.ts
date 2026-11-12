@@ -2,6 +2,7 @@
 // dialog: which tab is open, the pad, the typed name and font, the chosen image, and whether
 // Save can go. The bindings render it; nothing here touches their markup.
 import { readonly, writable, type Readable } from '../model/readable'
+import { isQuotaError } from '../model/signatures'
 
 import {
   createImageSignature,
@@ -151,9 +152,11 @@ export function createSignatureDraft(
         await library.save(t)
         // Closed while saving: the template stays in the library, but nothing acts on it.
         return destroyed ? undefined : t
-      } catch {
+      } catch (e) {
         patch({
-          saveError: 'The signature could not be saved. Try again, or try a smaller one.',
+          saveError: isQuotaError((e as Error | undefined)?.cause)
+            ? "Your browser's storage is full. Remove a saved signature, or try a smaller one."
+            : 'The signature could not be saved. Try again.',
         })
         return undefined
       } finally {

@@ -46,6 +46,31 @@ describe('createMemoryStorage', () => {
 })
 
 describe('createLocalStorage', () => {
+  it('works without localStorage', async () => {
+    vi.stubGlobal('localStorage', undefined)
+    const s = createLocalStorage()
+    await s.set('a', { n: 1 })
+    expect(await s.get('a')).toEqual({ n: 1 })
+    await s.remove('a')
+    expect(await s.get('a')).toBeUndefined()
+  })
+
+  it('works when reading localStorage throws', async () => {
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new Error('denied')
+      },
+    })
+    try {
+      const s = createLocalStorage()
+      await s.set('a', 1)
+      expect(await s.get('a')).toBe(1)
+    } finally {
+      Reflect.deleteProperty(globalThis, 'localStorage')
+    }
+  })
+
   it('writes <prefix>:<key> as JSON', () => {
     const storage = mapStorage()
     vi.stubGlobal('localStorage', storage)

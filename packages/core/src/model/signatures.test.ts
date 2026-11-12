@@ -215,14 +215,62 @@ describe('createStorageSignatureStore', () => {
     expect(await storage.get('signatures')).toEqual([ink, image, z])
   })
 
-  it('storage signature store rejects when set rejects', async () => {
+  it('a server failure is not called storage full', async () => {
     const storage = createMemoryStorage({ signatures: [ink] })
-    storage.set = () => Promise.reject(new Error('full'))
+    const failure = new Error('500')
+    storage.set = () => Promise.reject(failure)
     const store = createStorageSignatureStore(storage)
-    const message = 'The signature could not be saved: browser storage is full'
-    await expect(store.save(image)).rejects.toThrow(message)
-    await expect(store.remove('ink-1')).rejects.toThrow(message)
+    for (const run of [() => store.save(image), () => store.remove('ink-1')]) {
+      const error = (await run().catch((e: unknown) => e)) as Error
+      expect(error.message).toBe('The signature could not be saved')
+      expect(error.cause).toBe(failure)
+    }
     expect(await store.list()).toEqual([ink])
+  })
+
+  it('a quota error is', async () => {
+    for (const name of ['QuotaExceededError', 'NS_ERROR_DOM_QUOTA_REACHED']) {
+      const storage = createMemoryStorage({ signatures: [ink] })
+      const quota = new DOMException('', name)
+      storage.set = () => Promise.reject(quota)
+      const store = createStorageSignatureStore(storage)
+      const error = (await store.save(image).catch((e: unknown) => e)) as Error
+      expect(error.message).toBe(
+        'The signature could not be saved: browser storage is full'
+      )
+      expect(error.cause).toBe(quota)
+      await expect(store.remove('ink-1')).rejects.toThrow(/browser storage is full$/)
+      expect(await store.list()).toEqual([ink])
+    }
+  })
+
+  it('overlapping saves keep both', async () => {
+    const inner = createMemoryStorage()
+    const wait = (): Promise<void> => new Promise((r) => setTimeout(r, 20))
+    const storage: InkStorage = {
+      get: (k) => inner.get(k),
+      set: async (k, v) => {
+        await wait()
+        void inner.set(k, v)
+      },
+      remove: (k) => inner.remove(k),
+    }
+    const store = createStorageSignatureStore(storage)
+    await Promise.all([store.save(ink), store.save(image)])
+    expect(await store.list()).toEqual([ink, image])
+  })
+
+  it('a rejected save does not block the next', async () => {
+    const storage = createMemoryStorage()
+    const set = storage.set.bind(storage)
+    let calls = 0
+    storage.set = (k, v) => (calls++ === 0 ? Promise.reject(new Error('500')) : set(k, v))
+    const store = createStorageSignatureStore(storage)
+    const first = store.save(ink)
+    const second = store.save(image)
+    await expect(first).rejects.toThrow()
+    await second
+    expect(await store.list()).toEqual([image])
   })
 
   it('storage signature store works with an async store', async () => {

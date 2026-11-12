@@ -1553,6 +1553,29 @@ describe('createViewer', () => {
       expect(await store.list()).toEqual([])
     })
 
+    it('a full browser storage is named in the save error, and only then', async () => {
+      for (const [failure, text] of [
+        [new DOMException('', 'QuotaExceededError'), /storage is full/],
+        [new Error('500'), /^The signature could not be saved\. Try again\.$/],
+      ] as const) {
+        const storage = createMemoryStorage()
+        storage.set = () => Promise.reject(failure)
+        const { viewer } = make('text-simple', { storage, tools: [signatureTool()] })
+        const root = createSignatureMenu(viewer)
+        viewer.element.prepend(root)
+        await ready(viewer)
+        parts(root).chevron.click()
+        panel()!.querySelector<HTMLButtonElement>('[data-ink-signature-create]')!.click()
+        const d = dialog()!
+        const error = d.querySelector<HTMLElement>('[data-ink-signature-save-error]')!
+        scribble(d.querySelector('[data-ink-signature-pad]')!)
+        d.querySelector<HTMLButtonElement>('[data-ink-signature-save]')!.click()
+        await until(() => !error.hidden)
+        expect(error.textContent).toMatch(text)
+        viewer.destroy()
+      }
+    })
+
     it('a removal the store refuses shows an error in the menu', async () => {
       const storage = createMemoryStorage({ signatures: [INK, IMAGE] })
       const store = createStorageSignatureStore(storage)
