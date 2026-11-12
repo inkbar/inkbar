@@ -110,9 +110,9 @@ On a touch screen, two fingers pinch to zoom the document and scroll it. With `d
 
 ## Locked files
 
-A file that needs a password opens a dialog that asks for it. `InkViewport` mounts `InkPasswordDialog` itself, so there is nothing to place. A wrong password keeps the dialog open with a message; Cancel closes it and leaves a panel with an "Enter password" button. While the file is locked, `status` is `{ state: 'locked', incorrect }` and `data-state` reads `locked`. `error` still fires once for each failed open.
+When a file needs a password, the viewer asks for it in a dialog. `InkViewport` mounts `InkPasswordDialog` for you. A wrong password keeps the dialog open with a message; Cancel closes it and leaves a panel with an "Enter password" button. While the file is locked, `status` is `{ state: 'locked', incorrect }` and `data-state` reads `locked`. `error` still fires once for each failed open.
 
-The typed password is used for that one load and dropped. A `password` you pass still applies first, and if it is wrong the dialog opens with the message already showing. Pass `:password-prompt="false"` to keep the plain `PasswordRequired` error and handle it yourself.
+Inkbar uses the typed password for that one load, then drops it. A `password` you pass still applies first; if it's wrong, the dialog opens with the message showing. Pass `:password-prompt="false"` to keep the plain `PasswordRequired` error and handle it yourself.
 
 To replace the panel that shows while the dialog is closed, fill the `locked` slot of `InkViewport`. It receives `{ incorrect, promptPassword }`, and `promptPassword` reopens the dialog.
 
@@ -124,7 +124,7 @@ To replace the panel that shows while the dialog is closed, fill the `locked` sl
 </InkViewport>
 ```
 
-`InkPasswordDialog` is exported for hosts that build their own flow. It takes `v-model:open`, `incorrect` and `pending`, and emits `submit` with the password. Inside `InkRoot`, `injectInkContext().passwordPrompt` is the controller that drives it, or `null` when the prompt is off.
+To build your own flow, use the exported `InkPasswordDialog`. It takes `v-model:open`, `incorrect` and `pending`, and emits `submit` with the password. Inside `InkRoot`, `injectInkContext().passwordPrompt` is the controller that drives it, or `null` when the prompt is off.
 
 ## Controlled mode
 

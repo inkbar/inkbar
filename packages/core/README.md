@@ -117,7 +117,7 @@ It takes the [`mountViewer` options](#mounting-a-viewer) except `container` and 
 
 #### Locked files
 
-When a file needs a password, `createViewer` asks for it. The status turns to `{ state: 'locked', incorrect: false }` and a "Password required" dialog opens. `onError` hears the `PasswordRequired` error once for each failed open. A wrong password keeps the dialog open with `incorrect: true`, as does a wrong `password` option. Cancel leaves the status `locked` and shows an "Enter password" button that reopens the dialog. The viewer uses the typed password for that one load and drops it, so it doesn't reach the status, the error or storage. Pass `passwordPrompt: false` to turn the prompt off; a locked file is then `{ state: 'error', error }` with code `PasswordRequired`. `createPasswordDialog({ onSubmit, onCancel })` is the same dialog for a host of your own.
+When a file needs a password, `createViewer` asks for it. The status turns to `{ state: 'locked', incorrect: false }` and a "Password required" dialog opens. `onError` hears the `PasswordRequired` error once for each failed open. A wrong password keeps the dialog open with `incorrect: true`, as does a wrong `password` option. Cancel leaves the status `locked` and shows an "Enter password" button that reopens the dialog. The viewer uses the typed password for that one load and drops it, so it doesn't reach the status, the error or storage. Pass `passwordPrompt: false` to turn the prompt off; a locked file is then `{ state: 'error', error }` with code `PasswordRequired`. For a host of your own, `createPasswordDialog({ onSubmit, onCancel })` builds the same dialog.
 
 `createViewer` reads the theme's colours from the element you pass, so that element needs to be in the page when you call it.
 
