@@ -426,6 +426,16 @@ export function createSidebarController(
       if (active && inOverlay(active)) return
       close(null)
     }
+    // The find bar takes precedence: when it takes focus to open, the floating panel closes. A
+    // host may place the bar outside the sidebars' row, so any in the same viewer counts.
+    const scope = root.closest('[data-ink-root]') ?? parent
+    const onFocusIn = (e: FocusEvent): void => {
+      const target = e.target
+      if (!(target instanceof Element) || !scope.contains(target)) return
+      if (target.closest('[data-ink-find-bar]') === null) return
+      if (target.closest('[data-ink-sidebar]') !== null) return
+      close(null)
+    }
     /** Reports the close, and moves focus to the rail trigger when it was nowhere in particular. */
     const close = (target: EventTarget | null): void => {
       const id = store.get().open[0]
@@ -445,7 +455,9 @@ export function createSidebarController(
     doc.addEventListener('pointercancel', onCancel, capture)
     // Bubbling: an editor or a menu that handles Escape first prevents its default.
     doc.addEventListener('keydown', onKey)
+    doc.addEventListener('focusin', onFocusIn)
     stopDismiss = () => {
+      doc.removeEventListener('focusin', onFocusIn)
       stopDismiss = undefined
       doc.removeEventListener('pointerdown', onDown, capture)
       doc.removeEventListener('pointermove', onMove, capture)

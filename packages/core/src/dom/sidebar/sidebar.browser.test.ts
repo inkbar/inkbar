@@ -717,6 +717,71 @@ describe('floating', () => {
     )
   })
 
+  it('opening the find bar closes it and leaves focus in the field', async () => {
+    const { doc, controller, onOpenChange } = await floatingOpen()
+    onOpenChange.mockClear()
+    const bar = document.createElement('div')
+    bar.setAttribute('data-ink-find-bar', '')
+    const field = document.createElement('input')
+    bar.append(field)
+    doc.append(bar)
+    field.focus()
+    expect(controller.state.get().open).toEqual([])
+    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(null)
+    expect(document.activeElement).toBe(field)
+  })
+
+  it('a find bar outside the row in the same viewer closes it', async () => {
+    const outer = document.createElement('div')
+    outer.setAttribute('data-ink-root', '')
+    document.body.append(outer)
+    cleanup.push(() => outer.remove())
+    const { parent, controller } = await floatingOpen()
+    outer.append(parent)
+    const bar = document.createElement('div')
+    bar.setAttribute('data-ink-find-bar', '')
+    const field = document.createElement('input')
+    bar.append(field)
+    outer.append(bar)
+    // The scope is read when the panel starts listening: float it again inside the root.
+    controller.toggle('pages')
+    controller.toggle('pages')
+    field.focus()
+    expect(controller.state.get().open).toEqual([])
+  })
+
+  it('a find bar in another viewer leaves it open', async () => {
+    const { controller } = await floatingOpen()
+    const bar = document.createElement('div')
+    bar.setAttribute('data-ink-find-bar', '')
+    const field = document.createElement('input')
+    bar.append(field)
+    document.body.append(bar)
+    cleanup.push(() => bar.remove())
+    field.focus()
+    expect(controller.state.get().open).toEqual(['pages'])
+  })
+
+  it('focus on the pages outside the find bar leaves it open', async () => {
+    const { doc, controller } = await floatingOpen()
+    const input = document.createElement('input')
+    doc.append(input)
+    input.focus()
+    expect(controller.state.get().open).toEqual(['pages'])
+  })
+
+  it('a controlled sidebar only reports that the find bar opened', async () => {
+    const { doc, controller, onOpenChange } = await floatingOpen({ open: 'pages' })
+    const bar = document.createElement('div')
+    bar.setAttribute('data-ink-find-bar', '')
+    const field = document.createElement('input')
+    bar.append(field)
+    doc.append(bar)
+    field.focus()
+    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(null)
+    expect(controller.state.get().open).toEqual(['pages'])
+  })
+
   it('escape during a composition does not close', async () => {
     const { doc, controller } = await floatingOpen()
     const input = document.createElement('input')
