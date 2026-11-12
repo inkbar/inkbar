@@ -344,6 +344,34 @@ A command added with `ctx.commands.add` is disabled until a document is ready, u
 - Decorations from `ctx.decorate` re-apply when the annotations change. Call `ctx.redecorate()` when one reads state of your own that changed. Marks from `plugin.marks` take `refresh()` for the same job.
 - The framework packages run `setup` once the viewer has mounted in the browser, never while rendering on the server. Until then the plugin's commands are disabled, and anything `setup` creates, such as a store, doesn't exist yet.
 
+### Publishing a plugin
+
+A plugin you publish lists `@inkbar/core` under `peerDependencies`, so the app and every plugin share one copy. Add it under `devDependencies` too, for your own build and tests, and never under `dependencies`: a second copy would give your plugin its own `InkError` and `Readable` classes.
+
+```json
+{
+  "name": "@acme/inkbar-review",
+  "version": "1.0.0",
+  "type": "module",
+  "peerDependencies": {
+    "@inkbar/core": "^0.13.0"
+  },
+  "devDependencies": {
+    "@inkbar/core": "^0.13.0"
+  }
+}
+```
+
+Import `definePlugin` from `@inkbar/core/dom`, and import every type with `import type`, so the types add nothing to your bundle. Every named type reachable from `InkPlugin`, `PluginContext`, `PluginApi` and `PluginOptions` is exported from `@inkbar/core` or `@inkbar/core/dom`, and a test keeps it that way. Export the factory your users call:
+
+```ts
+import { definePlugin } from '@inkbar/core/dom'
+
+export const review = definePlugin('review', (plugin) => {
+  // …
+})
+```
+
 ### Presses
 
 `ctx.onPress(fn)` and `ctx.onLongPress(fn)` tell a plugin about a press on a page that nothing in Inkbar acted on. Each returns a function that stops listening, and listeners are removed when the plugin is torn down.
