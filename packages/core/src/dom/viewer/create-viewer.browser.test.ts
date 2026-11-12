@@ -251,7 +251,7 @@ describe('createViewer', () => {
   })
 
   it("opens an encrypted file with the password given to open, else the constructor's", async () => {
-    const { viewer } = make('text-simple')
+    const { viewer } = make('text-simple', { passwordPrompt: false })
     await ready(viewer)
     viewer.open(fixtureUrl('encrypted-aes'))
     await until(() => viewer.status.get().state === 'error')
@@ -264,7 +264,10 @@ describe('createViewer', () => {
     await until(() => viewer.element.querySelector('.ink-page[data-page="0"]') !== null)
 
     // The constructor's password is the fallback when open passes none.
-    const other = make('encrypted-aes', { password: 'inkbar' }).viewer
+    const other = make('encrypted-aes', {
+      password: 'inkbar',
+      passwordPrompt: false,
+    }).viewer
     await ready(other)
     other.open(fixtureUrl('encrypted-rc4'))
     const { doc: rc4 } = await ready(other)
@@ -276,6 +279,175 @@ describe('createViewer', () => {
     expect(wrong.state === 'error' && wrong.error).toMatchObject({
       code: 'PasswordRequired',
       details: { passwordSupplied: true, incorrect: true },
+    })
+  })
+
+  describe('locked files', () => {
+    const dialog = (): HTMLElement | null =>
+      document.querySelector<HTMLElement>('[data-ink-password-dialog]')
+    const field = (): HTMLInputElement =>
+      dialog()!.querySelector<HTMLInputElement>('.ink-password-input')!
+    async function enter(password: string): Promise<void> {
+      await userEvent.type(field(), password)
+      await userEvent.keyboard('{Enter}')
+    }
+    const locked = (viewer: Viewer, incorrect: boolean) =>
+      until(() => {
+        const s = viewer.status.get()
+        return s.state === 'locked' && s.incorrect === incorrect
+      })
+
+    it('a locked file prompts instead of erroring', async () => {
+      const onError = vi.fn()
+      const { viewer } = make('encrypted-aes', { onError })
+      await locked(viewer, false)
+      expect(viewer.status.get()).toEqual({ state: 'locked', incorrect: false })
+      expect(viewer.element.dataset.state).toBe('locked')
+      expect(
+        viewer.element.querySelector<HTMLElement>('[data-ink-viewport-root]')!.dataset
+          .state
+      ).toBe('locked')
+      expect(dialog()).not.toBeNull()
+      expect(document.activeElement).toBe(field())
+      expect(viewer.element.querySelector('.ink-error')).toBeNull()
+      expect(onError).toHaveBeenCalledTimes(1)
+      expect(onError.mock.calls[0]![0]).toMatchObject({ code: 'PasswordRequired' })
+    })
+
+    it('the right password opens it', async () => {
+      const onReady = vi.fn()
+      const { viewer } = make('encrypted-aes', { onReady })
+      await locked(viewer, false)
+      await enter('inkbar')
+      await ready(viewer)
+      expect(dialog()).toBeNull()
+      expect(onReady).toHaveBeenCalledTimes(1)
+      expect(viewer.element.querySelector('.ink-locked')).toBeNull()
+    })
+
+    it('a wrong password keeps the dialog open', async () => {
+      const onError = vi.fn()
+      const { viewer } = make('encrypted-aes', { onError })
+      await locked(viewer, false)
+      await enter('nope')
+      await locked(viewer, true)
+      expect(dialog()).not.toBeNull()
+      expect(dialog()!.querySelector('.ink-password-error')?.textContent).toBe(
+        'Incorrect password. Try again.'
+      )
+      expect(field().value).toBe('')
+      expect(onError).toHaveBeenCalledTimes(2)
+
+      // The prompt is not stuck pending: a second try goes through.
+      await enter('inkbar')
+      await ready(viewer)
+      expect(dialog()).toBeNull()
+    })
+
+    it('cancel shows the locked panel and the button reopens', async () => {
+      const { viewer } = make('encrypted-aes')
+      await locked(viewer, false)
+      await userEvent.keyboard('{Escape}')
+      expect(dialog()).toBeNull()
+      const panel = viewer.element.querySelector('.ink-locked')!
+      expect(document.activeElement).toBe(panel.querySelector('[data-ink-unlock]'))
+      expect(panel.getAttribute('role')).toBe('status')
+      expect(panel.querySelector('.ink-locked-title')?.textContent).toBe(
+        'This document is password protected.'
+      )
+      const unlock = panel.querySelector<HTMLButtonElement>('[data-ink-unlock]')!
+      expect(unlock.textContent).toBe('Enter password')
+      expect(viewer.status.get()).toEqual({ state: 'locked', incorrect: false })
+      unlock.click()
+      expect(dialog()).not.toBeNull()
+      expect(document.activeElement).toBe(field())
+    })
+
+    it('a cancel during a wrong retry keeps the dialog closed', async () => {
+      const { viewer } = make('encrypted-aes')
+      await locked(viewer, false)
+      await userEvent.type(field(), 'nope')
+      dialog()!.querySelector('form')!.requestSubmit()
+      await until(() => viewer.status.get().state === 'loading')
+      await userEvent.keyboard('{Escape}')
+      await locked(viewer, true)
+      await settle()
+      expect(dialog()).toBeNull()
+      const unlock = viewer.element.querySelector<HTMLButtonElement>('[data-ink-unlock]')!
+      expect(document.activeElement).toBe(unlock)
+      unlock.click()
+      // The prompt is not stuck pending: the next try goes through.
+      await enter('inkbar')
+      await ready(viewer)
+      // The unlock button went with the panel: the document has focus.
+      expect(document.activeElement).toBe(
+        viewer.element.querySelector('[data-ink-scroll]')
+      )
+    })
+
+    it('a wrong host password opens the prompt marked incorrect', async () => {
+      const { viewer } = make('encrypted-aes', { password: 'nope' })
+      await locked(viewer, true)
+      expect(dialog()).not.toBeNull()
+      expect(dialog()!.querySelector('.ink-password-error')?.textContent).toBe(
+        'Incorrect password. Try again.'
+      )
+    })
+
+    it("passwordPrompt false keeps today's error", async () => {
+      const onError = vi.fn()
+      const { viewer } = make('encrypted-aes', { passwordPrompt: false, onError })
+      await until(() => viewer.status.get().state === 'error')
+      const s = viewer.status.get()
+      expect(s.state === 'error' && s.error.code).toBe('PasswordRequired')
+      expect(viewer.element.querySelector('.ink-error')).not.toBeNull()
+      expect(dialog()).toBeNull()
+      expect(onError).toHaveBeenCalledTimes(1)
+    })
+
+    it('the typed password is not kept', async () => {
+      const onError = vi.fn()
+      const { viewer } = make('encrypted-aes', { onError })
+      await locked(viewer, false)
+      await enter('nope')
+      await locked(viewer, true)
+      await enter('inkbar')
+      await ready(viewer)
+      expect(JSON.stringify(viewer.status.get())).not.toContain('inkbar')
+      for (const [error] of onError.mock.calls as [InkError][]) {
+        expect(error.message).not.toContain('nope')
+        expect(JSON.stringify(error.details)).not.toContain('nope')
+      }
+      expect(onError).toHaveBeenCalledTimes(2)
+    })
+
+    it('open() of another source closes the dialog', async () => {
+      const { viewer } = make('encrypted-aes')
+      await locked(viewer, false)
+      await userEvent.type(field(), 'nope')
+      viewer.open(fixtureUrl('text-simple'))
+      await ready(viewer)
+      expect(dialog()).toBeNull()
+      expect(viewer.element.querySelector('.ink-locked')).toBeNull()
+    })
+
+    it('a new locked source prompts fresh', async () => {
+      const { viewer } = make('encrypted-aes')
+      await locked(viewer, false)
+      await enter('nope')
+      await locked(viewer, true)
+      viewer.open(fixtureUrl('encrypted-rc4'))
+      await locked(viewer, false)
+      expect(dialog()).not.toBeNull()
+      expect(dialog()!.querySelector('.ink-password-error')).toBeNull()
+    })
+
+    it('destroy removes the dialog', async () => {
+      const { viewer } = make('encrypted-aes')
+      await locked(viewer, false)
+      viewer.destroy()
+      expect(dialog()).toBeNull()
+      expect(document.querySelector('[data-ink-dialog-overlay]')).toBeNull()
     })
   })
 
