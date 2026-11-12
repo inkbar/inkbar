@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.14.0](https://github.com/inkbar/inkbar/compare/v0.13.0...v0.14.0) (2026-11-12)
+
+
+### Features
+
+* add a locked status and a password prompt controller ([#367](https://github.com/inkbar/inkbar/issues/367)) ([1021c8d](https://github.com/inkbar/inkbar/commit/1021c8d206914fb284a5adaf88fa0ed712a31c2c))
+* ask for the password of a locked file ([#368](https://github.com/inkbar/inkbar/issues/368)) ([b2f206d](https://github.com/inkbar/inkbar/commit/b2f206d2c4e6dcbe54de65ab9191a69e0da33067))
+* **react:** ask for the password of a locked file ([#370](https://github.com/inkbar/inkbar/issues/370)) ([7f6b9ce](https://github.com/inkbar/inkbar/commit/7f6b9cead35652a03124548b55d2714a2e40f2b0))
+* **sandbox:** add a locked file scenario ([#372](https://github.com/inkbar/inkbar/issues/372)) ([5edce71](https://github.com/inkbar/inkbar/commit/5edce71a431d0b8138cb7d339a3d4e5860341766))
+* **svelte:** ask for the password of a locked file ([#371](https://github.com/inkbar/inkbar/issues/371)) ([a411ed6](https://github.com/inkbar/inkbar/commit/a411ed68c891d30686c714a17fb8382c8c9f3fe3))
+* **vue:** ask for the password of a locked file ([#369](https://github.com/inkbar/inkbar/issues/369)) ([077231a](https://github.com/inkbar/inkbar/commit/077231ab24593ade9eddd1b65afed4f9bb3c106e))
+
+
+### Bug Fixes
+
+* keep focus and pending state right around the password prompt ([#373](https://github.com/inkbar/inkbar/issues/373)) ([13e564c](https://github.com/inkbar/inkbar/commit/13e564c9c6bafc4115c9989c4b380223a6f1864e))
+
 ## [0.13.0](https://github.com/inkbar/inkbar/compare/v0.12.0...v0.13.0) (2026-11-12)
 
 
