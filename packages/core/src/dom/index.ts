@@ -150,10 +150,10 @@ export {
   FORM_LABELS,
   LINE_WEIGHTS,
   MARKUP_LABELS,
+  PASSWORD_LABELS,
   SHAPE_COLUMNS,
   SHAPE_LABELS,
   SIGNATURE_FONTS,
-  PASSWORD_LABELS,
   SIGNATURE_LABELS,
   SIGNATURE_TABS,
   TOOL_LABELS,
@@ -344,3 +344,5 @@ export type { FormAlert } from './viewer/form-alert'
 export { signField } from '../model/form/sign'
 export { createSignatureDialog } from './viewer/signature-dialog'
 export type { SignatureDialog, SignatureDialogOptions } from './viewer/signature-dialog'
+export { createPasswordDialog } from './viewer/password-dialog'
+export type { PasswordDialog, PasswordDialogOptions } from './viewer/password-dialog'

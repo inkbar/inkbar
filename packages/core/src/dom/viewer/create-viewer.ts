@@ -28,6 +28,7 @@ import {
   type DownloadOptions,
 } from '../file-actions'
 import { attachHistoryKeys } from '../history-keys'
+import { createPasswordPrompt, lockedStatus } from '../password-prompt'
 import { createPluginHost, type HostRecords, type PluginHost } from '../plugins/host'
 import { createFocusReturn } from '../popover-focus'
 import {
@@ -38,10 +39,12 @@ import {
 } from '../search/controller'
 import { handleFindKey, pageSelectionText } from '../search/find-key'
 import { createToolOptions, withHostTools } from '../tools'
+import { PASSWORD_LABELS } from '../ui'
 import { mountViewer, type MountViewerOptions, type ViewerEngine } from '../viewer-engine'
 
 import { h } from './dom'
 import { createFormAlert } from './form-alert'
+import { createPasswordDialog } from './password-dialog'
 import { createSignFieldMenu, type SignFieldMenu } from './signature-menu'
 import { createThreadPopover } from './thread-popover'
 
@@ -79,6 +82,11 @@ export interface CreateViewerOptions extends Omit<
   assets: PdfAssets
   /** User password for encrypted files. `open` can pass its own for one load. */
   password?: string
+  /**
+   * Ask the reader for the password of a locked file. Default true. False: a locked file is
+   * an `error`, as before.
+   */
+  passwordPrompt?: boolean
   /** Default: read from the theme's CSS variables on the viewer root. */
   defaults?: AnnotationDefaults
   history?: OpenOptions['history']
@@ -207,6 +215,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     source: initial,
     assets,
     password,
+    passwordPrompt = true,
     defaults,
     history,
     fields,
@@ -320,6 +329,8 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   const formAlert = createFormAlert(root)
 
   let statusEl: HTMLElement | null = null
+  /** The reader cancelled the prompt: the unlock button takes focus once the panel shows. */
+  let focusUnlock = false
   function renderStatus(s: InkStatus): void {
     root.dataset.state = s.state
     viewportRoot.dataset.state = s.state
@@ -330,6 +341,19 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
         'div',
         { class: 'ink-status', role: 'status', 'aria-live': 'polite' },
         'Loading document…'
+      )
+    } else if (s.state === 'locked') {
+      const unlock = h(
+        'button',
+        { type: 'button', class: 'ink-button', 'data-ink-unlock': '' },
+        PASSWORD_LABELS.unlock
+      )
+      unlock.addEventListener('click', () => prompt.ask())
+      statusEl = h(
+        'div',
+        { class: 'ink-status ink-locked', role: 'status' },
+        h('p', { class: 'ink-locked-title' }, PASSWORD_LABELS.locked),
+        unlock
       )
     } else if (s.state === 'error') {
       // The engine's message is not written for readers: it stays on the code's tooltip.
@@ -345,6 +369,9 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       )
     }
     if (statusEl) viewportRoot.prepend(statusEl)
+    if (s.state === 'loading') return
+    if (focusUnlock) statusEl?.querySelector<HTMLElement>('[data-ink-unlock]')?.focus()
+    focusUnlock = false
   }
   function setStatus(s: InkStatus): void {
     renderStatus(s)
@@ -465,6 +492,35 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     }
   }
 
+  /**
+   * One prompt and dialog for the viewer's life. A submitted password goes straight to a retry
+   * of the last source and is not kept: the dialog clears its field and the load drops it.
+   */
+  let lastSource: DocumentSource = initial
+  const prompt = createPasswordPrompt((pw) => load(lastSource, { password: pw }))
+  const passwordDialog = createPasswordDialog({
+    onSubmit: (pw) => prompt.submit(pw),
+    onCancel: () => {
+      prompt.cancel()
+      // During a retry the panel shows when the load comes back locked.
+      const unlock = statusEl?.querySelector<HTMLElement>('[data-ink-unlock]')
+      if (unlock) unlock.focus()
+      else focusUnlock = true
+    },
+  })
+  const stopPrompt = prompt.state.subscribe(({ asking, pending }) => {
+    if (!asking) {
+      passwordDialog.close()
+      return
+    }
+    // While a retry loads the dialog stays as it is; its result (or `ask`) opens or updates it.
+    if (!pending) {
+      const s = status.get()
+      passwordDialog.open({ incorrect: s.state === 'locked' && s.incorrect })
+    }
+    passwordDialog.setPending(pending)
+  })
+
   let loads = 0
   let destroyed = false
   const destroyers: (() => void)[] = []
@@ -482,7 +538,26 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     doc?.destroy()
   }
 
+  /** A failed load: locked, with the prompt asking, or an error. */
+  function fail(error: InkError, load: number): void {
+    const locked = passwordPrompt ? lockedStatus(error) : null
+    if (!locked) prompt.reset()
+    setStatus(locked ?? { state: 'error', error })
+    onError?.(error)
+    // `onError` may have opened another document already.
+    if (locked && load === loads) prompt.locked()
+  }
+
+  /** A new source: the prompt starts over. */
   function open(source: DocumentSource, openOpts?: { password?: string }): void {
+    if (destroyed) return
+    prompt.reset()
+    lastSource = source
+    load(source, openOpts)
+  }
+
+  /** Loads `source`; a retry from the prompt comes here directly, keeping the dialog open. */
+  function load(source: DocumentSource, openOpts?: { password?: string }): void {
     if (destroyed) return
     const load = ++loads
     close()
@@ -505,13 +580,20 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
         current.set(doc)
         const s = doc.status.get()
         if (s.state === 'error') {
-          setStatus(s)
-          onError?.(s.error)
+          fail(s.error, load)
           return
         }
+        const prompted = passwordDialog.isOpen
+        prompt.reset()
         // The status leaves the layout before the engine measures the scroll element, and the
         // engine is set before anyone hears `ready`.
         renderStatus({ state: 'ready' })
+        // Unlocked from the dialog, focus went with it: the document takes it.
+        if (
+          prompted &&
+          (!document.activeElement || document.activeElement === document.body)
+        )
+          scroll.focus({ preventScroll: true })
         stop = start(doc)
         form.set(doc.form)
         status.set({ state: 'ready' })
@@ -531,8 +613,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
               {},
               cause
             )
-        setStatus({ state: 'error', error })
-        onError?.(error)
+        fail(error, load)
       }
     )
   }
@@ -581,6 +662,8 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       search.destroy()
       signFieldMenu?.destroy()
       formAlert.destroy()
+      stopPrompt()
+      passwordDialog.destroy()
       host.destroy()
       stopHistoryKeys()
       stopFileKeys()
