@@ -466,6 +466,10 @@ export function InkRoot({
   const [attempt, setAttempt] = useState(0)
   /** The `attempt` the last fetch started for; an effect run for any other cause is a new source. */
   const startedAttempt = useRef(0)
+  /** The source identity and host password of the last run, to tell a new source from a retry. */
+  const lastSource = useRef<{ identity: unknown; password: string | undefined } | null>(
+    null
+  )
   const [prompt] = useState<PasswordPrompt>(() =>
     createPasswordPrompt((typed) => {
       retryPassword.current = typed
@@ -477,13 +481,19 @@ export function InkRoot({
   useEffect(() => {
     let cancelled = false
     snapshotHistory.clear()
-    // A new source or password from the host: the prompt starts over.
-    if (attempt === startedAttempt.current) {
+    // A new source or password from the host: the prompt starts over, even when a retry landed
+    // in the same batch, so the typed password never reaches the new source.
+    const last = lastSource.current
+    const newSource =
+      last === null || last.identity !== srcIdentity || last.password !== password
+    lastSource.current = { identity: srcIdentity, password }
+    if (newSource || attempt === startedAttempt.current) {
       retryPassword.current = null
       prompt.reset()
     }
     const source = latest.current.src
     if (source === null) {
+      retryPassword.current = null
       setOverride(null)
       return
     }

@@ -70,6 +70,9 @@ export interface InkViewportProps extends ComponentPropsWithoutRef<'div'> {
 }
 
 const IDLE_PROMPT: PasswordPromptState = { asking: false, pending: false }
+/** The controls a host's own locked panel may hold, for focus after Cancel. */
+const FOCUSABLE =
+  'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
 
 interface MountedPage {
   /** The engine build the host belongs to; part of the InkPage key. */
@@ -327,7 +330,8 @@ export function InkViewport({
     setIncorrect(lockedIncorrect)
 
   const unlock = useRef<HTMLButtonElement>(null)
-  /** The reader cancelled: focus goes to the unlock button once it is there. */
+  const lockedPanel = useRef<HTMLDivElement>(null)
+  /** The reader cancelled: focus goes to the locked panel once it is there. */
   const focusUnlock = useRef(false)
   /** The reader submitted a password: when it opens the document, focus must not be lost. */
   const unlocking = useRef(false)
@@ -339,16 +343,29 @@ export function InkViewport({
     focusUnlock.current = true
   }
 
-  /** The dialog has closed: focus goes to the unlock button, or waits for it (see `focusUnlock`). */
+  /**
+   * Focuses the locked panel: its unlock button, else the first control of a host's own panel,
+   * else the document. False while the panel is not showing.
+   */
+  function focusLocked(): boolean {
+    const panel = lockedPanel.current
+    if (!panel) return false
+    const target =
+      unlock.current ?? panel.querySelector<HTMLElement>(FOCUSABLE) ?? scroll.current
+    target?.focus({ preventScroll: true })
+    return target !== null
+  }
+
+  /** The dialog has closed: focus goes to the locked panel, or waits for it (see `focusUnlock`). */
   function onCloseAutoFocus(e: Event): void {
-    e.preventDefault()
-    if (focusUnlock.current && unlock.current) {
+    if (focusUnlock.current && focusLocked()) {
       focusUnlock.current = false
-      unlock.current.focus({ preventScroll: true })
+      e.preventDefault()
     } else if (unlocking.current && stateRef.current === 'ready') {
       // The reader opened the document from the dialog: it takes the focus the dialog held.
       unlocking.current = false
       scroll.current?.focus({ preventScroll: true })
+      e.preventDefault()
     }
   }
 
@@ -361,10 +378,8 @@ export function InkViewport({
     if (state === 'locked') {
       // A wrong try leaves the dialog open and the document shut: nothing to move focus to.
       unlocking.current = false
-      if (focusUnlock.current && !promptState.asking) {
+      if (focusUnlock.current && !promptState.asking && focusLocked())
         focusUnlock.current = false
-        unlock.current?.focus({ preventScroll: true })
-      }
     } else if (state !== 'loading') {
       // Ready, an error or no source: whatever focus was waiting for is moot.
       focusUnlock.current = false
@@ -413,7 +428,7 @@ export function InkViewport({
           )}
         </div>
       ) : state === 'locked' ? (
-        <div className="ink-status ink-locked" role="status">
+        <div ref={lockedPanel} className="ink-status ink-locked" role="status">
           {typeof locked === 'function' ? (
             locked({ incorrect, promptPassword: () => prompt?.ask() })
           ) : locked !== undefined ? (

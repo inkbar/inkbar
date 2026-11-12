@@ -85,6 +85,9 @@
   }: InkViewportProps = $props()
 
   const IDLE_PROMPT: PasswordPromptState = { asking: false, pending: false }
+  /** The controls a host's own locked panel may hold, for focus after Cancel. */
+  const FOCUSABLE =
+    'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
 
   interface MountedPage {
     /** The engine build the host belongs to; part of the InkPage key. */
@@ -376,7 +379,8 @@
   const pending = $derived(promptState.current.pending)
 
   let unlock = $state<HTMLButtonElement | null>(null)
-  /** The reader cancelled: focus goes to the unlock button once it is there. */
+  let lockedPanel = $state<HTMLDivElement | null>(null)
+  /** The reader cancelled: focus goes to the locked panel once it is there. */
   let focusUnlock = false
   /** The reader submitted a password: when it opens the document, focus must not be lost. */
   let unlocking = false
@@ -387,16 +391,28 @@
     focusUnlock = true
   }
 
-  /** The dialog has closed: focus goes to the unlock button, or waits for it (see `focusUnlock`). */
+  /**
+   * Focuses the locked panel: its unlock button, else the first control of a host's own panel,
+   * else the document. False while the panel is not showing.
+   */
+  function focusLocked(): boolean {
+    if (!lockedPanel) return false
+    const target =
+      unlock ?? lockedPanel.querySelector<HTMLElement>(FOCUSABLE) ?? scroll ?? null
+    target?.focus({ preventScroll: true })
+    return target !== null
+  }
+
+  /** The dialog has closed: focus goes to the locked panel, or waits for it (see `focusUnlock`). */
   function onCloseAutoFocus(e: Event): void {
-    e.preventDefault()
-    if (focusUnlock && unlock) {
+    if (focusUnlock && focusLocked()) {
       focusUnlock = false
-      unlock.focus({ preventScroll: true })
+      e.preventDefault()
     } else if (unlocking && viewState === 'ready') {
       // The reader opened the document from the dialog: it takes the focus the dialog held.
       unlocking = false
       scroll?.focus({ preventScroll: true })
+      e.preventDefault()
     }
   }
 
@@ -412,10 +428,7 @@
       if (st === 'locked') {
         // A wrong try leaves the dialog open and the document shut: nothing to move focus to.
         unlocking = false
-        if (focusUnlock && !isAsking) {
-          focusUnlock = false
-          unlock?.focus({ preventScroll: true })
-        }
+        if (focusUnlock && !isAsking && focusLocked()) focusUnlock = false
       } else if (st !== 'loading') {
         // Ready, an error or no source: whatever focus was waiting for is moot.
         focusUnlock = false
@@ -456,7 +469,7 @@
       {/if}
     </div>
   {:else if viewState === 'locked'}
-    <div class="ink-status ink-locked" role="status">
+    <div bind:this={lockedPanel} class="ink-status ink-locked" role="status">
       {#if locked}
         {@render locked({ incorrect, promptPassword: () => prompt?.ask() })}
       {:else}

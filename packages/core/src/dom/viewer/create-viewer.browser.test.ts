@@ -96,6 +96,26 @@ async function ready(
   return { doc: viewer.document.get()!, engine: viewer.engine.get()! }
 }
 
+/** Holds the page's fetches of URLs containing `pattern` until `release`. */
+function gateFetch(pattern: string): { release(): void; restore(): void } {
+  // eslint-disable-next-line @typescript-eslint/unbound-method
+  const original = window.fetch
+  let release!: () => void
+  const gate = new Promise<void>((resolve) => (release = resolve))
+  window.fetch = async (input, init) => {
+    const url =
+      typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+    if (url.includes(pattern)) await gate
+    return original.call(window, input, init)
+  }
+  return {
+    release,
+    restore() {
+      window.fetch = original
+    },
+  }
+}
+
 const threadPopover = (): HTMLElement | null =>
   document.querySelector<HTMLElement>('[data-ink-thread-popover]')
 const isOpen = (el: HTMLElement | null): boolean => !!el && !el.hidden
@@ -367,9 +387,17 @@ describe('createViewer', () => {
       const { viewer } = make('encrypted-aes')
       await locked(viewer, false)
       await userEvent.type(field(), 'nope')
-      dialog()!.querySelector('form')!.requestSubmit()
-      await until(() => viewer.status.get().state === 'loading')
-      await userEvent.keyboard('{Escape}')
+      // The retry's fetch is held until the reader has cancelled, however fast it would fail.
+      const gate = gateFetch('encrypted-aes.pdf')
+      try {
+        dialog()!.querySelector('form')!.requestSubmit()
+        expect(viewer.status.get().state).toBe('loading')
+        await userEvent.keyboard('{Escape}')
+        expect(dialog()).toBeNull()
+      } finally {
+        gate.release()
+        gate.restore()
+      }
       await locked(viewer, true)
       await settle()
       expect(dialog()).toBeNull()
@@ -383,6 +411,34 @@ describe('createViewer', () => {
       expect(document.activeElement).toBe(
         viewer.element.querySelector('[data-ink-scroll]')
       )
+    })
+
+    it('an onError that throws during a wrong retry leaves the prompt usable', async () => {
+      const boom = new Error('host bug')
+      let calls = 0
+      const rejections: unknown[] = []
+      const onRejection = (e: PromiseRejectionEvent): void => {
+        rejections.push(e.reason)
+        e.preventDefault()
+      }
+      window.addEventListener('unhandledrejection', onRejection)
+      cleanup.push(() => window.removeEventListener('unhandledrejection', onRejection))
+      const { viewer } = make('encrypted-aes', {
+        onError: () => {
+          if (calls++ > 0) throw boom
+        },
+      })
+      await locked(viewer, false)
+      await enter('nope')
+      await locked(viewer, true)
+      await settle()
+      expect(rejections).toEqual([boom])
+      expect(dialog()!.querySelector('.ink-password-error')?.textContent).toBe(
+        'Incorrect password. Try again.'
+      )
+      const open = dialog()!.querySelector<HTMLButtonElement>('button[type="submit"]')!
+      await userEvent.type(field(), 'inkbar')
+      expect(open.disabled).toBe(false)
     })
 
     it('a wrong host password opens the prompt marked incorrect', async () => {

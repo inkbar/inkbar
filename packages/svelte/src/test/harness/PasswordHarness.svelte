@@ -2,6 +2,8 @@
   import InkRoot from '../../lib/components/InkRoot.svelte'
   import InkViewport from '../../lib/components/InkViewport.svelte'
 
+  import PromptProbe from './PromptProbe.svelte'
+
   import type { DocumentSource, InkError, PdfAssets } from '@inkbar/core'
 
   let {
@@ -10,6 +12,7 @@
     password,
     passwordPrompt,
     customLocked = false,
+    switchTo,
   }: {
     src: DocumentSource | null
     assets: PdfAssets
@@ -17,14 +20,18 @@
     passwordPrompt?: boolean | undefined
     /** Renders the viewport's `locked` snippet with a button that calls `promptPassword`. */
     customLocked?: boolean
+    /** Renders a button that submits "inkbar" and switches to this source in one handler. */
+    switchTo?: DocumentSource | undefined
   } = $props()
+
+  let switched = $state<DocumentSource | null>(null)
 
   // The test reads error codes from the DOM, as the React suite does.
   let codes = $state<string[]>([])
 </script>
 
 <InkRoot
-  {src}
+  src={switched ?? src}
   {assets}
   {password}
   {passwordPrompt}
@@ -35,6 +42,9 @@
       {status.state === 'locked' ? `locked:${status.incorrect}` : status.state}
     </output>
     <output data-testid="error-codes">{codes.join(',')}</output>
+    {#if switchTo}
+      <PromptProbe password="inkbar" onSwitch={() => (switched = switchTo)} />
+    {/if}
     <div style="height: 700px; width: 900px">
       {#if customLocked}
         <InkViewport>

@@ -18,7 +18,6 @@ import {
   computed,
   onBeforeUnmount,
   onBeforeUpdate,
-  nextTick,
   onMounted,
   shallowRef,
   useTemplateRef,
@@ -129,8 +128,12 @@ const asking = computed({
     if (!open) cancelPrompt()
   },
 })
+/** The controls a host's own locked panel may hold, for focus after Cancel. */
+const FOCUSABLE =
+  'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
 const unlock = useTemplateRef<HTMLElement>('unlock')
-/** The reader cancelled: focus goes to the unlock button once it is there. */
+const lockedPanel = useTemplateRef<HTMLElement>('lockedPanel')
+/** The reader cancelled: focus goes to the locked panel once it is there. */
 let focusUnlock = false
 /** The reader submitted a password: when it opens the document, focus must not be lost. */
 let unlocking = false
@@ -141,16 +144,29 @@ function cancelPrompt(): void {
   focusUnlock = true
 }
 
-/** The dialog has closed: focus goes to the unlock button, or waits for it (see `focusUnlock`). */
+/**
+ * Focuses the locked panel: its unlock button, else the first control of a host's own panel,
+ * else the document. False while the panel is not showing.
+ */
+function focusLocked(): boolean {
+  const panel = lockedPanel.value
+  if (!panel) return false
+  const target =
+    unlock.value ?? panel.querySelector<HTMLElement>(FOCUSABLE) ?? scroll.value
+  target?.focus({ preventScroll: true })
+  return target !== null
+}
+
+/** The dialog has closed: focus goes to the locked panel, or waits for it (see `focusUnlock`). */
 function onCloseAutoFocus(e: Event): void {
-  e.preventDefault()
-  if (focusUnlock && unlock.value) {
+  if (focusUnlock && focusLocked()) {
     focusUnlock = false
-    unlock.value.focus({ preventScroll: true })
+    e.preventDefault()
   } else if (unlocking && state.value === 'ready') {
     // The reader opened the document from the dialog: it takes the focus the dialog held.
     unlocking = false
     scroll.value?.focus({ preventScroll: true })
+    e.preventDefault()
   }
 }
 
@@ -159,17 +175,31 @@ function submitPassword(password: string): void {
   prompt.value?.submit(password)
 }
 
+// After the DOM update, so the locked panel is there to focus.
 watch(
-  () => ctx.status.value.state,
-  async (st) => {
-    await nextTick()
-    if (st === 'locked' && focusUnlock) {
-      focusUnlock = false
-      unlock.value?.focus({ preventScroll: true })
-    } else if (st !== 'locked' && st !== 'loading' && st !== 'ready') {
+  [state, () => promptState.value.asking],
+  ([st, isAsking]) => {
+    if (st === 'locked') {
+      // A wrong try leaves the dialog open and the document shut: nothing to move focus to.
       unlocking = false
+      if (focusUnlock && !isAsking && focusLocked()) focusUnlock = false
+    } else if (st !== 'loading') {
+      // Ready, an error or no source: whatever focus was waiting for is moot.
       focusUnlock = false
+      if (st !== 'ready') unlocking = false
     }
+  },
+  { flush: 'post' }
+)
+// A new source: the prompt resets while the file loads, so no try is waiting on it.
+watch([() => promptState.value.pending, state], ([pending, st]) => {
+  if (!pending && st === 'loading') unlocking = false
+})
+// The dialog is open again (the reader asked, or a new locked file): nothing waits to focus.
+watch(
+  () => promptState.value.asking,
+  (isAsking) => {
+    if (isAsking) focusUnlock = false
   }
 )
 
@@ -403,7 +433,12 @@ onBeforeUnmount(() => {
         </p>
       </slot>
     </div>
-    <div v-else-if="state === 'locked'" class="ink-status ink-locked" role="status">
+    <div
+      v-else-if="state === 'locked'"
+      ref="lockedPanel"
+      class="ink-status ink-locked"
+      role="status"
+    >
       <slot name="locked" :incorrect="incorrect" :prompt-password="() => prompt?.ask()">
         <p class="ink-locked-title">{{ PASSWORD_LABELS.locked }}</p>
         <button
