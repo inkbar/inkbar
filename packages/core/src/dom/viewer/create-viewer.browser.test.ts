@@ -1,5 +1,6 @@
 import { browserAssets, fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import themeCss from '@inkbar/theme/theme.css?inline'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { userEvent } from 'vitest/browser'
 
 import { InkError } from '../../model/errors'
@@ -12,6 +13,7 @@ import { createMemoryStorage } from '../../model/storage'
 import { sandboxLoader } from '../../pdfjs/scripting'
 import { oneOfEach } from '../../test-support/annotations'
 import { definePlugin } from '../plugins/define'
+import { createSidebar } from '../sidebar/sidebar'
 import { mountContainer, settle, until } from '../test-utils'
 import {
   allTools,
@@ -3438,5 +3440,113 @@ describe('back and forward', () => {
     await viewer.follow({ kind: 'url', url: 'https://example.com/x', newWindow: false })
     expect(onAction).toHaveBeenCalledTimes(1)
     expect(onFormAction).not.toHaveBeenCalled()
+  })
+})
+
+describe('a floating sidebar beside the viewer', () => {
+  const style = document.createElement('style')
+  beforeAll(() => {
+    style.textContent = themeCss
+    document.head.append(style)
+  })
+  afterAll(() => style.remove())
+
+  /** A viewer in a 700px row with a right rail sidebar floating open over its pages. */
+  async function floating(name: FixtureName, opts: Partial<CreateViewerOptions> = {}) {
+    const row = document.createElement('div')
+    row.style.cssText = 'display: flex; width: 700px; height: 600px'
+    const host = document.createElement('div')
+    host.style.cssText = 'flex: 1; min-width: 0; height: 600px; position: relative'
+    row.append(host)
+    document.body.append(row)
+    const viewer = createViewer(host, {
+      source: fixtureUrl(name),
+      assets: browserAssets(),
+      zoom: 1,
+      ...opts,
+    })
+    const { element, controller } = createSidebar({
+      side: 'right',
+      panels: [{ id: 'pages', label: 'Pages' }],
+      content: { pages: document.createElement('div') },
+    })
+    element.style.flex = 'none'
+    row.append(element)
+    cleanup.push(() => {
+      controller.destroy()
+      viewer.destroy()
+      row.remove()
+    })
+    const { doc, engine } = await ready(viewer)
+    await until(() => engine.pages.size > 0)
+    await engine.pages.get(0)!.textLayer.ready
+    // No room at the first measurement: it starts closed, so open it over the pages.
+    await until(() => controller.state.get().open.length === 0)
+    controller.toggle('pages')
+    await until(() => element.hasAttribute('data-overlay'))
+    /** A mouse tap at user-space `p` on page 0. */
+    const tap = (p: { x: number; y: number }) => {
+      const box = engine.viewport.hostFor(0)!.getBoundingClientRect()
+      const css = engine.viewport.transformFor(0).toCss(p)
+      const at = { x: box.left + css.x, y: box.top + css.y }
+      const target = document.elementFromPoint(at.x, at.y)!
+      expect(element.contains(target)).toBe(false)
+      for (const type of ['pointerdown', 'pointerup'] as const)
+        target.dispatchEvent(
+          new PointerEvent(type, {
+            clientX: at.x,
+            clientY: at.y,
+            bubbles: true,
+            cancelable: true,
+            pointerId: 1,
+            pointerType: 'mouse',
+            button: 0,
+            buttons: type === 'pointerdown' ? 1 : 0,
+            isPrimary: true,
+          })
+        )
+      target.dispatchEvent(
+        new MouseEvent('click', {
+          clientX: at.x,
+          clientY: at.y,
+          bubbles: true,
+          cancelable: true,
+        })
+      )
+    }
+    return { viewer, doc, engine, controller, tap }
+  }
+
+  it('the closing press does not draw', async () => {
+    const { doc, engine, controller, tap } = await floating('links', {
+      tools: allTools(),
+    })
+    engine.tools.set('draw')
+    const inks = () => doc.annotations.list.get().filter((a) => a.type === 'ink').length
+    const before = inks()
+    tap({ x: 100, y: 300 })
+    await settle()
+    expect(controller.state.get().open).toEqual([])
+    expect(inks()).toBe(before)
+    // With the panel closed, the same tap draws a dot.
+    tap({ x: 100, y: 300 })
+    await until(() => inks() === before + 1)
+  })
+
+  it('the closing press does not follow a link', async () => {
+    const onAction = vi.fn()
+    const { controller, tap } = await floating('links', { onAction })
+    // Example A, a URI link on page 0.
+    tap({ x: 106, y: 645 })
+    await settle()
+    expect(controller.state.get().open).toEqual([])
+    expect(onAction).not.toHaveBeenCalled()
+    tap({ x: 106, y: 645 })
+    await until(() => onAction.mock.calls.length > 0)
+    expect(onAction).toHaveBeenCalledWith({
+      kind: 'open-url',
+      url: 'https://example.com/a',
+      newWindow: false,
+    })
   })
 })
