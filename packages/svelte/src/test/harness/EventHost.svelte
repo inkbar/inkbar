@@ -8,12 +8,14 @@
     assets,
     password,
     bytesFrom,
+    passwordPrompt,
   }: {
     src: DocumentSource | null
     assets: PdfAssets
     password?: string | undefined
     /** Fetches this URL in the page and passes the bytes as the source, one array for every open. */
     bytesFrom?: string | undefined
+    passwordPrompt?: boolean | undefined
   } = $props()
 
   // The test reads error codes from the DOM, as the React suite does.
@@ -40,6 +42,7 @@
   src={bytesFrom === undefined ? src : bytes}
   {assets}
   {password}
+  {passwordPrompt}
   onError={(e: InkError) => {
     codes = [...codes, e.code]
     byteLength = bytes?.byteLength ?? null

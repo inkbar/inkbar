@@ -149,13 +149,31 @@ Inside `InkRoot`, `useHistory()` returns the same object. Its `batch(fn)` runs `
 
 `key` identifies the document. Reuse the same key when only the signed URL changes and the document is not reloaded.
 
-`InkRoot` takes a few more options. `password` opens an encrypted PDF. `storage` sets what the viewer keeps between visits (see [Storage](#storage)). `minDocumentWidth` sets how narrow the document may get before a rail sidebar's panel floats over it (see [Sidebars](#sidebars)). `defaults` sets annotation colours; without it the theme's CSS variables apply. `fonts` sets the families the text style menu offers. `decorateAnnotation` adds attributes, classes and a screen-reader description to each annotation. `bind:page` and `bind:zoom` (or `onPageChange` and `onZoomChange`) follow and drive the viewport, and `bind:tool` (or `onToolChange`) does the same for the active tool. `onError` hears failed opens, form script errors and refused signings. `onActivate` hears the id of each activated annotation. `onFieldsChange` hears form value changes.
+`InkRoot` takes a few more options. `password` opens an encrypted PDF (see [Locked files](#locked-files)). `passwordPrompt` (on by default) asks the reader for a locked file's password. `storage` sets what the viewer keeps between visits (see [Storage](#storage)). `minDocumentWidth` sets how narrow the document may get before a rail sidebar's panel floats over it (see [Sidebars](#sidebars)). `defaults` sets annotation colours; without it the theme's CSS variables apply. `fonts` sets the families the text style menu offers. `decorateAnnotation` adds attributes, classes and a screen-reader description to each annotation. `bind:page` and `bind:zoom` (or `onPageChange` and `onZoomChange`) follow and drive the viewport, and `bind:tool` (or `onToolChange`) does the same for the active tool. `onError` hears failed opens, form script errors and refused signings. `onActivate` hears the id of each activated annotation. `onFieldsChange` hears form value changes.
 
 ## Viewport
 
 `InkViewport` takes `mode`, `rotation`, `gap` (CSS pixels between pages, default 16), `buffer` (pages kept mounted either side of the visible ones, default 2) and `pinchZoom` (default `true`; `false` leaves pinches to the browser, which zooms the whole page). A change to `gap`, `buffer` or `pinchZoom` rebuilds the engine.
 
 On a touch screen, two fingers pinch to zoom the document and scroll it. With `draw`, `sketch`, `shape`, `redact-area` and `freetext`, one finger draws; a finger tap draws nothing, and a pen that lands while a palm rests on the screen takes over. A shape, area redaction or text box gives one-finger scrolling back once it has made something.
+
+## Locked files
+
+A file that needs a password opens a dialog that asks for it. `InkViewport` mounts `InkPasswordDialog` itself, so there is nothing to place. A wrong password keeps the dialog open with a message. Cancel closes it and leaves a panel with an "Enter password" button. While the file is locked, `status` is `{ state: 'locked', incorrect }` and `data-state` reads `locked`. `onError` still fires once for each failed open.
+
+The typed password is used for that one load and dropped. A `password` you pass still applies first, and if it is wrong the dialog opens with the message already showing. Pass `passwordPrompt={false}` to keep the plain `PasswordRequired` error and handle it yourself.
+
+To replace the panel that shows while the dialog is closed, pass a `locked` snippet to `InkViewport`. It receives `{ incorrect, promptPassword }`, and `promptPassword` reopens the dialog.
+
+```svelte
+<InkViewport>
+  {#snippet locked({ promptPassword })}
+    <button onclick={promptPassword}>Unlock this file</button>
+  {/snippet}
+</InkViewport>
+```
+
+`InkPasswordDialog` is exported for hosts that build their own flow. It takes `open` (bindable), `onOpenChange`, `incorrect`, `pending` and `onSubmit`, which gets the password. Inside `InkRoot`, the context's `passwordPrompt` is the controller that drives it, or `null` when the prompt is off.
 
 ## Forms
 
@@ -308,7 +326,7 @@ To build your own, `useRecords<T>(name)` returns the live `records` and the `han
 
 ## Custom rendering
 
-Slots are snippets. `InkViewport` takes `loading`, `empty`, `error`, `annotation` and `pageError`. `InkThreadPopover` takes `children` as a snippet that receives the popover's props. `InkToolButton` takes `children` as a snippet of `{ active, label }`, and `InkCommand` one of `{ label, busy }`. `InkThumbnails` and `InkOutline` take `item`, and `InkRecordList` takes `empty`. The props each receives are typed as `AnnotationSlotProps` and `ThreadPopoverSlotProps`, the same types the Vue and React packages export.
+Slots are snippets. `InkViewport` takes `loading`, `empty`, `error`, `locked`, `annotation` and `pageError`. `InkThreadPopover` takes `children` as a snippet that receives the popover's props. `InkToolButton` takes `children` as a snippet of `{ active, label }`, and `InkCommand` one of `{ label, busy }`. `InkThumbnails` and `InkOutline` take `item`, and `InkRecordList` takes `empty`. The props each receives are typed as `AnnotationSlotProps` and `ThreadPopoverSlotProps`, the same types the Vue and React packages export.
 
 `InkDownloadButton` and `InkPrintButton` download and print the open PDF; `filename` names the download (the opened `File`'s name, else the URL's last segment, else `document.pdf`). Printing loads the file into a hidden frame and opens the browser's print dialog for it; on iOS the PDF opens in a new tab instead. Until saving into the PDF ships, both give the file as it was opened, without this session's annotations.
 

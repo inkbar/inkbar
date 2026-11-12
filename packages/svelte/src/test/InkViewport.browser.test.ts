@@ -259,7 +259,12 @@ describe('InkViewport', () => {
 
   // React: 'shows the PasswordRequired code for an encrypted file'
   it('shows the PasswordRequired code for an encrypted file', async () => {
-    await render(ViewportHarness, { src: fixtureUrl('encrypted-aes'), assets, zoom: 1 })
+    await render(ViewportHarness, {
+      src: fixtureUrl('encrypted-aes'),
+      assets,
+      zoom: 1,
+      passwordPrompt: false,
+    })
     const alert = await q('[role="alert"]')
     await expect.element(browserPage.elementLocator(alert)).toBeVisible()
     expect(alert.querySelector('.ink-error-code')!.textContent).toBe('PasswordRequired')

@@ -30,6 +30,11 @@
     src: DocumentSource | null
     assets: PdfAssets
     password?: string | undefined
+    /**
+     * Ask the reader for the password of a locked file. Default true. False: a locked file is
+     * an error with code `PasswordRequired`, as before.
+     */
+    passwordPrompt?: boolean | undefined
     /** Colour defaults. Without it, the theme's CSS variables on the root element apply. */
     defaults?: AnnotationDefaults | undefined
     /**
@@ -142,6 +147,7 @@
   import {
     attachFileKeys,
     attachHistoryKeys,
+    createPasswordPrompt,
     createPluginHost,
     createSearchController,
     createToolOptions,
@@ -149,6 +155,7 @@
     FONT_FAMILIES,
     handleFindKey,
     keepHistoryFocus,
+    lockedStatus,
     MIN_DOCUMENT_WIDTH,
     pageSelectionText,
     SIGNATURE_FONTS,
@@ -157,7 +164,7 @@
     viewerSearchOf,
   } from '@inkbar/core/dom'
   import { DEV } from 'esm-env'
-  import { untrack } from 'svelte'
+  import { flushSync, untrack } from 'svelte'
   import { createAttachmentKey } from 'svelte/attachments'
 
   import { setInkContext, type InkContext, type InkHistory } from '../context.js'
@@ -167,6 +174,7 @@
   import type { InkStorage, PluginHistory } from '@inkbar/core'
   import type {
     Navigation,
+    PasswordPrompt,
     PluginHost,
     SearchController,
     ToolController,
@@ -177,6 +185,7 @@
     src,
     assets,
     password,
+    passwordPrompt = true,
     defaults,
     annotations = $bindable(),
     onAnnotationsChange,
@@ -284,9 +293,35 @@
   // `untrack`, so a changed `assets`, `defaults` or callback never reopens.
   const sourceIdentity = $derived(identity(src))
   const sourcePassword = $derived(password)
+  /*
+   * The reader's retry. `retry` parks the typed password and bumps `attempt`, which reopens the
+   * document; the open takes it and clears it in the same step that starts the fetch, so
+   * nothing outlives that load.
+   */
+  let retryPassword: string | null = null
+  let attempt = $state(0)
+  /** The `attempt` the last fetch started for; an effect run for any other cause is a new source. */
+  let startedAttempt = 0
+  const prompt: PasswordPrompt = createPasswordPrompt((typed) => {
+    retryPassword = typed
+    attempt += 1
+  })
+  /** The parked retry password, handed over once. */
+  function takeRetry(): string | undefined {
+    const typed = retryPassword ?? undefined
+    retryPassword = null
+    return typed
+  }
   $effect(() => {
     void sourceIdentity
     const pw = sourcePassword
+    const tried = attempt
+    // A new source or password from the host: the prompt starts over.
+    if (tried === startedAttempt) {
+      retryPassword = null
+      untrack(() => prompt.reset())
+    }
+    startedAttempt = tried
     let cancelled = false
     let opened: InkDocument | null = null
     /** The snapshot history's hold on a controlled document's store. */
@@ -299,47 +334,69 @@
       return
     }
     override = { state: 'loading' }
-    void (async () => {
+    /**
+     * A failed open: the locked status when the prompt is on and the file is locked (the prompt
+     * is told once `onError` has run), else an error.
+     */
+    const fail = (error: InkError, keepDocument: boolean): void => {
+      const locked = passwordPrompt ? lockedStatus(error) : null
+      if (!locked) prompt.reset()
+      if (locked) {
+        override = locked
+      } else if (!keepDocument) override = { state: 'error', error }
       try {
-        const doc = await openDocument(
-          source,
-          untrack(() => ({
-            assets,
-            password: pw,
-            defaults: defaults ?? (ref ? cssVariableDefaults(ref) : undefined),
-            // Controlled hosts get the snapshot history; core's own stack stays off.
-            history: controlledProp ? false : (historyProp ?? true),
-            annotations: controlledProp
-              ? {
-                  mode: 'controlled' as const,
-                  initial: annotations ?? [],
-                  onChange: (next: Annotation[], change: AnnotationChange) => {
-                    // A proposal made in the tick this root unmounts or reopens never reaches
-                    // the host. Writing the bindable hands it to a bound host now; the effect
-                    // below pushes the applied list to the store in Svelte's next effect flush.
-                    if (cancelled) return
-                    annotations = next
-                    onAnnotationsChange?.(next)
-                    onChange?.(change)
-                  },
-                }
-              : { mode: 'uncontrolled' as const },
-            fields:
-              fields !== undefined
-                ? {
-                    mode: 'controlled' as const,
-                    initial: fields,
-                    onChange: (next: FieldValues, change: FieldsChange) => {
-                      // As for annotations: a commit made in the tick this root unmounts or
-                      // reopens never reaches the host.
-                      if (cancelled) return
-                      fields = next
-                      onFieldsChange?.(next, change)
-                    },
-                  }
-                : { mode: 'uncontrolled' as const },
-          }))
-        )
+        onError?.(error)
+      } finally {
+        if (locked && !cancelled) prompt.locked()
+        // Flushed after the prompt is told, so the dialog and the locked panel arrive together.
+        if (locked) flushSync()
+      }
+    }
+    const base = untrack(() => ({
+      assets,
+      defaults: defaults ?? (ref ? cssVariableDefaults(ref) : undefined),
+      // Controlled hosts get the snapshot history; core's own stack stays off.
+      history: controlledProp ? false : (historyProp ?? true),
+      annotations: controlledProp
+        ? {
+            mode: 'controlled' as const,
+            initial: annotations ?? [],
+            onChange: (next: Annotation[], change: AnnotationChange) => {
+              // A proposal made in the tick this root unmounts or reopens never reaches
+              // the host. Writing the bindable hands it to a bound host now; the effect
+              // below pushes the applied list to the store in Svelte's next effect flush.
+              if (cancelled) return
+              annotations = next
+              onAnnotationsChange?.(next)
+              onChange?.(change)
+            },
+          }
+        : { mode: 'uncontrolled' as const },
+      fields:
+        fields !== undefined
+          ? {
+              mode: 'controlled' as const,
+              initial: fields,
+              onChange: (next: FieldValues, change: FieldsChange) => {
+                // As for annotations: a commit made in the tick this root unmounts or
+                // reopens never reaches the host.
+                if (cancelled) return
+                fields = next
+                onFieldsChange?.(next, change)
+              },
+            }
+          : { mode: 'uncontrolled' as const },
+    }))
+    /*
+     * The typed password goes in as an argument and is used only in the `openDocument` call:
+     * no closure captures it, so nothing here keeps it once the load has started.
+     */
+    void (async (attemptPassword: string | undefined) => {
+      try {
+        const doc = await openDocument(source, {
+          ...base,
+          password: attemptPassword ?? pw,
+        })
         if (cancelled) {
           doc.destroy()
           return
@@ -371,8 +428,10 @@
         setTestHook(ref, doc)
         const s = doc.status.get()
         try {
-          if (s.state === 'ready') onReady?.(doc)
-          else if (s.state === 'error') onError?.(s.error)
+          if (s.state === 'ready') {
+            prompt.reset()
+            onReady?.(doc)
+          } else if (s.state === 'error') fail(s.error, true)
         } finally {
           // A host whose `onReady` throws still hears the held errors and every later one.
           const early = held
@@ -390,10 +449,9 @@
                 {},
                 cause
               )
-        override = { state: 'error', error }
-        onError?.(error)
+        fail(error, false)
       }
-    })()
+    })(takeRetry())
     return () => {
       cancelled = true
       // Cleared first, so the plugins close their stores while the document is still alive.
@@ -630,6 +688,9 @@
   })
 
   const context: InkContext = {
+    get passwordPrompt() {
+      return passwordPrompt ? prompt : null
+    },
     get assets() {
       return assets
     },

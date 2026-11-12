@@ -15,6 +15,7 @@ import type {
 import type {
   DecorateAnnotation,
   Navigation,
+  PasswordPrompt,
   PluginHost,
   SearchController,
   Tool,
@@ -52,6 +53,11 @@ export interface InkHistory extends PluginHistory {
  * InkRoot's state, so a template or effect that reads one re-runs when it changes.
  */
 export interface InkContext {
+  /**
+   * The dialog's state machine for a locked file; `null` when InkRoot's `passwordPrompt` is
+   * false. InkViewport drives its dialog from it.
+   */
+  readonly passwordPrompt: PasswordPrompt | null
   readonly assets: PdfAssets
   readonly document: InkDocument | null
   /** `loading` from the moment a document starts opening, then the document's own status. */
