@@ -178,6 +178,7 @@ function setup(): void {
     ...(ctx.toolStyle.value ? { toolStyle: ctx.toolStyle.value } : {}),
     toolHistory: { batch: (fn) => ctx.history.batch(fn) },
     toolOptions: ctx.toolOptions,
+    minDocumentWidth: ctx.minDocumentWidth,
     fonts: [...ctx.fonts.value],
     // Read through, so a new `signatures` store reaches the tool as well as the menus.
     signatureLibrary: () => ctx.signatures.value,

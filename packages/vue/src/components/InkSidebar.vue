@@ -17,6 +17,11 @@
  * `sidebar.<name>.width`; inside `InkRoot` the root's storage is the default. `v-model:width`
  * makes the width the host's: drags and keys then only update the model, and storage is not
  * read or written.
+ *
+ * Once mounted, a rail's open panel floats over the pages while the document beside it would
+ * be narrower than `minDocumentWidth` (InkRoot's inside it), and a tap on the pages or Escape
+ * closes it. The server renders it beside the document, open as usual; once mounted, an unbound
+ * sidebar with no room closes its panel.
  */
 import {
   createSidebarController,
@@ -62,13 +67,25 @@ const props = withDefaults(
     defaultWidth?: number | undefined
     /** Default 240. */
     minWidth?: number | undefined
-    /** Default 480. The shown width also stays within half the sidebar's container. */
+    /** Default 480. */
     maxWidth?: number | undefined
     /**
      * Bind with `v-model:width` to control the width, in CSS px. Left unbound, the sidebar
      * keeps its own, saved in `storage`.
      */
     width?: number | undefined
+    /**
+     * The narrowest the document may get beside the sidebars sharing this one's parent, in CSS
+     * px, before a rail's open panel floats over the pages. Tabs and stack narrow toward
+     * `minWidth` instead. Default: InkRoot's `minDocumentWidth` inside InkRoot, else 480. Read
+     * once, when the sidebar is created.
+     */
+    minDocumentWidth?: number | undefined
+    /**
+     * The resize handle's accessible name. Default `Resize left sidebar` or `Resize right
+     * sidebar`. Read once, when the sidebar is created.
+     */
+    handleLabel?: string | undefined
   }>(),
   {
     side: 'left',
@@ -80,6 +97,8 @@ const props = withDefaults(
     minWidth: undefined,
     maxWidth: undefined,
     width: undefined,
+    minDocumentWidth: undefined,
+    handleLabel: undefined,
   }
 )
 // A prop and an event rather than `defineModel`: unbound, a model keeps the last width locally
@@ -92,7 +111,9 @@ const entries = shallowRef<readonly SidebarPanelEntry[]>([])
 const panels = computed(() => entries.value.map((e) => e.info()))
 
 // Read once: the controller loads the saved width as it is created.
-const storage = props.storage ?? injectInkContext(null)?.storage
+const ink = injectInkContext(null)
+const storage = props.storage ?? ink?.storage
+const minDocumentWidth = props.minDocumentWidth ?? ink?.minDocumentWidth
 // Pending until mounted: the panels register one by one while they are set up, and an open id
 // not registered yet is not a removed panel.
 const controller = createSidebarController({
@@ -107,6 +128,8 @@ const controller = createSidebarController({
   },
   ...(storage && { storage }),
   ...(props.name !== undefined && { name: props.name }),
+  ...(minDocumentWidth !== undefined && { minDocumentWidth }),
+  ...(props.handleLabel !== undefined && { handleLabel: props.handleLabel }),
   ...widthOptions(),
   onWidthChange: (value) => emit('update:width', value),
   // The same ids on the server and the client.

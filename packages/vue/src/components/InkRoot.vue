@@ -20,6 +20,7 @@ import {
   cssVariableDefaults,
   FONT_FAMILIES,
   keepHistoryFocus,
+  MIN_DOCUMENT_WIDTH,
   SIGNATURE_FONTS,
   trackToolStyle,
   unknownTool,
@@ -127,6 +128,12 @@ const props = withDefaults(
      */
     storage?: InkStorage | undefined
     /**
+     * The narrowest the document may get beside the sidebars, in CSS px, before a rail
+     * sidebar's panel floats over the pages instead. Default 480 (`MIN_DOCUMENT_WIDTH`). Every
+     * `InkSidebar` inside takes it unless it has its own. Read once, when the root is created.
+     */
+    minDocumentWidth?: number | undefined
+    /**
      * Where saved signatures live, in place of `storage`. A new store takes effect at once, for
      * the menus and the `signature` tool alike.
      * @deprecated Pass `storage`; signatures are kept in it under `signatures`. Removed in 0.13.0.
@@ -152,6 +159,7 @@ const props = withDefaults(
     decorateAnnotation: undefined,
     fonts: undefined,
     storage: undefined,
+    minDocumentWidth: undefined,
     signatures: undefined,
     signatureFonts: undefined,
     page: undefined,
@@ -410,6 +418,8 @@ const hostActivated = writable<string | null>(null)
 watch(activated, (id) => hostActivated.set(id), { flush: 'sync' })
 /** Read once, like `plugins`: the sidebars and the plugins load from it as they are created. */
 const storage = props.storage ?? createMemoryStorage()
+/** Read once, like `storage`: each sidebar reads it as it is created. */
+const minDocumentWidth = props.minDocumentWidth ?? MIN_DOCUMENT_WIDTH
 const pluginHost = shallowRef<PluginHost | null>(null)
 /** One search controller for the root's life, built with the plugin host that shares it. */
 const search = shallowRef<SearchController | null>(null)
@@ -590,6 +600,7 @@ provideInkContext({
   fonts: computed(() => props.fonts ?? FONT_FAMILIES),
   toolOptions,
   storage,
+  minDocumentWidth,
   signatures,
   signatureFonts: computed(() => props.signatureFonts ?? SIGNATURE_FONTS),
   toolStyle,
