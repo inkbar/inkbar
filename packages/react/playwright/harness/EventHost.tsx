@@ -9,12 +9,14 @@ export function EventHost({
   assets,
   password,
   bytesFrom,
+  passwordPrompt,
 }: {
   src: DocumentSource | null
   assets: PdfAssets
   password?: string | undefined
   /** Fetches this URL in the page and passes the bytes as the source, one array for every open. */
   bytesFrom?: string | undefined
+  passwordPrompt?: boolean | undefined
 }) {
   // Playwright serialises callback arguments without an Error's own properties, so the host
   // records the codes in the DOM where the test can read them.
@@ -40,6 +42,7 @@ export function EventHost({
       src={bytesFrom === undefined ? src : bytes}
       assets={assets}
       password={password}
+      passwordPrompt={passwordPrompt}
       onError={(e) => {
         setCodes((c) => [...c, e.code])
         setByteLength(bytes?.byteLength ?? null)

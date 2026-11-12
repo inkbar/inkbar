@@ -15,6 +15,7 @@ import type {
 import type {
   DecorateAnnotation,
   Navigation,
+  PasswordPrompt,
   PluginHost,
   SearchController,
   Tool,
@@ -52,6 +53,11 @@ export interface InkContext {
   document: InkDocument | null
   /** `loading` from the moment a document starts opening, then the document's own status. */
   status: InkStatus
+  /**
+   * The dialog's state machine for a locked file; `null` when InkRoot's `passwordPrompt` is
+   * false. InkViewport drives its dialog from it.
+   */
+  passwordPrompt: PasswordPrompt | null
   annotations: readonly Annotation[]
   selection: readonly string[]
   /**

@@ -105,7 +105,7 @@ Each control is a separate component, so put them in any order or leave some out
 
 `annotations` with `onAnnotationsChange` makes your list the source of truth. Leave them off and Inkbar keeps the state itself, with undo and redo. The example passes `history` so that `InkUndo` and `InkRedo` work with your list; see below.
 
-`InkRoot` takes a few more props. `password` opens an encrypted file. `storage` sets what the viewer keeps between visits (see [Storage](#storage)). `minDocumentWidth` sets how narrow the document may get before a rail sidebar's panel floats over it (see [Sidebars](#sidebars)). `defaults` sets the colour defaults for new annotations. `fonts` sets the font families the text style menu offers. `decorateAnnotation` adds `data-*` attributes, classes and a screen-reader description to each annotation's element. `page` with `onPageChange`, `zoom` with `onZoomChange` and `tool` with `onToolChange` control those values from your own state. `onChange` gets each annotation change. `onError` hears open failures, form script errors and refused signatures, and `onActivate` gets the id of an activated annotation. `children` can be a function of `{ status, document }`.
+`InkRoot` takes a few more props. `password` opens an encrypted file (see [Locked files](#locked-files)). `passwordPrompt` (on by default) asks the reader for a locked file's password. `storage` sets what the viewer keeps between visits (see [Storage](#storage)). `minDocumentWidth` sets how narrow the document may get before a rail sidebar's panel floats over it (see [Sidebars](#sidebars)). `defaults` sets the colour defaults for new annotations. `fonts` sets the font families the text style menu offers. `decorateAnnotation` adds `data-*` attributes, classes and a screen-reader description to each annotation's element. `page` with `onPageChange`, `zoom` with `onZoomChange` and `tool` with `onToolChange` control those values from your own state. `onChange` gets each annotation change. `onError` hears open failures, form script errors and refused signatures, and `onActivate` gets the id of an activated annotation. `children` can be a function of `{ status, document }`.
 
 ## Viewport
 
@@ -116,6 +116,24 @@ On a touch screen, two fingers pinch to zoom the document and scroll it. With `d
 ## Style menus
 
 `InkColorMenu` (its `property` is `border`, `fill` or `text`), `InkLineStyleMenu` (weight, dashes, arrowheads) and `InkTextStyleMenu` (font, size, colour, bold, italic, underline, alignment) edit the selection, or the active tool's style when nothing is selected. They disable when nothing supports their properties. `InkShapeMenu` is a split button for the `shape` tool and renders nothing unless `shapeTool` is in `tools`.
+
+## Locked files
+
+A file that needs a password opens a dialog that asks for it. `InkViewport` mounts `InkPasswordDialog` itself, so there is nothing to place. A wrong password keeps the dialog open with a message. Cancel closes it and leaves a panel with an "Enter password" button. While the file is locked, `status` is `{ state: 'locked', incorrect }` and `data-state` reads `locked`. `onError` still fires once for each failed open.
+
+The typed password is used for that one load and dropped. A `password` you pass still applies first, and if it is wrong the dialog opens with the message already showing. Pass `passwordPrompt={false}` to keep the plain `PasswordRequired` error and handle it yourself.
+
+To replace the panel that shows while the dialog is closed, pass `locked` to `InkViewport`. It takes a node or a function of `{ incorrect, promptPassword }`, and `promptPassword` reopens the dialog.
+
+```tsx
+<InkViewport
+  locked={({ promptPassword }) => (
+    <button onClick={promptPassword}>Unlock this file</button>
+  )}
+/>
+```
+
+`InkPasswordDialog` is exported for hosts that build their own flow. It takes `open`, `onOpenChange`, `incorrect`, `pending` and `onSubmit`, which gets the password. Inside `InkRoot`, `useInkContext().passwordPrompt` is the controller that drives it, or `null` when the prompt is off.
 
 ## Controlled mode
 
@@ -302,7 +320,7 @@ To build your own, `useRecords<T>(name)` returns the live `records` and the `han
 
 ## Custom rendering
 
-Slots are render props. `InkViewport` takes `loading`, `empty`, `error`, `renderAnnotation` and `renderPageError`; `InkThreadPopover` takes a function as `children`; `InkToolButton` takes a node or a function of `{ active, label }`; `InkCommand` a node or a function of `{ label, busy }`; `InkThumbnails` and `InkOutline` take `renderItem`; `InkRecordList` takes `empty`. The props each receives are typed as `AnnotationSlotProps` and `ThreadPopoverSlotProps`, the same types the Vue package exports.
+Slots are render props. `InkViewport` takes `loading`, `empty`, `error`, `locked`, `renderAnnotation` and `renderPageError`; `InkThreadPopover` takes a function as `children`; `InkToolButton` takes a node or a function of `{ active, label }`; `InkCommand` a node or a function of `{ label, busy }`; `InkThumbnails` and `InkOutline` take `renderItem`; `InkRecordList` takes `empty`. The props each receives are typed as `AnnotationSlotProps` and `ThreadPopoverSlotProps`, the same types the Vue package exports.
 
 `InkDownloadButton` and `InkPrintButton` download and print the open PDF; `filename` names the download (the opened `File`'s name, else the URL's last segment, else `document.pdf`; `.pdf` is added to a name without it). Printing loads the file into a hidden frame and opens the browser's print dialog for it; on iOS the PDF opens in a new tab instead. Until saving into the PDF ships, both give the file as it was opened, without this session's annotations.
 

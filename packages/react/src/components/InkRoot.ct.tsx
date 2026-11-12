@@ -4,6 +4,10 @@ import { expect, test } from '@playwright/experimental-ct-react'
 import { guardConsole } from '../../playwright/console-guard'
 import { ControlledHost } from '../../playwright/harness/ControlledHost'
 import { EventHost } from '../../playwright/harness/EventHost'
+import {
+  PasswordHarness,
+  StrictPasswordHost,
+} from '../../playwright/harness/PasswordHarness'
 import { PluginHarness, StrictPluginHost } from '../../playwright/harness/PluginHarness'
 import { StrictHost } from '../../playwright/harness/StrictHost'
 import { ToolbarHarness } from '../../playwright/harness/ToolbarHarness'
@@ -13,6 +17,7 @@ import { UncontrolledHost } from '../../playwright/harness/UncontrolledHost'
 import { InkRoot } from './InkRoot'
 
 import type { Annotation } from '@inkbar/core'
+import type { Page } from '@playwright/test'
 
 const assets = browserAssets()
 const consoleGuard = guardConsole(test)
@@ -68,11 +73,18 @@ test('stays idle without a source', async ({ mount }) => {
 test('calls onError with the code for an encrypted file and opens with the password', async ({
   mount,
 }) => {
-  const cmp = await mount(<EventHost src={fixtureUrl('encrypted-aes')} assets={assets} />)
+  const cmp = await mount(
+    <EventHost src={fixtureUrl('encrypted-aes')} assets={assets} passwordPrompt={false} />
+  )
   await expect(cmp).toHaveAttribute('data-state', 'error')
   await expect(cmp.getByTestId('error-codes')).toHaveText('PasswordRequired')
   await cmp.update(
-    <EventHost src={fixtureUrl('encrypted-aes')} assets={assets} password="inkbar" />
+    <EventHost
+      src={fixtureUrl('encrypted-aes')}
+      assets={assets}
+      password="inkbar"
+      passwordPrompt={false}
+    />
   )
   await expect(cmp).toHaveAttribute('data-state', 'ready')
   await expect(cmp.getByTestId('error-codes')).toHaveText('PasswordRequired')
@@ -88,17 +100,218 @@ test('retries a byte source with a password: wrong, then right, with the host by
   )
   const bytesFrom = fixtureUrl('encrypted-aes')
   const cmp = await mount(
-    <EventHost src={null} assets={assets} bytesFrom={bytesFrom} password="wrong" />
+    <EventHost
+      src={null}
+      assets={assets}
+      bytesFrom={bytesFrom}
+      password="wrong"
+      passwordPrompt={false}
+    />
   )
   await expect(cmp).toHaveAttribute('data-state', 'error')
   await expect(cmp.getByTestId('error-codes')).toHaveText('PasswordRequired')
   await expect(cmp.getByTestId('byte-length')).toHaveText(String(size))
   await cmp.update(
-    <EventHost src={null} assets={assets} bytesFrom={bytesFrom} password="inkbar" />
+    <EventHost
+      src={null}
+      assets={assets}
+      bytesFrom={bytesFrom}
+      password="inkbar"
+      passwordPrompt={false}
+    />
   )
   await expect(cmp).toHaveAttribute('data-state', 'ready')
   await expect(cmp.getByTestId('error-codes')).toHaveText('PasswordRequired')
   await expect(cmp.getByTestId('byte-length')).toHaveText(String(size))
+})
+
+test.describe('locked files', () => {
+  const encrypted = fixtureUrl('encrypted-aes')
+  const dialog = (page: Page) => page.locator('[data-ink-password-dialog]')
+  const field = (page: Page) => dialog(page).locator('.ink-password-input')
+  const enter = async (page: Page, password: string): Promise<void> => {
+    await field(page).fill(password)
+    await field(page).press('Enter')
+  }
+
+  test('a locked file prompts instead of erroring', async ({ mount, page }) => {
+    const cmp = await mount(<PasswordHarness src={encrypted} assets={assets} />)
+    await expect(cmp).toHaveAttribute('data-state', 'locked')
+    await expect(cmp.getByTestId('error-codes')).toHaveText('PasswordRequired')
+    await expect(dialog(page)).toBeVisible()
+    await expect(field(page)).toBeFocused()
+    await expect(field(page)).toHaveAttribute('type', 'password')
+    await expect(field(page)).toHaveAttribute('autocomplete', 'off')
+    await expect(dialog(page).locator('.ink-password-error')).toHaveCount(0)
+    await expect(page.locator('.ink-error')).toHaveCount(0)
+    await expect(page.locator('[data-ink-viewport-root]')).toHaveAttribute(
+      'data-state',
+      'locked'
+    )
+  })
+
+  test('the right password opens it', async ({ mount, page }) => {
+    const cmp = await mount(<PasswordHarness src={encrypted} assets={assets} />)
+    await expect(dialog(page)).toBeVisible()
+    await enter(page, 'inkbar')
+    await expect(cmp).toHaveAttribute('data-state', 'ready')
+    await expect(dialog(page)).toHaveCount(0)
+    await expect(page.locator('.ink-locked')).toHaveCount(0)
+    await expect(cmp.getByTestId('error-codes')).toHaveText('PasswordRequired')
+    // The unlock button and the dialog are gone: the document has focus.
+    await expect(page.locator('[data-ink-scroll]')).toBeFocused()
+  })
+
+  test('a wrong password keeps the dialog open and is announced each time', async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mount(<PasswordHarness src={encrypted} assets={assets} />)
+    await expect(dialog(page)).toBeVisible()
+    await enter(page, 'nope')
+    const alert = dialog(page).locator('.ink-password-error')
+    await expect(alert).toHaveText('Incorrect password. Try again.')
+    await expect(alert).toHaveAttribute('role', 'alert')
+    await expect(field(page)).toHaveValue('')
+    await expect(field(page)).toBeFocused()
+    await expect(field(page)).toHaveAttribute('aria-invalid', 'true')
+    await expect(field(page)).toHaveAttribute('aria-describedby', /.+/)
+    await expect(cmp.getByTestId('error-codes')).toHaveText(
+      'PasswordRequired,PasswordRequired'
+    )
+    // A second wrong try inserts a new alert element.
+    await alert.evaluate((el) => ((el as HTMLElement).dataset.first = ''))
+    await enter(page, 'nope again')
+    await expect(cmp.getByTestId('error-codes')).toHaveText(
+      'PasswordRequired,PasswordRequired,PasswordRequired'
+    )
+    await expect(alert).not.toHaveAttribute('data-first', '')
+    // Not stuck pending.
+    await enter(page, 'inkbar')
+    await expect(cmp).toHaveAttribute('data-state', 'ready')
+    await expect(dialog(page)).toHaveCount(0)
+  })
+
+  test('Open is disabled while the field is empty', async ({ mount, page }) => {
+    await mount(<PasswordHarness src={encrypted} assets={assets} />)
+    const open = dialog(page).locator('button[type="submit"]')
+    await expect(open).toBeDisabled()
+    await field(page).fill('x')
+    await expect(open).toBeEnabled()
+  })
+
+  test('cancel shows the locked panel and the button reopens', async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mount(<PasswordHarness src={encrypted} assets={assets} />)
+    await expect(dialog(page)).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(dialog(page)).toHaveCount(0)
+    const unlock = page.locator('[data-ink-unlock]')
+    await expect(unlock).toBeFocused()
+    await expect(page.locator('.ink-locked')).toHaveAttribute('role', 'status')
+    await expect(page.locator('.ink-locked-title')).toHaveText(
+      'This document is password protected.'
+    )
+    await expect(unlock).toHaveText('Enter password')
+    await expect(cmp).toHaveAttribute('data-state', 'locked')
+    await unlock.click()
+    await expect(dialog(page)).toBeVisible()
+    await expect(field(page)).toBeFocused()
+  })
+
+  test('a wrong try then cancel reopens still marked incorrect', async ({
+    mount,
+    page,
+  }) => {
+    await mount(<PasswordHarness src={encrypted} assets={assets} />)
+    await enter(page, 'nope')
+    await expect(dialog(page).locator('.ink-password-error')).toBeVisible()
+    await dialog(page).getByRole('button', { name: 'Cancel' }).click()
+    await expect(dialog(page)).toHaveCount(0)
+    await expect(page.locator('[data-ink-unlock]')).toBeFocused()
+    await page.locator('[data-ink-unlock]').click()
+    await expect(dialog(page).locator('.ink-password-error')).toBeVisible()
+  })
+
+  test('a wrong host password opens the prompt marked incorrect', async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mount(
+      <PasswordHarness src={encrypted} assets={assets} password="nope" />
+    )
+    await expect(cmp).toHaveAttribute('data-state', 'locked')
+    await expect(dialog(page).locator('.ink-password-error')).toHaveText(
+      'Incorrect password. Try again.'
+    )
+  })
+
+  test("passwordPrompt false keeps today's error", async ({ mount, page }) => {
+    const cmp = await mount(
+      <PasswordHarness src={encrypted} assets={assets} passwordPrompt={false} />
+    )
+    await expect(cmp).toHaveAttribute('data-state', 'error')
+    await expect(cmp.getByTestId('error-codes')).toHaveText('PasswordRequired')
+    await expect(page.locator('.ink-error')).toHaveCount(1)
+    await expect(dialog(page)).toHaveCount(0)
+  })
+
+  test('a new source closes the dialog', async ({ mount, page }) => {
+    const cmp = await mount(<PasswordHarness src={encrypted} assets={assets} />)
+    await expect(dialog(page)).toBeVisible()
+    await cmp.update(<PasswordHarness src={fixtureUrl('text-simple')} assets={assets} />)
+    await expect(cmp).toHaveAttribute('data-state', 'ready')
+    await expect(dialog(page)).toHaveCount(0)
+  })
+
+  test('a new locked source opens the prompt fresh', async ({ mount, page }) => {
+    const cmp = await mount(<PasswordHarness src={encrypted} assets={assets} />)
+    await enter(page, 'nope')
+    await expect(dialog(page).locator('.ink-password-error')).toBeVisible()
+    await expect(cmp.getByTestId('status')).toHaveText('locked:true')
+    await cmp.update(
+      <PasswordHarness src={fixtureUrl('encrypted-rc4')} assets={assets} />
+    )
+    await expect(cmp).toHaveAttribute('data-state', 'locked')
+    await expect(dialog(page)).toBeVisible()
+    await expect(dialog(page).locator('.ink-password-error')).toHaveCount(0)
+    await expect(field(page)).toHaveAttribute('aria-invalid', 'false')
+    await expect(cmp.getByTestId('status')).toHaveText('locked:false')
+  })
+
+  test('the locked render prop replaces the panel', async ({ mount, page }) => {
+    const cmp = await mount(
+      <PasswordHarness src={encrypted} assets={assets} customLocked />
+    )
+    await expect(dialog(page)).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(dialog(page)).toHaveCount(0)
+    await expect(page.locator('[data-ink-unlock]')).toHaveCount(0)
+    const custom = cmp.getByTestId('custom-unlock')
+    await expect(custom).toBeVisible()
+    await custom.click()
+    await expect(dialog(page)).toBeVisible()
+  })
+
+  test('a retry under StrictMode fetches the file once', async ({ mount, page }) => {
+    let fetches = 0
+    await page.route('**/fixtures/encrypted-aes.pdf', async (route) => {
+      fetches++
+      await route.continue()
+    })
+    const cmp = await mount(<StrictPasswordHost src={encrypted} assets={assets} />)
+    await expect(dialog(page)).toBeVisible()
+    expect(fetches).toBe(1)
+    await enter(page, 'nope')
+    await expect(dialog(page).locator('.ink-password-error')).toBeVisible()
+    expect(fetches).toBe(2)
+    await enter(page, 'inkbar')
+    await expect(cmp.locator('[data-ink-root]')).toHaveAttribute('data-state', 'ready')
+    expect(fetches).toBe(3)
+    await expect(dialog(page)).toHaveCount(0)
+  })
 })
 
 test('calls onError when the file fails to load after openDocument resolves', async ({
