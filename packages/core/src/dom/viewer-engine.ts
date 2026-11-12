@@ -16,7 +16,6 @@ import {
   createSignatureLibrary,
   createStorageSignatureStore,
   type SignatureLibrary,
-  type SignatureStore,
 } from '../model/signatures'
 import { createMemoryStorage, type InkStorage } from '../model/storage'
 
@@ -102,12 +101,6 @@ export interface MountViewerOptions {
    */
   fonts?: string[]
   /**
-   * Where signature templates live. Default: they go in `storage`.
-   *
-   * @deprecated Pass `storage` instead. When both are given, this wins.
-   */
-  signatures?: SignatureStore
-  /**
    * What the viewer keeps between visits, such as saved signatures. Default: memory, gone on
    * reload (`createMemoryStorage`). `createLocalStorage()` keeps it in the browser.
    */
@@ -146,8 +139,6 @@ export interface MountViewerOptions {
    * link to a URL. Inkbar itself never does any of these.
    */
   onAction?(action: ViewerAction): void
-  /** @deprecated Use `onAction`. Removed in 0.13.0. Ignored when `onAction` is given. */
-  onFormAction?(action: ViewerAction): void
   /** A form script called `app.alert`: show `message` (text, not markup) without blocking. */
   onFormAlert?(message: string): void
   /** Annotation content is rendered by the host (custom slots). Changing it needs `rebuild`. */
@@ -341,7 +332,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
   const host = opts.signatureLibrary
   const own = host
     ? undefined
-    : createSignatureLibrary(opts.signatures ?? createStorageSignatureStore(storage))
+    : createSignatureLibrary(createStorageSignatureStore(storage))
   /** The library now: a host getter is read each time, so a swapped library takes effect. */
   const signatures = (): SignatureLibrary =>
     typeof host === 'function' ? host() : (host ?? (own as SignatureLibrary))
@@ -587,9 +578,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
   }
   el.addEventListener('focusin', onStopFocus)
 
-  // `onAction` wins; the old `onFormAction` is only a fallback while it lasts.
-  const reportAction = (a: ViewerAction): void =>
-    (opts.onAction ?? opts.onFormAction)?.(a)
+  const reportAction = (a: ViewerAction): void => opts.onAction?.(a)
 
   /**
    * History of the jumps made in this document. "Here" is the point the rebuild anchor keeps:

@@ -6,7 +6,7 @@ import { userEvent } from 'vitest/browser'
 import { InkError } from '../../model/errors'
 import { writable, type Readable } from '../../model/readable'
 import {
-  createMemorySignatureStore,
+  createStorageSignatureStore,
   type SignatureTemplate,
 } from '../../model/signatures'
 import { createMemoryStorage } from '../../model/storage'
@@ -170,16 +170,6 @@ describe('createViewer', () => {
     expect((await ready(viewer)).engine.minDocumentWidth).toBe(480)
     const { viewer: wide } = make('text-simple', { minDocumentWidth: 600 })
     expect((await ready(wide)).engine.minDocumentWidth).toBe(600)
-  })
-
-  it('signatures wins over storage', async () => {
-    const storage = createMemoryStorage()
-    const store = createMemorySignatureStore()
-    const { viewer } = make('text-simple', { storage, signatures: store })
-    const { engine } = await ready(viewer)
-    await engine.signatures.save(sig)
-    expect(await store.list()).toEqual([sig])
-    expect(await storage.get('signatures')).toBeUndefined()
   })
 
   it('opens a document and renders the viewer and pages', async () => {
@@ -1448,9 +1438,10 @@ describe('createViewer', () => {
       at('pointerup', 120, 50)
     }
     async function mounted(templates: SignatureTemplate[] = []) {
-      const store = createMemorySignatureStore(templates)
+      const storage = createMemoryStorage({ signatures: templates })
+      const store = createStorageSignatureStore(storage)
       const { viewer } = make('text-simple', {
-        signatures: store,
+        storage,
         tools: [signatureTool()],
       })
       const root = createSignatureMenu(viewer)
@@ -1538,10 +1529,11 @@ describe('createViewer', () => {
     })
 
     it('a save the store refuses shows an error and keeps the dialog open', async () => {
-      const store = createMemorySignatureStore()
-      store.save = () => Promise.reject(new Error('full'))
+      const storage = createMemoryStorage()
+      const store = createStorageSignatureStore(storage)
+      storage.set = () => Promise.reject(new Error('full'))
       const { viewer } = make('text-simple', {
-        signatures: store,
+        storage,
         tools: [signatureTool()],
       })
       const root = createSignatureMenu(viewer)
@@ -1562,10 +1554,11 @@ describe('createViewer', () => {
     })
 
     it('a removal the store refuses shows an error in the menu', async () => {
-      const store = createMemorySignatureStore([INK, IMAGE])
-      store.remove = () => Promise.reject(new Error('full'))
+      const storage = createMemoryStorage({ signatures: [INK, IMAGE] })
+      const store = createStorageSignatureStore(storage)
+      storage.set = () => Promise.reject(new Error('full'))
       const { viewer } = make('text-simple', {
-        signatures: store,
+        storage,
         tools: [signatureTool()],
       })
       const root = createSignatureMenu(viewer)
@@ -1578,8 +1571,10 @@ describe('createViewer', () => {
           '[data-ink-signature-remove][data-key="sig-a"]'
         )!
         .click()
-      await until(
-        () => panel()?.querySelector('[data-ink-signature-remove-error]') != null
+      await until(() =>
+        /could not be removed/.test(
+          panel()?.querySelector('[data-ink-signature-remove-error]')?.textContent ?? ''
+        )
       )
       const error = panel()!.querySelector<HTMLElement>(
         '[data-ink-signature-remove-error]'
@@ -1617,9 +1612,10 @@ describe('createViewer', () => {
     })
 
     it('the Type tab saves the name in the chosen font as an image template', async () => {
-      const store = createMemorySignatureStore()
+      const storage = createMemoryStorage()
+      const store = createStorageSignatureStore(storage)
       const { viewer } = make('text-simple', {
-        signatures: store,
+        storage,
         tools: [signatureTool()],
         signatureFonts: ['serif', 'cursive'],
       })
@@ -2271,8 +2267,9 @@ describe('a viewer with no creation tools', () => {
     })
 
     it('the signature dialog saves without the signature tool', async () => {
-      const store = createMemorySignatureStore([])
-      const { viewer } = make('text-simple', { signatures: store })
+      const storage = createMemoryStorage({ signatures: [] })
+      const store = createStorageSignatureStore(storage)
+      const { viewer } = make('text-simple', { storage })
       const spy = errors()
       try {
         const { engine } = await ready(viewer)
@@ -2684,8 +2681,9 @@ describe('forms', () => {
     document.querySelector<HTMLElement>(`[data-ink-sign-field-menu="${field}"]`)
 
   async function signatures(opts: Partial<CreateViewerOptions> = {}) {
-    const store = createMemorySignatureStore([IMAGE])
-    const { viewer, host } = make('form-fields', { signatures: store, ...opts })
+    const storage = createMemoryStorage({ signatures: [IMAGE] })
+    const store = createStorageSignatureStore(storage)
+    const { viewer, host } = make('form-fields', { storage, ...opts })
     const { doc, engine } = await ready(viewer)
     await until(() => engine.signatures.templates.get().length === 1)
     const sig = doc.form.fields.get().find((f) => f.name === 'sig')!
@@ -3425,28 +3423,6 @@ describe('back and forward', () => {
     })
     expect(open).not.toHaveBeenCalled()
     open.mockRestore()
-  })
-
-  it('onFormAction still works', async () => {
-    const onFormAction = vi.fn()
-    const { viewer } = make('outline', { onFormAction })
-    await ready(viewer)
-    await viewer.follow({ kind: 'url', url: 'https://example.com/x', newWindow: true })
-    expect(onFormAction).toHaveBeenCalledWith({
-      kind: 'open-url',
-      url: 'https://example.com/x',
-      newWindow: true,
-    })
-  })
-
-  it('onAction wins over onFormAction', async () => {
-    const onAction = vi.fn()
-    const onFormAction = vi.fn()
-    const { viewer } = make('outline', { onAction, onFormAction })
-    await ready(viewer)
-    await viewer.follow({ kind: 'url', url: 'https://example.com/x', newWindow: false })
-    expect(onAction).toHaveBeenCalledTimes(1)
-    expect(onFormAction).not.toHaveBeenCalled()
   })
 })
 

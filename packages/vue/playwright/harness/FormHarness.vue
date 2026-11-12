@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {
-  createMemorySignatureStore,
+  createMemoryStorage,
   type FieldsChange,
   type FieldValues,
   type InkDocument,
@@ -9,7 +9,7 @@ import {
   type SignatureTemplate,
   type ViewerAction,
 } from '@inkbar/core'
-import { computed, ref, shallowRef } from 'vue'
+import { ref } from 'vue'
 
 import InkRoot from '../../src/components/InkRoot.vue'
 import InkToolbar from '../../src/components/InkToolbar.vue'
@@ -33,8 +33,6 @@ const props = withDefaults(
     /** What the Swap button opens next, and the controlled values it starts from. */
     swapTo?: { src: string; initial?: FieldValues } | undefined
     listenOnReady?: boolean
-    /** Which of InkRoot's two action listeners to attach: the new, the deprecated, or both. */
-    listen?: 'action' | 'form-action' | 'both'
   }>(),
   {
     controlled: false,
@@ -44,12 +42,10 @@ const props = withDefaults(
     formHighlight: undefined,
     swapTo: undefined,
     listenOnReady: false,
-    listen: 'both',
   }
 )
 const emit = defineEmits<{
   action: [action: ViewerAction]
-  'form-action': [action: ViewerAction]
   error: [error: InkError]
   changed: [next: FieldValues, change: FieldsChange | undefined]
 }>()
@@ -72,21 +68,11 @@ function onError(e: InkError): void {
   emit('error', e)
 }
 
-/** Only the listeners the test asked for, as InkRoot sees which of the two are set. */
-const actionListeners = computed(() => ({
-  ...(props.listen !== 'form-action' && {
-    onAction: (a: ViewerAction) => emit('action', a),
-  }),
-  ...(props.listen !== 'action' && {
-    onFormAction: (a: ViewerAction) => emit('form-action', a),
-  }),
-}))
-
 /** A host that owns the values through v-model, the way an app would. */
 const values = ref<FieldValues>(props.initial)
 const src = ref(props.src)
 const heard = ref(0)
-const store = shallowRef(createMemorySignatureStore(props.templates))
+const storage = createMemoryStorage({ signatures: props.templates })
 
 function onFields(next: FieldValues, change?: FieldsChange): void {
   heard.value++
@@ -106,13 +92,13 @@ function onSwap(): void {
 <template>
   <!-- No tools on purpose: form signing must work without the signature tool. -->
   <InkRoot
-    v-bind="actionListeners"
     :src="src"
     :assets="props.assets"
     :zoom="1"
-    :signatures="store"
+    :storage="storage"
     :fields="props.controlled ? values : undefined"
     :form-highlight="props.formHighlight"
+    @action="emit('action', $event)"
     @update:fields="onFields"
     @ready="onReady"
     @error="onError"

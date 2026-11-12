@@ -1,5 +1,5 @@
 import {
-  createMemorySignatureStore,
+  createMemoryStorage,
   type FieldsChange,
   type FieldValues,
   type ViewerAction,
@@ -62,7 +62,6 @@ export interface FormHarnessProps {
   /** `onReady` throws once it has recorded `ready`, as a broken host's would. */
   throwOnReady?: boolean
   onAction?: (action: ViewerAction) => void
-  onFormAction?: (action: ViewerAction) => void
   onError?: (error: InkError) => void
   onChanged?: (next: FieldValues, change: FieldsChange) => void
 }
@@ -88,21 +87,20 @@ export function FormHarness({
   formHighlight,
   throwOnReady = false,
   onAction,
-  onFormAction,
   onError,
   onChanged,
 }: FormHarnessProps) {
   const [src, setSrc] = useState(initialSrc)
   const [values, setValues] = useState<FieldValues>(initial)
   const [heard, setHeard] = useState(0)
-  const [store] = useState(() => createMemorySignatureStore(templates))
+  const [storage] = useState(() => createMemoryStorage({ signatures: templates }))
   return (
     // No tools on purpose: form signing must work without the signature tool.
     <InkRoot
       src={src}
       assets={assets}
       zoom={1}
-      signatures={store}
+      storage={storage}
       fields={controlled ? values : undefined}
       onFieldsChange={(next, change) => {
         setHeard((n) => n + 1)
@@ -111,7 +109,6 @@ export function FormHarness({
       }}
       formHighlight={formHighlight}
       onAction={onAction}
-      onFormAction={onFormAction}
       onReady={() => {
         record('ready')
         if (throwOnReady) throw new Error('host onReady failed')

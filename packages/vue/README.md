@@ -134,7 +134,7 @@ Inside `InkRoot`, `useHistory()` returns the same object. Its `batch(fn)` runs `
 
 ## Forms
 
-`InkViewport` fills the PDF's form fields and runs the form's scripts; the form props belong to `InkRoot`. `useForm()` returns the fields, their values, and `set` and `reset`. Bind `v-model:fields` on `InkRoot` to hold the values in your own state. The form never submits, opens a link, sends mail or prints: `@action` on `InkRoot` hands each request to you; so does a link to a URL. `@form-action` still works until 0.13.0. `:form-highlight="false"` turns off the field tint, and a change applies to the open document in place. A form script that fails is reported through `InkRoot`'s `error` event.
+`InkViewport` fills the PDF's form fields and runs the form's scripts; the form props belong to `InkRoot`. `useForm()` returns the fields, their values, and `set` and `reset`. Bind `v-model:fields` on `InkRoot` to hold the values in your own state. The form never submits, opens a link, sends mail or prints: `@action` on `InkRoot` hands each request to you; so does a link to a URL. `:form-highlight="false"` turns off the field tint, and a change applies to the open document in place. A form script that fails is reported through `InkRoot`'s `error` event.
 
 The [forms guide](https://inkbar.dev/docs/guides/forms/) covers controlled fields, form actions, scripts, signature fields and saving values as Gloss.
 
@@ -148,7 +148,7 @@ The highlight tool leaves `contents` free for the comment. `await doc.text(page)
 
 ## Signatures
 
-`InkSignatureMenu` lists saved signatures, picks one for the `signature` tool, removes them, and opens `InkSignatureDialog` to draw, type or upload a new one. The menu needs `signatureTool()` in `tools`. The dialog and signature form fields work without it; the dialog then only saves the signature. These are marks on the page, not cryptographic signatures. `InkRoot` keeps them in its `storage` under the key `signatures`, so without a store they last until reload. A `signatures` store of your own still works and wins over `storage` until 0.13.0, which removes it. `signatureFonts` lists the handwriting fonts the Type tab offers; load them with `@font-face`. A placed signature keeps its aspect ratio when resized.
+`InkSignatureMenu` lists saved signatures, picks one for the `signature` tool, removes them, and opens `InkSignatureDialog` to draw, type or upload a new one. The menu needs `signatureTool()` in `tools`. The dialog and signature form fields work without it; the dialog then only saves the signature. These are marks on the page, not cryptographic signatures. `InkRoot` keeps them in its `storage` under the key `signatures`, so without a store they last until reload. `signatureFonts` lists the handwriting fonts the Type tab offers; load them with `@font-face`. A placed signature keeps its aspect ratio when resized.
 
 ## Storage
 

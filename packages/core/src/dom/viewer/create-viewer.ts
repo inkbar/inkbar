@@ -227,7 +227,6 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     signatureLibrary: _signatureLibrary,
     onSignField: _onSignField,
     onFormAlert: _onFormAlert,
-    signatures: signatureStore,
     storage = createMemoryStorage(),
     search: _search,
     ...view
@@ -242,9 +241,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       | 'onFormAlert'
     >
   /** One library for the viewer's life, so templates and the menu outlive each document. */
-  const signatures = createSignatureLibrary(
-    signatureStore ?? createStorageSignatureStore(storage)
-  )
+  const signatures = createSignatureLibrary(createStorageSignatureStore(storage))
   /** Tool options persist for the viewer's life; the tool style is per document. */
   const toolOptions = createToolOptions()
   const status = writable<InkStatus>({ state: 'idle' })

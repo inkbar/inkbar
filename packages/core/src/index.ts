@@ -87,7 +87,6 @@ export type {
   FieldsMode,
   FieldValue,
   FieldValues,
-  FormAction,
   FormEvent,
   FormField,
   FormFieldType,
@@ -103,7 +102,6 @@ export type { InkStorage } from './model/storage'
 export {
   createImageTemplate,
   createInkTemplate,
-  createLocalSignatureStore,
   createMemorySignatureStore,
   createSignatureLibrary,
   createStorageSignatureStore,

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import {
-  createMemorySignatureStore,
+  createMemoryStorage,
   type DocumentSource,
+  type InkStorage,
   type PdfAssets,
-  type SignatureStore,
   type SignatureTemplate,
 } from '@inkbar/core'
 import { allTools } from '@inkbar/core/dom'
@@ -25,9 +25,9 @@ const props = withDefaults(
     assets: PdfAssets
     initial?: SignatureTemplate[]
     fonts?: string[] | undefined
-    /** The store refuses every save, as a full one would. */
+    /** Storage refuses every save, as a full one would. */
     failSave?: boolean
-    /** The store refuses every removal. */
+    /** Storage refuses every removal. */
     failRemove?: boolean
     /** No tools: a plain button opens the dialog in place of the menu. */
     bare?: boolean
@@ -37,24 +37,25 @@ const props = withDefaults(
 const tools = allTools()
 const dialog = ref(false)
 
-/** A memory store whose contents the page shows. */
+/** A memory storage whose templates the page shows. */
 const saved = shallowRef<SignatureTemplate[]>(props.initial)
-const inner = createMemorySignatureStore(props.initial)
-const sync = async () => {
-  saved.value = await inner.list()
-}
-const store: SignatureStore = {
-  list: () => inner.list(),
-  save: async (t) => {
-    if (props.failSave) throw new Error('full')
-    await inner.save(t)
-    await sync()
+const inner = createMemoryStorage({ signatures: props.initial })
+const read = async () => ((await inner.get('signatures')) ?? []) as SignatureTemplate[]
+const storage: InkStorage = {
+  get: (key) => inner.get(key),
+  set: async (key, value) => {
+    if (key === 'signatures') {
+      const before = await read()
+      const after = value as SignatureTemplate[]
+      if (props.failSave && after.length > before.length) throw new Error('full')
+      if (props.failRemove && after.length < before.length) throw new Error('full')
+      await inner.set(key, value)
+      saved.value = await read()
+      return
+    }
+    await inner.set(key, value)
   },
-  remove: async (id) => {
-    if (props.failRemove) throw new Error('full')
-    await inner.remove(id)
-    await sync()
-  },
+  remove: (key) => inner.remove(key),
 }
 </script>
 
@@ -63,7 +64,7 @@ const store: SignatureStore = {
     :src="props.src"
     :assets="props.assets"
     :zoom="1"
-    :signatures="store"
+    :storage="storage"
     :signature-fonts="props.fonts"
     :tools="props.bare ? undefined : tools"
   >

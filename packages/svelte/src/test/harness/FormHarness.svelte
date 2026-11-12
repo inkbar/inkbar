@@ -22,7 +22,6 @@
     templates?: SignatureTemplate[]
     formHighlight?: boolean
     onaction?: (action: ViewerAction) => void
-    onformaction?: (action: ViewerAction) => void
     onReady?: (doc: InkDocument) => void
     onError?: (error: InkError) => void
     onChanged?: (next: FieldValues, change: FieldsChange) => void
@@ -30,7 +29,7 @@
 </script>
 
 <script lang="ts">
-  import { createMemorySignatureStore } from '@inkbar/core'
+  import { createMemoryStorage } from '@inkbar/core'
   import { untrack } from 'svelte'
 
   import InkRoot from '../../lib/components/InkRoot.svelte'
@@ -52,7 +51,6 @@
     templates = [],
     formHighlight,
     onaction,
-    onformaction,
     onReady,
     onError,
     onChanged,
@@ -64,7 +62,7 @@
   )
   let heard = $state(0)
   let gap = $state(16)
-  const store = untrack(() => createMemorySignatureStore(templates))
+  const storage = untrack(() => createMemoryStorage({ signatures: templates }))
 </script>
 
 <!-- No tools on purpose: form signing must work without the signature tool. -->
@@ -72,7 +70,7 @@
   {src}
   {assets}
   zoom={1}
-  signatures={store}
+  {storage}
   bind:fields={values}
   onFieldsChange={(next, change) => {
     heard += 1
@@ -80,7 +78,6 @@
   }}
   {formHighlight}
   {onaction}
-  {onformaction}
   {onReady}
   {onError}
 >
