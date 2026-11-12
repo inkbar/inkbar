@@ -44,7 +44,7 @@ Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, gi
 | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | Viewing     | Rendering with a selectable text layer, zoom, pinch zoom, fit to width or page, continuous or single-page layout, page navigation, thumbnails |
 | Navigation  | The document's outline, links you can follow by click, tap or keyboard, and back and forward through jumps                                    |
-| Sidebars    | Panels of thumbnails, search results or your own content, resizable, with widths kept in your storage                                         |
+| Sidebars    | Panels of thumbnails, search results or your own content, resizable, saved in your storage, floating over the pages when room runs out        |
 | Search      | A find bar and Ctrl/Cmd+F in the viewer, and `doc.search` for code                                                                            |
 | Forms       | Text, checkbox, radio, choice and signature fields, with the form's scripts                                                                   |
 | Signatures  | Draw, type or upload a signature, save it and place it on any page or in a signature field                                                    |
