@@ -246,7 +246,8 @@ test('panel content keeps its state when hidden', async ({ mount, page }) => {
   await expect(field).toHaveValue('kept')
 })
 
-const handle = (page: Page) => page.getByRole('separator', { name: 'Resize sidebar' })
+const handle = (page: Page) =>
+  page.getByRole('separator', { name: /^Resize (left|right) sidebar$/ })
 /** The width the root's style gives the theme. */
 const styleWidth = (page: Page) =>
   page

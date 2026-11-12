@@ -7,6 +7,10 @@ import { FRAMEWORK_ORDER } from '../src/shell/frameworks.ts'
 
 guardConsole(test)
 
+// Wide enough for both sidebars to sit open beside the document: at 1280 the scenario's viewer
+// has no room for them, so they would start closed.
+test.use({ viewport: { width: 1700, height: 900 } })
+
 const LAYOUTS = ['rail', 'tabs', 'stack'] as const
 
 const viewer = (page: Page) => page.locator('[data-scenario-viewer]')

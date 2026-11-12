@@ -8,6 +8,9 @@
  */
 import { readonly, writable, type Readable } from '../../model/readable'
 
+import { joinSidebarGroup, type SidebarGroupMembership } from './group'
+import { MIN_DOCUMENT_WIDTH, type SidebarPlacement, type SidebarSlot } from './placement'
+
 import type { InkStorage } from '../../model/storage'
 import type { IconNode } from '@inkbar/icons'
 
@@ -61,11 +64,18 @@ export interface SidebarControllerOptions {
   defaultWidth?: number
   /** Default 240. */
   minWidth?: number
-  /** Default 480. The shown width also stays within half the sidebar's container. */
+  /** Default 480. */
   maxWidth?: number
   /** Controlled when given: drags and keys only report through `onWidthChange`, and storage is not read or written. */
   width?: number
   onWidthChange?(width: number): void
+  /**
+   * The narrowest the document may get beside the sidebars in this sidebar's container, in CSS
+   * px. Default 480. Read once, when the sidebar is created.
+   */
+  minDocumentWidth?: number
+  /** The resize handle's accessible name. Default `Resize left sidebar` or `Resize right sidebar`. */
+  handleLabel?: string
 }
 
 export interface SidebarState {
@@ -79,6 +89,8 @@ export interface SidebarState {
   width: number
   /** True while the handle is dragged. */
   resizing: boolean
+  /** True while a rail's open panel floats over the document, which has no room beside it. */
+  floating: boolean
 }
 
 export interface SidebarController {
@@ -94,17 +106,23 @@ export interface SidebarController {
   isOpen(id: string): boolean
   /**
    * `data-ink-sidebar`, `data-layout`, `data-side` and `data-state` (`open` while any panel is,
-   * and while pending and uncontrolled, as the first panel will open) for the root, and
-   * `hidden` while it is not `visible`.
+   * and while pending and uncontrolled, as the first panel will open) for the root,
+   * `data-overlay` while the panel floats, and `hidden` while it is not `visible`.
    */
   rootAttrs(): Record<string, string>
-  /** `--ink-sidebar-width` for the root: the shown width in px. */
+  /**
+   * `--ink-sidebar-width` for the root: the shown width in px, which is the chosen width unless a
+   * tabs or stack sidebar narrows to leave the document room.
+   */
   rootStyle(): Record<string, string>
   /** The id of the element holding the panels, which the handle's `aria-controls` names. */
   panelsAttrs(): Record<string, string>
   /** The separator's attributes; includes `hidden` while no panel is open or the sidebar is hidden. */
   handleAttrs(): Record<string, string>
-  /** Pointer drag, keys and double-click on the handle; observes the sidebar's container. Returns the unbind. */
+  /**
+   * Pointer drag, keys and double-click on the handle. Also joins the sidebars sharing the root's
+   * parent, which decide together which float or narrow as the parent resizes. Returns the unbind.
+   */
   bindHandle(el: HTMLElement): () => void
   /** Back to `defaultWidth`; removes the saved key. */
   resetWidth(): void
@@ -136,21 +154,8 @@ export function sidebarBadge(badge: string | number | undefined): string | null 
 /** The sidebar's widths in CSS px, unless the host gives its own. */
 export const SIDEBAR_WIDTH = { default: 320, min: 240, max: 480 } as const
 
-interface WidthLimits {
-  min: number
-  max: number
-  /** The width of the root's parent, undefined until measured. */
-  container: number | undefined
-}
-
-/** The widest the sidebar shows: `max`, and half the container once measured, but never below `min`. */
-const widthLimit = ({ min, max, container }: WidthLimits): number =>
-  container === undefined ? max : Math.min(max, Math.max(min, Math.floor(container / 2)))
-
-/** The width the sidebar shows for the wanted `want`. */
-export function shownSidebarWidth(want: number, limits: WidthLimits): number {
-  return Math.min(Math.max(want, limits.min), widthLimit(limits))
-}
+/** The rail's width when the root's `--ink-sidebar-rail-width` gives none in px. */
+const RAIL_WIDTH = 48
 
 /** How far an arrow key moves the handle. */
 const KEY_STEP = 16
@@ -176,6 +181,10 @@ function quietly<T>(fn: () => T | Promise<T>, then?: (value: T) => void): void {
 const TRIGGER = '[data-ink-sidebar-trigger]'
 
 let count = 0
+/** Each controller's key in its group. */
+let slotCount = 0
+/** Stamps each opening, so the group knows which sidebar opened last. */
+let openCount = 0
 
 function sameIds(a: readonly string[], b: readonly string[]): boolean {
   return a.length === b.length && a.every((id, i) => id === b[i])
@@ -226,8 +235,23 @@ export function createSidebarController(
   let widthControlled = opts.width !== undefined
   let width = opts.width ?? defaultWidth
   let resizing = false
-  /** The width of the root's parent, once `bindHandle` has measured it. */
-  let container: number | undefined
+  const minDocument = opts.minDocumentWidth ?? MIN_DOCUMENT_WIDTH
+  let handleLabel = opts.handleLabel
+  const key = ++slotCount
+  /** When a panel last opened with none open before. */
+  let openedAt = 0
+  let floating = false
+  /** The width the group placed, until the sidebar leaves it. */
+  let placedShown: number | undefined
+  /** Whether the first placement has had its chance to close a panel with no room. */
+  let startChecked = false
+  /** The sidebar's group, and the container it is for, while the handle is bound. */
+  let membership: SidebarGroupMembership | undefined
+  let groupParent: HTMLElement | null = null
+  /** The slot as the group last saw it. */
+  let lastSlot = ''
+  /** Reads the rail's width from the root, once the handle is bound. */
+  let railWidth = (): number => RAIL_WIDTH
   /** Set by a drag, key or reset: a late answer from storage no longer applies. */
   let touched = false
   /** The trigger that holds the Tab stop in rail and tabs, once one has had focus. */
@@ -269,19 +293,70 @@ export function createSidebarController(
     visible,
     width,
     resizing,
+    floating,
   })
+  if (store.get().open.length > 0) openedAt = ++openCount
 
-  const publish = (open: readonly string[] = store.get().open): void =>
-    store.set({ layout, side, panels, open, visible, width, resizing })
+  const clampWidth = (w: number): number => Math.min(Math.max(w, minWidth), maxWidth)
+  const shown = (): number => placedShown ?? clampWidth(width)
+
+  const slot = (): SidebarSlot => ({
+    key,
+    layout,
+    visible,
+    open: store.get().open.length > 0,
+    want: clampWidth(width),
+    min: minWidth,
+    rail: layout === 'rail' ? railWidth() : 0,
+    resizing,
+    openedAt,
+    minDocument,
+  })
+  /** What the group places by, but the rail, which is read from CSS. */
+  const signature = (): string =>
+    [
+      layout,
+      visible,
+      store.get().open.length > 0,
+      clampWidth(width),
+      minWidth,
+      resizing,
+      openedAt,
+    ].join()
+  /** Tells the group when this sidebar changed in a way that can move the others. */
+  const tellGroup = (): void => {
+    if (!membership) return
+    const next = signature()
+    if (next === lastSlot) return
+    lastSlot = next
+    membership.changed()
+  }
+
+  function publish(open: readonly string[] = store.get().open): void {
+    if (store.get().open.length === 0 && open.length > 0) openedAt = ++openCount
+    store.set({ layout, side, panels, open, visible, width, resizing, floating })
+    tellGroup()
+  }
+
+  /** Where the group puts the sidebar. */
+  function place(placement: SidebarPlacement, first: boolean): void {
+    if (destroyed) return
+    const check = first && !startChecked
+    startChecked = true
+    // No room at the first measurement: an uncontrolled sidebar starts closed rather than over
+    // the pages. Closing changes the slot, so the group places it again.
+    if (check && placement.floating && !controlled && store.get().open.length > 0) {
+      publish([])
+      handler.onOpenChange?.(toValue([]))
+      return
+    }
+    if (placement.floating === floating && placement.shown === placedShown) return
+    floating = placement.floating
+    placedShown = placement.shown
+    publish()
+  }
 
   const widthKey = (): string => `sidebar.${name ?? side}.width`
-  const limits = (): WidthLimits => ({
-    min: minWidth,
-    max: maxWidth,
-    container,
-  })
-  const shown = (): number => shownSidebarWidth(width, limits())
-  const clampWidth = (w: number): number => Math.min(Math.max(w, minWidth), maxWidth)
 
   // A sync store answers before this returns; an async one applies unless the user moved first.
   if (!widthControlled && storage)
@@ -340,7 +415,9 @@ export function createSidebarController(
     const shownBefore = shown()
     const widthBefore = width
     const minBefore = minWidth
-    const limitBefore = widthLimit(limits())
+    const maxBefore = maxWidth
+    const labelBefore = handleLabel
+    if (next.handleLabel !== undefined) handleLabel = next.handleLabel
     if (next.defaultWidth !== undefined) defaultWidth = next.defaultWidth
     if (next.minWidth !== undefined) minWidth = next.minWidth
     if (next.maxWidth !== undefined) maxWidth = next.maxWidth
@@ -348,12 +425,13 @@ export function createSidebarController(
       widthControlled = true
       width = next.width
     }
-    // The handle's aria-valuemin and aria-valuemax count as well as the width shown.
+    // The handle's label, aria-valuemin and aria-valuemax count as well as the width shown.
     const widthChanged =
       width !== widthBefore ||
       shown() !== shownBefore ||
       minWidth !== minBefore ||
-      widthLimit(limits()) !== limitBefore
+      maxWidth !== maxBefore ||
+      handleLabel !== labelBefore
     // What the host asked for, else what was open. Uncontrolled, the first panel to arrive in
     // an empty sidebar opens, as it would have had it been there from the start.
     const arrived =
@@ -566,9 +644,9 @@ export function createSidebarController(
       'data-ink-sidebar-handle': '',
       role: 'separator',
       'aria-orientation': 'vertical',
-      'aria-label': 'Resize sidebar',
+      'aria-label': handleLabel ?? `Resize ${side} sidebar`,
       'aria-valuemin': String(Math.round(minWidth)),
-      'aria-valuemax': String(Math.round(widthLimit(limits()))),
+      'aria-valuemax': String(Math.round(maxWidth)),
       'aria-valuenow': String(Math.round(shown())),
       tabindex: '0',
     }
@@ -606,11 +684,13 @@ export function createSidebarController(
       } catch {
         // A pointer the browser no longer tracks: the drag still follows its events here.
       }
+      // From the chosen width, not the shown one: a narrowed sidebar must not save its narrowing.
+      const from = clampWidth(width)
       drag = {
         pointer: e.pointerId,
         x: e.clientX,
-        width: shown(),
-        last: shown(),
+        width: from,
+        last: from,
         moved: false,
       }
       setResizing(true)
@@ -640,7 +720,7 @@ export function createSidebarController(
     }
     const onKeyDown = (e: KeyboardEvent): void => {
       if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
-      const now = shown()
+      const now = clampWidth(width)
       let next: number | null
       if (e.key === 'ArrowRight') next = clampWidth(now + KEY_STEP * wider())
       else if (e.key === 'ArrowLeft') next = clampWidth(now - KEY_STEP * wider())
@@ -654,23 +734,55 @@ export function createSidebarController(
     }
     const onDoubleClick = (): void => resetWidth()
 
-    // The container is the root's parent; its width caps the shown width at half.
+    // The group is the root's parent's. createSidebar binds before the host places the root, so
+    // the root is watched: it gets a size once placed, and loses it once removed.
     const root = el.closest<HTMLElement>('[data-ink-sidebar]') ?? el.parentElement
-    const parent = root?.parentElement
-    let observer: ResizeObserver | undefined
-    if (parent && typeof ResizeObserver !== 'undefined') {
-      observer = new ResizeObserver((entries) => {
-        const measured = entries[entries.length - 1]?.contentRect.width
-        if (measured === undefined || measured === container || destroyed) return
-        const before = shown()
-        const limitBefore = widthLimit(limits())
-        container = measured
-        // The shown width or its cap changed: publish so the bindings read `rootStyle()` and
-        // `handleAttrs()` again.
-        if (shown() !== before || widthLimit(limits()) !== limitBefore) publish()
-      })
-      observer.observe(parent)
+    let ours: SidebarGroupMembership | undefined
+    const leave = (): void => {
+      if (!ours) return
+      ours.leave()
+      if (membership === ours) {
+        membership = undefined
+        groupParent = null
+      }
+      ours = undefined
+      if (floating || placedShown !== undefined) {
+        floating = false
+        placedShown = undefined
+        if (!destroyed) publish()
+      }
     }
+    const join = (): void => {
+      const parent = root?.parentElement ?? null
+      if (ours && parent === groupParent) return
+      leave()
+      if (!parent || destroyed) return
+      groupParent = parent
+      lastSlot = signature()
+      ours = membership = joinSidebarGroup(parent, { slot, place })
+      // Placing on joining may have closed the panel before the group could hear of it.
+      tellGroup()
+    }
+    if (root)
+      railWidth = () => {
+        try {
+          const value = getComputedStyle(root)
+            .getPropertyValue('--ink-sidebar-rail-width')
+            .trim()
+          const px = value.endsWith('px') ? parseFloat(value) : NaN
+          return Number.isFinite(px) && px >= 0 ? px : RAIL_WIDTH
+        } catch {
+          return RAIL_WIDTH
+        }
+      }
+    let observer: ResizeObserver | undefined
+    if (root && typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(() => {
+        if (!destroyed) join()
+      })
+      observer.observe(root)
+    }
+    join()
 
     el.addEventListener('pointerdown', onPointerDown)
     el.addEventListener('pointermove', onPointerMove)
@@ -682,6 +794,7 @@ export function createSidebarController(
     const unbind = (): void => {
       if (!bindings.delete(unbind)) return
       observer?.disconnect()
+      leave()
       el.removeEventListener('pointerdown', onPointerDown)
       el.removeEventListener('pointermove', onPointerMove)
       el.removeEventListener('pointerup', onPointerEnd)
@@ -710,6 +823,7 @@ export function createSidebarController(
       'data-state':
         store.get().open.length > 0 || (pending && !controlled) ? 'open' : 'closed',
       ...(resizing && { 'data-resizing': '' }),
+      ...(floating && { 'data-overlay': '' }),
       ...(!visible && { hidden: '' }),
     }),
     rootStyle: () => ({ '--ink-sidebar-width': `${shown()}px` }),

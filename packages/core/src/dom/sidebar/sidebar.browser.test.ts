@@ -302,8 +302,8 @@ describe('the resize handle', () => {
     document.body.append(parent)
     const render = () => {
       for (const [k, v] of Object.entries(controller.rootAttrs())) root.setAttribute(k, v)
-      if (!('data-resizing' in controller.rootAttrs()))
-        root.removeAttribute('data-resizing')
+      for (const name of ['data-resizing', 'data-overlay'])
+        if (!(name in controller.rootAttrs())) root.removeAttribute(name)
       for (const [k, v] of Object.entries(controller.rootStyle()))
         root.style.setProperty(k, v)
       for (const [k, v] of Object.entries(controller.handleAttrs()))
@@ -385,17 +385,20 @@ describe('the resize handle', () => {
     expect(controller.state.get().width).toBe(300)
   })
 
-  it('a narrow container shows less but keeps the saved width', async () => {
+  it('a narrow container floats the rail and keeps the saved width', async () => {
     const storage = createMemoryStorage({ 'sidebar.left.width': 400 })
-    const { parent, shown, handle } = await setupHandle({ storage })
+    const { parent, root, shown, handle } = await setupHandle({ storage })
     await expect.poll(shown).toBe('400px')
+    expect(root.hasAttribute('data-overlay')).toBe(false)
     parent.style.width = '500px'
-    await expect.poll(shown).toBe('250px')
-    expect(handle.getAttribute('aria-valuenow')).toBe('250')
-    expect(handle.getAttribute('aria-valuemax')).toBe('250')
+    await expect.poll(() => root.hasAttribute('data-overlay')).toBe(true)
+    expect(shown()).toBe('400px')
+    expect(handle.getAttribute('aria-valuenow')).toBe('400')
+    expect(handle.getAttribute('aria-valuemax')).toBe('480')
     expect(storage.get('sidebar.left.width')).toBe(400)
     parent.style.width = '1200px'
-    await expect.poll(shown).toBe('400px')
+    await expect.poll(() => root.hasAttribute('data-overlay')).toBe(false)
+    expect(shown()).toBe('400px')
   })
 
   it('a drag ends when pointer capture is lost', async () => {
@@ -422,12 +425,15 @@ describe('the resize handle', () => {
     expect(controller.state.get().width).toBe(360)
   })
 
-  it('a container resize that moves only the cap updates aria-valuemax', async () => {
-    const { parent, shown, handle } = await setupHandle({ defaultWidth: 300 })
-    await expect.poll(() => handle.getAttribute('aria-valuemax')).toBe('480')
-    parent.style.width = '700px'
-    await expect.poll(() => handle.getAttribute('aria-valuemax')).toBe('350')
-    expect(shown()).toBe('300px')
+  it('a drag on a narrowed sidebar starts from the chosen width', async () => {
+    const storage = createMemoryStorage({ 'sidebar.left.width': 480 })
+    const { parent, shown, pointer } = await setupHandle({ layout: 'tabs', storage })
+    parent.style.width = '800px'
+    await expect.poll(shown).toBe('320px')
+    pointer('pointerdown', 100)
+    pointer('pointermove', 99)
+    pointer('pointerup', 99)
+    expect(storage.get('sidebar.left.width')).toBe(479)
   })
 
   it('blocked storage still drags', async () => {
@@ -507,5 +513,146 @@ describe('the handle in createSidebar', () => {
     expect(handle.hasAttribute('aria-controls')).toBe(false)
     const results = await runAxe(element)
     expect(results.violations).toEqual([])
+  })
+})
+
+describe('floating', () => {
+  const style = document.createElement('style')
+  beforeAll(() => {
+    style.textContent = themeCss
+    document.head.append(style)
+  })
+  afterAll(() => style.remove())
+
+  /** A flex container of `width` px holding a flexible document `div`, with sidebars added either side. */
+  function row(width: number) {
+    const parent = document.createElement('div')
+    parent.style.cssText = `display: flex; width: ${width}px; height: 400px`
+    const doc = document.createElement('div')
+    doc.style.cssText = 'flex: 1; min-width: 0'
+    parent.append(doc)
+    document.body.append(parent)
+    cleanup.push(() => parent.remove())
+    const add = (opts: Partial<SidebarControllerOptions> = {}) => {
+      const onOpenChange = vi.fn()
+      const { element, controller } = createSidebar({
+        panels: [{ id: 'pages', label: 'Pages', icon: Square }],
+        content: { pages: document.createElement('div') },
+        onOpenChange,
+        ...opts,
+      })
+      element.style.flex = 'none'
+      if (opts.side === 'right') parent.append(element)
+      else parent.prepend(element)
+      cleanup.push(() => controller.destroy())
+      const handle = element.querySelector<HTMLElement>('.ink-sidebar-handle')!
+      const shown = () => element.style.getPropertyValue('--ink-sidebar-width')
+      return { element, controller, onOpenChange, handle, shown }
+    }
+    const frame = () => new Promise((resolve) => requestAnimationFrame(resolve))
+    return { parent, doc, add, frame }
+  }
+
+  const drag = (handle: HTMLElement, from: number, to: number) => {
+    const fire = (type: string, clientX: number) =>
+      handle.dispatchEvent(
+        new PointerEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          pointerId: 1,
+          button: 0,
+          isPrimary: true,
+          pointerType: 'mouse',
+          buttons: type === 'pointerup' ? 0 : 1,
+          clientX,
+        })
+      )
+    fire('pointerdown', from)
+    fire('pointermove', to)
+    fire('pointerup', to)
+  }
+
+  /** Two rails in 900px, the right one opened last. */
+  async function twoRails(opts: Partial<SidebarControllerOptions> = {}) {
+    const r = row(900)
+    const left = r.add()
+    const right = r.add({ side: 'right', ...opts })
+    // The right one opened last at creation, so it floated and started closed: open it again.
+    await expect.poll(() => right.controller.state.get().open).toEqual([])
+    right.controller.toggle('pages')
+    return { ...r, left, right }
+  }
+
+  it('floats when the document would be too narrow', async () => {
+    const { doc, left, right } = await twoRails()
+    await expect.poll(() => right.element.hasAttribute('data-overlay')).toBe(true)
+    expect(left.element.hasAttribute('data-overlay')).toBe(false)
+    expect(right.controller.state.get().floating).toBe(true)
+    expect(doc.getBoundingClientRect().width).toBeGreaterThanOrEqual(480)
+  })
+
+  it('returns beside when the container grows', async () => {
+    const { parent, right } = await twoRails()
+    await expect.poll(() => right.element.hasAttribute('data-overlay')).toBe(true)
+    parent.style.width = '1400px'
+    await expect.poll(() => right.element.hasAttribute('data-overlay')).toBe(false)
+    expect(right.shown()).toBe('320px')
+    expect(right.controller.state.get().open).toEqual(['pages'])
+    const panels = right.element.querySelector('.ink-sidebar-panels')!
+    expect(getComputedStyle(panels).display).not.toBe('none')
+  })
+
+  it('floating never changes the saved width', async () => {
+    const inner = createMemoryStorage({ 'sidebar.right.width': 360 })
+    const storage = {
+      get: vi.fn((key: string) => inner.get(key)),
+      set: vi.fn((key: string, value: unknown) => inner.set(key, value)),
+      remove: vi.fn((key: string) => inner.remove(key)),
+    }
+    const { parent, right } = await twoRails({ storage })
+    await expect.poll(() => right.element.hasAttribute('data-overlay')).toBe(true)
+    expect(right.shown()).toBe('360px')
+    expect(storage.set).not.toHaveBeenCalled()
+    // A right sidebar widens leftwards.
+    drag(right.handle, 500, 460)
+    expect(storage.set).toHaveBeenCalledExactlyOnceWith('sidebar.right.width', 400)
+    expect(inner.get('sidebar.right.width')).toBe(400)
+    parent.style.width = '1400px'
+    await expect.poll(() => right.element.hasAttribute('data-overlay')).toBe(false)
+    expect(right.shown()).toBe('400px')
+    expect(storage.set).toHaveBeenCalledTimes(1)
+  })
+
+  it('starts closed when there is no room', async () => {
+    const { add } = row(500)
+    const { controller, element, onOpenChange } = add()
+    await expect.poll(() => controller.state.get().open).toEqual([])
+    expect(onOpenChange).toHaveBeenCalledExactlyOnceWith(null)
+    expect(element.dataset.state).toBe('closed')
+    expect(element.hasAttribute('data-overlay')).toBe(false)
+    // Still uncontrolled: the rail button opens it, floating.
+    controller.toggle('pages')
+    expect(controller.state.get().open).toEqual(['pages'])
+    expect(element.hasAttribute('data-overlay')).toBe(true)
+  })
+
+  it('a controlled open is left alone', async () => {
+    const { add, frame } = row(500)
+    const { controller, element, onOpenChange } = add({ open: 'pages' })
+    await expect.poll(() => element.hasAttribute('data-overlay')).toBe(true)
+    await frame()
+    expect(controller.state.get().open).toEqual(['pages'])
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
+
+  it('tabs narrow instead of floating', async () => {
+    const storage = createMemoryStorage({ 'sidebar.left.width': 480 })
+    const { add, doc } = row(800)
+    const { controller, element, shown } = add({ layout: 'tabs', storage })
+    await expect.poll(shown).toBe('320px')
+    expect(element.hasAttribute('data-overlay')).toBe(false)
+    expect(controller.state.get()).toMatchObject({ width: 480, floating: false })
+    expect(storage.get('sidebar.left.width')).toBe(480)
+    expect(doc.getBoundingClientRect().width).toBeGreaterThanOrEqual(480)
   })
 })
