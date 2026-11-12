@@ -1,8 +1,9 @@
 <script lang="ts">
   /*
-   * A sidebar of three panels. The Search panel holds a field and can be removed. With `stored`,
-   * the sidebar keeps its width in a store the page shows; with `inRoot`, that store is
-   * InkRoot's and the sidebar inherits it. The store outlives a remount.
+   * A sidebar of three panels beside a stand-in for the pages. The Search panel holds a field
+   * and can be removed. With `stored`, the sidebar keeps its width in a store the page shows;
+   * with `inRoot`, that store is InkRoot's and the sidebar inherits it. The store outlives a
+   * remount.
    */
   import { MessageSquare, Search, Square } from '@inkbar/icons'
   import { untrack } from 'svelte'
@@ -25,6 +26,10 @@
     stored,
     inRoot = false,
     assets,
+    containerWidth,
+    minDocumentWidth,
+    rootMinDocumentWidth,
+    handleLabel,
   }: {
     layout?: SidebarLayout | undefined
     side?: SidebarSide | undefined
@@ -39,6 +44,13 @@
     /** Put the sidebar in an InkRoot that owns the store; needs `assets`. */
     inRoot?: boolean
     assets?: PdfAssets | undefined
+    /** The row's width in CSS px, sidebar and pages together. Default: the page's. */
+    containerWidth?: number | undefined
+    /** The sidebar's own `minDocumentWidth`. */
+    minDocumentWidth?: number | undefined
+    /** InkRoot's `minDocumentWidth`, with `inRoot`. */
+    rootMinDocumentWidth?: number | undefined
+    handleLabel?: string | undefined
   } = $props()
 
   const controlled = untrack(() => initial !== undefined)
@@ -114,7 +126,10 @@
 {/snippet}
 
 {#snippet sidebar()}
-  <div style="display: flex; height: 400px">
+  <div
+    style="display: flex; height: 400px"
+    style:width={containerWidth === undefined ? undefined : `${containerWidth}px`}
+  >
     {#if !withSidebar}
       <!-- The whole sidebar out. -->
     {:else if controlled && widthBound}
@@ -124,6 +139,8 @@
         {layout}
         {side}
         storage={inRoot ? undefined : storage}
+        {minDocumentWidth}
+        {handleLabel}
         data-testid="sidebar"
       >
         {@render panels()}
@@ -134,6 +151,8 @@
         {layout}
         {side}
         storage={inRoot ? undefined : storage}
+        {minDocumentWidth}
+        {handleLabel}
         data-testid="sidebar"
       >
         {@render panels()}
@@ -144,6 +163,8 @@
         {layout}
         {side}
         storage={inRoot ? undefined : storage}
+        {minDocumentWidth}
+        {handleLabel}
         data-testid="sidebar"
       >
         {@render panels()}
@@ -153,16 +174,19 @@
         {layout}
         {side}
         storage={inRoot ? undefined : storage}
+        {minDocumentWidth}
+        {handleLabel}
         data-testid="sidebar"
       >
         {@render panels()}
       </InkSidebar>
     {/if}
+    <div data-testid="pages" style="flex: 1; min-width: 0">Pages</div>
   </div>
 {/snippet}
 
 {#if inRoot}
-  <InkRoot src={null} assets={assets!} {storage}>
+  <InkRoot src={null} assets={assets!} {storage} minDocumentWidth={rootMinDocumentWidth}>
     <SignatureStorageProbe />
     {@render sidebar()}
   </InkRoot>

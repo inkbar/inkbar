@@ -7,6 +7,7 @@ import { render } from 'vitest-browser-svelte'
 import { guardConsole } from './console-guard.js'
 import { focused, q, qa } from './dom.js'
 import SidebarHarness from './harness/SidebarHarness.svelte'
+import { renderHydrated } from './hydrate.js'
 
 guardConsole()
 
@@ -438,5 +439,100 @@ describe('sidebar width', () => {
     await expect.poll(text('signatures')).toBe('2')
     const stored = JSON.parse(text('stored')()!) as { signatures: { id: string }[] }
     expect(stored.signatures.map((t) => t.id)).toEqual(['kept', 'added'])
+  })
+})
+
+describe('floating sidebar', () => {
+  const sidebarEl = () => document.querySelector<HTMLElement>(SIDEBAR)
+  const state = () => sidebarEl()?.dataset.state
+  const overlay = () => sidebarEl()?.hasAttribute('data-overlay')
+  const pagesContent = () => browserPage.getByText('Pages content')
+  /** Clicks the pages near their far edge, clear of a floating panel. */
+  async function tapPages(): Promise<void> {
+    const box = document.querySelector('[data-testid="pages"]')!.getBoundingClientRect()
+    await browserPage
+      .getByTestId('pages')
+      .click({ position: { x: box.width - 20, y: 20 } })
+  }
+
+  it('floats in a narrow container and closes on a tap on the pages', async () => {
+    await render(SidebarHarness, { layout: 'rail', containerWidth: 600 })
+    // No room at the first measurement: the panel starts closed.
+    await expect.poll(state).toBe('closed')
+    expect(overlay()).toBe(false)
+    await tab('Pages').click()
+    await expect.poll(overlay).toBe(true)
+    await expect.element(panel('Pages')).toBeVisible()
+    // The pages keep their room.
+    expect(
+      document.querySelector('[data-testid="pages"]')!.getBoundingClientRect().width
+    ).toBeGreaterThanOrEqual(480)
+
+    await tapPages()
+    await expect.poll(state).toBe('closed')
+    expect(overlay()).toBe(false)
+    await expect.element(pagesContent()).not.toBeVisible()
+  })
+
+  it('inherits minDocumentWidth from InkRoot', async () => {
+    // 900px leaves the default 480 room; the root asks for 700.
+    await render(SidebarHarness, {
+      layout: 'rail',
+      inRoot: true,
+      assets: browserAssets(),
+      containerWidth: 900,
+      rootMinDocumentWidth: 700,
+    })
+    await expect.poll(state).toBe('closed')
+    await tab('Pages').click()
+    await expect.poll(overlay).toBe(true)
+  })
+
+  it("the sidebar's minDocumentWidth wins over InkRoot's", async () => {
+    await render(SidebarHarness, {
+      layout: 'rail',
+      inRoot: true,
+      assets: browserAssets(),
+      containerWidth: 900,
+      rootMinDocumentWidth: 700,
+      minDocumentWidth: 400,
+    })
+    await expect.element(panel('Pages')).toBeVisible()
+    expect(state()).toBe('open')
+    expect(overlay()).toBe(false)
+  })
+
+  it('handleLabel names the handle', async () => {
+    await render(SidebarHarness, { layout: 'rail', handleLabel: 'Resize the pages list' })
+    await expect
+      .element(browserPage.getByRole('separator', { name: 'Resize the pages list' }))
+      .toHaveAttribute('aria-valuenow', '320')
+  })
+
+  it('starts closed after hydration without a mismatch', async () => {
+    const html = await renderHydrated('SidebarHarness.svelte', SidebarHarness, {
+      layout: 'rail',
+      containerWidth: 500,
+    })
+    // The server showed the panel beside the pages.
+    expect(html).toMatch(/class="ink-sidebar"[^>]*data-state="open"/)
+    await expect.poll(state).toBe('closed')
+    await expect.element(pagesContent()).not.toBeVisible()
+    // The console guard fails the test on a hydration warning.
+  })
+
+  it('a bound open reports the close', async () => {
+    await render(SidebarHarness, { layout: 'rail', open: 'pages', containerWidth: 500 })
+    // Controlled: it stays open, floating.
+    await expect.poll(overlay).toBe(true)
+    expect(text('open')()).toBe('"pages"')
+    await userEvent.keyboard('{Escape}')
+    await expect.poll(text('open')).toBe('null')
+    await expect.poll(state).toBe('closed')
+    await tab('Pages').click()
+    await expect.poll(text('open')).toBe('"pages"')
+    await tapPages()
+    await expect.poll(text('open')).toBe('null')
+    await expect.element(pagesContent()).not.toBeVisible()
   })
 })

@@ -33,7 +33,7 @@
     defaultWidth?: number | undefined
     /** Default 240. */
     minWidth?: number | undefined
-    /** Default 480. The shown width also stays within half the sidebar's container. */
+    /** Default 480. */
     maxWidth?: number | undefined
     /**
      * Bindable, in CSS px. Bind it to a number to control the width: the handle then only
@@ -41,6 +41,18 @@
      * starts undefined, it receives the width but the sidebar stays uncontrolled.
      */
     width?: number | undefined
+    /**
+     * The narrowest the document may get beside the sidebars sharing this one's parent, in CSS
+     * px, before a rail's open panel floats over the pages. Tabs and stack narrow toward
+     * `minWidth` instead. Default: InkRoot's `minDocumentWidth` inside InkRoot, else 480. Read
+     * once, when the sidebar is created.
+     */
+    minDocumentWidth?: number | undefined
+    /**
+     * The resize handle's accessible name. Default `Resize left sidebar` or `Resize right
+     * sidebar`. Read once, when the sidebar is created.
+     */
+    handleLabel?: string | undefined
     /** The `InkPanel`s. */
     children?: Snippet | undefined
   }
@@ -65,6 +77,11 @@
    * `sidebar.<name>.width`; inside `InkRoot` the root's storage is the default. `bind:width`
    * to a number makes the width the host's: drags and keys then only update the binding, and
    * storage is not read or written. The server renders the handle too.
+   *
+   * Once mounted, a rail's open panel floats over the pages while the document beside it would
+   * be narrower than `minDocumentWidth` (InkRoot's inside it), and a tap on the pages or Escape
+   * closes it, through `bind:open` too. The server renders it beside the document, open as
+   * usual; once mounted, an unbound sidebar with no room closes its panel.
    */
   import { createSidebarController } from '@inkbar/core/dom'
   import { untrack } from 'svelte'
@@ -86,6 +103,8 @@
     minWidth,
     maxWidth,
     width = $bindable(),
+    minDocumentWidth,
+    handleLabel,
     class: className,
     children,
     ...rest
@@ -98,7 +117,8 @@
   const infos = () => entries.map((e) => e.info())
 
   // Read once: the controller loads the saved width as it is created.
-  const inheritedStorage = useOptionalInkContext()?.storage
+  const ink = useOptionalInkContext()
+  const minDocument = untrack(() => minDocumentWidth ?? ink?.minDocumentWidth)
 
   /*
    * `width` is the host's only while it holds a number the sidebar did not write itself. The
@@ -132,8 +152,10 @@
       panels: [],
       ...(open !== undefined && { open }),
       pending: true,
-      ...((storage ?? inheritedStorage) && { storage: (storage ?? inheritedStorage)! }),
+      ...((storage ?? ink?.storage) && { storage: (storage ?? ink?.storage)! }),
       ...(name !== undefined && { name }),
+      ...(minDocument !== undefined && { minDocumentWidth: minDocument }),
+      ...(handleLabel !== undefined && { handleLabel }),
       ...widthOptions(),
       onWidthChange: (value) => {
         written = value

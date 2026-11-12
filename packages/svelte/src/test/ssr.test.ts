@@ -158,6 +158,20 @@ describe('@inkbar/svelte on the server', () => {
     expect(render(Host, { props: { assets, storage, width: 280 } }).body).toContain(
       '--ink-sidebar-width: 280px'
     )
+
+    // Floating is decided in the browser: the server renders the panel open beside the pages.
+    const narrow = render(Host, {
+      props: {
+        assets,
+        root: true,
+        minDocumentWidth: 4000,
+        handleLabel: 'Resize the pages list',
+      },
+    }).body
+    const narrowRoot = /<div class="ink-sidebar"[^>]*>/.exec(narrow)?.[0] ?? ''
+    expect(narrowRoot).toContain('data-state="open"')
+    expect(narrowRoot).not.toContain('data-overlay')
+    expect(narrow).toContain('aria-label="Resize the pages list"')
   }, 30_000)
   it('InkSidebar renders its chrome on the server; thumbnails render empty', async () => {
     const { default: Host } = await import('./harness/SidebarSsrHost.svelte')
