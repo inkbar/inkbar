@@ -79,7 +79,7 @@ async function open(page: Page, framework: string): Promise<void> {
  * close it.
  */
 async function suggest(page: Page, framework: string): Promise<void> {
-  await page.setViewportSize({ width: 1700, height: 900 })
+  await page.setViewportSize({ width: 1920, height: 1080 })
   await open(page, framework)
   await suggestButton(page).click()
   await expect(page.locator(RESULT)).toHaveText(FOUND)
@@ -288,7 +288,7 @@ for (const framework of FRAMEWORK_ORDER) {
       page,
     }) => {
       // Wide enough for the Pages panel to open beside the pages rather than over the marks.
-      await page.setViewportSize({ width: 1700, height: 900 })
+      await page.setViewportSize({ width: 1920, height: 1080 })
       await suggest(page, framework)
       // The Pages panel starts closed.
       const pages = panel(page, 'Pages')
@@ -325,7 +325,7 @@ for (const framework of FRAMEWORK_ORDER) {
       page,
     }) => {
       // Wide enough for the Suggestions panel to open beside the pages rather than over the marks.
-      await page.setViewportSize({ width: 1700, height: 900 })
+      await page.setViewportSize({ width: 1920, height: 1080 })
       await open(page, framework)
       const suggestions = railButton(page, 'right', 'Suggestions')
       await expect(suggestions).toHaveAttribute('aria-selected', 'false')

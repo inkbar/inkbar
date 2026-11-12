@@ -132,7 +132,6 @@ function onActivate(id: string): void {
         name="redactions-left"
         side="left"
         layout="rail"
-        :default-width="240"
       >
         <InkPanel id="pages" label="Pages" :icon="Square">
           <InkThumbnails />

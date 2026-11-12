@@ -126,7 +126,6 @@ export function mount(
   const left = createSidebar({
     storage,
     name: 'sidebars-left',
-    defaultWidth: 240,
     side: 'left',
     layout: 'rail',
     panels: [
@@ -149,7 +148,6 @@ export function mount(
   const right = createSidebar({
     storage,
     name: 'sidebars-right',
-    defaultWidth: 240,
     side: 'right',
     layout: 'rail',
     panels: [{ id: 'about', label: 'About', icon: Info }],

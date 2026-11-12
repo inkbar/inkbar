@@ -74,7 +74,7 @@ for (const framework of FRAMEWORK_ORDER) {
       page,
     }) => {
       // Wide enough for the outline to sit beside the pages rather than float over the links.
-      await page.setViewportSize({ width: 1700, height: 900 })
+      await page.setViewportSize({ width: 1920, height: 1080 })
       await open(page, framework)
       // The contents are page 2; its third link is section 1.2.
       await pageInput(page).fill('2')
@@ -89,7 +89,7 @@ for (const framework of FRAMEWORK_ORDER) {
       page,
     }) => {
       // Wide enough for the outline to sit beside the pages rather than float over the links.
-      await page.setViewportSize({ width: 1700, height: 900 })
+      await page.setViewportSize({ width: 1920, height: 1080 })
       await open(page, framework)
       const total = Number(
         (await viewer(page).locator('[data-ink-page-count]').textContent())?.match(
@@ -112,7 +112,7 @@ for (const framework of FRAMEWORK_ORDER) {
       context,
     }) => {
       // Wide enough for the outline to sit beside the pages rather than float over the links.
-      await page.setViewportSize({ width: 1700, height: 900 })
+      await page.setViewportSize({ width: 1920, height: 1080 })
       // Nothing here may reach the network.
       await context.route('https://inkbar.dev/**', (route) =>
         route.fulfill({ contentType: 'text/html', body: '<title>stub</title>' })

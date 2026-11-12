@@ -9,7 +9,7 @@ guardConsole(test)
 
 // Wide enough for both sidebars to sit open beside the document: at 1280 the scenario's viewer
 // has no room for them, so they would start closed.
-test.use({ viewport: { width: 1700, height: 900 } })
+test.use({ viewport: { width: 1920, height: 1080 } })
 
 const LAYOUTS = ['rail', 'tabs', 'stack'] as const
 
