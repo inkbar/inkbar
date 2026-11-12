@@ -714,4 +714,17 @@ describe('sidebar width', () => {
     other.to(799)
     expect(own.state.get().floating).toBe(false)
   })
+
+  it('a minDocumentWidth that is not a finite width falls back to 480', () => {
+    for (const minDocumentWidth of [Number.NaN, -1]) {
+      const resize = observedContainer()
+      const c = createSidebarController({ panels, open: 'a', minDocumentWidth })
+      c.bindHandle(resize.handle)
+      resize.to(800)
+      expect(c.state.get().floating).toBe(false)
+      resize.to(799)
+      expect(c.state.get().floating).toBe(true)
+      c.destroy()
+    }
+  })
 })

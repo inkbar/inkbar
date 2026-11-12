@@ -244,6 +244,26 @@ describe('createStorageSignatureStore', () => {
     }
   })
 
+  it('a full localStorage is called storage full', async () => {
+    const local = memoryStorage()
+    local.setItem('inkbar:signatures', JSON.stringify([ink]))
+    local.setItem = () => {
+      throw new DOMException('', 'QuotaExceededError')
+    }
+    vi.stubGlobal('localStorage', local)
+    const store = createStorageSignatureStore(createLocalStorage())
+    await expect(store.save(image)).rejects.toThrow(/browser storage is full$/)
+    expect(await store.list()).toEqual([ink])
+  })
+
+  it('a quota error is found by name, through any realm', async () => {
+    const quota = Object.assign(new Error('full'), { name: 'QuotaExceededError' })
+    const storage = createMemoryStorage()
+    storage.set = () => Promise.reject(new Error('wrapped', { cause: quota }))
+    const store = createStorageSignatureStore(storage)
+    await expect(store.save(ink)).rejects.toThrow(/browser storage is full$/)
+  })
+
   it('overlapping saves keep both', async () => {
     const inner = createMemoryStorage()
     const wait = (): Promise<void> => new Promise((r) => setTimeout(r, 20))

@@ -154,7 +154,7 @@ export function createSignatureDraft(
         return destroyed ? undefined : t
       } catch (e) {
         patch({
-          saveError: isQuotaError((e as Error | undefined)?.cause)
+          saveError: isQuotaError(e)
             ? "Your browser's storage is full. Remove a saved signature, or try a smaller one."
             : 'The signature could not be saved. Try again.',
         })

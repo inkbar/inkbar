@@ -105,10 +105,24 @@ export function createMemorySignatureStore(
   }
 }
 
-/** Whether `error` is the browser saying its storage is full. */
-export const isQuotaError = (error: unknown): boolean =>
-  error instanceof DOMException &&
-  (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED')
+const QUOTA_NAMES: ReadonlySet<unknown> = new Set([
+  'QuotaExceededError',
+  'NS_ERROR_DOM_QUOTA_REACHED',
+])
+
+/**
+ * Whether `error`, or an error up to a few levels down its `cause` chain, is the browser saying
+ * its storage is full. Errors match by `name`, so one from another realm counts too.
+ */
+export function isQuotaError(error: unknown): boolean {
+  let e = error
+  for (let depth = 0; depth < 5 && typeof e === 'object' && e !== null; depth++) {
+    const { name, cause } = e as { name?: unknown; cause?: unknown }
+    if (typeof name === 'string' && QUOTA_NAMES.has(name)) return true
+    e = cause
+  }
+  return false
+}
 
 /** The id of an entry that may not be a template, if it has one. */
 const idOf = (x: unknown): unknown =>

@@ -71,7 +71,8 @@ export interface SidebarControllerOptions {
   onWidthChange?(width: number): void
   /**
    * The narrowest the document may get beside the sidebars in this sidebar's container, in CSS
-   * px. Default 480. Read once, when the sidebar is created.
+   * px. Default 480, which also replaces a negative or non-finite value. Read once, when the
+   * sidebar is created.
    */
   minDocumentWidth?: number
   /** The resize handle's accessible name. Default `Resize left sidebar` or `Resize right sidebar`. */
@@ -242,7 +243,12 @@ export function createSidebarController(
   let widthControlled = opts.width !== undefined
   let width = opts.width ?? defaultWidth
   let resizing = false
-  const minDocument = opts.minDocumentWidth ?? MIN_DOCUMENT_WIDTH
+  const minDocument =
+    opts.minDocumentWidth !== undefined &&
+    Number.isFinite(opts.minDocumentWidth) &&
+    opts.minDocumentWidth >= 0
+      ? opts.minDocumentWidth
+      : MIN_DOCUMENT_WIDTH
   let handleLabel = opts.handleLabel
   const key = ++slotCount
   /** When a panel last opened with none open before. */
@@ -388,6 +394,8 @@ export function createSidebarController(
       if (!counts(e.target)) return
       e.stopPropagation()
       if (e.pointerType !== 'touch') e.preventDefault()
+      // A primary pointer starts afresh: one whose end the browser lost no longer counts.
+      if (e.isPrimary) down.clear()
       down.add(e.pointerId)
       // A second pointer makes a gesture, a pinch most likely: no press in it closes.
       press =
@@ -411,8 +419,10 @@ export function createSidebarController(
       if (press && e.pointerId === press.pointer) press = null
     }
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key !== 'Escape' || e.defaultPrevented) return
+      if (e.key !== 'Escape' || e.defaultPrevented || e.isComposing) return
       const active = doc.activeElement
+      // Only Escape from nowhere in particular, or from within the sidebars and pages, closes.
+      if (active && active !== doc.body && !parent.contains(active)) return
       if (active && inOverlay(active)) return
       close(null)
     }
@@ -879,6 +889,7 @@ export function createSidebarController(
     const leave = (): void => {
       if (!ours) return
       ours.leave()
+      stopAfterClose?.()
       if (membership === ours) {
         membership = undefined
         groupParent = null

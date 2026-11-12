@@ -563,8 +563,8 @@ onUnmounted(() => {
 })
 
 const storageSignatures = createStorageSignatureStore(storage)
-const signatures = computed(() => createSignatureLibrary(storageSignatures))
-watch(signatures, (lib) => void lib.refresh(), { immediate: true })
+const signatures = createSignatureLibrary(storageSignatures)
+void signatures.refresh()
 /** Tool options last as long as the root; the tool style is per document. */
 const toolOptions = createToolOptions()
 

@@ -20,7 +20,7 @@ const props = defineProps<{ items: readonly SignatureMenuItem[] }>()
 const emit = defineEmits<{ choose: [template: SignatureTemplate]; create: [] }>()
 
 const ctx = useInkContext('SignatureMenuPanel')
-const removeError = useReadable(() => ctx.signatures.value.removeError, undefined)
+const removeError = useReadable(() => ctx.signatures.removeError, undefined)
 const root = useTemplateRef<HTMLElement>('root')
 
 /** A saved signature drawn small: ink as filled outlines. */
@@ -32,7 +32,7 @@ const previews = computed(() =>
 
 /** Removes a template; focus moves to the signature now in its row, else "Create signature". */
 function remove(id: string, row: number): void {
-  ctx.signatures.value.remove(id).then(
+  ctx.signatures.remove(id).then(
     async () => {
       await nextTick()
       const menu = root.value

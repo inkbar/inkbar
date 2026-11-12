@@ -1,10 +1,12 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   createMemorySignatureStore,
   createSignatureLibrary,
+  createStorageSignatureStore,
   type SignatureTemplate,
 } from '../model/signatures'
+import { createLocalStorage } from '../model/storage'
 
 import { createSignatureDraft } from './signature-draft'
 
@@ -16,7 +18,43 @@ async function png(width: number, height: number): Promise<Blob> {
   return new Promise((resolve) => canvas.toBlob((b) => resolve(b!), 'image/png'))
 }
 
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
+/** A `localStorage` that holds one Inkbar value and refuses every write as full. */
+function fullStorage(): Storage {
+  const map = new Map([['inkbar:signatures', '[]']])
+  return {
+    get length() {
+      return map.size
+    },
+    clear: () => map.clear(),
+    getItem: (k) => map.get(k) ?? null,
+    key: (i) => [...map.keys()][i] ?? null,
+    removeItem: (k) => void map.delete(k),
+    setItem: () => {
+      throw new DOMException('', 'QuotaExceededError')
+    },
+  }
+}
+
 describe('createSignatureDraft', () => {
+  it('says storage is full when localStorage refuses the signature', async () => {
+    vi.stubGlobal('localStorage', fullStorage())
+    const library = createSignatureLibrary(
+      createStorageSignatureStore(createLocalStorage())
+    )
+    const draft = createSignatureDraft()
+    draft.setTab('type')
+    draft.setName('Ada')
+    expect(await draft.save(library)).toBeUndefined()
+    expect(draft.state.get().saveError).toBe(
+      "Your browser's storage is full. Remove a saved signature, or try a smaller one."
+    )
+    draft.destroy()
+  })
+
   it('drops the chosen image while another file is read', async () => {
     const draft = createSignatureDraft()
     draft.setTab('image')

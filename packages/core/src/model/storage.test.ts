@@ -56,6 +56,7 @@ describe('createLocalStorage', () => {
   })
 
   it('works when reading localStorage throws', async () => {
+    const original = Object.getOwnPropertyDescriptor(globalThis, 'localStorage')
     Object.defineProperty(globalThis, 'localStorage', {
       configurable: true,
       get() {
@@ -67,7 +68,8 @@ describe('createLocalStorage', () => {
       await s.set('a', 1)
       expect(await s.get('a')).toBe(1)
     } finally {
-      Reflect.deleteProperty(globalThis, 'localStorage')
+      if (original) Object.defineProperty(globalThis, 'localStorage', original)
+      else Reflect.deleteProperty(globalThis, 'localStorage')
     }
   })
 

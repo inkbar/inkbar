@@ -26,7 +26,6 @@ import { createPageMount, type PageLayer, type PageMount } from './page-mount'
 import { createPluginLayers } from './plugins/layer'
 import { createSearchHighlights } from './search/highlights'
 import { getSelectionQuads } from './selection'
-import { MIN_DOCUMENT_WIDTH } from './sidebar/placement'
 import {
   createToolController,
   createToolOptions,
@@ -106,16 +105,9 @@ export interface MountViewerOptions {
    */
   storage?: InkStorage
   /**
-   * The narrowest the document may get before a rail sidebar floats over the pages instead of
-   * taking room from them, in CSS pixels. Read once, when the viewer is created. Default:
-   * `MIN_DOCUMENT_WIDTH`.
-   */
-  minDocumentWidth?: number
-  /**
    * The templates the `signature` tool and the signature controls share. A binding or
-   * `createViewer` passes its own, so they outlive one document; it wins over `signatures`.
-   * A function is read each time the library is needed, so a host that swaps its library
-   * after mount reaches the tool too.
+   * `createViewer` passes its own, so they outlive one document. A function is read each time
+   * the library is needed, so a host that swaps its library after mount reaches the tool too.
    */
   signatureLibrary?: SignatureLibrary | (() => SignatureLibrary)
   /**
@@ -200,8 +192,6 @@ export interface ViewerEngine {
   readonly signatures: SignatureLibrary
   /** The `storage` option, or a new memory store. */
   readonly storage: InkStorage
-  /** The `minDocumentWidth` option, or `MIN_DOCUMENT_WIDTH`. */
-  readonly minDocumentWidth: number
   /** The fonts a typed signature offers: the `signatureFonts` option, else `SIGNATURE_FONTS`. */
   readonly signatureFonts: readonly string[]
   readonly pages: ReadonlyMap<number, PageMount>
@@ -825,7 +815,6 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       return signatures()
     },
     storage,
-    minDocumentWidth: opts.minDocumentWidth ?? MIN_DOCUMENT_WIDTH,
     signatureFonts: opts.signatureFonts ? [...opts.signatureFonts] : SIGNATURE_FONTS,
     pages,
     navigation,

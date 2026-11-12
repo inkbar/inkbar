@@ -4,10 +4,10 @@ import { injectInkContext } from '../../src/context'
 import { useReadable } from '../../src/use-readable'
 
 const ctx = injectInkContext()
-const templates = useReadable(() => ctx.signatures.value.templates, [])
+const templates = useReadable(() => ctx.signatures.templates, [])
 
 function save(): void {
-  void ctx.signatures.value.save({
+  void ctx.signatures.save({
     id: 'added',
     kind: 'ink',
     inklist: [
