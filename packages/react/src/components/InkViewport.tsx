@@ -12,7 +12,7 @@
  * `InkSignFieldPopover`, and a form script's alert shows in `InkFormAlert`; both are mounted
  * here, so hosts compose nothing for them.
  */
-import { mountViewer } from '@inkbar/core/dom'
+import { mountViewer, PASSWORD_LABELS } from '@inkbar/core/dom'
 import {
   useEffect,
   useLayoutEffect,
@@ -26,14 +26,17 @@ import { cx } from '../class-names'
 import { useInkContext } from '../context'
 import { toolIdsOf } from '../hooks/useRegisteredTool'
 import { useLatest } from '../use-latest'
+import { useReadable } from '../use-readable'
 
 import { InkFormAlert } from './InkFormAlert'
 import { InkPage } from './InkPage'
+import { InkPasswordDialog } from './InkPasswordDialog'
 import { InkSignFieldPopover } from './InkSignFieldPopover'
 
 import type { InkDocument, InkError } from '@inkbar/core'
 import type {
   AnnotationSlotProps,
+  PasswordPromptState,
   LayoutMode,
   PageMount,
   SignFieldRequest,
@@ -55,10 +58,18 @@ export interface InkViewportProps extends ComponentPropsWithoutRef<'div'> {
   loading?: ReactNode
   empty?: ReactNode
   error?: ReactNode | ((props: { error: InkError }) => ReactNode)
+  /**
+   * Replaces the panel shown for a locked file while its dialog is closed. `promptPassword`
+   * opens the dialog.
+   */
+  locked?:
+    ReactNode | ((props: { incorrect: boolean; promptPassword: () => void }) => ReactNode)
   renderAnnotation?: ((props: AnnotationSlotProps) => ReactNode) | undefined
   /** Shown inside a page that failed to render. The rest of the document stays usable. */
   renderPageError?: ((props: { error: InkError; page: number }) => ReactNode) | undefined
 }
+
+const IDLE_PROMPT: PasswordPromptState = { asking: false, pending: false }
 
 interface MountedPage {
   /** The engine build the host belongs to; part of the InkPage key. */
@@ -93,6 +104,7 @@ export function InkViewport({
   loading,
   empty,
   error,
+  locked,
   renderAnnotation,
   renderPageError,
   className,
@@ -306,6 +318,68 @@ export function InkViewport({
   }, [rotation])
 
   const state = ctx.status.state
+  const prompt = ctx.passwordPrompt
+  const promptState = useReadable(prompt?.state, IDLE_PROMPT)
+  /** Whether the last locked result was a wrong password; kept while a retry loads. */
+  const lockedIncorrect = ctx.status.state === 'locked' ? ctx.status.incorrect : null
+  const [incorrect, setIncorrect] = useState(lockedIncorrect ?? false)
+  if (lockedIncorrect !== null && lockedIncorrect !== incorrect)
+    setIncorrect(lockedIncorrect)
+
+  const unlock = useRef<HTMLButtonElement>(null)
+  /** The reader cancelled: focus goes to the unlock button once it is there. */
+  const focusUnlock = useRef(false)
+  /** The reader submitted a password: when it opens the document, focus must not be lost. */
+  const unlocking = useRef(false)
+  const stateRef = useLatest(state)
+
+  function cancelPrompt(): void {
+    prompt?.cancel()
+    unlocking.current = false
+    focusUnlock.current = true
+  }
+
+  /** The dialog has closed: focus goes to the unlock button, or waits for it (see `focusUnlock`). */
+  function onCloseAutoFocus(e: Event): void {
+    e.preventDefault()
+    if (focusUnlock.current && unlock.current) {
+      focusUnlock.current = false
+      unlock.current.focus({ preventScroll: true })
+    } else if (unlocking.current && stateRef.current === 'ready') {
+      // The reader opened the document from the dialog: it takes the focus the dialog held.
+      unlocking.current = false
+      scroll.current?.focus({ preventScroll: true })
+    }
+  }
+
+  function submitPassword(password: string): void {
+    unlocking.current = true
+    prompt?.submit(password)
+  }
+
+  useEffect(() => {
+    if (state === 'locked') {
+      // A wrong try leaves the dialog open and the document shut: nothing to move focus to.
+      unlocking.current = false
+      if (focusUnlock.current && !promptState.asking) {
+        focusUnlock.current = false
+        unlock.current?.focus({ preventScroll: true })
+      }
+    } else if (state !== 'loading') {
+      // Ready, an error or no source: whatever focus was waiting for is moot.
+      focusUnlock.current = false
+      if (state !== 'ready') unlocking.current = false
+    }
+  }, [state, promptState.asking])
+  // A new source: the prompt resets while the file loads, so no try is waiting on it.
+  useEffect(() => {
+    if (!promptState.pending && state === 'loading') unlocking.current = false
+  }, [promptState.pending, state])
+  // The dialog is open again (the reader asked, or a new locked file): nothing waits to focus.
+  useEffect(() => {
+    if (promptState.asking) focusUnlock.current = false
+  }, [promptState.asking])
+
   const err = ctx.status.state === 'error' ? ctx.status.error : null
 
   return (
@@ -338,6 +412,27 @@ export function InkViewport({
             </>
           )}
         </div>
+      ) : state === 'locked' ? (
+        <div className="ink-status ink-locked" role="status">
+          {typeof locked === 'function' ? (
+            locked({ incorrect, promptPassword: () => prompt?.ask() })
+          ) : locked !== undefined ? (
+            locked
+          ) : (
+            <>
+              <p className="ink-locked-title">{PASSWORD_LABELS.locked}</p>
+              <button
+                ref={unlock}
+                type="button"
+                className="ink-button"
+                data-ink-unlock=""
+                onClick={() => prompt?.ask()}
+              >
+                {PASSWORD_LABELS.unlock}
+              </button>
+            </>
+          )}
+        </div>
       ) : state === 'idle' ? (
         <div className="ink-status ink-empty">{empty}</div>
       ) : null}
@@ -349,6 +444,18 @@ export function InkViewport({
         role="document"
         aria-label="Document"
       />
+      {prompt ? (
+        <InkPasswordDialog
+          open={promptState.asking}
+          onOpenChange={(open) => {
+            if (!open) cancelPrompt()
+          }}
+          incorrect={incorrect}
+          pending={promptState.pending}
+          onSubmit={submitPassword}
+          onCloseAutoFocus={onCloseAutoFocus}
+        />
+      ) : null}
       {pages.map((p) => (
         <InkPage
           key={`${p.build}:${p.page}`}

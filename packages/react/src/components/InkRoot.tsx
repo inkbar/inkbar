@@ -17,7 +17,9 @@ import {
   cssVariableDefaults,
   FONT_FAMILIES,
   handleFindKey,
+  createPasswordPrompt,
   keepHistoryFocus,
+  lockedStatus,
   MIN_DOCUMENT_WIDTH,
   pageSelectionText,
   SIGNATURE_FONTS,
@@ -68,6 +70,7 @@ import type {
   DecorateAnnotation,
   InkPlugin,
   Navigation,
+  PasswordPrompt,
   PluginHost,
   SearchController,
   Tool,
@@ -92,6 +95,11 @@ export interface InkRootProps extends Omit<
   src: DocumentSource | null
   assets: PdfAssets
   password?: string | undefined
+  /**
+   * Ask the reader for the password of a locked file. Default true. False: a locked file is
+   * an error with code `PasswordRequired`, as before.
+   */
+  passwordPrompt?: boolean | undefined
   /** Colour defaults. Without it, the theme's CSS variables on the root element apply. */
   defaults?: AnnotationDefaults | undefined
   /**
@@ -235,6 +243,7 @@ export function InkRoot({
   src,
   assets,
   password,
+  passwordPrompt = true,
   defaults,
   annotations,
   onAnnotationsChange,
@@ -298,6 +307,7 @@ export function InkRoot({
   const latest = useLatest({
     src,
     assets,
+    passwordPrompt,
     defaults,
     annotations,
     controlled: controlledProp,
@@ -446,10 +456,32 @@ export function InkRoot({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  /*
+   * The reader's retry. `retry` parks the typed password in a ref and bumps `attempt`, which
+   * reopens the document; the open reads and clears the ref in the same step that starts the
+   * fetch, so nothing outlives that load and StrictMode's discarded first attempt (which never
+   * gets that far) leaves it for the real one.
+   */
+  const retryPassword = useRef<string | null>(null)
+  const [attempt, setAttempt] = useState(0)
+  /** The `attempt` the last fetch started for; an effect run for any other cause is a new source. */
+  const startedAttempt = useRef(0)
+  const [prompt] = useState<PasswordPrompt>(() =>
+    createPasswordPrompt((typed) => {
+      retryPassword.current = typed
+      setAttempt((n) => n + 1)
+    })
+  )
+
   const srcIdentity = identity(src)
   useEffect(() => {
     let cancelled = false
     snapshotHistory.clear()
+    // A new source or password from the host: the prompt starts over.
+    if (attempt === startedAttempt.current) {
+      retryPassword.current = null
+      prompt.reset()
+    }
     const source = latest.current.src
     if (source === null) {
       setOverride(null)
@@ -461,11 +493,27 @@ export function InkRoot({
     let told: RootPlugins | null = null
     let detach: () => void = noop
     let stopFormErrors: () => void = noop
-    const run = async () => {
+    /**
+     * A failed open: the locked status when the prompt is on and the file is locked (the prompt
+     * is told once `onError` has run), else an error.
+     */
+    const fail = (error: InkError, keepDocument: boolean): void => {
+      const locked = latest.current.passwordPrompt ? lockedStatus(error) : null
+      if (!locked) prompt.reset()
+      // Flushed, so the dialog never opens over the previous status.
+      if (locked) flushSync(() => setOverride(locked))
+      else if (!keepDocument) setOverride({ state: 'error', error })
+      try {
+        latest.current.onError?.(error)
+      } finally {
+        if (locked && !cancelled) prompt.locked()
+      }
+    }
+    const run = async (typed: string | undefined) => {
       try {
         const doc = await openDocument(source, {
           assets: latest.current.assets,
-          password,
+          password: typed ?? password,
           defaults:
             latest.current.defaults ??
             (rootElRef.current ? cssVariableDefaults(rootElRef.current) : undefined),
@@ -539,8 +587,10 @@ export function InkRoot({
         setTestHook(rootElRef.current, doc)
         const s = doc.status.get()
         try {
-          if (s.state === 'ready') latest.current.onReady?.(doc)
-          else if (s.state === 'error') latest.current.onError?.(s.error)
+          if (s.state === 'ready') {
+            prompt.reset()
+            latest.current.onReady?.(doc)
+          } else if (s.state === 'error') fail(s.error, true)
         } finally {
           // A host whose `onReady` throws still hears the held errors and every later one.
           const early = held
@@ -558,14 +608,17 @@ export function InkRoot({
                 {},
                 cause
               )
-        setOverride({ state: 'error', error })
-        latest.current.onError?.(error)
+        fail(error, false)
       }
     }
     // StrictMode's simulated cleanup runs synchronously in the same commit, so deferring one
     // microtask means the discarded first attempt never starts a fetch.
     void Promise.resolve().then(() => {
-      if (!cancelled) return run()
+      if (cancelled) return
+      startedAttempt.current = attempt
+      const typed = retryPassword.current ?? undefined
+      retryPassword.current = null
+      return run(typed)
     })
     return () => {
       cancelled = true
@@ -579,7 +632,16 @@ export function InkRoot({
       setTestHook(rootElRef.current, undefined)
     }
     // `srcIdentity` stands in for `src`: a new URL with the same key is the same document.
-  }, [srcIdentity, password, snapshotHistory, latest, plugins, reportErrorFor])
+  }, [
+    srcIdentity,
+    password,
+    attempt,
+    prompt,
+    snapshotHistory,
+    latest,
+    plugins,
+    reportErrorFor,
+  ])
 
   useLayoutEffect(() => {
     if (annotations && document?.annotations.mode === 'controlled')
@@ -823,6 +885,7 @@ export function InkRoot({
 
   const ctx = useMemo<InkContext>(
     () => ({
+      passwordPrompt: passwordPrompt ? prompt : null,
       assets,
       document,
       status,
@@ -863,6 +926,8 @@ export function InkRoot({
       reportError,
     }),
     [
+      passwordPrompt,
+      prompt,
       assets,
       document,
       status,

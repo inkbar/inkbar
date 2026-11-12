@@ -16,6 +16,7 @@ export interface ViewportHarnessProps {
   pinchZoom?: boolean | undefined
   customAnnotations?: boolean | undefined
   customLoading?: boolean | undefined
+  passwordPrompt?: boolean | undefined
   tool?: ToolId | undefined
   /** Marks text annotations with `data-test-mark`; a function cannot cross the mount boundary. */
   decorateMark?: string | undefined
@@ -75,6 +76,7 @@ export function ViewportHarness(props: ViewportHarnessProps) {
         zoom={props.zoom}
         page={props.page}
         tool={props.tool}
+        passwordPrompt={props.passwordPrompt}
         decorateAnnotation={decorate}
         onZoomChange={props.onZoomChange}
         onPageChange={props.onPageChange}
