@@ -13,11 +13,12 @@
  * `InkSignFieldPopover`, and a form script's alert shows in `InkFormAlert`; both are mounted
  * here, so hosts compose nothing for them.
  */
-import { mountViewer } from '@inkbar/core/dom'
+import { mountViewer, PASSWORD_LABELS } from '@inkbar/core/dom'
 import {
   computed,
   onBeforeUnmount,
   onBeforeUpdate,
+  nextTick,
   onMounted,
   shallowRef,
   useTemplateRef,
@@ -26,9 +27,11 @@ import {
 
 import { toolIdsOf } from '../composables/useRegisteredTool'
 import { injectInkContext } from '../context'
+import { useReadable } from '../use-readable'
 
 import InkFormAlert from './InkFormAlert.vue'
 import InkPage from './InkPage.vue'
+import InkPasswordDialog from './InkPasswordDialog.vue'
 import InkSignFieldPopover from './InkSignFieldPopover.vue'
 
 import type { AnnotationSlotProps } from './annotation-slot'
@@ -61,6 +64,11 @@ const slots = defineSlots<{
   loading?(): unknown
   error?(props: { error: InkError }): unknown
   empty?(): unknown
+  /**
+   * Replaces the panel shown for a locked file while its dialog is closed. `promptPassword`
+   * opens the dialog.
+   */
+  locked?(props: { incorrect: boolean; promptPassword: () => void }): unknown
   annotation?(props: AnnotationSlotProps): unknown
   /** Shown inside a page that failed to render. The rest of the document stays usable. */
   'page-error'?(props: { error: InkError; page: number }): unknown
@@ -98,6 +106,71 @@ const pages = shallowRef<MountedPage[]>([])
 const state = computed(() => ctx.status.value.state)
 const error = computed<InkError | null>(() =>
   ctx.status.value.state === 'error' ? ctx.status.value.error : null
+)
+
+/** Whether the last locked result was a wrong password; kept while a retry loads. */
+const incorrect = shallowRef(false)
+watch(
+  () => ctx.status.value,
+  (s) => {
+    if (s.state === 'locked') incorrect.value = s.incorrect
+  },
+  { immediate: true }
+)
+const prompt = computed(() => ctx.passwordPrompt.value)
+const promptState = useReadable(() => prompt.value?.state ?? null, {
+  asking: false,
+  pending: false,
+})
+const asking = computed({
+  get: () => promptState.value.asking,
+  // Only the reader closes it this way; a success or a new source resets the prompt instead.
+  set: (open) => {
+    if (!open) cancelPrompt()
+  },
+})
+const unlock = useTemplateRef<HTMLElement>('unlock')
+/** The reader cancelled: focus goes to the unlock button once it is there. */
+let focusUnlock = false
+/** The reader submitted a password: when it opens the document, focus must not be lost. */
+let unlocking = false
+
+function cancelPrompt(): void {
+  prompt.value?.cancel()
+  unlocking = false
+  focusUnlock = true
+}
+
+/** The dialog has closed: focus goes to the unlock button, or waits for it (see `focusUnlock`). */
+function onCloseAutoFocus(e: Event): void {
+  e.preventDefault()
+  if (focusUnlock && unlock.value) {
+    focusUnlock = false
+    unlock.value.focus({ preventScroll: true })
+  } else if (unlocking && state.value === 'ready') {
+    // The reader opened the document from the dialog: it takes the focus the dialog held.
+    unlocking = false
+    scroll.value?.focus({ preventScroll: true })
+  }
+}
+
+function submitPassword(password: string): void {
+  unlocking = true
+  prompt.value?.submit(password)
+}
+
+watch(
+  () => ctx.status.value.state,
+  async (st) => {
+    await nextTick()
+    if (st === 'locked' && focusUnlock) {
+      focusUnlock = false
+      unlock.value?.focus({ preventScroll: true })
+    } else if (st !== 'locked' && st !== 'loading' && st !== 'ready') {
+      unlocking = false
+      focusUnlock = false
+    }
+  }
 )
 
 const engine = shallowRef<ViewerEngine | null>(null)
@@ -330,6 +403,20 @@ onBeforeUnmount(() => {
         </p>
       </slot>
     </div>
+    <div v-else-if="state === 'locked'" class="ink-status ink-locked" role="status">
+      <slot name="locked" :incorrect="incorrect" :prompt-password="() => prompt?.ask()">
+        <p class="ink-locked-title">{{ PASSWORD_LABELS.locked }}</p>
+        <button
+          ref="unlock"
+          type="button"
+          class="ink-button"
+          data-ink-unlock
+          @click="prompt?.ask()"
+        >
+          {{ PASSWORD_LABELS.unlock }}
+        </button>
+      </slot>
+    </div>
     <div v-else-if="state === 'idle'" class="ink-status ink-empty">
       <slot name="empty" />
     </div>
@@ -340,6 +427,14 @@ onBeforeUnmount(() => {
       tabindex="0"
       role="document"
       aria-label="Document"
+    />
+    <InkPasswordDialog
+      v-if="prompt"
+      v-model:open="asking"
+      :incorrect="incorrect"
+      :pending="promptState.pending"
+      @submit="submitPassword"
+      @close-auto-focus="onCloseAutoFocus"
     />
     <InkPage
       v-for="p in pages"

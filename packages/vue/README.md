@@ -100,13 +100,31 @@ Each control is a separate component, so put them in any order or leave some out
 
 `v-model:annotations` makes your list the source of truth. Leave it off and Inkbar keeps the state itself, with undo and redo on by default. In controlled mode undo and redo need `:history="true"`, as in the example; see Controlled mode.
 
-`InkRoot` also takes `password` for an encrypted file, `storage` for what the viewer keeps between visits (see [Storage](#storage)), `minDocumentWidth` for how narrow the document may get before a rail sidebar's panel floats over it (see [Sidebars](#sidebars)), `defaults` for annotation colours, `fonts` for the families the text style menu offers, `decorateAnnotation` (a `DecorateAnnotation` function that adds `data-*` attributes, classes and a screen-reader description to each annotation), and `v-model:tool`, `v-model:page` and `v-model:zoom`. It emits `ready` with the `InkDocument`, `error` with an `InkError`, `change` with each annotation change and `activate` with an annotation id. Its default slot receives `{ status, document }`.
+`InkRoot` also takes `password` for an encrypted file (see [Locked files](#locked-files)), `passwordPrompt` (on by default) to ask the reader for a locked file's password, `storage` for what the viewer keeps between visits (see [Storage](#storage)), `minDocumentWidth` for how narrow the document may get before a rail sidebar's panel floats over it (see [Sidebars](#sidebars)), `defaults` for annotation colours, `fonts` for the families the text style menu offers, `decorateAnnotation` (a `DecorateAnnotation` function that adds `data-*` attributes, classes and a screen-reader description to each annotation), and `v-model:tool`, `v-model:page` and `v-model:zoom`. It emits `ready` with the `InkDocument`, `error` with an `InkError`, `change` with each annotation change and `activate` with an annotation id. Its default slot receives `{ status, document }`.
 
 ## Viewport
 
 `InkViewport` takes `mode`, `rotation`, `gap` (CSS pixels between pages, 16), `buffer` (pages kept mounted either side of the visible ones, 2) and `pinchZoom` (default `true`; `false` leaves pinches to the browser, which zooms the whole page). Changing `gap`, `buffer` or `pinchZoom` rebuilds the engine.
 
 On a touch screen, two fingers pinch to zoom the document and scroll it. With `draw`, `sketch`, `shape`, `redact-area` and `freetext`, one finger draws; a finger tap draws nothing, and a pen that lands while a palm rests on the screen takes over. A shape, area redaction or text box gives one-finger scrolling back once it has made something.
+
+## Locked files
+
+A file that needs a password opens a dialog that asks for it. `InkViewport` mounts `InkPasswordDialog` itself, so there is nothing to place. A wrong password keeps the dialog open with a message; Cancel closes it and leaves a panel with an "Enter password" button. While the file is locked, `status` is `{ state: 'locked', incorrect }` and `data-state` reads `locked`. `error` still fires once for each failed open.
+
+The typed password is used for that one load and dropped. A `password` you pass still applies first, and if it is wrong the dialog opens with the message already showing. Pass `:password-prompt="false"` to keep the plain `PasswordRequired` error and handle it yourself.
+
+To replace the panel that shows while the dialog is closed, fill the `locked` slot of `InkViewport`. It receives `{ incorrect, promptPassword }`, and `promptPassword` reopens the dialog.
+
+```vue
+<InkViewport>
+  <template #locked="{ promptPassword }">
+    <button @click="promptPassword">Unlock this file</button>
+  </template>
+</InkViewport>
+```
+
+`InkPasswordDialog` is exported for hosts that build their own flow. It takes `v-model:open`, `incorrect` and `pending`, and emits `submit` with the password. Inside `InkRoot`, `injectInkContext().passwordPrompt` is the controller that drives it, or `null` when the prompt is off.
 
 ## Controlled mode
 
@@ -277,7 +295,7 @@ To build your own, `useRecords<T>(name)` returns the live `records` and the `han
 
 ## Custom rendering
 
-Slots let you render parts yourself. `InkViewport` has `loading`, `empty`, `error`, `annotation` and `page-error` slots. `InkThreadPopover` has a scoped default slot that receives `{ root, replies, reply, update, remove, close }`, and the default slot of `InkToolButton` receives `{ active, label }`. The props are typed as `AnnotationSlotProps` and `ThreadPopoverSlotProps`, the same types the React and Svelte packages export.
+Slots let you render parts yourself. `InkViewport` has `loading`, `empty`, `error`, `locked`, `annotation` and `page-error` slots. `InkThreadPopover` has a scoped default slot that receives `{ root, replies, reply, update, remove, close }`, and the default slot of `InkToolButton` receives `{ active, label }`. The props are typed as `AnnotationSlotProps` and `ThreadPopoverSlotProps`, the same types the React and Svelte packages export.
 
 `InkDownloadButton` and `InkPrintButton` download and print the open PDF; `filename` names the download (the opened `File`'s name, else the URL's last segment, else `document.pdf`). Printing loads the file into a hidden frame and opens the browser's print dialog for it; on iOS the PDF opens in a new tab instead. Until saving into the PDF ships, both give the file as it was opened, without this session's annotations.
 

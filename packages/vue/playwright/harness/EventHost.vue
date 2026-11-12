@@ -5,13 +5,17 @@ import InkRoot from '../../src/components/InkRoot.vue'
 
 import type { DocumentSource, PdfAssets } from '@inkbar/core'
 
-const props = defineProps<{
-  src: DocumentSource | null
-  assets: PdfAssets
-  password?: string | undefined
-  /** Fetches this URL in the page and passes the bytes as the source, one array for every open. */
-  bytesFrom?: string | undefined
-}>()
+const props = withDefaults(
+  defineProps<{
+    src: DocumentSource | null
+    assets: PdfAssets
+    password?: string | undefined
+    /** Fetches this URL in the page and passes the bytes as the source, one array for every open. */
+    bytesFrom?: string | undefined
+    passwordPrompt?: boolean | undefined
+  }>(),
+  { passwordPrompt: undefined }
+)
 
 // Playwright serialises emitted Errors without their own properties, so the host records the
 // codes in the DOM where the test can read them.
@@ -40,6 +44,7 @@ function onReady(): void {
     :src="bytesFrom === undefined ? src : bytes"
     :assets="assets"
     :password="password"
+    :password-prompt="passwordPrompt"
     @error="(e) => onError(e.code)"
     @ready="onReady"
   >

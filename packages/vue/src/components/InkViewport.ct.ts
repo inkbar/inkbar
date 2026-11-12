@@ -251,7 +251,7 @@ test('a text layer failure keeps the page error even though the canvas renders',
 
 test('shows the PasswordRequired code for an encrypted file', async ({ mount }) => {
   const cmp = await mount(ViewportHarness, {
-    props: { src: fixtureUrl('encrypted-aes'), assets, zoom: 1 },
+    props: { src: fixtureUrl('encrypted-aes'), assets, zoom: 1, passwordPrompt: false },
   })
   const alert = cmp.locator('[role="alert"]')
   await expect(alert).toBeVisible()
