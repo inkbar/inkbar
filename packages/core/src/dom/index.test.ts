@@ -48,6 +48,9 @@ describe('@inkbar/core/dom entry', () => {
         'createSidebar',
         'sidebarBadge',
         'isBlankQuery',
+        'createPasswordPrompt',
+        'lockedStatus',
+        'PASSWORD_LABELS',
       ])
     )
 

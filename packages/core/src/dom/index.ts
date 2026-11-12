@@ -153,6 +153,7 @@ export {
   SHAPE_COLUMNS,
   SHAPE_LABELS,
   SIGNATURE_FONTS,
+  PASSWORD_LABELS,
   SIGNATURE_LABELS,
   SIGNATURE_TABS,
   TOOL_LABELS,
@@ -168,6 +169,8 @@ export {
   threadDeleteLabel,
   threadPopoverLabel,
 } from './ui'
+export { createPasswordPrompt, lockedStatus } from './password-prompt'
+export type { LockedStatus, PasswordPrompt, PasswordPromptState } from './password-prompt'
 export { PALETTE } from './palette'
 export type { Palette } from './palette'
 export type {

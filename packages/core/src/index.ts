@@ -17,6 +17,7 @@ export type {
   DocumentStatus,
   InkDocument,
   InkStatus,
+  LockedStatus,
   OpenOptions,
 } from './model/document'
 export type { DocumentSource } from './model/source'

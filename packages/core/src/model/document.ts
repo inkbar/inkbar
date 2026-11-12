@@ -62,8 +62,11 @@ import type {
 export type DocumentStatus =
   { state: 'loading' } | { state: 'ready' } | { state: 'error'; error: InkError }
 
-/** A document's status plus `idle`, for a host with no document open. */
-export type InkStatus = DocumentStatus | { state: 'idle' }
+/** An open that failed with PasswordRequired and is waiting for the reader's password. */
+export type LockedStatus = { state: 'locked'; incorrect: boolean }
+
+/** A document's status plus `idle`, for a host with no document open, and `locked`. */
+export type InkStatus = DocumentStatus | { state: 'idle' } | LockedStatus
 
 export interface DocumentInfo {
   title?: string | undefined
