@@ -1,0 +1,1 @@
+function e(e,t,n){let r=e(t,n);return{update:e=>r.open(e),unmount:()=>r.destroy()}}export{e as mountVanilla};
