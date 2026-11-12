@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.13.0](https://github.com/inkbar/inkbar/compare/v0.12.0...v0.13.0) (2026-11-12)
+
+
+### Features
+
+* close a floating sidebar panel on a tap on the pages or Escape ([#351](https://github.com/inkbar/inkbar/issues/351)) ([9dee314](https://github.com/inkbar/inkbar/commit/9dee3141ef2f9ce458e0a18e49ccdb74dbba01d9))
+* decide which sidebars float when the document runs out of room ([#348](https://github.com/inkbar/inkbar/issues/348)) ([f391c96](https://github.com/inkbar/inkbar/commit/f391c962f168baa786499fc4570bb419da906900))
+* float a rail sidebar over the pages when the document runs out of room ([#350](https://github.com/inkbar/inkbar/issues/350)) ([f3c229f](https://github.com/inkbar/inkbar/commit/f3c229fd0181b6a3c5d5fd7c89087542914f8c60))
+* float sidebars in React ([#354](https://github.com/inkbar/inkbar/issues/354)) ([d877a9c](https://github.com/inkbar/inkbar/commit/d877a9cd6b3333388cdb2f9274450aa30d91dab2))
+* float sidebars in Svelte ([#355](https://github.com/inkbar/inkbar/issues/355)) ([408fc7f](https://github.com/inkbar/inkbar/commit/408fc7fe0537414a2a74ef9ef64a4c3e830f3b19))
+* float sidebars in Vue ([#353](https://github.com/inkbar/inkbar/issues/353)) ([f0983e6](https://github.com/inkbar/inkbar/commit/f0983e6d0655f7703b2e5a681ebc8f3e868a6423))
+* remove the signatures option, createLocalSignatureStore, onFormAction and FormAction ([#356](https://github.com/inkbar/inkbar/issues/356)) ([81e28c6](https://github.com/inkbar/inkbar/commit/81e28c66321ed4471485d28eaa449d4700606818))
+* set the document's minimum width on the viewer ([#352](https://github.com/inkbar/inkbar/issues/352)) ([db2d724](https://github.com/inkbar/inkbar/commit/db2d724443f5d13b32a3670fbff187bee4693b94))
+* style a floating sidebar panel ([#349](https://github.com/inkbar/inkbar/issues/349)) ([8275ac6](https://github.com/inkbar/inkbar/commit/8275ac65349a1848de9c07eccb3b19aa420fb33e))
+
+
+### Bug Fixes
+
+* close floating sidebar panels when the find bar opens ([#363](https://github.com/inkbar/inkbar/issues/363)) ([0f0e2fb](https://github.com/inkbar/inkbar/commit/0f0e2fbfc440cf87c6029940d24adc24d65de773))
+* queue signature saves and only blame a full browser storage when it is ([#357](https://github.com/inkbar/inkbar/issues/357)) ([4f7c24e](https://github.com/inkbar/inkbar/commit/4f7c24eebc1ec8ff782ac27ebc7983db966b36b7))
+* tidy floating sidebars and signature storage after review ([#360](https://github.com/inkbar/inkbar/issues/360)) ([e090922](https://github.com/inkbar/inkbar/commit/e090922b46b8f6bcc87698c1b1e60c2ce82f1548))
+
 ## [0.12.0](https://github.com/inkbar/inkbar/compare/v0.11.0...v0.12.0) (2026-11-11)
 
 
