@@ -309,6 +309,32 @@ describe('InkRoot', () => {
       }
     })
 
+    it('Cancel focuses the first control of the locked snippet', async () => {
+      await open({ customLocked: true })
+      await expect.poll(dialog).not.toBeNull()
+      dialog()!
+        .querySelector<HTMLButtonElement>('.ink-dialog-actions button[type="button"]')!
+        .click()
+      await expect.poll(dialog).toBeNull()
+      await expect
+        .poll(() => document.activeElement)
+        .toBe(document.querySelector('[data-testid="custom-unlock"]'))
+    })
+
+    it('a retry in the same flush as a new source does not hand it the typed password', async () => {
+      // Both files open with "inkbar": the new one stays locked only if the typed try was dropped.
+      await open({ switchTo: fixtureUrl('encrypted-rc4') })
+      await expect.poll(dialog).not.toBeNull()
+      ;(await q('[data-testid="submit-and-switch"]')).click()
+      await expect.poll(text('error-codes')).toBe('PasswordRequired,PasswordRequired')
+      expect(text('status')()).toBe('locked:false')
+      await expect.poll(dialog).not.toBeNull()
+      expect(alertEl()).toBeNull()
+      // Not stuck pending: the new file's own try opens it.
+      await enter('inkbar')
+      await expect.poll(rootState).toBe('ready')
+    })
+
     it('the locked snippet replaces the panel', async () => {
       await open({ customLocked: true })
       await expect.poll(dialog).not.toBeNull()

@@ -30,13 +30,18 @@ const codes = ref<string[]>([])
     :password-prompt="passwordPrompt"
     @error="(e) => codes.push(e.code)"
   >
-    <output data-testid="error-codes">{{ codes.join(',') }}</output>
-    <InkViewport>
-      <template v-if="customLocked" #locked="{ incorrect, promptPassword }">
-        <button type="button" data-testid="custom-unlock" @click="promptPassword">
-          Custom unlock {{ incorrect ? 'again' : '' }}
-        </button>
-      </template>
-    </InkViewport>
+    <template #default="{ status }">
+      <output data-testid="status">{{
+        status.state === 'locked' ? JSON.stringify(status) : status.state
+      }}</output>
+      <output data-testid="error-codes">{{ codes.join(',') }}</output>
+      <InkViewport>
+        <template v-if="customLocked" #locked="{ incorrect, promptPassword }">
+          <button type="button" data-testid="custom-unlock" @click="promptPassword">
+            Custom unlock {{ incorrect ? 'again' : '' }}
+          </button>
+        </template>
+      </InkViewport>
+    </template>
   </InkRoot>
 </template>

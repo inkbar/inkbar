@@ -543,9 +543,13 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     const locked = passwordPrompt ? lockedStatus(error) : null
     if (!locked) prompt.reset()
     setStatus(locked ?? { state: 'error', error })
-    onError?.(error)
-    // `onError` may have opened another document already.
-    if (locked && load === loads) prompt.locked()
+    try {
+      onError?.(error)
+    } finally {
+      // `onError` may have opened another document already. One that throws still leaves the
+      // prompt ready for the next try.
+      if (locked && load === loads) prompt.locked()
+    }
   }
 
   /** A new source: the prompt starts over. */

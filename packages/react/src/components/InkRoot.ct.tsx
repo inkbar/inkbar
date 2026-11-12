@@ -295,6 +295,42 @@ test.describe('locked files', () => {
     await expect(dialog(page)).toBeVisible()
   })
 
+  test('Cancel focuses the first control of the locked render prop', async ({
+    mount,
+    page,
+  }) => {
+    await mount(<PasswordHarness src={encrypted} assets={assets} customLocked />)
+    await expect(dialog(page)).toBeVisible()
+    await dialog(page).getByRole('button', { name: 'Cancel' }).click()
+    await expect(dialog(page)).toHaveCount(0)
+    await expect(page.getByTestId('custom-unlock')).toBeFocused()
+  })
+
+  test('a retry batched with a new source does not hand it the typed password', async ({
+    mount,
+    page,
+  }) => {
+    // Both files open with "inkbar": the new one stays locked only if the typed try was dropped.
+    const cmp = await mount(
+      <PasswordHarness
+        src={encrypted}
+        assets={assets}
+        switchOnSubmit={fixtureUrl('encrypted-rc4')}
+      />
+    )
+    await expect(dialog(page)).toBeVisible()
+    await enter(page, 'inkbar')
+    await expect(cmp.getByTestId('error-codes')).toHaveText(
+      'PasswordRequired,PasswordRequired'
+    )
+    await expect(cmp.getByTestId('status')).toHaveText('locked:false')
+    await expect(dialog(page)).toBeVisible()
+    await expect(dialog(page).locator('.ink-password-error')).toHaveCount(0)
+    // Not stuck pending: the new file's own try opens it.
+    await enter(page, 'inkbar')
+    await expect(cmp).toHaveAttribute('data-state', 'ready')
+  })
+
   test('a retry under StrictMode fetches the file once', async ({ mount, page }) => {
     let fetches = 0
     await page.route('**/fixtures/encrypted-aes.pdf', async (route) => {

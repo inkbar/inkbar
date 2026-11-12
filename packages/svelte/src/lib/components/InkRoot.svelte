@@ -302,6 +302,8 @@
   let attempt = $state(0)
   /** The `attempt` the last fetch started for; an effect run for any other cause is a new source. */
   let startedAttempt = 0
+  /** The source identity and host password of the last run, to tell a new source from a retry. */
+  let lastSource: { identity: unknown; password: string | undefined } | null = null
   const prompt: PasswordPrompt = createPasswordPrompt((typed) => {
     retryPassword = typed
     attempt += 1
@@ -313,11 +315,15 @@
     return typed
   }
   $effect(() => {
-    void sourceIdentity
+    const id = sourceIdentity
     const pw = sourcePassword
     const tried = attempt
-    // A new source or password from the host: the prompt starts over.
-    if (tried === startedAttempt) {
+    // A new source or password from the host: the prompt starts over, even when a retry landed
+    // in the same flush, so the typed password never reaches the new source.
+    const newSource =
+      lastSource === null || lastSource.identity !== id || lastSource.password !== pw
+    lastSource = { identity: id, password: pw }
+    if (newSource || tried === startedAttempt) {
       retryPassword = null
       untrack(() => prompt.reset())
     }
@@ -330,6 +336,7 @@
     untrack(() => snapshotHistory.clear())
     const source = untrack(() => src)
     if (source === null) {
+      retryPassword = null
       override = null
       return
     }

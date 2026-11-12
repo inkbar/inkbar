@@ -245,6 +245,73 @@ test.describe('locked files', () => {
     await expect(dialog(page)).toHaveCount(0)
   })
 
+  test('a new locked source opens the prompt fresh', async ({ mount, page }) => {
+    const props = { src: encrypted, assets }
+    const cmp = await mount(PasswordHarness, { props })
+    await enter(page, 'nope')
+    await expect(dialog(page).locator('.ink-password-error')).toBeVisible()
+    await expect(cmp.getByTestId('status')).toHaveText(
+      '{"state":"locked","incorrect":true}'
+    )
+    await cmp.update({ props: { ...props, src: fixtureUrl('encrypted-rc4') } })
+    await expect(cmp.getByTestId('status')).toHaveText(
+      '{"state":"locked","incorrect":false}'
+    )
+    await expect(dialog(page)).toBeVisible()
+    await expect(dialog(page).locator('.ink-password-error')).toHaveCount(0)
+    await expect(field(page)).toHaveAttribute('aria-invalid', 'false')
+  })
+
+  test('a cancel during a retry does not steal focus for the next locked source', async ({
+    mount,
+    page,
+  }) => {
+    const props = { src: encrypted, assets }
+    const cmp = await mount(PasswordHarness, { props })
+    await enter(page, 'nope')
+    await expect(dialog(page).locator('.ink-password-error')).toBeVisible()
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    await page.route('**/fixtures/encrypted-aes.pdf', async (route) => {
+      await gate
+      await route.continue()
+    })
+    try {
+      await enter(page, 'again')
+      await expect(cmp).toHaveAttribute('data-state', 'loading')
+      await page.keyboard.press('Escape')
+      await expect(dialog(page)).toHaveCount(0)
+      await page.evaluate(() => {
+        const w = window as Window & { stolen?: number }
+        w.stolen = 0
+        document.addEventListener('focusin', (e) => {
+          if ((e.target as Element).matches('[data-ink-unlock]')) w.stolen!++
+        })
+      })
+      await cmp.update({ props: { ...props, src: fixtureUrl('encrypted-rc4') } })
+      await expect(cmp.getByTestId('status')).toHaveText(
+        '{"state":"locked","incorrect":false}'
+      )
+      await expect(dialog(page)).toBeVisible()
+      await expect(field(page)).toBeFocused()
+      expect(
+        await page.evaluate(() => (window as Window & { stolen?: number }).stolen)
+      ).toBe(0)
+    } finally {
+      release()
+    }
+  })
+
+  test('Cancel focuses the first control of the locked slot', async ({ mount, page }) => {
+    await mount(PasswordHarness, {
+      props: { src: encrypted, assets, customLocked: true },
+    })
+    await expect(dialog(page)).toBeVisible()
+    await dialog(page).getByRole('button', { name: 'Cancel' }).click()
+    await expect(dialog(page)).toHaveCount(0)
+    await expect(page.getByTestId('custom-unlock')).toBeFocused()
+  })
+
   test('the locked slot replaces the panel', async ({ mount, page }) => {
     const cmp = await mount(PasswordHarness, {
       props: { src: encrypted, assets, customLocked: true },

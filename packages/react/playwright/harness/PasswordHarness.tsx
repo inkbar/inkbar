@@ -13,6 +13,8 @@ export interface PasswordHarnessProps {
   passwordPrompt?: boolean | undefined
   /** Renders the viewport's `locked` prop with a button that calls `promptPassword`. */
   customLocked?: boolean | undefined
+  /** Switches to this source from the dialog's own submit, in the same batch as the retry. */
+  switchOnSubmit?: DocumentSource | undefined
 }
 
 function Tree({
@@ -21,13 +23,15 @@ function Tree({
   password,
   passwordPrompt,
   customLocked,
+  switchOnSubmit,
 }: PasswordHarnessProps) {
   // Playwright serialises callback arguments without an Error's own properties, so the codes
   // go in the DOM.
   const [codes, setCodes] = useState<string[]>([])
+  const [switched, setSwitched] = useState<DocumentSource | null>(null)
   return (
     <InkRoot
-      src={src}
+      src={switched ?? src}
       assets={assets}
       password={password}
       passwordPrompt={passwordPrompt}
@@ -39,7 +43,11 @@ function Tree({
             {status.state === 'locked' ? `locked:${status.incorrect}` : status.state}
           </output>
           <output data-testid="error-codes">{codes.join(',')}</output>
-          <div style={{ height: 700, width: 900 }}>
+          {/* The dialog's portal still bubbles React events here, after its own submit. */}
+          <div
+            style={{ height: 700, width: 900 }}
+            onSubmit={switchOnSubmit ? () => setSwitched(switchOnSubmit) : undefined}
+          >
             <InkViewport
               {...(customLocked
                 ? {
