@@ -50,6 +50,7 @@ jobs:
           cache: pnpm
       - uses: ./.github/actions/setup-qpdf
       - run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/turbo-cache
       - run: pnpm format:check
       - if: needs.changes.outputs.code == 'true'
         run: pnpm lint
@@ -86,6 +87,9 @@ jobs:
       - uses: ./.github/actions/setup-qpdf
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @inkbar/core exec playwright install chromium
+      - uses: ./.github/actions/turbo-cache
+        with:
+          name: browser-${{ matrix.package }}${{ matrix.shard && format('-{0}', matrix.shard) || '' }}
       - env:
           PACKAGE: ${{ matrix.package }}
           SHARD: ${{ matrix.shard }}

@@ -1,6 +1,13 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalDependencies": ["eslint.config.js", ".prettierrc.mjs", "tsconfig.base.json"],
+  "globalDependencies": [
+    "eslint.config.js",
+    ".prettierrc.mjs",
+    "tsconfig.base.json",
+    ".nvmrc",
+    ".github/actions/setup-qpdf/action.yml"
+  ],
+  "globalEnv": ["CI"],
   "tasks": {
     "build": { "dependsOn": ["^build"], "outputs": ["dist/**"], "env": ["SANDBOX_BASE"] },
     "typecheck": { "dependsOn": ["^build"] },

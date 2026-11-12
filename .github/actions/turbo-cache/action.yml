@@ -1,0 +1,27 @@
+name: Turbo cache
+description: >-
+  Restores turbo's local cache from earlier runs and saves it when the job ends, so tasks whose
+  inputs haven't changed replay their logs and outputs instead of running. Pull requests read the
+  caches main saves, and each pull request keeps its own.
+
+inputs:
+  name:
+    description: Which job's cache this is. Jobs that run different tasks keep separate caches.
+    default: ${{ github.job }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/cache@v4
+      with:
+        path: .turbo/cache
+        key: turbo-${{ inputs.name }}-${{ github.sha }}
+        restore-keys: turbo-${{ inputs.name }}-
+    # Turbo never removes entries, so a cache restored and saved on every run would only grow.
+    # Entries older than a week go; one still in use runs once more and is saved afresh.
+    - shell: bash
+      run: |
+        if [ -d .turbo/cache ]; then
+          find .turbo/cache -type f -mtime +7 -delete
+          du -sh .turbo/cache
+        fi
