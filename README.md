@@ -220,7 +220,11 @@ PDF.js is imported only under `packages/core/src/pdfjs/`. Every coordinate is in
 
 ### Contributing
 
-Open a pull request against `main`. Pull requests are squash merged and the title becomes the commit message, so write it as a [Conventional Commit](https://www.conventionalcommits.org/) such as `feat(vue): expose the page count` or `fix(core): keep the selection after a zoom`. Commits carry the title only, with no body. [release-please](https://github.com/googleapis/release-please) cuts each release from those titles.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Pull request titles are [Conventional Commits](https://www.conventionalcommits.org/), and [release-please](https://github.com/googleapis/release-please) cuts each release from them.
+
+## Accessibility
+
+Inkbar aims for WCAG 2.2 AA. [ACCESSIBILITY.md](ACCESSIBILITY.md) lists what works, the known gaps, and how to report a problem.
 
 ## Licence
 

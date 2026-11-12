@@ -1,0 +1,31 @@
+name: Accessibility problem
+description: Something you can't do with a keyboard, screen reader or other assistive technology.
+labels: [accessibility]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you were trying to do, and what got in the way.
+    validations:
+      required: true
+  - type: input
+    id: tech
+    attributes:
+      label: Assistive technology
+      placeholder: e.g. VoiceOver on macOS 26, NVDA 2026.3, keyboard only
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and operating system
+      placeholder: e.g. Firefox 145 on Windows 11
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: Where
+      description: The sandbox, or the package and version your app uses.
+      placeholder: e.g. sandbox.inkbar.dev, or @inkbar/vue 0.13.0

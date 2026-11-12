@@ -1,0 +1,56 @@
+name: Bug report
+description: Something in the viewer or editor doesn't work as documented.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you saw instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: A link to a repository or a StackBlitz that shows the bug helps most.
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: dropdown
+    id: package
+    attributes:
+      label: Package
+      multiple: true
+      options:
+        - '@inkbar/core'
+        - '@inkbar/vue'
+        - '@inkbar/react'
+        - '@inkbar/svelte'
+        - '@inkbar/theme'
+        - '@inkbar/icons'
+        - The sandbox (sandbox.inkbar.dev)
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: e.g. 0.13.0
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and operating system
+      placeholder: e.g. Safari 26 on iPadOS 26
+    validations:
+      required: true
+  - type: textarea
+    id: pdf
+    attributes:
+      label: PDF
+      description: If the bug depends on the file, attach a PDF that shows it. Don't attach anything private.

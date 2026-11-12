@@ -1,0 +1,16 @@
+name: Feature request
+description: Suggest something new for the viewer or editor.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you're trying to do
+      description: The task you can't do today, or the part that's harder than it should be.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help
+      description: How you'd like it to work. Sketches and examples from other tools are welcome.
