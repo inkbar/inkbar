@@ -20,7 +20,7 @@
 
 ---
 
-`@inkbar/theme` styles the viewer and what it draws over pages (annotations, form fields, search matches), the toolbar controls and menus, sidebars and thumbnails, the find bar and search results, the signature dialog, note threads, and plugin cards and command buttons, from `@inkbar/vue`, `@inkbar/react`, `@inkbar/svelte` and `createViewer` in `@inkbar/core`. Import it and ship, or override any part of it with your own CSS. If your app already defines shadcn tokens, the theme picks up your colours and radius.
+`@inkbar/theme` styles the viewer and what it draws over pages (annotations, form fields, search matches), the toolbar controls and menus, sidebars and thumbnails, the find bar and search results, the signature and password dialogs, the locked file panel, note threads, and plugin cards and command buttons, from `@inkbar/vue`, `@inkbar/react`, `@inkbar/svelte` and `createViewer` in `@inkbar/core`. Import it and ship, or override any part of it with your own CSS. If your app already defines shadcn tokens, the theme picks up your colours and radius.
 
 ## Install
 

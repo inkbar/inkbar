@@ -54,7 +54,7 @@ Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, gi
 | Drawing     | Freehand ink, shapes, lines, arrows, speech bubbles, loupes, masks and text boxes                                                             |
 | Annotations | JSON export and import, and the PDF's own annotations shown as locked                                                                         |
 | History     | Undo and redo with grouped steps, whether Inkbar or your app holds the annotations                                                            |
-| Files       | Download and print the open PDF                                                                                                               |
+| Files       | Download and print the open PDF, and a password prompt for locked files                                                                       |
 | Touch       | Pinch zoom, drawing with a finger, and press and long press events for plugins                                                                |
 | Plugins     | Add commands, tools, page layers, marks and records from a plugin                                                                             |
 
@@ -63,7 +63,7 @@ Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, gi
 - **Saving into the PDF.** Store `exportAnnotations('json')` in your own backend and import it on the next open. Download and print give the file as it was opened.
 - **Applying redactions.** A redaction mark is a tinted box over the content. The text under it still renders and can be copied. Inkbar will remove content once saving into the PDF ships.
 - **Saving field values into the PDF.** Values stay in memory. Export them with the annotations.
-- **XFA forms, translations and a password prompt.** The [docs](https://inkbar.dev/docs/) say what to do meanwhile.
+- **XFA forms and translations.** The [docs](https://inkbar.dev/docs/) say what to do meanwhile.
 
 ## Install
 
