@@ -14,7 +14,32 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Whether a pull request changes anything but Markdown. One that doesn't skips lint, typecheck
+  # and the browser suites; it still checks formatting and runs the unit tests, which read some
+  # READMEs. Pushes to main always run everything.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The pull request's merge commit and its first parent, the base it merges into.
+          fetch-depth: 2
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" != pull_request ]; then
+            echo code=true >> "$GITHUB_OUTPUT"
+          elif git diff --name-only HEAD^1 HEAD | grep -qvE '\.md$'; then
+            echo code=true >> "$GITHUB_OUTPUT"
+          else
+            echo code=false >> "$GITHUB_OUTPUT"
+          fi
+
   test:
+    needs: changes
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,21 +50,33 @@ jobs:
           cache: pnpm
       - uses: ./.github/actions/setup-qpdf
       - run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/turbo-cache
       - run: pnpm format:check
-      - run: pnpm lint
-      - run: pnpm typecheck
+      - if: needs.changes.outputs.code == 'true'
+        run: pnpm lint
+      - if: needs.changes.outputs.code == 'true'
+        run: pnpm typecheck
       - run: pnpm build
       - run: pnpm test
 
-  # One runner per suite. The e2e suites measure frame times, so nothing else may compete for
-  # their runner's CPU.
+  # One runner per suite, and three for the sandbox's, the longest. The e2e suites measure frame
+  # times, so nothing else may compete for their runner's CPU.
   browser-suite:
-    name: browser (${{ matrix.package }})
+    name: browser (${{ matrix.package }}${{ matrix.shard && format(' {0}/3', matrix.shard) || '' }})
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        package: [core, vue, react, svelte, sandbox, e2e-vue, e2e-react, e2e-svelte]
+        package: [core, vue, react, svelte, e2e-vue, e2e-react, e2e-svelte]
+        include:
+          - package: sandbox
+            shard: 1
+          - package: sandbox
+            shard: 2
+          - package: sandbox
+            shard: 3
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -49,12 +86,31 @@ jobs:
           cache: pnpm
       - uses: ./.github/actions/setup-qpdf
       - run: pnpm install --frozen-lockfile
+      # Chromium is the same download on every runner until Playwright's version changes. The
+      # install still runs on a cache hit: it finds the browser in place and finishes at once.
+      - id: playwright
+        run: echo "version=$(pnpm --filter @inkbar/core exec playwright --version)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
       - run: pnpm --filter @inkbar/core exec playwright install chromium
-      - run: pnpm exec turbo run test:browser --filter=@inkbar/${{ matrix.package }}
+      - uses: ./.github/actions/turbo-cache
+        with:
+          name: browser-${{ matrix.package }}${{ matrix.shard && format('-{0}', matrix.shard) || '' }}
+      - env:
+          PACKAGE: ${{ matrix.package }}
+          SHARD: ${{ matrix.shard }}
+        run: |
+          if [ -n "$SHARD" ]; then
+            pnpm exec turbo run test:browser --filter="@inkbar/$PACKAGE" -- --shard="$SHARD/3"
+          else
+            pnpm exec turbo run test:browser --filter="@inkbar/$PACKAGE"
+          fi
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: browser-test-results-${{ matrix.package }}
+          name: browser-test-results-${{ matrix.package }}${{ matrix.shard && format('-{0}', matrix.shard) || '' }}
           # Vitest browser mode writes failure screenshots under .vitest/attachments/.
           path: |
             packages/*/.vitest/attachments
@@ -65,12 +121,16 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # The ruleset on main requires a check named "browser"; it passes when every suite does.
+  # The ruleset on main requires a check named "browser"; it passes when every suite does, or
+  # when a Markdown-only pull request skipped them.
   browser:
-    needs: browser-suite
+    needs: [changes, browser-suite]
     # always(): a skipped required check counts as passed, so this job must run and fail.
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
-      - if: needs.browser-suite.result != 'success'
+      - if: >-
+          needs.changes.result != 'success' ||
+          (needs.browser-suite.result != 'success' &&
+          !(needs.browser-suite.result == 'skipped' && needs.changes.outputs.code == 'false'))
         run: exit 1
