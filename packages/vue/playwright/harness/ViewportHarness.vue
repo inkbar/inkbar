@@ -25,10 +25,11 @@ const props = withDefaults(
     failPage?: number | undefined
     /** Zero-based page whose text content fails to load (its canvas still renders). */
     failText?: number | undefined
+    passwordPrompt?: boolean | undefined
   }>(),
   // An absent boolean prop is false in Vue. Undefined instead, so it can be left off the
   // viewport and the viewport's own default applies.
-  { pinchZoom: undefined }
+  { pinchZoom: undefined, passwordPrompt: undefined }
 )
 const emit = defineEmits<{ 'update:zoom': [z: ZoomValue]; 'update:page': [p: number] }>()
 const clicks = ref(0)
@@ -79,6 +80,7 @@ function onReady(doc: InkDocument): void {
       :zoom="zoom"
       :page="page"
       :tool="tool"
+      :password-prompt="passwordPrompt"
       :decorate-annotation="decorate"
       @update:zoom="emit('update:zoom', $event)"
       @update:page="emit('update:page', $event)"

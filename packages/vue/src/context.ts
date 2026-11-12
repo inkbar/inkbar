@@ -15,6 +15,7 @@ import type {
 import type {
   DecorateAnnotation,
   Navigation,
+  PasswordPrompt,
   PluginHost,
   SearchController,
   Tool,
@@ -53,6 +54,11 @@ export interface InkContext {
   document: Readonly<ShallowRef<InkDocument | null>>
   /** `loading` from the moment a document starts opening, then the document's own status. */
   status: Readonly<Ref<InkStatus>>
+  /**
+   * The dialog's state machine for a locked file; `null` when InkRoot's `passwordPrompt` is
+   * false. InkViewport drives its dialog from it.
+   */
+  passwordPrompt: Readonly<Ref<PasswordPrompt | null>>
   annotations: Readonly<Ref<readonly Annotation[]>>
   selection: Readonly<Ref<readonly string[]>>
   /**

@@ -13,7 +13,9 @@ import {
   attachHistoryKeys,
   createPluginHost,
   createSearchController,
+  createPasswordPrompt,
   createToolOptions,
+  lockedStatus,
   handleFindKey,
   pageSelectionText,
   viewerSearchOf,
@@ -74,6 +76,11 @@ const props = withDefaults(
     src: DocumentSource | null
     assets: PdfAssets
     password?: string | undefined
+    /**
+     * Ask the reader for the password of a locked file. Default true. False: a locked file is
+     * an error with code `PasswordRequired`, as before.
+     */
+    passwordPrompt?: boolean | undefined
     /** Colour defaults. Without it, the theme's CSS variables on the root element apply. */
     defaults?: AnnotationDefaults | undefined
     /**
@@ -141,6 +148,7 @@ const props = withDefaults(
   }>(),
   {
     password: undefined,
+    passwordPrompt: true,
     defaults: undefined,
     annotations: undefined,
     fields: undefined,
@@ -236,6 +244,8 @@ function setTestHook(doc: InkDocument | undefined): void {
 }
 
 let generation = 0
+/** The dialog's state machine. A submitted password goes straight to a retry of `src`. */
+const prompt = createPasswordPrompt((password) => void open(password))
 let stopFormErrors: () => void = noop
 function release(): void {
   stopFormErrors()
@@ -247,7 +257,14 @@ function release(): void {
   setTestHook(undefined)
 }
 
-async function open(): Promise<void> {
+/** A new source or password from the host: the prompt starts over. */
+function start(): void {
+  prompt.reset()
+  void open()
+}
+
+/** `retryPassword` is the reader's, from the prompt: used for this load only. */
+async function open(retryPassword?: string): Promise<void> {
   const gen = ++generation
   const src = props.src
   release()
@@ -262,7 +279,7 @@ async function open(): Promise<void> {
   try {
     doc = await openDocument(src, {
       assets: props.assets,
-      password: props.password,
+      password: retryPassword ?? props.password,
       defaults:
         props.defaults ?? (rootEl.value ? cssVariableDefaults(rootEl.value) : undefined),
       // Controlled hosts get the ref history below; core's own stack stays off.
@@ -296,8 +313,8 @@ async function open(): Promise<void> {
             {},
             cause
           )
-    override.value = { state: 'error', error }
-    emit('error', error)
+    // `error` may have opened another document already.
+    if (fail(error) && gen === generation) prompt.locked()
     return
   }
   if (gen !== generation) {
@@ -321,11 +338,27 @@ async function open(): Promise<void> {
   override.value = null
   setTestHook(doc)
   const s = doc.status.get()
-  if (s.state === 'ready') emit('ready', doc)
-  else if (s.state === 'error') emit('error', s.error)
+  if (s.state === 'ready') {
+    prompt.reset()
+    emit('ready', doc)
+  } else if (s.state === 'error') {
+    if (fail(s.error, true) && gen === generation) prompt.locked()
+  }
   const early = held
   held = undefined
   if (gen === generation) for (const e of early) emit('error', e)
+}
+
+/**
+ * A failed open: the locked status when the prompt is on and the file is locked (the prompt is
+ * told once `error` has gone out), else an error.
+ */
+function fail(error: InkError, keepDocument = false): boolean {
+  const locked = props.passwordPrompt ? lockedStatus(error) : null
+  if (!locked) prompt.reset()
+  if (locked || !keepDocument) override.value = locked ?? { state: 'error', error }
+  emit('error', error)
+  return locked !== null
 }
 
 const refHistory = createRefHistory({
@@ -479,13 +512,13 @@ onMounted(() => {
     setUpPlugins()
   } finally {
     mounted.value = true
-    void open()
+    start()
   }
 })
 onUpdated(syncRootEl)
 
 // Separate sources, so a new `{ url, key }` object with the same key compares equal.
-watch([() => identity(props.src), () => props.password], () => void open())
+watch([() => identity(props.src), () => props.password], start)
 
 watch(
   () => props.annotations,
@@ -569,6 +602,7 @@ void signatures.refresh()
 const toolOptions = createToolOptions()
 
 provideInkContext({
+  passwordPrompt: computed(() => (props.passwordPrompt ? prompt : null)),
   assets: computed(() => props.assets),
   document,
   status,
