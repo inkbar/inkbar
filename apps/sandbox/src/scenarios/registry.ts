@@ -10,6 +10,7 @@ export type ScenarioId =
   | 'search'
   | 'sidebars'
   | 'outline'
+  | 'locked'
   | 'events'
 
 export interface Scenario {
@@ -102,6 +103,14 @@ export const SCENARIOS: readonly Scenario[] = [
     blurb:
       'Jump around a long document from its outline, its table of contents, its index and its cross-references.',
     document: 'handbook',
+    panels: ['events'],
+  },
+  {
+    id: 'locked',
+    title: 'Open a locked file',
+    blurb:
+      'A password-protected PDF. Inkbar asks for the password before it opens. The password is "inkbar".',
+    document: 'locked',
     panels: ['events'],
   },
   {

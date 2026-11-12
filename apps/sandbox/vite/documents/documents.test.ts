@@ -44,12 +44,20 @@ const count = (text: string, word: string): number =>
 void test('every document builds and parses', async () => {
   assert.deepEqual(
     [...DOCUMENT_NAMES],
-    ['tour', 'letter', 'form', 'redactions', 'long', 'handbook']
+    ['tour', 'letter', 'form', 'redactions', 'long', 'handbook', 'locked']
   )
   for (const doc of DOCUMENT_NAMES) {
+    // An encrypted file can't go through PDFDocument.load; the next test covers it.
+    if (doc === 'locked') continue
     const d = await load(doc)
     assert.ok(d.getPageCount() > 0, `${doc} has no pages`)
   }
+})
+
+void test('locked is an encrypted PDF', async () => {
+  const bytes = await makeDocument('locked')
+  assert.equal(new TextDecoder().decode(bytes.subarray(0, 5)), '%PDF-')
+  assert.ok(Buffer.from(bytes).includes('/Encrypt'), 'no /Encrypt')
 })
 
 void test('the same bytes come back for the same build', async () => {

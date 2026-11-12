@@ -27,6 +27,7 @@ const SCENARIO_TITLES = [
   'Search a long document',
   'Sidebars',
   'Outline and links',
+  'Open a locked file',
   'Press and long press',
 ]
 
