@@ -1,7 +1,7 @@
 import { browserAssets, fixtureUrl } from '@inkbar/fixtures/urls'
 import { flushSync } from 'svelte'
-import { describe, expect, it } from 'vitest'
-import { page as browserPage } from 'vitest/browser'
+import { describe, expect, it, vi } from 'vitest'
+import { page as browserPage, userEvent } from 'vitest/browser'
 import { render } from 'vitest-browser-svelte'
 
 import InkRoot from '../lib/components/InkRoot.svelte'
@@ -11,6 +11,7 @@ import { attr, count, gateFetch, q, sleep } from './dom.js'
 import BoundHost from './harness/BoundHost.svelte'
 import ControlledHost from './harness/ControlledHost.svelte'
 import EventHost from './harness/EventHost.svelte'
+import PasswordHarness from './harness/PasswordHarness.svelte'
 import PluginHarness from './harness/PluginHarness.svelte'
 import ToolbarHarness from './harness/ToolbarHarness.svelte'
 import ToolSetHarness from './harness/ToolSetHarness.svelte'
@@ -83,12 +84,16 @@ describe('InkRoot', () => {
 
   // React: 'calls onError with the code for an encrypted file and opens with the password'
   it('calls onError with the code for an encrypted file and opens with the password', async () => {
-    const screen = await render(EventHost, { src: fixtureUrl('encrypted-aes'), assets })
+    const screen = await render(EventHost, {
+      src: fixtureUrl('encrypted-aes'),
+      assets,
+      passwordPrompt: false,
+    })
     await expect.poll(attr('[data-ink-root]', 'data-state')).toBe('error')
     await expect
       .element(screen.getByTestId('error-codes'))
       .toHaveTextContent('PasswordRequired')
-    await screen.rerender({ password: 'inkbar' })
+    await screen.rerender({ password: 'inkbar', passwordPrompt: false })
     await expect.poll(attr('[data-ink-root]', 'data-state')).toBe('ready')
     await expect
       .element(screen.getByTestId('error-codes'))
@@ -104,6 +109,7 @@ describe('InkRoot', () => {
       assets,
       bytesFrom: fixtureUrl('encrypted-aes'),
       password: 'wrong',
+      passwordPrompt: false,
     })
     await expect.poll(attr('[data-ink-root]', 'data-state')).toBe('error')
     await expect
@@ -112,7 +118,7 @@ describe('InkRoot', () => {
     await expect
       .element(screen.getByTestId('byte-length'))
       .toHaveTextContent(String(size))
-    await screen.rerender({ password: 'inkbar' })
+    await screen.rerender({ password: 'inkbar', passwordPrompt: false })
     await expect.poll(attr('[data-ink-root]', 'data-state')).toBe('ready')
     await expect
       .element(screen.getByTestId('error-codes'))
@@ -120,6 +126,199 @@ describe('InkRoot', () => {
     await expect
       .element(screen.getByTestId('byte-length'))
       .toHaveTextContent(String(size))
+  })
+
+  describe('locked files', () => {
+    const encrypted = fixtureUrl('encrypted-aes')
+    const dialog = () => document.querySelector<HTMLElement>('[data-ink-password-dialog]')
+    const field = () => dialog()?.querySelector<HTMLInputElement>('.ink-password-input')
+    const alertEl = () => dialog()?.querySelector('.ink-password-error') ?? null
+    const rootState = attr('[data-ink-root]', 'data-state')
+    const enter = async (password: string): Promise<void> => {
+      const input = await vi.waitUntil(() => field())
+      await userEvent.fill(browserPage.elementLocator(input), password)
+      await userEvent.keyboard('{Enter}')
+    }
+    const text = (testId: string) => (): string =>
+      document.querySelector(`[data-testid="${testId}"]`)?.textContent?.trim() ?? ''
+    const open = async (props: Record<string, unknown> = {}) => {
+      const screen = await render(PasswordHarness, { src: encrypted, assets, ...props })
+      await expect.poll(rootState).not.toBe('loading')
+      return screen
+    }
+
+    it('a locked file prompts instead of erroring', async () => {
+      await open()
+      expect(rootState()).toBe('locked')
+      await expect.poll(text('error-codes')).toBe('PasswordRequired')
+      await expect.poll(dialog).not.toBeNull()
+      await expect.poll(() => document.activeElement).toBe(field())
+      expect(field()!.type).toBe('password')
+      expect(field()!.getAttribute('autocomplete')).toBe('off')
+      expect(alertEl()).toBeNull()
+      expect(count('.ink-error')()).toBe(0)
+      expect(attr('[data-ink-viewport-root]', 'data-state')()).toBe('locked')
+    })
+
+    it('the right password opens it', async () => {
+      await open()
+      await enter('inkbar')
+      await expect.poll(rootState).toBe('ready')
+      await expect.poll(dialog).toBeNull()
+      expect(count('.ink-locked')()).toBe(0)
+      expect(text('error-codes')()).toBe('PasswordRequired')
+      // The unlock button and the dialog are gone: the document has focus.
+      await expect
+        .poll(() => document.activeElement)
+        .toBe(document.querySelector('[data-ink-scroll]'))
+    })
+
+    it('a wrong password keeps the dialog open and is announced each time', async () => {
+      await open()
+      await enter('nope')
+      await expect
+        .poll(() => alertEl()?.textContent?.trim())
+        .toBe('Incorrect password. Try again.')
+      const first = alertEl()!
+      expect(first.getAttribute('role')).toBe('alert')
+      expect(field()!.value).toBe('')
+      await expect.poll(() => document.activeElement).toBe(field())
+      expect(field()!.getAttribute('aria-invalid')).toBe('true')
+      expect(field()!.getAttribute('aria-describedby')).toBeTruthy()
+      await expect.poll(text('error-codes')).toBe('PasswordRequired,PasswordRequired')
+      // A second wrong try inserts a new alert element.
+      await enter('nope again')
+      await expect
+        .poll(text('error-codes'))
+        .toBe('PasswordRequired,PasswordRequired,PasswordRequired')
+      await expect.poll(() => alertEl() !== first && alertEl() !== null).toBe(true)
+      // Not stuck pending.
+      await enter('inkbar')
+      await expect.poll(rootState).toBe('ready')
+      await expect.poll(dialog).toBeNull()
+      await expect
+        .poll(() => document.activeElement)
+        .toBe(document.querySelector('[data-ink-scroll]'))
+    })
+
+    it('Open is disabled while the field is empty', async () => {
+      await open()
+      await expect.poll(dialog).not.toBeNull()
+      const submit = dialog()!.querySelector<HTMLButtonElement>('button[type="submit"]')!
+      expect(submit.disabled).toBe(true)
+      await userEvent.fill(browserPage.elementLocator(field()!), 'x')
+      expect(submit.disabled).toBe(false)
+    })
+
+    it('cancel shows the locked panel and the button reopens', async () => {
+      await open()
+      await expect.poll(dialog).not.toBeNull()
+      await userEvent.keyboard('{Escape}')
+      await expect.poll(dialog).toBeNull()
+      const unlock = await q('[data-ink-unlock]')
+      await expect.poll(() => document.activeElement).toBe(unlock)
+      expect(attr('.ink-locked', 'role')()).toBe('status')
+      expect(document.querySelector('.ink-locked-title')!.textContent).toBe(
+        'This document is password protected.'
+      )
+      expect(unlock.textContent?.trim()).toBe('Enter password')
+      expect(rootState()).toBe('locked')
+      unlock.click()
+      await expect.poll(dialog).not.toBeNull()
+      await expect.poll(() => document.activeElement).toBe(field())
+    })
+
+    it('a wrong try then cancel reopens still marked incorrect', async () => {
+      await open()
+      await enter('nope')
+      await expect.poll(alertEl).not.toBeNull()
+      dialog()!
+        .querySelector<HTMLButtonElement>('.ink-dialog-actions button[type="button"]')!
+        .click()
+      await expect.poll(dialog).toBeNull()
+      const unlock = await q('[data-ink-unlock]')
+      await expect.poll(() => document.activeElement).toBe(unlock)
+      unlock.click()
+      await expect.poll(alertEl).not.toBeNull()
+    })
+
+    it('a wrong host password opens the prompt marked incorrect', async () => {
+      await open({ password: 'nope' })
+      expect(rootState()).toBe('locked')
+      await expect
+        .poll(() => alertEl()?.textContent?.trim())
+        .toBe('Incorrect password. Try again.')
+    })
+
+    it("passwordPrompt false keeps today's error", async () => {
+      await open({ passwordPrompt: false })
+      expect(rootState()).toBe('error')
+      expect(text('error-codes')()).toBe('PasswordRequired')
+      expect(count('.ink-error')()).toBe(1)
+      expect(dialog()).toBeNull()
+    })
+
+    it('a new source closes the dialog', async () => {
+      const screen = await open()
+      await expect.poll(dialog).not.toBeNull()
+      await screen.rerender({ src: fixtureUrl('text-simple') })
+      await expect.poll(rootState).toBe('ready')
+      await expect.poll(dialog).toBeNull()
+    })
+
+    it('a new locked source opens the prompt fresh', async () => {
+      const screen = await open()
+      await enter('nope')
+      await expect.poll(alertEl).not.toBeNull()
+      await expect.poll(text('status')).toBe('locked:true')
+      await screen.rerender({ src: fixtureUrl('encrypted-rc4') })
+      await expect.poll(text('status')).toBe('locked:false')
+      await expect.poll(dialog).not.toBeNull()
+      expect(alertEl()).toBeNull()
+      expect(field()!.getAttribute('aria-invalid')).toBe('false')
+    })
+
+    it('a cancel during a retry does not steal focus for the next locked source', async () => {
+      const screen = await open()
+      await enter('nope')
+      await expect.poll(alertEl).not.toBeNull()
+      const gate = gateFetch('encrypted-aes.pdf')
+      try {
+        await enter('again')
+        await expect.poll(rootState).toBe('loading')
+        await userEvent.keyboard('{Escape}')
+        await expect.poll(dialog).toBeNull()
+        const stolen: Element[] = []
+        const watch = (e: FocusEvent): void => {
+          if ((e.target as Element).matches('[data-ink-unlock]'))
+            stolen.push(e.target as Element)
+        }
+        document.addEventListener('focusin', watch)
+        try {
+          await screen.rerender({ src: fixtureUrl('encrypted-rc4') })
+          await expect.poll(text('status')).toBe('locked:false')
+          await expect.poll(dialog).not.toBeNull()
+          await expect.poll(() => document.activeElement).toBe(field())
+          expect(stolen).toEqual([])
+        } finally {
+          document.removeEventListener('focusin', watch)
+        }
+      } finally {
+        gate.release()
+        gate.restore()
+      }
+    })
+
+    it('the locked snippet replaces the panel', async () => {
+      await open({ customLocked: true })
+      await expect.poll(dialog).not.toBeNull()
+      await userEvent.keyboard('{Escape}')
+      await expect.poll(dialog).toBeNull()
+      expect(count('[data-ink-unlock]')()).toBe(0)
+      const custom = await q('[data-testid="custom-unlock"]')
+      custom.click()
+      await expect.poll(dialog).not.toBeNull()
+    })
   })
 
   // React: 'calls onError when the file fails to load after openDocument resolves'

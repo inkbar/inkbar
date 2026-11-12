@@ -19,6 +19,11 @@
     loading?: Snippet | undefined
     empty?: Snippet | undefined
     error?: Snippet<[{ error: InkError }]> | undefined
+    /**
+     * Replaces the panel shown for a locked file while its dialog is closed. `promptPassword`
+     * opens the dialog.
+     */
+    locked?: Snippet<[{ incorrect: boolean; promptPassword: () => void }]> | undefined
     annotation?: Snippet<[AnnotationSlotProps]> | undefined
     /** Shown inside a page that failed to render. The rest of the document stays usable. */
     pageError?: Snippet<[{ error: InkError; page: number }]> | undefined
@@ -41,19 +46,22 @@
    * `InkSignFieldPopover`, and a form script's alert shows in `InkFormAlert`; both are mounted
    * here, so hosts compose nothing for them.
    */
-  import { mountViewer } from '@inkbar/core/dom'
+  import { mountViewer, PASSWORD_LABELS } from '@inkbar/core/dom'
   import { untrack } from 'svelte'
 
   import { useInkContext } from '../context.js'
   import { toolIdsOf } from '../hooks/useRegisteredTool.svelte.js'
+  import { useReadable } from '../use-readable.svelte.js'
 
   import InkFormAlert from './InkFormAlert.svelte'
   import InkPage from './InkPage.svelte'
+  import InkPasswordDialog from './InkPasswordDialog.svelte'
   import InkSignFieldPopover from './InkSignFieldPopover.svelte'
 
   import type { InkDocument, InkStatus } from '@inkbar/core'
   import type {
     PageMount,
+    PasswordPromptState,
     SignFieldRequest,
     ToolId,
     ViewerEngine,
@@ -69,11 +77,14 @@
     loading,
     empty,
     error,
+    locked,
     annotation,
     pageError,
     class: className,
     ...rest
   }: InkViewportProps = $props()
+
+  const IDLE_PROMPT: PasswordPromptState = { asking: false, pending: false }
 
   interface MountedPage {
     /** The engine build the host belongs to; part of the InkPage key. */
@@ -350,6 +361,76 @@
 
   // Not `state`: next to the `$state` rune, Svelte reads that name as a store.
   const viewState = $derived(buildState)
+
+  const prompt = $derived(ctx.passwordPrompt)
+  const promptState = useReadable<PasswordPromptState>(() => prompt?.state, IDLE_PROMPT)
+  /** Whether the last locked result was a wrong password; kept while a retry loads. */
+  let incorrect = $state(false)
+  $effect.pre(() => {
+    const s = ctx.status
+    if (s.state === 'locked') incorrect = s.incorrect
+  })
+
+  // Deriveds, so an effect wakes only when the value itself changes, not the state object.
+  const asking = $derived(promptState.current.asking)
+  const pending = $derived(promptState.current.pending)
+
+  let unlock = $state<HTMLButtonElement | null>(null)
+  /** The reader cancelled: focus goes to the unlock button once it is there. */
+  let focusUnlock = false
+  /** The reader submitted a password: when it opens the document, focus must not be lost. */
+  let unlocking = false
+
+  function cancelPrompt(): void {
+    prompt?.cancel()
+    unlocking = false
+    focusUnlock = true
+  }
+
+  /** The dialog has closed: focus goes to the unlock button, or waits for it (see `focusUnlock`). */
+  function onCloseAutoFocus(e: Event): void {
+    e.preventDefault()
+    if (focusUnlock && unlock) {
+      focusUnlock = false
+      unlock.focus({ preventScroll: true })
+    } else if (unlocking && viewState === 'ready') {
+      // The reader opened the document from the dialog: it takes the focus the dialog held.
+      unlocking = false
+      scroll?.focus({ preventScroll: true })
+    }
+  }
+
+  function submitPassword(password: string): void {
+    unlocking = true
+    prompt?.submit(password)
+  }
+
+  $effect(() => {
+    const st = viewState
+    const isAsking = asking
+    untrack(() => {
+      if (st === 'locked') {
+        // A wrong try leaves the dialog open and the document shut: nothing to move focus to.
+        unlocking = false
+        if (focusUnlock && !isAsking) {
+          focusUnlock = false
+          unlock?.focus({ preventScroll: true })
+        }
+      } else if (st !== 'loading') {
+        // Ready, an error or no source: whatever focus was waiting for is moot.
+        focusUnlock = false
+        if (st !== 'ready') unlocking = false
+      }
+    })
+  })
+  // A new source: the prompt resets while the file loads, so no try is waiting on it.
+  $effect(() => {
+    if (!pending && viewState === 'loading') unlocking = false
+  })
+  // The dialog is open again (the reader asked, or a new locked file): nothing waits to focus.
+  $effect(() => {
+    if (asking) focusUnlock = false
+  })
   const err = $derived(ctx.status.state === 'error' ? ctx.status.error : null)
 </script>
 
@@ -374,6 +455,23 @@
         <p><code class="ink-error-code" title={err.message}>{err.code}</code></p>
       {/if}
     </div>
+  {:else if viewState === 'locked'}
+    <div class="ink-status ink-locked" role="status">
+      {#if locked}
+        {@render locked({ incorrect, promptPassword: () => prompt?.ask() })}
+      {:else}
+        <p class="ink-locked-title">{PASSWORD_LABELS.locked}</p>
+        <button
+          bind:this={unlock}
+          type="button"
+          class="ink-button"
+          data-ink-unlock=""
+          onclick={() => prompt?.ask()}
+        >
+          {PASSWORD_LABELS.unlock}
+        </button>
+      {/if}
+    </div>
   {:else if viewState === 'idle'}
     <div class="ink-status ink-empty">{@render empty?.()}</div>
   {/if}
@@ -387,6 +485,18 @@
     role="document"
     aria-label="Document"
   ></div>
+  {#if prompt}
+    <InkPasswordDialog
+      open={asking}
+      onOpenChange={(next) => {
+        if (!next) cancelPrompt()
+      }}
+      {incorrect}
+      {pending}
+      onSubmit={submitPassword}
+      {onCloseAutoFocus}
+    />
+  {/if}
   {#each pages as p (`${p.build}:${p.page}`)}
     <InkPage
       page={p.page}

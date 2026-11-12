@@ -20,6 +20,7 @@
     pinchZoom,
     customAnnotations = false,
     customLoading = false,
+    passwordPrompt,
     tool,
     decorateAnnotation,
     failPage,
@@ -36,6 +37,7 @@
     pinchZoom?: boolean | undefined
     customAnnotations?: boolean
     customLoading?: boolean
+    passwordPrompt?: boolean | undefined
     tool?: ToolId | undefined
     decorateAnnotation?: DecorateAnnotation | undefined
     /** Zero-based page whose page lookups reject until the Heal button is pressed. */
@@ -120,6 +122,7 @@
     {zoom}
     {page}
     {tool}
+    {passwordPrompt}
     {decorateAnnotation}
     {onZoomChange}
     {onPageChange}
