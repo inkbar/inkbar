@@ -86,6 +86,14 @@ jobs:
           cache: pnpm
       - uses: ./.github/actions/setup-qpdf
       - run: pnpm install --frozen-lockfile
+      # Chromium is the same download on every runner until Playwright's version changes. The
+      # install still runs on a cache hit: it finds the browser in place and finishes at once.
+      - id: playwright
+        run: echo "version=$(pnpm --filter @inkbar/core exec playwright --version)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
       - run: pnpm --filter @inkbar/core exec playwright install chromium
       - uses: ./.github/actions/turbo-cache
         with:
