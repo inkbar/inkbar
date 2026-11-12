@@ -64,7 +64,7 @@ export interface InkSidebarProps extends Omit<
   defaultWidth?: number | undefined
   /** Default 240. */
   minWidth?: number | undefined
-  /** Default 480. The shown width also stays within half the sidebar's container. */
+  /** Default 480. */
   maxWidth?: number | undefined
   /**
    * Controlled, in CSS px: bind it to a number and update it from `onWidthChange`. Left out,
@@ -73,6 +73,18 @@ export interface InkSidebarProps extends Omit<
   width?: number | undefined
   /** Called with the new width when the handle is dragged or used by key. */
   onWidthChange?: ((width: number) => void) | undefined
+  /**
+   * The narrowest the document may get beside the sidebars sharing this one's parent, in CSS
+   * px, before a rail's open panel floats over the pages. Tabs and stack narrow toward
+   * `minWidth` instead. Default: InkRoot's `minDocumentWidth` inside InkRoot, else 480. Read
+   * once, when the sidebar is created.
+   */
+  minDocumentWidth?: number | undefined
+  /**
+   * The resize handle's accessible name. Default `Resize left sidebar` or `Resize right
+   * sidebar`. Read once, when the sidebar is created.
+   */
+  handleLabel?: string | undefined
   /** The `InkPanel`s. */
   children?: ReactNode
 }
@@ -173,6 +185,11 @@ function createRegistry(controller: SidebarController) {
  * `sidebar.<name>.width`; inside `InkRoot` the root's storage is the default. `width` with
  * `onWidthChange` makes the width the host's: drags and keys then only report, and storage is
  * not read or written.
+ *
+ * Once mounted, a rail's open panel floats over the pages while the document beside it would
+ * be narrower than `minDocumentWidth` (InkRoot's inside it), and a tap on the pages or Escape
+ * closes it. The server renders it beside the document, open as usual; once mounted, an
+ * uncontrolled sidebar with no room closes its panel.
  */
 export function InkSidebar({
   side = 'left',
@@ -188,6 +205,8 @@ export function InkSidebar({
   maxWidth,
   width,
   onWidthChange,
+  minDocumentWidth: minDocumentWidthProp,
+  handleLabel,
   className,
   style,
   children,
@@ -200,7 +219,9 @@ export function InkSidebar({
   const latest = useLatest({ controlled, onOpenChange, onWidthChange })
   const widths = widthOptions({ defaultWidth, minWidth, maxWidth, width })
   // Read once: the controller loads the saved width as it is created.
-  const inherited = useContext(InkContextObject)?.storage
+  const ink = useContext(InkContextObject)
+  const storage = storageProp ?? ink?.storage
+  const minDocumentWidth = minDocumentWidthProp ?? ink?.minDocumentWidth
   // The same ids on the server and the client.
   const idPrefix = useId()
   const [{ context, mount }] = useState(() =>
@@ -214,8 +235,10 @@ export function InkSidebar({
         ...(value !== undefined && { open: value }),
         pending: true,
         idPrefix,
-        ...((storageProp ?? inherited) && { storage: (storageProp ?? inherited)! }),
+        ...(storage && { storage }),
         ...(name !== undefined && { name }),
+        ...(minDocumentWidth !== undefined && { minDocumentWidth }),
+        ...(handleLabel !== undefined && { handleLabel }),
         ...widths,
         onWidthChange: (next) => latest.current.onWidthChange?.(next),
         onOpenChange: (next) => {

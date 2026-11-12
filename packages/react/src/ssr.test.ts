@@ -206,6 +206,19 @@ describe('@inkbar/react on the server', () => {
     expect(renderToString(sidebar({ storage, width: 280 }))).toContain(
       '--ink-sidebar-width:280px'
     )
+
+    // Floating is decided in the browser: the server renders the panel open beside the pages.
+    const narrow = renderToString(
+      createElement(
+        entry.InkRoot,
+        { src: '/doc.pdf', assets, minDocumentWidth: 4000 },
+        sidebar({ layout: 'rail', handleLabel: 'Resize the pages list' })
+      )
+    )
+    const narrowRoot = /<div class="ink-sidebar"[^>]*>/.exec(narrow)?.[0] ?? ''
+    expect(narrowRoot).toContain('data-state="open"')
+    expect(narrowRoot).not.toContain('data-overlay')
+    expect(narrow).toContain('aria-label="Resize the pages list"')
   })
 
   it('InkSidebar renders its chrome on the server; thumbnails render empty', async () => {
