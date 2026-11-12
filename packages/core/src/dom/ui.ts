@@ -594,6 +594,17 @@ export const SIGNATURE_LABELS = {
   save: 'Save',
 } as const
 
+export const PASSWORD_LABELS = {
+  dialog: 'Password required',
+  description: 'This document is password protected. Enter its password to open it.',
+  field: 'Password',
+  submit: 'Open',
+  cancel: 'Cancel',
+  incorrect: 'Incorrect password. Try again.',
+  locked: 'This document is password protected.',
+  unlock: 'Enter password',
+} as const
+
 /** The dialog's tabs, in order. */
 export const SIGNATURE_TABS = ['draw', 'type', 'image'] as const
 export type SignatureTab = (typeof SIGNATURE_TABS)[number]
