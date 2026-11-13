@@ -76,6 +76,25 @@ describe('resolveMessages', () => {
     })
   })
 
+  it('drops a host string where English has a function, warning once', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const input = { find: { count: '1 of 1' } } as unknown as InkMessagesInput
+    const m = resolveMessages(input)
+    resolveMessages(input)
+    expect(m.find.count).toBe(en.find.count)
+    expect(m.find.count({ current: 2, total: 5 })).toBe('2 of 5')
+    expect(warn).toHaveBeenCalledTimes(1)
+  })
+
+  it('drops a host function where English has a string, warning once', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const input = { find: { close: () => 'Fermer' } } as unknown as InkMessagesInput
+    const m = resolveMessages(input)
+    resolveMessages(input)
+    expect(m.find.close).toBe(en.find.close)
+    expect(warn).toHaveBeenCalledTimes(1)
+  })
+
   it('does not mutate English', () => {
     const before = en.find.close
     resolveMessages({ find: { close: 'X' } })

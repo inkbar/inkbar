@@ -37,10 +37,22 @@ function guarded(key: string, given: AnyFn, fallback: unknown): AnyFn {
   return fn
 }
 
+/** The `group.key` of each host value of the wrong kind, so each warns once. */
+const mismatched = new Set<string>()
+
+function warnMismatch(key: string, given: string, wanted: string): void {
+  if (mismatched.has(key)) return
+  mismatched.add(key)
+  console.warn(
+    `[inkbar] the message ${key} is a ${given}, not a ${wanted}; using the English`
+  )
+}
+
 /**
  * English merged with `input`, per group, with the input's `lang` (else English's). Unknown
- * groups and keys are dropped. A host function that throws or returns anything but a string
- * gives the English text instead, with one warning per key.
+ * groups and keys are dropped. A value of another kind than English's (a string for a function
+ * key, or the reverse) is dropped with one warning per key. A host function that throws or
+ * returns anything but a string gives the English text instead, with one warning per key.
  */
 export function resolveMessages(input?: InkMessagesInput): InkMessages {
   const lang = input && typeof input.lang === 'string' ? input.lang : en.lang
@@ -57,6 +69,11 @@ export function resolveMessages(input?: InkMessagesInput): InkMessages {
         const v = Object.hasOwn(given, key)
           ? (given as Record<string, unknown>)[key]
           : undefined
+        if (v === undefined) continue
+        if (typeof v !== typeof merged[key]) {
+          warnMismatch(`${group}.${key}`, typeof v, typeof merged[key])
+          continue
+        }
         if (typeof v === 'string') merged[key] = v
         else if (typeof v === 'function')
           merged[key] = guarded(`${group}.${key}`, v as AnyFn, merged[key])
