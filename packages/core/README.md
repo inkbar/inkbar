@@ -712,6 +712,7 @@ import { createToolbar, definePlugin } from '@inkbar/core/dom'
 import type { RecordBase, Rect } from '@inkbar/core'
 
 interface Note extends RecordBase {
+  page: number // 0-based
   rect: Rect
   text: string
 }
