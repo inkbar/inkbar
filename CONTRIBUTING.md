@@ -73,10 +73,17 @@ It builds `@inkbar/core` first if its locales are missing or out of date. Drafts
 
 ### Add a language
 
-1. Run `pnpm translate --lang <lang>`. With no `<lang>.ts` yet, every key is missing, so the draft holds them all, grouped as in `fr.ts`.
-2. Create `packages/core/src/locales/<lang>.ts` from the draft, with `lang: '<lang>'` at the top, and correct it by hand.
-3. Add a `locales/<lang>` entry to `packages/core/tsdown.config.ts` and the language to `shipped` in `packages/core/src/locales/locales.test.ts`.
-4. Run `pnpm translate --accept <lang> --all`.
+1. Create `packages/core/src/locales/<lang>.ts` as a stub, and add a `locales/<lang>` entry to `packages/core/tsdown.config.ts`. The script only works on languages that have a locale file.
+
+   ```ts
+   import type { InkMessages } from '../messages/types'
+
+   export const it = { lang: 'it' } as InkMessages
+   ```
+
+2. Run `pnpm translate --lang <lang>`. Every key is missing from the stub, so the draft holds them all, grouped as in `fr.ts`.
+3. Replace the stub with the draft, keeping `lang: '<lang>'` at the top and the type `InkMessages` without the cast, and correct it by hand.
+4. Add the language to `shipped` in `packages/core/src/locales/locales.test.ts`, then run `pnpm translate --accept <lang> --all`.
 
 ## Open the pull request
 

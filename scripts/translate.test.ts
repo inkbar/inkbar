@@ -9,9 +9,11 @@ import { describe, it } from 'node:test'
 import {
   acceptKeys,
   agrees,
+  checkLang,
   fromTagged,
   hostFor,
   outsideRepo,
+  parseAccept,
   REPO,
   sourcesOf,
   staleKeys,
@@ -138,5 +140,53 @@ describe('accept', () => {
     const path = file()
     assert.throws(() => acceptKeys(path, en, ['find.nope']), /find\.nope/)
     assert.deepEqual(read(path), recorded)
+  })
+})
+
+describe('languages', () => {
+  it('accepts a shipped language', () => {
+    assert.doesNotThrow(() => checkLang('fr'))
+    assert.doesNotThrow(() => checkLang('de'))
+  })
+
+  it('rejects a path, a malformed tag, English and a language with no locale file', () => {
+    assert.throws(() => checkLang('../fr'), /Not a language tag/)
+    assert.throws(() => checkLang('fr/../../x'), /Not a language tag/)
+    assert.throws(() => checkLang('FR'), /Not a language tag/)
+    assert.throws(() => checkLang(''), /Not a language tag/)
+    assert.throws(() => checkLang('en'), /English is the source/)
+    assert.throws(() => checkLang('it'), /No packages\/core\/src\/locales\/it\.ts/)
+  })
+
+  it('checks the language --accept is given', () => {
+    assert.throws(() => parseAccept(['../fr', 'find.field']), /Not a language tag/)
+    assert.throws(() => parseAccept(['zz', '--all']), /No packages/)
+  })
+})
+
+describe('--accept arguments', () => {
+  it('takes keys, or --all on its own', () => {
+    assert.deepEqual(parseAccept(['fr', 'find.field', 'find.next']), {
+      lang: 'fr',
+      keys: ['find.field', 'find.next'],
+    })
+    assert.deepEqual(parseAccept(['de', '--all']), { lang: 'de', keys: 'all' })
+  })
+
+  it('refuses --all with keys, in either order', () => {
+    assert.throws(
+      () => parseAccept(['fr', 'find.field', '--all']),
+      /--all accepts every key/
+    )
+    assert.throws(
+      () => parseAccept(['fr', '--all', 'find.field']),
+      /--all accepts every key/
+    )
+  })
+
+  it('refuses no keys and other flags', () => {
+    assert.throws(() => parseAccept(['fr']), /Usage/)
+    assert.throws(() => parseAccept([]), /Usage/)
+    assert.throws(() => parseAccept(['fr', '--compare']), /Not a key: --compare/)
   })
 })

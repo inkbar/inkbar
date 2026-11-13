@@ -148,6 +148,40 @@ export function acceptKeys(file: string, en: Messages, keys: string[] | 'all'): 
   writeSources(file, recorded)
 }
 
+const LANG_TAG = /^[a-z]{2,3}(-[A-Za-z0-9]+)*$/
+
+/**
+ * Throws unless `lang` is a language tag with a locale file in `dir`. That rules out paths
+ * such as `../x` and languages Inkbar doesn't ship. English is the source, not a translation.
+ */
+export function checkLang(lang: string, dir = SRC): void {
+  if (!LANG_TAG.test(lang)) throw new Error(`Not a language tag: ${JSON.stringify(lang)}`)
+  if (lang === 'en')
+    throw new Error('English is the source; pick a translation such as fr.')
+  if (!existsSync(join(dir, `${lang}.ts`))) {
+    throw new Error(`No packages/core/src/locales/${lang}.ts. Create it first.`)
+  }
+}
+
+/** `--accept`'s arguments: a language, then keys, or `--all` on its own. */
+export function parseAccept(
+  args: string[],
+  dir = SRC
+): { lang: string; keys: string[] | 'all' } {
+  const [lang, ...keys] = args
+  if (!lang || !keys.length) {
+    throw new Error('Usage: pnpm translate --accept <lang> <key>… | --all')
+  }
+  checkLang(lang, dir)
+  if (keys.includes('--all')) {
+    if (keys.length > 1) throw new Error('--all accepts every key: pass it without keys.')
+    return { lang, keys: 'all' }
+  }
+  const flag = keys.find((k) => k.startsWith('-'))
+  if (flag) throw new Error(`Not a key: ${flag}`)
+  return { lang, keys }
+}
+
 // ---------------------------------------------------------------------------------------------
 // DeepL
 
@@ -287,8 +321,13 @@ function ensureBuilt(langs: string[]): void {
   })
   if (!stale) return
   console.log('Building @inkbar/core…')
+  // The build never needs the key, so it doesn't get it.
+  const env = { ...process.env }
+  delete env.DEEPL_AUTH_KEY
+  delete env.DEEPL_API_KEY
   execFileSync('pnpm', ['--filter', '@inkbar/core', 'build'], {
     cwd: REPO,
+    env,
     stdio: 'inherit',
   })
 }
@@ -438,16 +477,15 @@ function usage(): never {
 
 async function main(argv: string[]): Promise<void> {
   if (argv[0] === '--accept') {
-    const [, lang, ...keys] = argv
-    if (!lang || !keys.length) usage()
+    const { lang, keys } = parseAccept(argv.slice(1))
     ensureBuilt([lang])
     const en = await load('en')
     if (!en)
       throw new Error('packages/core/dist/locales/en.mjs is missing after the build')
     const file = join(SRC, `${lang}.sources.json`)
-    acceptKeys(file, en, keys.includes('--all') ? 'all' : keys)
+    acceptKeys(file, en, keys)
     console.log(
-      `Recorded the English for ${keys.includes('--all') ? 'every key' : keys.join(', ')} in ${relative(REPO, file)}`
+      `Recorded the English for ${keys === 'all' ? 'every key' : keys.join(', ')} in ${relative(REPO, file)}`
     )
     return
   }
@@ -463,6 +501,8 @@ async function main(argv: string[]): Promise<void> {
     else if (arg === '--out' && argv[i + 1]) out = resolve(argv[++i]!)
     else usage()
   }
+  for (const lang of langs) checkLang(lang)
+  if (!langs.length) usage()
   if (!outsideRepo(out)) {
     console.error(
       `Refusing to write inside the repo: ${out}. Pass --out with a path outside it.`
