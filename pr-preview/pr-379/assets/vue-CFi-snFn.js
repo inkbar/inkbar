@@ -1,1 +1,0 @@
-import{Gn as e,i as t,ut as n}from"./runtime-dom.esm-bundler-gTjpyR-U.js";function r(r,i,a){let o=e(a.source),s=t({render:()=>n(r,{source:o.value,log:a.log,onDocument:a.onDocument,openFile:a.openFile})});return s.mount(i),{update(e){o.value=e},unmount:()=>s.unmount()}}export{r as mountVue};
