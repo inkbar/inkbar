@@ -9,6 +9,7 @@ import { Printer } from '@inkbar/icons'
 import { ToolbarButton } from 'reka-ui'
 import { computed } from 'vue'
 
+import { useMessages } from '../composables/useMessages'
 import { useInkContext } from '../context'
 
 import InkIcon from './InkIcon.vue'
@@ -26,7 +27,12 @@ function run(): void {
   if (doc) void printDocument(doc).catch(() => undefined)
 }
 // Reka's typed props stop at its own; ARIA and listeners go through a bound object.
-const attrs = { 'aria-label': 'Print', title: 'Print', onClick: run }
+const messages = useMessages()
+const attrs = computed(() => ({
+  'aria-label': messages.value.toolbar.print,
+  title: messages.value.toolbar.print,
+  onClick: run,
+}))
 </script>
 
 <template>

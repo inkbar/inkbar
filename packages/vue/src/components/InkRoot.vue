@@ -4,6 +4,7 @@ import {
   createSignatureLibrary,
   createStorageSignatureStore,
   InkError,
+  isValidLocale,
   openDocument,
   readonly,
   writable,
@@ -11,6 +12,7 @@ import {
 import {
   attachFileKeys,
   attachHistoryKeys,
+  createMessageState,
   createPluginHost,
   createSearchController,
   createPasswordPrompt,
@@ -54,6 +56,7 @@ import type {
   FieldValues,
   ViewerAction,
   InkDocument,
+  InkMessagesInput,
   InkStorage,
   PdfAssets,
 } from '@inkbar/core'
@@ -142,6 +145,17 @@ const props = withDefaults(
     signatureFonts?: string[] | undefined
     page?: number | undefined
     zoom?: ZoomValue | undefined
+    /**
+     * The words the viewer shows, over English: any group, any subset of its keys. A string,
+     * or a function the viewer calls again whenever `messages` or `locale` changes. A change
+     * applies in place: nothing remounts and open menus stay open.
+     */
+    messages?: InkMessagesInput | undefined
+    /**
+     * The locale dates are formatted for, and the root's `lang` when it is a valid tag.
+     * Default: the browser's.
+     */
+    locale?: string | undefined
     /** Undo history. Defaults to on for uncontrolled, off for controlled. */
     history?: boolean | undefined
     asChild?: boolean
@@ -163,6 +177,8 @@ const props = withDefaults(
     signatureFonts: undefined,
     page: undefined,
     zoom: undefined,
+    messages: undefined,
+    locale: undefined,
     history: undefined,
     asChild: false,
   }
@@ -441,6 +457,26 @@ watch(activated, (id) => hostActivated.set(id), { flush: 'sync' })
 const storage = props.storage ?? createMemoryStorage()
 /** Read once, like `storage`: each sidebar reads it as it is created. */
 const minDocumentWidth = props.minDocumentWidth ?? MIN_DOCUMENT_WIDTH
+/*
+ * One message state for the root's life. The props are pushed into it; the engine, the plugin
+ * host and core's factories share it, and the components read its mirror below. Every set is
+ * a new state, so label functions re-run even when the host passes an equal object.
+ */
+const messageState = createMessageState(props.messages, props.locale)
+watch(
+  () => props.messages,
+  (next) => messageState.setMessages(next)
+)
+watch(
+  () => props.locale,
+  (next) => messageState.setLocale(next)
+)
+const words = useReadable(messageState, messageState.get())
+const currentMessages = computed(() => words.value.messages)
+const currentLocale = computed(() => words.value.locale)
+const lang = computed(() =>
+  isValidLocale(currentLocale.value) ? currentLocale.value : undefined
+)
 const pluginHost = shallowRef<PluginHost | null>(null)
 /** One search controller for the root's life, built with the plugin host that shares it. */
 const search = shallowRef<SearchController | null>(null)
@@ -464,6 +500,7 @@ function setUpPlugins(): void {
     viewport: () => viewport.value,
     search: viewerSearchOf(controller),
     storage,
+    messages: messageState,
   })
 }
 
@@ -635,6 +672,9 @@ provideInkContext({
   history: inkHistory,
   rootEl,
   formHighlight: computed(() => props.formHighlight),
+  messages: currentMessages,
+  locale: currentLocale,
+  messageState,
   reportAction: (a) => emit('action', a),
   reportError: (e) => emit('error', e),
 })
@@ -651,6 +691,7 @@ defineExpose({ document, status, rootEl, history: inkHistory })
     as="div"
     data-ink-root
     :data-state="status.state"
+    v-bind="{ lang }"
   >
     <slot :status="status" :document="document" />
   </Primitive>

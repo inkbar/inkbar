@@ -16,6 +16,10 @@ import {
 } from '@inkbar/core/dom'
 import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue'
 
+import { injectInkContext } from '../context'
+
+import type { Label } from '@inkbar/core'
+
 const props = withDefaults(
   defineProps<{
     source: RecordListSource | null
@@ -28,6 +32,13 @@ const props = withDefaults(
 const emit = defineEmits<{ 'update:count': [count: number] }>()
 
 defineSlots<{ empty?(): unknown }>()
+
+const ctx = injectInkContext()
+/** A card's label, read again on new messages so a label function follows them. */
+function label(text: Label | undefined): string {
+  void ctx.messages.value
+  return resolveLabel(text)
+}
 
 const root = useTemplateRef<HTMLElement>('root')
 const controller = shallowRef<RecordListController | null>(null)
@@ -78,7 +89,7 @@ watch(
       announcement.value = ''
       return
     }
-    const c = createRecordListController(source)
+    const c = createRecordListController(source, ctx.messageState)
     controller.value = c
     rows.value = c.rows.get()
     announcement.value = c.announcement.get()
@@ -118,7 +129,7 @@ watch(
       >
         <div :class="['ink-card', card?.className]">
           <template v-if="card">
-            <p class="ink-card-title">{{ resolveLabel(card.title) }}</p>
+            <p class="ink-card-title">{{ label(card.title) }}</p>
             <!-- prettier-ignore -->
             <p v-if="card.meta !== undefined" class="ink-card-meta"><span v-if="card.swatch !== undefined" class="ink-card-swatch" :style="{ background: card.swatch }" />{{ card.meta }}</p>
             <p v-if="card.body !== undefined" class="ink-card-body">{{ card.body }}</p>
@@ -130,7 +141,7 @@ watch(
                 :key="action.key"
                 type="button"
                 @click="controller?.act(item.id, action.key)"
-                v-text="resolveLabel(action.label)"
+                v-text="label(action.label)"
               />
             </div>
           </template>
@@ -138,7 +149,7 @@ watch(
       </li>
     </ul>
     <p class="ink-record-list-empty" :hidden="!empty">
-      <slot name="empty">Nothing here yet.</slot>
+      <slot name="empty">{{ ctx.messages.value.records.empty }}</slot>
     </p>
     <div
       class="ink-visually-hidden"

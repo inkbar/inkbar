@@ -1,5 +1,4 @@
-import { resolveLabel } from '@inkbar/core'
-import { unknownCommand } from '@inkbar/core/dom'
+import { commandLabel, unknownCommand } from '@inkbar/core/dom'
 import { computed, watch } from 'vue'
 
 import { useInkContext } from '../context'
@@ -29,7 +28,8 @@ export interface CommandHandle {
  * console once.
  */
 export function useCommand(id: string): CommandHandle {
-  const host = useInkContext('useCommand()').pluginHost
+  const ctx = useInkContext('useCommand()')
+  const host = ctx.pluginHost
   const command = computed(() => host.value?.command(id))
   watch(
     host,
@@ -44,9 +44,11 @@ export function useCommand(id: string): CommandHandle {
     enabled: useReadable(() => command.value?.enabled, false),
     busy: useReadable(() => command.value?.busy, false),
     status: useReadable(() => command.value?.status, ''),
-    label: computed(() =>
-      command.value ? resolveLabel(command.value.label, command.value.id) : ''
-    ),
+    // Read again on new messages, so a label function follows them; the id when it is empty.
+    label: computed(() => {
+      void ctx.messages.value
+      return command.value ? commandLabel(command.value) : ''
+    }),
     icon: computed(() => command.value?.icon),
   }
 }

@@ -23,11 +23,12 @@ import {
 } from 'reka-ui'
 import { computed, defineComponent, mergeProps, ref, useAttrs, watch } from 'vue'
 
+import { hostLabel, useMessages } from '../composables/useMessages'
 import { useToolStyle } from '../composables/useToolStyle'
 
 import InkIcon from './InkIcon.vue'
 
-import type { StyleGroup } from '@inkbar/core'
+import type { Label, StyleGroup } from '@inkbar/core'
 
 defineOptions({ inheritAttrs: false })
 const attrs = useAttrs()
@@ -45,7 +46,7 @@ const props = defineProps<{
   /** The colour this menu sets. */
   property: ColorProperty
   /** Accessible name; defaults to "Border colour", "Fill colour" or "Text colour". */
-  label?: string
+  label?: Label | undefined
   /**
    * Renders the trigger outside the toolbar's roving focus, for a menu nested in another
    * panel (the text style menu's text colour).
@@ -61,13 +62,20 @@ const props = defineProps<{
 }>()
 
 const { current, supported, set } = useToolStyle(() => props.group)
+const messages = useMessages()
 const open = ref(false)
 const customInput = ref<HTMLInputElement | null>(null)
 
 const model = computed(() =>
-  colorMenuModel(props.property, current.value, supported.value, props.fallback)
+  colorMenuModel(
+    props.property,
+    current.value,
+    supported.value,
+    props.fallback,
+    messages.value
+  )
 )
-const name = computed(() => props.label ?? model.value.label)
+const name = computed(() => hostLabel(messages, props.label, () => model.value.label))
 const trigger = computed(() => model.value.trigger)
 
 // The menu closes when the control disables (the selection cleared while it was open).
@@ -177,14 +185,14 @@ const innerAttrs = computed(() => ({
             :data-state="model.noFill.checked ? 'checked' : 'unchecked'"
             @click="set(model.noFill.patch)"
           >
-            No fill
+            {{ messages.color.noFill }}
             <span v-if="model.noFill.checked" class="ink-select-indicator">
               <InkIcon :icon="Check" :size="16" />
             </span>
           </button>
           <div
             role="group"
-            aria-label="Colours"
+            :aria-label="messages.color.swatches"
             class="ink-color-grid"
             :data-ink-menu-columns="COLOR_COLUMNS"
           >
@@ -210,7 +218,7 @@ const innerAttrs = computed(() => ({
             tabindex="-1"
             @click="customInput?.click()"
           >
-            Custom…
+            {{ messages.color.custom }}
           </button>
         </div>
       </PopoverContent>
@@ -220,7 +228,7 @@ const innerAttrs = computed(() => ({
     ref="customInput"
     type="color"
     class="ink-color-input"
-    aria-label="Custom colour"
+    :aria-label="messages.color.customColour"
     :data-ink-color-input="property"
     tabindex="-1"
     :value="model.customValue.toLowerCase()"

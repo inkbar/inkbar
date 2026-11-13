@@ -10,7 +10,7 @@
  * still empty and has no replies removes it, so an abandoned note does not stay on the page.
  * Markup stays: the mark is the point.
  */
-import { isAbandonedNote, threadOf, threadRoot } from '@inkbar/core'
+import { formatDate, isAbandonedNote, threadOf, threadRoot } from '@inkbar/core'
 import { threadDeleteLabel, threadPopoverLabel } from '@inkbar/core/dom'
 import { PopoverContent, PopoverPortal, PopoverRoot } from 'reka-ui'
 import { computed, ref, watch } from 'vue'
@@ -29,6 +29,8 @@ export type { ThreadPopoverSlotProps } from '@inkbar/core/dom'
 defineSlots<{ default?(props: ThreadPopoverSlotProps): unknown }>()
 
 const ctx = injectInkContext()
+const messages = ctx.messages
+const locale = ctx.locale
 const { annotations, add, update, remove } = useAnnotations()
 
 const find = (id: string | undefined) =>
@@ -141,7 +143,7 @@ function onOpenChange(next: boolean): void {
         side="right"
         :side-offset="8"
         :collision-padding="8"
-        v-bind="{ 'aria-label': threadPopoverLabel(note) }"
+        v-bind="{ 'aria-label': threadPopoverLabel(note, messages) }"
         @interact-outside="keepOpenOnAnnotation"
         @close-auto-focus="focusReturn.onCloseAutoFocus($event, anchor)"
       >
@@ -161,9 +163,11 @@ function onOpenChange(next: boolean): void {
               data-ink-thread-item
               :data-reply="item.inReplyTo ? '' : undefined"
             >
-              <span class="ink-thread-author">{{ item.author ?? 'Anonymous' }}</span>
+              <span class="ink-thread-author">{{
+                item.author ?? messages.notes.anonymous
+              }}</span>
               <time class="ink-thread-time" :datetime="item.createdAt">
-                {{ new Date(item.createdAt).toLocaleString() }}
+                {{ formatDate(Date.parse(item.createdAt), locale) }}
               </time>
               <p class="ink-thread-text">{{ item.contents }}</p>
             </li>
@@ -171,18 +175,18 @@ function onOpenChange(next: boolean): void {
           <form class="ink-thread-reply" data-ink-thread-reply @submit.prevent="submit">
             <textarea
               v-model="draft"
-              :aria-label="editingRoot ? 'Comment' : 'Reply'"
+              :aria-label="editingRoot ? messages.notes.comment : messages.notes.reply"
               rows="2"
-              :placeholder="editingRoot ? 'Comment' : 'Reply'"
+              :placeholder="editingRoot ? messages.notes.comment : messages.notes.reply"
             />
             <div class="ink-thread-actions">
               <button type="submit" :disabled="!draft.trim()">
-                {{ editingRoot ? 'Comment' : 'Reply' }}
+                {{ editingRoot ? messages.notes.comment : messages.notes.reply }}
               </button>
               <button v-if="!note.locked" type="button" @click="removeThread">
-                {{ threadDeleteLabel(note) }}
+                {{ threadDeleteLabel(note, messages) }}
               </button>
-              <button type="button" @click="close">Close</button>
+              <button type="button" @click="close">{{ messages.notes.close }}</button>
             </div>
           </form>
         </slot>

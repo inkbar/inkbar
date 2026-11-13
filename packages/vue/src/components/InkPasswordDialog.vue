@@ -6,7 +6,6 @@
  * and the field is cleared when the dialog closes and after each wrong try. Escape, Cancel or a
  * press outside closes it.
  */
-import { PASSWORD_LABELS } from '@inkbar/core/dom'
 import {
   DialogContent,
   DialogDescription,
@@ -16,6 +15,8 @@ import {
   DialogTitle,
 } from 'reka-ui'
 import { computed, nextTick, ref, useId, useTemplateRef, watch } from 'vue'
+
+import { useMessages } from '../composables/useMessages'
 
 const props = defineProps<{
   /** The last try was wrong: shows the message. */
@@ -78,6 +79,7 @@ watch(
 )
 
 // Reka's typed props stop at its own; ARIA goes through a bound object.
+const messages = useMessages()
 const contentAttrs = { 'aria-modal': 'true' }
 </script>
 
@@ -92,13 +94,13 @@ const contentAttrs = { 'aria-modal': 'true' }
         @open-auto-focus="onOpenAutoFocus"
         @close-auto-focus="emit('closeAutoFocus', $event)"
       >
-        <DialogTitle class="ink-dialog-title">{{ PASSWORD_LABELS.dialog }}</DialogTitle>
+        <DialogTitle class="ink-dialog-title">{{ messages.password.dialog }}</DialogTitle>
         <DialogDescription class="ink-dialog-description">
-          {{ PASSWORD_LABELS.description }}
+          {{ messages.password.description }}
         </DialogDescription>
         <form class="ink-password-form" data-ink-password-form @submit.prevent="onSubmit">
           <label class="ink-password-label" :for="inputId">{{
-            PASSWORD_LABELS.field
+            messages.password.field
           }}</label>
           <input
             :id="inputId"
@@ -117,11 +119,11 @@ const contentAttrs = { 'aria-modal': 'true' }
             class="ink-password-error"
             role="alert"
           >
-            {{ PASSWORD_LABELS.incorrect }}
+            {{ messages.password.incorrect }}
           </p>
           <div class="ink-dialog-actions">
             <button type="button" class="ink-button" @click="open = false">
-              {{ PASSWORD_LABELS.cancel }}
+              {{ messages.password.cancel }}
             </button>
             <button
               type="submit"
@@ -129,7 +131,7 @@ const contentAttrs = { 'aria-modal': 'true' }
               data-variant="primary"
               :disabled="disabled"
             >
-              {{ PASSWORD_LABELS.submit }}
+              {{ messages.password.submit }}
             </button>
           </div>
         </form>

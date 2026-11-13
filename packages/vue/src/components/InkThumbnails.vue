@@ -51,6 +51,7 @@ const deps = {
   document: toReadable(() => ctx.document.value),
   pluginHost: toReadable(() => ctx.pluginHost.value),
   viewport: toReadable(() => ctx.viewport.value),
+  messages: ctx.messageState,
 }
 const options = (): ThumbnailsOptions => ({
   pages: props.pages,

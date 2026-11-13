@@ -3,6 +3,7 @@ import { ChevronRight } from '@inkbar/icons'
 import { ToolbarButton } from 'reka-ui'
 import { computed } from 'vue'
 
+import { useMessages } from '../composables/useMessages'
 import { usePage } from '../composables/usePage'
 
 import InkIcon from './InkIcon.vue'
@@ -11,11 +12,12 @@ withDefaults(defineProps<{ asChild?: boolean }>(), { asChild: false })
 const { current, count, next } = usePage()
 const disabled = computed(() => current.value >= count.value - 1)
 // Reka's typed props stop at its own; ARIA and listeners go through a bound object.
-const attrs = {
-  'aria-label': 'Next page',
-  title: 'Next page',
+const messages = useMessages()
+const attrs = computed(() => ({
+  'aria-label': messages.value.toolbar.nextPage,
+  title: messages.value.toolbar.nextPage,
   onClick: () => next(),
-}
+}))
 </script>
 
 <template>

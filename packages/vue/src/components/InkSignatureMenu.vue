@@ -5,12 +5,7 @@
  * previews, each with a remove button, and "Create signature", which opens
  * `InkSignatureDialog`. Choosing a signature switches to the tool with it.
  */
-import {
-  focusInitialMenuItem,
-  menuItems,
-  SIGNATURE_LABELS,
-  signatureMenuModel,
-} from '@inkbar/core/dom'
+import { focusInitialMenuItem, menuItems, signatureMenuModel } from '@inkbar/core/dom'
 import { ChevronDown, Signature } from '@inkbar/icons'
 import {
   PopoverAnchor,
@@ -51,7 +46,10 @@ const { options, setOptions } = useToolOptionsWhile<SignatureOptions>(
 )
 const ctx = useInkContext('InkSignatureMenu')
 const templates = useReadable(() => ctx.signatures.templates, NO_TEMPLATES)
-const model = computed(() => signatureMenuModel(templates.value, options.value))
+const messages = ctx.messages
+const model = computed(() =>
+  signatureMenuModel(templates.value, options.value, messages.value)
+)
 const active = computed(() => tool.value === 'signature')
 const open = ref(false)
 const creating = ref(false)
@@ -119,17 +117,17 @@ function onDialogCloseAutoFocus(e: Event): void {
 // Reka's typed props stop at its own; ARIA and listeners go through bound objects.
 const mainAttrs = computed(() => ({
   'aria-pressed': String(active.value),
-  'aria-label': SIGNATURE_LABELS.sign,
-  title: SIGNATURE_LABELS.sign,
+  'aria-label': messages.value.signature.sign,
+  title: messages.value.signature.sign,
   onClick: onMain,
 }))
-const triggerAttrs = {
-  'aria-label': SIGNATURE_LABELS.trigger,
-  title: SIGNATURE_LABELS.trigger,
+const triggerAttrs = computed(() => ({
+  'aria-label': messages.value.signature.trigger,
+  title: messages.value.signature.trigger,
   'aria-haspopup': 'menu' as const,
   onKeydown: onTriggerKeydown,
-}
-const menuAttrs = { 'aria-label': SIGNATURE_LABELS.menu }
+}))
+const menuAttrs = computed(() => ({ 'aria-label': messages.value.signature.menu }))
 </script>
 
 <template>
@@ -137,7 +135,7 @@ const menuAttrs = { 'aria-label': SIGNATURE_LABELS.menu }
     <PopoverAnchor as-child>
       <div
         role="group"
-        :aria-label="SIGNATURE_LABELS.sign"
+        :aria-label="messages.signature.sign"
         class="ink-split-button ink-signature-menu"
         data-ink-signature-menu
         v-bind="$attrs"

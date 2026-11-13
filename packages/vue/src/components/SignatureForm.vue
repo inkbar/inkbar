@@ -8,7 +8,6 @@ import {
   fontFamilyValue,
   handleRadioKeys,
   handleTabKeys,
-  SIGNATURE_LABELS,
   SIGNATURE_TABS,
   type SignatureDraftState,
   type SignatureTab,
@@ -38,7 +37,12 @@ const { setOptions } = useToolOptionsWhile<SignatureOptions>(
   'signature',
   hasSignatureTool
 )
-const draft = createSignatureDraft({ fonts: props.fonts ?? ctx.signatureFonts.value })
+const messages = ctx.messages
+// The draft's errors are in the root's words, and follow them.
+const draft = createSignatureDraft({
+  fonts: props.fonts ?? ctx.signatureFonts.value,
+  messages: ctx.messageState,
+})
 const IDLE: SignatureDraftState = draft.state.get()
 const s = useReadable(draft.state, IDLE)
 const uid = useId()
@@ -72,7 +76,9 @@ function save(): void {
 
 const tabId = (tab: SignatureTab) => `${uid}-tab-${tab}`
 const panelId = (tab: SignatureTab) => `${uid}-panel-${tab}`
-const shown = computed(() => s.value.name.trim() || SIGNATURE_LABELS.namePlaceholder)
+const shown = computed(
+  () => s.value.name.trim() || messages.value.signature.namePlaceholder
+)
 const onTabKeydown = (e: KeyboardEvent) =>
   handleTabKeys(e, e.currentTarget as HTMLElement)
 const onRadioKeydown = (e: KeyboardEvent) =>
@@ -85,7 +91,7 @@ const onFile = (e: Event) =>
 <template>
   <div
     role="tablist"
-    :aria-label="SIGNATURE_LABELS.tabs"
+    :aria-label="messages.signature.tabs"
     class="ink-tabs"
     @keydown="onTabKeydown"
   >
@@ -103,7 +109,7 @@ const onFile = (e: Event) =>
       :data-state="s.tab === tab ? 'active' : 'inactive'"
       @click="draft.setTab(tab)"
     >
-      {{ SIGNATURE_LABELS[tab] }}
+      {{ messages.signature[tab] }}
     </button>
   </div>
   <div
@@ -119,7 +125,7 @@ const onFile = (e: Event) =>
       class="ink-signature-pad-host"
       data-ink-signature-pad-host
       role="img"
-      :aria-label="SIGNATURE_LABELS.pad"
+      :aria-label="messages.signature.pad"
     />
     <div class="ink-dialog-row">
       <button
@@ -129,7 +135,7 @@ const onFile = (e: Event) =>
         :disabled="s.padEmpty"
         @click="draft.clearPad()"
       >
-        {{ SIGNATURE_LABELS.clear }}
+        {{ messages.signature.clear }}
       </button>
     </div>
   </div>
@@ -142,20 +148,20 @@ const onFile = (e: Event) =>
     :hidden="s.tab !== 'type'"
   >
     <label class="ink-field">
-      <span>{{ SIGNATURE_LABELS.name }}</span>
+      <span>{{ messages.signature.name }}</span>
       <input
         type="text"
         class="ink-input"
         data-ink-signature-name
         autocomplete="name"
-        :placeholder="SIGNATURE_LABELS.namePlaceholder"
+        :placeholder="messages.signature.namePlaceholder"
         :value="s.name"
         @input="onName"
       />
     </label>
     <div
       role="radiogroup"
-      :aria-label="SIGNATURE_LABELS.fonts"
+      :aria-label="messages.signature.fonts"
       class="ink-signature-fonts"
       @keydown="onRadioKeydown"
     >
@@ -191,7 +197,7 @@ const onFile = (e: Event) =>
     :hidden="s.tab !== 'image'"
   >
     <label class="ink-field">
-      <span>{{ SIGNATURE_LABELS.file }}</span>
+      <span>{{ messages.signature.file }}</span>
       <input
         type="file"
         accept="image/png,image/jpeg"
@@ -219,7 +225,7 @@ const onFile = (e: Event) =>
   <div class="ink-dialog-actions">
     <DialogClose as-child>
       <button type="button" class="ink-button" data-ink-signature-cancel>
-        {{ SIGNATURE_LABELS.cancel }}
+        {{ messages.signature.cancel }}
       </button>
     </DialogClose>
     <button
@@ -230,7 +236,7 @@ const onFile = (e: Event) =>
       :disabled="!s.canSave"
       @click="save"
     >
-      {{ SIGNATURE_LABELS.save }}
+      {{ messages.signature.save }}
     </button>
   </div>
 </template>

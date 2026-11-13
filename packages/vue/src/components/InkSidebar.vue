@@ -45,7 +45,7 @@ import { useReadable } from '../use-readable'
 import { provideSidebarContext, type SidebarPanelEntry } from './sidebar-context'
 import SidebarTrigger from './SidebarTrigger.vue'
 
-import type { InkStorage } from '@inkbar/core'
+import type { InkStorage, Label } from '@inkbar/core'
 
 const props = withDefaults(
   defineProps<{
@@ -82,10 +82,11 @@ const props = withDefaults(
      */
     minDocumentWidth?: number | undefined
     /**
-     * The resize handle's accessible name. Default `Resize left sidebar` or `Resize right
-     * sidebar`. Read once, when the sidebar is created.
+     * The resize handle's accessible name: a string, or a function read again whenever the
+     * root's `messages` change. Default `Resize left sidebar` or `Resize right sidebar`, in the
+     * root's words.
      */
-    handleLabel?: string | undefined
+    handleLabel?: Label | undefined
   }>(),
   {
     side: 'left',
@@ -130,6 +131,8 @@ const controller = createSidebarController({
   ...(props.name !== undefined && { name: props.name }),
   ...(minDocumentWidth !== undefined && { minDocumentWidth }),
   ...(props.handleLabel !== undefined && { handleLabel: props.handleLabel }),
+  // The root's words, so the default handle names and tab badges follow its `messages`.
+  ...(ink && { messages: ink.messageState }),
   ...widthOptions(),
   onWidthChange: (value) => emit('update:width', value),
   // The same ids on the server and the client.
@@ -145,13 +148,15 @@ watch(
       panels.value,
       open.value,
       widthOptions(),
+      props.handleLabel,
     ] as const,
-  ([layout, side, visible, list, value, widths]) =>
+  ([layout, side, visible, list, value, widths, handleLabel]) =>
     controller.update({
       layout,
       side,
       visible,
       panels: list,
+      ...(handleLabel !== undefined && { handleLabel }),
       ...(value !== undefined && { open: value }),
       ...widths,
     }),

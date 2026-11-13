@@ -7,12 +7,7 @@
  * returns to the field. InkViewport mounts it, one per document; hosts compose nothing.
  */
 import { InkError, signField, type SignatureTemplate } from '@inkbar/core'
-import {
-  focusInitialMenuItem,
-  SIGNATURE_LABELS,
-  signatureMenuModel,
-  watchDetached,
-} from '@inkbar/core/dom'
+import { focusInitialMenuItem, signatureMenuModel, watchDetached } from '@inkbar/core/dom'
 import { PopoverContent, PopoverPortal, PopoverRoot } from 'reka-ui'
 import { computed, onBeforeUnmount, shallowRef, watch } from 'vue'
 
@@ -36,7 +31,8 @@ const NO_TEMPLATES: readonly SignatureTemplate[] = []
 const ctx = useInkContext('InkSignFieldPopover')
 const templates = useReadable(() => ctx.signatures.templates, NO_TEMPLATES)
 // No signature is "chosen" here: each signing picks its own.
-const model = computed(() => signatureMenuModel(templates.value, {}))
+const messages = ctx.messages
+const model = computed(() => signatureMenuModel(templates.value, {}, messages.value))
 const open = computed(() => props.request !== null)
 /** The field the dialog signs once its signature is saved, and the document it is in. */
 const creatingFor = shallowRef<{ req: SignFieldRequest; doc: InkDocument } | null>(null)
@@ -148,7 +144,7 @@ function onOpenChange(next: boolean): void {
 }
 
 // Reka's typed props stop at its own; ARIA goes through a bound object.
-const menuAttrs = { 'aria-label': SIGNATURE_LABELS.menu }
+const menuAttrs = computed(() => ({ 'aria-label': messages.value.signature.menu }))
 </script>
 
 <template>

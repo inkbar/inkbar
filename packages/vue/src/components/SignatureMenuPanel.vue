@@ -4,7 +4,7 @@
  * button, then "Create signature". `InkSignatureMenu` picks a signature for the tool with it;
  * `InkSignFieldPopover` signs a field with it.
  */
-import { handleMenuKeys, SIGNATURE_LABELS, signaturePreview } from '@inkbar/core/dom'
+import { handleMenuKeys, signaturePreview } from '@inkbar/core/dom'
 import { Plus, Trash2 } from '@inkbar/icons'
 import { computed, nextTick, useTemplateRef } from 'vue'
 
@@ -20,6 +20,9 @@ const props = defineProps<{ items: readonly SignatureMenuItem[] }>()
 const emit = defineEmits<{ choose: [template: SignatureTemplate]; create: [] }>()
 
 const ctx = useInkContext('SignatureMenuPanel')
+const messages = ctx.messages
+// Set while the last removal failed. The text is the root's, in its words, whatever the
+// library's error says.
 const removeError = useReadable(() => ctx.signatures.removeError, undefined)
 const root = useTemplateRef<HTMLElement>('root')
 
@@ -49,11 +52,11 @@ function remove(id: string, row: number): void {
   )
 }
 
-const innerAttrs = {
+const innerAttrs = computed(() => ({
   role: 'menu',
-  'aria-label': SIGNATURE_LABELS.menu,
+  'aria-label': messages.value.signature.menu,
   onKeydown: (e: KeyboardEvent) => handleMenuKeys(e, e.currentTarget as HTMLElement),
-}
+}))
 </script>
 
 <template>
@@ -61,7 +64,7 @@ const innerAttrs = {
     <template v-if="props.items.length > 0">
       <div
         role="group"
-        :aria-label="SIGNATURE_LABELS.saved"
+        :aria-label="messages.signature.saved"
         class="ink-signature-list"
         data-ink-menu-columns="2"
       >
@@ -122,7 +125,7 @@ const innerAttrs = {
       @click="emit('create')"
     >
       <InkIcon :icon="Plus" :size="16" />
-      {{ SIGNATURE_LABELS.create }}
+      {{ messages.signature.create }}
     </button>
     <p
       v-if="removeError"
@@ -130,7 +133,7 @@ const innerAttrs = {
       role="alert"
       data-ink-signature-remove-error
     >
-      {{ removeError }}
+      {{ messages.signature.removeFailed }}
     </p>
   </div>
 </template>

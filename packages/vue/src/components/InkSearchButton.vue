@@ -8,6 +8,7 @@ import { ToolbarButton } from 'reka-ui'
 import { computed, mergeProps, nextTick } from 'vue'
 
 import { useDocument } from '../composables/useDocument'
+import { useMessages } from '../composables/useMessages'
 import { useSearch } from '../composables/useSearch'
 import { useInkContext } from '../context'
 
@@ -20,6 +21,7 @@ withDefaults(defineProps<{ asChild?: boolean }>(), { asChild: false })
 const ctx = useInkContext('InkSearchButton')
 const { state, open } = useSearch()
 const { isReady } = useDocument()
+const messages = useMessages()
 
 async function onClick(): Promise<void> {
   open()
@@ -33,8 +35,8 @@ async function onClick(): Promise<void> {
 }
 // Reka's typed props stop at its own; ARIA and listeners go through a bound object.
 const attrs = computed(() => ({
-  'aria-label': 'Find',
-  title: 'Find',
+  'aria-label': messages.value.toolbar.find,
+  title: messages.value.toolbar.find,
   'aria-pressed': state.value.open,
   'data-state': state.value.open ? 'on' : 'off',
   onClick,

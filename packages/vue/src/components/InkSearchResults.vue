@@ -29,8 +29,11 @@ const ctx = injectInkContext()
 const search = useSearch()
 const { state } = search
 
-const source = computed(() => (ctx.search.value ? searchSource(ctx.search.value) : null))
-const count = computed(() => findCountText(state.value))
+const messages = ctx.messages
+const source = computed(() =>
+  ctx.search.value ? searchSource(ctx.search.value, ctx.messageState) : null
+)
+const count = computed(() => findCountText(state.value, messages.value))
 // Nothing found yet is the count's to say while a query is in: "No results", or a scan.
 const blank = computed(() => isBlankQuery(state.value.query))
 </script>
@@ -42,8 +45,8 @@ const blank = computed(() => isBlankQuery(state.value.query))
         <span class="ink-input-accessory"><InkIcon :icon="Search" /></span>
         <input
           type="text"
-          aria-label="Find in document"
-          placeholder="Search for a word or phrase"
+          :aria-label="messages.search.field"
+          :placeholder="messages.search.placeholder"
           autocomplete="off"
           spellcheck="false"
           :value="state.query"
@@ -53,7 +56,7 @@ const blank = computed(() => isBlankQuery(state.value.query))
       </div>
     </div>
     <RecordCards :source="source" :empty-shown="blank">
-      <template #empty>Search to list every match.</template>
+      <template #empty>{{ messages.search.prompt }}</template>
     </RecordCards>
     <!-- A footer under the cards, hidden while empty. -->
     <div class="ink-search-results-count" data-ink-search-results-count>{{ count }}</div>

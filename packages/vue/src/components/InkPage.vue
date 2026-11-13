@@ -43,6 +43,7 @@ defineSlots<{
 }>()
 
 const ctx = injectInkContext()
+const messages = ctx.messages
 const targets = shallowRef<{ annotation: Annotation; el: HTMLElement }[]>([])
 let stopList: (() => void) | undefined
 
@@ -82,7 +83,7 @@ onBeforeUnmount(stop)
   <Teleport v-if="error" :to="host">
     <div class="ink-page-error" data-ink-page-error role="alert">
       <slot name="page-error" :error="error" :page="page">
-        <p>Page {{ page + 1 }} could not be shown.</p>
+        <p>{{ messages.viewer.pageFailed({ page: page + 1 }) }}</p>
         <code class="ink-error-code">{{ error.code }}</code>
       </slot>
     </div>

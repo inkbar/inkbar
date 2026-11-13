@@ -27,6 +27,7 @@ import {
 import { computed, ref } from 'vue'
 
 import { useDocument } from '../composables/useDocument'
+import { useMessages } from '../composables/useMessages'
 import { useRegisteredTool } from '../composables/useRegisteredTool'
 import { useTool } from '../composables/useTool'
 import { useToolOptionsWhile } from '../composables/useToolOptions'
@@ -45,7 +46,10 @@ const { options, setOptions } = useToolOptionsWhile<HighlightOptions>(
 const { document: doc } = useDocument()
 const open = ref(false)
 
-const model = computed(() => highlightMenuModel(options.value, MARKUP_KINDS))
+const messages = useMessages()
+const model = computed(() =>
+  highlightMenuModel(options.value, MARKUP_KINDS, messages.value)
+)
 const active = computed(() => tool.value === 'highlight')
 /** The colour the chosen kind gets while the markup style leaves it unset. */
 const fallback = computed(() => doc.value?.annotations.defaults.color(model.value.kind))
@@ -84,23 +88,23 @@ const mainAttrs = computed(() => ({
   title: model.value.label,
   onClick: () => setTool('highlight'),
 }))
-const triggerAttrs = {
-  'aria-label': 'Choose highlight',
-  title: 'Choose highlight',
+const triggerAttrs = computed(() => ({
+  'aria-label': messages.value.highlight.choose,
+  title: messages.value.highlight.choose,
   'aria-haspopup': 'menu' as const,
   onKeydown: onTriggerKeydown,
-}
-const menuAttrs = { 'aria-label': 'Highlights' }
+}))
+const menuAttrs = computed(() => ({ 'aria-label': messages.value.highlight.menu }))
 /** The colour trigger is an item of this menu, reached with the arrow keys. */
 const colourAttrs = { role: 'menuitem', tabindex: -1 }
-const innerAttrs = {
+const innerAttrs = computed(() => ({
   role: 'menu',
-  'aria-label': 'Highlights',
+  'aria-label': messages.value.highlight.menu,
   // Capture, so the arrow keys move on from the colour item before its own ArrowDown
   // opens the nested menu.
   onKeydownCapture: (e: KeyboardEvent) =>
     handleMenuKeys(e, e.currentTarget as HTMLElement),
-}
+}))
 </script>
 
 <template>
@@ -108,7 +112,7 @@ const innerAttrs = {
     <PopoverAnchor as-child>
       <div
         role="group"
-        aria-label="Highlight"
+        :aria-label="messages.highlight.label"
         class="ink-split-button ink-highlight-menu"
         data-ink-highlight-menu
         v-bind="$attrs"
@@ -150,7 +154,11 @@ const innerAttrs = {
             @open-auto-focus="onOpenAutoFocus"
           >
             <div v-bind="innerAttrs">
-              <div role="group" aria-label="Kinds" class="ink-highlight-kinds">
+              <div
+                role="group"
+                :aria-label="messages.highlight.kinds"
+                class="ink-highlight-kinds"
+              >
                 <button
                   v-for="item in model.items"
                   :key="item.kind"
@@ -169,12 +177,18 @@ const innerAttrs = {
                 </button>
               </div>
               <div role="separator" class="ink-select-separator" />
-              <div role="group" aria-label="Colour" class="ink-highlight-colour">
-                <span class="ink-highlight-colour-label" aria-hidden="true">Colour</span>
+              <div
+                role="group"
+                :aria-label="messages.highlight.colour"
+                class="ink-highlight-colour"
+              >
+                <span class="ink-highlight-colour-label" aria-hidden="true">{{
+                  messages.highlight.colour
+                }}</span>
                 <InkColorMenu
                   property="border"
                   group="markup"
-                  label="Highlight colour"
+                  :label="messages.highlight.highlightColour"
                   standalone
                   :fallback="fallback"
                   v-bind="colourAttrs"

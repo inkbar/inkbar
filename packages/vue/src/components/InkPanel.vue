@@ -5,22 +5,33 @@
  * and `badge` (a count or short text) shows beside it, hidden when empty or 0. Closed, the panel
  * stays mounted and hidden. In a stack it renders its own header above its content.
  */
+import { resolveLabel } from '@inkbar/core'
 import { computed, onBeforeUnmount, onMounted, useTemplateRef } from 'vue'
+
+import { useMessages } from '../composables/useMessages'
 
 import { injectSidebarContext } from './sidebar-context'
 import SidebarTrigger from './SidebarTrigger.vue'
 
+import type { Label } from '@inkbar/core'
 import type { SidebarPanelInfo } from '@inkbar/core/dom'
 import type { IconNode } from '@inkbar/icons'
 
 const props = defineProps<{
   id: string
-  label: string
+  /** A string, or a function read again whenever the root's `messages` change. */
+  label: Label
   icon?: IconNode | undefined
   badge?: string | number | undefined
 }>()
 
 const ctx = injectSidebarContext()
+const messages = useMessages()
+/** The label on screen, read again on new messages. */
+const title = computed(() => {
+  void messages.value
+  return resolveLabel(props.label)
+})
 const wrapper = useTemplateRef<HTMLElement>('wrapper')
 
 const info = (): SidebarPanelInfo => ({
@@ -53,7 +64,7 @@ const view = computed(() => {
     </button>
     <div class="ink-sidebar-panel" v-bind="view.panel">
       <!-- The rail button names the panel for assistive technology; this repeats it on screen. -->
-      <div class="ink-sidebar-panel-title" aria-hidden="true">{{ label }}</div>
+      <div class="ink-sidebar-panel-title" aria-hidden="true">{{ title }}</div>
       <div class="ink-sidebar-panel-body"><slot /></div>
     </div>
   </div>

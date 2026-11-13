@@ -4,12 +4,14 @@ import { SquareDashedMousePointer, TextCursor } from '@inkbar/icons'
 import { ToolbarButton } from 'reka-ui'
 import { computed, mergeProps, useAttrs } from 'vue'
 
+import { hostLabel, useMessages } from '../composables/useMessages'
 import { useRegisteredTool } from '../composables/useRegisteredTool'
 import { useTool } from '../composables/useTool'
 import { useInkContext } from '../context'
 
 import InkIcon from './InkIcon.vue'
 
+import type { Label } from '@inkbar/core'
 import type { ToolId } from '@inkbar/core/dom'
 import type { IconNode } from '@inkbar/icons'
 
@@ -21,7 +23,7 @@ const ICONS: Readonly<Partial<Record<ToolId, IconNode>>> = {
 defineOptions({ inheritAttrs: false })
 
 const props = withDefaults(
-  defineProps<{ tool: ToolId; label?: string | undefined; asChild?: boolean }>(),
+  defineProps<{ tool: ToolId; label?: Label | undefined; asChild?: boolean }>(),
   { label: undefined, asChild: false }
 )
 
@@ -37,7 +39,10 @@ const own = computed(() =>
   ]).find((t) => t.id === props.tool)
 )
 // `label` and the slot win; then the tool's own name, else core's; then the id.
-const name = computed(() => props.label ?? toolName(props.tool, own.value))
+const messages = useMessages()
+const name = computed(() =>
+  hostLabel(messages, props.label, (m) => toolName(props.tool, own.value, m))
+)
 const icon = computed(() => ICONS[props.tool] ?? own.value?.icon)
 // Reka's typed props stop at its own; ARIA and listeners go through a bound object. A tool
 // nobody registered leaves the button disabled, hidden from assistive tech and unnamed.
