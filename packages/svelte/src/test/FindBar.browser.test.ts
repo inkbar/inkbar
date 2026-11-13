@@ -9,7 +9,7 @@ import { focused, q } from './dom.js'
 import FindHarness from './harness/FindHarness.svelte'
 
 const assets = browserAssets()
-guardConsole()
+const guard = guardConsole()
 
 const src = fixtureUrl('text-simple')
 const BAR = '[data-ink-viewport-root] > [data-ink-find-bar]'
@@ -151,6 +151,53 @@ describe('find bar', () => {
     await new Promise((resolve) => setTimeout(resolve, 100))
     observer.disconnect()
     expect(seen).toEqual(['Match 2 of 3, page 2', 'Match 1 of 3, page 1'])
+  })
+
+  it('a throwing find.count leaves the bar working, in English', async () => {
+    const messages = {
+      find: {
+        count: () => {
+          throw new Error('no words')
+        },
+      },
+    }
+    await render(FindHarness, { src, assets, messages })
+    await ready()
+    await browserPage.elementLocator(find()).click()
+    await userEvent.keyboard('QQ123456C')
+    await expect.poll(text(COUNT)).toBe('1 of 3')
+    await userEvent.keyboard('{Enter}')
+    await expect.poll(text(COUNT)).toBe('2 of 3')
+    await expect.poll(text('[data-ink-find-status]')).toBe('Match 2 of 3, page 2')
+    expect(guard.problems.some((p) => p.includes('find.count'))).toBe(true)
+    guard.clear()
+  })
+
+  it('new words leave the live region alone until the next step', async () => {
+    const screen = await render(FindHarness, { src, assets })
+    await ready()
+    await browserPage.elementLocator(find()).click()
+    await userEvent.keyboard('QQ123456C')
+    const live = await q('[data-ink-find-status]')
+    await expect.poll(() => live.textContent).toBe('Match 1 of 3, page 1')
+    let writes = 0
+    const observer = new MutationObserver((records) => {
+      writes += records.length
+    })
+    observer.observe(live, { childList: true, characterData: true, subtree: true })
+    await screen.rerender({
+      messages: {
+        find: {
+          announce: ({ current, total, page }) => `Résultat ${current}/${total} p${page}`,
+        },
+      },
+    })
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    observer.disconnect()
+    expect(writes).toBe(0)
+    expect(live.textContent).toBe('Match 1 of 3, page 1')
+    await userEvent.keyboard('{Enter}')
+    await expect.poll(() => live.textContent).toBe('Résultat 2/3 p2')
   })
 
   it('Escape in the bar stops before the root sees it', async () => {

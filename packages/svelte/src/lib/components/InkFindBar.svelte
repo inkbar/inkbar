@@ -96,8 +96,13 @@
   // The live region follows the controller's state change by change, as the vanilla bar does,
   // and is written directly. An update shows only the last of the changes batched into it, so
   // two steps in one task that end where they began would otherwise say nothing. An announcer
-  // keeps the words it was made with, so new messages make a new one; the region keeps its
-  // text when the new words say the same.
+  // keeps the words it was made with, so new messages make a new one. It catches up without
+  // speaking, as the vanilla bar's does: what the region last said stays until the next
+  // announcement, which is in the new words.
+  let spoke: { controller: unknown; el: HTMLElement | null } = {
+    controller: null,
+    el: null,
+  }
   $effect(() => {
     const controller = ctx.search
     const el = live
@@ -105,12 +110,16 @@
     if (!controller || !el) return
     return untrack(() => {
       const announce = findAnnouncer(m)
-      const say = (s: SearchState): void => {
+      const fresh = spoke.controller !== controller || spoke.el !== el
+      spoke = { controller, el }
+      let announced = announce(controller.state.get())
+      if (fresh && el.textContent !== announced) el.textContent = announced
+      return controller.state.subscribe((s: SearchState) => {
         const text = announce(s)
-        if (el.textContent !== text) el.textContent = text
-      }
-      say(controller.state.get())
-      return controller.state.subscribe(say)
+        if (text === announced) return
+        announced = text
+        el.textContent = text
+      })
     })
   })
 
