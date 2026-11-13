@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.15.0](https://github.com/inkbar/inkbar/compare/v0.14.0...v0.15.0) (2026-11-13)
+
+
+### Features
+
+* **core:** accept label functions from hosts and plugins ([#381](https://github.com/inkbar/inkbar/issues/381)) ([ac9f503](https://github.com/inkbar/inkbar/commit/ac9f5039e89107f9c295b4d97ef62af3055d4919))
+* **core:** add French and German ([#385](https://github.com/inkbar/inkbar/issues/385)) ([3ed69f1](https://github.com/inkbar/inkbar/commit/3ed69f1d0e17f3c468962b93ddb8f679cdabb4ae))
+* **core:** add messages with English defaults ([#378](https://github.com/inkbar/inkbar/issues/378)) ([0d64304](https://github.com/inkbar/inkbar/commit/0d6430439b20850b95a6ffb87ea917d8f288ec3c))
+* **core:** label the viewer chrome from messages ([#380](https://github.com/inkbar/inkbar/issues/380)) ([1fe4045](https://github.com/inkbar/inkbar/commit/1fe404512e842460ab3a00eda99a8c8d3f5c51be))
+* **core:** take messages and locale in the viewer ([#379](https://github.com/inkbar/inkbar/issues/379)) ([aac4787](https://github.com/inkbar/inkbar/commit/aac4787b4c32bcce9c37e7a4eb855e3a76fce6e4))
+* **react:** take messages and locale on InkRoot ([#383](https://github.com/inkbar/inkbar/issues/383)) ([63f7205](https://github.com/inkbar/inkbar/commit/63f720538bcac328d5e04b331b5e87656434ef66))
+* **sandbox:** switch the viewer language ([#386](https://github.com/inkbar/inkbar/issues/386)) ([2d2d7c3](https://github.com/inkbar/inkbar/commit/2d2d7c37550af001a968147aaf85f5e5ee4c1369))
+* **svelte:** take messages and locale on InkRoot ([#384](https://github.com/inkbar/inkbar/issues/384)) ([d642a13](https://github.com/inkbar/inkbar/commit/d642a13858da63a56526d99500ba228b8cbfc44d))
+* **vue:** take messages and locale on InkRoot ([#382](https://github.com/inkbar/inkbar/issues/382)) ([a78731e](https://github.com/inkbar/inkbar/commit/a78731e0768a07fd5017830d92dac46ee646f6da))
+
+
+### Bug Fixes
+
+* harden translations after review ([#388](https://github.com/inkbar/inkbar/issues/388)) ([71eb109](https://github.com/inkbar/inkbar/commit/71eb10936a3f4e63df077bca0f7ea11e868d2df6))
+
 ## [0.14.0](https://github.com/inkbar/inkbar/compare/v0.13.0...v0.14.0) (2026-11-12)
 
 
