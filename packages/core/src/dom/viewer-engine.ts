@@ -132,7 +132,7 @@ export interface MountViewerOptions {
    * any group, any subset of its keys. `setMessages` replaces them in place.
    */
   messages?: InkMessagesInput
-  /** The locale dates are formatted for. Default: the browser's. */
+  /** The locale dates are formatted for. Default: the `lang` of `messages`, else the browser's. */
   locale?: string
   /**
    * @internal A message state to share instead of making one from `messages` and `locale`:

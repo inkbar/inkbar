@@ -1,4 +1,5 @@
 import { allTools } from '@inkbar/core/dom'
+import { fr } from '@inkbar/core/locales/fr'
 import { useState } from 'react'
 
 import { InkHighlightMenu } from '../../src/components/InkHighlightMenu'
@@ -37,6 +38,7 @@ export function MessagesHarness({
   locale,
   zoom,
   percentSuffix,
+  french = false,
   inline = false,
   tick = 0,
 }: {
@@ -47,23 +49,27 @@ export function MessagesHarness({
   zoom?: ZoomValue | undefined
   /** Test-only: a `toolbar.zoomPercent` function, which a test cannot pass as a prop. */
   percentSuffix?: string | undefined
+  /** Test-only: pass the shipped French, whose functions a test cannot pass as a prop. */
+  french?: boolean
   /** Pass a new inline `messages` object on every render. */
   inline?: boolean
   /** Changes to re-render the host. */
   tick?: number
 }) {
   const [tools] = useState(allTools)
-  const words: InkMessagesInput | undefined = inline
-    ? { find: { close: 'X' } }
-    : percentSuffix === undefined
-      ? messages
-      : {
-          ...messages,
-          toolbar: {
-            ...messages?.toolbar,
-            zoomPercent: ({ percent }) => `${percent} ${percentSuffix}`,
-          },
-        }
+  const words: InkMessagesInput | undefined = french
+    ? fr
+    : inline
+      ? { find: { close: 'X' } }
+      : percentSuffix === undefined
+        ? messages
+        : {
+            ...messages,
+            toolbar: {
+              ...messages?.toolbar,
+              zoomPercent: ({ percent }) => `${percent} ${percentSuffix}`,
+            },
+          }
   return (
     <InkRoot
       src={src}

@@ -166,7 +166,8 @@ export interface Viewer {
   setMessages(messages: InkMessagesInput | undefined): void
   /**
    * Replaces the `locale` option, in place as `setMessages` does: dates follow it, and the
-   * root's `lang` is set to it (removed when it is undefined or not a valid language tag).
+   * root's `lang` is set to it (removed when it is not a valid language tag). Undefined falls
+   * back to the `lang` of the messages passed, if any.
    */
   setLocale(locale: string | undefined): void
   /**
@@ -372,7 +373,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     if (isValidLocale(locale)) root.setAttribute('lang', locale)
     else root.removeAttribute('lang')
   }
-  applyLocale(initialLocale)
+  applyLocale(messages.get().locale)
   /** New words or locale: the shell's own labels change in place. */
   const stopMessages = messages.subscribe(({ messages: m, locale }) => {
     applyLocale(locale)

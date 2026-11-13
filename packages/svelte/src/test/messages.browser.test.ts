@@ -1,3 +1,4 @@
+import { fr } from '@inkbar/core/locales/fr'
 import { browserAssets, fixtureUrl } from '@inkbar/fixtures/urls'
 import { describe, expect, it } from 'vitest'
 import { page as browserPage, userEvent } from 'vitest/browser'
@@ -87,6 +88,12 @@ describe('messages', () => {
     await expect.poll(() => time.textContent?.trim()).toBe(us)
     await screen.rerender({ locale: 'not a locale!' })
     await expect.poll(() => root().hasAttribute('lang')).toBe(false)
+  })
+
+  it('the shipped French sets lang="fr" with no locale', async () => {
+    await harness({ src: fixtureUrl('text-simple'), assets, messages: fr })
+    await expect.poll(() => root().getAttribute('lang')).toBe('fr')
+    await expect.element(button('Rechercher')).toBeInTheDocument()
   })
 
   it('a function label follows messages', async () => {

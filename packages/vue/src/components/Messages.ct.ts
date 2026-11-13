@@ -83,6 +83,14 @@ test('locale sets lang and formats note dates', async ({ mount, page }) => {
   await expect(root).not.toHaveAttribute('lang')
 })
 
+test('the shipped French sets lang="fr" with no locale', async ({ mount, page }) => {
+  await mount(Harness, {
+    props: { src: fixtureUrl('text-simple'), assets, french: true },
+  })
+  await expect(page.locator('[data-ink-root]')).toHaveAttribute('lang', 'fr')
+  await expect(page.getByRole('button', { name: 'Rechercher' })).toHaveCount(1)
+})
+
 test('a function label follows messages', async ({ mount, page }) => {
   const cmp = await mount(Harness, { props: { src: fixtureUrl('text-simple'), assets } })
   const draw = page.locator('[data-tool="draw"]')

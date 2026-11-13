@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { allTools } from '@inkbar/core/dom'
+import { fr } from '@inkbar/core/locales/fr'
 import { computed } from 'vue'
 
 import InkNextPage from '../../src/components/InkNextPage.vue'
@@ -26,8 +27,11 @@ const props = defineProps<{
   zoom?: ZoomValue | undefined
   /** Test-only: a `toolbar.zoomPercent` function, which a test cannot pass as a prop. */
   percentSuffix?: string | undefined
+  /** Test-only: pass the shipped French, whose functions a test cannot pass as a prop. */
+  french?: boolean | undefined
 }>()
 const words = computed<InkMessagesInput | undefined>(() => {
+  if (props.french) return fr
   const suffix = props.percentSuffix
   if (suffix === undefined) return props.messages
   return {

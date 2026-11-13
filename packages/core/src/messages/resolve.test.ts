@@ -33,6 +33,12 @@ describe('resolveMessages', () => {
     expect(m.find).not.toHaveProperty('zzz')
   })
 
+  it('keeps the lang of the input, else English', () => {
+    expect(resolveMessages().lang).toBe('en')
+    expect(resolveMessages({ find: { close: 'Fermer' } }).lang).toBe('en')
+    expect(resolveMessages({ lang: 'fr', find: { close: 'Fermer' } }).lang).toBe('fr')
+  })
+
   it('does not mutate English', () => {
     const before = en.find.close
     resolveMessages({ find: { close: 'X' } })
