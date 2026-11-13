@@ -123,6 +123,7 @@ export function freetextTool(): Tool {
     }
     const editor = editFreeText(el, draftBox, {
       transform: t,
+      label: c.messages?.annotations.freetext,
       commit(contents, rect, _grown, how) {
         done()
         // An empty box makes nothing: the tool stays ready.
@@ -159,7 +160,6 @@ export function freetextTool(): Tool {
 
   return {
     id: 'freetext',
-    label: 'Text box',
     icon: Type,
     kind: 'one-shot',
     claimsTouch: true,

@@ -1,5 +1,6 @@
 // Vocabulary the framework packages share: labels, zoom levels and the props they hand to
 // host-rendered content. Core owns these so Vue and React cannot drift apart.
+import { en, resolveLabel, type InkMessages } from '../messages'
 import { isKnown, LINE_ENDINGS } from '../model/annotations/pdf-names'
 
 import { PALETTE } from './palette'
@@ -9,6 +10,7 @@ import type {
   MarkupKind,
   ShapeKind,
   ShapeOptions,
+  Tool,
   ToolId,
 } from './tools'
 import type { CurrentStyle, StyleKey, StyleProps } from '../model/annotations/tool-style'
@@ -27,6 +29,21 @@ import type { SignatureOptions, SignatureTemplate } from '../model/signatures'
 export const TOOL_LABELS: Readonly<Partial<Record<ToolId, string>>> = {
   'select-text': 'Select text',
   select: 'Rectangle select',
+}
+
+/**
+ * A tool button's accessible name: the tool's own `label`, else its name in `m.tools` (the
+ * built-in tools), else its id.
+ *
+ * @internal Shared with the framework bindings.
+ */
+export function toolName(
+  id: ToolId,
+  tool: Pick<Tool, 'label'> | undefined,
+  m: InkMessages = en
+): string {
+  const tools: Readonly<Record<string, string>> = m.tools
+  return resolveLabel(tool?.label) || (Object.hasOwn(tools, id) ? tools[id] : '') || id
 }
 
 /**
@@ -126,8 +143,16 @@ export interface LineStyleMenuModel {
  */
 export function lineStyleMenuModel(
   current: CurrentStyle,
-  supported: ReadonlySet<StyleKey>
+  supported: ReadonlySet<StyleKey>,
+  m: InkMessages = en
 ): LineStyleMenuModel {
+  const l = m.lineStyle
+  const arrowLabels: Record<ArrowheadChoice, string> = {
+    none: l.arrowNone,
+    start: l.arrowStart,
+    end: l.arrowEnd,
+    both: l.arrowBoth,
+  }
   const canWeight = supported.has('width')
   const canDash = supported.has('dashes')
   const canEnds = supported.has('head') || supported.has('tail')
@@ -140,39 +165,39 @@ export function lineStyleMenuModel(
     ),
     sections: [
       {
-        label: 'Weight',
+        label: l.weight,
         disabled: !canWeight,
         items: LINE_WEIGHTS.map((w) => ({
           key: String(w),
-          label: `${w} pt`,
+          label: l.weightValue({ points: w }),
           checked: current.width === w,
           patch: { width: w },
         })),
       },
       {
-        label: 'Pattern',
+        label: l.pattern,
         disabled: !canDash,
         items: [
           {
             key: 'solid',
-            label: 'Solid',
+            label: l.solid,
             checked: current.dashes === null,
             patch: { dashes: null },
           },
           {
             key: 'dashed',
-            label: 'Dashed',
+            label: l.dashed,
             checked: dashed,
             patch: { dashes: [...DASH_PATTERN] },
           },
         ],
       },
       {
-        label: 'Arrowheads',
+        label: l.arrowheads,
         disabled: !canEnds,
         items: ARROWHEAD_CHOICES.map((c) => ({
           key: c.value,
-          label: c.label,
+          label: arrowLabels[c.value],
           checked: ends === c.value,
           patch: c.patch,
         })),
@@ -240,7 +265,8 @@ export function colorMenuModel(
   property: ColorProperty,
   current: CurrentStyle,
   supported: ReadonlySet<StyleKey>,
-  fallback?: string
+  fallback?: string,
+  m: InkMessages = en
 ): ColorMenuModel {
   const value = current[property]
   const enabled = supported.has(property)
@@ -266,7 +292,7 @@ export function colorMenuModel(
             ? { kind: 'color', color: fallback }
             : { kind: 'empty' }
   return {
-    label: COLOR_LABELS[property],
+    label: m.color[property],
     enabled,
     mixed: value === 'mixed',
     trigger,
@@ -356,11 +382,14 @@ const TEXT_KEYS: readonly StyleKey[] = [
 
 const ALIGN_KEYS: readonly TextAlignKey[] = ['left', 'center', 'right', 'justify']
 
-const ALIGN_LABELS: Readonly<Record<TextAlignKey, string>> = {
-  left: 'Align left',
-  center: 'Align centre',
-  right: 'Align right',
-  justify: 'Justify',
+function alignLabel(t: InkMessages['textStyle'], key: TextAlignKey): string {
+  return key === 'left'
+    ? t.alignLeft
+    : key === 'center'
+      ? t.alignCenter
+      : key === 'right'
+        ? t.alignRight
+        : t.alignJustify
 }
 
 /**
@@ -370,8 +399,10 @@ const ALIGN_LABELS: Readonly<Record<TextAlignKey, string>> = {
 export function textStyleMenuModel(
   current: CurrentStyle,
   supported: ReadonlySet<StyleKey>,
-  fonts: readonly string[]
+  fonts: readonly string[],
+  m: InkMessages = en
 ): TextStyleMenuModel {
+  const t = m.textStyle
   const family = current.fontFamily
   const size = current.fontSize
   // A style with no size yet (a fresh group) shows the size a new box gets.
@@ -393,12 +424,12 @@ export function textStyleMenuModel(
     return next === value ? null : { fontSize: next }
   }
   return {
-    label: 'Text style',
+    label: t.label,
     enabled: TEXT_KEYS.some((k) => supported.has(k)),
     // The panel holds the text colour too, so a mix of colours shows on the trigger.
     mixed: [...TEXT_KEYS, 'textColor' as const].some((k) => current[k] === 'mixed'),
     font: {
-      label: 'Font',
+      label: t.font,
       value: typeof family === 'string' && family !== 'mixed' ? family : '',
       options: [
         ...new Set(
@@ -408,7 +439,7 @@ export function textStyleMenuModel(
       patch: (f) => ({ fontFamily: f }),
     },
     size: {
-      label: 'Font size',
+      label: t.fontSize,
       value,
       min: FONT_SIZE_MIN,
       max: FONT_SIZE_MAX,
@@ -421,15 +452,15 @@ export function textStyleMenuModel(
       nudge,
     },
     toggles: [
-      toggle('bold', 'Bold', 'fontWeight', 'bold', 'normal'),
-      toggle('italic', 'Italic', 'fontStyle', 'italic', 'normal'),
-      toggle('underline', 'Underline', 'textDecoration', 'underline', 'none'),
+      toggle('bold', t.bold, 'fontWeight', 'bold', 'normal'),
+      toggle('italic', t.italic, 'fontStyle', 'italic', 'normal'),
+      toggle('underline', t.underline, 'textDecoration', 'underline', 'none'),
     ],
     align: {
-      label: 'Alignment',
+      label: t.alignment,
       choices: ALIGN_KEYS.map((key, i) => ({
         key,
-        label: ALIGN_LABELS[key],
+        label: alignLabel(t, key),
         checked: current.textAlign === key,
         tabStop:
           current.textAlign === key ||
@@ -481,7 +512,8 @@ export interface HighlightMenuModel {
 /** What the highlight menu shows for the highlight tool's options. */
 export function highlightMenuModel(
   options: Partial<HighlightOptions>,
-  kinds: readonly MarkupKind[]
+  kinds: readonly MarkupKind[],
+  m: InkMessages = en
 ): HighlightMenuModel {
   const kind =
     options.kind !== undefined && kinds.includes(options.kind)
@@ -489,8 +521,8 @@ export function highlightMenuModel(
       : (kinds[0] ?? 'highlight')
   return {
     kind,
-    label: MARKUP_LABELS[kind],
-    items: kinds.map((k) => ({ kind: k, label: MARKUP_LABELS[k], checked: k === kind })),
+    label: m.highlight[kind],
+    items: kinds.map((k) => ({ kind: k, label: m.highlight[k], checked: k === kind })),
   }
 }
 
@@ -519,7 +551,8 @@ export interface ShapeMenuModel {
  */
 export function shapeMenuModel(
   options: Partial<ShapeOptions>,
-  kinds: readonly ShapeKind[]
+  kinds: readonly ShapeKind[],
+  m: InkMessages = en
 ): ShapeMenuModel {
   const kind =
     options.kind !== undefined && kinds.includes(options.kind)
@@ -527,8 +560,8 @@ export function shapeMenuModel(
       : (kinds.find((k) => k === 'rectangle') ?? kinds[0] ?? 'rectangle')
   return {
     kind,
-    label: `Shape: ${SHAPE_LABELS[kind]}`,
-    items: kinds.map((k) => ({ kind: k, label: SHAPE_LABELS[k], checked: k === kind })),
+    label: m.shape.current({ kind: m.shape[kind] }),
+    items: kinds.map((k) => ({ kind: k, label: m.shape[k], checked: k === kind })),
   }
 }
 
@@ -548,16 +581,22 @@ export interface AnnotationSlotProps {
 }
 
 /** The thread popover's accessible name: "Note thread" for a note, "Comment thread" for markup. */
-export function threadPopoverLabel(root: Pick<Annotation, 'type'>): string {
-  return root.type === 'text' ? 'Note thread' : 'Comment thread'
+export function threadPopoverLabel(
+  root: Pick<Annotation, 'type'>,
+  m: InkMessages = en
+): string {
+  return root.type === 'text' ? m.notes.noteThread : m.notes.commentThread
 }
 
 /**
  * The thread popover's delete button. It removes the root and its replies, so on text markup
  * it says it deletes the highlight, not only the comment.
  */
-export function threadDeleteLabel(root: Pick<Annotation, 'type'>): string {
-  return root.type === 'text' ? 'Delete' : 'Delete highlight'
+export function threadDeleteLabel(
+  root: Pick<Annotation, 'type'>,
+  m: InkMessages = en
+): string {
+  return root.type === 'text' ? m.notes.delete : m.notes.deleteHighlight
 }
 
 /** What a host-rendered comment thread receives: a note's, or text markup's. */
@@ -628,12 +667,13 @@ export interface SignatureMenuModel {
 /** What the signature menu shows for the saved templates and the signature tool's options. */
 export function signatureMenuModel(
   templates: readonly SignatureTemplate[],
-  options: SignatureOptions
+  options: SignatureOptions,
+  m: InkMessages = en
 ): SignatureMenuModel {
   const items = templates.map((template, i) => ({
     id: template.id,
-    label: `Signature ${i + 1}`,
-    removeLabel: `Remove signature ${i + 1}`,
+    label: m.signature.item({ n: i + 1 }),
+    removeLabel: m.signature.remove({ n: i + 1 }),
     checked: template.id === options.templateId,
     template,
   }))

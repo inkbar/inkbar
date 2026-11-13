@@ -46,7 +46,6 @@ export function drawTool(): Tool {
 
   return freehandTool({
     id: 'draw',
-    label: 'Draw',
     icon: PenLine,
     end() {
       session = undefined

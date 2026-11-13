@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { TOOL_LABELS, withHostTools } from '@inkbar/core/dom'
+import { toolName, withHostTools } from '@inkbar/core/dom'
 import { SquareDashedMousePointer, TextCursor } from '@inkbar/icons'
 import { ToolbarButton } from 'reka-ui'
 import { computed, mergeProps, useAttrs } from 'vue'
@@ -36,10 +36,8 @@ const own = computed(() =>
     ...(ctx.pluginHost.value?.tools ?? []),
   ]).find((t) => t.id === props.tool)
 )
-// `label` and the slot win; then core's name and icon; then the tool's own.
-const name = computed(
-  () => props.label ?? TOOL_LABELS[props.tool] ?? own.value?.label ?? props.tool
-)
+// `label` and the slot win; then the tool's own name, else core's; then the id.
+const name = computed(() => props.label ?? toolName(props.tool, own.value))
 const icon = computed(() => ICONS[props.tool] ?? own.value?.icon)
 // Reka's typed props stop at its own; ARIA and listeners go through a bound object. A tool
 // nobody registered leaves the button disabled, hidden from assistive tech and unnamed.

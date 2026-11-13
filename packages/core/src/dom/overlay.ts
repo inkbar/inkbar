@@ -29,6 +29,7 @@ import { isProduction } from '../model/env'
 import { canEditFreeText, editFreeTextIn, editorFor } from './freetext-editor'
 import { createLoupeLayer } from './loupe-layer'
 import { createMaskLayer } from './mask-layer'
+import { ENGLISH, type MessageState } from './messages-state'
 import {
   annotationBox,
   handleBox,
@@ -41,11 +42,13 @@ import {
   type HandleSpec,
 } from './overlay-render'
 
+import type { InkMessages } from '../messages'
 import type { PageTransform } from './transform'
 import type { AnnotationStore } from '../model/annotations/store'
 import type { Annotation, MaskAnnotation } from '../model/annotations/types'
 import type { InkDocument } from '../model/document'
 import type { Point } from '../model/geometry'
+import type { Readable } from '../model/readable'
 
 export interface OverlayOptions {
   host: HTMLElement
@@ -70,6 +73,8 @@ export interface OverlayOptions {
    * classes win over them.
    */
   decorate?: DecorateAnnotation
+  /** The words the elements are labelled with; English when omitted. */
+  messages?: Readable<MessageState>
 }
 
 /**
@@ -123,32 +128,14 @@ const ARROW_STEPS: Record<string, { x: number; y: number }> = {
   ArrowDown: { x: 0, y: -1 },
 }
 
-const LABELS: Record<Annotation['type'], string> = {
-  highlight: 'Highlight',
-  underline: 'Underline',
-  strikeout: 'Strikethrough',
-  squiggly: 'Squiggly underline',
-  text: 'Note',
-  freetext: 'Text box',
-  square: 'Rectangle',
-  circle: 'Ellipse',
-  line: 'Line',
-  polyline: 'Polyline',
-  polygon: 'Polygon',
-  ink: 'Drawing',
-  stamp: 'Stamp',
-  loupe: 'Loupe',
-  mask: 'Mask',
-  redact: 'Redaction',
-}
-
-function ariaLabel(a: Annotation): string {
+function ariaLabel(a: Annotation, m: InkMessages): string {
+  const t = m.annotations
   const base =
     a.subject === 'Signature' && (a.type === 'ink' || a.type === 'stamp')
-      ? 'Signature'
-      : LABELS[a.type]
-  const named = hasComment(a) ? `${base} with comment` : base
-  return a.author ? `${named} by ${a.author}` : named
+      ? t.signature
+      : t[a.type]
+  const named = hasComment(a) ? t.withComment({ name: base }) : base
+  return a.author ? t.byAuthor({ name: named, author: a.author }) : named
 }
 
 /** Reading order in user space: top edge first (y grows upwards), then left edge. */
@@ -227,6 +214,7 @@ function setFlag(node: HTMLElement, key: string, on: boolean): void {
 
 export function createOverlay(opts: OverlayOptions): Overlay {
   const { store, page } = opts
+  const messages = opts.messages ?? ENGLISH
   const doc = opts.host.ownerDocument
   let transform = opts.transform
   const root = doc.createElement('div')
@@ -351,7 +339,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     node.dataset.source = a.source
     setFlag(node, 'locked', a.locked === true)
     setFlag(node, 'inkPinned', store._isPinned(a.id))
-    node.setAttribute('aria-label', ariaLabel(a))
+    node.setAttribute('aria-label', ariaLabel(a, messages.get().messages))
     applyDecoration(node, a)
   }
 
@@ -427,7 +415,11 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     const node = elements.get(id)
     if (!node || !canEditFreeText(a, node) || opts.isCustom?.(a) === true) return false
     if (editorFor(node)) return true
-    return editFreeTextIn(store, node, id, transform) !== undefined
+    return (
+      editFreeTextIn(store, node, id, transform, {
+        label: messages.get().messages.annotations.freetext,
+      }) !== undefined
+    )
   }
 
   /** Commits every open editor: before a redraw that would lose it, or teardown. */
@@ -738,6 +730,16 @@ export function createOverlay(opts: OverlayOptions): Overlay {
       applyState(node, id)
     }
   })
+  /** New words: every element and open editor is relabelled in place. */
+  const offMessages = messages.subscribe(({ messages: m }) => {
+    if (destroyed) return
+    for (const [id, node] of elements) {
+      const a = store.get(id)
+      if (a) node.setAttribute('aria-label', ariaLabel(a, m))
+    }
+    for (const field of root.querySelectorAll('[data-ink-editor]'))
+      field.setAttribute('aria-label', m.annotations.freetext)
+  })
   render()
 
   return {
@@ -766,6 +768,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
       offList()
       offSelection()
       offPinned()
+      offMessages()
       toolObserver?.disconnect()
       loupes?.destroy()
       masks.destroy()

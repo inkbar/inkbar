@@ -47,7 +47,6 @@ export function highlightTool(): Tool<HighlightOptions> {
   }
   return {
     id: 'highlight',
-    label: 'Highlight',
     icon: Highlighter,
     kind: 'sticky',
     cursor: 'text',

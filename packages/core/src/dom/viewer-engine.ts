@@ -12,6 +12,7 @@ import {
   type Point,
   type Rect,
 } from '../model/geometry'
+import { readonly, type Readable } from '../model/readable'
 import {
   createSignatureLibrary,
   createStorageSignatureStore,
@@ -21,6 +22,11 @@ import { createMemoryStorage, type InkStorage } from '../model/storage'
 
 import { hasControl, type SignFieldRequest } from './form-layer'
 import { pageStopOrder } from './form-order'
+import {
+  createMessageState,
+  type MessageState,
+  type MessageStore,
+} from './messages-state'
 import { createNavigation, type Navigation } from './navigation'
 import { createPageMount, type PageLayer, type PageMount } from './page-mount'
 import { createPluginLayers } from './plugins/layer'
@@ -45,6 +51,7 @@ import type { DecorateAnnotation } from './overlay'
 import type { PluginHost } from './plugins/host'
 import type { SearchController } from './search/controller'
 import type { PageTransform, ViewRotation } from './transform'
+import type { InkMessagesInput } from '../messages'
 import type { ToolStyle } from '../model/annotations/tool-style'
 import type { InkDocument } from '../model/document'
 import type { FormWidget, ViewerAction } from '../model/form/types'
@@ -120,6 +127,18 @@ export interface MountViewerOptions {
    * `data-ink-form-highlight="off"` on the container and each page's form layer.
    */
   formHighlight?: boolean
+  /**
+   * The words the page layers show (annotation, link and form field labels), over English:
+   * any group, any subset of its keys. `setMessages` replaces them in place.
+   */
+  messages?: InkMessagesInput
+  /** The locale dates are formatted for. Default: the browser's. */
+  locale?: string
+  /**
+   * @internal A message state to share instead of making one from `messages` and `locale`:
+   * `createViewer` passes its own, so the words outlive each document.
+   */
+  _messageState?: MessageStore
   /**
    * An empty signature field was activated: sign it, for instance by offering the saved
    * signatures anchored to `req.anchor` and calling `signField` with the one picked.
@@ -224,6 +243,19 @@ export interface ViewerEngine {
    * place: no page renders again and no field loses focus or typed text.
    */
   setFormHighlight(on: boolean): void
+  /**
+   * The words and locale the page layers show now. Each change sets a new value, so
+   * subscribers re-run even when nothing differs.
+   */
+  readonly messages: Readable<MessageState>
+  /**
+   * Replaces the `messages` option: English with `messages` over it. The mounted pages relabel
+   * in place; nothing renders again and nothing loses focus. Calling it with the same object
+   * relabels too, which re-reads a host's label functions.
+   */
+  setMessages(messages: InkMessagesInput | undefined): void
+  /** Replaces the `locale` option, in place as `setMessages` does. */
+  setLocale(locale: string | undefined): void
   destroy(): void
 }
 
@@ -281,6 +313,8 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
   const { container: el, document: doc } = opts
   let highlight = opts.formHighlight ?? true
   if (!highlight) el.dataset.inkFormHighlight = 'off'
+  /** The words for the engine's life, across rebuilds: the viewer's, or the engine's own. */
+  const messages = opts._messageState ?? createMessageState(opts.messages, opts.locale)
   const pages = new Map<number, PageMount>()
   let gap = opts.gap
   let buffer = opts.buffer
@@ -343,6 +377,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       isCustom: () => isCustom,
       decorate,
       formHighlight: highlight,
+      messages,
       // While a build mounts its pages, `tools` is unset or the old controller; the build
       // refreshes the fields once its controller exists.
       formActive: formsActive,
@@ -758,6 +793,9 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
         get signatures() {
           return signatures()
         },
+        get messages() {
+          return messages.get().messages
+        },
       },
     })
     viewport = vp
@@ -845,6 +883,13 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
       if (on) delete el.dataset.inkFormHighlight
       else el.dataset.inkFormHighlight = 'off'
       for (const mount of pages.values()) mount.form?.setHighlight(on)
+    },
+    messages: readonly(messages),
+    setMessages(next) {
+      if (!destroyed) messages.setMessages(next)
+    },
+    setLocale(next) {
+      if (!destroyed) messages.setLocale(next)
     },
     destroy() {
       if (destroyed) return

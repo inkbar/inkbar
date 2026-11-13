@@ -168,6 +168,7 @@ export {
   textStyleMenuModel,
   threadDeleteLabel,
   threadPopoverLabel,
+  toolName,
 } from './ui'
 export { createPasswordPrompt, lockedStatus } from './password-prompt'
 export type { LockedStatus, PasswordPrompt, PasswordPromptState } from './password-prompt'
@@ -219,6 +220,8 @@ export {
 export type { FocusReturn, FocusReturnOptions } from './popover-focus'
 export { createPopover, placePanel } from './viewer/popover'
 export type { Popover, PopoverOptions } from './viewer/popover'
+export { createMessageState } from './messages-state'
+export type { MessageState, MessageStore } from './messages-state'
 export { mountViewer } from './viewer-engine'
 export type { MountViewerOptions, ViewerEngine } from './viewer-engine'
 export { createFindBar } from './search/find-bar'

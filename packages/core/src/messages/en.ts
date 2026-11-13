@@ -229,6 +229,7 @@ export const en: InkMessages = {
     unnamed: 'Form field',
     sign: 'Sign',
     signField: template('en', 'Sign this field: {label}'),
+    signFieldTitle: 'Sign this field',
     alert: 'Message',
     ok: 'OK',
   },

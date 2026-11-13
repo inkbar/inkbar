@@ -2,9 +2,11 @@ import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { userEvent } from 'vitest/browser'
 
+import { template } from '../messages'
 import { rectFromQuad, type Rect } from '../model/geometry'
 
 import { createLinkLayer, type LinkLayer } from './link-layer'
+import { createMessageState } from './messages-state'
 import { createPageMount, type PageMount } from './page-mount'
 import { mountContainer, openFixtureInBrowser, until } from './test-utils'
 import { createPageTransform, type ViewRotation } from './transform'
@@ -366,5 +368,40 @@ describe('link tab order', () => {
         doc.links(2)[0]!.id
     )
     expect(engine.pages.has(2)).toBe(true)
+  })
+})
+
+describe('link labels from messages', () => {
+  it('names go-to-page and unsupported links from messages, live', async () => {
+    const doc = await open()
+    const transform = createPageTransform(doc.pages[0]!, 1)
+    const host = mountContainer(transform.cssWidth, transform.cssHeight)
+    const messages = createMessageState({
+      links: {
+        goToPage: template('fr', 'Aller à la page {page}'),
+        unsupported: 'Lien non pris en charge',
+      },
+    })
+    const layer: LinkLayer = createLinkLayer({
+      host,
+      page: 0,
+      transform,
+      document: doc,
+      follow: () => {},
+      textUnder: () => '',
+      messages,
+    })
+    cleanup.push(() => (layer.destroy(), host.remove()))
+    const name = (y: number) => stopOf(host, linkAt(doc, y)).getAttribute('aria-label')
+    await until(() => name(696) === 'Aller à la page 2')
+    const unsupported = stopOf(host, linkAt(doc, 606))
+    expect(unsupported.getAttribute('aria-label')).toBe('Lien non pris en charge')
+    expect(unsupported.title).toBe('Lien non pris en charge')
+    const internal = stopOf(host, linkAt(doc, 696))
+    messages.setMessages(undefined)
+    expect(stopOf(host, linkAt(doc, 696))).toBe(internal)
+    expect(name(696)).toBe('Go to page 2')
+    expect(unsupported.title).toBe('This link is not supported')
+    expect(unsupported.getAttribute('aria-label')).toBe('This link is not supported')
   })
 })

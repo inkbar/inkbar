@@ -1,4 +1,4 @@
-import { TOOL_LABELS, withHostTools, type ToolId } from '@inkbar/core/dom'
+import { toolName, withHostTools, type ToolId } from '@inkbar/core/dom'
 import { SquareDashedMousePointer, TextCursor } from '@inkbar/icons'
 import { Toolbar } from 'radix-ui'
 
@@ -53,8 +53,8 @@ export function InkToolButton({
   const own = withHostTools([...(hostTools ?? []), ...(pluginHost?.tools ?? [])]).find(
     (t) => t.id === tool
   )
-  // `label` and `children` win; then core's name and icon; then the tool's own.
-  const name = label ?? TOOL_LABELS[tool] ?? own?.label ?? tool
+  // `label` and `children` win; then the tool's own name, else core's; then the id.
+  const name = label ?? toolName(tool, own)
   const icon = ICONS[tool] ?? own?.icon
   return (
     <Toolbar.Button

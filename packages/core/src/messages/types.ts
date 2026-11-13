@@ -230,6 +230,7 @@ export interface InkMessages {
     unnamed: string
     sign: string
     signField: MessageFn<{ label: string }>
+    signFieldTitle: string
     alert: string
     ok: string
   }

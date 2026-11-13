@@ -7,6 +7,7 @@
 //
 // Inline styles here are structural or geometric only: the editor's position and minimum
 // height, the box's `visibility` while it is covered, and the element's grown height.
+import { en } from '../messages'
 import { freeTextBox } from '../model/annotations/callout'
 import { hasCallout, isBubble, resizedBox, withBox } from '../model/annotations/edit'
 
@@ -39,6 +40,8 @@ export interface FreeTextEditorOptions {
   cancel(): void
   /** Where to put the caret, a client point (a click on the box); at the end when absent. */
   caret?: { clientX: number; clientY: number } | undefined
+  /** The editor's accessible name. Default `en.annotations.freetext` ("Text box"). */
+  label?: string | undefined
 }
 
 /** The open editor on each overlay element. */
@@ -87,7 +90,7 @@ export function editFreeText(
   field.dataset.inkEditor = ''
   field.setAttribute('role', 'textbox')
   field.setAttribute('aria-multiline', 'true')
-  field.setAttribute('aria-label', 'Text box')
+  field.setAttribute('aria-label', opts.label ?? en.annotations.freetext)
   styleFreeText(field, a, opts.transform)
   field.style.position = 'absolute'
   field.style.left = `${inner.left}px`
@@ -234,6 +237,7 @@ export function editFreeTextIn(
   opts: {
     onClose?(how: EditorCloseReason): void
     caret?: { clientX: number; clientY: number }
+    label?: string | undefined
   } = {}
 ): FreeTextEditor | undefined {
   const a = store._getProposed(id) ?? store.get(id)
@@ -259,6 +263,7 @@ export function editFreeTextIn(
   return editFreeText(el, a, {
     transform,
     caret: opts.caret,
+    label: opts.label,
     commit(contents, _rect, grown, how) {
       write(contents, grown)
       opts.onClose?.(how)

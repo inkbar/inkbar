@@ -5,9 +5,11 @@
  * focus to OK; OK or Escape closes it, and focus goes back where it was. The message is the
  * script's text, set as text only.
  */
-import { FORM_LABELS } from '../ui'
+import { ENGLISH, type MessageState } from '../messages-state'
 
 import { h } from './dom'
+
+import type { Readable } from '../../model/readable'
 
 export interface FormAlert {
   /** Shows `message`, replacing the one showing, if any. */
@@ -21,14 +23,18 @@ let alerts = 0
 
 /**
  * A non-modal alert for the viewer under `root` (`[data-ink-root]`), placed on `<body>`.
- * Escape closes it while focus is in it; elsewhere Escape stays the viewer's.
+ * Escape closes it while focus is in it; elsewhere Escape stays the viewer's. Its title and
+ * button follow `messages`, in place.
  */
-export function createFormAlert(root: HTMLElement): FormAlert {
+export function createFormAlert(
+  root: HTMLElement,
+  messages: Readable<MessageState> = ENGLISH
+): FormAlert {
   const uid = `ink-form-alert-${++alerts}`
   const title = h(
     'h2',
     { id: `${uid}-title`, class: 'ink-dialog-title' },
-    FORM_LABELS.alert
+    messages.get().messages.forms.alert
   )
   const message = h('p', {
     id: `${uid}-message`,
@@ -43,8 +49,12 @@ export function createFormAlert(root: HTMLElement): FormAlert {
       'data-variant': 'primary',
       'data-ink-form-alert-ok': '',
     },
-    FORM_LABELS.ok
+    messages.get().messages.forms.ok
   )
+  const stopMessages = messages.subscribe(({ messages: m }) => {
+    title.textContent = m.forms.alert
+    ok.textContent = m.forms.ok
+  })
   const panel = h(
     'div',
     {
@@ -106,6 +116,7 @@ export function createFormAlert(root: HTMLElement): FormAlert {
     },
     close,
     destroy() {
+      stopMessages()
       close()
       panel.remove()
     },

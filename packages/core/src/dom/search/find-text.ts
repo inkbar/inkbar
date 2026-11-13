@@ -1,6 +1,7 @@
 /*
  * The find bar's copy, shared by the vanilla bar and the framework bindings so it cannot drift.
  */
+import { en, type InkMessages } from '../../messages'
 import { isBlankQuery } from '../../model/search-text'
 
 import type { SearchState } from './controller'
@@ -11,10 +12,11 @@ import type { SearchHit } from '../../model/search'
  *
  * @internal Shared with the framework bindings.
  */
-export function findCountText(s: SearchState): string {
+export function findCountText(s: SearchState, m: InkMessages = en): string {
   if (isBlankQuery(s.query)) return ''
-  if (s.hits.length === 0) return s.scanning ? '' : 'No results'
-  return `${s.current + 1} of ${s.hits.length}${s.scanning ? '…' : ''}`
+  if (s.hits.length === 0) return s.scanning ? '' : m.find.noResults
+  const at = { current: s.current + 1, total: s.hits.length }
+  return s.scanning ? m.find.countScanning(at) : m.find.count(at)
 }
 
 /**
@@ -27,7 +29,7 @@ export function findCountText(s: SearchState): string {
  *
  * @internal Shared with the framework bindings; each bar keeps its own.
  */
-export function findAnnouncer(): (s: SearchState) => string {
+export function findAnnouncer(m: InkMessages = en): (s: SearchState) => string {
   let shown: SearchHit | undefined
   let said = ''
   return (s) => {
@@ -38,12 +40,20 @@ export function findAnnouncer(): (s: SearchState) => string {
     } else if (!s.scanning) {
       shown = hit
       said = hit
-        ? `Match ${s.current + 1} of ${s.hits.length}, page ${hit.page + 1}`
-        : 'No results'
+        ? m.find.announce({
+            current: s.current + 1,
+            total: s.hits.length,
+            page: hit.page + 1,
+          })
+        : m.find.noResults
     } else {
       if (!hit) said = ''
       else if (shown && hit !== shown)
-        said = `Match ${s.current + 1} of ${s.hits.length} so far, page ${hit.page + 1}`
+        said = m.find.announceScanning({
+          current: s.current + 1,
+          total: s.hits.length,
+          page: hit.page + 1,
+        })
       shown = hit
     }
     return said

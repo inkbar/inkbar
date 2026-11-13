@@ -34,8 +34,6 @@ export interface FreehandStroke {
 
 export interface FreehandOptions {
   id: ToolId
-  /** The tool's accessible name. */
-  label: string
   /** The tool's toolbar icon. */
   icon: IconNode
   /** Writes a finished stroke. */
@@ -141,7 +139,6 @@ export function freehandTool(opts: FreehandOptions): Tool {
 
   return {
     id: opts.id,
-    label: opts.label,
     icon: opts.icon,
     kind: 'sticky',
     claimsTouch: true,

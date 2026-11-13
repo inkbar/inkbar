@@ -7,8 +7,6 @@
 // technology and left out of the Tab order.
 //
 // The button's font size follows the box at each zoom (geometry); its look is the theme's.
-import { FORM_LABELS } from './ui'
-
 import type { WidgetState, WidgetView, WidgetViewContext } from './form-layer'
 
 /** Points the "Sign" text is set in at 100%, unless the box is too short for it. */
@@ -62,10 +60,11 @@ export function createSignatureWidget(ctx: WidgetViewContext): WidgetView {
         el.removeAttribute('aria-disabled')
       }
       // Text only: the label is ours, the name is the file's.
-      el.textContent = signable() ? FORM_LABELS.sign : ''
+      const m = ctx.messages.forms
+      el.textContent = signable() ? m.sign : ''
       if (signable()) {
-        el.setAttribute('aria-label', `${FORM_LABELS.signField}: ${ctx.label}`)
-        el.title = FORM_LABELS.signField
+        el.setAttribute('aria-label', m.signField({ label: ctx.label }))
+        el.title = m.signFieldTitle
       } else {
         el.setAttribute('aria-label', ctx.label)
         el.removeAttribute('title')

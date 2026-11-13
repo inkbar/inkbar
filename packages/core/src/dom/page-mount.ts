@@ -11,6 +11,7 @@ import { createOverlay, type DecorateAnnotation, type Overlay } from './overlay'
 import { createPageRenderer, type PageRenderer } from './page-renderer'
 import { createTextLayer, type TextLayerHandle } from './text-layer'
 
+import type { MessageState } from './messages-state'
 import type { FollowOptions } from './navigation'
 import type { PluginLayers } from './plugins/layer'
 import type { SearchHighlights } from './search/highlights'
@@ -19,6 +20,7 @@ import type { AnnotationStore } from '../model/annotations/store'
 import type { Annotation } from '../model/annotations/types'
 import type { LinkTarget } from '../model/destination'
 import type { InkDocument } from '../model/document'
+import type { Readable } from '../model/readable'
 
 export interface PageMountOptions {
   document: InkDocument
@@ -49,6 +51,8 @@ export interface PageMountOptions {
   layers?: PluginLayers
   /** Search match highlights, mounted below the overlay. */
   highlights?: SearchHighlights
+  /** The words the page's layers label with; English when omitted. */
+  messages?: Readable<MessageState>
   /**
    * Canvas, text layer and form appearance failures, with the layer that failed (cancellations
    * are not reported).
@@ -131,6 +135,7 @@ export function createPageMount(opts: PageMountOptions): PageMount {
           transform,
           document,
           follow: (target, o) => opts.followLink?.(target, o),
+          ...(opts.messages ? { messages: opts.messages } : {}),
           textUnder: (rect) => {
             // A relabel asks for every link at once: the text is measured once for all of them.
             if (!measured) {
@@ -165,6 +170,7 @@ export function createPageMount(opts: PageMountOptions): PageMount {
           document,
           highlight: opts.formHighlight ?? true,
           isActive: () => opts.formActive?.() ?? true,
+          ...(opts.messages ? { messages: opts.messages } : {}),
           ...(opts.onSignField
             ? { onSignField: (req: SignFieldRequest) => opts.onSignField?.(req) }
             : {}),
@@ -188,6 +194,7 @@ export function createPageMount(opts: PageMountOptions): PageMount {
       ? { isCustom: (a: Annotation) => opts.isCustom?.(a) === true }
       : {}),
     ...(opts.decorate ? { decorate: opts.decorate } : {}),
+    ...(opts.messages ? { messages: opts.messages } : {}),
   })
   const layers = opts.layers?.mount(page, host, transform)
 
