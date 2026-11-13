@@ -247,9 +247,9 @@ A floating panel closes on a tap anywhere else in the parent (the pages, say), o
 
 ## Thumbnails
 
-`InkThumbnail` draws one page (0-based `page`) as a small image, with its annotations and plugin marks. Give it a `width` or a `height` and the other follows the page; with neither it is 120px wide. `:annotations="false"` and `:marks="false"` leave those out, and `label` replaces its accessible name ("Page 4" for page 3). It is an image with no focus or click behaviour, so wrap it in the control you need, a checkbox label in a dialog for instance.
+`InkThumbnail` draws one page (0-based `page`) as a small image, with its annotations and plugin marks. Give it a `width` or a `height` and the other follows the page; with neither it is as wide as `--ink-thumbnail-width` (120px when unset). `:annotations="false"` and `:marks="false"` leave those out, and `label` replaces its accessible name ("Page 4" for page 3). It is an image with no focus or click behaviour, so wrap it in the control you need, a checkbox label in a dialog for instance.
 
-`InkThumbnails` lists the pages as thumbnails, each a button that scrolls the viewport to its page, with the current page marked `aria-current="page"`. It fills its parent's height and scrolls. `pages` lists the pages to show, in order. The thumbnails fill the list's width less a 16px gutter each side and follow it as it resizes; `width` fixes them at that many pixels instead. `annotations` and `marks` pass to each thumbnail. Only the items near the visible part are mounted. The `item` slot adds to each item after its page number:
+`InkThumbnails` lists the pages as thumbnails, each a button that scrolls the viewport to its page, with the current page marked `aria-current="page"`. It fills its parent's height and scrolls. `pages` lists the pages to show, in order. The thumbnails fill the list's width less a 16px gutter each side and follow it as it resizes. Set `--ink-thumbnail-width` in px to draw them that wide instead, never wider than that fit. `width` fixes them at that many pixels whatever the list's width. `annotations` and `marks` pass to each thumbnail. Only the items near the visible part are mounted. The `item` slot adds to each item after its page number:
 
 ```vue
 <InkThumbnails>

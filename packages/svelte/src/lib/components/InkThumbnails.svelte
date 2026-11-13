@@ -8,7 +8,10 @@
   > {
     /** 0-based pages to list, in order. Default: every page. */
     pages?: readonly number[] | undefined
-    /** Thumbnail width in CSS pixels. Default: the list's width less a 16px gutter each side. */
+    /**
+     * Thumbnail width in CSS pixels. Default: `--ink-thumbnail-width` (px only) capped at the
+     * list's width less a 16px gutter each side; with the token unset, that fit.
+     */
     width?: number | undefined
     /** Draw each page's annotations. Default true. */
     annotations?: boolean | undefined

@@ -338,7 +338,8 @@ describe('theme.css', () => {
       rootRule?.nodes.find((d) => d.type === 'decl' && d.prop === prop)?.toString()
     expect(decl('--ink-sidebar-width')).toMatch(/:\s*320px$/)
     expect(decl('--ink-sidebar-rail-width')).toMatch(/:\s*48px$/)
-    expect(decl('--ink-thumbnail-width')).toMatch(/:\s*120px$/)
+    // Unset, so a thumbnail list fits its width unless the host sets it.
+    expect(decl('--ink-thumbnail-width')).toBeUndefined()
     expect(decl('--ink-mark-selected-outline')).toMatch(/:\s*2px solid #2740f5$/i)
     expect(rootRule?.selector).toContain('[data-ink-sidebar]')
   })

@@ -2,7 +2,7 @@
 /*
  * One page as a static image, with its live annotations and plugin marks: core's thumbnail
  * painter on this element, which sizes it, names it ("Page N" unless `label` says otherwise)
- * and draws it once it nears the visible area. `page` is 0-based. `width` (default 120) or
+ * and draws it once it nears the visible area. `page` is 0-based. `width` (default `--ink-thumbnail-width`, px only, else 120) or
  * `height` sets the size; the other follows the page. It is not focusable and does nothing on
  * click: wrap it in the control you need. Inside `InkRoot`; it renders empty on the server.
  */
