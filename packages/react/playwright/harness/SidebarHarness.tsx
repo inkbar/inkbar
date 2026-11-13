@@ -4,7 +4,7 @@
  * `inRoot`, that store is InkRoot's and the sidebar inherits it. The store outlives a remount.
  */
 import { MessageSquare, Search, Square } from '@inkbar/icons'
-import { StrictMode, useEffect, useRef, useState, type ReactNode } from 'react'
+import { Activity, StrictMode, useEffect, useRef, useState, type ReactNode } from 'react'
 import { createRoot, hydrateRoot } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
 
@@ -40,6 +40,8 @@ export interface SidebarHarnessProps {
   /** InkRoot's `minDocumentWidth`, with `inRoot`. */
   rootMinDocumentWidth?: number | undefined
   handleLabel?: string | undefined
+  /** Remount hides and shows the sidebar in an `<Activity>` instead of unmounting it. */
+  activity?: boolean | undefined
 }
 
 export function SidebarHarness({
@@ -56,6 +58,7 @@ export function SidebarHarness({
   minDocumentWidth,
   rootMinDocumentWidth,
   handleLabel,
+  activity,
 }: SidebarHarnessProps) {
   const [widthControlled] = useState(width !== undefined)
   const [widthValue, setWidthValue] = useState<number | undefined>(width)
@@ -89,6 +92,31 @@ export function SidebarHarness({
     setChanges((list) => [...list, next])
     if (controlled) setValue(next)
   }
+  const sidebar = (
+    <InkSidebar
+      {...(controlled ? { open: value ?? null } : { defaultOpen })}
+      onOpenChange={onOpenChange}
+      {...(widthControlled ? { width: widthValue, onWidthChange: setWidthValue } : {})}
+      {...(stored && !inRoot && !withoutStore ? { storage } : {})}
+      {...(minDocumentWidth !== undefined && { minDocumentWidth })}
+      {...(handleLabel !== undefined && { handleLabel })}
+      layout={layout}
+      side={side}
+      data-testid="sidebar"
+    >
+      <InkPanel id="pages" label="Pages" icon={Square}>
+        <p>Pages content</p>
+      </InkPanel>
+      {withSearch ? (
+        <InkPanel key={searchKey} id="search" label="Search" icon={Search} badge={badge}>
+          <input aria-label="Query" />
+        </InkPanel>
+      ) : null}
+      <InkPanel id="notes" label="Notes" icon={MessageSquare}>
+        <p>Notes content</p>
+      </InkPanel>
+    </InkSidebar>
+  )
   return (
     <>
       <button
@@ -136,38 +164,10 @@ export function SidebarHarness({
             ...(containerWidth !== undefined && { width: containerWidth }),
           }}
         >
-          {shown ? (
-            <InkSidebar
-              {...(controlled ? { open: value ?? null } : { defaultOpen })}
-              onOpenChange={onOpenChange}
-              {...(widthControlled
-                ? { width: widthValue, onWidthChange: setWidthValue }
-                : {})}
-              {...(stored && !inRoot && !withoutStore ? { storage } : {})}
-              {...(minDocumentWidth !== undefined && { minDocumentWidth })}
-              {...(handleLabel !== undefined && { handleLabel })}
-              layout={layout}
-              side={side}
-              data-testid="sidebar"
-            >
-              <InkPanel id="pages" label="Pages" icon={Square}>
-                <p>Pages content</p>
-              </InkPanel>
-              {withSearch ? (
-                <InkPanel
-                  key={searchKey}
-                  id="search"
-                  label="Search"
-                  icon={Search}
-                  badge={badge}
-                >
-                  <input aria-label="Query" />
-                </InkPanel>
-              ) : null}
-              <InkPanel id="notes" label="Notes" icon={MessageSquare}>
-                <p>Notes content</p>
-              </InkPanel>
-            </InkSidebar>
+          {activity ? (
+            <Activity mode={shown ? 'visible' : 'hidden'}>{sidebar}</Activity>
+          ) : shown ? (
+            sidebar
           ) : null}
           <div data-testid="pages" style={{ flex: 1, minWidth: 0 }}>
             Pages

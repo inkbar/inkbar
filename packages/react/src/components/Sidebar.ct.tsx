@@ -523,6 +523,25 @@ test('floats in a narrow container and closes on a tap on the pages', async ({
   await expect(page.getByText('Pages content')).toBeHidden()
 })
 
+test('a sidebar hidden and shown again by <Activity> still works', async ({
+  mount,
+  page,
+}) => {
+  await mount(<Harness layout="rail" activity />)
+  await expect(panel(page, 'Pages')).toBeVisible()
+  await page.getByTestId('remount').click()
+  await expect(sidebar(page)).toBeHidden()
+  await page.getByTestId('remount').click()
+  await expect(sidebar(page)).toBeVisible()
+  await page.getByRole('tab', { name: 'Notes' }).click()
+  await expect(panel(page, 'Notes')).toBeVisible()
+  await expect(page.getByRole('tab', { name: 'Notes' })).toHaveAttribute(
+    'aria-selected',
+    'true'
+  )
+  await expect(page.getByRole('tab', { name: 'Search, 3' })).toBeVisible()
+})
+
 test('inherits minDocumentWidth from InkRoot', async ({ mount, page }) => {
   // 900px leaves the default 480 room; the root asks for 700.
   await mount(

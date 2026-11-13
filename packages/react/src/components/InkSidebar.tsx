@@ -122,6 +122,9 @@ function inDomOrder(entries: readonly SidebarPanelEntry[]): SidebarPanelEntry[] 
  * back by then, so its open state does not fall back. While the sidebar itself is unmounted
  * (on its way out, or StrictMode and `<Activity>` replaying effects) nothing is applied.
  */
+/** Controllers an unmount destroyed, so a sidebar shown again makes a new one. */
+const destroyedControllers = new WeakSet<SidebarController>()
+
 function createRegistry(controller: SidebarController) {
   let mounted = false
   let started = false
@@ -226,7 +229,7 @@ export function InkSidebar({
   const minDocumentWidth = minDocumentWidthProp ?? ink?.minDocumentWidth
   // The same ids on the server and the client.
   const idPrefix = useId()
-  const [{ context, mount }] = useState(() =>
+  const makeRegistry = () =>
     createRegistry(
       // Pending until mounted: an open id not registered yet is not a removed panel.
       createSidebarController({
@@ -251,8 +254,33 @@ export function InkSidebar({
         },
       })
     )
-  )
+  const [registry, setRegistry] = useState(makeRegistry)
+  const { context, mount } = registry
   const { controller } = context
+
+  // Destroyed once no mount holds it, after the commit's other cleanups: StrictMode's replayed
+  // effects mount again at once and keep it. Shown again after it was destroyed (an
+  // `<Activity>` hidden and shown), the sidebar starts on a new controller.
+  const mounts = useRef(0)
+  useLayoutEffect(() => {
+    mounts.current += 1
+    if (destroyedControllers.has(controller)) {
+      setRegistry(makeRegistry())
+      return () => {
+        mounts.current -= 1
+      }
+    }
+    return () => {
+      mounts.current -= 1
+      queueMicrotask(() => {
+        if (mounts.current > 0 || destroyedControllers.has(controller)) return
+        destroyedControllers.add(controller)
+        controller.destroy()
+      })
+    }
+    // Per controller; a new one comes only from here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [controller])
   const state = useSidebarState(controller)
   /** The handle's default name, in the root's words now (English outside a root). */
   const [defaultHandleLabel] = useState(() => (): string => {
