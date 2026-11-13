@@ -11,6 +11,7 @@ export default defineConfig({
     index: 'src/index.ts',
     dom: 'src/dom/index.ts',
     vite: 'src/vite/index.ts',
+    'locales/en': 'src/locales/en.ts',
   },
   format: 'esm',
   fixedExtension: true,

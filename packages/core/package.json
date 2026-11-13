@@ -32,6 +32,10 @@
     "./vite/client": {
       "types": "./dist/vite/client.d.ts"
     },
+    "./locales/*": {
+      "types": "./dist/locales/*.d.mts",
+      "default": "./dist/locales/*.mjs"
+    },
     "./package.json": "./package.json"
   },
   "imports": {

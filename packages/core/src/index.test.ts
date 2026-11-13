@@ -35,3 +35,19 @@ describe('version', () => {
     expect(version).toBe(pkg.version)
   })
 })
+
+describe('messages', () => {
+  it('exports the message helpers', async () => {
+    const entry = await import('./index')
+    for (const name of [
+      'en',
+      'resolveMessages',
+      'resolveLabel',
+      'formatDate',
+      'isValidLocale',
+      'template',
+      'plural',
+    ])
+      expect(Object.keys(entry), name).toContain(name)
+  })
+})
