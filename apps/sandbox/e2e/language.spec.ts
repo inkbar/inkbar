@@ -42,6 +42,9 @@ for (const framework of FRAMEWORK_ORDER) {
       await expect(
         viewer(page).getByRole('button', { name: fr.toolbar.undo, exact: true })
       ).toBeVisible()
+      await expect(
+        viewer(page).getByRole('toolbar', { name: fr.toolbar.label })
+      ).toBeVisible()
       await expect(viewer(page).locator('[data-ink-root]')).toHaveAttribute('lang', 'fr')
       expect(new URL(page.url()).searchParams.get('lang')).toBe('fr')
 

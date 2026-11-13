@@ -87,7 +87,7 @@ export function mount(
       : () => undefined
   })
 
-  const tools = createToolbar()
+  const tools = createToolbar({ messages: viewer.messages })
   tools.classList.add('scenario-toolbar')
   tools.append(
     createHighlightMenu(viewer),
