@@ -15,7 +15,8 @@
     "test:browser": "turbo run test:browser",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "translate": "node scripts/translate.ts"
   },
   "lint-staged": {
     "*.{ts,mts,tsx,vue,svelte}": [
