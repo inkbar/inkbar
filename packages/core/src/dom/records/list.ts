@@ -72,7 +72,10 @@ const CONTROLS = 'button, a[href], input, select, textarea, [contenteditable]'
 
 export function createRecordListController(
   source: RecordListSource,
-  /** The words of the "N items" announcement; English when omitted. */
+  /**
+   * The words of the "N items" announcement; English when omitted. When they change, the rows
+   * are published again with their cards rebuilt.
+   */
   messages: Readable<MessageState> = ENGLISH
 ): RecordListController {
   const itemsText = (count: number) =>
@@ -223,6 +226,11 @@ export function createRecordListController(
     if (next !== null && el) revealRow(next)
   })
   const stopAnnouncement = source.announcement?.subscribe(say)
+  // New words: the cards again, as a source builds them in the words of the moment. A message
+  // store tells only of changes, never on subscribing, so there is no first call to skip.
+  const stopMessages = messages.subscribe(() => {
+    if (!destroyed) publish()
+  })
 
   function choose(id: string): void {
     if (destroyed) return
@@ -368,6 +376,7 @@ export function createRecordListController(
       stopItems()
       stopSelected()
       stopAnnouncement?.()
+      stopMessages()
     },
   }
 }

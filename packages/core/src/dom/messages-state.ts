@@ -46,7 +46,9 @@ export function createMessageState(
     },
     setLocale(next) {
       explicit = next
-      state.set({ messages: state.get().messages, locale: explicit ?? given })
+      // A new messages object with the same words: a binding's memo keyed on `messages` runs
+      // again, so a label function reading the host's language follows a locale-only change.
+      state.set({ messages: { ...state.get().messages }, locale: explicit ?? given })
     },
   }
 }

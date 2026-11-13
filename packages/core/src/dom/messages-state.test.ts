@@ -24,6 +24,14 @@ describe('createMessageState', () => {
     expect(seen[0]!.messages.find.close).toBe('Fermer')
   })
 
+  it('setLocale emits a new messages object, so memos keyed on it read labels again', () => {
+    const state = createMessageState({ find: { close: 'Fermer' } })
+    const before = state.get().messages
+    state.setLocale('fr')
+    expect(state.get().messages).not.toBe(before)
+    expect(state.get().messages).toEqual(before)
+  })
+
   it('setMessages replaces what was passed before', () => {
     const state = createMessageState({ find: { close: 'Fermer' } })
     state.setMessages({ find: { next: 'Suivant' } })
@@ -38,6 +46,14 @@ describe('createMessageState', () => {
     state.setLocale('fr')
     expect(seen.map((s) => s.locale)).toEqual(['fr'])
     expect(seen[0]!.messages.find.close).toBe('Fermer')
+  })
+
+  it('setLocale emits a new messages object, so memos keyed on it read labels again', () => {
+    const state = createMessageState({ find: { close: 'Fermer' } })
+    const before = state.get().messages
+    state.setLocale('fr')
+    expect(state.get().messages).not.toBe(before)
+    expect(state.get().messages).toEqual(before)
   })
 
   it('emits for every call, even with the same input', () => {
