@@ -53,7 +53,8 @@ watch(
     onCleanup(
       controller.state.subscribe((s: SearchState) => {
         const text = announce(s)
-        if (text === announced) return
+        // Said again only when the region holds other words: the old language's.
+        if (text === announced && el.textContent === text) return
         announced = text
         el.textContent = text
       })

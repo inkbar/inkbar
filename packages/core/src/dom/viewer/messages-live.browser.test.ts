@@ -119,6 +119,30 @@ describe('labels follow setMessages in place', () => {
     await until(() => live.textContent === 'Résultat 2 sur 3, page 2')
   })
 
+  it('the find bar says a same-text step again in new words', async () => {
+    const { viewer } = make()
+    const bar = createFindBar(viewer)
+    viewer.element.querySelector('[data-ink-viewport-root]')!.append(bar)
+    const { engine } = await ready(viewer)
+    await until(() => !!engine.pages.get(0))
+    await engine.pages.get(0)!.textLayer.ready
+    viewer.search.open()
+    await userEvent.keyboard('Page 1')
+    const live = bar.querySelector('[data-ink-find-status]')!
+    await until(() => live.textContent === 'Match 1 of 1, page 1')
+    viewer.setMessages({
+      find: {
+        announce: ({ current, total, page }) =>
+          `Résultat ${current} sur ${total}, page ${page}`,
+      },
+    })
+    // Quiet on the change itself.
+    expect(live.textContent).toBe('Match 1 of 1, page 1')
+    // Next on the one result reads the same in the new words, but the region still holds the old.
+    await userEvent.keyboard('{Enter}')
+    await until(() => live.textContent === 'Résultat 1 sur 1, page 1')
+  })
+
   it('a throwing find.count leaves the find bar working, in English', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     cleanup.push(() => warn.mockRestore())

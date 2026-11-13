@@ -102,7 +102,8 @@ export function InkFindBar({ className, ...rest }: InkFindBarProps) {
     if (fresh && el.textContent !== announced) el.textContent = announced
     return search.state.subscribe((s: SearchState) => {
       const text = announce(s)
-      if (text === announced) return
+      // Said again only when the region holds other words: the old language's.
+      if (text === announced && el.textContent === text) return
       announced = text
       el.textContent = text
     })

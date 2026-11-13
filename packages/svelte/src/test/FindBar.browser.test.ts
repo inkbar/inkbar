@@ -200,6 +200,27 @@ describe('find bar', () => {
     await expect.poll(() => live.textContent).toBe('Résultat 2/3 p2')
   })
 
+  it('a step that reads the same in new words is said in them', async () => {
+    const screen = await render(FindHarness, { src, assets })
+    await ready()
+    await browserPage.elementLocator(find()).click()
+    await userEvent.keyboard('Page 1')
+    const live = await q('[data-ink-find-status]')
+    await expect.poll(() => live.textContent).toBe('Match 1 of 1, page 1')
+    await screen.rerender({
+      messages: {
+        find: {
+          announce: ({ current, total, page }) => `Résultat ${current}/${total} p${page}`,
+        },
+      },
+    })
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(live.textContent).toBe('Match 1 of 1, page 1')
+    // Next on the one result: the same text in the new words, so the region must change.
+    await userEvent.keyboard('{Enter}')
+    await expect.poll(() => live.textContent).toBe('Résultat 1/1 p1')
+  })
+
   it('Escape in the bar stops before the root sees it', async () => {
     await render(FindHarness, { src, assets })
     await ready()

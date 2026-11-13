@@ -243,3 +243,21 @@ test('new words leave the live region alone until the next step', async ({
   await page.getByRole('textbox', { name: 'Find in document' }).press('Enter')
   await expect(live).toHaveText('Résultat 2/3 p2')
 })
+
+test('a step that reads the same in new words is said in them', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(<Harness {...props} />)
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  await page.getByRole('button', { name: 'Find', exact: true }).click()
+  await page.keyboard.type('Page 1')
+  const live = page.locator('[data-ink-find-status]')
+  await expect(live).toHaveText('Match 1 of 1, page 1')
+  await cmp.update(<Harness {...props} announceWord="Résultat" />)
+  await page.waitForTimeout(100)
+  await expect(live).toHaveText('Match 1 of 1, page 1')
+  // Next on the one result: the same text in the new words, so the region must change.
+  await page.getByRole('textbox', { name: 'Find in document' }).press('Enter')
+  await expect(live).toHaveText('Résultat 1/1 p1')
+})
