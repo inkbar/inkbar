@@ -57,6 +57,7 @@ Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, gi
 | History     | Undo and redo with grouped steps, whether Inkbar or your app holds the annotations                                                            |
 | Files       | Download and print the open PDF, and a password prompt for locked files                                                                       |
 | Touch       | Pinch zoom, drawing with a finger, and press and long press events for plugins                                                                |
+| Languages   | English, French and German, switched without a reload, and your own translations through `messages`                                           |
 | Plugins     | Add commands, tools, page layers, marks and records from a plugin                                                                             |
 
 ### Not there yet
