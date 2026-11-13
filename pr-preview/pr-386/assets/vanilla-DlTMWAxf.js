@@ -1,0 +1,1 @@
+function e(e,t,n){let r=e(t,n);return{update:e=>r.open(e),setLanguage:(e,t)=>r.setLanguage(e,t),unmount:()=>r.destroy()}}export{e as mountVanilla};
