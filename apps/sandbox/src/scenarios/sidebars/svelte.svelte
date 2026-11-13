@@ -36,7 +36,7 @@
   import type { InkDocument } from '@inkbar/core'
   import type { SidebarLayout } from '@inkbar/core/dom'
 
-  let { source, log, onDocument, openFile }: ScenarioProps = $props()
+  let { source, messages, locale, log, onDocument, openFile }: ScenarioProps = $props()
 
   let layout = $state<SidebarLayout>('rail')
 
@@ -46,7 +46,15 @@
   }
 </script>
 
-<InkRoot src={source} {assets} {storage} {onReady} class="scenario-root">
+<InkRoot
+  src={source}
+  {messages}
+  {locale}
+  {assets}
+  {storage}
+  {onReady}
+  class="scenario-root"
+>
   <InkToolbar class="scenario-toolbar">
     <div class="scenario-group" role="group" aria-label="Tools">
       <InkToolButton tool="select-text" />

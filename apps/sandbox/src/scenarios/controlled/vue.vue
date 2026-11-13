@@ -41,7 +41,8 @@ import type { ScenarioProps } from '../../frameworks/types'
 import type { Annotation, InkDocument } from '@inkbar/core'
 import type { ToolId } from '@inkbar/core/dom'
 
-const { source, log, onDocument, openFile } = defineProps<ScenarioProps>()
+const { source, messages, locale, log, onDocument, openFile } =
+  defineProps<ScenarioProps>()
 
 const tools = allTools()
 const annotations = shallowRef<Annotation[]>([])
@@ -68,6 +69,8 @@ function onActivate(id: string): void {
 <template>
   <InkRoot
     :src="source"
+    :messages="messages"
+    :locale="locale"
     :assets="assets"
     :tools="tools"
     :storage="storage"

@@ -34,7 +34,7 @@
   import type { ScenarioProps } from '../../frameworks/types'
   import type { InkDocument } from '@inkbar/core'
 
-  let { source, log, onDocument, openFile }: ScenarioProps = $props()
+  let { source, messages, locale, log, onDocument, openFile }: ScenarioProps = $props()
 
   // A closure, so the plugin always logs through the current `log`.
   const plugins = [pressesPlugin({ log: (name, payload) => log(name, payload) })]
@@ -45,7 +45,16 @@
   }
 </script>
 
-<InkRoot src={source} {assets} {storage} {plugins} {onReady} class="scenario-root">
+<InkRoot
+  src={source}
+  {messages}
+  {locale}
+  {assets}
+  {storage}
+  {plugins}
+  {onReady}
+  class="scenario-root"
+>
   <InkToolbar class="scenario-toolbar">
     <div class="scenario-group" role="group" aria-label="Tools">
       <InkToolButton tool="select-text" />

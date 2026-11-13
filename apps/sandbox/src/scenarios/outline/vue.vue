@@ -42,7 +42,8 @@ import type { ScenarioProps } from '../../frameworks/types'
 import type { InkDocument, ViewerAction } from '@inkbar/core'
 import type { SidebarOpen } from '@inkbar/core/dom'
 
-const { source, log, onDocument, openFile } = defineProps<ScenarioProps>()
+const { source, messages, locale, log, onDocument, openFile } =
+  defineProps<ScenarioProps>()
 
 // The panel the left sidebar starts on.
 const openPanel = ref<SidebarOpen | undefined>('outline')
@@ -61,6 +62,8 @@ function onAction(action: ViewerAction): void {
 <template>
   <InkRoot
     :src="source"
+    :messages="messages"
+    :locale="locale"
     :assets="assets"
     :storage="storage"
     class="scenario-root"

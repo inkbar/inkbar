@@ -22,6 +22,10 @@ export function mountReact(
       current = { ...current, source }
       render()
     },
+    setLanguage(messages, locale) {
+      current = { ...current, messages, locale }
+      render()
+    },
     unmount: () => root.unmount(),
   }
 }

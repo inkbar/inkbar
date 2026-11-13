@@ -34,7 +34,8 @@ import { storage } from '../../shared/signatures'
 import type { ScenarioProps } from '../../frameworks/types'
 import type { InkDocument } from '@inkbar/core'
 
-const { source, log, onDocument, openFile } = defineProps<ScenarioProps>()
+const { source, messages, locale, log, onDocument, openFile } =
+  defineProps<ScenarioProps>()
 
 const plugins = [pressesPlugin({ log })]
 
@@ -47,6 +48,8 @@ function onReady(doc: InkDocument): void {
 <template>
   <InkRoot
     :src="source"
+    :messages="messages"
+    :locale="locale"
     :assets="assets"
     :storage="storage"
     :plugins="plugins"

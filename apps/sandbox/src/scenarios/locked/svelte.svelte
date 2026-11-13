@@ -30,7 +30,7 @@
   import type { ScenarioProps } from '../../frameworks/types'
   import type { InkDocument, InkError } from '@inkbar/core'
 
-  let { source, log, onDocument, openFile }: ScenarioProps = $props()
+  let { source, messages, locale, log, onDocument, openFile }: ScenarioProps = $props()
 
   function onReady(doc: InkDocument): void {
     log('onReady', { pages: doc.pages.length })
@@ -42,7 +42,16 @@
   }
 </script>
 
-<InkRoot src={source} {assets} {storage} {onReady} {onError} class="scenario-root">
+<InkRoot
+  src={source}
+  {messages}
+  {locale}
+  {assets}
+  {storage}
+  {onReady}
+  {onError}
+  class="scenario-root"
+>
   <InkToolbar class="scenario-toolbar">
     <div class="scenario-group" role="group" aria-label="Tools">
       <InkToolButton tool="select-text" />

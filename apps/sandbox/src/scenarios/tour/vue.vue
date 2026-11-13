@@ -43,7 +43,8 @@ import type { ScenarioProps } from '../../frameworks/types'
 import type { InkDocument } from '@inkbar/core'
 import type { ToolId } from '@inkbar/core/dom'
 
-const { source, log, onDocument, openFile } = defineProps<ScenarioProps>()
+const { source, messages, locale, log, onDocument, openFile } =
+  defineProps<ScenarioProps>()
 
 const tools = allTools()
 /** Stops following the open document's annotations. */
@@ -72,6 +73,8 @@ function onActivate(id: string): void {
 <template>
   <InkRoot
     :src="source"
+    :messages="messages"
+    :locale="locale"
     :assets="assets"
     :tools="tools"
     :storage="storage"

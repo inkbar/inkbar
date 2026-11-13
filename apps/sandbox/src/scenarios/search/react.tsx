@@ -68,6 +68,8 @@ function SearchLog({ log }: { log: Log }) {
 
 export default function SearchLongDocument({
   source,
+  messages,
+  locale,
   log,
   onDocument,
   openFile,
@@ -80,6 +82,8 @@ export default function SearchLongDocument({
   return (
     <InkRoot
       src={source}
+      messages={messages}
+      locale={locale}
       assets={assets}
       storage={storage}
       onReady={onReady}

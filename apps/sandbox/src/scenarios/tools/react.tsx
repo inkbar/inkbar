@@ -37,6 +37,8 @@ const tools = [highlightTool(), noteTool()]
 
 export default function PickYourTools({
   source,
+  messages,
+  locale,
   log,
   onDocument,
   openFile,
@@ -44,6 +46,8 @@ export default function PickYourTools({
   return (
     <InkRoot
       src={source}
+      messages={messages}
+      locale={locale}
       assets={assets}
       storage={storage}
       tools={tools}

@@ -39,7 +39,14 @@ import { storage } from '../../shared/signatures'
 import type { ScenarioProps } from '../../frameworks/types'
 import type { InkDocument, ViewerAction } from '@inkbar/core'
 
-export default function Outline({ source, log, onDocument, openFile }: ScenarioProps) {
+export default function Outline({
+  source,
+  messages,
+  locale,
+  log,
+  onDocument,
+  openFile,
+}: ScenarioProps) {
   function onReady(doc: InkDocument) {
     log('onReady', { pages: doc.pages.length })
     onDocument(doc)
@@ -53,6 +60,8 @@ export default function Outline({ source, log, onDocument, openFile }: ScenarioP
   return (
     <InkRoot
       src={source}
+      messages={messages}
+      locale={locale}
       assets={assets}
       storage={storage}
       onReady={onReady}

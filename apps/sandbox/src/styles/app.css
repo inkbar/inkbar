@@ -965,3 +965,26 @@ body {
     margin-left: auto;
   }
 }
+
+/* The language select in the header. It is sandbox UI, so its label stays English. */
+.lang-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lang-picker label {
+  color: var(--ink);
+  font-size: 0.8125rem;
+}
+.lang-picker select {
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--sheet);
+  color: var(--ink);
+  font: inherit;
+}
+.lang-picker select:hover {
+  border-color: var(--ink);
+}

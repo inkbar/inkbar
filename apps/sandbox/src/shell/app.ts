@@ -14,8 +14,17 @@ import { documentSource } from './documents.ts'
 import { handleDrops } from './drop.ts'
 import { createEventLog } from './events.ts'
 import { FRAMEWORKS, type FrameworkId } from './frameworks.ts'
+import { loadLanguage, type Language } from './language.ts'
 import { LOGO_SVG } from './logo.ts'
-import { formatRoute, parseRoute, type Route } from './route.ts'
+import {
+  formatRoute,
+  formatSearch,
+  LANGUAGES,
+  parseRoute,
+  withLang,
+  type LangId,
+  type Route,
+} from './route.ts'
 import { createSidebar } from './sidebar.ts'
 import { createTabs, tabMarkup } from './tabs.ts'
 import { createValuesPanel } from './values.ts'
@@ -82,6 +91,17 @@ const codePanel = $('#panel-code')
 const events = createEventLog($('[data-events]'))
 const values = createValuesPanel($('#panel-values'))
 const sidebar = createSidebar($('nav[aria-label="Scenarios"]'))
+// The language of the viewer. The select itself is sandbox UI, so its label stays English.
+const languageSelect = document.createElement('select')
+languageSelect.id = 'language-select'
+languageSelect.innerHTML = LANGUAGES.map(
+  (l) => `<option value="${l.id}" lang="${l.id}">${l.name}</option>`
+).join('')
+const languagePicker = document.createElement('div')
+languagePicker.className = 'lang-picker'
+languagePicker.innerHTML = '<label for="language-select">Language</label>'
+languagePicker.append(languageSelect)
+$('.app-links').prepend(languagePicker)
 const sideTabs = $('.side-tabs')
 /** The scenarios' Open a PDF buttons pick a file through this one input. */
 const fileInput = $<HTMLInputElement>('[data-file-input]')
@@ -105,7 +125,7 @@ const sideTabsControl = createTabs(
 if (new URLSearchParams(location.search).has('debug'))
   (window as unknown as { __sandboxLog: Log }).__sandboxLog = events.log
 
-let route: Route = parseRoute(location.hash)
+let route: Route = parseRoute(location.hash, location.search)
 /** Bumped by each selection; work begun for an older one is dropped. */
 let generation = 0
 let mounted: MountedScenario | null = null
@@ -140,6 +160,7 @@ async function select(next: Route): Promise<void> {
   $('[data-scenario-note]').textContent = note ?? ''
   $('[data-scenario-note]').hidden = !note
   sidebar.select(next)
+  languageSelect.value = next.lang
 
   const hasValues = scenario.panels.includes('values')
   sideTabs.hidden = !hasValues
@@ -172,6 +193,17 @@ async function select(next: Route): Promise<void> {
   host.className = 'scenario-host'
   viewer.replaceChildren(host)
 
+  let language: Language
+  try {
+    language = await loadLanguage(next.lang)
+  } catch (error) {
+    if (gen !== generation) return
+    host.innerHTML = '<p class="scenario-error">This language could not be loaded.</p>'
+    console.error(error)
+    return
+  }
+  if (gen !== generation) return
+
   const log: Log = (name, value) => {
     if (gen === generation) events.log(name, value)
   }
@@ -183,6 +215,8 @@ async function select(next: Route): Promise<void> {
   try {
     m = await mountScenario(next.framework, next.scenario, host, {
       source: documentSource(scenario.document),
+      messages: language.messages,
+      locale: language.locale,
       log,
       onDocument,
       openFile,
@@ -203,6 +237,12 @@ async function select(next: Route): Promise<void> {
   }
   mounting = false
   mounted = m
+  // The language may have changed while the scenario loaded.
+  if (route.lang !== next.lang) {
+    void loadLanguage(route.lang).then((l) => {
+      if (mounted === m) m.setLanguage(l.messages, l.locale)
+    })
+  }
   if (queued) {
     m.update(queued)
     queued = null
@@ -276,12 +316,40 @@ ${files
 
 /** Follows the hash; an unknown one is replaced by the default route, as at first load. */
 function followHash(): void {
-  const next = parseRoute(location.hash)
+  const next = parseRoute(location.hash, location.search)
   if (location.hash !== formatRoute(next))
     history.replaceState(null, '', formatRoute(next))
   void select(next)
 }
 window.addEventListener('hashchange', followHash)
+
+/** Writes the route's language to the address, so a reload keeps it. */
+function showLanguageInUrl(): void {
+  const search = formatSearch(route, location.search)
+  if (search !== location.search)
+    history.replaceState(null, '', `${location.pathname}${search}${location.hash}`)
+}
+
+/** Changes the viewer's language in place: no remount, so the page, scroll and open menus stay. */
+async function changeLanguage(lang: LangId): Promise<void> {
+  route = withLang(route, lang)
+  showLanguageInUrl()
+  const chosen = route
+  let language: Language
+  try {
+    language = await loadLanguage(lang)
+  } catch (error) {
+    console.error(error)
+    return
+  }
+  // A later choice, or a new scenario, makes this one stale.
+  if (route !== chosen) return
+  mounted?.setLanguage(language.messages, language.locale)
+}
+languageSelect.addEventListener('change', () => {
+  void changeLanguage(languageSelect.value as LangId)
+})
+
 if (location.hash !== formatRoute(route))
   history.replaceState(null, '', formatRoute(route))
 void select(route)

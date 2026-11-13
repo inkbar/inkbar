@@ -37,7 +37,8 @@ import type { ScenarioProps } from '../../frameworks/types'
 import type { InkDocument } from '@inkbar/core'
 import type { SidebarLayout } from '@inkbar/core/dom'
 
-const { source, log, onDocument, openFile } = defineProps<ScenarioProps>()
+const { source, messages, locale, log, onDocument, openFile } =
+  defineProps<ScenarioProps>()
 
 const layout = ref<SidebarLayout>('rail')
 
@@ -50,6 +51,8 @@ function onReady(doc: InkDocument): void {
 <template>
   <InkRoot
     :src="source"
+    :messages="messages"
+    :locale="locale"
     :assets="assets"
     :storage="storage"
     class="scenario-root"
