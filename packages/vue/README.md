@@ -326,6 +326,51 @@ The full table, with the zoom and page keys, is in the [`@inkbar/core` README](h
 
 `InkColorMenu` (with `property="border"`, `"fill"` or `"text"`), `InkLineStyleMenu` (weight, dashes, arrowheads) and `InkTextStyleMenu` (font, size, colour, bold, italic, underline, alignment) edit the selection, or the active tool's style when nothing is selected. They disable when nothing supports their properties. `InkShapeMenu` is a split button for the `shape` tool and renders nothing unless `shapeTool` is in `tools`. `fonts` on `InkRoot` sets the families the text style menu offers.
 
+## Translations
+
+`InkRoot` takes `messages` and `locale`. English is the default; French and German ship as separate entry points, so a bundler drops the ones you don't import. Both are drafts: corrections are welcome as issues.
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue'
+import {
+  InkRoot,
+  InkViewport,
+  InkToolbar,
+  InkToolButton,
+  InkSidebar,
+  InkPanel,
+} from '@inkbar/vue'
+import { de } from '@inkbar/core/locales/de'
+import { fr } from '@inkbar/core/locales/fr'
+import { assets } from 'virtual:inkbar-assets'
+import type { InkMessagesInput } from '@inkbar/core'
+
+defineProps<{ src: string }>()
+
+declare function t(key: string, params?: object): string
+
+const messages = ref<InkMessagesInput>(fr)
+const switchToGerman = () => (messages.value = de)
+</script>
+
+<template>
+  <InkRoot :src="src" :assets="assets" :messages="messages">
+    <InkToolbar :label="() => t('toolbar')">
+      <InkToolButton tool="select-text" />
+    </InkToolbar>
+    <InkSidebar>
+      <InkPanel id="pages" :label="() => t('pages')"></InkPanel>
+    </InkSidebar>
+    <InkViewport />
+  </InkRoot>
+</template>
+```
+
+Changing `messages` or `locale` relabels the viewer in place. The viewer does not remount, the scroll position holds, and an open menu, popover or dialog stays open. A set carries its `lang`, and without a `locale` the root's `lang` and note dates follow it. Pass `locale` to override.
+
+A message with values is a function of one params object, so `find: { count: ({ current, total }) => t('find.count', { current, total }) }` works with any translation function. Text you supply is yours to translate. `label` on `InkToolButton`, `InkToolbar`, `InkColorMenu`, `InkPanel` and `InkThumbnail`, `handleLabel` on `InkSidebar`, `emptyText` on `InkOutline` and plugin command labels each take a string or a function. Inkbar calls the function again when `messages` or `locale` change. The [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#translations) covers `template` and `plural`.
+
 ## Styling
 
 Components carry state on data attributes, for example `[data-annotation][data-state="selected"]` and `[data-tool="highlight"][data-state="on"]`. `@inkbar/theme` gives a default look. Your own CSS overrides it without `!important`.

@@ -651,6 +651,72 @@ The keys Inkbar uses:
 - `sidebar.<name>.width`: a sidebar's width, a number in CSS pixels.
 - `plugin.<id>.<key>`: whatever a plugin stores.
 
+## Translations
+
+Every string Inkbar shows comes from `messages`, English unless you pass otherwise. French and German ship as separate entry points, so a bundler drops the ones you don't import. Both are drafts: corrections are welcome as issues.
+
+```ts
+import { createViewer } from '@inkbar/core/dom'
+import { fr } from '@inkbar/core/locales/fr'
+
+const viewer = createViewer(el, {
+  source: file,
+  assets,
+  messages: { ...fr, find: { ...fr.find, field: 'Chercher' } },
+})
+```
+
+A set is nested by feature area, and `messages` takes a partial one: a key you leave out stays English. Passing `messages` again replaces the last value, so overrides don't pile up. Each set carries its `lang` (`fr.lang === 'fr'`). Without a `locale`, the viewer root's `lang` attribute and note dates follow it, so `messages: fr` alone reads as French to a screen reader. Pass `locale` to override that.
+
+A message with values is a function of one params object. Write your language by hand, or call your translation function from it. A generic `t` stands in for yours:
+
+```ts
+import { plural, template, type InkMessagesInput } from '@inkbar/core'
+
+declare function t(key: string, params?: object): string
+
+const messages: InkMessagesInput = {
+  lang: 'es',
+  find: {
+    field: t('find.field'),
+    count: ({ current, total }) => t('find.count', { current, total }),
+  },
+}
+
+// Or build the function from text. `plural` picks a form by the language's plural rule.
+const results = plural('en', 'count', { one: '{count} result', other: '{count} results' })
+const found = template('en', 'Page {page} of {total}')
+```
+
+`template` and `plural` format numbers for the language you give them, so 1200 reads `1,200` in English and `1.200` in German. The shipped sets are built with them.
+
+Switching language does not remount the viewer, reload the document or move the scroll position, and an open menu, popover or dialog stays open:
+
+```ts
+import { de } from '@inkbar/core/locales/de'
+
+viewer.setMessages(de)
+viewer.setLocale('de-CH') // optional
+```
+
+Pieces made without a viewer, such as `createToolbar`, follow it when you pass `viewer.messages`:
+
+```ts
+const bar = createToolbar({ messages: viewer.messages })
+```
+
+Text you supply is yours to translate. A tool's `label`, a toolbar's or panel's `label`, a sidebar's `handleLabel`, an outline's `emptyText`, a plugin command's label and `errorStatus`, and a card's `title`, `label` and action labels each take a string or a function. Inkbar calls the function when it renders and again on every `setMessages` or `setLocale`, so the label follows your language:
+
+```ts
+const bar = createToolbar({ label: () => t('toolbar'), messages: viewer.messages })
+
+plugin.command('suggest', () => t('suggest'), run, {
+  errorStatus: () => t('suggest.failed'),
+})
+```
+
+A card's `actions` can be an array of `{ label, run }`, so each label can be a function too. `en` is the default set and the shape a translation follows.
+
 ## Serving PDF.js assets
 
 PDF.js needs a worker script plus directories of CMaps, standard fonts, wasm decoders and ICC profiles. Inkbar loads them from URLs you pass as the `assets` option. The option has no default, because the right URLs depend on how you deploy your app.
