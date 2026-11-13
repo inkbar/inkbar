@@ -181,7 +181,8 @@ async function select(next: Route): Promise<void> {
 
   mounted?.unmount()
   mounted = null
-  mounting = false
+  // From here until the mount lands, a dropped PDF is queued for it.
+  mounting = true
   queued = null
   drops.reset()
   events.clear()
@@ -198,7 +199,11 @@ async function select(next: Route): Promise<void> {
     language = await loadLanguage(next.lang)
   } catch (error) {
     if (gen !== generation) return
+    mounting = false
+    queued = null
     host.innerHTML = '<p class="scenario-error">This language could not be loaded.</p>'
+    // A file dropped while this loaded was reported as opened; no viewer took it.
+    drops.noViewer()
     console.error(error)
     return
   }
@@ -211,7 +216,6 @@ async function select(next: Route): Promise<void> {
     if (gen === generation) values.show(doc)
   }
   let m: MountedScenario
-  mounting = true
   try {
     m = await mountScenario(next.framework, next.scenario, host, {
       source: documentSource(scenario.document),
@@ -239,9 +243,14 @@ async function select(next: Route): Promise<void> {
   mounted = m
   // The language may have changed while the scenario loaded.
   if (route.lang !== next.lang) {
-    void loadLanguage(route.lang).then((l) => {
-      if (mounted === m) m.setLanguage(l.messages, l.locale)
-    })
+    const want = route.lang
+    loadLanguage(want).then(
+      (l) => {
+        // Still this mount, and no later choice of language.
+        if (mounted === m && route.lang === want) m.setLanguage(l.messages, l.locale)
+      },
+      (error: unknown) => console.error(error)
+    )
   }
   if (queued) {
     m.update(queued)
@@ -332,6 +341,7 @@ function showLanguageInUrl(): void {
 
 /** Changes the viewer's language in place: no remount, so the page, scroll and open menus stay. */
 async function changeLanguage(lang: LangId): Promise<void> {
+  const previous = route.lang
   route = withLang(route, lang)
   showLanguageInUrl()
   const chosen = route
@@ -340,6 +350,12 @@ async function changeLanguage(lang: LangId): Promise<void> {
     language = await loadLanguage(lang)
   } catch (error) {
     console.error(error)
+    // Nothing changed the route since, so put the previous language back.
+    if (route === chosen) {
+      route = withLang(route, previous)
+      showLanguageInUrl()
+      languageSelect.value = previous
+    }
     return
   }
   // A later choice, or a new scenario, makes this one stale.
