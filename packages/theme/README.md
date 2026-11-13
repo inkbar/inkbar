@@ -86,13 +86,13 @@ The theme gives a toolbar a background and padding and styles the controls in it
 
 Sidebars and thumbnails have their own sizes:
 
-| Variable                   | Default | Sets                                                 |
-| -------------------------- | ------- | ---------------------------------------------------- |
-| `--ink-sidebar-width`      | `320px` | An open sidebar's width; the sidebar sets it inline  |
-| `--ink-sidebar-rail-width` | `48px`  | The width of a sidebar's icon rail                   |
-| `--ink-thumbnail-width`    | `120px` | A page thumbnail's width when none is given; px only |
+| Variable                   | Default | Sets                                                                      |
+| -------------------------- | ------- | ------------------------------------------------------------------------- |
+| `--ink-sidebar-width`      | `320px` | An open sidebar's width; the sidebar sets it inline                       |
+| `--ink-sidebar-rail-width` | `48px`  | The width of a sidebar's icon rail                                        |
+| `--ink-thumbnail-width`    | unset   | A page thumbnail's width in px; a thumbnail list caps it at its own width |
 
-A thumbnail given no `width` or `height` takes its width from `--ink-thumbnail-width`, read from the thumbnail's own element, so set it on the viewer root, a sidebar or any ancestor. Only px values count: another unit gives 120px. A thumbnail list fits its thumbnails to its own width once it is shown, so there the token applies only until then. Pass the list's `width` to fix the size.
+The theme leaves `--ink-thumbnail-width` unset. Set it in px on the viewer root, a sidebar or any ancestor of the thumbnails; other units are ignored. Unset, a thumbnail list fills its width less a 16px gutter each side, and a thumbnail on its own is 120px wide. Set, a list draws its thumbnails at the token's width, capped at that fit so they never overflow, and follows the list as it resizes. A thumbnail on its own takes the token's width with no cap. A `width` passed to the list or the thumbnail, or a thumbnail's `height`, wins over the token.
 
 The sidebar always sets `--ink-sidebar-width` inline, even when no width is saved, so a CSS override of it no longer applies. Pass the sidebar's `defaultWidth` instead. Style the handle with `.ink-sidebar-handle`. It draws a 2px `--ink-accent` line on hover, focus and while dragging.
 
