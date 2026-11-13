@@ -4,6 +4,7 @@
  * shows, with the bindings' markup so `@inkbar/theme` styles them unchanged.
  * Toolbars are the host's, built from the controls in ./controls.
  */
+import { isValidLocale } from '../../messages'
 import {
   cssVariableDefaults,
   type AnnotationDefaults,
@@ -28,6 +29,7 @@ import {
   type DownloadOptions,
 } from '../file-actions'
 import { attachHistoryKeys } from '../history-keys'
+import { createMessageState, type MessageState } from '../messages-state'
 import { createPasswordPrompt, lockedStatus } from '../password-prompt'
 import { createPluginHost, type HostRecords, type PluginHost } from '../plugins/host'
 import { createFocusReturn } from '../popover-focus'
@@ -39,7 +41,6 @@ import {
 } from '../search/controller'
 import { handleFindKey, pageSelectionText } from '../search/find-key'
 import { createToolOptions, withHostTools } from '../tools'
-import { PASSWORD_LABELS } from '../ui'
 import { mountViewer, type MountViewerOptions, type ViewerEngine } from '../viewer-engine'
 
 import { h } from './dom'
@@ -48,6 +49,7 @@ import { createPasswordDialog } from './password-dialog'
 import { createSignFieldMenu, type SignFieldMenu } from './signature-menu'
 import { createThreadPopover } from './thread-popover'
 
+import type { InkMessagesInput } from '../../messages'
 import type { PluginHistory } from '../../model/annotations/history'
 import type { LinkTarget } from '../../model/destination'
 import type { FormController } from '../../model/form/controller'
@@ -77,6 +79,7 @@ export interface CreateViewerOptions extends Omit<
   | 'search'
   | 'onSignField'
   | 'onFormAlert'
+  | '_messageState'
 > {
   source: DocumentSource
   assets: PdfAssets
@@ -155,6 +158,18 @@ export interface Viewer {
    */
   setFormHighlight(on: boolean): void
   /**
+   * Replaces the `messages` option: English with `messages` over it, for the open document and
+   * the ones opened after it. Every label the viewer shows changes in place: nothing remounts,
+   * the scroll position stays, and an open menu, popover or dialog stays open. Calling it
+   * with the same object relabels too, which re-reads a host's label functions.
+   */
+  setMessages(messages: InkMessagesInput | undefined): void
+  /**
+   * Replaces the `locale` option, in place as `setMessages` does: dates follow it, and the
+   * root's `lang` is set to it (removed when it is undefined or not a valid language tag).
+   */
+  setLocale(locale: string | undefined): void
+  /**
    * Whether `back()` has somewhere to go: a link, outline item or form button jumped since the
    * document opened. False while no document is ready.
    */
@@ -230,6 +245,8 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     onPageUnmount,
     onPageError,
     formHighlight: initialHighlight,
+    messages: initialMessages,
+    locale: initialLocale,
     // Not options (see the type), but a caller without types could still pass them.
     toolStyle: _toolStyle,
     toolOptions: _toolOptions,
@@ -238,6 +255,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     onFormAlert: _onFormAlert,
     storage = createMemoryStorage(),
     search: _search,
+    _messageState: _ownMessages,
     ...view
   } = opts as CreateViewerOptions &
     Pick<
@@ -248,7 +266,11 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       | 'search'
       | 'onSignField'
       | 'onFormAlert'
+      | '_messageState'
     >
+  /** The words and locale for the viewer's life: every document's engine shares them. */
+  const messages = createMessageState(initialMessages, initialLocale)
+  const words = () => messages.get().messages
   /** One library for the viewer's life, so templates and the menu outlive each document. */
   const signatures = createSignatureLibrary(createStorageSignatureStore(storage))
   /** Tool options persist for the viewer's life; the tool style is per document. */
@@ -274,7 +296,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     'data-ink-scroll': '',
     tabindex: '0',
     role: 'document',
-    'aria-label': 'Document',
+    'aria-label': words().viewer.document,
   })
   const viewportRoot = h(
     'div',
@@ -326,41 +348,78 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   })
   /** For the viewer's life, like the signature library: the field menu and the script alert. */
   let signFieldMenu: SignFieldMenu | undefined
-  const formAlert = createFormAlert(root)
+  const formAlert = createFormAlert(root, readonly(messages))
 
   let statusEl: HTMLElement | null = null
+  /** Rewrites the status panel's words in place, for the status showing now. */
+  let relabelStatus: () => void = () => undefined
+  /** The page error notices showing, by page, relabelled with the rest. */
+  const pageErrors = new Map<HTMLElement, number>()
   /** The reader cancelled the prompt: the unlock button takes focus once the panel shows. */
   let focusUnlock = false
+
+  /** The root's `lang`: the locale when it is a valid tag, else none. */
+  const applyLocale = (locale: string | undefined): void => {
+    if (isValidLocale(locale)) root.setAttribute('lang', locale)
+    else root.removeAttribute('lang')
+  }
+  applyLocale(initialLocale)
+  /** New words or locale: the shell's own labels change in place. */
+  const stopMessages = messages.subscribe(({ messages: m, locale }) => {
+    applyLocale(locale)
+    scroll.setAttribute('aria-label', m.viewer.document)
+    relabelStatus()
+    for (const [notice, page] of pageErrors) {
+      const text = notice.querySelector('[data-ink-page-error-text]')
+      if (text) text.textContent = m.viewer.pageFailed({ page: page + 1 })
+    }
+  })
+
   function renderStatus(s: InkStatus): void {
     root.dataset.state = s.state
     viewportRoot.dataset.state = s.state
     statusEl?.remove()
     statusEl = null
+    relabelStatus = () => undefined
+    const m = words()
     if (s.state === 'loading') {
-      statusEl = h(
+      const el = h(
         'div',
         { class: 'ink-status', role: 'status', 'aria-live': 'polite' },
-        'Loading document…'
+        m.viewer.loading
       )
+      relabelStatus = () => {
+        el.textContent = words().viewer.loading
+      }
+      statusEl = el
     } else if (s.state === 'locked') {
       const unlock = h(
         'button',
         { type: 'button', class: 'ink-button', 'data-ink-unlock': '' },
-        PASSWORD_LABELS.unlock
+        m.password.unlock
       )
       unlock.addEventListener('click', () => prompt.ask())
+      const title = h('p', { class: 'ink-locked-title' }, m.password.locked)
+      relabelStatus = () => {
+        unlock.textContent = words().password.unlock
+        title.textContent = words().password.locked
+      }
       statusEl = h(
         'div',
         { class: 'ink-status ink-locked', role: 'status' },
-        h('p', { class: 'ink-locked-title' }, PASSWORD_LABELS.locked),
+        title,
         unlock
       )
     } else if (s.state === 'error') {
       // The engine's message is not written for readers: it stays on the code's tooltip.
+      const title = h('p', { class: 'ink-error-title' }, m.viewer.openFailed)
+      relabelStatus = () => {
+        title.textContent = words().viewer.openFailed
+      }
       statusEl = h(
         'div',
         { class: 'ink-status ink-error', role: 'alert' },
-        h('p', { class: 'ink-error-title' }, 'This document could not be opened.'),
+        title,
         h(
           'p',
           {},
@@ -382,7 +441,13 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   function start(doc: InkDocument): () => void {
     const store = doc.annotations
     const threads = withThreads
-      ? createThreadPopover({ root, store, activated, focusReturn })
+      ? createThreadPopover({
+          root,
+          store,
+          activated,
+          focusReturn,
+          locale: () => messages.get().locale,
+        })
       : null
     // An activated annotation that has gone (removed, undone) is no longer activated, so it
     // does not reopen its popover if it comes back.
@@ -406,7 +471,9 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     const hosts = new Map<number, HTMLElement>()
     const errors = new Map<number, HTMLElement>()
     const clearError = (page: number): void => {
-      errors.get(page)?.remove()
+      const shown = errors.get(page)
+      if (shown) pageErrors.delete(shown)
+      shown?.remove()
       errors.delete(page)
     }
     const mounted = mountViewer({
@@ -416,6 +483,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       container: scroll,
       document: doc,
       formHighlight,
+      _messageState: messages,
       toolOptions,
       signatureLibrary: signatures,
       storage,
@@ -455,11 +523,16 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
           const shown = h(
             'div',
             { class: 'ink-page-error', 'data-ink-page-error': '', role: 'alert' },
-            h('p', {}, `Page ${page + 1} could not be shown.`),
+            h(
+              'p',
+              { 'data-ink-page-error-text': '' },
+              words().viewer.pageFailed({ page: page + 1 })
+            ),
             h('code', { class: 'ink-error-code' }, error.code)
           )
           host.append(shown)
           errors.set(page, shown)
+          pageErrors.set(shown, page)
         }
         onPageError?.(page, error)
       },
@@ -648,6 +721,12 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       formHighlight = on
       engine.get()?.setFormHighlight(on)
     },
+    setMessages(next) {
+      if (!destroyed) messages.setMessages(next)
+    },
+    setLocale(next) {
+      if (!destroyed) messages.setLocale(next)
+    },
     canGoBack: readonly(canGoBack),
     canGoForward: readonly(canGoForward),
     back: () => navigation.get()?.back(),
@@ -666,6 +745,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       search.destroy()
       signFieldMenu?.destroy()
       formAlert.destroy()
+      stopMessages()
       stopPrompt()
       passwordDialog.destroy()
       host.destroy()
@@ -680,6 +760,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     search,
     host,
     navigation: readonly(navigation),
+    messages: readonly(messages),
     destroyers,
     destroyed: () => destroyed,
   })
@@ -709,6 +790,7 @@ const internals = new WeakMap<
     search: SearchController
     host: PluginHost
     navigation: Readable<Navigation | null>
+    messages: Readable<MessageState>
     destroyers: (() => void)[]
     destroyed: () => boolean
   }
@@ -736,6 +818,13 @@ export function navigationOf(viewer: Viewer): Readable<Navigation | null> {
   const found = internals.get(viewer)
   if (!found) throw new Error('Not a viewer made by createViewer')
   return found.navigation
+}
+
+/** @internal The viewer's words and locale, for the controls that label themselves. */
+export function messagesOf(viewer: Viewer): Readable<MessageState> {
+  const found = internals.get(viewer)
+  if (!found) throw new Error('Not a viewer made by createViewer')
+  return found.messages
 }
 
 /**

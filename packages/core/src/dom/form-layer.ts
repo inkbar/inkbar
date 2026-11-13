@@ -35,9 +35,10 @@ import { createChoiceWidget, createToggleWidget } from './form-choice'
 import { annotsOrder, pageTabOrder } from './form-order'
 import { createSignatureWidget } from './form-signature'
 import { createTextWidget } from './form-text'
+import { ENGLISH, type MessageState } from './messages-state'
 import { normalizeRotation, type PageTransform, type ViewRotation } from './transform'
-import { FORM_LABELS } from './ui'
 
+import type { InkMessages } from '../messages'
 import type { InkDocument } from '../model/document'
 import type { FormController } from '../model/form/controller'
 import type {
@@ -48,6 +49,7 @@ import type {
   WidgetOverride,
 } from '../model/form/types'
 import type { Rect } from '../model/geometry'
+import type { Readable } from '../model/readable'
 import type { AppearanceLook } from '../pdfjs/widget-appearance'
 
 /** A signature field asked to be signed, anchored to its widget's box. */
@@ -85,6 +87,8 @@ export interface FormLayerOptions {
   onError?(error: unknown): void
   /** The widget appearances shown painted. */
   onRendered?(): void
+  /** The words the layer adds to fields; English when omitted. */
+  messages?: Readable<MessageState>
 }
 
 export interface FormLayer {
@@ -136,8 +140,13 @@ export interface WidgetViewContext {
   readonly page: number
   /** The widget's box (`[data-ink-widget]`), placed by the layer. The view adds its control. */
   readonly box: HTMLElement
-  /** The control's accessible name: `/TU`, else the last part of the field name. */
+  /**
+   * The control's accessible name: `/TU`, else the last part of the field name, else
+   * `forms.unnamed`. Read when the view labels its control.
+   */
   readonly label: string
+  /** The viewer's words now. */
+  readonly messages: InkMessages
   /** The view's `drawn` may have changed. */
   redraw(): void
   /**
@@ -227,10 +236,10 @@ interface Entry {
 }
 
 /** A field's accessible name: its tooltip, else the last part of its name. */
-function labelOf(field: FormField): string {
+function labelOf(field: FormField, m: InkMessages): string {
   const tip = field.tooltip?.trim()
   if (tip) return tip
-  return field.name.split('.').at(-1)?.trim() || FORM_LABELS.unnamed
+  return field.name.split('.').at(-1)?.trim() || m.forms.unnamed
 }
 
 const toggle = (el: Element, attr: string, on: boolean) => {
@@ -245,6 +254,8 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
   const ownerDoc = host.ownerDocument
   let transform = opts.transform
   let destroyed = false
+  const messages = opts.messages ?? ENGLISH
+  const words = (): InkMessages => messages.get().messages
 
   const element = ownerDoc.createElement('div')
   element.className = 'ink-form-layer'
@@ -515,7 +526,12 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
         widget: e.widget,
         page,
         box,
-        label: labelOf(e.field),
+        get label() {
+          return labelOf(e.field, words())
+        },
+        get messages() {
+          return words()
+        },
         redraw: () => {
           if (destroyed) return
           toggle(box, 'data-ink-drawn', e.view?.drawn === true)
@@ -555,7 +571,24 @@ export function createFormLayer(opts: FormLayerOptions): FormLayer {
   }
   syncEntries(entries)
 
+  /** Each field's name as last labelled, to rewrite only labels that came from the words. */
+  const named = new Map(entries.map((e) => [e, labelOf(e.field, words())]))
+
   const stops = [
+    // New words: a control named by them is renamed in place, and a signature field's
+    // affordance is synced again. Nothing is rebuilt, so focus and typed text stay.
+    messages.subscribe(({ messages: m }) => {
+      if (destroyed) return
+      for (const e of entries) {
+        const control = e.view?.control
+        const was = named.get(e)
+        const now = labelOf(e.field, m)
+        named.set(e, now)
+        if (control && was !== now && control.getAttribute('aria-label') === was)
+          control.setAttribute('aria-label', now)
+        if (e.view && e.field.type === 'signature') syncEntry(e)
+      }
+    }),
     form.values.subscribe(syncChanged),
     form.formatted.subscribe(syncChanged),
     form.widgetState.subscribe(syncChanged),

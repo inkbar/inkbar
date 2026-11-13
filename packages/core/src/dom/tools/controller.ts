@@ -82,6 +82,7 @@ import { createPressTracker, type PagePress, type PressKind } from './press'
 import { createSelectionEdit, type SelectionEdit } from './selection-edit'
 import { unknownTool } from './unknown'
 
+import type { InkMessages, Label } from '../../messages'
 import type { AnnotationStore } from '../../model/annotations/store'
 import type { Point } from '../../model/geometry'
 import type { PageLink } from '../../model/links'
@@ -128,6 +129,8 @@ export interface ToolContext {
   history?: { batch(fn: () => void): void }
   /** The signature templates the `signature` tool places. Without it, it places nothing. */
   signatures?: SignatureLibrary | undefined
+  /** The viewer's words now, for what a tool labels (a text box's editor). English without. */
+  messages?: InkMessages | undefined
   /**
    * A one-shot tool reports what it just made, already added and selected. Does nothing under
    * a sticky tool or with an empty list.
@@ -139,8 +142,11 @@ export interface ToolContext {
 
 export interface Tool<O extends object = object> {
   id: ToolId
-  /** The accessible name a toolbar button shows for a tool core has no label for. */
-  label?: string
+  /**
+   * The accessible name a toolbar button shows: text, or a function read each time the button
+   * is labelled. Without it a built-in tool takes its name from `messages.tools`, else the id.
+   */
+  label?: Label
   /** The icon a toolbar button shows for a tool core has no icon for. */
   icon?: IconNode
   /** Default sticky. */
@@ -562,7 +568,9 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
     )
     if (!canEditFreeText(a, el) || !el) return
     e.preventDefault()
-    editFreeTextIn(ctx.store, el, id, ctx.viewport.transformFor(a.page))
+    editFreeTextIn(ctx.store, el, id, ctx.viewport.transformFor(a.page), {
+      label: ctx.messages?.annotations.freetext,
+    })
   }
 
   // Capture is best effort: synthetic events may carry a pointer id the browser does not know.

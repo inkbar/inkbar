@@ -120,6 +120,7 @@ export function shapeTool(): Tool<ShapeOptions> {
     return (
       el !== null &&
       editFreeTextIn(c.store, el, a.id, c.viewport.transformFor(a.page), {
+        label: c.messages?.annotations.freetext,
         // Escape ends the bubble's edit and the tool's use, unless the tool has gone already.
         onClose: (how) => {
           if (how === 'escape' && ctx === c) c.done()
@@ -241,7 +242,6 @@ export function shapeTool(): Tool<ShapeOptions> {
 
   return {
     id: 'shape',
-    label: 'Shape',
     icon: Shapes,
     kind: 'one-shot',
     cursor: 'crosshair',

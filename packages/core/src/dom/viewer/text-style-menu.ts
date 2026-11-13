@@ -135,6 +135,7 @@ export function createTextStyleMenu(viewer: Viewer): HTMLButtonElement {
       class: 'ink-text-style-row',
       role: 'group',
       'aria-label': 'Emphasis',
+      'data-ink-emphasis': '',
     })
     for (const t of m.toggles) {
       const b = iconButton(t.label, TOGGLE_ICONS[t.key])
@@ -192,15 +193,13 @@ export function createTextStyleMenu(viewer: Viewer): HTMLButtonElement {
     }
     sel.value = m.font.value
     if (!drafting) input!.value = m.size.value === null ? '' : String(m.size.value)
-    root
-      .querySelectorAll<HTMLElement>('[role="group"][aria-label="Emphasis"] button')
-      .forEach((b) => {
-        const t = m.toggles.find((x) => x.key === b.dataset.key)!
-        b.setAttribute('aria-pressed', String(t.pressed))
-        b.dataset.state = t.pressed === true ? 'on' : 'off'
-        if (t.pressed === 'mixed') b.setAttribute('data-mixed', '')
-        else b.removeAttribute('data-mixed')
-      })
+    root.querySelectorAll<HTMLElement>('[data-ink-emphasis] button').forEach((b) => {
+      const t = m.toggles.find((x) => x.key === b.dataset.key)!
+      b.setAttribute('aria-pressed', String(t.pressed))
+      b.dataset.state = t.pressed === true ? 'on' : 'off'
+      if (t.pressed === 'mixed') b.setAttribute('data-mixed', '')
+      else b.removeAttribute('data-mixed')
+    })
     root.querySelectorAll<HTMLElement>('[role="radio"]').forEach((b) => {
       const c = m.align.choices.find((x) => x.key === b.dataset.key)!
       b.setAttribute('aria-checked', String(c.checked))

@@ -1,6 +1,7 @@
 import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { template } from '../messages'
 import standardCallout from '../model/annotations/__fixtures__/standard-callout.json'
 import {
   calloutStroke,
@@ -14,6 +15,7 @@ import { importAnnotations } from '../model/annotations/json'
 import { createAnnotationStore } from '../model/annotations/store'
 import { renderRegion } from '../pdfjs/render-region'
 
+import { createMessageState } from './messages-state'
 import { createOverlay, type OverlayOptions } from './overlay'
 import { createPageMount } from './page-mount'
 import { mountContainer, openFixtureInBrowser, TEXT_LAYER_CSS } from './test-utils'
@@ -2055,5 +2057,43 @@ describe('hit areas', () => {
     expect(el.style.left).toBe('100px')
     expect(under(host, 150, 242)).toBe(el)
     expect(under(host, 97, 242)).toBeNull()
+  })
+})
+
+describe('overlay labels from messages', () => {
+  it('labels from messages, and relabels the same element on a change', () => {
+    const messages = createMessageState()
+    const store = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const host = mountContainer(612, 792)
+    const overlay = createOverlay({
+      host,
+      page: 0,
+      store,
+      transform: createPageTransform(page, 1, 0),
+      messages,
+    })
+    cleanup.push(() => (overlay.destroy(), host.remove()))
+    const hl = store.add({
+      type: 'highlight',
+      page: 0,
+      quads,
+      author: 'Ann',
+      contents: 'Hi',
+    })
+    const el = host.querySelector<HTMLElement>(`[data-annotation="${hl.id}"]`)!
+    expect(el.getAttribute('aria-label')).toBe('Highlight with comment by Ann')
+    messages.setMessages({
+      annotations: {
+        highlight: 'Surlignage',
+        withComment: template('fr', '{name} avec commentaire'),
+        byAuthor: template('fr', '{name} par {author}'),
+      },
+    })
+    const same = host.querySelector<HTMLElement>(`[data-annotation="${hl.id}"]`)!
+    expect(same).toBe(el)
+    expect(el.getAttribute('aria-label')).toBe('Surlignage avec commentaire par Ann')
   })
 })

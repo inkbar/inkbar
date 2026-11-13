@@ -51,6 +51,7 @@ import {
   type ToolControllerOptions,
 } from './tools'
 import { createPageTransform } from './transform'
+import { toolName } from './ui'
 import { mountViewer } from './viewer-engine'
 import { createViewport, type Viewport } from './viewport'
 
@@ -2259,7 +2260,7 @@ describe('sketch tool', () => {
     const tools = allTools()
     for (const [id, [label, icon]] of Object.entries(expected)) {
       const tool = tools.find((t) => t.id === id)
-      expect(tool?.label, id).toBe(label)
+      expect(toolName(id, tool), id).toBe(label)
       expect(tool?.icon, id).toBe(icon)
     }
   })
@@ -2267,7 +2268,7 @@ describe('sketch tool', () => {
   it('is a creation tool in the ink style group, labelled Sketch', () => {
     const sketch = allTools().find((t) => t.id === 'sketch')
     expect(sketch?.styleGroup).toBe('ink')
-    expect(sketch?.label).toBe('Sketch')
+    expect(toolName('sketch', sketch)).toBe('Sketch')
   })
 
   it('a rough circle becomes a circle annotation with the shape group style', async () => {
@@ -2643,7 +2644,7 @@ describe('freetext tool', () => {
   it('is a creation tool in the text style group, labelled Text box', () => {
     const tool = allTools().find((t) => t.id === 'freetext')
     expect(tool?.styleGroup).toBe('text')
-    expect(tool?.label).toBe('Text box')
+    expect(toolName('freetext', tool)).toBe('Text box')
   })
 
   /** The stand-in a new box is typed into before it joins the store. */

@@ -8,11 +8,14 @@
  */
 import { rectFromQuad, type Rect } from '../model/geometry'
 
+import { ENGLISH, type MessageState } from './messages-state'
+
 import type { FollowOptions } from './navigation'
 import type { CssRect, PageTransform } from './transform'
 import type { LinkTarget, NamedAction } from '../model/destination'
 import type { InkDocument } from '../model/document'
 import type { PageLink } from '../model/links'
+import type { Readable } from '../model/readable'
 
 export interface LinkLayerOptions {
   /** The page host (`div.ink-page`). */
@@ -25,6 +28,8 @@ export interface LinkLayerOptions {
   follow(target: LinkTarget, opts: FollowOptions): void
   /** Text the text layer has under `rect`, or '' when none. */
   textUnder(rect: Rect): string
+  /** The words links without text are named with; English when omitted. */
+  messages?: Readable<MessageState>
 }
 
 export interface LinkLayer {
@@ -37,8 +42,6 @@ export interface LinkLayer {
   relabel(): void
   destroy(): void
 }
-
-const UNSUPPORTED = 'This link is not supported'
 
 /** The page a Named action goes to from the link's own page, as a reader on it would expect. */
 function namedPage(action: NamedAction, page: number, count: number): number {
@@ -71,6 +74,7 @@ export function createLinkLayer(opts: LinkLayerOptions): LinkLayer {
   const ownerDoc = host.ownerDocument
   let transform = opts.transform
   let destroyed = false
+  const messages = opts.messages ?? ENGLISH
 
   const element = ownerDoc.createElement('div')
   element.className = 'ink-link-layer'
@@ -82,9 +86,10 @@ export function createLinkLayer(opts: LinkLayerOptions): LinkLayer {
     if (e.text) return e.text
     const target = e.link.target
     if (target.kind === 'url') return target.url
-    if (target.kind === 'unsupported' || e.dead) return UNSUPPORTED
+    const m = messages.get().messages.links
+    if (target.kind === 'unsupported' || e.dead) return m.unsupported
     // Until the destination is looked up, the page is not known.
-    return e.to === undefined ? 'Go to link' : `Go to page ${e.to + 1}`
+    return e.to === undefined ? m.goToLink : m.goToPage({ page: e.to + 1 })
   }
 
   const place = (el: HTMLElement, rect: Rect) => {
@@ -107,7 +112,7 @@ export function createLinkLayer(opts: LinkLayerOptions): LinkLayer {
 
   /** Makes a link's stop inert: not followed, not a Tab stop, and titled with why. */
   const disable = (el: HTMLElement) => {
-    el.title = UNSUPPORTED
+    el.title = messages.get().messages.links.unsupported
     el.setAttribute('aria-disabled', 'true')
     el.tabIndex = -1
   }
@@ -185,6 +190,16 @@ export function createLinkLayer(opts: LinkLayerOptions): LinkLayer {
   }
   relabel()
 
+  // New words: names and inert links' titles are rewritten in place, the text kept.
+  const stopMessages = messages.subscribe(({ messages: m }) => {
+    if (destroyed) return
+    for (const e of entries) {
+      const stop = e.pieces[0]!.el
+      stop.setAttribute('aria-label', name(e))
+      if (stop.getAttribute('aria-disabled') === 'true') stop.title = m.links.unsupported
+    }
+  })
+
   // Destinations are looked up now, not at load, so a page of an index with thousands of links
   // costs only when it shows. The document caches each answer for when the link is followed.
   for (const e of entries) {
@@ -225,6 +240,7 @@ export function createLinkLayer(opts: LinkLayerOptions): LinkLayer {
     destroy() {
       if (destroyed) return
       destroyed = true
+      stopMessages()
       element.remove()
     },
   }

@@ -32,7 +32,6 @@ export function noteTool(): Tool {
 
   return {
     id: 'note',
-    label: 'Add note',
     icon: MessageSquare,
     kind: 'one-shot',
     cursor: 'copy',

@@ -29,9 +29,9 @@ import {
 import { keepHistoryFocus } from '../history-keys'
 import { unknownCommand } from '../plugins/commands'
 import { unknownTool } from '../tools/unknown'
-import { TOOL_LABELS, ZOOM_LEVELS } from '../ui'
+import { toolName, ZOOM_LEVELS } from '../ui'
 
-import { hostCommandIdsOf, toolsOf, onViewerDestroy } from './create-viewer'
+import { hostCommandIdsOf, messagesOf, toolsOf, onViewerDestroy } from './create-viewer'
 import { h } from './dom'
 
 import type { InkDocument } from '../../model/document'
@@ -296,8 +296,8 @@ export function logUnknownTool(viewer: Viewer, id: ToolId): void {
 
 /**
  * Sets the tool; pressed while it is the active one. A creation, host or plugin tool's button
- * takes the tool's own `label` and `icon`; `opts.label` wins, and without either it is named by
- * the tool id. For an id no tool registered it logs `InkError('UnknownTool')` to the console and
+ * takes the tool's own `label` and `icon`; `opts.label` wins. Without either, a built-in tool
+ * is named from the viewer's `messages.tools`, and any other by its id. For an id no tool registered it logs `InkError('UnknownTool')` to the console and
  * returns the same markup disabled, `aria-hidden` and unnamed.
  */
 export function createToolButton(
@@ -318,12 +318,20 @@ export function createToolButton(
     return pending
   }
   const own = toolsOf(viewer).find((t) => t.id === tool)
-  const label = opts.label ?? TOOL_LABELS[tool] ?? own?.label ?? tool
+  const messages = messagesOf(viewer)
+  const name = (): string => opts.label ?? toolName(tool, own, messages.get().messages)
   const b = button(
-    label,
+    name(),
     { class: 'ink-tool-button', 'data-ink-tool-button': '', 'data-tool': tool },
     TOOL_ICONS[tool] ?? own?.icon
   )
+  // New words, or a host's label function reading its own language again.
+  const stopMessages = messages.subscribe(() => {
+    const label = name()
+    b.setAttribute('aria-label', label)
+    b.title = label
+  })
+  onViewerDestroy(viewer, stopMessages)
   const show = (active: ToolId | null): void => {
     const on = active === tool
     b.dataset.state = on ? 'on' : 'off'

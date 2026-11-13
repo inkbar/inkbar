@@ -76,7 +76,6 @@ export function signatureTool(): Tool<SignatureOptions> {
 
   return {
     id: 'signature',
-    label: 'Signature',
     icon: Signature,
     kind: 'one-shot',
     cursor: 'copy',

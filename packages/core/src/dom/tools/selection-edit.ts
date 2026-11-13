@@ -393,6 +393,7 @@ export function createSelectionEdit(
           if (!el || !canEditFreeText(a, el) || editorFor(el)) return
           editFreeTextIn(ctx.store, el, a.id, ctx.viewport.transformFor(a.page), {
             caret: current.caret,
+            label: ctx.messages?.annotations.freetext,
           })
           return
         }

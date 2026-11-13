@@ -2,7 +2,10 @@ import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { page as browserPage, userEvent } from 'vitest/browser'
 
+import { template } from '../messages'
+
 import { SCRATCH_BUDGET } from './form-appearance'
+import { createMessageState } from './messages-state'
 import { createPageMount, type PageMount } from './page-mount'
 import { createPageRenderer } from './page-renderer'
 import { mountContainer, nextFrame, openFixtureInBrowser, until } from './test-utils'
@@ -2074,5 +2077,48 @@ describe('checkboxes, radios, choices and buttons', () => {
     expect(fieldOf(document.activeElement)).toBe('sig')
     await userEvent.keyboard('{Shift>}{Tab}{/Shift}')
     expect(fieldOf(document.activeElement)).toBe('styled')
+  })
+})
+
+describe('form labels from messages', () => {
+  it('relabels an empty signature field in place', async () => {
+    const doc = await open('form-fields')
+    const messages = createMessageState()
+    const index = 0
+    const transform = createPageTransform(doc.pages[index]!, 1, 0)
+    const host = mountContainer(transform.cssWidth, transform.cssHeight)
+    host.dataset.inkRoot = ''
+    const mount = createPageMount({
+      document: doc,
+      page: index,
+      host,
+      transform,
+      store: doc.annotations,
+      devicePixelRatio: 1,
+      onSignField: () => {},
+      messages,
+    })
+    cleanup.push(() => (mount.destroy(), host.remove()))
+    const widget = doc.form.fields
+      .get()
+      .find((f) => f.name === 'sig')!
+      .widgets.find((w) => w.page === index)!
+    const button = host.querySelector<HTMLButtonElement>(
+      `[data-ink-widget="${widget.id}"] button`
+    )!
+    expect(button.textContent).toBe('Sign')
+    expect(button.title).toBe('Sign this field')
+    expect(button.getAttribute('aria-label')).toBe('Sign this field: sig')
+    messages.setMessages({
+      forms: {
+        sign: 'Signer',
+        signFieldTitle: 'Signer ce champ',
+        signField: template('fr', 'Signer ce champ : {label}'),
+      },
+    })
+    expect(host.querySelector(`[data-ink-widget="${widget.id}"] button`)).toBe(button)
+    expect(button.textContent).toBe('Signer')
+    expect(button.title).toBe('Signer ce champ')
+    expect(button.getAttribute('aria-label')).toBe('Signer ce champ : sig')
   })
 })

@@ -10,6 +10,7 @@
  * the mark is the point. The thread list re-renders on every store change; the form, and the
  * draft in it, stays until the popover moves to another thread or the root is gone.
  */
+import { formatDate } from '../../messages'
 import {
   isAbandonedNote,
   isThreadRoot,
@@ -32,6 +33,8 @@ export interface ThreadPopoverOptions {
   store: AnnotationStore
   activated: Writable<string | null>
   focusReturn: FocusReturn
+  /** The locale dates are shown in, read each time the thread renders. Default: the browser's. */
+  locale?: () => string | undefined
 }
 
 export function createThreadPopover(opts: ThreadPopoverOptions): { destroy(): void } {
@@ -88,7 +91,8 @@ export function createThreadPopover(opts: ThreadPopoverOptions): { destroy(): vo
       thread.remove()
       return
     }
-    thread.replaceChildren(...items.map(threadItem))
+    const locale = opts.locale?.()
+    thread.replaceChildren(...items.map((a) => threadItem(a, locale)))
     if (!thread.isConnected) popover.panel.prepend(thread)
   }
 
@@ -165,7 +169,7 @@ export function createThreadPopover(opts: ThreadPopoverOptions): { destroy(): vo
   }
 }
 
-function threadItem(a: Annotation): HTMLLIElement {
+function threadItem(a: Annotation, locale: string | undefined): HTMLLIElement {
   return h(
     'li',
     {
@@ -177,7 +181,7 @@ function threadItem(a: Annotation): HTMLLIElement {
     h(
       'time',
       { class: 'ink-thread-time', datetime: a.createdAt },
-      new Date(a.createdAt).toLocaleString()
+      formatDate(Date.parse(a.createdAt), locale)
     ),
     h('p', { class: 'ink-thread-text' }, a.contents ?? '')
   )

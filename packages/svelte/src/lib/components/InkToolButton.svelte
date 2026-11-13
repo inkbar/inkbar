@@ -13,7 +13,7 @@
 </script>
 
 <script lang="ts">
-  import { TOOL_LABELS, withHostTools } from '@inkbar/core/dom'
+  import { toolName, withHostTools } from '@inkbar/core/dom'
   import { SquareDashedMousePointer, TextCursor } from '@inkbar/icons'
   import { Toolbar } from 'bits-ui'
 
@@ -63,7 +63,7 @@
     )
   )
   // `label` and `children` win; then core's name and icon; then the tool's own.
-  const name = $derived(label ?? TOOL_LABELS[tool] ?? own?.label ?? tool)
+  const name = $derived(label ?? toolName(tool, own))
   const icon = $derived(ICONS[tool] ?? own?.icon)
 </script>
 

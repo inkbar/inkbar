@@ -102,7 +102,6 @@ export function sketchTool(): Tool {
   const pending = new Set<() => void>()
   return freehandTool({
     id: 'sketch',
-    label: 'Sketch',
     icon: PenTool,
     // Switching tools or tearing the viewer down drops any swap still waiting: the stroke
     // stays ink, and nothing fires against a store that may be gone.
