@@ -1,13 +1,15 @@
-import { allTools } from '@inkbar/core/dom'
+import { allTools, definePlugin } from '@inkbar/core/dom'
 import { fr } from '@inkbar/core/locales/fr'
 import { useState } from 'react'
 
+import { InkCommand } from '../../src/components/InkCommand'
 import { InkHighlightMenu } from '../../src/components/InkHighlightMenu'
 import { InkNextPage } from '../../src/components/InkNextPage'
 import { InkPrevPage } from '../../src/components/InkPrevPage'
 import { InkRedo } from '../../src/components/InkRedo'
 import { InkRoot } from '../../src/components/InkRoot'
 import { InkSearchButton } from '../../src/components/InkSearchButton'
+import { InkSearchResults } from '../../src/components/InkSearchResults'
 import { InkShapeMenu } from '../../src/components/InkShapeMenu'
 import { InkThreadPopover } from '../../src/components/InkThreadPopover'
 import { InkToolbar } from '../../src/components/InkToolbar'
@@ -21,10 +23,26 @@ import { suggestions, suggestionsPlugin } from './suggestions-plugin'
 import type { DocumentSource, InkMessagesInput, PdfAssets } from '@inkbar/core'
 import type { ZoomValue } from '@inkbar/core/dom'
 
-type TestWindow = Window & { __inkDrawWord?: string; __inkRenders?: number }
+type TestWindow = Window & {
+  __inkDrawWord?: string
+  __inkSayWord?: string
+  __inkRenders?: number
+}
 
 /** A host label that reads its own language, which the test changes before new messages. */
 const drawLabel = (): string => (window as TestWindow).__inkDrawWord ?? 'Pen'
+
+/** A plugin command whose label reads the host's language, as `drawLabel` does. */
+const wordsPlugin = definePlugin({
+  id: 'words',
+  setup(ctx) {
+    ctx.commands.add({
+      id: 'say',
+      label: () => (window as TestWindow).__inkSayWord ?? 'Say',
+      run: () => undefined,
+    })
+  },
+})
 
 /** Counts its renders inside the root, to show new messages do not loop. */
 function RenderProbe() {
@@ -43,6 +61,7 @@ export function MessagesHarness({
   french = false,
   inline = false,
   withCard = false,
+  withResults = false,
   hostLang,
   undefinedLang = false,
   tick = 0,
@@ -60,6 +79,8 @@ export function MessagesHarness({
   inline?: boolean
   /** Run a plugin with one mark, whose card a test can open. */
   withCard?: boolean
+  /** Show search results beside the viewport. */
+  withResults?: boolean
   /** A `lang` the host passes to the root. */
   hostLang?: string | undefined
   /** Test-only: pass `lang={undefined}` to the root, which a test cannot pass as a prop. */
@@ -69,7 +90,9 @@ export function MessagesHarness({
 }) {
   const [tools] = useState(allTools)
   const [plugins] = useState(() =>
-    withCard ? [suggestionsPlugin({ initial: suggestions(1) })] : undefined
+    withCard
+      ? [suggestionsPlugin({ initial: suggestions(1) }), wordsPlugin]
+      : [wordsPlugin]
   )
   const words: InkMessagesInput | undefined = french
     ? fr
@@ -110,11 +133,22 @@ export function MessagesHarness({
         <InkHighlightMenu />
         <InkShapeMenu />
         <InkToolButton tool="draw" label={drawLabel} />
+        <InkCommand id="words.say" />
         <InkZoomSelect />
       </InkToolbar>
       {/* Test-only box: the scroll container needs a bounded height to scroll. */}
-      <div style={{ height: 600, width: 900 }}>
-        <InkViewport />
+      <div style={{ display: 'flex' }}>
+        {withResults ? (
+          // Test-only box: the list fills its parent's height.
+          <div
+            style={{ height: 300, width: 280, display: 'flex', flexDirection: 'column' }}
+          >
+            <InkSearchResults data-testid="results" />
+          </div>
+        ) : null}
+        <div style={{ height: 600, width: 900 }}>
+          <InkViewport />
+        </div>
       </div>
       <InkThreadPopover />
       <RenderProbe />

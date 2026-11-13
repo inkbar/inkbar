@@ -17,7 +17,11 @@ type Stored = { id: string; contents?: string; createdAt: string }
 type RootEl = HTMLElement & {
   __inkDocument?: { annotations: { list: { get(): Stored[] } } }
 }
-type TestWindow = Window & { __inkDrawWord?: string; __inkRenders?: number }
+type TestWindow = Window & {
+  __inkDrawWord?: string
+  __inkSayWord?: string
+  __inkRenders?: number
+}
 
 const stored = (page: Page) =>
   page
@@ -117,6 +121,31 @@ test('a function label follows messages', async ({ mount, page }) => {
   await expect(draw).toHaveAccessibleName('Stylo')
 })
 
+test('a function label follows locale', async ({ mount, page }) => {
+  const src = fixtureUrl('text-simple')
+  const cmp = await mount(<MessagesHarness src={src} assets={assets} />)
+  const say = page.locator('[data-command="words.say"]')
+  await expect(say).toHaveAccessibleName('Say')
+  await page.evaluate(() => {
+    ;(window as TestWindow).__inkSayWord = 'Dire'
+  })
+  await cmp.update(<MessagesHarness src={src} assets={assets} locale="fr-FR" />)
+  await expect(page.locator('[data-ink-root]')).toHaveAttribute('lang', 'fr-FR')
+  await expect(say).toHaveAccessibleName('Dire')
+})
+
+test('search result cards follow messages', async ({ mount, page }) => {
+  const src = fixtureUrl('text-simple')
+  const cmp = await mount(<MessagesHarness src={src} assets={assets} withResults />)
+  await expect(page.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  const results = page.getByTestId('results')
+  await results.getByRole('textbox', { name: 'Find in document' }).fill('Inkbar')
+  const first = results.locator('[data-ink-record]').first()
+  await expect(first.locator('.ink-card-meta')).toHaveText('Match 1')
+  await cmp.update(<MessagesHarness src={src} assets={assets} withResults french />)
+  await expect(first.locator('.ink-card-meta')).toHaveText('Occurrence 1')
+})
+
 test('the zoom trigger follows messages while closed', async ({ mount, page }) => {
   const src = fixtureUrl('text-simple')
   const cmp = await mount(<MessagesHarness src={src} assets={assets} zoom="fit-width" />)
@@ -182,7 +211,8 @@ test('an inline messages object each render leaves an open card alone', async ({
   await expect(card).toBeVisible()
   await expect(card.getByRole('button', { name: 'Accept' })).toBeFocused()
   await card.evaluate((el) => {
-    const w = window as Window & { __inkCardChanges?: number }
+    const w = window as Window & { __inkCardChanges?: number; __inkCard?: Element }
+    w.__inkCard = el
     w.__inkCardChanges = 0
     new MutationObserver((records) => {
       w.__inkCardChanges! += records.filter((r) => r.type === 'childList').length
@@ -200,6 +230,12 @@ test('an inline messages object each render leaves an open card alone', async ({
     () => (window as Window & { __inkCardChanges?: number }).__inkCardChanges
   )
   expect(changes).toBe(0)
+  // The same card element: the observer above would miss a card replaced whole.
+  expect(
+    await card.evaluate(
+      (el) => el === (window as Window & { __inkCard?: Element }).__inkCard
+    )
+  ).toBe(true)
   await expect(card).toBeVisible()
   await expect(card.getByRole('button', { name: 'Accept' })).toBeFocused()
 })

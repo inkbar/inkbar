@@ -67,7 +67,8 @@ export function RecordCards({
   /** The count last reported, across sources and StrictMode's replayed effects. */
   const reported = useRef<number | null>(null)
   const held = useRef<HeldFocus | null>(null)
-  // The root's words: read while rendering, so card label functions re-run on new messages.
+  // The root's words, for the empty text. On new words the controller publishes the rows
+  // again with their cards rebuilt, and the render reads each card's label functions again.
   const ink = useContext(InkContextObject)
   const messageState = ink?.messageState
   const m = ink?.messages ?? en
