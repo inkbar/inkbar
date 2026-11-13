@@ -1,4 +1,4 @@
-import { resolveLabel } from '@inkbar/core'
+import { en, resolveLabel } from '@inkbar/core'
 import {
   cardActions,
   createRecordListController,
@@ -7,6 +7,7 @@ import {
   type RecordListSource,
 } from '@inkbar/core/dom'
 import {
+  useContext,
   useLayoutEffect,
   useRef,
   useState,
@@ -15,6 +16,7 @@ import {
 } from 'react'
 
 import { cx } from '../class-names'
+import { InkContextObject } from '../context'
 import { useLatest } from '../use-latest'
 import { useReadable } from '../use-readable'
 
@@ -25,7 +27,7 @@ export interface RecordCardsProps extends Omit<
   source: RecordListSource | null
   /** Whether the empty text shows when there are no rows. Default true. */
   emptyShown?: boolean | undefined
-  /** Replaces "Nothing here yet."; null shows nothing. */
+  /** Replaces "Nothing here yet." (in the root's words); null shows nothing. */
   empty?: ReactNode
   /** Called with the number listed whenever it changes. */
   onCountChange?: ((count: number) => void) | undefined
@@ -65,11 +67,15 @@ export function RecordCards({
   /** The count last reported, across sources and StrictMode's replayed effects. */
   const reported = useRef<number | null>(null)
   const held = useRef<HeldFocus | null>(null)
+  // The root's words: read while rendering, so card label functions re-run on new messages.
+  const ink = useContext(InkContextObject)
+  const messageState = ink?.messageState
+  const m = ink?.messages ?? en
 
   useLayoutEffect(() => {
     const el = root.current
     if (!source || !el) return
-    const c = createRecordListController(source)
+    const c = createRecordListController(source, messageState)
     const report = (count: number): void => {
       if (count === reported.current) return
       reported.current = count
@@ -98,7 +104,7 @@ export function RecordCards({
       c.destroy()
       setController(null)
     }
-  }, [source, latest])
+  }, [source, messageState, latest])
 
   const rows = useReadable(controller?.rows, NO_ROWS)
   const announcement = useReadable(controller?.announcement, '')
@@ -176,7 +182,7 @@ export function RecordCards({
         ))}
       </ul>
       <p className="ink-record-list-empty" hidden={!showEmpty}>
-        {empty === undefined ? 'Nothing here yet.' : empty}
+        {empty === undefined ? m.records.empty : empty}
       </p>
       <div className="ink-visually-hidden" aria-live="polite" data-ink-record-status="">
         {announcement}

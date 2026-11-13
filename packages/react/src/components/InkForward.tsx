@@ -3,6 +3,7 @@ import { Toolbar } from 'radix-ui'
 
 import { cx } from '../class-names'
 import { useInkContext } from '../context'
+import { useMessages } from '../hooks/useMessages'
 import { useReadable } from '../use-readable'
 
 import { InkIcon } from './InkIcon'
@@ -18,6 +19,7 @@ export function InkForward({
   onClick,
   ...rest
 }: InkPageButtonProps) {
+  const m = useMessages()
   const ctx = useInkContext('InkForward')
   const canGoForward = useReadable(ctx.navigation?.canGoForward, false)
   return (
@@ -25,8 +27,8 @@ export function InkForward({
       asChild={asChild}
       className={cx('ink-forward', className)}
       data-ink-forward=""
-      aria-label="Forward"
-      title="Forward"
+      aria-label={m.toolbar.forward}
+      title={m.toolbar.forward}
       disabled={disabled === true || !canGoForward}
       {...rest}
       onClick={(e) => {

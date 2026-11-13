@@ -6,6 +6,8 @@ import { useInkContext } from '../context'
 import { useToReadable } from '../to-readable'
 import { useLatest } from '../use-latest'
 
+import type { Label } from '@inkbar/core'
+
 export interface InkThumbnailProps extends Omit<
   ComponentPropsWithoutRef<'div'>,
   'children'
@@ -20,8 +22,11 @@ export interface InkThumbnailProps extends Omit<
   annotations?: boolean | undefined
   /** Draw plugin marks. Default true. */
   marks?: boolean | undefined
-  /** The accessible name. Default "Page N". */
-  label?: string | undefined
+  /**
+   * The accessible name: a string, or a function read again whenever the root's `messages`
+   * change. Default "Page N", in the root's words.
+   */
+  label?: Label | undefined
 }
 
 /**
@@ -58,7 +63,8 @@ export function InkThumbnail({
   useLayoutEffect(() => {
     const p = createThumbnailPainter(
       el.current!,
-      { document, pluginHost },
+      // The root's words: the painter renames the element when they change.
+      { document, pluginHost, messages: ctx.messageState },
       latest.current
     )
     painter.current = p
@@ -66,7 +72,7 @@ export function InkThumbnail({
       p.destroy()
       painter.current = null
     }
-  }, [document, pluginHost, latest])
+  }, [document, pluginHost, ctx.messageState, latest])
 
   // The class is the painter's too: kept here, a re-render never drops it.
   return <div {...rest} ref={el} className={cx('ink-thumbnail', className)} />

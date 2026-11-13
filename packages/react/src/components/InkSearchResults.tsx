@@ -39,9 +39,11 @@ export function InkSearchResults({
   const ctx = useInkContext('InkSearchResults')
   const search = useSearch()
   const { state } = search
+  const m = ctx.messages
+  // The store, not the words: the source relabels its cards itself, so it outlives new words.
   const source = useMemo(
-    () => (ctx.search ? searchSource(ctx.search) : null),
-    [ctx.search]
+    () => (ctx.search ? searchSource(ctx.search, ctx.messageState) : null),
+    [ctx.search, ctx.messageState]
   )
   const input = useRef<HTMLInputElement>(null)
 
@@ -66,8 +68,8 @@ export function InkSearchResults({
             <input
               ref={input}
               type="text"
-              aria-label="Find in document"
-              placeholder="Search for a word or phrase"
+              aria-label={m.search.field}
+              placeholder={m.search.placeholder}
               autoComplete="off"
               spellCheck={false}
               defaultValue={state.query}
@@ -81,11 +83,11 @@ export function InkSearchResults({
       <RecordCards
         source={source}
         emptyShown={isBlankQuery(state.query)}
-        empty="Search to list every match."
+        empty={m.search.prompt}
       />
       {/* A footer under the cards, hidden while empty. */}
       <div className="ink-search-results-count" data-ink-search-results-count="">
-        {findCountText(state)}
+        {findCountText(state, m)}
       </div>
     </div>
   )

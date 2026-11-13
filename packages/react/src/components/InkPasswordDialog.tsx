@@ -5,11 +5,11 @@
  * `onSubmit`, and the field is cleared when the dialog closes and after each wrong try. Escape,
  * Cancel or a press outside closes it.
  */
-import { PASSWORD_LABELS } from '@inkbar/core/dom'
 import { Dialog } from 'radix-ui'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 
 import { cx } from '../class-names'
+import { useMessages } from '../hooks/useMessages'
 
 export interface InkPasswordDialogProps {
   open: boolean
@@ -34,6 +34,7 @@ export function InkPasswordDialog({
   onCloseAutoFocus,
   className,
 }: InkPasswordDialogProps) {
+  const m = useMessages()
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
@@ -50,11 +51,9 @@ export function InkPasswordDialog({
           }}
           onCloseAutoFocus={onCloseAutoFocus}
         >
-          <Dialog.Title className="ink-dialog-title">
-            {PASSWORD_LABELS.dialog}
-          </Dialog.Title>
+          <Dialog.Title className="ink-dialog-title">{m.password.dialog}</Dialog.Title>
           <Dialog.Description className="ink-dialog-description">
-            {PASSWORD_LABELS.description}
+            {m.password.description}
           </Dialog.Description>
           <PasswordForm
             incorrect={incorrect}
@@ -80,6 +79,7 @@ function PasswordForm({
   onSubmit: (password: string) => void
   onCancel: () => void
 }) {
+  const m = useMessages()
   const uid = useId()
   const inputId = `${uid}-input`
   const errorId = `${uid}-error`
@@ -119,7 +119,7 @@ function PasswordForm({
   return (
     <form className="ink-password-form" data-ink-password-form="" onSubmit={submit}>
       <label className="ink-password-label" htmlFor={inputId}>
-        {PASSWORD_LABELS.field}
+        {m.password.field}
       </label>
       <input
         id={inputId}
@@ -134,12 +134,12 @@ function PasswordForm({
       />
       {incorrect ? (
         <p key={attempt} id={errorId} className="ink-password-error" role="alert">
-          {PASSWORD_LABELS.incorrect}
+          {m.password.incorrect}
         </p>
       ) : null}
       <div className="ink-dialog-actions">
         <button type="button" className="ink-button" onClick={onCancel}>
-          {PASSWORD_LABELS.cancel}
+          {m.password.cancel}
         </button>
         <button
           type="submit"
@@ -147,7 +147,7 @@ function PasswordForm({
           data-variant="primary"
           disabled={disabled}
         >
-          {PASSWORD_LABELS.submit}
+          {m.password.submit}
         </button>
       </div>
     </form>

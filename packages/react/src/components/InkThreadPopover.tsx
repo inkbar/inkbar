@@ -9,7 +9,7 @@
  * still empty and has no replies removes it, so an abandoned note does not stay on the page.
  * Markup stays: the mark is the point.
  */
-import { isAbandonedNote, threadOf, threadRoot } from '@inkbar/core'
+import { formatDate, isAbandonedNote, threadOf, threadRoot } from '@inkbar/core'
 import { threadDeleteLabel, threadPopoverLabel } from '@inkbar/core/dom'
 import { Popover } from 'radix-ui'
 import {
@@ -28,7 +28,7 @@ import { useLatest } from '../use-latest'
 import { useAnnotationElement } from './annotation-element'
 import { keepOpenOnAnnotation, useFocusReturn } from './popover-focus'
 
-import type { Annotation, ThreadRoot } from '@inkbar/core'
+import type { Annotation, InkMessages, ThreadRoot } from '@inkbar/core'
 import type { ThreadPopoverSlotProps } from '@inkbar/core/dom'
 
 export interface InkThreadPopoverProps {
@@ -138,7 +138,7 @@ export function InkThreadPopover({ children }: InkThreadPopoverProps) {
             side="right"
             sideOffset={8}
             collisionPadding={8}
-            aria-label={threadPopoverLabel(note)}
+            aria-label={threadPopoverLabel(note, ctx.messages)}
             onInteractOutside={keepOpenOnAnnotation}
             onCloseAutoFocus={(e) => focusReturn.onCloseAutoFocus(e, anchor)}
           >
@@ -163,10 +163,10 @@ export function InkThreadPopover({ children }: InkThreadPopoverProps) {
                         data-reply={item.inReplyTo ? '' : undefined}
                       >
                         <span className="ink-thread-author">
-                          {item.author ?? 'Anonymous'}
+                          {item.author ?? ctx.messages.notes.anonymous}
                         </span>
                         <time className="ink-thread-time" dateTime={item.createdAt}>
-                          {new Date(item.createdAt).toLocaleString()}
+                          {formatDate(Date.parse(item.createdAt), ctx.locale)}
                         </time>
                         <p className="ink-thread-text">{item.contents}</p>
                       </li>
@@ -178,7 +178,8 @@ export function InkThreadPopover({ children }: InkThreadPopoverProps) {
                   key={note.id}
                   editingRoot={editingRoot}
                   locked={!!note.locked}
-                  deleteLabel={threadDeleteLabel(note)}
+                  deleteLabel={threadDeleteLabel(note, ctx.messages)}
+                  messages={ctx.messages}
                   onSubmit={(text) => (editingRoot ? updateContents(text) : reply(text))}
                   onRemove={removeThread}
                   onClose={close}
@@ -197,6 +198,7 @@ function ThreadForm({
   editingRoot,
   locked,
   deleteLabel,
+  messages: m,
   onSubmit,
   onRemove,
   onClose,
@@ -204,11 +206,13 @@ function ThreadForm({
   editingRoot: boolean
   locked: boolean
   deleteLabel: string
+  messages: InkMessages
   onSubmit: (text: string) => void
   onRemove: () => void
   onClose: () => void
 }) {
   const [draft, setDraft] = useState('')
+  const action = editingRoot ? m.notes.comment : m.notes.reply
   function submit(e: FormEvent): void {
     e.preventDefault()
     const text = draft.trim()
@@ -219,15 +223,15 @@ function ThreadForm({
   return (
     <form className="ink-thread-reply" data-ink-thread-reply="" onSubmit={submit}>
       <textarea
-        aria-label={editingRoot ? 'Comment' : 'Reply'}
+        aria-label={action}
         rows={2}
-        placeholder={editingRoot ? 'Comment' : 'Reply'}
+        placeholder={action}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
       />
       <div className="ink-thread-actions">
         <button type="submit" disabled={!draft.trim()}>
-          {editingRoot ? 'Comment' : 'Reply'}
+          {action}
         </button>
         {!locked ? (
           <button type="button" onClick={onRemove}>
@@ -235,7 +239,7 @@ function ThreadForm({
           </button>
         ) : null}
         <button type="button" onClick={onClose}>
-          Close
+          {m.notes.close}
         </button>
       </div>
     </form>

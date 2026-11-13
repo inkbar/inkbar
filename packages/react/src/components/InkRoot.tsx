@@ -4,6 +4,7 @@ import {
   createStorageSignatureStore,
   createSnapshotHistory,
   InkError,
+  isValidLocale,
   openDocument,
   readonly,
   writable,
@@ -11,6 +12,7 @@ import {
 import {
   attachFileKeys,
   attachHistoryKeys,
+  createMessageState,
   createPluginHost,
   createSearchController,
   createToolOptions,
@@ -49,6 +51,7 @@ import {
   type InkStatus,
 } from '../context'
 import { registeredToolIds } from '../hooks/useRegisteredTool'
+import { MessageStoreContext } from '../message-store'
 import { useLatest } from '../use-latest'
 import { useReadable } from '../use-readable'
 
@@ -61,6 +64,7 @@ import type {
   FieldValues,
   ViewerAction,
   InkDocument,
+  InkMessagesInput,
   InkStorage,
   PdfAssets,
   PluginHistory,
@@ -177,6 +181,18 @@ export interface InkRootProps extends Omit<
   onPageChange?: ((page: number) => void) | undefined
   zoom?: ZoomValue | undefined
   onZoomChange?: ((zoom: ZoomValue) => void) | undefined
+  /**
+   * The words the viewer shows, over English: any group, any subset of its keys. A string,
+   * or a function the viewer calls again whenever `messages` or `locale` changes. A change
+   * applies in place: nothing remounts and open menus stay open. An inline object is fine:
+   * each new one relabels, and nothing loops.
+   */
+  messages?: InkMessagesInput | undefined
+  /**
+   * The locale dates are formatted for, and the root's `lang` when it is a valid tag.
+   * Default: the browser's.
+   */
+  locale?: string | undefined
   /** Undo history. Defaults to on for uncontrolled, off for controlled. */
   history?: boolean | undefined
   asChild?: boolean | undefined
@@ -265,6 +281,8 @@ export function InkRoot({
   onPageChange,
   zoom,
   onZoomChange,
+  messages: messagesProp,
+  locale: localeProp,
   history,
   asChild = false,
   onReady,
@@ -397,6 +415,31 @@ export function InkRoot({
   }, [snapshotHistory])
 
   /*
+   * One message state for the root's life. The props are pushed into it; the engine, the plugin
+   * host and core's factories share it, and the components read its mirror below. Every set is
+   * a new state, so label functions re-run even when the host passes an equal object; an
+   * inline object re-renders the root once more per host render, and no more.
+   */
+  const [messageState] = useState(() => createMessageState(messagesProp, localeProp))
+  const [publicMessageState] = useState(() => readonly(messageState))
+  const [initialWords] = useState(() => messageState.get())
+  /** What the store last took from the props: the first render's went in at creation. */
+  const pushed = useRef({ messages: messagesProp, locale: localeProp })
+  // Layout effects, so the new words are on screen in the same commit as the new props.
+  useLayoutEffect(() => {
+    if (pushed.current.messages === messagesProp) return
+    pushed.current.messages = messagesProp
+    messageState.setMessages(messagesProp)
+  }, [messageState, messagesProp])
+  useLayoutEffect(() => {
+    if (pushed.current.locale === localeProp) return
+    pushed.current.locale = localeProp
+    messageState.setLocale(localeProp)
+  }, [messageState, localeProp])
+  const words = useReadable(messageState, initialWords)
+  const lang = isValidLocale(words.locale) ? words.locale : undefined
+
+  /*
    * One plugin host for the root's life, built in a layout effect so that no `setup` runs on
    * the server, where nothing would clean it up, and the browser never paints the commands
    * without it. Until then `pluginHost` is null and InkCommand renders its command disabled.
@@ -435,6 +478,7 @@ export function InkRoot({
         viewport: () => viewportRef.current,
         search: viewerSearchOf(search),
         storage,
+        messages: publicMessageState,
       })
       hostRef.current = { host, search, destroyed: false }
       setPluginHost(host)
@@ -932,6 +976,9 @@ export function InkRoot({
       rootEl,
       setViewport,
       formHighlight,
+      messages: words.messages,
+      locale: words.locale,
+      messageState: publicMessageState,
       reportAction,
       reportError,
     }),
@@ -972,6 +1019,8 @@ export function InkRoot({
       rootEl,
       setViewport,
       formHighlight,
+      words,
+      publicMessageState,
       reportAction,
       reportError,
     ]
@@ -994,9 +1043,17 @@ export function InkRoot({
   const Comp = asChild ? Slot.Root : 'div'
   return (
     <InkContextObject.Provider value={ctx}>
-      <Comp ref={setRootEl} data-ink-root="" data-state={status.state} {...rest}>
-        {typeof children === 'function' ? children({ status, document }) : children}
-      </Comp>
+      <MessageStoreContext.Provider value={messageState}>
+        <Comp
+          ref={setRootEl}
+          data-ink-root=""
+          data-state={status.state}
+          lang={lang}
+          {...rest}
+        >
+          {typeof children === 'function' ? children({ status, document }) : children}
+        </Comp>
+      </MessageStoreContext.Provider>
     </InkContextObject.Provider>
   )
 }

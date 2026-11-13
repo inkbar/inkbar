@@ -4,11 +4,13 @@ import { Toolbar } from 'radix-ui'
 
 import { cx } from '../class-names'
 import { useInkContext } from '../context'
+import { hostLabel } from '../hooks/useMessages'
 import { useRegisteredTool } from '../hooks/useRegisteredTool'
 import { useTool } from '../hooks/useTool'
 
 import { InkIcon } from './InkIcon'
 
+import type { Label } from '@inkbar/core'
 import type { IconNode } from '@inkbar/icons'
 import type { ComponentPropsWithoutRef, ReactNode } from 'react'
 
@@ -31,7 +33,8 @@ export interface InkToolButtonProps extends Omit<
   'children'
 > {
   tool: ToolId
-  label?: string | undefined
+  /** A string, or a function read again whenever the root's `messages` change. */
+  label?: Label | undefined
   asChild?: boolean
   children?: ReactNode | ((props: { active: boolean; label: string }) => ReactNode)
 }
@@ -45,7 +48,7 @@ export function InkToolButton({
   onClick,
   ...rest
 }: InkToolButtonProps) {
-  const { hostTools, pluginHost } = useInkContext('InkToolButton')
+  const { hostTools, pluginHost, messages } = useInkContext('InkToolButton')
   const { tool: current, setTool } = useTool()
   const active = current === tool
   const registered = useRegisteredTool(tool)
@@ -54,7 +57,7 @@ export function InkToolButton({
     (t) => t.id === tool
   )
   // `label` and `children` win; then the tool's own name, else core's; then the id.
-  const name = label ?? toolName(tool, own)
+  const name = hostLabel(label, toolName(tool, own, messages))
   const icon = ICONS[tool] ?? own?.icon
   return (
     <Toolbar.Button

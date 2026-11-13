@@ -48,12 +48,12 @@ export function InkTextStyleMenu({
   disabled,
   ...rest
 }: InkTextStyleMenuProps) {
-  const { fonts } = useInkContext('InkTextStyleMenu')
+  const { fonts, messages: m } = useInkContext('InkTextStyleMenu')
   const { current, supported, set } = useToolStyle()
   const [open, setOpen] = useState(false)
   /** The size as typed, until it is committed with Enter or blur. */
   const [draft, setDraft] = useState<string | null>(null)
-  const model = textStyleMenuModel(current, supported, fonts)
+  const model = textStyleMenuModel(current, supported, fonts, m)
   // The menu closes when the control disables (the selection cleared while it was open).
   useEffect(() => {
     if (model.enabled) return
@@ -129,7 +129,7 @@ export function InkTextStyleMenu({
           >
             {model.font.value === '' ? (
               <option value="" disabled hidden>
-                Mixed
+                {m.textStyle.mixed}
               </option>
             ) : null}
             {model.font.options.map((f) => (
@@ -140,11 +140,15 @@ export function InkTextStyleMenu({
           </select>
           <div className="ink-text-style-row">
             <InkColorMenu property="textColor" standalone />
-            <div className="ink-text-style-size" role="group" aria-label="Size">
+            <div
+              className="ink-text-style-size"
+              role="group"
+              aria-label={m.textStyle.size}
+            >
               <button
                 type="button"
                 className="ink-text-style-button"
-                aria-label="Decrease font size"
+                aria-label={m.textStyle.decrease}
                 onClick={() => nudge(-1)}
               >
                 <InkIcon icon={Minus} size={16} />
@@ -169,14 +173,19 @@ export function InkTextStyleMenu({
               <button
                 type="button"
                 className="ink-text-style-button"
-                aria-label="Increase font size"
+                aria-label={m.textStyle.increase}
                 onClick={() => nudge(1)}
               >
                 <InkIcon icon={Plus} size={16} />
               </button>
             </div>
           </div>
-          <div className="ink-text-style-row" role="group" aria-label="Emphasis">
+          <div
+            className="ink-text-style-row"
+            role="group"
+            data-ink-emphasis=""
+            aria-label={m.textStyle.emphasis}
+          >
             {model.toggles.map((t) => (
               <button
                 key={t.key}

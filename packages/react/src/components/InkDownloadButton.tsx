@@ -4,6 +4,7 @@ import { Toolbar } from 'radix-ui'
 
 import { cx } from '../class-names'
 import { useInkContext } from '../context'
+import { useMessages } from '../hooks/useMessages'
 
 import { InkIcon } from './InkIcon'
 
@@ -29,14 +30,15 @@ export function InkDownloadButton({
   onClick,
   ...rest
 }: InkDownloadButtonProps) {
+  const m = useMessages()
   const { document: doc, status } = useInkContext('InkDownloadButton')
   return (
     <Toolbar.Button
       asChild={asChild}
       className={cx('ink-download', className)}
       data-ink-download=""
-      aria-label="Download"
-      title="Download"
+      aria-label={m.toolbar.download}
+      title={m.toolbar.download}
       {...rest}
       disabled={disabled === true || doc === null || status.state !== 'ready'}
       onClick={(e) => {

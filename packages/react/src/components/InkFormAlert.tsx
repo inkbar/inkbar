@@ -9,9 +9,10 @@
  * Radix's dismissable layer takes every Escape on the page while it is open, which would end
  * the viewer's own use of the key.
  */
-import { FORM_LABELS } from '@inkbar/core/dom'
 import { useId, useLayoutEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+
+import { useMessages } from '../hooks/useMessages'
 
 export function InkFormAlert({
   message,
@@ -27,6 +28,7 @@ export function InkFormAlert({
   fallback: () => HTMLElement | null
   onClose: () => void
 }) {
+  const m = useMessages()
   const uid = useId()
   const panel = useRef<HTMLDivElement>(null)
   const ok = useRef<HTMLButtonElement>(null)
@@ -78,7 +80,7 @@ export function InkFormAlert({
       }}
     >
       <h2 id={`${uid}-title`} className="ink-dialog-title">
-        {FORM_LABELS.alert}
+        {m.forms.alert}
       </h2>
       <p
         id={`${uid}-message`}
@@ -96,7 +98,7 @@ export function InkFormAlert({
           data-ink-form-alert-ok=""
           onClick={close}
         >
-          {FORM_LABELS.ok}
+          {m.forms.ok}
         </button>
       </div>
     </div>,

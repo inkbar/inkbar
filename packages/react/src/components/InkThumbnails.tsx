@@ -85,7 +85,7 @@ export function InkThumbnails({
   }, [controller, options])
   useLayoutEffect(() => {
     const c = createThumbnailsController(
-      { document, pluginHost, viewport },
+      { document, pluginHost, viewport, messages: ctx.messageState },
       latest.current
     )
     setController(c)
@@ -94,7 +94,7 @@ export function InkThumbnails({
       c.destroy()
       setController(null)
     }
-  }, [document, pluginHost, viewport, latest])
+  }, [document, pluginHost, viewport, ctx.messageState, latest])
   const state = useReadable(controller?.state, EMPTY)
 
   const { window: win, offsets } = state

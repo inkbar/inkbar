@@ -5,6 +5,7 @@ import { flushSync } from 'react-dom'
 import { cx } from '../class-names'
 import { useInkContext } from '../context'
 import { useDocument } from '../hooks/useDocument'
+import { useMessages } from '../hooks/useMessages'
 import { useSearch } from '../hooks/useSearch'
 
 import { InkIcon } from './InkIcon'
@@ -26,6 +27,7 @@ export function InkSearchButton({
   onClick,
   ...rest
 }: InkSearchButtonProps) {
+  const m = useMessages()
   const { rootEl } = useInkContext('InkSearchButton')
   const { state, open } = useSearch()
   const { isReady } = useDocument()
@@ -35,8 +37,8 @@ export function InkSearchButton({
       asChild={asChild}
       className={cx('ink-search-button', className)}
       data-ink-search-button=""
-      aria-label="Find"
-      title="Find"
+      aria-label={m.toolbar.find}
+      title={m.toolbar.find}
       aria-pressed={state.open}
       data-state={state.open ? 'on' : 'off'}
       disabled={!isReady || !!disabled}

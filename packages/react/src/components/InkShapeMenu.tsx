@@ -18,6 +18,7 @@ import { Popover, Toolbar } from 'radix-ui'
 import { useRef, useState, type ComponentPropsWithoutRef, type ReactNode } from 'react'
 
 import { cx } from '../class-names'
+import { useMessages } from '../hooks/useMessages'
 import { useRegisteredTool } from '../hooks/useRegisteredTool'
 import { useTool } from '../hooks/useTool'
 import { useToolOptions } from '../hooks/useToolOptions'
@@ -42,7 +43,8 @@ function ShapeMenu({ className, children, ...rest }: InkShapeMenuProps) {
   const { tool, setTool } = useTool()
   const [options, setOptions] = useToolOptions<ShapeOptions>('shape')
   const [open, setOpen] = useState(false)
-  const model = shapeMenuModel(options, SHAPE_KINDS)
+  const m = useMessages()
+  const model = shapeMenuModel(options, SHAPE_KINDS, m)
   const active = tool === 'shape'
   /** ArrowDown opens on the first item; a click opens on the checked one. */
   const focusFirst = useRef(false)
@@ -51,7 +53,7 @@ function ShapeMenu({ className, children, ...rest }: InkShapeMenuProps) {
       <Popover.Anchor asChild>
         <div
           role="group"
-          aria-label="Shape"
+          aria-label={m.shape.label}
           className={cx('ink-split-button ink-shape-menu', className)}
           data-ink-shape-menu=""
           {...rest}
@@ -77,8 +79,8 @@ function ShapeMenu({ className, children, ...rest }: InkShapeMenuProps) {
                 className="ink-menu-trigger ink-shape-menu-trigger"
                 data-ink-shape-menu-trigger=""
                 data-state={open ? 'open' : 'closed'}
-                aria-label="Choose shape"
-                title="Choose shape"
+                aria-label={m.shape.choose}
+                title={m.shape.choose}
                 aria-haspopup="menu"
                 onKeyDown={(e) => {
                   if (e.key !== 'ArrowDown' || e.defaultPrevented || open) return
@@ -94,7 +96,7 @@ function ShapeMenu({ className, children, ...rest }: InkShapeMenuProps) {
           <Popover.Portal>
             <Popover.Content
               role="menu"
-              aria-label="Shapes"
+              aria-label={m.shape.menu}
               className="ink-select-content ink-menu-content"
               data-ink-select-content=""
               data-ink-menu="shape"
@@ -113,7 +115,7 @@ function ShapeMenu({ className, children, ...rest }: InkShapeMenuProps) {
             >
               <div
                 role="group"
-                aria-label="Shapes"
+                aria-label={m.shape.menu}
                 className="ink-shape-grid"
                 data-ink-menu-columns={SHAPE_COLUMNS}
               >

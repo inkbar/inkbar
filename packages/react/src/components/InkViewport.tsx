@@ -12,7 +12,7 @@
  * `InkSignFieldPopover`, and a form script's alert shows in `InkFormAlert`; both are mounted
  * here, so hosts compose nothing for them.
  */
-import { mountViewer, PASSWORD_LABELS } from '@inkbar/core/dom'
+import { mountViewer } from '@inkbar/core/dom'
 import {
   useEffect,
   useLayoutEffect,
@@ -25,6 +25,7 @@ import {
 import { cx } from '../class-names'
 import { useInkContext } from '../context'
 import { toolIdsOf } from '../hooks/useRegisteredTool'
+import { useMessageStore } from '../message-store'
 import { useLatest } from '../use-latest'
 import { useReadable } from '../use-readable'
 
@@ -114,9 +115,20 @@ export function InkViewport({
   ...rest
 }: InkViewportProps) {
   const ctx = useInkContext('InkViewport')
+  const m = ctx.messages
+  const messageStore = useMessageStore()
   const scroll = useRef<HTMLDivElement>(null)
   const custom = !!renderAnnotation
-  const latest = useLatest({ ctx, mode, rotation, gap, buffer, pinchZoom, custom })
+  const latest = useLatest({
+    ctx,
+    messageStore,
+    mode,
+    rotation,
+    gap,
+    buffer,
+    pinchZoom,
+    custom,
+  })
 
   const engine = useRef<ViewerEngine | null>(null)
   /** Page hosts, mounts and errors the engine reported; InkPage renders portals for them. */
@@ -152,6 +164,7 @@ export function InkViewport({
       buffer: b,
       pinchZoom: pz,
       custom: cu,
+      messageStore: words,
     } = latest.current
     const doc = c.document
     const el = scroll.current
@@ -189,6 +202,8 @@ export function InkViewport({
       fonts: [...c.fonts],
       signatureLibrary: () => latest.current.ctx.signatures,
       customAnnotations: cu,
+      // The root's message state, shared: a new `messages` or `locale` relabels in place.
+      _messageState: words,
       ...(c.formHighlight === undefined ? {} : { formHighlight: c.formHighlight }),
       // The field's own button again, while its menu is open, closes the menu.
       onSignField: (req) =>
@@ -406,7 +421,7 @@ export function InkViewport({
     >
       {state === 'loading' ? (
         <div className="ink-status" role="status" aria-live="polite">
-          {loading === undefined ? 'Loading document…' : loading}
+          {loading === undefined ? m.viewer.loading : loading}
         </div>
       ) : err ? (
         <div className="ink-status ink-error" role="alert">
@@ -416,7 +431,7 @@ export function InkViewport({
             error
           ) : (
             <>
-              <p className="ink-error-title">This document could not be opened.</p>
+              <p className="ink-error-title">{m.viewer.openFailed}</p>
               {/* The message comes from the PDF engine and is not written for readers: it stays
                   off the page, on the code's tooltip. */}
               <p>
@@ -435,7 +450,7 @@ export function InkViewport({
             locked
           ) : (
             <>
-              <p className="ink-locked-title">{PASSWORD_LABELS.locked}</p>
+              <p className="ink-locked-title">{m.password.locked}</p>
               <button
                 ref={unlock}
                 type="button"
@@ -443,7 +458,7 @@ export function InkViewport({
                 data-ink-unlock=""
                 onClick={() => prompt?.ask()}
               >
-                {PASSWORD_LABELS.unlock}
+                {m.password.unlock}
               </button>
             </>
           )}
@@ -457,7 +472,7 @@ export function InkViewport({
         data-ink-scroll=""
         tabIndex={0}
         role="document"
-        aria-label="Document"
+        aria-label={m.viewer.document}
       />
       {prompt ? (
         <InkPasswordDialog

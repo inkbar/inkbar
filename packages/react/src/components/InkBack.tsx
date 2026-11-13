@@ -3,6 +3,7 @@ import { Toolbar } from 'radix-ui'
 
 import { cx } from '../class-names'
 import { useInkContext } from '../context'
+import { useMessages } from '../hooks/useMessages'
 import { useReadable } from '../use-readable'
 
 import { InkIcon } from './InkIcon'
@@ -18,6 +19,7 @@ export function InkBack({
   onClick,
   ...rest
 }: InkPageButtonProps) {
+  const m = useMessages()
   const ctx = useInkContext('InkBack')
   const canGoBack = useReadable(ctx.navigation?.canGoBack, false)
   return (
@@ -25,8 +27,8 @@ export function InkBack({
       asChild={asChild}
       className={cx('ink-back', className)}
       data-ink-back=""
-      aria-label="Back"
-      title="Back"
+      aria-label={m.toolbar.back}
+      title={m.toolbar.back}
       disabled={disabled === true || !canGoBack}
       {...rest}
       onClick={(e) => {

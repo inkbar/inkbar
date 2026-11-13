@@ -3,6 +3,7 @@ import { Toolbar } from 'radix-ui'
 
 import { cx } from '../class-names'
 import { useHistory } from '../hooks/useHistory'
+import { useMessages } from '../hooks/useMessages'
 
 import { InkIcon } from './InkIcon'
 
@@ -16,14 +17,15 @@ export function InkUndo({
   onClick,
   ...rest
 }: InkHistoryButtonProps) {
+  const m = useMessages()
   const { canUndo, undo } = useHistory()
   return (
     <Toolbar.Button
       asChild={asChild}
       className={cx('ink-undo', className)}
       data-ink-undo=""
-      aria-label="Undo"
-      title="Undo"
+      aria-label={m.toolbar.undo}
+      title={m.toolbar.undo}
       {...rest}
       disabled={disabled === true || !canUndo}
       onClick={(e) => {
