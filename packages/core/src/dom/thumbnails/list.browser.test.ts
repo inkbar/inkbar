@@ -5,10 +5,21 @@ import { run as runAxe } from 'axe-core'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { userEvent } from 'vitest/browser'
 
-import { mountContainer, nextFrame, settle, until } from '../test-utils'
+import { writable } from '../../model/readable'
+import {
+  mountContainer,
+  nextFrame,
+  openFixtureInBrowser,
+  settle,
+  until,
+} from '../test-utils'
 import { createViewer, type Viewer } from '../viewer/create-viewer'
 
-import { createThumbnails } from './list'
+import {
+  createThumbnails,
+  createThumbnailsController,
+  type ThumbnailsOptions,
+} from './list'
 
 import type { Viewport } from '../viewport'
 
@@ -268,5 +279,49 @@ describe('createThumbnails', () => {
     viewer.destroy()
     expect(items()).toHaveLength(0)
     expect(list.querySelectorAll('.ink-thumbnail')).toHaveLength(0)
+  })
+})
+
+describe('createThumbnailsController and the --ink-thumbnail-width token', () => {
+  /** A controller on `text-simple`, attached to a list in a root with `token` set. */
+  async function attached(token: string, opts: ThumbnailsOptions = {}, hidden = true) {
+    const doc = await openFixtureInBrowser('text-simple')
+    const root = document.createElement('div')
+    root.setAttribute('data-ink-root', '')
+    root.style.cssText = `--ink-thumbnail-width:${token};width:200px;height:400px;`
+    if (hidden) root.style.display = 'none'
+    const list = root.appendChild(document.createElement('div'))
+    list.className = 'ink-thumbnails'
+    document.body.prepend(root)
+    const c = createThumbnailsController(
+      { document: writable(doc), viewport: writable(null) },
+      opts
+    )
+    c.attach(list)
+    cleanup.push(() => {
+      c.destroy()
+      root.remove()
+      doc.destroy()
+    })
+    return { c, root, list }
+  }
+
+  it('takes the width from the token until the list is shown', async () => {
+    const { c, root, list } = await attached('160px')
+    expect(c.state.get().width).toBe(160)
+    // Shown, the list fits its thumbnails to its width, as it does without the token.
+    root.style.display = ''
+    await until(() => c.state.get().width !== 160)
+    expect(c.state.get().width).toBe(Math.floor(list.clientWidth - 32))
+  })
+
+  it('keeps a given width over the token', async () => {
+    const { c } = await attached('160px', { width: 90 })
+    expect(c.state.get().width).toBe(90)
+  })
+
+  it('falls back to 120 when the token is not in px', async () => {
+    const { c } = await attached('10rem')
+    expect(c.state.get().width).toBe(120)
   })
 })

@@ -368,3 +368,50 @@ describe('createThumbnail', () => {
     expect(el.children).toHaveLength(0)
   })
 })
+
+describe('the --ink-thumbnail-width token', () => {
+  /** A `[data-ink-root]` element in the page, with the token set to `token` when given. */
+  function root(token?: string): HTMLElement {
+    const el = place(document.createElement('div'))
+    el.setAttribute('data-ink-root', '')
+    if (token !== undefined) el.style.setProperty('--ink-thumbnail-width', token)
+    return el
+  }
+
+  it('sizes a thumbnail with no width from the token on the root', async () => {
+    const viewer = await viewerWith()
+    // Created before it is placed, so the token is read once it is in the page.
+    const el = createThumbnail(viewer, { page: 0 })
+    root('160px').append(el)
+    await until(() => el.style.width === '160px')
+    expect(parseFloat(el.style.height)).toBeCloseTo((792 / 612) * 160, 2)
+    await painted(el)
+    expect(parseFloat(el.querySelector('canvas')!.style.width)).toBeCloseTo(160, 4)
+  })
+
+  it('sizes a painter on a placed element from the token at once', () => {
+    const el = root('160px').appendChild(document.createElement('div'))
+    const painter = createThumbnailPainter(el, { document: writable(null) }, { page: 0 })
+    cleanup.push(() => painter.destroy())
+    expect(el.style.width).toBe('160px')
+  })
+
+  it('lets a given width or height win over the token', async () => {
+    const viewer = await viewerWith()
+    const box = root('160px')
+    const wide = box.appendChild(createThumbnail(viewer, { page: 0, width: 100 }))
+    const tall = box.appendChild(createThumbnail(viewer, { page: 0, height: 100 }))
+    await painted(wide)
+    expect(wide.style.width).toBe('100px')
+    expect(tall.style.height).toBe('100px')
+  })
+
+  it('falls back to 120 when the token is unset or not in px', async () => {
+    const viewer = await viewerWith()
+    for (const token of [undefined, '10rem', 'wide']) {
+      const el = root(token).appendChild(createThumbnail(viewer, { page: 0 }))
+      await painted(el)
+      expect(el.style.width).toBe('120px')
+    }
+  })
+})

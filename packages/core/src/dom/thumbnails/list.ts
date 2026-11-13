@@ -27,6 +27,7 @@ import {
   createThumbnailPainter,
   THUMBNAIL_WIDTH,
   thumbnailSize,
+  thumbnailWidthFor,
   type ThumbnailDeps,
   type ThumbnailPainter,
 } from './thumbnail'
@@ -58,7 +59,8 @@ export interface ThumbnailsOptions {
   pages?: readonly number[] | undefined
   /**
    * Thumbnail width in CSS pixels. Default: the list's width less a 16px gutter on each side,
-   * following the list as it resizes (`THUMBNAIL_WIDTH` until the list is attached and shown).
+   * following the list as it resizes. Until the list is attached and shown, the default is
+   * `--ink-thumbnail-width` as computed on the list (px values only), else `THUMBNAIL_WIDTH`.
    */
   width?: number | undefined
   /** Draw each page's annotations. Default true. */
@@ -129,7 +131,9 @@ export function createThumbnailsController(
   let opts: ThumbnailsOptions = { ...initial }
   /** The list's width less its gutters, once measured; null before. */
   let fitted: number | null = null
-  const thumbWidth = (): number => opts.width ?? fitted ?? THUMBNAIL_WIDTH
+  /** `--ink-thumbnail-width` on the list, read on attach and resize; the width before a fit. */
+  let token = THUMBNAIL_WIDTH
+  const thumbWidth = (): number => opts.width ?? fitted ?? token
   let doc = deps.document.get()
   let pages: readonly number[] = pagesFor(doc, opts.pages)
   let offsets: readonly number[] = offsetsFor(pages)
@@ -375,13 +379,17 @@ export function createThumbnailsController(
     follow(next ? next.currentPage.get() : -1)
   }
 
-  /** Fits the thumbnails to the scroller's width; a hidden scroller keeps the last fit. */
+  /**
+   * Reads the token and fits the thumbnails to the scroller's width; a hidden scroller keeps
+   * the last fit.
+   */
   function measure(): void {
-    if (!scroller || !(scroller.clientWidth > 0)) return
-    const next = Math.max(1, Math.floor(scroller.clientWidth - 2 * GUTTER))
-    if (next === fitted) return
-    fitted = next
-    if (opts.width === undefined) relist()
+    if (!scroller) return
+    const width = thumbWidth()
+    token = thumbnailWidthFor(scroller)
+    if (scroller.clientWidth > 0)
+      fitted = Math.max(1, Math.floor(scroller.clientWidth - 2 * GUTTER))
+    if (thumbWidth() !== width) relist()
   }
 
   function relist(): void {

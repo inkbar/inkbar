@@ -37,8 +37,26 @@ import type { Readable } from '../../model/readable'
 import type { RecordBase } from '../../model/records'
 import type { PluginHost } from '../plugins/host'
 
-/** Width in CSS pixels when neither `width` nor `height` is given; the theme's `--ink-thumbnail-width`. */
+/** Width in CSS pixels when neither `width` nor `height` is given and `--ink-thumbnail-width` is unset. */
 export const THUMBNAIL_WIDTH = 120
+
+/** A positive length in px, such as `160px` or `96.5px`. */
+const PX = /^\s*(\d+(?:\.\d+)?|\.\d+)px\s*$/
+
+/**
+ * The default thumbnail width in CSS pixels for `el`: `--ink-thumbnail-width` as computed on it
+ * (the token inherits from the root or sidebar that sets it), else `THUMBNAIL_WIDTH`. Only px
+ * values count; another unit, a value of 0 or an element outside a document gives the fallback.
+ */
+export function thumbnailWidthFor(el: Element | null | undefined): number {
+  const view = el?.isConnected ? el.ownerDocument.defaultView : null
+  if (!view) return THUMBNAIL_WIDTH
+  const match = PX.exec(
+    view.getComputedStyle(el!).getPropertyValue('--ink-thumbnail-width')
+  )
+  const width = match ? Number(match[1]) : 0
+  return width > 0 ? width : THUMBNAIL_WIDTH
+}
 
 /** Height over width of a placeholder with no page to take its shape from: A4 portrait. */
 const PLACEHOLDER_RATIO = Math.SQRT2
@@ -57,7 +75,10 @@ export interface ThumbnailDeps {
 export interface ThumbnailOptions {
   /** Zero-based page index. */
   page: number
-  /** Width in CSS pixels; the height follows the page's shape. Wins over `height`. */
+  /**
+   * Width in CSS pixels; the height follows the page's shape. Wins over `height`. With neither,
+   * `--ink-thumbnail-width` as computed on the element (px only), else `THUMBNAIL_WIDTH`.
+   */
   width?: number | undefined
   /** Height in CSS pixels, used when `width` is absent; the width follows the page's shape. */
   height?: number | undefined
@@ -79,10 +100,14 @@ export interface ThumbnailPainter {
   destroy(): void
 }
 
-/** CSS size and zoom for `page` fitted to width or height (width wins when both), /Rotate applied. */
+/**
+ * CSS size and zoom for `page` fitted to width or height (width wins when both), /Rotate
+ * applied. With neither, the width is `fallback`.
+ */
 export function thumbnailSize(
   page: PageInfo,
-  size: { width?: number | undefined; height?: number | undefined }
+  size: { width?: number | undefined; height?: number | undefined },
+  fallback = THUMBNAIL_WIDTH
 ): { width: number; height: number; zoom: number } {
   // The page's size at zoom 1, /Rotate and /UserUnit applied.
   const unit = createPageTransform(page, 1)
@@ -90,16 +115,19 @@ export function thumbnailSize(
     const zoom = size.height / unit.cssHeight
     return { width: unit.cssWidth * zoom, height: size.height, zoom }
   }
-  const width = size.width ?? THUMBNAIL_WIDTH
+  const width = size.width ?? fallback
   const zoom = width / unit.cssWidth
   return { width, height: unit.cssHeight * zoom, zoom }
 }
 
-/** The placeholder's size with no page to measure: `width`, else `height`, else the default. */
-function placeholderSize(opts: ThumbnailOptions): { width: number; height: number } {
+/** The placeholder's size with no page to measure: `width`, else `height`, else `fallback` wide. */
+function placeholderSize(
+  opts: ThumbnailOptions,
+  fallback: number
+): { width: number; height: number } {
   if (opts.width === undefined && opts.height !== undefined)
     return { width: opts.height / PLACEHOLDER_RATIO, height: opts.height }
-  const width = opts.width ?? THUMBNAIL_WIDTH
+  const width = opts.width ?? fallback
   return { width, height: width * PLACEHOLDER_RATIO }
 }
 
@@ -164,14 +192,19 @@ export function createThumbnailPainter(
   /** Sizes the element and builds the transform; keeps the transform when nothing changed. */
   function layout(): void {
     const page = pageInfo()
+    // The token is read only when it is used: a given width or height wins over it.
+    const fallback =
+      opts.width === undefined && opts.height === undefined
+        ? thumbnailWidthFor(el)
+        : THUMBNAIL_WIDTH
     let size: { width: number; height: number }
     if (page) {
-      const fit = thumbnailSize(page, opts)
+      const fit = thumbnailSize(page, opts, fallback)
       size = fit
       if (transform?.page !== page || transform.zoom !== fit.zoom)
         transform = createPageTransform(page, fit.zoom)
     } else {
-      size = placeholderSize(opts)
+      size = placeholderSize(opts, fallback)
       transform = null
     }
     el.style.width = `${size.width}px`
@@ -390,6 +423,8 @@ export function createThumbnailPainter(
     if (!near) return
     const first = !seen
     seen = true
+    // An element made before it was placed (`createThumbnail`'s) reads the token now it is in.
+    layout()
     paintCanvas()
     if (first) {
       drawAnnotations()
