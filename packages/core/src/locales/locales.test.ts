@@ -50,6 +50,7 @@ describe.each(Object.entries(shipped))('%s', (lang, messages) => {
 
   it('renders every function with its numbers formatted for the language', () => {
     const nf = new Intl.NumberFormat(lang)
+    const english = new Map(entries(en))
     let checked = 0
     for (const [path, value] of entries(messages)) {
       if (typeof value === 'string') {
@@ -58,7 +59,9 @@ describe.each(Object.entries(shipped))('%s', (lang, messages) => {
       }
       const fn = value as Fn
       expect(typeof fn, path).toBe('function')
-      const text = fn.source.text ?? Object.values(fn.source.forms!).join(' ')
+      // The params come from English, so a translation that drops or renames one shows up.
+      const { source } = english.get(path) as Fn
+      const text = source.text ?? Object.values(source.forms!).join(' ')
       const names = new Set([...text.matchAll(/\{(\w+)\}/g)].map((m) => m[1]!))
       for (const n of [0, 1, 2, 1000]) {
         const params: Record<string, string | number> = {}

@@ -67,6 +67,7 @@ afterAll(() => style.remove())
 const cleanup: (() => void)[] = []
 afterEach(() => cleanup.splice(0).forEach((f) => f()))
 
+import type { InkMessages } from '../messages'
 import type { AnnotationChange } from '../model/annotations/store'
 import type { Annotation } from '../model/annotations/types'
 import type { InkDocument } from '../model/document'
@@ -91,6 +92,7 @@ async function setup(
     tools: hostTools = allTools(),
     snapshotHistory = false,
     signatures,
+    messages,
     onPress,
   }: {
     controlled?: boolean
@@ -101,6 +103,8 @@ async function setup(
     tools?: Tool[]
     /** The signature templates the `signature` tool places from. */
     signatures?: SignatureLibrary
+    /** The messages the tools read, read on each use as the viewer's getter is. */
+    messages?: () => InkMessages
     /** Controlled only: undo and redo over the host's list, as the bindings give such hosts. */
     snapshotHistory?: boolean
     onPress?: ToolControllerOptions['onPress']
@@ -177,6 +181,9 @@ async function setup(
       onActivate,
       history,
       ...(signatures ? { signatures } : {}),
+      get messages() {
+        return messages?.()
+      },
     },
     ...(onPress ? { onPress } : {}),
   })
@@ -2682,6 +2689,20 @@ describe('freetext tool', () => {
     expect(document.activeElement).toBe(
       container.querySelector(`[data-annotation="${box!.id}"]`)
     )
+  })
+
+  it('labels a new editor in the messages of the moment', async () => {
+    let current = en
+    const { container, viewport, tools } = await setup('cropbox-offset', {
+      messages: () => current,
+    })
+    current = { ...en, annotations: { ...en.annotations, freetext: 'Zone de texte' } }
+    tools.set('freetext')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointerup', h.left + 100, h.top + 100)
+    expect(editorIn(container)?.getAttribute('aria-label')).toBe('Zone de texte')
+    await userEvent.keyboard('{Escape}')
   })
 
   it('drag sizes the box', async () => {

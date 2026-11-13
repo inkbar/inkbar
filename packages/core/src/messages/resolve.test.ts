@@ -39,6 +39,62 @@ describe('resolveMessages', () => {
     expect(resolveMessages({ lang: 'fr', find: { close: 'Fermer' } }).lang).toBe('fr')
   })
 
+  it('falls back to English when a host function throws, warning once per key', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const m = resolveMessages({
+      find: {
+        count: () => {
+          throw new Error('boom')
+        },
+      },
+    })
+    const at = { current: 2, total: 5 }
+    expect(m.find.count(at)).toBe(en.find.count(at))
+    expect(m.find.count({ current: 1, total: 1 })).toBe(
+      en.find.count({ current: 1, total: 1 })
+    )
+    expect(warn).toHaveBeenCalledTimes(1)
+  })
+
+  it('falls back to English when a host function returns a non-string', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const m = resolveMessages({
+      search: { resultCount: (() => 3) as unknown as () => string },
+    })
+    expect(m.search.resultCount({ count: 3 })).toBe(en.search.resultCount({ count: 3 }))
+    expect(warn).toHaveBeenCalledTimes(1)
+  })
+
+  it('passes a working host function through, with its source', () => {
+    const fn = Object.assign(({ total }: { total: number }) => `/ ${total}`, {
+      source: { text: '/ {total}' },
+    })
+    const m = resolveMessages({ toolbar: { pageOf: fn } })
+    expect(m.toolbar.pageOf({ total: 4 })).toBe('/ 4')
+    expect((m.toolbar.pageOf as unknown as { source: unknown }).source).toEqual({
+      text: '/ {total}',
+    })
+  })
+
+  it('drops a host string where English has a function, warning once', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const input = { find: { count: '1 of 1' } } as unknown as InkMessagesInput
+    const m = resolveMessages(input)
+    resolveMessages(input)
+    expect(m.find.count).toBe(en.find.count)
+    expect(m.find.count({ current: 2, total: 5 })).toBe('2 of 5')
+    expect(warn).toHaveBeenCalledTimes(1)
+  })
+
+  it('drops a host function where English has a string, warning once', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const input = { find: { close: () => 'Fermer' } } as unknown as InkMessagesInput
+    const m = resolveMessages(input)
+    resolveMessages(input)
+    expect(m.find.close).toBe(en.find.close)
+    expect(warn).toHaveBeenCalledTimes(1)
+  })
+
   it('does not mutate English', () => {
     const before = en.find.close
     resolveMessages({ find: { close: 'X' } })
@@ -63,6 +119,16 @@ describe('resolveLabel', () => {
         throw new Error('boom')
       }, 'draw')
     ).toBe('draw')
+    expect(warn).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('resolveLabel with a non-string result', () => {
+  it('falls back and warns', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    expect(resolveLabel((() => undefined) as unknown as () => string, 'draw')).toBe(
+      'draw'
+    )
     expect(warn).toHaveBeenCalledTimes(1)
   })
 })

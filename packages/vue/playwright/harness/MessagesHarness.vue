@@ -8,6 +8,7 @@ import InkPrevPage from '../../src/components/InkPrevPage.vue'
 import InkRedo from '../../src/components/InkRedo.vue'
 import InkRoot from '../../src/components/InkRoot.vue'
 import InkSearchButton from '../../src/components/InkSearchButton.vue'
+import InkSearchResults from '../../src/components/InkSearchResults.vue'
 import InkShapeMenu from '../../src/components/InkShapeMenu.vue'
 import InkThreadPopover from '../../src/components/InkThreadPopover.vue'
 import InkToolbar from '../../src/components/InkToolbar.vue'
@@ -15,6 +16,8 @@ import InkToolButton from '../../src/components/InkToolButton.vue'
 import InkUndo from '../../src/components/InkUndo.vue'
 import InkViewport from '../../src/components/InkViewport.vue'
 import InkZoomSelect from '../../src/components/InkZoomSelect.vue'
+
+import { suggestions, suggestionsPlugin } from './suggestions-plugin'
 
 import type { DocumentSource, InkMessagesInput, PdfAssets } from '@inkbar/core'
 import type { ZoomValue } from '@inkbar/core/dom'
@@ -29,7 +32,22 @@ const props = defineProps<{
   percentSuffix?: string | undefined
   /** Test-only: pass the shipped French, whose functions a test cannot pass as a prop. */
   french?: boolean | undefined
+  /** Run a plugin with one mark, whose card a test can open. */
+  withCard?: boolean | undefined
+  /** Show search results beside the viewport. */
+  withResults?: boolean | undefined
+  /** A `lang` the host passes to the root. */
+  hostLang?: string | undefined
+  /** Test-only: pass `lang` as undefined to the root, which a test cannot pass as a prop. */
+  undefinedLang?: boolean | undefined
 }>()
+const langAttr = computed(() =>
+  props.undefinedLang
+    ? { lang: undefined }
+    : props.hostLang === undefined
+      ? {}
+      : { lang: props.hostLang }
+)
 const words = computed<InkMessagesInput | undefined>(() => {
   if (props.french) return fr
   const suffix = props.percentSuffix
@@ -43,6 +61,9 @@ const words = computed<InkMessagesInput | undefined>(() => {
   }
 })
 const tools = allTools()
+const plugins = props.withCard
+  ? [suggestionsPlugin({ initial: suggestions(1) })]
+  : undefined
 
 type WordWindow = Window & { __inkDrawWord?: string }
 /** A host label that reads its own language, which the test changes before new messages. */
@@ -51,10 +72,12 @@ const drawLabel = () => (window as WordWindow).__inkDrawWord ?? 'Pen'
 
 <template>
   <InkRoot
+    v-bind="langAttr"
     :src="src"
     :assets="assets"
     :zoom="zoom ?? 1"
     :tools="tools"
+    :plugins="plugins"
     :messages="words"
     :locale="locale"
   >
@@ -69,7 +92,16 @@ const drawLabel = () => (window as WordWindow).__inkDrawWord ?? 'Pen'
       <InkZoomSelect />
     </InkToolbar>
     <!-- Test-only box: the scroll container needs a bounded height to scroll. -->
-    <div style="height: 600px; width: 900px"><InkViewport /></div>
+    <div style="display: flex">
+      <!-- Test-only box: the list fills its parent's height. -->
+      <div
+        v-if="withResults"
+        style="height: 300px; width: 280px; display: flex; flex-direction: column"
+      >
+        <InkSearchResults data-testid="results" />
+      </div>
+      <div style="height: 600px; width: 900px"><InkViewport /></div>
+    </div>
     <InkThreadPopover />
   </InkRoot>
 </template>

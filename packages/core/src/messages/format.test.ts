@@ -14,6 +14,10 @@ describe('template', () => {
     expect(template('en', 'a {x}')({})).toBe('a {x}')
   })
 
+  it('rejects an invalid lang when the message is defined', () => {
+    expect(() => template('xx-!!', 'a {x}')).toThrow(RangeError)
+  })
+
   it('keeps its source readable', () => {
     expect(
       (template('en', 'a {x}') as unknown as { source: { text: string } }).source.text
@@ -30,6 +34,10 @@ describe('plural', () => {
     expect(f({ count: 1 })).toBe('1 item')
     expect(f({ count: 0 })).toBe('0 items')
     expect(f({ count: 2 })).toBe('2 items')
+  })
+
+  it('rejects an invalid lang when the message is defined', () => {
+    expect(() => plural('xx-!!', 'count', { other: '{count}' })).toThrow(RangeError)
   })
 
   it('follows the language: French treats 0 as one', () => {

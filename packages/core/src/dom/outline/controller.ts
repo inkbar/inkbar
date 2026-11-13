@@ -122,8 +122,9 @@ const hasChildren = (node: Node): boolean => node.item.children.length > 0
 /**
  * `role="tree"` and its label, for the element holding an outline's items. The same as a
  * controller's `treeAttrs()`, without one, so markup rendered on the server has them too.
+ * English when `m` is omitted.
  */
-export function outlineTreeAttrs(m: InkMessages): Record<string, string> {
+export function outlineTreeAttrs(m: InkMessages = en): Record<string, string> {
   return { role: 'tree', 'aria-label': m.outline.label }
 }
 

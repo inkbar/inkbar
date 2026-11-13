@@ -576,9 +576,9 @@ export function createSidebarController(
 
   const isOpen = (id: string): boolean => store.get().open.includes(id)
 
-  // New words: the same state again, so renderers read the labels afresh.
+  // New words: the state again, with the newest panels, so renderers read the labels afresh.
   const stopMessages = messages.subscribe(() => {
-    if (!destroyed) store.set({ ...store.get() })
+    if (!destroyed) store.set({ ...store.get(), panels })
   })
 
   function update(next: Partial<SidebarControllerOptions>): void {
@@ -589,8 +589,10 @@ export function createSidebarController(
     if (next.layout !== undefined) layout = next.layout
     if (next.side !== undefined) side = next.side
     if (next.visible !== undefined) visible = next.visible
-    if (next.panels !== undefined && !samePanels(next.panels, panels))
-      panels = next.panels
+    // Always the newest panels: a label function that reads the same now may not after a
+    // change of words. Only a difference anyone can see is published.
+    const panelsChanged = next.panels !== undefined && !samePanels(next.panels, panels)
+    if (next.panels !== undefined) panels = next.panels
     if ('onOpenChange' in next) handler = next
     if (next.open !== undefined) controlled = true
     if ('onWidthChange' in next) widthHandler = next
@@ -638,7 +640,7 @@ export function createSidebarController(
       layout !== before.layout ||
       side !== before.side ||
       visible !== before.visible ||
-      panels !== before.panels ||
+      panelsChanged ||
       widthChanged ||
       !sameIds(open, before.open)
     )

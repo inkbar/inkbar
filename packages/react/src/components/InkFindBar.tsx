@@ -85,18 +85,28 @@ export function InkFindBar({ className, ...rest }: InkFindBarProps) {
   // The live region follows the controller's state change by change, as the vanilla bar does,
   // and is written directly. A render shows only the last of the changes batched into it, so
   // two steps in one task that end where they began would otherwise say nothing. An announcer
-  // keeps the words it was made with, so new messages make a new one; the region keeps its
-  // text when the new words say the same.
+  // keeps the words it was made with, so new messages make a new one. It catches up without
+  // speaking, as the vanilla bar's does: what the region last said stays until the next
+  // announcement, which is in the new words.
+  const spoke = useRef<{ search: unknown; el: HTMLElement | null }>({
+    search: null,
+    el: null,
+  })
   useEffect(() => {
     const el = live.current
     if (!search || !el) return
     const announce = findAnnouncer(m)
-    const say = (s: SearchState): void => {
+    const fresh = spoke.current.search !== search || spoke.current.el !== el
+    spoke.current = { search, el }
+    let announced = announce(search.state.get())
+    if (fresh && el.textContent !== announced) el.textContent = announced
+    return search.state.subscribe((s: SearchState) => {
       const text = announce(s)
-      if (el.textContent !== text) el.textContent = text
-    }
-    say(search.state.get())
-    return search.state.subscribe(say)
+      // Said again only when the region holds other words: the old language's.
+      if (text === announced && el.textContent === text) return
+      announced = text
+      el.textContent = text
+    })
   }, [search, target, m])
 
   // A native listener, so Escape stops at the bar as it does in the vanilla and Vue bars;

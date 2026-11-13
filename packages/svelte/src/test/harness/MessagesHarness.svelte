@@ -8,6 +8,8 @@
     messages?: InkMessagesInput | undefined
     locale?: string | undefined
     zoom?: ZoomValue | undefined
+    /** Attributes the host passes to the root. */
+    rootAttrs?: { lang?: string | undefined } | undefined
   }
   export type MessagesWindow = Window & { __inkDrawWord?: string | undefined }
 </script>
@@ -29,14 +31,14 @@
   import InkViewport from '../../lib/components/InkViewport.svelte'
   import InkZoomSelect from '../../lib/components/InkZoomSelect.svelte'
 
-  let { src, assets, messages, locale, zoom }: MessagesHarnessProps = $props()
+  let { src, assets, messages, locale, zoom, rootAttrs }: MessagesHarnessProps = $props()
 
   const tools = allTools()
   /** A host label that reads its own language, which the test changes before new messages. */
   const drawLabel = (): string => (window as MessagesWindow).__inkDrawWord ?? 'Pen'
 </script>
 
-<InkRoot {src} {assets} zoom={zoom ?? 1} {tools} {messages} {locale}>
+<InkRoot {...rootAttrs} {src} {assets} zoom={zoom ?? 1} {tools} {messages} {locale}>
   <InkToolbar>
     <InkSearchButton />
     <InkUndo />

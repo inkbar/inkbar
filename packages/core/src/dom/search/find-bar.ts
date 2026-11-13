@@ -138,7 +138,9 @@ export function createFindBar(viewer: Viewer): HTMLElement {
     count.textContent = findCountText(s, messages.get().messages)
     matchCase.setAttribute('aria-pressed', String(s.matchCase))
     const say = announce(s)
-    if (say !== announced) {
+    // The same words again are said only when the region holds others: what it said before a
+    // change of language, which the change itself left in place.
+    if (say !== announced || live.textContent !== say) {
       announced = say
       live.textContent = say
     }

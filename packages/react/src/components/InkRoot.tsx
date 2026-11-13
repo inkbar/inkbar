@@ -182,10 +182,10 @@ export interface InkRootProps extends Omit<
   zoom?: ZoomValue | undefined
   onZoomChange?: ((zoom: ZoomValue) => void) | undefined
   /**
-   * The words the viewer shows, over English: any group, any subset of its keys. A string,
-   * or a function the viewer calls again whenever `messages` or `locale` changes. A change
-   * applies in place: nothing remounts and open menus stay open. An inline object is fine:
-   * each new one relabels, and nothing loops.
+   * The words the viewer shows, over English: an object of groups, each with any subset of
+   * its keys. Each label is a string, or a function the viewer calls again whenever
+   * `messages` or `locale` changes. A change applies in place: nothing remounts and open
+   * menus stay open. An inline object is fine: each new one relabels, and nothing loops.
    */
   messages?: InkMessagesInput | undefined
   /**
@@ -1048,8 +1048,9 @@ export function InkRoot({
           ref={setRootEl}
           data-ink-root=""
           data-state={status.state}
-          lang={lang}
           {...rest}
+          // A host's `lang` wins; one left undefined keeps the computed one.
+          lang={rest.lang ?? lang}
         >
           {typeof children === 'function' ? children({ status, document }) : children}
         </Comp>

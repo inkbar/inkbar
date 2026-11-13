@@ -348,6 +348,7 @@ import type { InkMessagesInput } from '@inkbar/core'
 
 defineProps<{ src: string }>()
 
+// Your app's translator. Keep it on the same language as `messages`.
 declare function t(key: string, params?: object): string
 
 const messages = ref<InkMessagesInput>(fr)

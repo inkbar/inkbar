@@ -143,6 +143,10 @@ describe('createOutlineController', () => {
     expect(c.treeAttrs()).toEqual(outlineTreeAttrs(en))
   })
 
+  it('outlineTreeAttrs takes English without an argument', () => {
+    expect(outlineTreeAttrs()).toEqual({ role: 'tree', 'aria-label': 'Outline' })
+  })
+
   it('current item follows the reading line', async () => {
     const two = [
       item('0', 'First', at(0, 700)),

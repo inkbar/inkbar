@@ -72,7 +72,7 @@ export function mount(
       log('search', { query: s.query, hits: s.hits.length, current: s.current })
   })
 
-  const tools = createToolbar()
+  const tools = createToolbar({ messages: viewer.messages })
   tools.classList.add('scenario-toolbar')
   tools.append(
     group(

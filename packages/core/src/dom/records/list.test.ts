@@ -1,9 +1,11 @@
 import { describe, expect, it, vi, type Mock } from 'vitest'
 
+import { fr } from '../../locales/fr'
 import { staticDefaults } from '../../model/annotations/defaults'
 import { createHistory } from '../../model/annotations/history'
 import { createAnnotationStore } from '../../model/annotations/store'
 import { writable } from '../../model/readable'
+import { createMessageState } from '../messages-state'
 import { definePlugin } from '../plugins/define'
 import { createPluginHost } from '../plugins/host'
 
@@ -401,5 +403,29 @@ describe('createRecordListController', () => {
     state.set({ ...state.get(), hits: [hit(0, 1), hit(2, 3), hit(2, 9)], current: 1 })
     expect(rowIds(controller)).toEqual(['0:0', '2:0', '2:1'])
     expect(doc.activeElement).toBe(row('2:1'))
+  })
+
+  it('rebuilds its cards in new words, until destroyed', () => {
+    const hit = { page: 2, start: 3, end: 7, text: 'word', before: '', after: '' }
+    const state = writable<SearchState>({
+      open: true,
+      query: 'word',
+      matchCase: false,
+      hits: [hit as SearchHit],
+      current: 0,
+      scanning: false,
+    })
+    const messages = createMessageState()
+    const controller = createRecordListController(
+      searchSource({ state, select: vi.fn() } as unknown as ViewerSearch, messages),
+      messages
+    )
+    const metas = () => controller.rows.get().map((r) => r.card?.meta)
+    expect(metas()).toEqual(['Match 1'])
+    messages.setMessages(fr)
+    expect(metas()).toEqual([fr.search.match({ index: 1 })])
+    controller.destroy()
+    messages.setMessages()
+    expect(metas()).toEqual([fr.search.match({ index: 1 })])
   })
 })

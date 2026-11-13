@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { InkError } from '../../model/errors'
 import { writable } from '../../model/readable'
 
-import { createCommandRegistry } from './commands'
+import { commandLabel, createCommandRegistry } from './commands'
 
 import type { DocumentStatus, InkDocument } from '../../model/document'
 
@@ -163,5 +163,18 @@ describe('createCommandRegistry', () => {
     })
     expect(cmd.icon).toBe(icon)
     expect(cmd.status.get()).toBe('Found 3')
+  })
+})
+
+describe('commandLabel', () => {
+  it('warns once per command for an empty label, however often it is read', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const blank = { id: 'demo.blank', label: () => '' }
+    const other = { id: 'demo.other', label: () => ' ' }
+    for (let i = 0; i < 3; i++) expect(commandLabel(blank)).toBe('demo.blank')
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(commandLabel(other)).toBe('demo.other')
+    expect(warn).toHaveBeenCalledTimes(2)
+    warn.mockRestore()
   })
 })

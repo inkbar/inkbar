@@ -7,17 +7,23 @@
 
   import SearchProbe from './SearchProbe.svelte'
 
-  import type { DocumentSource, PdfAssets } from '@inkbar/core'
+  import type { DocumentSource, InkMessagesInput, PdfAssets } from '@inkbar/core'
 
   let {
     src,
     assets,
     withBar = true,
-  }: { src: DocumentSource | null; assets: PdfAssets; withBar?: boolean } = $props()
+    messages,
+  }: {
+    src: DocumentSource | null
+    assets: PdfAssets
+    withBar?: boolean
+    messages?: InkMessagesInput | undefined
+  } = $props()
 </script>
 
 <button type="button" data-testid="outside">Outside</button>
-<InkRoot {src} {assets} zoom={1}>
+<InkRoot {src} {assets} zoom={1} {messages}>
   <InkToolbar>
     <!-- Its own label must win over these. -->
     <InkSearchButton aria-label="Search the PDF" title="Search the PDF" />

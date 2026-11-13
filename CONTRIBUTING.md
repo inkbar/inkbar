@@ -69,7 +69,7 @@ pnpm translate --compare          # compares every shipped string with DeepL's
 pnpm translate --accept fr --all  # records today's English for every French key
 ```
 
-It builds `@inkbar/core` first if its locales are missing or out of date. Drafts go to `<lang>-missing.ts` and comparisons to `<lang>-compare.md`, in `$TMPDIR/inkbar-translate` unless you pass `--out`. The script refuses to write inside the repository, and it never edits the locale files. Read each draft before you paste it in. Use the words other PDF tools use, keep labels as short as the English, and use formal German ("Sie").
+It builds `@inkbar/core` first if its locales are missing or out of date. Drafts go to `<lang>-missing.ts` and comparisons to `<lang>-compare.md`, in `$TMPDIR/inkbar-translate` unless you pass `--out`. Drafts and comparisons always go outside the repository, and the script never edits `<lang>.ts`. Only `--accept` writes inside the repository, to `<lang>.sources.json`. Read each draft before you paste it in. Use the words other PDF tools use, keep labels as short as the English, and use formal German ("Sie").
 
 ### Add a language
 
@@ -82,7 +82,7 @@ It builds `@inkbar/core` first if its locales are missing or out of date. Drafts
    ```
 
 2. Run `pnpm translate --lang <lang>`. Every key is missing from the stub, so the draft holds them all, grouped as in `fr.ts`.
-3. Replace the stub with the draft, keeping `lang: '<lang>'` at the top and the type `InkMessages` without the cast, and correct it by hand.
+3. The draft is not a whole file. It holds the groups only. Paste them into the stub's object after `lang: '<lang>'`. Change `as InkMessages` to a type annotation (`export const it: InkMessages = { … }`), import `plural` and `template` as `fr.ts` does, and correct the strings by hand.
 4. Add the language to `shipped` in `packages/core/src/locales/locales.test.ts`, then run `pnpm translate --accept <lang> --all`.
 
 ## Open the pull request

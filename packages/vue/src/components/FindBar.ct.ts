@@ -6,7 +6,7 @@ import { guardConsole } from '../../playwright/console-guard'
 import Harness from '../../playwright/harness/FindHarness.vue'
 
 const assets = browserAssets()
-guardConsole(test)
+const guard = guardConsole(test)
 
 const props = { src: fixtureUrl('text-simple'), assets }
 
@@ -186,4 +186,70 @@ test("keeps the search button's own label over a caller's", async ({ mount, page
   const button = page.locator('[data-ink-search-button]')
   await expect(button).toHaveAttribute('aria-label', 'Find')
   await expect(button).toHaveAttribute('title', 'Find')
+})
+
+test('a throwing find.count leaves the bar working, in English', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(Harness, { props: { ...props, brokenCount: true } })
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  await page.getByRole('button', { name: 'Find', exact: true }).click()
+  await page.keyboard.type('QQ123456C')
+  const count = page.locator('[data-ink-find-count]')
+  await expect(count).toHaveText('1 of 3')
+  await page.keyboard.press('Enter')
+  await expect(count).toHaveText('2 of 3')
+  await expect(page.locator('[data-ink-find-status]')).toHaveText('Match 2 of 3, page 2')
+  expect(guard.problems.some((p) => p.includes('find.count'))).toBe(true)
+  guard.clear()
+})
+
+test('new words leave the live region alone until the next step', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(Harness, { props })
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  await page.getByRole('button', { name: 'Find', exact: true }).click()
+  await page.keyboard.type('QQ123456C')
+  const live = page.locator('[data-ink-find-status]')
+  await expect(live).toHaveText('Match 1 of 3, page 1')
+  await live.evaluate((el) => {
+    const w = window as Window & { __inkLiveWrites?: number }
+    w.__inkLiveWrites = 0
+    new MutationObserver((records) => {
+      w.__inkLiveWrites! += records.length
+    }).observe(el, { childList: true, characterData: true, subtree: true })
+  })
+  await cmp.update({ props: { announceWord: 'Résultat' } })
+  await expect(page.getByRole('textbox', { name: 'Find in document' })).toHaveValue(
+    'QQ123456C'
+  )
+  // Let the new words reach the bar before counting.
+  await page.waitForTimeout(100)
+  const writes = () =>
+    page.evaluate(() => (window as Window & { __inkLiveWrites?: number }).__inkLiveWrites)
+  expect(await writes()).toBe(0)
+  await expect(live).toHaveText('Match 1 of 3, page 1')
+  await page.getByRole('textbox', { name: 'Find in document' }).press('Enter')
+  await expect(live).toHaveText('Résultat 2/3 p2')
+})
+
+test('a step that reads the same in new words is said in them', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(Harness, { props })
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  await page.getByRole('button', { name: 'Find', exact: true }).click()
+  await page.keyboard.type('Page 1')
+  const live = page.locator('[data-ink-find-status]')
+  await expect(live).toHaveText('Match 1 of 1, page 1')
+  await cmp.update({ props: { announceWord: 'Résultat' } })
+  await page.waitForTimeout(100)
+  await expect(live).toHaveText('Match 1 of 1, page 1')
+  // Next on the one result: the same text in the new words, so the region must change.
+  await page.getByRole('textbox', { name: 'Find in document' }).press('Enter')
+  await expect(live).toHaveText('Résultat 1/1 p1')
 })

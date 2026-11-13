@@ -28,14 +28,23 @@ export function unknownCommand(id: string, registered: readonly string[]): InkEr
   )
 }
 
+/** The ids of commands whose empty label has been warned about, so each warns once. */
+const warnedEmpty = new Set<string>()
+
 /**
  * The command's label now: a function label is called, and a throw or an empty result logs a
- * warning and gives the command's id, so the button always has a name.
+ * warning and gives the command's id, so the button always has a name. An empty result warns
+ * once per command id, however often the label is read.
+ *
+ * @internal For the bindings' command buttons.
  */
 export function commandLabel(command: Pick<Command, 'id' | 'label'>): string {
   const text = resolveLabel(command.label, command.id)
   if (text.trim()) return text
-  console.warn(`[inkbar] command ${command.id} has an empty label; using its id`)
+  if (!warnedEmpty.has(command.id)) {
+    warnedEmpty.add(command.id)
+    console.warn(`[inkbar] command ${command.id} has an empty label; using its id`)
+  }
   return command.id
 }
 

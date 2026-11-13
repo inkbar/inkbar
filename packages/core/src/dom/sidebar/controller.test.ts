@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createMemoryStorage } from '../../model/storage'
+import { createMessageState } from '../messages-state'
 
 import { createSidebarController, sidebarBadge, SIDEBAR_WIDTH } from './controller'
 
@@ -32,6 +33,23 @@ describe('createSidebarController', () => {
     c.update({ panels: [{ id: 'a', label: () => 'Seiten' }] })
     expect(seen).toHaveBeenCalledTimes(1)
     expect(c.triggerAttrs('a')['aria-label']).toBe('Seiten')
+  })
+
+  it('keeps the newest label function even when it reads the same for now', () => {
+    let lang = 'en'
+    const messages = createMessageState()
+    const c = createSidebarController({
+      panels: [{ id: 'a', label: () => 'Pages' }],
+      messages,
+    })
+    c.update({ panels: [{ id: 'a', label: () => (lang === 'en' ? 'Pages' : 'Seiten') }] })
+    const states: SidebarPanelInfo[][] = []
+    c.state.subscribe((s) => states.push([...s.panels]))
+    lang = 'de'
+    messages.setMessages()
+    expect(c.triggerAttrs('a')['aria-label']).toBe('Seiten')
+    const last = states.at(-1)!
+    expect(typeof last[0]!.label === 'function' && last[0]!.label()).toBe('Seiten')
   })
 
   it('rail starts with the first panel open', () => {

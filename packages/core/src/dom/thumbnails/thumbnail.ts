@@ -412,7 +412,12 @@ export function createThumbnailPainter(
   return {
     update(patch) {
       if (destroyed) return
+      const changed = (Object.keys(patch) as (keyof ThumbnailOptions)[]).filter(
+        (key) => !Object.is(patch[key], opts[key])
+      )
       opts = { ...opts, ...patch }
+      // A new label alone, as a binding's inline function gives each render: name it, no more.
+      if (changed.length > 0 && changed.every((key) => key === 'label')) return name()
       refresh()
     },
     destroy() {

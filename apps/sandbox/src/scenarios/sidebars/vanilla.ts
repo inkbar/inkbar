@@ -75,7 +75,7 @@ export function mount(
   layoutLabel.className = 'scenario-layout'
   layoutLabel.append('Layout', picker)
 
-  const tools = createToolbar()
+  const tools = createToolbar({ messages: viewer.messages })
   tools.classList.add('scenario-toolbar')
   tools.append(
     group(

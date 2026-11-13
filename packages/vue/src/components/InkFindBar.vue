@@ -39,18 +39,26 @@ const count = computed(() => findCountText(state.value, messages.value))
 // The live region follows the controller's state change by change, as the vanilla bar does,
 // and is written directly. A render shows only the last of the changes since the one before,
 // so two steps in one tick that end where they began would otherwise say nothing. An announcer
-// keeps the words it was made with, so new messages make a new one.
+// keeps the words it was made with, so new messages make a new one. It catches up without
+// speaking, as the vanilla bar's does: what the region last said stays until the next
+// announcement, which is in the new words.
 watch(
   [() => ctx.search.value, live, messages],
-  ([controller, el, m], _, onCleanup) => {
+  ([controller, el, m], before, onCleanup) => {
     if (!controller || !el) return
     const announce = findAnnouncer(m)
-    const say = (s: SearchState): void => {
-      const text = announce(s)
-      if (el.textContent !== text) el.textContent = text
-    }
-    say(controller.state.get())
-    onCleanup(controller.state.subscribe(say))
+    const fresh = !before || before[0] !== controller || before[1] !== el
+    let announced = announce(controller.state.get())
+    if (fresh && el.textContent !== announced) el.textContent = announced
+    onCleanup(
+      controller.state.subscribe((s: SearchState) => {
+        const text = announce(s)
+        // Said again only when the region holds other words: the old language's.
+        if (text === announced && el.textContent === text) return
+        announced = text
+        el.textContent = text
+      })
+    )
   },
   { flush: 'post', immediate: true }
 )
