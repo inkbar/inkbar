@@ -1,6 +1,6 @@
 import { browserAssets, fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
 import themeCss from '@inkbar/theme/theme.css?inline'
-import { afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { userEvent } from 'vitest/browser'
 
 import { en } from '../../messages'
@@ -117,6 +117,33 @@ describe('labels follow setMessages in place', () => {
     expect(bar.isConnected).toBe(true)
     await userEvent.keyboard('{Enter}')
     await until(() => live.textContent === 'Résultat 2 sur 3, page 2')
+  })
+
+  it('a throwing find.count leaves the find bar working, in English', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    cleanup.push(() => warn.mockRestore())
+    const { viewer } = make({
+      messages: {
+        find: {
+          count: () => {
+            throw new Error('no words')
+          },
+        },
+      },
+    })
+    const bar = createFindBar(viewer)
+    viewer.element.querySelector('[data-ink-viewport-root]')!.append(bar)
+    const { engine } = await ready(viewer)
+    await until(() => !!engine.pages.get(0))
+    await engine.pages.get(0)!.textLayer.ready
+    viewer.search.open()
+    await userEvent.keyboard('QQ123456C')
+    const count = bar.querySelector('[data-ink-find-count]')!
+    await until(() => count.textContent === en.find.count({ current: 1, total: 3 }))
+    await userEvent.keyboard('{Enter}')
+    await until(() => count.textContent === en.find.count({ current: 2, total: 3 }))
+    expect(bar.isConnected).toBe(true)
+    expect(warn).toHaveBeenCalled()
   })
 
   it('scroll position survives', async () => {
