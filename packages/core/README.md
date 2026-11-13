@@ -485,7 +485,7 @@ import { createThumbnail } from '@inkbar/core/dom'
 panel.append(createThumbnail(viewer, { page: 3, width: 120 }))
 ```
 
-`page` is 0-based. Give `width` or `height` in CSS pixels and the other follows the page's shape and its own /Rotate (the viewer's rotation does not apply); `width` wins when you give both, and with neither the width is 120px. `annotations: false` and `marks: false` leave those layers out. `label` replaces the accessible name, "Page 4" for page 3.
+`page` is 0-based. Give `width` or `height` in CSS pixels and the other follows the page's shape and its own /Rotate (the viewer's rotation does not apply); `width` wins when you give both. With neither, the width is `--ink-thumbnail-width` as the thumbnail's element computes it, so set the token on the viewer root, the sidebar or any ancestor. It is read when the thumbnail is placed, when it comes near the visible area and on each `update`. Only px values count: a value in another unit, or none, gives 120px. `annotations: false` and `marks: false` leave those layers out. `label` replaces the accessible name, "Page 4" for page 3.
 
 A thumbnail is an image to assistive technology (`role="img"`), with no focus and no click behaviour of its own: wrap it in a button or link for that. It renders once it comes within 200px of the visible area and shows a placeholder of the right size before then, and while no document is open. Form fields show the values saved in the PDF. Annotations follow edits, undo and redo, and marks are drawn with the plugin's class and style but take no presses.
 
@@ -502,7 +502,7 @@ panel.append(createThumbnails(viewer))
 panel.append(createThumbnails(viewer, { pages: [0, 3, 7], width: 96 }))
 ```
 
-`pages` lists those pages in that order (0-based); without it every page is listed. The thumbnails fill the list's width less a 16px gutter each side and follow it as it resizes; `width` fixes them at that many pixels instead. `annotations` and `marks` work as they do for one thumbnail. The current page has `aria-current="page"` and scrolls into view in the list when it changes, unless the list was scrolled by hand in the last second. The list is one Tab stop: arrow keys move between pages, Home and End go to the first and last, Enter or Space opens one.
+`pages` lists those pages in that order (0-based); without it every page is listed. The thumbnails fill the list's width less a 16px gutter each side and follow it as it resizes; `width` fixes them at that many pixels instead. Until the list is attached and shown, they are as wide as `--ink-thumbnail-width` on the list (px only, else 120px), read on attach and on each resize. `annotations` and `marks` work as they do for one thumbnail. The current page has `aria-current="page"` and scrolls into view in the list when it changes, unless the list was scrolled by hand in the last second. The list is one Tab stop: arrow keys move between pages, Home and End go to the first and last, Enter or Space opens one.
 
 Only the items near the visible part of the list are in the document, so a 500-page file stays cheap. When the list scrolls away from the focused item, focus moves to the first visible one without scrolling back.
 

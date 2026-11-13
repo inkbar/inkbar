@@ -14,7 +14,7 @@ export interface InkThumbnailProps extends Omit<
 > {
   /** 0-based. */
   page: number
-  /** Width in CSS pixels; the height follows the page. Default 120 unless `height` is given. */
+  /** Width in CSS pixels; the height follows the page. Default `--ink-thumbnail-width` (px only, else 120) unless `height` is given. */
   width?: number | undefined
   /** Height in CSS pixels; the width follows the page. */
   height?: number | undefined
