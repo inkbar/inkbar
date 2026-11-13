@@ -1,10 +1,12 @@
 import { cx } from '../class-names'
+import { useMessages } from '../hooks/useMessages'
 import { usePage } from '../hooks/usePage'
 
 import type { ComponentPropsWithoutRef } from 'react'
 
 export function InkPageCount({ className, ...rest }: ComponentPropsWithoutRef<'span'>) {
   const { count } = usePage()
+  const m = useMessages()
   return (
     <span
       className={cx('ink-page-count', className)}
@@ -12,7 +14,7 @@ export function InkPageCount({ className, ...rest }: ComponentPropsWithoutRef<'s
       aria-live="polite"
       {...rest}
     >
-      {`of ${count}`}
+      {m.toolbar.pageOf({ total: count })}
     </span>
   )
 }

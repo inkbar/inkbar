@@ -2,6 +2,7 @@ import { ZoomOut } from '@inkbar/icons'
 import { Toolbar } from 'radix-ui'
 
 import { cx } from '../class-names'
+import { useMessages } from '../hooks/useMessages'
 import { useZoom } from '../hooks/useZoom'
 
 import { InkIcon } from './InkIcon'
@@ -15,14 +16,15 @@ export function InkZoomOut({
   onClick,
   ...rest
 }: InkZoomButtonProps) {
+  const m = useMessages()
   const { zoomOut } = useZoom()
   return (
     <Toolbar.Button
       asChild={asChild}
       className={cx('ink-zoom-out', className)}
       data-ink-zoom-out=""
-      aria-label="Zoom out"
-      title="Zoom out"
+      aria-label={m.toolbar.zoomOut}
+      title={m.toolbar.zoomOut}
       {...rest}
       onClick={(e) => {
         onClick?.(e)

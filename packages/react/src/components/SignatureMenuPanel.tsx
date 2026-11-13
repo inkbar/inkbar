@@ -4,7 +4,7 @@
  * and a signature field's `InkSignFieldPopover` both render it inside their `role="menu"`
  * content, which `menu` points at.
  */
-import { signaturePreview, SIGNATURE_LABELS } from '@inkbar/core/dom'
+import { signaturePreview } from '@inkbar/core/dom'
 import { Plus, Trash2 } from '@inkbar/icons'
 import { useEffect, useRef, type RefObject } from 'react'
 
@@ -50,7 +50,7 @@ export function SignatureMenuPanel({
   onChoose: (template: SignatureTemplate) => void
   onCreate: () => void
 }) {
-  const { signatures } = useInkContext('SignatureMenuPanel')
+  const { signatures, messages: m } = useInkContext('SignatureMenuPanel')
   const templates = useReadable(signatures.templates, NO_TEMPLATES)
   const removeError = useReadable(signatures.removeError, undefined)
   /** The row of a removed signature, until focus lands on what took its place. */
@@ -83,7 +83,7 @@ export function SignatureMenuPanel({
         <>
           <div
             role="group"
-            aria-label={SIGNATURE_LABELS.saved}
+            aria-label={m.signature.saved}
             className="ink-signature-list"
             data-ink-menu-columns={2}
           >
@@ -132,7 +132,7 @@ export function SignatureMenuPanel({
         onClick={onCreate}
       >
         <InkIcon icon={Plus} size={16} />
-        {SIGNATURE_LABELS.create}
+        {m.signature.create}
       </button>
       {removeError ? (
         <p
@@ -140,7 +140,8 @@ export function SignatureMenuPanel({
           role="alert"
           data-ink-signature-remove-error=""
         >
-          {removeError}
+          {/* The root's words, not the library's: its text was fixed when the removal failed. */}
+          {m.signature.removeFailed}
         </p>
       ) : null}
     </>

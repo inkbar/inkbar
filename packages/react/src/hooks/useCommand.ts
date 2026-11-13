@@ -1,6 +1,5 @@
-import { resolveLabel } from '@inkbar/core'
-import { unknownCommand } from '@inkbar/core/dom'
-import { useCallback, useEffect, useRef } from 'react'
+import { commandLabel, unknownCommand } from '@inkbar/core/dom'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { useInkContext } from '../context'
 import { useReadable } from '../use-readable'
@@ -28,7 +27,7 @@ export interface CommandHandle {
  * console once.
  */
 export function useCommand(id: string): CommandHandle {
-  const { pluginHost } = useInkContext('useCommand()')
+  const { pluginHost, messages } = useInkContext('useCommand()')
   const command = pluginHost?.command(id)
   const logged = useRef(false)
   useEffect(() => {
@@ -40,12 +39,19 @@ export function useCommand(id: string): CommandHandle {
   const busy = useReadable(command?.busy, false)
   const status = useReadable(command?.status, '')
   const run = useCallback(async () => command?.run(), [command])
+  // Read again on new messages, so a label function follows them; the id when it is empty.
+  // Memoised, so an empty label warns once per change, not once per render.
+  const label = useMemo(
+    () => (command ? commandLabel(command) : ''),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `messages` re-reads the label
+    [command, messages]
+  )
   return {
     run,
     enabled,
     busy,
     status,
-    label: command ? resolveLabel(command.label, command.id) : '',
+    label,
     icon: command?.icon,
   }
 }

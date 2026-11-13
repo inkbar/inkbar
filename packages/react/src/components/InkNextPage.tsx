@@ -2,6 +2,7 @@ import { ChevronRight } from '@inkbar/icons'
 import { Toolbar } from 'radix-ui'
 
 import { cx } from '../class-names'
+import { useMessages } from '../hooks/useMessages'
 import { usePage } from '../hooks/usePage'
 
 import { InkIcon } from './InkIcon'
@@ -16,14 +17,15 @@ export function InkNextPage({
   onClick,
   ...rest
 }: InkPageButtonProps) {
+  const m = useMessages()
   const { current, count, next } = usePage()
   return (
     <Toolbar.Button
       asChild={asChild}
       className={cx('ink-next-page', className)}
       data-ink-next-page=""
-      aria-label="Next page"
-      title="Next page"
+      aria-label={m.toolbar.nextPage}
+      title={m.toolbar.nextPage}
       disabled={disabled === true || current >= count - 1}
       {...rest}
       onClick={(e) => {

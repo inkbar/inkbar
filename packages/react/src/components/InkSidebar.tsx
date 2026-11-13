@@ -1,3 +1,4 @@
+import { en } from '@inkbar/core'
 import {
   createSidebarController,
   type SidebarController,
@@ -29,7 +30,7 @@ import {
 } from './sidebar-context'
 import { SidebarTrigger } from './SidebarTrigger'
 
-import type { InkStorage } from '@inkbar/core'
+import type { InkStorage, Label } from '@inkbar/core'
 
 export interface InkSidebarProps extends Omit<
   ComponentPropsWithoutRef<'div'>,
@@ -81,10 +82,11 @@ export interface InkSidebarProps extends Omit<
    */
   minDocumentWidth?: number | undefined
   /**
-   * The resize handle's accessible name. Default `Resize left sidebar` or `Resize right
-   * sidebar`. Read once, when the sidebar is created.
+   * The resize handle's accessible name: a string, or a function read again whenever the
+   * root's `messages` change. Default `Resize left sidebar` or `Resize right sidebar`, in the
+   * root's words.
    */
-  handleLabel?: string | undefined
+  handleLabel?: Label | undefined
   /** The `InkPanel`s. */
   children?: ReactNode
 }
@@ -216,7 +218,7 @@ export function InkSidebar({
   // Uncontrolled with `defaultOpen`, or once anything changed: the value we pass back.
   const [inner, setInner] = useState<SidebarOpen | undefined>(defaultOpen)
   const value = controlled ? open : inner
-  const latest = useLatest({ controlled, onOpenChange, onWidthChange })
+  const latest = useLatest({ controlled, onOpenChange, onWidthChange, side })
   const widths = widthOptions({ defaultWidth, minWidth, maxWidth, width })
   // Read once: the controller loads the saved width as it is created.
   const ink = useContext(InkContextObject)
@@ -239,6 +241,8 @@ export function InkSidebar({
         ...(name !== undefined && { name }),
         ...(minDocumentWidth !== undefined && { minDocumentWidth }),
         ...(handleLabel !== undefined && { handleLabel }),
+        // The root's words, so the default handle names and tab badges follow its `messages`.
+        ...(ink && { messages: ink.messageState }),
         ...widths,
         onWidthChange: (next) => latest.current.onWidthChange?.(next),
         onOpenChange: (next) => {
@@ -250,6 +254,11 @@ export function InkSidebar({
   )
   const { controller } = context
   const state = useSidebarState(controller)
+  /** The handle's default name, in the root's words now (English outside a root). */
+  const [defaultHandleLabel] = useState(() => (): string => {
+    const m = ink?.messageState.get().messages ?? en
+    return latest.current.side === 'right' ? m.sidebar.resizeRight : m.sidebar.resizeLeft
+  })
 
   // A no-op change publishes nothing, so this cannot loop.
   useLayoutEffect(() => {
@@ -259,10 +268,25 @@ export function InkSidebar({
       visible,
       ...(value !== undefined && { open: value }),
       ...widths,
+      // Core keeps the last label for an undefined one, so a dropped label is replaced by the
+      // default. Core compares the text, so a new function each render republishes nothing.
+      handleLabel: handleLabel ?? defaultHandleLabel,
     })
     // `widths` is rebuilt each render; its four numbers are what matter.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [controller, layout, side, visible, value, defaultWidth, minWidth, maxWidth, width])
+  }, [
+    controller,
+    layout,
+    side,
+    visible,
+    value,
+    defaultWidth,
+    minWidth,
+    maxWidth,
+    width,
+    handleLabel,
+    defaultHandleLabel,
+  ])
 
   // After the panels' own layout effects: they are registered by now. The controller handles
   // the triggers' clicks and keys, stack headers included.

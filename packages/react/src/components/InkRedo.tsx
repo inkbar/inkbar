@@ -3,6 +3,7 @@ import { Toolbar } from 'radix-ui'
 
 import { cx } from '../class-names'
 import { useHistory } from '../hooks/useHistory'
+import { useMessages } from '../hooks/useMessages'
 
 import { InkIcon } from './InkIcon'
 
@@ -16,14 +17,15 @@ export function InkRedo({
   onClick,
   ...rest
 }: InkHistoryButtonProps) {
+  const m = useMessages()
   const { canRedo, redo } = useHistory()
   return (
     <Toolbar.Button
       asChild={asChild}
       className={cx('ink-redo', className)}
       data-ink-redo=""
-      aria-label="Redo"
-      title="Redo"
+      aria-label={m.toolbar.redo}
+      title={m.toolbar.redo}
       {...rest}
       disabled={disabled === true || !canRedo}
       onClick={(e) => {

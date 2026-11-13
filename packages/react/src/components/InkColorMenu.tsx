@@ -26,11 +26,12 @@ import {
 } from 'react'
 
 import { cx } from '../class-names'
+import { hostLabel, useMessages } from '../hooks/useMessages'
 import { useToolStyle } from '../hooks/useToolStyle'
 
 import { InkIcon } from './InkIcon'
 
-import type { StyleGroup } from '@inkbar/core'
+import type { Label, StyleGroup } from '@inkbar/core'
 
 export interface InkColorMenuProps extends Omit<
   ComponentPropsWithoutRef<'button'>,
@@ -38,8 +39,11 @@ export interface InkColorMenuProps extends Omit<
 > {
   /** The colour this menu sets. */
   property: ColorProperty
-  /** Accessible name; defaults to "Border colour", "Fill colour" or "Text colour". */
-  label?: string
+  /**
+   * Accessible name: a string, or a function read again whenever the root's `messages` change.
+   * Defaults to "Border colour", "Fill colour" or "Text colour", in the root's words.
+   */
+  label?: Label | undefined
   /** Replaces the swatch. */
   children?: ReactNode
   /**
@@ -70,8 +74,9 @@ export function InkColorMenu({
   const Wrap = standalone ? Fragment : Toolbar.Button
   const { current, supported, set } = useToolStyle(group)
   const [open, setOpen] = useState(false)
-  const model = colorMenuModel(property, current, supported, fallback)
-  const name = label ?? model.label
+  const m = useMessages()
+  const model = colorMenuModel(property, current, supported, fallback, m)
+  const name = hostLabel(label, model.label)
   /** ArrowDown opens on the first item; a click opens on the checked one. */
   const focusFirst = useRef(false)
   const input = useRef<HTMLInputElement | null>(null)
@@ -165,7 +170,7 @@ export function InkColorMenu({
                 data-state={model.noFill.checked ? 'checked' : 'unchecked'}
                 onClick={() => set(model.noFill!.patch)}
               >
-                No fill
+                {m.color.noFill}
                 {model.noFill.checked ? (
                   <span className="ink-select-indicator">
                     <InkIcon icon={Check} size={16} />
@@ -175,7 +180,7 @@ export function InkColorMenu({
             ) : null}
             <div
               role="group"
-              aria-label="Colours"
+              aria-label={m.color.swatches}
               className="ink-color-grid"
               data-ink-menu-columns={COLOR_COLUMNS}
             >
@@ -202,7 +207,7 @@ export function InkColorMenu({
               data-ink-select-item=""
               onClick={() => input.current?.click()}
             >
-              Custom…
+              {m.color.custom}
             </button>
           </Popover.Content>
         </Popover.Portal>
@@ -211,7 +216,7 @@ export function InkColorMenu({
         ref={bindInput}
         type="color"
         className="ink-color-input"
-        aria-label="Custom colour"
+        aria-label={m.color.customColour}
         data-ink-color-input={property}
         tabIndex={-1}
         defaultValue={model.customValue.toLowerCase()}

@@ -2,6 +2,7 @@ import { ZoomIn } from '@inkbar/icons'
 import { Toolbar } from 'radix-ui'
 
 import { cx } from '../class-names'
+import { useMessages } from '../hooks/useMessages'
 import { useZoom } from '../hooks/useZoom'
 
 import { InkIcon } from './InkIcon'
@@ -15,14 +16,15 @@ export function InkZoomIn({
   onClick,
   ...rest
 }: InkZoomButtonProps) {
+  const m = useMessages()
   const { zoomIn } = useZoom()
   return (
     <Toolbar.Button
       asChild={asChild}
       className={cx('ink-zoom-in', className)}
       data-ink-zoom-in=""
-      aria-label="Zoom in"
-      title="Zoom in"
+      aria-label={m.toolbar.zoomIn}
+      title={m.toolbar.zoomIn}
       {...rest}
       onClick={(e) => {
         onClick?.(e)

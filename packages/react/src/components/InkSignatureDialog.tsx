@@ -10,7 +10,6 @@ import {
   fontFamilyValue,
   handleRadioKeys,
   handleTabKeys,
-  SIGNATURE_LABELS,
   SIGNATURE_TABS,
   type SignatureDraft,
   type SignatureDraftState,
@@ -21,6 +20,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 
 import { cx } from '../class-names'
 import { useInkContext } from '../context'
+import { useMessages } from '../hooks/useMessages'
 import { useHasTool } from '../hooks/useRegisteredTool'
 import { useTool } from '../hooks/useTool'
 import { useReadable } from '../use-readable'
@@ -54,6 +54,7 @@ export function InkSignatureDialog({
   onCloseAutoFocus,
   className,
 }: InkSignatureDialogProps) {
+  const m = useMessages()
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
@@ -71,9 +72,7 @@ export function InkSignatureDialog({
           }}
           onCloseAutoFocus={onCloseAutoFocus}
         >
-          <Dialog.Title className="ink-dialog-title">
-            {SIGNATURE_LABELS.dialog}
-          </Dialog.Title>
+          <Dialog.Title className="ink-dialog-title">{m.signature.dialog}</Dialog.Title>
           <SignatureForm
             fonts={fonts}
             select={select}
@@ -111,12 +110,17 @@ function SignatureForm({
   onClose: () => void
 }) {
   const ctx = useInkContext('InkSignatureDialog')
+  const m = ctx.messages
   const { setTool } = useTool()
   // Without the signature tool, Save only stores the template, as signing a form field needs;
   // its options are never read, which would log the missing tool.
   const hasSignatureTool = useHasTool('signature')
   const [draft] = useState<SignatureDraft>(() =>
-    createSignatureDraft({ fonts: fonts ?? ctx.signatureFonts })
+    // The draft's errors are in the root's words, and follow them.
+    createSignatureDraft({
+      fonts: fonts ?? ctx.signatureFonts,
+      messages: ctx.messageState,
+    })
   )
   const s = useReadable(draft.state, IDLE)
   const uid = useId()
@@ -159,13 +163,13 @@ function SignatureForm({
     'data-key': tab,
     hidden: s.tab !== tab,
   })
-  const shown = s.name.trim() || SIGNATURE_LABELS.namePlaceholder
+  const shown = s.name.trim() || m.signature.namePlaceholder
 
   return (
     <>
       <div
         role="tablist"
-        aria-label={SIGNATURE_LABELS.tabs}
+        aria-label={m.signature.tabs}
         className="ink-tabs"
         onKeyDown={(e) => handleTabKeys(e.nativeEvent, e.currentTarget)}
       >
@@ -183,7 +187,7 @@ function SignatureForm({
             data-state={s.tab === tab ? 'active' : 'inactive'}
             onClick={() => draft.setTab(tab)}
           >
-            {SIGNATURE_LABELS[tab]}
+            {m.signature[tab]}
           </button>
         ))}
       </div>
@@ -193,7 +197,7 @@ function SignatureForm({
           className="ink-signature-pad-host"
           data-ink-signature-pad-host=""
           role="img"
-          aria-label={SIGNATURE_LABELS.pad}
+          aria-label={m.signature.pad}
         />
         <div className="ink-dialog-row">
           <button
@@ -203,26 +207,26 @@ function SignatureForm({
             disabled={s.padEmpty}
             onClick={() => draft.clearPad()}
           >
-            {SIGNATURE_LABELS.clear}
+            {m.signature.clear}
           </button>
         </div>
       </div>
       <div {...panel('type')}>
         <label className="ink-field">
-          <span>{SIGNATURE_LABELS.name}</span>
+          <span>{m.signature.name}</span>
           <input
             type="text"
             className="ink-input"
             data-ink-signature-name=""
             autoComplete="name"
-            placeholder={SIGNATURE_LABELS.namePlaceholder}
+            placeholder={m.signature.namePlaceholder}
             value={s.name}
             onChange={(e) => draft.setName(e.target.value)}
           />
         </label>
         <div
           role="radiogroup"
-          aria-label={SIGNATURE_LABELS.fonts}
+          aria-label={m.signature.fonts}
           className="ink-signature-fonts"
           onKeyDown={(e) => handleRadioKeys(e.nativeEvent, e.currentTarget)}
         >
@@ -252,7 +256,7 @@ function SignatureForm({
       </div>
       <div {...panel('image')}>
         <label className="ink-field">
-          <span>{SIGNATURE_LABELS.file}</span>
+          <span>{m.signature.file}</span>
           <input
             type="file"
             accept="image/png,image/jpeg"
@@ -278,7 +282,7 @@ function SignatureForm({
       <div className="ink-dialog-actions">
         <Dialog.Close asChild>
           <button type="button" className="ink-button" data-ink-signature-cancel="">
-            {SIGNATURE_LABELS.cancel}
+            {m.signature.cancel}
           </button>
         </Dialog.Close>
         <button
@@ -289,7 +293,7 @@ function SignatureForm({
           disabled={!s.canSave}
           onClick={save}
         >
-          {SIGNATURE_LABELS.save}
+          {m.signature.save}
         </button>
       </div>
     </>

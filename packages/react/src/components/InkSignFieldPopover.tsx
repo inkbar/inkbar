@@ -9,7 +9,6 @@ import { InkError, signField, type SignatureTemplate } from '@inkbar/core'
 import {
   focusInitialMenuItem,
   handleMenuKeys,
-  SIGNATURE_LABELS,
   signatureMenuModel,
   watchDetached,
   type SignFieldRequest,
@@ -39,10 +38,10 @@ export function InkSignFieldPopover({
   onClose: () => void
 }) {
   const ctx = useInkContext('InkSignFieldPopover')
-  const { signatures, reportError } = ctx
+  const { signatures, reportError, messages: m } = ctx
   const templates = useReadable(signatures.templates, NO_TEMPLATES)
   // No signature is "chosen" here: each signing picks its own.
-  const model = useMemo(() => signatureMenuModel(templates, {}), [templates])
+  const model = useMemo(() => signatureMenuModel(templates, {}, m), [templates, m])
   /** The field the dialog signs once its signature is saved. */
   const [creatingFor, setCreatingFor] = useState<SignFieldRequest | null>(null)
   const menu = useRef<HTMLDivElement>(null)
@@ -96,7 +95,7 @@ export function InkSignFieldPopover({
             <Popover.Content
               ref={menu}
               role="menu"
-              aria-label={SIGNATURE_LABELS.menu}
+              aria-label={m.signature.menu}
               className="ink-select-content ink-menu-content"
               data-ink-select-content=""
               data-ink-menu="signature"

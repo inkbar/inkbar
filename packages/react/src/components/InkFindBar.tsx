@@ -76,7 +76,7 @@ export function InkFindBar({ className, ...rest }: InkFindBarProps) {
   }, [state.open, state.query, scroll])
 
   // Registered while mounted.
-  const { search } = ctx
+  const { search, messages: m } = ctx
   useEffect(() => {
     if (!search || !target) return
     return search.attachBar()
@@ -84,18 +84,20 @@ export function InkFindBar({ className, ...rest }: InkFindBarProps) {
 
   // The live region follows the controller's state change by change, as the vanilla bar does,
   // and is written directly. A render shows only the last of the changes batched into it, so
-  // two steps in one task that end where they began would otherwise say nothing.
+  // two steps in one task that end where they began would otherwise say nothing. An announcer
+  // keeps the words it was made with, so new messages make a new one; the region keeps its
+  // text when the new words say the same.
   useEffect(() => {
     const el = live.current
     if (!search || !el) return
-    const announce = findAnnouncer()
+    const announce = findAnnouncer(m)
     const say = (s: SearchState): void => {
       const text = announce(s)
       if (el.textContent !== text) el.textContent = text
     }
     say(search.state.get())
     return search.state.subscribe(say)
-  }, [search, target])
+  }, [search, target, m])
 
   // A native listener, so Escape stops at the bar as it does in the vanilla and Vue bars;
   // React's delegated events would stop it only after the root's own listeners saw it.
@@ -130,7 +132,7 @@ export function InkFindBar({ className, ...rest }: InkFindBarProps) {
         <input
           ref={field}
           type="text"
-          aria-label="Find in document"
+          aria-label={m.find.field}
           autoComplete="off"
           spellCheck={false}
           onInput={(e) => setQuery(e.currentTarget.value)}
@@ -143,13 +145,13 @@ export function InkFindBar({ className, ...rest }: InkFindBarProps) {
         />
       </div>
       <span className="ink-find-count" data-ink-find-count="">
-        {findCountText(state)}
+        {findCountText(state, m)}
       </span>
       <button
         type="button"
         data-ink-find-previous=""
-        aria-label="Previous match"
-        title="Previous match"
+        aria-label={m.find.previous}
+        title={m.find.previous}
         onClick={() => previous()}
       >
         <InkIcon icon={ChevronUp} />
@@ -157,8 +159,8 @@ export function InkFindBar({ className, ...rest }: InkFindBarProps) {
       <button
         type="button"
         data-ink-find-next=""
-        aria-label="Next match"
-        title="Next match"
+        aria-label={m.find.next}
+        title={m.find.next}
         onClick={() => next()}
       >
         <InkIcon icon={ChevronDown} />
@@ -166,8 +168,8 @@ export function InkFindBar({ className, ...rest }: InkFindBarProps) {
       <button
         type="button"
         data-ink-find-match-case=""
-        aria-label="Match case"
-        title="Match case"
+        aria-label={m.find.matchCase}
+        title={m.find.matchCase}
         aria-pressed={state.matchCase}
         onClick={() => setMatchCase(!state.matchCase)}
       >
@@ -176,8 +178,8 @@ export function InkFindBar({ className, ...rest }: InkFindBarProps) {
       <button
         type="button"
         data-ink-find-close=""
-        aria-label="Close find"
-        title="Close find"
+        aria-label={m.find.close}
+        title={m.find.close}
         onClick={() => close()}
       >
         <InkIcon icon={X} />

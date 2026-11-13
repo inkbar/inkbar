@@ -5,15 +5,18 @@ import type {
   ViewerAction,
   InkDocument,
   InkError,
+  InkMessages,
   InkStatus,
   InkStorage,
   PdfAssets,
   PluginHistory,
+  Readable,
   SignatureLibrary,
   Writable,
 } from '@inkbar/core'
 import type {
   DecorateAnnotation,
+  MessageState,
   Navigation,
   PasswordPrompt,
   PluginHost,
@@ -143,6 +146,18 @@ export interface InkContext {
   setViewport: (viewport: Viewport | null, tools: ToolController | null) => void
   /** InkRoot's `formHighlight`; InkViewport reads it when it builds the viewer. */
   formHighlight: boolean | undefined
+  /**
+   * Every string the components show: InkRoot's `messages` over English. A new object on each
+   * change, so a component that reads it while rendering follows it, label functions included.
+   */
+  messages: InkMessages
+  /** InkRoot's `locale`, for dates; undefined for the browser's. */
+  locale: string | undefined
+  /**
+   * The one message state for the root's life, which `messages` and `locale` mirror, read-only:
+   * InkRoot alone sets it, from its props. Core's factories subscribe to it.
+   */
+  messageState: Readable<MessageState>
   /** Calls InkRoot's `onAction` one microtask later. */
   reportAction: (action: ViewerAction) => void
   /** Calls InkRoot's `onError`, for failures after the document opened (a refused signing). */

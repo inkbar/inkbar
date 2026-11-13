@@ -8,7 +8,6 @@ import {
   focusInitialMenuItem,
   handleMenuKeys,
   menuItems,
-  SIGNATURE_LABELS,
   signatureMenuModel,
 } from '@inkbar/core/dom'
 import { ChevronDown, Signature } from '@inkbar/icons'
@@ -55,9 +54,9 @@ export function InkSignatureMenu(props: InkSignatureMenuProps) {
 function SignatureMenu({ className, children, fonts, ...rest }: InkSignatureMenuProps) {
   const { tool, setTool } = useTool()
   const [options, setOptions] = useToolOptions<SignatureOptions>('signature')
-  const { signatures } = useInkContext('InkSignatureMenu')
+  const { signatures, messages: m } = useInkContext('InkSignatureMenu')
   const templates = useReadable(signatures.templates, NO_TEMPLATES)
-  const model = signatureMenuModel(templates, options)
+  const model = signatureMenuModel(templates, options, m)
   const [open, setOpen] = useState(false)
   const [creating, setCreating] = useState(false)
   const active = tool === 'signature'
@@ -78,7 +77,7 @@ function SignatureMenu({ className, children, fonts, ...rest }: InkSignatureMenu
       <Popover.Anchor asChild>
         <div
           role="group"
-          aria-label={SIGNATURE_LABELS.sign}
+          aria-label={m.signature.sign}
           className={cx('ink-split-button ink-signature-menu', className)}
           data-ink-signature-menu=""
           {...rest}
@@ -91,8 +90,8 @@ function SignatureMenu({ className, children, fonts, ...rest }: InkSignatureMenu
             data-tool="signature"
             data-state={active ? 'on' : 'off'}
             aria-pressed={active}
-            aria-label={SIGNATURE_LABELS.sign}
-            title={SIGNATURE_LABELS.sign}
+            aria-label={m.signature.sign}
+            title={m.signature.sign}
             onClick={() => {
               if (model.selected) setTool('signature')
               else setOpen(true)
@@ -107,8 +106,8 @@ function SignatureMenu({ className, children, fonts, ...rest }: InkSignatureMenu
                 className="ink-menu-trigger ink-signature-menu-trigger"
                 data-ink-signature-menu-trigger=""
                 data-state={open ? 'open' : 'closed'}
-                aria-label={SIGNATURE_LABELS.trigger}
-                title={SIGNATURE_LABELS.trigger}
+                aria-label={m.signature.trigger}
+                title={m.signature.trigger}
                 aria-haspopup="menu"
                 onKeyDown={(e) => {
                   if (e.key !== 'ArrowDown' || e.defaultPrevented || open) return
@@ -125,7 +124,7 @@ function SignatureMenu({ className, children, fonts, ...rest }: InkSignatureMenu
             <Popover.Content
               ref={menu}
               role="menu"
-              aria-label={SIGNATURE_LABELS.menu}
+              aria-label={m.signature.menu}
               className="ink-select-content ink-menu-content"
               data-ink-select-content=""
               data-ink-menu="signature"

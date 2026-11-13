@@ -8,6 +8,7 @@ import {
 } from 'react'
 
 import { cx } from '../class-names'
+import { useMessages } from '../hooks/useMessages'
 import { usePage } from '../hooks/usePage'
 import { useLatest } from '../use-latest'
 
@@ -22,6 +23,7 @@ export function InkPageInput({
   ...rest
 }: InkPageInputProps) {
   const { current, count, goTo } = usePage()
+  const m = useMessages()
   const [draft, setDraft] = useState(String(current + 1))
   useEffect(() => {
     setDraft(String(current + 1))
@@ -64,7 +66,7 @@ export function InkPageInput({
       data-ink-page-input=""
       type="number"
       inputMode="numeric"
-      aria-label="Page"
+      aria-label={m.toolbar.page}
       min={1}
       max={count}
       value={draft}

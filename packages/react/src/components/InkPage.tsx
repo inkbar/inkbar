@@ -55,7 +55,7 @@ export function InkPage({
   renderAnnotation,
   renderPageError,
 }: InkPageProps) {
-  const doc = useInkContext('InkPage').document
+  const { document: doc, messages } = useInkContext('InkPage')
   const [targets, setTargets] = useState<Target[]>([])
 
   useEffect(() => {
@@ -85,7 +85,7 @@ export function InkPage({
                 renderPageError({ error, page })
               ) : (
                 <>
-                  <p>Page {page + 1} could not be shown.</p>
+                  <p>{messages.viewer.pageFailed({ page: page + 1 })}</p>
                   <code className="ink-error-code">{error.code}</code>
                 </>
               )}

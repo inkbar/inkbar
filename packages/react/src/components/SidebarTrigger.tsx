@@ -1,6 +1,8 @@
 import { resolveLabel } from '@inkbar/core'
 import { sidebarBadge, type SidebarPanelInfo } from '@inkbar/core/dom'
 
+import { useMessages } from '../hooks/useMessages'
+
 import { InkIcon } from './InkIcon'
 
 /**
@@ -15,6 +17,8 @@ export function SidebarTrigger({
   panel: SidebarPanelInfo
   rail: boolean
 }) {
+  // Read so a label function is read again on new words.
+  useMessages()
   const badge = sidebarBadge(panel.badge)
   return (
     <>

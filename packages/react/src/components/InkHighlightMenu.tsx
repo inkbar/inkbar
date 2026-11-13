@@ -19,6 +19,7 @@ import { useRef, useState, type ComponentPropsWithoutRef, type ReactNode } from 
 
 import { cx } from '../class-names'
 import { useDocument } from '../hooks/useDocument'
+import { useMessages } from '../hooks/useMessages'
 import { useRegisteredTool } from '../hooks/useRegisteredTool'
 import { useTool } from '../hooks/useTool'
 import { useToolOptions } from '../hooks/useToolOptions'
@@ -45,7 +46,8 @@ function HighlightMenu({ className, children, ...rest }: InkHighlightMenuProps) 
   const [options, setOptions] = useToolOptions<HighlightOptions>('highlight')
   const { document: doc } = useDocument()
   const [open, setOpen] = useState(false)
-  const model = highlightMenuModel(options, MARKUP_KINDS)
+  const m = useMessages()
+  const model = highlightMenuModel(options, MARKUP_KINDS, m)
   const active = tool === 'highlight'
   /** ArrowDown opens on the first item; a click opens on the checked one. */
   const focusFirst = useRef(false)
@@ -54,7 +56,7 @@ function HighlightMenu({ className, children, ...rest }: InkHighlightMenuProps) 
       <Popover.Anchor asChild>
         <div
           role="group"
-          aria-label="Highlight"
+          aria-label={m.highlight.label}
           className={cx('ink-split-button ink-highlight-menu', className)}
           data-ink-highlight-menu=""
           {...rest}
@@ -80,8 +82,8 @@ function HighlightMenu({ className, children, ...rest }: InkHighlightMenuProps) 
                 className="ink-menu-trigger ink-highlight-menu-trigger"
                 data-ink-highlight-menu-trigger=""
                 data-state={open ? 'open' : 'closed'}
-                aria-label="Choose highlight"
-                title="Choose highlight"
+                aria-label={m.highlight.choose}
+                title={m.highlight.choose}
                 aria-haspopup="menu"
                 onKeyDown={(e) => {
                   if (e.key !== 'ArrowDown' || e.defaultPrevented || open) return
@@ -97,7 +99,7 @@ function HighlightMenu({ className, children, ...rest }: InkHighlightMenuProps) 
           <Popover.Portal>
             <Popover.Content
               role="menu"
-              aria-label="Highlights"
+              aria-label={m.highlight.menu}
               className="ink-select-content ink-menu-content"
               data-ink-select-content=""
               data-ink-menu="highlight"
@@ -120,7 +122,11 @@ function HighlightMenu({ className, children, ...rest }: InkHighlightMenuProps) 
                   handleMenuKeys(e.nativeEvent, e.currentTarget)
               }}
             >
-              <div role="group" aria-label="Kinds" className="ink-highlight-kinds">
+              <div
+                role="group"
+                aria-label={m.highlight.kinds}
+                className="ink-highlight-kinds"
+              >
                 {model.items.map((item) => (
                   <button
                     key={item.kind}
@@ -144,14 +150,18 @@ function HighlightMenu({ className, children, ...rest }: InkHighlightMenuProps) 
                 ))}
               </div>
               <div role="separator" className="ink-select-separator" />
-              <div role="group" aria-label="Colour" className="ink-highlight-colour">
+              <div
+                role="group"
+                aria-label={m.highlight.colour}
+                className="ink-highlight-colour"
+              >
                 <span className="ink-highlight-colour-label" aria-hidden="true">
-                  Colour
+                  {m.highlight.colour}
                 </span>
                 <InkColorMenu
                   property="border"
                   group="markup"
-                  label="Highlight colour"
+                  label={m.highlight.highlightColour}
                   standalone
                   fallback={doc?.annotations.defaults.color(model.kind)}
                   role="menuitem"

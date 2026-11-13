@@ -1,7 +1,9 @@
+import { resolveLabel } from '@inkbar/core'
 import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
 import { cx } from '../class-names'
 import { domAttrs } from '../dom-attrs'
+import { useMessages } from '../hooks/useMessages'
 
 import {
   useSidebarContext,
@@ -10,14 +12,18 @@ import {
 } from './sidebar-context'
 import { SidebarTrigger } from './SidebarTrigger'
 
+import type { Label } from '@inkbar/core'
 import type { SidebarPanelInfo } from '@inkbar/core/dom'
 import type { IconNode } from '@inkbar/icons'
 
 export interface InkPanelProps {
   /** Names the panel in the sidebar's `open`. */
   id: string
-  /** Names its trigger. */
-  label: string
+  /**
+   * Names its trigger: a string, or a function read again whenever the root's `messages`
+   * change.
+   */
+  label: Label
   /** An `@inkbar/icons` node, shown on the rail. */
   icon?: IconNode | undefined
   /** A count or short text beside it, hidden when empty or 0. */
@@ -31,6 +37,8 @@ export interface InkPanelProps {
  */
 export function InkPanel({ id, label, icon, badge, children }: InkPanelProps) {
   const ctx = useSidebarContext('InkPanel')
+  // Read so this panel re-renders, and its title reads a label function again, on new words.
+  useMessages()
   const { controller } = ctx
   const info = useMemo<SidebarPanelInfo>(
     () => ({
@@ -70,7 +78,7 @@ export function InkPanel({ id, label, icon, badge, children }: InkPanelProps) {
       <div className="ink-sidebar-panel" {...domAttrs(controller.panelAttrs(id))}>
         {/* The rail button names the panel for assistive technology; this repeats it on screen. */}
         <div className="ink-sidebar-panel-title" aria-hidden="true">
-          {label}
+          {resolveLabel(label)}
         </div>
         <div className="ink-sidebar-panel-body">{children}</div>
       </div>

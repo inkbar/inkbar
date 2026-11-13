@@ -4,6 +4,7 @@ import { Toolbar } from 'radix-ui'
 
 import { cx } from '../class-names'
 import { useInkContext } from '../context'
+import { useMessages } from '../hooks/useMessages'
 
 import { InkIcon } from './InkIcon'
 
@@ -26,14 +27,15 @@ export function InkPrintButton({
   onClick,
   ...rest
 }: InkPrintButtonProps) {
+  const m = useMessages()
   const { document: doc, status } = useInkContext('InkPrintButton')
   return (
     <Toolbar.Button
       asChild={asChild}
       className={cx('ink-print', className)}
       data-ink-print=""
-      aria-label="Print"
-      title="Print"
+      aria-label={m.toolbar.print}
+      title={m.toolbar.print}
       {...rest}
       disabled={disabled === true || doc === null || status.state !== 'ready'}
       onClick={(e) => {

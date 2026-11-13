@@ -21,6 +21,7 @@ import {
 } from 'react'
 
 import { cx } from '../class-names'
+import { useMessages } from '../hooks/useMessages'
 import { useToolStyle } from '../hooks/useToolStyle'
 
 import { InkIcon } from './InkIcon'
@@ -96,7 +97,8 @@ export function InkLineStyleMenu({
 }: InkLineStyleMenuProps) {
   const { current, supported, set } = useToolStyle()
   const [open, setOpen] = useState(false)
-  const model = lineStyleMenuModel(current, supported)
+  const m = useMessages()
+  const model = lineStyleMenuModel(current, supported, m)
   /** ArrowDown opens on the first item; a click opens on the checked one. */
   const focusFirst = useRef(false)
   // The menu closes when the control disables (the selection cleared while it was open).
@@ -113,8 +115,8 @@ export function InkLineStyleMenu({
             data-ink-line-style-menu=""
             data-state={open ? 'open' : 'closed'}
             data-mixed={model.mixed ? '' : undefined}
-            aria-label="Line style"
-            title="Line style"
+            aria-label={m.lineStyle.label}
+            title={m.lineStyle.label}
             aria-haspopup="menu"
             disabled={disabled === true || !model.enabled}
             {...rest}
@@ -134,7 +136,7 @@ export function InkLineStyleMenu({
       <Popover.Portal>
         <Popover.Content
           role="menu"
-          aria-label="Line style"
+          aria-label={m.lineStyle.label}
           className="ink-select-content ink-menu-content"
           data-ink-select-content=""
           data-ink-menu="line-style"
@@ -151,8 +153,9 @@ export function InkLineStyleMenu({
           }}
           onKeyDown={(e) => handleMenuKeys(e.nativeEvent, e.currentTarget)}
         >
-          {model.sections.map((section) => (
-            <Group key={section.label} label={section.label} disabled={section.disabled}>
+          {/* Keyed by place, not by words: new messages must not remount an open menu's items. */}
+          {model.sections.map((section, index) => (
+            <Group key={index} label={section.label} disabled={section.disabled}>
               {section.items.map((item) => (
                 <Item
                   key={item.key}

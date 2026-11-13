@@ -16,19 +16,23 @@ import {
 import { cx } from '../class-names'
 import { useInkContext } from '../context'
 import { domAttrs } from '../dom-attrs'
+import { hostLabel } from '../hooks/useMessages'
 import { useToReadable } from '../to-readable'
 import { useReadable } from '../use-readable'
 
 import { InkIcon } from './InkIcon'
 
-import type { OutlineItem } from '@inkbar/core'
+import type { Label, OutlineItem } from '@inkbar/core'
 
 export interface InkOutlineProps extends Omit<
   ComponentPropsWithoutRef<'div'>,
   'children'
 > {
-  /** Shown when the document has no outline. Default: "This document has no outline". */
-  emptyText?: string | undefined
+  /**
+   * Shown when the document has no outline: a string, or a function read again whenever the
+   * root's `messages` change. Default "This document has no outline", in the root's words.
+   */
+  emptyText?: Label | undefined
   /**
    * Replaces an item's title, given the item and whether it is the current one and whether it
    * is expanded. Keep what it returns non-interactive.
@@ -51,7 +55,7 @@ const NO_EXPANDED: ReadonlySet<string> = new Set()
  * on the server.
  */
 export function InkOutline({
-  emptyText = 'This document has no outline',
+  emptyText,
   renderItem,
   className,
   ...rest
@@ -147,14 +151,16 @@ export function InkOutline({
     >
       <ul
         className="ink-outline-tree"
-        {...outlineTreeAttrs()}
+        {...outlineTreeAttrs(ctx.messages)}
         hidden={items.length === 0}
         onKeyDown={(e) => controller?.onKeydown(e.nativeEvent)}
       >
         {controller ? renderLevel(items) : null}
       </ul>
       {controller && !loading && items.length === 0 ? (
-        <p className="ink-outline-empty">{emptyText}</p>
+        <p className="ink-outline-empty">
+          {hostLabel(emptyText, ctx.messages.outline.empty)}
+        </p>
       ) : null}
     </div>
   )
