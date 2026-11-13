@@ -16,6 +16,8 @@ import InkUndo from '../../src/components/InkUndo.vue'
 import InkViewport from '../../src/components/InkViewport.vue'
 import InkZoomSelect from '../../src/components/InkZoomSelect.vue'
 
+import { suggestions, suggestionsPlugin } from './suggestions-plugin'
+
 import type { DocumentSource, InkMessagesInput, PdfAssets } from '@inkbar/core'
 import type { ZoomValue } from '@inkbar/core/dom'
 
@@ -29,6 +31,8 @@ const props = defineProps<{
   percentSuffix?: string | undefined
   /** Test-only: pass the shipped French, whose functions a test cannot pass as a prop. */
   french?: boolean | undefined
+  /** Run a plugin with one mark, whose card a test can open. */
+  withCard?: boolean | undefined
 }>()
 const words = computed<InkMessagesInput | undefined>(() => {
   if (props.french) return fr
@@ -43,6 +47,9 @@ const words = computed<InkMessagesInput | undefined>(() => {
   }
 })
 const tools = allTools()
+const plugins = props.withCard
+  ? [suggestionsPlugin({ initial: suggestions(1) })]
+  : undefined
 
 type WordWindow = Window & { __inkDrawWord?: string }
 /** A host label that reads its own language, which the test changes before new messages. */
@@ -55,6 +62,7 @@ const drawLabel = () => (window as WordWindow).__inkDrawWord ?? 'Pen'
     :assets="assets"
     :zoom="zoom ?? 1"
     :tools="tools"
+    :plugins="plugins"
     :messages="words"
     :locale="locale"
   >

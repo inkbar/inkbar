@@ -183,6 +183,34 @@ describe('card labels', () => {
     expect(run).toHaveBeenCalledTimes(1)
   })
 
+  it('equal messages leave an open card as it is', async () => {
+    const { viewer, mark } = await withCard(() => ({
+      title: () => 'Title',
+      meta: 'Page 1',
+      actions: [
+        { label: () => 'One', run: () => {} },
+        { label: 'Two', run: () => {} },
+      ],
+    }))
+    await userEvent.click(mark)
+    const card = openCard()
+    const title = card.querySelector('.ink-card-title')
+    const buttons = actionsOf(card)
+    buttons[1]!.focus()
+    let changes = 0
+    const observer = new MutationObserver((records) => {
+      changes += records.filter((r) => r.type === 'childList').length
+    })
+    observer.observe(card, { childList: true, subtree: true })
+    for (let i = 0; i < 3; i++) viewer.setMessages({ find: { close: 'X' } })
+    await Promise.resolve()
+    observer.disconnect()
+    expect(changes).toBe(0)
+    expect(card.querySelector('.ink-card-title')).toBe(title)
+    expect(actionsOf(card)).toEqual(buttons)
+    expect(document.activeElement).toBe(buttons[1])
+  })
+
   it('a mark label re-runs on setMessages', async () => {
     let word = 'Finding'
     const { viewer, mark } = await withCard(

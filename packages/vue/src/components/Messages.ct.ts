@@ -118,3 +118,32 @@ test('the zoom trigger follows messages while closed', async ({ mount, page }) =
   await expect(trigger).toHaveText('100 pour cent')
   await expect(trigger).toHaveAttribute('data-state', 'closed')
 })
+
+test('equal messages passed again leave an open card alone', async ({ mount, page }) => {
+  const src = fixtureUrl('text-simple')
+  const cmp = await mount(Harness, {
+    props: { src, assets, withCard: true, messages: { find: { close: 'X' } } },
+  })
+  await page.locator('[data-ink-scroll] button[data-record="s0"]').click()
+  const card = page.locator('[data-ink-popover].ink-card')
+  await expect(card).toBeVisible()
+  await expect(card.getByRole('button', { name: 'Accept' })).toBeFocused()
+  await card.evaluate((el) => {
+    const w = window as Window & { __inkCardChanges?: number }
+    w.__inkCardChanges = 0
+    new MutationObserver((records) => {
+      w.__inkCardChanges! += records.filter((r) => r.type === 'childList').length
+    }).observe(el, { childList: true, subtree: true })
+  })
+
+  for (let i = 0; i < 5; i++)
+    await cmp.update({ props: { messages: { find: { close: 'X' } } } })
+  await page.waitForTimeout(100)
+
+  const changes = await page.evaluate(
+    () => (window as Window & { __inkCardChanges?: number }).__inkCardChanges
+  )
+  expect(changes).toBe(0)
+  await expect(card).toBeVisible()
+  await expect(card.getByRole('button', { name: 'Accept' })).toBeFocused()
+})

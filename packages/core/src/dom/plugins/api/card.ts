@@ -5,7 +5,7 @@
  * the mark stays; when it goes, the card closes and focus moves to the next mark, else the
  * previous one, else the viewport. Escape or a press outside closes it and focus goes back to
  * the mark. An open card re-renders when the viewer's messages change, so label functions in
- * its spec read the host's language again.
+ * its spec read the host's language again; when nothing it shows changes, it is left alone.
  */
 import { resolveLabel, type Label } from '../../../messages'
 import { createFocusReturn } from '../../popover-focus'
@@ -196,17 +196,32 @@ export function createCard<T extends RecordBase>(
     close()
   }
 
-  /** Fills the panel from `record`, keeping focus on the same action. */
-  const render = (record: T) => {
+  /**
+   * Fills the panel from `record`, keeping focus on the same action. With `ifChanged`, a card
+   * that would look and read the same is left as it is, so new words that say the same thing
+   * (a host passing equal messages again) do not replace its buttons.
+   */
+  const render = (record: T, ifChanged = false) => {
     const spec = opts.spec(record)
     const panel = popover!.panel
+    const className = cardClass(spec)
+    const label = resolveLabel(spec.label ?? spec.title)
+    const parts = cardParts(spec, (_, fn) => act(fn))
+    if (
+      ifChanged &&
+      panel.className === className &&
+      panel.getAttribute('aria-label') === label &&
+      parts.length === panel.children.length &&
+      parts.every((part, i) => part.isEqualNode(panel.children[i]!))
+    )
+      return
     const buttons = () => [
       ...panel.querySelectorAll<HTMLButtonElement>('.ink-card-actions > button'),
     ]
     const focused = buttons().indexOf(document.activeElement as HTMLButtonElement)
-    panel.className = cardClass(spec)
-    panel.setAttribute('aria-label', resolveLabel(spec.label ?? spec.title))
-    panel.replaceChildren(...cardParts(spec, (_, fn) => act(fn)))
+    panel.className = className
+    panel.setAttribute('aria-label', label)
+    panel.replaceChildren(...parts)
     if (focused >= 0) {
       const now = buttons()
       ;(now[focused] ?? now[0])?.focus({ preventScroll: true })
@@ -214,15 +229,16 @@ export function createCard<T extends RecordBase>(
   }
 
   ctx.onDocument(() => {
-    const refresh = () => {
+    const refresh = (ifChanged: boolean) => {
       if (acting || shown === null) return
       const record = current()
-      if (record) render(record)
+      if (record) render(record, ifChanged)
       else close()
     }
-    const stop = records.list.subscribe(refresh)
-    // New words, or a plugin's label functions reading its own language again.
-    const stopMessages = hostInternalsOf(ctx).messages.subscribe(refresh)
+    const stop = records.list.subscribe(() => refresh(false))
+    // New words, or a plugin's label functions reading its own language again. Equal words,
+    // which a host may pass on every render, leave the card as it is.
+    const stopMessages = hostInternalsOf(ctx).messages.subscribe(() => refresh(true))
     return () => {
       stop()
       stopMessages()

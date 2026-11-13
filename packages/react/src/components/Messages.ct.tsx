@@ -170,3 +170,36 @@ test('an inline messages object each render does not remount', async ({
   expect(await renders()).toBe(settled)
   expect(settled - start).toBeLessThanOrEqual(40)
 })
+
+test('an inline messages object each render leaves an open card alone', async ({
+  mount,
+  page,
+}) => {
+  const src = fixtureUrl('text-simple')
+  const cmp = await mount(<MessagesHarness src={src} assets={assets} inline withCard />)
+  await page.locator('[data-ink-scroll] button[data-record="s0"]').click()
+  const card = page.locator('[data-ink-popover].ink-card')
+  await expect(card).toBeVisible()
+  await expect(card.getByRole('button', { name: 'Accept' })).toBeFocused()
+  await card.evaluate((el) => {
+    const w = window as Window & { __inkCardChanges?: number }
+    w.__inkCardChanges = 0
+    new MutationObserver((records) => {
+      w.__inkCardChanges! += records.filter((r) => r.type === 'childList').length
+    }).observe(el, { childList: true, subtree: true })
+  })
+
+  for (let tick = 1; tick <= 5; tick++)
+    await cmp.update(
+      <MessagesHarness src={src} assets={assets} inline withCard tick={tick} />
+    )
+  await expect(page.locator('[data-ink-root]')).toHaveAttribute('data-tick', '5')
+  await page.waitForTimeout(100)
+
+  const changes = await page.evaluate(
+    () => (window as Window & { __inkCardChanges?: number }).__inkCardChanges
+  )
+  expect(changes).toBe(0)
+  await expect(card).toBeVisible()
+  await expect(card.getByRole('button', { name: 'Accept' })).toBeFocused()
+})

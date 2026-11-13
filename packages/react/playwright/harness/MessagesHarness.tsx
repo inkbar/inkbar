@@ -16,6 +16,8 @@ import { InkUndo } from '../../src/components/InkUndo'
 import { InkViewport } from '../../src/components/InkViewport'
 import { InkZoomSelect } from '../../src/components/InkZoomSelect'
 
+import { suggestions, suggestionsPlugin } from './suggestions-plugin'
+
 import type { DocumentSource, InkMessagesInput, PdfAssets } from '@inkbar/core'
 import type { ZoomValue } from '@inkbar/core/dom'
 
@@ -40,6 +42,7 @@ export function MessagesHarness({
   percentSuffix,
   french = false,
   inline = false,
+  withCard = false,
   tick = 0,
 }: {
   src: DocumentSource
@@ -53,10 +56,15 @@ export function MessagesHarness({
   french?: boolean
   /** Pass a new inline `messages` object on every render. */
   inline?: boolean
+  /** Run a plugin with one mark, whose card a test can open. */
+  withCard?: boolean
   /** Changes to re-render the host. */
   tick?: number
 }) {
   const [tools] = useState(allTools)
+  const [plugins] = useState(() =>
+    withCard ? [suggestionsPlugin({ initial: suggestions(1) })] : undefined
+  )
   const words: InkMessagesInput | undefined = french
     ? fr
     : inline
@@ -76,6 +84,7 @@ export function MessagesHarness({
       assets={assets}
       zoom={zoom ?? 1}
       tools={tools}
+      plugins={plugins}
       messages={words}
       locale={locale}
       data-tick={tick}
