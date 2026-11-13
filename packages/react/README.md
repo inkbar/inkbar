@@ -366,6 +366,7 @@ import { fr } from '@inkbar/core/locales/fr'
 import { assets } from 'virtual:inkbar-assets'
 import type { InkMessagesInput } from '@inkbar/core'
 
+// Your app's translator. Keep it on the same language as `messages`.
 declare function t(key: string, params?: object): string
 
 export function Viewer({ src }: { src: string }) {

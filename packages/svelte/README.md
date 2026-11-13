@@ -367,6 +367,7 @@ The full table, with the zoom and page keys, is in the [`@inkbar/core` README](h
 
 ```svelte
 <script module lang="ts">
+  // Your app's translator. Keep it on the same language as `messages`.
   declare function t(key: string, params?: object): string
 </script>
 

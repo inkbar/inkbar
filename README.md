@@ -64,7 +64,7 @@ Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, gi
 - **Saving into the PDF.** Store `exportAnnotations('json')` in your own backend and import it on the next open. Download and print give the file as it was opened.
 - **Applying redactions.** A redaction mark is a tinted box over the content. The text under it still renders and can be copied. Inkbar will remove content once saving into the PDF ships.
 - **Saving field values into the PDF.** Values stay in memory. Export them with the annotations.
-- **XFA forms and translations.** The [docs](https://inkbar.dev/docs/) say what to do meanwhile.
+- **XFA forms.** The [docs](https://inkbar.dev/docs/) say what to do meanwhile.
 
 ## Install
 
