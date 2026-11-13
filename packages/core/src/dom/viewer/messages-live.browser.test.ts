@@ -325,6 +325,24 @@ describe('more chrome', () => {
     expect(thumb.getAttribute('aria-label')).toBe('Seite 2')
   })
 
+  it('an empty host label stays empty', async () => {
+    const { viewer } = make()
+    const outline = createOutline(viewer, { emptyText: '' })
+    document.body.append(outline)
+    cleanup.push(() => outline.remove())
+    const bar = createToolbar({ label: '', messages: viewer.messages })
+    expect(bar.getAttribute('aria-label')).toBe('')
+    await ready(viewer)
+    await until(() => outline.getAttribute('aria-busy') === null)
+    expect(outline.querySelector('.ink-outline-empty')!.textContent).toBe('')
+    viewer.setMessages({
+      outline: { empty: 'Pas de signets' },
+      toolbar: { label: 'Outils' },
+    })
+    expect(outline.querySelector('.ink-outline-empty')!.textContent).toBe('')
+    expect(bar.getAttribute('aria-label')).toBe('')
+  })
+
   it('the sidebar handle and badges follow messages', () => {
     const { viewer } = make()
     const { element } = createSidebar({

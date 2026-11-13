@@ -36,7 +36,9 @@ export function createOutline(viewer: Viewer, opts: OutlineOptions = {}): HTMLEl
   })
   const messages = messagesOf(viewer)
   const emptyText = (m: InkMessages): string =>
-    resolveLabel(opts.emptyText) || m.outline.empty
+    opts.emptyText === undefined
+      ? m.outline.empty
+      : resolveLabel(opts.emptyText, m.outline.empty)
   const tree = h('ul', {
     class: 'ink-outline-tree',
     ...controller.treeAttrs(messages.get().messages),

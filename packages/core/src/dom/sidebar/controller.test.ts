@@ -20,6 +20,20 @@ function make(opts: Partial<SidebarControllerOptions> = {}) {
 }
 
 describe('createSidebarController', () => {
+  it('a new label function giving the same text publishes nothing', () => {
+    const c = createSidebarController({
+      panels: [{ id: 'a', label: () => 'Pages' }],
+      handleLabel: () => 'Resize',
+    })
+    const seen = vi.fn()
+    c.state.subscribe(seen)
+    c.update({ panels: [{ id: 'a', label: () => 'Pages' }], handleLabel: () => 'Resize' })
+    expect(seen).not.toHaveBeenCalled()
+    c.update({ panels: [{ id: 'a', label: () => 'Seiten' }] })
+    expect(seen).toHaveBeenCalledTimes(1)
+    expect(c.triggerAttrs('a')['aria-label']).toBe('Seiten')
+  })
+
   it('rail starts with the first panel open', () => {
     const { c } = make()
     expect(c.state.get()).toMatchObject({ layout: 'rail', side: 'left', open: ['a'] })

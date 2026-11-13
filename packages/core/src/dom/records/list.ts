@@ -524,7 +524,10 @@ export function createRecordList(
   const rendered = renderRecordList(
     source,
     undefined,
-    (m) => resolveLabel(emptyText) || m.records.empty,
+    (m) =>
+      emptyText === undefined
+        ? m.records.empty
+        : resolveLabel(emptyText, m.records.empty),
     messagesOf(viewer)
   )
   onViewerDestroy(viewer, () => rendered.destroy())

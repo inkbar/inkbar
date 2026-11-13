@@ -4,6 +4,7 @@
  * never recreated, so their state survives switching panels and layouts. It needs no viewer:
  * put it beside the viewer with your own layout (flex, grid). `controller.destroy()` stops it.
  */
+import { resolveLabel } from '../../messages'
 import { createIcon } from '../viewer/controls'
 import { h } from '../viewer/dom'
 
@@ -11,7 +12,6 @@ import {
   createSidebarController,
   onSidebarDestroy,
   sidebarBadge,
-  sidebarLabel,
   type SidebarController,
   type SidebarControllerOptions,
   type SidebarPanelInfo,
@@ -52,7 +52,7 @@ export function createSidebar(
     const b = h('button', cls ? { class: cls } : {})
     if (p.icon) b.append(createIcon(p.icon))
     if (!p.icon || controller.state.get().layout !== 'rail')
-      b.append(h('span', { class: 'ink-sidebar-label' }, sidebarLabel(p)))
+      b.append(h('span', { class: 'ink-sidebar-label' }, resolveLabel(p.label)))
     b.append(h('span', { class: 'ink-sidebar-badge', 'aria-hidden': 'true' }))
     return b
   }
@@ -68,7 +68,7 @@ export function createSidebar(
         h(
           'div',
           { class: 'ink-sidebar-panel-title', 'aria-hidden': 'true' },
-          sidebarLabel(p)
+          resolveLabel(p.label)
         ),
         h('div', { class: 'ink-sidebar-panel-body' })
       )
@@ -132,7 +132,7 @@ export function createSidebar(
     if (panelsEl) setAttrs(panelsEl, controller.panelsAttrs())
     setAttrs(handle, controller.handleAttrs())
     for (const p of s.panels) {
-      const name = sidebarLabel(p)
+      const name = resolveLabel(p.label)
       const t = triggers.get(p.id)
       const panel = panels.get(p.id)
       if (t) {

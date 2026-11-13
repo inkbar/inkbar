@@ -71,7 +71,10 @@ export function createColorMenu(
 ): HTMLButtonElement {
   const { property } = opts
   const words = (): InkMessages => messagesOf(viewer).get().messages
-  const nameIn = (m: InkMessages): string => resolveLabel(opts.label) || m.color[property]
+  const nameIn = (m: InkMessages): string =>
+    opts.label === undefined
+      ? m.color[property]
+      : resolveLabel(opts.label, m.color[property])
   const name = nameIn(words())
   const trigger = h('button', {
     type: 'button',

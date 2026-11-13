@@ -182,10 +182,10 @@ export function createThumbnailPainter(
   const messages = deps.messages ?? ENGLISH
   /** Names the element: its label, else "Page N" in the words now. */
   function name(): void {
+    const fallback = messages.get().messages.thumbnails.page({ page: opts.page + 1 })
     el.setAttribute(
       'aria-label',
-      resolveLabel(opts.label) ||
-        messages.get().messages.thumbnails.page({ page: opts.page + 1 })
+      opts.label === undefined ? fallback : resolveLabel(opts.label, fallback)
     )
   }
 

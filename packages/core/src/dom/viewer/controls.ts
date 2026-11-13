@@ -188,7 +188,8 @@ export function createToolbar(
   opts: { label?: Label; messages?: Readable<MessageState> } = {}
 ): HTMLElement {
   const messages = opts.messages ?? ENGLISH
-  const name = (m: InkMessages): string => resolveLabel(opts.label) || m.toolbar.label
+  const name = (m: InkMessages): string =>
+    opts.label === undefined ? m.toolbar.label : resolveLabel(opts.label, m.toolbar.label)
   const bar = h('div', {
     class: 'ink-toolbar',
     'data-ink-toolbar': '',

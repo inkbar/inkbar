@@ -157,11 +157,6 @@ export interface SidebarController {
   destroy(): void
 }
 
-/** A panel's name now: its label, a function's read. */
-export function sidebarLabel(panel: Pick<SidebarPanelInfo, 'label'>): string {
-  return resolveLabel(panel.label)
-}
-
 /** The text a badge shows, or null when it is hidden (empty or 0). */
 export function sidebarBadge(badge: string | number | undefined): string | null {
   if (badge === undefined || badge === null) return null
@@ -225,7 +220,11 @@ function samePanels(
     a.every((p, i) => {
       const q = b[i]!
       return (
-        p.id === q.id && p.label === q.label && p.icon === q.icon && p.badge === q.badge
+        p.id === q.id &&
+        // Read, not compared by identity: a binding may pass a new function each render.
+        resolveLabel(p.label) === resolveLabel(q.label) &&
+        p.icon === q.icon &&
+        p.badge === q.badge
       )
     })
   )
@@ -614,7 +613,7 @@ export function createSidebarController(
       shown() !== shownBefore ||
       minWidth !== minBefore ||
       maxWidth !== maxBefore ||
-      handleLabel !== labelBefore
+      resolveLabel(handleLabel) !== resolveLabel(labelBefore)
     // What the host asked for, else what was open. Uncontrolled, the first panel to arrive in
     // an empty sidebar opens, as it would have had it been there from the start.
     const arrived =
@@ -676,7 +675,7 @@ export function createSidebarController(
 
   function triggerAttrs(id: string): Record<string, string> {
     const panel = panels.find((p) => p.id === id)
-    const label = panel ? sidebarLabel(panel) : id
+    const label = panel ? resolveLabel(panel.label) : id
     const badge = sidebarBadge(panel?.badge)
     const open = isOpen(id)
     const attrs: Record<string, string> = {
