@@ -13,7 +13,7 @@
  * `InkSignFieldPopover`, and a form script's alert shows in `InkFormAlert`; both are mounted
  * here, so hosts compose nothing for them.
  */
-import { mountViewer, PASSWORD_LABELS } from '@inkbar/core/dom'
+import { mountViewer } from '@inkbar/core/dom'
 import {
   computed,
   onBeforeUnmount,
@@ -26,6 +26,7 @@ import {
 
 import { toolIdsOf } from '../composables/useRegisteredTool'
 import { injectInkContext } from '../context'
+import { injectMessageStore } from '../message-store'
 import { useReadable } from '../use-readable'
 
 import InkFormAlert from './InkFormAlert.vue'
@@ -74,6 +75,8 @@ const slots = defineSlots<{
 }>()
 
 const ctx = injectInkContext()
+const messages = ctx.messages
+const messageStore = injectMessageStore()
 const scroll = useTemplateRef<HTMLElement>('scroll')
 
 interface MountedPage {
@@ -284,6 +287,8 @@ function setup(): void {
     fonts: [...ctx.fonts.value],
     signatureLibrary: () => ctx.signatures,
     customAnnotations: custom,
+    // The root's message state, shared: a new `messages` or `locale` relabels in place.
+    _messageState: messageStore,
     ...(ctx.formHighlight.value === undefined
       ? {}
       : { formHighlight: ctx.formHighlight.value }),
@@ -421,11 +426,11 @@ onBeforeUnmount(() => {
 <template>
   <div class="ink-viewport-root" data-ink-viewport-root :data-state="state">
     <div v-if="state === 'loading'" class="ink-status" role="status" aria-live="polite">
-      <slot name="loading">Loading document…</slot>
+      <slot name="loading">{{ messages.viewer.loading }}</slot>
     </div>
     <div v-else-if="error" class="ink-status ink-error" role="alert">
       <slot name="error" :error="error">
-        <p class="ink-error-title">This document could not be opened.</p>
+        <p class="ink-error-title">{{ messages.viewer.openFailed }}</p>
         <!-- The message comes from the PDF engine and is not written for readers: it stays
              off the page, on the code's tooltip. -->
         <p>
@@ -440,7 +445,7 @@ onBeforeUnmount(() => {
       role="status"
     >
       <slot name="locked" :incorrect="incorrect" :prompt-password="() => prompt?.ask()">
-        <p class="ink-locked-title">{{ PASSWORD_LABELS.locked }}</p>
+        <p class="ink-locked-title">{{ messages.password.locked }}</p>
         <button
           ref="unlock"
           type="button"
@@ -448,7 +453,7 @@ onBeforeUnmount(() => {
           data-ink-unlock
           @click="prompt?.ask()"
         >
-          {{ PASSWORD_LABELS.unlock }}
+          {{ messages.password.unlock }}
         </button>
       </slot>
     </div>
@@ -461,7 +466,7 @@ onBeforeUnmount(() => {
       data-ink-scroll
       tabindex="0"
       role="document"
-      aria-label="Document"
+      :aria-label="messages.viewer.document"
     />
     <InkPasswordDialog
       v-if="prompt"

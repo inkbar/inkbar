@@ -26,6 +26,7 @@ import {
 } from 'reka-ui'
 import { computed, ref } from 'vue'
 
+import { useMessages } from '../composables/useMessages'
 import { useRegisteredTool } from '../composables/useRegisteredTool'
 import { useTool } from '../composables/useTool'
 import { useToolOptionsWhile } from '../composables/useToolOptions'
@@ -39,7 +40,8 @@ const registered = useRegisteredTool('shape')
 const { options, setOptions } = useToolOptionsWhile<ShapeOptions>('shape', registered)
 const open = ref(false)
 
-const model = computed(() => shapeMenuModel(options.value, SHAPE_KINDS))
+const messages = useMessages()
+const model = computed(() => shapeMenuModel(options.value, SHAPE_KINDS, messages.value))
 const active = computed(() => tool.value === 'shape')
 const icon = computed(() => SHAPE_ICONS[model.value.kind])
 
@@ -76,18 +78,18 @@ const mainAttrs = computed(() => ({
   title: model.value.label,
   onClick: () => setTool('shape'),
 }))
-const triggerAttrs = {
-  'aria-label': 'Choose shape',
-  title: 'Choose shape',
+const triggerAttrs = computed(() => ({
+  'aria-label': messages.value.shape.choose,
+  title: messages.value.shape.choose,
   'aria-haspopup': 'menu' as const,
   onKeydown: onTriggerKeydown,
-}
-const menuAttrs = { 'aria-label': 'Shapes' }
-const innerAttrs = {
+}))
+const menuAttrs = computed(() => ({ 'aria-label': messages.value.shape.menu }))
+const innerAttrs = computed(() => ({
   role: 'menu',
-  'aria-label': 'Shapes',
+  'aria-label': messages.value.shape.menu,
   onKeydown: (e: KeyboardEvent) => handleMenuKeys(e, e.currentTarget as HTMLElement),
-}
+}))
 </script>
 
 <template>
@@ -95,7 +97,7 @@ const innerAttrs = {
     <PopoverAnchor as-child>
       <div
         role="group"
-        aria-label="Shape"
+        :aria-label="messages.shape.label"
         class="ink-split-button ink-shape-menu"
         data-ink-shape-menu
         v-bind="$attrs"
@@ -139,7 +141,7 @@ const innerAttrs = {
             <div v-bind="innerAttrs">
               <div
                 role="group"
-                aria-label="Shapes"
+                :aria-label="messages.shape.menu"
                 class="ink-shape-grid"
                 :data-ink-menu-columns="SHAPE_COLUMNS"
               >

@@ -39,13 +39,14 @@ import {
   watch,
 } from 'vue'
 
+import { useMessages } from '../composables/useMessages'
 import { injectInkContext } from '../context'
 import { useReadable } from '../use-readable'
 
 import { provideSidebarContext, type SidebarPanelEntry } from './sidebar-context'
 import SidebarTrigger from './SidebarTrigger.vue'
 
-import type { InkStorage } from '@inkbar/core'
+import type { InkStorage, Label } from '@inkbar/core'
 
 const props = withDefaults(
   defineProps<{
@@ -82,10 +83,11 @@ const props = withDefaults(
      */
     minDocumentWidth?: number | undefined
     /**
-     * The resize handle's accessible name. Default `Resize left sidebar` or `Resize right
-     * sidebar`. Read once, when the sidebar is created.
+     * The resize handle's accessible name: a string, or a function read again whenever the
+     * root's `messages` change. Default `Resize left sidebar` or `Resize right sidebar`, in the
+     * root's words.
      */
-    handleLabel?: string | undefined
+    handleLabel?: Label | undefined
   }>(),
   {
     side: 'left',
@@ -112,6 +114,12 @@ const panels = computed(() => entries.value.map((e) => e.info()))
 
 // Read once: the controller loads the saved width as it is created.
 const ink = injectInkContext(null)
+const messages = useMessages()
+/** The handle's default name, in the root's words (English outside a root). */
+const defaultHandleLabel = (): string =>
+  props.side === 'right'
+    ? messages.value.sidebar.resizeRight
+    : messages.value.sidebar.resizeLeft
 const storage = props.storage ?? ink?.storage
 const minDocumentWidth = props.minDocumentWidth ?? ink?.minDocumentWidth
 // Pending until mounted: the panels register one by one while they are set up, and an open id
@@ -130,6 +138,8 @@ const controller = createSidebarController({
   ...(props.name !== undefined && { name: props.name }),
   ...(minDocumentWidth !== undefined && { minDocumentWidth }),
   ...(props.handleLabel !== undefined && { handleLabel: props.handleLabel }),
+  // The root's words, so the default handle names and tab badges follow its `messages`.
+  ...(ink && { messages: ink.messageState }),
   ...widthOptions(),
   onWidthChange: (value) => emit('update:width', value),
   // The same ids on the server and the client.
@@ -145,13 +155,17 @@ watch(
       panels.value,
       open.value,
       widthOptions(),
+      props.handleLabel,
     ] as const,
-  ([layout, side, visible, list, value, widths]) =>
+  ([layout, side, visible, list, value, widths, handleLabel]) =>
     controller.update({
       layout,
       side,
       visible,
       panels: list,
+      // Core keeps the last label for an undefined one, so a dropped label is replaced by the
+      // default, read afresh each time the words change.
+      handleLabel: handleLabel ?? defaultHandleLabel,
       ...(value !== undefined && { open: value }),
       ...widths,
     }),

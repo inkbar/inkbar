@@ -16,6 +16,8 @@ import { onBeforeUnmount, onMounted, useTemplateRef, watch } from 'vue'
 import { injectInkContext } from '../context'
 import { toReadable } from '../to-readable'
 
+import type { Label } from '@inkbar/core'
+
 const props = withDefaults(
   defineProps<{
     page: number
@@ -23,7 +25,11 @@ const props = withDefaults(
     height?: number | undefined
     annotations?: boolean
     marks?: boolean
-    label?: string | undefined
+    /**
+     * The accessible name: a string, or a function read again whenever the root's `messages`
+     * change. Default "Page N" in the root's words.
+     */
+    label?: Label | undefined
   }>(),
   {
     width: undefined,
@@ -38,6 +44,7 @@ const ctx = injectInkContext()
 const deps = {
   document: toReadable(() => ctx.document.value),
   pluginHost: toReadable(() => ctx.pluginHost.value),
+  messages: ctx.messageState,
 }
 const options = (): ThumbnailOptions => ({
   page: props.page,

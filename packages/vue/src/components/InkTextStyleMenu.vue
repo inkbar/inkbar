@@ -27,6 +27,7 @@ import {
 } from 'reka-ui'
 import { computed, mergeProps, ref, useAttrs, watch } from 'vue'
 
+import { useMessages } from '../composables/useMessages'
 import { useToolStyle } from '../composables/useToolStyle'
 import { useInkContext } from '../context'
 
@@ -43,8 +44,9 @@ const open = ref(false)
 /** The size as typed, until it is committed with Enter or blur. */
 const draft = ref<string | null>(null)
 
+const messages = useMessages()
 const model = computed(() =>
-  textStyleMenuModel(current.value, supported.value, fonts.value)
+  textStyleMenuModel(current.value, supported.value, fonts.value, messages.value)
 )
 const sizeShown = computed(
   () =>
@@ -140,16 +142,22 @@ const menuAttrs = computed(() => ({ 'aria-label': model.value.label }))
           :value="model.font.value"
           @change="set(model.font.patch(($event.target as HTMLSelectElement).value))"
         >
-          <option v-if="model.font.value === ''" value="" disabled hidden>Mixed</option>
+          <option v-if="model.font.value === ''" value="" disabled hidden>
+            {{ messages.textStyle.mixed }}
+          </option>
           <option v-for="f in model.font.options" :key="f" :value="f">{{ f }}</option>
         </select>
         <div class="ink-text-style-row">
           <InkColorMenu property="textColor" standalone />
-          <div class="ink-text-style-size" role="group" aria-label="Size">
+          <div
+            class="ink-text-style-size"
+            role="group"
+            :aria-label="messages.textStyle.size"
+          >
             <button
               type="button"
               class="ink-text-style-button"
-              aria-label="Decrease font size"
+              :aria-label="messages.textStyle.decrease"
               @click="nudge(-1)"
             >
               <InkIcon :icon="Minus" :size="16" />
@@ -169,14 +177,19 @@ const menuAttrs = computed(() => ({ 'aria-label': model.value.label }))
             <button
               type="button"
               class="ink-text-style-button"
-              aria-label="Increase font size"
+              :aria-label="messages.textStyle.increase"
               @click="nudge(1)"
             >
               <InkIcon :icon="Plus" :size="16" />
             </button>
           </div>
         </div>
-        <div class="ink-text-style-row" role="group" aria-label="Emphasis">
+        <div
+          class="ink-text-style-row"
+          role="group"
+          data-ink-emphasis
+          :aria-label="messages.textStyle.emphasis"
+        >
           <button
             v-for="t in model.toggles"
             :key="t.key"

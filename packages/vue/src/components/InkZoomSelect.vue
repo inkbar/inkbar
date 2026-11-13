@@ -16,6 +16,7 @@ import {
 } from 'reka-ui'
 import { computed } from 'vue'
 
+import { useMessages } from '../composables/useMessages'
 import { useZoom } from '../composables/useZoom'
 
 import InkIcon from './InkIcon.vue'
@@ -44,13 +45,15 @@ function onChange(v: unknown): void {
   setZoom(next)
 }
 
-const FITS = [
-  { value: 'fit-width', label: 'Fit width' },
-  { value: 'fit-page', label: 'Fit page' },
-]
+const messages = useMessages()
+const fits = computed(() => [
+  { value: 'fit-width', label: messages.value.toolbar.fitWidth },
+  { value: 'fit-page', label: messages.value.toolbar.fitPage },
+])
 // Reka's typed props stop at its own; ARIA goes through a bound object.
-const triggerAttrs = { 'aria-label': 'Zoom' }
-const percent = (z: number) => `${Math.round(z * 100)}%`
+const triggerAttrs = computed(() => ({ 'aria-label': messages.value.toolbar.zoom }))
+const percent = (z: number) =>
+  messages.value.toolbar.zoomPercent({ percent: Math.round(z * 100) })
 /** The levels, with a custom zoom in its place among them. */
 const levels = computed(() => {
   const list = ZOOM_LEVELS.map((l) => ({ z: l, value: String(l), label: percent(l) }))
@@ -58,6 +61,13 @@ const levels = computed(() => {
   if (c !== null) list.push({ z: c, value: `${CUSTOM}${c}`, label: percent(scale.value) })
   return list.sort((a, b) => a.z - b.z)
 })
+/**
+ * The trigger's text, in the words now. Reka's `SelectValue` would show the text its item had
+ * when it mounted, and closed items stay mounted, so new messages would not reach it.
+ */
+const shown = computed(
+  () => [...fits.value, ...levels.value].find((o) => o.value === value.value)?.label ?? ''
+)
 </script>
 
 <template>
@@ -67,7 +77,7 @@ const levels = computed(() => {
       data-ink-zoom-select
       v-bind="triggerAttrs"
     >
-      <SelectValue class="ink-select-value" />
+      <SelectValue class="ink-select-value">{{ shown }}</SelectValue>
       <SelectIcon class="ink-select-icon">
         <InkIcon :icon="ChevronDown" :size="16" />
       </SelectIcon>
@@ -82,7 +92,7 @@ const levels = computed(() => {
       >
         <SelectViewport>
           <SelectItem
-            v-for="o in FITS"
+            v-for="o in fits"
             :key="o.value"
             :value="o.value"
             class="ink-select-item"

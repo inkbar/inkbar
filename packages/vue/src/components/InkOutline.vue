@@ -13,18 +13,26 @@ import {
   outlineTreeAttrs,
   type OutlineController,
 } from '@inkbar/core/dom'
-import { onBeforeUnmount, onMounted, shallowRef, useTemplateRef } from 'vue'
+import { computed, onBeforeUnmount, onMounted, shallowRef, useTemplateRef } from 'vue'
 
+import { hostLabel } from '../composables/useMessages'
 import { injectInkContext } from '../context'
 import { toReadable } from '../to-readable'
 
 import InkOutlineNodes from './InkOutlineNodes.vue'
 
-import type { OutlineItem } from '@inkbar/core'
+import type { Label, OutlineItem } from '@inkbar/core'
 
-withDefaults(defineProps<{ emptyText?: string | undefined }>(), {
-  emptyText: 'This document has no outline',
-})
+const props = withDefaults(
+  defineProps<{
+    /**
+     * Shown when the document has no outline: a string, or a function read again whenever
+     * the root's `messages` change. Default "This document has no outline" in its words.
+     */
+    emptyText?: Label | undefined
+  }>(),
+  { emptyText: undefined }
+)
 
 defineSlots<{
   item?(props: { item: OutlineItem; current: boolean; expanded: boolean }): unknown
@@ -38,7 +46,10 @@ const deps = {
 }
 
 /** The tree's role and label, from core so every binding names it alike. */
-const treeAttrs = outlineTreeAttrs()
+const treeAttrs = computed(() => outlineTreeAttrs(ctx.messages.value))
+const empty = computed(() =>
+  hostLabel(ctx.messages, props.emptyText, (m) => m.outline.empty)
+)
 
 // The controller is built on mount, as the other controller-backed components do: it
 // subscribes to the document, so nothing is created while rendering on the server.
@@ -109,7 +120,7 @@ onBeforeUnmount(() => {
       </InkOutlineNodes>
     </ul>
     <p v-if="controller && !loading && items.length === 0" class="ink-outline-empty">
-      {{ emptyText }}
+      {{ empty }}
     </p>
   </div>
 </template>

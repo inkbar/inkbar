@@ -21,6 +21,7 @@ import {
 } from 'reka-ui'
 import { computed, mergeProps, ref, useAttrs, watch } from 'vue'
 
+import { useMessages } from '../composables/useMessages'
 import { useToolStyle } from '../composables/useToolStyle'
 
 import InkIcon from './InkIcon.vue'
@@ -32,7 +33,10 @@ const attrs = useAttrs()
 const { current, supported, set } = useToolStyle()
 const open = ref(false)
 
-const model = computed(() => lineStyleMenuModel(current.value, supported.value))
+const messages = useMessages()
+const model = computed(() =>
+  lineStyleMenuModel(current.value, supported.value, messages.value)
+)
 
 // The menu closes when the control disables (the selection cleared while it was open).
 watch(
@@ -65,8 +69,8 @@ function onOpenAutoFocus(e: Event): void {
 
 // Reka's typed props stop at its own; ARIA goes through bound objects.
 const triggerAttrs = computed(() => ({
-  'aria-label': 'Line style',
-  title: 'Line style',
+  'aria-label': messages.value.lineStyle.label,
+  title: messages.value.lineStyle.label,
   'aria-haspopup': 'menu' as const,
   onKeydown: onTriggerKeydown,
   'data-mixed': model.value.mixed ? '' : undefined,
@@ -80,12 +84,12 @@ const triggerBindings = computed(() =>
     disabled: (attrs.disabled ?? false) !== false || !model.value.enabled,
   })
 )
-const menuAttrs = { 'aria-label': 'Line style' }
-const innerAttrs = {
+const menuAttrs = computed(() => ({ 'aria-label': messages.value.lineStyle.label }))
+const innerAttrs = computed(() => ({
   role: 'menu',
-  'aria-label': 'Line style',
+  'aria-label': messages.value.lineStyle.label,
   onKeydown: (e: KeyboardEvent) => handleMenuKeys(e, e.currentTarget as HTMLElement),
-}
+}))
 </script>
 
 <template>
@@ -117,8 +121,8 @@ const innerAttrs = {
       >
         <div v-bind="innerAttrs">
           <div
-            v-for="section in model.sections"
-            :key="section.label"
+            v-for="(section, index) in model.sections"
+            :key="index"
             role="group"
             class="ink-menu-group"
             :aria-label="section.label"

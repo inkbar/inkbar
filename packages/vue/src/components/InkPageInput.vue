@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 
+import { useMessages } from '../composables/useMessages'
 import { usePage } from '../composables/usePage'
 
 const { current, count, goTo } = usePage()
+const messages = useMessages()
 // `v-model` on a number input hands back a number once the user types.
 const draft = ref<string | number>(String(current.value + 1))
 watch(current, (c) => (draft.value = String(c + 1)))
@@ -27,7 +29,7 @@ function commit(): void {
     data-ink-page-input
     type="number"
     inputmode="numeric"
-    aria-label="Page"
+    :aria-label="messages.toolbar.page"
     :min="1"
     :max="count"
     @change="commit"

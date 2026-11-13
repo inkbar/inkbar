@@ -6,7 +6,6 @@
  * is false or no `signature` tool is registered, selects it for that tool. Escape, Cancel or a
  * press outside closes it.
  */
-import { SIGNATURE_LABELS } from '@inkbar/core/dom'
 import {
   DialogContent,
   DialogOverlay,
@@ -14,6 +13,8 @@ import {
   DialogRoot,
   DialogTitle,
 } from 'reka-ui'
+
+import { useMessages } from '../composables/useMessages'
 
 import SignatureForm from './SignatureForm.vue'
 
@@ -42,6 +43,7 @@ const emit = defineEmits<{
 
 // Reka's typed props stop at its own; ARIA goes through a bound object. No description: the
 // title says it all.
+const messages = useMessages()
 const contentAttrs = { 'aria-modal': 'true', 'aria-describedby': undefined }
 
 function onOpenAutoFocus(e: Event): void {
@@ -63,7 +65,9 @@ function onOpenAutoFocus(e: Event): void {
         @open-auto-focus="onOpenAutoFocus"
         @close-auto-focus="emit('closeAutoFocus', $event)"
       >
-        <DialogTitle class="ink-dialog-title">{{ SIGNATURE_LABELS.dialog }}</DialogTitle>
+        <DialogTitle class="ink-dialog-title">{{
+          messages.signature.dialog
+        }}</DialogTitle>
         <SignatureForm
           :fonts="props.fonts"
           :select="props.select"

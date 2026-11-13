@@ -9,6 +9,7 @@ import { Download } from '@inkbar/icons'
 import { ToolbarButton } from 'reka-ui'
 import { computed } from 'vue'
 
+import { useMessages } from '../composables/useMessages'
 import { useInkContext } from '../context'
 
 import InkIcon from './InkIcon.vue'
@@ -34,7 +35,12 @@ function run(): void {
     ).catch(() => undefined)
 }
 // Reka's typed props stop at its own; ARIA and listeners go through a bound object.
-const attrs = { 'aria-label': 'Download', title: 'Download', onClick: run }
+const messages = useMessages()
+const attrs = computed(() => ({
+  'aria-label': messages.value.toolbar.download,
+  title: messages.value.toolbar.download,
+  onClick: run,
+}))
 </script>
 
 <template>

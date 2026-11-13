@@ -463,6 +463,19 @@ test('handleLabel names the handle', async ({ mount, page }) => {
   ).toHaveAttribute('aria-valuenow', '320')
 })
 
+test('dropping handleLabel brings back the default name', async ({ mount, page }) => {
+  const cmp = await mount(Harness, {
+    props: { layout: 'rail', handleLabel: 'Resize the pages list' },
+  })
+  await expect(
+    page.getByRole('separator', { name: 'Resize the pages list' })
+  ).toHaveCount(1)
+  await cmp.update({ props: { handleLabel: undefined } })
+  await expect(page.getByRole('separator', { name: 'Resize left sidebar' })).toHaveCount(
+    1
+  )
+})
+
 test('starts closed after hydration without a mismatch', async ({ mount, page }) => {
   await mount(HydratedHarness, { props: { layout: 'rail', containerWidth: 500 } })
   // The server showed the panel beside the pages.

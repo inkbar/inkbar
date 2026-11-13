@@ -33,16 +33,18 @@ const bar = useTemplateRef<HTMLElement>('bar')
 const field = useTemplateRef<HTMLInputElement>('field')
 const live = useTemplateRef<HTMLElement>('live')
 
-const count = computed(() => findCountText(state.value))
+const messages = ctx.messages
+const count = computed(() => findCountText(state.value, messages.value))
 
 // The live region follows the controller's state change by change, as the vanilla bar does,
 // and is written directly. A render shows only the last of the changes since the one before,
-// so two steps in one tick that end where they began would otherwise say nothing.
+// so two steps in one tick that end where they began would otherwise say nothing. An announcer
+// keeps the words it was made with, so new messages make a new one.
 watch(
-  [() => ctx.search.value, live],
-  ([controller, el], _, onCleanup) => {
+  [() => ctx.search.value, live, messages],
+  ([controller, el, m], _, onCleanup) => {
     if (!controller || !el) return
-    const announce = findAnnouncer()
+    const announce = findAnnouncer(m)
     const say = (s: SearchState): void => {
       const text = announce(s)
       if (el.textContent !== text) el.textContent = text
@@ -143,7 +145,7 @@ onBeforeUnmount(() => {
         <input
           ref="field"
           type="text"
-          aria-label="Find in document"
+          :aria-label="messages.find.field"
           autocomplete="off"
           spellcheck="false"
           @input="setQuery(($event.target as HTMLInputElement).value)"
@@ -154,8 +156,8 @@ onBeforeUnmount(() => {
       <button
         type="button"
         data-ink-find-previous
-        aria-label="Previous match"
-        title="Previous match"
+        :aria-label="messages.find.previous"
+        :title="messages.find.previous"
         @click="previous()"
       >
         <InkIcon :icon="ChevronUp" />
@@ -163,8 +165,8 @@ onBeforeUnmount(() => {
       <button
         type="button"
         data-ink-find-next
-        aria-label="Next match"
-        title="Next match"
+        :aria-label="messages.find.next"
+        :title="messages.find.next"
         @click="next()"
       >
         <InkIcon :icon="ChevronDown" />
@@ -172,8 +174,8 @@ onBeforeUnmount(() => {
       <button
         type="button"
         data-ink-find-match-case
-        aria-label="Match case"
-        title="Match case"
+        :aria-label="messages.find.matchCase"
+        :title="messages.find.matchCase"
         :aria-pressed="state.matchCase"
         @click="setMatchCase(!state.matchCase)"
       >
@@ -182,8 +184,8 @@ onBeforeUnmount(() => {
       <button
         type="button"
         data-ink-find-close
-        aria-label="Close find"
-        title="Close find"
+        :aria-label="messages.find.close"
+        :title="messages.find.close"
         @click="close()"
       >
         <InkIcon :icon="X" />

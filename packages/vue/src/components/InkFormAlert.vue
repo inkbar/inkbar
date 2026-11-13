@@ -6,7 +6,6 @@
  * press outside leaves it open, and Escape anywhere else stays with the viewer. A new message
  * replaces the one shown.
  */
-import { FORM_LABELS } from '@inkbar/core/dom'
 import {
   DialogContent,
   DialogDescription,
@@ -15,6 +14,8 @@ import {
   DialogTitle,
 } from 'reka-ui'
 import { computed, nextTick, useTemplateRef, watch } from 'vue'
+
+import { useMessages } from '../composables/useMessages'
 
 const props = defineProps<{
   /** The message to show (text, not markup); `null` while none is. */
@@ -82,6 +83,7 @@ function onOpenChange(next: boolean): void {
 }
 
 // Reka's typed props stop at its own; ARIA goes through a bound object.
+const messages = useMessages()
 const contentAttrs = { role: 'alertdialog' }
 </script>
 
@@ -97,7 +99,7 @@ const contentAttrs = { role: 'alertdialog' }
         @interact-outside.prevent
         @escape-key-down="onEscape"
       >
-        <DialogTitle class="ink-dialog-title">{{ FORM_LABELS.alert }}</DialogTitle>
+        <DialogTitle class="ink-dialog-title">{{ messages.forms.alert }}</DialogTitle>
         <!-- Set as text, without the whitespace a template would add around it. -->
         <DialogDescription as-child>
           <p
@@ -115,7 +117,7 @@ const contentAttrs = { role: 'alertdialog' }
             data-ink-form-alert-ok
             @click="close"
           >
-            {{ FORM_LABELS.ok }}
+            {{ messages.forms.ok }}
           </button>
         </div>
       </DialogContent>

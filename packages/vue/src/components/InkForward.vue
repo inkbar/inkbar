@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ArrowRight } from '@inkbar/icons'
 import { ToolbarButton } from 'reka-ui'
+import { computed } from 'vue'
 
+import { useMessages } from '../composables/useMessages'
 import { injectInkContext } from '../context'
 import { useReadable } from '../use-readable'
 
@@ -15,11 +17,12 @@ const canGoForward = useReadable<boolean>(
   false
 )
 // Reka's typed props stop at its own; ARIA and listeners go through a bound object.
-const attrs = {
-  'aria-label': 'Forward',
-  title: 'Forward',
+const messages = useMessages()
+const attrs = computed(() => ({
+  'aria-label': messages.value.toolbar.forward,
+  title: messages.value.toolbar.forward,
   onClick: () => ctx.navigation.value?.forward(),
-}
+}))
 </script>
 
 <template>
