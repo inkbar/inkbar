@@ -1,12 +1,17 @@
 <script module lang="ts">
   import type { ChildSnippet } from './child-snippet.js'
+  import type { Label } from '@inkbar/core'
   import type { ToolId } from '@inkbar/core/dom'
   import type { Snippet } from 'svelte'
   import type { HTMLButtonAttributes } from 'svelte/elements'
 
   export interface InkToolButtonProps extends Omit<HTMLButtonAttributes, 'children'> {
     tool: ToolId
-    label?: string | undefined
+    /**
+     * The accessible name: a string, or a function read again whenever the root's `messages`
+     * change. Default the tool's own label, else its name, in the root's words.
+     */
+    label?: Label | undefined
     children?: Snippet<[{ active: boolean; label: string }]> | undefined
     child?: ChildSnippet | undefined
   }
@@ -20,6 +25,7 @@
   import { useInkContext } from '../context.js'
   import { useRegisteredTool } from '../hooks/useRegisteredTool.svelte.js'
   import { useTool } from '../hooks/useTool.svelte.js'
+  import { hostLabel } from '../messages.js'
 
   import { asBitsProps } from './child-snippet.js'
   import InkIcon from './InkIcon.svelte'
@@ -63,7 +69,7 @@
     )
   )
   // `label` and `children` win; then core's name and icon; then the tool's own.
-  const name = $derived(label ?? toolName(tool, own))
+  const name = $derived(hostLabel(label, toolName(tool, own, ctx.messages)))
   const icon = $derived(ICONS[tool] ?? own?.icon)
 </script>
 

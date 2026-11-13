@@ -46,11 +46,12 @@
    * `InkSignFieldPopover`, and a form script's alert shows in `InkFormAlert`; both are mounted
    * here, so hosts compose nothing for them.
    */
-  import { mountViewer, PASSWORD_LABELS } from '@inkbar/core/dom'
+  import { mountViewer } from '@inkbar/core/dom'
   import { untrack } from 'svelte'
 
   import { useInkContext } from '../context.js'
   import { toolIdsOf } from '../hooks/useRegisteredTool.svelte.js'
+  import { useMessageStore } from '../message-store.js'
   import { useReadable } from '../use-readable.svelte.js'
 
   import InkFormAlert from './InkFormAlert.svelte'
@@ -101,6 +102,7 @@
   }
 
   const ctx = useInkContext('InkViewport')
+  const messageStore = useMessageStore()
   let scroll = $state<HTMLDivElement | null>(null)
   /** Page hosts, mounts and errors the engine reported; InkPage renders portals for them. */
   let pages = $state.raw<MountedPage[]>([])
@@ -186,6 +188,8 @@
       fonts: [...ctx.fonts],
       signatureLibrary: () => ctx.signatures,
       customAnnotations: custom,
+      // The root's message state, shared: a new `messages` or `locale` relabels in place.
+      _messageState: messageStore,
       ...(ctx.formHighlight === undefined ? {} : { formHighlight: ctx.formHighlight }),
       // The field's own button again, while its menu is open, closes the menu.
       onSignField: (req) => {
@@ -455,14 +459,14 @@
 >
   {#if viewState === 'loading'}
     <div class="ink-status" role="status" aria-live="polite">
-      {#if loading}{@render loading()}{:else}Loading document…{/if}
+      {#if loading}{@render loading()}{:else}{ctx.messages.viewer.loading}{/if}
     </div>
   {:else if err}
     <div class="ink-status ink-error" role="alert">
       {#if error}
         {@render error({ error: err })}
       {:else}
-        <p class="ink-error-title">This document could not be opened.</p>
+        <p class="ink-error-title">{ctx.messages.viewer.openFailed}</p>
         <!-- The message comes from the PDF engine and is not written for readers: it stays
              off the page, on the code's tooltip. -->
         <p><code class="ink-error-code" title={err.message}>{err.code}</code></p>
@@ -473,7 +477,7 @@
       {#if locked}
         {@render locked({ incorrect, promptPassword: () => prompt?.ask() })}
       {:else}
-        <p class="ink-locked-title">{PASSWORD_LABELS.locked}</p>
+        <p class="ink-locked-title">{ctx.messages.password.locked}</p>
         <button
           bind:this={unlock}
           type="button"
@@ -481,7 +485,7 @@
           data-ink-unlock=""
           onclick={() => prompt?.ask()}
         >
-          {PASSWORD_LABELS.unlock}
+          {ctx.messages.password.unlock}
         </button>
       {/if}
     </div>
@@ -496,7 +500,7 @@
     data-ink-scroll=""
     tabindex="0"
     role="document"
-    aria-label="Document"
+    aria-label={ctx.messages.viewer.document}
   ></div>
   {#if prompt}
     <InkPasswordDialog

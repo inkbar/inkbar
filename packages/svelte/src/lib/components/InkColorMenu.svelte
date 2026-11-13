@@ -1,5 +1,5 @@
 <script module lang="ts">
-  import type { StyleGroup } from '@inkbar/core'
+  import type { Label, StyleGroup } from '@inkbar/core'
   import type { ColorProperty } from '@inkbar/core/dom'
   import type { Snippet } from 'svelte'
   import type { HTMLButtonAttributes } from 'svelte/elements'
@@ -14,8 +14,11 @@
   export interface InkColorMenuProps extends Omit<HTMLButtonAttributes, 'children'> {
     /** The colour this menu sets. */
     property: ColorProperty
-    /** Accessible name; defaults to "Border colour", "Fill colour" or "Text colour". */
-    label?: string | undefined
+    /**
+     * The accessible name: a string, or a function read again whenever the root's `messages`
+     * change. Default "Border colour", "Fill colour" or "Text colour", in the root's words.
+     */
+    label?: Label | undefined
     /** Replaces the swatch. */
     children?: Snippet | undefined
     /**
@@ -39,6 +42,7 @@
   import { Popover, Toolbar } from 'bits-ui'
 
   import { useToolStyle } from '../hooks/useToolStyle.svelte.js'
+  import { hostLabel, useMessages } from '../messages.js'
 
   import { asBitsProps, composeHandlers } from './child-snippet.js'
   import InkIcon from './InkIcon.svelte'
@@ -59,12 +63,13 @@
   }: InkColorMenuProps = $props()
 
   const style = useToolStyle(() => group)
+  const m = useMessages()
   let open = $state(false)
 
   const model = $derived(
-    colorMenuModel(property, style.current, style.supported, fallback)
+    colorMenuModel(property, style.current, style.supported, fallback, m.current)
   )
-  const name = $derived(label ?? model.label)
+  const name = $derived(hostLabel(label, model.label))
   const trigger = $derived(model.trigger)
 
   let menu = $state<HTMLElement | null>(null)
@@ -185,7 +190,7 @@
           data-state={noFill.checked ? 'checked' : 'unchecked'}
           onclick={() => style.set(noFill.patch)}
         >
-          No fill
+          {m.current.color.noFill}
           {#if noFill.checked}
             <span class="ink-select-indicator"><InkIcon icon={Check} size={16} /></span>
           {/if}
@@ -193,7 +198,7 @@
       {/if}
       <div
         role="group"
-        aria-label="Colours"
+        aria-label={m.current.color.swatches}
         class="ink-color-grid"
         data-ink-menu-columns={COLOR_COLUMNS}
       >
@@ -219,7 +224,7 @@
         tabindex={-1}
         onclick={() => customInput?.click()}
       >
-        Custom…
+        {m.current.color.custom}
       </button>
     </Popover.Content>
   </Popover.Portal>
@@ -228,7 +233,7 @@
   bind:this={customInput}
   type="color"
   class="ink-color-input"
-  aria-label="Custom colour"
+  aria-label={m.current.color.customColour}
   data-ink-color-input={property}
   tabindex={-1}
   value={model.customValue.toLowerCase()}

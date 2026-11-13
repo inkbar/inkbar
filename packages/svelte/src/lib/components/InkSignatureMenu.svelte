@@ -20,7 +20,7 @@
 </script>
 
 <script lang="ts">
-  import { handleMenuKeys, SIGNATURE_LABELS, signatureMenuModel } from '@inkbar/core/dom'
+  import { handleMenuKeys, signatureMenuModel } from '@inkbar/core/dom'
   import { ChevronDown, Signature } from '@inkbar/icons'
   import { Popover, Toolbar } from 'bits-ui'
   import { untrack } from 'svelte'
@@ -55,7 +55,9 @@
   $effect(() => {
     if (open) untrack(() => ctx.signatures.clearRemoveError())
   })
-  const model = $derived(signatureMenuModel(templates.current, signature.options))
+  const model = $derived(
+    signatureMenuModel(templates.current, signature.options, ctx.messages)
+  )
   const active = $derived(current.tool === 'signature')
   let open = $state(false)
   /** The split button: the panel lines up under it rather than the chevron. */
@@ -101,7 +103,7 @@
   <div
     bind:this={group}
     role="group"
-    aria-label={SIGNATURE_LABELS.sign}
+    aria-label={ctx.messages.signature.sign}
     class={['ink-split-button ink-signature-menu', className]}
     data-ink-signature-menu=""
     {...rest}
@@ -114,8 +116,8 @@
       data-tool="signature"
       data-state={active ? 'on' : 'off'}
       aria-pressed={active}
-      aria-label={SIGNATURE_LABELS.sign}
-      title={SIGNATURE_LABELS.sign}
+      aria-label={ctx.messages.signature.sign}
+      title={ctx.messages.signature.sign}
       onclick={onMain}
     >
       {#if children}{@render children()}{:else}<InkIcon icon={Signature} />{/if}
@@ -128,8 +130,8 @@
             class="ink-menu-trigger ink-signature-menu-trigger"
             data-ink-signature-menu-trigger=""
             data-state={open ? 'open' : 'closed'}
-            aria-label={SIGNATURE_LABELS.trigger}
-            title={SIGNATURE_LABELS.trigger}
+            aria-label={ctx.messages.signature.trigger}
+            title={ctx.messages.signature.trigger}
             aria-haspopup="menu"
             onkeydown={onTriggerKeydown}
           >
@@ -141,7 +143,7 @@
         <Popover.Content
           bind:ref={menu}
           role="menu"
-          aria-label={SIGNATURE_LABELS.menu}
+          aria-label={ctx.messages.signature.menu}
           class="ink-select-content ink-menu-content"
           data-ink-select-content=""
           data-ink-menu="signature"

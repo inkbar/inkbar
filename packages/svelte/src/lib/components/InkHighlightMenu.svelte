@@ -33,6 +33,7 @@
   import { useRegisteredTool } from '../hooks/useRegisteredTool.svelte.js'
   import { useTool } from '../hooks/useTool.svelte.js'
   import { useToolOptionsWhile } from '../hooks/useToolOptions.svelte.js'
+  import { useMessages } from '../messages.js'
 
   import InkColorMenu from './InkColorMenu.svelte'
   import InkIcon from './InkIcon.svelte'
@@ -52,7 +53,8 @@
   /** The split button: the panel lines up under it rather than the chevron. */
   let group = $state<HTMLElement | null>(null)
 
-  const model = $derived(highlightMenuModel(highlight.options, MARKUP_KINDS))
+  const m = useMessages()
+  const model = $derived(highlightMenuModel(highlight.options, MARKUP_KINDS, m.current))
   /** The colour the chosen kind gets while the markup style leaves it unset. */
   const fallback = $derived(inkDocument.document?.annotations.defaults.color(model.kind))
   const active = $derived(current.tool === 'highlight')
@@ -82,7 +84,7 @@
   <div
     bind:this={group}
     role="group"
-    aria-label="Highlight"
+    aria-label={m.current.highlight.label}
     class={['ink-split-button ink-highlight-menu', className]}
     data-ink-highlight-menu=""
     {...rest}
@@ -111,8 +113,8 @@
             class="ink-menu-trigger ink-highlight-menu-trigger"
             data-ink-highlight-menu-trigger=""
             data-state={open ? 'open' : 'closed'}
-            aria-label="Choose highlight"
-            title="Choose highlight"
+            aria-label={m.current.highlight.choose}
+            title={m.current.highlight.choose}
             aria-haspopup="menu"
             onkeydown={onTriggerKeydown}
           >
@@ -124,7 +126,7 @@
         <Popover.Content
           bind:ref={menu}
           role="menu"
-          aria-label="Highlights"
+          aria-label={m.current.highlight.menu}
           class="ink-select-content ink-menu-content"
           data-ink-select-content=""
           data-ink-menu="highlight"
@@ -137,7 +139,11 @@
           onfocusin={openFocus.onfocusin}
           onkeydowncapture={(e: KeyboardEvent) => menu && handleMenuKeys(e, menu)}
         >
-          <div role="group" aria-label="Kinds" class="ink-highlight-kinds">
+          <div
+            role="group"
+            aria-label={m.current.highlight.kinds}
+            class="ink-highlight-kinds"
+          >
             {#each model.items as item (item.kind)}
               <button
                 type="button"
@@ -156,13 +162,19 @@
             {/each}
           </div>
           <div role="separator" class="ink-select-separator"></div>
-          <div role="group" aria-label="Colour" class="ink-highlight-colour">
-            <span class="ink-highlight-colour-label" aria-hidden="true">Colour</span>
+          <div
+            role="group"
+            aria-label={m.current.highlight.colour}
+            class="ink-highlight-colour"
+          >
+            <span class="ink-highlight-colour-label" aria-hidden="true"
+              >{m.current.highlight.colour}</span
+            >
             <!-- Capture on the panel moves on from this item before its own ArrowDown opens it. -->
             <InkColorMenu
               property="border"
               group="markup"
-              label="Highlight colour"
+              label={m.current.highlight.highlightColour}
               standalone
               {fallback}
               role="menuitem"

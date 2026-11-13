@@ -1,6 +1,6 @@
 // Vocabulary the framework packages share: labels, zoom levels and the props they hand to
 // host-rendered content. Core owns these so Vue and React cannot drift apart.
-import { en, resolveLabel, type InkMessages } from '../messages'
+import { resolveLabel, type InkMessages } from '../messages'
 import { isKnown, LINE_ENDINGS } from '../model/annotations/pdf-names'
 
 import { PALETTE } from './palette'
@@ -23,15 +23,6 @@ import type {
 import type { SignatureOptions, SignatureTemplate } from '../model/signatures'
 
 /**
- * Accessible names of the two core select tools, as the toolbar buttons announce them. Every
- * other tool has no entry: its button takes the tool's own `label`, else the tool id.
- */
-export const TOOL_LABELS: Readonly<Partial<Record<ToolId, string>>> = {
-  'select-text': 'Select text',
-  select: 'Rectangle select',
-}
-
-/**
  * A tool button's accessible name: the tool's own `label`, else its name in `m.tools` (the
  * built-in tools), else its id.
  *
@@ -40,7 +31,7 @@ export const TOOL_LABELS: Readonly<Partial<Record<ToolId, string>>> = {
 export function toolName(
   id: ToolId,
   tool: Pick<Tool, 'label'> | undefined,
-  m: InkMessages = en
+  m: InkMessages
 ): string {
   const tools: Readonly<Record<string, string>> = m.tools
   return resolveLabel(tool?.label) || (Object.hasOwn(tools, id) ? tools[id] : '') || id
@@ -144,7 +135,7 @@ export interface LineStyleMenuModel {
 export function lineStyleMenuModel(
   current: CurrentStyle,
   supported: ReadonlySet<StyleKey>,
-  m: InkMessages = en
+  m: InkMessages
 ): LineStyleMenuModel {
   const l = m.lineStyle
   const arrowLabels: Record<ArrowheadChoice, string> = {
@@ -209,13 +200,6 @@ export function lineStyleMenuModel(
 /** The colour props a colour menu can set. */
 export type ColorProperty = 'border' | 'fill' | 'textColor'
 
-/** Accessible names of the colour menus, by property. */
-export const COLOR_LABELS: Readonly<Record<ColorProperty, string>> = {
-  border: 'Border colour',
-  fill: 'Fill colour',
-  textColor: 'Text colour',
-}
-
 /** Columns of the swatch grid: the arrow keys move by this much between rows. */
 export const COLOR_COLUMNS = 12
 
@@ -265,8 +249,8 @@ export function colorMenuModel(
   property: ColorProperty,
   current: CurrentStyle,
   supported: ReadonlySet<StyleKey>,
-  fallback?: string,
-  m: InkMessages = en
+  fallback: string | undefined,
+  m: InkMessages
 ): ColorMenuModel {
   const value = current[property]
   const enabled = supported.has(property)
@@ -400,7 +384,7 @@ export function textStyleMenuModel(
   current: CurrentStyle,
   supported: ReadonlySet<StyleKey>,
   fonts: readonly string[],
-  m: InkMessages = en
+  m: InkMessages
 ): TextStyleMenuModel {
   const t = m.textStyle
   const family = current.fontFamily
@@ -471,29 +455,6 @@ export function textStyleMenuModel(
   }
 }
 
-/** Accessible names of the shape kinds, as the shape menu announces them. */
-export const SHAPE_LABELS: Readonly<Record<ShapeKind, string>> = {
-  line: 'Line',
-  arrow: 'Arrow',
-  rectangle: 'Rectangle',
-  roundedRectangle: 'Rounded rectangle',
-  ellipse: 'Ellipse',
-  bubble: 'Speech bubble',
-  star: 'Star',
-  polygon: 'Polygon',
-  loupe: 'Loupe',
-  mask: 'Mask',
-  ovalMask: 'Oval mask',
-}
-
-/** Accessible names of the text markup kinds, as the highlight menu announces them. */
-export const MARKUP_LABELS: Readonly<Record<MarkupKind, string>> = {
-  highlight: 'Highlight',
-  underline: 'Underline',
-  strikeout: 'Strikethrough',
-  squiggly: 'Squiggly underline',
-}
-
 export interface HighlightMenuItem {
   kind: MarkupKind
   label: string
@@ -513,7 +474,7 @@ export interface HighlightMenuModel {
 export function highlightMenuModel(
   options: Partial<HighlightOptions>,
   kinds: readonly MarkupKind[],
-  m: InkMessages = en
+  m: InkMessages
 ): HighlightMenuModel {
   const kind =
     options.kind !== undefined && kinds.includes(options.kind)
@@ -552,7 +513,7 @@ export interface ShapeMenuModel {
 export function shapeMenuModel(
   options: Partial<ShapeOptions>,
   kinds: readonly ShapeKind[],
-  m: InkMessages = en
+  m: InkMessages
 ): ShapeMenuModel {
   const kind =
     options.kind !== undefined && kinds.includes(options.kind)
@@ -583,7 +544,7 @@ export interface AnnotationSlotProps {
 /** The thread popover's accessible name: "Note thread" for a note, "Comment thread" for markup. */
 export function threadPopoverLabel(
   root: Pick<Annotation, 'type'>,
-  m: InkMessages = en
+  m: InkMessages
 ): string {
   return root.type === 'text' ? m.notes.noteThread : m.notes.commentThread
 }
@@ -594,7 +555,7 @@ export function threadPopoverLabel(
  */
 export function threadDeleteLabel(
   root: Pick<Annotation, 'type'>,
-  m: InkMessages = en
+  m: InkMessages
 ): string {
   return root.type === 'text' ? m.notes.delete : m.notes.deleteHighlight
 }
@@ -608,41 +569,6 @@ export interface ThreadPopoverSlotProps {
   remove: () => void
   close: () => void
 }
-
-/** The signature controls' words, shared so every binding announces the same names. */
-export const SIGNATURE_LABELS = {
-  /** The menu's group and main button. */
-  sign: 'Sign',
-  trigger: 'Choose signature',
-  menu: 'Signatures',
-  saved: 'Saved signatures',
-  create: 'Create signature',
-  /** The dialog's title. */
-  dialog: 'Create signature',
-  tabs: 'Signature source',
-  draw: 'Draw',
-  type: 'Type',
-  image: 'Image',
-  pad: 'Signature pad',
-  clear: 'Clear',
-  name: 'Name',
-  namePlaceholder: 'Your name',
-  fonts: 'Font',
-  file: 'Image file',
-  cancel: 'Cancel',
-  save: 'Save',
-} as const
-
-export const PASSWORD_LABELS = {
-  dialog: 'Password required',
-  description: 'This document is password protected. Enter its password to open it.',
-  field: 'Password',
-  submit: 'Open',
-  cancel: 'Cancel',
-  incorrect: 'Incorrect password. Try again.',
-  locked: 'This document is password protected.',
-  unlock: 'Enter password',
-} as const
 
 /** The dialog's tabs, in order. */
 export const SIGNATURE_TABS = ['draw', 'type', 'image'] as const
@@ -668,7 +594,7 @@ export interface SignatureMenuModel {
 export function signatureMenuModel(
   templates: readonly SignatureTemplate[],
   options: SignatureOptions,
-  m: InkMessages = en
+  m: InkMessages
 ): SignatureMenuModel {
   const items = templates.map((template, i) => ({
     id: template.id,
@@ -679,19 +605,3 @@ export function signatureMenuModel(
   }))
   return { selected: items.find((i) => i.checked)?.template, items }
 }
-
-/**
- * Words the form layer and the form dialogs add to the page's form fields, shared so every
- * binding says the same. A field is named by its own tooltip (`/TU`), else the last part of its
- * name; `unnamed` stands in when it has neither.
- */
-export const FORM_LABELS = {
-  unnamed: 'Form field',
-  /** An empty signature field's affordance. */
-  sign: 'Sign',
-  /** Its tooltip, and the start of its accessible name. */
-  signField: 'Sign this field',
-  /** The title of the dialog a form's script message shows in. */
-  alert: 'Message',
-  ok: 'OK',
-} as const

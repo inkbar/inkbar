@@ -1,5 +1,5 @@
 <script module lang="ts">
-  import type { InkStorage } from '@inkbar/core'
+  import type { InkStorage, Label } from '@inkbar/core'
   import type { SidebarLayout, SidebarOpen, SidebarSide } from '@inkbar/core/dom'
   import type { Snippet } from 'svelte'
   import type { HTMLAttributes } from 'svelte/elements'
@@ -49,10 +49,11 @@
      */
     minDocumentWidth?: number | undefined
     /**
-     * The resize handle's accessible name. Default `Resize left sidebar` or `Resize right
-     * sidebar`. Read once, when the sidebar is created.
+     * The resize handle's accessible name: a string, or a function read again whenever the
+     * root's `messages` change. Default `Resize left sidebar` or `Resize right sidebar`, in the
+     * root's words.
      */
-    handleLabel?: string | undefined
+    handleLabel?: Label | undefined
     /** The `InkPanel`s. */
     children?: Snippet | undefined
   }
@@ -83,6 +84,7 @@
    * closes it, through `bind:open` too. The server renders it beside the document, open as
    * usual; once mounted, an unbound sidebar with no room closes its panel.
    */
+  import { en } from '@inkbar/core'
   import { createSidebarController } from '@inkbar/core/dom'
   import { untrack } from 'svelte'
 
@@ -119,6 +121,14 @@
   // Read once: the controller loads the saved width as it is created.
   const ink = useOptionalInkContext()
   const minDocument = untrack(() => minDocumentWidth ?? ink?.minDocumentWidth)
+  /**
+   * The handle's default name, in the root's words now (English outside a root). Read when the
+   * controller calls it, so it is current when the controller relabels on new messages.
+   */
+  const defaultHandleLabel = (): string => {
+    const m = ink?.messageState.get().messages ?? en
+    return untrack(() => side) === 'right' ? m.sidebar.resizeRight : m.sidebar.resizeLeft
+  }
 
   /*
    * `width` is the host's only while it holds a number the sidebar did not write itself. The
@@ -155,7 +165,9 @@
       ...((storage ?? ink?.storage) && { storage: (storage ?? ink?.storage)! }),
       ...(name !== undefined && { name }),
       ...(minDocument !== undefined && { minDocumentWidth: minDocument }),
-      ...(handleLabel !== undefined && { handleLabel }),
+      // The root's words, so the default handle names and tab badges follow its `messages`.
+      ...(ink && { messages: ink.messageState }),
+      handleLabel: handleLabel ?? defaultHandleLabel,
       ...widthOptions(),
       onWidthChange: (value) => {
         written = value
@@ -175,13 +187,16 @@
 
   // Before the DOM updates, so the panels render the attributes these give.
   $effect.pre(() => {
-    const next = { layout, side, visible, open, widths: widthOptions() }
+    const next = { layout, side, visible, open, handleLabel, widths: widthOptions() }
     untrack(() =>
       controller.update({
         layout: next.layout,
         side: next.side,
         visible: next.visible,
         ...(next.open !== undefined && { open: next.open }),
+        // Core keeps the last label for an undefined one, so a dropped label is replaced by
+        // the default. Core compares the text, so the same label republishes nothing.
+        handleLabel: next.handleLabel ?? defaultHandleLabel,
         ...next.widths,
       })
     )

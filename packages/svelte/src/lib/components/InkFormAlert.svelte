@@ -10,9 +10,10 @@
    * Bits UI's escape layer takes every Escape on the page while it is open (it prevents the
    * key's default), which would end the viewer's own use of the key.
    */
-  import { FORM_LABELS } from '@inkbar/core/dom'
   import { Portal } from 'bits-ui'
   import { untrack } from 'svelte'
+
+  import { useMessages } from '../messages.js'
 
   let {
     message,
@@ -30,6 +31,7 @@
   } = $props()
 
   const uid = $props.id()
+  const m = useMessages()
   let panel = $state<HTMLElement | null>(null)
   let ok = $state<HTMLButtonElement | null>(null)
   /** Where focus was when the alert opened. */
@@ -87,7 +89,7 @@
       tabindex="-1"
       {onkeydown}
     >
-      <h2 id="{uid}-title" class="ink-dialog-title">{FORM_LABELS.alert}</h2>
+      <h2 id="{uid}-title" class="ink-dialog-title">{m.current.forms.alert}</h2>
       <p id="{uid}-message" class="ink-form-alert-message" data-ink-form-alert-message="">
         {message}
       </p>
@@ -100,7 +102,7 @@
           data-ink-form-alert-ok=""
           onclick={close}
         >
-          {FORM_LABELS.ok}
+          {m.current.forms.ok}
         </button>
       </div>
     </div>

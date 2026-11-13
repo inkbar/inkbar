@@ -8,7 +8,6 @@
     fontFamilyValue,
     handleRadioKeys,
     handleTabKeys,
-    SIGNATURE_LABELS,
     SIGNATURE_TABS,
     type SignatureTab,
   } from '@inkbar/core/dom'
@@ -19,6 +18,7 @@
   import { useHasTool } from '../hooks/useRegisteredTool.svelte.js'
   import { useTool } from '../hooks/useTool.svelte.js'
   import { useToolOptionsWhile } from '../hooks/useToolOptions.svelte.js'
+  import { useMessages } from '../messages.js'
   import { useReadable } from '../use-readable.svelte.js'
 
   import type { SignatureOptions, SignatureTemplate } from '@inkbar/core'
@@ -37,6 +37,7 @@
   } = $props()
 
   const ctx = useInkContext('InkSignatureDialog')
+  const m = useMessages()
   const current = useTool()
   // Without the signature tool, Save only stores the template, as signing a form field needs.
   const hasSignatureTool = useHasTool(ctx, 'signature')
@@ -46,7 +47,10 @@
   )
   // One draft per opening: the fonts are read once.
   const draft = untrack(() =>
-    createSignatureDraft({ fonts: fonts ?? ctx.signatureFonts })
+    createSignatureDraft({
+      fonts: fonts ?? ctx.signatureFonts,
+      messages: ctx.messageState,
+    })
   )
   const draftState = useReadable(() => draft.state, draft.state.get())
   const s = $derived(draftState.current)
@@ -78,13 +82,13 @@
 
   const tabId = (tab: SignatureTab) => `${uid}-tab-${tab}`
   const panelId = (tab: SignatureTab) => `${uid}-panel-${tab}`
-  const shown = $derived(s.name.trim() || SIGNATURE_LABELS.namePlaceholder)
+  const shown = $derived(s.name.trim() || m.current.signature.namePlaceholder)
 </script>
 
 <div
   role="tablist"
   tabindex="-1"
-  aria-label={SIGNATURE_LABELS.tabs}
+  aria-label={m.current.signature.tabs}
   class="ink-tabs"
   onkeydown={(e) => handleTabKeys(e, e.currentTarget)}
 >
@@ -101,7 +105,7 @@
       data-state={s.tab === tab ? 'active' : 'inactive'}
       onclick={() => draft.setTab(tab)}
     >
-      {SIGNATURE_LABELS[tab]}
+      {m.current.signature[tab]}
     </button>
   {/each}
 </div>
@@ -118,7 +122,7 @@
     class="ink-signature-pad-host"
     data-ink-signature-pad-host=""
     role="img"
-    aria-label={SIGNATURE_LABELS.pad}
+    aria-label={m.current.signature.pad}
   ></div>
   <div class="ink-dialog-row">
     <button
@@ -128,7 +132,7 @@
       disabled={s.padEmpty}
       onclick={() => draft.clearPad()}
     >
-      {SIGNATURE_LABELS.clear}
+      {m.current.signature.clear}
     </button>
   </div>
 </div>
@@ -141,13 +145,13 @@
   hidden={s.tab !== 'type'}
 >
   <label class="ink-field">
-    <span>{SIGNATURE_LABELS.name}</span>
+    <span>{m.current.signature.name}</span>
     <input
       type="text"
       class="ink-input"
       data-ink-signature-name=""
       autocomplete="name"
-      placeholder={SIGNATURE_LABELS.namePlaceholder}
+      placeholder={m.current.signature.namePlaceholder}
       value={s.name}
       oninput={(e) => draft.setName(e.currentTarget.value)}
     />
@@ -155,7 +159,7 @@
   <div
     role="radiogroup"
     tabindex="-1"
-    aria-label={SIGNATURE_LABELS.fonts}
+    aria-label={m.current.signature.fonts}
     class="ink-signature-fonts"
     onkeydown={(e) => handleRadioKeys(e, e.currentTarget)}
   >
@@ -188,7 +192,7 @@
   hidden={s.tab !== 'image'}
 >
   <label class="ink-field">
-    <span>{SIGNATURE_LABELS.file}</span>
+    <span>{m.current.signature.file}</span>
     <input
       type="file"
       accept="image/png,image/jpeg"
@@ -213,7 +217,7 @@
   <Dialog.Close>
     {#snippet child({ props })}
       <button {...props} type="button" class="ink-button" data-ink-signature-cancel="">
-        {SIGNATURE_LABELS.cancel}
+        {m.current.signature.cancel}
       </button>
     {/snippet}
   </Dialog.Close>
@@ -225,6 +229,6 @@
     disabled={!s.canSave}
     onclick={save}
   >
-    {SIGNATURE_LABELS.save}
+    {m.current.signature.save}
   </button>
 </div>

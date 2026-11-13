@@ -9,6 +9,7 @@
 
 <script lang="ts">
   import { usePage } from '../hooks/usePage.svelte.js'
+  import { useMessages } from '../messages.js'
 
   let { class: className, onkeydown, ...rest }: InkPageInputProps = $props()
 
@@ -29,6 +30,7 @@
     e.preventDefault()
     commit(draft)
   }
+  const m = useMessages()
 </script>
 
 <!-- `onchange` is the native change event: it fires on blur after typing, and on each step of
@@ -38,7 +40,7 @@
   data-ink-page-input=""
   type="number"
   inputmode="numeric"
-  aria-label="Page"
+  aria-label={m.current.toolbar.page}
   min={1}
   max={page.count}
   value={draft}

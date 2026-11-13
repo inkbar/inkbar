@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { userEvent } from 'vitest/browser'
 
-import { PASSWORD_LABELS } from '../ui'
+import { en } from '../../messages'
 
 import { createPasswordDialog, type PasswordDialog } from './password-dialog'
 
@@ -41,8 +41,8 @@ describe('createPasswordDialog', () => {
     ).not.toBeNull()
     const title = el.querySelector('.ink-dialog-title')!
     const desc = el.querySelector('.ink-dialog-description')!
-    expect(title.textContent).toBe(PASSWORD_LABELS.dialog)
-    expect(desc.textContent).toBe(PASSWORD_LABELS.description)
+    expect(title.textContent).toBe(en.password.dialog)
+    expect(desc.textContent).toBe(en.password.description)
     expect(el.getAttribute('aria-labelledby')).toBe(title.id)
     expect(el.getAttribute('aria-describedby')).toBe(desc.id)
     const field = input()
@@ -50,14 +50,14 @@ describe('createPasswordDialog', () => {
     expect(field.getAttribute('autocomplete')).toBe('off')
     expect(field.getAttribute('aria-invalid')).toBe('false')
     expect(el.querySelector(`label[for="${field.id}"]`)?.textContent).toBe(
-      PASSWORD_LABELS.field
+      en.password.field
     )
     expect(document.activeElement).toBe(field)
     expect(el.querySelector('.ink-password-error')).toBeNull()
     const buttons = [...el.querySelectorAll('.ink-dialog-actions button')]
     expect(buttons.map((b) => b.textContent)).toEqual([
-      PASSWORD_LABELS.cancel,
-      PASSWORD_LABELS.submit,
+      en.password.cancel,
+      en.password.submit,
     ])
   })
 
@@ -96,7 +96,7 @@ describe('createPasswordDialog', () => {
     expect(document.activeElement).toBe(field)
     expect(field.getAttribute('aria-invalid')).toBe('true')
     const error = root()!.querySelector('.ink-password-error')!
-    expect(error.textContent).toBe(PASSWORD_LABELS.incorrect)
+    expect(error.textContent).toBe(en.password.incorrect)
     expect(error.getAttribute('role')).toBe('alert')
     expect(field.getAttribute('aria-describedby')).toBe(error.id)
     expect(submit().disabled).toBe(true)

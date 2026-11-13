@@ -3,6 +3,7 @@
   import { Toolbar } from 'bits-ui'
 
   import { usePage } from '../hooks/usePage.svelte.js'
+  import { useMessages } from '../messages.js'
 
   import { asBitsProps } from './child-snippet.js'
   import InkIcon from './InkIcon.svelte'
@@ -19,13 +20,14 @@
   }: InkPageButtonProps = $props()
 
   const page = usePage()
+  const m = useMessages()
 </script>
 
 <Toolbar.Button
   class={['ink-prev-page', className]}
   data-ink-prev-page=""
-  aria-label="Previous page"
-  title="Previous page"
+  aria-label={m.current.toolbar.previousPage}
+  title={m.current.toolbar.previousPage}
   disabled={page.current <= 0 || !!disabled}
   {...child ? { child } : {}}
   {...asBitsProps(rest)}

@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import { FONT_FAMILIES, clampFontSize, textStyleMenuModel } from './ui'
+import { en } from '../messages'
+
+import { FONT_FAMILIES, clampFontSize, textStyleMenuModel as model } from './ui'
 
 import type { StyleKey } from '../model/annotations/tool-style'
+
+type Args = Parameters<typeof model>
+/** The model in English. */
+const textStyleMenuModel = (current: Args[0], supported: Args[1], fonts: Args[2]) =>
+  model(current, supported, fonts, en)
 
 const all = new Set<StyleKey>(['fontFamily', 'fontSize', 'textAlign'])
 

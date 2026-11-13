@@ -59,6 +59,7 @@
     document: toReadable(() => ctx.document),
     pluginHost: toReadable(() => ctx.pluginHost),
     viewport: toReadable(() => ctx.viewport),
+    messages: ctx.messageState,
   }
   const options = () => ({ pages, width, annotations, marks })
 

@@ -16,6 +16,10 @@
   } from '@inkbar/core/dom'
   import { untrack, type Snippet } from 'svelte'
 
+  import { useOptionalInkContext } from '../context.js'
+  import { useMessages } from '../messages.js'
+
+  import type { Label } from '@inkbar/core'
   import type { HTMLAttributes } from 'svelte/elements'
 
   let {
@@ -45,6 +49,16 @@
   const actionButtons = (row: Element): HTMLElement[] => [
     ...row.querySelectorAll<HTMLElement>('.ink-card-actions > button'),
   ]
+
+  // The root's words (English outside a root): the controller's count and announcement, the
+  // empty text, and the plugins' card labels follow them.
+  const messageState = useOptionalInkContext()?.messageState
+  const m = useMessages()
+  /** A card label, read again whenever the messages change. */
+  const label = (l: Label): string => {
+    void m.current
+    return resolveLabel(l)
+  }
 
   let root = $state<HTMLDivElement | null>(null)
   let controller = $state.raw<RecordListController | null>(null)
@@ -81,7 +95,7 @@
     const s = source
     if (!el || !s) return
     return untrack(() => {
-      const c = createRecordListController(s)
+      const c = createRecordListController(s, messageState)
       controller = c
       rows = c.rows.get()
       announcement = c.announcement.get()
@@ -142,7 +156,7 @@
       >
         <div class={['ink-card', card?.className]}>
           {#if card}
-            <p class="ink-card-title">{resolveLabel(card.title)}</p>
+            <p class="ink-card-title">{label(card.title)}</p>
             {#if card.meta !== undefined}
               <!-- prettier-ignore -->
               <p class="ink-card-meta">{#if card.swatch !== undefined}<span class="ink-card-swatch" style:background={card.swatch}></span>{/if}{card.meta}</p>
@@ -157,7 +171,7 @@
             <div class="ink-card-actions">
               {#each cardActions(card) as action (action.key)}
                 <button type="button" onclick={() => controller?.act(item.id, action.key)}
-                  >{resolveLabel(action.label)}</button
+                  >{label(action.label)}</button
                 >
               {/each}
             </div>
@@ -167,7 +181,7 @@
     {/each}
   </ul>
   <p class="ink-record-list-empty" hidden={!showEmpty}>
-    {#if empty}{@render empty()}{:else}Nothing here yet.{/if}
+    {#if empty}{@render empty()}{:else}{m.current.records.empty}{/if}
   </p>
   <div class="ink-visually-hidden" aria-live="polite" data-ink-record-status="">
     {announcement}

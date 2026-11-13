@@ -7,15 +7,23 @@
   import { resolveLabel } from '@inkbar/core'
   import { sidebarBadge, type SidebarPanelInfo } from '@inkbar/core/dom'
 
+  import { useMessages } from '../messages.js'
+
   import InkIcon from './InkIcon.svelte'
 
   let { panel, rail }: { panel: SidebarPanelInfo; rail: boolean } = $props()
 
   const badge = $derived(sidebarBadge(panel.badge))
+  const m = useMessages()
+  /** The label as shown now: a label function runs again on new messages. */
+  const label = $derived.by(() => {
+    void m.current
+    return resolveLabel(panel.label)
+  })
 </script>
 
 {#if panel.icon}<InkIcon icon={panel.icon} />{/if}{#if !panel.icon || !rail}<span
-    class="ink-sidebar-label">{resolveLabel(panel.label)}</span
+    class="ink-sidebar-label">{label}</span
   >{/if}<span class="ink-sidebar-badge" aria-hidden="true" hidden={badge === null}
   >{badge}</span
 >

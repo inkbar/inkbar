@@ -22,9 +22,10 @@
 </script>
 
 <script lang="ts">
-  import { PASSWORD_LABELS } from '@inkbar/core/dom'
   import { Dialog } from 'bits-ui'
   import { tick, untrack } from 'svelte'
+
+  import { useMessages } from '../messages.js'
 
   import { lockBody } from './body-lock.js'
 
@@ -95,6 +96,7 @@
   $effect(() => {
     if (incorrect && !untrack(() => pending)) value = ''
   })
+  const m = useMessages()
 </script>
 
 <Dialog.Root bind:open={() => open, setOpen}>
@@ -112,12 +114,12 @@
       }}
       onCloseAutoFocus={(e) => onCloseAutoFocus?.(e)}
     >
-      <Dialog.Title class="ink-dialog-title">{PASSWORD_LABELS.dialog}</Dialog.Title>
+      <Dialog.Title class="ink-dialog-title">{m.current.password.dialog}</Dialog.Title>
       <Dialog.Description class="ink-dialog-description">
-        {PASSWORD_LABELS.description}
+        {m.current.password.description}
       </Dialog.Description>
       <form class="ink-password-form" data-ink-password-form="" onsubmit={submit}>
-        <label class="ink-password-label" for={inputId}>{PASSWORD_LABELS.field}</label>
+        <label class="ink-password-label" for={inputId}>{m.current.password.field}</label>
         <input
           id={inputId}
           bind:this={input}
@@ -131,16 +133,16 @@
         {#if incorrect}
           {#key attempt}
             <p id={errorId} class="ink-password-error" role="alert">
-              {PASSWORD_LABELS.incorrect}
+              {m.current.password.incorrect}
             </p>
           {/key}
         {/if}
         <div class="ink-dialog-actions">
           <button type="button" class="ink-button" onclick={() => setOpen(false)}>
-            {PASSWORD_LABELS.cancel}
+            {m.current.password.cancel}
           </button>
           <button type="submit" class="ink-button" data-variant="primary" {disabled}>
-            {PASSWORD_LABELS.submit}
+            {m.current.password.submit}
           </button>
         </div>
       </form>

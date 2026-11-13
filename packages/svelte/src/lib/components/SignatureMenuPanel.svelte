@@ -5,7 +5,7 @@
    * and a signature field's `InkSignFieldPopover` both render it inside their `role="menu"`
    * content, which `menu` returns.
    */
-  import { SIGNATURE_LABELS, signaturePreview } from '@inkbar/core/dom'
+  import { signaturePreview } from '@inkbar/core/dom'
   import { Plus, Trash2 } from '@inkbar/icons'
   import { tick } from 'svelte'
 
@@ -56,7 +56,7 @@
 {#if items.length > 0}
   <div
     role="group"
-    aria-label={SIGNATURE_LABELS.saved}
+    aria-label={ctx.messages.signature.saved}
     class="ink-signature-list"
     data-ink-menu-columns="2"
   >
@@ -114,7 +114,7 @@
   onclick={onCreate}
 >
   <InkIcon icon={Plus} size={16} />
-  {SIGNATURE_LABELS.create}
+  {ctx.messages.signature.create}
 </button>
 {#if removeError.current}
   <p
@@ -122,6 +122,7 @@
     role="alert"
     data-ink-signature-remove-error=""
   >
-    {removeError.current}
+    <!-- The root's words, not the library's: its text was fixed when the removal failed. -->
+    {ctx.messages.signature.removeFailed}
   </p>
 {/if}

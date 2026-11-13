@@ -8,12 +8,7 @@
    * nothing.
    */
   import { InkError, signField } from '@inkbar/core'
-  import {
-    handleMenuKeys,
-    SIGNATURE_LABELS,
-    signatureMenuModel,
-    watchDetached,
-  } from '@inkbar/core/dom'
+  import { handleMenuKeys, signatureMenuModel, watchDetached } from '@inkbar/core/dom'
   import { Popover } from 'bits-ui'
   import { untrack } from 'svelte'
 
@@ -41,7 +36,7 @@
   const ctx = useInkContext('InkSignFieldPopover')
   const templates = useReadable(() => ctx.signatures.templates, NO_TEMPLATES)
   // No signature is "chosen" here: each signing picks its own.
-  const model = $derived(signatureMenuModel(templates.current, {}))
+  const model = $derived(signatureMenuModel(templates.current, {}, ctx.messages))
   const open = $derived(request !== null)
   let menu = $state<HTMLElement | null>(null)
   /** The field the dialog signs once its signature is saved, and the document it is in. */
@@ -138,7 +133,7 @@
       <Popover.Content
         bind:ref={menu}
         role="menu"
-        aria-label={SIGNATURE_LABELS.menu}
+        aria-label={ctx.messages.signature.menu}
         class="ink-select-content ink-menu-content"
         data-ink-select-content=""
         data-ink-menu="signature"

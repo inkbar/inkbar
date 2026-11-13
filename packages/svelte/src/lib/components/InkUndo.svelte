@@ -3,6 +3,7 @@
   import { Toolbar } from 'bits-ui'
 
   import { useHistory } from '../hooks/useHistory.svelte.js'
+  import { useMessages } from '../messages.js'
 
   import { asBitsProps } from './child-snippet.js'
   import InkIcon from './InkIcon.svelte'
@@ -19,13 +20,14 @@
   }: InkHistoryButtonProps = $props()
 
   const history = useHistory()
+  const m = useMessages()
 </script>
 
 <Toolbar.Button
   class={['ink-undo', className]}
   data-ink-undo=""
-  aria-label="Undo"
-  title="Undo"
+  aria-label={m.current.toolbar.undo}
+  title={m.current.toolbar.undo}
   disabled={!history.canUndo || !!disabled}
   {...child ? { child } : {}}
   {...asBitsProps(rest)}

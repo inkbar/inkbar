@@ -11,6 +11,7 @@
   import { useInkContext } from '../context.js'
   import { useDocument } from '../hooks/useDocument.svelte.js'
   import { useSearch } from '../hooks/useSearch.svelte.js'
+  import { useMessages } from '../messages.js'
 
   import { asBitsProps } from './child-snippet.js'
   import InkIcon from './InkIcon.svelte'
@@ -29,14 +30,15 @@
   const ctx = useInkContext('InkSearchButton')
   const search = useSearch()
   const doc = useDocument()
+  const m = useMessages()
 </script>
 
 <Toolbar.Button
   {...asBitsProps(rest)}
   class={['ink-search-button', className]}
   data-ink-search-button=""
-  aria-label="Find"
-  title="Find"
+  aria-label={m.current.toolbar.find}
+  title={m.current.toolbar.find}
   aria-pressed={search.state.open}
   data-state={search.state.open ? 'on' : 'off'}
   disabled={!doc.isReady || !!disabled}

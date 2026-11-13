@@ -52,7 +52,9 @@
   /** The size as typed, until it is committed with Enter or blur. */
   let draft = $state<string | null>(null)
 
-  const model = $derived(textStyleMenuModel(style.current, style.supported, ctx.fonts))
+  const model = $derived(
+    textStyleMenuModel(style.current, style.supported, ctx.fonts, ctx.messages)
+  )
   const sizeShown = $derived(
     draft ?? (model.size.value === null ? '' : String(model.size.value))
   )
@@ -137,7 +139,7 @@
         onchange={(e) => style.set(model.font.patch(e.currentTarget.value))}
       >
         {#if model.font.value === ''}
-          <option value="" disabled hidden>Mixed</option>
+          <option value="" disabled hidden>{ctx.messages.textStyle.mixed}</option>
         {/if}
         {#each model.font.options as f (f)}
           <option value={f}>{f}</option>
@@ -145,11 +147,15 @@
       </select>
       <div class="ink-text-style-row">
         <InkColorMenu property="textColor" standalone />
-        <div class="ink-text-style-size" role="group" aria-label="Size">
+        <div
+          class="ink-text-style-size"
+          role="group"
+          aria-label={ctx.messages.textStyle.size}
+        >
           <button
             type="button"
             class="ink-text-style-button"
-            aria-label="Decrease font size"
+            aria-label={ctx.messages.textStyle.decrease}
             onclick={() => nudge(-1)}
           >
             <InkIcon icon={Minus} size={16} />
@@ -174,14 +180,19 @@
           <button
             type="button"
             class="ink-text-style-button"
-            aria-label="Increase font size"
+            aria-label={ctx.messages.textStyle.increase}
             onclick={() => nudge(1)}
           >
             <InkIcon icon={Plus} size={16} />
           </button>
         </div>
       </div>
-      <div class="ink-text-style-row" role="group" aria-label="Emphasis">
+      <div
+        class="ink-text-style-row"
+        role="group"
+        data-ink-emphasis=""
+        aria-label={ctx.messages.textStyle.emphasis}
+      >
         {#each model.toggles as t (t.key)}
           <button
             type="button"

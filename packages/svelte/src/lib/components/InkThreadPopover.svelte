@@ -19,7 +19,7 @@
    * note that is still empty and has no replies removes it, so an abandoned note does not stay
    * on the page. Markup stays: the mark is the point.
    */
-  import { isAbandonedNote, threadOf, threadRoot } from '@inkbar/core'
+  import { formatDate, isAbandonedNote, threadOf, threadRoot } from '@inkbar/core'
   import { threadDeleteLabel, threadPopoverLabel } from '@inkbar/core/dom'
   import { Popover } from 'bits-ui'
   import { untrack } from 'svelte'
@@ -154,7 +154,7 @@
         side="right"
         sideOffset={8}
         collisionPadding={8}
-        aria-label={threadPopoverLabel(note)}
+        aria-label={threadPopoverLabel(note, ctx.messages)}
         customAnchor={anchor}
         onInteractOutside={keepOpenOnAnnotation}
         onOpenAutoFocus={focusReturn.onOpenAutoFocus}
@@ -178,9 +178,11 @@
                   data-ink-thread-item=""
                   data-reply={item.inReplyTo ? '' : undefined}
                 >
-                  <span class="ink-thread-author">{item.author ?? 'Anonymous'}</span>
+                  <span class="ink-thread-author"
+                    >{item.author ?? ctx.messages.notes.anonymous}</span
+                  >
                   <time class="ink-thread-time" datetime={item.createdAt}>
-                    {new Date(item.createdAt).toLocaleString()}
+                    {formatDate(Date.parse(item.createdAt), ctx.locale)}
                   </time>
                   <p class="ink-thread-text">{item.contents}</p>
                 </li>
@@ -192,7 +194,7 @@
             <ThreadForm
               {editingRoot}
               locked={!!note.locked}
-              deleteLabel={threadDeleteLabel(note)}
+              deleteLabel={threadDeleteLabel(note, ctx.messages)}
               onSubmit={(text) => (editingRoot ? updateContents(text) : reply(text))}
               onRemove={removeThread}
               onClose={close}

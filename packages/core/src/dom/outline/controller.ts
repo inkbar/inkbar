@@ -59,7 +59,10 @@ export interface OutlineController {
    * through `onAction`, a page action navigates. An unsupported item does nothing.
    */
   activate(id: string): void
-  /** `role="tree"` and its label (`m.outline.label`), for the element holding the items. */
+  /**
+   * `role="tree"` and its label (`m.outline.label`, English without `m`), for the element
+   * holding the items.
+   */
   treeAttrs(m?: InkMessages): Record<string, string>
   /**
    * For each item's element: `role="treeitem"`, its `id`, `aria-level`, `aria-setsize`,
@@ -120,7 +123,7 @@ const hasChildren = (node: Node): boolean => node.item.children.length > 0
  * `role="tree"` and its label, for the element holding an outline's items. The same as a
  * controller's `treeAttrs()`, without one, so markup rendered on the server has them too.
  */
-export function outlineTreeAttrs(m: InkMessages = en): Record<string, string> {
+export function outlineTreeAttrs(m: InkMessages): Record<string, string> {
   return { role: 'tree', 'aria-label': m.outline.label }
 }
 
@@ -581,7 +584,8 @@ export function createOutlineController(deps: OutlineControllerDeps): OutlineCon
       setExpanded(new Set())
     },
     activate,
-    treeAttrs: outlineTreeAttrs,
+    // English without words, as before: the controller has no message state of its own.
+    treeAttrs: (m = en) => outlineTreeAttrs(m),
     titleAttrs: (id) => ({ id: `${domId(id)}-title` }),
     rowAttrs: (id) => ({ id: `${domId(id)}-row` }),
     itemAttrs(id) {

@@ -28,8 +28,9 @@
 </script>
 
 <script lang="ts">
-  import { SIGNATURE_LABELS } from '@inkbar/core/dom'
   import { Dialog } from 'bits-ui'
+
+  import { useMessages } from '../messages.js'
 
   import { lockBody } from './body-lock.js'
   import SignatureForm from './SignatureForm.svelte'
@@ -50,6 +51,7 @@
     open = next
     onOpenChange?.(next)
   }
+  const m = useMessages()
 </script>
 
 <Dialog.Root bind:open={() => open, setOpen}>
@@ -70,7 +72,7 @@
       }}
       onCloseAutoFocus={(e) => onCloseAutoFocus?.(e)}
     >
-      <Dialog.Title class="ink-dialog-title">{SIGNATURE_LABELS.dialog}</Dialog.Title>
+      <Dialog.Title class="ink-dialog-title">{m.current.signature.dialog}</Dialog.Title>
       <SignatureForm
         {fonts}
         {select}

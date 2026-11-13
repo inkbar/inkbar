@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { en } from '../../messages'
 import { writable } from '../../model/readable'
 import { createNavigation, type Navigation } from '../navigation'
 
@@ -139,7 +140,7 @@ describe('createOutlineController', () => {
     ])
     expect([...c.expanded.get()]).toEqual(['0'])
     expect(c.treeAttrs()).toEqual({ role: 'tree', 'aria-label': 'Outline' })
-    expect(c.treeAttrs()).toEqual(outlineTreeAttrs())
+    expect(c.treeAttrs()).toEqual(outlineTreeAttrs(en))
   })
 
   it('current item follows the reading line', async () => {

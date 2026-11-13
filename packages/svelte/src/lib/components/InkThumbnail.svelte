@@ -1,4 +1,5 @@
 <script module lang="ts">
+  import type { Label } from '@inkbar/core'
   import type { HTMLAttributes } from 'svelte/elements'
 
   export interface InkThumbnailProps extends Omit<
@@ -15,8 +16,11 @@
     annotations?: boolean | undefined
     /** Draw plugin marks. Default true. */
     marks?: boolean | undefined
-    /** The accessible name. Default "Page N". */
-    label?: string | undefined
+    /**
+     * The accessible name: a string, or a function read again whenever the root's `messages`
+     * change. Default "Page N", in the root's words.
+     */
+    label?: Label | undefined
   }
 </script>
 
@@ -48,6 +52,7 @@
   const deps = {
     document: toReadable(() => ctx.document),
     pluginHost: toReadable(() => ctx.pluginHost),
+    messages: ctx.messageState,
   }
   const options = () => ({ page, width, height, annotations, marks, label })
 

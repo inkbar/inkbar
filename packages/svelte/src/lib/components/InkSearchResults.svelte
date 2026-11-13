@@ -38,7 +38,7 @@
 
   const ctx = useInkContext('InkSearchResults')
   const search = useSearch()
-  const source = $derived(ctx.search ? searchSource(ctx.search) : null)
+  const source = $derived(ctx.search ? searchSource(ctx.search, ctx.messageState) : null)
   // Nothing found yet is the count's to say while a query is in: "No results", or a scan.
   const blank = $derived(isBlankQuery(search.state.query))
 </script>
@@ -51,8 +51,8 @@
         <span class="ink-input-accessory"><InkIcon icon={Search} /></span>
         <input
           type="text"
-          aria-label="Find in document"
-          placeholder="Search for a word or phrase"
+          aria-label={ctx.messages.search.field}
+          placeholder={ctx.messages.search.placeholder}
           autocomplete="off"
           spellcheck={false}
           value={search.state.query}
@@ -63,10 +63,10 @@
     </div>
   {/if}
   <RecordCards {source} emptyShown={blank}>
-    {#snippet empty()}Search to list every match.{/snippet}
+    {#snippet empty()}{ctx.messages.search.prompt}{/snippet}
   </RecordCards>
   <!-- A footer under the cards, hidden while empty. -->
   <div class="ink-search-results-count" data-ink-search-results-count="">
-    {findCountText(search.state)}
+    {findCountText(search.state, ctx.messages)}
   </div>
 </div>
