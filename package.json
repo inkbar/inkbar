@@ -13,7 +13,7 @@
     "typecheck": "turbo run typecheck",
     "typecheck:scripts": "tsc -p scripts",
     "test": "turbo run test",
-    "test:scripts": "node --test scripts/",
+    "test:scripts": "node --test 'scripts/**/*.test.ts'",
     "test:browser": "turbo run test:browser",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
