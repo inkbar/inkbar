@@ -1,3 +1,4 @@
+import { resolveLabel } from '@inkbar/core'
 import { unknownCommand } from '@inkbar/core/dom'
 
 import { useInkContext } from '../context.js'
@@ -51,7 +52,7 @@ export function useCommand(id: string): CommandHandle {
       return status.current
     },
     get label() {
-      return command?.label ?? ''
+      return command ? resolveLabel(command.label, command.id) : ''
     },
     get icon() {
       return command?.icon

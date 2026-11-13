@@ -14,7 +14,7 @@
 import { resolveLabel, type Label } from '../../messages'
 import { readonly, writable, type Readable } from '../../model/readable'
 import { ENGLISH, type MessageState } from '../messages-state'
-import { cardClass, cardParts } from '../plugins/api/card'
+import { cardActions, cardClass, cardParts } from '../plugins/api/card'
 import {
   messagesOf,
   onViewerDestroy,
@@ -56,7 +56,10 @@ export interface RecordListController {
   attach(el: HTMLElement): () => void
   /** Selects the item and scrolls the viewport to it; focus stays where it is. */
   choose(id: string): void
-  /** Runs the card action named `action` of item `id` as one undo step. */
+  /**
+   * Runs the card action keyed `action` of item `id` as one undo step: a record-form key, or an
+   * array-form index as a string (see `cardActions`).
+   */
   act(id: string, action: string): void
   destroy(): void
 }
@@ -234,7 +237,8 @@ export function createRecordListController(
   function act(id: string, action: string): void {
     if (destroyed) return
     const item = items.find((x) => x.id === id)
-    const fn = item && source.card(item)?.actions[action]
+    const card = item && source.card(item)
+    const fn = card && cardActions(card).find((a) => a.key === action)?.run
     // When the action removes the row, the items' update moves focus on.
     if (item && fn) source.run(item, fn)
   }

@@ -9,6 +9,7 @@ import { InkError } from '../../model/errors'
 
 import { createPluginApi, type PluginApi, type PluginOptions } from './api/api'
 
+import type { Label } from '../../messages'
 import type { AnnotationEdit } from '../../model/annotations/store'
 import type { InkDocument } from '../../model/document'
 import type { Rect } from '../../model/geometry'
@@ -32,8 +33,12 @@ export interface InkPlugin {
 export interface CommandSpec {
   /** Namespaced to `<plugin>.<id>`. */
   id: string
-  /** Names the command's button; must not be empty (`InkError('InvalidCommandLabel')`). */
-  label: string
+  /**
+   * Names the command's button. A string must not be empty (`InkError('InvalidCommandLabel')`).
+   * A function is called each time the viewer's messages change, so it can read the host's
+   * language; an empty result or a throw logs a warning and names the button with the id.
+   */
+  label: Label
   icon?: IconNode
   /** Default: a document is open and ready. */
   enabled?: Readable<boolean>
@@ -46,7 +51,8 @@ export interface CommandSpec {
 export interface Command {
   /** `<plugin>.<spec id>`. */
   readonly id: string
-  readonly label: string
+  /** The spec's label, as given: resolve a function with `commandLabel`. */
+  readonly label: Label
   readonly icon: IconNode | undefined
   /** The spec's `enabled` (or a ready document), and not busy. */
   readonly enabled: Readable<boolean>

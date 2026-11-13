@@ -6,7 +6,9 @@
  * holds the rows, the count and the announcement, and handles the clicks, keys, Tab stop,
  * focus and scrolling. Empty, with no empty text, until there is a source.
  */
+import { resolveLabel } from '@inkbar/core'
 import {
+  cardActions,
   createRecordListController,
   type RecordListController,
   type RecordListRow,
@@ -116,7 +118,7 @@ watch(
       >
         <div :class="['ink-card', card?.className]">
           <template v-if="card">
-            <p class="ink-card-title">{{ card.title }}</p>
+            <p class="ink-card-title">{{ resolveLabel(card.title) }}</p>
             <!-- prettier-ignore -->
             <p v-if="card.meta !== undefined" class="ink-card-meta"><span v-if="card.swatch !== undefined" class="ink-card-swatch" :style="{ background: card.swatch }" />{{ card.meta }}</p>
             <p v-if="card.body !== undefined" class="ink-card-body">{{ card.body }}</p>
@@ -124,11 +126,11 @@ watch(
             <p v-if="card.excerpt !== undefined" class="ink-card-excerpt">{{ card.excerpt.before }}<mark>{{ card.excerpt.match }}</mark>{{ card.excerpt.after }}</p>
             <div class="ink-card-actions">
               <button
-                v-for="label in Object.keys(card.actions)"
-                :key="label"
+                v-for="action in cardActions(card)"
+                :key="action.key"
                 type="button"
-                @click="controller?.act(item.id, label)"
-                v-text="label"
+                @click="controller?.act(item.id, action.key)"
+                v-text="resolveLabel(action.label)"
               />
             </div>
           </template>

@@ -3,7 +3,8 @@
  * own layer, placed from the record's rect in user space through the page transform. Marks are
  * keyed by record id and reconciled in place, so a mark that stays keeps its element, and with
  * it focus, through a zoom, a rotation or another record's change. They redraw whenever the
- * records change (undo and redo included) and on `refresh()`. With `scrollToFirst()`, the viewer
+ * records change (undo and redo included), when the viewer's messages change (so `label` can
+ * read the host's language) and on `refresh()`. With `scrollToFirst()`, the viewer
  * scrolls to records as they start to get a mark.
  *
  * Presses and clicks on a mark are the plugin's: they go no further, so neither the active tool
@@ -27,7 +28,7 @@ import type { PluginContext } from '../define'
 export interface MarksOptions<T extends RecordBase & { page: number }> {
   /** Where the record's mark goes on its page, in user space. */
   rect(record: T): Rect
-  /** The mark's accessible name. */
+  /** The mark's accessible name; called again whenever the viewer's messages change. */
   label(record: T): string
   /** Only records that pass get a mark. Default: all. */
   where?(record: T): boolean
@@ -227,12 +228,14 @@ export function createMarks<T extends RecordBase & { page: number }>(
   ctx.onDocument(() => {
     const stopDraw = records.list.subscribe(() => layer.invalidate())
     const stopSelected = selection.selected.subscribe(() => layer.invalidate())
+    const stopMessages = host.messages.subscribe(() => layer.invalidate())
     const stopWatch = records.store()?.on('change', (change) => {
       if (scrolling) watch(change)
     })
     return () => {
       stopDraw()
       stopSelected()
+      stopMessages()
       stopWatch?.()
       // A reveal still pending belongs to this document, not the next one.
       fresh.clear()

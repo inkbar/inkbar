@@ -5,6 +5,7 @@ import { createHistory } from '../../../model/annotations/history'
 import { createAnnotationStore } from '../../../model/annotations/store'
 import { InkError } from '../../../model/errors'
 import { writable } from '../../../model/readable'
+import { createMessageState } from '../../messages-state'
 import { definePlugin } from '../define'
 import { createPluginHost } from '../host'
 
@@ -79,6 +80,44 @@ describe('plugin.command', () => {
     await custom.command.run()
     expect(custom.command.status.get()).toBe('Could not search.')
     expect(log).toHaveBeenCalledTimes(2)
+  })
+
+  it('the default errorStatus comes from the host messages; a label function overrides it', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const messages = createMessageState({ plugins: { commandFailed: 'Échec.' } })
+    let lang = 'en'
+    let fallback!: Command
+    let custom!: Command
+    const factory = definePlugin('demo', (plugin) => {
+      const fail = () => Promise.reject(new Error('boom'))
+      fallback = plugin.command('a', 'A', fail)
+      custom = plugin.command('b', 'B', fail, {
+        errorStatus: () => (lang === 'fr' ? 'Raté.' : 'Missed.'),
+      })
+    })
+    createPluginHost({
+      plugins: [factory()],
+      document: writable<InkDocument | null>(fakeDocument('a')),
+      history: () =>
+        createHistory(
+          createAnnotationStore({
+            mode: { mode: 'uncontrolled' },
+            defaults: staticDefaults,
+          })
+        ),
+      activated: writable<string | null>(null),
+      setActivated() {},
+      root: writable<HTMLElement | null>(null),
+      messages,
+    })
+    await fallback.run()
+    await custom.run()
+    expect(fallback.status.get()).toBe('Échec.')
+    expect(custom.status.get()).toBe('Missed.')
+    lang = 'fr'
+    messages.setMessages(undefined)
+    expect(fallback.status.get()).toBe('Something went wrong.')
+    expect(custom.status.get()).toBe('Raté.')
   })
 
   it('the signal aborts when another document opens, and a stale return does not set the status', async () => {

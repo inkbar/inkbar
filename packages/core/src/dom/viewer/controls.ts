@@ -29,7 +29,7 @@ import {
 import { resolveLabel, type InkMessages, type Label } from '../../messages'
 import { keepHistoryFocus } from '../history-keys'
 import { ENGLISH, type MessageState } from '../messages-state'
-import { unknownCommand } from '../plugins/commands'
+import { commandLabel, unknownCommand } from '../plugins/commands'
 import { unknownTool } from '../tools/unknown'
 import { toolName, ZOOM_LEVELS } from '../ui'
 
@@ -385,7 +385,7 @@ export function createToolButton(
 
 /**
  * A plugin command as a button with its status text beside it. The button is named by the
- * command's label and disabled while the command is, except while it runs: then it keeps focus,
+ * command's label, read again whenever the viewer's messages change, and disabled while the command is, except while it runs: then it keeps focus,
  * with `aria-busy` and `aria-disabled`, and a press does nothing. The status is a live region. A command without an icon shows its label as the button's text. For an id no
  * plugin registered it logs `InkError('UnknownCommand')` to the console and returns the same
  * markup disabled, `aria-hidden` and unnamed.
@@ -403,8 +403,15 @@ export function createCommandButton(viewer: Viewer, id: string): HTMLElement {
     pending.disabled = true
     return h('div', { class: 'ink-command' }, pending, status)
   }
-  const b = button(command.label, { 'data-command': id }, command.icon)
-  if (!command.icon) b.textContent = command.label
+  const label = commandLabel(command)
+  const b = button(label, { 'data-command': id }, command.icon)
+  if (!command.icon) b.textContent = label
+  // New words, or a plugin's label function reading its own language again.
+  onMessages(viewer, () => {
+    const name = commandLabel(command)
+    nameButton(b, name)
+    if (!command.icon && b.textContent !== name) b.textContent = name
+  })
   b.addEventListener('click', () => void command.run())
   // Enabled follows the command (a ready document by default). A busy command is disabled too,
   // but its button stays enabled so focus stays on it; `run` does nothing meanwhile.
