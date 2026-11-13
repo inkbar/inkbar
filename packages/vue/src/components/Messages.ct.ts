@@ -147,3 +147,17 @@ test('equal messages passed again leave an open card alone', async ({ mount, pag
   await expect(card).toBeVisible()
   await expect(card.getByRole('button', { name: 'Accept' })).toBeFocused()
 })
+
+test("the host's lang wins, but an undefined lang keeps the computed one", async ({
+  mount,
+  page,
+}) => {
+  const src = fixtureUrl('text-simple')
+  const root = page.locator('[data-ink-root]')
+  const cmp = await mount(Harness, {
+    props: { src, assets, french: true, undefinedLang: true },
+  })
+  await expect(root).toHaveAttribute('lang', 'fr')
+  await cmp.update({ props: { undefinedLang: false, hostLang: 'fr-CA' } })
+  await expect(root).toHaveAttribute('lang', 'fr-CA')
+})

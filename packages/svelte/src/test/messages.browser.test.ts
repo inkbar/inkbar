@@ -96,6 +96,19 @@ describe('messages', () => {
     await expect.element(button('Rechercher')).toBeInTheDocument()
   })
 
+  it("the host's lang wins, but lang={undefined} keeps the computed one", async () => {
+    const src = fixtureUrl('text-simple')
+    const screen = await harness({
+      src,
+      assets,
+      messages: fr,
+      rootAttrs: { lang: undefined },
+    })
+    await expect.poll(() => root().getAttribute('lang')).toBe('fr')
+    await screen.rerender({ rootAttrs: { lang: 'fr-CA' } })
+    await expect.poll(() => root().getAttribute('lang')).toBe('fr-CA')
+  })
+
   it('a function label follows messages', async () => {
     const screen = await harness({ src: fixtureUrl('text-simple'), assets })
     await expect.element(button('Pen')).toBeInTheDocument()

@@ -43,6 +43,8 @@ export function MessagesHarness({
   french = false,
   inline = false,
   withCard = false,
+  hostLang,
+  undefinedLang = false,
   tick = 0,
 }: {
   src: DocumentSource
@@ -58,6 +60,10 @@ export function MessagesHarness({
   inline?: boolean
   /** Run a plugin with one mark, whose card a test can open. */
   withCard?: boolean
+  /** A `lang` the host passes to the root. */
+  hostLang?: string | undefined
+  /** Test-only: pass `lang={undefined}` to the root, which a test cannot pass as a prop. */
+  undefinedLang?: boolean
   /** Changes to re-render the host. */
   tick?: number
 }) {
@@ -78,8 +84,14 @@ export function MessagesHarness({
               zoomPercent: ({ percent }) => `${percent} ${percentSuffix}`,
             },
           }
+  const langAttr = undefinedLang
+    ? { lang: undefined }
+    : hostLang === undefined
+      ? {}
+      : { lang: hostLang }
   return (
     <InkRoot
+      {...langAttr}
       src={src}
       assets={assets}
       zoom={zoom ?? 1}

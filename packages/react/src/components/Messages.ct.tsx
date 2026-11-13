@@ -203,3 +203,17 @@ test('an inline messages object each render leaves an open card alone', async ({
   await expect(card).toBeVisible()
   await expect(card.getByRole('button', { name: 'Accept' })).toBeFocused()
 })
+
+test("the host's lang wins, but lang={undefined} keeps the computed one", async ({
+  mount,
+  page,
+}) => {
+  const src = fixtureUrl('text-simple')
+  const root = page.locator('[data-ink-root]')
+  const cmp = await mount(
+    <MessagesHarness src={src} assets={assets} french undefinedLang />
+  )
+  await expect(root).toHaveAttribute('lang', 'fr')
+  await cmp.update(<MessagesHarness src={src} assets={assets} french hostLang="fr-CA" />)
+  await expect(root).toHaveAttribute('lang', 'fr-CA')
+})

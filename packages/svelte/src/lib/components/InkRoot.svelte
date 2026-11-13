@@ -870,15 +870,22 @@
 {#if child}
   {@render child({
     props: {
-      lang,
       ...rest,
+      // A host's `lang` wins; one left undefined keeps the computed one.
+      lang: rest.lang ?? lang,
       'data-ink-root': '',
       'data-state': status.state,
       ...attachRoot,
     },
   })}
 {:else}
-  <div bind:this={ref} {lang} {...rest} data-ink-root="" data-state={status.state}>
+  <div
+    bind:this={ref}
+    {...rest}
+    lang={rest.lang ?? lang}
+    data-ink-root=""
+    data-state={status.state}
+  >
     {@render children?.({ status, document })}
   </div>
 {/if}

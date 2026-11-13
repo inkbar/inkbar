@@ -33,7 +33,18 @@ const props = defineProps<{
   french?: boolean | undefined
   /** Run a plugin with one mark, whose card a test can open. */
   withCard?: boolean | undefined
+  /** A `lang` the host passes to the root. */
+  hostLang?: string | undefined
+  /** Test-only: pass `lang` as undefined to the root, which a test cannot pass as a prop. */
+  undefinedLang?: boolean | undefined
 }>()
+const langAttr = computed(() =>
+  props.undefinedLang
+    ? { lang: undefined }
+    : props.hostLang === undefined
+      ? {}
+      : { lang: props.hostLang }
+)
 const words = computed<InkMessagesInput | undefined>(() => {
   if (props.french) return fr
   const suffix = props.percentSuffix
@@ -58,6 +69,7 @@ const drawLabel = () => (window as WordWindow).__inkDrawWord ?? 'Pen'
 
 <template>
   <InkRoot
+    v-bind="langAttr"
     :src="src"
     :assets="assets"
     :zoom="zoom ?? 1"

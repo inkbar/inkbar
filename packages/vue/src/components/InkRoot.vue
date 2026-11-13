@@ -75,6 +75,9 @@ import type {
   ZoomValue,
 } from '@inkbar/core/dom'
 
+// Attributes are bound by hand, so a host's `lang` left undefined keeps the computed one.
+defineOptions({ inheritAttrs: false })
+
 const props = withDefaults(
   defineProps<{
     src: DocumentSource | null
@@ -695,7 +698,7 @@ defineExpose({ document, status, rootEl, history: inkHistory })
     as="div"
     data-ink-root
     :data-state="status.state"
-    v-bind="{ lang }"
+    v-bind="{ ...$attrs, lang: $attrs.lang ?? lang }"
   >
     <slot :status="status" :document="document" />
   </Primitive>

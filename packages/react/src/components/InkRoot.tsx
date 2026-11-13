@@ -1048,8 +1048,9 @@ export function InkRoot({
           ref={setRootEl}
           data-ink-root=""
           data-state={status.state}
-          lang={lang}
           {...rest}
+          // A host's `lang` wins; one left undefined keeps the computed one.
+          lang={rest.lang ?? lang}
         >
           {typeof children === 'function' ? children({ status, document }) : children}
         </Comp>
