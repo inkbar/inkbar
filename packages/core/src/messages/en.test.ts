@@ -41,4 +41,13 @@ describe('en', () => {
     }
     expect(checked).toBeGreaterThan(10)
   })
+
+  it('picks the English plural forms', () => {
+    expect(en.search.resultCount({ count: 1 })).toBe('1 result')
+    expect(en.search.resultCount({ count: 2 })).toBe('2 results')
+    expect(en.search.resultCount({ count: 0 })).toBe('0 results')
+    expect(en.records.itemCount({ count: 1 })).toBe('1 item')
+    expect(en.records.itemCount({ count: 2 })).toBe('2 items')
+    expect(en.records.itemCount({ count: 0 })).toBe('0 items')
+  })
 })

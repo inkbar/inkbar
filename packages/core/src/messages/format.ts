@@ -2,9 +2,8 @@ import type { MessageFn } from './types'
 
 type Params = Record<string, string | number>
 
-/** Replaces each `{name}` with its param, numbers formatted for `lang`; a missing one stays. */
-function fill(lang: string, text: string, params: Params): string {
-  const numbers = new Intl.NumberFormat(lang)
+/** Replaces each `{name}` with its param, numbers formatted by `numbers`; a missing one stays. */
+function fill(numbers: Intl.NumberFormat, text: string, params: Params): string {
   return text.replace(/\{(\w+)\}/g, (whole, name: string) => {
     const v = Object.hasOwn(params, name) ? params[name] : undefined
     return v === undefined ? whole : typeof v === 'number' ? numbers.format(v) : v
@@ -21,7 +20,8 @@ function withSource<F extends object>(fn: F, source: object): F {
  * "1,200" in English and "1.200" in German. The text stays on the function as `source`.
  */
 export function template<P extends Params>(lang: string, text: string): MessageFn<P> {
-  return withSource((params: P) => fill(lang, text, params), { text })
+  const numbers = new Intl.NumberFormat(lang)
+  return withSource((params: P) => fill(numbers, text, params), { text })
 }
 
 /**
@@ -34,10 +34,11 @@ export function plural<P extends Params>(
   forms: Partial<Record<Intl.LDMLPluralRule, string>> & { other: string }
 ): MessageFn<P> {
   const rules = new Intl.PluralRules(lang)
+  const numbers = new Intl.NumberFormat(lang)
   return withSource(
     (params: P) => {
       const n = Number(params[param])
-      return fill(lang, forms[rules.select(n)] ?? forms.other, params)
+      return fill(numbers, forms[rules.select(n)] ?? forms.other, params)
     },
     { param, forms }
   )
