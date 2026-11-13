@@ -357,10 +357,10 @@ A plugin you publish lists `@inkbar/core` under `peerDependencies`, so the app a
   "version": "1.0.0",
   "type": "module",
   "peerDependencies": {
-    "@inkbar/core": "^0.13.0"
+    "@inkbar/core": "^0.14.0"
   },
   "devDependencies": {
-    "@inkbar/core": "^0.13.0"
+    "@inkbar/core": "^0.14.0"
   }
 }
 ```
