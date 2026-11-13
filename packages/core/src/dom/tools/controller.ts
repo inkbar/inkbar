@@ -277,9 +277,13 @@ export function createToolController(opts: ToolControllerOptions): ToolControlle
   registry.register(opts.tools)
   const ctx: ToolContext = {
     ...opts.ctx,
-    // Read through, as a spread copies a getter's value once: the host's library may change.
+    // Read through, as a spread copies a getter's value once: the host's library and messages
+    // may change.
     get signatures() {
       return opts.ctx.signatures
+    },
+    get messages() {
+      return opts.ctx.messages
     },
     toolStyle:
       opts.ctx.toolStyle ??

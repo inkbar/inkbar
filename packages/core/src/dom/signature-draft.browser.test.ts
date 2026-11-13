@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { fr } from '../locales/fr'
 import {
   createMemorySignatureStore,
   createSignatureLibrary,
@@ -8,6 +9,7 @@ import {
 } from '../model/signatures'
 import { createLocalStorage } from '../model/storage'
 
+import { createMessageState } from './messages-state'
 import { createSignatureDraft } from './signature-draft'
 
 async function png(width: number, height: number): Promise<Blob> {
@@ -98,6 +100,32 @@ describe('createSignatureDraft', () => {
     draft.setTab('type')
     draft.setName('Ada')
     expect(await draft.save(library)).toMatchObject({ kind: 'image' })
+    detach()
+    draft.destroy()
+  })
+
+  it('says its errors in the words of the moment once mounted again', async () => {
+    const messages = createMessageState()
+    const store = createMemorySignatureStore()
+    store.save = () => Promise.reject(new Error('offline'))
+    const draft = createSignatureDraft({ messages })
+    draft.setTab('type')
+    draft.setName('Ada')
+    await draft.save(createSignatureLibrary(store))
+    draft.setTab('image')
+    await draft.chooseFile(new Blob(['not an image'], { type: 'text/plain' }))
+    expect(draft.state.get()).toMatchObject({
+      imageError: 'Choose a PNG or JPEG image.',
+      saveError: 'The signature could not be saved. Try again.',
+    })
+    // Unmounted, as StrictMode does, while the words change: nothing hears them.
+    draft.destroy()
+    messages.setMessages(fr)
+    const detach = draft.attachPad(document.body)
+    expect(draft.state.get()).toMatchObject({
+      imageError: fr.signature.imageType,
+      saveError: fr.signature.saveFailed,
+    })
     detach()
     draft.destroy()
   })

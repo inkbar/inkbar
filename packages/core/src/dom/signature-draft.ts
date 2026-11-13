@@ -118,13 +118,13 @@ export function createSignatureDraft(
     saveProblem = problem
     patch({ ...p, saveError: problem && words()[problem] })
   }
-  /** New words: a shown error is said again in them. */
-  const followMessages = (): (() => void) =>
-    messages.subscribe(() => {
-      const s = state.get()
-      if (s.imageError !== undefined && imageProblem) setImageProblem(imageProblem)
-      if (s.saveError !== undefined && saveProblem) setSaveProblem(saveProblem)
-    })
+  /** Says a shown error again in the words of the moment. */
+  const sayErrors = (): void => {
+    const s = state.get()
+    if (s.imageError !== undefined && imageProblem) setImageProblem(imageProblem)
+    if (s.saveError !== undefined && saveProblem) setSaveProblem(saveProblem)
+  }
+  const followMessages = (): (() => void) => messages.subscribe(sayErrors)
   let stopMessages: (() => void) | undefined = followMessages()
 
   const detachPad = (): void => {
@@ -143,7 +143,11 @@ export function createSignatureDraft(
     attachPad(host) {
       // Mounting again revives a destroyed draft, as React's StrictMode remounts do.
       destroyed = false
-      stopMessages ??= followMessages()
+      if (!stopMessages) {
+        stopMessages = followMessages()
+        // The words may have changed while nothing listened, and subscribing says nothing.
+        sayErrors()
+      }
       detachPad()
       const p = createSignaturePad(host)
       pad = p
