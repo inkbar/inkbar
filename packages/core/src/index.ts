@@ -4,6 +4,7 @@ declare const __INKBAR_VERSION__: string
 /** The @inkbar/core version, from its package.json. */
 export const version: string = __INKBAR_VERSION__
 
+export * from './messages'
 export * from './model/errors'
 export * from './model/events'
 export * from './model/geometry'
