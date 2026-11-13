@@ -150,9 +150,10 @@ const props = withDefaults(
     page?: number | undefined
     zoom?: ZoomValue | undefined
     /**
-     * The words the viewer shows, over English: any group, any subset of its keys. A string,
-     * or a function the viewer calls again whenever `messages` or `locale` changes. A change
-     * applies in place: nothing remounts and open menus stay open.
+     * The words the viewer shows, over English: an object of groups, each with any subset of
+     * its keys. Each label is a string, or a function the viewer calls again whenever
+     * `messages` or `locale` changes. A change applies in place: nothing remounts and open
+     * menus stay open.
      */
     messages?: InkMessagesInput | undefined
     /**
