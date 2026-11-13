@@ -1,10 +1,10 @@
 /*
  * The find bar's copy, shared by the vanilla bar and the framework bindings so it cannot drift.
  */
-import { en, type InkMessages } from '../../messages'
 import { isBlankQuery } from '../../model/search-text'
 
 import type { SearchState } from './controller'
+import type { InkMessages } from '../../messages'
 import type { SearchHit } from '../../model/search'
 
 /**
@@ -12,7 +12,7 @@ import type { SearchHit } from '../../model/search'
  *
  * @internal Shared with the framework bindings.
  */
-export function findCountText(s: SearchState, m: InkMessages = en): string {
+export function findCountText(s: SearchState, m: InkMessages): string {
   if (isBlankQuery(s.query)) return ''
   if (s.hits.length === 0) return s.scanning ? '' : m.find.noResults
   const at = { current: s.current + 1, total: s.hits.length }
@@ -29,7 +29,7 @@ export function findCountText(s: SearchState, m: InkMessages = en): string {
  *
  * @internal Shared with the framework bindings; each bar keeps its own.
  */
-export function findAnnouncer(m: InkMessages = en): (s: SearchState) => string {
+export function findAnnouncer(m: InkMessages): (s: SearchState) => string {
   let shown: SearchHit | undefined
   let said = ''
   return (s) => {

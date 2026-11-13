@@ -1,9 +1,20 @@
 import { describe, expect, it } from 'vitest'
 
+import { en } from '../messages'
+
 import { PALETTE } from './palette'
-import { colorMenuModel } from './ui'
+import { colorMenuModel as model } from './ui'
 
 import type { StyleKey } from '../model/annotations/tool-style'
+
+/** The model in English. */
+type Args = Parameters<typeof model>
+const colorMenuModel = (
+  property: Args[0],
+  current: Args[1],
+  supported: Args[2],
+  fallback?: string
+) => model(property, current, supported, fallback, en)
 
 const both = new Set<StyleKey>(['border', 'fill'])
 

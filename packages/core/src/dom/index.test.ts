@@ -50,7 +50,7 @@ describe('@inkbar/core/dom entry', () => {
         'isBlankQuery',
         'createPasswordPrompt',
         'lockedStatus',
-        'PASSWORD_LABELS',
+        'createMessageState',
       ])
     )
 

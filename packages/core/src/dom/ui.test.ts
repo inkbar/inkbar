@@ -25,8 +25,10 @@ describe('models take messages', () => {
     const model = shapeMenuModel({ kind: 'ellipse' }, ['rectangle', 'ellipse'], m)
     expect(model.label).toBe('Forme : Ellipse FR')
     expect(model.items.map((i) => i.label)).toEqual(['Rectangle', 'Ellipse FR'])
-    // English by default.
-    expect(shapeMenuModel({ kind: 'ellipse' }, ['ellipse']).label).toBe('Shape: Ellipse')
+    // English with `en`.
+    expect(shapeMenuModel({ kind: 'ellipse' }, ['ellipse'], en).label).toBe(
+      'Shape: Ellipse'
+    )
   })
 
   it('highlightMenuModel', () => {
@@ -94,7 +96,7 @@ describe('find text takes messages', () => {
       find: { count: ({ current, total }) => `${current} sur ${total}` },
     })
     expect(findCountText(state({}), m)).toBe('1 sur 2')
-    expect(findCountText(state({}))).toBe('1 of 2')
+    expect(findCountText(state({}), en)).toBe('1 of 2')
   })
 
   it('findAnnouncer uses find.announce', () => {

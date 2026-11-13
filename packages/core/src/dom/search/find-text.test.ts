@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import { findAnnouncer, findCountText } from './find-text'
+import { en } from '../../messages'
+
+import { findAnnouncer as announcer, findCountText as countText } from './find-text'
 
 import type { SearchState } from './controller'
 import type { SearchHit } from '../../model/search'
+
+/** The helpers in English. */
+const findCountText = (s: SearchState) => countText(s, en)
+const findAnnouncer = () => announcer(en)
 
 function hit(page: number, start: number): SearchHit {
   return {
