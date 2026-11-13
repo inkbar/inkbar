@@ -6,7 +6,7 @@ import { writable } from '../../model/readable'
 import { oneOfEach } from '../../test-support/annotations'
 import { definePlugin } from '../plugins/define'
 import { mountContainer, openFixtureInBrowser, settle, until } from '../test-utils'
-import { createViewer, type Viewer } from '../viewer/create-viewer'
+import { createViewer, pluginHostOf, type Viewer } from '../viewer/create-viewer'
 
 import { createThumbnail, createThumbnailPainter } from './thumbnail'
 
@@ -231,6 +231,30 @@ describe('createThumbnail', () => {
     viewer.document.get()!.history.undo()
     viewer.document.get()!.history.undo()
     expect(el.querySelectorAll('.ink-thumbnail-marks > div')).toHaveLength(1)
+  })
+
+  it('a new label alone renames it without drawing anything again', async () => {
+    const viewer = await viewerWith([findings()])
+    const host = pluginHostOf(viewer)
+    const el = place(document.createElement('div'))
+    const painter = createThumbnailPainter(
+      el,
+      {
+        document: viewer.document,
+        pluginHost: { get: () => host, subscribe: () => () => undefined },
+      },
+      { page: 0 }
+    )
+    cleanup.push(() => painter.destroy())
+    await painted(el)
+    const canvas = el.querySelector('canvas')
+    const mark = el.querySelector('.ink-thumbnail-marks > div')
+    expect(mark).not.toBeNull()
+    // A binding passes every option, with a new label function on each render.
+    painter.update({ page: 0, label: () => 'First' })
+    expect(el.getAttribute('aria-label')).toBe('First')
+    expect(el.querySelector('canvas')).toBe(canvas)
+    expect(el.querySelector('.ink-thumbnail-marks > div')).toBe(mark)
   })
 
   it('marks: false skips them', async () => {
