@@ -355,6 +355,7 @@ const switchToGerman = () => (messages.value = de)
 </script>
 
 <template>
+  <button @click="switchToGerman">Deutsch</button>
   <InkRoot :src="src" :assets="assets" :messages="messages">
     <InkToolbar :label="() => t('toolbar')">
       <InkToolButton tool="select-text" />

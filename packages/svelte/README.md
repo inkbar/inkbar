@@ -375,7 +375,7 @@ The full table, with the zoom and page keys, is in the [`@inkbar/core` README](h
   import { de } from '@inkbar/core/locales/de'
   import { fr } from '@inkbar/core/locales/fr'
   import { assets } from 'virtual:inkbar-assets'
-import type { InkMessagesInput } from '@inkbar/core'
+  import type { InkMessagesInput } from '@inkbar/core'
 
   let { src }: { src: string } = $props()
 

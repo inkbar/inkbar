@@ -708,14 +708,37 @@ const bar = createToolbar({ messages: viewer.messages })
 Text you supply is yours to translate. A tool's `label`, a toolbar's or panel's `label`, a sidebar's `handleLabel`, an outline's `emptyText`, a plugin command's label and `errorStatus`, and a card's `title`, `label` and action labels each take a string or a function. Inkbar calls the function when it renders and again on every `setMessages` or `setLocale`, so the label follows your language:
 
 ```ts
+import { createToolbar, definePlugin } from '@inkbar/core/dom'
+import type { RecordBase, Rect } from '@inkbar/core'
+
+interface Note extends RecordBase {
+  rect: Rect
+  text: string
+}
+
 const bar = createToolbar({ label: () => t('toolbar'), messages: viewer.messages })
 
-plugin.command('suggest', () => t('suggest'), run, {
-  errorStatus: () => t('suggest.failed'),
+const run = () => 'Done'
+
+definePlugin('review', (plugin) => {
+  const notes = plugin.records<Note>('notes')
+
+  plugin.command('suggest', () => t('suggest'), run, {
+    errorStatus: () => t('suggest.failed'),
+  })
+
+  plugin.marks(notes, {
+    rect: (n) => n.rect,
+    label: (n) => t('note.label', { text: n.text }),
+    card: (n) => ({
+      title: () => t('note.title'),
+      actions: [{ label: () => t('note.dismiss'), run: () => notes.remove(n.id) }],
+    }),
+  })
 })
 ```
 
-A card's `actions` can be an array of `{ label, run }`, so each label can be a function too. `en` is the default set and the shape a translation follows.
+A card's `actions` is an array of `{ label, run }`, so each label can be a function too. `en` is the default set and the shape a translation follows.
 
 ## Serving PDF.js assets
 
