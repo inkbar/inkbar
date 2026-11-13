@@ -27,7 +27,7 @@ import {
   createThumbnailPainter,
   THUMBNAIL_WIDTH,
   thumbnailSize,
-  thumbnailWidthFor,
+  thumbnailWidthToken,
   type ThumbnailDeps,
   type ThumbnailPainter,
 } from './thumbnail'
@@ -58,9 +58,10 @@ export interface ThumbnailsOptions {
   /** Zero-based pages to list, in this order. Default: every page. Missing pages and repeats are dropped. */
   pages?: readonly number[] | undefined
   /**
-   * Thumbnail width in CSS pixels. Default: the list's width less a 16px gutter on each side,
-   * following the list as it resizes. Until the list is attached and shown, the default is
-   * `--ink-thumbnail-width` as computed on the list (px values only), else `THUMBNAIL_WIDTH`.
+   * Thumbnail width in CSS pixels. Default: `--ink-thumbnail-width` as computed on the list
+   * (px values only), capped at the list's width less a 16px gutter on each side. With the
+   * token unset, as the theme leaves it, that fit itself. Both follow the list as it resizes.
+   * Before the list is attached and shown there is no fit: the token, else `THUMBNAIL_WIDTH`.
    */
   width?: number | undefined
   /** Draw each page's annotations. Default true. */
@@ -131,9 +132,14 @@ export function createThumbnailsController(
   let opts: ThumbnailsOptions = { ...initial }
   /** The list's width less its gutters, once measured; null before. */
   let fitted: number | null = null
-  /** `--ink-thumbnail-width` on the list, read on attach and resize; the width before a fit. */
-  let token = THUMBNAIL_WIDTH
-  const thumbWidth = (): number => opts.width ?? fitted ?? token
+  /** `--ink-thumbnail-width` on the list, read on attach and resize; null while unset. */
+  let token: number | null = null
+  /** `width`, else the token capped at the fit, else the fit, else the default. */
+  const thumbWidth = (): number => {
+    if (opts.width !== undefined) return opts.width
+    if (token !== null) return fitted === null ? token : Math.min(token, fitted)
+    return fitted ?? THUMBNAIL_WIDTH
+  }
   let doc = deps.document.get()
   let pages: readonly number[] = pagesFor(doc, opts.pages)
   let offsets: readonly number[] = offsetsFor(pages)
@@ -386,7 +392,7 @@ export function createThumbnailsController(
   function measure(): void {
     if (!scroller) return
     const width = thumbWidth()
-    token = thumbnailWidthFor(scroller)
+    token = thumbnailWidthToken(scroller)
     if (scroller.clientWidth > 0)
       fitted = Math.max(1, Math.floor(scroller.clientWidth - 2 * GUTTER))
     if (thumbWidth() !== width) relist()

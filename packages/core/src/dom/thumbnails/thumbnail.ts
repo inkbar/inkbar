@@ -44,18 +44,18 @@ export const THUMBNAIL_WIDTH = 120
 const PX = /^\s*(\d+(?:\.\d+)?|\.\d+)px\s*$/
 
 /**
- * The default thumbnail width in CSS pixels for `el`: `--ink-thumbnail-width` as computed on it
- * (the token inherits from the root or sidebar that sets it), else `THUMBNAIL_WIDTH`. Only px
- * values count; another unit, a value of 0 or an element outside a document gives the fallback.
+ * `--ink-thumbnail-width` in CSS pixels as computed on `el` (the token inherits from the root
+ * or sidebar that sets it), or null when it is unset. The theme sets no value. Only px values
+ * count: another unit, a value of 0 or an element outside a document is as good as unset.
  */
-export function thumbnailWidthFor(el: Element | null | undefined): number {
+export function thumbnailWidthToken(el: Element | null | undefined): number | null {
   const view = el?.isConnected ? el.ownerDocument.defaultView : null
-  if (!view) return THUMBNAIL_WIDTH
+  if (!view) return null
   const match = PX.exec(
     view.getComputedStyle(el!).getPropertyValue('--ink-thumbnail-width')
   )
   const width = match ? Number(match[1]) : 0
-  return width > 0 ? width : THUMBNAIL_WIDTH
+  return width > 0 ? width : null
 }
 
 /** Height over width of a placeholder with no page to take its shape from: A4 portrait. */
@@ -195,7 +195,7 @@ export function createThumbnailPainter(
     // The token is read only when it is used: a given width or height wins over it.
     const fallback =
       opts.width === undefined && opts.height === undefined
-        ? thumbnailWidthFor(el)
+        ? (thumbnailWidthToken(el) ?? THUMBNAIL_WIDTH)
         : THUMBNAIL_WIDTH
     let size: { width: number; height: number }
     if (page) {
