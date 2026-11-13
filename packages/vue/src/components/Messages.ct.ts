@@ -93,3 +93,20 @@ test('a function label follows messages', async ({ mount, page }) => {
   await cmp.update({ props: { messages: { toolbar: { undo: 'Annuler' } } } })
   await expect(draw).toHaveAccessibleName('Stylo')
 })
+
+test('the zoom trigger follows messages while closed', async ({ mount, page }) => {
+  const cmp = await mount(Harness, {
+    props: { src: fixtureUrl('text-simple'), assets, zoom: 'fit-width' },
+  })
+  const trigger = page.locator('[data-ink-zoom-select]')
+  await expect(trigger).toHaveText('Fit width')
+  await cmp.update({ props: { messages: { toolbar: { fitWidth: 'Pleine largeur' } } } })
+  await expect(trigger).toHaveText('Pleine largeur')
+  await expect(trigger).toHaveAttribute('data-state', 'closed')
+
+  await cmp.update({ props: { zoom: 1 } })
+  await expect(trigger).toHaveText('100%')
+  await cmp.update({ props: { percentSuffix: 'pour cent' } })
+  await expect(trigger).toHaveText('100 pour cent')
+  await expect(trigger).toHaveAttribute('data-state', 'closed')
+})

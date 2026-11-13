@@ -61,6 +61,13 @@ const levels = computed(() => {
   if (c !== null) list.push({ z: c, value: `${CUSTOM}${c}`, label: percent(scale.value) })
   return list.sort((a, b) => a.z - b.z)
 })
+/**
+ * The trigger's text, in the words now. Reka's `SelectValue` would show the text its item had
+ * when it mounted, and closed items stay mounted, so new messages would not reach it.
+ */
+const shown = computed(
+  () => [...fits.value, ...levels.value].find((o) => o.value === value.value)?.label ?? ''
+)
 </script>
 
 <template>
@@ -70,7 +77,7 @@ const levels = computed(() => {
       data-ink-zoom-select
       v-bind="triggerAttrs"
     >
-      <SelectValue class="ink-select-value" />
+      <SelectValue class="ink-select-value">{{ shown }}</SelectValue>
       <SelectIcon class="ink-select-icon">
         <InkIcon :icon="ChevronDown" :size="16" />
       </SelectIcon>

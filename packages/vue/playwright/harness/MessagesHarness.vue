@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { allTools } from '@inkbar/core/dom'
+import { computed } from 'vue'
 
 import InkNextPage from '../../src/components/InkNextPage.vue'
 import InkPrevPage from '../../src/components/InkPrevPage.vue'
@@ -12,15 +13,31 @@ import InkToolbar from '../../src/components/InkToolbar.vue'
 import InkToolButton from '../../src/components/InkToolButton.vue'
 import InkUndo from '../../src/components/InkUndo.vue'
 import InkViewport from '../../src/components/InkViewport.vue'
+import InkZoomSelect from '../../src/components/InkZoomSelect.vue'
 
 import type { DocumentSource, InkMessagesInput, PdfAssets } from '@inkbar/core'
+import type { ZoomValue } from '@inkbar/core/dom'
 
-defineProps<{
+const props = defineProps<{
   src: DocumentSource
   assets: PdfAssets
   messages?: InkMessagesInput | undefined
   locale?: string | undefined
+  zoom?: ZoomValue | undefined
+  /** Test-only: a `toolbar.zoomPercent` function, which a test cannot pass as a prop. */
+  percentSuffix?: string | undefined
 }>()
+const words = computed<InkMessagesInput | undefined>(() => {
+  const suffix = props.percentSuffix
+  if (suffix === undefined) return props.messages
+  return {
+    ...props.messages,
+    toolbar: {
+      ...props.messages?.toolbar,
+      zoomPercent: ({ percent }: { percent: number }) => `${percent} ${suffix}`,
+    },
+  }
+})
 const tools = allTools()
 
 type WordWindow = Window & { __inkDrawWord?: string }
@@ -32,9 +49,9 @@ const drawLabel = () => (window as WordWindow).__inkDrawWord ?? 'Pen'
   <InkRoot
     :src="src"
     :assets="assets"
-    :zoom="1"
+    :zoom="zoom ?? 1"
     :tools="tools"
-    :messages="messages"
+    :messages="words"
     :locale="locale"
   >
     <InkToolbar>
@@ -45,6 +62,7 @@ const drawLabel = () => (window as WordWindow).__inkDrawWord ?? 'Pen'
       <InkNextPage />
       <InkShapeMenu />
       <InkToolButton tool="draw" :label="drawLabel" />
+      <InkZoomSelect />
     </InkToolbar>
     <!-- Test-only box: the scroll container needs a bounded height to scroll. -->
     <div style="height: 600px; width: 900px"><InkViewport /></div>

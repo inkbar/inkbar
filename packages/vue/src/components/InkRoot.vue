@@ -44,6 +44,7 @@ import {
 
 import { registeredToolIds } from '../composables/useRegisteredTool'
 import { provideInkContext, type InkHistory, type InkStatus } from '../context'
+import { provideMessageStore } from '../message-store'
 import { createRefHistory } from '../ref-history'
 import { useReadable } from '../use-readable'
 
@@ -674,10 +675,13 @@ provideInkContext({
   formHighlight: computed(() => props.formHighlight),
   messages: currentMessages,
   locale: currentLocale,
-  messageState,
+  messageState: readonly(messageState),
   reportAction: (a) => emit('action', a),
   reportError: (e) => emit('error', e),
 })
+
+// The writable store, for InkViewport's engine only.
+provideMessageStore(messageState)
 
 // `history` is what `useHistory()` returns inside the root, for hosts that hold a template ref:
 // a controlled host calls `history.clear()` after loading its saved list.

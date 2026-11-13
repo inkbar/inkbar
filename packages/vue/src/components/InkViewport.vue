@@ -26,6 +26,7 @@ import {
 
 import { toolIdsOf } from '../composables/useRegisteredTool'
 import { injectInkContext } from '../context'
+import { injectMessageStore } from '../message-store'
 import { useReadable } from '../use-readable'
 
 import InkFormAlert from './InkFormAlert.vue'
@@ -75,6 +76,7 @@ const slots = defineSlots<{
 
 const ctx = injectInkContext()
 const messages = ctx.messages
+const messageStore = injectMessageStore()
 const scroll = useTemplateRef<HTMLElement>('scroll')
 
 interface MountedPage {
@@ -286,7 +288,7 @@ function setup(): void {
     signatureLibrary: () => ctx.signatures,
     customAnnotations: custom,
     // The root's message state, shared: a new `messages` or `locale` relabels in place.
-    _messageState: ctx.messageState,
+    _messageState: messageStore,
     ...(ctx.formHighlight.value === undefined
       ? {}
       : { formHighlight: ctx.formHighlight.value }),

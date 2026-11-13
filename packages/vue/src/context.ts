@@ -11,11 +11,12 @@ import type {
   InkStorage,
   PdfAssets,
   PluginHistory,
+  Readable,
   SignatureLibrary,
 } from '@inkbar/core'
 import type {
   DecorateAnnotation,
-  MessageStore,
+  MessageState,
   Navigation,
   PasswordPrompt,
   PluginHost,
@@ -142,10 +143,10 @@ export interface InkContext {
   /** InkRoot's `locale`, for dates; undefined for the browser's. */
   locale: Readonly<Ref<string | undefined>>
   /**
-   * The one message state for the root's life, which `messages` and `locale` mirror. InkRoot
-   * alone sets it, from its props; the engine and core's factories subscribe to it.
+   * The one message state for the root's life, which `messages` and `locale` mirror, read-only:
+   * InkRoot alone sets it, from its props. Core's factories subscribe to it.
    */
-  messageState: MessageStore
+  messageState: Readable<MessageState>
   /** Emits InkRoot's `action`. */
   reportAction(action: ViewerAction): void
   /** Emits InkRoot's `error`, for failures after the document opened (a refused signing). */

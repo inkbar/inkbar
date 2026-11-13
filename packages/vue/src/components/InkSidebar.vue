@@ -39,6 +39,7 @@ import {
   watch,
 } from 'vue'
 
+import { useMessages } from '../composables/useMessages'
 import { injectInkContext } from '../context'
 import { useReadable } from '../use-readable'
 
@@ -113,6 +114,12 @@ const panels = computed(() => entries.value.map((e) => e.info()))
 
 // Read once: the controller loads the saved width as it is created.
 const ink = injectInkContext(null)
+const messages = useMessages()
+/** The handle's default name, in the root's words (English outside a root). */
+const defaultHandleLabel = (): string =>
+  props.side === 'right'
+    ? messages.value.sidebar.resizeRight
+    : messages.value.sidebar.resizeLeft
 const storage = props.storage ?? ink?.storage
 const minDocumentWidth = props.minDocumentWidth ?? ink?.minDocumentWidth
 // Pending until mounted: the panels register one by one while they are set up, and an open id
@@ -156,7 +163,9 @@ watch(
       side,
       visible,
       panels: list,
-      ...(handleLabel !== undefined && { handleLabel }),
+      // Core keeps the last label for an undefined one, so a dropped label is replaced by the
+      // default, read afresh each time the words change.
+      handleLabel: handleLabel ?? defaultHandleLabel,
       ...(value !== undefined && { open: value }),
       ...widths,
     }),
