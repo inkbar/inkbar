@@ -21,6 +21,7 @@
   import { Toolbar } from 'bits-ui'
 
   import { useInkContext } from '../context.js'
+  import { useMessages } from '../messages.js'
 
   import { asBitsProps } from './child-snippet.js'
   import InkIcon from './InkIcon.svelte'
@@ -36,13 +37,14 @@
 
   const ctx = useInkContext('InkPrintButton')
   const ready = $derived(ctx.document !== null && ctx.status.state === 'ready')
+  const m = useMessages()
 </script>
 
 <Toolbar.Button
   class={['ink-print', className]}
   data-ink-print=""
-  aria-label="Print"
-  title="Print"
+  aria-label={m.current.toolbar.print}
+  title={m.current.toolbar.print}
   disabled={!ready || !!disabled}
   {...child ? { child } : {}}
   {...asBitsProps(rest)}

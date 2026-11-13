@@ -3,6 +3,7 @@
   import { Toolbar } from 'bits-ui'
 
   import { useHistory } from '../hooks/useHistory.svelte.js'
+  import { useMessages } from '../messages.js'
 
   import { asBitsProps } from './child-snippet.js'
   import InkIcon from './InkIcon.svelte'
@@ -19,13 +20,14 @@
   }: InkHistoryButtonProps = $props()
 
   const history = useHistory()
+  const m = useMessages()
 </script>
 
 <Toolbar.Button
   class={['ink-redo', className]}
   data-ink-redo=""
-  aria-label="Redo"
-  title="Redo"
+  aria-label={m.current.toolbar.redo}
+  title={m.current.toolbar.redo}
   disabled={!history.canRedo || !!disabled}
   {...child ? { child } : {}}
   {...asBitsProps(rest)}

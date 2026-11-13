@@ -23,6 +23,7 @@
   import { Toolbar } from 'bits-ui'
 
   import { useInkContext } from '../context.js'
+  import { useMessages } from '../messages.js'
 
   import { asBitsProps } from './child-snippet.js'
   import InkIcon from './InkIcon.svelte'
@@ -39,13 +40,14 @@
 
   const ctx = useInkContext('InkDownloadButton')
   const ready = $derived(ctx.document !== null && ctx.status.state === 'ready')
+  const m = useMessages()
 </script>
 
 <Toolbar.Button
   class={['ink-download', className]}
   data-ink-download=""
-  aria-label="Download"
-  title="Download"
+  aria-label={m.current.toolbar.download}
+  title={m.current.toolbar.download}
   disabled={!ready || !!disabled}
   {...child ? { child } : {}}
   {...asBitsProps(rest)}

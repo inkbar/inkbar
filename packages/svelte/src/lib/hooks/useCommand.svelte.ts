@@ -1,5 +1,4 @@
-import { resolveLabel } from '@inkbar/core'
-import { unknownCommand } from '@inkbar/core/dom'
+import { commandLabel, unknownCommand } from '@inkbar/core/dom'
 
 import { useInkContext } from '../context.js'
 import { useReadable } from '../use-readable.svelte.js'
@@ -40,6 +39,12 @@ export function useCommand(id: string): CommandHandle {
   const enabled = useReadable(() => command?.enabled, false)
   const busy = useReadable(() => command?.busy, false)
   const status = useReadable(() => command?.status, '')
+  // Read again on new messages, so a label function follows them; the id when it is empty.
+  // Derived, so an empty label warns once per change, not once per read.
+  const label = $derived.by(() => {
+    void ctx.messages
+    return command ? commandLabel(command) : ''
+  })
   return {
     run: async () => command?.run(),
     get enabled() {
@@ -52,7 +57,7 @@ export function useCommand(id: string): CommandHandle {
       return status.current
     },
     get label() {
-      return command ? resolveLabel(command.label, command.id) : ''
+      return label
     },
     get icon() {
       return command?.icon

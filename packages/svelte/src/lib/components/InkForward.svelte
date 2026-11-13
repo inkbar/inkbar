@@ -3,6 +3,7 @@
   import { Toolbar } from 'bits-ui'
 
   import { useInkContext } from '../context.js'
+  import { useMessages } from '../messages.js'
   import { useReadable } from '../use-readable.svelte.js'
 
   import { asBitsProps } from './child-snippet.js'
@@ -21,13 +22,14 @@
 
   const ctx = useInkContext('InkForward')
   const can = useReadable(() => ctx.navigation?.canGoForward, false)
+  const m = useMessages()
 </script>
 
 <Toolbar.Button
   class={['ink-forward', className]}
   data-ink-forward=""
-  aria-label="Forward"
-  title="Forward"
+  aria-label={m.current.toolbar.forward}
+  title={m.current.toolbar.forward}
   disabled={!can.current || !!disabled}
   {...child ? { child } : {}}
   {...asBitsProps(rest)}

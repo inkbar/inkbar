@@ -3,6 +3,7 @@
   import { Toolbar } from 'bits-ui'
 
   import { useZoom } from '../hooks/useZoom.svelte.js'
+  import { useMessages } from '../messages.js'
 
   import { asBitsProps } from './child-snippet.js'
   import InkIcon from './InkIcon.svelte'
@@ -18,13 +19,14 @@
   }: InkZoomButtonProps = $props()
 
   const zoom = useZoom()
+  const m = useMessages()
 </script>
 
 <Toolbar.Button
   class={['ink-zoom-out', className]}
   data-ink-zoom-out=""
-  aria-label="Zoom out"
-  title="Zoom out"
+  aria-label={m.current.toolbar.zoomOut}
+  title={m.current.toolbar.zoomOut}
   {...child ? { child } : {}}
   {...asBitsProps(rest)}
   onclick={(e) => {

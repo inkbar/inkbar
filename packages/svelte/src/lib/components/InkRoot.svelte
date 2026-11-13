@@ -10,6 +10,7 @@
     ViewerAction,
     InkDocument,
     InkError,
+    InkMessagesInput,
     InkStatus,
     PdfAssets,
   } from '@inkbar/core'
@@ -112,6 +113,17 @@
     onPageChange?: ((page: number) => void) | undefined
     zoom?: ZoomValue | undefined
     onZoomChange?: ((zoom: ZoomValue) => void) | undefined
+    /**
+     * The words the viewer shows, over English: any group, any subset of its keys. A string,
+     * or a function the viewer calls again whenever `messages` or `locale` changes. A change
+     * applies in place: nothing remounts and open menus stay open.
+     */
+    messages?: InkMessagesInput | undefined
+    /**
+     * The locale dates are formatted for, and the root's `lang` when it is a valid tag.
+     * Default: the browser's.
+     */
+    locale?: string | undefined
     /** Undo history. Defaults to on for uncontrolled, off for controlled. */
     history?: boolean | undefined
     onReady?: ((doc: InkDocument) => void) | undefined
@@ -140,6 +152,7 @@
     createSnapshotHistory,
     createStorageSignatureStore,
     InkError as InkErrorClass,
+    isValidLocale,
     openDocument,
     readonly,
     writable,
@@ -147,6 +160,7 @@
   import {
     attachFileKeys,
     attachHistoryKeys,
+    createMessageState,
     createPasswordPrompt,
     createPluginHost,
     createSearchController,
@@ -169,6 +183,7 @@
 
   import { setInkContext, type InkContext, type InkHistory } from '../context.js'
   import { registeredToolIds } from '../hooks/useRegisteredTool.svelte.js'
+  import { setMessageStore } from '../message-store.js'
   import { useReadable } from '../use-readable.svelte.js'
 
   import type { InkStorage, PluginHistory } from '@inkbar/core'
@@ -207,6 +222,8 @@
     onPageChange,
     zoom = $bindable(),
     onZoomChange,
+    messages: messagesProp,
+    locale: localeProp,
     history: historyProp,
     onReady,
     onError,
@@ -228,6 +245,35 @@
   $effect(() => {
     void signatures.refresh()
   })
+  /*
+   * One message state for the root's life. The props are pushed into it; the engine, the plugin
+   * host and core's factories share it, and the components read its mirror below. Every set is
+   * a new state, so label functions run again even when the host passes an equal object.
+   */
+  const messageState = untrack(() => createMessageState(messagesProp, localeProp))
+  const publicMessageState = readonly(messageState)
+  setMessageStore(messageState)
+  /** What the store last took from the props: the first values went in at creation. */
+  let pushedMessages = untrack(() => messagesProp)
+  let pushedLocale = untrack(() => localeProp)
+  // Before the DOM updates, so the new words are on screen in the same flush as the new props.
+  $effect.pre(() => {
+    const next = messagesProp
+    if (next === pushedMessages) return
+    pushedMessages = next
+    untrack(() => messageState.setMessages(next))
+  })
+  $effect.pre(() => {
+    const next = localeProp
+    if (next === pushedLocale) return
+    pushedLocale = next
+    untrack(() => messageState.setLocale(next))
+  })
+  const words = useReadable(() => messageState, messageState.get())
+  const lang = $derived(
+    isValidLocale(words.current.locale) ? words.current.locale : undefined
+  )
+
   /** Tool options last as long as the root; the tool style is per document. */
   const toolOptions = createToolOptions()
 
@@ -621,6 +667,7 @@
         viewport: () => viewport,
         search: viewerSearchOf(controller),
         storage,
+        messages: publicMessageState,
       })
     )
     search = controller
@@ -787,6 +834,13 @@
     get formHighlight() {
       return formHighlight
     },
+    get messages() {
+      return words.current.messages
+    },
+    get locale() {
+      return words.current.locale
+    },
+    messageState: publicMessageState,
     reportAction: (a) => onaction?.(a),
     reportError: (e) => onError?.(e),
   }
@@ -815,10 +869,16 @@
 
 {#if child}
   {@render child({
-    props: { ...rest, 'data-ink-root': '', 'data-state': status.state, ...attachRoot },
+    props: {
+      lang,
+      ...rest,
+      'data-ink-root': '',
+      'data-state': status.state,
+      ...attachRoot,
+    },
   })}
 {:else}
-  <div bind:this={ref} {...rest} data-ink-root="" data-state={status.state}>
+  <div bind:this={ref} {lang} {...rest} data-ink-root="" data-state={status.state}>
     {@render children?.({ status, document })}
   </div>
 {/if}

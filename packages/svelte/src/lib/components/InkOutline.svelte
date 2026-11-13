@@ -1,5 +1,5 @@
 <script module lang="ts">
-  import type { OutlineItem } from '@inkbar/core'
+  import type { Label, OutlineItem } from '@inkbar/core'
   import type { Snippet } from 'svelte'
   import type { HTMLAttributes } from 'svelte/elements'
 
@@ -7,8 +7,11 @@
     HTMLAttributes<HTMLDivElement>,
     'children'
   > {
-    /** Shown when the document has no outline. Default: "This document has no outline". */
-    emptyText?: string | undefined
+    /**
+     * Shown when the document has no outline: a string, or a function read again whenever the
+     * root's `messages` change. Default "This document has no outline", in the root's words.
+     */
+    emptyText?: Label | undefined
     /**
      * Replaces an item's title, given the item and whether it is the current one and whether it
      * is expanded. Keep what it renders non-interactive.
@@ -34,12 +37,13 @@
   import { untrack } from 'svelte'
 
   import { useInkContext } from '../context.js'
+  import { hostLabel } from '../messages.js'
   import { toReadable } from '../to-readable.svelte.js'
 
   import InkIcon from './InkIcon.svelte'
 
   let {
-    emptyText = 'This document has no outline',
+    emptyText,
     item: renderItem,
     class: className,
     ...rest
@@ -158,13 +162,13 @@
 >
   <ul
     class="ink-outline-tree"
-    {...outlineTreeAttrs()}
+    {...outlineTreeAttrs(ctx.messages)}
     hidden={items.length === 0}
     onkeydown={(e) => controller?.onKeydown(e)}
   >
     {#if controller}{@render nodes(items)}{/if}
   </ul>
   {#if controller && !loading && items.length === 0}
-    <p class="ink-outline-empty">{emptyText}</p>
+    <p class="ink-outline-empty">{hostLabel(emptyText, ctx.messages.outline.empty)}</p>
   {/if}
 </div>

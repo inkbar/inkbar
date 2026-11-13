@@ -19,6 +19,7 @@
   import { Popover, Toolbar } from 'bits-ui'
 
   import { useToolStyle } from '../hooks/useToolStyle.svelte.js'
+  import { useMessages } from '../messages.js'
 
   import { asBitsProps, composeHandlers } from './child-snippet.js'
   import InkIcon from './InkIcon.svelte'
@@ -34,9 +35,10 @@
   }: InkLineStyleMenuProps = $props()
 
   const style = useToolStyle()
+  const m = useMessages()
   let open = $state(false)
 
-  const model = $derived(lineStyleMenuModel(style.current, style.supported))
+  const model = $derived(lineStyleMenuModel(style.current, style.supported, m.current))
 
   let menu = $state<HTMLElement | null>(null)
 
@@ -68,8 +70,8 @@
         data-ink-line-style-menu=""
         data-state={open ? 'open' : 'closed'}
         data-mixed={model.mixed ? '' : undefined}
-        aria-label="Line style"
-        title="Line style"
+        aria-label={m.current.lineStyle.label}
+        title={m.current.lineStyle.label}
         aria-haspopup="menu"
         onclick={composeHandlers(onclick, props.onclick)}
         onkeydown={composeHandlers(onkeydown, props.onkeydown, onTriggerKeydown)}
@@ -83,7 +85,7 @@
     <Popover.Content
       bind:ref={menu}
       role="menu"
-      aria-label="Line style"
+      aria-label={m.current.lineStyle.label}
       class="ink-select-content ink-menu-content"
       data-ink-select-content=""
       data-ink-menu="line-style"
@@ -95,7 +97,8 @@
       onfocusin={openFocus.onfocusin}
       onkeydown={(e) => menu && handleMenuKeys(e, menu)}
     >
-      {#each model.sections as section (section.label)}
+      <!-- Keyed by place, not by words: new messages must not remount an open menu's items. -->
+      {#each model.sections as section, index (index)}
         <div
           role="group"
           class="ink-menu-group"

@@ -32,6 +32,7 @@
   import { useRegisteredTool } from '../hooks/useRegisteredTool.svelte.js'
   import { useTool } from '../hooks/useTool.svelte.js'
   import { useToolOptionsWhile } from '../hooks/useToolOptions.svelte.js'
+  import { useMessages } from '../messages.js'
 
   import InkIcon from './InkIcon.svelte'
   import { createMenuOpenFocus } from './menu-open-focus.js'
@@ -46,7 +47,8 @@
   /** The split button: the panel lines up under it rather than the chevron. */
   let group = $state<HTMLElement | null>(null)
 
-  const model = $derived(shapeMenuModel(shape.options, SHAPE_KINDS))
+  const m = useMessages()
+  const model = $derived(shapeMenuModel(shape.options, SHAPE_KINDS, m.current))
   const active = $derived(current.tool === 'shape')
 
   let menu = $state<HTMLElement | null>(null)
@@ -74,7 +76,7 @@
   <div
     bind:this={group}
     role="group"
-    aria-label="Shape"
+    aria-label={m.current.shape.label}
     class={['ink-split-button ink-shape-menu', className]}
     data-ink-shape-menu=""
     {...rest}
@@ -103,8 +105,8 @@
             class="ink-menu-trigger ink-shape-menu-trigger"
             data-ink-shape-menu-trigger=""
             data-state={open ? 'open' : 'closed'}
-            aria-label="Choose shape"
-            title="Choose shape"
+            aria-label={m.current.shape.choose}
+            title={m.current.shape.choose}
             aria-haspopup="menu"
             onkeydown={onTriggerKeydown}
           >
@@ -116,7 +118,7 @@
         <Popover.Content
           bind:ref={menu}
           role="menu"
-          aria-label="Shapes"
+          aria-label={m.current.shape.menu}
           class="ink-select-content ink-menu-content"
           data-ink-select-content=""
           data-ink-menu="shape"
@@ -131,7 +133,7 @@
         >
           <div
             role="group"
-            aria-label="Shapes"
+            aria-label={m.current.shape.menu}
             class="ink-shape-grid"
             data-ink-menu-columns={SHAPE_COLUMNS}
           >

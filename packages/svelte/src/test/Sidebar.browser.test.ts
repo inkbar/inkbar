@@ -509,6 +509,20 @@ describe('floating sidebar', () => {
       .toHaveAttribute('aria-valuenow', '320')
   })
 
+  it('dropping handleLabel brings back the default name', async () => {
+    const screen = await render(SidebarHarness, {
+      layout: 'rail',
+      handleLabel: 'Resize the pages list',
+    })
+    await expect
+      .element(browserPage.getByRole('separator', { name: 'Resize the pages list' }))
+      .toBeInTheDocument()
+    await screen.rerender({ handleLabel: undefined })
+    await expect
+      .element(browserPage.getByRole('separator', { name: 'Resize left sidebar' }))
+      .toBeInTheDocument()
+  })
+
   it('starts closed after hydration without a mismatch', async () => {
     const html = await renderHydrated('SidebarHarness.svelte', SidebarHarness, {
       layout: 'rail',

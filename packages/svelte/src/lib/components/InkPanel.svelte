@@ -1,12 +1,16 @@
 <script module lang="ts">
+  import type { Label } from '@inkbar/core'
   import type { IconNode } from '@inkbar/icons'
   import type { Snippet } from 'svelte'
 
   export interface InkPanelProps {
     /** Names the panel in the sidebar's `open`. */
     id: string
-    /** Names its trigger. */
-    label: string
+    /**
+     * Names its trigger: a string, or a function read again whenever the root's `messages`
+     * change.
+     */
+    label: Label
     /** An `@inkbar/icons` node, shown on the rail. */
     icon?: IconNode | undefined
     /** A count or short text beside it, hidden when empty or 0. */
@@ -21,6 +25,10 @@
    * One panel of an `InkSidebar`, holding `children` as its content. Closed, the panel stays
    * mounted and hidden. In a stack it renders its own header above its content.
    */
+  import { resolveLabel } from '@inkbar/core'
+
+  import { useMessages } from '../messages.js'
+
   import { useSidebarContext } from './sidebar-context.js'
   import SidebarTrigger from './SidebarTrigger.svelte'
 
@@ -29,6 +37,12 @@
   let { id, label, icon, badge, children }: InkPanelProps = $props()
 
   const ctx = useSidebarContext('InkPanel')
+  const m = useMessages()
+  /** The label as shown now: a label function runs again on new messages. */
+  const title = $derived.by(() => {
+    void m.current
+    return resolveLabel(label)
+  })
   let wrapper = $state<HTMLDivElement | null>(null)
 
   const info = (): SidebarPanelInfo => ({
@@ -67,7 +81,7 @@
   {/if}
   <div class="ink-sidebar-panel" {...view.panel}>
     <!-- The rail button names the panel for assistive technology; this repeats it on screen. -->
-    <div class="ink-sidebar-panel-title" aria-hidden="true">{label}</div>
+    <div class="ink-sidebar-panel-title" aria-hidden="true">{title}</div>
     <div class="ink-sidebar-panel-body">{@render children?.()}</div>
   </div>
 </div>

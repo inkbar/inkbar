@@ -11,6 +11,7 @@
   import { Select } from 'bits-ui'
 
   import { useZoom } from '../hooks/useZoom.svelte.js'
+  import { useMessages } from '../messages.js'
 
   import { asBitsProps } from './child-snippet.js'
   import InkIcon from './InkIcon.svelte'
@@ -18,12 +19,15 @@
   let { class: className, ...rest }: InkZoomSelectProps = $props()
 
   const CUSTOM = 'custom:'
-  const FITS = [
-    { value: 'fit-width', label: 'Fit width' },
-    { value: 'fit-page', label: 'Fit page' },
-  ]
   const level = (z: number) => ZOOM_LEVELS.find((l) => Math.abs(l - z) < 0.001)
-  const percent = (z: number) => `${Math.round(z * 100)}%`
+
+  const m = useMessages()
+  const fits = $derived([
+    { value: 'fit-width', label: m.current.toolbar.fitWidth },
+    { value: 'fit-page', label: m.current.toolbar.fitPage },
+  ])
+  const percent = (z: number) =>
+    m.current.toolbar.zoomPercent({ percent: Math.round(z * 100) })
 
   const zoom = useZoom()
   /** A numeric zoom that is not one of the levels (zoom in and out multiply). */
@@ -45,7 +49,12 @@
     return list.sort((a, b) => a.z - b.z)
   })
   // Every option, for the trigger's label and typeahead: the items mount only while it is open.
-  const items = $derived([...FITS, ...levels])
+  const items = $derived([...fits, ...levels])
+  /**
+   * The trigger's text, from the current words: rendered here rather than left to the select,
+   * so it follows a change of messages while the select is closed.
+   */
+  const shown = $derived(items.find((o) => o.value === value)?.label ?? '')
 
   function onValueChange(v: string): void {
     if (v === value) return
@@ -62,10 +71,10 @@
     class={['ink-select', 'ink-select-trigger', 'ink-zoom-select', className]}
     data-ink-zoom-select=""
     role="combobox"
-    aria-label="Zoom"
+    aria-label={m.current.toolbar.zoom}
     {...asBitsProps(rest)}
   >
-    <Select.Value class="ink-select-value" />
+    <Select.Value class="ink-select-value">{shown}</Select.Value>
     <span class="ink-select-icon" aria-hidden="true">
       <InkIcon icon={ChevronDown} size={16} />
     </span>
@@ -80,7 +89,7 @@
       <Select.Viewport>
         {#each items as o, i (o.value)}
           <!-- The fits, then the levels. -->
-          {#if i === FITS.length}
+          {#if i === fits.length}
             <div class="ink-select-separator" aria-hidden="true"></div>
           {/if}
           <Select.Item

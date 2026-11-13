@@ -95,13 +95,16 @@
 
   // The live region follows the controller's state change by change, as the vanilla bar does,
   // and is written directly. An update shows only the last of the changes batched into it, so
-  // two steps in one task that end where they began would otherwise say nothing.
+  // two steps in one task that end where they began would otherwise say nothing. An announcer
+  // keeps the words it was made with, so new messages make a new one; the region keeps its
+  // text when the new words say the same.
   $effect(() => {
     const controller = ctx.search
     const el = live
+    const m = ctx.messages
     if (!controller || !el) return
     return untrack(() => {
-      const announce = findAnnouncer()
+      const announce = findAnnouncer(m)
       const say = (s: SearchState): void => {
         const text = announce(s)
         if (el.textContent !== text) el.textContent = text
@@ -154,7 +157,7 @@
       <input
         bind:this={field}
         type="text"
-        aria-label="Find in document"
+        aria-label={ctx.messages.find.field}
         autocomplete="off"
         spellcheck={false}
         oninput={(e) => search.setQuery(e.currentTarget.value)}
@@ -167,13 +170,13 @@
       />
     </div>
     <span class="ink-find-count" data-ink-find-count=""
-      >{findCountText(search.state)}</span
+      >{findCountText(search.state, ctx.messages)}</span
     >
     <button
       type="button"
       data-ink-find-previous=""
-      aria-label="Previous match"
-      title="Previous match"
+      aria-label={ctx.messages.find.previous}
+      title={ctx.messages.find.previous}
       onclick={() => search.previous()}
     >
       <InkIcon icon={ChevronUp} />
@@ -181,8 +184,8 @@
     <button
       type="button"
       data-ink-find-next=""
-      aria-label="Next match"
-      title="Next match"
+      aria-label={ctx.messages.find.next}
+      title={ctx.messages.find.next}
       onclick={() => search.next()}
     >
       <InkIcon icon={ChevronDown} />
@@ -190,8 +193,8 @@
     <button
       type="button"
       data-ink-find-match-case=""
-      aria-label="Match case"
-      title="Match case"
+      aria-label={ctx.messages.find.matchCase}
+      title={ctx.messages.find.matchCase}
       aria-pressed={search.state.matchCase}
       onclick={() => search.setMatchCase(!search.state.matchCase)}
     >
@@ -200,8 +203,8 @@
     <button
       type="button"
       data-ink-find-close=""
-      aria-label="Close find"
-      title="Close find"
+      aria-label={ctx.messages.find.close}
+      title={ctx.messages.find.close}
       onclick={() => search.close()}
     >
       <InkIcon icon={X} />

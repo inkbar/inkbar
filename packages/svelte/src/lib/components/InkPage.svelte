@@ -110,7 +110,7 @@
       {#if pageError}
         {@render pageError({ error, page })}
       {:else}
-        <p>Page {page + 1} could not be shown.</p>
+        <p>{ctx.messages.viewer.pageFailed({ page: page + 1 })}</p>
         <code class="ink-error-code">{error.code}</code>
       {/if}
     </div>
