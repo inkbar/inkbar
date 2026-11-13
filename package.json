@@ -9,9 +9,11 @@
   },
   "scripts": {
     "build": "turbo run build",
-    "lint": "turbo run lint",
+    "lint": "turbo run lint && eslint scripts",
     "typecheck": "turbo run typecheck",
+    "typecheck:scripts": "tsc -p scripts",
     "test": "turbo run test",
+    "test:scripts": "node --test scripts/",
     "test:browser": "turbo run test:browser",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

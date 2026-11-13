@@ -56,8 +56,12 @@ jobs:
         run: pnpm lint
       - if: needs.changes.outputs.code == 'true'
         run: pnpm typecheck
+      # The translate script's own checks. The script itself never runs in CI.
+      - if: needs.changes.outputs.code == 'true'
+        run: pnpm typecheck:scripts
       - run: pnpm build
       - run: pnpm test
+      - run: pnpm test:scripts
 
   # One runner per suite, and three for the sandbox's, the longest. The e2e suites measure frame
   # times, so nothing else may compete for their runner's CPU.
