@@ -7,6 +7,7 @@
 import { derived, type Readable } from '../../model/readable'
 import { CONTEXT_CHARS, type SearchHit } from '../../model/search'
 import { isBlankQuery } from '../../model/search-text'
+import { ENGLISH, type MessageState } from '../messages-state'
 import { readingOrder } from '../plugins/registry'
 
 import type { Rect } from '../../model/geometry'
@@ -232,7 +233,12 @@ export function excerptOf(hit: SearchHit): {
   return { before, match: hit.text, after }
 }
 
-export function searchSource(search: ViewerSearch): RecordListSource {
+export function searchSource(
+  search: ViewerSearch,
+  /** The words of the count and the cards; English when omitted. */
+  messages: Readable<MessageState> = ENGLISH
+): RecordListSource {
+  const words = () => messages.get().messages.search
   /** Each hit's item, kept while the hit is: the scan adds hits but keeps the objects. */
   const itemOf = new WeakMap<SearchHit, ListItem>()
   /** Each item's hit and its place among its page's hits, from 0. */
@@ -274,8 +280,8 @@ export function searchSource(search: ViewerSearch): RecordListSource {
     else if (!s.scanning)
       said =
         s.hits.length === 0
-          ? 'No results'
-          : `${s.hits.length} ${s.hits.length === 1 ? 'result' : 'results'}`
+          ? words().noResults
+          : words().resultCount({ count: s.hits.length })
     return said
   })
 
@@ -286,8 +292,8 @@ export function searchSource(search: ViewerSearch): RecordListSource {
       if (!found) return null
       const { hit, n } = found
       return {
-        title: `Page ${hit.page + 1}`,
-        meta: `Match ${n + 1}`,
+        title: words().matchPage({ page: hit.page + 1 }),
+        meta: words().match({ index: n + 1 }),
         excerpt: excerptOf(hit),
         actions: {},
       }

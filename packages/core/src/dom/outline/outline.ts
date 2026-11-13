@@ -1,7 +1,13 @@
 import { ChevronRight } from '@inkbar/icons'
 
+import { resolveLabel, type InkMessages, type Label } from '../../messages'
 import { createIcon } from '../viewer/controls'
-import { navigationOf, onViewerDestroy, type Viewer } from '../viewer/create-viewer'
+import {
+  messagesOf,
+  navigationOf,
+  onViewerDestroy,
+  type Viewer,
+} from '../viewer/create-viewer'
 import { h } from '../viewer/dom'
 
 import { createOutlineController } from './controller'
@@ -9,8 +15,11 @@ import { createOutlineController } from './controller'
 import type { OutlineItem } from '../../model/outline'
 
 export interface OutlineOptions {
-  /** Shown when the document has no outline. Default: "This document has no outline". */
-  emptyText?: string | undefined
+  /**
+   * Shown when the document has no outline. Default: the viewer's `outline.empty` ("This
+   * document has no outline"). A function is read again on every change of words.
+   */
+  emptyText?: Label | undefined
 }
 
 /**
@@ -25,12 +34,14 @@ export function createOutline(viewer: Viewer, opts: OutlineOptions = {}): HTMLEl
     viewport: viewer.viewport,
     navigation: navigationOf(viewer),
   })
-  const tree = h('ul', { class: 'ink-outline-tree', ...controller.treeAttrs() })
-  const empty = h(
-    'p',
-    { class: 'ink-outline-empty' },
-    opts.emptyText ?? 'This document has no outline'
-  )
+  const messages = messagesOf(viewer)
+  const emptyText = (m: InkMessages): string =>
+    resolveLabel(opts.emptyText) || m.outline.empty
+  const tree = h('ul', {
+    class: 'ink-outline-tree',
+    ...controller.treeAttrs(messages.get().messages),
+  })
+  const empty = h('p', { class: 'ink-outline-empty' }, emptyText(messages.get().messages))
   const root = h('div', { class: 'ink-outline', 'data-ink-outline': '' }, tree, empty)
 
   /** Each item's element and, for items with children, its group. */
@@ -133,6 +144,10 @@ export function createOutline(viewer: Viewer, opts: OutlineOptions = {}): HTMLEl
     controller.expanded.subscribe(sync),
     controller.current.subscribe(sync),
     controller.focused.subscribe(sync),
+    messages.subscribe(({ messages: m }) => {
+      tree.setAttribute('aria-label', m.outline.label)
+      empty.textContent = emptyText(m)
+    }),
   ]
   const unbind = controller.bindScroll(root)
   onViewerDestroy(viewer, () => {

@@ -1,4 +1,4 @@
-import { sidebarBadge, type SidebarPanelInfo } from '@inkbar/core/dom'
+import { sidebarBadge, sidebarLabel, type SidebarPanelInfo } from '@inkbar/core/dom'
 
 import { InkIcon } from './InkIcon'
 
@@ -19,7 +19,7 @@ export function SidebarTrigger({
     <>
       {panel.icon ? <InkIcon icon={panel.icon} /> : null}
       {!panel.icon || !rail ? (
-        <span className="ink-sidebar-label">{panel.label}</span>
+        <span className="ink-sidebar-label">{sidebarLabel(panel)}</span>
       ) : null}
       <span className="ink-sidebar-badge" aria-hidden="true" hidden={badge === null}>
         {badge}

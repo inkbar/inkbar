@@ -254,6 +254,7 @@ export {
   createSidebarController,
   SIDEBAR_WIDTH,
   sidebarBadge,
+  sidebarLabel,
 } from './sidebar/controller'
 export type {
   SidebarController,

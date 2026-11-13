@@ -6,8 +6,13 @@
  */
 import { ChevronDown, ChevronUp, CaseSensitive, Search, X } from '@inkbar/icons'
 
-import { button, createIcon } from '../viewer/controls'
-import { searchControllerOf, onViewerDestroy, type Viewer } from '../viewer/create-viewer'
+import { button, createIcon, nameButton } from '../viewer/controls'
+import {
+  messagesOf,
+  searchControllerOf,
+  onViewerDestroy,
+  type Viewer,
+} from '../viewer/create-viewer'
 import { h } from '../viewer/dom'
 
 import { findAnnouncer, findCountText } from './find-text'
@@ -23,10 +28,12 @@ import type { SearchState } from './controller'
 export function createFindBar(viewer: Viewer): HTMLElement {
   const controller = searchControllerOf(viewer)
   const { state } = controller
+  const messages = messagesOf(viewer)
+  const t = messages.get().messages.find
 
   const field = h('input', {
     type: 'text',
-    'aria-label': 'Find in document',
+    'aria-label': t.field,
     autocomplete: 'off',
     spellcheck: 'false',
   })
@@ -34,14 +41,14 @@ export function createFindBar(viewer: Viewer): HTMLElement {
     class: 'ink-find-count',
     'data-ink-find-count': '',
   })
-  const previous = button('Previous match', { 'data-ink-find-previous': '' }, ChevronUp)
-  const next = button('Next match', { 'data-ink-find-next': '' }, ChevronDown)
+  const previous = button(t.previous, { 'data-ink-find-previous': '' }, ChevronUp)
+  const next = button(t.next, { 'data-ink-find-next': '' }, ChevronDown)
   const matchCase = button(
-    'Match case',
+    t.matchCase,
     { 'data-ink-find-match-case': '', 'aria-pressed': 'false' },
     CaseSensitive
   )
-  const close = button('Close find', { 'data-ink-find-close': '' }, X)
+  const close = button(t.close, { 'data-ink-find-close': '' }, X)
   const live = h('div', {
     class: 'ink-visually-hidden',
     'data-ink-find-status': '',
@@ -87,7 +94,8 @@ export function createFindBar(viewer: Viewer): HTMLElement {
   /** Where focus was when the bar opened. */
   let before: HTMLElement | null = null
   let wasOpen = false
-  const announce = findAnnouncer()
+  // Remade with each new set of words, so the next announcement is in them.
+  let announce = findAnnouncer(messages.get().messages)
   let announced = ''
 
   function restoreFocus(): void {
@@ -127,7 +135,7 @@ export function createFindBar(viewer: Viewer): HTMLElement {
       // A query set from code arrives after the bar opened: keep the new text selected.
       if (bar.ownerDocument.activeElement === field) field.select()
     }
-    count.textContent = findCountText(s)
+    count.textContent = findCountText(s, messages.get().messages)
     matchCase.setAttribute('aria-pressed', String(s.matchCase))
     const say = announce(s)
     if (say !== announced) {
@@ -151,10 +159,25 @@ export function createFindBar(viewer: Viewer): HTMLElement {
   observer.observe(viewer.element, { childList: true, subtree: true })
   const stopState = state.subscribe(show)
   show(state.get())
+  // New words: names and the count change in place; the query, focus and open state stay. What
+  // the live region last said stays until the next announcement, which is in the new words.
+  const stopMessages = messages.subscribe(({ messages: m }) => {
+    field.setAttribute('aria-label', m.find.field)
+    nameButton(previous, m.find.previous)
+    nameButton(next, m.find.next)
+    nameButton(matchCase, m.find.matchCase)
+    nameButton(close, m.find.close)
+    count.textContent = findCountText(state.get(), m)
+    announce = findAnnouncer(m)
+    // The fresh announcer has seen nothing: it catches up without speaking, so only the next
+    // change is announced, in the new words.
+    announced = announce(state.get())
+  })
   sync()
   onViewerDestroy(viewer, () => {
     observer.disconnect()
     stopState()
+    stopMessages()
     detach?.()
     detach = null
   })

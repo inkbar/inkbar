@@ -6,13 +6,15 @@
  * It closes when the trigger becomes disabled. Items are `[role="menuitemradio"]` buttons;
  * ArrowUp, ArrowDown, Home and End move between them.
  */
+import { resolveLabel, type Label } from '../../messages'
 import { focusInitialMenuItem, handleMenuKeys, menuItems } from '../menu-keys'
 
 import { h } from './dom'
 import { placePanel } from './popover'
 
 export interface MenuOptions {
-  label: string
+  /** The panel's accessible name; a function is read on open and on every `refresh`. */
+  label: Label
   /** Extra attributes for the panel. */
   attrs?: Record<string, string>
   /**
@@ -46,7 +48,10 @@ export interface Menu {
   readonly isOpen: boolean
   /** Opens the menu with its initial item focused, as a click on the trigger does. */
   open(): void
-  /** Re-renders an open menu, and closes it if the trigger has become disabled. */
+  /**
+   * Re-renders an open menu and renames it, in place, and closes it if the trigger has become
+   * disabled.
+   */
   refresh(): void
   close(restoreFocus?: boolean): void
 }
@@ -79,7 +84,7 @@ export function createMenu(trigger: HTMLButtonElement, opts: MenuOptions): Menu 
     if (panel || trigger.disabled) return
     const el = h('div', {
       role,
-      'aria-label': opts.label,
+      'aria-label': resolveLabel(opts.label),
       class: 'ink-select-content ink-menu-content',
       'data-ink-select-content': '',
       ...opts.attrs,
@@ -147,6 +152,7 @@ export function createMenu(trigger: HTMLButtonElement, opts: MenuOptions): Menu 
       if (!panel) return
       if (trigger.disabled) close()
       else {
+        panel.setAttribute('aria-label', resolveLabel(opts.label))
         opts.render(panel)
         place()
       }

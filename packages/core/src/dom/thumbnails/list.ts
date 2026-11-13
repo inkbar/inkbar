@@ -15,7 +15,12 @@
  * item outside the window mount it first, then focus it.
  */
 import { readonly, writable, type Readable } from '../../model/readable'
-import { onViewerDestroy, pluginHostOf, type Viewer } from '../viewer/create-viewer'
+import {
+  messagesOf,
+  onViewerDestroy,
+  pluginHostOf,
+  type Viewer,
+} from '../viewer/create-viewer'
 import { h } from '../viewer/dom'
 
 import {
@@ -605,6 +610,7 @@ export function createThumbnails(
     document: viewer.document,
     pluginHost: { get: () => host, subscribe: () => () => undefined },
     viewport: viewer.viewport,
+    messages: messagesOf(viewer),
   }
   const controller = createThumbnailsController(deps, opts)
   const spacer = h('div', { class: 'ink-thumbnails-spacer', 'aria-hidden': 'true' })

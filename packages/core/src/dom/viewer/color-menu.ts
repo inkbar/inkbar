@@ -6,6 +6,7 @@
  */
 import { Check } from '@inkbar/icons'
 
+import { resolveLabel, type InkMessages, type Label } from '../../messages'
 import {
   COLOR_COLUMNS,
   colorMenuModel,
@@ -13,11 +14,11 @@ import {
   type ColorProperty,
 } from '../ui'
 
-import { createIcon } from './controls'
-import { h } from './dom'
+import { createIcon, nameButton } from './controls'
+import { messagesOf, onMessages, type Viewer } from './create-viewer'
+import { h, setText } from './dom'
 import { createMenu } from './menu'
 
-import type { Viewer } from './create-viewer'
 import type {
   CurrentStyle,
   StyleGroup,
@@ -29,8 +30,12 @@ import type { Readable } from '../../model/readable'
 
 export interface ColorMenuOptions {
   property: ColorProperty
-  /** Accessible name; defaults to "Border colour", "Fill colour" or "Text colour". */
-  label?: string
+  /**
+   * Accessible name; defaults to the viewer's `color.border`, `color.fill` or `color.textColor`
+   * ("Border colour", "Fill colour", "Text colour"). A function is read again on every change
+   * of words.
+   */
+  label?: Label
   /**
    * Scopes the menu to one style group (`ToolStyle.scoped`): it shows and sets that group's
    * colour whatever tool is active, and recolours the selection only when it is all in the group.
@@ -65,7 +70,9 @@ export function createColorMenu(
   opts: ColorMenuOptions
 ): HTMLButtonElement {
   const { property } = opts
-  const name = opts.label ?? colorMenuModel(property, {}, new Set()).label
+  const words = (): InkMessages => messagesOf(viewer).get().messages
+  const nameIn = (m: InkMessages): string => resolveLabel(opts.label) || m.color[property]
+  const name = nameIn(words())
   const trigger = h('button', {
     type: 'button',
     class: 'ink-menu-trigger ink-color-menu',
@@ -98,7 +105,8 @@ export function createColorMenu(
       property,
       style?.current.get() ?? {},
       style?.supported.get() ?? new Set(),
-      opts.fallback?.get()
+      opts.fallback?.get(),
+      words()
     )
 
   function refresh(): void {
@@ -122,7 +130,7 @@ export function createColorMenu(
       picker = h('input', {
         type: 'color',
         class: 'ink-color-input',
-        'aria-label': 'Custom colour',
+        'aria-label': words().color.customColour,
         'data-ink-color-input': property,
         tabindex: '-1',
       })
@@ -148,7 +156,7 @@ export function createColorMenu(
             'data-key': 'no-fill',
             tabindex: '-1',
           },
-          'No fill'
+          words().color.noFill
         )
         b.addEventListener('click', () => {
           const found = model().noFill
@@ -158,7 +166,7 @@ export function createColorMenu(
       }
       const grid = h('div', {
         role: 'group',
-        'aria-label': 'Colours',
+        'aria-label': words().color.swatches,
         class: 'ink-color-grid',
         'data-ink-menu-columns': String(COLOR_COLUMNS),
       })
@@ -189,12 +197,18 @@ export function createColorMenu(
           'data-key': 'custom',
           tabindex: '-1',
         },
-        'Custom…'
+        words().color.custom
       )
       custom.addEventListener('click', () => pickerInput().click())
       root.append(custom)
     }
+    // The words, in place: a panel open across a change keeps its items and focus.
+    const t = words().color
     const noFill = root.querySelector<HTMLElement>('[data-key="no-fill"]')
+    if (noFill) setText(noFill, t.noFill)
+    root.querySelector('.ink-color-grid')?.setAttribute('aria-label', t.swatches)
+    const custom = root.querySelector<HTMLElement>('[data-key="custom"]')
+    if (custom) setText(custom, t.custom)
     if (noFill && m.noFill) mark(noFill, m.noFill.checked, true)
     const cells = root.querySelectorAll<HTMLElement>('.ink-swatch-item')
     m.swatches.forEach((sw, i) => mark(cells[i]!, sw.checked, false))
@@ -212,7 +226,7 @@ export function createColorMenu(
   }
 
   const menu = createMenu(trigger, {
-    label: opts.label ?? model().label,
+    label: () => nameIn(words()),
     attrs: { 'data-ink-menu': `color-${property}` },
     render: (root) => paint(root, model()),
   })
@@ -230,5 +244,10 @@ export function createColorMenu(
   follow(viewer.engine.get())
   viewer.engine.subscribe(follow)
   opts.fallback?.subscribe(refresh)
+  onMessages(viewer, (m) => {
+    nameButton(trigger, nameIn(m))
+    picker?.setAttribute('aria-label', m.color.customColour)
+    menu.refresh()
+  })
   return trigger
 }

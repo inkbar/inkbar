@@ -14,14 +14,10 @@ import { MARKUP_KINDS, type MarkupKind, type ToolController } from '../tools'
 import { highlightMenuModel, type HighlightMenuModel } from '../ui'
 
 import { createColorMenu } from './color-menu'
-import { createIcon, logUnknownTool, registeredTool } from './controls'
-import { h } from './dom'
+import { createIcon, logUnknownTool, nameButton, registeredTool } from './controls'
+import { messagesOf, onMessages, type Viewer } from './create-viewer'
+import { h, setText } from './dom'
 import { createMenu } from './menu'
-
-import type { Viewer } from './create-viewer'
-
-/** The nested colour menu's accessible name. */
-const COLOUR_LABEL = 'Highlight colour'
 
 /** A split button: the main part marks text with the current kind, the chevron picks it. */
 export function createHighlightMenu(viewer: Viewer): HTMLElement {
@@ -29,6 +25,7 @@ export function createHighlightMenu(viewer: Viewer): HTMLElement {
     logUnknownTool(viewer, 'highlight')
     return h('div', { hidden: '' })
   }
+  const words = () => messagesOf(viewer).get().messages
   const main = h('button', {
     type: 'button',
     class: 'ink-tool-button ink-highlight-button',
@@ -43,8 +40,8 @@ export function createHighlightMenu(viewer: Viewer): HTMLElement {
     class: 'ink-menu-trigger ink-highlight-menu-trigger',
     'data-ink-highlight-menu-trigger': '',
     'data-state': 'closed',
-    'aria-label': 'Choose highlight',
-    title: 'Choose highlight',
+    'aria-label': words().highlight.choose,
+    title: words().highlight.choose,
     'aria-haspopup': 'menu',
     'aria-expanded': 'false',
   })
@@ -55,7 +52,7 @@ export function createHighlightMenu(viewer: Viewer): HTMLElement {
       class: 'ink-split-button ink-highlight-menu',
       'data-ink-highlight-menu': '',
       role: 'group',
-      'aria-label': 'Highlight',
+      'aria-label': words().highlight.label,
     },
     main,
     trigger
@@ -69,7 +66,7 @@ export function createHighlightMenu(viewer: Viewer): HTMLElement {
   const colour = createColorMenu(viewer, {
     property: 'border',
     group: 'markup',
-    label: COLOUR_LABEL,
+    label: () => words().highlight.highlightColour,
     fallback: defaultColour,
   })
   colour.setAttribute('role', 'menuitem')
@@ -80,13 +77,12 @@ export function createHighlightMenu(viewer: Viewer): HTMLElement {
   let shownKind: MarkupKind | null = null
 
   const model = (): HighlightMenuModel =>
-    highlightMenuModel(tools?.options('highlight').get() ?? {}, MARKUP_KINDS)
+    highlightMenuModel(tools?.options('highlight').get() ?? {}, MARKUP_KINDS, words())
 
   function refresh(): void {
     const m = model()
     main.disabled = trigger.disabled = tools === null
-    main.setAttribute('aria-label', m.label)
-    main.title = m.label
+    nameButton(main, m.label)
     main.dataset.kind = m.kind
     if (shownKind !== m.kind) {
       main.replaceChildren(createIcon(MARKUP_ICONS[m.kind]))
@@ -103,7 +99,7 @@ export function createHighlightMenu(viewer: Viewer): HTMLElement {
     if (panel.childElementCount === 0) {
       const kinds = h('div', {
         role: 'group',
-        'aria-label': 'Kinds',
+        'aria-label': words().highlight.kinds,
         class: 'ink-highlight-kinds',
       })
       for (const item of m.items) {
@@ -128,11 +124,15 @@ export function createHighlightMenu(viewer: Viewer): HTMLElement {
       }
       const colourRow = h(
         'div',
-        { role: 'group', 'aria-label': 'Colour', class: 'ink-highlight-colour' },
+        {
+          role: 'group',
+          'aria-label': words().highlight.colour,
+          class: 'ink-highlight-colour',
+        },
         h(
           'span',
           { class: 'ink-highlight-colour-label', 'aria-hidden': 'true' },
-          'Colour'
+          words().highlight.colour
         ),
         colour
       )
@@ -142,15 +142,22 @@ export function createHighlightMenu(viewer: Viewer): HTMLElement {
         colourRow
       )
     }
+    // The words, in place: a panel open across a change keeps its items and focus.
+    const t = words().highlight
+    panel.querySelector('.ink-highlight-kinds')?.setAttribute('aria-label', t.kinds)
+    panel.querySelector('.ink-highlight-colour')?.setAttribute('aria-label', t.colour)
+    const colourLabel = panel.querySelector<HTMLElement>('.ink-highlight-colour-label')
+    if (colourLabel) colourLabel.textContent = t.colour
     const cells = panel.querySelectorAll<HTMLElement>('.ink-highlight-item')
     m.items.forEach((item, i) => {
+      setText(cells[i]!, item.label)
       cells[i]!.setAttribute('aria-checked', String(item.checked))
       cells[i]!.dataset.state = item.checked ? 'checked' : 'unchecked'
     })
   }
 
   const menu = createMenu(trigger, {
-    label: 'Highlights',
+    label: () => words().highlight.menu,
     anchor: root,
     attrs: { 'data-ink-menu': 'highlight' },
     owns: (t) =>
@@ -175,5 +182,10 @@ export function createHighlightMenu(viewer: Viewer): HTMLElement {
   }
   follow(viewer.tools.get())
   viewer.tools.subscribe(follow)
+  onMessages(viewer, (m) => {
+    nameButton(trigger, m.highlight.choose)
+    root.setAttribute('aria-label', m.highlight.label)
+    refresh()
+  })
   return root
 }

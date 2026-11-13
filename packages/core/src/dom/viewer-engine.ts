@@ -315,6 +315,12 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
   if (!highlight) el.dataset.inkFormHighlight = 'off'
   /** The words for the engine's life, across rebuilds: the viewer's, or the engine's own. */
   const messages = opts._messageState ?? createMessageState(opts.messages, opts.locale)
+  // New words: every open text box editor is renamed in place, a new box's editor included,
+  // which the text box tool opens before the box has an element of its own.
+  const stopEditorNames = messages.subscribe(({ messages: m }) => {
+    for (const field of el.querySelectorAll('[data-ink-editor]'))
+      field.setAttribute('aria-label', m.annotations.freetext)
+  })
   const pages = new Map<number, PageMount>()
   let gap = opts.gap
   let buffer = opts.buffer
@@ -894,6 +900,7 @@ export function mountViewer(opts: MountViewerOptions): ViewerEngine {
     destroy() {
       if (destroyed) return
       destroyed = true
+      stopEditorNames()
       teardown()
       openPageEvents(undefined)
       layers?.destroy()

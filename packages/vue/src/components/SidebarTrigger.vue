@@ -4,7 +4,7 @@
  * rail shows the icon alone (the trigger's `title` carries the label); tabs and stack headers
  * show the label too. The badge is hidden from assistive technology: the trigger's name has it.
  */
-import { sidebarBadge, type SidebarPanelInfo } from '@inkbar/core/dom'
+import { sidebarBadge, sidebarLabel, type SidebarPanelInfo } from '@inkbar/core/dom'
 import { computed } from 'vue'
 
 import InkIcon from './InkIcon.vue'
@@ -15,7 +15,9 @@ const badge = computed(() => sidebarBadge(props.panel.badge))
 
 <template>
   <InkIcon v-if="panel.icon" :icon="panel.icon" />
-  <span v-if="!panel.icon || !rail" class="ink-sidebar-label">{{ panel.label }}</span>
+  <span v-if="!panel.icon || !rail" class="ink-sidebar-label">{{
+    sidebarLabel(panel)
+  }}</span>
   <span class="ink-sidebar-badge" aria-hidden="true" :hidden="badge === null">{{
     badge
   }}</span>

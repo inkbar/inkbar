@@ -8,22 +8,23 @@ import { Check, Minus } from '@inkbar/icons'
 
 import { lineStyleMenuModel, type LineStyleMenuModel } from '../ui'
 
-import { createIcon } from './controls'
-import { h } from './dom'
+import { createIcon, nameButton } from './controls'
+import { messagesOf, onMessages, type Viewer } from './create-viewer'
+import { h, setText } from './dom'
 import { createMenu } from './menu'
 
-import type { Viewer } from './create-viewer'
 import type { ToolStyle } from '../../model/annotations/tool-style'
 
 /** A button that opens the line style menu: weight, solid or dashed, and arrowheads. */
 export function createLineStyleMenu(viewer: Viewer): HTMLButtonElement {
+  const words = () => messagesOf(viewer).get().messages
   const trigger = h('button', {
     type: 'button',
     class: 'ink-menu-trigger ink-line-style-menu',
     'data-ink-line-style-menu': '',
     'data-state': 'closed',
-    'aria-label': 'Line style',
-    title: 'Line style',
+    'aria-label': words().lineStyle.label,
+    title: words().lineStyle.label,
     'aria-haspopup': 'menu',
     'aria-expanded': 'false',
   })
@@ -34,7 +35,11 @@ export function createLineStyleMenu(viewer: Viewer): HTMLButtonElement {
   let stops: (() => void)[] = []
 
   const model = (): LineStyleMenuModel =>
-    lineStyleMenuModel(style?.current.get() ?? {}, style?.supported.get() ?? new Set())
+    lineStyleMenuModel(
+      style?.current.get() ?? {},
+      style?.supported.get() ?? new Set(),
+      words()
+    )
 
   function refresh(): void {
     const m = model()
@@ -68,9 +73,10 @@ export function createLineStyleMenu(viewer: Viewer): HTMLButtonElement {
             item.label
           )
           b.addEventListener('click', () => {
+            // Keys are unique across the sections; labels change with the words.
             const found = model()
               .sections.flatMap((s) => s.items)
-              .find((i) => i.key === item.key && i.label === item.label)
+              .find((i) => i.key === item.key)
             if (found) style?.set(found.patch)
           })
           group.append(b)
@@ -80,11 +86,14 @@ export function createLineStyleMenu(viewer: Viewer): HTMLButtonElement {
     }
     m.sections.forEach((section, i) => {
       const group = menu.children[i] as HTMLElement
+      group.setAttribute('aria-label', section.label)
+      setText(group.firstElementChild as HTMLElement, section.label)
       group.toggleAttribute('data-disabled', section.disabled)
       if (section.disabled) group.setAttribute('aria-disabled', 'true')
       else group.removeAttribute('aria-disabled')
       section.items.forEach((item, j) => {
         const b = group.children[j + 1] as HTMLButtonElement
+        setText(b, item.label)
         b.disabled = section.disabled
         b.setAttribute('aria-checked', String(item.checked))
         b.dataset.state = item.checked ? 'checked' : 'unchecked'
@@ -99,7 +108,7 @@ export function createLineStyleMenu(viewer: Viewer): HTMLButtonElement {
   }
 
   const menu = createMenu(trigger, {
-    label: 'Line style',
+    label: () => words().lineStyle.label,
     attrs: { 'data-ink-menu': 'line-style' },
     render: (root) => paint(root, model()),
   })
@@ -116,5 +125,10 @@ export function createLineStyleMenu(viewer: Viewer): HTMLButtonElement {
   }
   follow(viewer.engine.get())
   viewer.engine.subscribe(follow)
+  // New words: renamed in place; an open panel stays open, with focus where it was.
+  onMessages(viewer, (m) => {
+    nameButton(trigger, m.lineStyle.label)
+    menu.refresh()
+  })
   return trigger
 }

@@ -6,6 +6,8 @@
 import { v7 as uuidv7 } from 'uuid'
 import { z } from 'zod'
 
+import { en } from '../messages'
+
 import { IMAGE_DATA_URL, PointSchema } from './annotations/types'
 import { readonly, writable, type Readable } from './readable'
 
@@ -327,7 +329,15 @@ export interface SignatureLibrary {
   clearRemoveError(): void
 }
 
-export function createSignatureLibrary(store: SignatureStore): SignatureLibrary {
+export interface SignatureLibraryOptions {
+  /** The text `removeError` takes when a removal fails, read then. Default English. */
+  removeFailed?: () => string
+}
+
+export function createSignatureLibrary(
+  store: SignatureStore,
+  opts: SignatureLibraryOptions = {}
+): SignatureLibrary {
   const templates = writable<readonly SignatureTemplate[]>([])
   const removeError = writable<string | undefined>(undefined)
   /**
@@ -363,7 +373,7 @@ export function createSignatureLibrary(store: SignatureStore): SignatureLibrary 
       try {
         await store.remove(id)
       } catch (e) {
-        removeError.set('The signature could not be removed. Try again.')
+        removeError.set(opts.removeFailed?.() ?? en.signature.removeFailed)
         throw e
       }
       await refresh()

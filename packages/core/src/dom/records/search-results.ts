@@ -9,7 +9,7 @@ import { isBlankQuery } from '../../model/search-text'
 import { handleResultsFieldKey } from '../search/find-key'
 import { findCountText } from '../search/find-text'
 import { createIcon } from '../viewer/controls'
-import { onViewerDestroy, type Viewer } from '../viewer/create-viewer'
+import { messagesOf, onViewerDestroy, type Viewer } from '../viewer/create-viewer'
 import { h } from '../viewer/dom'
 
 import { renderRecordList } from './list'
@@ -32,6 +32,8 @@ export function createSearchResults(
 ): HTMLElement {
   const search = viewer.search
   const { state } = search
+  const messages = messagesOf(viewer)
+  const words = () => messages.get().messages
 
   // A footer under the cards, empty (and hidden) until there is a count to give.
   const count = h('div', {
@@ -43,8 +45,8 @@ export function createSearchResults(
       ? null
       : h('input', {
           type: 'text',
-          'aria-label': 'Find in document',
-          placeholder: 'Search for a word or phrase',
+          'aria-label': words().search.field,
+          placeholder: words().search.placeholder,
           autocomplete: 'off',
           spellcheck: 'false',
         })
@@ -62,9 +64,10 @@ export function createSearchResults(
     : null
   // Nothing found yet is the count's to say while a query is in: "No results", or a scan.
   const rendered = renderRecordList(
-    searchSource(search),
+    searchSource(search, messages),
     () => isBlankQuery(state.get().query),
-    'Search to list every match.'
+    (m) => m.search.prompt,
+    messages
   )
   const root = h(
     'div',
@@ -80,13 +83,19 @@ export function createSearchResults(
   const show = () => {
     const s = state.get()
     if (field && field.value !== s.query) field.value = s.query
-    count.textContent = findCountText(s)
+    count.textContent = findCountText(s, words())
     rendered.refreshEmpty()
   }
   show()
   const stopState = state.subscribe(show)
+  const stopMessages = messages.subscribe(({ messages: m }) => {
+    field?.setAttribute('aria-label', m.search.field)
+    if (field) field.placeholder = m.search.placeholder
+    show()
+  })
   onViewerDestroy(viewer, () => {
     stopState()
+    stopMessages()
     rendered.destroy()
   })
   return root
