@@ -102,6 +102,31 @@ test('a function label follows messages', async ({ mount, page }) => {
   await expect(draw).toHaveAccessibleName('Stylo')
 })
 
+test('a function label follows locale', async ({ mount, page }) => {
+  const cmp = await mount(Harness, { props: { src: fixtureUrl('text-simple'), assets } })
+  const draw = page.locator('[data-tool="draw"]')
+  await expect(draw).toHaveAccessibleName('Pen')
+  await page.evaluate(() => {
+    ;(window as Window & { __inkDrawWord?: string }).__inkDrawWord = 'Stylo'
+  })
+  await cmp.update({ props: { locale: 'fr-FR' } })
+  await expect(page.locator('[data-ink-root]')).toHaveAttribute('lang', 'fr-FR')
+  await expect(draw).toHaveAccessibleName('Stylo')
+})
+
+test('search result cards follow messages', async ({ mount, page }) => {
+  const cmp = await mount(Harness, {
+    props: { src: fixtureUrl('text-simple'), assets, withResults: true },
+  })
+  await expect(page.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  const results = page.getByTestId('results')
+  await results.getByRole('textbox', { name: 'Find in document' }).fill('Inkbar')
+  const first = results.locator('[data-ink-record]').first()
+  await expect(first.locator('.ink-card-meta')).toHaveText('Match 1')
+  await cmp.update({ props: { french: true } })
+  await expect(first.locator('.ink-card-meta')).toHaveText('Occurrence 1')
+})
+
 test('the zoom trigger follows messages while closed', async ({ mount, page }) => {
   const cmp = await mount(Harness, {
     props: { src: fixtureUrl('text-simple'), assets, zoom: 'fit-width' },
@@ -129,7 +154,8 @@ test('equal messages passed again leave an open card alone', async ({ mount, pag
   await expect(card).toBeVisible()
   await expect(card.getByRole('button', { name: 'Accept' })).toBeFocused()
   await card.evaluate((el) => {
-    const w = window as Window & { __inkCardChanges?: number }
+    const w = window as Window & { __inkCardChanges?: number; __inkCard?: Element }
+    w.__inkCard = el
     w.__inkCardChanges = 0
     new MutationObserver((records) => {
       w.__inkCardChanges! += records.filter((r) => r.type === 'childList').length
@@ -144,6 +170,12 @@ test('equal messages passed again leave an open card alone', async ({ mount, pag
     () => (window as Window & { __inkCardChanges?: number }).__inkCardChanges
   )
   expect(changes).toBe(0)
+  // The same card element: the observer above would miss a card replaced whole.
+  expect(
+    await card.evaluate(
+      (el) => el === (window as Window & { __inkCard?: Element }).__inkCard
+    )
+  ).toBe(true)
   await expect(card).toBeVisible()
   await expect(card.getByRole('button', { name: 'Accept' })).toBeFocused()
 })

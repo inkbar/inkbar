@@ -8,6 +8,7 @@ import InkPrevPage from '../../src/components/InkPrevPage.vue'
 import InkRedo from '../../src/components/InkRedo.vue'
 import InkRoot from '../../src/components/InkRoot.vue'
 import InkSearchButton from '../../src/components/InkSearchButton.vue'
+import InkSearchResults from '../../src/components/InkSearchResults.vue'
 import InkShapeMenu from '../../src/components/InkShapeMenu.vue'
 import InkThreadPopover from '../../src/components/InkThreadPopover.vue'
 import InkToolbar from '../../src/components/InkToolbar.vue'
@@ -33,6 +34,8 @@ const props = defineProps<{
   french?: boolean | undefined
   /** Run a plugin with one mark, whose card a test can open. */
   withCard?: boolean | undefined
+  /** Show search results beside the viewport. */
+  withResults?: boolean | undefined
   /** A `lang` the host passes to the root. */
   hostLang?: string | undefined
   /** Test-only: pass `lang` as undefined to the root, which a test cannot pass as a prop. */
@@ -89,7 +92,16 @@ const drawLabel = () => (window as WordWindow).__inkDrawWord ?? 'Pen'
       <InkZoomSelect />
     </InkToolbar>
     <!-- Test-only box: the scroll container needs a bounded height to scroll. -->
-    <div style="height: 600px; width: 900px"><InkViewport /></div>
+    <div style="display: flex">
+      <!-- Test-only box: the list fills its parent's height. -->
+      <div
+        v-if="withResults"
+        style="height: 300px; width: 280px; display: flex; flex-direction: column"
+      >
+        <InkSearchResults data-testid="results" />
+      </div>
+      <div style="height: 600px; width: 900px"><InkViewport /></div>
+    </div>
     <InkThreadPopover />
   </InkRoot>
 </template>
