@@ -4,6 +4,7 @@
 import { readonly, writable, type Readable } from '../model/readable'
 import { isQuotaError } from '../model/signatures'
 
+import { ENGLISH, type MessageState } from './messages-state'
 import {
   createImageSignature,
   createSignaturePad,
@@ -53,9 +54,25 @@ export interface SignatureDraft {
   destroy(): void
 }
 
+type SignatureWords = MessageState['messages']['signature']
+type ImageProblem = 'imageTooLarge' | 'imageType'
+type SaveProblem = 'storageFull' | 'saveFailed'
+
 export function createSignatureDraft(
-  opts: { fonts?: readonly string[] } = {}
+  opts: {
+    fonts?: readonly string[]
+    /**
+     * The words of `imageError` and `saveError`; English when omitted. A shown error is
+     * rewritten when they change.
+     */
+    messages?: Readable<MessageState>
+  } = {}
 ): SignatureDraft {
+  const messages = opts.messages ?? ENGLISH
+  const words = (): SignatureWords => messages.get().messages.signature
+  /** What the shown errors are, so new words can say them again. */
+  let imageProblem: ImageProblem | undefined
+  let saveProblem: SaveProblem | undefined
   const fonts = opts.fonts && opts.fonts.length > 0 ? [...opts.fonts] : SIGNATURE_FONTS
   const initial = (): SignatureDraftState => ({
     tab: 'draw',
@@ -86,6 +103,29 @@ export function createSignatureDraft(
     const next = { ...state.get(), ...p }
     state.set({ ...next, canSave: !next.saving && ready(next) })
   }
+  /** Sets the image error to `problem`'s words, with the rest of `p`, in one change. */
+  const setImageProblem = (
+    problem: ImageProblem | undefined,
+    p: Partial<SignatureDraftState> = {}
+  ): void => {
+    imageProblem = problem
+    patch({ ...p, imageError: problem && words()[problem] })
+  }
+  const setSaveProblem = (
+    problem: SaveProblem | undefined,
+    p: Partial<SignatureDraftState> = {}
+  ): void => {
+    saveProblem = problem
+    patch({ ...p, saveError: problem && words()[problem] })
+  }
+  /** New words: a shown error is said again in them. */
+  const followMessages = (): (() => void) =>
+    messages.subscribe(() => {
+      const s = state.get()
+      if (s.imageError !== undefined && imageProblem) setImageProblem(imageProblem)
+      if (s.saveError !== undefined && saveProblem) setSaveProblem(saveProblem)
+    })
+  let stopMessages: (() => void) | undefined = followMessages()
 
   const detachPad = (): void => {
     stopPad?.()
@@ -103,6 +143,7 @@ export function createSignatureDraft(
     attachPad(host) {
       // Mounting again revives a destroyed draft, as React's StrictMode remounts do.
       destroyed = false
+      stopMessages ??= followMessages()
       detachPad()
       const p = createSignaturePad(host)
       pad = p
@@ -117,30 +158,23 @@ export function createSignatureDraft(
     },
     async chooseFile(file) {
       const n = ++reads
-      if (!file) {
-        patch({ image: undefined, imageError: undefined })
-        return
-      }
       // The old image goes at once, so Save waits for the new one.
-      patch({ image: undefined, imageError: undefined })
+      setImageProblem(undefined, { image: undefined })
+      if (!file) return
       try {
         const image = await createImageSignature(file)
-        if (n === reads) patch({ image, imageError: undefined })
+        if (n === reads) setImageProblem(undefined, { image })
       } catch (e) {
         if (n === reads)
-          patch({
+          setImageProblem(e instanceof RangeError ? 'imageTooLarge' : 'imageType', {
             image: undefined,
-            imageError:
-              e instanceof RangeError
-                ? 'This image is too large. Choose a smaller one.'
-                : 'Choose a PNG or JPEG image.',
           })
       }
     },
     async save(library) {
       const s = state.get()
       if (!s.canSave) return undefined
-      patch({ saving: true, saveError: undefined })
+      setSaveProblem(undefined, { saving: true })
       try {
         const t =
           s.tab === 'draw'
@@ -153,11 +187,7 @@ export function createSignatureDraft(
         // Closed while saving: the template stays in the library, but nothing acts on it.
         return destroyed ? undefined : t
       } catch (e) {
-        patch({
-          saveError: isQuotaError(e)
-            ? "Your browser's storage is full. Remove a saved signature, or try a smaller one."
-            : 'The signature could not be saved. Try again.',
-        })
+        setSaveProblem(isQuotaError(e) ? 'storageFull' : 'saveFailed')
         return undefined
       } finally {
         patch({ saving: false })
@@ -166,12 +196,16 @@ export function createSignatureDraft(
     reset() {
       reads++
       pad?.clear()
+      imageProblem = undefined
+      saveProblem = undefined
       state.set({ ...initial(), padEmpty: pad ? pad.empty.get() : true })
     },
     destroy() {
       destroyed = true
       reads++
       detachPad()
+      stopMessages?.()
+      stopMessages = undefined
     },
   }
 }

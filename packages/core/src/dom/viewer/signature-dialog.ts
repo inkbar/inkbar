@@ -8,17 +8,12 @@
 import { handleRadioKeys, handleTabKeys, trapTab } from '../menu-keys'
 import { createSignatureDraft, type SignatureDraftState } from '../signature-draft'
 import { fontFamilyValue } from '../signature-pad'
-import {
-  SIGNATURE_FONTS,
-  SIGNATURE_LABELS,
-  SIGNATURE_TABS,
-  type SignatureTab,
-} from '../ui'
+import { SIGNATURE_FONTS, SIGNATURE_TABS, type SignatureTab } from '../ui'
 
 import { registeredTool } from './controls'
+import { messagesOf, type Viewer } from './create-viewer'
 import { h } from './dom'
 
-import type { Viewer } from './create-viewer'
 import type { SignatureTemplate } from '../../model/signatures'
 
 export interface SignatureDialogOptions {
@@ -62,15 +57,19 @@ export function createSignatureDialog(
     const returnTo =
       o.returnFocus ??
       (document.activeElement instanceof HTMLElement ? document.activeElement : null)
+    const messages = messagesOf(viewer)
+    const words = () => messages.get().messages.signature
+    const t = words()
     const draft = createSignatureDraft({
       fonts: opts.fonts ?? viewer.engine.get()?.signatureFonts ?? SIGNATURE_FONTS,
+      messages,
     })
 
     const tabs = new Map<SignatureTab, HTMLButtonElement>()
     const panels = new Map<SignatureTab, HTMLElement>()
     const tablist = h('div', {
       role: 'tablist',
-      'aria-label': SIGNATURE_LABELS.tabs,
+      'aria-label': t.tabs,
       class: 'ink-tabs',
     })
     for (const tab of SIGNATURE_TABS) {
@@ -84,7 +83,7 @@ export function createSignatureDialog(
           class: 'ink-tab',
           'data-key': tab,
         },
-        SIGNATURE_LABELS[tab]
+        t[tab]
       )
       b.addEventListener('click', () => draft.setTab(tab))
       tabs.set(tab, b)
@@ -107,12 +106,12 @@ export function createSignatureDialog(
       class: 'ink-signature-pad-host',
       'data-ink-signature-pad-host': '',
       role: 'img',
-      'aria-label': SIGNATURE_LABELS.pad,
+      'aria-label': t.pad,
     })
     const clear = h(
       'button',
       { type: 'button', class: 'ink-button', 'data-ink-signature-clear': '' },
-      SIGNATURE_LABELS.clear
+      t.clear
     )
     clear.addEventListener('click', () => draft.clearPad())
     panels.get('draw')!.append(padHost, h('div', { class: 'ink-dialog-row' }, clear))
@@ -124,12 +123,13 @@ export function createSignatureDialog(
       class: 'ink-input',
       'data-ink-signature-name': '',
       autocomplete: 'name',
-      placeholder: SIGNATURE_LABELS.namePlaceholder,
+      placeholder: t.namePlaceholder,
     })
     name.addEventListener('input', () => draft.setName(name.value))
+    const nameLabel = h('span', {}, t.name)
     const fontGroup = h('div', {
       role: 'radiogroup',
-      'aria-label': SIGNATURE_LABELS.fonts,
+      'aria-label': t.fonts,
       class: 'ink-signature-fonts',
     })
     const fontSamples = draft.fonts.map((font) => {
@@ -151,10 +151,7 @@ export function createSignatureDialog(
     fontGroup.addEventListener('keydown', (e) => handleRadioKeys(e, fontGroup))
     panels
       .get('type')!
-      .append(
-        h('label', { class: 'ink-field' }, h('span', {}, SIGNATURE_LABELS.name), name),
-        fontGroup
-      )
+      .append(h('label', { class: 'ink-field' }, nameLabel, name), fontGroup)
 
     // Image
     const file = h('input', {
@@ -164,15 +161,12 @@ export function createSignatureDialog(
       'data-ink-signature-file': '',
     })
     file.addEventListener('change', () => void draft.chooseFile(file.files?.[0]))
+    const fileLabel = h('span', {}, t.file)
     const preview = h('img', { class: 'ink-signature-image', alt: '' })
     const imageError = h('p', { class: 'ink-field-error', role: 'alert' })
     panels
       .get('image')!
-      .append(
-        h('label', { class: 'ink-field' }, h('span', {}, SIGNATURE_LABELS.file), file),
-        preview,
-        imageError
-      )
+      .append(h('label', { class: 'ink-field' }, fileLabel, file), preview, imageError)
 
     // Actions
     const saveError = h('p', {
@@ -183,7 +177,7 @@ export function createSignatureDialog(
     const cancel = h(
       'button',
       { type: 'button', class: 'ink-button', 'data-ink-signature-cancel': '' },
-      SIGNATURE_LABELS.cancel
+      t.cancel
     )
     cancel.addEventListener('click', () => close())
     const save = h(
@@ -194,7 +188,7 @@ export function createSignatureDialog(
         'data-variant': 'primary',
         'data-ink-signature-save': '',
       },
-      SIGNATURE_LABELS.save
+      t.save
     )
     save.addEventListener('click', () => {
       const library = viewer.engine.get()?.signatures
@@ -218,11 +212,7 @@ export function createSignatureDialog(
       )
     })
 
-    const title = h(
-      'h2',
-      { id: `${uid}-title`, class: 'ink-dialog-title' },
-      SIGNATURE_LABELS.dialog
-    )
+    const title = h('h2', { id: `${uid}-title`, class: 'ink-dialog-title' }, t.dialog)
     const content = h(
       'div',
       {
@@ -263,7 +253,7 @@ export function createSignatureDialog(
         b.setAttribute('aria-checked', String(on))
         b.dataset.state = on ? 'checked' : 'unchecked'
         b.tabIndex = on ? 0 : -1
-        sample.textContent = s.name.trim() || SIGNATURE_LABELS.namePlaceholder
+        sample.textContent = s.name.trim() || words().namePlaceholder
       })
       if (s.image?.kind === 'image') {
         preview.src = s.image.imagedata
@@ -280,6 +270,23 @@ export function createSignatureDialog(
     }
     const stopState = draft.state.subscribe(paint)
     paint(draft.state.get())
+    // New words, in place: the open tab, the drawing, the typed name and focus stay. The
+    // draft says its own errors again, which repaints them.
+    const stopMessages = messages.subscribe(() => {
+      const w = words()
+      title.textContent = w.dialog
+      tablist.setAttribute('aria-label', w.tabs)
+      for (const [tab, b] of tabs) b.textContent = w[tab]
+      padHost.setAttribute('aria-label', w.pad)
+      clear.textContent = w.clear
+      name.placeholder = w.namePlaceholder
+      nameLabel.textContent = w.name
+      fontGroup.setAttribute('aria-label', w.fonts)
+      fileLabel.textContent = w.file
+      cancel.textContent = w.cancel
+      save.textContent = w.save
+      paint(draft.state.get())
+    })
 
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') {
@@ -303,6 +310,7 @@ export function createSignatureDialog(
       document.removeEventListener('keydown', onKey, true)
       document.removeEventListener('focusin', onFocus)
       stopState()
+      stopMessages()
       detachPad()
       draft.destroy()
       overlay.remove()

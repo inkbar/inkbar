@@ -49,7 +49,7 @@ import { createPasswordDialog } from './password-dialog'
 import { createSignFieldMenu, type SignFieldMenu } from './signature-menu'
 import { createThreadPopover } from './thread-popover'
 
-import type { InkMessagesInput } from '../../messages'
+import type { InkMessages, InkMessagesInput } from '../../messages'
 import type { PluginHistory } from '../../model/annotations/history'
 import type { LinkTarget } from '../../model/destination'
 import type { FormController } from '../../model/form/controller'
@@ -170,6 +170,12 @@ export interface Viewer {
    */
   setLocale(locale: string | undefined): void
   /**
+   * The viewer's words and locale, for the life of the viewer. Pass it as `messages` to the
+   * pieces made without a viewer (`createToolbar`, `createSidebar`, `createPasswordDialog`…)
+   * so they follow `setMessages` and `setLocale` too.
+   */
+  readonly messages: Readable<MessageState>
+  /**
    * Whether `back()` has somewhere to go: a link, outline item or form button jumped since the
    * document opened. False while no document is ready.
    */
@@ -272,7 +278,9 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   const messages = createMessageState(initialMessages, initialLocale)
   const words = () => messages.get().messages
   /** One library for the viewer's life, so templates and the menu outlive each document. */
-  const signatures = createSignatureLibrary(createStorageSignatureStore(storage))
+  const signatures = createSignatureLibrary(createStorageSignatureStore(storage), {
+    removeFailed: () => words().signature.removeFailed,
+  })
   /** Tool options persist for the viewer's life; the tool style is per document. */
   const toolOptions = createToolOptions()
   const status = writable<InkStatus>({ state: 'idle' })
@@ -446,7 +454,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
           store,
           activated,
           focusReturn,
-          locale: () => messages.get().locale,
+          messages: readonly(messages),
         })
       : null
     // An activated annotation that has gone (removed, undone) is no longer activated, so it
@@ -572,6 +580,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   let lastSource: DocumentSource = initial
   const prompt = createPasswordPrompt((pw) => load(lastSource, { password: pw }))
   const passwordDialog = createPasswordDialog({
+    messages: readonly(messages),
     onSubmit: (pw) => prompt.submit(pw),
     onCancel: () => {
       prompt.cancel()
@@ -727,6 +736,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     setLocale(next) {
       if (!destroyed) messages.setLocale(next)
     },
+    messages: readonly(messages),
     canGoBack: readonly(canGoBack),
     canGoForward: readonly(canGoForward),
     back: () => navigation.get()?.back(),
@@ -825,6 +835,15 @@ export function messagesOf(viewer: Viewer): Readable<MessageState> {
   const found = internals.get(viewer)
   if (!found) throw new Error('Not a viewer made by createViewer')
   return found.messages
+}
+
+/**
+ * @internal Calls `fn` with the viewer's words on every change, until the viewer is destroyed:
+ * for a control that rewrites its own labels in place. It does not call `fn` now.
+ */
+export function onMessages(viewer: Viewer, fn: (m: InkMessages) => void): void {
+  const stop = messagesOf(viewer).subscribe(({ messages: m }) => fn(m))
+  onViewerDestroy(viewer, stop)
 }
 
 /**

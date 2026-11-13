@@ -23,11 +23,11 @@ import { handleRadioKeys } from '../menu-keys'
 import { FONT_FAMILIES, textStyleMenuModel, type TextStyleMenuModel } from '../ui'
 
 import { createColorMenu } from './color-menu'
-import { createIcon } from './controls'
+import { createIcon, nameButton } from './controls'
+import { messagesOf, onMessages, type Viewer } from './create-viewer'
 import { h } from './dom'
 import { createMenu } from './menu'
 
-import type { Viewer } from './create-viewer'
 import type { ToolStyle } from '../../model/annotations/tool-style'
 
 const TOGGLE_ICONS = { bold: Bold, italic: Italic, underline: Underline }
@@ -54,13 +54,14 @@ function iconButton(label: string, icon: Parameters<typeof createIcon>[0]) {
 
 /** A button that opens the text style menu: font, size, colour, emphasis and alignment. */
 export function createTextStyleMenu(viewer: Viewer): HTMLButtonElement {
+  const words = () => messagesOf(viewer).get().messages
   const trigger = h('button', {
     type: 'button',
     class: 'ink-menu-trigger ink-text-style-menu',
     'data-ink-text-style-menu': '',
     'data-state': 'closed',
-    'aria-label': 'Text style',
-    title: 'Text style',
+    'aria-label': words().textStyle.label,
+    title: words().textStyle.label,
     'aria-haspopup': 'dialog',
     'aria-expanded': 'false',
   })
@@ -74,7 +75,8 @@ export function createTextStyleMenu(viewer: Viewer): HTMLButtonElement {
     textStyleMenuModel(
       style?.current.get() ?? {},
       style?.supported.get() ?? new Set(),
-      viewer.engine.get()?.fonts ?? FONT_FAMILIES
+      viewer.engine.get()?.fonts ?? FONT_FAMILIES,
+      words()
     )
 
   // One text colour menu for the life of the control; each panel adopts its trigger.
@@ -119,13 +121,14 @@ export function createTextStyleMenu(viewer: Viewer): HTMLButtonElement {
       e.preventDefault()
       commitSize()
     })
-    const less = iconButton('Decrease font size', Minus)
-    const more = iconButton('Increase font size', Plus)
+    const t = words().textStyle
+    const less = iconButton(t.decrease, Minus)
+    const more = iconButton(t.increase, Plus)
     less.addEventListener('click', () => nudge(-1))
     more.addEventListener('click', () => nudge(1))
     const size = h(
       'div',
-      { class: 'ink-text-style-size', role: 'group', 'aria-label': 'Size' },
+      { class: 'ink-text-style-size', role: 'group', 'aria-label': t.size },
       less,
       input,
       more
@@ -134,7 +137,7 @@ export function createTextStyleMenu(viewer: Viewer): HTMLButtonElement {
     const emphasis = h('div', {
       class: 'ink-text-style-row',
       role: 'group',
-      'aria-label': 'Emphasis',
+      'aria-label': t.emphasis,
       'data-ink-emphasis': '',
     })
     for (const t of m.toggles) {
@@ -182,7 +185,7 @@ export function createTextStyleMenu(viewer: Viewer): HTMLButtonElement {
     ) {
       sel.replaceChildren(
         ...options.map((o) => {
-          const opt = h('option', { value: o }, o === '' ? 'Mixed' : o)
+          const opt = h('option', { value: o }, o === '' ? words().textStyle.mixed : o)
           if (o === '') {
             opt.disabled = true
             opt.hidden = true
@@ -192,6 +195,7 @@ export function createTextStyleMenu(viewer: Viewer): HTMLButtonElement {
       )
     }
     sel.value = m.font.value
+    relabel(root, m)
     if (!drafting) input!.value = m.size.value === null ? '' : String(m.size.value)
     root.querySelectorAll<HTMLElement>('[data-ink-emphasis] button').forEach((b) => {
       const t = m.toggles.find((x) => x.key === b.dataset.key)!
@@ -208,6 +212,34 @@ export function createTextStyleMenu(viewer: Viewer): HTMLButtonElement {
     })
   }
 
+  /** The words, in place: a panel open across a change keeps its widgets, values and focus. */
+  function relabel(root: HTMLElement, m: TextStyleMenuModel): void {
+    const t = words().textStyle
+    select?.setAttribute('aria-label', m.font.label)
+    input?.setAttribute('aria-label', m.size.label)
+    const mixed = select?.querySelector<HTMLOptionElement>('option[value=""]')
+    if (mixed) mixed.textContent = t.mixed
+    const size = root.querySelector<HTMLElement>('.ink-text-style-size')
+    if (size) {
+      size.setAttribute('aria-label', t.size)
+      // The stepper: decrease, the input, increase.
+      nameButton(size.firstElementChild as HTMLElement, t.decrease)
+      nameButton(size.lastElementChild as HTMLElement, t.increase)
+    }
+    root.querySelector('[data-ink-emphasis]')?.setAttribute('aria-label', t.emphasis)
+    root.querySelector('[role="radiogroup"]')?.setAttribute('aria-label', m.align.label)
+    root.querySelectorAll<HTMLElement>('[data-ink-emphasis] button').forEach((b) => {
+      const toggle = m.toggles.find((x) => x.key === b.dataset.key)
+      if (toggle) nameButton(b, toggle.label)
+    })
+    root
+      .querySelectorAll<HTMLElement>('[role="radiogroup"] [role="radio"]')
+      .forEach((b) => {
+        const choice = m.align.choices.find((x) => x.key === b.dataset.key)
+        if (choice) nameButton(b, choice.label)
+      })
+  }
+
   function refresh(): void {
     const m = model()
     trigger.disabled = !m.enabled
@@ -217,7 +249,7 @@ export function createTextStyleMenu(viewer: Viewer): HTMLButtonElement {
   }
 
   const menu = createMenu(trigger, {
-    label: 'Text style',
+    label: () => words().textStyle.label,
     role: 'dialog',
     attrs: {
       'data-ink-menu': 'text-style',
@@ -240,5 +272,9 @@ export function createTextStyleMenu(viewer: Viewer): HTMLButtonElement {
   }
   follow(viewer.engine.get())
   viewer.engine.subscribe(follow)
+  onMessages(viewer, (m) => {
+    nameButton(trigger, m.textStyle.label)
+    menu.refresh()
+  })
   return trigger
 }

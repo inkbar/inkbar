@@ -10,7 +10,7 @@
  * the mark is the point. The thread list re-renders on every store change; the form, and the
  * draft in it, stays until the popover moves to another thread or the root is gone.
  */
-import { formatDate } from '../../messages'
+import { formatDate, type InkMessages } from '../../messages'
 import {
   isAbandonedNote,
   isThreadRoot,
@@ -18,6 +18,7 @@ import {
   threadRoot,
   type ThreadRoot,
 } from '../../model/annotations/threads'
+import { ENGLISH, type MessageState } from '../messages-state'
 import { threadDeleteLabel, threadPopoverLabel } from '../ui'
 
 import { button, h } from './dom'
@@ -25,7 +26,7 @@ import { createPopover } from './popover'
 
 import type { AnnotationStore } from '../../model/annotations/store'
 import type { Annotation } from '../../model/annotations/types'
-import type { Writable } from '../../model/readable'
+import type { Readable, Writable } from '../../model/readable'
 import type { FocusReturn } from '../popover-focus'
 
 export interface ThreadPopoverOptions {
@@ -33,18 +34,23 @@ export interface ThreadPopoverOptions {
   store: AnnotationStore
   activated: Writable<string | null>
   focusReturn: FocusReturn
-  /** The locale dates are shown in, read each time the thread renders. Default: the browser's. */
-  locale?: () => string | undefined
+  /**
+   * The words, and the locale dates are shown in; English and the browser's when omitted. An
+   * open popover relabels in place when they change, its draft and focus kept.
+   */
+  messages?: Readable<MessageState>
 }
 
 export function createThreadPopover(opts: ThreadPopoverOptions): { destroy(): void } {
   const { root, store, activated, focusReturn } = opts
+  const messages = opts.messages ?? ENGLISH
+  const words = (): InkMessages => messages.get().messages
   const popover = createPopover({
     root,
     attrs: {
       class: 'ink-thread-popover',
       'data-ink-thread-popover': '',
-      'aria-label': 'Note thread',
+      'aria-label': words().notes.noteThread,
     },
     focusReturn,
     onDismiss: close,
@@ -91,8 +97,8 @@ export function createThreadPopover(opts: ThreadPopoverOptions): { destroy(): vo
       thread.remove()
       return
     }
-    const locale = opts.locale?.()
-    thread.replaceChildren(...items.map((a) => threadItem(a, locale)))
+    const { messages: m, locale } = messages.get()
+    thread.replaceChildren(...items.map((a) => threadItem(a, m, locale)))
     if (!thread.isConnected) popover.panel.prepend(thread)
   }
 
@@ -111,9 +117,9 @@ export function createThreadPopover(opts: ThreadPopoverOptions): { destroy(): vo
     if (n) {
       const hadFocus = popover.panel.contains(document.activeElement)
       const opening = popover.panel.hidden
-      form = createThreadForm(n, { submit, remove: removeThread, close })
+      form = createThreadForm(n, words, { submit, remove: removeThread, close })
       popover.panel.replaceChildren(form.element)
-      popover.panel.setAttribute('aria-label', threadPopoverLabel(n))
+      popover.panel.setAttribute('aria-label', threadPopoverLabel(n, words()))
       renderThread(n)
       popover.show(n.id)
       if ((opening || hadFocus) && !popover.panel.hidden) form.textarea.focus()
@@ -158,7 +164,20 @@ export function createThreadPopover(opts: ThreadPopoverOptions): { destroy(): vo
     activated.set(null)
   }
 
-  const stops = [store.list.subscribe(update), activated.subscribe(update)]
+  /** New words or locale: the open thread relabels in place; the draft and focus stay. */
+  function relabel(): void {
+    const n = shown()
+    if (!n || !form) return
+    popover.panel.setAttribute('aria-label', threadPopoverLabel(n, words()))
+    renderThread(n)
+    form.sync(n)
+  }
+
+  const stops = [
+    store.list.subscribe(update),
+    activated.subscribe(update),
+    messages.subscribe(relabel),
+  ]
   update()
 
   return {
@@ -169,7 +188,11 @@ export function createThreadPopover(opts: ThreadPopoverOptions): { destroy(): vo
   }
 }
 
-function threadItem(a: Annotation, locale: string | undefined): HTMLLIElement {
+function threadItem(
+  a: Annotation,
+  m: InkMessages,
+  locale: string | undefined
+): HTMLLIElement {
   return h(
     'li',
     {
@@ -177,7 +200,7 @@ function threadItem(a: Annotation, locale: string | undefined): HTMLLIElement {
       'data-ink-thread-item': '',
       ...(a.inReplyTo ? { 'data-reply': '' } : {}),
     },
-    h('span', { class: 'ink-thread-author' }, a.author ?? 'Anonymous'),
+    h('span', { class: 'ink-thread-author' }, a.author ?? m.notes.anonymous),
     h(
       'time',
       { class: 'ink-thread-time', datetime: a.createdAt },
@@ -190,24 +213,23 @@ function threadItem(a: Annotation, locale: string | undefined): HTMLLIElement {
 interface ThreadForm {
   readonly element: HTMLFormElement
   readonly textarea: HTMLTextAreaElement
-  /** Follows the root's state: "Comment" while its own text is empty, "Reply" after. */
+  /**
+   * Follows the root's state, "Comment" while its own text is empty and "Reply" after, and the
+   * words now.
+   */
   sync(n: ThreadRoot): void
 }
 
 function createThreadForm(
   n: ThreadRoot,
+  words: () => InkMessages,
   actions: { submit: (text: string) => void; remove: () => void; close: () => void }
 ): ThreadForm {
   const textarea = h('textarea', { rows: '2' })
   const send = h('button', { type: 'submit' })
-  const remove = button(threadDeleteLabel(n), actions.remove)
-  const actionRow = h(
-    'div',
-    { class: 'ink-thread-actions' },
-    send,
-    remove,
-    button('Close', actions.close)
-  )
+  const remove = button(threadDeleteLabel(n, words()), actions.remove)
+  const closeButton = button(words().notes.close, actions.close)
+  const actionRow = h('div', { class: 'ink-thread-actions' }, send, remove, closeButton)
   const element = h(
     'form',
     { class: 'ink-thread-reply', 'data-ink-thread-reply': '' },
@@ -229,10 +251,13 @@ function createThreadForm(
   })
 
   function sync(root: ThreadRoot): void {
-    const label = !root.locked && !root.contents?.trim() ? 'Comment' : 'Reply'
+    const m = words()
+    const label = !root.locked && !root.contents?.trim() ? m.notes.comment : m.notes.reply
     textarea.setAttribute('aria-label', label)
     textarea.placeholder = label
     send.textContent = label
+    remove.textContent = threadDeleteLabel(root, m)
+    closeButton.textContent = m.notes.close
     if (root.locked) remove.remove()
     else if (!remove.isConnected) send.after(remove)
   }

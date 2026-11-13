@@ -6,13 +6,20 @@
  * `onSubmit`, and the field is cleared when the dialog closes or reopens marked incorrect.
  */
 import { trapTab } from '../menu-keys'
-import { PASSWORD_LABELS } from '../ui'
+import { ENGLISH, type MessageState } from '../messages-state'
 
 import { h } from './dom'
+
+import type { Readable } from '../../model/readable'
 
 export interface PasswordDialogOptions {
   onSubmit(password: string): void
   onCancel(): void
+  /**
+   * The dialog's words; English when omitted. An open dialog relabels in place when they
+   * change, its field, focus and error kept.
+   */
+  messages?: Readable<MessageState>
 }
 
 export interface PasswordDialog {
@@ -28,13 +35,17 @@ let dialogs = 0
 
 export function createPasswordDialog(opts: PasswordDialogOptions): PasswordDialog {
   const uid = `ink-password-dialog-${++dialogs}`
+  const messages = opts.messages ?? ENGLISH
+  const words = () => messages.get().messages.password
   let pending = false
   let shown: {
     input: HTMLInputElement
     mark: (incorrect: boolean) => void
     paint: () => void
+    relabel: () => void
   } | null = null
   let teardown: (() => void) | null = null
+  const stopMessages = messages.subscribe(() => shown?.relabel())
 
   function close(): void {
     teardown?.()
@@ -61,22 +72,20 @@ export function createPasswordDialog(opts: PasswordDialogOptions): PasswordDialo
     })
     const errorId = `${uid}-error`
     let error: HTMLElement | null = null
-    const cancelButton = h(
-      'button',
-      { type: 'button', class: 'ink-button' },
-      PASSWORD_LABELS.cancel
-    )
+    const t = words()
+    const cancelButton = h('button', { type: 'button', class: 'ink-button' }, t.cancel)
     cancelButton.addEventListener('click', cancel)
     const submit = h(
       'button',
       { type: 'submit', class: 'ink-button', 'data-variant': 'primary' },
-      PASSWORD_LABELS.submit
+      t.submit
     )
     const actions = h('div', { class: 'ink-dialog-actions' }, cancelButton, submit)
+    const label = h('label', { class: 'ink-password-label', for: input.id }, t.field)
     const form = h(
       'form',
       { class: 'ink-password-form', 'data-ink-password-form': '' },
-      h('label', { class: 'ink-password-label', for: input.id }, PASSWORD_LABELS.field),
+      label,
       input,
       actions
     )
@@ -90,6 +99,12 @@ export function createPasswordDialog(opts: PasswordDialogOptions): PasswordDialo
       opts.onSubmit(input.value)
     })
 
+    const title = h('h2', { class: 'ink-dialog-title', id: `${uid}-title` }, t.dialog)
+    const description = h(
+      'p',
+      { class: 'ink-dialog-description', id: `${uid}-desc` },
+      t.description
+    )
     const content = h(
       'div',
       {
@@ -102,12 +117,8 @@ export function createPasswordDialog(opts: PasswordDialogOptions): PasswordDialo
         'data-state': 'open',
         tabindex: '-1',
       },
-      h('h2', { class: 'ink-dialog-title', id: `${uid}-title` }, PASSWORD_LABELS.dialog),
-      h(
-        'p',
-        { class: 'ink-dialog-description', id: `${uid}-desc` },
-        PASSWORD_LABELS.description
-      ),
+      title,
+      description,
       form
     )
     const overlay = h('div', {
@@ -146,13 +157,23 @@ export function createPasswordDialog(opts: PasswordDialogOptions): PasswordDialo
           error = h(
             'p',
             { class: 'ink-password-error', id: errorId, role: 'alert' },
-            PASSWORD_LABELS.incorrect
+            words().incorrect
           )
           input.after(error)
           input.setAttribute('aria-describedby', errorId)
         } else {
           input.removeAttribute('aria-describedby')
         }
+      },
+      // In place: the alert is not raised again for words alone.
+      relabel: () => {
+        const w = words()
+        title.textContent = w.dialog
+        description.textContent = w.description
+        label.textContent = w.field
+        cancelButton.textContent = w.cancel
+        submit.textContent = w.submit
+        if (error) error.textContent = w.incorrect
       },
     }
     teardown = () => {
@@ -182,6 +203,9 @@ export function createPasswordDialog(opts: PasswordDialogOptions): PasswordDialo
       shown?.paint()
     },
     close,
-    destroy: close,
+    destroy() {
+      close()
+      stopMessages()
+    },
   }
 }

@@ -10,6 +10,7 @@
  * expands by itself. An item activated from the outline stays current until the reader scrolls
  * away from where it landed, so the item jumped to is the one marked.
  */
+import { en, type InkMessages } from '../../messages'
 import { readonly, writable, type Readable } from '../../model/readable'
 
 import type { InkDocument } from '../../model/document'
@@ -58,8 +59,8 @@ export interface OutlineController {
    * through `onAction`, a page action navigates. An unsupported item does nothing.
    */
   activate(id: string): void
-  /** `role="tree"` and its label, for the element holding the items. */
-  treeAttrs(): Record<string, string>
+  /** `role="tree"` and its label (`m.outline.label`), for the element holding the items. */
+  treeAttrs(m?: InkMessages): Record<string, string>
   /**
    * For each item's element: `role="treeitem"`, its `id`, `aria-level`, `aria-setsize`,
    * `aria-posinset`, `aria-expanded` (items with children), `aria-current="location"` on the
@@ -119,8 +120,8 @@ const hasChildren = (node: Node): boolean => node.item.children.length > 0
  * `role="tree"` and its label, for the element holding an outline's items. The same as a
  * controller's `treeAttrs()`, without one, so markup rendered on the server has them too.
  */
-export function outlineTreeAttrs(): Record<string, string> {
-  return { role: 'tree', 'aria-label': 'Outline' }
+export function outlineTreeAttrs(m: InkMessages = en): Record<string, string> {
+  return { role: 'tree', 'aria-label': m.outline.label }
 }
 
 export function createOutlineController(deps: OutlineControllerDeps): OutlineController {

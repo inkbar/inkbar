@@ -11,9 +11,16 @@
  * an action, undo or anything else, focus moves to the next row, else the previous, else the
  * list.
  */
+import { resolveLabel, type Label } from '../../messages'
 import { readonly, writable, type Readable } from '../../model/readable'
+import { ENGLISH, type MessageState } from '../messages-state'
 import { cardClass, cardParts } from '../plugins/api/card'
-import { onViewerDestroy, pluginHostOf, type Viewer } from '../viewer/create-viewer'
+import {
+  messagesOf,
+  onViewerDestroy,
+  pluginHostOf,
+  type Viewer,
+} from '../viewer/create-viewer'
 import { h } from '../viewer/dom'
 
 import {
@@ -60,11 +67,13 @@ const ROW_ATTR = 'data-ink-record'
 /** Elements inside a row that take their own clicks and keys. */
 const CONTROLS = 'button, a[href], input, select, textarea, [contenteditable]'
 
-const itemsText = (n: number) => `${n} ${n === 1 ? 'item' : 'items'}`
-
 export function createRecordListController(
-  source: RecordListSource
+  source: RecordListSource,
+  /** The words of the "N items" announcement; English when omitted. */
+  messages: Readable<MessageState> = ENGLISH
 ): RecordListController {
+  const itemsText = (count: number) =>
+    messages.get().messages.records.itemCount({ count })
   let items = source.items.get()
   let selected = source.selected.get()
   let destroyed = false
@@ -380,12 +389,18 @@ export function renderRecordList(
   source: RecordListSource,
   /** Whether the empty text shows when there are no rows. Default: always. */
   emptyShown: () => boolean = () => true,
-  /** The empty text. Default: "Nothing here yet." */
-  emptyText = 'Nothing here yet.'
+  /** The empty text, from the words given. Default: `records.empty` ("Nothing here yet."). */
+  emptyText: (m: MessageState['messages']) => string = (m) => m.records.empty,
+  /** The words of the empty text, the count and the cards; English when omitted. */
+  messages: Readable<MessageState> = ENGLISH
 ): RenderedList {
-  const controller = createRecordListController(source)
+  const controller = createRecordListController(source, messages)
   const list = h('ul', { class: 'ink-record-list', role: 'list' })
-  const empty = h('p', { class: 'ink-record-list-empty' }, emptyText)
+  const empty = h(
+    'p',
+    { class: 'ink-record-list-empty' },
+    emptyText(messages.get().messages)
+  )
   const live = h('div', {
     class: 'ink-visually-hidden',
     'aria-live': 'polite',
@@ -468,6 +483,11 @@ export function renderRecordList(
     live.textContent = text
   })
   const detach = controller.attach(element)
+  // New words: the empty text, and every card refilled in place (a card's words are its source's).
+  const stopMessages = messages.subscribe(({ messages: m }) => {
+    empty.textContent = emptyText(m)
+    for (const [id, row] of mounted) if (row.item) fill(row, id, source.card(row.item))
+  })
 
   return {
     element,
@@ -477,6 +497,7 @@ export function renderRecordList(
       detach()
       stopRows()
       stopLive()
+      stopMessages()
       controller.destroy()
     },
   }
@@ -487,20 +508,28 @@ export function renderRecordList(
  * cards its marks open, with their actions. Selecting a card selects the record's mark and
  * scrolls the viewer to it; activating a mark selects its card. Give it a height (it fills its
  * parent's) and place it anywhere, a sidebar panel for instance. It stops when the viewer is
- * destroyed.
+ * destroyed. `emptyText` shows while there are none; default the viewer's `records.empty`.
  */
 export function createRecordList(
   viewer: Viewer,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the host's record type
-  opts: { records: string } & RecordsSourceOptions<any>
+  opts: { records: string; emptyText?: Label } & RecordsSourceOptions<any>
 ): HTMLElement {
-  const { records: key, ...rest } = opts
+  const { records: key, emptyText, ...rest } = opts
   const source = recordsSource<RecordBase & { page: number }>(
     { pluginHost: pluginHostOf(viewer), viewport: viewer.viewport },
     key,
     rest
   )
-  const rendered = renderRecordList(source)
+  const rendered = renderRecordList(
+    source,
+    undefined,
+    (m) =>
+      emptyText === undefined
+        ? m.records.empty
+        : resolveLabel(emptyText, m.records.empty),
+    messagesOf(viewer)
+  )
   onViewerDestroy(viewer, () => rendered.destroy())
   return rendered.element
 }

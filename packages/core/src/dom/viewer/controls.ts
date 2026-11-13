@@ -26,12 +26,20 @@ import {
   type IconNode,
 } from '@inkbar/icons'
 
+import { resolveLabel, type InkMessages, type Label } from '../../messages'
 import { keepHistoryFocus } from '../history-keys'
+import { ENGLISH, type MessageState } from '../messages-state'
 import { unknownCommand } from '../plugins/commands'
 import { unknownTool } from '../tools/unknown'
 import { toolName, ZOOM_LEVELS } from '../ui'
 
-import { hostCommandIdsOf, messagesOf, toolsOf, onViewerDestroy } from './create-viewer'
+import {
+  hostCommandIdsOf,
+  messagesOf,
+  onMessages,
+  toolsOf,
+  onViewerDestroy,
+} from './create-viewer'
 import { h } from './dom'
 
 import type { InkDocument } from '../../model/document'
@@ -116,13 +124,34 @@ export function button(
   return b
 }
 
+/** @internal Names `b` for assistive technology and its tooltip. */
+export function nameButton(b: HTMLElement, label: string): void {
+  if (b.getAttribute('aria-label') !== label) b.setAttribute('aria-label', label)
+  if (b.title !== label) b.title = label
+}
+
+/**
+ * A button named from the viewer's words, now and after every `setMessages`.
+ */
+function wordButton(
+  viewer: Viewer,
+  name: (m: InkMessages) => string,
+  attrs: Record<string, string>,
+  icon: IconNode | undefined
+): HTMLButtonElement {
+  const b = button(name(messagesOf(viewer).get().messages), attrs, icon)
+  onMessages(viewer, (m) => nameButton(b, name(m)))
+  return b
+}
+
 /**
  * Opens the viewer's find bar; pressed while it is open. Pressing it again focuses the field.
  * The bar itself is `createFindBar`.
  */
 export function createSearchButton(viewer: Viewer): HTMLButtonElement {
-  const b = button(
-    'Find',
+  const b = wordButton(
+    viewer,
+    (m) => m.toolbar.find,
     { class: 'ink-search-button', 'data-ink-search-button': '', 'aria-pressed': 'false' },
     Search
   )
@@ -151,15 +180,25 @@ export function createSearchButton(viewer: Viewer): HTMLButtonElement {
  * A toolbar following the WAI-ARIA toolbar pattern: its buttons share one Tab stop, with
  * arrow keys, Home and End to move between them. Fields and selects are Tab stops of their
  * own and keep their keys. Buttons added later join in.
+ *
+ * `label` names it; without one it is `messages.toolbar.label` ("Document tools"). Pass the
+ * viewer's `messages` to follow `setMessages`: a function `label` is read again then too.
  */
-export function createToolbar(opts: { label?: string } = {}): HTMLElement {
+export function createToolbar(
+  opts: { label?: Label; messages?: Readable<MessageState> } = {}
+): HTMLElement {
+  const messages = opts.messages ?? ENGLISH
+  const name = (m: InkMessages): string =>
+    opts.label === undefined ? m.toolbar.label : resolveLabel(opts.label, m.toolbar.label)
   const bar = h('div', {
     class: 'ink-toolbar',
     'data-ink-toolbar': '',
     role: 'toolbar',
-    'aria-label': opts.label ?? 'Document tools',
+    'aria-label': name(messages.get().messages),
     'aria-orientation': 'horizontal',
   })
+  // Lives as long as the store: a viewer's goes with the viewer.
+  messages.subscribe(({ messages: m }) => bar.setAttribute('aria-label', name(m)))
   rovingTabindex(bar)
   return bar
 }
@@ -198,8 +237,9 @@ function fileButton(
   action: 'download' | 'print',
   run: () => Promise<void>
 ): HTMLButtonElement {
-  const b = button(
-    action === 'download' ? 'Download' : 'Print',
+  const b = wordButton(
+    viewer,
+    (m) => m.toolbar[action],
     { class: `ink-${action}`, [`data-ink-${action}`]: '' },
     action === 'download' ? Download : Printer
   )
@@ -223,9 +263,9 @@ export function createRedo(viewer: Viewer): HTMLButtonElement {
 }
 
 function historyButton(viewer: Viewer, action: 'undo' | 'redo'): HTMLButtonElement {
-  const label = action === 'undo' ? 'Undo' : 'Redo'
-  const b = button(
-    label,
+  const b = wordButton(
+    viewer,
+    (m) => m.toolbar[action],
     { class: `ink-${action}`, [`data-ink-${action}`]: '' },
     action === 'undo' ? Undo2 : Redo2
   )
@@ -257,8 +297,9 @@ export function createForward(viewer: Viewer): HTMLButtonElement {
 
 function navigationButton(viewer: Viewer, action: 'back' | 'forward'): HTMLButtonElement {
   const back = action === 'back'
-  const b = button(
-    back ? 'Back' : 'Forward',
+  const b = wordButton(
+    viewer,
+    (m) => m.toolbar[action],
     { class: `ink-${action}`, [`data-ink-${action}`]: '' },
     back ? ArrowLeft : ArrowRight
   )
@@ -326,12 +367,7 @@ export function createToolButton(
     TOOL_ICONS[tool] ?? own?.icon
   )
   // New words, or a host's label function reading its own language again.
-  const stopMessages = messages.subscribe(() => {
-    const label = name()
-    b.setAttribute('aria-label', label)
-    b.title = label
-  })
-  onViewerDestroy(viewer, stopMessages)
+  onMessages(viewer, () => nameButton(b, name()))
   const show = (active: ToolId | null): void => {
     const on = active === tool
     b.dataset.state = on ? 'on' : 'off'
@@ -390,7 +426,12 @@ export function createCommandButton(viewer: Viewer, id: string): HTMLElement {
 }
 
 export function createZoomIn(viewer: Viewer): HTMLButtonElement {
-  const b = button('Zoom in', { class: 'ink-zoom-in', 'data-ink-zoom-in': '' }, ZoomIn)
+  const b = wordButton(
+    viewer,
+    (m) => m.toolbar.zoomIn,
+    { class: 'ink-zoom-in', 'data-ink-zoom-in': '' },
+    ZoomIn
+  )
   b.addEventListener('click', () => viewer.viewport.get()?.zoomBy(1.25))
   onViewerDestroy(
     viewer,
@@ -400,8 +441,9 @@ export function createZoomIn(viewer: Viewer): HTMLButtonElement {
 }
 
 export function createZoomOut(viewer: Viewer): HTMLButtonElement {
-  const b = button(
-    'Zoom out',
+  const b = wordButton(
+    viewer,
+    (m) => m.toolbar.zoomOut,
     { class: 'ink-zoom-out', 'data-ink-zoom-out': '' },
     ZoomOut
   )
@@ -415,20 +457,34 @@ export function createZoomOut(viewer: Viewer): HTMLButtonElement {
 
 /** Fit width, fit page and the zoom levels; a zoom between levels gets an option of its own. */
 export function createZoomSelect(viewer: Viewer): HTMLSelectElement {
+  const words = (): InkMessages => messagesOf(viewer).get().messages
+  const percent = (zoom: number, m = words()): string =>
+    m.toolbar.zoomPercent({ percent: Math.round(zoom * 100) })
   const custom = h('option', { value: 'custom' })
+  /** The zoom the custom option shows, while it shows. */
+  let customZoom: number | null = null
+  const fitWidth = h('option', { value: 'fit-width' }, words().toolbar.fitWidth)
+  const fitPage = h('option', { value: 'fit-page' }, words().toolbar.fitPage)
+  const levels = ZOOM_LEVELS.map((l) => h('option', { value: String(l) }, percent(l)))
   const select = h(
     'select',
     {
       class: 'ink-select ink-zoom-select',
       'data-ink-zoom-select': '',
-      'aria-label': 'Zoom',
+      'aria-label': words().toolbar.zoom,
     },
-    h('option', { value: 'fit-width' }, 'Fit width'),
-    h('option', { value: 'fit-page' }, 'Fit page'),
-    ...ZOOM_LEVELS.map((l) =>
-      h('option', { value: String(l) }, `${Math.round(l * 100)}%`)
-    )
+    fitWidth,
+    fitPage,
+    ...levels
   )
+  // Options are relabelled, not replaced, so the chosen one stays chosen.
+  onMessages(viewer, (m) => {
+    select.setAttribute('aria-label', m.toolbar.zoom)
+    fitWidth.textContent = m.toolbar.fitWidth
+    fitPage.textContent = m.toolbar.fitPage
+    levels.forEach((o, i) => (o.textContent = percent(ZOOM_LEVELS[i]!, m)))
+    if (customZoom !== null) custom.textContent = percent(customZoom, m)
+  })
   select.addEventListener('change', () => {
     const v = select.value
     const viewport = viewer.viewport.get()
@@ -445,7 +501,8 @@ export function createZoomSelect(viewer: Viewer): HTMLSelectElement {
             ? ZOOM_LEVELS.find((l) => Math.abs(l - z) < 0.001)
             : undefined
         if (typeof z === 'number' && level === undefined) {
-          custom.textContent = `${Math.round(z * 100)}%`
+          customZoom = z
+          custom.textContent = percent(z)
           // In order among the levels.
           const after = [...select.options].find(
             (o) => o !== custom && Number(o.value) > z
@@ -453,11 +510,13 @@ export function createZoomSelect(viewer: Viewer): HTMLSelectElement {
           select.insertBefore(custom, after ?? null)
           select.value = 'custom'
         } else {
+          customZoom = null
           custom.remove()
           select.value = typeof z === 'number' ? String(level) : z
         }
       }),
     () => {
+      customZoom = null
       custom.remove()
       select.value = 'fit-width'
     }
@@ -475,9 +534,10 @@ export function createPageInput(viewer: Viewer): HTMLInputElement {
     'data-ink-page-input': '',
     type: 'number',
     inputmode: 'numeric',
-    'aria-label': 'Page',
+    'aria-label': messagesOf(viewer).get().messages.toolbar.page,
     min: '1',
   })
+  onMessages(viewer, (m) => input.setAttribute('aria-label', m.toolbar.page))
   const commit = (): void => {
     const viewport = viewer.viewport.get()
     const doc = viewer.document.get()
@@ -516,10 +576,14 @@ export function createPageCount(viewer: Viewer): HTMLSpanElement {
   })
   const show = (): void => {
     const doc = viewer.document.get()
-    span.textContent = doc && viewer.viewport.get() ? `of ${doc.pages.length}` : ''
+    span.textContent =
+      doc && viewer.viewport.get()
+        ? messagesOf(viewer).get().messages.toolbar.pageOf({ total: doc.pages.length })
+        : ''
   }
   show()
   viewer.viewport.subscribe(show)
+  onMessages(viewer, show)
   return span
 }
 
@@ -536,13 +600,15 @@ export function createNextPage(viewer: Viewer): HTMLButtonElement {
 function pageButton(viewer: Viewer, step: -1 | 1): HTMLButtonElement {
   const b =
     step < 0
-      ? button(
-          'Previous page',
+      ? wordButton(
+          viewer,
+          (m) => m.toolbar.previousPage,
           { class: 'ink-prev-page', 'data-ink-prev-page': '' },
           ChevronLeft
         )
-      : button(
-          'Next page',
+      : wordButton(
+          viewer,
+          (m) => m.toolbar.nextPage,
           { class: 'ink-next-page', 'data-ink-next-page': '' },
           ChevronRight
         )

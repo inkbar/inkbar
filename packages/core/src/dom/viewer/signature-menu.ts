@@ -13,14 +13,15 @@ import { ChevronDown, Plus, Signature, Trash2 } from '@inkbar/icons'
 import { isInkError, type InkError } from '../../model/errors'
 import { signField } from '../../model/form/sign'
 import { signaturePreview } from '../signature-pad'
-import { SIGNATURE_LABELS, signatureMenuModel, type SignatureMenuModel } from '../ui'
+import { signatureMenuModel, type SignatureMenuModel } from '../ui'
 
-import { createIcon, logUnknownTool, registeredTool } from './controls'
-import { h } from './dom'
+import { createIcon, logUnknownTool, nameButton, registeredTool } from './controls'
+import { messagesOf, onMessages, type Viewer } from './create-viewer'
+import { h, setText } from './dom'
 import { createMenu, type Menu } from './menu'
 import { createSignatureDialog, type SignatureDialogOptions } from './signature-dialog'
 
-import type { Viewer } from './create-viewer'
+import type { InkMessages } from '../../messages'
 import type { SignatureLibrary, SignatureTemplate } from '../../model/signatures'
 import type { SignFieldRequest } from '../form-layer'
 import type { ToolController } from '../tools'
@@ -60,6 +61,7 @@ interface SignatureMenuContent {
  */
 function signatureMenuContent(opts: {
   library: () => SignatureLibrary | null
+  words: () => InkMessages
   model: () => SignatureMenuModel
   choose: (t: SignatureTemplate) => void
   create: () => void
@@ -98,7 +100,7 @@ function signatureMenuContent(opts: {
       shown = ids
       const list = h('div', {
         role: 'group',
-        'aria-label': SIGNATURE_LABELS.saved,
+        'aria-label': opts.words().signature.saved,
         class: 'ink-signature-list',
         'data-ink-menu-columns': '2',
       })
@@ -138,7 +140,7 @@ function signatureMenuContent(opts: {
           'data-ink-signature-create': '',
           tabindex: '-1',
         },
-        SIGNATURE_LABELS.create
+        opts.words().signature.create
       )
       create.prepend(createIcon(Plus))
       create.addEventListener('click', () => opts.create())
@@ -154,16 +156,30 @@ function signatureMenuContent(opts: {
         })
       )
     }
+    // The words, in place: a panel open across a change keeps its rows and focus.
+    const w = opts.words().signature
+    panel.querySelector('.ink-signature-list')?.setAttribute('aria-label', w.saved)
+    const create = panel.querySelector<HTMLElement>('[data-ink-signature-create]')
+    if (create) setText(create, w.create)
     const error = panel.querySelector<HTMLElement>('[data-ink-signature-remove-error]')!
-    const message = library()?.removeError.get()
-    error.textContent = message ?? ''
-    error.hidden = message === undefined
+    // The viewer's library says why in the words of the moment it failed; a shown error
+    // follows the words since.
+    const failed = library()?.removeError.get() !== undefined
+    error.textContent = failed ? w.removeFailed : ''
+    error.hidden = !failed
     for (const item of m.items) {
       const el = panel.querySelector<HTMLElement>(
         `.ink-signature-item[data-key="${CSS.escape(item.id)}"]`
       )
       el?.setAttribute('aria-checked', String(item.checked))
-      if (el) el.dataset.state = item.checked ? 'checked' : 'unchecked'
+      if (el) {
+        el.dataset.state = item.checked ? 'checked' : 'unchecked'
+        el.setAttribute('aria-label', item.label)
+      }
+      const drop = panel.querySelector<HTMLElement>(
+        `.ink-signature-remove[data-key="${CSS.escape(item.id)}"]`
+      )
+      if (drop) nameButton(drop, item.removeLabel)
     }
   }
 
@@ -178,6 +194,8 @@ export function createSignatureMenu(
     logUnknownTool(viewer, 'signature')
     return h('div', { hidden: '' })
   }
+  const words = (): InkMessages => messagesOf(viewer).get().messages
+  const sign = words().signature
   const main = h('button', {
     type: 'button',
     class: 'ink-tool-button ink-signature-button',
@@ -186,8 +204,8 @@ export function createSignatureMenu(
     'data-tool': 'signature',
     'data-state': 'off',
     'aria-pressed': 'false',
-    'aria-label': SIGNATURE_LABELS.sign,
-    title: SIGNATURE_LABELS.sign,
+    'aria-label': sign.sign,
+    title: sign.sign,
   })
   main.append(createIcon(Signature))
   const trigger = h('button', {
@@ -195,8 +213,8 @@ export function createSignatureMenu(
     class: 'ink-menu-trigger ink-signature-menu-trigger',
     'data-ink-signature-menu-trigger': '',
     'data-state': 'closed',
-    'aria-label': SIGNATURE_LABELS.trigger,
-    title: SIGNATURE_LABELS.trigger,
+    'aria-label': sign.trigger,
+    title: sign.trigger,
     'aria-haspopup': 'menu',
     'aria-expanded': 'false',
   })
@@ -207,7 +225,7 @@ export function createSignatureMenu(
       class: 'ink-split-button ink-signature-menu',
       'data-ink-signature-menu': '',
       role: 'group',
-      'aria-label': SIGNATURE_LABELS.sign,
+      'aria-label': sign.sign,
     },
     main,
     trigger
@@ -223,7 +241,8 @@ export function createSignatureMenu(
   const model = (): SignatureMenuModel =>
     signatureMenuModel(
       library?.templates.get() ?? [],
-      tools?.options('signature').get() ?? {}
+      tools?.options('signature').get() ?? {},
+      words()
     )
 
   function refresh(): void {
@@ -236,6 +255,7 @@ export function createSignatureMenu(
 
   const content = signatureMenuContent({
     library: () => library,
+    words,
     model,
     choose: (t) => {
       tools?.set('signature', { templateId: t.id })
@@ -248,7 +268,7 @@ export function createSignatureMenu(
     isOpen: () => menu.isOpen,
   })
   const menu = createMenu(trigger, {
-    label: SIGNATURE_LABELS.menu,
+    label: () => words().signature.menu,
     anchor: root,
     attrs: { 'data-ink-menu': 'signature' },
     render: (panel) => content.paint(panel),
@@ -292,6 +312,12 @@ export function createSignatureMenu(
   viewer.tools.subscribe(follow)
   followLibrary(viewer.engine.get())
   viewer.engine.subscribe(followLibrary)
+  onMessages(viewer, (m) => {
+    nameButton(main, m.signature.sign)
+    nameButton(trigger, m.signature.trigger)
+    root.setAttribute('aria-label', m.signature.sign)
+    refresh()
+  })
   return root
 }
 
@@ -322,6 +348,9 @@ export function createSignFieldMenu(
   const dialog = createSignatureDialog(viewer, opts)
   let menu: Menu | null = null
   let destroyed = false
+  const words = (): InkMessages => messagesOf(viewer).get().messages
+  // New words: an open menu relabels in place.
+  const stopMessages = messagesOf(viewer).subscribe(() => menu?.refresh())
 
   const library = (): SignatureLibrary | null => viewer.engine.get()?.signatures ?? null
   const close = (): void => {
@@ -369,10 +398,11 @@ export function createSignFieldMenu(
       )
       if (!control) return
       const model = (): SignatureMenuModel =>
-        signatureMenuModel(library()?.templates.get() ?? [], {})
+        signatureMenuModel(library()?.templates.get() ?? [], {}, words())
       let own: Menu | null = null
       const content = signatureMenuContent({
         library,
+        words,
         model,
         choose: (t) => {
           own?.close(true)
@@ -385,7 +415,7 @@ export function createSignFieldMenu(
         isOpen: () => own?.isOpen === true,
       })
       own = createMenu(control, {
-        label: SIGNATURE_LABELS.menu,
+        label: () => words().signature.menu,
         anchor: req.anchor,
         manual: true,
         attrs: { 'data-ink-menu': 'signature', 'data-ink-sign-field-menu': req.field },
@@ -407,6 +437,7 @@ export function createSignFieldMenu(
       dialog.destroy()
       stopEngine()
       stopLibrary()
+      stopMessages()
     },
   }
 }

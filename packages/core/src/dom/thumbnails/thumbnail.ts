@@ -12,7 +12,9 @@
  *
  * Thumbnails ignore the viewer's rotation; only the page's own /Rotate applies.
  */
+import { resolveLabel, type Label } from '../../messages'
 import { withoutReplies } from '../../model/annotations/threads'
+import { ENGLISH, type MessageState } from '../messages-state'
 import {
   annotationBox,
   paintedByCanvas,
@@ -21,7 +23,12 @@ import {
 import { createPageRenderer, type PageRenderer } from '../page-renderer'
 import { toCssName } from '../plugins/api/marks'
 import { createPageTransform, type PageTransform } from '../transform'
-import { onViewerDestroy, pluginHostOf, type Viewer } from '../viewer/create-viewer'
+import {
+  messagesOf,
+  onViewerDestroy,
+  pluginHostOf,
+  type Viewer,
+} from '../viewer/create-viewer'
 
 import type { Annotation } from '../../model/annotations/types'
 import type { InkDocument } from '../../model/document'
@@ -43,6 +50,8 @@ export interface ThumbnailDeps {
   document: Readable<InkDocument | null>
   /** Where plugin marks come from. Without it, the thumbnail draws no marks. */
   pluginHost?: Readable<PluginHost | null>
+  /** The words of the default name; English when omitted. */
+  messages?: Readable<MessageState>
 }
 
 export interface ThumbnailOptions {
@@ -56,8 +65,11 @@ export interface ThumbnailOptions {
   annotations?: boolean | undefined
   /** Draw plugin marks. Default true. */
   marks?: boolean | undefined
-  /** The accessible name. Default "Page N", N being `page + 1`. */
-  label?: string | undefined
+  /**
+   * The accessible name. Default `messages.thumbnails.page` ("Page N", N being `page + 1`). A
+   * function is read again on every change of words.
+   */
+  label?: Label | undefined
 }
 
 export interface ThumbnailPainter {
@@ -164,7 +176,17 @@ export function createThumbnailPainter(
     }
     el.style.width = `${size.width}px`
     el.style.height = `${size.height}px`
-    el.setAttribute('aria-label', opts.label ?? `Page ${opts.page + 1}`)
+    name()
+  }
+
+  const messages = deps.messages ?? ENGLISH
+  /** Names the element: its label, else "Page N" in the words now. */
+  function name(): void {
+    const fallback = messages.get().messages.thumbnails.page({ page: opts.page + 1 })
+    el.setAttribute(
+      'aria-label',
+      opts.label === undefined ? fallback : resolveLabel(opts.label, fallback)
+    )
   }
 
   function dropCanvas(): void {
@@ -353,6 +375,9 @@ export function createThumbnailPainter(
     followAnnotations()
     refresh()
   })
+  const stopMessages = messages.subscribe(() => {
+    if (!destroyed) name()
+  })
   const stopHost = deps.pluginHost?.subscribe((next) => {
     host = next
     followMarks()
@@ -395,6 +420,7 @@ export function createThumbnailPainter(
       destroyed = true
       observer?.disconnect()
       stopDocument()
+      stopMessages()
       stopHost?.()
       stopAnnotations?.()
       stopRegistry?.()
@@ -425,6 +451,7 @@ export function createThumbnail(viewer: Viewer, opts: ThumbnailOptions): HTMLEle
     {
       document: viewer.document,
       pluginHost: { get: () => host, subscribe: () => () => undefined },
+      messages: messagesOf(viewer),
     },
     opts
   )

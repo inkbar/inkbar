@@ -4,6 +4,7 @@
  * never recreated, so their state survives switching panels and layouts. It needs no viewer:
  * put it beside the viewer with your own layout (flex, grid). `controller.destroy()` stops it.
  */
+import { resolveLabel } from '../../messages'
 import { createIcon } from '../viewer/controls'
 import { h } from '../viewer/dom'
 
@@ -51,7 +52,7 @@ export function createSidebar(
     const b = h('button', cls ? { class: cls } : {})
     if (p.icon) b.append(createIcon(p.icon))
     if (!p.icon || controller.state.get().layout !== 'rail')
-      b.append(h('span', { class: 'ink-sidebar-label' }, p.label))
+      b.append(h('span', { class: 'ink-sidebar-label' }, resolveLabel(p.label)))
     b.append(h('span', { class: 'ink-sidebar-badge', 'aria-hidden': 'true' }))
     return b
   }
@@ -64,7 +65,11 @@ export function createSidebar(
         'div',
         { class: 'ink-sidebar-panel' },
         // The rail button names the panel for assistive technology; this repeats it on screen.
-        h('div', { class: 'ink-sidebar-panel-title', 'aria-hidden': 'true' }, p.label),
+        h(
+          'div',
+          { class: 'ink-sidebar-panel-title', 'aria-hidden': 'true' },
+          resolveLabel(p.label)
+        ),
         h('div', { class: 'ink-sidebar-panel-body' })
       )
     const body = panel.lastElementChild!
@@ -127,12 +132,13 @@ export function createSidebar(
     if (panelsEl) setAttrs(panelsEl, controller.panelsAttrs())
     setAttrs(handle, controller.handleAttrs())
     for (const p of s.panels) {
+      const name = resolveLabel(p.label)
       const t = triggers.get(p.id)
       const panel = panels.get(p.id)
       if (t) {
         setAttrs(t, controller.triggerAttrs(p.id))
         const label = t.querySelector('.ink-sidebar-label')
-        if (label && label.textContent !== p.label) label.textContent = p.label
+        if (label && label.textContent !== name) label.textContent = name
         const badge = t.querySelector<HTMLElement>('.ink-sidebar-badge')!
         const text = sidebarBadge(p.badge)
         badge.textContent = text ?? ''
@@ -141,7 +147,7 @@ export function createSidebar(
       if (panel) {
         setAttrs(panel, controller.panelAttrs(p.id))
         const title = panel.firstElementChild!
-        if (title.textContent !== p.label) title.textContent = p.label
+        if (title.textContent !== name) title.textContent = name
       }
     }
   }

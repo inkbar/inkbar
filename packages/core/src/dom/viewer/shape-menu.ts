@@ -10,11 +10,10 @@ import { SHAPE_ICONS } from '../shape-icons'
 import { SHAPE_KINDS, type ShapeKind, type ToolController } from '../tools'
 import { SHAPE_COLUMNS, shapeMenuModel, type ShapeMenuModel } from '../ui'
 
-import { createIcon, logUnknownTool, registeredTool } from './controls'
-import { h } from './dom'
+import { createIcon, logUnknownTool, nameButton, registeredTool } from './controls'
+import { messagesOf, onMessages, type Viewer } from './create-viewer'
+import { h, setText } from './dom'
 import { createMenu } from './menu'
-
-import type { Viewer } from './create-viewer'
 
 /** A split button: the main part draws with the current shape kind, the chevron picks the kind. */
 export function createShapeMenu(viewer: Viewer): HTMLElement {
@@ -22,6 +21,7 @@ export function createShapeMenu(viewer: Viewer): HTMLElement {
     logUnknownTool(viewer, 'shape')
     return h('div', { hidden: '' })
   }
+  const words = () => messagesOf(viewer).get().messages
   const main = h('button', {
     type: 'button',
     class: 'ink-tool-button ink-shape-button',
@@ -36,8 +36,8 @@ export function createShapeMenu(viewer: Viewer): HTMLElement {
     class: 'ink-menu-trigger ink-shape-menu-trigger',
     'data-ink-shape-menu-trigger': '',
     'data-state': 'closed',
-    'aria-label': 'Choose shape',
-    title: 'Choose shape',
+    'aria-label': words().shape.choose,
+    title: words().shape.choose,
     'aria-haspopup': 'menu',
     'aria-expanded': 'false',
   })
@@ -48,7 +48,7 @@ export function createShapeMenu(viewer: Viewer): HTMLElement {
       class: 'ink-split-button ink-shape-menu',
       'data-ink-shape-menu': '',
       role: 'group',
-      'aria-label': 'Shape',
+      'aria-label': words().shape.label,
     },
     main,
     trigger
@@ -61,13 +61,12 @@ export function createShapeMenu(viewer: Viewer): HTMLElement {
   let shownKind: ShapeKind | null = null
 
   const model = (): ShapeMenuModel =>
-    shapeMenuModel(tools?.options('shape').get() ?? {}, SHAPE_KINDS)
+    shapeMenuModel(tools?.options('shape').get() ?? {}, SHAPE_KINDS, words())
 
   function refresh(): void {
     const m = model()
     main.disabled = trigger.disabled = tools === null
-    main.setAttribute('aria-label', m.label)
-    main.title = m.label
+    nameButton(main, m.label)
     main.dataset.kind = m.kind
     if (shownKind !== m.kind) {
       main.replaceChildren(createIcon(SHAPE_ICONS[m.kind]))
@@ -83,7 +82,7 @@ export function createShapeMenu(viewer: Viewer): HTMLElement {
     if (panel.childElementCount === 0) {
       const grid = h('div', {
         role: 'group',
-        'aria-label': 'Shapes',
+        'aria-label': words().shape.menu,
         class: 'ink-shape-grid',
         'data-ink-menu-columns': String(SHAPE_COLUMNS),
       })
@@ -109,15 +108,18 @@ export function createShapeMenu(viewer: Viewer): HTMLElement {
       }
       panel.append(grid)
     }
+    // The words, in place: a panel open across a change keeps its items and focus.
+    panel.querySelector('.ink-shape-grid')?.setAttribute('aria-label', words().shape.menu)
     const cells = panel.querySelectorAll<HTMLElement>('.ink-shape-item')
     m.items.forEach((item, i) => {
+      setText(cells[i]!, item.label)
       cells[i]!.setAttribute('aria-checked', String(item.checked))
       cells[i]!.dataset.state = item.checked ? 'checked' : 'unchecked'
     })
   }
 
   const menu = createMenu(trigger, {
-    label: 'Shapes',
+    label: () => words().shape.menu,
     anchor: root,
     attrs: { 'data-ink-menu': 'shape' },
     render: (panel) => paint(panel, model()),
@@ -136,5 +138,10 @@ export function createShapeMenu(viewer: Viewer): HTMLElement {
   }
   follow(viewer.tools.get())
   viewer.tools.subscribe(follow)
+  onMessages(viewer, (m) => {
+    nameButton(trigger, m.shape.choose)
+    root.setAttribute('aria-label', m.shape.label)
+    refresh()
+  })
   return root
 }

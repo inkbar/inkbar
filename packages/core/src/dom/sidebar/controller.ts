@@ -6,7 +6,9 @@
  * Enter or Space (the native button's click) opens. Stack follows the accordion pattern: every
  * header is a Tab stop with `aria-expanded`.
  */
+import { resolveLabel, type Label } from '../../messages'
 import { readonly, writable, type Readable } from '../../model/readable'
+import { ENGLISH, type MessageState } from '../messages-state'
 
 import { joinSidebarGroup, type SidebarGroupMembership } from './group'
 import { MIN_DOCUMENT_WIDTH, type SidebarPlacement, type SidebarSlot } from './placement'
@@ -19,7 +21,8 @@ export type SidebarSide = 'left' | 'right'
 
 export interface SidebarPanelInfo {
   id: string
-  label: string
+  /** Its name; a function is read again on every render and every change of words. */
+  label: Label
   icon?: IconNode
   /** Hidden when empty or 0. */
   badge?: string | number
@@ -75,8 +78,17 @@ export interface SidebarControllerOptions {
    * sidebar is created.
    */
   minDocumentWidth?: number
-  /** The resize handle's accessible name. Default `Resize left sidebar` or `Resize right sidebar`. */
-  handleLabel?: string
+  /**
+   * The resize handle's accessible name. Default `messages.sidebar.resizeLeft` or `resizeRight`
+   * ("Resize left sidebar", "Resize right sidebar").
+   */
+  handleLabel?: Label
+  /**
+   * The words for the default labels; English when omitted. Pass the viewer's `messages`: on
+   * every change the state is published again, so labels (and label functions) are read again.
+   * Read once, when the controller is created.
+   */
+  messages?: Readable<MessageState>
 }
 
 export interface SidebarState {
@@ -208,7 +220,11 @@ function samePanels(
     a.every((p, i) => {
       const q = b[i]!
       return (
-        p.id === q.id && p.label === q.label && p.icon === q.icon && p.badge === q.badge
+        p.id === q.id &&
+        // Read, not compared by identity: a binding may pass a new function each render.
+        resolveLabel(p.label) === resolveLabel(q.label) &&
+        p.icon === q.icon &&
+        p.badge === q.badge
       )
     })
   )
@@ -250,6 +266,7 @@ export function createSidebarController(
       ? opts.minDocumentWidth
       : MIN_DOCUMENT_WIDTH
   let handleLabel = opts.handleLabel
+  const messages = opts.messages ?? ENGLISH
   const key = ++slotCount
   /** When a panel last opened with none open before. */
   let openedAt = 0
@@ -559,6 +576,11 @@ export function createSidebarController(
 
   const isOpen = (id: string): boolean => store.get().open.includes(id)
 
+  // New words: the same state again, so renderers read the labels afresh.
+  const stopMessages = messages.subscribe(() => {
+    if (!destroyed) store.set({ ...store.get() })
+  })
+
   function update(next: Partial<SidebarControllerOptions>): void {
     if (destroyed) return
     const before = store.get()
@@ -591,7 +613,7 @@ export function createSidebarController(
       shown() !== shownBefore ||
       minWidth !== minBefore ||
       maxWidth !== maxBefore ||
-      handleLabel !== labelBefore
+      resolveLabel(handleLabel) !== resolveLabel(labelBefore)
     // What the host asked for, else what was open. Uncontrolled, the first panel to arrive in
     // an empty sidebar opens, as it would have had it been there from the start.
     const arrived =
@@ -653,14 +675,15 @@ export function createSidebarController(
 
   function triggerAttrs(id: string): Record<string, string> {
     const panel = panels.find((p) => p.id === id)
-    const label = panel?.label ?? id
+    const label = panel ? resolveLabel(panel.label) : id
     const badge = sidebarBadge(panel?.badge)
     const open = isOpen(id)
     const attrs: Record<string, string> = {
       type: 'button',
       id: triggerId(id),
       'aria-controls': panelId(id),
-      'aria-label': badge === null ? label : `${label}, ${badge}`,
+      'aria-label':
+        badge === null ? label : messages.get().messages.sidebar.tab({ label, badge }),
       'data-ink-sidebar-trigger': id,
       'data-state': open ? 'open' : 'closed',
     }
@@ -804,7 +827,12 @@ export function createSidebarController(
       'data-ink-sidebar-handle': '',
       role: 'separator',
       'aria-orientation': 'vertical',
-      'aria-label': handleLabel ?? `Resize ${side} sidebar`,
+      'aria-label':
+        handleLabel !== undefined
+          ? resolveLabel(handleLabel)
+          : side === 'left'
+            ? messages.get().messages.sidebar.resizeLeft
+            : messages.get().messages.sidebar.resizeRight,
       'aria-valuemin': String(Math.round(minWidth)),
       'aria-valuemax': String(Math.round(maxWidth)),
       'aria-valuenow': String(Math.round(shown())),
@@ -1002,6 +1030,7 @@ export function createSidebarController(
     destroy() {
       if (destroyed) return
       destroyed = true
+      stopMessages()
       for (const unbind of [...bindings]) unbind()
       stopDismiss?.()
       stopAfterClose?.()

@@ -123,6 +123,7 @@ export {
 } from './model/signatures'
 export type {
   SignatureLibrary,
+  SignatureLibraryOptions,
   SignatureOptions,
   SignatureStore,
   SignatureTemplate,
