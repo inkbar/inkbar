@@ -1,3 +1,4 @@
+import { resolveLabel } from '@inkbar/core'
 import { unknownCommand } from '@inkbar/core/dom'
 import { computed, watch } from 'vue'
 
@@ -43,7 +44,9 @@ export function useCommand(id: string): CommandHandle {
     enabled: useReadable(() => command.value?.enabled, false),
     busy: useReadable(() => command.value?.busy, false),
     status: useReadable(() => command.value?.status, ''),
-    label: computed(() => command.value?.label ?? ''),
+    label: computed(() =>
+      command.value ? resolveLabel(command.value.label, command.value.id) : ''
+    ),
     icon: computed(() => command.value?.icon),
   }
 }

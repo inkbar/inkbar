@@ -1,4 +1,6 @@
+import { resolveLabel } from '@inkbar/core'
 import {
+  cardActions,
   createRecordListController,
   type RecordListController,
   type RecordListRow,
@@ -134,7 +136,7 @@ export function RecordCards({
             <div className={cx('ink-card', card?.className)}>
               {card ? (
                 <>
-                  <p className="ink-card-title">{card.title}</p>
+                  <p className="ink-card-title">{resolveLabel(card.title)}</p>
                   {card.meta !== undefined ? (
                     <p className="ink-card-meta">
                       {card.swatch !== undefined ? (
@@ -157,13 +159,13 @@ export function RecordCards({
                     </p>
                   ) : null}
                   <div className="ink-card-actions">
-                    {Object.keys(card.actions).map((label) => (
+                    {cardActions(card).map((action) => (
                       <button
-                        key={label}
+                        key={action.key}
                         type="button"
-                        onClick={() => controller?.act(item.id, label)}
+                        onClick={() => controller?.act(item.id, action.key)}
                       >
-                        {label}
+                        {resolveLabel(action.label)}
                       </button>
                     ))}
                   </div>

@@ -6,6 +6,7 @@ import { createCommand, type CommandOptions, type CommandRun } from './command'
 import { createMarks, type MarksHandle, type MarksOptions } from './marks'
 import { createRecords, type Records } from './records'
 
+import type { Label } from '../../../messages'
 import type { InkDocument } from '../../../model/document'
 import type { RecordBase } from '../../../model/records'
 import type { Command, PluginContext, PluginStoreOptions } from '../define'
@@ -29,11 +30,12 @@ export interface PluginApi extends PluginContext {
    * Registers `<plugin>.<id>`. `run` gets the document open when it started and a signal that
    * aborts when that document closes or another opens. A returned string becomes the command's
    * status and `undefined` clears it; a failure is logged once and sets `errorStatus` (default
-   * "Something went wrong."). The status clears when the document changes.
+   * the viewer's `messages.plugins.commandFailed`). The status clears when the document
+   * changes. `label` may be a function, read again whenever the viewer's messages change.
    *
    * Inside a command, write through `records.in(doc)`.
    */
-  command(id: string, label: string, run: CommandRun, opts?: CommandOptions): Command
+  command(id: string, label: Label, run: CommandRun, opts?: CommandOptions): Command
   /**
    * Draws a `<button>` for each record that passes `where`, on page `record.page` at
    * `rect(record)`, in a layer of its own. The marks redraw when the records change; call

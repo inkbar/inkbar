@@ -4,21 +4,31 @@
  * made on first open. Each action is one undo step. After an action the card re-renders when
  * the mark stays; when it goes, the card closes and focus moves to the next mark, else the
  * previous one, else the viewport. Escape or a press outside closes it and focus goes back to
- * the mark.
+ * the mark. An open card re-renders when the viewer's messages change, so label functions in
+ * its spec read the host's language again.
  */
+import { resolveLabel, type Label } from '../../../messages'
 import { createFocusReturn } from '../../popover-focus'
 import { createPopover, type Popover } from '../../viewer/popover'
+import { hostInternalsOf } from '../host'
 
 import type { Records } from './records'
 import type { RecordBase } from '../../../model/records'
 import type { PluginContext } from '../define'
 
+/** One of a card's buttons. */
+export interface CardAction {
+  /** The button's text; a function is read again whenever the viewer's messages change. */
+  label: Label
+  run(): void
+}
+
 /** What a mark's card shows. The theme styles it; `className` adds a class of your own. */
 export interface CardSpec {
   /** The card's heading (`.ink-card-title`). */
-  title: string
+  title: Label
   /** The dialog's accessible name. Default: `title`. */
-  label?: string
+  label?: Label
   /** A short line under the title (`.ink-card-meta`). */
   meta?: string
   /** A CSS colour for a dot before `meta` (`.ink-card-swatch`). */
@@ -28,12 +38,14 @@ export interface CardSpec {
   /** A line of context with the match marked, after `body` (`.ink-card-excerpt`). */
   excerpt?: { before: string; match: string; after: string }
   /**
-   * One button per key, in order (`.ink-card-actions`). The first takes focus on open and is
+   * One button per key, or per entry of an array, in order (`.ink-card-actions`). A record's
+   * keys are the buttons' text; an array's entries carry a `label`, which may be a function
+   * read again when the viewer's messages change. The first takes focus on open and is
    * styled as the primary action. Each action runs synchronously in one undo step: writes after
    * an `await` fall outside it. When an action removes the mark, focus moves to the next of this
    * `marks()` handle's marks, else the previous, else the viewport.
    */
-  actions: Record<string, () => void>
+  actions: Record<string, () => void> | readonly CardAction[]
   /** Classes added to the card. */
   className?: string
 }
@@ -70,17 +82,43 @@ export function cardClass(spec: CardSpec): string {
   return spec.className ? `ink-card ${spec.className}` : 'ink-card'
 }
 
+/** One of a card's actions with the key it is run by. */
+export interface CardActionEntry {
+  /** The record form's key, or the array form's index as a string. */
+  key: string
+  label: Label
+  run: () => void
+}
+
+/**
+ * A card's actions in order, each with the key `RecordListController.act` takes: the key of
+ * the record form, the index (`'0'`, `'1'`…) of the array form.
+ *
+ * @internal For the bindings' record lists.
+ */
+export function cardActions(spec: Pick<CardSpec, 'actions'>): CardActionEntry[] {
+  const { actions } = spec
+  if (isActionList(actions))
+    return actions.map((a, i) => ({ key: String(i), label: a.label, run: () => a.run() }))
+  return Object.entries(actions).map(([key, run]) => ({ key, label: key, run }))
+}
+
+function isActionList(actions: CardSpec['actions']): actions is readonly CardAction[] {
+  return Array.isArray(actions)
+}
+
 /**
  * A card's parts, as the theme styles them: title, meta with its swatch, body, excerpt and the
- * actions, whose buttons call `act` with their label and function.
+ * actions, whose buttons call `act` with their key (see `cardActions`) and function. Labels are
+ * resolved now.
  *
  * @internal Shared with the record list, whose rows are cards with no dialog around them.
  */
 export function cardParts(
   spec: CardSpec,
-  act: (label: string, fn: () => void) => void
+  act: (key: string, fn: () => void) => void
 ): HTMLElement[] {
-  const parts: HTMLElement[] = [el('p', 'ink-card-title', spec.title)]
+  const parts: HTMLElement[] = [el('p', 'ink-card-title', resolveLabel(spec.title))]
   if (spec.meta !== undefined) {
     const meta = el('p', 'ink-card-meta', spec.meta)
     if (spec.swatch !== undefined) {
@@ -96,10 +134,10 @@ export function cardParts(
     parts.push(el('p', 'ink-card-excerpt', before, el('mark', '', match), after))
   }
   const actions = el('div', 'ink-card-actions')
-  for (const [label, fn] of Object.entries(spec.actions)) {
-    const button = el('button', '', label) as HTMLButtonElement
+  for (const { key, label, run } of cardActions(spec)) {
+    const button = el('button', '', resolveLabel(label)) as HTMLButtonElement
     button.type = 'button'
-    button.addEventListener('click', () => act(label, fn))
+    button.addEventListener('click', () => act(key, run))
     actions.append(button)
   }
   parts.push(actions)
@@ -167,7 +205,7 @@ export function createCard<T extends RecordBase>(
     ]
     const focused = buttons().indexOf(document.activeElement as HTMLButtonElement)
     panel.className = cardClass(spec)
-    panel.setAttribute('aria-label', spec.label ?? spec.title)
+    panel.setAttribute('aria-label', resolveLabel(spec.label ?? spec.title))
     panel.replaceChildren(...cardParts(spec, (_, fn) => act(fn)))
     if (focused >= 0) {
       const now = buttons()
@@ -176,14 +214,18 @@ export function createCard<T extends RecordBase>(
   }
 
   ctx.onDocument(() => {
-    const stop = records.list.subscribe(() => {
+    const refresh = () => {
       if (acting || shown === null) return
       const record = current()
       if (record) render(record)
       else close()
-    })
+    }
+    const stop = records.list.subscribe(refresh)
+    // New words, or a plugin's label functions reading its own language again.
+    const stopMessages = hostInternalsOf(ctx).messages.subscribe(refresh)
     return () => {
       stop()
+      stopMessages()
       shown = null
       expand(null)
       popover?.destroy()

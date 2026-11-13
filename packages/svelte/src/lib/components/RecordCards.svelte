@@ -6,7 +6,9 @@
    * holds the rows, the count and the announcement, and handles the clicks, keys, Tab stop,
    * focus and scrolling. Empty, with no empty text, until there is a source.
    */
+  import { resolveLabel } from '@inkbar/core'
   import {
+    cardActions,
     createRecordListController,
     type RecordListController,
     type RecordListRow,
@@ -140,7 +142,7 @@
       >
         <div class={['ink-card', card?.className]}>
           {#if card}
-            <p class="ink-card-title">{card.title}</p>
+            <p class="ink-card-title">{resolveLabel(card.title)}</p>
             {#if card.meta !== undefined}
               <!-- prettier-ignore -->
               <p class="ink-card-meta">{#if card.swatch !== undefined}<span class="ink-card-swatch" style:background={card.swatch}></span>{/if}{card.meta}</p>
@@ -153,9 +155,9 @@
               <p class="ink-card-excerpt">{card.excerpt.before}<mark>{card.excerpt.match}</mark>{card.excerpt.after}</p>
             {/if}
             <div class="ink-card-actions">
-              {#each Object.keys(card.actions) as label (label)}
-                <button type="button" onclick={() => controller?.act(item.id, label)}
-                  >{label}</button
+              {#each cardActions(card) as action (action.key)}
+                <button type="button" onclick={() => controller?.act(item.id, action.key)}
+                  >{resolveLabel(action.label)}</button
                 >
               {/each}
             </div>

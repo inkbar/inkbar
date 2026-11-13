@@ -1,3 +1,4 @@
+import { resolveLabel } from '../../messages'
 import { InkError, isInkError } from '../../model/errors'
 import { readonly, writable, type Readable } from '../../model/readable'
 
@@ -8,7 +9,8 @@ export interface CommandRegistry {
   readonly commands: ReadonlyMap<string, Command>
   /**
    * Registers `spec` as `<plugin>.<spec.id>`. Throws `InkError('DuplicateId')` when taken and
-   * `InkError('InvalidCommandLabel')` for an empty label.
+   * `InkError('InvalidCommandLabel')` for an empty string label; a function label is checked
+   * when `commandLabel` resolves it.
    */
   add(plugin: string, spec: CommandSpec): Command
 }
@@ -24,6 +26,17 @@ export function unknownCommand(id: string, registered: readonly string[]): InkEr
     `No plugin registered a command ${id} (registered: ${known})`,
     { id, registered }
   )
+}
+
+/**
+ * The command's label now: a function label is called, and a throw or an empty result logs a
+ * warning and gives the command's id, so the button always has a name.
+ */
+export function commandLabel(command: Pick<Command, 'id' | 'label'>): string {
+  const text = resolveLabel(command.label, command.id)
+  if (text.trim()) return text
+  console.warn(`[inkbar] command ${command.id} has an empty label; using its id`)
+  return command.id
 }
 
 const EMPTY: Readable<string> = { get: () => '', subscribe: () => () => {} }
@@ -103,7 +116,7 @@ export function createCommandRegistry(opts: {
           id,
         })
       // The label names the command's button; without one it would have no accessible name.
-      if (!spec.label.trim())
+      if (typeof spec.label === 'string' && !spec.label.trim())
         throw new InkError('InvalidCommandLabel', `Command ${id} needs a label`, { id })
       const busy = writable(false)
       const allowed = spec.enabled ?? ready

@@ -58,13 +58,14 @@ export type { PluginApi, PluginOptions } from './plugins/api/api'
 export type { CommandOptions, CommandRun } from './plugins/api/command'
 export type { Records } from './plugins/api/records'
 export type { MarksHandle, MarksOptions } from './plugins/api/marks'
-export type { CardSpec } from './plugins/api/card'
+export { cardActions } from './plugins/api/card'
+export type { CardAction, CardActionEntry, CardSpec } from './plugins/api/card'
 export type {
   AnnotationInputOf,
   AnnotationLink,
   AnnotationLinkSpec,
 } from './plugins/api/links'
-export { unknownCommand } from './plugins/commands'
+export { commandLabel, unknownCommand } from './plugins/commands'
 export { createPluginHost } from './plugins/host'
 export type { HostRecords, PluginHost, PluginHostOptions } from './plugins/host'
 export type {

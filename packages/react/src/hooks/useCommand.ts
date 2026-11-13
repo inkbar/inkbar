@@ -1,3 +1,4 @@
+import { resolveLabel } from '@inkbar/core'
 import { unknownCommand } from '@inkbar/core/dom'
 import { useCallback, useEffect, useRef } from 'react'
 
@@ -39,5 +40,12 @@ export function useCommand(id: string): CommandHandle {
   const busy = useReadable(command?.busy, false)
   const status = useReadable(command?.status, '')
   const run = useCallback(async () => command?.run(), [command])
-  return { run, enabled, busy, status, label: command?.label ?? '', icon: command?.icon }
+  return {
+    run,
+    enabled,
+    busy,
+    status,
+    label: command ? resolveLabel(command.label, command.id) : '',
+    icon: command?.icon,
+  }
 }

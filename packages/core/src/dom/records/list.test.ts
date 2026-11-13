@@ -41,7 +41,10 @@ function fakeDocument(key: string): InkDocument {
  * A list controller over `sandbox.suggestions`, whose open records have a mark with an Accept
  * action that marks the record accepted and adds a redaction, as the sandbox's suggestions do.
  */
-function setup(byDocument: Record<string, Suggestion[]>) {
+function setup(
+  byDocument: Record<string, Suggestion[]>,
+  form: 'record' | 'array' = 'record'
+) {
   const plugin = definePlugin('sandbox', (api) => {
     api.records<Suggestion>('suggestions', {
       initial: (doc) => byDocument[doc.key] ?? [],
@@ -68,15 +71,19 @@ function setup(byDocument: Record<string, Suggestion[]>) {
     where: (s: Suggestion) => s.status === 'open',
     label: (s: Suggestion) => `Suggestion ${s.id}`,
     rect: (s: Suggestion) => s.rect,
-    card: (s: Suggestion) => ({
-      title: `Suggestion ${s.id}`,
-      actions: {
-        Accept() {
-          records.update(s.id, { status: 'accepted' })
-          annotations.add({ type: 'redact', page: s.page, rect: s.rect })
-        },
-      },
-    }),
+    card: (s: Suggestion) => {
+      const accept = () => {
+        records.update(s.id, { status: 'accepted' })
+        annotations.add({ type: 'redact', page: s.page, rect: s.rect })
+      }
+      return {
+        title: `Suggestion ${s.id}`,
+        actions:
+          form === 'record'
+            ? { Accept: accept }
+            : [{ label: () => 'Accept', run: accept }],
+      }
+    },
     batch,
   })
   const scrollToRect = vi.fn()
@@ -208,6 +215,15 @@ describe('createRecordListController', () => {
     controller.act('a', 'Nope')
     controller.act('nope', 'Accept')
     expect(batch).toHaveBeenCalledTimes(1)
+  })
+
+  it('act takes an array action by its index', () => {
+    const { controller, records, batch } = setup({ a: [suggestion('a', 500)] }, 'array')
+    controller.act('a', 'Accept')
+    expect(batch).not.toHaveBeenCalled()
+    controller.act('a', '0')
+    expect(batch).toHaveBeenCalledTimes(1)
+    expect(records.find('a')!.status).toBe('accepted')
   })
 
   it('focus moves to the next row after an act removes it', () => {

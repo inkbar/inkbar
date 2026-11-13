@@ -12,6 +12,7 @@ import { InkError } from '../../model/errors'
 import { readonly, writable, type Readable, type Writable } from '../../model/readable'
 import { createRecordStore, type RecordBase, type RecordStore } from '../../model/records'
 import { createMemoryStorage, scopeStorage, type InkStorage } from '../../model/storage'
+import { ENGLISH, type MessageState } from '../messages-state'
 
 import { createRecords, type Records } from './api/records'
 import { createCommandRegistry } from './commands'
@@ -56,6 +57,11 @@ export interface PluginHostOptions {
   search?: ViewerSearch
   /** Where plugins keep settings, each under `plugin.<id>.`; memory when omitted. */
   storage?: InkStorage
+  /**
+   * The viewer's words: cards, marks and command statuses read them and are read again when
+   * they change. English when omitted.
+   */
+  messages?: Readable<MessageState>
 }
 
 const inertState = readonly(
@@ -153,6 +159,8 @@ interface Opened {
 interface HostInternals {
   marks: MarksRegistry
   selection(key: string): RecordSelection
+  /** The viewer's words, for what a plugin shows. */
+  messages: Readable<MessageState>
 }
 
 const internals = new WeakMap<PluginContext, HostInternals>()
@@ -171,6 +179,7 @@ export function hostInternalsOf(ctx: PluginContext): HostInternals {
     const selections = new Map<string, RecordSelection>()
     found = {
       marks,
+      messages: ENGLISH,
       selection(key) {
         let selection = selections.get(key)
         if (!selection) {
@@ -391,7 +400,11 @@ export function createPluginHost(opts: PluginHostOptions): PluginHost {
       onPress: listenForPress('press'),
       onLongPress: listenForPress('long-press'),
     }
-    internals.set(ctx, { marks, selection: (key) => selectionFor(key) })
+    internals.set(ctx, {
+      marks,
+      selection: (key) => selectionFor(key),
+      messages: opts.messages ?? ENGLISH,
+    })
     return ctx
   }
 
