@@ -36,7 +36,14 @@ import { storage } from '../../shared/signatures'
 import type { ScenarioProps } from '../../frameworks/types'
 import type { InkDocument } from '@inkbar/core'
 
-export default function Sidebars({ source, log, onDocument, openFile }: ScenarioProps) {
+export default function Sidebars({
+  source,
+  messages,
+  locale,
+  log,
+  onDocument,
+  openFile,
+}: ScenarioProps) {
   const [layout, setLayout] = useState<SidebarLayout>('rail')
 
   function onReady(doc: InkDocument) {
@@ -47,6 +54,8 @@ export default function Sidebars({ source, log, onDocument, openFile }: Scenario
   return (
     <InkRoot
       src={source}
+      messages={messages}
+      locale={locale}
       assets={assets}
       storage={storage}
       onReady={onReady}

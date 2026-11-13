@@ -36,7 +36,14 @@ import { signatureFonts, storage } from '../../shared/signatures'
 import type { ScenarioProps } from '../../frameworks/types'
 import type { FieldValues, InkDocument } from '@inkbar/core'
 
-export default function FillAForm({ source, log, onDocument, openFile }: ScenarioProps) {
+export default function FillAForm({
+  source,
+  messages,
+  locale,
+  log,
+  onDocument,
+  openFile,
+}: ScenarioProps) {
   /** Stops following the open document's field values. */
   const unfollow = useRef<() => void>(undefined)
   useEffect(() => () => unfollow.current?.(), [])
@@ -56,6 +63,8 @@ export default function FillAForm({ source, log, onDocument, openFile }: Scenari
   return (
     <InkRoot
       src={source}
+      messages={messages}
+      locale={locale}
       assets={assets}
       storage={storage}
       signatureFonts={signatureFonts}

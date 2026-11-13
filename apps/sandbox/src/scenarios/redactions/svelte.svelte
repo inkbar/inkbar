@@ -53,7 +53,7 @@
   import type { ScenarioProps } from '../../frameworks/types'
   import type { InkDocument } from '@inkbar/core'
 
-  let { source, log, onDocument, openFile }: ScenarioProps = $props()
+  let { source, messages, locale, log, onDocument, openFile }: ScenarioProps = $props()
 
   const tools = allTools()
   const plugins = [suggestionsPlugin()]
@@ -69,6 +69,8 @@
 
 <InkRoot
   src={source}
+  {messages}
+  {locale}
   {assets}
   {tools}
   {plugins}

@@ -1,11 +1,15 @@
 import type { MountedScenario, ScenarioProps } from './types.ts'
-import type { DocumentSource } from '@inkbar/core'
+import type { DocumentSource, InkMessagesInput } from '@inkbar/core'
 
 /** What a TypeScript scenario exports as `mount`: it builds the viewer and hands back its controls. */
 export type VanillaScenario = (
   el: HTMLElement,
   props: ScenarioProps
-) => { open(source: DocumentSource): void; destroy(): void }
+) => {
+  open(source: DocumentSource): void
+  setLanguage(messages: InkMessagesInput | undefined, locale: string | undefined): void
+  destroy(): void
+}
 
 export function mountVanilla(
   mount: VanillaScenario,
@@ -15,6 +19,7 @@ export function mountVanilla(
   const scenario = mount(el, props)
   return {
     update: (source) => scenario.open(source),
+    setLanguage: (messages, locale) => scenario.setLanguage(messages, locale),
     unmount: () => scenario.destroy(),
   }
 }

@@ -141,6 +141,8 @@ function ReviewSidebar() {
 
 export default function SuggestRedactions({
   source,
+  messages,
+  locale,
   log,
   onDocument,
   openFile,
@@ -153,6 +155,8 @@ export default function SuggestRedactions({
   return (
     <InkRoot
       src={source}
+      messages={messages}
+      locale={locale}
       assets={assets}
       tools={tools}
       plugins={plugins}

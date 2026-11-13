@@ -30,7 +30,7 @@ import { changedFields } from '../../shared/form'
 import { signatureFonts, storage } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
-import type { DocumentSource, FieldValues } from '@inkbar/core'
+import type { DocumentSource, FieldValues, InkMessagesInput } from '@inkbar/core'
 
 function group(
   label: string,
@@ -47,12 +47,14 @@ function group(
 
 export function mount(
   el: HTMLElement,
-  { source, log, onDocument, openFile }: ScenarioProps
+  { source, messages, locale, log, onDocument, openFile }: ScenarioProps
 ) {
   /** Stops following the last document's field values. */
   let unfollow = (): void => undefined
   const viewer = createViewer(el, {
     source,
+    ...(messages ? { messages } : {}),
+    ...(locale ? { locale } : {}),
     assets,
     storage,
     signatureFonts,
@@ -126,6 +128,10 @@ export function mount(
 
   return {
     open: (next: DocumentSource) => viewer.open(next),
+    setLanguage(m: InkMessagesInput | undefined, l: string | undefined) {
+      viewer.setMessages(m)
+      viewer.setLocale(l)
+    },
     destroy() {
       unfollow()
       viewer.destroy()

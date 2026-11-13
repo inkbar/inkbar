@@ -8,10 +8,14 @@ export function mountVue(
   props: ScenarioProps
 ): MountedScenario {
   const source = shallowRef(props.source)
+  const messages = shallowRef(props.messages)
+  const locale = shallowRef(props.locale)
   const app = createApp({
     render: () =>
       h(Scenario, {
         source: source.value,
+        messages: messages.value,
+        locale: locale.value,
         log: props.log,
         onDocument: props.onDocument,
         openFile: props.openFile,
@@ -21,6 +25,10 @@ export function mountVue(
   return {
     update(next) {
       source.value = next
+    },
+    setLanguage(nextMessages, nextLocale) {
+      messages.value = nextMessages
+      locale.value = nextLocale
     },
     unmount: () => app.unmount(),
   }

@@ -38,7 +38,8 @@ import ResultsSidebar from './ResultsSidebar.vue'
 import type { ScenarioProps } from '../../frameworks/types'
 import type { InkDocument } from '@inkbar/core'
 
-const { source, log, onDocument, openFile } = defineProps<ScenarioProps>()
+const { source, messages, locale, log, onDocument, openFile } =
+  defineProps<ScenarioProps>()
 
 /**
  * Logs each finished search and each step to a hit, while the find bar is open. It sits inside
@@ -70,6 +71,8 @@ function onReady(doc: InkDocument): void {
 <template>
   <InkRoot
     :src="source"
+    :messages="messages"
+    :locale="locale"
     :assets="assets"
     :storage="storage"
     class="scenario-root"

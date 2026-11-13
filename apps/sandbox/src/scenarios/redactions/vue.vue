@@ -53,7 +53,8 @@ import ReviewSidebar from './ReviewSidebar.vue'
 import type { ScenarioProps } from '../../frameworks/types'
 import type { InkDocument } from '@inkbar/core'
 
-const { source, log, onDocument, openFile } = defineProps<ScenarioProps>()
+const { source, messages, locale, log, onDocument, openFile } =
+  defineProps<ScenarioProps>()
 
 const tools = allTools()
 const plugins = [suggestionsPlugin()]
@@ -83,6 +84,8 @@ function onActivate(id: string): void {
 <template>
   <InkRoot
     :src="source"
+    :messages="messages"
+    :locale="locale"
     :assets="assets"
     :tools="tools"
     :plugins="plugins"

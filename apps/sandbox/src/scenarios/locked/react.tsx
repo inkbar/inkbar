@@ -29,7 +29,14 @@ import { storage } from '../../shared/signatures'
 import type { ScenarioProps } from '../../frameworks/types'
 import type { InkDocument, InkError } from '@inkbar/core'
 
-export default function LockedFile({ source, log, onDocument, openFile }: ScenarioProps) {
+export default function LockedFile({
+  source,
+  messages,
+  locale,
+  log,
+  onDocument,
+  openFile,
+}: ScenarioProps) {
   function onReady(doc: InkDocument) {
     log('onReady', { pages: doc.pages.length })
     onDocument(doc)
@@ -42,6 +49,8 @@ export default function LockedFile({ source, log, onDocument, openFile }: Scenar
   return (
     <InkRoot
       src={source}
+      messages={messages}
+      locale={locale}
       assets={assets}
       storage={storage}
       onReady={onReady}

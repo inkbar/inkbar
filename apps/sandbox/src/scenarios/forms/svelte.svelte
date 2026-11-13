@@ -37,7 +37,7 @@
   import type { ScenarioProps } from '../../frameworks/types'
   import type { FieldValues, ViewerAction, InkDocument } from '@inkbar/core'
 
-  let { source, log, onDocument, openFile }: ScenarioProps = $props()
+  let { source, messages, locale, log, onDocument, openFile }: ScenarioProps = $props()
 
   /** Stops following the open document's field values. */
   let unfollow = (): void => undefined
@@ -62,6 +62,8 @@
 
 <InkRoot
   src={source}
+  {messages}
+  {locale}
   {assets}
   {storage}
   {signatureFonts}

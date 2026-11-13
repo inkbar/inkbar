@@ -30,7 +30,7 @@ import { FileUp } from '../../shared/file-up'
 import { storage } from '../../shared/signatures'
 
 import type { ScenarioProps } from '../../frameworks/types'
-import type { DocumentSource } from '@inkbar/core'
+import type { DocumentSource, InkMessagesInput } from '@inkbar/core'
 
 function group(
   label: string,
@@ -47,11 +47,13 @@ function group(
 
 export function mount(
   el: HTMLElement,
-  { source, log, onDocument, openFile }: ScenarioProps
+  { source, messages, locale, log, onDocument, openFile }: ScenarioProps
 ) {
   const viewer = createViewer(el, {
     storage,
     source,
+    ...(messages ? { messages } : {}),
+    ...(locale ? { locale } : {}),
     assets,
     onReady: (doc) => {
       log('onReady', { pages: doc.pages.length })
@@ -172,6 +174,10 @@ export function mount(
 
   return {
     open: (next: DocumentSource) => viewer.open(next),
+    setLanguage(m: InkMessagesInput | undefined, l: string | undefined) {
+      viewer.setMessages(m)
+      viewer.setLocale(l)
+    },
     destroy() {
       left.controller.destroy()
       right.controller.destroy()

@@ -37,7 +37,8 @@ import { signatureFonts, storage } from '../../shared/signatures'
 import type { ScenarioProps } from '../../frameworks/types'
 import type { FieldValues, ViewerAction, InkDocument } from '@inkbar/core'
 
-const { source, log, onDocument, openFile } = defineProps<ScenarioProps>()
+const { source, messages, locale, log, onDocument, openFile } =
+  defineProps<ScenarioProps>()
 
 /** Stops following the open document's field values. */
 let unfollow = (): void => undefined
@@ -63,6 +64,8 @@ function onAction(action: ViewerAction): void {
 <template>
   <InkRoot
     :src="source"
+    :messages="messages"
+    :locale="locale"
     :assets="assets"
     :storage="storage"
     :signature-fonts="signatureFonts"

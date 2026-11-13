@@ -30,7 +30,8 @@ import { storage } from '../../shared/signatures'
 import type { ScenarioProps } from '../../frameworks/types'
 import type { InkDocument, InkError } from '@inkbar/core'
 
-const { source, log, onDocument, openFile } = defineProps<ScenarioProps>()
+const { source, messages, locale, log, onDocument, openFile } =
+  defineProps<ScenarioProps>()
 
 function onReady(doc: InkDocument): void {
   log('@ready', { pages: doc.pages.length })
@@ -45,6 +46,8 @@ function onError(error: InkError): void {
 <template>
   <InkRoot
     :src="source"
+    :messages="messages"
+    :locale="locale"
     :assets="assets"
     :storage="storage"
     class="scenario-root"

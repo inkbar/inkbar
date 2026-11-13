@@ -43,6 +43,8 @@ const tools = allTools()
 
 export default function ControlledAnnotations({
   source,
+  messages,
+  locale,
   log,
   onDocument,
   openFile,
@@ -62,6 +64,8 @@ export default function ControlledAnnotations({
   return (
     <InkRoot
       src={source}
+      messages={messages}
+      locale={locale}
       assets={assets}
       tools={tools}
       storage={storage}

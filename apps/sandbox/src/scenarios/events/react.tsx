@@ -36,6 +36,8 @@ import type { InkDocument } from '@inkbar/core'
 
 export default function PressAndLongPress({
   source,
+  messages,
+  locale,
   log,
   onDocument,
   openFile,
@@ -51,6 +53,8 @@ export default function PressAndLongPress({
   return (
     <InkRoot
       src={source}
+      messages={messages}
+      locale={locale}
       assets={assets}
       storage={storage}
       plugins={plugins}
