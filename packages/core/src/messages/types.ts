@@ -9,6 +9,8 @@ type Total = { current: number; total: number }
 
 /** Every string Inkbar shows, by group. Each group has a complete English default (`en`). */
 export interface InkMessages {
+  /** The language the set is written in, as a BCP 47 tag: `en`, `fr`, `de`. */
+  lang: string
   viewer: {
     document: string
     loading: string
@@ -239,5 +241,12 @@ export interface InkMessages {
   }
 }
 
-/** What a host passes: any group, any subset of its keys. */
-export type InkMessagesInput = { [G in keyof InkMessages]?: Partial<InkMessages[G]> }
+type Group = Exclude<keyof InkMessages, 'lang'>
+
+/**
+ * What a host passes: any group, any subset of its keys. `lang` names the language it is
+ * written in; without a `locale`, the viewer uses it for the root's `lang` and for dates.
+ */
+export type InkMessagesInput = { lang?: string } & {
+  [G in Group]?: Partial<InkMessages[G]>
+}

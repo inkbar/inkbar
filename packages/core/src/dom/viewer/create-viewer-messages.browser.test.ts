@@ -1,6 +1,7 @@
 import { browserAssets, fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 
+import { fr } from '../../locales/fr'
 import { mountContainer, until } from '../test-utils'
 import { drawTool } from '../tools'
 
@@ -84,6 +85,13 @@ describe('createViewer messages and locale', () => {
     expect(root.getAttribute('lang')).toBe('de')
     expect(() => viewer.setLocale('xx-!!')).not.toThrow()
     expect(root.hasAttribute('lang')).toBe(false)
+  })
+
+  it("messages={fr} without a locale sets the root's lang to fr", () => {
+    const { viewer } = make({ messages: fr })
+    expect(viewer.element.getAttribute('lang')).toBe('fr')
+    viewer.setLocale('fr-CA')
+    expect(viewer.element.getAttribute('lang')).toBe('fr-CA')
   })
 
   it('the engine follows the viewer', async () => {

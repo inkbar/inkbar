@@ -121,7 +121,7 @@
     messages?: InkMessagesInput | undefined
     /**
      * The locale dates are formatted for, and the root's `lang` when it is a valid tag.
-     * Default: the browser's.
+     * Default: the `lang` of `messages`, else the browser's.
      */
     locale?: string | undefined
     /** Undo history. Defaults to on for uncontrolled, off for controlled. */

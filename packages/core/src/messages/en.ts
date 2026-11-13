@@ -4,6 +4,7 @@ import type { InkMessages } from './types'
 
 /** The English strings: the default for every key, and the shape a translation follows. */
 export const en: InkMessages = {
+  lang: 'en',
   viewer: {
     document: 'Document',
     loading: 'Loading document…',

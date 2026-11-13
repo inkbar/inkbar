@@ -9,7 +9,10 @@ import { writable, type Readable, type Writable } from '../model/readable'
 export interface MessageState {
   /** Every string, English where the host passed nothing. */
   messages: InkMessages
-  /** The host's locale, for dates and the root's `lang`; undefined for the browser's. */
+  /**
+   * The locale for dates and the root's `lang`: the host's `locale`, else the `lang` of the
+   * messages the host passed. Undefined (the browser's) when the host passed neither.
+   */
   locale: string | undefined
 }
 
@@ -28,16 +31,28 @@ export function createMessageState(
   input?: InkMessagesInput,
   locale?: string
 ): MessageStore {
-  const state = writable<MessageState>({ messages: resolveMessages(input), locale })
+  let explicit = locale
+  // The host's input only: English's own `lang` sets no locale.
+  let given = langOf(input)
+  const state = writable<MessageState>({
+    messages: resolveMessages(input),
+    locale: explicit ?? given,
+  })
   return {
     ...state,
     setMessages(next) {
-      state.set({ messages: resolveMessages(next), locale: state.get().locale })
+      given = langOf(next)
+      state.set({ messages: resolveMessages(next), locale: explicit ?? given })
     },
     setLocale(next) {
-      state.set({ messages: state.get().messages, locale: next })
+      explicit = next
+      state.set({ messages: state.get().messages, locale: explicit ?? given })
     },
   }
+}
+
+function langOf(input: InkMessagesInput | undefined): string | undefined {
+  return typeof input?.lang === 'string' ? input.lang : undefined
 }
 
 const FIXED: MessageState = { messages: en, locale: undefined }

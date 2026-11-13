@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import { de } from '../locales/de'
+import { fr } from '../locales/fr'
 import { en } from '../messages'
 
 import { createMessageState, type MessageState } from './messages-state'
@@ -48,5 +50,36 @@ describe('createMessageState', () => {
     state.setLocale(undefined)
     state.setLocale(undefined)
     expect(calls).toBe(4)
+  })
+
+  describe('messages carry their language', () => {
+    it("uses the messages' lang without a locale", () => {
+      expect(createMessageState(fr).get().locale).toBe('fr')
+    })
+
+    it('an explicit locale wins', () => {
+      expect(createMessageState(fr, 'fr-CA').get().locale).toBe('fr-CA')
+    })
+
+    it('English by default sets no locale', () => {
+      expect(createMessageState().get().locale).toBeUndefined()
+      expect(createMessageState({ find: { close: 'X' } }).get().locale).toBeUndefined()
+    })
+
+    it("setMessages moves the locale to the new messages' lang", () => {
+      const state = createMessageState(fr)
+      state.setMessages(de)
+      expect(state.get().locale).toBe('de')
+      state.setMessages(undefined)
+      expect(state.get().locale).toBeUndefined()
+    })
+
+    it("clearing the locale falls back to the messages' lang", () => {
+      const state = createMessageState(fr, 'fr-CA')
+      state.setMessages(de)
+      expect(state.get().locale).toBe('fr-CA')
+      state.setLocale(undefined)
+      expect(state.get().locale).toBe('de')
+    })
   })
 })

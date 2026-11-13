@@ -7,6 +7,7 @@ describe('en', () => {
     const nf = new Intl.NumberFormat('en')
     let checked = 0
     for (const [group, keys] of Object.entries(en)) {
+      if (group === 'lang') continue
       for (const [key, value] of Object.entries(keys as Record<string, unknown>)) {
         if (typeof value === 'string') {
           expect(value, `${group}.${key}`).not.toBe('')
