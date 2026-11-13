@@ -142,7 +142,7 @@ test('a one-letter search of a 300-page document keeps the main thread responsiv
   await findButton(page).click()
   // Thousands of hits: every page has a score of them.
   await page.keyboard.type('e')
-  await expect(count(page)).toHaveText(/^1 of \d{4,}$/, { timeout: 60_000 })
+  await expect(count(page)).toHaveText(/^1 of \d{1,3}(,\d{3})+$/, { timeout: 60_000 })
 
   const longest = await page.evaluate(() =>
     Math.max(0, ...(window as unknown as { __longTasks: number[] }).__longTasks)
