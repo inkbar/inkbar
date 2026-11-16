@@ -1,4 +1,4 @@
-import type { PageTransform } from './transform'
+import type { CssRect, PageTransform } from './transform'
 import type {
   DrawItem,
   DrawRole,
@@ -23,21 +23,22 @@ const ROLE_CLASS: Partial<Record<DrawRole, string>> = {
 }
 
 /**
- * Paints `drawing` into `el`, replacing its children. `origin` is the element's top-left in
- * page CSS px.
+ * Paints `drawing` into `el`, replacing its children. `box` is the element's box in page CSS
+ * px (`annotationBox`): the `<svg>` takes its size, and item coordinates are relative to its
+ * top-left.
  */
 export function paintDrawing(
   el: HTMLElement,
   drawing: Drawing,
   t: PageTransform,
-  origin: { left: number; top: number }
+  box: CssRect
 ): void {
   const doc = el.ownerDocument
-  const size = t.toCssRect(drawing.bounds)
+  const origin = box
   const svg = doc.createElementNS(SVG, 'svg')
-  svg.setAttribute('width', String(size.width))
-  svg.setAttribute('height', String(size.height))
-  svg.setAttribute('viewBox', `0 0 ${size.width} ${size.height}`)
+  svg.setAttribute('width', String(box.width))
+  svg.setAttribute('height', String(box.height))
+  svg.setAttribute('viewBox', `0 0 ${box.width} ${box.height}`)
   svg.setAttribute('overflow', 'visible')
   // Block, not inline: an inline SVG sits on the text baseline and drifts below a short box.
   svg.setAttribute('display', 'block')
@@ -53,10 +54,13 @@ export function paintDrawing(
   const only = drawing.items.length === 1 ? drawing.items[0] : undefined
   if (only?.kind === 'group') {
     svg.setAttribute('opacity', String(only.opacity))
-    for (const item of only.items) svg.append(paintItem(doc, item, t, origin, at, len))
+    for (const item of only.items)
+      svg.append(top(paintItem(doc, item, t, origin, at, len)))
   } else {
-    for (const item of drawing.items) svg.append(paintItem(doc, item, t, origin, at, len))
+    for (const item of drawing.items)
+      svg.append(top(paintItem(doc, item, t, origin, at, len)))
   }
+  guard(svg, 'svg')
   el.replaceChildren(svg)
 }
 
@@ -135,12 +139,22 @@ function paintItem(
       throw new Error(`painting a ${item.kind} is not supported yet`)
   }
   role(out, item.role)
-  for (const attr of out.attributes) {
+  guard(out, item.kind)
+  return out
+}
+
+/** Hits follow the painted shape, so a press beside it reaches what is underneath. */
+function top(el: SVGElement): SVGElement {
+  el.setAttribute('pointer-events', 'visiblePainted')
+  return el
+}
+
+function guard(el: Element, what: string): void {
+  for (const attr of el.attributes) {
     if (/NaN|Infinity/.test(attr.value)) {
-      throw new RangeError(`${item.kind} has a non-finite value in ${attr.name}`)
+      throw new RangeError(`${what} has a non-finite value in ${attr.name}`)
     }
   }
-  return out
 }
 
 function set(el: Element, attrs: Record<string, number>): void {

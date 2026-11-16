@@ -19,7 +19,7 @@ const page: PageInfo = {
   width: 612,
   height: 792,
 }
-const origin = { left: 0, top: 0 }
+const box = { left: 0, top: 0, width: 612, height: 792 }
 const fill: Paint = { fill: { color: '#f00' } }
 
 const drawing = (...items: DrawItem[]): Drawing => ({
@@ -30,7 +30,7 @@ const drawing = (...items: DrawItem[]): Drawing => ({
 
 function paint(d: Drawing, zoom = 2, rotation: 0 | 90 = 0): HTMLElement {
   const el = document.createElement('div')
-  paintDrawing(el, d, createPageTransform(page, zoom, rotation), origin)
+  paintDrawing(el, d, createPageTransform(page, zoom, rotation), box)
   return el
 }
 
@@ -104,9 +104,41 @@ describe('paintDrawing', () => {
         paint: { stroke: { color: '#000', width: 1 } },
       }),
       createPageTransform(page, 2, 0),
-      { left: 150, top: 50 }
+      { left: 150, top: 50, width: 100, height: 100 }
     )
     expect(el.querySelector('polyline')!.getAttribute('points')).toBe('50,150')
+  })
+
+  it('sizes the svg by the box it is given, not by the drawing bounds', () => {
+    const el = document.createElement('div')
+    const d = drawing({
+      kind: 'polyline',
+      points: [{ x: 0, y: 0 }],
+      paint: { stroke: { color: '#000', width: 1 } },
+    })
+    paintDrawing(el, d, createPageTransform(page, 1, 0), {
+      left: 0,
+      top: 0,
+      width: 212,
+      height: 12,
+    })
+    const svg = el.querySelector('svg')!
+    expect(svg.getAttribute('viewBox')).toBe('0 0 212 12')
+    expect(svg.getAttribute('width')).toBe('212')
+    expect(svg.getAttribute('height')).toBe('12')
+  })
+
+  it('every top-level shape takes presses on what it paints', () => {
+    const rect = { x: 0, y: 0, width: 1, height: 1 }
+    const el = paint(
+      drawing(
+        { kind: 'rect', rect, paint: fill },
+        { kind: 'group', opacity: 0.5, items: [{ kind: 'rect', rect, paint: fill }] }
+      )
+    )
+    for (const child of el.querySelector('svg')!.children) {
+      expect(child.getAttribute('pointer-events')).toBe('visiblePainted')
+    }
   })
 
   it('stroke width and dashes scale with zoom', () => {
