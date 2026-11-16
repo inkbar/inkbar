@@ -1887,9 +1887,19 @@ describe('draw tool', () => {
     expect(ink.inklist[0]).toHaveLength(3)
   })
 
+  /** The coordinate pairs of a path's `d`, however it separates them. */
+  const pairs = (d: string): [number, number][] => {
+    const n = d.match(/-?\d+(?:\.\d+)?(?:e-?\d+)?/g)!.map(Number)
+    return Array.from({ length: n.length / 2 }, (_, k) => [n[2 * k]!, n[2 * k + 1]!])
+  }
+  const tail = Array.from({ length: 12 }, (_, k): [number, number] => [
+    200 + k * 1.5,
+    100 + k,
+  ])
   it.each([
     [
       'a long stroke',
+      2,
       [
         [100, 100],
         [130, 120],
@@ -1899,34 +1909,34 @@ describe('draw tool', () => {
         [300, 90],
       ],
     ],
+    ['small steps near the end', 0.5, [[100, 100], [140, 120], [170, 110], ...tail]],
+    ['small steps near the end', 4, [[100, 100], [140, 120], [170, 110], ...tail]],
     [
-      'a short stroke of small steps',
+      'a tap',
+      4,
       [
         [100, 100],
-        [101, 100],
-        [102, 101],
-        [103, 103],
-        [105, 104],
-        [106, 107],
-        [109, 108],
+        [100, 100],
       ],
     ],
-  ] as [string, [number, number][]][])(
-    'the preview is the shape the committed stroke takes at zoom 2: %s',
-    async (_name, moves) => {
+  ] as [string, number, [number, number][]][])(
+    'the preview is the committed stroke point by point: %s, zoom %s',
+    async (_name, zoom, moves) => {
       const { doc, container, viewport, tools } = await setup()
-      viewport.setZoom(2)
-      await until(() => viewport.transformFor(0).zoom === 2)
+      viewport.setZoom(zoom)
+      await until(() => viewport.transformFor(0).zoom === zoom)
       await settle()
       tools.set('draw')
-      const h = viewport.hostFor(0)!.getBoundingClientRect()
+      const host = viewport.hostFor(0)!
+      const h = host.getBoundingClientRect()
       const [first, ...rest] = moves
       pointer(container, 'pointerdown', h.left + first![0], h.top + first![1], pen(0.3))
       rest.forEach(([x, y], i) =>
-        pointer(container, 'pointermove', h.left + x, h.top + y, pen(0.3 + i * 0.1))
+        pointer(container, 'pointermove', h.left + x, h.top + y, pen(0.3 + (i % 5) * 0.1))
       )
-      const draft = container.querySelector<SVGGraphicsElement>('[data-ink-draft] path')!
-      const preview = draft.getBoundingClientRect()
+      const previewD = container
+        .querySelector('[data-ink-draft] path')!
+        .getAttribute('d')!
       const last = moves[moves.length - 1]!
       pointer(
         container,
@@ -1937,13 +1947,22 @@ describe('draw tool', () => {
       )
       const [ink] = inks(doc)
       expect(ink?.type).toBe('ink')
-      const el = container.querySelector<SVGGraphicsElement>(
+      const path = container.querySelector<SVGPathElement>(
         `[data-annotation="${ink!.id}"] path.ink-stroke`
       )!
-      const committed = el.getBoundingClientRect()
-      expect(committed.width).toBeGreaterThan(4)
-      for (const side of ['left', 'top', 'right', 'bottom'] as const)
-        expect(Math.abs(preview[side] - committed[side])).toBeLessThan(0.5)
+      // The committed outline is relative to its own svg; the preview to the page host.
+      const svg = path.ownerSVGElement!.getBoundingClientRect()
+      const preview = pairs(previewD)
+      const committed = pairs(path.getAttribute('d')!).map(([x, y]): [number, number] => [
+        x + svg.left - h.left,
+        y + svg.top - h.top,
+      ])
+      expect(committed.length).toBeGreaterThan(8)
+      expect(preview).toHaveLength(committed.length)
+      preview.forEach(([x, y], k) => {
+        expect(Math.abs(x - committed[k]![0])).toBeLessThan(0.01)
+        expect(Math.abs(y - committed[k]![1])).toBeLessThan(0.01)
+      })
     }
   )
 
