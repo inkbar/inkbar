@@ -2,3 +2,4 @@ pnpm-lock.yaml
 .superpowers
 .svelte-kit
 CHANGELOG.md
+packages/engine/vendor

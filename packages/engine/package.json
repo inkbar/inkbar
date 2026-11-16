@@ -1,0 +1,38 @@
+{
+  "name": "@inkbar/engine",
+  "version": "0.15.0",
+  "private": true,
+  "description": "The PDF engine behind Inkbar, built on PDFium.",
+  "license": "MIT",
+  "homepage": "https://inkbar.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/inkbar/inkbar.git",
+    "directory": "packages/engine"
+  },
+  "bugs": "https://github.com/inkbar/inkbar/issues",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "fetch": "node scripts/fetch-pdfium.ts",
+    "build": "node scripts/fetch-pdfium.ts && tsdown",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint src scripts",
+    "test": "node scripts/fetch-pdfium.ts && vitest run --project node"
+  },
+  "devDependencies": {
+    "tsdown": "^0.23.1",
+    "vitest": "^5.0.4"
+  }
+}

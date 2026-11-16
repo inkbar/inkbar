@@ -39,7 +39,16 @@
           "path": "packages/theme/package.json",
           "jsonpath": "$.version"
         },
-        { "type": "json", "path": "packages/icons/package.json", "jsonpath": "$.version" }
+        {
+          "type": "json",
+          "path": "packages/icons/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "packages/engine/package.json",
+          "jsonpath": "$.version"
+        }
       ]
     }
   }

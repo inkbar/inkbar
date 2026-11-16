@@ -1,0 +1,21 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "fetch": { "cache": false, "passThroughEnv": ["INKBAR_PDFIUM_ARCHIVE"] },
+    "build": {
+      "dependsOn": ["^build", "fetch"],
+      "passThroughEnv": ["INKBAR_PDFIUM_ARCHIVE"]
+    },
+    "lint": { "dependsOn": ["^build", "fetch"] },
+    "typecheck": { "dependsOn": ["^build", "fetch"] },
+    "test": {
+      "dependsOn": ["^build", "build", "fetch"],
+      "passThroughEnv": ["INKBAR_PDFIUM_ARCHIVE"]
+    },
+    "test:browser": {
+      "dependsOn": ["^build", "build", "fetch"],
+      "passThroughEnv": ["INKBAR_PDFIUM_ARCHIVE"]
+    }
+  }
+}
