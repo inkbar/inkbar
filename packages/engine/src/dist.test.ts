@@ -1,4 +1,4 @@
-import { access } from 'node:fs/promises'
+import { access, readFile } from 'node:fs/promises'
 
 import { fixtureBytes } from '@inkbar/fixtures'
 import { expect, test } from 'vitest'
@@ -21,4 +21,11 @@ test('the built package finds its own wasm and opens a document', async () => {
   } finally {
     await engine.destroy()
   }
+})
+
+test('the built package keeps the literal worker form that bundlers detect', async () => {
+  const source = await readFile(new URL('../dist/index.mjs', import.meta.url), 'utf8')
+  expect(source).toMatch(
+    /new Worker\(\s*new URL\(\s*["']\.\/worker\.mjs["']\s*,\s*import\.meta\.url\s*\)/
+  )
 })

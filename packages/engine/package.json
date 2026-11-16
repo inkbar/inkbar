@@ -22,6 +22,9 @@
       "types": "./dist/index.d.mts",
       "default": "./dist/index.mjs"
     },
+    "./worker": {
+      "default": "./dist/worker.mjs"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -29,11 +32,15 @@
     "build": "node scripts/fetch-pdfium.ts && tsdown",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint src scripts",
-    "test": "node scripts/fetch-pdfium.ts && vitest run --project node"
+    "test": "node scripts/fetch-pdfium.ts && vitest run --project node",
+    "test:browser": "node scripts/fetch-pdfium.ts && vitest run --project browser"
   },
   "devDependencies": {
     "@inkbar/fixtures": "workspace:*",
+    "@vitest/browser-playwright": "^5.0.4",
+    "playwright": "1.62.1",
     "tsdown": "^0.23.1",
+    "vite": "^8.3.4",
     "vitest": "^5.0.4"
   }
 }

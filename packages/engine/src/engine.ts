@@ -1,5 +1,6 @@
 import { EngineError } from './errors.ts'
 import { createInThreadTransport } from './transport/in-thread.ts'
+import { createWorkerTransport } from './transport/worker.ts'
 
 import type { Request, Transport } from './protocol.ts'
 import type {
@@ -13,7 +14,11 @@ import type {
 export interface EngineOptions {
   /** URL or bytes of inkbar-pdfium.wasm. Default: resolved beside this module. */
   wasm?: string | URL | Uint8Array
-  /** URL of the worker script, a Worker, or false to run in the calling thread. Default: a worker in a browser, false elsewhere. */
+  /**
+   * URL of the worker script, a Worker, or false to run in the calling thread. Default: a worker
+   * in a browser, false elsewhere. The engine takes ownership of a `Worker` passed in: it
+   * terminates it if start-up or the worker fails, and on `destroy()`.
+   */
   worker?: string | URL | Worker | false
 }
 
@@ -132,12 +137,38 @@ async function defaultWasm(): Promise<string | URL | Uint8Array> {
   }
 }
 
+function startWorker(worker: string | URL | Worker | undefined): {
+  worker: Worker
+  url?: string
+} {
+  if (worker instanceof Worker) return { worker }
+  // The literal `new Worker(new URL(..., import.meta.url))` form is what bundlers look for.
+  if (worker === undefined)
+    return {
+      worker: new Worker(new URL('./worker.mjs', import.meta.url), { type: 'module' }),
+      url: new URL('./worker.mjs', import.meta.url).href,
+    }
+  return { worker: new Worker(worker, { type: 'module' }), url: String(worker) }
+}
+
 export async function createEngine(options: EngineOptions = {}): Promise<Engine> {
   const { worker } = options
-  if (worker !== false && typeof Worker !== 'undefined')
-    throw failure(
-      'Running the engine in a worker is not supported yet; pass worker: false.'
+  if (worker !== false && typeof Worker !== 'undefined') {
+    const wasm = options.wasm ?? new URL('./inkbar-pdfium.wasm', import.meta.url)
+    let started: ReturnType<typeof startWorker>
+    try {
+      started = startWorker(worker)
+    } catch (cause) {
+      throw new EngineError(
+        'engine-failure',
+        `Could not start the engine worker${worker === undefined || worker instanceof Worker ? '' : ` from ${String(worker)}`}.`,
+        { cause }
+      )
+    }
+    return engineOver(
+      await createWorkerTransport(started.worker, wasm, { url: started.url })
     )
+  }
   const wasm = options.wasm ?? (await defaultWasm())
   return engineOver(await createInThreadTransport({ wasm }))
 }

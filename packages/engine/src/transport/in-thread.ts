@@ -7,7 +7,7 @@ import type { Request, Transport } from '../protocol.ts'
 
 const nextMacrotask = () => new Promise<void>((resolve) => setTimeout(resolve, 0))
 
-function dispatch(core: EngineCore, request: Request): unknown {
+export function dispatch(core: EngineCore, request: Request): unknown {
   switch (request.op) {
     case 'open':
       return core.open(request.bytes, request.options)
