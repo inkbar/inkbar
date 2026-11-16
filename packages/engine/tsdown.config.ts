@@ -15,7 +15,10 @@ export default defineConfig({
   copy: [{ from: 'vendor/inkbar-pdfium.wasm', to: 'dist' }],
   hooks: {
     'build:done': () => {
-      const notices = `${readFileSync(vendor('LICENSE'), 'utf8')}\n${readFileSync(vendor('NOTICE'), 'utf8')}`
+      // PDFium's licence, the fork's notice, then every third-party library linked into the binary.
+      const notices = ['LICENSE', 'NOTICE', 'THIRD_PARTY_LICENSES']
+        .map((name) => readFileSync(vendor(name), 'utf8'))
+        .join('\n')
       writeFileSync(new URL('dist/THIRD-PARTY-NOTICES', import.meta.url), notices)
     },
   },
