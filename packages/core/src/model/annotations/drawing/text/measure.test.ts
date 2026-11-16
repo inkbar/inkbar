@@ -118,3 +118,45 @@ describe('resolveFont', () => {
     })
   })
 })
+
+describe('clusters in the measure', () => {
+  const family = '👨‍👩‍👧‍👦'
+
+  test('a decomposed letter uses the width of the composed one and is not outside', () => {
+    expect(standardMeasure.width('é', helv, 12)).toEqual(
+      standardMeasure.width('é', helv, 12)
+    )
+    expect(standardMeasure.width('é', helv, 12).outside).toBe(false)
+  })
+
+  test('a mark the tables have no composed form for adds no width', () => {
+    expect(standardMeasure.width('x́', helv, 12)).toEqual(
+      standardMeasure.width('x', helv, 12)
+    )
+  })
+
+  test('a joined emoji sequence is one character, measured once by the fallback', () => {
+    const fallback = vi.fn(() => 11)
+    const m = measureWith(fallback).width(family, helv, 12)
+    expect(fallback).toHaveBeenCalledTimes(1)
+    expect(fallback).toHaveBeenCalledWith(family, helv, 12)
+    expect(m).toEqual({ width: 11, outside: true })
+  })
+
+  test('a flag and an emoji with a skin tone are one character each', () => {
+    const fallback = vi.fn(() => 10)
+    measureWith(fallback).width('🇫🇷👋🏽', helv, 12)
+    expect(fallback.mock.calls.map((c) => c[0])).toEqual(['🇫🇷', '👋🏽'])
+  })
+
+  test('the standard measure gives a whole family one wide character', () => {
+    expect(standardMeasure.width(family, helv, 12)).toEqual({ width: 12, outside: true })
+  })
+
+  test('marks, joiners and variation selectors alone have no width', () => {
+    expect(standardMeasure.width('́‍️', helv, 12)).toEqual({
+      width: 0,
+      outside: false,
+    })
+  })
+})

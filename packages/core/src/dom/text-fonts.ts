@@ -1,3 +1,5 @@
+import { isWide } from '../model/annotations/drawing/text/measure'
+
 import type { TextFont } from '../model/annotations/drawing/types'
 
 /**
@@ -34,7 +36,7 @@ export function browserWidth(char: string, font: TextFont, size: number): number
           ? null
           : (document.createElement('canvas').getContext('2d') ?? null)
     }
-    if (!context) return size / 2
+    if (!context) return isWide(char) ? size : size / 2
     context.font = cssFont(font, REFERENCE_SIZE)
     unit = context.measureText(char).width / REFERENCE_SIZE
     widths.set(key, unit)

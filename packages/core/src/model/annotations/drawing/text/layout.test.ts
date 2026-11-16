@@ -194,3 +194,72 @@ describe('layoutText', () => {
     expect(t.lines[0]!.baseline).toBeCloseTo((14.4 - 1.107 * 12) / 2 + 0.891 * 12, 3)
   })
 })
+
+describe('layoutText: break opportunities', () => {
+  const broken = (text: string, width: number) =>
+    layoutText(block(text, width), standardMeasure).lines.map((l) => l.text)
+
+  test('it breaks after an en dash and around an em dash', () => {
+    expect(broken('1990–2000', w('1990–2000') - 1)).toEqual(['1990–', '2000'])
+    expect(broken('word—word', w('word—word') - 1)).toEqual(['word—', 'word'])
+  })
+
+  test('it breaks after a question mark before a letter, but not after a slash or an exclamation mark', () => {
+    expect(broken('page?query', w('page?query') - 1)).toEqual(['page?', 'query'])
+    expect(broken('and/or', w('and/or') - 1).length).toBeGreaterThan(1)
+    expect(broken('and/or', w('and/or') - 1)[0]).not.toBe('and/')
+    expect(broken('end!and', w('end!and') - 1)[0]).not.toBe('end!')
+  })
+
+  test('Latin text and CJK text may break where they meet', () => {
+    expect(broken('Hello世界', w('Hello') + 1)).toEqual(['Hello', '世界'])
+  })
+
+  test('closing punctuation never starts a line and opening never ends one', () => {
+    const lines = broken('日本語。日本語、日本語「日本語」', 40)
+    for (const l of lines) expect(l[0]).not.toMatch(/[。、」]/)
+    for (const l of lines.slice(0, -1)) expect(l.at(-1)).not.toBe('「')
+  })
+
+  test('a flag, a skin tone and a family emoji stay whole', () => {
+    const family = '👨‍👩‍👧'
+    expect(broken('🇫🇷🇩🇪', 1)).toEqual(['🇫🇷', '🇩🇪'])
+    expect(broken('👋🏽👍🏻', 1)).toEqual(['👋🏽', '👍🏻'])
+    expect(broken(family + family, 1)).toEqual([family, family])
+  })
+
+  test('a decomposed letter is laid out as the composed one', () => {
+    expect(broken('Café', 100)).toEqual(['Café'])
+  })
+})
+
+describe('layoutText: tabs and long text', () => {
+  test('a line with a tab gets segments placed at the tab stops', () => {
+    const tab = 8 * w(' ')
+    const { lines } = layoutText(block('a\tb', 200), standardMeasure)
+    expect(lines[0]!.segments).toEqual([
+      { text: 'a', x: 0 },
+      { text: 'b', x: tab },
+    ])
+  })
+
+  test('segments follow the line when it is aligned', () => {
+    const { lines } = layoutText(block('a\tb', 200, { align: 'right' }), standardMeasure)
+    expect(lines[0]!.segments![0]!.x).toBeCloseTo(lines[0]!.x, 6)
+    expect(lines[0]!.segments![1]!.x).toBeCloseTo(lines[0]!.x + 8 * w(' '), 6)
+  })
+
+  test('a line without a tab has no segments', () => {
+    expect(
+      layoutText(block('ab', 100), standardMeasure).lines[0]!.segments
+    ).toBeUndefined()
+  })
+
+  test('an unbroken string of 100,000 characters lays out in under a second', () => {
+    const start = performance.now()
+    const { lines } = layoutText(block('x'.repeat(100_000), 50), standardMeasure)
+    expect(performance.now() - start).toBeLessThan(1000)
+    expect(lines.every((l) => l.width <= 50 + 1e-6)).toBe(true)
+    expect(lines.map((l) => l.text).join('')).toBe('x'.repeat(100_000))
+  })
+})

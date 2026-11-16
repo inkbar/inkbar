@@ -1,3 +1,4 @@
+import { clusters } from './clusters'
 import { CHARS, COURIER_WIDTH, WIDTHS } from './metrics-data'
 
 import type { TextFont, TextMeasure } from '../types'
@@ -39,16 +40,9 @@ const indexOf = (char: string): number | undefined => {
   return index.get(char)
 }
 
-/** Characters that take no room and draw nothing: zero-width spaces and joiners, soft hyphen, variation selectors. */
+/** Characters that take no room and draw nothing: marks, zero-width spaces and joiners, soft hyphen, variation selectors. */
 export function isZeroWidth(char: string): boolean {
-  const c = char.codePointAt(0)!
-  return (
-    (c >= 0x200b && c <= 0x200d) ||
-    c === 0x2060 ||
-    c === 0xfeff ||
-    c === 0xad ||
-    (c >= 0xfe00 && c <= 0xfe0f)
-  )
+  return /^[\p{Mn}\p{Me}\p{Cf}]$/u.test(char)
 }
 
 /** Ranges of East Asian Wide and Fullwidth characters, and of emoji, in order of code point. */
@@ -128,7 +122,12 @@ export function isWide(char: string): boolean {
 
 const FACE = (font: TextFont): number => (font.bold ? 1 : 0) + (font.italic ? 2 : 0)
 
-/** A measure that uses the tables and asks `fallback` for each character that is not in them. */
+/**
+ * A measure that uses the tables and asks `fallback` once for each character outside them. A
+ * character is a cluster (see `clusters`): a family emoji is one character, and a base letter
+ * with a mark the tables lack counts as the letter. Text is measured as its NFC form, so a
+ * decomposed "e" and an acute accent use the width of "é".
+ */
 export function measureWith(
   fallback: (char: string, font: TextFont, size: number) => number
 ): TextMeasure {
@@ -138,12 +137,13 @@ export function measureWith(
       let outside = false
       const table =
         font.family === 'Courier' ? undefined : WIDTHS[font.family][FACE(font)]
-      for (const char of text) {
-        const i = indexOf(char)
-        if (i !== undefined) {
+      for (const cluster of clusters(text.normalize('NFC'))) {
+        const [base, ...rest] = cluster
+        const i = indexOf(base!)
+        if (i !== undefined && rest.every(isZeroWidth)) {
           total += ((table ? table[i]! : COURIER_WIDTH) / 1000) * size
-        } else if (!isZeroWidth(char)) {
-          total += fallback(char, font, size)
+        } else if (!isZeroWidth(base!) || !rest.every(isZeroWidth)) {
+          total += fallback(cluster, font, size)
           outside = true
         }
       }
