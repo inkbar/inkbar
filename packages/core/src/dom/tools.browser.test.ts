@@ -1034,7 +1034,7 @@ describe('cursors', () => {
   it('an editable text box shows text inside and move on its edge', async () => {
     const { tools, text, el } = await withTheme()
     tools.set('select')
-    expect(cursorOf(el(text.id).querySelector('.ink-free-text'))).toBe('text')
+    expect(cursorOf(el(text.id).querySelector('[data-ink-text-area]'))).toBe('text')
     expect(cursorOf(el(text.id).querySelector('[data-ink-edge]'))).toBe('move')
   })
 
@@ -1063,7 +1063,7 @@ describe('cursors', () => {
     const { tools, doc, text, el } = await withTheme()
     tools.set('select')
     doc.annotations.update(text.id, { locked: true })
-    expect(cursorOf(el(text.id).querySelector('.ink-free-text'))).toBe('default')
+    expect(cursorOf(el(text.id).querySelector('[data-ink-text-area]'))).toBe('default')
     expect(cursorOf(el(text.id).querySelector('[data-ink-edge]'))).toBe('default')
   })
 
@@ -2896,7 +2896,7 @@ describe('freetext tool', () => {
     })
     await userEvent.keyboard('{Escape}')
     const el = container.querySelector<HTMLElement>(`[data-annotation="${a.id}"]`)!
-    el.querySelector('.ink-free-text')!.dispatchEvent(
+    el.querySelector('[data-ink-text-area]')!.dispatchEvent(
       new MouseEvent('dblclick', { bubbles: true, detail: 2 })
     )
     await userEvent.keyboard('{End}er')
@@ -3057,7 +3057,7 @@ describe('freetext tool', () => {
       contents: 'Hi',
     })
     const el = container.querySelector<HTMLElement>(`[data-annotation="${a.id}"]`)!
-    const box = el.querySelector('.ink-free-text')!
+    const box = el.querySelector('[data-ink-text-area]')!
     box.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, detail: 2 }))
     expect(editorIn(el)?.textContent).toBe('Hi')
     expect(document.activeElement).toBe(editorIn(el))
@@ -3083,7 +3083,7 @@ describe('freetext tool', () => {
     })
     doc.annotations.update(a.id, { locked: true })
     const el = container.querySelector<HTMLElement>(`[data-annotation="${a.id}"]`)!
-    el.querySelector('.ink-free-text')!.dispatchEvent(
+    el.querySelector('[data-ink-text-area]')!.dispatchEvent(
       new MouseEvent('dblclick', { bubbles: true, detail: 2 })
     )
     expect(editorIn(el)).toBeNull()
@@ -4177,7 +4177,7 @@ describe('selection editing', () => {
       const { el } = await page0(viewport)
       const [x, y] = charAt(el(a.id), 6)
       const target = document.elementFromPoint(x, y)!
-      expect(target.closest('.ink-free-text')).not.toBeNull()
+      expect(target.closest('[data-ink-text-area]')).not.toBeNull()
       pointer(target, 'pointerdown', x, y)
       expect(doc.annotations.selection.get()).toEqual([a.id])
       pointer(container, 'pointerup', x, y)
@@ -4489,7 +4489,7 @@ describe('selection editing', () => {
       const { at } = await page0(viewport)
       const [x, y] = at(150, 620)
       const inside = document.elementFromPoint(x, y)!
-      expect(inside.closest('.ink-free-text')).not.toBeNull()
+      expect(inside.closest('[data-ink-text-area]')).not.toBeNull()
       pointer(inside, 'pointerdown', x, y)
       pointer(container, 'pointerup', x, y)
       expect(container.querySelector('[data-ink-editor]')).not.toBeNull()
@@ -5241,7 +5241,9 @@ describe('one-shot tools', () => {
   })
   /** A client point in the middle of a text box's drawn text. */
   function inside(container: HTMLElement, id: string): readonly [number, number] {
-    const text = container.querySelector(`[data-annotation="${id}"] .ink-free-text`)!
+    const text = container.querySelector(
+      `[data-annotation="${id}"] [data-ink-text-area]`
+    )!
     const r = text.getBoundingClientRect()
     return [r.left + r.width / 2, r.top + r.height / 2]
   }
@@ -5285,7 +5287,7 @@ describe('one-shot tools', () => {
         el.focus()
         await userEvent.keyboard('{Enter}')
       } else {
-        el.querySelector('.ink-free-text')!.dispatchEvent(
+        el.querySelector('[data-ink-text-area]')!.dispatchEvent(
           new MouseEvent('dblclick', { bubbles: true, cancelable: true, detail: 2 })
         )
       }

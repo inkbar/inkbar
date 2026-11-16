@@ -475,9 +475,11 @@ function renderChrome(el: HTMLElement, a: Annotation, t: PageTransform): void {
 const TEXT_EDGE = 6
 
 /**
- * What a press on a text box needs and its drawing does not hold: `div.ink-free-text`, an empty
- * box over the text that takes presses (a press inside edits the text), a band along its edge
- * that selects and drags it instead, and the frame a fringed box is outlined by when selected.
+ * What a press on a text box needs and its drawing does not hold, in one svg over the text: a
+ * transparent rect over the text box that takes presses (`[data-ink-text-area]`: a press inside
+ * edits the text), a band along its edge that selects and drags it instead, and, outside the svg,
+ * the frame a fringed box is outlined by when selected. They are svg shapes with inline paint, so
+ * a host rule on an HTML class cannot put a background or border over the drawn text.
  */
 function appendTextChrome(
   el: HTMLElement,
@@ -486,14 +488,18 @@ function appendTextChrome(
 ): void {
   const doc = el.ownerDocument
   const inner = freeTextLocalBox(a, t)
-  const hit = doc.createElement('div')
-  hit.className = 'ink-free-text'
-  hit.style.cssText =
-    `position:absolute;left:${inner.left}px;top:${inner.top}px;width:${inner.width}px;` +
-    `height:${inner.height}px;pointer-events:auto;`
   const box = annotationBox(a, t)
-  // A later sibling, so the band paints above the box once the theme positions it.
+  // A later sibling of the drawing, so it takes presses above it once the theme positions it.
   const svg = boxSvg(doc, box.width, box.height)
+  const area = doc.createElementNS(SVG, 'rect')
+  area.setAttribute('x', String(inner.left))
+  area.setAttribute('y', String(inner.top))
+  area.setAttribute('width', String(inner.width))
+  area.setAttribute('height', String(inner.height))
+  area.setAttribute('fill', 'transparent')
+  area.setAttribute('stroke', 'none')
+  area.setAttribute('pointer-events', 'all')
+  area.setAttribute('data-ink-text-area', '')
   const band = doc.createElementNS(SVG, 'rect')
   band.setAttribute('x', String(inner.left))
   band.setAttribute('y', String(inner.top))
@@ -504,8 +510,8 @@ function appendTextChrome(
   band.setAttribute('stroke-width', String(TEXT_EDGE))
   band.setAttribute('pointer-events', 'stroke')
   band.setAttribute('data-ink-edge', '')
-  svg.append(band)
-  el.append(hit, svg)
+  svg.append(area, band)
+  el.append(svg)
   appendSelectionFrame(el, a, t)
 }
 

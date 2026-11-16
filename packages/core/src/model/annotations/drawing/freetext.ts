@@ -22,6 +22,9 @@ type Angle = 0 | 90 | 180 | 270
 /** Padding of a speech bubble's text, as a multiple of the font size: vertical and horizontal. */
 const BUBBLE_PAD_Y = 0.4
 const BUBBLE_PAD_X = 0.6
+/** An underline's centre below the baseline, and its thickness, as a multiple of the font size. */
+const UNDERLINE_OFFSET = 0.1
+const UNDERLINE_THICKNESS = 0.05
 
 /**
  * Where a text box's text goes, in user space. The text is upright for the page as the file
@@ -145,24 +148,38 @@ export function describeFreeText(a: FreeTextAnnotation, context: DrawContext): D
     })
   } else {
     const radius = a.cornerRadius
-    const rect =
-      border > 0
-        ? {
-            x: box.x + border / 2,
-            y: box.y + border / 2,
-            width: Math.max(0, box.width - border),
-            height: Math.max(0, box.height - border),
-          }
-        : box
-    const reach = Math.min(rect.width, rect.height) / 2
-    const r = radius ? Math.min(Math.max(0, radius - border / 2), reach) : 0
+    // The fill covers the whole box, under the border, as CSS paints a background; the border is
+    // its own rule inset by half its width, so a dashed one leaves the fill showing in its gaps.
+    const reach = Math.min(box.width, box.height) / 2
+    const outer = radius ? Math.min(radius, reach) : 0
     inner.push({
       kind: 'rect',
       role: 'box',
-      rect,
-      ...(r > 0 ? { radius: r } : {}),
-      paint: outline(a, a.color),
+      rect: box,
+      ...(outer > 0 ? { radius: outer } : {}),
+      paint: a.color ? { fill: { color: a.color } } : {},
     })
+    if (border > 0) {
+      const rect = {
+        x: box.x + border / 2,
+        y: box.y + border / 2,
+        width: Math.max(0, box.width - border),
+        height: Math.max(0, box.height - border),
+      }
+      const r = radius
+        ? Math.min(
+            Math.max(0, radius - border / 2),
+            Math.min(rect.width, rect.height) / 2
+          )
+        : 0
+      inner.push({
+        kind: 'rect',
+        role: 'border',
+        rect,
+        ...(r > 0 ? { radius: r } : {}),
+        paint: outline(a, undefined),
+      })
+    }
   }
   inner.push(textItem(a, context, frame, box, border))
   items.push(...inner)
@@ -216,12 +233,29 @@ function textItem(
   )
   const at = (x: number, baseline: number): Point =>
     along(along(frame.area.topLeft, frame.dir, x), frame.down, baseline)
+  const underline = s.textDecoration === 'underline'
   const lines: TextLine[] = laid.lines
     .filter((line) => line.text !== '')
     .map((line) => ({
       text: line.text,
       origin: at(line.x, line.baseline),
       width: line.width,
+      outside: line.outside,
+      ...(underline
+        ? {
+            underline: {
+              from: at(line.x, line.baseline + UNDERLINE_OFFSET * s.fontSize),
+              to: at(
+                line.x +
+                  line.width +
+                  [...line.text].filter((c) => c === ' ').length *
+                    (line.wordSpacing ?? 0),
+                line.baseline + UNDERLINE_OFFSET * s.fontSize
+              ),
+              thickness: UNDERLINE_THICKNESS * s.fontSize,
+            },
+          }
+        : {}),
       ...(line.wordSpacing ? { wordSpacing: line.wordSpacing } : {}),
       ...(line.segments
         ? {
@@ -247,7 +281,6 @@ function textItem(
     font,
     size: s.fontSize,
     color: s.color,
-    ...(s.textDecoration === 'underline' ? { underline: true } : {}),
     clip: {
       rect: clipRect,
       ...(radius > 0 ? { radius: Math.min(radius, reach) } : {}),

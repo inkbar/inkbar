@@ -516,11 +516,11 @@
   }
 
   :where(
-    [data-ink-tool='select'] .ink-annotation:not([data-locked]) .ink-free-text,
-    [data-ink-tool='select-text'] .ink-annotation:not([data-locked]) .ink-free-text,
+    [data-ink-tool='select'] .ink-annotation:not([data-locked]) [data-ink-text-area],
+    [data-ink-tool='select-text'] .ink-annotation:not([data-locked]) [data-ink-text-area],
     [data-ink-made]
       .ink-annotation[data-state='selected']:not([data-locked])
-      .ink-free-text
+      [data-ink-text-area]
   ) {
     cursor: text;
   }

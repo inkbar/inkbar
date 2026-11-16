@@ -28,7 +28,6 @@ export type DrawItem = { role?: DrawRole } & (
       font: TextFont
       size: number
       color: string
-      underline?: boolean
       clip?: { rect: Rect; radius?: number }
       angle: 0 | 90 | 180 | 270
       outsideStandardFonts: boolean
@@ -54,6 +53,7 @@ export type DrawRole =
   | 'note'
   | 'note-glyph'
   | 'box'
+  | 'border'
   | 'text'
   | 'stamp'
   | 'mask'
@@ -79,6 +79,12 @@ export interface TextLine {
   text: string
   origin: Point
   width: number
+  /**
+   * Whether the line has a character outside the standard fonts. Its `width` is then an estimate
+   * of what the browser's font gives, so a painter must not force the line to it, and a file
+   * writer needs a font for it.
+   */
+  outside: boolean
   /** Extra space added to each U+0020 in `text`, in points. U+00A0 gets none. */
   wordSpacing?: number
   /**
@@ -86,6 +92,11 @@ export interface TextLine {
    * so a painter need not reproduce tab stops. `text` is then the line as a whole.
    */
   segments?: readonly { text: string; origin: Point }[]
+  /**
+   * The line's underline as a rule: its start and end (the line's origin and its advance, word
+   * spacing included, 0.1 of the size below the baseline) and its thickness, in user space.
+   */
+  underline?: { from: Point; to: Point; thickness: number }
 }
 
 export interface TextFont {

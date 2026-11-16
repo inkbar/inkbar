@@ -196,16 +196,22 @@ function paintItem(
   return out
 }
 
-/** Which clip path a text uses, so two texts on a page never share an id. */
+/**
+ * Clip path ids: a prefix made once per copy of this module, so two copies on a page (two
+ * bundles) or two pages never share one, then a count.
+ */
+const clipPrefix = `ink-text-clip-${Math.random().toString(36).slice(2, 8)}-`
 let clipCount = 0
 
 type TextItem = Extract<DrawItem, { kind: 'text' }>
 
 /**
  * A text as one `<text>` per line (one per piece, for a line with tabs) in a group clipped to
- * `item.clip`. Each line is set to its width from the description, so its letters end where the
- * layout says whatever font the browser found. The lines turn with the view: upright for the page
- * as the file displays it.
+ * `item.clip`. Each line of standard-font text is set to its width from the description, so its
+ * letters end where the layout says whatever font the browser found; a line with characters
+ * outside the standard fonts is not, since its width is an estimate. The lines turn with the
+ * view: upright for the page as the file displays it. Fonts and colour are inline style as well as
+ * attributes, so a host's rules on the text elements do not restyle them.
  */
 function paintText(
   doc: Document,
@@ -219,13 +225,14 @@ function paintText(
   const group = node('g')
   if (item.lines.length === 0) return group
   if (item.clip) {
-    const id = `ink-text-clip-${++clipCount}`
+    const id = `${clipPrefix}${++clipCount}`
     const clip = node('clipPath')
     clip.setAttribute('id', id)
     const r = rectCss(item.clip.rect, t, origin)
     const shape = node('rect')
     set(shape, { x: r.x, y: r.y, width: r.width, height: r.height })
     if (item.clip.radius) shape.setAttribute('rx', String(len(item.clip.radius)))
+    guard(shape, 'clip rect')
     clip.append(shape)
     group.append(clip)
     group.setAttribute('clip-path', `url(#${id})`)
@@ -233,15 +240,20 @@ function paintText(
   const turn = normalizeRotation(t.totalRotation - item.angle)
   const size = len(item.size)
   const stack = FONT_STACKS[item.font.family]
+  const weight = item.font.bold ? 'bold' : 'normal'
+  const slant = item.font.italic ? 'italic' : 'normal'
   const textAt = (p: Point): SVGElement => {
     const text = node('text')
     set(text, { x: p.x, y: p.y })
     text.setAttribute('font-family', stack)
     text.setAttribute('font-size', fmt(size))
-    text.setAttribute('font-weight', item.font.bold ? 'bold' : 'normal')
-    text.setAttribute('font-style', item.font.italic ? 'italic' : 'normal')
+    text.setAttribute('font-weight', weight)
+    text.setAttribute('font-style', slant)
     text.setAttribute('fill', item.color)
-    text.setAttribute('style', 'font-kerning:none;white-space:pre')
+    text.setAttribute(
+      'style',
+      `font-kerning:none;white-space:pre;font-family:${stack};font-size:${fmt(size)}px;font-weight:${weight};font-style:${slant};fill:${item.color}`
+    )
     text.setAttribute('pointer-events', 'none')
     if (turn !== 0)
       text.setAttribute('transform', `rotate(${turn} ${fmt(p.x)} ${fmt(p.y)})`)
@@ -255,22 +267,26 @@ function paintText(
       const p = at(piece.origin)
       const text = textAt(p)
       fillText(doc, text, piece.text, line.wordSpacing ? len(line.wordSpacing) : 0)
-      if (!line.segments) {
+      if (!line.segments && !line.outside) {
         text.setAttribute('textLength', fmt(len(total)))
         text.setAttribute('lengthAdjust', 'spacing')
       }
+      guard(text, 'text')
       group.append(text)
     }
-    if (item.underline) {
-      const p = at(line.origin)
-      const y = p.y + 0.1 * size
+    if (line.underline) {
+      const from = at(line.underline.from)
+      const to = at(line.underline.to)
       const rule = node('line')
-      set(rule, { x1: p.x, y1: y, x2: p.x + len(total), y2: y })
+      set(rule, { x1: from.x, y1: from.y, x2: to.x, y2: to.y })
       rule.setAttribute('stroke', item.color)
-      rule.setAttribute('stroke-width', fmt(0.05 * size))
+      rule.setAttribute('stroke-width', fmt(len(line.underline.thickness)))
+      rule.setAttribute(
+        'style',
+        `stroke:${item.color};stroke-width:${fmt(len(line.underline.thickness))}px`
+      )
       rule.setAttribute('pointer-events', 'none')
-      if (turn !== 0)
-        rule.setAttribute('transform', `rotate(${turn} ${fmt(p.x)} ${fmt(p.y)})`)
+      guard(rule, 'underline')
       group.append(rule)
     }
   }

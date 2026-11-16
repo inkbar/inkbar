@@ -626,7 +626,7 @@ for (const framework of FRAMEWORK_ORDER) {
         const text = el
           .querySelector('g[data-ink-part="text"] > text')!
           .getBoundingClientRect()
-        const box = el.querySelector('.ink-free-text')!.getBoundingClientRect()
+        const box = el.querySelector('[data-ink-text-area]')!.getBoundingClientRect()
         return Math.abs(text.left + text.width / 2 - (box.left + box.width / 2))
       })
       expect(centred).toBeLessThan(3)
@@ -647,7 +647,7 @@ for (const framework of FRAMEWORK_ORDER) {
       await page.keyboard.type('Hello')
       await page.keyboard.press('Escape')
       const created = sessionShape(page, 'freetext')
-      const text = created.locator('.ink-free-text')
+      const text = created.locator('[data-ink-text-area]')
       const lines = created.locator('g[data-ink-part="text"] > text')
       await expect(lines).toHaveText('Hello')
       // Just inside the left edge of the second "l".

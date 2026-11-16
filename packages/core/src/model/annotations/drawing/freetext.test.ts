@@ -75,14 +75,22 @@ describe('describeFreeText', () => {
     )
   })
 
-  test('the border is drawn inside the rect', () => {
+  test('the border is its own rule, drawn inside the box over a fill that covers the whole box', () => {
     const d = describeFreeText(
-      { ...box, width: 4, borderColor: '#FF0000', cornerRadius: 6 },
+      { ...box, width: 4, borderColor: '#FF0000', cornerRadius: 6, color: '#FFFF00' },
       context()
     )
+    expect(roles(d)).toEqual(['box', 'border', 'text'])
     expect(inner(d)[0]).toEqual({
       kind: 'rect',
       role: 'box',
+      rect: box.rect,
+      radius: 6,
+      paint: { fill: { color: '#FFFF00' } },
+    })
+    expect(inner(d)[1]).toEqual({
+      kind: 'rect',
+      role: 'border',
       rect: { x: 102, y: 602, width: 140, height: 36 },
       radius: 4,
       paint: { stroke: { color: '#FF0000', width: 4 } },
@@ -91,14 +99,21 @@ describe('describeFreeText', () => {
 
   test('a border with no colour of its own takes the text colour', () => {
     const d = describeFreeText({ ...box, width: 1 }, context())
-    expect(inner(d)[0]).toMatchObject({
+    expect(inner(d)[1]).toMatchObject({
+      role: 'border',
       paint: { stroke: { color: '#151820', width: 1 } },
     })
   })
 
-  test('a dashed border carries the annotation dashes', () => {
-    const d = describeFreeText({ ...box, width: 2, dashes: [4, 2] }, context())
-    expect(inner(d)[0]).toMatchObject({ paint: { stroke: { dashes: [4, 2] } } })
+  test('a dashed border carries the annotation dashes and the fill stays whole under it', () => {
+    const d = describeFreeText(
+      { ...box, width: 2, dashes: [4, 2], color: '#FFFF00' },
+      context()
+    )
+    expect(inner(d)[1]).toMatchObject({ paint: { stroke: { dashes: [4, 2] } } })
+    expect(inner(d)[0]).toMatchObject({ rect: box.rect })
+    expect(JSON.stringify(inner(d)[0])).not.toContain('dashes')
+    expect(JSON.stringify(inner(d)[1])).not.toContain('fill')
   })
 
   test('the text is clipped to the inside of the border, with the box radius less the border', () => {
@@ -126,6 +141,7 @@ describe('describeFreeText', () => {
         text: 'Hello',
         origin: { x: 102, y: 638 - laid.baseline },
         width: laid.width,
+        outside: false,
       },
     ])
   })
@@ -157,13 +173,43 @@ describe('describeFreeText', () => {
     expect(resolveFont('Consolas', false, false).family).toBe('Courier')
   })
 
-  test('underline travels on the text item', () => {
+  test('an underline is a rule on each line: 0.1 of the size below the baseline, 0.05 thick, as long as the line', () => {
     const d = describeFreeText(
-      { ...box, defaultStyle: { ...box.defaultStyle, textDecoration: 'underline' } },
+      {
+        ...box,
+        contents: 'Hello world',
+        defaultStyle: { ...box.defaultStyle, textDecoration: 'underline' },
+      },
       context()
     )
-    expect(text(d).underline).toBe(true)
-    expect(text(describeFreeText(box, context())).underline).toBeUndefined()
+    const [line] = text(d).lines
+    const { from, to, thickness } = line!.underline!
+    expect(thickness).toBeCloseTo(0.6)
+    expect(from.x).toBeCloseTo(line!.origin.x)
+    expect(to.x - from.x).toBeCloseTo(line!.width)
+    expect(from.y).toBeCloseTo(line!.origin.y - 1.2)
+    expect(to.y).toBe(from.y)
+    expect(text(describeFreeText(box, context())).lines[0]!.underline).toBeUndefined()
+  })
+
+  test('an underline on a page turned 90 runs along the text, up the page', () => {
+    const d = describeFreeText(
+      {
+        ...box,
+        defaultStyle: { ...box.defaultStyle, textDecoration: 'underline' },
+      },
+      context(90)
+    )
+    const { from, to } = text(d).lines[0]!.underline!
+    expect(to.x).toBeCloseTo(from.x)
+    expect(to.y).toBeGreaterThan(from.y)
+    // Below the baseline is further along x on a page turned 90.
+    expect(from.x - text(d).lines[0]!.origin.x).toBeCloseTo(1.2)
+  })
+
+  test('a line carries whether it has a character outside the standard fonts', () => {
+    const d = describeFreeText({ ...box, contents: 'Hello\nمرحبا\nA 你' }, context())
+    expect(text(d).lines.map((l) => l.outside)).toEqual([false, true, true])
   })
 
   test("text on a page rotated 90 is laid out across the rect's height and turned upright", () => {
@@ -296,7 +342,7 @@ describe('a callout', () => {
 
   test('adds its leader and head, below the box', () => {
     const d = describeFreeText(callout, context())
-    expect(roles(d)).toEqual(['callout-line', 'ending-head', 'box', 'text'])
+    expect(roles(d)).toEqual(['callout-line', 'ending-head', 'box', 'border', 'text'])
     expect(inner(d)[0]).toEqual({
       kind: 'polyline',
       role: 'callout-line',
@@ -323,7 +369,7 @@ describe('a callout', () => {
 
   test('a callout with no intent stays a plain box', () => {
     expect(roles(describeFreeText({ ...callout, intent: undefined }, context()))).toEqual(
-      ['box', 'text']
+      ['box', 'border', 'text']
     )
   })
 })

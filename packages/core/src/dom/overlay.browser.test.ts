@@ -1,5 +1,6 @@
 import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { page as browserPage } from 'vitest/browser'
 
 import { template } from '../messages'
 import standardCallout from '../model/annotations/__fixtures__/standard-callout.json'
@@ -504,22 +505,18 @@ describe('createOverlay', () => {
     })
     store.add({ type: 'text', page: 0, rect: { x: 400, y: 400, width: 20, height: 20 } })
     // Descendants carry no inline style, except `pointer-events` on the HTML children the
-    // overlay creates, the geometry of the text box's press area, and the text style of a drawn
-    // line of text (no kerning, spaces kept), which the browser has no attribute for.
+    // overlay creates, and the style of a drawn line of text and its underline (no kerning, spaces
+    // kept, font and colour), which keeps a host's rules off them.
     for (const node of overlay.element.querySelectorAll('[data-annotation] *')) {
       const style = node.getAttribute('style')
       if (style === null) continue
       if (node instanceof SVGTextElement) {
-        expect(style).toBe('font-kerning:none;white-space:pre')
+        expect(style).toMatch(/^font-kerning:none;white-space:pre;font-family:/)
         continue
       }
       expect(node).toBeInstanceOf(HTMLElement)
       const rest = style.replace(/--ink-[\w-]+:[^;]*;\s*/g, '').trim()
-      if (node.matches('.ink-free-text')) {
-        expect(rest).toMatch(
-          /^position: absolute; left: [\d.]+px; top: [\d.]+px; width: [\d.]+px; height: [\d.]+px; pointer-events: auto;$/
-        )
-      } else expect(rest).toBe('pointer-events: auto;')
+      expect(rest).toBe('pointer-events: auto;')
     }
     expect(el.style.cssText).toMatch(
       /^position: absolute; left: [\d.]+px; top: [\d.]+px; width: [\d.]+px; height: [\d.]+px; pointer-events: none;$/
@@ -545,11 +542,13 @@ describe('createOverlay', () => {
     expect(Number(text.getAttribute('x'))).toBeGreaterThan(100)
     expect(text.getAttribute('font-family')).toBe(FONT_STACKS.Helvetica)
     expect(text.getAttribute('fill')).toBe(staticDefaults.color('freetext'))
-    // Nothing for CSS to style: no custom properties, no attributes the theme read.
-    const hit = el.querySelector<HTMLElement>('.ink-free-text')!
-    expect(hit.getAttribute('style')).not.toContain('--ink-')
-    expect(hit.textContent).toBe('')
-    expect(hit.dataset.align).toBeUndefined()
+    // Nothing for CSS to style: no custom properties, no attributes the theme read, and the
+    // press area is an svg shape with inline paint, not an HTML box a host rule could fill.
+    expect(el.querySelector('.ink-free-text')).toBeNull()
+    const area = el.querySelector('[data-ink-text-area]')!
+    expect(area.localName).toBe('rect')
+    expect(area.getAttribute('fill')).toBe('transparent')
+    expect(el.hasAttribute('data-align')).toBe(false)
   })
 
   it('freetext draws fill, border, dashes and defaultStyle (bold, italic, underline) from the annotation', () => {
@@ -573,8 +572,13 @@ describe('createOverlay', () => {
       },
     })
     const el = overlay.elementFor(a.id)!
-    const rect = el.querySelector('rect[data-ink-part="box"]')!
-    expect(rect.getAttribute('fill')).toBe('#FFFF00')
+    const fill = el.querySelector('rect[data-ink-part="box"]')!
+    // The fill covers the whole box, with its own radius, under the border.
+    expect(fill.getAttribute('fill')).toBe('#FFFF00')
+    expect(fill.getAttribute('x')).toBe('0')
+    expect(fill.getAttribute('rx')).toBe('8')
+    expect(fill.hasAttribute('stroke')).toBe(false)
+    const rect = el.querySelector('rect[data-ink-part="border"]')!
     expect(rect.getAttribute('stroke')).toBe('#FF0000')
     // Zoom 2: a 2 pt border is 4 px, drawn inside the box, so the rect is inset by 2 px.
     expect(rect.getAttribute('stroke-width')).toBe('4')
@@ -600,7 +604,7 @@ describe('createOverlay', () => {
     const p = overlay.elementFor(plain.id)!
     const box = p.querySelector('rect[data-ink-part="box"]')!
     expect(box.getAttribute('fill')).toBe('none')
-    expect(box.hasAttribute('stroke')).toBe(false)
+    expect(p.querySelector('rect[data-ink-part="border"]')).toBeNull()
     const t = p.querySelector('g[data-ink-part="text"] > text')!
     expect(t.getAttribute('font-weight')).toBe('normal')
     expect(t.getAttribute('font-style')).toBe('normal')
@@ -618,7 +622,7 @@ describe('createOverlay', () => {
     expect(
       overlay
         .elementFor(bordered.id)!
-        .querySelector('rect[data-ink-part="box"]')!
+        .querySelector('rect[data-ink-part="border"]')!
         .getAttribute('stroke')
     ).toBe('#00FF00')
   })
@@ -661,10 +665,10 @@ describe('createOverlay', () => {
     expect(ending.getAttribute('d')).not.toBe('')
     expect(ending.getAttribute('fill')).toBe('none')
 
-    const text = el.querySelector('.ink-free-text') as HTMLElement
+    const text = el.querySelector('[data-ink-text-area]') as HTMLElement
     // The box is outlined at 1 pt, as the fixture PDF's appearance strokes it.
     expect(
-      el.querySelector('rect[data-ink-part="box"]')!.getAttribute('stroke-width')
+      el.querySelector('rect[data-ink-part="border"]')!.getAttribute('stroke-width')
     ).toBe(String(t.toCssLength(1)))
     const at = text.getBoundingClientRect()
     const origin = host.getBoundingClientRect()
@@ -681,7 +685,9 @@ describe('createOverlay', () => {
     )
     const box2 = text.getBoundingClientRect()
     expect(
-      document.elementFromPoint(box2.left + 4, box2.top + 4)?.closest('.ink-free-text')
+      document
+        .elementFromPoint(box2.left + 4, box2.top + 4)
+        ?.closest('[data-ink-text-area]')
     ).toBe(text)
     const empty = t.toCss({ x: 270, y: 530 })
     expect(
@@ -793,15 +799,13 @@ describe('createOverlay', () => {
     expect(drawn.map((c) => c.localName)).toEqual(['path', 'g'])
     expect(drawn[1]!.getAttribute('data-ink-part')).toBe('text')
     expect(drawn[1]!.querySelector('text')!.textContent).toBe('Hi')
-    // The press area is a later sibling, so it takes presses above the outline.
+    // The press area is in a later sibling svg, so it takes presses above the outline.
     const [first, second] = [...el.children]
     expect(first!.tagName.toLowerCase()).toBe('svg')
-    expect(second).toBe(el.querySelector('.ink-free-text'))
+    expect(second!.querySelector('[data-ink-text-area]')).not.toBeNull()
     // The path reaches the tip (6, 24 px below the box's bottom edge in css).
     const d = paths[0]!.getAttribute('d')!
     expect(d).toContain('6 84')
-    // The press area draws neither fill nor border: the path does.
-    expect((second as HTMLElement).dataset.border).toBeUndefined()
   })
 
   describe('text boxes drawn from the annotation', () => {
@@ -847,7 +851,7 @@ describe('createOverlay', () => {
     it('a dashed box border follows the annotation dashes at any zoom', () => {
       const { el } = drawn(text({ width: 2, dashes: [4, 2] }), 2)
       expect(
-        el.querySelector('rect[data-ink-part="box"]')!.getAttribute('stroke-dasharray')
+        el.querySelector('rect[data-ink-part="border"]')!.getAttribute('stroke-dasharray')
       ).toBe('8 4')
     })
 
@@ -883,17 +887,42 @@ describe('createOverlay', () => {
       })
     })
 
-    it('a host rule on .ink-free-text no longer restyles the text', () => {
+    it('host rules on .ink-free-text and on the text elements no longer restyle or cover the text', async () => {
       const style = document.createElement('style')
-      style.textContent =
-        '.ink-free-text { color: red !important; font-size: 40px !important; background: red !important }'
+      style.textContent = `
+        .ink-free-text { color: red !important; font-size: 40px !important; background: red !important; border: 4px solid red !important }
+        [data-type=freetext] text { font-family: cursive; fill: red; font-size: 40px }
+        [data-type=freetext] line { stroke: red }`
       document.head.append(style)
       cleanup.push(() => style.remove())
-      const { el } = drawn(text({}, { color: '#0000FF' }))
+      const { el, host } = drawn(
+        text({ contents: 'Hello' }, { color: '#0000FF', textDecoration: 'underline' })
+      )
       const t = el.querySelector('g[data-ink-part="text"] > text')!
       expect(t.getAttribute('fill')).toBe('#0000FF')
       expect(t.getAttribute('font-size')).toBe('12')
-      expect(getComputedStyle(t).fill).toBe('rgb(0, 0, 255)')
+      const cs = getComputedStyle(t)
+      expect(cs.fill).toBe('rgb(0, 0, 255)')
+      expect(cs.fontSize).toBe('12px')
+      expect(cs.fontFamily).toBe(FONT_STACKS.Helvetica)
+      expect(getComputedStyle(el.querySelector('line')!).stroke).toBe('rgb(0, 0, 255)')
+      // Nothing a host rule on that class matches sits over the text: the pixel at the box's
+      // corner, which no glyph reaches, is the page's white.
+      host.style.background = '#fff'
+      const png = await browserPage.screenshot({ element: host, save: false })
+      const bitmap = await createImageBitmap(
+        new Blob([Uint8Array.from(atob(png), (c) => c.charCodeAt(0))], {
+          type: 'image/png',
+        })
+      )
+      const canvas = document.createElement('canvas')
+      canvas.width = bitmap.width
+      canvas.height = bitmap.height
+      const ctx = canvas.getContext('2d', { willReadFrequently: true })!
+      ctx.drawImage(bitmap, 0, 0)
+      // Box {100, 600, 200 x 60}: css left 100, top 792 - 660 = 132.
+      const [r, g, b] = ctx.getImageData(103, 135, 1, 1).data
+      expect([r, g, b]).toEqual([255, 255, 255])
     })
 
     it('a bubble below full opacity is one group: outline and text together', () => {
