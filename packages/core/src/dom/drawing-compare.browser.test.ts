@@ -1592,7 +1592,8 @@ describe('comparePaint for notes', () => {
     ],
     [
       'the shadow missing',
-      (el) => ((el.querySelector('.ink-note-icon') as SVGElement).style.filter = 'none'),
+      (el) =>
+        ((el.querySelector('svg[data-ink-note]') as SVGElement).style.filter = 'none'),
     ],
   ]
   for (const [name, mutate] of controls) {

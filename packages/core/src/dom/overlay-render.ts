@@ -541,6 +541,8 @@ function appendTextChrome(
 function appendNoteHit(svg: Element, a: NoteAnnotation, t: PageTransform): void {
   const box = annotationBox(a, t)
   svg.querySelector(':scope > .ink-note-icon')?.setAttribute('data-icon', a.icon)
+  // The theme puts the note's shadow on the svg, which follows what is drawn in it.
+  svg.setAttribute('data-ink-note', '')
   const hit = svg.ownerDocument.createElementNS(SVG, 'rect')
   hit.setAttribute('x', '0')
   hit.setAttribute('y', '0')

@@ -598,8 +598,9 @@
     outline-style: dotted;
   }
 
-  /* A note is drawn in its own colour; the screen adds a shadow that follows its shape. */
-  :where(.ink-note-icon) {
+  /* A note is drawn in its own colour; the screen adds a shadow that follows its shape. The
+     filter is on the note's outer svg, which WebKit filters reliably, not on a shape inside. */
+  :where(.ink-annotation > svg[data-ink-note]) {
     filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.3));
   }
 
@@ -1205,7 +1206,7 @@
 
   /* A note's icon fills its box instead of keeping its on-page size; comment glyphs, which keep
      a fixed size at every zoom, would cover a small page, so they are left out. */
-  :where(.ink-thumbnail-annotation .ink-note-icon) {
+  :where(.ink-thumbnail-annotation > svg[data-ink-note]) {
     filter: none;
   }
 

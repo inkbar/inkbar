@@ -63,7 +63,7 @@ Set these variables on `[data-ink-root]` to change the default colour for new an
 | Variable                                                                  | Used for                    |
 | ------------------------------------------------------------------------- | --------------------------- |
 | `--ink-highlight`, `--ink-underline`, `--ink-strikeout`, `--ink-squiggly` | Text markup                 |
-| `--ink-note`, `--ink-free-text`                                           | Notes and text boxes        |
+| `--ink-note`, `--ink-free-text`                                           | New notes and text boxes    |
 | `--ink-shape`, `--ink-ink`                                                | Shapes and freehand drawing |
 | `--ink-redact`, `--ink-redact-fill`                                       | Redaction outline and fill  |
 | `--ink-mask`                                                              | Masks                       |

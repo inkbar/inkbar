@@ -18,6 +18,7 @@ import { renderRegion } from '../pdfjs/render-region'
 
 import { createMessageState } from './messages-state'
 import { createOverlay, type OverlayOptions } from './overlay'
+import { renderAnnotationContent } from './overlay-render'
 import { createPageMount } from './page-mount'
 import { mountContainer, openFixtureInBrowser, TEXT_LAYER_CSS } from './test-utils'
 import { FONT_STACKS } from './text-fonts'
@@ -2554,15 +2555,27 @@ describe('notes', () => {
     expect(getComputedStyle(hit).fill).toBe('rgba(0, 0, 0, 0)')
   })
 
-  it('keeps the shadow, once, on the shape it draws', () => {
+  it('keeps the shadow, once, on the note’s own svg', () => {
     const { store, el } = noted({ zoom: 2 })
     const note = store.add({ type: 'text', page: 0, rect, icon: 'Check' })
     const filtered = [el(note.id), ...el(note.id).querySelectorAll('*')].filter(
       (n) => getComputedStyle(n).filter !== 'none'
     )
     expect(filtered).toHaveLength(1)
-    expect(filtered[0]).toBe(el(note.id).querySelector('path.ink-note-icon'))
+    expect(filtered[0]).toBe(el(note.id).querySelector(':scope > svg[data-ink-note]'))
     expect(getComputedStyle(filtered[0]!).filter).toMatch(/drop-shadow/)
+  })
+
+  it('marks the svg only while the element holds a note', () => {
+    const { store, el } = noted()
+    const note = store.add({ type: 'text', page: 0, rect, icon: 'Comment' })
+    const node = el(note.id)
+    expect(node.querySelector('svg[data-ink-note]')).not.toBeNull()
+    // The element is reused when a type changes: draw another type into it.
+    const square = store.add({ type: 'square', page: 0, rect, width: 2 })
+    renderAnnotationContent(node, store.get(square.id)!, createPageTransform(page, 1, 0))
+    expect(node.querySelector('svg[data-ink-note]')).toBeNull()
+    expect(getComputedStyle(node.querySelector('svg')!).filter).toBe('none')
   })
 
   it('turns its glyph with the view', () => {
