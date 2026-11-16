@@ -396,6 +396,13 @@ describe('the --ink-thumbnail-width token', () => {
     expect(el.style.width).toBe('160px')
   })
 
+  it('reads the px unit in any case', () => {
+    const el = root('160PX').appendChild(document.createElement('div'))
+    const painter = createThumbnailPainter(el, { document: writable(null) }, { page: 0 })
+    cleanup.push(() => painter.destroy())
+    expect(el.style.width).toBe('160px')
+  })
+
   it('lets a given width or height win over the token', async () => {
     const viewer = await viewerWith()
     const box = root('160px')

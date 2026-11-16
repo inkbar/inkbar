@@ -41,7 +41,7 @@ import type { PluginHost } from '../plugins/host'
 export const THUMBNAIL_WIDTH = 120
 
 /** A positive length in px, such as `160px` or `96.5px`. */
-const PX = /^\s*(\d+(?:\.\d+)?|\.\d+)px\s*$/
+const PX = /^\s*(\d+(?:\.\d+)?|\.\d+)px\s*$/i
 
 /**
  * `--ink-thumbnail-width` in CSS pixels as computed on `el` (the token inherits from the root
@@ -77,7 +77,7 @@ export interface ThumbnailOptions {
   page: number
   /**
    * Width in CSS pixels; the height follows the page's shape. Wins over `height`. With neither,
-   * `--ink-thumbnail-width` as computed on the element (px only), else `THUMBNAIL_WIDTH`.
+   * `--ink-thumbnail-width` as computed on the element (positive px only), else `THUMBNAIL_WIDTH`.
    */
   width?: number | undefined
   /** Height in CSS pixels, used when `width` is absent; the width follows the page's shape. */

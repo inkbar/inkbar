@@ -59,7 +59,7 @@ export interface ThumbnailsOptions {
   pages?: readonly number[] | undefined
   /**
    * Thumbnail width in CSS pixels. Default: `--ink-thumbnail-width` as computed on the list
-   * (px values only), capped at the list's width less a 16px gutter on each side. With the
+   * (positive px values only), capped at the list's width less a 16px gutter on each side. With the
    * token unset, as the theme leaves it, that fit itself. Both follow the list as it resizes.
    * Before the list is attached and shown there is no fit: the token, else `THUMBNAIL_WIDTH`.
    */
