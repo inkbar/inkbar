@@ -36,4 +36,10 @@ export const FUNCTIONS = {
   },
 } as const satisfies Record<string, { args: readonly Kind[]; ret: Kind }>
 
-export type Native = { [K in keyof typeof FUNCTIONS]: (...args: number[]) => number }
+type Returned<R extends Kind> = R extends 'void' ? void : number
+
+export type Native = {
+  [K in keyof typeof FUNCTIONS]: (
+    ...args: number[]
+  ) => Returned<(typeof FUNCTIONS)[K]['ret']>
+}
