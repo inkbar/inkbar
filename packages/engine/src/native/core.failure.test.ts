@@ -27,17 +27,24 @@ async function trapping(name: keyof Native, message = 'unreachable', trapAt = 1)
   const native = await loadNative({ wasm })
   const calls: string[] = []
   let count = 0
+  let trapped = false
+  const trap = new WebAssembly.RuntimeError(message)
   const fn = new Proxy(native.fn, {
     get(target, key: keyof Native) {
       const real = target[key]
       return (...args: number[]) => {
         calls.push(key)
-        if (key === name && ++count >= trapAt) throw new WebAssembly.RuntimeError(message)
+        // A second trap in cleanup would replace the first error.
+        if (trapped) throw new WebAssembly.RuntimeError('second trap')
+        if (key === name && ++count >= trapAt) {
+          trapped = true
+          throw trap
+        }
         return real(...args)
       }
     },
   })
-  return { native: withFunctions(native, fn), calls }
+  return { native: withFunctions(native, fn), calls, trap }
 }
 
 test('a trap is an engine-failure with the trap as its cause', async () => {
@@ -52,6 +59,39 @@ test('a trap is an engine-failure with the trap as its cause', async () => {
   expect(error).toMatchObject({ name: 'EngineError', code: 'engine-failure' })
   expect((error as Error).cause).toBeInstanceOf(WebAssembly.RuntimeError)
 })
+
+test.each([
+  ['open', 'FPDF_GetPageCount'],
+  ['pageInfo', 'FPDF_GetPageWidthF'],
+  ['render', 'FPDF_RenderPageBitmap'],
+  ['save', 'INK_WriterSize'],
+] as const)(
+  'a trap in %s makes no native call afterwards and the caller sees the trap',
+  async (operation, name) => {
+    const { native, calls, trap } = await trapping(name)
+    const core = new EngineCore(native)
+    const id = operation === 'open' ? 0 : core.open(bytes).id
+    const run = {
+      open: () => core.open(bytes),
+      pageInfo: () => core.pageInfo(id, 0),
+      render: () => core.renderPage(id, 0, 1),
+      save: () => core.save(id, 'rewrite'),
+    }[operation]
+    let error: unknown
+    try {
+      run()
+    } catch (caught) {
+      error = caught
+    }
+    expect(error).toMatchObject({ name: 'EngineError', code: 'engine-failure' })
+    expect((error as Error).cause).toBe(trap)
+    expect(calls.at(-1)).toBe(name)
+    expect(core.stopped).toBe(true)
+    expect(() => core.close(id)).not.toThrow()
+    expect(() => core.destroy()).not.toThrow()
+    expect(calls.at(-1)).toBe(name)
+  }
+)
 
 test.each(['Aborted(OOM)', 'Cannot enlarge memory arrays to size 16777216 bytes'])(
   'an allocation abort (%s) is out-of-memory',
@@ -136,6 +176,14 @@ test('core and API use one message for a closed document', async () => {
   core.close(id)
   expect(() => core.pageInfo(id, 0)).toThrow('The document is closed.')
   core.destroy()
+
+  const engine = engineOver(
+    new InThreadTransport(new EngineCore(await loadNative({ wasm })))
+  )
+  const doc = await engine.open(bytes)
+  await doc.close()
+  await expect(doc.pageInfo(0)).rejects.toThrow('The document is closed.')
+  await engine.destroy()
 })
 
 /** A module whose `name` throws `error` instead of running. */

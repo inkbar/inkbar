@@ -1,6 +1,9 @@
 import { EngineError, fromPdfiumError } from '../errors.ts'
 
+import { FUNCTIONS } from './functions.ts'
+
 import type { OpenOptions, PageInfo, RenderedPage, SaveMode } from '../types.ts'
+import type { Native } from './functions.ts'
 import type { NativeModule } from './module.ts'
 
 const BITMAP_BGRA = 4
@@ -49,6 +52,8 @@ interface OpenDocument {
 
 export class EngineCore {
   readonly #native: NativeModule
+  /** The module's functions. A throw out of one is a trap: it stops the engine at once. */
+  readonly #fn: Native
   readonly #documents = new Map<number, OpenDocument>()
   #nextId = 1
   #destroyed = false
@@ -56,8 +61,20 @@ export class EngineCore {
 
   constructor(native: NativeModule) {
     this.#native = native
+    const fn: Record<string, (...args: number[]) => unknown> = {}
+    for (const name of Object.keys(FUNCTIONS) as (keyof Native)[])
+      fn[name] = (...args) => {
+        try {
+          return native.fn[name](...args)
+        } catch (error) {
+          // Cleanup that runs while the error unwinds must not call into the module again.
+          this.#stopped = true
+          throw error
+        }
+      }
+    this.#fn = fn as unknown as Native
     try {
-      native.fn.INK_Init()
+      this.#fn.INK_Init()
     } catch (error) {
       throw internalError(error)
     }
@@ -84,7 +101,7 @@ export class EngineCore {
   }
 
   #open(bytes: Uint8Array, options: OpenOptions): { id: number; pageCount: number } {
-    const { fn } = this.#native
+    const fn = this.#fn
     const data = fn.malloc(Math.max(bytes.length, 1))
     if (data === 0)
       throw new EngineError('out-of-memory', 'The engine ran out of memory.')
@@ -96,7 +113,7 @@ export class EngineCore {
       try {
         doc = fn.FPDF_LoadMemDocument64(data, bytes.length, password)
       } finally {
-        if (password !== 0) fn.free(password)
+        if (password !== 0 && !this.#stopped) fn.free(password)
       }
       if (doc === 0) throw fromPdfiumError(fn.FPDF_GetLastError(), hadPassword)
       const pageCount = fn.FPDF_GetPageCount(doc)
@@ -106,8 +123,8 @@ export class EngineCore {
       this.#documents.set(id, { doc, data, pageCount })
       return { id, pageCount }
     } catch (error) {
-      // A trap leaves the heap unusable; otherwise free what is not registered yet.
-      if (isOwnError(error)) {
+      // After a trap the heap is unusable; otherwise free what is not registered yet.
+      if (!this.#stopped) {
         if (doc !== 0) fn.FPDF_CloseDocument(doc)
         fn.free(data)
       }
@@ -120,7 +137,7 @@ export class EngineCore {
     this.#checkIndex(entry, index)
     return this.#guard(() =>
       this.#withPage(entry, index, (page) => {
-        const { fn } = this.#native
+        const fn = this.#fn
         const width = fn.FPDF_GetPageWidthF(page)
         const height = fn.FPDF_GetPageHeightF(page)
         const rotation = (((fn.FPDFPage_GetRotation(page) % 4) + 4) % 4) * 90
@@ -145,7 +162,7 @@ export class EngineCore {
 
   #render(entry: OpenDocument, index: number, scale: number): RenderedPage {
     return this.#withPage(entry, index, (page) => {
-      const { fn } = this.#native
+      const fn = this.#fn
       const width = Math.ceil(fn.FPDF_GetPageWidthF(page) * scale)
       const height = Math.ceil(fn.FPDF_GetPageHeightF(page) * scale)
       if (width < 1 || height < 1 || width * height > MAX_PIXELS)
@@ -177,7 +194,7 @@ export class EngineCore {
           }
         return { width, height, data }
       } finally {
-        fn.FPDFBitmap_Destroy(bitmap)
+        if (!this.#stopped) fn.FPDFBitmap_Destroy(bitmap)
       }
     })
   }
@@ -188,7 +205,7 @@ export class EngineCore {
   }
 
   #save(entry: OpenDocument, mode: SaveMode): Uint8Array {
-    const { fn } = this.#native
+    const fn = this.#fn
     const writer = fn.INK_Save(entry.doc, SAVE_FLAGS[mode])
     if (writer === 0)
       throw new EngineError('engine-failure', 'The document could not be saved.')
@@ -197,7 +214,7 @@ export class EngineCore {
       const size = fn.INK_WriterSize(writer)
       return this.#native.HEAPU8.slice(data, data + size)
     } finally {
-      fn.INK_WriterFree(writer)
+      if (!this.#stopped) fn.INK_WriterFree(writer)
     }
   }
 
@@ -208,8 +225,8 @@ export class EngineCore {
     this.#documents.delete(id)
     if (this.#stopped) return
     this.#guard(() => {
-      this.#native.fn.FPDF_CloseDocument(entry.doc)
-      this.#native.fn.free(entry.data)
+      this.#fn.FPDF_CloseDocument(entry.doc)
+      this.#fn.free(entry.data)
     })
   }
 
@@ -222,7 +239,7 @@ export class EngineCore {
       try {
         for (const id of [...this.#documents.keys()]) this.close(id)
         this.#guard(() => {
-          this.#native.fn.INK_Destroy()
+          this.#fn.INK_Destroy()
         })
       } catch {
         // The guard has marked the core stopped; nothing more can be freed safely.
@@ -257,7 +274,7 @@ export class EngineCore {
   }
 
   #withPage<T>(entry: OpenDocument, index: number, use: (page: number) => T): T {
-    const { fn } = this.#native
+    const fn = this.#fn
     const page = fn.FPDF_LoadPage(entry.doc, index)
     if (page === 0)
       throw new EngineError('engine-failure', `Page ${index} could not be loaded.`, {
@@ -266,13 +283,13 @@ export class EngineCore {
     try {
       return use(page)
     } finally {
-      fn.FPDF_ClosePage(page)
+      if (!this.#stopped) fn.FPDF_ClosePage(page)
     }
   }
 
   #allocString(text: string): number {
     const size = this.#native.lengthBytesUTF8(text) + 1
-    const ptr = this.#native.fn.malloc(size)
+    const ptr = this.#fn.malloc(size)
     if (ptr === 0) throw new EngineError('out-of-memory', 'The engine ran out of memory.')
     this.#native.stringToUTF8(text, ptr, size)
     return ptr
