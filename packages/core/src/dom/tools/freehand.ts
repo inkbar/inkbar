@@ -2,7 +2,8 @@
 // samples come from coalesced pointer events where the browser has them, with pen and touch
 // pressure, and a live preview paints the stroke as the ink it will become. The tool decides
 // what a finished stroke writes.
-import { outlinePath, strokeOutline } from '../ink-stroke'
+import { inkOutline } from '../../model/annotations/drawing/ink'
+import { outlinePath } from '../ink-stroke'
 
 import {
   clampedCssIn,
@@ -126,7 +127,7 @@ export function freehandTool(opts: FreehandOptions): Tool {
       // Shaped in points, as the committed stroke is, then moved to the screen: the preview
       // and the annotation are one shape at every zoom.
       outlinePath(
-        strokeOutline(s.user, s.pressure, style.width ?? 2).map((p) =>
+        inkOutline(s.user, s.pressure, style.width ?? 2).map((p) =>
           s.from.transform.toCss(p)
         )
       )

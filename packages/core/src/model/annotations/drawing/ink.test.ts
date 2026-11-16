@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
-import { describeInk, strokeOutline } from './ink'
+import { describeInk, inkOutline } from './ink'
 
 import type { InkAnnotation } from '../types'
 import type { DrawItem } from './types'
@@ -95,11 +95,19 @@ describe('describeInk', () => {
   })
 
   test('an empty inklist describes with finite bounds and nothing drawn', () => {
-    for (const inklist of [[], [[]]]) {
-      const d = describeInk({ ...ink, inklist })
-      expect(numbers(d).every(Number.isFinite)).toBe(true)
-      expect(d.items).toEqual([{ kind: 'group', opacity: 1, items: [] }])
-    }
+    const d = describeInk({ ...ink, inklist: [] })
+    expect(d.bounds).toEqual({ x: 100, y: 500, width: 0, height: 0 })
+    expect(d.items).toEqual([{ kind: 'group', opacity: 1, items: [] }])
+  })
+
+  test('an empty stroke is a path with no commands, and does not disturb the bounds', () => {
+    const d = describeInk({ ...ink, inklist: [[], run(510)] })
+    expect(numbers(d).every(Number.isFinite)).toBe(true)
+    expect(paths({ ...ink, inklist: [[], run(510)] })[0]!.commands).toEqual([])
+    expect(d.bounds.width).toBeGreaterThan(90)
+    const only = describeInk({ ...ink, inklist: [[]] })
+    expect(numbers(only).every(Number.isFinite)).toBe(true)
+    expect(only.bounds.width).toBe(0)
   })
 
   test('bounds hold every outline point', () => {
@@ -116,20 +124,20 @@ describe('describeInk', () => {
   })
 })
 
-describe('strokeOutline', () => {
+describe('inkOutline', () => {
   test('a one-point stroke is a round dot as wide as the stroke', () => {
-    const dot = strokeOutline([{ x: 150, y: 510 }], undefined, 6)
+    const dot = inkOutline([{ x: 150, y: 510 }], undefined, 6)
     const xs = dot.map((p) => p.x)
     const ys = dot.map((p) => p.y)
-    // perfect-freehand stretches a lone point by (1, 1) of its own units: an elongated dot
-    // 7 wide, unless the input is scaled up first.
+    // perfect-freehand adds a second point at +(1, 1) to a lone point: a capsule about 0.8
+    // units longer than wide, unless the input is scaled up first.
     expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(6, 1)
     expect(Math.max(...ys) - Math.min(...ys)).toBeCloseTo(6, 1)
   })
 
   test('is the outline the describer uses', () => {
     const pts = run(510)
-    const outline = strokeOutline(pts, undefined, 4)
+    const outline = inkOutline(pts, undefined, 4)
     const first = paths({ ...ink, inklist: [pts] })[0]!
     expect(first.commands.length).toBe(outline.length + 1)
   })

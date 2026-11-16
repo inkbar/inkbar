@@ -5,20 +5,21 @@ import type { InkAnnotation } from '../types'
 import type { DrawItem, Drawing, PathCommand } from './types'
 
 /**
- * `perfect-freehand` has two absolute lengths of its own: a one-point stroke is stretched by
- * (1, 1), and the last 3 units of a stroke lose their sample points. Counted in points they
- * would reshape a stroke with the zoom it was drawn at, and a stroke here is described once,
- * for every zoom. The input is scaled up by this factor and the outline scaled back down, which
- * leaves both lengths a fraction of a point (a dot stays round) and every other option, all
- * relative to the width, as it was.
+ * `perfect-freehand` has two absolute lengths of its own: a one-point stroke gets a second
+ * point at +(1, 1), and the last 3 units of a stroke lose their sample points. Counted in
+ * points they would reshape a stroke with the zoom it was drawn at, and a stroke here is
+ * described once, for every zoom. The input is scaled up by this factor and the outline
+ * scaled back down, which leaves both lengths a fraction of a point (a dot stays round) and
+ * every other option, all relative to the width, as it was.
  */
 const SCALE = 64
 
 /**
- * The polygon around a stroke. `width` is the stroke width, in the points' own unit; without
- * `pressure` the line keeps an even width.
+ * The polygon around a stroke in points: `width` is in points; without `pressure` the line
+ * keeps an even width. Used for described ink and the live preview, and nothing else: the
+ * signature pad and the reference renderer use `strokeOutline` in `dom/ink-stroke`.
  */
-export function strokeOutline(
+export function inkOutline(
   points: readonly Point[],
   pressure: readonly number[] | undefined,
   width: number
@@ -44,15 +45,18 @@ export function describeInk(a: InkAnnotation): Drawing {
   const items: DrawItem[] = []
   const all: Point[] = []
   a.inklist.forEach((stroke, i) => {
-    if (stroke.length === 0) return
-    const outline = strokeOutline(stroke, a.pressure?.[i], a.width)
-    if (outline.length === 0) return
+    // A stroke with nothing to outline is still an item with no commands: the overlay draws an
+    // empty path for it, as it always has.
+    const outline =
+      stroke.length === 0 ? [] : inkOutline(stroke, a.pressure?.[i], a.width)
     all.push(...outline)
-    const commands: PathCommand[] = outline.map((to, j) => ({
-      op: j === 0 ? 'M' : 'L',
-      to,
-    }))
-    commands.push({ op: 'Z' })
+    const commands: PathCommand[] =
+      outline.length === 0
+        ? []
+        : [
+            ...outline.map((to, j): PathCommand => ({ op: j === 0 ? 'M' : 'L', to })),
+            { op: 'Z' },
+          ]
     items.push({
       kind: 'path',
       role: 'stroke',
