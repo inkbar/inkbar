@@ -2,3 +2,5 @@ pnpm-lock.yaml
 .superpowers
 .svelte-kit
 CHANGELOG.md
+packages/engine/vendor
+packages/engine/THIRD-PARTY-NOTICES
