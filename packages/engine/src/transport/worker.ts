@@ -87,43 +87,73 @@ class WorkerTransport implements Transport {
   }
 }
 
+/** Longest the worker may take to answer its first message. */
+const START_TIMEOUT_MS = 60_000
+
 export async function createWorkerTransport(
   worker: Worker,
-  wasm: string | URL | Uint8Array
+  wasm: string | URL | Uint8Array,
+  // Internal: `url` names the worker script in errors; `startTimeout` is shortened by tests.
+  options: { url?: string | undefined; startTimeout?: number } = {}
 ): Promise<Transport> {
   const transport = new WorkerTransport(worker)
-  // The worker's base URL can differ from the page's.
-  const source =
-    wasm instanceof Uint8Array ? wasm : new URL(wasm, globalThis.location?.href).href
-  const where = wasm instanceof Uint8Array ? 'the supplied bytes' : String(source)
+  const named = options.url === undefined ? '' : ` at ${options.url}`
+  let source: string | Uint8Array
+  try {
+    // The worker's base URL can differ from the page's.
+    source =
+      wasm instanceof Uint8Array ? wasm : new URL(wasm, globalThis.location?.href).href
+  } catch (cause) {
+    worker.terminate()
+    throw failure(`The engine's wasm URL ${String(wasm)} is not valid.`, cause)
+  }
+  const where = wasm instanceof Uint8Array ? 'the supplied bytes' : source.toString()
+  let started = false
 
   await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      fail(failure(`The engine worker${named} did not start in time.`))
+    }, options.startTimeout ?? START_TIMEOUT_MS)
     const fail = (error: EngineError) => {
+      clearTimeout(timer)
       transport.fail(error)
       reject(error)
     }
     worker.addEventListener('message', (event: MessageEvent<FromWorker>) => {
       const message = event.data
       if ('type' in message) {
-        if (message.type === 'ready') resolve()
-        else
+        if (message.type === 'ready') {
+          started = true
+          clearTimeout(timer)
+          resolve()
+        } else
           fail(
             new EngineError(
               'engine-failure',
-              `Could not load the PDF engine from ${where}.`,
+              started
+                ? 'The engine worker could not read a request.'
+                : `Could not load the PDF engine from ${where}.`,
               { cause: fromWire(message.error) }
             )
           )
       } else transport.handle(message)
     })
     worker.addEventListener('error', (event) => {
-      fail(failure(`The engine worker failed: ${event.message || 'it could not start'}.`))
+      fail(
+        failure(
+          `The engine worker${named} failed: ${event.message || 'it could not be loaded or started'}.`
+        )
+      )
     })
     worker.addEventListener('messageerror', () => {
       fail(failure('The engine worker sent a message that could not be read.'))
     })
     const init: ToWorker = { type: 'init', wasm: source }
-    worker.postMessage(init)
+    try {
+      worker.postMessage(init)
+    } catch (cause) {
+      fail(failure('Could not start the engine worker.', cause))
+    }
   })
   return transport
 }

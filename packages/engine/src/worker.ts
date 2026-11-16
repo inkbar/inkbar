@@ -11,6 +11,7 @@ const scope = self as unknown as {
     type: 'message',
     listener: (event: MessageEvent<ToWorker>) => void
   ): void
+  addEventListener(type: 'messageerror', listener: () => void): void
 }
 
 function toWire(error: unknown): WireError {
@@ -59,4 +60,13 @@ scope.addEventListener('message', (event) => {
       scope.postMessage({ id, ok: false, error: toWire(error) })
     }
   })()
+})
+
+// A request that cannot be deserialized has no readable id, so it cannot be answered by id.
+// Report a failure the page treats as fatal: it rejects every pending call and terminates us.
+scope.addEventListener('messageerror', () => {
+  scope.postMessage({
+    type: 'failed',
+    error: { code: 'engine-failure', message: 'A request could not be read.' },
+  })
 })

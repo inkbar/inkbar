@@ -4,6 +4,7 @@ import { afterEach, expect, test } from 'vitest'
 import wasm from '../vendor/inkbar-pdfium.wasm?url'
 
 import { createEngine, type Engine, type EngineDocument } from './index.ts'
+import { createWorkerTransport } from './transport/worker.ts'
 
 import type * as Built from './index.ts'
 
@@ -113,10 +114,82 @@ test('a wasm URL that 404s rejects createEngine and names the URL', async () => 
   expect((error as Error).message).toContain('/missing.wasm')
 })
 
-test('a worker script that fails to load rejects createEngine', async () => {
-  await expect(createEngine({ worker: '/no-such-worker.mjs' })).rejects.toMatchObject({
-    code: 'engine-failure',
-  })
+/** Records the workers `createEngine` makes and which of them were terminated. */
+function trackWorkers() {
+  const Original = globalThis.Worker
+  const terminated: Worker[] = []
+  const created: Worker[] = []
+  globalThis.Worker = class extends Original {
+    constructor(...args: ConstructorParameters<typeof Worker>) {
+      super(...args)
+      created.push(this)
+      const terminate = this.terminate.bind(this)
+      this.terminate = () => {
+        terminated.push(this)
+        terminate()
+      }
+    }
+  }
+  return {
+    created,
+    terminated,
+    restore() {
+      globalThis.Worker = Original
+    },
+  }
+}
+
+test('a worker script that 404s rejects createEngine, names the URL and terminates it', async () => {
+  const tracked = trackWorkers()
+  try {
+    const error: unknown = await createEngine({ worker: '/no-such-worker.mjs' }).catch(
+      (reason: unknown) => reason
+    )
+    expect(error).toMatchObject({ code: 'engine-failure' })
+    expect((error as Error).message).toContain('/no-such-worker.mjs')
+    expect(tracked.created).toHaveLength(1)
+    expect(tracked.terminated).toEqual(tracked.created)
+  } finally {
+    tracked.restore()
+  }
+})
+
+test('a worker that never answers rejects after the start-up bound and is terminated', async () => {
+  const url = URL.createObjectURL(new Blob([''], { type: 'text/javascript' }))
+  const silent = new Worker(url, { type: 'module' })
+  let terminated = false
+  const terminate = silent.terminate.bind(silent)
+  silent.terminate = () => {
+    terminated = true
+    terminate()
+  }
+  try {
+    const error: unknown = await createWorkerTransport(silent, wasm, {
+      url,
+      startTimeout: 300,
+    }).catch((reason: unknown) => reason)
+    expect(error).toMatchObject({ code: 'engine-failure' })
+    expect((error as Error).message).toContain('did not start in time')
+    expect((error as Error).message).toContain(url)
+    expect(terminated).toBe(true)
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+})
+
+test('a malformed wasm URL rejects createEngine and terminates the worker', async () => {
+  const tracked = trackWorkers()
+  try {
+    const error: unknown = await createEngine({ worker, wasm: 'http://' }).catch(
+      (reason: unknown) => reason
+    )
+    expect(error).toMatchObject({ code: 'engine-failure' })
+    expect((error as Error).message).toContain('http://')
+    expect(tracked.terminated).toEqual(tracked.created)
+    expect(tracked.created).toHaveLength(1)
+  } finally {
+    tracked.restore()
+  }
 })
 
 test('a worker error rejects every pending call and terminates the worker', async () => {
@@ -177,6 +250,9 @@ test('the built package finds its worker and wasm by default', async () => {
   expect((await doc.renderPage(0)).width).toBe(612)
 })
 
+// Requests made inside the worker do not appear in the page's performance entries, so the wasm
+// fetch is not seen there. The `worker: false` engine below runs the same loading code in the page
+// and covers it.
 test('the engine requests nothing but its wasm and worker', async () => {
   const { createEngine: createBuilt } = await loadBuilt()
   const fixtures = new Set<string>()
