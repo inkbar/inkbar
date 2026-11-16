@@ -28,4 +28,4 @@ body:
     attributes:
       label: Where
       description: The sandbox, or the package and version your app uses.
-      placeholder: e.g. sandbox.inkbar.dev, or @inkbar/vue 0.13.0
+      placeholder: e.g. sandbox.inkbar.dev, or @inkbar/vue 0.14.0
