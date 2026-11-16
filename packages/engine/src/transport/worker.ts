@@ -25,11 +25,13 @@ class WorkerTransport implements Transport {
   readonly #queue = new CallQueue()
   readonly #pending = new Map<number, Pending>()
   #nextId = 1
+  readonly #destroyTimeout: number
   #dead: EngineError | undefined
   #destroying: Promise<void> | undefined
 
-  constructor(worker: Worker) {
+  constructor(worker: Worker, destroyTimeout: number) {
     this.#worker = worker
+    this.#destroyTimeout = destroyTimeout
   }
 
   /** Handles a reply to a request; start-up replies are handled by `createWorkerTransport`. */
@@ -80,25 +82,60 @@ class WorkerTransport implements Transport {
     }, signal)
   }
 
+  /**
+   * Rejects queued calls, waits up to the bound for the running call, then terminates the worker.
+   * A running call that has not answered by then rejects with `aborted`.
+   */
   destroy(): Promise<void> {
-    this.#destroying ??= this.#queue.destroy().then(() => {
-      this.#dead ??= failure('The engine is destroyed.')
-      this.#worker.terminate()
-    })
+    this.#destroying ??= this.#destroy()
     return this.#destroying
+  }
+
+  async #destroy(): Promise<void> {
+    const drained = this.#queue.destroy()
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const timedOut = await Promise.race([
+      drained.then(() => false),
+      new Promise<boolean>((resolve) => {
+        timer = setTimeout(() => {
+          resolve(true)
+        }, this.#destroyTimeout)
+      }),
+    ])
+    clearTimeout(timer)
+    this.#dead ??= failure('The engine is destroyed.')
+    this.#worker.terminate()
+    if (!timedOut) return
+    // Terminating the worker released its documents; settle the call it never answered.
+    const aborted = new EngineError(
+      'aborted',
+      'The call was aborted because the engine was destroyed.'
+    )
+    for (const pending of this.#pending.values()) pending.reject(aborted)
+    this.#pending.clear()
+    await drained
   }
 }
 
 /** Longest the worker may take to answer its first message. */
 const START_TIMEOUT_MS = 60_000
+/** Longest `destroy()` waits for the running call before it terminates the worker. */
+const DESTROY_TIMEOUT_MS = 2_000
 
 export async function createWorkerTransport(
   worker: Worker,
   wasm: string | URL | Uint8Array,
-  // Internal: `url` names the worker script in errors; `startTimeout` is shortened by tests.
-  options: { url?: string | undefined; startTimeout?: number } = {}
+  // Internal: `url` names the worker script in errors; tests shorten the two bounds.
+  options: {
+    url?: string | undefined
+    startTimeout?: number
+    destroyTimeout?: number
+  } = {}
 ): Promise<Transport> {
-  const transport = new WorkerTransport(worker)
+  const transport = new WorkerTransport(
+    worker,
+    options.destroyTimeout ?? DESTROY_TIMEOUT_MS
+  )
   const named = options.url === undefined ? '' : ` at ${options.url}`
   let source: string | Uint8Array
   try {
