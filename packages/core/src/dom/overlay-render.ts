@@ -417,8 +417,34 @@ export function renderAnnotationContent(
   } else renderReferenceContent(el, a, t)
 }
 
-/** The hit twin, edge band and comment marker of a painted annotation. Filled in per type. */
-function renderChrome(_el: HTMLElement, _a: Annotation, _t: PageTransform): void {}
+/** The geometry attributes a hit twin copies from the shape it stands for. */
+const TWIN_GEOMETRY = ['x', 'y', 'width', 'height', 'rx', 'cx', 'cy', 'ry']
+
+/**
+ * The hit twin, edge band and comment marker of a painted annotation: what a press needs and
+ * a drawing does not hold. A stroke-only square or circle gets a wider invisible copy of its
+ * shape; commented text markup gets its marker.
+ */
+function renderChrome(el: HTMLElement, a: Annotation, t: PageTransform): void {
+  if ((a.type === 'square' || a.type === 'circle') && hasHitTwin(a)) {
+    const svg = el.querySelector(':scope > svg')
+    const shape = svg?.lastElementChild
+    if (svg && shape) {
+      const twin = el.ownerDocument.createElementNS(SVG, shape.localName)
+      for (const name of TWIN_GEOMETRY) {
+        const value = shape.getAttribute(name)
+        if (value !== null) twin.setAttribute(name, value)
+      }
+      twin.setAttribute('data-ink-hit-stroke', '')
+      twin.setAttribute('fill', 'none')
+      twin.setAttribute('stroke', 'transparent')
+      twin.setAttribute('stroke-width', String(hitWidth(a, t)))
+      twin.setAttribute('pointer-events', 'stroke')
+      svg.append(twin)
+    }
+  }
+  appendCommentMarker(el, a, t)
+}
 
 /**
  * Whether the page canvas draws `a`, so the overlay gives it only a hit area. PDF.js paints

@@ -79,3 +79,88 @@ describe('comparePaint', () => {
     expect(r.differing).toBe(0)
   })
 })
+
+const rect = { x: 100, y: 400, width: 80, height: 40 }
+// Low on the page, so that turned a quarter at zoom 2 the page's far edge is still inside the
+// test viewport: a capture of anything beyond it comes back blank.
+const twoQuads = [
+  {
+    p1: { x: 72, y: 415 },
+    p2: { x: 300, y: 415 },
+    p3: { x: 72, y: 395 },
+    p4: { x: 300, y: 395 },
+  },
+  {
+    p1: { x: 200, y: 415 },
+    p2: { x: 340, y: 415 },
+    p3: { x: 200, y: 395 },
+    p4: { x: 340, y: 395 },
+  },
+]
+const markupRect = { x: 72, y: 395, width: 268, height: 20 }
+
+const moved: CompareCase[] = [
+  {
+    name: 'highlight with two overlapping quads',
+    annotation: {
+      type: 'highlight',
+      page: 0,
+      rect: markupRect,
+      quads: twoQuads,
+      opacity: 0.4,
+    },
+  },
+  ...(['underline', 'strikeout', 'squiggly'] as const).map((type): CompareCase => ({
+    name: type,
+    annotation: { type, page: 0, rect: markupRect, quads: twoQuads, opacity: 0.8 },
+  })),
+  {
+    name: 'redact with quads',
+    annotation: { type: 'redact', page: 0, rect: markupRect, quads: twoQuads },
+  },
+  { name: 'redact without', annotation: { type: 'redact', page: 0, rect } },
+  { name: 'square plain', annotation: { type: 'square', page: 0, rect, width: 2 } },
+  {
+    name: 'square dashed with radius and fill',
+    annotation: {
+      type: 'square',
+      page: 0,
+      rect,
+      width: 3,
+      dashes: [3, 3],
+      cornerRadius: 6,
+      interiorColor: '#7FB3D5',
+    },
+  },
+  {
+    name: 'circle with fill at half opacity',
+    annotation: {
+      type: 'circle',
+      page: 0,
+      rect,
+      width: 2,
+      interiorColor: '#7FB3D5',
+      opacity: 0.5,
+    },
+  },
+]
+
+describe('comparePaint for the types that have a drawing', () => {
+  for (const c of moved) {
+    for (const rotate of [0, 90] as const) {
+      for (const zoom of [1, 2] as const) {
+        it(`${c.name} at rotate ${rotate} and zoom ${zoom}`, async () => {
+          const r = await comparePaint({ ...c, rotate, zoom })
+          expect(r.differing).toBeLessThanOrEqual(0.005)
+        })
+      }
+    }
+  }
+
+  it('square and circle at zoom 0.5', async () => {
+    for (const c of moved.filter((m) => /square|circle/.test(m.name))) {
+      const r = await comparePaint({ ...c, zoom: 0.5 })
+      expect(r.differing).toBeLessThanOrEqual(0.005)
+    }
+  })
+})
