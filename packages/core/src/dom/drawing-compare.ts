@@ -82,8 +82,9 @@ export interface CompareResult {
    */
   differingBlurred: number
   /**
-   * For each band asked for, the pixels that are not background in it, on each side. Empty when
-   * none were asked for.
+   * For each band asked for, the ink in it on each side: the sum over its pixels of how far each is
+   * from the background, as a fraction (a half-covered pixel counts a half), so it follows how
+   * much is drawn and not how many pixels anti-aliasing touches. Empty when none were asked for.
    */
   bandInk: { reference: number[]; painted: number[] }
   /** Pixels of the reference image that are not background. */
@@ -292,7 +293,7 @@ async function shoot(element: HTMLElement): Promise<ImageData> {
 const isInk = (d: Uint8ClampedArray, i: number): boolean =>
   [0, 1, 2].some((k) => Math.abs(d[i + k]! - BACKGROUND) > TOLERANCE)
 
-/** Pixels of `image` inside `band` that are not background. */
+/** The ink in `band` of `image`: summed darkness over its pixels, in whole pixels. */
 function inkIn(
   image: ImageData,
   band: { left: number; top: number; width: number; height: number }
@@ -303,7 +304,11 @@ function inkIn(
   const x1 = Math.min(image.width, Math.ceil(band.left + band.width))
   const y1 = Math.min(image.height, Math.ceil(band.top + band.height))
   for (let y = y0; y < y1; y++)
-    for (let x = x0; x < x1; x++) if (isInk(image.data, (y * image.width + x) * 4)) n++
+    for (let x = x0; x < x1; x++) {
+      const i = (y * image.width + x) * 4
+      const mean = (image.data[i]! + image.data[i + 1]! + image.data[i + 2]!) / 3
+      n += Math.max(0, BACKGROUND - mean) / BACKGROUND
+    }
   return n
 }
 

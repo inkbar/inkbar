@@ -720,6 +720,9 @@ function shape(el: Element): unknown {
     )
   const attrs: Record<string, string> = {}
   for (const a of [...el.attributes].sort((x, y) => x.name.localeCompare(y.name))) {
+    // The inline paint of a shape that only takes presses repeats its fill and stroke
+    // attributes, which are compared, so a host rule cannot fill it; the reference has none.
+    if (a.name === 'style' && /^fill:[^;]*;stroke:/.test(a.value)) continue
     attrs[a.name] = round(a.value)
   }
   return { tag: el.tagName, attrs, children: [...el.children].map(shape) }
@@ -1214,7 +1217,17 @@ describe('comparePaint for text boxes', () => {
     ),
     { name: 'bold', annotation: withStyle({ fontWeight: 'bold' }) },
     { name: 'italic', annotation: withStyle({ fontStyle: 'italic' }) },
-    { name: 'underline', annotation: withStyle({ textDecoration: 'underline' }) },
+    {
+      name: 'underline',
+      // No descenders, so the ink under the rule is the rule's.
+      annotation: withStyle(
+        { textDecoration: 'underline' },
+        {
+          contents:
+            'Our new room is on one more row so we can see no one come in\nA warm wind arrives',
+        }
+      ),
+    },
     {
       name: 'fill and border',
       annotation: {
@@ -1277,6 +1290,10 @@ describe('comparePaint for text boxes', () => {
 
   /** The fonts this machine has: whether its Latin faces are the ones the width tables describe. */
   const fonts = checkTextFonts()
+  if (fonts.mode !== 'exact')
+    console.log(
+      `[text compare] the advance check is skipped: the fonts are not the tables' (mode ${fonts.mode})`
+    )
 
   /** What one rendering of a case measured. */
   interface Evaluated {
@@ -1320,6 +1337,26 @@ describe('comparePaint for text boxes', () => {
               `translate(0 ${dy})`
             )
           }
+          // The ink under the underline's rule, where the rule is before any control moves it:
+          // the rule's own extent and a pixel either side.
+          for (const rule of el.querySelectorAll<SVGLineElement>('line')) {
+            const ctm = rule.getScreenCTM()!
+            const a1 = new DOMPoint(
+              rule.x1.baseVal.value,
+              rule.y1.baseVal.value
+            ).matrixTransform(ctm)
+            const a2 = new DOMPoint(
+              rule.x2.baseVal.value,
+              rule.y2.baseVal.value
+            ).matrixTransform(ctm)
+            const thick = Number(rule.getAttribute('stroke-width')) * ctm.a
+            bands.push({
+              left: Math.min(a1.x, a2.x),
+              top: a1.y - thick / 2 - 1,
+              width: Math.abs(a2.x - a1.x),
+              height: thick + 2,
+            })
+          }
           mutate?.(el)
           advanceError = 0
           for (const text of el.querySelectorAll<SVGTextElement>('text[textLength]')) {
@@ -1332,16 +1369,6 @@ describe('comparePaint for text boxes', () => {
             clone.remove()
             const set = Number(text.getAttribute('textLength'))
             advanceError = Math.max(advanceError, Math.abs(natural - set) / set)
-            // Where an underline would be: below the baseline, along the line.
-            const ctm = text.getScreenCTM()!
-            const from = text.getStartPositionOfChar(0).matrixTransform(ctm)
-            const size = Number(text.getAttribute('font-size'))
-            bands.push({
-              left: from.x,
-              top: from.y + 0.04 * size,
-              width: set,
-              height: 0.2 * size,
-            })
           }
         },
         (el, a, t) => {
@@ -1384,9 +1411,10 @@ describe('comparePaint for text boxes', () => {
       out.push('text top and bottom')
     // 0.15 of the ink in either image, blurred, once the baselines are the same. The raw count is
     // higher (0.1 to 0.2 at zoom 2): Chrome hints HTML text and not SVG text.
-    // An underline is thinner than the font's own, which the pixels cannot tell from a missing
-    // one at this bound, so its band below holds the real check.
-    if (e.aligned.differingBlurred > (c.name === 'underline' ? 0.4 : 0.15))
+    // The browser's rule is thicker than ours, so the pixels of an underline case differ by more
+    // (0.37 to 0.48 in the real cases) and cannot tell it from a missing rule: its band below
+    // holds that check.
+    if (e.aligned.differingBlurred > (c.name === 'underline' ? 0.6 : 0.15))
       out.push('pixels')
     // The font's own widths against the table's, where the machine's fonts are the table's.
     if (fonts.mode === 'exact' && e.advanceError > ADVANCE_TOLERANCE) out.push('advance')
@@ -1401,8 +1429,8 @@ describe('comparePaint for text boxes', () => {
 
   /** A line's natural advance against its table width: the real cases are within 0.09%. */
   const ADVANCE_TOLERANCE = 0.002
-  /** The painted underline band's ink over the reference's: 1.03 to 1.69 in the real cases (a 0.6 px rule covers two pixel rows at zoom 1), 0.05 with the underline missing. */
-  const UNDERLINE_BAND = [0.7, 1.8] as const
+  /** The painted underline's ink over the reference's, in a band the rule's own size plus a pixel each side: 0.60 to 0.67 in the real cases (the browser's rule is about a sixth thicker), against 1.20 twice as thick, 0.03 moved down by 0.1 of the size and 0.00 missing. */
+  const UNDERLINE_BAND = [0.45, 0.85] as const
 
   for (const c of cases) {
     for (const [label, extra] of where) {
@@ -1465,6 +1493,32 @@ describe('comparePaint for text boxes', () => {
         (el) =>
           el.querySelectorAll('text').forEach((t) => setStyle(t, 'fill', '#ff0000')),
         ['pixels'],
+      ],
+      [
+        'the underline rule moved down by 0.1 of the size',
+        underlined,
+        (el) =>
+          el.querySelectorAll('line').forEach((l) => {
+            const down = 0.1 * Number(el.querySelector('text')!.getAttribute('font-size'))
+            l.setAttribute('transform', `translate(0 ${down})`)
+          }),
+        ['underline'],
+      ],
+      [
+        'the underline rule twice as thick',
+        underlined,
+        (el) =>
+          el.querySelectorAll('line').forEach((l) => {
+            const w = Number(l.getAttribute('stroke-width')) * 2
+            l.setAttribute('stroke-width', String(w))
+            l.setAttribute(
+              'style',
+              l
+                .getAttribute('style')!
+                .replace(/stroke-width:[^;]*/, `stroke-width:${w}px`)
+            )
+          }),
+        ['underline'],
       ],
       [
         'the underline missing',
