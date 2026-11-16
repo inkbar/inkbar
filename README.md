@@ -218,7 +218,7 @@ pnpm test:browser                                        # component and end-to-
 | `apps/e2e-*`      | The review apps for each framework and the end-to-end suite they share     |
 | `fixtures`        | Test PDFs, the script that generates them, and helpers for the test suites |
 
-PDF.js is imported only under `packages/core/src/pdfjs/`. Every coordinate is in PDF user space: points, origin bottom-left, before `/Rotate`. Only `packages/core/src/dom/transform.ts` converts to CSS pixels.
+PDF.js is imported only under `packages/core/src/pdfjs/`. The one exception is the engine's save round-trip test, where PDF.js is an independent reader of saved files. Every coordinate is in PDF user space: points, origin bottom-left, before `/Rotate`. Only `packages/core/src/dom/transform.ts` converts to CSS pixels.
 
 ### Contributing
 
