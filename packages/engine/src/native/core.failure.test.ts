@@ -93,6 +93,20 @@ test.each([
   }
 )
 
+test('a trap while loading with a password makes no native call afterwards', async () => {
+  const { native, calls, trap } = await trapping('FPDF_LoadMemDocument64')
+  const core = new EngineCore(native)
+  let error: unknown
+  try {
+    core.open(bytes, { password: 'secret' })
+  } catch (caught) {
+    error = caught
+  }
+  expect((error as Error).cause).toBe(trap)
+  expect(calls.at(-1)).toBe('FPDF_LoadMemDocument64')
+  expect(core.stopped).toBe(true)
+})
+
 test.each(['Aborted(OOM)', 'Cannot enlarge memory arrays to size 16777216 bytes'])(
   'an allocation abort (%s) is out-of-memory',
   async (message) => {

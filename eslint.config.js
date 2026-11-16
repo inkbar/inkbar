@@ -114,7 +114,7 @@ export default defineConfig(
     name: 'inkbar/pdfjs-quarantine',
     // Shipped code and apps reach PDF.js only through @inkbar/core's loader.
     files: ['packages/**/*.{ts,mts,tsx,vue,svelte}', 'apps/**/*.{ts,mts,tsx,vue,svelte}'],
-    // The engine's tests use PDF.js as an independent reader of the files it saves.
+    // The engine's save round-trip test uses PDF.js as an independent reader of saved files.
     ignores: ['packages/core/src/pdfjs/**', 'packages/engine/src/save.fixtures.test.ts'],
     rules: {
       'no-restricted-imports': [
