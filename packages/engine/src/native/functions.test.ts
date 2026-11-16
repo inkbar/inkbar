@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
 
 import factory from '../../vendor/inkbar-pdfium.mjs'
 
@@ -43,6 +43,8 @@ test('loadNative binds every function', async () => {
 })
 
 test('loadNative rejects bytes that are not WebAssembly', async () => {
+  // Emscripten reports the failed load itself; the rejection carries the same error.
+  using _ = vi.spyOn(console, 'error').mockImplementation(() => {})
   await expect(loadNative({ wasm: new Uint8Array([1, 2, 3]) })).rejects.toMatchObject({
     code: 'engine-failure',
   })

@@ -36,7 +36,8 @@ afterAll(async () => {
 
 async function pdfjsPageCount(saved: Uint8Array, password?: string): Promise<number> {
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
-  const task = pdfjs.getDocument({ data: new Uint8Array(saved), password })
+  // Verbosity 0: pdf.js reports errors only, not its recovery warnings for broken fixtures.
+  const task = pdfjs.getDocument({ data: new Uint8Array(saved), password, verbosity: 0 })
   try {
     return (await task.promise).numPages
   } finally {
