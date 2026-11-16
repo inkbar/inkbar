@@ -782,10 +782,14 @@ describe('text outside the standard fonts', () => {
     createAnnotationStore({ mode: { mode: 'uncontrolled' }, defaults: staticDefaults })
 
   /** Where the browser puts `content` in a left-aligned box: the left and right of its characters. */
-  function htmlExtent(content: string, size: number): { left: number; right: number } {
+  function htmlExtent(
+    content: string,
+    size: number,
+    align: 'left' | 'right' | 'center' = 'left'
+  ): { left: number; right: number } {
     const host = mountContainer(612, 200)
     const div = document.createElement('div')
-    div.style.cssText = `position:absolute;left:0;top:0;width:600px;white-space:pre-wrap;line-height:1.2;text-align:left;font:${size}px ${FONT_STACKS.Helvetica};font-kerning:none`
+    div.style.cssText = `position:absolute;left:0;top:0;width:400px;white-space:pre-wrap;line-height:1.2;text-align:${align};font:${size}px ${FONT_STACKS.Helvetica};font-kerning:none`
     div.textContent = content
     host.append(div)
     const range = document.createRange()
@@ -800,7 +804,7 @@ describe('text outside the standard fonts', () => {
   }
 
   /** Draws `content` as a text box line at zoom 1 and returns its text element, in a mounted page. */
-  function drawn(content: string, align: 'left' | 'right' = 'left') {
+  function drawn(content: string, align: 'left' | 'right' | 'center' = 'left') {
     const a = store().add({
       type: 'freetext',
       page: 0,
@@ -876,4 +880,26 @@ describe('text outside the standard fonts', () => {
       ).toBeLessThan(Math.max(1, (html.right - html.left) * 0.03))
     }
   })
+
+  for (const align of ['right', 'center'] as const)
+    it(`Arabic and Hebrew lines in a ${align}-aligned box sit where the browser puts them`, () => {
+      for (const content of ['مرحبا بالعالم', 'שלום עולם']) {
+        const { host, text } = drawn(content, align)
+        const ctm = text.getScreenCTM()!
+        const origin = host.getBoundingClientRect()
+        const xs = Array.from({ length: text.getNumberOfChars() }, (_, i) =>
+          text.getExtentOfChar(i)
+        )
+        const left = Math.min(...xs.map((r) => r.x)) * ctm.a + ctm.e - origin.left - 100
+        const right =
+          Math.max(...xs.map((r) => r.x + r.width)) * ctm.a + ctm.e - origin.left - 100
+        const html = htmlExtent(content, 12, align)
+        host.remove()
+        console.log(
+          `[rtl] ${align} ${content}: left ${(left - html.left).toFixed(2)}, right ${(right - html.right).toFixed(2)}`
+        )
+        expect(Math.abs(left - html.left)).toBeLessThan(1)
+        expect(Math.abs(right - html.right)).toBeLessThan(1)
+      }
+    })
 })
