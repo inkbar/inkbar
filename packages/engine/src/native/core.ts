@@ -9,6 +9,7 @@ const SAVE_FLAGS: Record<SaveMode, number> = { incremental: 1, rewrite: 2 }
 const MAX_PIXELS = 268_435_456
 
 const STOPPED = 'The engine stopped after an internal error; create a new engine.'
+const CLOSED = 'The document is closed.'
 // Emscripten's abort texts when an allocation or memory growth fails.
 const ALLOCATION_ABORT = /\bOOM\b|out of memory|Cannot enlarge memory|bad_alloc/i
 
@@ -88,6 +89,8 @@ export class EngineCore {
       }
       if (doc === 0) throw fromPdfiumError(fn.FPDF_GetLastError(), hadPassword)
       const pageCount = fn.FPDF_GetPageCount(doc)
+      if (pageCount <= 0)
+        throw new EngineError('invalid-pdf', 'The file is not a valid PDF.')
       const id = this.#nextId++
       this.#documents.set(id, { doc, data, pageCount })
       return { id, pageCount }
@@ -218,7 +221,7 @@ export class EngineCore {
   #get(id: number): OpenDocument {
     if (this.#stopped) throw new EngineError('engine-failure', STOPPED)
     const entry = this.#documents.get(id)
-    if (!entry) throw new EngineError('engine-failure', 'document is closed')
+    if (!entry) throw new EngineError('engine-failure', CLOSED)
     return entry
   }
 

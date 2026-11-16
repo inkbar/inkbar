@@ -110,3 +110,30 @@ test('open after destroy is an engine-failure', async () => {
     expect.objectContaining({ code: 'engine-failure' })
   )
 })
+
+test('a page count of zero is invalid-pdf and frees the copy', async () => {
+  const native = await loadNative({ wasm })
+  const freed: number[] = []
+  const closed: number[] = []
+  const fn: Native = {
+    ...native.fn,
+    FPDF_GetPageCount: () => 0,
+    FPDF_CloseDocument: (doc) => (closed.push(doc), native.fn.FPDF_CloseDocument(doc)),
+    free: (ptr) => (freed.push(ptr), native.fn.free(ptr)),
+  }
+  const core = new EngineCore(withFunctions(native, fn))
+  expect(() => core.open(bytes)).toThrow(expect.objectContaining({ code: 'invalid-pdf' }))
+  expect(closed).toHaveLength(1)
+  expect(freed).toHaveLength(1)
+  expect(core.openCount).toBe(0)
+  core.destroy()
+})
+
+test('core and API use one message for a closed document', async () => {
+  const native = await loadNative({ wasm })
+  const core = new EngineCore(native)
+  const { id } = core.open(bytes)
+  core.close(id)
+  expect(() => core.pageInfo(id, 0)).toThrow('The document is closed.')
+  core.destroy()
+})
