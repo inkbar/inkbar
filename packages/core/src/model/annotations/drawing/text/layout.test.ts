@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 
 import { layoutText } from './layout'
-import { standardMeasure } from './measure'
+import { measureWith, standardMeasure } from './measure'
 
 import type { TextBlock } from './layout'
 import type { TextFont } from '../types'
@@ -359,5 +359,34 @@ describe('layoutText: the iteration mark and the wave dash', () => {
       standardMeasure
     ).lines
     for (const l of lines) expect(l.text[0]).not.toMatch(/[々〜]/)
+  })
+})
+
+describe('layoutText with runs outside the tables', () => {
+  test('a line says whether it has a character outside the tables', () => {
+    const { lines } = layoutText(block('abc\nمرحبا\nabc 日', 144), standardMeasure)
+    expect(lines.map((l) => l.outside)).toEqual([false, true, true])
+  })
+
+  test('a word of an unjoined script is measured once as a run, then wrapped by it', () => {
+    // A measure that charges 5 per character for a run but 3 for each in a run of one: a
+    // shaped run is not the sum of its parts.
+    const calls: string[] = []
+    const measure = measureWith((run, _font, size) => {
+      calls.push(run)
+      return run.length === 1 ? size : run.length * 4
+    })
+    const { lines } = layoutText(block('مرحبا بالعالم', 30), measure)
+    expect(lines.map((l) => l.text)).toEqual(['مرحبا', 'بالعالم'])
+    expect(calls).toContain('مرحبا')
+    expect(calls).toContain('بالعالم')
+  })
+
+  test('100,000 characters outside the tables lay out in under a second', () => {
+    const measure = measureWith((run, _font, size) => (run.length * size) / 2)
+    const start = performance.now()
+    const { lines } = layoutText(block('ж'.repeat(100_000), 50), measure)
+    expect(performance.now() - start).toBeLessThan(1000)
+    expect(lines.map((l) => l.text).join('')).toBe('ж'.repeat(100_000))
   })
 })

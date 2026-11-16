@@ -1,5 +1,5 @@
 import { clusters } from './clusters'
-import { isWide } from './measure'
+import { isWide, outsideTables } from './measure'
 
 import type { TextFont, TextMeasure } from '../types'
 
@@ -16,6 +16,11 @@ export interface LaidLine {
   x: number
   baseline: number
   width: number
+  /**
+   * Whether `text` has a character outside the standard tables, so its width is the fallback's
+   * estimate and not the font's own: a painter must not force the line to `width`.
+   */
+  outside: boolean
   /**
    * Extra space to add to each U+0020 in `text`, for a justified line. It applies to U+0020 only.
    * PDF's `Tw` operator does the same, and the SVG `word-spacing` property widens U+0020 and also
@@ -229,6 +234,7 @@ export function layoutText(
       x: 0,
       baseline: i * lineHeight + firstBaseline,
       width: row.width,
+      outside: outsideTables(row.text),
     }
     if (align === 'center') laid.x = free / 2
     else if (align === 'right') laid.x = free
