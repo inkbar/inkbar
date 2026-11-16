@@ -187,7 +187,7 @@ function top(el: SVGElement): SVGElement {
 function guard(el: Element, what: string): void {
   for (const attr of el.attributes) {
     // An image's data URL is base64, which can spell "NaN" by chance.
-    if (attr.name === 'href') continue
+    if (attr.name === 'href' && el.localName === 'image') continue
     if (/NaN|Infinity/.test(attr.value)) {
       throw new RangeError(`${what} has a non-finite value in ${attr.name}`)
     }
