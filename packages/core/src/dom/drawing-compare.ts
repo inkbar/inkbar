@@ -81,6 +81,11 @@ export interface CompareResult {
    * reads as a difference in most of its pixels, so this is the measure for text.
    */
   differingBlurred: number
+  /**
+   * For each band asked for, the pixels that are not background in it, on each side. Empty when
+   * none were asked for.
+   */
+  bandInk: { reference: number[]; painted: number[] }
   /** Pixels of the reference image that are not background. */
   referenceInk: number
   /** The captured region of each side, in viewport px. */
@@ -106,7 +111,12 @@ export async function comparePaint(
     el: HTMLElement,
     a: Annotation,
     t: PageTransform
-  ) => void = renderReferenceContent
+  ) => void = renderReferenceContent,
+  /**
+   * Boxes in viewport px, asked for once both sides are drawn (where each side puts its content
+   * is known only then), whose ink is counted on each side.
+   */
+  bands?: () => { left: number; top: number; width: number; height: number }[]
 ): Promise<CompareResult> {
   const { default: themeCss } = await import('@inkbar/theme/theme.css?inline')
   const box = c.box ?? { x: 0, y: 0, width: 612, height: 792 }
@@ -207,12 +217,19 @@ export async function comparePaint(
         )
       }
     }
+    const asked = bands?.() ?? []
     painted.style.visibility = 'hidden'
     const one = await shoot(reference)
     painted.style.visibility = ''
     reference.style.visibility = 'hidden'
     const two = await shoot(painted)
-    const result = compare(one, two)
+    const result = {
+      ...compare(one, two),
+      bandInk: {
+        reference: asked.map((b) => inkIn(one, b)),
+        painted: asked.map((b) => inkIn(two, b)),
+      },
+    }
     if (result.referenceInk === 0) {
       throw new Error(`comparePaint: the reference image for "${c.name}" is blank`)
     }
@@ -274,6 +291,21 @@ async function shoot(element: HTMLElement): Promise<ImageData> {
 
 const isInk = (d: Uint8ClampedArray, i: number): boolean =>
   [0, 1, 2].some((k) => Math.abs(d[i + k]! - BACKGROUND) > TOLERANCE)
+
+/** Pixels of `image` inside `band` that are not background. */
+function inkIn(
+  image: ImageData,
+  band: { left: number; top: number; width: number; height: number }
+): number {
+  let n = 0
+  const x0 = Math.max(0, Math.floor(band.left))
+  const y0 = Math.max(0, Math.floor(band.top))
+  const x1 = Math.min(image.width, Math.ceil(band.left + band.width))
+  const y1 = Math.min(image.height, Math.ceil(band.top + band.height))
+  for (let y = y0; y < y1; y++)
+    for (let x = x0; x < x1; x++) if (isInk(image.data, (y * image.width + x) * 4)) n++
+  return n
+}
 
 /** `image` with each channel averaged over the 3 x 3 pixels around it (edges clamped). */
 function blur(image: ImageData): Uint8ClampedArray {

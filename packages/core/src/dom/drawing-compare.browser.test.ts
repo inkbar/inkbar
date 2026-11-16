@@ -3,12 +3,14 @@ import { describe, expect, it } from 'vitest'
 import { staticDefaults } from '../model/annotations/defaults'
 import { createAnnotationStore } from '../model/annotations/store'
 
-import { comparePaint, type CompareCase } from './drawing-compare'
+import { comparePaint, type CompareCase, type CompareResult } from './drawing-compare'
 import { createMaskLayer } from './mask-layer'
 import { annotationBox, renderAnnotationContent } from './overlay-render'
 import { createReferenceMaskLayer } from './reference-mask'
 import { renderReferenceContent } from './reference-render'
 import { mountContainer } from './test-utils'
+import { checkTextFonts } from './text-font-check'
+import { FONT_STACKS } from './text-fonts'
 import { createPageTransform } from './transform'
 
 import type { PageTransform } from './transform'
@@ -1273,62 +1275,216 @@ describe('comparePaint for text boxes', () => {
     ['a /UserUnit 2 page', { userUnit: 2, zoom: 1 }],
   ] as const
 
+  /** The fonts this machine has: whether its Latin faces are the ones the width tables describe. */
+  const fonts = checkTextFonts()
+
+  /** What one rendering of a case measured. */
+  interface Evaluated {
+    drawn: CompareResult
+    aligned: CompareResult
+    reference: TextMetrics
+    painted: TextMetrics
+    /** The largest relative gap between a drawn line's natural advance and the width it is set to. */
+    advanceError: number
+  }
+
+  /** A change to the painted text, made after it is placed, for the controls. */
+  type Mutate = (el: HTMLElement) => void
+
+  /**
+   * Draws `c` both ways. The painted text sits at the file's fractional baseline, and the HTML at
+   * the whole-pixel one Chrome picks, so the first lines are up to a pixel apart. Both are compared
+   * as they are (`drawn`), and again with the painted text moved onto the HTML baseline
+   * (`aligned`), which leaves what the glyph shapes and positions do. `mutate` changes the painted
+   * side last.
+   */
+  async function evaluate(
+    c: CompareCase,
+    extra: Partial<CompareCase>,
+    mutate?: Mutate
+  ): Promise<Evaluated> {
+    const seen: Partial<Record<'reference' | 'painted', TextMetrics>> = {}
+    let advanceError = 0
+    let bands: { left: number; top: number; width: number; height: number }[] = []
+    const run = async (align: boolean) => {
+      bands = []
+      return comparePaint(
+        { ...c, ...extra },
+        (el, a, t) => {
+          renderAnnotationContent(el, a, t)
+          seen.painted = textMetrics(el, 'painted')
+          if (align) {
+            const dy = seen.reference!.text.top - seen.painted.text.top
+            el.querySelector('g[data-ink-part="text"]')?.setAttribute(
+              'transform',
+              `translate(0 ${dy})`
+            )
+          }
+          mutate?.(el)
+          advanceError = 0
+          for (const text of el.querySelectorAll<SVGTextElement>('text[textLength]')) {
+            // The line's natural advance, with nothing forcing it to the width it is set to.
+            const clone = text.cloneNode(true) as SVGTextElement
+            clone.removeAttribute('textLength')
+            clone.removeAttribute('lengthAdjust')
+            text.parentElement!.append(clone)
+            const natural = clone.getComputedTextLength()
+            clone.remove()
+            const set = Number(text.getAttribute('textLength'))
+            advanceError = Math.max(advanceError, Math.abs(natural - set) / set)
+            // Where an underline would be: below the baseline, along the line.
+            const ctm = text.getScreenCTM()!
+            const from = text.getStartPositionOfChar(0).matrixTransform(ctm)
+            const size = Number(text.getAttribute('font-size'))
+            bands.push({
+              left: from.x,
+              top: from.y + 0.04 * size,
+              width: set,
+              height: 0.2 * size,
+            })
+          }
+        },
+        (el, a, t) => {
+          renderReferenceContent(el, a, t)
+          seen.reference = textMetrics(el, 'reference')
+        },
+        () => bands
+      )
+    }
+    const drawn = await run(false)
+    const aligned = await run(true)
+    return {
+      drawn,
+      aligned,
+      reference: seen.reference!,
+      painted: seen.painted!,
+      advanceError,
+    }
+  }
+
+  const deltas = (e: Evaluated, k: 'text' | 'box') =>
+    (['left', 'top', 'right', 'bottom'] as const).map((edge) =>
+      Number((e.painted[k][edge] - e.reference[k][edge]).toFixed(2))
+    )
+
+  /** How much of the ink in the underline's band the painted side has, against the reference. */
+  const bandRatio = (e: Evaluated): number => {
+    const sum = (n: number[]) => n.reduce((a, b) => a + b, 0)
+    return sum(e.aligned.bandInk.painted) / Math.max(1, sum(e.aligned.bandInk.reference))
+  }
+
+  /** The assertions a real case must pass, as the names of those it fails. */
+  function violations(c: CompareCase, e: Evaluated): string[] {
+    const out: string[] = []
+    if (e.painted.lines !== e.reference.lines) out.push('lines')
+    if (deltas(e, 'box').some((d) => Math.abs(d) > 1)) out.push('box')
+    const text = deltas(e, 'text')
+    if (Math.abs(text[0]!) > 1 || Math.abs(text[2]!) > 1) out.push('text left and right')
+    if (Math.abs(text[1]!) > 1.05 || Math.abs(text[3]!) > 1.05)
+      out.push('text top and bottom')
+    // 0.15 of the ink in either image, blurred, once the baselines are the same. The raw count is
+    // higher (0.1 to 0.2 at zoom 2): Chrome hints HTML text and not SVG text.
+    // An underline is thinner than the font's own, which the pixels cannot tell from a missing
+    // one at this bound, so its band below holds the real check.
+    if (e.aligned.differingBlurred > (c.name === 'underline' ? 0.4 : 0.15))
+      out.push('pixels')
+    // The font's own widths against the table's, where the machine's fonts are the table's.
+    if (fonts.mode === 'exact' && e.advanceError > ADVANCE_TOLERANCE) out.push('advance')
+    // An underline is a rule in the band under each baseline: about as much ink there as the
+    // reference has. The rule is thinner than the font's own, so some difference is expected.
+    if (c.name === 'underline') {
+      const ratio = bandRatio(e)
+      if (ratio < UNDERLINE_BAND[0] || ratio > UNDERLINE_BAND[1]) out.push('underline')
+    }
+    return out
+  }
+
+  /** A line's natural advance against its table width: the real cases are within 0.09%. */
+  const ADVANCE_TOLERANCE = 0.002
+  /** The painted underline band's ink over the reference's: 1.03 to 1.69 in the real cases (a 0.6 px rule covers two pixel rows at zoom 1), 0.05 with the underline missing. */
+  const UNDERLINE_BAND = [0.7, 1.8] as const
+
   for (const c of cases) {
     for (const [label, extra] of where) {
       it(`${c.name} at ${label}`, async () => {
-        const seen: Partial<Record<'reference' | 'painted', TextMetrics>> = {}
-        // The painted text sits at the file's fractional baseline, and the HTML at the whole-pixel
-        // one Chrome picks, so the first lines are up to a pixel apart. Both are compared as they
-        // are (`as drawn`), and again with the painted text moved onto the HTML baseline (`aligned`),
-        // which leaves what the glyph shapes and positions do.
-        const draw = (align: boolean) => async () => {
-          const r = await comparePaint(
-            { ...c, ...extra },
-            (el, a, t) => {
-              renderAnnotationContent(el, a, t)
-              seen.painted = textMetrics(el, 'painted')
-              if (!align) return
-              const dy = seen.reference!.text.top - seen.painted.text.top
-              el.querySelector('g[data-ink-part="text"]')?.setAttribute(
-                'transform',
-                `translate(0 ${dy})`
-              )
-            },
-            (el, a, t) => {
-              renderReferenceContent(el, a, t)
-              seen.reference = textMetrics(el, 'reference')
-            }
-          )
-          return { r, ...(seen as Record<'reference' | 'painted', TextMetrics>) }
-        }
-        const drawn = await draw(false)()
-        const { reference, painted } = drawn
-        const delta = (k: 'text' | 'box') =>
-          (['left', 'top', 'right', 'bottom'] as const).map((e) =>
-            Number((painted[k][e] - reference[k][e]).toFixed(2))
-          )
-        const text = delta('text')
-        const box = delta('box')
-        const aligned = (await draw(true)()).r
+        const e = await evaluate(c, extra)
+        const text = deltas(e, 'text')
+        const box = deltas(e, 'box')
         console.log(
-          `[text compare] ${c.name} at ${label}: as drawn differing ${drawn.r.differing.toFixed(4)} blurred ${drawn.r.differingBlurred.toFixed(4)}, aligned differing ${aligned.differing.toFixed(4)} blurred ${aligned.differingBlurred.toFixed(4)}, lines ${reference.lines}/${painted.lines}, text edges ${JSON.stringify(text)}, box edges ${JSON.stringify(box)}`
+          `[text compare] ${c.name} at ${label}: as drawn differing ${e.drawn.differing.toFixed(4)} blurred ${e.drawn.differingBlurred.toFixed(4)}, aligned differing ${e.aligned.differing.toFixed(4)} blurred ${e.aligned.differingBlurred.toFixed(4)}, lines ${e.reference.lines}/${e.painted.lines}, text edges ${JSON.stringify(text)}, box edges ${JSON.stringify(box)}, advance error ${e.advanceError.toFixed(5)}, underline band ${bandRatio(e).toFixed(2)}`
         )
-        expect(drawn.r.referenceInk).toBeGreaterThan(0)
-        expect(painted.lines).toBe(reference.lines)
-        // The box to a pixel; the text's left and right edges to a pixel; its top and bottom to
-        // the rounding of the font's ascent and descent, which Chrome does in HTML text only.
-        for (const d of box) expect(Math.abs(d)).toBeLessThanOrEqual(1)
-        expect(Math.abs(text[0]!)).toBeLessThanOrEqual(1)
-        expect(Math.abs(text[2]!)).toBeLessThanOrEqual(1)
-        expect(Math.abs(text[1]!)).toBeLessThanOrEqual(1.05)
-        expect(Math.abs(text[3]!)).toBeLessThanOrEqual(1.05)
-        // 0.15 of the ink in either image, blurred, once the baselines are the same. The raw
-        // count is higher (0.1 to 0.2 at zoom 2): Chrome hints HTML text and not SVG text. An
-        // underline is thinner than the font's own and lighter at small sizes.
-        expect(aligned.differingBlurred).toBeLessThanOrEqual(
-          c.name === 'underline' ? 0.4 : 0.15
-        )
+        expect(e.drawn.referenceInk).toBeGreaterThan(0)
+        expect(violations(c, e)).toEqual([])
       })
     }
   }
+
+  // Controls: each of these is a defect the comparison is there to catch, made on purpose, and it
+  // must fail the assertions the real cases pass. Drawn at zoom 2, where the real margins are
+  // smallest.
+  describe('the comparison fails for a defect', () => {
+    const base = cases.find((c) => c.name === 'a plain box')!
+    const underlined = cases.find((c) => c.name === 'underline')!
+    const zoom2 = { pageRotate: 0, zoom: 2 } as const
+    const setStyle = (t: Element, property: string, value: string) => {
+      t.setAttribute(property, value)
+      t.setAttribute(
+        'style',
+        t
+          .getAttribute('style')!
+          .replace(new RegExp(`${property}:[^;]*`), `${property}:${value}`)
+      )
+    }
+    const controls: [string, CompareCase, Mutate, string[]][] = [
+      [
+        'bold text drawn against regular',
+        base,
+        (el) =>
+          el.querySelectorAll('text').forEach((t) => setStyle(t, 'font-weight', 'bold')),
+        ['advance'],
+      ],
+      [
+        'the Times stack drawn against Helvetica',
+        base,
+        (el) =>
+          el
+            .querySelectorAll('text')
+            .forEach((t) => setStyle(t, 'font-family', FONT_STACKS.Times)),
+        ['advance', 'pixels'],
+      ],
+      [
+        'one line shifted 3 px',
+        base,
+        (el) =>
+          el.querySelectorAll('text')[1]!.setAttribute('transform', 'translate(0 3)'),
+        ['pixels'],
+      ],
+      [
+        'the wrong text colour',
+        base,
+        (el) =>
+          el.querySelectorAll('text').forEach((t) => setStyle(t, 'fill', '#ff0000')),
+        ['pixels'],
+      ],
+      [
+        'the underline missing',
+        underlined,
+        (el) => el.querySelectorAll('line').forEach((l) => l.remove()),
+        ['underline'],
+      ],
+    ]
+    for (const [name, c, mutate, expected] of controls) {
+      it(name, async () => {
+        const e = await evaluate(c, zoom2, mutate)
+        const found = violations(c, e)
+        console.log(
+          `[control] ${name}: violations ${JSON.stringify(found)}, blurred ${e.aligned.differingBlurred.toFixed(4)} (bound 0.15), advance error ${e.advanceError.toFixed(5)} (bound ${ADVANCE_TOLERANCE}), underline band ${bandRatio(e).toFixed(2)} (bounds ${UNDERLINE_BAND.join(' to ')})`
+        )
+        // On a machine whose fonts are not the table's, the advance check does not run.
+        for (const v of expected)
+          if (v !== 'advance' || fonts.mode === 'exact') expect(found).toContain(v)
+        expect(found).not.toEqual([])
+      })
+    }
+  })
 })
