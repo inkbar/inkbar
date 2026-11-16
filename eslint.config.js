@@ -146,11 +146,17 @@ export default defineConfig(
         {
           patterns: [
             {
-              group: ['**/dom/**'],
+              group: ['**/dom', '**/dom/**'],
               message: 'A drawing is described without the DOM: nothing under dom/.',
             },
             {
-              group: ['pdfjs-dist', 'pdfjs-dist/**', '#pdfjs'],
+              // The package's root index re-exports dom, however it is reached.
+              group: ['**/src/index', '../../..', '../../../index', '@inkbar/core'],
+              message:
+                'A drawing is described without the package index, which exports dom.',
+            },
+            {
+              group: ['pdfjs-dist', 'pdfjs-dist/**', '#pdfjs', '#pdfjs-sandbox'],
               message: 'A drawing is described without PDF.js.',
             },
           ],
@@ -160,7 +166,16 @@ export default defineConfig(
         'error',
         { name: 'document', message: 'A drawing does not touch the DOM.' },
         { name: 'window', message: 'A drawing does not touch the DOM.' },
-        { name: 'navigator', message: 'A drawing does not touch the DOM.' },
+        ...[
+          'navigator',
+          'self',
+          'globalThis',
+          'getComputedStyle',
+          'HTMLElement',
+          'SVGElement',
+          'OffscreenCanvas',
+          'Image',
+        ].map((name) => ({ name, message: 'A drawing does not touch the DOM.' })),
       ],
     },
   }
