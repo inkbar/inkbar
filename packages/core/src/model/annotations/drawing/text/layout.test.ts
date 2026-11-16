@@ -310,3 +310,44 @@ describe('layoutText: Courier follows the screen fonts', () => {
     expect(lines.map((l) => l.text)).toEqual([text.slice(0, 23), text.slice(23)])
   })
 })
+
+describe('layoutText: segments', () => {
+  const tab = 8 * w(' ')
+  /** A measure that gives a joined emoji one width whatever its code points would sum to. */
+  const emojiMeasure = {
+    width: (text: string, font: TextFont, size: number) => {
+      const m = standardMeasure.width(
+        text.replace(/👨\u200d👩\u200d👧/gu, 'W'),
+        font,
+        size
+      )
+      return m
+    },
+    vertical: (font: TextFont) => standardMeasure.vertical(font),
+  }
+
+  test('a cluster before a tab is measured as one character', () => {
+    const family = '👨\u200d👩\u200d👧'
+    const { lines } = layoutText(block(`${family}\tb`, 400), emojiMeasure)
+    expect(lines[0]!.segments).toEqual([
+      { text: family, x: 0 },
+      { text: 'b', x: tab },
+    ])
+    const after = layoutText(block(`${family}x\ty`, 400), emojiMeasure).lines[0]!
+      .segments!
+    expect(after[1]!.x).toBe(tab)
+  })
+
+  test('spaces in a justified line with a tab add the word spacing to where the next tab stop falls', () => {
+    const text = 'aa bb cc\tdd ' + 'x'.repeat(40)
+    const { lines } = layoutText(block(text, 120, { align: 'justify' }), standardMeasure)
+    const line = lines[0]!
+    expect(line.text.startsWith('aa bb cc\tdd')).toBe(true)
+    const spacing = line.wordSpacing!
+    expect(spacing).toBeGreaterThan(5)
+    const end = w('aa bb cc') + 2 * spacing
+    expect(end).toBeGreaterThan(tab)
+    const stop = (Math.floor(end / tab + 1e-9) + 1) * tab
+    expect(line.segments![1]!.x).toBeCloseTo(stop, 6)
+  })
+})

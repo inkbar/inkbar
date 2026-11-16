@@ -61,7 +61,7 @@ interface Unit {
 }
 
 const CLOSING =
-  /^[\u3001\u3002\uff0c\uff0e\uff1a\uff1b\uff01\uff1f\uff09\uff3d\uff5d\u300d\u300f\u3011\u3015\u3009\u300b\u3017\u3019\u301b\u30fc\u3005\u301c\u2026\u2025\u3041\u3043\u3045\u3047\u3049\u3063\u3083\u3085\u3087\u308e\u30a1\u30a3\u30a5\u30a7\u30a9\u30c3\u30e3\u30e5\u30e7\u30ee\u30f5\u30f6,.!?:;)\]}%\u00bb\u201d\u2019]/u
+  /^[\u3001\u3002\uff0c\uff0e\uff1a\uff1b\uff01\uff1f\uff09\uff3d\uff5d\u300d\u300f\u3011\u3015\u3009\u300b\u3017\u3019\u301b\u2026\u2025,.!?:;)\]}%\u00bb\u201d\u2019]/u
 const OPENING =
   /^[\u3008\u300a\u300c\u300e\u3010\u3014\u3016\u3018\u301a\uff08\uff3b\uff5b([{\u00ab\u201c\u2018]/u
 const ALNUM = /^[\p{L}\p{N}]/u
@@ -71,17 +71,16 @@ const LETTER = /^\p{L}/u
  * Whether a line may break between the characters `a` and `b`, neither a space. `before` is the
  * character ahead of `a`, if any. These are the opportunities Chrome takes in a `pre-wrap` text
  * box besides spaces: after a zero-width space; after a hyphen-minus between letters or digits;
- * after an en dash, and around an em dash; after a question mark before a letter; and around a
+ * after an en dash or an ellipsis, and around an em dash; after a question mark before a letter; and around a
  * wide (CJK or emoji) character, except before closing punctuation and after opening
  * punctuation. Measured in Chrome: a slash or an exclamation mark is not an opportunity. A no-break
  * space is not a space here, and a soft hyphen is not an opportunity.
- * an opportunity.
  */
 function mayBreak(before: string | undefined, a: string, b: string): boolean {
   if (a === '\u200b') return true
   if (CLOSING.test(b)) return false
   if (a === '-') return ALNUM.test(b) && before !== undefined && ALNUM.test(before)
-  if (a === '\u2013' || a === '\u2014') return true
+  if (a === '\u2013' || a === '\u2014' || a === '\u2026') return true
   if (b === '\u2014') return !OPENING.test(a)
   if (a === '?') return LETTER.test(b)
   if (isWide(a) || isWide(b)) return !OPENING.test(a)
@@ -238,16 +237,26 @@ export function layoutText(
       if (gaps > 0 && free > 0) laid.wordSpacing = free / gaps
     }
     if (row.text.includes('\t'))
-      laid.segments = segmentsOf(row.text, laid.x, advance, widthOf)
+      laid.segments = segmentsOf(
+        row.text,
+        laid.x,
+        laid.wordSpacing ?? 0,
+        advance,
+        widthOf
+      )
     return laid
   })
   return { lines, height: rows.length * lineHeight, outside }
 }
 
-/** The pieces of `text` between its tabs, each placed where the tab stops put it. */
+/**
+ * The pieces of `text` between its tabs, each placed where the tab stops put it. Characters are
+ * measured as clusters, as `layoutText` measures them, and each space adds the line's word spacing.
+ */
 function segmentsOf(
   text: string,
   origin: number,
+  wordSpacing: number,
   advance: (x: number, spaces: string) => number,
   widthOf: (text: string) => number
 ): { text: string; x: number }[] {
@@ -259,7 +268,7 @@ function segmentsOf(
     if (piece) out.push({ text: piece, x: origin + start })
     piece = ''
   }
-  for (const c of text) {
+  for (const c of clusters(text)) {
     if (c === '\t') {
       flush()
       x = advance(x, '\t')
@@ -267,7 +276,7 @@ function segmentsOf(
     } else {
       if (!piece) start = x
       piece += c
-      x += widthOf(c)
+      x += widthOf(c) + (c === ' ' ? wordSpacing : 0)
     }
   }
   flush()
