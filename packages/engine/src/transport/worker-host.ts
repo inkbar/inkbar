@@ -19,8 +19,7 @@ export interface WorkerScope {
 const STOPPED = 'The engine stopped after an internal error; create a new engine.'
 
 export function toWire(error: unknown): WireError {
-  if (error instanceof RangeError)
-    return { code: 'range-error', message: error.message, range: true }
+  if (error instanceof RangeError) return { range: true, message: error.message }
   if (error instanceof EngineError) {
     return {
       code: error.code,

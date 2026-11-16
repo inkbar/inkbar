@@ -2,7 +2,6 @@ import { EngineError } from '../errors.ts'
 
 import { CallQueue } from './queue.ts'
 
-import type { EngineErrorCode } from '../errors.ts'
 import type { FromWorker, Request, ToWorker, Transport, WireError } from '../protocol.ts'
 
 const failure = (message: string, cause?: unknown) =>
@@ -10,7 +9,7 @@ const failure = (message: string, cause?: unknown) =>
 
 function fromWire(error: WireError): Error {
   if (error.range) return new RangeError(error.message)
-  return new EngineError(error.code as EngineErrorCode, error.message, {
+  return new EngineError(error.code, error.message, {
     ...(error.pdfiumError !== undefined && { pdfiumError: error.pdfiumError }),
   })
 }
