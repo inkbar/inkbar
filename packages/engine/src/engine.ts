@@ -10,8 +10,6 @@ import type {
   RenderOptions,
   SaveOptions,
 } from './types.ts'
-import type * as NodeFs from 'node:fs/promises'
-
 /** Options for `createEngine`. */
 export interface EngineOptions {
   /**
@@ -181,10 +179,9 @@ async function defaultWasm(): Promise<string | URL | Uint8Array> {
   const url = new URL('./inkbar-pdfium.wasm', import.meta.url)
   if (!isNode()) return url
   try {
-    // The specifier is a variable so that bundlers cannot resolve it and reject the `node:`
-    // scheme in a browser build. This branch runs only in Node.
-    const specifier = 'node:fs/promises'
-    const { readFile } = (await import(/* @vite-ignore */ specifier)) as typeof NodeFs
+    // A module import of a `node:` specifier would be resolved, and rejected, by a browser
+    // bundler. This branch runs only in Node, which has `getBuiltinModule` from 22.3.
+    const { readFile } = process.getBuiltinModule('node:fs/promises')
     return new Uint8Array(await readFile(url))
   } catch (cause) {
     throw new EngineError(

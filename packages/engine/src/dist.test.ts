@@ -55,7 +55,7 @@ test('the built entry points leave no literal node: import for a browser bundler
   expect(names).toContain('index.mjs')
   for (const name of names) {
     const source = await readFile(new URL(`../dist/${name}`, import.meta.url), 'utf8')
-    expect(source, name).not.toMatch(/import\(\s*["']node:/)
+    expect(source, name).not.toMatch(/import\((?:\s|\/\*[\s\S]*?\*\/)*["']node:/)
     expect(source, name).not.toMatch(/from\s*["']node:/)
   }
 })
