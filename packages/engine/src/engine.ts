@@ -11,8 +11,12 @@ import type {
   SaveOptions,
 } from './types.ts'
 
+/** Options for `createEngine`. */
 export interface EngineOptions {
-  /** URL or bytes of inkbar-pdfium.wasm. Default: resolved beside this module. */
+  /**
+   * URL or bytes of `inkbar-pdfium.wasm`. Default: the file beside this module. In Node the
+   * default is read from disk; elsewhere it is fetched.
+   */
   wasm?: string | URL | Uint8Array
   /**
    * URL of the worker script, a Worker, or false to run in the calling thread. Default: a worker
@@ -22,19 +26,63 @@ export interface EngineOptions {
   worker?: string | URL | Worker | false
 }
 
+/**
+ * An open PDF. It holds engine memory until `close()` or the engine's `destroy()`. Calls on all
+ * documents of one engine share one queue and run one at a time, in the order they were made.
+ */
 export interface EngineDocument {
+  /** Number of pages. Always at least 1. */
   readonly pageCount: number
+  /**
+   * Size and rotation of a page. `index` counts from 0. An index that is not a whole number
+   * from 0 to `pageCount - 1` rejects with a `RangeError`.
+   */
   pageInfo(index: number): Promise<PageInfo>
+  /**
+   * Renders a page to an RGBA bitmap in displayed orientation, after /Rotate. The bitmap is
+   * `ceil(width × scale)` by `ceil(height × scale)` pixels, where width and height are the
+   * displayed size in points. A bad index or scale, or a bitmap above 268,435,456 pixels,
+   * rejects with a `RangeError`. The returned data belongs to the caller.
+   */
   renderPage(index: number, options?: RenderOptions): Promise<RenderedPage>
+  /**
+   * Writes the document to a new buffer that belongs to the caller. `'rewrite'` (the default)
+   * writes a complete file. `'incremental'` returns the original bytes with the changes
+   * appended. Saving keeps the document's encryption.
+   */
   save(options?: SaveOptions): Promise<Uint8Array>
+  /**
+   * Frees the document's engine memory. Later calls on it reject with `engine-failure`.
+   * Closing twice, or after the engine is destroyed or has stopped, resolves.
+   */
   close(): Promise<void>
 }
 
+/**
+ * A PDF engine: one PDFium instance, in a worker or in the calling thread.
+ *
+ * Engine memory grows to fit the largest work it has done and does not shrink. Closing a
+ * document lets the engine reuse its memory. Only `destroy()` returns all of it.
+ *
+ * Errors are `EngineError`s, except a bad page index or scale, which is a `RangeError`. After an
+ * internal error (`out-of-memory` from inside PDFium, or `engine-failure` from a crash) the
+ * engine stops: every later call rejects with `engine-failure`, and the caller must create a new
+ * engine.
+ */
 export interface Engine {
+  /**
+   * Opens a PDF. The engine copies `bytes` when `open` is called, so the caller keeps its array
+   * and may change it at once. `signal` cancels the call while it waits in the queue.
+   */
   open(
     bytes: Uint8Array,
     options?: OpenOptions & { signal?: AbortSignal }
   ): Promise<EngineDocument>
+  /**
+   * Waits for the running call to finish, rejects queued calls with `aborted`, closes every
+   * document and frees the engine. A worker is terminated. Later calls reject with
+   * `engine-failure`; a later `destroy()` or document `close()` resolves.
+   */
   destroy(): Promise<void>
 }
 
@@ -156,6 +204,11 @@ function startWorker(worker: string | URL | Worker | undefined): {
   return { worker: new Worker(worker, { type: 'module' }), url: String(worker) }
 }
 
+/**
+ * Starts an engine. It loads the WebAssembly module and, in a worker, the worker script. It
+ * requests nothing else. It rejects with `engine-failure`, naming the URL, when the module or
+ * the worker cannot be loaded.
+ */
 export async function createEngine(options: EngineOptions = {}): Promise<Engine> {
   const { worker } = options
   if (worker !== false && typeof Worker !== 'undefined') {
