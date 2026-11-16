@@ -3,6 +3,8 @@ import { readFile } from 'node:fs/promises'
 
 import { expect, test } from 'vitest'
 
+import factory from '../../vendor/inkbar-pdfium.mjs'
+
 import { FUNCTIONS } from './functions.ts'
 import { loadNative } from './module.ts'
 
@@ -20,6 +22,18 @@ test('every function the engine binds is in the binary', () => {
 
 test('the binary exports nothing the engine does not bind', () => {
   expect(exported.filter((n) => !(n in FUNCTIONS))).toEqual([])
+})
+
+test("the module's own function exports are exactly the functions the engine binds", async () => {
+  const module = (await factory({
+    wasmBinary: await readFile(wasmPath),
+  })) as unknown as Record<string, unknown>
+  // Emscripten's runtime helpers start with "__" or "_emscripten_".
+  const own = Object.keys(module)
+    .filter((key) => key.startsWith('_') && typeof module[key] === 'function')
+    .filter((key) => !key.startsWith('__') && !key.startsWith('_emscripten_'))
+    .map((key) => key.slice(1))
+  expect(own.sort()).toEqual(Object.keys(FUNCTIONS).sort())
 })
 
 test('loadNative binds every function', async () => {
