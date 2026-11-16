@@ -20,6 +20,17 @@ interface Lock {
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 
+/** The files at the root of the PDFium archive. */
+export const ARCHIVE_FILES = [
+  'inkbar-pdfium.wasm',
+  'inkbar-pdfium.mjs',
+  'exports.txt',
+  'manifest.json',
+  'LICENSE',
+  'NOTICE',
+  'THIRD_PARTY_LICENSES',
+] as const
+
 /** Throws when the bytes do not hash to `sha256`; the message names both hashes. */
 export function verifyArchive(bytes: Uint8Array, sha256: string): void {
   const actual = createHash('sha256').update(bytes).digest('hex')
@@ -42,7 +53,11 @@ export async function fetchPdfium(
   const lock = JSON.parse(readFileSync(lockPath, 'utf8')) as Lock
 
   const stamp = join(vendorDir, '.sha256')
-  if (existsSync(stamp) && readFileSync(stamp, 'utf8').trim() === lock.sha256)
+  if (
+    existsSync(stamp) &&
+    readFileSync(stamp, 'utf8').trim() === lock.sha256 &&
+    ARCHIVE_FILES.every((name) => existsSync(join(vendorDir, name)))
+  )
     return 'cached'
 
   const local = process.env.INKBAR_PDFIUM_ARCHIVE
@@ -74,6 +89,9 @@ export async function fetchPdfium(
     writeFileSync(archivePath, bytes)
     mkdirSync(unpacked)
     execFileSync('tar', ['-xzf', archivePath, '-C', unpacked])
+    const missing = ARCHIVE_FILES.filter((name) => !existsSync(join(unpacked, name)))
+    if (missing.length > 0)
+      throw new Error(`The PDFium archive lacks ${missing.join(', ')}`)
     writeFileSync(join(unpacked, '.sha256'), `${lock.sha256}\n`)
     rmSync(vendorDir, { recursive: true, force: true })
     renameSync(unpacked, vendorDir)

@@ -3,6 +3,7 @@ import { afterEach, expect, test } from 'vitest'
 
 import wasm from '../vendor/inkbar-pdfium.wasm?url'
 
+import { engineOver } from './engine.ts'
 import { createEngine, type Engine, type EngineDocument } from './index.ts'
 import { createWorkerTransport } from './transport/worker.ts'
 
@@ -106,12 +107,44 @@ test('destroy terminates the worker and rejects later calls', async () => {
   })
 })
 
+test('destroy stops a worker whose running call outlasts the bound', async () => {
+  const real = new Worker(worker, { type: 'module' })
+  let terminated = false
+  const terminate = real.terminate.bind(real)
+  real.terminate = () => {
+    terminated = true
+    terminate()
+  }
+  const engine = engineOver(
+    await createWorkerTransport(real, wasm, { destroyTimeout: 1 })
+  )
+  const doc = await engine.open(await fixture('text-simple'))
+  const running = doc.renderPage(0, { scale: 8 }).catch((reason: unknown) => reason)
+  await new Promise((resolve) => setTimeout(resolve, 0)) // the render is now running
+  const queued = doc.pageInfo(0).catch((reason: unknown) => reason)
+  await engine.destroy()
+  expect(terminated).toBe(true)
+  expect(await running).toMatchObject({ name: 'EngineError', code: 'aborted' })
+  expect(await queued).toMatchObject({ code: 'aborted' })
+  await expect(doc.pageInfo(0)).rejects.toMatchObject({ code: 'engine-failure' })
+  await expect(doc.close()).resolves.toBeUndefined()
+})
+
 test('a wasm URL that 404s rejects createEngine and names the URL', async () => {
   const error: unknown = await createEngine({ worker, wasm: '/missing.wasm' }).catch(
     (reason: unknown) => reason
   )
   expect(error).toMatchObject({ code: 'engine-failure' })
   expect((error as Error).message).toContain('/missing.wasm')
+})
+
+test('HTML served in place of the wasm rejects createEngine and names the URL', async () => {
+  const url = '/engine-test/html-instead-of.wasm'
+  const error: unknown = await createEngine({ worker, wasm: url }).catch(
+    (reason: unknown) => reason
+  )
+  expect(error).toMatchObject({ code: 'engine-failure' })
+  expect((error as Error).message).toContain(url)
 })
 
 /** Records the workers `createEngine` makes and which of them were terminated. */

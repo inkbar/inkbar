@@ -29,3 +29,21 @@ test('the built package keeps the literal worker form that bundlers detect', asy
     /new Worker\(\s*new URL\(\s*["']\.\/worker\.mjs["']\s*,\s*import\.meta\.url\s*\)/
   )
 })
+
+test('the built package carries the licences of everything in the binary', async () => {
+  const notices = await readFile(
+    new URL('../dist/THIRD-PARTY-NOTICES', import.meta.url),
+    'utf8'
+  )
+  const vendor = (name: string) =>
+    readFile(new URL(`../vendor/${name}`, import.meta.url), 'utf8')
+  const licence = await vendor('LICENSE')
+  const notice = await vendor('NOTICE')
+  const thirdParty = await vendor('THIRD_PARTY_LICENSES')
+  const at = (text: string) => notices.indexOf(text)
+  expect(at(licence)).toBe(0)
+  expect(at(notice)).toBeGreaterThan(at(licence))
+  expect(at(thirdParty)).toBeGreaterThan(at(notice))
+  for (const library of ['FreeType', 'libjpeg-turbo', 'OpenJPEG', 'zlib', 'Emscripten'])
+    expect(thirdParty).toContain(library)
+})

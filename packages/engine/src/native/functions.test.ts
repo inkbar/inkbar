@@ -1,7 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
+
+import factory from '../../vendor/inkbar-pdfium.mjs'
 
 import { FUNCTIONS } from './functions.ts'
 import { loadNative } from './module.ts'
@@ -22,6 +24,18 @@ test('the binary exports nothing the engine does not bind', () => {
   expect(exported.filter((n) => !(n in FUNCTIONS))).toEqual([])
 })
 
+test("the module's own function exports are exactly the functions the engine binds", async () => {
+  const module = (await factory({
+    wasmBinary: await readFile(wasmPath),
+  })) as unknown as Record<string, unknown>
+  // Emscripten's runtime helpers start with "__" or "_emscripten_".
+  const own = Object.keys(module)
+    .filter((key) => key.startsWith('_') && typeof module[key] === 'function')
+    .filter((key) => !key.startsWith('__') && !key.startsWith('_emscripten_'))
+    .map((key) => key.slice(1))
+  expect(own.sort()).toEqual(Object.keys(FUNCTIONS).sort())
+})
+
 test('loadNative binds every function', async () => {
   const native = await loadNative({ wasm: await readFile(wasmPath) })
   for (const name of Object.keys(FUNCTIONS))
@@ -29,6 +43,8 @@ test('loadNative binds every function', async () => {
 })
 
 test('loadNative rejects bytes that are not WebAssembly', async () => {
+  // Emscripten reports the failed load itself; the rejection carries the same error.
+  using _ = vi.spyOn(console, 'error').mockImplementation(() => {})
   await expect(loadNative({ wasm: new Uint8Array([1, 2, 3]) })).rejects.toMatchObject({
     code: 'engine-failure',
   })

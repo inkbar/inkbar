@@ -1,10 +1,13 @@
-import { readFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 import { fixtureBytes } from '@inkbar/fixtures'
-import { afterEach, beforeAll, beforeEach, expect, test } from 'vitest'
+import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
 
 import { engineOver } from './engine.ts'
-import { createEngine, type Engine, type EngineDocument } from './index.ts'
+import { createEngine, EngineError, type Engine, type EngineDocument } from './index.ts'
 
 import type { Request, Transport } from './protocol.ts'
 
@@ -106,6 +109,51 @@ test('destroy rejects queued calls with aborted', async () => {
   await expect(destroyed).resolves.toBeUndefined()
 })
 
+test('a close queued when destroy runs resolves', async () => {
+  const queued = doc.pageInfo(0)
+  const closing = doc.close()
+  const destroyed = engine.destroy()
+  await expect(queued).rejects.toMatchObject({ code: 'aborted' })
+  await expect(closing).resolves.toBeUndefined()
+  await expect(destroyed).resolves.toBeUndefined()
+})
+
+test('a close that fails for another reason after destroy still rejects', async () => {
+  let failClose!: () => void
+  const fake = engineOver({
+    call: (request) =>
+      request.op === 'open'
+        ? Promise.resolve({ id: 1, pageCount: 1 } as never)
+        : new Promise<never>((_, reject) => {
+            failClose = () => reject(new EngineError('engine-failure', 'boom'))
+          }),
+    destroy: () => Promise.resolve(),
+  })
+  const opened = await fake.open(bytes)
+  const closing = opened.close()
+  await fake.destroy()
+  failClose()
+  await expect(closing).rejects.toMatchObject({ code: 'engine-failure', message: 'boom' })
+})
+
+test('a default worker that cannot be constructed is named in the error', async () => {
+  vi.stubGlobal(
+    'Worker',
+    class {
+      constructor() {
+        throw new Error('blocked')
+      }
+    }
+  )
+  try {
+    const error: unknown = await createEngine({ wasm }).catch((reason: unknown) => reason)
+    expect(error).toMatchObject({ code: 'engine-failure' })
+    expect((error as Error).message).toMatch(/worker\.mjs/)
+  } finally {
+    vi.unstubAllGlobals()
+  }
+})
+
 test('after destroy no call reaches the transport', async () => {
   const seen: Request[] = []
   const transport: Transport = {
@@ -157,13 +205,35 @@ test('the caller keeps its bytes', async () => {
   expect((await copy.pageInfo(0)).width).toBe(612)
 })
 
+/** Silences Emscripten's own report of a failed load, which the rejection already carries. */
+function quietLoad() {
+  return vi.spyOn(console, 'error').mockImplementation(() => {})
+}
+
 test('a wasm path that does not exist rejects with engine-failure naming it', async () => {
+  using _ = quietLoad()
   await expect(
     createEngine({ wasm: new URL('file:///nope/missing.wasm'), worker: false })
   ).rejects.toMatchObject({
     code: 'engine-failure',
     message: expect.stringContaining('missing.wasm') as unknown,
   })
+})
+
+test('an HTML file in place of the wasm rejects with engine-failure naming it', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'engine-html-'))
+  try {
+    const file = join(dir, 'inkbar-pdfium.wasm')
+    await writeFile(file, '<!doctype html><title>Not found</title>')
+    const url = pathToFileURL(file)
+    using _ = quietLoad()
+    await expect(createEngine({ wasm: url, worker: false })).rejects.toMatchObject({
+      code: 'engine-failure',
+      message: expect.stringContaining(url.href) as unknown,
+    })
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
 })
 
 test('a file: URL for the wasm loads the engine', async () => {
