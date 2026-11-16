@@ -77,7 +77,12 @@ class Document implements EngineDocument {
   async close(): Promise<void> {
     if (this.#closed || this.session.destroyed) return
     this.#closed = true
-    await this.session.call({ op: 'close', doc: this.id })
+    try {
+      await this.session.call({ op: 'close', doc: this.id })
+    } catch (error) {
+      // destroy() closes every document, so a close it cut short has nothing left to do.
+      if (!this.session.destroyed) throw error
+    }
   }
 
   #call<T>(request: Request, signal?: AbortSignal): Promise<T> {

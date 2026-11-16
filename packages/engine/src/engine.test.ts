@@ -106,6 +106,15 @@ test('destroy rejects queued calls with aborted', async () => {
   await expect(destroyed).resolves.toBeUndefined()
 })
 
+test('a close queued when destroy runs resolves', async () => {
+  const queued = doc.pageInfo(0)
+  const closing = doc.close()
+  const destroyed = engine.destroy()
+  await expect(queued).rejects.toMatchObject({ code: 'aborted' })
+  await expect(closing).resolves.toBeUndefined()
+  await expect(destroyed).resolves.toBeUndefined()
+})
+
 test('after destroy no call reaches the transport', async () => {
   const seen: Request[] = []
   const transport: Transport = {
