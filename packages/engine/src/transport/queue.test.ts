@@ -68,3 +68,15 @@ test('a failing job rejects its caller and the queue carries on', async () => {
   await expect(bad).rejects.toBeInstanceOf(RangeError)
   await expect(good).resolves.toBe('ok')
 })
+
+test('a failing beforeEach rejects that job and the queue keeps draining', async () => {
+  let calls = 0
+  const queue = new CallQueue(() => {
+    calls++
+    return calls === 1 ? Promise.reject(new Error('hook')) : Promise.resolve()
+  })
+  const first = queue.enqueue(() => 'a')
+  const second = queue.enqueue(() => 'b')
+  await expect(first).rejects.toThrow('hook')
+  await expect(second).resolves.toBe('b')
+})

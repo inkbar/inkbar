@@ -59,7 +59,7 @@ test('aborting a queued call rejects it and lets the running one finish', async 
   await expect(first).resolves.toMatchObject({ width: 2448 })
 })
 
-test('a lone call aborted right after it is made never runs', async () => {
+test('an aborted queued call is skipped and the call before it still resolves', async () => {
   const c = new AbortController()
   const call = doc.pageInfo(0)
   const aborted = doc.renderPage(0, { signal: c.signal })
@@ -123,6 +123,30 @@ test('after destroy no call reaches the transport', async () => {
   await expect(opened.pageInfo(0)).rejects.toMatchObject({ code: 'engine-failure' })
   await expect(opened.close()).resolves.toBeUndefined()
   expect(seen).toEqual([])
+})
+
+test('open copies the bytes when called, not when it runs', async () => {
+  const mine = (await fixtureBytes('text-simple')).slice()
+  const pending = engine.open(mine)
+  mine.fill(0)
+  expect((await pending).pageCount).toBe(3)
+})
+
+test('a second destroy waits for the first', async () => {
+  let finish!: () => void
+  const slow = new Promise<void>((resolve) => (finish = resolve))
+  const fake = engineOver({
+    call: () => Promise.resolve(undefined as never),
+    destroy: () => slow,
+  })
+  let secondDone = false
+  const first = fake.destroy()
+  const second = fake.destroy().then(() => (secondDone = true))
+  await new Promise((resolve) => setTimeout(resolve, 5))
+  expect(secondDone).toBe(false)
+  finish()
+  await Promise.all([first, second])
+  expect(secondDone).toBe(true)
 })
 
 test('the caller keeps its bytes', async () => {

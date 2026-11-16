@@ -90,16 +90,19 @@ class EngineImpl implements Engine {
   ): Promise<EngineDocument> {
     const { signal, ...openOptions } = options
     const opened = await this.session.call<{ id: number; pageCount: number }>(
-      { op: 'open', bytes, options: openOptions },
+      { op: 'open', bytes: bytes.slice(), options: openOptions },
       signal
     )
     return new Document(this.session, opened.id, opened.pageCount)
   }
 
-  async destroy(): Promise<void> {
-    if (this.session.destroyed) return
+  #destroying: Promise<void> | undefined
+
+  destroy(): Promise<void> {
     this.session.destroyed = true
-    await this.session.transport.destroy()
+    // A later call waits for the first one to finish.
+    this.#destroying ??= this.session.transport.destroy()
+    return this.#destroying
   }
 }
 

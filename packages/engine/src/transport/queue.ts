@@ -62,10 +62,21 @@ export class CallQueue {
   async #drain(): Promise<void> {
     try {
       while (this.#jobs.length > 0) {
-        await this.#beforeEach()
+        let hookError: unknown
+        let failed = false
+        try {
+          await this.#beforeEach()
+        } catch (error) {
+          failed = true
+          hookError = error
+        }
         const job = this.#jobs.shift()
         if (!job) break
         job.detach()
+        if (failed) {
+          job.reject(hookError)
+          continue
+        }
         this.#current = job.start()
         await this.#current
       }

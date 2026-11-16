@@ -27,7 +27,7 @@ export class InThreadTransport implements Transport {
   readonly #core: EngineCore
   // Yielding between calls lets a queued call be aborted while another runs.
   readonly #queue = new CallQueue(nextMacrotask)
-  #destroyed = false
+  #destroying: Promise<void> | undefined
 
   constructor(core: EngineCore) {
     this.#core = core
@@ -37,11 +37,11 @@ export class InThreadTransport implements Transport {
     return this.#queue.enqueue(() => dispatch(this.#core, request) as T, signal)
   }
 
-  async destroy(): Promise<void> {
-    if (this.#destroyed) return
-    this.#destroyed = true
-    await this.#queue.destroy()
-    this.#core.destroy()
+  destroy(): Promise<void> {
+    this.#destroying ??= this.#queue.destroy().then(() => {
+      this.#core.destroy()
+    })
+    return this.#destroying
   }
 }
 

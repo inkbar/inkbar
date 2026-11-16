@@ -29,7 +29,7 @@
     "build": "node scripts/fetch-pdfium.ts && tsdown",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint src scripts",
-    "test": "pnpm build && vitest run --project node"
+    "test": "node scripts/fetch-pdfium.ts && vitest run --project node"
   },
   "devDependencies": {
     "@inkbar/fixtures": "workspace:*",
