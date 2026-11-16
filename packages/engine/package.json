@@ -15,8 +15,7 @@
   "sideEffects": false,
   "files": [
     "dist",
-    "README.md",
-    "THIRD-PARTY-NOTICES"
+    "README.md"
   ],
   "exports": {
     ".": {

@@ -48,7 +48,13 @@ export async function fetchPdfium(
   const local = process.env.INKBAR_PDFIUM_ARCHIVE
   let bytes: Uint8Array
   if (local) {
-    bytes = readFileSync(local)
+    try {
+      bytes = readFileSync(local)
+    } catch (error) {
+      throw new Error(`Could not read INKBAR_PDFIUM_ARCHIVE at ${local}`, {
+        cause: error,
+      })
+    }
   } else {
     const response = await doFetch(lock.url)
     if (!response.ok) {

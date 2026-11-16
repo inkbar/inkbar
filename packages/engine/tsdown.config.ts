@@ -17,7 +17,7 @@ export default defineConfig({
   hooks: {
     'build:done': () => {
       const notices = `${readFileSync(vendor('LICENSE'), 'utf8')}\n${readFileSync(vendor('NOTICE'), 'utf8')}`
-      writeFileSync(new URL('THIRD-PARTY-NOTICES', import.meta.url), notices)
+      writeFileSync(new URL('dist/THIRD-PARTY-NOTICES', import.meta.url), notices)
     },
   },
 })

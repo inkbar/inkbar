@@ -3,4 +3,3 @@ pnpm-lock.yaml
 .svelte-kit
 CHANGELOG.md
 packages/engine/vendor
-packages/engine/THIRD-PARTY-NOTICES

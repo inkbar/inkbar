@@ -144,3 +144,11 @@ test('fetchPdfium rejects a local archive with the wrong hash', async () => {
   ).rejects.toThrow(/0{64}/)
   expect(existsSync(vendorDir)).toBe(false)
 })
+
+test('fetchPdfium names the variable and path when the local archive is missing', async () => {
+  const missing = join(dir, 'missing.tar.gz')
+  vi.stubEnv('INKBAR_PDFIUM_ARCHIVE', missing)
+  await expect(
+    fetchPdfium({ lockPath: writeLock(sha256(archive)), vendorDir: join(dir, 'vendor') })
+  ).rejects.toThrow(new RegExp(`INKBAR_PDFIUM_ARCHIVE.*${missing}`))
+})
