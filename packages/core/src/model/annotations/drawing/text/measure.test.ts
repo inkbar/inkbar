@@ -14,8 +14,8 @@ describe('standardMeasure', () => {
     ['Helvetica', true, false, 'A', 8.664],
     ['Times', false, false, 'A', 8.664],
     ['Times', false, false, ' ', 3],
-    ['Courier', false, false, 'W', 7.2],
-    ['Courier', true, true, 'i', 7.2],
+    ['Courier', false, false, 'W', 7.201171875],
+    ['Courier', true, true, 'i', 7.201171875],
     ['Helvetica', false, false, '€', 6.672],
     ['Helvetica', false, false, 'é', 6.672],
     ['Helvetica', false, false, '’', 2.664],
@@ -31,6 +31,10 @@ describe('standardMeasure', () => {
   test('Ÿ is a capital Y with a diaeresis, not the lower-case letter', () => {
     expect(standardMeasure.width('Ÿ', helv, 12).width).toBeCloseTo(8.004, 3)
     expect(standardMeasure.width('ÿ', helv, 12).width).toBeCloseTo(6, 3)
+  })
+
+  test('a prepended mark such as the Arabic number sign is not zero width', () => {
+    expect(standardMeasure.width('\u0600', helv, 12)).toEqual({ width: 6, outside: true })
   })
 
   test('a character outside the tables is flagged and still has a width', () => {

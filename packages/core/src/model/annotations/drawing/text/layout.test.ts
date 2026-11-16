@@ -295,3 +295,18 @@ describe('layoutText: tabs and long text', () => {
     expect(lines.map((l) => l.text).join('')).toBe('x'.repeat(100_000))
   })
 })
+
+describe('layoutText: Courier follows the screen fonts', () => {
+  const courier: TextFont = { family: 'Courier', bold: false, italic: false }
+
+  test('24 Courier characters at 10 pt do not fit a 144 pt box, so the line wraps after 23', () => {
+    const text = 'abcdefghijklmnopqrstuvwx'
+    expect(standardMeasure.width(text, courier, 10).width).toBeGreaterThan(144)
+    expect(standardMeasure.width(text, courier, 10).width).toBeCloseTo(144.0234375, 6)
+    const { lines } = layoutText(
+      { text, font: courier, size: 10, width: 144, align: 'left' },
+      standardMeasure
+    )
+    expect(lines.map((l) => l.text)).toEqual([text.slice(0, 23), text.slice(23)])
+  })
+})

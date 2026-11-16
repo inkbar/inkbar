@@ -1,5 +1,5 @@
 import { clusters } from './clusters'
-import { CHARS, COURIER_WIDTH, WIDTHS } from './metrics-data'
+import { CHARS, WIDTHS } from './metrics-data'
 
 import type { TextFont, TextMeasure } from '../types'
 
@@ -23,6 +23,16 @@ export function resolveFont(
   return { family, bold, italic }
 }
 
+/**
+ * What a Courier character measures, in ems. Adobe's table says 0.6, and a PDF viewer using
+ * Courier advances 0.6. The fonts a browser puts on screen for Courier, Courier New and Liberation
+ * Mono, advance 1229/2048 = 0.60010 em, which is 0.017% wider; a line that fills a box at exactly
+ * 0.6 em per character then wraps one character early on screen. The layout follows the screen
+ * fonts. The generated table keeps Adobe's 600, so it stays a faithful copy of its source, and
+ * the Courier width in it is not read.
+ */
+export const COURIER_ADVANCE = 1229 / 2048
+
 /** Line metrics of the fonts browsers substitute, as fractions of the size. */
 const VERTICAL = {
   Helvetica: { ascent: 0.905, descent: 0.212 },
@@ -42,8 +52,11 @@ const indexOf = (char: string): number | undefined => {
 
 /** Characters that take no room and draw nothing: marks, zero-width spaces and joiners, soft hyphen, variation selectors. */
 export function isZeroWidth(char: string): boolean {
-  return /^[\p{Mn}\p{Me}\p{Cf}]$/u.test(char)
+  return /^[\p{Mn}\p{Me}\p{Cf}]$/u.test(char) && !PREPENDED.test(char)
 }
+
+/** Format characters that draw: the prepended marks that number signs and the like are made of. */
+const PREPENDED = /^[\u0600-\u0605\u06dd\u070f\u0890\u0891\u08e2\u{110bd}\u{110cd}]$/u
 
 /** Ranges of East Asian Wide and Fullwidth characters, and of emoji, in order of code point. */
 const WIDE: readonly (readonly [number, number])[] = [
@@ -141,7 +154,7 @@ export function measureWith(
         const [base, ...rest] = cluster
         const i = indexOf(base!)
         if (i !== undefined && rest.every(isZeroWidth)) {
-          total += ((table ? table[i]! : COURIER_WIDTH) / 1000) * size
+          total += table ? (table[i]! / 1000) * size : COURIER_ADVANCE * size
         } else if (!isZeroWidth(base!) || !rest.every(isZeroWidth)) {
           total += fallback(cluster, font, size)
           outside = true
