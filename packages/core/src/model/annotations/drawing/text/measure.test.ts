@@ -81,6 +81,15 @@ describe('standardMeasure', () => {
   })
 })
 
+describe('zero-width characters outside the tables', () => {
+  test('take no room in the measure with no browser', () => {
+    const w = (t: string) => standardMeasure.width(t, helv, 12).width
+    expect(w('日\u200b')).toBe(w('日'))
+    expect(w('日\u200b日')).toBe(w('日日'))
+    expect(w('گ\u200cر')).toBe(w('گر'))
+  })
+})
+
 describe('measureWith runs', () => {
   const runs = (text: string) => {
     const fallback = vi.fn((_run: string) => 5)
@@ -108,6 +117,8 @@ describe('measureWith runs', () => {
     expect(outsideTables('Hello world')).toBe(false)
     expect(outsideTables('Hello\u200b')).toBe(false)
     expect(outsideTables('Hello 日')).toBe(true)
+    // A tab is not a character to measure.
+    expect(outsideTables('a\tb')).toBe(false)
   })
 })
 

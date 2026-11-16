@@ -212,6 +212,11 @@ describe('describeFreeText', () => {
     expect(text(d).lines.map((l) => l.outside)).toEqual([false, true, true])
   })
 
+  test('a line with a tab is not flagged for the tab', () => {
+    const d = describeFreeText({ ...box, contents: 'a\tb' }, context())
+    expect(text(d).lines[0]!.outside).toBe(false)
+  })
+
   test("text on a page rotated 90 is laid out across the rect's height and turned upright", () => {
     const rect = { x: 100, y: 500, width: 144, height: 60 }
     const a: FreeTextAnnotation = {

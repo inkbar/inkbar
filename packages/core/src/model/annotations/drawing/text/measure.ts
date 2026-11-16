@@ -187,6 +187,8 @@ export function outsideTables(text: string): boolean {
     const [base, ...rest] = cluster
     if (indexOf(base!) !== undefined && rest.every(isZeroWidth)) continue
     if (isZeroWidth(base!) && rest.every(isZeroWidth)) continue
+    // A tab is the layout's own business, advancing to a tab stop: not a character to measure.
+    if (base === '\t' && rest.length === 0) continue
     return true
   }
   return false
@@ -195,7 +197,12 @@ export function outsideTables(text: string): boolean {
 /** One size for a wide character, half a size for any other, summed over the run. */
 export function fixedWidth(run: string, size: number): number {
   let width = 0
-  for (const cluster of clusters(run)) width += isWide(cluster) ? size : size / 2
+  for (const cluster of clusters(run)) {
+    const [base, ...rest] = cluster
+    // Zero-width characters (joiners, marks) take no room.
+    if (isZeroWidth(base!) && rest.every(isZeroWidth)) continue
+    width += isWide(cluster) ? size : size / 2
+  }
   return width
 }
 

@@ -389,4 +389,29 @@ describe('layoutText with runs outside the tables', () => {
     expect(performance.now() - start).toBeLessThan(1000)
     expect(lines.map((l) => l.text).join('')).toBe('ж'.repeat(100_000))
   })
+
+  test('the pieces of a tab line are placed by the widths the layout measured them at', () => {
+    // A shaped run of five is 20 wide, though its letters apart would be 60.
+    const measure = measureWith((run, _font, size) =>
+      run.length === 1 ? size : run.length * 4
+    )
+    const { lines } = layoutText(block('مرحبا\tبالعالم', 300), measure)
+    const [line] = lines
+    const [first, second] = line!.segments!
+    expect(first!.x).toBe(0)
+    // The next tab stop after 20 is 8 space widths (26.688), not the 80.06 that 60 would give.
+    expect(second!.x).toBeCloseTo(8 * w(' '), 3)
+    expect(line!.outside).toBe(true)
+  })
+
+  test('word spacing in a piece moves the pieces after it', () => {
+    const { lines } = layoutText(
+      block('a b\tc d e f g h i j k l m n o p q r s t u v', 60, { align: 'justify' }),
+      standardMeasure
+    )
+    const tabbed = lines.find((l) => l.segments && l.wordSpacing)
+    expect(tabbed).toBeDefined()
+    const [a, b] = tabbed!.segments!
+    expect(b!.x).toBeGreaterThanOrEqual(a!.x + w(a!.text) + tabbed!.wordSpacing!)
+  })
 })

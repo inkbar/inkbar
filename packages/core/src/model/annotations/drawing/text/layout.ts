@@ -256,8 +256,9 @@ export function layoutText(
 }
 
 /**
- * The pieces of `text` between its tabs, each placed where the tab stops put it. Characters are
- * measured as clusters, as `layoutText` measures them, and each space adds the line's word spacing.
+ * The pieces of `text` between its tabs, each placed where the tab stops put it. A piece is
+ * measured as the layout measures a line, with `widthOf` on the whole piece (so a run of a joined
+ * script is one measure), and each space in it adds the line's word spacing.
  */
 function segmentsOf(
   text: string,
@@ -268,23 +269,11 @@ function segmentsOf(
 ): { text: string; x: number }[] {
   const out: { text: string; x: number }[] = []
   let x = 0
-  let piece = ''
-  let start = 0
-  const flush = () => {
-    if (piece) out.push({ text: piece, x: origin + start })
-    piece = ''
+  for (const [i, piece] of text.split('\t').entries()) {
+    if (i > 0) x = advance(x, '\t')
+    if (piece === '') continue
+    out.push({ text: piece, x: origin + x })
+    x += widthOf(piece) + wordSpacing * [...piece].filter((c) => c === ' ').length
   }
-  for (const c of clusters(text)) {
-    if (c === '\t') {
-      flush()
-      x = advance(x, '\t')
-      start = x
-    } else {
-      if (!piece) start = x
-      piece += c
-      x += widthOf(c) + (c === ' ' ? wordSpacing : 0)
-    }
-  }
-  flush()
   return out
 }
