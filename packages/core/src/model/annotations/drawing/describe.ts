@@ -1,3 +1,4 @@
+import { describeInk } from './ink'
 import { describeLine } from './lines'
 import { describeMarkup, describeRedact } from './markup'
 import { describeShape } from './shapes'
@@ -28,6 +29,8 @@ export function describeAnnotation(
     case 'polyline':
     case 'polygon':
       return describeLine(a)
+    case 'ink':
+      return describeInk(a)
     default:
       return undefined
   }

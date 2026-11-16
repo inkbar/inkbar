@@ -123,8 +123,12 @@ export function freehandTool(opts: FreehandOptions): Tool {
     const path = doc.createElementNS(SVG_NS, 'path')
     path.setAttribute(
       'd',
+      // Shaped in points, as the committed stroke is, then moved to the screen: the preview
+      // and the annotation are one shape at every zoom.
       outlinePath(
-        strokeOutline(s.css, s.pressure, s.from.transform.toCssLength(style.width ?? 2))
+        strokeOutline(s.user, s.pressure, style.width ?? 2).map((p) =>
+          s.from.transform.toCss(p)
+        )
       )
     )
     path.setAttribute('fill', style.color ?? '#000000')

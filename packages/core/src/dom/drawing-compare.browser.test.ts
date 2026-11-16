@@ -315,6 +315,78 @@ describe('comparePaint regions', () => {
   })
 })
 
+const wave = (n: number, x0: number, y0: number) =>
+  Array.from({ length: n }, (_, i) => ({
+    x: x0 + i * 4,
+    y: y0 + Math.sin(i / 4) * 24,
+  }))
+const inkRect = { x: 90, y: 540, width: 260, height: 100 }
+const inkCases: CompareCase[] = [
+  {
+    name: 'ink without pressure',
+    annotation: {
+      type: 'ink',
+      page: 0,
+      rect: inkRect,
+      width: 6,
+      inklist: [wave(60, 100, 600)],
+    },
+  },
+  {
+    name: 'ink with pressure',
+    annotation: {
+      type: 'ink',
+      page: 0,
+      rect: inkRect,
+      width: 8,
+      inklist: [wave(60, 100, 600)],
+      pressure: [Array.from({ length: 60 }, (_, i) => 0.1 + (i * 0.8) / 59)],
+    },
+  },
+  {
+    name: 'ink with two strokes at half opacity',
+    annotation: {
+      type: 'ink',
+      page: 0,
+      rect: inkRect,
+      width: 5,
+      opacity: 0.5,
+      inklist: [wave(50, 100, 600), wave(40, 110, 560)],
+    },
+  },
+  {
+    name: 'ink with one point',
+    annotation: {
+      type: 'ink',
+      page: 0,
+      rect: inkRect,
+      width: 6,
+      inklist: [[{ x: 150, y: 600 }]],
+    },
+  },
+]
+
+describe('comparePaint for ink', () => {
+  for (const c of inkCases) {
+    // The reference stretches a lone point by 1 CSS px along the screen diagonal, so its dot
+    // takes a slightly different shape at every zoom and turn; the drawing's dot is round.
+    // That is a handful of edge pixels of a small dot, not a different stroke.
+    const dot = c.name === 'ink with one point'
+    for (const rotate of [0, 90] as const) {
+      for (const zoom of [0.5, 1, 2, 4] as const) {
+        it(`${c.name} at rotate ${rotate} and zoom ${zoom}`, async () => {
+          const r = await comparePaint({ ...c, rotate, zoom })
+          expect(r.referenceInk).toBeGreaterThan(0)
+          if (dot) {
+            expect(r.differing).toBeLessThanOrEqual(0.15)
+            expect(r.differingPixels).toBeLessThanOrEqual(20)
+          } else expect(r.differing).toBeLessThanOrEqual(0.01)
+        })
+      }
+    }
+  }
+})
+
 describe('comparePaint for the types that have a drawing', () => {
   for (const c of moved) {
     for (const rotate of [0, 90] as const) {
@@ -445,6 +517,21 @@ describe('the painted markup against the reference markup', () => {
       },
     ],
     ['filled circle', { type: 'circle', ...stamp, width: 2, interiorColor: '#7FB3D5' }],
+    [
+      'ink with two strokes',
+      {
+        type: 'ink',
+        page: 0,
+        rect: inkRect,
+        width: 3,
+        opacity: 0.7,
+        inklist: [wave(30, 100, 600), wave(20, 110, 560)],
+        pressure: [
+          Array.from({ length: 30 }, (_, i) => 0.2 + (i * 0.6) / 29),
+          Array.from({ length: 20 }, (_, i) => 0.8 - (i * 0.6) / 19),
+        ],
+      },
+    ],
   ]
   for (const [name, input] of cases) {
     for (const rotation of [0, 90] as const) {
@@ -479,9 +566,28 @@ describe('the painted markup against the reference markup', () => {
           expect(painted.querySelector('[data-ink-hit-stroke]')).not.toBeNull()
         if (name.startsWith('commented'))
           expect(painted.querySelector('.ink-comment-marker')).not.toBeNull()
-        expect([...painted.children].map(shape)).toEqual(
-          [...reference.children].map(shape)
-        )
+        if (name.startsWith('ink')) {
+          // The outline is computed in points and then scaled, not in CSS px, so its `d` is
+          // not the reference's to three places (it is the same shape: see comparePaint for
+          // ink). Everything else is compared.
+          const withoutD = (el: Element): unknown => {
+            const s = shape(el) as { attrs: Record<string, string>; children: unknown[] }
+            const strip = (n: { attrs: Record<string, string>; children: unknown[] }) => {
+              if (n.attrs.class === 'ink-stroke') delete n.attrs.d
+              n.children.forEach((c) => strip(c as typeof n))
+            }
+            strip(s)
+            return s
+          }
+          expect(painted.querySelectorAll('path.ink-stroke')).toHaveLength(2)
+          expect(painted.querySelectorAll('[data-ink-hit-stroke]')).toHaveLength(2)
+          expect([...painted.children].map(withoutD)).toEqual(
+            [...reference.children].map(withoutD)
+          )
+        } else
+          expect([...painted.children].map(shape)).toEqual(
+            [...reference.children].map(shape)
+          )
       })
     }
   }

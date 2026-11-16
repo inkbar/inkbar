@@ -1887,6 +1887,66 @@ describe('draw tool', () => {
     expect(ink.inklist[0]).toHaveLength(3)
   })
 
+  it.each([
+    [
+      'a long stroke',
+      [
+        [100, 100],
+        [130, 120],
+        [170, 125],
+        [210, 100],
+        [250, 80],
+        [300, 90],
+      ],
+    ],
+    [
+      'a short stroke of small steps',
+      [
+        [100, 100],
+        [101, 100],
+        [102, 101],
+        [103, 103],
+        [105, 104],
+        [106, 107],
+        [109, 108],
+      ],
+    ],
+  ] as [string, [number, number][]][])(
+    'the preview is the shape the committed stroke takes at zoom 2: %s',
+    async (_name, moves) => {
+      const { doc, container, viewport, tools } = await setup()
+      viewport.setZoom(2)
+      await until(() => viewport.transformFor(0).zoom === 2)
+      await settle()
+      tools.set('draw')
+      const h = viewport.hostFor(0)!.getBoundingClientRect()
+      const [first, ...rest] = moves
+      pointer(container, 'pointerdown', h.left + first![0], h.top + first![1], pen(0.3))
+      rest.forEach(([x, y], i) =>
+        pointer(container, 'pointermove', h.left + x, h.top + y, pen(0.3 + i * 0.1))
+      )
+      const draft = container.querySelector<SVGGraphicsElement>('[data-ink-draft] path')!
+      const preview = draft.getBoundingClientRect()
+      const last = moves[moves.length - 1]!
+      pointer(
+        container,
+        'pointerup',
+        h.left + last[0],
+        h.top + last[1],
+        pen(0, { buttons: 0 })
+      )
+      const [ink] = inks(doc)
+      expect(ink?.type).toBe('ink')
+      const el = container.querySelector<SVGGraphicsElement>(
+        `[data-annotation="${ink!.id}"] path.ink-stroke`
+      )!
+      const committed = el.getBoundingClientRect()
+      expect(committed.width).toBeGreaterThan(4)
+      for (const side of ['left', 'top', 'right', 'bottom'] as const)
+        expect(Math.abs(preview[side] - committed[side])).toBeLessThan(0.5)
+    }
+  )
+
   it('mouse input omits pressure', async () => {
     const { doc, container, viewport, tools } = await setup()
     tools.set('draw')

@@ -9,6 +9,7 @@ import { itemElement, paintDrawing } from './drawing-svg'
 import { renderReferenceContent } from './reference-render'
 import { type CssRect, type PageTransform } from './transform'
 
+import type { DrawItem } from '../model/annotations/drawing/types'
 import type {
   Annotation,
   FreeTextAnnotation,
@@ -444,7 +445,13 @@ function renderChrome(el: HTMLElement, a: Annotation, t: PageTransform): void {
   const drawn = group?.kind === 'group' ? group.items : []
   if (svg && hasHitTwin(a)) {
     const box = annotationBox(a, t)
-    for (const item of drawn) {
+    // An ink stroke is drawn as an outline, but a press should land near its path: the twin
+    // follows the sampled points.
+    const followed: readonly DrawItem[] =
+      a.type === 'ink'
+        ? a.inklist.map((points) => ({ kind: 'polyline', points, paint: {} }))
+        : drawn
+    for (const item of followed) {
       if (item.kind === 'text' || item.kind === 'image' || item.kind === 'page') continue
       const twin = itemElement(el.ownerDocument, item, t, box)
       for (const attr of [...twin.attributes]) {
@@ -453,6 +460,9 @@ function renderChrome(el: HTMLElement, a: Annotation, t: PageTransform): void {
       if (a.type === 'line' || a.type === 'polyline' || a.type === 'polygon') {
         twin.setAttribute('stroke-linejoin', 'round')
         if (item.role) twin.setAttribute('stroke-linecap', 'round')
+      } else if (a.type === 'ink') {
+        twin.setAttribute('stroke-linejoin', 'round')
+        twin.setAttribute('stroke-linecap', 'round')
       }
       twin.setAttribute('data-ink-hit-stroke', '')
       twin.setAttribute('fill', 'none')
