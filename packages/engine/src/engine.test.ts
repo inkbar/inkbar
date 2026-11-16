@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 
 import { fixtureBytes } from '@inkbar/fixtures'
-import { afterEach, beforeAll, beforeEach, expect, test } from 'vitest'
+import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
 
 import { engineOver } from './engine.ts'
 import { createEngine, type Engine, type EngineDocument } from './index.ts'
@@ -113,6 +113,24 @@ test('a close queued when destroy runs resolves', async () => {
   await expect(queued).rejects.toMatchObject({ code: 'aborted' })
   await expect(closing).resolves.toBeUndefined()
   await expect(destroyed).resolves.toBeUndefined()
+})
+
+test('a default worker that cannot be constructed is named in the error', async () => {
+  vi.stubGlobal(
+    'Worker',
+    class {
+      constructor() {
+        throw new Error('blocked')
+      }
+    }
+  )
+  try {
+    const error: unknown = await createEngine({ wasm }).catch((reason: unknown) => reason)
+    expect(error).toMatchObject({ code: 'engine-failure' })
+    expect((error as Error).message).toMatch(/worker\.mjs/)
+  } finally {
+    vi.unstubAllGlobals()
+  }
 })
 
 test('after destroy no call reaches the transport', async () => {

@@ -164,10 +164,18 @@ export async function createEngine(options: EngineOptions = {}): Promise<Engine>
     try {
       started = startWorker(worker)
     } catch (cause) {
+      const from =
+        worker === undefined
+          ? ` from ${new URL('./worker.mjs', import.meta.url).href}`
+          : worker instanceof Worker
+            ? ''
+            : ` from ${String(worker)}`
       throw new EngineError(
         'engine-failure',
-        `Could not start the engine worker${worker === undefined || worker instanceof Worker ? '' : ` from ${String(worker)}`}.`,
-        { cause }
+        `Could not start the engine worker${from}.`,
+        {
+          cause,
+        }
       )
     }
     return engineOver(
