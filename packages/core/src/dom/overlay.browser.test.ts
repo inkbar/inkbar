@@ -1804,8 +1804,35 @@ describe('mask', () => {
   const layer = (host: HTMLElement) =>
     host.querySelector<SVGSVGElement>('svg[data-ink-mask-layer]')
 
-  /** Numbers of a path's data, in order. */
-  const numbers = (d: string): number[] => (d.match(/-?\d+(\.\d+)?/g) ?? []).map(Number)
+  /**
+   * A path's subpaths, each with whether it is closed and its end points sorted and rounded to
+   * 3 decimals: the order a path visits its corners in is not behaviour.
+   */
+  const subpaths = (d: string): { closed: boolean; points: string[] }[] =>
+    d
+      .split(/(?=M)/)
+      .filter(Boolean)
+      .map((sub) => {
+        const points = [...sub.matchAll(/[MLA]([^MLAZ]*)/g)].map((m) => {
+          const n = (m[1]!.match(/-?\d+(\.\d+)?/g) ?? []).map(Number)
+          return `${n[n.length - 2]!.toFixed(3)},${n[n.length - 1]!.toFixed(3)}`
+        })
+        return {
+          closed: sub.trimEnd().endsWith('Z'),
+          points: [...new Set(points)].sort(),
+        }
+      })
+
+  /** The sorted corner points of a rectangle, as `subpaths` writes them. */
+  const corners = (l: number, t: number, r: number, b: number): string[] =>
+    [`${l},${t}`, `${r},${t}`, `${r},${b}`, `${l},${b}`]
+      .map((c) =>
+        c
+          .split(',')
+          .map((v) => Number(v).toFixed(3))
+          .join(',')
+      )
+      .sort()
 
   it('mask layer covers the page minus the shape with an even-odd path at dim opacity', async () => {
     const { doc, host, overlay } = await mountMaskPage('text-simple', 2)
@@ -1831,8 +1858,9 @@ describe('mask', () => {
     expect(path.getAttribute('fill')).toBe(mask.color)
     expect(path.getAttribute('fill-opacity')).toBe('0.7')
     // The page outline, then the shape's: css (200, 384) to (600, 584) at 2x.
-    expect(numbers(path.getAttribute('d')!)).toEqual([
-      0, 0, 1224, 0, 1224, 1584, 0, 1584, 200, 384, 600, 384, 600, 584, 200, 584,
+    expect(subpaths(path.getAttribute('d')!)).toEqual([
+      { closed: true, points: corners(0, 0, 1224, 1584) },
+      { closed: true, points: corners(200, 384, 600, 584) },
     ])
 
     // A change to the mask redraws it; removing it removes the layer.
@@ -1840,6 +1868,10 @@ describe('mask', () => {
     const ellipse = layer(host)!.querySelector('path')!
     expect(ellipse.getAttribute('fill-opacity')).toBe('0.2')
     expect(ellipse.getAttribute('d')).toMatch(/A/)
+    // The ellipse's bounding box is the rect's: end points at its left and right, mid-height.
+    const cut = subpaths(ellipse.getAttribute('d')!)
+    expect(cut.map((c) => c.closed)).toEqual([true, true])
+    expect(cut[1]!.points).toEqual(['200.000,484.000', '600.000,484.000'].sort())
     expect(ellipse.getAttribute('fill-rule')).toBe('evenodd')
     doc.annotations.remove(mask.id)
     expect(layer(host)).toBeNull()
@@ -1862,8 +1894,9 @@ describe('mask', () => {
     })
     overlay.update(createPageTransform(doc.pages[0]!, 0.5, 0))
     const d = layer(host)!.querySelector('path')!.getAttribute('d')!
-    expect(numbers(d)).toEqual([
-      0, 0, 306, 0, 306, 396, 0, 396, 50, 96, 150, 96, 150, 146, 50, 146,
+    expect(subpaths(d)).toEqual([
+      { closed: true, points: corners(0, 0, 306, 396) },
+      { closed: true, points: corners(50, 96, 150, 146) },
     ])
     expect(layer(host)!.getAttribute('width')).toBe('306')
   })
@@ -1876,24 +1909,16 @@ describe('mask', () => {
       const svg = layer(host)!
       expect(svg.getAttribute('width')).toBe(String(transform.cssWidth))
       expect(svg.getAttribute('height')).toBe(String(transform.cssHeight))
-      const all = numbers(svg.querySelector('path')!.getAttribute('d')!)
-      expect(all.slice(0, 8)).toEqual([
-        0,
-        0,
-        transform.cssWidth,
-        0,
-        transform.cssWidth,
-        transform.cssHeight,
-        0,
-        transform.cssHeight,
-      ])
+      const cut = subpaths(svg.querySelector('path')!.getAttribute('d')!)
+      expect(cut.map((sub) => sub.closed)).toEqual([true, true])
+      expect(cut[0]!.points, String(view)).toEqual(
+        corners(0, 0, transform.cssWidth, transform.cssHeight)
+      )
       // The shape is the rect's own css box under the page's turn.
       const c = transform.toCssRect(rect)
-      const shape = all.slice(8)
-      expect(shape[0], String(view)).toBeCloseTo(c.left)
-      expect(shape[1], String(view)).toBeCloseTo(c.top)
-      expect(shape[2], String(view)).toBeCloseTo(c.left + c.width)
-      expect(shape[5], String(view)).toBeCloseTo(c.top + c.height)
+      expect(cut[1]!.points, String(view)).toEqual(
+        corners(c.left, c.top, c.left + c.width, c.top + c.height)
+      )
       // /Rotate 90 plus the view: sides swap at a quarter turn, not at a half or full one.
       const swapped = transform.totalRotation % 180 !== 0
       expect(c.width, String(view)).toBeCloseTo(swapped ? rect.height : rect.width)

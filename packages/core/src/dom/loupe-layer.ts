@@ -4,12 +4,16 @@
 // ratio times the magnification, so it fills the element at full sharpness. Page content only:
 // session annotations under the loupe are not magnified.
 //
+// The region, the box and the clip circle come from the loupe's drawing (its `page` item).
+//
 // Inline styles are structural: the canvas fills the element (`position:absolute; left:0;
-// top:0; width:100%; height:100%`), is clipped to the inscribed circle (`clip-path`) and leaves
-// the pointer to the rim (`pointer-events:none`).
+// top:0; width:100%; height:100%`), is clipped to the lens circle (`clip-path`, set from the
+// drawing at each attach) and leaves the pointer to the rim (`pointer-events:none`).
+import { loupeRegion } from '../model/annotations/drawing/loupe'
 import { renderRegion } from '../pdfjs/render-region'
 
 import { watchDevicePixelRatio, type DprWatch } from './dpr-watch'
+import { drawingFor } from './drawing-context'
 
 import type { PageTransform } from './transform'
 import type { LoupeAnnotation } from '../model/annotations/types'
@@ -41,18 +45,7 @@ export interface LoupeLayer {
   destroy(): void
 }
 
-/** The page region a loupe shows: its rect shrunk by the magnification about its centre. */
-export function loupeRegion(a: Pick<LoupeAnnotation, 'rect' | 'magnification'>): Rect {
-  const { rect, magnification } = a
-  const width = rect.width / magnification
-  const height = rect.height / magnification
-  return {
-    x: rect.x + (rect.width - width) / 2,
-    y: rect.y + (rect.height - height) / 2,
-    width,
-    height,
-  }
-}
+export { loupeRegion }
 
 interface Lens {
   canvas: HTMLCanvasElement
@@ -131,8 +124,7 @@ export function createLoupeLayer(opts: LoupeLayerOptions): LoupeLayer {
     canvas.dataset.inkLoupe = ''
     canvas.setAttribute('aria-hidden', 'true')
     canvas.style.cssText =
-      'position:absolute;left:0;top:0;width:100%;height:100%;' +
-      'clip-path:circle(50%);pointer-events:none;'
+      'position:absolute;left:0;top:0;width:100%;height:100%;' + 'pointer-events:none;'
     // Blank until the first render lands.
     canvas.width = 0
     canvas.height = 0
@@ -152,7 +144,14 @@ export function createLoupeLayer(opts: LoupeLayerOptions): LoupeLayer {
     const lens = lensFor(el, a.id)
     lens.last = { el, a, t }
     if (el.firstChild !== lens.canvas) el.prepend(lens.canvas)
-    const region = loupeRegion(a)
+    const lensItem = drawingFor(a, t)?.items.find((i) => i.kind === 'page')
+    const region = lensItem?.kind === 'page' ? lensItem.source : loupeRegion(a)
+    if (lensItem?.kind === 'page') {
+      // The lens circle in element-local CSS px.
+      const box = t.toCssRect(lensItem.target)
+      const c = t.toCss(lensItem.clip.center)
+      lens.canvas.style.clipPath = `circle(${t.toCssLength(lensItem.clip.radius)}px at ${c.x - box.left}px ${c.y - box.top}px)`
+    }
     const dpr = dprOf(el)
     if (opts.devicePixelRatio === undefined) {
       dprWatch ??= watchDevicePixelRatio(

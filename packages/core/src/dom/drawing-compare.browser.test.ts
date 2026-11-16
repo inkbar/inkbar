@@ -4,10 +4,15 @@ import { staticDefaults } from '../model/annotations/defaults'
 import { createAnnotationStore } from '../model/annotations/store'
 
 import { comparePaint, type CompareCase } from './drawing-compare'
+import { createMaskLayer } from './mask-layer'
 import { annotationBox, renderAnnotationContent } from './overlay-render'
+import { createReferenceMaskLayer } from './reference-mask'
 import { renderReferenceContent } from './reference-render'
 import { mountContainer } from './test-utils'
 import { createPageTransform } from './transform'
+
+import type { PageTransform } from './transform'
+import type { Annotation, MaskAnnotation } from '../model/annotations/types'
 
 const quads = [
   {
@@ -556,6 +561,150 @@ describe('comparePaint on a page with /Rotate 90', () => {
   }
 })
 
+describe('comparePaint for loupes', () => {
+  const rim = (width: number): CompareCase => ({
+    name: `loupe rim of width ${width}`,
+    annotation: {
+      type: 'loupe',
+      page: 0,
+      rect: { x: 200, y: 500, width: 120, height: 120 },
+      width,
+      opacity: 0.8,
+    },
+  })
+  const origin = { x: 20, y: 30, width: 612, height: 792 }
+
+  for (const pageRotate of [0, 90] as const) {
+    for (const rotate of [0, 90] as const) {
+      for (const [where, extra] of [
+        ['a page at the origin', {}],
+        ['a page whose box starts at (20, 30)', { box: origin }],
+        ['a page with /UserUnit 2', { userUnit: 2 }],
+      ] as const) {
+        it(`a rim of width 2 on ${where} at page rotate ${pageRotate} and view rotate ${rotate}`, async () => {
+          const c = rim(2)
+          const annotation =
+            'box' in extra
+              ? { ...c.annotation, rect: { x: 220, y: 530, width: 120, height: 120 } }
+              : c.annotation
+          const r = await comparePaint({ ...c, annotation, ...extra, pageRotate, rotate })
+          expect(r.referenceInk).toBeGreaterThan(0)
+          expect(r.differing).toBeLessThanOrEqual(0.005)
+        })
+      }
+    }
+  }
+
+  it('a wide rim at zoom 2', async () => {
+    const r = await comparePaint({ ...rim(6), zoom: 2 })
+    expect(r.differing).toBeLessThanOrEqual(0.005)
+  })
+
+  it('a loupe that is not square draws its rim as the old code did', async () => {
+    const c = rim(2)
+    const r = await comparePaint({
+      ...c,
+      annotation: { ...c.annotation, rect: { x: 200, y: 500, width: 160, height: 90 } },
+    })
+    expect(r.differing).toBeLessThanOrEqual(0.005)
+  })
+
+  it('a loupe with no border draws nothing, as the old code did', () => {
+    const holder = document.createElement('div')
+    const store = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const a = store.add(rim(0).annotation)
+    const t = createPageTransform(
+      {
+        index: 0,
+        box: { x: 0, y: 0, width: 612, height: 792 },
+        rotate: 0,
+        userUnit: 1,
+        width: 612,
+        height: 792,
+      },
+      1,
+      0
+    )
+    renderAnnotationContent(holder, a, t)
+    expect(holder.querySelector('.ink-loupe-rim')).toBeNull()
+    // The lens still takes presses anywhere on it.
+    const hit = holder.querySelector('circle[data-ink-hit-area]')!
+    expect(hit.getAttribute('pointer-events')).toBe('all')
+    expect(hit.getAttribute('r')).toBe('60')
+  })
+})
+
+describe('comparePaint for masks, the page-wide layer', () => {
+  const origin = { x: 20, y: 30, width: 612, height: 792 }
+  const maskCase = (
+    shape: 'rect' | 'ellipse',
+    rect = { x: 100, y: 500, width: 200, height: 100 }
+  ): CompareCase => ({
+    name: `${shape} mask`,
+    annotation: { type: 'mask', page: 0, rect, shape, dim: 0.5, color: '#102030' },
+    region: 'page',
+  })
+  /** The mask layer is the page's, so each side mounts one in the holder, under the element. */
+  const layerSide =
+    (create: typeof createMaskLayer) =>
+    (el: HTMLElement, a: Annotation, t: PageTransform): void => {
+      create(el.parentElement!, el).update(a as MaskAnnotation, t)
+    }
+  const compare = (c: CompareCase) =>
+    comparePaint(c, layerSide(createMaskLayer), layerSide(createReferenceMaskLayer))
+
+  for (const shape of ['rect', 'ellipse'] as const) {
+    for (const pageRotate of [0, 90] as const) {
+      for (const rotate of [0, 90] as const) {
+        for (const [where, extra, rect] of [
+          ['a page at the origin', {}, undefined],
+          [
+            'a page whose box starts at (20, 30)',
+            { box: origin },
+            { x: 120, y: 530, width: 200, height: 100 },
+          ],
+          ['a page with /UserUnit 2', { userUnit: 2 }, undefined],
+          [
+            'a page with box (20, 30) and /UserUnit 2',
+            { box: origin, userUnit: 2 },
+            { x: 120, y: 530, width: 200, height: 100 },
+          ],
+        ] as const) {
+          it(`${shape} mask on ${where} at page rotate ${pageRotate} and view rotate ${rotate}`, async () => {
+            const r = await compare({
+              ...maskCase(shape, rect),
+              ...extra,
+              pageRotate,
+              rotate,
+            })
+            expect(r.referenceInk).toBeGreaterThan(0)
+            expect(r.differing).toBeLessThanOrEqual(0.005)
+          })
+        }
+      }
+    }
+  }
+
+  it('a mask at zoom 2 and zoom 0.5', async () => {
+    for (const zoom of [2, 0.5] as const) {
+      const r = await compare({ ...maskCase('ellipse'), zoom })
+      expect(r.differing).toBeLessThanOrEqual(0.005)
+    }
+  })
+
+  it('the harness sees a mask layer that is missing', async () => {
+    const r = await comparePaint(
+      maskCase('rect'),
+      () => undefined,
+      layerSide(createReferenceMaskLayer)
+    )
+    expect(r.differing).toBe(1)
+  })
+})
+
 /** An element's tree as plain data, with numbers in attribute values rounded to 3 places. */
 function shape(el: Element): unknown {
   const round = (v: string): string =>
@@ -654,6 +803,8 @@ describe('the painted markup against the reference markup', () => {
       },
     ],
     ['filled circle', { type: 'circle', ...stamp, width: 2, interiorColor: '#7FB3D5' }],
+    ['rect mask', { type: 'mask', ...stamp, shape: 'rect' }],
+    ['elliptical mask', { type: 'mask', ...stamp, shape: 'ellipse', dim: 0.3 }],
     [
       'ink with two strokes',
       {
@@ -797,4 +948,139 @@ describe('the size of a line ending', () => {
     expect(height(reference.querySelector('[data-ending="tail"]')!)).toBeCloseTo(3, 3)
     expect(height(painted.querySelector('[data-ending="tail"]')!)).toBeCloseTo(1.5, 3)
   })
+})
+
+describe('loupe and mask chrome against the reference', () => {
+  const t = createPageTransform(
+    {
+      index: 0,
+      box: { x: 0, y: 0, width: 612, height: 792 },
+      rotate: 0,
+      userUnit: 1,
+      width: 612,
+      height: 792,
+    },
+    2,
+    0
+  )
+  const add = (input: CompareCase['annotation']): Annotation =>
+    createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    }).add(input)
+  const rect = { x: 100, y: 600, width: 80, height: 80 }
+
+  /** Whether each point (CSS px into an element sized like `a`) lands on something inside it. */
+  async function hits(
+    a: Annotation,
+    render: typeof renderAnnotationContent,
+    points: readonly (readonly [number, number])[]
+  ): Promise<boolean[]> {
+    const { default: themeCss } = await import('@inkbar/theme/theme.css?inline')
+    const style = document.createElement('style')
+    style.textContent = themeCss
+    const box = annotationBox(a, t)
+    const host = document.createElement('div')
+    host.style.cssText = 'position:absolute;left:0;top:0;'
+    const el = document.createElement('div')
+    el.className = 'ink-annotation'
+    el.dataset.annotation = a.id
+    el.dataset.type = a.type
+    el.style.cssText = `position:absolute;pointer-events:none;left:0;top:0;width:${box.width}px;height:${box.height}px;`
+    host.append(el)
+    document.head.append(style)
+    document.body.append(host)
+    try {
+      render(el, a, t)
+      return points.map(([x, y]) => {
+        const target = document.elementFromPoint(x, y)
+        return target !== null && el.contains(target) && target !== el
+      })
+    } finally {
+      host.remove()
+      style.remove()
+    }
+  }
+
+  it('a loupe: a rim, then a transparent circle over the lens, and presses land where they did', async () => {
+    const a = add({ type: 'loupe', page: 0, rect, width: 2, opacity: 0.7 })
+    const painted = document.createElement('div')
+    renderAnnotationContent(painted, a, t)
+    const svg = painted.querySelector('svg')!
+    expect(svg.getAttribute('opacity')).toBe('0.7')
+    const [rim, hit, ...rest] = [...svg.children]
+    expect(rest).toHaveLength(0)
+    // The rim is the reference's circle, except that its middle takes presses through `hit`.
+    const reference = document.createElement('div')
+    renderReferenceContent(reference, a, t)
+    const old = shape(reference.querySelector('circle')!) as {
+      attrs: Record<string, string>
+    }
+    const drawn = shape(rim!) as { attrs: Record<string, string> }
+    expect({ ...drawn.attrs, fill: 'transparent', 'pointer-events': undefined }).toEqual({
+      ...old.attrs,
+      'pointer-events': undefined,
+    })
+    expect(drawn.attrs.fill).toBe('none')
+    expect(hit!.tagName).toBe('circle')
+    expect(hit!.getAttribute('r')).toBe('80')
+    expect(hit!.getAttribute('fill')).toBe('transparent')
+    expect(hit!.getAttribute('pointer-events')).toBe('all')
+    expect(hit!.classList.contains('ink-loupe-rim')).toBe(false)
+
+    const box = annotationBox(a, t)
+    const points = [
+      [box.width / 2, box.height / 2],
+      [box.width / 2, 3],
+      [box.width / 2, box.height - 3],
+      [2, 2],
+      [box.width - 2, box.height - 2],
+    ] as const
+    const pressed = await hits(a, renderAnnotationContent, points)
+    expect(pressed).toEqual(await hits(a, renderReferenceContent, points))
+    expect(pressed).toEqual([true, true, true, false, false])
+  })
+
+  it('a loupe with no border still takes presses on its lens and draws no rim', async () => {
+    const a = add({ type: 'loupe', page: 0, rect, width: 0 })
+    const box = annotationBox(a, t)
+    expect(
+      await hits(a, renderAnnotationContent, [
+        [box.width / 2, box.height / 2],
+        [2, 2],
+      ])
+    ).toEqual([true, false])
+  })
+
+  for (const shapeName of ['rect', 'ellipse'] as const) {
+    it(`a ${shapeName} mask: an empty svg and the edge band, pressed where it was`, async () => {
+      const a = add({
+        type: 'mask',
+        page: 0,
+        rect: { x: 100, y: 500, width: 200, height: 100 },
+        shape: shapeName,
+      })
+      const painted = document.createElement('div')
+      renderAnnotationContent(painted, a, t)
+      // Nothing in the element is the dimming (the page's layer draws it): only the band.
+      expect(painted.querySelectorAll('svg')).toHaveLength(1)
+      expect(painted.querySelector('svg')!.children).toHaveLength(1)
+      expect(painted.querySelector('path')).toBeNull()
+      const box = annotationBox(a, t)
+      const points = [
+        [3, box.height / 2],
+        [box.width / 2, 3],
+        [box.width - 3, box.height / 2],
+        [box.width / 2, box.height / 2],
+        [box.width / 2, box.height / 2 + 30],
+        [10, 10],
+        [20, 20],
+      ] as const
+      const now = await hits(a, renderAnnotationContent, points)
+      expect(now).toEqual(await hits(a, renderReferenceContent, points))
+      expect(now.slice(0, 3)).toEqual([true, true, true])
+      // Inside the cut-out does not select the mask.
+      expect(now[3]).toBe(false)
+    })
+  }
 })

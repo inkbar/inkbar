@@ -35,7 +35,6 @@ export function paintDrawing(
   box: CssRect
 ): void {
   const doc = el.ownerDocument
-  const origin = box
   const svg = doc.createElementNS(SVG, 'svg')
   svg.setAttribute('width', String(box.width))
   svg.setAttribute('height', String(box.height))
@@ -45,24 +44,39 @@ export function paintDrawing(
   svg.setAttribute('display', 'block')
   svg.setAttribute('aria-hidden', 'true')
   svg.classList.add('ink-annotation-shape')
+  paintItems(svg, drawing, t, box)
+  // Hits follow the painted shape, so a press beside it reaches what is underneath.
+  for (const child of svg.children) top(child as SVGElement)
+  el.replaceChildren(svg)
+}
 
+/**
+ * Appends `drawing`'s items to `svg`, positioned relative to `box` (page CSS px). A `page` item
+ * is skipped: whoever owns the lens draws it. A lone group puts its opacity on `svg`. Takes no
+ * part in hit testing; `paintDrawing` makes what it draws take presses.
+ */
+export function paintItems(
+  svg: SVGSVGElement,
+  drawing: Drawing,
+  t: PageTransform,
+  box: CssRect
+): void {
+  const doc = svg.ownerDocument
   const at = (p: Point): Point => {
     const c = t.toCss(p)
-    return { x: c.x - origin.left, y: c.y - origin.top }
+    return { x: c.x - box.left, y: c.y - box.top }
   }
   const len = (n: number): number => t.toCssLength(n)
 
-  const only = drawing.items.length === 1 ? drawing.items[0] : undefined
+  const items = drawing.items.filter((i) => i.kind !== 'page')
+  const only = items.length === 1 ? items[0] : undefined
   if (only?.kind === 'group') {
     svg.setAttribute('opacity', String(only.opacity))
-    for (const item of only.items)
-      svg.append(top(paintItem(doc, item, t, origin, at, len)))
+    for (const item of only.items) svg.append(paintItem(doc, item, t, box, at, len))
   } else {
-    for (const item of drawing.items)
-      svg.append(top(paintItem(doc, item, t, origin, at, len)))
+    for (const item of items) svg.append(paintItem(doc, item, t, box, at, len))
   }
   guard(svg, 'svg')
-  el.replaceChildren(svg)
 }
 
 /**
@@ -170,8 +184,9 @@ function paintItem(
       break
     }
     case 'text':
+      throw new Error('painting a text is not supported yet')
     case 'page':
-      throw new Error(`painting a ${item.kind} is not supported yet`)
+      throw new Error('a page item is not an svg element')
   }
   role(out, item.role)
   guard(out, item.kind)
