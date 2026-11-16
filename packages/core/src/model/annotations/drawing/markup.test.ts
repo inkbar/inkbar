@@ -164,6 +164,74 @@ describe('describeMarkup', () => {
   })
 })
 
+describe('describeMarkup on a tilted quad', () => {
+  // A 100 x 14 quad turned 30 degrees about its lower-left corner (100, 686).
+  const c = Math.cos(Math.PI / 6)
+  const sn = Math.sin(Math.PI / 6)
+  const at = (x: number, y: number): { x: number; y: number } => ({
+    x: 100 + x * c - y * sn,
+    y: 686 + x * sn + y * c,
+  })
+  const tilted = { p1: at(0, 14), p2: at(100, 14), p3: at(0, 0), p4: at(100, 0) }
+  const along = { x: c, y: sn }
+  const normal = { x: -sn, y: c }
+  const ann: TextMarkupAnnotation = { ...highlight, quads: [tilted] }
+
+  test('an underline runs along the bottom edge, a tenth of the height up', () => {
+    const [line] = group(describeMarkup({ ...ann, type: 'underline' })).items
+    const [a, b] = pointsOf(line)
+    const start = at(0, 1.4)
+    const end = at(100, 1.4)
+    expect(a!.x).toBeCloseTo(start.x, 9)
+    expect(a!.y).toBeCloseTo(start.y, 9)
+    expect(b!.x).toBeCloseTo(end.x, 9)
+    expect(b!.y).toBeCloseTo(end.y, 9)
+  })
+
+  test('a strikeout joins the midpoints of the side edges', () => {
+    const [line] = group(describeMarkup({ ...ann, type: 'strikeout' })).items
+    const [a, b] = pointsOf(line)
+    expect(a!.x).toBeCloseTo(at(0, 7).x, 9)
+    expect(a!.y).toBeCloseTo(at(0, 7).y, 9)
+    expect(b!.x).toBeCloseTo(at(100, 7).x, 9)
+    expect(b!.y).toBeCloseTo(at(100, 7).y, 9)
+  })
+
+  test('a squiggle is offset from the baseline along the unit normal', () => {
+    const [line] = group(describeMarkup({ ...ann, type: 'squiggly' })).items
+    const points = pointsOf(line)
+    const origin = at(0, 1.4)
+    points.forEach((p, i) => {
+      const dx = p.x - origin.x
+      const dy = p.y - origin.y
+      // Distance along the baseline grows evenly; the offset across it is plus or minus 0.875.
+      expect(dx * along.x + dy * along.y).toBeCloseTo((100 * i) / (points.length - 1), 9)
+      expect(dx * normal.x + dy * normal.y).toBeCloseTo(i % 2 === 0 ? -0.875 : 0.875, 9)
+    })
+  })
+
+  test('a skewed quad keeps each corner and takes its height from the left edge', () => {
+    const skewed = {
+      p1: { x: 130, y: 700 },
+      p2: { x: 230, y: 700 },
+      p3: { x: 100, y: 686 },
+      p4: { x: 200, y: 686 },
+    }
+    const d = describeMarkup({ ...highlight, quads: [skewed] })
+    expect(d.items[0]).toMatchObject({
+      points: [skewed.p1, skewed.p2, skewed.p4, skewed.p3],
+    })
+    const [line] = group(
+      describeMarkup({ ...highlight, type: 'underline', quads: [skewed] })
+    ).items
+    const [a, b] = pointsOf(line)
+    expect(a!.x).toBeCloseTo(103, 9)
+    expect(a!.y).toBeCloseTo(687.4, 9)
+    expect(b!.x).toBeCloseTo(203, 9)
+    expect(b!.y).toBeCloseTo(687.4, 9)
+  })
+})
+
 describe('describeRedact', () => {
   test('a redaction mark is tinted at 15% with a one-point outline', () => {
     expect(describeRedact(redact)).toEqual({
