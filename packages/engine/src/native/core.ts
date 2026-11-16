@@ -30,6 +30,11 @@ export class EngineCore {
     return this.#documents.size
   }
 
+  /** Current size of the WASM heap in bytes. For tests and diagnostics. */
+  get heapBytes(): number {
+    return this.#native.HEAPU8.byteLength
+  }
+
   open(bytes: Uint8Array, options: OpenOptions = {}): { id: number; pageCount: number } {
     const { fn } = this.#native
     const data = fn.malloc(Math.max(bytes.length, 1))

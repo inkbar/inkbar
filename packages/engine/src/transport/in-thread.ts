@@ -33,6 +33,11 @@ export class InThreadTransport implements Transport {
     this.#core = core
   }
 
+  /** Current size of the WASM heap in bytes. For tests and diagnostics. */
+  get heapBytes(): number {
+    return this.#core.heapBytes
+  }
+
   call<T>(request: Request, signal?: AbortSignal): Promise<T> {
     return this.#queue.enqueue(() => dispatch(this.#core, request) as T, signal)
   }
