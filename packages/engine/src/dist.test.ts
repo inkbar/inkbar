@@ -1,4 +1,4 @@
-import { access, readFile } from 'node:fs/promises'
+import { access, readdir, readFile } from 'node:fs/promises'
 
 import { fixtureBytes } from '@inkbar/fixtures'
 import { expect, test } from 'vitest'
@@ -46,4 +46,16 @@ test('the built package carries the licences of everything in the binary', async
   expect(at(thirdParty)).toBeGreaterThan(at(notice))
   for (const library of ['FreeType', 'libjpeg-turbo', 'OpenJPEG', 'zlib', 'Emscripten'])
     expect(thirdParty).toContain(library)
+})
+
+test('the built entry points leave no literal node: import for a browser bundler', async () => {
+  const names = (await readdir(new URL('../dist/', import.meta.url))).filter((file) =>
+    file.endsWith('.mjs')
+  )
+  expect(names).toContain('index.mjs')
+  for (const name of names) {
+    const source = await readFile(new URL(`../dist/${name}`, import.meta.url), 'utf8')
+    expect(source, name).not.toMatch(/import\(\s*["']node:/)
+    expect(source, name).not.toMatch(/from\s*["']node:/)
+  }
 })
