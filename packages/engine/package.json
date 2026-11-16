@@ -32,6 +32,7 @@
     "test": "node scripts/fetch-pdfium.ts && vitest run --project node"
   },
   "devDependencies": {
+    "@inkbar/fixtures": "workspace:*",
     "tsdown": "^0.23.1",
     "vitest": "^5.0.4"
   }

@@ -560,6 +560,9 @@ importers:
 
   packages/engine:
     devDependencies:
+      '@inkbar/fixtures':
+        specifier: workspace:*
+        version: link:../../fixtures
       tsdown:
         specifier: ^0.23.1
         version: 0.23.1(@volar/typescript@2.4.28(typescript@6.0.3))(@vue/language-core@3.3.13)(tsx@4.23.15)(typescript@6.0.3)(vue-tsc@3.3.13(typescript@6.0.3))
