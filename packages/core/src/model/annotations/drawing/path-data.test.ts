@@ -98,4 +98,40 @@ describe('parsePathData', () => {
     expect(() => parsePathData('M0 0z 5')).toThrow(/position 6/)
     expect(() => parsePathData('M0')).toThrow(/expected a number/)
   })
+
+  test('an empty path has no commands, and trailing space is ignored', () => {
+    expect(parsePathData('')).toEqual([])
+    expect(parsePathData('   ')).toEqual([])
+    expect(parsePathData('M1 1 L2 2 \n ')).toEqual([M(1, 1), L(2, 2)])
+  })
+
+  test('S after a line starts its curve at the current point', () => {
+    const [, , s] = parsePathData('M0 0L4 0S6 2 8 0')
+    expect(s).toEqual({
+      op: 'C',
+      c1: { x: 4, y: 0 },
+      c2: { x: 6, y: 2 },
+      to: { x: 8, y: 0 },
+    })
+  })
+
+  test('T after a cubic does not reflect its control point', () => {
+    const [, , t] = parsePathData('M0 0C0 4 4 4 4 0T8 0')
+    expect(t).toEqual({
+      op: 'C',
+      c1: { x: 4, y: 0 },
+      c2: { x: 8 - 8 / 3, y: 0 },
+      to: { x: 8, y: 0 },
+    })
+  })
+
+  test('a relative command after Z is measured from the start of the subpath', () => {
+    expect(parsePathData('M5 5l5 0 0 5zl1 1')).toEqual([
+      M(5, 5),
+      L(10, 5),
+      L(10, 10),
+      Z,
+      L(6, 6),
+    ])
+  })
 })

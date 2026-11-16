@@ -26,7 +26,7 @@ const BOX = 24
 const INK = '#151820'
 
 /** The glyph each note icon name stands for. A name that is not here draws the square alone. */
-const GLYPHS: Readonly<Record<string, IconNode>> = {
+export const GLYPHS: Readonly<Record<string, IconNode>> = {
   Comment: MessageSquare,
   Note: StickyNote,
   Help: CircleQuestionMark,
@@ -44,16 +44,10 @@ const commandsOf = (d: string): PathCommand[] => {
   return out
 }
 
-/**
- * A note: a rounded square in its own colour, square at the corner that is bottom-left as the
- * page is displayed, with its icon's glyph in the middle. The glyph is upright for the page as the
- * file displays it, like text. All in one group that carries the opacity.
- */
-export function describeNote(a: NoteAnnotation, context: DrawContext): Drawing {
-  const rotate = context.page.rotate
+/** The displayed box of `rect` on a page turned by `rotate`: its size and a map into user space. */
+function displayedFrame(rect: Rect, rotate: 0 | 90 | 180 | 270) {
   const { dir, down } = AXES[rotate]
   const sideways = rotate === 90 || rotate === 270
-  const { rect } = a
   const width = sideways ? rect.height : rect.width
   const height = sideways ? rect.width : rect.height
   const centre = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }
@@ -66,6 +60,17 @@ export function describeNote(a: NoteAnnotation, context: DrawContext): Drawing {
     x: origin.x + dir.x * u + down.x * v,
     y: origin.y + dir.y * u + down.y * v,
   })
+  return { width, height, sideways, at }
+}
+
+/**
+ * A note: a rounded square in its own colour, square at the corner that is bottom-left as the
+ * page is displayed, with its icon's glyph in the middle. The glyph is upright for the page as the
+ * file displays it, like text. All in one group that carries the opacity.
+ */
+export function describeNote(a: NoteAnnotation, context: DrawContext): Drawing {
+  const { rect } = a
+  const { width, height, at } = displayedFrame(rect, context.page.rotate)
 
   const r = Math.min(width, height) * RADIUS
   // Clockwise as displayed: sweep is false in a description's terms.
@@ -97,89 +102,101 @@ export function describeNote(a: NoteAnnotation, context: DrawContext): Drawing {
       paint: { fill: { color: a.color } },
     },
   ]
-
   const glyph = GLYPHS[a.icon]
-  if (glyph) {
-    const side = Math.min(width, height) * GLYPH
-    const scale = side / BOX
-    const left = (width - side) / 2
-    const top = (height - side) / 2
-    const to = (x: number, y: number): Point => at(left + x * scale, top + y * scale)
-    /** The user-space box of a box given in the glyph's own units. */
-    const boxOf = (x: number, y: number, w: number, h: number): Rect => {
-      const p = to(x, y)
-      const q = to(x + w, y + h)
-      return {
-        x: Math.min(p.x, q.x),
-        y: Math.min(p.y, q.y),
-        width: Math.abs(q.x - p.x),
-        height: Math.abs(q.y - p.y),
-      }
-    }
-    const stroke = {
-      color: INK,
-      width: (side * STROKE) / BOX,
-      join: 'round',
-      cap: 'round',
-    } as const
-    for (const [tag, attrs] of glyph) {
-      const num = (name: string): number => Number(attrs[name] ?? 0)
-      const paint: Paint = {
-        ...(attrs.fill === 'currentColor' ? { fill: { color: INK } } : {}),
-        stroke,
-      }
-      if (tag === 'path') {
-        const commands = commandsOf(attrs.d ?? '').map((c): PathCommand => {
-          switch (c.op) {
-            case 'M':
-            case 'L':
-              return { op: c.op, to: to(c.to.x, c.to.y) }
-            case 'C':
-              return {
-                op: 'C',
-                c1: to(c.c1.x, c.c1.y),
-                c2: to(c.c2.x, c.c2.y),
-                to: to(c.to.x, c.to.y),
-              }
-            case 'A':
-              return {
-                op: 'A',
-                rx: (sideways ? c.ry : c.rx) * scale,
-                ry: (sideways ? c.rx : c.ry) * scale,
-                largeArc: c.largeArc,
-                // The icon's sweep is as drawn with y down; a description's is the other way.
-                sweep: !c.sweep,
-                to: to(c.to.x, c.to.y),
-              }
-            case 'Z':
-              return c
-          }
-        })
-        items.push({ kind: 'path', role: 'note-glyph', commands, paint })
-      } else if (tag === 'circle') {
-        const [cx, cy, radius] = [num('cx'), num('cy'), num('r')]
-        items.push({
-          kind: 'ellipse',
-          role: 'note-glyph',
-          rect: boxOf(cx - radius, cy - radius, radius * 2, radius * 2),
-          paint,
-        })
-      } else if (tag === 'rect') {
-        const radius = num('rx') * scale
-        items.push({
-          kind: 'rect',
-          role: 'note-glyph',
-          rect: boxOf(num('x'), num('y'), num('width'), num('height')),
-          ...(radius > 0 ? { radius } : {}),
-          paint,
-        })
-      }
-    }
-  }
+  if (glyph) items.push(...glyphItems(glyph, rect, context.page.rotate))
 
   return {
     layer: 'annotation',
     bounds: rect,
     items: [{ kind: 'group', opacity: a.opacity, items }],
   }
+}
+
+/**
+ * The items of an icon's nodes (`path`, `circle` and `rect`; any other tag is skipped) scaled from
+ * their 24-unit box into the middle of `rect`'s shorter side, upright for a page turned by `rotate`.
+ */
+export function glyphItems(
+  glyph: IconNode,
+  rect: Rect,
+  rotate: 0 | 90 | 180 | 270
+): DrawItem[] {
+  const { width, height, sideways, at } = displayedFrame(rect, rotate)
+  const items: DrawItem[] = []
+  const side = Math.min(width, height) * GLYPH
+  const scale = side / BOX
+  const left = (width - side) / 2
+  const top = (height - side) / 2
+  const to = (x: number, y: number): Point => at(left + x * scale, top + y * scale)
+  /** The user-space box of a box given in the glyph's own units. */
+  const boxOf = (x: number, y: number, w: number, h: number): Rect => {
+    const p = to(x, y)
+    const q = to(x + w, y + h)
+    return {
+      x: Math.min(p.x, q.x),
+      y: Math.min(p.y, q.y),
+      width: Math.abs(q.x - p.x),
+      height: Math.abs(q.y - p.y),
+    }
+  }
+  const stroke = {
+    color: INK,
+    width: (side * STROKE) / BOX,
+    join: 'round',
+    cap: 'round',
+  } as const
+  for (const [tag, attrs] of glyph) {
+    const num = (name: string): number => Number(attrs[name] ?? 0)
+    const paint: Paint = {
+      ...(attrs.fill === 'currentColor' ? { fill: { color: INK } } : {}),
+      stroke,
+    }
+    if (tag === 'path') {
+      const commands = commandsOf(attrs.d ?? '').map((c): PathCommand => {
+        switch (c.op) {
+          case 'M':
+          case 'L':
+            return { op: c.op, to: to(c.to.x, c.to.y) }
+          case 'C':
+            return {
+              op: 'C',
+              c1: to(c.c1.x, c.c1.y),
+              c2: to(c.c2.x, c.c2.y),
+              to: to(c.to.x, c.to.y),
+            }
+          case 'A':
+            return {
+              op: 'A',
+              rx: (sideways ? c.ry : c.rx) * scale,
+              ry: (sideways ? c.rx : c.ry) * scale,
+              largeArc: c.largeArc,
+              // The icon's sweep is as drawn with y down; a description's is the other way.
+              sweep: !c.sweep,
+              to: to(c.to.x, c.to.y),
+            }
+          case 'Z':
+            return c
+        }
+      })
+      items.push({ kind: 'path', role: 'note-glyph', commands, paint })
+    } else if (tag === 'circle') {
+      const [cx, cy, radius] = [num('cx'), num('cy'), num('r')]
+      items.push({
+        kind: 'ellipse',
+        role: 'note-glyph',
+        rect: boxOf(cx - radius, cy - radius, radius * 2, radius * 2),
+        paint,
+      })
+    } else if (tag === 'rect') {
+      const radius = num('rx') * scale
+      items.push({
+        kind: 'rect',
+        role: 'note-glyph',
+        rect: boxOf(num('x'), num('y'), num('width'), num('height')),
+        ...(radius > 0 ? { radius } : {}),
+        paint,
+      })
+    }
+  }
+  return items
 }
