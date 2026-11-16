@@ -152,7 +152,7 @@ class EngineImpl implements Engine {
   ): Promise<EngineDocument> {
     const { signal, ...openOptions } = options
     const opened = await this.session.call<{ id: number; pageCount: number }>(
-      { op: 'open', bytes: bytes.slice(), options: openOptions },
+      { op: 'open', bytes: new Uint8Array(bytes), options: openOptions },
       signal
     )
     return new Document(this.session, opened.id, opened.pageCount)
