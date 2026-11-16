@@ -52,4 +52,9 @@ export const ICONS = [
   'ArrowLeft',
   'ArrowRight',
   'List',
+  'StickyNote',
+  'CircleQuestionMark',
+  'KeyRound',
+  'ListPlus',
+  'Pilcrow',
 ] as const

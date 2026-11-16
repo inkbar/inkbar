@@ -14,6 +14,7 @@ import type {
   Annotation,
   FreeTextAnnotation,
   LineEnding,
+  NoteAnnotation,
   TextMarkupAnnotation,
 } from '../model/annotations/types'
 import type { Point, Quad } from '../model/geometry'
@@ -486,6 +487,7 @@ function renderChrome(el: HTMLElement, a: Annotation, t: PageTransform): void {
   if (svg) appendStampHit(svg, drawn, t, annotationBox(a, t))
   if (svg && a.type === 'loupe') appendLensHit(svg, a, t)
   if (svg && a.type === 'mask') appendMaskEdge(svg, a, t)
+  if (svg && a.type === 'text') appendNoteHit(svg, a, t)
   if (a.type === 'freetext') appendTextChrome(el, a, t)
   appendCommentMarker(el, a, t)
 }
@@ -529,6 +531,26 @@ function appendTextChrome(
   svg.append(area, band)
   el.append(svg)
   appendSelectionFrame(el, a, t)
+}
+
+/**
+ * A note's press area: an invisible rect over its whole square, so a press on the glyph or on
+ * any part of the square that is not painted still selects the note. Names the icon on the
+ * square, for whoever styles or inspects it.
+ */
+function appendNoteHit(svg: Element, a: NoteAnnotation, t: PageTransform): void {
+  const box = annotationBox(a, t)
+  svg.querySelector(':scope > .ink-note-icon')?.setAttribute('data-icon', a.icon)
+  const hit = svg.ownerDocument.createElementNS(SVG, 'rect')
+  hit.setAttribute('x', '0')
+  hit.setAttribute('y', '0')
+  hit.setAttribute('width', String(box.width))
+  hit.setAttribute('height', String(box.height))
+  invisible(hit, 'transparent', 'none')
+  hit.setAttribute('pointer-events', 'all')
+  hit.setAttribute('data-ink-hit-area', '')
+  hit.classList.add('ink-note-box')
+  svg.append(hit)
 }
 
 /** Width in CSS px of the band along a mask's edge that takes presses. */

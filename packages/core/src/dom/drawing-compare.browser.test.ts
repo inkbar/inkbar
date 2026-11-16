@@ -1542,3 +1542,73 @@ describe('comparePaint for text boxes', () => {
     }
   })
 })
+
+describe('comparePaint for notes', () => {
+  const note: CompareCase = {
+    name: 'a yellow note with an icon that has no glyph',
+    annotation: {
+      type: 'text',
+      page: 0,
+      rect: { x: 100, y: 600, width: 48, height: 48 },
+      icon: 'Check',
+    },
+  }
+  const LIMIT = 0.002
+  const results: string[] = []
+
+  for (const pageRotate of [0, 90] as const) {
+    for (const zoom of [1, 2] as const) {
+      it(`matches the old square at page rotate ${pageRotate} and zoom ${zoom}`, async () => {
+        const r = await comparePaint({ ...note, pageRotate, zoom })
+        results.push(`page rotate ${pageRotate} zoom ${zoom}: ${r.differing.toFixed(5)}`)
+        expect(r.referenceInk).toBeGreaterThan(0)
+        expect(r.differing).toBeLessThanOrEqual(LIMIT)
+      })
+    }
+  }
+
+  // Controls: defects the comparison is there to catch, made on purpose. Each must fail the
+  // assertion the real cases pass.
+  const controls: [string, (el: HTMLElement) => void][] = [
+    [
+      'the wrong fill colour',
+      (el) => el.querySelector('.ink-note-icon')!.setAttribute('fill', '#3366CC'),
+    ],
+    [
+      'a missing rounded corner',
+      (el) => {
+        const path = el.querySelector('.ink-note-icon')!
+        // The first arc becomes a straight line to the same point.
+        const d = path.getAttribute('d')!
+        const straight = d.replace(/A\S+ \S+ 0 [01] [01] /, 'L')
+        expect(straight).not.toBe(d)
+        path.setAttribute('d', straight)
+      },
+    ],
+    [
+      'the square corner on the wrong side',
+      (el) =>
+        el.querySelector('.ink-note-icon')!.setAttribute('transform', 'scale(-1 1)'),
+    ],
+    [
+      'the shadow missing',
+      (el) => ((el.querySelector('.ink-note-icon') as SVGElement).style.filter = 'none'),
+    ],
+  ]
+  for (const [name, mutate] of controls) {
+    it(`fails for ${name}`, async () => {
+      const r = await comparePaint({ ...note, zoom: 2 }, (el, a, t) => {
+        renderAnnotationContent(el, a, t)
+        mutate(el)
+      })
+      console.log(
+        `[note control] ${name}: differing ${r.differing.toFixed(5)} (limit ${LIMIT})`
+      )
+      expect(r.differing).toBeGreaterThan(LIMIT)
+    })
+  }
+
+  it('reports the real cases', () => {
+    console.log(`[note compare] ${results.join('; ')}`)
+  })
+})

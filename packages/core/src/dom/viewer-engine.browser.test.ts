@@ -400,6 +400,23 @@ describe('mountViewer', () => {
     for (const note of notes) expect(note.querySelector('.ink-note-icon')).not.toBeNull()
   })
 
+  it('draws an embedded note with no appearance in the colour the file gives it', async () => {
+    const { doc, container } = await setup('annotated-notes-threaded', { zoom: 1 })
+    await until(
+      () => container.querySelector('[data-annotation][data-type="text"]') !== null
+    )
+    const notes = doc.annotations.list
+      .get()
+      .filter((a) => a.type === 'text' && a.hasAppearance === false && !a.inReplyTo)
+    expect(notes.length).toBeGreaterThan(0)
+    for (const note of notes) {
+      const square = container.querySelector(
+        `[data-annotation="${note.id}"] path.ink-note-icon`
+      )!
+      expect(square.getAttribute('fill')?.toLowerCase()).toBe(note.color?.toLowerCase())
+    }
+  })
+
   it('leaves an embedded note with its own appearance to the canvas', async () => {
     const { container } = await setup('note-icon-ap', { zoom: 1 })
     await until(
