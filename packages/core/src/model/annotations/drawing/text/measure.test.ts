@@ -28,6 +28,11 @@ describe('standardMeasure', () => {
     }
   )
 
+  test('Ÿ is a capital Y with a diaeresis, not the lower-case letter', () => {
+    expect(standardMeasure.width('Ÿ', helv, 12).width).toBeCloseTo(8.004, 3)
+    expect(standardMeasure.width('ÿ', helv, 12).width).toBeCloseTo(6, 3)
+  })
+
   test('a character outside the tables is flagged and still has a width', () => {
     expect(standardMeasure.width('日', helv, 12)).toEqual({ width: 12, outside: true })
     expect(standardMeasure.width('ж', helv, 12)).toEqual({ width: 6, outside: true })

@@ -58,13 +58,64 @@ const codePoints = [...winAnsi.supportedCodePoints]
   .sort((a, b) => a - b)
 if (!codePoints.includes(0x20ac)) throw new Error('the euro sign is missing from WinAnsi')
 
+/** The Adobe glyph names of Windows-1252 0x80-0x9F, which the upstream table gets wrong once. */
+const CP1252_C1: Record<number, string> = {
+  0x80: 'Euro',
+  0x82: 'quotesinglbase',
+  0x83: 'florin',
+  0x84: 'quotedblbase',
+  0x85: 'ellipsis',
+  0x86: 'dagger',
+  0x87: 'daggerdbl',
+  0x88: 'circumflex',
+  0x89: 'perthousand',
+  0x8a: 'Scaron',
+  0x8b: 'guilsinglleft',
+  0x8c: 'OE',
+  0x8e: 'Zcaron',
+  0x91: 'quoteleft',
+  0x92: 'quoteright',
+  0x93: 'quotedblleft',
+  0x94: 'quotedblright',
+  0x95: 'bullet',
+  0x96: 'endash',
+  0x97: 'emdash',
+  0x98: 'tilde',
+  0x99: 'trademark',
+  0x9a: 'scaron',
+  0x9b: 'guilsinglright',
+  0x9c: 'oe',
+  0x9e: 'zcaron',
+  0x9f: 'Ydieresis',
+}
+const c1Glyph = new Map<number, string>()
+for (const [code, name] of Object.entries(CP1252_C1)) {
+  const unicode = new TextDecoder('windows-1252')
+    .decode(new Uint8Array([Number(code)]))
+    .codePointAt(0)!
+  c1Glyph.set(unicode, name)
+}
+/** The upstream name for U+0178 is `ydieresis`, which is the lower-case letter's width. */
+const UPSTREAM_WRONG = new Set([0x178])
+const glyphName = (c: number): string => {
+  const upstream = winAnsi.encodeUnicodeCodePoint(c).name
+  const expected = c1Glyph.get(c)
+  if (!expected) return upstream
+  if (upstream !== expected && !UPSTREAM_WRONG.has(c))
+    throw new Error(`U+${c.toString(16)} is ${upstream} upstream, expected ${expected}`)
+  return expected
+}
+for (const u of c1Glyph.keys())
+  if (!codePoints.includes(u))
+    throw new Error(`U+${u.toString(16)} is missing from WinAnsi`)
+
 const widths = new Map<string, number[]>()
 for (const [key, name] of FACES) {
   const font = Font.load(name)
   widths.set(
     key,
     codePoints.map((c) => {
-      const glyph = winAnsi.encodeUnicodeCodePoint(c).name
+      const glyph = glyphName(c)
       const w = font.getWidthOfGlyph(glyph)
       if (typeof w !== 'number' || !(w >= 0))
         throw new Error(`${name} has no width for U+${c.toString(16)} (${glyph})`)
