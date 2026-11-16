@@ -1872,6 +1872,15 @@ describe('mask', () => {
     const cut = subpaths(ellipse.getAttribute('d')!)
     expect(cut.map((c) => c.closed)).toEqual([true, true])
     expect(cut[1]!.points).toEqual(['200.000,484.000', '600.000,484.000'].sort())
+    // Both arcs have the rect's radii (200 x 100 pt at zoom 2: rx 200, ry 100 CSS px), the
+    // first ending at the right of the ellipse (600, 484), the second back at its left (200, 484).
+    const arcs = [...ellipse.getAttribute('d')!.matchAll(/A([^MLAZ]*)/g)].map((m) =>
+      m[1]!.trim().split(/[ ,]+/).map(Number)
+    )
+    expect(arcs).toEqual([
+      [200, 100, 0, 1, 0, 600, 484],
+      [200, 100, 0, 1, 0, 200, 484],
+    ])
     expect(ellipse.getAttribute('fill-rule')).toBe('evenodd')
     doc.annotations.remove(mask.id)
     expect(layer(host)).toBeNull()

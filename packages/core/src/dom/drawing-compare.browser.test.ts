@@ -597,6 +597,7 @@ describe('comparePaint for loupes', () => {
 
   it('a wide rim at zoom 2', async () => {
     const r = await comparePaint({ ...rim(6), zoom: 2 })
+    expect(r.referenceInk).toBeGreaterThan(0)
     expect(r.differing).toBeLessThanOrEqual(0.005)
   })
 
@@ -606,6 +607,7 @@ describe('comparePaint for loupes', () => {
       ...c,
       annotation: { ...c.annotation, rect: { x: 200, y: 500, width: 160, height: 90 } },
     })
+    expect(r.referenceInk).toBeGreaterThan(0)
     expect(r.differing).toBeLessThanOrEqual(0.005)
   })
 
@@ -689,9 +691,12 @@ describe('comparePaint for masks, the page-wide layer', () => {
   }
 
   it('a mask at zoom 2 and zoom 0.5', async () => {
-    for (const zoom of [2, 0.5] as const) {
-      const r = await compare({ ...maskCase('ellipse'), zoom })
-      expect(r.differing).toBeLessThanOrEqual(0.005)
+    for (const shape of ['ellipse', 'rect'] as const) {
+      for (const zoom of [2, 0.5] as const) {
+        const r = await compare({ ...maskCase(shape), zoom })
+        expect(r.referenceInk, `${shape} at ${zoom}`).toBeGreaterThan(0)
+        expect(r.differing).toBeLessThanOrEqual(0.005)
+      }
     }
   })
 
@@ -1039,6 +1044,24 @@ describe('loupe and mask chrome against the reference', () => {
     const pressed = await hits(a, renderAnnotationContent, points)
     expect(pressed).toEqual(await hits(a, renderReferenceContent, points))
     expect(pressed).toEqual([true, true, true, false, false])
+  })
+
+  it('a 200 x 100 loupe takes presses at its centre and not at its corners, as the reference did', async () => {
+    const a = add({
+      type: 'loupe',
+      page: 0,
+      rect: { x: 100, y: 600, width: 200, height: 100 },
+      width: 2,
+    })
+    const box = annotationBox(a, t)
+    const points = [
+      [box.width / 2, box.height / 2],
+      [2, 2],
+      [box.width - 2, box.height - 2],
+    ] as const
+    const pressed = await hits(a, renderAnnotationContent, points)
+    expect(pressed).toEqual(await hits(a, renderReferenceContent, points))
+    expect(pressed).toEqual([true, false, false])
   })
 
   it('a loupe with no border still takes presses on its lens and draws no rim', async () => {
