@@ -69,8 +69,6 @@ export function closedEditor(e: Event): boolean {
 
 /** Point within which a grown height counts as unchanged, CSS px. */
 const SAME_PX = 0.5
-/** The editor's narrowest width, in ems of the box's font size, for a box inset to nothing. */
-const MIN_WIDTH_EM = 2
 
 /**
  * Opens an editor on `el`, the overlay element showing `a` (or a stand-in for a box not in the
@@ -131,9 +129,8 @@ export function editFreeText(
     `font-weight:${font.bold ? 'bold' : 'normal'};font-style:${font.italic ? 'italic' : 'normal'};` +
     `text-decoration:${s.textDecoration === 'underline' ? 'underline' : 'none'};` +
     `color:${s.color};caret-color:${s.color};text-align:${s.textAlign};`
-  // A fringe can leave a box too narrow to type in: never narrower than a couple of letters.
-  const floor = t.toCssLength(s.fontSize * MIN_WIDTH_EM)
-  field.style.width = `${Math.max(areaWidth, a.fringe ? floor : 0)}px`
+  // Exactly as wide as the layout wraps to, so the editor breaks lines where the drawing does.
+  field.style.width = `${areaWidth}px`
   field.style.height = 'auto'
   field.style.minHeight = `${areaHeight}px`
   field.style.pointerEvents = 'auto'
@@ -152,21 +149,31 @@ export function editFreeText(
   const grownTo = (grown: number): FreeTextAnnotation =>
     grown === 0 ? a : { ...a, ...grownFreeText(a, grown, t) }
   /** Lays the box out and paints it, without its text, as `draft`; the editor goes to its text area. */
+  /**
+   * Paints `draft` into `el` behind the editor and the selection handles, which stay: removing
+   * them would drop the selection's handles, and moving the focused editor would drop its focus.
+   */
+  const repaint = (draft: FreeTextAnnotation): void => {
+    const holder = doc.createElement('div')
+    renderAnnotationContent(holder, draft, t)
+    for (const child of [...el.children])
+      if (child !== field && !child.hasAttribute('data-handle')) child.remove()
+    el.prepend(...holder.childNodes)
+  }
   const sync = (draft: FreeTextAnnotation): void => {
     const box = annotationBox(draft, t)
     el.style.left = `${box.left}px`
     el.style.top = `${box.top}px`
     el.style.width = `${box.width}px`
     el.style.height = `${box.height}px`
-    const holder = doc.createElement('div')
-    renderAnnotationContent(holder, { ...draft, contents: '' }, t)
-    for (const child of [...el.children]) if (child !== field) child.remove()
-    el.prepend(...holder.childNodes)
+    repaint({ ...draft, contents: '' })
     const at = t.toCss(freeTextFrame(draft, rotate).area.topLeft)
     field.style.left = `${at.x - box.left}px`
     field.style.top = `${at.y - box.top}px`
   }
   const grow = (): void => sync(grownTo(height() - areaHeight))
+  // In place before the caret is: a click's point is read against the editor where it will be.
+  sync(a)
   const Observer = view?.ResizeObserver
   const observer = Observer ? new Observer(grow) : undefined
   observer?.observe(field)
@@ -198,7 +205,7 @@ export function editFreeText(
     field.remove()
     Object.assign(el.style, kept)
     // The box as it was: the editor's repaints left it without its text.
-    renderAnnotationContent(el, a, t)
+    repaint(a)
     if (commit) opts.commit(contents, next, grown, how)
     else opts.cancel()
   }

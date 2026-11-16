@@ -324,7 +324,7 @@ describe('editFreeText', () => {
     expect(range.compareBoundaryPoints(Range.START_TO_START, end)).toBe(0)
   })
 
-  it('gives a box its fringe leaves no width to a usable editor', () => {
+  it('wraps the editor of a box its fringe leaves no width exactly as the layout does', () => {
     const store = createAnnotationStore({
       mode: { mode: 'uncontrolled' },
       defaults: staticDefaults,
@@ -345,8 +345,8 @@ describe('editFreeText', () => {
     const editor = editFreeText(el, a, { transform, commit: vi.fn(), cancel: vi.fn() })
     cleanup.unshift(() => editor.close(false))
     const f = el.querySelector<HTMLElement>('[data-ink-editor]')!
-    // Two ems of the 12 pt text at zoom 1.
-    expect(f.style.width).toBe('24px')
+    // The layout's own width, 0: the editor breaks where the drawing would, not wider.
+    expect(f.style.width).toBe('0px')
   })
 })
 
@@ -357,7 +357,7 @@ describe('editing leaves the text where it is', () => {
   const paragraph =
     'The quick brown fox jumps over the lazy dog while a second sentence follows it, and a third one trails along behind to fill the box. Pack my box with five dozen liquor jugs, then wait for the lazy morning to turn into a quiet afternoon by the river bank.'
 
-  function open(family: string, size: number, rotation: 0 | 90 = 0) {
+  function open(family: string, size: number, rotation: 0 | 90 = 0, zoom: 1 | 2 = 1) {
     const style = document.createElement('style')
     style.textContent = themeCss
     document.head.append(style)
@@ -365,8 +365,8 @@ describe('editing leaves the text where it is', () => {
       mode: { mode: 'uncontrolled' },
       defaults: staticDefaults,
     })
-    const host = mountContainer(792, 792)
-    const transform = createPageTransform(page, 1, rotation)
+    const host = mountContainer(792 * zoom, 792 * zoom)
+    const transform = createPageTransform(page, zoom, rotation)
     const overlay = createOverlay({ host, page: 0, store, transform })
     cleanup.push(() => (overlay.destroy(), host.remove(), style.remove()))
     const a = store.add({
@@ -394,48 +394,58 @@ describe('editing leaves the text where it is', () => {
     probe.remove()
     return y
   }
-  const drawnLines = (el: HTMLElement): number =>
-    el.querySelectorAll('g[data-ink-part="text"] > text').length
-  /** How many lines the editor's text breaks into: distinct tops of its characters. */
-  const editorLines = (field: HTMLElement): number => {
+  /** Where in `contents` each drawn line starts. */
+  const drawnStarts = (el: HTMLElement): number[] => {
+    let from = 0
+    return [...el.querySelectorAll('g[data-ink-part="text"] > text')].map((t) => {
+      const at = paragraph.indexOf(t.textContent, from)
+      from = at + t.textContent.length
+      return at
+    })
+  }
+  /** Where in the text each line of the editor starts: the first character at each new top. */
+  const editorStarts = (field: HTMLElement): number[] => {
     const node = field.firstChild as Text
     const tops: number[] = []
+    const starts: number[] = []
     for (let i = 0; i < node.length; i++) {
       if (/\s/.test(node.data[i]!)) continue
       const range = document.createRange()
       range.setStart(node, i)
       range.setEnd(node, i + 1)
       const top = range.getBoundingClientRect().top
-      if (!tops.some((t) => Math.abs(t - top) < 2)) tops.push(top)
+      if (!tops.some((t) => Math.abs(t - top) < 2)) {
+        tops.push(top)
+        starts.push(i)
+      }
     }
-    return tops.length
+    return starts
   }
 
-  for (const family of FAMILIES) {
-    for (const size of SIZES) {
-      it(`${family} ${size}: the first baseline moves by at most a pixel when editing starts and ends, and the lines are the same`, () => {
-        const { store, a, el, transform } = open(family, size)
-        const before = drawnBaseline(el)
-        const linesBefore = drawnLines(el)
-        const editor = editFreeTextIn(store, el, a.id, transform)!
-        cleanup.unshift(() => editor.close(false))
-        const field = el.querySelector<HTMLElement>('[data-ink-editor]')!
-        const inEditor = editorBaseline(field)
-        const linesEditing = editorLines(field)
-        editor.close(true)
-        const after = drawnBaseline(el)
-        const linesAfter = drawnLines(el)
-        console.log(
-          `[editing] ${family} ${size}: baseline on open ${(inEditor - before).toFixed(3)}, on commit ${(after - inEditor).toFixed(3)}; lines drawn ${linesBefore}, editor ${linesEditing}, drawn after commit ${linesAfter}`
-        )
-        expect(Math.abs(inEditor - before)).toBeLessThanOrEqual(1)
-        expect(Math.abs(after - inEditor)).toBeLessThanOrEqual(1)
-        expect(linesEditing).toBeGreaterThan(3)
-        expect(linesAfter).toBe(linesEditing)
-        expect(linesBefore).toBe(linesAfter)
-      })
+  for (const zoom of [1, 2] as const)
+    for (const family of FAMILIES) {
+      for (const size of SIZES) {
+        it(`${family} ${size} at zoom ${zoom}: the first baseline moves by at most a pixel when editing starts and ends, and every line starts at the same character`, () => {
+          const { store, a, el, transform } = open(family, size, 0, zoom)
+          const before = drawnBaseline(el)
+          const editor = editFreeTextIn(store, el, a.id, transform)!
+          cleanup.unshift(() => editor.close(false))
+          const field = el.querySelector<HTMLElement>('[data-ink-editor]')!
+          const inEditor = editorBaseline(field)
+          const editing = editorStarts(field)
+          editor.close(true)
+          const after = drawnBaseline(el)
+          const drawn = drawnStarts(el)
+          console.log(
+            `[editing] ${family} ${size} zoom ${zoom}: baseline on open ${(inEditor - before).toFixed(3)}, on commit ${(after - inEditor).toFixed(3)}; lines editor ${editing.length}, drawn after commit ${drawn.length}`
+          )
+          expect(Math.abs(inEditor - before)).toBeLessThanOrEqual(1)
+          expect(Math.abs(after - inEditor)).toBeLessThanOrEqual(1)
+          expect(editing.length).toBeGreaterThan(3)
+          expect(drawn).toEqual(editing)
+        })
+      }
     }
-  }
 
   it('on a view turned 90 the first baseline also stays within a pixel', () => {
     const { store, a, el, transform } = open('Helvetica', 12, 90)
@@ -456,5 +466,106 @@ describe('editing leaves the text where it is', () => {
     probe.remove()
     console.log(`[editing] view 90: baseline on open ${(inEditor - before).toFixed(3)}`)
     expect(Math.abs(inEditor - before)).toBeLessThanOrEqual(1)
+  })
+})
+
+describe('the caret lands on the character that was pressed', () => {
+  const fixtures = {
+    'a speech bubble': {
+      rect: { x: 100, y: 300, width: 160, height: 80 },
+      intent: 'FreeTextCallout',
+      cornerRadius: 8,
+      width: 1,
+      callout: [
+        { x: 106, y: 276 },
+        { x: 130, y: 300 },
+      ],
+    },
+    'a callout with a fringe of 40 pt on the left': {
+      rect: { x: 60, y: 560, width: 240, height: 90 },
+      fringe: { left: 40, top: 5, right: 10, bottom: 25 },
+      intent: 'FreeTextCallout',
+      callout: [
+        { x: 70, y: 565 },
+        { x: 90, y: 600 },
+      ],
+      head: 'OpenArrow',
+      width: 1,
+    },
+    'a plain box': { rect: { x: 100, y: 600, width: 200, height: 40 } },
+  } as const
+
+  for (const [name, fixture] of Object.entries(fixtures))
+    for (const rotation of [0, 90] as const)
+      for (const index of [6, 9]) {
+        it(`${name}, view turned ${rotation}: a press on character ${index}`, () => {
+          const style = document.createElement('style')
+          style.textContent = themeCss
+          document.head.append(style)
+          const store = createAnnotationStore({
+            mode: { mode: 'uncontrolled' },
+            defaults: staticDefaults,
+          })
+          const host = mountContainer(792, 792)
+          const transform = createPageTransform(page, 1, rotation)
+          const overlay = createOverlay({ host, page: 0, store, transform })
+          cleanup.push(() => (overlay.destroy(), host.remove(), style.remove()))
+          const a = store.add({
+            type: 'freetext',
+            page: 0,
+            contents: 'Hello world again',
+            ...fixture,
+          } as never) as FreeTextAnnotation
+          const el = overlay.elementFor(a.id)!
+          // A quarter of the way into the character, so the nearest boundary is its left one.
+          const text = el.querySelector<SVGTextElement>('g[data-ink-part="text"] > text')!
+          const extent = text.getExtentOfChar(index)
+          const at = new DOMPoint(
+            extent.x + extent.width / 4,
+            extent.y + extent.height / 2
+          ).matrixTransform(text.getScreenCTM()!)
+          const editor = editFreeTextIn(store, el, a.id, transform, {
+            caret: { clientX: at.x, clientY: at.y },
+          })
+          cleanup.unshift(() => editor?.close(false))
+          const field = el.querySelector<HTMLElement>('[data-ink-editor]')!
+          const selection = window.getSelection()!
+          expect(selection.isCollapsed).toBe(true)
+          expect(field.contains(selection.anchorNode)).toBe(true)
+          expect(selection.anchorOffset).toBe(index)
+        })
+      }
+})
+
+describe('selection handles', () => {
+  it('stay while the editor is open and after it closes with no change', () => {
+    const style = document.createElement('style')
+    style.textContent = themeCss
+    document.head.append(style)
+    const store = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const host = mountContainer(792, 792)
+    host.setAttribute('data-ink-tool', 'select')
+    const transform = createPageTransform(page, 1, 0)
+    const overlay = createOverlay({ host, page: 0, store, transform })
+    cleanup.push(() => (overlay.destroy(), host.remove(), style.remove()))
+    const a = store.add({
+      type: 'freetext',
+      page: 0,
+      rect: { x: 100, y: 600, width: 200, height: 40 },
+      contents: 'Hi',
+    }) as FreeTextAnnotation
+    store.select([a.id])
+    const el = overlay.elementFor(a.id)!
+    const handles = () => el.querySelectorAll('[data-handle]').length
+    expect(handles()).toBe(4)
+    for (const how of [false, true]) {
+      const editor = editFreeTextIn(store, el, a.id, transform)!
+      expect(handles()).toBe(4)
+      editor.close(how)
+      expect(handles()).toBe(4)
+    }
   })
 })
