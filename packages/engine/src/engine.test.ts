@@ -1,4 +1,7 @@
-import { readFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 import { fixtureBytes } from '@inkbar/fixtures'
 import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
@@ -184,13 +187,35 @@ test('the caller keeps its bytes', async () => {
   expect((await copy.pageInfo(0)).width).toBe(612)
 })
 
+/** Silences Emscripten's own report of a failed load, which the rejection already carries. */
+function quietLoad() {
+  return vi.spyOn(console, 'error').mockImplementation(() => {})
+}
+
 test('a wasm path that does not exist rejects with engine-failure naming it', async () => {
+  using _ = quietLoad()
   await expect(
     createEngine({ wasm: new URL('file:///nope/missing.wasm'), worker: false })
   ).rejects.toMatchObject({
     code: 'engine-failure',
     message: expect.stringContaining('missing.wasm') as unknown,
   })
+})
+
+test('an HTML file in place of the wasm rejects with engine-failure naming it', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'engine-html-'))
+  try {
+    const file = join(dir, 'inkbar-pdfium.wasm')
+    await writeFile(file, '<!doctype html><title>Not found</title>')
+    const url = pathToFileURL(file)
+    using _ = quietLoad()
+    await expect(createEngine({ wasm: url, worker: false })).rejects.toMatchObject({
+      code: 'engine-failure',
+      message: expect.stringContaining(url.href) as unknown,
+    })
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
 })
 
 test('a file: URL for the wasm loads the engine', async () => {

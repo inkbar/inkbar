@@ -114,6 +114,15 @@ test('a wasm URL that 404s rejects createEngine and names the URL', async () => 
   expect((error as Error).message).toContain('/missing.wasm')
 })
 
+test('HTML served in place of the wasm rejects createEngine and names the URL', async () => {
+  const url = '/engine-test/html-instead-of.wasm'
+  const error: unknown = await createEngine({ worker, wasm: url }).catch(
+    (reason: unknown) => reason
+  )
+  expect(error).toMatchObject({ code: 'engine-failure' })
+  expect((error as Error).message).toContain(url)
+})
+
 /** Records the workers `createEngine` makes and which of them were terminated. */
 function trackWorkers() {
   const Original = globalThis.Worker

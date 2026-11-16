@@ -28,6 +28,20 @@ function serveBuiltPackage(): Plugin {
   }
 }
 
+/** Serves an HTML page where a wasm file is expected, as a misconfigured host might. */
+function serveHtmlAsWasm(): Plugin {
+  return {
+    name: 'inkbar-serve-html-as-wasm',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (req.url?.split('?')[0] !== '/engine-test/html-instead-of.wasm') return next()
+        res.setHeader('Content-Type', 'text/html')
+        res.end('<!doctype html><title>Not found</title>')
+      })
+    },
+  }
+}
+
 const browsers = (process.env.ENGINE_BROWSERS ?? 'chromium')
   .split(',')
   .map((name) => name.trim())
@@ -46,7 +60,7 @@ export default defineConfig({
         },
       },
       {
-        plugins: [serveFixtures(), serveBuiltPackage()],
+        plugins: [serveFixtures(), serveBuiltPackage(), serveHtmlAsWasm()],
         test: {
           name: 'browser',
           include: ['src/**/*.browser.test.ts'],
