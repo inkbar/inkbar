@@ -18,18 +18,23 @@ export function cssFont(font: TextFont, size: number): string {
   return `${font.italic ? 'italic' : 'normal'} ${font.bold ? 'bold' : 'normal'} ${size}px ${FONT_STACKS[font.family]}`
 }
 
-/** Large enough that rounding in `measureText` does not show once the width is scaled down. */
-const REFERENCE_SIZE = 100
+/** How many measured characters are kept. A text box rarely uses more than a few hundred. */
+const CACHE_SIZE = 4000
 
 let context:
   CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null | undefined
 const widths = new Map<string, number>()
 
-/** The width of one character in the browser's own font for `font`, at `size`. Cached per character and face. */
+/**
+ * The width of one character (a cluster: see `clusters`) in the browser's own font for `font`,
+ * measured at `size` itself, since rounding in the font's advances differs from size to size. The
+ * results are kept per font, size and character, oldest dropped first.
+ */
 export function browserWidth(char: string, font: TextFont, size: number): number {
-  const key = `${font.family}${font.bold ? 'b' : ''}${font.italic ? 'i' : ''}${char}`
-  let unit = widths.get(key)
-  if (unit === undefined) {
+  const css = cssFont(font, size)
+  const key = `${css}|${char}`
+  let width = widths.get(key)
+  if (width === undefined) {
     if (context === undefined) {
       context =
         typeof document === 'undefined'
@@ -37,9 +42,10 @@ export function browserWidth(char: string, font: TextFont, size: number): number
           : (document.createElement('canvas').getContext('2d') ?? null)
     }
     if (!context) return isWide(char) ? size : size / 2
-    context.font = cssFont(font, REFERENCE_SIZE)
-    unit = context.measureText(char).width / REFERENCE_SIZE
-    widths.set(key, unit)
+    context.font = css
+    width = context.measureText(char).width
+    if (widths.size >= CACHE_SIZE) widths.delete(widths.keys().next().value!)
+    widths.set(key, width)
   }
-  return unit * size
+  return width
 }

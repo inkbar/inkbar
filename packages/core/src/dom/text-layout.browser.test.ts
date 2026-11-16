@@ -4,6 +4,7 @@ import { clusters } from '../model/annotations/drawing/text/clusters'
 import { layoutText } from '../model/annotations/drawing/text/layout'
 import { measureWith, standardMeasure } from '../model/annotations/drawing/text/measure'
 
+import { checkTextFonts } from './text-font-check'
 import { browserWidth, cssFont } from './text-fonts'
 
 import type { TextBlock } from '../model/annotations/drawing/text/layout'
@@ -24,7 +25,7 @@ const shapedMeasure: TextMeasure = {
   vertical: (font) => standardMeasure.vertical(font),
 }
 
-/** One cluster at a time through the production fallback: no kerning, measured at a reference size. */
+/** One cluster at a time through the production fallback, measured at the real size: no kerning. */
 const perCharMeasure: TextMeasure = {
   width: (text, font, size) => {
     let width = 0
@@ -66,6 +67,11 @@ const SAMPLES: Record<string, string> = {
   'family emoji': 'family 👨‍👩‍👧‍👦 and 👩‍❤️‍👨 together 🧑‍🧑‍🧒‍🧒 ok',
   'decomposed accents':
     'Cafe\u0301 re\u0301sume\u0301 nai\u0308ve fiance\u0301e a\u0308o\u0308u\u0308 end',
+  ellipses: 'wait…what… no…really… and so on…it goes on…and on…and on',
+  exclamations:
+    'word!word!word!word!word!word!word!word!word!word!word!word!word!word!word!word!',
+  'small kana and the long vowel mark':
+    'ちょっとしたコーヒーショップでキャッチボールをしました。ッーぁぃぅ',
   'one character': 'W',
   empty: '',
 }
@@ -168,7 +174,7 @@ describe('known differences from the browser', () => {
   })
 })
 
-/** The measure production uses: the tables, and the browser's per-character widths for the rest. */
+/** The measure production uses: the tables, and the browser's own widths for the rest. */
 const productionMeasure = measureWith(browserWidth)
 
 const PRODUCTION_FACES: TextFont[] = [
@@ -183,14 +189,25 @@ const PRODUCTION_FACES: TextFont[] = [
 /** Pixels a box edge is moved to see whether a mismatch is a line ending next to the edge. */
 const EDGE_STEPS = [0.03, 0.1, 0.25, 0.5, 1, 2]
 
+/** Whether every character of a sample is in the tables, so only the Latin fonts decide its lines. */
+const latinOnly = (text: string) => !standardMeasure.width(text, HELV, 12).outside
+const HELV: TextFont = { family: 'Helvetica', bold: false, italic: false }
+
+interface Mismatch {
+  label: string
+  /** The smallest box-edge move, in px, after which layout agrees with the browser. */
+  near: number | undefined
+  latin: boolean
+}
+
 /** Lays every sample out with `measure` and compares it with a real `div`. */
 function compareWith(
   measure: TextMeasure,
   faces: TextFont[],
   kerning: boolean
-): { total: number; mismatches: string[] } {
+): { total: number; mismatches: Mismatch[] } {
   let total = 0
-  const mismatches: string[] = []
+  const mismatches: Mismatch[] = []
   for (const [name, text] of Object.entries(SAMPLES))
     for (const font of faces)
       for (const size of SIZES)
@@ -201,8 +218,6 @@ function compareWith(
           total++
           if (JSON.stringify(expected) !== JSON.stringify(laid)) {
             const label = `${name} | ${font.family}${font.bold ? ' bold' : ''}${font.italic ? ' italic' : ''} ${size} ${width}`
-            // How far the box would have to move for layout to agree: a small number means a line
-            // ended within that many pixels of the box edge.
             const near = EDGE_STEPS.find((delta) =>
               [-delta, delta].some(
                 (d) =>
@@ -213,7 +228,7 @@ function compareWith(
                   ) === JSON.stringify(expected)
               )
             )
-            mismatches.push(label)
+            mismatches.push({ label, near, latin: latinOnly(text) })
             console.log(
               `[detail] kerning=${kerning} ${label} edge<=${near ?? 'none'}\n  browser ${JSON.stringify(expected)}\n  layout  ${JSON.stringify(laid)}`
             )
@@ -222,69 +237,46 @@ function compareWith(
   return { total, mismatches }
 }
 
-const PER_CHAR_TOTAL = 702
-/**
- * With the font's own per-cluster widths and no tables: twelve CJK bracket cases (a lone 「 or 」 is
- * measured narrow, in text it is a full em), two emoji cases (whole-pixel advances in the
- * DOM), and one kerning case (the 'ff' of the tabs sample is narrower in the real text).
- */
-const PER_CHAR_KNOWN = [
-  'CJK punctuation | Courier 10 144',
-  'CJK punctuation | Courier 12 80',
-  'CJK punctuation | Courier 18 300',
-  'CJK punctuation | Courier 18 80',
-  'CJK punctuation | Helvetica 10 144',
-  'CJK punctuation | Helvetica 12 80',
-  'CJK punctuation | Helvetica 18 300',
-  'CJK punctuation | Helvetica 18 80',
-  'CJK punctuation | Times 10 144',
-  'CJK punctuation | Times 12 80',
-  'CJK punctuation | Times 18 300',
-  'CJK punctuation | Times 18 80',
-  'family emoji | Helvetica 10 144',
-  'skin tones | Courier 10 144',
-  'tabs | Helvetica 18 300',
-]
+const fonts = checkTextFonts()
+console.log(`[text fonts] mode ${fonts.mode}: ${fonts.why}`)
 
-/** A line ends within 0.03 px of the box edge, so a rounding difference decides the break: the tables are rounded to 1/1000 em, and Liberation Mono's advance is 1229/2048 em, not 0.6, so a Courier line of exactly 24 or 20 characters fits in the tables and not in the browser. */
+/**
+ * Checks a run's mismatches. With the fonts the exact lists were recorded on (`exact`), the
+ * sorted labels must equal `known`. On any machine, a mismatch in text that has only characters
+ * from the tables must be a line ending within 0.03 px of the box edge (with the browser's default
+ * kerning, kerning may also move a break, so only the number of those is capped), and the total
+ * is capped.
+ */
+function checkRun(
+  run: { total: number; mismatches: Mismatch[] },
+  options: { kerning: boolean; known: string[]; total: number }
+) {
+  const { total, mismatches } = run
+  expect(total).toBe(options.total)
+  expect(mismatches.length).toBeLessThanOrEqual(Math.ceil(total * 0.04))
+  const latin = mismatches.filter((m) => m.latin)
+  if (options.kerning) expect(latin.length).toBeLessThanOrEqual(Math.ceil(total * 0.01))
+  else
+    for (const m of latin)
+      expect({ label: m.label, near: m.near }).toEqual({ label: m.label, near: 0.03 })
+  if (fonts.mode === 'exact')
+    expect(mismatches.map((m) => m.label).sort()).toEqual(options.known)
+}
+
+/** A line ends within 0.03 px of the box edge, so a rounding difference decides the break. The tables are rounded to 1/1000 em (for example "five      six" at 18 px is 80.028 by the tables and 80.016 in the browser, in an 80 px box). */
 const EDGE_CASES = [
-  'a long url | Courier 10 144',
-  'a long url | Courier 10 300',
-  'a long url | Courier 12 144',
   'a long url | Times italic 12 80',
-  'a long word at the start | Courier 10 144',
-  'a long word at the start | Courier 12 144',
   'a long word at the start | Helvetica 18 80',
   'a long word at the start | Helvetica italic 18 80',
-  'a very long word | Courier 10 144',
-  'a very long word | Courier 10 300',
-  'a very long word | Courier 12 144',
   'a very long word | Times bold italic 10 80',
-  'dashes | Courier 12 144',
-  'family emoji | Helvetica bold 10 80',
-  'family emoji | Helvetica bold 18 144',
-  'family emoji | Helvetica bold italic 10 80',
-  'family emoji | Helvetica bold italic 18 144',
-  'hyphens | Courier 10 144',
-  'hyphens | Courier 10 300',
   'hyphens | Times bold italic 18 144',
   'latin then CJK | Helvetica 18 300',
   'latin then CJK | Helvetica italic 18 300',
-  'multiple spaces | Courier 10 144',
   'multiple spaces | Helvetica 18 80',
   'multiple spaces | Helvetica italic 18 80',
-  'no-break space | Courier 10 144',
-  'no-break space | Courier 12 144',
-  'paragraph | Courier 10 144',
-  'paragraph | Courier 12 144',
-  'slashes | Courier 12 144',
-  'spaces then a long word | Courier 10 144',
-  'spaces then a long word | Courier 10 300',
-  'spaces then a long word | Courier 12 144',
-  'tabs | Courier 12 144',
-  'trailing spaces | Courier 12 144',
 ]
-/** The fallback measures 「 and 」 alone (0.59 em, as Chrome's text-spacing-trim narrows a lone bracket) but Chrome keeps them a full em between other full-width characters, so layout's lines are a character longer. */
+
+/** The fallback measures 「 and 」 alone (0.59 em, as Chrome's text-spacing-trim narrows a lone bracket) but Chrome keeps them a full em between other full-width characters. */
 const CJK_BRACKET_CASES = [
   'CJK punctuation | Courier 10 144',
   'CJK punctuation | Courier 12 80',
@@ -323,53 +315,101 @@ const CJK_BRACKET_CASES = [
   'CJK punctuation | Times italic 18 300',
   'CJK punctuation | Times italic 18 80',
 ]
-/** Colour emoji advances are whole pixels in the DOM (12 px at 10 px, 22 px at 18 px) but 1.25 em (12.5, 22.5) when measured at the reference size and scaled. */
-const EMOJI_CASES = [
-  'family emoji | Helvetica 10 144',
-  'family emoji | Helvetica italic 10 144',
-  'flags | Helvetica bold 10 144',
-  'flags | Helvetica bold italic 10 144',
-  'skin tones | Courier 10 144',
-  'skin tones | Helvetica bold 18 80',
-  'skin tones | Helvetica bold italic 18 80',
-  'skin tones | Times bold italic 10 144',
-]
-/** Only with the browser's default kerning: kerning and ligatures in the real text shift a break by one character (an 'ff' pair in the tabs sample, italic pairs in the long word) that kerning-free widths do not. */
+
+/** Only with the browser's default kerning: an 'ff' pair in the tabs sample and italic pairs in the long word are narrower in the real text. */
 const KERNING_ONLY_CASES = [
   'a very long word | Times italic 12 300',
+  'exclamations | Times italic 10 300',
+  'exclamations | Times italic 10 80',
+  'exclamations | Times italic 12 300',
+  'exclamations | Times italic 18 144',
+  'exclamations | Times italic 18 300',
   'tabs | Helvetica 18 300',
 ]
 
-/** Every case the production measure is known to break differently with kerning off. */
-const KNOWN_KERNING_OFF = [...EDGE_CASES, ...CJK_BRACKET_CASES, ...EMOJI_CASES].sort()
-/** And with the browser's default kerning. */
+/** The two runs with the production measure, on a machine with the fonts the lists were recorded on. */
+const KNOWN_KERNING_OFF = [...EDGE_CASES, ...CJK_BRACKET_CASES].sort()
 const KNOWN_KERNING_DEFAULT = [...KNOWN_KERNING_OFF, ...KERNING_ONLY_CASES].sort()
 
-describe('layoutText with per-character browser widths and no tables', () => {
-  it('breaks lines as the browser does with its default kerning, but for the known cases', () => {
+/** With the font's own per-cluster widths and no tables: the CJK bracket cases (not the edge cases, as no table is involved) and the tabs kerning case. */
+const PER_CHAR_KNOWN = [
+  'CJK punctuation | Courier 10 144',
+  'CJK punctuation | Courier 12 80',
+  'CJK punctuation | Courier 18 300',
+  'CJK punctuation | Courier 18 80',
+  'CJK punctuation | Helvetica 10 144',
+  'CJK punctuation | Helvetica 12 80',
+  'CJK punctuation | Helvetica 18 300',
+  'CJK punctuation | Helvetica 18 80',
+  'CJK punctuation | Times 10 144',
+  'CJK punctuation | Times 12 80',
+  'CJK punctuation | Times 18 300',
+  'CJK punctuation | Times 18 80',
+  'tabs | Helvetica 18 300',
+]
+
+describe('layoutText with per-cluster browser widths and no tables', () => {
+  it('breaks lines as the browser does with its default kerning', () => {
+    if (fonts.mode === 'foreign') return
     const faces = FAMILIES.map((family) => ({ family, bold: false, italic: false }))
-    const { total, mismatches } = compareWith(perCharMeasure, faces, true)
-    console.log(`[per-char] ${total - mismatches.length}/${total}`)
-    for (const m of mismatches) console.log(`[per-char mismatch] ${m}`)
-    expect(total).toBe(PER_CHAR_TOTAL)
-    expect([...mismatches].sort()).toEqual(PER_CHAR_KNOWN)
+    const run = compareWith(perCharMeasure, faces, true)
+    console.log(
+      `[per-char] ${run.total - run.mismatches.length}/${run.total} (${fonts.mode})`
+    )
+    for (const m of run.mismatches) console.log(`[per-char mismatch] ${m.label}`)
+    // Without tables there is no edge to blame: mismatches are Latin kerning (capped) or involve other characters.
+    expect(run.total).toBe(
+      Object.keys(SAMPLES).length * FAMILIES.length * SIZES.length * WIDTHS.length
+    )
+    expect(run.mismatches.length).toBeLessThanOrEqual(Math.ceil(run.total * 0.04))
+    expect(run.mismatches.filter((m) => m.latin).length).toBeLessThanOrEqual(2)
+    if (fonts.mode === 'exact')
+      expect(run.mismatches.map((m) => m.label).sort()).toEqual(PER_CHAR_KNOWN)
   })
 })
 
 describe('layoutText with the production measure (tables plus the browser fallback)', () => {
   it('breaks lines as the browser does with kerning off', () => {
-    const { total, mismatches } = compareWith(productionMeasure, PRODUCTION_FACES, false)
-    console.log(`[production kerning-off] ${total - mismatches.length}/${total}`)
-    for (const m of mismatches) console.log(`[production kerning-off mismatch] ${m}`)
-    expect(total).toBe(2106)
-    expect([...mismatches].sort()).toEqual(KNOWN_KERNING_OFF)
+    if (fonts.mode === 'foreign') return
+    const run = compareWith(productionMeasure, PRODUCTION_FACES, false)
+    console.log(
+      `[production kerning-off] ${run.total - run.mismatches.length}/${run.total} (${fonts.mode})`
+    )
+    for (const m of run.mismatches)
+      console.log(
+        `[production kerning-off mismatch] ${m.label} edge<=${m.near ?? 'none'}`
+      )
+    checkRun(run, {
+      kerning: false,
+      known: KNOWN_KERNING_OFF,
+      total:
+        Object.keys(SAMPLES).length *
+        PRODUCTION_FACES.length *
+        SIZES.length *
+        WIDTHS.length,
+    })
+    for (const label of EDGE_CASES)
+      expect(run.mismatches.find((m) => m.label === label)?.near ?? 0.03).toBe(0.03)
   })
 
   it('breaks lines as the browser does with its default kerning', () => {
-    const { total, mismatches } = compareWith(productionMeasure, PRODUCTION_FACES, true)
-    console.log(`[production kerning-default] ${total - mismatches.length}/${total}`)
-    for (const m of mismatches) console.log(`[production kerning-default mismatch] ${m}`)
-    expect(total).toBe(2106)
-    expect([...mismatches].sort()).toEqual(KNOWN_KERNING_DEFAULT)
+    if (fonts.mode === 'foreign') return
+    const run = compareWith(productionMeasure, PRODUCTION_FACES, true)
+    console.log(
+      `[production kerning-default] ${run.total - run.mismatches.length}/${run.total} (${fonts.mode})`
+    )
+    for (const m of run.mismatches)
+      console.log(
+        `[production kerning-default mismatch] ${m.label} edge<=${m.near ?? 'none'}`
+      )
+    checkRun(run, {
+      kerning: true,
+      known: KNOWN_KERNING_DEFAULT,
+      total:
+        Object.keys(SAMPLES).length *
+        PRODUCTION_FACES.length *
+        SIZES.length *
+        WIDTHS.length,
+    })
   })
 })

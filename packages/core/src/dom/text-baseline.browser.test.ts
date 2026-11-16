@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { layoutText } from '../model/annotations/drawing/text/layout'
 import { standardMeasure } from '../model/annotations/drawing/text/measure'
 
+import { checkTextFonts } from './text-font-check'
 import { cssFont } from './text-fonts'
 
 import type { TextFont } from '../model/annotations/drawing/types'
@@ -39,6 +40,9 @@ function blinkModel(font: TextFont, size: number): number {
   return a + Math.floor((1.2 * size - (a + d)) / 2)
 }
 
+const fonts = checkTextFonts()
+console.log(`[text fonts] baseline test, mode ${fonts.mode}: ${fonts.why}`)
+
 describe('the line metrics match the fonts the text stacks pick', () => {
   for (const font of FACES) {
     const name = `${font.family} bold=${font.bold} italic=${font.italic}`
@@ -50,7 +54,8 @@ describe('the line metrics match the fonts the text stacks pick', () => {
           `[baseline] ${name} ${size}: measured ${measured.toFixed(3)} computed ${computed.toFixed(3)} model ${blinkModel(font, size)}`
         )
         // Blink rounds ascent and descent to whole pixels at small sizes, so up to a pixel apart.
-        expect(measured).toBe(blinkModel(font, size))
+        // Exact equality with the model only where the fonts are the ones the constants were taken from.
+        if (fonts.mode === 'exact') expect(measured).toBe(blinkModel(font, size))
         expect(Math.abs(measured - computed)).toBeLessThanOrEqual(1.05)
       })
     it(`${name} at 400: the baseline is within a pixel of the constants`, () => {

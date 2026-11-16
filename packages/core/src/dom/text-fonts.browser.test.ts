@@ -5,9 +5,15 @@ import { browserWidth, cssFont, FONT_STACKS } from './text-fonts'
 const helv = { family: 'Helvetica', bold: false, italic: false } as const
 
 describe('browserWidth', () => {
-  it('scales with the size', () => {
-    expect(browserWidth('日', helv, 24)).toBeCloseTo(2 * browserWidth('日', helv, 12), 6)
+  it('measures at the size it is given', () => {
     expect(browserWidth('日', helv, 12)).toBeGreaterThan(0)
+    expect(browserWidth('日', helv, 24)).toBeGreaterThan(browserWidth('日', helv, 12))
+  })
+
+  it('keeps no more than its cache size and still answers after eviction', () => {
+    const first = browserWidth('a', helv, 7)
+    for (let i = 0; i < 4100; i++) browserWidth('a', helv, 20 + i / 100)
+    expect(browserWidth('a', helv, 7)).toBe(first)
   })
 
   it('is monospaced in Courier', () => {

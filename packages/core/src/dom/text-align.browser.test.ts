@@ -1,15 +1,35 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
+import { clusters } from '../model/annotations/drawing/text/clusters'
 import { layoutText } from '../model/annotations/drawing/text/layout'
-import { measureWith } from '../model/annotations/drawing/text/measure'
+import { measureWith, standardMeasure } from '../model/annotations/drawing/text/measure'
 
+import { checkTextFonts } from './text-font-check'
 import { browserWidth, cssFont } from './text-fonts'
 
 import type { TextBlock } from '../model/annotations/drawing/text/layout'
-import type { TextFont } from '../model/annotations/drawing/types'
+import type { TextFont, TextMeasure } from '../model/annotations/drawing/types'
 
-/** The measure production uses. */
-const production = measureWith(browserWidth)
+const fonts = checkTextFonts()
+console.log(`[text fonts] alignment test, mode ${fonts.mode}: ${fonts.why}`)
+
+/**
+ * The measure production uses, or, where the Latin fonts do not follow the tables, the browser's
+ * own widths for everything, so the test still checks the placement rules and not the fonts.
+ */
+const production: TextMeasure =
+  fonts.mode === 'foreign'
+    ? {
+        width: (text, font, size) => ({
+          width: clusters(text.normalize('NFC')).reduce(
+            (w, c) => w + browserWidth(c, font, size),
+            0
+          ),
+          outside: false,
+        }),
+        vertical: (font) => standardMeasure.vertical(font),
+      }
+    : measureWith(browserWidth)
 
 const SAMPLES: Record<string, string> = {
   paragraph:
