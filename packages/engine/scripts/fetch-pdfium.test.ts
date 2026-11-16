@@ -13,7 +13,7 @@ import { join } from 'node:path'
 
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
-import { fetchPdfium, verifyArchive } from './fetch-pdfium.ts'
+import { ARCHIVE_FILES, fetchPdfium, verifyArchive } from './fetch-pdfium.ts'
 
 const FILES = [
   'inkbar-pdfium.wasm',
@@ -22,7 +22,10 @@ const FILES = [
   'manifest.json',
   'LICENSE',
   'NOTICE',
+  'THIRD_PARTY_LICENSES',
 ]
+
+const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 const sha256 = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex')
 
@@ -37,9 +40,13 @@ beforeEach(() => {
   mkdirSync(src)
   for (const name of FILES) writeFileSync(join(src, name), `content of ${name}\n`)
   archivePath = join(dir, 'archive.tar.gz')
-  execFileSync('tar', ['-czf', archivePath, '-C', src, ...FILES])
-  archive = Uint8Array.from(readFileSync(archivePath))
+  archive = pack(src, FILES)
 })
+
+function pack(src: string, names: string[]): Uint8Array<ArrayBuffer> {
+  execFileSync('tar', ['-czf', archivePath, '-C', src, ...names])
+  return Uint8Array.from(readFileSync(archivePath))
+}
 
 afterEach(() => {
   vi.unstubAllEnvs()
@@ -150,5 +157,31 @@ test('fetchPdfium names the variable and path when the local archive is missing'
   vi.stubEnv('INKBAR_PDFIUM_ARCHIVE', missing)
   await expect(
     fetchPdfium({ lockPath: writeLock(sha256(archive)), vendorDir: join(dir, 'vendor') })
-  ).rejects.toThrow(new RegExp(`INKBAR_PDFIUM_ARCHIVE.*${missing}`))
+  ).rejects.toThrow(new RegExp(`INKBAR_PDFIUM_ARCHIVE.*${escape(missing)}`))
+})
+
+test('the archive holds seven files, the third-party licences among them', () => {
+  expect([...ARCHIVE_FILES].sort()).toEqual([...FILES].sort())
+})
+
+test('fetchPdfium rejects an archive that lacks a file and leaves vendor untouched', async () => {
+  const partial = pack(join(dir, 'src'), FILES.slice(0, -1))
+  const vendorDir = join(dir, 'vendor')
+  await expect(
+    fetchPdfium({
+      lockPath: writeLock(sha256(partial)),
+      vendorDir,
+      fetch: () => Promise.resolve(new Response(new Blob([partial]))),
+    })
+  ).rejects.toThrow(/THIRD_PARTY_LICENSES/)
+  expect(existsSync(vendorDir)).toBe(false)
+})
+
+test('fetchPdfium fetches again when a file is missing from vendor', async () => {
+  const vendorDir = join(dir, 'vendor')
+  const lockPath = writeLock(sha256(archive))
+  await fetchPdfium({ lockPath, vendorDir, fetch: okFetch() })
+  rmSync(join(vendorDir, 'inkbar-pdfium.wasm'))
+  expect(await fetchPdfium({ lockPath, vendorDir, fetch: okFetch() })).toBe('fetched')
+  expect(existsSync(join(vendorDir, 'inkbar-pdfium.wasm'))).toBe(true)
 })
