@@ -52,6 +52,8 @@ class WorkerTransport implements Transport {
 
   call<T>(request: Request, signal?: AbortSignal): Promise<T> {
     return this.#queue.enqueue(() => {
+      // The worker and its documents are gone, so there is nothing left to close.
+      if (this.#dead && request.op === 'close') return undefined as T
       if (this.#dead) throw this.#dead
       return new Promise<T>((resolve, reject) => {
         const id = this.#nextId++
@@ -128,13 +130,14 @@ export async function createWorkerTransport(
           resolve()
         } else
           fail(
-            new EngineError(
-              'engine-failure',
-              started
-                ? 'The engine worker could not read a request.'
-                : `Could not load the PDF engine from ${where}.`,
-              { cause: fromWire(message.error) }
-            )
+            started
+              ? // The worker stopped: it could not read a request or hit an internal error.
+                failure(message.error.message)
+              : new EngineError(
+                  'engine-failure',
+                  `Could not load the PDF engine from ${where}.`,
+                  { cause: fromWire(message.error) }
+                )
           )
       } else transport.handle(message)
     })
