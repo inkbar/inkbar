@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { staticDefaults } from '../model/annotations/defaults'
 import { createAnnotationStore } from '../model/annotations/store'
 
-import { paintDrawing } from './drawing-svg'
+import { itemElement, paintDrawing } from './drawing-svg'
 import { renderAnnotationContent } from './overlay-render'
 import { renderReferenceContent } from './reference-render'
 import { createPageTransform } from './transform'
@@ -314,5 +314,30 @@ describe('renderAnnotationContent', () => {
     renderReferenceContent(direct, a, t)
     expect(viaDispatch.innerHTML).toBe(direct.innerHTML)
     expect(viaDispatch.querySelector('polygon')).not.toBeNull()
+  })
+})
+
+describe('itemElement', () => {
+  it('turns one rect into an element placed like the painter places it', () => {
+    const item: DrawItem = {
+      kind: 'rect',
+      rect: { x: 100, y: 600, width: 80, height: 40 },
+      radius: 6,
+      paint: { stroke: { color: '#f00', width: 2 } },
+    }
+    const t = createPageTransform(page, 2, 0)
+    const at = t.toCssRect(item.rect)
+    const el = itemElement(document, item, t, {
+      left: at.left - 10,
+      top: at.top - 10,
+      width: at.width + 20,
+      height: at.height + 20,
+    })
+    expect(el.tagName).toBe('rect')
+    expect(el.getAttribute('x')).toBe('10')
+    expect(el.getAttribute('y')).toBe('10')
+    expect(el.getAttribute('width')).toBe(String(at.width))
+    expect(el.getAttribute('rx')).toBe('12')
+    expect(el.getAttribute('stroke-width')).toBe('4')
   })
 })

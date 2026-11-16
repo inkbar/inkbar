@@ -64,6 +64,23 @@ export function paintDrawing(
   el.replaceChildren(svg)
 }
 
+/**
+ * One drawing item as an SVG element, positioned like `paintDrawing` does for an element whose
+ * box is `box`. For chrome that follows a drawn shape's geometry, such as a hit twin.
+ */
+export function itemElement(
+  doc: Document,
+  item: DrawItem,
+  t: PageTransform,
+  box: CssRect
+): SVGElement {
+  const at = (p: Point): Point => {
+    const c = t.toCss(p)
+    return { x: c.x - box.left, y: c.y - box.top }
+  }
+  return paintItem(doc, item, t, box, at, (n) => t.toCssLength(n))
+}
+
 function paintItem(
   doc: Document,
   item: DrawItem,

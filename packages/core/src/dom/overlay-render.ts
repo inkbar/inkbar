@@ -5,7 +5,7 @@ import { isBubble, isTextMarkup, WEDGE_HALF } from '../model/annotations/edit'
 import { isKnown, LINE_ENDINGS } from '../model/annotations/pdf-names'
 
 import { drawingFor } from './drawing-context'
-import { paintDrawing } from './drawing-svg'
+import { itemElement, paintDrawing } from './drawing-svg'
 import { renderReferenceContent } from './reference-render'
 import { type CssRect, type PageTransform } from './transform'
 
@@ -417,23 +417,23 @@ export function renderAnnotationContent(
   } else renderReferenceContent(el, a, t)
 }
 
-/** The geometry attributes a hit twin copies from the shape it stands for. */
-const TWIN_GEOMETRY = ['x', 'y', 'width', 'height', 'rx', 'cx', 'cy', 'ry']
+/** The geometry attributes a hit twin keeps from the element a drawn shape becomes. */
+const TWIN_GEOMETRY = new Set(['x', 'y', 'width', 'height', 'rx', 'cx', 'cy', 'ry'])
 
 /**
  * The hit twin, edge band and comment marker of a painted annotation: what a press needs and
  * a drawing does not hold. A stroke-only square or circle gets a wider invisible copy of its
- * shape; commented text markup gets its marker.
+ * shape, built from the drawing's own rect or ellipse; commented text markup gets its marker.
  */
 function renderChrome(el: HTMLElement, a: Annotation, t: PageTransform): void {
   if ((a.type === 'square' || a.type === 'circle') && hasHitTwin(a)) {
     const svg = el.querySelector(':scope > svg')
-    const shape = svg?.lastElementChild
-    if (svg && shape) {
-      const twin = el.ownerDocument.createElementNS(SVG, shape.localName)
-      for (const name of TWIN_GEOMETRY) {
-        const value = shape.getAttribute(name)
-        if (value !== null) twin.setAttribute(name, value)
+    const group = drawingFor(a, t)?.items[0]
+    const shape = group?.kind === 'group' ? group.items[0] : undefined
+    if (svg && shape && (shape.kind === 'rect' || shape.kind === 'ellipse')) {
+      const twin = itemElement(el.ownerDocument, shape, t, annotationBox(a, t))
+      for (const attr of [...twin.attributes]) {
+        if (!TWIN_GEOMETRY.has(attr.name)) twin.removeAttribute(attr.name)
       }
       twin.setAttribute('data-ink-hit-stroke', '')
       twin.setAttribute('fill', 'none')
