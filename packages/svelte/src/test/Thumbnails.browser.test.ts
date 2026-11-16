@@ -7,6 +7,7 @@ import { render } from 'vitest-browser-svelte'
 import { guardConsole } from './console-guard.js'
 import { focused, q, qa } from './dom.js'
 import ThumbnailsHarness from './harness/ThumbnailsHarness.svelte'
+import ThumbnailTokenHarness from './harness/ThumbnailTokenHarness.svelte'
 
 const assets = browserAssets()
 guardConsole()
@@ -116,5 +117,28 @@ describe('thumbnails', () => {
     // Back again, it lists the pages from the open document.
     await browserPage.getByTestId('toggle-list').click()
     await expect.poll(() => qa(`${LIST} .ink-thumbnail canvas`).length).toBe(3)
+  })
+})
+
+describe('InkThumbnail and --ink-thumbnail-width', () => {
+  const thumb = () => browserPage.getByTestId('thumbnail')
+  const width = () => thumb().element().getBoundingClientRect().width
+
+  it('takes its width from the token', async () => {
+    await render(ThumbnailTokenHarness, { ...props, token: '160px' })
+    await expect.poll(() => thumb().element().querySelectorAll('canvas').length).toBe(1)
+    expect(width()).toBe(160)
+  })
+
+  it('keeps a given width over the token', async () => {
+    await render(ThumbnailTokenHarness, { ...props, token: '160px', width: 90 })
+    await expect.poll(() => thumb().element().querySelectorAll('canvas').length).toBe(1)
+    expect(width()).toBe(90)
+  })
+
+  it('is 120 wide with no token', async () => {
+    await render(ThumbnailTokenHarness, props)
+    await expect.poll(() => thumb().element().querySelectorAll('canvas').length).toBe(1)
+    expect(width()).toBe(120)
   })
 })

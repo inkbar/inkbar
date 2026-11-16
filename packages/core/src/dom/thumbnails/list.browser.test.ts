@@ -5,10 +5,21 @@ import { run as runAxe } from 'axe-core'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { userEvent } from 'vitest/browser'
 
-import { mountContainer, nextFrame, settle, until } from '../test-utils'
+import { writable } from '../../model/readable'
+import {
+  mountContainer,
+  nextFrame,
+  openFixtureInBrowser,
+  settle,
+  until,
+} from '../test-utils'
 import { createViewer, type Viewer } from '../viewer/create-viewer'
 
-import { createThumbnails } from './list'
+import {
+  createThumbnails,
+  createThumbnailsController,
+  type ThumbnailsOptions,
+} from './list'
 
 import type { Viewport } from '../viewport'
 
@@ -268,5 +279,97 @@ describe('createThumbnails', () => {
     viewer.destroy()
     expect(items()).toHaveLength(0)
     expect(list.querySelectorAll('.ink-thumbnail')).toHaveLength(0)
+  })
+})
+
+describe('the --ink-thumbnail-width token', () => {
+  /**
+   * A thumbnail list in a `[data-ink-root]` box `width` px wide, as a sidebar holds it, with
+   * the token set on the box when given.
+   */
+  async function inBox(width: number, token?: string, opts: ThumbnailsOptions = {}) {
+    const box = document.createElement('div')
+    box.setAttribute('data-ink-root', '')
+    box.style.cssText = `height:400px;width:${width}px;`
+    if (token !== undefined) box.style.setProperty('--ink-thumbnail-width', token)
+    document.body.prepend(box)
+    const host = mountContainer(600, 450)
+    const viewer = createViewer(host, {
+      source: fixtureUrl('text-simple'),
+      assets: browserAssets(),
+      zoom: 1,
+    })
+    const list = box.appendChild(createThumbnails(viewer, opts))
+    cleanup.push(() => {
+      viewer.destroy()
+      host.remove()
+      box.remove()
+    })
+    await until(() => list.querySelector('.ink-thumbnail canvas') !== null, 10_000)
+    const thumbWidth = () =>
+      list.querySelector<HTMLElement>('.ink-thumbnail')!.offsetWidth
+    const fit = () => Math.floor(list.clientWidth - 32)
+    return { list, thumbWidth, fit }
+  }
+
+  it('draws thumbnails at the token in a sidebar wider than it', async () => {
+    const { thumbWidth, fit } = await inBox(320, '160px')
+    expect(fit()).toBeGreaterThan(160)
+    expect(thumbWidth()).toBe(160)
+  })
+
+  it('caps the token at the fit, so thumbnails never overflow the list', async () => {
+    const { thumbWidth, fit } = await inBox(320, '400px')
+    expect(thumbWidth()).toBe(fit())
+  })
+
+  it('fits the list with no token, as the theme sets none', async () => {
+    const { thumbWidth, fit } = await inBox(320)
+    expect(thumbWidth()).toBe(fit())
+  })
+
+  it('fits the list when the token is not in px', async () => {
+    const { thumbWidth, fit } = await inBox(320, '10rem')
+    expect(thumbWidth()).toBe(fit())
+  })
+
+  it('keeps a given width over the token', async () => {
+    const { thumbWidth } = await inBox(320, '160px', { width: 90 })
+    expect(thumbWidth()).toBe(90)
+  })
+
+  it('follows the cap as the list narrows', async () => {
+    const { list, thumbWidth, fit } = await inBox(320, '160px')
+    list.parentElement!.style.width = '150px'
+    await until(() => thumbWidth() === fit())
+    expect(thumbWidth()).toBeLessThan(160)
+  })
+
+  /** A controller on `text-simple`, attached to a hidden list in a root with `token` set. */
+  async function hidden(token?: string) {
+    const doc = await openFixtureInBrowser('text-simple')
+    const root = document.createElement('div')
+    root.setAttribute('data-ink-root', '')
+    root.style.cssText = 'display:none;width:200px;height:400px;'
+    if (token !== undefined) root.style.setProperty('--ink-thumbnail-width', token)
+    const list = root.appendChild(document.createElement('div'))
+    list.className = 'ink-thumbnails'
+    document.body.prepend(root)
+    const c = createThumbnailsController({
+      document: writable(doc),
+      viewport: writable(null),
+    })
+    c.attach(list)
+    cleanup.push(() => {
+      c.destroy()
+      root.remove()
+      doc.destroy()
+    })
+    return c
+  }
+
+  it('takes the token, else 120, while the list has no width to fit', async () => {
+    expect((await hidden('160px')).state.get().width).toBe(160)
+    expect((await hidden()).state.get().width).toBe(120)
   })
 })
