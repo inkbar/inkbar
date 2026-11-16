@@ -7,7 +7,7 @@ import { promisify } from 'node:util'
 import { fixtureBytes, manifest, type FixtureName } from '@inkbar/fixtures'
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 
-import { createEngine, type Engine } from './index.ts'
+import { createEngine, EngineError, type Engine } from './index.ts'
 
 import type { SaveMode } from './types.ts'
 
@@ -15,17 +15,16 @@ const run = promisify(execFile)
 const MODES: SaveMode[] = ['rewrite', 'incremental']
 
 let engine: Engine
-let qpdfAvailable = false
+const qpdfAvailable = await run('qpdf', ['--version']).then(
+  () => true,
+  () => false
+)
 
 beforeAll(async () => {
   engine = await createEngine({
     wasm: await readFile(new URL('../vendor/inkbar-pdfium.wasm', import.meta.url)),
     worker: false,
   })
-  qpdfAvailable = await run('qpdf', ['--version']).then(
-    () => true,
-    () => false
-  )
   if (!qpdfAvailable && process.env.CI) {
     throw new Error('qpdf is required in CI and was not found on PATH.')
   }
@@ -77,40 +76,75 @@ const openable = Object.entries(manifest).filter(([, meta]) => meta.opens) as [
   (typeof manifest)[FixtureName],
 ][]
 
+type Meta = (typeof manifest)[FixtureName]
+const openOptions = (meta: Meta) => (meta.password ? { password: meta.password } : {})
+
+/** Saves the fixture and reopens the result with the engine and PDF.js. Throws on any failure. */
+async function saveAndReopen(name: FixtureName, meta: Meta, mode: SaveMode) {
+  const doc = await engine.open(await fixtureBytes(name), openOptions(meta))
+  try {
+    const saved = await doc.save({ mode })
+    const again = await engine.open(saved, openOptions(meta))
+    const pages = again.pageCount
+    await again.close()
+    expect(pages).toBe(meta.pages)
+    expect(await pdfjsPageCount(saved, meta.password)).toBe(meta.pages)
+    return saved
+  } finally {
+    await doc.close()
+  }
+}
+
 describe.each(openable)('%s', (name, meta) => {
+  test(
+    meta.engine?.open
+      ? `${name} fails to open as recorded: ${meta.engine.open}`
+      : `${name} opens`,
+    async () => {
+      const opened = engine.open(await fixtureBytes(name), openOptions(meta))
+      if (meta.engine?.open) {
+        await expect(opened).rejects.toBeInstanceOf(EngineError)
+      } else {
+        await (await opened).close()
+      }
+    }
+  )
+
   describe.each(MODES)('save (%s)', (mode) => {
     const recorded =
       mode === 'rewrite' ? meta.engine?.saveRewrite : meta.engine?.saveIncremental
-    const title = recorded
-      ? `${name} saves (${mode}) as recorded: ${recorded}`
-      : `${name} saves (${mode}) and reopens`
+    let saved: Uint8Array | undefined
+    let failure: unknown
 
-    test(title, async () => {
-      const doc = await engine.open(
-        await fixtureBytes(name),
-        meta.password ? { password: meta.password } : {}
-      )
+    beforeAll(async () => {
       try {
-        let saved: Uint8Array
-        try {
-          saved = await doc.save({ mode })
-        } catch (error) {
-          if (recorded) return
-          throw error
-        }
-        const again = await engine.open(
-          saved,
-          meta.password ? { password: meta.password } : {}
-        )
-        expect(again.pageCount).toBe(meta.pages)
-        await again.close()
-        expect(await pdfjsPageCount(saved, meta.password)).toBe(meta.pages)
-        if (!qpdfAvailable) return // qpdf is not on PATH; CI installs it and fails without it
-        expect(await qpdfCheck(saved, meta.password)).toEqual({ ok: true })
-      } finally {
-        await doc.close()
+        saved = await saveAndReopen(name, meta, mode)
+      } catch (error) {
+        failure = error
       }
     })
+
+    test(
+      recorded
+        ? `${name} save (${mode}) fails as recorded: ${recorded}`
+        : `${name} saves (${mode}) and reopens`,
+      () => {
+        if (recorded) {
+          // An EngineError, or a failed assertion from a reader check.
+          expect(failure).toBeDefined()
+        } else {
+          expect(failure).toBeUndefined()
+        }
+      }
+    )
+
+    test.skipIf(!qpdfAvailable || recorded !== undefined)(
+      `${name} save (${mode}) passes qpdf --check`,
+      async () => {
+        expect(saved).toBeDefined()
+        expect(await qpdfCheck(saved as Uint8Array, meta.password)).toEqual({ ok: true })
+      }
+    )
   })
 })
 
