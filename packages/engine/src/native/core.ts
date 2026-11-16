@@ -26,8 +26,19 @@ function internalError(error: unknown): EngineError {
   return new EngineError('engine-failure', `The engine failed: ${text}`, { cause: error })
 }
 
+/**
+ * A bad argument from the caller. Callers see a plain `RangeError`; the subclass lets the engine
+ * tell its own range errors from one thrown out of the module, such as a stack overflow.
+ */
+class ArgumentError extends RangeError {
+  constructor(message: string) {
+    super(message)
+    this.name = 'RangeError'
+  }
+}
+
 const isOwnError = (error: unknown) =>
-  error instanceof EngineError || error instanceof RangeError
+  error instanceof EngineError || error instanceof ArgumentError
 
 interface OpenDocument {
   doc: number
@@ -128,7 +139,7 @@ export class EngineCore {
     const entry = this.#get(id)
     this.#checkIndex(entry, index)
     if (!Number.isFinite(scale) || scale <= 0)
-      throw new RangeError('scale must be a finite number above 0')
+      throw new ArgumentError('scale must be a finite number above 0')
     return this.#guard(() => this.#render(entry, index, scale))
   }
 
@@ -138,7 +149,7 @@ export class EngineCore {
       const width = Math.ceil(fn.FPDF_GetPageWidthF(page) * scale)
       const height = Math.ceil(fn.FPDF_GetPageHeightF(page) * scale)
       if (width < 1 || height < 1 || width * height > MAX_PIXELS)
-        throw new RangeError('the rendered page would be too large')
+        throw new ArgumentError('the rendered page would be too large')
       const bitmap = fn.FPDFBitmap_CreateEx(width, height, BITMAP_BGRA, 0, 0)
       if (bitmap === 0)
         throw new EngineError('out-of-memory', 'The engine ran out of memory.')
@@ -149,7 +160,15 @@ export class EngineCore {
         const buffer = fn.FPDFBitmap_GetBuffer(bitmap)
         const heap = this.#native.HEAPU8
         const row = width * 4
-        const data = new Uint8ClampedArray(row * height)
+        let data: Uint8ClampedArray
+        try {
+          data = new Uint8ClampedArray(row * height)
+        } catch (cause) {
+          // JavaScript could not allocate the copy. The module is unharmed.
+          throw new EngineError('out-of-memory', 'The engine ran out of memory.', {
+            cause,
+          })
+        }
         if (stride === row) data.set(heap.subarray(buffer, buffer + row * height))
         else
           for (let y = 0; y < height; y++) {
@@ -194,19 +213,23 @@ export class EngineCore {
     })
   }
 
-  /** Closes every document and shuts PDFium down. After an internal error the module is not called. */
+  /**
+   * Closes every document and shuts PDFium down. After an internal error the module is not
+   * called. A trap while shutting down stops the engine but does not make `destroy` throw.
+   */
   destroy(): void {
-    if (this.#stopped) {
-      this.#documents.clear()
-      this.#destroyed = true
-      return
+    if (!this.#stopped && !this.#destroyed) {
+      try {
+        for (const id of [...this.#documents.keys()]) this.close(id)
+        this.#guard(() => {
+          this.#native.fn.INK_Destroy()
+        })
+      } catch {
+        // The guard has marked the core stopped; nothing more can be freed safely.
+      }
     }
-    for (const id of [...this.#documents.keys()]) this.close(id)
-    if (this.#destroyed || this.#stopped) return
+    this.#documents.clear()
     this.#destroyed = true
-    this.#guard(() => {
-      this.#native.fn.INK_Destroy()
-    })
   }
 
   /** Runs a call into the module. A trap stops the engine for good. */
@@ -230,7 +253,7 @@ export class EngineCore {
 
   #checkIndex(entry: OpenDocument, index: number): void {
     if (!Number.isInteger(index) || index < 0 || index >= entry.pageCount)
-      throw new RangeError(`page index ${index} is outside 0..${entry.pageCount - 1}`)
+      throw new ArgumentError(`page index ${index} is outside 0..${entry.pageCount - 1}`)
   }
 
   #withPage<T>(entry: OpenDocument, index: number, use: (page: number) => T): T {

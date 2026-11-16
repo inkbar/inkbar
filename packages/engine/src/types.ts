@@ -6,8 +6,9 @@ export interface OpenOptions {
 
 /**
  * A page's size and rotation. Sizes are in PDF points (1/72 inch) and describe the page box
- * PDFium reports: the crop box, or the media box when the page has no crop box. They are taken
- * before /Rotate is applied, so a page rotated by 90 degrees keeps its unrotated width and height.
+ * PDFium reports: the crop box intersected with the media box, or the media box when the page has
+ * no crop box. They are taken before /Rotate is applied, so a page rotated by 90 degrees keeps its
+ * unrotated width and height.
  */
 export interface PageInfo {
   /** Width in PDF points, before /Rotate. */
@@ -26,8 +27,8 @@ export interface RenderOptions {
    */
   scale?: number
   /**
-   * Cancels the call while it waits in the queue. A call that has started runs to the end and
-   * resolves; the signal no longer affects it.
+   * Cancels the call while it waits in the queue. A call that has started runs to the end, and
+   * may still resolve or reject; the signal no longer affects it.
    */
   signal?: AbortSignal
 }

@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 
 import { fixtureBytes } from '@inkbar/fixtures'
-import { beforeAll, expect, test } from 'vitest'
+import { beforeAll, expect, test, vi } from 'vitest'
 
 import { engineOver } from '../engine.ts'
 import { InThreadTransport } from '../transport/in-thread.ts'
@@ -136,4 +136,82 @@ test('core and API use one message for a closed document', async () => {
   core.close(id)
   expect(() => core.pageInfo(id, 0)).toThrow('The document is closed.')
   core.destroy()
+})
+
+/** A module whose `name` throws `error` instead of running. */
+async function throwing(name: keyof Native, error: unknown) {
+  const native = await loadNative({ wasm })
+  return withFunctions(native, {
+    ...native.fn,
+    [name]: () => {
+      throw error
+    },
+  })
+}
+
+test('a stack overflow in the module stops the engine as an engine-failure', async () => {
+  const overflow = new RangeError('Maximum call stack size exceeded')
+  const core = new EngineCore(await throwing('FPDF_RenderPageBitmap', overflow))
+  const { id } = core.open(bytes)
+  let error: unknown
+  try {
+    core.renderPage(id, 0, 1)
+  } catch (caught) {
+    error = caught
+  }
+  expect(error).toMatchObject({ name: 'EngineError', code: 'engine-failure' })
+  expect((error as Error).cause).toBe(overflow)
+  expect(core.stopped).toBe(true)
+  expect(() => core.pageInfo(id, 0)).toThrow(STOPPED)
+  core.destroy()
+})
+
+test('a bad page index and an oversized render are RangeErrors and leave the engine running', async () => {
+  const core = new EngineCore(await loadNative({ wasm }))
+  const { id } = core.open(bytes)
+  expect(() => core.pageInfo(id, 9)).toThrow(RangeError)
+  expect(() => core.renderPage(id, 0, 1000)).toThrow(RangeError)
+  expect(() => core.renderPage(id, 0, 1000)).toThrow(
+    'the rendered page would be too large'
+  )
+  expect(core.stopped).toBe(false)
+  expect(core.pageInfo(id, 0).width).toBe(612)
+  core.destroy()
+})
+
+test('a bitmap copy that JavaScript cannot allocate is out-of-memory and the engine keeps working', async () => {
+  const core = new EngineCore(await loadNative({ wasm }))
+  const { id } = core.open(bytes)
+  const Real = Uint8ClampedArray
+  vi.stubGlobal(
+    'Uint8ClampedArray',
+    class extends Real {
+      constructor(length: number) {
+        if (length > 1_000_000) throw new RangeError('Array buffer allocation failed')
+        super(length)
+      }
+    }
+  )
+  try {
+    expect(() => core.renderPage(id, 0, 1)).toThrow(
+      expect.objectContaining({ code: 'out-of-memory' })
+    )
+  } finally {
+    vi.unstubAllGlobals()
+  }
+  expect(core.stopped).toBe(false)
+  expect(core.renderPage(id, 0, 1).width).toBe(612)
+  core.destroy()
+})
+
+test('a trap while destroy closes a document still destroys the engine', async () => {
+  const core = new EngineCore(
+    await throwing('FPDF_CloseDocument', new WebAssembly.RuntimeError('unreachable'))
+  )
+  core.open(bytes)
+  expect(() => core.destroy()).not.toThrow()
+  expect(core.openCount).toBe(0)
+  expect(() => core.open(bytes)).toThrow(
+    expect.objectContaining({ code: 'engine-failure' })
+  )
 })

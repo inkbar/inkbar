@@ -7,7 +7,7 @@ import { fixtureBytes } from '@inkbar/fixtures'
 import { afterEach, beforeAll, beforeEach, expect, test, vi } from 'vitest'
 
 import { engineOver } from './engine.ts'
-import { createEngine, type Engine, type EngineDocument } from './index.ts'
+import { createEngine, EngineError, type Engine, type EngineDocument } from './index.ts'
 
 import type { Request, Transport } from './protocol.ts'
 
@@ -116,6 +116,24 @@ test('a close queued when destroy runs resolves', async () => {
   await expect(queued).rejects.toMatchObject({ code: 'aborted' })
   await expect(closing).resolves.toBeUndefined()
   await expect(destroyed).resolves.toBeUndefined()
+})
+
+test('a close that fails for another reason after destroy still rejects', async () => {
+  let failClose!: () => void
+  const fake = engineOver({
+    call: (request) =>
+      request.op === 'open'
+        ? Promise.resolve({ id: 1, pageCount: 1 } as never)
+        : new Promise<never>((_, reject) => {
+            failClose = () => reject(new EngineError('engine-failure', 'boom'))
+          }),
+    destroy: () => Promise.resolve(),
+  })
+  const opened = await fake.open(bytes)
+  const closing = opened.close()
+  await fake.destroy()
+  failClose()
+  await expect(closing).rejects.toMatchObject({ code: 'engine-failure', message: 'boom' })
 })
 
 test('a default worker that cannot be constructed is named in the error', async () => {

@@ -64,10 +64,10 @@ export interface EngineDocument {
  * Engine memory grows to fit the largest work it has done and does not shrink. Closing a
  * document lets the engine reuse its memory. Only `destroy()` returns all of it.
  *
- * Errors are `EngineError`s, except a bad page index or scale, which is a `RangeError`. After an
- * internal error (`out-of-memory` from inside PDFium, or `engine-failure` from a crash) the
- * engine stops: every later call rejects with `engine-failure`, and the caller must create a new
- * engine.
+ * Errors are `EngineError`s. A `RangeError` means a bad page index or scale, or a render larger
+ * than 268,435,456 pixels. After an internal error in PDFium the engine stops. Every later call
+ * rejects with `engine-failure`, except `close()` and `destroy()`, which still resolve. Create a
+ * new engine to go on.
  */
 export interface Engine {
   /**
@@ -79,9 +79,11 @@ export interface Engine {
     options?: OpenOptions & { signal?: AbortSignal }
   ): Promise<EngineDocument>
   /**
-   * Waits for the running call to finish, rejects queued calls with `aborted`, closes every
-   * document and frees the engine. A worker is terminated. Later calls reject with
-   * `engine-failure`; a later `destroy()` or document `close()` resolves.
+   * Rejects queued calls with `aborted`, closes every document and frees the engine. In a worker
+   * it waits up to two seconds for the running call, then terminates the worker; a running call
+   * that has not finished by then rejects with `aborted`. In the calling thread it waits for the
+   * running call to finish. Later calls reject with `engine-failure`; a later `destroy()` or
+   * document `close()` resolves.
    */
   destroy(): Promise<void>
 }
@@ -128,8 +130,10 @@ class Document implements EngineDocument {
     try {
       await this.session.call({ op: 'close', doc: this.id })
     } catch (error) {
-      // destroy() closes every document, so a close it cut short has nothing left to do.
-      if (!this.session.destroyed) throw error
+      // destroy() closes every document, so a close it took off the queue has nothing left to do.
+      const cutShort =
+        this.session.destroyed && error instanceof EngineError && error.code === 'aborted'
+      if (!cutShort) throw error
     }
   }
 
