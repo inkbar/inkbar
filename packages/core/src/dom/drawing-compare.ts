@@ -3,13 +3,12 @@ import { page as browserPage } from 'vitest/browser'
 import { staticDefaults } from '../model/annotations/defaults'
 import { createAnnotationStore } from '../model/annotations/store'
 
-import { drawingFor } from './drawing-context'
-import { paintDrawing } from './drawing-svg'
-import { annotationBox } from './overlay-render'
+import { annotationBox, renderAnnotationContent } from './overlay-render'
 import { renderReferenceContent } from './reference-render'
 import { createPageTransform } from './transform'
 
-import type { AnnotationInput } from '../model/annotations/types'
+import type { PageTransform } from './transform'
+import type { Annotation, AnnotationInput } from '../model/annotations/types'
 import type { Rect } from '../model/geometry'
 import type { PageInfo } from '../model/pages'
 
@@ -24,15 +23,35 @@ export interface CompareCase {
 
 /** A channel difference above this counts as a different pixel. */
 const TOLERANCE = 16
+/** The colour behind both renderings. */
+const BACKGROUND = 255
+
+export interface CompareResult {
+  /** `differingPixels` over the pixels that are not background in either image; 0 when there are none. */
+  differing: number
+  /** Pixels that differ by more than 16 in any channel. */
+  differingPixels: number
+  /** Pixels of the reference image that are not background. */
+  referenceInk: number
+  referenceBox: DOMRect
+  paintedBox: DOMRect
+}
 
 /**
- * Paints the case with the reference renderer and with the new painter, screenshots both, and
- * returns the share of pixels that differ by more than 16 in any channel. A type with no
- * drawing yet is painted by the reference renderer on both sides.
+ * Paints the case with the reference renderer and with `renderAnnotationContent` (the new
+ * painter for a type that has a drawing, the reference renderer again for one that has not),
+ * screenshots both, and compares them. `paintedSide` replaces the second rendering; tests use
+ * it to prove the comparison sees a difference. Throws when the reference image is blank, so a
+ * failed capture can never read as "no difference".
  */
 export async function comparePaint(
-  c: CompareCase
-): Promise<{ differing: number; referenceBox: DOMRect; paintedBox: DOMRect }> {
+  c: CompareCase,
+  paintedSide: (
+    el: HTMLElement,
+    a: Annotation,
+    t: PageTransform
+  ) => void = renderAnnotationContent
+): Promise<CompareResult> {
   const { default: themeCss } = await import('@inkbar/theme/theme.css?inline')
   const box = c.box ?? { x: 0, y: 0, width: 612, height: 792 }
   const info: PageInfo = {
@@ -49,19 +68,27 @@ export async function comparePaint(
     defaults: staticDefaults,
   })
   const a = store.add(c.annotation)
-  const d = drawingFor(a, t)
 
   const style = document.createElement('style')
   style.textContent = themeCss
   const stage = document.createElement('div')
-  stage.style.cssText = 'position:absolute;left:0;top:0;display:flex;background:#fff;'
+  // Both holders sit at the same spot and are captured one at a time: beside each other, a
+  // page wider than half the viewport has its second half captured blank.
+  stage.style.cssText = 'position:absolute;left:0;top:0;background:#fff;'
   const mount = (): HTMLElement => {
+    // Whole CSS pixels, so both holders sit at integer offsets and antialias the same way.
     const holder = document.createElement('div')
-    holder.style.cssText = `position:relative;flex:none;background:#fff;width:${t.cssWidth}px;height:${t.cssHeight}px;`
+    holder.style.cssText = `position:absolute;left:0;top:0;background:#fff;width:${Math.ceil(t.cssWidth)}px;height:${Math.ceil(t.cssHeight)}px;`
+    // What the real overlay puts on an annotation element, which theme rules select on.
     const layer = document.createElement('div')
     layer.className = 'ink-annotation'
+    layer.dataset.annotation = a.id
+    layer.dataset.type = a.type
+    layer.dataset.source = a.source
+    layer.dataset.state = 'idle'
+    layer.setAttribute('role', 'button')
     const at = annotationBox(a, t)
-    layer.style.cssText = `position:absolute;left:${at.left}px;top:${at.top}px;width:${at.width}px;height:${at.height}px;`
+    layer.style.cssText = `position:absolute;pointer-events:none;left:${at.left}px;top:${at.top}px;width:${at.width}px;height:${at.height}px;`
     holder.append(layer)
     stage.append(holder)
     return layer
@@ -72,16 +99,21 @@ export async function comparePaint(
     const referenceEl = mount()
     const paintedEl = mount()
     renderReferenceContent(referenceEl, a, t)
-    if (d) paintDrawing(paintedEl, d, t, annotationBox(a, t))
-    else renderReferenceContent(paintedEl, a, t)
-    const [reference, painted] = [
-      referenceEl.parentElement as HTMLElement,
-      paintedEl.parentElement as HTMLElement,
-    ]
+    paintedSide(paintedEl, a, t)
+    const reference = referenceEl.parentElement as HTMLElement
+    const painted = paintedEl.parentElement as HTMLElement
     const referenceBox = reference.getBoundingClientRect()
     const paintedBox = painted.getBoundingClientRect()
-    const [one, two] = [await shoot(reference), await shoot(painted)]
-    return { differing: differing(one, two), referenceBox, paintedBox }
+    painted.style.visibility = 'hidden'
+    const one = await shoot(reference)
+    painted.style.visibility = ''
+    reference.style.visibility = 'hidden'
+    const two = await shoot(painted)
+    const result = compare(one, two)
+    if (result.referenceInk === 0) {
+      throw new Error(`comparePaint: the reference image for "${c.name}" is blank`)
+    }
+    return { ...result, referenceBox, paintedBox }
   } finally {
     stage.remove()
     style.remove()
@@ -102,16 +134,36 @@ async function shoot(element: HTMLElement): Promise<ImageData> {
   return ctx.getImageData(0, 0, canvas.width, canvas.height)
 }
 
-function differing(a: ImageData, b: ImageData): number {
-  if (a.width !== b.width || a.height !== b.height) return 1
-  let n = 0
+const isInk = (d: Uint8ClampedArray, i: number): boolean =>
+  [0, 1, 2].some((k) => Math.abs(d[i + k]! - BACKGROUND) > TOLERANCE)
+
+function compare(
+  a: ImageData,
+  b: ImageData
+): Pick<CompareResult, 'differing' | 'differingPixels' | 'referenceInk'> {
+  if (a.width !== b.width || a.height !== b.height) {
+    throw new Error(
+      `comparePaint: the images differ in size (${a.width}x${a.height} and ${b.width}x${b.height})`
+    )
+  }
+  let referenceInk = 0
+  let either = 0
+  let differingPixels = 0
   for (let i = 0; i < a.data.length; i += 4) {
+    const inkA = isInk(a.data, i)
+    const inkB = isInk(b.data, i)
+    if (inkA) referenceInk++
+    if (inkA || inkB) either++
     for (let k = 0; k < 4; k++) {
       if (Math.abs(a.data[i + k]! - b.data[i + k]!) > TOLERANCE) {
-        n++
+        differingPixels++
         break
       }
     }
   }
-  return n / (a.width * a.height)
+  return {
+    differing: either === 0 ? 0 : differingPixels / either,
+    differingPixels,
+    referenceInk,
+  }
 }

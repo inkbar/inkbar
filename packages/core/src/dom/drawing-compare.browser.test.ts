@@ -1,6 +1,7 @@
-import { expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
-import { comparePaint } from './drawing-compare'
+import { comparePaint, type CompareCase } from './drawing-compare'
+import { renderReferenceContent } from './reference-render'
 
 const quads = [
   {
@@ -10,19 +11,46 @@ const quads = [
     p4: { x: 300, y: 695 },
   },
 ]
+const highlight: CompareCase = {
+  name: 'highlight',
+  annotation: {
+    type: 'highlight',
+    page: 0,
+    rect: { x: 72, y: 695, width: 228, height: 20 },
+    quads,
+  },
+}
 
-it('reports no difference for a type both sides still draw with the reference renderer', async () => {
-  const r = await comparePaint({
-    name: 'highlight',
-    annotation: {
-      type: 'highlight',
-      page: 0,
-      rect: { x: 72, y: 695, width: 228, height: 20 },
-      quads,
-    },
+describe('comparePaint', () => {
+  it('reports no difference for a type both sides still draw with the reference renderer', async () => {
+    const r = await comparePaint(highlight)
+    expect(r.referenceInk).toBeGreaterThan(0)
+    expect(r.differingPixels).toBe(0)
+    expect(r.differing).toBe(0)
+    expect(r.referenceBox.width).toBe(612)
+    expect(r.paintedBox.width).toBe(612)
+    expect(r.paintedBox.height).toBe(r.referenceBox.height)
   })
-  expect(r.differing).toBe(0)
-  expect(r.referenceBox.width).toBe(612)
-  expect(r.paintedBox.width).toBe(612)
-  expect(r.paintedBox.height).toBe(r.referenceBox.height)
+
+  it('sees the same highlight in a different colour', async () => {
+    const r = await comparePaint(
+      { ...highlight, annotation: { ...highlight.annotation, color: '#ff0000' } },
+      (el, a, t) => renderReferenceContent(el, { ...a, color: '#0000ff' }, t)
+    )
+    expect(r.differing).toBeGreaterThan(0.5)
+  })
+
+  it('sees a highlight against an empty layer', async () => {
+    const r = await comparePaint(highlight, (el) => el.replaceChildren())
+    expect(r.differing).toBe(1)
+    expect(r.differingPixels).toBe(r.referenceInk)
+  })
+
+  it('captures the whole page at zoom 2 and 4, beyond the test viewport', async () => {
+    for (const zoom of [2, 4] as const) {
+      const r = await comparePaint({ ...highlight, zoom })
+      expect(r.referenceBox.width).toBe(612 * zoom)
+      expect(r.differing).toBe(0)
+    }
+  })
 })
