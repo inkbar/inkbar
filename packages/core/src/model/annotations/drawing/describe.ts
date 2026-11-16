@@ -2,6 +2,7 @@ import { describeInk } from './ink'
 import { describeLine } from './lines'
 import { describeMarkup, describeRedact } from './markup'
 import { describeShape } from './shapes'
+import { describeStamp } from './stamp'
 
 import type { Annotation } from '../types'
 import type { DrawContext, Drawing } from './types'
@@ -31,6 +32,8 @@ export function describeAnnotation(
       return describeLine(a)
     case 'ink':
       return describeInk(a)
+    case 'stamp':
+      return describeStamp(a)
     default:
       return undefined
   }
