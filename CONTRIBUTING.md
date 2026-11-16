@@ -27,7 +27,7 @@ The [README](README.md#development) shows how to run the sandbox and the review 
 - Add or update tests with the change. Unit tests sit next to the code as `*.test.ts`, browser tests as `*.browser.test.ts`, and component tests as `*.ct.ts` or `*.ct.tsx`. The end-to-end suite lives in `apps/e2e-shared`.
 - A change to a component lands in all three bindings: Vue, React and Svelte.
 - Every coordinate is in PDF user space: points, origin bottom-left, before `/Rotate`. Only `packages/core/src/dom/transform.ts` converts to CSS pixels.
-- Import PDF.js only under `packages/core/src/pdfjs/`.
+- Import PDF.js only under `packages/core/src/pdfjs/`. The one exception is the engine's save round-trip test, where PDF.js is an independent reader of saved files.
 - Keep new controls usable from the keyboard and give them accessible names. See [ACCESSIBILITY.md](ACCESSIBILITY.md).
 - Update the package README when you change what a package does.
 

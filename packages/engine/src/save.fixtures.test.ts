@@ -131,8 +131,15 @@ describe.each(openable)('%s', (name, meta) => {
         : `${name} saves (${mode}) and reopens`,
       () => {
         if (recorded) {
-          // An EngineError, or a failed assertion from a reader check.
+          // An EngineError, or a failed assertion from a reader check; not a harness error.
           expect(failure).toBeDefined()
+          const kind =
+            failure instanceof EngineError
+              ? 'EngineError'
+              : failure instanceof Error && failure.name === 'AssertionError'
+                ? 'AssertionError'
+                : String(failure)
+          expect(['EngineError', 'AssertionError']).toContain(kind)
         } else {
           expect(failure).toBeUndefined()
         }
@@ -153,8 +160,12 @@ describe.each(['encrypted-aes', 'encrypted-rc4'] as const)('%s', (name) => {
   test.each(MODES)('a file saved (%s) still needs the password', async (mode) => {
     const password = manifest[name].password
     const doc = await engine.open(await fixtureBytes(name), password ? { password } : {})
-    const saved = await doc.save({ mode })
-    await doc.close()
+    let saved: Uint8Array
+    try {
+      saved = await doc.save({ mode })
+    } finally {
+      await doc.close()
+    }
     await expect(engine.open(saved)).rejects.toMatchObject({ code: 'password-required' })
   })
 })

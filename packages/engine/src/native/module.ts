@@ -23,15 +23,15 @@ export async function loadNative(source: {
         ? { wasmBinary: wasm }
         : { locateFile: (path) => (path.endsWith('.wasm') ? String(wasm) : path) }
     )
-    const fn: Record<string, (...args: number[]) => number> = {}
+    const fn: Record<string, (...args: number[]) => unknown> = {}
     for (const name of Object.keys(FUNCTIONS) as (keyof typeof FUNCTIONS)[]) {
       const bound = module[`_${name}`]
       if (typeof bound !== 'function')
         throw new Error(`the build does not export ${name}`)
-      fn[name] = bound as (...args: number[]) => number
+      fn[name] = bound as (...args: number[]) => unknown
     }
     return {
-      fn: fn as Native,
+      fn: fn as unknown as Native,
       get HEAPU8() {
         return module.HEAPU8
       },

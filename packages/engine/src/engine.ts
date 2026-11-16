@@ -10,7 +10,6 @@ import type {
   RenderOptions,
   SaveOptions,
 } from './types.ts'
-
 /** Options for `createEngine`. */
 export interface EngineOptions {
   /**
@@ -152,7 +151,7 @@ class EngineImpl implements Engine {
   ): Promise<EngineDocument> {
     const { signal, ...openOptions } = options
     const opened = await this.session.call<{ id: number; pageCount: number }>(
-      { op: 'open', bytes: bytes.slice(), options: openOptions },
+      { op: 'open', bytes: new Uint8Array(bytes), options: openOptions },
       signal
     )
     return new Document(this.session, opened.id, opened.pageCount)
@@ -180,8 +179,9 @@ async function defaultWasm(): Promise<string | URL | Uint8Array> {
   const url = new URL('./inkbar-pdfium.wasm', import.meta.url)
   if (!isNode()) return url
   try {
-    // Dynamic, so a browser bundle carries no `node:` import.
-    const { readFile } = await import('node:fs/promises')
+    // A module import of a `node:` specifier would be resolved, and rejected, by a browser
+    // bundler. This branch runs only in Node, which has `getBuiltinModule` from 22.3.
+    const { readFile } = process.getBuiltinModule('node:fs/promises')
     return new Uint8Array(await readFile(url))
   } catch (cause) {
     throw new EngineError(

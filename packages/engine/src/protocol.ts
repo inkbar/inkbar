@@ -1,3 +1,4 @@
+import type { EngineErrorCode } from './errors.ts'
 import type { OpenOptions, SaveMode } from './types.ts'
 
 export type Request =
@@ -16,13 +17,10 @@ export interface Transport {
 export type ToWorker =
   { type: 'init'; wasm: string | Uint8Array } | { id: number; request: Request }
 
-export interface WireError {
-  code: string
-  message: string
-  pdfiumError?: number
-  /** A `RangeError` rather than an `EngineError`. */
-  range?: true
-}
+/** An `EngineError` or, marked by `range`, a `RangeError`. */
+export type WireError =
+  | { range?: undefined; code: EngineErrorCode; message: string; pdfiumError?: number }
+  | { range: true; message: string }
 
 export type FromWorker =
   | { type: 'ready' }

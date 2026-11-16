@@ -274,3 +274,10 @@ test('the public types name no PDFium symbol', async () => {
   const index = await readFile(new URL('index.ts', import.meta.url), 'utf8')
   expect(index).not.toContain('native/')
 })
+
+test('open copies a Buffer, so changing it afterwards does not change the document', async () => {
+  const buffer = Buffer.from(bytes)
+  const opened = engine.open(buffer)
+  buffer.fill(0)
+  expect((await opened).pageCount).toBe(3)
+})
