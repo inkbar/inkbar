@@ -144,7 +144,7 @@ describe('clusters in the measure', () => {
   })
 
   test('a flag and an emoji with a skin tone are one character each', () => {
-    const fallback = vi.fn(() => 10)
+    const fallback = vi.fn((_char: string) => 10)
     measureWith(fallback).width('🇫🇷👋🏽', helv, 12)
     expect(fallback.mock.calls.map((c) => c[0])).toEqual(['🇫🇷', '👋🏽'])
   })
