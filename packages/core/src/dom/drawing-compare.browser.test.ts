@@ -523,6 +523,39 @@ describe('comparePaint for the types that have a drawing', () => {
   })
 })
 
+describe('comparePaint on a page with /Rotate 90', () => {
+  const dense = (c: CompareCase, zoom: number): number =>
+    c.name === 'ink without pressure' && zoom === 0.5 ? 0.015 : 0.01
+  const groups: [
+    string,
+    CompareCase[],
+    (c: CompareCase, zoom: number) => number,
+    number[],
+  ][] = [
+    ['moved', moved, () => 0.005, [0.5, 1, 2]],
+    ['lines', lineCases, () => 0.005, [1, 2]],
+    ['ink', inkCases, dense, [0.5, 1, 2]],
+  ]
+  for (const [group, cases, limit, zooms] of groups) {
+    for (const c of cases) {
+      for (const rotate of [0, 90] as const) {
+        for (const zoom of zooms) {
+          it(`${group}: ${c.name} at view rotate ${rotate} and zoom ${zoom}`, async () => {
+            const r = await comparePaint({
+              ...c,
+              pageRotate: 90,
+              rotate,
+              zoom: zoom as 0.5 | 1 | 2,
+            })
+            expect(r.referenceInk).toBeGreaterThan(0)
+            expect(r.differing).toBeLessThanOrEqual(limit(c, zoom))
+          })
+        }
+      }
+    }
+  }
+})
+
 /** An element's tree as plain data, with numbers in attribute values rounded to 3 places. */
 function shape(el: Element): unknown {
   const round = (v: string): string =>
@@ -648,13 +681,18 @@ describe('the painted markup against the reference markup', () => {
     ],
   ]
   for (const [name, input] of cases) {
-    for (const rotation of [0, 90] as const) {
-      it(`${name} at rotate ${rotation} has the reference's elements and attributes`, () => {
+    for (const [pageRotate, rotation] of [
+      [0, 0],
+      [0, 90],
+      [90, 0],
+      [90, 90],
+    ] as const) {
+      it(`${name} at page rotate ${pageRotate} and view rotate ${rotation} has the reference's elements and attributes`, () => {
         const t = createPageTransform(
           {
             index: 0,
             box: { x: 0, y: 0, width: 612, height: 792 },
-            rotate: 0,
+            rotate: pageRotate,
             userUnit: 1,
             width: 612,
             height: 792,
