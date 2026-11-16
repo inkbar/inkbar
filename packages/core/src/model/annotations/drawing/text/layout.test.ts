@@ -195,6 +195,38 @@ describe('layoutText', () => {
   })
 })
 
+describe('layoutText: alignment around hanging spaces', () => {
+  test('spaces before a newline count when centring', () => {
+    const { lines } = layoutText(
+      block('ab   \nc', 100, { align: 'center' }),
+      standardMeasure
+    )
+    expect(lines[0]!.x).toBeCloseTo((100 - w('ab   ')) / 2, 6)
+    expect(lines[0]!.width).toBeCloseTo(w('ab'), 6)
+  })
+
+  test('spaces at the end of the text count when aligning right', () => {
+    const { lines } = layoutText(block('ab  ', 100, { align: 'right' }), standardMeasure)
+    expect(lines[0]!.x).toBeCloseTo(100 - w('ab  '), 6)
+  })
+
+  test('spaces at a wrap hang and do not count', () => {
+    const { lines } = layoutText(
+      block('aaaa bbbb', w('aaaa ') + 1, { align: 'right' }),
+      standardMeasure
+    )
+    expect(lines[0]!.x).toBeCloseTo(w('aaaa ') + 1 - w('aaaa'), 6)
+  })
+
+  test('spaces wider than the box are clipped to it', () => {
+    const { lines } = layoutText(
+      block('a' + ' '.repeat(100), 50, { align: 'right' }),
+      standardMeasure
+    )
+    expect(lines[0]!.x).toBe(0)
+  })
+})
+
 describe('layoutText: break opportunities', () => {
   const broken = (text: string, width: number) =>
     layoutText(block(text, width), standardMeasure).lines.map((l) => l.text)

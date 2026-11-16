@@ -222,7 +222,9 @@ export function layoutText(
   if (rows.length > 1 && text.endsWith('\n')) rows.pop()
 
   const lines: LaidLine[] = rows.map((row, i) => {
-    const free = Math.max(0, boxWidth - row.width)
+    // Spaces before a newline or the end of the text count when they fit; spaces at a wrap hang.
+    const aligned = row.wrapped ? row.width : Math.min(row.width + row.hang, boxWidth)
+    const free = Math.max(0, boxWidth - aligned)
     const laid: LaidLine = {
       text: row.text,
       x: 0,
