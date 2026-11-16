@@ -10,10 +10,9 @@ export default defineConfig({
   fixedExtension: true,
   dts: true,
   platform: 'neutral',
-  copy: [
-    { from: 'vendor/inkbar-pdfium.wasm', to: 'dist' },
-    { from: 'vendor/inkbar-pdfium.mjs', to: 'dist' },
-  ],
+  // The glue imports "module" only when it runs under Node.
+  deps: { neverBundle: ['module'] },
+  copy: [{ from: 'vendor/inkbar-pdfium.wasm', to: 'dist' }],
   hooks: {
     'build:done': () => {
       const notices = `${readFileSync(vendor('LICENSE'), 'utf8')}\n${readFileSync(vendor('NOTICE'), 'utf8')}`
