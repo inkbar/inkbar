@@ -1,0 +1,115 @@
+import { describe, expect, test, vi } from 'vitest'
+
+import { measureWith, resolveFont, standardMeasure } from './measure'
+
+import type { TextFont } from '../types'
+
+const helv: TextFont = { family: 'Helvetica', bold: false, italic: false }
+
+describe('standardMeasure', () => {
+  test.each([
+    ['Helvetica', false, false, 'A', 8.004],
+    ['Helvetica', false, false, ' ', 3.336],
+    ['Helvetica', false, false, 'Wim', 23.988],
+    ['Helvetica', true, false, 'A', 8.664],
+    ['Times', false, false, 'A', 8.664],
+    ['Times', false, false, ' ', 3],
+    ['Courier', false, false, 'W', 7.2],
+    ['Courier', true, true, 'i', 7.2],
+    ['Helvetica', false, false, '€', 6.672],
+    ['Helvetica', false, false, 'é', 6.672],
+    ['Helvetica', false, false, '’', 2.664],
+  ] as const)(
+    '%s bold=%s italic=%s measures %j as %f at 12pt',
+    (family, bold, italic, text, width) => {
+      const m = standardMeasure.width(text, { family, bold, italic }, 12)
+      expect(m.width).toBeCloseTo(width, 3)
+      expect(m.outside).toBe(false)
+    }
+  )
+
+  test('a character outside the tables is flagged and still has a width', () => {
+    expect(standardMeasure.width('日', helv, 12)).toEqual({ width: 12, outside: true })
+    expect(standardMeasure.width('ж', helv, 12)).toEqual({ width: 6, outside: true })
+  })
+
+  test('an emoji is one wide character, not two UTF-16 units', () => {
+    expect(standardMeasure.width('🙂', helv, 12)).toEqual({ width: 12, outside: true })
+  })
+
+  test('zero-width characters take no room and are not outside', () => {
+    expect(standardMeasure.width('​­️', helv, 12)).toEqual({
+      width: 0,
+      outside: false,
+    })
+  })
+
+  test('the empty string is zero wide', () => {
+    expect(standardMeasure.width('', helv, 12)).toEqual({ width: 0, outside: false })
+  })
+
+  test('every printable WinAnsi character has a width in every face', () => {
+    const chars = [...' !~¡ÿ€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ']
+    for (const family of ['Helvetica', 'Times', 'Courier'] as const)
+      for (const bold of [false, true])
+        for (const italic of [false, true])
+          for (const c of chars)
+            expect(standardMeasure.width(c, { family, bold, italic }, 10)).toMatchObject({
+              outside: false,
+            })
+  })
+
+  test('vertical metrics are those of the fonts browsers substitute', () => {
+    expect(standardMeasure.vertical(helv)).toEqual({ ascent: 0.905, descent: 0.212 })
+    expect(standardMeasure.vertical({ ...helv, family: 'Times' })).toEqual({
+      ascent: 0.891,
+      descent: 0.216,
+    })
+    expect(standardMeasure.vertical({ ...helv, family: 'Courier' })).toEqual({
+      ascent: 0.833,
+      descent: 0.3,
+    })
+  })
+})
+
+describe('measureWith', () => {
+  test('asks the fallback only for characters outside the tables', () => {
+    const fallback = vi.fn(() => 7)
+    const m = measureWith(fallback).width('A日', helv, 12)
+    expect(fallback).toHaveBeenCalledTimes(1)
+    expect(fallback).toHaveBeenCalledWith('日', helv, 12)
+    expect(m.width).toBeCloseTo(8.004 + 7, 3)
+    expect(m.outside).toBe(true)
+  })
+
+  test('does not call the fallback for text inside the tables', () => {
+    const fallback = vi.fn(() => 7)
+    expect(measureWith(fallback).width('Hello', helv, 12).outside).toBe(false)
+    expect(fallback).not.toHaveBeenCalled()
+  })
+})
+
+describe('resolveFont', () => {
+  test.each([
+    ['Georgia', 'Times'],
+    ['Times New Roman', 'Times'],
+    ['Fira Code', 'Courier'],
+    ['Open Sans', 'Helvetica'],
+    ['', 'Helvetica'],
+    ['Comic Sans MS', 'Helvetica'],
+    ['Courier New', 'Courier'],
+    ['Noto Serif', 'Times'],
+    ['Noto Sans Mono', 'Courier'],
+    ['Liberation Sans', 'Helvetica'],
+  ])('the family %j maps to %s', (name, family) => {
+    expect(resolveFont(name, false, false).family).toBe(family)
+  })
+
+  test('keeps bold and italic', () => {
+    expect(resolveFont('Arial', true, false)).toEqual({
+      family: 'Helvetica',
+      bold: true,
+      italic: false,
+    })
+  })
+})
