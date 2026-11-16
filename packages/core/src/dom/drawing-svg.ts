@@ -1,3 +1,4 @@
+import { FONT_STACKS } from './text-fonts'
 import { normalizeRotation, type CssRect, type PageTransform } from './transform'
 
 import type {
@@ -183,14 +184,124 @@ function paintItem(
         out.setAttribute('transform', `rotate(${turn} ${fmt(cx)} ${fmt(cy)})`)
       break
     }
-    case 'text':
-      throw new Error('painting a text is not supported yet')
+    case 'text': {
+      out = paintText(doc, item, t, origin, at, len)
+      break
+    }
     case 'page':
       throw new Error('a page item is not an svg element')
   }
   role(out, item.role)
   guard(out, item.kind)
   return out
+}
+
+/** Which clip path a text uses, so two texts on a page never share an id. */
+let clipCount = 0
+
+type TextItem = Extract<DrawItem, { kind: 'text' }>
+
+/**
+ * A text as one `<text>` per line (one per piece, for a line with tabs) in a group clipped to
+ * `item.clip`. Each line is set to its width from the description, so its letters end where the
+ * layout says whatever font the browser found. The lines turn with the view: upright for the page
+ * as the file displays it.
+ */
+function paintText(
+  doc: Document,
+  item: TextItem,
+  t: PageTransform,
+  origin: { left: number; top: number },
+  at: (p: Point) => Point,
+  len: (n: number) => number
+): SVGElement {
+  const node = (name: string): SVGElement => doc.createElementNS(SVG, name)
+  const group = node('g')
+  if (item.lines.length === 0) return group
+  if (item.clip) {
+    const id = `ink-text-clip-${++clipCount}`
+    const clip = node('clipPath')
+    clip.setAttribute('id', id)
+    const r = rectCss(item.clip.rect, t, origin)
+    const shape = node('rect')
+    set(shape, { x: r.x, y: r.y, width: r.width, height: r.height })
+    if (item.clip.radius) shape.setAttribute('rx', String(len(item.clip.radius)))
+    clip.append(shape)
+    group.append(clip)
+    group.setAttribute('clip-path', `url(#${id})`)
+  }
+  const turn = normalizeRotation(t.totalRotation - item.angle)
+  const size = len(item.size)
+  const stack = FONT_STACKS[item.font.family]
+  const textAt = (p: Point): SVGElement => {
+    const text = node('text')
+    set(text, { x: p.x, y: p.y })
+    text.setAttribute('font-family', stack)
+    text.setAttribute('font-size', fmt(size))
+    text.setAttribute('font-weight', item.font.bold ? 'bold' : 'normal')
+    text.setAttribute('font-style', item.font.italic ? 'italic' : 'normal')
+    text.setAttribute('fill', item.color)
+    text.setAttribute('style', 'font-kerning:none;white-space:pre')
+    text.setAttribute('pointer-events', 'none')
+    if (turn !== 0)
+      text.setAttribute('transform', `rotate(${turn} ${fmt(p.x)} ${fmt(p.y)})`)
+    return text
+  }
+  for (const line of item.lines) {
+    const spaces = line.wordSpacing ? [...line.text].filter((c) => c === ' ').length : 0
+    const total = line.width + spaces * (line.wordSpacing ?? 0)
+    const pieces = line.segments ?? [{ text: line.text, origin: line.origin }]
+    for (const piece of pieces) {
+      const p = at(piece.origin)
+      const text = textAt(p)
+      fillText(doc, text, piece.text, line.wordSpacing ? len(line.wordSpacing) : 0)
+      if (!line.segments) {
+        text.setAttribute('textLength', fmt(len(total)))
+        text.setAttribute('lengthAdjust', 'spacing')
+      }
+      group.append(text)
+    }
+    if (item.underline) {
+      const p = at(line.origin)
+      const y = p.y + 0.1 * size
+      const rule = node('line')
+      set(rule, { x1: p.x, y1: y, x2: p.x + len(total), y2: y })
+      rule.setAttribute('stroke', item.color)
+      rule.setAttribute('stroke-width', fmt(0.05 * size))
+      rule.setAttribute('pointer-events', 'none')
+      if (turn !== 0)
+        rule.setAttribute('transform', `rotate(${turn} ${fmt(p.x)} ${fmt(p.y)})`)
+      group.append(rule)
+    }
+  }
+  return group
+}
+
+/**
+ * Puts `content` in `text`, with `spacing` CSS px added to each U+0020. SVG `word-spacing` also
+ * widens U+00A0, which the layout does not, so a no-break space is set apart in a piece of its
+ * own that takes none.
+ */
+function fillText(
+  doc: Document,
+  text: SVGElement,
+  content: string,
+  spacing: number
+): void {
+  if (spacing === 0) {
+    text.textContent = content
+    return
+  }
+  text.setAttribute('word-spacing', fmt(spacing))
+  for (const part of content.split(/(\u00a0+)/)) {
+    if (part === '') continue
+    if (part.startsWith('\u00a0')) {
+      const piece = doc.createElementNS(SVG, 'tspan')
+      piece.setAttribute('word-spacing', '0')
+      piece.textContent = part
+      text.append(piece)
+    } else text.append(doc.createTextNode(part))
+  }
 }
 
 /** Hits follow the painted shape, so a press beside it reaches what is underneath. */

@@ -174,35 +174,32 @@ describe('theme.css', () => {
     expect(textLayer.some((r) => r.selector.endsWith('::selection'))).toBe(true)
   })
 
-  it('styles free text from the overlay custom properties', () => {
-    const rule = rules.find((r) => r.selector === ':where(.ink-free-text)')
-    expect(rule?.toString()).toMatch(/font-size:\s*var\(--ink-font-size\)/)
-    expect(rule?.toString()).toMatch(/color:\s*var\(--ink-text-color,/)
-    expect(rule?.toString()).toMatch(/opacity:\s*var\(--ink-opacity,/)
-    expect(rule?.toString()).toMatch(/font-family:\s*var\(--ink-font-family,/)
-    for (const v of [
-      'font-weight:\\s*var\\(--ink-font-weight,',
-      'font-style:\\s*var\\(--ink-font-style,',
-      'text-decoration:\\s*var\\(--ink-text-decoration,',
-      'background:\\s*var\\(--ink-fill,',
-      'border-radius:\\s*var\\(--ink-corner-radius,',
+  it('leaves the look of a text box to its annotation', () => {
+    // A text box is drawn from the annotation, so no rule styles its text, fill or border, and
+    // the custom properties and attributes that carried them are gone.
+    expect(rules.some((r) => r.selector === ':where(.ink-free-text)')).toBe(false)
+    for (const gone of [
+      '--ink-font-size',
+      '--ink-font-family',
+      '--ink-font-weight',
+      '--ink-font-style',
+      '--ink-text-decoration',
+      '--ink-text-color',
+      '--ink-fill',
+      '--ink-box-border',
+      '--ink-border-width',
+      '--ink-corner-radius',
+      '[data-border',
+      '[data-bubble]',
+      '[data-align',
     ])
-      expect(rule?.toString()).toMatch(new RegExp(v))
-    const border = rules.find((r) => r.selector === ':where(.ink-free-text[data-border])')
-    // Its own colour token: --ink-border is the interface's.
-    expect(border?.toString()).toMatch(/var\(--ink-border-width,.*var\(--ink-box-border,/)
-    expect(
-      rules.some((r) => r.selector === ":where(.ink-free-text[data-border='dashed'])")
-    ).toBe(true)
-    expect(rules.some((r) => r.selector === ':where(.ink-free-text[data-bubble])')).toBe(
-      true
+      expect(css, gone).not.toContain(gone)
+    // What stays belongs to the in-place editor: where it is, and a text cursor over the box.
+    const editor = rules.find(
+      (r) => r.selector === ':where(.ink-free-text[data-ink-editor])'
     )
-    for (const align of ['left', 'center', 'right', 'justify']) {
-      expect(
-        rules.some((r) => r.selector.includes(`[data-align='${align}']`)),
-        align
-      ).toBe(true)
-    }
+    expect(editor?.toString()).toMatch(/outline:\s*1px dashed var\(--ink-free-text\)/)
+    expect(editor?.toString()).toMatch(/cursor:\s*text/)
   })
 
   /** The declarations of the rules whose selector list includes `selector`. */

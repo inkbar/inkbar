@@ -5,6 +5,7 @@ import { createAnnotationStore } from '../model/annotations/store'
 
 import { annotationBox, renderAnnotationContent } from './overlay-render'
 import { renderReferenceContent } from './reference-render'
+import { FONT_STACKS } from './text-fonts'
 import { createPageTransform } from './transform'
 
 import type { PageTransform } from './transform'
@@ -29,6 +30,36 @@ export interface CompareCase {
   region?: 'annotation' | 'page'
 }
 
+/**
+ * The display rules the theme had for a text box's HTML, which the reference renderer's output
+ * still needs: the theme no longer carries them, since the box is drawn from its annotation. They
+ * apply to the reference side only, so the painted side is compared without them. The font is the
+ * painted side's own stack, not the `Helvetica` the theme named: where that is another face (a
+ * Mac's own Helvetica, a Linux machine's Nimbus Sans) the letter shapes differ whatever the
+ * layout does, which is a listed change, and would hide the comparison of the layout itself. The
+ * cases that use it are all Helvetica.
+ */
+const REFERENCE_TEXT_CSS = `
+:where([data-compare-side='reference'] .ink-free-text) {
+  box-sizing: border-box; width: 100%; height: 100%; overflow: hidden;
+  font-family: ${FONT_STACKS.Helvetica};
+  font-size: var(--ink-font-size); font-weight: var(--ink-font-weight, normal);
+  font-style: var(--ink-font-style, normal); text-decoration: var(--ink-text-decoration, none);
+  line-height: 1.2; color: var(--ink-text-color, #151820);
+  background: var(--ink-fill, transparent); border-radius: var(--ink-corner-radius, 0);
+  opacity: var(--ink-opacity, 1); overflow-wrap: break-word; white-space: pre-wrap;
+}
+:where([data-compare-side='reference'] .ink-free-text[data-border]) {
+  border: var(--ink-border-width, 1px) solid var(--ink-box-border, #151820);
+}
+:where([data-compare-side='reference'] .ink-free-text[data-border='dashed']) { border-style: dashed; }
+:where([data-compare-side='reference'] .ink-free-text[data-bubble]) { padding: 0.4em 0.6em; }
+:where([data-compare-side='reference'] .ink-free-text[data-align='left']) { text-align: left; }
+:where([data-compare-side='reference'] .ink-free-text[data-align='center']) { text-align: center; }
+:where([data-compare-side='reference'] .ink-free-text[data-align='right']) { text-align: right; }
+:where([data-compare-side='reference'] .ink-free-text[data-align='justify']) { text-align: justify; }
+`
+
 /** CSS px a capture of the `'annotation'` region reaches past the annotation's box. */
 const MARGIN = 16
 /** The test viewport's size (vitest.config.ts), restored after a capture that needed more. */
@@ -44,6 +75,12 @@ export interface CompareResult {
   differing: number
   /** Pixels that differ by more than 16 in any channel. */
   differingPixels: number
+  /**
+   * `differing` after both images are blurred over 3 x 3 pixels. Text drawn as HTML and as SVG
+   * differs in anti-aliasing and in where a glyph falls inside a pixel, which the exact count
+   * reads as a difference in most of its pixels, so this is the measure for text.
+   */
+  differingBlurred: number
   /** Pixels of the reference image that are not background. */
   referenceInk: number
   /** The captured region of each side, in viewport px. */
@@ -89,7 +126,7 @@ export async function comparePaint(
   const a = store.add(c.annotation)
 
   const style = document.createElement('style')
-  style.textContent = themeCss
+  style.textContent = themeCss + REFERENCE_TEXT_CSS
   const stage = document.createElement('div')
   // Both holders sit at the same spot and are captured one at a time: beside each other, a
   // page wider than half the viewport has its second half captured blank.
@@ -112,7 +149,9 @@ export async function comparePaint(
         ? cssHeight
         : Math.min(cssHeight, Math.ceil(at.top + at.height + MARGIN))) - top,
   }
-  const mount = (): { clip: HTMLElement; layer: HTMLElement } => {
+  const mount = (
+    side: 'reference' | 'painted'
+  ): { clip: HTMLElement; layer: HTMLElement } => {
     // The clip is what is captured: the region at the viewport's top-left, with the page
     // shifted behind it, so neither side depends on scrolling.
     const clip = document.createElement('div')
@@ -127,6 +166,7 @@ export async function comparePaint(
     layer.dataset.type = a.type
     layer.dataset.source = a.source
     layer.dataset.state = 'idle'
+    layer.dataset.compareSide = side
     layer.setAttribute('role', 'button')
     layer.style.cssText = `position:absolute;pointer-events:none;left:${at.left}px;top:${at.top}px;width:${at.width}px;height:${at.height}px;`
     holder.append(layer)
@@ -138,8 +178,8 @@ export async function comparePaint(
   document.body.append(stage)
   let resized = false
   try {
-    const { clip: reference, layer: referenceEl } = mount()
-    const { clip: painted, layer: paintedEl } = mount()
+    const { clip: reference, layer: referenceEl } = mount('reference')
+    const { clip: painted, layer: paintedEl } = mount('painted')
     referenceSide(referenceEl, a, t)
     paintedSide(paintedEl, a, t)
     // The capture must lie wholly inside the viewport: what lies beyond it comes back blank.
@@ -235,10 +275,35 @@ async function shoot(element: HTMLElement): Promise<ImageData> {
 const isInk = (d: Uint8ClampedArray, i: number): boolean =>
   [0, 1, 2].some((k) => Math.abs(d[i + k]! - BACKGROUND) > TOLERANCE)
 
+/** `image` with each channel averaged over the 3 x 3 pixels around it (edges clamped). */
+function blur(image: ImageData): Uint8ClampedArray {
+  const { width, height, data } = image
+  const out = new Uint8ClampedArray(data.length)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      for (let k = 0; k < 4; k++) {
+        let sum = 0
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const yy = Math.min(height - 1, Math.max(0, y + dy))
+            const xx = Math.min(width - 1, Math.max(0, x + dx))
+            sum += data[(yy * width + xx) * 4 + k]!
+          }
+        }
+        out[(y * width + x) * 4 + k] = Math.round(sum / 9)
+      }
+    }
+  }
+  return out
+}
+
 function compare(
   a: ImageData,
   b: ImageData
-): Pick<CompareResult, 'differing' | 'differingPixels' | 'referenceInk'> {
+): Pick<
+  CompareResult,
+  'differing' | 'differingPixels' | 'differingBlurred' | 'referenceInk'
+> {
   if (a.width !== b.width || a.height !== b.height) {
     throw new Error(
       `comparePaint: the images differ in size (${a.width}x${a.height} and ${b.width}x${b.height})`
@@ -259,9 +324,25 @@ function compare(
       }
     }
   }
+  const blurredA = blur(a)
+  const blurredB = blur(b)
+  let blurredEither = 0
+  let blurredDiffering = 0
+  for (let i = 0; i < blurredA.length; i += 4) {
+    const inkA = isInk(blurredA, i)
+    const inkB = isInk(blurredB, i)
+    if (inkA || inkB) blurredEither++
+    for (let k = 0; k < 4; k++) {
+      if (Math.abs(blurredA[i + k]! - blurredB[i + k]!) > TOLERANCE) {
+        blurredDiffering++
+        break
+      }
+    }
+  }
   return {
     differing: either === 0 ? 0 : differingPixels / either,
     differingPixels,
+    differingBlurred: blurredEither === 0 ? 0 : blurredDiffering / blurredEither,
     referenceInk,
   }
 }

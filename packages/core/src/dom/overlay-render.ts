@@ -386,21 +386,6 @@ export function bubblePath(
 }
 
 /**
- * Redraws an open bubble's outline as `a`, a draft of it (the editor's, as its box grows with
- * its text), in an element whose top-left is `origin` on screen. No-op on any other element.
- */
-export function refitBubble(
-  el: HTMLElement,
-  a: FreeTextAnnotation,
-  t: PageTransform,
-  origin: { left: number; top: number }
-): void {
-  const path = el.querySelector(':scope > svg > .ink-bubble')
-  if (!path || !isBubble(a)) return
-  path.setAttribute('d', bubblePath(a, t, origin))
-}
-
-/**
  * Draws the default visual for an annotation inside its positioned element. Coordinates are
  * relative to the element. Colour, opacity and stroke are SVG attributes, never inline style,
  * so a theme can override them with CSS. A type with a drawing is painted from it; the others
@@ -482,7 +467,46 @@ function renderChrome(el: HTMLElement, a: Annotation, t: PageTransform): void {
   if (svg) appendStampHit(svg, drawn, t, annotationBox(a, t))
   if (svg && a.type === 'loupe') appendLensHit(svg, a, t)
   if (svg && a.type === 'mask') appendMaskEdge(svg, a, t)
+  if (a.type === 'freetext') appendTextChrome(el, a, t)
   appendCommentMarker(el, a, t)
+}
+
+/** Width in CSS px of the band straddling a text box's edge, which drags the box. */
+const TEXT_EDGE = 6
+
+/**
+ * What a press on a text box needs and its drawing does not hold: `div.ink-free-text`, an empty
+ * box over the text that takes presses (a press inside edits the text), a band along its edge
+ * that selects and drags it instead, and the frame a fringed box is outlined by when selected.
+ */
+function appendTextChrome(
+  el: HTMLElement,
+  a: FreeTextAnnotation,
+  t: PageTransform
+): void {
+  const doc = el.ownerDocument
+  const inner = freeTextLocalBox(a, t)
+  const hit = doc.createElement('div')
+  hit.className = 'ink-free-text'
+  hit.style.cssText =
+    `position:absolute;left:${inner.left}px;top:${inner.top}px;width:${inner.width}px;` +
+    `height:${inner.height}px;pointer-events:auto;`
+  const box = annotationBox(a, t)
+  // A later sibling, so the band paints above the box once the theme positions it.
+  const svg = boxSvg(doc, box.width, box.height)
+  const band = doc.createElementNS(SVG, 'rect')
+  band.setAttribute('x', String(inner.left))
+  band.setAttribute('y', String(inner.top))
+  band.setAttribute('width', String(inner.width))
+  band.setAttribute('height', String(inner.height))
+  band.setAttribute('fill', 'none')
+  band.setAttribute('stroke', 'transparent')
+  band.setAttribute('stroke-width', String(TEXT_EDGE))
+  band.setAttribute('pointer-events', 'stroke')
+  band.setAttribute('data-ink-edge', '')
+  svg.append(band)
+  el.append(hit, svg)
+  appendSelectionFrame(el, a, t)
 }
 
 /** Width in CSS px of the band along a mask's edge that takes presses. */

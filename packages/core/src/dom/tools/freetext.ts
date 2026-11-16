@@ -7,6 +7,7 @@ import { Type } from '@inkbar/icons'
 
 import { closedEditor, editFreeText, type FreeTextEditor } from '../freetext-editor'
 import { renderAnnotationContent } from '../overlay-render'
+import { normalizeRotation } from '../transform'
 
 import {
   clampedCssIn,
@@ -69,11 +70,26 @@ export function freetextTool(): Tool {
     if ('at' in css) {
       const size = input.defaultStyle?.fontSize ?? FONT_SIZE
       const border = input.width ?? 0
-      const width = t.toCssLength(DEFAULT_FREETEXT_WIDTH)
-      const height = t.toCssLength(size * LINE_HEIGHT + border * 2)
-      box = css.centred
-        ? { left: css.at.x - width / 2, top: css.at.y - height / 2, width, height }
-        : { left: css.at.x, top: css.at.y, width, height }
+      // The box is one line high and `DEFAULT_FREETEXT_WIDTH` along its text, which turns with
+      // the view, so on a view turned a quarter the screen box is tall and narrow.
+      const across = t.toCssLength(DEFAULT_FREETEXT_WIDTH)
+      const down = t.toCssLength(size * LINE_HEIGHT + border * 2)
+      const turn = normalizeRotation(t.totalRotation - t.page.rotate)
+      const sideways = turn === 90 || turn === 270
+      const width = sideways ? down : across
+      const height = sideways ? across : down
+      const { x, y } = css.at
+      if (css.centred) {
+        box = { left: x - width / 2, top: y - height / 2, width, height }
+      } else {
+        // The press is the text's own top-left corner, wherever that falls on the screen.
+        box = {
+          left: turn === 90 || turn === 180 ? x - width : x,
+          top: turn === 180 || turn === 270 ? y - height : y,
+          width,
+          height,
+        }
+      }
     } else {
       box = css
     }

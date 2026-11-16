@@ -479,8 +479,10 @@ for (const framework of FRAMEWORK_ORDER) {
       await expect(editor).toHaveCount(0)
       const created = sessionShape(page, 'freetext')
       await expect(created).toHaveCount(1)
-      // toHaveText folds whitespace, so read the text to check the line break.
-      expect(await created.locator('.ink-free-text').textContent()).toBe('Hello\nthere')
+      // The box is drawn as one line of svg text per line, so the break shows as two lines.
+      expect(
+        await created.locator('g[data-ink-part="text"] > text').allTextContents()
+      ).toEqual(['Hello', 'there'])
       // Creating and typing are one step: undo takes the whole box away.
       await page.getByRole('button', { name: 'Undo', exact: true }).click()
       await expect(created).toHaveCount(0)
@@ -503,7 +505,7 @@ for (const framework of FRAMEWORK_ORDER) {
       const bubble = sessionShape(page, 'freetext')
       await expect(bubble).toHaveCount(1)
       await expect(bubble.locator('path.ink-bubble')).toHaveCount(1)
-      await expect(bubble.locator('.ink-free-text')).toHaveText('Hello')
+      await expect(bubble.locator('g[data-ink-part="text"] > text')).toHaveText('Hello')
     })
 
     test('add a loupe', async ({ page }) => {
@@ -617,9 +619,17 @@ for (const framework of FRAMEWORK_ORDER) {
       const panel = page.getByRole('dialog', { name: 'Text style' })
       await panel.getByRole('button', { name: 'Bold', exact: true }).click()
       await panel.getByRole('radio', { name: 'Align centre' }).click()
-      const text = created.locator('.ink-free-text')
-      await expect(text).toHaveCSS('font-weight', '700')
-      await expect(text).toHaveCSS('text-align', 'center')
+      // The style is drawn from the annotation: bold type, centred in the box.
+      const line = created.locator('g[data-ink-part="text"] > text')
+      await expect(line).toHaveAttribute('font-weight', 'bold')
+      const centred = await created.evaluate((el) => {
+        const text = el
+          .querySelector('g[data-ink-part="text"] > text')!
+          .getBoundingClientRect()
+        const box = el.querySelector('.ink-free-text')!.getBoundingClientRect()
+        return Math.abs(text.left + text.width / 2 - (box.left + box.width / 2))
+      })
+      expect(centred).toBeLessThan(3)
       await page.keyboard.press('Escape')
       await expect(panel).toHaveCount(0)
     })
@@ -638,21 +648,21 @@ for (const framework of FRAMEWORK_ORDER) {
       await page.keyboard.press('Escape')
       const created = sessionShape(page, 'freetext')
       const text = created.locator('.ink-free-text')
-      await expect(text).toHaveText('Hello')
+      const lines = created.locator('g[data-ink-part="text"] > text')
+      await expect(lines).toHaveText('Hello')
       // Just inside the left edge of the second "l".
-      const at = await text.evaluate((el) => {
-        const range = document.createRange()
-        range.setStart(el.firstChild!, 3)
-        range.setEnd(el.firstChild!, 4)
-        const r = range.getBoundingClientRect()
-        return { x: r.left + 1, y: r.top + r.height / 2 }
+      const at = await lines.evaluate((el) => {
+        const t = el as unknown as SVGTextElement
+        const from = t.getStartPositionOfChar(3).matrixTransform(t.getScreenCTM()!)
+        const r = t.getBoundingClientRect()
+        return { x: from.x + 1, y: r.top + r.height / 2 }
       })
       await page.mouse.click(at.x, at.y)
       await expect(editor).toBeFocused()
       await page.keyboard.type('X')
       await page.keyboard.press('Escape')
       await expect(editor).toHaveCount(0)
-      await expect(text).toHaveText('HelXlo')
+      await expect(lines).toHaveText('HelXlo')
       // The cursor says which: text inside the box, move on the band along its edge.
       const cursorAt = (x: number, y: number) =>
         page.evaluate(

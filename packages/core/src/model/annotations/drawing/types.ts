@@ -79,7 +79,13 @@ export interface TextLine {
   text: string
   origin: Point
   width: number
+  /** Extra space added to each U+0020 in `text`, in points. U+00A0 gets none. */
   wordSpacing?: number
+  /**
+   * Only on a line that holds a tab: the pieces between the tabs, each with the point it starts at,
+   * so a painter need not reproduce tab stops. `text` is then the line as a whole.
+   */
+  segments?: readonly { text: string; origin: Point }[]
 }
 
 export interface TextFont {

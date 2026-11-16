@@ -7,6 +7,7 @@ import { itemElement, paintDrawing } from './drawing-svg'
 import { renderAnnotationContent } from './overlay-render'
 import { renderReferenceContent } from './reference-render'
 import { mountContainer } from './test-utils'
+import { FONT_STACKS } from './text-fonts'
 import { createPageTransform } from './transform'
 
 import type { DrawItem, Drawing, Paint } from '../model/annotations/drawing/types'
@@ -238,22 +239,6 @@ describe('paintDrawing', () => {
         })
       )
     ).toThrow(/polygon/)
-  })
-
-  it('a text item is not supported yet', () => {
-    expect(() =>
-      paint(
-        drawing({
-          kind: 'text',
-          lines: [],
-          font: { family: 'Helvetica', bold: false, italic: false },
-          size: 12,
-          color: '#000',
-          angle: 0,
-          outsideStandardFonts: false,
-        })
-      )
-    ).toThrow(/not supported yet/)
   })
 
   it('a page item is skipped: the lens is not an svg element', () => {
@@ -498,4 +483,181 @@ describe('a stamp', () => {
       }
     }
   }
+})
+
+describe('a text', () => {
+  const font = { family: 'Helvetica', bold: false, italic: false } as const
+  const text = (extra: Partial<Extract<DrawItem, { kind: 'text' }>> = {}): DrawItem => ({
+    kind: 'text',
+    role: 'text',
+    lines: [
+      { text: 'Hello world', origin: { x: 100, y: 700 }, width: 60 },
+      { text: 'second', origin: { x: 100, y: 685.6 }, width: 30 },
+    ],
+    font,
+    size: 12,
+    color: '#0a0b0c',
+    angle: 0,
+    outsideStandardFonts: false,
+    clip: { rect: { x: 100, y: 680, width: 150, height: 30 }, radius: 4 },
+    ...extra,
+  })
+  const texts = (el: Element) => [...el.querySelectorAll<SVGTextElement>('text')]
+
+  it('is one text element per line in a clipped group, set to the line width', () => {
+    const el = paint(drawing(text()), 2)
+    const g = el.querySelector('g[data-ink-part="text"]')!
+    expect(g.parentElement).toBe(el.querySelector('svg'))
+    const [first, second] = texts(g)
+    expect(first!.textContent).toBe('Hello world')
+    expect(second!.textContent).toBe('second')
+    // Zoom 2: 100 pt across, 792 - 700 = 92 pt down.
+    expect(first!.getAttribute('x')).toBe('200')
+    expect(first!.getAttribute('y')).toBe('184')
+    expect(first!.getAttribute('font-size')).toBe('24')
+    expect(first!.getAttribute('fill')).toBe('#0a0b0c')
+    expect(first!.getAttribute('font-weight')).toBe('normal')
+    expect(first!.getAttribute('font-style')).toBe('normal')
+    expect(first!.getAttribute('textLength')).toBe('120')
+    expect(first!.getAttribute('lengthAdjust')).toBe('spacing')
+    expect(first!.getAttribute('style')).toBe('font-kerning:none;white-space:pre')
+    expect(first!.getAttribute('font-family')).toBe(FONT_STACKS.Helvetica)
+    expect(second!.getAttribute('y')).toBe(String(2 * (792 - 685.6)))
+    const clip = el.querySelector(`clipPath${g.getAttribute('clip-path')!.slice(4, -1)}`)!
+    const rect = clip.querySelector('rect')!
+    expect(rect.getAttribute('x')).toBe('200')
+    expect(rect.getAttribute('y')).toBe(String(2 * (792 - 710)))
+    expect(rect.getAttribute('width')).toBe('300')
+    expect(rect.getAttribute('height')).toBe('60')
+    expect(rect.getAttribute('rx')).toBe('8')
+  })
+
+  it('names the font stack of each family, and its weight and style', () => {
+    for (const family of ['Times', 'Courier'] as const) {
+      const el = paint(drawing(text({ font: { family, bold: true, italic: true } })), 1)
+      const t = texts(el)[0]!
+      expect(t.getAttribute('font-family')).toBe(FONT_STACKS[family])
+      expect(t.getAttribute('font-weight')).toBe('bold')
+      expect(t.getAttribute('font-style')).toBe('italic')
+      // The stack the browser computes is the stack named.
+      const mount = mountContainer(612, 792)
+      mount.append(el)
+      expect(getComputedStyle(t).fontFamily).toBe(FONT_STACKS[family])
+      mount.remove()
+    }
+  })
+
+  it('turns with the view, and with the page it is laid out for', () => {
+    const turned = (angle: 0 | 90, rotation: 0 | 90): string | null => {
+      const el = document.createElement('div')
+      const t = createPageTransform({ ...page, rotate: angle }, 1, rotation)
+      paintDrawing(el, drawing(text({ angle })), t, box)
+      return texts(el)[0]!.getAttribute('transform')
+    }
+    // Upright for the page as the file shows it: no turn of its own.
+    expect(turned(0, 0)).toBeNull()
+    expect(turned(90, 0)).toBeNull()
+    // The view turns the text with the page.
+    expect(turned(0, 90)).toMatch(/^rotate\(90 /)
+    expect(turned(90, 90)).toMatch(/^rotate\(90 /)
+  })
+
+  it('draws an underline 0.1 of the size below the baseline, 0.05 thick', () => {
+    const el = paint(drawing(text({ underline: true })), 2)
+    const [rule] = el.querySelectorAll('line')
+    expect(Number(rule!.getAttribute('y1'))).toBeCloseTo(184 + 0.1 * 24, 3)
+    expect(rule!.getAttribute('y2')).toBe(rule!.getAttribute('y1'))
+    expect(rule!.getAttribute('x1')).toBe('200')
+    expect(rule!.getAttribute('x2')).toBe('320')
+    expect(rule!.getAttribute('stroke')).toBe('#0a0b0c')
+    expect(Number(rule!.getAttribute('stroke-width'))).toBeCloseTo(0.05 * 24, 3)
+    expect(el.querySelectorAll('line')).toHaveLength(2)
+  })
+
+  it('a line with tabs is one text per piece, each at its own point', () => {
+    const el = paint(
+      drawing(
+        text({
+          lines: [
+            {
+              text: 'a\tb',
+              origin: { x: 100, y: 700 },
+              width: 14,
+              segments: [
+                { text: 'a', origin: { x: 100, y: 700 } },
+                { text: 'b', origin: { x: 148, y: 700 } },
+              ],
+            },
+          ],
+        })
+      ),
+      1
+    )
+    const pieces = texts(el)
+    expect(pieces.map((p) => p.textContent)).toEqual(['a', 'b'])
+    expect(pieces.map((p) => p.getAttribute('x'))).toEqual(['100', '148'])
+    expect(pieces.every((p) => !p.hasAttribute('textLength'))).toBe(true)
+  })
+
+  it('a justified line adds its word spacing, and a no-break space gets none', () => {
+    const content = 'aa bb\u00a0cc dd'
+    const wordSpacing = 10
+    const plain = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+    const host = mountContainer(400, 100)
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    host.append(svg)
+    svg.append(plain)
+    plain.setAttribute('font-family', FONT_STACKS.Helvetica)
+    plain.setAttribute('font-size', '20')
+    plain.setAttribute('style', 'font-kerning:none;white-space:pre')
+    plain.textContent = content
+    const natural = plain.getComputedTextLength()
+    const before = plain.getStartPositionOfChar(6).x
+    host.remove()
+
+    const el = paint(
+      drawing(
+        text({
+          size: 20,
+          lines: [
+            // Two U+0020 in the line: the justified width is the natural one plus two gaps.
+            { text: content, origin: { x: 0, y: 700 }, width: natural, wordSpacing },
+          ],
+        })
+      ),
+      1
+    )
+    const t = texts(el)[0]!
+    expect(t.getAttribute('word-spacing')).toBe('10')
+    expect(Number(t.getAttribute('textLength'))).toBeCloseTo(natural + 2 * wordSpacing, 2)
+    const mount = mountContainer(612, 792)
+    mount.append(el)
+    const svgEl = el.querySelector('svg')!
+    svgEl.setAttribute('style', 'position:absolute;left:0;top:0')
+    // The "c" after the no-break space sits one gap (the space after "aa") past where it sits
+    // with no spacing, not two.
+    const at = t.getStartPositionOfChar(6).x
+    const end = t.getComputedTextLength()
+    mount.remove()
+    expect(at - before).toBeCloseTo(wordSpacing, 0)
+    expect(end).toBeCloseTo(natural + 2 * wordSpacing, 0)
+  })
+
+  it('has no lines, so no group of lines and no clip', () => {
+    const el = paint(drawing(text({ lines: [] })))
+    expect(el.querySelector('text')).toBeNull()
+    expect(el.querySelector('clipPath')).toBeNull()
+  })
+
+  it('takes no presses of its own', () => {
+    const el = paint(drawing(text({ underline: true })))
+    for (const t of el.querySelectorAll('text, line'))
+      expect(t.getAttribute('pointer-events')).toBe('none')
+  })
+
+  it('two texts never share a clip path', () => {
+    const el = paint(drawing(text(), text()))
+    const ids = [...el.querySelectorAll('clipPath')].map((c) => c.id)
+    expect(new Set(ids).size).toBe(2)
+  })
 })

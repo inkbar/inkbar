@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { layoutText } from '../model/annotations/drawing/text/layout'
 import { standardMeasure } from '../model/annotations/drawing/text/measure'
 
+import { htmlBaseline } from './text-baseline'
 import { checkTextFonts } from './text-font-check'
-import { cssFont } from './text-fonts'
 
 import type { TextFont } from '../model/annotations/drawing/types'
 
@@ -13,20 +13,8 @@ for (const family of ['Helvetica', 'Times', 'Courier'] as const)
   for (const bold of [false, true])
     for (const italic of [false, true]) FACES.push({ family, bold, italic })
 
-/** Distance from the top of a text box's content to the baseline of its first line, in the browser. */
-function browserBaseline(font: TextFont, size: number): number {
-  const box = document.createElement('div')
-  box.style.cssText = `position:absolute;left:0;top:0;width:5000px;font:${cssFont(font, size)};line-height:1.2;white-space:pre-wrap;overflow-wrap:break-word;margin:0`
-  box.append('Hxg ')
-  // A zero-size inline-block sits on the baseline, so its bottom edge is the baseline.
-  const probe = document.createElement('span')
-  probe.style.cssText = 'display:inline-block;width:0;height:0'
-  box.append(probe)
-  document.body.append(box)
-  const baseline = probe.getBoundingClientRect().bottom - box.getBoundingClientRect().top
-  box.remove()
-  return baseline
-}
+const browserBaseline = (font: TextFont, size: number): number =>
+  htmlBaseline(document, font, size)
 
 const compute = (font: TextFont, size: number) =>
   layoutText({ text: 'Hxg', font, size, width: 1e6, align: 'left' }, standardMeasure)

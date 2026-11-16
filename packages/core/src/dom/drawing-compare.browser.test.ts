@@ -1107,3 +1107,228 @@ describe('loupe and mask chrome against the reference', () => {
     })
   }
 })
+
+/** What the browser lays out for a text box, from the reference's HTML or the painted SVG. */
+interface TextMetrics {
+  lines: number
+  /** The union of the line boxes, in viewport px. */
+  text: { left: number; top: number; right: number; bottom: number }
+  /** The box's outer edge, border and stroke included. */
+  box: { left: number; top: number; right: number; bottom: number }
+}
+
+const edges = (
+  r: DOMRect | { left: number; top: number; right: number; bottom: number }
+) => ({
+  left: r.left,
+  top: r.top,
+  right: r.right,
+  bottom: r.bottom,
+})
+const union = (rs: readonly DOMRect[]) =>
+  edges({
+    left: Math.min(...rs.map((r) => r.left)),
+    top: Math.min(...rs.map((r) => r.top)),
+    right: Math.max(...rs.map((r) => r.right)),
+    bottom: Math.max(...rs.map((r) => r.bottom)),
+  })
+const grow = (r: ReturnType<typeof edges>, by: number) => ({
+  left: r.left - by,
+  top: r.top - by,
+  right: r.right + by,
+  bottom: r.bottom + by,
+})
+
+function textMetrics(el: HTMLElement, side: 'reference' | 'painted'): TextMetrics {
+  let rects: DOMRect[]
+  let box: ReturnType<typeof edges>
+  const bubble = el.querySelector<SVGPathElement>('path.ink-bubble')
+  if (side === 'reference') {
+    const div = el.querySelector<HTMLElement>('.ink-free-text')!
+    // One rect per character that shows, grouped into lines by their top: spaces that hang at a
+    // wrap are in the browser's rects but not in the lines the layout reports.
+    const node = div.firstChild as Text
+    const lines: DOMRect[][] = []
+    for (let i = 0; i < node.length; i++) {
+      if (/\s/.test(node.data[i]!)) continue
+      const range = document.createRange()
+      range.setStart(node, i)
+      range.setEnd(node, i + 1)
+      const r = range.getBoundingClientRect()
+      const line = lines.find((l) => Math.abs(l[0]!.top - r.top) < 1)
+      if (line) line.push(r)
+      else lines.push([r])
+    }
+    rects = lines.map((l) => {
+      const u = union(l)
+      return new DOMRect(u.left, u.top, u.right - u.left, u.bottom - u.top)
+    })
+    box = bubble
+      ? grow(
+          edges(bubble.getBoundingClientRect()),
+          Number(bubble.getAttribute('stroke-width') ?? 0) / 2
+        )
+      : edges(div.getBoundingClientRect())
+  } else {
+    // Left and right at the line's advance, as the HTML's rects are: the SVG text's own bounding
+    // box reaches past it by an italic's overhang.
+    rects = [...el.querySelectorAll<SVGTextElement>('text')].map((t) => {
+      const n = t.getNumberOfChars()
+      const ctm = t.getScreenCTM()!
+      const from = t.getStartPositionOfChar(0).matrixTransform(ctm)
+      const to = t.getEndPositionOfChar(n - 1).matrixTransform(ctm)
+      const r = t.getBoundingClientRect()
+      return new DOMRect(from.x, r.top, to.x - from.x, r.height)
+    })
+    const shape = bubble ?? el.querySelector<SVGElement>('[data-ink-part="box"]')!
+    box = grow(
+      edges(shape.getBoundingClientRect()),
+      Number(shape.getAttribute('stroke-width') ?? 0) / 2
+    )
+  }
+  return { lines: rects.length, text: union(rects), box }
+}
+
+describe('comparePaint for text boxes', () => {
+  const para =
+    'The quick brown fox jumps over the lazy dog, and then a second sentence follows it.\nA short line.'
+  const plain = {
+    type: 'freetext',
+    page: 0,
+    rect: { x: 100, y: 600, width: 200, height: 90 },
+    contents: para,
+  } as const
+  const withStyle = (
+    style: Record<string, unknown>,
+    extra: Record<string, unknown> = {}
+  ): CompareCase['annotation'] => ({ ...plain, ...extra, defaultStyle: style })
+  const cases: CompareCase[] = [
+    { name: 'a plain box', annotation: plain },
+    ...(['left', 'center', 'right', 'justify'] as const).map(
+      (textAlign): CompareCase => ({
+        name: `${textAlign} aligned`,
+        annotation: withStyle({ textAlign }),
+      })
+    ),
+    { name: 'bold', annotation: withStyle({ fontWeight: 'bold' }) },
+    { name: 'italic', annotation: withStyle({ fontStyle: 'italic' }) },
+    { name: 'underline', annotation: withStyle({ textDecoration: 'underline' }) },
+    {
+      name: 'fill and border',
+      annotation: {
+        ...plain,
+        color: '#FFF3B0',
+        borderColor: '#B00020',
+        width: 2,
+      },
+    },
+    {
+      name: 'radius',
+      annotation: { ...plain, color: '#CDE7FF', width: 1, cornerRadius: 10 },
+    },
+    {
+      name: 'a standard callout with an open arrow',
+      annotation: {
+        type: 'freetext',
+        page: 0,
+        rect: { x: 60, y: 560, width: 240, height: 120 },
+        fringe: { left: 80, top: 10, right: 10, bottom: 50 },
+        intent: 'FreeTextCallout',
+        callout: [
+          { x: 70, y: 570 },
+          { x: 100, y: 600 },
+          { x: 140, y: 625 },
+        ],
+        head: 'OpenArrow',
+        width: 1,
+        color: '#FFFFFF',
+        contents: 'The quick brown fox jumps over the lazy dog.',
+      },
+    },
+    {
+      name: 'a speech bubble',
+      annotation: {
+        type: 'freetext',
+        page: 0,
+        // The rect holds the tail too, and the fringe insets it to the box, as a drawn bubble has.
+        rect: { x: 100, y: 470, width: 160, height: 110 },
+        fringe: { left: 0, top: 0, right: 0, bottom: 30 },
+        intent: 'FreeTextCallout',
+        cornerRadius: 10,
+        width: 2,
+        color: '#FFFFFF',
+        callout: [
+          { x: 120, y: 470 },
+          { x: 150, y: 500 },
+        ],
+        contents: 'The quick brown fox jumps over the lazy dog.',
+      },
+    },
+  ]
+  const where = [
+    ['page rotate 0, zoom 1', { pageRotate: 0, zoom: 1 }],
+    ['page rotate 0, zoom 2', { pageRotate: 0, zoom: 2 }],
+    ['page rotate 90, zoom 1', { pageRotate: 90, zoom: 1 }],
+    ['page rotate 90, zoom 2', { pageRotate: 90, zoom: 2 }],
+    ['a /UserUnit 2 page', { userUnit: 2, zoom: 1 }],
+  ] as const
+
+  for (const c of cases) {
+    for (const [label, extra] of where) {
+      it(`${c.name} at ${label}`, async () => {
+        const seen: Partial<Record<'reference' | 'painted', TextMetrics>> = {}
+        // The painted text sits at the file's fractional baseline, and the HTML at the whole-pixel
+        // one Chrome picks, so the first lines are up to a pixel apart. Both are compared as they
+        // are (`as drawn`), and again with the painted text moved onto the HTML baseline (`aligned`),
+        // which leaves what the glyph shapes and positions do.
+        const draw = (align: boolean) => async () => {
+          const r = await comparePaint(
+            { ...c, ...extra },
+            (el, a, t) => {
+              renderAnnotationContent(el, a, t)
+              seen.painted = textMetrics(el, 'painted')
+              if (!align) return
+              const dy = seen.reference!.text.top - seen.painted.text.top
+              el.querySelector('g[data-ink-part="text"]')?.setAttribute(
+                'transform',
+                `translate(0 ${dy})`
+              )
+            },
+            (el, a, t) => {
+              renderReferenceContent(el, a, t)
+              seen.reference = textMetrics(el, 'reference')
+            }
+          )
+          return { r, ...(seen as Record<'reference' | 'painted', TextMetrics>) }
+        }
+        const drawn = await draw(false)()
+        const { reference, painted } = drawn
+        const delta = (k: 'text' | 'box') =>
+          (['left', 'top', 'right', 'bottom'] as const).map((e) =>
+            Number((painted[k][e] - reference[k][e]).toFixed(2))
+          )
+        const text = delta('text')
+        const box = delta('box')
+        const aligned = (await draw(true)()).r
+        console.log(
+          `[text compare] ${c.name} at ${label}: as drawn differing ${drawn.r.differing.toFixed(4)} blurred ${drawn.r.differingBlurred.toFixed(4)}, aligned differing ${aligned.differing.toFixed(4)} blurred ${aligned.differingBlurred.toFixed(4)}, lines ${reference.lines}/${painted.lines}, text edges ${JSON.stringify(text)}, box edges ${JSON.stringify(box)}`
+        )
+        expect(drawn.r.referenceInk).toBeGreaterThan(0)
+        expect(painted.lines).toBe(reference.lines)
+        // The box to a pixel; the text's left and right edges to a pixel; its top and bottom to
+        // the rounding of the font's ascent and descent, which Chrome does in HTML text only.
+        for (const d of box) expect(Math.abs(d)).toBeLessThanOrEqual(1)
+        expect(Math.abs(text[0]!)).toBeLessThanOrEqual(1)
+        expect(Math.abs(text[2]!)).toBeLessThanOrEqual(1)
+        expect(Math.abs(text[1]!)).toBeLessThanOrEqual(1.05)
+        expect(Math.abs(text[3]!)).toBeLessThanOrEqual(1.05)
+        // 0.15 of the ink in either image, blurred, once the baselines are the same. The raw
+        // count is higher (0.1 to 0.2 at zoom 2): Chrome hints HTML text and not SVG text. An
+        // underline is thinner than the font's own and lighter at small sizes.
+        expect(aligned.differingBlurred).toBeLessThanOrEqual(
+          c.name === 'underline' ? 0.4 : 0.15
+        )
+      })
+    }
+  }
+})
