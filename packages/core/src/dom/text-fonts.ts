@@ -1,10 +1,14 @@
 import type { TextFont } from '../model/annotations/drawing/types'
 
-/** The CSS font stacks the text of a text box is drawn and measured in, per standard family. */
+/**
+ * The CSS font stacks the text of a text box is drawn and measured in, per standard family. The
+ * fonts built to the standard widths come first: macOS's own Helvetica, Times and Courier have
+ * other line metrics, so they only serve where none of those exist.
+ */
 export const FONT_STACKS: Record<TextFont['family'], string> = {
-  Helvetica: 'Helvetica, Arial, "Liberation Sans", Arimo, sans-serif',
-  Times: 'Times, "Times New Roman", "Liberation Serif", Tinos, serif',
-  Courier: 'Courier, "Courier New", "Liberation Mono", Cousine, monospace',
+  Helvetica: 'Arial, "Liberation Sans", Arimo, Helvetica, sans-serif',
+  Times: '"Times New Roman", "Liberation Serif", Tinos, Times, serif',
+  Courier: '"Courier New", "Liberation Mono", Cousine, Courier, monospace',
 }
 
 /** The CSS `font` shorthand for `font` at `size` points. */
