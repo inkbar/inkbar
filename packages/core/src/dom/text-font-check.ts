@@ -23,12 +23,19 @@ export interface TextFontCheck {
 
 const REFERENCE =
   'The quick brown fox jumps over the lazy dog 0123456789 ÀÉ€ — “quoted” (brackets)'
-/** How far a font's width of the reference text may be from the table's, as a fraction. */
+/** How far a font's width of the reference text may be from the table's, as a fraction, at 100 px. */
 const LATIN_TOLERANCE = 0.001
+/** The same at the sizes the tests use, measured in the DOM, where advances may be rounded. */
+const SMALL_SIZES = [10, 18]
+const SMALL_TOLERANCE = 0.005
 
-function domWidth(text: string, size: number): number {
+function domWidth(
+  text: string,
+  size: number,
+  font: TextFont = { family: 'Helvetica', bold: false, italic: false }
+): number {
   const span = document.createElement('span')
-  span.style.cssText = `position:absolute;white-space:pre;font:${cssFont({ family: 'Helvetica', bold: false, italic: false }, size)}`
+  span.style.cssText = `position:absolute;white-space:pre;font:${cssFont(font, size)};font-kerning:none`
   span.textContent = text
   document.body.append(span)
   const width = span.getBoundingClientRect().width
@@ -63,6 +70,17 @@ export function checkTextFonts(): TextFontCheck {
           `${family}${bold ? ' b' : ''}${italic ? ' i' : ''} ${(diff * 100).toFixed(3)}%`
         )
         if (diff > LATIN_TOLERANCE) latinOk = false
+        for (const size of SMALL_SIZES) {
+          const small =
+            Math.abs(
+              domWidth(REFERENCE, size, font) -
+                standardMeasure.width(REFERENCE, font, size).width
+            ) / standardMeasure.width(REFERENCE, font, size).width
+          worst.push(
+            `${family}${bold ? ' b' : ''}${italic ? ' i' : ''} @${size}px ${(small * 100).toFixed(3)}%`
+          )
+          if (small > SMALL_TOLERANCE) latinOk = false
+        }
       }
   if (!latinOk)
     return {
@@ -81,6 +99,6 @@ export function checkTextFonts(): TextFontCheck {
     }
   return {
     mode: 'exact',
-    why: `Latin fonts within ${LATIN_TOLERANCE * 100}% of the tables (${worst.join(', ')}); emoji and CJK probes as recorded`,
+    why: `Latin fonts within ${LATIN_TOLERANCE * 100}% of the tables at 100 px and ${SMALL_TOLERANCE * 100}% at 10 and 18 px (${worst.join(', ')}); emoji and CJK probes as recorded`,
   }
 }

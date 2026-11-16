@@ -351,3 +351,13 @@ describe('layoutText: segments', () => {
     expect(line.segments![1]!.x).toBeCloseTo(stop, 6)
   })
 })
+
+describe('layoutText: the iteration mark and the wave dash', () => {
+  test('neither starts a line, as in Chrome', () => {
+    const lines = layoutText(
+      block('人々時々国々〜東京〜大阪〜', 36),
+      standardMeasure
+    ).lines
+    for (const l of lines) expect(l.text[0]).not.toMatch(/[々〜]/)
+  })
+})

@@ -72,6 +72,8 @@ const SAMPLES: Record<string, string> = {
     'word!word!word!word!word!word!word!word!word!word!word!word!word!word!word!word!',
   'small kana and the long vowel mark':
     'ちょっとしたコーヒーショップでキャッチボールをしました。ッーぁぃぅ',
+  'iteration mark and wave dash':
+    '人々の暮らしと時々の出来事、様々な国々〜東京〜大阪〜京都〜名古屋〜札幌〜福岡',
   'one character': 'W',
   empty: '',
 }
@@ -348,68 +350,92 @@ const PER_CHAR_KNOWN = [
   'tabs | Helvetica 18 300',
 ]
 
+/** In `foreign` mode there is no table to compare, so these show as skipped, not as passed. */
+const unlessForeign = it.skipIf(fonts.mode === 'foreign')
+if (fonts.mode === 'foreign')
+  console.log(
+    '[text fonts] mode foreign: the per-cluster and production comparisons are skipped'
+  )
+
 describe('layoutText with per-cluster browser widths and no tables', () => {
-  it('breaks lines as the browser does with its default kerning', () => {
-    if (fonts.mode === 'foreign') return
-    const faces = FAMILIES.map((family) => ({ family, bold: false, italic: false }))
-    const run = compareWith(perCharMeasure, faces, true)
-    console.log(
-      `[per-char] ${run.total - run.mismatches.length}/${run.total} (${fonts.mode})`
-    )
-    for (const m of run.mismatches) console.log(`[per-char mismatch] ${m.label}`)
-    // Without tables there is no edge to blame: mismatches are Latin kerning (capped) or involve other characters.
-    expect(run.total).toBe(
-      Object.keys(SAMPLES).length * FAMILIES.length * SIZES.length * WIDTHS.length
-    )
-    expect(run.mismatches.length).toBeLessThanOrEqual(Math.ceil(run.total * 0.04))
-    expect(run.mismatches.filter((m) => m.latin).length).toBeLessThanOrEqual(2)
-    if (fonts.mode === 'exact')
-      expect(run.mismatches.map((m) => m.label).sort()).toEqual(PER_CHAR_KNOWN)
-  })
+  unlessForeign(
+    'breaks (skipped when the Latin fonts are foreign) lines as the browser does with its default kerning',
+    () => {
+      const faces = FAMILIES.map((family) => ({ family, bold: false, italic: false }))
+      const run = compareWith(perCharMeasure, faces, true)
+      console.log(
+        `[per-char] ${run.total - run.mismatches.length}/${run.total} (${fonts.mode})`
+      )
+      for (const m of run.mismatches) console.log(`[per-char mismatch] ${m.label}`)
+      // Without tables there is no edge to blame: mismatches are Latin kerning (capped) or involve other characters.
+      expect(run.total).toBe(
+        Object.keys(SAMPLES).length * FAMILIES.length * SIZES.length * WIDTHS.length
+      )
+      expect(run.mismatches.length).toBeLessThanOrEqual(Math.ceil(run.total * 0.04))
+      expect(run.mismatches.filter((m) => m.latin).length).toBeLessThanOrEqual(2)
+      if (fonts.mode === 'exact')
+        expect(run.mismatches.map((m) => m.label).sort()).toEqual(PER_CHAR_KNOWN)
+    }
+  )
 })
 
-describe('layoutText with the production measure (tables plus the browser fallback)', () => {
-  it('breaks lines as the browser does with kerning off', () => {
-    if (fonts.mode === 'foreign') return
-    const run = compareWith(productionMeasure, PRODUCTION_FACES, false)
-    console.log(
-      `[production kerning-off] ${run.total - run.mismatches.length}/${run.total} (${fonts.mode})`
-    )
-    for (const m of run.mismatches)
-      console.log(
-        `[production kerning-off mismatch] ${m.label} edge<=${m.near ?? 'none'}`
-      )
-    checkRun(run, {
-      kerning: false,
-      known: KNOWN_KERNING_OFF,
-      total:
-        Object.keys(SAMPLES).length *
-        PRODUCTION_FACES.length *
-        SIZES.length *
-        WIDTHS.length,
-    })
-    for (const label of EDGE_CASES)
-      expect(run.mismatches.find((m) => m.label === label)?.near ?? 0.03).toBe(0.03)
-  })
+/** An edge case that mismatches must be one the box edge explains: unresolved (no move fixes it) fails. */
+function expectEdgeCasesNearTheEdge(mismatches: Mismatch[]) {
+  for (const label of EDGE_CASES) {
+    const m = mismatches.find((x) => x.label === label)
+    expect(
+      m === undefined || m.near === 0.03,
+      `${label} is not explained by the box edge`
+    ).toBe(true)
+  }
+}
 
-  it('breaks lines as the browser does with its default kerning', () => {
-    if (fonts.mode === 'foreign') return
-    const run = compareWith(productionMeasure, PRODUCTION_FACES, true)
-    console.log(
-      `[production kerning-default] ${run.total - run.mismatches.length}/${run.total} (${fonts.mode})`
-    )
-    for (const m of run.mismatches)
+describe('layoutText with the production measure (tables plus the browser fallback)', () => {
+  unlessForeign(
+    'breaks lines as the browser does with kerning off (skipped when the Latin fonts are foreign)',
+    () => {
+      const run = compareWith(productionMeasure, PRODUCTION_FACES, false)
       console.log(
-        `[production kerning-default mismatch] ${m.label} edge<=${m.near ?? 'none'}`
+        `[production kerning-off] ${run.total - run.mismatches.length}/${run.total} (${fonts.mode})`
       )
-    checkRun(run, {
-      kerning: true,
-      known: KNOWN_KERNING_DEFAULT,
-      total:
-        Object.keys(SAMPLES).length *
-        PRODUCTION_FACES.length *
-        SIZES.length *
-        WIDTHS.length,
-    })
-  })
+      for (const m of run.mismatches)
+        console.log(
+          `[production kerning-off mismatch] ${m.label} edge<=${m.near ?? 'none'}`
+        )
+      checkRun(run, {
+        kerning: false,
+        known: KNOWN_KERNING_OFF,
+        total:
+          Object.keys(SAMPLES).length *
+          PRODUCTION_FACES.length *
+          SIZES.length *
+          WIDTHS.length,
+      })
+      expectEdgeCasesNearTheEdge(run.mismatches)
+    }
+  )
+
+  unlessForeign(
+    'breaks lines as the browser does with its default kerning (skipped when the Latin fonts are foreign)',
+    () => {
+      const run = compareWith(productionMeasure, PRODUCTION_FACES, true)
+      console.log(
+        `[production kerning-default] ${run.total - run.mismatches.length}/${run.total} (${fonts.mode})`
+      )
+      for (const m of run.mismatches)
+        console.log(
+          `[production kerning-default mismatch] ${m.label} edge<=${m.near ?? 'none'}`
+        )
+      checkRun(run, {
+        kerning: true,
+        known: KNOWN_KERNING_DEFAULT,
+        total:
+          Object.keys(SAMPLES).length *
+          PRODUCTION_FACES.length *
+          SIZES.length *
+          WIDTHS.length,
+      })
+      expectEdgeCasesNearTheEdge(run.mismatches)
+    }
+  )
 })
