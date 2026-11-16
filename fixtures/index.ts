@@ -16,6 +16,8 @@ export interface FixtureMeta {
   password?: string
   describes: string
   annotations?: Record<string, number>
+  /** Where the PDFium engine is known to behave differently, and why. Absent when it does not. */
+  engine?: { open?: string; saveRewrite?: string; saveIncremental?: string }
 }
 
 export const manifest = manifestJson as Record<FixtureName, FixtureMeta>
