@@ -1,5 +1,6 @@
 import { EngineError } from './errors.ts'
 import { createInThreadTransport } from './transport/in-thread.ts'
+import { createWorkerTransport } from './transport/worker.ts'
 
 import type { Request, Transport } from './protocol.ts'
 import type {
@@ -132,12 +133,20 @@ async function defaultWasm(): Promise<string | URL | Uint8Array> {
   }
 }
 
+function startWorker(worker: string | URL | Worker | undefined): Worker {
+  if (worker instanceof Worker) return worker
+  // The built package keeps its worker beside this module.
+  return new Worker(worker ?? new URL('./worker.mjs', import.meta.url), {
+    type: 'module',
+  })
+}
+
 export async function createEngine(options: EngineOptions = {}): Promise<Engine> {
   const { worker } = options
-  if (worker !== false && typeof Worker !== 'undefined')
-    throw failure(
-      'Running the engine in a worker is not supported yet; pass worker: false.'
-    )
+  if (worker !== false && typeof Worker !== 'undefined') {
+    const wasm = options.wasm ?? new URL('./inkbar-pdfium.wasm', import.meta.url)
+    return engineOver(await createWorkerTransport(startWorker(worker), wasm))
+  }
   const wasm = options.wasm ?? (await defaultWasm())
   return engineOver(await createInThreadTransport({ wasm }))
 }

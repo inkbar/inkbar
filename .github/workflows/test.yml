@@ -73,7 +73,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [core, vue, react, svelte, e2e-vue, e2e-react, e2e-svelte]
+        package: [core, engine, vue, react, svelte, e2e-vue, e2e-react, e2e-svelte]
         include:
           - package: sandbox
             shard: 1
