@@ -7,8 +7,8 @@ type Cubic = Extract<PathCommand, { op: 'C' }>
 /**
  * An SVG elliptical arc from `from` as cubic Béziers, one per quarter turn at most. Radii too
  * small for the chord are scaled up as SVG does; a zero-length arc gives none, and one with a
- * zero radius (which SVG draws as a straight line) gives one straight cubic. Axis-aligned ellipses only, as `A` has no
- * rotation.
+ * zero radius (which SVG draws as a straight line) gives one straight cubic. Axis-aligned
+ * ellipses only, as `A` has no rotation.
  */
 export function arcToCubics(from: Point, arc: Arc): Cubic[] {
   const { to } = arc

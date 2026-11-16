@@ -53,4 +53,29 @@ describe('comparePaint', () => {
       expect(r.differing).toBe(0)
     }
   })
+
+  it('refuses a reference image with nothing in it', async () => {
+    await expect(
+      comparePaint(highlight, undefined, (el) => el.replaceChildren())
+    ).rejects.toThrow(/blank/)
+  })
+
+  it('reports no difference for a stamp, whose image loads late', async () => {
+    const canvas = document.createElement('canvas')
+    canvas.width = canvas.height = 20
+    const ctx = canvas.getContext('2d')!
+    ctx.fillStyle = '#c00'
+    ctx.fillRect(0, 0, 20, 20)
+    const r = await comparePaint({
+      name: 'stamp',
+      annotation: {
+        type: 'stamp',
+        page: 0,
+        rect: { x: 100, y: 600, width: 80, height: 40 },
+        imagedata: canvas.toDataURL('image/png'),
+      },
+    })
+    expect(r.referenceInk).toBeGreaterThan(0)
+    expect(r.differing).toBe(0)
+  })
 })

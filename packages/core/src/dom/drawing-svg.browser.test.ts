@@ -239,11 +239,52 @@ describe('paintDrawing', () => {
     ).toThrow(/polygon/)
   })
 
-  it('text, image and page items are not supported yet', () => {
-    const rect = { x: 0, y: 0, width: 1, height: 1 }
-    expect(() => paint(drawing({ kind: 'image', data: 'x', rect, angle: 0 }))).toThrow(
-      /not supported yet/
-    )
+  const unsupportedRect = { x: 0, y: 0, width: 1, height: 1 }
+  it.each([
+    { kind: 'image', data: 'x', rect: unsupportedRect, angle: 0 },
+    {
+      kind: 'text',
+      lines: [],
+      font: { family: 'Helvetica', bold: false, italic: false },
+      size: 12,
+      color: '#000',
+      angle: 0,
+      outsideStandardFonts: false,
+    },
+    {
+      kind: 'page',
+      source: unsupportedRect,
+      target: unsupportedRect,
+      clip: { center: { x: 0, y: 0 }, radius: 1 },
+    },
+  ] satisfies DrawItem[])('a $kind item is not supported yet', (item) => {
+    expect(() => paint(drawing(item))).toThrow(/not supported yet/)
+  })
+
+  it('a non-finite group opacity makes the svg throw a RangeError', () => {
+    expect(() =>
+      paint(
+        drawing({
+          kind: 'group',
+          opacity: Number.NaN,
+          items: [
+            { kind: 'rect', rect: { x: 0, y: 0, width: 1, height: 1 }, paint: fill },
+          ],
+        })
+      )
+    ).toThrow(RangeError)
+  })
+
+  it('a non-finite box makes the svg throw a RangeError', () => {
+    const el = document.createElement('div')
+    expect(() =>
+      paintDrawing(el, drawing(), createPageTransform(page, 1, 0), {
+        left: 0,
+        top: 0,
+        width: Number.NaN,
+        height: 1,
+      })
+    ).toThrow(RangeError)
   })
 })
 

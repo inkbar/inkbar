@@ -41,8 +41,8 @@ export interface CompareResult {
  * Paints the case with the reference renderer and with `renderAnnotationContent` (the new
  * painter for a type that has a drawing, the reference renderer again for one that has not),
  * screenshots both, and compares them. `paintedSide` replaces the second rendering; tests use
- * it to prove the comparison sees a difference. Throws when the reference image is blank, so a
- * failed capture can never read as "no difference".
+ * it, and `referenceSide`, to prove the comparison sees a difference or refuses a blank one.
+ * Throws when the reference image is blank, so a failed capture can never read as "no difference".
  */
 export async function comparePaint(
   c: CompareCase,
@@ -50,7 +50,12 @@ export async function comparePaint(
     el: HTMLElement,
     a: Annotation,
     t: PageTransform
-  ) => void = renderAnnotationContent
+  ) => void = renderAnnotationContent,
+  referenceSide: (
+    el: HTMLElement,
+    a: Annotation,
+    t: PageTransform
+  ) => void = renderReferenceContent
 ): Promise<CompareResult> {
   const { default: themeCss } = await import('@inkbar/theme/theme.css?inline')
   const box = c.box ?? { x: 0, y: 0, width: 612, height: 792 }
@@ -98,12 +103,14 @@ export async function comparePaint(
   try {
     const referenceEl = mount()
     const paintedEl = mount()
-    renderReferenceContent(referenceEl, a, t)
+    referenceSide(referenceEl, a, t)
     paintedSide(paintedEl, a, t)
     const reference = referenceEl.parentElement as HTMLElement
     const painted = paintedEl.parentElement as HTMLElement
     const referenceBox = reference.getBoundingClientRect()
     const paintedBox = painted.getBoundingClientRect()
+    await ready(reference)
+    await ready(painted)
     painted.style.visibility = 'hidden'
     const one = await shoot(reference)
     painted.style.visibility = ''
@@ -117,6 +124,40 @@ export async function comparePaint(
   } finally {
     stage.remove()
     style.remove()
+  }
+}
+
+/**
+ * Waits until what `holder` shows has settled: its images decoded (HTML and SVG), fonts loaded,
+ * and two frames painted, so a late image or font cannot differ between the two captures.
+ */
+async function ready(holder: HTMLElement): Promise<void> {
+  const images = [
+    ...holder.querySelectorAll<SVGImageElement | HTMLImageElement>('img, image'),
+  ]
+  await Promise.all(
+    images.map(async (img) => {
+      if (img instanceof HTMLImageElement) {
+        if (typeof img.decode === 'function') await img.decode().catch(() => undefined)
+        else if (!img.complete) {
+          await new Promise((resolve) => {
+            img.addEventListener('load', resolve, { once: true })
+            img.addEventListener('error', resolve, { once: true })
+          })
+        }
+        return
+      }
+      // An SVG <image> has no decode(): load its href through an <img>.
+      const href = img.getAttribute('href') ?? img.getAttribute('xlink:href')
+      if (!href) return
+      const probe = new Image()
+      probe.src = href
+      await probe.decode().catch(() => undefined)
+    })
+  )
+  await document.fonts.ready
+  for (let i = 0; i < 2; i++) {
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
   }
 }
 
