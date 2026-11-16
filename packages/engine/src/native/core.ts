@@ -148,11 +148,14 @@ export class EngineCore {
         const stride = fn.FPDFBitmap_GetStride(bitmap)
         const buffer = fn.FPDFBitmap_GetBuffer(bitmap)
         const heap = this.#native.HEAPU8
-        const data = new Uint8ClampedArray(width * height * 4)
-        for (let y = 0; y < height; y++) {
-          const from = buffer + y * stride
-          data.set(heap.subarray(from, from + width * 4), y * width * 4)
-        }
+        const row = width * 4
+        const data = new Uint8ClampedArray(row * height)
+        if (stride === row) data.set(heap.subarray(buffer, buffer + row * height))
+        else
+          for (let y = 0; y < height; y++) {
+            const from = buffer + y * stride
+            data.set(heap.subarray(from, from + row), y * row)
+          }
         return { width, height, data }
       } finally {
         fn.FPDFBitmap_Destroy(bitmap)
