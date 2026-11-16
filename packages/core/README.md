@@ -187,7 +187,7 @@ A callout's corner handles resize its text box: the tip and bend stay, and the p
 
 ## Text boxes
 
-Inkbar draws a text box from its annotation alone. The fill, border, dashes, corner radius, alignment, opacity and text style all come from the annotation, so a saved file looks as the box does on screen. CSS cannot restyle the text. The press area over it is a transparent SVG rect (`[data-ink-text-area]`) and the text is SVG, both painted inline, so a host rule on an HTML class or on the text elements changes nothing. `.ink-free-text` is only the in-place editor.
+Inkbar draws a text box from its annotation alone. The fill, border, dashes, corner radius, alignment, opacity and text style all come from the annotation, so a saved file looks as the box does on screen. CSS cannot restyle the text. The press area over it is a transparent SVG rect (`[data-ink-text-area]`) and the text is SVG, both painted inline, so a host rule on an HTML class, on the text elements or on SVG shapes (`rect { fill: red }`) changes nothing. The other shapes that only take presses (a stamp's, a loupe's, a mask's edge, the wider hit area of a line) are painted inline the same way. `.ink-free-text` is only the in-place editor.
 
 A saved file can carry three font families without embedding a font: Helvetica, Times and Courier, each in regular, bold, italic and bold italic. A text box uses one of them. Any other `fontFamily` stays on the annotation and is drawn in the nearest of the three: a name that reads as serif in Times, one that reads as monospace in Courier, and the rest in Helvetica.
 

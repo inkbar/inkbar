@@ -514,6 +514,11 @@ describe('createOverlay', () => {
         expect(style).toMatch(/^font-kerning:none;white-space:pre;font-family:/)
         continue
       }
+      // The paint of a shape that only takes presses, inline so a host rule cannot fill it.
+      if (node instanceof SVGElement) {
+        expect(style).toMatch(/^(fill|stroke):/)
+        continue
+      }
       expect(node).toBeInstanceOf(HTMLElement)
       const rest = style.replace(/--ink-[\w-]+:[^;]*;\s*/g, '').trim()
       expect(rest).toBe('pointer-events: auto;')
@@ -892,7 +897,9 @@ describe('createOverlay', () => {
       style.textContent = `
         .ink-free-text { color: red !important; font-size: 40px !important; background: red !important; border: 4px solid red !important }
         [data-type=freetext] text { font-family: cursive; fill: red; font-size: 40px }
-        [data-type=freetext] line { stroke: red }`
+        [data-type=freetext] line { stroke: red }
+        [data-type=freetext] rect { fill: red; stroke: red }
+        svg rect { fill: currentColor }`
       document.head.append(style)
       cleanup.push(() => style.remove())
       const { el, host } = drawn(
@@ -906,8 +913,14 @@ describe('createOverlay', () => {
       expect(cs.fontSize).toBe('12px')
       expect(cs.fontFamily).toBe(FONT_STACKS.Helvetica)
       expect(getComputedStyle(el.querySelector('line')!).stroke).toBe('rgb(0, 0, 255)')
-      // Nothing a host rule on that class matches sits over the text: the pixel at the box's
-      // corner, which no glyph reaches, is the page's white.
+      // The press area and the edge band keep their own paint, so a host rule on svg rects cannot
+      // fill the area over the text or outline the box in a band.
+      const area = getComputedStyle(el.querySelector('[data-ink-text-area]')!)
+      expect([area.fill, area.stroke]).toEqual(['rgba(0, 0, 0, 0)', 'none'])
+      const band = getComputedStyle(el.querySelector('[data-ink-edge]')!)
+      expect([band.fill, band.stroke]).toEqual(['none', 'rgba(0, 0, 0, 0)'])
+      // And on screen: the text is on top. Over the glyphs' pixels there is blue, and none of the
+      // press area's red.
       host.style.background = '#fff'
       const png = await browserPage.screenshot({ element: host, save: false })
       const bitmap = await createImageBitmap(
@@ -920,9 +933,120 @@ describe('createOverlay', () => {
       canvas.height = bitmap.height
       const ctx = canvas.getContext('2d', { willReadFrequently: true })!
       ctx.drawImage(bitmap, 0, 0)
-      // Box {100, 600, 200 x 60}: css left 100, top 792 - 660 = 132.
-      const [r, g, b] = ctx.getImageData(103, 135, 1, 1).data
-      expect([r, g, b]).toEqual([255, 255, 255])
+      // Box {100, 600, 200 x 60}: css left 100, top 792 - 660 = 132. "Hello" is 12 px type at its
+      // top-left.
+      const { data } = ctx.getImageData(100, 132, 32, 14)
+      let blue = 0
+      for (let i = 0; i < data.length; i += 4)
+        if (data[i + 2]! > 150 && data[i]! < 100 && data[i + 1]! < 100) blue++
+      expect(blue).toBeGreaterThan(20)
+    })
+
+    it('transparent hit shapes keep their paint under a host rule on svg shapes', () => {
+      const style = document.createElement('style')
+      style.textContent =
+        'rect, circle, path, polyline, ellipse { fill: red; stroke: red; stroke-width: 9px }'
+      document.head.append(style)
+      cleanup.push(() => style.remove())
+      const canvas = document.createElement('canvas')
+      canvas.width = canvas.height = 4
+      const stamp = canvas.toDataURL('image/png')
+      const { store, overlay } = setup()
+      const shapes: [string, string, string, string][] = [
+        // [annotation id, selector, expected fill, expected stroke]
+      ]
+      const add = (input: never, selector: string, fill: string, stroke: string) => {
+        const a = store.add(input)
+        shapes.push([a.id, selector, fill, stroke])
+      }
+      const rect = { x: 100, y: 500, width: 120, height: 80 }
+      const clear = 'rgba(0, 0, 0, 0)'
+      add(
+        { type: 'stamp', page: 0, rect, imagedata: stamp } as never,
+        'rect[data-ink-hit-area]',
+        clear,
+        'none'
+      )
+      add(
+        { type: 'loupe', page: 0, rect, width: 2 } as never,
+        'circle[data-ink-hit-area]',
+        clear,
+        'none'
+      )
+      add(
+        { type: 'mask', page: 0, rect, shape: 'rect' } as never,
+        '.ink-mask-shape',
+        'none',
+        clear
+      )
+      add(
+        {
+          type: 'line',
+          page: 0,
+          start: { x: 100, y: 300 },
+          end: { x: 300, y: 320 },
+          rect,
+          width: 2,
+        } as never,
+        '[data-ink-hit-stroke]',
+        'none',
+        clear
+      )
+      add(
+        {
+          type: 'ink',
+          page: 0,
+          inklist: [
+            [
+              { x: 100, y: 200 },
+              { x: 200, y: 220 },
+            ],
+          ],
+          width: 2,
+        } as never,
+        '[data-ink-hit-stroke]',
+        'none',
+        clear
+      )
+      add(
+        {
+          type: 'square',
+          page: 0,
+          rect: { x: 300, y: 500, width: 80, height: 60 },
+          width: 2,
+        } as never,
+        '[data-ink-hit-stroke]',
+        'none',
+        clear
+      )
+      add(
+        {
+          type: 'freetext',
+          page: 0,
+          rect: { x: 300, y: 300, width: 120, height: 40 },
+          contents: 'Hi',
+        } as never,
+        '[data-ink-text-area]',
+        clear,
+        'none'
+      )
+      add(
+        {
+          type: 'freetext',
+          page: 0,
+          rect: { x: 300, y: 200, width: 120, height: 40 },
+          contents: 'Hi',
+        } as never,
+        '[data-ink-edge]',
+        'none',
+        clear
+      )
+      for (const [id, selector, fill, stroke] of shapes) {
+        const shape = overlay.elementFor(id)!.querySelector(selector)
+        expect(shape, `${selector} of ${id}`).not.toBeNull()
+        const cs = getComputedStyle(shape!)
+        expect([selector, cs.fill, cs.stroke]).toEqual([selector, fill, stroke])
+      }
     })
 
     it('a bubble below full opacity is one group: outline and text together', () => {

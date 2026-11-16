@@ -148,7 +148,6 @@ export function editFreeText(
   /** `a` with its box grown by `grown` CSS px. */
   const grownTo = (grown: number): FreeTextAnnotation =>
     grown === 0 ? a : { ...a, ...grownFreeText(a, grown, t) }
-  /** Lays the box out and paints it, without its text, as `draft`; the editor goes to its text area. */
   /**
    * Paints `draft` into `el` behind the editor and the selection handles, which stay: removing
    * them would drop the selection's handles, and moving the focused editor would drop its focus.
@@ -160,6 +159,7 @@ export function editFreeText(
       if (child !== field && !child.hasAttribute('data-handle')) child.remove()
     el.prepend(...holder.childNodes)
   }
+  /** Lays the box out and paints it, without its text, as `draft`; the editor goes to its text area. */
   const sync = (draft: FreeTextAnnotation): void => {
     const box = annotationBox(draft, t)
     el.style.left = `${box.left}px`
