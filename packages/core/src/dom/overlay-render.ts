@@ -418,22 +418,41 @@ export function renderAnnotationContent(
 }
 
 /** The geometry attributes a hit twin keeps from the element a drawn shape becomes. */
-const TWIN_GEOMETRY = new Set(['x', 'y', 'width', 'height', 'rx', 'cx', 'cy', 'ry'])
+const TWIN_GEOMETRY = new Set([
+  'x',
+  'y',
+  'width',
+  'height',
+  'rx',
+  'cx',
+  'cy',
+  'ry',
+  'points',
+  'd',
+])
 
 /**
  * The hit twin, edge band and comment marker of a painted annotation: what a press needs and
- * a drawing does not hold. A stroke-only square or circle gets a wider invisible copy of its
- * shape, built from the drawing's own rect or ellipse; commented text markup gets its marker.
+ * a drawing does not hold. A stroke-only shape gets a wider invisible copy of its geometry,
+ * built from the drawing's own items: a square or circle one, a line or polyline one for its
+ * shaft and one for each ending, a polygon without a fill one; commented text markup gets its
+ * marker.
  */
 function renderChrome(el: HTMLElement, a: Annotation, t: PageTransform): void {
-  if ((a.type === 'square' || a.type === 'circle') && hasHitTwin(a)) {
-    const svg = el.querySelector(':scope > svg')
-    const group = drawingFor(a, t)?.items[0]
-    const shape = group?.kind === 'group' ? group.items[0] : undefined
-    if (svg && shape && (shape.kind === 'rect' || shape.kind === 'ellipse')) {
-      const twin = itemElement(el.ownerDocument, shape, t, annotationBox(a, t))
+  const svg = el.querySelector(':scope > svg')
+  const group = svg ? drawingFor(a, t)?.items[0] : undefined
+  const drawn = group?.kind === 'group' ? group.items : []
+  if (svg && hasHitTwin(a)) {
+    const box = annotationBox(a, t)
+    for (const item of drawn) {
+      if (item.kind === 'text' || item.kind === 'image' || item.kind === 'page') continue
+      const twin = itemElement(el.ownerDocument, item, t, box)
       for (const attr of [...twin.attributes]) {
         if (!TWIN_GEOMETRY.has(attr.name)) twin.removeAttribute(attr.name)
+      }
+      if (a.type === 'line' || a.type === 'polyline' || a.type === 'polygon') {
+        twin.setAttribute('stroke-linejoin', 'round')
+        if (item.role) twin.setAttribute('stroke-linecap', 'round')
       }
       twin.setAttribute('data-ink-hit-stroke', '')
       twin.setAttribute('fill', 'none')
