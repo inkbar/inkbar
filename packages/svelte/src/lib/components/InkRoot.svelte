@@ -432,7 +432,7 @@
     const base = untrack(() => ({
       assets,
       defaults: defaults ?? (ref ? cssVariableDefaults(ref) : undefined),
-      _pictures: savePictures(ref?.ownerDocument ?? globalThis.document),
+      pictures: savePictures(ref?.ownerDocument ?? globalThis.document),
       engine: engineProp,
       // Controlled hosts get the snapshot history; core's own stack stays off.
       history: controlledProp ? false : (historyProp ?? true),

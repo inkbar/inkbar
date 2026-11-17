@@ -7,8 +7,8 @@ import { standardMeasure } from '../model/annotations/drawing/text/measure'
 import { browserMeasure } from './drawing-context'
 import { cssFont } from './text-fonts'
 
-import type { TextPicture, ToPng } from '../model/annotations/drawing/pdf/paint'
-import type { TextMeasure } from '../model/annotations/drawing/types'
+import type { TextPicture, ToPng } from '../model/annotations/drawing/pdf/pictures'
+import type { SavePictures } from '../model/document'
 
 /** Pixels per point in a picture. */
 export const PICTURE_SCALE = 4
@@ -101,16 +101,14 @@ export function canvasToPng(doc: Document): ToPng {
 }
 
 /**
- * @internal What `openDocument` takes as `_pictures`, for every document opened in a browser:
- * the pictures its `save()` needs for text outside the standard fonts and images other than PNG
- * and JPEG, and the measure the screen lays text out with, so the file breaks and places lines
- * where the screen does.
+ * What `openDocument` takes as `pictures`, for a document opened in a browser: the pictures its
+ * `save()` needs for text outside the standard fonts and images other than PNG and JPEG, and
+ * the measure the screen lays text out with, so the file breaks and places lines where the
+ * screen does. `doc` is the page's `document`, whose canvases draw them. `createViewer` and the
+ * Vue, React and Svelte bindings pass it for you; a host that calls `openDocument` itself passes
+ * `pictures: savePictures(document)`.
  */
-export function savePictures(doc: Document): {
-  textPicture: TextPicture
-  toPng: ToPng
-  measure: TextMeasure
-} {
+export function savePictures(doc: Document): Required<SavePictures> {
   return {
     textPicture: canvasTextPicture(doc),
     toPng: canvasToPng(doc),

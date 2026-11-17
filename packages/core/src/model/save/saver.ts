@@ -1,15 +1,41 @@
 // Writes a document through @inkbar/engine, which it loads only through the host's loader: one
-// engine and one open copy of the file, kept for the next save. Nothing here imports the engine.
+// engine and one open copy of the file, kept for the next save. Nothing here imports the engine
+// or names its types: this module's types are public, and a host without the engine checks them.
 import { InkError, isInkError } from '../errors'
 
-import type { Engine, EngineDocument, EngineOptions, WriteInput } from '@inkbar/engine'
+import { AnnotationUnwritable } from './write-input'
+
+/** What a save writes, as far as the saver looks into it: the engine's `WriteInput` fits. */
+export interface SaveInput {
+  remove?: readonly { page: number; objectNumber: number }[]
+  annotations?: readonly object[]
+  fields?: Readonly<Record<string, { value: string | readonly string[]; text?: string }>>
+}
+
+/**
+ * What core asks of the engine's open document when it saves. Declared here, by shape, so that
+ * core's types name nothing from @inkbar/engine and a host without the engine can still check
+ * them.
+ */
+export interface SaveEngineDocument {
+  /** Writes annotations and form values into the document as it was opened. */
+  write(input: SaveInput): Promise<void>
+  /** The document's bytes, with what was written. */
+  save(): Promise<Uint8Array>
+}
+
+/** What core asks of an engine when it saves: see `SaveEngineDocument`. */
+export interface SaveEngine {
+  open(bytes: Uint8Array, options?: { password?: string }): Promise<SaveEngineDocument>
+  destroy(): Promise<void>
+}
 
 /**
  * Loads @inkbar/engine; `() => import('@inkbar/engine')` is one. Core calls `createEngine` with
  * no options: a host that serves the engine's files itself wraps it to pass their URLs.
  */
 export type EngineLoader = () => Promise<{
-  createEngine: (options?: EngineOptions) => Promise<Engine>
+  createEngine: () => Promise<SaveEngine>
 }>
 
 export interface SaverOptions {
@@ -28,16 +54,17 @@ export interface Saver {
    * cannot write or the input cannot be painted, and with `DocumentDestroyed` once destroyed.
    * A `SaveFailed` says why in `details.stage`: `'engine'` when the loader or `createEngine`
    * failed (the engine could not be fetched or started, as when offline), `'write'` when the
-   * engine could not open or write this file, or the input could not be painted.
+   * engine could not open or write this file, or the input could not be painted. When one
+   * annotation could not be painted or written, `details.annotation` is its id.
    */
-  write(key: string, input: () => Promise<WriteInput>): Promise<Uint8Array>
+  write(key: string, input: () => Promise<SaveInput>): Promise<Uint8Array>
   /** Destroys the engine. A write in flight rejects with `DocumentDestroyed`. */
   destroy(): void
 }
 
 interface Session {
-  engine: Engine
-  doc: EngineDocument
+  engine: SaveEngine
+  doc: SaveEngineDocument
 }
 
 const destroyedError = (): InkError =>
@@ -56,6 +83,22 @@ const engineCode = (e: unknown): string | undefined =>
     ? (e as Error & { code?: string }).code
     : undefined
 
+/** The id of the annotation an `EngineError` says it could not write, if it names one. */
+const engineAnnotation = (e: unknown): string | undefined => {
+  if (engineCode(e) !== 'write-failed') return undefined
+  const id = (e as Error & { annotation?: unknown }).annotation
+  return typeof id === 'string' ? id : undefined
+}
+
+/**
+ * The engine's codes for an engine that has stopped: an internal error, or an allocation that
+ * failed inside it. Every later call on that engine fails, so the session is dropped.
+ */
+const STOPPED_CODES: ReadonlySet<string | undefined> = new Set([
+  'engine-failure',
+  'out-of-memory',
+])
+
 export function createSaver(options: SaverOptions): Saver {
   let destroyed = false
   let session: Promise<Session> | undefined
@@ -66,7 +109,7 @@ export function createSaver(options: SaverOptions): Saver {
   /** The engine and the file open in it, made on first use and kept. */
   const open = (): Promise<Session> => {
     const made = (async () => {
-      let engine: Engine
+      let engine: SaveEngine
       try {
         const { createEngine } = await options.loader()
         if (destroyed) throw destroyedError()
@@ -115,11 +158,22 @@ export function createSaver(options: SaverOptions): Saver {
         { stage: 'engine' },
         error.cause
       )
-    // An EngineError from opening or writing the file, or an UnpaintableError.
+    // One annotation's drawing could not be painted: the cause says why.
+    if (error instanceof AnnotationUnwritable)
+      return new InkError(
+        'SaveFailed',
+        `The annotation ${error.annotation} could not be written into this file`,
+        { stage: 'write', annotation: error.annotation },
+        error.cause
+      )
+    // An EngineError from opening or writing the file.
+    const annotation = engineAnnotation(error)
     return new InkError(
       'SaveFailed',
-      'The changes could not be written into this file',
-      { stage: 'write' },
+      annotation === undefined
+        ? 'The changes could not be written into this file'
+        : `The annotation ${annotation} could not be written into this file`,
+      annotation === undefined ? { stage: 'write' } : { stage: 'write', annotation },
       error
     )
   }
@@ -136,7 +190,7 @@ export function createSaver(options: SaverOptions): Saver {
     return result
   }
 
-  const run = async (input: () => Promise<WriteInput>): Promise<Uint8Array> => {
+  const run = async (input: () => Promise<SaveInput>): Promise<Uint8Array> => {
     const written = await input()
     if (destroyed) throw destroyedError()
     return exclusive(async () => {
@@ -150,7 +204,7 @@ export function createSaver(options: SaverOptions): Saver {
         if (destroyed) throw destroyedError()
         return bytes
       } catch (error) {
-        if (engineCode(error) === 'engine-failure') drop(current)
+        if (STOPPED_CODES.has(engineCode(error))) drop(current)
         throw error
       }
     })

@@ -2,7 +2,7 @@ import {
   pdfjsIdOfRef,
   readFreeTextFields,
   readInkbarData,
-  readSavedAnnotationPlaces,
+  readSavedAnnotations,
   readTextIcon,
   refOfPdfjsId,
 } from '../../pdf/annotation-fields'
@@ -114,20 +114,31 @@ export interface LiftedAnnotation {
  * order: page by page, each in `/Annots` order. Calls `objects` once; none comes back for an
  * encrypted or unreadable file, which lifts nothing. When two carry the same id, the first is
  * lifted. A reply is lifted only with the annotation it replies to, or when it replies to one
- * of `inFile`: the ids of the file's own annotations, which stay in the list locked. Never
- * throws.
+ * of `inFile`: the ids of the file's own annotations that take replies, which stay in the list
+ * locked.
+ *
+ * A save removes a lifted annotation's object and writes a new one, so an annotation that
+ * something staying in the file points at is not lifted: one with a `/Popup`, which Inkbar never
+ * writes, or one that an annotation not lifted names in its `/IRT`, such as a reply another
+ * program added. It stays an ordinary locked file annotation, and so do Inkbar's own replies to
+ * it. Never throws.
  */
 export async function readLifted(
   objects: () => Promise<PdfObjects | undefined>,
   inFile: ReadonlySet<string> = new Set()
 ): Promise<LiftedAnnotation[]> {
   const found: LiftedAnnotation[] = []
+  /** Every `/IRT` in the file, as PDF.js ids. */
+  let links: { from: string; to: string }[] = []
   try {
     const objs = await objects()
     if (!objs) return found
     const ids = new Set<string>()
-    for (const place of await readSavedAnnotationPlaces(objs)) {
-      if (!place.rect) continue
+    const { places, replies } = await readSavedAnnotations(objs)
+    links = replies.map((r) => ({ from: pdfjsIdOfRef(r.from), to: pdfjsIdOfRef(r.to) }))
+    for (const place of places) {
+      // Another program's pop-up names this object as its parent.
+      if (!place.rect || place.popup) continue
       const json = await readInkbarData(objs, place.ref)
       const lifted =
         json === undefined
@@ -149,25 +160,30 @@ export async function readLifted(
   } catch {
     // What was read before the failure stands.
   }
-  return withParents(found, inFile)
+  return withParents(found, inFile, links)
 }
 
 /**
- * `found` without the replies whose parent is neither among them nor in `inFile`, nor replies
- * to those.
+ * `found` without the annotations that one staying in the file names in its `/IRT`, and without
+ * the replies whose parent is neither among those kept nor in `inFile`. Each removal can strand
+ * another, so both rules run until nothing more goes.
  */
 function withParents(
   found: LiftedAnnotation[],
-  inFile: ReadonlySet<string>
+  inFile: ReadonlySet<string>,
+  links: readonly { from: string; to: string }[]
 ): LiftedAnnotation[] {
   let kept = found
   for (;;) {
     const ids = new Set(kept.map((f) => f.annotation.id))
+    const objects = new Set(kept.map((f) => f.pdfjsId))
+    const named = new Set(links.filter((l) => !objects.has(l.from)).map((l) => l.to))
     const next = kept.filter(
       (f) =>
-        f.annotation.inReplyTo === undefined ||
-        ids.has(f.annotation.inReplyTo) ||
-        inFile.has(f.annotation.inReplyTo)
+        !named.has(f.pdfjsId) &&
+        (f.annotation.inReplyTo === undefined ||
+          ids.has(f.annotation.inReplyTo) ||
+          inFile.has(f.annotation.inReplyTo))
     )
     if (next.length === kept.length) return kept
     kept = next

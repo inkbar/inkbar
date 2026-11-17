@@ -40,6 +40,8 @@ import { createPageCache, type PageCache } from './page-cache'
 import { pageInfoFromProxy, type PageInfo } from './pages'
 import { readonly, writable, type Readable } from './readable'
 import {
+  canonical,
+  canonicalAnnotation,
   changedFields,
   hasChanges,
   takeSnapshot,
@@ -58,7 +60,7 @@ import { searchableText, type SearchableText } from './search-text'
 import { resolveSource, sourceFileName, type DocumentSource } from './source'
 import { textContentFromPdfjs, type TextContent } from './text'
 
-import type { TextPicture, ToPng } from './annotations/drawing/pdf/paint'
+import type { TextPicture, ToPng } from './annotations/drawing/pdf/pictures'
 import type { TextMeasure } from './annotations/drawing/types'
 import type {
   Annotation,
@@ -86,7 +88,18 @@ export type LockedStatus = { state: 'locked'; incorrect: boolean }
 /** A document's status plus `idle`, for a host with no document open, and `locked`. */
 export type InkStatus = DocumentStatus | { state: 'idle' } | LockedStatus
 
-export type { EngineLoader } from './save/saver'
+export type {
+  EngineLoader,
+  SaveEngine,
+  SaveEngineDocument,
+  SaveInput,
+} from './save/saver'
+export type {
+  TextPicture,
+  TextPictureRequest,
+  ToPng,
+} from './annotations/drawing/pdf/pictures'
+export type { TextFont, TextMeasure } from './annotations/drawing/types'
 
 export interface DocumentInfo {
   title?: string | undefined
@@ -126,12 +139,24 @@ export interface OpenOptions {
    */
   engine?: EngineLoader | undefined
   /**
-   * @internal What a save needs from the DOM layer, which supplies it: pictures for text and
-   * images the file cannot hold, and the measure the screen lays text out with (the standard
-   * tables alone when absent).
+   * What `save()` needs from a browser to write the file as the screen shows it. Pass
+   * `savePictures(document)` from `@inkbar/core/dom`; `createViewer` and the Vue, React and
+   * Svelte bindings pass it for you. Without it a save lays text out with the standard fonts'
+   * own widths, which may break lines where the screen does not, and rejects with SaveFailed
+   * for text those fonts cannot set (CJK, Arabic, emoji) and for an image that is neither PNG
+   * nor JPEG.
    */
-  _pictures?:
-    { textPicture?: TextPicture; toPng?: ToPng; measure?: TextMeasure } | undefined
+  pictures?: SavePictures | undefined
+}
+
+/** What a save needs from a browser: see `OpenOptions.pictures`. */
+export interface SavePictures {
+  /** Draws a run of text the standard fonts cannot set, as a picture. */
+  textPicture?: TextPicture
+  /** Converts an image that is neither PNG nor JPEG to PNG. */
+  toPng?: ToPng
+  /** The measure the screen lays text out with. Absent: the standard fonts' own widths. */
+  measure?: TextMeasure
 }
 
 export interface InkDocument {
@@ -178,7 +203,12 @@ export interface InkDocument {
    * call, after `ready`, and cached; `[]` when the file has none. Rejects as `ready` does.
    */
   outline(): Promise<readonly OutlineItem[]>
-  /** What the file contained, by PDF subtype, including subtypes Inkbar does not show. */
+  /**
+   * What the file contains, by PDF subtype, including subtypes Inkbar does not show. Once the
+   * annotations Inkbar saved have been lifted (see `annotations`) they are no longer counted:
+   * the summary is then the file's annotations less the lifted ones, and reading `embedded`
+   * again gives the new array.
+   */
   readonly embedded: readonly EmbeddedSummary[]
   readonly history: History
   /** The form's fields and values; empty when the file has no fields. */
@@ -210,14 +240,16 @@ export interface InkDocument {
    * `getData()`'s bytes and loads no engine. With changes it needs the `engine` option, and
    * rejects with EngineUnavailable without it, and with SaveFailed when the engine cannot write
    * the file: its `details.stage` is `'engine'` when the engine could not be loaded or started,
-   * `'write'` when it could not open or write this file. The written copy is kept until the next change, and calls made while a write runs
-   * share it.
+   * `'write'` when it could not open or write this file, with the id of the annotation that
+   * could not be painted or written in `details.annotation` when it was one annotation. The
+   * written copy is kept until the next change, and calls made while a write runs share it.
    */
   save(): Promise<Uint8Array>
   /**
    * True while the session differs from the file: its annotations from those lifted at open,
-   * or a form value from the file's (values the host passed at open count; what the file's
-   * scripts calculate at open does not). False until lifting lands. In controlled mode the
+   * or a form value from the file's. The file's values are those the form holds when `ready`
+   * resolves, with what the file's scripts calculated at open; values the host passed at open,
+   * and any set after `ready`, are changes. False until lifting lands. In controlled mode the
    * lifted annotations proposed to the host count as kept until the host pushes a list, and a
    * save until then keeps them.
    */
@@ -230,6 +262,8 @@ export interface InkDocument {
   readonly _saves: boolean
   /** @internal PDF.js ids of file annotations lifted into the session. */
   readonly _lifted: Readable<ReadonlySet<string>>
+  /** @internal `embedded` as a readable, for a binding to follow when lifting changes it. */
+  readonly _embedded: Readable<readonly EmbeddedSummary[]>
   /**
    * @internal The PDF.js id of the file copy of `a`, when `a` is an annotation lifted from the
    * file and unchanged since: the canvas may still paint that copy until a render leaves it out.
@@ -279,7 +313,11 @@ export async function openDocument(
     mode: options.annotations ?? { mode: 'uncontrolled' },
     defaults: options.defaults ?? staticDefaults,
   })
-  const embedded: EmbeddedSummary[] = []
+  const embedded = writable<readonly EmbeddedSummary[]>([])
+  /** Annotations the file holds on each page, by PDF subtype; widgets and links included. */
+  let fileCounts: Record<string, number>[] = []
+  /** The PDF subtype of each file annotation other than a widget or a link, by PDF.js id. */
+  const fileSubtypes = new Map<string, string>()
   /** PDF.js ids of the file annotations lifted into the session; set once, when they land. */
   const lifted = writable<ReadonlySet<string>>(new Set())
   /** Each lifted annotation as it was lifted, and its file copy's PDF.js id, by id. */
@@ -387,14 +425,19 @@ export async function openDocument(
       )
       const links = raw.flatMap((data, at) => linkFromPdfjs(i, data, at) ?? [])
       // A reply Inkbar saved is hidden, so PDF.js leaves it out; its parent is not.
-      const others = raw.some((d) => d.subtype !== 'Widget' && d.subtype !== 'Link')
+      const others = raw.flatMap((d) =>
+        d.subtype !== 'Widget' && d.subtype !== 'Link' ? [[d.id, d.subtype] as const] : []
+      )
       return { ...importEmbeddedPage(i, raw, importedAt), widgets, links, others }
     })
     perPage.forEach((r, i) => {
       if (r.links.length > 0) linksByPage.set(i, r.links)
     })
-    mayHaveSaved = perPage.some((r) => r.others)
-    embedded.push(...summarise(perPage.map((r) => r.counts)))
+    mayHaveSaved = perPage.some((r) => r.others.length > 0)
+    for (const r of perPage)
+      for (const [id, subtype] of r.others) fileSubtypes.set(id, subtype)
+    fileCounts = perPage.map((r) => r.counts)
+    embedded.set(summarise(fileCounts))
     const fromFile = perPage.flatMap((r) => r.annotations)
     targets.push(...perPage.flatMap((r) => r.targets))
     if (fromFile.length > 0) store._setEmbedded(fromFile)
@@ -507,10 +550,11 @@ export async function openDocument(
         }
       )
       // A reply Inkbar saved to one of the file's own annotations lifts with that one in place.
+      // Only a note or text markup takes replies, as when a save writes one.
       const inFile = new Set(
         store.list
           .get()
-          .filter((a) => a.source === 'pdf')
+          .filter((a) => a.source === 'pdf' && isThreadRoot(a))
           .map((a) => a.id)
       )
       const lift = (
@@ -524,6 +568,13 @@ export async function openDocument(
           })
         // The renders leave the file copies out in the same turn as they leave the list.
         lifted.set(new Set(found.map((f) => f.pdfjsId)))
+        // The summary of the file no longer counts them.
+        const gone: Record<string, number> = {}
+        for (const f of found) {
+          const subtype = fileSubtypes.get(f.pdfjsId)
+          if (subtype !== undefined) gone[subtype] = (gone[subtype] ?? 0) - 1
+        }
+        embedded.set(summarise([...fileCounts, gone]))
         // A controlled host has them proposed; until it answers, they still count as kept.
         liftPending = store.mode === 'controlled'
         store._setLifted(
@@ -561,11 +612,14 @@ export async function openDocument(
       })
     : undefined
   const changed = writable(false)
-  /** The text each field showed when lifting landed, taken as the file's own. */
-  let fileFormatted: Readonly<Record<string, string>> = {}
+  /**
+   * The text each field shows now that `ready` has resolved, taken as the file's own: nothing
+   * runs between `ready` and here, so a host has had no turn to set a value yet.
+   */
+  const fileFormatted: Readonly<Record<string, string>> = form.formatted.get()
   /** Fields whose values the host supplied at open: changes, unlike what scripts calculated. */
   const hostFields = Object.keys(fieldsMode.initial ?? {})
-  /** The session as the file holds it: what was lifted, and the values once it landed. */
+  /** The session as the file holds it: what was lifted, and the file's own values. */
   let baseline: Snapshot | undefined
   /**
    * The fields that differ from the file. A restored signature a controlled host has yet to
@@ -630,13 +684,20 @@ export async function openDocument(
       update()
     }),
   ]
+  /**
+   * The file's own values, where they differ from what its fields record: what its scripts
+   * calculated at open. Taken now, as `ready` resolves, so whatever is set from here on (by
+   * `set`, a commit, a reset or an import) is a change, also while lifting is still to land.
+   * Values the host supplied at open are not the file's: they stay changes.
+   */
+  const fileFields = fieldChanges()
+  for (const name of hostFields) delete fileFields[name]
   const baselineTaken = _liftSettled.then(() => {
     if (destroyed || status.get().state !== 'ready') return
-    fileFormatted = form.formatted.get()
-    // The file's own values, with what its scripts calculated at open and the signature links
-    // lifting restored. Values the host supplied are not the file's: they stay changes.
-    const fields = fieldChanges()
-    for (const name of hostFields) delete fields[name]
+    // The signature links lifting restored are the file's too.
+    const fields = { ...fileFields }
+    for (const [name, id] of restoredLinks)
+      fields[name] ??= { value: Object.freeze({ signature: id }) }
     baseline = takeSnapshot({
       annotations: [...liftedFrom.values()].map((f) => f.annotation),
       fields,
@@ -659,11 +720,20 @@ export async function openDocument(
         return ref ? [[a.id, { page: a.page, objectNumber: ref.num }]] : []
       })
     )
-  /** The file copies of the lifted annotations, which a save removes. */
+  /**
+   * The file copies of the lifted annotations, which a save removes. One with no object to
+   * remove fails the save: writing it again beside its file copy would leave two.
+   */
   const liftedRefs = (): AnnotationRef[] =>
-    [...liftedFrom.values()].flatMap(({ annotation, pdfjsId }) => {
+    [...liftedFrom.values()].map(({ annotation, pdfjsId }) => {
       const ref = refOfPdfjsId(pdfjsId)
-      return ref ? [{ page: annotation.page, objectNumber: ref.num }] : []
+      if (!ref)
+        throw new InkError(
+          'SaveFailed',
+          `The file's copy of the annotation ${annotation.id} cannot be found to replace`,
+          { stage: 'write', annotation: annotation.id }
+        )
+      return { page: annotation.page, objectNumber: ref.num }
     })
 
   /**
@@ -797,7 +867,9 @@ export async function openDocument(
       )
       return outlineRead
     },
-    embedded,
+    get embedded() {
+      return embedded.get()
+    },
     history,
     form,
     exportAnnotations(format) {
@@ -836,7 +908,7 @@ export async function openDocument(
         )
       const lifted = liftedRefs()
       const parents = fileParents()
-      const { measure, ...helpers } = options._pictures ?? {}
+      const { measure, ...helpers } = options.pictures ?? {}
       return saver.write(now.key, () => {
         const { fields, signs } = writeFields(now.fields, form.fields.get())
         return buildWriteInput({
@@ -870,12 +942,14 @@ export async function openDocument(
     },
     _saves: saver !== undefined,
     _lifted: readonly(lifted),
+    _embedded: readonly(embedded),
     _fileCopyOf(a) {
       const from = liftedFrom.get(a.id)
       if (!from) return undefined
-      // A controlled host may hand back an equal copy rather than the lifted object.
+      // A controlled host may hand back an equal copy rather than the lifted object, with its
+      // keys in another order.
       const same =
-        from.annotation === a || JSON.stringify(from.annotation) === JSON.stringify(a)
+        from.annotation === a || canonicalAnnotation(from.annotation) === canonical(a)
       return same ? from.pdfjsId : undefined
     },
     _liftSettled,

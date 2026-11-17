@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { UnpaintableError } from '../annotations/drawing/pdf/paint'
 
 import { createSaver, type EngineLoader } from './saver'
+import { AnnotationUnwritable } from './write-input'
 
 import type { Engine, EngineDocument, WriteInput } from '@inkbar/engine'
 
@@ -218,6 +219,48 @@ describe('createSaver', () => {
     expect(fake.createEngine).toHaveBeenCalledTimes(2)
     expect(fake.calls).toContain('destroy 1')
     expect(fake.calls.at(-2)).toBe('write 2 1')
+  })
+
+  it('starts a new engine after the engine ran out of memory, which stops it too', async () => {
+    const fake = fakeEngine()
+    const s = saver(fake)
+    fake.failNext(new EngineError('out-of-memory', 'The engine ran out of memory.'))
+    await expect(s.write('k', input(1))).rejects.toMatchObject({
+      code: 'SaveFailed',
+      details: { stage: 'write' },
+    })
+    await s.write('k', input(1))
+    expect(fake.createEngine).toHaveBeenCalledTimes(2)
+    expect(fake.calls).toContain('destroy 1')
+    expect(fake.calls.at(-2)).toBe('write 2 1')
+  })
+
+  it('names the annotation that could not be painted or written', async () => {
+    const fake = fakeEngine()
+    const s = saver(fake)
+    const unpaintable = new UnpaintableError('text')
+    const painting = s.write('k', () =>
+      Promise.reject(new AnnotationUnwritable('note-1', unpaintable))
+    )
+    await expect(painting).rejects.toMatchObject({
+      code: 'SaveFailed',
+      details: { stage: 'write', annotation: 'note-1' },
+      cause: unpaintable,
+    })
+    await expect(painting).rejects.toThrow(/note-1/)
+    const refused = new EngineError('write-failed', 'Annotation box-2 could not be…', {
+      annotation: 'box-2',
+    })
+    fake.failNext(refused)
+    await expect(s.write('k', input(1))).rejects.toMatchObject({
+      code: 'SaveFailed',
+      details: { stage: 'write', annotation: 'box-2' },
+      cause: refused,
+    })
+    // A field the engine refused names no annotation.
+    fake.failNext(new EngineError('write-failed', 'The form field "x" could not be set'))
+    const field = await s.write('k', input(1)).catch((e: unknown) => e)
+    expect((field as { details: object }).details).toEqual({ stage: 'write' })
   })
 
   it('saves each write before the next one starts', async () => {

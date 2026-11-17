@@ -9,6 +9,7 @@
     "./browser-assets": "./browser-assets.ts",
     "./vite-serve": "./vite-serve.ts",
     "./generate-large": "./generate-large.ts",
+    "./other-program": "./other-program.ts",
     "./qpdf": "./qpdf.ts"
   },
   "scripts": {

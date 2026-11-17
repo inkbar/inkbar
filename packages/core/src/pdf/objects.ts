@@ -18,9 +18,9 @@ export interface PdfObjects {
   resolve(v: PdfValue | undefined): Promise<PdfValue | undefined>
   /**
    * The decoded data of the stream object `ref` names, or undefined if it is missing, not a
-   * stream, or its data cannot be decoded. Never throws.
+   * stream, its data cannot be decoded, or the data is larger than `maxBytes`. Never throws.
    */
-  stream(ref: PdfRef): Promise<Uint8Array | undefined>
+  stream(ref: PdfRef, maxBytes?: number): Promise<Uint8Array | undefined>
 }
 
 interface ObjectStream {
@@ -53,7 +53,7 @@ class Reader implements PdfObjects {
     return isRef(v) ? this.get(v) : v
   }
 
-  async stream(ref: PdfRef): Promise<Uint8Array | undefined> {
+  async stream(ref: PdfRef, maxBytes?: number): Promise<Uint8Array | undefined> {
     try {
       // A stream is never inside an object stream.
       const entry = this.xref.entries.get(ref.num)
@@ -68,7 +68,8 @@ class Reader implements PdfObjects {
         this.bytes,
         dict,
         obj.streamStart,
-        typeof length === 'number' ? length : undefined
+        typeof length === 'number' ? length : undefined,
+        maxBytes
       )
     } catch {
       return undefined

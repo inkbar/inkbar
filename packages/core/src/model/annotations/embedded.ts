@@ -151,12 +151,17 @@ function targetOf(id: string, d: PdfjsAnnotationData): EmbeddedTarget | undefine
   return { id, subtype: 'FreeText', rect, ...(daFont ? { daFont } : {}) }
 }
 
+/**
+ * The counts of every page added up, by subtype, in subtype order. A subtype whose total is not
+ * above 0 is left out: the document passes negative counts for the annotations it lifted.
+ */
 export function summarise(perPage: Record<string, number>[]): EmbeddedSummary[] {
   const totals = new Map<string, number>()
   for (const counts of perPage) {
     for (const [k, v] of Object.entries(counts)) totals.set(k, (totals.get(k) ?? 0) + v)
   }
   return [...totals.entries()]
+    .filter(([, count]) => count > 0)
     .map(([subtype, count]) => ({
       subtype,
       count,

@@ -23,6 +23,9 @@
  * - saved-encrypted: encrypted-aes (password "inkbar") with a square and a note, rewritten;
  *   still encrypted, so nothing lifts.
  * - saved-signed: form-fields with an image signature that signs the empty field "sig".
+ * - saved-replied: text-simple with two notes, Inkbar's reply to the first and a square, then
+ *   changed as another program would: a reply to the first note with nothing of Inkbar's in it,
+ *   and a /Popup on the second. Only the square lifts.
  */
 import { readFile, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
@@ -30,6 +33,7 @@ import { dirname, join } from 'node:path'
 
 import { createEngine, type EngineDocument, type WriteAnnotation } from '@inkbar/engine'
 import { fixtureBytes, fixturePath, type FixtureName } from '@inkbar/fixtures'
+import { addReplyAndPopup } from '@inkbar/fixtures/other-program'
 import { format, resolveConfig } from 'prettier'
 
 import { staticDefaults } from '../../src/model/annotations/defaults'
@@ -225,12 +229,14 @@ async function main(): Promise<void> {
     from: FixtureName,
     items: Written[],
     mode: 'rewrite' | 'incremental',
-    password?: string
+    password?: string,
+    /** What another program does to the saved file before it is written out. */
+    after: (saved: Uint8Array) => Promise<Uint8Array> = (saved) => Promise.resolve(saved)
   ): Promise<void> {
     const doc = await engine.open(await fixtureBytes(from), password ? { password } : {})
     try {
       await writeAll(doc, items)
-      const bytes = await doc.save({ mode })
+      const bytes = await after(await doc.save({ mode }))
       await writeFile(join(OUT, `${name}.pdf`), bytes)
       const listPath = join(OUT, `${name}.annotations.json`)
       await writeFile(
@@ -307,6 +313,38 @@ async function main(): Promise<void> {
       'form-fields',
       [{ annotation: signature!, signs: 'sig' }],
       'rewrite'
+    )
+
+    const replied = complete('replied', '2026-11-17T10:10:00.000Z', [
+      {
+        type: 'text',
+        page: 0,
+        rect: { x: 520, y: 700, width: 20, height: 20 },
+        contents: 'A note another program replied to',
+      },
+      (made) => ({
+        type: 'text',
+        page: 0,
+        rect: { x: 520, y: 700, width: 20, height: 20 },
+        contents: 'A reply Inkbar saved',
+        inReplyTo: made[0]!.id,
+      }),
+      {
+        type: 'text',
+        page: 0,
+        rect: { x: 520, y: 640, width: 20, height: 20 },
+        contents: 'A note another program gave a pop-up',
+      },
+      { type: 'square', page: 0, rect: { x: 72, y: 540, width: 80, height: 60 } },
+    ])
+    await save(
+      'saved-replied',
+      'text-simple',
+      replied.map((annotation) => ({ annotation })),
+      'rewrite',
+      undefined,
+      (saved) =>
+        addReplyAndPopup(saved, { replyTo: replied[0]!.id, popupOn: replied[2]!.id })
     )
   } finally {
     await engine.destroy()

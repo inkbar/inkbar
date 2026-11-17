@@ -180,9 +180,15 @@ export async function readTextIcon(
 const INKBAR_DATA = 'INKB_Gloss'
 
 /**
+ * The most data read from one `/INKB_Gloss` entry: 8 MB. An annotation Inkbar wrote stores far
+ * less, pictures included, and a file made to inflate past it is not read further.
+ */
+export const INKBAR_DATA_MAX_BYTES = 8 * 1024 * 1024
+
+/**
  * The text Inkbar stored with the annotation `ref` names: its `/INKB_Gloss` stream, decoded
- * as UTF-8. Undefined when the annotation has no such entry, the entry is not a stream, or the
- * data cannot be decoded. Never throws.
+ * as UTF-8. Undefined when the annotation has no such entry, the entry is not a stream, the
+ * data cannot be decoded, or it is larger than `INKBAR_DATA_MAX_BYTES`. Never throws.
  */
 export async function readInkbarData(
   objs: PdfObjects,
@@ -193,7 +199,7 @@ export async function readInkbarData(
     if (!isDict(annot)) return undefined
     const entry = dictGet(annot, INKBAR_DATA)
     if (!isRef(entry)) return undefined
-    const bytes = await objs.stream(entry)
+    const bytes = await objs.stream(entry, INKBAR_DATA_MAX_BYTES)
     return bytes && new TextDecoder('utf-8', { fatal: true }).decode(bytes)
   } catch {
     return undefined
@@ -209,20 +215,36 @@ export interface SavedAnnotationPlace {
   rect: [number, number, number, number] | undefined
   /** `/M` as written, a PDF date string; undefined when there is none. */
   modified: string | undefined
+  /** Whether it has a `/Popup` entry. Inkbar writes none, so another program added it. */
+  popup: boolean
+}
+
+/** One annotation's `/IRT`: `from` replies to `to`. Both are references into the file. */
+export interface ReplyLink {
+  from: PdfRef
+  to: PdfRef
+}
+
+/** What a file's pages hold that lifting reads. */
+export interface SavedAnnotations {
+  /** The annotations that carry Inkbar's data, in page order and then `/Annots` order. */
+  places: SavedAnnotationPlace[]
+  /** Every `/IRT` among the pages' annotations, whoever wrote the reply. */
+  replies: ReplyLink[]
 }
 
 /**
  * Every annotation in a page's `/Annots` that has an `/INKB_Gloss` entry, in page order and then
- * `/Annots` order, with its `/Rect` and `/M`. An annotation written inline in `/Annots` has no
- * id to hide it by and is left out. Never throws: what cannot be read is left out.
+ * `/Annots` order, with its `/Rect`, its `/M` and whether it has a `/Popup`; and every `/IRT`
+ * among the pages' annotations. An annotation written inline in `/Annots` has no id to hide it
+ * by and is left out. Never throws: what cannot be read is left out.
  */
-export async function readSavedAnnotationPlaces(
-  objs: PdfObjects
-): Promise<SavedAnnotationPlace[]> {
+export async function readSavedAnnotations(objs: PdfObjects): Promise<SavedAnnotations> {
   const out: SavedAnnotationPlace[] = []
+  const replies: ReplyLink[] = []
   try {
     const root = await dictOf(objs, dictGet(objs.trailer, 'Root'))
-    if (!root) return out
+    if (!root) return { places: out, replies }
     const { dicts } = await walkPages(objs, root)
     for (const [page, dict] of dicts.entries()) {
       const annots = await objs.resolve(dictGet(dict, 'Annots'))
@@ -230,7 +252,10 @@ export async function readSavedAnnotationPlaces(
       for (const ref of annots) {
         if (!isRef(ref)) continue
         const annot = await objs.get(ref)
-        if (!isDict(annot) || dictGet(annot, INKBAR_DATA) === undefined) continue
+        if (!isDict(annot)) continue
+        const irt = dictGet(annot, 'IRT')
+        if (isRef(irt)) replies.push({ from: ref, to: irt })
+        if (dictGet(annot, INKBAR_DATA) === undefined) continue
         const r = await numbers(objs, dictGet(annot, 'Rect'), [4])
         const modified = textString(await objs.resolve(dictGet(annot, 'M')))
         out.push({
@@ -243,11 +268,19 @@ export async function readSavedAnnotationPlaces(
             Math.max(r[1]!, r[3]!),
           ],
           modified,
+          popup: dictGet(annot, 'Popup') !== undefined,
         })
       }
     }
   } catch {
     // What was read before the failure stands.
   }
-  return out
+  return { places: out, replies }
+}
+
+/** The `places` of `readSavedAnnotations`. */
+export async function readSavedAnnotationPlaces(
+  objs: PdfObjects
+): Promise<SavedAnnotationPlace[]> {
+  return (await readSavedAnnotations(objs)).places
 }

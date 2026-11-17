@@ -5,6 +5,7 @@ import { fixtureBytes, fixturePath, manifest, type FixtureName } from '@inkbar/f
 import { qpdfAvailable, qpdfCheck, requireQpdfInCi } from '@inkbar/fixtures/qpdf'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import * as annotationFields from '../pdf/annotation-fields'
 import { nodeAssets } from '../pdfjs/node-assets'
 
 import { isReply } from './annotations/threads'
@@ -18,6 +19,24 @@ import type { EngineLoader } from './save/saver'
 import type { Engine, EngineDocument, WriteInput } from '@inkbar/engine'
 
 requireQpdfInCi()
+
+/** What the file's scripts calculate while the next document opens; taken by that open. */
+const scriptsAtOpen = vi.hoisted((): { values?: Record<string, string> } => ({}))
+
+// Node runs no form scripts. A test that needs a calculation at open has it set here, the way
+// the sandbox sets it: after the fields load and before `ready`.
+vi.mock(import('../pdfjs/scripting'), async (original) => {
+  const actual = await original()
+  return {
+    ...actual,
+    createFormScripting: (opts) => {
+      const { values } = scriptsAtOpen
+      delete scriptsAtOpen.values
+      if (values) opts.form._scriptValues(values)
+      return actual.createFormScripting(opts)
+    },
+  }
+})
 
 /** A 1 × 1 PNG. */
 const PNG =
@@ -316,6 +335,59 @@ describe('save', () => {
     expect(session(back)).toEqual(session(doc))
   })
 
+  it.each([
+    [
+      'a level line of no width',
+      {
+        type: 'line',
+        page: 0,
+        start: { x: 100, y: 300 },
+        end: { x: 200, y: 300 },
+        width: 0,
+      },
+    ],
+    [
+      'a see-through level line of no width',
+      {
+        type: 'line',
+        page: 0,
+        start: { x: 100, y: 320 },
+        end: { x: 200, y: 320 },
+        width: 0,
+        opacity: 0.5,
+      },
+    ],
+    [
+      'a stamp of no size',
+      {
+        type: 'stamp',
+        page: 0,
+        subject: 'Approved',
+        rect: { x: 300, y: 380, width: 0, height: 0 },
+        imagedata: PNG,
+      },
+    ],
+    [
+      'an ink stroke of one point',
+      { type: 'ink', page: 0, width: 0, inklist: [[{ x: 150, y: 400 }]] },
+    ],
+  ] satisfies [string, AnnotationInput][])(
+    'writes %s, whose drawing has no area, and lifts it back as it was',
+    async (name, input) => {
+      const engine = realEngine()
+      const doc = await open('text-simple', { engine: engine.loader })
+      const added = doc.annotations.add(input)
+      const back = await reopen(await save(doc, name))
+      // The box written has an area, and the data stored records that same box.
+      const { bounds } = engine.writes[0]!.annotations![0]!.appearance!
+      expect(bounds.width).toBeGreaterThan(0)
+      expect(bounds.height).toBeGreaterThan(0)
+      expect(embedded(back)).toEqual([])
+      expect(session(back)).toEqual([added])
+      expect(back.changed.get()).toBe(false)
+    }
+  )
+
   it('removes what the user deleted', async () => {
     const doc = await open('saved-annotations', { engine: realEngine().loader })
     await doc._liftSettled
@@ -534,6 +606,65 @@ describe('save', () => {
     expect(session(back)).toEqual(session(doc))
   })
 
+  it('names the annotation a host without pictures cannot write', async () => {
+    const doc = await open('text-simple', { engine: realEngine().loader })
+    doc.annotations.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 1, y: 1, width: 9, height: 9 },
+    })
+    const box = doc.annotations.add({
+      type: 'freetext',
+      page: 0,
+      rect: { x: 100, y: 100, width: 200, height: 40 },
+      contents: '你好，世界',
+    })
+    const failed = await doc.save().catch((e: unknown) => e)
+    expect(failed).toMatchObject({
+      name: 'InkError',
+      code: 'SaveFailed',
+      details: { stage: 'write', annotation: box.id },
+      cause: { name: 'UnpaintableError' },
+    })
+    // With a picture for the text the same document saves.
+    const pictured = await open('text-simple', {
+      engine: realEngine().loader,
+      pictures: {
+        textPicture: () =>
+          Promise.resolve({
+            png: Uint8Array.from(atob(PNG.split(',')[1]!), (c) => c.charCodeAt(0)),
+            width: 60,
+            ascent: 9,
+            descent: 3,
+          }),
+      },
+    })
+    pictured.annotations.add({
+      type: 'freetext',
+      page: 0,
+      rect: { x: 100, y: 100, width: 200, height: 40 },
+      contents: '你好，世界',
+    })
+    await expect(save(pictured, 'pictured text')).resolves.toBeInstanceOf(Uint8Array)
+  })
+
+  it('fails a save whose lifted annotation has no object in the file to replace', async () => {
+    const engine = realEngine()
+    const doc = await open('saved-tampered', { engine: engine.loader })
+    await doc._liftSettled
+    const [square] = await written('saved-tampered')
+    // As if the file's copy had been read with an id that names no object.
+    const copy = vi.spyOn(annotationFields, 'refOfPdfjsId').mockReturnValue(undefined)
+    doc.annotations.update(square!.id, { color: '#00AA00' })
+    const failed = await doc.save().catch((e: unknown) => e)
+    copy.mockRestore()
+    expect(failed).toMatchObject({
+      code: 'SaveFailed',
+      details: { stage: 'write', annotation: square!.id },
+    })
+    expect(engine.writes).toEqual([])
+  })
+
   it('opens an encrypted file with its password', async () => {
     const doc = await open('encrypted-aes', { engine: realEngine().loader })
     doc.annotations.add({ type: 'highlight', page: 0, quads: [quad(72, 700, 200, 14)] })
@@ -587,14 +718,65 @@ describe('save', () => {
       }
     )
 
+    it.each(['form-fields', 'saved-signed'] as const)(
+      'counts a value set as soon as %s opens, before lifting lands',
+      async (name) => {
+        const engine = realEngine()
+        const doc = await open(name, { engine: engine.loader })
+        let settled = false
+        void doc._liftSettled.then(() => (settled = true))
+        doc.form.set({ name: 'Ada' })
+        expect(settled).toBe(false)
+        await doc._liftSettled
+        expect(doc.changed.get()).toBe(true)
+        const back = await reopen(await save(doc, `set at once, ${name}`))
+        expect(back.form.get('name')).toBe('Ada')
+        expect(engine.writes[0]!.fields).toEqual({ name: { value: 'Ada' } })
+      }
+    )
+
+    it('counts a reset and an import made before lifting lands', async () => {
+      const first = await open('form-fields', {
+        engine: realEngine().loader,
+        fields: { mode: 'uncontrolled', initial: {} },
+      })
+      first.importAnnotations({
+        ...first.exportAnnotations('json'),
+        fields: { name: 'Imported' },
+      })
+      await first._liftSettled
+      expect(first.form.get('name')).toBe('Imported')
+      expect(first.changed.get()).toBe(true)
+
+      // The file has `plan` at monthly; a reset puts it at its default, yearly.
+      const second = await open('form-fields', { engine: realEngine().loader })
+      expect(second.form.get('plan')).toBe('monthly')
+      second.form.reset(['plan'])
+      await second._liftSettled
+      expect(second.form.get('plan')).toBe('yearly')
+      expect(second.changed.get()).toBe(true)
+    })
+
+    it('saves a combo box emptied by a reset, though it takes no text of its own', async () => {
+      const engine = realEngine()
+      const doc = await open('form-fields', { engine: engine.loader })
+      await doc._liftSettled
+      expect(doc.form.get('country')).toBe('gb')
+      doc.form.reset(['country'])
+      expect(doc.form.get('country')).toBe('')
+      expect(doc.changed.get()).toBe(true)
+      const back = await reopen(await save(doc, 'combo emptied'))
+      expect(engine.writes[0]!.fields).toEqual({ country: { value: '' } })
+      expect(back.form.get('country') ?? '').toBe('')
+      expect(back.changed.get()).toBe(false)
+    })
+
     it("takes what the file's scripts calculate at open as the file's", async () => {
       const { loader } = realEngine()
+      // Node runs no scripts, so a calculation at open is set as the sandbox sets it: while
+      // the document opens, before `ready`.
+      scriptsAtOpen.values = { name: 'Calculated' }
       const doc = await open('form-fields', { engine: loader })
-      let settled = false
-      void doc._liftSettled.then(() => (settled = true))
-      // Node runs no scripts, so a calculation at open is set as the sandbox sets it.
-      doc.form._scriptValues({ name: 'Calculated' })
-      expect(settled).toBe(false)
       await doc._liftSettled
       expect(doc.form.get('name')).toBe('Calculated')
       expect(doc.changed.get()).toBe(false)
@@ -624,16 +806,18 @@ describe('save', () => {
     })
   })
 
-  describe("a reply to one of the file's own notes", () => {
-    /** The PDF.js annotations of page 0, hidden ones included. */
-    const pdfjsAnnotations = async (doc: InkDocument) =>
-      (await (await doc._pdfjs.getPage(0)).getAnnotations({ intent: 'any' })) as {
-        id: string
-        subtype: string
-        annotationFlags: number
-        inReplyTo?: string
-      }[]
+  /** The PDF.js annotations of page 0, hidden ones included. */
+  const pdfjsAnnotations = async (doc: InkDocument) =>
+    (await (await doc._pdfjs.getPage(0)).getAnnotations({ intent: 'any' })) as {
+      id: string
+      subtype: string
+      annotationFlags: number
+      inReplyTo?: string
+      popupRef?: string | null
+      parentRect?: number[]
+    }[]
 
+  describe("a reply to one of the file's own notes", () => {
     it('is saved hidden, linked to the note, and comes back in its thread', async () => {
       const doc = await open('note-icon-ap', { engine: realEngine().loader })
       await doc._liftSettled
@@ -674,6 +858,71 @@ describe('save', () => {
       const stable = (a: Annotation) => ({ ...a, createdAt: '', modifiedAt: '' })
       expect(stable(kept!)).toEqual(stable(note!))
       expect((await pdfjsAnnotations(again)).map((a) => a.id)).toEqual([noteId])
+    })
+  })
+
+  describe('a file whose saved annotations another program linked to', () => {
+    it('saves around them: the notes, the replies and the pop-up are left as they are', async () => {
+      const engine = realEngine()
+      const doc = await open('saved-replied', { engine: engine.loader })
+      await doc._liftSettled
+      const before = await pdfjsAnnotations(doc)
+      const mine = doc.annotations.add({
+        type: 'square',
+        page: 0,
+        rect: { x: 300, y: 300, width: 40, height: 40 },
+      })
+      const back = await reopen(await save(doc, 'saved around linked notes'))
+      // Only the lifted square's file copy is removed and written again, with the new one.
+      const [, , , square] = await written('saved-replied')
+      expect(engine.writes[0]!.remove).toHaveLength(1)
+      expect(engine.writes[0]!.annotations!.map((a) => a.annotation.id)).toEqual([
+        square!.id,
+        mine.id,
+      ])
+      const after = await pdfjsAnnotations(back)
+      const kept = before.filter((a) => a.subtype === 'Text' || a.subtype === 'Popup')
+      expect(kept).toHaveLength(5)
+      // Each is still the same object, linked to the same objects.
+      for (const a of kept)
+        expect(after.find((b) => b.id === a.id)).toMatchObject({
+          subtype: a.subtype,
+          annotationFlags: a.annotationFlags,
+          ...(a.inReplyTo === undefined ? {} : { inReplyTo: a.inReplyTo }),
+          ...(a.popupRef === undefined ? {} : { popupRef: a.popupRef }),
+          ...(a.parentRect === undefined ? {} : { parentRect: a.parentRect }),
+        })
+      const replies = after.filter((a) => a.inReplyTo !== undefined)
+      expect(replies).toHaveLength(2)
+      expect(new Set(replies.map((a) => a.inReplyTo)).size).toBe(1)
+      expect(after.some((a) => a.popupRef !== undefined && a.popupRef !== null)).toBe(
+        true
+      )
+      expect(byId(session(back))).toEqual(byId([square!, mine]))
+      expect(embedded(back).map((a) => a.contents)).toEqual(
+        embedded(doc).map((a) => a.contents)
+      )
+    })
+  })
+
+  describe('a reply to a file annotation that takes no replies', () => {
+    it('is written as the note it shows, and stays in the file when opened again', async () => {
+      const doc = await open('cropbox-offset', { engine: realEngine().loader })
+      await doc._liftSettled
+      const [square] = embedded(doc)
+      expect(square).toMatchObject({ type: 'square', locked: true })
+      doc.annotations.add({
+        type: 'text',
+        page: 0,
+        rect: { x: 200, y: 200, width: 20, height: 20 },
+        contents: 'About the square',
+        inReplyTo: square!.id,
+      })
+      const back = await reopen(await save(doc, 'reply to a file square'))
+      // A square roots no thread, so the note is not lifted as a reply to it.
+      expect(session(back)).toEqual([])
+      expect(embedded(back).map((a) => a.type)).toEqual(['square', 'text'])
+      expect(embedded(back).every((a) => a.locked)).toBe(true)
     })
   })
 

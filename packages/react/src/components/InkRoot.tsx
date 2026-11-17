@@ -586,9 +586,7 @@ export function InkRoot({
           defaults:
             latest.current.defaults ??
             (rootElRef.current ? cssVariableDefaults(rootElRef.current) : undefined),
-          _pictures: savePictures(
-            rootElRef.current?.ownerDocument ?? globalThis.document
-          ),
+          pictures: savePictures(rootElRef.current?.ownerDocument ?? globalThis.document),
           engine: latest.current.engine,
           // Controlled hosts get the snapshot history below; core's own stack stays off.
           history: latest.current.controlled ? false : (latest.current.history ?? true),

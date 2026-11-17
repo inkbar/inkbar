@@ -56,6 +56,10 @@ describe('messages', () => {
   })
 })
 
+/** An import of @inkbar/engine, of any kind: static, dynamic, required or of a type. */
+const ENGINE_IMPORT =
+  /(\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*|\bimport\s+)["']@inkbar\/engine/
+
 describe('the built package', () => {
   const dist = join(import.meta.dirname, '..', 'dist')
   // CI builds before it tests; a local run without a build skips this.
@@ -70,14 +74,37 @@ describe('the built package', () => {
       for (const file of files) {
         const text = await readFile(file, 'utf8')
         if (text.includes('inkbar-pdfium')) found.push(`${file}: inkbar-pdfium`)
-        if (
-          file.endsWith('.mjs') &&
-          /(\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*|\bimport\s+)["']@inkbar\/engine/.test(
-            text
-          )
-        )
+        if (file.endsWith('.mjs') && ENGINE_IMPORT.test(text))
           found.push(`${file}: imports @inkbar/engine`)
       }
+      expect(found).toEqual([])
+    }
+  )
+
+  // A host that has not installed the engine checks these with `skipLibCheck: false`.
+  it.skipIf(!existsSync(dist) && !process.env.CI)(
+    'declares no type from @inkbar/engine, here or in the bindings',
+    async () => {
+      const packages = join(import.meta.dirname, '..', '..')
+      const found: string[] = []
+      let checked = 0
+      for (const name of ['core', 'vue', 'react', 'svelte']) {
+        const built = join(packages, name, 'dist')
+        // A binding that is not built yet is checked by the run that builds it.
+        if (!existsSync(built)) continue
+        const files = (await readdir(built, { recursive: true, withFileTypes: true }))
+          .filter((f) => f.isFile() && /\.d\.m?ts$/.test(f.name))
+          .map((f) => join(f.parentPath, f.name))
+        for (const file of files) {
+          checked++
+          // Comments name the engine where they tell a host how to load it.
+          const code = (await readFile(file, 'utf8'))
+            .replace(/\/\*[\s\S]*?\*\//g, '')
+            .replace(/^\s*\/\/.*$/gm, '')
+          if (ENGINE_IMPORT.test(code)) found.push(`${file}: imports @inkbar/engine`)
+        }
+      }
+      expect(checked).toBeGreaterThan(0)
       expect(found).toEqual([])
     }
   )
