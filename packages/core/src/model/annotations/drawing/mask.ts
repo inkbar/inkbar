@@ -1,3 +1,5 @@
+import { unionRects } from '../../geometry'
+
 import type { MaskAnnotation } from '../types'
 import type { DrawContext, Drawing, PathCommand } from './types'
 
@@ -46,7 +48,8 @@ export function describeMask(a: MaskAnnotation, context: DrawContext): Drawing {
   }
   return {
     layer: 'page',
-    bounds: box,
+    // The shape may reach past the page, and what an even-odd fill paints there is outside it.
+    bounds: unionRects([box, rect]),
     items: [
       {
         kind: 'path',

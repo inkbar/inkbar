@@ -34,6 +34,14 @@ const ops = (d: ReturnType<typeof describeMask>) => {
 }
 
 describe('describeMask', () => {
+  test('a shape reaching past the page is inside the bounds', () => {
+    const d = describeMask(
+      { ...mask, rect: { x: -40, y: 700, width: 200, height: 150 } },
+      context()
+    )
+    expect(d.bounds).toEqual({ x: -40, y: 0, width: 652, height: 850 })
+  })
+
   test('a mask is the page box with the shape cut out', () => {
     const d = describeMask(mask, context())
     expect(d.layer).toBe('page')

@@ -119,6 +119,18 @@ const inputs: AnnotationInput[] = [
   { type: 'loupe', ...at, rect: { ...rect, height: 40 }, width: 60 },
   { type: 'loupe', ...at, rect, width: 4 },
   { type: 'mask', ...at, rect, shape: 'ellipse' },
+  {
+    type: 'mask',
+    ...at,
+    rect: { x: -40, y: 700, width: 200, height: 150 },
+    shape: 'rect',
+  },
+  {
+    type: 'mask',
+    ...at,
+    rect: { x: 560, y: -30, width: 100, height: 100 },
+    shape: 'ellipse',
+  },
 ]
 
 const context = (rotate: 0 | 90 | 180 | 270): DrawContext => ({
