@@ -21,6 +21,12 @@ describe('the published package carries the font metrics notice', () => {
     expect(text).toContain('Adobe Systems Incorporated')
   })
 
+  test('it says which tables the measure reads, and that Courier is not one of them', () => {
+    const text = read('THIRD-PARTY-NOTICES').replace(/\s+/g, ' ')
+    expect(text).toContain('The Helvetica and Times widths ship in the built files')
+    expect(text).toContain('the measure does not read it')
+  })
+
   test('it names the same source and version as the generated table', () => {
     const header = read('src/model/annotations/drawing/text/metrics-data.ts').slice(
       0,

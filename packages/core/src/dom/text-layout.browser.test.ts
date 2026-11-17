@@ -1,10 +1,15 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import { clusters } from '../model/annotations/drawing/text/clusters'
 import { layoutText } from '../model/annotations/drawing/text/layout'
-import { measureWith, standardMeasure } from '../model/annotations/drawing/text/measure'
+import {
+  measureWith,
+  outsideTables,
+  standardMeasure,
+} from '../model/annotations/drawing/text/measure'
 
-import { checkTextFonts } from './text-font-check'
+import { browserLines } from './text-browser-layout'
+import { checkTextFonts, classesIn, outsideRunsDiffer } from './text-font-check'
 import { browserWidth, cssFont } from './text-fonts'
 
 import type { TextBlock } from '../model/annotations/drawing/text/layout'
@@ -91,55 +96,16 @@ const FAMILIES: TextFont['family'][] = ['Helvetica', 'Times', 'Courier']
 const SIZES = [10, 12, 18]
 const WIDTHS = [80, 144, 300]
 
-let host: HTMLElement | undefined
-afterEach(() => host?.remove())
-
-/** The non-space characters on each line of `text` laid out by the browser in a text box's CSS. */
-function browserLines(block: TextBlock, kerning = true): string[] {
-  host?.remove()
-  host = document.createElement('div')
-  host.style.cssText = 'position:absolute;left:0;top:0;visibility:hidden'
-  const box = document.createElement('div')
-  box.style.cssText = [
-    `width:${block.width}px`,
-    'box-sizing:border-box',
-    `font:${cssFont(block.font, block.size)}`,
-    kerning ? 'font-kerning:auto' : 'font-kerning:none',
-    'line-height:1.2',
-    'white-space:pre-wrap',
-    'overflow-wrap:break-word',
-    `text-align:${block.align}`,
-    'margin:0',
-  ].join(';')
-  const node = document.createTextNode(block.text)
-  box.append(node)
-  host.append(box)
-  document.body.append(host)
-  const lineHeight = block.size * 1.2
-  const count = Math.round(box.getBoundingClientRect().height / lineHeight)
-  const lines = Array.from({ length: Math.max(count, 1) }, () => '')
-  const top = box.getBoundingClientRect().top
-  const range = document.createRange()
-  let offset = 0
-  for (const char of block.text) {
-    if (!/\s/.test(char)) {
-      range.setStart(node, offset)
-      range.setEnd(node, offset + char.length)
-      const rect = range.getBoundingClientRect()
-      const i = Math.floor((rect.top + rect.height / 2 - top) / lineHeight)
-      lines[Math.min(Math.max(i, 0), lines.length - 1)] += char
-    }
-    offset += char.length
-  }
-  return lines
-}
-
 const spaceless = (s: string) => s.normalize('NFC').replace(/\s/gu, '')
+
+/** The lines of `a` that `b` does not have at the same place, joined. */
+const unlike = (a: string[], b: string[]) => a.filter((line, i) => line !== b[i]).join('')
 
 describe('layoutText breaks lines where the browser does', () => {
   for (const [name, text] of Object.entries(SAMPLES)) {
     it(`${name}`, () => {
       const mismatches: string[] = []
+      const unexplained: string[] = []
       let total = 0
       for (const family of FAMILIES)
         for (const size of SIZES)
@@ -156,14 +122,25 @@ describe('layoutText breaks lines where the browser does', () => {
               spaceless(l.text)
             )
             total++
-            if (JSON.stringify(expected) !== JSON.stringify(laid))
-              mismatches.push(
-                `${family} ${size} ${width}\n  browser ${JSON.stringify(expected)}\n  layout  ${JSON.stringify(laid)}`
-              )
+            if (JSON.stringify(expected) !== JSON.stringify(laid)) {
+              const detail = `${family} ${size} ${width}\n  browser ${JSON.stringify(expected)}\n  layout  ${JSON.stringify(laid)}`
+              mismatches.push(detail)
+              // Where a class of characters is drawn in other widths on this machine, the browser's own lines may differ from a whole-string measure of them.
+              if (!(
+                fonts.mode === 'by-cause' &&
+                causeFound(
+                  text,
+                  block.font,
+                  size,
+                  unlike(expected, laid) + unlike(laid, expected)
+                )
+              ))
+                unexplained.push(detail)
+            }
           }
       console.log(`[comparison] ${name}: ${total - mismatches.length}/${total}`)
       for (const m of mismatches) console.log(`[mismatch] ${name} | ${m}`)
-      expect(mismatches).toEqual([])
+      expect(unexplained).toEqual([])
     })
   }
 })
@@ -201,14 +178,20 @@ const PRODUCTION_FACES: TextFont[] = [
 const EDGE_STEPS = [0.03, 0.1, 0.25, 0.5, 1, 2]
 
 /** Whether every character of a sample is in the tables, so only the Latin fonts decide its lines. */
-const latinOnly = (text: string) => !standardMeasure.width(text, HELV, 12).outside
-const HELV: TextFont = { family: 'Helvetica', bold: false, italic: false }
+const latinOnly = (text: string) => !outsideTables(text)
 
 interface Mismatch {
   label: string
+  /** The sample's name and text. */
+  name: string
+  text: string
   /** The smallest box-edge move, in px, after which layout agrees with the browser. */
   near: number | undefined
   latin: boolean
+  font: TextFont
+  size: number
+  /** The characters of the lines the browser and the layout broke differently. */
+  differing: string
 }
 
 /** Lays every sample out with `measure` and compares it with a real `div`. */
@@ -240,7 +223,16 @@ function compareWith(
                   ) === JSON.stringify(expected)
               )
             )
-            mismatches.push({ label, near, latin: latinOnly(text) })
+            mismatches.push({
+              label,
+              name,
+              text,
+              near,
+              latin: latinOnly(text),
+              font,
+              size,
+              differing: unlike(expected, laid) + unlike(laid, expected),
+            })
             console.log(
               `[detail] kerning=${kerning} ${label} edge<=${near ?? 'none'}\n  browser ${JSON.stringify(expected)}\n  layout  ${JSON.stringify(laid)}`
             )
@@ -249,15 +241,58 @@ function compareWith(
   return { total, mismatches }
 }
 
-const fonts = checkTextFonts()
+const fonts = checkTextFonts(Object.values(SAMPLES))
 console.log(`[text fonts] mode ${fonts.mode}: ${fonts.why}`)
+
+/**
+ * How many of the comparisons may differ on any machine, as a fraction. Measured on the machine
+ * the lists were recorded on: 1.6% of the per-cluster comparisons and 0.9% of the production ones
+ * at most. The cap is 1.5 to 3 times that, so another set of fonts has room to move a few more
+ * lines but not to break the layout.
+ */
+const MISMATCH_CAP = 0.025
+
+/**
+ * Whether the lines of `text` that the browser and the layout broke differently have a cause the
+ * font check found. Either:
+ * - a class of characters in those lines whose probe differed on this machine from the recorded
+ *   width or from the layout's own measure of it (the check probes every class the samples use); or
+ * - a run outside the tables in those lines that the browser draws at another width than the
+ *   layout measured for it (the cause itself, whatever a missing font draws instead).
+ */
+function causeFound(
+  text: string,
+  font: TextFont,
+  size: number,
+  differing: string
+): boolean {
+  return (
+    [...classesIn(differing)].some((name) => fonts.differing.has(name)) ||
+    outsideRunsDiffer(text, font, size, differing)
+  )
+}
+
+/**
+ * Whether a mismatch in text with characters outside the Latin tables is explained: it has a cause
+ * (see `causeFound`), or is one the exact lists record, which the fonts of any machine have, or,
+ * with the default kerning, is in a script that is shaped, whose mark positioning kerning-off
+ * text does not have.
+ */
+function explainedByFonts(m: Mismatch, kerning: boolean, known: string[]): boolean {
+  return (
+    causeFound(m.text, m.font, m.size, m.differing) ||
+    known.includes(m.label) ||
+    (kerning && SHAPED.test(m.name))
+  )
+}
 
 /**
  * Checks a run's mismatches. With the fonts the exact lists were recorded on (`exact`), the
  * sorted labels must equal `known`. On any machine, a mismatch in text that has only characters
  * from the tables must be a line ending within 0.03 px of the box edge (with the browser's default
  * kerning, kerning may also move a break, so only the number of those is capped), and the total
- * is capped.
+ * is capped. Where some class of characters outside the tables differs from the recorded one (`by-cause`), a
+ * mismatch in text with other characters must be one that class, or shaping, can explain.
  */
 function checkRun(
   run: { total: number; mismatches: Mismatch[] },
@@ -265,12 +300,18 @@ function checkRun(
 ) {
   const { total, mismatches } = run
   expect(total).toBe(options.total)
-  expect(mismatches.length).toBeLessThanOrEqual(Math.ceil(total * 0.04))
+  expect(mismatches.length).toBeLessThanOrEqual(Math.ceil(total * MISMATCH_CAP))
   const latin = mismatches.filter((m) => m.latin)
   if (options.kerning) expect(latin.length).toBeLessThanOrEqual(Math.ceil(total * 0.01))
   else
     for (const m of latin)
       expect({ label: m.label, near: m.near }).toEqual({ label: m.label, near: 0.03 })
+  if (fonts.mode === 'by-cause')
+    for (const m of mismatches.filter((x) => !x.latin))
+      expect(
+        explainedByFonts(m, options.kerning, options.known),
+        `${m.label} has no cause in the fonts the check found`
+      ).toBe(true)
   if (fonts.mode === 'exact')
     expect(mismatches.map((m) => m.label).sort()).toEqual(options.known)
 }
@@ -351,8 +392,16 @@ describe('layoutText with per-cluster browser widths and no tables', () => {
       expect(run.total).toBe(
         samples.length * FAMILIES.length * SIZES.length * WIDTHS.length
       )
-      expect(run.mismatches.length).toBeLessThanOrEqual(Math.ceil(run.total * 0.04))
+      expect(run.mismatches.length).toBeLessThanOrEqual(
+        Math.ceil(run.total * MISMATCH_CAP)
+      )
       expect(run.mismatches.filter((m) => m.latin).length).toBeLessThanOrEqual(2)
+      if (fonts.mode === 'by-cause')
+        for (const m of run.mismatches.filter((x) => !x.latin))
+          expect(
+            explainedByFonts(m, true, PER_CHAR_KNOWN),
+            `${m.label} has no cause in the fonts the check found`
+          ).toBe(true)
       if (fonts.mode === 'exact')
         expect(run.mismatches.map((m) => m.label).sort()).toEqual(PER_CHAR_KNOWN)
     }

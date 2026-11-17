@@ -142,5 +142,8 @@ export const WIDTHS = {
   ],
 } as const
 
-/** Every Courier character, in every face. */
+/**
+ * Every Courier character, in every face: Adobe's width, kept as a faithful copy of the source.
+ * The text measure does not read it (see `COURIER_ADVANCE` in measure.ts).
+ */
 export const COURIER_WIDTH = 600

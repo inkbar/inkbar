@@ -708,7 +708,7 @@ describe('a text', () => {
       expect(() => paint(drawing(bad))).toThrow(RangeError)
   })
 
-  it('a line with tabs is one text per piece, each at its own point', () => {
+  it('a line with tabs is one text per piece, each at its own point and its own width', () => {
     const el = paint(
       drawing(
         text({
@@ -719,8 +719,8 @@ describe('a text', () => {
               width: 14,
               outside: false,
               segments: [
-                { text: 'a', origin: { x: 100, y: 700 } },
-                { text: 'b', origin: { x: 148, y: 700 } },
+                { text: 'a', origin: { x: 100, y: 700 }, width: 6.5, outside: false },
+                { text: 'b', origin: { x: 148, y: 700 }, width: 7, outside: false },
               ],
             },
           ],
@@ -731,7 +731,33 @@ describe('a text', () => {
     const pieces = texts(el)
     expect(pieces.map((p) => p.textContent)).toEqual(['a', 'b'])
     expect(pieces.map((p) => p.getAttribute('x'))).toEqual(['100', '148'])
-    expect(pieces.every((p) => !p.hasAttribute('textLength'))).toBe(true)
+    expect(pieces.map((p) => p.getAttribute('textLength'))).toEqual(['6.5', '7'])
+  })
+
+  it('a piece with a character outside the standard fonts is not forced to its width, and one with spaces adds the word spacing', () => {
+    const el = paint(
+      drawing(
+        text({
+          lines: [
+            {
+              text: 'a b\t日',
+              origin: { x: 100, y: 700 },
+              width: 30,
+              outside: true,
+              wordSpacing: 2,
+              segments: [
+                { text: 'a b', origin: { x: 100, y: 700 }, width: 16, outside: false },
+                { text: '日', origin: { x: 148, y: 700 }, width: 12, outside: true },
+              ],
+            },
+          ],
+        })
+      ),
+      1
+    )
+    const [first, second] = texts(el)
+    expect(first!.getAttribute('textLength')).toBe('18')
+    expect(second!.hasAttribute('textLength')).toBe(false)
   })
 
   it('a justified line adds its word spacing, and a no-break space gets none', () => {

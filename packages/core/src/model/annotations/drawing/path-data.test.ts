@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
+import { GLYPHS } from './note'
 import { parsePathData } from './path-data'
 
 import type { PathCommand } from './types'
@@ -133,5 +134,38 @@ describe('parsePathData', () => {
       Z,
       L(6, 6),
     ])
+  })
+})
+
+describe('parsePathData on long input', () => {
+  test('a path of 200,000 numbers parses in under a second', () => {
+    const d = 'M0 0' + 'l1 1'.repeat(100_000)
+    const start = performance.now()
+    expect(parsePathData(d)).toHaveLength(100_001)
+    expect(performance.now() - start).toBeLessThan(1000)
+  })
+
+  test('numbers in every notation still read', () => {
+    expect(parsePathData('M1e1,-.5L+2.5E-1 3.')).toEqual([
+      { op: 'M', to: { x: 10, y: -0.5 } },
+      { op: 'L', to: { x: 0.25, y: 3 } },
+    ])
+  })
+})
+
+describe('the arcs of the note glyphs', () => {
+  test('a rotated arc is refused', () => {
+    expect(() => parsePathData('M0 0a4 2 30 0 1 4 4')).toThrow(/rotated arc/)
+  })
+
+  test('no glyph a note draws has one', () => {
+    let paths = 0
+    for (const [name, node] of Object.entries(GLYPHS))
+      for (const [tag, attrs] of node) {
+        if (tag !== 'path') continue
+        paths++
+        expect(() => parsePathData(attrs['d']!), name).not.toThrow()
+      }
+    expect(paths).toBeGreaterThan(5)
   })
 })

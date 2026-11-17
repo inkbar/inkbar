@@ -27,14 +27,19 @@ export interface LaidLine {
    * U+00A0, so a painter that uses it must keep the spacing off no-break spaces (or measure them
    * the same way) for the line to end at the box's edge. Chrome's own justification leaves no-break
    * spaces alone (measured), as this does.
+   *
+   * Each tab on the line also grows by this much, as it does in Chrome (measured): the tab stops
+   * are found on the unjustified line, and every space and tab before a piece moves it right by
+   * one `wordSpacing`. The segments' `x` already include that.
    */
   wordSpacing?: number
   /**
    * Only on a line that holds a tab: the pieces between the tabs, each with the `x` it starts at
-   * (box-local, like `x`), so a painter need not reproduce tab stops. The tabs themselves are not
-   * in the segments.
+   * (box-local, like `x`), its width (without any word spacing) and whether it has a character
+   * outside the standard tables, so a painter need not reproduce tab stops. The tabs themselves are
+   * not in the segments.
    */
-  segments?: { text: string; x: number }[]
+  segments?: { text: string; x: number; width: number; outside: boolean }[]
 }
 
 interface Row {
@@ -239,7 +244,8 @@ export function layoutText(
     if (align === 'center') laid.x = free / 2
     else if (align === 'right') laid.x = free
     else if (align === 'justify' && row.wrapped) {
-      const gaps = [...row.text].filter((c) => c === ' ').length
+      // A tab is an opportunity as a space is: Chrome widens both by the same amount.
+      const gaps = [...row.text].filter((c) => c === ' ' || c === '\t').length
       if (gaps > 0 && free > 0) laid.wordSpacing = free / gaps
     }
     if (row.text.includes('\t'))
@@ -258,7 +264,8 @@ export function layoutText(
 /**
  * The pieces of `text` between its tabs, each placed where the tab stops put it. A piece is
  * measured as the layout measures a line, with `widthOf` on the whole piece (so a run of a joined
- * script is one measure), and each space in it adds the line's word spacing.
+ * script is one measure). Tab stops are found on the line as it is without justification, and
+ * every space and tab before a piece then moves it right by `wordSpacing`, as Chrome does.
  */
 function segmentsOf(
   text: string,
@@ -266,14 +273,25 @@ function segmentsOf(
   wordSpacing: number,
   advance: (x: number, spaces: string) => number,
   widthOf: (text: string) => number
-): { text: string; x: number }[] {
-  const out: { text: string; x: number }[] = []
+): NonNullable<LaidLine['segments']> {
+  const out: NonNullable<LaidLine['segments']> = []
   let x = 0
+  let gaps = 0
   for (const [i, piece] of text.split('\t').entries()) {
-    if (i > 0) x = advance(x, '\t')
+    if (i > 0) {
+      x = advance(x, '\t')
+      gaps++
+    }
     if (piece === '') continue
-    out.push({ text: piece, x: origin + x })
-    x += widthOf(piece) + wordSpacing * [...piece].filter((c) => c === ' ').length
+    const width = widthOf(piece)
+    out.push({
+      text: piece,
+      x: origin + x + wordSpacing * gaps,
+      width,
+      outside: outsideTables(piece),
+    })
+    x += width
+    gaps += [...piece].filter((c) => c === ' ').length
   }
   return out
 }

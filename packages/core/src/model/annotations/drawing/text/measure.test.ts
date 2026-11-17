@@ -1,6 +1,13 @@
 import { describe, expect, test, vi } from 'vitest'
 
-import { measureWith, outsideTables, resolveFont, standardMeasure } from './measure'
+import {
+  isWide,
+  measureWith,
+  outsideTables,
+  resolveFont,
+  standardMeasure,
+} from './measure'
+import { CHARS, WIDTHS } from './metrics-data'
 
 import type { TextFont } from '../types'
 
@@ -42,8 +49,63 @@ describe('standardMeasure', () => {
     expect(standardMeasure.width('ж', helv, 12)).toEqual({ width: 6, outside: true })
   })
 
+  test('in Courier a narrow character outside the tables takes the Courier advance, and a wide one a full size', () => {
+    const courier: TextFont = { family: 'Courier', bold: false, italic: false }
+    const advance = (1229 / 2048) * 12
+    expect(standardMeasure.width('ж', courier, 12)).toEqual({
+      width: advance,
+      outside: true,
+    })
+    expect(standardMeasure.width('жжж', courier, 12).width).toBeCloseTo(3 * advance, 9)
+    expect(standardMeasure.width('日', courier, 12)).toEqual({ width: 12, outside: true })
+    expect(standardMeasure.width('жA', courier, 12).width).toBeCloseTo(2 * advance, 9)
+  })
+
   test('an emoji is one wide character, not two UTF-16 units', () => {
     expect(standardMeasure.width('🙂', helv, 12)).toEqual({ width: 12, outside: true })
+  })
+
+  test.each([
+    '\u2764\ufe0f',
+    '\u2600\ufe0f',
+    '\u26a0\ufe0f',
+    '😀',
+    '🇫',
+    '🏽',
+    '🤖',
+    '日',
+  ])('%s is wide', (char) => {
+    expect(isWide(char)).toBe(true)
+  })
+
+  test.each([
+    ['a weightlifter with a skin tone', '\u{1f3cb}\u{1f3fd}'],
+    ['a text-presentation hand with a skin tone', '\u261d\u{1f3fb}'],
+    ['a heart on fire without the emoji selector', '\u2764\u200d\u{1f525}'],
+    ['a rainbow flag without the emoji selector', '\u{1f3f3}\u200d\u{1f308}'],
+    ['a rainbow flag with the emoji selector', '\u{1f3f3}\ufe0f\u200d\u{1f308}'],
+  ])('%s is wide', (_name, char) => {
+    expect(isWide(char)).toBe(true)
+    expect(standardMeasure.width(char, helv, 12)).toEqual({ width: 12, outside: true })
+  })
+
+  test.each([
+    ['a weightlifter alone', '\u{1f3cb}'],
+    ['a joiner after a letter', 'a\u200db'],
+    ['a text-presentation heart', '\u2764'],
+  ])('%s is not wide', (_name, char) => {
+    expect(isWide(char)).toBe(false)
+  })
+
+  test.each(['a', 'é', '\u2764', '\u2600', '\u00a9', 'ж'])('%s is not wide', (char) => {
+    expect(isWide(char)).toBe(false)
+  })
+
+  test('a heart with the emoji selector is one wide character in the measure', () => {
+    expect(standardMeasure.width('\u2764\ufe0f', helv, 12)).toEqual({
+      width: 12,
+      outside: true,
+    })
   })
 
   test('zero-width characters take no room and are not outside', () => {
@@ -58,14 +120,18 @@ describe('standardMeasure', () => {
   })
 
   test('every printable WinAnsi character has a width in every face', () => {
-    const chars = [...' !~¡ÿ€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ']
+    const chars = [...CHARS]
+    expect(chars.length).toBeGreaterThan(200)
+    for (const faces of Object.values(WIDTHS))
+      for (const face of faces) expect(face).toHaveLength(chars.length)
     for (const family of ['Helvetica', 'Times', 'Courier'] as const)
       for (const bold of [false, true])
         for (const italic of [false, true])
-          for (const c of chars)
-            expect(standardMeasure.width(c, { family, bold, italic }, 10)).toMatchObject({
-              outside: false,
-            })
+          for (const c of chars) {
+            const m = standardMeasure.width(c, { family, bold, italic }, 10)
+            expect(m.outside, `${family} ${c}`).toBe(false)
+            expect(m.width, `${family} ${c}`).toBeGreaterThan(0)
+          }
   })
 
   test('vertical metrics are those of the fonts browsers substitute', () => {
@@ -172,6 +238,39 @@ describe('clusters in the measure', () => {
       standardMeasure.width('é', helv, 12)
     )
     expect(standardMeasure.width('é', helv, 12).outside).toBe(false)
+  })
+
+  test.each(['1\ufe0f\u20e3', '#\ufe0f\u20e3', '*\ufe0f\u20e3', '1\u20e3'])(
+    'the keycap %j is outside the tables and measured as one wide character',
+    (text) => {
+      expect(standardMeasure.width(text, helv, 12)).toEqual({ width: 12, outside: true })
+      expect(outsideTables(text)).toBe(true)
+      const fallback = vi.fn(() => 9)
+      expect(measureWith(fallback).width(`a${text}b`, helv, 12).outside).toBe(true)
+      expect(fallback).toHaveBeenCalledWith(text, helv, 12)
+    }
+  )
+
+  test('a digit with the emoji selector but no keycap is outside the tables too', () => {
+    expect(outsideTables('1\ufe0f')).toBe(true)
+  })
+
+  test('a digit is still the table digit beside a keycap', () => {
+    const digit = standardMeasure.width('1', helv, 12).width
+    expect(digit).toBeCloseTo(6.672, 3)
+    expect(standardMeasure.width('11\ufe0f\u20e3', helv, 12).width).toBeCloseTo(
+      digit + 12,
+      9
+    )
+  })
+
+  test('e and U+0301 fold into the table letter and are not outside', () => {
+    expect(standardMeasure.width('e\u0301', helv, 12)).toEqual(
+      standardMeasure.width('é', helv, 12)
+    )
+    expect(outsideTables('e\u0301')).toBe(false)
+    // A joiner after a letter adds nothing either.
+    expect(outsideTables('a\u200d')).toBe(false)
   })
 
   test('a mark the tables have no composed form for adds no width', () => {

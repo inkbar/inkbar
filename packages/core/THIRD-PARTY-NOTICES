@@ -2,8 +2,10 @@ Third-party notices for @inkbar/core
 
 This package includes character widths of the standard PDF fonts (Helvetica, Times and Courier),
 taken from @pdf-lib/standard-fonts 1.0.0 (https://github.com/Hopding/standard-fonts). The widths
-are Adobe's metrics for those fonts. They ship in the built files, in the table the text measure
-reads.
+are Adobe's metrics for those fonts. The Helvetica and Times widths ship in the built files, in
+the tables the text measure reads. The Courier width (600 in every face) is copied into the
+generated source too, but the measure does not read it: Courier is measured at the advance of the
+fonts browsers use for it.
 
 Adobe's notice, carried by the metrics:
 

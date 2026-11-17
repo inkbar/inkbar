@@ -10,6 +10,7 @@ import { drawContext } from './drawing-context'
 import { editFreeText, editFreeTextIn, type EditorCloseReason } from './freetext-editor'
 import { createOverlay } from './overlay'
 import { mountContainer, until } from './test-utils'
+import { checkTextFonts } from './text-font-check'
 import { FONT_STACKS } from './text-fonts'
 import { createPageTransform } from './transform'
 
@@ -526,6 +527,11 @@ describe('a box the browser and the tables break differently', () => {
   })
 })
 
+const fonts = checkTextFonts()
+console.log(`[text fonts] editor test, mode ${fonts.mode}: ${fonts.why}`)
+if (fonts.mode === 'foreign')
+  console.log('[text fonts] mode foreign: the editor line-start comparisons are skipped')
+
 describe('editing leaves the text where it is', () => {
   const FAMILIES = ['Helvetica', 'Times', 'Courier'] as const
   const SIZES = [10, 12, 18] as const
@@ -601,25 +607,40 @@ describe('editing leaves the text where it is', () => {
   for (const zoom of [1, 2] as const)
     for (const family of FAMILIES) {
       for (const size of SIZES) {
-        it(`${family} ${size} at zoom ${zoom}: the first baseline moves by at most a pixel when editing starts and ends, and every line starts at the same character`, () => {
+        it(`${family} ${size} at zoom ${zoom}: the first baseline moves by at most a pixel when editing starts and ends`, () => {
           const { store, a, el, transform } = open(family, size, 0, zoom)
           const before = drawnBaseline(el)
           const editor = editFreeTextIn(store, el, a.id, transform)!
           cleanup.unshift(() => editor.close(false))
           const field = el.querySelector<HTMLElement>('[data-ink-editor]')!
           const inEditor = editorBaseline(field)
-          const editing = editorStarts(field)
           editor.close(true)
           const after = drawnBaseline(el)
-          const drawn = drawnStarts(el)
           console.log(
-            `[editing] ${family} ${size} zoom ${zoom}: baseline on open ${(inEditor - before).toFixed(3)}, on commit ${(after - inEditor).toFixed(3)}; lines editor ${editing.length}, drawn after commit ${drawn.length}`
+            `[editing] ${family} ${size} zoom ${zoom}: baseline on open ${(inEditor - before).toFixed(3)}, on commit ${(after - inEditor).toFixed(3)}`
           )
           expect(Math.abs(inEditor - before)).toBeLessThanOrEqual(1)
           expect(Math.abs(after - inEditor)).toBeLessThanOrEqual(1)
-          expect(editing.length).toBeGreaterThan(3)
-          expect(drawn).toEqual(editing)
         })
+        // The editor is a real browser box and the drawing is the tables' layout: where the
+        // Latin fonts do not follow the tables the two may break lines apart.
+        it.skipIf(fonts.mode === 'foreign')(
+          `${family} ${size} at zoom ${zoom}: every line of the editor starts at the character the drawn line starts at (skipped when the Latin fonts are foreign)`,
+          () => {
+            const { store, a, el, transform } = open(family, size, 0, zoom)
+            const editor = editFreeTextIn(store, el, a.id, transform)!
+            cleanup.unshift(() => editor.close(false))
+            const field = el.querySelector<HTMLElement>('[data-ink-editor]')!
+            const editing = editorStarts(field)
+            editor.close(true)
+            const drawn = drawnStarts(el)
+            console.log(
+              `[editing] ${family} ${size} zoom ${zoom}: lines editor ${editing.length}, drawn after commit ${drawn.length}`
+            )
+            expect(editing.length).toBeGreaterThan(3)
+            expect(drawn).toEqual(editing)
+          }
+        )
       }
     }
 
