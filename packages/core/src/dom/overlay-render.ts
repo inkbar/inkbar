@@ -412,7 +412,14 @@ export function renderAnnotationContent(
   t: PageTransform
 ): void {
   const d = drawingFor(a, t)
-  if (d) {
+  if (d?.layer === 'page') {
+    // Painted by the page's own layer (a mask's dimming): the element holds only chrome.
+    const box = annotationBox(a, t)
+    const svg = boxSvg(el.ownerDocument, box.width, box.height)
+    svg.classList.add('ink-annotation-shape')
+    el.replaceChildren(svg)
+    renderChrome(el, a, t)
+  } else if (d) {
     paintDrawing(el, d, t, annotationBox(a, t))
     renderChrome(el, a, t)
   } else renderReferenceContent(el, a, t)
@@ -473,7 +480,66 @@ function renderChrome(el: HTMLElement, a: Annotation, t: PageTransform): void {
     }
   }
   if (svg) appendStampHit(svg, drawn, t, annotationBox(a, t))
+  if (svg && a.type === 'loupe') appendLensHit(svg, a, t)
+  if (svg && a.type === 'mask') appendMaskEdge(svg, a, t)
   appendCommentMarker(el, a, t)
+}
+
+/** Width in CSS px of the band along a mask's edge that takes presses. */
+const MASK_EDGE = 6
+
+/**
+ * A loupe's press area: an invisible circle over the whole lens, so a press anywhere on it
+ * selects the loupe whether or not it has a rim. Its size is the drawing's clip circle.
+ */
+function appendLensHit(svg: Element, a: Annotation, t: PageTransform): void {
+  const lens = drawingFor(a, t)?.items.find((i) => i.kind === 'page')
+  if (lens?.kind !== 'page') return
+  const box = annotationBox(a, t)
+  const c = t.toCss(lens.clip.center)
+  const hit = svg.ownerDocument.createElementNS(SVG, 'circle')
+  hit.setAttribute('cx', String(c.x - box.left))
+  hit.setAttribute('cy', String(c.y - box.top))
+  hit.setAttribute('r', String(t.toCssLength(lens.clip.radius)))
+  hit.setAttribute('fill', 'transparent')
+  hit.setAttribute('stroke', 'none')
+  hit.setAttribute('pointer-events', 'all')
+  hit.setAttribute('data-ink-hit-area', '')
+  svg.append(hit)
+}
+
+/**
+ * A mask's press area: the shape's outline as an invisible band just inside the edge, so only
+ * the edge takes presses. The spotlight stays readable, selectable and annotatable, and the
+ * dimmed area outside belongs to the page.
+ */
+function appendMaskEdge(svg: Element, a: Annotation, t: PageTransform): void {
+  if (a.type !== 'mask') return
+  const box = annotationBox(a, t)
+  const inset = MASK_EDGE / 2
+  const doc = svg.ownerDocument
+  const shape = doc.createElementNS(SVG, a.shape === 'ellipse' ? 'ellipse' : 'rect')
+  const attrs =
+    a.shape === 'ellipse'
+      ? {
+          cx: box.width / 2,
+          cy: box.height / 2,
+          rx: Math.max(0, box.width / 2 - inset),
+          ry: Math.max(0, box.height / 2 - inset),
+        }
+      : {
+          x: inset,
+          y: inset,
+          width: Math.max(0, box.width - MASK_EDGE),
+          height: Math.max(0, box.height - MASK_EDGE),
+        }
+  for (const [k, v] of Object.entries(attrs)) shape.setAttribute(k, String(v))
+  shape.setAttribute('fill', 'none')
+  shape.setAttribute('stroke', 'transparent')
+  shape.setAttribute('stroke-width', String(MASK_EDGE))
+  shape.setAttribute('pointer-events', 'visiblePainted')
+  shape.classList.add('ink-mask-shape')
+  svg.append(shape)
 }
 
 /**

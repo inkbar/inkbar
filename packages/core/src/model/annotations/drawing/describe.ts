@@ -1,6 +1,8 @@
 import { describeInk } from './ink'
 import { describeLine } from './lines'
+import { describeLoupe } from './loupe'
 import { describeMarkup, describeRedact } from './markup'
+import { describeMask } from './mask'
 import { describeShape } from './shapes'
 import { describeStamp } from './stamp'
 
@@ -13,7 +15,7 @@ import type { DrawContext, Drawing } from './types'
  */
 export function describeAnnotation(
   a: Annotation,
-  _context: DrawContext
+  context: DrawContext
 ): Drawing | undefined {
   switch (a.type) {
     case 'highlight':
@@ -34,6 +36,10 @@ export function describeAnnotation(
       return describeInk(a)
     case 'stamp':
       return describeStamp(a)
+    case 'loupe':
+      return describeLoupe(a)
+    case 'mask':
+      return describeMask(a, context)
     default:
       return undefined
   }

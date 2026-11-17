@@ -240,25 +240,37 @@ describe('paintDrawing', () => {
     ).toThrow(/polygon/)
   })
 
-  const unsupportedRect = { x: 0, y: 0, width: 1, height: 1 }
-  it.each([
-    {
-      kind: 'text',
-      lines: [],
-      font: { family: 'Helvetica', bold: false, italic: false },
-      size: 12,
-      color: '#000',
-      angle: 0,
-      outsideStandardFonts: false,
-    },
-    {
-      kind: 'page',
-      source: unsupportedRect,
-      target: unsupportedRect,
-      clip: { center: { x: 0, y: 0 }, radius: 1 },
-    },
-  ] satisfies DrawItem[])('a $kind item is not supported yet', (item) => {
-    expect(() => paint(drawing(item))).toThrow(/not supported yet/)
+  it('a text item is not supported yet', () => {
+    expect(() =>
+      paint(
+        drawing({
+          kind: 'text',
+          lines: [],
+          font: { family: 'Helvetica', bold: false, italic: false },
+          size: 12,
+          color: '#000',
+          angle: 0,
+          outsideStandardFonts: false,
+        })
+      )
+    ).toThrow(/not supported yet/)
+  })
+
+  it('a page item is skipped: the lens is not an svg element', () => {
+    const r = { x: 0, y: 0, width: 10, height: 10 }
+    const el = paint(
+      drawing(
+        {
+          kind: 'page',
+          source: r,
+          target: r,
+          clip: { center: { x: 5, y: 5 }, radius: 5 },
+        },
+        { kind: 'group', opacity: 0.5, items: [{ kind: 'rect', rect: r, paint: fill }] }
+      )
+    )
+    expect(el.querySelector('svg')!.getAttribute('opacity')).toBe('0.5')
+    expect(el.querySelectorAll('rect')).toHaveLength(1)
   })
 
   it('a non-finite group opacity makes the svg throw a RangeError', () => {
