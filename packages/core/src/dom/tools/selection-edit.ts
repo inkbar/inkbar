@@ -49,8 +49,10 @@ import {
 } from '../../model/annotations/edit'
 import { withoutReplies } from '../../model/annotations/threads'
 import { rectFromPoints, rectsIntersect } from '../../model/geometry'
+import { drawingFor } from '../drawing-context'
+import { paintDrawing } from '../drawing-svg'
 import { canEditFreeText, editFreeTextIn, editorFor } from '../freetext-editor'
-import { annotationBox, handleBox, renderAnnotationContent } from '../overlay-render'
+import { annotationBox, handleBox } from '../overlay-render'
 
 import { cssIn, type PageHit, type ToolContext } from './controller'
 
@@ -526,14 +528,16 @@ function userBox(t: PageTransform, css: CssRect): Rect {
   }
 }
 
-/** Draws `a` into the preview element at its own box. */
+/** Paints `a` into the preview element at its own box: the drawing only, which takes no presses. */
 function drawPreview(el: HTMLElement, a: Annotation, start: PageHit): void {
   const box = annotationBox(a, start.transform)
   el.style.left = `${box.left}px`
   el.style.top = `${box.top}px`
   el.style.width = `${box.width}px`
   el.style.height = `${box.height}px`
-  renderAnnotationContent(el, a, start.transform)
+  const drawing = drawingFor(a, start.transform)
+  if (drawing) paintDrawing(el, drawing, start.transform, box)
+  else el.replaceChildren()
 }
 
 /** Keeps a CSS point on the page. */

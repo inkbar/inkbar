@@ -7,19 +7,19 @@
  * Nothing renders until the element comes within 200px of the visible area; before that, and
  * while no document is open, the element is a placeholder of the right size. The canvas is the
  * page renderer's, with every form widget drawn as the PDF saved it. The annotations layer
- * draws each annotation's default look and the marks layer copies each plugin mark (rect, class
- * and style), with no handles, hit areas, focus or pointer handling: the layers are inert.
+ * paints each annotation from its drawing (a mask's dimming under the others, a loupe's rim but
+ * not its lens) and the marks layer copies each plugin mark (rect, class and style), with no
+ * handles, hit areas, focus or pointer handling: the layers are inert.
  *
  * Thumbnails ignore the viewer's rotation; only the page's own /Rotate applies.
  */
 import { resolveLabel, type Label } from '../../messages'
+import { paintedByCanvas } from '../../model/annotations/drawing/describe'
 import { withoutReplies } from '../../model/annotations/threads'
+import { drawingFor } from '../drawing-context'
+import { paintDrawing } from '../drawing-svg'
 import { ENGLISH, type MessageState } from '../messages-state'
-import {
-  annotationBox,
-  paintedByCanvas,
-  renderAnnotationContent,
-} from '../overlay-render'
+import { annotationBox } from '../overlay-render'
 import { createPageRenderer, type PageRenderer } from '../page-renderer'
 import { toCssName } from '../plugins/api/marks'
 import { createPageTransform, type PageTransform } from '../transform'
@@ -259,13 +259,21 @@ export function createThumbnailPainter(
   function drawAnnotations(): void {
     if (!annotationsLayer) return
     // What the page's overlay draws: no replies, and nothing the canvas has painted already.
-    const list =
+    const shown =
       seen && current && transform
         ? withoutReplies(current.annotations.list.get()).filter(
             (a) => a.page === opts.page && !paintedByCanvas(a)
           )
         : []
-    const t = transform!
+    let list = shown
+    if (transform) {
+      const t = transform
+      // A page-wide drawing (a mask's dimming) goes under the rest, as it does on a page, and
+      // a page dims for the first mask only.
+      const onPage = (a: Annotation): boolean => drawingFor(a, t)?.layer === 'page'
+      const wide = shown.filter(onPage).slice(0, 1)
+      list = [...wide, ...shown.filter((a) => !onPage(a))]
+    }
     const ids = new Set(list.map((a) => a.id))
     for (const [id, entry] of drawn) {
       if (ids.has(id)) continue
@@ -274,6 +282,8 @@ export function createThumbnailPainter(
     }
     let next = annotationsLayer.firstElementChild
     for (const a of list) {
+      // A list with anything in it has a transform.
+      const t = transform!
       let entry = drawn.get(a.id)
       if (!entry) {
         const node = doc.createElement('div')
@@ -294,12 +304,18 @@ export function createThumbnailPainter(
 
   function draw({ a, t, node }: { a: Annotation; t: PageTransform; node: HTMLElement }) {
     node.dataset.type = a.type
-    const box = annotationBox(a, t)
+    const drawing = drawingFor(a, t)
+    // A page-wide drawing is painted over the whole page; the others over their own box.
+    const box =
+      drawing?.layer === 'page'
+        ? { left: 0, top: 0, width: t.cssWidth, height: t.cssHeight }
+        : annotationBox(a, t)
     node.style.left = `${box.left}px`
     node.style.top = `${box.top}px`
     node.style.width = `${box.width}px`
     node.style.height = `${box.height}px`
-    renderAnnotationContent(node, a, t)
+    if (drawing) paintDrawing(node, drawing, t, box)
+    else node.replaceChildren()
   }
 
   function drawMarks(): void {

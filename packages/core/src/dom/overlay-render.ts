@@ -1,19 +1,17 @@
 import { ICON_ATTRIBUTES, MessageSquareText } from '@inkbar/icons'
 
 import { freeTextBox } from '../model/annotations/callout'
-import { isBubble, isTextMarkup, WEDGE_HALF } from '../model/annotations/edit'
+import { isTextMarkup } from '../model/annotations/edit'
 import { isKnown, LINE_ENDINGS } from '../model/annotations/pdf-names'
 
 import { drawingFor } from './drawing-context'
 import { itemElement, paintDrawing } from './drawing-svg'
-import { renderReferenceContent } from './reference-render'
 import { type CssRect, type PageTransform } from './transform'
 
 import type { DrawItem } from '../model/annotations/drawing/types'
 import type {
   Annotation,
   FreeTextAnnotation,
-  LineEnding,
   NoteAnnotation,
   TextMarkupAnnotation,
 } from '../model/annotations/types'
@@ -122,7 +120,7 @@ const HIT_STROKE = 8
  * circle or polygon with a border), so a press beside the stroke would miss it. These get an
  * invisible, wider hit twin of their geometry.
  */
-export function hasHitTwin(a: Annotation): boolean {
+function hasHitTwin(a: Annotation): boolean {
   switch (a.type) {
     case 'line':
     case 'polyline':
@@ -138,7 +136,7 @@ export function hasHitTwin(a: Annotation): boolean {
 }
 
 /** The width in CSS px of `a`'s hit twin: 8px, or the drawn stroke if that is wider. */
-export function hitWidth(a: Annotation, t: PageTransform): number {
+function hitWidth(a: Annotation, t: PageTransform): number {
   return Math.max(HIT_STROKE, 'width' in a ? t.toCssLength(a.width) : 0)
 }
 
@@ -167,7 +165,7 @@ export function annotationBox(a: Annotation, t: PageTransform): CssRect {
  * How far past `handleBox` a shape with a hit twin extends its element: the twin's overhang
  * beyond the drawn stroke, and at least 4px.
  */
-export function hitPad(a: Annotation, t: PageTransform): number {
+function hitPad(a: Annotation, t: PageTransform): number {
   const overhang = Math.max(0, hitWidth(a, t) - t.toCssLength('width' in a ? a.width : 0))
   return Math.max(HIT_STROKE / 2, overhang / 2)
 }
@@ -202,75 +200,12 @@ export function handleBox(a: Annotation, t: PageTransform): CssRect {
 /** An ending's length, and its full width, as a multiple of the stroke width. */
 const ENDING_SCALE = 3
 
-/** A name Inkbar does not draw is drawn as no ending; the annotation keeps it. */
-export function drawable(kind: LineEnding | undefined): LineEnding {
-  return kind !== undefined && isKnown(LINE_ENDINGS, kind) ? kind : 'None'
-}
-
-export function endingKinds(
-  a: Annotation
-): { head: LineEnding; tail: LineEnding } | undefined {
-  return a.type === 'line' || a.type === 'polyline'
-    ? { head: drawable(a.head), tail: drawable(a.tail) }
-    : undefined
-}
-
+/** Whether `a` is a line or polyline with a head or tail Inkbar draws. */
 function hasEndings(a: Annotation): boolean {
-  const e = endingKinds(a)
-  return e !== undefined && (e.head !== 'None' || e.tail !== 'None')
-}
-
-const fmt = (n: number): string => String(Math.round(n * 1000) / 1000 + 0)
-
-/**
- * SVG path data for a line ending at `at`, in the caller's coordinates (CSS px). `from` is the
- * other end of the segment the ending sits on, so the ending points from `from` towards `at`.
- * Sized from the stroke `width` (at least 1): arrows are 3 strokes long, the rest 3 across.
- * Returns an empty string for `none` or a zero-length segment.
- */
-export function lineEndingPath(
-  kind: LineEnding,
-  at: Point,
-  from: Point,
-  width: number
-): string {
-  const len = Math.hypot(at.x - from.x, at.y - from.y)
-  if (!isKnown(LINE_ENDINGS, kind) || kind === 'None' || len === 0) return ''
-  const size = ENDING_SCALE * Math.max(width, 1)
-  const half = size / 2
-  const dx = (at.x - from.x) / len
-  const dy = (at.y - from.y) / len
-  // Unit normal, 90 degrees clockwise on screen.
-  const nx = -dy
-  const ny = dx
-  const pt = (along: number, across: number, o: Point = at): string =>
-    `${fmt(o.x + dx * along + nx * across)} ${fmt(o.y + dy * along + ny * across)}`
-  switch (kind) {
-    case 'OpenArrow':
-      return `M${pt(-size, -half)}L${pt(0, 0)}L${pt(-size, half)}`
-    case 'ClosedArrow':
-      return `M${pt(-size, -half)}L${pt(0, 0)}L${pt(-size, half)}Z`
-    case 'ROpenArrow':
-      return `M${pt(0, -half)}L${pt(-size, 0)}L${pt(0, half)}`
-    case 'RClosedArrow':
-      return `M${pt(0, -half)}L${pt(-size, 0)}L${pt(0, half)}Z`
-    case 'Square':
-      return `M${pt(-half, -half)}L${pt(half, -half)}L${pt(half, half)}L${pt(-half, half)}Z`
-    case 'Diamond':
-      return `M${pt(-half, 0)}L${pt(0, -half)}L${pt(half, 0)}L${pt(0, half)}Z`
-    case 'Circle':
-      return `M${pt(half, 0)}A${fmt(half)} ${fmt(half)} 0 1 0 ${pt(-half, 0)}A${fmt(half)} ${fmt(half)} 0 1 0 ${pt(half, 0)}Z`
-    case 'Butt':
-      return `M${pt(0, -half)}L${pt(0, half)}`
-    case 'Slash': {
-      // Tilted 30 degrees from the butt, as PDF draws it.
-      const s = Math.sin(Math.PI / 6) * half
-      const c = Math.cos(Math.PI / 6) * half
-      return `M${pt(-s, -c)}L${pt(s, c)}`
-    }
-    default:
-      return ''
-  }
+  if (a.type !== 'line' && a.type !== 'polyline') return false
+  return [a.head, a.tail].some(
+    (kind) => kind !== undefined && kind !== 'None' && isKnown(LINE_ENDINGS, kind)
+  )
 }
 
 function pointBounds(points: readonly Point[]): {
@@ -284,53 +219,6 @@ function pointBounds(points: readonly Point[]): {
   const x = Math.min(...xs)
   const y = Math.min(...ys)
   return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y }
-}
-
-/**
- * Styles a free-text box (`.ink-free-text`) from its annotation, as the theme reads it: the text
- * style, fill, border colour and width, corner radius and opacity travel as custom properties
- * (`--ink-font-size`, `--ink-font-family`, `--ink-font-weight`, `--ink-font-style`,
- * `--ink-text-decoration`, `--ink-text-color`, `--ink-fill`, `--ink-box-border`,
- * `--ink-border-width`, `--ink-corner-radius`, `--ink-opacity`); alignment as `data-align`,
- * and a border as `data-border` (`solid` or `dashed`, absent at width 0). Lengths are scaled to
- * CSS px. Shared by the overlay and the in-place editor, so both look the same.
- */
-export function styleFreeText(
-  node: HTMLElement,
-  a: FreeTextAnnotation,
-  t: PageTransform
-): void {
-  const s = a.defaultStyle
-  const set = (name: string, value: string | undefined): void => {
-    if (value === undefined) node.style.removeProperty(name)
-    else node.style.setProperty(name, value)
-  }
-  set('--ink-font-size', `${t.toCssLength(s.fontSize)}px`)
-  set('--ink-font-family', cssString(s.fontFamily))
-  set('--ink-font-weight', s.fontWeight)
-  set('--ink-font-style', s.fontStyle)
-  set('--ink-text-decoration', s.textDecoration)
-  set('--ink-text-color', s.color)
-  // A speech bubble's outline and fill are drawn by its path, not by the text box.
-  const bubble = isBubble(a)
-  set('--ink-fill', bubble ? undefined : a.color)
-  // Not `--ink-border`, the interface's border token: a box with no border colour of its own
-  // takes its text colour, as a bubble's outline does.
-  set('--ink-box-border', bubble ? undefined : (a.borderColor ?? s.color))
-  set(
-    '--ink-border-width',
-    !bubble && a.width > 0 ? `${t.toCssLength(a.width)}px` : undefined
-  )
-  set(
-    '--ink-corner-radius',
-    !bubble && a.cornerRadius ? `${t.toCssLength(a.cornerRadius)}px` : undefined
-  )
-  set('--ink-opacity', String(a.opacity))
-  node.dataset.align = s.textAlign
-  if (bubble) node.dataset.bubble = ''
-  else delete node.dataset.bubble
-  if (!bubble && a.width > 0) node.dataset.border = a.dashes?.length ? 'dashed' : 'solid'
-  else delete node.dataset.border
 }
 
 /**
@@ -349,69 +237,10 @@ export function freeTextLocalBox(a: FreeTextAnnotation, t: PageTransform): CssRe
 }
 
 /**
- * The outline of a speech bubble as SVG path data in CSS px relative to `origin` (by default
- * the top-left of its rect on screen, where its overlay element sits): the rounded text box
- * (`freeTextBox`) with a wedge to the tip, `callout[0]`. The wedge leaves the box edge nearest
- * `callout`'s last point, at that point's position along it, kept clear of the corners.
- */
-export function bubblePath(
-  a: FreeTextAnnotation & { callout: readonly Point[] },
-  t: PageTransform,
-  origin: { left: number; top: number } = t.toCssRect(a.rect)
-): string {
-  const css = t.toCssRect(freeTextBox(a))
-  // Box-relative CSS px: the box's top-left is 0,0.
-  const inBox = (p: Point): Point => {
-    const c = t.toCss(p)
-    return { x: c.x - css.left, y: c.y - css.top }
-  }
-  const tip = inBox(a.callout[0]!)
-  const edge = inBox(a.callout[a.callout.length - 1]!)
-  const w = css.width
-  const h = css.height
-  const r = Math.min(t.toCssLength(a.cornerRadius ?? 0), w / 2, h / 2)
-  // The edge nearest the last point, as `nearestEdge` (model/annotations/edit.ts) picks it,
-  // ties included (left, right, bottom, top on an unturned page); change both together.
-  const gaps = {
-    left: Math.abs(edge.x),
-    right: Math.abs(edge.x - w),
-    bottom: Math.abs(edge.y - h),
-    top: Math.abs(edge.y),
-  }
-  const side = (Object.keys(gaps) as (keyof typeof gaps)[]).reduce((best, s) =>
-    gaps[s] < gaps[best] ? s : best
-  )
-  const along = side === 'top' || side === 'bottom' ? w : h
-  const half = Math.min(t.toCssLength(WEDGE_HALF), along / 4)
-  const lo = Math.min(r + half, along / 2)
-  const at = Math.min(
-    Math.max(side === 'top' || side === 'bottom' ? edge.x : edge.y, lo),
-    along - lo
-  )
-  const dx = css.left - origin.left
-  const dy = css.top - origin.top
-  const P = (x: number, y: number): string => `${fmt(x + dx)} ${fmt(y + dy)}`
-  const arc = (x: number, y: number): string =>
-    r > 0 ? `A${fmt(r)} ${fmt(r)} 0 0 1 ${P(x, y)}` : ''
-  const spike = (x: number, y: number): string => `L${P(x, y)}L${P(tip.x, tip.y)}`
-  return [
-    `M${P(r, 0)}`,
-    side === 'top' ? `${spike(at - half, 0)}L${P(at + half, 0)}` : '',
-    `L${P(w - r, 0)}${arc(w, r)}`,
-    side === 'right' ? `${spike(w, at - half)}L${P(w, at + half)}` : '',
-    `L${P(w, h - r)}${arc(w - r, h)}`,
-    side === 'bottom' ? `${spike(at + half, h)}L${P(at - half, h)}` : '',
-    `L${P(r, h)}${arc(0, h - r)}`,
-    side === 'left' ? `${spike(0, at + half)}L${P(0, at - half)}` : '',
-    `L${P(0, r)}${arc(r, 0)}Z`,
-  ].join('')
-}
-
-/**
  * Draws the default visual for an annotation inside its positioned element. Coordinates are
  * relative to the element. Colour, opacity and stroke of a drawn shape are SVG attributes, never inline style,
- * so a theme can override them with CSS. A type with a drawing is painted from it; the others
- * still go through the reference renderer.
+ * so a theme can override them with CSS. A type with no drawing leaves the element empty. The
+ * overlay gives an annotation the page canvas paints a hit area instead (`renderHitArea`).
  */
 export function renderAnnotationContent(
   el: HTMLElement,
@@ -429,7 +258,7 @@ export function renderAnnotationContent(
   } else if (d) {
     paintDrawing(el, d, t, annotationBox(a, t))
     renderChrome(el, a, t)
-  } else renderReferenceContent(el, a, t)
+  } else el.replaceChildren()
 }
 
 /** The geometry attributes a hit twin keeps from the element a drawn shape becomes. */
@@ -637,15 +466,6 @@ function appendStampHit(
 }
 
 /**
- * Whether the page canvas draws `a`, so the overlay gives it only a hit area. PDF.js paints
- * embedded annotations, with a stand-in for most that have no appearance stream, but draws no
- * icon for a note without one: the overlay draws that note's icon itself.
- */
-export function paintedByCanvas(a: Annotation): boolean {
-  return a.source === 'pdf' && !(a.type === 'text' && a.hasAppearance === false)
-}
-
-/**
  * An invisible hit area for an annotation the overlay does not draw (embedded ones, which
  * PDF.js paints on the canvas): polygons over its quads, or its rect. Selection chrome only.
  */
@@ -660,7 +480,7 @@ export function renderHitArea(el: HTMLElement, a: Annotation, t: PageTransform):
  * corner handles sit, and `data-framed` on the element, so the theme draws the selection
  * outline on the box rather than round the whole rect. Geometry only, `pointer-events:none`.
  */
-export function appendSelectionFrame(
+function appendSelectionFrame(
   el: HTMLElement,
   a: FreeTextAnnotation,
   t: PageTransform
@@ -687,11 +507,7 @@ export function hasComment(a: Annotation): a is TextMarkupAnnotation {
  * last quad's top-right corner (its end in reading order), relative to the element. The theme
  * sizes and colours it.
  */
-export function appendCommentMarker(
-  el: HTMLElement,
-  a: Annotation,
-  t: PageTransform
-): void {
+function appendCommentMarker(el: HTMLElement, a: Annotation, t: PageTransform): void {
   if (!hasComment(a)) return
   const last = a.quads[a.quads.length - 1]
   if (!last) return
@@ -748,7 +564,7 @@ function drawHitArea(el: HTMLElement, a: Annotation, t: PageTransform): void {
   el.append(svg)
 }
 
-export function boxSvg(doc: Document, width: number, height: number): SVGSVGElement {
+function boxSvg(doc: Document, width: number, height: number): SVGSVGElement {
   const svg = doc.createElementNS(SVG, 'svg')
   svg.setAttribute('width', String(width))
   svg.setAttribute('height', String(height))
@@ -762,11 +578,6 @@ export function boxSvg(doc: Document, width: number, height: number): SVGSVGElem
 }
 
 /** Quad corners in drawing order: p1 top-left, p2 top-right, p4 bottom-right, p3 bottom-left. */
-export function quadPoints(q: Quad): Point[] {
+function quadPoints(q: Quad): Point[] {
   return [q.p1, q.p2, q.p4, q.p3]
-}
-
-/** A CSS string literal, so any PDF font name is a single family name. */
-function cssString(value: string): string {
-  return `"${value.replace(/["\\]/g, '\\$&').replace(/\n/g, '\\a ')}"`
 }

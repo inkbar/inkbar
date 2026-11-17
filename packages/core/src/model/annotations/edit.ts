@@ -261,8 +261,8 @@ type Edge = 'left' | 'right' | 'bottom' | 'top'
 const EDGES: readonly Edge[] = ['left', 'right', 'bottom', 'top']
 
 /**
- * The edge of `box` nearest `p`. `bubblePath` (dom/overlay-render.ts) picks the wedge's edge by
- * the same rule in CSS px; change both together.
+ * The edge of `box` nearest `p`. `bubbleCommands` (drawing/freetext.ts) picks the wedge's edge by
+ * the same rule; change both together.
  */
 function nearestEdge(p: Point, box: Rect): Edge {
   const gaps: Record<Edge, number> = {

@@ -17,7 +17,7 @@ const SCALE = 64
 /**
  * The polygon around a stroke in points: `width` is in points; without `pressure` the line
  * keeps an even width. Used for described ink and the live preview, and nothing else: the
- * signature pad and the reference renderer use `strokeOutline` in `dom/ink-stroke`.
+ * signature pad uses `strokeOutline` in `dom/ink-stroke`.
  */
 export function inkOutline(
   points: readonly Point[],

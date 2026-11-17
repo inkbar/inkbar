@@ -5,8 +5,8 @@ import { createAnnotationStore } from '../model/annotations/store'
 
 import { itemElement, paintDrawing } from './drawing-svg'
 import { renderAnnotationContent } from './overlay-render'
-import { renderReferenceContent } from './reference-render'
 import { mountContainer } from './test-utils'
+import { checkTextFonts } from './text-font-check'
 import { FONT_STACKS } from './text-fonts'
 import { createPageTransform } from './transform'
 
@@ -286,12 +286,12 @@ describe('paintDrawing', () => {
 })
 
 describe('renderAnnotationContent', () => {
-  it('still uses the reference renderer for a type with no description', () => {
-    const store = createAnnotationStore({
-      mode: { mode: 'uncontrolled' },
-      defaults: staticDefaults,
-    })
-    const a = store.add({
+  const store = () =>
+    createAnnotationStore({ mode: { mode: 'uncontrolled' }, defaults: staticDefaults })
+  const t = createPageTransform(page, 1, 0)
+
+  it('paints a type with a drawing as an svg of its shapes', () => {
+    const a = store().add({
       type: 'highlight',
       page: 0,
       rect: { x: 72, y: 695, width: 228, height: 20 },
@@ -304,13 +304,24 @@ describe('renderAnnotationContent', () => {
         },
       ],
     })
-    const t = createPageTransform(page, 1, 0)
-    const viaDispatch = document.createElement('div')
-    const direct = document.createElement('div')
-    renderAnnotationContent(viaDispatch, a, t)
-    renderReferenceContent(direct, a, t)
-    expect(viaDispatch.innerHTML).toBe(direct.innerHTML)
-    expect(viaDispatch.querySelector('polygon')).not.toBeNull()
+    const el = document.createElement('div')
+    renderAnnotationContent(el, a, t)
+    expect(el.querySelector('svg.ink-annotation-shape polygon')).not.toBeNull()
+  })
+
+  it('leaves the element empty for a type with no drawing', () => {
+    const a = {
+      ...store().add({
+        type: 'square',
+        page: 0,
+        rect: { x: 72, y: 695, width: 228, height: 20 },
+      }),
+      type: 'popup' as never,
+    }
+    const el = document.createElement('div')
+    el.append(document.createElement('span'))
+    renderAnnotationContent(el, a, t)
+    expect(el.childNodes).toHaveLength(0)
   })
 })
 
@@ -366,6 +377,10 @@ describe('a stamp', () => {
     expect(image.getAttribute('href')).toBe(PNG)
     expect(image.getAttribute('preserveAspectRatio')).toBe('none')
     expect(el.querySelector('img')).toBeNull()
+    // The opacity is on the svg alone: on the image too it would be applied twice.
+    expect(image.hasAttribute('opacity')).toBe(false)
+    expect(image.getAttribute('style') ?? '').not.toContain('opacity')
+    expect(image.parentElement).toBe(svg)
   })
 
   it('takes a press on a transparent pixel inside its box', () => {
@@ -456,29 +471,26 @@ describe('a stamp', () => {
   for (const pageRotate of [0, 90] as const) {
     for (const view of [0, 90] as const) {
       for (const rotation of [0, 90] as const) {
-        it(`has the reference box at page rotate ${pageRotate}, view ${view}, stamp rotation ${rotation}`, () => {
+        it(`covers the stamp's rect on screen at page rotate ${pageRotate}, view ${view}, stamp rotation ${rotation}`, () => {
           const info: PageInfo = { ...page, rotate: pageRotate }
           const t = createPageTransform(info, 2, view)
           const a = stampAt(rotation)
           const host = mountContainer(1400, 1400)
           const at = t.toCssRect(a.rect)
-          const place = (el: HTMLElement): void => {
-            el.style.cssText = `position:absolute;left:${at.left}px;top:${at.top}px;width:${at.width}px;height:${at.height}px;`
-            host.append(el)
-          }
-          const ref = document.createElement('div')
-          const next = document.createElement('div')
-          place(ref)
-          place(next)
-          renderReferenceContent(ref, a, t)
-          renderAnnotationContent(next, a, t)
-          const want = ref.querySelector('img.ink-stamp')!.getBoundingClientRect()
-          const got = next.querySelector('image.ink-stamp')!.getBoundingClientRect()
+          const el = document.createElement('div')
+          el.style.cssText = `position:absolute;left:${at.left}px;top:${at.top}px;width:${at.width}px;height:${at.height}px;`
+          host.append(el)
+          renderAnnotationContent(el, a, t)
+          const got = el.querySelector('image.ink-stamp')!.getBoundingClientRect()
+          const origin = host.getBoundingClientRect()
           host.remove()
-          expect(got.left).toBeCloseTo(want.left, 0)
-          expect(got.top).toBeCloseTo(want.top, 0)
-          expect(got.width).toBeCloseTo(want.width, 0)
-          expect(got.height).toBeCloseTo(want.height, 0)
+          // The 80 x 40 pt rect at zoom 2 is 160 x 80 px upright and 80 x 160 turned a quarter
+          // by the page and the view together.
+          const turned = (pageRotate + view) % 180 === 90
+          expect(got.left - origin.left).toBeCloseTo(at.left, 0)
+          expect(got.top - origin.top).toBeCloseTo(at.top, 0)
+          expect(got.width).toBeCloseTo(turned ? 80 : 160, 0)
+          expect(got.height).toBeCloseTo(turned ? 160 : 80, 0)
         })
       }
     }
@@ -902,4 +914,57 @@ describe('text outside the standard fonts', () => {
         expect(Math.abs(right - html.right)).toBeLessThan(1)
       }
     })
+})
+
+describe('the width a line of standard-font text is set to', () => {
+  const fonts = checkTextFonts()
+
+  it.skipIf(fonts.mode !== 'exact')(
+    "is the width the browser's own font gives it, where the fonts are the tables'",
+    () => {
+      const store = createAnnotationStore({
+        mode: { mode: 'uncontrolled' },
+        defaults: staticDefaults,
+      })
+      const paragraph =
+        'The quick brown fox jumps over the lazy dog, and then a second sentence follows it.\nA short line.'
+      let longest = 0
+      for (const defaultStyle of [
+        {},
+        { fontWeight: 'bold' as const },
+        { fontStyle: 'italic' as const },
+        { fontFamily: 'Times' as const },
+        { fontFamily: 'Courier' as const, fontWeight: 'bold' as const },
+      ]) {
+        const a = store.add({
+          type: 'freetext',
+          page: 0,
+          rect: { x: 100, y: 600, width: 200, height: 90 },
+          contents: paragraph,
+          defaultStyle,
+        })
+        const host = mountContainer(612, 792)
+        const el = document.createElement('div')
+        el.style.cssText =
+          'position:absolute;left:200px;top:204px;width:400px;height:180px'
+        host.append(el)
+        renderAnnotationContent(el, a, createPageTransform(page, 2, 0))
+        const lines = [...el.querySelectorAll<SVGTextElement>('text[textLength]')]
+        expect(lines.length).toBeGreaterThan(2)
+        for (const text of lines) {
+          const set = Number(text.getAttribute('textLength'))
+          const clone = text.cloneNode(true) as SVGTextElement
+          clone.removeAttribute('textLength')
+          clone.removeAttribute('lengthAdjust')
+          text.parentElement!.append(clone)
+          const natural = clone.getComputedTextLength()
+          clone.remove()
+          longest = Math.max(longest, Math.abs(natural - set) / set)
+        }
+        host.remove()
+      }
+      // The real cases are within 0.09%; a wrong table or font is off by several percent.
+      expect(longest).toBeLessThan(0.002)
+    }
+  )
 })

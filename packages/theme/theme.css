@@ -1204,16 +1204,6 @@
     top: 0;
   }
 
-  /* A note's icon fills its box instead of keeping its on-page size; comment glyphs, which keep
-     a fixed size at every zoom, would cover a small page, so they are left out. */
-  :where(.ink-thumbnail-annotation > svg[data-ink-note]) {
-    filter: none;
-  }
-
-  :where(.ink-thumbnail-annotation .ink-comment-marker) {
-    display: none;
-  }
-
   /*
    * The thumbnail list (createThumbnails and the bindings' list): it fills its parent's height
    * and scrolls, with only the items near the visible part mounted, each placed absolutely at
@@ -1771,18 +1761,6 @@
   :where(.ink-highlight-colour .ink-swatch[data-kind='color']) {
     border: 1px solid color-mix(in srgb, var(--ink-fg) 20%, transparent);
     background: var(--ink-swatch);
-  }
-
-  /*
-   * Stamps: an image filling its box; the overlay sets its geometry. A stamp is drawn as an SVG
-   * image whose opacity comes from the drawing, so this applies to the HTML image the reference
-   * renderer still makes, and goes when stamps are no longer drawn as HTML images.
-   */
-  :where(img.ink-stamp) {
-    display: block;
-    max-width: none;
-    opacity: var(--ink-opacity, 1);
-    user-select: none;
   }
 
   /* Signature menu: saved signatures as previews, each with a remove button. */

@@ -12,10 +12,31 @@ import type { Annotation } from '../types'
 import type { DrawContext, Drawing } from './types'
 
 /**
- * The drawing of `a`, or `undefined` for one this does not describe: a reply, an annotation the
- * page canvas paints, or (for now) any type the overlay still draws itself.
+ * Whether the page canvas draws `a`, so the overlay gives it only a hit area. PDF.js paints
+ * embedded annotations, with a stand-in for most that have no appearance stream, but draws no
+ * icon for a note without one: the overlay draws that note's icon itself.
+ */
+export function paintedByCanvas(a: Annotation): boolean {
+  return a.source === 'pdf' && !(a.type === 'text' && a.hasAppearance === false)
+}
+
+/**
+ * The drawing of `a`, or `undefined` for one the page canvas paints.
  */
 export function describeAnnotation(
+  a: Annotation,
+  context: DrawContext
+): Drawing | undefined {
+  return paintedByCanvas(a) ? undefined : describeDrawing(a, context)
+}
+
+/**
+ * The drawing of `a` wherever it comes from. A draft or a copy of an embedded annotation (a
+ * drag preview, an edited text box) is drawn with this: the canvas paints the original, not
+ * the draft. A reply has a drawing too: whether an annotation is a reply depends on the list it
+ * is in (`withoutReplies`), so whoever draws a page leaves the replies out before asking.
+ */
+export function describeDrawing(
   a: Annotation,
   context: DrawContext
 ): Drawing | undefined {
