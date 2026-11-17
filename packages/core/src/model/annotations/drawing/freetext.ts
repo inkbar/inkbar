@@ -208,6 +208,39 @@ function outline(a: FreeTextAnnotation, fill: string | undefined): Paint {
   }
 }
 
+/** `a`'s text laid out in an area `width` points across, with the font it is set in. */
+function layoutOf(
+  a: FreeTextAnnotation,
+  context: DrawContext,
+  width: number,
+  contents: string
+) {
+  const s = a.defaultStyle
+  const font = resolveFont(
+    s.fontFamily,
+    s.fontWeight === 'bold',
+    s.fontStyle === 'italic'
+  )
+  const laid = layoutText(
+    { text: contents, font, size: s.fontSize, width, align: s.textAlign },
+    context.measure
+  )
+  return { font, laid }
+}
+
+/**
+ * The height, in points, the text area of `a` needs for `contents` (default: its own): what the
+ * drawing's line breaks stack to. A box whose text area is shorter clips its last line.
+ */
+export function freeTextTextHeight(
+  a: FreeTextAnnotation,
+  context: DrawContext,
+  contents: string = a.contents
+): number {
+  const { area } = freeTextFrame(a, context.page.rotate)
+  return layoutOf(a, context, area.width, contents).laid.height
+}
+
 function textItem(
   a: FreeTextAnnotation,
   context: DrawContext,
@@ -216,21 +249,7 @@ function textItem(
   border: number
 ): DrawItem {
   const s = a.defaultStyle
-  const font = resolveFont(
-    s.fontFamily,
-    s.fontWeight === 'bold',
-    s.fontStyle === 'italic'
-  )
-  const laid = layoutText(
-    {
-      text: a.contents,
-      font,
-      size: s.fontSize,
-      width: frame.area.width,
-      align: s.textAlign,
-    },
-    context.measure
-  )
+  const { font, laid } = layoutOf(a, context, frame.area.width, a.contents)
   const at = (x: number, baseline: number): Point =>
     along(along(frame.area.topLeft, frame.dir, x), frame.down, baseline)
   const underline = s.textDecoration === 'underline'

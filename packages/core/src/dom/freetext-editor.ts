@@ -12,7 +12,7 @@
 // from the annotation and so is set here rather than by the theme.
 import { en } from '../messages'
 import { freeTextBox } from '../model/annotations/callout'
-import { freeTextFrame } from '../model/annotations/drawing/freetext'
+import { freeTextFrame, freeTextTextHeight } from '../model/annotations/drawing/freetext'
 import { resolveFont } from '../model/annotations/drawing/text/measure'
 import { hasCallout, isBubble, resizedBox, withBox } from '../model/annotations/edit'
 
@@ -143,8 +143,16 @@ export function editFreeText(
     const r = field.getBoundingClientRect()
     return sideways ? r.width : r.height
   }
-  /** The box's text area height in CSS px for the text now in it: never less than it started at. */
-  const height = (): number => Math.max(areaHeight, fieldHeight())
+  /**
+   * The box's text area height in CSS px for the text now in it: never less than it started at,
+   * and at least what the drawing's line breaks stack to when that is more than `SAME_PX` beyond the
+   * browser's, so the drawn text is not clipped.
+   */
+  const height = (): number => {
+    const field = fieldHeight()
+    const needed = t.toCssLength(freeTextTextHeight(a, drawContext(t), read()))
+    return Math.max(areaHeight, field, needed - field < SAME_PX ? 0 : needed)
+  }
   /** `a` with its box grown by `grown` CSS px. */
   const grownTo = (grown: number): FreeTextAnnotation =>
     grown === 0 ? a : { ...a, ...grownFreeText(a, grown, t) }

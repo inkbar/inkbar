@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 
 import { describeAnnotation } from './describe'
-import { describeFreeText, freeTextFrame } from './freetext'
+import { describeFreeText, freeTextFrame, freeTextTextHeight } from './freetext'
 import { layoutText } from './text/layout'
 import { resolveFont, standardMeasure } from './text/measure'
 
@@ -492,5 +492,18 @@ describe('a speech bubble', () => {
     const upright = path(describeFreeText(bubble, context(0))).commands
     const turned = path(describeFreeText(bubble, context(90))).commands
     expect(turned).toEqual(upright)
+  })
+})
+
+describe('freeTextTextHeight', () => {
+  test("is the stack of the drawing's lines, 1.2 times the size each", () => {
+    const long = { ...box, contents: 'one two three four five six seven eight nine ten' }
+    const n = text(describeFreeText(long, context())).lines.length
+    expect(n).toBeGreaterThan(1)
+    expect(freeTextTextHeight(long, context())).toBeCloseTo(n * 1.2 * 12, 9)
+  })
+
+  test("takes the contents it is given in place of the annotation's", () => {
+    expect(freeTextTextHeight(box, context(), 'a\nb\nc')).toBeCloseTo(3 * 14.4, 9)
   })
 })

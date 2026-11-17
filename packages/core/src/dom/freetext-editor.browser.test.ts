@@ -3,8 +3,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { userEvent } from 'vitest/browser'
 
 import { staticDefaults } from '../model/annotations/defaults'
+import { describeDrawing } from '../model/annotations/drawing/describe'
 import { createAnnotationStore } from '../model/annotations/store'
 
+import { drawContext } from './drawing-context'
 import { editFreeText, editFreeTextIn, type EditorCloseReason } from './freetext-editor'
 import { createOverlay } from './overlay'
 import { mountContainer, until } from './test-utils'
@@ -347,6 +349,48 @@ describe('editFreeText', () => {
     const f = el.querySelector<HTMLElement>('[data-ink-editor]')!
     // The layout's own width, 0: the editor breaks where the drawing would, not wider.
     expect(f.style.width).toBe('0px')
+  })
+})
+
+describe('a box the browser and the tables break differently', () => {
+  it("grows to the tables' line count, so no drawn line is clipped", () => {
+    // Tight letter-spacing makes the browser fit more on a line than the tables do.
+    const style = document.createElement('style')
+    style.textContent = '.ink-free-text { letter-spacing: -2px; }'
+    document.head.append(style)
+    const store = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const host = mountContainer(612, 792)
+    const transform = createPageTransform(page, 1, 0)
+    const overlay = createOverlay({ host, page: 0, store, transform })
+    cleanup.push(() => (overlay.destroy(), host.remove(), style.remove()))
+    const contents = 'alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu'
+    const a = store.add({
+      type: 'freetext',
+      page: 0,
+      rect: { x: 100, y: 600, width: 100, height: 20 },
+      contents,
+    }) as FreeTextAnnotation
+    const el = overlay.elementFor(a.id)!
+    const editor = editFreeTextIn(store, el, a.id, transform)!
+    const f = el.querySelector<HTMLElement>('[data-ink-editor]')!
+    const browserLines = Math.round(f.getBoundingClientRect().height / 14.4)
+    editor.close(true)
+
+    const now = store.get(a.id) as FreeTextAnnotation
+    const text = describeDrawing(now, drawContext(transform))!.items.flatMap((g) =>
+      g.kind === 'group' ? g.items : [g]
+    )
+    const item = text.find((i) => i.kind === 'text')
+    if (item?.kind !== 'text') throw new Error('expected a text item')
+    const { descent } = drawContext(transform).measure.vertical(item.font)
+    expect(item.lines.length).toBeGreaterThan(browserLines)
+    for (const line of item.lines)
+      expect(line.origin.y - descent * item.size).toBeGreaterThanOrEqual(
+        item.clip!.rect.y - 1e-6
+      )
   })
 })
 
