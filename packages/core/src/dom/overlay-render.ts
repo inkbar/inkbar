@@ -293,7 +293,19 @@ function renderChrome(el: HTMLElement, a: Annotation, t: PageTransform): void {
     // follows the sampled points.
     const followed: readonly DrawItem[] =
       a.type === 'ink'
-        ? a.inklist.map((points) => ({ kind: 'polyline', points, paint: {} }))
+        ? a.inklist.flatMap((points): DrawItem[] =>
+            // A stroke of one point is a dot: two equal points give a round cap something to
+            // draw, and one with no points has nothing to press on.
+            points.length === 0
+              ? []
+              : [
+                  {
+                    kind: 'polyline',
+                    points: points.length === 1 ? [points[0]!, points[0]!] : points,
+                    paint: {},
+                  },
+                ]
+          )
         : drawn
     for (const item of followed) {
       if (item.kind === 'text' || item.kind === 'image' || item.kind === 'page') continue
@@ -314,7 +326,7 @@ function renderChrome(el: HTMLElement, a: Annotation, t: PageTransform): void {
       svg.append(twin)
     }
   }
-  if (svg) appendStampHit(svg, drawn, t, annotationBox(a, t))
+  if (svg) appendStampHit(svg, a, t, annotationBox(a, t))
   if (svg && a.type === 'loupe') appendLensHit(svg, a, t)
   if (svg && a.type === 'mask') appendMaskEdge(svg, a, t)
   if (svg && a.type === 'text') appendNoteHit(svg, a, t)
@@ -440,21 +452,21 @@ function appendMaskEdge(svg: Element, a: Annotation, t: PageTransform): void {
 }
 
 /**
- * A stamp's press area: an invisible rect over the image's box, so a press on a transparent
+ * A stamp's press area: an invisible rect over the stamp's box, so a press on a transparent
  * pixel of the picture selects it whatever the browser does with pixels, and no native image
- * drag can start. The image itself stops taking presses.
+ * drag can start. The images drawn stop taking presses. The box is the annotation's, whatever
+ * the drawing is made of.
  */
 function appendStampHit(
   svg: Element,
-  drawn: readonly DrawItem[],
+  a: Annotation,
   t: PageTransform,
   box: CssRect
 ): void {
-  const image = drawn.find((i) => i.kind === 'image')
-  const el = svg.querySelector('image.ink-stamp')
-  if (image?.kind !== 'image' || !el) return
-  const r = t.toCssRect(image.rect)
-  el.setAttribute('pointer-events', 'none')
+  if (a.type !== 'stamp') return
+  for (const image of svg.querySelectorAll('image'))
+    image.setAttribute('pointer-events', 'none')
+  const r = t.toCssRect(a.rect)
   const hit = svg.ownerDocument.createElementNS(SVG, 'rect')
   hit.setAttribute('x', String(r.left - box.left))
   hit.setAttribute('y', String(r.top - box.top))

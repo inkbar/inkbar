@@ -8,7 +8,7 @@ import { describeNote } from './note'
 import { describeShape } from './shapes'
 import { describeStamp } from './stamp'
 
-import type { Annotation } from '../types'
+import type { Annotation, MaskAnnotation } from '../types'
 import type { DrawContext, Drawing } from './types'
 
 /**
@@ -18,6 +18,19 @@ import type { DrawContext, Drawing } from './types'
  */
 export function paintedByCanvas(a: Annotation): boolean {
   return a.source === 'pdf' && !(a.type === 'text' && a.hasAppearance === false)
+}
+
+/** Reading order in user space: top edge first (y grows upwards), then left edge. */
+export function readingOrder(a: Annotation, b: Annotation): number {
+  return b.rect.y + b.rect.height - (a.rect.y + a.rect.height) || a.rect.x - b.rect.x
+}
+
+/**
+ * The mask a page dims for: the first of `list` in reading order. A page has one dimming
+ * layer, so wherever a page is drawn (the viewer, a thumbnail) this picks the same mask.
+ */
+export function dimmingMask(list: readonly Annotation[]): MaskAnnotation | undefined {
+  return list.filter((a): a is MaskAnnotation => a.type === 'mask').sort(readingOrder)[0]
 }
 
 /**

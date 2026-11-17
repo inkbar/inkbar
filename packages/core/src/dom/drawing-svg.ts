@@ -53,7 +53,8 @@ export function paintDrawing(
 
 /**
  * Appends `drawing`'s items to `svg`, positioned relative to `box` (page CSS px). A `page` item
- * is skipped: whoever owns the lens draws it. A lone group puts its opacity on `svg`. Takes no
+ * is skipped: whoever owns the lens draws it. A lone group puts its opacity, and its role as
+ * `data-ink-part`, on `svg`. Takes no
  * part in hit testing; `paintDrawing` makes what it draws take presses.
  */
 export function paintItems(
@@ -74,6 +75,8 @@ export function paintItems(
   if (only?.kind === 'group') {
     svg.setAttribute('opacity', String(only.opacity))
     svg.style.opacity = String(only.opacity)
+    // The group is not an element of its own here: its role is the svg's.
+    if (only.role) svg.setAttribute('data-ink-part', only.role)
     for (const item of only.items) svg.append(paintItem(doc, item, t, box, at, len))
   } else {
     for (const item of items) svg.append(paintItem(doc, item, t, box, at, len))

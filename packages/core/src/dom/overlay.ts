@@ -13,7 +13,11 @@
 // only it knows their shape. Every visual (colour, opacity, stroke, fill) is an SVG
 // attribute with the same inline style, or a theme hook.
 import { freeTextBox } from '../model/annotations/callout'
-import { paintedByCanvas } from '../model/annotations/drawing/describe'
+import {
+  dimmingMask,
+  paintedByCanvas,
+  readingOrder,
+} from '../model/annotations/drawing/describe'
 import {
   hasCallout,
   hasCornerHandles,
@@ -46,7 +50,7 @@ import { createUndrawnGuard } from './undrawn'
 import type { InkMessages } from '../messages'
 import type { PageTransform } from './transform'
 import type { AnnotationStore } from '../model/annotations/store'
-import type { Annotation, MaskAnnotation } from '../model/annotations/types'
+import type { Annotation } from '../model/annotations/types'
 import type { InkDocument } from '../model/document'
 import type { Point } from '../model/geometry'
 import type { Readable } from '../model/readable'
@@ -137,11 +141,6 @@ function ariaLabel(a: Annotation, m: InkMessages): string {
       : t[a.type]
   const named = hasComment(a) ? t.withComment({ name: base }) : base
   return a.author ? t.byAuthor({ name: named, author: a.author }) : named
-}
-
-/** Reading order in user space: top edge first (y grows upwards), then left edge. */
-function readingOrder(a: Annotation, b: Annotation): number {
-  return b.rect.y + b.rect.height - (a.rect.y + a.rect.height) || a.rect.x - b.rect.x
 }
 
 /** A decoration's data key: lower-case kebab, as written after `data-`. */
@@ -410,7 +409,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
         // Annotations PDF.js already painted on the canvas get only an invisible hit area.
         if (canvas) renderHitArea(node, a, transform)
         else renderAnnotationContent(node, a, transform)
-        if (a.type === 'loupe') loupes?.attach(node, a, transform)
+        if (a.type === 'loupe' && !canvas) loupes?.attach(node, a, transform)
       }
     )
     if (!ok) {
@@ -687,7 +686,8 @@ export function createOverlay(opts: OverlayOptions): Overlay {
       hovered.delete(id)
     }
 
-    const mask = current.find((a): a is MaskAnnotation => a.type === 'mask')
+    // Only what the overlay draws dims the page: the canvas paints an embedded mask already.
+    const mask = dimmingMask(current.filter((a) => !paintedByCanvas(a)))
     if (
       !mask ||
       !guard.attempt(mask, 'was left undrawn', () => masks.update(mask, transform))

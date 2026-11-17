@@ -4,6 +4,7 @@ import { staticDefaults } from '../model/annotations/defaults'
 import * as describeModule from '../model/annotations/drawing/describe'
 import { createAnnotationStore } from '../model/annotations/store'
 
+import { drawingFor } from './drawing-context'
 import { createOverlay } from './overlay'
 import { mountContainer } from './test-utils'
 import { createPageTransform } from './transform'
@@ -53,6 +54,61 @@ describe('the drawing cache', () => {
     const forInk = spy.mock.calls.filter(([a]) => a.id === ink.id)
     expect(forInk).toHaveLength(1)
     expect(overlay.elementFor(ink.id)!.querySelector('path.ink-stroke')).not.toBeNull()
+  })
+})
+
+describe('the drawing cache and the page it was made for', () => {
+  it('describes again when the page changes its own box in place', () => {
+    const store = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const mine: PageInfo = { ...page, box: { ...page.box } }
+    const a = store.add({
+      type: 'mask',
+      page: 0,
+      rect: { x: 100, y: 500, width: 100, height: 100 },
+      shape: 'rect',
+    })
+    const t = createPageTransform(mine, 1, 0)
+    const before = drawingFor(a, t)!
+    mine.box.width = 700
+    const after = drawingFor(a, createPageTransform(mine, 1, 0))!
+    expect(after).not.toBe(before)
+    expect(after.bounds.width).toBe(700)
+  })
+})
+
+describe('a stamp press area', () => {
+  it('covers the stamp whatever shape its drawing has', () => {
+    const store = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const host = mountContainer(612, 792)
+    const overlay = createOverlay({
+      host,
+      page: 0,
+      store,
+      transform: createPageTransform(page, 2, 0),
+      onActivate: vi.fn(),
+    })
+    cleanup.push(() => (overlay.destroy(), host.remove()))
+    const rect = { x: 100, y: 500, width: 50, height: 30 }
+    const png =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+    // The image is drawn on its own, not inside a group.
+    vi.mocked(describeModule.describeDrawing).mockImplementationOnce(() => ({
+      layer: 'annotation',
+      bounds: rect,
+      items: [{ kind: 'image', role: 'stamp', data: png, rect, angle: 0 }],
+    }))
+    const stamp = store.add({ type: 'stamp', page: 0, rect, imagedata: png })
+    const el = overlay.elementFor(stamp.id)!
+    const hit = el.querySelector('rect[data-ink-hit-area]')!
+    expect(hit.getAttribute('width')).toBe('100')
+    expect(hit.getAttribute('height')).toBe('60')
+    expect(el.querySelector('image')!.getAttribute('pointer-events')).toBe('none')
   })
 })
 

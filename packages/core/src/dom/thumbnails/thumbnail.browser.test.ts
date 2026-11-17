@@ -295,6 +295,74 @@ describe('createThumbnail', () => {
       expect(masks[0]!.querySelector('path')!.getAttribute('fill')).toBe('#102030')
     })
 
+    it('dims for the same mask the page does when the first stored is not the first in reading order', async () => {
+      const doc = await openDoc()
+      const low = doc.annotations.add({
+        ...mask,
+        rect: { x: 100, y: 200, width: 100, height: 100 },
+        color: '#102030',
+      })
+      doc.annotations.replaceAll(
+        [
+          low,
+          {
+            ...low,
+            id: 'higher-mask',
+            rect: { x: 100, y: 600, width: 100, height: 100 },
+            color: '#ff0000',
+          },
+        ],
+        'import'
+      )
+      const host = mountContainer(612, 792)
+      const overlay = createOverlay({
+        host,
+        page: 0,
+        store: doc.annotations,
+        transform: createPageTransform(doc.pages[0]!, 1, 0),
+      })
+      cleanup.push(() => (overlay.destroy(), host.remove()))
+      const el = place(document.createElement('div'))
+      const painter = createThumbnailPainter(
+        el,
+        { document: writable(doc) },
+        { page: 0, width: 306 }
+      )
+      cleanup.push(() => painter.destroy())
+      await painted(el)
+      const fill = (root: ParentNode, selector: string) =>
+        root.querySelector(`${selector} path`)!.getAttribute('fill')
+      expect(fill(el, '.ink-thumbnail-annotation[data-type="mask"]')).toBe('#ff0000')
+      expect(fill(host, '.ink-mask-layer')).toBe('#ff0000')
+    })
+
+    it('paints nothing for an embedded annotation of any drawn kind, but a note with no appearance', async () => {
+      const doc = await openDoc()
+      const rect = { x: 100, y: 500, width: 120, height: 80 }
+      const added = [
+        ...oneOfEach(),
+        { type: 'loupe', page: 0, rect, width: 2 },
+        mask,
+        { type: 'redact', page: 0, rect },
+      ].map((input) => doc.annotations.add(input as never))
+      doc.annotations._setEmbedded(
+        added.map((a) => ({
+          ...a,
+          source: 'pdf' as const,
+          locked: true,
+          ...(a.type === 'text' ? { hasAppearance: false } : {}),
+        }))
+      )
+      const el = place(document.createElement('div'))
+      const painter = createThumbnailPainter(el, { document: writable(doc) }, { page: 0 })
+      cleanup.push(() => painter.destroy())
+      await painted(el)
+      const types = [
+        ...el.querySelectorAll<HTMLElement>('.ink-thumbnail-annotation'),
+      ].map((n) => n.dataset.type)
+      expect(types).toEqual(['text'])
+    })
+
     it('draws a loupe as its rim, with no lens', async () => {
       const el = await thumbnailOf({
         type: 'loupe',

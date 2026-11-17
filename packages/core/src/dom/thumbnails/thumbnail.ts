@@ -14,7 +14,7 @@
  * Thumbnails ignore the viewer's rotation; only the page's own /Rotate applies.
  */
 import { resolveLabel, type Label } from '../../messages'
-import { paintedByCanvas } from '../../model/annotations/drawing/describe'
+import { dimmingMask, paintedByCanvas } from '../../model/annotations/drawing/describe'
 import { withoutReplies } from '../../model/annotations/threads'
 import { drawingFor } from '../drawing-context'
 import { paintDrawing } from '../drawing-svg'
@@ -268,16 +268,10 @@ export function createThumbnailPainter(
             (a) => a.page === opts.page && !paintedByCanvas(a)
           )
         : []
-    let list = shown
-    if (transform) {
-      const t = transform
-      // A page-wide drawing (a mask's dimming) goes under the rest, as it does on a page, and
-      // a page dims for the first mask only.
-      const onPage = (a: Annotation): boolean =>
-        guard.value(a, 'was left undrawn', () => drawingFor(a, t))?.layer === 'page'
-      const wide = shown.filter(onPage).slice(0, 1)
-      list = [...wide, ...shown.filter((a) => !onPage(a))]
-    }
+    // A page-wide drawing (a mask's dimming) goes under the rest, as it does on a page, and a
+    // page dims for one mask only, the one its overlay picks.
+    const wide = dimmingMask(shown)
+    const list = [...(wide ? [wide] : []), ...shown.filter((a) => a.type !== 'mask')]
     const ids = new Set(list.map((a) => a.id))
     for (const [id, entry] of drawn) {
       if (ids.has(id)) continue

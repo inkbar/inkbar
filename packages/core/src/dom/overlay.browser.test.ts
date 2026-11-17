@@ -64,6 +64,18 @@ function setup(zoom = 1) {
   return { store, host, overlay, onActivate }
 }
 
+/** A page point (user space, zoom 1) as a point in the local space of annotation `id`'s svg. */
+function overlayPoint(
+  overlay: { elementFor(id: string): HTMLElement | undefined },
+  id: string,
+  x: number,
+  y: number
+): DOMPoint {
+  const box = overlay.elementFor(id)!.getBoundingClientRect()
+  const origin = overlay.elementFor(id)!.parentElement!.getBoundingClientRect()
+  return new DOMPoint(origin.left + x - box.left, origin.top + (792 - y) - box.top)
+}
+
 describe('createOverlay', () => {
   describe('decorate', () => {
     const rect = { x: 72, y: 600, width: 100, height: 20 }
@@ -1454,6 +1466,77 @@ describe('createOverlay', () => {
     const icon = overlay.elementFor(note.id)!.querySelector('.ink-note-icon')
     expect(icon).not.toBeNull()
     expect((icon as HTMLElement).dataset.icon).toBe('Check')
+  })
+
+  it('paints nothing for an embedded annotation of any drawn kind, but a note with no appearance', () => {
+    const { store, host, overlay } = setup()
+    const scratch = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const rect = { x: 100, y: 500, width: 120, height: 80 }
+    const added = [
+      ...oneOfEach(),
+      { type: 'loupe', page: 0, rect, width: 2 },
+      { type: 'mask', page: 0, rect, shape: 'rect' },
+      { type: 'redact', page: 0, rect },
+      { type: 'squiggly', page: 0, quads },
+      { type: 'circle', page: 0, rect },
+      { type: 'polyline', page: 0, rect, vertices: [rect, { x: 300, y: 300 }] },
+    ].map((input) => scratch.add(input as never))
+    store._setEmbedded(
+      added.map((a) => ({
+        ...a,
+        source: 'pdf' as const,
+        locked: true,
+        // The one note drawn on purpose.
+        ...(a.type === 'text' ? { hasAppearance: false } : {}),
+      }))
+    )
+    const painted = (id: string) =>
+      overlay
+        .elementFor(id)!
+        .querySelectorAll('[style*="fill-opacity"], text, image, canvas')
+    for (const a of added) {
+      const count = painted(a.id).length
+      if (a.type === 'text') expect(count, a.type).toBeGreaterThan(0)
+      else expect(count, a.type).toBe(0)
+    }
+    expect(host.querySelector('.ink-mask-layer')).toBeNull()
+  })
+
+  it('an ink stroke of one point has a hit shape a press beside the dot reaches, and an empty stroke has none', () => {
+    const { store, overlay } = setup()
+    const dot = { x: 200, y: 500 }
+    const ink = store.add({
+      type: 'ink',
+      page: 0,
+      inklist: [
+        [dot],
+        [
+          { x: 300, y: 400 },
+          { x: 340, y: 420 },
+        ],
+      ],
+      width: 2,
+    })
+    const twins = overlay
+      .elementFor(ink.id)!
+      .querySelectorAll<SVGGeometryElement>('[data-ink-hit-stroke]')
+    expect(twins).toHaveLength(2)
+    // 3 css px off the dot: inside the 8 px hit width, though the dot is 2 px across.
+    expect(twins[0]!.isPointInStroke(overlayPoint(overlay, ink.id, 203, 500))).toBe(true)
+    expect(twins[0]!.isPointInStroke(overlayPoint(overlay, ink.id, 215, 500))).toBe(false)
+
+    const withEmpty = { ...store.get(ink.id)!, inklist: [[], [dot]] } as never
+    const holder = document.createElement('div')
+    document.body.append(holder)
+    try {
+      renderAnnotationContent(holder, withEmpty, createPageTransform(page, 1, 0))
+      expect(holder.querySelectorAll('[data-ink-hit-stroke]')).toHaveLength(1)
+    } finally {
+      holder.remove()
+    }
   })
 
   it("a line's box holds its endings at every zoom, thin line included", () => {

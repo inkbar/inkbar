@@ -62,6 +62,18 @@ describe('paintDrawing', () => {
     expect(svg.firstElementChild!.tagName).toBe('polygon')
   })
 
+  it("a lone group's role is kept on the svg", () => {
+    const el = paint(
+      drawing({
+        kind: 'group',
+        opacity: 0.5,
+        role: 'box',
+        items: [{ kind: 'rect', rect: { x: 0, y: 0, width: 1, height: 1 }, paint: fill }],
+      })
+    )
+    expect(el.querySelector('svg')!.getAttribute('data-ink-part')).toBe('box')
+  })
+
   it('a nested group becomes a g with its own opacity', () => {
     const el = paint(
       drawing(
