@@ -9,6 +9,7 @@ import type {
   RenderedPage,
   RenderOptions,
   SaveOptions,
+  WriteInput,
 } from './types.ts'
 /** Options for `createEngine`. */
 export interface EngineOptions {
@@ -45,6 +46,18 @@ export interface EngineDocument {
    */
   renderPage(index: number, options?: RenderOptions): Promise<RenderedPage>
   /**
+   * Writes annotations into the document: removes the ones in `remove`, then appends each of
+   * `annotations` to its page, in order, with its dictionary written from its Gloss form, the
+   * appearance given and its data. Each call starts from the document as it was opened, so
+   * writing again replaces the last write rather than adding to it. `save` then gives the result.
+   *
+   * The engine copies the input when `write` is called, so the caller keeps its arrays. A page
+   * index outside the document, or a resource name in an appearance that is not made of A-Z, a-z
+   * and 0-9, rejects with a `RangeError`. A part that cannot be written rejects with
+   * `write-failed`, naming the annotation; the document is then as it was opened.
+   */
+  write(input: WriteInput): Promise<void>
+  /**
    * Writes the document to a new buffer that belongs to the caller. `'rewrite'` (the default)
    * writes a complete file. `'incremental'` returns the original bytes with the changes
    * appended. Saving keeps the document's encryption.
@@ -63,10 +76,10 @@ export interface EngineDocument {
  * Engine memory grows to fit the largest work it has done and does not shrink. Closing a
  * document lets the engine reuse its memory. Only `destroy()` returns all of it.
  *
- * Errors are `EngineError`s. A `RangeError` means a bad page index or scale, or a render larger
- * than 268,435,456 pixels. After an internal error in PDFium the engine stops. Every later call
- * rejects with `engine-failure`, except `close()` and `destroy()`, which still resolve. Create a
- * new engine to go on.
+ * Errors are `EngineError`s. A `RangeError` means a bad page index or scale, a render larger
+ * than 268,435,456 pixels, or a bad resource name in an appearance given to `write`. After an
+ * internal error in PDFium the engine stops. Every later call rejects with `engine-failure`,
+ * except `close()` and `destroy()`, which still resolve. Create a new engine to go on.
  */
 export interface Engine {
   /**
@@ -123,6 +136,13 @@ class Document implements EngineDocument {
       },
       options.signal
     )
+  }
+
+  async write(input: WriteInput): Promise<void> {
+    // A copy taken now, so a change the caller makes while the call waits is not written. Input
+    // that cannot be copied rejects.
+    const copy = structuredClone(input)
+    await this.#call({ op: 'write', doc: this.id, input: copy })
   }
 
   save(options: SaveOptions = {}): Promise<Uint8Array> {

@@ -20,6 +20,9 @@ export function dispatch(core: EngineCore, request: Request): unknown {
         request.scale,
         request.annotations
       )
+    case 'write':
+      core.write(request.doc, request.input)
+      return undefined
     case 'save':
       return core.save(request.doc, request.mode)
     case 'close':

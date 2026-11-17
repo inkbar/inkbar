@@ -32,9 +32,16 @@ Units and orientation:
 - `pageInfo` gives the width and height in PDF points (1/72 inch) of the page box PDFium reports, before /Rotate. That box is the crop box intersected with the media box, or the media box when there is no crop box. `rotation` is the page's /Rotate in degrees.
 - `renderPage` returns the page in displayed orientation, after /Rotate. The bitmap is the displayed size times `scale`, rounded up to whole pixels. The data is straight RGBA and opaque. The largest bitmap is 268,435,456 pixels.
 
+Writing annotations:
+
+- `write({ remove, annotations })` removes the listed annotations, by page and object number, then appends each annotation to its page in the order given. Each one's dictionary is written from its Gloss form (`gloss-format`), its look is the `Appearance` passed with it, and its `data` string is stored with it. A reply (an annotation with `inReplyTo`) is a hidden note linked to its parent, which must be written in the same call, and needs no appearance.
+- An `Appearance` gives the bounds, which become the annotation's rectangle, the drawing operators in user space, and the resources they name: standard fonts, opacities, PNG or JPEG images, pages of the same document, and nested forms. Resource names are made of A-Z, a-z and 0-9.
+- Every `write` starts from the document as opened, so a second call replaces the first. `save` then gives the written file.
+- `fields` (form values) is not supported yet; any entry rejects with `write-failed`.
+
 Ownership and lifetimes:
 
-- `open` copies the bytes when it is called. The caller keeps its array.
+- `open` copies the bytes when it is called. The caller keeps its array. `write` copies its input the same way.
 - `renderPage` and `save` return buffers that belong to the caller.
 - `'rewrite'` writes a complete file. `'incremental'` appends the changes to the original bytes. Saving keeps the document's encryption.
 - An open document holds engine memory until `close()` or `destroy()`. Engine memory does not shrink; closing a document lets the engine reuse it.
@@ -43,7 +50,8 @@ Ownership and lifetimes:
 
 Errors:
 
-- Engine calls reject with an `EngineError`. Its `code` is `password-required`, `password-incorrect`, `invalid-pdf`, `unsupported-security`, `out-of-memory`, `aborted` or `engine-failure`.
-- A `RangeError` means a page index outside the document, a scale that is not a finite number above 0, or a render larger than 268,435,456 pixels.
+- Engine calls reject with an `EngineError`. Its `code` is `password-required`, `password-incorrect`, `invalid-pdf`, `unsupported-security`, `out-of-memory`, `write-failed`, `aborted` or `engine-failure`.
+- `write-failed` means part of a `write` could not be written. The message names the annotation. The document is left as it was opened and the engine keeps working.
+- A `RangeError` means a page index outside the document, a scale that is not a finite number above 0, a render larger than 268,435,456 pixels, or a resource name in an appearance outside A-Z, a-z and 0-9.
 - After an internal error in PDFium the engine stops. Every later call rejects with `engine-failure`, except `close()` and `destroy()`, which still resolve. Create a new engine.
 - `out-of-memory` does not always stop the engine. A bitmap that cannot be allocated leaves it working. An allocation failure that aborts PDFium stops it.
