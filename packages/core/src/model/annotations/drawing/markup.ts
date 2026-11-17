@@ -1,4 +1,6 @@
-import { rectFromQuad } from '../../geometry'
+import { rectFromQuad, unionRects } from '../../geometry'
+
+import { padRect, paintedRect } from './extent'
 
 import type { Point, Quad, Rect } from '../../geometry'
 import type { RedactAnnotation, TextMarkupAnnotation } from '../types'
@@ -26,6 +28,9 @@ function quadsBounds(quads: readonly Quad[], fallback: Rect): Rect {
     height: Math.max(...rects.map((r) => r.y + r.height)) - y,
   }
 }
+
+/** The width of a redaction mark's outline, in points. */
+const REDACT_STROKE = 1
 
 /** Line thickness in points for a text markup: a fraction of the quad's height. */
 function markupStroke(q: Quad): number {
@@ -77,35 +82,48 @@ export function describeMarkup(a: TextMarkupAnnotation): Drawing {
     }
   }
   const type = a.type
+  const lines = a.quads.map((q): DrawItem => ({
+    kind: 'polyline',
+    points: markupLine(type, q),
+    paint: {
+      stroke: {
+        color: a.color,
+        width: markupStroke(q),
+        // A squiggle turns sharply at every point; its corners are round, not mitred.
+        ...(type === 'squiggly' ? { join: 'round' as const } : {}),
+      },
+    },
+  }))
+  // The quads, and the strokes, which a thin quad leaves a little outside.
+  const painted = lines.flatMap((i) => paintedRect(i) ?? [])
   return {
     layer: 'annotation',
-    bounds,
-    items: [
-      {
-        kind: 'group',
-        opacity: a.opacity,
-        items: a.quads.map((q): DrawItem => ({
-          kind: 'polyline',
-          points: markupLine(type, q),
-          paint: { stroke: { color: a.color, width: markupStroke(q) } },
-        })),
-      },
-    ],
+    bounds: unionRects([bounds, ...painted]),
+    items: [{ kind: 'group', opacity: a.opacity, items: lines }],
   }
 }
 
-/** A redaction mark: a polygon per quad, or the rect, tinted at 15% with a one point outline. */
+/**
+ * A redaction mark: a polygon per quad, or the rect, tinted at 15% with a one point outline
+ * centred on the edge, so it reaches half a point outside the quads or the rect. The corners of
+ * a quad are round.
+ */
 export function describeRedact(a: RedactAnnotation): Drawing {
   const paint = {
     fill: { color: a.interiorColor, opacity: 0.15 },
-    stroke: { color: a.color, width: 1 },
+    stroke: { color: a.color, width: REDACT_STROKE },
   }
+  const quadPaint = { ...paint, stroke: { ...paint.stroke, join: 'round' as const } }
   const items: DrawItem[] = a.quads
-    ? a.quads.map((q): DrawItem => ({ kind: 'polygon', points: corners(q), paint }))
+    ? a.quads.map((q): DrawItem => ({
+        kind: 'polygon',
+        points: corners(q),
+        paint: quadPaint,
+      }))
     : [{ kind: 'rect', rect: a.rect, paint }]
   return {
     layer: 'annotation',
-    bounds: a.quads ? quadsBounds(a.quads, a.rect) : a.rect,
+    bounds: padRect(a.quads ? quadsBounds(a.quads, a.rect) : a.rect, REDACT_STROKE / 2),
     items: [{ kind: 'group', opacity: a.opacity, items }],
   }
 }

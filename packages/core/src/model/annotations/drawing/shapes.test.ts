@@ -90,9 +90,35 @@ describe('describeShape', () => {
       const [g] = d.items
       if (g?.kind !== 'group') throw new Error('expected a group')
       expect(g.items[0]).toMatchObject({
-        rect: { x: 101, y: 601, width: 0, height: 0 },
+        rect: { x: 100, y: 600, width: 0, height: 0 },
       })
       expect(JSON.stringify(d)).not.toMatch(/null|NaN/)
     }
+  })
+
+  test('a shape narrower than its stroke stays centred, and the bounds reach past the rect', () => {
+    for (const type of ['square', 'circle'] as const) {
+      const d = describeShape({
+        ...base,
+        type,
+        width: 6,
+        rect: { x: 100, y: 600, width: 2, height: 40 },
+      })
+      const [g] = d.items
+      if (g?.kind !== 'group') throw new Error('expected a group')
+      expect(g.items[0], type).toMatchObject({
+        rect: { x: 101, y: 603, width: 0, height: 34 },
+      })
+      expect(d.bounds, type).toEqual({ x: 98, y: 600, width: 6, height: 40 })
+    }
+  })
+
+  test('a stroke of no width is not drawn', () => {
+    const d = describeShape({ ...square, width: 0, interiorColor: '#00FF00' })
+    expect(JSON.stringify(d.items)).not.toContain('stroke')
+    expect(d.items[0]).toMatchObject({
+      items: [{ rect: { x: 100, y: 600, width: 80, height: 40 } }],
+    })
+    expect(d.bounds).toEqual(square.rect)
   })
 })

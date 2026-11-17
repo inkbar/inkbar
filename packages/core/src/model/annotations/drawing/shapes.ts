@@ -1,26 +1,30 @@
-import type { ShapeAnnotation } from '../types'
-import type { Drawing } from './types'
+import { strokeInset } from './extent'
 
-/** A square or circle: a rect or ellipse inset by half its stroke, in a group. */
+import type { ShapeAnnotation } from '../types'
+import type { Drawing, Paint } from './types'
+
+/**
+ * A square or circle: a rect or ellipse inset by half its stroke, in a group. A box narrower
+ * than its stroke collapses to its centre line, so the shape stays centred in `rect`, and the
+ * bounds then reach past `rect` by what the stroke needs. A stroke of no width is not drawn.
+ */
 export function describeShape(a: ShapeAnnotation): Drawing {
-  const inset = a.width / 2
-  const rect = {
-    x: a.rect.x + inset,
-    y: a.rect.y + inset,
-    width: Math.max(0, a.rect.width - a.width),
-    height: Math.max(0, a.rect.height - a.width),
-  }
-  const paint = {
+  const { inset: rect, reach } = strokeInset(a.rect, a.width)
+  const paint: Paint = {
     ...(a.interiorColor ? { fill: { color: a.interiorColor } } : {}),
-    stroke: {
-      color: a.color,
-      width: a.width,
-      ...(a.dashes?.length ? { dashes: a.dashes } : {}),
-    },
+    ...(a.width > 0
+      ? {
+          stroke: {
+            color: a.color,
+            width: a.width,
+            ...(a.dashes?.length ? { dashes: a.dashes } : {}),
+          },
+        }
+      : {}),
   }
   return {
     layer: 'annotation',
-    bounds: a.rect,
+    bounds: reach,
     items: [
       {
         kind: 'group',

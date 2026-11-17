@@ -1,6 +1,9 @@
+import { unionRects } from '../../geometry'
 import { isKnown, LINE_ENDINGS } from '../pdf-names'
 
-import type { Point, Rect } from '../../geometry'
+import { paintedRect } from './extent'
+
+import type { Point } from '../../geometry'
 import type { LineAnnotation, LineEnding, PolyAnnotation } from '../types'
 import type { DrawItem, Drawing, Paint, PathCommand } from './types'
 
@@ -104,13 +107,20 @@ export function endingItem(
   }
   const paint: Paint = {
     ...(FILLED_ENDINGS.has(kind) ? { fill: { color } } : {}),
-    stroke: {
-      color,
-      width,
-      join: 'round',
-      // A butt or slash ending is a cut across the line: a round cap would blunt it.
-      cap: kind === 'Butt' || kind === 'Slash' ? 'butt' : 'round',
-    },
+    ...(width > 0
+      ? {
+          stroke: {
+            color,
+            width,
+            join: 'round' as const,
+            // A butt or slash ending is a cut across the line: a round cap would blunt it.
+            cap:
+              kind === 'Butt' || kind === 'Slash'
+                ? ('butt' as const)
+                : ('round' as const),
+          },
+        }
+      : {}),
   }
   return { kind: 'path', role, commands, paint }
 }
@@ -122,17 +132,20 @@ export function describeLine(a: LineAnnotation | PolyAnnotation): Drawing {
     ...(a.type === 'polygon' && a.interiorColor
       ? { fill: { color: a.interiorColor } }
       : {}),
-    stroke: {
-      color: a.color,
-      width: a.width,
-      ...(a.dashes?.length ? { dashes: a.dashes } : {}),
-      join: 'round',
-    },
+    ...(a.width > 0
+      ? {
+          stroke: {
+            color: a.color,
+            width: a.width,
+            ...(a.dashes?.length ? { dashes: a.dashes } : {}),
+            join: 'round' as const,
+          },
+        }
+      : {}),
   }
   const items: DrawItem[] = [
     { kind: a.type === 'polygon' ? 'polygon' : 'polyline', points, paint },
   ]
-  let reach = a.width / 2
   if (a.type !== 'polygon' && points.length >= 2) {
     const first = points[0]!
     const second = points[1]!
@@ -145,30 +158,17 @@ export function describeLine(a: LineAnnotation | PolyAnnotation): Drawing {
       const ending = kind && endingItem(kind, tip, other, a.width, a.color, role)
       if (ending) {
         items.push(ending)
-        reach = ENDING_SCALE * Math.max(a.width, 1)
       }
     }
   }
+  const painted = items.flatMap((i) => paintedRect(i) ?? [])
   return {
     layer: 'annotation',
-    bounds: pad(pointBounds(points), reach),
+    // A line with no points paints nothing: its bounds are its rect's corner.
+    bounds:
+      painted.length > 0
+        ? unionRects(painted)
+        : { x: a.rect.x, y: a.rect.y, width: 0, height: 0 },
     items: [{ kind: 'group', opacity: a.opacity, items }],
-  }
-}
-
-function pointBounds(points: readonly Point[]): Rect {
-  const xs = points.map((p) => p.x)
-  const ys = points.map((p) => p.y)
-  const x = Math.min(...xs)
-  const y = Math.min(...ys)
-  return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y }
-}
-
-function pad(r: Rect, by: number): Rect {
-  return {
-    x: r.x - by,
-    y: r.y - by,
-    width: r.width + by * 2,
-    height: r.height + by * 2,
   }
 }

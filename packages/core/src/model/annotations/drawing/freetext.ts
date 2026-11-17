@@ -1,7 +1,9 @@
+import { unionRects } from '../../geometry'
 import { calloutStroke, freeTextBox, isStandardCallout } from '../callout'
 import { isBubble, WEDGE_HALF } from '../edit'
 import { isKnown, LINE_ENDINGS } from '../pdf-names'
 
+import { paintedRect, strokeInset } from './extent'
 import { endingItem } from './lines'
 import { layoutText } from './text/layout'
 import { resolveFont } from './text/measure'
@@ -160,12 +162,7 @@ export function describeFreeText(a: FreeTextAnnotation, context: DrawContext): D
       paint: a.color ? { fill: { color: a.color } } : {},
     })
     if (border > 0) {
-      const rect = {
-        x: box.x + border / 2,
-        y: box.y + border / 2,
-        width: Math.max(0, box.width - border),
-        height: Math.max(0, box.height - border),
-      }
+      const { inset: rect } = strokeInset(box, border)
       const r = radius
         ? Math.min(
             Math.max(0, radius - border / 2),
@@ -184,9 +181,12 @@ export function describeFreeText(a: FreeTextAnnotation, context: DrawContext): D
   inner.push(textItem(a, context, frame, box, border))
   items.push(...inner)
 
+  // The rect, and what reaches past it: a callout's line and ending, a bubble's wedge and its
+  // outline, which is centred on the box edge.
+  const painted = items.flatMap((i) => paintedRect(i) ?? [])
   return {
     layer: 'annotation',
-    bounds: a.rect,
+    bounds: unionRects([a.rect, ...painted]),
     items: [{ kind: 'group', opacity: a.opacity, items }],
   }
 }
