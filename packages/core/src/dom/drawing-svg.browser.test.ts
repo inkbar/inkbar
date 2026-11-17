@@ -443,33 +443,38 @@ describe('a stamp', () => {
     // The left half of the picture is transparent.
     expect(el.contains(hit(at.width * 0.25, at.height / 2))).toBe(true)
     expect(el.contains(hit(at.width * 0.75, at.height / 2))).toBe(true)
-    // The press lands on the hit rect even when the image takes none.
-    el.querySelector('image')!.setAttribute('pointer-events', 'none')
+    // The drawn image takes no presses itself: they land on the hit rect.
+    expect(el.querySelector('image')!.getAttribute('pointer-events')).toBe('none')
     expect(hit(at.width * 0.25, at.height / 2)).toBe(
       el.querySelector('rect[data-ink-hit-area]')
     )
     host.remove()
   })
 
-  it('has an image and a hit rect over its on-screen box', () => {
+  it('has an image and a hit rect over its on-screen box, at every page and view rotation', () => {
     for (const pageRotate of [0, 90] as const) {
-      for (const rotation of [0, 90] as const) {
-        const t = createPageTransform({ ...page, rotate: pageRotate }, 2, 0)
-        const a = stampAt(rotation)
-        const host = mountContainer(1400, 1400)
-        const at = t.toCssRect(a.rect)
-        const el = document.createElement('div')
-        el.style.cssText = `position:absolute;left:${at.left}px;top:${at.top}px;width:${at.width}px;height:${at.height}px;`
-        host.append(el)
-        renderAnnotationContent(el, a, t)
-        const image = el.querySelector('image.ink-stamp')!.getBoundingClientRect()
-        const hit = el.querySelector('rect[data-ink-hit-area]')!.getBoundingClientRect()
-        host.remove()
-        expect(el.querySelectorAll('image, rect')).toHaveLength(2)
-        for (const k of ['left', 'top', 'width', 'height'] as const) {
-          expect(hit[k]).toBeCloseTo(image[k], 0)
+      for (const view of [0, 90, 180, 270] as const) {
+        for (const rotation of [0, 90] as const) {
+          const t = createPageTransform({ ...page, rotate: pageRotate }, 2, view)
+          const a = stampAt(rotation)
+          const host = mountContainer(1400, 1400)
+          const at = t.toCssRect(a.rect)
+          const el = document.createElement('div')
+          el.style.cssText = `position:absolute;left:${at.left}px;top:${at.top}px;width:${at.width}px;height:${at.height}px;`
+          host.append(el)
+          renderAnnotationContent(el, a, t)
+          const image = el.querySelector('image.ink-stamp')!.getBoundingClientRect()
+          const hit = el.querySelector('rect[data-ink-hit-area]')!.getBoundingClientRect()
+          host.remove()
+          expect(el.querySelectorAll('image, rect')).toHaveLength(2)
+          for (const k of ['left', 'top', 'width', 'height'] as const) {
+            expect(
+              hit[k],
+              `${k} at /Rotate ${pageRotate}, view ${view}, stamp ${rotation}`
+            ).toBeCloseTo(image[k], 0)
+          }
+          expect(el.querySelector('rect')!.getAttribute('stroke')).toBe('none')
         }
-        expect(el.querySelector('rect')!.getAttribute('stroke')).toBe('none')
       }
     }
   })
