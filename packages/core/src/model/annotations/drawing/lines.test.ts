@@ -241,6 +241,86 @@ describe('describeLine', () => {
     expect(tail.commands[1]).toEqual({ op: 'L', to: { x: 10, y: 10 } })
   })
 
+  describe('a polyline with few or repeated points', () => {
+    const poly = (vertices: PolyAnnotation['vertices']): PolyAnnotation => ({
+      ...base,
+      type: 'polyline',
+      vertices,
+      head: 'OpenArrow',
+      tail: 'ClosedArrow',
+    })
+    const shapes = (a: PolyAnnotation) => {
+      const group = describeLine(a).items[0]
+      if (group?.kind !== 'group') throw new Error('no group')
+      return group.items
+    }
+
+    test('one point is drawn as a polyline of one point, with no ending', () => {
+      const items = shapes(poly([{ x: 5, y: 5 }]))
+      expect(items.map((i) => i.kind)).toEqual(['polyline'])
+      noNaN(describeLine(poly([{ x: 5, y: 5 }])))
+    })
+
+    test('two points are one segment, with the head and the tail at its ends', () => {
+      const items = shapes(
+        poly([
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+        ])
+      )
+      expect(items.map((i) => i.role)).toEqual([undefined, 'ending-head', 'ending-tail'])
+      const [head, tail] = [items[1], items[2]]
+      if (head?.kind !== 'path' || tail?.kind !== 'path') throw new Error('no path')
+      expect(head.commands[1]).toEqual({ op: 'L', to: { x: 0, y: 0 } })
+      expect(tail.commands[1]).toEqual({ op: 'L', to: { x: 10, y: 0 } })
+    })
+
+    test('a point repeated beside an end leaves that end without an ending', () => {
+      // The last segment has no direction, so the tail has nothing to point along. The head,
+      // on a segment that has one, is drawn.
+      const items = shapes(
+        poly([
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+          { x: 10, y: 0 },
+        ])
+      )
+      expect(items.map((i) => i.role)).toEqual([undefined, 'ending-head'])
+      noNaN(
+        describeLine(
+          poly([
+            { x: 0, y: 0 },
+            { x: 10, y: 0 },
+            { x: 10, y: 0 },
+          ])
+        )
+      )
+    })
+  })
+
+  test('a polygon of fewer than three points describes without NaN and has no ending', () => {
+    for (const vertices of [
+      [{ x: 3, y: 4 }],
+      [
+        { x: 3, y: 4 },
+        { x: 9, y: 4 },
+      ],
+    ]) {
+      const a: PolyAnnotation = {
+        ...base,
+        type: 'polygon',
+        vertices,
+        interiorColor: '#7FB3D5',
+      }
+      const d = describeLine(a)
+      noNaN(d)
+      const group = d.items[0]
+      if (group?.kind !== 'group') throw new Error('no group')
+      expect(group.items.map((i) => i.kind)).toEqual(['polygon'])
+      expect(group.items[0]).toMatchObject({ points: vertices })
+    }
+  })
+
   test('a polygon is filled with its interior colour and has no endings', () => {
     const poly: PolyAnnotation = {
       ...base,
