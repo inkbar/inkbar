@@ -150,6 +150,36 @@ describe('the size of a line ending', () => {
   })
 })
 
+describe("the size of a callout's head", () => {
+  it('is the same in points at every zoom, so it grows with the page on screen', () => {
+    const a = add({
+      type: 'freetext',
+      page: 0,
+      rect: { x: 120, y: 590, width: 100, height: 40 },
+      contents: 'Hi',
+      intent: 'FreeTextCallout',
+      callout: [
+        { x: 60, y: 600 },
+        { x: 120, y: 600 },
+      ],
+      head: 'OpenArrow',
+      width: 2,
+    })
+    const across = (zoom: number): number => {
+      const painted = document.createElement('div')
+      renderAnnotationContent(painted, a, createPageTransform(letter(), zoom, 0))
+      const ys = (painted.querySelector('[data-ending="head"]')!.getAttribute('d') ?? '')
+        .match(/-?\d+(?:\.\d+)? -?\d+(?:\.\d+)?/g)!
+        .map((pair) => Number(pair.split(' ')[1]))
+      return Math.max(...ys) - Math.min(...ys)
+    }
+    // Three times the 2 pt stroke across, at one pixel a point and at two.
+    expect(across(1)).toBeCloseTo(6, 3)
+    expect(across(2)).toBeCloseTo(12, 3)
+    expect(across(0.5)).toBeCloseTo(3, 3)
+  })
+})
+
 describe('what takes a press on a painted annotation', () => {
   const at = { page: 0, rect: { x: 100, y: 600, width: 80, height: 40 } } as const
   const markup = { page: 0, rect: { x: 72, y: 695, width: 228, height: 20 } } as const

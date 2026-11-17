@@ -530,6 +530,54 @@ describe('a speech bubble', () => {
     expect(t.lines[0]!.origin.y).toBeCloseTo(360 - 4.8 - laid.baseline)
   })
 
+  describe('the edge the tail leaves when two are equally near', () => {
+    // The middle of the wedge's base, which is kept clear of the corners, is on the edge it leaves.
+    const edgeOf = (a: FreeTextAnnotation, rotate: 0 | 90): string => {
+      const { x, y, width, height } = a.rect
+      const tip = a.callout![0]!
+      const commands = path(describeFreeText(a, context(rotate))).commands
+      const at = commands.findIndex(
+        (c) => c.op === 'L' && c.to.x === tip.x && c.to.y === tip.y
+      )
+      const [before, after] = [commands[at - 1], commands[at + 1]]
+      if (before?.op !== 'L' || after?.op !== 'L') throw new Error('no wedge')
+      const mid = { x: (before.to.x + after.to.x) / 2, y: (before.to.y + after.to.y) / 2 }
+      const sides = [
+        mid.x === x && 'left',
+        mid.x === x + width && 'right',
+        mid.y === y && 'bottom',
+        mid.y === y + height && 'top',
+      ].filter(Boolean)
+      expect(sides).toHaveLength(1)
+      return sides[0] as string
+    }
+    const on = (
+      rect: FreeTextAnnotation['rect'],
+      edge: { x: number; y: number }
+    ): FreeTextAnnotation => ({
+      ...bubble,
+      rect,
+      cornerRadius: 0,
+      callout: [{ x: 5, y: 5 }, edge],
+    })
+    const wide = { x: 100, y: 300, width: 200, height: 80 }
+    const tall = { x: 100, y: 300, width: 80, height: 200 }
+    // [name, annotation, edge it leaves]: ties go left, right, bottom, top.
+    const cases: [string, FreeTextAnnotation, string][] = [
+      ['left and right, level with the middle', on(tall, { x: 140, y: 400 }), 'left'],
+      ['bottom and top, over the middle', on(wide, { x: 200, y: 340 }), 'bottom'],
+      ['left and bottom, off the corner', on(wide, { x: 90, y: 290 }), 'left'],
+      ['left and top, off the corner', on(wide, { x: 90, y: 390 }), 'left'],
+      ['right and bottom, off the corner', on(wide, { x: 310, y: 290 }), 'right'],
+      ['right and top, off the corner', on(wide, { x: 310, y: 390 }), 'right'],
+    ]
+    for (const [name, a, want] of cases)
+      for (const rotate of [0, 90] as const)
+        test(`${name}: the ${want} edge, on a page turned ${rotate}`, () => {
+          expect(edgeOf(a, rotate)).toBe(want)
+        })
+  })
+
   test('a bubble on a page turned 90 keeps its outline in user space', () => {
     const upright = path(describeFreeText(bubble, context(0))).commands
     const turned = path(describeFreeText(bubble, context(90))).commands
