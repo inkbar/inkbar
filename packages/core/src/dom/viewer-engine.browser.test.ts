@@ -400,7 +400,9 @@ describe('mountViewer', () => {
     for (const note of notes) expect(note.querySelector('.ink-note-icon')).not.toBeNull()
   })
 
-  it('draws an embedded note with no appearance in the colour the file gives it', async () => {
+  it('draws an embedded note that has no colour in the file in the default colour', async () => {
+    // The file gives these notes no /C, so each takes the default note colour; a note that does
+    // carry one is drawn in it (overlay.browser.test.ts).
     const { doc, container } = await setup('annotated-notes-threaded', { zoom: 1 })
     await until(
       () => container.querySelector('[data-annotation][data-type="text"]') !== null
@@ -410,10 +412,11 @@ describe('mountViewer', () => {
       .filter((a) => a.type === 'text' && a.hasAppearance === false && !a.inReplyTo)
     expect(notes.length).toBeGreaterThan(0)
     for (const note of notes) {
+      expect(note.color?.toLowerCase()).toBe('#f2c230')
       const square = container.querySelector(
         `[data-annotation="${note.id}"] path.ink-note-icon`
       )!
-      expect(square.getAttribute('fill')?.toLowerCase()).toBe(note.color?.toLowerCase())
+      expect(square.getAttribute('fill')?.toLowerCase()).toBe('#f2c230')
     }
   })
 

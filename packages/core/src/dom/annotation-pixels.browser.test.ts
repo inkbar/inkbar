@@ -294,7 +294,7 @@ const CASES: Case[] = [
     ],
   },
   {
-    name: 'a note',
+    name: 'a note whose icon has no glyph',
     input: {
       type: 'text',
       page: 0,
@@ -306,6 +306,38 @@ const CASES: Case[] = [
     samples: [
       { at: [242, 162], want: [242, 194, 48], why: "inside the note's square" },
       { at: [242, 185], want: WHITE, why: 'above it, past its shadow' },
+    ],
+  },
+  {
+    // Insert is a chevron: its apex is at (12, 9) of the glyph's 24-unit box, drawn 0.6 of the
+    // square's side across, so 36 pt of a 60 pt square, at 1.5 pt to the unit, with a stroke 3
+    // pt wide. The square is x 220..280, y 120..180: the apex is (12 + 18) = 30 across and
+    // (12 + 9 * 1.5) = 25.5 down from its top-left corner.
+    name: 'a note with a glyph',
+    input: {
+      type: 'text',
+      page: 0,
+      rect: { x: 220, y: 120, width: 60, height: 60 },
+      icon: 'Insert',
+      color: '#F2C230',
+      opacity: 1,
+    },
+    samples: [
+      {
+        at: [250, 154.5],
+        want: [21, 24, 32],
+        why: "on the glyph's stroke, at the chevron's apex",
+      },
+      {
+        at: [250, 144.5],
+        want: [242, 194, 48],
+        why: "in the note's colour, below the apex between the arms",
+      },
+      {
+        at: [225, 175],
+        want: [242, 194, 48],
+        why: "in the note's colour, near its corner",
+      },
     ],
   },
   {
