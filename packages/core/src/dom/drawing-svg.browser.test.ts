@@ -308,6 +308,21 @@ describe('renderAnnotationContent', () => {
     renderAnnotationContent(el, a, t)
     expect(el.querySelector('svg.ink-annotation-shape polygon')).not.toBeNull()
   })
+
+  it('leaves an annotation the page canvas paints with nothing in its element', () => {
+    const a = {
+      ...store().add({
+        type: 'square',
+        page: 0,
+        rect: { x: 72, y: 695, width: 228, height: 20 },
+      }),
+      source: 'pdf' as const,
+    }
+    const el = document.createElement('div')
+    el.append(document.createElement('span'))
+    renderAnnotationContent(el, a, t)
+    expect(el.childNodes).toHaveLength(0)
+  })
 })
 
 describe('itemElement', () => {

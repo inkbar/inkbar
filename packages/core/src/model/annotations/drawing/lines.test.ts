@@ -88,6 +88,93 @@ describe('endingItem', () => {
     }
   })
 
+  test('an ending is oriented along the segment it sits on', () => {
+    // A segment pointing up the page: the arrow turns with it, its wings spreading either side of x.
+    const item = endingItem(
+      'ClosedArrow',
+      { x: 0, y: 10 },
+      O,
+      2,
+      '#000000',
+      'ending-tail'
+    )
+    if (item?.kind !== 'path') throw new Error('no path')
+    expect(item.commands).toEqual([
+      { op: 'M', to: { x: -3, y: 4 } },
+      { op: 'L', to: { x: 0, y: 10 } },
+      { op: 'L', to: { x: 3, y: 4 } },
+      { op: 'Z' },
+    ])
+  })
+
+  test('an ending is three strokes long, wider lines make bigger ones', () => {
+    const wing = (width: number): number => {
+      const item = endingItem('OpenArrow', E, O, width, '#000000', 'ending-tail')
+      if (item?.kind !== 'path' || item.commands[0]?.op !== 'M')
+        throw new Error('no path')
+      return E.x - item.commands[0].to.x
+    }
+    expect(wing(2)).toBe(6)
+    expect(wing(4)).toBe(12)
+    expect(wing(0)).toBe(3)
+  })
+
+  test('the reversed arrows have their base at the end and their apex back along the line', () => {
+    const open = endingItem('ROpenArrow', E, O, 2, '#000000', 'ending-tail')
+    const closed = endingItem('RClosedArrow', E, O, 2, '#000000', 'ending-tail')
+    if (open?.kind !== 'path' || closed?.kind !== 'path') throw new Error('no path')
+    const base = [
+      { op: 'M', to: { x: 10, y: 3 } },
+      { op: 'L', to: { x: 4, y: 0 } },
+      { op: 'L', to: { x: 10, y: -3 } },
+    ]
+    expect(open.commands).toEqual(base)
+    expect(closed.commands).toEqual([...base, { op: 'Z' }])
+  })
+
+  test('a square and a diamond are closed, filled and centred on the end', () => {
+    const square = endingItem('Square', E, O, 2, '#000000', 'ending-tail')
+    const diamond = endingItem('Diamond', E, O, 2, '#000000', 'ending-tail')
+    if (square?.kind !== 'path' || diamond?.kind !== 'path') throw new Error('no path')
+    expect(square.commands).toEqual([
+      { op: 'M', to: { x: 7, y: 3 } },
+      { op: 'L', to: { x: 13, y: 3 } },
+      { op: 'L', to: { x: 13, y: -3 } },
+      { op: 'L', to: { x: 7, y: -3 } },
+      { op: 'Z' },
+    ])
+    expect(diamond.commands).toEqual([
+      { op: 'M', to: { x: 7, y: 0 } },
+      { op: 'L', to: { x: 10, y: 3 } },
+      { op: 'L', to: { x: 13, y: 0 } },
+      { op: 'L', to: { x: 10, y: -3 } },
+      { op: 'Z' },
+    ])
+    expect(square.paint.fill).toEqual({ color: '#000000' })
+    expect(diamond.paint.fill).toEqual({ color: '#000000' })
+  })
+
+  test('a butt is a cut across the line and a slash is the same cut tilted 30 degrees', () => {
+    const butt = endingItem('Butt', E, O, 2, '#000000', 'ending-tail')
+    const slash = endingItem('Slash', E, O, 2, '#000000', 'ending-tail')
+    if (butt?.kind !== 'path' || slash?.kind !== 'path') throw new Error('no path')
+    expect(butt.commands).toEqual([
+      { op: 'M', to: { x: 10, y: 3 } },
+      { op: 'L', to: { x: 10, y: -3 } },
+    ])
+    const [from, to] = slash.commands
+    if (from?.op !== 'M' || to?.op !== 'L') throw new Error('not a segment')
+    expect(from.to.x).toBeCloseTo(10 - 1.5, 6)
+    expect(from.to.y).toBeCloseTo(Math.cos(Math.PI / 6) * 3, 6)
+    expect(to.to.x).toBeCloseTo(10 + 1.5, 6)
+    expect(to.to.y).toBeCloseTo(-Math.cos(Math.PI / 6) * 3, 6)
+  })
+
+  test('a name that is not exactly a known ending draws nothing', () => {
+    expect(endingItem('openArrow', E, O, 2, '#000', 'ending-head')).toBeUndefined()
+    expect(endingItem('Wobble', E, O, 2, '#000', 'ending-head')).toBeUndefined()
+  })
+
   test('an unknown ending draws nothing', () => {
     expect(endingItem('Nope', E, O, 1, '#000', 'ending-head')).toBeUndefined()
     expect(endingItem('None', E, O, 1, '#000', 'ending-head')).toBeUndefined()
