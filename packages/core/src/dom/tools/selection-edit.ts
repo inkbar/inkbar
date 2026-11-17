@@ -501,7 +501,7 @@ function handleOf(target: EventTarget | null): string | undefined {
 
 /** True when a press landed inside a free text's drawn text box. */
 function inText(target: EventTarget | null): boolean {
-  return target instanceof Element && target.closest('.ink-free-text') !== null
+  return target instanceof Element && target.closest('[data-ink-text-area]') !== null
 }
 
 /** The point a line's end or a callout's tip handle sits on. */

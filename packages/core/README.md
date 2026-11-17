@@ -185,6 +185,14 @@ A speech bubble is a standard callout plus Inkbar's `cornerRadius`. Inkbar draws
 
 A callout's corner handles resize its text box: the tip and bend stay, and the point on the box moves with the edge it sits on. Its tip handle moves the tip alone. Each edit refits `rect` and `fringe` in the same update, so it is one undo step.
 
+## Text boxes
+
+Inkbar draws a text box from its annotation alone. The fill, border, dashes, corner radius, alignment, opacity and text style all come from the annotation, so a saved file looks as the box does on screen. CSS cannot restyle the text. The press area over it is a transparent SVG rect (`[data-ink-text-area]`) and the text is SVG, both painted inline, so a host rule on an HTML class, on the text elements or on SVG shapes (`rect { fill: red }`) changes nothing. The other shapes that only take presses (a stamp's, a loupe's, a mask's edge, the wider hit area of a line) are painted inline the same way. `.ink-free-text` is only the in-place editor.
+
+A saved file can carry three font families without embedding a font: Helvetica, Times and Courier, each in regular, bold, italic and bold italic. A text box uses one of them. Any other `fontFamily` stays on the annotation and is drawn in the nearest of the three: a name that reads as serif in Times, one that reads as monospace in Courier, and the rest in Helvetica.
+
+Inkbar measures the text itself, so a box breaks its lines in the same places on every machine and in the saved file. The text is drawn as SVG, turns with the view, and is upright for the page as the file displays it. Characters outside the standard fonts are drawn in whatever font the browser finds.
+
 ## Limits of PDF import
 
 Inkbar reads the annotations embedded in a PDF through PDF.js, which passes on only part of each one. Import keeps `intent` (`/IT`) for every type. Once the document is ready, Inkbar reads from the file itself the fields PDF.js leaves out: a FreeText's `callout`, `fringe`, `head` and font, and a note's icon. They arrive as one `replace` change with `reason: 'embedded'`. That change adds no undo step and keeps the undo history.

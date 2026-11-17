@@ -92,6 +92,27 @@ export function syncHandles(node: HTMLElement, spec: HandleSpec): void {
   }
 }
 
+/**
+ * Gives a press-taking shape its paint (`transparent` or `none`) as attributes and as inline
+ * style, so a host rule such as `svg rect { fill: currentColor }` cannot fill or outline it and
+ * cover what is drawn under it. `width` is the stroke's, in CSS px. Hit testing
+ * (`pointer-events`) is the caller's.
+ */
+function invisible(
+  el: Element,
+  fill: 'transparent' | 'none',
+  stroke: 'transparent' | 'none',
+  width?: number
+): void {
+  el.setAttribute('fill', fill)
+  el.setAttribute('stroke', stroke)
+  if (width !== undefined) el.setAttribute('stroke-width', String(width))
+  el.setAttribute(
+    'style',
+    `fill:${fill};stroke:${stroke}${width === undefined ? '' : `;stroke-width:${width}px`}`
+  )
+}
+
 /** Width in CSS px a thin stroke's invisible hit twin is widened to. */
 const HIT_STROKE = 8
 
@@ -386,23 +407,8 @@ export function bubblePath(
 }
 
 /**
- * Redraws an open bubble's outline as `a`, a draft of it (the editor's, as its box grows with
- * its text), in an element whose top-left is `origin` on screen. No-op on any other element.
- */
-export function refitBubble(
-  el: HTMLElement,
-  a: FreeTextAnnotation,
-  t: PageTransform,
-  origin: { left: number; top: number }
-): void {
-  const path = el.querySelector(':scope > svg > .ink-bubble')
-  if (!path || !isBubble(a)) return
-  path.setAttribute('d', bubblePath(a, t, origin))
-}
-
-/**
  * Draws the default visual for an annotation inside its positioned element. Coordinates are
- * relative to the element. Colour, opacity and stroke are SVG attributes, never inline style,
+ * relative to the element. Colour, opacity and stroke of a drawn shape are SVG attributes, never inline style,
  * so a theme can override them with CSS. A type with a drawing is painted from it; the others
  * still go through the reference renderer.
  */
@@ -472,9 +478,7 @@ function renderChrome(el: HTMLElement, a: Annotation, t: PageTransform): void {
         twin.setAttribute('stroke-linecap', 'round')
       }
       twin.setAttribute('data-ink-hit-stroke', '')
-      twin.setAttribute('fill', 'none')
-      twin.setAttribute('stroke', 'transparent')
-      twin.setAttribute('stroke-width', String(hitWidth(a, t)))
+      invisible(twin, 'none', 'transparent', hitWidth(a, t))
       twin.setAttribute('pointer-events', 'stroke')
       svg.append(twin)
     }
@@ -482,7 +486,49 @@ function renderChrome(el: HTMLElement, a: Annotation, t: PageTransform): void {
   if (svg) appendStampHit(svg, drawn, t, annotationBox(a, t))
   if (svg && a.type === 'loupe') appendLensHit(svg, a, t)
   if (svg && a.type === 'mask') appendMaskEdge(svg, a, t)
+  if (a.type === 'freetext') appendTextChrome(el, a, t)
   appendCommentMarker(el, a, t)
+}
+
+/** Width in CSS px of the band straddling a text box's edge, which drags the box. */
+const TEXT_EDGE = 6
+
+/**
+ * What a press on a text box needs and its drawing does not hold, in one svg over the text: a
+ * transparent rect over the text box that takes presses (`[data-ink-text-area]`: a press inside
+ * edits the text), a band along its edge that selects and drags it instead, and, outside the svg,
+ * the frame a fringed box is outlined by when selected. They are svg shapes with inline paint, so
+ * a host rule on an HTML class cannot put a background or border over the drawn text.
+ */
+function appendTextChrome(
+  el: HTMLElement,
+  a: FreeTextAnnotation,
+  t: PageTransform
+): void {
+  const doc = el.ownerDocument
+  const inner = freeTextLocalBox(a, t)
+  const box = annotationBox(a, t)
+  // A later sibling of the drawing, so it takes presses above it once the theme positions it.
+  const svg = boxSvg(doc, box.width, box.height)
+  const area = doc.createElementNS(SVG, 'rect')
+  area.setAttribute('x', String(inner.left))
+  area.setAttribute('y', String(inner.top))
+  area.setAttribute('width', String(inner.width))
+  area.setAttribute('height', String(inner.height))
+  invisible(area, 'transparent', 'none')
+  area.setAttribute('pointer-events', 'all')
+  area.setAttribute('data-ink-text-area', '')
+  const band = doc.createElementNS(SVG, 'rect')
+  band.setAttribute('x', String(inner.left))
+  band.setAttribute('y', String(inner.top))
+  band.setAttribute('width', String(inner.width))
+  band.setAttribute('height', String(inner.height))
+  invisible(band, 'none', 'transparent', TEXT_EDGE)
+  band.setAttribute('pointer-events', 'stroke')
+  band.setAttribute('data-ink-edge', '')
+  svg.append(area, band)
+  el.append(svg)
+  appendSelectionFrame(el, a, t)
 }
 
 /** Width in CSS px of the band along a mask's edge that takes presses. */
@@ -501,8 +547,7 @@ function appendLensHit(svg: Element, a: Annotation, t: PageTransform): void {
   hit.setAttribute('cx', String(c.x - box.left))
   hit.setAttribute('cy', String(c.y - box.top))
   hit.setAttribute('r', String(t.toCssLength(lens.clip.radius)))
-  hit.setAttribute('fill', 'transparent')
-  hit.setAttribute('stroke', 'none')
+  invisible(hit, 'transparent', 'none')
   hit.setAttribute('pointer-events', 'all')
   hit.setAttribute('data-ink-hit-area', '')
   svg.append(hit)
@@ -534,9 +579,7 @@ function appendMaskEdge(svg: Element, a: Annotation, t: PageTransform): void {
           height: Math.max(0, box.height - MASK_EDGE),
         }
   for (const [k, v] of Object.entries(attrs)) shape.setAttribute(k, String(v))
-  shape.setAttribute('fill', 'none')
-  shape.setAttribute('stroke', 'transparent')
-  shape.setAttribute('stroke-width', String(MASK_EDGE))
+  invisible(shape, 'none', 'transparent', MASK_EDGE)
   shape.setAttribute('pointer-events', 'visiblePainted')
   shape.classList.add('ink-mask-shape')
   svg.append(shape)
@@ -563,8 +606,7 @@ function appendStampHit(
   hit.setAttribute('y', String(r.top - box.top))
   hit.setAttribute('width', String(r.width))
   hit.setAttribute('height', String(r.height))
-  hit.setAttribute('fill', 'transparent')
-  hit.setAttribute('stroke', 'none')
+  invisible(hit, 'transparent', 'none')
   hit.setAttribute('pointer-events', 'all')
   hit.setAttribute('data-ink-hit-area', '')
   svg.append(hit)
@@ -675,8 +717,7 @@ function drawHitArea(el: HTMLElement, a: Annotation, t: PageTransform): void {
       shape.setAttribute('width', String(box.width))
       shape.setAttribute('height', String(box.height))
     }
-    shape.setAttribute('fill', 'transparent')
-    shape.setAttribute('stroke', 'none')
+    invisible(shape, 'transparent', 'none')
     shape.setAttribute('pointer-events', 'all')
     svg.append(shape)
   }

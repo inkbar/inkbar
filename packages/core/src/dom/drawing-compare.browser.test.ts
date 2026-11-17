@@ -3,12 +3,14 @@ import { describe, expect, it } from 'vitest'
 import { staticDefaults } from '../model/annotations/defaults'
 import { createAnnotationStore } from '../model/annotations/store'
 
-import { comparePaint, type CompareCase } from './drawing-compare'
+import { comparePaint, type CompareCase, type CompareResult } from './drawing-compare'
 import { createMaskLayer } from './mask-layer'
 import { annotationBox, renderAnnotationContent } from './overlay-render'
 import { createReferenceMaskLayer } from './reference-mask'
 import { renderReferenceContent } from './reference-render'
 import { mountContainer } from './test-utils'
+import { checkTextFonts } from './text-font-check'
+import { FONT_STACKS } from './text-fonts'
 import { createPageTransform } from './transform'
 
 import type { PageTransform } from './transform'
@@ -718,6 +720,9 @@ function shape(el: Element): unknown {
     )
   const attrs: Record<string, string> = {}
   for (const a of [...el.attributes].sort((x, y) => x.name.localeCompare(y.name))) {
+    // The inline paint of a shape that only takes presses repeats its fill and stroke
+    // attributes, which are compared, so a host rule cannot fill it; the reference has none.
+    if (a.name === 'style' && /^fill:[^;]*;stroke:/.test(a.value)) continue
     attrs[a.name] = round(a.value)
   }
   return { tag: el.tagName, attrs, children: [...el.children].map(shape) }
@@ -1106,4 +1111,434 @@ describe('loupe and mask chrome against the reference', () => {
       expect(now[3]).toBe(false)
     })
   }
+})
+
+/** What the browser lays out for a text box, from the reference's HTML or the painted SVG. */
+interface TextMetrics {
+  lines: number
+  /** The union of the line boxes, in viewport px. */
+  text: { left: number; top: number; right: number; bottom: number }
+  /** The box's outer edge, border and stroke included. */
+  box: { left: number; top: number; right: number; bottom: number }
+}
+
+const edges = (
+  r: DOMRect | { left: number; top: number; right: number; bottom: number }
+) => ({
+  left: r.left,
+  top: r.top,
+  right: r.right,
+  bottom: r.bottom,
+})
+const union = (rs: readonly DOMRect[]) =>
+  edges({
+    left: Math.min(...rs.map((r) => r.left)),
+    top: Math.min(...rs.map((r) => r.top)),
+    right: Math.max(...rs.map((r) => r.right)),
+    bottom: Math.max(...rs.map((r) => r.bottom)),
+  })
+const grow = (r: ReturnType<typeof edges>, by: number) => ({
+  left: r.left - by,
+  top: r.top - by,
+  right: r.right + by,
+  bottom: r.bottom + by,
+})
+
+function textMetrics(el: HTMLElement, side: 'reference' | 'painted'): TextMetrics {
+  let rects: DOMRect[]
+  let box: ReturnType<typeof edges>
+  const bubble = el.querySelector<SVGPathElement>('path.ink-bubble')
+  if (side === 'reference') {
+    const div = el.querySelector<HTMLElement>('.ink-free-text')!
+    // One rect per character that shows, grouped into lines by their top: spaces that hang at a
+    // wrap are in the browser's rects but not in the lines the layout reports.
+    const node = div.firstChild as Text
+    const lines: DOMRect[][] = []
+    for (let i = 0; i < node.length; i++) {
+      if (/\s/.test(node.data[i]!)) continue
+      const range = document.createRange()
+      range.setStart(node, i)
+      range.setEnd(node, i + 1)
+      const r = range.getBoundingClientRect()
+      const line = lines.find((l) => Math.abs(l[0]!.top - r.top) < 1)
+      if (line) line.push(r)
+      else lines.push([r])
+    }
+    rects = lines.map((l) => {
+      const u = union(l)
+      return new DOMRect(u.left, u.top, u.right - u.left, u.bottom - u.top)
+    })
+    box = bubble
+      ? grow(
+          edges(bubble.getBoundingClientRect()),
+          Number(bubble.getAttribute('stroke-width') ?? 0) / 2
+        )
+      : edges(div.getBoundingClientRect())
+  } else {
+    // Left and right at the line's advance, as the HTML's rects are: the SVG text's own bounding
+    // box reaches past it by an italic's overhang.
+    rects = [...el.querySelectorAll<SVGTextElement>('text')].map((t) => {
+      const n = t.getNumberOfChars()
+      const ctm = t.getScreenCTM()!
+      const from = t.getStartPositionOfChar(0).matrixTransform(ctm)
+      const to = t.getEndPositionOfChar(n - 1).matrixTransform(ctm)
+      const r = t.getBoundingClientRect()
+      return new DOMRect(from.x, r.top, to.x - from.x, r.height)
+    })
+    const shape = bubble ?? el.querySelector<SVGElement>('[data-ink-part="box"]')!
+    box = grow(
+      edges(shape.getBoundingClientRect()),
+      Number(shape.getAttribute('stroke-width') ?? 0) / 2
+    )
+  }
+  return { lines: rects.length, text: union(rects), box }
+}
+
+describe('comparePaint for text boxes', () => {
+  const para =
+    'The quick brown fox jumps over the lazy dog, and then a second sentence follows it.\nA short line.'
+  const plain = {
+    type: 'freetext',
+    page: 0,
+    rect: { x: 100, y: 600, width: 200, height: 90 },
+    contents: para,
+  } as const
+  const withStyle = (
+    style: Record<string, unknown>,
+    extra: Record<string, unknown> = {}
+  ): CompareCase['annotation'] => ({ ...plain, ...extra, defaultStyle: style })
+  const cases: CompareCase[] = [
+    { name: 'a plain box', annotation: plain },
+    ...(['left', 'center', 'right', 'justify'] as const).map(
+      (textAlign): CompareCase => ({
+        name: `${textAlign} aligned`,
+        annotation: withStyle({ textAlign }),
+      })
+    ),
+    { name: 'bold', annotation: withStyle({ fontWeight: 'bold' }) },
+    { name: 'italic', annotation: withStyle({ fontStyle: 'italic' }) },
+    {
+      name: 'underline',
+      // No descenders, so the ink under the rule is the rule's.
+      annotation: withStyle(
+        { textDecoration: 'underline' },
+        {
+          contents:
+            'Our new room is on one more row so we can see no one come in\nA warm wind arrives',
+        }
+      ),
+    },
+    {
+      name: 'fill and border',
+      annotation: {
+        ...plain,
+        color: '#FFF3B0',
+        borderColor: '#B00020',
+        width: 2,
+      },
+    },
+    {
+      name: 'radius',
+      annotation: { ...plain, color: '#CDE7FF', width: 1, cornerRadius: 10 },
+    },
+    {
+      name: 'a standard callout with an open arrow',
+      annotation: {
+        type: 'freetext',
+        page: 0,
+        rect: { x: 60, y: 560, width: 240, height: 120 },
+        fringe: { left: 80, top: 10, right: 10, bottom: 50 },
+        intent: 'FreeTextCallout',
+        callout: [
+          { x: 70, y: 570 },
+          { x: 100, y: 600 },
+          { x: 140, y: 625 },
+        ],
+        head: 'OpenArrow',
+        width: 1,
+        color: '#FFFFFF',
+        contents: 'The quick brown fox jumps over the lazy dog.',
+      },
+    },
+    {
+      name: 'a speech bubble',
+      annotation: {
+        type: 'freetext',
+        page: 0,
+        // The rect holds the tail too, and the fringe insets it to the box, as a drawn bubble has.
+        rect: { x: 100, y: 470, width: 160, height: 110 },
+        fringe: { left: 0, top: 0, right: 0, bottom: 30 },
+        intent: 'FreeTextCallout',
+        cornerRadius: 10,
+        width: 2,
+        color: '#FFFFFF',
+        callout: [
+          { x: 120, y: 470 },
+          { x: 150, y: 500 },
+        ],
+        contents: 'The quick brown fox jumps over the lazy dog.',
+      },
+    },
+  ]
+  const where = [
+    ['page rotate 0, zoom 1', { pageRotate: 0, zoom: 1 }],
+    ['page rotate 0, zoom 2', { pageRotate: 0, zoom: 2 }],
+    ['page rotate 90, zoom 1', { pageRotate: 90, zoom: 1 }],
+    ['page rotate 90, zoom 2', { pageRotate: 90, zoom: 2 }],
+    ['a /UserUnit 2 page', { userUnit: 2, zoom: 1 }],
+  ] as const
+
+  /** The fonts this machine has: whether its Latin faces are the ones the width tables describe. */
+  const fonts = checkTextFonts()
+  if (fonts.mode !== 'exact')
+    console.log(
+      `[text compare] the advance check is skipped: the fonts are not the tables' (mode ${fonts.mode})`
+    )
+
+  /** What one rendering of a case measured. */
+  interface Evaluated {
+    drawn: CompareResult
+    aligned: CompareResult
+    reference: TextMetrics
+    painted: TextMetrics
+    /** The largest relative gap between a drawn line's natural advance and the width it is set to. */
+    advanceError: number
+  }
+
+  /** A change to the painted text, made after it is placed, for the controls. */
+  type Mutate = (el: HTMLElement) => void
+
+  /**
+   * Draws `c` both ways. The painted text sits at the file's fractional baseline, and the HTML at
+   * the whole-pixel one Chrome picks, so the first lines are up to a pixel apart. Both are compared
+   * as they are (`drawn`), and again with the painted text moved onto the HTML baseline
+   * (`aligned`), which leaves what the glyph shapes and positions do. `mutate` changes the painted
+   * side last.
+   */
+  async function evaluate(
+    c: CompareCase,
+    extra: Partial<CompareCase>,
+    mutate?: Mutate
+  ): Promise<Evaluated> {
+    const seen: Partial<Record<'reference' | 'painted', TextMetrics>> = {}
+    let advanceError = 0
+    let bands: { left: number; top: number; width: number; height: number }[] = []
+    const run = async (align: boolean) => {
+      bands = []
+      return comparePaint(
+        { ...c, ...extra },
+        (el, a, t) => {
+          renderAnnotationContent(el, a, t)
+          seen.painted = textMetrics(el, 'painted')
+          if (align) {
+            const dy = seen.reference!.text.top - seen.painted.text.top
+            el.querySelector('g[data-ink-part="text"]')?.setAttribute(
+              'transform',
+              `translate(0 ${dy})`
+            )
+          }
+          // The ink under the underline's rule, where the rule is before any control moves it:
+          // the rule's own extent and a pixel either side.
+          for (const rule of el.querySelectorAll<SVGLineElement>('line')) {
+            const ctm = rule.getScreenCTM()!
+            const a1 = new DOMPoint(
+              rule.x1.baseVal.value,
+              rule.y1.baseVal.value
+            ).matrixTransform(ctm)
+            const a2 = new DOMPoint(
+              rule.x2.baseVal.value,
+              rule.y2.baseVal.value
+            ).matrixTransform(ctm)
+            const thick = Number(rule.getAttribute('stroke-width')) * ctm.a
+            bands.push({
+              left: Math.min(a1.x, a2.x),
+              top: a1.y - thick / 2 - 1,
+              width: Math.abs(a2.x - a1.x),
+              height: thick + 2,
+            })
+          }
+          mutate?.(el)
+          advanceError = 0
+          for (const text of el.querySelectorAll<SVGTextElement>('text[textLength]')) {
+            // The line's natural advance, with nothing forcing it to the width it is set to.
+            const clone = text.cloneNode(true) as SVGTextElement
+            clone.removeAttribute('textLength')
+            clone.removeAttribute('lengthAdjust')
+            text.parentElement!.append(clone)
+            const natural = clone.getComputedTextLength()
+            clone.remove()
+            const set = Number(text.getAttribute('textLength'))
+            advanceError = Math.max(advanceError, Math.abs(natural - set) / set)
+          }
+        },
+        (el, a, t) => {
+          renderReferenceContent(el, a, t)
+          seen.reference = textMetrics(el, 'reference')
+        },
+        () => bands
+      )
+    }
+    const drawn = await run(false)
+    const aligned = await run(true)
+    return {
+      drawn,
+      aligned,
+      reference: seen.reference!,
+      painted: seen.painted!,
+      advanceError,
+    }
+  }
+
+  const deltas = (e: Evaluated, k: 'text' | 'box') =>
+    (['left', 'top', 'right', 'bottom'] as const).map((edge) =>
+      Number((e.painted[k][edge] - e.reference[k][edge]).toFixed(2))
+    )
+
+  /** How much of the ink in the underline's band the painted side has, against the reference. */
+  const bandRatio = (e: Evaluated): number => {
+    const sum = (n: number[]) => n.reduce((a, b) => a + b, 0)
+    return sum(e.aligned.bandInk.painted) / Math.max(1, sum(e.aligned.bandInk.reference))
+  }
+
+  /** The assertions a real case must pass, as the names of those it fails. */
+  function violations(c: CompareCase, e: Evaluated): string[] {
+    const out: string[] = []
+    if (e.painted.lines !== e.reference.lines) out.push('lines')
+    if (deltas(e, 'box').some((d) => Math.abs(d) > 1)) out.push('box')
+    const text = deltas(e, 'text')
+    if (Math.abs(text[0]!) > 1 || Math.abs(text[2]!) > 1) out.push('text left and right')
+    if (Math.abs(text[1]!) > 1.05 || Math.abs(text[3]!) > 1.05)
+      out.push('text top and bottom')
+    // 0.15 of the ink in either image, blurred, once the baselines are the same. The raw count is
+    // higher (0.1 to 0.2 at zoom 2): Chrome hints HTML text and not SVG text.
+    // The browser's rule is thicker than ours, so the pixels of an underline case differ by more
+    // (0.37 to 0.48 in the real cases) and cannot tell it from a missing rule: its band below
+    // holds that check.
+    if (e.aligned.differingBlurred > (c.name === 'underline' ? 0.6 : 0.15))
+      out.push('pixels')
+    // The font's own widths against the table's, where the machine's fonts are the table's.
+    if (fonts.mode === 'exact' && e.advanceError > ADVANCE_TOLERANCE) out.push('advance')
+    // An underline is a rule in the band under each baseline: about as much ink there as the
+    // reference has. The rule is thinner than the font's own, so some difference is expected.
+    if (c.name === 'underline') {
+      const ratio = bandRatio(e)
+      if (ratio < UNDERLINE_BAND[0] || ratio > UNDERLINE_BAND[1]) out.push('underline')
+    }
+    return out
+  }
+
+  /** A line's natural advance against its table width: the real cases are within 0.09%. */
+  const ADVANCE_TOLERANCE = 0.002
+  /** The painted underline's ink over the reference's, in a band the rule's own size plus a pixel each side: 0.60 to 0.67 in the real cases (the browser's rule is about a sixth thicker), against 1.20 twice as thick, 0.03 moved down by 0.1 of the size and 0.00 missing. */
+  const UNDERLINE_BAND = [0.45, 0.85] as const
+
+  for (const c of cases) {
+    for (const [label, extra] of where) {
+      it(`${c.name} at ${label}`, async () => {
+        const e = await evaluate(c, extra)
+        const text = deltas(e, 'text')
+        const box = deltas(e, 'box')
+        console.log(
+          `[text compare] ${c.name} at ${label}: as drawn differing ${e.drawn.differing.toFixed(4)} blurred ${e.drawn.differingBlurred.toFixed(4)}, aligned differing ${e.aligned.differing.toFixed(4)} blurred ${e.aligned.differingBlurred.toFixed(4)}, lines ${e.reference.lines}/${e.painted.lines}, text edges ${JSON.stringify(text)}, box edges ${JSON.stringify(box)}, advance error ${e.advanceError.toFixed(5)}, underline band ${bandRatio(e).toFixed(2)}`
+        )
+        expect(e.drawn.referenceInk).toBeGreaterThan(0)
+        expect(violations(c, e)).toEqual([])
+      })
+    }
+  }
+
+  // Controls: each of these is a defect the comparison is there to catch, made on purpose, and it
+  // must fail the assertions the real cases pass. Drawn at zoom 2, where the real margins are
+  // smallest.
+  describe('the comparison fails for a defect', () => {
+    const base = cases.find((c) => c.name === 'a plain box')!
+    const underlined = cases.find((c) => c.name === 'underline')!
+    const zoom2 = { pageRotate: 0, zoom: 2 } as const
+    const setStyle = (t: Element, property: string, value: string) => {
+      t.setAttribute(property, value)
+      t.setAttribute(
+        'style',
+        t
+          .getAttribute('style')!
+          .replace(new RegExp(`${property}:[^;]*`), `${property}:${value}`)
+      )
+    }
+    const controls: [string, CompareCase, Mutate, string[]][] = [
+      [
+        'bold text drawn against regular',
+        base,
+        (el) =>
+          el.querySelectorAll('text').forEach((t) => setStyle(t, 'font-weight', 'bold')),
+        ['advance'],
+      ],
+      [
+        'the Times stack drawn against Helvetica',
+        base,
+        (el) =>
+          el
+            .querySelectorAll('text')
+            .forEach((t) => setStyle(t, 'font-family', FONT_STACKS.Times)),
+        ['advance', 'pixels'],
+      ],
+      [
+        'one line shifted 3 px',
+        base,
+        (el) =>
+          el.querySelectorAll('text')[1]!.setAttribute('transform', 'translate(0 3)'),
+        ['pixels'],
+      ],
+      [
+        'the wrong text colour',
+        base,
+        (el) =>
+          el.querySelectorAll('text').forEach((t) => setStyle(t, 'fill', '#ff0000')),
+        ['pixels'],
+      ],
+      [
+        'the underline rule moved down by 0.1 of the size',
+        underlined,
+        (el) =>
+          el.querySelectorAll('line').forEach((l) => {
+            const down = 0.1 * Number(el.querySelector('text')!.getAttribute('font-size'))
+            l.setAttribute('transform', `translate(0 ${down})`)
+          }),
+        ['underline'],
+      ],
+      [
+        'the underline rule twice as thick',
+        underlined,
+        (el) =>
+          el.querySelectorAll('line').forEach((l) => {
+            const w = Number(l.getAttribute('stroke-width')) * 2
+            l.setAttribute('stroke-width', String(w))
+            l.setAttribute(
+              'style',
+              l
+                .getAttribute('style')!
+                .replace(/stroke-width:[^;]*/, `stroke-width:${w}px`)
+            )
+          }),
+        ['underline'],
+      ],
+      [
+        'the underline missing',
+        underlined,
+        (el) => el.querySelectorAll('line').forEach((l) => l.remove()),
+        ['underline'],
+      ],
+    ]
+    for (const [name, c, mutate, expected] of controls) {
+      it(name, async () => {
+        const e = await evaluate(c, zoom2, mutate)
+        const found = violations(c, e)
+        console.log(
+          `[control] ${name}: violations ${JSON.stringify(found)}, blurred ${e.aligned.differingBlurred.toFixed(4)} (bound 0.15), advance error ${e.advanceError.toFixed(5)} (bound ${ADVANCE_TOLERANCE}), underline band ${bandRatio(e).toFixed(2)} (bounds ${UNDERLINE_BAND.join(' to ')})`
+        )
+        // On a machine whose fonts are not the table's, the advance check does not run.
+        for (const v of expected)
+          if (v !== 'advance' || fonts.mode === 'exact') expect(found).toContain(v)
+        expect(found).not.toEqual([])
+      })
+    }
+  })
 })

@@ -1,22 +1,30 @@
 // In-place editing for a free-text box. The editor is a plain-text `contenteditable` laid over
-// the box inside its overlay element, styled from the annotation exactly as the box is
-// (`styleFreeText`), with the box itself hidden underneath. It grows downwards on screen as the
-// text needs more lines, and nothing reaches the store until it closes: a commit hands back the
-// text and the grown rect together, so the edit is one change and one undo step. A callout's
-// `rect` and `fringe` are refit around the grown box and its callout (`grownFreeText`).
+// the box's text area inside its overlay element, with the font stack and size the box is drawn in
+// and no border or background of its own. The box underneath (fill, border, leader line, bubble)
+// is painted from the description of the annotation as it grows, without its text, which the
+// editor shows instead. The editor turns with the view, so it lies on the text as drawn, and grows
+// along the text's own downward direction as the text needs more lines. Nothing reaches the store
+// until it closes: a commit hands back the text and the grown rect together, so the edit is one
+// change and one undo step. A callout's `rect` and `fringe` are refit around the grown box and its
+// callout (`grownFreeText`).
 //
-// Inline styles here are structural or geometric only: the editor's position and minimum
-// height, the box's `visibility` while it is covered, and the element's grown height.
+// Inline styles here are structural or geometric only, apart from the text's own look, which comes
+// from the annotation and so is set here rather than by the theme.
 import { en } from '../messages'
 import { freeTextBox } from '../model/annotations/callout'
+import { freeTextFrame } from '../model/annotations/drawing/freetext'
+import { resolveFont } from '../model/annotations/drawing/text/measure'
 import { hasCallout, isBubble, resizedBox, withBox } from '../model/annotations/edit'
 
-import { freeTextLocalBox, refitBubble, styleFreeText } from './overlay-render'
+import { drawContext } from './drawing-context'
+import { annotationBox, renderAnnotationContent } from './overlay-render'
+import { htmlBaseline } from './text-baseline'
+import { FONT_STACKS } from './text-fonts'
+import { normalizeRotation, type PageTransform } from './transform'
 
-import type { PageTransform } from './transform'
 import type { AnnotationStore } from '../model/annotations/store'
 import type { Annotation, FreeTextAnnotation } from '../model/annotations/types'
-import type { Point, Rect } from '../model/geometry'
+import type { Rect } from '../model/geometry'
 
 export interface FreeTextEditor {
   /** Closes the editor, handing its text to `commit` (true) or calling `cancel` (false). */
@@ -61,8 +69,6 @@ export function closedEditor(e: Event): boolean {
 
 /** Point within which a grown height counts as unchanged, CSS px. */
 const SAME_PX = 0.5
-/** The editor's narrowest width, in ems of the box's font size, for a box inset to nothing. */
-const MIN_WIDTH_EM = 2
 
 /**
  * Opens an editor on `el`, the overlay element showing `a` (or a stand-in for a box not in the
@@ -80,10 +86,32 @@ export function editFreeText(
   editors.get(el)?.close(true)
   const doc = el.ownerDocument
   const view = doc.defaultView
-  // The element covers the rect; the text box sits inside it, inset by any fringe.
-  const base = opts.transform.toCssRect(a.rect)
-  const inner = freeTextLocalBox(a, opts.transform)
-  const box = el.querySelector<HTMLElement>(':scope > .ink-free-text')
+  const t = opts.transform
+  const rotate = t.page.rotate
+  // The text turns with the view: its angle on screen is the view's turn on top of the file's.
+  const turn = normalizeRotation(t.totalRotation - rotate)
+  const sideways = turn === 90 || turn === 270
+  const frame = freeTextFrame(a, rotate)
+  const s = a.defaultStyle
+  const font = resolveFont(
+    s.fontFamily,
+    s.fontWeight === 'bold',
+    s.fontStyle === 'italic'
+  )
+  const fontSize = t.toCssLength(s.fontSize)
+  // Where the first baseline is below the area's top, drawn and in HTML. Blink rounds the font's
+  // ascent and descent to whole pixels, so the editor is moved by the difference.
+  const { ascent, descent } = drawContext(t).measure.vertical(font)
+  const drawn = ((1.2 - (ascent + descent)) / 2 + ascent) * fontSize
+  const shift = drawn - htmlBaseline(doc, font, fontSize)
+  const areaWidth = t.toCssLength(frame.area.width)
+  const areaHeight = t.toCssLength(frame.area.height)
+  const kept = {
+    left: el.style.left,
+    top: el.style.top,
+    width: el.style.width,
+    height: el.style.height,
+  }
 
   const field = doc.createElement('div')
   field.className = 'ink-free-text'
@@ -91,33 +119,61 @@ export function editFreeText(
   field.setAttribute('role', 'textbox')
   field.setAttribute('aria-multiline', 'true')
   field.setAttribute('aria-label', opts.label ?? en.annotations.freetext)
-  styleFreeText(field, a, opts.transform)
-  field.style.position = 'absolute'
-  field.style.left = `${inner.left}px`
-  field.style.top = `${inner.top}px`
-  // A fringe can leave a box too narrow to type in: never narrower than a couple of letters.
-  const floor = opts.transform.toCssLength(a.defaultStyle.fontSize * MIN_WIDTH_EM)
-  field.style.width = a.fringe ? `${Math.max(inner.width, floor)}px` : '100%'
+  // The text's look, as the drawing paints it: same stack and size, no kerning, wrapped and
+  // aligned as the box says.
+  field.style.cssText =
+    `position:absolute;box-sizing:border-box;margin:0;padding:0;border:0;background:transparent;` +
+    `line-height:1.2;white-space:pre-wrap;overflow-wrap:break-word;font-kerning:none;` +
+    `transform-origin:0 0;transform:rotate(${turn}deg) translate(0px,${shift}px);` +
+    `font-family:${FONT_STACKS[font.family]};font-size:${fontSize}px;` +
+    `font-weight:${font.bold ? 'bold' : 'normal'};font-style:${font.italic ? 'italic' : 'normal'};` +
+    `text-decoration:${s.textDecoration === 'underline' ? 'underline' : 'none'};` +
+    `color:${s.color};caret-color:${s.color};text-align:${s.textAlign};`
+  // Exactly as wide as the layout wraps to, so the editor breaks lines where the drawing does.
+  field.style.width = `${areaWidth}px`
   field.style.height = 'auto'
-  field.style.minHeight = `${inner.height}px`
+  field.style.minHeight = `${areaHeight}px`
   field.style.pointerEvents = 'auto'
   makeEditable(field)
   field.textContent = a.contents
-  if (box) box.style.visibility = 'hidden'
   el.append(field)
 
-  /** The box's CSS height for the text now in it: never less than it started at. */
-  const height = (): number =>
-    Math.max(inner.height, field.getBoundingClientRect().height)
+  /** The editor's own height (along the text's down direction) for the text now in it. */
+  const fieldHeight = (): number => {
+    const r = field.getBoundingClientRect()
+    return sideways ? r.width : r.height
+  }
+  /** The box's text area height in CSS px for the text now in it: never less than it started at. */
+  const height = (): number => Math.max(areaHeight, fieldHeight())
   /** `a` with its box grown by `grown` CSS px. */
   const grownTo = (grown: number): FreeTextAnnotation =>
-    grown === 0 ? a : { ...a, ...grownFreeText(a, grown, opts.transform) }
-  const grow = (): void => {
-    const h = height()
-    el.style.height = `${base.height + h - inner.height}px`
-    // A bubble's outline grows with its text.
-    refitBubble(el, grownTo(h - inner.height), opts.transform, base)
+    grown === 0 ? a : { ...a, ...grownFreeText(a, grown, t) }
+  /**
+   * Paints `draft` into `el` behind the editor and the selection handles, which stay: removing
+   * them would drop the selection's handles, and moving the focused editor would drop its focus.
+   */
+  const repaint = (draft: FreeTextAnnotation): void => {
+    const holder = doc.createElement('div')
+    renderAnnotationContent(holder, draft, t)
+    for (const child of [...el.children])
+      if (child !== field && !child.hasAttribute('data-handle')) child.remove()
+    el.prepend(...holder.childNodes)
   }
+  /** Lays the box out and paints it, without its text, as `draft`; the editor goes to its text area. */
+  const sync = (draft: FreeTextAnnotation): void => {
+    const box = annotationBox(draft, t)
+    el.style.left = `${box.left}px`
+    el.style.top = `${box.top}px`
+    el.style.width = `${box.width}px`
+    el.style.height = `${box.height}px`
+    repaint({ ...draft, contents: '' })
+    const at = t.toCss(freeTextFrame(draft, rotate).area.topLeft)
+    field.style.left = `${at.x - box.left}px`
+    field.style.top = `${at.y - box.top}px`
+  }
+  const grow = (): void => sync(grownTo(height() - areaHeight))
+  // In place before the caret is: a click's point is read against the editor where it will be.
+  sync(a)
   const Observer = view?.ResizeObserver
   const observer = Observer ? new Observer(grow) : undefined
   observer?.observe(field)
@@ -129,7 +185,7 @@ export function editFreeText(
   }
   /** How far the box grew, CSS px; 0 within `SAME_PX`. */
   const growth = (): number => {
-    const grown = height() - inner.height
+    const grown = height() - areaHeight
     return Math.abs(grown) < SAME_PX ? 0 : grown
   }
 
@@ -147,9 +203,9 @@ export function editFreeText(
     // falls back to <body>. Focus that already left (a click on a control) stays where it is.
     if (field.contains(doc.activeElement)) el.focus({ preventScroll: true })
     field.remove()
-    box?.style.removeProperty('visibility')
-    el.style.height = `${base.height}px`
-    refitBubble(el, a, opts.transform, base)
+    Object.assign(el.style, kept)
+    // The box as it was: the editor's repaints left it without its text.
+    repaint(a)
     if (commit) opts.commit(contents, next, grown, how)
     else opts.cancel()
   }
@@ -277,7 +333,8 @@ export function editFreeTextIn(
 }
 
 /**
- * The patch that grows a free text's text box down the screen by `grown` CSS px, its top edge
+ * The patch that grows a free text's text box by `grown` CSS px along its text's downward
+ * direction in user space (the text is upright for the page as the file displays it), its top edge
  * fixed, with `rect` and `fringe` refit. A callout's last point moves with the box edge it sits
  * on. A bubble's tip below the box comes down with it; a standard callout's tip and bend stay on
  * what they point at.
@@ -287,20 +344,28 @@ export function grownFreeText(
   grown: number,
   t: PageTransform
 ): Partial<FreeTextAnnotation> {
-  const css = t.toCssRect(freeTextBox(a))
-  const box = t.fromCssRect({ ...css, height: css.height + grown })
+  const by = grown / t.toCssLength(1)
+  const frame = freeTextFrame(a, t.page.rotate)
+  const { down } = frame
+  const was = freeTextBox(a)
+  const box = {
+    x: was.x + Math.min(0, down.x * by),
+    y: was.y + Math.min(0, down.y * by),
+    width: was.width + Math.abs(down.x) * by,
+    height: was.height + Math.abs(down.y) * by,
+  }
   if (!hasCallout(a)) return withBox(a, box)
   const resized = resizedBox(a, box)
-  if (!isBubble(a) || t.toCss(a.callout[0]).y <= css.top + css.height) return resized
+  const tip = a.callout[0]
+  const depth = (tip.x - frame.topLeft.x) * down.x + (tip.y - frame.topLeft.y) * down.y
+  if (!isBubble(a) || depth <= frame.height) return resized
   const last = a.callout.length - 1
-  const down = (p: Point): Point => {
-    const c = t.toCss(p)
-    return t.fromCss({ x: c.x, y: c.y + grown })
-  }
   return withBox(
     a,
     box,
-    resized.callout!.map((p, i) => (i === last ? p : down(p)))
+    resized.callout!.map((p, i) =>
+      i === last ? p : { x: p.x + down.x * by, y: p.y + down.y * by }
+    )
   )
 }
 

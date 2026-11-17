@@ -683,13 +683,9 @@ export function createOverlay(opts: OverlayOptions): Overlay {
         elements.set(a.id, node)
       }
       applyAttributes(node, a)
-      // An open editor owns the element's content and height until it closes; the element
-      // still follows the page.
-      if (editorFor(node)) {
-        const height = node.style.height
-        applyGeometry(node, a)
-        node.style.height = height
-      } else {
+      // An open editor owns the element's content and box until it closes, so only its
+      // attributes and state follow the store meanwhile.
+      if (!editorFor(node)) {
         applyGeometry(node, a)
         applyContent(node, a)
       }

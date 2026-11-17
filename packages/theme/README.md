@@ -70,6 +70,8 @@ Set these variables on `[data-ink-root]` to change the default colour for new an
 
 Inkbar reads a colour when you create the annotation and stores it on the annotation, because the colour goes into the PDF. Changing a variable later affects new annotations only. Write these as hex (`#f2c230`) or `rgb()`: Inkbar ignores other formats and uses its own default.
 
+A text box's fill, border, corner radius, alignment and text style come from the annotation, not from the theme, because they go into the PDF. `--ink-free-text` only sets the text colour a new text box starts with, and the outline of the in-place editor.
+
 ## Layout
 
 The root and viewport fill their parent as a column, and the scroll area takes the remaining height. Give the parent a height and the document scrolls inside it.

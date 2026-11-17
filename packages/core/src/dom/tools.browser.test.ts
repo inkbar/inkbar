@@ -1034,7 +1034,7 @@ describe('cursors', () => {
   it('an editable text box shows text inside and move on its edge', async () => {
     const { tools, text, el } = await withTheme()
     tools.set('select')
-    expect(cursorOf(el(text.id).querySelector('.ink-free-text'))).toBe('text')
+    expect(cursorOf(el(text.id).querySelector('[data-ink-text-area]'))).toBe('text')
     expect(cursorOf(el(text.id).querySelector('[data-ink-edge]'))).toBe('move')
   })
 
@@ -1063,7 +1063,7 @@ describe('cursors', () => {
     const { tools, doc, text, el } = await withTheme()
     tools.set('select')
     doc.annotations.update(text.id, { locked: true })
-    expect(cursorOf(el(text.id).querySelector('.ink-free-text'))).toBe('default')
+    expect(cursorOf(el(text.id).querySelector('[data-ink-text-area]'))).toBe('default')
     expect(cursorOf(el(text.id).querySelector('[data-ink-edge]'))).toBe('default')
   })
 
@@ -2770,6 +2770,30 @@ describe('freetext tool', () => {
     )
   })
 
+  it('on a view turned a quarter a click puts the text box on its side, its top-left corner at the press', async () => {
+    const { doc, container, viewport, tools } = await setup('cropbox-offset')
+    viewport.setRotation(90)
+    await settle()
+    tools.set('freetext')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100)
+    pointer(container, 'pointerup', h.left + 100, h.top + 100)
+    expect(editorIn(container)).not.toBeNull()
+    await userEvent.keyboard('Hi{Escape}')
+    const [box] = session(doc)
+    // The text is turned with the view: along it the box is the default width, and one line deep.
+    expect(box!.rect.width).toBe(DEFAULT_FREETEXT_WIDTH)
+    expect(box!.rect.height).toBeCloseTo(14.4)
+    // On screen the box is narrow and tall, the press at its top-right corner, where the text
+    // starts on a view turned 90.
+    const t = viewport.transformFor(0)
+    const css = t.toCssRect(box!.rect)
+    expect(css.height).toBeCloseTo(DEFAULT_FREETEXT_WIDTH)
+    expect(css.width).toBeCloseTo(14.4)
+    expect(css.left + css.width).toBeCloseTo(100)
+    expect(css.top).toBeCloseTo(100)
+  })
+
   it('labels a new editor in the messages of the moment', async () => {
     let current = en
     const { container, viewport, tools } = await setup('cropbox-offset', {
@@ -2830,7 +2854,11 @@ describe('freetext tool', () => {
     )
     expect(editorIn(container)).toBeNull()
     const drawn = container.querySelector(`[data-annotation="${change.annotation.id}"]`)!
-    expect(drawn.querySelector('.ink-free-text')?.textContent).toBe('one\ntwo\nthree')
+    expect(
+      [...drawn.querySelectorAll('g[data-ink-part="text"] > text')]
+        .map((line) => line.textContent)
+        .join('\n')
+    ).toBe('one\ntwo\nthree')
     // One undo takes the whole box away: nothing empty is left behind to export.
     doc.history.undo()
     expect(session(doc)).toEqual([])
@@ -2868,7 +2896,7 @@ describe('freetext tool', () => {
     })
     await userEvent.keyboard('{Escape}')
     const el = container.querySelector<HTMLElement>(`[data-annotation="${a.id}"]`)!
-    el.querySelector('.ink-free-text')!.dispatchEvent(
+    el.querySelector('[data-ink-text-area]')!.dispatchEvent(
       new MouseEvent('dblclick', { bubbles: true, detail: 2 })
     )
     await userEvent.keyboard('{End}er')
@@ -3029,7 +3057,7 @@ describe('freetext tool', () => {
       contents: 'Hi',
     })
     const el = container.querySelector<HTMLElement>(`[data-annotation="${a.id}"]`)!
-    const box = el.querySelector('.ink-free-text')!
+    const box = el.querySelector('[data-ink-text-area]')!
     box.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, detail: 2 }))
     expect(editorIn(el)?.textContent).toBe('Hi')
     expect(document.activeElement).toBe(editorIn(el))
@@ -3055,7 +3083,7 @@ describe('freetext tool', () => {
     })
     doc.annotations.update(a.id, { locked: true })
     const el = container.querySelector<HTMLElement>(`[data-annotation="${a.id}"]`)!
-    el.querySelector('.ink-free-text')!.dispatchEvent(
+    el.querySelector('[data-ink-text-area]')!.dispatchEvent(
       new MouseEvent('dblclick', { bubbles: true, detail: 2 })
     )
     expect(editorIn(el)).toBeNull()
@@ -4137,12 +4165,10 @@ describe('selection editing', () => {
       })
     /** A client point just inside the left edge of the box's `i`th character, as drawn. */
     const charAt = (el: HTMLElement, i: number) => {
-      const text = el.querySelector('.ink-free-text')!.firstChild!
-      const range = document.createRange()
-      range.setStart(text, i)
-      range.setEnd(text, i + 1)
-      const r = range.getBoundingClientRect()
-      return [r.left + 1, r.top + r.height / 2] as const
+      const text = el.querySelector<SVGTextElement>('g[data-ink-part="text"] > text')!
+      const from = text.getStartPositionOfChar(i).matrixTransform(text.getScreenCTM()!)
+      const r = text.getBoundingClientRect()
+      return [from.x + 1, r.top + r.height / 2] as const
     }
 
     it('a click inside a text box opens its editor with the caret at the click', async () => {
@@ -4151,7 +4177,7 @@ describe('selection editing', () => {
       const { el } = await page0(viewport)
       const [x, y] = charAt(el(a.id), 6)
       const target = document.elementFromPoint(x, y)!
-      expect(target.closest('.ink-free-text')).not.toBeNull()
+      expect(target.closest('[data-ink-text-area]')).not.toBeNull()
       pointer(target, 'pointerdown', x, y)
       expect(doc.annotations.selection.get()).toEqual([a.id])
       pointer(container, 'pointerup', x, y)
@@ -4463,7 +4489,7 @@ describe('selection editing', () => {
       const { at } = await page0(viewport)
       const [x, y] = at(150, 620)
       const inside = document.elementFromPoint(x, y)!
-      expect(inside.closest('.ink-free-text')).not.toBeNull()
+      expect(inside.closest('[data-ink-text-area]')).not.toBeNull()
       pointer(inside, 'pointerdown', x, y)
       pointer(container, 'pointerup', x, y)
       expect(container.querySelector('[data-ink-editor]')).not.toBeNull()
@@ -5215,7 +5241,9 @@ describe('one-shot tools', () => {
   })
   /** A client point in the middle of a text box's drawn text. */
   function inside(container: HTMLElement, id: string): readonly [number, number] {
-    const text = container.querySelector(`[data-annotation="${id}"] .ink-free-text`)!
+    const text = container.querySelector(
+      `[data-annotation="${id}"] [data-ink-text-area]`
+    )!
     const r = text.getBoundingClientRect()
     return [r.left + r.width / 2, r.top + r.height / 2]
   }
@@ -5259,7 +5287,7 @@ describe('one-shot tools', () => {
         el.focus()
         await userEvent.keyboard('{Enter}')
       } else {
-        el.querySelector('.ink-free-text')!.dispatchEvent(
+        el.querySelector('[data-ink-text-area]')!.dispatchEvent(
           new MouseEvent('dblclick', { bubbles: true, cancelable: true, detail: 2 })
         )
       }

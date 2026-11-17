@@ -16,6 +16,28 @@ describe('browserWidth', () => {
     expect(browserWidth('a', helv, 7)).toBe(first)
   })
 
+  it('measures a run of Arabic as the browser shapes it, not as isolated letters', () => {
+    const word = 'مرحبا بالعالم'.replace(' ', '')
+    const run = browserWidth(word, helv, 12)
+    const isolated = [...word].reduce((sum, c) => sum + browserWidth(c, helv, 12), 0)
+    // The joined run is the browser's own width of the text, and the letters apart are wider.
+    const span = document.createElement('span')
+    span.style.cssText = `position:absolute;white-space:pre;font:${cssFont(helv, 12)};font-kerning:none`
+    span.textContent = word
+    document.body.append(span)
+    const own = span.getBoundingClientRect().width
+    span.remove()
+    expect(Math.abs(run - own) / own).toBeLessThan(0.01)
+    expect(isolated).toBeGreaterThan(run * 1.1)
+  })
+
+  it('does not keep a long run, and still measures it', () => {
+    const long = 'ж'.repeat(500)
+    expect(browserWidth(long, helv, 12)).toBeGreaterThan(
+      browserWidth('ж'.repeat(10), helv, 12)
+    )
+  })
+
   it('is monospaced in Courier', () => {
     const courier = { ...helv, family: 'Courier' } as const
     expect(browserWidth('i', courier, 12)).toBeCloseTo(browserWidth('W', courier, 12), 3)

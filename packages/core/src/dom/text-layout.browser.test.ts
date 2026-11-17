@@ -74,9 +74,18 @@ const SAMPLES: Record<string, string> = {
     'ちょっとしたコーヒーショップでキャッチボールをしました。ッーぁぃぅ',
   'iteration mark and wave dash':
     '人々の暮らしと時々の出来事、様々な国々〜東京〜大阪〜京都〜名古屋〜札幌〜福岡',
+  // Scripts that join their letters or run right to left: measured as runs, not as isolated forms.
+  arabic:
+    'مرحبا بالعالم هذا نص عربي طويل يحتاج إلى عدة أسطر لاختبار التفاف الكلمات داخل المربع النصي',
+  hebrew: 'שלום עולם זהו טקסט עברי ארוך שצריך כמה שורות כדי לבדוק את גלישת המילים בתיבה',
+  'arabic with latin':
+    'Order 42 مرحبا بالعالم and some more latin text then العربية again',
   'one character': 'W',
   empty: '',
 }
+
+/** Samples in scripts that join their letters or run right to left. */
+const SHAPED = /^(arabic|hebrew)/
 
 const FAMILIES: TextFont['family'][] = ['Helvetica', 'Times', 'Courier']
 const SIZES = [10, 12, 18]
@@ -206,11 +215,12 @@ interface Mismatch {
 function compareWith(
   measure: TextMeasure,
   faces: TextFont[],
-  kerning: boolean
+  kerning: boolean,
+  samples: [string, string][] = Object.entries(SAMPLES)
 ): { total: number; mismatches: Mismatch[] } {
   let total = 0
   const mismatches: Mismatch[] = []
-  for (const [name, text] of Object.entries(SAMPLES))
+  for (const [name, text] of samples)
     for (const font of faces)
       for (const size of SIZES)
         for (const width of WIDTHS) {
@@ -278,47 +288,7 @@ const EDGE_CASES = [
   'multiple spaces | Helvetica italic 18 80',
 ]
 
-/** The fallback measures 「 and 」 alone (0.59 em, as Chrome's text-spacing-trim narrows a lone bracket) but Chrome keeps them a full em between other full-width characters. */
-const CJK_BRACKET_CASES = [
-  'CJK punctuation | Courier 10 144',
-  'CJK punctuation | Courier 12 80',
-  'CJK punctuation | Courier 18 300',
-  'CJK punctuation | Courier 18 80',
-  'CJK punctuation | Helvetica 10 144',
-  'CJK punctuation | Helvetica 12 80',
-  'CJK punctuation | Helvetica 18 300',
-  'CJK punctuation | Helvetica 18 80',
-  'CJK punctuation | Helvetica bold 10 144',
-  'CJK punctuation | Helvetica bold 12 80',
-  'CJK punctuation | Helvetica bold 18 300',
-  'CJK punctuation | Helvetica bold 18 80',
-  'CJK punctuation | Helvetica bold italic 10 144',
-  'CJK punctuation | Helvetica bold italic 12 80',
-  'CJK punctuation | Helvetica bold italic 18 300',
-  'CJK punctuation | Helvetica bold italic 18 80',
-  'CJK punctuation | Helvetica italic 10 144',
-  'CJK punctuation | Helvetica italic 12 80',
-  'CJK punctuation | Helvetica italic 18 300',
-  'CJK punctuation | Helvetica italic 18 80',
-  'CJK punctuation | Times 10 144',
-  'CJK punctuation | Times 12 80',
-  'CJK punctuation | Times 18 300',
-  'CJK punctuation | Times 18 80',
-  'CJK punctuation | Times bold 10 144',
-  'CJK punctuation | Times bold 12 80',
-  'CJK punctuation | Times bold 18 300',
-  'CJK punctuation | Times bold 18 80',
-  'CJK punctuation | Times bold italic 10 144',
-  'CJK punctuation | Times bold italic 12 80',
-  'CJK punctuation | Times bold italic 18 300',
-  'CJK punctuation | Times bold italic 18 80',
-  'CJK punctuation | Times italic 10 144',
-  'CJK punctuation | Times italic 12 80',
-  'CJK punctuation | Times italic 18 300',
-  'CJK punctuation | Times italic 18 80',
-]
-
-/** Only with the browser's default kerning: an 'ff' pair in the tabs sample and italic pairs in the long word are narrower in the real text. */
+/** Only with the browser's default kerning: an 'ff' pair in the tabs sample, italic pairs in the long word and the mark positioning of Arabic and Hebrew are narrower in the real text. */
 const KERNING_ONLY_CASES = [
   'a very long word | Times italic 12 300',
   'exclamations | Times italic 10 300',
@@ -327,10 +297,17 @@ const KERNING_ONLY_CASES = [
   'exclamations | Times italic 18 144',
   'exclamations | Times italic 18 300',
   'tabs | Helvetica 18 300',
+  'arabic | Courier 18 144',
+  'arabic | Times 18 300',
+  'arabic | Times bold 18 300',
+  'arabic | Times bold italic 18 300',
+  'arabic | Times italic 18 300',
+  'hebrew | Helvetica 10 300',
+  'hebrew | Helvetica italic 10 300',
 ]
 
 /** The two runs with the production measure, on a machine with the fonts the lists were recorded on. */
-const KNOWN_KERNING_OFF = [...EDGE_CASES, ...CJK_BRACKET_CASES].sort()
+const KNOWN_KERNING_OFF = [...EDGE_CASES].sort()
 const KNOWN_KERNING_DEFAULT = [...KNOWN_KERNING_OFF, ...KERNING_ONLY_CASES].sort()
 
 /** With the font's own per-cluster widths and no tables: the CJK bracket cases (not the edge cases, as no table is involved) and the tabs kerning case. */
@@ -362,14 +339,17 @@ describe('layoutText with per-cluster browser widths and no tables', () => {
     'breaks (skipped when the Latin fonts are foreign) lines as the browser does with its default kerning',
     () => {
       const faces = FAMILIES.map((family) => ({ family, bold: false, italic: false }))
-      const run = compareWith(perCharMeasure, faces, true)
+      // A script that joins its letters has no per-cluster width: the production measure takes
+      // it as runs, and its own tests above and below cover it.
+      const samples = Object.entries(SAMPLES).filter(([name]) => !SHAPED.test(name))
+      const run = compareWith(perCharMeasure, faces, true, samples)
       console.log(
         `[per-char] ${run.total - run.mismatches.length}/${run.total} (${fonts.mode})`
       )
       for (const m of run.mismatches) console.log(`[per-char mismatch] ${m.label}`)
       // Without tables there is no edge to blame: mismatches are Latin kerning (capped) or involve other characters.
       expect(run.total).toBe(
-        Object.keys(SAMPLES).length * FAMILIES.length * SIZES.length * WIDTHS.length
+        samples.length * FAMILIES.length * SIZES.length * WIDTHS.length
       )
       expect(run.mismatches.length).toBeLessThanOrEqual(Math.ceil(run.total * 0.04))
       expect(run.mismatches.filter((m) => m.latin).length).toBeLessThanOrEqual(2)

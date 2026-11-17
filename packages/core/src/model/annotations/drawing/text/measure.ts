@@ -136,13 +136,18 @@ export function isWide(char: string): boolean {
 const FACE = (font: TextFont): number => (font.bold ? 1 : 0) + (font.italic ? 2 : 0)
 
 /**
- * A measure that uses the tables and asks `fallback` once for each character outside them. A
- * character is a cluster (see `clusters`): a family emoji is one character, and a base letter
- * with a mark the tables lack counts as the letter. Text is measured as its NFC form, so a
- * decomposed "e" and an acute accent use the width of "é".
+ * A measure that uses the tables and asks `fallback` for the characters outside them. A character
+ * is a cluster (see `clusters`): a family emoji is one character, and a base letter with a mark
+ * the tables lack counts as the letter. Text is measured as its NFC form, so a decomposed "e" and
+ * an acute accent use the width of "é".
+ *
+ * Each maximal run of consecutive clusters outside the tables is one call, with the run as a
+ * string, so a script that joins its letters (Arabic) is measured as the browser shapes it and not
+ * as isolated forms. A space or any character in the tables ends a run; a zero-width character
+ * inside a run stays in it (a joiner changes how its neighbours join).
  */
 export function measureWith(
-  fallback: (char: string, font: TextFont, size: number) => number
+  fallback: (run: string, font: TextFont, size: number) => number
 ): TextMeasure {
   return {
     width(text, font, size) {
@@ -150,23 +155,58 @@ export function measureWith(
       let outside = false
       const table =
         font.family === 'Courier' ? undefined : WIDTHS[font.family][FACE(font)]
+      let run = ''
+      const flush = () => {
+        if (run === '') return
+        total += fallback(run, font, size)
+        outside = true
+        run = ''
+      }
       for (const cluster of clusters(text.normalize('NFC'))) {
         const [base, ...rest] = cluster
         const i = indexOf(base!)
         if (i !== undefined && rest.every(isZeroWidth)) {
+          flush()
           total += table ? (table[i]! / 1000) * size : COURIER_ADVANCE * size
         } else if (!isZeroWidth(base!) || !rest.every(isZeroWidth)) {
-          total += fallback(cluster, font, size)
-          outside = true
+          run += cluster
+        } else if (run !== '') {
+          run += cluster
         }
       }
+      flush()
       return { width: total, outside }
     },
     vertical: (font) => VERTICAL[font.family],
   }
 }
 
-/** One size for a wide character, half a size for any other. */
-export const standardMeasure: TextMeasure = measureWith((char, _font, size) =>
-  isWide(char) ? size : size / 2
+/** Whether `text` has a character outside the tables, so its width came from the fallback. */
+export function outsideTables(text: string): boolean {
+  for (const cluster of clusters(text.normalize('NFC'))) {
+    const [base, ...rest] = cluster
+    if (indexOf(base!) !== undefined && rest.every(isZeroWidth)) continue
+    if (isZeroWidth(base!) && rest.every(isZeroWidth)) continue
+    // A tab is the layout's own business, advancing to a tab stop: not a character to measure.
+    if (base === '\t' && rest.length === 0) continue
+    return true
+  }
+  return false
+}
+
+/** One size for a wide character, half a size for any other, summed over the run. */
+export function fixedWidth(run: string, size: number): number {
+  let width = 0
+  for (const cluster of clusters(run)) {
+    const [base, ...rest] = cluster
+    // Zero-width characters (joiners, marks) take no room.
+    if (isZeroWidth(base!) && rest.every(isZeroWidth)) continue
+    width += isWide(cluster) ? size : size / 2
+  }
+  return width
+}
+
+/** The measure with no browser: a fixed rule for what the tables lack. */
+export const standardMeasure: TextMeasure = measureWith((run, _font, size) =>
+  fixedWidth(run, size)
 )

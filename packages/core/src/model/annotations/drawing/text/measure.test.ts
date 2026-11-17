@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from 'vitest'
 
-import { measureWith, resolveFont, standardMeasure } from './measure'
+import { measureWith, outsideTables, resolveFont, standardMeasure } from './measure'
 
 import type { TextFont } from '../types'
 
@@ -81,6 +81,47 @@ describe('standardMeasure', () => {
   })
 })
 
+describe('zero-width characters outside the tables', () => {
+  test('take no room in the measure with no browser', () => {
+    const w = (t: string) => standardMeasure.width(t, helv, 12).width
+    expect(w('日\u200b')).toBe(w('日'))
+    expect(w('日\u200b日')).toBe(w('日日'))
+    expect(w('گ\u200cر')).toBe(w('گر'))
+  })
+})
+
+describe('measureWith runs', () => {
+  const runs = (text: string) => {
+    const fallback = vi.fn((_run: string) => 5)
+    const m = measureWith(fallback).width(text, helv, 12)
+    return { calls: fallback.mock.calls.map((c) => c[0]), m }
+  }
+  test('consecutive characters outside the tables are measured as one string', () => {
+    expect(runs('مرحبا').calls).toEqual(['مرحبا'])
+    expect(runs('日本語').calls).toEqual(['日本語'])
+  })
+  test('a space or a character in the tables ends a run', () => {
+    expect(runs('مرحبا بالعالم').calls).toEqual(['مرحبا', 'بالعالم'])
+    expect(runs('日本A語').calls).toEqual(['日本', '語'])
+  })
+  test('the widths add: runs, spaces and table characters', () => {
+    const { m } = runs('ab مرحبا cd')
+    // Four table letters, two spaces, one run of 5.
+    expect(m.width).toBeCloseTo(measureWith(() => 0).width('ab  cd', helv, 12).width + 5)
+    expect(m.outside).toBe(true)
+  })
+  test('a zero-width joiner inside a run stays in it', () => {
+    expect(runs('گ\u200cر').calls).toEqual(['گ\u200cر'])
+  })
+  test('outsideTables says whether any character is outside', () => {
+    expect(outsideTables('Hello world')).toBe(false)
+    expect(outsideTables('Hello\u200b')).toBe(false)
+    expect(outsideTables('Hello 日')).toBe(true)
+    // A tab is not a character to measure.
+    expect(outsideTables('a\tb')).toBe(false)
+  })
+})
+
 describe('measureWith', () => {
   test('asks the fallback only for characters outside the tables', () => {
     const fallback = vi.fn(() => 7)
@@ -148,9 +189,10 @@ describe('clusters in the measure', () => {
   })
 
   test('a flag and an emoji with a skin tone are one character each', () => {
-    const fallback = vi.fn((_char: string) => 10)
+    // Clusters outside the tables that follow each other are one run: a flag and a skin tone.
+    const fallback = vi.fn((_run: string) => 10)
     measureWith(fallback).width('🇫🇷👋🏽', helv, 12)
-    expect(fallback.mock.calls.map((c) => c[0])).toEqual(['🇫🇷', '👋🏽'])
+    expect(fallback.mock.calls.map((c) => c[0])).toEqual(['🇫🇷👋🏽'])
   })
 
   test('the standard measure gives a whole family one wide character', () => {
