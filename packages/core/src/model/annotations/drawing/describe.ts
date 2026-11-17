@@ -1,3 +1,4 @@
+import { describeLine } from './lines'
 import { describeMarkup, describeRedact } from './markup'
 import { describeShape } from './shapes'
 
@@ -23,6 +24,10 @@ export function describeAnnotation(
     case 'square':
     case 'circle':
       return describeShape(a)
+    case 'line':
+    case 'polyline':
+    case 'polygon':
+      return describeLine(a)
     default:
       return undefined
   }

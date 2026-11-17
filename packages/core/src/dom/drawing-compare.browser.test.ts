@@ -148,6 +148,82 @@ const moved: CompareCase[] = [
   },
 ]
 
+const stroke = { type: 'line', page: 0, color: '#1B4F72' } as const
+const ENDINGS = [
+  'OpenArrow',
+  'ClosedArrow',
+  'ROpenArrow',
+  'RClosedArrow',
+  'Square',
+  'Diamond',
+  'Circle',
+  'Butt',
+  'Slash',
+  'None',
+] as const
+const lineRect = { x: 90, y: 590, width: 140, height: 40 }
+const endingCases: CompareCase[] = ENDINGS.flatMap((tail) =>
+  ([2, 4] as const).map((width): CompareCase => ({
+    name: `line with a ${tail} tail, width ${width}`,
+    annotation: {
+      ...stroke,
+      rect: lineRect,
+      start: { x: 100, y: 600 },
+      end: { x: 220, y: 620 },
+      width,
+      tail,
+    },
+  }))
+)
+const lineCases: CompareCase[] = [
+  ...endingCases,
+  ...([2, 4] as const).map((width): CompareCase => ({
+    name: `LineArrow, width ${width}`,
+    annotation: {
+      ...stroke,
+      rect: lineRect,
+      start: { x: 100, y: 600 },
+      end: { x: 220, y: 620 },
+      width,
+      intent: 'LineArrow',
+      tail: 'OpenArrow',
+    },
+  })),
+  ...([2, 4] as const).map((width): CompareCase => ({
+    name: `dashed polyline with both ends, width ${width}`,
+    annotation: {
+      type: 'polyline',
+      page: 0,
+      rect: lineRect,
+      vertices: [
+        { x: 100, y: 600 },
+        { x: 160, y: 630 },
+        { x: 220, y: 600 },
+      ],
+      width,
+      dashes: [6, 3],
+      head: 'Circle',
+      tail: 'ClosedArrow',
+    },
+  })),
+  ...([2, 4] as const).map((width): CompareCase => ({
+    name: `filled polygon at 0.6 opacity, width ${width}`,
+    annotation: {
+      type: 'polygon',
+      page: 0,
+      rect: lineRect,
+      vertices: [
+        { x: 100, y: 600 },
+        { x: 220, y: 600 },
+        { x: 160, y: 640 },
+      ],
+      width,
+      interiorColor: '#7FB3D5',
+      opacity: 0.6,
+    },
+  })),
+]
+
 // A quad turned 20 degrees, and a parallelogram.
 const tilt = (deg: number) => {
   const r = (deg * Math.PI) / 180
@@ -251,6 +327,18 @@ describe('comparePaint for the types that have a drawing', () => {
     }
   }
 
+  for (const c of lineCases) {
+    for (const rotate of [0, 90] as const) {
+      for (const zoom of [1, 2] as const) {
+        it(`${c.name} at rotate ${rotate} and zoom ${zoom}`, async () => {
+          const r = await comparePaint({ ...c, rotate, zoom })
+          expect(r.referenceInk).toBeGreaterThan(0)
+          expect(r.differing).toBeLessThanOrEqual(0.005)
+        })
+      }
+    }
+  }
+
   it('square and circle at zoom 0.5', async () => {
     for (const c of moved.filter((m) => /square|circle/.test(m.name))) {
       const r = await comparePaint({ ...c, zoom: 0.5 })
@@ -296,6 +384,66 @@ describe('the painted markup against the reference markup', () => {
       },
     ],
     ['stroke-only circle', { type: 'circle', ...stamp, width: 2 }],
+    [
+      'line with both endings',
+      {
+        type: 'line',
+        page: 0,
+        rect: lineRect,
+        start: { x: 100, y: 600 },
+        end: { x: 220, y: 620 },
+        width: 2,
+        head: 'Circle',
+        tail: 'OpenArrow',
+        opacity: 0.8,
+      },
+    ],
+    [
+      'dashed polyline',
+      {
+        type: 'polyline',
+        page: 0,
+        rect: lineRect,
+        vertices: [
+          { x: 100, y: 600 },
+          { x: 160, y: 630 },
+          { x: 220, y: 600 },
+        ],
+        width: 3,
+        dashes: [6, 3],
+        tail: 'Slash',
+      },
+    ],
+    [
+      'filled polygon',
+      {
+        type: 'polygon',
+        page: 0,
+        rect: lineRect,
+        vertices: [
+          { x: 100, y: 600 },
+          { x: 220, y: 600 },
+          { x: 160, y: 640 },
+        ],
+        width: 2,
+        interiorColor: '#7FB3D5',
+        opacity: 0.6,
+      },
+    ],
+    [
+      'stroke-only polygon',
+      {
+        type: 'polygon',
+        page: 0,
+        rect: lineRect,
+        vertices: [
+          { x: 100, y: 600 },
+          { x: 220, y: 600 },
+          { x: 160, y: 640 },
+        ],
+        width: 2,
+      },
+    ],
     ['filled circle', { type: 'circle', ...stamp, width: 2, interiorColor: '#7FB3D5' }],
   ]
   for (const [name, input] of cases) {
@@ -323,7 +471,11 @@ describe('the painted markup against the reference markup', () => {
         renderReferenceContent(reference, a, t)
         renderAnnotationContent(painted, a, t)
         expect(reference.children.length).toBeGreaterThan(0)
-        if (name.startsWith('stroke-only'))
+        if (
+          name.startsWith('stroke-only') ||
+          name.startsWith('line') ||
+          name.includes('polyline')
+        )
           expect(painted.querySelector('[data-ink-hit-stroke]')).not.toBeNull()
         if (name.startsWith('commented'))
           expect(painted.querySelector('.ink-comment-marker')).not.toBeNull()
@@ -333,4 +485,49 @@ describe('the painted markup against the reference markup', () => {
       })
     }
   }
+})
+
+describe('the size of a line ending', () => {
+  /** The extent of an ending's path across the line, in CSS px, for a horizontal line. */
+  const height = (el: Element): number => {
+    const ys = (el.getAttribute('d') ?? '')
+      .match(/-?\d+(?:\.\d+)? -?\d+(?:\.\d+)?/g)!
+      .map((pair) => Number(pair.split(' ')[1]))
+    return Math.max(...ys) - Math.min(...ys)
+  }
+
+  it('is sized from one point for a line thinner than one, not from one screen pixel', () => {
+    const t = createPageTransform(
+      {
+        index: 0,
+        box: { x: 0, y: 0, width: 612, height: 792 },
+        rotate: 0,
+        userUnit: 1,
+        width: 612,
+        height: 792,
+      },
+      0.5,
+      0
+    )
+    const store = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const a = store.add({
+      type: 'line',
+      page: 0,
+      rect: lineRect,
+      start: { x: 100, y: 600 },
+      end: { x: 220, y: 600 },
+      width: 0.5,
+      tail: 'OpenArrow',
+    })
+    const reference = document.createElement('div')
+    const painted = document.createElement('div')
+    renderReferenceContent(reference, a, t)
+    renderAnnotationContent(painted, a, t)
+    // Today the floor is one screen pixel: 3 px tall at zoom 0.5. It is now one point: 1.5 px.
+    expect(height(reference.querySelector('[data-ending="tail"]')!)).toBeCloseTo(3, 3)
+    expect(height(painted.querySelector('[data-ending="tail"]')!)).toBeCloseTo(1.5, 3)
+  })
 })
