@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'vitest'
 
+import { expectLinearGrowth } from '../growth-check'
+
 import { layoutText } from './layout'
 import { measureWith, standardMeasure } from './measure'
 
@@ -293,10 +295,11 @@ describe('layoutText: tabs and long text', () => {
     ).toBeUndefined()
   })
 
-  test('an unbroken string of 100,000 characters lays out in under a second', () => {
-    const start = performance.now()
+  test('the cost of laying out an unbroken string grows in step with its length', () => {
+    expectLinearGrowth((n) => {
+      layoutText(block('x'.repeat(n), 50), standardMeasure)
+    }, 20_000)
     const { lines } = layoutText(block('x'.repeat(100_000), 50), standardMeasure)
-    expect(performance.now() - start).toBeLessThan(1000)
     expect(lines.every((l) => l.width <= 50 + 1e-6)).toBe(true)
     expect(lines.map((l) => l.text).join('')).toBe('x'.repeat(100_000))
   })
@@ -404,11 +407,12 @@ describe('layoutText with runs outside the tables', () => {
     expect(calls).toContain('بالعالم')
   })
 
-  test('100,000 characters outside the tables lay out in under a second', () => {
+  test('the cost of laying out characters outside the tables grows in step with their number', () => {
     const measure = measureWith((run, _font, size) => (run.length * size) / 2)
-    const start = performance.now()
+    expectLinearGrowth((n) => {
+      layoutText(block('ж'.repeat(n), 50), measure)
+    }, 20_000)
     const { lines } = layoutText(block('ж'.repeat(100_000), 50), measure)
-    expect(performance.now() - start).toBeLessThan(1000)
     expect(lines.map((l) => l.text).join('')).toBe('ж'.repeat(100_000))
   })
 
