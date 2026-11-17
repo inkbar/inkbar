@@ -216,6 +216,39 @@ describe('clusters in the measure', () => {
     expect(standardMeasure.width('é', helv, 12).outside).toBe(false)
   })
 
+  test.each(['1\ufe0f\u20e3', '#\ufe0f\u20e3', '*\ufe0f\u20e3', '1\u20e3'])(
+    'the keycap %j is outside the tables and measured as one wide character',
+    (text) => {
+      expect(standardMeasure.width(text, helv, 12)).toEqual({ width: 12, outside: true })
+      expect(outsideTables(text)).toBe(true)
+      const fallback = vi.fn(() => 9)
+      expect(measureWith(fallback).width(`a${text}b`, helv, 12).outside).toBe(true)
+      expect(fallback).toHaveBeenCalledWith(text, helv, 12)
+    }
+  )
+
+  test('a digit with the emoji selector but no keycap is outside the tables too', () => {
+    expect(outsideTables('1\ufe0f')).toBe(true)
+  })
+
+  test('a digit is still the table digit beside a keycap', () => {
+    const digit = standardMeasure.width('1', helv, 12).width
+    expect(digit).toBeCloseTo(6.672, 3)
+    expect(standardMeasure.width('11\ufe0f\u20e3', helv, 12).width).toBeCloseTo(
+      digit + 12,
+      9
+    )
+  })
+
+  test('e and U+0301 fold into the table letter and are not outside', () => {
+    expect(standardMeasure.width('e\u0301', helv, 12)).toEqual(
+      standardMeasure.width('é', helv, 12)
+    )
+    expect(outsideTables('e\u0301')).toBe(false)
+    // A joiner after a letter adds nothing either.
+    expect(outsideTables('a\u200d')).toBe(false)
+  })
+
   test('a mark the tables have no composed form for adds no width', () => {
     expect(standardMeasure.width('x́', helv, 12)).toEqual(
       standardMeasure.width('x', helv, 12)

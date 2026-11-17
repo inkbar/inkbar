@@ -55,6 +55,20 @@ export function isZeroWidth(char: string): boolean {
   return /^[\p{Mn}\p{Me}\p{Cf}]$/u.test(char) && !PREPENDED.test(char)
 }
 
+/**
+ * Whether `cluster` is a character of the tables: its base is one, and the rest only marks that
+ * add nothing (an accent NFC could not fold in, a joiner). U+FE0F (emoji presentation) and U+20E3
+ * (the enclosing keycap) change what is drawn, so "1" followed by either is an emoji, not the
+ * digit.
+ */
+function inTables(cluster: string): boolean {
+  const [base, ...rest] = cluster
+  return (
+    indexOf(base!) !== undefined &&
+    rest.every((c) => isZeroWidth(c) && c !== '\ufe0f' && c !== '\u20e3')
+  )
+}
+
 /** Format characters that draw: the prepended marks that number signs and the like are made of. */
 const PREPENDED = /^[\u0600-\u0605\u06dd\u070f\u0890\u0891\u08e2\u{110bd}\u{110cd}]$/u
 
@@ -84,6 +98,7 @@ const PICTOGRAPHIC = /^\p{Extended_Pictographic}/u
 /** East Asian Wide or Fullwidth, or an emoji. */
 export function isWide(char: string): boolean {
   const c = char.codePointAt(0)!
+  if (char.includes('\u20e3')) return true
   if (char.includes('\ufe0f') && PICTOGRAPHIC.test(char)) return true
   if (c < 0x1100) return false
   if (EMOJI_PRESENTATION.test(char)) return true
@@ -130,9 +145,9 @@ export function measureWith(
       }
       for (const cluster of clusters(text.normalize('NFC'))) {
         const [base, ...rest] = cluster
-        const i = indexOf(base!)
-        if (i !== undefined && rest.every(isZeroWidth)) {
+        if (inTables(cluster)) {
           flush()
+          const i = indexOf(base!)!
           total += table ? (table[i]! / 1000) * size : COURIER_ADVANCE * size
         } else if (!isZeroWidth(base!) || !rest.every(isZeroWidth)) {
           run += cluster
@@ -151,7 +166,7 @@ export function measureWith(
 export function outsideTables(text: string): boolean {
   for (const cluster of clusters(text.normalize('NFC'))) {
     const [base, ...rest] = cluster
-    if (indexOf(base!) !== undefined && rest.every(isZeroWidth)) continue
+    if (inTables(cluster)) continue
     if (isZeroWidth(base!) && rest.every(isZeroWidth)) continue
     // A tab is the layout's own business, advancing to a tab stop: not a character to measure.
     if (base === '\t' && rest.length === 0) continue
