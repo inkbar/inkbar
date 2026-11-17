@@ -39,18 +39,18 @@ async function lensOf(rect: Rect, view: 0 | 90, zoom: number, pageRotate: 0 | 90
 describe('the loupe layer clips the lens to the drawing', () => {
   for (const view of [0, 90] as const) {
     for (const pageRotate of [0, 90] as const) {
-      it(`a square loupe is clipped as circle(50%) of its box was, at view rotation ${view} and page /Rotate ${pageRotate}`, async () => {
+      it(`a square loupe is clipped to a circle of half its side, at view rotation ${view} and page /Rotate ${pageRotate}`, async () => {
         const { canvas, box } = await lensOf(
           { x: 100, y: 500, width: 120, height: 120 },
           view,
           2,
           pageRotate
         )
-        // What `clip-path: circle(50%)` resolved to: 50% of sqrt(w² + h²) / sqrt(2), at the centre.
-        const old = 0.5 * (Math.hypot(box.width, box.height) / Math.SQRT2)
+        // The radius `clip-path: circle(50%)` resolves to: 50% of sqrt(w² + h²) / sqrt(2), at the centre.
+        const circleHalf = 0.5 * (Math.hypot(box.width, box.height) / Math.SQRT2)
         const { r, x, y } = clip(canvas)
         expect(box.width).toBeCloseTo(box.height)
-        expect(r).toBeCloseTo(old)
+        expect(r).toBeCloseTo(circleHalf)
         expect(x).toBeCloseTo(box.width / 2)
         expect(y).toBeCloseTo(box.height / 2)
         expect(canvas.style.cssText).toMatch(

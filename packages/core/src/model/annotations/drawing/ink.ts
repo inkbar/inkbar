@@ -10,7 +10,7 @@ import type { DrawItem, Drawing, PathCommand } from './types'
  * points they would reshape a stroke with the zoom it was drawn at, and a stroke here is
  * described once, for every zoom. The input is scaled up by this factor and the outline
  * scaled back down, which leaves both lengths a fraction of a point (a dot stays round) and
- * every other option, all relative to the width, as it was.
+ * every other option, all relative to the width.
  */
 const SCALE = 64
 
