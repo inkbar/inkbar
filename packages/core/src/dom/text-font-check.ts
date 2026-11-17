@@ -26,7 +26,7 @@ const REFERENCE =
 /** How far a font's width of the reference text may be from the table's, as a fraction, at 100 px. */
 const LATIN_TOLERANCE = 0.001
 /** The same at the sizes the tests use, measured in the DOM, where advances may be rounded. */
-const SMALL_SIZES = [10, 18]
+const SMALL_SIZES = [10, 12, 18]
 const SMALL_TOLERANCE = 0.005
 
 function domWidth(
@@ -88,17 +88,20 @@ export function checkTextFonts(): TextFontCheck {
       why: `Latin fonts differ from the tables: ${worst.join(', ')}`,
     }
 
-  const emoji = domWidth('👋🏽', 10)
-  const cjk = domWidth('の次の文。「引用」と（括弧）で', 10)
-  const sameEmoji = Math.abs(emoji - 12) < 0.01
-  const sameCjk = Math.abs(cjk - 150) < 0.01
-  if (!sameEmoji || !sameCjk)
-    return {
-      mode: 'by-cause',
-      why: `emoji probe ${emoji} (expected 12), CJK probe ${cjk} (expected 150)`,
-    }
+  // The tests render emoji and CJK through all three stacks, so each stack is probed.
+  const probes: string[] = []
+  for (const family of ['Helvetica', 'Times', 'Courier'] as const) {
+    const font: TextFont = { family, bold: false, italic: false }
+    const emoji = domWidth('👋🏽', 10, font)
+    const cjk = domWidth('の次の文。「引用」と（括弧）で', 10, font)
+    if (Math.abs(emoji - 12) >= 0.01)
+      probes.push(`${family} emoji probe ${emoji} (expected 12)`)
+    if (Math.abs(cjk - 150) >= 0.01)
+      probes.push(`${family} CJK probe ${cjk} (expected 150)`)
+  }
+  if (probes.length > 0) return { mode: 'by-cause', why: probes.join(', ') }
   return {
     mode: 'exact',
-    why: `Latin fonts within ${LATIN_TOLERANCE * 100}% of the tables at 100 px and ${SMALL_TOLERANCE * 100}% at 10 and 18 px (${worst.join(', ')}); emoji and CJK probes as recorded`,
+    why: `Latin fonts within ${LATIN_TOLERANCE * 100}% of the tables at 100 px and ${SMALL_TOLERANCE * 100}% at 10, 12 and 18 px (${worst.join(', ')}); emoji and CJK probes as recorded in all three stacks`,
   }
 }
