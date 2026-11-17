@@ -3030,7 +3030,7 @@ describe('forms', () => {
     button.click()
     fieldMenu('sig')!.querySelector<HTMLButtonElement>('.ink-signature-item')!.click()
     const { signature: id } = doc.form.get('sig') as { signature: string }
-    await until(() => annotationEl(viewer, id)?.querySelector('img') !== null)
+    await until(() => annotationEl(viewer, id)?.querySelector('.ink-stamp') !== null)
     const el = annotationEl(viewer, id)!
     const s = el.getBoundingClientRect()
     const b = box.getBoundingClientRect()
@@ -3041,7 +3041,7 @@ describe('forms', () => {
     expect(hit(b.left + 2, b.top + 2)?.closest('[data-ink-widget]')).toBe(box)
 
     // The signature selects for deletion, but has no handles to move or resize it.
-    await userEvent.click(el.querySelector('img')!)
+    await userEvent.click(el.querySelector('.ink-stamp')!)
     expect(doc.annotations.selection.get()).toEqual([id])
     expect(el.querySelectorAll('[data-handle]')).toHaveLength(0)
     expect(document.activeElement).toBe(el)
@@ -3064,7 +3064,9 @@ describe('forms', () => {
       },
     })
     viewer.viewport.get()!.scrollToRect(0, name.rect)
-    await until(() => annotationEl(viewer, stamp.id)?.querySelector('img') !== null)
+    await until(
+      () => annotationEl(viewer, stamp.id)?.querySelector('.ink-stamp') !== null
+    )
     await settle()
     const over = annotationEl(viewer, stamp.id)!
     const o = over.getBoundingClientRect()
@@ -3075,7 +3077,7 @@ describe('forms', () => {
     expect(
       hit(nameBox.left + 4, nameBox.top + nameBox.height / 2)?.closest('input')
     ).toBe(widgetBox(viewer, 'name')!.querySelector('input'))
-    await userEvent.click(over.querySelector('img')!)
+    await userEvent.click(over.querySelector('.ink-stamp')!)
     expect(doc.annotations.selection.get()).toEqual([stamp.id])
     expect(over.querySelectorAll('[data-handle]').length).toBeGreaterThan(0)
   })

@@ -1824,8 +1824,12 @@
     background: var(--ink-swatch);
   }
 
-  /* Stamps: an image filling its box; the overlay sets its geometry and opacity. */
-  :where(.ink-stamp) {
+  /*
+   * Stamps: an image filling its box; the overlay sets its geometry. A stamp is drawn as an SVG
+   * image whose opacity comes from the drawing, so this applies to the HTML image the reference
+   * renderer still makes, and goes when stamps are no longer drawn as HTML images.
+   */
+  :where(img.ink-stamp) {
     display: block;
     max-width: none;
     opacity: var(--ink-opacity, 1);

@@ -1,4 +1,5 @@
-import type { CssRect, PageTransform } from './transform'
+import { normalizeRotation, type CssRect, type PageTransform } from './transform'
+
 import type {
   DrawItem,
   DrawRole,
@@ -150,8 +151,25 @@ function paintItem(
         out.append(paintItem(doc, child, t, origin, at, len))
       break
     }
+    case 'image': {
+      // Upright in user space turned by `angle` (anticlockwise); the page turns it again on
+      // screen (clockwise), so it is drawn turned by the difference, about the rect's centre.
+      out = node('image')
+      const r = rectCss(item.rect, t, origin)
+      const turn = normalizeRotation(t.totalRotation - item.angle)
+      const sideways = turn === 90 || turn === 270
+      const width = sideways ? r.height : r.width
+      const height = sideways ? r.width : r.height
+      const cx = r.x + r.width / 2
+      const cy = r.y + r.height / 2
+      set(out, { x: cx - width / 2, y: cy - height / 2, width, height })
+      out.setAttribute('href', item.data)
+      out.setAttribute('preserveAspectRatio', 'none')
+      if (turn !== 0)
+        out.setAttribute('transform', `rotate(${turn} ${fmt(cx)} ${fmt(cy)})`)
+      break
+    }
     case 'text':
-    case 'image':
     case 'page':
       throw new Error(`painting a ${item.kind} is not supported yet`)
   }
@@ -168,6 +186,8 @@ function top(el: SVGElement): SVGElement {
 
 function guard(el: Element, what: string): void {
   for (const attr of el.attributes) {
+    // An image's data URL is base64, which can spell "NaN" by chance.
+    if (attr.name === 'href' && el.localName === 'image') continue
     if (/NaN|Infinity/.test(attr.value)) {
       throw new RangeError(`${what} has a non-finite value in ${attr.name}`)
     }

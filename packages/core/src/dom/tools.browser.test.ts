@@ -3257,8 +3257,8 @@ describe('signature tool', () => {
     const el = viewport
       .hostFor(0)!
       .querySelector<HTMLElement>(`[data-annotation="${a.id}"]`)!
-    const img = el.querySelector('img')!
-    expect(img.getAttribute('src')).toBe(PNG_3x1)
+    const img = el.querySelector('.ink-stamp')!
+    expect(img.getAttribute('href')).toBe(PNG_3x1)
     expect(img.classList.contains('ink-stamp')).toBe(true)
     expect(el.getAttribute('aria-label')).toBe('Signature')
     const box = viewport.transformFor(0).toCssRect(a.rect)
@@ -3320,7 +3320,7 @@ describe('signature tool', () => {
     await settle()
     const [ink, stamp] = doc.annotations.list.get()
     if (ink?.type !== 'ink' || stamp?.type !== 'stamp') throw new Error('not placed')
-    const img = host.querySelector(`[data-annotation="${stamp.id}"] img`)!
+    const img = host.querySelector(`[data-annotation="${stamp.id}"] .ink-stamp`)!
     return { t, ink, stamp, img }
   }
 

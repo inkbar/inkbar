@@ -15,7 +15,10 @@ import type { PageInfo } from '../model/pages'
 export interface CompareCase {
   name: string
   annotation: AnnotationInput
+  /** The view rotation the viewer applies on top of the page's own; 0 when absent. */
   rotate?: 0 | 90
+  /** The page's own /Rotate (`PageInfo.rotate`), not the view's; 0 when absent. */
+  pageRotate?: 0 | 90
   zoom?: 1 | 2 | 0.5 | 4
   box?: Rect
   userUnit?: number
@@ -73,7 +76,7 @@ export async function comparePaint(
   const info: PageInfo = {
     index: 0,
     box,
-    rotate: 0,
+    rotate: c.pageRotate ?? 0,
     userUnit: c.userUnit ?? 1,
     width: box.width,
     height: box.height,

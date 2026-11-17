@@ -733,8 +733,8 @@ for (const framework of FRAMEWORK_ORDER) {
       const stamp = sessionShape(page, 'stamp')
       await expect(stamp).toHaveCount(1)
       await expect(stamp).toHaveAccessibleName('Signature')
-      await expect(stamp.locator('img.ink-stamp')).toHaveAttribute(
-        'src',
+      await expect(stamp.locator('.ink-stamp')).toHaveAttribute(
+        'href',
         /^data:image\/png;base64,/
       )
       // The signature is kept for next time.

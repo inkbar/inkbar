@@ -1338,7 +1338,7 @@ describe('signature menu', () => {
     await userEvent.click(browserPage.elementLocator(page), {
       position: { x: 150, y: 60 },
     })
-    await expect.poll(() => page.querySelectorAll('img.ink-stamp').length).toBe(1)
+    await expect.poll(() => page.querySelectorAll('.ink-stamp').length).toBe(1)
   })
 
   it('releases the page lock on Escape, on Cancel and when the root unmounts', async () => {

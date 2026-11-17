@@ -436,6 +436,61 @@ describe('a one-point ink stroke', () => {
   }
 })
 
+/** A picture with large flat areas and a transparent region, so resampling differences stay at edges. */
+function picture(kind: 'png' | 'jpeg'): string {
+  const canvas = document.createElement('canvas')
+  canvas.width = 120
+  canvas.height = 60
+  const ctx = canvas.getContext('2d')!
+  if (kind === 'jpeg') {
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, 120, 60)
+  }
+  ctx.fillStyle = '#c0392b'
+  ctx.fillRect(0, 0, 60, 60)
+  ctx.fillStyle = '#1b4f72'
+  ctx.fillRect(60, 0, 60, 30)
+  // The bottom right stays transparent in a PNG and white in a JPEG.
+  return canvas.toDataURL(kind === 'png' ? 'image/png' : 'image/jpeg', 1)
+}
+
+const stampCases: CompareCase[] = (['png', 'jpeg'] as const).flatMap((kind) =>
+  ([0, 90] as const).flatMap((rotation) =>
+    ([1, 0.5] as const).map((opacity): CompareCase => ({
+      name: `${kind} stamp with rotation ${rotation} at opacity ${opacity}`,
+      annotation: {
+        type: 'stamp',
+        page: 0,
+        rect: { x: 100, y: 600, width: 80, height: 40 },
+        imagedata: picture(kind),
+        rotation,
+        opacity,
+      },
+    }))
+  )
+)
+
+describe('comparePaint for stamps', () => {
+  for (const c of stampCases) {
+    for (const pageRotate of [0, 90] as const) {
+      for (const zoom of [1, 2] as const) {
+        it(`${c.name} at page rotate ${pageRotate} and zoom ${zoom}`, async () => {
+          const r = await comparePaint({ ...c, pageRotate, zoom })
+          expect(r.referenceInk).toBeGreaterThan(0)
+          expect(r.differing).toBeLessThanOrEqual(0.005)
+        })
+      }
+    }
+  }
+
+  it('a quarter turn of the view as well', async () => {
+    for (const c of stampCases.slice(0, 4)) {
+      const r = await comparePaint({ ...c, rotate: 90, pageRotate: 90, zoom: 2 })
+      expect(r.differing).toBeLessThanOrEqual(0.005)
+    }
+  })
+})
+
 describe('comparePaint for the types that have a drawing', () => {
   for (const c of moved) {
     for (const rotate of [0, 90] as const) {
@@ -466,6 +521,39 @@ describe('comparePaint for the types that have a drawing', () => {
       expect(r.differing).toBeLessThanOrEqual(0.005)
     }
   })
+})
+
+describe('comparePaint on a page with /Rotate 90', () => {
+  const dense = (c: CompareCase, zoom: number): number =>
+    c.name === 'ink without pressure' && zoom === 0.5 ? 0.015 : 0.01
+  const groups: [
+    string,
+    CompareCase[],
+    (c: CompareCase, zoom: number) => number,
+    number[],
+  ][] = [
+    ['moved', moved, () => 0.005, [0.5, 1, 2]],
+    ['lines', lineCases, () => 0.005, [1, 2]],
+    ['ink', inkCases, dense, [0.5, 1, 2]],
+  ]
+  for (const [group, cases, limit, zooms] of groups) {
+    for (const c of cases) {
+      for (const rotate of [0, 90] as const) {
+        for (const zoom of zooms) {
+          it(`${group}: ${c.name} at view rotate ${rotate} and zoom ${zoom}`, async () => {
+            const r = await comparePaint({
+              ...c,
+              pageRotate: 90,
+              rotate,
+              zoom: zoom as 0.5 | 1 | 2,
+            })
+            expect(r.referenceInk).toBeGreaterThan(0)
+            expect(r.differing).toBeLessThanOrEqual(limit(c, zoom))
+          })
+        }
+      }
+    }
+  }
 })
 
 /** An element's tree as plain data, with numbers in attribute values rounded to 3 places. */
@@ -593,13 +681,18 @@ describe('the painted markup against the reference markup', () => {
     ],
   ]
   for (const [name, input] of cases) {
-    for (const rotation of [0, 90] as const) {
-      it(`${name} at rotate ${rotation} has the reference's elements and attributes`, () => {
+    for (const [pageRotate, rotation] of [
+      [0, 0],
+      [0, 90],
+      [90, 0],
+      [90, 90],
+    ] as const) {
+      it(`${name} at page rotate ${pageRotate} and view rotate ${rotation} has the reference's elements and attributes`, () => {
         const t = createPageTransform(
           {
             index: 0,
             box: { x: 0, y: 0, width: 612, height: 792 },
-            rotate: 0,
+            rotate: pageRotate,
             userUnit: 1,
             width: 612,
             height: 792,

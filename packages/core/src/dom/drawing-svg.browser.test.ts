@@ -6,6 +6,7 @@ import { createAnnotationStore } from '../model/annotations/store'
 import { itemElement, paintDrawing } from './drawing-svg'
 import { renderAnnotationContent } from './overlay-render'
 import { renderReferenceContent } from './reference-render'
+import { mountContainer } from './test-utils'
 import { createPageTransform } from './transform'
 
 import type { DrawItem, Drawing, Paint } from '../model/annotations/drawing/types'
@@ -241,7 +242,6 @@ describe('paintDrawing', () => {
 
   const unsupportedRect = { x: 0, y: 0, width: 1, height: 1 }
   it.each([
-    { kind: 'image', data: 'x', rect: unsupportedRect, angle: 0 },
     {
       kind: 'text',
       lines: [],
@@ -340,4 +340,150 @@ describe('itemElement', () => {
     expect(el.getAttribute('rx')).toBe('12')
     expect(el.getAttribute('stroke-width')).toBe('4')
   })
+})
+
+describe('a stamp', () => {
+  const PNG =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAABCAYAAAAfFcSJAAAAEklEQVR4nGP4z8Dwn4GBgQEAFAADAX4GBkIAAAAASUVORK5CYII='
+  const rect = { x: 100, y: 600, width: 80, height: 40 }
+  const stampAt = (rotation?: 0 | 90, opacity = 1) =>
+    createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    }).add({
+      type: 'stamp',
+      page: 0,
+      rect,
+      imagedata: PNG,
+      opacity,
+      ...(rotation === undefined ? {} : { rotation }),
+    })
+
+  it('is an svg image with the stamp class, the data URL and the opacity on the svg', () => {
+    const a = stampAt(undefined, 0.5)
+    const el = document.createElement('div')
+    renderAnnotationContent(el, a, createPageTransform(page, 2, 0))
+    const svg = el.querySelector(':scope > svg')!
+    expect(svg.getAttribute('opacity')).toBe('0.5')
+    const image = svg.querySelector('image.ink-stamp')!
+    expect(image.getAttribute('href')).toBe(PNG)
+    expect(image.getAttribute('preserveAspectRatio')).toBe('none')
+    expect(el.querySelector('img')).toBeNull()
+  })
+
+  it('takes a press on a transparent pixel inside its box', () => {
+    const canvas = document.createElement('canvas')
+    canvas.width = canvas.height = 20
+    const ctx = canvas.getContext('2d')!
+    ctx.fillStyle = '#c00'
+    ctx.fillRect(10, 0, 10, 20)
+    const a = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    }).add({
+      type: 'stamp',
+      page: 0,
+      rect: { x: 100, y: 600, width: 80, height: 40 },
+      imagedata: canvas.toDataURL('image/png'),
+    })
+    const t = createPageTransform(page, 2, 0)
+    const at = t.toCssRect(a.rect)
+    const host = mountContainer(1400, 1400)
+    const el = document.createElement('div')
+    el.style.cssText = `position:absolute;left:${at.left}px;top:${at.top}px;width:${at.width}px;height:${at.height}px;`
+    host.append(el)
+    renderAnnotationContent(el, a, t)
+    const hit = (dx: number, dy: number): Element | null =>
+      document.elementFromPoint(
+        host.getBoundingClientRect().left + at.left + dx,
+        host.getBoundingClientRect().top + at.top + dy
+      )
+    // The left half of the picture is transparent.
+    expect(el.contains(hit(at.width * 0.25, at.height / 2))).toBe(true)
+    expect(el.contains(hit(at.width * 0.75, at.height / 2))).toBe(true)
+    // The press lands on the hit rect even when the image takes none.
+    el.querySelector('image')!.setAttribute('pointer-events', 'none')
+    expect(hit(at.width * 0.25, at.height / 2)).toBe(
+      el.querySelector('rect[data-ink-hit-area]')
+    )
+    host.remove()
+  })
+
+  it('has an image and a hit rect over its on-screen box', () => {
+    for (const pageRotate of [0, 90] as const) {
+      for (const rotation of [0, 90] as const) {
+        const t = createPageTransform({ ...page, rotate: pageRotate }, 2, 0)
+        const a = stampAt(rotation)
+        const host = mountContainer(1400, 1400)
+        const at = t.toCssRect(a.rect)
+        const el = document.createElement('div')
+        el.style.cssText = `position:absolute;left:${at.left}px;top:${at.top}px;width:${at.width}px;height:${at.height}px;`
+        host.append(el)
+        renderAnnotationContent(el, a, t)
+        const image = el.querySelector('image.ink-stamp')!.getBoundingClientRect()
+        const hit = el.querySelector('rect[data-ink-hit-area]')!.getBoundingClientRect()
+        host.remove()
+        expect(el.querySelectorAll('image, rect')).toHaveLength(2)
+        for (const k of ['left', 'top', 'width', 'height'] as const) {
+          expect(hit[k]).toBeCloseTo(image[k], 0)
+        }
+        expect(el.querySelector('rect')!.getAttribute('stroke')).toBe('none')
+      }
+    }
+  })
+
+  it('still throws for an image item with a non-finite geometry', () => {
+    for (const rect of [
+      { x: Number.NaN, y: 0, width: 1, height: 1 },
+      { x: 0, y: 0, width: Number.POSITIVE_INFINITY, height: 1 },
+    ]) {
+      expect(() => paint(drawing({ kind: 'image', data: 'x', rect, angle: 0 }))).toThrow(
+        RangeError
+      )
+    }
+  })
+
+  it('paints image data that happens to spell NaN', () => {
+    const data = 'data:image/png;base64,NaNInfinity'
+    const el = paint(
+      drawing({
+        kind: 'image',
+        data,
+        rect: { x: 0, y: 0, width: 1, height: 1 },
+        angle: 0,
+      })
+    )
+    expect(el.querySelector('image')!.getAttribute('href')).toBe(data)
+  })
+
+  for (const pageRotate of [0, 90] as const) {
+    for (const view of [0, 90] as const) {
+      for (const rotation of [0, 90] as const) {
+        it(`has the reference box at page rotate ${pageRotate}, view ${view}, stamp rotation ${rotation}`, () => {
+          const info: PageInfo = { ...page, rotate: pageRotate }
+          const t = createPageTransform(info, 2, view)
+          const a = stampAt(rotation)
+          const host = mountContainer(1400, 1400)
+          const at = t.toCssRect(a.rect)
+          const place = (el: HTMLElement): void => {
+            el.style.cssText = `position:absolute;left:${at.left}px;top:${at.top}px;width:${at.width}px;height:${at.height}px;`
+            host.append(el)
+          }
+          const ref = document.createElement('div')
+          const next = document.createElement('div')
+          place(ref)
+          place(next)
+          renderReferenceContent(ref, a, t)
+          renderAnnotationContent(next, a, t)
+          const want = ref.querySelector('img.ink-stamp')!.getBoundingClientRect()
+          const got = next.querySelector('image.ink-stamp')!.getBoundingClientRect()
+          host.remove()
+          expect(got.left).toBeCloseTo(want.left, 0)
+          expect(got.top).toBeCloseTo(want.top, 0)
+          expect(got.width).toBeCloseTo(want.width, 0)
+          expect(got.height).toBeCloseTo(want.height, 0)
+        })
+      }
+    }
+  }
 })

@@ -472,7 +472,36 @@ function renderChrome(el: HTMLElement, a: Annotation, t: PageTransform): void {
       svg.append(twin)
     }
   }
+  if (svg) appendStampHit(svg, drawn, t, annotationBox(a, t))
   appendCommentMarker(el, a, t)
+}
+
+/**
+ * A stamp's press area: an invisible rect over the image's box, so a press on a transparent
+ * pixel of the picture selects it whatever the browser does with pixels, and no native image
+ * drag can start. The image itself stops taking presses.
+ */
+function appendStampHit(
+  svg: Element,
+  drawn: readonly DrawItem[],
+  t: PageTransform,
+  box: CssRect
+): void {
+  const image = drawn.find((i) => i.kind === 'image')
+  const el = svg.querySelector('image.ink-stamp')
+  if (image?.kind !== 'image' || !el) return
+  const r = t.toCssRect(image.rect)
+  el.setAttribute('pointer-events', 'none')
+  const hit = svg.ownerDocument.createElementNS(SVG, 'rect')
+  hit.setAttribute('x', String(r.left - box.left))
+  hit.setAttribute('y', String(r.top - box.top))
+  hit.setAttribute('width', String(r.width))
+  hit.setAttribute('height', String(r.height))
+  hit.setAttribute('fill', 'transparent')
+  hit.setAttribute('stroke', 'none')
+  hit.setAttribute('pointer-events', 'all')
+  hit.setAttribute('data-ink-hit-area', '')
+  svg.append(hit)
 }
 
 /**
