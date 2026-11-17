@@ -1,21 +1,20 @@
 import { describeAnnotation } from '../model/annotations/drawing/describe'
+import { measureWith } from '../model/annotations/drawing/text/measure'
+
+import { browserWidth } from './text-fonts'
 
 import type { PageTransform } from './transform'
 import type { DrawContext, Drawing } from '../model/annotations/drawing/types'
 import type { Annotation } from '../model/annotations/types'
 
+/** The standard tables, with the browser's fonts measuring what they do not hold. */
+const measure = measureWith(browserWidth)
+
 /** What describing an annotation needs from its page. Zoom and view rotation are not part of it. */
 export function drawContext(t: PageTransform): DrawContext {
   return {
     page: { box: t.page.box, rotate: t.page.rotate, userUnit: t.page.userUnit },
-    measure: {
-      width() {
-        throw new Error('text measurement is not supported yet')
-      },
-      vertical() {
-        throw new Error('text measurement is not supported yet')
-      },
-    },
+    measure,
   }
 }
 
