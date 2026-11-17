@@ -19,6 +19,11 @@ export interface TextFontCheck {
   mode: TextFontMode
   /** What decided it, for the test log. */
   why: string
+  /**
+   * Which of the fonts outside the tables give other widths than the lists were recorded with. A
+   * forced mode cannot know, so it says both.
+   */
+  differs: { emoji: boolean; cjk: boolean }
 }
 
 const REFERENCE =
@@ -52,7 +57,11 @@ export function checkTextFonts(): TextFontCheck {
     'VITE_INKBAR_TEXT_FONTS'
   ]
   if (forced === 'by-cause' || forced === 'foreign')
-    return { mode: forced, why: `forced by VITE_INKBAR_TEXT_FONTS=${forced}` }
+    return {
+      mode: forced,
+      why: `forced by VITE_INKBAR_TEXT_FONTS=${forced}`,
+      differs: { emoji: true, cjk: true },
+    }
 
   const canvas = document.createElement('canvas').getContext('2d')!
   canvas.fontKerning = 'none'
@@ -86,22 +95,29 @@ export function checkTextFonts(): TextFontCheck {
     return {
       mode: 'foreign',
       why: `Latin fonts differ from the tables: ${worst.join(', ')}`,
+      differs: { emoji: true, cjk: true },
     }
 
   // The tests render emoji and CJK through all three stacks, so each stack is probed.
   const probes: string[] = []
+  const differs = { emoji: false, cjk: false }
   for (const family of ['Helvetica', 'Times', 'Courier'] as const) {
     const font: TextFont = { family, bold: false, italic: false }
     const emoji = domWidth('👋🏽', 10, font)
     const cjk = domWidth('の次の文。「引用」と（括弧）で', 10, font)
-    if (Math.abs(emoji - 12) >= 0.01)
+    if (Math.abs(emoji - 12) >= 0.01) {
+      differs.emoji = true
       probes.push(`${family} emoji probe ${emoji} (expected 12)`)
-    if (Math.abs(cjk - 150) >= 0.01)
+    }
+    if (Math.abs(cjk - 150) >= 0.01) {
+      differs.cjk = true
       probes.push(`${family} CJK probe ${cjk} (expected 150)`)
+    }
   }
-  if (probes.length > 0) return { mode: 'by-cause', why: probes.join(', ') }
+  if (probes.length > 0) return { mode: 'by-cause', why: probes.join(', '), differs }
   return {
     mode: 'exact',
     why: `Latin fonts within ${LATIN_TOLERANCE * 100}% of the tables at 100 px and ${SMALL_TOLERANCE * 100}% at 10, 12 and 18 px (${worst.join(', ')}); emoji and CJK probes as recorded in all three stacks`,
+    differs,
   }
 }

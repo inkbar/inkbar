@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest'
 
 import { clusters } from '../model/annotations/drawing/text/clusters'
 import { layoutText } from '../model/annotations/drawing/text/layout'
-import { measureWith, standardMeasure } from '../model/annotations/drawing/text/measure'
+import {
+  measureWith,
+  outsideTables,
+  standardMeasure,
+} from '../model/annotations/drawing/text/measure'
 
 import { browserLines } from './text-browser-layout'
 import { checkTextFonts } from './text-font-check'
@@ -159,11 +163,13 @@ const PRODUCTION_FACES: TextFont[] = [
 const EDGE_STEPS = [0.03, 0.1, 0.25, 0.5, 1, 2]
 
 /** Whether every character of a sample is in the tables, so only the Latin fonts decide its lines. */
-const latinOnly = (text: string) => !standardMeasure.width(text, HELV, 12).outside
-const HELV: TextFont = { family: 'Helvetica', bold: false, italic: false }
+const latinOnly = (text: string) => !outsideTables(text)
 
 interface Mismatch {
   label: string
+  /** The sample's name and text. */
+  name: string
+  text: string
   /** The smallest box-edge move, in px, after which layout agrees with the browser. */
   near: number | undefined
   latin: boolean
@@ -198,7 +204,7 @@ function compareWith(
                   ) === JSON.stringify(expected)
               )
             )
-            mismatches.push({ label, near, latin: latinOnly(text) })
+            mismatches.push({ label, name, text, near, latin: latinOnly(text) })
             console.log(
               `[detail] kerning=${kerning} ${label} edge<=${near ?? 'none'}\n  browser ${JSON.stringify(expected)}\n  layout  ${JSON.stringify(laid)}`
             )
@@ -211,11 +217,37 @@ const fonts = checkTextFonts()
 console.log(`[text fonts] mode ${fonts.mode}: ${fonts.why}`)
 
 /**
+ * How many of the comparisons may differ on any machine, as a fraction. Measured on the machine
+ * the lists were recorded on: 1.6% of the per-cluster comparisons and 0.9% of the production ones
+ * at most. The cap is 1.5 to 3 times that, so another set of fonts has room to move a few more
+ * lines but not to break the layout.
+ */
+const MISMATCH_CAP = 0.025
+
+const EMOJI = /[\p{Extended_Pictographic}\p{Regional_Indicator}\u20e3]/u
+const CJK = /[\u3000-\u9fff\uff00-\uffef]/u
+
+/**
+ * Whether a mismatch in text with characters outside the Latin tables has a cause the font check
+ * found: an emoji or CJK font whose widths differ from the recorded ones and a sample that has
+ * those characters, or (with the default kerning) a script that is shaped, whose mark positioning
+ * kerning-off text does not have.
+ */
+function explainedByFonts(m: Mismatch, kerning: boolean): boolean {
+  return (
+    (fonts.differs.emoji && EMOJI.test(m.text)) ||
+    (fonts.differs.cjk && CJK.test(m.text)) ||
+    (kerning && SHAPED.test(m.name))
+  )
+}
+
+/**
  * Checks a run's mismatches. With the fonts the exact lists were recorded on (`exact`), the
  * sorted labels must equal `known`. On any machine, a mismatch in text that has only characters
  * from the tables must be a line ending within 0.03 px of the box edge (with the browser's default
  * kerning, kerning may also move a break, so only the number of those is capped), and the total
- * is capped.
+ * is capped. Where the emoji or CJK fonts differ from the recorded ones (`by-cause`), a mismatch in
+ * text with other characters must be one of the sample kinds those fonts, or shaping, can explain.
  */
 function checkRun(
   run: { total: number; mismatches: Mismatch[] },
@@ -223,12 +255,18 @@ function checkRun(
 ) {
   const { total, mismatches } = run
   expect(total).toBe(options.total)
-  expect(mismatches.length).toBeLessThanOrEqual(Math.ceil(total * 0.04))
+  expect(mismatches.length).toBeLessThanOrEqual(Math.ceil(total * MISMATCH_CAP))
   const latin = mismatches.filter((m) => m.latin)
   if (options.kerning) expect(latin.length).toBeLessThanOrEqual(Math.ceil(total * 0.01))
   else
     for (const m of latin)
       expect({ label: m.label, near: m.near }).toEqual({ label: m.label, near: 0.03 })
+  if (fonts.mode === 'by-cause')
+    for (const m of mismatches.filter((x) => !x.latin))
+      expect(
+        explainedByFonts(m, options.kerning),
+        `${m.label} has no cause in the fonts the check found`
+      ).toBe(true)
   if (fonts.mode === 'exact')
     expect(mismatches.map((m) => m.label).sort()).toEqual(options.known)
 }
@@ -309,8 +347,16 @@ describe('layoutText with per-cluster browser widths and no tables', () => {
       expect(run.total).toBe(
         samples.length * FAMILIES.length * SIZES.length * WIDTHS.length
       )
-      expect(run.mismatches.length).toBeLessThanOrEqual(Math.ceil(run.total * 0.04))
+      expect(run.mismatches.length).toBeLessThanOrEqual(
+        Math.ceil(run.total * MISMATCH_CAP)
+      )
       expect(run.mismatches.filter((m) => m.latin).length).toBeLessThanOrEqual(2)
+      if (fonts.mode === 'by-cause')
+        for (const m of run.mismatches.filter((x) => !x.latin))
+          expect(
+            explainedByFonts(m, true),
+            `${m.label} has no cause in the fonts the check found`
+          ).toBe(true)
       if (fonts.mode === 'exact')
         expect(run.mismatches.map((m) => m.label).sort()).toEqual(PER_CHAR_KNOWN)
     }
