@@ -54,16 +54,39 @@ describe('inkbar/drawing-is-pure', () => {
 
   for (const [name, path, source] of [
     ['the package index from drawing/', IN_DRAWING, '../../..'],
+    ['the package index file from drawing/', IN_DRAWING, '../../../index'],
+    [
+      'the package index file with its extension from drawing/',
+      IN_DRAWING,
+      '../../../index.js',
+    ],
     ['the package index from drawing/text/', IN_TEXT, '../../../..'],
     ['the package index file from drawing/text/', IN_TEXT, '../../../../index'],
+    [
+      'the package index file with its extension from drawing/text/',
+      IN_TEXT,
+      '../../../../index.js',
+    ],
+    ['the package by name', IN_DRAWING, '@inkbar/core'],
+    ['the package by name from drawing/text/', IN_TEXT, '@inkbar/core'],
+    ['a subpath of the package by name', IN_DRAWING, '@inkbar/core/dom'],
+    ['dom/ from drawing/', IN_DRAWING, '../../../dom/text-fonts'],
     ['dom/ from drawing/text/', IN_TEXT, '../../../../dom/text-fonts'],
+    ['dom/ by its folder from drawing/text/', IN_TEXT, '../../../../dom'],
+    ['pdfjs/ from drawing/', IN_DRAWING, '../../../pdfjs/document'],
+    ['pdfjs/ from drawing/text/', IN_TEXT, '../../../../pdfjs/document'],
+    ['pdfjs/ by its folder from drawing/text/', IN_TEXT, '../../../../pdfjs'],
     ['PDF.js', IN_DRAWING, 'pdfjs-dist'],
   ] as const)
     it(`reports an import of ${name}`, async () => {
       const code = `import * as everything from '${source}'\n\nexport { everything }\n`
       const messages = await report(code, `${drawing}/${path}`)
       assert.ok(
-        messages.some((m) => m.startsWith('no-restricted-imports')),
+        messages.some(
+          (m) =>
+            m.startsWith('no-restricted-imports') &&
+            (!source.includes('pdfjs') || m.includes('PDF.js'))
+        ),
         `${source} was not reported: ${messages.join(' | ')}`
       )
     })

@@ -156,7 +156,14 @@ export default defineConfig(
                 'A drawing is described without the package index, which exports dom.',
             },
             {
-              group: ['pdfjs-dist', 'pdfjs-dist/**', '#pdfjs', '#pdfjs-sandbox'],
+              group: [
+                'pdfjs-dist',
+                'pdfjs-dist/**',
+                '#pdfjs',
+                '#pdfjs-sandbox',
+                '**/pdfjs',
+                '**/pdfjs/**',
+              ],
               message: 'A drawing is described without PDF.js.',
             },
           ],
