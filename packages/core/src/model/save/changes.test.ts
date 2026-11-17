@@ -136,6 +136,19 @@ describe('changedFields', () => {
     ).toEqual({ name: { value: null } })
   })
 
+  it('takes an emptied field the file left empty as no change', () => {
+    expect(
+      changedFields(
+        { fields, values: { ...fileValues, amount: '' }, formatted: {} },
+        { formatted: {} }
+      )
+    ).toEqual({})
+    // The file's 'Off' and no value at all are the same unticked box.
+    expect(
+      changedFields({ fields, values: { name: 'Sam' }, formatted: {} }, { formatted: {} })
+    ).toEqual({})
+  })
+
   it('lists a field whose formatted text alone changed, with that text', () => {
     expect(
       changedFields(

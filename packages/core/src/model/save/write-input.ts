@@ -26,6 +26,8 @@ export interface WriteAnnotationOptions {
   page: DrawContext['page']
   /** Written as a reply: a hidden note, with no appearance. */
   reply: boolean
+  /** The file's own annotation it replies to, when its parent is not written with it. */
+  replyTo?: AnnotationRef | undefined
   /** Full name of the signature field it signs, if any. */
   signs?: string | undefined
   helpers: Omit<PaintHelpers, 'page'>
@@ -45,9 +47,11 @@ export async function writeAnnotation(
   const stored = (bounds: Rect) =>
     options.data ? options.data(bounds) : savedDataFor(a, bounds, options.signs)
   const annotation = toGloss(a)
+  if (options.replyTo)
+    return { page: a.page, annotation, replyTo: options.replyTo, data: stored(a.rect) }
   if (options.reply) return { page: a.page, annotation, data: stored(a.rect) }
-  // The engine writes `inReplyTo` as a reply. One whose parent is not written shows on the
-  // page, so it is written as what it shows; its data keeps the link.
+  // The engine writes `inReplyTo` as a reply. One whose parent is neither written nor in the
+  // file shows on the page, so it is written as what it shows; its data keeps the link.
   delete annotation.inReplyTo
   const drawing = describeDrawing(a, { page: options.page, measure: standardMeasure })
   if (!drawing) throw new Error(`An annotation of type ${a.type} has no drawing`)
@@ -90,6 +94,8 @@ export function writeFields(
  * Everything one save writes. Per page, in page order: the page's dimming mask first, under
  * everything, then its other annotations in list order, each reply after the note it replies
  * to. `lifted` are the file copies of the annotations lifted at open, removed first.
+ * `fileParents` are the file's own annotations a reply can hang from (notes and text markup
+ * that stay in the file, locked), by id: a reply to one of them is written linked to it.
  */
 export async function buildWriteInput(state: {
   annotations: readonly Annotation[]
@@ -98,8 +104,14 @@ export async function buildWriteInput(state: {
   fields: Readonly<Record<string, WriteField>>
   signs: ReadonlyMap<string, string>
   helpers: Omit<PaintHelpers, 'page'>
+  fileParents?: ReadonlyMap<string, AnnotationRef> | undefined
 }): Promise<WriteInput> {
   const { annotations } = state
+  const writtenIds = new Set(annotations.map((a) => a.id))
+  const fileParentOf = (a: Annotation): AnnotationRef | undefined =>
+    a.inReplyTo === undefined || writtenIds.has(a.inReplyTo)
+      ? undefined
+      : state.fileParents?.get(a.inReplyTo)
   const byPage = new Map<number, Annotation[]>()
   for (const a of annotations) {
     const list = byPage.get(a.page)
@@ -146,6 +158,7 @@ export async function buildWriteInput(state: {
       await writeAnnotation(a, {
         page: { box: page.box, rotate: page.rotate, userUnit: page.userUnit },
         reply,
+        replyTo: fileParentOf(a),
         signs: state.signs.get(a.id),
         helpers: state.helpers,
       })

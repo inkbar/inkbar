@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { nodeAssets } from '../pdfjs/node-assets'
 import { qpdfAvailable, qpdfCheck, requireQpdfInCi } from '../test-support/qpdf'
 
+import { isReply } from './annotations/threads'
 import { openDocument, type InkDocument, type OpenOptions } from './document'
 import { signField } from './form/sign'
 import { createImageTemplate } from './signatures'
@@ -127,6 +128,27 @@ const embedded = (doc: InkDocument) =>
   doc.annotations.list.get().filter((a) => a.source === 'pdf')
 const byId = (list: readonly Annotation[]) =>
   [...list].sort((a, b) => a.id.localeCompare(b.id))
+
+/** The bytes of one cross-reference entry. */
+const XREF_ENTRY = 20
+/** Bytes a file may differ by beyond the above: the trailer's longer numbers. */
+const SLACK = 32
+
+/**
+ * The objects a rewritten file holds, the free entries in its cross-reference table, and the
+ * digits its object numbers take where objects start and are referred to.
+ */
+function objectsIn(bytes: Uint8Array): { live: number; free: number; digits: number } {
+  const text = Buffer.from(bytes).toString('latin1')
+  return {
+    live: (text.match(/(?:^|\s)\d+ \d+ obj\b/g) ?? []).length,
+    free: (text.match(/^\d{10} \d{5} f\s*$/gm) ?? []).length,
+    digits: [...text.matchAll(/(\d+) \d+ (?:obj|R)\b/g)].reduce(
+      (sum, m) => sum + m[1]!.length,
+      0
+    ),
+  }
+}
 
 const quad = (x: number, y: number, width: number, height: number) => ({
   p1: { x, y: y + height },
@@ -401,32 +423,46 @@ describe('save', () => {
   it('does not grow on every save', async () => {
     const first = await open('text-simple', { engine: realEngine().loader })
     addEveryType(first)
+    const count = session(first).length
+    const rounds: { bytes: Uint8Array; single: Uint8Array }[] = []
+    /** A single save, from the file as it came, of the list `doc` holds. */
+    const singleSaveOf = async (doc: InkDocument) => {
+      const once = await open('text-simple', {
+        engine: realEngine().loader,
+        annotations: { mode: 'uncontrolled', initial: [...session(doc)] },
+      })
+      await once._liftSettled
+      return save(once, 'single save')
+    }
     let bytes = await save(first, 'grow 0')
+    rounds.push({ bytes, single: await singleSaveOf(first) })
     for (let round = 1; round <= 3; round++) {
       const doc = await reopen(bytes)
+      // Every annotation came back as Inkbar's, once: no file copy is left behind.
+      expect(embedded(doc)).toEqual([])
+      expect(session(doc)).toHaveLength(count)
       const square = session(doc).find((a) => a.type === 'square')!
       doc.annotations.update(square.id, {
         rect: { ...square.rect, x: square.rect.x + round },
       })
       bytes = await save(doc, `grow ${round}`)
+      rounds.push({ bytes, single: await singleSaveOf(doc) })
     }
     const last = await reopen(bytes)
-    const once = await open('text-simple', {
-      engine: realEngine().loader,
-      annotations: { mode: 'uncontrolled', initial: session(last) },
-    })
-    await once._liftSettled
-    const single = await save(once, 'single save')
-    // A copy of the list left behind would add most of a single save each time. What does
-    // grow is the cross-reference table: PDFium keeps the object numbers of what it removed as
-    // free entries, 20 bytes each, so each save adds that much and no more.
-    const sizes = saved
-      .filter((s) => s.name.startsWith('grow '))
-      .map((s) => s.bytes.length)
-    expect(sizes).toHaveLength(4)
-    for (let i = 1; i < sizes.length; i++)
-      expect(sizes[i]! - sizes[i - 1]!).toBeLessThan(single.length * 0.1)
-    expect(Math.abs(sizes[0]! - single.length)).toBeLessThan(single.length * 0.1)
+    expect(embedded(last)).toEqual([])
+    expect(session(last)).toHaveLength(count)
+    for (const { bytes: each, single } of rounds) {
+      const now = objectsIn(each)
+      const once = objectsIn(single)
+      // The same objects as a single save of the same list: nothing removed is kept.
+      expect(now.live).toBe(once.live)
+      // What does grow is the cross-reference table: PDFium keeps the object number of each
+      // object it removed as a free entry, 20 bytes each, and new objects get higher numbers,
+      // which take more digits where they are written.
+      expect(each.length - single.length).toBeLessThanOrEqual(
+        XREF_ENTRY * (now.free - once.free) + (now.digits - once.digits) + SLACK
+      )
+    }
   })
 
   it('keeps a signature pinned', async () => {
@@ -527,6 +563,164 @@ describe('save', () => {
     )
     expect(() => doc.destroy()).not.toThrow()
     await expect(saving).rejects.toMatchObject({ code: 'DocumentDestroyed' })
+  })
+
+  describe('form values', () => {
+    it.each([
+      ['uncontrolled', { mode: 'uncontrolled', initial: { name: 'Ada' } }],
+      [
+        'controlled',
+        { mode: 'controlled', initial: { name: 'Ada' }, onChange: () => undefined },
+      ],
+    ] as const)(
+      'counts values a %s host supplied at open as changes',
+      async (_, fields) => {
+        const engine = realEngine()
+        const doc = await open('form-fields', { engine: engine.loader, fields })
+        await doc._liftSettled
+        expect(doc.form.get('name')).toBe('Ada')
+        expect(doc.changed.get()).toBe(true)
+        const back = await reopen(await save(doc, `host values ${fields.mode}`))
+        expect(back.form.get('name')).toBe('Ada')
+        expect(back.changed.get()).toBe(false)
+        expect(engine.loader).toHaveBeenCalledTimes(1)
+      }
+    )
+
+    it("takes what the file's scripts calculate at open as the file's", async () => {
+      const { loader } = realEngine()
+      const doc = await open('form-fields', { engine: loader })
+      let settled = false
+      void doc._liftSettled.then(() => (settled = true))
+      // Node runs no scripts, so a calculation at open is set as the sandbox sets it.
+      doc.form._scriptValues({ name: 'Calculated' })
+      expect(settled).toBe(false)
+      await doc._liftSettled
+      expect(doc.form.get('name')).toBe('Calculated')
+      expect(doc.changed.get()).toBe(false)
+      expect(await doc.save()).toEqual(await fixtureBytes('form-fields'))
+      expect(loader).not.toHaveBeenCalled()
+    })
+
+    it('takes a signature link lifting restored as no change', async () => {
+      const { loader } = realEngine()
+      const doc = await open('saved-signed', { engine: loader })
+      await doc._liftSettled
+      const [signature] = await written('saved-signed')
+      expect(doc.form.get('sig')).toEqual({ signature: signature!.id })
+      expect(doc.changed.get()).toBe(false)
+      expect(await doc.save()).toEqual(await fixtureBytes('saved-signed'))
+      expect(loader).not.toHaveBeenCalled()
+    })
+
+    it('takes a field emptied that the file left empty as no change', async () => {
+      const doc = await open('form-fields', { engine: realEngine().loader })
+      await doc._liftSettled
+      expect(doc.form.get('city')).toBeUndefined()
+      doc.form.set({ city: 'Paris' })
+      expect(doc.changed.get()).toBe(true)
+      doc.form.set({ city: '' })
+      expect(doc.changed.get()).toBe(false)
+    })
+  })
+
+  describe("a reply to one of the file's own notes", () => {
+    /** The PDF.js annotations of page 0, hidden ones included. */
+    const pdfjsAnnotations = async (doc: InkDocument) =>
+      (await (await doc._pdfjs.getPage(0)).getAnnotations({ intent: 'any' })) as {
+        id: string
+        subtype: string
+        annotationFlags: number
+        inReplyTo?: string
+      }[]
+
+    it('is saved hidden, linked to the note, and comes back in its thread', async () => {
+      const doc = await open('note-icon-ap', { engine: realEngine().loader })
+      await doc._liftSettled
+      const [note] = embedded(doc)
+      expect(note).toMatchObject({ type: 'text', locked: true })
+      const reply = doc.annotations.add({
+        type: 'text',
+        page: 0,
+        rect: note!.rect,
+        contents: 'A reply',
+        inReplyTo: note!.id,
+      })
+      expect(isReply(reply, doc.annotations.list.get())).toBe(true)
+      const bytes = await save(doc, 'reply to a file note')
+
+      const back = await reopen(bytes)
+      const noteId = note!.id.split(':')[2]!
+      const inFile = await pdfjsAnnotations(back)
+      expect(inFile.map((a) => a.id)).toContain(noteId)
+      const written = inFile.filter((a) => a.id !== noteId)
+      // Nothing new shows on the page: the reply is hidden, and linked to the note.
+      expect(written).toHaveLength(1)
+      expect(written[0]!.annotationFlags & 2).toBe(2)
+      expect(written[0]!.inReplyTo).toBe(noteId)
+
+      expect(session(back)).toEqual([reply])
+      expect(back.annotations.get(reply.id)?.locked).toBeUndefined()
+      expect(isReply(reply, back.annotations.list.get())).toBe(true)
+      expect(embedded(back)).toEqual([expect.objectContaining({ id: note!.id })])
+      expect(back.changed.get()).toBe(false)
+
+      // Deleted and saved again, it is gone, and the note is as it was.
+      back.annotations.remove(reply.id)
+      const again = await reopen(await save(back, 'reply removed'))
+      expect(session(again)).toEqual([])
+      const [kept] = embedded(again)
+      // The file has no dates for it, so it gets the time it was read; the rest is the file's.
+      const stable = (a: Annotation) => ({ ...a, createdAt: '', modifiedAt: '' })
+      expect(stable(kept!)).toEqual(stable(note!))
+      expect((await pdfjsAnnotations(again)).map((a) => a.id)).toEqual([noteId])
+    })
+  })
+
+  describe('in controlled mode, before the host answers the lift', () => {
+    it('keeps the lifted annotations: no change, and a save keeps them', async () => {
+      const { loader } = realEngine()
+      const onChange = vi.fn<(next: Annotation[], change: AnnotationChange) => void>()
+      const doc = await open('saved-signed', {
+        engine: loader,
+        annotations: { mode: 'controlled', initial: [], onChange },
+      })
+      await doc._liftSettled
+      expect(onChange).toHaveBeenCalledTimes(1)
+      expect(session(doc)).toEqual([])
+      expect(doc.changed.get()).toBe(false)
+      expect(await doc.save()).toEqual(await fixtureBytes('saved-signed'))
+      expect(loader).not.toHaveBeenCalled()
+
+      // Another change is written with the lifted signature still in place.
+      doc.form.set({ name: 'Ada' })
+      expect(doc.changed.get()).toBe(true)
+      const back = await reopen(await save(doc, 'controlled, unanswered'))
+      const [signature] = await written('saved-signed')
+      expect(session(back)).toEqual([signature])
+      expect(back.form.get('sig')).toEqual({ signature: signature!.id })
+      expect(back.form.get('name')).toBe('Ada')
+    })
+
+    it('takes the list the host pushes as the session from then on', async () => {
+      const onChange = vi.fn<(next: Annotation[], change: AnnotationChange) => void>()
+      const doc = await open('saved-annotations', {
+        engine: realEngine().loader,
+        annotations: { mode: 'controlled', initial: [], onChange },
+      })
+      await doc._liftSettled
+      expect(doc.changed.get()).toBe(false)
+      const proposed = onChange.mock.calls[0]![0]
+      doc.annotations.setControlledValue(proposed)
+      expect(doc.changed.get()).toBe(false)
+
+      // A host that leaves them out has deleted them.
+      doc.annotations.setControlledValue([])
+      expect(doc.changed.get()).toBe(true)
+      const back = await reopen(await save(doc, 'controlled, dropped'))
+      expect(session(back)).toEqual([])
+      expect(embedded(back)).toEqual([])
+    })
   })
 
   // Last, so it sees every file the tests above saved.

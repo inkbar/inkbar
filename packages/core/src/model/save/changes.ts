@@ -74,9 +74,21 @@ export function takeSnapshot(state: {
 const showsText = (f: FormField) => f.type === 'text' || f.type === 'combo'
 
 /**
+ * `value` with the field's empty value as `undefined`: a cleared text field holds `''` and an
+ * unticked box `'Off'`, which show the same as no value at all.
+ */
+function filled(f: FormField, value: FieldValue | undefined): FieldValue | undefined {
+  if (value === '' && (f.type === 'text' || f.type === 'combo')) return undefined
+  if (value === 'Off' && (f.type === 'checkbox' || f.type === 'radio')) return undefined
+  if (Array.isArray(value) && value.length === 0) return undefined
+  return value
+}
+
+/**
  * The fields of `form` whose value differs from the file's (`FormField.value`), or whose
  * formatted text differs from `file.formatted`, the text the fields showed when the document
- * opened. Buttons and locked fields never change.
+ * opened. An empty value (`''`, `'Off'`, no options) is the same as none. Buttons and locked
+ * fields never change.
  */
 export function changedFields(
   form: {
@@ -92,7 +104,7 @@ export function changedFields(
     const value = form.values[f.name]
     const text = showsText(f) ? form.formatted[f.name] : undefined
     const fileText = showsText(f) ? file.formatted[f.name] : undefined
-    if (sameValue(value, f.value) && text === fileText) continue
+    if (sameValue(filled(f, value), filled(f, f.value)) && text === fileText) continue
     out[f.name] = { value: value ?? null, ...(text === undefined ? {} : { text }) }
   }
   return out

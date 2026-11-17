@@ -102,21 +102,36 @@ export function createSaver(options: SaverOptions): Saver {
     )
   }
 
+  /**
+   * The end of the last write's turn. A write and its save are two engine calls on one
+   * document, and each write starts from the file as opened, so a second write between them
+   * would change what the first one saves. Each runs only after the one before has saved.
+   */
+  let turn: Promise<unknown> = Promise.resolve()
+  const exclusive = <T>(work: () => Promise<T>): Promise<T> => {
+    const result = turn.then(work)
+    turn = result.catch(() => undefined)
+    return result
+  }
+
   const run = async (input: () => Promise<WriteInput>): Promise<Uint8Array> => {
     const written = await input()
     if (destroyed) throw destroyedError()
-    const current = session ?? open()
-    const { doc } = await current
-    if (destroyed) throw destroyedError()
-    try {
-      await doc.write(written)
-      const bytes = await doc.save()
+    return exclusive(async () => {
       if (destroyed) throw destroyedError()
-      return bytes
-    } catch (error) {
-      if (engineCode(error) === 'engine-failure') drop(current)
-      throw error
-    }
+      const current = session ?? open()
+      const { doc } = await current
+      if (destroyed) throw destroyedError()
+      try {
+        await doc.write(written)
+        const bytes = await doc.save()
+        if (destroyed) throw destroyedError()
+        return bytes
+      } catch (error) {
+        if (engineCode(error) === 'engine-failure') drop(current)
+        throw error
+      }
+    })
   }
 
   return {

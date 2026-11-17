@@ -7,10 +7,17 @@ import { createSaver, type EngineLoader } from './saver'
 
 import type { Engine, EngineDocument, WriteInput } from '@inkbar/engine'
 
-/** A stand-in engine that records its calls; `fail` makes the next write reject with it. */
+/**
+ * A stand-in engine that records its calls. Like the real one, its calls run one at a time in
+ * the order they were made, and each write starts from the file as opened: a save gives the
+ * number of annotations the last write held, 0 after a failed one. `failNext` makes the next
+ * write reject with that error; `hold` holds the next write until `release`.
+ */
 function fakeEngine() {
   const calls: string[] = []
   let fail: Error | undefined
+  /** The annotation count of the write `fail` is for; any write when undefined. */
+  let failing: number | undefined
   let release: (() => void) | undefined
   let hold = false
   const engines: Engine[] = []
@@ -19,23 +26,39 @@ function fakeEngine() {
   const createEngine = vi.fn(async () => {
     await created
     const n = engines.length + 1
+    let queue: Promise<unknown> = Promise.resolve()
+    const queued = <T>(work: () => Promise<T>): Promise<T> => {
+      const result = queue.then(work)
+      queue = result.catch(() => undefined)
+      return result
+    }
+    /** What the document holds: the annotations of the last write that worked. */
+    let current = 0
     const doc: EngineDocument = {
       pageCount: 1,
       pageInfo: () => Promise.reject(new Error('unused')),
       renderPage: () => Promise.reject(new Error('unused')),
-      async write(input: WriteInput) {
-        calls.push(`write ${n} ${input.annotations?.length ?? 0}`)
-        if (hold) await new Promise<void>((r) => (release = r))
-        if (fail) {
-          const e = fail
-          fail = undefined
-          throw e
-        }
-      },
-      save() {
-        calls.push(`save ${n}`)
-        return Promise.resolve(new Uint8Array([n, calls.length]))
-      },
+      write: (input: WriteInput) =>
+        queued(async () => {
+          calls.push(`write ${n} ${input.annotations?.length ?? 0}`)
+          if (hold) {
+            hold = false
+            await new Promise<void>((r) => (release = r))
+          }
+          if (fail && (failing === undefined || failing === input.annotations?.length)) {
+            const e = fail
+            fail = undefined
+            failing = undefined
+            current = 0
+            throw e
+          }
+          current = input.annotations?.length ?? 0
+        }),
+      save: () =>
+        queued(() => {
+          calls.push(`save ${n}`)
+          return Promise.resolve(new Uint8Array([n, current]))
+        }),
       close() {
         calls.push(`close ${n}`)
         return Promise.resolve()
@@ -59,17 +82,17 @@ function fakeEngine() {
     calls,
     loader,
     createEngine,
-    failNext: (e: Error) => (fail = e),
+    failNext: (e: Error, count?: number) => {
+      fail = e
+      failing = count
+    },
     /** Holds `createEngine` until `releaseCreate`. */
     holdCreate: () => {
       created = new Promise<void>((r) => (releaseCreate = r))
     },
     releaseCreate: () => releaseCreate?.(),
     hold: () => (hold = true),
-    release: () => {
-      hold = false
-      release?.()
-    },
+    release: () => release?.(),
   }
 }
 
@@ -144,6 +167,43 @@ describe('createSaver', () => {
     expect(fake.createEngine).toHaveBeenCalledTimes(2)
     expect(fake.calls).toContain('destroy 1')
     expect(fake.calls.at(-2)).toBe('write 2 1')
+  })
+
+  it('saves each write before the next one starts', async () => {
+    const fake = fakeEngine()
+    const s = saver(fake)
+    fake.hold()
+    const a = s.write('a', input(1))
+    await vi.waitFor(() => expect(fake.calls).toContain('write 1 1'))
+    const b = s.write('b', input(2))
+    // B's write would land between A's write and A's save if nothing kept them apart.
+    await new Promise((r) => setTimeout(r, 10))
+    fake.release()
+    expect(await a).toEqual(new Uint8Array([1, 1]))
+    expect(await b).toEqual(new Uint8Array([1, 2]))
+    expect(fake.calls.slice(1)).toEqual(['write 1 1', 'save 1', 'write 1 2', 'save 1'])
+  })
+
+  it("keeps a failed write from changing the next one's copy", async () => {
+    const fake = fakeEngine()
+    const s = saver(fake)
+    // A was asked for first, but its input is ready only once B's write is under way.
+    let readyA!: () => void
+    const inputA = () => new Promise<void>((r) => (readyA = r)).then(() => input(1)())
+    fake.failNext(new EngineError('write-failed', 'no'), 1)
+    fake.hold()
+    const a = s.write('a', inputA)
+    const b = s.write('b', input(2))
+    await vi.waitFor(() => expect(fake.calls).toContain('write 1 2'))
+    readyA()
+    // A's write, failing, would put the document back between B's write and B's save.
+    await new Promise((r) => setTimeout(r, 10))
+    fake.release()
+    expect(await b).toEqual(new Uint8Array([1, 2]))
+    await expect(a).rejects.toMatchObject({ code: 'SaveFailed' })
+    // B's copy is kept as B's: asking again writes nothing.
+    expect(await s.write('b', input(2))).toEqual(new Uint8Array([1, 2]))
+    expect(fake.calls.filter((c) => c.startsWith('write'))).toHaveLength(2)
   })
 
   it('rejects a write in flight as destroyed and destroys the engine', async () => {

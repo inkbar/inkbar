@@ -28,6 +28,7 @@ import {
   type AnnotationStore,
   type StoreMode,
 } from './annotations/store'
+import { isThreadRoot } from './annotations/threads'
 import { InkError, isInkError } from './errors'
 import { createFormController, type FormController } from './form/controller'
 import { fieldsToGloss } from './form/gloss'
@@ -207,7 +208,10 @@ export interface InkDocument {
   save(): Promise<Uint8Array>
   /**
    * True while the session differs from the file: its annotations from those lifted at open,
-   * or a form value from the file's. False until lifting lands.
+   * or a form value from the file's (values the host passed at open count; what the file's
+   * scripts calculate at open does not). False until lifting lands. In controlled mode the
+   * lifted annotations proposed to the host count as kept until the host pushes a list, and a
+   * save until then keeps them.
    */
   readonly changed: Readable<boolean>
   destroy(): void
@@ -267,6 +271,13 @@ export async function openDocument(
   const lifted = writable<ReadonlySet<string>>(new Set())
   /** Each lifted annotation as it was lifted, and its file copy's PDF.js id, by id. */
   const liftedFrom = new Map<string, { annotation: Annotation; pdfjsId: string }>()
+  /** Signature links lifting restored: field name to the lifted annotation that signs it. */
+  const restoredLinks = new Map<string, string>()
+  /**
+   * Controlled mode: the lifted annotations are proposed to the host and it has not pushed a
+   * list since. Until it does they count as kept, so a save does not drop them.
+   */
+  let liftPending = false
   /** Resolves when the document is destroyed. */
   let markDestroyed!: () => void
   const destroyedSignal = new Promise<void>((resolve) => (markDestroyed = resolve))
@@ -482,31 +493,42 @@ export async function openDocument(
           if (!destroyed && patched.size > 0) store._patchEmbedded(patched)
         }
       )
-      const lift = (mayHaveSaved ? readLifted(objects) : Promise.resolve([])).then(
-        (found) => {
-          if (destroyed || found.length === 0) return
-          for (const f of found)
-            liftedFrom.set(f.annotation.id, {
-              annotation: f.annotation,
-              pdfjsId: f.pdfjsId,
-            })
-          // The renders leave the file copies out in the same turn as they leave the list.
-          lifted.set(new Set(found.map((f) => f.pdfjsId)))
-          store._setLifted(
-            found.map((f) => f.annotation),
-            found.map((f) => f.embeddedId)
-          )
-          // A signature that came back signs its field again, as part of what was lifted.
-          quietly(() => {
-            for (const { annotation, signs } of found) {
-              if (signs === undefined) continue
-              const field = form.fields.get().find((f) => f.name === signs)
-              if (field?.type !== 'signature' || field.locked) continue
-              if (form.get(signs) === undefined) form._signWith(signs, annotation.id)
-            }
-          })
-        }
+      // A reply Inkbar saved to one of the file's own annotations lifts with that one in place.
+      const inFile = new Set(
+        store.list
+          .get()
+          .filter((a) => a.source === 'pdf')
+          .map((a) => a.id)
       )
+      const lift = (
+        mayHaveSaved ? readLifted(objects, inFile) : Promise.resolve([])
+      ).then((found) => {
+        if (destroyed || found.length === 0) return
+        for (const f of found)
+          liftedFrom.set(f.annotation.id, {
+            annotation: f.annotation,
+            pdfjsId: f.pdfjsId,
+          })
+        // The renders leave the file copies out in the same turn as they leave the list.
+        lifted.set(new Set(found.map((f) => f.pdfjsId)))
+        // A controlled host has them proposed; until it answers, they still count as kept.
+        liftPending = store.mode === 'controlled'
+        store._setLifted(
+          found.map((f) => f.annotation),
+          found.map((f) => f.embeddedId)
+        )
+        // A signature that came back signs its field again, as part of what was lifted.
+        quietly(() => {
+          for (const { annotation, signs } of found) {
+            if (signs === undefined) continue
+            const field = form.fields.get().find((f) => f.name === signs)
+            if (field?.type !== 'signature' || field.locked) continue
+            if (form.get(signs) !== undefined) continue
+            restoredLinks.set(signs, annotation.id)
+            form._signWith(signs, annotation.id)
+          }
+        })
+      })
       void fields.catch(() => undefined)
       await lift
     },
@@ -528,10 +550,16 @@ export async function openDocument(
   const changed = writable(false)
   /** The text each field showed when lifting landed, taken as the file's own. */
   let fileFormatted: Readonly<Record<string, string>> = {}
+  /** Fields whose values the host supplied at open: changes, unlike what scripts calculated. */
+  const hostFields = Object.keys(fieldsMode.initial ?? {})
   /** The session as the file holds it: what was lifted, and the values once it landed. */
   let baseline: Snapshot | undefined
-  const fieldChanges = (): Record<string, FieldChange> =>
-    changedFields(
+  /**
+   * The fields that differ from the file. A restored signature a controlled host has yet to
+   * apply counts as signed, as it will be once the host takes the lifted list.
+   */
+  const fieldChanges = (): Record<string, FieldChange> => {
+    const out = changedFields(
       {
         fields: form.fields.get(),
         values: form.values.get(),
@@ -539,30 +567,69 @@ export async function openDocument(
       },
       { formatted: fileFormatted }
     )
+    for (const [name, id] of restoredLinks)
+      if (out[name] === undefined && form._awaitingSignature(name))
+        out[name] = { value: { signature: id } }
+    return out
+  }
+  /** The session's annotations, with a lift still waiting for the host's answer as taken. */
+  const sessionList = (): readonly Annotation[] => {
+    const list = store.list.get()
+    if (!liftPending) return list
+    const ids = new Set(list.map((a) => a.id))
+    const waiting = [...liftedFrom.values()]
+      .map((f) => f.annotation)
+      .filter((a) => !ids.has(a.id))
+    return waiting.length > 0 ? [...list, ...waiting] : list
+  }
   /** The last snapshot and what it was taken from, so each change takes one. */
   let taken:
-    { list: unknown; values: unknown; formatted: unknown; snapshot: Snapshot } | undefined
+    | {
+        list: unknown
+        values: unknown
+        formatted: unknown
+        pending: boolean
+        snapshot: Snapshot
+      }
+    | undefined
   const snapshot = (): Snapshot => {
     const list = store.list.get()
     const values = form.values.get()
     const formatted = form.formatted.get()
-    if (taken?.list === list && taken.values === values && taken.formatted === formatted)
+    const pending = liftPending
+    if (
+      taken?.list === list &&
+      taken.values === values &&
+      taken.formatted === formatted &&
+      taken.pending === pending
+    )
       return taken.snapshot
-    const next = takeSnapshot({ annotations: list, fields: fieldChanges() })
-    taken = { list, values, formatted, snapshot: next }
+    const next = takeSnapshot({ annotations: sessionList(), fields: fieldChanges() })
+    taken = { list, values, formatted, pending, snapshot: next }
     return next
   }
-  const unwatch: (() => void)[] = []
+  let update = (): void => undefined
+  // The host's first push after the lift is its answer: from then on its list is the session.
+  const unwatch: (() => void)[] = [
+    store.on('change', (c) => {
+      if (!liftPending || c.kind !== 'replace' || c.reason !== 'sync') return
+      liftPending = false
+      update()
+    }),
+  ]
   const baselineTaken = _liftSettled.then(() => {
     if (destroyed || status.get().state !== 'ready') return
     fileFormatted = form.formatted.get()
-    // A signature link restored by lifting is among the values, so it is no change.
+    // The file's own values, with what its scripts calculated at open and the signature links
+    // lifting restored. Values the host supplied are not the file's: they stay changes.
+    const fields = fieldChanges()
+    for (const name of hostFields) delete fields[name]
     baseline = takeSnapshot({
       annotations: [...liftedFrom.values()].map((f) => f.annotation),
-      fields: fieldChanges(),
+      fields,
     })
     const from = baseline
-    const update = () => changed.set(hasChanges(snapshot(), from))
+    update = () => changed.set(hasChanges(snapshot(), from))
     unwatch.push(
       store.list.subscribe(update),
       form.values.subscribe(update),
@@ -570,6 +637,15 @@ export async function openDocument(
     )
     update()
   })
+  /** The file's own annotations a reply can hang from, by id, with their place in the file. */
+  const fileParents = (): Map<string, AnnotationRef> =>
+    new Map(
+      store.list.get().flatMap((a): [string, AnnotationRef][] => {
+        if (a.source !== 'pdf' || !isThreadRoot(a)) return []
+        const ref = refOfPdfjsId(a.id.split(':')[2] ?? '')
+        return ref ? [[a.id, { page: a.page, objectNumber: ref.num }]] : []
+      })
+    )
   /** The file copies of the lifted annotations, which a save removes. */
   const liftedRefs = (): AnnotationRef[] =>
     [...liftedFrom.values()].flatMap(({ annotation, pdfjsId }) => {
@@ -746,6 +822,7 @@ export async function openDocument(
           'Saving changes needs @inkbar/engine: pass the engine option. Use exportAnnotations("json") to keep annotations without writing the PDF.'
         )
       const lifted = liftedRefs()
+      const parents = fileParents()
       return saver.write(now.key, () => {
         const { fields, signs } = writeFields(now.fields, form.fields.get())
         return buildWriteInput({
@@ -755,6 +832,7 @@ export async function openDocument(
           fields,
           signs,
           helpers: options._pictures ?? {},
+          fileParents: parents,
         })
       })
     },
