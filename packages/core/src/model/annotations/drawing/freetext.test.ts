@@ -310,6 +310,11 @@ describe('describeFreeText', () => {
     expect(line!.segments![0]!.origin.x).toBe(100)
     expect(line!.segments![1]!.origin.x).toBeGreaterThan(100 + 12)
     expect(line!.segments![1]!.origin.y).toBe(line!.origin.y)
+    expect(line!.segments!.map((s) => s.width)).toEqual([
+      expect.closeTo(12 * 0.556, 6),
+      expect.closeTo(12 * 0.556, 6),
+    ])
+    expect(line!.segments!.map((s) => s.outside)).toEqual([false, false])
   })
 
   test('blank lines have no line of their own but keep their room', () => {

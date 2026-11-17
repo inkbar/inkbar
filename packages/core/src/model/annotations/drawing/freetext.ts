@@ -267,7 +267,7 @@ function textItem(
               to: at(
                 line.x +
                   line.width +
-                  [...line.text].filter((c) => c === ' ').length *
+                  [...line.text].filter((c) => c === ' ' || c === '\t').length *
                     (line.wordSpacing ?? 0),
                 line.baseline + UNDERLINE_OFFSET * s.fontSize
               ),
@@ -281,6 +281,8 @@ function textItem(
             segments: line.segments.map((seg) => ({
               text: seg.text,
               origin: at(seg.x, line.baseline),
+              width: seg.width,
+              outside: seg.outside,
             })),
           }
         : {}),

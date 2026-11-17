@@ -230,8 +230,8 @@ type TextItem = Extract<DrawItem, { kind: 'text' }>
 
 /**
  * A text as one `<text>` per line (one per piece, for a line with tabs) in a group clipped to
- * `item.clip`. Each line of standard-font text is set to its width from the description, so its
- * letters end where the layout says whatever font the browser found; a line with characters
+ * `item.clip`. Each line or piece of standard-font text is set to its width from the description,
+ * so its letters end where the layout says whatever font the browser found; one with characters
  * outside the standard fonts is not, since its width is an estimate. The lines turn with the
  * view: upright for the page as the file displays it. Fonts and colour are inline style as well as
  * attributes, so a host's rules on the text elements do not restyle them.
@@ -284,15 +284,21 @@ function paintText(
     return text
   }
   for (const line of item.lines) {
-    const spaces = line.wordSpacing ? [...line.text].filter((c) => c === ' ').length : 0
-    const total = line.width + spaces * (line.wordSpacing ?? 0)
-    const pieces = line.segments ?? [{ text: line.text, origin: line.origin }]
+    const spacing = line.wordSpacing ?? 0
+    const gapsIn = (content: string) =>
+      spacing ? [...content].filter((c) => c === ' ').length : 0
+    const pieces = line.segments ?? [
+      { text: line.text, origin: line.origin, width: line.width, outside: line.outside },
+    ]
     for (const piece of pieces) {
       const p = at(piece.origin)
       const text = textAt(p)
-      fillText(doc, text, piece.text, line.wordSpacing ? len(line.wordSpacing) : 0)
-      if (!line.segments && !line.outside) {
-        text.setAttribute('textLength', fmt(len(total)))
+      fillText(doc, text, piece.text, spacing ? len(spacing) : 0)
+      if (!piece.outside) {
+        text.setAttribute(
+          'textLength',
+          fmt(len(piece.width + gapsIn(piece.text) * spacing))
+        )
         text.setAttribute('lengthAdjust', 'spacing')
       }
       guard(text, 'text')

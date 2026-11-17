@@ -270,9 +270,15 @@ describe('layoutText: tabs and long text', () => {
     const tab = 8 * w(' ')
     const { lines } = layoutText(block('a\tb', 200), standardMeasure)
     expect(lines[0]!.segments).toEqual([
-      { text: 'a', x: 0 },
-      { text: 'b', x: tab },
+      { text: 'a', x: 0, width: w('a'), outside: false },
+      { text: 'b', x: tab, width: w('b'), outside: false },
     ])
+  })
+
+  test('a piece with a character outside the tables says so, and the others do not', () => {
+    const { lines } = layoutText(block('a\t日\tb', 300), standardMeasure)
+    expect(lines[0]!.segments!.map((s) => s.outside)).toEqual([false, true, false])
+    expect(lines[0]!.segments![1]!.width).toBe(12)
   })
 
   test('segments follow the line when it is aligned', () => {
@@ -330,25 +336,41 @@ describe('layoutText: segments', () => {
     const family = '👨\u200d👩\u200d👧'
     const { lines } = layoutText(block(`${family}\tb`, 400), emojiMeasure)
     expect(lines[0]!.segments).toEqual([
-      { text: family, x: 0 },
-      { text: 'b', x: tab },
+      { text: family, x: 0, width: w('W'), outside: true },
+      { text: 'b', x: tab, width: w('b'), outside: false },
     ])
     const after = layoutText(block(`${family}x\ty`, 400), emojiMeasure).lines[0]!
       .segments!
     expect(after[1]!.x).toBe(tab)
   })
 
-  test('spaces in a justified line with a tab add the word spacing to where the next tab stop falls', () => {
+  test('in a justified line with a tab the tab stop is found before the spacing, and each space and tab then adds the spacing', () => {
     const text = 'aa bb cc\tdd ' + 'x'.repeat(40)
     const { lines } = layoutText(block(text, 120, { align: 'justify' }), standardMeasure)
     const line = lines[0]!
     expect(line.text.startsWith('aa bb cc\tdd')).toBe(true)
     const spacing = line.wordSpacing!
     expect(spacing).toBeGreaterThan(5)
-    const end = w('aa bb cc') + 2 * spacing
-    expect(end).toBeGreaterThan(tab)
-    const stop = (Math.floor(end / tab + 1e-9) + 1) * tab
-    expect(line.segments![1]!.x).toBeCloseTo(stop, 6)
+    // The tab stop after the natural end of "aa bb cc"; the two spaces and the tab itself add three.
+    const stop = (Math.floor(w('aa bb cc') / tab) + 1) * tab
+    expect(line.segments![1]!.x).toBeCloseTo(stop + 3 * spacing, 6)
+    // The spacing is shared by the spaces and the tab, and the line ends at the box edge.
+    const gaps = [...line.text].filter((c) => c === ' ' || c === '\t').length
+    expect(spacing).toBeCloseTo((120 - line.width) / gaps, 6)
+    const last = line.segments![line.segments!.length - 1]!
+    const spaces = [...last.text].filter((c) => c === ' ').length
+    expect(last.x + last.width + spaces * spacing).toBeCloseTo(120, 6)
+  })
+
+  test('justification spreads over the spaces after the last tab as well as before it', () => {
+    const { lines } = layoutText(
+      block('a b\tc d e f g h i j k l m n o p q r', 100, { align: 'justify' }),
+      standardMeasure
+    )
+    const line = lines[0]!
+    const [before, after] = line.segments!
+    expect(before!.x).toBe(0)
+    expect(after!.x).toBeCloseTo(tab + 2 * line.wordSpacing!, 6)
   })
 })
 

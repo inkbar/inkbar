@@ -120,13 +120,22 @@ export interface TextLine {
    * writer needs a font for it.
    */
   outside: boolean
-  /** Extra space added to each U+0020 in `text`, in points. U+00A0 gets none. */
+  /**
+   * Extra space added to each U+0020 in `text`, in points. U+00A0 gets none. Each tab on the line
+   * grows by the same amount; the segments' origins already include it.
+   */
   wordSpacing?: number
   /**
    * Only on a line that holds a tab: the pieces between the tabs, each with the point it starts at,
-   * so a painter need not reproduce tab stops. `text` is then the line as a whole.
+   * its width in points (without word spacing) and whether it has a character outside the
+   * standard fonts, so a painter need not reproduce tab stops. `text` is then the line as a whole.
    */
-  segments?: readonly { text: string; origin: Point }[]
+  segments?: readonly {
+    text: string
+    origin: Point
+    width: number
+    outside: boolean
+  }[]
   /**
    * The line's underline as a rule: its start and end (the line's origin and its advance, word
    * spacing included, 0.1 of the size below the baseline) and its thickness, in user space.
