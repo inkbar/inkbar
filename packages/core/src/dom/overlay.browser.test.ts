@@ -2393,35 +2393,51 @@ describe('mask', () => {
   const layer = (host: HTMLElement) =>
     host.querySelector<SVGSVGElement>('svg[data-ink-mask-layer]')
 
+  type Pt = [number, number]
   /**
-   * A path's subpaths, each with whether it is closed and its end points sorted and rounded to
-   * 3 decimals: the order a path visits its corners in is not behaviour.
+   * A path's subpaths, each with whether it is closed and its end points sorted: the order a
+   * path visits its corners in is not behaviour. Points are numbers, compared with a tolerance
+   * (`samePoints`).
    */
-  const subpaths = (d: string): { closed: boolean; points: string[] }[] =>
+  const subpaths = (d: string): { closed: boolean; points: Pt[] }[] =>
     d
       .split(/(?=M)/)
       .filter(Boolean)
       .map((sub) => {
-        const points = [...sub.matchAll(/[MLA]([^MLAZ]*)/g)].map((m) => {
-          const n = (m[1]!.match(/-?\d+(\.\d+)?/g) ?? []).map(Number)
-          return `${n[n.length - 2]!.toFixed(3)},${n[n.length - 1]!.toFixed(3)}`
-        })
-        return {
-          closed: sub.trimEnd().endsWith('Z'),
-          points: [...new Set(points)].sort(),
-        }
+        const points = [...sub.matchAll(/[MLA]([^MLAZ]*)/g)]
+          .map((m): Pt => {
+            const n = (m[1]!.match(/-?\d+(\.\d+)?/g) ?? []).map(Number)
+            return [n[n.length - 2]!, n[n.length - 1]!]
+          })
+          .sort((p, q) => p[0] - q[0] || p[1] - q[1])
+        // A corner a path visits twice is one point.
+        const distinct = points.filter(
+          (p, i) =>
+            i === 0 ||
+            Math.hypot(p[0] - points[i - 1]![0], p[1] - points[i - 1]![1]) > 1e-6
+        )
+        return { closed: sub.trimEnd().endsWith('Z'), points: distinct }
       })
 
-  /** The sorted corner points of a rectangle, as `subpaths` writes them. */
-  const corners = (l: number, t: number, r: number, b: number): string[] =>
-    [`${l},${t}`, `${r},${t}`, `${r},${b}`, `${l},${b}`]
-      .map((c) =>
-        c
-          .split(',')
-          .map((v) => Number(v).toFixed(3))
-          .join(',')
-      )
-      .sort()
+  /** The corner points of a rectangle, sorted as `subpaths` sorts them. */
+  const corners = (l: number, t: number, r: number, b: number): Pt[] =>
+    (
+      [
+        [l, t],
+        [r, t],
+        [r, b],
+        [l, b],
+      ] as Pt[]
+    ).sort((p, q) => p[0] - q[0] || p[1] - q[1])
+
+  /** Whether `got` is `want`, point for point, to within 0.0005 on each coordinate. */
+  const samePoints = (got: Pt[], want: Pt[], what = 'points'): void => {
+    expect(got, what).toHaveLength(want.length)
+    got.forEach((p, i) => {
+      expect(p[0], `${what}[${i}].x`).toBeCloseTo(want[i]![0], 3)
+      expect(p[1], `${what}[${i}].y`).toBeCloseTo(want[i]![1], 3)
+    })
+  }
 
   it('mask layer covers the page minus the shape with an even-odd path at dim opacity', async () => {
     const { doc, host, overlay } = await mountMaskPage('text-simple', 2)
@@ -2447,10 +2463,10 @@ describe('mask', () => {
     expect(path.getAttribute('fill')).toBe(mask.color)
     expect(path.getAttribute('fill-opacity')).toBe('0.7')
     // The page outline, then the shape's: css (200, 384) to (600, 584) at 2x.
-    expect(subpaths(path.getAttribute('d')!)).toEqual([
-      { closed: true, points: corners(0, 0, 1224, 1584) },
-      { closed: true, points: corners(200, 384, 600, 584) },
-    ])
+    const outlines = subpaths(path.getAttribute('d')!)
+    expect(outlines.map((sub) => sub.closed)).toEqual([true, true])
+    samePoints(outlines[0]!.points, corners(0, 0, 1224, 1584), 'the page')
+    samePoints(outlines[1]!.points, corners(200, 384, 600, 584), 'the shape')
 
     // A change to the mask redraws it; removing it removes the layer.
     doc.annotations.update(mask.id, { dim: 0.2, shape: 'ellipse' })
@@ -2460,7 +2476,14 @@ describe('mask', () => {
     // The ellipse's bounding box is the rect's: end points at its left and right, mid-height.
     const cut = subpaths(ellipse.getAttribute('d')!)
     expect(cut.map((c) => c.closed)).toEqual([true, true])
-    expect(cut[1]!.points).toEqual(['200.000,484.000', '600.000,484.000'].sort())
+    samePoints(
+      cut[1]!.points,
+      [
+        [200, 484],
+        [600, 484],
+      ],
+      'the ellipse'
+    )
     // Both arcs have the rect's radii (200 x 100 pt at zoom 2: rx 200, ry 100 CSS px), the
     // first ending at the right of the ellipse (600, 484), the second back at its left (200, 484).
     const arcs = [...ellipse.getAttribute('d')!.matchAll(/A([^MLAZ]*)/g)].map((m) =>
@@ -2492,10 +2515,10 @@ describe('mask', () => {
     })
     overlay.update(createPageTransform(doc.pages[0]!, 0.5, 0))
     const d = layer(host)!.querySelector('path')!.getAttribute('d')!
-    expect(subpaths(d)).toEqual([
-      { closed: true, points: corners(0, 0, 306, 396) },
-      { closed: true, points: corners(50, 96, 150, 146) },
-    ])
+    const cut = subpaths(d)
+    expect(cut.map((sub) => sub.closed)).toEqual([true, true])
+    samePoints(cut[0]!.points, corners(0, 0, 306, 396), 'the page')
+    samePoints(cut[1]!.points, corners(50, 96, 150, 146), 'the shape')
     expect(layer(host)!.getAttribute('width')).toBe('306')
   })
 
@@ -2509,13 +2532,17 @@ describe('mask', () => {
       expect(svg.getAttribute('height')).toBe(String(transform.cssHeight))
       const cut = subpaths(svg.querySelector('path')!.getAttribute('d')!)
       expect(cut.map((sub) => sub.closed)).toEqual([true, true])
-      expect(cut[0]!.points, String(view)).toEqual(
-        corners(0, 0, transform.cssWidth, transform.cssHeight)
+      samePoints(
+        cut[0]!.points,
+        corners(0, 0, transform.cssWidth, transform.cssHeight),
+        `the page at ${view}`
       )
       // The shape is the rect's own css box under the page's turn.
       const c = transform.toCssRect(rect)
-      expect(cut[1]!.points, String(view)).toEqual(
-        corners(c.left, c.top, c.left + c.width, c.top + c.height)
+      samePoints(
+        cut[1]!.points,
+        corners(c.left, c.top, c.left + c.width, c.top + c.height),
+        `the shape at ${view}`
       )
       // /Rotate 90 plus the view: sides swap at a quarter turn, not at a half or full one.
       const swapped = transform.totalRotation % 180 !== 0
