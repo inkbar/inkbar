@@ -45,4 +45,23 @@ describe('createUndrawnGuard', () => {
       })
     ).toBeUndefined()
   })
+
+  it('warns once when a drawing describes but fails to paint, however often it is drawn again', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const guard = createUndrawnGuard()
+    const draw = (paint: () => void) => {
+      const described = guard.value(a, 'was left undrawn', () => 1)
+      return described !== undefined && guard.attempt(a, 'was left undrawn', paint)
+    }
+    const fail = () => {
+      throw new Error('cannot paint')
+    }
+    for (let i = 0; i < 3; i++) expect(draw(fail)).toBe(false)
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(String(warn.mock.calls[0]![0])).toContain('cannot paint')
+    // A whole successful draw ends the report, so the next failure is reported.
+    expect(draw(() => {})).toBe(true)
+    expect(draw(fail)).toBe(false)
+    expect(warn).toHaveBeenCalledTimes(2)
+  })
 })
