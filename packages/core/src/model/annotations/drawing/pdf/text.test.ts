@@ -279,6 +279,64 @@ describe('text painted as a picture', () => {
     expect(a.fonts).toEqual({ F0: 'Helvetica' })
   })
 
+  test('a justified line asks for its word spacing in the picture', async () => {
+    const textPicture = picture()
+    await paintOf(
+      [
+        textItem([
+          line('日 本', 10, 700, { outside: true, wordSpacing: 1.5 }),
+          line('日 本', 10, 686, { outside: true }),
+        ]),
+      ],
+      { page: 0, textPicture }
+    )
+    expect(textPicture.mock.calls).toEqual([
+      [{ text: '日 本', font: helvetica, size: 12, color: '#000000', wordSpacing: 1.5 }],
+      [{ text: '日 本', font: helvetica, size: 12, color: '#000000' }],
+    ])
+    expect(textPicture.mock.calls[1]![0]).not.toHaveProperty('wordSpacing')
+  })
+
+  test('a pictured segment of a justified tabbed line asks for the line’s spacing', async () => {
+    const textPicture = picture()
+    await paintOf(
+      [
+        textItem([
+          line('ab\t日 本', 10, 700, {
+            outside: true,
+            wordSpacing: 2,
+            segments: [
+              { text: 'ab', origin: { x: 10, y: 700 }, width: 12, outside: false },
+              { text: '日 本', origin: { x: 50, y: 700 }, width: 30, outside: true },
+            ],
+          }),
+        ]),
+      ],
+      { page: 0, textPicture }
+    )
+    expect(textPicture.mock.calls).toEqual([
+      [{ text: '日 本', font: helvetica, size: 12, color: '#000000', wordSpacing: 2 }],
+    ])
+  })
+
+  test('equal text with different spacing is two pictures, equal spacing one', async () => {
+    const textPicture = picture()
+    const { a, content } = await paintOf(
+      [
+        textItem([
+          line('日 本', 10, 700, { outside: true, wordSpacing: 1.5 }),
+          line('日 本', 10, 686, { outside: true, wordSpacing: 1.5 }),
+          line('日 本', 10, 672, { outside: true, wordSpacing: 3 }),
+          line('日 本', 10, 658, { outside: true }),
+        ]),
+      ],
+      { page: 0, textPicture }
+    )
+    expect(textPicture).toHaveBeenCalledTimes(3)
+    expect(Object.keys(a.images!)).toEqual(['Im0', 'Im1', 'Im2'])
+    expect(content.match(/\/Im0 Do/g)).toHaveLength(2)
+  })
+
   test('an equal run is requested once and its picture reused', async () => {
     const textPicture = picture()
     const { a, content } = await paintOf(

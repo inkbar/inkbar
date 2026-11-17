@@ -15,11 +15,14 @@ export interface TextPictureRequest {
   font: TextFont
   size: number
   color: string
+  /** Extra points added to each U+0020 in `text`, none to U+00A0; absent means none. */
+  wordSpacing?: number
 }
 
 /**
  * A picture of one run of text. `width`, `ascent`, `descent` in points: the picture spans the
- * run's origin to origin + width, and baseline - descent to baseline + ascent.
+ * run's origin to origin + width, and baseline - descent to baseline + ascent. `width` includes
+ * the request's word spacing.
  */
 export type TextPicture = (
   r: TextPictureRequest
@@ -385,7 +388,8 @@ async function paintText(scope: Scope, item: TextItem): Promise<void> {
       if (run.text === '') continue
       const bytes = run.outside ? undefined : winAnsi(run.text.normalize('NFC'))
       if (!bytes) {
-        body.push(...(await pictureRun(scope, item, run, turn)))
+        // The screen spaces a pictured run, a tabbed line's segments included, like any other.
+        body.push(...(await pictureRun(scope, item, run, spacing, turn)))
         continue
       }
       body.push(
@@ -416,11 +420,15 @@ async function paintText(scope: Scope, item: TextItem): Promise<void> {
   scope.lines.push(...body, 'Q')
 }
 
-/** A run as a picture from `textPicture`, from the run's origin and turned with the item. */
+/**
+ * A run as a picture from `textPicture`, with the line's word spacing, from the run's origin and
+ * turned with the item.
+ */
 async function pictureRun(
   scope: Scope,
   item: TextItem,
   run: Run,
+  wordSpacing: number,
   turn: readonly [number, number]
 ): Promise<string[]> {
   const { helpers, pictures } = scope.shared
@@ -431,9 +439,18 @@ async function pictureRun(
     font: item.font,
     size: item.size,
     color: item.color,
+    ...(wordSpacing !== 0 ? { wordSpacing } : {}),
   }
   const { family, bold, italic } = item.font
-  const key = JSON.stringify([run.text, family, bold, italic, item.size, item.color])
+  const key = JSON.stringify([
+    run.text,
+    family,
+    bold,
+    italic,
+    item.size,
+    item.color,
+    wordSpacing,
+  ])
   let picture = pictures.get(key)
   if (!picture) {
     picture = textPicture(request).then(({ png, width, ascent, descent }) => ({
