@@ -21,15 +21,25 @@ export function paintedByCanvas(a: Annotation): boolean {
 }
 
 /**
- * The drawing of `a`, or `undefined` for one the page canvas paints. A reply has a drawing too:
- * whether an annotation is a reply depends on the list it is in (`withoutReplies`), so whoever
- * draws a page leaves the replies out before asking.
+ * The drawing of `a`, or `undefined` for one the page canvas paints.
  */
 export function describeAnnotation(
   a: Annotation,
   context: DrawContext
 ): Drawing | undefined {
-  if (paintedByCanvas(a)) return undefined
+  return paintedByCanvas(a) ? undefined : describeDrawing(a, context)
+}
+
+/**
+ * The drawing of `a` wherever it comes from. A draft or a copy of an embedded annotation (a
+ * drag preview, an edited text box) is drawn with this: the canvas paints the original, not
+ * the draft. A reply has a drawing too: whether an annotation is a reply depends on the list it
+ * is in (`withoutReplies`), so whoever draws a page leaves the replies out before asking.
+ */
+export function describeDrawing(
+  a: Annotation,
+  context: DrawContext
+): Drawing | undefined {
   switch (a.type) {
     case 'highlight':
     case 'underline':

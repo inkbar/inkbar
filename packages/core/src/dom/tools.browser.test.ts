@@ -69,7 +69,7 @@ afterEach(() => cleanup.splice(0).forEach((f) => f()))
 
 import type { InkMessages } from '../messages'
 import type { AnnotationChange } from '../model/annotations/store'
-import type { Annotation } from '../model/annotations/types'
+import type { Annotation, AnnotationInput } from '../model/annotations/types'
 import type { InkDocument } from '../model/document'
 import type { Rect } from '../model/geometry'
 import type { SignatureLibrary, SignatureTemplate } from '../model/signatures'
@@ -3445,6 +3445,77 @@ describe('resize handles', () => {
     expect(r.width).toBeCloseTo(70, 5)
     expect(r.height).toBeCloseTo(40, 5)
     expect(doc.annotations.selection.get()).toEqual([a.id])
+  })
+
+  describe('the preview of an annotation from the file', () => {
+    /** Presses the handle `name` of the embedded annotation `id` and moves it 40 px right. */
+    async function dragHandle(input: AnnotationInput, name: string) {
+      const { doc, container, viewport, tools } = await setup()
+      const a = doc.annotations.completeInput(input)
+      doc.annotations._setEmbedded([{ ...a, id: 'pdf:0:9R', source: 'pdf' }])
+      await settle()
+      tools.set('select')
+      doc.annotations.select(['pdf:0:9R'])
+      await settle()
+      const host = viewport.hostFor(0)!
+      const handle = host.querySelector(
+        `[data-annotation="pdf:0:9R"] > [data-handle="${name}"]`
+      ) as HTMLElement
+      expect(handle).not.toBeNull()
+      const r = handle.getBoundingClientRect()
+      const at = { x: r.left + r.width / 2, y: r.top + r.height / 2 }
+      pointer(handle, 'pointerdown', at.x, at.y)
+      pointer(container, 'pointermove', at.x + 40, at.y)
+      const preview = [...host.querySelectorAll<HTMLElement>('[data-type]')].find(
+        (n) => !n.hasAttribute('data-annotation')
+      )
+      return {
+        preview,
+        done: () => pointer(container, 'pointerup', at.x + 40, at.y),
+      }
+    }
+
+    it('dragging the end of an embedded line shows the line in the preview', async () => {
+      const { preview, done } = await dragHandle(
+        {
+          type: 'line',
+          page: 0,
+          rect: { x: 90, y: 590, width: 140, height: 40 },
+          start: { x: 100, y: 600 },
+          end: { x: 220, y: 620 },
+          width: 2,
+        },
+        'end'
+      )
+      expect(preview).toBeDefined()
+      expect(preview!.querySelectorAll('polyline')).toHaveLength(1)
+      done()
+    })
+
+    it("dragging the tip of an embedded text box's callout shows the box in the preview", async () => {
+      const { preview, done } = await dragHandle(
+        {
+          type: 'freetext',
+          page: 0,
+          rect: { x: 60, y: 560, width: 240, height: 120 },
+          fringe: { left: 80, top: 10, right: 10, bottom: 50 },
+          intent: 'FreeTextCallout',
+          callout: [
+            { x: 70, y: 570 },
+            { x: 100, y: 600 },
+            { x: 140, y: 625 },
+          ],
+          width: 1,
+          color: '#FFFFFF',
+          contents: 'The quick brown fox',
+        },
+        'callout'
+      )
+      expect(preview).toBeDefined()
+      expect(preview!.querySelectorAll('.ink-callout-line')).toHaveLength(1)
+      expect(preview!.querySelectorAll('text').length).toBeGreaterThan(0)
+      done()
+    })
   })
 
   it('keeps the preview of a padded shape on the dragged corner', async () => {

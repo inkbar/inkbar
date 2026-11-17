@@ -1,4 +1,4 @@
-import { describeAnnotation } from '../model/annotations/drawing/describe'
+import { describeDrawing } from '../model/annotations/drawing/describe'
 import { measureWith } from '../model/annotations/drawing/text/measure'
 
 import { browserWidth } from './text-fonts'
@@ -33,7 +33,7 @@ const samePage = (a: DrawContext['page'], b: DrawContext['page']): boolean =>
   a.box.height === b.box.height
 
 /**
- * The drawing of `a`, or `undefined` when its type is not described yet. Cached by annotation
+ * The drawing of `a`, or `undefined` when it has none. Cached by annotation
  * object: the store replaces an annotation on every update, never mutates one. The cache
  * ignores zoom and view rotation, which a drawing does not depend on; it is dropped when the
  * page's own box, rotation or unit differ from those it was made for.
@@ -42,7 +42,7 @@ export function drawingFor(a: Annotation, t: PageTransform): Drawing | undefined
   const context = drawContext(t)
   const hit = cache.get(a)
   if (hit && samePage(hit.page, context.page)) return hit.drawing
-  const drawing = describeAnnotation(a, context)
+  const drawing = describeDrawing(a, context)
   cache.set(a, { page: context.page, drawing })
   return drawing
 }

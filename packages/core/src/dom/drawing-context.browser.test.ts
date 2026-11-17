@@ -12,7 +12,7 @@ import type { PageInfo } from '../model/pages'
 
 vi.mock('../model/annotations/drawing/describe', async (importOriginal) => {
   const actual = await importOriginal<typeof describeModule>()
-  return { ...actual, describeAnnotation: vi.fn(actual.describeAnnotation) }
+  return { ...actual, describeDrawing: vi.fn(actual.describeDrawing) }
 })
 
 const page: PageInfo = {
@@ -46,7 +46,7 @@ describe('the drawing cache', () => {
       x: 20 + (i / 5000) * 560,
       y: 400 + Math.sin(i / 40) * 100,
     }))
-    const spy = vi.mocked(describeModule.describeAnnotation)
+    const spy = vi.mocked(describeModule.describeDrawing)
     spy.mockClear()
     const ink = store.add({ type: 'ink', page: 0, inklist: [stroke], width: 2 })
     for (const zoom of [1, 2, 4]) overlay.update(createPageTransform(page, zoom, 0))

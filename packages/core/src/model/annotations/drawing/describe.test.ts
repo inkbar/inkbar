@@ -3,7 +3,7 @@ import { describe, expect, test } from 'vitest'
 import { staticDefaults } from '../defaults'
 import { createAnnotationStore } from '../store'
 
-import { describeAnnotation, paintedByCanvas } from './describe'
+import { describeAnnotation, describeDrawing, paintedByCanvas } from './describe'
 import { standardMeasure } from './text/measure'
 
 import type { Annotation, AnnotationInput } from '../types'
@@ -79,6 +79,8 @@ describe('describeAnnotation', () => {
     const a: Annotation = { ...store().add(drawn[0]!), source: 'pdf' }
     expect(describeAnnotation(a, context)).toBeUndefined()
     expect(paintedByCanvas(a)).toBe(true)
+    // A draft or copy of it is still drawn.
+    expect(describeDrawing(a, context)).toBeDefined()
   })
 
   test('an embedded note with no appearance is drawn, as the canvas paints none', () => {
