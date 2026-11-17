@@ -309,14 +309,14 @@ describe('renderAnnotationContent', () => {
     expect(el.querySelector('svg.ink-annotation-shape polygon')).not.toBeNull()
   })
 
-  it('leaves an annotation the page canvas paints with nothing in its element', () => {
+  it('leaves the element empty for a type with no drawing', () => {
     const a = {
       ...store().add({
         type: 'square',
         page: 0,
         rect: { x: 72, y: 695, width: 228, height: 20 },
       }),
-      source: 'pdf' as const,
+      type: 'popup' as never,
     }
     const el = document.createElement('div')
     el.append(document.createElement('span'))
@@ -377,6 +377,10 @@ describe('a stamp', () => {
     expect(image.getAttribute('href')).toBe(PNG)
     expect(image.getAttribute('preserveAspectRatio')).toBe('none')
     expect(el.querySelector('img')).toBeNull()
+    // The opacity is on the svg alone: on the image too it would be applied twice.
+    expect(image.hasAttribute('opacity')).toBe(false)
+    expect(image.getAttribute('style') ?? '').not.toContain('opacity')
+    expect(image.parentElement).toBe(svg)
   })
 
   it('takes a press on a transparent pixel inside its box', () => {
@@ -915,49 +919,52 @@ describe('text outside the standard fonts', () => {
 describe('the width a line of standard-font text is set to', () => {
   const fonts = checkTextFonts()
 
-  it("is the width the browser's own font gives it, where the fonts are the tables'", () => {
-    if (fonts.mode !== 'exact') return
-    const store = createAnnotationStore({
-      mode: { mode: 'uncontrolled' },
-      defaults: staticDefaults,
-    })
-    const paragraph =
-      'The quick brown fox jumps over the lazy dog, and then a second sentence follows it.\nA short line.'
-    let longest = 0
-    for (const defaultStyle of [
-      {},
-      { fontWeight: 'bold' as const },
-      { fontStyle: 'italic' as const },
-      { fontFamily: 'Times' as const },
-      { fontFamily: 'Courier' as const, fontWeight: 'bold' as const },
-    ]) {
-      const a = store.add({
-        type: 'freetext',
-        page: 0,
-        rect: { x: 100, y: 600, width: 200, height: 90 },
-        contents: paragraph,
-        defaultStyle,
+  it.skipIf(fonts.mode !== 'exact')(
+    "is the width the browser's own font gives it, where the fonts are the tables'",
+    () => {
+      const store = createAnnotationStore({
+        mode: { mode: 'uncontrolled' },
+        defaults: staticDefaults,
       })
-      const host = mountContainer(612, 792)
-      const el = document.createElement('div')
-      el.style.cssText = 'position:absolute;left:200px;top:204px;width:400px;height:180px'
-      host.append(el)
-      renderAnnotationContent(el, a, createPageTransform(page, 2, 0))
-      const lines = [...el.querySelectorAll<SVGTextElement>('text[textLength]')]
-      expect(lines.length).toBeGreaterThan(2)
-      for (const text of lines) {
-        const set = Number(text.getAttribute('textLength'))
-        const clone = text.cloneNode(true) as SVGTextElement
-        clone.removeAttribute('textLength')
-        clone.removeAttribute('lengthAdjust')
-        text.parentElement!.append(clone)
-        const natural = clone.getComputedTextLength()
-        clone.remove()
-        longest = Math.max(longest, Math.abs(natural - set) / set)
+      const paragraph =
+        'The quick brown fox jumps over the lazy dog, and then a second sentence follows it.\nA short line.'
+      let longest = 0
+      for (const defaultStyle of [
+        {},
+        { fontWeight: 'bold' as const },
+        { fontStyle: 'italic' as const },
+        { fontFamily: 'Times' as const },
+        { fontFamily: 'Courier' as const, fontWeight: 'bold' as const },
+      ]) {
+        const a = store.add({
+          type: 'freetext',
+          page: 0,
+          rect: { x: 100, y: 600, width: 200, height: 90 },
+          contents: paragraph,
+          defaultStyle,
+        })
+        const host = mountContainer(612, 792)
+        const el = document.createElement('div')
+        el.style.cssText =
+          'position:absolute;left:200px;top:204px;width:400px;height:180px'
+        host.append(el)
+        renderAnnotationContent(el, a, createPageTransform(page, 2, 0))
+        const lines = [...el.querySelectorAll<SVGTextElement>('text[textLength]')]
+        expect(lines.length).toBeGreaterThan(2)
+        for (const text of lines) {
+          const set = Number(text.getAttribute('textLength'))
+          const clone = text.cloneNode(true) as SVGTextElement
+          clone.removeAttribute('textLength')
+          clone.removeAttribute('lengthAdjust')
+          text.parentElement!.append(clone)
+          const natural = clone.getComputedTextLength()
+          clone.remove()
+          longest = Math.max(longest, Math.abs(natural - set) / set)
+        }
+        host.remove()
       }
-      host.remove()
+      // The real cases are within 0.09%; a wrong table or font is off by several percent.
+      expect(longest).toBeLessThan(0.002)
     }
-    // The real cases are within 0.09%; a wrong table or font is off by several percent.
-    expect(longest).toBeLessThan(0.002)
-  })
+  )
 })
