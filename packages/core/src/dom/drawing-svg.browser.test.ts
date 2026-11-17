@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { staticDefaults } from '../model/annotations/defaults'
 import { createAnnotationStore } from '../model/annotations/store'
 
-import { itemElement, paintDrawing } from './drawing-svg'
+import { itemElement, paintDrawing, paintItems } from './drawing-svg'
 import { renderAnnotationContent } from './overlay-render'
 import { mountContainer } from './test-utils'
 import { checkTextFonts } from './text-font-check'
@@ -377,6 +377,96 @@ describe('itemElement', () => {
     expect(el.getAttribute('width')).toBe(String(at.width))
     expect(el.getAttribute('rx')).toBe('12')
     expect(el.getAttribute('stroke-width')).toBe('4')
+  })
+})
+
+describe('every kind of item', () => {
+  const r = { x: 100, y: 600, width: 80, height: 40 }
+  const t = createPageTransform(page, 1, 0)
+  const text: DrawItem = {
+    kind: 'text',
+    lines: [{ text: 'Hi', origin: { x: 100, y: 610 }, width: 12, outside: false }],
+    font: { family: 'Helvetica', bold: false, italic: false },
+    size: 12,
+    color: '#000',
+    angle: 0,
+    outsideStandardFonts: false,
+  }
+  const kinds: [string, DrawItem, string][] = [
+    [
+      'polygon',
+      {
+        kind: 'polygon',
+        points: [
+          { x: 100, y: 600 },
+          { x: 180, y: 600 },
+          { x: 140, y: 640 },
+        ],
+        paint: fill,
+      },
+      'polygon',
+    ],
+    [
+      'polyline',
+      {
+        kind: 'polyline',
+        points: [
+          { x: 100, y: 600 },
+          { x: 180, y: 640 },
+        ],
+        paint: { stroke: { color: '#000', width: 1 } },
+      },
+      'polyline',
+    ],
+    ['rect', { kind: 'rect', rect: r, paint: fill }, 'rect'],
+    ['ellipse', { kind: 'ellipse', rect: r, paint: fill }, 'ellipse'],
+    ['loupe rim', { kind: 'ellipse', role: 'loupe-rim', rect: r, paint: fill }, 'circle'],
+    [
+      'path',
+      {
+        kind: 'path',
+        commands: [
+          { op: 'M', to: { x: 100, y: 600 } },
+          { op: 'L', to: { x: 180, y: 640 } },
+        ],
+        paint: { stroke: { color: '#000', width: 1 } },
+      },
+      'path',
+    ],
+    [
+      'group',
+      { kind: 'group', opacity: 0.5, items: [{ kind: 'rect', rect: r, paint: fill }] },
+      'g',
+    ],
+    [
+      'image',
+      { kind: 'image', data: 'data:image/png;base64,AA==', rect: r, angle: 0 },
+      'image',
+    ],
+    ['text', text, 'g'],
+  ]
+  const origin = { left: 0, top: 0, width: 612, height: 792 }
+
+  for (const [name, item, tag] of kinds)
+    it(`a ${name} is one ${tag}, by itemElement and by paintItems`, () => {
+      expect(itemElement(document, item, t, origin).tagName).toBe(tag)
+      // In a drawing of two items, so that a group is not folded into the svg.
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+      paintItems(svg, drawing(item, { kind: 'rect', rect: r, paint: fill }), t, origin)
+      expect([...svg.children].map((c) => c.tagName)).toEqual([tag, 'rect'])
+    })
+
+  it('a page item is skipped by paintItems and cannot be an element', () => {
+    const lens: DrawItem = {
+      kind: 'page',
+      source: r,
+      target: r,
+      clip: { center: { x: 140, y: 620 }, radius: 20 },
+    }
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    paintItems(svg, drawing(lens), t, origin)
+    expect(svg.children).toHaveLength(0)
+    expect(() => itemElement(document, lens, t, origin)).toThrow(/page item/)
   })
 })
 
