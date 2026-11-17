@@ -1,9 +1,9 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 
 import { arcToCubics } from '../arc'
 
 import { num } from './operators'
-import { paintDrawing } from './paint'
+import { paintDrawing, UnpaintableError } from './paint'
 
 import type { Drawing, DrawItem, Paint, PathCommand } from '../types'
 
@@ -252,22 +252,223 @@ describe('nothing to paint', () => {
     expect(a.bounds).toEqual(bounds)
   })
 
-  test('text, image and page items are not painted yet', async () => {
+  test('a path with no commands, or only a close, writes nothing', async () => {
+    const stroke = { color: '#000000', width: 1 }
+    expect(
+      (await paintOf({ kind: 'path', commands: [], paint: { stroke } })).content
+    ).toBe('')
+    expect(
+      (await paintOf({ kind: 'path', commands: [{ op: 'Z' }], paint: { stroke } }))
+        .content
+    ).toBe('')
+  })
+
+  test('a path that does not start with M starts at its first command’s end', async () => {
+    const { content } = await paintOf({
+      kind: 'path',
+      commands: [
+        { op: 'L', to: { x: 10, y: 0 } },
+        { op: 'L', to: { x: 10, y: 10 } },
+      ],
+      paint: { stroke: { color: '#000000', width: 1 } },
+    })
+    expect(content).toBe('q\n0 0 0 RG\n1 w\n10 0 m\n10 10 l\nS\nQ')
+    const curve = await paintOf({
+      kind: 'path',
+      commands: [
+        { op: 'C', c1: { x: 1, y: 1 }, c2: { x: 2, y: 2 }, to: { x: 3, y: 3 } },
+        { op: 'L', to: { x: 4, y: 3 } },
+      ],
+      paint: { stroke: { color: '#000000', width: 1 } },
+    })
+    expect(curve.content).toBe('q\n0 0 0 RG\n1 w\n3 3 m\n4 3 l\nS\nQ')
+  })
+
+  test('dashes that are empty, negative, not finite or all zero are a solid line', async () => {
+    for (const dashes of [[], [3, -1], [Infinity, 2], [NaN], [0, 0]]) {
+      const { content } = await paintOf({
+        kind: 'rect',
+        rect: box,
+        paint: { stroke: { color: '#000000', width: 1, dashes } },
+      })
+      expect(content).toBe(`q\n0 0 0 RG\n1 w\n${boxPath}\nS\nQ`)
+    }
+    const { content } = await paintOf({
+      kind: 'rect',
+      rect: box,
+      paint: { stroke: { color: '#000000', width: 1, dashes: [0, 2] } },
+    })
+    expect(content).toContain('\n[0 2] 0 d\n')
+  })
+})
+
+describe('rounded corners', () => {
+  test('the top-right corner is the arc arcToCubics gives, clockwise', async () => {
+    const { content } = await paintOf({
+      kind: 'rect',
+      rect: box,
+      radius: 5,
+      paint: { fill: { color: '#000000' } },
+    })
+    const pt = (p: { x: number; y: number }): string => `${num(p.x)} ${num(p.y)}`
+    const corner = arcToCubics(
+      { x: 35, y: 60 },
+      { op: 'A', rx: 5, ry: 5, largeArc: false, sweep: false, to: { x: 40, y: 55 } }
+    ).map((c) => `${pt(c.c1)} ${pt(c.c2)} ${pt(c.to)} c`)
+    expect(corner).toEqual(['37.7614 60 40 57.7614 40 55 c'])
+    expect(content.split('\n').slice(2, 5)).toEqual(['15 60 m', '35 60 l', ...corner])
+  })
+})
+
+const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47])
+
+describe('images', () => {
+  test('a PNG data URL is added as it is and stretched to its rect', async () => {
+    const { a, content } = await paintOf({
+      kind: 'image',
+      data: 'data:image/png;base64,iVBORw==',
+      rect: box,
+      angle: 0,
+    })
+    expect(a.images).toEqual({ Im0: { format: 'png', data: png } })
+    expect(content).toBe('q\n30 0 0 40 10 20 cm\n/Im0 Do\nQ')
+  })
+
+  test('a percent-encoded JPEG data URL is decoded byte by byte', async () => {
+    const { a } = await paintOf({
+      kind: 'image',
+      data: 'data:image/jpeg,%FF%D8%ffab',
+      rect: box,
+      angle: 0,
+    })
+    expect(a.images).toEqual({
+      Im0: { format: 'jpeg', data: new Uint8Array([0xff, 0xd8, 0xff, 0x61, 0x62]) },
+    })
+  })
+
+  test('angle 90 turns the image anticlockwise about the rect centre', async () => {
+    const { content } = await paintOf({
+      kind: 'image',
+      data: 'data:image/png;base64,iVBORw==',
+      rect: box,
+      angle: 90,
+    })
+    // The picture's own width runs up the rect's height; its bottom-left is the rect's bottom-right.
+    expect(content).toBe('q\n0 40 -30 0 40 20 cm\n/Im0 Do\nQ')
+    const half = await paintOf({
+      kind: 'image',
+      data: 'data:image/png;base64,iVBORw==',
+      rect: box,
+      angle: 180,
+    })
+    expect(half.content).toBe('q\n-30 0 0 -40 40 60 cm\n/Im0 Do\nQ')
+  })
+
+  test('another type goes through toPng at four pixels a point', async () => {
+    const url = 'data:image/webp;base64,UklGRg=='
+    const toPng = vi.fn(() => Promise.resolve(png))
+    const item: DrawItem = {
+      kind: 'image',
+      data: url,
+      rect: { x: 0, y: 0, width: 100, height: 50 },
+      angle: 0,
+    }
+    const { a, content } = await paintDrawing(drawing(item, item), {
+      page: 0,
+      toPng,
+    }).then((a) => ({ a, content: text(a) }))
+    expect(toPng.mock.calls).toEqual([[url, 400, 200]])
+    expect(a.images).toEqual({ Im0: { format: 'png', data: png } })
+    expect(content.match(/\/Im0 Do/g)).toHaveLength(2)
+  })
+
+  test('without toPng, another type rejects as an unpaintable image', async () => {
+    const painting = paintOf({
+      kind: 'image',
+      data: 'data:image/webp;base64,UklGRg==',
+      rect: box,
+      angle: 0,
+    })
+    await expect(painting).rejects.toBeInstanceOf(UnpaintableError)
+    await expect(painting).rejects.toMatchObject({ reason: 'image' })
+  })
+
+  test('equal images share a name; different ones do not', async () => {
+    const a1: DrawItem = {
+      kind: 'image',
+      data: 'data:image/png;base64,iVBORw==',
+      rect: box,
+      angle: 0,
+    }
+    const a2: DrawItem = { ...a1, data: 'data:image/jpeg;base64,/9j/' }
+    const { a } = await paintOf(a1, a2, a1)
+    expect(Object.keys(a.images!)).toEqual(['Im0', 'Im1'])
+    expect(a.images!.Im1!.format).toBe('jpeg')
+  })
+})
+
+describe('page content', () => {
+  test('a loupe lens shows the page through a circle, mapping source onto target', async () => {
+    const source = { x: 40, y: 40, width: 20, height: 10 }
+    const target = { x: 30, y: 30, width: 40, height: 20 }
+    const center = { x: 50, y: 40 }
+    const a = await paintDrawing(
+      drawing({ kind: 'page', source, target, clip: { center, radius: 10 } }),
+      { page: 3 }
+    )
+    expect(a.pages).toEqual({ P0: 3 })
+    const circle = await paintOf({
+      kind: 'ellipse',
+      rect: { x: 40, y: 30, width: 20, height: 20 },
+      paint: { fill: { color: '#000000' } },
+    })
+    const path = circle.content.split('\n').slice(2, -2)
+    expect(path.filter((l) => l.endsWith(' c'))).toHaveLength(4)
+    const lines = text(a).split('\n')
+    expect(lines).toEqual(['q', ...path, 'W n', lines[path.length + 2], '/P0 Do', 'Q'])
+    const cm = lines[path.length + 2]!.split(' ')
+    expect(cm.pop()).toBe('cm')
+    const [ma, mb, mc, md, me, mf] = cm.map(Number) as [
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+    ]
+    const map = (x: number, y: number) => ({
+      x: ma * x + mc * y + me,
+      y: mb * x + md * y + mf,
+    })
+    expect(map(source.x, source.y)).toEqual({ x: target.x, y: target.y })
+    expect(map(source.x + source.width, source.y + source.height)).toEqual({
+      x: target.x + target.width,
+      y: target.y + target.height,
+    })
+    expect(map(source.x, source.y + source.height)).toEqual({
+      x: target.x,
+      y: target.y + target.height,
+    })
+  })
+
+  test('an empty source or clip writes nothing', async () => {
     const rect = box
-    await expect(
-      paintDrawing(drawing({ kind: 'image', data: '', rect, angle: 0 }), helpers)
-    ).rejects.toThrow('not painted yet')
-    await expect(
-      paintDrawing(
+    for (const item of [
+      { source: { ...rect, width: 0 }, target: rect, radius: 5 },
+      { source: rect, target: rect, radius: 0 },
+    ]) {
+      const a = await paintDrawing(
         drawing({
           kind: 'page',
-          source: rect,
-          target: rect,
-          clip: { center: { x: 0, y: 0 }, radius: 1 },
+          source: item.source,
+          target: item.target,
+          clip: { center: { x: 0, y: 0 }, radius: item.radius },
         }),
         helpers
       )
-    ).rejects.toThrow('not painted yet')
+      expect(text(a)).toBe('')
+      expect(a.pages).toBeUndefined()
+    }
   })
 })
 

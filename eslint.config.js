@@ -12,6 +12,43 @@ import svelteConfig from './packages/svelte/svelte.config.js'
 const svelteScoped = (configs) =>
   configs.map((c) => ({ ...c, files: c.files ?? ['**/*.svelte', '**/*.svelte.ts'] }))
 
+const DRAWING = 'packages/core/src/model/annotations/drawing'
+
+/**
+ * The imports a drawing may not make, from a file `depth` folders below drawing/. The package's
+ * root index re-exports dom, so it is matched exactly at the file's own depth: a pattern of a
+ * fixed number of `..` would also catch the pure modules beside drawing/ reached from deeper.
+ */
+const drawingImports = (depth) => {
+  // src/ from the file: drawing/, annotations/ and model/, then one more per folder below drawing/.
+  const src = Array.from({ length: 3 + depth }, () => '\\.\\.').join('/')
+  const index = 'A drawing is described without the package index, which exports dom.'
+  return [
+    'error',
+    {
+      patterns: [
+        {
+          group: ['**/dom', '**/dom/**'],
+          message: 'A drawing is described without the DOM: nothing under dom/.',
+        },
+        { regex: `^${src}(/index(\\.[cm]?[jt]s)?)?/?$`, message: index },
+        { group: ['**/src/index', '@inkbar/core'], message: index },
+        {
+          group: [
+            'pdfjs-dist',
+            'pdfjs-dist/**',
+            '#pdfjs',
+            '#pdfjs-sandbox',
+            '**/pdfjs',
+            '**/pdfjs/**',
+          ],
+          message: 'A drawing is described without PDF.js.',
+        },
+      ],
+    },
+  ]
+}
+
 export default defineConfig(
   configDefault,
   configTypescript,
@@ -139,36 +176,9 @@ export default defineConfig(
     // A drawing is a plain description of an annotation: no DOM, no PDF.js. This block sets the
     // rule afresh for these files, so it repeats the PDF.js entries of the quarantine above.
     name: 'inkbar/drawing-is-pure',
-    files: ['packages/core/src/model/annotations/drawing/**/*.ts'],
+    files: [`${DRAWING}/**/*.ts`],
     rules: {
-      'no-restricted-imports': [
-        'error',
-        {
-          patterns: [
-            {
-              group: ['**/dom', '**/dom/**'],
-              message: 'A drawing is described without the DOM: nothing under dom/.',
-            },
-            {
-              // The package's root index re-exports dom, however it is reached.
-              group: ['**/src/index', '../../..', '../../../index', '@inkbar/core'],
-              message:
-                'A drawing is described without the package index, which exports dom.',
-            },
-            {
-              group: [
-                'pdfjs-dist',
-                'pdfjs-dist/**',
-                '#pdfjs',
-                '#pdfjs-sandbox',
-                '**/pdfjs',
-                '**/pdfjs/**',
-              ],
-              message: 'A drawing is described without PDF.js.',
-            },
-          ],
-        },
-      ],
+      'no-restricted-imports': drawingImports(0),
       'no-restricted-globals': [
         'error',
         { name: 'document', message: 'A drawing does not touch the DOM.' },
@@ -228,5 +238,11 @@ export default defineConfig(
         })),
       ],
     },
+  },
+  {
+    // The same imports from a folder below drawing/ (pdf/, text/), one level further from src/.
+    name: 'inkbar/drawing-is-pure-in-folders',
+    files: [`${DRAWING}/*/*.ts`],
+    rules: { 'no-restricted-imports': drawingImports(1) },
   }
 )
