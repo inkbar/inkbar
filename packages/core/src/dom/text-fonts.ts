@@ -13,7 +13,12 @@ export const FONT_STACKS: Record<TextFont['family'], string> = {
   Courier: '"Courier New", "Liberation Mono", Cousine, Courier, monospace',
 }
 
-/** The CSS `font` shorthand for `font` at `size` points. */
+/**
+ * The CSS `font` shorthand for `font` at `size` CSS px. The layout works in points and asks for
+ * widths at a size in points, so it passes its point size here as a pixel size: one point is one
+ * CSS px in the measuring, whatever scale the page is later shown at. A caller that measures what
+ * is on screen passes the size at its own scale.
+ */
 export function cssFont(font: TextFont, size: number): string {
   return `${font.italic ? 'italic' : 'normal'} ${font.bold ? 'bold' : 'normal'} ${size}px ${FONT_STACKS[font.family]}`
 }
@@ -43,7 +48,8 @@ export const widthCache = {
 
 /**
  * The width of a run of characters outside the tables (a cluster, or consecutive clusters: see
- * `measureWith`) in the browser's own font for `font`, measured as one string at `size` itself,
+ * `measureWith`) in the browser's own font for `font`, measured as one string at `size` CSS px,
+ * the same number the layout calls its size in points (see `cssFont`),
  * since rounding in the font's advances differs from size to size and a script that joins its
  * letters is shaped as a whole. Kerning is off, as the drawn text has it. The results are kept per
  * font, size and run, oldest dropped first.
