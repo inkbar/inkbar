@@ -80,13 +80,49 @@ function item(annotation: GlossAnnotation, data = `{"id":"${annotation.id}"}`) {
   } satisfies WriteAnnotation
 }
 
+/**
+ * The text of the catalog's `/AcroForm` dictionary in a file with no object streams, or
+ * undefined when it has none. An indirect one is read from its object.
+ */
+function acroForm(saved: Uint8Array): string | undefined {
+  const text = latin1(saved)
+  const at = /\/AcroForm\s*(?:(\d+)\s+0\s+R|<<)/.exec(text)
+  if (!at) return undefined
+  if (at[1] !== undefined) return objectText(saved, Number(at[1]))
+  // Inline: from its << to the matching >>.
+  let depth = 0
+  for (let i = at.index + at[0].length - 2; i < text.length - 1; i++) {
+    if (text.startsWith('<<', i)) {
+      depth++
+      i++
+    } else if (text.startsWith('>>', i)) {
+      depth--
+      if (depth === 0) return text.slice(at.index, i + 2)
+      i++
+    }
+  }
+  throw new Error('unterminated /AcroForm')
+}
+
+/** A file with an `/AcroForm` must give it `/Fields` (ISO 32000-2, 12.7.3). */
+function expectValidForm(saved: Uint8Array) {
+  const form = acroForm(saved)
+  if (form !== undefined) expect(form).toMatch(/\/Fields\s*\[/)
+}
+
+/** Keeps a saved file for the closing qpdf check, after checking its form. */
+function keep(name: string, bytes: Uint8Array) {
+  expectValidForm(bytes)
+  saves.push({ name, bytes })
+}
+
 /** Opens the fixture, writes `input`, saves and closes. The saved file is kept for qpdf. */
 async function written(name: string, input: WriteInput): Promise<Uint8Array> {
   const doc = await engine.open(opened)
   try {
     await doc.write(input)
     const bytes = await doc.save()
-    saves.push({ name, bytes })
+    keep(name, bytes)
     return bytes
   } finally {
     await doc.close()
@@ -109,6 +145,7 @@ interface PdfjsAnnotation {
   vertices?: Float32Array | null
   inkLists?: Float32Array[]
   inReplyTo?: string | null
+  borderStyle: { width: number; style: number; dashArray: number[] }
 }
 
 async function pdfjsAnnotations(saved: Uint8Array, page = 0): Promise<PdfjsAnnotation[]> {
@@ -237,6 +274,9 @@ describe('writes each Gloss type so other programs can read it', () => {
     expect(dict).not.toMatch(/\/CL\b/)
     expect(dict).not.toMatch(/\/IT\b/)
     expect(read.hasAppearance).toBe(true)
+    // The fixture has no form; the default appearance makes one, which must list its fields.
+    expect(acroForm(opened)).toBeUndefined()
+    expect(acroForm(saved)).toMatch(/\/Fields\s*\[\s*\]/)
     await reopens(saved)
   })
 
@@ -283,6 +323,58 @@ describe('writes each Gloss type so other programs can read it', () => {
       await reopens(saved)
     }
   )
+
+  describe('border styles', () => {
+    const SOLID = 1
+    const DASHED = 2
+    const bordered = (id: string, dashes?: number[]) =>
+      ({
+        ...common(id, rect(200, 200, 80, 50)),
+        type: 'square',
+        width: 2,
+        ...(dashes && { dashes }),
+      }) satisfies GlossAnnotation
+
+    test('writes a dashed border with its dash array', async () => {
+      const saved = await written('dashed', {
+        annotations: [item(bordered('dashed', [3, 1]))],
+      })
+      const { read, dict } = await only(saved)
+      expect(read.borderStyle).toMatchObject({
+        style: DASHED,
+        width: 2,
+        dashArray: [3, 1],
+      })
+      expect(dict).toMatch(/\/BS\s*<<[^>]*\/S\s*\/D\b/)
+      expect(dict).toMatch(/\/BS\s*<<[^>]*\/D\s*\[\s*3\s+1\s*\]/)
+      // /Border, which carries the corner radius, agrees on the width.
+      expect(dict).toMatch(/\/BS\s*<<[^>]*\/W\s*2\b/)
+      expect(dict).toMatch(/\/Border\s*\[\s*0\s+0\s+2\s*\]/)
+    })
+
+    test('writes a solid border as solid', async () => {
+      const saved = await written('solid', { annotations: [item(bordered('solid'))] })
+      const { read, dict } = await only(saved)
+      expect(read.borderStyle).toMatchObject({ style: SOLID, width: 2 })
+      expect(dict).toMatch(/\/BS\s*<<[^>]*\/S\s*\/S\b/)
+      expect(dict).not.toMatch(/\/BS\s*<<[^>]*\/D\s*\[/)
+    })
+
+    test.each([
+      [[]],
+      [[-1, 2]],
+      [[Number.NaN, 2]],
+      [[Number.POSITIVE_INFINITY]],
+      [[0, 0]],
+    ])('writes the dash list %j as solid', async (dashes) => {
+      const saved = await written(`dashes ${JSON.stringify(dashes)}`, {
+        annotations: [item(bordered('odd', dashes))],
+      })
+      const { read, dict } = await only(saved)
+      expect(read.borderStyle).toMatchObject({ style: SOLID, width: 2 })
+      expect(dict).not.toMatch(/\/BS\s*<<[^>]*\/D\s*\[/)
+    })
+  })
 
   test('writes a line with its end points and endings', async () => {
     const annotation = {
@@ -584,7 +676,7 @@ test('removes the annotations it is told to', async () => {
   try {
     await doc.write({ remove: [{ page: 0, objectNumber: first }] })
     after = await doc.save()
-    saves.push({ name: 'one removed', bytes: after })
+    keep('one removed', after)
   } finally {
     await doc.close()
   }
@@ -617,7 +709,7 @@ test('does not stack', async () => {
     await doc.write(input)
     await doc.write(input)
     saved = await doc.save()
-    saves.push({ name: 'written twice', bytes: saved })
+    keep('written twice', saved)
   } finally {
     await doc.close()
   }

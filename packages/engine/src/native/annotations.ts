@@ -32,6 +32,28 @@ const PRINT = 4
 const COLOR = 0
 const INTERIOR_COLOR = 1
 
+/**
+ * PDFium's border style numbers for /BS /S. Only these two are passed: the setter writes the
+ * width before it checks the style, so an unknown style would change the width and then fail.
+ */
+const BORDER_SOLID = 1
+const BORDER_DASHED = 2
+
+/**
+ * Whether `dashes` draws dashes: at least one length, every one finite and not negative, and not
+ * all zero. Anything else is written as a solid border.
+ */
+function isDashPattern(
+  dashes: readonly number[] | undefined
+): dashes is readonly number[] {
+  return (
+    dashes !== undefined &&
+    dashes.length > 0 &&
+    dashes.every((d) => Number.isFinite(d) && d >= 0) &&
+    dashes.some((d) => d > 0)
+  )
+}
+
 /** PDFium's line ending numbers, by PDF name. A name not listed is written as None. */
 const LINE_ENDINGS: Record<string, number> = {
   None: 0,
@@ -211,9 +233,27 @@ export function writeAnnotation(
           '/QuadPoints'
         )
     }
-    const setBorder = (width: number | undefined, radius = 0) => {
+    // /BS holds the style, the width and the dashes, and viewers read it first. /Border holds
+    // the corner radius, which /BS cannot, with the same width for viewers that read only it.
+    const setBorder = (
+      width: number | undefined,
+      dashes: readonly number[] | undefined,
+      radius = 0
+    ) => {
       if (width === undefined) return
       check(fn.FPDFAnnot_SetBorder(annot, radius, radius, width), '/Border')
+      const dashed = isDashPattern(dashes)
+      check(
+        fn.EPDFAnnot_SetBorderStyle(annot, dashed ? BORDER_DASHED : BORDER_SOLID, width),
+        '/BS'
+      )
+      if (dashed)
+        check(
+          withFloats(heap, dashes, (pattern, count) =>
+            fn.EPDFAnnot_SetBorderDashPattern(annot, pattern, count)
+          ),
+          '/BS /D'
+        )
     }
     const setEndings = (head: string | undefined, tail: string | undefined) => {
       if (head === undefined && tail === undefined) return
@@ -280,7 +320,7 @@ export function writeAnnotation(
             fn.EPDFAnnot_SetTextAlignment(annot, ALIGNMENT[style?.textAlign ?? 'left']),
             '/Q'
           )
-          setBorder(annotation.width, annotation.cornerRadius)
+          setBorder(annotation.width, annotation.dashes, annotation.cornerRadius)
           const callout = annotation.callout
           if (callout && callout.length > 0) {
             if (callout.length !== 2 && callout.length !== 3)
@@ -303,6 +343,7 @@ export function writeAnnotation(
           setColor(INTERIOR_COLOR, annotation.interiorColor, 'IC')
           setBorder(
             annotation.width,
+            annotation.dashes,
             annotation.type === 'square' ? annotation.cornerRadius : undefined
           )
           break
@@ -316,7 +357,7 @@ export function writeAnnotation(
             '/L'
           )
           setEndings(annotation.head, annotation.tail)
-          setBorder(annotation.width)
+          setBorder(annotation.width, annotation.dashes)
           break
         case 'polyline':
         case 'polygon':
@@ -328,7 +369,7 @@ export function writeAnnotation(
           )
           setColor(INTERIOR_COLOR, annotation.interiorColor, 'IC')
           if (annotation.type === 'polyline') setEndings(annotation.head, annotation.tail)
-          setBorder(annotation.width)
+          setBorder(annotation.width, annotation.dashes)
           break
         case 'ink':
           for (const stroke of annotation.inklist)
@@ -338,7 +379,7 @@ export function writeAnnotation(
               ),
               '/InkList'
             )
-          setBorder(annotation.width)
+          setBorder(annotation.width, annotation.dashes)
           break
         case 'redact':
           appendQuads(annotation.quads)
