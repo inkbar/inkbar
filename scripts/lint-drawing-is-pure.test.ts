@@ -39,6 +39,18 @@ const GLOBALS = [
   'Path2D',
   'DOMMatrix',
   'DOMRect',
+  'Range',
+  'Text',
+  'DocumentFragment',
+  'screen',
+  'alert',
+  'fetch',
+  'XMLHttpRequest',
+  'WebSocket',
+  'Worker',
+  'Blob',
+  'FileReader',
+  'ImageData',
 ]
 
 describe('inkbar/drawing-is-pure', () => {
