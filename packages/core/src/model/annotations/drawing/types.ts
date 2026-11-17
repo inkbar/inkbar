@@ -22,11 +22,15 @@ export interface Drawing {
  * One thing painted, in user space.
  *
  * An outline's dashes start where the item's outline does. A `polygon` and a `polyline` start at
- * their first point and a `path` at its first command, in order. A `rect` starts at its top-left
- * corner as the page is displayed unturned (at its top edge, where the corner's arc ends, when it
- * has a `radius`) and runs clockwise as displayed; an `ellipse` starts at its rightmost point and
- * runs clockwise as displayed. Those two are the same corner and direction in user space however
- * the view is turned. A painter that cannot start a dash there draws the outline as a path.
+ * their first point and a `path` at its first command, in order. A `rect` and an `ellipse` have
+ * a start and a direction in user space (x right, y up), whatever the page's `/Rotate` and the
+ * view's turn: a `rect` starts at its top-left corner, `(x, y + height)`, and runs along its top
+ * edge towards +x, then down its right edge, so that it is clockwise as drawn with y up; with a
+ * `radius` it starts at the end of that corner's arc, `(x + radius, y + height)`. An `ellipse`
+ * starts at its rightmost point, `(x + width, y + height / 2)`, and runs towards -y, clockwise
+ * the same way. A painter that shows the page turned keeps that corner and direction on the
+ * item, so it draws the outline as a path when its own rect or ellipse would start elsewhere.
+ * A `radius` is never more than half the shorter side.
  */
 export type DrawItem = { role?: DrawRole } & (
   | { kind: 'polygon' | 'polyline'; points: readonly Point[]; paint: Paint }

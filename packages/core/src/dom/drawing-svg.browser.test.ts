@@ -1005,8 +1005,12 @@ describe('the width a line of standard-font text is set to', () => {
 describe('where a dashed rect or ellipse starts', () => {
   const dashed: Paint = { stroke: { color: '#000', width: 4, dashes: [10, 10] } }
   /** True when the stroke of the one shape painted covers the user-space point `p`. */
-  function covers(item: DrawItem, rotation: 0 | 90, p: { x: number; y: number }) {
-    const t = createPageTransform(page, 1, rotation)
+  function covers(
+    item: DrawItem,
+    [pageRotate, rotation]: readonly [0 | 90, 0 | 90 | 270],
+    p: { x: number; y: number }
+  ) {
+    const t = createPageTransform({ ...page, rotate: pageRotate }, 1, rotation)
     const el = document.createElement('div')
     document.body.append(el)
     try {
@@ -1019,8 +1023,13 @@ describe('where a dashed rect or ellipse starts', () => {
     }
   }
 
-  for (const rotation of [0, 90] as const) {
-    it(`a rect starts at its top-left as the page is displayed unturned and runs along the top, at view rotation ${rotation}`, () => {
+  for (const rotation of [
+    [0, 0],
+    [0, 90],
+    [90, 0],
+    [90, 270],
+  ] as const) {
+    it(`a rect starts at its top-left as the page is displayed unturned and runs along the top, at /Rotate ${rotation[0]} and view rotation ${rotation[1]}`, () => {
       const rect = { x: 100, y: 600, width: 100, height: 65 }
       const item: DrawItem = { kind: 'rect', rect, paint: dashed }
       // The first dash covers 0 to 10 along the top edge, then a gap to 20.
@@ -1031,14 +1040,14 @@ describe('where a dashed rect or ellipse starts', () => {
       expect(covers(item, rotation, { x: 100, y: 605 })).toBe(true)
     })
 
-    it(`a rounded rect starts at the end of its top-left arc at view rotation ${rotation}`, () => {
+    it(`a rounded rect starts at the end of its top-left arc at /Rotate ${rotation[0]} and view rotation ${rotation[1]}`, () => {
       const rect = { x: 100, y: 600, width: 100, height: 65 }
       const item: DrawItem = { kind: 'rect', rect, radius: 10, paint: dashed }
       expect(covers(item, rotation, { x: 115, y: 665 })).toBe(true)
       expect(covers(item, rotation, { x: 125, y: 665 })).toBe(false)
     })
 
-    it(`an ellipse starts at its rightmost point and runs clockwise as displayed, at view rotation ${rotation}`, () => {
+    it(`an ellipse starts at its rightmost point and runs clockwise as displayed, at /Rotate ${rotation[0]} and view rotation ${rotation[1]}`, () => {
       const rect = { x: 100, y: 600, width: 90, height: 90 }
       const item: DrawItem = { kind: 'ellipse', rect, paint: dashed }
       const on = (arc: number) => ({
