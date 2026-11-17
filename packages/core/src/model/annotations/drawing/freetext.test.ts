@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 
 import { describeAnnotation } from './describe'
-import { describeFreeText, freeTextFrame } from './freetext'
+import { describeFreeText, freeTextFrame, freeTextTextHeight } from './freetext'
 import { layoutText } from './text/layout'
 import { resolveFont, standardMeasure } from './text/measure'
 
@@ -345,6 +345,27 @@ describe('a callout', () => {
     dashes: [3, 1],
   }
 
+  test('the bounds hold a head that sticks out of the rect', () => {
+    const out = describeFreeText(
+      {
+        ...callout,
+        rect: { x: 100, y: 600, width: 100, height: 40 },
+        fringe: undefined,
+        callout: [
+          { x: 99, y: 599 },
+          { x: 150, y: 620 },
+        ],
+        width: 2,
+        head: 'OpenArrow',
+      },
+      context()
+    )
+    // The head's wings reach 6 along the line and 3 across, and half the stroke beyond.
+    expect(out.bounds.x).toBeLessThan(99)
+    expect(out.bounds.y).toBeLessThan(599)
+    expect(out.bounds.x + out.bounds.width).toBeGreaterThanOrEqual(200)
+  })
+
   test('adds its leader and head, below the box', () => {
     const d = describeFreeText(callout, context())
     expect(roles(d)).toEqual(['callout-line', 'ending-head', 'box', 'border', 'text'])
@@ -397,6 +418,21 @@ describe('a speech bubble', () => {
     if (item?.kind !== 'path') throw new Error('expected a path')
     return item
   }
+
+  test('the outline is centred on the box edge, so the bounds hold half of it outside', () => {
+    const d = describeFreeText(
+      {
+        ...bubble,
+        width: 4,
+        callout: [
+          { x: 140, y: 310 },
+          { x: 130, y: 300 },
+        ],
+      },
+      context()
+    )
+    expect(d.bounds).toEqual({ x: 98, y: 298, width: 124, height: 64 })
+  })
 
   test('is one path with rounded corners and a tail to the tip, then the text', () => {
     const d = describeFreeText(bubble, context())
@@ -492,5 +528,18 @@ describe('a speech bubble', () => {
     const upright = path(describeFreeText(bubble, context(0))).commands
     const turned = path(describeFreeText(bubble, context(90))).commands
     expect(turned).toEqual(upright)
+  })
+})
+
+describe('freeTextTextHeight', () => {
+  test("is the stack of the drawing's lines, 1.2 times the size each", () => {
+    const long = { ...box, contents: 'one two three four five six seven eight nine ten' }
+    const n = text(describeFreeText(long, context())).lines.length
+    expect(n).toBeGreaterThan(1)
+    expect(freeTextTextHeight(long, context())).toBeCloseTo(n * 1.2 * 12, 9)
+  })
+
+  test("takes the contents it is given in place of the annotation's", () => {
+    expect(freeTextTextHeight(box, context(), 'a\nb\nc')).toBeCloseTo(3 * 14.4, 9)
   })
 })

@@ -1966,6 +1966,39 @@ describe('draw tool', () => {
     }
   )
 
+  it('a pen that reports no pressure is previewed as it is committed, at full width', async () => {
+    const { doc, container, viewport, tools } = await setup()
+    tools.set('draw')
+    const h = viewport.hostFor(0)!.getBoundingClientRect()
+    const moves: [number, number][] = [
+      [100, 100],
+      [140, 130],
+      [180, 130],
+      [220, 100],
+    ]
+    pointer(container, 'pointerdown', h.left + 100, h.top + 100, pen(0))
+    for (const [x, y] of moves.slice(1))
+      pointer(container, 'pointermove', h.left + x, h.top + y, pen(0))
+    const previewD = container.querySelector('[data-ink-draft] path')!.getAttribute('d')!
+    pointer(container, 'pointerup', h.left + 220, h.top + 100, pen(0, { buttons: 0 }))
+    const [ink] = inks(doc)
+    expect(ink).not.toHaveProperty('pressure')
+    const path = container.querySelector<SVGPathElement>(
+      `[data-annotation="${ink!.id}"] path.ink-stroke`
+    )!
+    const svg = path.ownerSVGElement!.getBoundingClientRect()
+    const preview = pairs(previewD)
+    const committed = pairs(path.getAttribute('d')!).map(([x, y]): [number, number] => [
+      x + svg.left - h.left,
+      y + svg.top - h.top,
+    ])
+    expect(preview).toHaveLength(committed.length)
+    preview.forEach(([x, y], k) => {
+      expect(Math.abs(x - committed[k]![0])).toBeLessThan(0.01)
+      expect(Math.abs(y - committed[k]![1])).toBeLessThan(0.01)
+    })
+  })
+
   it('mouse input omits pressure', async () => {
     const { doc, container, viewport, tools } = await setup()
     tools.set('draw')

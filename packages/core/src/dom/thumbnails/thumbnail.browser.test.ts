@@ -2,10 +2,13 @@ import { browserAssets, fixtureUrl } from '@inkbar/fixtures/urls'
 import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
+import { GLYPHS } from '../../model/annotations/drawing/note'
 import { writable } from '../../model/readable'
 import { oneOfEach } from '../../test-support/annotations'
+import { createOverlay } from '../overlay'
 import { definePlugin } from '../plugins/define'
 import { mountContainer, openFixtureInBrowser, settle, until } from '../test-utils'
+import { createPageTransform } from '../transform'
 import { createViewer, pluginHostOf, type Viewer } from '../viewer/create-viewer'
 
 import { createThumbnail, createThumbnailPainter } from './thumbnail'
@@ -154,6 +157,56 @@ describe('createThumbnail', () => {
     expect(child.getAttribute('role')).toBeNull()
   })
 
+  describe('an annotation whose drawing throws', () => {
+    it('does not stop the store, the thumbnail or the overlay drawing the others', async () => {
+      const doc = await openDoc()
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      // A glyph that is not a list of nodes makes the note's description throw.
+      const glyphs = GLYPHS as Record<string, unknown>
+      glyphs.Broken = 5
+      cleanup.push(() => void delete glyphs.Broken)
+      const host = mountContainer(612, 792)
+      const overlay = createOverlay({
+        host,
+        page: 0,
+        store: doc.annotations,
+        transform: createPageTransform(doc.pages[0]!, 1, 0),
+      })
+      cleanup.push(() => (overlay.destroy(), host.remove()))
+      const el = place(document.createElement('div'))
+      const painter = createThumbnailPainter(el, { document: writable(doc) }, { page: 0 })
+      cleanup.push(() => painter.destroy())
+      await painted(el)
+
+      const rect = { x: 100, y: 500, width: 20, height: 20 }
+      const bad = () =>
+        doc.annotations.add({ type: 'text', page: 0, rect, icon: 'Broken' })
+      expect(bad).not.toThrow()
+      const good = doc.annotations.add({
+        type: 'square',
+        page: 0,
+        rect: { x: 200, y: 500, width: 50, height: 50 },
+      })
+      doc.annotations.add({ type: 'text', page: 0, rect, icon: 'constructor' })
+
+      const inThumbnail = (type: string) =>
+        el.querySelector(`.ink-thumbnail-annotation[data-type="${type}"] svg`)
+      expect(annotationsOf(el)).toBe(3)
+      expect(inThumbnail('square')).not.toBeNull()
+      expect(
+        host.querySelector(`[data-annotation="${CSS.escape(good.id)}"] svg`)
+      ).not.toBeNull()
+      // The broken note is left empty in both, and reported once per id by each of them.
+      const broken = doc.annotations.byPage(0).find((a) => a.type === 'text')!
+      expect(
+        host.querySelector(`[data-annotation="${CSS.escape(broken.id)}"] svg`)
+      ).toBeNull()
+      const warned = warn.mock.calls.filter((c) => String(c[0]).includes(broken.id))
+      expect(warned).toHaveLength(2)
+      expect(String(warned[0]![0])).toContain('(text)')
+    })
+  })
+
   describe('paints each annotation from its drawing', () => {
     /** A thumbnail 306 css px wide (half size) of page 0 with `inputs` added, painted. */
     async function thumbnailOf(
@@ -240,6 +293,74 @@ describe('createThumbnail', () => {
       const masks = el.querySelectorAll('.ink-thumbnail-annotation[data-type="mask"]')
       expect(masks).toHaveLength(1)
       expect(masks[0]!.querySelector('path')!.getAttribute('fill')).toBe('#102030')
+    })
+
+    it('dims for the same mask the page does when the first stored is not the first in reading order', async () => {
+      const doc = await openDoc()
+      const low = doc.annotations.add({
+        ...mask,
+        rect: { x: 100, y: 200, width: 100, height: 100 },
+        color: '#102030',
+      })
+      doc.annotations.replaceAll(
+        [
+          low,
+          {
+            ...low,
+            id: 'higher-mask',
+            rect: { x: 100, y: 600, width: 100, height: 100 },
+            color: '#ff0000',
+          },
+        ],
+        'import'
+      )
+      const host = mountContainer(612, 792)
+      const overlay = createOverlay({
+        host,
+        page: 0,
+        store: doc.annotations,
+        transform: createPageTransform(doc.pages[0]!, 1, 0),
+      })
+      cleanup.push(() => (overlay.destroy(), host.remove()))
+      const el = place(document.createElement('div'))
+      const painter = createThumbnailPainter(
+        el,
+        { document: writable(doc) },
+        { page: 0, width: 306 }
+      )
+      cleanup.push(() => painter.destroy())
+      await painted(el)
+      const fill = (root: ParentNode, selector: string) =>
+        root.querySelector(`${selector} path`)!.getAttribute('fill')
+      expect(fill(el, '.ink-thumbnail-annotation[data-type="mask"]')).toBe('#ff0000')
+      expect(fill(host, '.ink-mask-layer')).toBe('#ff0000')
+    })
+
+    it('paints nothing for an embedded annotation of any drawn kind, but a note with no appearance', async () => {
+      const doc = await openDoc()
+      const rect = { x: 100, y: 500, width: 120, height: 80 }
+      const added = [
+        ...oneOfEach(),
+        { type: 'loupe', page: 0, rect, width: 2 },
+        mask,
+        { type: 'redact', page: 0, rect },
+      ].map((input) => doc.annotations.add(input as never))
+      doc.annotations._setEmbedded(
+        added.map((a) => ({
+          ...a,
+          source: 'pdf' as const,
+          locked: true,
+          ...(a.type === 'text' ? { hasAppearance: false } : {}),
+        }))
+      )
+      const el = place(document.createElement('div'))
+      const painter = createThumbnailPainter(el, { document: writable(doc) }, { page: 0 })
+      cleanup.push(() => painter.destroy())
+      await painted(el)
+      const types = [
+        ...el.querySelectorAll<HTMLElement>('.ink-thumbnail-annotation'),
+      ].map((n) => n.dataset.type)
+      expect(types).toEqual(['text'])
     })
 
     it('draws a loupe as its rim, with no lens', async () => {

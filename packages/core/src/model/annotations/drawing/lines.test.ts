@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest'
 import { describeLine, endingItem } from './lines'
 
 import type { LineAnnotation, PolyAnnotation } from '../types'
+import type { Paint } from './types'
 
 const O = { x: 0, y: 0 }
 const E = { x: 10, y: 0 }
@@ -282,6 +283,51 @@ describe('describeLine', () => {
     const plain = describeLine(line).bounds
     expect(plain).toEqual({ x: 99, y: 599, width: 102, height: 2 })
     const arrowed = describeLine({ ...line, tail: 'OpenArrow' }).bounds
-    expect(arrowed).toEqual({ x: 94, y: 594, width: 112, height: 12 })
+    // The arrow's own corners, 6 back and 3 either side of the tip, and half the stroke beyond.
+    expect(arrowed).toEqual({ x: 99, y: 596, width: 102, height: 8 })
+  })
+
+  test('a diagonal head is inside the bounds', () => {
+    const diagonal: LineAnnotation = {
+      ...line,
+      start: { x: 100, y: 600 },
+      end: { x: 200, y: 700 },
+      width: 1,
+      tail: 'OpenArrow',
+    }
+    const { bounds } = describeLine(diagonal)
+    const [group] = describeLine(diagonal).items
+    if (group?.kind !== 'group') throw new Error('no group')
+    const head = group.items[1]
+    if (head?.kind !== 'path') throw new Error('no head')
+    for (const c of head.commands) {
+      if (c.op !== 'M' && c.op !== 'L') continue
+      expect(c.to.x).toBeGreaterThanOrEqual(bounds.x + 0.5 - 1e-9)
+      expect(c.to.x).toBeLessThanOrEqual(bounds.x + bounds.width - 0.5 + 1e-9)
+      expect(c.to.y).toBeGreaterThanOrEqual(bounds.y + 0.5 - 1e-9)
+      expect(c.to.y).toBeLessThanOrEqual(bounds.y + bounds.height - 0.5 + 1e-9)
+    }
+  })
+
+  test('a line of no width has no stroke on the shaft or the ending', () => {
+    const d = describeLine({ ...line, width: 0, tail: 'ClosedArrow', head: 'OpenArrow' })
+    const [group] = d.items
+    if (group?.kind !== 'group') throw new Error('no group')
+    for (const item of group.items) {
+      expect(
+        item.kind === 'group' ? undefined : (item as { paint: Paint }).paint.stroke
+      ).toBeUndefined()
+    }
+    expect(group.items[2]).toMatchObject({ role: 'ending-tail', paint: { fill: {} } })
+    noNaN(d)
+  })
+
+  test('a polyline with no vertices has finite bounds', () => {
+    const d = describeLine({
+      ...base,
+      type: 'polyline',
+      vertices: [],
+    } as unknown as PolyAnnotation)
+    expect(d.bounds).toEqual({ x: 0, y: 0, width: 0, height: 0 })
   })
 })

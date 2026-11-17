@@ -11,9 +11,13 @@
 // left/top; their look is the theme's.
 // Custom elements are the exception and stay `pointer-events:auto`: the host draws them and
 // only it knows their shape. Every visual (colour, opacity, stroke, fill) is an SVG
-// attribute or a theme hook.
+// attribute with the same inline style, or a theme hook.
 import { freeTextBox } from '../model/annotations/callout'
-import { paintedByCanvas } from '../model/annotations/drawing/describe'
+import {
+  dimmingMask,
+  paintedByCanvas,
+  readingOrder,
+} from '../model/annotations/drawing/describe'
 import {
   hasCallout,
   hasCornerHandles,
@@ -41,11 +45,12 @@ import {
   syncHandles,
   type HandleSpec,
 } from './overlay-render'
+import { createUndrawnGuard } from './undrawn'
 
 import type { InkMessages } from '../messages'
 import type { PageTransform } from './transform'
 import type { AnnotationStore } from '../model/annotations/store'
-import type { Annotation, MaskAnnotation } from '../model/annotations/types'
+import type { Annotation } from '../model/annotations/types'
 import type { InkDocument } from '../model/document'
 import type { Point } from '../model/geometry'
 import type { Readable } from '../model/readable'
@@ -136,11 +141,6 @@ function ariaLabel(a: Annotation, m: InkMessages): string {
       : t[a.type]
   const named = hasComment(a) ? t.withComment({ name: base }) : base
   return a.author ? t.byAuthor({ name: named, author: a.author }) : named
-}
-
-/** Reading order in user space: top edge first (y grows upwards), then left edge. */
-function readingOrder(a: Annotation, b: Annotation): number {
-  return b.rect.y + b.rect.height - (a.rect.y + a.rect.height) || a.rect.x - b.rect.x
 }
 
 /** A decoration's data key: lower-case kebab, as written after `data-`. */
@@ -387,8 +387,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     node.style.height = `${box.height}px`
   }
 
-  /** Ids already reported as undrawn, so a zoom does not report them again. */
-  const undrawn = new Set<string>()
+  const guard = createUndrawnGuard()
 
   function applyContent(node: HTMLElement, a: Annotation): void {
     const custom = opts.isCustom?.(a) === true
@@ -402,25 +401,23 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     }
     const last = drawn.get(a.id)
     if (last?.a === a && last.t === transform) return
-    try {
-      // Annotations PDF.js already painted on the canvas get only an invisible hit area.
-      if (paintedByCanvas(a)) renderHitArea(node, a, transform)
-      else renderAnnotationContent(node, a, transform)
-      if (a.type === 'loupe') loupes?.attach(node, a, transform)
-    } catch (error) {
+    const canvas = paintedByCanvas(a)
+    const ok = guard.attempt(
+      a,
+      canvas ? 'could not get a hit area' : 'was left undrawn',
+      () => {
+        // Annotations PDF.js already painted on the canvas get only an invisible hit area.
+        if (canvas) renderHitArea(node, a, transform)
+        else renderAnnotationContent(node, a, transform)
+        if (a.type === 'loupe' && !canvas) loupes?.attach(node, a, transform)
+      }
+    )
+    if (!ok) {
       // One annotation that cannot be drawn is left empty; the page's others still draw.
       node.replaceChildren()
       loupes?.drop(a.id)
-      if (!undrawn.has(a.id)) {
-        undrawn.add(a.id)
-        console.warn(
-          `[inkbar] annotation ${a.id} (${a.type}) was left undrawn: ${error instanceof Error ? error.message : String(error)}`
-        )
-      }
-      drawn.set(a.id, { a, t: transform })
-      return
     }
-    undrawn.delete(a.id)
+    // A failed annotation stays empty until it or the transform changes.
     drawn.set(a.id, { a, t: transform })
   }
 
@@ -685,13 +682,17 @@ export function createOverlay(opts: OverlayOptions): Overlay {
       loupes?.drop(id)
       elements.delete(id)
       drawn.delete(id)
+      guard.forget(id)
       hovered.delete(id)
     }
 
-    masks.update(
-      current.find((a): a is MaskAnnotation => a.type === 'mask'),
-      transform
+    // Only what the overlay draws dims the page: the canvas paints an embedded mask already.
+    const mask = dimmingMask(current.filter((a) => !paintedByCanvas(a)))
+    if (
+      !mask ||
+      !guard.attempt(mask, 'was left undrawn', () => masks.update(mask, transform))
     )
+      masks.update(undefined, transform)
 
     order = current.map((a) => a.id)
     for (const a of current) {

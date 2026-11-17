@@ -62,6 +62,18 @@ describe('paintDrawing', () => {
     expect(svg.firstElementChild!.tagName).toBe('polygon')
   })
 
+  it("a lone group's role is kept on the svg", () => {
+    const el = paint(
+      drawing({
+        kind: 'group',
+        opacity: 0.5,
+        role: 'box',
+        items: [{ kind: 'rect', rect: { x: 0, y: 0, width: 1, height: 1 }, paint: fill }],
+      })
+    )
+    expect(el.querySelector('svg')!.getAttribute('data-ink-part')).toBe('box')
+  })
+
   it('a nested group becomes a g with its own opacity', () => {
     const el = paint(
       drawing(
@@ -534,7 +546,7 @@ describe('a text', () => {
     expect(first!.getAttribute('lengthAdjust')).toBe('spacing')
     // Font and colour are inline style as well, so a host's rule on the text does not restyle it.
     expect(first!.getAttribute('style')).toBe(
-      `font-kerning:none;white-space:pre;font-family:${FONT_STACKS.Helvetica};font-size:24px;font-weight:normal;font-style:normal;fill:#0a0b0c`
+      `font-kerning:none;white-space:pre;font-family:${FONT_STACKS.Helvetica};font-size:24px;font-weight:normal;font-style:normal;fill:#0a0b0c;stroke:none;text-anchor:start;dominant-baseline:alphabetic;letter-spacing:0;word-spacing:0;text-decoration:none`
     )
     expect(first!.getAttribute('font-family')).toBe(FONT_STACKS.Helvetica)
     expect(second!.getAttribute('y')).toBe(String(2 * (792 - 685.6)))
@@ -638,16 +650,37 @@ describe('a text', () => {
       1
     )
     const style = document.createElement('style')
-    style.textContent = 'text { font-family: cursive; fill: red; font-size: 40px }'
+    style.textContent =
+      'text { font-family: cursive; fill: red; font-size: 40px }\nsvg text { text-anchor: middle; letter-spacing: 2px; stroke: red; word-spacing: 9px; text-decoration: line-through; dominant-baseline: hanging }'
     document.head.append(style)
     const host = mountContainer(612, 792)
     host.append(el)
     const t = el.querySelector('text')!
     const cs = getComputedStyle(t)
-    const result = [cs.fill, cs.fontSize, cs.fontFamily]
+    const result = [
+      cs.fill,
+      cs.fontSize,
+      cs.fontFamily,
+      cs.textAnchor,
+      cs.letterSpacing,
+      cs.stroke,
+      cs.wordSpacing,
+      cs.textDecorationLine,
+      cs.dominantBaseline,
+    ]
     host.remove()
     style.remove()
-    expect(result).toEqual(['rgb(10, 11, 12)', '12px', FONT_STACKS.Helvetica])
+    expect(result).toEqual([
+      'rgb(10, 11, 12)',
+      '12px',
+      FONT_STACKS.Helvetica,
+      'start',
+      'normal',
+      'none',
+      '0px',
+      'none',
+      'alphabetic',
+    ])
   })
 
   it('every created element is checked for a non-finite value', () => {
@@ -967,4 +1000,84 @@ describe('the width a line of standard-font text is set to', () => {
       expect(longest).toBeLessThan(0.002)
     }
   )
+})
+
+describe('where a dashed rect or ellipse starts', () => {
+  const dashed: Paint = { stroke: { color: '#000', width: 4, dashes: [10, 10] } }
+  /** True when the stroke of the one shape painted covers the user-space point `p`. */
+  function covers(
+    item: DrawItem,
+    [pageRotate, rotation]: readonly [0 | 90, 0 | 90 | 270],
+    p: { x: number; y: number }
+  ) {
+    const t = createPageTransform({ ...page, rotate: pageRotate }, 1, rotation)
+    const el = document.createElement('div')
+    document.body.append(el)
+    try {
+      paintDrawing(el, drawing(item), t, box)
+      const shape = el.querySelector<SVGGeometryElement>('svg > *')!
+      const c = t.toCss(p)
+      return shape.isPointInStroke(new DOMPoint(c.x, c.y))
+    } finally {
+      el.remove()
+    }
+  }
+
+  for (const rotation of [
+    [0, 0],
+    [0, 90],
+    [90, 0],
+    [90, 270],
+  ] as const) {
+    it(`a rect starts at its top-left as the page is displayed unturned and runs along the top, at /Rotate ${rotation[0]} and view rotation ${rotation[1]}`, () => {
+      const rect = { x: 100, y: 600, width: 100, height: 65 }
+      const item: DrawItem = { kind: 'rect', rect, paint: dashed }
+      // The first dash covers 0 to 10 along the top edge, then a gap to 20.
+      expect(covers(item, rotation, { x: 105, y: 665 })).toBe(true)
+      expect(covers(item, rotation, { x: 115, y: 665 })).toBe(false)
+      expect(covers(item, rotation, { x: 125, y: 665 })).toBe(true)
+      // Up the left edge, 270 along the walk (100 top, 65 right, 100 bottom): in a dash.
+      expect(covers(item, rotation, { x: 100, y: 605 })).toBe(true)
+    })
+
+    it(`a rounded rect starts at the end of its top-left arc at /Rotate ${rotation[0]} and view rotation ${rotation[1]}`, () => {
+      const rect = { x: 100, y: 600, width: 100, height: 65 }
+      const item: DrawItem = { kind: 'rect', rect, radius: 10, paint: dashed }
+      expect(covers(item, rotation, { x: 115, y: 665 })).toBe(true)
+      expect(covers(item, rotation, { x: 125, y: 665 })).toBe(false)
+    })
+
+    it(`an ellipse starts at its rightmost point and runs clockwise as displayed, at /Rotate ${rotation[0]} and view rotation ${rotation[1]}`, () => {
+      const rect = { x: 100, y: 600, width: 90, height: 90 }
+      const item: DrawItem = { kind: 'ellipse', rect, paint: dashed }
+      const on = (arc: number) => ({
+        x: 145 + 45 * Math.cos(arc / 45),
+        y: 645 - 45 * Math.sin(arc / 45),
+      })
+      expect(covers(item, rotation, on(5))).toBe(true)
+      expect(covers(item, rotation, on(15))).toBe(false)
+      expect(covers(item, rotation, on(25))).toBe(true)
+    })
+  }
+})
+
+describe('a thin rounded dashed rect', () => {
+  it('has the same corner at view rotation 0 and 90', () => {
+    const rect = { x: 100, y: 600, width: 80, height: 10 }
+    const item: DrawItem = {
+      kind: 'rect',
+      rect,
+      radius: 5,
+      paint: { stroke: { color: '#000', width: 2, dashes: [4, 2] } },
+    }
+    const straight = paint(drawing(item), 1, 0).querySelector('rect')!
+    const turned = paint(drawing(item), 1, 90).querySelector('path')!
+    expect(Number(straight.getAttribute('rx'))).toBe(5)
+    // Every corner arc of the path has that radius, both ways.
+    const radii = [...turned.getAttribute('d')!.matchAll(/A([\d.]+) ([\d.]+)/g)].map(
+      (m) => [Number(m[1]), Number(m[2])]
+    )
+    expect(radii).toHaveLength(4)
+    for (const r of radii) expect(r).toEqual([5, 5])
+  })
 })

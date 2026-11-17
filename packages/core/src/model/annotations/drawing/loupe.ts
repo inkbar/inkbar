@@ -1,3 +1,7 @@
+import { unionRects } from '../../geometry'
+
+import { strokeInset } from './extent'
+
 import type { Rect } from '../../geometry'
 import type { LoupeAnnotation } from '../types'
 import type { Drawing } from './types'
@@ -17,15 +21,26 @@ export function loupeRegion(a: Pick<LoupeAnnotation, 'rect' | 'magnification'>):
 
 /**
  * A loupe: the page region it magnifies, shown in its rect and clipped to the circle inscribed
- * in it, and the rim over that circle (inset by half its stroke, absent at width 0). A painter
+ * in it, and the rim over that circle (inset by half its stroke, absent at width 0). A rim
+ * wider than the rect is centred in it and reaches past it, which the bounds include. A painter
  * draws the rim; whoever owns the lens draws the page region.
  */
 export function describeLoupe(a: LoupeAnnotation): Drawing {
   const { rect } = a
-  const inset = a.width / 2
+  // The rim is a circle: the inscribed square, centred in the rect, is its box.
+  const side = Math.min(rect.width, rect.height)
+  const { inset, reach } = strokeInset(
+    {
+      x: rect.x + (rect.width - side) / 2,
+      y: rect.y + (rect.height - side) / 2,
+      width: side,
+      height: side,
+    },
+    a.width
+  )
   return {
     layer: 'annotation',
-    bounds: rect,
+    bounds: a.width > 0 ? unionRects([rect, reach]) : rect,
     items: [
       {
         kind: 'page',
@@ -45,12 +60,7 @@ export function describeLoupe(a: LoupeAnnotation): Drawing {
                 {
                   kind: 'ellipse' as const,
                   role: 'loupe-rim' as const,
-                  rect: {
-                    x: rect.x + inset,
-                    y: rect.y + inset,
-                    width: Math.max(0, rect.width - a.width),
-                    height: Math.max(0, rect.height - a.width),
-                  },
+                  rect: inset,
                   paint: { stroke: { color: a.color, width: a.width } },
                 },
               ],

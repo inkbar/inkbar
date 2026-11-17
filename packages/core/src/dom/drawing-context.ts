@@ -13,7 +13,8 @@ const measure = measureWith(browserWidth)
 /** What describing an annotation needs from its page. Zoom and view rotation are not part of it. */
 export function drawContext(t: PageTransform): DrawContext {
   return {
-    page: { box: t.page.box, rotate: t.page.rotate, userUnit: t.page.userUnit },
+    // A copy of the box: the page it describes may change its own, and the cache compares.
+    page: { box: { ...t.page.box }, rotate: t.page.rotate, userUnit: t.page.userUnit },
     measure,
   }
 }

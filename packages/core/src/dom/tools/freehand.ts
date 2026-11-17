@@ -72,6 +72,11 @@ export function reportsPressure(samples: readonly number[]): boolean {
   return samples.some((p) => p !== 0 && p !== 0.5)
 }
 
+/** The samples' pressure when the device reported some, else undefined: preview and commit agree. */
+function pressureReported(s: { pressure: number[] | undefined }): number[] | undefined {
+  return s.pressure && reportsPressure(s.pressure) ? s.pressure : undefined
+}
+
 /**
  * A tool in the `ink` style group that captures freehand strokes and previews them in
  * `.ink-draft[data-ink-draft=<id>]`.
@@ -127,7 +132,7 @@ export function freehandTool(opts: FreehandOptions): Tool {
       // Shaped in points, as the committed stroke is, then moved to the screen: the preview
       // and the annotation are one shape at every zoom.
       outlinePath(
-        inkOutline(s.user, s.pressure, style.width ?? 2).map((p) =>
+        inkOutline(s.user, pressureReported(s), style.width ?? 2).map((p) =>
           s.from.transform.toCss(p)
         )
       )
@@ -207,7 +212,7 @@ export function freehandTool(opts: FreehandOptions): Tool {
       opts.commit(ctx, {
         page: s.from.page,
         points: s.user,
-        pressure: s.pressure && reportsPressure(s.pressure) ? s.pressure : undefined,
+        pressure: pressureReported(s),
         startedAt: s.startedAt,
       })
     },

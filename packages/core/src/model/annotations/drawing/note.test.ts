@@ -180,6 +180,32 @@ describe('describeNote', () => {
     })
   })
 
+  test('a name inherited from Object draws the square alone', () => {
+    for (const icon of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+      expect(itemsOf({ ...note, icon }), icon).toHaveLength(1)
+    }
+  })
+
+  test('a reversed or negative rect is the box it spans', () => {
+    const upright = describeNote(note, context())
+    const reversed = describeNote(
+      { ...note, rect: { x: 120, y: 720, width: -20, height: -20 } },
+      context()
+    )
+    expect(reversed).toEqual(upright)
+    const negative = describeNote(
+      { ...note, rect: { x: 100, y: 700, width: -20, height: 20 } },
+      context()
+    )
+    expect(negative.bounds).toEqual({ x: 80, y: 700, width: 20, height: 20 })
+    const [group] = negative.items
+    if (group?.kind !== 'group') throw new Error('expected a group')
+    const arcs = group.items.flatMap((i) =>
+      i.kind === 'path' ? i.commands.filter((c) => c.op === 'A') : []
+    )
+    for (const arc of arcs) if (arc.op === 'A') expect(arc.rx).toBeGreaterThan(0)
+  })
+
   test('an unknown icon draws the square alone', () => {
     const d = describeNote({ ...note, icon: 'Check' }, context())
     expect(d.items).toHaveLength(1)

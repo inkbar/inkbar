@@ -1,10 +1,12 @@
 import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { userEvent } from 'vitest/browser'
+import { page as browserPage, userEvent } from 'vitest/browser'
 
 import { staticDefaults } from '../model/annotations/defaults'
+import { describeDrawing } from '../model/annotations/drawing/describe'
 import { createAnnotationStore } from '../model/annotations/store'
 
+import { drawContext } from './drawing-context'
 import { editFreeText, editFreeTextIn, type EditorCloseReason } from './freetext-editor'
 import { createOverlay } from './overlay'
 import { mountContainer, until } from './test-utils'
@@ -347,6 +349,180 @@ describe('editFreeText', () => {
     const f = el.querySelector<HTMLElement>('[data-ink-editor]')!
     // The layout's own width, 0: the editor breaks where the drawing would, not wider.
     expect(f.style.width).toBe('0px')
+  })
+})
+
+describe('the editor and the box drawn without it', () => {
+  function open(extra: Partial<FreeTextAnnotation> = {}) {
+    const store = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const host = mountContainer(612, 792)
+    const transform = createPageTransform(page, 1, 0)
+    const overlay = createOverlay({ host, page: 0, store, transform })
+    cleanup.push(() => (overlay.destroy(), host.remove()))
+    const a = store.add({
+      type: 'freetext',
+      page: 0,
+      rect: { x: 100, y: 600, width: 144, height: 40 },
+      contents: 'Hi',
+      color: '#FFFF00',
+      ...extra,
+    } as never) as FreeTextAnnotation
+    const el = overlay.elementFor(a.id)!
+    const editor = editFreeTextIn(store, el, a.id, transform)!
+    cleanup.unshift(() => editor.close(false))
+    return { store, el, a, editor, transform }
+  }
+
+  it('is as opaque as the text it stands in for', () => {
+    const { el } = open({ opacity: 0.4 })
+    const f = el.querySelector<HTMLElement>('[data-ink-editor]')!
+    expect(getComputedStyle(f).opacity).toBe('0.4')
+  })
+
+  it('draws a box changed from outside while it was open when it closes with no change', () => {
+    const { store, el, a, editor } = open()
+    const field = el.querySelector('[data-ink-editor]')
+    expect(field).not.toBeNull()
+    store.update(a.id, {
+      color: '#00FF00',
+      rect: { x: 200, y: 500, width: 144, height: 40 },
+    })
+    editor.close(true)
+    expect(store.get(a.id)).toMatchObject({ contents: 'Hi', color: '#00FF00' })
+    const box = el.querySelector('rect[data-ink-part="box"]')!
+    expect(box.getAttribute('fill')).toBe('#00FF00')
+    // The element is where the annotation is now: 792 - 540 = 252 from the top.
+    expect(el.style.left).toBe('200px')
+    expect(el.style.top).toBe('252px')
+  })
+})
+
+describe('the editor underline', () => {
+  it('lies on the rule the drawing paints, as thick and as far below the baseline', async () => {
+    const store = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const host = mountContainer(612, 792)
+    host.style.background = '#fff'
+    const transform = createPageTransform(page, 1, 0)
+    const overlay = createOverlay({ host, page: 0, store, transform })
+    cleanup.push(() => (overlay.destroy(), host.remove()))
+    const a = store.add({
+      type: 'freetext',
+      page: 0,
+      rect: { x: 100, y: 600, width: 300, height: 80 },
+      width: 0,
+      contents: '\u00a0'.repeat(8),
+      defaultStyle: { fontSize: 40, color: '#000000', textDecoration: 'underline' },
+    }) as FreeTextAnnotation
+    // The rule as the drawing has it, in CSS px.
+    const [group] = describeDrawing(a, drawContext(transform))!.items
+    if (group?.kind !== 'group') throw new Error('expected a group')
+    const item = group.items.find((i) => i.kind === 'text')
+    if (item?.kind !== 'text') throw new Error('expected text')
+    const rule = item.lines[0]!.underline!
+    const centre = transform.toCss(rule.from).y
+    const thickness = transform.toCssLength(rule.thickness)
+
+    const el = overlay.elementFor(a.id)!
+    const editor = editFreeTextIn(store, el, a.id, transform)!
+    cleanup.unshift(() => editor.close(false))
+    const png = await browserPage.screenshot({ element: host, save: false })
+    const bitmap = await createImageBitmap(
+      new Blob([Uint8Array.from(atob(png), (c) => c.charCodeAt(0))], {
+        type: 'image/png',
+      })
+    )
+    const canvas = document.createElement('canvas')
+    canvas.width = bitmap.width
+    canvas.height = bitmap.height
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })!
+    ctx.drawImage(bitmap, 0, 0)
+    // Darkness down a column inside the underlined run, near the rule: its rows, weighted by
+    // coverage. (The box's own outline is further up and down.)
+    const x = 100 + 20
+    const { data } = ctx.getImageData(x, 0, 1, bitmap.height)
+    let weight = 0
+    let sum = 0
+    for (let y = Math.floor(centre) - 8; y < Math.floor(centre) + 8; y++) {
+      const dark = 1 - data[y * 4]! / 255
+      weight += dark
+      sum += dark * (y + 0.5)
+    }
+    expect(weight).toBeCloseTo(thickness, 0)
+    expect(sum / weight).toBeCloseTo(centre, 0)
+  })
+})
+
+describe('closing the editor without typing', () => {
+  it('writes nothing to a box whose text needs more height than the box has', () => {
+    const store = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const host = mountContainer(612, 792)
+    const transform = createPageTransform(page, 1, 0)
+    const overlay = createOverlay({ host, page: 0, store, transform })
+    cleanup.push(() => (overlay.destroy(), host.remove()))
+    const a = store.add({
+      type: 'freetext',
+      page: 0,
+      rect: { x: 100, y: 600, width: 100, height: 20 },
+      contents: 'alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu',
+    }) as FreeTextAnnotation
+    const changes = vi.fn()
+    store.on('change', changes)
+    const editor = editFreeTextIn(store, overlay.elementFor(a.id)!, a.id, transform)!
+    editor.close(true)
+    expect(changes).not.toHaveBeenCalled()
+    expect(store.get(a.id)).toBe(a)
+  })
+})
+
+describe('a box the browser and the tables break differently', () => {
+  it("grows to the tables' line count when the text is edited, so no drawn line is clipped", async () => {
+    // Tight letter-spacing makes the browser fit more on a line than the tables do.
+    const style = document.createElement('style')
+    style.textContent = '.ink-free-text { letter-spacing: -2px; }'
+    document.head.append(style)
+    const store = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const host = mountContainer(612, 792)
+    const transform = createPageTransform(page, 1, 0)
+    const overlay = createOverlay({ host, page: 0, store, transform })
+    cleanup.push(() => (overlay.destroy(), host.remove(), style.remove()))
+    const contents = 'alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu'
+    const a = store.add({
+      type: 'freetext',
+      page: 0,
+      rect: { x: 100, y: 600, width: 100, height: 20 },
+      contents,
+    }) as FreeTextAnnotation
+    const el = overlay.elementFor(a.id)!
+    const editor = editFreeTextIn(store, el, a.id, transform)!
+    const f = el.querySelector<HTMLElement>('[data-ink-editor]')!
+    await userEvent.keyboard('!')
+    const browserLines = Math.round(f.getBoundingClientRect().height / 14.4)
+    editor.close(true)
+
+    const now = store.get(a.id) as FreeTextAnnotation
+    const text = describeDrawing(now, drawContext(transform))!.items.flatMap((g) =>
+      g.kind === 'group' ? g.items : [g]
+    )
+    const item = text.find((i) => i.kind === 'text')
+    if (item?.kind !== 'text') throw new Error('expected a text item')
+    const { descent } = drawContext(transform).measure.vertical(item.font)
+    expect(item.lines.length).toBeGreaterThan(browserLines)
+    for (const line of item.lines)
+      expect(line.origin.y - descent * item.size).toBeGreaterThanOrEqual(
+        item.clip!.rect.y - 1e-6
+      )
   })
 })
 

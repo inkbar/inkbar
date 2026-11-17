@@ -10,15 +10,18 @@ import {
   withCalloutBounds,
 } from '../model/annotations/callout'
 import { cssVariableDefaults, staticDefaults } from '../model/annotations/defaults'
+import { describeDrawing } from '../model/annotations/drawing/describe'
 import { isTextMarkup } from '../model/annotations/edit'
 import { createHistory } from '../model/annotations/history'
 import { importAnnotations } from '../model/annotations/json'
 import { createAnnotationStore } from '../model/annotations/store'
 import { renderRegion } from '../pdfjs/render-region'
+import { oneOfEach } from '../test-support/annotations'
 
+import { drawContext } from './drawing-context'
 import { createMessageState } from './messages-state'
 import { createOverlay, type OverlayOptions } from './overlay'
-import { renderAnnotationContent } from './overlay-render'
+import { handleBox, renderAnnotationContent } from './overlay-render'
 import { createPageMount } from './page-mount'
 import { mountContainer, openFixtureInBrowser, TEXT_LAYER_CSS } from './test-utils'
 import { FONT_STACKS } from './text-fonts'
@@ -61,6 +64,18 @@ function setup(zoom = 1) {
   })
   cleanup.push(() => (overlay.destroy(), host.remove()))
   return { store, host, overlay, onActivate }
+}
+
+/** A page point (user space, zoom 1) as a point in the local space of annotation `id`'s svg. */
+function overlayPoint(
+  overlay: { elementFor(id: string): HTMLElement | undefined },
+  id: string,
+  x: number,
+  y: number
+): DOMPoint {
+  const box = overlay.elementFor(id)!.getBoundingClientRect()
+  const origin = overlay.elementFor(id)!.parentElement!.getBoundingClientRect()
+  return new DOMPoint(origin.left + x - box.left, origin.top + (792 - y) - box.top)
 }
 
 describe('createOverlay', () => {
@@ -505,19 +520,37 @@ describe('createOverlay', () => {
       contents: 'Hi',
     })
     store.add({ type: 'text', page: 0, rect: { x: 400, y: 400, width: 20, height: 20 } })
+    // A justified box with a no-break space on a line that is not its last: that space is set
+    // apart in a piece of its own.
+    store.add({
+      type: 'freetext',
+      page: 0,
+      rect: { x: 100, y: 200, width: 90, height: 80 },
+      contents: 'one two three\u00a0four five six seven eight nine ten',
+      defaultStyle: { textAlign: 'justify' },
+    })
+    expect(overlay.element.querySelector('tspan')).not.toBeNull()
     // Descendants carry no inline style, except `pointer-events` on the HTML children the
-    // overlay creates, and the style of a drawn line of text and its underline (no kerning, spaces
-    // kept, font and colour), which keeps a host's rules off them.
+    // overlay creates, the style of a drawn line of text and its underline (no kerning, spaces
+    // kept, font and colour), and the paint and opacity of a drawn shape, which keep a host's
+    // rules off them.
     for (const node of overlay.element.querySelectorAll('[data-annotation] *')) {
       const style = node.getAttribute('style')
       if (style === null) continue
       if (node instanceof SVGTextElement) {
-        expect(style).toMatch(/^font-kerning:none;white-space:pre;font-family:/)
+        // A justified line's style is reserialised when its word spacing is set.
+        expect(style).toMatch(
+          /^font-kerning:\s*none;\s*white-space:\s*pre;\s*font-family:/
+        )
         continue
       }
-      // The paint of a shape that only takes presses, inline so a host rule cannot fill it.
+      if (node instanceof SVGTSpanElement) {
+        expect(style).toBe('word-spacing: 0px;')
+        continue
+      }
+      // The paint of a shape, drawn or only taking presses, and a group's opacity.
       if (node instanceof SVGElement) {
-        expect(style).toMatch(/^(fill|stroke):/)
+        expect(style).toMatch(/^(fill|stroke|opacity):/)
         continue
       }
       expect(node).toBeInstanceOf(HTMLElement)
@@ -941,6 +974,78 @@ describe('createOverlay', () => {
       for (let i = 0; i < data.length; i += 4)
         if (data[i + 2]! > 150 && data[i]! < 100 && data[i + 1]! < 100) blue++
       expect(blue).toBeGreaterThan(20)
+    })
+
+    it('every drawn shape keeps its paint under a host rule on svg shapes, notes included', () => {
+      const { store, overlay } = setup()
+      const rect = { x: 100, y: 500, width: 120, height: 80 }
+      const squiggle = { x: 300, y: 420, width: 100, height: 20 }
+      const ends = { start: { x: 100, y: 300 }, end: { x: 300, y: 340 }, rect }
+      const inputs = [
+        ...oneOfEach(),
+        {
+          type: 'square',
+          page: 0,
+          rect,
+          width: 4,
+          dashes: [3, 2],
+          interiorColor: '#00FF00',
+          cornerRadius: 5,
+        },
+        { type: 'circle', page: 0, rect, width: 3, dashes: [4, 4], opacity: 0.5 },
+        { type: 'text', page: 0, rect: { ...rect, width: 24, height: 24 }, icon: 'Key' },
+        { type: 'line', page: 0, ...ends, width: 3, head: 'OpenArrow', tail: 'Circle' },
+        { type: 'polyline', page: 0, rect, vertices: [ends.start, ends.end], width: 3 },
+        { type: 'squiggly', page: 0, quads: [quads[0]!] },
+        { type: 'strikeout', page: 0, quads: [quads[0]!] },
+        { type: 'redact', page: 0, rect: squiggle },
+        { type: 'loupe', page: 0, rect, width: 3 },
+        {
+          type: 'freetext',
+          page: 0,
+          rect,
+          contents: 'Hello world',
+          width: 3,
+          cornerRadius: 6,
+          intent: 'FreeTextCallout',
+          callout: [
+            { x: 80, y: 480 },
+            { x: 130, y: 500 },
+          ],
+        },
+      ] as never[]
+      for (const input of inputs) store.add(input)
+      const shapes = [
+        ...overlay.element.querySelectorAll<SVGElement>(
+          'path, rect, ellipse, circle, polygon, polyline'
+        ),
+      ].filter((el) => el.getAttribute('style')?.includes('fill-opacity:'))
+      expect(shapes.length).toBeGreaterThan(inputs.length)
+      // What a stroke looks like matters only where there is one.
+      const look = () =>
+        shapes.map((el) => {
+          const cs = getComputedStyle(el)
+          return [
+            cs.fill,
+            cs.fillOpacity,
+            cs.stroke,
+            ...(cs.stroke === 'none'
+              ? []
+              : [
+                  cs.strokeWidth,
+                  cs.strokeDasharray,
+                  cs.strokeLinejoin,
+                  cs.strokeLinecap,
+                ]),
+          ]
+        })
+      const before = look()
+      const style = document.createElement('style')
+      style.textContent =
+        'rect, circle, path, polyline, polygon, ellipse { fill: red; fill-opacity: 0.2; stroke: red; stroke-width: 9px; stroke-dasharray: 1; stroke-linejoin: bevel; stroke-linecap: square }'
+      document.head.append(style)
+      cleanup.push(() => style.remove())
+      expect(look()).toEqual(before)
     })
 
     it('transparent hit shapes keep their paint under a host rule on svg shapes', () => {
@@ -1380,6 +1485,118 @@ describe('createOverlay', () => {
     const icon = overlay.elementFor(note.id)!.querySelector('.ink-note-icon')
     expect(icon).not.toBeNull()
     expect((icon as HTMLElement).dataset.icon).toBe('Check')
+  })
+
+  it('paints nothing for an embedded annotation of any drawn kind, but a note with no appearance', () => {
+    const { store, host, overlay } = setup()
+    const scratch = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const rect = { x: 100, y: 500, width: 120, height: 80 }
+    const added = [
+      ...oneOfEach(),
+      { type: 'loupe', page: 0, rect, width: 2 },
+      { type: 'mask', page: 0, rect, shape: 'rect' },
+      { type: 'redact', page: 0, rect },
+      { type: 'squiggly', page: 0, quads },
+      { type: 'circle', page: 0, rect },
+      { type: 'polyline', page: 0, rect, vertices: [rect, { x: 300, y: 300 }] },
+    ].map((input) => scratch.add(input as never))
+    store._setEmbedded(
+      added.map((a) => ({
+        ...a,
+        source: 'pdf' as const,
+        locked: true,
+        // The one note drawn on purpose.
+        ...(a.type === 'text' ? { hasAppearance: false } : {}),
+      }))
+    )
+    const painted = (id: string) =>
+      overlay
+        .elementFor(id)!
+        .querySelectorAll('[style*="fill-opacity"], text, image, canvas')
+    for (const a of added) {
+      const count = painted(a.id).length
+      if (a.type === 'text') expect(count, a.type).toBeGreaterThan(0)
+      else expect(count, a.type).toBe(0)
+    }
+    expect(host.querySelector('.ink-mask-layer')).toBeNull()
+  })
+
+  it('an ink stroke of one point has a hit shape a press beside the dot reaches, and an empty stroke has none', () => {
+    const { store, overlay } = setup()
+    const dot = { x: 200, y: 500 }
+    const ink = store.add({
+      type: 'ink',
+      page: 0,
+      inklist: [
+        [dot],
+        [
+          { x: 300, y: 400 },
+          { x: 340, y: 420 },
+        ],
+      ],
+      width: 2,
+    })
+    const twins = overlay
+      .elementFor(ink.id)!
+      .querySelectorAll<SVGGeometryElement>('[data-ink-hit-stroke]')
+    expect(twins).toHaveLength(2)
+    // 3 css px off the dot: inside the 8 px hit width, though the dot is 2 px across.
+    expect(twins[0]!.isPointInStroke(overlayPoint(overlay, ink.id, 203, 500))).toBe(true)
+    expect(twins[0]!.isPointInStroke(overlayPoint(overlay, ink.id, 215, 500))).toBe(false)
+
+    const withEmpty = { ...store.get(ink.id)!, inklist: [[], [dot]] } as never
+    const holder = document.createElement('div')
+    document.body.append(holder)
+    try {
+      renderAnnotationContent(holder, withEmpty, createPageTransform(page, 1, 0))
+      expect(holder.querySelectorAll('[data-ink-hit-stroke]')).toHaveLength(1)
+    } finally {
+      holder.remove()
+    }
+  })
+
+  it("a line's handle box holds its endings at every zoom, thin line included", () => {
+    for (const zoom of [1, 2, 4, 8]) {
+      const t = createPageTransform(page, zoom, 0)
+      for (const ending of [
+        'OpenArrow',
+        'ClosedArrow',
+        'Square',
+        'Diamond',
+        'Circle',
+      ] as const) {
+        const { store } = setup(zoom)
+        const line = store.add({
+          type: 'line',
+          page: 0,
+          start: { x: 100, y: 600 },
+          end: { x: 180, y: 640 },
+          width: 0.5,
+          head: ending,
+          tail: ending,
+        } as never)
+        const box = handleBox(line, t)
+        const drawing = describeDrawing(line, drawContext(t))!
+        const [group] = drawing.items
+        if (group?.kind !== 'group') throw new Error('expected a group')
+        const half = (0.5 * zoom) / 2
+        for (const item of group.items) {
+          if (item.kind !== 'path') continue
+          for (const c of item.commands) {
+            if (c.op !== 'M' && c.op !== 'L') continue
+            const p = t.toCss(c.to)
+            const where = `${ending} at zoom ${zoom}`
+            expect(p.x - half, where).toBeGreaterThanOrEqual(box.left - 1e-6)
+            expect(p.y - half, where).toBeGreaterThanOrEqual(box.top - 1e-6)
+            expect(p.x + half, where).toBeLessThanOrEqual(box.left + box.width + 1e-6)
+            expect(p.y + half, where).toBeLessThanOrEqual(box.top + box.height + 1e-6)
+          }
+        }
+      }
+    }
   })
 
   it('a line ending with a name Inkbar does not know draws no ending and keeps the name', () => {

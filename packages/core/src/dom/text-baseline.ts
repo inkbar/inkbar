@@ -4,7 +4,8 @@ import type { TextFont } from '../model/annotations/drawing/types'
 
 /** How many measured sizes are kept. */
 const CACHE_SIZE = 200
-const cache = new Map<string, number>()
+/** Per document: another document (a frame) can have other fonts, and so other metrics. */
+const caches = new WeakMap<Document, Map<string, number>>()
 
 /**
  * Distance from the top of an HTML text box's content to the baseline of its first line, in CSS
@@ -15,6 +16,8 @@ const cache = new Map<string, number>()
  */
 export function htmlBaseline(doc: Document, font: TextFont, size: number): number {
   const css = cssFont(font, size)
+  let cache = caches.get(doc)
+  if (!cache) caches.set(doc, (cache = new Map<string, number>()))
   const known = cache.get(css)
   if (known !== undefined) return known
   const box = doc.createElement('div')

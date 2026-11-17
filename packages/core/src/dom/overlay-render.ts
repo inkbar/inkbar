@@ -2,7 +2,6 @@ import { ICON_ATTRIBUTES, MessageSquareText } from '@inkbar/icons'
 
 import { freeTextBox } from '../model/annotations/callout'
 import { isTextMarkup } from '../model/annotations/edit'
-import { isKnown, LINE_ENDINGS } from '../model/annotations/pdf-names'
 
 import { drawingFor } from './drawing-context'
 import { itemElement, paintDrawing } from './drawing-svg'
@@ -15,7 +14,7 @@ import type {
   NoteAnnotation,
   TextMarkupAnnotation,
 } from '../model/annotations/types'
-import type { Point, Quad } from '../model/geometry'
+import type { Point, Quad, Rect } from '../model/geometry'
 
 const SVG = 'http://www.w3.org/2000/svg'
 
@@ -145,7 +144,8 @@ function hitWidth(a: Annotation, t: PageTransform): number {
  * paths (lines, polylines, polygons, ink) use the bounds of their own points instead of
  * `rect` (which may already carry stroke padding, as a derived ink rect does), padded once by
  * half their stroke width on every side, at least 1px in all, so a horizontal or vertical
- * line still has a box to draw and hit-test in. A shape with a hit twin (see `hasHitTwin`)
+ * line still has a box to draw and hit-test in, and grown to the drawing's bounds, which hold a
+ * line's endings. A shape with a hit twin (see `hasHitTwin`)
  * is padded by at least 4px more, so its wider hit area is not clipped. Custom elements do
  * not use this: they sit on `toCssRect(a.rect)`.
  */
@@ -171,6 +171,18 @@ function hitPad(a: Annotation, t: PageTransform): number {
 }
 
 /**
+ * The drawing's bounds for `a`, or `undefined` when it has none or cannot be described: the
+ * box is then the padded points alone, and whoever draws the annotation reports the failure.
+ */
+function boundsOf(a: Annotation, t: PageTransform): Rect | undefined {
+  try {
+    return drawingFor(a, t)?.bounds
+  } catch {
+    return undefined
+  }
+}
+
+/**
  * The CSS box an annotation's edit handles and resizing work on: `annotationBox` without the
  * padding its hit twin needs. `toCssRect(a.rect)` for a rect-shaped annotation; the padded
  * bounds of its points for a stroked path.
@@ -187,25 +199,26 @@ export function handleBox(a: Annotation, t: PageTransform): CssRect {
   if (!points || points.length === 0 || !('width' in a)) return t.toCssRect(a.rect)
   const box = t.toCssRect(pointBounds(points))
   const stroke = Math.max(t.toCssLength(a.width), 1)
-  // Endings reach up to ENDING_SCALE strokes either side of their end.
-  const pad = hasEndings(a) ? ENDING_SCALE * stroke : stroke / 2
-  return {
+  // Half the stroke on every side, at least 1px in all, and whatever else is drawn beyond it: a
+  // line's endings, which are sized in points and so reach further the more the page is zoomed.
+  const pad = stroke / 2
+  const padded = {
     left: box.left - pad,
     top: box.top - pad,
     width: box.width + pad * 2,
     height: box.height + pad * 2,
   }
-}
-
-/** An ending's length, and its full width, as a multiple of the stroke width. */
-const ENDING_SCALE = 3
-
-/** Whether `a` is a line or polyline with a head or tail Inkbar draws. */
-function hasEndings(a: Annotation): boolean {
-  if (a.type !== 'line' && a.type !== 'polyline') return false
-  return [a.head, a.tail].some(
-    (kind) => kind !== undefined && kind !== 'None' && isKnown(LINE_ENDINGS, kind)
-  )
+  const bounds = a.type === 'ink' ? undefined : boundsOf(a, t)
+  if (!bounds) return padded
+  const drawn = t.toCssRect(bounds)
+  const left = Math.min(padded.left, drawn.left)
+  const top = Math.min(padded.top, drawn.top)
+  return {
+    left,
+    top,
+    width: Math.max(padded.left + padded.width, drawn.left + drawn.width) - left,
+    height: Math.max(padded.top + padded.height, drawn.top + drawn.height) - top,
+  }
 }
 
 function pointBounds(points: readonly Point[]): {
@@ -238,8 +251,8 @@ export function freeTextLocalBox(a: FreeTextAnnotation, t: PageTransform): CssRe
 
 /**
  * Draws the default visual for an annotation inside its positioned element. Coordinates are
- * relative to the element. Colour, opacity and stroke of a drawn shape are SVG attributes, never inline style,
- * so a theme can override them with CSS. A type with no drawing leaves the element empty. The
+ * relative to the element. Colour, opacity and stroke of a drawn shape are SVG attributes and
+ * the same inline style, so a host's rule on `svg path` or `rect` cannot recolour them. A type with no drawing leaves the element empty. The
  * overlay gives an annotation the page canvas paints a hit area instead (`renderHitArea`).
  */
 export function renderAnnotationContent(
@@ -292,7 +305,19 @@ function renderChrome(el: HTMLElement, a: Annotation, t: PageTransform): void {
     // follows the sampled points.
     const followed: readonly DrawItem[] =
       a.type === 'ink'
-        ? a.inklist.map((points) => ({ kind: 'polyline', points, paint: {} }))
+        ? a.inklist.flatMap((points): DrawItem[] =>
+            // A stroke of one point is a dot: two equal points give a round cap something to
+            // draw, and one with no points has nothing to press on.
+            points.length === 0
+              ? []
+              : [
+                  {
+                    kind: 'polyline',
+                    points: points.length === 1 ? [points[0]!, points[0]!] : points,
+                    paint: {},
+                  },
+                ]
+          )
         : drawn
     for (const item of followed) {
       if (item.kind === 'text' || item.kind === 'image' || item.kind === 'page') continue
@@ -313,7 +338,7 @@ function renderChrome(el: HTMLElement, a: Annotation, t: PageTransform): void {
       svg.append(twin)
     }
   }
-  if (svg) appendStampHit(svg, drawn, t, annotationBox(a, t))
+  if (svg) appendStampHit(svg, a, t, annotationBox(a, t))
   if (svg && a.type === 'loupe') appendLensHit(svg, a, t)
   if (svg && a.type === 'mask') appendMaskEdge(svg, a, t)
   if (svg && a.type === 'text') appendNoteHit(svg, a, t)
@@ -439,21 +464,21 @@ function appendMaskEdge(svg: Element, a: Annotation, t: PageTransform): void {
 }
 
 /**
- * A stamp's press area: an invisible rect over the image's box, so a press on a transparent
+ * A stamp's press area: an invisible rect over the stamp's box, so a press on a transparent
  * pixel of the picture selects it whatever the browser does with pixels, and no native image
- * drag can start. The image itself stops taking presses.
+ * drag can start. The images drawn stop taking presses. The box is the annotation's, whatever
+ * the drawing is made of.
  */
 function appendStampHit(
   svg: Element,
-  drawn: readonly DrawItem[],
+  a: Annotation,
   t: PageTransform,
   box: CssRect
 ): void {
-  const image = drawn.find((i) => i.kind === 'image')
-  const el = svg.querySelector('image.ink-stamp')
-  if (image?.kind !== 'image' || !el) return
-  const r = t.toCssRect(image.rect)
-  el.setAttribute('pointer-events', 'none')
+  if (a.type !== 'stamp') return
+  for (const image of svg.querySelectorAll('image'))
+    image.setAttribute('pointer-events', 'none')
+  const r = t.toCssRect(a.rect)
   const hit = svg.ownerDocument.createElementNS(SVG, 'rect')
   hit.setAttribute('x', String(r.left - box.left))
   hit.setAttribute('y', String(r.top - box.top))

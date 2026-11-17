@@ -53,6 +53,7 @@ import { drawingFor } from '../drawing-context'
 import { paintDrawing } from '../drawing-svg'
 import { canEditFreeText, editFreeTextIn, editorFor } from '../freetext-editor'
 import { annotationBox, handleBox } from '../overlay-render'
+import { createUndrawnGuard, type UndrawnGuard } from '../undrawn'
 
 import { cssIn, type PageHit, type ToolContext } from './controller'
 
@@ -132,6 +133,7 @@ export function createSelectionEdit(
   opts: SelectionEditOptions = {}
 ): SelectionEdit {
   let mode: Mode = { kind: 'idle' }
+  const guard = createUndrawnGuard()
   const batch = (fn: () => void): void => (ctx.history ? ctx.history.batch(fn) : fn())
   /** Locked, or pinned to what it fills (a signature in its field): it only selects. */
   const fixed = (a: Annotation): boolean => a.locked === true || ctx.store._isPinned(a.id)
@@ -152,6 +154,7 @@ export function createSelectionEdit(
       mode.preview.remove()
       if (mode.el) mode.el.style.visibility = ''
     }
+    guard.clear()
     mode = { kind: 'idle' }
   }
 
@@ -174,7 +177,7 @@ export function createSelectionEdit(
     draft: Annotation,
     start: PageHit
   ): void => {
-    drawPreview(preview, draft, start)
+    drawPreview(guard, preview, draft, start)
     if (el) el.style.visibility = 'hidden'
     // Beside the annotation in the overlay, so it paints where the annotation does.
     if (!preview.isConnected) (el?.parentElement ?? start.host).append(preview)
@@ -529,15 +532,26 @@ function userBox(t: PageTransform, css: CssRect): Rect {
 }
 
 /** Paints `a` into the preview element at its own box: the drawing only, which takes no presses. */
-function drawPreview(el: HTMLElement, a: Annotation, start: PageHit): void {
+function drawPreview(
+  guard: UndrawnGuard,
+  el: HTMLElement,
+  a: Annotation,
+  start: PageHit
+): void {
   const box = annotationBox(a, start.transform)
   el.style.left = `${box.left}px`
   el.style.top = `${box.top}px`
   el.style.width = `${box.width}px`
   el.style.height = `${box.height}px`
-  const drawing = drawingFor(a, start.transform)
-  if (drawing) paintDrawing(el, drawing, start.transform, box)
-  else el.replaceChildren()
+  // A drawing that fails leaves the preview empty.
+  const drawing = guard.value(a, 'was left undrawn', () => drawingFor(a, start.transform))
+  if (
+    !drawing ||
+    !guard.attempt(a, 'was left undrawn', () =>
+      paintDrawing(el, drawing, start.transform, box)
+    )
+  )
+    el.replaceChildren()
 }
 
 /** Keeps a CSS point on the page. */

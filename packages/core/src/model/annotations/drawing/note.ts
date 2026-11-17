@@ -63,13 +63,22 @@ function displayedFrame(rect: Rect, rotate: 0 | 90 | 180 | 270) {
   return { width, height, sideways, at }
 }
 
+/** `r` with a non-negative width and height, over the same box. */
+const normalized = (r: Rect): Rect => ({
+  x: Math.min(r.x, r.x + r.width),
+  y: Math.min(r.y, r.y + r.height),
+  width: Math.abs(r.width),
+  height: Math.abs(r.height),
+})
+
 /**
  * A note: a rounded square in its own colour, square at the corner that is bottom-left as the
  * page is displayed, with its icon's glyph in the middle. The glyph is upright for the page as the
  * file displays it, like text. All in one group that carries the opacity.
  */
 export function describeNote(a: NoteAnnotation, context: DrawContext): Drawing {
-  const { rect } = a
+  // A reversed or negative rect is the box it spans.
+  const rect = normalized(a.rect)
   const { width, height, at } = displayedFrame(rect, context.page.rotate)
 
   const r = Math.min(width, height) * RADIUS
@@ -102,7 +111,7 @@ export function describeNote(a: NoteAnnotation, context: DrawContext): Drawing {
       paint: { fill: { color: a.color } },
     },
   ]
-  const glyph = GLYPHS[a.icon]
+  const glyph = Object.hasOwn(GLYPHS, a.icon) ? GLYPHS[a.icon] : undefined
   if (glyph) items.push(...glyphItems(glyph, rect, context.page.rotate))
 
   return {

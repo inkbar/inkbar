@@ -236,7 +236,7 @@ describe('describeRedact', () => {
   test('a redaction mark is tinted at 15% with a one-point outline', () => {
     expect(describeRedact(redact)).toEqual({
       layer: 'annotation',
-      bounds: { x: 100, y: 686, width: 100, height: 14 },
+      bounds: { x: 99.5, y: 685.5, width: 101, height: 15 },
       items: [
         {
           kind: 'group',
@@ -252,7 +252,7 @@ describe('describeRedact', () => {
               ],
               paint: {
                 fill: { color: '#000000', opacity: 0.15 },
-                stroke: { color: '#FF0000', width: 1 },
+                stroke: { color: '#FF0000', width: 1, join: 'round' },
               },
             },
           ],
@@ -264,7 +264,7 @@ describe('describeRedact', () => {
   test('an area mark is a rect', () => {
     const { quads: _quads, ...area } = redact
     const d = describeRedact({ ...area, rect: { x: 10, y: 20, width: 30, height: 40 } })
-    expect(d.bounds).toEqual({ x: 10, y: 20, width: 30, height: 40 })
+    expect(d.bounds).toEqual({ x: 9.5, y: 19.5, width: 31, height: 41 })
     expect(group(d).items).toEqual([
       {
         kind: 'rect',
@@ -275,6 +275,14 @@ describe('describeRedact', () => {
         },
       },
     ])
+  })
+
+  test('a squiggle has round joins, an underline and a strikeout have none to set', () => {
+    for (const type of ['underline', 'strikeout', 'squiggly'] as const) {
+      const item = group(describeMarkup({ ...highlight, type })).items[0]
+      const join = item?.kind === 'polyline' ? item.paint.stroke?.join : 'missing'
+      expect(join, type).toBe(type === 'squiggly' ? 'round' : undefined)
+    }
   })
 
   test('the group carries the annotation opacity', () => {

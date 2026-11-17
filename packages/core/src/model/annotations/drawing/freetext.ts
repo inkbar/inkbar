@@ -1,7 +1,9 @@
+import { unionRects } from '../../geometry'
 import { calloutStroke, freeTextBox, isStandardCallout } from '../callout'
 import { isBubble, WEDGE_HALF } from '../edit'
 import { isKnown, LINE_ENDINGS } from '../pdf-names'
 
+import { paintedRect, strokeInset } from './extent'
 import { endingItem } from './lines'
 import { layoutText } from './text/layout'
 import { resolveFont } from './text/measure'
@@ -23,8 +25,8 @@ type Angle = 0 | 90 | 180 | 270
 const BUBBLE_PAD_Y = 0.4
 const BUBBLE_PAD_X = 0.6
 /** An underline's centre below the baseline, and its thickness, as a multiple of the font size. */
-const UNDERLINE_OFFSET = 0.1
-const UNDERLINE_THICKNESS = 0.05
+export const UNDERLINE_OFFSET = 0.1
+export const UNDERLINE_THICKNESS = 0.05
 
 /**
  * Where a text box's text goes, in user space. The text is upright for the page as the file
@@ -160,12 +162,7 @@ export function describeFreeText(a: FreeTextAnnotation, context: DrawContext): D
       paint: a.color ? { fill: { color: a.color } } : {},
     })
     if (border > 0) {
-      const rect = {
-        x: box.x + border / 2,
-        y: box.y + border / 2,
-        width: Math.max(0, box.width - border),
-        height: Math.max(0, box.height - border),
-      }
+      const { inset: rect } = strokeInset(box, border)
       const r = radius
         ? Math.min(
             Math.max(0, radius - border / 2),
@@ -184,9 +181,12 @@ export function describeFreeText(a: FreeTextAnnotation, context: DrawContext): D
   inner.push(textItem(a, context, frame, box, border))
   items.push(...inner)
 
+  // The rect, and what reaches past it: a callout's line and ending, a bubble's wedge and its
+  // outline, which is centred on the box edge.
+  const painted = items.flatMap((i) => paintedRect(i) ?? [])
   return {
     layer: 'annotation',
-    bounds: a.rect,
+    bounds: unionRects([a.rect, ...painted]),
     items: [{ kind: 'group', opacity: a.opacity, items }],
   }
 }
@@ -208,6 +208,39 @@ function outline(a: FreeTextAnnotation, fill: string | undefined): Paint {
   }
 }
 
+/** `a`'s text laid out in an area `width` points across, with the font it is set in. */
+function layoutOf(
+  a: FreeTextAnnotation,
+  context: DrawContext,
+  width: number,
+  contents: string
+) {
+  const s = a.defaultStyle
+  const font = resolveFont(
+    s.fontFamily,
+    s.fontWeight === 'bold',
+    s.fontStyle === 'italic'
+  )
+  const laid = layoutText(
+    { text: contents, font, size: s.fontSize, width, align: s.textAlign },
+    context.measure
+  )
+  return { font, laid }
+}
+
+/**
+ * The height, in points, the text area of `a` needs for `contents` (default: its own): what the
+ * drawing's line breaks stack to. A box whose text area is shorter clips its last line.
+ */
+export function freeTextTextHeight(
+  a: FreeTextAnnotation,
+  context: DrawContext,
+  contents: string = a.contents
+): number {
+  const { area } = freeTextFrame(a, context.page.rotate)
+  return layoutOf(a, context, area.width, contents).laid.height
+}
+
 function textItem(
   a: FreeTextAnnotation,
   context: DrawContext,
@@ -216,21 +249,7 @@ function textItem(
   border: number
 ): DrawItem {
   const s = a.defaultStyle
-  const font = resolveFont(
-    s.fontFamily,
-    s.fontWeight === 'bold',
-    s.fontStyle === 'italic'
-  )
-  const laid = layoutText(
-    {
-      text: a.contents,
-      font,
-      size: s.fontSize,
-      width: frame.area.width,
-      align: s.textAlign,
-    },
-    context.measure
-  )
+  const { font, laid } = layoutOf(a, context, frame.area.width, a.contents)
   const at = (x: number, baseline: number): Point =>
     along(along(frame.area.topLeft, frame.dir, x), frame.down, baseline)
   const underline = s.textDecoration === 'underline'
