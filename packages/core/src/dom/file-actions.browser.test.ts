@@ -1,6 +1,7 @@
 import { browserAssets, fixtureUrl } from '@inkbar/fixtures/urls'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { fr } from '../locales/fr'
 import { en } from '../messages'
 import {
   openDocument,
@@ -302,7 +303,7 @@ describe('while a copy is written', () => {
     const el = document.createElement('div')
     document.body.append(el)
     const onError = vi.fn()
-    const stop = attachFileKeys(el, () => doc, onError)
+    const stop = attachFileKeys(el, () => doc, { onError })
     const key = (k: string) =>
       el.dispatchEvent(
         new KeyboardEvent('keydown', {
@@ -348,6 +349,8 @@ describe('printing on iOS', () => {
     const order: string[] = []
     const tab = {
       opener: {} as unknown,
+      // The blank page a tab opened with no URL starts on.
+      document: document.implementation.createHTMLDocument(''),
       location: { replace: vi.fn((url: string) => order.push(`go ${url.slice(0, 5)}`)) },
       close: vi.fn(() => order.push('close')),
     }
@@ -378,6 +381,33 @@ describe('printing on iOS', () => {
     expect(await bytesAt(tab.location.replace.mock.calls[0]![0])).toEqual(WRITTEN)
     expect(tab.close).not.toHaveBeenCalled()
     expect(document.querySelector('[data-ink-print-frame]')).toBeNull()
+  })
+
+  it('says the file is being prepared until the copy replaces the page', async () => {
+    const { order, tab } = onIpad()
+    const write = deferred<Uint8Array>()
+    const said = () => tab.document.body.textContent
+    const doc = docOf('ready', {
+      written: () => {
+        order.push(`write while saying ${said()}`)
+        return write.promise
+      },
+    })
+    const printing = printDocument(doc)
+    expect(order).toEqual(['open', 'write while saying Preparing your file…'])
+    expect(tab.document.title).toBe('Preparing your file…')
+    write.resolve(WRITTEN.slice())
+    await printing
+    // Replaced, so Back from the PDF does not return to the blank page.
+    expect(order.at(-1)).toBe('go blob:')
+    expect(tab.location.replace).toHaveBeenCalledTimes(1)
+  })
+
+  it("says it in the viewer's words", async () => {
+    const { tab } = onIpad()
+    const doc = docOf('ready', { written: () => Promise.resolve(WRITTEN.slice()) })
+    await printDocument(doc, { messages: fr })
+    expect(tab.document.body.textContent).toBe('Préparation de votre fichier…')
   })
 
   it('closes the tab when the copy cannot be written', async () => {

@@ -13,6 +13,7 @@ export const en: InkMessages = {
     saveFailed: 'Your changes could not be written into this file.',
     saveUnavailable:
       'Saving is not available right now. Check your connection and try again.',
+    preparingFile: 'Preparing your file…',
   },
   toolbar: {
     label: 'Document tools',

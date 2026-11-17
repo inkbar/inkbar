@@ -900,17 +900,16 @@ export function InkRoot({
       rootEl.querySelector<HTMLElement>('[data-ink-scroll]')
     )
     // Ctrl or Cmd+P prints and +S downloads, as InkPrintButton and InkDownloadButton do.
-    const stopFileKeys = attachFileKeys(
-      rootEl,
-      () => documentRef.current,
-      reportFileError
-    )
+    const stopFileKeys = attachFileKeys(rootEl, () => documentRef.current, {
+      onError: reportFileError,
+      messages: () => messageState.get().messages,
+    })
     return () => {
       stopKeys()
       stopFocus()
       stopFileKeys()
     }
-  }, [rootEl, latestHistory, latest, snapshotHistory, reportFileError])
+  }, [rootEl, latestHistory, latest, snapshotHistory, reportFileError, messageState])
 
   /** The document's tool style; it batches through `history`, whichever mode is on. */
   const styleTracker = useMemo(

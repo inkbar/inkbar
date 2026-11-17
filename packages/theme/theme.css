@@ -684,7 +684,7 @@
     background: var(--ink-border);
   }
 
-  :where(.ink-toolbar button:hover) {
+  :where(.ink-toolbar button:hover:not(:disabled, [aria-disabled='true'])) {
     background: color-mix(in srgb, var(--ink-fg) 8%, transparent);
   }
 
@@ -693,9 +693,14 @@
     color: var(--ink-accent-fg);
   }
 
-  :where(.ink-toolbar button:disabled) {
+  /* Disabled, or busy and kept focusable (`aria-disabled`): a Download or Print writing its copy. */
+  :where(.ink-toolbar button:disabled, .ink-toolbar button[aria-disabled='true']) {
     opacity: 0.5;
     cursor: default;
+  }
+
+  :where(.ink-toolbar button[aria-busy='true']) {
+    cursor: progress;
   }
 
   /*

@@ -4,15 +4,23 @@
  * changed form values written into it, or the opened bytes when nothing changed), else
  * `document.getData()`, the bytes it was opened from.
  */
+import { en, type InkMessages } from '../messages'
 import { isInkError, type InkError } from '../model/errors'
 import { readonly, writable, type Readable, type Writable } from '../model/readable'
 
-import type { InkMessages } from '../messages'
 import type { InkDocument } from '../model/document'
 
 export interface DownloadOptions {
   /** The name to save under. Default: the document's `fileName`. */
   filename?: string
+}
+
+export interface PrintOptions {
+  /**
+   * The words to use: on iOS the tab a print opens says `viewer.preparingFile` while the copy
+   * is written. Default: English.
+   */
+  messages?: InkMessages
 }
 
 /** Each document's busy state, made on first use. */
@@ -99,9 +107,13 @@ let lastPrint: { frame: HTMLIFrameElement; url: string } | null = null
  * dialog has been asked for. Rejects with `SaveFailed`, having printed nothing and closed the
  * tab, when the copy could not be written. Does nothing while `fileBusy(doc)`.
  */
-export async function printDocument(doc: InkDocument): Promise<void> {
+export async function printDocument(
+  doc: InkDocument,
+  opts: PrintOptions = {}
+): Promise<void> {
   if (fileBusy(doc).get()) return
-  if (!printsFromFrame()) return printInTab(doc)
+  if (!printsFromFrame())
+    return printInTab(doc, (opts.messages ?? en).viewer.preparingFile)
   const url = await fileUrl(doc)
   if (url === undefined) return
   if (lastPrint) {
@@ -127,13 +139,17 @@ export async function printDocument(doc: InkDocument): Promise<void> {
 }
 
 /**
- * Opens a blank tab now, synchronously in the caller's press, then sends it to the file. It
- * cannot be opened with `noopener`, which hands back no window to send on; the tab's `opener`
- * is cleared at once instead, so the page it shows has no way back to this one.
+ * Opens a blank tab now, synchronously in the caller's press, saying `preparing` until the copy
+ * is written, then sends it to the file in its place. It cannot be opened with `noopener`,
+ * which hands back no window to send on; the tab's `opener` is cleared at once instead, so the
+ * page it shows has no way back to this one.
  */
-async function printInTab(doc: InkDocument): Promise<void> {
+async function printInTab(doc: InkDocument, preparing: string): Promise<void> {
   const tab = window.open('', '_blank')
-  if (tab) tab.opener = null
+  if (tab) {
+    tab.opener = null
+    sayInTab(tab, preparing)
+  }
   let url: string | undefined
   try {
     url = await fileUrl(doc)
@@ -149,6 +165,21 @@ async function printInTab(doc: InkDocument): Promise<void> {
   if (tab) tab.location.replace(url)
   else window.open(url, '_blank', 'noopener')
   setTimeout(() => URL.revokeObjectURL(url), REVOKE_AFTER_MS)
+}
+
+/** Writes `text`, as text, into the blank tab's page: same-origin `about:blank` until sent on. */
+function sayInTab(tab: Window, text: string): void {
+  try {
+    const page = tab.document
+    page.title = text
+    const p = page.createElement('p')
+    p.textContent = text
+    p.style.font = '16px system-ui, sans-serif'
+    p.style.margin = '1rem'
+    ;(page.body ?? page.documentElement).append(p)
+  } catch {
+    // A tab the browser keeps from this page stays blank; the print still goes on.
+  }
 }
 
 /**
@@ -171,6 +202,13 @@ export function fileActionFailure(
   }
 }
 
+export interface FileKeysOptions {
+  /** Hears the error of a download or print that fails. */
+  onError?: (error: unknown) => void
+  /** The words a print uses (see `PrintOptions`), read at each key. Default: English. */
+  messages?: () => InkMessages
+}
+
 /**
  * Ctrl or Cmd+P prints and Ctrl or Cmd+S downloads, for keys pressed anywhere inside `el`,
  * while `doc()` gives a ready document. Then the key is taken from the browser, which would
@@ -181,7 +219,7 @@ export function fileActionFailure(
 export function attachFileKeys(
   el: HTMLElement,
   doc: () => InkDocument | null | undefined,
-  onError?: (error: unknown) => void
+  opts: FileKeysOptions = {}
 ): () => void {
   const onKeydown = (e: KeyboardEvent): void => {
     if (e.defaultPrevented || e.isComposing || e.altKey || e.shiftKey) return
@@ -191,9 +229,10 @@ export function attachFileKeys(
     const d = doc()
     if (!d || d.status.get().state !== 'ready') return
     e.preventDefault()
-    void (key === 'p' ? printDocument(d) : downloadDocument(d)).catch((error: unknown) =>
-      onError?.(error)
-    )
+    const messages = opts.messages?.()
+    void (
+      key === 'p' ? printDocument(d, messages ? { messages } : {}) : downloadDocument(d)
+    ).catch((error: unknown) => opts.onError?.(error))
   }
   el.addEventListener('keydown', onKeydown)
   return () => el.removeEventListener('keydown', onKeydown)

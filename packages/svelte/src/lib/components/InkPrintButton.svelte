@@ -56,7 +56,7 @@
     onclick?.(e)
     const doc = ctx.document
     if (e.defaultPrevented || !doc) return
-    void printDocument(doc).catch(ctx.reportFileError)
+    void printDocument(doc, { messages: m.current }).catch(ctx.reportFileError)
   }}
 >
   {#if children}{@render children()}{:else}<InkIcon icon={Printer} />{/if}

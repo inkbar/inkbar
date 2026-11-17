@@ -383,7 +383,10 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     onError?.(failure.error)
   }
   // Ctrl or Cmd+P and +S inside the root: what viewer.print and viewer.download do.
-  const stopFileKeys = attachFileKeys(root, () => current.get(), fileFailed)
+  const stopFileKeys = attachFileKeys(root, () => current.get(), {
+    onError: fileFailed,
+    messages: words,
+  })
   /** Reports a failed download or print as `fileFailed` does, and rejects with its error. */
   const reportFile = (error: unknown): never => {
     fileFailed(error)
@@ -749,7 +752,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     async print() {
       // Called before any await: on iOS the print's tab opens inside the reader's press.
       const doc = current.get()
-      if (doc) await printDocument(doc).catch(reportFile)
+      if (doc) await printDocument(doc, { messages: words() }).catch(reportFile)
     },
     status: readonly(status),
     document: readonly(current),

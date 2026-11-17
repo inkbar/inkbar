@@ -29,7 +29,8 @@ const busy = useReadable(
 
 function run(): void {
   const doc = ctx.document.value
-  if (doc) void printDocument(doc).catch(ctx.reportFileError)
+  if (doc)
+    void printDocument(doc, { messages: messages.value }).catch(ctx.reportFileError)
 }
 // Reka's typed props stop at its own; ARIA and listeners go through a bound object.
 const messages = useMessages()

@@ -629,7 +629,10 @@
       el.querySelector<HTMLElement>('[data-ink-scroll]')
     )
     // Ctrl or Cmd+P prints and +S downloads, as InkPrintButton and InkDownloadButton do.
-    const stopFileKeys = attachFileKeys(el, () => document, reportFileError)
+    const stopFileKeys = attachFileKeys(el, () => document, {
+      onError: reportFileError,
+      messages: () => messageState.get().messages,
+    })
     return () => {
       stopKeys()
       stopFocus()

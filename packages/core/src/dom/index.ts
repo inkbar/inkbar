@@ -33,7 +33,7 @@ export {
   fileBusy,
   printDocument,
 } from './file-actions'
-export type { DownloadOptions } from './file-actions'
+export type { DownloadOptions, FileKeysOptions, PrintOptions } from './file-actions'
 export { attachHistoryKeys, keepHistoryFocus } from './history-keys'
 export type { HistoryKeysTarget } from './history-keys'
 export { createPageRenderer } from './page-renderer'

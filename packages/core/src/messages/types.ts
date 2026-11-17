@@ -20,6 +20,8 @@ export interface InkMessages {
     saveFailed: string
     /** A download or print could not load or start what writes the copy (offline, say). */
     saveUnavailable: string
+    /** Shown in the tab a print opens on iOS while its copy is written. */
+    preparingFile: string
   }
   toolbar: {
     label: string

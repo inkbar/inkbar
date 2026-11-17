@@ -1,9 +1,16 @@
 import { browserAssets, fixtureUrl } from '@inkbar/fixtures/urls'
+import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { userEvent } from 'vitest/browser'
 
 import { mountContainer, until } from '../test-utils'
 
-import { createDownloadButton, createPrintButton } from './controls'
+import {
+  createDownloadButton,
+  createPrintButton,
+  createToolbar,
+  createUndo,
+} from './controls'
 import { createViewer, type CreateViewerOptions, type Viewer } from './create-viewer'
 
 import type { EngineLoader } from '../../model/document'
@@ -186,6 +193,46 @@ describe('with an engine', () => {
     expect(held.loader).toHaveBeenCalledTimes(1)
     expect(document.querySelector('[data-ink-print-frame]')).toBeNull()
     expect(clicked).toHaveLength(1)
+  })
+
+  it('the theme shows a busy button as disabled, with the progress cursor', async () => {
+    const style = document.createElement('style')
+    style.textContent = themeCss
+    document.head.append(style)
+    cleanup.push(() => style.remove())
+    catchDownloads()
+    const held = heldEngine()
+    const viewer = make({ engine: held.loader })
+    const bar = createToolbar()
+    const download = createDownloadButton(viewer)
+    // Nothing to undo: natively disabled, the look a busy button should share.
+    const undo = createUndo(viewer)
+    bar.append(download, undo)
+    viewer.element.prepend(bar)
+    await until(() => viewer.status.get().state === 'ready')
+    const look = (b: HTMLElement) => {
+      const s = getComputedStyle(b)
+      return { opacity: s.opacity, cursor: s.cursor, background: s.backgroundColor }
+    }
+    const idle = look(download)
+    expect(idle.opacity).toBe('1')
+    expect(idle.cursor).toBe('pointer')
+    // Measured before the change below, which gives Undo something to undo.
+    const disabled = look(undo)
+    expect(undo.disabled).toBe(true)
+    addSquare(viewer)
+    download.click()
+    await until(held.writing)
+    await userEvent.hover(download)
+    const busyLook = look(download)
+    expect(busyLook.opacity).toBe(disabled.opacity)
+    expect(busyLook.opacity).toBe('0.5')
+    expect(busyLook.cursor).toBe('progress')
+    // No hover background while it cannot be pressed.
+    expect(busyLook.background).toBe(idle.background)
+    held.finish()
+    await until(() => download.getAttribute('aria-busy') === 'false')
+    expect(look(download).opacity).toBe('1')
   })
 
   it('a copy that cannot be written downloads nothing, tells the reader and onError', async () => {

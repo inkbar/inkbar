@@ -48,7 +48,7 @@ export function InkPrintButton({
       onClick={(e) => {
         onClick?.(e)
         if (e.defaultPrevented || !doc) return
-        void printDocument(doc).catch(reportFileError)
+        void printDocument(doc, { messages: m }).catch(reportFileError)
       }}
     >
       {children ?? <InkIcon icon={Printer} />}

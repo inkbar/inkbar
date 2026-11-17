@@ -16,6 +16,7 @@ export const fr: InkMessages = {
     saveFailed: 'Vos modifications n’ont pas pu être enregistrées dans ce fichier.',
     saveUnavailable:
       'L’enregistrement n’est pas disponible pour le moment. Vérifiez votre connexion et réessayez.',
+    preparingFile: 'Préparation de votre fichier…',
   },
   toolbar: {
     label: 'Outils du document',
