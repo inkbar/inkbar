@@ -60,17 +60,20 @@ Colour tokens must hold complete CSS colour values. Tokens written as bare HSL c
 
 Set these variables on `[data-ink-root]` to change the default colour for new annotations:
 
-| Variable                                                                  | Used for                    |
-| ------------------------------------------------------------------------- | --------------------------- |
-| `--ink-highlight`, `--ink-underline`, `--ink-strikeout`, `--ink-squiggly` | Text markup                 |
-| `--ink-note`, `--ink-free-text`                                           | New notes and text boxes    |
-| `--ink-shape`, `--ink-ink`                                                | Shapes and freehand drawing |
-| `--ink-redact`, `--ink-redact-fill`                                       | Redaction outline and fill  |
-| `--ink-mask`                                                              | Masks                       |
+| Variable                                                                  | Used for                     |
+| ------------------------------------------------------------------------- | ---------------------------- |
+| `--ink-highlight`, `--ink-underline`, `--ink-strikeout`, `--ink-squiggly` | Text markup                  |
+| `--ink-note`                                                              | New notes                    |
+| `--ink-free-text`                                                         | New text boxes (text colour) |
+| `--ink-shape`, `--ink-ink`                                                | Shapes and freehand drawing  |
+| `--ink-redact`, `--ink-redact-fill`                                       | Redaction outline and fill   |
+| `--ink-mask`                                                              | Masks                        |
 
-Inkbar reads a colour when you create the annotation and stores it on the annotation, because the colour goes into the PDF. Changing a variable later affects new annotations only. Write these as hex (`#f2c230`) or `rgb()`: Inkbar ignores other formats and uses its own default.
+Inkbar reads a colour when you create the annotation and stores it on the annotation. Changing a variable later affects new annotations only. Write these as hex (`#f2c230`) or `rgb()`: Inkbar ignores other formats and uses its own default.
 
-A text box's fill, border, corner radius, alignment and text style come from the annotation, not from the theme, because they go into the PDF. `--ink-free-text` only sets the text colour a new text box starts with, and the outline of the in-place editor.
+A text box's fill, border, corner radius, alignment and text style come from the annotation, not from the theme. `--ink-free-text` sets the text colour a new text box starts with. It also draws the outline of the in-place editor and the text colour of the matched words in a search-result excerpt.
+
+A note's colour comes from the annotation too. `--ink-note` sets the colour a new note starts with, and a note already on the page keeps its own whatever the variable says. The theme adds only a drop shadow to a note on screen.
 
 ## Layout
 

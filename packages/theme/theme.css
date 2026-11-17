@@ -7,8 +7,7 @@
  * when the page does not define them.
  *
  * Annotation colours (--ink-highlight and the rest) are read once, when an annotation is
- * created, and stored on it, because they are written into the PDF. Changing them restyles
- * new annotations only.
+ * created, and stored on it. Changing them restyles new annotations only.
  */
 @layer inkbar {
   /*
