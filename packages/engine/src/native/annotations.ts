@@ -76,8 +76,15 @@ const TIMES = /times|serif|roman|georgia|garamond|minion|cambria|palatino/i
 const COURIER = /courier|mono|consol|menlo|typewriter|code/i
 const SANS = /sans/i
 
-/** PDFium's text alignment numbers: /Q. Justified text is written as left-aligned. */
-const ALIGNMENT = { left: 0, center: 1, right: 2, justify: 0 } as const
+/**
+ * PDFium's text alignment numbers: /Q. Justified text, and a name not listed, is written as
+ * left-aligned.
+ */
+const ALIGNMENT: Record<string, number> = { left: 0, center: 1, right: 2, justify: 0 }
+
+/** The number `table` holds for `name` as its own key, or 0: an inherited key is not a name. */
+const numbered = (table: Record<string, number>, name: string | undefined): number =>
+  name !== undefined && Object.hasOwn(table, name) ? (table[name] as number) : 0
 
 /** The standard font number nearest to a free text box's style. */
 function standardFont(family: string, bold: boolean, italic: boolean): number {
@@ -163,7 +170,8 @@ const pointFloats = (points: readonly Point[]) => points.flatMap((p) => [p.x, p.
 /**
  * Writes one annotation on `page` and returns its handle, which the caller closes. A reply is
  * linked to `target`, the handle of the file annotation its `replyTo` names (0 when the page has
- * none), or else to its parent's handle in `parents`, by Gloss id. On failure the annotation's
+ * none), or else to its parent's handle in `parents`, by Gloss id: the annotations written
+ * earlier in the same call. On failure the annotation's
  * handle is closed and a `write-failed` error naming its id is thrown; the annotation may be
  * left half written in the document, so the caller discards the document.
  */
@@ -180,7 +188,8 @@ export function writeAnnotation(
   const failed = (what: string) =>
     new EngineError(
       'write-failed',
-      `Annotation ${annotation.id} could not be written: ${what}.`
+      `Annotation ${annotation.id} could not be written: ${what}.`,
+      { annotation: annotation.id }
     )
   const check = (ok: number, what: string) => {
     if (!ok) throw failed(`${what} could not be set`)
@@ -201,7 +210,7 @@ export function writeAnnotation(
       : undefined
   if (reply && parent === undefined)
     throw failed(
-      `its parent ${annotation.inReplyTo} is not among the annotations written with it`
+      `its parent ${annotation.inReplyTo} is not among the annotations written before it in the same call; a parent must come earlier in the list than its replies`
     )
   if (!reply && !item.appearance) throw failed('it has no appearance')
 
@@ -271,8 +280,8 @@ export function writeAnnotation(
       check(
         fn.EPDFAnnot_SetLineEndings(
           annot,
-          LINE_ENDINGS[head ?? 'None'] ?? 0,
-          LINE_ENDINGS[tail ?? 'None'] ?? 0
+          numbered(LINE_ENDINGS, head),
+          numbered(LINE_ENDINGS, tail)
         ),
         '/LE'
       )
@@ -328,7 +337,7 @@ export function writeAnnotation(
             '/DA'
           )
           check(
-            fn.EPDFAnnot_SetTextAlignment(annot, ALIGNMENT[style?.textAlign ?? 'left']),
+            fn.EPDFAnnot_SetTextAlignment(annot, numbered(ALIGNMENT, style?.textAlign)),
             '/Q'
           )
           setBorder(annotation.width, annotation.dashes, annotation.cornerRadius)

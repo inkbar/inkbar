@@ -11,6 +11,7 @@ function fromWire(error: WireError): Error {
   if (error.range) return new RangeError(error.message)
   return new EngineError(error.code, error.message, {
     ...(error.pdfiumError !== undefined && { pdfiumError: error.pdfiumError }),
+    ...(error.annotation !== undefined && { annotation: error.annotation }),
   })
 }
 

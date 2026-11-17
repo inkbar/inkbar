@@ -110,7 +110,10 @@ export type StandardFont =
  * Everything is in PDF user space, in points, origin at the bottom left, before /Rotate.
  */
 export interface Appearance {
-  /** The area the drawing fills, in the page's user space. */
+  /**
+   * The area the drawing fills, in the page's user space. Its width and height must be above 0:
+   * a box with no area is a `RangeError` naming the annotation.
+   */
   bounds: Rect
   /** PDF drawing operators. They paint inside `bounds` and may name the resources below. */
   content: Uint8Array
@@ -144,8 +147,9 @@ export interface WriteAnnotation {
   /**
    * The annotation in Gloss form. Its dictionary entries are written from this, so other
    * programs can read and edit it. An annotation with `inReplyTo` is written as a reply: a hidden
-   * note linked to its parent, which must be among the annotations of the same call, unless
-   * `replyTo` names the parent instead.
+   * note linked to its parent. The parent must come earlier in `WriteInput.annotations` of the
+   * same call, unless `replyTo` names the parent instead. A reply whose parent comes later, or
+   * not at all, rejects with `write-failed` naming the reply.
    */
   annotation: GlossAnnotation
   /**
@@ -171,7 +175,7 @@ export interface WriteAnnotation {
 export interface WriteField {
   /**
    * The field's value. A string for a text field or a combo box: one of the combo's options'
-   * export values, or any text when the combo takes text of its own. For a checkbox or a radio
+   * export values, or any text when the combo takes text of its own, or `''` to clear it. For a checkbox or a radio
    * group, the state name of the button to turn on, or `'Off'` for none. For a list box, the
    * selected options' export values, as a list: at most one unless it takes several, and an
    * empty list for none.
@@ -188,7 +192,10 @@ export interface WriteField {
 export interface WriteInput {
   /** Annotations already in the document to remove. */
   remove?: readonly AnnotationRef[]
-  /** Annotations to add, each appended to its page in the order given. */
+  /**
+   * Annotations to add, each appended to its page in the order given. A reply comes after the
+   * annotation it replies to.
+   */
   annotations?: readonly WriteAnnotation[]
   /** Form values to set, by full field name: parent names and the field's own, joined by dots. */
   fields?: Readonly<Record<string, WriteField>>

@@ -118,6 +118,41 @@ test.each(['Aborted(OOM)', 'Cannot enlarge memory arrays to size 16777216 bytes'
   }
 )
 
+test('a trap while putting the document back after a failed write is an engine-failure', async () => {
+  // Loads: open, the first write, the failed write, then the reopen, which traps.
+  const { native } = await trapping('FPDF_LoadMemDocument64', 'unreachable', 4)
+  const core = new EngineCore(native)
+  const { id } = core.open(bytes)
+  core.write(id, {})
+  let error: unknown
+  try {
+    core.write(id, {
+      annotations: [
+        {
+          page: 0,
+          annotation: {
+            id: 'bare',
+            type: 'square',
+            page: 0,
+            rect: { x: 10, y: 10, width: 10, height: 10 },
+            color: '#000000',
+            opacity: 1,
+            createdAt: '2026-11-17T09:30:00Z',
+            modifiedAt: '2026-11-17T09:30:00Z',
+            width: 1,
+          },
+          data: '{}',
+        },
+      ],
+    })
+  } catch (caught) {
+    error = caught
+  }
+  expect(error).toMatchObject({ name: 'EngineError', code: 'engine-failure' })
+  expect((error as Error).cause).toBeInstanceOf(WebAssembly.RuntimeError)
+  expect(core.stopped).toBe(true)
+})
+
 test('after a trap every call fails and nothing reaches the module', async () => {
   const { native, calls } = await trapping('FPDF_RenderPageBitmap')
   const core = new EngineCore(native)
