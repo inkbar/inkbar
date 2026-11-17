@@ -42,8 +42,32 @@ const WHITE: Rgb = [255, 255, 255]
 const over = (color: Rgb, opacity: number): Rgb =>
   color.map((c) => Math.round(c * opacity + 255 * (1 - opacity))) as unknown as Rgb
 
+/** How the page is shown: turned by the view, at a zoom. The default is upright at zoom 1. */
+interface Placed {
+  view: 0 | 90 | 180 | 270
+  zoom: number
+}
+
+/**
+ * Where a user-space point lands, in CSS px from the page's top-left corner, for a page of
+ * WIDTH x HEIGHT with its origin at (0, 0) and no /Rotate. Worked out by hand, not by the
+ * page transform under test.
+ */
+function onScreen([x, y]: readonly [number, number], { view, zoom }: Placed) {
+  switch (view) {
+    case 0:
+      return { x: x * zoom, y: (HEIGHT - y) * zoom }
+    case 90:
+      return { x: y * zoom, y: x * zoom }
+    case 180:
+      return { x: (WIDTH - x) * zoom, y: y * zoom }
+    case 270:
+      return { x: (HEIGHT - y) * zoom, y: (WIDTH - x) * zoom }
+  }
+}
+
 interface Sample {
-  /** In user space (points, origin bottom-left); the page is shown at zoom 1. */
+  /** In user space (points, origin bottom-left, before any turn of the view). */
   at: [number, number]
   want: Rgb
   why: string
@@ -56,6 +80,23 @@ function solid(color: string): string {
   const ctx = canvas.getContext('2d')!
   ctx.fillStyle = color
   ctx.fillRect(0, 0, 20, 20)
+  return canvas.toDataURL('image/png')
+}
+
+/** A picture of four colours, one to a quarter: red top left, blue top right, green and black below. */
+function quadrants(): string {
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = 20
+  const ctx = canvas.getContext('2d')!
+  for (const [x, y, color] of [
+    [0, 0, '#ff0000'],
+    [10, 0, '#0000ff'],
+    [0, 10, '#008000'],
+    [10, 10, '#000000'],
+  ] as const) {
+    ctx.fillStyle = color
+    ctx.fillRect(x, y, 10, 10)
+  }
   return canvas.toDataURL('image/png')
 }
 
@@ -78,9 +119,11 @@ async function settled(root: HTMLElement): Promise<void> {
 async function measure(
   input: AnnotationInput,
   samples: readonly Sample[],
-  mutate?: (host: HTMLElement) => void
+  mutate?: (host: HTMLElement) => void,
+  placed: Placed = { view: 0, zoom: 1 }
 ): Promise<Rgb[]> {
-  const host = mountContainer(WIDTH, HEIGHT)
+  const transform = createPageTransform(info, placed.zoom, placed.view)
+  const host = mountContainer(transform.cssWidth, transform.cssHeight)
   host.style.background = '#ffffff'
   cleanup.push(() => host.remove())
   const store = createAnnotationStore({
@@ -91,7 +134,7 @@ async function measure(
     host,
     page: 0,
     store,
-    transform: createPageTransform(info, 1, 0),
+    transform,
     onActivate: vi.fn(),
   })
   cleanup.push(() => overlay.destroy())
@@ -107,12 +150,13 @@ async function measure(
   canvas.height = bitmap.height
   const ctx = canvas.getContext('2d', { willReadFrequently: true })!
   ctx.drawImage(bitmap, 0, 0)
-  const scale = bitmap.width / WIDTH
+  const scale = bitmap.width / transform.cssWidth
   bitmap.close()
-  return samples.map(({ at: [x, y] }) => {
+  return samples.map(({ at }) => {
+    const px = onScreen(at, placed)
     const d = ctx.getImageData(
-      Math.round(x * scale),
-      Math.round((HEIGHT - y) * scale),
+      Math.round(px.x * scale),
+      Math.round(px.y * scale),
       1,
       1
     ).data
@@ -127,6 +171,7 @@ interface Case {
   name: string
   input: AnnotationInput
   samples: Sample[]
+  placed?: Placed
 }
 
 const RED: Rgb = [255, 0, 0]
@@ -333,11 +378,73 @@ const CASES: Case[] = [
   },
 ]
 
+const GREEN: Rgb = [0, 128, 0]
+const BLACK: Rgb = [0, 0, 0]
+
+/** The stamp's picture in the four quarters of its rect (150, 100, 60 x 40), in user space. */
+const quarters = (want: [Rgb, Rgb, Rgb, Rgb]): Sample[] =>
+  (
+    [
+      [165, 130, 'upper left'],
+      [195, 130, 'upper right'],
+      [165, 110, 'lower left'],
+      [195, 110, 'lower right'],
+    ] as const
+  ).map(([x, y, where], i) => ({
+    at: [x, y],
+    want: want[i]!,
+    why: `the ${where} quarter of the stamp`,
+  }))
+
+// A page turned by the view, at another zoom: the same user-space points, found on the turned page.
+for (const [view, zoom] of [
+  [90, 2],
+  [180, 1],
+  [270, 1],
+] as const)
+  CASES.push(
+    {
+      name: `a dashed square on a page turned ${view} at zoom ${zoom}`,
+      input: CASES[1]!.input,
+      samples: CASES[1]!.samples,
+      placed: { view, zoom },
+    },
+    {
+      name: `a line with a closed arrow on a page turned ${view} at zoom ${zoom}`,
+      input: CASES[2]!.input,
+      samples: CASES[2]!.samples,
+      placed: { view, zoom },
+    }
+  )
+
+// The picture turns with the page: each quarter stays where the page has it.
+for (const [view, rotation, want] of [
+  [0, 0, [RED, BLUE, GREEN, BLACK]],
+  [90, 0, [RED, BLUE, GREEN, BLACK]],
+  [180, 0, [RED, BLUE, GREEN, BLACK]],
+  [270, 0, [RED, BLUE, GREEN, BLACK]],
+  // Turned a quarter anticlockwise on the page: upper left goes to lower left, and so on.
+  [0, 90, [BLUE, BLACK, RED, GREEN]],
+  [270, 90, [BLUE, BLACK, RED, GREEN]],
+] as const)
+  CASES.push({
+    name: `a stamp turned ${rotation} on a page turned ${view}`,
+    input: {
+      type: 'stamp',
+      page: 0,
+      rect: { x: 150, y: 100, width: 60, height: 40 },
+      imagedata: quadrants(),
+      rotation,
+    },
+    samples: quarters([...want]),
+    placed: { view, zoom: 1 },
+  })
+
 describe('what each annotation looks like on the page', () => {
   /** Every sample of every case, for the run's log. */
   for (const c of CASES) {
     it(`${c.name}`, async () => {
-      const got = await measure(c.input, c.samples)
+      const got = await measure(c.input, c.samples, undefined, c.placed)
       c.samples.forEach((s, i) =>
         console.log(
           `[pixels] ${c.name} | ${s.why} | at ${s.at.join(',')} | want ${s.want.join(',')} | got ${got[i]!.join(',')}`
