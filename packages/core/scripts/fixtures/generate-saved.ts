@@ -33,12 +33,9 @@ import { fixtureBytes, fixturePath, type FixtureName } from '@inkbar/fixtures'
 import { format, resolveConfig } from 'prettier'
 
 import { staticDefaults } from '../../src/model/annotations/defaults'
-import { describeDrawing } from '../../src/model/annotations/drawing/describe'
-import { paintDrawing } from '../../src/model/annotations/drawing/pdf/paint'
-import { standardMeasure } from '../../src/model/annotations/drawing/text/measure'
-import { toGloss } from '../../src/model/annotations/json'
 import { savedDataFor } from '../../src/model/annotations/saved-data'
 import { createAnnotationStore } from '../../src/model/annotations/store'
+import { writeAnnotation } from '../../src/model/save/write-input'
 
 import type { Annotation, AnnotationInput } from '../../src/model/annotations/types'
 
@@ -194,24 +191,16 @@ async function writeAll(doc: EngineDocument, items: Written[]): Promise<void> {
       info = await doc.pageInfo(a.page)
       pages.set(a.page, info)
     }
-    const stored = (bounds: Parameters<NonNullable<Written['data']>>[1]) =>
-      data ? data(a, bounds) : savedDataFor(a, bounds, signs)
-    if (a.inReplyTo !== undefined) {
-      out.push({ page: a.page, annotation: toGloss(a), data: stored(a.rect) })
-      continue
-    }
-    const drawing = describeDrawing(a, {
-      page: { box: info.box, rotate: info.rotation, userUnit: 1 },
-      measure: standardMeasure,
-    })
-    if (!drawing) throw new Error(`${a.type} ${a.id} has no drawing`)
-    const appearance = await paintDrawing(drawing, { page: a.page })
-    out.push({
-      page: a.page,
-      annotation: toGloss(a),
-      appearance,
-      data: stored(appearance.bounds),
-    })
+    // The way a save writes it, with the page the engine reports.
+    out.push(
+      await writeAnnotation(a, {
+        page: { box: info.box, rotate: info.rotation, userUnit: 1 },
+        reply: a.inReplyTo !== undefined,
+        signs,
+        helpers: {},
+        ...(data ? { data: (bounds) => data(a, bounds) } : {}),
+      })
+    )
   }
   await doc.write({ annotations: out })
 }

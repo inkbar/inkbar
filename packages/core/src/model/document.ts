@@ -1,3 +1,4 @@
+import { refOfPdfjsId } from '../pdf/annotation-fields'
 import { emptyFormExtras, readFormExtras, type FormExtras } from '../pdf/form-fields'
 import { openPdfObjects, type PdfObjects } from '../pdf/objects'
 import { destinationPage, resolveDestination } from '../pdfjs/destinations'
@@ -38,6 +39,15 @@ import { createPageCache, type PageCache } from './page-cache'
 import { pageInfoFromProxy, type PageInfo } from './pages'
 import { readonly, writable, type Readable } from './readable'
 import {
+  changedFields,
+  hasChanges,
+  takeSnapshot,
+  type FieldChange,
+  type Snapshot,
+} from './save/changes'
+import { createSaver, type EngineLoader, type Saver } from './save/saver'
+import { buildWriteInput, writeFields } from './save/write-input'
+import {
   matchPage,
   type SearchHit,
   type SearchOptions,
@@ -47,6 +57,7 @@ import { searchableText, type SearchableText } from './search-text'
 import { resolveSource, sourceFileName, type DocumentSource } from './source'
 import { textContentFromPdfjs, type TextContent } from './text'
 
+import type { TextPicture, ToPng } from './annotations/drawing/pdf/paint'
 import type {
   Annotation,
   AnnotationDocument,
@@ -62,6 +73,7 @@ import type {
   PdfjsModule,
   PdfjsPage,
 } from '../pdfjs/types'
+import type { AnnotationRef } from '@inkbar/engine'
 
 export type DocumentStatus =
   { state: 'loading' } | { state: 'ready' } | { state: 'error'; error: InkError }
@@ -71,6 +83,8 @@ export type LockedStatus = { state: 'locked'; incorrect: boolean }
 
 /** A document's status plus `idle`, for a host with no document open, and `locked`. */
 export type InkStatus = DocumentStatus | { state: 'idle' } | LockedStatus
+
+export type { EngineLoader } from './save/saver'
 
 export interface DocumentInfo {
   title?: string | undefined
@@ -104,6 +118,13 @@ export interface OpenOptions {
   history?: boolean | { limit?: number | undefined } | undefined
   /** PDF.js verbosity level; 0 = errors only. Defaults to PDF.js's own level. */
   verbosity?: number | undefined
+  /**
+   * Loads @inkbar/engine, for `save()`: `() => import('@inkbar/engine')`. Called on the first
+   * save with changes, never before. Absent: such a save rejects with EngineUnavailable.
+   */
+  engine?: EngineLoader | undefined
+  /** @internal Pictures for text and images the file cannot hold; the DOM layer supplies them. */
+  _pictures?: { textPicture?: TextPicture; toPng?: ToPng } | undefined
 }
 
 export interface InkDocument {
@@ -175,8 +196,20 @@ export interface InkDocument {
    * this session's annotations. Waits for `ready`; rejects as `ready` does.
    */
   getData(): Promise<Uint8Array>
-  /** Writes the document with its annotations. Needs @inkbar/engine; rejects with EngineUnavailable otherwise. */
+  /**
+   * The PDF with this session's annotations and changed form values written into it. Waits for
+   * `ready` and for the annotations Inkbar saved to be lifted. With no changes it resolves with
+   * `getData()`'s bytes and loads no engine. With changes it needs the `engine` option, and
+   * rejects with EngineUnavailable without it, and with SaveFailed when the engine cannot write
+   * the file. The written copy is kept until the next change, and calls made while a write runs
+   * share it.
+   */
   save(): Promise<Uint8Array>
+  /**
+   * True while the session differs from the file: its annotations from those lifted at open,
+   * or a form value from the file's. False until lifting lands.
+   */
+  readonly changed: Readable<boolean>
   destroy(): void
   /** @internal PDF.js ids of file annotations lifted into the session. */
   readonly _lifted: Readable<ReadonlySet<string>>
@@ -483,6 +516,67 @@ export async function openDocument(
   // document destroyed while the pass waits on PDF.js does not wait for it.
   const _liftSettled = Promise.race([liftSettled, destroyedSignal]).catch(() => undefined)
 
+  // Saving. The engine is loaded through the host's loader, on the first save with changes.
+  const saver: Saver | undefined = options.engine
+    ? createSaver({
+        loader: options.engine,
+        bytes: () =>
+          handles ? handles.proxy.getData() : Promise.reject(statusError(status.get())),
+        password: options.password,
+      })
+    : undefined
+  const changed = writable(false)
+  /** The text each field showed when lifting landed, taken as the file's own. */
+  let fileFormatted: Readonly<Record<string, string>> = {}
+  /** The session as the file holds it: what was lifted, and the values once it landed. */
+  let baseline: Snapshot | undefined
+  const fieldChanges = (): Record<string, FieldChange> =>
+    changedFields(
+      {
+        fields: form.fields.get(),
+        values: form.values.get(),
+        formatted: form.formatted.get(),
+      },
+      { formatted: fileFormatted }
+    )
+  /** The last snapshot and what it was taken from, so each change takes one. */
+  let taken:
+    { list: unknown; values: unknown; formatted: unknown; snapshot: Snapshot } | undefined
+  const snapshot = (): Snapshot => {
+    const list = store.list.get()
+    const values = form.values.get()
+    const formatted = form.formatted.get()
+    if (taken?.list === list && taken.values === values && taken.formatted === formatted)
+      return taken.snapshot
+    const next = takeSnapshot({ annotations: list, fields: fieldChanges() })
+    taken = { list, values, formatted, snapshot: next }
+    return next
+  }
+  const unwatch: (() => void)[] = []
+  const baselineTaken = _liftSettled.then(() => {
+    if (destroyed || status.get().state !== 'ready') return
+    fileFormatted = form.formatted.get()
+    // A signature link restored by lifting is among the values, so it is no change.
+    baseline = takeSnapshot({
+      annotations: [...liftedFrom.values()].map((f) => f.annotation),
+      fields: fieldChanges(),
+    })
+    const from = baseline
+    const update = () => changed.set(hasChanges(snapshot(), from))
+    unwatch.push(
+      store.list.subscribe(update),
+      form.values.subscribe(update),
+      form.formatted.subscribe(update)
+    )
+    update()
+  })
+  /** The file copies of the lifted annotations, which a save removes. */
+  const liftedRefs = (): AnnotationRef[] =>
+    [...liftedFrom.values()].flatMap(({ annotation, pdfjsId }) => {
+      const ref = refOfPdfjsId(pdfjsId)
+      return ref ? [{ page: annotation.page, objectNumber: ref.num }] : []
+    })
+
   /**
    * A page's text with item boundaries measured or, with `glyphs`, taken from where the page
    * draws each glyph. Reading the glyphs means reading the page's drawing commands, which also
@@ -638,18 +732,39 @@ export async function openDocument(
       form._import(plan.fieldValues)
       return plan.result
     },
-    save() {
-      return Promise.reject(
-        new InkError(
+    async save() {
+      if (destroyed) throw destroyedError()
+      await ready
+      await baselineTaken
+      if (destroyed) throw destroyedError()
+      if (!handles || !baseline) throw statusError(status.get())
+      const now = snapshot()
+      if (!hasChanges(now, baseline)) return handles.proxy.getData()
+      if (!saver)
+        throw new InkError(
           'EngineUnavailable',
-          'Saving needs @inkbar/engine, which is not registered. Use exportAnnotations("json") to keep annotations without writing the PDF.'
+          'Saving changes needs @inkbar/engine: pass the engine option. Use exportAnnotations("json") to keep annotations without writing the PDF.'
         )
-      )
+      const lifted = liftedRefs()
+      return saver.write(now.key, () => {
+        const { fields, signs } = writeFields(now.fields, form.fields.get())
+        return buildWriteInput({
+          annotations: now.annotations,
+          pages,
+          lifted,
+          fields,
+          signs,
+          helpers: options._pictures ?? {},
+        })
+      })
     },
+    changed: readonly(changed),
     destroy() {
       if (destroyed) return
       destroyed = true
       markDestroyed()
+      unwatch.splice(0).forEach((stop) => stop())
+      saver?.destroy()
       history.destroy()
       form._destroy()
       store.destroy()
