@@ -11,7 +11,7 @@
 // left/top; their look is the theme's.
 // Custom elements are the exception and stay `pointer-events:auto`: the host draws them and
 // only it knows their shape. Every visual (colour, opacity, stroke, fill) is an SVG
-// attribute or a theme hook.
+// attribute with the same inline style, or a theme hook.
 import { freeTextBox } from '../model/annotations/callout'
 import { paintedByCanvas } from '../model/annotations/drawing/describe'
 import {

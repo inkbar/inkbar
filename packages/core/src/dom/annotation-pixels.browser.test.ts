@@ -353,22 +353,23 @@ describe('what each annotation looks like on the page', () => {
       expect(near(got[0]!, over(RED, 0.25))).toBe(true)
     })
 
-    it('a host rule that recolours the strokes', async () => {
+    // A host's rule on the drawn shapes does not reach the pixels: the paint is inline style.
+    it('a host rule that recolours the strokes changes nothing', async () => {
       const got = await measure(arrow.input, arrow.samples, (host) => {
         const style = document.createElement('style')
-        style.textContent = '.ink-annotation svg * { stroke: red !important }'
+        style.textContent = '.ink-annotation svg * { stroke: red }'
         host.append(style)
       })
-      expect(near(got[0]!, arrow.samples[0]!.want)).toBe(false)
+      expect(near(got[0]!, arrow.samples[0]!.want)).toBe(true)
     })
 
-    it('a host rule that fills a shape with no fill', async () => {
+    it('a host rule that fills a shape with no fill changes nothing', async () => {
       const got = await measure(dashed.input, dashed.samples, (host) => {
         const style = document.createElement('style')
-        style.textContent = '.ink-annotation svg rect { fill: red !important }'
+        style.textContent = '.ink-annotation svg rect { fill: red }'
         host.append(style)
       })
-      expect(near(got[2]!, WHITE)).toBe(false)
+      expect(near(got[2]!, WHITE)).toBe(true)
     })
 
     it('an ancestor that clips the page to the shaft', async () => {

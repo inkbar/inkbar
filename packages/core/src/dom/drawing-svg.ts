@@ -73,6 +73,7 @@ export function paintItems(
   const only = items.length === 1 ? items[0] : undefined
   if (only?.kind === 'group') {
     svg.setAttribute('opacity', String(only.opacity))
+    svg.style.opacity = String(only.opacity)
     for (const item of only.items) svg.append(paintItem(doc, item, t, box, at, len))
   } else {
     for (const item of items) svg.append(paintItem(doc, item, t, box, at, len))
@@ -167,13 +168,20 @@ function paintItem(
     case 'path': {
       out = node('path')
       out.setAttribute('d', pathData(item.commands, t, at, len))
+      // Set as style too, with the clip rule, which a host rule could change as well.
+      const rule = item.fillRule ?? 'nonzero'
       if (item.fillRule) out.setAttribute('fill-rule', item.fillRule)
       paint(out, item.paint, len)
+      out.setAttribute(
+        'style',
+        `${out.getAttribute('style')};fill-rule:${rule};clip-rule:${rule}`
+      )
       break
     }
     case 'group': {
       out = node('g')
       out.setAttribute('opacity', String(item.opacity))
+      out.setAttribute('style', `opacity:${item.opacity}`)
       for (const child of item.items)
         out.append(paintItem(doc, child, t, origin, at, len))
       break
@@ -264,7 +272,8 @@ function paintText(
     text.setAttribute('fill', item.color)
     text.setAttribute(
       'style',
-      `font-kerning:none;white-space:pre;font-family:${stack};font-size:${fmt(size)}px;font-weight:${weight};font-style:${slant};fill:${item.color}`
+      `font-kerning:none;white-space:pre;font-family:${stack};font-size:${fmt(size)}px;font-weight:${weight};font-style:${slant};fill:${item.color};stroke:none;` +
+        `text-anchor:start;dominant-baseline:alphabetic;letter-spacing:0;word-spacing:0;text-decoration:none`
     )
     text.setAttribute('pointer-events', 'none')
     if (turn !== 0)
@@ -295,7 +304,7 @@ function paintText(
       rule.setAttribute('stroke-width', fmt(len(line.underline.thickness)))
       rule.setAttribute(
         'style',
-        `stroke:${item.color};stroke-width:${fmt(len(line.underline.thickness))}px`
+        `stroke:${item.color};stroke-width:${fmt(len(line.underline.thickness))}px;stroke-dasharray:none;stroke-linecap:butt`
       )
       rule.setAttribute('pointer-events', 'none')
       guard(rule, 'underline')
@@ -321,11 +330,13 @@ function fillText(
     return
   }
   text.setAttribute('word-spacing', fmt(spacing))
+  text.style.wordSpacing = `${fmt(spacing)}px`
   for (const part of content.split(/(\u00a0+)/)) {
     if (part === '') continue
     if (part.startsWith('\u00a0')) {
       const piece = doc.createElementNS(SVG, 'tspan')
       piece.setAttribute('word-spacing', '0')
+      piece.style.wordSpacing = '0'
       piece.textContent = part
       text.append(piece)
     } else text.append(doc.createTextNode(part))
@@ -425,19 +436,37 @@ function ellipseOutline(rect: Rect): PathCommand[] {
   return [{ op: 'M', to: { x: x + width, y: cy } }, half(x), half(x + width), { op: 'Z' }]
 }
 
+/**
+ * Sets an item's paint as attributes, which tests and selectors read, and as inline style, which
+ * a host's rule on `svg rect` or `path` cannot override. The style names everything such a rule
+ * could change, a value the description leaves out as its default: no stroke is `none`, no
+ * dashes `none`, a join `miter`, a cap `butt`.
+ */
 function paint(el: Element, p: Paint, len: (n: number) => number): void {
+  const s = p.stroke
+  const dashes = s?.dashes?.length ? s.dashes.map(len).join(' ') : undefined
   el.setAttribute('fill', p.fill?.color ?? 'none')
   if (p.fill?.opacity !== undefined)
     el.setAttribute('fill-opacity', String(p.fill.opacity))
-  const s = p.stroke
-  if (!s) return
-  el.setAttribute('stroke', s.color)
-  el.setAttribute('stroke-width', String(len(s.width)))
-  if (s.dashes && s.dashes.length > 0) {
-    el.setAttribute('stroke-dasharray', s.dashes.map(len).join(' '))
+  if (s) {
+    el.setAttribute('stroke', s.color)
+    el.setAttribute('stroke-width', String(len(s.width)))
+    if (dashes) el.setAttribute('stroke-dasharray', dashes)
+    if (s.join) el.setAttribute('stroke-linejoin', s.join)
+    if (s.cap) el.setAttribute('stroke-linecap', s.cap)
   }
-  if (s.join) el.setAttribute('stroke-linejoin', s.join)
-  if (s.cap) el.setAttribute('stroke-linecap', s.cap)
+  el.setAttribute(
+    'style',
+    [
+      `fill:${p.fill?.color ?? 'none'}`,
+      `fill-opacity:${p.fill?.opacity ?? 1}`,
+      `stroke:${s?.color ?? 'none'}`,
+      ...(s ? [`stroke-width:${len(s.width)}px`] : []),
+      `stroke-dasharray:${dashes ?? 'none'}`,
+      `stroke-linejoin:${s?.join ?? 'miter'}`,
+      `stroke-linecap:${s?.cap ?? 'butt'}`,
+    ].join(';')
+  )
 }
 
 function pathData(

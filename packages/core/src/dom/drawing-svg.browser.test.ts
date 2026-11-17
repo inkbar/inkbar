@@ -534,7 +534,7 @@ describe('a text', () => {
     expect(first!.getAttribute('lengthAdjust')).toBe('spacing')
     // Font and colour are inline style as well, so a host's rule on the text does not restyle it.
     expect(first!.getAttribute('style')).toBe(
-      `font-kerning:none;white-space:pre;font-family:${FONT_STACKS.Helvetica};font-size:24px;font-weight:normal;font-style:normal;fill:#0a0b0c`
+      `font-kerning:none;white-space:pre;font-family:${FONT_STACKS.Helvetica};font-size:24px;font-weight:normal;font-style:normal;fill:#0a0b0c;stroke:none;text-anchor:start;dominant-baseline:alphabetic;letter-spacing:0;word-spacing:0;text-decoration:none`
     )
     expect(first!.getAttribute('font-family')).toBe(FONT_STACKS.Helvetica)
     expect(second!.getAttribute('y')).toBe(String(2 * (792 - 685.6)))
@@ -638,16 +638,37 @@ describe('a text', () => {
       1
     )
     const style = document.createElement('style')
-    style.textContent = 'text { font-family: cursive; fill: red; font-size: 40px }'
+    style.textContent =
+      'text { font-family: cursive; fill: red; font-size: 40px }\nsvg text { text-anchor: middle; letter-spacing: 2px; stroke: red; word-spacing: 9px; text-decoration: line-through; dominant-baseline: hanging }'
     document.head.append(style)
     const host = mountContainer(612, 792)
     host.append(el)
     const t = el.querySelector('text')!
     const cs = getComputedStyle(t)
-    const result = [cs.fill, cs.fontSize, cs.fontFamily]
+    const result = [
+      cs.fill,
+      cs.fontSize,
+      cs.fontFamily,
+      cs.textAnchor,
+      cs.letterSpacing,
+      cs.stroke,
+      cs.wordSpacing,
+      cs.textDecorationLine,
+      cs.dominantBaseline,
+    ]
     host.remove()
     style.remove()
-    expect(result).toEqual(['rgb(10, 11, 12)', '12px', FONT_STACKS.Helvetica])
+    expect(result).toEqual([
+      'rgb(10, 11, 12)',
+      '12px',
+      FONT_STACKS.Helvetica,
+      'start',
+      'normal',
+      'none',
+      '0px',
+      'none',
+      'alphabetic',
+    ])
   })
 
   it('every created element is checked for a non-finite value', () => {

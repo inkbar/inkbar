@@ -238,8 +238,8 @@ export function freeTextLocalBox(a: FreeTextAnnotation, t: PageTransform): CssRe
 
 /**
  * Draws the default visual for an annotation inside its positioned element. Coordinates are
- * relative to the element. Colour, opacity and stroke of a drawn shape are SVG attributes, never inline style,
- * so a theme can override them with CSS. A type with no drawing leaves the element empty. The
+ * relative to the element. Colour, opacity and stroke of a drawn shape are SVG attributes and
+ * the same inline style, so a host's rule on `svg path` or `rect` cannot recolour them. A type with no drawing leaves the element empty. The
  * overlay gives an annotation the page canvas paints a hit area instead (`renderHitArea`).
  */
 export function renderAnnotationContent(

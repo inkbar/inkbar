@@ -15,6 +15,7 @@ import { createHistory } from '../model/annotations/history'
 import { importAnnotations } from '../model/annotations/json'
 import { createAnnotationStore } from '../model/annotations/store'
 import { renderRegion } from '../pdfjs/render-region'
+import { oneOfEach } from '../test-support/annotations'
 
 import { createMessageState } from './messages-state'
 import { createOverlay, type OverlayOptions } from './overlay'
@@ -506,8 +507,9 @@ describe('createOverlay', () => {
     })
     store.add({ type: 'text', page: 0, rect: { x: 400, y: 400, width: 20, height: 20 } })
     // Descendants carry no inline style, except `pointer-events` on the HTML children the
-    // overlay creates, and the style of a drawn line of text and its underline (no kerning, spaces
-    // kept, font and colour), which keeps a host's rules off them.
+    // overlay creates, the style of a drawn line of text and its underline (no kerning, spaces
+    // kept, font and colour), and the paint and opacity of a drawn shape, which keep a host's
+    // rules off them.
     for (const node of overlay.element.querySelectorAll('[data-annotation] *')) {
       const style = node.getAttribute('style')
       if (style === null) continue
@@ -515,9 +517,9 @@ describe('createOverlay', () => {
         expect(style).toMatch(/^font-kerning:none;white-space:pre;font-family:/)
         continue
       }
-      // The paint of a shape that only takes presses, inline so a host rule cannot fill it.
+      // The paint of a shape, drawn or only taking presses, and a group's opacity.
       if (node instanceof SVGElement) {
-        expect(style).toMatch(/^(fill|stroke):/)
+        expect(style).toMatch(/^(fill|stroke|opacity):/)
         continue
       }
       expect(node).toBeInstanceOf(HTMLElement)
@@ -941,6 +943,78 @@ describe('createOverlay', () => {
       for (let i = 0; i < data.length; i += 4)
         if (data[i + 2]! > 150 && data[i]! < 100 && data[i + 1]! < 100) blue++
       expect(blue).toBeGreaterThan(20)
+    })
+
+    it('every drawn shape keeps its paint under a host rule on svg shapes, notes included', () => {
+      const { store, overlay } = setup()
+      const rect = { x: 100, y: 500, width: 120, height: 80 }
+      const squiggle = { x: 300, y: 420, width: 100, height: 20 }
+      const ends = { start: { x: 100, y: 300 }, end: { x: 300, y: 340 }, rect }
+      const inputs = [
+        ...oneOfEach(),
+        {
+          type: 'square',
+          page: 0,
+          rect,
+          width: 4,
+          dashes: [3, 2],
+          interiorColor: '#00FF00',
+          cornerRadius: 5,
+        },
+        { type: 'circle', page: 0, rect, width: 3, dashes: [4, 4], opacity: 0.5 },
+        { type: 'text', page: 0, rect: { ...rect, width: 24, height: 24 }, icon: 'Key' },
+        { type: 'line', page: 0, ...ends, width: 3, head: 'OpenArrow', tail: 'Circle' },
+        { type: 'polyline', page: 0, rect, vertices: [ends.start, ends.end], width: 3 },
+        { type: 'squiggly', page: 0, quads: [quads[0]!] },
+        { type: 'strikeout', page: 0, quads: [quads[0]!] },
+        { type: 'redact', page: 0, rect: squiggle },
+        { type: 'loupe', page: 0, rect, width: 3 },
+        {
+          type: 'freetext',
+          page: 0,
+          rect,
+          contents: 'Hello world',
+          width: 3,
+          cornerRadius: 6,
+          intent: 'FreeTextCallout',
+          callout: [
+            { x: 80, y: 480 },
+            { x: 130, y: 500 },
+          ],
+        },
+      ] as never[]
+      for (const input of inputs) store.add(input)
+      const shapes = [
+        ...overlay.element.querySelectorAll<SVGElement>(
+          'path, rect, ellipse, circle, polygon, polyline'
+        ),
+      ].filter((el) => el.getAttribute('style')?.includes('fill-opacity:'))
+      expect(shapes.length).toBeGreaterThan(inputs.length)
+      // What a stroke looks like matters only where there is one.
+      const look = () =>
+        shapes.map((el) => {
+          const cs = getComputedStyle(el)
+          return [
+            cs.fill,
+            cs.fillOpacity,
+            cs.stroke,
+            ...(cs.stroke === 'none'
+              ? []
+              : [
+                  cs.strokeWidth,
+                  cs.strokeDasharray,
+                  cs.strokeLinejoin,
+                  cs.strokeLinecap,
+                ]),
+          ]
+        })
+      const before = look()
+      const style = document.createElement('style')
+      style.textContent =
+        'rect, circle, path, polyline, polygon, ellipse { fill: red; fill-opacity: 0.2; stroke: red; stroke-width: 9px; stroke-dasharray: 1; stroke-linejoin: bevel; stroke-linecap: square }'
+      document.head.append(style)
+      cleanup.push(() => style.remove())
+      expect(look()).toEqual(before)
     })
 
     it('transparent hit shapes keep their paint under a host rule on svg shapes', () => {
