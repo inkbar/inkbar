@@ -109,11 +109,10 @@ describe('standardMeasure', () => {
   })
 
   test('the copyright sign is a character of the tables, with the table width and not outside', () => {
-    const table = WIDTHS.Helvetica[0][[...CHARS].indexOf('\u00a9')]!
-    expect(table).toBeGreaterThan(0)
     expect(isWide('\u00a9')).toBe(false)
+    // Helvetica's copyright sign is 737 per 1000 in the Adobe metrics: 8.844 at 12 pt.
     const m = standardMeasure.width('\u00a9', helv, 12)
-    expect(m.width).toBeCloseTo((table / 1000) * 12, 9)
+    expect(m.width).toBeCloseTo(8.844, 9)
     expect(m.outside).toBe(false)
   })
 
