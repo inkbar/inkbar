@@ -9,7 +9,7 @@ import {
 } from '../model/annotations/drawing/text/measure'
 
 import { browserLines } from './text-browser-layout'
-import { checkTextFonts } from './text-font-check'
+import { checkTextFonts, classesIn, outsideRunsDiffer } from './text-font-check'
 import { browserWidth, cssFont } from './text-fonts'
 
 import type { TextBlock } from '../model/annotations/drawing/text/layout'
@@ -98,10 +98,14 @@ const WIDTHS = [80, 144, 300]
 
 const spaceless = (s: string) => s.normalize('NFC').replace(/\s/gu, '')
 
+/** The lines of `a` that `b` does not have at the same place, joined. */
+const unlike = (a: string[], b: string[]) => a.filter((line, i) => line !== b[i]).join('')
+
 describe('layoutText breaks lines where the browser does', () => {
   for (const [name, text] of Object.entries(SAMPLES)) {
     it(`${name}`, () => {
       const mismatches: string[] = []
+      const unexplained: string[] = []
       let total = 0
       for (const family of FAMILIES)
         for (const size of SIZES)
@@ -118,14 +122,25 @@ describe('layoutText breaks lines where the browser does', () => {
               spaceless(l.text)
             )
             total++
-            if (JSON.stringify(expected) !== JSON.stringify(laid))
-              mismatches.push(
-                `${family} ${size} ${width}\n  browser ${JSON.stringify(expected)}\n  layout  ${JSON.stringify(laid)}`
-              )
+            if (JSON.stringify(expected) !== JSON.stringify(laid)) {
+              const detail = `${family} ${size} ${width}\n  browser ${JSON.stringify(expected)}\n  layout  ${JSON.stringify(laid)}`
+              mismatches.push(detail)
+              // Where a class of characters is drawn in other widths on this machine, the browser's own lines may differ from a whole-string measure of them.
+              if (!(
+                fonts.mode === 'by-cause' &&
+                causeFound(
+                  text,
+                  block.font,
+                  size,
+                  unlike(expected, laid) + unlike(laid, expected)
+                )
+              ))
+                unexplained.push(detail)
+            }
           }
       console.log(`[comparison] ${name}: ${total - mismatches.length}/${total}`)
       for (const m of mismatches) console.log(`[mismatch] ${name} | ${m}`)
-      expect(mismatches).toEqual([])
+      expect(unexplained).toEqual([])
     })
   }
 })
@@ -173,6 +188,10 @@ interface Mismatch {
   /** The smallest box-edge move, in px, after which layout agrees with the browser. */
   near: number | undefined
   latin: boolean
+  font: TextFont
+  size: number
+  /** The characters of the lines the browser and the layout broke differently. */
+  differing: string
 }
 
 /** Lays every sample out with `measure` and compares it with a real `div`. */
@@ -204,7 +223,16 @@ function compareWith(
                   ) === JSON.stringify(expected)
               )
             )
-            mismatches.push({ label, name, text, near, latin: latinOnly(text) })
+            mismatches.push({
+              label,
+              name,
+              text,
+              near,
+              latin: latinOnly(text),
+              font,
+              size,
+              differing: unlike(expected, laid) + unlike(laid, expected),
+            })
             console.log(
               `[detail] kerning=${kerning} ${label} edge<=${near ?? 'none'}\n  browser ${JSON.stringify(expected)}\n  layout  ${JSON.stringify(laid)}`
             )
@@ -213,7 +241,7 @@ function compareWith(
   return { total, mismatches }
 }
 
-const fonts = checkTextFonts()
+const fonts = checkTextFonts(Object.values(SAMPLES))
 console.log(`[text fonts] mode ${fonts.mode}: ${fonts.why}`)
 
 /**
@@ -224,19 +252,36 @@ console.log(`[text fonts] mode ${fonts.mode}: ${fonts.why}`)
  */
 const MISMATCH_CAP = 0.025
 
-const EMOJI = /[\p{Extended_Pictographic}\p{Regional_Indicator}\u20e3]/u
-const CJK = /[\u3000-\u9fff\uff00-\uffef]/u
+/**
+ * Whether the lines of `text` that the browser and the layout broke differently have a cause the
+ * font check found. Either:
+ * - a class of characters in those lines whose probe differed on this machine from the recorded
+ *   width or from the layout's own measure of it (the check probes every class the samples use); or
+ * - a run outside the tables in those lines that the browser draws at another width than the
+ *   layout measured for it (the cause itself, whatever a missing font draws instead).
+ */
+function causeFound(
+  text: string,
+  font: TextFont,
+  size: number,
+  differing: string
+): boolean {
+  return (
+    [...classesIn(differing)].some((name) => fonts.differing.has(name)) ||
+    outsideRunsDiffer(text, font, size, differing)
+  )
+}
 
 /**
- * Whether a mismatch in text with characters outside the Latin tables has a cause the font check
- * found: an emoji or CJK font whose widths differ from the recorded ones and a sample that has
- * those characters, or (with the default kerning) a script that is shaped, whose mark positioning
- * kerning-off text does not have.
+ * Whether a mismatch in text with characters outside the Latin tables is explained: it has a cause
+ * (see `causeFound`), or is one the exact lists record, which the fonts of any machine have, or,
+ * with the default kerning, is in a script that is shaped, whose mark positioning kerning-off
+ * text does not have.
  */
-function explainedByFonts(m: Mismatch, kerning: boolean): boolean {
+function explainedByFonts(m: Mismatch, kerning: boolean, known: string[]): boolean {
   return (
-    (fonts.differs.emoji && EMOJI.test(m.text)) ||
-    (fonts.differs.cjk && CJK.test(m.text)) ||
+    causeFound(m.text, m.font, m.size, m.differing) ||
+    known.includes(m.label) ||
     (kerning && SHAPED.test(m.name))
   )
 }
@@ -246,8 +291,8 @@ function explainedByFonts(m: Mismatch, kerning: boolean): boolean {
  * sorted labels must equal `known`. On any machine, a mismatch in text that has only characters
  * from the tables must be a line ending within 0.03 px of the box edge (with the browser's default
  * kerning, kerning may also move a break, so only the number of those is capped), and the total
- * is capped. Where the emoji or CJK fonts differ from the recorded ones (`by-cause`), a mismatch in
- * text with other characters must be one of the sample kinds those fonts, or shaping, can explain.
+ * is capped. Where some class of characters outside the tables differs from the recorded one (`by-cause`), a
+ * mismatch in text with other characters must be one that class, or shaping, can explain.
  */
 function checkRun(
   run: { total: number; mismatches: Mismatch[] },
@@ -264,7 +309,7 @@ function checkRun(
   if (fonts.mode === 'by-cause')
     for (const m of mismatches.filter((x) => !x.latin))
       expect(
-        explainedByFonts(m, options.kerning),
+        explainedByFonts(m, options.kerning, options.known),
         `${m.label} has no cause in the fonts the check found`
       ).toBe(true)
   if (fonts.mode === 'exact')
@@ -354,7 +399,7 @@ describe('layoutText with per-cluster browser widths and no tables', () => {
       if (fonts.mode === 'by-cause')
         for (const m of run.mismatches.filter((x) => !x.latin))
           expect(
-            explainedByFonts(m, true),
+            explainedByFonts(m, true, PER_CHAR_KNOWN),
             `${m.label} has no cause in the fonts the check found`
           ).toBe(true)
       if (fonts.mode === 'exact')
