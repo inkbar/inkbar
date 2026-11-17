@@ -28,6 +28,7 @@ import { assets } from 'virtual:inkbar-assets'
 
 import { pressesPlugin } from '../../plugin/presses'
 import '../../plugin/presses.css'
+import { engine } from '../../shared/engine'
 import { FileUp } from '../../shared/file-up'
 import { storage } from '../../shared/signatures'
 
@@ -57,6 +58,7 @@ export default function PressAndLongPress({
       locale={locale}
       assets={assets}
       storage={storage}
+      engine={engine}
       plugins={plugins}
       onReady={onReady}
       className="scenario-root"

@@ -1,8 +1,7 @@
 {
   "name": "@inkbar/engine",
   "version": "0.15.0",
-  "private": true,
-  "description": "The PDF engine behind Inkbar, built on PDFium.",
+  "description": "Opens, renders and writes PDFs for Inkbar: PDFium compiled to WebAssembly.",
   "license": "MIT",
   "homepage": "https://inkbar.dev",
   "repository": {
@@ -13,6 +12,9 @@
   "bugs": "https://github.com/inkbar/inkbar/issues",
   "type": "module",
   "sideEffects": false,
+  "engines": {
+    "node": ">=22.3"
+  },
   "files": [
     "dist",
     "README.md"

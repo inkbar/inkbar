@@ -8,7 +8,7 @@
 <h1 align="center">@inkbar/core</h1>
 
 <p align="center">
-  The engine under Inkbar: documents, rendering, annotations and tools, with no framework dependency.
+  The core of Inkbar: documents, rendering, annotations and tools, with no framework dependency.
 </p>
 
 <p align="center">
@@ -53,7 +53,7 @@ A document that fails to open still resolves: `doc.status` turns to `{ state: 'e
 
 `exportAnnotations('json')` returns a [Gloss](https://gloss-format.org) document, an open JSON format for PDF annotations, and `importAnnotations` reads one. Gloss has no loupe, mask, pen pressure or free-text border colour, so Inkbar writes them under `custom.inkbar`. It writes a loupe as a circle and a mask as a circle or square, so other Gloss readers can still draw them. Inkbar leaves your own keys under `custom` as they are. In the store and the API, loupes, masks, `pressure` and `borderColor` keep their plain names.
 
-Writing annotations back into the PDF needs `@inkbar/engine`, which is not released yet. Until then `save()` rejects with `EngineUnavailable`. Persist `exportAnnotations('json')` instead and re-import it on the next open. `doc.key` stays the same between opens only when you open with a key: a URL string, `{ url, key }` or `{ data, key }`. A `File`, `Blob` or raw bytes get a new random key each time.
+`doc.save()` writes the annotations and changed form values into the PDF when you pass the `engine` option; [Saving into the PDF](#saving-into-the-pdf) explains it. To keep annotations outside the file instead, store `exportAnnotations('json')` and import it on the next open. `doc.key` stays the same between opens only when you open with a key: a URL string, `{ url, key }` or `{ data, key }`. A `File`, `Blob` or raw bytes get a new random key each time.
 
 The DOM layer (`@inkbar/core/dom`) provides the viewport, canvas renderer, text layer, overlay and tools for hosts without a framework package. Vue hosts should use [`@inkbar/vue`](https://github.com/inkbar/inkbar/tree/main/packages/vue), React hosts [`@inkbar/react`](https://github.com/inkbar/inkbar/tree/main/packages/react), Svelte hosts [`@inkbar/svelte`](https://github.com/inkbar/inkbar/tree/main/packages/svelte). Below `mountViewer` sit `createViewport`, `createPageRenderer`, `createTextLayer`, `createOverlay` and `createPageMount`, for a host that wires its own.
 
@@ -113,7 +113,7 @@ viewer.open(lockedFile, { password }) // this password applies to this load only
 viewer.destroy()
 ```
 
-It takes the [`mountViewer` options](#mounting-a-viewer) except `container` and `document`, plus `source` and `assets` (both required), `password`, `passwordPrompt`, `defaults`, `history`, `annotations`, `fields`, `onReady` and `onError`. Pass `annotations: { mode: 'controlled', initial, onChange }` to own the session annotation list: `onChange` hears each proposed list, and you push it back with `viewer.document.get()?.annotations.setControlledValue(next)`. `initial` applies to every document the viewer opens, so a host that keeps its own list pushes it with `setControlledValue` in `onReady` for each new document. Undo and redo are inert in controlled mode. Set `threads` to `false` to leave out the thread popover. `viewer.status`, `viewer.document`, `viewer.engine`, `viewer.viewport` and `viewer.tools` are readables; the last two change when the engine rebuilds. `viewer.activated` is a readable too: the id of the annotation the user last clicked or activated with Enter, or `null`. `viewer.setActivated(id)` activates one from your code without calling `onActivate`; it ignores an id the document doesn't have, and `setActivated(null)` clears it. A password you pass to `open` replaces the `createViewer` one for that load. `viewer.download({ filename })` and `viewer.print()` download and print the open PDF, and Ctrl or Cmd+S and +P inside the root do the same; they do nothing while no document is open. The download is named by `doc.fileName`: the opened `File`'s name, else the URL's last segment, else `document.pdf`. Printing loads the file into a hidden frame and opens the browser's print dialog for it; on iOS the PDF opens in a new tab instead. Both use `doc.getData()`, which today is the file as it was opened, without this session's annotations. For a host of your own, `downloadDocument(doc, opts)`, `printDocument(doc)` and `attachFileKeys(el, () => doc)` do the same for any document. The controls are `createToolButton`, `createUndo`, `createRedo`, `createDownloadButton`, `createPrintButton`, `createZoomIn`, `createZoomOut`, `createZoomSelect`, `createPageInput`, `createPageCount`, `createPrevPage`, `createNextPage` and `createCommandButton`. `createHighlightMenu`, `createShapeMenu` and `createSignatureMenu` are split buttons for those tools, and `createColorMenu`, `createLineStyleMenu` and `createTextStyleMenu` edit the selection's style, or the active tool's when nothing is selected. Each one disables itself while no document is ready and lives as long as its viewer. Buttons show an icon from [`@inkbar/icons`](https://github.com/inkbar/inkbar/tree/main/packages/icons). Replace their children with your own icon and the accessible name stays; `createIcon` draws any `@inkbar/icons` icon for your own buttons. For a tool the viewer doesn't have, `createToolButton` and the highlight, shape and signature menus log `InkError('UnknownTool')`. The button renders disabled and the menus render nothing. `createToolbar` gives one Tab stop to all its buttons, with arrow keys between them, and `createToolbarSeparator` divides groups of controls in it. `createCommandButton(viewer, id)` places a plugin command: a `div.ink-command` holding a button named by the command's label (disabled with the command; while it runs, it keeps focus with `aria-busy` and `aria-disabled`, and a press does nothing) and a `span.ink-command-status[role="status"]` with its status text; for an id no plugin registered it logs an `InkError('UnknownCommand')` to the console, naming the id and the ones that are registered, and returns the same markup disabled and hidden (`aria-hidden`, no label). Pass `plugins: [...]` to `createViewer` to register plugins; their tools join the viewer's, and `createToolButton` takes a plugin tool's own label and icon. `viewer.commands.get(id)` returns a command. An input, select or textarea you add keeps its arrow keys and its own `tabindex`: it is a Tab stop unless you give it `tabindex="-1"`.
+It takes the [`mountViewer` options](#mounting-a-viewer) except `container` and `document`, plus `source` and `assets` (both required), `password`, `passwordPrompt`, `defaults`, `history`, `annotations`, `fields`, `onReady` and `onError`. Pass `annotations: { mode: 'controlled', initial, onChange }` to own the session annotation list: `onChange` hears each proposed list, and you push it back with `viewer.document.get()?.annotations.setControlledValue(next)`. `initial` applies to every document the viewer opens, so a host that keeps its own list pushes it with `setControlledValue` in `onReady` for each new document. Undo and redo are inert in controlled mode. Set `threads` to `false` to leave out the thread popover. `viewer.status`, `viewer.document`, `viewer.engine`, `viewer.viewport` and `viewer.tools` are readables; the last two change when the engine rebuilds. `viewer.activated` is a readable too: the id of the annotation the user last clicked or activated with Enter, or `null`. `viewer.setActivated(id)` activates one from your code without calling `onActivate`; it ignores an id the document doesn't have, and `setActivated(null)` clears it. A password you pass to `open` replaces the `createViewer` one for that load. `viewer.download({ filename })` and `viewer.print()` download and print the open PDF, and Ctrl or Cmd+S and +P inside the root do the same; they do nothing while no document is open. The download is named by `doc.fileName`: the opened `File`'s name, else the URL's last segment, else `document.pdf`. Printing loads the file into a hidden frame and opens the browser's print dialog for it; on iOS the PDF opens in a new tab instead. With the `engine` option both hand over the file with this session's changes written into it, and without it the file as it was opened; [Saving into the PDF](#saving-into-the-pdf) has the details. For a host of your own, `downloadDocument(doc, opts)`, `printDocument(doc, { messages })` and `attachFileKeys(el, () => doc, { onError, messages })` do the same for any document. `messages` gives the words a print shows on iOS while the copy is written, English by default; `attachFileKeys` takes a function that returns them, so it reads the current language at each key. `onError` hears a download or print started by a key that fails. `fileBusy(doc)` is a readable that is true while a copy is being written, and `fileActionFailure(error, messages)` gives the words to show for a failed one. The controls are `createToolButton`, `createUndo`, `createRedo`, `createDownloadButton`, `createPrintButton`, `createZoomIn`, `createZoomOut`, `createZoomSelect`, `createPageInput`, `createPageCount`, `createPrevPage`, `createNextPage` and `createCommandButton`. `createHighlightMenu`, `createShapeMenu` and `createSignatureMenu` are split buttons for those tools, and `createColorMenu`, `createLineStyleMenu` and `createTextStyleMenu` edit the selection's style, or the active tool's when nothing is selected. Each one disables itself while no document is ready and lives as long as its viewer. Buttons show an icon from [`@inkbar/icons`](https://github.com/inkbar/inkbar/tree/main/packages/icons). Replace their children with your own icon and the accessible name stays; `createIcon` draws any `@inkbar/icons` icon for your own buttons. For a tool the viewer doesn't have, `createToolButton` and the highlight, shape and signature menus log `InkError('UnknownTool')`. The button renders disabled and the menus render nothing. `createToolbar` gives one Tab stop to all its buttons, with arrow keys between them, and `createToolbarSeparator` divides groups of controls in it. `createCommandButton(viewer, id)` places a plugin command: a `div.ink-command` holding a button named by the command's label (disabled with the command; while it runs, it keeps focus with `aria-busy` and `aria-disabled`, and a press does nothing) and a `span.ink-command-status[role="status"]` with its status text; for an id no plugin registered it logs an `InkError('UnknownCommand')` to the console, naming the id and the ones that are registered, and returns the same markup disabled and hidden (`aria-hidden`, no label). Pass `plugins: [...]` to `createViewer` to register plugins; their tools join the viewer's, and `createToolButton` takes a plugin tool's own label and icon. `viewer.commands.get(id)` returns a command. An input, select or textarea you add keeps its arrow keys and its own `tabindex`: it is a Tab stop unless you give it `tabindex="-1"`.
 
 #### Locked files
 
@@ -159,6 +159,54 @@ Options:
 To open your own card next to an annotation, use `createPopover`: it anchors a panel to the annotation's element, follows it as pages mount and unmount, and calls your `onDismiss` on Escape or a press outside. `placePanel` positions a panel against any other rectangle.
 
 The viewport mounts pages synchronously, so a build's page callbacks fire before its `onBuild`. During a rebuild, `engine.viewport` and `engine.tools` still point at the destroyed objects while those callbacks run. Read the arguments instead, or wait for `onBuild`.
+
+## Saving into the PDF
+
+Install `@inkbar/engine` and pass a loader for it as `engine`: to `createViewer`, to `openDocument`, or as the `engine` prop of the Vue, React or Svelte `InkRoot`.
+
+```ts
+const viewer = createViewer(el, {
+  source,
+  assets,
+  engine: () => import('@inkbar/engine'),
+})
+```
+
+Download, Print, Ctrl or Cmd+S and Ctrl or Cmd+P then hand over the file with this session's annotations and changed form values written into it, and `doc.save()` resolves with the same bytes. Core loads the engine on the first save that has changes. With no changes, a save gives the bytes the file was opened from and the engine never loads. A bundler picks up the engine's wasm and worker from the package, so there is no setup; the [`@inkbar/engine` README](https://github.com/inkbar/inkbar/tree/main/packages/engine#serving-the-files) covers serving those files yourself. The engine's binary is 2.6 MB gzipped.
+
+Without the loader nothing changes. Download and Print give the file as it was opened, the engine is not bundled, and `doc.save()` rejects with `EngineUnavailable` once there are changes. With or without it, `doc.getData()` gives the bytes the file was opened from.
+
+`doc.changed` is a readable that is true while the session differs from the file: its annotations from those it opened with, or a form value from the file's.
+
+### What goes into the file
+
+- Each annotation becomes a standard PDF annotation that other programs can list, select and delete: a highlight is a Highlight, a note a Text annotation, a text box a FreeText, a drawing an Ink annotation, and so on. A loupe or a mask becomes a Stamp. Its look is drawn from the same description the screen uses, so it matches what you see in Inkbar, apart from the differences below. A comment goes in the annotation's contents, and replies are saved as replies.
+- Changed form values. Fields you did not change keep the look they came with.
+- A redaction mark becomes a Redact annotation. It is not applied: the text and images under it are still in the file and can still be copied.
+
+A file with a digital signature is saved by appending the changes after the signed bytes, so the signature still verifies; other viewers report that the file changed after signing. Any other file is rewritten. An encrypted file keeps its password.
+
+### Opening a saved file
+
+Annotations Inkbar saved come back as session annotations, with the same ids, ready to edit. Saving again replaces them, so each one is in the file once. They are not an undo step and do not count as a change. They arrive a moment after `ready`, as one `replace` change with `reason: 'file'`; until then the file's copy shows, locked. In controlled mode `onChange` hears them once. A signature saved on a signature field comes back on the field, and the field shows as signed.
+
+Annotations made by other programs stay locked, as before. So does an annotation Inkbar saved that another program has since moved or edited. In an encrypted file, Inkbar's own annotations come back locked too.
+
+### Where the saved file differs from the screen
+
+- Text with characters outside the standard fonts, such as Chinese, Arabic or emoji, is saved as a picture of the line, at four pixels per point. It blurs at high zoom and cannot be selected. The annotation's contents keep the text.
+- The standard fonts (Helvetica, Times and Courier) are not embedded, so each viewer draws them with its own equivalent. Widths match; letter shapes can differ slightly.
+- A note's drop shadow is not saved.
+- A loupe in the saved file magnifies the page's content only, not the annotations or form fields under it.
+- Form fields look as the engine draws them, not as Inkbar draws them on screen.
+- Another viewer may redraw an annotation its user edits there.
+- The file grows a little each time it is saved and opened again: about 1.5 KB for a file with eighteen annotations. Saving several times in one session does not add to it.
+
+XFA forms are not supported.
+
+### When a save fails
+
+When the engine cannot be loaded or cannot write the file, `doc.save()` rejects with `SaveFailed`. Its `details.stage` is `'engine'` when the engine could not be loaded or started, as when offline, and `'write'` when it could not open or write this file. Download and Print then hand over nothing, the viewer says why in its message box, and `onError` hears the error. While a copy is being written the Download and Print buttons show they are busy, and another press does nothing. The written copy is kept until the next change, so Print after Download does not write the file twice.
 
 ## Annotation changes
 
@@ -597,7 +645,7 @@ Pass `fields: { mode: 'controlled', initial, onChange }` to `openDocument` or `c
 
 Each fillable field has a light tint. `formHighlight: false` turns it off when the viewer opens. To change it later, call `viewer.setFormHighlight(on)` on a `createViewer` viewer, or `engine.setFormHighlight(on)` on a `mountViewer` engine. Neither renders a page again, and a focused field keeps its focus and typed text.
 
-An empty signature field opens a menu of your saved signatures in `createViewer` (`createSignFieldMenu`). With `mountViewer`, handle `onSignField(req)` and call `signField` with the one picked. A script's `app.alert` shows in a message box (`createFormAlert`); pass `onFormAlert(message)` to show it yourself. A failing form script reaches `onError` as `FormScriptError`. `viewer.form` is a readable of the open document's form. `exportAnnotations('json')` also writes the form's values under `fields`, and `importAnnotations` restores them without an undo step.
+An empty signature field opens a menu of your saved signatures in `createViewer` (`createSignFieldMenu`). With `mountViewer`, handle `onSignField(req)` and call `signField` with the one picked. A script's `app.alert` shows in a message box (`createFormAlert`); pass `onFormAlert(message)` to show it yourself. A failing form script reaches `onError` as `FormScriptError`. `viewer.form` is a readable of the open document's form. `exportAnnotations('json')` also writes the form's values under `fields`, and `importAnnotations` restores them without an undo step. With the `engine` option, saving writes changed values into the file itself (see [Saving into the PDF](#saving-into-the-pdf)). XFA forms are not supported.
 
 The [forms guide](https://inkbar.dev/docs/guides/forms/) covers controlled fields, form actions, scripts, signature fields and saving values as Gloss.
 

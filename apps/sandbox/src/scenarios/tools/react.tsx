@@ -28,6 +28,7 @@ import {
 import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 
+import { engine } from '../../shared/engine'
 import { FileUp } from '../../shared/file-up'
 import { storage } from '../../shared/signatures'
 
@@ -50,6 +51,7 @@ export default function PickYourTools({
       locale={locale}
       assets={assets}
       storage={storage}
+      engine={engine}
       tools={tools}
       onReady={(doc) => {
         log('onReady', { pages: doc.pages.length })

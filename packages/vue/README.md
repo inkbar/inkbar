@@ -100,7 +100,7 @@ Each control is a separate component, so put them in any order or leave some out
 
 `v-model:annotations` makes your list the source of truth. Leave it off and Inkbar keeps the state itself, with undo and redo on by default. In controlled mode undo and redo need `:history="true"`, as in the example; see Controlled mode.
 
-`InkRoot` also takes `password` for an encrypted file (see [Locked files](#locked-files)), `passwordPrompt` (on by default) to ask the reader for a locked file's password, `storage` for what the viewer keeps between visits (see [Storage](#storage)), `minDocumentWidth` for how narrow the document may get before a rail sidebar's panel floats over it (see [Sidebars](#sidebars)), `messages` and `locale` for the viewer's language (see [Translations](#translations)), `defaults` for annotation colours, `fonts` for the families the text style menu offers, `decorateAnnotation` (a `DecorateAnnotation` function that adds `data-*` attributes, classes and a screen-reader description to each annotation), and `v-model:tool`, `v-model:page` and `v-model:zoom`. It emits `ready` with the `InkDocument`, `error` with an `InkError`, `change` with each annotation change and `activate` with an annotation id. Its default slot receives `{ status, document }`.
+`InkRoot` also takes `password` for an encrypted file (see [Locked files](#locked-files)), `passwordPrompt` (on by default) to ask the reader for a locked file's password, `storage` for what the viewer keeps between visits (see [Storage](#storage)), `minDocumentWidth` for how narrow the document may get before a rail sidebar's panel floats over it (see [Sidebars](#sidebars)), `messages` and `locale` for the viewer's language (see [Translations](#translations)), `engine` to write the session into the file on Download and Print (see [Saving](#saving)), `defaults` for annotation colours, `fonts` for the families the text style menu offers, `decorateAnnotation` (a `DecorateAnnotation` function that adds `data-*` attributes, classes and a screen-reader description to each annotation), and `v-model:tool`, `v-model:page` and `v-model:zoom`. It emits `ready` with the `InkDocument`, `error` with an `InkError`, `change` with each annotation change and `activate` with an annotation id. Its default slot receives `{ status, document }`.
 
 ## Viewport
 
@@ -293,11 +293,35 @@ The list and the marks share one selection: choosing a card selects its mark and
 
 To build your own, `useRecords<T>(name)` returns the live `records` and the `handle` to read and write them, each write one undo step, and `useRecordSelection(name)` returns `selected` and `select(id | null)`. Both need `InkRoot`. Plugins are set up once it has mounted, so until then `handle` is null, `records` is empty and nothing is selected. Both lists fill their parent's height and render empty on the server. The keys, focus and announcements are core's: see the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#record-lists).
 
+## Saving
+
+Install `@inkbar/engine` and pass a loader for it as the `engine` prop of `InkRoot`:
+
+```vue
+<script setup lang="ts">
+const engine = () => import('@inkbar/engine')
+</script>
+
+<template>
+  <InkRoot :src="url" :assets="assets" :engine="engine">
+    <!-- … -->
+  </InkRoot>
+</template>
+```
+
+`InkDownloadButton`, `InkPrintButton` and Ctrl or Cmd+S and +P then hand over the file with this session's annotations and changed form values written into it: standard PDF annotations other programs can read, each drawn as it is on screen. The engine loads on the first save that has changes, and a visit that changes nothing never loads it. A bundler picks up its files from the package, so there is no setup. The prop is read when a document opens.
+
+Without the prop nothing changes: Download and Print give the file as it was opened, and the engine is not bundled.
+
+Open a file Inkbar saved and its annotations come back ready to edit. Annotations from other programs stay locked, and so do Inkbar's own in an encrypted file. A redaction mark is saved as a Redact annotation and is not applied: the content under it stays in the file. A signed file is saved by appending, so its signature still verifies. When the file cannot be written, Download and Print hand over nothing, the viewer says so, and the `error` event hears a `SaveFailed` error.
+
+The [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#saving-into-the-pdf) has the details, including where the saved file differs from the screen.
+
 ## Custom rendering
 
 Slots let you render parts yourself. `InkViewport` has `loading`, `empty`, `error`, `locked`, `annotation` and `page-error` slots. `InkThreadPopover` has a scoped default slot that receives `{ root, replies, reply, update, remove, close }`, and the default slot of `InkToolButton` receives `{ active, label }`. The props are typed as `AnnotationSlotProps` and `ThreadPopoverSlotProps`, the same types the React and Svelte packages export.
 
-`InkDownloadButton` and `InkPrintButton` download and print the open PDF; `filename` names the download (the opened `File`'s name, else the URL's last segment, else `document.pdf`). Printing loads the file into a hidden frame and opens the browser's print dialog for it; on iOS the PDF opens in a new tab instead. Until saving into the PDF ships, both give the file as it was opened, without this session's annotations.
+`InkDownloadButton` and `InkPrintButton` download and print the open PDF; `filename` names the download (the opened `File`'s name, else the URL's last segment, else `document.pdf`). Printing loads the file into a hidden frame and opens the browser's print dialog for it; on iOS the PDF opens in a new tab instead. With the `engine` prop they give the file with this session's changes written into it (see [Saving](#saving)); without it, the file as it was opened.
 
 `InkRoot`, `InkToolbar`, `InkToolButton`, `InkCommand`, `InkUndo`, `InkRedo`, `InkDownloadButton`, `InkPrintButton`, `InkPrevPage`, `InkNextPage`, `InkBack`, `InkForward`, `InkZoomIn`, `InkZoomOut`, `InkSearchButton` and `InkToolbarButton` take `as-child` to render your own element in place of theirs, such as a button from your design system. Put that element in the default slot. The control keeps its behaviour and accessible name.
 

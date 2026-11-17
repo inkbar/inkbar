@@ -36,6 +36,7 @@ import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 import { onBeforeUnmount } from 'vue'
 
+import { engine } from '../../shared/engine'
 import { FileUp } from '../../shared/file-up'
 import { signatureFonts, storage } from '../../shared/signatures'
 
@@ -78,6 +79,7 @@ function onActivate(id: string): void {
     :assets="assets"
     :tools="tools"
     :storage="storage"
+    :engine="engine"
     :signature-fonts="signatureFonts"
     class="scenario-root"
     @ready="onReady"

@@ -29,6 +29,7 @@ import { useEffect, useRef } from 'react'
 import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 
+import { engine } from '../../shared/engine'
 import { FileUp } from '../../shared/file-up'
 import { changedFields } from '../../shared/form'
 import { signatureFonts, storage } from '../../shared/signatures'
@@ -67,6 +68,7 @@ export default function FillAForm({
       locale={locale}
       assets={assets}
       storage={storage}
+      engine={engine}
       signatureFonts={signatureFonts}
       onAction={(action) => log('onAction', action)}
       onReady={onReady}

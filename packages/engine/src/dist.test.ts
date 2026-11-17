@@ -1,4 +1,6 @@
+import { execFileSync } from 'node:child_process'
 import { access, readdir, readFile } from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
 
 import { fixtureBytes } from '@inkbar/fixtures'
 import { expect, test } from 'vitest'
@@ -88,4 +90,35 @@ test('the built package names its worker in one literal URL, inside the Worker c
   const source = await readFile(new URL('../dist/index.mjs', import.meta.url), 'utf8')
   const literals = source.match(/new URL\(\s*["'`]\.\/worker\.mjs["'`]/g) ?? []
   expect(literals).toHaveLength(1)
+})
+
+test('the package is published with the wasm, the worker, the types and the notices', async () => {
+  const manifest = JSON.parse(
+    await readFile(new URL('../package.json', import.meta.url), 'utf8')
+  ) as { private?: boolean; engines?: Record<string, string> }
+  expect(manifest.private).toBeUndefined()
+  // The built entry reads its wasm through `process.getBuiltinModule`, new in Node 22.3.
+  expect(manifest.engines).toEqual({ node: '>=22.3' })
+
+  const [packed] = JSON.parse(
+    execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], {
+      cwd: fileURLToPath(new URL('..', import.meta.url)),
+      encoding: 'utf8',
+    })
+  ) as [{ files: { path: string }[] }]
+  const files = packed.files.map((f) => f.path).filter((path) => !path.endsWith('.map'))
+  expect(files.sort()).toEqual(
+    [
+      'LICENSE',
+      'README.md',
+      'package.json',
+      'dist/THIRD-PARTY-NOTICES',
+      'dist/index.d.mts',
+      // The PDFium glue is bundled into both entry points.
+      'dist/index.mjs',
+      'dist/inkbar-pdfium.wasm',
+      'dist/worker.d.mts',
+      'dist/worker.mjs',
+    ].sort()
+  )
 })

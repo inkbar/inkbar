@@ -20,6 +20,8 @@ pnpm build
 pnpm --filter @inkbar/core exec playwright install chromium
 ```
 
+The build downloads a prebuilt PDFium archive for `@inkbar/engine`. To build offline, set `INKBAR_PDFIUM_ARCHIVE` to a local copy of it.
+
 The [README](README.md#development) shows how to run the sandbox and the review apps, and what each directory holds.
 
 ## Make the change
@@ -89,6 +91,6 @@ It builds `@inkbar/core` first if its locales are missing or out of date. Drafts
 
 Open it against `main`. We squash merge, and the pull request title becomes the commit message, so write it as a [Conventional Commit](https://www.conventionalcommits.org/) with the package as the scope: `feat(vue): expose the page count`, `fix(core): keep the selection after a zoom`. Commits carry the title only, with no body. A Git hook checks your local commits the same way.
 
-[release-please](https://github.com/googleapis/release-please) builds the changelog and each release from those titles, and the six packages share one version number.
+[release-please](https://github.com/googleapis/release-please) builds the changelog and each release from those titles, and the seven packages share one version number.
 
 By contributing, you agree to license your work under the [MIT licence](LICENSE).
