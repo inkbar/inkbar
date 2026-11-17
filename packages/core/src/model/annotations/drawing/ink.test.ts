@@ -159,8 +159,19 @@ describe('inkOutline', () => {
       { x: 128, y: 524 },
       { x: 132, y: 538 },
     ]
-    const level: { count: number; points: [number, number][] } = {
+    interface Fixture {
+      count: number
+      /** The sums of every vertex's x and y, and the length of the closed outline, so no vertex can move unnoticed. */
+      sumX: number
+      sumY: number
+      perimeter: number
+      points: [number, number][]
+    }
+    const level: Fixture = {
       count: 52,
+      sumX: 6132.942,
+      sumY: 26961.819,
+      perimeter: 108.427,
       points: [
         [100.743, 498.143],
         [106.502, 500.448],
@@ -171,8 +182,11 @@ describe('inkOutline', () => {
         [100.743, 498.143],
       ],
     }
-    const pressed: { count: number; points: [number, number][] } = {
+    const pressed: Fixture = {
       count: 52,
+      sumX: 6136.615,
+      sumY: 26961.837,
+      perimeter: 102.963,
       points: [
         [100.52, 498.7],
         [106.502, 500.448],
@@ -183,12 +197,24 @@ describe('inkOutline', () => {
         [100.52, 498.7],
       ],
     }
-    /** The point count, and the first, second, third, middle and last three points. */
-    const same = (
-      got: readonly { x: number; y: number }[],
-      want: { count: number; points: [number, number][] }
-    ) => {
+    /** The point count, the sums and perimeter over every vertex, and the first, second, third, middle and last three points. */
+    const same = (got: readonly { x: number; y: number }[], want: Fixture) => {
       expect(got).toHaveLength(want.count)
+      expect(
+        got.reduce((sum, p) => sum + p.x, 0),
+        'sum of x'
+      ).toBeCloseTo(want.sumX, 2)
+      expect(
+        got.reduce((sum, p) => sum + p.y, 0),
+        'sum of y'
+      ).toBeCloseTo(want.sumY, 2)
+      expect(
+        got.reduce((sum, p, i) => {
+          const next = got[(i + 1) % got.length]!
+          return sum + Math.hypot(next.x - p.x, next.y - p.y)
+        }, 0),
+        'perimeter'
+      ).toBeCloseTo(want.perimeter, 2)
       const at = [
         0,
         1,
