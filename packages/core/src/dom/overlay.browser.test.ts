@@ -520,6 +520,16 @@ describe('createOverlay', () => {
       contents: 'Hi',
     })
     store.add({ type: 'text', page: 0, rect: { x: 400, y: 400, width: 20, height: 20 } })
+    // A justified box with a no-break space on a line that is not its last: that space is set
+    // apart in a piece of its own.
+    store.add({
+      type: 'freetext',
+      page: 0,
+      rect: { x: 100, y: 200, width: 90, height: 80 },
+      contents: 'one two three\u00a0four five six seven eight nine ten',
+      defaultStyle: { textAlign: 'justify' },
+    })
+    expect(overlay.element.querySelector('tspan')).not.toBeNull()
     // Descendants carry no inline style, except `pointer-events` on the HTML children the
     // overlay creates, the style of a drawn line of text and its underline (no kerning, spaces
     // kept, font and colour), and the paint and opacity of a drawn shape, which keep a host's
@@ -528,7 +538,14 @@ describe('createOverlay', () => {
       const style = node.getAttribute('style')
       if (style === null) continue
       if (node instanceof SVGTextElement) {
-        expect(style).toMatch(/^font-kerning:none;white-space:pre;font-family:/)
+        // A justified line's style is reserialised when its word spacing is set.
+        expect(style).toMatch(
+          /^font-kerning:\s*none;\s*white-space:\s*pre;\s*font-family:/
+        )
+        continue
+      }
+      if (node instanceof SVGTSpanElement) {
+        expect(style).toBe('word-spacing: 0px;')
         continue
       }
       // The paint of a shape, drawn or only taking presses, and a group's opacity.

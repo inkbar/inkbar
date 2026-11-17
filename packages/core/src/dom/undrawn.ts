@@ -7,7 +7,8 @@ import type { Annotation } from '../model/annotations/types'
 export interface UndrawnGuard {
   /**
    * Runs `fn`. True when it returned; false when it threw, after one `console.warn` naming the
-   * annotation (`what` says what could not be done, e.g. "was left undrawn").
+   * annotation (`what` says what could not be done, e.g. "was left undrawn"). An annotation that
+   * draws again is reported afresh if it fails later.
    */
   attempt(a: Annotation, what: string, fn: () => void): boolean
   /** What `fn` returns, or `undefined` when it threw (reported as `attempt` does). */
@@ -34,6 +35,7 @@ export function createUndrawnGuard(): UndrawnGuard {
         }
         return false
       }
+      reported.delete(a.id)
       return true
     },
     value(a, what, fn) {
