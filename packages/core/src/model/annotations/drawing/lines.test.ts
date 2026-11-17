@@ -287,19 +287,24 @@ describe('describeLine', () => {
     expect(arrowed).toEqual({ x: 99, y: 596, width: 102, height: 8 })
   })
 
-  test('a diagonal head is inside the bounds', () => {
+  test.each([
+    ['head', { head: 'OpenArrow' as const }],
+    ['tail', { tail: 'OpenArrow' as const }],
+  ])('a diagonal %s is inside the bounds', (which, ending) => {
     const diagonal: LineAnnotation = {
       ...line,
       start: { x: 100, y: 600 },
       end: { x: 200, y: 700 },
       width: 1,
-      tail: 'OpenArrow',
+      ...ending,
     }
-    const { bounds } = describeLine(diagonal)
-    const [group] = describeLine(diagonal).items
+    const { bounds, items } = describeLine(diagonal)
+    const [group] = items
     if (group?.kind !== 'group') throw new Error('no group')
+    expect(group.items).toHaveLength(2)
     const head = group.items[1]
     if (head?.kind !== 'path') throw new Error('no head')
+    expect(head.role).toBe(which === 'head' ? 'ending-head' : 'ending-tail')
     for (const c of head.commands) {
       if (c.op !== 'M' && c.op !== 'L') continue
       expect(c.to.x).toBeGreaterThanOrEqual(bounds.x + 0.5 - 1e-9)
@@ -307,6 +312,16 @@ describe('describeLine', () => {
       expect(c.to.y).toBeGreaterThanOrEqual(bounds.y + 0.5 - 1e-9)
       expect(c.to.y).toBeLessThanOrEqual(bounds.y + bounds.height - 0.5 + 1e-9)
     }
+  })
+
+  test('a stroke-only ending on a line of no width paints nothing and adds nothing to the bounds', () => {
+    const plain = describeLine({ ...line, width: 0 }).bounds
+    for (const tail of ['OpenArrow', 'ROpenArrow', 'Butt', 'Slash'] as const) {
+      expect(describeLine({ ...line, width: 0, tail }).bounds).toEqual(plain)
+    }
+    // A filled ending on the same line is drawn, so it does count.
+    const closed = describeLine({ ...line, width: 0, tail: 'ClosedArrow' }).bounds
+    expect(closed.height).toBeGreaterThan(plain.height)
   })
 
   test('a line of no width has no stroke on the shaft or the ending', () => {
