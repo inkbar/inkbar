@@ -180,6 +180,12 @@ describe('describeNote', () => {
     })
   })
 
+  test('a name inherited from Object draws the square alone', () => {
+    for (const icon of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+      expect(itemsOf({ ...note, icon }), icon).toHaveLength(1)
+    }
+  })
+
   test('an unknown icon draws the square alone', () => {
     const d = describeNote({ ...note, icon: 'Check' }, context())
     expect(d.items).toHaveLength(1)

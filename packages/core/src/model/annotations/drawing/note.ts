@@ -102,7 +102,7 @@ export function describeNote(a: NoteAnnotation, context: DrawContext): Drawing {
       paint: { fill: { color: a.color } },
     },
   ]
-  const glyph = GLYPHS[a.icon]
+  const glyph = Object.hasOwn(GLYPHS, a.icon) ? GLYPHS[a.icon] : undefined
   if (glyph) items.push(...glyphItems(glyph, rect, context.page.rotate))
 
   return {
