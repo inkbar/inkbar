@@ -55,3 +55,49 @@ describe('the drawing cache', () => {
     expect(overlay.elementFor(ink.id)!.querySelector('path.ink-stroke')).not.toBeNull()
   })
 })
+
+describe('an annotation that cannot be described', () => {
+  it('is left empty and named in one warning, and the page draws the rest', async () => {
+    const actual = await vi.importActual<typeof describeModule>(
+      '../model/annotations/drawing/describe'
+    )
+    const store = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const bad = store.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 100, y: 600, width: 80, height: 40 },
+    })
+    const good = store.add({
+      type: 'circle',
+      page: 0,
+      rect: { x: 300, y: 600, width: 80, height: 40 },
+    })
+    vi.mocked(describeModule.describeDrawing).mockImplementation((a, context) => {
+      if (a.id === bad.id) throw new RangeError('not drawable')
+      return actual.describeDrawing(a, context)
+    })
+    cleanup.push(() =>
+      vi.mocked(describeModule.describeDrawing).mockImplementation(actual.describeDrawing)
+    )
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    cleanup.push(() => warn.mockRestore())
+    const host = mountContainer(612, 792)
+    const overlay = createOverlay({
+      host,
+      page: 0,
+      store,
+      transform: createPageTransform(page, 1, 0),
+      onActivate: vi.fn(),
+    })
+    cleanup.push(() => (overlay.destroy(), host.remove()))
+    overlay.update(createPageTransform(page, 2, 0))
+    expect(overlay.elementFor(bad.id)!.childNodes).toHaveLength(0)
+    expect(overlay.elementFor(good.id)!.querySelector('ellipse')).not.toBeNull()
+    const named = warn.mock.calls.filter(([m]) => String(m).includes(bad.id))
+    expect(named).toHaveLength(1)
+    expect(String(named[0]![0])).toContain('(square)')
+  })
+})

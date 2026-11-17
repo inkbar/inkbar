@@ -387,6 +387,9 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     node.style.height = `${box.height}px`
   }
 
+  /** Ids already reported as undrawn, so a zoom does not report them again. */
+  const undrawn = new Set<string>()
+
   function applyContent(node: HTMLElement, a: Annotation): void {
     const custom = opts.isCustom?.(a) === true
     setFlag(node, 'custom', custom)
@@ -399,10 +402,25 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     }
     const last = drawn.get(a.id)
     if (last?.a === a && last.t === transform) return
-    // Annotations PDF.js already painted on the canvas get only an invisible hit area.
-    if (paintedByCanvas(a)) renderHitArea(node, a, transform)
-    else renderAnnotationContent(node, a, transform)
-    if (a.type === 'loupe') loupes?.attach(node, a, transform)
+    try {
+      // Annotations PDF.js already painted on the canvas get only an invisible hit area.
+      if (paintedByCanvas(a)) renderHitArea(node, a, transform)
+      else renderAnnotationContent(node, a, transform)
+      if (a.type === 'loupe') loupes?.attach(node, a, transform)
+    } catch (error) {
+      // One annotation that cannot be drawn is left empty; the page's others still draw.
+      node.replaceChildren()
+      loupes?.drop(a.id)
+      if (!undrawn.has(a.id)) {
+        undrawn.add(a.id)
+        console.warn(
+          `[inkbar] annotation ${a.id} (${a.type}) was left undrawn: ${error instanceof Error ? error.message : String(error)}`
+        )
+      }
+      drawn.set(a.id, { a, t: transform })
+      return
+    }
+    undrawn.delete(a.id)
     drawn.set(a.id, { a, t: transform })
   }
 
