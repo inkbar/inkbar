@@ -1204,16 +1204,6 @@
     top: 0;
   }
 
-  /* A note's icon fills its box instead of keeping its on-page size; comment glyphs, which keep
-     a fixed size at every zoom, would cover a small page, so they are left out. */
-  :where(.ink-thumbnail-annotation > svg[data-ink-note]) {
-    filter: none;
-  }
-
-  :where(.ink-thumbnail-annotation .ink-comment-marker) {
-    display: none;
-  }
-
   /*
    * The thumbnail list (createThumbnails and the bindings' list): it fills its parent's height
    * and scrolls, with only the items near the visible part mounted, each placed absolutely at
