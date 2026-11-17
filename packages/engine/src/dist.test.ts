@@ -59,3 +59,33 @@ test('the built entry points leave no literal node: import for a browser bundler
     expect(source, name).not.toMatch(/from\s*["']node:/)
   }
 })
+
+test('the built worker stands alone, so a host can serve it beside the wasm only', async () => {
+  const source = await readFile(new URL('../dist/worker.mjs', import.meta.url), 'utf8')
+  const specifiers = [
+    ...source.matchAll(/(?:\bfrom\s*|\bimport\s*\(?\s*)["']([^"']+)["']/g),
+  ].map((m) => m[1])
+  expect(specifiers).toEqual([])
+})
+
+test("the built files leave the glue's Node import invisible to a browser bundler", async () => {
+  const names = (await readdir(new URL('../dist/', import.meta.url))).filter((file) =>
+    file.endsWith('.mjs')
+  )
+  for (const name of names) {
+    const source = await readFile(new URL(`../dist/${name}`, import.meta.url), 'utf8')
+    expect(source, name).not.toMatch(/import\((?:\s|\/\*[\s\S]*?\*\/)*["']module["']/)
+    expect(source, name).not.toMatch(/from\s*["']module["']/)
+  }
+  // Node still gets the module through the glue's own branch.
+  const index = await readFile(new URL('../dist/index.mjs', import.meta.url), 'utf8')
+  expect(index).toContain('process.getBuiltinModule("module")')
+})
+
+test('the built package names its worker in one literal URL, inside the Worker call', async () => {
+  // A bundler copies every literal `new URL('./…', import.meta.url)` as an asset, beside the
+  // worker it bundles from the `new Worker(...)` form, so any other would ship a second copy.
+  const source = await readFile(new URL('../dist/index.mjs', import.meta.url), 'utf8')
+  const literals = source.match(/new URL\(\s*["'`]\.\/worker\.mjs["'`]/g) ?? []
+  expect(literals).toHaveLength(1)
+})

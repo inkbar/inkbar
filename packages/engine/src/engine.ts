@@ -200,6 +200,14 @@ async function defaultWasm(): Promise<string | URL | Uint8Array> {
   }
 }
 
+/**
+ * The default worker's URL, for messages only. A bundler copies the file at a literal
+ * `new URL('./…', import.meta.url)` as an asset, so only the `new Worker(...)` call below names
+ * it literally; this one goes through a variable the bundler leaves alone.
+ */
+const WORKER_FILE = './worker.mjs'
+const defaultWorkerHref = () => new URL(WORKER_FILE, import.meta.url).href
+
 function startWorker(worker: string | URL | Worker | undefined): {
   worker: Worker
   url?: string
@@ -209,7 +217,7 @@ function startWorker(worker: string | URL | Worker | undefined): {
   if (worker === undefined)
     return {
       worker: new Worker(new URL('./worker.mjs', import.meta.url), { type: 'module' }),
-      url: new URL('./worker.mjs', import.meta.url).href,
+      url: defaultWorkerHref(),
     }
   return { worker: new Worker(worker, { type: 'module' }), url: String(worker) }
 }
@@ -229,7 +237,7 @@ export async function createEngine(options: EngineOptions = {}): Promise<Engine>
     } catch (cause) {
       const from =
         worker === undefined
-          ? ` from ${new URL('./worker.mjs', import.meta.url).href}`
+          ? ` from ${defaultWorkerHref()}`
           : worker instanceof Worker
             ? ''
             : ` from ${String(worker)}`

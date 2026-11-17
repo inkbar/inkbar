@@ -121,6 +121,10 @@ const sideTabsControl = createTabs(
   [$('#panel-events'), $('#panel-values')]
 )
 
+// For the e2e check that the engine survives a production build.
+if (new URLSearchParams(location.search).has('engine-probe'))
+  void import('../engine-probe.ts').then(({ probeEngine }) => probeEngine())
+
 // For e2e tests that need the log itself: `?debug` puts it on the window.
 if (new URLSearchParams(location.search).has('debug'))
   (window as unknown as { __sandboxLog: Log }).__sandboxLog = events.log
