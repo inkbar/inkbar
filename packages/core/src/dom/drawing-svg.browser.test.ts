@@ -740,7 +740,7 @@ describe('a text', () => {
         text({
           lines: [
             {
-              text: 'a b\tc',
+              text: 'a b\t日',
               origin: { x: 100, y: 700 },
               width: 30,
               outside: true,
