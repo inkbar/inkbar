@@ -1,11 +1,12 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import { clusters } from '../model/annotations/drawing/text/clusters'
 import { layoutText } from '../model/annotations/drawing/text/layout'
 import { measureWith, standardMeasure } from '../model/annotations/drawing/text/measure'
 
+import { browserEdges } from './text-browser-layout'
 import { checkTextFonts } from './text-font-check'
-import { browserWidth, cssFont } from './text-fonts'
+import { browserWidth } from './text-fonts'
 
 import type { TextBlock } from '../model/annotations/drawing/text/layout'
 import type { TextFont, TextMeasure } from '../model/annotations/drawing/types'
@@ -54,69 +55,6 @@ const WIDTHS = [80, 144, 300]
 const ALIGNS = ['center', 'right', 'justify'] as const
 /** How far a first or last character may sit from where layout puts it. */
 const TOLERANCE = 0.5
-
-interface Edge {
-  left: number
-  right: number
-  text: string
-}
-
-let host: HTMLElement | undefined
-afterEach(() => host?.remove())
-
-/** Left edge of the first and right edge of the last visible character on each line, from the box's left. */
-function browserEdges(block: TextBlock): (Edge | undefined)[] {
-  host?.remove()
-  host = document.createElement('div')
-  host.style.cssText = 'position:absolute;left:0;top:0;visibility:hidden'
-  const box = document.createElement('div')
-  box.style.cssText = [
-    `width:${block.width}px`,
-    'box-sizing:border-box',
-    `font:${cssFont(block.font, block.size)}`,
-    'font-kerning:none',
-    'line-height:1.2',
-    'white-space:pre-wrap',
-    'overflow-wrap:break-word',
-    `text-align:${block.align}`,
-    'margin:0',
-  ].join(';')
-  const node = document.createTextNode(block.text)
-  box.append(node)
-  host.append(box)
-  document.body.append(host)
-  const lineHeight = block.size * 1.2
-  const boxRect = box.getBoundingClientRect()
-  const edges: (Edge | undefined)[] = Array.from(
-    { length: Math.max(Math.round(boxRect.height / lineHeight), 1) },
-    () => undefined
-  )
-  const range = document.createRange()
-  let offset = 0
-  for (const char of block.text) {
-    if (!/\s/.test(char)) {
-      range.setStart(node, offset)
-      range.setEnd(node, offset + char.length)
-      const rect = range.getBoundingClientRect()
-      const i = Math.min(
-        Math.max(Math.floor((rect.top + rect.height / 2 - boxRect.top) / lineHeight), 0),
-        edges.length - 1
-      )
-      const left = rect.left - boxRect.left
-      const right = rect.right - boxRect.left
-      const edge = edges[i]
-      edges[i] = edge
-        ? {
-            left: Math.min(edge.left, left),
-            right: Math.max(edge.right, right),
-            text: edge.text + char,
-          }
-        : { left, right, text: char }
-    }
-    offset += char.length
-  }
-  return edges
-}
 
 describe('layoutText places lines horizontally where the browser does', () => {
   for (const align of ALIGNS)

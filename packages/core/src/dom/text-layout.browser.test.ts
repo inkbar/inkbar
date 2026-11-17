@@ -1,9 +1,10 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import { clusters } from '../model/annotations/drawing/text/clusters'
 import { layoutText } from '../model/annotations/drawing/text/layout'
 import { measureWith, standardMeasure } from '../model/annotations/drawing/text/measure'
 
+import { browserLines } from './text-browser-layout'
 import { checkTextFonts } from './text-font-check'
 import { browserWidth, cssFont } from './text-fonts'
 
@@ -90,49 +91,6 @@ const SHAPED = /^(arabic|hebrew)/
 const FAMILIES: TextFont['family'][] = ['Helvetica', 'Times', 'Courier']
 const SIZES = [10, 12, 18]
 const WIDTHS = [80, 144, 300]
-
-let host: HTMLElement | undefined
-afterEach(() => host?.remove())
-
-/** The non-space characters on each line of `text` laid out by the browser in a text box's CSS. */
-function browserLines(block: TextBlock, kerning = true): string[] {
-  host?.remove()
-  host = document.createElement('div')
-  host.style.cssText = 'position:absolute;left:0;top:0;visibility:hidden'
-  const box = document.createElement('div')
-  box.style.cssText = [
-    `width:${block.width}px`,
-    'box-sizing:border-box',
-    `font:${cssFont(block.font, block.size)}`,
-    kerning ? 'font-kerning:auto' : 'font-kerning:none',
-    'line-height:1.2',
-    'white-space:pre-wrap',
-    'overflow-wrap:break-word',
-    `text-align:${block.align}`,
-    'margin:0',
-  ].join(';')
-  const node = document.createTextNode(block.text)
-  box.append(node)
-  host.append(box)
-  document.body.append(host)
-  const lineHeight = block.size * 1.2
-  const count = Math.round(box.getBoundingClientRect().height / lineHeight)
-  const lines = Array.from({ length: Math.max(count, 1) }, () => '')
-  const top = box.getBoundingClientRect().top
-  const range = document.createRange()
-  let offset = 0
-  for (const char of block.text) {
-    if (!/\s/.test(char)) {
-      range.setStart(node, offset)
-      range.setEnd(node, offset + char.length)
-      const rect = range.getBoundingClientRect()
-      const i = Math.floor((rect.top + rect.height / 2 - top) / lineHeight)
-      lines[Math.min(Math.max(i, 0), lines.length - 1)] += char
-    }
-    offset += char.length
-  }
-  return lines
-}
 
 const spaceless = (s: string) => s.normalize('NFC').replace(/\s/gu, '')
 
