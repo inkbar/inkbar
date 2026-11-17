@@ -142,6 +142,11 @@ interface Case {
    * annotation by its pixels. Any other reader compares the text by its pixels too.
    */
   byPosition?: readonly Reader[]
+  /**
+   * The readers the case is compared in; both when absent. One is left out only where it draws
+   * what the file holds unlike the screen for a reason of its own, which the case states.
+   */
+  readers?: readonly Reader[]
   /** Also compare where each tab segment and each justified line's last word starts. */
   pieces?: boolean
   /** Text hidden by a clip: none of it may show outside the drawing. */
@@ -451,6 +456,19 @@ const scripts = (): Scene => ({
       },
     ],
     [
+      'a 40-pixel colour JPEG enlarged over 120 points',
+      {
+        type: 'stamp',
+        page: 0,
+        rect: { x: 260, y: 300, width: 120, height: 50 },
+        imagedata: quadrants('image/jpeg', 40, 17),
+      },
+      // The engine alone: PDF.js fills the half-resolution colour back in its own way (see the
+      // grey JPEG above), which is the reader's doing and not the file's. The file holds the
+      // JPEG's own bytes, so the engine's decoding of them is the check that colour survives.
+      { readers: ['engine'] },
+    ],
+    [
       'a PNG with an alpha edge, enlarged',
       {
         type: 'stamp',
@@ -593,7 +611,7 @@ function compares(label: string, renders: () => Promise<SavedRenders>, c: Case):
     const row: Measured = { scene: label, name: c.name, readers: [], noFont: missing }
     measured.push(row)
     if (report) await dump(`${label}-${c.name}`, page, region)
-    for (const reader of ['engine', 'pdfjs'] as const) {
+    for (const reader of c.readers ?? (['engine', 'pdfjs'] as const)) {
       const reading = page[reader]
       const byPosition = missing || (c.byPosition?.includes(reader) ?? false)
       const { share, excluded, counted } = differing(
