@@ -542,7 +542,7 @@ describe('a stamp', () => {
   })
 
   it('has an image and a hit rect over its on-screen box, at every page and view rotation', () => {
-    for (const pageRotate of [0, 90] as const) {
+    for (const pageRotate of [0, 90, 180, 270] as const) {
       for (const view of [0, 90, 180, 270] as const) {
         for (const rotation of [0, 90] as const) {
           const t = createPageTransform({ ...page, rotate: pageRotate }, 2, view)
