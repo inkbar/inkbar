@@ -415,3 +415,17 @@ describe('layoutText with runs outside the tables', () => {
     expect(b!.x).toBeGreaterThanOrEqual(a!.x + w(a!.text) + tabbed!.wordSpacing!)
   })
 })
+
+describe('layoutText with a mark after whitespace', () => {
+  test.each(['\u0301', '\ufe0f', '\u200d'])(
+    '%j after a space: the space before it still separates words, and a tab still starts a piece',
+    (mark) => {
+      const wrapped = layoutText(block(`aaa ${mark}bbb`, 30), standardMeasure).lines
+      expect(wrapped.map((l) => l.text)).toEqual(['aaa', `${mark}bbb`])
+      const { lines } = layoutText(block(`aa\t${mark}bb`, 300), standardMeasure)
+      expect(lines[0]!.segments!.map((s) => s.text)).toEqual(['aa', `${mark}bb`])
+      expect(lines[0]!.segments![1]!.x).toBeCloseTo(8 * w(' '), 6)
+      expect(lines[0]!.outside).toBe(false)
+    }
+  )
+})
