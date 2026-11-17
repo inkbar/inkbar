@@ -35,6 +35,78 @@ function setup(enabled = () => true, limit?: number) {
 }
 
 describe('createSnapshotHistory', () => {
+  describe('annotations lifted from the file', () => {
+    const lifted = [note('l1', 'saved'), note('l2', 'saved too')]
+
+    it('re-seed the history when the host takes them: no step, and undo keeps them', () => {
+      const { apply, history } = setup()
+      history.observe([])
+      history.lifted(lifted)
+      history.observe(lifted)
+      expect(history.canUndo.get()).toBe(false)
+      // An edit is a step back to the lifted list, not to the empty one.
+      history.observe([...lifted, note('a', 'mine')])
+      expect(history.canUndo.get()).toBe(true)
+      history.undo()
+      expect(apply).toHaveBeenLastCalledWith(lifted)
+      history.observe(apply.mock.calls.at(-1)![0])
+      expect(history.canUndo.get()).toBe(false)
+    })
+
+    it('join the steps taken before they landed, so undoing one keeps them', () => {
+      const { apply, history } = setup()
+      history.observe([])
+      const mine = note('a', 'mine')
+      history.observe([mine])
+      history.lifted(lifted)
+      history.observe([mine, ...lifted])
+      // One step still: the edit. Undoing it leaves what was lifted.
+      history.undo()
+      expect(apply).toHaveBeenLastCalledWith(lifted)
+      history.observe(lifted)
+      expect(history.canUndo.get()).toBe(false)
+      history.redo()
+      expect(apply).toHaveBeenLastCalledWith([mine, ...lifted])
+    })
+
+    it('count a change the host makes along with taking them as a step from the lifted list', () => {
+      const { apply, history } = setup()
+      history.observe([])
+      history.lifted(lifted)
+      history.observe([...lifted, note('a', 'mine')])
+      expect(history.canUndo.get()).toBe(true)
+      history.undo()
+      expect(apply).toHaveBeenLastCalledWith(lifted)
+    })
+
+    it('wait for the host: a list without them is an ordinary step, and they still re-seed after', () => {
+      const { history } = setup()
+      history.observe([])
+      history.lifted(lifted)
+      history.observe([note('a', 'mine')])
+      expect(history.canUndo.get()).toBe(true)
+      history.clear()
+      // Cleared, the history expects nothing of the host any more.
+      history.observe([note('a', 'mine'), ...lifted])
+      expect(history.canUndo.get()).toBe(true)
+    })
+
+    it('are no step inside a batch either', async () => {
+      vi.useFakeTimers()
+      try {
+        const { apply, history } = setup()
+        history.observe([])
+        history.batch(() => history.lifted(lifted))
+        history.observe(lifted)
+        await vi.runAllTimersAsync()
+        expect(history.canUndo.get()).toBe(false)
+        expect(apply).not.toHaveBeenCalled()
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+  })
+
   it('seeds on the first observe and records a step on each later change', () => {
     const { history } = setup()
     history.observe([])

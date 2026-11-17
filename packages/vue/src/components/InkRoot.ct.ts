@@ -527,6 +527,34 @@ test('batch in a controlled host reaches the host as one undo step', async ({
   await expect(probe).toHaveAttribute('data-can-undo', 'false')
 })
 
+test('opening a file Inkbar saved in a controlled host with history is no undo step', async ({
+  mount,
+}) => {
+  const cmp = await mount(ControlledHost, {
+    props: { src: fixtureUrl('saved-tampered'), assets, history: true },
+  })
+  const probe = cmp.getByTestId('probe')
+  const hostCount = cmp.getByTestId('host-count')
+  await expect(probe).toHaveAttribute('data-ready', 'true')
+  // The host takes the proposal: the square Inkbar saved is its own now, beside the two
+  // annotations another program changed, which stay the file's.
+  await expect(hostCount).toHaveText('1')
+  await expect(probe).toHaveAttribute('data-annotations', '3')
+  await expect(probe).toHaveAttribute('data-can-undo', 'false')
+  // The file's summary no longer counts it.
+  await expect(probe).toHaveAttribute('data-embedded', '2')
+
+  await cmp.getByTestId('add').click()
+  await expect(hostCount).toHaveText('2')
+  await expect(probe).toHaveAttribute('data-can-undo', 'true')
+  // Undo takes back the edit and leaves what was lifted.
+  await cmp.getByTestId('undo').click()
+  await expect(hostCount).toHaveText('1')
+  await expect(probe).toHaveAttribute('data-annotations', '3')
+  await expect(probe).toHaveAttribute('data-can-undo', 'false')
+  await expect(probe).toHaveAttribute('data-can-redo', 'true')
+})
+
 test('embedded summary comes from the file', async ({ mount }) => {
   const cmp = await mount(UncontrolledHost, {
     props: { src: fixtureUrl('annotated-markup'), assets },

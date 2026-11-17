@@ -23,6 +23,11 @@ export interface RefHistoryOptions {
 export interface RefHistory extends InkHistory {
   /** Runs the reactions for the store's user edits; returns a function that detaches it. */
   attach(store: AnnotationStore): () => void
+  /**
+   * The annotations lifted from the file were proposed to the host: the list it answers with
+   * re-seeds the history and is no step.
+   */
+  lifted(annotations: readonly Annotation[]): void
 }
 
 /**
@@ -64,5 +69,6 @@ export function createRefHistory(opts: RefHistoryOptions): RefHistory {
     track: (store) => history.track(store),
     react: (fn) => history.react(fn),
     attach: (store) => history.attach(store),
+    lifted: (annotations) => history.lifted(annotations),
   }
 }

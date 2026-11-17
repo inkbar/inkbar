@@ -325,6 +325,9 @@ async function open(retryPassword?: string): Promise<void> {
             mode: 'controlled',
             initial: props.annotations ?? [],
             onChange: (next, change) => {
+              // Lifting is no edit: the list the host answers with re-seeds the history.
+              if (change.kind === 'replace' && change.reason === 'file')
+                refHistory.lifted(change.lifted)
               emit('update:annotations', next)
               emit('change', change)
             },

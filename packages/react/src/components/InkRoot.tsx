@@ -595,6 +595,9 @@ export function InkRoot({
                 mode: 'controlled',
                 initial: latest.current.annotations ?? [],
                 onChange: (next, change) => {
+                  // Lifting is no edit: the list the host answers with re-seeds the history.
+                  if (change.kind === 'replace' && change.reason === 'file')
+                    snapshotHistory.lifted(change.lifted)
                   // Apply the host's state update, its render and the layout effect that pushes
                   // the list back before core's development check expires. The microtask
                   // leaves React's render, commit and passive-effect contexts, where a host

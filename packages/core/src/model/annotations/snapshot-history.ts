@@ -41,6 +41,15 @@ export interface SnapshotHistory extends PluginHistory {
    */
   observe(list: readonly Annotation[] | undefined): void
   /**
+   * The annotations lifted from the file have been proposed to the host (the store's
+   * `reason: 'file'` proposal). Lifting is no edit, so the list the host answers with, the
+   * first one that holds them all, re-seeds the history and adds no step: undo never takes the
+   * lifted annotations away. The steps already taken get them too, so undoing an edit made
+   * before the lift landed keeps them. A change the host makes in the same list is a step from
+   * the lifted list. `clear` stops waiting for the answer.
+   */
+  lifted(annotations: readonly Annotation[]): void
+  /**
    * Runs `fn` and records the host's changes that follow as one step. A framework may hand the
    * host's list back after `fn` returns, one list per proposal, so the batch stays open until
    * the current macrotask ends (`setTimeout(0)`) and then pushes a single step from the list
@@ -97,6 +106,39 @@ export function createSnapshotHistory(opts: SnapshotHistoryOptions): SnapshotHis
   const attached = new Map<AnnotationStore, () => void>()
   /** Set while undo or redo puts records back, so those changes are not steps. */
   let replaying = false
+  /** Annotations lifted from the file that the host has yet to take into its list. */
+  let awaited: readonly Annotation[] | undefined
+
+  /**
+   * Takes `next` as the host's answer to a lift when it holds every awaited annotation: every
+   * snapshot gets them, so no step leads back to a list without them. Returns `prev` as it
+   * would have been with them, for the caller to compare `next` with.
+   */
+  function seedLifted(
+    next: readonly Annotation[] | undefined,
+    prev: readonly Annotation[] | undefined
+  ): readonly Annotation[] | undefined {
+    if (!awaited || next === undefined) return prev
+    const ids = new Set(next.map((a) => a.id))
+    if (!awaited.every((a) => ids.has(a.id))) return prev
+    const lifted = awaited
+    awaited = undefined
+    const withLifted = (list: readonly Annotation[]): readonly Annotation[] => {
+      const held = new Set(list.map((a) => a.id))
+      const joining = lifted.filter((a) => !held.has(a.id))
+      return joining.length > 0 ? [...list, ...joining] : list
+    }
+    const seed = (step: Snapshot): Snapshot => ({
+      ...step,
+      annotations: withLifted(step.annotations),
+    })
+    past.set(past.get().map(seed))
+    future.set(future.get().map(seed))
+    if (from) from = seed(from)
+    // An undo or redo in flight targeted a list without them: the host's answer replaces it.
+    pending = null
+    return prev === undefined ? prev : withLifted(prev)
+  }
 
   function records(): Records {
     return new Map([...tracked].map(([s, t]) => [s, t.previous]))
@@ -219,7 +261,8 @@ export function createSnapshotHistory(opts: SnapshotHistoryOptions): SnapshotHis
     }
   }
 
-  function clear(): void {
+  /** Empties the stacks and closes any batch. */
+  function reset(): void {
     past.set([])
     future.set([])
     pending = null
@@ -228,12 +271,19 @@ export function createSnapshotHistory(opts: SnapshotHistoryOptions): SnapshotHis
     settling = null
   }
 
+  function clear(): void {
+    reset()
+    awaited = undefined
+  }
+
   function observe(next: readonly Annotation[] | undefined): void {
-    const prev = current
+    const before = current
     current = snapshot(next)
+    // Before anything else: the answer to a lift is no step whether history is on or off.
+    const prev = seedLifted(current, before)
     if (!opts.enabled()) {
       // Steps taken while disabled are unknown to the stacks, which would undo to stale lists.
-      if (past.get().length > 0 || future.get().length > 0 || pending) clear()
+      if (past.get().length > 0 || future.get().length > 0 || pending) reset()
       return
     }
     // The first list only seeds; there is no step from or to an undefined list.
@@ -292,7 +342,7 @@ export function createSnapshotHistory(opts: SnapshotHistoryOptions): SnapshotHis
       if (!opts.enabled()) {
         t.previous = list
         // As in `observe`: steps taken while disabled would leave the stacks stale.
-        if (past.get().length > 0 || future.get().length > 0 || pending) clear()
+        if (past.get().length > 0 || future.get().length > 0 || pending) reset()
         return
       }
       if (change.kind === 'replace') {
@@ -334,6 +384,9 @@ export function createSnapshotHistory(opts: SnapshotHistoryOptions): SnapshotHis
     },
     clear,
     observe,
+    lifted(annotations) {
+      if (annotations.length > 0) awaited = clone(annotations)
+    },
     batch,
     track,
     react(fn) {
