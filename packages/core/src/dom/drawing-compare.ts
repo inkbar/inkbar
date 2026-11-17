@@ -19,7 +19,17 @@ export interface CompareCase {
   zoom?: 1 | 2 | 0.5 | 4
   box?: Rect
   userUnit?: number
+  /**
+   * What each capture covers: the annotation's on-screen box grown by 16 CSS px and clamped to
+   * the page (the default), or the whole page.
+   */
+  region?: 'annotation' | 'page'
 }
+
+/** CSS px a capture of the `'annotation'` region reaches past the annotation's box. */
+const MARGIN = 16
+/** The test viewport's size (vitest.config.ts), restored after a capture that needed more. */
+const VIEWPORT = { width: 1280, height: 900 }
 
 /** A channel difference above this counts as a different pixel. */
 const TOLERANCE = 16
@@ -33,6 +43,7 @@ export interface CompareResult {
   differingPixels: number
   /** Pixels of the reference image that are not background. */
   referenceInk: number
+  /** The captured region of each side, in viewport px. */
   referenceBox: DOMRect
   paintedBox: DOMRect
 }
@@ -80,10 +91,32 @@ export async function comparePaint(
   // Both holders sit at the same spot and are captured one at a time: beside each other, a
   // page wider than half the viewport has its second half captured blank.
   stage.style.cssText = 'position:absolute;left:0;top:0;background:#fff;'
-  const mount = (): HTMLElement => {
+  const cssWidth = Math.ceil(t.cssWidth)
+  const cssHeight = Math.ceil(t.cssHeight)
+  const at = annotationBox(a, t)
+  // The part of the page each capture covers, in page CSS px, on whole pixels.
+  const left = c.region === 'page' ? 0 : Math.max(0, Math.floor(at.left - MARGIN))
+  const top = c.region === 'page' ? 0 : Math.max(0, Math.floor(at.top - MARGIN))
+  const region = {
+    left,
+    top,
+    width:
+      (c.region === 'page'
+        ? cssWidth
+        : Math.min(cssWidth, Math.ceil(at.left + at.width + MARGIN))) - left,
+    height:
+      (c.region === 'page'
+        ? cssHeight
+        : Math.min(cssHeight, Math.ceil(at.top + at.height + MARGIN))) - top,
+  }
+  const mount = (): { clip: HTMLElement; layer: HTMLElement } => {
+    // The clip is what is captured: the region at the viewport's top-left, with the page
+    // shifted behind it, so neither side depends on scrolling.
+    const clip = document.createElement('div')
+    clip.style.cssText = `position:absolute;left:0;top:0;overflow:hidden;background:#fff;width:${region.width}px;height:${region.height}px;`
     // Whole CSS pixels, so both holders sit at integer offsets and antialias the same way.
     const holder = document.createElement('div')
-    holder.style.cssText = `position:absolute;left:0;top:0;background:#fff;width:${Math.ceil(t.cssWidth)}px;height:${Math.ceil(t.cssHeight)}px;`
+    holder.style.cssText = `position:absolute;left:${-region.left}px;top:${-region.top}px;background:#fff;width:${cssWidth}px;height:${cssHeight}px;`
     // What the real overlay puts on an annotation element, which theme rules select on.
     const layer = document.createElement('div')
     layer.className = 'ink-annotation'
@@ -92,25 +125,45 @@ export async function comparePaint(
     layer.dataset.source = a.source
     layer.dataset.state = 'idle'
     layer.setAttribute('role', 'button')
-    const at = annotationBox(a, t)
     layer.style.cssText = `position:absolute;pointer-events:none;left:${at.left}px;top:${at.top}px;width:${at.width}px;height:${at.height}px;`
     holder.append(layer)
-    stage.append(holder)
-    return layer
+    clip.append(holder)
+    stage.append(clip)
+    return { clip, layer }
   }
   document.head.append(style)
   document.body.append(stage)
+  let resized = false
   try {
-    const referenceEl = mount()
-    const paintedEl = mount()
+    const { clip: reference, layer: referenceEl } = mount()
+    const { clip: painted, layer: paintedEl } = mount()
     referenceSide(referenceEl, a, t)
     paintedSide(paintedEl, a, t)
-    const reference = referenceEl.parentElement as HTMLElement
-    const painted = paintedEl.parentElement as HTMLElement
-    const referenceBox = reference.getBoundingClientRect()
-    const paintedBox = painted.getBoundingClientRect()
+    // The capture must lie wholly inside the viewport: what lies beyond it comes back blank.
+    // Grow the viewport to fit, and refuse a region that still does not.
+    if (region.width > window.innerWidth || region.height > window.innerHeight) {
+      await browserPage.viewport(
+        Math.max(VIEWPORT.width, region.width),
+        Math.max(VIEWPORT.height, region.height)
+      )
+      resized = true
+    }
     await ready(reference)
     await ready(painted)
+    const referenceBox = reference.getBoundingClientRect()
+    const paintedBox = painted.getBoundingClientRect()
+    for (const r of [referenceBox, paintedBox]) {
+      if (
+        r.left < 0 ||
+        r.top < 0 ||
+        r.right > window.innerWidth ||
+        r.bottom > window.innerHeight
+      ) {
+        throw new Error(
+          `comparePaint: the region for "${c.name}" (${r.width}x${r.height}) is not inside the viewport (${window.innerWidth}x${window.innerHeight})`
+        )
+      }
+    }
     painted.style.visibility = 'hidden'
     const one = await shoot(reference)
     painted.style.visibility = ''
@@ -124,6 +177,7 @@ export async function comparePaint(
   } finally {
     stage.remove()
     style.remove()
+    if (resized) await browserPage.viewport(VIEWPORT.width, VIEWPORT.height)
   }
 }
 
