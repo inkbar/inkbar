@@ -3041,7 +3041,7 @@ describe('forms', () => {
     expect(hit(b.left + 2, b.top + 2)?.closest('[data-ink-widget]')).toBe(box)
 
     // The signature selects for deletion, but has no handles to move or resize it.
-    await userEvent.click(el.querySelector('.ink-stamp')!)
+    await userEvent.click(el.querySelector('rect[data-ink-hit-area]')!)
     expect(doc.annotations.selection.get()).toEqual([id])
     expect(el.querySelectorAll('[data-handle]')).toHaveLength(0)
     expect(document.activeElement).toBe(el)
@@ -3077,7 +3077,7 @@ describe('forms', () => {
     expect(
       hit(nameBox.left + 4, nameBox.top + nameBox.height / 2)?.closest('input')
     ).toBe(widgetBox(viewer, 'name')!.querySelector('input'))
-    await userEvent.click(over.querySelector('.ink-stamp')!)
+    await userEvent.click(over.querySelector('rect[data-ink-hit-area]')!)
     expect(doc.annotations.selection.get()).toEqual([stamp.id])
     expect(over.querySelectorAll('[data-handle]').length).toBeGreaterThan(0)
   })
