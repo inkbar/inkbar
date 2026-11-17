@@ -95,11 +95,17 @@ const EMOJI_PRESENTATION = /^\p{Emoji_Presentation}/u
 /** A pictograph that is a symbol until U+FE0F asks for the emoji: a heart, a sun, a warning sign. */
 const PICTOGRAPHIC = /^\p{Extended_Pictographic}/u
 
+/** A base that takes a skin tone, followed by one: drawn as one emoji whether or not the base is an emoji by default (a weightlifter, a pointing hand). */
+const MODIFIED = /^\p{Emoji_Modifier_Base}\p{Emoji_Modifier}/u
+/** Pictographs joined by a zero-width joiner (a rainbow flag, a heart on fire): drawn as one emoji if the font has the sequence, even when the first is a symbol by default. */
+const JOINED = /^\p{Extended_Pictographic}\ufe0f?\u200d\p{Extended_Pictographic}/u
+
 /** East Asian Wide or Fullwidth, or an emoji. */
 export function isWide(char: string): boolean {
   const c = char.codePointAt(0)!
   if (char.includes('\u20e3')) return true
   if (char.includes('\ufe0f') && PICTOGRAPHIC.test(char)) return true
+  if (MODIFIED.test(char) || JOINED.test(char)) return true
   if (c < 0x1100) return false
   if (EMOJI_PRESENTATION.test(char)) return true
   let lo = 0

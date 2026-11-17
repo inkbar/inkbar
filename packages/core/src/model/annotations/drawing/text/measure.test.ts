@@ -78,6 +78,25 @@ describe('standardMeasure', () => {
     expect(isWide(char)).toBe(true)
   })
 
+  test.each([
+    ['a weightlifter with a skin tone', '\u{1f3cb}\u{1f3fd}'],
+    ['a text-presentation hand with a skin tone', '\u261d\u{1f3fb}'],
+    ['a heart on fire without the emoji selector', '\u2764\u200d\u{1f525}'],
+    ['a rainbow flag without the emoji selector', '\u{1f3f3}\u200d\u{1f308}'],
+    ['a rainbow flag with the emoji selector', '\u{1f3f3}\ufe0f\u200d\u{1f308}'],
+  ])('%s is wide', (_name, char) => {
+    expect(isWide(char)).toBe(true)
+    expect(standardMeasure.width(char, helv, 12)).toEqual({ width: 12, outside: true })
+  })
+
+  test.each([
+    ['a weightlifter alone', '\u{1f3cb}'],
+    ['a joiner after a letter', 'a\u200db'],
+    ['a text-presentation heart', '\u2764'],
+  ])('%s is not wide', (_name, char) => {
+    expect(isWide(char)).toBe(false)
+  })
+
   test.each(['a', 'é', '\u2764', '\u2600', '\u00a9', 'ж'])('%s is not wide', (char) => {
     expect(isWide(char)).toBe(false)
   })
