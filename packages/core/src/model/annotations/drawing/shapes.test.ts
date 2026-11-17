@@ -89,9 +89,12 @@ describe('describeShape', () => {
       })
       const [g] = d.items
       if (g?.kind !== 'group') throw new Error('expected a group')
+      // A stroke of 2 on a box of nothing fills the 2 x 2 box it reaches.
       expect(g.items[0]).toMatchObject({
-        rect: { x: 100, y: 600, width: 0, height: 0 },
+        rect: { x: 99, y: 599, width: 2, height: 2 },
+        paint: { fill: { color: '#C0392B' } },
       })
+      expect(JSON.stringify(g.items[0])).not.toContain('stroke')
       expect(JSON.stringify(d)).not.toMatch(/null|NaN/)
     }
   })
@@ -106,11 +109,29 @@ describe('describeShape', () => {
       })
       const [g] = d.items
       if (g?.kind !== 'group') throw new Error('expected a group')
+      // Collapsed in one dimension: a filled shape over what the stroke reaches.
       expect(g.items[0], type).toMatchObject({
-        rect: { x: 101, y: 603, width: 0, height: 34 },
+        kind: type === 'square' ? 'rect' : 'ellipse',
+        rect: { x: 98, y: 600, width: 6, height: 40 },
+        paint: { fill: { color: '#C0392B' } },
       })
+      expect(JSON.stringify(g.items[0]), type).not.toContain('stroke')
       expect(d.bounds, type).toEqual({ x: 98, y: 600, width: 6, height: 40 })
     }
+  })
+
+  test('a shape is outlined as usual while the box is wider than its stroke in both dimensions', () => {
+    const d = describeShape({
+      ...square,
+      width: 4,
+      rect: { ...square.rect, width: 5, height: 5 },
+    })
+    const [g] = d.items
+    if (g?.kind !== 'group') throw new Error('expected a group')
+    expect(g.items[0]).toMatchObject({
+      rect: { width: 1, height: 1 },
+      paint: { stroke: { width: 4 } },
+    })
   })
 
   test('a stroke of no width is not drawn', () => {

@@ -280,6 +280,22 @@ const CASES: Case[] = [
     ],
   },
   {
+    name: 'a square narrower than its border',
+    input: {
+      type: 'square',
+      page: 0,
+      rect: { x: 40, y: 60, width: 2, height: 40 },
+      width: 6,
+      color: '#FF0000',
+      opacity: 1,
+    },
+    samples: [
+      { at: [41, 80], want: RED, why: 'on the border that fills the box, centred in it' },
+      { at: [38, 80], want: RED, why: 'its left edge, 3 either side of the centre' },
+      { at: [50, 80], want: WHITE, why: 'beside it' },
+    ],
+  },
+  {
     name: 'a mask',
     input: {
       type: 'mask',
