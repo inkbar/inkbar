@@ -351,24 +351,25 @@ describe('a callout', () => {
   }
 
   test('the bounds hold a head that sticks out of the rect', () => {
-    const out = describeFreeText(
-      {
-        ...callout,
-        rect: { x: 100, y: 600, width: 100, height: 40 },
-        fringe: undefined,
-        callout: [
-          { x: 99, y: 599 },
-          { x: 150, y: 620 },
-        ],
-        width: 2,
-        head: 'OpenArrow',
-      },
-      context()
-    )
-    // The head's wings reach 6 along the line and 3 across, and half the stroke beyond.
-    expect(out.bounds.x).toBeLessThan(99)
-    expect(out.bounds.y).toBeLessThan(599)
-    expect(out.bounds.x + out.bounds.width).toBeGreaterThanOrEqual(200)
+    const sideways: FreeTextAnnotation = {
+      ...callout,
+      rect: { x: 100, y: 600, width: 100, height: 40 },
+      fringe: undefined,
+      // A vertical leader left of the box, pointing up: only the head's wings reach further left.
+      callout: [
+        { x: 50, y: 610 },
+        { x: 50, y: 560 },
+      ],
+      width: 2,
+      dashes: undefined,
+    }
+    const without = describeFreeText({ ...sideways, head: undefined }, context()).bounds
+    const out = describeFreeText({ ...sideways, head: 'OpenArrow' }, context()).bounds
+    // The leader's stroke is 2 pt wide on x = 50, so it reaches x = 49. The head's wings are 3
+    // either side of the line, and half the stroke (1) beyond that.
+    expect(without.x).toBeCloseTo(49, 6)
+    expect(out.x).toBeCloseTo(46, 6)
+    expect(out.x + out.width).toBeCloseTo(without.x + without.width, 6)
   })
 
   test('adds its leader and head, below the box', () => {
@@ -527,6 +528,54 @@ describe('a speech bubble', () => {
     ).lines[0]!
     // Top padding 0.4 * 12 = 4.8 points, then the first baseline.
     expect(t.lines[0]!.origin.y).toBeCloseTo(360 - 4.8 - laid.baseline)
+  })
+
+  describe('the edge the tail leaves when two are equally near', () => {
+    // The middle of the wedge's base, which is kept clear of the corners, is on the edge it leaves.
+    const edgeOf = (a: FreeTextAnnotation, rotate: 0 | 90): string => {
+      const { x, y, width, height } = a.rect
+      const tip = a.callout![0]!
+      const commands = path(describeFreeText(a, context(rotate))).commands
+      const at = commands.findIndex(
+        (c) => c.op === 'L' && c.to.x === tip.x && c.to.y === tip.y
+      )
+      const [before, after] = [commands[at - 1], commands[at + 1]]
+      if (before?.op !== 'L' || after?.op !== 'L') throw new Error('no wedge')
+      const mid = { x: (before.to.x + after.to.x) / 2, y: (before.to.y + after.to.y) / 2 }
+      const sides = [
+        mid.x === x && 'left',
+        mid.x === x + width && 'right',
+        mid.y === y && 'bottom',
+        mid.y === y + height && 'top',
+      ].filter(Boolean)
+      expect(sides).toHaveLength(1)
+      return sides[0] as string
+    }
+    const on = (
+      rect: FreeTextAnnotation['rect'],
+      edge: { x: number; y: number }
+    ): FreeTextAnnotation => ({
+      ...bubble,
+      rect,
+      cornerRadius: 0,
+      callout: [{ x: 5, y: 5 }, edge],
+    })
+    const wide = { x: 100, y: 300, width: 200, height: 80 }
+    const tall = { x: 100, y: 300, width: 80, height: 200 }
+    // [name, annotation, edge it leaves]: ties go left, right, bottom, top.
+    const cases: [string, FreeTextAnnotation, string][] = [
+      ['left and right, level with the middle', on(tall, { x: 140, y: 400 }), 'left'],
+      ['bottom and top, over the middle', on(wide, { x: 200, y: 340 }), 'bottom'],
+      ['left and bottom, off the corner', on(wide, { x: 90, y: 290 }), 'left'],
+      ['left and top, off the corner', on(wide, { x: 90, y: 390 }), 'left'],
+      ['right and bottom, off the corner', on(wide, { x: 310, y: 290 }), 'right'],
+      ['right and top, off the corner', on(wide, { x: 310, y: 390 }), 'right'],
+    ]
+    for (const [name, a, want] of cases)
+      for (const rotate of [0, 90] as const)
+        test(`${name}: the ${want} edge, on a page turned ${rotate}`, () => {
+          expect(edgeOf(a, rotate)).toBe(want)
+        })
   })
 
   test('a bubble on a page turned 90 keeps its outline in user space', () => {

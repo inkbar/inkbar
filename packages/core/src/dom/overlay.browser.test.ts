@@ -21,7 +21,7 @@ import { oneOfEach } from '../test-support/annotations'
 import { drawContext } from './drawing-context'
 import { createMessageState } from './messages-state'
 import { createOverlay, type OverlayOptions } from './overlay'
-import { handleBox, renderAnnotationContent } from './overlay-render'
+import { handleBox, renderAnnotationContent, renderHitArea } from './overlay-render'
 import { createPageMount } from './page-mount'
 import { mountContainer, openFixtureInBrowser, TEXT_LAYER_CSS } from './test-utils'
 import { FONT_STACKS } from './text-fonts'
@@ -540,17 +540,20 @@ describe('createOverlay', () => {
       if (node instanceof SVGTextElement) {
         // A justified line's style is reserialised when its word spacing is set.
         expect(style).toMatch(
-          /^font-kerning:\s*none;\s*white-space:\s*pre;\s*font-family:/
+          /^font-kerning:\s*none\s*!important;\s*white-space:\s*pre\s*!important;\s*font-family:/
         )
         continue
       }
       if (node instanceof SVGTSpanElement) {
-        expect(style).toBe('word-spacing: 0px;')
+        expect(style).toBe('word-spacing: 0px !important;')
         continue
       }
       // The paint of a shape, drawn or only taking presses, and a group's opacity.
       if (node instanceof SVGElement) {
         expect(style).toMatch(/^(fill|stroke|opacity):/)
+        // Every declaration has priority important, so no host rule can change it.
+        for (const declaration of style.split(';').filter((d) => d.trim() !== ''))
+          expect(declaration, style).toMatch(/\s!important$/)
         continue
       }
       expect(node).toBeInstanceOf(HTMLElement)
@@ -926,14 +929,20 @@ describe('createOverlay', () => {
       })
     })
 
-    it('host rules on .ink-free-text and on the text elements no longer restyle or cover the text', async () => {
+    /** A quarter of the 131 blue pixels "Hello" measured, so one stray pixel does not pass. */
+    const MIN_GLYPH_PIXELS = 32
+
+    it('host rules on .ink-free-text and on the text elements neither restyle nor cover the text', async () => {
       const style = document.createElement('style')
       style.textContent = `
         .ink-free-text { color: red !important; font-size: 40px !important; background: red !important; border: 4px solid red !important }
         [data-type=freetext] text { font-family: cursive; fill: red; font-size: 40px }
         [data-type=freetext] line { stroke: red }
         [data-type=freetext] rect { fill: red; stroke: red }
-        svg rect { fill: currentColor }`
+        svg rect { fill: currentColor }
+        [data-type=freetext] text { fill: red !important; font-family: cursive !important; font-size: 40px !important }
+        [data-type=freetext] line { stroke: red !important }
+        [data-type=freetext] rect { fill: red !important; stroke: red !important }`
       document.head.append(style)
       cleanup.push(() => style.remove())
       const { el, host } = drawn(
@@ -968,12 +977,19 @@ describe('createOverlay', () => {
       const ctx = canvas.getContext('2d', { willReadFrequently: true })!
       ctx.drawImage(bitmap, 0, 0)
       // Box {100, 600, 200 x 60}: css left 100, top 792 - 660 = 132. "Hello" is 12 px type at its
-      // top-left.
+      // top-left. Each pixel is blue or red or neither: how many glyph pixels there are depends
+      // on anti-aliasing and the pixel ratio, so the count is logged, and only the kind decides.
       const { data } = ctx.getImageData(100, 132, 32, 14)
       let blue = 0
-      for (let i = 0; i < data.length; i += 4)
-        if (data[i + 2]! > 150 && data[i]! < 100 && data[i + 1]! < 100) blue++
-      expect(blue).toBeGreaterThan(20)
+      let red = 0
+      for (let i = 0; i < data.length; i += 4) {
+        const [r, g, b] = [data[i]!, data[i + 1]!, data[i + 2]!]
+        if (b - Math.max(r, g) > 60) blue++
+        else if (r - Math.max(g, b) > 60) red++
+      }
+      console.log(`[host-rule] text box pixels: blue ${blue}, red ${red}`)
+      expect(red).toBe(0)
+      expect(blue).toBeGreaterThanOrEqual(MIN_GLYPH_PIXELS)
     })
 
     it('every drawn shape keeps its paint under a host rule on svg shapes, notes included', () => {
@@ -1045,6 +1061,12 @@ describe('createOverlay', () => {
         'rect, circle, path, polyline, polygon, ellipse { fill: red; fill-opacity: 0.2; stroke: red; stroke-width: 9px; stroke-dasharray: 1; stroke-linejoin: bevel; stroke-linecap: square }'
       document.head.append(style)
       cleanup.push(() => style.remove())
+      expect(look()).toEqual(before)
+      // Not even with priority.
+      style.textContent = style.textContent
+        .replace(/;/g, ' !important;')
+        .replace(/ }$/, ' !important }')
+      expect(style.textContent).toContain('stroke-linecap: square !important')
       expect(look()).toEqual(before)
     })
 
@@ -1147,12 +1169,70 @@ describe('createOverlay', () => {
         'none',
         clear
       )
-      for (const [id, selector, fill, stroke] of shapes) {
-        const shape = overlay.elementFor(id)!.querySelector(selector)
-        expect(shape, `${selector} of ${id}`).not.toBeNull()
-        const cs = getComputedStyle(shape!)
-        expect([selector, cs.fill, cs.stroke]).toEqual([selector, fill, stroke])
+      add(
+        {
+          type: 'polygon',
+          page: 0,
+          rect: { x: 100, y: 100, width: 80, height: 60 },
+          vertices: [
+            { x: 100, y: 100 },
+            { x: 180, y: 100 },
+            { x: 140, y: 160 },
+          ],
+          width: 2,
+        } as never,
+        '[data-ink-hit-stroke]',
+        'none',
+        clear
+      )
+      add(
+        {
+          type: 'circle',
+          page: 0,
+          rect: { x: 300, y: 100, width: 80, height: 60 },
+          width: 2,
+        } as never,
+        '[data-ink-hit-stroke]',
+        'none',
+        clear
+      )
+      // The hit areas of annotations the overlay does not draw: one polygon to a quad, or a rect.
+      const t = createPageTransform(page, 1, 0)
+      const hitAreas = [
+        { type: 'highlight', page: 0, rect, quads: [quads[0]!] },
+        { type: 'square', page: 0, rect, width: 2 },
+      ].map((input) => {
+        const el = document.createElement('div')
+        renderHitArea(el, store.add(input as never), t)
+        document.body.append(el)
+        cleanup.push(() => el.remove())
+        return el.querySelector('svg[data-ink-hit] > polygon, svg[data-ink-hit] > rect')!
+      })
+      expect(hitAreas.map((h) => h.tagName)).toEqual(['polygon', 'rect'])
+      let joins: string[] = []
+      const check = () => {
+        joins = []
+        for (const [id, selector, fill, stroke] of shapes) {
+          const shape = overlay.elementFor(id)!.querySelector(selector)
+          expect(shape, `${selector} of ${id}`).not.toBeNull()
+          const cs = getComputedStyle(shape!)
+          expect([selector, cs.fill, cs.stroke]).toEqual([selector, fill, stroke])
+          if (selector === '[data-ink-hit-stroke]')
+            joins.push(`${id} ${cs.strokeLinejoin} ${cs.strokeLinecap}`)
+        }
+        for (const hit of hitAreas) {
+          const cs = getComputedStyle(hit)
+          expect([hit.tagName, cs.fill, cs.stroke]).toEqual([hit.tagName, clear, 'none'])
+        }
       }
+      check()
+      const plain = joins
+      expect(plain.length).toBeGreaterThan(0)
+      // The same rule with priority important, joins and caps included, changes nothing either.
+      style.textContent =
+        'rect, circle, path, polyline, polygon, ellipse { fill: red !important; stroke: red !important; stroke-width: 9px !important; stroke-linecap: square !important; stroke-linejoin: bevel !important }'
+      check()
+      expect(joins).toEqual(plain)
     })
 
     it('a bubble below full opacity is one group: outline and text together', () => {
@@ -2323,35 +2403,51 @@ describe('mask', () => {
   const layer = (host: HTMLElement) =>
     host.querySelector<SVGSVGElement>('svg[data-ink-mask-layer]')
 
+  type Pt = [number, number]
   /**
-   * A path's subpaths, each with whether it is closed and its end points sorted and rounded to
-   * 3 decimals: the order a path visits its corners in is not behaviour.
+   * A path's subpaths, each with whether it is closed and its end points sorted: the order a
+   * path visits its corners in is not behaviour. Points are numbers, compared with a tolerance
+   * (`samePoints`).
    */
-  const subpaths = (d: string): { closed: boolean; points: string[] }[] =>
+  const subpaths = (d: string): { closed: boolean; points: Pt[] }[] =>
     d
       .split(/(?=M)/)
       .filter(Boolean)
       .map((sub) => {
-        const points = [...sub.matchAll(/[MLA]([^MLAZ]*)/g)].map((m) => {
-          const n = (m[1]!.match(/-?\d+(\.\d+)?/g) ?? []).map(Number)
-          return `${n[n.length - 2]!.toFixed(3)},${n[n.length - 1]!.toFixed(3)}`
-        })
-        return {
-          closed: sub.trimEnd().endsWith('Z'),
-          points: [...new Set(points)].sort(),
-        }
+        const points = [...sub.matchAll(/[MLA]([^MLAZ]*)/g)]
+          .map((m): Pt => {
+            const n = (m[1]!.match(/-?\d+(\.\d+)?/g) ?? []).map(Number)
+            return [n[n.length - 2]!, n[n.length - 1]!]
+          })
+          .sort((p, q) => p[0] - q[0] || p[1] - q[1])
+        // A corner a path visits twice is one point.
+        const distinct = points.filter(
+          (p, i) =>
+            i === 0 ||
+            Math.hypot(p[0] - points[i - 1]![0], p[1] - points[i - 1]![1]) > 1e-6
+        )
+        return { closed: sub.trimEnd().endsWith('Z'), points: distinct }
       })
 
-  /** The sorted corner points of a rectangle, as `subpaths` writes them. */
-  const corners = (l: number, t: number, r: number, b: number): string[] =>
-    [`${l},${t}`, `${r},${t}`, `${r},${b}`, `${l},${b}`]
-      .map((c) =>
-        c
-          .split(',')
-          .map((v) => Number(v).toFixed(3))
-          .join(',')
-      )
-      .sort()
+  /** The corner points of a rectangle, sorted as `subpaths` sorts them. */
+  const corners = (l: number, t: number, r: number, b: number): Pt[] =>
+    (
+      [
+        [l, t],
+        [r, t],
+        [r, b],
+        [l, b],
+      ] as Pt[]
+    ).sort((p, q) => p[0] - q[0] || p[1] - q[1])
+
+  /** Whether `got` is `want`, point for point, to within 0.0005 on each coordinate. */
+  const samePoints = (got: Pt[], want: Pt[], what = 'points'): void => {
+    expect(got, what).toHaveLength(want.length)
+    got.forEach((p, i) => {
+      expect(p[0], `${what}[${i}].x`).toBeCloseTo(want[i]![0], 3)
+      expect(p[1], `${what}[${i}].y`).toBeCloseTo(want[i]![1], 3)
+    })
+  }
 
   it('mask layer covers the page minus the shape with an even-odd path at dim opacity', async () => {
     const { doc, host, overlay } = await mountMaskPage('text-simple', 2)
@@ -2377,10 +2473,10 @@ describe('mask', () => {
     expect(path.getAttribute('fill')).toBe(mask.color)
     expect(path.getAttribute('fill-opacity')).toBe('0.7')
     // The page outline, then the shape's: css (200, 384) to (600, 584) at 2x.
-    expect(subpaths(path.getAttribute('d')!)).toEqual([
-      { closed: true, points: corners(0, 0, 1224, 1584) },
-      { closed: true, points: corners(200, 384, 600, 584) },
-    ])
+    const outlines = subpaths(path.getAttribute('d')!)
+    expect(outlines.map((sub) => sub.closed)).toEqual([true, true])
+    samePoints(outlines[0]!.points, corners(0, 0, 1224, 1584), 'the page')
+    samePoints(outlines[1]!.points, corners(200, 384, 600, 584), 'the shape')
 
     // A change to the mask redraws it; removing it removes the layer.
     doc.annotations.update(mask.id, { dim: 0.2, shape: 'ellipse' })
@@ -2390,7 +2486,14 @@ describe('mask', () => {
     // The ellipse's bounding box is the rect's: end points at its left and right, mid-height.
     const cut = subpaths(ellipse.getAttribute('d')!)
     expect(cut.map((c) => c.closed)).toEqual([true, true])
-    expect(cut[1]!.points).toEqual(['200.000,484.000', '600.000,484.000'].sort())
+    samePoints(
+      cut[1]!.points,
+      [
+        [200, 484],
+        [600, 484],
+      ],
+      'the ellipse'
+    )
     // Both arcs have the rect's radii (200 x 100 pt at zoom 2: rx 200, ry 100 CSS px), the
     // first ending at the right of the ellipse (600, 484), the second back at its left (200, 484).
     const arcs = [...ellipse.getAttribute('d')!.matchAll(/A([^MLAZ]*)/g)].map((m) =>
@@ -2422,10 +2525,10 @@ describe('mask', () => {
     })
     overlay.update(createPageTransform(doc.pages[0]!, 0.5, 0))
     const d = layer(host)!.querySelector('path')!.getAttribute('d')!
-    expect(subpaths(d)).toEqual([
-      { closed: true, points: corners(0, 0, 306, 396) },
-      { closed: true, points: corners(50, 96, 150, 146) },
-    ])
+    const cut = subpaths(d)
+    expect(cut.map((sub) => sub.closed)).toEqual([true, true])
+    samePoints(cut[0]!.points, corners(0, 0, 306, 396), 'the page')
+    samePoints(cut[1]!.points, corners(50, 96, 150, 146), 'the shape')
     expect(layer(host)!.getAttribute('width')).toBe('306')
   })
 
@@ -2439,13 +2542,17 @@ describe('mask', () => {
       expect(svg.getAttribute('height')).toBe(String(transform.cssHeight))
       const cut = subpaths(svg.querySelector('path')!.getAttribute('d')!)
       expect(cut.map((sub) => sub.closed)).toEqual([true, true])
-      expect(cut[0]!.points, String(view)).toEqual(
-        corners(0, 0, transform.cssWidth, transform.cssHeight)
+      samePoints(
+        cut[0]!.points,
+        corners(0, 0, transform.cssWidth, transform.cssHeight),
+        `the page at ${view}`
       )
       // The shape is the rect's own css box under the page's turn.
       const c = transform.toCssRect(rect)
-      expect(cut[1]!.points, String(view)).toEqual(
-        corners(c.left, c.top, c.left + c.width, c.top + c.height)
+      samePoints(
+        cut[1]!.points,
+        corners(c.left, c.top, c.left + c.width, c.top + c.height),
+        `the shape at ${view}`
       )
       // /Rotate 90 plus the view: sides swap at a quarter turn, not at a half or full one.
       const swapped = transform.totalRotation % 180 !== 0

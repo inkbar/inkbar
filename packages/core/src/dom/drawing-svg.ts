@@ -14,6 +14,13 @@ const SVG = 'http://www.w3.org/2000/svg'
 
 const fmt = (n: number): string => String(Math.round(n * 1000) / 1000 + 0)
 
+/**
+ * A style attribute value for `declarations` (`name:value`), each with priority `important`: what
+ * a drawing paints is inline style that no host rule, `!important` ones included, can change.
+ */
+export const importantStyle = (declarations: readonly string[]): string =>
+  declarations.map((d) => `${d} !important`).join(';')
+
 /** Class names and data attributes the overlay, its theme and its tests select on. */
 const ROLE_CLASS: Partial<Record<DrawRole, string>> = {
   stroke: 'ink-stroke',
@@ -53,9 +60,8 @@ export function paintDrawing(
 
 /**
  * Appends `drawing`'s items to `svg`, positioned relative to `box` (page CSS px). A `page` item
- * is skipped: whoever owns the lens draws it. A lone group puts its opacity, and its role as
- * `data-ink-part`, on `svg`. Takes no
- * part in hit testing; `paintDrawing` makes what it draws take presses.
+ * is skipped: whoever owns the lens draws it. A lone group puts its opacity and its role on
+ * `svg`; with no lone group the svg is fully opaque. Takes no part in hit testing; `paintDrawing` makes what it draws take presses.
  */
 export function paintItems(
   svg: SVGSVGElement,
@@ -74,11 +80,13 @@ export function paintItems(
   const only = items.length === 1 ? items[0] : undefined
   if (only?.kind === 'group') {
     svg.setAttribute('opacity', String(only.opacity))
-    svg.style.opacity = String(only.opacity)
+    svg.style.setProperty('opacity', String(only.opacity), 'important')
     // The group is not an element of its own here: its role is the svg's.
-    if (only.role) svg.setAttribute('data-ink-part', only.role)
+    role(svg, only.role)
     for (const item of only.items) svg.append(paintItem(doc, item, t, box, at, len))
   } else {
+    // No group, so no opacity of the drawing's own: the svg is drawn whole whatever a rule says.
+    svg.style.setProperty('opacity', '1', 'important')
     for (const item of items) svg.append(paintItem(doc, item, t, box, at, len))
   }
   guard(svg, 'svg')
@@ -177,14 +185,14 @@ function paintItem(
       paint(out, item.paint, len)
       out.setAttribute(
         'style',
-        `${out.getAttribute('style')};fill-rule:${rule};clip-rule:${rule}`
+        `${out.getAttribute('style')};${importantStyle([`fill-rule:${rule}`, `clip-rule:${rule}`])}`
       )
       break
     }
     case 'group': {
       out = node('g')
       out.setAttribute('opacity', String(item.opacity))
-      out.setAttribute('style', `opacity:${item.opacity}`)
+      out.setAttribute('style', importantStyle([`opacity:${item.opacity}`]))
       for (const child of item.items)
         out.append(paintItem(doc, child, t, origin, at, len))
       break
@@ -275,8 +283,21 @@ function paintText(
     text.setAttribute('fill', item.color)
     text.setAttribute(
       'style',
-      `font-kerning:none;white-space:pre;font-family:${stack};font-size:${fmt(size)}px;font-weight:${weight};font-style:${slant};fill:${item.color};stroke:none;` +
-        `text-anchor:start;dominant-baseline:alphabetic;letter-spacing:0;word-spacing:0;text-decoration:none`
+      importantStyle([
+        'font-kerning:none',
+        'white-space:pre',
+        `font-family:${stack}`,
+        `font-size:${fmt(size)}px`,
+        `font-weight:${weight}`,
+        `font-style:${slant}`,
+        `fill:${item.color}`,
+        'stroke:none',
+        'text-anchor:start',
+        'dominant-baseline:alphabetic',
+        'letter-spacing:0',
+        'word-spacing:0',
+        'text-decoration:none',
+      ])
     )
     text.setAttribute('pointer-events', 'none')
     if (turn !== 0)
@@ -313,7 +334,12 @@ function paintText(
       rule.setAttribute('stroke-width', fmt(len(line.underline.thickness)))
       rule.setAttribute(
         'style',
-        `stroke:${item.color};stroke-width:${fmt(len(line.underline.thickness))}px;stroke-dasharray:none;stroke-linecap:butt`
+        importantStyle([
+          `stroke:${item.color}`,
+          `stroke-width:${fmt(len(line.underline.thickness))}px`,
+          'stroke-dasharray:none',
+          'stroke-linecap:butt',
+        ])
       )
       rule.setAttribute('pointer-events', 'none')
       guard(rule, 'underline')
@@ -339,13 +365,13 @@ function fillText(
     return
   }
   text.setAttribute('word-spacing', fmt(spacing))
-  text.style.wordSpacing = `${fmt(spacing)}px`
+  text.style.setProperty('word-spacing', `${fmt(spacing)}px`, 'important')
   for (const part of content.split(/(\u00a0+)/)) {
     if (part === '') continue
     if (part.startsWith('\u00a0')) {
       const piece = doc.createElementNS(SVG, 'tspan')
       piece.setAttribute('word-spacing', '0')
-      piece.style.wordSpacing = '0'
+      piece.style.setProperty('word-spacing', '0', 'important')
       piece.textContent = part
       text.append(piece)
     } else text.append(doc.createTextNode(part))
@@ -446,8 +472,8 @@ function ellipseOutline(rect: Rect): PathCommand[] {
 }
 
 /**
- * Sets an item's paint as attributes, which tests and selectors read, and as inline style, which
- * a host's rule on `svg rect` or `path` cannot override. The style names everything such a rule
+ * Sets an item's paint as attributes, which tests and selectors read, and as inline style with
+ * priority `important`, which a host's rule on `svg rect` or `path` cannot override. The style names everything such a rule
  * could change, a value the description leaves out as its default: no stroke is `none`, no
  * dashes `none`, a join `miter`, a cap `butt`.
  */
@@ -466,7 +492,7 @@ function paint(el: Element, p: Paint, len: (n: number) => number): void {
   }
   el.setAttribute(
     'style',
-    [
+    importantStyle([
       `fill:${p.fill?.color ?? 'none'}`,
       `fill-opacity:${p.fill?.opacity ?? 1}`,
       `stroke:${s?.color ?? 'none'}`,
@@ -474,7 +500,7 @@ function paint(el: Element, p: Paint, len: (n: number) => number): void {
       `stroke-dasharray:${dashes ?? 'none'}`,
       `stroke-linejoin:${s?.join ?? 'miter'}`,
       `stroke-linecap:${s?.cap ?? 'butt'}`,
-    ].join(';')
+    ])
   )
 }
 

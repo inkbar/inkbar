@@ -32,7 +32,7 @@ Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, gi
 
 - **Your framework.** Components and hooks for Vue 3, React 19 and Svelte 5, plus `createViewer` for apps with no framework at all. All four share one engine and one stylesheet.
 - **Toolbars you assemble.** You build each toolbar in your own markup from Inkbar's controls: tool buttons, undo and redo, the zoom select, the page input. Keep the ones you need, place them where they fit and add your own. The theme styles them with zero-specificity rules, so your CSS wins without `!important`, and it reads shadcn token names if your app defines them.
-- **Annotations as plain data.** Highlights, notes, drawings and redactions are typed objects. Keep them in your own state and save them to your own backend, or let Inkbar hold them. Undo and redo work either way.
+- **Annotations as plain data.** Highlights, notes, drawings and redactions are typed objects. Keep them in your own state and save them to your own backend, or let Inkbar hold them. Undo and redo work either way. The annotation's data sets its shape, colours and text, and their paint is locked against stylesheets. A stylesheet adds or changes only what surrounds the drawing (the theme's outlines, note shadow and comment markers, the editor, handles and selection frame), and can still hide, move or filter elements.
 - **Redaction marks.** Mark text or areas for redaction by hand, or add marks from your own detector through the same API. Anything your review needs, such as a reason or a score, goes in the annotation's `custom` data.
 - **Keyboard first.** Select text and press Enter to highlight it, move between annotations with the arrow keys, and nudge them a point at a time. Area redactions, freehand drawing, loupes and masks are the ones that need a pointer.
 - **Touch screens too.** Pinch to zoom the document, not the page. Under a drawing tool one finger draws and two fingers scroll.
@@ -157,14 +157,14 @@ The [sandbox](https://sandbox.inkbar.dev) runs all four on a sample document. Dr
 
 ## Packages
 
-| Package                             | What it is                                                                      |
-| ----------------------------------- | ------------------------------------------------------------------------------- |
-| [`@inkbar/core`](packages/core)     | Document model, rendering, annotations and tools, with no framework dependency. |
-| [`@inkbar/vue`](packages/vue)       | Vue 3 components and composables to build your viewer.                          |
-| [`@inkbar/react`](packages/react)   | React 19 components and hooks to build your viewer.                             |
-| [`@inkbar/svelte`](packages/svelte) | Svelte 5 components and hooks to build your viewer.                             |
-| [`@inkbar/theme`](packages/theme)   | The default stylesheet. Zero specificity, compatible with shadcn token names.   |
-| [`@inkbar/icons`](packages/icons)   | The icons the toolbar controls show, as data, with their licence notices.       |
+| Package                             | What it is                                                                             |
+| ----------------------------------- | -------------------------------------------------------------------------------------- |
+| [`@inkbar/core`](packages/core)     | Document model, rendering, annotations and tools, with no framework dependency.        |
+| [`@inkbar/vue`](packages/vue)       | Vue 3 components and composables to build your viewer.                                 |
+| [`@inkbar/react`](packages/react)   | React 19 components and hooks to build your viewer.                                    |
+| [`@inkbar/svelte`](packages/svelte) | Svelte 5 components and hooks to build your viewer.                                    |
+| [`@inkbar/theme`](packages/theme)   | The default stylesheet. Zero specificity, compatible with shadcn token names.          |
+| [`@inkbar/icons`](packages/icons)   | The icons for the toolbar controls and for notes, as data, with their licence notices. |
 
 The six packages are released together and share one version number. The framework packages take `@inkbar/core` as a peer dependency, so your app installs one copy of it.
 

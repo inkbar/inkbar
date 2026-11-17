@@ -39,18 +39,18 @@ async function lensOf(rect: Rect, view: 0 | 90, zoom: number, pageRotate: 0 | 90
 describe('the loupe layer clips the lens to the drawing', () => {
   for (const view of [0, 90] as const) {
     for (const pageRotate of [0, 90] as const) {
-      it(`a square loupe is clipped as circle(50%) of its box was, at view rotation ${view} and page /Rotate ${pageRotate}`, async () => {
+      it(`a square loupe is clipped to a circle of half its side, at view rotation ${view} and page /Rotate ${pageRotate}`, async () => {
         const { canvas, box } = await lensOf(
           { x: 100, y: 500, width: 120, height: 120 },
           view,
           2,
           pageRotate
         )
-        // What `clip-path: circle(50%)` resolved to: 50% of sqrt(w² + h²) / sqrt(2), at the centre.
-        const old = 0.5 * (Math.hypot(box.width, box.height) / Math.SQRT2)
+        // The radius `clip-path: circle(50%)` resolves to: 50% of sqrt(w² + h²) / sqrt(2), at the centre.
+        const circleHalf = 0.5 * (Math.hypot(box.width, box.height) / Math.SQRT2)
         const { r, x, y } = clip(canvas)
         expect(box.width).toBeCloseTo(box.height)
-        expect(r).toBeCloseTo(old)
+        expect(r).toBeCloseTo(circleHalf)
         expect(x).toBeCloseTo(box.width / 2)
         expect(y).toBeCloseTo(box.height / 2)
         expect(canvas.style.cssText).toMatch(
@@ -62,7 +62,7 @@ describe('the loupe layer clips the lens to the drawing', () => {
 
   for (const view of [0, 90] as const) {
     for (const zoom of [1, 2] as const) {
-      it(`a 200 x 100 loupe clips to half its shorter side, centred; today's clip was larger, at view rotation ${view} and zoom ${zoom}`, async () => {
+      it(`a 200 x 100 loupe clips to a circle of half its shorter side, centred, at view rotation ${view} and zoom ${zoom}`, async () => {
         const { canvas, box } = await lensOf(
           { x: 100, y: 500, width: 200, height: 100 },
           view,
@@ -73,7 +73,7 @@ describe('the loupe layer clips the lens to the drawing', () => {
         expect(r).toBeCloseTo(50 * zoom)
         expect(x).toBeCloseTo(box.width / 2)
         expect(y).toBeCloseTo(box.height / 2)
-        // circle(50%) was 50% of sqrt(w² + h²) / sqrt(2): about 79 points here.
+        // Not `circle(50%)`, which is 50% of sqrt(w² + h²) / sqrt(2): about 79 points here.
         expect(r).toBeLessThan(0.5 * (Math.hypot(box.width, box.height) / Math.SQRT2))
       })
     }

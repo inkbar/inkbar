@@ -98,8 +98,29 @@ const WIDTHS = [80, 144, 300]
 
 const spaceless = (s: string) => s.normalize('NFC').replace(/\s/gu, '')
 
-/** The lines of `a` that `b` does not have at the same place, joined. */
-const unlike = (a: string[], b: string[]) => a.filter((line, i) => line !== b[i]).join('')
+/** The text of each of `lines` (spaceless, as the comparisons have them) with its spaces, taken from `text`. */
+function withSpaces(text: string, lines: string[]): string[] {
+  const chars = [...text.normalize('NFC')]
+  let pos = 0
+  return lines.map((line) => {
+    let left = [...line].length
+    if (left === 0) return ''
+    while (pos < chars.length && /\s/u.test(chars[pos]!)) pos++
+    const start = pos
+    while (left > 0 && pos < chars.length) {
+      if (!/\s/u.test(chars[pos]!)) left--
+      pos++
+    }
+    return chars.slice(start, pos).join('')
+  })
+}
+
+/** The lines, with their spaces, that the browser and the layout did not break the same way. */
+function differingLines(text: string, expected: string[], laid: string[]): string[] {
+  const unlike = (a: string[], b: string[]) =>
+    withSpaces(text, a).filter((_, i) => a[i] !== b[i])
+  return [...unlike(expected, laid), ...unlike(laid, expected)]
+}
 
 describe('layoutText breaks lines where the browser does', () => {
   for (const [name, text] of Object.entries(SAMPLES)) {
@@ -128,12 +149,7 @@ describe('layoutText breaks lines where the browser does', () => {
               // Where a class of characters is drawn in other widths on this machine, the browser's own lines may differ from a whole-string measure of them.
               if (!(
                 fonts.mode === 'by-cause' &&
-                causeFound(
-                  text,
-                  block.font,
-                  size,
-                  unlike(expected, laid) + unlike(laid, expected)
-                )
+                causeFound(block.font, size, differingLines(text, expected, laid))
               ))
                 unexplained.push(detail)
             }
@@ -143,6 +159,24 @@ describe('layoutText breaks lines where the browser does', () => {
       expect(unexplained).toEqual([])
     })
   }
+})
+
+describe('differingLines', () => {
+  it('gives the lines that differ with their spaces, from both sides', () => {
+    const text = 'aa bb cc dd'
+    expect(differingLines(text, ['aabb', 'ccdd'], ['aa', 'bbcc', 'dd'])).toEqual([
+      'aa bb',
+      'cc dd',
+      'aa',
+      'bb cc',
+      'dd',
+    ])
+    expect(differingLines(text, ['aabb', 'ccdd'], ['aabb', 'ccdd'])).toEqual([])
+    expect(differingLines(text, ['aabb', 'ccdd'], ['aabb', 'cc'])).toEqual([
+      'cc dd',
+      'cc',
+    ])
+  })
 })
 
 describe('known differences from the browser', () => {
@@ -190,8 +224,8 @@ interface Mismatch {
   latin: boolean
   font: TextFont
   size: number
-  /** The characters of the lines the browser and the layout broke differently. */
-  differing: string
+  /** The lines the browser and the layout broke differently, with their spaces. */
+  differing: string[]
 }
 
 /** Lays every sample out with `measure` and compares it with a real `div`. */
@@ -231,7 +265,7 @@ function compareWith(
               latin: latinOnly(text),
               font,
               size,
-              differing: unlike(expected, laid) + unlike(laid, expected),
+              differing: differingLines(text, expected, laid),
             })
             console.log(
               `[detail] kerning=${kerning} ${label} edge<=${near ?? 'none'}\n  browser ${JSON.stringify(expected)}\n  layout  ${JSON.stringify(laid)}`
@@ -260,15 +294,10 @@ const MISMATCH_CAP = 0.025
  * - a run outside the tables in those lines that the browser draws at another width than the
  *   layout measured for it (the cause itself, whatever a missing font draws instead).
  */
-function causeFound(
-  text: string,
-  font: TextFont,
-  size: number,
-  differing: string
-): boolean {
+function causeFound(font: TextFont, size: number, lines: string[]): boolean {
   return (
-    [...classesIn(differing)].some((name) => fonts.differing.has(name)) ||
-    outsideRunsDiffer(text, font, size, differing)
+    [...classesIn(lines.join(' '))].some((name) => fonts.differing.has(name)) ||
+    outsideRunsDiffer(lines, font, size)
   )
 }
 
@@ -280,7 +309,7 @@ function causeFound(
  */
 function explainedByFonts(m: Mismatch, kerning: boolean, known: string[]): boolean {
   return (
-    causeFound(m.text, m.font, m.size, m.differing) ||
+    causeFound(m.font, m.size, m.differing) ||
     known.includes(m.label) ||
     (kerning && SHAPED.test(m.name))
   )

@@ -83,7 +83,8 @@ describe('the drawing cache and the page it was made for', () => {
 
 describe('a line whose description throws', () => {
   it('does not stop the store, and the page and the thumbnail still draw the others', async () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const warned = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    cleanup.push(() => warned.mockRestore())
     const doc = await openFixtureInBrowser('text-simple')
     cleanup.push(() => doc.destroy())
     const host = mountContainer(612, 792)

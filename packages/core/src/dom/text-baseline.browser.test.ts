@@ -67,11 +67,15 @@ describe('the measured baselines are kept per document', () => {
       const other = frame.contentDocument!
       browserBaseline(font, 13)
       const make = vi.spyOn(other, 'createElement')
-      htmlBaseline(other, font, 13)
-      expect(make).toHaveBeenCalled()
-      make.mockClear()
-      htmlBaseline(other, font, 13)
-      expect(make).not.toHaveBeenCalled()
+      try {
+        htmlBaseline(other, font, 13)
+        expect(make).toHaveBeenCalled()
+        make.mockClear()
+        htmlBaseline(other, font, 13)
+        expect(make).not.toHaveBeenCalled()
+      } finally {
+        make.mockRestore()
+      }
     } finally {
       frame.remove()
     }

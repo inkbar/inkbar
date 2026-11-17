@@ -78,7 +78,7 @@ describe('editFreeText', () => {
     expect(cs.fontFamily).toBe(FONT_STACKS.Helvetica)
     expect(cs.backgroundColor).toBe('rgba(0, 0, 0, 0)')
     expect(cs.borderTopStyle).toBe('none')
-    // The box is still drawn, and its text is the editor's now.
+    // The box is drawn; its text is the editor's.
     expect(el.querySelector('rect[data-ink-part="box"]')).not.toBeNull()
     expect(el.querySelector('text')).toBeNull()
   })
@@ -288,6 +288,54 @@ describe('editFreeText', () => {
     const [, rect] = commit.mock.calls[0]!
     expect(rect.height).toBeCloseTo(70 + grown, 0)
     expect(rect.y + rect.height).toBeCloseTo(630)
+  })
+
+  it("the editor's outline is drawn round the text area, with a fringe and on a turned view", () => {
+    for (const rotation of [0, 90] as const) {
+      const style = document.createElement('style')
+      style.textContent = themeCss
+      document.head.append(style)
+      const store = createAnnotationStore({
+        mode: { mode: 'uncontrolled' },
+        defaults: staticDefaults,
+      })
+      const host = mountContainer(rotation ? 792 : 612, rotation ? 612 : 792)
+      // The theme's tokens, which the outline's colour reads, are set on the root.
+      host.dataset.inkRoot = ''
+      const transform = createPageTransform(page, 1, rotation)
+      const overlay = createOverlay({ host, page: 0, store, transform })
+      cleanup.push(() => (overlay.destroy(), host.remove(), style.remove()))
+      const a = store.add({
+        type: 'freetext',
+        page: 0,
+        rect: { x: 60, y: 560, width: 200, height: 70 },
+        fringe: { left: 40, top: 5, right: 10, bottom: 45 },
+        contents: 'Hello',
+      }) as FreeTextAnnotation
+      const el = overlay.elementFor(a.id)!
+      const editor = editFreeText(el, a, {
+        transform,
+        commit: vi.fn(),
+        cancel: vi.fn(),
+      })
+      cleanup.unshift(() => editor.close(false))
+      const f = el.querySelector<HTMLElement>('[data-ink-editor]')!
+      const cs = getComputedStyle(f)
+      expect([cs.outlineStyle, cs.outlineWidth, cs.outlineOffset]).toEqual([
+        'dashed',
+        '1px',
+        '1px',
+      ])
+      // The outline goes round the editor's own box, which is the text area: the box without its
+      // fringe.
+      const outlined = f.getBoundingClientRect()
+      const area = el.querySelector('rect[data-ink-text-area]')!.getBoundingClientRect()
+      for (const k of ['left', 'top', 'width', 'height'] as const)
+        expect(outlined[k], `${k} on a view turned ${rotation}`).toBeCloseTo(area[k], 0)
+      // And inside the whole box, which the fringe extends past it.
+      const whole = el.getBoundingClientRect()
+      expect(outlined.left).toBeGreaterThan(whole.left + 30)
+    }
   })
 
   it('caret lands at the given point', () => {

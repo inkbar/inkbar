@@ -38,7 +38,7 @@ export function endingItem(
   const half = size / 2
   const ux = (at.x - from.x) / length
   const uy = (at.y - from.y) / length
-  // The y axis points up here, so the old code's normal (clockwise on screen) is (uy, -ux).
+  // The y axis points up here, so the normal that is clockwise on screen is (uy, -ux).
   const nx = uy
   const ny = -ux
   const pt = (along: number, across: number): Point => ({
@@ -161,7 +161,11 @@ export function describeLine(a: LineAnnotation | PolyAnnotation): Drawing {
       }
     }
   }
-  const painted = items.flatMap((i) => paintedRect(i) ?? [])
+  // An ending with neither a fill nor a stroke (a stroke-only shape on a line of no width)
+  // paints nothing, so it does not widen the bounds.
+  const painted = items.flatMap((i) =>
+    i.kind === 'path' && !i.paint.fill && !i.paint.stroke ? [] : (paintedRect(i) ?? [])
+  )
   return {
     layer: 'annotation',
     // A line with no points paints nothing: its bounds are its rect's corner.

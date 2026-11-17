@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
 
+import { expectLinearGrowth } from './growth-check'
 import { GLYPHS } from './note'
 import { parsePathData } from './path-data'
 
@@ -138,11 +139,10 @@ describe('parsePathData', () => {
 })
 
 describe('parsePathData on long input', () => {
-  test('a path of 200,000 numbers parses in under a second', () => {
-    const d = 'M0 0' + 'l1 1'.repeat(100_000)
-    const start = performance.now()
-    expect(parsePathData(d)).toHaveLength(100_001)
-    expect(performance.now() - start).toBeLessThan(1000)
+  test('the cost of parsing a path grows in step with its length', () => {
+    expectLinearGrowth((n) => {
+      expect(parsePathData('M0 0' + 'l1 1'.repeat(n))).toHaveLength(n + 1)
+    }, 20_000)
   })
 
   test('numbers in every notation still read', () => {

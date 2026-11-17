@@ -10,7 +10,7 @@ import type { DrawItem, Drawing, PathCommand } from './types'
  * points they would reshape a stroke with the zoom it was drawn at, and a stroke here is
  * described once, for every zoom. The input is scaled up by this factor and the outline
  * scaled back down, which leaves both lengths a fraction of a point (a dot stays round) and
- * every other option, all relative to the width, as it was.
+ * every other option, all relative to the width.
  */
 const SCALE = 64
 
@@ -45,8 +45,8 @@ export function describeInk(a: InkAnnotation): Drawing {
   const items: DrawItem[] = []
   const all: Point[] = []
   a.inklist.forEach((stroke, i) => {
-    // A stroke with nothing to outline is still an item with no commands: the overlay draws an
-    // empty path for it, as it always has.
+    // A stroke with nothing to outline is an item with no commands, so the overlay draws an empty
+    // path for it and the strokes keep their places in the list.
     const outline =
       stroke.length === 0 ? [] : inkOutline(stroke, a.pressure?.[i], a.width)
     all.push(...outline)

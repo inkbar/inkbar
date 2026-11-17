@@ -241,6 +241,86 @@ describe('describeLine', () => {
     expect(tail.commands[1]).toEqual({ op: 'L', to: { x: 10, y: 10 } })
   })
 
+  describe('a polyline with few or repeated points', () => {
+    const poly = (vertices: PolyAnnotation['vertices']): PolyAnnotation => ({
+      ...base,
+      type: 'polyline',
+      vertices,
+      head: 'OpenArrow',
+      tail: 'ClosedArrow',
+    })
+    const shapes = (a: PolyAnnotation) => {
+      const group = describeLine(a).items[0]
+      if (group?.kind !== 'group') throw new Error('no group')
+      return group.items
+    }
+
+    test('one point is drawn as a polyline of one point, with no ending', () => {
+      const items = shapes(poly([{ x: 5, y: 5 }]))
+      expect(items.map((i) => i.kind)).toEqual(['polyline'])
+      noNaN(describeLine(poly([{ x: 5, y: 5 }])))
+    })
+
+    test('two points are one segment, with the head and the tail at its ends', () => {
+      const items = shapes(
+        poly([
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+        ])
+      )
+      expect(items.map((i) => i.role)).toEqual([undefined, 'ending-head', 'ending-tail'])
+      const [head, tail] = [items[1], items[2]]
+      if (head?.kind !== 'path' || tail?.kind !== 'path') throw new Error('no path')
+      expect(head.commands[1]).toEqual({ op: 'L', to: { x: 0, y: 0 } })
+      expect(tail.commands[1]).toEqual({ op: 'L', to: { x: 10, y: 0 } })
+    })
+
+    test('a point repeated beside an end leaves that end without an ending', () => {
+      // The last segment has no direction, so the tail has nothing to point along. The head,
+      // on a segment that has one, is drawn.
+      const items = shapes(
+        poly([
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+          { x: 10, y: 0 },
+        ])
+      )
+      expect(items.map((i) => i.role)).toEqual([undefined, 'ending-head'])
+      noNaN(
+        describeLine(
+          poly([
+            { x: 0, y: 0 },
+            { x: 10, y: 0 },
+            { x: 10, y: 0 },
+          ])
+        )
+      )
+    })
+  })
+
+  test('a polygon of fewer than three points describes without NaN and has no ending', () => {
+    for (const vertices of [
+      [{ x: 3, y: 4 }],
+      [
+        { x: 3, y: 4 },
+        { x: 9, y: 4 },
+      ],
+    ]) {
+      const a: PolyAnnotation = {
+        ...base,
+        type: 'polygon',
+        vertices,
+        interiorColor: '#7FB3D5',
+      }
+      const d = describeLine(a)
+      noNaN(d)
+      const group = d.items[0]
+      if (group?.kind !== 'group') throw new Error('no group')
+      expect(group.items.map((i) => i.kind)).toEqual(['polygon'])
+      expect(group.items[0]).toMatchObject({ points: vertices })
+    }
+  })
+
   test('a polygon is filled with its interior colour and has no endings', () => {
     const poly: PolyAnnotation = {
       ...base,
@@ -287,19 +367,24 @@ describe('describeLine', () => {
     expect(arrowed).toEqual({ x: 99, y: 596, width: 102, height: 8 })
   })
 
-  test('a diagonal head is inside the bounds', () => {
+  test.each([
+    ['head', { head: 'OpenArrow' as const }],
+    ['tail', { tail: 'OpenArrow' as const }],
+  ])('a diagonal %s is inside the bounds', (which, ending) => {
     const diagonal: LineAnnotation = {
       ...line,
       start: { x: 100, y: 600 },
       end: { x: 200, y: 700 },
       width: 1,
-      tail: 'OpenArrow',
+      ...ending,
     }
-    const { bounds } = describeLine(diagonal)
-    const [group] = describeLine(diagonal).items
+    const { bounds, items } = describeLine(diagonal)
+    const [group] = items
     if (group?.kind !== 'group') throw new Error('no group')
+    expect(group.items).toHaveLength(2)
     const head = group.items[1]
     if (head?.kind !== 'path') throw new Error('no head')
+    expect(head.role).toBe(which === 'head' ? 'ending-head' : 'ending-tail')
     for (const c of head.commands) {
       if (c.op !== 'M' && c.op !== 'L') continue
       expect(c.to.x).toBeGreaterThanOrEqual(bounds.x + 0.5 - 1e-9)
@@ -307,6 +392,16 @@ describe('describeLine', () => {
       expect(c.to.y).toBeGreaterThanOrEqual(bounds.y + 0.5 - 1e-9)
       expect(c.to.y).toBeLessThanOrEqual(bounds.y + bounds.height - 0.5 + 1e-9)
     }
+  })
+
+  test('a stroke-only ending on a line of no width paints nothing and adds nothing to the bounds', () => {
+    const plain = describeLine({ ...line, width: 0 }).bounds
+    for (const tail of ['OpenArrow', 'ROpenArrow', 'Butt', 'Slash'] as const) {
+      expect(describeLine({ ...line, width: 0, tail }).bounds).toEqual(plain)
+    }
+    // A filled ending on the same line is drawn, so it does count.
+    const closed = describeLine({ ...line, width: 0, tail: 'ClosedArrow' }).bounds
+    expect(closed.height).toBeGreaterThan(plain.height)
   })
 
   test('a line of no width has no stroke on the shaft or the ending', () => {

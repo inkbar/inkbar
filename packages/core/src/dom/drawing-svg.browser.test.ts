@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { staticDefaults } from '../model/annotations/defaults'
 import { createAnnotationStore } from '../model/annotations/store'
 
-import { itemElement, paintDrawing } from './drawing-svg'
+import { itemElement, paintDrawing, paintItems } from './drawing-svg'
 import { renderAnnotationContent } from './overlay-render'
 import { mountContainer } from './test-utils'
 import { checkTextFonts } from './text-font-check'
@@ -72,6 +72,24 @@ describe('paintDrawing', () => {
       })
     )
     expect(el.querySelector('svg')!.getAttribute('data-ink-part')).toBe('box')
+  })
+
+  it("a lone group's role selects the svg the way the same role selects an element", () => {
+    const lone = (role: 'bubble' | 'ending-head' | 'ending-tail') =>
+      paint(
+        drawing({
+          kind: 'group',
+          opacity: 0.5,
+          role,
+          items: [
+            { kind: 'rect', rect: { x: 0, y: 0, width: 1, height: 1 }, paint: fill },
+          ],
+        })
+      ).querySelector('svg')!
+    expect(lone('bubble').classList.contains('ink-bubble')).toBe(true)
+    expect(lone('bubble').hasAttribute('data-ink-part')).toBe(false)
+    expect(lone('ending-head').getAttribute('data-ending')).toBe('head')
+    expect(lone('ending-tail').getAttribute('data-ending')).toBe('tail')
   })
 
   it('a nested group becomes a g with its own opacity', () => {
@@ -362,6 +380,96 @@ describe('itemElement', () => {
   })
 })
 
+describe('every kind of item', () => {
+  const r = { x: 100, y: 600, width: 80, height: 40 }
+  const t = createPageTransform(page, 1, 0)
+  const text: DrawItem = {
+    kind: 'text',
+    lines: [{ text: 'Hi', origin: { x: 100, y: 610 }, width: 12, outside: false }],
+    font: { family: 'Helvetica', bold: false, italic: false },
+    size: 12,
+    color: '#000',
+    angle: 0,
+    outsideStandardFonts: false,
+  }
+  const kinds: [string, DrawItem, string][] = [
+    [
+      'polygon',
+      {
+        kind: 'polygon',
+        points: [
+          { x: 100, y: 600 },
+          { x: 180, y: 600 },
+          { x: 140, y: 640 },
+        ],
+        paint: fill,
+      },
+      'polygon',
+    ],
+    [
+      'polyline',
+      {
+        kind: 'polyline',
+        points: [
+          { x: 100, y: 600 },
+          { x: 180, y: 640 },
+        ],
+        paint: { stroke: { color: '#000', width: 1 } },
+      },
+      'polyline',
+    ],
+    ['rect', { kind: 'rect', rect: r, paint: fill }, 'rect'],
+    ['ellipse', { kind: 'ellipse', rect: r, paint: fill }, 'ellipse'],
+    ['loupe rim', { kind: 'ellipse', role: 'loupe-rim', rect: r, paint: fill }, 'circle'],
+    [
+      'path',
+      {
+        kind: 'path',
+        commands: [
+          { op: 'M', to: { x: 100, y: 600 } },
+          { op: 'L', to: { x: 180, y: 640 } },
+        ],
+        paint: { stroke: { color: '#000', width: 1 } },
+      },
+      'path',
+    ],
+    [
+      'group',
+      { kind: 'group', opacity: 0.5, items: [{ kind: 'rect', rect: r, paint: fill }] },
+      'g',
+    ],
+    [
+      'image',
+      { kind: 'image', data: 'data:image/png;base64,AA==', rect: r, angle: 0 },
+      'image',
+    ],
+    ['text', text, 'g'],
+  ]
+  const origin = { left: 0, top: 0, width: 612, height: 792 }
+
+  for (const [name, item, tag] of kinds)
+    it(`a ${name} is one ${tag}, by itemElement and by paintItems`, () => {
+      expect(itemElement(document, item, t, origin).tagName).toBe(tag)
+      // In a drawing of two items, so that a group is not folded into the svg.
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+      paintItems(svg, drawing(item, { kind: 'rect', rect: r, paint: fill }), t, origin)
+      expect([...svg.children].map((c) => c.tagName)).toEqual([tag, 'rect'])
+    })
+
+  it('a page item is skipped by paintItems and cannot be an element', () => {
+    const lens: DrawItem = {
+      kind: 'page',
+      source: r,
+      target: r,
+      clip: { center: { x: 140, y: 620 }, radius: 20 },
+    }
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    paintItems(svg, drawing(lens), t, origin)
+    expect(svg.children).toHaveLength(0)
+    expect(() => itemElement(document, lens, t, origin)).toThrow(/page item/)
+  })
+})
+
 describe('a stamp', () => {
   const PNG =
     'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAABCAYAAAAfFcSJAAAAEklEQVR4nGP4z8Dwn4GBgQEAFAADAX4GBkIAAAAASUVORK5CYII='
@@ -425,33 +533,38 @@ describe('a stamp', () => {
     // The left half of the picture is transparent.
     expect(el.contains(hit(at.width * 0.25, at.height / 2))).toBe(true)
     expect(el.contains(hit(at.width * 0.75, at.height / 2))).toBe(true)
-    // The press lands on the hit rect even when the image takes none.
-    el.querySelector('image')!.setAttribute('pointer-events', 'none')
+    // The drawn image takes no presses itself: they land on the hit rect.
+    expect(el.querySelector('image')!.getAttribute('pointer-events')).toBe('none')
     expect(hit(at.width * 0.25, at.height / 2)).toBe(
       el.querySelector('rect[data-ink-hit-area]')
     )
     host.remove()
   })
 
-  it('has an image and a hit rect over its on-screen box', () => {
-    for (const pageRotate of [0, 90] as const) {
-      for (const rotation of [0, 90] as const) {
-        const t = createPageTransform({ ...page, rotate: pageRotate }, 2, 0)
-        const a = stampAt(rotation)
-        const host = mountContainer(1400, 1400)
-        const at = t.toCssRect(a.rect)
-        const el = document.createElement('div')
-        el.style.cssText = `position:absolute;left:${at.left}px;top:${at.top}px;width:${at.width}px;height:${at.height}px;`
-        host.append(el)
-        renderAnnotationContent(el, a, t)
-        const image = el.querySelector('image.ink-stamp')!.getBoundingClientRect()
-        const hit = el.querySelector('rect[data-ink-hit-area]')!.getBoundingClientRect()
-        host.remove()
-        expect(el.querySelectorAll('image, rect')).toHaveLength(2)
-        for (const k of ['left', 'top', 'width', 'height'] as const) {
-          expect(hit[k]).toBeCloseTo(image[k], 0)
+  it('has an image and a hit rect over its on-screen box, at every page and view rotation', () => {
+    for (const pageRotate of [0, 90, 180, 270] as const) {
+      for (const view of [0, 90, 180, 270] as const) {
+        for (const rotation of [0, 90] as const) {
+          const t = createPageTransform({ ...page, rotate: pageRotate }, 2, view)
+          const a = stampAt(rotation)
+          const host = mountContainer(1400, 1400)
+          const at = t.toCssRect(a.rect)
+          const el = document.createElement('div')
+          el.style.cssText = `position:absolute;left:${at.left}px;top:${at.top}px;width:${at.width}px;height:${at.height}px;`
+          host.append(el)
+          renderAnnotationContent(el, a, t)
+          const image = el.querySelector('image.ink-stamp')!.getBoundingClientRect()
+          const hit = el.querySelector('rect[data-ink-hit-area]')!.getBoundingClientRect()
+          host.remove()
+          expect(el.querySelectorAll('image, rect')).toHaveLength(2)
+          for (const k of ['left', 'top', 'width', 'height'] as const) {
+            expect(
+              hit[k],
+              `${k} at /Rotate ${pageRotate}, view ${view}, stamp ${rotation}`
+            ).toBeCloseTo(image[k], 0)
+          }
+          expect(el.querySelector('rect')!.getAttribute('stroke')).toBe('none')
         }
-        expect(el.querySelector('rect')!.getAttribute('stroke')).toBe('none')
       }
     }
   })
@@ -544,9 +657,26 @@ describe('a text', () => {
     expect(first!.getAttribute('font-style')).toBe('normal')
     expect(first!.getAttribute('textLength')).toBe('120')
     expect(first!.getAttribute('lengthAdjust')).toBe('spacing')
-    // Font and colour are inline style as well, so a host's rule on the text does not restyle it.
+    // Font and colour are inline style as well, with priority important, so no host rule on
+    // the text restyles it.
     expect(first!.getAttribute('style')).toBe(
-      `font-kerning:none;white-space:pre;font-family:${FONT_STACKS.Helvetica};font-size:24px;font-weight:normal;font-style:normal;fill:#0a0b0c;stroke:none;text-anchor:start;dominant-baseline:alphabetic;letter-spacing:0;word-spacing:0;text-decoration:none`
+      [
+        'font-kerning:none',
+        'white-space:pre',
+        `font-family:${FONT_STACKS.Helvetica}`,
+        'font-size:24px',
+        'font-weight:normal',
+        'font-style:normal',
+        'fill:#0a0b0c',
+        'stroke:none',
+        'text-anchor:start',
+        'dominant-baseline:alphabetic',
+        'letter-spacing:0',
+        'word-spacing:0',
+        'text-decoration:none',
+      ]
+        .map((d) => `${d} !important`)
+        .join(';')
     )
     expect(first!.getAttribute('font-family')).toBe(FONT_STACKS.Helvetica)
     expect(second!.getAttribute('y')).toBe(String(2 * (792 - 685.6)))

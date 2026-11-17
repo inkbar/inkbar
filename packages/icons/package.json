@@ -1,7 +1,7 @@
 {
   "name": "@inkbar/icons",
   "version": "0.15.0",
-  "description": "The icons Inkbar's toolbar controls use, as framework-free data.",
+  "description": "The icons Inkbar's toolbar controls and notes use, as framework-free data.",
   "license": "MIT",
   "homepage": "https://inkbar.dev",
   "repository": {
