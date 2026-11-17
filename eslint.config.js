@@ -134,5 +134,49 @@ export default defineConfig(
         },
       ],
     },
+  },
+  {
+    // A drawing is a plain description of an annotation: no DOM, no PDF.js. This block sets the
+    // rule afresh for these files, so it repeats the PDF.js entries of the quarantine above.
+    name: 'inkbar/drawing-is-pure',
+    files: ['packages/core/src/model/annotations/drawing/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/dom', '**/dom/**'],
+              message: 'A drawing is described without the DOM: nothing under dom/.',
+            },
+            {
+              // The package's root index re-exports dom, however it is reached.
+              group: ['**/src/index', '../../..', '../../../index', '@inkbar/core'],
+              message:
+                'A drawing is described without the package index, which exports dom.',
+            },
+            {
+              group: ['pdfjs-dist', 'pdfjs-dist/**', '#pdfjs', '#pdfjs-sandbox'],
+              message: 'A drawing is described without PDF.js.',
+            },
+          ],
+        },
+      ],
+      'no-restricted-globals': [
+        'error',
+        { name: 'document', message: 'A drawing does not touch the DOM.' },
+        { name: 'window', message: 'A drawing does not touch the DOM.' },
+        ...[
+          'navigator',
+          'self',
+          'globalThis',
+          'getComputedStyle',
+          'HTMLElement',
+          'SVGElement',
+          'OffscreenCanvas',
+          'Image',
+        ].map((name) => ({ name, message: 'A drawing does not touch the DOM.' })),
+      ],
+    },
   }
 )
