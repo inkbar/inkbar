@@ -15,7 +15,7 @@ import { createPageTransform, type PageTransform } from '../dom/transform'
 import { padRect, paintedRect } from '../model/annotations/drawing/extent'
 import { openDocument, type InkDocument } from '../model/document'
 
-import type { DrawItem } from '../model/annotations/drawing/types'
+import type { DrawItem, TextMeasure } from '../model/annotations/drawing/types'
 import type { Annotation, AnnotationInput } from '../model/annotations/types'
 import type { Rect } from '../model/geometry'
 import type { Engine } from '@inkbar/engine'
@@ -28,6 +28,11 @@ export const GROW = 2
 export const CHANNEL_THRESHOLD = 48
 /** The most of an annotation's pixels that may differ. */
 export const MAX_DIFFERING = 0.02
+/**
+ * The most of an annotation's pixels that may be left uncounted because the two readers already
+ * differ there on the page as opened: past it, the comparison would be checking too little.
+ */
+export const MAX_EXCLUDED = 0.15
 
 /** Straight RGBA, rows top to bottom, as the engine renders and `getImageData` reads. */
 export interface Pixels {
@@ -277,18 +282,18 @@ function apart(a: Pixels, i: number, b: Pixels, j: number): boolean {
 }
 
 /**
- * The share of `region`'s pixels, from 0 to 1, that differ between the two readers' pages by
+ * `share`: the part of `region`'s pixels, from 0 to 1, that differ between the two readers' pages by
  * more than `CHANNEL_THRESHOLD` in any channel. A pixel where the two already differ on the page
  * as it was opened is not counted: that is how each reader draws the page's own content (its
- * text above all), which saving does not change. Nor is one in `leaveOut`, which a caller checks
- * another way.
+ * text above all), which saving does not change; `excluded` is the part left out so. Nor is a
+ * pixel in `leaveOut` counted, which a caller checks another way.
  */
 export function differing(
   a: Reading,
   b: Reading,
   region: PixelRect,
   leaveOut: readonly PixelRect[] = []
-): number {
+): { share: number; excluded: number } {
   for (const p of [a.base, b.base, b.page])
     if (p.width !== a.page.width || p.height !== a.page.height)
       throw new Error(
@@ -303,18 +308,34 @@ export function differing(
   }
   let total = 0
   let over = 0
+  let excluded = 0
   for (let y = r.top; y < r.bottom; y++)
     for (let x = r.left; x < r.right; x++) {
       const i = (y * width + x) * 4
       total++
       if (leaveOut.some((o) => x >= o.left && x < o.right && y >= o.top && y < o.bottom))
         continue
-      if (apart(a.page, i, b.page, i) && !apart(a.base, i, b.base, i)) over++
+      if (apart(a.base, i, b.base, i)) excluded++
+      else if (apart(a.page, i, b.page, i)) over++
     }
-  return total === 0 ? 0 : over / total
+  return total === 0
+    ? { share: 0, excluded: 0 }
+    : { share: over / total, excluded: excluded / total }
 }
 
 type TextItem = Extract<DrawItem, { kind: 'text' }>
+
+/** Where `a` and `b` overlap; a width or height of 0 or less for nowhere. */
+function intersect(a: Rect, b: Rect): Rect {
+  const x = Math.max(a.x, b.x)
+  const y = Math.max(a.y, b.y)
+  return {
+    x,
+    y,
+    width: Math.min(a.x + a.width, b.x + b.width) - x,
+    height: Math.min(a.y + a.height, b.y + b.height) - y,
+  }
+}
 
 function textItems(items: readonly DrawItem[]): TextItem[] {
   return items.flatMap((i) =>
@@ -343,22 +364,122 @@ export function textBands(annotation: Annotation, t: PageTransform): TextBand[] 
       if (!box) return []
       const grown = padRect(box, 1)
       const clip = textClip?.rect
-      const within = clip
-        ? {
-            x: Math.max(grown.x, clip.x),
-            y: Math.max(grown.y, clip.y),
-            width:
-              Math.min(grown.x + grown.width, clip.x + clip.width) -
-              Math.max(grown.x, clip.x),
-            height:
-              Math.min(grown.y + grown.height, clip.y + clip.height) -
-              Math.max(grown.y, clip.y),
-          }
-        : grown
+      const within = clip ? intersect(grown, clip) : grown
       if (!(within.width > 0 && within.height > 0)) return []
       return [{ text: line.text, band: pixelRect(within, t), color: item.color }]
     })
   )
+}
+
+/**
+ * Pieces of a line whose start shows where the layout put it: each segment of a line with tabs
+ * (from its tab stop), and the last word of a justified line (after every widened space). Upright
+ * text only. Each band runs from a point before the piece's start to its line's end.
+ */
+export function pieceBands(
+  annotation: Annotation,
+  t: PageTransform,
+  measure: TextMeasure
+): TextBand[] {
+  const drawing = drawingFor(annotation, t)
+  if (!drawing) return []
+  return textItems(drawing.items).flatMap((item) => {
+    if (item.angle !== 0) throw new Error('pieceBands takes upright text only')
+    const { ascent, descent } = measure.vertical(item.font)
+    const clip = item.clip?.rect
+    const band = (x: number, y: number, end: number): PixelRect => {
+      const box = {
+        x: x - 1,
+        y: y - descent * item.size,
+        width: end - x + 1,
+        height: (ascent + descent) * item.size,
+      }
+      return pixelRect(clip ? intersect(box, clip) : box, t)
+    }
+    return item.lines.flatMap((line): TextBand[] => {
+      const spacing = line.wordSpacing ?? 0
+      const end =
+        line.origin.x +
+        line.width +
+        [...line.text].filter((c) => c === ' ').length * spacing
+      const pieces: TextBand[] = (line.segments ?? []).slice(1).map((s) => ({
+        text: s.text,
+        band: band(s.origin.x, s.origin.y, end),
+        color: item.color,
+      }))
+      if (spacing > 0 && !line.segments) {
+        const cut = line.text.lastIndexOf(' ')
+        const before = line.text.slice(0, cut + 1)
+        const gaps = [...before].filter((c) => c === ' ').length
+        const x =
+          line.origin.x +
+          measure.width(before, item.font, item.size).width +
+          gaps * spacing
+        pieces.push({
+          text: line.text.slice(cut + 1),
+          band: band(x, line.origin.y, end),
+          color: item.color,
+        })
+      }
+      return pieces
+    })
+  })
+}
+
+/**
+ * For each clipped text of `annotation`: the box its lines would ink with no clip (`around`) and
+ * the clip (`inside`). Ink of the text's colour in the one and not the other means the clip was
+ * lost.
+ */
+export function beyondClip(
+  annotation: Annotation,
+  t: PageTransform
+): { around: PixelRect; inside: PixelRect; color: string }[] {
+  const drawing = drawingFor(annotation, t)
+  if (!drawing) return []
+  return textItems(drawing.items).flatMap(({ clip, ...item }) => {
+    const box = clip && paintedRect(item)
+    return box
+      ? [
+          {
+            around: pixelRect(box, t),
+            inside: pixelRect(clip.rect, t),
+            color: item.color,
+          },
+        ]
+      : []
+  })
+}
+
+/** How many pixels in `around` but not `inside` are near `color` and were not on the page as opened. */
+export function inkOutside(
+  reading: Reading,
+  around: PixelRect,
+  inside: PixelRect,
+  color: string
+): number {
+  const near = nearColor(color)
+  const { page, base } = reading
+  let n = 0
+  for (let y = Math.max(0, around.top); y < Math.min(page.height, around.bottom); y++)
+    for (let x = Math.max(0, around.left); x < Math.min(page.width, around.right); x++) {
+      if (x >= inside.left && x < inside.right && y >= inside.top && y < inside.bottom)
+        continue
+      const i = (y * page.width + x) * 4
+      if (near(page, i) && !near(base, i)) n++
+    }
+  return n
+}
+
+/** Whether a pixel is within 100 of `hex` in every channel. */
+const nearColor = (hex: string) => {
+  const [r, g, b] = rgbOf(hex)
+  return (p: Pixels, i: number) =>
+    Math.max(
+      Math.abs(p.data[i]! - r),
+      Math.abs(p.data[i + 1]! - g),
+      Math.abs(p.data[i + 2]! - b)
+    ) < 100
 }
 
 const rgbOf = (hex: string): [number, number, number] => {
@@ -372,13 +493,7 @@ const rgbOf = (hex: string): [number, number, number] => {
  * were not so on the page as opened (the page's own text is not the line's).
  */
 export function lineInk(reading: Reading, line: TextBand): PixelRect | undefined {
-  const [r, g, b] = rgbOf(line.color)
-  const near = (p: Pixels, i: number) =>
-    Math.max(
-      Math.abs(p.data[i]! - r),
-      Math.abs(p.data[i + 1]! - g),
-      Math.abs(p.data[i + 2]! - b)
-    ) < 100
+  const near = nearColor(line.color)
   const { page, base } = reading
   let box: PixelRect | undefined
   const { band } = line

@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
 import { staticDefaults } from '../annotations/defaults'
-import { UnpaintableError } from '../annotations/drawing/pdf/paint'
+import { describeDrawing } from '../annotations/drawing/describe'
+import { paintDrawing, UnpaintableError } from '../annotations/drawing/pdf/paint'
+import { measureWith, standardMeasure } from '../annotations/drawing/text/measure'
 import { createAnnotationStore } from '../annotations/store'
 
 import { buildWriteInput, writeFields } from './write-input'
 
+import type { Drawing, TextMeasure } from '../annotations/drawing/types'
 import type { SavedData } from '../annotations/saved-data'
 import type { Annotation, AnnotationInput } from '../annotations/types'
 import type { FormField } from '../form/types'
@@ -131,6 +134,53 @@ describe('buildWriteInput', () => {
     const input = await buildWriteInput({ ...base, annotations: [stamp!], fields, signs })
     expect(input.fields).toEqual(fields)
     expect((JSON.parse(input.annotations![0]!.data) as SavedData).signs).toBe('sig')
+  })
+
+  it('lays text out with the measure it is given, as the screen does', async () => {
+    // Cyrillic is outside the tables: the standard measure charges it half a size a letter,
+    // this one a whole size, so the box wraps it into more lines.
+    const wide = measureWith((run, _font, size) => [...run].length * size)
+    const list = make([
+      {
+        type: 'freetext',
+        page: 0,
+        rect: { x: 100, y: 100, width: 200, height: 120 },
+        defaultStyle: { textAlign: 'center' },
+        contents: 'Привет мир, как дела сегодня',
+      },
+    ])
+    const textPicture = () =>
+      Promise.resolve({ png: new Uint8Array([1]), width: 10, ascent: 9, descent: 3 })
+    const written = await buildWriteInput({
+      ...base,
+      annotations: list,
+      helpers: { textPicture },
+      measure: wide,
+    })
+    const context = { page: { box: page(0).box, rotate: 0 as const, userUnit: 1 } }
+    const appearance = async (measure: TextMeasure) =>
+      (
+        await paintDrawing(describeDrawing(list[0]!, { ...context, measure })!, {
+          page: 0,
+          textPicture,
+        })
+      ).content
+    const linesOf = (d: Drawing | undefined) =>
+      JSON.stringify(
+        d?.items.flatMap((i) =>
+          i.kind === 'group'
+            ? i.items.flatMap((t) => (t.kind === 'text' ? t.lines : []))
+            : []
+        )
+      )
+    expect(written.annotations![0]!.appearance!.content).toEqual(await appearance(wide))
+    expect(written.annotations![0]!.appearance!.content).not.toEqual(
+      await appearance(standardMeasure)
+    )
+    // The two measures do lay the text out differently, so the test can tell them apart.
+    expect(linesOf(describeDrawing(list[0]!, { ...context, measure: wide }))).not.toBe(
+      linesOf(describeDrawing(list[0]!, { ...context, measure: standardMeasure }))
+    )
   })
 
   it('rejects a text box it cannot set without a text picture', async () => {

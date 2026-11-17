@@ -4,9 +4,11 @@
 // drawn: never on the device pixel ratio or the page's zoom.
 import { standardMeasure } from '../model/annotations/drawing/text/measure'
 
+import { browserMeasure } from './drawing-context'
 import { cssFont } from './text-fonts'
 
 import type { TextPicture, ToPng } from '../model/annotations/drawing/pdf/paint'
+import type { TextMeasure } from '../model/annotations/drawing/types'
 
 /** Pixels per point in a picture. */
 export const PICTURE_SCALE = 4
@@ -99,13 +101,19 @@ export function canvasToPng(doc: Document): ToPng {
 }
 
 /**
- * @internal The pictures `openDocument` takes as `_pictures`, for every document opened in a
- * browser, so its `save()` can write text outside the standard fonts and images other than PNG
- * and JPEG.
+ * @internal What `openDocument` takes as `_pictures`, for every document opened in a browser:
+ * the pictures its `save()` needs for text outside the standard fonts and images other than PNG
+ * and JPEG, and the measure the screen lays text out with, so the file breaks and places lines
+ * where the screen does.
  */
 export function savePictures(doc: Document): {
   textPicture: TextPicture
   toPng: ToPng
+  measure: TextMeasure
 } {
-  return { textPicture: canvasTextPicture(doc), toPng: canvasToPng(doc) }
+  return {
+    textPicture: canvasTextPicture(doc),
+    toPng: canvasToPng(doc),
+    measure: browserMeasure,
+  }
 }

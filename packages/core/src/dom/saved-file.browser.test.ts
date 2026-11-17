@@ -11,31 +11,43 @@
 // - The standard fonts are not embedded: PDFium and PDF.js draw Helvetica, Times and Courier
 //   with their own faces, the screen with the browser's metric-compatible fonts. Positions and
 //   widths match, letter shapes differ a little; that is what the pixel tolerance is for. Where
-//   it is not enough, a case compares its text by where each line inks (`Case.byPosition`).
-// - PDFium and PDF.js do not smooth an image they enlarge and a browser does, so the stamps
-//   here are drawn at more pixels than they cover.
+//   it is not enough for a reader, a case compares its text by where each line inks in that
+//   reader (`Case.byPosition`).
+// - Text outside the standard fonts is a picture at four pixels a point, which a reader
+//   resamples to the render's two; the screen draws the glyphs themselves.
+// A pixel left uncounted for the page's own sake is still in the region, and a case fails when
+// more than MAX_EXCLUDED of its region is left out so.
 import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { describeDrawing } from '../model/annotations/drawing/describe'
 import {
+  beyondClip,
   destroyRenderEngine,
   differing,
   inkBox,
+  inkOutside,
   lineInk,
   MAX_DIFFERING,
+  MAX_EXCLUDED,
+  pieceBands,
   PIXELS_PER_POINT,
   pngDataUrl,
   renderSaved,
   textBands,
   type Compared,
   type PixelRect,
+  type Reading,
   type SavedPage,
   type SavedRenders,
+  type TextBand,
 } from '../test-support/compare-saved'
 
-import { canvasTextPicture } from './save-pictures'
+import { drawContext, drawingFor } from './drawing-context'
+import { canvasTextPicture, savePictures } from './save-pictures'
 import { checkTextFonts, type TextClass } from './text-font-check'
 
+import type { Drawing } from '../model/annotations/drawing/types'
 import type { AnnotationInput } from '../model/annotations/types'
 import type { Point } from '../model/geometry'
 import type { FixtureName } from '@inkbar/fixtures/urls'
@@ -55,15 +67,13 @@ const report = !!(import.meta.env as Record<string, string | undefined>)[
 ]
 
 /**
- * A picture of four colours, one to a quarter, as `type` (`image/png` or `image/webp`), at four
- * pixels a point of a `width` by `height` point stamp. Drawn larger than its page area, not
- * smaller: a browser smooths an image it enlarges and PDFium and PDF.js do not (the file asks for
- * no interpolation), so a small picture's colour edges would differ on enlarging alone.
+ * A picture of four colours, one to a quarter, as `type` (`image/png`, `image/jpeg` or
+ * `image/webp`), `width` by `height` pixels.
  */
 function quadrants(type: string, width: number, height: number): string {
   const canvas = document.createElement('canvas')
-  canvas.width = width * 4
-  canvas.height = height * 4
+  canvas.width = width
+  canvas.height = height
   const ctx = canvas.getContext('2d')!
   const [w, h] = [canvas.width / 2, canvas.height / 2]
   for (const [x, y, color] of [
@@ -79,6 +89,18 @@ function quadrants(type: string, width: number, height: number): string {
   if (!url.startsWith(`data:${type};`))
     throw new Error(`This browser cannot write ${type}`)
   return url
+}
+
+/** A red disc on a transparent ground, `size` pixels square: its edge is all alpha. */
+function disc(size: number): string {
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = size
+  const ctx = canvas.getContext('2d')!
+  ctx.fillStyle = '#ff0000'
+  ctx.beginPath()
+  ctx.arc(size / 2, size / 2, size / 2 - 1, 0, Math.PI * 2)
+  ctx.fill()
+  return canvas.toDataURL('image/png')
 }
 
 /**
@@ -107,18 +129,24 @@ interface Case {
   /** Which of the added annotations, by index, the case compares. */
   index: number
   /**
-   * Text whose glyphs the readers shape too differently for the pixel tolerance: each line is
-   * compared by where it inks (within a point on every side), and the rest of the annotation by
-   * its pixels.
+   * The readers whose text differs from the screen's past the pixel tolerance: in each, every
+   * line is compared by where it inks (within a point on every side), and the rest of the
+   * annotation by its pixels. Any other reader compares the text by its pixels too.
    */
-  byPosition?: boolean
+  byPosition?: readonly Reader[]
+  /** Also compare where each tab segment and each justified line's last word starts. */
+  pieces?: boolean
+  /** Text hidden by a clip: none of it may show outside the drawing. */
+  clipped?: boolean
   /**
    * A class of characters the case draws: on a machine with no font for it, what the screen and
-   * the picture draw instead is no test of the painter, so the case is skipped there and the
-   * picture's path and size are checked on their own.
+   * the picture draw instead is no test of the painter, so the pixels and positions are not
+   * compared there; the file's layout is checked against the screen's instead.
    */
   needs?: TextClass
 }
+
+type Reader = 'engine' | 'pdfjs'
 
 interface Scene {
   fixture: FixtureName
@@ -128,15 +156,20 @@ interface Scene {
 
 const SOFT_HYPHEN = String.fromCharCode(0xad)
 
-/** By position: see `Case.byPosition`. */
-const TEXT = { byPosition: true } as const
-/** By position, and drawn only where the machine has a font for Han: see `Case.needs`. */
-const HAN_TEXT = { byPosition: true, needs: 'han' } as const
+/** The engine's standard faces differ from the screen's past the tolerance: see `Case.byPosition`. */
+const ENGINE_TEXT: Partial<Case> = { byPosition: ['engine'] }
+/**
+ * Text in a picture: PDF.js as well as the engine resamples it from four pixels a point to the
+ * render's two, against glyphs the screen draws directly (the spec's known difference 2), so
+ * both readers compare it by position.
+ */
+const pictured = (needs: TextClass): Partial<Case> => ({
+  byPosition: ['engine', 'pdfjs'],
+  needs,
+})
 
 const named = (
-  inputs: (
-    [string, AnnotationInput] | [string, AnnotationInput, typeof TEXT | typeof HAN_TEXT]
-  )[]
+  inputs: ([string, AnnotationInput] | [string, AnnotationInput, Partial<Case>])[]
 ) => ({
   inputs: inputs.map(([, input]) => input),
   cases: inputs.map(([name, , text], index): Case => ({ name, index, ...text })),
@@ -212,7 +245,7 @@ const everyType = (): Scene => ({
         type: 'stamp',
         page: 0,
         rect: { x: 260, y: 380, width: 120, height: 50 },
-        imagedata: quadrants('image/png', 120, 50),
+        imagedata: quadrants('image/png', 480, 200),
       },
     ],
     [
@@ -276,11 +309,13 @@ const details = (): Scene => ({
         rect: { x: 72, y: 540, width: 150, height: 40 },
         cornerRadius: 12,
         width: 2,
+        // A border unlike the text, so ink of the text's colour outside the clip is text.
+        borderColor: '#0060C0',
         color: '#E0F0FF',
         contents:
           'This text runs on for more lines than the rounded box can hold, so the box clips it.',
       },
-      TEXT,
+      { ...ENGINE_TEXT, clipped: true },
     ],
     [
       'a justified text box with tabs',
@@ -293,7 +328,7 @@ const details = (): Scene => ({
         contents:
           'Name:\tAda Lovelace wrote the first program for a machine that did not exist yet.\nDate:\t1843, in notes on the engine.',
       },
-      TEXT,
+      { ...ENGINE_TEXT, pieces: true },
     ],
     [
       'a Courier text box',
@@ -304,7 +339,7 @@ const details = (): Scene => ({
         defaultStyle: { fontFamily: 'Courier', fontSize: 12, color: '#FF0000' },
         contents: 'Courier 0123456789l',
       },
-      TEXT,
+      ENGINE_TEXT,
     ],
     [
       'a text box with text outside the standard fonts',
@@ -315,7 +350,7 @@ const details = (): Scene => ({
         defaultStyle: { fontSize: 14 },
         contents: 'Total: 42 €, 日本語 ok',
       },
-      HAN_TEXT,
+      pictured('han'),
     ],
     [
       'a WebP stamp',
@@ -323,7 +358,7 @@ const details = (): Scene => ({
         type: 'stamp',
         page: 1,
         rect: { x: 72, y: 300, width: 120, height: 60 },
-        imagedata: webpStamp(120, 60),
+        imagedata: webpStamp(480, 240),
       },
     ],
     [
@@ -337,7 +372,68 @@ const details = (): Scene => ({
           SOFT_HYPHEN
         ),
       },
-      TEXT,
+      ENGINE_TEXT,
+    ],
+  ]),
+})
+
+/**
+ * Text laid out by its widths in the browser's fonts, outside the tables (a wrong measure breaks
+ * and places its lines elsewhere), and small pictures enlarged over their stamps, on page 0.
+ */
+const scripts = (): Scene => ({
+  fixture: 'text-simple',
+  ...named([
+    [
+      'a centred, wrapping Cyrillic text box',
+      {
+        type: 'freetext',
+        page: 0,
+        rect: { x: 72, y: 560, width: 170, height: 110 },
+        width: 1,
+        defaultStyle: { textAlign: 'center', fontSize: 13 },
+        contents: 'Съешь же ещё этих мягких французских булок, да выпей чаю.',
+      },
+      pictured('cyrillic'),
+    ],
+    [
+      'a right-aligned, wrapping Greek text box',
+      {
+        type: 'freetext',
+        page: 0,
+        rect: { x: 300, y: 560, width: 170, height: 110 },
+        width: 1,
+        defaultStyle: { textAlign: 'right', fontSize: 13 },
+        contents: 'Ξεσκεπάζω την ψυχοφθόρα βδελυγμία των καιρών μας.',
+      },
+      pictured('greek'),
+    ],
+    [
+      'a 40-pixel PNG enlarged over 120 points',
+      {
+        type: 'stamp',
+        page: 0,
+        rect: { x: 72, y: 400, width: 120, height: 50 },
+        imagedata: quadrants('image/png', 40, 17),
+      },
+    ],
+    [
+      'a 40-pixel JPEG enlarged over 120 points',
+      {
+        type: 'stamp',
+        page: 0,
+        rect: { x: 260, y: 400, width: 120, height: 50 },
+        imagedata: quadrants('image/jpeg', 40, 17),
+      },
+    ],
+    [
+      'a PNG with an alpha edge, enlarged',
+      {
+        type: 'stamp',
+        page: 0,
+        rect: { x: 420, y: 380, width: 100, height: 100 },
+        imagedata: disc(32),
+      },
     ],
   ]),
 })
@@ -400,20 +496,32 @@ const fonts = checkTextFonts(['Total: 42 €, 日本語 ok'])
 interface Measured {
   scene: string
   name: string
-  engine: number
-  pdfjs: number
-  /** For text compared by position: the shares with its lines counted too. */
-  whole?: number[]
+  readers: {
+    reader: Reader
+    share: number
+    excluded: number
+    byPosition: boolean
+    /** For a reader comparing text by position: the share with its lines counted too. */
+    whole?: number
+  }[]
 }
 const measured: Measured[] = []
+
+const percent = (n: number) => `${(n * 100).toFixed(2)}%`
 
 afterAll(() => {
   if (!report) return
   console.log(
     measured
-      .map(
-        (m) =>
-          `${m.scene} | ${m.name} | ${[m.engine, m.pdfjs, ...(m.whole ?? [])].map((n) => `${(n * 100).toFixed(2)}%`).join(' | ')}`
+      .map((m) =>
+        [
+          m.scene,
+          m.name,
+          ...m.readers.map(
+            (r) =>
+              `${r.reader} ${percent(r.share)} (excluded ${percent(r.excluded)}${r.byPosition ? `, by position, whole ${percent(r.whole!)}` : ''})`
+          ),
+        ].join(' | ')
       )
       .join('\n')
   )
@@ -434,61 +542,109 @@ function rendered(scene: () => Scene) {
 /** Asserts the case's annotation looks the same on screen, in the engine and in PDF.js. */
 function compares(label: string, renders: () => Promise<SavedRenders>, c: Case): void {
   const missing = c.needs !== undefined && fonts.differing.has(c.needs)
-  it.skipIf(missing)(`${c.name} looks as it does on screen`, async () => {
+  it(`${c.name} looks as it does on screen`, async () => {
     const { pages, compared } = await renders()
     const { annotation, region } = compared[c.index]!
     const page = pages.get(annotation.page)!
+    if (missing) {
+      // No font here for the case's characters (see `checkTextFonts`): what is drawn is no test
+      // of the painter. The file is laid out with the screen's measure, so its lines are the
+      // screen's: the same text, at the same origins.
+      const lines = (d: Drawing | undefined) =>
+        JSON.stringify(
+          d?.items.flatMap(function texts(i): readonly unknown[] {
+            return i.kind === 'text'
+              ? i.lines
+              : i.kind === 'group'
+                ? i.items.flatMap(texts)
+                : []
+          })
+        )
+      const context = drawContext(page.transform)
+      expect(
+        lines(
+          describeDrawing(annotation, {
+            ...context,
+            measure: savePictures(document).measure,
+          })
+        )
+      ).toBe(lines(drawingFor(annotation, page.transform)))
+      return
+    }
     const lines = c.byPosition ? textBands(annotation, page.transform) : []
-    const bands = lines.map((l) => l.band)
-    const engine = differing(page.screen, page.engine, region, bands)
-    const pdfjs = differing(page.screen, page.pdfjs, region, bands)
-    measured.push({
-      scene: label,
-      name: c.name,
-      engine,
-      pdfjs,
-      ...(c.byPosition
-        ? {
-            whole: [
-              differing(page.screen, page.engine, region),
-              differing(page.screen, page.pdfjs, region),
-            ],
-          }
-        : {}),
-    })
+    const row: Measured = { scene: label, name: c.name, readers: [] }
+    measured.push(row)
     if (report) await dump(`${label}-${c.name}`, page, region)
-    expect
-      .soft(engine, 'engine render of the saved file')
-      .toBeLessThanOrEqual(MAX_DIFFERING)
-    expect
-      .soft(pdfjs, 'PDF.js render of the saved file')
-      .toBeLessThanOrEqual(MAX_DIFFERING)
-    if (!c.byPosition) return
-    expect(lines.length).toBeGreaterThan(0)
-    // Every line the screen inks is compared; a line of spaces inks nothing anywhere.
-    expect(lines.some((line) => lineInk(page.screen, line))).toBe(true)
-    for (const line of lines) {
-      const screen = lineInk(page.screen, line)
-      if (!screen) continue
-      for (const [reader, reading] of [
-        ['engine', page.engine],
-        ['PDF.js', page.pdfjs],
-      ] as const) {
-        const file = lineInk(reading, line)
-        expect
-          .soft(file, `${reader}: the line ${JSON.stringify(line.text)}`)
-          .toBeDefined()
-        if (!file) continue
-        for (const side of ['left', 'top', 'right', 'bottom'] as const)
+    for (const reader of ['engine', 'pdfjs'] as const) {
+      const reading = page[reader]
+      const byPosition = c.byPosition?.includes(reader) ?? false
+      const { share, excluded } = differing(
+        page.screen,
+        reading,
+        region,
+        byPosition ? lines.map((l) => l.band) : []
+      )
+      row.readers.push({
+        reader,
+        share,
+        excluded,
+        byPosition,
+        ...(byPosition ? { whole: differing(page.screen, reading, region).share } : {}),
+      })
+      expect
+        .soft(share, `${reader} render of the saved file`)
+        .toBeLessThanOrEqual(MAX_DIFFERING)
+      expect
+        .soft(excluded, `${reader}: the part left out where the page itself differs`)
+        .toBeLessThanOrEqual(MAX_EXCLUDED)
+      if (c.clipped)
+        for (const { around, inside, color } of beyondClip(annotation, page.transform)) {
+          // The lines do reach past the clip, and the screen shows none of it there, or the
+          // check below would prove nothing.
+          expect(around.bottom - inside.bottom).toBeGreaterThan(PIXELS_PER_POINT)
+          expect(inkOutside(page.screen, around, inside, color)).toBe(0)
           expect
             .soft(
-              Math.abs(file[side] - screen[side]) / PIXELS_PER_POINT,
-              `${reader}: the ${side} of the line ${JSON.stringify(line.text)}, in points`
+              inkOutside(reading, around, inside, color),
+              `${reader}: text past the clip`
             )
-            .toBeLessThanOrEqual(1)
-      }
+            .toBe(0)
+        }
+      if (!byPosition) continue
+      expect(lines.length).toBeGreaterThan(0)
+      // Every line the screen inks is compared; a line of spaces inks nothing anywhere.
+      expect(lines.some((line) => lineInk(page.screen, line))).toBe(true)
+      const pieces = c.pieces
+        ? pieceBands(annotation, page.transform, savePictures(document).measure)
+        : []
+      if (c.pieces) expect(pieces.length).toBeGreaterThan(0)
+      for (const line of lines)
+        samePlace(reader, page.screen, reading, line, ['left', 'top', 'right', 'bottom'])
+      for (const piece of pieces) samePlace(reader, page.screen, reading, piece, ['left'])
     }
   })
+}
+
+/** Asserts `line` inks within a point of the screen on each of `sides`, where the screen inks it. */
+function samePlace(
+  reader: Reader,
+  screen: Reading,
+  reading: Reading,
+  line: TextBand,
+  sides: readonly (keyof PixelRect)[]
+): void {
+  const want = lineInk(screen, line)
+  if (!want) return
+  const got = lineInk(reading, line)
+  expect.soft(got, `${reader}: ${JSON.stringify(line.text)}`).toBeDefined()
+  if (!got) return
+  for (const side of sides)
+    expect
+      .soft(
+        Math.abs(got[side] - want[side]) / PIXELS_PER_POINT,
+        `${reader}: the ${side} of ${JSON.stringify(line.text)}, in points`
+      )
+      .toBeLessThanOrEqual(1)
 }
 
 /** Writes the case's crops of each render, for looking at with `VITE_INKBAR_SAVED_REPORT=1`. */
@@ -572,6 +728,8 @@ scene('details on text-simple', details, (renders) => {
     expect(images).toContainEqual(size)
   })
 })
+
+scene('scripts and small pictures on text-simple', scripts)
 
 scene('masks on text-simple', masks, (renders) => {
   it('the highlight is drawn over the mask, not dimmed by it', async () => {
