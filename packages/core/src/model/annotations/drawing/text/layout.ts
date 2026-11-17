@@ -52,7 +52,7 @@ interface Row {
   wrapped: boolean
 }
 
-/** The line height the text box has always had: `line-height: 1.2`. */
+/** The line height of a text box: `line-height: 1.2`. */
 const LINE_HEIGHT = 1.2
 /** CSS `tab-size` default, in space widths. */
 const TAB_SIZE = 8
@@ -184,7 +184,7 @@ export function layoutText(
 
     for (const unit of units(paragraph)) {
       if (unit.word.length) {
-        // The spaces before this word are part of the line now, unless the word wraps.
+        // The spaces before this word belong to the line, unless the word wraps.
         let from = 0
         let wordWidth = widthOf(unit.word.join(''))
         if (x + wordWidth > boxWidth + EPSILON && started) wrap()

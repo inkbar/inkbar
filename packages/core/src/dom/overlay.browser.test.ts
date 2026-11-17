@@ -929,7 +929,7 @@ describe('createOverlay', () => {
       })
     })
 
-    it('host rules on .ink-free-text and on the text elements no longer restyle or cover the text', async () => {
+    it('host rules on .ink-free-text and on the text elements neither restyle nor cover the text', async () => {
       const style = document.createElement('style')
       style.textContent = `
         .ink-free-text { color: red !important; font-size: 40px !important; background: red !important; border: 4px solid red !important }

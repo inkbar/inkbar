@@ -45,8 +45,8 @@ export function describeInk(a: InkAnnotation): Drawing {
   const items: DrawItem[] = []
   const all: Point[] = []
   a.inklist.forEach((stroke, i) => {
-    // A stroke with nothing to outline is still an item with no commands: the overlay draws an
-    // empty path for it, as it always has.
+    // A stroke with nothing to outline is an item with no commands, so the overlay draws an empty
+    // path for it and the strokes keep their places in the list.
     const outline =
       stroke.length === 0 ? [] : inkOutline(stroke, a.pressure?.[i], a.width)
     all.push(...outline)

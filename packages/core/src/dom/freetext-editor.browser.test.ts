@@ -78,7 +78,7 @@ describe('editFreeText', () => {
     expect(cs.fontFamily).toBe(FONT_STACKS.Helvetica)
     expect(cs.backgroundColor).toBe('rgba(0, 0, 0, 0)')
     expect(cs.borderTopStyle).toBe('none')
-    // The box is still drawn, and its text is the editor's now.
+    // The box is drawn; its text is the editor's.
     expect(el.querySelector('rect[data-ink-part="box"]')).not.toBeNull()
     expect(el.querySelector('text')).toBeNull()
   })

@@ -62,7 +62,7 @@ describe('the loupe layer clips the lens to the drawing', () => {
 
   for (const view of [0, 90] as const) {
     for (const zoom of [1, 2] as const) {
-      it(`a 200 x 100 loupe clips to half its shorter side, centred; today's clip was larger, at view rotation ${view} and zoom ${zoom}`, async () => {
+      it(`a 200 x 100 loupe clips to a circle of half its shorter side, centred, at view rotation ${view} and zoom ${zoom}`, async () => {
         const { canvas, box } = await lensOf(
           { x: 100, y: 500, width: 200, height: 100 },
           view,
@@ -73,7 +73,7 @@ describe('the loupe layer clips the lens to the drawing', () => {
         expect(r).toBeCloseTo(50 * zoom)
         expect(x).toBeCloseTo(box.width / 2)
         expect(y).toBeCloseTo(box.height / 2)
-        // circle(50%) was 50% of sqrt(w² + h²) / sqrt(2): about 79 points here.
+        // Not `circle(50%)`, which is 50% of sqrt(w² + h²) / sqrt(2): about 79 points here.
         expect(r).toBeLessThan(0.5 * (Math.hypot(box.width, box.height) / Math.SQRT2))
       })
     }
