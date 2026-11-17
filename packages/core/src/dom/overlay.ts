@@ -13,6 +13,7 @@
 // only it knows their shape. Every visual (colour, opacity, stroke, fill) is an SVG
 // attribute or a theme hook.
 import { freeTextBox } from '../model/annotations/callout'
+import { paintedByCanvas } from '../model/annotations/drawing/describe'
 import {
   hasCallout,
   hasCornerHandles,
@@ -35,7 +36,6 @@ import {
   handleBox,
   freeTextLocalBox,
   hasComment,
-  paintedByCanvas,
   renderAnnotationContent,
   renderHitArea,
   syncHandles,

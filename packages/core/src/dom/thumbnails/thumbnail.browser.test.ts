@@ -154,6 +154,138 @@ describe('createThumbnail', () => {
     expect(child.getAttribute('role')).toBeNull()
   })
 
+  describe('paints each annotation from its drawing', () => {
+    /** A thumbnail 306 css px wide (half size) of page 0 with `inputs` added, painted. */
+    async function thumbnailOf(
+      ...inputs: Parameters<InkDocument['annotations']['add']>[0][]
+    ) {
+      const doc = await openDoc()
+      for (const input of inputs) doc.annotations.add(input)
+      const el = place(document.createElement('div'))
+      const painter = createThumbnailPainter(
+        el,
+        { document: writable(doc) },
+        { page: 0, width: 306 }
+      )
+      cleanup.push(() => painter.destroy())
+      await painted(el)
+      return el
+    }
+    const nodeOf = (el: HTMLElement, type: string) =>
+      el.querySelector<HTMLElement>(`.ink-thumbnail-annotation[data-type="${type}"]`)!
+    const mask = {
+      type: 'mask',
+      page: 0,
+      rect: { x: 100, y: 500, width: 200, height: 100 },
+      shape: 'rect',
+      dim: 0.5,
+      color: '#102030',
+    } as const
+
+    it('dims the page around a mask and leaves the cut-out clear', async () => {
+      const el = await thumbnailOf(mask)
+      const node = nodeOf(el, 'mask')
+      // The dimming covers the whole thumbnail, not the mask's own box.
+      expect(node.style.left).toBe('0px')
+      expect(node.style.top).toBe('0px')
+      expect(node.style.width).toBe('306px')
+      expect(node.style.height).toBe('396px')
+      const path = node.querySelector<SVGPathElement>('svg > path')!
+      expect(path.getAttribute('fill')).toBe('#102030')
+      expect(path.getAttribute('fill-opacity')).toBe('0.5')
+      expect(path.getAttribute('fill-rule')).toBe('evenodd')
+      // The cut-out is x 100..300, y 500..600 in points: x 50..150, y 96..146 at half size.
+      expect(path.isPointInFill(new DOMPoint(10, 10))).toBe(true)
+      expect(path.isPointInFill(new DOMPoint(100, 120))).toBe(false)
+      expect(path.isPointInFill(new DOMPoint(160, 120))).toBe(true)
+      expect(path.isPointInFill(new DOMPoint(100, 300))).toBe(true)
+    })
+
+    it('puts a mask under the other annotations whatever the order they were added in', async () => {
+      const el = await thumbnailOf(
+        { type: 'square', page: 0, rect: { x: 72, y: 72, width: 50, height: 50 } },
+        mask,
+        { type: 'circle', page: 0, rect: { x: 72, y: 172, width: 50, height: 50 } }
+      )
+      const types = [
+        ...el.querySelectorAll<HTMLElement>('.ink-thumbnail-annotation'),
+      ].map((n) => n.dataset.type)
+      expect(types).toEqual(['mask', 'square', 'circle'])
+    })
+
+    it('draws a loupe as its rim, with no lens', async () => {
+      const el = await thumbnailOf({
+        type: 'loupe',
+        page: 0,
+        rect: { x: 200, y: 500, width: 120, height: 120 },
+        width: 2,
+      })
+      const node = nodeOf(el, 'loupe')
+      const rim = node.querySelector('circle.ink-loupe-rim')!
+      expect(rim.getAttribute('stroke-width')).toBe('1')
+      expect(rim.getAttribute('r')).toBe('29.5')
+      expect(node.querySelectorAll('svg > *')).toHaveLength(1)
+      expect(node.querySelector('image, canvas, foreignObject')).toBeNull()
+    })
+
+    it('adds no hit shape, handle or marker to any annotation', async () => {
+      const doc = await openDoc()
+      for (const input of oneOfEach()) doc.annotations.add(input)
+      doc.annotations.add(mask)
+      doc.annotations.add({
+        type: 'loupe',
+        page: 0,
+        rect: { x: 200, y: 500, width: 120, height: 120 },
+      })
+      doc.annotations.add({
+        type: 'highlight',
+        page: 0,
+        contents: 'A comment',
+        quads: [
+          {
+            p1: { x: 72, y: 615 },
+            p2: { x: 300, y: 615 },
+            p3: { x: 72, y: 595 },
+            p4: { x: 300, y: 595 },
+          },
+        ],
+      })
+      const el = place(document.createElement('div'))
+      const painter = createThumbnailPainter(el, { document: writable(doc) }, { page: 0 })
+      cleanup.push(() => painter.destroy())
+      await painted(el)
+      const layer = el.querySelector('.ink-thumbnail-annotations')!
+      expect(annotationsOf(el)).toBe(doc.annotations.byPage(0).length)
+      expect(
+        layer.querySelector(
+          '[data-ink-hit-area], [data-ink-hit-stroke], [data-ink-edge], [data-ink-text-area], [data-handle], .ink-comment-marker, .ink-selection-frame, .ink-mask-shape, [data-ink-note]'
+        )
+      ).toBeNull()
+      expect(layer.querySelectorAll('rect[fill="transparent"]')).toHaveLength(0)
+    })
+
+    it('draws a note and a stamp as the page does, without the note shadow', async () => {
+      const el = await thumbnailOf(
+        { type: 'text', page: 0, rect: { x: 500, y: 700, width: 20, height: 20 } },
+        {
+          type: 'stamp',
+          page: 0,
+          rect: { x: 72, y: 150, width: 120, height: 40 },
+          imagedata:
+            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        }
+      )
+      expect(nodeOf(el, 'text').querySelectorAll('svg path.ink-note-icon')).toHaveLength(
+        1
+      )
+      expect(nodeOf(el, 'stamp').querySelectorAll('svg image.ink-stamp')).toHaveLength(1)
+      expect(nodeOf(el, 'stamp').querySelector('img')).toBeNull()
+      expect(getComputedStyle(nodeOf(el, 'text').querySelector('svg')!).filter).toBe(
+        'none'
+      )
+    })
+  })
+
   it('draws an embedded note the file gives no appearance, but not its replies', async () => {
     const doc = await openDoc('annotated-notes-threaded')
     const el = place(document.createElement('div'))
