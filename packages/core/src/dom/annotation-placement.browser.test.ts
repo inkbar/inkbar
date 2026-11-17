@@ -468,17 +468,21 @@ describe('an annotation on a turned or scaled page', () => {
             page: 0,
             rect: square,
             width: 3,
-            dashes: [4, 2],
             cornerRadius: 6,
           },
           at
         ).el.querySelector(PAINTED)!
         expect(Number(shape.getAttribute('stroke-width'))).toBeCloseTo(3 * s, 3)
-        expect(shape.getAttribute('stroke-dasharray')!.split(' ').map(Number)).toEqual([
+        expect(Number(shape.getAttribute('rx'))).toBeCloseTo(6 * s, 3)
+        // A dashed outline is a path on a turned view, so its length is read from the dashes.
+        const dashed = draw(
+          { type: 'square', page: 0, rect: square, width: 3, dashes: [4, 2] },
+          at
+        ).el.querySelector(PAINTED)!
+        expect(dashed.getAttribute('stroke-dasharray')!.split(' ').map(Number)).toEqual([
           4 * s,
           2 * s,
         ])
-        expect(Number(shape.getAttribute('rx'))).toBeCloseTo(6 * s, 3)
         const rim = draw(
           {
             type: 'loupe',

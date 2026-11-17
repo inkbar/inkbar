@@ -8,7 +8,7 @@ import type {
   Paint,
   PathCommand,
 } from '../model/annotations/drawing/types'
-import type { Point } from '../model/geometry'
+import type { Point, Rect } from '../model/geometry'
 
 const SVG = 'http://www.w3.org/2000/svg'
 
@@ -124,6 +124,12 @@ function paintItem(
       break
     }
     case 'rect': {
+      if (turnsDashes(item.paint, t)) {
+        out = node('path')
+        out.setAttribute('d', pathData(rectOutline(item.rect, item.radius), t, at, len))
+        paint(out, item.paint, len)
+        break
+      }
       out = node('rect')
       const r = rectCss(item.rect, t, origin)
       set(out, { x: r.x, y: r.y, width: r.width, height: r.height })
@@ -132,6 +138,12 @@ function paintItem(
       break
     }
     case 'ellipse': {
+      if (turnsDashes(item.paint, t)) {
+        out = node('path')
+        out.setAttribute('d', pathData(ellipseOutline(item.rect), t, at, len))
+        paint(out, item.paint, len)
+        break
+      }
       const r = rectCss(item.rect, t, origin)
       if (item.role === 'loupe-rim') {
         out = node('circle')
@@ -362,6 +374,55 @@ function role(el: Element, r: DrawRole | undefined): void {
   else if (r === 'ending-head') el.setAttribute('data-ending', 'head')
   else if (r === 'ending-tail') el.setAttribute('data-ending', 'tail')
   else el.setAttribute('data-ink-part', r)
+}
+
+/**
+ * Whether a dashed outline must be drawn as a path. A `<rect>` or `<ellipse>` starts its dashes at
+ * the corner or point that is top-left or rightmost on screen, and a description's start is the
+ * one in user space as the page is displayed unturned, so a turned view needs a path that starts
+ * where the description says.
+ */
+const turnsDashes = (p: Paint, t: PageTransform): boolean =>
+  t.totalRotation !== 0 && (p.stroke?.dashes?.length ?? 0) > 0
+
+/**
+ * The outline of a rect from its top-left corner as displayed unturned (the end of that corner's
+ * arc, on the top edge, when it is rounded), clockwise as displayed. Arcs turn the same way, which
+ * is `sweep: false` in a description.
+ */
+function rectOutline(rect: Rect, radius = 0): PathCommand[] {
+  const { x, y, width, height } = rect
+  const r = Math.min(Math.max(0, radius), width / 2, height / 2)
+  const [left, right, bottom, top] = [x, x + width, y, y + height]
+  const arc = (to: Point): PathCommand[] =>
+    r > 0 ? [{ op: 'A', rx: r, ry: r, largeArc: false, sweep: false, to }] : []
+  return [
+    { op: 'M', to: { x: left + r, y: top } },
+    { op: 'L', to: { x: right - r, y: top } },
+    ...arc({ x: right, y: top - r }),
+    { op: 'L', to: { x: right, y: bottom + r } },
+    ...arc({ x: right - r, y: bottom }),
+    { op: 'L', to: { x: left + r, y: bottom } },
+    ...arc({ x: left, y: bottom + r }),
+    { op: 'L', to: { x: left, y: top - r } },
+    ...arc({ x: left + r, y: top }),
+    { op: 'Z' },
+  ]
+}
+
+/** The outline of an ellipse from its rightmost point, clockwise as displayed unturned. */
+function ellipseOutline(rect: Rect): PathCommand[] {
+  const { x, y, width, height } = rect
+  const cy = y + height / 2
+  const half = (to: number): PathCommand => ({
+    op: 'A',
+    rx: width / 2,
+    ry: height / 2,
+    largeArc: true,
+    sweep: false,
+    to: { x: to, y: cy },
+  })
+  return [{ op: 'M', to: { x: x + width, y: cy } }, half(x), half(x + width), { op: 'Z' }]
 }
 
 function paint(el: Element, p: Paint, len: (n: number) => number): void {

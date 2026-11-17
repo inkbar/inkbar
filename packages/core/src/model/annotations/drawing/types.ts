@@ -7,11 +7,27 @@ import type { Point, Rect } from '../../geometry'
 export interface Drawing {
   /** Where it is painted: with the annotation, or across the whole page beneath every annotation (a mask). */
   layer: 'annotation' | 'page'
-  /** The box that contains everything drawn, in user space. */
+  /**
+   * The box that contains every point painted, in user space: each item's geometry widened by
+   * half its stroke, which is all a stroke adds because a join that can be sharp is round and a
+   * cap reaches half the width at most, and a curve or arc counted along its length. A shape whose
+   * box is narrower than its stroke is centred in the box, so the bounds then exceed the
+   * annotation's `rect`. Everything painted is inside; not all of it need be painted.
+   */
   bounds: Rect
   items: readonly DrawItem[]
 }
 
+/**
+ * One thing painted, in user space.
+ *
+ * An outline's dashes start where the item's outline does. A `polygon` and a `polyline` start at
+ * their first point and a `path` at its first command, in order. A `rect` starts at its top-left
+ * corner as the page is displayed unturned (at its top edge, where the corner's arc ends, when it
+ * has a `radius`) and runs clockwise as displayed; an `ellipse` starts at its rightmost point and
+ * runs clockwise as displayed. Those two are the same corner and direction in user space however
+ * the view is turned. A painter that cannot start a dash there draws the outline as a path.
+ */
 export type DrawItem = { role?: DrawRole } & (
   | { kind: 'polygon' | 'polyline'; points: readonly Point[]; paint: Paint }
   | { kind: 'rect'; rect: Rect; radius?: number; paint: Paint }
@@ -19,6 +35,7 @@ export type DrawItem = { role?: DrawRole } & (
   | {
       kind: 'path'
       commands: readonly PathCommand[]
+      /** How an overlap fills: `nonzero` when absent. */
       fillRule?: 'nonzero' | 'evenodd'
       paint: Paint
     }
@@ -32,6 +49,7 @@ export type DrawItem = { role?: DrawRole } & (
       angle: 0 | 90 | 180 | 270
       outsideStandardFonts: boolean
     }
+  /** `data` (a data URL) is stretched to fill `rect`, whatever its aspect, upright for `angle`. */
   | { kind: 'image'; data: string; rect: Rect; angle: 0 | 90 | 180 | 270 }
   | {
       kind: 'page'
@@ -58,6 +76,13 @@ export type DrawRole =
   | 'stamp'
   | 'mask'
 
+/**
+ * How an item is painted. A stroke is centred on the outline and absent when it has no width.
+ * Where a field is missing the PDF default applies: a fill of no `opacity` is opaque, a missing
+ * `join` is `miter` (with the PDF's miter limit of 10 and SVG's of 4: a describer sets `round`
+ * wherever a corner can be sharp, so neither limit is reached), a missing `cap` is `butt`,
+ * and `dashes` start at phase 0 of the pattern, with no `dashes` a solid line.
+ */
 export interface Paint {
   fill?: { color: string; opacity?: number }
   stroke?: {
@@ -72,11 +97,17 @@ export interface Paint {
 export type PathCommand =
   | { op: 'M' | 'L'; to: Point }
   | { op: 'C'; c1: Point; c2: Point; to: Point }
+  /**
+   * An axis-aligned elliptical arc to `to`. `sweep` is in user-space terms, y up: true runs
+   * anticlockwise as the page is displayed unturned, false clockwise (SVG's `sweep-flag` is the
+   * other way round because its y axis points down).
+   */
   | { op: 'A'; rx: number; ry: number; largeArc: boolean; sweep: boolean; to: Point }
   | { op: 'Z' }
 
 export interface TextLine {
   text: string
+  /** The start of the line on its baseline, in user space: its left end for text that runs left to right as displayed. */
   origin: Point
   width: number
   /**

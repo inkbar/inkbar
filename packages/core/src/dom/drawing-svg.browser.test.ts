@@ -968,3 +968,53 @@ describe('the width a line of standard-font text is set to', () => {
     }
   )
 })
+
+describe('where a dashed rect or ellipse starts', () => {
+  const dashed: Paint = { stroke: { color: '#000', width: 4, dashes: [10, 10] } }
+  /** True when the stroke of the one shape painted covers the user-space point `p`. */
+  function covers(item: DrawItem, rotation: 0 | 90, p: { x: number; y: number }) {
+    const t = createPageTransform(page, 1, rotation)
+    const el = document.createElement('div')
+    document.body.append(el)
+    try {
+      paintDrawing(el, drawing(item), t, box)
+      const shape = el.querySelector<SVGGeometryElement>('svg > *')!
+      const c = t.toCss(p)
+      return shape.isPointInStroke(new DOMPoint(c.x, c.y))
+    } finally {
+      el.remove()
+    }
+  }
+
+  for (const rotation of [0, 90] as const) {
+    it(`a rect starts at its top-left as the page is displayed unturned and runs along the top, at view rotation ${rotation}`, () => {
+      const rect = { x: 100, y: 600, width: 100, height: 65 }
+      const item: DrawItem = { kind: 'rect', rect, paint: dashed }
+      // The first dash covers 0 to 10 along the top edge, then a gap to 20.
+      expect(covers(item, rotation, { x: 105, y: 665 })).toBe(true)
+      expect(covers(item, rotation, { x: 115, y: 665 })).toBe(false)
+      expect(covers(item, rotation, { x: 125, y: 665 })).toBe(true)
+      // Up the left edge, 270 along the walk (100 top, 65 right, 100 bottom): in a dash.
+      expect(covers(item, rotation, { x: 100, y: 605 })).toBe(true)
+    })
+
+    it(`a rounded rect starts at the end of its top-left arc at view rotation ${rotation}`, () => {
+      const rect = { x: 100, y: 600, width: 100, height: 65 }
+      const item: DrawItem = { kind: 'rect', rect, radius: 10, paint: dashed }
+      expect(covers(item, rotation, { x: 115, y: 665 })).toBe(true)
+      expect(covers(item, rotation, { x: 125, y: 665 })).toBe(false)
+    })
+
+    it(`an ellipse starts at its rightmost point and runs clockwise as displayed, at view rotation ${rotation}`, () => {
+      const rect = { x: 100, y: 600, width: 90, height: 90 }
+      const item: DrawItem = { kind: 'ellipse', rect, paint: dashed }
+      const on = (arc: number) => ({
+        x: 145 + 45 * Math.cos(arc / 45),
+        y: 645 - 45 * Math.sin(arc / 45),
+      })
+      expect(covers(item, rotation, on(5))).toBe(true)
+      expect(covers(item, rotation, on(15))).toBe(false)
+      expect(covers(item, rotation, on(25))).toBe(true)
+    })
+  }
+})
