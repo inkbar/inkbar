@@ -458,8 +458,33 @@ describe('the editor underline', () => {
   })
 })
 
+describe('closing the editor without typing', () => {
+  it('writes nothing to a box whose text needs more height than the box has', () => {
+    const store = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: staticDefaults,
+    })
+    const host = mountContainer(612, 792)
+    const transform = createPageTransform(page, 1, 0)
+    const overlay = createOverlay({ host, page: 0, store, transform })
+    cleanup.push(() => (overlay.destroy(), host.remove()))
+    const a = store.add({
+      type: 'freetext',
+      page: 0,
+      rect: { x: 100, y: 600, width: 100, height: 20 },
+      contents: 'alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu',
+    }) as FreeTextAnnotation
+    const changes = vi.fn()
+    store.on('change', changes)
+    const editor = editFreeTextIn(store, overlay.elementFor(a.id)!, a.id, transform)!
+    editor.close(true)
+    expect(changes).not.toHaveBeenCalled()
+    expect(store.get(a.id)).toBe(a)
+  })
+})
+
 describe('a box the browser and the tables break differently', () => {
-  it("grows to the tables' line count, so no drawn line is clipped", () => {
+  it("grows to the tables' line count when the text is edited, so no drawn line is clipped", async () => {
     // Tight letter-spacing makes the browser fit more on a line than the tables do.
     const style = document.createElement('style')
     style.textContent = '.ink-free-text { letter-spacing: -2px; }'
@@ -482,6 +507,7 @@ describe('a box the browser and the tables break differently', () => {
     const el = overlay.elementFor(a.id)!
     const editor = editFreeTextIn(store, el, a.id, transform)!
     const f = el.querySelector<HTMLElement>('[data-ink-editor]')!
+    await userEvent.keyboard('!')
     const browserLines = Math.round(f.getBoundingClientRect().height / 14.4)
     editor.close(true)
 

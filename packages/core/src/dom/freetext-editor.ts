@@ -219,6 +219,8 @@ export function editFreeText(
   }
   /** How far the box grew, CSS px; 0 within `SAME_PX`. */
   const growth = (): number => {
+    // Text left as it was leaves the box as it was: opening and closing is no edit.
+    if (read() === a.contents) return 0
     const grown = height() - areaHeight
     return Math.abs(grown) < SAME_PX ? 0 : grown
   }
