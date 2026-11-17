@@ -108,6 +108,22 @@ describe('standardMeasure', () => {
     })
   })
 
+  test('the copyright sign is a character of the tables, with the table width and not outside', () => {
+    const table = WIDTHS.Helvetica[0][[...CHARS].indexOf('\u00a9')]!
+    expect(table).toBeGreaterThan(0)
+    expect(isWide('\u00a9')).toBe(false)
+    const m = standardMeasure.width('\u00a9', helv, 12)
+    expect(m.width).toBeCloseTo((table / 1000) * 12, 9)
+    expect(m.outside).toBe(false)
+  })
+
+  test('the copyright sign with the emoji selector is the emoji: outside the tables and wide', () => {
+    const m = standardMeasure.width('\u00a9\ufe0f', helv, 12)
+    expect(m).toEqual({ width: 12, outside: true })
+    expect(outsideTables('\u00a9\ufe0f')).toBe(true)
+    expect(isWide('\u00a9\ufe0f')).toBe(true)
+  })
+
   test('zero-width characters take no room and are not outside', () => {
     expect(standardMeasure.width('​­️', helv, 12)).toEqual({
       width: 0,
