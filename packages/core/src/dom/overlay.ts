@@ -41,6 +41,7 @@ import {
   syncHandles,
   type HandleSpec,
 } from './overlay-render'
+import { createUndrawnGuard } from './undrawn'
 
 import type { InkMessages } from '../messages'
 import type { PageTransform } from './transform'
@@ -387,8 +388,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     node.style.height = `${box.height}px`
   }
 
-  /** Ids already reported as undrawn, so a zoom does not report them again. */
-  const undrawn = new Set<string>()
+  const guard = createUndrawnGuard()
 
   function applyContent(node: HTMLElement, a: Annotation): void {
     const custom = opts.isCustom?.(a) === true
@@ -402,25 +402,23 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     }
     const last = drawn.get(a.id)
     if (last?.a === a && last.t === transform) return
-    try {
-      // Annotations PDF.js already painted on the canvas get only an invisible hit area.
-      if (paintedByCanvas(a)) renderHitArea(node, a, transform)
-      else renderAnnotationContent(node, a, transform)
-      if (a.type === 'loupe') loupes?.attach(node, a, transform)
-    } catch (error) {
+    const canvas = paintedByCanvas(a)
+    const ok = guard.attempt(
+      a,
+      canvas ? 'could not get a hit area' : 'was left undrawn',
+      () => {
+        // Annotations PDF.js already painted on the canvas get only an invisible hit area.
+        if (canvas) renderHitArea(node, a, transform)
+        else renderAnnotationContent(node, a, transform)
+        if (a.type === 'loupe') loupes?.attach(node, a, transform)
+      }
+    )
+    if (!ok) {
       // One annotation that cannot be drawn is left empty; the page's others still draw.
       node.replaceChildren()
       loupes?.drop(a.id)
-      if (!undrawn.has(a.id)) {
-        undrawn.add(a.id)
-        console.warn(
-          `[inkbar] annotation ${a.id} (${a.type}) was left undrawn: ${error instanceof Error ? error.message : String(error)}`
-        )
-      }
-      drawn.set(a.id, { a, t: transform })
-      return
     }
-    undrawn.delete(a.id)
+    // A failed annotation stays empty until it or the transform changes.
     drawn.set(a.id, { a, t: transform })
   }
 
@@ -685,13 +683,16 @@ export function createOverlay(opts: OverlayOptions): Overlay {
       loupes?.drop(id)
       elements.delete(id)
       drawn.delete(id)
+      guard.forget(id)
       hovered.delete(id)
     }
 
-    masks.update(
-      current.find((a): a is MaskAnnotation => a.type === 'mask'),
-      transform
+    const mask = current.find((a): a is MaskAnnotation => a.type === 'mask')
+    if (
+      !mask ||
+      !guard.attempt(mask, 'was left undrawn', () => masks.update(mask, transform))
     )
+      masks.update(undefined, transform)
 
     order = current.map((a) => a.id)
     for (const a of current) {

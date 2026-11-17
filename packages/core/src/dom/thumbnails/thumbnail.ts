@@ -23,6 +23,7 @@ import { annotationBox } from '../overlay-render'
 import { createPageRenderer, type PageRenderer } from '../page-renderer'
 import { toCssName } from '../plugins/api/marks'
 import { createPageTransform, type PageTransform } from '../transform'
+import { createUndrawnGuard } from '../undrawn'
 import {
   messagesOf,
   onViewerDestroy,
@@ -253,6 +254,8 @@ export function createThumbnailPainter(
     painting = { doc: current, page: opts.page, transform }
   }
 
+  const guard = createUndrawnGuard()
+
   /** Each drawn annotation's element and what it was drawn from. */
   const drawn = new Map<string, { a: Annotation; t: PageTransform; node: HTMLElement }>()
 
@@ -270,7 +273,8 @@ export function createThumbnailPainter(
       const t = transform
       // A page-wide drawing (a mask's dimming) goes under the rest, as it does on a page, and
       // a page dims for the first mask only.
-      const onPage = (a: Annotation): boolean => drawingFor(a, t)?.layer === 'page'
+      const onPage = (a: Annotation): boolean =>
+        guard.value(a, 'was left undrawn', () => drawingFor(a, t))?.layer === 'page'
       const wide = shown.filter(onPage).slice(0, 1)
       list = [...wide, ...shown.filter((a) => !onPage(a))]
     }
@@ -279,6 +283,7 @@ export function createThumbnailPainter(
       if (ids.has(id)) continue
       entry.node.remove()
       drawn.delete(id)
+      guard.forget(id)
     }
     let next = annotationsLayer.firstElementChild
     for (const a of list) {
@@ -304,7 +309,7 @@ export function createThumbnailPainter(
 
   function draw({ a, t, node }: { a: Annotation; t: PageTransform; node: HTMLElement }) {
     node.dataset.type = a.type
-    const drawing = drawingFor(a, t)
+    const drawing = guard.value(a, 'was left undrawn', () => drawingFor(a, t))
     // A page-wide drawing is painted over the whole page; the others over their own box.
     const box =
       drawing?.layer === 'page'
@@ -314,8 +319,12 @@ export function createThumbnailPainter(
     node.style.top = `${box.top}px`
     node.style.width = `${box.width}px`
     node.style.height = `${box.height}px`
-    if (drawing) paintDrawing(node, drawing, t, box)
-    else node.replaceChildren()
+    // A drawing that fails to paint leaves the annotation empty.
+    if (
+      !drawing ||
+      !guard.attempt(a, 'was left undrawn', () => paintDrawing(node, drawing, t, box))
+    )
+      node.replaceChildren()
   }
 
   function drawMarks(): void {
