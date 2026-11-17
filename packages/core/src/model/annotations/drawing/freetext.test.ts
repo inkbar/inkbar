@@ -351,24 +351,25 @@ describe('a callout', () => {
   }
 
   test('the bounds hold a head that sticks out of the rect', () => {
-    const out = describeFreeText(
-      {
-        ...callout,
-        rect: { x: 100, y: 600, width: 100, height: 40 },
-        fringe: undefined,
-        callout: [
-          { x: 99, y: 599 },
-          { x: 150, y: 620 },
-        ],
-        width: 2,
-        head: 'OpenArrow',
-      },
-      context()
-    )
-    // The head's wings reach 6 along the line and 3 across, and half the stroke beyond.
-    expect(out.bounds.x).toBeLessThan(99)
-    expect(out.bounds.y).toBeLessThan(599)
-    expect(out.bounds.x + out.bounds.width).toBeGreaterThanOrEqual(200)
+    const sideways: FreeTextAnnotation = {
+      ...callout,
+      rect: { x: 100, y: 600, width: 100, height: 40 },
+      fringe: undefined,
+      // A vertical leader left of the box, pointing up: only the head's wings reach further left.
+      callout: [
+        { x: 50, y: 610 },
+        { x: 50, y: 560 },
+      ],
+      width: 2,
+      dashes: undefined,
+    }
+    const without = describeFreeText({ ...sideways, head: undefined }, context()).bounds
+    const out = describeFreeText({ ...sideways, head: 'OpenArrow' }, context()).bounds
+    // The leader's stroke is 2 pt wide on x = 50, so it reaches x = 49. The head's wings are 3
+    // either side of the line, and half the stroke (1) beyond that.
+    expect(without.x).toBeCloseTo(49, 6)
+    expect(out.x).toBeCloseTo(46, 6)
+    expect(out.x + out.width).toBeCloseTo(without.x + without.width, 6)
   })
 
   test('adds its leader and head, below the box', () => {
