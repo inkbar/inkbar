@@ -215,6 +215,19 @@ const CASES: Case[] = [
       { at: [26, 148], want: BLUE, why: 'on a dash of the top edge (x 22 to 30)' },
       { at: [34, 148], want: WHITE, why: 'in the gap after it (x 30 to 38)' },
       { at: [70, 125], want: WHITE, why: 'inside, with no fill' },
+      // The outline runs clockwise from the top-left corner, 284 long, so the left edge starts 238
+      // in: a gap runs to 240, then a dash covers y 104 to 112 and a gap y 112 to 120. A dash
+      // that started at another corner would put these the other way round.
+      {
+        at: [22, 111],
+        want: BLUE,
+        why: 'on the left edge, in its first dash (y 104 to 112)',
+      },
+      {
+        at: [22, 103],
+        want: WHITE,
+        why: 'on the left edge, in the gap before it (y 102 to 104)',
+      },
     ],
   },
   {
@@ -504,6 +517,18 @@ describe('what each annotation looks like on the page', () => {
           shape.style.setProperty('fill', '#00ff00', 'important')
       })
       expect(near(got[0]!, halfHighlight.samples[0]!.want)).toBe(false)
+    })
+
+    it('a later inline opacity on the svg doubles the half opacity', async () => {
+      // The sample can tell a wrong opacity: with the svg dimmed to 0.5 after painting, as a rule
+      // that won the cascade would, the half-opacity highlight reads a quarter.
+      const got = await measure(halfHighlight.input, halfHighlight.samples, (host) => {
+        host
+          .querySelector<SVGElement>('.ink-annotation svg')!
+          .style.setProperty('opacity', '0.5', 'important')
+      })
+      expect(near(got[0]!, halfHighlight.samples[0]!.want)).toBe(false)
+      expect(near(got[0]!, over(RED, 0.25))).toBe(true)
     })
 
     // A host's rules on the drawn shapes do not reach the pixels, with priority or without: the
