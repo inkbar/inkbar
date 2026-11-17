@@ -1456,6 +1456,38 @@ describe('createOverlay', () => {
     expect((icon as HTMLElement).dataset.icon).toBe('Check')
   })
 
+  it("a line's box holds its endings at every zoom, thin line included", () => {
+    for (const zoom of [0.5, 1, 2, 4]) {
+      for (const [ending, angle] of [
+        ['OpenArrow', 0],
+        ['ClosedArrow', 1],
+        ['Square', 0.5],
+      ] as const) {
+        const { store, overlay } = setup(zoom)
+        const line = store.add({
+          type: 'line',
+          page: 0,
+          start: { x: 100, y: 600 },
+          end: { x: 100 + 80 * Math.cos(angle), y: 600 + 80 * Math.sin(angle) },
+          width: 0.5,
+          head: ending,
+          tail: ending,
+        } as never)
+        const el = overlay.elementFor(line.id)!
+        const frame = el.getBoundingClientRect()
+        for (const head of el.querySelectorAll<SVGGraphicsElement>('path[data-ending]')) {
+          const r = head.getBoundingClientRect()
+          const half = 0.25 * zoom
+          const where = `${ending} at zoom ${zoom}`
+          expect(r.left - half, where).toBeGreaterThanOrEqual(frame.left - 0.01)
+          expect(r.top - half, where).toBeGreaterThanOrEqual(frame.top - 0.01)
+          expect(r.right + half, where).toBeLessThanOrEqual(frame.right + 0.01)
+          expect(r.bottom + half, where).toBeLessThanOrEqual(frame.bottom + 0.01)
+        }
+      }
+    }
+  })
+
   it('a line ending with a name Inkbar does not know draws no ending and keeps the name', () => {
     const { store, overlay } = setup()
     const line = store.add({

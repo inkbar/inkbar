@@ -2,7 +2,6 @@ import { ICON_ATTRIBUTES, MessageSquareText } from '@inkbar/icons'
 
 import { freeTextBox } from '../model/annotations/callout'
 import { isTextMarkup } from '../model/annotations/edit'
-import { isKnown, LINE_ENDINGS } from '../model/annotations/pdf-names'
 
 import { drawingFor } from './drawing-context'
 import { itemElement, paintDrawing } from './drawing-svg'
@@ -145,7 +144,8 @@ function hitWidth(a: Annotation, t: PageTransform): number {
  * paths (lines, polylines, polygons, ink) use the bounds of their own points instead of
  * `rect` (which may already carry stroke padding, as a derived ink rect does), padded once by
  * half their stroke width on every side, at least 1px in all, so a horizontal or vertical
- * line still has a box to draw and hit-test in. A shape with a hit twin (see `hasHitTwin`)
+ * line still has a box to draw and hit-test in, and grown to the drawing's bounds, which hold a
+ * line's endings. A shape with a hit twin (see `hasHitTwin`)
  * is padded by at least 4px more, so its wider hit area is not clipped. Custom elements do
  * not use this: they sit on `toCssRect(a.rect)`.
  */
@@ -187,25 +187,26 @@ export function handleBox(a: Annotation, t: PageTransform): CssRect {
   if (!points || points.length === 0 || !('width' in a)) return t.toCssRect(a.rect)
   const box = t.toCssRect(pointBounds(points))
   const stroke = Math.max(t.toCssLength(a.width), 1)
-  // Endings reach up to ENDING_SCALE strokes either side of their end.
-  const pad = hasEndings(a) ? ENDING_SCALE * stroke : stroke / 2
-  return {
+  // Half the stroke on every side, at least 1px in all, and whatever else is drawn beyond it: a
+  // line's endings, which are sized in points and so reach further the more the page is zoomed.
+  const pad = stroke / 2
+  const padded = {
     left: box.left - pad,
     top: box.top - pad,
     width: box.width + pad * 2,
     height: box.height + pad * 2,
   }
-}
-
-/** An ending's length, and its full width, as a multiple of the stroke width. */
-const ENDING_SCALE = 3
-
-/** Whether `a` is a line or polyline with a head or tail Inkbar draws. */
-function hasEndings(a: Annotation): boolean {
-  if (a.type !== 'line' && a.type !== 'polyline') return false
-  return [a.head, a.tail].some(
-    (kind) => kind !== undefined && kind !== 'None' && isKnown(LINE_ENDINGS, kind)
-  )
+  const bounds = a.type === 'ink' ? undefined : drawingFor(a, t)?.bounds
+  if (!bounds) return padded
+  const drawn = t.toCssRect(bounds)
+  const left = Math.min(padded.left, drawn.left)
+  const top = Math.min(padded.top, drawn.top)
+  return {
+    left,
+    top,
+    width: Math.max(padded.left + padded.width, drawn.left + drawn.width) - left,
+    height: Math.max(padded.top + padded.height, drawn.top + drawn.height) - top,
+  }
 }
 
 function pointBounds(points: readonly Point[]): {
