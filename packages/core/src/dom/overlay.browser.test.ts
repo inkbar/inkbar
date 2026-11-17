@@ -10,6 +10,7 @@ import {
   withCalloutBounds,
 } from '../model/annotations/callout'
 import { cssVariableDefaults, staticDefaults } from '../model/annotations/defaults'
+import { describeDrawing } from '../model/annotations/drawing/describe'
 import { isTextMarkup } from '../model/annotations/edit'
 import { createHistory } from '../model/annotations/history'
 import { importAnnotations } from '../model/annotations/json'
@@ -17,9 +18,10 @@ import { createAnnotationStore } from '../model/annotations/store'
 import { renderRegion } from '../pdfjs/render-region'
 import { oneOfEach } from '../test-support/annotations'
 
+import { drawContext } from './drawing-context'
 import { createMessageState } from './messages-state'
 import { createOverlay, type OverlayOptions } from './overlay'
-import { renderAnnotationContent } from './overlay-render'
+import { handleBox, renderAnnotationContent } from './overlay-render'
 import { createPageMount } from './page-mount'
 import { mountContainer, openFixtureInBrowser, TEXT_LAYER_CSS } from './test-utils'
 import { FONT_STACKS } from './text-fonts'
@@ -1539,33 +1541,42 @@ describe('createOverlay', () => {
     }
   })
 
-  it("a line's box holds its endings at every zoom, thin line included", () => {
-    for (const zoom of [0.5, 1, 2, 4]) {
-      for (const [ending, angle] of [
-        ['OpenArrow', 0],
-        ['ClosedArrow', 1],
-        ['Square', 0.5],
+  it("a line's handle box holds its endings at every zoom, thin line included", () => {
+    for (const zoom of [1, 2, 4, 8]) {
+      const t = createPageTransform(page, zoom, 0)
+      for (const ending of [
+        'OpenArrow',
+        'ClosedArrow',
+        'Square',
+        'Diamond',
+        'Circle',
       ] as const) {
-        const { store, overlay } = setup(zoom)
+        const { store } = setup(zoom)
         const line = store.add({
           type: 'line',
           page: 0,
           start: { x: 100, y: 600 },
-          end: { x: 100 + 80 * Math.cos(angle), y: 600 + 80 * Math.sin(angle) },
+          end: { x: 180, y: 640 },
           width: 0.5,
           head: ending,
           tail: ending,
         } as never)
-        const el = overlay.elementFor(line.id)!
-        const frame = el.getBoundingClientRect()
-        for (const head of el.querySelectorAll<SVGGraphicsElement>('path[data-ending]')) {
-          const r = head.getBoundingClientRect()
-          const half = 0.25 * zoom
-          const where = `${ending} at zoom ${zoom}`
-          expect(r.left - half, where).toBeGreaterThanOrEqual(frame.left - 0.01)
-          expect(r.top - half, where).toBeGreaterThanOrEqual(frame.top - 0.01)
-          expect(r.right + half, where).toBeLessThanOrEqual(frame.right + 0.01)
-          expect(r.bottom + half, where).toBeLessThanOrEqual(frame.bottom + 0.01)
+        const box = handleBox(line, t)
+        const drawing = describeDrawing(line, drawContext(t))!
+        const [group] = drawing.items
+        if (group?.kind !== 'group') throw new Error('expected a group')
+        const half = (0.5 * zoom) / 2
+        for (const item of group.items) {
+          if (item.kind !== 'path') continue
+          for (const c of item.commands) {
+            if (c.op !== 'M' && c.op !== 'L') continue
+            const p = t.toCss(c.to)
+            const where = `${ending} at zoom ${zoom}`
+            expect(p.x - half, where).toBeGreaterThanOrEqual(box.left - 1e-6)
+            expect(p.y - half, where).toBeGreaterThanOrEqual(box.top - 1e-6)
+            expect(p.x + half, where).toBeLessThanOrEqual(box.left + box.width + 1e-6)
+            expect(p.y + half, where).toBeLessThanOrEqual(box.top + box.height + 1e-6)
+          }
         }
       }
     }

@@ -14,7 +14,7 @@ import type {
   NoteAnnotation,
   TextMarkupAnnotation,
 } from '../model/annotations/types'
-import type { Point, Quad } from '../model/geometry'
+import type { Point, Quad, Rect } from '../model/geometry'
 
 const SVG = 'http://www.w3.org/2000/svg'
 
@@ -171,6 +171,18 @@ function hitPad(a: Annotation, t: PageTransform): number {
 }
 
 /**
+ * The drawing's bounds for `a`, or `undefined` when it has none or cannot be described: the
+ * box is then the padded points alone, and whoever draws the annotation reports the failure.
+ */
+function boundsOf(a: Annotation, t: PageTransform): Rect | undefined {
+  try {
+    return drawingFor(a, t)?.bounds
+  } catch {
+    return undefined
+  }
+}
+
+/**
  * The CSS box an annotation's edit handles and resizing work on: `annotationBox` without the
  * padding its hit twin needs. `toCssRect(a.rect)` for a rect-shaped annotation; the padded
  * bounds of its points for a stroked path.
@@ -196,7 +208,7 @@ export function handleBox(a: Annotation, t: PageTransform): CssRect {
     width: box.width + pad * 2,
     height: box.height + pad * 2,
   }
-  const bounds = a.type === 'ink' ? undefined : drawingFor(a, t)?.bounds
+  const bounds = a.type === 'ink' ? undefined : boundsOf(a, t)
   if (!bounds) return padded
   const drawn = t.toCssRect(bounds)
   const left = Math.min(padded.left, drawn.left)
