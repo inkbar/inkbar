@@ -215,18 +215,25 @@ const CASES: Case[] = [
       { at: [26, 148], want: BLUE, why: 'on a dash of the top edge (x 22 to 30)' },
       { at: [34, 148], want: WHITE, why: 'in the gap after it (x 30 to 38)' },
       { at: [70, 125], want: WHITE, why: 'inside, with no fill' },
-      // The outline runs clockwise from the top-left corner, 284 long, so the left edge starts 238
-      // in: a gap runs to 240, then a dash covers y 104 to 112 and a gap y 112 to 120. A dash
-      // that started at another corner would put these the other way round.
+      // The outline runs clockwise from the top-left corner and is 300 long (two edges of 100 and
+      // two of 50), so the left edge starts 250 in, at its bottom end (y 100). With a period of 16,
+      // 250 is 10 into a gap: the gap runs to 256 (y 106), a dash covers y 106 to 114, a gap y 114
+      // to 122 and a dash y 122 to 130. A dash that started at another corner would put these the
+      // other way round.
       {
-        at: [22, 111],
+        at: [22, 110],
         want: BLUE,
-        why: 'on the left edge, in its first dash (y 104 to 112)',
+        why: 'on the left edge, in its first dash (y 106 to 114)',
       },
       {
-        at: [22, 103],
+        at: [22, 118],
         want: WHITE,
-        why: 'on the left edge, in the gap before it (y 102 to 104)',
+        why: 'on the left edge, in the gap after it (y 114 to 122)',
+      },
+      {
+        at: [22, 126],
+        want: BLUE,
+        why: 'on the left edge, in its second dash (y 122 to 130)',
       },
     ],
   },
