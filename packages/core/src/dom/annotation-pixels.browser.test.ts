@@ -358,35 +358,46 @@ describe('what each annotation looks like on the page', () => {
     const arrow = CASES[2]!
     const dashed = CASES[1]!
 
-    it('opacity applied a second time by a host rule', async () => {
+    it('a wrong colour in the drawing', async () => {
+      // The description is wrong: the highlight is drawn green. The samples must see it.
       const got = await measure(halfHighlight.input, halfHighlight.samples, (host) => {
-        const style = document.createElement('style')
-        style.textContent = '.ink-annotation svg { opacity: 0.5 }'
-        host.append(style)
+        for (const shape of host.querySelectorAll<SVGElement>('.ink-annotation svg *'))
+          shape.style.setProperty('fill', '#00ff00', 'important')
       })
-      // 0.25 over white: the green channel is 191, not 128.
       expect(near(got[0]!, halfHighlight.samples[0]!.want)).toBe(false)
-      expect(near(got[0]!, over(RED, 0.25))).toBe(true)
     })
 
-    // A host's rule on the drawn shapes does not reach the pixels: the paint is inline style.
-    it('a host rule that recolours the strokes changes nothing', async () => {
-      const got = await measure(arrow.input, arrow.samples, (host) => {
-        const style = document.createElement('style')
-        style.textContent = '.ink-annotation svg * { stroke: red }'
-        host.append(style)
+    // A host's rules on the drawn shapes do not reach the pixels, with priority or without: the
+    // paint is inline style with priority important.
+    for (const important of ['', ' !important']) {
+      const how = important ? 'with priority' : 'without priority'
+      it(`a host rule that dims the svg changes nothing, ${how}`, async () => {
+        const got = await measure(halfHighlight.input, halfHighlight.samples, (host) => {
+          const style = document.createElement('style')
+          style.textContent = `.ink-annotation svg { opacity: 0.5${important} }`
+          host.append(style)
+        })
+        expect(near(got[0]!, halfHighlight.samples[0]!.want)).toBe(true)
       })
-      expect(near(got[0]!, arrow.samples[0]!.want)).toBe(true)
-    })
 
-    it('a host rule that fills a shape with no fill changes nothing', async () => {
-      const got = await measure(dashed.input, dashed.samples, (host) => {
-        const style = document.createElement('style')
-        style.textContent = '.ink-annotation svg rect { fill: red }'
-        host.append(style)
+      it(`a host rule that recolours the strokes changes nothing, ${how}`, async () => {
+        const got = await measure(arrow.input, arrow.samples, (host) => {
+          const style = document.createElement('style')
+          style.textContent = `.ink-annotation svg * { stroke: red${important} }`
+          host.append(style)
+        })
+        expect(near(got[0]!, arrow.samples[0]!.want)).toBe(true)
       })
-      expect(near(got[2]!, WHITE)).toBe(true)
-    })
+
+      it(`a host rule that fills a shape with no fill changes nothing, ${how}`, async () => {
+        const got = await measure(dashed.input, dashed.samples, (host) => {
+          const style = document.createElement('style')
+          style.textContent = `.ink-annotation svg rect { fill: red${important} }`
+          host.append(style)
+        })
+        expect(near(got[2]!, WHITE)).toBe(true)
+      })
+    }
 
     it('an ancestor that clips the page to the shaft', async () => {
       const got = await measure(arrow.input, arrow.samples, (host) => {

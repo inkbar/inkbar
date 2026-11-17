@@ -540,17 +540,20 @@ describe('createOverlay', () => {
       if (node instanceof SVGTextElement) {
         // A justified line's style is reserialised when its word spacing is set.
         expect(style).toMatch(
-          /^font-kerning:\s*none;\s*white-space:\s*pre;\s*font-family:/
+          /^font-kerning:\s*none\s*!important;\s*white-space:\s*pre\s*!important;\s*font-family:/
         )
         continue
       }
       if (node instanceof SVGTSpanElement) {
-        expect(style).toBe('word-spacing: 0px;')
+        expect(style).toBe('word-spacing: 0px !important;')
         continue
       }
       // The paint of a shape, drawn or only taking presses, and a group's opacity.
       if (node instanceof SVGElement) {
         expect(style).toMatch(/^(fill|stroke|opacity):/)
+        // Every declaration has priority important, so no host rule can change it.
+        for (const declaration of style.split(';').filter((d) => d.trim() !== ''))
+          expect(declaration, style).toMatch(/\s!important$/)
         continue
       }
       expect(node).toBeInstanceOf(HTMLElement)
@@ -1046,6 +1049,12 @@ describe('createOverlay', () => {
       document.head.append(style)
       cleanup.push(() => style.remove())
       expect(look()).toEqual(before)
+      // Not even with priority.
+      style.textContent = style.textContent
+        .replace(/;/g, ' !important;')
+        .replace(/ }$/, ' !important }')
+      expect(style.textContent).toContain('stroke-linecap: square !important')
+      expect(look()).toEqual(before)
     })
 
     it('transparent hit shapes keep their paint under a host rule on svg shapes', () => {
@@ -1147,12 +1156,19 @@ describe('createOverlay', () => {
         'none',
         clear
       )
-      for (const [id, selector, fill, stroke] of shapes) {
-        const shape = overlay.elementFor(id)!.querySelector(selector)
-        expect(shape, `${selector} of ${id}`).not.toBeNull()
-        const cs = getComputedStyle(shape!)
-        expect([selector, cs.fill, cs.stroke]).toEqual([selector, fill, stroke])
+      const check = () => {
+        for (const [id, selector, fill, stroke] of shapes) {
+          const shape = overlay.elementFor(id)!.querySelector(selector)
+          expect(shape, `${selector} of ${id}`).not.toBeNull()
+          const cs = getComputedStyle(shape!)
+          expect([selector, cs.fill, cs.stroke]).toEqual([selector, fill, stroke])
+        }
       }
+      check()
+      // The same rule with priority important changes nothing either.
+      style.textContent =
+        'rect, circle, path, polyline, ellipse { fill: red !important; stroke: red !important; stroke-width: 9px !important }'
+      check()
     })
 
     it('a bubble below full opacity is one group: outline and text together', () => {

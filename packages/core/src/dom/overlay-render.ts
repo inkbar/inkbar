@@ -4,7 +4,7 @@ import { freeTextBox } from '../model/annotations/callout'
 import { isTextMarkup } from '../model/annotations/edit'
 
 import { drawingFor } from './drawing-context'
-import { itemElement, paintDrawing } from './drawing-svg'
+import { importantStyle, itemElement, paintDrawing } from './drawing-svg'
 import { type CssRect, type PageTransform } from './transform'
 
 import type { DrawItem } from '../model/annotations/drawing/types'
@@ -92,8 +92,8 @@ export function syncHandles(node: HTMLElement, spec: HandleSpec): void {
 
 /**
  * Gives a press-taking shape its paint (`transparent` or `none`) as attributes and as inline
- * style, so a host rule such as `svg rect { fill: currentColor }` cannot fill or outline it and
- * cover what is drawn under it. `width` is the stroke's, in CSS px. Hit testing
+ * style with priority `important`, so a host rule such as `svg rect { fill: currentColor }`, with
+ * `!important` or without, cannot fill or outline it and cover what is drawn under it. `width` is the stroke's, in CSS px. Hit testing
  * (`pointer-events`) is the caller's.
  */
 function invisible(
@@ -107,7 +107,11 @@ function invisible(
   if (width !== undefined) el.setAttribute('stroke-width', String(width))
   el.setAttribute(
     'style',
-    `fill:${fill};stroke:${stroke}${width === undefined ? '' : `;stroke-width:${width}px`}`
+    importantStyle([
+      `fill:${fill}`,
+      `stroke:${stroke}`,
+      ...(width === undefined ? [] : [`stroke-width:${width}px`]),
+    ])
   )
 }
 

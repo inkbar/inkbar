@@ -562,9 +562,26 @@ describe('a text', () => {
     expect(first!.getAttribute('font-style')).toBe('normal')
     expect(first!.getAttribute('textLength')).toBe('120')
     expect(first!.getAttribute('lengthAdjust')).toBe('spacing')
-    // Font and colour are inline style as well, so a host's rule on the text does not restyle it.
+    // Font and colour are inline style as well, with priority important, so no host rule on
+    // the text restyles it.
     expect(first!.getAttribute('style')).toBe(
-      `font-kerning:none;white-space:pre;font-family:${FONT_STACKS.Helvetica};font-size:24px;font-weight:normal;font-style:normal;fill:#0a0b0c;stroke:none;text-anchor:start;dominant-baseline:alphabetic;letter-spacing:0;word-spacing:0;text-decoration:none`
+      [
+        'font-kerning:none',
+        'white-space:pre',
+        `font-family:${FONT_STACKS.Helvetica}`,
+        'font-size:24px',
+        'font-weight:normal',
+        'font-style:normal',
+        'fill:#0a0b0c',
+        'stroke:none',
+        'text-anchor:start',
+        'dominant-baseline:alphabetic',
+        'letter-spacing:0',
+        'word-spacing:0',
+        'text-decoration:none',
+      ]
+        .map((d) => `${d} !important`)
+        .join(';')
     )
     expect(first!.getAttribute('font-family')).toBe(FONT_STACKS.Helvetica)
     expect(second!.getAttribute('y')).toBe(String(2 * (792 - 685.6)))
