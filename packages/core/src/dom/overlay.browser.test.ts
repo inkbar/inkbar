@@ -929,6 +929,9 @@ describe('createOverlay', () => {
       })
     })
 
+    /** A quarter of the 131 blue pixels "Hello" measured, so one stray pixel does not pass. */
+    const MIN_GLYPH_PIXELS = 32
+
     it('host rules on .ink-free-text and on the text elements neither restyle nor cover the text', async () => {
       const style = document.createElement('style')
       style.textContent = `
@@ -986,7 +989,7 @@ describe('createOverlay', () => {
       }
       console.log(`[host-rule] text box pixels: blue ${blue}, red ${red}`)
       expect(red).toBe(0)
-      expect(blue).toBeGreaterThan(0)
+      expect(blue).toBeGreaterThanOrEqual(MIN_GLYPH_PIXELS)
     })
 
     it('every drawn shape keeps its paint under a host rule on svg shapes, notes included', () => {
