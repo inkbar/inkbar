@@ -38,8 +38,12 @@ export interface LoupeLayer {
    * with `a` at `t`. The first render starts at once; later ones wait for a pause of
    * `LOUPE_RENDER_DELAY` ms in the changes, and a change aborts a render in flight. The last
    * bitmap stays, stretched with the element, until the next one lands.
+   *
+   * With `hidden` the canvas is kept out of sight, last in `el`, and renders all the same: for
+   * a loupe the page canvas still paints, so that its lens is ready when the overlay takes it
+   * over and shows with its rim.
    */
-  attach(el: HTMLElement, a: LoupeAnnotation, t: PageTransform): void
+  attach(el: HTMLElement, a: LoupeAnnotation, t: PageTransform, hidden?: boolean): void
   /** Forgets a loupe that is gone, cancelling its render. */
   drop(id: string): void
   destroy(): void
@@ -54,7 +58,8 @@ interface Lens {
   timer: ReturnType<typeof setTimeout> | undefined
   controller: AbortController | undefined
   /** The last `attach`, replayed when the device pixel ratio changes. */
-  last: { el: HTMLElement; a: LoupeAnnotation; t: PageTransform } | undefined
+  last:
+    { el: HTMLElement; a: LoupeAnnotation; t: PageTransform; hidden: boolean } | undefined
 }
 
 /** Frees a canvas's bitmap now rather than at garbage collection (Safari caps the total). */
@@ -139,11 +144,20 @@ export function createLoupeLayer(opts: LoupeLayerOptions): LoupeLayer {
     return lens
   }
 
-  function attach(el: HTMLElement, a: LoupeAnnotation, t: PageTransform): void {
+  function attach(
+    el: HTMLElement,
+    a: LoupeAnnotation,
+    t: PageTransform,
+    hidden = false
+  ): void {
     if (destroyed) return
     const lens = lensFor(el, a.id)
-    lens.last = { el, a, t }
-    if (el.firstChild !== lens.canvas) el.prepend(lens.canvas)
+    lens.last = { el, a, t, hidden }
+    lens.canvas.style.visibility = hidden ? 'hidden' : ''
+    // Out of sight it goes last, so the element's first child stays its hit area.
+    if (hidden) {
+      if (el.lastChild !== lens.canvas) el.append(lens.canvas)
+    } else if (el.firstChild !== lens.canvas) el.prepend(lens.canvas)
     const lensItem = drawingFor(a, t)?.items.find((i) => i.kind === 'page')
     const region = lensItem?.kind === 'page' ? lensItem.source : loupeRegion(a)
     if (lensItem?.kind === 'page') {
@@ -159,7 +173,7 @@ export function createLoupeLayer(opts: LoupeLayerOptions): LoupeLayer {
         () => dprOf(el),
         () => {
           for (const { last } of [...lenses.values()])
-            if (last) attach(last.el, last.a, last.t)
+            if (last) attach(last.el, last.a, last.t, last.hidden)
         }
       )
       dprWatch.watch(dpr)
@@ -186,7 +200,7 @@ export function createLoupeLayer(opts: LoupeLayerOptions): LoupeLayer {
   const stopLifted = opts.document._lifted.subscribe(() => {
     for (const lens of lenses.values()) {
       lens.key = undefined
-      if (lens.last) attach(lens.last.el, lens.last.a, lens.last.t)
+      if (lens.last) attach(lens.last.el, lens.last.a, lens.last.t, lens.last.hidden)
     }
   })
 
