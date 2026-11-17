@@ -1206,12 +1206,16 @@ describe('createOverlay', () => {
         return el.querySelector('svg[data-ink-hit] > polygon, svg[data-ink-hit] > rect')!
       })
       expect(hitAreas.map((h) => h.tagName)).toEqual(['polygon', 'rect'])
+      let joins: string[] = []
       const check = () => {
+        joins = []
         for (const [id, selector, fill, stroke] of shapes) {
           const shape = overlay.elementFor(id)!.querySelector(selector)
           expect(shape, `${selector} of ${id}`).not.toBeNull()
           const cs = getComputedStyle(shape!)
           expect([selector, cs.fill, cs.stroke]).toEqual([selector, fill, stroke])
+          if (selector === '[data-ink-hit-stroke]')
+            joins.push(`${id} ${cs.strokeLinejoin} ${cs.strokeLinecap}`)
         }
         for (const hit of hitAreas) {
           const cs = getComputedStyle(hit)
@@ -1219,10 +1223,13 @@ describe('createOverlay', () => {
         }
       }
       check()
-      // The same rule with priority important changes nothing either.
+      const plain = joins
+      expect(plain.length).toBeGreaterThan(0)
+      // The same rule with priority important, joins and caps included, changes nothing either.
       style.textContent =
-        'rect, circle, path, polyline, ellipse { fill: red !important; stroke: red !important; stroke-width: 9px !important }'
+        'rect, circle, path, polyline, polygon, ellipse { fill: red !important; stroke: red !important; stroke-width: 9px !important; stroke-linecap: square !important; stroke-linejoin: bevel !important }'
       check()
+      expect(joins).toEqual(plain)
     })
 
     it('a bubble below full opacity is one group: outline and text together', () => {

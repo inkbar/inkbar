@@ -111,6 +111,13 @@ function invisible(
       `fill:${fill}`,
       `stroke:${stroke}`,
       ...(width === undefined ? [] : [`stroke-width:${width}px`]),
+      // A press band's join and cap are inline too, as the caller set them or the default.
+      ...(width === undefined
+        ? []
+        : [
+            `stroke-linejoin:${el.getAttribute('stroke-linejoin') ?? 'miter'}`,
+            `stroke-linecap:${el.getAttribute('stroke-linecap') ?? 'butt'}`,
+          ]),
     ])
   )
 }
