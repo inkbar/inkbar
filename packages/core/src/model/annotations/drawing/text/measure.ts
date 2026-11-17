@@ -194,19 +194,21 @@ export function outsideTables(text: string): boolean {
   return false
 }
 
-/** One size for a wide character, half a size for any other, summed over the run. */
-export function fixedWidth(run: string, size: number): number {
+/**
+ * What a run costs with no browser: one size for a wide character, and for any other half a size,
+ * or the Courier advance in Courier, summed over the run.
+ */
+export function fixedWidth(run: string, font: TextFont, size: number): number {
+  const narrow = font.family === 'Courier' ? COURIER_ADVANCE * size : size / 2
   let width = 0
   for (const cluster of clusters(run)) {
     const [base, ...rest] = cluster
     // Zero-width characters (joiners, marks) take no room.
     if (isZeroWidth(base!) && rest.every(isZeroWidth)) continue
-    width += isWide(cluster) ? size : size / 2
+    width += isWide(cluster) ? size : narrow
   }
   return width
 }
 
 /** The measure with no browser: a fixed rule for what the tables lack. */
-export const standardMeasure: TextMeasure = measureWith((run, _font, size) =>
-  fixedWidth(run, size)
-)
+export const standardMeasure: TextMeasure = measureWith(fixedWidth)

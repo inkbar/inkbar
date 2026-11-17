@@ -42,6 +42,18 @@ describe('standardMeasure', () => {
     expect(standardMeasure.width('ж', helv, 12)).toEqual({ width: 6, outside: true })
   })
 
+  test('in Courier a narrow character outside the tables takes the Courier advance, and a wide one a full size', () => {
+    const courier: TextFont = { family: 'Courier', bold: false, italic: false }
+    const advance = (1229 / 2048) * 12
+    expect(standardMeasure.width('ж', courier, 12)).toEqual({
+      width: advance,
+      outside: true,
+    })
+    expect(standardMeasure.width('жжж', courier, 12).width).toBeCloseTo(3 * advance, 9)
+    expect(standardMeasure.width('日', courier, 12)).toEqual({ width: 12, outside: true })
+    expect(standardMeasure.width('жA', courier, 12).width).toBeCloseTo(2 * advance, 9)
+  })
+
   test('an emoji is one wide character, not two UTF-16 units', () => {
     expect(standardMeasure.width('🙂', helv, 12)).toEqual({ width: 12, outside: true })
   })

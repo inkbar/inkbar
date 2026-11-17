@@ -45,7 +45,7 @@ export function browserWidth(run: string, font: TextFont, size: number): number 
           ? null
           : (document.createElement('canvas').getContext('2d') ?? null)
     }
-    if (!context) return fixedWidth(run, size)
+    if (!context) return fixedWidth(run, font, size)
     context.font = css
     context.fontKerning = 'none'
     width = context.measureText(run).width
