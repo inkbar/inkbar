@@ -31,6 +31,15 @@ test('radii too small for the chord are scaled up, as SVG does', () => {
   )
   expect(cs.at(-1)!.to).toEqual({ x: 10, y: 0 })
   expect(cs.every((c) => Number.isFinite(c.c1.x + c.c1.y + c.c2.x + c.c2.y))).toBe(true)
+  // The radii grow by 5 to reach the chord, so the arc is the half circle of radius 5 about
+  // (5, 0): two quarter turns, the first ending at the top of the circle.
+  expect(cs).toHaveLength(2)
+  expect(cs[0]!.to.x).toBeCloseTo(5, 6)
+  expect(cs[0]!.to.y).toBeCloseTo(-5, 6)
+  expect(cs[0]!.c1.x).toBeCloseTo(0, 6)
+  expect(cs[0]!.c1.y).toBeCloseTo(-5 * 0.5523, 3)
+  expect(cs[0]!.c2.x).toBeCloseTo(5 - 5 * 0.5523, 3)
+  expect(cs[0]!.c2.y).toBeCloseTo(-5, 6)
 })
 
 test('a zero-length arc gives no cubics', () => {
