@@ -1508,6 +1508,43 @@ async function formFormat() {
   )
 }
 
+async function formChoices() {
+  const { d, font } = await doc()
+  const ctx = d.context
+  const page = d.addPage([612, 792])
+  text(page, font, ['Choices form'], 740)
+  const form = d.getForm()
+  const size = form.createOptionList('size')
+  size.setOptions(['S', 'M', 'L'])
+  size.select('M')
+  size.addToPage(page, { x: 72, y: 560, width: 120, height: 60 })
+  label(page, font, 'size (one option)', 72, 560, 60)
+  const colours = form.createOptionList('colours')
+  colours.setOptions(['red', 'green', 'blue'])
+  colours.enableMultiselect()
+  colours.select('red')
+  colours.addToPage(page, { x: 320, y: 560, width: 120, height: 60 })
+  label(page, font, 'colours (several, with /I)', 320, 560, 60)
+  form.updateFieldAppearances(font)
+  addHelv(d, form)
+  setDA(size, HELV_12)
+  setDA(colours, HELV_12)
+  // /I holds the selected options' positions; readers such as PDF.js read it before /V.
+  colours.acroField.dict.set(PDFName.of('I'), ctx.obj([0]))
+  await save(
+    'form-choices',
+    d,
+    {
+      pages: 1,
+      opens: true,
+      describes:
+        'Two list boxes: "size" takes one option (S, M, L; M selected), "colours" takes several (red, green, blue; red selected, with /I [0] beside /V)',
+      annotations: { Widget: 2 },
+    },
+    { appearances: false }
+  )
+}
+
 async function formTimer() {
   const { d, font } = await doc()
   const page = d.addPage([612, 792])
@@ -2176,6 +2213,7 @@ async function main() {
   await signedFixtures()
   await formRestricted()
   await formFormat()
+  await formChoices()
   await formTimer()
   await formUppercase()
   await formSharedScripted()

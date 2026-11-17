@@ -112,6 +112,32 @@ async function fieldValue(bytes: Uint8Array, name: string): Promise<unknown> {
   return (widgets as FieldObject[])[0]?.value
 }
 
+/**
+ * The text of object `number` from `obj` to `endobj`, in a file with no object streams. The last
+ * copy is the current one: an incremental update appends a new copy after the old.
+ */
+function objectOf(bytes: Uint8Array, number: number): string {
+  const text = latin1(bytes)
+  const starts = [...text.matchAll(new RegExp(`(?:^|\\s)${number} 0 obj\\b`, 'g'))]
+  const start = starts.at(-1)
+  if (!start) throw new Error(`no object ${number}`)
+  return text.slice(start.index, text.indexOf('endobj', start.index))
+}
+
+/**
+ * The data of stream object `number`: its /Length bytes after the `stream` keyword and its end of
+ * line. Writers differ in that end of line, which is not part of the data.
+ */
+function streamOf(bytes: Uint8Array, number: number): string {
+  const object = objectOf(bytes, number)
+  const length = /\/Length\s+(\d+)(?!\s+\d+\s+R)/.exec(object)
+  if (!length) throw new Error(`object ${number} has no direct /Length`)
+  const keyword = /stream\r?\n/.exec(object)
+  if (!keyword) throw new Error(`object ${number} is not a stream`)
+  const from = keyword.index + keyword[0].length
+  return object.slice(from, from + Number(length[1]))
+}
+
 /** The id PDF.js gives a field's widget, such as `11R`. */
 async function widgetId(bytes: Uint8Array, name: string, widget = 0): Promise<string> {
   const widgets = (await fieldObjects(bytes))[name] as FieldObject[]
@@ -251,6 +277,50 @@ describe('sets each kind of field', () => {
     ])
   })
 
+  test('sets a combo box with the text it shows', async () => {
+    const plain = await written('form-fields', { fields: { country: { value: 'fr' } } })
+    const shown = await expectField(
+      'form-fields',
+      'country',
+      { value: 'fr', text: 'France (FR)' },
+      'fr'
+    )
+    const id = await widgetId(shown, 'country')
+    expect(await drawing(shown, id)).not.toBe(await drawing(plain, id))
+  })
+
+  test('sets an editable combo box to text of its own', async () => {
+    await expectField('form-fields', 'city', { value: 'Leicester' }, 'Leicester')
+  })
+
+  test("writes a list box's selected positions", async () => {
+    const saved = await written('form-fields', {
+      fields: { interests: { value: ['poetry', 'maths'] } },
+    })
+    expect(await annotationValue(saved, 'interests')).toEqual(['poetry', 'maths'])
+    expect(objectOf(saved, 69)).toMatch(/\/T\s*<FEFF0069006E/)
+    expect(objectOf(saved, 69)).toMatch(/\/I\s*\[\s*0\s+2\s*\]/)
+  })
+
+  test('replaces positions the file already holds, which PDF.js reads first', async () => {
+    const before = await fixtureBytes('form-choices')
+    expect(await annotationValue(before, 'colours')).toEqual(['red'])
+    const saved = await written('form-choices', {
+      fields: { colours: { value: ['green', 'blue'] } },
+    })
+    expect(await annotationValue(saved, 'colours')).toEqual(['green', 'blue'])
+  })
+
+  test('sets a list box that takes one option', async () => {
+    await expectField('form-choices', 'size', { value: ['L'] }, ['L'])
+  })
+
+  test('clears a list box with an empty list', async () => {
+    const one = await written('form-choices', { fields: { colours: { value: [] } } })
+    expect(await annotationValue(one, 'colours')).toEqual([])
+    expect(await fieldValue(one, 'colours')).toBeNull()
+  })
+
   test('sets a field by its full name', async () => {
     await expectField('form-fields', 'header.ref', { value: 'REF-0043' }, 'REF-0043')
   })
@@ -272,33 +342,36 @@ test('shows the formatted text', async () => {
 })
 
 describe("keeps untouched fields' appearances", () => {
-  /** The bytes between `stream` and `endstream` of object `number`, in a file with no object streams. */
-  function streamOf(bytes: Uint8Array, number: number): string {
-    const text = latin1(bytes)
-    const start = new RegExp(`(?:^|\\s)${number} 0 obj\\b`).exec(text)
-    if (!start) throw new Error(`no object ${number}`)
-    const from = text.indexOf('stream', start.index)
-    return text.slice(from, text.indexOf('endstream', from))
-  }
-
   /** The object number of a field widget's normal appearance. */
   async function appearanceOf(bytes: Uint8Array, name: string): Promise<number> {
     const widgets = (await fieldObjects(bytes))[name] as FieldObject[]
     const widget = Number.parseInt((widgets[0] as FieldObject).id, 10)
-    const text = latin1(bytes)
-    const start = new RegExp(`(?:^|\\s)${widget} 0 obj\\b`).exec(text)
-    if (!start) throw new Error(`no object ${widget}`)
-    const dict = text.slice(start.index, text.indexOf('endobj', start.index))
-    const ref = /\/AP\s*<<\s*\/N\s+(\d+)\s+0\s+R/.exec(dict)
+    const ref = /\/AP\s*<<\s*\/N\s+(\d+)\s+0\s+R/.exec(objectOf(bytes, widget))
     if (!ref) throw new Error(`${name} has no /AP /N reference`)
     return Number(ref[1])
   }
 
+  let before: Uint8Array
+  let saved: Uint8Array
+  beforeAll(async () => {
+    before = await fixtureBytes('form-fields')
+    saved = await written(
+      'form-fields',
+      { fields: { name: { value: 'Ada' } } },
+      { mode: 'rewrite' }
+    )
+  })
+
+  test('the written field draws anew, so the probe sees a change', async () => {
+    const was = await appearanceOf(before, 'name')
+    const now = await appearanceOf(saved, 'name')
+    const changed = now !== was || streamOf(saved, now) !== streamOf(before, was)
+    expect(changed).toBe(true)
+  })
+
   test.each(['notes', 'locked', 'city', 'country'])(
     '%s keeps its appearance stream when only name is written',
     async (other) => {
-      const before = await fixtureBytes('form-fields')
-      const saved = await written('form-fields', { fields: { name: { value: 'Ada' } } })
       const number = await appearanceOf(before, other)
       expect(await appearanceOf(saved, other)).toBe(number)
       expect(streamOf(saved, number)).toBe(streamOf(before, number))
@@ -306,7 +379,7 @@ describe("keeps untouched fields' appearances", () => {
   )
 })
 
-test('writes into a file that forbids it', async () => {
+test('a file whose permissions forbid annotating and form filling takes both', async () => {
   const saved = await written('form-restricted', {
     annotations: [square('allowed')],
     fields: { name: { value: 'Ada' }, agree: { value: 'Yes' } },
@@ -352,11 +425,16 @@ describe('saves a signed file incrementally', () => {
     expect(Buffer.from(saved.subarray(0, opened.length)).equals(opened)).toBe(false)
   })
 
-  test('an unsigned file with no mode is rewritten', async () => {
-    const opened = await fixtureBytes('acroform-basic')
-    const saved = await written('acroform-basic', { fields: { name: { value: 'Ada' } } })
-    expect(Buffer.from(saved.subarray(0, opened.length)).equals(opened)).toBe(false)
-  })
+  test.each(['acroform-basic', 'form-fields'] as const)(
+    '%s, unsigned, with no mode is rewritten',
+    async (name) => {
+      // form-fields has two signature fields, both empty: places to sign, not signatures.
+      const opened = await fixtureBytes(name)
+      const saved = await written(name, { fields: { name: { value: 'Ada' } } })
+      expect(Buffer.from(saved.subarray(0, opened.length)).equals(opened)).toBe(false)
+      expect(latin1(saved).match(/%%EOF/g)).toHaveLength(1)
+    }
+  )
 })
 
 describe('rejects a field it cannot write', () => {
@@ -369,10 +447,20 @@ describe('rejects a field it cannot write', () => {
     ['shown text for a checkbox', 'agree', { value: 'Yes', text: 'yes' }],
     ['a push button', 'reset', { value: 'x' }],
     ['a signature field', 'sig', { value: 'x' }],
-  ] satisfies [string, string, WriteField][])(
+    ['a combo value that is not an option', 'country', { value: 'de' }],
+    ['a combo label rather than its export value', 'country', { value: 'France' }],
+    ['a list box value that is not an option', 'interests', { value: ['maths', 'art'] }],
+    ['shown text for a list box', 'interests', { value: ['maths'], text: 'Maths' }],
+    [
+      'two options for a list box that takes one',
+      'size',
+      { value: ['S', 'L'] },
+      'form-choices',
+    ],
+  ] satisfies [string, string, WriteField, FixtureName?][])(
     'rejects %s with write-failed, naming the field',
-    async (_, name, field) => {
-      const doc = await engine.open(await fixtureBytes('form-fields'))
+    async (_, name, field, fixture?: FixtureName) => {
+      const doc = await engine.open(await fixtureBytes(fixture ?? 'form-fields'))
       try {
         const failed = doc.write({ fields: { [name]: field } })
         await expect(failed).rejects.toMatchObject({
@@ -426,12 +514,18 @@ describe('frees what it allocates', () => {
   async function counted() {
     const native = await loadNative({ wasm })
     const live = { blocks: new Set<number>(), models: new Set<number>(), documents: 0 }
+    /** Every document a load returned, and every owner-permission call, in order. */
+    const loads: number[] = []
+    const permissions: [number, number, number][] = []
     const fn = new Proxy(native.fn, {
       get(target, key: keyof Native) {
         const real = target[key] as (...args: number[]) => number
         return (...args: number[]) => {
+          const [first = 0, second = 0] = args
           const result = real(...args)
-          const [first = 0] = args
+          if (key === 'EPDF_SetRuntimeOwnerPermissions')
+            permissions.push([first, second, result])
+          if (key === 'FPDF_LoadMemDocument64' && result) loads.push(result)
           if (key === 'malloc') live.blocks.add(result)
           else if (key === 'free') live.blocks.delete(first)
           else if (key === 'EPDFForm_LoadModel' && result) live.models.add(result)
@@ -448,8 +542,25 @@ describe('frees what it allocates', () => {
       models: live.models.size,
       documents: live.documents,
     })
-    return { core, snapshot }
+    return { core, snapshot, loads, permissions }
   }
+
+  test('gives owner permissions to every load: open, the reload for a write, the reopen after a failed one', async () => {
+    const { core, loads, permissions } = await counted()
+    try {
+      const { id } = core.open(await fixtureBytes('form-restricted'))
+      core.write(id, { fields: { name: { value: 'Ada' } } })
+      expect(() => core.write(id, { fields: { nope: { value: 'x' } } })).toThrow(
+        EngineError
+      )
+      // Open, the first write's reload, the failed write's reload, then the reopen.
+      expect(loads).toHaveLength(4)
+      // [document, enabled, returned]: the encrypted file takes the change every time.
+      expect(permissions).toEqual(loads.map((doc) => [doc, 1, 1]))
+    } finally {
+      core.destroy()
+    }
+  })
 
   test.each([
     [

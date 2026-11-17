@@ -94,6 +94,7 @@ const FORMS = {
   'signed-encrypted': { widgets: 2, fields: ['name', 'sig'] },
   'form-restricted': { widgets: 2, fields: ['agree', 'name'] },
   'form-format': { widgets: 1, fields: ['amount'] },
+  'form-choices': { widgets: 2, fields: ['colours', 'size'] },
   'form-timer': { widgets: 2, fields: ['note', 'ticker'] },
   'form-uppercase': { widgets: 1, fields: ['code'] },
   'form-shared-scripted': { widgets: 2, fields: ['shared'] },

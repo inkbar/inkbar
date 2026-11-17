@@ -83,8 +83,9 @@ export type SaveMode = 'rewrite' | 'incremental'
 /** Options for `EngineDocument.save`. */
 export interface SaveOptions {
   /**
-   * Default `'incremental'` when the document has a signature field, so a signature stays
-   * verifiable, and `'rewrite'` otherwise.
+   * Default `'incremental'` when the document holds a digital signature, so the signature stays
+   * verifiable, and `'rewrite'` otherwise. An empty signature field, still to be signed, does not
+   * count.
    */
   mode?: SaveMode
 }
@@ -161,9 +162,11 @@ export interface WriteAnnotation {
  */
 export interface WriteField {
   /**
-   * The field's value. A string for a text field or a combo box. For a checkbox or a radio
+   * The field's value. A string for a text field or a combo box: one of the combo's options'
+   * export values, or any text when the combo takes text of its own. For a checkbox or a radio
    * group, the state name of the button to turn on, or `'Off'` for none. For a list box, the
-   * selected options' export values, as a list.
+   * selected options' export values, as a list: at most one unless it takes several, and an
+   * empty list for none.
    */
   value: string | readonly string[]
   /**

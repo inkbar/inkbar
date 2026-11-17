@@ -2,7 +2,7 @@ import { ArgumentError, EngineError, fromPdfiumError } from '../errors.ts'
 
 import { writeAnnotation } from './annotations.ts'
 import { checkAppearance } from './appearance.ts'
-import { writeFields } from './fields.ts'
+import { hasSignature, writeFields } from './fields.ts'
 import { FUNCTIONS } from './functions.ts'
 
 import type {
@@ -160,7 +160,8 @@ export class EngineCore {
     }
     if (doc === 0) throw fromPdfiumError(fn.FPDF_GetLastError(), password !== undefined)
     // Writing ignores the file's permission flags, so every handle has owner permissions: parts
-    // of PDFium that consult them would otherwise skip a write the caller asked for.
+    // of PDFium that consult them would otherwise skip a write the caller asked for. The call
+    // returns false only for a file with no encryption, which has no permission flags to lift.
     fn.EPDF_SetRuntimeOwnerPermissions(doc, 1)
     return doc
   }
@@ -260,7 +261,7 @@ export class EngineCore {
     })
   }
 
-  /** Saves with `mode`, or with none: incrementally when the file has a signature field. */
+  /** Saves with `mode`, or with none: incrementally when the file holds a digital signature. */
   save(id: number, mode: SaveMode | undefined): Uint8Array {
     const entry = this.#get(id)
     return this.#guard(() => this.#save(entry, mode))
@@ -269,7 +270,7 @@ export class EngineCore {
   #save(entry: OpenDocument, mode: SaveMode | undefined): Uint8Array {
     const fn = this.#fn
     const chosen =
-      mode ?? (fn.FPDF_GetSignatureCount(entry.doc) > 0 ? 'incremental' : 'rewrite')
+      mode ?? (hasSignature(this.#heap, entry.doc) ? 'incremental' : 'rewrite')
     const writer = fn.INK_Save(entry.doc, SAVE_FLAGS[chosen])
     if (writer === 0)
       throw new EngineError('engine-failure', 'The document could not be saved.')

@@ -63,8 +63,9 @@ export interface EngineDocument {
   /**
    * Writes the document to a new buffer that belongs to the caller. `'rewrite'` writes a
    * complete file. `'incremental'` returns the original bytes with the changes appended, so a
-   * signature over them can still be verified. With no mode, a document with a signature field
-   * is saved incrementally and any other is rewritten. Saving keeps the document's encryption.
+   * signature over them can still be verified. With no mode, a document that holds a digital
+   * signature is saved incrementally and any other is rewritten; an empty signature field, still
+   * to be signed, does not count. Saving keeps the document's encryption.
    */
   save(options?: SaveOptions): Promise<Uint8Array>
   /**

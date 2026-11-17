@@ -32,6 +32,7 @@ export const FIXTURE_NAMES = [
   'signed-encrypted',
   'form-restricted',
   'form-format',
+  'form-choices',
   'form-timer',
   'form-uppercase',
   'form-shared-scripted',

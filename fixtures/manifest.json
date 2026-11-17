@@ -258,6 +258,15 @@
       "Widget": 1
     }
   },
+  "form-choices": {
+    "file": "form-choices.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Two list boxes: \"size\" takes one option (S, M, L; M selected), \"colours\" takes several (red, green, blue; red selected, with /I [0] beside /V)",
+    "annotations": {
+      "Widget": 2
+    }
+  },
   "form-timer": {
     "file": "form-timer.pdf",
     "pages": 1,
