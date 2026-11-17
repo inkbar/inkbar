@@ -19,6 +19,8 @@ const unforced = !forcedMode && !forcedClasses
 describe('classOf', () => {
   it.each([
     ['\u{1f642}', 'emoji'],
+    ['1\ufe0f', 'emoji'],
+    ['\u00a9\ufe0f', 'emoji'],
     ['\u{1f44b}\u{1f3fd}', 'emoji-modifier'],
     ['\u{1f468}‍\u{1f469}‍\u{1f467}', 'emoji-sequence'],
     ['❤‍\u{1f525}', 'emoji-sequence'],
@@ -55,18 +57,22 @@ describe('classesIn', () => {
   })
 })
 
+const check = checkTextFonts()
+
 describe('checkTextFonts', () => {
-  it.skipIf(!unforced)('probes every class in every font stack', () => {
-    const check = checkTextFonts()
-    for (const name of TEXT_CLASSES)
-      expect(
-        check.probes.filter((p) => p.class === name).map((p) => p.family),
-        name
-      ).toEqual(['Helvetica', 'Times', 'Courier'])
-  })
+  // A machine whose Latin fonts are foreign probes nothing, and that is a valid result.
+  it.skipIf(!unforced || check.mode === 'foreign')(
+    'probes every class in every font stack',
+    () => {
+      for (const name of TEXT_CLASSES)
+        expect(
+          check.probes.filter((p) => p.class === name).map((p) => p.family),
+          name
+        ).toEqual(['Helvetica', 'Times', 'Courier'])
+    }
+  )
 
   it.skipIf(!unforced)('is exact only when no class differs', () => {
-    const check = checkTextFonts()
     expect(check.mode === 'exact').toBe(check.differing.size === 0)
   })
 
@@ -82,7 +88,6 @@ describe('checkTextFonts', () => {
   )
 
   it.skipIf(!unforced)('names only the classes that differ in the log line', () => {
-    const check = checkTextFonts()
     if (check.mode !== 'by-cause') return
     for (const name of TEXT_CLASSES)
       expect(check.why.includes(`${name}:`), name).toBe(check.differing.has(name))
@@ -95,13 +100,12 @@ describe('outsideRunsDiffer', () => {
   it.skipIf(forcedMode !== undefined)(
     'is false for the runs the layout measures as the browser draws them',
     () => {
-      expect(outsideRunsDiffer('Order 42 日本語 and 🙂', font, 18, '日本語🙂')).toBe(
-        false
-      )
+      expect(outsideRunsDiffer(['Order 42 日本語 and 🙂'], font, 18)).toBe(false)
     }
   )
 
-  it('looks only at runs with a character of the lines it is asked about', () => {
-    expect(outsideRunsDiffer('plain', font, 18, '日')).toBe(false)
+  it('has no run to differ in lines that only use the tables', () => {
+    expect(outsideRunsDiffer(['plain text', ''], font, 18)).toBe(false)
+    expect(outsideRunsDiffer([], font, 18)).toBe(false)
   })
 })

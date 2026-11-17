@@ -74,7 +74,7 @@ const CLASS_TESTS: [TextClass, RegExp][] = [
   ['flag', /\p{Regional_Indicator}/u],
   ['emoji-modifier', /\p{Emoji_Modifier}/u],
   ['emoji-sequence', /\p{Extended_Pictographic}[^]*\u200d[^]*\p{Extended_Pictographic}/u],
-  ['emoji', /[\p{Extended_Pictographic}\p{Emoji_Presentation}]/u],
+  ['emoji', /[\p{Extended_Pictographic}\p{Emoji_Presentation}]|\p{Emoji}\ufe0f/u],
   ['cjk-punctuation', /^(?![\p{L}\p{N}])[\u3000-\u303f\uff00-\uffef]/u],
   ['han', /^\p{Script=Han}/u],
   ['hiragana', /^\p{Script=Hiragana}/u],
@@ -241,6 +241,12 @@ export function checkTextFonts(
   texts?: readonly string[],
   differ: readonly TextClass[] = []
 ): TextFontCheck {
+  // A character of no class throws whatever the mode, so a sample cannot go unprobed anywhere.
+  const own = new Map<TextClass, string>()
+  for (const text of texts ?? [])
+    for (const [name, chars] of outsideCharacters(text))
+      own.set(name, (own.get(name) ?? '') + chars)
+
   const forced = (import.meta.env as Record<string, string | undefined>)[
     'VITE_INKBAR_TEXT_FONTS'
   ]
@@ -289,17 +295,13 @@ export function checkTextFonts(
     }
 
   const wanted = new Set<TextClass>(TEXT_CLASSES)
-  const own = new Map<TextClass, string>()
-  if (texts)
-    for (const text of texts)
-      for (const [name, chars] of outsideCharacters(text))
-        own.set(name, (own.get(name) ?? '') + chars)
-
   const probes: ClassProbe[] = []
   for (const name of wanted) {
     const { text, recorded } = PROBES[name]
     // The probe, and the characters of this class the texts use, so a sample is probed as it is.
-    const chars = [...new Set([...text, ...(own.get(name) ?? '')])].join('')
+    const chars = [
+      ...new Set([...clusters(text), ...clusters(own.get(name) ?? '')]),
+    ].join('')
     const gap = contextGap(chars)
     FAMILIES.forEach((family, i) => {
       const font: TextFont = { family, bold: false, italic: false }
@@ -333,26 +335,25 @@ export function checkTextFonts(
 }
 
 /**
- * Whether the browser draws a run of `text` outside the tables in another width than the layout
- * measured for it. Only runs with a character in `chars` count, so a mismatch is blamed on the runs
- * of the lines it concerns. This is the cause of a different break by itself: whatever the font
- * or the missing font, the layout's width of the run is not the browser's.
+ * Whether the browser draws a run outside the tables in `lines` (the lines a mismatch concerns,
+ * with their spaces) in another width than the layout measured for it. Only these lines are
+ * looked at, so an unrelated run elsewhere cannot explain a mismatch. This is the cause of a
+ * different break by itself: whatever the font or the missing font, the layout's width of the run
+ * is not the browser's.
  */
 export function outsideRunsDiffer(
-  text: string,
+  lines: readonly string[],
   font: TextFont,
-  size: number,
-  chars: string
+  size: number
 ): boolean {
   const runs: string[] = []
-  measureWith((run, f, s) => {
+  const recording = measureWith((run, f, s) => {
     runs.push(run)
     return browserWidth(run, f, s)
-  }).width(text, font, size)
-  const wanted = new Set(clusters(chars.normalize('NFC')))
+  })
+  for (const line of lines) recording.width(line, font, size)
   return runs.some(
     (run) =>
-      clusters(run).some((c) => wanted.has(c)) &&
       Math.abs(domWidth(run, size, font) - browserWidth(run, font, size)) >= RUN_TOLERANCE
   )
 }

@@ -97,7 +97,11 @@ const PICTOGRAPHIC = /^\p{Extended_Pictographic}/u
 
 /** A base that takes a skin tone, followed by one: drawn as one emoji whether or not the base is an emoji by default (a weightlifter, a pointing hand). */
 const MODIFIED = /^\p{Emoji_Modifier_Base}\p{Emoji_Modifier}/u
-/** Pictographs joined by a zero-width joiner (a rainbow flag, a heart on fire): drawn as one emoji if the font has the sequence, even when the first is a symbol by default. */
+/**
+ * Pictographs joined by a zero-width joiner (a rainbow flag, a heart on fire). The estimate with no
+ * browser assumes a joined sequence is one glyph, as it is where the font has the sequence; a
+ * browser measures the real thing, so a sequence it cannot join is only misestimated here.
+ */
 const JOINED = /^\p{Extended_Pictographic}\ufe0f?\u200d\p{Extended_Pictographic}/u
 
 /** East Asian Wide or Fullwidth, or an emoji. */
