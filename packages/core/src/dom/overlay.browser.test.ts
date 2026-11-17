@@ -21,7 +21,7 @@ import { oneOfEach } from '../test-support/annotations'
 import { drawContext } from './drawing-context'
 import { createMessageState } from './messages-state'
 import { createOverlay, type OverlayOptions } from './overlay'
-import { handleBox, renderAnnotationContent } from './overlay-render'
+import { handleBox, renderAnnotationContent, renderHitArea } from './overlay-render'
 import { createPageMount } from './page-mount'
 import { mountContainer, openFixtureInBrowser, TEXT_LAYER_CSS } from './test-utils'
 import { FONT_STACKS } from './text-fonts'
@@ -936,7 +936,10 @@ describe('createOverlay', () => {
         [data-type=freetext] text { font-family: cursive; fill: red; font-size: 40px }
         [data-type=freetext] line { stroke: red }
         [data-type=freetext] rect { fill: red; stroke: red }
-        svg rect { fill: currentColor }`
+        svg rect { fill: currentColor }
+        [data-type=freetext] text { fill: red !important; font-family: cursive !important; font-size: 40px !important }
+        [data-type=freetext] line { stroke: red !important }
+        [data-type=freetext] rect { fill: red !important; stroke: red !important }`
       document.head.append(style)
       cleanup.push(() => style.remove())
       const { el, host } = drawn(
@@ -971,12 +974,19 @@ describe('createOverlay', () => {
       const ctx = canvas.getContext('2d', { willReadFrequently: true })!
       ctx.drawImage(bitmap, 0, 0)
       // Box {100, 600, 200 x 60}: css left 100, top 792 - 660 = 132. "Hello" is 12 px type at its
-      // top-left.
+      // top-left. Each pixel is blue or red or neither: how many glyph pixels there are depends
+      // on anti-aliasing and the pixel ratio, so the count is logged, and only the kind decides.
       const { data } = ctx.getImageData(100, 132, 32, 14)
       let blue = 0
-      for (let i = 0; i < data.length; i += 4)
-        if (data[i + 2]! > 150 && data[i]! < 100 && data[i + 1]! < 100) blue++
-      expect(blue).toBeGreaterThan(20)
+      let red = 0
+      for (let i = 0; i < data.length; i += 4) {
+        const [r, g, b] = [data[i]!, data[i + 1]!, data[i + 2]!]
+        if (b - Math.max(r, g) > 60) blue++
+        else if (r - Math.max(g, b) > 60) red++
+      }
+      console.log(`[host-rule] text box pixels: blue ${blue}, red ${red}`)
+      expect(red).toBe(0)
+      expect(blue).toBeGreaterThan(0)
     })
 
     it('every drawn shape keeps its paint under a host rule on svg shapes, notes included', () => {
@@ -1156,12 +1166,56 @@ describe('createOverlay', () => {
         'none',
         clear
       )
+      add(
+        {
+          type: 'polygon',
+          page: 0,
+          rect: { x: 100, y: 100, width: 80, height: 60 },
+          vertices: [
+            { x: 100, y: 100 },
+            { x: 180, y: 100 },
+            { x: 140, y: 160 },
+          ],
+          width: 2,
+        } as never,
+        '[data-ink-hit-stroke]',
+        'none',
+        clear
+      )
+      add(
+        {
+          type: 'circle',
+          page: 0,
+          rect: { x: 300, y: 100, width: 80, height: 60 },
+          width: 2,
+        } as never,
+        '[data-ink-hit-stroke]',
+        'none',
+        clear
+      )
+      // The hit areas of annotations the overlay does not draw: one polygon to a quad, or a rect.
+      const t = createPageTransform(page, 1, 0)
+      const hitAreas = [
+        { type: 'highlight', page: 0, rect, quads: [quads[0]!] },
+        { type: 'square', page: 0, rect, width: 2 },
+      ].map((input) => {
+        const el = document.createElement('div')
+        renderHitArea(el, store.add(input as never), t)
+        document.body.append(el)
+        cleanup.push(() => el.remove())
+        return el.querySelector('svg[data-ink-hit] > polygon, svg[data-ink-hit] > rect')!
+      })
+      expect(hitAreas.map((h) => h.tagName)).toEqual(['polygon', 'rect'])
       const check = () => {
         for (const [id, selector, fill, stroke] of shapes) {
           const shape = overlay.elementFor(id)!.querySelector(selector)
           expect(shape, `${selector} of ${id}`).not.toBeNull()
           const cs = getComputedStyle(shape!)
           expect([selector, cs.fill, cs.stroke]).toEqual([selector, fill, stroke])
+        }
+        for (const hit of hitAreas) {
+          const cs = getComputedStyle(hit)
+          expect([hit.tagName, cs.fill, cs.stroke]).toEqual([hit.tagName, clear, 'none'])
         }
       }
       check()
