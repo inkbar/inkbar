@@ -4,6 +4,18 @@ export interface OpenOptions {
   password?: string
 }
 
+/** A rectangle in PDF user space: points, origin at the bottom left, before /Rotate. */
+export interface Rect {
+  /** Left edge. */
+  x: number
+  /** Bottom edge. */
+  y: number
+  /** Width, from `x` to the right. */
+  width: number
+  /** Height, from `y` upward. */
+  height: number
+}
+
 /**
  * A page's size and rotation. Sizes are in PDF points (1/72 inch) and describe the page box
  * PDFium reports: the crop box intersected with the media box, or the media box when the page has
@@ -17,6 +29,11 @@ export interface PageInfo {
   height: number
   /** The page's /Rotate entry in degrees clockwise, reduced to 0, 90, 180 or 270. */
   rotation: 0 | 90 | 180 | 270
+  /**
+   * The page box in PDF user space, before /Rotate: where `width` by `height` sits on the page's
+   * coordinate plane. Its origin is the corner of the crop box, so it is not always (0, 0).
+   */
+  box: Rect
 }
 
 /** Options for `EngineDocument.renderPage`. */
@@ -31,6 +48,11 @@ export interface RenderOptions {
    * may still resolve or reject; the signal no longer affects it.
    */
   signal?: AbortSignal
+  /**
+   * Draw the page's annotations. Default true. With false only the page's own content is drawn,
+   * so a caller that paints annotations itself does not draw them twice.
+   */
+  annotations?: boolean
 }
 
 /**
@@ -60,4 +82,43 @@ export type SaveMode = 'rewrite' | 'incremental'
 export interface SaveOptions {
   /** Default `'rewrite'`. */
   mode?: SaveMode
+}
+
+/** One of the twelve core faces every PDF reader provides, by name. */
+export type StandardFont =
+  | 'Helvetica'
+  | 'Helvetica-Bold'
+  | 'Helvetica-Oblique'
+  | 'Helvetica-BoldOblique'
+  | 'Times-Roman'
+  | 'Times-Bold'
+  | 'Times-Italic'
+  | 'Times-BoldItalic'
+  | 'Courier'
+  | 'Courier-Bold'
+  | 'Courier-Oblique'
+  | 'Courier-BoldOblique'
+
+/**
+ * How an annotation looks: a rectangle of drawing operators and the resources they name.
+ * Everything is in PDF user space, in points, origin at the bottom left, before /Rotate.
+ */
+export interface Appearance {
+  /** The area the drawing fills, in the page's user space. */
+  bounds: Rect
+  /** PDF drawing operators. They paint inside `bounds` and may name the resources below. */
+  content: Uint8Array
+  /** Fonts the operators use, keyed by the name they call each one. */
+  fonts?: Record<string, StandardFont>
+  /** Opacity settings the operators use, keyed by name. Each value is from 0 to 1. */
+  opacities?: Record<string, { fill?: number; stroke?: number }>
+  /** Images the operators paint, keyed by name. */
+  images?: Record<string, { format: 'png' | 'jpeg'; data: Uint8Array }>
+  /** Pages of the same document whose content the operators paint, as name to page index. */
+  pages?: Record<string, number>
+  /**
+   * Nested drawings the operators paint, keyed by name. One with `group` set is drawn as a unit,
+   * as a transparency group, so overlapping parts blend as one picture.
+   */
+  forms?: Record<string, Appearance & { group?: boolean }>
 }

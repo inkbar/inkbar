@@ -36,7 +36,12 @@ test('runs in a worker: open, inspect, render, save', async () => {
   const doc = await engine.open(bytes)
   expect(bytes.byteLength).toBe(length) // not detached
   expect(doc.pageCount).toBe(3)
-  expect(await doc.pageInfo(0)).toEqual({ width: 612, height: 792, rotation: 0 })
+  expect(await doc.pageInfo(0)).toEqual({
+    width: 612,
+    height: 792,
+    rotation: 0,
+    box: { x: 0, y: 0, width: 612, height: 792 },
+  })
   const page = await doc.renderPage(0)
   expect(page).toMatchObject({ width: 612, height: 792 })
   expect(page.data.some((v, i) => i % 4 !== 3 && v !== 255)).toBe(true)
@@ -251,7 +256,12 @@ test('a worker error rejects every pending call and terminates the worker', asyn
 test('worker: false runs in the page thread', async () => {
   const engine = await start({ worker: false, wasm })
   const doc = await engine.open(await fixture('text-simple'))
-  expect(await doc.pageInfo(0)).toEqual({ width: 612, height: 792, rotation: 0 })
+  expect(await doc.pageInfo(0)).toEqual({
+    width: 612,
+    height: 792,
+    rotation: 0,
+    box: { x: 0, y: 0, width: 612, height: 792 },
+  })
   expect((await doc.renderPage(0)).width).toBe(612)
 })
 
@@ -279,7 +289,7 @@ test('the built package finds its worker and wasm by default', async () => {
   const engine = await createBuilt()
   engines.push(engine)
   const doc = await engine.open(await fixture('text-simple'))
-  expect(await doc.pageInfo(2)).toEqual({ width: 612, height: 792, rotation: 0 })
+  expect(await doc.pageInfo(2)).toMatchObject({ width: 612, height: 792, rotation: 0 })
   expect((await doc.renderPage(0)).width).toBe(612)
 })
 

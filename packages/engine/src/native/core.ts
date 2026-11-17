@@ -2,12 +2,13 @@ import { EngineError, fromPdfiumError } from '../errors.ts'
 
 import { FUNCTIONS } from './functions.ts'
 
-import type { OpenOptions, PageInfo, RenderedPage, SaveMode } from '../types.ts'
+import type { OpenOptions, PageInfo, Rect, RenderedPage, SaveMode } from '../types.ts'
 import type { Native } from './functions.ts'
 import type { NativeModule } from './module.ts'
 
 const BITMAP_BGRA = 4
-const RENDER_FLAGS = 0x01 | 0x10 // FPDF_ANNOT | FPDF_REVERSE_BYTE_ORDER
+const FPDF_ANNOT = 0x01
+const FPDF_REVERSE_BYTE_ORDER = 0x10
 const SAVE_FLAGS: Record<SaveMode, number> = { incremental: 1, rewrite: 2 }
 const MAX_PIXELS = 268_435_456
 
@@ -147,32 +148,60 @@ export class EngineCore {
           width: turned ? height : width,
           height: turned ? width : height,
           rotation: rotation as PageInfo['rotation'],
+          box: this.#pageBox(page),
         }
       })
     )
   }
 
-  renderPage(id: number, index: number, scale: number): RenderedPage {
+  /** The page box in PDF user space, from PDFium's FS_RECTF (left, top, right, bottom). */
+  #pageBox(page: number): Rect {
+    const fn = this.#fn
+    const rect = fn.malloc(16)
+    if (rect === 0)
+      throw new EngineError('out-of-memory', 'The engine ran out of memory.')
+    try {
+      if (!fn.FPDF_GetPageBoundingBox(page, rect))
+        throw new EngineError('engine-failure', 'The page box could not be read.')
+      const at = rect / 4
+      const heap = this.#native.HEAPF32
+      const left = heap[at] as number
+      const top = heap[at + 1] as number
+      const right = heap[at + 2] as number
+      const bottom = heap[at + 3] as number
+      return { x: left, y: bottom, width: right - left, height: top - bottom }
+    } finally {
+      if (!this.#stopped) fn.free(rect)
+    }
+  }
+
+  renderPage(id: number, index: number, scale: number, annotations = true): RenderedPage {
     const entry = this.#get(id)
     this.#checkIndex(entry, index)
     if (!Number.isFinite(scale) || scale <= 0)
       throw new ArgumentError('scale must be a finite number above 0')
-    return this.#guard(() => this.#render(entry, index, scale))
+    return this.#guard(() => this.#render(entry, index, scale, annotations))
   }
 
-  #render(entry: OpenDocument, index: number, scale: number): RenderedPage {
+  #render(
+    entry: OpenDocument,
+    index: number,
+    scale: number,
+    annotations: boolean
+  ): RenderedPage {
     return this.#withPage(entry, index, (page) => {
       const fn = this.#fn
       const width = Math.ceil(fn.FPDF_GetPageWidthF(page) * scale)
       const height = Math.ceil(fn.FPDF_GetPageHeightF(page) * scale)
       if (width < 1 || height < 1 || width * height > MAX_PIXELS)
         throw new ArgumentError('the rendered page would be too large')
+      const flags = (annotations ? FPDF_ANNOT : 0) | FPDF_REVERSE_BYTE_ORDER
       const bitmap = fn.FPDFBitmap_CreateEx(width, height, BITMAP_BGRA, 0, 0)
       if (bitmap === 0)
         throw new EngineError('out-of-memory', 'The engine ran out of memory.')
       try {
         fn.FPDFBitmap_FillRect(bitmap, 0, 0, width, height, 0xffffffff)
-        fn.FPDF_RenderPageBitmap(bitmap, page, 0, 0, width, height, 0, RENDER_FLAGS)
+        fn.FPDF_RenderPageBitmap(bitmap, page, 0, 0, width, height, 0, flags)
         const stride = fn.FPDFBitmap_GetStride(bitmap)
         const buffer = fn.FPDFBitmap_GetBuffer(bitmap)
         const heap = this.#native.HEAPU8
