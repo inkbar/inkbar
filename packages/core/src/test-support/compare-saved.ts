@@ -33,6 +33,11 @@ export const MAX_DIFFERING = 0.02
  * differ there on the page as opened: past it, the comparison would be checking too little.
  */
 export const MAX_EXCLUDED = 0.15
+/**
+ * The least of an annotation's pixels the pixel comparison must count (not left out for a
+ * position check, not excluded for the page's sake): below it, it would be checking too little.
+ */
+export const MIN_COUNTED = 0.25
 
 /** Straight RGBA, rows top to bottom, as the engine renders and `getImageData` reads. */
 export interface Pixels {
@@ -286,14 +291,15 @@ function apart(a: Pixels, i: number, b: Pixels, j: number): boolean {
  * more than `CHANNEL_THRESHOLD` in any channel. A pixel where the two already differ on the page
  * as it was opened is not counted: that is how each reader draws the page's own content (its
  * text above all), which saving does not change; `excluded` is the part left out so. Nor is a
- * pixel in `leaveOut` counted, which a caller checks another way.
+ * pixel in `leaveOut` counted, which a caller checks another way. `counted` is the part of the
+ * region the comparison did look at.
  */
 export function differing(
   a: Reading,
   b: Reading,
   region: PixelRect,
   leaveOut: readonly PixelRect[] = []
-): { share: number; excluded: number } {
+): { share: number; excluded: number; counted: number } {
   for (const p of [a.base, b.base, b.page])
     if (p.width !== a.page.width || p.height !== a.page.height)
       throw new Error(
@@ -309,6 +315,7 @@ export function differing(
   let total = 0
   let over = 0
   let excluded = 0
+  let counted = 0
   for (let y = r.top; y < r.bottom; y++)
     for (let x = r.left; x < r.right; x++) {
       const i = (y * width + x) * 4
@@ -316,11 +323,15 @@ export function differing(
       if (leaveOut.some((o) => x >= o.left && x < o.right && y >= o.top && y < o.bottom))
         continue
       if (apart(a.base, i, b.base, i)) excluded++
-      else if (apart(a.page, i, b.page, i)) over++
+      else {
+        counted++
+        if (apart(a.page, i, b.page, i)) over++
+      }
     }
+  // An empty region counts nothing, which the caller's floor on `counted` fails.
   return total === 0
-    ? { share: 0, excluded: 0 }
-    : { share: over / total, excluded: excluded / total }
+    ? { share: 0, excluded: 0, counted: 0 }
+    : { share: over / total, excluded: excluded / total, counted: counted / total }
 }
 
 type TextItem = Extract<DrawItem, { kind: 'text' }>
@@ -374,7 +385,9 @@ export function textBands(annotation: Annotation, t: PageTransform): TextBand[] 
 /**
  * Pieces of a line whose start shows where the layout put it: each segment of a line with tabs
  * (from its tab stop), and the last word of a justified line (after every widened space). Upright
- * text only. Each band runs from a point before the piece's start to its line's end.
+ * text only. Each band runs to its line's end from a piece's width before its start, so a piece
+ * drawn early by up to its own width is measured where it is, but no further back than where the
+ * piece before it ends, so that piece's ink is not taken for it.
  */
 export function pieceBands(
   annotation: Annotation,
@@ -387,11 +400,18 @@ export function pieceBands(
     if (item.angle !== 0) throw new Error('pieceBands takes upright text only')
     const { ascent, descent } = measure.vertical(item.font)
     const clip = item.clip?.rect
-    const band = (x: number, y: number, end: number): PixelRect => {
+    const band = (
+      x: number,
+      y: number,
+      width: number,
+      before: number,
+      end: number
+    ): PixelRect => {
+      const from = Math.max(x - width, before)
       const box = {
-        x: x - 1,
+        x: from,
         y: y - descent * item.size,
-        width: end - x + 1,
+        width: end - from,
         height: (ascent + descent) * item.size,
       }
       return pixelRect(clip ? intersect(box, clip) : box, t)
@@ -402,22 +422,39 @@ export function pieceBands(
         line.origin.x +
         line.width +
         [...line.text].filter((c) => c === ' ').length * spacing
-      const pieces: TextBand[] = (line.segments ?? []).slice(1).map((s) => ({
-        text: s.text,
-        band: band(s.origin.x, s.origin.y, end),
-        color: item.color,
-      }))
+      const gaps = (text: string) => [...text].filter((c) => c === ' ').length * spacing
+      const segments = line.segments ?? []
+      const pieces: TextBand[] = segments.slice(1).map((s, i) => {
+        const previous = segments[i]!
+        return {
+          text: s.text,
+          band: band(
+            s.origin.x,
+            s.origin.y,
+            s.width + gaps(s.text),
+            previous.origin.x + previous.width + gaps(previous.text),
+            end
+          ),
+          color: item.color,
+        }
+      })
       if (spacing > 0 && !line.segments) {
         const cut = line.text.lastIndexOf(' ')
         const before = line.text.slice(0, cut + 1)
-        const gaps = [...before].filter((c) => c === ' ').length
+        const last = line.text.slice(cut + 1)
         const x =
-          line.origin.x +
-          measure.width(before, item.font, item.size).width +
-          gaps * spacing
+          line.origin.x + measure.width(before, item.font, item.size).width + gaps(before)
+        // The word before ends where the last space, widened, begins.
+        const previousEnd = x - measure.width(' ', item.font, item.size).width - spacing
         pieces.push({
-          text: line.text.slice(cut + 1),
-          band: band(x, line.origin.y, end),
+          text: last,
+          band: band(
+            x,
+            line.origin.y,
+            measure.width(last, item.font, item.size).width,
+            previousEnd,
+            end
+          ),
           color: item.color,
         })
       }

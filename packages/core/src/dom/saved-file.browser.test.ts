@@ -20,7 +20,6 @@
 import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { describeDrawing } from '../model/annotations/drawing/describe'
 import {
   beyondClip,
   destroyRenderEngine,
@@ -30,6 +29,7 @@ import {
   lineInk,
   MAX_DIFFERING,
   MAX_EXCLUDED,
+  MIN_COUNTED,
   pieceBands,
   PIXELS_PER_POINT,
   pngDataUrl,
@@ -43,11 +43,9 @@ import {
   type TextBand,
 } from '../test-support/compare-saved'
 
-import { drawContext, drawingFor } from './drawing-context'
 import { canvasTextPicture, savePictures } from './save-pictures'
 import { checkTextFonts, type TextClass } from './text-font-check'
 
-import type { Drawing } from '../model/annotations/drawing/types'
 import type { AnnotationInput } from '../model/annotations/types'
 import type { Point } from '../model/geometry'
 import type { FixtureName } from '@inkbar/fixtures/urls'
@@ -70,17 +68,27 @@ const report = !!(import.meta.env as Record<string, string | undefined>)[
  * A picture of four colours, one to a quarter, as `type` (`image/png`, `image/jpeg` or
  * `image/webp`), `width` by `height` pixels.
  */
-function quadrants(type: string, width: number, height: number): string {
+function quadrants(
+  type: string,
+  width: number,
+  height: number,
+  colors: readonly [string, string, string, string] = [
+    '#ff0000',
+    '#0000ff',
+    '#008000',
+    '#000000',
+  ]
+): string {
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height
   const ctx = canvas.getContext('2d')!
   const [w, h] = [canvas.width / 2, canvas.height / 2]
   for (const [x, y, color] of [
-    [0, 0, '#ff0000'],
-    [w, 0, '#0000ff'],
-    [0, h, '#008000'],
-    [w, h, '#000000'],
+    [0, 0, colors[0]],
+    [w, 0, colors[1]],
+    [0, h, colors[2]],
+    [w, h, colors[3]],
   ] as const) {
     ctx.fillStyle = color
     ctx.fillRect(x, y, w, h)
@@ -423,7 +431,15 @@ const scripts = (): Scene => ({
         type: 'stamp',
         page: 0,
         rect: { x: 260, y: 400, width: 120, height: 50 },
-        imagedata: quadrants('image/jpeg', 40, 17),
+        // Shades of grey: JPEG keeps colour at half resolution, and PDF.js's decoder fills it
+        // back in unlike the browser's along a hard colour edge (1.75% with the colour
+        // quadrants). A grey edge keeps the enlargement and a visible edge without that.
+        imagedata: quadrants('image/jpeg', 40, 17, [
+          '#ffffff',
+          '#404040',
+          '#a0a0a0',
+          '#000000',
+        ]),
       },
     ],
     [
@@ -490,16 +506,28 @@ const turned = (fixture: FixtureName): Scene => ({
   ]),
 })
 
-/** Which classes of characters this machine's fonts draw as the screen tests expect. */
-const fonts = checkTextFonts(['Total: 42 €, 日本語 ok'])
+/**
+ * Which classes of characters this machine's fonts draw as the screen tests expect, probed with
+ * every text the scenes draw, so each of their characters outside the tables is probed in a line.
+ */
+const fonts = checkTextFonts(
+  [everyType(), details(), scripts(), masks(), turned('text-simple')].flatMap((scene) =>
+    scene.inputs.flatMap((input) =>
+      'contents' in input && input.contents ? [input.contents] : []
+    )
+  )
+)
 
 interface Measured {
   scene: string
   name: string
+  /** No font here for the case's characters: compared by position only. */
+  noFont: boolean
   readers: {
     reader: Reader
     share: number
     excluded: number
+    counted: number
     byPosition: boolean
     /** For a reader comparing text by position: the share with its lines counted too. */
     whole?: number
@@ -516,10 +544,10 @@ afterAll(() => {
       .map((m) =>
         [
           m.scene,
-          m.name,
+          m.noFont ? `${m.name} (no font: positions only)` : m.name,
           ...m.readers.map(
             (r) =>
-              `${r.reader} ${percent(r.share)} (excluded ${percent(r.excluded)}${r.byPosition ? `, by position, whole ${percent(r.whole!)}` : ''})`
+              `${r.reader} ${percent(r.share)} (excluded ${percent(r.excluded)}, counted ${percent(r.counted)}${r.byPosition ? `, by position, whole ${percent(r.whole!)}` : ''})`
           ),
         ].join(' | ')
       )
@@ -546,39 +574,20 @@ function compares(label: string, renders: () => Promise<SavedRenders>, c: Case):
     const { pages, compared } = await renders()
     const { annotation, region } = compared[c.index]!
     const page = pages.get(annotation.page)!
-    if (missing) {
-      // No font here for the case's characters (see `checkTextFonts`): what is drawn is no test
-      // of the painter. The file is laid out with the screen's measure, so its lines are the
-      // screen's: the same text, at the same origins.
-      const lines = (d: Drawing | undefined) =>
-        JSON.stringify(
-          d?.items.flatMap(function texts(i): readonly unknown[] {
-            return i.kind === 'text'
-              ? i.lines
-              : i.kind === 'group'
-                ? i.items.flatMap(texts)
-                : []
-          })
-        )
-      const context = drawContext(page.transform)
-      expect(
-        lines(
-          describeDrawing(annotation, {
-            ...context,
-            measure: savePictures(document).measure,
-          })
-        )
-      ).toBe(lines(drawingFor(annotation, page.transform)))
-      return
-    }
-    const lines = c.byPosition ? textBands(annotation, page.transform) : []
-    const row: Measured = { scene: label, name: c.name, readers: [] }
+    // On a machine with no font for the case's characters (see `checkTextFonts`), the browser
+    // draws them with whatever it has, in the canvas picture as on screen: what they look like
+    // is no test of the painter, but where each line inks still is. Every line is compared by
+    // position in both readers, and the pixels are not. A character no font has is drawn as a
+    // box, which inks (so in Chromium); a browser that drew nothing would fail the check that
+    // some line inks, not pass.
+    const lines = c.byPosition || missing ? textBands(annotation, page.transform) : []
+    const row: Measured = { scene: label, name: c.name, readers: [], noFont: missing }
     measured.push(row)
     if (report) await dump(`${label}-${c.name}`, page, region)
     for (const reader of ['engine', 'pdfjs'] as const) {
       const reading = page[reader]
-      const byPosition = c.byPosition?.includes(reader) ?? false
-      const { share, excluded } = differing(
+      const byPosition = missing || (c.byPosition?.includes(reader) ?? false)
+      const { share, excluded, counted } = differing(
         page.screen,
         reading,
         region,
@@ -588,15 +597,32 @@ function compares(label: string, renders: () => Promise<SavedRenders>, c: Case):
         reader,
         share,
         excluded,
+        counted,
         byPosition,
         ...(byPosition ? { whole: differing(page.screen, reading, region).share } : {}),
       })
-      expect
-        .soft(share, `${reader} render of the saved file`)
-        .toBeLessThanOrEqual(MAX_DIFFERING)
-      expect
-        .soft(excluded, `${reader}: the part left out where the page itself differs`)
-        .toBeLessThanOrEqual(MAX_EXCLUDED)
+      if (!missing) {
+        expect
+          .soft(share, `${reader} render of the saved file`)
+          .toBeLessThanOrEqual(MAX_DIFFERING)
+        expect
+          .soft(excluded, `${reader}: the part left out where the page itself differs`)
+          .toBeLessThanOrEqual(MAX_EXCLUDED)
+        // A reader that compares text by position may count less: a text box can be mostly
+        // text (the rounded one counts 26% in the engine). Its floor is then the position checks
+        // below, which every line the screen inks must pass, with some pixels counted still.
+        if (byPosition)
+          expect
+            .soft(counted, `${reader}: pixels compared outside the text`)
+            .toBeGreaterThan(0)
+        else
+          expect
+            .soft(
+              counted,
+              `${reader}: the part of the region its pixels were compared in`
+            )
+            .toBeGreaterThanOrEqual(MIN_COUNTED)
+      }
       if (c.clipped)
         for (const { around, inside, color } of beyondClip(annotation, page.transform)) {
           // The lines do reach past the clip, and the screen shows none of it there, or the
