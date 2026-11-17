@@ -74,6 +74,24 @@ describe('paintDrawing', () => {
     expect(el.querySelector('svg')!.getAttribute('data-ink-part')).toBe('box')
   })
 
+  it("a lone group's role selects the svg the way the same role selects an element", () => {
+    const lone = (role: 'bubble' | 'ending-head' | 'ending-tail') =>
+      paint(
+        drawing({
+          kind: 'group',
+          opacity: 0.5,
+          role,
+          items: [
+            { kind: 'rect', rect: { x: 0, y: 0, width: 1, height: 1 }, paint: fill },
+          ],
+        })
+      ).querySelector('svg')!
+    expect(lone('bubble').classList.contains('ink-bubble')).toBe(true)
+    expect(lone('bubble').hasAttribute('data-ink-part')).toBe(false)
+    expect(lone('ending-head').getAttribute('data-ending')).toBe('head')
+    expect(lone('ending-tail').getAttribute('data-ending')).toBe('tail')
+  })
+
   it('a nested group becomes a g with its own opacity', () => {
     const el = paint(
       drawing(
