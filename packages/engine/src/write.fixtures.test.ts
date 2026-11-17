@@ -2,13 +2,13 @@ import { readFile } from 'node:fs/promises'
 import { deflateSync, inflateSync } from 'node:zlib'
 
 import { fixtureBytes } from '@inkbar/fixtures'
+import { qpdfAvailable, qpdfCheck, qpdfQdf, requireQpdfInCi } from '@inkbar/fixtures/qpdf'
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 
 import { createEngine, EngineError, type Engine } from './index.ts'
 import { EngineCore } from './native/core.ts'
 import { loadNative } from './native/module.ts'
 import { withFunctions } from './native/testing.ts'
-import { qpdfAvailable, qpdfCheck, qpdfQdf, requireQpdfInCi } from './qpdf.testing.ts'
 
 import type { Native } from './native/functions.ts'
 import type { Appearance, Rect, WriteAnnotation, WriteInput } from './types.ts'

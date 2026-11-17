@@ -2,10 +2,10 @@ import { readFile } from 'node:fs/promises'
 
 import { EngineError } from '@inkbar/engine'
 import { fixtureBytes, fixturePath, manifest, type FixtureName } from '@inkbar/fixtures'
+import { qpdfAvailable, qpdfCheck, requireQpdfInCi } from '@inkbar/fixtures/qpdf'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { nodeAssets } from '../pdfjs/node-assets'
-import { qpdfAvailable, qpdfCheck, requireQpdfInCi } from '../test-support/qpdf'
 
 import { isReply } from './annotations/threads'
 import { openDocument, type InkDocument, type OpenOptions } from './document'

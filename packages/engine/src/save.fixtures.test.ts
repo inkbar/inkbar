@@ -1,10 +1,10 @@
 import { readFile } from 'node:fs/promises'
 
 import { fixtureBytes, manifest, type FixtureName } from '@inkbar/fixtures'
+import { qpdfAvailable, qpdfCheck, requireQpdfInCi } from '@inkbar/fixtures/qpdf'
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 
 import { createEngine, EngineError, type Engine } from './index.ts'
-import { qpdfAvailable, qpdfCheck, requireQpdfInCi } from './qpdf.testing.ts'
 
 import type { SaveMode } from './types.ts'
 
