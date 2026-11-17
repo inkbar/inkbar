@@ -121,4 +121,16 @@ describe('describeShape', () => {
     })
     expect(d.bounds).toEqual(square.rect)
   })
+
+  test('a corner radius is clamped to half the shorter side of the drawn rect', () => {
+    const d = describeShape({
+      ...square,
+      cornerRadius: 30,
+      rect: { x: 100, y: 600, width: 80, height: 12 },
+    })
+    const [g] = d.items
+    if (g?.kind !== 'group') throw new Error('expected a group')
+    // The drawn rect is 78 x 10: half its shorter side is 5.
+    expect(g.items[0]).toMatchObject({ kind: 'rect', radius: 5 })
+  })
 })

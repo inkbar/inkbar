@@ -1051,3 +1051,24 @@ describe('where a dashed rect or ellipse starts', () => {
     })
   }
 })
+
+describe('a thin rounded dashed rect', () => {
+  it('has the same corner at view rotation 0 and 90', () => {
+    const rect = { x: 100, y: 600, width: 80, height: 10 }
+    const item: DrawItem = {
+      kind: 'rect',
+      rect,
+      radius: 5,
+      paint: { stroke: { color: '#000', width: 2, dashes: [4, 2] } },
+    }
+    const straight = paint(drawing(item), 1, 0).querySelector('rect')!
+    const turned = paint(drawing(item), 1, 90).querySelector('path')!
+    expect(Number(straight.getAttribute('rx'))).toBe(5)
+    // Every corner arc of the path has that radius, both ways.
+    const radii = [...turned.getAttribute('d')!.matchAll(/A([\d.]+) ([\d.]+)/g)].map(
+      (m) => [Number(m[1]), Number(m[2])]
+    )
+    expect(radii).toHaveLength(4)
+    for (const r of radii) expect(r).toEqual([5, 5])
+  })
+})

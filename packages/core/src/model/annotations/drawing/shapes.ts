@@ -10,6 +10,8 @@ import type { Drawing, Paint } from './types'
  */
 export function describeShape(a: ShapeAnnotation): Drawing {
   const { inset: rect, reach } = strokeInset(a.rect, a.width)
+  // One corner radius, circular: no more than half the shorter side, however a painter clamps.
+  const radius = Math.min(a.cornerRadius ?? 0, rect.width / 2, rect.height / 2)
   const paint: Paint = {
     ...(a.interiorColor ? { fill: { color: a.interiorColor } } : {}),
     ...(a.width > 0
@@ -34,7 +36,7 @@ export function describeShape(a: ShapeAnnotation): Drawing {
             ? {
                 kind: 'rect',
                 rect,
-                ...(a.cornerRadius ? { radius: a.cornerRadius } : {}),
+                ...(radius > 0 ? { radius } : {}),
                 paint,
               }
             : { kind: 'ellipse', rect, paint },
