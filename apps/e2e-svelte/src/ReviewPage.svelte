@@ -18,12 +18,14 @@
   import { recordReady } from '@inkbar/e2e-shared/metrics'
   import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
   import {
+    InkDownloadButton,
     InkFindBar,
     InkNextPage,
     InkThreadPopover,
     InkPageCount,
     InkPageInput,
     InkPrevPage,
+    InkPrintButton,
     InkRoot,
     InkSearchButton,
     InkToolbar,
@@ -59,6 +61,8 @@
   let readyCount = $state(0)
   let openDoc = $state.raw<InkDocument | null>(null)
   const tools = allTools()
+  /** Download and Print write the session's annotations into the file. */
+  const engine = () => import('@inkbar/engine')
   let root = $state<InkRootHandle | undefined>(undefined)
   let largeBytes = $state.raw<Uint8Array | null>(null)
   /** The key whose saved annotations have been loaded; saving waits for it. */
@@ -193,6 +197,7 @@
   history={true}
   {src}
   {assets}
+  {engine}
   class="sandbox-root"
   onReady={(doc) => void onReady(doc)}
   {onError}
@@ -205,6 +210,8 @@
       <InkToolButton tool="redact-area" />
       <InkToolButton tool="note" />
       <InkSearchButton />
+      <InkDownloadButton />
+      <InkPrintButton />
       <div class="sandbox-actions" role="group" aria-label="Review">
         <button type="button" data-testid="resign" onclick={resign}>Re-sign</button>
         <button type="button" data-testid="new-version" onclick={() => void newVersion()}>

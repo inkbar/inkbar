@@ -199,8 +199,9 @@ export interface InkDocument {
    */
   readonly fileName: string
   /**
-   * The PDF as a file, for download and print: today the bytes it was opened from, without
-   * this session's annotations. Waits for `ready`; rejects as `ready` does.
+   * The bytes the file was opened from, without this session's annotations. Waits for
+   * `ready`; rejects as `ready` does. Download and print hand this over when the document was
+   * opened without an `engine` loader, and `save()` with one.
    */
   getData(): Promise<Uint8Array>
   /**
@@ -208,7 +209,8 @@ export interface InkDocument {
    * `ready` and for the annotations Inkbar saved to be lifted. With no changes it resolves with
    * `getData()`'s bytes and loads no engine. With changes it needs the `engine` option, and
    * rejects with EngineUnavailable without it, and with SaveFailed when the engine cannot write
-   * the file. The written copy is kept until the next change, and calls made while a write runs
+   * the file: its `details.stage` is `'engine'` when the engine could not be loaded or started,
+   * `'write'` when it could not open or write this file. The written copy is kept until the next change, and calls made while a write runs
    * share it.
    */
   save(): Promise<Uint8Array>
@@ -221,6 +223,11 @@ export interface InkDocument {
    */
   readonly changed: Readable<boolean>
   destroy(): void
+  /**
+   * @internal True when the document was opened with an `engine` loader: download and print
+   * then hand over `save()`, else `getData()`.
+   */
+  readonly _saves: boolean
   /** @internal PDF.js ids of file annotations lifted into the session. */
   readonly _lifted: Readable<ReadonlySet<string>>
   /**
@@ -861,6 +868,7 @@ export async function openDocument(
         teardown(destroyTask)
       }
     },
+    _saves: saver !== undefined,
     _lifted: readonly(lifted),
     _fileCopyOf(a) {
       const from = liftedFrom.get(a.id)

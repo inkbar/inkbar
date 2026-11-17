@@ -158,6 +158,57 @@ describe('createSaver', () => {
     expect(fake.createEngine).toHaveBeenCalledTimes(1)
   })
 
+  it('tells an engine that could not load or start from one that could not write this file', async () => {
+    const network = new TypeError('Failed to fetch dynamically imported module')
+    const notLoaded = createSaver({
+      loader: () => Promise.reject(network),
+      bytes: () => Promise.resolve(new Uint8Array([1])),
+      password: undefined,
+    })
+    await expect(notLoaded.write('k', input(1))).rejects.toMatchObject({
+      code: 'SaveFailed',
+      details: { stage: 'engine' },
+      cause: network,
+    })
+    const noWasm = new Error('wasm instantiate failed')
+    const notStarted = createSaver({
+      loader: () => Promise.resolve({ createEngine: () => Promise.reject(noWasm) }),
+      bytes: () => Promise.resolve(new Uint8Array([1])),
+      password: undefined,
+    })
+    await expect(notStarted.write('k', input(1))).rejects.toMatchObject({
+      code: 'SaveFailed',
+      details: { stage: 'engine' },
+      cause: noWasm,
+    })
+    // Opening this file and writing into it are the file's failures.
+    const fake = fakeEngine()
+    const s = saver(fake)
+    fake.failNext(new EngineError('write-failed', 'no'))
+    await expect(s.write('k', input(1))).rejects.toMatchObject({
+      code: 'SaveFailed',
+      details: { stage: 'write' },
+    })
+    const unopenable = new EngineError('invalid-pdf', 'not a PDF')
+    const notOpened = createSaver({
+      loader: () =>
+        Promise.resolve({
+          createEngine: () =>
+            Promise.resolve({
+              open: () => Promise.reject(unopenable),
+              destroy: () => Promise.resolve(),
+            } as unknown as Engine),
+        }),
+      bytes: () => Promise.resolve(new Uint8Array([1])),
+      password: undefined,
+    })
+    await expect(notOpened.write('k', input(1))).rejects.toMatchObject({
+      code: 'SaveFailed',
+      details: { stage: 'write' },
+      cause: unopenable,
+    })
+  })
+
   it('starts a new engine after an engine failure', async () => {
     const fake = fakeEngine()
     const s = saver(fake)

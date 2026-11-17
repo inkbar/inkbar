@@ -25,6 +25,7 @@ import { createMemoryStorage } from '../../model/storage'
 import {
   attachFileKeys,
   downloadDocument,
+  fileActionFailure,
   printDocument,
   type DownloadOptions,
 } from '../file-actions'
@@ -95,6 +96,14 @@ export interface CreateViewerOptions extends Omit<
   defaults?: AnnotationDefaults
   history?: OpenOptions['history']
   /**
+   * Loads @inkbar/engine, so that Download, Print and Ctrl+S or Ctrl+P hand over the file with
+   * this session's annotations and changed form values written into it:
+   * `engine: () => import('@inkbar/engine')`. It loads on the first of those with changes, never
+   * before. Without it they hand over the file as it was opened, and the engine is not bundled.
+   * Every document the viewer opens is given it.
+   */
+  engine?: OpenOptions['engine']
+  /**
    * Form field values; defaults to uncontrolled, starting from the PDF's. Controlled:
    * `{ mode: 'controlled', initial, onChange }`, where `onChange` hears every commit with the
    * full map and the host pushes back with `viewer.form.get()?.setControlledValue(next)`.
@@ -122,7 +131,11 @@ export interface CreateViewerOptions extends Omit<
   /** The thread popover for notes and text markup. Default true. */
   threads?: boolean
   onReady?(this: void, doc: InkDocument): void
-  /** The document failed to open, a form script failed, or signing a field was refused. */
+  /**
+   * The document failed to open, a form script failed, signing a field was refused, or a
+   * download or print could not write its copy (`SaveFailed`; the viewer also tells the reader
+   * in its message box).
+   */
   onError?(this: void, error: InkError): void
 }
 
@@ -213,14 +226,17 @@ export interface Viewer {
   open(source: DocumentSource, opts?: { password?: string }): void
   /**
    * Saves the open document's file through the browser's download, under its `fileName` or
-   * `opts.filename`. Today that is the file as it was opened, without this session's
-   * annotations. Does nothing while no document is open.
+   * `opts.filename`. With the `engine` option and changes, that is a copy with them written in
+   * (`document.save()`); otherwise the file as it was opened. Does nothing while no document is
+   * open, or while a download or print is writing its copy (`fileBusy`). When the copy cannot
+   * be written it downloads nothing, reports the `SaveFailed` to `onError`, shows the reader
+   * why in the viewer's message box, and rejects with it.
    */
   download(opts?: DownloadOptions): Promise<void>
   /**
    * Prints the open document's file with the browser's own PDF viewer; on iOS the PDF opens
-   * in a new tab instead. As with `download`, today that is the file as it was opened. Does
-   * nothing while no document is open.
+   * in a new tab instead. It hands over the same file as `download`, and fails the same way.
+   * Does nothing while no document is open, or while a copy is being written.
    */
   print(): Promise<void>
   destroy(): void
@@ -241,6 +257,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     passwordPrompt = true,
     defaults,
     history,
+    engine: engineLoader,
     fields,
     annotations,
     plugins,
@@ -317,8 +334,6 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   el.append(root)
   // Anywhere in the root, toolbars included: the keys do what createUndo and createRedo do.
   const stopHistoryKeys = attachHistoryKeys(root, () => current.get()?.history)
-  // Ctrl or Cmd+P and +S inside the root: what viewer.print and viewer.download do.
-  const stopFileKeys = attachFileKeys(root, () => current.get())
   rootEl.set(scroll)
 
   /** One controller for the viewer's life: the host, the engine and the find bar share it. */
@@ -360,6 +375,20 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
   /** For the viewer's life, like the signature library: the field menu and the script alert. */
   let signFieldMenu: SignFieldMenu | undefined
   const formAlert = createFormAlert(root, readonly(messages))
+  /** A download or print that could not write its copy: the host hears, the reader is told. */
+  const fileFailed = (error: unknown): void => {
+    const failure = fileActionFailure(error, words())
+    if (!failure || destroyed) return
+    formAlert.show(failure.message)
+    onError?.(failure.error)
+  }
+  // Ctrl or Cmd+P and +S inside the root: what viewer.print and viewer.download do.
+  const stopFileKeys = attachFileKeys(root, () => current.get(), fileFailed)
+  /** Reports a failed download or print as `fileFailed` does, and rejects with its error. */
+  const reportFile = (error: unknown): never => {
+    fileFailed(error)
+    throw error
+  }
 
   let statusEl: HTMLElement | null = null
   /** Rewrites the status panel's words in place, for the status showing now. */
@@ -657,6 +686,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       password: openOpts?.password ?? password,
       defaults: defaults ?? cssVariableDefaults(root),
       _pictures: savePictures(root.ownerDocument),
+      engine: engineLoader,
       history,
       fields,
       annotations,
@@ -714,11 +744,12 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
     element: root,
     async download(opts) {
       const doc = current.get()
-      if (doc) await downloadDocument(doc, opts)
+      if (doc) await downloadDocument(doc, opts).catch(reportFile)
     },
     async print() {
+      // Called before any await: on iOS the print's tab opens inside the reader's press.
       const doc = current.get()
-      if (doc) await printDocument(doc)
+      if (doc) await printDocument(doc).catch(reportFile)
     },
     status: readonly(status),
     document: readonly(current),

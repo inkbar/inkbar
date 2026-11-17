@@ -16,12 +16,14 @@ import { createFakeServer } from '@inkbar/e2e-shared/fake-server'
 import { recordReady } from '@inkbar/e2e-shared/metrics'
 import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
 import {
+  InkDownloadButton,
   InkFindBar,
   InkNextPage,
   InkThreadPopover,
   InkPageCount,
   InkPageInput,
   InkPrevPage,
+  InkPrintButton,
   InkRoot,
   InkSearchButton,
   InkToolbar,
@@ -47,6 +49,9 @@ import EmbeddedBanner from './EmbeddedBanner.vue'
 import type { ToolId } from '@inkbar/core/dom'
 
 const props = defineProps<{ fixture: string; largePages: number }>()
+
+/** Download and Print write the session's annotations into the file. */
+const engine = () => import('@inkbar/engine')
 
 /** Saves wait this long after the last change, so a drag or a burst of edits saves once. */
 const SAVE_DEBOUNCE_MS = 150
@@ -189,6 +194,7 @@ async function newVersion(): Promise<void> {
     :history="true"
     :src="src"
     :assets="assets"
+    :engine="engine"
     class="sandbox-root"
     @ready="onReady"
     @error="onError"
@@ -201,6 +207,8 @@ async function newVersion(): Promise<void> {
         <InkToolButton tool="redact-area" />
         <InkToolButton tool="note" />
         <InkSearchButton />
+        <InkDownloadButton />
+        <InkPrintButton />
         <div class="sandbox-actions" role="group" aria-label="Review">
           <button type="button" data-testid="resign" @click="resign">Re-sign</button>
           <button type="button" data-testid="new-version" @click="newVersion">

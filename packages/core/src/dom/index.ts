@@ -26,7 +26,13 @@ export type {
   TrackpadPinchOptions,
   ZoomPreview,
 } from './pinch'
-export { attachFileKeys, downloadDocument, printDocument } from './file-actions'
+export {
+  attachFileKeys,
+  downloadDocument,
+  fileActionFailure,
+  fileBusy,
+  printDocument,
+} from './file-actions'
 export type { DownloadOptions } from './file-actions'
 export { attachHistoryKeys, keepHistoryFocus } from './history-keys'
 export type { HistoryKeysTarget } from './history-keys'

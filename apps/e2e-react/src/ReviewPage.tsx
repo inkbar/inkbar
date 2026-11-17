@@ -16,6 +16,7 @@ import { createFakeServer } from '@inkbar/e2e-shared/fake-server'
 import { recordReady } from '@inkbar/e2e-shared/metrics'
 import { fixtureUrl, type FixtureName } from '@inkbar/fixtures/urls'
 import {
+  InkDownloadButton,
   InkFindBar,
   InkNextPage,
   InkSearchButton,
@@ -23,6 +24,7 @@ import {
   InkPageCount,
   InkPageInput,
   InkPrevPage,
+  InkPrintButton,
   InkRoot,
   InkToolbar,
   InkToolButton,
@@ -43,6 +45,8 @@ import type { ToolId } from '@inkbar/core/dom'
 const SAVE_DEBOUNCE_MS = 150
 
 const tools = allTools()
+/** Download and Print write the session's annotations into the file. */
+const engine = () => import('@inkbar/engine')
 
 /** One generated file per page count, shared across StrictMode's double-invoked effects. */
 const largeFiles = new Map<number, Promise<Uint8Array>>()
@@ -220,6 +224,7 @@ export function ReviewPage({
       tools={tools}
       src={src}
       assets={assets}
+      engine={engine}
       className="sandbox-root"
       onReady={(doc) => void onReady(doc)}
       onError={onError}
@@ -232,6 +237,8 @@ export function ReviewPage({
           <InkToolButton tool="redact-area" />
           <InkToolButton tool="note" />
           <InkSearchButton />
+          <InkDownloadButton />
+          <InkPrintButton />
           <div className="sandbox-actions" role="group" aria-label="Review">
             <button type="button" data-testid="resign" onClick={resign}>
               Re-sign

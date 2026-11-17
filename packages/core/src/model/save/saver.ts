@@ -26,6 +26,9 @@ export interface Saver {
    * of the last write gets that write's result, running or done, without writing again. Each
    * call resolves with its own copy of the bytes. Rejects with `SaveFailed` when the engine
    * cannot write or the input cannot be painted, and with `DocumentDestroyed` once destroyed.
+   * A `SaveFailed` says why in `details.stage`: `'engine'` when the loader or `createEngine`
+   * failed (the engine could not be fetched or started, as when offline), `'write'` when the
+   * engine could not open or write this file, or the input could not be painted.
    */
   write(key: string, input: () => Promise<WriteInput>): Promise<Uint8Array>
   /** Destroys the engine. A write in flight rejects with `DocumentDestroyed`. */
@@ -39,6 +42,13 @@ interface Session {
 
 const destroyedError = (): InkError =>
   new InkError('DocumentDestroyed', 'The document has been destroyed')
+
+/** The loader or `createEngine` failed: the engine never started, whatever the file. */
+class NotStarted extends Error {
+  constructor(cause: unknown) {
+    super('The engine did not start', { cause })
+  }
+}
 
 /** An `EngineError`, told by its name: core never imports the engine's classes. */
 const engineCode = (e: unknown): string | undefined =>
@@ -56,9 +66,14 @@ export function createSaver(options: SaverOptions): Saver {
   /** The engine and the file open in it, made on first use and kept. */
   const open = (): Promise<Session> => {
     const made = (async () => {
-      const { createEngine } = await options.loader()
-      if (destroyed) throw destroyedError()
-      const engine = await createEngine()
+      let engine: Engine
+      try {
+        const { createEngine } = await options.loader()
+        if (destroyed) throw destroyedError()
+        engine = await createEngine()
+      } catch (error) {
+        throw isInkError(error) ? error : new NotStarted(error)
+      }
       if (destroyed) {
         quietly(engine.destroy())
         throw destroyedError()
@@ -93,11 +108,18 @@ export function createSaver(options: SaverOptions): Saver {
   const failed = (error: unknown): unknown => {
     if (destroyed) return destroyedError()
     if (isInkError(error)) return error
-    // An EngineError, an UnpaintableError, or a loader that could not load the engine.
+    if (error instanceof NotStarted)
+      return new InkError(
+        'SaveFailed',
+        'The engine could not be loaded or started',
+        { stage: 'engine' },
+        error.cause
+      )
+    // An EngineError from opening or writing the file, or an UnpaintableError.
     return new InkError(
       'SaveFailed',
       'The changes could not be written into this file',
-      {},
+      { stage: 'write' },
       error
     )
   }

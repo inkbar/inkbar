@@ -12,6 +12,7 @@ import {
 import {
   attachFileKeys,
   attachHistoryKeys,
+  fileActionFailure,
   createMessageState,
   createPluginHost,
   createSearchController,
@@ -54,6 +55,7 @@ import type {
   AnnotationChange,
   AnnotationDefaults,
   DocumentSource,
+  EngineLoader,
   FieldsChange,
   FieldValues,
   ViewerAction,
@@ -164,6 +166,14 @@ const props = withDefaults(
     locale?: string | undefined
     /** Undo history. Defaults to on for uncontrolled, off for controlled. */
     history?: boolean | undefined
+    /**
+     * Loads @inkbar/engine, so that InkDownloadButton, InkPrintButton and Ctrl+S or Ctrl+P hand
+     * over the file with this session's annotations and changed form values written into it:
+     * `() => import('@inkbar/engine')`. It loads on the first of those with changes, never
+     * before. Without it they hand over the file as it was opened, and the engine is not
+     * bundled. Read when a document opens: a change applies from the next open.
+     */
+    engine?: EngineLoader | undefined
     asChild?: boolean
   }>(),
   {
@@ -186,6 +196,7 @@ const props = withDefaults(
     messages: undefined,
     locale: undefined,
     history: undefined,
+    engine: undefined,
     asChild: false,
   }
 )
@@ -205,8 +216,9 @@ const emit = defineEmits<{
   'update:zoom': [zoom: ZoomValue]
   ready: [doc: InkDocument]
   /**
-   * Opening failed, or later a form script failed or a signature field refused its signing.
-   * An error from while the document opened comes after `ready`.
+   * Opening failed, or later a form script failed, a signature field refused its signing, or a
+   * download or print could not write its copy (`SaveFailed`, also shown to the reader in
+   * InkViewport's message box). An error from while the document opened comes after `ready`.
    */
   error: [error: InkError]
   activate: [id: string]
@@ -305,6 +317,7 @@ async function open(retryPassword?: string): Promise<void> {
       defaults:
         props.defaults ?? (rootEl.value ? cssVariableDefaults(rootEl.value) : undefined),
       _pictures: savePictures(rootEl.value?.ownerDocument ?? globalThis.document),
+      engine: props.engine,
       // Controlled hosts get the ref history below; core's own stack stays off.
       history: controlled.value ? false : (props.history ?? true),
       annotations: controlled.value
@@ -433,7 +446,7 @@ watch(
       el.querySelector<HTMLElement>('[data-ink-scroll]')
     )
     // Ctrl or Cmd+P prints and +S downloads, as InkPrintButton and InkDownloadButton do.
-    const stopFileKeys = attachFileKeys(el, () => document.value)
+    const stopFileKeys = attachFileKeys(el, () => document.value, reportFileError)
     // Not a template listener: Vue leaves those on the element when it unmounts.
     el.addEventListener('keydown', onKeydown)
     onCleanup(() => {
@@ -479,6 +492,15 @@ watch(
   (next) => messageState.setLocale(next)
 )
 const words = useReadable(messageState, messageState.get())
+
+/** Who shows the reader a failed download's or print's message: InkViewport, when mounted. */
+const fileMessageListeners = new Set<(message: string) => void>()
+function reportFileError(error: unknown): void {
+  const failure = fileActionFailure(error, messageState.get().messages)
+  if (!failure) return
+  for (const show of fileMessageListeners) show(failure.message)
+  emit('error', failure.error)
+}
 const currentMessages = computed(() => words.value.messages)
 const currentLocale = computed(() => words.value.locale)
 const lang = computed(() =>
@@ -684,6 +706,11 @@ provideInkContext({
   messageState: readonly(messageState),
   reportAction: (a) => emit('action', a),
   reportError: (e) => emit('error', e),
+  reportFileError,
+  onFileMessage: (show) => {
+    fileMessageListeners.add(show)
+    return () => fileMessageListeners.delete(show)
+  },
 })
 
 // The writable store, for InkViewport's engine only.

@@ -153,6 +153,15 @@ export function InkViewport({
   const [signRequest, setSignRequest] = useState<SignFieldRequest | null>(null)
   /** The form script's message on show, and how many have been shown. */
   const [alert, setAlert] = useState<{ message: string; shown: number } | null>(null)
+  // A download or print that could not write its copy shows its message in the same box.
+  const { onFileMessage } = ctx
+  useEffect(
+    () =>
+      onFileMessage((message) =>
+        setAlert((prev) => ({ message, shown: (prev?.shown ?? 0) + 1 }))
+      ),
+    [onFileMessage]
+  )
 
   // Build for a new document or status; tear down on the next change and on unmount.
   useEffect(() => {

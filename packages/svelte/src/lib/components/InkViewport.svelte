@@ -110,6 +110,12 @@
   let signRequest = $state.raw<SignFieldRequest | null>(null)
   /** The form script's message on show, and how many have been shown. */
   let alert = $state.raw<{ message: string; shown: number } | null>(null)
+  // A download or print that could not write its copy shows its message in the same box.
+  $effect(() =>
+    ctx.onFileMessage((message) => {
+      alert = { message, shown: (alert?.shown ?? 0) + 1 }
+    })
+  )
 
   let engine: ViewerEngine | null = null
   /**

@@ -5,6 +5,7 @@
     AnnotationChange,
     AnnotationDefaults,
     DocumentSource,
+    EngineLoader,
     FieldsChange,
     FieldValues,
     ViewerAction,
@@ -127,11 +128,21 @@
     locale?: string | undefined
     /** Undo history. Defaults to on for uncontrolled, off for controlled. */
     history?: boolean | undefined
+    /**
+     * Loads @inkbar/engine, so that InkDownloadButton, InkPrintButton and Ctrl+S or Ctrl+P hand
+     * over the file with this session's annotations and changed form values written into it:
+     * `() => import('@inkbar/engine')`. It loads on the first of those with changes, never
+     * before. Without it they hand over the file as it was opened, and the engine is not
+     * bundled. Read when a document opens: a change applies from the next open.
+     */
+    engine?: EngineLoader | undefined
     onReady?: ((doc: InkDocument) => void) | undefined
     /**
      * Opening failed, or later: a form script failed (`FormScriptError`; the form stays
-     * fillable), or a signature field refused its signing (`FieldSigned`, `FieldReadOnly`).
-     * An error from while the document opened comes after `onReady`.
+     * fillable), a signature field refused its signing (`FieldSigned`, `FieldReadOnly`), or a
+     * download or print could not write its copy (`SaveFailed`, also shown to the reader in
+     * InkViewport's message box). An error from while the document opened comes after
+     * `onReady`.
      */
     onError?: ((error: InkError) => void) | undefined
     onActivate?: ((id: string) => void) | undefined
@@ -161,6 +172,7 @@
   import {
     attachFileKeys,
     attachHistoryKeys,
+    fileActionFailure,
     createMessageState,
     createPasswordPrompt,
     createPluginHost,
@@ -227,6 +239,7 @@
     messages: messagesProp,
     locale: localeProp,
     history: historyProp,
+    engine: engineProp,
     onReady,
     onError,
     onActivate,
@@ -272,6 +285,15 @@
     untrack(() => messageState.setLocale(next))
   })
   const words = useReadable(() => messageState, messageState.get())
+
+  /** Who shows the reader a failed download's or print's message: InkViewport, when mounted. */
+  let fileMessageListeners: ((message: string) => void)[] = []
+  function reportFileError(error: unknown): void {
+    const failure = fileActionFailure(error, messageState.get().messages)
+    if (!failure) return
+    for (const show of fileMessageListeners) show(failure.message)
+    onError?.(failure.error)
+  }
   const lang = $derived(
     isValidLocale(words.current.locale) ? words.current.locale : undefined
   )
@@ -411,6 +433,7 @@
       assets,
       defaults: defaults ?? (ref ? cssVariableDefaults(ref) : undefined),
       _pictures: savePictures(ref?.ownerDocument ?? globalThis.document),
+      engine: engineProp,
       // Controlled hosts get the snapshot history; core's own stack stays off.
       history: controlledProp ? false : (historyProp ?? true),
       annotations: controlledProp
@@ -606,7 +629,7 @@
       el.querySelector<HTMLElement>('[data-ink-scroll]')
     )
     // Ctrl or Cmd+P prints and +S downloads, as InkPrintButton and InkDownloadButton do.
-    const stopFileKeys = attachFileKeys(el, () => document)
+    const stopFileKeys = attachFileKeys(el, () => document, reportFileError)
     return () => {
       stopKeys()
       stopFocus()
@@ -846,6 +869,13 @@
     messageState: publicMessageState,
     reportAction: (a) => onaction?.(a),
     reportError: (e) => onError?.(e),
+    reportFileError,
+    onFileMessage: (show) => {
+      fileMessageListeners = [...fileMessageListeners, show]
+      return () => {
+        fileMessageListeners = fileMessageListeners.filter((s) => s !== show)
+      }
+    },
   }
   setInkContext(context, () => activatedNow)
 

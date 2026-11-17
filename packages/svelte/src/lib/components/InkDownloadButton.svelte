@@ -15,15 +15,19 @@
 <script lang="ts">
   /*
    * Saves the open document's file through the browser's download, under its `fileName`
-   * or `filename`. Disabled until the document is ready. Today that is the file as it was opened,
-   * without this session's annotations.
+   * or `filename`. Disabled until the document is ready. With InkRoot's `engine` and changes,
+   * that is a copy with them written in; otherwise the file as it was opened. While a download
+   * or print writes its copy the button is `aria-busy` and `aria-disabled`, keeping focus, and a
+   * press does nothing. A copy that cannot be written reaches InkRoot's `onError`, and the
+   * reader is told in InkViewport's message box.
    */
-  import { downloadDocument } from '@inkbar/core/dom'
+  import { downloadDocument, fileBusy } from '@inkbar/core/dom'
   import { Download } from '@inkbar/icons'
   import { Toolbar } from 'bits-ui'
 
   import { useInkContext } from '../context.js'
   import { useMessages } from '../messages.js'
+  import { useReadable } from '../use-readable.svelte.js'
 
   import { asBitsProps } from './child-snippet.js'
   import InkIcon from './InkIcon.svelte'
@@ -40,6 +44,7 @@
 
   const ctx = useInkContext('InkDownloadButton')
   const ready = $derived(ctx.document !== null && ctx.status.state === 'ready')
+  const busy = useReadable(() => (ctx.document ? fileBusy(ctx.document) : null), false)
   const m = useMessages()
 </script>
 
@@ -48,7 +53,9 @@
   data-ink-download=""
   aria-label={m.current.toolbar.download}
   title={m.current.toolbar.download}
-  disabled={!ready || !!disabled}
+  aria-busy={busy.current}
+  aria-disabled={busy.current ? 'true' : undefined}
+  disabled={(!ready && !busy.current) || !!disabled}
   {...child ? { child } : {}}
   {...asBitsProps(rest)}
   onclick={(e) => {
@@ -56,7 +63,7 @@
     const doc = ctx.document
     if (e.defaultPrevented || !doc) return
     void downloadDocument(doc, filename === undefined ? {} : { filename }).catch(
-      () => undefined
+      ctx.reportFileError
     )
   }}
 >

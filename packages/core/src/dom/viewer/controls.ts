@@ -27,6 +27,7 @@ import {
 } from '@inkbar/icons'
 
 import { resolveLabel, type InkMessages, type Label } from '../../messages'
+import { fileBusy } from '../file-actions'
 import { keepHistoryFocus } from '../history-keys'
 import { ENGLISH, type MessageState } from '../messages-state'
 import { commandLabel, unknownCommand } from '../plugins/commands'
@@ -214,8 +215,9 @@ export function createToolbarSeparator(): HTMLDivElement {
 }
 
 /**
- * Saves the document's file (`viewer.download()`); disabled until a document is ready. Today
- * that is the file as it was opened, without this session's annotations.
+ * Saves the document's file (`viewer.download()`); disabled until a document is ready. While a
+ * download or print writes its copy (`fileBusy`) it is `aria-busy` and `aria-disabled`, keeping
+ * focus, and a press does nothing.
  */
 export function createDownloadButton(
   viewer: Viewer,
@@ -225,8 +227,8 @@ export function createDownloadButton(
 }
 
 /**
- * Prints the document's file (`viewer.print()`); disabled until a document is ready. Today
- * that is the file as it was opened, without this session's annotations.
+ * Prints the document's file (`viewer.print()`); disabled until a document is ready, and busy
+ * as `createDownloadButton` is while a copy is written.
  */
 export function createPrintButton(viewer: Viewer): HTMLButtonElement {
   return fileButton(viewer, 'print', () => viewer.print())
@@ -243,11 +245,35 @@ function fileButton(
     { class: `ink-${action}`, [`data-ink-${action}`]: '' },
     action === 'download' ? Download : Printer
   )
+  // The viewer reports a failure itself.
   b.addEventListener('click', () => void run().catch(() => undefined))
-  follow<InkDocument>(viewer.document, b, (doc, watch) =>
-    watch(doc.status, (s) => {
-      b.disabled = s.state !== 'ready'
-    })
+  const showBusy = (busy: boolean): void => {
+    b.setAttribute('aria-busy', String(busy))
+    // Disabled while it writes, but not `disabled`, so the button keeps focus.
+    if (busy) b.setAttribute('aria-disabled', 'true')
+    else b.removeAttribute('aria-disabled')
+  }
+  showBusy(false)
+  follow<InkDocument>(
+    viewer.document,
+    b,
+    (doc, watch) => {
+      let ready = false
+      let busy = false
+      const sync = (): void => {
+        b.disabled = !ready && !busy
+        showBusy(busy)
+      }
+      watch(doc.status, (s) => {
+        ready = s.state === 'ready'
+        sync()
+      })
+      watch(fileBusy(doc), (on) => {
+        busy = on
+        sync()
+      })
+    },
+    () => showBusy(false)
   )
   return b
 }
