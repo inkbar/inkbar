@@ -104,7 +104,7 @@ Each control is a separate component, so put them in any order or leave some out
 
 ## Viewport
 
-`InkViewport` takes `mode`, `rotation`, `gap` (CSS pixels between pages, 16), `buffer` (pages kept mounted either side of the visible ones, 2) and `pinchZoom` (default `true`; `false` leaves pinches to the browser, which zooms the whole page). Changing `gap`, `buffer` or `pinchZoom` rebuilds the engine.
+`InkViewport` takes `mode`, `rotation`, `gap` (CSS pixels between pages, 16), `buffer` (pages kept mounted either side of the visible ones, 2) and `pinchZoom` (default `true`; `false` leaves pinches to the browser, which zooms the whole page). Changing `gap`, `buffer` or `pinchZoom` rebuilds the viewer engine (the viewport, page layers and tools that `InkViewport` mounts).
 
 On a touch screen, two fingers pinch to zoom the document and scroll it. With `draw`, `sketch`, `shape`, `redact-area` and `freetext`, one finger draws; a finger tap draws nothing, and a pen that lands while a palm rests on the screen takes over. A shape, area redaction or text box gives one-finger scrolling back once it has made something.
 

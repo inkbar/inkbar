@@ -32,6 +32,7 @@ body:
         - '@inkbar/svelte'
         - '@inkbar/theme'
         - '@inkbar/icons'
+        - '@inkbar/engine'
         - The sandbox (sandbox.inkbar.dev)
     validations:
       required: true

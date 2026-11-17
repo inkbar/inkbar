@@ -67,7 +67,9 @@ for (const framework of FRAMEWORK_ORDER) {
     const saving = page.waitForEvent('download')
     await viewer(page).getByRole('button', { name: 'Download' }).click()
     const file = await saving
-    const path = await file.path()
+    // Saved into the test's output folder, inside the repository, not the system temp folder.
+    const path = test.info().outputPath('saved.pdf')
+    await file.saveAs(path)
     const bytes = await readFile(path)
     expect(bytes.subarray(0, 5).toString()).toBe('%PDF-')
 
@@ -114,7 +116,9 @@ test('the other scenarios write the session into the file too', async ({ page })
   await highlightALine(page)
   const saving = page.waitForEvent('download')
   await viewer(page).getByRole('button', { name: 'Download' }).click()
-  const bytes = await readFile(await (await saving).path())
+  const path = test.info().outputPath('saved.pdf')
+  await (await saving).saveAs(path)
+  const bytes = await readFile(path)
   expect(bytes.toString('latin1')).toContain('/INKB_Gloss')
 })
 

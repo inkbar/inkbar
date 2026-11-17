@@ -93,4 +93,15 @@ Open it against `main`. We squash merge, and the pull request title becomes the 
 
 [release-please](https://github.com/googleapis/release-please) builds the changelog and each release from those titles, and the seven packages share one version number.
 
+## Releasing
+
+Merging the release pull request publishes a GitHub release, and `.github/workflows/release.yml` then builds the tag and publishes every package to npm. The workflow holds no npm token. It uses npm trusted publishing: each package's settings on npm name this workflow as a trusted publisher.
+
+npm lets you add a trusted publisher only to a package that already exists. So a package new to npm needs two steps by hand before the first release that includes it:
+
+1. Publish the package once by hand, from a build of `main`, with an npm account that can publish to the `@inkbar` scope.
+2. In the package's settings on npm, add a trusted publisher for GitHub Actions: the `inkbar/inkbar` repository and the `release.yml` workflow.
+
+Until both are done, the release workflow fails for that package and may stop the other packages from publishing. `@inkbar/engine` is in that position now. The first six packages were published by this workflow with an npm token and moved to trusted publishing afterwards.
+
 By contributing, you agree to license your work under the [MIT licence](LICENSE).
