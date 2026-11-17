@@ -213,6 +213,35 @@ describe('createThumbnail', () => {
       expect(types).toEqual(['mask', 'square', 'circle'])
     })
 
+    it('dims the page for the first mask only, as a page does', async () => {
+      const doc = await openDoc()
+      // A file can hold two masks on a page, though the store adds one at a time.
+      const first = doc.annotations.add(mask)
+      doc.annotations.replaceAll(
+        [
+          first,
+          {
+            ...first,
+            id: 'second-mask',
+            rect: { x: 300, y: 300, width: 100, height: 100 },
+            color: '#ff0000',
+          },
+        ],
+        'import'
+      )
+      const el = place(document.createElement('div'))
+      const painter = createThumbnailPainter(
+        el,
+        { document: writable(doc) },
+        { page: 0, width: 306 }
+      )
+      cleanup.push(() => painter.destroy())
+      await painted(el)
+      const masks = el.querySelectorAll('.ink-thumbnail-annotation[data-type="mask"]')
+      expect(masks).toHaveLength(1)
+      expect(masks[0]!.querySelector('path')!.getAttribute('fill')).toBe('#102030')
+    })
+
     it('draws a loupe as its rim, with no lens', async () => {
       const el = await thumbnailOf({
         type: 'loupe',

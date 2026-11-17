@@ -259,18 +259,21 @@ export function createThumbnailPainter(
   function drawAnnotations(): void {
     if (!annotationsLayer) return
     // What the page's overlay draws: no replies, and nothing the canvas has painted already.
-    const t = transform!
     const shown =
       seen && current && transform
         ? withoutReplies(current.annotations.list.get()).filter(
             (a) => a.page === opts.page && !paintedByCanvas(a)
           )
         : []
-    // A page-wide drawing (a mask's dimming) goes under the rest, as it does on a page.
-    const onPage = (a: Annotation): boolean => drawingFor(a, t)?.layer === 'page'
-    const list = transform
-      ? [...shown.filter(onPage), ...shown.filter((a) => !onPage(a))]
-      : shown
+    let list = shown
+    if (transform) {
+      const t = transform
+      // A page-wide drawing (a mask's dimming) goes under the rest, as it does on a page, and
+      // a page dims for the first mask only.
+      const onPage = (a: Annotation): boolean => drawingFor(a, t)?.layer === 'page'
+      const wide = shown.filter(onPage).slice(0, 1)
+      list = [...wide, ...shown.filter((a) => !onPage(a))]
+    }
     const ids = new Set(list.map((a) => a.id))
     for (const [id, entry] of drawn) {
       if (ids.has(id)) continue
@@ -279,6 +282,8 @@ export function createThumbnailPainter(
     }
     let next = annotationsLayer.firstElementChild
     for (const a of list) {
+      // A list with anything in it has a transform.
+      const t = transform!
       let entry = drawn.get(a.id)
       if (!entry) {
         const node = doc.createElement('div')
