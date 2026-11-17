@@ -76,6 +76,54 @@ describe('a one-point ink stroke', () => {
   }
 })
 
+describe('a one-point ink stroke is filled as a circle', () => {
+  for (const zoom of [1, 3] as const) {
+    it(`covers the diagonals out to its radius and no further, at zoom ${zoom}`, () => {
+      const t = createPageTransform(letter(), zoom, 0)
+      const at = { x: 150, y: 600 }
+      const a = add({
+        type: 'ink',
+        page: 0,
+        rect: { x: 90, y: 540, width: 260, height: 100 },
+        width: 10,
+        inklist: [[at]],
+      })
+      const host = mountContainer(612 * zoom, 792 * zoom)
+      cleanup.push(() => host.remove())
+      const el = document.createElement('div')
+      host.append(el)
+      renderAnnotationContent(el, a, t)
+      const path = el.querySelector<SVGPathElement>('path.ink-stroke')!
+      const e = annotationBox(a, t)
+      const c = t.toCss(at)
+      const centre = { x: c.x - e.left, y: c.y - e.top }
+      const radius = 5 * zoom
+      // On each diagonal: just inside the radius is filled, just outside is not. A capsule along
+      // the screen diagonal would fill past the radius on one of them.
+      const d = 1 / Math.SQRT2
+      for (const [sx, sy] of [
+        [1, 1],
+        [1, -1],
+        [-1, 1],
+        [-1, -1],
+      ] as const) {
+        for (const [reach, filled] of [
+          [0.9, true],
+          [1.15, false],
+        ] as const) {
+          const point = new DOMPoint(
+            centre.x + sx * d * radius * reach,
+            centre.y + sy * d * radius * reach
+          )
+          expect(path.isPointInFill(point), `${sx},${sy} at ${reach} of the radius`).toBe(
+            filled
+          )
+        }
+      }
+    })
+  }
+})
+
 describe('the size of a line ending', () => {
   /** The extent of an ending's path across the line, in CSS px, for a horizontal line. */
   const height = (el: Element): number => {

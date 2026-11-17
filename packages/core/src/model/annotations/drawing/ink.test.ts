@@ -135,6 +135,20 @@ describe('inkOutline', () => {
     expect(Math.max(...ys) - Math.min(...ys)).toBeCloseTo(6, 1)
   })
 
+  test('the outline of a one-point stroke is a circle: every point is half the width from the centre', () => {
+    const at = { x: 150, y: 510 }
+    const dot = inkOutline([at], undefined, 6)
+    expect(dot.length).toBeGreaterThanOrEqual(8)
+    const centre = {
+      x: (Math.max(...dot.map((p) => p.x)) + Math.min(...dot.map((p) => p.x))) / 2,
+      y: (Math.max(...dot.map((p) => p.y)) + Math.min(...dot.map((p) => p.y))) / 2,
+    }
+    // The dot sits on its point to a fraction of a point.
+    expect(Math.hypot(centre.x - at.x, centre.y - at.y)).toBeLessThan(0.05)
+    for (const p of dot)
+      expect(Math.abs(Math.hypot(p.x - centre.x, p.y - centre.y) - 3)).toBeLessThan(0.05)
+  })
+
   test('is the outline the describer uses', () => {
     const pts = run(510)
     const outline = inkOutline(pts, undefined, 4)
