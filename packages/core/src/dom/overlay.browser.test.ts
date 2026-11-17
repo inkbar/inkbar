@@ -9,7 +9,7 @@ import {
   freeTextBox,
   withCalloutBounds,
 } from '../model/annotations/callout'
-import { staticDefaults } from '../model/annotations/defaults'
+import { cssVariableDefaults, staticDefaults } from '../model/annotations/defaults'
 import { isTextMarkup } from '../model/annotations/edit'
 import { createHistory } from '../model/annotations/history'
 import { importAnnotations } from '../model/annotations/json'
@@ -18,6 +18,7 @@ import { renderRegion } from '../pdfjs/render-region'
 
 import { createMessageState } from './messages-state'
 import { createOverlay, type OverlayOptions } from './overlay'
+import { renderAnnotationContent } from './overlay-render'
 import { createPageMount } from './page-mount'
 import { mountContainer, openFixtureInBrowser, TEXT_LAYER_CSS } from './test-utils'
 import { FONT_STACKS } from './text-fonts'
@@ -2430,5 +2431,190 @@ describe('overlay labels from messages', () => {
     const same = host.querySelector<HTMLElement>(`[data-annotation="${hl.id}"]`)!
     expect(same).toBe(el)
     expect(el.getAttribute('aria-label')).toBe('Surlignage avec commentaire par Ann')
+  })
+})
+
+describe('notes', () => {
+  const rect = { x: 100, y: 100, width: 20, height: 20 }
+
+  /** An overlay over a page, with the theme loaded, and the note's element after `make` ran. */
+  function noted(
+    opts: {
+      zoom?: number
+      rotation?: 0 | 90
+      pageRotate?: 0 | 90
+      defaults?: ReturnType<typeof cssVariableDefaults>
+    } = {}
+  ) {
+    const style = document.createElement('style')
+    style.textContent = themeCss
+    document.head.append(style)
+    const store = createAnnotationStore({
+      mode: { mode: 'uncontrolled' },
+      defaults: opts.defaults ?? staticDefaults,
+    })
+    const host = mountContainer(612 * (opts.zoom ?? 1), 792 * (opts.zoom ?? 1))
+    const overlay = createOverlay({
+      host,
+      page: 0,
+      store,
+      transform: createPageTransform(
+        { ...page, rotate: opts.pageRotate ?? 0 },
+        opts.zoom ?? 1,
+        opts.rotation ?? 0
+      ),
+    })
+    cleanup.push(() => (overlay.destroy(), host.remove(), style.remove()))
+    const el = (id: string) =>
+      host.querySelector<HTMLElement>(`[data-annotation="${id}"]`)!
+    return { store, host, overlay, el }
+  }
+
+  it('shows its own colour, not the theme variable', () => {
+    const { store, host, el } = noted()
+    host.style.setProperty('--ink-note', '#ff0000')
+    const note = store.add({
+      type: 'text',
+      page: 0,
+      rect,
+      icon: 'Comment',
+      color: '#3366CC',
+    })
+    const square = el(note.id).querySelector<SVGPathElement>('path.ink-note-icon')!
+    expect(square.getAttribute('fill')).toBe('#3366CC')
+    expect(getComputedStyle(square).fill).toBe('rgb(51, 102, 204)')
+  })
+
+  it('--ink-note colours a note made afterwards and leaves an existing one alone', () => {
+    const root = mountContainer(10, 10)
+    cleanup.push(() => root.remove())
+    const { store, el } = noted({ defaults: cssVariableDefaults(root) })
+    const first = store.add({ type: 'text', page: 0, rect, icon: 'Comment' })
+    expect(first.color).toBe('#F2C230')
+    root.style.setProperty('--ink-note', '#00aa55')
+    const second = store.add({
+      type: 'text',
+      page: 0,
+      rect: { ...rect, x: 200 },
+      icon: 'Comment',
+    })
+    expect(second.color).toBe('#00AA55')
+    const fillOf = (id: string) =>
+      el(id).querySelector('path.ink-note-icon')!.getAttribute('fill')
+    expect(fillOf(first.id)).toBe('#F2C230')
+    expect(fillOf(second.id)).toBe('#00AA55')
+  })
+
+  it('a note from the file with no appearance is drawn in the file’s colour', () => {
+    const { store, el } = noted()
+    const made = store.add({ type: 'text', page: 0, rect, icon: 'Comment' })
+    store._setEmbedded([
+      {
+        ...made,
+        id: 'from-file',
+        color: '#00AA55',
+        source: 'pdf',
+        locked: true,
+        hasAppearance: false,
+      },
+    ])
+    const square = el('from-file').querySelector('path.ink-note-icon')!
+    expect(square.getAttribute('fill')).toBe('#00AA55')
+  })
+
+  it('stays pressable over its whole square, glyph and corners included', () => {
+    const { store, el } = noted({ zoom: 2 })
+    const note = store.add({ type: 'text', page: 0, rect, icon: 'Comment' })
+    el(note.id).scrollIntoView({ block: 'center' })
+    const box = el(note.id).getBoundingClientRect()
+    expect(box.width).toBe(40)
+    // The middle of the glyph, a spot between its strokes, and the four corners of the square,
+    // which the rounded corners leave unpainted.
+    const spots: [number, number][] = [
+      [0.5, 0.5],
+      [0.35, 0.65],
+      [0.02, 0.02],
+      [0.98, 0.02],
+      [0.98, 0.98],
+      [0.02, 0.98],
+    ]
+    for (const [fx, fy] of spots) {
+      const hit = document.elementFromPoint(
+        box.left + box.width * fx,
+        box.top + box.height * fy
+      )
+      expect(hit?.closest('[data-annotation]'), `${fx},${fy}`).toBe(el(note.id))
+      expect(hit?.hasAttribute('data-ink-hit-area'), `${fx},${fy}`).toBe(true)
+    }
+    // The press area is painted inline, so a host rule cannot fill it.
+    const style = document.createElement('style')
+    style.textContent = 'svg rect { fill: red; stroke: blue }'
+    document.head.append(style)
+    cleanup.push(() => style.remove())
+    const hit = el(note.id).querySelector('rect[data-ink-hit-area]')!
+    expect(getComputedStyle(hit).fill).toBe('rgba(0, 0, 0, 0)')
+  })
+
+  it('keeps the shadow, once, on the note’s own svg', () => {
+    const { store, el } = noted({ zoom: 2 })
+    const note = store.add({ type: 'text', page: 0, rect, icon: 'Check' })
+    const filtered = [el(note.id), ...el(note.id).querySelectorAll('*')].filter(
+      (n) => getComputedStyle(n).filter !== 'none'
+    )
+    expect(filtered).toHaveLength(1)
+    expect(filtered[0]).toBe(el(note.id).querySelector(':scope > svg[data-ink-note]'))
+    expect(getComputedStyle(filtered[0]!).filter).toMatch(/drop-shadow/)
+  })
+
+  it('marks the svg only while the element holds a note', () => {
+    const { store, el } = noted()
+    const note = store.add({ type: 'text', page: 0, rect, icon: 'Comment' })
+    const node = el(note.id)
+    expect(node.querySelector('svg[data-ink-note]')).not.toBeNull()
+    // The element is reused when a type changes: draw another type into it.
+    const square = store.add({ type: 'square', page: 0, rect, width: 2 })
+    renderAnnotationContent(node, store.get(square.id)!, createPageTransform(page, 1, 0))
+    expect(node.querySelector('svg[data-ink-note]')).toBeNull()
+    expect(getComputedStyle(node.querySelector('svg')!).filter).toBe('none')
+  })
+
+  it('turns its glyph with the view', () => {
+    // Insert is a chevron: its middle point is its apex, which points up on the page as shown.
+    const apex = (rotation: 0 | 90): { x: number; y: number }[] => {
+      const { store, el } = noted({ rotation })
+      const note = store.add({ type: 'text', page: 0, rect, icon: 'Insert' })
+      const glyph = el(note.id).querySelector('path[data-ink-part="note-glyph"]')!
+      const nums = glyph
+        .getAttribute('d')!
+        .match(/-?[\d.]+/g)!
+        .map(Number)
+      return [0, 2, 4].map((i) => ({ x: nums[i]!, y: nums[i + 1]! }))
+    }
+    const [a, b, c] = apex(0)
+    expect(b!.y).toBeLessThan(a!.y)
+    expect(b!.y).toBeLessThan(c!.y)
+    const [d, e, f] = apex(90)
+    expect(e!.x).toBeGreaterThan(d!.x)
+    expect(e!.x).toBeGreaterThan(f!.x)
+  })
+
+  it('is upright for the page as the file displays it', () => {
+    const { store, el } = noted({ pageRotate: 90 })
+    const note = store.add({ type: 'text', page: 0, rect, icon: 'Insert' })
+    const nums = el(note.id)
+      .querySelector('path[data-ink-part="note-glyph"]')!
+      .getAttribute('d')!
+      .match(/-?[\d.]+/g)!
+      .map(Number)
+    expect(nums[3]).toBeLessThan(nums[1]!)
+    expect(nums[3]).toBeLessThan(nums[5]!)
+  })
+
+  it('names its icon on the square', () => {
+    const { store, el } = noted()
+    const note = store.add({ type: 'text', page: 0, rect, icon: 'Help' })
+    expect(el(note.id).querySelector<SVGElement>('.ink-note-icon')!.dataset.icon).toBe(
+      'Help'
+    )
   })
 })

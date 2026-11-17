@@ -48,7 +48,7 @@ export interface TextFrame {
   area: { topLeft: Point; width: number; height: number }
 }
 
-const AXES: Record<Angle, { dir: Point; down: Point }> = {
+export const AXES: Record<Angle, { dir: Point; down: Point }> = {
   0: { dir: { x: 1, y: 0 }, down: { x: 0, y: -1 } },
   90: { dir: { x: 0, y: 1 }, down: { x: 1, y: 0 } },
   180: { dir: { x: -1, y: 0 }, down: { x: 0, y: 1 } },

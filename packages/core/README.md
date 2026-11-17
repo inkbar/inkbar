@@ -175,7 +175,7 @@ The viewport mounts pages synchronously, so a build's page callbacks fire before
 
 ## PDF names in annotations
 
-Values taken from PDF names use PDF's spelling: `OpenArrow` and `ROpenArrow` for line endings, `Comment` and `NewParagraph` for note icons, `FreeTextCallout` and `LineArrow` for intents. Other valid PDF names (no spaces, none of `( ) < > [ ] { } / %`) are kept and written back unchanged, so `icon: 'Check'` survives an import and export. `LINE_ENDINGS`, `NOTE_ICONS` and `INTENTS` list the names Inkbar knows, and `isKnown(list, name)` tests one. A line ending Inkbar does not know draws as `None`, and every note icon draws the same icon.
+Values taken from PDF names use PDF's spelling: `OpenArrow` and `ROpenArrow` for line endings, `Comment` and `NewParagraph` for note icons, `FreeTextCallout` and `LineArrow` for intents. Other valid PDF names (no spaces, none of `( ) < > [ ] { } / %`) are kept and written back unchanged, so `icon: 'Check'` survives an import and export. `LINE_ENDINGS`, `NOTE_ICONS` and `INTENTS` list the names Inkbar knows, and `isKnown(list, name)` tests one. A line ending Inkbar does not know draws as `None`. A note icon Inkbar does not know draws the note's square with no glyph. `Comment`, `Note`, `Help`, `Insert`, `Key`, `NewParagraph` and `Paragraph` each have a glyph.
 
 ## Callouts and speech bubbles
 
@@ -188,6 +188,8 @@ A callout's corner handles resize its text box: the tip and bend stay, and the p
 ## Text boxes
 
 Inkbar draws a text box from its annotation alone. The fill, border, dashes, corner radius, alignment, opacity and text style all come from the annotation, so a saved file looks as the box does on screen. CSS cannot restyle the text. The press area over it is a transparent SVG rect (`[data-ink-text-area]`) and the text is SVG, both painted inline, so a host rule on an HTML class, on the text elements or on SVG shapes (`rect { fill: red }`) changes nothing. The other shapes that only take presses (a stamp's, a loupe's, a mask's edge, the wider hit area of a line) are painted inline the same way. `.ink-free-text` is only the in-place editor.
+
+A note is drawn the same way: a rounded square in the annotation's own colour with its icon's glyph, as SVG, so `--ink-note` no longer recolours notes on the page. It still sets the colour a new note starts with, as the other colour variables do, and a note from a file with no appearance uses the file's colour. The note's square is the press area, glyph included. The only theme rule left on a note is its drop shadow, which is on screen only. The glyph stays upright for the page as the file displays it and turns with the view when the user rotates it.
 
 A saved file can carry three font families without embedding a font: Helvetica, Times and Courier, each in regular, bold, italic and bold italic. A text box uses one of them. Any other `fontFamily` stays on the annotation and is drawn in the nearest of the three: a name that reads as serif in Times, one that reads as monospace in Courier, and the rest in Helvetica.
 

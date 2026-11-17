@@ -352,3 +352,43 @@ export const List: IconNode = [
   ['path', { d: 'M8 12h13' }],
   ['path', { d: 'M8 19h13' }],
 ]
+
+export const StickyNote: IconNode = [
+  [
+    'path',
+    {
+      d: 'M21 9a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z',
+    },
+  ],
+  ['path', { d: 'M15 3v5a1 1 0 0 0 1 1h5' }],
+]
+
+export const CircleQuestionMark: IconNode = [
+  ['circle', { cx: '12', cy: '12', r: '10' }],
+  ['path', { d: 'M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3' }],
+  ['path', { d: 'M12 17h.01' }],
+]
+
+export const KeyRound: IconNode = [
+  [
+    'path',
+    {
+      d: 'M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z',
+    },
+  ],
+  ['circle', { cx: '16.5', cy: '7.5', r: '.5', fill: 'currentColor' }],
+]
+
+export const ListPlus: IconNode = [
+  ['path', { d: 'M16 5H3' }],
+  ['path', { d: 'M11 12H3' }],
+  ['path', { d: 'M16 19H3' }],
+  ['path', { d: 'M18 9v6' }],
+  ['path', { d: 'M21 12h-6' }],
+]
+
+export const Pilcrow: IconNode = [
+  ['path', { d: 'M13 4v16' }],
+  ['path', { d: 'M17 4v16' }],
+  ['path', { d: 'M19 4H9.5a4.5 4.5 0 0 0 0 9H13' }],
+]

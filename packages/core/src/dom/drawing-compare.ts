@@ -60,6 +60,20 @@ const REFERENCE_TEXT_CSS = `
 :where([data-compare-side='reference'] .ink-free-text[data-align='justify']) { text-align: justify; }
 `
 
+/**
+ * The display rule the theme had for a note's icon, which the reference renderer's output still
+ * needs: a note is drawn from its annotation now and the theme keeps only its shadow, which the
+ * painted side gets from the theme. Reference side only, with the shadow it had as a box shadow,
+ * so the painted side's filter does not fall on it as well.
+ */
+const REFERENCE_NOTE_CSS = `
+:where([data-compare-side='reference'] .ink-note-icon) {
+  position: absolute; inset: 0; display: block; border-radius: 15% 15% 15% 0;
+  background: var(--ink-note, #f2c230); box-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+  filter: none; pointer-events: none;
+}
+`
+
 /** CSS px a capture of the `'annotation'` region reaches past the annotation's box. */
 const MARGIN = 16
 /** The test viewport's size (vitest.config.ts), restored after a capture that needed more. */
@@ -137,7 +151,7 @@ export async function comparePaint(
   const a = store.add(c.annotation)
 
   const style = document.createElement('style')
-  style.textContent = themeCss + REFERENCE_TEXT_CSS
+  style.textContent = themeCss + REFERENCE_TEXT_CSS + REFERENCE_NOTE_CSS
   const stage = document.createElement('div')
   // Both holders sit at the same spot and are captured one at a time: beside each other, a
   // page wider than half the viewport has its second half captured blank.

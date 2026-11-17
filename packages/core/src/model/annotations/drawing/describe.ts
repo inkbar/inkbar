@@ -4,6 +4,7 @@ import { describeLine } from './lines'
 import { describeLoupe } from './loupe'
 import { describeMarkup, describeRedact } from './markup'
 import { describeMask } from './mask'
+import { describeNote } from './note'
 import { describeShape } from './shapes'
 import { describeStamp } from './stamp'
 
@@ -33,6 +34,8 @@ export function describeAnnotation(
     case 'polyline':
     case 'polygon':
       return describeLine(a)
+    case 'text':
+      return describeNote(a, context)
     case 'freetext':
       return describeFreeText(a, context)
     case 'ink':
