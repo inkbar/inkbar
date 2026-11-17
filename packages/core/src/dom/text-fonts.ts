@@ -26,6 +26,20 @@ const KEEP_RUN = 200
 let context:
   CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null | undefined
 const widths = new Map<string, number>()
+let canvasCalls = 0
+
+/** What the width cache holds and how often the canvas was asked, so a test can see the bound hold. */
+export const widthCache = {
+  limit: CACHE_SIZE,
+  keepRun: KEEP_RUN,
+  get size(): number {
+    return widths.size
+  },
+  /** How many times a run has been measured on the canvas. */
+  get measured(): number {
+    return canvasCalls
+  },
+}
 
 /**
  * The width of a run of characters outside the tables (a cluster, or consecutive clusters: see
@@ -49,6 +63,7 @@ export function browserWidth(run: string, font: TextFont, size: number): number 
     context.font = css
     context.fontKerning = 'none'
     width = context.measureText(run).width
+    canvasCalls++
     if (run.length <= KEEP_RUN) {
       if (widths.size >= CACHE_SIZE) widths.delete(widths.keys().next().value!)
       widths.set(key, width)
