@@ -112,7 +112,7 @@ On a touch screen, two fingers pinch to zoom the document and scroll it. With `d
 
 When a file needs a password, the viewer asks for it in a dialog. `InkViewport` mounts `InkPasswordDialog` for you. A wrong password keeps the dialog open with a message; Cancel closes it and leaves a panel with an "Enter password" button. While the file is locked, `status` is `{ state: 'locked', incorrect }` and `data-state` reads `locked`. `error` still fires once for each failed open.
 
-Inkbar uses the typed password for that one load, then drops it. A `password` you pass still applies first; if it's wrong, the dialog opens with the message showing. Pass `:password-prompt="false"` to keep the plain `PasswordRequired` error and handle it yourself.
+Inkbar uses the typed password for that one load and for no other file. With `engine`, the open document keeps the password until it closes, because a save opens the file again in the engine. A `password` you pass still applies first; if it's wrong, the dialog opens with the message showing. Pass `:password-prompt="false"` to keep the plain `PasswordRequired` error and handle it yourself.
 
 To replace the panel that shows while the dialog is closed, fill the `locked` slot of `InkViewport`. It receives `{ incorrect, promptPassword }`, and `promptPassword` reopens the dialog.
 
@@ -129,6 +129,8 @@ To build your own flow, use the exported `InkPasswordDialog`. It takes `v-model:
 ## Controlled mode
 
 With `v-model:annotations`, Inkbar proposes each change through `update:annotations` and shows whatever list you pass back. To change annotations yourself, replace the array: `annotations.value = [...annotations.value, next]`. In-place mutation (`push`, `splice`, editing an item) is not observed, so the viewer never sees it.
+
+When you open a file Inkbar saved, its annotations reach you as one proposal through `update:annotations`, with `reason: 'file'` on the change: your list with the saved annotations added. `v-model` applies it for you; a handler of your own must assign it. Until your list holds them the viewer does not show them, though every save still keeps them in the file. The proposal is not an undo step, so undo does not remove them.
 
 Undo and redo are off in controlled mode unless you pass `:history="true"`. Inkbar then keeps a stack of your list's past values and applies undo and redo through `v-model`. Every change to the list is a step, including the list you load from your server when the document opens. Clear the history once that load has reached the viewer, so the first undo does not empty the list:
 

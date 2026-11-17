@@ -117,7 +117,7 @@ It takes the [`mountViewer` options](#mounting-a-viewer) except `container` and 
 
 #### Locked files
 
-When a file needs a password, `createViewer` asks for it. The status turns to `{ state: 'locked', incorrect: false }` and a "Password required" dialog opens. `onError` hears the `PasswordRequired` error once for each failed open. A wrong password keeps the dialog open with `incorrect: true`, as does a wrong `password` option. Cancel leaves the status `locked` and shows an "Enter password" button that reopens the dialog. The viewer uses the typed password for that one load and drops it, so it doesn't reach the status, the error or storage. Pass `passwordPrompt: false` to turn the prompt off; a locked file is then `{ state: 'error', error }` with code `PasswordRequired`. For a host of your own, `createPasswordDialog({ onSubmit, onCancel })` builds the same dialog.
+When a file needs a password, `createViewer` asks for it. The status turns to `{ state: 'locked', incorrect: false }` and a "Password required" dialog opens. `onError` hears the `PasswordRequired` error once for each failed open. A wrong password keeps the dialog open with `incorrect: true`, as does a wrong `password` option. Cancel leaves the status `locked` and shows an "Enter password" button that reopens the dialog. The viewer uses the typed password for that one load and for no other file, and it doesn't reach the status, the error or storage. With `engine`, the open document keeps the password until it closes, because a save opens the file again in the engine. Pass `passwordPrompt: false` to turn the prompt off; a locked file is then `{ state: 'error', error }` with code `PasswordRequired`. For a host of your own, `createPasswordDialog({ onSubmit, onCancel })` builds the same dialog.
 
 `createViewer` reads the theme's colours from the element you pass, so that element needs to be in the page when you call it.
 
@@ -176,7 +176,22 @@ Download, Print, Ctrl or Cmd+S and Ctrl or Cmd+P then hand over the file with th
 
 Without the loader nothing changes. Download and Print give the file as it was opened, the engine is not bundled, and `doc.save()` rejects with `EngineUnavailable` once there are changes. With or without it, `doc.getData()` gives the bytes the file was opened from.
 
-`doc.changed` is a readable that is true while the session differs from the file: its annotations from those it opened with, or a form value from the file's.
+A host that calls `openDocument` itself passes one more option, `pictures`. In a browser `savePictures(document)` from `@inkbar/core/dom` supplies it. `createViewer` and the Vue, React and Svelte bindings pass it for you.
+
+```ts
+import { openDocument } from '@inkbar/core'
+import { savePictures } from '@inkbar/core/dom'
+
+const doc = await openDocument(file, {
+  assets,
+  engine: () => import('@inkbar/engine'),
+  pictures: savePictures(document),
+})
+```
+
+`pictures` gives a save three things from the browser: a picture of each line of text the standard fonts cannot set, a PNG copy of an image that is neither PNG nor JPEG, and the text widths the screen uses. Without it, `doc.save()` lays text out with the standard fonts' own widths, so a line can break at a different word in the file than on screen. A text box with Chinese, Arabic or emoji text then fails the save with `SaveFailed`, and so does a stamp whose image is WebP.
+
+`doc.changed` is a readable that is true while the session differs from the file: its annotations from those it opened with, or a form value from the file's. The file's values are the ones the form holds when `ready` resolves. A value you set after that is a change, and so is one you pass at open.
 
 ### What goes into the file
 
@@ -186,11 +201,17 @@ Without the loader nothing changes. Download and Print give the file as it was o
 
 A file with a digital signature is saved by appending the changes after the signed bytes, so the signature still verifies; other viewers report that the file changed after signing. Any other file is rewritten. An encrypted file keeps its password.
 
+Appending keeps the earlier versions of a signed file inside it. If you delete or edit an annotation that an earlier Inkbar save wrote into a signed file, a reader can still recover the old one from the earlier version. A rewrite, which every unsigned file gets, drops it.
+
+A saved loupe holds a copy of its whole page's content, fonts and images included, and shows the part under the lens. If you redact that page later in another tool, the original content stays in the file inside the loupe. On a page with large images the copy also adds to the file's size.
+
 ### Opening a saved file
 
-Annotations Inkbar saved come back as session annotations, with the same ids, ready to edit. Saving again replaces them, so each one is in the file once. They are not an undo step and do not count as a change. They arrive a moment after `ready`, as one `replace` change with `reason: 'file'`; until then the file's copy shows, locked. In controlled mode `onChange` hears them once. A signature saved on a signature field comes back on the field, and the field shows as signed.
+Annotations Inkbar saved come back as session annotations, with the same ids, ready to edit. Saving again replaces them, so each one is in the file once. They are not an undo step and do not count as a change. They arrive a moment after `ready`, as one `replace` change with `reason: 'file'`; until then the file's copy shows, locked. A signature saved on a signature field comes back on the field, and the field shows as signed. `doc.embedded`, the summary of the file's annotations, stops counting them when they arrive.
 
-Annotations made by other programs stay locked, as before. So does an annotation Inkbar saved that another program has since moved or edited. In an encrypted file, Inkbar's own annotations come back locked too.
+In controlled mode `onChange` proposes them once, with `reason: 'file'`: your list with the saved annotations added. Apply that proposal as you apply any other, by pushing the list back. Until you push a list, the viewer does not show the saved annotations, and every save still keeps them in the file. The framework packages' undo history takes your answer as its starting point, so undo does not remove them.
+
+Annotations made by other programs stay locked, as before. So does an annotation Inkbar saved that another program has since moved or edited, replied to, or given a pop-up window. In an encrypted file, Inkbar's own annotations come back locked too.
 
 ### Where the saved file differs from the screen
 
@@ -206,7 +227,7 @@ XFA forms are not supported.
 
 ### When a save fails
 
-When the engine cannot be loaded or cannot write the file, `doc.save()` rejects with `SaveFailed`. Its `details.stage` is `'engine'` when the engine could not be loaded or started, as when offline, and `'write'` when it could not open or write this file. Download and Print then hand over nothing, the viewer says why in its message box, and `onError` hears the error. While a copy is being written the Download and Print buttons show they are busy, and another press does nothing. The written copy is kept until the next change, so Print after Download does not write the file twice.
+When the engine cannot be loaded or cannot write the file, `doc.save()` rejects with `SaveFailed`. Its `details.stage` is `'engine'` when the engine could not be loaded or started, as when offline, and `'write'` when it could not open or write this file. When one annotation is the cause, `details.annotation` holds its id. Download and Print then hand over nothing, the viewer says why in its message box, and `onError` hears the error. While a copy is being written the Download and Print buttons show they are busy, and another press does nothing. The written copy is kept until the next change, so Print after Download does not write the file twice.
 
 ## Annotation changes
 
