@@ -47,7 +47,11 @@ import { searchableText, type SearchableText } from './search-text'
 import { resolveSource, sourceFileName, type DocumentSource } from './source'
 import { textContentFromPdfjs, type TextContent } from './text'
 
-import type { AnnotationDocument, ForeignAnnotation } from './annotations/types'
+import type {
+  Annotation,
+  AnnotationDocument,
+  ForeignAnnotation,
+} from './annotations/types'
 import type { Destination, RawDestination } from './destination'
 import type { FieldsMode, FormField } from './form/types'
 import type { OutlineItem } from './outline'
@@ -176,7 +180,16 @@ export interface InkDocument {
   destroy(): void
   /** @internal PDF.js ids of file annotations lifted into the session. */
   readonly _lifted: Readable<ReadonlySet<string>>
-  /** @internal Resolves when the lift pass has landed or failed. Never rejects. */
+  /**
+   * @internal The PDF.js id of the file copy of `a`, when `a` is an annotation lifted from the
+   * file and unchanged since: the canvas may still paint that copy until a render leaves it out.
+   * Undefined for anything else, an edited lifted annotation included.
+   */
+  _fileCopyOf(a: Annotation): string | undefined
+  /**
+   * @internal Resolves when the lift pass has landed or failed, or the document is destroyed.
+   * Never rejects.
+   */
   readonly _liftSettled: Promise<void>
   /** @internal PDF.js handles for the DOM layer. Not part of the public contract. */
   readonly _pdfjs: {
@@ -219,6 +232,11 @@ export async function openDocument(
   const embedded: EmbeddedSummary[] = []
   /** PDF.js ids of the file annotations lifted into the session; set once, when they land. */
   const lifted = writable<ReadonlySet<string>>(new Set())
+  /** Each lifted annotation as it was lifted, and its file copy's PDF.js id, by id. */
+  const liftedFrom = new Map<string, { annotation: Annotation; pdfjsId: string }>()
+  /** Resolves when the document is destroyed. */
+  let markDestroyed!: () => void
+  const destroyedSignal = new Promise<void>((resolve) => (markDestroyed = resolve))
   /** Whether the file has annotations other than widgets and links, which Inkbar may have saved. */
   let mayHaveSaved = false
   const linksByPage = new Map<number, PageLink[]>()
@@ -434,6 +452,11 @@ export async function openDocument(
       const lift = (mayHaveSaved ? readLifted(objects) : Promise.resolve([])).then(
         (found) => {
           if (destroyed || found.length === 0) return
+          for (const f of found)
+            liftedFrom.set(f.annotation.id, {
+              annotation: f.annotation,
+              pdfjsId: f.pdfjsId,
+            })
           // The renders leave the file copies out in the same turn as they leave the list.
           lifted.set(new Set(found.map((f) => f.pdfjsId)))
           store._setLifted(
@@ -456,8 +479,9 @@ export async function openDocument(
     },
     () => undefined
   )
-  // Settles whatever happens: a lift that fails leaves the file's copies as they are.
-  const _liftSettled = liftSettled.catch(() => undefined)
+  // Settles whatever happens: a lift that fails leaves the file's copies as they are, and a
+  // document destroyed while the pass waits on PDF.js does not wait for it.
+  const _liftSettled = Promise.race([liftSettled, destroyedSignal]).catch(() => undefined)
 
   /**
    * A page's text with item boundaries measured or, with `glyphs`, taken from where the page
@@ -625,6 +649,7 @@ export async function openDocument(
     destroy() {
       if (destroyed) return
       destroyed = true
+      markDestroyed()
       history.destroy()
       form._destroy()
       store.destroy()
@@ -636,6 +661,14 @@ export async function openDocument(
       }
     },
     _lifted: readonly(lifted),
+    _fileCopyOf(a) {
+      const from = liftedFrom.get(a.id)
+      if (!from) return undefined
+      // A controlled host may hand back an equal copy rather than the lifted object.
+      const same =
+        from.annotation === a || JSON.stringify(from.annotation) === JSON.stringify(a)
+      return same ? from.pdfjsId : undefined
+    },
     _liftSettled,
     get _pdfjs() {
       if (!handles) throw statusError(status.get())

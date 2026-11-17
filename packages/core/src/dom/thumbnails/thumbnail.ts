@@ -20,6 +20,7 @@ import { drawingFor } from '../drawing-context'
 import { paintDrawing } from '../drawing-svg'
 import { ENGLISH, type MessageState } from '../messages-state'
 import { annotationBox } from '../overlay-render'
+import { canvasCopies } from '../page-mount'
 import { createPageRenderer, type PageRenderer } from '../page-renderer'
 import { toCssName } from '../plugins/api/marks'
 import { createPageTransform, type PageTransform } from '../transform'
@@ -223,7 +224,15 @@ export function createThumbnailPainter(
     )
   }
 
+  /** Stops following which lifted annotations the canvas still paints. */
+  let stopCopies: (() => void) | null = null
+  /** Whether the canvas paints `a` for now: a lifted annotation whose file copy it still shows. */
+  let copiesOnCanvas: (a: Annotation) => boolean = () => false
+
   function dropCanvas(): void {
+    stopCopies?.()
+    stopCopies = null
+    copiesOnCanvas = () => false
     renderer?.destroy()
     renderer = null
     painting = null
@@ -252,6 +261,11 @@ export function createThumbnailPainter(
       drawWidgets: true,
     })
     painting = { doc: current, page: opts.page, transform }
+    // A lifted annotation shows once: from the canvas until the render without its file copy
+    // lands, from the annotations layer after.
+    const copies = canvasCopies(current, renderer)
+    copiesOnCanvas = (a) => copies.onCanvas(a)
+    stopCopies = copies.subscribe(drawAnnotations)
   }
 
   const guard = createUndrawnGuard()
@@ -265,7 +279,7 @@ export function createThumbnailPainter(
     const shown =
       seen && current && transform
         ? withoutReplies(current.annotations.list.get()).filter(
-            (a) => a.page === opts.page && !paintedByCanvas(a)
+            (a) => a.page === opts.page && !paintedByCanvas(a) && !copiesOnCanvas(a)
           )
         : []
     // A page-wide drawing (a mask's dimming) goes under the rest, as it does on a page, and a

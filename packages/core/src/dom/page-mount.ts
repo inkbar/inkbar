@@ -7,7 +7,12 @@ import {
   type LinkLayer,
   type TextRun,
 } from './link-layer'
-import { createOverlay, type DecorateAnnotation, type Overlay } from './overlay'
+import {
+  createOverlay,
+  type CanvasCopies,
+  type DecorateAnnotation,
+  type Overlay,
+} from './overlay'
 import { createPageRenderer, type PageRenderer } from './page-renderer'
 import { createTextLayer, type TextLayerHandle } from './text-layer'
 
@@ -195,6 +200,7 @@ export function createPageMount(opts: PageMountOptions): PageMount {
       : {}),
     ...(opts.decorate ? { decorate: opts.decorate } : {}),
     ...(opts.messages ? { messages: opts.messages } : {}),
+    canvasCopies: canvasCopies(document, renderer),
   })
   const layers = opts.layers?.mount(page, host, transform)
 
@@ -255,5 +261,23 @@ export function createPageMount(opts: PageMountOptions): PageMount {
       textLayer.destroy()
       renderer.destroy()
     },
+  }
+}
+
+/**
+ * The lifted annotations whose file copies `renderer`'s canvas still paints: each shows once,
+ * from the canvas until the render that leaves it out lands, from the overlay after.
+ *
+ * @internal
+ */
+export function canvasCopies(doc: InkDocument, renderer: PageRenderer): CanvasCopies {
+  return {
+    onCanvas(a) {
+      const copies = renderer.fileCopies.get()
+      if (copies.size === 0) return false
+      const id = doc._fileCopyOf(a)
+      return id !== undefined && copies.has(id)
+    },
+    subscribe: (fn) => renderer.fileCopies.subscribe(() => fn()),
   }
 }

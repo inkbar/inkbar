@@ -2,6 +2,7 @@
 // (`position:absolute; inset:0; overflow:hidden`), and each canvas is pinned to the top-left
 // with its CSS size set from the transform (`position:absolute; left:0; top:0; width; height`).
 // Everything cosmetic (background, shadow, border) belongs to the theme.
+import { readonly, writable, type Readable } from '../model/readable'
 import { hiddenAppearances, omitAppearances } from '../pdfjs/widget-appearance'
 
 import { watchDevicePixelRatio } from './dpr-watch'
@@ -41,6 +42,13 @@ export interface PageRenderer {
    * together with that later render, so every promise handed out settles.
    */
   readonly rendered: Promise<void>
+  /**
+   * PDF.js ids of file annotations lifted into the session whose file copies the canvas on
+   * screen still paints, while a render that leaves them out is under way. Whoever draws the
+   * lifted annotations leaves these to the canvas until then, so each shows once. Empty when no
+   * render is pending (a failed or cancelled one included) or nothing is on screen yet.
+   */
+  readonly fileCopies: Readable<ReadonlySet<string>>
   update(transform: PageTransform): void
   destroy(): void
 }
@@ -71,9 +79,24 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
   let resolvePending: (() => void) | undefined
   let rendered: Promise<void> = Promise.resolve()
 
+  /** What the canvas on screen left out; undefined while none is on screen. */
+  let drawnHidden: ReadonlySet<string> | undefined
+  const fileCopies = writable<ReadonlySet<string>>(new Set())
+  /** Brings `fileCopies` up to date with the canvas on screen and the pending render. */
+  function trackFileCopies(): void {
+    const shown =
+      !destroyed && resolvePending && drawnHidden
+        ? [...doc._lifted.get()].filter((id) => !drawnHidden!.has(id))
+        : []
+    const now = fileCopies.get()
+    if (shown.length === now.size && shown.every((id) => now.has(id))) return
+    fileCopies.set(new Set(shown))
+  }
+
   function settle() {
     resolvePending?.()
     resolvePending = undefined
+    trackFileCopies()
   }
 
   /**
@@ -101,6 +124,7 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
     if (!resolvePending) {
       rendered = new Promise<void>((resolve) => (resolvePending = resolve))
     }
+    trackFileCopies()
     // The previous bitmap stays visible, stretched to the new size, until the new one lands.
     if (current) sizeCanvas(current, transform)
     let canvas: HTMLCanvasElement | undefined
@@ -151,6 +175,7 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
       }
       if (current) release(current)
       current = canvas
+      drawnHidden = hidden
       wrapper.append(canvas)
       opts.onRendered?.()
     } catch (error) {
@@ -180,6 +205,7 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
     get rendered() {
       return rendered
     },
+    fileCopies: readonly(fileCopies),
     update(transform) {
       if (destroyed) return
       void render(transform)
@@ -193,6 +219,7 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
       task = undefined
       if (current) release(current)
       current = undefined
+      drawnHidden = undefined
       wrapper.remove()
       settle()
     },
