@@ -46,21 +46,25 @@ export interface EngineDocument {
    */
   renderPage(index: number, options?: RenderOptions): Promise<RenderedPage>
   /**
-   * Writes annotations into the document: removes the ones in `remove`, then appends each of
-   * `annotations` to its page, in order, with its dictionary written from its Gloss form, the
-   * appearance given and its data. Each call starts from the document as it was opened, so
-   * writing again replaces the last write rather than adding to it. `save` then gives the result.
+   * Writes form values and annotations into the document: sets each of `fields` and redraws its
+   * widgets, removes the annotations in `remove`, then appends each of `annotations` to its page,
+   * in order, with its dictionary written from its Gloss form, the appearance given and its data.
+   * Each call starts from the document as it was opened, so writing again replaces the last write
+   * rather than adding to it. `save` then gives the result. The file's permission flags do not
+   * stop a write: a file that forbids annotating or filling its form takes both.
    *
    * The engine copies the input when `write` is called, so the caller keeps its arrays. A page
-   * index outside the document, or a resource name in an appearance that is not made of A-Z, a-z
-   * and 0-9, rejects with a `RangeError`. A part that cannot be written rejects with
-   * `write-failed`, naming the annotation; the document is then as it was opened.
+   * index outside the document, a resource name in an appearance that is not made of A-Z, a-z
+   * and 0-9, or a field value that is not a string or a list of strings, rejects with a
+   * `RangeError`. A part that cannot be written rejects with `write-failed`, naming the
+   * annotation or field; the document is then as it was opened.
    */
   write(input: WriteInput): Promise<void>
   /**
-   * Writes the document to a new buffer that belongs to the caller. `'rewrite'` (the default)
-   * writes a complete file. `'incremental'` returns the original bytes with the changes
-   * appended. Saving keeps the document's encryption.
+   * Writes the document to a new buffer that belongs to the caller. `'rewrite'` writes a
+   * complete file. `'incremental'` returns the original bytes with the changes appended, so a
+   * signature over them can still be verified. With no mode, a document with a signature field
+   * is saved incrementally and any other is rewritten. Saving keeps the document's encryption.
    */
   save(options?: SaveOptions): Promise<Uint8Array>
   /**
@@ -146,7 +150,7 @@ class Document implements EngineDocument {
   }
 
   save(options: SaveOptions = {}): Promise<Uint8Array> {
-    return this.#call({ op: 'save', doc: this.id, mode: options.mode ?? 'rewrite' })
+    return this.#call({ op: 'save', doc: this.id, mode: options.mode })
   }
 
   async close(): Promise<void> {

@@ -2,6 +2,7 @@ import { ArgumentError, EngineError, fromPdfiumError } from '../errors.ts'
 
 import { writeAnnotation } from './annotations.ts'
 import { checkAppearance } from './appearance.ts'
+import { writeFields } from './fields.ts'
 import { FUNCTIONS } from './functions.ts'
 
 import type {
@@ -158,6 +159,9 @@ export class EngineCore {
       if (pointer !== 0 && !this.#stopped) fn.free(pointer)
     }
     if (doc === 0) throw fromPdfiumError(fn.FPDF_GetLastError(), password !== undefined)
+    // Writing ignores the file's permission flags, so every handle has owner permissions: parts
+    // of PDFium that consult them would otherwise skip a write the caller asked for.
+    fn.EPDF_SetRuntimeOwnerPermissions(doc, 1)
     return doc
   }
 
@@ -256,14 +260,17 @@ export class EngineCore {
     })
   }
 
-  save(id: number, mode: SaveMode): Uint8Array {
+  /** Saves with `mode`, or with none: incrementally when the file has a signature field. */
+  save(id: number, mode: SaveMode | undefined): Uint8Array {
     const entry = this.#get(id)
     return this.#guard(() => this.#save(entry, mode))
   }
 
-  #save(entry: OpenDocument, mode: SaveMode): Uint8Array {
+  #save(entry: OpenDocument, mode: SaveMode | undefined): Uint8Array {
     const fn = this.#fn
-    const writer = fn.INK_Save(entry.doc, SAVE_FLAGS[mode])
+    const chosen =
+      mode ?? (fn.FPDF_GetSignatureCount(entry.doc) > 0 ? 'incremental' : 'rewrite')
+    const writer = fn.INK_Save(entry.doc, SAVE_FLAGS[chosen])
     if (writer === 0)
       throw new EngineError('engine-failure', 'The document could not be saved.')
     try {
@@ -284,8 +291,6 @@ export class EngineCore {
   write(id: number, input: WriteInput): void {
     const entry = this.#get(id)
     this.#checkWrite(entry, input)
-    if (input.fields && Object.keys(input.fields).length > 0)
-      throw new EngineError('write-failed', 'Form values are not supported yet.')
     this.#guard(() => {
       this.#write(entry, input)
     })
@@ -307,6 +312,18 @@ export class EngineCore {
       if (typeof item.data !== 'string')
         throw new ArgumentError(`annotation ${id}: data must be a string`)
       if (item.appearance) checkAppearance(item.appearance, `annotation ${id}`)
+    }
+    for (const [name, field] of Object.entries(input.fields ?? {})) {
+      const { value, text } = field
+      const strings =
+        typeof value === 'string' ||
+        (Array.isArray(value) && value.every((v) => typeof v === 'string'))
+      if (!strings)
+        throw new ArgumentError(
+          `field "${name}": value must be a string or a list of strings`
+        )
+      if (text !== undefined && typeof text !== 'string')
+        throw new ArgumentError(`field "${name}": text must be a string`)
     }
   }
 
@@ -342,11 +359,13 @@ export class EngineCore {
   }
 
   /**
-   * Removes, then appends, in input order. A page stays loaded until its last use, or to the end
-   * when it holds the parent of a reply, whose handle stays open for the reply to link to.
+   * Sets form values first, then removes annotations, then appends, in input order. A page
+   * stays loaded until its last use, or to the end when it holds the parent of a reply, whose
+   * handle stays open for the reply to link to.
    */
   #apply(doc: number, input: WriteInput): void {
     const fn = this.#fn
+    writeFields(this.#heap, doc, input.fields ?? {})
     const remove = input.remove ?? []
     const annotations = input.annotations ?? []
     const steps = [
