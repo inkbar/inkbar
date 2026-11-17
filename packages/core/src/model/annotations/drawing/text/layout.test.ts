@@ -391,8 +391,8 @@ describe('layoutText with runs outside the tables', () => {
   })
 
   test('a word of an unjoined script is measured once as a run, then wrapped by it', () => {
-    // A measure that charges 5 per character for a run but 3 for each in a run of one: a
-    // shaped run is not the sum of its parts.
+    // A measure that charges a character on its own a full size but 4 points for each character
+    // of a longer run: a shaped run is not the sum of its parts.
     const calls: string[] = []
     const measure = measureWith((run, _font, size) => {
       calls.push(run)

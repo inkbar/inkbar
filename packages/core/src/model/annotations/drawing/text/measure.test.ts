@@ -7,6 +7,7 @@ import {
   resolveFont,
   standardMeasure,
 } from './measure'
+import { CHARS, WIDTHS } from './metrics-data'
 
 import type { TextFont } from '../types'
 
@@ -100,14 +101,18 @@ describe('standardMeasure', () => {
   })
 
   test('every printable WinAnsi character has a width in every face', () => {
-    const chars = [...' !~¡ÿ€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ']
+    const chars = [...CHARS]
+    expect(chars.length).toBeGreaterThan(200)
+    for (const faces of Object.values(WIDTHS))
+      for (const face of faces) expect(face).toHaveLength(chars.length)
     for (const family of ['Helvetica', 'Times', 'Courier'] as const)
       for (const bold of [false, true])
         for (const italic of [false, true])
-          for (const c of chars)
-            expect(standardMeasure.width(c, { family, bold, italic }, 10)).toMatchObject({
-              outside: false,
-            })
+          for (const c of chars) {
+            const m = standardMeasure.width(c, { family, bold, italic }, 10)
+            expect(m.outside, `${family} ${c}`).toBe(false)
+            expect(m.width, `${family} ${c}`).toBeGreaterThan(0)
+          }
   })
 
   test('vertical metrics are those of the fonts browsers substitute', () => {
