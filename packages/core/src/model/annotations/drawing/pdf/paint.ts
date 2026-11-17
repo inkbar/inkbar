@@ -177,10 +177,20 @@ async function paintItem(scope: Scope, item: DrawItem): Promise<void> {
   }
 }
 
+/**
+ * A group below full opacity as a transparency group painted through its opacity, so where its
+ * items overlap they are not darkened twice. At full opacity that is the same as painting the
+ * items one by one, which is what it does: a reader may draw a group on a canvas of its own and
+ * blur its edges putting it back (PDF.js does).
+ */
 async function paintGroup(
   scope: Scope,
   item: Extract<DrawItem, { kind: 'group' }>
 ): Promise<void> {
+  if (item.opacity >= 1) {
+    for (const child of item.items) await paintItem(scope, child)
+    return
+  }
   const bounds = paintedRect(item)
   if (!bounds) return
   const inner = await appearance(scope.shared, bounds, item.items)
@@ -371,6 +381,15 @@ const fontName = (scope: Scope, font: TextFont): string =>
 type TextItem = Extract<DrawItem, { kind: 'text' }>
 type Run = { text: string; origin: Point; outside: boolean }
 
+const SOFT_HYPHEN = String.fromCharCode(0xad)
+
+/**
+ * A run's characters as a standard font sets them: composed, and without soft hyphens. The layout
+ * never breaks at a soft hyphen and gives it no width, and the screen draws none within a line,
+ * while a PDF viewer would draw Windows ANSI's 0xAD as a hyphen.
+ */
+const drawn = (text: string): string => text.normalize('NFC').replaceAll(SOFT_HYPHEN, '')
+
 /**
  * A text as the screen paints it: clipped to `clip`, each line (each segment, on a line with tabs)
  * set from its origin and turned by `angle` about it, each underline a filled rule. A run in the
@@ -386,7 +405,8 @@ async function paintText(scope: Scope, item: TextItem): Promise<void> {
     const runs: readonly Run[] = line.segments ?? [line]
     for (const run of runs) {
       if (run.text === '') continue
-      const bytes = run.outside ? undefined : winAnsi(run.text.normalize('NFC'))
+      const bytes = run.outside ? undefined : winAnsi(drawn(run.text))
+      if (bytes?.length === 0) continue
       if (!bytes) {
         // The screen spaces a pictured run, a tabbed line's segments included, like any other.
         body.push(...(await pictureRun(scope, item, run, spacing, turn)))
@@ -525,6 +545,17 @@ async function paintImage(
 }
 
 /**
+ * PNG or JPEG, told by the bytes' signature: a browser draws an image by what its bytes hold,
+ * whatever type its data URL names, and a stamp's data URL must name one of the two.
+ */
+function formatOf(data: Uint8Array): Image['format'] | undefined {
+  const starts = (...bytes: number[]) => bytes.every((b, i) => data[i] === b)
+  if (starts(0x89, 0x50, 0x4e, 0x47)) return 'png'
+  if (starts(0xff, 0xd8, 0xff)) return 'jpeg'
+  return undefined
+}
+
+/**
  * The image a data URL holds: PNG and JPEG as they are, anything else through `toPng` at four
  * pixels a point of the picture's own `width` and `height`. Each is made once per call.
  */
@@ -535,12 +566,7 @@ function imageOf(
   height: number
 ): Promise<Image> {
   const decoded = decodeDataUrl(url)
-  const format =
-    decoded?.type === 'image/png'
-      ? 'png'
-      : decoded?.type === 'image/jpeg'
-        ? 'jpeg'
-        : undefined
+  const format = decoded && formatOf(decoded.data)
   if (decoded && format) {
     let image = shared.images.get(url)
     if (!image) {

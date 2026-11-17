@@ -33,6 +33,7 @@ import { createMessageState, type MessageState } from '../messages-state'
 import { createPasswordPrompt, lockedStatus } from '../password-prompt'
 import { createPluginHost, type HostRecords, type PluginHost } from '../plugins/host'
 import { createFocusReturn } from '../popover-focus'
+import { savePictures } from '../save-pictures'
 import {
   createSearchController,
   viewerSearchOf,
@@ -655,6 +656,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       assets,
       password: openOpts?.password ?? password,
       defaults: defaults ?? cssVariableDefaults(root),
+      _pictures: savePictures(root.ownerDocument),
       history,
       fields,
       annotations,

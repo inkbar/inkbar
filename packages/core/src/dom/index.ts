@@ -141,6 +141,7 @@ export type {
   ToolStyle,
 } from '../model/annotations/tool-style'
 export { cssVariableDefaults } from '../model/annotations/defaults'
+export { savePictures } from './save-pictures'
 export {
   ARROWHEAD_CHOICES,
   ARROWHEAD_ENDING,

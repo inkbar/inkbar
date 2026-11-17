@@ -211,6 +211,19 @@ describe('paint', () => {
     )
   })
 
+  test('a group at full opacity paints its items as they are, with no form', async () => {
+    const square: DrawItem = {
+      kind: 'rect',
+      rect: { x: 10, y: 10, width: 20, height: 20 },
+      paint: { fill: { color: '#ff0000' } },
+    }
+    const grouped = await paintOf({ kind: 'group', opacity: 1, items: [square, square] })
+    const plain = await paintOf(square, square)
+    expect(grouped.content).toBe(plain.content)
+    expect(grouped.a.forms).toBeUndefined()
+    expect(grouped.a.opacities).toBeUndefined()
+  })
+
   test('a group is widened by its strokes', async () => {
     const { a } = await paintOf({
       kind: 'group',
@@ -224,6 +237,59 @@ describe('paint', () => {
       ],
     })
     expect(a.forms!.Fm0!.bounds).toEqual({ x: 8, y: 8, width: 24, height: 24 })
+  })
+
+  const unclipped = (
+    over: Partial<Extract<DrawItem, { kind: 'text' }>> = {}
+  ): DrawItem => ({
+    kind: 'text',
+    lines: [
+      { text: 'Hi', origin: { x: 10, y: 50 }, width: 30, outside: false },
+      {
+        text: 'a b',
+        origin: { x: 12, y: 38 },
+        width: 20,
+        outside: false,
+        wordSpacing: 4,
+      },
+    ],
+    font: { family: 'Helvetica', bold: false, italic: false },
+    size: 10,
+    color: '#000000',
+    angle: 0,
+    outsideStandardFonts: false,
+    ...over,
+  })
+
+  test('a group holding text without a clip is painted, in a box from its lines', async () => {
+    const { a, content } = await paintOf({
+      kind: 'group',
+      opacity: 0.5,
+      items: [unclipped()],
+    })
+    expect(content).toBe('q\n/GS0 gs\n/Fm0 Do\nQ')
+    // Helvetica's line box is 0.905 of the size above the baseline and 0.212 below; the second
+    // line's one space adds its word spacing.
+    const b = a.forms!.Fm0!.bounds
+    expect(b.x).toBeCloseTo(10)
+    expect(b.x + b.width).toBeCloseTo(40)
+    expect(b.y).toBeCloseTo(38 - 2.12)
+    expect(b.y + b.height).toBeCloseTo(50 + 9.05)
+    expect(text(a.forms!.Fm0!)).toContain('(Hi) Tj')
+  })
+
+  test('unclipped text turned by 90 has its box turned about each line’s origin', async () => {
+    const { a } = await paintOf({
+      kind: 'group',
+      opacity: 0.5,
+      items: [unclipped({ angle: 90 })],
+    })
+    const b = a.forms!.Fm0!.bounds
+    // Turned anticlockwise: the advance runs up, the ascent to the left.
+    expect(b.x).toBeCloseTo(10 - 9.05)
+    expect(b.x + b.width).toBeCloseTo(12 + 2.12)
+    expect(b.y).toBeCloseTo(38)
+    expect(b.y + b.height).toBeCloseTo(50 + 30)
   })
 })
 
@@ -380,6 +446,26 @@ describe('images', () => {
     expect(toPng.mock.calls).toEqual([[url, 400, 200]])
     expect(a.images).toEqual({ Im0: { format: 'png', data: png } })
     expect(content.match(/\/Im0 Do/g)).toHaveLength(2)
+  })
+
+  test('an image goes by its bytes, not by the type its data URL names', async () => {
+    // A stamp's data URL must name PNG or JPEG, and a browser draws what the bytes hold.
+    const webp = 'data:image/png;base64,UklGRg=='
+    const toPng = vi.fn(() => Promise.resolve(png))
+    const a = await paintDrawing(
+      drawing(
+        { kind: 'image', data: webp, rect: box, angle: 0 },
+        { kind: 'image', data: 'data:image/png;base64,/9j/', rect: box, angle: 0 },
+        { kind: 'image', data: 'data:image/jpeg;base64,iVBORw==', rect: box, angle: 0 }
+      ),
+      { page: 0, toPng }
+    )
+    expect(toPng.mock.calls).toEqual([[webp, 120, 160]])
+    expect(a.images).toEqual({
+      Im0: { format: 'png', data: png },
+      Im1: { format: 'jpeg', data: new Uint8Array([0xff, 0xd8, 0xff]) },
+      Im2: { format: 'png', data: png },
+    })
   })
 
   test('without toPng, another type rejects as an unpaintable image', async () => {

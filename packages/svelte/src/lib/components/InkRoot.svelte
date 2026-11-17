@@ -173,6 +173,7 @@
     lockedStatus,
     MIN_DOCUMENT_WIDTH,
     pageSelectionText,
+    savePictures,
     SIGNATURE_FONTS,
     trackToolStyle,
     unknownTool,
@@ -409,6 +410,7 @@
     const base = untrack(() => ({
       assets,
       defaults: defaults ?? (ref ? cssVariableDefaults(ref) : undefined),
+      _pictures: savePictures(ref?.ownerDocument ?? globalThis.document),
       // Controlled hosts get the snapshot history; core's own stack stays off.
       history: controlledProp ? false : (historyProp ?? true),
       annotations: controlledProp
