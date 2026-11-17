@@ -15,14 +15,17 @@ const ARITY: Record<string, number> = {
   z: 0,
 }
 
-const NUMBER = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/
+/** A number at `lastIndex`: sticky, so reading one never copies the rest of the string. */
+const NUMBER = /[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/y
 
 /**
  * SVG path data as absolute `M L C A Z` commands. It accepts `M m L l H h V v C c S s Q q T t A a
  * Z z`: horizontal and vertical lines become `L`, smooth curves are made explicit, and quadratics
  * become cubics. An arc keeps SVG's meaning: its `sweep` is true when the arc runs in the
- * direction of increasing angle with y pointing down, as the path data was written. Throws a
- * `SyntaxError` naming the position of anything else.
+ * direction of increasing angle with y pointing down, as the path data was written. An arc has no
+ * rotation of its axes, as `PathCommand` `A` has none: a nonzero x-axis rotation throws, like
+ * anything else it does not accept, a `SyntaxError` naming the position. The glyphs of the note
+ * icons have no such arc (a test checks them).
  */
 export function parsePathData(d: string): PathCommand[] {
   const out: PathCommand[] = []
@@ -40,12 +43,18 @@ export function parsePathData(d: string): PathCommand[] {
   const space = (): void => {
     while (i < d.length && /[\s,]/.test(d[i]!)) i++
   }
+  /** The length of the number at `at`, or 0 if there is none. */
+  const numberLength = (at: number): number => {
+    NUMBER.lastIndex = at
+    return NUMBER.test(d) ? NUMBER.lastIndex - at : 0
+  }
   const number = (): number => {
     space()
-    const m = NUMBER.exec(d.slice(i))
-    if (!m) return fail('expected a number')
-    i += m[0].length
-    return Number(m[0])
+    const length = numberLength(i)
+    if (length === 0) return fail('expected a number')
+    const value = Number(d.slice(i, i + length))
+    i += length
+    return value
   }
   const flag = (): boolean => {
     space()
@@ -163,7 +172,7 @@ export function parsePathData(d: string): PathCommand[] {
     }
     space()
     // The next thing is a command letter, or more numbers for the same command.
-    if (i < d.length && !/[A-Za-z]/.test(d[i]!) && !NUMBER.test(d.slice(i)))
+    if (i < d.length && !/[A-Za-z]/.test(d[i]!) && numberLength(i) === 0)
       fail('expected a number')
   }
   return out
