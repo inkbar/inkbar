@@ -801,6 +801,72 @@ describe('leaves the document as opened after a failed write', () => {
   })
 })
 
+describe('a reply to an annotation already in the file', () => {
+  const reply = {
+    ...common('reply', rect(300, 600, 20, 20)),
+    type: 'text',
+    icon: 'Comment',
+    // Core's id for the parent: the engine links by `replyTo`, not by this.
+    inReplyTo: 'file-note',
+  } satisfies GlossAnnotation
+
+  test('is a hidden note linked to it, with no appearance', async () => {
+    const file = await fixtureBytes('note-icon-ap')
+    const [note] = await pdfjsAnnotations(file)
+    const doc = await engine.open(file)
+    let saved: Uint8Array
+    try {
+      await doc.write({
+        annotations: [
+          {
+            page: 0,
+            annotation: reply,
+            replyTo: { page: 0, objectNumber: objectNumber(note!.id) },
+            data: '{}',
+          },
+        ],
+      })
+      saved = await doc.save()
+      keep('reply to a file note', saved)
+    } finally {
+      await doc.close()
+    }
+    const annotations = await pdfjsAnnotations(saved)
+    expect(annotations.map((a) => a.id)).toContain(note!.id)
+    const written = annotations.find((a) => a.id !== note!.id)!
+    expect(written.subtype).toBe('Text')
+    expect(written.inReplyTo).toBe(note!.id)
+    expect(written.annotationFlags).toBe(2 | 4)
+    expect(written.hasAppearance).toBe(false)
+  })
+
+  test('that is not there rejects, naming the reply, and leaves the document as opened', async () => {
+    const plain = await engine.open(opened)
+    const expected = await plain.save()
+    await plain.close()
+
+    const doc = await engine.open(opened)
+    try {
+      const failed = doc.write({
+        annotations: [
+          square('fine', 100),
+          {
+            page: 0,
+            annotation: reply,
+            replyTo: { page: 0, objectNumber: 9999 },
+            data: '{}',
+          },
+        ],
+      })
+      await expect(failed).rejects.toMatchObject({ code: 'write-failed' })
+      await expect(failed).rejects.toThrow(/reply/)
+      expect(withoutId(await doc.save())).toBe(withoutId(expected))
+    } finally {
+      await doc.close()
+    }
+  })
+})
+
 test('rejects a reply whose parent is not written in the same call', async () => {
   const reply = {
     ...common('orphan', rect(300, 600, 20, 20)),
@@ -932,6 +998,7 @@ describe('frees what it allocates', () => {
               live.appearances.delete(args[1] ?? 0)
               break
             case 'FPDFPage_CreateAnnot':
+            case 'EPDFPage_GetAnnotByObjectNumber':
               if (result) live.annotations.add(result)
               break
             case 'FPDFPage_CloseAnnot':
@@ -1033,6 +1100,60 @@ describe('frees what it allocates', () => {
     } finally {
       core.destroy()
     }
+  })
+
+  describe('with a reply to an annotation in the file', () => {
+    /** text-simple with one square written into it, and that square's place. */
+    let withTarget: Uint8Array
+    let target: { page: number; objectNumber: number }
+    beforeAll(async () => {
+      const doc = await engine.open(opened)
+      try {
+        await doc.write({ annotations: [square('target', 100)] })
+        withTarget = await doc.save()
+      } finally {
+        await doc.close()
+      }
+      const [square0] = await pdfjsAnnotations(withTarget)
+      target = { page: 0, objectNumber: objectNumber(square0!.id) }
+    })
+    const toTarget = (replyTo: { page: number; objectNumber: number }) => ({
+      page: 0,
+      annotation: { ...reply, id: 'file-reply' },
+      replyTo,
+      data: '{}',
+    })
+
+    test.each([
+      ['that is there', () => ({ annotations: [toTarget(target)] }), true],
+      [
+        'that the same call removed',
+        () => ({ remove: [target], annotations: [toTarget(target)] }),
+        false,
+      ],
+      [
+        'that is not there, after another annotation',
+        () => ({
+          annotations: [square('plain', 100), toTarget({ page: 0, objectNumber: 9999 })],
+        }),
+        false,
+      ],
+    ] satisfies [string, () => WriteInput, boolean][])(
+      'after a reply %s',
+      async (_, input, works) => {
+        const { core, snapshot } = await counted()
+        try {
+          const { id } = core.open(withTarget)
+          const before = snapshot()
+          if (works) core.write(id, input())
+          else expect(() => core.write(id, input())).toThrow(EngineError)
+          expect(snapshot()).toEqual(before)
+          expect(core.stopped).toBe(false)
+        } finally {
+          core.destroy()
+        }
+      }
+    )
   })
 })
 

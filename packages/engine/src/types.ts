@@ -144,9 +144,17 @@ export interface WriteAnnotation {
   /**
    * The annotation in Gloss form. Its dictionary entries are written from this, so other
    * programs can read and edit it. An annotation with `inReplyTo` is written as a reply: a hidden
-   * note linked to its parent, which must be among the annotations of the same call.
+   * note linked to its parent, which must be among the annotations of the same call, unless
+   * `replyTo` names the parent instead.
    */
   annotation: GlossAnnotation
+  /**
+   * An annotation already in the document that this one replies to. When given, the annotation
+   * is written as a reply to it, a hidden note linked to it with no appearance, whatever its
+   * `inReplyTo` says. One that names no annotation on that page, such as one removed by the
+   * same call, rejects with `write-failed` naming the reply.
+   */
+  replyTo?: AnnotationRef
   /**
    * How the annotation looks. Its `bounds` become the annotation's rectangle. Required for
    * everything but a reply, which has none.

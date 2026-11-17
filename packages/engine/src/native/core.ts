@@ -307,6 +307,16 @@ export class EngineCore {
     }
     for (const item of input.annotations ?? []) {
       this.#checkIndex(entry, item.page)
+      if (item.replyTo !== undefined) {
+        this.#checkIndex(entry, item.replyTo.page)
+        if (
+          !Number.isInteger(item.replyTo.objectNumber) ||
+          item.replyTo.objectNumber <= 0
+        )
+          throw new ArgumentError(
+            `annotation ${String(item.annotation.id)}: replyTo object number ${item.replyTo.objectNumber} is not a whole number above 0`
+          )
+      }
       const id = item.annotation.id
       if (typeof id !== 'string')
         throw new ArgumentError('an annotation has no string id')
@@ -378,7 +388,8 @@ export class EngineCore {
     const parentIds = new Set(annotations.map((item) => item.annotation.inReplyTo))
     const pages = new Map<number, number>()
     const parents = new Map<string, number>()
-    const pinned = new Set<number>()
+    // A page holding a file annotation replied to stays loaded to the end, for its lookups.
+    const pinned = new Set(annotations.flatMap((item) => item.replyTo?.page ?? []))
     const page = (index: number) => {
       let loaded = pages.get(index)
       if (loaded === undefined) {
@@ -408,7 +419,18 @@ export class EngineCore {
       })
       annotations.forEach((item, index) => {
         const id = item.annotation.id
-        const annot = writeAnnotation(this.#heap, doc, page(item.page), item, parents)
+        const target = item.replyTo
+          ? fn.EPDFPage_GetAnnotByObjectNumber(
+              page(item.replyTo.page),
+              item.replyTo.objectNumber
+            )
+          : undefined
+        let annot: number
+        try {
+          annot = writeAnnotation(this.#heap, doc, page(item.page), item, parents, target)
+        } finally {
+          if (target && !this.#stopped) fn.FPDFPage_CloseAnnot(target)
+        }
         if (parentIds.has(id) && !parents.has(id)) {
           parents.set(id, annot)
           pinned.add(item.page)

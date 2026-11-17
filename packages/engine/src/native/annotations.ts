@@ -90,9 +90,9 @@ function standardFont(family: string, bold: boolean, italic: boolean): number {
   return base + (bold ? (italic ? 2 : 1) : italic ? 3 : 0)
 }
 
-/** The PDF subtype an annotation is written as. A loupe or a mask is a stamp. */
-function subtypeOf(annotation: GlossAnnotation): number | undefined {
-  if (annotation.inReplyTo !== undefined) return SUBTYPE.Text
+/** The PDF subtype an annotation is written as. A loupe or a mask is a stamp; a reply a note. */
+function subtypeOf(annotation: GlossAnnotation, reply: boolean): number | undefined {
+  if (reply) return SUBTYPE.Text
   const inkbar = annotation.custom?.inkbar
   const kind =
     typeof inkbar === 'object' && inkbar !== null && 'type' in inkbar
@@ -162,16 +162,18 @@ const pointFloats = (points: readonly Point[]) => points.flatMap((p) => [p.x, p.
 
 /**
  * Writes one annotation on `page` and returns its handle, which the caller closes. A reply is
- * linked to its parent's handle in `parents`, by Gloss id. On failure the annotation's handle is
- * closed and a `write-failed` error naming its id is thrown; the annotation may be left half
- * written in the document, so the caller discards the document.
+ * linked to `target`, the handle of the file annotation its `replyTo` names (0 when the page has
+ * none), or else to its parent's handle in `parents`, by Gloss id. On failure the annotation's
+ * handle is closed and a `write-failed` error naming its id is thrown; the annotation may be
+ * left half written in the document, so the caller discards the document.
  */
 export function writeAnnotation(
   heap: Heap,
   doc: number,
   page: number,
   item: WriteAnnotation,
-  parents: ReadonlyMap<string, number>
+  parents: ReadonlyMap<string, number>,
+  target?: number
 ): number {
   const { fn } = heap
   const { annotation } = item
@@ -183,11 +185,20 @@ export function writeAnnotation(
   const check = (ok: number, what: string) => {
     if (!ok) throw failed(`${what} could not be set`)
   }
-  const reply = annotation.inReplyTo !== undefined
-  const subtype = subtypeOf(annotation)
+  const { replyTo } = item
+  const reply = replyTo !== undefined || annotation.inReplyTo !== undefined
+  const subtype = subtypeOf(annotation, reply)
   if (subtype === undefined)
     throw failed(`the type ${annotation.type} is not one it knows`)
-  const parent = reply ? parents.get(annotation.inReplyTo as string) : undefined
+  if (replyTo && !target)
+    throw failed(
+      `the annotation it replies to, object ${replyTo.objectNumber} on page ${replyTo.page}, is not there`
+    )
+  const parent = replyTo
+    ? target
+    : reply
+      ? parents.get(annotation.inReplyTo as string)
+      : undefined
   if (reply && parent === undefined)
     throw failed(
       `its parent ${annotation.inReplyTo} is not among the annotations written with it`
