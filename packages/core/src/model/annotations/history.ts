@@ -299,6 +299,26 @@ export function createHistory(
       previous = current
       return
     }
+    if (change.kind === 'replace' && change.reason === 'file') {
+      // Annotations saved into the file were lifted into the session: no step, and every
+      // snapshot swaps the file copies for them the same way, so undo never brings a file copy
+      // back or drops a lifted annotation. Each snapshot keeps its own edits.
+      const removed = new Set(change.removed)
+      const lift = (list: readonly Annotation[]) => {
+        const ids = new Set(list.map((a) => a.id))
+        return [
+          ...list.filter((a) => !(a.source === 'pdf' && removed.has(a.id))),
+          ...change.lifted.filter((a) => !ids.has(a.id)),
+        ]
+      }
+      for (const { annotations } of [...undoStack, ...redoStack]) {
+        annotations.before = lift(annotations.before)
+        annotations.after = lift(annotations.after)
+      }
+      if (start) start.annotations = lift(start.annotations)
+      previous = current
+      return
+    }
     if (change.kind === 'replace') {
       previous = current
       if (depth > 0) open(current)

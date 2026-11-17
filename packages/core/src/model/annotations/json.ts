@@ -46,6 +46,43 @@ export const KNOWN_TYPES: ReadonlySet<string> = new Set(
 )
 
 /**
+ * @internal One annotation as a Gloss file writes it: without its viewer state (`source`,
+ * `locked`, `hasAppearance`), with Inkbar's own data under `custom.inkbar`.
+ */
+export function toGloss(a: Annotation): GlossAnnotation {
+  const { source: _source, locked: _locked, hasAppearance: _appearance, ...rest } = a
+  return toFile(rest)
+}
+
+/**
+ * @internal One Gloss file item read back as a session annotation: Inkbar's own data comes back
+ * out of `custom.inkbar`, so a circle or square marked there as a loupe or mask becomes one.
+ * Unknown keys, including `source`, `locked` and `hasAppearance`, are dropped. On failure,
+ * the issues as `path: message`.
+ */
+export function fromGloss(
+  raw: unknown
+): { success: true; annotation: Annotation } | { success: false; issues: string[] } {
+  const type = (raw as { type?: unknown } | null)?.type
+  const { item, lifted } =
+    isRecord(raw) && typeof type === 'string'
+      ? fromFile(raw)
+      : { item: raw, lifted: [] as readonly string[] }
+  const parsed = ExportedAnnotationSchema.safeParse(item)
+  if (parsed.success)
+    return { success: true, annotation: { ...parsed.data, source: 'session' } }
+  return {
+    success: false,
+    // An error in a key Inkbar keeps under custom.inkbar names it where the file has it.
+    issues: parsed.error.issues.map((i) => {
+      const path = i.path.join('.')
+      const own = typeof i.path[0] === 'string' && lifted.includes(i.path[0])
+      return `${own ? `custom.inkbar.${path}` : path}: ${i.message}`
+    }),
+  }
+}
+
+/**
  * Session annotations plus any preserved foreign items. Embedded (`source: 'pdf'`) ones stay in
  * the file. `source` and `locked` are viewer state and are left out.
  *
@@ -71,7 +108,7 @@ export function exportAnnotations(
   const session: GlossAnnotation[] = store.list
     .get()
     .filter((a) => a.source === 'session')
-    .map(({ source: _source, locked: _locked, ...rest }) => toFile(rest))
+    .map(toGloss)
   return {
     format: GLOSS_FORMAT,
     version: GLOSS_VERSION,
@@ -196,27 +233,13 @@ export function planImport(
       }
       return
     }
-    // Inkbar's own data comes back out of `custom.inkbar`: a circle or square marked there as a
-    // loupe or mask becomes one. Unknown keys, including `source` and `locked`, are dropped here.
-    const { item, lifted } =
-      isRecord(raw) && typeof type === 'string'
-        ? fromFile(raw)
-        : { item: raw, lifted: [] as readonly string[] }
-    const parsed = ExportedAnnotationSchema.safeParse(item)
+    const parsed = fromGloss(raw)
     if (!parsed.success) {
-      result.errors.push({
-        index,
-        // An error in a key Inkbar keeps under custom.inkbar names it where the file has it.
-        issues: parsed.error.issues.map((i) => {
-          const path = i.path.join('.')
-          const own = typeof i.path[0] === 'string' && lifted.includes(i.path[0])
-          return `${own ? `custom.inkbar.${path}` : path}: ${i.message}`
-        }),
-      })
+      result.errors.push({ index, issues: parsed.issues })
       return
     }
-    if (!claim(parsed.data.id, index)) return
-    incoming.push({ ...parsed.data, source: 'session' })
+    if (!claim(parsed.annotation.id, index)) return
+    incoming.push(parsed.annotation)
     result.imported++
   })
 

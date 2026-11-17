@@ -34,6 +34,18 @@ export type AnnotationChange =
       /** What was merged into each annotation, by id. */
       fields: ReadonlyMap<string, EmbeddedFieldPatch>
     }
+  | {
+      kind: 'replace'
+      /**
+       * Annotations Inkbar saved into the file were read back after `ready`: their file copies
+       * left the list and they joined it as session annotations.
+       */
+      reason: 'file'
+      /** The annotations that joined, in file order. */
+      lifted: readonly Annotation[]
+      /** Ids of the embedded annotations that left. */
+      removed: readonly string[]
+    }
 
 /** The changes `edit` reports: one per `add`, `update` or `remove` call that changed something. */
 export type AnnotationEdit = Extract<
@@ -95,6 +107,16 @@ export interface AnnotationStore {
    * `{ kind: 'replace', reason: 'embedded', fields }` when anything changed.
    */
   _patchEmbedded(fields: ReadonlyMap<string, EmbeddedFieldPatch>): void
+  /**
+   * @internal Lifts annotations Inkbar saved into the file: removes the embedded annotations
+   * `embeddedIds` names (their file copies) and adds `list` as session annotations, in order,
+   * after the rest. One whose id is already in the list is not added: the list's copy wins. It
+   * is not an undo step. Uncontrolled: applied at once, emitting
+   * `{ kind: 'replace', reason: 'file', lifted, removed }`. Controlled: the embedded copies are
+   * removed at once (a `'file'` change with nothing lifted), and the host's list plus the
+   * lifted annotations is proposed once through `onChange`, with reason `'file'`.
+   */
+  _setLifted(list: readonly Annotation[], embeddedIds: readonly string[]): void
   /**
    * @internal Like `get`, but in controlled mode it also sees changes proposed to the host and
    * not applied yet: the list `update` and `remove` build on.
@@ -589,6 +611,49 @@ export function createAnnotationStore(opts: StoreOptions): AnnotationStore {
       // A pending controlled proposal holds the embedded items too.
       if (proposed) proposed = merge(proposed)
       emitter.emit('change', { kind: 'replace', reason: 'embedded', fields: applied })
+    },
+    _setLifted(items, embeddedIds) {
+      if (destroyed) return
+      const doomed = new Set(embeddedIds)
+      const gone = (a: Annotation) => a.source === 'pdf' && doomed.has(a.id)
+      const removed = list
+        .get()
+        .filter(gone)
+        .map((a) => a.id)
+      /** `items` not in `current` (nor repeated), the session annotations to add to it. */
+      const joining = (current: readonly Annotation[]): Annotation[] => {
+        const ids = new Set(current.map((a) => a.id))
+        return items.filter((a) => {
+          if (ids.has(a.id)) return false
+          ids.add(a.id)
+          return true
+        })
+      }
+      if (controlled) {
+        if (removed.length > 0) {
+          const next = list.get().filter((a) => !gone(a))
+          list.set(next)
+          if (proposed) proposed = proposed.filter((a) => !gone(a))
+          pruneSelection(next)
+          emitter.emit('change', { kind: 'replace', reason: 'file', lifted: [], removed })
+        }
+        const lifted = joining(basis())
+        if (lifted.length > 0)
+          commit([...basis(), ...lifted], {
+            kind: 'replace',
+            reason: 'file',
+            lifted,
+            removed: [],
+          })
+        return
+      }
+      const kept = list.get().filter((a) => !gone(a))
+      const lifted = joining(kept)
+      if (removed.length === 0 && lifted.length === 0) return
+      const next = [...kept, ...lifted]
+      list.set(next)
+      pruneSelection(next)
+      emitter.emit('change', { kind: 'replace', reason: 'file', lifted, removed })
     },
     on: (event: 'change' | 'edit', fn: (change: never) => void) =>
       emitter.on(event, fn as never),

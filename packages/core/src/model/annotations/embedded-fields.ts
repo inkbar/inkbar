@@ -1,14 +1,19 @@
 import {
+  pdfjsIdOfRef,
   readFreeTextFields,
+  readInkbarData,
+  readSavedAnnotationPlaces,
   readTextIcon,
   refOfPdfjsId,
 } from '../../pdf/annotation-fields'
-import { openPdfObjects, type PdfObjects } from '../../pdf/objects'
 
+import { importedId } from './embedded'
+import { liftable } from './saved-data'
 import { AnnotationSchema, type Annotation } from './types'
 
 import type { EmbeddedFieldPatch, EmbeddedTarget } from './embedded'
 import type { PdfRef } from '../../pdf/lexer'
+import type { PdfObjects } from '../../pdf/objects'
 
 /**
  * `a` with `fields` merged in: `callout`, `fringe`, `head` and the font keys of `defaultStyle`
@@ -43,15 +48,15 @@ export function withEmbeddedFields(
 }
 
 /**
- * Reads every target once, calling `getData` only if a target names an annotation in
+ * Reads every target once, calling `objects` only if a target names an annotation in
  * `annotations` by an object reference, and returns the fields read, by id. A target the file
  * adds nothing to, or whose fields would fail the schema, is left out. Never throws: any
- * failure leaves the annotations as they are.
+ * failure, or no objects (an encrypted or unreadable file), leaves the annotations as they are.
  */
 export async function readEmbeddedFields(
   annotations: readonly Annotation[],
   targets: readonly EmbeddedTarget[],
-  getData: () => Promise<Uint8Array>
+  objects: () => Promise<PdfObjects | undefined>
 ): Promise<Map<string, EmbeddedFieldPatch>> {
   const read = new Map<string, EmbeddedFieldPatch>()
   if (targets.length === 0) return read
@@ -63,7 +68,7 @@ export async function readEmbeddedFields(
       return current && ref ? [{ target, current, ref }] : []
     })
     if (work.length === 0) return read
-    const objs = await openPdfObjects(await getData())
+    const objs = await objects()
     if (!objs) return read
     for (const { target, current, ref } of work) {
       try {
@@ -90,4 +95,69 @@ async function readFields(
   }
   const fields = await readFreeTextFields(objs, ref, target.rect, target.daFont)
   return Object.keys(fields).length > 0 ? fields : undefined
+}
+
+/** A file annotation Inkbar wrote, read back to join the session. */
+export interface LiftedAnnotation {
+  /** The annotation as it was saved, a session annotation on the file's page. */
+  annotation: Annotation
+  /** Full name of the signature field it signs, if any. */
+  signs?: string
+  /** The id PDF.js gives the file's copy, which renders leave out. */
+  pdfjsId: string
+  /** The id the file's copy has when imported as an embedded annotation. */
+  embeddedId: string
+}
+
+/**
+ * The annotations the file holds that Inkbar wrote and nothing has changed since, in file
+ * order: page by page, each in `/Annots` order. Calls `objects` once; none comes back for an
+ * encrypted or unreadable file, which lifts nothing. When two carry the same id, the first is
+ * lifted. A reply is lifted only with the annotation it replies to. Never throws.
+ */
+export async function readLifted(
+  objects: () => Promise<PdfObjects | undefined>
+): Promise<LiftedAnnotation[]> {
+  const found: LiftedAnnotation[] = []
+  try {
+    const objs = await objects()
+    if (!objs) return found
+    const ids = new Set<string>()
+    for (const place of await readSavedAnnotationPlaces(objs)) {
+      if (!place.rect) continue
+      const json = await readInkbarData(objs, place.ref)
+      const lifted =
+        json === undefined
+          ? undefined
+          : liftable(json, {
+              rect: place.rect,
+              modified: place.modified,
+              page: place.page,
+            })
+      if (!lifted || ids.has(lifted.annotation.id)) continue
+      ids.add(lifted.annotation.id)
+      const pdfjsId = pdfjsIdOfRef(place.ref)
+      found.push({
+        ...lifted,
+        pdfjsId,
+        embeddedId: importedId(place.page, pdfjsId),
+      })
+    }
+  } catch {
+    // What was read before the failure stands.
+  }
+  return withParents(found)
+}
+
+/** `found` without the replies whose parent is not among them, nor replies to those. */
+function withParents(found: LiftedAnnotation[]): LiftedAnnotation[] {
+  let kept = found
+  for (;;) {
+    const ids = new Set(kept.map((f) => f.annotation.id))
+    const next = kept.filter(
+      (f) => f.annotation.inReplyTo === undefined || ids.has(f.annotation.inReplyTo)
+    )
+    if (next.length === kept.length) return kept
+    kept = next
+  }
 }

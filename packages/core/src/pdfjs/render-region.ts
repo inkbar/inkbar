@@ -1,6 +1,8 @@
 // Renders one region of a page, in PDF user space, into a canvas of its own: the loupe's
 // magnified view. The viewport is the page's own at `scale`, shifted so the region's top-left
 // corner lands on the canvas origin, so the region fills the canvas exactly.
+import { hiddenAppearances, omitAppearances } from './widget-appearance'
+
 import type { InkDocument } from '../model/document'
 import type { Rect } from '../model/geometry'
 
@@ -12,9 +14,10 @@ const isCancellation = (error: unknown): boolean =>
  * unit (times `/UserUnit`, as PDF.js applies it), turned by `rotation`: the page's /Rotate plus
  * any view rotation, the page's own /Rotate when omitted. The canvas is resized to the region,
  * so a 50 pt square at scale 4 gives a 200 × 200 canvas. Like the page canvas, the background
- * is white and embedded annotation appearances are drawn, form widgets included. Like the
- * annotations made in the session, field values filled in the session are not magnified: the
- * region shows each widget as the file draws it.
+ * is white and embedded annotation appearances are drawn, form widgets included, except those of
+ * file annotations lifted into the session. Like the annotations made in the session, field
+ * values filled in the session are not magnified: the region shows each widget as the file
+ * draws it.
  *
  * Rejects with `signal.reason` once `signal` aborts; an abort mid-render cancels it, leaving
  * the canvas partly drawn.
@@ -49,11 +52,14 @@ export async function renderRegion(
   })
   canvas.width = Math.max(1, Math.round(Math.abs(x2 - x1)))
   canvas.height = Math.max(1, Math.round(Math.abs(y2 - y1)))
+  // File annotations lifted into the session are the overlay's to draw, not the file's.
+  const hidden = hiddenAppearances(doc)
   const task = pdfPage.render({
     canvas,
     viewport,
     background: '#ffffff',
     annotationMode: doc._pdfjs.module.AnnotationMode.ENABLE,
+    ...(hidden.size === 0 ? {} : { operationsFilter: omitAppearances(doc, hidden) }),
   })
   const cancel = (): void => task.cancel()
   signal?.addEventListener('abort', cancel, { once: true })

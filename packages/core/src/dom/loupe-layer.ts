@@ -181,6 +181,15 @@ export function createLoupeLayer(opts: LoupeLayerOptions): LoupeLayer {
     }, LOUPE_RENDER_DELAY)
   }
 
+  // File annotations lifted into the session leave the magnified page too: render each lens
+  // again, at once.
+  const stopLifted = opts.document._lifted.subscribe(() => {
+    for (const lens of lenses.values()) {
+      lens.key = undefined
+      if (lens.last) attach(lens.last.el, lens.last.a, lens.last.t)
+    }
+  })
+
   return {
     attach,
     drop(id) {
@@ -193,6 +202,7 @@ export function createLoupeLayer(opts: LoupeLayerOptions): LoupeLayer {
     destroy() {
       if (destroyed) return
       destroyed = true
+      stopLifted()
       dprWatch?.destroy()
       for (const lens of lenses.values()) {
         stop(lens)

@@ -2,7 +2,7 @@
 // (`position:absolute; inset:0; overflow:hidden`), and each canvas is pinned to the top-left
 // with its CSS size set from the transform (`position:absolute; left:0; top:0; width; height`).
 // Everything cosmetic (background, shadow, border) belongs to the theme.
-import { omitAppearances } from '../pdfjs/widget-appearance'
+import { hiddenAppearances, omitAppearances } from '../pdfjs/widget-appearance'
 
 import { watchDevicePixelRatio } from './dpr-watch'
 
@@ -121,6 +121,16 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
       canvas.height = Math.round(transform.cssHeight * dpr)
       canvas.style.cssText = 'position:absolute;left:0;top:0;'
       sizeCanvas(canvas, transform)
+      // Widgets the form layer draws, and file annotations lifted into the session, which the
+      // overlay draws.
+      const hidden = hiddenAppearances(
+        doc,
+        drawWidgets
+          ? []
+          : fields.flatMap((f) =>
+              f.widgets.flatMap((w) => (w.page === page ? [w.id] : []))
+            )
+      )
       const ownTask = pdfPage.render({
         canvas,
         viewport,
@@ -129,18 +139,7 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
         // The same operator list the form layer draws widget appearances from, and the loupe
         // draws regions from.
         annotationMode: AnnotationMode.ENABLE,
-        ...(drawWidgets
-          ? {}
-          : {
-              operationsFilter: omitAppearances(
-                doc,
-                new Set(
-                  fields.flatMap((f) =>
-                    f.widgets.flatMap((w) => (w.page === page ? [w.id] : []))
-                  )
-                )
-              ),
-            }),
+        ...(hidden.size === 0 ? {} : { operationsFilter: omitAppearances(doc, hidden) }),
         ...(dpr === 1 ? {} : { transform: [dpr, 0, 0, dpr, 0, 0] }),
       })
       task = ownTask
@@ -169,6 +168,11 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
       ? watchDevicePixelRatio(view, currentDpr, () => void render(latest))
       : undefined
 
+  // File annotations lifted into the session once the document has read them leave the page.
+  const stopLifted = doc._lifted.subscribe(() => {
+    if (!destroyed) void render(latest)
+  })
+
   void render(opts.transform)
 
   return {
@@ -183,6 +187,7 @@ export function createPageRenderer(opts: PageRendererOptions): PageRenderer {
     destroy() {
       if (destroyed) return
       destroyed = true
+      stopLifted()
       dprWatch?.destroy()
       task?.cancel()
       task = undefined

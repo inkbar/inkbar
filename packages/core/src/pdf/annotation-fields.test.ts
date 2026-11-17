@@ -5,7 +5,10 @@ import callouts from '../model/annotations/__fixtures__/standard-callout.json'
 
 import {
   fontFromBaseName,
+  pdfjsIdOfRef,
   readFreeTextFields,
+  readInkbarData,
+  readSavedAnnotationPlaces,
   readTextIcon,
   refOfPdfjsId,
 } from './annotation-fields'
@@ -43,6 +46,7 @@ function fake(dict: string): { objs: PdfObjects; ref: PdfRef } {
     get: (r) => Promise.resolve(r.num === 1 ? annot : undefined),
     resolve: (v: PdfValue | undefined) =>
       v && (v as PdfRef).kind === 'ref' ? objs.get(v as PdfRef) : Promise.resolve(v),
+    stream: () => Promise.resolve(undefined),
   }
   return { objs, ref }
 }
@@ -231,5 +235,135 @@ describe('readTextIcon', () => {
   it('is undefined without a /Name', async () => {
     const { objs, ref } = fake('<< /Subtype /Text >>')
     expect(await readTextIcon(objs, ref)).toBeUndefined()
+  })
+})
+
+const latin1 = (s: string) => Uint8Array.from(s, (c) => c.charCodeAt(0) & 0xff)
+
+/** A classic-xref file whose object `n` is `objects[n - 1]`; a body may hold binary stream data. */
+function buildPdf(objects: (string | Uint8Array[])[]): Uint8Array {
+  const parts: Uint8Array[] = [latin1('%PDF-1.7\n')]
+  let length = parts[0]!.length
+  const push = (p: Uint8Array) => {
+    parts.push(p)
+    length += p.length
+  }
+  const offsets = objects.map((body, i) => {
+    const at = length
+    push(latin1(`${i + 1} 0 obj\n`))
+    for (const p of typeof body === 'string' ? [latin1(body)] : body) push(p)
+    push(latin1('\nendobj\n'))
+    return at
+  })
+  const xrefAt = length
+  let tail = `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`
+  for (const o of offsets) tail += `${String(o).padStart(10, '0')} 00000 n \n`
+  tail += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefAt}\n%%EOF\n`
+  push(latin1(tail))
+  const out = new Uint8Array(length)
+  let at = 0
+  for (const p of parts) {
+    out.set(p, at)
+    at += p.length
+  }
+  return out
+}
+
+async function deflate(data: Uint8Array): Promise<Uint8Array> {
+  const stream = new Blob([data as BlobPart])
+    .stream()
+    .pipeThrough(new CompressionStream('deflate'))
+  return new Uint8Array(await new Response(stream).arrayBuffer())
+}
+
+/** A stream object's body: its dictionary (without `/Length`) and data. */
+const streamBody = (dict: string, data: Uint8Array): Uint8Array[] => [
+  latin1(`<< ${dict} /Length ${data.length} >>\nstream\n`),
+  data,
+  latin1('\nendstream'),
+]
+
+const ref = (num: number): PdfRef => ({ kind: 'ref', num, gen: 0 })
+
+describe('pdfjsIdOfRef', () => {
+  it('gives the id PDF.js uses, which refOfPdfjsId reads back', () => {
+    expect(pdfjsIdOfRef(ref(12))).toBe('12R')
+    expect(pdfjsIdOfRef({ kind: 'ref', num: 12, gen: 3 })).toBe('12R3')
+    expect(refOfPdfjsId(pdfjsIdOfRef({ kind: 'ref', num: 7, gen: 2 }))).toEqual({
+      kind: 'ref',
+      num: 7,
+      gen: 2,
+    })
+  })
+})
+
+describe('readInkbarData', () => {
+  const json = '{"v":1,"note":"café ✓"}'
+
+  it('reads a Flate stream as UTF-8', async () => {
+    const data = await deflate(new TextEncoder().encode(json))
+    const objs = (await openPdfObjects(
+      buildPdf([
+        '<< /Type /Catalog >>',
+        '<< /Type /Annot /Subtype /Square /INKB_Gloss 3 0 R >>',
+        streamBody('/Filter /FlateDecode', data),
+      ])
+    ))!
+    expect(await readInkbarData(objs, ref(2))).toBe(json)
+  })
+
+  it('reads an unfiltered stream', async () => {
+    const objs = (await openPdfObjects(
+      buildPdf([
+        '<< /Type /Catalog >>',
+        '<< /Type /Annot /Subtype /Square /INKB_Gloss 3 0 R >>',
+        streamBody('', new TextEncoder().encode(json)),
+      ])
+    ))!
+    expect(await readInkbarData(objs, ref(2))).toBe(json)
+  })
+
+  it('is undefined without the entry, for an entry that is not a stream, or for bytes that are not UTF-8', async () => {
+    const objs = (await openPdfObjects(
+      buildPdf([
+        '<< /Type /Catalog >>',
+        '<< /Type /Annot /Subtype /Square >>',
+        '<< /Type /Annot /Subtype /Square /INKB_Gloss (inline) >>',
+        '<< /Type /Annot /Subtype /Square /INKB_Gloss 1 0 R >>',
+        '<< /Type /Annot /Subtype /Square /INKB_Gloss 6 0 R >>',
+        streamBody('', new Uint8Array([0xff, 0xfe, 0x41])),
+        '<< /Type /Annot /Subtype /Square /INKB_Gloss 9 0 R >>',
+      ])
+    ))!
+    for (const n of [2, 3, 4, 5, 7, 99])
+      expect(await readInkbarData(objs, ref(n))).toBe(undefined)
+  })
+})
+
+describe('readSavedAnnotationPlaces', () => {
+  it("lists the annotations with Inkbar's data, in page and /Annots order", async () => {
+    const data = streamBody('', latin1('{}'))
+    const objs = (await openPdfObjects(
+      buildPdf([
+        '<< /Type /Catalog /Pages 2 0 R >>',
+        '<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>',
+        '<< /Type /Page /Parent 2 0 R /Annots [5 0 R 6 0 R] >>',
+        '<< /Type /Page /Parent 2 0 R /Annots 7 0 R >>',
+        '<< /Type /Annot /Subtype /Square /Rect [10 20 30 40] >>',
+        '<< /Type /Annot /Subtype /Square /Rect [30 40 10 20] /M (D:20261117104515Z) /INKB_Gloss 9 0 R >>',
+        '[8 0 R << /Type /Annot /INKB_Gloss 9 0 R >>]',
+        '<< /Type /Annot /Subtype /Ink /Rect [1 2] /INKB_Gloss 9 0 R >>',
+        data,
+      ])
+    ))!
+    expect(await readSavedAnnotationPlaces(objs)).toEqual([
+      { page: 0, ref: ref(6), rect: [10, 20, 30, 40], modified: 'D:20261117104515Z' },
+      { page: 1, ref: ref(8), rect: undefined, modified: undefined },
+    ])
+  })
+
+  it('is empty for a file without pages', async () => {
+    const objs = (await openPdfObjects(buildPdf(['<< /Type /Catalog >>'])))!
+    expect(await readSavedAnnotationPlaces(objs)).toEqual([])
   })
 })

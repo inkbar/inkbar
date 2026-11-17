@@ -1,17 +1,23 @@
 import { fixtureBytes, type FixtureName } from '@inkbar/fixtures'
 import { describe, expect, it, vi } from 'vitest'
 
+import { openPdfObjects } from '../../pdf/objects'
 import { nodeAssets } from '../../pdfjs/node-assets'
 import { openDocument } from '../document'
 
 import sample from './__fixtures__/standard-callout.json'
 import { importEmbeddedPage, type EmbeddedTarget } from './embedded'
-import { readEmbeddedFields, withEmbeddedFields } from './embedded-fields'
+import { readEmbeddedFields, readLifted, withEmbeddedFields } from './embedded-fields'
+import { savedDataFor } from './saved-data'
 
 import type { Annotation } from './types'
 import type { PdfjsAnnotationData } from '../../pdfjs/types'
 
 const NOW = '2026-10-20T00:00:00.000Z'
+
+/** The file's objects, read from the bytes `getData` gives. */
+const objectsOf = (getData: () => Promise<Uint8Array>) => () =>
+  getData().then(openPdfObjects)
 
 /** A classic-xref file whose object `n` is `objects[n - 1]`. */
 function buildPdf(objects: string[]): Uint8Array {
@@ -44,14 +50,18 @@ async function imported(name: FixtureName) {
 
 async function read(name: FixtureName) {
   const { annotations, targets } = await imported(name)
-  const patched = await readEmbeddedFields(annotations, targets, () => fixtureBytes(name))
+  const patched = await readEmbeddedFields(
+    annotations,
+    targets,
+    objectsOf(() => fixtureBytes(name))
+  )
   return { annotations, targets, patched }
 }
 
 describe('readEmbeddedFields', () => {
   it('does not call getData without targets', async () => {
     const getData = vi.fn(() => fixtureBytes('standard-callout'))
-    expect(await readEmbeddedFields([], [], getData)).toEqual(new Map())
+    expect(await readEmbeddedFields([], [], objectsOf(getData))).toEqual(new Map())
     expect(getData).not.toHaveBeenCalled()
   })
 
@@ -161,7 +171,11 @@ describe('readEmbeddedFields', () => {
     it('skips a target with an annot_N id', async () => {
       const id = 'pdf:0:annot_4'
       const getData = vi.fn(() => fixtureBytes('standard-callout'))
-      const patched = await readEmbeddedFields([freetext(id)], [target(id)], getData)
+      const patched = await readEmbeddedFields(
+        [freetext(id)],
+        [target(id)],
+        objectsOf(getData)
+      )
       expect(patched.size).toBe(0)
     })
 
@@ -171,7 +185,7 @@ describe('readEmbeddedFields', () => {
       const patched = await readEmbeddedFields(
         [freetext(missing), freetext(good)],
         [target(missing), target(good)],
-        () => fixtureBytes('standard-callout')
+        objectsOf(() => fixtureBytes('standard-callout'))
       )
       expect([...patched.keys()]).toEqual([good])
       expect(patched.get(good)).toMatchObject({ callout: twin.callout, head: twin.head })
@@ -180,8 +194,10 @@ describe('readEmbeddedFields', () => {
     it('returns an empty map when getData rejects', async () => {
       const id = await realId()
       await expect(
-        readEmbeddedFields([freetext(id)], [target(id)], () =>
-          Promise.reject(new Error('gone'))
+        readEmbeddedFields(
+          [freetext(id)],
+          [target(id)],
+          objectsOf(() => Promise.reject(new Error('gone')))
         )
       ).resolves.toEqual(new Map())
     })
@@ -194,7 +210,7 @@ describe('readEmbeddedFields', () => {
       const patched = await readEmbeddedFields(
         [freetext('pdf:0:2R')],
         [target('pdf:0:2R')],
-        () => Promise.resolve(bytes)
+        objectsOf(() => Promise.resolve(bytes))
       )
       expect(patched.get('pdf:0:2R')?.callout).toEqual([
         { x: 10, y: 10 },
@@ -226,7 +242,7 @@ describe('readEmbeddedFields', () => {
       const patched = await readEmbeddedFields(
         [freetext('pdf:0:2R'), note],
         [target('pdf:0:2R'), { id: 'pdf:0:3R', subtype: 'Text', rect: RECT }],
-        () => Promise.resolve(bytes)
+        objectsOf(() => Promise.resolve(bytes))
       )
       expect(patched.get('pdf:0:2R')).toEqual({ font: { fontFamily: 'Helvetica' } })
       expect(patched.get('pdf:0:3R')).toEqual({ icon: 'Key' })
@@ -235,8 +251,76 @@ describe('readEmbeddedFields', () => {
     it('leaves out a target whose annotation is not in the list', async () => {
       const id = await realId()
       const getData = vi.fn(() => fixtureBytes('standard-callout'))
-      expect((await readEmbeddedFields([], [target(id)], getData)).size).toBe(0)
+      expect((await readEmbeddedFields([], [target(id)], objectsOf(getData))).size).toBe(
+        0
+      )
       expect(getData).not.toHaveBeenCalled()
     })
+  })
+})
+
+describe('readLifted', () => {
+  const note = (id: string, extra: Partial<Annotation> = {}): Annotation =>
+    ({
+      id,
+      type: 'text',
+      icon: 'Note',
+      page: 0,
+      rect: { x: 10, y: 10, width: 20, height: 20 },
+      color: '#FFD400',
+      opacity: 1,
+      createdAt: NOW,
+      modifiedAt: NOW,
+      source: 'session',
+      ...extra,
+    }) as Annotation
+
+  /** A one-page file whose annotations carry `data` as their saved data, at the notes' rect. */
+  const fileWith = (data: string[]) => {
+    const first = 4
+    const annots = data.map((_, i) => `${first + i * 2} 0 R`).join(' ')
+    return buildPdf([
+      '<< /Type /Catalog /Pages 2 0 R >>',
+      '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+      `<< /Type /Page /Parent 2 0 R /Annots [${annots}] >>`,
+      ...data.flatMap((json, i) => [
+        `<< /Type /Annot /Subtype /Text /Rect [10 10 30 30] /M (D:20261020000000Z) /INKB_Gloss ${first + i * 2 + 1} 0 R >>`,
+        `<< /Length ${json.length} >>\nstream\n${json}\nendstream`,
+      ]),
+    ])
+  }
+  const saved = (a: Annotation) => savedDataFor(a, a.rect)
+
+  it('lifts in file order, with the ids PDF.js and the import give the file copies', async () => {
+    const lifted = await readLifted(
+      objectsOf(() => Promise.resolve(fileWith([saved(note('a')), saved(note('b'))])))
+    )
+    expect(lifted).toEqual([
+      { annotation: note('a'), pdfjsId: '4R', embeddedId: 'pdf:0:4R' },
+      { annotation: note('b'), pdfjsId: '6R', embeddedId: 'pdf:0:6R' },
+    ])
+  })
+
+  it('lifts the first of two with one id, and a reply only with its parent', async () => {
+    const lifted = await readLifted(
+      objectsOf(() =>
+        Promise.resolve(
+          fileWith([
+            saved(note('a')),
+            saved(note('a', { contents: 'again' })),
+            '{broken',
+            saved(note('r1', { inReplyTo: 'gone' })),
+            saved(note('r2', { inReplyTo: 'r1' })),
+            saved(note('r3', { inReplyTo: 'a' })),
+          ])
+        )
+      )
+    )
+    expect(lifted.map((l) => l.annotation.id)).toEqual(['a', 'r3'])
+  })
+
+  it('lifts nothing without objects, or when reading them fails', async () => {
+    expect(await readLifted(() => Promise.resolve(undefined))).toEqual([])
+    expect(await readLifted(() => Promise.reject(new Error('gone')))).toEqual([])
   })
 })

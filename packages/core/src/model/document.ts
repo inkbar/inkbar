@@ -1,5 +1,5 @@
 import { emptyFormExtras, readFormExtras, type FormExtras } from '../pdf/form-fields'
-import { openPdfObjects } from '../pdf/objects'
+import { openPdfObjects, type PdfObjects } from '../pdf/objects'
 import { destinationPage, resolveDestination } from '../pdfjs/destinations'
 import { pageGlyphs } from '../pdfjs/glyphs'
 import { assertAssets, loadPdfjs, openProxy } from '../pdfjs/load'
@@ -14,7 +14,7 @@ import {
   type EmbeddedSummary,
   type EmbeddedTarget,
 } from './annotations/embedded'
-import { readEmbeddedFields } from './annotations/embedded-fields'
+import { readEmbeddedFields, readLifted } from './annotations/embedded-fields'
 import { createHistory, type History } from './annotations/history'
 import {
   exportAnnotations,
@@ -123,6 +123,12 @@ export interface InkDocument {
    * mode they never reach `onChange`. Fields PDF.js leaves out (a FreeText's callout, fringe,
    * head and font, a note's icon) are read from the file after `ready` and fill in later, as a
    * `{ kind: 'replace', reason: 'embedded', fields }` change.
+   *
+   * Annotations Inkbar saved into the file, and that nothing has changed since, are read back
+   * after `ready` too: their file copies leave the list and they join it as they were saved,
+   * session annotations with their own ids, unlocked, as one `{ kind: 'replace', reason:
+   * 'file' }` change that is not an undo step. In controlled mode they are proposed to the host
+   * once, with that reason. An encrypted file lifts nothing.
    */
   readonly annotations: AnnotationStore
   /**
@@ -168,6 +174,10 @@ export interface InkDocument {
   /** Writes the document with its annotations. Needs @inkbar/engine; rejects with EngineUnavailable otherwise. */
   save(): Promise<Uint8Array>
   destroy(): void
+  /** @internal PDF.js ids of file annotations lifted into the session. */
+  readonly _lifted: Readable<ReadonlySet<string>>
+  /** @internal Resolves when the lift pass has landed or failed. Never rejects. */
+  readonly _liftSettled: Promise<void>
   /** @internal PDF.js handles for the DOM layer. Not part of the public contract. */
   readonly _pdfjs: {
     module: PdfjsModule
@@ -207,6 +217,10 @@ export async function openDocument(
     defaults: options.defaults ?? staticDefaults,
   })
   const embedded: EmbeddedSummary[] = []
+  /** PDF.js ids of the file annotations lifted into the session; set once, when they land. */
+  const lifted = writable<ReadonlySet<string>>(new Set())
+  /** Whether the file has annotations other than widgets and links, which Inkbar may have saved. */
+  let mayHaveSaved = false
   const linksByPage = new Map<number, PageLink[]>()
   const destinationCache = new Map<string, Promise<Destination | undefined>>()
   /** The outline, read on the first `outline()` call: most viewers never show it. */
@@ -297,11 +311,14 @@ export async function openDocument(
         data.subtype === 'Widget' ? [{ page: i, data, at }] : []
       )
       const links = raw.flatMap((data, at) => linkFromPdfjs(i, data, at) ?? [])
-      return { ...importEmbeddedPage(i, raw, importedAt), widgets, links }
+      // A reply Inkbar saved is hidden, so PDF.js leaves it out; its parent is not.
+      const others = raw.some((d) => d.subtype !== 'Widget' && d.subtype !== 'Link')
+      return { ...importEmbeddedPage(i, raw, importedAt), widgets, links, others }
     })
     perPage.forEach((r, i) => {
       if (r.links.length > 0) linksByPage.set(i, r.links)
     })
+    mayHaveSaved = perPage.some((r) => r.others)
     embedded.push(...summarise(perPage.map((r) => r.counts)))
     const fromFile = perPage.flatMap((r) => r.annotations)
     targets.push(...perPage.flatMap((r) => r.targets))
@@ -395,20 +412,52 @@ export async function openDocument(
   // Signature fields and the annotations that sign them change together from here.
   form._linkAnnotations({ store, react: (fn) => history.react(fn), replays })
 
-  // Fills in fields PDF.js leaves out, read from the file's own bytes. It runs after `ready`
-  // so it never delays it, and a failure leaves the annotations as PDF.js imported them.
-  void ready.then(
-    () => {
+  // Fills in fields PDF.js leaves out, and lifts the annotations Inkbar saved, read from the
+  // file's own bytes. It runs after `ready` so it never delays it, and a failure leaves the
+  // annotations as PDF.js imported them. Both read one copy of the file's objects.
+  const liftSettled = ready.then(
+    async () => {
       if (destroyed || !handles) return
       const { proxy } = handles
-      void readEmbeddedFields(store.list.get(), targets, () => proxy.getData())
-        .then((patched) => {
+      // PDF.js has detached the bytes it was given, so the objects are read from a copy.
+      let objs: Promise<PdfObjects | undefined> | undefined
+      const objects = () =>
+        (objs ??= proxy
+          .getData()
+          .then(openPdfObjects)
+          .catch(() => undefined))
+      const fields = readEmbeddedFields(store.list.get(), targets, objects).then(
+        (patched) => {
           if (!destroyed && patched.size > 0) store._patchEmbedded(patched)
-        })
-        .catch(() => undefined)
+        }
+      )
+      const lift = (mayHaveSaved ? readLifted(objects) : Promise.resolve([])).then(
+        (found) => {
+          if (destroyed || found.length === 0) return
+          // The renders leave the file copies out in the same turn as they leave the list.
+          lifted.set(new Set(found.map((f) => f.pdfjsId)))
+          store._setLifted(
+            found.map((f) => f.annotation),
+            found.map((f) => f.embeddedId)
+          )
+          // A signature that came back signs its field again, as part of what was lifted.
+          quietly(() => {
+            for (const { annotation, signs } of found) {
+              if (signs === undefined) continue
+              const field = form.fields.get().find((f) => f.name === signs)
+              if (field?.type !== 'signature' || field.locked) continue
+              if (form.get(signs) === undefined) form._signWith(signs, annotation.id)
+            }
+          })
+        }
+      )
+      void fields.catch(() => undefined)
+      await lift
     },
     () => undefined
   )
+  // Settles whatever happens: a lift that fails leaves the file's copies as they are.
+  const _liftSettled = liftSettled.catch(() => undefined)
 
   /**
    * A page's text with item boundaries measured or, with `glyphs`, taken from where the page
@@ -586,6 +635,8 @@ export async function openDocument(
         teardown(destroyTask)
       }
     },
+    _lifted: readonly(lifted),
+    _liftSettled,
     get _pdfjs() {
       if (!handles) throw statusError(status.get())
       return handles

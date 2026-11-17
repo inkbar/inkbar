@@ -1,0 +1,15 @@
+[
+  {
+    "type": "stamp",
+    "id": "signed-1",
+    "page": 0,
+    "rect": { "x": 72, "y": 100, "width": 200, "height": 40 },
+    "color": "#151820",
+    "opacity": 1,
+    "createdAt": "2026-11-17T10:00:00.000Z",
+    "modifiedAt": "2026-11-17T10:00:00.000Z",
+    "subject": "Signature",
+    "imagedata": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+    "source": "session"
+  }
+]

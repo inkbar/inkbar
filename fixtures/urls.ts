@@ -49,6 +49,11 @@ export const FIXTURE_NAMES = [
   'malformed-truncated',
   'malformed-missing-xref',
   'scanned-no-text',
+  'saved-annotations',
+  'saved-incremental',
+  'saved-tampered',
+  'saved-encrypted',
+  'saved-signed',
 ] as const
 
 export type FixtureName = (typeof FIXTURE_NAMES)[number]
