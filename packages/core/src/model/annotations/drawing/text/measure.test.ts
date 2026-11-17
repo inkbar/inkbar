@@ -1,6 +1,12 @@
 import { describe, expect, test, vi } from 'vitest'
 
-import { measureWith, outsideTables, resolveFont, standardMeasure } from './measure'
+import {
+  isWide,
+  measureWith,
+  outsideTables,
+  resolveFont,
+  standardMeasure,
+} from './measure'
 
 import type { TextFont } from '../types'
 
@@ -56,6 +62,30 @@ describe('standardMeasure', () => {
 
   test('an emoji is one wide character, not two UTF-16 units', () => {
     expect(standardMeasure.width('🙂', helv, 12)).toEqual({ width: 12, outside: true })
+  })
+
+  test.each([
+    '\u2764\ufe0f',
+    '\u2600\ufe0f',
+    '\u26a0\ufe0f',
+    '😀',
+    '🇫',
+    '🏽',
+    '🤖',
+    '日',
+  ])('%s is wide', (char) => {
+    expect(isWide(char)).toBe(true)
+  })
+
+  test.each(['a', 'é', '\u2764', '\u2600', '\u00a9', 'ж'])('%s is not wide', (char) => {
+    expect(isWide(char)).toBe(false)
+  })
+
+  test('a heart with the emoji selector is one wide character in the measure', () => {
+    expect(standardMeasure.width('\u2764\ufe0f', helv, 12)).toEqual({
+      width: 12,
+      outside: true,
+    })
   })
 
   test('zero-width characters take no room and are not outside', () => {
