@@ -12,7 +12,12 @@
 // from the annotation and so is set here rather than by the theme.
 import { en } from '../messages'
 import { freeTextBox } from '../model/annotations/callout'
-import { freeTextFrame, freeTextTextHeight } from '../model/annotations/drawing/freetext'
+import {
+  freeTextFrame,
+  freeTextTextHeight,
+  UNDERLINE_OFFSET,
+  UNDERLINE_THICKNESS,
+} from '../model/annotations/drawing/freetext'
 import { resolveFont } from '../model/annotations/drawing/text/measure'
 import { hasCallout, isBubble, resizedBox, withBox } from '../model/annotations/edit'
 
@@ -50,6 +55,25 @@ export interface FreeTextEditorOptions {
   caret?: { clientX: number; clientY: number } | undefined
   /** The editor's accessible name. Default `en.annotations.freetext` ("Text box"). */
   label?: string | undefined
+  /**
+   * The box as it is now, when the closing editor asks: it may have changed while the editor was
+   * open, and is drawn as it is then even when the close writes nothing. Defaults to the box the
+   * editor opened on.
+   */
+  latest?(): FreeTextAnnotation | undefined
+}
+
+/**
+ * The editor's underline set to the drawn rule. CSS places an underline by its top edge, so the
+ * offset is the rule's centre less half its thickness.
+ */
+function underlineStyle(size: number): string {
+  const thickness = UNDERLINE_THICKNESS * size
+  return (
+    `text-decoration-thickness:${thickness}px;` +
+    `text-underline-offset:${UNDERLINE_OFFSET * size - thickness / 2}px;` +
+    `text-decoration-skip-ink:none;`
+  )
 }
 
 /** The open editor on each overlay element. */
@@ -128,6 +152,8 @@ export function editFreeText(
     `font-family:${FONT_STACKS[font.family]};font-size:${fontSize}px;` +
     `font-weight:${font.bold ? 'bold' : 'normal'};font-style:${font.italic ? 'italic' : 'normal'};` +
     `text-decoration:${s.textDecoration === 'underline' ? 'underline' : 'none'};` +
+    underlineStyle(fontSize) +
+    `opacity:${a.opacity};` +
     `color:${s.color};caret-color:${s.color};text-align:${s.textAlign};`
   // Exactly as wide as the layout wraps to, so the editor breaks lines where the drawing does.
   field.style.width = `${areaWidth}px`
@@ -211,9 +237,19 @@ export function editFreeText(
     // falls back to <body>. Focus that already left (a click on a control) stays where it is.
     if (field.contains(doc.activeElement)) el.focus({ preventScroll: true })
     field.remove()
-    Object.assign(el.style, kept)
-    // The box as it was: the editor's repaints left it without its text.
-    repaint(a)
+    // The box as it is: the editor's repaints left it without its text, and the box may have
+    // moved or changed while the editor was open, when nothing redrew it.
+    const now = opts.latest?.()
+    if (now) {
+      const box = annotationBox(now, t)
+      Object.assign(el.style, {
+        left: `${box.left}px`,
+        top: `${box.top}px`,
+        width: `${box.width}px`,
+        height: `${box.height}px`,
+      })
+    } else Object.assign(el.style, kept)
+    repaint(now ?? a)
     if (commit) opts.commit(contents, next, grown, how)
     else opts.cancel()
   }
@@ -328,6 +364,7 @@ export function editFreeTextIn(
     transform,
     caret: opts.caret,
     label: opts.label,
+    latest: current,
     commit(contents, _rect, grown, how) {
       write(contents, grown)
       opts.onClose?.(how)

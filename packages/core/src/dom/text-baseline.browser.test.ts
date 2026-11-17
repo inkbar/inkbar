@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { layoutText } from '../model/annotations/drawing/text/layout'
 import { standardMeasure } from '../model/annotations/drawing/text/measure'
@@ -56,4 +56,24 @@ describe('the line metrics match the fonts the text stacks pick', () => {
       expect(Math.abs(measured - computed)).toBeLessThanOrEqual(1.05)
     })
   }
+})
+
+describe('the measured baselines are kept per document', () => {
+  it('measures again in another document, and once in each', () => {
+    const font: TextFont = { family: 'Helvetica', bold: false, italic: false }
+    const frame = document.createElement('iframe')
+    document.body.append(frame)
+    try {
+      const other = frame.contentDocument!
+      browserBaseline(font, 13)
+      const make = vi.spyOn(other, 'createElement')
+      htmlBaseline(other, font, 13)
+      expect(make).toHaveBeenCalled()
+      make.mockClear()
+      htmlBaseline(other, font, 13)
+      expect(make).not.toHaveBeenCalled()
+    } finally {
+      frame.remove()
+    }
+  })
 })

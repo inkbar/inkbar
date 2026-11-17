@@ -25,8 +25,8 @@ type Angle = 0 | 90 | 180 | 270
 const BUBBLE_PAD_Y = 0.4
 const BUBBLE_PAD_X = 0.6
 /** An underline's centre below the baseline, and its thickness, as a multiple of the font size. */
-const UNDERLINE_OFFSET = 0.1
-const UNDERLINE_THICKNESS = 0.05
+export const UNDERLINE_OFFSET = 0.1
+export const UNDERLINE_THICKNESS = 0.05
 
 /**
  * Where a text box's text goes, in user space. The text is upright for the page as the file
