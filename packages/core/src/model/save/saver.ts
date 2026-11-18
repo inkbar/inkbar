@@ -215,6 +215,38 @@ const engineAnnotation = (e: unknown): string | undefined => {
   return typeof id === 'string' ? id : undefined
 }
 
+/** Content the engine's apply cannot remove, by kind. */
+export type UnremovableKind = 'pattern' | 'shading' | 'mask-group' | 'glyph'
+
+/**
+ * Why an `EngineError` refused a redaction before changing anything, with the marks it named
+ * and the kinds of content it found, when it says.
+ */
+const engineRefusal = (
+  e: unknown
+):
+  | {
+      reason: 'unremovable-content' | 'could-not-inspect'
+      annotations: string[]
+      kinds: UnremovableKind[]
+    }
+  | undefined => {
+  if (engineCode(e) !== 'redaction-failed') return undefined
+  const { reason, marks, kinds } = e as Error & {
+    reason?: unknown
+    marks?: unknown
+    kinds?: unknown
+  }
+  if (reason !== 'unremovable-content' && reason !== 'could-not-inspect') return undefined
+  const strings = (v: unknown): string[] =>
+    Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []
+  return {
+    reason,
+    annotations: strings(marks),
+    kinds: strings(kinds) as UnremovableKind[],
+  }
+}
+
 /** The page an `EngineError` names, if it names one. */
 const enginePage = (e: unknown): number | undefined => {
   if (engineCode(e) === undefined) return undefined
@@ -346,6 +378,24 @@ export function createSaver(options: SaverOptions): Saver {
       )
     }
     const page = enginePage(error)
+    const refusal = engineRefusal(error)
+    if (refusal) {
+      const { reason, annotations, kinds } = refusal
+      return new InkError(
+        'RedactionFailed',
+        reason === 'unremovable-content'
+          ? 'A redaction mark covers content that cannot be removed'
+          : 'What lies under the redaction marks could not be inspected',
+        {
+          stage: 'apply',
+          reason,
+          ...(page !== undefined && { page }),
+          ...(annotations.length > 0 && { annotations, annotation: annotations[0] }),
+          ...(kinds.length > 0 && { kinds }),
+        },
+        error
+      )
+    }
     const annotation = engineAnnotation(error)
     return new InkError(
       'RedactionFailed',

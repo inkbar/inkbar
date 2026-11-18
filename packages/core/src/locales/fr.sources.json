@@ -200,6 +200,7 @@
   "viewer.redactSummary": "This removes the content under {marks, plural, one {{marks} mark} other {{marks} marks}} on {pages, plural, one {{pages} page} other {{pages} pages}}.",
   "viewer.redactTitle": "Apply redactions?",
   "viewer.redactUnavailable": "Redaction is not available right now. Check your connection and try again.",
+  "viewer.redactUnremovable": "{\"one\":\"{count} mark covers content that cannot be removed. Move or delete it and try again.\",\"other\":\"{count} marks cover content that cannot be removed. Move or delete them and try again.\"}",
   "viewer.redactUnverified": "Some content could not be removed, so nothing was changed.",
   "viewer.redacting": "Applying redactions…",
   "viewer.saveFailed": "Your changes could not be written into this file.",

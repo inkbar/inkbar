@@ -42,6 +42,7 @@ function fakeDoc(
 ) {
   const list = writable<readonly Annotation[]>(opts.list ?? [note('m', 'redact')])
   const replaceAll = vi.fn()
+  const select = vi.fn()
   const applyRedactions = vi.fn(
     opts.apply ?? (() => Promise.resolve({ bytes, result: result() }))
   )
@@ -62,9 +63,10 @@ function fakeDoc(
       mode: opts.controlled ? 'controlled' : 'uncontrolled',
       list,
       replaceAll,
+      select,
     },
   } as unknown as InkDocument
-  return { doc, replaceAll, applyRedactions }
+  return { doc, replaceAll, select, applyRedactions }
 }
 
 const view: RedactionView = {
@@ -254,6 +256,70 @@ describe('applyRedactionsFlow', () => {
     expect(showFailure).toHaveBeenCalledExactlyOnceWith(message)
     expect(onError).toHaveBeenCalledExactlyOnceWith(failure)
     expect(notify).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    [
+      ['m1', 'm2'],
+      '2 marks cover content that cannot be removed. Move or delete them and try again.',
+    ],
+    [
+      ['m1'],
+      '1 mark covers content that cannot be removed. Move or delete it and try again.',
+    ],
+    [
+      [],
+      '1 mark covers content that cannot be removed. Move or delete it and try again.',
+    ],
+  ])(
+    'marks over content that cannot be removed (%j) are named and selected',
+    async (ids, message) => {
+      const failure = new InkError('RedactionFailed', 'refused', {
+        stage: 'apply',
+        reason: 'unremovable-content',
+        annotations: ids,
+        kinds: ['pattern'],
+        page: 0,
+      })
+      const { doc, select } = fakeDoc({ apply: () => Promise.reject(failure) })
+      const { opts, onError, showFailure } = options()
+      await expect(applyRedactionsFlow(doc, opts)).resolves.toBeNull()
+      expect(showFailure).toHaveBeenCalledExactlyOnceWith(message)
+      expect(onError).toHaveBeenCalledExactlyOnceWith(failure)
+      if (ids.length > 0) expect(select).toHaveBeenCalledExactlyOnceWith(ids)
+      else expect(select).not.toHaveBeenCalled()
+    }
+  )
+
+  it('a refusal once the caller has gone selects nothing', async () => {
+    let current = true
+    const { doc, select } = fakeDoc({
+      apply: () => {
+        current = false
+        return Promise.reject(
+          new InkError('RedactionFailed', 'refused', {
+            stage: 'apply',
+            reason: 'unremovable-content',
+            annotations: ['m'],
+          })
+        )
+      },
+    })
+    const { opts } = options({ isCurrent: () => current })
+    await applyRedactionsFlow(doc, opts)
+    expect(select).not.toHaveBeenCalled()
+  })
+
+  it('a page the engine could not look under says it could not verify', async () => {
+    const failure = new InkError('RedactionFailed', 'blind', {
+      stage: 'apply',
+      reason: 'could-not-inspect',
+      page: 0,
+    })
+    const { doc } = fakeDoc({ apply: () => Promise.reject(failure) })
+    const { opts, showFailure } = options()
+    await applyRedactionsFlow(doc, opts)
+    expect(showFailure).toHaveBeenCalledExactlyOnceWith(en.viewer.redactUnverified)
   })
 
   it('a failure that is not an InkError is reported as RedactionFailed', async () => {

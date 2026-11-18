@@ -44,6 +44,12 @@ export const fr: InkMessages = {
     redactCancel: 'Annuler',
     redacting: 'Application des caviardages…',
     redactFailed: 'Impossible d’appliquer les caviardages. Rien n’a été modifié.',
+    redactUnremovable: plural('fr', 'count', {
+      one: '{count} marque couvre un contenu impossible à supprimer. Déplacez-la ou supprimez-la, puis réessayez.',
+      many: '{count} de marques couvrent un contenu impossible à supprimer. Déplacez-les ou supprimez-les, puis réessayez.',
+      other:
+        '{count} marques couvrent un contenu impossible à supprimer. Déplacez-les ou supprimez-les, puis réessayez.',
+    }),
     redactUnverified:
       'Certains contenus n’ont pas pu être supprimés : rien n’a été modifié.',
     redactUnavailable:

@@ -115,11 +115,20 @@ export async function runRedaction(
   }
 }
 
+/** The ids of the marks a `RedactionFailed` names as over content that cannot be removed. */
+const refusedMarks = (error: InkError): string[] => {
+  const ids = error.details['annotations']
+  return error.details['reason'] === 'unremovable-content' && Array.isArray(ids)
+    ? ids.filter((id): id is string => typeof id === 'string')
+    : []
+}
+
 /**
  * The error a run of `runRedaction` failed with, as one to report, with the words to tell the
- * reader: `viewer.redactUnavailable` when the engine could not be loaded or started,
- * `viewer.redactUnverified` when the check found content left under a mark, and
- * `viewer.redactFailed` otherwise. An error that is not an `InkError` is wrapped in a
+ * reader: `viewer.redactUnremovable` when marks lie over content the apply cannot remove,
+ * `viewer.redactUnavailable` when the engine could not be loaded or started,
+ * `viewer.redactUnverified` when the check found content left under a mark or the engine could
+ * not look under the marks, and `viewer.redactFailed` otherwise. An error that is not an `InkError` is wrapped in a
  * `RedactionFailed`. Undefined when the document was closed meanwhile: there is nothing to say.
  */
 export function redactionFailure(
@@ -135,16 +144,20 @@ export function redactionFailure(
         { stage: 'apply' },
         error
       )
-  const stage = ink.code === 'RedactionFailed' ? ink.details['stage'] : undefined
+  const failed = ink.code === 'RedactionFailed'
+  const stage = failed ? ink.details['stage'] : undefined
+  const reason = failed ? ink.details['reason'] : undefined
   const v = messages.viewer
   return {
     error: ink,
     message:
-      stage === 'engine'
-        ? v.redactUnavailable
-        : stage === 'verify'
+      reason === 'unremovable-content'
+        ? v.redactUnremovable({ count: Math.max(refusedMarks(ink).length, 1) })
+        : reason === 'could-not-inspect' || stage === 'verify'
           ? v.redactUnverified
-          : v.redactFailed,
+          : stage === 'engine'
+            ? v.redactUnavailable
+            : v.redactFailed,
   }
 }
 
@@ -246,6 +259,9 @@ export async function applyRedactionsFlow(
   } catch (error) {
     const failure = redactionFailure(error, opts.messages())
     if (failure && opts.isCurrent()) {
+      // The marks over content that cannot be removed are selected, so the reader sees them.
+      const refused = refusedMarks(failure.error)
+      if (refused.length > 0) doc.annotations.select(refused)
       opts.showFailure(failure.message)
       opts.onError(failure.error)
     }

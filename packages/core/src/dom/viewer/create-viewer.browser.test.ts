@@ -4241,6 +4241,44 @@ describe('applying redactions', () => {
     expect(control.getAttribute('aria-busy')).toBe('false')
   })
 
+  it('a mark over a hatch is refused, named and selected, and nothing changes', async () => {
+    const errors: InkError[] = []
+    const onRedacted = vi.fn()
+    const { viewer } = make('redact-drawing-hatch', {
+      engine: realEngine(),
+      redactionConfirm: false,
+      onRedacted,
+      onError: (e) => errors.push(e),
+    })
+    const { doc } = await ready(viewer)
+    // The fixture's region, over the band the hatch pattern fills.
+    const mark = doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 110, y: 110, width: 80, height: 80 },
+    })
+    doc.annotations.select([])
+    const list = doc.annotations.list.get()
+    await expect(viewer.applyRedactions()).resolves.toBeNull()
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toMatchObject({
+      code: 'RedactionFailed',
+      details: {
+        stage: 'apply',
+        reason: 'unremovable-content',
+        annotations: [mark.id],
+        kinds: ['pattern'],
+      },
+    })
+    expect(alertText()).toBe(
+      '1 mark covers content that cannot be removed. Move or delete it and try again.'
+    )
+    expect(doc.annotations.selection.get()).toEqual([mark.id])
+    expect(onRedacted).not.toHaveBeenCalled()
+    expect(viewer.document.get()).toBe(doc)
+    expect(doc.annotations.list.get()).toBe(list)
+  })
+
   it('destroying the viewer mid-apply does not reopen', async () => {
     let release!: () => void
     const gate = new Promise<void>((r) => (release = r))

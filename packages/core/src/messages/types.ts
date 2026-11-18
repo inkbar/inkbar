@@ -42,6 +42,11 @@ export interface InkMessages {
     /** The control's text while the marks are applied. */
     redacting: string
     redactFailed: string
+    /**
+     * Marks lie over content the apply cannot remove (a pattern, a mesh or function-based
+     * gradient, soft-masked artwork): `count` of them.
+     */
+    redactUnremovable: MessageFn<{ count: number }>
     /** The check of the redacted file found content left under a mark. */
     redactUnverified: string
     /** What applies the marks could not be loaded or started (offline, say). */

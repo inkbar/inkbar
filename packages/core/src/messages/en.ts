@@ -34,6 +34,11 @@ export const en: InkMessages = {
     redactCancel: 'Cancel',
     redacting: 'Applying redactions…',
     redactFailed: 'The redactions could not be applied. Nothing was changed.',
+    redactUnremovable: plural('en', 'count', {
+      one: '{count} mark covers content that cannot be removed. Move or delete it and try again.',
+      other:
+        '{count} marks cover content that cannot be removed. Move or delete them and try again.',
+    }),
     redactUnverified: 'Some content could not be removed, so nothing was changed.',
     redactUnavailable:
       'Redaction is not available right now. Check your connection and try again.',

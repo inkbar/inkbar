@@ -44,6 +44,11 @@ export const de: InkMessages = {
     redacting: 'Schwärzungen werden angewendet…',
     redactFailed:
       'Die Schwärzungen konnten nicht angewendet werden. Es wurde nichts geändert.',
+    redactUnremovable: plural('de', 'count', {
+      one: '{count} Markierung liegt über Inhalt, der sich nicht entfernen lässt. Verschieben oder löschen Sie sie und versuchen Sie es erneut.',
+      other:
+        '{count} Markierungen liegen über Inhalt, der sich nicht entfernen lässt. Verschieben oder löschen Sie sie und versuchen Sie es erneut.',
+    }),
     redactUnverified:
       'Einige Inhalte konnten nicht entfernt werden, daher wurde nichts geändert.',
     redactUnavailable:
