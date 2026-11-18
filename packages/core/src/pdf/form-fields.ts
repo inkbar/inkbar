@@ -8,6 +8,7 @@ import {
   type PdfDict,
   type PdfValue,
 } from './lexer'
+import { walkPages } from './pages'
 
 import type { PdfObjects } from './objects'
 import type { TabsOrder, WidgetAction } from '../model/form/types'
@@ -81,8 +82,6 @@ export function emptyFormExtras(): FormExtras {
 
 /** Deep enough for any real form; it also stops a /Parent or /Kids cycle. */
 const MAX_DEPTH = 32
-
-const TABS = new Set(['R', 'C', 'S', 'W', 'A'])
 
 const refKey = (num: number, gen: number) => (gen === 0 ? `${num}R` : `${num}R${gen}`)
 
@@ -216,34 +215,6 @@ async function readDocMdp(objs: PdfObjects, root: PdfDict): Promise<boolean> {
     if ((await objs.resolve(dictGet(params, 'P'))) === 1) return true
   }
   return false
-}
-
-/** Page refs in page order, and each page's `/Tabs`. */
-async function walkPages(objs: PdfObjects, root: PdfDict) {
-  const pages = new Map<string, number>()
-  const tabs = new Map<number, TabsOrder>()
-  const seen = new Set<string>()
-  const visit = async (v: PdfValue | undefined, depth: number) => {
-    if (depth > MAX_DEPTH) return
-    if (isRef(v)) {
-      const key = refKey(v.num, v.gen)
-      if (seen.has(key)) return
-      seen.add(key)
-    }
-    const node = await dictOf(objs, v)
-    if (!node) return
-    const kids = dictGet(node, 'Kids')
-    if (kids !== undefined && !isName(dictGet(node, 'Type'), 'Page')) {
-      for (const kid of await arrayOf(objs, kids)) await visit(kid, depth + 1)
-      return
-    }
-    const index = pages.size
-    pages.set(isRef(v) ? refKey(v.num, v.gen) : `#${index}`, index)
-    const t = await objs.resolve(dictGet(node, 'Tabs'))
-    if (isName(t) && TABS.has(t.name)) tabs.set(index, t.name as TabsOrder)
-  }
-  await visit(dictGet(root, 'Pages'), 0)
-  return { pages, tabs }
 }
 
 /** A submit URL: a string, or a file specification's `/UF` or `/F`. */

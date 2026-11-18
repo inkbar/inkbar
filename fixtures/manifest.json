@@ -397,5 +397,81 @@
     "pages": 3,
     "opens": true,
     "describes": "Copy of text-simple with /UserUnit 2 on every page, so each page renders at twice its point size"
+  },
+  "saved-annotations": {
+    "file": "saved-annotations.pdf",
+    "pages": 3,
+    "opens": true,
+    "describes": "text-simple with one annotation of every type Inkbar draws (a hidden reply among them, a square on page 2), written by the engine with each one's saved data and rewritten; saved-annotations.annotations.json lists them as the session had them",
+    "annotations": {
+      "Highlight": 1,
+      "Underline": 1,
+      "StrikeOut": 1,
+      "Squiggly": 1,
+      "Text": 2,
+      "FreeText": 1,
+      "Square": 2,
+      "Circle": 1,
+      "Line": 1,
+      "PolyLine": 1,
+      "Polygon": 1,
+      "Ink": 1,
+      "Stamp": 3,
+      "Redact": 1
+    }
+  },
+  "saved-incremental": {
+    "file": "saved-incremental.pdf",
+    "pages": 3,
+    "opens": true,
+    "describes": "The annotations of saved-annotations written into text-simple and saved incrementally; saved-incremental.annotations.json lists them",
+    "annotations": {
+      "Highlight": 1,
+      "Underline": 1,
+      "StrikeOut": 1,
+      "Squiggly": 1,
+      "Text": 2,
+      "FreeText": 1,
+      "Square": 2,
+      "Circle": 1,
+      "Line": 1,
+      "PolyLine": 1,
+      "Polygon": 1,
+      "Ink": 1,
+      "Stamp": 3,
+      "Redact": 1
+    }
+  },
+  "saved-tampered": {
+    "file": "saved-tampered.pdf",
+    "pages": 3,
+    "opens": true,
+    "describes": "text-simple with three annotations Inkbar wrote: a square as written, a circle whose saved data is broken JSON, and a line whose saved data records a /Rect 5 points right of the one written; only the square lifts",
+    "annotations": {
+      "Square": 1,
+      "Circle": 1,
+      "Line": 1
+    }
+  },
+  "saved-encrypted": {
+    "file": "saved-encrypted.pdf",
+    "pages": 1,
+    "opens": true,
+    "password": "inkbar",
+    "describes": "encrypted-aes with a square and a note Inkbar wrote, rewritten and still encrypted (user password \"inkbar\"), so core's reader cannot see their saved data",
+    "annotations": {
+      "Square": 1,
+      "Text": 1
+    }
+  },
+  "saved-signed": {
+    "file": "saved-signed.pdf",
+    "pages": 2,
+    "opens": true,
+    "describes": "form-fields with an image signature Inkbar wrote whose saved data says it signs the empty field \"sig\"",
+    "annotations": {
+      "Widget": 23,
+      "Stamp": 1
+    }
   }
 }

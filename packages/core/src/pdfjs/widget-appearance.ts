@@ -96,6 +96,20 @@ export function omitAppearances(
   }
 }
 
+/**
+ * What a render of the page leaves out: the annotations `ids` names (form widgets the form
+ * layer draws) plus the file annotations lifted into the session, which the overlay draws
+ * instead.
+ *
+ * @internal
+ */
+export function hiddenAppearances(
+  doc: InkDocument,
+  ids: Iterable<string> = []
+): ReadonlySet<string> {
+  return new Set([...ids, ...doc._lifted.get()])
+}
+
 /** One pass of appearances, drawn alone into one canvas over part of the page. */
 export interface AppearancePass {
   /** Zero-based page index. */

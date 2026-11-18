@@ -16,6 +16,11 @@ export interface PdfObjects {
   get(ref: PdfRef): Promise<PdfValue | undefined>
   /** `v` with one level of reference followed; other values as they are. */
   resolve(v: PdfValue | undefined): Promise<PdfValue | undefined>
+  /**
+   * The decoded data of the stream object `ref` names, or undefined if it is missing, not a
+   * stream, or its data cannot be decoded. Never throws.
+   */
+  stream(ref: PdfRef): Promise<Uint8Array | undefined>
 }
 
 interface ObjectStream {
@@ -46,6 +51,28 @@ class Reader implements PdfObjects {
 
   async resolve(v: PdfValue | undefined): Promise<PdfValue | undefined> {
     return isRef(v) ? this.get(v) : v
+  }
+
+  async stream(ref: PdfRef): Promise<Uint8Array | undefined> {
+    try {
+      // A stream is never inside an object stream.
+      const entry = this.xref.entries.get(ref.num)
+      if (entry?.type !== 'offset' || entry.gen !== ref.gen) return undefined
+      const obj = parseIndirect(this.bytes, entry.offset)
+      const dict = obj.value
+      if (obj.num !== ref.num || obj.gen !== ref.gen || !isDict(dict)) return undefined
+      if (obj.streamStart === undefined) return undefined
+      let length = dict.entries.get('Length')
+      if (isRef(length)) length = await this.loadLength(length)
+      return await decodeStream(
+        this.bytes,
+        dict,
+        obj.streamStart,
+        typeof length === 'number' ? length : undefined
+      )
+    } catch {
+      return undefined
+    }
   }
 
   /** `followLength` is false while resolving a /Length, so a self-referencing length cannot recurse. */

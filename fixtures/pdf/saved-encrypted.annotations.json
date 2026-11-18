@@ -1,0 +1,27 @@
+[
+  {
+    "type": "square",
+    "id": "encrypted-1",
+    "page": 0,
+    "rect": { "x": 72, "y": 600, "width": 100, "height": 80 },
+    "color": "#C0392B",
+    "opacity": 1,
+    "createdAt": "2026-11-17T09:50:00.000Z",
+    "modifiedAt": "2026-11-17T09:50:00.000Z",
+    "width": 1,
+    "source": "session"
+  },
+  {
+    "type": "text",
+    "id": "encrypted-2",
+    "page": 0,
+    "rect": { "x": 300, "y": 650, "width": 20, "height": 20 },
+    "color": "#F2C230",
+    "opacity": 1,
+    "contents": "Hi",
+    "createdAt": "2026-11-17T09:50:00.000Z",
+    "modifiedAt": "2026-11-17T09:50:00.000Z",
+    "icon": "Note",
+    "source": "session"
+  }
+]

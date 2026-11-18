@@ -80,6 +80,19 @@ export interface OverlayOptions {
   decorate?: DecorateAnnotation
   /** The words the elements are labelled with; English when omitted. */
   messages?: Readable<MessageState>
+  /**
+   * Annotations the page canvas paints for now besides the file's own: a lifted annotation
+   * whose file copy is still on the canvas until a render without it lands. Like an embedded
+   * annotation, each gets a hit area and no paint (and dims nothing) while `onCanvas` holds; the
+   * overlay draws again when `subscribe` calls back.
+   */
+  canvasCopies?: CanvasCopies
+}
+
+/** @internal What the page canvas still paints of the annotations lifted from the file. */
+export interface CanvasCopies {
+  onCanvas(a: Annotation): boolean
+  subscribe(fn: () => void): () => void
 }
 
 /**
@@ -234,7 +247,10 @@ export function createOverlay(opts: OverlayOptions): Overlay {
       })
     : undefined
   /** What each element's content was last drawn from; absent when it has none of ours. */
-  const drawn = new Map<string, { a: Annotation; t: PageTransform }>()
+  const drawn = new Map<string, { a: Annotation; t: PageTransform; canvas: boolean }>()
+  /** Whether the page canvas paints `a`, so the overlay gives it only a hit area. */
+  const onCanvas = (a: Annotation): boolean =>
+    paintedByCanvas(a) || opts.canvasCopies?.onCanvas(a) === true
   const hovered = new Set<string>()
   /** The decoration each element last got, so a later one can drop what it no longer has. */
   const decorated = new WeakMap<HTMLElement, Applied>()
@@ -399,9 +415,9 @@ export function createOverlay(opts: OverlayOptions): Overlay {
       if (drawn.delete(a.id)) node.replaceChildren()
       return
     }
+    const canvas = onCanvas(a)
     const last = drawn.get(a.id)
-    if (last?.a === a && last.t === transform) return
-    const canvas = paintedByCanvas(a)
+    if (last?.a === a && last.t === transform && last.canvas === canvas) return
     const ok = guard.attempt(
       a,
       canvas ? 'could not get a hit area' : 'was left undrawn',
@@ -410,6 +426,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
         if (canvas) renderHitArea(node, a, transform)
         else renderAnnotationContent(node, a, transform)
         if (a.type === 'loupe' && !canvas) loupes?.attach(node, a, transform)
+        else loupes?.drop(a.id)
       }
     )
     if (!ok) {
@@ -418,7 +435,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
       loupes?.drop(a.id)
     }
     // A failed annotation stays empty until it or the transform changes.
-    drawn.set(a.id, { a, t: transform })
+    drawn.set(a.id, { a, t: transform, canvas })
   }
 
   /**
@@ -687,7 +704,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
     }
 
     // Only what the overlay draws dims the page: the canvas paints an embedded mask already.
-    const mask = dimmingMask(current.filter((a) => !paintedByCanvas(a)))
+    const mask = dimmingMask(current.filter((a) => !onCanvas(a)))
     if (
       !mask ||
       !guard.attempt(mask, 'was left undrawn', () => masks.update(mask, transform))
@@ -735,6 +752,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
   }
 
   const offList = store.list.subscribe(render)
+  const offCopies = opts.canvasCopies?.subscribe(render)
   const offSelection = store.selection.subscribe(() => {
     for (const [id, node] of elements) applyState(node, id)
   })
@@ -781,6 +799,7 @@ export function createOverlay(opts: OverlayOptions): Overlay {
       destroyed = true
       markupPress?.()
       offList()
+      offCopies?.()
       offSelection()
       offPinned()
       offMessages()

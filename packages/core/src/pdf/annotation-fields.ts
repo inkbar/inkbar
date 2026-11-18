@@ -4,10 +4,13 @@ import {
   dictGet,
   isDict,
   isName,
+  isRef,
+  textString,
   type PdfDict,
   type PdfRef,
   type PdfValue,
 } from './lexer'
+import { walkPages } from './pages'
 
 import type { PdfObjects } from './objects'
 
@@ -30,6 +33,11 @@ export function refOfPdfjsId(id: string): PdfRef | undefined {
   const m = /^(\d+)R(\d+)?$/.exec(id)
   if (!m) return undefined
   return { kind: 'ref', num: Number(m[1]), gen: m[2] === undefined ? 0 : Number(m[2]) }
+}
+
+/** The id PDF.js gives the object `ref` names: `12R`, or `12R3` at generation 3. */
+export function pdfjsIdOfRef(ref: PdfRef): string {
+  return ref.gen === 0 ? `${ref.num}R` : `${ref.num}R${ref.gen}`
 }
 
 const FAMILIES: [RegExp, string][] = [
@@ -166,4 +174,80 @@ export async function readTextIcon(
   } catch {
     return undefined
   }
+}
+
+/** The private entry under which Inkbar stores an annotation it wrote: a stream of JSON. */
+const INKBAR_DATA = 'INKB_Gloss'
+
+/**
+ * The text Inkbar stored with the annotation `ref` names: its `/INKB_Gloss` stream, decoded
+ * as UTF-8. Undefined when the annotation has no such entry, the entry is not a stream, or the
+ * data cannot be decoded. Never throws.
+ */
+export async function readInkbarData(
+  objs: PdfObjects,
+  ref: PdfRef
+): Promise<string | undefined> {
+  try {
+    const annot = await objs.get(ref)
+    if (!isDict(annot)) return undefined
+    const entry = dictGet(annot, INKBAR_DATA)
+    if (!isRef(entry)) return undefined
+    const bytes = await objs.stream(entry)
+    return bytes && new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+  } catch {
+    return undefined
+  }
+}
+
+/** An annotation that carries Inkbar's data, as the file has it now. */
+export interface SavedAnnotationPlace {
+  /** Zero-based page index. */
+  page: number
+  ref: PdfRef
+  /** `/Rect` as left, bottom, right, top; undefined when it is not four numbers. */
+  rect: [number, number, number, number] | undefined
+  /** `/M` as written, a PDF date string; undefined when there is none. */
+  modified: string | undefined
+}
+
+/**
+ * Every annotation in a page's `/Annots` that has an `/INKB_Gloss` entry, in page order and then
+ * `/Annots` order, with its `/Rect` and `/M`. An annotation written inline in `/Annots` has no
+ * id to hide it by and is left out. Never throws: what cannot be read is left out.
+ */
+export async function readSavedAnnotationPlaces(
+  objs: PdfObjects
+): Promise<SavedAnnotationPlace[]> {
+  const out: SavedAnnotationPlace[] = []
+  try {
+    const root = await dictOf(objs, dictGet(objs.trailer, 'Root'))
+    if (!root) return out
+    const { dicts } = await walkPages(objs, root)
+    for (const [page, dict] of dicts.entries()) {
+      const annots = await objs.resolve(dictGet(dict, 'Annots'))
+      if (!Array.isArray(annots)) continue
+      for (const ref of annots) {
+        if (!isRef(ref)) continue
+        const annot = await objs.get(ref)
+        if (!isDict(annot) || dictGet(annot, INKBAR_DATA) === undefined) continue
+        const r = await numbers(objs, dictGet(annot, 'Rect'), [4])
+        const modified = textString(await objs.resolve(dictGet(annot, 'M')))
+        out.push({
+          page,
+          ref,
+          rect: r && [
+            Math.min(r[0]!, r[2]!),
+            Math.min(r[1]!, r[3]!),
+            Math.max(r[0]!, r[2]!),
+            Math.max(r[1]!, r[3]!),
+          ],
+          modified,
+        })
+      }
+    }
+  } catch {
+    // What was read before the failure stands.
+  }
+  return out
 }

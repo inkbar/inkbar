@@ -1,0 +1,40 @@
+[
+  {
+    "type": "square",
+    "id": "tampered-1",
+    "page": 0,
+    "rect": { "x": 72, "y": 600, "width": 100, "height": 80 },
+    "color": "#C0392B",
+    "opacity": 1,
+    "createdAt": "2026-11-17T09:40:00.000Z",
+    "modifiedAt": "2026-11-17T09:40:00.000Z",
+    "width": 1,
+    "source": "session"
+  },
+  {
+    "type": "circle",
+    "id": "tampered-2",
+    "page": 0,
+    "rect": { "x": 200, "y": 600, "width": 100, "height": 80 },
+    "color": "#C0392B",
+    "opacity": 1,
+    "createdAt": "2026-11-17T09:40:00.000Z",
+    "modifiedAt": "2026-11-17T09:40:00.000Z",
+    "width": 1,
+    "source": "session"
+  },
+  {
+    "type": "line",
+    "id": "tampered-3",
+    "page": 0,
+    "rect": { "x": 330, "y": 600, "width": 120, "height": 80 },
+    "color": "#151820",
+    "opacity": 1,
+    "createdAt": "2026-11-17T09:40:00.000Z",
+    "modifiedAt": "2026-11-17T09:40:00.000Z",
+    "start": { "x": 330, "y": 600 },
+    "end": { "x": 450, "y": 680 },
+    "width": 2,
+    "source": "session"
+  }
+]

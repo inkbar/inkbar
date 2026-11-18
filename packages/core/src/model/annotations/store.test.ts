@@ -526,6 +526,76 @@ describe('AnnotationStore embedded guard (uncontrolled)', () => {
     expect(changes).toMatchObject([{ kind: 'replace', reason: 'embedded' }])
   })
 
+  const saved = (id: string): Annotation => {
+    const { locked: _locked, ...rest } = embedded
+    return { ...rest, id, contents: 'saved by Inkbar', source: 'session' }
+  }
+
+  it('_setLifted swaps file copies for session annotations, in order, as one change', () => {
+    const s = make()
+    const h = createHistory(s)
+    const note = s.add({ type: 'text', page: 0, rect: embedded.rect })
+    s.select([embedded.id, note.id])
+    const changes: AnnotationChange[] = []
+    s.on('change', (c) => changes.push(c))
+    const [a, b] = [saved('a'), saved('b')]
+    // A repeated id joins once; an id the list holds keeps the list's copy.
+    s._setLifted(
+      [a, b, { ...a, contents: 'again' }, { ...note, contents: 'file' }],
+      [
+        embedded.id,
+        'pdf:0:9R',
+        // Only embedded annotations leave.
+        note.id,
+      ]
+    )
+    expect(s.list.get()).toEqual([note, a, b])
+    expect(s.selection.get()).toEqual([note.id])
+    expect(changes).toEqual([
+      { kind: 'replace', reason: 'file', lifted: [a, b], removed: [embedded.id] },
+    ])
+    // The add before it is still the one undo step.
+    h.undo()
+    expect(s.list.get()).toEqual([a, b])
+    expect(h.canUndo.get()).toBe(false)
+  })
+
+  it('_setLifted with nothing to do emits nothing, and does nothing once destroyed', () => {
+    const s = make()
+    const fn = vi.fn()
+    s.on('change', fn)
+    s._setLifted([], ['pdf:0:9R'])
+    expect(fn).not.toHaveBeenCalled()
+    s.destroy()
+    s._setLifted([saved('a')], [embedded.id])
+    expect(s.list.get()).toEqual([embedded])
+  })
+
+  it('_setLifted in controlled mode removes the file copies and proposes the rest once', () => {
+    const onChange = vi.fn()
+    const host = saved('b')
+    const s = createAnnotationStore({
+      mode: { mode: 'controlled', initial: [host], onChange },
+      defaults: staticDefaults,
+    })
+    s._setEmbedded([embedded])
+    const changes: AnnotationChange[] = []
+    s.on('change', (c) => changes.push(c))
+    const a = saved('a')
+    s._setLifted([a, { ...host, contents: 'file' }], [embedded.id])
+    expect(s.list.get()).toEqual([host])
+    expect(changes).toEqual([
+      { kind: 'replace', reason: 'file', lifted: [], removed: [embedded.id] },
+    ])
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(onChange).toHaveBeenCalledWith([host, a], {
+      kind: 'replace',
+      reason: 'file',
+      lifted: [a],
+      removed: [],
+    })
+  })
+
   it('still undoes an edit to an embedded annotation', () => {
     const s = make()
     const h = createHistory(s)
