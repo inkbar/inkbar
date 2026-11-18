@@ -53,6 +53,8 @@ function fakeEngine() {
   let release: (() => void) | undefined
   const state: {
     pages?: RedactResult['pages']
+    /** Inkbar's earlier locked marks the redaction reports it applied, by region. */
+    ownLockedRegions?: { page: number; quads: Quad[] }[]
     verdicts?: RedactionCandidate['verdict'][]
     failRedact?: Error
     failCheck?: Error
@@ -94,7 +96,13 @@ function fakeEngine() {
                 marks,
                 annotationsRemoved: 0,
               })),
-            ownLockedMarks: 0,
+            ownLockedMarks: (state.ownLockedRegions ?? []).reduce(
+              (n, r) => n + r.quads.length,
+              0
+            ),
+            // Core's quads stand in for Gloss quads, which only add an index signature.
+            ownLockedRegions: (state.ownLockedRegions ??
+              []) as RedactResult['ownLockedRegions'],
             foreignMarks: 0,
             fieldsSkipped: [],
             sanitised: nothingSanitised,
@@ -403,6 +411,52 @@ describe('applyRedactions', () => {
     expect(fake.calls.includes('destroy 1')).toBe(stopped)
   })
 
+  describe("checks Inkbar's earlier marks the engine applied", () => {
+    const earlier = { page: 0, quads: [quad(300, 100, 50, 20)] }
+
+    it('after the session marks', async () => {
+      const fake = fakeEngine()
+      const doc = await open('redact-text', { engine: fake.loader })
+      markOver(doc)
+      fake.state.ownLockedRegions = [earlier]
+      const { result } = await doc.applyRedactions()
+      expect(fake.checks).toEqual([
+        { regions: [{ page: 0, quads: [quad(45, 190, 170, 35)] }, earlier] },
+      ])
+      expect(result.findings.candidates.map((c) => c.region)).toEqual([0, 1])
+    })
+
+    it('rejects when one is not clean', async () => {
+      const fake = fakeEngine()
+      const doc = await open('redact-text', { engine: fake.loader })
+      markOver(doc)
+      fake.state.ownLockedRegions = [earlier]
+      fake.state.verdicts = ['clean', 'content-remains']
+      await expect(doc.applyRedactions()).rejects.toMatchObject({
+        code: 'RedactionFailed',
+        details: {
+          stage: 'verify',
+          regions: [{ page: 0, rect: { x: 300, y: 100, width: 50, height: 20 } }],
+        },
+      })
+    })
+
+    it('rejects when one has no answer', async () => {
+      const fake = fakeEngine()
+      const doc = await open('redact-text', { engine: fake.loader })
+      markOver(doc)
+      fake.state.ownLockedRegions = [earlier]
+      fake.state.answer = (c) => c.slice(0, 1)
+      await expect(doc.applyRedactions()).rejects.toMatchObject({
+        code: 'RedactionFailed',
+        details: {
+          stage: 'verify',
+          regions: [{ page: 0, rect: { x: 300, y: 100, width: 50, height: 20 } }],
+        },
+      })
+    })
+  })
+
   it('rejects with RedactionFailed at verify when the check could not inspect', async () => {
     const fake = fakeEngine()
     const doc = await open('redact-text', { engine: fake.loader })
@@ -662,9 +716,10 @@ describe('applyRedactions with the engine', () => {
 
     expect(result.ownLockedMarks).toBe(1)
     expect(result.marks).toBe(1)
-    // Core knows such a mark only by its locked copy's box, so the check covers the session's
-    // marks; this one is checked here by reading the text back.
-    expect(result.findings.candidates).toEqual([])
+    // The engine reports the region it applied, and the check covered it.
+    expect(result.findings.candidates).toEqual([
+      expect.objectContaining({ kind: 'region', region: 0, page: 0, verdict: 'clean' }),
+    ])
     const back = await openBytes(bytes, { password })
     const text = await back.pageText(0)
     expect(text).not.toContain('Enc')

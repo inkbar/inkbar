@@ -115,7 +115,7 @@ export async function applyRedactions(
   if (p.marks.length === 0 && lockedMarksOf(context).length === 0) throw nothingToRedact()
   const removed = new Set(p.removed.map((a) => a.id))
 
-  const { bytes, result, findings } = await context.saver.redact(
+  const { bytes, result, checked, findings } = await context.saver.redact(
     async () => {
       const { fields, signs } = writeFields(context.fieldChanges, context.formFields)
       // A signature that goes with its field takes its link with it.
@@ -151,8 +151,7 @@ export async function applyRedactions(
       }
       return { ...rest, marks: plainData(marks) }
     },
-    // Inkbar's earlier locked marks are not among the regions: core knows them only by their
-    // locked copies' boxes, which are drawn larger than what the engine removed.
+    // The saver adds the regions of Inkbar's earlier locked marks the engine applied.
     p.regions
   )
 
@@ -160,7 +159,7 @@ export async function applyRedactions(
   if (p.marks.length === 0 && marks === 0) throw nothingToRedact()
   // Core is the last gate: every region passed needs an answer, and every answer must be clean.
   // A region the check did not answer counts as one with content under it.
-  const failing = p.regions.flatMap((region, i) => {
+  const failing = checked.flatMap((region, i) => {
     const answers = findings.candidates.filter(
       (c) => c.kind === 'region' && c.region === i
     )
@@ -176,7 +175,7 @@ export async function applyRedactions(
     c.region !== undefined &&
     Number.isInteger(c.region) &&
     c.region >= 0 &&
-    c.region < p.regions.length
+    c.region < checked.length
   for (const c of findings.candidates)
     if (c.verdict !== 'clean' && !answersRegion(c))
       failing.push({ page: c.page, rect: { ...c.rect } })

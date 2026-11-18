@@ -40,6 +40,8 @@ export interface RedactEngineResult {
   pages: readonly { page: number; marks: number; annotationsRemoved: number }[]
   /** Inkbar's own earlier marks applied where they came back locked, in an encrypted file. */
   ownLockedMarks: number
+  /** The regions of those marks, per page, read before the apply removed them. */
+  ownLockedRegions: readonly RedactionRegion[]
   /** Redact annotations from other programs, left in the file unapplied. */
   foreignMarks: number
   /** The form fields not written because a mark removed their widgets. */
@@ -154,7 +156,8 @@ export interface Saver {
   write(key: string, input: () => Promise<SaveInput>): Promise<Uint8Array>
   /**
    * Applies `input()` to the file as opened, saves it and checks the saved bytes under
-   * `regions`, in the same turn as writes, so it never overlaps one. Rejects with
+   * `regions` followed by the regions of the earlier marks the engine applied, in the same turn
+   * as writes, so it never overlaps one. Resolves with the regions it checked, in that order. Rejects with
    * `RedactionFailed` when the engine cannot be started, cannot apply or write the input, or
    * cannot check the bytes, and with `DocumentDestroyed` once destroyed. `details.stage` says
    * which: `'engine'`, `'apply'` or `'verify'`; `details.page` and `details.annotation` name
@@ -166,6 +169,8 @@ export interface Saver {
   ): Promise<{
     bytes: Uint8Array
     result: RedactEngineResult
+    /** The regions checked: `regions`, then `result.ownLockedRegions`. */
+    checked: readonly RedactionRegion[]
     findings: RedactionFindings
   }>
   /** Destroys the engine. A write in flight rejects with `DocumentDestroyed`. */
@@ -406,16 +411,19 @@ export function createSaver(options: SaverOptions): Saver {
           const result = await doc.redact(written)
           const bytes = await doc.save()
           if (destroyed) throw destroyedError()
+          // The earlier marks the engine applied are known only now, and are checked too.
+          const checked = [...regions, ...result.ownLockedRegions]
           // Whatever the check throws, the file has not passed it.
           // A throw as the call is made counts, not only a rejection.
           const findings = await (async () =>
-            s.engine.checkRedaction(bytes, { ...passwordOption, regions }))().catch(
-            (cause: unknown) => {
-              throw new NotChecked(cause)
-            }
-          )
+            s.engine.checkRedaction(bytes, {
+              ...passwordOption,
+              regions: checked,
+            }))().catch((cause: unknown) => {
+            throw new NotChecked(cause)
+          })
           if (destroyed) throw destroyedError()
-          return { bytes, result, findings }
+          return { bytes, result, checked, findings }
         } catch (error) {
           const cause = error instanceof NotChecked ? error.cause : error
           if (STOPPED_CODES.has(engineCode(cause))) drop(current)
