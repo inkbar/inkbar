@@ -832,18 +832,6 @@ test('rejects an annotation without an appearance, naming it', async () => {
   }
 })
 
-test('rejects form values until they are supported, and takes an empty set', async () => {
-  const doc = await engine.open(opened)
-  try {
-    const failed = doc.write({ fields: { name: { value: 'Ada' } } })
-    await expect(failed).rejects.toMatchObject({ code: 'write-failed' })
-    await expect(failed).rejects.toThrow(/form values/i)
-    await expect(doc.write({ fields: {} })).resolves.toBeUndefined()
-  } finally {
-    await doc.close()
-  }
-})
-
 describe('rejects with a RangeError', () => {
   const named = (appearance: Partial<Appearance>): WriteInput => ({
     annotations: [

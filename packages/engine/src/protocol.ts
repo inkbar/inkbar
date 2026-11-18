@@ -6,7 +6,7 @@ export type Request =
   | { op: 'pageInfo'; doc: number; index: number }
   | { op: 'renderPage'; doc: number; index: number; scale: number; annotations: boolean }
   | { op: 'write'; doc: number; input: WriteInput }
-  | { op: 'save'; doc: number; mode: SaveMode }
+  | { op: 'save'; doc: number; mode?: SaveMode | undefined }
   | { op: 'close'; doc: number }
 
 export interface Transport {

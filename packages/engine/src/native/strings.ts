@@ -93,6 +93,65 @@ export function withBytes<T>(
   )
 }
 
+/** `numbers` as 32-bit little-endian integers: an int, BOOL or pointer array. */
+export function withInts<T>(
+  heap: Heap,
+  numbers: readonly number[],
+  use: (pointer: number, length: number) => T
+): T {
+  return withBlock(
+    heap,
+    numbers.length * 4,
+    (pointer) => {
+      const bytes = heap.native.HEAPU8
+      const view = new DataView(bytes.buffer, bytes.byteOffset)
+      numbers.forEach((n, i) => {
+        view.setInt32(pointer + i * 4, n, true)
+      })
+    },
+    (pointer) => use(pointer, numbers.length)
+  )
+}
+
+/** Each of `texts` as a NUL-terminated UTF-16LE string, and an array of pointers to them. */
+export function withUtf16List<T>(
+  heap: Heap,
+  texts: readonly string[],
+  use: (pointer: number, length: number) => T
+): T {
+  const pointers: number[] = []
+  const next = (index: number): T => {
+    const text = texts[index]
+    if (text === undefined) return withInts(heap, pointers, use)
+    return withUtf16(heap, text, (pointer) => {
+      pointers.push(pointer)
+      return next(index + 1)
+    })
+  }
+  return next(0)
+}
+
+/**
+ * Reads a string a native function copies out: `read(buffer, size)` returns the bytes the whole
+ * string needs, or 0 for none, and copies it when `size` is enough. `decode` turns those bytes,
+ * trailing NUL included, into text.
+ */
+export function readString(
+  heap: Heap,
+  read: (buffer: number, size: number) => number,
+  decode: (bytes: Uint8Array) => string
+): string {
+  const size = read(0, 0)
+  if (size <= 0) return ''
+  const buffer = allocate(heap, size)
+  try {
+    const written = read(buffer, size)
+    return decode(heap.native.HEAPU8.slice(buffer, buffer + Math.min(written, size)))
+  } finally {
+    if (!heap.stopped) heap.fn.free(buffer)
+  }
+}
+
 /** `numbers` as 32-bit floats, the layout of PDFium's point, quad and rectangle structs. */
 export function withFloats<T>(
   heap: Heap,

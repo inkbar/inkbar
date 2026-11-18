@@ -82,7 +82,11 @@ export type SaveMode = 'rewrite' | 'incremental'
 
 /** Options for `EngineDocument.save`. */
 export interface SaveOptions {
-  /** Default `'rewrite'`. */
+  /**
+   * Default `'incremental'` when the document holds a digital signature, so the signature stays
+   * verifiable, and `'rewrite'` otherwise. An empty signature field, still to be signed, does not
+   * count.
+   */
   mode?: SaveMode
 }
 
@@ -152,11 +156,23 @@ export interface WriteAnnotation {
   data: string
 }
 
-/** A form value for `EngineDocument.write`. */
+/**
+ * A form value for `EngineDocument.write`. A name the form lacks, or a value its field cannot
+ * take, rejects with `write-failed` naming the field.
+ */
 export interface WriteField {
-  /** The field's value: a string, or for a list box the selected options. */
+  /**
+   * The field's value. A string for a text field or a combo box: one of the combo's options'
+   * export values, or any text when the combo takes text of its own. For a checkbox or a radio
+   * group, the state name of the button to turn on, or `'Off'` for none. For a list box, the
+   * selected options' export values, as a list: at most one unless it takes several, and an
+   * empty list for none.
+   */
   value: string | readonly string[]
-  /** What the widget shows in place of the value, when it differs. */
+  /**
+   * What a text field or combo box shows in place of the value, when it differs, such as
+   * `'$1,234.50'` for `'1234.5'`. Other fields take none.
+   */
   text?: string
 }
 
@@ -166,6 +182,6 @@ export interface WriteInput {
   remove?: readonly AnnotationRef[]
   /** Annotations to add, each appended to its page in the order given. */
   annotations?: readonly WriteAnnotation[]
-  /** Form values to set, by full field name. Not supported yet: any entry rejects. */
+  /** Form values to set, by full field name: parent names and the field's own, joined by dots. */
   fields?: Readonly<Record<string, WriteField>>
 }

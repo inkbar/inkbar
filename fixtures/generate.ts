@@ -1336,6 +1336,215 @@ async function formSigned() {
   }
 }
 
+/**
+ * A text field "name" and a signature field "sig" whose value is a signature dictionary, so the
+ * file counts as signed. With `certify`, the catalog's /Perms /DocMDP names that signature at
+ * level 1: no changes allowed.
+ */
+async function buildSigned(title: string, certify: boolean) {
+  const { d, font } = await doc()
+  const ctx = d.context
+  const page = d.addPage([612, 792])
+  text(page, font, [title], 740)
+  const form = d.getForm()
+  const name = form.createTextField('name')
+  name.setText('Sam')
+  name.addToPage(page, { x: 72, y: 600, width: 200, height: 22 })
+  label(page, font, 'name', 72, 600, 22)
+  form.updateFieldAppearances(font)
+  addHelv(d, form)
+  setDA(name, HELV_12)
+  const sig = certify
+    ? dummySignature(ctx, {
+        TransformMethod: 'DocMDP',
+        TransformParams: { Type: 'TransformParams', P: 1, V: '1.2' },
+      })
+    : ctx.register(
+        ctx.obj({
+          Type: 'Sig',
+          Filter: 'Adobe.PPKLite',
+          SubFilter: 'adbe.pkcs7.detached',
+          ByteRange: [0, 1000, 9000, 1000],
+          Contents: PDFHexString.of('00'.repeat(512)),
+          M: PDFString.of('D:20261117120000Z'),
+          Name: PDFString.of('Sam Carter'),
+        } as never)
+      )
+  addRawField(form, page, {
+    FT: 'Sig',
+    T: PDFString.of('sig'),
+    V: sig,
+    Rect: [72, 500, 272, 540],
+  })
+  label(
+    page,
+    font,
+    certify ? 'sig (certifying signature)' : 'sig (signature)',
+    72,
+    500,
+    40
+  )
+  form.acroForm.dict.set(PDFName.of('SigFlags'), PDFNumber.of(3))
+  if (certify) d.catalog.set(PDFName.of('Perms'), ctx.obj({ DocMDP: sig }))
+  return d
+}
+
+async function signedFixtures() {
+  await save(
+    'signed',
+    await buildSigned('Signed form', false),
+    {
+      pages: 1,
+      opens: true,
+      describes:
+        'A text field "name" and a signature field "sig" holding a signature dictionary with /ByteRange and a zero-filled /Contents; it looks signed and verifies nothing',
+      annotations: { Widget: 2 },
+    },
+    { appearances: false }
+  )
+  await save(
+    'certified',
+    await buildSigned('Certified form', true),
+    {
+      pages: 1,
+      opens: true,
+      describes:
+        'As signed, and certified: the catalog /Perms /DocMDP names the signature, whose DocMDP transform has /P 1 (no changes allowed)',
+      annotations: { Widget: 2 },
+    },
+    { appearances: false }
+  )
+  const plain = join(out, 'signed-encrypted.plain.pdf')
+  writeFileSync(
+    plain,
+    await (
+      await buildSigned('Signed form', false)
+    ).save({
+      useObjectStreams: false,
+      updateFieldAppearances: false,
+    })
+  )
+  encrypt(
+    'signed-encrypted',
+    plain,
+    ['--encrypt', '', 'owner-secret', '256'],
+    'owner-secret'
+  )
+  note('signed-encrypted', {
+    pages: 1,
+    opens: true,
+    describes:
+      'signed, AES-256 encrypted by qpdf with an empty user password and owner password "owner-secret"',
+    annotations: { Widget: 2 },
+  })
+}
+
+async function formRestricted() {
+  const { d, font } = await doc()
+  const page = d.addPage([612, 792])
+  text(page, font, ['Restricted form'], 740)
+  const form = d.getForm()
+  const name = form.createTextField('name')
+  name.addToPage(page, { x: 72, y: 600, width: 200, height: 22 })
+  label(page, font, 'name', 72, 600, 22)
+  const agree = form.createCheckBox('agree')
+  agree.addToPage(page, { x: 72, y: 550, width: 18, height: 18 })
+  label(page, font, 'agree', 72, 550, 18)
+  form.updateFieldAppearances(font)
+  addHelv(d, form)
+  setDA(name, HELV_12)
+  agree.acroField.dict.set(PDFName.of('V'), PDFName.of('Off'))
+  const plain = join(out, 'form-restricted.plain.pdf')
+  writeFileSync(
+    plain,
+    await d.save({ useObjectStreams: false, updateFieldAppearances: false })
+  )
+  encrypt(
+    'form-restricted',
+    plain,
+    ['--encrypt', '', 'owner-secret', '256', '--modify=none', '--annotate=n', '--form=n'],
+    'owner-secret'
+  )
+  note('form-restricted', {
+    pages: 1,
+    opens: true,
+    describes:
+      'A text field "name" and a checkbox "agree", AES-256 encrypted by qpdf with an empty user password and permissions that forbid modifying, annotating and filling forms',
+    annotations: { Widget: 2 },
+  })
+}
+
+async function formFormat() {
+  const { d, font } = await doc()
+  const ctx = d.context
+  const page = d.addPage([612, 792])
+  text(page, font, ['Formatted form'], 740)
+  const form = d.getForm()
+  const amount = form.createTextField('amount')
+  amount.addToPage(page, { x: 72, y: 600, width: 200, height: 22 })
+  label(page, font, 'amount (dollars, two decimals)', 72, 600, 22)
+  form.updateFieldAppearances(font)
+  addHelv(d, form)
+  setDA(amount, HELV_12)
+  const dollars = '2, 0, 0, 0, "$", true'
+  amount.acroField.dict.set(
+    PDFName.of('AA'),
+    ctx.obj({
+      K: js(ctx, `AFNumber_Keystroke(${dollars})`),
+      F: js(ctx, `AFNumber_Format(${dollars})`),
+    })
+  )
+  await save(
+    'form-format',
+    d,
+    {
+      pages: 1,
+      opens: true,
+      describes:
+        'A text field "amount" with a format action (AFNumber_Format, dollars, two decimals) and its keystroke action, empty',
+      annotations: { Widget: 1 },
+    },
+    { appearances: false }
+  )
+}
+
+async function formChoices() {
+  const { d, font } = await doc()
+  const ctx = d.context
+  const page = d.addPage([612, 792])
+  text(page, font, ['Choices form'], 740)
+  const form = d.getForm()
+  const size = form.createOptionList('size')
+  size.setOptions(['S', 'M', 'L'])
+  size.select('M')
+  size.addToPage(page, { x: 72, y: 560, width: 120, height: 60 })
+  label(page, font, 'size (one option)', 72, 560, 60)
+  const colours = form.createOptionList('colours')
+  colours.setOptions(['red', 'green', 'blue'])
+  colours.enableMultiselect()
+  colours.select('red')
+  colours.addToPage(page, { x: 320, y: 560, width: 120, height: 60 })
+  label(page, font, 'colours (several, with /I)', 320, 560, 60)
+  form.updateFieldAppearances(font)
+  addHelv(d, form)
+  setDA(size, HELV_12)
+  setDA(colours, HELV_12)
+  // /I holds the selected options' positions; readers such as PDF.js read it before /V.
+  colours.acroField.dict.set(PDFName.of('I'), ctx.obj([0]))
+  await save(
+    'form-choices',
+    d,
+    {
+      pages: 1,
+      opens: true,
+      describes:
+        'Two list boxes: "size" takes one option (S, M, L; M selected), "colours" takes several (red, green, blue; red selected, with /I [0] beside /V)',
+      annotations: { Widget: 2 },
+    },
+    { appearances: false }
+  )
+}
+
 async function formTimer() {
   const { d, font } = await doc()
   const page = d.addPage([612, 792])
@@ -2001,6 +2210,10 @@ async function main() {
   await formFields()
   await formScripted()
   await formSigned()
+  await signedFixtures()
+  await formRestricted()
+  await formFormat()
+  await formChoices()
   await formTimer()
   await formUppercase()
   await formSharedScripted()

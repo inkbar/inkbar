@@ -213,6 +213,60 @@
       "Widget": 3
     }
   },
+  "signed": {
+    "file": "signed.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A text field \"name\" and a signature field \"sig\" holding a signature dictionary with /ByteRange and a zero-filled /Contents; it looks signed and verifies nothing",
+    "annotations": {
+      "Widget": 2
+    }
+  },
+  "certified": {
+    "file": "certified.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "As signed, and certified: the catalog /Perms /DocMDP names the signature, whose DocMDP transform has /P 1 (no changes allowed)",
+    "annotations": {
+      "Widget": 2
+    }
+  },
+  "signed-encrypted": {
+    "file": "signed-encrypted.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "signed, AES-256 encrypted by qpdf with an empty user password and owner password \"owner-secret\"",
+    "annotations": {
+      "Widget": 2
+    }
+  },
+  "form-restricted": {
+    "file": "form-restricted.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A text field \"name\" and a checkbox \"agree\", AES-256 encrypted by qpdf with an empty user password and permissions that forbid modifying, annotating and filling forms",
+    "annotations": {
+      "Widget": 2
+    }
+  },
+  "form-format": {
+    "file": "form-format.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A text field \"amount\" with a format action (AFNumber_Format, dollars, two decimals) and its keystroke action, empty",
+    "annotations": {
+      "Widget": 1
+    }
+  },
+  "form-choices": {
+    "file": "form-choices.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Two list boxes: \"size\" takes one option (S, M, L; M selected), \"colours\" takes several (red, green, blue; red selected, with /I [0] beside /V)",
+    "annotations": {
+      "Widget": 2
+    }
+  },
   "form-timer": {
     "file": "form-timer.pdf",
     "pages": 1,
