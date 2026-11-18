@@ -22,6 +22,7 @@
     [data-ink-select-content],
     [data-ink-signature-dialog],
     [data-ink-password-dialog],
+    [data-ink-redaction-dialog],
     [data-ink-form-alert]
   ) {
     --ink-highlight: #f2c230;
@@ -82,6 +83,7 @@
       [data-ink-select-content]:not(.light *),
       [data-ink-signature-dialog]:not(.light *),
       [data-ink-password-dialog]:not(.light *),
+      [data-ink-redaction-dialog]:not(.light *),
       [data-ink-form-alert]:not(.light *)
     ) {
       --ink-bg: var(--muted, #0f1217);
@@ -111,6 +113,7 @@
     .dark [data-ink-select-content]:not(.dark .light *),
     .dark [data-ink-signature-dialog]:not(.dark .light *),
     .dark [data-ink-password-dialog]:not(.dark .light *),
+    .dark [data-ink-redaction-dialog]:not(.dark .light *),
     .dark [data-ink-form-alert]:not(.dark .light *)
   ) {
     --ink-bg: var(--muted, #0f1217);
@@ -693,7 +696,10 @@
     color: var(--ink-accent-fg);
   }
 
-  /* Disabled, or busy and kept focusable (`aria-disabled`): a Download or Print writing its copy. */
+  /*
+   * Disabled, or busy and kept focusable (`aria-disabled`): a Download or Print writing its copy,
+   * or Apply redactions applying the marks.
+   */
   :where(.ink-toolbar button:disabled, .ink-toolbar button[aria-disabled='true']) {
     opacity: 0.5;
     cursor: default;
@@ -1816,7 +1822,7 @@
     padding-right: 0.5rem;
   }
 
-  /* Dialogs (Create signature, Password required): a modal over an overlay. */
+  /* Dialogs (Create signature, Password required, Apply redactions?): a modal over an overlay. */
   :where(.ink-dialog-overlay) {
     position: fixed;
     inset: 0;
@@ -1852,6 +1858,20 @@
     display: grid;
     gap: 0.25rem;
     width: min(22rem, calc(100vw - 2rem));
+  }
+
+  /* The Apply redactions? confirmation: one line for each thing the apply does. */
+  :where(.ink-redaction-dialog) {
+    width: min(26rem, calc(100vw - 2rem));
+  }
+
+  :where(.ink-redaction-dialog .ink-dialog-description) {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  :where(.ink-redaction-dialog .ink-dialog-description p) {
+    margin: 0;
   }
 
   /* A form script's message: non-modal, so no overlay dims the page behind it. */

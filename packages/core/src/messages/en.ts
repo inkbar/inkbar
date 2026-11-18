@@ -1,4 +1,4 @@
-import { plural, template } from './format'
+import { plural, plurals, template } from './format'
 
 import type { InkMessages } from './types'
 
@@ -14,6 +14,37 @@ export const en: InkMessages = {
     saveUnavailable:
       'Saving is not available right now. Check your connection and try again.',
     preparingFile: 'Preparing your file…',
+    applyRedactions: 'Apply redactions',
+    redactTitle: 'Apply redactions?',
+    redactSummary: plurals('en', 'This removes the content under {marks} on {pages}.', {
+      marks: { one: '{marks} mark', other: '{marks} marks' },
+      pages: { one: '{pages} page', other: '{pages} pages' },
+    }),
+    redactLocked: plural('en', 'count', {
+      one: '{count} mark saved in this file earlier will be applied too.',
+      other: '{count} marks saved in this file earlier will be applied too.',
+    }),
+    redactPermanent: 'It cannot be undone.',
+    redactOverlapped: plural('en', 'count', {
+      one: '{count} other annotation under the marks will be removed too.',
+      other: '{count} other annotations under the marks will be removed too.',
+    }),
+    redactSigned: 'This file is signed. Its signature will stop verifying.',
+    redactConfirm: 'Apply',
+    redacting: 'Applying redactions…',
+    redactFailed: 'The redactions could not be applied. Nothing was changed.',
+    redactUnverified: 'Some content could not be removed, so nothing was changed.',
+    redactUnavailable:
+      'Redaction is not available right now. Check your connection and try again.',
+    redactDone: plural('en', 'marks', {
+      one: '{marks} redaction applied.',
+      other: '{marks} redactions applied.',
+    }),
+    redactHiddenLayers: 'This file has hidden layers. Their content was not removed.',
+    redactForeign: plural('en', 'count', {
+      one: '{count} redaction mark from another program was left in place.',
+      other: '{count} redaction marks from another program were left in place.',
+    }),
   },
   toolbar: {
     label: 'Document tools',

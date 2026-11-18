@@ -1,4 +1,4 @@
-import { plural, template } from '../messages/format'
+import { plural, plurals, template } from '../messages/format'
 
 import type { InkMessages } from '../messages/types'
 
@@ -16,6 +16,48 @@ export const de: InkMessages = {
     saveUnavailable:
       'Speichern ist gerade nicht möglich. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.',
     preparingFile: 'Ihre Datei wird vorbereitet…',
+    applyRedactions: 'Schwärzungen anwenden',
+    redactTitle: 'Schwärzungen anwenden?',
+    redactSummary: plurals(
+      'de',
+      'Dadurch wird der Inhalt unter {marks} auf {pages} entfernt.',
+      {
+        marks: { one: '{marks} Markierung', other: '{marks} Markierungen' },
+        pages: { one: '{pages} Seite', other: '{pages} Seiten' },
+      }
+    ),
+    redactLocked: plural('de', 'count', {
+      one: '{count} früher in dieser Datei gespeicherte Markierung wird ebenfalls angewendet.',
+      other:
+        '{count} früher in dieser Datei gespeicherte Markierungen werden ebenfalls angewendet.',
+    }),
+    redactPermanent: 'Dies kann nicht rückgängig gemacht werden.',
+    redactOverlapped: plural('de', 'count', {
+      one: '{count} weitere Anmerkung unter den Markierungen wird ebenfalls entfernt.',
+      other:
+        '{count} weitere Anmerkungen unter den Markierungen werden ebenfalls entfernt.',
+    }),
+    redactSigned:
+      'Diese Datei ist signiert. Ihre Signatur wird danach nicht mehr gültig sein.',
+    redactConfirm: 'Anwenden',
+    redacting: 'Schwärzungen werden angewendet…',
+    redactFailed:
+      'Die Schwärzungen konnten nicht angewendet werden. Es wurde nichts geändert.',
+    redactUnverified:
+      'Einige Inhalte konnten nicht entfernt werden, daher wurde nichts geändert.',
+    redactUnavailable:
+      'Schwärzen ist gerade nicht verfügbar. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.',
+    redactDone: plural('de', 'marks', {
+      one: '{marks} Schwärzung angewendet.',
+      other: '{marks} Schwärzungen angewendet.',
+    }),
+    redactHiddenLayers:
+      'Diese Datei enthält ausgeblendete Ebenen. Ihr Inhalt wurde nicht entfernt.',
+    redactForeign: plural('de', 'count', {
+      one: '{count} Schwärzungsmarkierung aus einem anderen Programm wurde belassen.',
+      other:
+        '{count} Schwärzungsmarkierungen aus einem anderen Programm wurden belassen.',
+    }),
   },
   toolbar: {
     label: 'Dokumentwerkzeuge',

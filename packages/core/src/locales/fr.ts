@@ -1,4 +1,4 @@
-import { plural, template } from '../messages/format'
+import { plural, plurals, template } from '../messages/format'
 
 import type { InkMessages } from '../messages/types'
 
@@ -17,6 +17,49 @@ export const fr: InkMessages = {
     saveUnavailable:
       'L’enregistrement n’est pas disponible pour le moment. Vérifiez votre connexion et réessayez.',
     preparingFile: 'Préparation de votre fichier…',
+    applyRedactions: 'Appliquer les caviardages',
+    redactTitle: 'Appliquer les caviardages ?',
+    redactSummary: plurals('fr', 'Le contenu sous {marks} sur {pages} sera supprimé.', {
+      marks: {
+        one: '{marks} marque',
+        many: '{marks} de marques',
+        other: '{marks} marques',
+      },
+      pages: { one: '{pages} page', many: '{pages} de pages', other: '{pages} pages' },
+    }),
+    redactLocked: plural('fr', 'count', {
+      one: '{count} marque enregistrée plus tôt dans ce fichier sera aussi appliquée.',
+      many: '{count} de marques enregistrées plus tôt dans ce fichier seront aussi appliquées.',
+      other:
+        '{count} marques enregistrées plus tôt dans ce fichier seront aussi appliquées.',
+    }),
+    redactPermanent: 'Cette action est irréversible.',
+    redactOverlapped: plural('fr', 'count', {
+      one: '{count} autre annotation sous les marques sera aussi supprimée.',
+      many: '{count} d’autres annotations sous les marques seront aussi supprimées.',
+      other: '{count} autres annotations sous les marques seront aussi supprimées.',
+    }),
+    redactSigned: 'Ce fichier est signé. Sa signature ne sera plus valide.',
+    redactConfirm: 'Appliquer',
+    redacting: 'Application des caviardages…',
+    redactFailed: 'Impossible d’appliquer les caviardages. Rien n’a été modifié.',
+    redactUnverified:
+      'Certains contenus n’ont pas pu être supprimés : rien n’a été modifié.',
+    redactUnavailable:
+      'Le caviardage n’est pas disponible pour le moment. Vérifiez votre connexion et réessayez.',
+    redactDone: plural('fr', 'marks', {
+      one: '{marks} caviardage appliqué.',
+      many: '{marks} de caviardages appliqués.',
+      other: '{marks} caviardages appliqués.',
+    }),
+    redactHiddenLayers:
+      'Ce fichier contient des calques masqués. Leur contenu n’a pas été supprimé.',
+    redactForeign: plural('fr', 'count', {
+      one: '{count} marque de caviardage d’un autre programme a été laissée en place.',
+      many: '{count} de marques de caviardage d’un autre programme ont été laissées en place.',
+      other:
+        '{count} marques de caviardage d’un autre programme ont été laissées en place.',
+    }),
   },
   toolbar: {
     label: 'Outils du document',

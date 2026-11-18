@@ -13,6 +13,7 @@ import { createMemoryStorage } from '../../model/storage'
 import { sandboxLoader } from '../../pdfjs/scripting'
 import { oneOfEach } from '../../test-support/annotations'
 import { definePlugin } from '../plugins/define'
+import { redactionBusy } from '../redaction-actions'
 import { createSidebar } from '../sidebar/sidebar'
 import { mountContainer, settle, until } from '../test-utils'
 import {
@@ -26,6 +27,7 @@ import {
 
 import { createColorMenu } from './color-menu'
 import {
+  createApplyRedactionsButton,
   createBack,
   createCommandButton,
   createForward,
@@ -52,7 +54,7 @@ import { createTextStyleMenu } from './text-style-menu'
 
 import type { AnnotationChange } from '../../model/annotations/store'
 import type { Annotation } from '../../model/annotations/types'
-import type { InkDocument } from '../../model/document'
+import type { EngineLoader, InkDocument } from '../../model/document'
 import type { FieldsChange, FieldValues } from '../../model/form/types'
 import type { RecordStore } from '../../model/records'
 import type { Tool } from '../tools/controller'
@@ -3777,5 +3779,377 @@ describe('a floating sidebar beside the viewer', () => {
       url: 'https://example.com/a',
       newWindow: false,
     })
+  })
+})
+
+describe('applying redactions', () => {
+  /** The real engine, in this page; `gate` holds its loading until resolved. */
+  const realEngine = (gate?: Promise<void>): EngineLoader =>
+    vi.fn<EngineLoader>(async () => {
+      await gate
+      return import('@inkbar/engine')
+    })
+
+  /** The real engine, whose check of the redacted file finds content under every mark. */
+  const failingCheck: EngineLoader = async () => {
+    const m = await import('@inkbar/engine')
+    return {
+      createEngine: async () => {
+        const engine = await m.createEngine()
+        return new Proxy(engine, {
+          get(target, key) {
+            if (key === 'checkRedaction')
+              return async (...args: Parameters<typeof engine.checkRedaction>) => {
+                const found = await target.checkRedaction(...args)
+                return {
+                  ...found,
+                  candidates: found.candidates.map((c) => ({
+                    ...c,
+                    verdict: 'content-remains' as const,
+                  })),
+                }
+              }
+            const value: unknown = Reflect.get(target, key, target)
+            return typeof value === 'function'
+              ? (value as (...a: unknown[]) => unknown).bind(target)
+              : value
+          },
+        })
+      },
+    }
+  }
+
+  /** A mark over SECRET-ALPHA in `redact-text`: the fixture's region. */
+  const markSecret = (doc: InkDocument) =>
+    doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 45, y: 190, width: 170, height: 35 },
+    })
+  const addSquare = (doc: InkDocument) =>
+    doc.annotations.add({
+      type: 'square',
+      page: 0,
+      rect: { x: 300, y: 400, width: 100, height: 60 },
+    })
+
+  /** Resolves once the viewer shows a document other than `doc`, ready. */
+  async function reopened(viewer: Viewer, doc: InkDocument): Promise<InkDocument> {
+    await until(
+      () =>
+        viewer.document.get() !== null &&
+        viewer.document.get() !== doc &&
+        viewer.status.get().state === 'ready' &&
+        viewer.engine.get() !== null,
+      15_000
+    )
+    return viewer.document.get()!
+  }
+
+  const alertText = () =>
+    document.querySelector('[data-ink-form-alert-message]')?.textContent ?? null
+  const dialog = () => document.querySelector<HTMLElement>('[data-ink-redaction-dialog]')
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    document.querySelectorAll('[data-ink-form-alert]').forEach((a) => a.remove())
+  })
+
+  it('applies, tells the host and reopens at the same page and zoom', async () => {
+    const onRedacted = vi.fn<(e: { bytes: Uint8Array; result: unknown }) => void>()
+    const { viewer } = make('text-simple', {
+      engine: realEngine(),
+      tools: allTools(),
+      onRedacted,
+    })
+    const control = createApplyRedactionsButton(viewer)
+    viewer.element.prepend(control)
+    const { doc, engine } = await ready(viewer)
+    expect(control.textContent).toBe('Apply redactions')
+    doc.annotations.add({
+      type: 'redact',
+      page: 1,
+      rect: { x: 72, y: 600, width: 200, height: 40 },
+    })
+    engine.viewport.setZoom(1.5)
+    engine.viewport.setRotation(90)
+    engine.viewport.scrollToPage(1)
+    engine.tools.set('redact-area')
+    await until(() => viewer.viewport.get()!.currentPage.get() === 1)
+
+    control.focus()
+    control.click()
+    await until(() => dialog() !== null)
+    expect(dialog()!.textContent).toContain(
+      'This removes the content under 1 mark on 1 page.'
+    )
+    dialog()!.querySelector<HTMLButtonElement>('[data-ink-redaction-confirm]')!.click()
+    expect(dialog()).toBeNull()
+
+    const next = await reopened(viewer, doc)
+    expect(onRedacted).toHaveBeenCalledTimes(1)
+    const [{ bytes, result }] = onRedacted.mock.calls[0]!
+    expect(bytes.byteLength).toBeGreaterThan(0)
+    expect(result).toMatchObject({ marks: 1, pages: 1 })
+    expect(next.key).toBe(doc.key)
+    expect(next.annotations.list.get().filter((a) => a.type === 'redact')).toEqual([])
+    const vp = viewer.viewport.get()!
+    expect(vp.zoom.get()).toBe(1.5)
+    expect(vp.rotation.get()).toBe(90)
+    expect(vp.currentPage.get()).toBe(1)
+    expect(viewer.tools.get()!.active.get()).toBe('redact-area')
+    await until(() => alertText() !== null)
+    expect(alertText()).toBe('1 redaction applied.')
+
+    // A fit mode is kept as the mode, not as the scale it came to.
+    next.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 72, y: 700, width: 200, height: 20 },
+    })
+    vp.setZoom('fit-page')
+    const applying = viewer.applyRedactions()
+    await until(() => dialog() !== null)
+    dialog()!.querySelector<HTMLButtonElement>('[data-ink-redaction-confirm]')!.click()
+    await expect(applying).resolves.toMatchObject({ marks: 1 })
+    const third = await reopened(viewer, next)
+    expect(viewer.viewport.get()!.zoom.get()).toBe('fit-page')
+    expect(third.key).toBe(doc.key)
+  })
+
+  it('the redacted text cannot be selected or found by search', async () => {
+    const { viewer } = make('redact-text', {
+      engine: realEngine(),
+      redactionConfirm: false,
+    })
+    const { doc } = await ready(viewer)
+    const textLayer = () => viewer.element.querySelector('.ink-text-layer')
+    await until(() => (textLayer()?.textContent ?? '').includes('KEEP-BETA'))
+    expect(textLayer()!.textContent).toContain('SECRET')
+    markSecret(doc)
+    const result = await viewer.applyRedactions()
+    expect(result).toMatchObject({ marks: 1 })
+    await reopened(viewer, doc)
+    await until(() => (textLayer()?.textContent ?? '').includes('KEEP-BETA'))
+    expect(textLayer()!.textContent).not.toContain('SECRET')
+    expect(textLayer()!.textContent).not.toContain('ALPHA')
+
+    viewer.search.open('SECRET')
+    await until(() => {
+      const s = viewer.search.state.get()
+      return s.query === 'SECRET' && !s.scanning
+    })
+    await settle()
+    expect(viewer.search.state.get().hits).toEqual([])
+    viewer.search.setQuery('KEEP')
+    await until(() => viewer.search.state.get().hits.length === 1)
+  })
+
+  it('Download after applying gives the redacted bytes', async () => {
+    const clicked: HTMLAnchorElement[] = []
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement
+    ) {
+      clicked.push(this)
+    })
+    const onRedacted = vi.fn<(e: { bytes: Uint8Array }) => void>()
+    const { viewer } = make('redact-text', {
+      engine: realEngine(),
+      redactionConfirm: false,
+      onRedacted,
+    })
+    const { doc } = await ready(viewer)
+    markSecret(doc)
+    await viewer.applyRedactions()
+    await reopened(viewer, doc)
+    await viewer.download()
+    expect(clicked).toHaveLength(1)
+    const downloaded = new Uint8Array(await (await fetch(clicked[0]!.href)).arrayBuffer())
+    expect([...downloaded]).toEqual([...onRedacted.mock.calls[0]![0].bytes])
+  })
+
+  it('undo is unavailable after applying', async () => {
+    const { viewer } = make('redact-text', {
+      engine: realEngine(),
+      redactionConfirm: false,
+    })
+    const undo = createUndo(viewer)
+    const { doc } = await ready(viewer)
+    const square = addSquare(doc)
+    markSecret(doc)
+    expect(doc.history.canUndo.get()).toBe(true)
+    expect(undo.disabled).toBe(false)
+    await viewer.applyRedactions()
+    const next = await reopened(viewer, doc)
+    // The square came back from the file, as after any save.
+    await until(() => next.annotations.get(square.id)?.source === 'session')
+    expect(next.history.canUndo.get()).toBe(false)
+    expect(next.history.canRedo.get()).toBe(false)
+    expect(undo.disabled).toBe(true)
+  })
+
+  it('a controlled host sees one list without the marks', async () => {
+    let hostList: Annotation[] = []
+    const reasons: string[] = []
+    const onChange = (next: Annotation[], change: AnnotationChange) => {
+      reasons.push(change.kind === 'replace' ? change.reason : change.kind)
+      hostList = next
+      viewer.document.get()?.annotations.setControlledValue(next)
+    }
+    const { viewer } = make('redact-text', {
+      engine: realEngine(),
+      redactionConfirm: false,
+      annotations: { mode: 'controlled', initial: [], onChange },
+      onReady: (d) => d.annotations.setControlledValue(hostList),
+    })
+    const { doc } = await ready(viewer)
+    const square = addSquare(doc)
+    const mark = markSecret(doc)
+    expect(hostList.map((a) => a.id)).toEqual([square.id, mark.id])
+    reasons.length = 0
+
+    const result = await viewer.applyRedactions()
+    expect(result).toMatchObject({ marks: 1 })
+    // The proposal before the reopen: the host's list without the mark.
+    expect(reasons[0]).toBe('redaction')
+    const next = await reopened(viewer, doc)
+    await until(() => next.annotations.get(square.id) !== undefined)
+    await settle()
+    expect(hostList.map((a) => a.id)).toEqual([square.id])
+    expect(next.annotations.list.get().map((a) => a.id)).toEqual([square.id])
+    expect(reasons.filter((r) => r !== 'redaction' && r !== 'file')).toEqual([])
+  })
+
+  it('a failed check leaves the document and its marks as they were and says why', async () => {
+    const errors: InkError[] = []
+    const onRedacted = vi.fn()
+    const { viewer } = make('redact-text', {
+      engine: failingCheck,
+      redactionConfirm: false,
+      onRedacted,
+      onError: (e) => errors.push(e),
+    })
+    const control = createApplyRedactionsButton(viewer)
+    viewer.element.prepend(control)
+    const { doc } = await ready(viewer)
+    const mark = markSecret(doc)
+    const list = doc.annotations.list.get()
+    await expect(viewer.applyRedactions()).resolves.toBeNull()
+    expect(errors).toHaveLength(1)
+    expect(errors[0]).toMatchObject({
+      code: 'RedactionFailed',
+      details: { stage: 'verify' },
+    })
+    expect(alertText()).toBe('Some content could not be removed, so nothing was changed.')
+    expect(onRedacted).not.toHaveBeenCalled()
+    expect(viewer.document.get()).toBe(doc)
+    expect(viewer.status.get().state).toBe('ready')
+    expect(doc.annotations.list.get()).toBe(list)
+    expect(doc.annotations.get(mark.id)).toBeDefined()
+    expect(control.disabled).toBe(false)
+    expect(control.getAttribute('aria-busy')).toBe('false')
+  })
+
+  it('destroying the viewer mid-apply does not reopen', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((r) => (release = r))
+    const onRedacted = vi.fn()
+    const onReady = vi.fn()
+    const errors: InkError[] = []
+    const { viewer } = make('redact-text', {
+      engine: realEngine(gate),
+      redactionConfirm: false,
+      onRedacted,
+      onReady,
+      onError: (e) => errors.push(e),
+    })
+    const { doc } = await ready(viewer)
+    markSecret(doc)
+    const applying = viewer.applyRedactions()
+    await until(() => redactionBusy(doc).get())
+    viewer.destroy()
+    release()
+    await expect(applying).resolves.toBeNull()
+    await settle()
+    expect(onRedacted).not.toHaveBeenCalled()
+    expect(onReady).toHaveBeenCalledTimes(1)
+    expect(errors).toEqual([])
+    expect(alertText()).toBeNull()
+  })
+
+  it('an encrypted file reopens with the password it was opened with', async () => {
+    const onRedacted = vi.fn<(e: { bytes: Uint8Array }) => void>()
+    const errors: InkError[] = []
+    const { viewer } = make('text-simple', {
+      engine: realEngine(),
+      redactionConfirm: false,
+      onRedacted,
+      onError: (e) => errors.push(e),
+    })
+    await ready(viewer)
+    viewer.open(fixtureUrl('encrypted-aes'), { password: 'inkbar' })
+    await until(() => viewer.document.get()?.key.includes('encrypted-aes') === true)
+    const { doc } = await ready(viewer)
+    // Over "Enc" of the file's one word, Encrypted, on the baseline y 700.
+    doc.annotations.add({
+      type: 'redact',
+      page: 0,
+      rect: { x: 70, y: 695, width: 25, height: 20 },
+    })
+    const result = await viewer.applyRedactions()
+    expect(errors).toEqual([])
+    expect(result).toMatchObject({ marks: 1 })
+    const next = await reopened(viewer, doc)
+    expect(next.key).toBe(doc.key)
+    expect(viewer.status.get().state).toBe('ready')
+    // The redacted file is still locked: without the password it does not open.
+    const bytes = onRedacted.mock.calls[0]![0].bytes
+    const { viewer: other } = make('text-simple', { passwordPrompt: false })
+    await ready(other)
+    other.open(bytes.slice())
+    await until(() => other.status.get().state === 'error')
+  })
+
+  it('the control is disabled without marks and without an engine', async () => {
+    const { viewer } = make('redact-text', { engine: realEngine() })
+    const control = createApplyRedactionsButton(viewer)
+    expect(control.disabled).toBe(true)
+    expect(control.dataset.inkApplyRedactions).toBe('')
+    const { doc } = await ready(viewer)
+    expect(control.disabled).toBe(true)
+    const mark = markSecret(doc)
+    expect(control.disabled).toBe(false)
+    doc.annotations.remove(mark.id)
+    expect(control.disabled).toBe(true)
+
+    const { viewer: bare } = make('redact-text')
+    const bareControl = createApplyRedactionsButton(bare)
+    const { doc: bareDoc } = await ready(bare)
+    markSecret(bareDoc)
+    expect(bareControl.disabled).toBe(true)
+    await expect(bare.applyRedactions()).resolves.toBeNull()
+  })
+
+  it('the control is busy while the marks are applied', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((r) => (release = r))
+    const { viewer } = make('redact-text', {
+      engine: realEngine(gate),
+      redactionConfirm: false,
+    })
+    const control = createApplyRedactionsButton(viewer)
+    viewer.element.prepend(control)
+    const { doc } = await ready(viewer)
+    markSecret(doc)
+    control.focus()
+    control.click()
+    await until(() => control.getAttribute('aria-busy') === 'true')
+    expect(control.getAttribute('aria-disabled')).toBe('true')
+    expect(control.textContent).toBe('Applying redactions…')
+    expect(document.activeElement).toBe(control)
+    release()
+    await reopened(viewer, doc)
+    expect(control.getAttribute('aria-busy')).toBe('false')
+    expect(control.textContent).toBe('Apply redactions')
   })
 })
