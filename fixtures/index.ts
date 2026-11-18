@@ -40,10 +40,12 @@ export interface FixtureMeta {
    */
   gone?: string[]
   /**
-   * Why redacting the `regions` is refused: the apply leaves content the strict check sees, so
-   * the action fails and hands over nothing. Absent when the regions redact cleanly.
+   * Why redacting the `regions` is refused, and where. With `kinds`, the engine refuses before
+   * the apply: a mark lies over content the apply cannot remove, of those kinds, and `redact`
+   * rejects with `unremovable-content` and changes nothing. Without, the apply runs and the strict
+   * check after it finds content left. Absent when the regions redact cleanly.
    */
-  refused?: string
+  refused?: { why: string; kinds?: ('pattern' | 'shading' | 'mask-group' | 'glyph')[] }
 }
 
 export const manifest = manifestJson as Record<FixtureName, FixtureMeta>

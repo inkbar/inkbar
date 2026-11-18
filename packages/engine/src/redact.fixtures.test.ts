@@ -663,11 +663,7 @@ describe('refuses a mark over content the apply cannot remove', () => {
     ['redact-drawing-mesh-pattern', ['shading']],
     ['redact-mask-group-past-mark', ['mask-group']],
     ['redact-text-pattern', ['pattern']],
-    // The carrier lies wholly under the mark, so an apply would drop it with its only use; the
-    // fork counts it all the same, and the engine refuses before changing anything.
-    ['redact-drawing-pattern', ['pattern']],
-    ['check-pattern-text', ['pattern']],
-    ['redact-mask-group-under-mark', ['mask-group']],
+    ['redact-drawing-sampled-axial', ['shading']],
   ])('%s, and changes nothing', async (fixture, kinds) => {
     const expected = await untouched(fixture)
     const doc = await engine.open(await fixtureBytes(fixture))
@@ -711,13 +707,20 @@ describe('refuses a mark over content the apply cannot remove', () => {
     })
   })
 
-  test.each<FixtureName>(['redact-text', 'redact-image-flate', 'redact-path'])(
-    'still redacts %s',
-    async (fixture) => {
-      const { result } = await redacted(fixture)
-      expect(result.pages).toEqual([{ page: 0, marks: 1, annotationsRemoved: 0 }])
-    }
-  )
+  // The last four carry a pattern, a mask group or a shading wholly inside the mark: the apply
+  // removes the object outright, and its carrier leaves the file with it.
+  test.each<FixtureName>([
+    'redact-text',
+    'redact-image-flate',
+    'redact-path',
+    'redact-drawing-pattern',
+    'check-pattern-text',
+    'redact-mask-group-under-mark',
+    'redact-drawing-mesh-under-mark',
+  ])('still redacts %s', async (fixture) => {
+    const { result } = await redacted(fixture)
+    expect(result.pages).toEqual([{ page: 0, marks: 1, annotationsRemoved: 0 }])
+  })
 
   /** `redact` on a core whose INK_Redact_Unremovable answers `answer`. */
   async function withAnswer(answer: (fn: Native) => number) {

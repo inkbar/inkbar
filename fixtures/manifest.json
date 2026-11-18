@@ -610,7 +610,7 @@
     "file": "check-pattern-text.pdf",
     "pages": 1,
     "opens": true,
-    "describes": "The region filled with a tiling pattern whose cell draws SECRET-ALPHA, KEEP-BETA beside it in the page content; nothing redacted. The fill lies wholly under the region, so an apply removes it, and the pattern, used nowhere else, leaves the file",
+    "describes": "A fill 1 pt inside the region (x 46..214, y 191..224) with a tiling pattern whose cell draws SECRET-ALPHA, KEEP-BETA beside it in the page content; nothing redacted. The fill lies wholly inside the region, so an apply removes it, and the pattern, used nowhere else, leaves the file",
     "secrets": ["SECRET", "ALPHA"],
     "keeps": ["KEEP-BETA"],
     "regions": [
@@ -1062,7 +1062,7 @@
     "file": "redact-copy-thumbnail.pdf",
     "pages": 1,
     "opens": true,
-    "describes": "redact-text whose page has a /Thumb image of it at a tenth of its size: on the row of the line, the samples where each word lies are the bytes of the word, on white",
+    "describes": "redact-text whose page has a /Thumb image of it at a tenth of its size: on the row of the line, the samples where each word lies are the bytes of the word, on white. The file also holds an image XObject that nothing refers to",
     "secrets": ["SECRET", "ALPHA"],
     "keeps": ["KEEP-BETA"],
     "regions": [
@@ -1119,7 +1119,9 @@
     "annotations": {
       "Square": 1
     },
-    "refused": "the loupe's appearance holds a copy of the page as it was, which the apply does not change; Inkbar writes its own loupes again after the apply"
+    "refused": {
+      "why": "the loupe's appearance holds a copy of the page as it was, which the apply does not change, and the strict check after the apply reads it; Inkbar writes its own loupes again after the apply"
+    }
   },
   "redact-file-encrypted": {
     "file": "redact-file-encrypted.pdf",
@@ -1227,7 +1229,10 @@
         "quad": [45, 225, 215, 225, 45, 190, 215, 190]
       }
     ],
-    "refused": "the apply cuts a hole in the band and leaves the pattern's cell, which still holds the text under the region; the check tiles the cell over the region and counts the text"
+    "refused": {
+      "kinds": ["pattern"],
+      "why": "the band reaches past the mark, so the apply would cut a hole in it and leave the pattern's cell, which holds the text where the mark is; the engine refuses before the apply"
+    }
   },
   "redact-drawing-pattern-past-mark": {
     "file": "redact-drawing-pattern-past-mark.pdf",
@@ -1242,7 +1247,10 @@
         "quad": [110, 190, 190, 190, 110, 110, 190, 110]
       }
     ],
-    "refused": "the apply cuts a hole in the band and leaves the pattern's cell, which still draws the quadrilateral under the region; the check tiles the cell over the region and counts it, and no whole tile shows elsewhere"
+    "refused": {
+      "kinds": ["pattern"],
+      "why": "the band reaches past the mark, so the apply would cut a hole in it and leave the pattern's cell, which draws the quadrilateral where the mark is; the engine refuses before the apply"
+    }
   },
   "redact-drawing-pattern-side": {
     "file": "redact-drawing-pattern-side.pdf",
@@ -1257,7 +1265,10 @@
         "quad": [10, 210, 70, 210, 10, 90, 70, 90]
       }
     ],
-    "refused": "the apply cuts the band back to x 70, where it no longer reaches the region, and leaves the cell, which still draws the quadrilateral there; the check tiles the cell over the region wherever the band lies"
+    "refused": {
+      "kinds": ["pattern"],
+      "why": "the mark covers the band's left end only, so the apply would cut the band back and leave the pattern's cell, which draws the quadrilateral where the mark is; the engine refuses before the apply"
+    }
   },
   "redact-drawing-hatch": {
     "file": "redact-drawing-hatch.pdf",
@@ -1271,7 +1282,11 @@
         "page": 0,
         "quad": [110, 190, 190, 190, 110, 110, 190, 110]
       }
-    ]
+    ],
+    "refused": {
+      "kinds": ["pattern"],
+      "why": "the band reaches past the mark, and the engine refuses any mark over a shape painted with a tiling pattern that the apply would only cut, whatever the cell holds; here the cell repeats what stays in view, so the refusal is cautious rather than needed"
+    }
   },
   "redact-drawing-mesh": {
     "file": "redact-drawing-mesh.pdf",
@@ -1286,7 +1301,10 @@
         "quad": [110, 190, 190, 190, 110, 110, 190, 110]
       }
     ],
-    "refused": "the apply only clips the shading and leaves its mesh in the file, where removing the clip shows it again; the check counts a mesh shading whose own box meets the region"
+    "refused": {
+      "kinds": ["shading"],
+      "why": "the shading reaches past the mark, so the apply would only clip it and leave its mesh in the file, where removing the clip shows it again; the engine refuses before the apply"
+    }
   },
   "redact-drawing-function-shading": {
     "file": "redact-drawing-function-shading.pdf",
@@ -1301,7 +1319,10 @@
         "quad": [110, 190, 190, 190, 110, 110, 190, 110]
       }
     ],
-    "refused": "the apply only clips the shading and leaves its function in the file; the check counts a function-based shading whose own box meets the region"
+    "refused": {
+      "kinds": ["shading"],
+      "why": "the shading reaches past the mark, so the apply would only clip it and leave its function in the file; the engine refuses before the apply"
+    }
   },
   "redact-drawing-mesh-pattern": {
     "file": "redact-drawing-mesh-pattern.pdf",
@@ -1316,7 +1337,10 @@
         "quad": [110, 190, 190, 190, 110, 110, 190, 110]
       }
     ],
-    "refused": "the apply cuts the square and leaves the mesh in the file; the check counts a mesh shading used as a pattern by any object that paints with it"
+    "refused": {
+      "kinds": ["shading"],
+      "why": "the rectangle reaches past the mark, so the apply would cut it and leave the mesh it is filled with; the engine refuses before the apply"
+    }
   },
   "redact-mask-group-past-mark": {
     "file": "redact-mask-group-past-mark.pdf",
@@ -1331,7 +1355,10 @@
         "quad": [45, 175, 215, 175, 45, 140, 215, 140]
       }
     ],
-    "refused": "the apply cuts a hole in the band and leaves the mask's group, which still draws the text under the region; the check reads mask groups where the mask was set"
+    "refused": {
+      "kinds": ["mask-group"],
+      "why": "the band reaches past the mark, so the apply would cut a hole in it and leave the mask's group, which draws the text where the mark is; the engine refuses before the apply"
+    }
   },
   "redact-mask-group-under-mark": {
     "file": "redact-mask-group-under-mark.pdf",
@@ -1372,6 +1399,97 @@
       {
         "page": 0,
         "quad": [110, 190, 195, 190, 110, 110, 195, 110]
+      }
+    ]
+  },
+  "redact-drawing-hatch-under-mark": {
+    "file": "redact-drawing-hatch-under-mark.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A square at x and y 120..180, wholly inside the region (x and y 110..190), filled with the hatch of redact-drawing-hatch, and a blue square beside it: the apply removes the square, and the pattern leaves the file",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ],
+    "gone": ["/PatternType"]
+  },
+  "redact-drawing-mesh-under-mark": {
+    "file": "redact-drawing-mesh-under-mark.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "The triangle mesh of redact-drawing-mesh pulled into x and y 125..175, wholly inside the region (x and y 110..190), painted with sh, and a blue square beside it: the apply removes the shading, and its mesh leaves the file",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ],
+    "gone": ["/ShadingType"]
+  },
+  "redact-drawing-function-under-mark": {
+    "file": "redact-drawing-function-under-mark.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "The function-based shading of redact-drawing-function-shading over x and y 125..175 only, wholly inside the region (x and y 110..190), and a blue square beside it: the apply removes the shading, and its function leaves the file",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ],
+    "gone": ["/ShadingType", "/FunctionType"]
+  },
+  "redact-drawing-sampled-axial": {
+    "file": "redact-drawing-sampled-axial.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "An axial shading whose function is sampled (type 0, four colours) painted with sh through a clip of x 120..280, y 120..180; the region (x and y 110..190) covers its left end",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ],
+    "refused": {
+      "kinds": ["shading"],
+      "why": "a sampled function can hold a picture, and the shading reaches past the mark, so the apply would only clip it and leave the function in the file; the engine refuses before the apply"
+    }
+  },
+  "redact-text-fade": {
+    "file": "redact-text-fade.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "SECRET-ALPHA under the region, faded by a soft mask whose group draws only an axial ramp (gradient transparency), and KEEP-BETA beside it unmasked: the mask holds no picture, so the apply runs and the text goes",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ]
+  },
+  "redact-text-beside-carriers": {
+    "file": "redact-text-beside-carriers.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "redact-text on a page that also has a hatch swatch (x 330..370, y 40..80), a band of a large-cell texture (x 20..300, y 20..60) and a square under a soft mask whose group holds text (x 250..310, y 100..160), none of them under the region: the apply runs",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
       }
     ]
   }

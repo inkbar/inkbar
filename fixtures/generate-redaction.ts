@@ -414,7 +414,7 @@ function checkPatternText() {
       page(4, 5, '/Pattern << /P0 6 0 R >> '),
       stream(
         '',
-        `q /Pattern cs /P0 scn ${l} ${b} ${r - l} ${t - b} re f Q\n${line(300, 200, 'KEEP-BETA')}`
+        `q /Pattern cs /P0 scn ${l + 1} ${b + 1} ${r - l - 2} ${t - b - 2} re f Q\n${line(300, 200, 'KEEP-BETA')}`
       ),
       HELVETICA,
       stream(
@@ -426,7 +426,7 @@ function checkPatternText() {
       pages: 1,
       opens: true,
       describes:
-        'The region filled with a tiling pattern whose cell draws SECRET-ALPHA, KEEP-BETA beside it in the page content; nothing redacted. The fill lies wholly under the region, so an apply removes it, and the pattern, used nowhere else, leaves the file',
+        'A fill 1 pt inside the region (x 46..214, y 191..224) with a tiling pattern whose cell draws SECRET-ALPHA, KEEP-BETA beside it in the page content; nothing redacted. The fill lies wholly inside the region, so an apply removes it, and the pattern, used nowhere else, leaves the file',
       secrets: ['SECRET', 'ALPHA'],
       keeps: ['KEEP-BETA'],
       regions: [region(0, OVER_WORD)],
@@ -823,8 +823,10 @@ function redactTextPattern() {
     textRow(
       'A band at x 20..380, y 170..240 filled with a tiling pattern whose one cell, the size of the page, is grey with SECRET-ALPHA at (50, 200), under the region; KEEP-BETA at (300, 100) in the page content',
       {
-        refused:
-          "the apply cuts a hole in the band and leaves the pattern's cell, which still holds the text under the region; the check tiles the cell over the region and counts the text",
+        refused: {
+          kinds: ['pattern'],
+          why: "the band reaches past the mark, so the apply would cut a hole in it and leave the pattern's cell, which holds the text where the mark is; the engine refuses before the apply",
+        },
       }
     )
   )
@@ -1201,8 +1203,10 @@ function redactDrawing() {
     drawingRow(
       'A band at x 20..380, y 100..200 filled with a tiling pattern whose one cell, the size of the page, draws a magenta quadrilateral under the region (x and y 110..190) and a blue square at x 260..320, y 120..180 beside it',
       {
-        refused:
-          "the apply cuts a hole in the band and leaves the pattern's cell, which still draws the quadrilateral under the region; the check tiles the cell over the region and counts it, and no whole tile shows elsewhere",
+        refused: {
+          kinds: ['pattern'],
+          why: "the band reaches past the mark, so the apply would cut a hole in it and leave the pattern's cell, which draws the quadrilateral where the mark is; the engine refuses before the apply",
+        },
       }
     )
   )
@@ -1224,8 +1228,10 @@ function redactDrawing() {
       "A band at x 20..380, y 100..200 filled with a tiling pattern of one page-sized cell that draws a magenta quadrilateral at x 30..60, y 130..170 and a blue square at x 260..320; the region (x 10..70, y 90..210) covers the band's whole left end",
       {
         regions: [region(0, [10, 90, 70, 210])],
-        refused:
-          'the apply cuts the band back to x 70, where it no longer reaches the region, and leaves the cell, which still draws the quadrilateral there; the check tiles the cell over the region wherever the band lies',
+        refused: {
+          kinds: ['pattern'],
+          why: "the mark covers the band's left end only, so the apply would cut the band back and leave the pattern's cell, which draws the quadrilateral where the mark is; the engine refuses before the apply",
+        },
       }
     )
   )
@@ -1243,10 +1249,34 @@ function redactDrawing() {
         )} 0 R >>`
     ),
     drawingRow(
-      'A band at x 20..380, y 100..200 filled with a hatch: a tiling pattern whose 20 pt cell draws one magenta diagonal. Whole tiles show beside the region (x and y 110..190), so what lies under it is a repeat of what stays in view'
+      'A band at x 20..380, y 100..200 filled with a hatch: a tiling pattern whose 20 pt cell draws one magenta diagonal. Whole tiles show beside the region (x and y 110..190), so what lies under it is a repeat of what stays in view',
+      {
+        refused: {
+          kinds: ['pattern'],
+          why: 'the band reaches past the mark, and the engine refuses any mark over a shape painted with a tiling pattern that the apply would only cut, whatever the cell holds; here the cell repeats what stays in view, so the refusal is cautious rather than needed',
+        },
+      }
+    )
+  )
+  write(
+    'redact-drawing-hatch-under-mark',
+    onePage(
+      `q /Pattern cs /P0 scn 120 120 60 60 re f Q\n${BLUE_SQUARE}\n${line(100, 50, 'KEEP-BETA')}`,
+      (o) =>
+        `/Pattern << /P0 ${o.add(
+          stream(
+            '/Type /Pattern /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 20 20] /XStep 20 /YStep 20 /Resources << >>',
+            '1 0 1 RG 2 w 0 0 m 20 20 l S'
+          )
+        )} 0 R >>`
+    ),
+    drawingRow(
+      'A square at x and y 120..180, wholly inside the region (x and y 110..190), filled with the hatch of redact-drawing-hatch, and a blue square beside it: the apply removes the square, and the pattern leaves the file',
+      { gone: ['/PatternType'] }
     )
   )
   meshAndFunctionShadings()
+  shadingsUnderMark()
 }
 
 /**
@@ -1275,6 +1305,76 @@ function meshData(): Buffer {
   )
 }
 
+/** The mesh of MESH with every vertex pulled into x and y 125..175. */
+function smallMeshData(): Buffer {
+  const data = meshData()
+  for (let at = 0; at < data.length; at += 8) {
+    const x = data.readUInt16BE(at + 1)
+    data.writeUInt16BE(x > 200 ? 175 : x === 200 ? 150 : x, at + 1)
+  }
+  return data
+}
+
+function shadingsUnderMark() {
+  write(
+    'redact-drawing-mesh-under-mark',
+    onePage(
+      `q 120 120 60 60 re W n /Sh0 sh Q\n${BLUE_SQUARE}\n${line(100, 50, 'KEEP-BETA')}`,
+      (o) => `/Shading << /Sh0 ${o.add(stream(MESH, smallMeshData()))} 0 R >>`
+    ),
+    drawingRow(
+      'The triangle mesh of redact-drawing-mesh pulled into x and y 125..175, wholly inside the region (x and y 110..190), painted with sh, and a blue square beside it: the apply removes the shading, and its mesh leaves the file',
+      { gone: ['/ShadingType'] }
+    )
+  )
+  write(
+    'redact-drawing-function-under-mark',
+    onePage(
+      `q 120 120 60 60 re W n /Sh0 sh Q\n${BLUE_SQUARE}\n${line(100, 50, 'KEEP-BETA')}`,
+      (o) => {
+        const fn = o.add(
+          stream(
+            '/FunctionType 4 /Domain [0 1 0 1] /Range [0 1 0 1 0 1]',
+            '{ exch pop 0.5 mul 1 exch 1 }'
+          )
+        )
+        const shading = o.add(
+          `<< /ShadingType 1 /ColorSpace /DeviceRGB /Domain [0 1 0 1] /Matrix [50 0 0 50 125 125] /Function ${fn} 0 R >>`
+        )
+        return `/Shading << /Sh0 ${shading} 0 R >>`
+      }
+    ),
+    drawingRow(
+      'The function-based shading of redact-drawing-function-shading over x and y 125..175 only, wholly inside the region (x and y 110..190), and a blue square beside it: the apply removes the shading, and its function leaves the file',
+      { gone: ['/ShadingType', '/FunctionType'] }
+    )
+  )
+  write(
+    'redact-drawing-sampled-axial',
+    onePage(`q 120 120 160 60 re W n /Sh0 sh Q\n${line(100, 50, 'KEEP-BETA')}`, (o) => {
+      const fn = o.add(
+        stream(
+          '/FunctionType 0 /Domain [0 1] /Range [0 1 0 1 0 1] /Size [4] /BitsPerSample 8',
+          Buffer.from([255, 0, 255, 120, 0, 160, 255, 80, 255, 160, 0, 120])
+        )
+      )
+      const shading = o.add(
+        `<< /ShadingType 2 /ColorSpace /DeviceRGB /Coords [125 150 275 150] /Function ${fn} 0 R /Extend [true true] >>`
+      )
+      return `/Shading << /Sh0 ${shading} 0 R >>`
+    }),
+    drawingRow(
+      'An axial shading whose function is sampled (type 0, four colours) painted with sh through a clip of x 120..280, y 120..180; the region (x and y 110..190) covers its left end',
+      {
+        refused: {
+          kinds: ['shading'],
+          why: 'a sampled function can hold a picture, and the shading reaches past the mark, so the apply would only clip it and leave the function in the file; the engine refuses before the apply',
+        },
+      }
+    )
+  )
+}
+
 function meshAndFunctionShadings() {
   write(
     'redact-drawing-mesh',
@@ -1285,8 +1385,10 @@ function meshAndFunctionShadings() {
     drawingRow(
       'A free-form triangle mesh shading (type 4) of two magenta triangles over x 125..275, y 125..175, painted with sh through a clip of x 120..280, y 120..180; the region (x and y 110..190) covers its left end',
       {
-        refused:
-          'the apply only clips the shading and leaves its mesh in the file, where removing the clip shows it again; the check counts a mesh shading whose own box meets the region',
+        refused: {
+          kinds: ['shading'],
+          why: 'the shading reaches past the mark, so the apply would only clip it and leave its mesh in the file, where removing the clip shows it again; the engine refuses before the apply',
+        },
       }
     )
   )
@@ -1307,8 +1409,10 @@ function meshAndFunctionShadings() {
     drawingRow(
       'A function-based shading (type 1) over x 125..275, y 125..175, magenta shading to pink, painted with sh through a clip of x 120..280, y 120..180; the region (x and y 110..190) covers its left end',
       {
-        refused:
-          'the apply only clips the shading and leaves its function in the file; the check counts a function-based shading whose own box meets the region',
+        refused: {
+          kinds: ['shading'],
+          why: 'the shading reaches past the mark, so the apply would only clip it and leave its function in the file; the engine refuses before the apply',
+        },
       }
     )
   )
@@ -1322,8 +1426,10 @@ function meshAndFunctionShadings() {
     drawingRow(
       'A rectangle at x 125..275, y 125..175 filled with a shading pattern whose shading is the triangle mesh of redact-drawing-mesh; the region (x and y 110..190) covers its left end',
       {
-        refused:
-          'the apply cuts the square and leaves the mesh in the file; the check counts a mesh shading used as a pattern by any object that paints with it',
+        refused: {
+          kinds: ['shading'],
+          why: 'the rectangle reaches past the mark, so the apply would cut it and leave the mesh it is filled with; the engine refuses before the apply',
+        },
       }
     )
   )
@@ -1359,8 +1465,10 @@ function redactMaskGroups() {
       'A blue band at x 20..380, y 130..190 painted through a soft mask whose group draws SECRET-ALPHA at (50, 150); the region (x 45..215, y 140..175) covers the word and not the whole band',
       {
         regions: [region(0, UNDER_MASK)],
-        refused:
-          "the apply cuts a hole in the band and leaves the mask's group, which still draws the text under the region; the check reads mask groups where the mask was set",
+        refused: {
+          kinds: ['mask-group'],
+          why: "the band reaches past the mark, so the apply would cut a hole in it and leave the mask's group, which draws the text where the mark is; the engine refuses before the apply",
+        },
       }
     )
   )
@@ -1370,6 +1478,67 @@ function redactMaskGroups() {
     textRow(
       'A blue rectangle at x 60..180, y 145..170 painted through a soft mask whose group draws SECRET-ALPHA at (50, 150); the region (x 45..215, y 140..175) covers the rectangle, so the apply removes it and its mask with it',
       { regions: [region(0, UNDER_MASK)] }
+    )
+  )
+}
+
+function redactTextFade() {
+  write(
+    'redact-text-fade',
+    onePage(
+      `q /GS0 gs ${line(50, 200, 'SECRET-ALPHA')}Q\n${line(300, 200, 'KEEP-BETA')}`,
+      (o) => {
+        const group = o.add(
+          stream(
+            `/Type /XObject /Subtype /Form /BBox [0 0 ${WIDTH} ${HEIGHT}] /Group << /S /Transparency /CS /DeviceGray >> /Resources << /Shading << /Sh0 << /ShadingType 2 /ColorSpace /DeviceGray /Coords [40 0 220 0] /Function << /FunctionType 2 /Domain [0 1] /C0 [1] /C1 [0.3] /N 1 >> /Extend [true true] >> >> >>`,
+            '/Sh0 sh'
+          )
+        )
+        return `/ExtGState << /GS0 << /Type /ExtGState /SMask << /Type /Mask /S /Luminosity /G ${group} 0 R >> >> >>`
+      }
+    ),
+    textRow(
+      'SECRET-ALPHA under the region, faded by a soft mask whose group draws only an axial ramp (gradient transparency), and KEEP-BETA beside it unmasked: the mask holds no picture, so the apply runs and the text goes'
+    )
+  )
+}
+
+function redactTextBesideCarriers() {
+  write(
+    'redact-text-beside-carriers',
+    onePage(
+      [
+        SECRET_LINE,
+        // A small swatch of a 10 pt hatch, a band of a large-cell texture, and a masked square.
+        'q /Pattern cs /P0 scn 330 40 40 40 re f Q',
+        'q /Pattern cs /P1 scn 20 20 280 40 re f Q',
+        'q /GS0 gs 0 0 1 rg 250 100 60 60 re f Q',
+      ].join('\n'),
+      (o) => {
+        const font = o.add(HELVETICA)
+        const swatch = o.add(
+          stream(
+            '/Type /Pattern /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 10 10] /XStep 10 /YStep 10 /Resources << >>',
+            '1 0 1 RG 1 w 0 0 m 10 10 l S'
+          )
+        )
+        const texture = o.add(
+          stream(
+            `/Type /Pattern /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 ${WIDTH} ${HEIGHT}] /XStep ${WIDTH} /YStep ${HEIGHT} /Resources << >>`,
+            '0 0.6 0 rg 40 25 m 120 30 l 100 55 l h f'
+          )
+        )
+        const group = o.add(
+          stream(
+            `/Type /XObject /Subtype /Form /BBox [0 0 ${WIDTH} ${HEIGHT}] /Group << /S /Transparency /CS /DeviceGray >> /Resources << /Font << /F1 ${font} 0 R >> >>`,
+            `1 g 0 0 ${WIDTH} ${HEIGHT} re f 0 g BT /F1 12 Tf 255 125 Td (MASKED) Tj ET`
+          )
+        )
+        return `/Pattern << /P0 ${swatch} 0 R /P1 ${texture} 0 R >> /ExtGState << /GS0 << /Type /ExtGState /SMask << /Type /Mask /S /Luminosity /G ${group} 0 R >> >> >>`
+      }
+    ),
+    textRow(
+      'redact-text on a page that also has a hatch swatch (x 330..370, y 40..80), a band of a large-cell texture (x 20..300, y 20..60) and a square under a soft mask whose group holds text (x 250..310, y 100..160), none of them under the region: the apply runs'
     )
   )
 }
@@ -1512,13 +1681,15 @@ function redactCopies() {
           thumbnail()
         )
       )
+      // An image nothing refers to, for the image reader's own test.
+      o.add(stream(COLOUR_IMAGE, colourPixels()))
       const pageObject = o.add(
         plainPage(contents, `/Font << /F1 ${font} 0 R >>`, `/Thumb ${thumb} 0 R `)
       )
       return o.pdf([pageObject])
     })(),
     textRow(
-      'redact-text whose page has a /Thumb image of it at a tenth of its size: on the row of the line, the samples where each word lies are the bytes of the word, on white',
+      'redact-text whose page has a /Thumb image of it at a tenth of its size: on the row of the line, the samples where each word lies are the bytes of the word, on white. The file also holds an image XObject that nothing refers to',
       { gone: ['/Thumb', `${THUMB_WHITE}SECRET-ALPHA`] }
     )
   )
@@ -1586,8 +1757,9 @@ function redactAnnotationLoupe() {
       'redact-text with a loupe beside the region: a square annotation at x 220..380, y 40..160 whose appearance draws a copy of the page (tagged /INKB_PageCopy) at twice its size, centred on the start of SECRET-ALPHA',
       {
         annotations: { Square: 1 },
-        refused:
-          "the loupe's appearance holds a copy of the page as it was, which the apply does not change; Inkbar writes its own loupes again after the apply",
+        refused: {
+          why: "the loupe's appearance holds a copy of the page as it was, which the apply does not change, and the strict check after the apply reads it; Inkbar writes its own loupes again after the apply",
+        },
       }
     )
   )
@@ -1822,6 +1994,8 @@ redactImageMasks()
 redactImagePlacements()
 redactDrawing()
 redactMaskGroups()
+redactTextFade()
+redactTextBesideCarriers()
 redactUnderMark()
 redactPages()
 redactCopies()

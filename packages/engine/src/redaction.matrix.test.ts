@@ -103,11 +103,19 @@ function insideQuad(quad: readonly number[], [x, y]: Point, margin: number): boo
 /** How far inside a region a painted point must be to count as under it, and outside to count as beside it. */
 const MARGIN = 1
 
+/**
+ * What a page paints, by kind: image samples, paths in the page's own content and forms, what a
+ * tiling pattern's cell draws, and shadings (painted with `sh` or filling a path as a pattern).
+ */
+type Kind = 'image' | 'drawing' | 'cell' | 'shading'
+type Counts = Record<Kind, number>
+const zero = (): Counts => ({ image: 0, drawing: 0, cell: 0, shading: 0 })
+
 /** What the readers found on one page: its text, and painted points under and beside the regions. */
 interface PageReading {
   text: string
-  under: { image: number; drawing: number }
-  beside: { image: number; drawing: number }
+  under: Counts
+  beside: Counts
 }
 
 /** The part of PDF.js these readers use. */
@@ -211,13 +219,13 @@ const regionsOn = (regions: FixtureRegion[], page: number) =>
 function tally(
   quads: number[][],
   p: Point,
-  counts: { under: { [k: string]: number }; beside: { [k: string]: number } },
-  kind: 'image' | 'drawing',
+  counts: { under: Counts; beside: Counts },
+  kind: Kind,
   underOnly = false
 ) {
-  if (quads.some((q) => insideQuad(q, p, MARGIN))) counts.under[kind]! += 1
+  if (quads.some((q) => insideQuad(q, p, MARGIN))) counts.under[kind] += 1
   else if (!underOnly && !quads.some((q) => insideQuad(q, p, -MARGIN)))
-    counts.beside[kind]! += 1
+    counts.beside[kind] += 1
 }
 
 /** The points of a PDF.js path, curves taken by their control points, as closed rings or lines. */
@@ -294,8 +302,11 @@ function inside(quads: number[][]): Point[] {
   return points
 }
 
-/** Black is an applied mark's overlay, white is paper: neither is content to these readers. */
-const BLACK = new Set(['#000000', 'rgb(0, 0, 0)', '#ffffff', 'rgb(255, 255, 255)'])
+/**
+ * Black is an applied mark's overlay, so these readers do not count black drawing. The fixtures
+ * draw no content in black; white content counts like any other colour.
+ */
+const BLACK = new Set(['#000000', 'rgb(0, 0, 0)'])
 
 /** An operator list as PDF.js gives one, for a page or inside a tiling pattern. */
 interface OperatorList {
@@ -305,12 +316,14 @@ interface OperatorList {
 
 /**
  * What one page paints under and beside its regions, by its PDF.js operator list: each image
- * sample (by the centre of its cell) that is not paper, points along every path filled or
- * stroked in a colour other than black or white (an applied mark's overlay is black), and points 2 pt
- * apart inside the clip of every shading. A path filled with a tiling pattern also paints what
- * the pattern's cell draws, read once at the cell's own place and counted only under a region,
- * since a cell's place says nothing about what the pattern paints beside it. Text is left to the
- * text reader.
+ * sample (by the centre of its cell) that is not paper (`image`), points along every path filled
+ * or stroked in a colour other than black (`drawing`; an applied mark's overlay is black), and
+ * points 2 pt apart inside the clip of every `sh` (`shading`). A path filled with a tiling pattern
+ * also paints what the pattern's cell draws (`cell`), read once at the cell's own place and
+ * counted only under a region, since a cell's place says nothing about what the pattern paints
+ * beside it. A path filled with a shading pattern counts the points inside it as `shading`. Text
+ * is left to the text reader, and the content of a soft mask's group is skipped: a group masks,
+ * it does not paint, and the byte reader covers what it holds.
  *
  * A filled path also counts points 2 pt apart inside each region that lie inside it, by its fill
  * rule and its clips, so a fill that covers a region without an edge in it is seen there; after
@@ -329,7 +342,7 @@ async function paintedOn(
   quads: number[][]
 ): Promise<Omit<PageReading, 'text'>> {
   const { OPS } = lib
-  const counts = { under: { image: 0, drawing: 0 }, beside: { image: 0, drawing: 0 } }
+  const counts = { under: zero(), beside: zero() }
   const fills = new Set([
     OPS.fill,
     OPS.eoFill,
@@ -376,6 +389,9 @@ async function paintedOn(
       state = stack.pop() ?? state
     }
     let pendingClip: boolean | undefined
+    /** How deep inside soft mask groups the walk is: their content is skipped. */
+    let maskGroups = 0
+    const drawn: Kind = depth > 0 ? 'cell' : 'drawing'
 
     const image = (decoded: Decoded) => {
       const { width, height } = decoded
@@ -406,6 +422,12 @@ async function paintedOn(
 
     for (const [index, op] of list.fnArray.entries()) {
       const args = list.argsArray[index] as unknown[]
+      if (op === OPS.beginGroup || op === OPS.endGroup) {
+        if ((args[0] as { smask?: unknown } | undefined)?.smask)
+          maskGroups += op === OPS.beginGroup ? 1 : -1
+        continue
+      }
+      if (maskGroups > 0) continue
       switch (op) {
         case OPS.save:
           push()
@@ -460,15 +482,16 @@ async function paintedOn(
           const filled = fills.has(paint) && coloured(state.fill)
           const stroked = strokes.has(paint) && coloured(state.stroke)
           if (filled || stroked)
-            for (const p of along(runs)) tally(quads, p, counts, 'drawing', depth > 0)
+            for (const p of along(runs)) tally(quads, p, counts, drawn, depth > 0)
           if (filled) {
             const evenOdd = evenOddFills.has(paint)
+            const shaded = Array.isArray(state.fill) && state.fill[0] === 'Shading'
             for (const p of inside(quads))
               if (
                 insideRings(runs, p, evenOdd) &&
                 state.clips.every((c) => insideRings(c.runs, p, c.evenOdd))
               )
-                tally(quads, p, counts, 'drawing', true)
+                tally(quads, p, counts, shaded ? 'shading' : drawn, true)
           }
           if (filled) await pattern(state.fill)
           if (stroked) await pattern(state.stroke)
@@ -483,7 +506,7 @@ async function paintedOn(
           for (let x = Math.min(...xs); x <= Math.max(...xs); x += 2)
             for (let y = Math.min(...ys); y <= Math.max(...ys); y += 2)
               if (state.clips.every((c) => insideRings(c.runs, [x, y], c.evenOdd)))
-                tally(quads, [x, y], counts, 'drawing', depth > 0)
+                tally(quads, [x, y], counts, depth > 0 ? 'cell' : 'shading', depth > 0)
           break
         }
         case OPS.paintImageXObject:
@@ -534,7 +557,7 @@ const readPages = (bytes: Uint8Array, regions: FixtureRegion[], password?: strin
     return pages
   })
 
-const sum = (pages: PageReading[], side: 'under' | 'beside', kind: 'image' | 'drawing') =>
+const sum = (pages: PageReading[], side: 'under' | 'beside', kind: Kind) =>
   pages.reduce((total, page) => total + page[side][kind], 0)
 
 /** Every fixture with regions to redact. */
@@ -578,7 +601,14 @@ async function plainBytes(bytes: Uint8Array, password?: string): Promise<Uint8Ar
 }
 
 const redactable = rows.filter((name) => manifest[name].refused === undefined)
-const refused = rows.filter((name) => manifest[name].refused !== undefined)
+/** Refused before the apply: the engine rejects and changes nothing. */
+const refusedBefore = rows.filter((name) => manifest[name].refused?.kinds !== undefined)
+/** Refused after the apply: the strict check finds content left. */
+const refusedAfter = rows.filter(
+  (name) =>
+    manifest[name].refused !== undefined && manifest[name].refused.kinds === undefined
+)
+const KINDS: Kind[] = ['image', 'drawing', 'cell', 'shading']
 
 describe('the fixtures', () => {
   test.each(rows)(
@@ -594,9 +624,7 @@ describe('the fixtures', () => {
           (word) =>
             holdsText(plain, word) ||
             pages.some((p, i) => marked.has(i) && p.text.includes(word))
-        ) ||
-        sum(pages, 'under', 'image') > 0 ||
-        sum(pages, 'under', 'drawing') > 0
+        ) || KINDS.some((kind) => sum(pages, 'under', kind) > 0)
       expect(found).toBe(true)
       for (const word of gone) expect(holdsText(plain, word), word).toBe(true)
     }
@@ -648,9 +676,8 @@ describe.runIf(redactable.length)('redacted', () => {
       expect(rest.replace(/[^A-Za-z0-9]/g, '')).toBe('')
 
       // Nothing painted under a region; what was painted beside them still is.
-      expect(sum(after, 'under', 'image')).toBe(0)
-      expect(sum(after, 'under', 'drawing')).toBe(0)
-      for (const kind of ['image', 'drawing'] as const)
+      for (const kind of KINDS) expect(sum(after, 'under', kind), kind).toBe(0)
+      for (const kind of ['image', 'drawing', 'shading'] as const)
         expect(sum(after, 'beside', kind), kind).toBeGreaterThanOrEqual(
           Math.floor(sum(before, 'beside', kind) * 0.9)
         )
@@ -669,7 +696,7 @@ describe.runIf(redactable.length)('redacted', () => {
         const painted = sum(before, 'under', 'image') + sum(before, 'beside', 'image')
         if (painted > 0) {
           const images = await qpdfImages(bytes, password)
-          expect(images.filter((i) => !i.onPage).map((i) => i.ref)).toEqual([])
+          expect(images.filter((i) => !i.namedOnPage).map((i) => i.ref)).toEqual([])
           if (sum(before, 'beside', 'image') === 0) {
             const source = await qpdfImages(await fixtureBytes(name), password)
             expect(source.some((i) => !flat(i.samples))).toBe(true)
@@ -686,10 +713,17 @@ const flat = (samples: Uint8Array | undefined) =>
   samples !== undefined && samples.length > 0 && samples.every((b) => b === samples[0])
 
 test.runIf(qpdfAvailable)('the image reader lists an image no page shows', async () => {
-  // redact-copy-thumbnail's /Thumb is an image in the file that no page paints.
-  const thumb = await qpdfImages(await fixtureBytes('redact-copy-thumbnail'))
-  expect(thumb.map((i) => i.onPage)).toEqual([false])
-  expect(flat(thumb[0]?.samples)).toBe(false)
+  // redact-copy-thumbnail holds its /Thumb, which no page names as an XObject, and an image
+  // XObject nothing refers to at all.
+  const source = await fixtureBytes('redact-copy-thumbnail')
+  const images = await qpdfImages(source)
+  expect(images.map((i) => i.namedOnPage)).toEqual([false, false])
+  expect(images.every((i) => i.samples !== undefined && !flat(i.samples))).toBe(true)
+  // The second is unreferenced: qpdf drops it when not asked to keep such objects.
+  const kept = await qpdfQdf(source, { unreferenced: true })
+  const dropped = await qpdfQdf(source)
+  const count = (qdf: string) => qdf.match(/\/Width 64/g)?.length ?? 0
+  expect([count(kept), count(dropped)]).toEqual([1, 0])
   // An image a page shows, its soft mask, and a stencil, which qpdf's own page list leaves out.
   for (const [name, count] of [
     ['redact-image-smask', 2],
@@ -698,7 +732,7 @@ test.runIf(qpdfAvailable)('the image reader lists an image no page shows', async
   ] as const) {
     const images = await qpdfImages(await fixtureBytes(name))
     expect(
-      images.map((i) => i.onPage),
+      images.map((i) => i.namedOnPage),
       name
     ).toEqual(Array(count).fill(true))
     expect(
@@ -729,39 +763,129 @@ test('a redacted encrypted file still needs its password', async () => {
 })
 
 /**
- * For each refused fixture: the field the strict check reports, and what an independent reader
- * still finds in the saved file, which shows the refusal is needed. `secrets`: the byte reader
- * finds every secret. `drawing`: PDF.js paints drawing under a region (from a pattern's cell).
- * A string: the byte reader finds it. PDF.js reads neither a pattern's cell, a mask group nor an
- * annotation's appearance as page text, so with no secret in the page text after the apply, a
- * text finding comes from the pattern, the group or the loupe.
+ * Why each refusal before the apply is needed, as independent readers see it in the original
+ * file, on the page as it was. A refusal is needed when content lies under the mark in something
+ * the apply cannot rewrite (`under`), and the object that paints it reaches past the mark
+ * (`beyond`), so the apply would cut that object rather than remove it, and leave what it
+ * carries in the file.
+ *
+ * - `cell`: PDF.js reads a tiling pattern's cell drawing under the mark.
+ * - `hidden-text`: the byte reader finds every secret, and PDF.js's page text holds none: the
+ *   text lies in a pattern's cell or a mask's group, which PDF.js does not read as page text.
+ * - `shading`: PDF.js's operator list paints a shading under the mark (`sh`, or a path filled
+ *   with a shading pattern).
+ * - `repeat`: the content under the mark repeats what stays in view (a hatch). Nothing
+ *   position-specific lies under the mark, so the refusal is cautious, not needed.
+ * - `beyond`: the kind of paint, from the same object, that PDF.js finds beside the mark.
  */
-const refusedBy: Partial<
-  Record<FixtureName, { field: 'text' | 'image' | 'drawing'; remains: string }>
+const necessity: Partial<
+  Record<
+    FixtureName,
+    { under: 'cell' | 'hidden-text' | 'shading' | 'repeat'; beyond: Kind }
+  >
 > = {
-  'redact-text-pattern': { field: 'text', remains: 'secrets' },
-  'redact-annotation-loupe': { field: 'text', remains: 'secrets' },
-  'redact-drawing-pattern-past-mark': { field: 'drawing', remains: 'drawing' },
-  'redact-drawing-pattern-side': { field: 'drawing', remains: 'drawing' },
-  'redact-drawing-mesh': { field: 'drawing', remains: '/ShadingType 4' },
-  'redact-drawing-function-shading': { field: 'drawing', remains: '/ShadingType 1' },
-  'redact-drawing-mesh-pattern': { field: 'drawing', remains: '/ShadingType 4' },
-  'redact-mask-group-past-mark': { field: 'text', remains: 'secrets' },
+  'redact-text-pattern': { under: 'hidden-text', beyond: 'drawing' },
+  'redact-drawing-pattern-past-mark': { under: 'cell', beyond: 'drawing' },
+  'redact-drawing-pattern-side': { under: 'cell', beyond: 'drawing' },
+  'redact-drawing-hatch': { under: 'repeat', beyond: 'drawing' },
+  'redact-drawing-mesh': { under: 'shading', beyond: 'shading' },
+  'redact-drawing-function-shading': { under: 'shading', beyond: 'shading' },
+  'redact-drawing-sampled-axial': { under: 'shading', beyond: 'shading' },
+  'redact-drawing-mesh-pattern': { under: 'shading', beyond: 'drawing' },
+  'redact-mask-group-past-mark': { under: 'hidden-text', beyond: 'drawing' },
 }
 
-describe.runIf(refused.length)('refused', () => {
-  test.each(refused)(
+/** The bytes a save gives of the fixture as opened, with nothing done to it, without its /ID. */
+async function untouched(name: FixtureName): Promise<string> {
+  const { password } = manifest[name]
+  const doc = await engine.open(await fixtureBytes(name), password ? { password } : {})
+  try {
+    return withoutId(await doc.save())
+  } finally {
+    await doc.close()
+  }
+}
+
+/** A saved file as Latin-1 with its /ID blanked: PDFium makes a new one on every save. */
+const withoutId = (bytes: Uint8Array) =>
+  Buffer.from(bytes)
+    .toString('latin1')
+    .replace(/\/ID\s*\[\s*<[0-9A-F]*>\s*<[0-9A-F]*>\s*\]/i, '/ID[]')
+
+describe.runIf(refusedBefore.length)('refused before the apply', () => {
+  test.each(refusedBefore)(
+    '%s: the engine refuses the mark and changes nothing',
+    async (name) => {
+      const { secrets = [], regions = [], password, refused } = manifest[name]
+      const expected = await untouched(name)
+      const marks = marksOf(name)
+      const doc = await engine.open(
+        await fixtureBytes(name),
+        password ? { password } : {}
+      )
+      try {
+        const error: unknown = await doc.redact({ marks }).catch((e: unknown) => e)
+        expect(error).toBeInstanceOf(EngineError)
+        expect(error).toMatchObject({
+          code: 'redaction-failed',
+          reason: 'unremovable-content',
+          marks: marks.map((m) => m.annotation.id),
+          kinds: refused?.kinds,
+        })
+        expect(withoutId(await doc.save())).toBe(expected)
+      } finally {
+        await doc.close()
+      }
+
+      // The refusal is needed: in the original, content lies under the mark where the apply
+      // cannot reach it, and the object carrying it reaches past the mark.
+      const why = necessity[name]
+      expect(why, 'necessity says why the refusal is needed').toBeDefined()
+      const { under, beyond } = why as NonNullable<typeof why>
+      const source = await fixtureBytes(name)
+      const pages = await readPages(source, regions, password)
+      const marked = new Set(regions.map((r) => r.page))
+      if (under === 'cell') expect(sum(pages, 'under', 'cell')).toBeGreaterThan(0)
+      if (under === 'shading') expect(sum(pages, 'under', 'shading')).toBeGreaterThan(0)
+      if (under === 'hidden-text') {
+        expect(secrets.length).toBeGreaterThan(0)
+        const plain = await plainBytes(source, password)
+        for (const word of secrets) {
+          expect(holdsText(plain, word), word).toBe(true)
+          pages.forEach((page, i) => {
+            if (marked.has(i)) expect(page.text, word).not.toContain(word)
+          })
+        }
+      }
+      expect(sum(pages, 'beside', beyond), beyond).toBeGreaterThan(0)
+    }
+  )
+})
+
+/**
+ * For each fixture refused after the apply: the field the strict check reports, and what still
+ * holds the secrets. The loupe's appearance is not page text to PDF.js, so with no secret in the
+ * page text after the apply and every secret still in the bytes, the finding is the loupe's copy.
+ */
+const refusedAfterBy: Partial<Record<FixtureName, 'text' | 'image' | 'drawing'>> = {
+  'redact-annotation-loupe': 'text',
+}
+
+describe.runIf(refusedAfter.length)('refused after the apply', () => {
+  test.each(refusedAfter)(
     '%s: the strict check fails, so the action refuses',
     async (name) => {
       const { secrets = [], regions = [], password } = manifest[name]
       const bytes = await redacted(name)
       const findings = await strictCheck(name, bytes)
       expect(findings).not.toBeInstanceOf(EngineError)
-      const expected = refusedBy[name]
-      expect(expected, 'refusedBy says what the check reports').toBeDefined()
-      const { field, remains } = expected as NonNullable<typeof expected>
+      const field = refusedAfterBy[name]
+      expect(field, 'refusedAfterBy says what the check reports').toBeDefined()
       expect((findings as RedactionFindings).candidates).toContainEqual(
-        expect.objectContaining({ [field]: 'present', verdict: 'content-remains' })
+        expect.objectContaining({
+          [field as string]: 'present',
+          verdict: 'content-remains',
+        })
       )
       const marked = new Set(regions.map((r) => r.page))
       const after = await readPages(bytes, regions, password)
@@ -771,15 +895,23 @@ describe.runIf(refused.length)('refused', () => {
             expect(page.text, `page ${i}: ${word}`).not.toContain(word)
       })
       // The content is still in the saved file.
+      expect(secrets.length).toBeGreaterThan(0)
       const plain = await plainBytes(bytes, password)
-      if (remains === 'secrets') {
-        expect(secrets.length).toBeGreaterThan(0)
-        for (const word of secrets) expect(holdsText(plain, word), word).toBe(true)
-      } else if (remains === 'drawing')
-        expect(sum(after, 'under', 'drawing')).toBeGreaterThan(0)
-      else expect(holdsText(plain, remains), remains).toBe(true)
+      for (const word of secrets) expect(holdsText(plain, word), word).toBe(true)
     }
   )
+})
+
+test('an axial shading under a mark is clipped away from it, and the one beside stays', async () => {
+  const name = 'redact-drawing-shading'
+  const regions = manifest[name].regions ?? []
+  const [before] = await readPages(await fixtureBytes(name), regions)
+  const [after] = await readPages(await redacted(name), regions)
+  expect(before?.under.shading).toBeGreaterThan(0)
+  expect(before?.beside.shading).toBeGreaterThan(0)
+  // No point under the mark is painted by a shading any more; the blue one beside is whole.
+  expect(after?.under.shading).toBe(0)
+  expect(after?.beside.shading).toBe(before?.beside.shading)
 })
 
 /** The first image the first page paints, as PDF.js decodes it. */
@@ -868,14 +1000,4 @@ test('kept turned text 10 pt from a turned mark is refused, and 12 pt from it is
     results.push(findings.candidates.map((c) => [c.text, c.verdict]))
   }
   expect(results).toEqual([[['present', 'content-remains']], [['none', 'clean']]])
-})
-
-test('the tiling pattern refusal is the text inside the pattern', async () => {
-  const findings = await strictCheck(
-    'redact-text-pattern',
-    await redacted('redact-text-pattern')
-  )
-  expect(findings).toMatchObject({
-    candidates: [{ kind: 'region', text: 'present', verdict: 'content-remains' }],
-  })
 })

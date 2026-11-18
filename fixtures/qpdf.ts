@@ -103,8 +103,11 @@ type QpdfDict = { [key: string]: QpdfValue }
 export interface QpdfImage {
   /** Its reference, as `"7 0 R"`. */
   ref: string
-  /** A page names it in its own `/XObject` resources, or it is the mask of an image that does. */
-  onPage: boolean
+  /**
+   * A page names it in its own `/XObject` resources, or it is the mask of an image that does. This
+   * says the page refers to it, not that the content paints it.
+   */
+  namedOnPage: boolean
   /** Its samples with every filter qpdf can undo undone, or undefined when one is left. */
   samples: Uint8Array | undefined
 }
@@ -172,7 +175,7 @@ export async function qpdfImages(
         (data) => new Uint8Array(data),
         () => undefined
       )
-      images.push({ ref, onPage: onPage.has(ref), samples })
+      images.push({ ref, namedOnPage: onPage.has(ref), samples })
     }
     return images
   })
