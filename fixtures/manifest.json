@@ -484,5 +484,84 @@
       "Square": 1,
       "Popup": 1
     }
+  },
+  "redact-text": {
+    "file": "redact-text.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "SECRET-ALPHA and KEEP-BETA on one line of Helvetica, with a region over the first; the trailer has /Info",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ]
+  },
+  "redact-image-flate": {
+    "file": "redact-image-flate.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A Flate RGB image of 20 by 10 samples over x 100..300, y 100..200: columns 0 to 9 and 19 red, the rest green; the region covers the left half",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [95, 205, 200, 205, 95, 95, 200, 95]
+      }
+    ]
+  },
+  "redact-path": {
+    "file": "redact-path.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A red filled star around (150, 150), 60 pt to its points, with the region over its middle (x and y 120..180), and a blue square at x 260..320, y 120..180",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [120, 180, 180, 180, 120, 120, 180, 120]
+      }
+    ]
+  },
+  "redact-annotations": {
+    "file": "redact-annotations.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Under the region (x 40..240, y 150..250) a stamp drawing SECRET-STAMP, the widget of text field \"hidden\" holding SECRET-FIELD, and a note saying SECRET-NOTE whose pop-up lies outside it; text field \"kept\" has its widget below the region",
+    "annotations": {
+      "Stamp": 1,
+      "Widget": 2,
+      "Text": 1,
+      "Popup": 1
+    },
+    "secrets": ["SECRET-STAMP", "SECRET-FIELD", "SECRET-NOTE"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [40, 250, 240, 250, 40, 150, 240, 150]
+      }
+    ]
+  },
+  "redact-foreign-mark": {
+    "file": "redact-foreign-mark.pdf",
+    "pages": 2,
+    "opens": true,
+    "describes": "Page 1: HIDDEN-DELTA under the region, KEEP-BETA beside it. Page 2: SECRET-GAMMA under an unapplied Redact annotation from another program, with no /INKB_Gloss",
+    "annotations": {
+      "Redact": 1
+    },
+    "secrets": ["HIDDEN", "DELTA"],
+    "keeps": ["KEEP-BETA", "SECRET-GAMMA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ]
   }
 }
