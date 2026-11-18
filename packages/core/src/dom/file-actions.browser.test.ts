@@ -70,7 +70,7 @@ async function openReal(withEngine: boolean) {
   const loader = vi.fn<EngineLoader>(() => import('@inkbar/engine'))
   const doc = await openDocument(fixtureUrl('text-simple'), {
     assets: browserAssets(),
-    _pictures: savePictures(document),
+    pictures: savePictures(document),
     ...(withEngine ? { engine: loader } : {}),
   })
   opened.push(doc)

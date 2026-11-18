@@ -6,7 +6,7 @@ import { paintDrawing, UnpaintableError } from '../annotations/drawing/pdf/paint
 import { measureWith, standardMeasure } from '../annotations/drawing/text/measure'
 import { createAnnotationStore } from '../annotations/store'
 
-import { buildWriteInput, writeFields } from './write-input'
+import { AnnotationUnwritable, buildWriteInput, writeFields } from './write-input'
 
 import type { Drawing, TextMeasure } from '../annotations/drawing/types'
 import type { SavedData } from '../annotations/saved-data'
@@ -217,8 +217,9 @@ describe('buildWriteInput', () => {
     )
   })
 
-  it('rejects a text box it cannot set without a text picture', async () => {
+  it('rejects a text box it cannot set without a text picture, naming the annotation', async () => {
     const list = make([
+      { type: 'square', page: 0, rect: { x: 10, y: 10, width: 20, height: 20 } },
       {
         type: 'freetext',
         page: 0,
@@ -226,8 +227,44 @@ describe('buildWriteInput', () => {
         contents: '你好，世界',
       },
     ])
-    await expect(buildWriteInput({ ...base, annotations: list })).rejects.toBeInstanceOf(
-      UnpaintableError
+    const failed = await buildWriteInput({ ...base, annotations: list }).catch(
+      (e: unknown) => e
     )
+    expect(failed).toBeInstanceOf(AnnotationUnwritable)
+    expect((failed as AnnotationUnwritable).annotation).toBe(list[1]!.id)
+    expect((failed as AnnotationUnwritable).cause).toBeInstanceOf(UnpaintableError)
+  })
+
+  it('gives a drawing with no area a box, and stores that box with it', async () => {
+    const [stamp] = make([
+      {
+        type: 'stamp',
+        page: 0,
+        subject: 'Approved',
+        rect: { x: 300, y: 380, width: 0, height: 40 },
+        imagedata:
+          'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        opacity: 0.5,
+      },
+    ])
+    const written = await buildWriteInput({ ...base, annotations: [stamp!] })
+    const { appearance, data } = written.annotations![0]!
+    // 0.01 point wide about the centre; the height it had is kept.
+    expect(appearance!.bounds.x).toBeCloseTo(299.995, 6)
+    expect(appearance!.bounds.width).toBeCloseTo(0.01, 6)
+    expect(appearance!.bounds.y).toBe(380)
+    expect(appearance!.bounds.height).toBe(40)
+    // The see-through group inside it gets a box too.
+    for (const form of Object.values(appearance!.forms ?? {})) {
+      expect(form.bounds.width).toBeGreaterThan(0)
+      expect(form.bounds.height).toBeGreaterThan(0)
+    }
+    const { x, y, width, height } = appearance!.bounds
+    expect((JSON.parse(data) as { rect: number[] }).rect).toEqual([
+      x,
+      y,
+      x + width,
+      y + height,
+    ])
   })
 })

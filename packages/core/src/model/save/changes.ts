@@ -34,7 +34,12 @@ export function hasChanges(now: Snapshot, opened: Snapshot): boolean {
 /** Each annotation's canonical JSON. Annotations are replaced, never changed, so it holds. */
 const canonicalOf = new WeakMap<Annotation, string>()
 
-function canonicalAnnotation(a: Annotation): string {
+/**
+ * `a` as JSON with every object's keys sorted, kept for the next call with the same object. For
+ * an annotation of the session's own; a host's copy, which it may change in place, goes through
+ * `canonical`.
+ */
+export function canonicalAnnotation(a: Annotation): string {
   let json = canonicalOf.get(a)
   if (json === undefined) {
     json = canonical(a)
@@ -44,7 +49,7 @@ function canonicalAnnotation(a: Annotation): string {
 }
 
 /** JSON with every object's keys sorted, so equal values give equal text. */
-function canonical(value: unknown): string {
+export function canonical(value: unknown): string {
   return JSON.stringify(value, (_key, v: unknown) =>
     v !== null && typeof v === 'object' && !Array.isArray(v)
       ? Object.fromEntries(

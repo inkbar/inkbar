@@ -84,7 +84,8 @@ export interface OverlayOptions {
    * Annotations the page canvas paints for now besides the file's own: a lifted annotation
    * whose file copy is still on the canvas until a render without it lands. Like an embedded
    * annotation, each gets a hit area and no paint (and dims nothing) while `onCanvas` holds; the
-   * overlay draws again when `subscribe` calls back.
+   * overlay draws again when `subscribe` calls back. A loupe's lens renders out of sight
+   * meanwhile, so it shows with its rim.
    */
   canvasCopies?: CanvasCopies
 }
@@ -425,7 +426,9 @@ export function createOverlay(opts: OverlayOptions): Overlay {
         // Annotations PDF.js already painted on the canvas get only an invisible hit area.
         if (canvas) renderHitArea(node, a, transform)
         else renderAnnotationContent(node, a, transform)
-        if (a.type === 'loupe' && !canvas) loupes?.attach(node, a, transform)
+        // A loupe the canvas still paints renders its lens out of sight meanwhile, so that
+        // rim and lens show together when the overlay takes it over.
+        if (a.type === 'loupe') loupes?.attach(node, a, transform, canvas)
         else loupes?.drop(a.id)
       }
     )

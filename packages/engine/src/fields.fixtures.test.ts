@@ -1,13 +1,13 @@
 import { readFile } from 'node:fs/promises'
 
 import { fixtureBytes, type FixtureName } from '@inkbar/fixtures'
+import { qpdfAvailable, qpdfCheck, requireQpdfInCi } from '@inkbar/fixtures/qpdf'
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 
 import { createEngine, EngineError, type Engine } from './index.ts'
 import { EngineCore } from './native/core.ts'
 import { loadNative } from './native/module.ts'
 import { withFunctions } from './native/testing.ts'
-import { qpdfAvailable, qpdfCheck, requireQpdfInCi } from './qpdf.testing.ts'
 
 import type { Native } from './native/functions.ts'
 import type { WriteAnnotation, WriteField, WriteInput } from './types.ts'
@@ -179,6 +179,35 @@ async function annotationValue(bytes: Uint8Array, name: string): Promise<unknown
   })
 }
 
+/** The text PDF.js reads from the appearance of a field's first widget, line by line. */
+async function widgetText(bytes: Uint8Array, name: string): Promise<string[]> {
+  return pdfjsDocument(bytes, async (pdf) => {
+    const annotations = (await (await pdf.getPage(1)).getAnnotations()) as {
+      fieldName?: string
+      textContent?: string[]
+    }[]
+    return annotations.find((a) => a.fieldName === name)?.textContent ?? []
+  })
+}
+
+/**
+ * The text a widget's appearance draws, as PDF.js reads its text operators. PDF.js gives
+ * `textContent` for text fields only, so a choice field's text is read from its drawing.
+ */
+async function drawnText(bytes: Uint8Array, name: string): Promise<string> {
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs')
+  const id = await widgetId(bytes, name)
+  const [ops, args] = JSON.parse(await drawing(bytes, id)) as [number[], unknown[][]]
+  return ops
+    .flatMap((op, i) => (op === pdfjs.OPS.showText ? (args[i]?.[0] as unknown[]) : []))
+    .map((glyph) =>
+      typeof glyph === 'object' && glyph !== null && 'unicode' in glyph
+        ? String(glyph.unicode)
+        : ''
+    )
+    .join('')
+}
+
 /** Writes one field into the fixture; checks PDF.js's value and that the widget draws differently. */
 async function expectField(
   fixture: FixtureName,
@@ -287,6 +316,27 @@ describe('sets each kind of field', () => {
     )
     const id = await widgetId(shown, 'country')
     expect(await drawing(shown, id)).not.toBe(await drawing(plain, id))
+    expect(await drawnText(plain, 'country')).not.toBe('France (FR)')
+    expect(await drawnText(shown, 'country')).toBe('France (FR)')
+  })
+
+  test('clears a combo box that takes no text of its own with an empty string', async () => {
+    const set = await written('form-fields', { fields: { country: { value: 'fr' } } })
+    expect(await fieldValue(set, 'country')).toBe('fr')
+    const id = await widgetId(set, 'country')
+    const cleared = await written(set, { fields: { country: { value: '' } } })
+    expect(await fieldValue(cleared, 'country')).toBeFalsy()
+    expect(await drawnText(set, 'country')).not.toBe('')
+    expect(await drawnText(cleared, 'country')).toBe('')
+    expect(await drawing(cleared, id)).not.toBe(await drawing(set, id))
+  })
+
+  test('clears an editable combo box with an empty string', async () => {
+    const set = await written('form-fields', { fields: { city: { value: 'Leicester' } } })
+    const cleared = await written(set, { fields: { city: { value: '' } } })
+    expect(await fieldValue(cleared, 'city')).toBeFalsy()
+    expect(await drawnText(set, 'city')).toBe('Leicester')
+    expect(await drawnText(cleared, 'city')).toBe('')
   })
 
   test('sets an editable combo box to text of its own', async () => {
@@ -331,14 +381,7 @@ test('shows the formatted text', async () => {
     fields: { amount: { value: '1234.5', text: '$1,234.50' } },
   })
   expect(await fieldValue(saved, 'amount')).toBe('1234.5')
-  const texts = await pdfjsDocument(saved, async (pdf) => {
-    const annotations = (await (await pdf.getPage(1)).getAnnotations()) as {
-      fieldName?: string
-      textContent?: string[]
-    }[]
-    return annotations.find((a) => a.fieldName === 'amount')?.textContent
-  })
-  expect(texts).toEqual(['$1,234.50'])
+  expect(await widgetText(saved, 'amount')).toEqual(['$1,234.50'])
 })
 
 describe("keeps untouched fields' appearances", () => {

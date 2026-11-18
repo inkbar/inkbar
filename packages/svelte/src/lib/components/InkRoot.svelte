@@ -432,7 +432,7 @@
     const base = untrack(() => ({
       assets,
       defaults: defaults ?? (ref ? cssVariableDefaults(ref) : undefined),
-      _pictures: savePictures(ref?.ownerDocument ?? globalThis.document),
+      pictures: savePictures(ref?.ownerDocument ?? globalThis.document),
       engine: engineProp,
       // Controlled hosts get the snapshot history; core's own stack stays off.
       history: controlledProp ? false : (historyProp ?? true),
@@ -445,6 +445,9 @@
               // the host. Writing the bindable hands it to a bound host now; the effect
               // below pushes the applied list to the store in Svelte's next effect flush.
               if (cancelled) return
+              // Lifting is no edit: the list the host answers with re-seeds the history.
+              if (change.kind === 'replace' && change.reason === 'file')
+                snapshotHistory.lifted(change.lifted)
               annotations = next
               onAnnotationsChange?.(next)
               onChange?.(change)

@@ -360,7 +360,10 @@ export class EngineCore {
     let doc: number
     try {
       doc = this.#load(entry.data, entry.size, entry.password)
-    } catch {
+    } catch (error) {
+      // A trap has stopped the engine, and the caller must learn that rather than only why
+      // the write failed.
+      if (this.#stopped) throw error
       // It loaded before, so only a lack of memory stops it now; keep the last write.
       return
     }

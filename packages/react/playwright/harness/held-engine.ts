@@ -48,10 +48,10 @@ export function heldEngine(unavailable = false): EngineLoader {
     close: () => Promise.resolve(),
   }
   const engine = { open: () => Promise.resolve(doc), destroy: () => Promise.resolve() }
-  return (() => {
+  return () => {
     held.loads++
     return unavailable
       ? Promise.reject(new TypeError('Failed to fetch dynamically imported module'))
       : Promise.resolve({ createEngine: () => Promise.resolve(engine) })
-  }) as unknown as EngineLoader
+  }
 }

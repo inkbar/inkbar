@@ -316,7 +316,7 @@ async function open(retryPassword?: string): Promise<void> {
       password: retryPassword ?? props.password,
       defaults:
         props.defaults ?? (rootEl.value ? cssVariableDefaults(rootEl.value) : undefined),
-      _pictures: savePictures(rootEl.value?.ownerDocument ?? globalThis.document),
+      pictures: savePictures(rootEl.value?.ownerDocument ?? globalThis.document),
       engine: props.engine,
       // Controlled hosts get the ref history below; core's own stack stays off.
       history: controlled.value ? false : (props.history ?? true),
@@ -325,6 +325,9 @@ async function open(retryPassword?: string): Promise<void> {
             mode: 'controlled',
             initial: props.annotations ?? [],
             onChange: (next, change) => {
+              // Lifting is no edit: the list the host answers with re-seeds the history.
+              if (change.kind === 'replace' && change.reason === 'file')
+                refHistory.lifted(change.lifted)
               emit('update:annotations', next)
               emit('change', change)
             },

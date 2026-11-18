@@ -24,6 +24,12 @@ export interface SavedData {
 /** How far a /Rect number may be from the stored one and still match, in points. */
 const RECT_TOLERANCE = 0.01
 
+/** How far an annotation's own rect may reach outside the /Rect written for it, in points. */
+const RECT_MARGIN = 1
+
+/** The prefix of the ids Inkbar gives the file's own annotations: `pdf:<page>:<object>`. */
+const FILE_ID_PREFIX = 'pdf:'
+
 /**
  * The data to store with `a`, written with an appearance whose bounds are `bounds` (the /Rect
  * the engine writes). A reply is written without an appearance and gets its own `rect` as its
@@ -42,6 +48,37 @@ export function savedDataFor(a: Annotation, bounds: Rect, signs?: string): strin
 }
 
 const finite = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n)
+
+type Corners = readonly [number, number, number, number]
+
+/** A rect as left, bottom, right, top. */
+const corners = (r: Rect): Corners => [r.x, r.y, r.x + r.width, r.y + r.height]
+
+/** Whether `inner` lies within `outer` grown by `RECT_MARGIN`. Both are left, bottom, right, top. */
+const within = (inner: Corners, outer: Corners): boolean =>
+  inner[0] >= outer[0] - RECT_MARGIN &&
+  inner[1] >= outer[1] - RECT_MARGIN &&
+  inner[2] <= outer[2] + RECT_MARGIN &&
+  inner[3] <= outer[3] + RECT_MARGIN
+
+/**
+ * Whether the stored annotation is where the file has it: `written` is the /Rect, the box of
+ * its drawing.
+ *
+ * - A mask is drawn as the whole page dimmed around its rect, so the written rect is the page
+ *   and says nothing of where the mask is: not checked.
+ * - A reply has no drawing and is written with its own rect, which the stored rect already
+ *   matches: not checked.
+ * - An ink stroke drawn with pressure tapers, so its drawing can be smaller than the box of its
+ *   points, which is its rect: for ink either rect may lie within the other grown by 1 point.
+ * - Anything else is drawn over its whole rect, and a stroke or a line ending may reach past
+ *   it: its own rect must lie within the written rect grown by 1 point.
+ */
+function placed(a: Annotation, written: Corners): boolean {
+  if (a.type === 'mask' || a.inReplyTo !== undefined) return true
+  const own = corners(a.rect)
+  return within(own, written) || (a.type === 'ink' && within(written, own))
+}
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -71,6 +108,13 @@ function sameSecond(modifiedAt: string, fileDate: string | undefined): boolean {
  * `modifiedAt` to the second. A file annotation without /M is not lifted: the engine always
  * writes one, so another program has removed it.
  *
+ * The stored annotation must also agree with where the file has it: its own `rect` lies within
+ * the written rect grown by 1 point, since what is written is the box of its drawing. Masks and
+ * replies are not held to that, and for ink the written rect may lie within its own instead:
+ * `placed` says why.
+ * And its id must not start with `pdf:`, the ids of the file's own annotations, which a session
+ * annotation never has.
+ *
  * A lifted annotation is a session annotation, unlocked, with its stored id, on the file's page.
  */
 export function liftable(
@@ -95,6 +139,8 @@ export function liftable(
   const parsed = fromGloss(data.annotation)
   if (!parsed.success) return undefined
   if (!sameSecond(parsed.annotation.modifiedAt, file.modified)) return undefined
+  if (parsed.annotation.id.startsWith(FILE_ID_PREFIX)) return undefined
+  if (!placed(parsed.annotation, rect as unknown as Corners)) return undefined
   const annotation: Annotation = { ...parsed.annotation, page: file.page }
   return signs === undefined ? { annotation } : { annotation, signs }
 }

@@ -586,9 +586,7 @@ export function InkRoot({
           defaults:
             latest.current.defaults ??
             (rootElRef.current ? cssVariableDefaults(rootElRef.current) : undefined),
-          _pictures: savePictures(
-            rootElRef.current?.ownerDocument ?? globalThis.document
-          ),
+          pictures: savePictures(rootElRef.current?.ownerDocument ?? globalThis.document),
           engine: latest.current.engine,
           // Controlled hosts get the snapshot history below; core's own stack stays off.
           history: latest.current.controlled ? false : (latest.current.history ?? true),
@@ -597,6 +595,9 @@ export function InkRoot({
                 mode: 'controlled',
                 initial: latest.current.annotations ?? [],
                 onChange: (next, change) => {
+                  // Lifting is no edit: the list the host answers with re-seeds the history.
+                  if (change.kind === 'replace' && change.reason === 'file')
+                    snapshotHistory.lifted(change.lifted)
                   // Apply the host's state update, its render and the layout effect that pushes
                   // the list back before core's development check expires. The microtask
                   // leaves React's render, commit and passive-effect contexts, where a host

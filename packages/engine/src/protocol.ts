@@ -20,7 +20,13 @@ export type ToWorker =
 
 /** An `EngineError` or, marked by `range`, a `RangeError`. */
 export type WireError =
-  | { range?: undefined; code: EngineErrorCode; message: string; pdfiumError?: number }
+  | {
+      range?: undefined
+      code: EngineErrorCode
+      message: string
+      pdfiumError?: number
+      annotation?: string
+    }
   | { range: true; message: string }
 
 export type FromWorker =

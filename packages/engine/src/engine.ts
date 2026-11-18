@@ -55,8 +55,8 @@ export interface EngineDocument {
    *
    * The engine copies the input when `write` is called, so the caller keeps its arrays. A page
    * index outside the document, a resource name in an appearance that is not made of A-Z, a-z
-   * and 0-9, or a field value that is not a string or a list of strings, rejects with a
-   * `RangeError`. A part that cannot be written rejects with `write-failed`, naming the
+   * and 0-9, an appearance whose bounds have no area, or a field value that is not a string or
+   * a list of strings, rejects with a `RangeError`. A part that cannot be written rejects with `write-failed`, naming the
    * annotation or field; the document is then as it was opened.
    */
   write(input: WriteInput): Promise<void>
@@ -82,7 +82,8 @@ export interface EngineDocument {
  * document lets the engine reuse its memory. Only `destroy()` returns all of it.
  *
  * Errors are `EngineError`s. A `RangeError` means a bad page index or scale, a render larger
- * than 268,435,456 pixels, or a bad resource name in an appearance given to `write`. After an
+ * than 268,435,456 pixels, or a bad resource name or a box with no area in an appearance given
+ * to `write`. After an
  * internal error in PDFium the engine stops. Every later call rejects with `engine-failure`,
  * except `close()` and `destroy()`, which still resolve. Create a new engine to go on.
  */

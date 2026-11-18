@@ -1,11 +1,19 @@
-// Test support: not imported by the package itself.
+// Test support: runs `qpdf` on saved files, for the packages whose tests write PDFs.
 import { execFile } from 'node:child_process'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 
 const run = promisify(execFile)
+
+/**
+ * Where the files handed to qpdf are written: inside the repository, in a directory git ignores,
+ * so nothing lands in the system's temporary directory, which may be held in memory.
+ */
+const scratch = fileURLToPath(
+  new URL('../node_modules/.cache/inkbar-qpdf/', import.meta.url)
+)
 
 /** Whether `qpdf` is on PATH. CI installs it; a local run without it skips the qpdf checks. */
 export const qpdfAvailable = await run('qpdf', ['--version']).then(
@@ -20,9 +28,10 @@ export function requireQpdfInCi(): void {
   }
 }
 
-/** Runs `use` with `bytes` written to a file in a fresh temporary directory. */
+/** Runs `use` with `bytes` written to a file in a fresh directory, removed afterwards. */
 async function withFile<T>(bytes: Uint8Array, use: (file: string) => Promise<T>) {
-  const dir = await mkdtemp(join(tmpdir(), 'inkbar-qpdf-'))
+  await mkdir(scratch, { recursive: true })
+  const dir = await mkdtemp(join(scratch, 'check-'))
   const file = join(dir, 'saved.pdf')
   try {
     await writeFile(file, bytes)

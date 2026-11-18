@@ -54,6 +54,7 @@ export const FIXTURE_NAMES = [
   'saved-tampered',
   'saved-encrypted',
   'saved-signed',
+  'saved-replied',
 ] as const
 
 export type FixtureName = (typeof FIXTURE_NAMES)[number]

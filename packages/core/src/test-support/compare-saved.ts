@@ -215,7 +215,7 @@ export async function renderSaved(
   const doc = await openDocument(fixtureUrl(fixture), {
     assets: browserAssets(),
     engine: engineLoader,
-    _pictures: savePictures(document),
+    pictures: savePictures(document),
   })
   let saved: InkDocument | undefined
   try {

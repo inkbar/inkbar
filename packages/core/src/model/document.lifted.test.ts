@@ -147,6 +147,65 @@ describe('lifting', () => {
   })
 })
 
+describe('an annotation Inkbar saved that another program has linked to', () => {
+  it('is not lifted: the replied-to note, the note with a pop-up and the replies stay in the file', async () => {
+    const doc = await open('saved-replied')
+    await doc._liftSettled
+    const [replied, , popped, square] = await written('saved-replied')
+    // Only the square, which nothing else in the file points at, joins the session.
+    expect(doc.annotations.list.get().filter((a) => a.source === 'session')).toEqual([
+      square,
+    ])
+    expect(doc._lifted.get().size).toBe(1)
+    const locked = embedded(doc)
+    // Inkbar's own reply to the first note stays with it, as the file has it.
+    expect(locked.map((a) => a.contents)).toEqual([
+      replied!.contents,
+      'A reply Inkbar saved',
+      popped!.contents,
+      'A reply from another program',
+    ])
+    expect(locked.every((a) => a.locked && a.type === 'text')).toBe(true)
+    expect(locked[1]!.inReplyTo).toBe(locked[0]!.id)
+    expect(locked[3]!.inReplyTo).toBe(locked[0]!.id)
+  })
+})
+
+describe('the summary of the file', () => {
+  const count = (doc: InkDocument) =>
+    Object.fromEntries(doc.embedded.map((s) => [s.subtype, s.count]))
+
+  it('stops counting the annotations lifted, and never counted them as unsupported stamps', async () => {
+    const doc = await open('saved-annotations')
+    const before = doc.embedded
+    expect(count(doc)).toMatchObject({ Stamp: 3, Square: 2, Text: 2 })
+    const heard: (readonly unknown[])[] = []
+    doc._embedded.subscribe((s) => heard.push(s))
+    await doc._liftSettled
+    expect(doc.embedded).toEqual([])
+    // A new array, so a host that kept the old one sees what it was given.
+    expect(doc.embedded).not.toBe(before)
+    expect(heard).toEqual([[]])
+  })
+
+  it('keeps counting what stays in the file', async () => {
+    const tampered = await open('saved-tampered')
+    expect(count(tampered)).toEqual({ Square: 1, Circle: 1, Line: 1 })
+    await tampered._liftSettled
+    expect(count(tampered)).toEqual({ Circle: 1, Line: 1 })
+    expect(tampered.embedded.every((s) => s.supported)).toBe(true)
+
+    const replied = await open('saved-replied')
+    await replied._liftSettled
+    expect(count(replied)).toEqual({ Text: 4, Popup: 1 })
+
+    const plain = await open('annotated-shapes')
+    const summary = plain.embedded
+    await plain._liftSettled
+    expect(plain.embedded).toBe(summary)
+  })
+})
+
 describe('lifting in controlled mode', () => {
   it('proposes the lifted annotations once, with reason file, and hides the file copies', async () => {
     const onChange = vi.fn<(next: Annotation[], change: AnnotationChange) => void>()

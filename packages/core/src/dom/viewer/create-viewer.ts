@@ -688,7 +688,7 @@ export function createViewer(el: HTMLElement, opts: CreateViewerOptions): Viewer
       assets,
       password: openOpts?.password ?? password,
       defaults: defaults ?? cssVariableDefaults(root),
-      _pictures: savePictures(root.ownerDocument),
+      pictures: savePictures(root.ownerDocument),
       engine: engineLoader,
       history,
       fields,

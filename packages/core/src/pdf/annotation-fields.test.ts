@@ -7,8 +7,10 @@ import {
   fontFromBaseName,
   pdfjsIdOfRef,
   readFreeTextFields,
+  INKBAR_DATA_MAX_BYTES,
   readInkbarData,
   readSavedAnnotationPlaces,
+  readSavedAnnotations,
   readTextIcon,
   refOfPdfjsId,
 } from './annotation-fields'
@@ -323,6 +325,33 @@ describe('readInkbarData', () => {
     expect(await readInkbarData(objs, ref(2))).toBe(json)
   })
 
+  it('stops at 8 MB: data that inflates past it is not read, compressed or not', async () => {
+    // Zeros compress about a thousand to one, so a few kilobytes inflate to megabytes.
+    const fits = new Uint8Array(INKBAR_DATA_MAX_BYTES).fill(0x20)
+    const tooLong = new Uint8Array(INKBAR_DATA_MAX_BYTES + 1).fill(0x20)
+    const far = await deflate(new Uint8Array(64 * 1024 * 1024).fill(0x20))
+    expect(far.length).toBeLessThan(128 * 1024)
+    const objs = (await openPdfObjects(
+      buildPdf([
+        '<< /Type /Catalog >>',
+        '<< /Type /Annot /Subtype /Square /INKB_Gloss 3 0 R >>',
+        streamBody('/Filter /FlateDecode', await deflate(fits)),
+        '<< /Type /Annot /Subtype /Square /INKB_Gloss 5 0 R >>',
+        streamBody('/Filter /FlateDecode', await deflate(tooLong)),
+        '<< /Type /Annot /Subtype /Square /INKB_Gloss 7 0 R >>',
+        streamBody('/Filter /FlateDecode', far),
+        '<< /Type /Annot /Subtype /Square /INKB_Gloss 9 0 R >>',
+        streamBody('', tooLong),
+      ])
+    ))!
+    expect((await readInkbarData(objs, ref(2)))?.length).toBe(INKBAR_DATA_MAX_BYTES)
+    expect(await readInkbarData(objs, ref(4))).toBeUndefined()
+    expect(await readInkbarData(objs, ref(6))).toBeUndefined()
+    expect(await readInkbarData(objs, ref(8))).toBeUndefined()
+    // Other streams have no cap.
+    expect((await objs.stream(ref(7)))?.length).toBe(64 * 1024 * 1024)
+  })
+
   it('is undefined without the entry, for an entry that is not a stream, or for bytes that are not UTF-8', async () => {
     const objs = (await openPdfObjects(
       buildPdf([
@@ -357,8 +386,39 @@ describe('readSavedAnnotationPlaces', () => {
       ])
     ))!
     expect(await readSavedAnnotationPlaces(objs)).toEqual([
-      { page: 0, ref: ref(6), rect: [10, 20, 30, 40], modified: 'D:20261117104515Z' },
-      { page: 1, ref: ref(8), rect: undefined, modified: undefined },
+      {
+        page: 0,
+        ref: ref(6),
+        rect: [10, 20, 30, 40],
+        modified: 'D:20261117104515Z',
+        popup: false,
+      },
+      { page: 1, ref: ref(8), rect: undefined, modified: undefined, popup: false },
+    ])
+  })
+
+  it('says which have a pop-up, and lists every /IRT on the pages', async () => {
+    const data = streamBody('', latin1('{}'))
+    const objs = (await openPdfObjects(
+      buildPdf([
+        '<< /Type /Catalog /Pages 2 0 R >>',
+        '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+        '<< /Type /Page /Parent 2 0 R /Annots [4 0 R 5 0 R 6 0 R 7 0 R] >>',
+        '<< /Type /Annot /Subtype /Text /Rect [10 20 30 40] /INKB_Gloss 8 0 R /Popup 7 0 R >>',
+        '<< /Type /Annot /Subtype /Text /Rect [10 20 30 40] /INKB_Gloss 8 0 R /IRT 4 0 R >>',
+        '<< /Type /Annot /Subtype /Text /Rect [10 20 30 40] /IRT 4 0 R >>',
+        '<< /Type /Annot /Subtype /Popup /Parent 4 0 R >>',
+        data,
+      ])
+    ))!
+    const { places, replies } = await readSavedAnnotations(objs)
+    expect(places.map((p) => [p.ref.num, p.popup])).toEqual([
+      [4, true],
+      [5, false],
+    ])
+    expect(replies).toEqual([
+      { from: ref(5), to: ref(4) },
+      { from: ref(6), to: ref(4) },
     ])
   })
 

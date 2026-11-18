@@ -10,7 +10,7 @@
  *   allocated the engine keeps working. When an allocation fails inside PDFium and aborts it, the
  *   engine stops, as after any internal error.
  * - `write-failed`: `write` could not write an annotation or a form value. The message names the
- *   annotation's id, or the field. The document is left as it was opened, and the engine keeps
+ *   annotation's id, which is also in `annotation`, or the field. The document is left as it was opened, and the engine keeps
  *   working.
  * - `aborted`: the call's signal fired while it was queued, or `destroy()` ran while it was queued.
  * - `engine-failure`: anything else. The engine or its worker could not load, a document was
@@ -30,23 +30,27 @@ export type EngineErrorCode =
 
 /**
  * The error every engine call rejects with, apart from a `RangeError` for a bad page index or
- * scale, a render larger than the pixel limit, or a bad name in an appearance.
+ * scale, a render larger than the pixel limit, or a bad name or a box with no area in an
+ * appearance.
  */
 export class EngineError extends Error {
   /** What went wrong. */
   readonly code: EngineErrorCode
   /** PDFium's own error number, when it gave one. For diagnostics only. */
   readonly pdfiumError?: number
+  /** The id of the annotation a `write-failed` error is about, when it is about one. */
+  readonly annotation?: string
 
   constructor(
     code: EngineErrorCode,
     message: string,
-    options?: { pdfiumError?: number; cause?: unknown }
+    options?: { pdfiumError?: number; annotation?: string; cause?: unknown }
   ) {
     super(message, options && 'cause' in options ? { cause: options.cause } : undefined)
     this.name = 'EngineError'
     this.code = code
     if (options?.pdfiumError !== undefined) this.pdfiumError = options.pdfiumError
+    if (options?.annotation !== undefined) this.annotation = options.annotation
   }
 }
 

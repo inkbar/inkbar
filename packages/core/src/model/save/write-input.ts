@@ -15,10 +15,54 @@ import type { Rect } from '../geometry'
 import type { PageInfo } from '../pages'
 import type {
   AnnotationRef,
+  Appearance,
   WriteAnnotation,
   WriteField,
   WriteInput,
 } from '@inkbar/engine'
+
+/**
+ * One annotation could not be made ready for writing: its drawing needs a helper the save was
+ * not given, or could not be painted. `cause` is the failure itself.
+ */
+export class AnnotationUnwritable extends Error {
+  /** The annotation's id. */
+  readonly annotation: string
+
+  constructor(annotation: string, cause: unknown) {
+    super(`The annotation ${annotation} could not be painted for the file`, { cause })
+    this.name = 'AnnotationUnwritable'
+    this.annotation = annotation
+  }
+}
+
+/** The smallest width or height an appearance box is written with, in points. */
+const MIN_BOX = 0.01
+
+/**
+ * `rect` with a width and a height of at least `MIN_BOX`, grown about its centre. The engine
+ * refuses a box with no area, and a drawing can have one: a level line of no width, a stamp
+ * dragged to no size, an ink stroke of a single point.
+ */
+function withArea(rect: Rect): Rect {
+  const grow = (from: number, size: number): [number, number] =>
+    size >= MIN_BOX ? [from, size] : [from + size / 2 - MIN_BOX / 2, MIN_BOX]
+  const [x, width] = grow(rect.x, rect.width)
+  const [y, height] = grow(rect.y, rect.height)
+  return x === rect.x && y === rect.y && width === rect.width && height === rect.height
+    ? rect
+    : { x, y, width, height }
+}
+
+/** `appearance` with every box in it, its nested drawings' included, given an area. */
+function boxed<T extends Appearance>(appearance: T): T {
+  const out = { ...appearance, bounds: withArea(appearance.bounds) }
+  if (appearance.forms)
+    out.forms = Object.fromEntries(
+      Object.entries(appearance.forms).map(([name, form]) => [name, boxed(form)])
+    )
+  return out
+}
 
 /** How to write one annotation. */
 export interface WriteAnnotationOptions {
@@ -39,8 +83,9 @@ export interface WriteAnnotationOptions {
 
 /**
  * `a` as the engine writes it: its Gloss form, the appearance painted from its drawing (none
- * for a reply), and the data stored with it. Rejects with an `UnpaintableError` when the
- * drawing needs a helper `helpers` lacks.
+ * for a reply), and the data stored with it. A drawing with no area is written in a box of
+ * 0.01 point on the side it lacks, about its centre, and the data records that box. Rejects with
+ * an `UnpaintableError` when the drawing needs a helper `helpers` lacks.
  */
 export async function writeAnnotation(
   a: Annotation,
@@ -60,7 +105,10 @@ export async function writeAnnotation(
     measure: options.measure ?? standardMeasure,
   })
   if (!drawing) throw new Error(`An annotation of type ${a.type} has no drawing`)
-  const appearance = await paintDrawing(drawing, { ...options.helpers, page: a.page })
+  // The box is settled before the data is made, so the rect stored is the rect written.
+  const appearance = boxed(
+    await paintDrawing(drawing, { ...options.helpers, page: a.page })
+  )
   return { page: a.page, annotation, appearance, data: stored(appearance.bounds) }
 }
 
@@ -101,6 +149,8 @@ export function writeFields(
  * to. `lifted` are the file copies of the annotations lifted at open, removed first.
  * `fileParents` are the file's own annotations a reply can hang from (notes and text markup
  * that stay in the file, locked), by id: a reply to one of them is written linked to it.
+ * Rejects with an `AnnotationUnwritable` naming the annotation whose drawing could not be
+ * painted.
  */
 export async function buildWriteInput(state: {
   annotations: readonly Annotation[]
@@ -169,6 +219,8 @@ export async function buildWriteInput(state: {
         signs: state.signs.get(a.id),
         helpers: state.helpers,
         measure: state.measure,
+      }).catch((cause: unknown) => {
+        throw new AnnotationUnwritable(a.id, cause)
       })
     )
   }

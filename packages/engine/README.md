@@ -103,8 +103,8 @@ Writing:
 - `write({ remove, annotations, fields })` sets each form value in `fields` and redraws its widgets, removes the annotations in `remove`, by page and object number, then appends each annotation to its page in the order given.
 - Each annotation is a [Gloss](https://gloss-format.org) annotation (`gloss-format`), from which its PDF dictionary is written, plus an `Appearance`, which is how it looks, and a `data` string stored with it. The engine does not draw annotations: producing the appearance is the caller's job, and core's when you save through core.
 - An `Appearance` gives the bounds, which become the annotation's rectangle, the drawing operators in user space, and the resources they name: standard fonts, opacities, PNG or JPEG images, pages of the same document, and nested forms. Resource names are made of A-Z, a-z and 0-9.
-- A reply (an annotation with `inReplyTo`) is a hidden note linked to its parent, which must be written in the same call, and needs no appearance. To reply to an annotation already in the file, pass `replyTo` with its page and object number instead; if that annotation is not on the page, the write fails naming the reply.
-- `fields` maps a field's full name to its `value`: a string for a text field or combo box, the state name of the button to turn on (or `'Off'`) for a checkbox or radio group, and a list of export values for a list box. `text` is what a text field or combo box shows in place of the value, such as `'$1,234.50'` for `'1234.5'`. The engine draws the widget its own way.
+- A reply (an annotation with `inReplyTo`) is a hidden note linked to its parent, and needs no appearance. The parent must come earlier in `annotations` of the same call. To reply to an annotation already in the file, pass `replyTo` with its page and object number instead; if that annotation is not on the page, the write fails naming the reply.
+- `fields` maps a field's full name to its `value`: a string for a text field or combo box (`''` clears a combo box), the state name of the button to turn on (or `'Off'`) for a checkbox or radio group, and a list of export values for a list box. `text` is what a text field or combo box shows in place of the value, such as `'$1,234.50'` for `'1234.5'`. The engine draws the widget its own way.
 - Every `write` starts from the document as opened, so a second call replaces the first. `save` then gives the written file.
 - A file's permission flags do not stop a write.
 
@@ -124,8 +124,8 @@ Ownership and lifetimes:
 Errors:
 
 - Engine calls reject with an `EngineError`. Its `code` is `password-required`, `password-incorrect`, `invalid-pdf`, `unsupported-security`, `out-of-memory`, `write-failed`, `aborted` or `engine-failure`.
-- `write-failed` means part of a `write` could not be written. The message names the annotation or the field. The document is left as it was opened and the engine keeps working.
-- A `RangeError` means a page index outside the document, a scale that is not a finite number above 0, a render larger than 268,435,456 pixels, a resource name in an appearance outside A-Z, a-z and 0-9, or a field value that is not a string or a list of strings.
+- `write-failed` means part of a `write` could not be written. The message names the annotation or the field, and for an annotation the error's `annotation` holds its id. The document is left as it was opened and the engine keeps working.
+- A `RangeError` means a page index outside the document, a scale that is not a finite number above 0, a render larger than 268,435,456 pixels, a resource name in an appearance outside A-Z, a-z and 0-9, an appearance whose bounds have no width or no height, or a field value that is not a string or a list of strings.
 - `engine-failure` also covers a wasm or worker that could not be loaded; the message names the URL.
 - After an internal error in PDFium the engine stops. Every later call rejects with `engine-failure`, except `close()` and `destroy()`, which still resolve. Create a new engine.
 - `out-of-memory` does not always stop the engine. A bitmap that cannot be allocated leaves it working. An allocation failure that aborts PDFium stops it.

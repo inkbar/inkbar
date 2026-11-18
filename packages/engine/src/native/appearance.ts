@@ -29,7 +29,7 @@ const entries = <T>(record: Record<string, T> | undefined): [string, T][] =>
 
 /**
  * Throws an `ArgumentError` for an appearance the engine cannot install whatever the document:
- * a resource name outside `[A-Za-z0-9]+`, a font that is not a standard one, an unknown image
+ * bounds with no area, a resource name outside `[A-Za-z0-9]+`, a font that is not a standard one, an unknown image
  * format, a page index that is not a whole number, or content that is not bytes. `where` names
  * the appearance in the message.
  */
@@ -40,6 +40,14 @@ export function checkAppearance(appearance: Appearance, where: string): void {
     ![bounds.x, bounds.y, bounds.width, bounds.height].every(Number.isFinite)
   )
     throw new ArgumentError(`${where}: bounds must be four finite numbers`)
+  // The binary refuses a box with no area, and says nothing about why. It holds each edge as a
+  // 32-bit float, so the edges are compared as it compares them.
+  const edge = Math.fround
+  if (
+    !(edge(bounds.x) < edge(bounds.x + bounds.width)) ||
+    !(edge(bounds.y) < edge(bounds.y + bounds.height))
+  )
+    throw new ArgumentError(`${where}: bounds must have a width and a height above 0`)
   if (!(appearance.content instanceof Uint8Array))
     throw new ArgumentError(`${where}: content must be a Uint8Array`)
   const named = (kind: string, name: string) => {
@@ -56,7 +64,10 @@ export function checkAppearance(appearance: Appearance, where: string): void {
   for (const [name] of entries(appearance.opacities)) named('opacity', name)
   for (const [name, image] of entries(appearance.images)) {
     named('image', name)
-    if (!(image.format in IMAGE_FORMATS) || !(image.data instanceof Uint8Array))
+    if (
+      !Object.hasOwn(IMAGE_FORMATS, image.format) ||
+      !(image.data instanceof Uint8Array)
+    )
       throw new ArgumentError(`${where}: the image ${name} must be PNG or JPEG bytes`)
   }
   for (const [name, index] of entries(appearance.pages)) {

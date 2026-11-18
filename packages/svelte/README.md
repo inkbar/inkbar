@@ -111,6 +111,8 @@ To decide on each proposal before it applies, use a function binding. The setter
 
 `onAnnotationsChange` fires alongside the binding, and `onChange` carries the change itself. An `annotations` prop passed without a binding is overridden inside the component as proposals arrive, so bind it to keep control.
 
+When you open a file Inkbar saved, its annotations reach you as one proposal through the binding, with `reason: 'file'` on the change: your list with the saved annotations added. `bind:annotations` applies it for you; a function binding must keep the saved annotations in the list it sets. Until your list holds them the viewer does not show them, though every save still keeps them in the file. The proposal is not an undo step, so undo does not remove them.
+
 Undo and redo are off in controlled mode unless you pass `history={true}`. Inkbar then keeps a stack of your list's past values and applies undo and redo through the binding. Every change to the list is a step, including the list you load from your server when the document opens. Clear the history once that load has reached the viewer, so the first undo does not empty the list:
 
 ```svelte
@@ -161,7 +163,7 @@ On a touch screen, two fingers pinch to zoom the document and scroll it. With `d
 
 When a file needs a password, the viewer asks for it in a dialog. `InkViewport` mounts `InkPasswordDialog` for you. A wrong password keeps the dialog open with a message. Cancel closes it and leaves a panel with an "Enter password" button. While the file is locked, `status` is `{ state: 'locked', incorrect }` and `data-state` reads `locked`. `onError` still fires once for each failed open.
 
-Inkbar uses the typed password for that one load, then drops it. A `password` you pass still applies first; if it's wrong, the dialog opens with the message showing. Pass `passwordPrompt={false}` to keep the plain `PasswordRequired` error and handle it yourself.
+Inkbar uses the typed password for that one load and for no other file. With `engine`, the open document keeps the password until it closes, because a save opens the file again in the engine. A `password` you pass still applies first; if it's wrong, the dialog opens with the message showing. Pass `passwordPrompt={false}` to keep the plain `PasswordRequired` error and handle it yourself.
 
 To replace the panel that shows while the dialog is closed, pass a `locked` snippet to `InkViewport`. It receives `{ incorrect, promptPassword }`, and `promptPassword` reopens the dialog.
 

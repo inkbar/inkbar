@@ -1,0 +1,54 @@
+[
+  {
+    "type": "text",
+    "id": "replied-1",
+    "page": 0,
+    "rect": { "x": 520, "y": 700, "width": 20, "height": 20 },
+    "color": "#F2C230",
+    "opacity": 1,
+    "contents": "A note another program replied to",
+    "createdAt": "2026-11-17T10:10:00.000Z",
+    "modifiedAt": "2026-11-17T10:10:00.000Z",
+    "icon": "Note",
+    "source": "session"
+  },
+  {
+    "type": "text",
+    "id": "replied-2",
+    "page": 0,
+    "rect": { "x": 520, "y": 700, "width": 20, "height": 20 },
+    "color": "#F2C230",
+    "opacity": 1,
+    "contents": "A reply Inkbar saved",
+    "inReplyTo": "replied-1",
+    "createdAt": "2026-11-17T10:10:00.000Z",
+    "modifiedAt": "2026-11-17T10:10:00.000Z",
+    "icon": "Note",
+    "source": "session"
+  },
+  {
+    "type": "text",
+    "id": "replied-3",
+    "page": 0,
+    "rect": { "x": 520, "y": 640, "width": 20, "height": 20 },
+    "color": "#F2C230",
+    "opacity": 1,
+    "contents": "A note another program gave a pop-up",
+    "createdAt": "2026-11-17T10:10:00.000Z",
+    "modifiedAt": "2026-11-17T10:10:00.000Z",
+    "icon": "Note",
+    "source": "session"
+  },
+  {
+    "type": "square",
+    "id": "replied-4",
+    "page": 0,
+    "rect": { "x": 72, "y": 540, "width": 80, "height": 60 },
+    "color": "#C0392B",
+    "opacity": 1,
+    "createdAt": "2026-11-17T10:10:00.000Z",
+    "modifiedAt": "2026-11-17T10:10:00.000Z",
+    "width": 1,
+    "source": "session"
+  }
+]

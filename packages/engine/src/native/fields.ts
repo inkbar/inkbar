@@ -161,6 +161,8 @@ function refusal(field: FormField | undefined, value: WriteField): string | unde
     case TEXT:
       return undefined
     case COMBO:
+      // An empty string is no value: it clears the combo box, whatever its options.
+      if (given === '') return undefined
       if ((field.flags & EDIT) === 0 && !field.options.includes(given))
         return `the combo box has no option "${given}" and takes no text of its own`
       return undefined
@@ -179,7 +181,12 @@ function refusal(field: FormField | undefined, value: WriteField): string | unde
 
 /** Writes the field's value, in the shape its family keeps it in. */
 function setValue(heap: Heap, doc: number, field: FormField, value: WriteField): boolean {
-  const values = typeof value.value === 'string' ? [value.value] : [...value.value]
+  const cleared = field.family === COMBO && value.value === ''
+  const values = cleared
+    ? []
+    : typeof value.value === 'string'
+      ? [value.value]
+      : [...value.value]
   const kind =
     values.length === 0 ? VALUE_NONE : values.length === 1 ? VALUE_SCALAR : VALUE_ARRAY
   return withUtf16List(heap, values, (pointer, count) =>

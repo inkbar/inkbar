@@ -211,6 +211,58 @@ describe('annotations lifted from a file Inkbar saved', () => {
     })
   })
 
+  it('a loupe whose file copy the canvas still paints renders its lens hidden, and shows rim and lens together', async () => {
+    const doc = await open('text-simple')
+    const loupe = doc.annotations.add({
+      type: 'loupe',
+      page: 0,
+      rect: { x: 300, y: 500, width: 90, height: 90 },
+    })
+    const host = mountContainer(612, 792)
+    // The gate the page mount gives the overlay, set by hand: on while the canvas paints it.
+    let onCanvas = true
+    const listeners = new Set<() => void>()
+    const overlay = createOverlay({
+      host,
+      page: 0,
+      store: doc.annotations,
+      transform: createPageTransform(doc.pages[0]!, 1),
+      document: doc,
+      devicePixelRatio: 1,
+      canvasCopies: {
+        onCanvas: (a) => onCanvas && a.id === loupe.id,
+        subscribe: (fn) => {
+          listeners.add(fn)
+          return () => listeners.delete(fn)
+        },
+      },
+    })
+    cleanup.push(() => {
+      overlay.destroy()
+      host.remove()
+    })
+    const el = overlay.elementFor(loupe.id)!
+    const lens = () => el.querySelector<HTMLCanvasElement>('canvas[data-ink-loupe]')
+
+    // In the gap the overlay paints no rim, and the lens is there but not shown.
+    expect((el.firstElementChild as HTMLElement).dataset.inkHit).toBe('')
+    expect(lens()).not.toBeNull()
+    expect(getComputedStyle(lens()!).visibility).toBe('hidden')
+    // Its region renders meanwhile.
+    await until(() => lens()!.width > 0)
+    const rendered = lens()!
+
+    onCanvas = false
+    listeners.forEach((fn) => fn())
+    // The gate has released: the rim is painted and the same lens, already drawn, shows.
+    expect((el.firstElementChild as HTMLElement).dataset.inkHit).toBeUndefined()
+    expect(lens()).toBe(rendered)
+    expect(el.firstElementChild).toBe(rendered)
+    expect(getComputedStyle(rendered).visibility).toBe('visible')
+    expect(rendered.width).toBeGreaterThan(0)
+    expect(el.querySelector('svg')).not.toBeNull()
+  })
+
   describe('while the page repaints without the file copies, each shows once', () => {
     /** `task` with `promise` in place of its own: PDF.js's `promise` is a getter. */
     const withPromise = <T extends { promise: Promise<void> }>(

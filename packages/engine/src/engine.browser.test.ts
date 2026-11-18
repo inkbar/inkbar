@@ -116,6 +116,28 @@ test('error codes cross the worker boundary', async () => {
   await expect(engine.open(new Uint8Array([1, 2, 3]))).rejects.toMatchObject({
     code: 'invalid-pdf',
   })
+  // A write that fails on one annotation says which, in the error's own field.
+  await expect(
+    doc.write({
+      annotations: [
+        {
+          page: 0,
+          annotation: {
+            id: 'bare',
+            type: 'square',
+            page: 0,
+            rect: { x: 10, y: 10, width: 10, height: 10 },
+            color: '#000000',
+            opacity: 1,
+            createdAt: '2026-11-17T09:30:00Z',
+            modifiedAt: '2026-11-17T09:30:00Z',
+            width: 1,
+          },
+          data: '{}',
+        },
+      ],
+    })
+  ).rejects.toMatchObject({ code: 'write-failed', annotation: 'bare' })
 })
 
 test('aborting a queued call rejects it and lets the running one finish', async () => {

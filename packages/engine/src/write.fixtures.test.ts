@@ -2,13 +2,13 @@ import { readFile } from 'node:fs/promises'
 import { deflateSync, inflateSync } from 'node:zlib'
 
 import { fixtureBytes } from '@inkbar/fixtures'
+import { qpdfAvailable, qpdfCheck, qpdfQdf, requireQpdfInCi } from '@inkbar/fixtures/qpdf'
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 
 import { createEngine, EngineError, type Engine } from './index.ts'
 import { EngineCore } from './native/core.ts'
 import { loadNative } from './native/module.ts'
 import { withFunctions } from './native/testing.ts'
-import { qpdfAvailable, qpdfCheck, qpdfQdf, requireQpdfInCi } from './qpdf.testing.ts'
 
 import type { Native } from './native/functions.ts'
 import type { Appearance, Rect, WriteAnnotation, WriteInput } from './types.ts'
@@ -701,6 +701,29 @@ test('rejects a removal of an annotation the page does not have', async () => {
   }
 })
 
+test.each([
+  ['not a number', Number.NaN],
+  ['infinite', Number.POSITIVE_INFINITY],
+  ['too large for a 32-bit float', 1e39],
+])('rejects an annotation whose geometry is %s, naming it', async (_, value) => {
+  const bad = square('bad', 100)
+  const doc = await engine.open(opened)
+  try {
+    await expect(
+      doc.write({
+        annotations: [
+          {
+            ...bad,
+            annotation: { ...bad.annotation, rect: { ...bad.annotation.rect, x: value } },
+          },
+        ],
+      })
+    ).rejects.toMatchObject({ code: 'write-failed', annotation: 'bad' })
+  } finally {
+    await doc.close()
+  }
+})
+
 test('does not stack', async () => {
   const input = { annotations: [square('a', 100), square('b', 200)] }
   const doc = await engine.open(opened)
@@ -891,7 +914,10 @@ test('rejects an annotation without an appearance, naming it', async () => {
   const doc = await engine.open(opened)
   try {
     const failed = doc.write({ annotations: [bare] })
-    await expect(failed).rejects.toMatchObject({ code: 'write-failed' })
+    await expect(failed).rejects.toMatchObject({
+      code: 'write-failed',
+      annotation: 'bare',
+    })
     await expect(failed).rejects.toThrow(/bare/)
   } finally {
     await doc.close()
@@ -926,6 +952,20 @@ describe('rejects with a RangeError', () => {
         forms: { Fm0: { ...fill(rect(100, 100, 10, 10)), fonts: { é: 'Courier' } } },
       }),
     ],
+    ['an appearance box with no width', named({ bounds: rect(100, 100, 0, 40) })],
+    ['an appearance box with no height', named({ bounds: rect(100, 100, 40, 0) })],
+    [
+      'an appearance box with a negative width',
+      named({ bounds: rect(100, 100, -5, 40) }),
+    ],
+    [
+      'a nested form box with no area',
+      named({ forms: { Fm0: fill(rect(100, 100, 0, 0)) } }),
+    ],
+    [
+      'an image format named after an inherited key',
+      named({ images: { Im0: { format: 'toString' as 'png', data: tinyPng() } } }),
+    ],
     [
       'an annotation page outside the document',
       { annotations: [{ ...square('far', 1), page: 3 }] },
@@ -959,6 +999,99 @@ describe('rejects with a RangeError', () => {
       }
     }
   )
+})
+
+test('a RangeError for an appearance box with no area names the annotation', async () => {
+  const doc = await engine.open(opened)
+  try {
+    const failed = doc.write({
+      annotations: [{ ...square('flat', 100), appearance: fill(rect(100, 100, 40, 0)) }],
+    })
+    await expect(failed).rejects.toBeInstanceOf(RangeError)
+    await expect(failed).rejects.toThrow(/annotation flat\b.*width and a height above 0/)
+  } finally {
+    await doc.close()
+  }
+})
+
+test('rejects a reply that comes before its parent, saying the parent must come earlier', async () => {
+  const note = {
+    ...common('late-parent', rect(300, 640, 20, 20)),
+    type: 'text',
+    icon: 'Comment',
+  } satisfies GlossAnnotation
+  const reply = {
+    ...common('early-reply', rect(300, 600, 20, 20)),
+    type: 'text',
+    icon: 'Comment',
+    inReplyTo: 'late-parent',
+  } satisfies GlossAnnotation
+  const doc = await engine.open(opened)
+  try {
+    const failed = doc.write({
+      annotations: [{ page: 0, annotation: reply, data: '{}' }, item(note)],
+    })
+    await expect(failed).rejects.toMatchObject({
+      code: 'write-failed',
+      annotation: 'early-reply',
+    })
+    await expect(failed).rejects.toThrow(/early-reply.*late-parent.*earlier/)
+  } finally {
+    await doc.close()
+  }
+})
+
+describe('reads a name only from its own table', () => {
+  /** The arguments each call to `name` got while `input` was written. */
+  async function argumentsOf(name: keyof Native, input: WriteInput) {
+    const native = await loadNative({ wasm })
+    const seen: unknown[][] = []
+    const fn = new Proxy(native.fn, {
+      get(target, key: keyof Native) {
+        const real = target[key]
+        return (...args: number[]) => {
+          if (key === name) seen.push(args)
+          return real(...args)
+        }
+      },
+    })
+    const core = new EngineCore(withFunctions(native, fn))
+    try {
+      const { id } = core.open(opened)
+      core.write(id, input)
+    } finally {
+      core.destroy()
+    }
+    return seen
+  }
+
+  test('a line ending named after an inherited key is written as None', async () => {
+    const annotation = {
+      ...common('odd-ending', rect(90, 90, 120, 70)),
+      type: 'line',
+      start: { x: 100, y: 100 },
+      end: { x: 200, y: 150 },
+      width: 2,
+      head: 'toString',
+      tail: 'ClosedArrow',
+    } as unknown as GlossAnnotation
+    const calls = await argumentsOf('EPDFAnnot_SetLineEndings', {
+      annotations: [item(annotation)],
+    })
+    expect(calls.map((args) => args.slice(1))).toEqual([[0, 5]])
+  })
+
+  test('a text alignment named after an inherited key is written as left', async () => {
+    const annotation = {
+      ...common('odd-align', rect(100, 500, 200, 60)),
+      type: 'freetext',
+      defaultStyle: { textAlign: 'constructor' },
+    } as unknown as GlossAnnotation
+    const calls = await argumentsOf('EPDFAnnot_SetTextAlignment', {
+      annotations: [item(annotation)],
+    })
+    expect(calls.map((args) => args.slice(1))).toEqual([[0]])
+  })
 })
 
 describe('frees what it allocates', () => {

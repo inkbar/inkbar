@@ -142,6 +142,79 @@ describe('savedDataFor and liftable', () => {
     )
   })
 
+  it('refuses a stored annotation whose own rect is not where the file has it', () => {
+    const square = samples.find((a) => a.type === 'square')!
+    const data = JSON.parse(savedDataFor(square, boundsOf(square))) as SavedData
+    const moved = (dx: number) =>
+      JSON.stringify({
+        ...data,
+        annotation: {
+          ...data.annotation,
+          rect: { ...data.annotation.rect, x: data.annotation.rect.x + dx },
+        },
+      })
+    // The written box is 1.5 points larger each side, and may be passed by 1 point more.
+    expect(liftable(moved(2), fileFor(square))?.annotation.rect.x).toBe(square.rect.x + 2)
+    expect(liftable(moved(3), fileFor(square))).toBeUndefined()
+    expect(liftable(moved(-400), fileFor(square))).toBeUndefined()
+    const grown = JSON.stringify({
+      ...data,
+      annotation: {
+        ...data.annotation,
+        rect: { ...data.annotation.rect, width: 4000, height: 4000 },
+      },
+    })
+    expect(liftable(grown, fileFor(square))).toBeUndefined()
+  })
+
+  it('does not hold a mask or a reply to that: their written rect is not their drawing', () => {
+    // A mask is written as the whole page dimmed, wherever on it the mask is.
+    const mask = samples.find((a) => a.type === 'mask')!
+    const page: Rect = { x: 0, y: 0, width: 5, height: 5 }
+    expect(liftable(savedDataFor(mask, page), fileFor(mask, page))).toEqual({
+      annotation: mask,
+    })
+    const square = samples.find((a) => a.type === 'square')!
+    expect(liftable(savedDataFor(square, page), fileFor(square, page))).toBeUndefined()
+    // A reply is written with its own rect, which the stored rect already records.
+    const reply = complete({
+      type: 'text',
+      page: 0,
+      rect: { x: 300, y: 300, width: 20, height: 20 },
+      inReplyTo: 'parent',
+    })
+    expect(liftable(savedDataFor(reply, reply.rect), fileFor(reply, reply.rect))).toEqual(
+      { annotation: reply }
+    )
+  })
+
+  it('lets the drawing of ink be smaller than the box of its points', () => {
+    const ink = samples.filter((a) => a.type === 'ink').at(-1)!
+    // A tapered stroke's drawing, well inside the points' box.
+    const drawn: Rect = {
+      x: ink.rect.x + 0.5,
+      y: ink.rect.y + 0.5,
+      width: ink.rect.width / 2,
+      height: ink.rect.height / 2,
+    }
+    expect(liftable(savedDataFor(ink, drawn), fileFor(ink, drawn))).toEqual({
+      annotation: ink,
+    })
+    // Written somewhere its points are not.
+    const away: Rect = { ...drawn, x: ink.rect.x + ink.rect.width + 50 }
+    expect(liftable(savedDataFor(ink, away), fileFor(ink, away))).toBeUndefined()
+  })
+
+  it("refuses a stored id shaped like a file annotation's", () => {
+    const square = samples.find((a) => a.type === 'square')!
+    const data = JSON.parse(savedDataFor(square, boundsOf(square))) as SavedData
+    const named = (id: string) =>
+      JSON.stringify({ ...data, annotation: { ...data.annotation, id } })
+    expect(liftable(named('pdf:0:12R'), fileFor(square))).toBeUndefined()
+    expect(liftable(named('pdf:'), fileFor(square))).toBeUndefined()
+    expect(liftable(named('pdf-12'), fileFor(square))?.annotation.id).toBe('pdf-12')
+  })
+
   it("takes the file's page", () => {
     const a = samples[0]!
     const lifted = liftable(savedDataFor(a, boundsOf(a)), { ...fileFor(a), page: 4 })

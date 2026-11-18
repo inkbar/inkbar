@@ -6,34 +6,12 @@ import { decodeDataUrl } from './data-url'
 import { num, rgbOf } from './operators'
 import { pdfString, winAnsi } from './win-ansi'
 
+import type { TextPicture, TextPictureRequest, ToPng } from './pictures'
 import type { Point, Rect } from '../../../geometry'
 import type { DrawItem, Drawing, Paint, PathCommand, TextFont } from '../types'
 import type { Appearance, StandardFont } from '@inkbar/engine'
 
-export interface TextPictureRequest {
-  text: string
-  font: TextFont
-  size: number
-  color: string
-  /** Extra points added to each U+0020 in `text`, none to U+00A0; absent means none. */
-  wordSpacing?: number
-}
-
-/**
- * A picture of one run of text. `width`, `ascent`, `descent` in points: the picture spans the
- * run's origin to origin + width, and baseline - descent to baseline + ascent. `width` includes
- * the request's word spacing.
- */
-export type TextPicture = (
-  r: TextPictureRequest
-) => Promise<{ png: Uint8Array; width: number; ascent: number; descent: number }>
-
-/** A data URL the file cannot hold as it is, as PNG, `width` by `height` pixels. */
-export type ToPng = (
-  dataUrl: string,
-  width: number,
-  height: number
-) => Promise<Uint8Array>
+export type { TextPicture, TextPictureRequest, ToPng } from './pictures'
 
 export interface PaintHelpers {
   /** Index of the page the drawing is on, for `page` items. */
@@ -197,12 +175,12 @@ async function paintGroup(
   if (inner.content.length === 0) return
   const name = `Fm${Object.keys(scope.forms).length}`
   scope.forms[name] = { ...inner, group: true }
-  scope.lines.push('q')
-  if (item.opacity < 1)
-    scope.lines.push(
-      `/${opacityName(scope, { fill: item.opacity, stroke: item.opacity })} gs`
-    )
-  scope.lines.push(`/${name} Do`, 'Q')
+  scope.lines.push(
+    'q',
+    `/${opacityName(scope, { fill: item.opacity, stroke: item.opacity })} gs`,
+    `/${name} Do`,
+    'Q'
+  )
 }
 
 /** A dash pattern PDF accepts: entries finite and not negative, not all zero. Anything else is solid. */
@@ -394,7 +372,9 @@ const drawn = (text: string): string => text.normalize('NFC').replaceAll(SOFT_HY
  * A text as the screen paints it: clipped to `clip`, each line (each segment, on a line with tabs)
  * set from its origin and turned by `angle` about it, each underline a filled rule. A run in the
  * standard fonts is set in one, at its own advance; any other run is a picture from
- * `textPicture`. Each run has its own `BT`…`ET`; word spacing is set where it changes.
+ * `textPicture`. Each run has its own `BT`…`ET`, and `Tw` is written with each run from the
+ * first line that has word spacing on: once set it holds for the runs that follow, so a later
+ * line without any writes `0 Tw`.
  */
 async function paintText(scope: Scope, item: TextItem): Promise<void> {
   const turn = TURNS[item.angle]

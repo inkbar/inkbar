@@ -21,6 +21,15 @@ export type {
   InkStatus,
   LockedStatus,
   OpenOptions,
+  SaveEngine,
+  SaveEngineDocument,
+  SaveInput,
+  SavePictures,
+  TextFont,
+  TextMeasure,
+  TextPicture,
+  TextPictureRequest,
+  ToPng,
 } from './model/document'
 export type { DocumentSource } from './model/source'
 export type { PageInfo, PageRotation } from './model/pages'

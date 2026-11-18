@@ -473,5 +473,16 @@
       "Widget": 23,
       "Stamp": 1
     }
+  },
+  "saved-replied": {
+    "file": "saved-replied.pdf",
+    "pages": 3,
+    "opens": true,
+    "describes": "text-simple with two notes, a reply to the first and a square, all written by Inkbar, then changed as another program would: a reply to the first note that holds nothing of Inkbar's, and a /Popup on the second; only the square lifts; saved-replied.annotations.json lists what Inkbar wrote",
+    "annotations": {
+      "Text": 4,
+      "Square": 1,
+      "Popup": 1
+    }
   }
 }

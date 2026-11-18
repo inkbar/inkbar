@@ -623,6 +623,35 @@ describe('InkRoot', () => {
     await expect.poll(attr(probe, 'data-can-redo')).toBe('false')
   })
 
+  // React: 'opening a file Inkbar saved in a controlled host with history is no undo step'
+  it('opening a file Inkbar saved in a controlled host with history is no undo step', async () => {
+    const screen = await render(ControlledHost, {
+      src: fixtureUrl('saved-tampered'),
+      assets,
+      history: true,
+    })
+    const probe = '[data-testid="probe"]'
+    const hostCount = screen.getByTestId('host-count')
+    await expect.poll(attr(probe, 'data-ready')).toBe('true')
+    // The host takes the proposal: the square Inkbar saved is its own now, beside the two
+    // annotations another program changed, which stay the file's.
+    await expect.element(hostCount).toHaveTextContent('1')
+    await expect.poll(attr(probe, 'data-annotations')).toBe('3')
+    await expect.poll(attr(probe, 'data-can-undo')).toBe('false')
+    // The file's summary no longer counts it.
+    await expect.poll(attr(probe, 'data-embedded')).toBe('2')
+
+    await screen.getByTestId('add').click()
+    await expect.element(hostCount).toHaveTextContent('2')
+    await expect.poll(attr(probe, 'data-can-undo')).toBe('true')
+    // Undo takes back the edit and leaves what was lifted.
+    await screen.getByTestId('undo').click()
+    await expect.element(hostCount).toHaveTextContent('1')
+    await expect.poll(attr(probe, 'data-annotations')).toBe('3')
+    await expect.poll(attr(probe, 'data-can-undo')).toBe('false')
+    await expect.poll(attr(probe, 'data-can-redo')).toBe('true')
+  })
+
   // React: 'a host passing a fresh array of the same content each render keeps one undo step'
   it('a host handing back a fresh array of the same content keeps one undo step', async () => {
     const screen = await render(ControlledHost, {
