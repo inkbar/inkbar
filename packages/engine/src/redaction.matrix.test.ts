@@ -291,6 +291,13 @@ interface OperatorList {
  * the pattern's cell draws, read once at the cell's own place and counted only under a region,
  * since a cell's place says nothing about what the pattern paints beside it. Text is left to the
  * text reader.
+ *
+ * It samples outlines, not interiors: a path counts where its edges run, so a filled shape larger
+ * than a region, with no edge inside it, paints nothing under the region here. And it reads a
+ * pattern's cell once, without tiling it. That suits these fixtures, which put every vertex of
+ * the drawing under a region inside it and give a pattern one cell where it matters. It would
+ * miss a fill whose outline lies wholly outside a region (the apply cutting no hole in it), and a
+ * pattern whose content reaches a region only in a repeated cell.
  */
 async function paintedOn(
   page: PdfjsPage,
@@ -527,11 +534,13 @@ async function strictCheck(
 
 /**
  * Everything the file holds as text, as the bytes reader sees it. An encrypted file is read as
- * qpdf decrypts it.
+ * qpdf decrypts it, with the objects nothing refers to, which qpdf would otherwise drop.
  */
 async function plainBytes(bytes: Uint8Array, password?: string): Promise<Uint8Array> {
   if (password === undefined) return bytes
-  return new Uint8Array(Buffer.from(await qpdfQdf(bytes, password), 'latin1'))
+  return new Uint8Array(
+    Buffer.from(await qpdfQdf(bytes, { password, unreferenced: true }), 'latin1')
+  )
 }
 
 const redactable = rows.filter(
@@ -561,6 +570,15 @@ describe('the fixtures', () => {
       for (const word of gone) expect(holdsText(plain, word), word).toBe(true)
     }
   )
+})
+
+test('the bytes reader sees an object nothing refers to in an encrypted file', async () => {
+  // redact-file-encrypted holds a content stream drawing ORPHAN-OMEGA that no page uses.
+  const source = await fixtureBytes('redact-file-encrypted')
+  expect(holdsText(await plainBytes(source, 'inkbar'), 'ORPHAN-OMEGA')).toBe(true)
+  // Without asking for them, qpdf leaves such objects out, and the word with them.
+  const dropped = await qpdfQdf(source, { password: 'inkbar' })
+  expect(holdsText(Buffer.from(dropped, 'latin1'), 'ORPHAN-OMEGA')).toBe(false)
 })
 
 describe.runIf(redactable.length)('redacted', () => {
@@ -618,14 +636,59 @@ describe.runIf(redactable.length)('redacted', () => {
   )
 })
 
+test('the image used twice still paints all of itself on the unmarked page', async () => {
+  const name = 'redact-image-shared'
+  const regions = manifest[name].regions ?? []
+  const [, before] = await readPages(await fixtureBytes(name), regions)
+  const [, after] = await readPages(await redacted(name), regions)
+  // Page 2 has no region, so everything it paints counts as beside one.
+  expect(before?.beside.image).toBeGreaterThan(0)
+  expect(after?.beside.image).toBe(before?.beside.image)
+})
+
+test('a redacted encrypted file still needs its password', async () => {
+  const bytes = await redacted('redact-file-encrypted')
+  await expect(
+    withPdfjs(bytes, undefined, (pdf) => Promise.resolve(pdf.numPages))
+  ).rejects.toMatchObject({
+    name: 'PasswordException',
+  })
+  expect(await withPdfjs(bytes, 'inkbar', (pdf) => Promise.resolve(pdf.numPages))).toBe(1)
+})
+
+/**
+ * What the strict check reports for each refused fixture. PDF.js reads neither a pattern's cell
+ * nor an annotation's appearance as page text, so with no secret in the page text after the
+ * apply, the finding comes from the pattern or the loupe.
+ */
+const refusedBy: Partial<Record<FixtureName, 'text' | 'image' | 'drawing'>> = {
+  'redact-text-pattern': 'text',
+  'redact-annotation-loupe': 'text',
+}
+
 describe.runIf(refused.length)('refused', () => {
   test.each(refused)(
     '%s: the strict check fails, so the action refuses',
     async (name) => {
+      const { secrets = [], regions = [], password } = manifest[name]
       const bytes = await redacted(name)
       const findings = await strictCheck(name, bytes)
-      if (findings instanceof EngineError) return
-      expect(findings.candidates.some((c) => c.verdict !== 'clean')).toBe(true)
+      expect(findings).not.toBeInstanceOf(EngineError)
+      const field = refusedBy[name]
+      expect(field, 'refusedBy names the field the check reports').toBeDefined()
+      expect((findings as RedactionFindings).candidates).toContainEqual(
+        expect.objectContaining({
+          [field as string]: 'present',
+          verdict: 'content-remains',
+        })
+      )
+      const marked = new Set(regions.map((r) => r.page))
+      const after = await readPages(bytes, regions, password)
+      after.forEach((page, i) => {
+        if (marked.has(i))
+          for (const word of secrets)
+            expect(page.text, `page ${i}: ${word}`).not.toContain(word)
+      })
     }
   )
 })
@@ -698,6 +761,47 @@ test('a turned mark over an image blanks the samples in its bounding box on the 
     regions: [{ page: 0, quads: [quadOf(quad)] }],
   })
   expect(findings.candidates).toEqual([expect.objectContaining({ verdict: 'clean' })])
+})
+
+/**
+ * A known limit of the check's second text test: it reads PDFium's text-extraction boxes, which
+ * are upright on the page, so a turned glyph's box reaches past the glyph. Kept turned text close
+ * to a turned mark's edge is then counted, and the action refuses though the apply kept the text
+ * correctly. In redact-text-rotated, KEEP-GAMMA runs on the turned baseline 40 pt above
+ * SECRET-ALPHA's (20 pt Helvetica): a mark whose top edge is 10 pt below that baseline is refused,
+ * one 12 pt below it is not.
+ */
+test('kept turned text 10 pt from a turned mark is refused, and 12 pt from it is not', async () => {
+  const at = (x: number, y: number) => ({
+    x: 60 + 0.866025 * x - 0.5 * y,
+    y: 120 + 0.5 * x + 0.866025 * y,
+  })
+  // The region of the fixture, in the turned text space, with its top edge at `top`.
+  const quad = (top: number) => [
+    ...Object.values(at(-5, top)),
+    ...Object.values(at(158, top)),
+    ...Object.values(at(-5, -6)),
+    ...Object.values(at(158, -6)),
+  ]
+  const results = []
+  for (const top of [30, 28]) {
+    const doc = await engine.open(await fixtureBytes('redact-text-rotated'))
+    let bytes: Uint8Array
+    try {
+      await doc.redact({ marks: [mark('near', { page: 0, quad: quad(top) })] })
+      bytes = await doc.save()
+    } finally {
+      await doc.close()
+    }
+    const [page] = await readPages(bytes, [])
+    expect(page?.text, `top ${top}`).toContain('KEEP-GAMMA')
+    expect(page?.text, `top ${top}`).not.toContain('SECRET')
+    const findings = await engine.checkRedaction(bytes, {
+      regions: [{ page: 0, quads: [quadOf(quad(top))] }],
+    })
+    results.push(findings.candidates.map((c) => [c.text, c.verdict]))
+  }
+  expect(results).toEqual([[['present', 'content-remains']], [['none', 'clean']]])
 })
 
 test('the tiling pattern refusal is the text inside the pattern', async () => {

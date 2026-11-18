@@ -195,7 +195,7 @@ function redactPath() {
 
 /**
  * Under the region (x 40..240, y 150..250): a stamp whose appearance says SECRET-STAMP, the text
- * widget of field "hidden" holding SECRET-FIELD, and a note saying SECRET-NOTE with a pop-up
+ * widget of field "hidden" holding SECRET-DELTA, and a note saying SECRET-NOTE with a pop-up
  * beside the region. Field "kept" has its widget below the region.
  */
 function redactAnnotations() {
@@ -214,20 +214,20 @@ function redactAnnotations() {
       HELVETICA,
       '<< /Type /Annot /Subtype /Stamp /Rect [50 160 125 200] /F 4 /NM (stamp) /Name /Draft /AP << /N 7 0 R >> /P 3 0 R >>',
       appearance(75, 40, 'SECRET-STAMP'),
-      `<< /Type /Annot /Subtype /Widget /FT /Tx /T (hidden) /V <${hex('SECRET-FIELD')}> /DA (/F1 10 Tf 0 g) /Rect [130 160 230 185] /F 4 /AP << /N 12 0 R >> /P 3 0 R >>`,
+      `<< /Type /Annot /Subtype /Widget /FT /Tx /T (hidden) /V <${hex('SECRET-DELTA')}> /DA (/F1 10 Tf 0 g) /Rect [130 160 230 185] /F 4 /AP << /N 12 0 R >> /P 3 0 R >>`,
       `<< /Type /Annot /Subtype /Widget /FT /Tx /T (kept) /V <${hex('KEEP-FIELD')}> /DA (/F1 10 Tf 0 g) /Rect [260 60 360 85] /F 4 /AP << /N 13 0 R >> /P 3 0 R >>`,
       `<< /Type /Annot /Subtype /Text /Rect [60 215 80 235] /F 4 /NM (note) /Name /Comment /Contents <${hex('SECRET-NOTE')}> /Popup 11 0 R /P 3 0 R >>`,
       '<< /Type /Annot /Subtype /Popup /Rect [260 200 380 260] /Parent 10 0 R /Open false >>',
-      appearance(100, 25, 'SECRET-FIELD'),
+      appearance(100, 25, 'SECRET-DELTA'),
       appearance(100, 25, 'KEEP-FIELD'),
     ]),
     {
       pages: 1,
       opens: true,
       describes:
-        'Under the region (x 40..240, y 150..250) a stamp drawing SECRET-STAMP, the widget of text field "hidden" holding SECRET-FIELD, and a note saying SECRET-NOTE whose pop-up lies outside it; text field "kept" has its widget below the region',
+        'Under the region (x 40..240, y 150..250) a stamp drawing SECRET-STAMP, the widget of text field "hidden" holding SECRET-DELTA, and a note saying SECRET-NOTE whose pop-up lies outside it; text field "kept" has its widget below the region',
       annotations: { Stamp: 1, Widget: 2, Text: 1, Popup: 1 },
-      secrets: ['SECRET-STAMP', 'SECRET-FIELD', 'SECRET-NOTE'],
+      secrets: ['SECRET', 'STAMP', 'DELTA', 'NOTE'],
       keeps: ['KEEP-BETA'],
       regions: [region(0, [40, 150, 240, 250])],
     }
@@ -955,7 +955,7 @@ function redactImageEncoded() {
       o.add(rawStream(`${COLOUR_IMAGE} /Filter /DCTDecode`, sample('pattern.jpg')))
     ),
     imageRow(
-      `A 64 by 32 JPEG (4:2:0, quality 90; magenta under the region, green beside it) ${IMAGE_LAYOUT}`
+      `A 64 by 32 JPEG (4:2:0, quality 90; a different magenta for every sample under the region, green beside it) ${IMAGE_LAYOUT}`
     )
   )
   write(
@@ -969,7 +969,7 @@ function redactImageEncoded() {
       )
     ),
     imageRow(
-      `A 64 by 32 JPEG 2000 image (magenta under the region, green beside it) ${IMAGE_LAYOUT}`
+      `A 64 by 32 JPEG 2000 image (a different magenta for every sample under the region, green beside it) ${IMAGE_LAYOUT}`
     )
   )
   write(
@@ -1267,7 +1267,7 @@ function redactPages() {
     describes:
       'A page with no /Contents and one stamp, at x 60..210, y 180..220, whose appearance draws SECRET-STAMP; the region (x 40..240, y 150..250) covers the stamp',
     annotations: { Stamp: 1 },
-    secrets: ['SECRET-STAMP'],
+    secrets: ['SECRET', 'STAMP'],
     keeps: [],
     regions: [region(0, [40, 150, 240, 250])],
   })
@@ -1285,6 +1285,21 @@ const xmpWithPreview = (preview: string) =>
     '<?xpacket end="w"?>',
   ].join('\n')
 
+/** Three white samples, which come before the secret's samples in the thumbnail's data. */
+const THUMB_WHITE = '\xff\xff\xff'
+
+/**
+ * redact-text's page at a tenth of its size, 40 by 30 grey samples: white, except on row 10 (the
+ * line at y 200), where SECRET-ALPHA (x 50..203) is drawn from sample 5 and KEEP-BETA (x 300..412)
+ * from sample 30, each by the bytes of its letters: greys dark enough to read as text.
+ */
+function thumbnail(): Buffer {
+  const samples = Buffer.alloc(40 * 30, 0xff)
+  samples.write('SECRET-ALPHA', 10 * 40 + 5, 'latin1')
+  samples.write('KEEP-BETA', 10 * 40 + 30, 'latin1')
+  return samples
+}
+
 function redactCopies() {
   write(
     'redact-copy-thumbnail',
@@ -1294,8 +1309,8 @@ function redactCopies() {
       const contents = o.add(stream('', SECRET_LINE))
       const thumb = o.add(
         stream(
-          '/Width 64 /Height 32 /ColorSpace /DeviceRGB /BitsPerComponent 8',
-          colourPixels()
+          '/Width 40 /Height 30 /ColorSpace /DeviceGray /BitsPerComponent 8',
+          thumbnail()
         )
       )
       const pageObject = o.add(
@@ -1303,7 +1318,10 @@ function redactCopies() {
       )
       return o.pdf([pageObject])
     })(),
-    textRow('redact-text whose page has a /Thumb image', { gone: ['/Thumb'] })
+    textRow(
+      'redact-text whose page has a /Thumb image of it at a tenth of its size: on the row of the line, the samples where each word lies are the bytes of the word, on white',
+      { gone: ['/Thumb', `${THUMB_WHITE}SECRET-ALPHA`] }
+    )
   )
   write(
     'redact-copy-pieceinfo',
@@ -1377,7 +1395,8 @@ function redactAnnotationLoupe() {
 }
 
 /**
- * Encrypts `plain` into fixture `name` with qpdf (AES-128, user and owner password "inkbar"). qpdf
+ * Encrypts `plain` into fixture `name` with qpdf (AES-128, user and owner password "inkbar"),
+ * keeping objects nothing refers to. qpdf
  * writes random salts and an /ID on every run, so an existing fixture that decrypts to the same
  * content is kept.
  */
@@ -1390,14 +1409,19 @@ function writeEncrypted(
   const plainFile = join(out, `${name}.plain.pdf`)
   const fresh = join(out, `${name}.new.pdf`)
   const decrypted = (file: string) =>
-    execFileSync('qpdf', ['--password=inkbar', '--decrypt', file, '-'], {
-      stdio: ['ignore', 'pipe', 'ignore'],
-    })
+    execFileSync(
+      'qpdf',
+      ['--password=inkbar', '--decrypt', '--preserve-unreferenced', file, '-'],
+      {
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }
+    )
       .toString('latin1')
       .replace(/\/ID \[<[0-9a-f]*><[0-9a-f]*>\]/, '')
   try {
     writeFileSync(plainFile, plain)
     execFileSync('qpdf', [
+      '--preserve-unreferenced',
       '--encrypt',
       'inkbar',
       'inkbar',
@@ -1424,10 +1448,15 @@ function writeEncrypted(
 function redactFiles() {
   writeEncrypted(
     'redact-file-encrypted',
-    onePage(SECRET_LINE),
-    textRow('redact-text encrypted with AES-128; the user password is "inkbar"', {
-      password: 'inkbar',
-    })
+    // An object nothing refers to: an earlier page content an editor left behind.
+    onePage(SECRET_LINE, (o) => {
+      o.add(stream('', line(50, 100, 'ORPHAN-OMEGA')))
+      return ''
+    }),
+    textRow(
+      'redact-text encrypted with AES-128; the user password is "inkbar". It also holds a content stream nothing refers to, drawing ORPHAN-OMEGA',
+      { password: 'inkbar', secrets: ['SECRET', 'ALPHA', 'ORPHAN', 'OMEGA'] }
+    )
   )
 
   const s = new Objects()

@@ -66,18 +66,30 @@ export async function qpdfCheck(
 
 /**
  * The file as `qpdf --qdf --object-streams=disable` writes it: every object on its own, streams
- * uncompressed, as Latin-1 text. With `password`, the file is decrypted too.
+ * uncompressed, as Latin-1 text. With `password`, the file is decrypted too. With
+ * `unreferenced`, objects nothing refers to are kept: qpdf drops them otherwise, so a reader
+ * looking for leftover content must ask for them.
  */
-export async function qpdfQdf(saved: Uint8Array, password?: string): Promise<string> {
+export async function qpdfQdf(
+  saved: Uint8Array,
+  options: { password?: string; unreferenced?: boolean } = {}
+): Promise<string> {
   return withFile(saved, async (file) => {
     const out = `${file}.qdf`
+    const { password, unreferenced = false } = options
     const decrypt = password === undefined ? [] : [`--password=${password}`, '--decrypt']
+    const keep = unreferenced ? ['--preserve-unreferenced'] : []
     // Exit status 3 means warnings: the output is still written.
-    await run('qpdf', [...decrypt, '--qdf', '--object-streams=disable', file, out]).catch(
-      (error: { code?: number }) => {
-        if (error.code !== 3) throw error
-      }
-    )
+    await run('qpdf', [
+      ...decrypt,
+      ...keep,
+      '--qdf',
+      '--object-streams=disable',
+      file,
+      out,
+    ]).catch((error: { code?: number }) => {
+      if (error.code !== 3) throw error
+    })
     return (await readFile(out)).toString('latin1')
   })
 }

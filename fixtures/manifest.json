@@ -531,14 +531,14 @@
     "file": "redact-annotations.pdf",
     "pages": 1,
     "opens": true,
-    "describes": "Under the region (x 40..240, y 150..250) a stamp drawing SECRET-STAMP, the widget of text field \"hidden\" holding SECRET-FIELD, and a note saying SECRET-NOTE whose pop-up lies outside it; text field \"kept\" has its widget below the region",
+    "describes": "Under the region (x 40..240, y 150..250) a stamp drawing SECRET-STAMP, the widget of text field \"hidden\" holding SECRET-DELTA, and a note saying SECRET-NOTE whose pop-up lies outside it; text field \"kept\" has its widget below the region",
     "annotations": {
       "Stamp": 1,
       "Widget": 2,
       "Text": 1,
       "Popup": 1
     },
-    "secrets": ["SECRET-STAMP", "SECRET-FIELD", "SECRET-NOTE"],
+    "secrets": ["SECRET", "STAMP", "DELTA", "NOTE"],
     "keeps": ["KEEP-BETA"],
     "regions": [
       {
@@ -777,7 +777,7 @@
     "file": "redact-image-jpeg.pdf",
     "pages": 1,
     "opens": true,
-    "describes": "A 64 by 32 JPEG (4:2:0, quality 90; magenta under the region, green beside it) over x 100..292, y 100..196: content in samples 4..27 across under the region (x 90..198), content in samples 36..59 beside it",
+    "describes": "A 64 by 32 JPEG (4:2:0, quality 90; a different magenta for every sample under the region, green beside it) over x 100..292, y 100..196: content in samples 4..27 across under the region (x 90..198), content in samples 36..59 beside it",
     "secrets": [],
     "keeps": ["KEEP-BETA"],
     "regions": [
@@ -791,7 +791,7 @@
     "file": "redact-image-jpx.pdf",
     "pages": 1,
     "opens": true,
-    "describes": "A 64 by 32 JPEG 2000 image (magenta under the region, green beside it) over x 100..292, y 100..196: content in samples 4..27 across under the region (x 90..198), content in samples 36..59 beside it",
+    "describes": "A 64 by 32 JPEG 2000 image (a different magenta for every sample under the region, green beside it) over x 100..292, y 100..196: content in samples 4..27 across under the region (x 90..198), content in samples 36..59 beside it",
     "secrets": [],
     "keeps": ["KEEP-BETA"],
     "regions": [
@@ -1047,7 +1047,7 @@
     "annotations": {
       "Stamp": 1
     },
-    "secrets": ["SECRET-STAMP"],
+    "secrets": ["SECRET", "STAMP"],
     "keeps": [],
     "regions": [
       {
@@ -1060,7 +1060,7 @@
     "file": "redact-copy-thumbnail.pdf",
     "pages": 1,
     "opens": true,
-    "describes": "redact-text whose page has a /Thumb image",
+    "describes": "redact-text whose page has a /Thumb image of it at a tenth of its size: on the row of the line, the samples where each word lies are the bytes of the word, on white",
     "secrets": ["SECRET", "ALPHA"],
     "keeps": ["KEEP-BETA"],
     "regions": [
@@ -1069,7 +1069,7 @@
         "quad": [45, 225, 215, 225, 45, 190, 215, 190]
       }
     ],
-    "gone": ["/Thumb"]
+    "gone": ["/Thumb", "ÿÿÿSECRET-ALPHA"]
   },
   "redact-copy-pieceinfo": {
     "file": "redact-copy-pieceinfo.pdf",
@@ -1123,8 +1123,8 @@
     "file": "redact-file-encrypted.pdf",
     "pages": 1,
     "opens": true,
-    "describes": "redact-text encrypted with AES-128; the user password is \"inkbar\"",
-    "secrets": ["SECRET", "ALPHA"],
+    "describes": "redact-text encrypted with AES-128; the user password is \"inkbar\". It also holds a content stream nothing refers to, drawing ORPHAN-OMEGA",
+    "secrets": ["SECRET", "ALPHA", "ORPHAN", "OMEGA"],
     "keeps": ["KEEP-BETA"],
     "regions": [
       {
