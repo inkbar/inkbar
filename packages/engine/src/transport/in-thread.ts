@@ -30,6 +30,8 @@ export function dispatch(core: EngineCore, request: Request): unknown {
     case 'close':
       core.close(request.doc)
       return undefined
+    case 'checkRedaction':
+      return core.checkRedaction(request.bytes, request.options)
   }
 }
 

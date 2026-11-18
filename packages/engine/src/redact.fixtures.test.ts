@@ -1,11 +1,6 @@
 import { readFile } from 'node:fs/promises'
 
-import {
-  fixtureBytes,
-  manifest,
-  type FixtureName,
-  type RedactionRegion,
-} from '@inkbar/fixtures'
+import { fixtureBytes, manifest, type FixtureName } from '@inkbar/fixtures'
 import { holdsText } from '@inkbar/fixtures/pdf-bytes'
 import { qpdfAvailable, qpdfCheck, requireQpdfInCi } from '@inkbar/fixtures/qpdf'
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
@@ -14,9 +9,10 @@ import { createEngine, EngineError, type Engine } from './index.ts'
 import { EngineCore } from './native/core.ts'
 import { loadNative } from './native/module.ts'
 import { withFunctions } from './native/testing.ts'
+import { ascii, boundsOf, mark, marksOf } from './redaction/testing.ts'
 
 import type { Native } from './native/functions.ts'
-import type { RedactInput, RedactResult, Rect, WriteAnnotation } from './types.ts'
+import type { RedactInput, RedactResult, WriteAnnotation } from './types.ts'
 import type { Annotation as GlossAnnotation } from 'gloss-format'
 
 let engine: Engine
@@ -38,69 +34,6 @@ const latin1 = (bytes: Uint8Array) => Buffer.from(bytes).toString('latin1')
 /** A saved file with its /ID blanked: PDFium makes a new one on every save of these fixtures. */
 const withoutId = (bytes: Uint8Array) =>
   latin1(bytes).replace(/\/ID\s*\[\s*<[0-9A-F]*>\s*<[0-9A-F]*>\s*\]/i, '/ID[]')
-const ascii = (text: string) => new TextEncoder().encode(text)
-
-/** The bounding box of a quad's eight numbers. */
-function boundsOf(quad: readonly number[]): Rect {
-  const xs = quad.filter((_, i) => i % 2 === 0)
-  const ys = quad.filter((_, i) => i % 2 === 1)
-  const x = Math.min(...xs)
-  const y = Math.min(...ys)
-  return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y }
-}
-
-/**
- * A redaction mark over `region`, with its Gloss quad. Its appearance fills a box 3 points wider
- * on every side, as an outline's padding would make it, so a mark applied by its appearance
- * bounds would remove more than the region.
- */
-function mark(id: string, region: RedactionRegion): WriteAnnotation {
-  const [x1, y1, x2, y2, x3, y3, x4, y4] = region.quad as [
-    number,
-    number,
-    number,
-    number,
-    number,
-    number,
-    number,
-    number,
-  ]
-  const rect = boundsOf(region.quad)
-  const bounds = {
-    x: rect.x - 3,
-    y: rect.y - 3,
-    width: rect.width + 6,
-    height: rect.height + 6,
-  }
-  return {
-    page: region.page,
-    annotation: {
-      id,
-      type: 'redact',
-      page: region.page,
-      rect: { ...rect },
-      quads: [
-        {
-          p1: { x: x1, y: y1 },
-          p2: { x: x2, y: y2 },
-          p3: { x: x3, y: y3 },
-          p4: { x: x4, y: y4 },
-        },
-      ],
-      interiorColor: '#000000',
-      opacity: 1,
-    } satisfies GlossAnnotation,
-    appearance: {
-      bounds,
-      content: ascii(`0 g ${bounds.x} ${bounds.y} ${bounds.width} ${bounds.height} re f`),
-    },
-    data: `{"id":"${id}"}`,
-  }
-}
-
-/** The fixture's regions as marks. */
-const marksOf = (fixture: FixtureName) =>
-  (manifest[fixture].regions ?? []).map((region, i) => mark(`mark-${i + 1}`, region))
 
 /**
  * Opens the fixture, redacts its regions as marks with `extra` added to the input, saves and

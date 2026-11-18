@@ -76,6 +76,7 @@ function realEngine() {
         }
         return doc
       },
+      checkRedaction: (bytes, options) => engine.checkRedaction(bytes, options),
       destroy: () => engine.destroy(),
     }
   })

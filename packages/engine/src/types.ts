@@ -260,3 +260,72 @@ export interface RedactResult {
   /** Whether the file as opened holds a digital signature, which stops verifying. */
   signed: boolean
 }
+
+/** A place `Engine.checkRedaction` looks under: one mark's quads on a page. */
+export interface RedactionRegion {
+  /** Page index, counting from 0. */
+  page: number
+  /**
+   * The quads the region covers, in PDF user space: Gloss quads, `p1` top left, `p2` top right,
+   * `p3` bottom left and `p4` bottom right. At least one.
+   */
+  quads: readonly Quad[]
+}
+
+/** Options for `Engine.checkRedaction`. */
+export interface CheckRedactionOptions {
+  /** Password for an encrypted file. An empty string counts as no password. */
+  password?: string
+  /**
+   * The regions to check. Each must be clean. Without them the check looks for candidates
+   * itself: Redact annotations, filled boxes and annotations drawn as opaque boxes.
+   */
+  regions?: readonly RedactionRegion[]
+  /** Cancels the call while it waits in the queue. */
+  signal?: AbortSignal
+}
+
+/** A place the check looked under, and what it found there. */
+export interface RedactionCandidate {
+  /** Page index, counting from 0. */
+  page: number
+  /** The place, in PDF user space: the bounds of a region's quads, or of a candidate. */
+  rect: Rect
+  /**
+   * `region`: one of the regions given. `redact-annotation`: a Redact annotation in the file.
+   * `filled-box`: an opaque filled rectangle in the page content. `annotation-box`: a Square,
+   * Highlight or Stamp annotation drawn as an opaque filled rectangle.
+   */
+  kind: 'region' | 'redact-annotation' | 'filled-box' | 'annotation-box'
+  /** Text that text extraction can read under it, in the page, a form, an annotation or a pattern. */
+  text: 'none' | 'present'
+  /** Image samples under it that are not one flat value. */
+  image: 'none' | 'present'
+  /** Vector paths or shadings crossing it. Always `none` for a filled box or an annotation box. */
+  drawing: 'none' | 'present'
+  /**
+   * `unapplied`: a Redact annotation with content under it. `content-remains`: any other
+   * candidate with content under it. `clean`: nothing found under it.
+   */
+  verdict: 'clean' | 'content-remains' | 'unapplied'
+}
+
+/** What `Engine.checkRedaction` found. It holds places, counts and flags, never text from the file. */
+export interface RedactionFindings {
+  /** Page by page; on a page, regions in the order given, or candidates in the file's order. */
+  candidates: RedactionCandidate[]
+  file: {
+    /** Revisions kept before the last one, which may hold the original content. */
+    earlierVersions: number
+    /** Whether the file has a document information dictionary or XMP metadata. */
+    metadata: boolean
+    /** The number of attached files. */
+    attachments: number
+    /** Whether the file holds JavaScript or script actions. */
+    scripts: boolean
+    /** Whether the file has layers that are hidden. */
+    hiddenLayers: boolean
+    /** Whether the file holds a digital signature. */
+    signed: boolean
+  }
+}

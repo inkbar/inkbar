@@ -4,6 +4,7 @@ import { writeAnnotation } from './annotations.ts'
 import { checkAppearance } from './appearance.ts'
 import { hasSignature, writeFields } from './fields.ts'
 import { FUNCTIONS } from './functions.ts'
+import { inspectDocument } from './inspect.ts'
 import { applyRedactions } from './redact.ts'
 
 import type {
@@ -11,6 +12,8 @@ import type {
   PageInfo,
   Rect,
   RedactInput,
+  RedactionFindings,
+  RedactionRegion,
   RedactResult,
   RenderedPage,
   SaveMode,
@@ -85,6 +88,31 @@ function checkRedactInput(input: unknown): void {
     for (const item of (input[key] as Record<string, unknown>[] | undefined) ?? [])
       if (!isRecord(item.annotation))
         throw new ArgumentError(`every item of ${key} must hold an annotation`)
+}
+
+/**
+ * Throws an `ArgumentError` for regions `checkRedaction` cannot read. Whether each page is in
+ * the file is checked once the file is loaded.
+ */
+function checkRegions(regions: unknown): void {
+  if (regions === undefined) return
+  if (!Array.isArray(regions)) throw new ArgumentError('regions must be a list')
+  regions.forEach((region: unknown, i) => {
+    if (!isRecord(region)) throw new ArgumentError(`region ${i} must be an object`)
+    if (!Number.isInteger(region.page))
+      throw new ArgumentError(`region ${i}: page must be a whole number`)
+    const { quads } = region
+    if (!Array.isArray(quads) || quads.length === 0)
+      throw new ArgumentError(`region ${i} must have at least one quad`)
+    for (const quad of quads as unknown[]) {
+      const finite = (point: unknown) =>
+        isRecord(point) && Number.isFinite(point.x) && Number.isFinite(point.y)
+      if (!isRecord(quad) || ![quad.p1, quad.p2, quad.p3, quad.p4].every(finite))
+        throw new ArgumentError(
+          `region ${i}: every quad needs p1 to p4, each with a finite x and y`
+        )
+    }
+  })
 }
 
 export class EngineCore {
@@ -444,6 +472,50 @@ export class EngineCore {
         })
       )
     )
+  }
+
+  /**
+   * Checks what is left under `regions` of a file, or, without regions, under the candidates
+   * the fork finds. The file is loaded on its own and closed before the call returns; open
+   * documents are not touched.
+   */
+  checkRedaction(
+    bytes: Uint8Array,
+    options: { password?: string; regions?: readonly RedactionRegion[] } = {}
+  ): RedactionFindings {
+    if (this.#destroyed)
+      throw new EngineError('engine-failure', 'The engine is destroyed.')
+    if (this.#stopped) throw new EngineError('engine-failure', STOPPED)
+    checkRegions(options.regions)
+    return this.#guard(() => {
+      const fn = this.#fn
+      const data = fn.malloc(Math.max(bytes.length, 1))
+      if (data === 0)
+        throw new EngineError('out-of-memory', 'The engine ran out of memory.')
+      let doc = 0
+      try {
+        this.#native.HEAPU8.set(bytes, data)
+        const password = options.password === '' ? undefined : options.password
+        doc = this.#load(data, bytes.length, password).doc
+        const pageCount = fn.FPDF_GetPageCount(doc)
+        if (pageCount <= 0)
+          throw new EngineError('invalid-pdf', 'The file is not a valid PDF.')
+        for (const { page } of options.regions ?? [])
+          if (page < 0 || page >= pageCount)
+            throw new ArgumentError(`page index ${page} is outside 0..${pageCount - 1}`)
+        return inspectDocument(
+          this.#heap,
+          doc,
+          { data, size: bytes.length, pageCount },
+          options.regions
+        )
+      } finally {
+        if (!this.#stopped) {
+          if (doc !== 0) fn.FPDF_CloseDocument(doc)
+          fn.free(data)
+        }
+      }
+    })
   }
 
   /** Puts the document back to the file as opened, after a failed write. */

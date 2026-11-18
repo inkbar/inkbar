@@ -4,9 +4,11 @@ import { createWorkerTransport } from './transport/worker.ts'
 
 import type { Request, Transport } from './protocol.ts'
 import type {
+  CheckRedactionOptions,
   OpenOptions,
   PageInfo,
   RedactInput,
+  RedactionFindings,
   RedactResult,
   RenderedPage,
   RenderOptions,
@@ -109,8 +111,8 @@ export interface EngineDocument {
  * document lets the engine reuse its memory. Only `destroy()` returns all of it.
  *
  * Errors are `EngineError`s. A `RangeError` means a bad page index or scale, a render larger
- * than 268,435,456 pixels, or a bad resource name or a box with no area in an appearance given
- * to `write`. After an
+ * than 268,435,456 pixels, a bad resource name or a box with no area in an appearance given
+ * to `write`, or a region `checkRedaction` cannot use. After an
  * internal error in PDFium the engine stops. Every later call rejects with `engine-failure`,
  * except `close()` and `destroy()`, which still resolve. Create a new engine to go on.
  */
@@ -123,6 +125,28 @@ export interface Engine {
     bytes: Uint8Array,
     options?: OpenOptions & { signal?: AbortSignal }
   ): Promise<EngineDocument>
+  /**
+   * Checks what is left under redactions in a file, by its objects rather than by how it looks,
+   * so content hidden under an opaque box counts. With `regions` it checks each region given, and
+   * each is clean only when no text, image samples that are not one flat value, or drawing lies
+   * under it. Without regions it looks for candidates itself: Redact annotations, opaque filled
+   * boxes in the page content, and Square, Highlight and Stamp annotations drawn as opaque boxes.
+   * It also reports what the file carries besides its pages.
+   *
+   * The engine copies `bytes` when the call is made, loads them on their own, and closes them
+   * before it resolves; documents the engine has open are not touched. The findings hold places,
+   * counts and flags, never text from the file. A candidate that is not `clean` is a finding,
+   * not an error.
+   *
+   * It rejects with `password-required`, `password-incorrect`, `invalid-pdf` or
+   * `unsupported-security` as `open` does, with `check-failed` when a page or the file could not
+   * be inspected, and with a `RangeError` for a region on a page the file does not have, with no
+   * quads, or with a number that is not finite.
+   */
+  checkRedaction(
+    bytes: Uint8Array,
+    options?: CheckRedactionOptions
+  ): Promise<RedactionFindings>
   /**
    * Rejects queued calls with `aborted`, closes every document and frees the engine. In a worker
    * it waits up to two seconds for the running call, then terminates the worker; a running call
@@ -220,6 +244,25 @@ class EngineImpl implements Engine {
       signal
     )
     return new Document(this.session, opened.id, opened.pageCount)
+  }
+
+  async checkRedaction(
+    bytes: Uint8Array,
+    options: CheckRedactionOptions = {}
+  ): Promise<RedactionFindings> {
+    const { signal, password, regions } = options
+    // Copies taken now, as in `open` and `write`.
+    return this.session.call<RedactionFindings>(
+      {
+        op: 'checkRedaction',
+        bytes: new Uint8Array(bytes),
+        options: {
+          ...(password !== undefined && { password }),
+          ...(regions !== undefined && { regions: structuredClone(regions) }),
+        },
+      },
+      signal
+    )
   }
 
   #destroying: Promise<void> | undefined

@@ -90,6 +90,20 @@ function fakeEngine() {
         calls.push(`open ${n} ${options?.password ?? ''}`)
         return Promise.resolve(doc)
       },
+      checkRedaction(_bytes, options) {
+        calls.push(`check ${n} ${options?.regions?.length ?? 0}`)
+        return Promise.resolve({
+          candidates: [],
+          file: {
+            earlierVersions: 0,
+            metadata: false,
+            attachments: 0,
+            scripts: false,
+            hiddenLayers: false,
+            signed: false,
+          },
+        })
+      },
       destroy() {
         calls.push(`destroy ${n}`)
         return Promise.resolve()
