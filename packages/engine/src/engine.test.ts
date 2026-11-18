@@ -34,7 +34,12 @@ afterEach(async () => {
 
 test('opens, inspects, renders, saves and closes', async () => {
   expect(doc.pageCount).toBe(3)
-  expect(await doc.pageInfo(0)).toEqual({ width: 612, height: 792, rotation: 0 })
+  expect(await doc.pageInfo(0)).toEqual({
+    width: 612,
+    height: 792,
+    rotation: 0,
+    box: { x: 0, y: 0, width: 612, height: 792 },
+  })
   expect(await doc.renderPage(0, { scale: 2 })).toMatchObject({
     width: 1224,
     height: 1584,
@@ -280,4 +285,41 @@ test('open copies a Buffer, so changing it afterwards does not change the docume
   const opened = engine.open(buffer)
   buffer.fill(0)
   expect((await opened).pageCount).toBe(3)
+})
+
+test('pageInfo reports the page box at the crop box origin', async () => {
+  const cropped = await engine.open(await fixtureBytes('cropbox-offset'))
+  const info = await cropped.pageInfo(0)
+  expect(info.box).toEqual({ x: 50, y: 50, width: info.width, height: info.height })
+  expect(info).toMatchObject({ width: 500, height: 700 })
+  await cropped.close()
+})
+
+test('rendering without annotations changes only the annotation', async () => {
+  // The fixture's Square sits at user space [100 100 200 160] inside a crop box at (50, 50).
+  const cropped = await engine.open(await fixtureBytes('cropbox-offset'))
+  const withAnnotations = await cropped.renderPage(0)
+  expect(await cropped.renderPage(0, { annotations: true })).toEqual(withAnnotations)
+  const without = await cropped.renderPage(0, { annotations: false })
+  expect(without).toMatchObject({ width: withAnnotations.width })
+  const { width, height } = withAnnotations
+  const left = 100 - 50
+  const right = 200 - 50
+  const top = height - (160 - 50)
+  const bottom = height - (100 - 50)
+  let inside = 0
+  let outside = 0
+  for (let y = 0; y < height; y++)
+    for (let x = 0; x < width; x++) {
+      const at = (y * width + x) * 4
+      const same = [0, 1, 2].every(
+        (k) => withAnnotations.data[at + k] === without.data[at + k]
+      )
+      if (same) continue
+      if (x >= left - 2 && x <= right + 2 && y >= top - 2 && y <= bottom + 2) inside++
+      else outside++
+    }
+  expect(inside).toBeGreaterThan(0)
+  expect(outside).toBe(0)
+  await cropped.close()
 })

@@ -114,7 +114,13 @@ class Document implements EngineDocument {
 
   renderPage(index: number, options: RenderOptions = {}): Promise<RenderedPage> {
     return this.#call(
-      { op: 'renderPage', doc: this.id, index, scale: options.scale ?? 1 },
+      {
+        op: 'renderPage',
+        doc: this.id,
+        index,
+        scale: options.scale ?? 1,
+        annotations: options.annotations ?? true,
+      },
       options.signal
     )
   }
