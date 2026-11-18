@@ -184,5 +184,8 @@
   "viewer.document": "Document",
   "viewer.loading": "Loading document…",
   "viewer.openFailed": "This document could not be opened.",
-  "viewer.pageFailed": "Page {page} could not be shown."
+  "viewer.pageFailed": "Page {page} could not be shown.",
+  "viewer.preparingFile": "Preparing your file…",
+  "viewer.saveFailed": "Your changes could not be written into this file.",
+  "viewer.saveUnavailable": "Saving is not available right now. Check your connection and try again."
 }

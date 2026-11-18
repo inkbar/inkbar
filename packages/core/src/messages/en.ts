@@ -10,6 +10,10 @@ export const en: InkMessages = {
     loading: 'Loading document…',
     openFailed: 'This document could not be opened.',
     pageFailed: template('en', 'Page {page} could not be shown.'),
+    saveFailed: 'Your changes could not be written into this file.',
+    saveUnavailable:
+      'Saving is not available right now. Check your connection and try again.',
+    preparingFile: 'Preparing your file…',
   },
   toolbar: {
     label: 'Document tools',

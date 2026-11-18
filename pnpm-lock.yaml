@@ -271,6 +271,9 @@ importers:
       '@inkbar/e2e-shared':
         specifier: workspace:*
         version: link:../e2e-shared
+      '@inkbar/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
       '@inkbar/fixtures':
         specifier: workspace:*
         version: link:../../fixtures
@@ -333,6 +336,9 @@ importers:
       '@inkbar/e2e-shared':
         specifier: workspace:*
         version: link:../e2e-shared
+      '@inkbar/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
       '@inkbar/fixtures':
         specifier: workspace:*
         version: link:../../fixtures
@@ -370,6 +376,9 @@ importers:
       '@inkbar/e2e-shared':
         specifier: workspace:*
         version: link:../e2e-shared
+      '@inkbar/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
       '@inkbar/fixtures':
         specifier: workspace:*
         version: link:../../fixtures

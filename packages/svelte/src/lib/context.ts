@@ -157,6 +157,14 @@ export interface InkContext {
   reportAction(action: ViewerAction): void
   /** Calls InkRoot's `onError`, for failures after the document opened (a refused signing). */
   reportError(error: InkError): void
+  /**
+   * For a download or print that failed: when the copy could not be written (`SaveFailed`),
+   * calls InkRoot's `onError` and tells the reader why in InkViewport's message box. Any other
+   * failure is ignored, as before.
+   */
+  reportFileError(this: void, error: unknown): void
+  /** Calls `show` with each message `reportFileError` has for the reader; returns the stop. */
+  onFileMessage(show: (message: string) => void): () => void
 }
 
 const KEY = Symbol('inkbar')

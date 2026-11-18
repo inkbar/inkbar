@@ -172,5 +172,21 @@ export async function buildWriteInput(state: {
       })
     )
   }
-  return { remove: state.lifted, annotations: written, fields: state.fields }
+  return plainData({ remove: state.lifted, annotations: written, fields: state.fields })
+}
+
+/**
+ * `value` rebuilt from plain objects and arrays, for the engine to clone. A host's annotations
+ * and field values may be a framework's proxies (Vue's `reactive`, Svelte's `$state`), which
+ * `structuredClone` refuses. Binary data and anything else that is not a plain object or an
+ * array is kept as it is.
+ */
+function plainData<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(plainData) as T
+  if (value === null || typeof value !== 'object') return value
+  const proto = Object.getPrototypeOf(value) as unknown
+  if (proto !== Object.prototype && proto !== null) return value
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(value)) out[k] = plainData(v)
+  return out as T
 }

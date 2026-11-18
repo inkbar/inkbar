@@ -13,6 +13,10 @@ export const fr: InkMessages = {
     loading: 'Chargement du document…',
     openFailed: 'Impossible d’ouvrir ce document.',
     pageFailed: template('fr', 'Impossible d’afficher la page {page}.'),
+    saveFailed: 'Vos modifications n’ont pas pu être enregistrées dans ce fichier.',
+    saveUnavailable:
+      'L’enregistrement n’est pas disponible pour le moment. Vérifiez votre connexion et réessayez.',
+    preparingFile: 'Préparation de votre fichier…',
   },
   toolbar: {
     label: 'Outils du document',

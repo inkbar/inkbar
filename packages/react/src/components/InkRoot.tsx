@@ -12,6 +12,7 @@ import {
 import {
   attachFileKeys,
   attachHistoryKeys,
+  fileActionFailure,
   createMessageState,
   createPluginHost,
   createSearchController,
@@ -61,6 +62,7 @@ import type {
   AnnotationChange,
   AnnotationDefaults,
   DocumentSource,
+  EngineLoader,
   FieldsChange,
   FieldValues,
   ViewerAction,
@@ -196,11 +198,21 @@ export interface InkRootProps extends Omit<
   locale?: string | undefined
   /** Undo history. Defaults to on for uncontrolled, off for controlled. */
   history?: boolean | undefined
+  /**
+   * Loads @inkbar/engine, so that InkDownloadButton, InkPrintButton and Ctrl+S or Ctrl+P hand
+   * over the file with this session's annotations and changed form values written into it:
+   * `() => import('@inkbar/engine')`. It loads on the first of those with changes, never
+   * before. Without it they hand over the file as it was opened, and the engine is not
+   * bundled. Read when a document opens: a change applies from the next open.
+   */
+  engine?: EngineLoader | undefined
   asChild?: boolean | undefined
   onReady?: ((doc: InkDocument) => void) | undefined
   /**
    * Opening failed, or later: a form script failed (`FormScriptError`; the form stays
-   * fillable), or a signature field refused its signing (`FieldSigned`, `FieldReadOnly`).
+   * fillable), a signature field refused its signing (`FieldSigned`, `FieldReadOnly`), or a
+   * download or print could not write its copy (`SaveFailed`, also shown to the reader in
+   * InkViewport's message box).
    * A later error arrives one microtask after it happened, as `onFieldsChange` does; one from
    * while the document opened arrives after `onReady`.
    */
@@ -285,6 +297,7 @@ export function InkRoot({
   messages: messagesProp,
   locale: localeProp,
   history,
+  engine,
   asChild = false,
   onReady,
   onError,
@@ -335,6 +348,7 @@ export function InkRoot({
     onAction,
     history,
     historyEnabled,
+    engine,
     onAnnotationsChange,
     onChange,
     onReady,
@@ -575,6 +589,7 @@ export function InkRoot({
           _pictures: savePictures(
             rootElRef.current?.ownerDocument ?? globalThis.document
           ),
+          engine: latest.current.engine,
           // Controlled hosts get the snapshot history below; core's own stack stays off.
           history: latest.current.controlled ? false : (latest.current.history ?? true),
           annotations: latest.current.controlled
@@ -800,6 +815,26 @@ export function InkRoot({
     },
     [reportErrorFor]
   )
+  /** Who shows the reader a failed download's or print's message: InkViewport, when mounted. */
+  const [fileMessageListeners] = useState(() => new Set<(message: string) => void>())
+  const reportFileError = useCallback(
+    (error: unknown) => {
+      const failure = fileActionFailure(error, messageState.get().messages)
+      if (!failure) return
+      for (const show of fileMessageListeners) show(failure.message)
+      reportError(failure.error)
+    },
+    [messageState, fileMessageListeners, reportError]
+  )
+  const onFileMessage = useCallback(
+    (show: (message: string) => void) => {
+      fileMessageListeners.add(show)
+      return () => {
+        fileMessageListeners.delete(show)
+      }
+    },
+    [fileMessageListeners]
+  )
   const [navigation, setNavigation] = useState<Navigation | null>(null)
   const setViewport = useCallback((vp: Viewport | null, tc: ToolController | null) => {
     viewportRef.current = vp
@@ -865,13 +900,16 @@ export function InkRoot({
       rootEl.querySelector<HTMLElement>('[data-ink-scroll]')
     )
     // Ctrl or Cmd+P prints and +S downloads, as InkPrintButton and InkDownloadButton do.
-    const stopFileKeys = attachFileKeys(rootEl, () => documentRef.current)
+    const stopFileKeys = attachFileKeys(rootEl, () => documentRef.current, {
+      onError: reportFileError,
+      messages: () => messageState.get().messages,
+    })
     return () => {
       stopKeys()
       stopFocus()
       stopFileKeys()
     }
-  }, [rootEl, latestHistory, latest, snapshotHistory])
+  }, [rootEl, latestHistory, latest, snapshotHistory, reportFileError, messageState])
 
   /** The document's tool style; it batches through `history`, whichever mode is on. */
   const styleTracker = useMemo(
@@ -985,6 +1023,8 @@ export function InkRoot({
       messageState: publicMessageState,
       reportAction,
       reportError,
+      reportFileError,
+      onFileMessage,
     }),
     [
       passwordPrompt,
@@ -1027,6 +1067,8 @@ export function InkRoot({
       publicMessageState,
       reportAction,
       reportError,
+      reportFileError,
+      onFileMessage,
     ]
   )
 

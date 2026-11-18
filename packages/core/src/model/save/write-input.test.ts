@@ -41,6 +41,40 @@ const pages = [page(0), page(1)]
 const base = { pages, lifted: [], fields: {}, signs: new Map(), helpers: {} }
 
 describe('buildWriteInput', () => {
+  it("gives the engine plain data it can clone, even from a host's proxies", async () => {
+    // As a framework hands its state over: every object and array behind a Proxy (Vue's
+    // `reactive`, Svelte's `$state`), which `structuredClone` refuses.
+    const deep = <T>(value: T): T =>
+      value !== null && typeof value === 'object'
+        ? new Proxy(value, {
+            get: (target, key, receiver): unknown =>
+              deep(Reflect.get(target, key, receiver) as unknown),
+          })
+        : value
+    const list = make([
+      { type: 'square', page: 0, rect: { x: 10, y: 10, width: 50, height: 40 } },
+      {
+        type: 'text',
+        page: 0,
+        rect: { x: 100, y: 100, width: 20, height: 20 },
+        contents: 'Hi',
+      },
+    ]).map(deep)
+    expect(() => structuredClone(list)).toThrow()
+    const input = await buildWriteInput({
+      ...base,
+      annotations: list,
+      fields: deep({ colours: { value: ['red', 'blue'] } }),
+    })
+    const copy = structuredClone(input)
+    expect(copy.annotations).toHaveLength(2)
+    expect(copy.annotations![0]!.annotation).toMatchObject({ type: 'square' })
+    expect(copy.fields).toEqual({ colours: { value: ['red', 'blue'] } })
+    expect(copy.annotations![0]!.appearance!.bounds).toEqual(
+      input.annotations![0]!.appearance!.bounds
+    )
+  })
+
   it("writes a page's dimming mask first, the rest in list order", async () => {
     const list = make([
       { type: 'square', page: 0, rect: { x: 10, y: 10, width: 50, height: 40 } },

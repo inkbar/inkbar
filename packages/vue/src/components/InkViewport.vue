@@ -212,6 +212,12 @@ const signRequest = shallowRef<SignFieldRequest | null>(null)
 /** The form script's message on show, and how many have been shown. */
 const alertMessage = shallowRef<string | null>(null)
 const alertsShown = shallowRef(0)
+/** A download or print that could not write its copy shows its message in the same box. */
+const stopFileMessages = ctx.onFileMessage((message) => {
+  alertMessage.value = message
+  alertsShown.value += 1
+})
+onBeforeUnmount(stopFileMessages)
 /**
  * Numbered before each build starts, so the pages a build mounts carry its own number. A
  * rebuild gives each page a new host and mount, so pages from an earlier build must remount,

@@ -1,10 +1,21 @@
 import { browserAssets, fixtureUrl } from '@inkbar/fixtures/urls'
+import themeCss from '@inkbar/theme/theme.css?inline'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { userEvent } from 'vitest/browser'
 
 import { mountContainer, until } from '../test-utils'
 
-import { createDownloadButton, createPrintButton } from './controls'
-import { createViewer, type Viewer } from './create-viewer'
+import {
+  createDownloadButton,
+  createPrintButton,
+  createToolbar,
+  createUndo,
+} from './controls'
+import { createViewer, type CreateViewerOptions, type Viewer } from './create-viewer'
+
+import type { EngineLoader } from '../../model/document'
+import type { InkError } from '../../model/errors'
+import type { Engine } from '@inkbar/engine'
 
 let cleanup: (() => void)[] = []
 afterEach(() => {
@@ -25,11 +36,12 @@ function catchDownloads(): HTMLAnchorElement[] {
   return clicked
 }
 
-function make(): Viewer {
+function make(opts: Partial<CreateViewerOptions> = {}): Viewer {
   const host = mountContainer(600, 450)
   const viewer = createViewer(host, {
     source: fixtureUrl('text-simple'),
     assets: browserAssets(),
+    ...opts,
   })
   cleanup.push(() => {
     viewer.destroy()
@@ -90,5 +102,216 @@ describe('download and print', () => {
     )
     expect(taken).toBe(true)
     await until(() => clicked.length === 1)
+  })
+})
+
+/**
+ * A stand-in engine whose every write waits for the test: `finish()` lets it save, `fail(e)`
+ * makes it reject with `e`. `unavailable` makes the loader itself fail, as offline.
+ */
+function heldEngine(opts: { unavailable?: boolean } = {}) {
+  let settle: { finish: () => void; fail: (e: Error) => void } | undefined
+  const writing = () => settle !== undefined
+  const engine = {
+    open: () =>
+      Promise.resolve({
+        pageCount: 1,
+        write: () =>
+          new Promise<void>((resolve, reject) => {
+            settle = {
+              finish: () => {
+                settle = undefined
+                resolve()
+              },
+              fail: (e) => {
+                settle = undefined
+                reject(e)
+              },
+            }
+          }),
+        save: () => Promise.resolve(new Uint8Array([37, 80, 68, 70, 45])),
+        close: () => Promise.resolve(),
+      }),
+    destroy: () => Promise.resolve(),
+  } as unknown as Engine
+  const loader = vi.fn<EngineLoader>(() =>
+    opts.unavailable
+      ? Promise.reject(new TypeError('Failed to fetch dynamically imported module'))
+      : Promise.resolve({ createEngine: () => Promise.resolve(engine) })
+  )
+  return {
+    loader,
+    writing,
+    finish: () => settle!.finish(),
+    fail: (e: Error) => settle!.fail(e),
+  }
+}
+
+const addSquare = (viewer: Viewer) =>
+  viewer.document.get()!.annotations.add({
+    type: 'square',
+    page: 0,
+    rect: { x: 72, y: 600, width: 120, height: 60 },
+  })
+
+const alertText = () =>
+  document.querySelector('[data-ink-form-alert-message]')?.textContent ?? null
+
+/** Busy as the controls show it: `aria-busy`, and `aria-disabled` without losing focus. */
+const busy = (b: HTMLButtonElement) =>
+  b.getAttribute('aria-busy') === 'true' && b.getAttribute('aria-disabled') === 'true'
+
+describe('with an engine', () => {
+  afterEach(() =>
+    document.querySelectorAll('[data-ink-form-alert]').forEach((a) => a.remove())
+  )
+
+  it('the buttons are busy while the copy is written, then download it', async () => {
+    const clicked = catchDownloads()
+    const held = heldEngine()
+    const viewer = make({ engine: held.loader })
+    const download = createDownloadButton(viewer)
+    const print = createPrintButton(viewer)
+    viewer.element.prepend(download, print)
+    await until(() => viewer.status.get().state === 'ready')
+    expect(download.getAttribute('aria-busy')).toBe('false')
+    addSquare(viewer)
+    download.focus()
+    download.click()
+    await until(held.writing)
+    expect(busy(download)).toBe(true)
+    expect(busy(print)).toBe(true)
+    // Focus stays on the pressed button, and pressing again does nothing.
+    expect(document.activeElement).toBe(download)
+    download.click()
+    print.click()
+    held.finish()
+    await until(() => clicked.length === 1)
+    expect(busy(download)).toBe(false)
+    expect(download.disabled).toBe(false)
+    expect(print.disabled).toBe(false)
+    expect(held.loader).toHaveBeenCalledTimes(1)
+    expect(document.querySelector('[data-ink-print-frame]')).toBeNull()
+    expect(clicked).toHaveLength(1)
+  })
+
+  it('the theme shows a busy button as disabled, with the progress cursor', async () => {
+    const style = document.createElement('style')
+    style.textContent = themeCss
+    document.head.append(style)
+    cleanup.push(() => style.remove())
+    catchDownloads()
+    const held = heldEngine()
+    const viewer = make({ engine: held.loader })
+    const bar = createToolbar()
+    const download = createDownloadButton(viewer)
+    // Nothing to undo: natively disabled, the look a busy button should share.
+    const undo = createUndo(viewer)
+    bar.append(download, undo)
+    viewer.element.prepend(bar)
+    await until(() => viewer.status.get().state === 'ready')
+    const look = (b: HTMLElement) => {
+      const s = getComputedStyle(b)
+      return { opacity: s.opacity, cursor: s.cursor, background: s.backgroundColor }
+    }
+    const idle = look(download)
+    expect(idle.opacity).toBe('1')
+    expect(idle.cursor).toBe('pointer')
+    // Measured before the change below, which gives Undo something to undo.
+    const disabled = look(undo)
+    expect(undo.disabled).toBe(true)
+    addSquare(viewer)
+    download.click()
+    await until(held.writing)
+    await userEvent.hover(download)
+    const busyLook = look(download)
+    expect(busyLook.opacity).toBe(disabled.opacity)
+    expect(busyLook.opacity).toBe('0.5')
+    expect(busyLook.cursor).toBe('progress')
+    // No hover background while it cannot be pressed.
+    expect(busyLook.background).toBe(idle.background)
+    held.finish()
+    await until(() => download.getAttribute('aria-busy') === 'false')
+    expect(look(download).opacity).toBe('1')
+  })
+
+  it('a copy that cannot be written downloads nothing, tells the reader and onError', async () => {
+    const clicked = catchDownloads()
+    const held = heldEngine()
+    const errors: InkError[] = []
+    const viewer = make({ engine: held.loader, onError: (e) => errors.push(e) })
+    const download = createDownloadButton(viewer)
+    const print = createPrintButton(viewer)
+    await until(() => viewer.status.get().state === 'ready')
+    addSquare(viewer)
+    print.click()
+    await until(held.writing)
+    expect(busy(print)).toBe(true)
+    held.fail(new Error('write failed'))
+    await until(() => errors.length === 1)
+    expect(errors[0]).toMatchObject({ code: 'SaveFailed', details: { stage: 'write' } })
+    expect(alertText()).toBe('Your changes could not be written into this file.')
+    expect(document.querySelector('[data-ink-print-frame]')).toBeNull()
+    expect(busy(print)).toBe(false)
+    expect(busy(download)).toBe(false)
+    expect(print.disabled).toBe(false)
+
+    // The same from the method, which rejects too.
+    const saving = viewer.download()
+    await until(held.writing)
+    held.fail(new Error('write failed'))
+    await expect(saving).rejects.toMatchObject({ code: 'SaveFailed' })
+    expect(errors).toHaveLength(2)
+    expect(clicked).toHaveLength(0)
+  })
+
+  it('Ctrl+S that fails is reported as the button is', async () => {
+    const held = heldEngine()
+    const errors: InkError[] = []
+    const viewer = make({ engine: held.loader, onError: (e) => errors.push(e) })
+    await until(() => viewer.status.get().state === 'ready')
+    addSquare(viewer)
+    const scroll = viewer.element.querySelector<HTMLElement>('[data-ink-scroll]')!
+    scroll.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 's',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      })
+    )
+    await until(held.writing)
+    held.fail(new Error('write failed'))
+    await until(() => errors.length === 1)
+    expect(errors[0]!.code).toBe('SaveFailed')
+    expect(alertText()).toBe('Your changes could not be written into this file.')
+  })
+
+  it('says saving is unavailable when the engine cannot be loaded', async () => {
+    const clicked = catchDownloads()
+    const held = heldEngine({ unavailable: true })
+    const errors: InkError[] = []
+    const viewer = make({ engine: held.loader, onError: (e) => errors.push(e) })
+    const download = createDownloadButton(viewer)
+    await until(() => viewer.status.get().state === 'ready')
+    addSquare(viewer)
+    download.click()
+    await until(() => errors.length === 1)
+    expect(errors[0]).toMatchObject({ code: 'SaveFailed', details: { stage: 'engine' } })
+    expect(alertText()).toBe(
+      'Saving is not available right now. Check your connection and try again.'
+    )
+    expect(clicked).toHaveLength(0)
+    expect(busy(download)).toBe(false)
+  })
+
+  it('with no changes downloads the opened file and loads no engine', async () => {
+    const clicked = catchDownloads()
+    const held = heldEngine()
+    const viewer = make({ engine: held.loader })
+    await until(() => viewer.status.get().state === 'ready')
+    await viewer.download()
+    expect(clicked).toHaveLength(1)
+    expect(held.loader).not.toHaveBeenCalled()
   })
 })

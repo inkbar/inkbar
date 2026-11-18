@@ -1,10 +1,11 @@
-import { printDocument } from '@inkbar/core/dom'
+import { fileBusy, printDocument } from '@inkbar/core/dom'
 import { Printer } from '@inkbar/icons'
 import { Toolbar } from 'radix-ui'
 
 import { cx } from '../class-names'
 import { useInkContext } from '../context'
 import { useMessages } from '../hooks/useMessages'
+import { useReadable } from '../use-readable'
 
 import { InkIcon } from './InkIcon'
 
@@ -16,8 +17,8 @@ export interface InkPrintButtonProps extends ComponentPropsWithoutRef<'button'> 
 
 /**
  * Prints the open document's file with the browser's own PDF viewer (on iOS, in a new tab).
- * Disabled until the document is ready. Today that is the file as it was opened, without this
- * session's annotations.
+ * Disabled until the document is ready. It prints what InkDownloadButton downloads, is busy
+ * while a copy is written as that button is, and reports a failure the same way.
  */
 export function InkPrintButton({
   asChild = false,
@@ -28,7 +29,8 @@ export function InkPrintButton({
   ...rest
 }: InkPrintButtonProps) {
   const m = useMessages()
-  const { document: doc, status } = useInkContext('InkPrintButton')
+  const { document: doc, status, reportFileError } = useInkContext('InkPrintButton')
+  const busy = useReadable(doc ? fileBusy(doc) : undefined, false)
   return (
     <Toolbar.Button
       asChild={asChild}
@@ -36,12 +38,17 @@ export function InkPrintButton({
       data-ink-print=""
       aria-label={m.toolbar.print}
       title={m.toolbar.print}
+      aria-busy={busy}
+      // Disabled while it writes, but not `disabled`, so the button keeps focus.
+      aria-disabled={busy || undefined}
       {...rest}
-      disabled={disabled === true || doc === null || status.state !== 'ready'}
+      disabled={
+        disabled === true || (!busy && (doc === null || status.state !== 'ready'))
+      }
       onClick={(e) => {
         onClick?.(e)
         if (e.defaultPrevented || !doc) return
-        void printDocument(doc).catch(() => undefined)
+        void printDocument(doc, { messages: m }).catch(reportFileError)
       }}
     >
       {children ?? <InkIcon icon={Printer} />}

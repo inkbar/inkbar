@@ -16,6 +16,12 @@ export interface InkMessages {
     loading: string
     openFailed: string
     pageFailed: MessageFn<Page>
+    /** A download or print could not write the changes into its copy of the file. */
+    saveFailed: string
+    /** A download or print could not load or start what writes the copy (offline, say). */
+    saveUnavailable: string
+    /** Shown in the tab a print opens on iOS while its copy is written. */
+    preparingFile: string
   }
   toolbar: {
     label: string
