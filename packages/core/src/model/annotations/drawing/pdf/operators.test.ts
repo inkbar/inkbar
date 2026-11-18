@@ -16,6 +16,15 @@ test('num keeps at most four decimals and never an exponent', () => {
   expect(num(Infinity)).toBe('0')
 })
 
+test('num clamps a huge value to a finite bound rather than write an exponent', () => {
+  expect(num(1e21)).toBe('1000000000')
+  expect(num(-5e25)).toBe('-1000000000')
+  expect(num(1e305)).toBe('1000000000')
+  expect(num(Number.MAX_VALUE)).toBe('1000000000')
+  expect(num(-Number.MAX_VALUE)).toBe('-1000000000')
+  expect(num(999999999.5)).toBe('999999999.5')
+})
+
 test('rgbOf reads #rrggbb as 0 to 1', () => {
   const [r, g, b] = rgbOf('#ff8000')
   expect(r).toBe(1)

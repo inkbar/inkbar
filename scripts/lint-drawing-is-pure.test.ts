@@ -15,6 +15,7 @@ const eslint = new ESLint({ cwd: root })
 // files, one in drawing/ and one in drawing/text/: the text given replaces their contents.
 const IN_DRAWING = 'path-data.ts'
 const IN_TEXT = 'text/measure.ts'
+const IN_PDF = 'pdf/operators.ts'
 
 /** The rule ids and messages ESLint reports for `code` linted as the file `path`. */
 async function report(code: string, path: string): Promise<string[]> {
@@ -79,6 +80,17 @@ describe('inkbar/drawing-is-pure', () => {
       IN_TEXT,
       '../../../../index.js',
     ],
+    ['the package index from drawing/pdf/', IN_PDF, '../../../..'],
+    ['the package index with a slash from drawing/pdf/', IN_PDF, '../../../../'],
+    ['the package index file from drawing/pdf/', IN_PDF, '../../../../index'],
+    [
+      'the package index file with its extension from drawing/pdf/',
+      IN_PDF,
+      '../../../../index.js',
+    ],
+    ['dom/ from drawing/pdf/', IN_PDF, '../../../../dom/text-fonts'],
+    ['dom/ by its folder from drawing/pdf/', IN_PDF, '../../../../dom'],
+    ['PDF.js from drawing/pdf/', IN_PDF, 'pdfjs-dist'],
     ['the package by name', IN_DRAWING, '@inkbar/core'],
     ['the package by name from drawing/text/', IN_TEXT, '@inkbar/core'],
     ['a subpath of the package by name', IN_DRAWING, '@inkbar/core/dom'],
@@ -100,6 +112,19 @@ describe('inkbar/drawing-is-pure', () => {
             (!source.includes('pdfjs') || m.includes('PDF.js'))
         ),
         `${source} was not reported: ${messages.join(' | ')}`
+      )
+    })
+
+  for (const [where, path] of [
+    ['drawing/pdf/', IN_PDF],
+    ['drawing/text/', IN_TEXT],
+  ] as const)
+    it(`reports nothing for geometry imported from ${where}`, async () => {
+      const code = `import type { Point } from '../../../geometry'\n\nexport const origin: Point = { x: 0, y: 0 }\n`
+      const messages = await report(code, `${drawing}/${path}`)
+      assert.deepEqual(
+        messages.filter((m) => m.startsWith('no-restricted')),
+        []
       )
     })
 
