@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.16.0](https://github.com/inkbar/inkbar/compare/v0.15.0...v0.16.0) (2026-11-18)
+
+
+### Features
+
+* **core:** draw notes in their own colour with their icon ([#413](https://github.com/inkbar/inkbar/issues/413)) ([4d28881](https://github.com/inkbar/inkbar/commit/4d28881b7ad073d0a84ff2acf4b7244337a962c7))
+* **core:** draw text boxes from the annotation, not from CSS ([#412](https://github.com/inkbar/inkbar/issues/412)) ([594ebca](https://github.com/inkbar/inkbar/commit/594ebca9601805c5eeabc2b201713ce4da1af897))
+* **core:** lift annotations saved by Inkbar back into the session ([#424](https://github.com/inkbar/inkbar/issues/424)) ([f932186](https://github.com/inkbar/inkbar/commit/f9321864b7508b14825c4d20f16e7d72c9982a43))
+* **core:** measure and lay out text with the standard font metrics ([#411](https://github.com/inkbar/inkbar/issues/411)) ([3b15443](https://github.com/inkbar/inkbar/commit/3b15443711f5f5a7b4f3d489cd05ddc05f36b517))
+* **core:** paint a drawing's shapes as PDF operators ([#420](https://github.com/inkbar/inkbar/issues/420)) ([0550f12](https://github.com/inkbar/inkbar/commit/0550f121a4a79d07799949350d94893329ef2093))
+* **core:** paint text, images and page content as PDF operators ([#421](https://github.com/inkbar/inkbar/issues/421)) ([2612f0b](https://github.com/inkbar/inkbar/commit/2612f0bf6f54e910907449e63b561363a1af2b59))
+* **core:** save the document with its annotations and form values ([#425](https://github.com/inkbar/inkbar/issues/425)) ([b753927](https://github.com/inkbar/inkbar/commit/b75392749c3eb95a4798fe52eb25af65d0770e02))
+* **core:** supply pictures for saving and check the saved file against the screen ([#426](https://github.com/inkbar/inkbar/issues/426)) ([b5f6ff0](https://github.com/inkbar/inkbar/commit/b5f6ff0d0dc46ff7d3422e69efafb0eb95112709))
+* download and print the document with its annotations ([#427](https://github.com/inkbar/inkbar/issues/427)) ([c6d7111](https://github.com/inkbar/inkbar/commit/c6d7111c1024dbbc361b8a85b80c063f2ac7cba2))
+* **engine:** add createEngine and the document API ([#396](https://github.com/inkbar/inkbar/issues/396)) ([13ea95a](https://github.com/inkbar/inkbar/commit/13ea95ac3c3b1e14a57a9d5cd652925a60324913))
+* **engine:** add the engine package and fetch its binary ([#393](https://github.com/inkbar/inkbar/issues/393)) ([481c9f6](https://github.com/inkbar/inkbar/commit/481c9f6e8764d9b02f74b58df484f01213f1011b))
+* **engine:** bind the native functions and map errors ([#394](https://github.com/inkbar/inkbar/issues/394)) ([d0fd8e6](https://github.com/inkbar/inkbar/commit/d0fd8e6a5fd6d0b1ed3aea8ca3798a055e4bdcb9))
+* **engine:** open, inspect, render and save documents ([#395](https://github.com/inkbar/inkbar/issues/395)) ([79dcf6f](https://github.com/inkbar/inkbar/commit/79dcf6f8a9506070c5b452ef711b49b3b2739600))
+* **engine:** publish the engine ([#428](https://github.com/inkbar/inkbar/issues/428)) ([aeb62a6](https://github.com/inkbar/inkbar/commit/aeb62a623349b76afe811c2450e061167965e168))
+* **engine:** report the page box and render without annotations ([#418](https://github.com/inkbar/inkbar/issues/418)) ([83cd083](https://github.com/inkbar/inkbar/commit/83cd08366a1ea1a6caeb479bc720838e051728ea))
+* **engine:** run the engine in a web worker ([#397](https://github.com/inkbar/inkbar/issues/397)) ([19b71df](https://github.com/inkbar/inkbar/commit/19b71dfc0ea1a9520cc1129d3873a39f4733cd68))
+* **engine:** write annotations with their appearances ([#422](https://github.com/inkbar/inkbar/issues/422)) ([395c8e7](https://github.com/inkbar/inkbar/commit/395c8e7a30799240bd6c1b4e7e48337dfc70ce70))
+* **engine:** write form values and keep signed files verifiable ([#423](https://github.com/inkbar/inkbar/issues/423)) ([e56377c](https://github.com/inkbar/inkbar/commit/e56377c905412b4385eac4d8d96f4fd75f354c5e))
+
+
+### Bug Fixes
+
+* close gaps in saving and in opening saved files ([#429](https://github.com/inkbar/inkbar/issues/429)) ([1f414d7](https://github.com/inkbar/inkbar/commit/1f414d7a1a374ba6e35ebddf38f04b309c072eed))
+* **core:** contain drawing failures and state what a drawing must ([#415](https://github.com/inkbar/inkbar/issues/415)) ([e2b5121](https://github.com/inkbar/inkbar/commit/e2b5121727e21073908442a8d23a9e8a52819887))
+* **core:** measure emoji sequences and justified tabs as the browser does ([#416](https://github.com/inkbar/inkbar/issues/416)) ([28c2c3f](https://github.com/inkbar/inkbar/commit/28c2c3f24ab13e7609e589cff4ae40b19243124f))
+* **engine:** fix review findings ([#402](https://github.com/inkbar/inkbar/issues/402)) ([34934b7](https://github.com/inkbar/inkbar/commit/34934b73ca12c3607c52198484faba5077cd3ee8))
+* **engine:** load through a bundler without extra files or warnings ([#419](https://github.com/inkbar/inkbar/issues/419)) ([fd0f359](https://github.com/inkbar/inkbar/commit/fd0f359c7a0b360a8b10a25015565562fc25d6ec))
+* **engine:** stop the engine after an internal error ([#399](https://github.com/inkbar/inkbar/issues/399)) ([9f3db79](https://github.com/inkbar/inkbar/commit/9f3db799768a9c9aa58dde308960ee03e9bd1bfb))
+
 ## [0.15.0](https://github.com/inkbar/inkbar/compare/v0.14.0...v0.15.0) (2026-11-16)
 
 
