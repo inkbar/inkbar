@@ -1,3 +1,5 @@
+import type { Annotation as GlossAnnotation } from 'gloss-format'
+
 /** Options for `Engine.open`. */
 export interface OpenOptions {
   /** Password for an encrypted document. An empty string counts as no password. */
@@ -121,4 +123,49 @@ export interface Appearance {
    * as a transparency group, so overlapping parts blend as one picture.
    */
   forms?: Record<string, Appearance & { group?: boolean }>
+}
+
+/** An annotation already in the document, by the page it is on and its object number. */
+export interface AnnotationRef {
+  /** Page index, counting from 0. */
+  page: number
+  /** The object number of the annotation's dictionary in the file. */
+  objectNumber: number
+}
+
+/** One annotation for `EngineDocument.write` to add to a page. */
+export interface WriteAnnotation {
+  /** Page index, counting from 0. */
+  page: number
+  /**
+   * The annotation in Gloss form. Its dictionary entries are written from this, so other
+   * programs can read and edit it. An annotation with `inReplyTo` is written as a reply: a hidden
+   * note linked to its parent, which must be among the annotations of the same call.
+   */
+  annotation: GlossAnnotation
+  /**
+   * How the annotation looks. Its `bounds` become the annotation's rectangle. Required for
+   * everything but a reply, which has none.
+   */
+  appearance?: Appearance
+  /** Text stored with the annotation, for the caller to read back later. */
+  data: string
+}
+
+/** A form value for `EngineDocument.write`. */
+export interface WriteField {
+  /** The field's value: a string, or for a list box the selected options. */
+  value: string | readonly string[]
+  /** What the widget shows in place of the value, when it differs. */
+  text?: string
+}
+
+/** What `EngineDocument.write` writes into the document. */
+export interface WriteInput {
+  /** Annotations already in the document to remove. */
+  remove?: readonly AnnotationRef[]
+  /** Annotations to add, each appended to its page in the order given. */
+  annotations?: readonly WriteAnnotation[]
+  /** Form values to set, by full field name. Not supported yet: any entry rejects. */
+  fields?: Readonly<Record<string, WriteField>>
 }

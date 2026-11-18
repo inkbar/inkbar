@@ -1,10 +1,20 @@
-import { EngineError, fromPdfiumError } from '../errors.ts'
+import { ArgumentError, EngineError, fromPdfiumError } from '../errors.ts'
 
+import { writeAnnotation } from './annotations.ts'
+import { checkAppearance } from './appearance.ts'
 import { FUNCTIONS } from './functions.ts'
 
-import type { OpenOptions, PageInfo, Rect, RenderedPage, SaveMode } from '../types.ts'
+import type {
+  OpenOptions,
+  PageInfo,
+  Rect,
+  RenderedPage,
+  SaveMode,
+  WriteInput,
+} from '../types.ts'
 import type { Native } from './functions.ts'
 import type { NativeModule } from './module.ts'
+import type { Heap } from './strings.ts'
 
 const BITMAP_BGRA = 4
 const FPDF_ANNOT = 0x01
@@ -30,25 +40,19 @@ function internalError(error: unknown): EngineError {
   return new EngineError('engine-failure', `The engine failed: ${text}`, { cause: error })
 }
 
-/**
- * A bad argument from the caller. Callers see a plain `RangeError`; the subclass lets the engine
- * tell its own range errors from one thrown out of the module, such as a stack overflow.
- */
-class ArgumentError extends RangeError {
-  constructor(message: string) {
-    super(message)
-    this.name = 'RangeError'
-  }
-}
-
 const isOwnError = (error: unknown) =>
   error instanceof EngineError || error instanceof ArgumentError
 
 interface OpenDocument {
   doc: number
-  // PDFium reads the file lazily, so the copy lives until the document closes.
+  // PDFium reads the file lazily, so the copy lives until the document closes. `write` loads the
+  // document again from it, with the password it was opened with.
   data: number
+  size: number
+  password: string | undefined
   pageCount: number
+  /** True when `doc` holds a write; false when it is the file as opened. */
+  written: boolean
 }
 
 export class EngineCore {
@@ -56,6 +60,7 @@ export class EngineCore {
   /** The module's functions. A throw out of one is a trap: it stops the engine at once. */
   readonly #fn: Native
   readonly #documents = new Map<number, OpenDocument>()
+  readonly #heap: Heap
   #nextId = 1
   #destroyed = false
   #stopped = false
@@ -74,6 +79,14 @@ export class EngineCore {
         }
       }
     this.#fn = fn as unknown as Native
+    const isStopped = () => this.#stopped
+    this.#heap = {
+      fn: this.#fn,
+      native,
+      get stopped() {
+        return isStopped()
+      },
+    }
     try {
       this.#fn.INK_Init()
     } catch (error) {
@@ -109,19 +122,20 @@ export class EngineCore {
     let doc = 0
     try {
       this.#native.HEAPU8.set(bytes, data)
-      const hadPassword = options.password !== undefined && options.password !== ''
-      const password = hadPassword ? this.#allocString(options.password as string) : 0
-      try {
-        doc = fn.FPDF_LoadMemDocument64(data, bytes.length, password)
-      } finally {
-        if (password !== 0 && !this.#stopped) fn.free(password)
-      }
-      if (doc === 0) throw fromPdfiumError(fn.FPDF_GetLastError(), hadPassword)
+      const password = options.password === '' ? undefined : options.password
+      doc = this.#load(data, bytes.length, password)
       const pageCount = fn.FPDF_GetPageCount(doc)
       if (pageCount <= 0)
         throw new EngineError('invalid-pdf', 'The file is not a valid PDF.')
       const id = this.#nextId++
-      this.#documents.set(id, { doc, data, pageCount })
+      this.#documents.set(id, {
+        doc,
+        data,
+        size: bytes.length,
+        password,
+        pageCount,
+        written: false,
+      })
       return { id, pageCount }
     } catch (error) {
       // After a trap the heap is unusable; otherwise free what is not registered yet.
@@ -131,6 +145,20 @@ export class EngineCore {
       }
       throw error
     }
+  }
+
+  /** Loads a document from bytes already in engine memory. */
+  #load(data: number, size: number, password: string | undefined): number {
+    const fn = this.#fn
+    const pointer = password === undefined ? 0 : this.#allocString(password)
+    let doc: number
+    try {
+      doc = fn.FPDF_LoadMemDocument64(data, size, pointer)
+    } finally {
+      if (pointer !== 0 && !this.#stopped) fn.free(pointer)
+    }
+    if (doc === 0) throw fromPdfiumError(fn.FPDF_GetLastError(), password !== undefined)
+    return doc
   }
 
   pageInfo(id: number, index: number): PageInfo {
@@ -244,6 +272,134 @@ export class EngineCore {
       return this.#native.HEAPU8.slice(data, data + size)
     } finally {
       if (!this.#stopped) fn.INK_WriterFree(writer)
+    }
+  }
+
+  /**
+   * Writes `input` into the document as opened: the document is loaded again from its bytes, and
+   * replaced only when every part of the input is written. A bad argument is an `ArgumentError`
+   * before any native call; a part that cannot be written is `write-failed`, and the document is
+   * then the file as opened.
+   */
+  write(id: number, input: WriteInput): void {
+    const entry = this.#get(id)
+    this.#checkWrite(entry, input)
+    if (input.fields && Object.keys(input.fields).length > 0)
+      throw new EngineError('write-failed', 'Form values are not supported yet.')
+    this.#guard(() => {
+      this.#write(entry, input)
+    })
+  }
+
+  #checkWrite(entry: OpenDocument, input: WriteInput): void {
+    for (const ref of input.remove ?? []) {
+      this.#checkIndex(entry, ref.page)
+      if (!Number.isInteger(ref.objectNumber) || ref.objectNumber <= 0)
+        throw new ArgumentError(
+          `object number ${ref.objectNumber} is not a whole number above 0`
+        )
+    }
+    for (const item of input.annotations ?? []) {
+      this.#checkIndex(entry, item.page)
+      const id = item.annotation.id
+      if (typeof id !== 'string')
+        throw new ArgumentError('an annotation has no string id')
+      if (typeof item.data !== 'string')
+        throw new ArgumentError(`annotation ${id}: data must be a string`)
+      if (item.appearance) checkAppearance(item.appearance, `annotation ${id}`)
+    }
+  }
+
+  #write(entry: OpenDocument, input: WriteInput): void {
+    const fn = this.#fn
+    const fresh = this.#load(entry.data, entry.size, entry.password)
+    try {
+      this.#apply(fresh, input)
+    } catch (error) {
+      if (!this.#stopped) {
+        fn.FPDF_CloseDocument(fresh)
+        if (entry.written) this.#reopen(entry)
+      }
+      throw error
+    }
+    fn.FPDF_CloseDocument(entry.doc)
+    entry.doc = fresh
+    entry.written = true
+  }
+
+  /** Puts the document back to the file as opened, after a failed write. */
+  #reopen(entry: OpenDocument): void {
+    let doc: number
+    try {
+      doc = this.#load(entry.data, entry.size, entry.password)
+    } catch {
+      // It loaded before, so only a lack of memory stops it now; keep the last write.
+      return
+    }
+    this.#fn.FPDF_CloseDocument(entry.doc)
+    entry.doc = doc
+    entry.written = false
+  }
+
+  /**
+   * Removes, then appends, in input order. A page stays loaded until its last use, or to the end
+   * when it holds the parent of a reply, whose handle stays open for the reply to link to.
+   */
+  #apply(doc: number, input: WriteInput): void {
+    const fn = this.#fn
+    const remove = input.remove ?? []
+    const annotations = input.annotations ?? []
+    const steps = [
+      ...remove.map((ref) => ref.page),
+      ...annotations.map((item) => item.page),
+    ]
+    const lastUse = new Map<number, number>()
+    steps.forEach((page, step) => lastUse.set(page, step))
+    const parentIds = new Set(annotations.map((item) => item.annotation.inReplyTo))
+    const pages = new Map<number, number>()
+    const parents = new Map<string, number>()
+    const pinned = new Set<number>()
+    const page = (index: number) => {
+      let loaded = pages.get(index)
+      if (loaded === undefined) {
+        loaded = fn.FPDF_LoadPage(doc, index)
+        if (loaded === 0)
+          throw new EngineError('write-failed', `Page ${index} could not be loaded.`, {
+            pdfiumError: fn.FPDF_GetLastError(),
+          })
+        pages.set(index, loaded)
+      }
+      return loaded
+    }
+    const done = (index: number, step: number) => {
+      const loaded = pages.get(index)
+      if (loaded === undefined || pinned.has(index) || lastUse.get(index) !== step) return
+      pages.delete(index)
+      fn.FPDF_ClosePage(loaded)
+    }
+    try {
+      remove.forEach((ref, step) => {
+        if (!fn.EPDFPage_RemoveAnnotByObjectNumber(page(ref.page), ref.objectNumber))
+          throw new EngineError(
+            'write-failed',
+            `The annotation in object ${ref.objectNumber} on page ${ref.page} could not be removed.`
+          )
+        done(ref.page, step)
+      })
+      annotations.forEach((item, index) => {
+        const id = item.annotation.id
+        const annot = writeAnnotation(this.#heap, doc, page(item.page), item, parents)
+        if (parentIds.has(id) && !parents.has(id)) {
+          parents.set(id, annot)
+          pinned.add(item.page)
+        } else fn.FPDFPage_CloseAnnot(annot)
+        done(item.page, remove.length + index)
+      })
+    } finally {
+      if (!this.#stopped) {
+        for (const annot of parents.values()) fn.FPDFPage_CloseAnnot(annot)
+        for (const loaded of pages.values()) fn.FPDF_ClosePage(loaded)
+      }
     }
   }
 

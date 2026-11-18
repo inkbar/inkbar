@@ -9,6 +9,9 @@
  * - `out-of-memory`: the engine could not allocate memory. When a bitmap or its copy cannot be
  *   allocated the engine keeps working. When an allocation fails inside PDFium and aborts it, the
  *   engine stops, as after any internal error.
+ * - `write-failed`: `write` could not write an annotation or a form value. The message names the
+ *   annotation's id, or the field. The document is left as it was opened, and the engine keeps
+ *   working.
  * - `aborted`: the call's signal fired while it was queued, or `destroy()` ran while it was queued.
  * - `engine-failure`: anything else. The engine or its worker could not load, a document was
  *   used after `close()`, the engine was used after `destroy()`, or PDFium failed. After an
@@ -21,12 +24,13 @@ export type EngineErrorCode =
   | 'invalid-pdf'
   | 'unsupported-security'
   | 'out-of-memory'
+  | 'write-failed'
   | 'aborted'
   | 'engine-failure'
 
 /**
  * The error every engine call rejects with, apart from a `RangeError` for a bad page index or
- * scale, or a render larger than the pixel limit.
+ * scale, a render larger than the pixel limit, or a bad name in an appearance.
  */
 export class EngineError extends Error {
   /** What went wrong. */
@@ -64,5 +68,16 @@ export function fromPdfiumError(error: number, hadPassword: boolean): EngineErro
       return new EngineError('engine-failure', `The engine failed (error ${error}).`, {
         pdfiumError: error,
       })
+  }
+}
+
+/**
+ * A bad argument from the caller. Callers see a plain `RangeError`; the subclass lets the engine
+ * tell its own range errors from one thrown out of the module, such as a stack overflow.
+ */
+export class ArgumentError extends RangeError {
+  constructor(message: string) {
+    super(message)
+    this.name = 'RangeError'
   }
 }

@@ -50,6 +50,42 @@ test('runs in a worker: open, inspect, render, save', async () => {
   await doc.close()
 })
 
+test('writes an annotation through the worker and leaves the caller its arrays', async () => {
+  const engine = await start()
+  const doc = await engine.open(await fixture('text-simple'))
+  const bounds = { x: 200, y: 300, width: 100, height: 80 }
+  const content = new TextEncoder().encode('0 0 1 rg 200 300 100 80 re f')
+  const length = content.byteLength
+  await doc.write({
+    annotations: [
+      {
+        page: 0,
+        annotation: {
+          id: 'one',
+          page: 0,
+          rect: bounds,
+          opacity: 1,
+          type: 'square',
+          width: 1,
+        },
+        appearance: { bounds, content },
+        data: '{"id":"one"}',
+      },
+    ],
+  })
+  expect(content.byteLength).toBe(length) // copied, not transferred
+  const saved = await doc.save()
+  await doc.close()
+  expect(new TextDecoder('latin1').decode(saved)).toContain('/INKB_Gloss')
+
+  const again = await engine.open(saved)
+  const page = await again.renderPage(0)
+  // The centre of the bounds, in rows from the top of the 612 x 792 page.
+  const at = ((792 - 340) * page.width + 250) * 4
+  expect([...page.data.subarray(at, at + 4)]).toEqual([0, 0, 255, 255])
+  await again.close()
+})
+
 test('rendering does not block the page', async () => {
   const engine = await start()
   const doc = await engine.open(await fixture('text-simple'))

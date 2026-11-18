@@ -1,33 +1,23 @@
-import { execFile } from 'node:child_process'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { promisify } from 'node:util'
+import { readFile } from 'node:fs/promises'
 
 import { fixtureBytes, manifest, type FixtureName } from '@inkbar/fixtures'
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 
 import { createEngine, EngineError, type Engine } from './index.ts'
+import { qpdfAvailable, qpdfCheck, requireQpdfInCi } from './qpdf.testing.ts'
 
 import type { SaveMode } from './types.ts'
 
-const run = promisify(execFile)
 const MODES: SaveMode[] = ['rewrite', 'incremental']
 
 let engine: Engine
-const qpdfAvailable = await run('qpdf', ['--version']).then(
-  () => true,
-  () => false
-)
 
 beforeAll(async () => {
   engine = await createEngine({
     wasm: await readFile(new URL('../vendor/inkbar-pdfium.wasm', import.meta.url)),
     worker: false,
   })
-  if (!qpdfAvailable && process.env.CI) {
-    throw new Error('qpdf is required in CI and was not found on PATH.')
-  }
+  requireQpdfInCi()
 })
 
 afterAll(async () => {
@@ -42,33 +32,6 @@ async function pdfjsPageCount(saved: Uint8Array, password?: string): Promise<num
     return (await task.promise).numPages
   } finally {
     await task.destroy()
-  }
-}
-
-async function qpdfCheck(
-  saved: Uint8Array,
-  password?: string
-): Promise<{ ok: true } | { ok: false; output: string }> {
-  const dir = await mkdtemp(join(tmpdir(), 'inkbar-qpdf-'))
-  const file = join(dir, 'saved.pdf')
-  try {
-    await writeFile(file, saved)
-    const args = ['--check', ...(password ? [`--password=${password}`] : []), file]
-    const result = await run('qpdf', args).then(
-      ({ stdout, stderr }) => ({ code: 0, output: stdout + stderr }),
-      (e: { code?: number; stdout?: string; stderr?: string }) => ({
-        code: typeof e.code === 'number' ? e.code : -1,
-        output: (e.stdout ?? '') + (e.stderr ?? ''),
-      })
-    )
-    const hasError = /(^|\n)[^\n]*\berror\b/i.test(
-      result.output.replace(/no errors/gi, '')
-    )
-    return (result.code === 0 || result.code === 3) && !hasError
-      ? { ok: true }
-      : { ok: false, output: result.output }
-  } finally {
-    await rm(dir, { recursive: true, force: true })
   }
 }
 

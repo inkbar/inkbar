@@ -1,10 +1,11 @@
 import type { EngineErrorCode } from './errors.ts'
-import type { OpenOptions, SaveMode } from './types.ts'
+import type { OpenOptions, SaveMode, WriteInput } from './types.ts'
 
 export type Request =
   | { op: 'open'; bytes: Uint8Array; options?: OpenOptions }
   | { op: 'pageInfo'; doc: number; index: number }
   | { op: 'renderPage'; doc: number; index: number; scale: number; annotations: boolean }
+  | { op: 'write'; doc: number; input: WriteInput }
   | { op: 'save'; doc: number; mode: SaveMode }
   | { op: 'close'; doc: number }
 
