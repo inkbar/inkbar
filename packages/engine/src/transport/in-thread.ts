@@ -23,6 +23,8 @@ export function dispatch(core: EngineCore, request: Request): unknown {
     case 'write':
       core.write(request.doc, request.input)
       return undefined
+    case 'redact':
+      return core.redact(request.doc, request.input)
     case 'save':
       return core.save(request.doc, request.mode)
     case 'close':

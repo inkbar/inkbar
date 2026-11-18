@@ -26,6 +26,7 @@ export function toWire(error: unknown): WireError {
       message: error.message,
       ...(error.pdfiumError !== undefined && { pdfiumError: error.pdfiumError }),
       ...(error.annotation !== undefined && { annotation: error.annotation }),
+      ...(error.page !== undefined && { page: error.page }),
     }
   }
   return {

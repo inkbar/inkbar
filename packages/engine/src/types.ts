@@ -200,3 +200,57 @@ export interface WriteInput {
   /** Form values to set, by full field name: parent names and the field's own, joined by dots. */
   fields?: Readonly<Record<string, WriteField>>
 }
+
+/** What `EngineDocument.redact` applies and writes. */
+export interface RedactInput {
+  /** File annotations to remove first, such as Inkbar's earlier copies, as in `WriteInput`. */
+  remove?: readonly AnnotationRef[]
+  /**
+   * The marks: Gloss `redact` annotations. Each one removes what lies under its `quads`, or
+   * under its `rect` when it has none. Its `appearance` is the overlay left in its place.
+   */
+  marks: readonly WriteAnnotation[]
+  /** Annotations written after the apply, as in `WriteInput`. */
+  annotations?: readonly WriteAnnotation[]
+  /**
+   * Form values written after the apply, as in `WriteInput`. A field whose widgets a mark
+   * removed is skipped and named in `RedactResult.fieldsSkipped`.
+   */
+  fields?: Readonly<Record<string, WriteField>>
+}
+
+/** What `EngineDocument.redact` did. It holds counts and flags, never text from the file. */
+export interface RedactResult {
+  /**
+   * The pages where marks were applied, in page order: the marks applied there, Inkbar's
+   * earlier locked marks included, and the other annotations the marks removed, pop-ups
+   * included.
+   */
+  pages: { page: number; marks: number; annotationsRemoved: number }[]
+  /**
+   * Inkbar's own earlier marks applied where they came back locked, in an encrypted file. They
+   * are told apart from other programs' marks by the data Inkbar stores with them.
+   */
+  ownLockedMarks: number
+  /** Redact annotations from other programs, left in the file unapplied. */
+  foreignMarks: number
+  /** The names of the `fields` skipped because a mark removed their widgets. */
+  fieldsSkipped: string[]
+  /** What sanitising found and removed from the file. */
+  sanitised: {
+    /** The document information dictionary or XMP metadata. */
+    metadata: boolean
+    /** The number of attached files. */
+    attachments: number
+    /** JavaScript: document scripts and script actions. */
+    scripts: boolean
+    /** Page thumbnails. */
+    thumbnails: boolean
+    /** Private application data (/PieceInfo) and links to full-resolution originals. */
+    privateData: boolean
+  }
+  /** Whether the file as opened has layers that are hidden. They are not cleaned. */
+  hiddenLayers: boolean
+  /** Whether the file as opened holds a digital signature, which stops verifying. */
+  signed: boolean
+}

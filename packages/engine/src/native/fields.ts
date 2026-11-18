@@ -118,6 +118,25 @@ function readForm(heap: Heap, model: number): Map<string, FormField> {
   return fields
 }
 
+/** The full names of the form's fields. */
+export function formFieldNames(heap: Heap, doc: number): Set<string> {
+  const fn = heap.fn
+  const failure = () => new EngineError('engine-failure', 'The form could not be read.')
+  return withModel(heap, doc, failure, (model) => {
+    const names = new Set<string>()
+    const count = fn.EPDFForm_CountFields(model)
+    for (let index = 0; index < count; index++)
+      names.add(
+        readString(
+          heap,
+          (buffer, size) => fn.EPDFForm_GetFieldName(model, index, buffer, size),
+          utf16
+        )
+      )
+    return names
+  })
+}
+
 /**
  * Whether the document holds a digital signature: a signature field whose value is a signature
  * dictionary. An empty signature field, a place to sign later, is not one.

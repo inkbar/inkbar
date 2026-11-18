@@ -6,6 +6,8 @@ import type { Request, Transport } from './protocol.ts'
 import type {
   OpenOptions,
   PageInfo,
+  RedactInput,
+  RedactResult,
   RenderedPage,
   RenderOptions,
   SaveOptions,
@@ -61,11 +63,29 @@ export interface EngineDocument {
    */
   write(input: WriteInput): Promise<void>
   /**
+   * Applies redaction marks: removes the text, image samples and drawing under each mark and the
+   * annotations a mark overlaps, leaves the mark's appearance in its place as part of the page,
+   * and removes the file's metadata, attached files, scripts, thumbnails and private application
+   * data. In order: removes `remove`, writes the marks, applies them page by page, writes
+   * `annotations`, writes `fields`, and sanitises. Like `write`, each call starts from the
+   * document as it was opened. `save` then gives the result, always by rewriting the file.
+   *
+   * A mark with no area, or wholly outside its page's box, is skipped. In an encrypted file,
+   * Inkbar's own earlier marks, which come back locked, are applied too; other programs' marks
+   * are left in place and counted. Bad input rejects with a `RangeError` as `write` does. A mark
+   * or page that cannot be applied rejects with `redaction-failed`, naming the page and, when one
+   * mark was the cause, the mark; an annotation or field that cannot be written rejects with
+   * `write-failed`. The document is then as it was opened.
+   */
+  redact(input: RedactInput): Promise<RedactResult>
+  /**
    * Writes the document to a new buffer that belongs to the caller. `'rewrite'` writes a
    * complete file. `'incremental'` returns the original bytes with the changes appended, so a
    * signature over them can still be verified. With no mode, a document that holds a digital
    * signature is saved incrementally and any other is rewritten; an empty signature field, still
-   * to be signed, does not count. Saving keeps the document's encryption.
+   * to be signed, does not count. After a `redact`, it always rewrites, and `'incremental'`
+   * rejects with a `RangeError`: the earlier revision would keep what was removed. Saving keeps
+   * the document's encryption.
    */
   save(options?: SaveOptions): Promise<Uint8Array>
   /**
@@ -149,6 +169,12 @@ class Document implements EngineDocument {
     // that cannot be copied rejects.
     const copy = structuredClone(input)
     await this.#call({ op: 'write', doc: this.id, input: copy })
+  }
+
+  redact(input: RedactInput): Promise<RedactResult> {
+    // A copy taken now, as in `write`.
+    const copy = structuredClone(input)
+    return this.#call({ op: 'redact', doc: this.id, input: copy })
   }
 
   save(options: SaveOptions = {}): Promise<Uint8Array> {

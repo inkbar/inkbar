@@ -12,6 +12,7 @@ function fromWire(error: WireError): Error {
   return new EngineError(error.code, error.message, {
     ...(error.pdfiumError !== undefined && { pdfiumError: error.pdfiumError }),
     ...(error.annotation !== undefined && { annotation: error.annotation }),
+    ...(error.page !== undefined && { page: error.page }),
   })
 }
 
