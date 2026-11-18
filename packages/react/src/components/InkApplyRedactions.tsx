@@ -35,7 +35,7 @@ export function InkApplyRedactions({
   const m = useMessages()
   const { canRedact, busy, apply } = useRedaction()
   const label = busy ? m.viewer.redacting : m.viewer.applyRedactions
-  const off = !canRedact && !busy
+  const off = disabled === true || (!canRedact && !busy)
   return (
     <Toolbar.Button
       asChild={asChild}
@@ -46,7 +46,7 @@ export function InkApplyRedactions({
       // Disabled while it applies, but not `disabled`, so the button keeps focus.
       aria-disabled={busy || undefined}
       {...rest}
-      disabled={disabled === true || off}
+      disabled={off}
       onClick={(e) => {
         onClick?.(e)
         if (!e.defaultPrevented) void apply()

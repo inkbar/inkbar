@@ -569,6 +569,21 @@ export function InkRoot({
    * the host passes a new `src` or password. Each reopen bumps `reopens`, which opens it.
    */
   const reopened = useRef<RedactionReopen | null>(null)
+  /**
+   * The host's list as it stood when it was proposed the list without the marks, and that
+   * proposal. Until the host passes another list, the old one (marks included) is never pushed
+   * into the redacted file: the viewer shows the proposed list instead.
+   */
+  const staleHost = useRef<{
+    list: Annotation[] | undefined
+    proposed: Annotation[]
+  } | null>(null)
+  /** The host's list, or the proposed one while the host still holds the stale list. */
+  const hostList = useCallback((): Annotation[] | undefined => {
+    const current = latest.current.annotations
+    const stale = staleHost.current
+    return stale && current === stale.list ? stale.proposed : current
+  }, [latest])
   const [reopens, setReopens] = useState(0)
   /** What to tell the reader once the reopened document shows; read by the open that follows. */
   const toTell = useRef<string | null>(null)
@@ -603,6 +618,12 @@ export function InkRoot({
     // The redacted file stood in for the old source only.
     if (newSource) reopened.current = null
     const re = reopened.current
+    // The list and the view are for the first open of the redacted file only: a later open of
+    // it (a password attempt) starts as any open does.
+    if (re && (re.initial || re.view))
+      reopened.current = { ...re, initial: undefined, view: undefined }
+    // A new source: the host's list is its own again.
+    if (!re) staleHost.current = null
     const message = re ? toTell.current : null
     toTell.current = null
     // A controlled reopen after applying redactions keeps the history as `proposed` left it:
@@ -656,7 +677,7 @@ export function InkRoot({
           annotations: latest.current.controlled
             ? {
                 mode: 'controlled',
-                initial: re?.initial ?? latest.current.annotations ?? [],
+                initial: re?.initial ?? hostList() ?? [],
                 onChange: (next, change) => {
                   // Lifting is no edit: the list the host answers with re-seeds the history.
                   if (change.kind === 'replace' && change.reason === 'file')
@@ -700,7 +721,7 @@ export function InkRoot({
         opened = doc
         if (re?.view) keptViews.set(doc, re.view)
         // The prop may have changed while the file loaded, when there was no store to apply it to.
-        const current = latest.current.annotations
+        const current = hostList()
         if (doc.annotations.mode === 'controlled' && current !== undefined)
           doc.annotations.setControlledValue(current)
         // The same for the fields; a document whose fields opened uncontrolled ignores the push.
@@ -785,6 +806,7 @@ export function InkRoot({
     reopens,
     closeDialog,
     keptViews,
+    hostList,
     prompt,
     snapshotHistory,
     latest,
@@ -793,6 +815,10 @@ export function InkRoot({
   ])
 
   useLayoutEffect(() => {
+    // The host has not answered the redaction's proposal yet: its old list stays out.
+    const stale = staleHost.current
+    if (stale && annotations === stale.list) return
+    staleHost.current = null
     if (annotations && document?.annotations.mode === 'controlled')
       document.annotations.setControlledValue(annotations)
   }, [annotations, document])
@@ -975,9 +1001,9 @@ export function InkRoot({
    * redacted file in place of `src`, with the same key, file name, password and view.
    * Controlled, the host is proposed its list without the marks and the annotations removed with
    * them (reason `'redaction'`), and the history starts again from its answer. Resolves with
-   * what was done, or null when the reader cancelled or nothing was applied. A failure leaves
-   * the document as it was, is shown in InkViewport's message box and reaches `onError`; it
-   * does not reject.
+   * what was done, or null when the reader cancelled, nothing was applied, or the root unmounted
+   * or another document opened while it ran. A failure leaves the document as it was, is
+   * shown in InkViewport's message box and reaches `onError`; it does not reject.
    */
   const applyRedactions = useCallback(async (): Promise<RedactionResult | null> => {
     const doc = documentRef.current
@@ -1005,9 +1031,12 @@ export function InkRoot({
           : undefined
       },
       password: openedWith.current,
-      // Armed before the host's answer comes back (one microtask after the proposal), so the
-      // answer is the restart, not a step.
-      proposed: () => snapshotHistory.replaced(),
+      proposed: (initial) => {
+        staleHost.current = { list: latest.current.annotations, proposed: initial }
+        // Armed before the host's answer comes back (one microtask after the proposal), so the
+        // answer is the restart, not a step.
+        snapshotHistory.replaced()
+      },
     })
     if (!out?.reopen) return out?.result ?? null
     reopened.current = out.reopen

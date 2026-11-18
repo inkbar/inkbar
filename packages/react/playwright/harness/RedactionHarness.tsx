@@ -5,8 +5,11 @@
  * of each preview in `previews`; `confirm: 'dialog'` leaves the built-in dialog; without it the
  * root applies without asking. `throwing` makes `onRedacted` throw, and `shown: false` unmounts
  * the root. `controlled` keeps the annotations in the host with history on, answering each
- * proposal at once, or (`late`) the one that follows `onRedacted` after a delay; their types
- * show in `list`. `swap` is a source `onRedacted` passes as the new `src`. `strict` renders it all in StrictMode. The errors the root reports show in
+ * proposal at once; with `late` the one that follows `onRedacted` waits for the page to call
+ * `window.__releaseAnswer()`, and with `never` it is dropped. Their types show in `list`, and
+ * the types of every proposal the host hears in `proposals` (one list per `|`). `disabled` is
+ * the host's own `disabled` on the control. A `retry` button submits the password prompt, which
+ * opens the document's source again. `swap` is a source `onRedacted` passes as the new `src`. `strict` renders it all in StrictMode. The errors the root reports show in
  * `errors` (code, and the callback when there is one), the `onRedacted` calls in `redacted`,
  * and `useRedaction` in `probe`.
  */
@@ -19,6 +22,7 @@ import { InkToolbar } from '../../src/components/InkToolbar'
 import { InkToolButton } from '../../src/components/InkToolButton'
 import { InkUndo } from '../../src/components/InkUndo'
 import { InkViewport } from '../../src/components/InkViewport'
+import { useInkContext } from '../../src/context'
 import { useRedaction } from '../../src/hooks/useRedaction'
 
 import { heldEngine } from './held-engine'
@@ -46,6 +50,27 @@ function RedactionProbe() {
   )
 }
 
+/** Submits the password prompt: the root opens the document's source again. */
+function RetryButton() {
+  const { passwordPrompt } = useInkContext('RetryButton')
+  return (
+    <button
+      type="button"
+      data-testid="retry"
+      onClick={() => passwordPrompt?.submit('again')}
+    >
+      Retry
+    </button>
+  )
+}
+
+declare global {
+  interface Window {
+    /** Hands the host's held answer to the redaction proposal back to the root. */
+    __releaseAnswer?: () => void
+  }
+}
+
 export interface RedactionHarnessProps {
   src: DocumentSource
   assets: PdfAssets
@@ -54,7 +79,8 @@ export interface RedactionHarnessProps {
   confirm?: 'yes' | 'no' | 'dialog' | undefined
   throwing?: boolean
   shown?: boolean
-  controlled?: 'now' | 'late' | undefined
+  controlled?: 'now' | 'late' | 'never' | undefined
+  disabled?: boolean
   swap?: DocumentSource | undefined
   strict?: boolean
 }
@@ -69,6 +95,7 @@ function Harness({
   shown = true,
   controlled,
   swap,
+  disabled: hostDisabled,
 }: Omit<RedactionHarnessProps, 'engine' | 'strict'> & {
   loader: EngineLoader | undefined
 }) {
@@ -76,6 +103,7 @@ function Harness({
   const [previews, setPreviews] = useState<number[]>([])
   const [redacted, setRedacted] = useState(0)
   const [list, setList] = useState<Annotation[]>([])
+  const [proposals, setProposals] = useState<string[]>([])
   const [swapped, setSwapped] = useState<DocumentSource | null>(null)
   /** Set by `onRedacted`: the next proposal is the redaction's. */
   const redactionNext = useRef(false)
@@ -93,10 +121,11 @@ function Harness({
     ])
   }
   const answer = (next: Annotation[]) => {
-    const late = controlled === 'late' && redactionNext.current
+    setProposals((prev) => [...prev, next.map((a) => a.type).join(' ')])
+    const held = controlled !== 'now' && redactionNext.current
     redactionNext.current = false
-    if (late) setTimeout(() => setList(next), 50)
-    else setList(next)
+    if (!held) setList(next)
+    else if (controlled === 'late') window.__releaseAnswer = () => setList(next)
   }
   const model = controlled
     ? { annotations: list, onAnnotationsChange: answer, history: true }
@@ -121,10 +150,11 @@ function Harness({
           }}
         >
           <InkToolbar>
+            <InkToolButton tool="select-text" />
             <InkToolButton tool="redact-area" />
             <InkUndo />
             {own ? (
-              <InkApplyRedactions asChild>
+              <InkApplyRedactions asChild disabled={hostDisabled}>
                 {({ label, busy, disabled }) => (
                   <button
                     type="button"
@@ -145,11 +175,13 @@ function Harness({
             <InkViewport />
           </div>
           <RedactionProbe />
+          <RetryButton />
         </InkRoot>
       ) : null}
       <output data-testid="errors">{errors.join(' ')}</output>
       <output data-testid="previews">{previews.join(' ')}</output>
       <output data-testid="redacted">{redacted}</output>
+      <output data-testid="proposals">{proposals.join('|')}</output>
       <output data-testid="list">{list.map((a) => a.type).join(' ')}</output>
     </div>
   )
