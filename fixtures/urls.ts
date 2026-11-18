@@ -60,6 +60,7 @@ export const FIXTURE_NAMES = [
   'redact-path',
   'redact-annotations',
   'redact-foreign-mark',
+  'redact-hidden-layer',
 ] as const
 
 export type FixtureName = (typeof FIXTURE_NAMES)[number]

@@ -554,6 +554,112 @@ test('a page whose marks cannot be applied names the page and leaves the documen
   core.destroy()
 })
 
+test('refuses a write after a redact', async () => {
+  const doc = await engine.open(await fixtureBytes('redact-text'))
+  try {
+    await doc.redact({ marks: marksOf('redact-text') })
+    const refused: unknown = await doc
+      .write({ annotations: [squareOverMark()] })
+      .catch((e: unknown) => e)
+    expect(refused).toBeInstanceOf(RangeError)
+    expect((refused as Error).message).toMatch(/new document/)
+    const bytes = await doc.save()
+    await expectClean('redact-text', bytes)
+    expect(await annotationsOf(bytes)).toEqual([])
+  } finally {
+    await doc.close()
+  }
+})
+
+test('allows a second redact', async () => {
+  const doc = await engine.open(await fixtureBytes('redact-text'))
+  try {
+    await doc.redact({ marks: marksOf('redact-text') })
+    const result = await doc.redact({ marks: marksOf('redact-text') })
+    expect(result.pages).toEqual([{ page: 0, marks: 1, annotationsRemoved: 0 }])
+    await expect(doc.save({ mode: 'incremental' })).rejects.toBeInstanceOf(RangeError)
+    await expectClean('redact-text', await doc.save())
+  } finally {
+    await doc.close()
+  }
+})
+
+test('rewrites a signed file', async () => {
+  const source = await fixtureBytes('signed')
+  // The opened file's one revision ends with its own cross-reference offset; a rewrite of the
+  // redacted document puts its cross-reference elsewhere.
+  const startxref = /startxref\s+\d+\s+%%EOF/.exec(latin1(source))?.[0]
+  expect(startxref).toBeDefined()
+  const doc = await engine.open(source)
+  try {
+    const result = await doc.redact({
+      marks: [
+        mark('signed-mark', { page: 0, quad: [72, 760, 300, 760, 72, 700, 300, 700] }),
+      ],
+    })
+    expect(result.signed).toBe(true)
+    const bytes = await doc.save()
+    const text = latin1(bytes)
+    expect(text.match(/%%EOF/g)).toHaveLength(1)
+    expect(text).not.toContain(startxref)
+    expect(text.startsWith(latin1(source.subarray(0, source.length - 20)))).toBe(false)
+    saves.push({ name: 'signed', bytes })
+  } finally {
+    await doc.close()
+  }
+})
+
+test('reports hidden layers', async () => {
+  const { bytes, result } = await redacted('redact-hidden-layer')
+  expect(result.hiddenLayers).toBe(true)
+  expect(result.sanitised.metadata).toBe(false)
+  await expectClean('redact-hidden-layer', bytes)
+})
+
+test('a report it cannot read rejects with redaction-failed and keeps the engine', async () => {
+  const native = await loadNative({ wasm })
+  const report = (text: string) => {
+    const bytes = new TextEncoder().encode(`${text}\0`)
+    const pointer = native.fn.malloc(bytes.length)
+    native.HEAPU8.set(bytes, pointer)
+    return pointer
+  }
+  const fn: Native = { ...native.fn, INK_Inspect_File: () => report('{not json') }
+  const core = new EngineCore(withFunctions(native, fn))
+  const { id } = core.open(await fixtureBytes('redact-text'))
+  let error: unknown
+  try {
+    core.redact(id, { marks: marksOf('redact-text') })
+  } catch (caught) {
+    error = caught
+  }
+  expect(error).toMatchObject({ name: 'EngineError', code: 'redaction-failed' })
+  expect(core.stopped).toBe(false)
+  expect(core.save(id, undefined).length).toBeGreaterThan(0)
+  core.destroy()
+})
+
+test('missing or malformed input is a RangeError and keeps the engine', async () => {
+  const native = await loadNative({ wasm })
+  const core = new EngineCore(native)
+  const { id } = core.open(await fixtureBytes('redact-text'))
+  for (const input of [
+    undefined,
+    null,
+    {},
+    { marks: 'x' },
+    { marks: [], remove: 3 },
+    { marks: [], annotations: {} },
+    { marks: [], fields: 'x' },
+    { marks: [null] },
+  ])
+    expect(() => core.redact(id, input as never), JSON.stringify(input)).toThrow(
+      RangeError
+    )
+  expect(core.stopped).toBe(false)
+  core.destroy()
+})
+
 describe.runIf(qpdfAvailable)('qpdf', () => {
   test('accepts every file the tests saved', async () => {
     expect(saves.length).toBeGreaterThan(0)

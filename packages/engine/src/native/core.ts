@@ -63,6 +63,30 @@ interface OpenDocument {
   encrypted: boolean
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+
+/** Throws an `ArgumentError` for redact input whose shape `#checkWrite` cannot read. */
+function checkRedactInput(input: unknown): void {
+  if (!isRecord(input)) throw new ArgumentError('the input must be an object')
+  const list = (key: string, required: boolean) => {
+    const value = input[key]
+    if (value === undefined && !required) return
+    if (!Array.isArray(value)) throw new ArgumentError(`${key} must be a list`)
+    if (!value.every(isRecord))
+      throw new ArgumentError(`every item of ${key} must be an object`)
+  }
+  list('marks', true)
+  list('remove', false)
+  list('annotations', false)
+  if (input.fields !== undefined && !isRecord(input.fields))
+    throw new ArgumentError('fields must be an object')
+  for (const key of ['marks', 'annotations'])
+    for (const item of (input[key] as Record<string, unknown>[] | undefined) ?? [])
+      if (!isRecord(item.annotation))
+        throw new ArgumentError(`every item of ${key} must hold an annotation`)
+}
+
 export class EngineCore {
   readonly #native: NativeModule
   /** The module's functions. A throw out of one is a trap: it stops the engine at once. */
@@ -311,6 +335,11 @@ export class EngineCore {
    */
   write(id: number, input: WriteInput): void {
     const entry = this.#get(id)
+    // A write starts again from the opened bytes, so it would silently undo the redaction.
+    if (entry.redacted)
+      throw new ArgumentError(
+        'the document holds a redaction; save it and open the redacted bytes as a new document to write to them'
+      )
     this.#checkWrite(entry, input)
     this.#guard(() => {
       this.#write(entry, input)
@@ -395,8 +424,7 @@ export class EngineCore {
    */
   redact(id: number, input: RedactInput): RedactResult {
     const entry = this.#get(id)
-    const marks: unknown = input.marks
-    if (!Array.isArray(marks)) throw new ArgumentError('marks must be a list')
+    checkRedactInput(input)
     this.#checkWrite(entry, {
       ...(input.remove && { remove: input.remove }),
       annotations: [...input.marks, ...(input.annotations ?? [])],

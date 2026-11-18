@@ -123,7 +123,16 @@ function inspectFile(heap: Heap, doc: number, context: RedactContext) {
     const bytes = heap.native.HEAPU8
     const end = bytes.indexOf(0, report)
     const text = new TextDecoder().decode(bytes.subarray(report, end))
-    const parsed = JSON.parse(text) as { hiddenLayers?: unknown; signed?: unknown }
+    let parsed: { hiddenLayers?: unknown; signed?: unknown }
+    try {
+      parsed = JSON.parse(text) as typeof parsed
+    } catch (cause) {
+      throw new EngineError('redaction-failed', 'The file could not be inspected.', {
+        cause,
+      })
+    }
+    if (typeof parsed !== 'object' || parsed === null)
+      throw new EngineError('redaction-failed', 'The file could not be inspected.')
     return { hiddenLayers: parsed.hiddenLayers === true, signed: parsed.signed === true }
   } finally {
     if (!heap.stopped) fn.INK_Inspect_Free(report)

@@ -563,5 +563,19 @@
         "quad": [45, 225, 215, 225, 45, 190, 215, 190]
       }
     ]
+  },
+  "redact-hidden-layer": {
+    "file": "redact-hidden-layer.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "redact-text without /Info, plus a layer the default configuration hides, drawing LAYER-TEXT at y 100",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ]
   }
 }

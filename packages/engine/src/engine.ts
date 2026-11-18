@@ -60,6 +60,10 @@ export interface EngineDocument {
    * and 0-9, an appearance whose bounds have no area, or a field value that is not a string or
    * a list of strings, rejects with a `RangeError`. A part that cannot be written rejects with `write-failed`, naming the
    * annotation or field; the document is then as it was opened.
+   *
+   * After a `redact`, `write` rejects with a `RangeError`: starting again from the opened bytes
+   * would undo the redaction. Save the document and open the redacted bytes as a new document to
+   * write to them.
    */
   write(input: WriteInput): Promise<void>
   /**
@@ -76,6 +80,9 @@ export interface EngineDocument {
    * or page that cannot be applied rejects with `redaction-failed`, naming the page and, when one
    * mark was the cause, the mark; an annotation or field that cannot be written rejects with
    * `write-failed`. The document is then as it was opened.
+   *
+   * A second `redact` is allowed and starts again from the document as opened. A `write` after a
+   * `redact` rejects with a `RangeError`.
    */
   redact(input: RedactInput): Promise<RedactResult>
   /**

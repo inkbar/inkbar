@@ -262,11 +262,44 @@ function redactForeignMark() {
   )
 }
 
+/**
+ * redact-text with an optional content group that the default configuration turns off, holding
+ * the words LAYER-TEXT below the line.
+ */
+function redactHiddenLayer() {
+  write(
+    'redact-hidden-layer',
+    buildPdf([
+      '<< /Type /Catalog /Pages 2 0 R /OCProperties << /OCGs [6 0 R] /D << /OFF [6 0 R] >> >> >>',
+      '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+      page(4, 5, '/Properties << /L0 6 0 R >> '),
+      stream(
+        '',
+        line(50, 200, 'SECRET-ALPHA') +
+          line(300, 200, 'KEEP-BETA') +
+          `/OC /L0 BDC\n${line(50, 100, 'LAYER-TEXT')}EMC\n`
+      ),
+      HELVETICA,
+      '<< /Type /OCG /Name (Hidden layer) >>',
+    ]),
+    {
+      pages: 1,
+      opens: true,
+      describes:
+        'redact-text without /Info, plus a layer the default configuration hides, drawing LAYER-TEXT at y 100',
+      secrets: ['SECRET', 'ALPHA'],
+      keeps: ['KEEP-BETA'],
+      regions: [region(0, OVER_WORD)],
+    }
+  )
+}
+
 redactText()
 redactImageFlate()
 redactPath()
 redactAnnotations()
 redactForeignMark()
+redactHiddenLayer()
 
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<
   string,

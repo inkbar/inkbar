@@ -227,11 +227,18 @@ describe('redaction fixtures', () => {
       expect(plain.includes(word), word).toBe(false)
   })
 
-  it.each(redaction)('%s puts each region inside a page', (name) => {
+  it.each(redaction)('%s puts each region inside a page', async (name) => {
     const { pages, regions } = manifest[name]
+    const task = await open(name)
+    const doc = await task.promise
     for (const { page, quad } of regions ?? []) {
       expect(page).toBeLessThan(pages)
-      expect(quad.every((n) => n >= 0 && n <= 400)).toBe(true)
+      const [left, bottom, right, top] = (await doc.getPage(page + 1)).view
+      const xs = quad.filter((_, i) => i % 2 === 0)
+      const ys = quad.filter((_, i) => i % 2 === 1)
+      expect(xs.every((x) => x >= (left as number) && x <= (right as number))).toBe(true)
+      expect(ys.every((y) => y >= (bottom as number) && y <= (top as number))).toBe(true)
     }
+    await task.destroy()
   })
 })

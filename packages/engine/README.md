@@ -126,8 +126,8 @@ Errors:
 
 - Engine calls reject with an `EngineError`. Its `code` is `password-required`, `password-incorrect`, `invalid-pdf`, `unsupported-security`, `out-of-memory`, `write-failed`, `redaction-failed`, `aborted` or `engine-failure`.
 - `write-failed` means part of a `write` could not be written. The message names the annotation or the field, and for an annotation the error's `annotation` holds its id. The document is left as it was opened and the engine keeps working.
-- `redaction-failed` means `redact` could not write a mark, apply the marks of a page, or sanitise the file. The error's `page` holds the page index, and `annotation` holds the mark's id when writing one mark failed. Marks on a page are applied together, so a failure while applying names the page only. The document is left as it was opened and the engine keeps working.
-- A `RangeError` means a page index outside the document, a scale that is not a finite number above 0, a render larger than 268,435,456 pixels, a resource name in an appearance outside A-Z, a-z and 0-9, an appearance whose bounds have no width or no height, or a field value that is not a string or a list of strings.
+- `redaction-failed` means `redact` could not remove an annotation, load a page, write a mark, apply the marks of a page, read the file's report, or sanitise the file. The error's `page` holds the page index, and `annotation` holds the mark's id when writing one mark failed. Marks on a page are applied together, so a failure while applying names the page only. The document is left as it was opened and the engine keeps working.
+- A `RangeError` means a `write` after a `redact`, an incremental save after a `redact`, a page index outside the document, a scale that is not a finite number above 0, a render larger than 268,435,456 pixels, a resource name in an appearance outside A-Z, a-z and 0-9, an appearance whose bounds have no width or no height, or a field value that is not a string or a list of strings.
 - `engine-failure` also covers a wasm or worker that could not be loaded; the message names the URL.
 - After an internal error in PDFium the engine stops. Every later call rejects with `engine-failure`, except `close()` and `destroy()`, which still resolve. Create a new engine.
 - `out-of-memory` does not always stop the engine. A bitmap that cannot be allocated leaves it working. An allocation failure that aborts PDFium stops it.
@@ -148,7 +148,7 @@ Each of `marks` is a Gloss `redact` annotation with an `appearance`, written as 
 - drawing: paths and shadings, cut to the mark's shape,
 - annotations the mark overlaps, with their pop-ups, and the form fields of widgets it removes.
 
-A mark covers its Gloss `quads`, or its `rect` when it has none. Its appearance bounds play no part: they may be padded for an outline. The appearance becomes part of the page in the mark's place, and no annotation remains. The engine skips a mark with no area, or one wholly outside its page's box.
+A mark covers its Gloss `quads`, or its `rect` when it has none. Its appearance bounds play no part: they may be padded for an outline. The appearance becomes part of the page in the mark's place, and no annotation remains. The engine skips a mark with no area, or one that lies wholly outside the page's crop box.
 
 The engine does not enter tiling patterns, so content inside one stays.
 
@@ -172,7 +172,9 @@ The result holds counts and flags, and no text from the file:
 - `hiddenLayers`: the file has layers that are hidden. Redacting does not clean them.
 - `signed`: the file holds a digital signature. The rewritten file's signature no longer verifies.
 
-A field name that the opened file never had rejects with `write-failed`, as in `write`, and so does an annotation that cannot be written. A mark that cannot be written or applied rejects with `redaction-failed`. Either way the engine leaves the document as it was opened.
+`redact` rejects with `redaction-failed` when it cannot remove an annotation in `remove`, load a page, write a mark, apply the marks of a page, read the file's report on layers and signatures, or sanitise the file. The annotations and fields it writes after the apply reject with `write-failed`, as in `write`, and so does a field name that the opened file never had. Either way the engine leaves the document as it was opened.
+
+A second `redact` starts again from the document as opened. A `write` after a `redact` rejects with a `RangeError`, since it would start from the opened bytes and undo the redaction. To add to a redacted file, save it and open the saved bytes as a new document.
 
 ## Building from source
 
