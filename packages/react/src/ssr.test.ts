@@ -79,6 +79,8 @@ describe('@inkbar/react on the server', () => {
         'InkSearchResults',
         'useRecords',
         'useRecordSelection',
+        'InkApplyRedactions',
+        'useRedaction',
       ])
     )
     expect(evaluated.pdfjs).toBe(false)
@@ -144,6 +146,33 @@ describe('@inkbar/react on the server', () => {
     const { openDocument } = await import('@inkbar/core')
     await openDocument(new Uint8Array([1]), { assets })
     expect(evaluated.pdfjs).toBe(true)
+  })
+
+  it('InkApplyRedactions renders disabled on the server', () => {
+    function Probe() {
+      const { canRedact, busy } = entry.useRedaction()
+      return createElement('output', {
+        'data-can-redact': String(canRedact),
+        'data-busy': String(busy),
+      })
+    }
+    // A loader that never settles: the server must not call it.
+    const engine = vi.fn(() => new Promise<never>(() => {}))
+    const html = renderToString(
+      createElement(
+        entry.InkRoot,
+        { src: '/doc.pdf', assets, engine },
+        createElement(entry.InkToolbar, null, createElement(entry.InkApplyRedactions)),
+        createElement(Probe)
+      )
+    )
+    const button = /<button[^>]*data-ink-apply-redactions[^>]*>/.exec(html)?.[0] ?? ''
+    expect(button).toMatch(/\sdisabled/)
+    expect(button).toContain('aria-busy="false"')
+    expect(html).toMatch(/data-ink-apply-redactions[^>]*>Apply redactions</)
+    expect(html).toContain('<output data-can-redact="false" data-busy="false"></output>')
+    expect(html).not.toContain('data-ink-redaction-dialog')
+    expect(engine).not.toHaveBeenCalled()
   })
 
   it('InkOutline renders an empty tree on the server', () => {
