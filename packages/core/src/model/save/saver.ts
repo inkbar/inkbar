@@ -189,6 +189,13 @@ class NotStarted extends Error {
   }
 }
 
+/** The check of a redacted file failed or could not run: `cause` says why. */
+class NotChecked extends Error {
+  constructor(cause: unknown) {
+    super('The redacted file could not be checked', { cause })
+  }
+}
+
 /** An `EngineError`, told by its name: core never imports the engine's classes. */
 const engineCode = (e: unknown): string | undefined =>
   e instanceof Error && e.name === 'EngineError'
@@ -324,18 +331,24 @@ export function createSaver(options: SaverOptions): Saver {
         { stage: 'apply', annotation: error.annotation },
         error.cause
       )
-    const verify = engineCode(error) === 'check-failed'
+    if (error instanceof NotChecked) {
+      const page = enginePage(error.cause)
+      return new InkError(
+        'RedactionFailed',
+        'The redacted file could not be checked',
+        { stage: 'verify', ...(page !== undefined && { page }) },
+        error.cause
+      )
+    }
     const page = enginePage(error)
     const annotation = engineAnnotation(error)
     return new InkError(
       'RedactionFailed',
-      verify
-        ? 'The redacted file could not be checked'
-        : annotation === undefined
-          ? 'The redactions could not be applied to this file'
-          : `The annotation ${annotation} could not be applied to this file`,
+      annotation === undefined
+        ? 'The redactions could not be applied to this file'
+        : `The annotation ${annotation} could not be applied to this file`,
       {
-        stage: verify ? 'verify' : 'apply',
+        stage: 'apply',
         ...(page !== undefined && { page }),
         ...(annotation !== undefined && { annotation }),
       },
@@ -393,14 +406,17 @@ export function createSaver(options: SaverOptions): Saver {
           const result = await doc.redact(written)
           const bytes = await doc.save()
           if (destroyed) throw destroyedError()
-          const findings = await s.engine.checkRedaction(bytes, {
-            ...passwordOption,
-            regions,
-          })
+          // Whatever the check throws, the file has not passed it.
+          const findings = await s.engine
+            .checkRedaction(bytes, { ...passwordOption, regions })
+            .catch((cause: unknown) => {
+              throw new NotChecked(cause)
+            })
           if (destroyed) throw destroyedError()
           return { bytes, result, findings }
         } catch (error) {
-          if (STOPPED_CODES.has(engineCode(error))) drop(current)
+          const cause = error instanceof NotChecked ? error.cause : error
+          if (STOPPED_CODES.has(engineCode(cause))) drop(current)
           throw error
         }
       })

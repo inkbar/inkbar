@@ -251,7 +251,9 @@ The open document does not change: its annotations, `doc.changed`, `doc.save()` 
 
 `doc.redactionPreview()` gives the counts a confirmation needs without loading the engine: the marks, their pages, the other annotations they overlap, and whether the file is signed.
 
-When it fails, nothing is handed over. `doc.applyRedactions()` rejects with `EngineUnavailable` without the `engine` option, with `NothingToRedact` when there is no mark, and with `RedactionFailed` when the engine cannot finish. Its `details.stage` is `'engine'` when the engine could not be loaded or started, `'apply'` when it could not apply the marks or write the rest, and `'verify'` when the check could not run or found content under a mark. `details.page` and `details.annotation` name the page and the annotation when one was the cause, and at `'verify'` `details.regions` lists the page and rectangle of each place the check failed. A save in flight finishes first, and a second call while one runs gets the same promise.
+When it fails, nothing is handed over. `doc.applyRedactions()` rejects with `EngineUnavailable` without the `engine` option, with `NothingToRedact` when there is no mark, and with `RedactionFailed` when the engine cannot finish. Its `details.stage` is `'engine'` when the engine could not be loaded or started, `'apply'` when it could not apply the marks or write the rest, and `'verify'` when the check could not run or did not find every mark's place clean. `details.page` and `details.annotation` name the page and the annotation when one was the cause, and at `'verify'` `details.regions` lists the page and rectangle of each mark the check did not find clean.
+
+An apply never overlaps a save. A save that has started writing finishes first; one that has not may run after the apply. A second call while an apply runs gets the same promise.
 
 Known limits:
 

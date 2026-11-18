@@ -56,6 +56,8 @@ function fakeEngine() {
     verdicts?: RedactionCandidate['verdict'][]
     failRedact?: Error
     failCheck?: Error
+    /** Rewrites the candidates the check answers with. */
+    answer?: (candidates: RedactionCandidate[]) => RedactionCandidate[]
   } = {}
   let engines = 0
   const createEngine = vi.fn(() => {
@@ -109,17 +111,18 @@ function fakeEngine() {
         queued('check', () => {
           checks.push(options)
           if (state.failCheck) throw state.failCheck
+          const answered = (options.regions ?? []).map((r, i): RedactionCandidate => ({
+            page: r.page,
+            region: i,
+            rect: { x: r.quads[0]!.p3.x, y: r.quads[0]!.p3.y, width: 1, height: 1 },
+            kind: 'region' as const,
+            text: 'none' as const,
+            image: 'none' as const,
+            drawing: 'none' as const,
+            verdict: state.verdicts?.[i] ?? 'clean',
+          }))
           return {
-            candidates: (options.regions ?? []).map((r, i) => ({
-              page: r.page,
-              region: i,
-              rect: { x: r.quads[0]!.p3.x, y: r.quads[0]!.p3.y, width: 1, height: 1 },
-              kind: 'region' as const,
-              text: 'none' as const,
-              image: 'none' as const,
-              drawing: 'none' as const,
-              verdict: state.verdicts?.[i] ?? 'clean',
-            })),
+            candidates: state.answer ? state.answer(answered) : answered,
             file: {
               earlierVersions: 0,
               metadata: false,
@@ -261,8 +264,15 @@ describe('applyRedactions', () => {
 
     const [input] = fake.redactions
     expect(input!.marks.map((m) => m.annotation.id)).toEqual([mark.id])
-    // What is left in the mark's place is its overlay, over the mark's own box.
-    expect(input!.marks[0]!.appearance?.bounds).toEqual(SECRET)
+    // What is left in the mark's place is its overlay, over the mark's own box: filled in the
+    // mark's fill colour at full opacity, with no outline. The 15% tint the screen shows has both.
+    const overlay = input!.marks[0]!.appearance!
+    expect(overlay.bounds).toEqual(SECRET)
+    const ops = new TextDecoder().decode(overlay.content)
+    expect(ops).toMatch(/\b0 0 0 rg\b/)
+    expect(ops).toMatch(/\bf\*?\s/)
+    expect(ops).not.toMatch(/\b(?:RG|S|s|B\*?|b\*?|gs)\b/)
+    expect(Object.values(overlay.opacities ?? {})).toEqual([])
     expect(input!.annotations?.map((a) => a.annotation.id)).toEqual([kept.id])
     expect(input!.remove).toEqual([])
     expect(result.removed.session).toEqual([under.id])
@@ -308,11 +318,70 @@ describe('applyRedactions', () => {
       code: 'RedactionFailed',
       details: {
         stage: 'verify',
-        regions: [{ page: 0, rect: { x: 45, y: 190, width: 1, height: 1 } }],
+        regions: [{ page: 0, rect: SECRET }],
       },
     })
     // No bytes escape: the error carries places, nothing of the file.
     expect(JSON.stringify(failed)).not.toContain('PDF')
+  })
+
+  describe('rejects at verify unless every region is answered clean', () => {
+    const answers: [string, (c: RedactionCandidate[]) => RedactionCandidate[]][] = [
+      ['with no answer', () => []],
+      ['answered under the wrong index', (c) => c.map((x) => ({ ...x, region: 5 }))],
+      ['answered as another kind', (c) => c.map((x) => ({ ...x, kind: 'filled-box' }))],
+      ['answered twice for one region and not for the other', (c) => [c[0]!, c[0]!]],
+    ]
+    it.each(answers)('%s', async (_, answer) => {
+      const fake = fakeEngine()
+      const doc = await open('redact-text', { engine: fake.loader })
+      markOver(doc)
+      markOver(doc, { x: 300, y: 100, width: 50, height: 20 })
+      fake.state.answer = answer
+      const failed = await doc.applyRedactions().then(
+        () => undefined,
+        (e: unknown) => e
+      )
+      expect(failed).toMatchObject({
+        code: 'RedactionFailed',
+        details: { stage: 'verify' },
+      })
+      const { regions } = (failed as { details: { regions: unknown[] } }).details
+      expect(regions.length).toBeGreaterThan(0)
+    })
+
+    it('names the regions not answered clean', async () => {
+      const fake = fakeEngine()
+      const doc = await open('redact-text', { engine: fake.loader })
+      markOver(doc)
+      markOver(doc, { x: 300, y: 100, width: 50, height: 20 })
+      fake.state.answer = (c) => [c[0]!]
+      await expect(doc.applyRedactions()).rejects.toMatchObject({
+        details: {
+          stage: 'verify',
+          regions: [{ page: 0, rect: { x: 300, y: 100, width: 50, height: 20 } }],
+        },
+      })
+    })
+  })
+
+  it.each([
+    ['a RangeError', new RangeError('bad region')],
+    ['an engine failure', new EngineError('engine-failure', 'gone')],
+    ['a lack of memory', new EngineError('out-of-memory', 'out')],
+    ['a crash', new Error('worker crashed')],
+  ])('fails at verify when the check throws %s', async (_, cause) => {
+    const fake = fakeEngine()
+    const doc = await open('redact-text', { engine: fake.loader })
+    markOver(doc)
+    fake.state.failCheck = cause
+    await expect(doc.applyRedactions()).rejects.toMatchObject({
+      code: 'RedactionFailed',
+      details: { stage: 'verify' },
+      cause,
+    })
+    const stopped = cause instanceof EngineError
+    expect(fake.calls.includes('destroy 1')).toBe(stopped)
   })
 
   it('rejects with RedactionFailed at verify when the check could not inspect', async () => {

@@ -273,8 +273,9 @@ export interface InkDocument {
    * NothingToRedact when there is no mark, and with RedactionFailed when the engine could not be
    * started (`details.stage: 'engine'`), could not apply the marks or write the rest (`'apply'`,
    * with `details.page` and `details.annotation` when it names them), or the check could not
-   * run or found content under a mark (`'verify'`, with the places in `details.regions`). It
-   * waits for a save in flight, and a call while one runs gets the same promise.
+   * run or did not find every mark's place clean (`'verify'`, with those places in
+   * `details.regions`). It never overlaps a save: a save that has started writing finishes
+   * first, and one that has not may run after it. A call while one runs gets the same promise.
    */
   applyRedactions(): Promise<{ bytes: Uint8Array; result: RedactionResult }>
   /**

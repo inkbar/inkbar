@@ -130,13 +130,36 @@ describe('planRedaction', () => {
       ],
       {
         fieldRects: new Map([
-          ['sig', { page: 0, rect: { x: 150, y: 90, width: 100, height: 40 } }],
-          ['other', { page: 1, rect: { x: 150, y: 90, width: 100, height: 40 } }],
+          ['sig', [{ page: 0, rect: { x: 150, y: 90, width: 100, height: 40 } }]],
+          ['other', [{ page: 1, rect: { x: 150, y: 90, width: 100, height: 40 } }]],
         ]),
       }
     )
     expect(ids(plan.removed)).toEqual(['sig'])
     expect(ids(plan.kept)).toEqual(['other'])
+  })
+
+  test('removes a signature when a mark covers any widget of its field', () => {
+    const sig: Annotation = {
+      ...base,
+      id: 'sig',
+      type: 'stamp',
+      rect: { x: 400, y: 400, width: 40, height: 20 },
+      subject: 'Signature',
+      imagedata: 'data:image/png;base64,AAAA',
+    }
+    const plan = planRedaction([mark('m'), sig], {
+      fieldRects: new Map([
+        [
+          'sig',
+          [
+            { page: 0, rect: { x: 400, y: 600, width: 100, height: 40 } },
+            { page: 0, rect: { x: 150, y: 90, width: 100, height: 40 } },
+          ],
+        ],
+      ]),
+    })
+    expect(ids(plan.removed)).toEqual(['sig'])
   })
 
   test('ignores locked file annotations', () => {

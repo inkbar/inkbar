@@ -1,6 +1,7 @@
 // Applying redactions: what the engine is given, what it says it did, and the check of the bytes
 // it saved. The open document is never touched: the redacted state exists only in the bytes.
 import { InkError } from '../errors'
+import { rectFromQuads } from '../geometry'
 import {
   AnnotationUnwritable,
   buildWriteInput,
@@ -49,17 +50,19 @@ export interface RedactionContext extends RedactionState {
   saver: Saver
 }
 
-/** Each signed signature field's widget, by the id of the annotation that signs it. */
+/** Each signed signature field's widgets, by the id of the annotation that signs it. */
 function signedFieldRects(
   state: RedactionState
-): Map<string, { page: number; rect: Rect }> {
-  const out = new Map<string, { page: number; rect: Rect }>()
+): Map<string, { page: number; rect: Rect }[]> {
+  const out = new Map<string, { page: number; rect: Rect }[]>()
   for (const field of state.formFields) {
-    const widget = field.widgets[0]
-    if (field.type !== 'signature' || !widget) continue
+    if (field.type !== 'signature' || field.widgets.length === 0) continue
     const value = state.fieldChanges[field.name]?.value ?? state.values[field.name]
     if (value !== null && typeof value === 'object' && 'signature' in value)
-      out.set(value.signature, { page: widget.page, rect: widget.rect })
+      out.set(
+        value.signature,
+        field.widgets.map((w) => ({ page: w.page, rect: w.rect }))
+      )
   }
   return out
 }
@@ -148,15 +151,25 @@ export async function applyRedactions(
 
   const marks = result.pages.reduce((sum, page) => sum + page.marks, 0)
   if (p.marks.length === 0 && marks === 0) throw nothingToRedact()
-  const remains = findings.candidates.filter((c) => c.verdict !== 'clean')
-  if (remains.length > 0)
+  // Core is the last gate: every region passed needs an answer, and every answer must be clean.
+  // A region the check did not answer counts as one with content under it.
+  const failing = p.regions.flatMap((region, i) => {
+    const answers = findings.candidates.filter(
+      (c) => c.kind === 'region' && c.region === i
+    )
+    return answers.length > 0 && answers.every((c) => c.verdict === 'clean')
+      ? []
+      : [{ page: region.page, rect: rectFromQuads(region.quads) }]
+  })
+  // Anything else the check found, though it was asked about regions only, fails too.
+  for (const c of findings.candidates)
+    if (c.kind !== 'region' && c.verdict !== 'clean')
+      failing.push({ page: c.page, rect: { ...c.rect } })
+  if (failing.length > 0)
     throw new InkError(
       'RedactionFailed',
-      'Content is still under a redaction mark in the redacted file',
-      {
-        stage: 'verify',
-        regions: remains.map((c) => ({ page: c.page, rect: { ...c.rect } })),
-      }
+      'The redacted file could not be shown clean under every redaction mark',
+      { stage: 'verify', regions: failing }
     )
 
   return {
