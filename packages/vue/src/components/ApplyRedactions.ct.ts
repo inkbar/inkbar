@@ -245,3 +245,49 @@ test('a src change mid-apply opens the new source and nothing else', async ({
   await expect(cmp.getByTestId('errors')).toHaveText('')
   await expect(page.locator('[data-ink-form-alert-message]')).toHaveCount(0)
 })
+
+for (const answer of ['now', 'late'] as const) {
+  test(`controlled with history (answered ${answer}): the first edit after the reopen is an undo step`, async ({
+    mount,
+    page,
+  }) => {
+    const cmp = await mount(Harness, {
+      props: {
+        src: fixtureUrl('redact-text'),
+        assets,
+        engine: 'held',
+        controlled: answer,
+      },
+    })
+    await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+    const list = cmp.getByTestId('list')
+    const undo = page.getByRole('button', { name: 'Undo' })
+    await mark(page)
+    await expect(list).toHaveText('redact')
+    await expect(undo).toBeEnabled()
+    await cmp.locator('[data-ink-apply-redactions]').click()
+    await expect.poll(() => writing(page)).toBe(true)
+    await finish(page)
+    await expect(page.locator('[data-ink-form-alert-message]')).toHaveText(
+      '1 redaction applied.'
+    )
+    await expect(list).toHaveText('')
+    await page.waitForTimeout(150)
+    await expect(undo).toBeDisabled()
+
+    // The reader's first edit on the redacted file is a step, and undoing it takes it away.
+    await page.evaluate(() => {
+      const root = document.querySelector('[data-ink-root]') as Hooked
+      root.__inkDocument!.annotations.add({
+        type: 'square',
+        page: 0,
+        rect: { x: 300, y: 400, width: 100, height: 60 },
+      })
+    })
+    await expect(list).toHaveText('square')
+    await expect(undo).toBeEnabled()
+    await undo.click()
+    await expect(list).toHaveText('')
+    await expect(undo).toBeDisabled()
+  })
+}

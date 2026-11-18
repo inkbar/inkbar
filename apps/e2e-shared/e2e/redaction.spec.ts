@@ -129,6 +129,20 @@ test('controlled annotations with history on: the list has no marks and Undo is 
   await page.waitForTimeout(300)
   await expect(undo).toBeDisabled()
   await expect(hostList).toHaveText(kept!)
+
+  // The reader's first edit on the redacted file is a step, and Undo takes it away again.
+  await page.locator('[data-ink-form-alert-ok]').click()
+  await page.locator('[data-tool="shape"]').click()
+  const box = (await page.locator('.ink-page[data-page="0"]').boundingBox())!
+  await page.mouse.move(box.x + 100, box.y + 60)
+  await page.mouse.down()
+  await page.mouse.move(box.x + 200, box.y + 120, { steps: 5 })
+  await page.mouse.up()
+  await expect(hostList).toHaveText(`${kept} ${kept}`)
+  await expect(undo).toBeEnabled()
+  await undo.click()
+  await expect(hostList).toHaveText(kept!)
+  await expect(undo).toBeDisabled()
 })
 
 test('redactionConfirm={false} applies without the dialog', async ({ page }) => {

@@ -14,7 +14,7 @@ export function defineSandboxConfig(opts: {
 }): PlaywrightTestConfig {
   const { port, skip = [] } = opts
   // Names only: a pattern could quietly skip more of the suite than meant.
-  const pattern = skip.find((name) => name.includes('*'))
+  const pattern = skip.find((name) => /[*?[\]{}]/.test(name))
   if (pattern !== undefined)
     throw new Error(
       `defineSandboxConfig: skip takes spec file names, not patterns: ${pattern}`

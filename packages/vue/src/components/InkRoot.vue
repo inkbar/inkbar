@@ -349,7 +349,9 @@ async function open(retryPassword?: string): Promise<void> {
   const shown = onShown
   onShown = undefined
   release()
-  refHistory.clear()
+  // A controlled reopen after applying redactions keeps the history as `proposed` left it:
+  // emptied, and starting again from the host's answer, which may still be on its way.
+  if (!re?.initial) refHistory.clear()
   if (src === null) {
     override.value = null
     return
@@ -641,6 +643,8 @@ async function applyRedactions(): Promise<RedactionResult | null> {
         : undefined
     },
     password: openedWith,
+    // Armed before Vue hands the host's answer back, so the answer is the restart, not a step.
+    proposed: () => refHistory.replaced(),
   })
   if (!out?.reopen) return out?.result ?? null
   const reopen = out.reopen
@@ -653,7 +657,6 @@ async function applyRedactions(): Promise<RedactionResult | null> {
     })
   // The new document has a history of its own: the old one goes with it.
   void open()
-  if (reopen.initial) refHistory.replaced()
   return out.result
 }
 const currentMessages = computed(() => words.value.messages)
