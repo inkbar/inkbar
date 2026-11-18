@@ -39,7 +39,7 @@ export type EngineErrorCode =
 /**
  * The error every engine call rejects with, apart from a `RangeError` for a bad page index or
  * scale, a render larger than the pixel limit, a bad name or a box with no area in an
- * appearance, or a region with no quads or a number that is not finite.
+ * appearance, or a region with no quads or a number that is not finite as a 32-bit float.
  */
 export class EngineError extends Error {
   /** What went wrong. */

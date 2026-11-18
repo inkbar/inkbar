@@ -133,6 +133,12 @@ export interface Engine {
    * boxes in the page content, and Square, Highlight and Stamp annotations drawn as opaque boxes.
    * It also reports what the file carries besides its pages.
    *
+   * With `regions` the check trusts the `/INKB_Overlay` tag an apply puts on its overlays and
+   * counts nothing inside a tagged form, so it proves nothing about a file the engine did not
+   * just produce. Check a file from elsewhere without regions, and on an engine of its own: the
+   * check runs to the end on the shared queue, so a hostile file can hold up or stop the engine
+   * for every open document.
+   *
    * The engine copies `bytes` when the call is made, loads them on their own, and closes them
    * before it resolves; documents the engine has open are not touched. The findings hold places,
    * counts and flags, never text from the file. A candidate that is not `clean` is a finding,
@@ -141,7 +147,7 @@ export interface Engine {
    * It rejects with `password-required`, `password-incorrect`, `invalid-pdf` or
    * `unsupported-security` as `open` does, with `check-failed` when a page or the file could not
    * be inspected, and with a `RangeError` for a region on a page the file does not have, with no
-   * quads, or with a number that is not finite.
+   * quads, or with a number that is not finite as a 32-bit float.
    */
   checkRedaction(
     bytes: Uint8Array,

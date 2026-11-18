@@ -279,6 +279,11 @@ export interface CheckRedactionOptions {
   /**
    * The regions to check. Each must be clean. Without them the check looks for candidates
    * itself: Redact annotations, filled boxes and annotations drawn as opaque boxes.
+   *
+   * With regions the check trusts the `/INKB_Overlay` tag an apply puts on the overlay it leaves,
+   * and counts nothing inside a tagged form. Any file can carry that tag, so a check with regions
+   * proves nothing about a file the engine did not just produce. Check a file from elsewhere
+   * without regions.
    */
   regions?: readonly RedactionRegion[]
   /** Cancels the call while it waits in the queue. */
@@ -289,6 +294,11 @@ export interface CheckRedactionOptions {
 export interface RedactionCandidate {
   /** Page index, counting from 0. */
   page: number
+  /**
+   * For `kind: 'region'`, the index of the region this candidate answers in the `regions` list
+   * given. Absent for every other kind.
+   */
+  region?: number
   /** The place, in PDF user space: the bounds of a region's quads, or of a candidate. */
   rect: Rect
   /**
@@ -312,7 +322,10 @@ export interface RedactionCandidate {
 
 /** What `Engine.checkRedaction` found. It holds places, counts and flags, never text from the file. */
 export interface RedactionFindings {
-  /** Page by page; on a page, regions in the order given, or candidates in the file's order. */
+  /**
+   * Page by page; on a page, regions in the order given, or candidates in the file's order. A
+   * region's candidate names its place in the list given in `region`.
+   */
   candidates: RedactionCandidate[]
   file: {
     /** Revisions kept before the last one, which may hold the original content. */

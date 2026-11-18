@@ -32,7 +32,7 @@ function report(
 
 /** The one candidate made from `reports`, on page 0. */
 const candidate = (...reports: [RegionReport, ...RegionReport[]]) =>
-  findingsFrom([{ page: 0, candidates: [reports] }], FILE).candidates[0]
+  findingsFrom([{ page: 0, candidates: [{ reports }] }], FILE).candidates[0]
 
 describe('text', () => {
   test('is present when characters are under it', () => {
@@ -146,8 +146,11 @@ describe('regions of several quads', () => {
 test('lists candidates page by page, each with its page', () => {
   const findings = findingsFrom(
     [
-      { page: 0, candidates: [[report()], [report({ textChars: 1 })]] },
-      { page: 2, candidates: [[report({}, 'redact-annotation')]] },
+      {
+        page: 0,
+        candidates: [{ reports: [report()] }, { reports: [report({ textChars: 1 })] }],
+      },
+      { page: 2, candidates: [{ reports: [report({}, 'redact-annotation')] }] },
     ],
     FILE
   )
@@ -156,6 +159,21 @@ test('lists candidates page by page, each with its page', () => {
     [0, 'region', 'content-remains'],
     [2, 'redact-annotation', 'clean'],
   ])
+})
+
+describe('the region a candidate answers', () => {
+  test('is the index given with its reports', () => {
+    const findings = findingsFrom(
+      [{ page: 1, candidates: [{ reports: [report()], region: 2 }] }],
+      FILE
+    )
+    expect(findings.candidates[0]?.region).toBe(2)
+  })
+
+  test('is absent for a candidate the fork found', () => {
+    const found = candidate(report({}, 'filled-box'))
+    expect(found).not.toHaveProperty('region')
+  })
 })
 
 describe('file', () => {

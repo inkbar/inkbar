@@ -105,11 +105,13 @@ function checkRegions(regions: unknown): void {
     if (!Array.isArray(quads) || quads.length === 0)
       throw new ArgumentError(`region ${i} must have at least one quad`)
     for (const quad of quads as unknown[]) {
-      const finite = (point: unknown) =>
-        isRecord(point) && Number.isFinite(point.x) && Number.isFinite(point.y)
-      if (!isRecord(quad) || ![quad.p1, quad.p2, quad.p3, quad.p4].every(finite))
+      // The fork takes 32-bit floats, so a number must stay finite as one.
+      const finite = (n: unknown) =>
+        typeof n === 'number' && Number.isFinite(Math.fround(n))
+      const point = (p: unknown) => isRecord(p) && finite(p.x) && finite(p.y)
+      if (!isRecord(quad) || ![quad.p1, quad.p2, quad.p3, quad.p4].every(point))
         throw new ArgumentError(
-          `region ${i}: every quad needs p1 to p4, each with a finite x and y`
+          `region ${i}: every quad needs p1 to p4, each with an x and y finite as 32-bit floats`
         )
     }
   })

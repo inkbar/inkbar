@@ -105,8 +105,14 @@ function regionReport(value: unknown, fail: () => EngineError): RegionReport {
 }
 
 /** x1 y1 to x4 y4: upper left, upper right, lower left, lower right, as the fork takes them. */
-const cornersOf = ({ quads }: RedactionRegion) =>
+const cornersOf = (quads: RedactionRegion['quads']) =>
   quads.flatMap((q) => [q.p1.x, q.p1.y, q.p2.x, q.p2.y, q.p3.x, q.p3.y, q.p4.x, q.p4.y])
+
+/** A region's quads, with its index in the list the caller gave. */
+interface Indexed {
+  region: number
+  quads: RedactionRegion['quads']
+}
 
 /**
  * Asks the fork what lies on page `index`: under each quad of `regions`, or, without regions,
@@ -117,14 +123,14 @@ function inspectPage(
   heap: Heap,
   doc: number,
   index: number,
-  regions: readonly RedactionRegion[] | undefined
+  regions: readonly Indexed[] | undefined
 ): PageReport {
   const fail = (cause?: unknown) =>
     new EngineError('check-failed', `Page ${index} could not be inspected.`, {
       page: index,
       cause,
     })
-  const corners = regions?.flatMap(cornersOf) ?? []
+  const corners = regions?.flatMap(({ quads }) => cornersOf(quads)) ?? []
   const count = corners.length / 8
   const report = withFloats(heap, corners, (pointer) =>
     heap.fn.INK_Inspect_Page(doc, index, count === 0 ? 0 : pointer, count)
@@ -134,15 +140,21 @@ function inspectPage(
   const entries = parsed.regions.map((entry) => regionReport(entry, fail))
   if (!regions) {
     if (entries.some((entry) => entry.kind === 'region')) throw fail()
-    return { page: index, candidates: entries.map((entry) => [entry] as const) }
+    return {
+      page: index,
+      candidates: entries.map((entry) => ({ reports: [entry] as const })),
+    }
   }
   if (entries.length !== count || entries.some((entry) => entry.kind !== 'region'))
     throw fail()
   let next = 0
-  const candidates = regions.map((region) => {
-    const own = entries.slice(next, next + region.quads.length)
-    next += region.quads.length
-    return own as unknown as readonly [RegionReport, ...RegionReport[]]
+  const candidates = regions.map(({ region, quads }) => {
+    const own = entries.slice(next, next + quads.length)
+    next += quads.length
+    return {
+      reports: own as unknown as readonly [RegionReport, ...RegionReport[]],
+      region,
+    }
   })
   return { page: index, candidates }
 }
@@ -168,9 +180,10 @@ export function inspectDocument(
   )
   const pages: PageReport[] = []
   if (regions) {
-    const byPage = new Map<number, RedactionRegion[]>()
-    for (const region of regions)
-      byPage.set(region.page, [...(byPage.get(region.page) ?? []), region])
+    const byPage = new Map<number, Indexed[]>()
+    regions.forEach(({ page, quads }, region) => {
+      byPage.set(page, [...(byPage.get(page) ?? []), { region, quads }])
+    })
     for (const page of [...byPage.keys()].sort((a, b) => a - b))
       pages.push(inspectPage(heap, doc, page, byPage.get(page)))
   } else

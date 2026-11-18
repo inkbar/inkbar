@@ -128,7 +128,7 @@ Errors:
 - `write-failed` means part of a `write` could not be written. The message names the annotation or the field, and for an annotation the error's `annotation` holds its id. The document is left as it was opened and the engine keeps working.
 - `redaction-failed` means `redact` could not remove an annotation, load a page, write a mark, apply the marks of a page, read the file's report, or sanitise the file. The error's `page` holds the page index, and `annotation` holds the mark's id when writing one mark failed. Marks on a page are applied together, so a failure while applying names the page only. The document is left as it was opened and the engine keeps working.
 - `check-failed` means `checkRedaction` could not inspect a page or the file. The error's `page` holds the page index when a page was the cause. Treat it as a failed check. The engine keeps working.
-- A `RangeError` means a `write` after a `redact`, an incremental save after a `redact`, a page index outside the document, a scale that is not a finite number above 0, a render larger than 268,435,456 pixels, a resource name in an appearance outside A-Z, a-z and 0-9, an appearance whose bounds have no width or no height, or a field value that is not a string or a list of strings. For `checkRedaction` it means a region on a page the file does not have, a region with no quads, or a quad with a number that is not finite.
+- A `RangeError` means a `write` after a `redact`, an incremental save after a `redact`, a page index outside the document, a scale that is not a finite number above 0, a render larger than 268,435,456 pixels, a resource name in an appearance outside A-Z, a-z and 0-9, an appearance whose bounds have no width or no height, or a field value that is not a string or a list of strings. For `checkRedaction` it means a region on a page the file does not have, a region with no quads, or a quad with a number that is not finite as a 32-bit float.
 - `engine-failure` also covers a wasm or worker that could not be loaded; the message names the URL.
 - After an internal error in PDFium the engine stops. Every later call rejects with `engine-failure`, except `close()` and `destroy()`, which still resolve. Create a new engine.
 - `out-of-memory` does not always stop the engine. A bitmap that cannot be allocated leaves it working. An allocation failure that aborts PDFium stops it.
@@ -193,7 +193,7 @@ It has two uses:
 - With `regions`, it checks the places you name. Each region is a page index and one or more Gloss quads (`p1` top left, `p2` top right, `p3` bottom left, `p4` bottom right), in PDF user space. Pass a redaction's own mark quads to check the file it produced.
 - Without `regions`, it looks for candidates itself: Redact annotations, filled boxes in the page content, and Square, Highlight and Stamp annotations drawn as one opaque filled box. This is the use for a file from elsewhere.
 
-The engine copies `bytes`, loads them on their own and closes them before the call resolves, so documents it has open stay as they were. The call waits in the same queue as every other call.
+The engine copies `bytes`, loads them on their own and closes them before the call resolves, so documents it has open stay as they were. The call waits in the same queue as every other call. Check files from elsewhere on an engine of their own, in their own worker: an inspection runs to the end on the shared queue, so a hostile file can hold up or stop the engine for every document it has open.
 
 ### Findings
 
@@ -226,13 +226,14 @@ Findings hold places, counts and flags, and never text from the file. They are p
 Each candidate:
 
 - `page` and `rect`: where it is, in PDF user space. A region's `rect` is the bounds of its quads.
+- `region`: for a region you gave, its index in your `regions` list. Other kinds have none.
 - `kind`: `region` for a region you gave, `redact-annotation`, `filled-box`, or `annotation-box`.
 - `text`: `present` when a character lies under it: in the page content, in a Form XObject at any depth, in the appearance of an annotation that meets it, or inside a tiling pattern painted into it. An image inside such a pattern counts here too.
 - `image`: `present` when an image under it, inline images and the images in annotation appearances included, has samples there that are not one value.
 - `drawing`: `present` when a path or shading crosses it. A filled box and an annotation box are drawing themselves, so for them `drawing` is always `none`.
 - `verdict`: `unapplied` for a Redact annotation with anything under it, `content-remains` for any other candidate with anything under it, and `clean` when the check found nothing under it.
 
-`candidates` lists page by page. On a page, regions come in the order you gave them, and candidates the check found come in the file's order. With an empty `regions` list the check looks at no page.
+`candidates` lists page by page. On a page, regions come in the order you gave them, and candidates the check found come in the file's order. Use `region` to match a candidate to the region you asked about. With an empty `regions` list the check looks at no page.
 
 `file` describes what the file carries besides its pages:
 
@@ -257,6 +258,7 @@ The check follows the apply's own edge rules, so content the apply rightly kept 
 
 ### Limits
 
+- A check with `regions` trusts the `/INKB_Overlay` tag and counts nothing inside a tagged form. Any file can carry the tag, so a check with regions proves nothing about a file the engine did not just produce. Check a file from elsewhere without regions.
 - A filled box with nothing under it is `clean`. It may be a real redaction or a graphic, and the check cannot tell which.
 - Without regions, the check reports only candidates it recognises. A redaction it does not recognise as one is not reported.
 - An image area of one flat colour is blank to the check. A solid-colour area left under a region does not fail it.
@@ -266,7 +268,7 @@ The check follows the apply's own edge rules, so content the apply rightly kept 
 - Vector drawing inside a tiling pattern does not count. Text and images inside one do.
 - A linearized file counts as two revisions, so `earlierVersions` is 1 for a linearized file saved once.
 
-It rejects with `password-required`, `password-incorrect`, `invalid-pdf` or `unsupported-security` as `open` does. It rejects with `check-failed` when it could not inspect a page or the file, for example when forms are nested too deep to read; `page` names the page. That is never a finding of nothing: treat it as a failed check. A region on a page the file does not have, a region with no quads, or a quad with a number that is not finite rejects with a `RangeError`.
+It rejects with `password-required`, `password-incorrect`, `invalid-pdf` or `unsupported-security` as `open` does. It rejects with `check-failed` when it could not inspect a page or the file, for example when forms are nested too deep to read; `page` names the page. That is never a finding of nothing: treat it as a failed check. A region on a page the file does not have, a region with no quads, or a quad with a number that is not finite as a 32-bit float rejects with a `RangeError`.
 
 ## Building from source
 

@@ -24,11 +24,15 @@ export interface RegionReport {
 
 /**
  * What the fork found on one page. Each item of `candidates` becomes one candidate: a region's
- * reports, one per quad, or the one report of a candidate the fork found itself.
+ * reports, one per quad, with the region's index in the list the caller gave, or the one report
+ * of a candidate the fork found itself, with no index.
  */
 export interface PageReport {
   page: number
-  candidates: readonly (readonly [RegionReport, ...RegionReport[]])[]
+  candidates: readonly {
+    reports: readonly [RegionReport, ...RegionReport[]]
+    region?: number
+  }[]
 }
 
 /** The fork's report on what a file carries besides its pages. */
@@ -49,7 +53,8 @@ const presence = (count: number): 'none' | 'present' => (count > 0 ? 'present' :
 
 function candidateOf(
   page: number,
-  reports: readonly [RegionReport, ...RegionReport[]]
+  reports: readonly [RegionReport, ...RegionReport[]],
+  region: number | undefined
 ): RedactionCandidate {
   const { kind } = reports[0]
   const sum = (key: Exclude<keyof RegionReport, 'rect' | 'kind'>) =>
@@ -66,6 +71,7 @@ function candidateOf(
   const found = text === 'present' || image === 'present' || drawing === 'present'
   return {
     page,
+    ...(region !== undefined && { region }),
     rect: { x: left, y: bottom, width: right - left, height: top - bottom },
     kind,
     text,
@@ -83,7 +89,7 @@ function candidateOf(
 export function findingsFrom(pages: PageReport[], file: FileReport): RedactionFindings {
   return {
     candidates: pages.flatMap(({ page, candidates }) =>
-      candidates.map((reports) => candidateOf(page, reports))
+      candidates.map(({ reports, region }) => candidateOf(page, reports, region))
     ),
     file: {
       earlierVersions: file.revisions - 1,

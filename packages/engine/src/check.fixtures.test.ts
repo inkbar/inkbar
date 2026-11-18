@@ -89,10 +89,14 @@ test.each(leaveBehind)(
   }
 )
 
-/** The fixtures the engine's redaction tests apply marks to. */
+/**
+ * Fixtures the engine redacts, each with content under every region before the apply. check-image
+ * stands in for redact-image-flate, whose region covers a part of one flat colour that the check
+ * already counts as blank.
+ */
 const redactable = [
   'redact-text',
-  'redact-image-flate',
+  'check-image',
   'redact-path',
   'redact-annotations',
   'redact-foreign-mark',
@@ -101,9 +105,15 @@ const redactable = [
 
 test('passes every region of a file the engine redacted', async () => {
   for (const fixture of redactable) {
-    const bytes = await redacted(fixture)
-    const findings = await engine.checkRedaction(bytes, { regions: regionsOf(fixture) })
-    expect(findings.candidates.length, fixture).toBe(regionsOf(fixture).length)
+    const regions = regionsOf(fixture)
+    // The control: before the apply the same regions find content, so the check looked.
+    const before = await engine.checkRedaction(await fixtureBytes(fixture), { regions })
+    expect(before.candidates.length, fixture).toBe(regions.length)
+    for (const candidate of before.candidates)
+      expect(candidate.verdict, fixture).toBe('content-remains')
+
+    const findings = await engine.checkRedaction(await redacted(fixture), { regions })
+    expect(findings.candidates.length, fixture).toBe(regions.length)
     // Each mark's overlay is drawing in the page now; the check knows it by its tag.
     for (const candidate of findings.candidates)
       expect(candidate, fixture).toMatchObject({
@@ -255,11 +265,20 @@ test('lists regions page by page, in the order given on a page', async () => {
   const findings = await engine.checkRedaction(bytes, {
     regions: [{ ...first, page: 1 }, empty, first],
   })
-  expect(findings.candidates.map((c) => [c.page, c.rect.y, c.verdict])).toEqual([
-    [0, 20, 'clean'],
-    [0, 190, 'content-remains'],
-    [1, 190, 'content-remains'],
-  ])
+  // Page by page, so `region` says which of the regions given each candidate answers.
+  expect(findings.candidates.map((c) => [c.page, c.region, c.rect.y, c.verdict])).toEqual(
+    [
+      [0, 1, 20, 'clean'],
+      [0, 2, 190, 'content-remains'],
+      [1, 0, 190, 'content-remains'],
+    ]
+  )
+})
+
+test('gives no region index to a candidate it found itself', async () => {
+  const findings = await engine.checkRedaction(await fixtureBytes('bad-black-box'))
+  expect(findings.candidates).toHaveLength(1)
+  expect(findings.candidates[0]).not.toHaveProperty('region')
 })
 
 test('checks no page for an empty list of regions', async () => {
@@ -276,6 +295,8 @@ test('rejects regions it cannot read with a RangeError', async () => {
     [{ ...box(0, 0, 10, 10), page: -1 }],
     [{ page: 0, quads: [] }],
     [{ page: 0.5, quads: box(0, 0, 10, 10).quads }],
+    // Finite here, infinite as the 32-bit float the fork takes.
+    [box(0, 0, 10, 1e39)],
     [
       {
         page: 0,
@@ -359,12 +380,30 @@ test('a page it could not inspect fails the check and keeps the engine', async (
   core.destroy()
 })
 
+/** One entry of a page report, with nothing under it. */
+const entry = (kind: string) =>
+  `{"index":0,"rect":[0,0,1,1],"kind":"${kind}","textChars":0,"imagesNotBlank":0,"paths":0,"patternContent":0,"annotationText":0,"annotationImages":0}`
+
+test('a region in a report of candidates fails the check', async () => {
+  const core = await coreWith('INK_Inspect_Page', (native) =>
+    report(native, `{"regions":[${entry('region')}]}`)
+  )
+  const bytes = await fixtureBytes('redact-text')
+  expect(() => core.checkRedaction(bytes)).toThrow(
+    expect.objectContaining({ code: 'check-failed', page: 0 })
+  )
+  expect(core.stopped).toBe(false)
+  core.destroy()
+})
+
 test('a report it cannot read fails the check', async () => {
   const cases: [keyof Native, string][] = [
     ['INK_Inspect_Page', '{not json'],
     ['INK_Inspect_Page', '{"regions":[{"rect":[0,0,1,1],"kind":"region"}]}'],
     ['INK_Inspect_Page', '{"regions":[]}'],
     ['INK_Inspect_File', '{"revisions":1}'],
+    // Strict mode answered with a candidate the fork found itself.
+    ['INK_Inspect_Page', `{"regions":[${entry('filled-box')}]}`],
   ]
   const bytes = await fixtureBytes('redact-text')
   for (const [name, text] of cases) {
