@@ -25,6 +25,7 @@ function fakeEngine() {
   let created: Promise<void> = Promise.resolve()
   let releaseCreate: (() => void) | undefined
   let checkFails: Error | undefined
+  let checkThrows: Error | undefined
   const createEngine = vi.fn(async () => {
     await created
     const n = engines.length + 1
@@ -92,6 +93,11 @@ function fakeEngine() {
       },
       checkRedaction(_bytes, options) {
         calls.push(`check ${n} ${options?.regions?.length ?? 0}`)
+        if (checkThrows) {
+          const e = checkThrows
+          checkThrows = undefined
+          throw e
+        }
         if (checkFails) {
           const e = checkFails
           checkFails = undefined
@@ -134,6 +140,8 @@ function fakeEngine() {
     hold: () => (hold = true),
     /** Makes the next check reject with `e`. */
     failCheck: (e: Error) => (checkFails = e),
+    /** Makes the next check throw `e` as it is called, before any promise. */
+    throwCheck: (e: Error) => (checkThrows = e),
     release: () => release?.(),
   }
 }
@@ -436,6 +444,20 @@ describe('createSaver', () => {
       })
       expect(fake.calls.includes('destroy 1')).toBe(stops)
     }
+  })
+
+  it('fails a redaction at verify when the check throws as it is called', async () => {
+    const fake = fakeEngine()
+    const s = saver(fake)
+    const cause = new RangeError('bad region')
+    fake.throwCheck(cause)
+    await expect(
+      s.redact(() => Promise.resolve({ marks: [] }), [])
+    ).rejects.toMatchObject({
+      code: 'RedactionFailed',
+      details: { stage: 'verify' },
+      cause,
+    })
   })
 
   it('destroys an engine that arrives after destroy', async () => {

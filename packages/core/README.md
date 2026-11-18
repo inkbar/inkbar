@@ -249,7 +249,7 @@ The open document does not change: its annotations, `doc.changed`, `doc.save()` 
 - `sanitised`: what was removed from the file. `hiddenLayers` and `signed`: whether the file has hidden layers, and whether it held a digital signature.
 - `findings`: what the check found under each mark: places and verdicts, never the file's text.
 
-`doc.redactionPreview()` gives the counts a confirmation needs without loading the engine: the marks, their pages, the other annotations they overlap, and whether the file is signed.
+`doc.redactionPreview()` gives the counts a confirmation needs without loading the engine: the marks, their pages, the other annotations they overlap, and whether the file is signed. In an encrypted file, `lockedMarks` counts the locked Redact annotations. Some may be marks Inkbar saved earlier, which the apply removes the content under. Others may come from other programs, which core cannot tell apart; `result.ownLockedMarks` says how many were applied.
 
 When it fails, nothing is handed over. `doc.applyRedactions()` rejects with `EngineUnavailable` without the `engine` option, with `NothingToRedact` when there is no mark, and with `RedactionFailed` when the engine cannot finish. Its `details.stage` is `'engine'` when the engine could not be loaded or started, `'apply'` when it could not apply the marks or write the rest, and `'verify'` when the check could not run or did not find every mark's place clean. `details.page` and `details.annotation` name the page and the annotation when one was the cause, and at `'verify'` `details.regions` lists the page and rectangle of each mark the check did not find clean.
 

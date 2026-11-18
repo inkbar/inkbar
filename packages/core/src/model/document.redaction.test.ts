@@ -350,6 +350,25 @@ describe('applyRedactions', () => {
       expect(regions.length).toBeGreaterThan(0)
     })
 
+    it.each([
+      ['an index out of range', 7],
+      ['no index', undefined],
+    ])('rejects a region answer that is not clean under %s', async (_, region) => {
+      const fake = fakeEngine()
+      const doc = await open('redact-text', { engine: fake.loader })
+      markOver(doc)
+      fake.state.answer = (c) => {
+        const stray: RedactionCandidate = { ...c[0]!, verdict: 'content-remains' }
+        if (region === undefined) delete stray.region
+        else stray.region = region
+        return [...c, stray]
+      }
+      await expect(doc.applyRedactions()).rejects.toMatchObject({
+        code: 'RedactionFailed',
+        details: { stage: 'verify' },
+      })
+    })
+
     it('names the regions not answered clean', async () => {
       const fake = fakeEngine()
       const doc = await open('redact-text', { engine: fake.loader })
@@ -421,6 +440,13 @@ describe('applyRedactions', () => {
       name: 'InkError',
       code: 'NothingToRedact',
     })
+    expect(fake.loader).not.toHaveBeenCalled()
+  })
+
+  it("rejects NothingToRedact for another program's marks alone, without loading the engine", async () => {
+    const fake = fakeEngine()
+    const doc = await open('annotated-redact', { engine: fake.loader })
+    await expect(doc.applyRedactions()).rejects.toMatchObject({ code: 'NothingToRedact' })
     expect(fake.loader).not.toHaveBeenCalled()
   })
 
@@ -528,6 +554,7 @@ describe('redactionPreview', () => {
       pages: 0,
       overlapped: 0,
       signed: false,
+      lockedMarks: 0,
     })
     markOver(doc)
     doc.annotations.add({ type: 'highlight', page: 0, quads: [quad(50, 195, 150, 22)] })
@@ -537,6 +564,7 @@ describe('redactionPreview', () => {
       pages: 1,
       overlapped: 1,
       signed: false,
+      lockedMarks: 0,
     })
   })
 
@@ -547,6 +575,14 @@ describe('redactionPreview', () => {
     const locked = doc.annotations.list.get().filter((a) => a.source === 'pdf')
     expect(locked.length).toBeGreaterThan(0)
     expect(doc.redactionPreview().overlapped).toBe(locked.length)
+  })
+
+  it('counts no locked marks in a file that is not encrypted', async () => {
+    const doc = await open('annotated-redact')
+    expect(
+      doc.annotations.list.get().filter((a) => a.type === 'redact' && a.source === 'pdf')
+    ).toHaveLength(2)
+    expect(doc.redactionPreview().lockedMarks).toBe(0)
   })
 
   it('says when the file is signed', async () => {
@@ -621,7 +657,7 @@ describe('applyRedactions with the engine', () => {
     // An encrypted file lifts nothing: the mark comes back locked.
     const reopened = await openBytes(saved, { engine: loader, password })
     expect(session(reopened)).toEqual([])
-    expect(reopened.redactionPreview().marks).toBe(0)
+    expect(reopened.redactionPreview()).toMatchObject({ marks: 0, lockedMarks: 1 })
     const { bytes, result } = await reopened.applyRedactions()
 
     expect(result.ownLockedMarks).toBe(1)

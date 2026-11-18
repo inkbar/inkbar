@@ -21,7 +21,7 @@ import type { FieldValues, FormField } from '../form/types'
 import type { Rect } from '../geometry'
 import type { PageInfo } from '../pages'
 import type { FieldChange } from '../save/changes'
-import type { SaveInput, Saver } from '../save/saver'
+import type { RedactionCandidate, SaveInput, Saver } from '../save/saver'
 
 /** An annotation in the file, by its page and object number. */
 type FileRef = NonNullable<SaveInput['remove']>[number]
@@ -35,6 +35,8 @@ export interface RedactionState {
   values: FieldValues
   /** The form values that differ from the file's. */
   fieldChanges: Readonly<Record<string, FieldChange>>
+  /** Whether the file is encrypted: Inkbar's earlier annotations then come back locked. */
+  encrypted: boolean
 }
 
 /** Everything one apply needs besides the session. */
@@ -45,8 +47,6 @@ export interface RedactionContext extends RedactionState {
   fileParents: ReadonlyMap<string, FileRef>
   helpers: Omit<PaintHelpers, 'page'>
   measure?: TextMeasure | undefined
-  /** Whether the file is encrypted: Inkbar's earlier marks then come back locked. */
-  encrypted: boolean
   saver: Saver
 }
 
@@ -67,6 +67,15 @@ function signedFieldRects(
   return out
 }
 
+/**
+ * The locked Redact annotations of an encrypted file: marks Inkbar may have saved earlier, which
+ * come back locked there. Other programs' marks are among them, as core cannot tell them apart.
+ */
+const lockedMarksOf = (state: RedactionState): Annotation[] =>
+  state.encrypted
+    ? state.annotations.filter((a) => a.source === 'pdf' && a.type === 'redact')
+    : []
+
 function plan(state: RedactionState): RedactionPlan {
   return planRedaction(state.annotations, { fieldRects: signedFieldRects(state) })
 }
@@ -83,6 +92,7 @@ export function redactionPreview(state: RedactionState): RedactionPreview {
     pages: p.pages,
     overlapped: p.removed.length + fileOverlapped,
     signed: state.formFields.some((f) => f.signed === 'certificate'),
+    lockedMarks: lockedMarksOf(state).length,
   }
 }
 
@@ -102,10 +112,7 @@ export async function applyRedactions(
   const p = plan(context)
   // In an encrypted file Inkbar's earlier marks come back locked, and core cannot tell them from
   // another program's: the engine can, by the data Inkbar stored with them.
-  const locked = context.encrypted
-    ? context.annotations.filter((a) => a.source === 'pdf' && a.type === 'redact')
-    : []
-  if (p.marks.length === 0 && locked.length === 0) throw nothingToRedact()
+  if (p.marks.length === 0 && lockedMarksOf(context).length === 0) throw nothingToRedact()
   const removed = new Set(p.removed.map((a) => a.id))
 
   const { bytes, result, findings } = await context.saver.redact(
@@ -162,8 +169,16 @@ export async function applyRedactions(
       : [{ page: region.page, rect: rectFromQuads(region.quads) }]
   })
   // Anything else the check found, though it was asked about regions only, fails too.
+  // Any other answer that is not clean fails too, whatever its kind or index: one that answers
+  // a region passed is already counted above.
+  const answersRegion = (c: RedactionCandidate) =>
+    c.kind === 'region' &&
+    c.region !== undefined &&
+    Number.isInteger(c.region) &&
+    c.region >= 0 &&
+    c.region < p.regions.length
   for (const c of findings.candidates)
-    if (c.kind !== 'region' && c.verdict !== 'clean')
+    if (c.verdict !== 'clean' && !answersRegion(c))
       failing.push({ page: c.page, rect: { ...c.rect } })
   if (failing.length > 0)
     throw new InkError(

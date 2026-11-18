@@ -407,11 +407,13 @@ export function createSaver(options: SaverOptions): Saver {
           const bytes = await doc.save()
           if (destroyed) throw destroyedError()
           // Whatever the check throws, the file has not passed it.
-          const findings = await s.engine
-            .checkRedaction(bytes, { ...passwordOption, regions })
-            .catch((cause: unknown) => {
+          // A throw as the call is made counts, not only a rejection.
+          const findings = await (async () =>
+            s.engine.checkRedaction(bytes, { ...passwordOption, regions }))().catch(
+            (cause: unknown) => {
               throw new NotChecked(cause)
-            })
+            }
+          )
           if (destroyed) throw destroyedError()
           return { bytes, result, findings }
         } catch (error) {

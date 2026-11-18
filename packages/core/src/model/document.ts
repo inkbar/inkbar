@@ -280,7 +280,8 @@ export interface InkDocument {
   applyRedactions(): Promise<{ bytes: Uint8Array; result: RedactionResult }>
   /**
    * What `applyRedactions()` would do, without loading the engine: the marks, the pages they are
-   * on, the other annotations they overlap, and whether the file is signed.
+   * on, the other annotations they overlap, whether the file is signed, and the locked marks an
+   * encrypted file may hold from an earlier save.
    */
   redactionPreview(): RedactionPreview
   destroy(): void
@@ -773,6 +774,8 @@ export async function openDocument(
     formFields: form.fields.get(),
     values: form.values.get(),
     fieldChanges: fieldChanges(),
+    // The fact lifting rests on: an encrypted file lifts nothing, so Inkbar's marks stay locked.
+    encrypted: info.isEncrypted,
   })
   /** The apply running, which a second call shares. */
   let applying: Promise<{ bytes: Uint8Array; result: RedactionResult }> | undefined
@@ -795,7 +798,6 @@ export async function openDocument(
       fileParents: fileParents(),
       helpers,
       measure,
-      encrypted: info.isEncrypted,
       saver,
     })
   }

@@ -38,4 +38,11 @@ export interface RedactionPreview {
   overlapped: number
   /** Whether the file holds a digital signature, which would stop verifying. */
   signed: boolean
+  /**
+   * Locked Redact annotations in an encrypted file; 0 in any other file. Inkbar's own marks
+   * saved earlier come back locked in an encrypted file, and the engine applies those it can
+   * tell are Inkbar's. Marks from other programs are counted too, as core cannot tell them apart
+   * there; `RedactionResult.ownLockedMarks` says how many were applied.
+   */
+  lockedMarks: number
 }
