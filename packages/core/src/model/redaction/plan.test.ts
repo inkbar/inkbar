@@ -173,4 +173,41 @@ describe('planRedaction', () => {
     expect(plan.regions.map((r) => r.page)).toEqual([0, 0, 2])
     expect(planRedaction([]).pages).toBe(0)
   })
+
+  describe('replies to file notes', () => {
+    const fileNote = (rect: Rect): Annotation => ({
+      ...note('fn', rect),
+      source: 'pdf',
+      locked: true,
+    })
+
+    test('removes a reply to a locked file note under a mark', () => {
+      const plan = planRedaction([
+        mark('m'),
+        fileNote({ x: 120, y: 100, width: 20, height: 20 }),
+        note('r', { x: 400, y: 400, width: 20, height: 20 }, 'fn'),
+      ])
+      expect(ids(plan.removed)).toEqual(['r'])
+      expect(plan.kept).toEqual([])
+    })
+
+    test('keeps a reply to a file note elsewhere, even with its own rect under a mark', () => {
+      const plan = planRedaction([
+        mark('m'),
+        fileNote({ x: 400, y: 400, width: 20, height: 20 }),
+        note('r', { x: 120, y: 100, width: 20, height: 20 }, 'fn'),
+      ])
+      expect(plan.removed).toEqual([])
+      expect(ids(plan.kept)).toEqual(['r'])
+    })
+
+    test('keeps an orphan reply under a mark', () => {
+      const plan = planRedaction([
+        mark('m'),
+        note('r', { x: 120, y: 100, width: 20, height: 20 }, 'gone'),
+      ])
+      expect(plan.removed).toEqual([])
+      expect(ids(plan.kept)).toEqual(['r'])
+    })
+  })
 })

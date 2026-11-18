@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'vitest'
 
+import { staticDefaults } from '../annotations/defaults'
 import { standardMeasure } from '../annotations/drawing/text/measure'
+import { quadFromRect } from '../geometry'
 
 import { redactionOverlay } from './overlay'
 
@@ -94,5 +96,44 @@ describe('redactionOverlay', () => {
       )
     )
     expect(tiny.size).toBe(4)
+  })
+
+  test('fills each quad of a text mark and centres the text in its box', () => {
+    const top = quadFromRect({ x: 10, y: 30, width: 80, height: 10 })
+    const bottom = quadFromRect({ x: 10, y: 10, width: 50, height: 10 })
+    const d = redactionOverlay({
+      ...redact({ x: 10, y: 10, width: 80, height: 30 }, { overlayText: 'Hi' }),
+      quads: [top, bottom],
+    } as Annotation)
+    const [a, b] = d.items
+    expect(a).toMatchObject({
+      kind: 'polygon',
+      points: [top.p1, top.p2, top.p4, top.p3],
+      paint: { fill: { color: '#000000', opacity: 1 } },
+    })
+    expect(b).toMatchObject({
+      kind: 'polygon',
+      points: [bottom.p1, bottom.p2, bottom.p4, bottom.p3],
+    })
+    expect(d.bounds).toEqual({ x: 10, y: 10, width: 80, height: 30 })
+    const line = textOf(d).lines[0]!
+    expect(line.origin.x + line.width / 2).toBeCloseTo(50)
+  })
+
+  test('falls back to the default fill when the colour is empty', () => {
+    const d = redactionOverlay(
+      redact({ x: 0, y: 0, width: 10, height: 10 }, { interiorColor: '' })
+    )
+    expect(d.items[0]).toMatchObject({
+      paint: { fill: { color: staticDefaults.fill(), opacity: 1 } },
+    })
+  })
+
+  test('throws on an annotation that is not a redaction', () => {
+    const h = {
+      ...redact({ x: 0, y: 0, width: 10, height: 10 }),
+      type: 'square',
+    } as unknown as Annotation
+    expect(() => redactionOverlay(h)).toThrow(TypeError)
   })
 })

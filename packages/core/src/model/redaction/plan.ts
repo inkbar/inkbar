@@ -1,4 +1,4 @@
-import { isReply, isThreadRoot, threadOf } from '../annotations/threads'
+import { isThreadRoot, threadOf } from '../annotations/threads'
 import { quadsFromRect, rectFromQuad, rectsIntersect } from '../geometry'
 
 import type { Annotation, RedactAnnotation } from '../annotations/types'
@@ -75,6 +75,7 @@ export function planRedaction(
     return field !== undefined && hit(field.page, field.rect)
   }
 
+  const byId = new Map(annotations.map((a) => [a.id, a]))
   const removed: Annotation[] = []
   const gone = new Set<string>()
   const take = (a: Annotation): void => {
@@ -82,11 +83,23 @@ export function planRedaction(
     gone.add(a.id)
     removed.push(a)
   }
+  // A reply goes when its parent goes: a session parent by the same rules, a file annotation
+  // when a mark overlaps its geometry, and never on the reply's own geometry. A parent that is
+  // nowhere in the list leaves the reply alone.
+  const replyGoes = (a: Annotation, seen: ReadonlySet<string>): boolean => {
+    const parent = a.inReplyTo === undefined ? undefined : byId.get(a.inReplyTo)
+    if (!parent || seen.has(parent.id)) return false
+    if (parent.source !== 'session') return hit(parent.page, geometryOf(parent))
+    if (parent.inReplyTo !== undefined) return replyGoes(parent, new Set(seen).add(a.id))
+    return goes(parent)
+  }
   for (const a of session) {
-    if (isReply(a, session) || !goes(a)) continue
+    if (a.inReplyTo !== undefined || !goes(a)) continue
     if (isThreadRoot(a)) for (const t of threadOf(session, a)) take(t)
     else take(a)
   }
+  for (const a of session)
+    if (a.inReplyTo !== undefined && replyGoes(a, new Set([a.id]))) take(a)
 
   return {
     marks,
