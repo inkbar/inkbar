@@ -102,6 +102,6 @@ npm lets you add a trusted publisher only to a package that already exists. So a
 1. Publish the package once by hand, from a build of `main`, with an npm account that can publish to the `@inkbar` scope.
 2. In the package's settings on npm, add a trusted publisher for GitHub Actions: the `inkbar/inkbar` repository and the `release.yml` workflow.
 
-Until both are done, the release workflow fails for that package and may stop the other packages from publishing. `@inkbar/engine` is in that position now. The first six packages were published by this workflow with an npm token and moved to trusted publishing afterwards.
+Until both are done, the release workflow fails for that package and may stop the other packages from publishing. All seven packages are set up. `@inkbar/engine` was added this way before 0.16.0; the first six were published by this workflow with an npm token and moved to trusted publishing afterwards.
 
 By contributing, you agree to license your work under the [MIT licence](LICENSE).

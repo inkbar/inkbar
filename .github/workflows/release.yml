@@ -57,8 +57,8 @@ jobs:
       # workflow, so pnpm exchanges the job's OIDC token for a short-lived
       # publish token and no npm token is stored in the repository. npm sets up
       # that trust only for a package that exists, so a package new to npm
-      # (@inkbar/engine, until its first publish) fails here and can stop the
-      # others. CONTRIBUTING.md#releasing lists the manual first publish.
+      # fails here and can stop the others. CONTRIBUTING.md#releasing lists
+      # the manual first publish.
       - name: Publish
         run: >-
           pnpm -r
