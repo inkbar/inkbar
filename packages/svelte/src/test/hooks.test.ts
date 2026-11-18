@@ -12,6 +12,7 @@ import { useHistory } from '../lib/hooks/useHistory.svelte.js'
 import { usePage } from '../lib/hooks/usePage.svelte.js'
 import { useRecords } from '../lib/hooks/useRecords.svelte.js'
 import { useRecordSelection } from '../lib/hooks/useRecordSelection.svelte.js'
+import { useRedaction } from '../lib/hooks/useRedaction.svelte.js'
 import { useSearch } from '../lib/hooks/useSearch.svelte.js'
 import { useSelection } from '../lib/hooks/useSelection.svelte.js'
 import { useTool } from '../lib/hooks/useTool.svelte.js'
@@ -39,6 +40,7 @@ describe('hooks outside InkRoot', () => {
     ['useForm()', useForm],
     ['useRecords()', () => useRecords('sandbox.suggestions')],
     ['useRecordSelection()', () => useRecordSelection('sandbox.suggestions')],
+    ['useRedaction()', useRedaction],
   ])('%s throws a readable error', (name, use) => {
     // Outside any component Svelte's own getContext throws; the hook turns that into its message.
     expect(() => use()).toThrow(

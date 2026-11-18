@@ -4,24 +4,13 @@ import { defineConfig, devices, type PlaywrightTestConfig } from '@playwright/te
 
 /**
  * The Playwright config every sandbox runs. The suite lives beside this file; each sandbox
- * passes its own dev-server port, and `skip` names the specs (file names in `e2e`) whose page
- * it does not have yet. The command runs in the sandbox's directory (the directory of the
- * config that calls this), so `pnpm dev` starts that sandbox.
+ * passes its own dev-server port. The command runs in the sandbox's directory (the directory of
+ * the config that calls this), so `pnpm dev` starts that sandbox.
  */
-export function defineSandboxConfig(opts: {
-  port: number
-  skip?: readonly string[]
-}): PlaywrightTestConfig {
-  const { port, skip = [] } = opts
-  // Names only: a pattern could quietly skip more of the suite than meant.
-  const pattern = skip.find((name) => /[*?[\]{}]/.test(name))
-  if (pattern !== undefined)
-    throw new Error(
-      `defineSandboxConfig: skip takes spec file names, not patterns: ${pattern}`
-    )
+export function defineSandboxConfig(opts: { port: number }): PlaywrightTestConfig {
+  const { port } = opts
   return defineConfig({
     testDir: fileURLToPath(new URL('./e2e', import.meta.url)),
-    testIgnore: skip.map((name) => `**/${name}`),
     timeout: 60_000,
     // The performance checks measure frame times; parallel workers would skew them.
     workers: 1,

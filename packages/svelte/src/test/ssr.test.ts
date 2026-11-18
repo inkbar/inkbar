@@ -72,6 +72,8 @@ describe('@inkbar/svelte on the server', () => {
         'InkSearchResults',
         'useRecords',
         'useRecordSelection',
+        'InkApplyRedactions',
+        'useRedaction',
       ])
     )
     expect(evaluated.pdfjs).toBe(false)
@@ -118,6 +120,19 @@ describe('@inkbar/svelte on the server', () => {
     // about 2.3 s of the 2.6 s is the import of Bits UI's single entry, where the Svelte compiler
     // goes through some 230 components, measured alone on a fast machine. Warm, the whole test
     // takes 0.5 s. The default 5 s is too close to that when other packages' tasks run beside it.
+  }, 30_000)
+  it('InkApplyRedactions renders disabled on the server', async () => {
+    const { default: Host } = await import('./harness/RedactionSsrHost.svelte')
+    const engine = vi.fn()
+    const { body } = render(Host, { props: { assets, engine } })
+    const button = /<button[^>]*data-ink-apply-redactions[^>]*>/.exec(body)?.[0] ?? ''
+    expect(button).toMatch(/\sdisabled/)
+    expect(button).toContain('aria-busy="false"')
+    expect(button).not.toContain('aria-disabled')
+    expect(body).toMatch(/data-ink-apply-redactions[^>]*>(<!--[^>]*-->)*Apply redactions/)
+    expect(body).toMatch(/data-testid="probe" data-can-redact="false" data-busy="false"/)
+    expect(body).not.toContain('data-ink-redaction-dialog')
+    expect(engine).not.toHaveBeenCalled()
   }, 30_000)
   it('InkOutline renders an empty tree on the server', async () => {
     const { default: Host } = await import('./harness/OutlineSsrHost.svelte')
