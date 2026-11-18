@@ -570,7 +570,7 @@
     "opens": true,
     "describes": "redact-text without /Info, plus a layer the default configuration hides, drawing LAYER-TEXT at y 100",
     "secrets": ["SECRET", "ALPHA"],
-    "keeps": ["KEEP-BETA"],
+    "keeps": ["KEEP-BETA", "LAYER-TEXT"],
     "regions": [
       {
         "page": 0,
@@ -660,5 +660,586 @@
         "quad": [95, 205, 200, 205, 95, 95, 200, 95]
       }
     ]
+  },
+  "redact-text-composite": {
+    "file": "redact-text-composite.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "SECRET-ALPHA at x 50..218 and KEEP-BETA at x 250..376 in an embedded TrueType font (a subset of Ahem) under a Type0 font with Identity-H codes equal to Unicode values; the region is over the first",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ]
+  },
+  "redact-text-type3": {
+    "file": "redact-text-type3.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "SECRET-ALPHA at x 50..194 and KEEP-BETA at x 250..358 in a Type 3 font whose glyphs are filled squares; the region is over the first",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ]
+  },
+  "redact-text-nested-form": {
+    "file": "redact-text-nested-form.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "SECRET-ALPHA drawn by a form inside a form (shifted 10 pt right by the outer one) under the region, KEEP-BETA in the page content",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ]
+  },
+  "redact-text-shared-form": {
+    "file": "redact-text-shared-form.pdf",
+    "pages": 2,
+    "opens": true,
+    "describes": "Two pages that each draw one form holding SECRET-ALPHA, and KEEP-BETA in their own content; the region is on the first page only, so the second must still show SECRET-ALPHA",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA", "SECRET-ALPHA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ]
+  },
+  "redact-text-clip": {
+    "file": "redact-text-clip.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "SECRET-ALPHA in text rendering mode 7, a clipping path that a magenta rectangle (x 40..280, y 185..230) then fills, and KEEP-BETA beside it; the region is over the clipping text",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ]
+  },
+  "redact-text-rotated": {
+    "file": "redact-text-rotated.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "SECRET-ALPHA on a baseline turned 30 degrees about (60, 120), under a region turned with it; KEEP-GAMMA on the turned baseline 40 pt above, partly inside the bounding box of the region and outside the region; KEEP-BETA level at (250, 60)",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA", "KEEP-GAMMA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45.67, 134.82, 186.83, 216.32, 58.67, 112.3, 199.83, 193.8]
+      }
+    ]
+  },
+  "redact-text-vertical": {
+    "file": "redact-text-vertical.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "SECRET-ALPHA and KEEP-BETA written top to bottom in the Ahem subset with Identity-V codes, from y 280 at x 100 and x 300; the region is over the first column",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [80, 295, 125, 295, 80, 60, 125, 60]
+      }
+    ]
+  },
+  "redact-text-half-word": {
+    "file": "redact-text-half-word.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "KEEP-SECRET in one string of Helvetica, with the region from x 110, where its S starts, to x 215",
+    "secrets": ["SECRET"],
+    "keeps": ["KEEP-"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 225, 215, 225, 110, 190, 215, 190]
+      }
+    ]
+  },
+  "redact-image-jpeg": {
+    "file": "redact-image-jpeg.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A 64 by 32 JPEG (4:2:0, quality 90; magenta under the region, green beside it) over x 100..292, y 100..196: content in samples 4..27 across under the region (x 90..198), content in samples 36..59 beside it",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [90, 205, 198, 205, 90, 90, 198, 90]
+      }
+    ]
+  },
+  "redact-image-jpx": {
+    "file": "redact-image-jpx.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A 64 by 32 JPEG 2000 image (magenta under the region, green beside it) over x 100..292, y 100..196: content in samples 4..27 across under the region (x 90..198), content in samples 36..59 beside it",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [90, 205, 198, 205, 90, 90, 198, 90]
+      }
+    ]
+  },
+  "redact-image-ccitt": {
+    "file": "redact-image-ccitt.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A 64 by 32 CCITT Group 4 image (black squares under the region, a black block beside it) over x 100..292, y 100..196: content in samples 4..27 across under the region (x 90..198), content in samples 36..59 beside it",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [90, 205, 198, 205, 90, 90, 198, 90]
+      }
+    ]
+  },
+  "redact-image-1bit": {
+    "file": "redact-image-1bit.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A 64 by 32 Flate grey image of 1 bit a sample (black squares under the region, a black block beside it) over x 100..292, y 100..196: content in samples 4..27 across under the region (x 90..198), content in samples 36..59 beside it",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [90, 205, 198, 205, 90, 90, 198, 90]
+      }
+    ]
+  },
+  "redact-image-jbig2": {
+    "file": "redact-image-jbig2.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A 399 by 400 JBIG2 image from PDFium's tests (two dots at the left, strokes to their right) over x 100..300, y 50..250; the region (x 110..160) covers the dots",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 255, 160, 255, 110, 45, 160, 45]
+      }
+    ]
+  },
+  "redact-image-stencil": {
+    "file": "redact-image-stencil.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A 64 by 32 stencil mask painted magenta (squares under the region, a block beside it) over x 100..292, y 100..196: content in samples 4..27 across under the region (x 90..198), content in samples 36..59 beside it",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [90, 205, 198, 205, 90, 90, 198, 90]
+      }
+    ]
+  },
+  "redact-image-smask": {
+    "file": "redact-image-smask.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A 64 by 32 Flate RGB image (varied magentas under the region, green beside it) with a /SMask that is a checkerboard of two opacities under the region and opaque elsewhere, over x 100..292, y 100..196: content in samples 4..27 across under the region (x 90..198), content in samples 36..59 beside it",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [90, 205, 198, 205, 90, 90, 198, 90]
+      }
+    ]
+  },
+  "redact-image-mask": {
+    "file": "redact-image-mask.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A 64 by 32 Flate RGB image (varied magentas under the region, green beside it) with a stream /Mask that masks every third sample under the region, over x 100..292, y 100..196: content in samples 4..27 across under the region (x 90..198), content in samples 36..59 beside it",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [90, 205, 198, 205, 90, 90, 198, 90]
+      }
+    ]
+  },
+  "redact-image-shared": {
+    "file": "redact-image-shared.pdf",
+    "pages": 2,
+    "opens": true,
+    "describes": "One 64 by 32 Flate RGB image (varied magentas under the region, green beside it) drawn on two pages over x 100..292, y 100..196: content in samples 4..27 across under the region (x 90..198), content in samples 36..59 beside it; the region is on the first page only, so the second must still show the whole image",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [90, 205, 198, 205, 90, 90, 198, 90]
+      }
+    ]
+  },
+  "redact-image-rotated": {
+    "file": "redact-image-rotated.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "The colour pattern of redact-image-shared turned 30 degrees about (120, 60), green only from sample 48 across, with KEEP-BETA at (250, 25); the region is the image's left half (up to a third of the way into sample 32), turned with it. The apply blanks the samples in the region's bounding box on the page, which reaches sample 47, so the green starts past it",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [66.27, 145.37, 153.6, 195.79, 119.07, 53.92, 206.4, 104.34]
+      }
+    ]
+  },
+  "redact-image-skewed": {
+    "file": "redact-image-skewed.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "The colour pattern of redact-image-shared skewed: its top edge 15 pt right of its bottom edge, over x 100..307, y 100..196; the region (x 90..203) covers the content under it, which ends by x 197.2, and the content beside it starts at x 209.9",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [90, 205, 203, 205, 90, 90, 203, 90]
+      }
+    ]
+  },
+  "redact-drawing-fill": {
+    "file": "redact-drawing-fill.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A magenta quadrilateral wholly under the region (x and y 110..190) and a blue square at x 260..320, y 120..180",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ]
+  },
+  "redact-drawing-stroke": {
+    "file": "redact-drawing-stroke.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A magenta line 4 pt wide from (60, 150) through the region (x 110..190, y 110..190) to (330, 150), and a blue line at y 240",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ]
+  },
+  "redact-drawing-shading": {
+    "file": "redact-drawing-shading.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "An axial magenta shading painted through a clip of x and y 125..175, under the region (x and y 110..190), and a blue one through a clip of x 260..320, y 120..180",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ]
+  },
+  "redact-drawing-pattern": {
+    "file": "redact-drawing-pattern.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A square (x and y 120..180) under the region filled with a tiling pattern whose 20 pt cell draws a magenta triangle, and a blue square at x 260..320",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ]
+  },
+  "redact-page-rotate-90": {
+    "file": "redact-page-rotate-90.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "redact-text on a page with /Rotate 90; the region is in user space",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ]
+  },
+  "redact-page-rotate-270": {
+    "file": "redact-page-rotate-270.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "redact-text on a page with /Rotate 270; the region is in user space",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ]
+  },
+  "redact-page-userunit": {
+    "file": "redact-page-userunit.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "redact-text on a page with /UserUnit 2",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ]
+  },
+  "redact-page-cropbox": {
+    "file": "redact-page-cropbox.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A 600 by 500 page cropped to x 100..500, y 100..400, with SECRET-ALPHA at (150, 300) under the region and KEEP-BETA at (350, 300)",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [145, 325, 315, 325, 145, 290, 315, 290]
+      }
+    ]
+  },
+  "redact-page-no-contents": {
+    "file": "redact-page-no-contents.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A page with no /Contents and one stamp, at x 60..210, y 180..220, whose appearance draws SECRET-STAMP; the region (x 40..240, y 150..250) covers the stamp",
+    "annotations": {
+      "Stamp": 1
+    },
+    "secrets": ["SECRET-STAMP"],
+    "keeps": [],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [40, 250, 240, 250, 40, 150, 240, 150]
+      }
+    ]
+  },
+  "redact-copy-thumbnail": {
+    "file": "redact-copy-thumbnail.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "redact-text whose page has a /Thumb image",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ],
+    "gone": ["/Thumb"]
+  },
+  "redact-copy-pieceinfo": {
+    "file": "redact-copy-pieceinfo.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "redact-text whose page has /PieceInfo, private application data holding SECRET-OMEGA",
+    "secrets": ["SECRET", "ALPHA", "OMEGA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ],
+    "gone": ["/PieceInfo"]
+  },
+  "redact-copy-xmp": {
+    "file": "redact-copy-xmp.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "redact-text with XMP metadata on the catalog and on the page, each holding a JPEG preview in xmp:Thumbnails",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ],
+    "gone": ["xmp:Thumbnails", "xmpGImg", "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMC"]
+  },
+  "redact-annotation-loupe": {
+    "file": "redact-annotation-loupe.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "redact-text with a loupe beside the region: a square annotation at x 220..380, y 40..160 whose appearance draws a copy of the page (tagged /INKB_PageCopy) at twice its size, centred on the start of SECRET-ALPHA",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ],
+    "annotations": {
+      "Square": 1
+    },
+    "refused": "the loupe's appearance holds a copy of the page as it was, which the apply does not change; Inkbar writes its own loupes again after the apply"
+  },
+  "redact-file-encrypted": {
+    "file": "redact-file-encrypted.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "redact-text encrypted with AES-128; the user password is \"inkbar\"",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ],
+    "password": "inkbar"
+  },
+  "redact-file-signed": {
+    "file": "redact-file-signed.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "redact-text with a signature field (widget at x 300..380, y 40..80) holding a signature dictionary whose /Contents is zeros: it looks signed and verifies against nothing",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ],
+    "annotations": {
+      "Widget": 1
+    }
+  },
+  "redact-file-revisions": {
+    "file": "redact-file-revisions.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Two revisions: the first draws SECRET-ZETA and KEEP-BETA, the appended second draws SECRET-ALPHA under the region and KEEP-BETA; the first content stream stays in the bytes",
+    "secrets": ["SECRET", "ALPHA", "ZETA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ]
+  },
+  "redact-file-hidden-layer": {
+    "file": "redact-file-hidden-layer.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "redact-text plus HIDDEN-OMEGA at (50, 170) in a layer the default configuration hides; the region (x 45..215, y 160..225) covers both",
+    "secrets": ["SECRET", "ALPHA", "HIDDEN", "OMEGA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 160, 215, 160]
+      }
+    ]
+  },
+  "redact-file-attachment": {
+    "file": "redact-file-attachment.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "redact-text with an attached file holding SECRET-OMEGA in /EmbeddedFiles and a file attachment annotation (x 340..360, y 40..60) holding SECRET-SIGMA",
+    "secrets": ["SECRET", "ALPHA", "OMEGA", "SIGMA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ],
+    "annotations": {
+      "FileAttachment": 1
+    },
+    "gone": ["/EmbeddedFiles", "/EmbeddedFile", "/EF"]
+  },
+  "redact-file-script": {
+    "file": "redact-file-script.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "redact-text with scripts holding SECRET-OMEGA in /Names /JavaScript, SECRET-SIGMA in the /OpenAction and SECRET-KAPPA in the page's /AA",
+    "secrets": ["SECRET", "ALPHA", "OMEGA", "SIGMA", "KAPPA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ],
+    "gone": ["/JavaScript", "/JS"]
+  },
+  "redact-text-pattern": {
+    "file": "redact-text-pattern.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A band at x 20..380, y 170..240 filled with a tiling pattern whose one cell, the size of the page, is grey with SECRET-ALPHA at (50, 200), under the region; KEEP-BETA at (300, 100) in the page content",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ],
+    "refused": "the redaction cuts the band but does not enter the pattern, so the cell still holds the text under the region, and the check counts it"
+  },
+  "redact-drawing-pattern-past-mark": {
+    "file": "redact-drawing-pattern-past-mark.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A band at x 20..380, y 100..200 filled with a tiling pattern whose one cell, the size of the page, draws a magenta quadrilateral under the region (x and y 110..190) and a blue square at x 260..320, y 120..180 beside it",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [110, 190, 190, 190, 110, 110, 190, 110]
+      }
+    ],
+    "leaks": "the apply cuts a hole in the band but leaves the pattern, whose cell still draws the quadrilateral under the region, and the check does not count vector drawing inside a pattern"
   }
 }

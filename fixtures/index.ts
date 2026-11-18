@@ -34,6 +34,21 @@ export interface FixtureMeta {
   keeps?: string[]
   /** Where the redaction tests put their marks. */
   regions?: RedactionRegion[]
+  /**
+   * Names and words that hold a copy of the content (a thumbnail, an attachment, a script) and
+   * that a redaction's sanitising must leave nowhere in the file.
+   */
+  gone?: string[]
+  /**
+   * Why redacting the `regions` is refused: the apply leaves content the strict check sees, so
+   * the action fails and hands over nothing. Absent when the regions redact cleanly.
+   */
+  refused?: string
+  /**
+   * Why redacting the `regions` leaves content under them that the strict check does not see:
+   * a known leak, stated so the tests assert it until it is fixed. Absent for every other file.
+   */
+  leaks?: string
 }
 
 export const manifest = manifestJson as Record<FixtureName, FixtureMeta>

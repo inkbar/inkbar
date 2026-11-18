@@ -204,7 +204,7 @@ const badlyRedacted = FIXTURE_NAMES.filter((name) => name.startsWith('bad-'))
 describe('redaction fixtures', () => {
   /** The text PDF.js reads from every page of a fixture, page by page. */
   async function pageTexts(name: FixtureName): Promise<string[]> {
-    const task = await open(name)
+    const task = await open(name, manifest[name].password)
     const doc = await task.promise
     const texts: string[] = []
     for (let i = 1; i <= doc.numPages; i++) {
@@ -216,13 +216,17 @@ describe('redaction fixtures', () => {
   }
 
   it.each(redaction)('%s holds its secrets and the text it keeps', async (name) => {
-    const { secrets, keeps, regions } = manifest[name]
+    const { secrets, keeps, regions, gone, password } = manifest[name]
     expect(regions?.length).toBeGreaterThan(0)
     const text = (await pageTexts(name)).join('\n')
     const bytes = await fixtureBytes(name)
     for (const word of keeps ?? []) expect(text, word).toContain(word)
-    // A secret may sit in an annotation rather than in the page's text.
-    for (const word of secrets ?? []) expect(holdsText(bytes, word), word).toBe(true)
+    // A secret may sit in an annotation rather than in the page's text. An encrypted file's
+    // bytes hold nothing readable, so its secrets are in its text.
+    for (const word of secrets ?? [])
+      expect(password ? text.includes(word) : holdsText(bytes, word), word).toBe(true)
+    // What sanitising must remove is there to remove.
+    for (const word of gone ?? []) expect(holdsText(bytes, word), word).toBe(true)
     // Every stream is compressed and every string in a dictionary is hex, so the plain bytes
     // hold none of the words.
     const plain = Buffer.from(bytes).toString('latin1')
@@ -231,8 +235,8 @@ describe('redaction fixtures', () => {
   })
 
   it.each(redaction)('%s puts each region inside a page', async (name) => {
-    const { pages, regions } = manifest[name]
-    const task = await open(name)
+    const { pages, regions, password } = manifest[name]
+    const task = await open(name, password)
     const doc = await task.promise
     for (const { page, quad } of regions ?? []) {
       expect(page).toBeLessThan(pages)
