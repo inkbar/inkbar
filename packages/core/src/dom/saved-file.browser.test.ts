@@ -164,8 +164,15 @@ interface Scene {
 
 const SOFT_HYPHEN = String.fromCharCode(0xad)
 
-/** The engine's standard faces differ from the screen's past the tolerance: see `Case.byPosition`. */
-const ENGINE_TEXT: Partial<Case> = { byPosition: ['engine'] }
+/**
+ * Text in the standard fonts. The engine's faces differ from the screen's past the tolerance,
+ * and the face PDF.js draws depends on the machine's fonts: where it finds a local Helvetica it
+ * draws that one, which need not be the face the browser picks for the screen. Both readers
+ * compare the text by position: see `Case.byPosition`.
+ */
+const STANDARD_TEXT: Partial<Case> = { byPosition: ['engine', 'pdfjs'] }
+/** A short line of standard text: the engine's face stays within the tolerance, PDF.js's may not. */
+const SHORT_TEXT: Partial<Case> = { byPosition: ['pdfjs'] }
 /**
  * Text in a picture: PDF.js as well as the engine resamples it from four pixels a point to the
  * render's two, against glyphs the screen draws directly (the spec's known difference 2), so
@@ -246,6 +253,7 @@ const everyType = (): Scene => ({
         width: 1,
         contents: 'A text box on the page',
       },
+      SHORT_TEXT,
     ],
     [
       'stamp',
@@ -323,7 +331,7 @@ const details = (): Scene => ({
         contents:
           'This text runs on for more lines than the rounded box can hold, so the box clips it.',
       },
-      { ...ENGINE_TEXT, clipped: true },
+      { ...STANDARD_TEXT, clipped: true },
     ],
     [
       'a justified text box with tabs',
@@ -336,7 +344,7 @@ const details = (): Scene => ({
         contents:
           'Name:\tAda Lovelace wrote the first program for a machine that did not exist yet.\nDate:\t1843, in notes on the engine.',
       },
-      { ...ENGINE_TEXT, pieces: true },
+      { ...STANDARD_TEXT, pieces: true },
     ],
     [
       'a Courier text box',
@@ -347,7 +355,7 @@ const details = (): Scene => ({
         defaultStyle: { fontFamily: 'Courier', fontSize: 12, color: '#FF0000' },
         contents: 'Courier 0123456789l',
       },
-      ENGINE_TEXT,
+      STANDARD_TEXT,
     ],
     [
       'a text box with text outside the standard fonts',
@@ -380,7 +388,7 @@ const details = (): Scene => ({
           SOFT_HYPHEN
         ),
       },
-      ENGINE_TEXT,
+      STANDARD_TEXT,
     ],
   ]),
 })
@@ -497,6 +505,7 @@ const turned = (fixture: FixtureName): Scene => ({
         width: 1,
         contents: 'Turned with the page',
       },
+      SHORT_TEXT,
     ],
     ['ink', { type: 'ink', page: 0, inklist: [zigzag(320, 520)], width: 3 }],
     [
