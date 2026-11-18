@@ -115,4 +115,43 @@ describe('createRefHistory', () => {
     expect(h.history.canRedo.value).toBe(false)
     h.stop()
   })
+
+  it('takes the answer to a replaced list as no step, however late it comes', async () => {
+    const h = host([note('a'), note('mark')])
+    await h.set([note('a'), note('b'), note('mark')])
+    expect(h.history.canUndo.value).toBe(true)
+    h.history.replaced([note('a'), note('b')])
+    expect(h.history.canUndo.value).toBe(false)
+    // Another list first is a step as usual; the answer then empties the history.
+    await h.set([note('a'), note('b'), note('mark'), note('c')])
+    expect(h.history.canUndo.value).toBe(true)
+    await h.set([note('a'), note('b')])
+    expect(h.history.canUndo.value).toBe(false)
+    expect(h.history.canRedo.value).toBe(false)
+    // Later changes are steps again.
+    await h.set([note('a')])
+    expect(h.history.canUndo.value).toBe(true)
+    h.stop()
+  })
+
+  it('keeps waiting for a lift when the answer to a replaced list comes after it', async () => {
+    const h = host([note('a'), note('mark')])
+    h.history.replaced([note('a')])
+    h.history.lifted([note('l')])
+    await h.set([note('a')])
+    expect(h.history.canUndo.value).toBe(false)
+    // The lift's answer is no step either.
+    await h.set([note('a'), note('l')])
+    expect(h.history.canUndo.value).toBe(false)
+    h.stop()
+  })
+
+  it('stops waiting for the answer to a replaced list once cleared', async () => {
+    const h = host([note('a'), note('mark')])
+    h.history.replaced([note('a')])
+    h.history.clear()
+    await h.set([note('a')])
+    expect(h.history.canUndo.value).toBe(true)
+    h.stop()
+  })
 })

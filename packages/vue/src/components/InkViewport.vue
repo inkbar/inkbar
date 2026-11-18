@@ -266,15 +266,21 @@ function setup(): void {
   let first = true
   build += 1
   custom = !!slots.annotation
+  // Opened on redacted bytes: the view of the document it replaced.
+  const kept = ctx.keptView(doc)
   // The tools this viewer registers, from the same inputs; a later `tools` waits for a rebuild.
   ctx.openedToolIds.value = toolIdsOf(ctx.hostTools.value, ctx.pluginHost.value)
   engine.value = mountViewer({
     container: el,
     document: doc,
-    zoom: ctx.zoomModel.value ?? 'fit-width',
-    ...(ctx.pageModel.value === undefined ? {} : { page: ctx.pageModel.value }),
-    mode: props.mode,
-    rotation: props.rotation,
+    zoom: kept?.zoom ?? ctx.zoomModel.value ?? 'fit-width',
+    ...(kept
+      ? { page: kept.page }
+      : ctx.pageModel.value === undefined
+        ? {}
+        : { page: ctx.pageModel.value }),
+    mode: kept?.mode ?? props.mode,
+    rotation: kept?.rotation ?? props.rotation,
     gap: props.gap,
     buffer: props.buffer,
     pinchZoom: props.pinchZoom,

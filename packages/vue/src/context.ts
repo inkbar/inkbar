@@ -12,10 +12,12 @@ import type {
   PdfAssets,
   PluginHistory,
   Readable,
+  RedactionResult,
   SignatureLibrary,
 } from '@inkbar/core'
 import type {
   DecorateAnnotation,
+  LayoutMode,
   MessageState,
   Navigation,
   PasswordPrompt,
@@ -27,11 +29,20 @@ import type {
   ToolOptions,
   ToolStyle,
   Viewport,
+  ViewRotation,
   ZoomValue,
 } from '@inkbar/core/dom'
 import type { Ref, ShallowRef } from 'vue'
 
 export type { InkStatus }
+
+/** What a reopen on redacted bytes keeps of the view it replaces. */
+export interface KeptView {
+  zoom: ZoomValue
+  page: number
+  mode: LayoutMode
+  rotation: ViewRotation
+}
 
 /**
  * Undo and redo for the current document, whichever mode its annotations are in. `track` and
@@ -157,8 +168,22 @@ export interface InkContext {
    * failure is ignored, as before.
    */
   reportFileError(this: void, error: unknown): void
-  /** Calls `show` with each message `reportFileError` has for the reader; returns the stop. */
+  /**
+   * Calls `show` with each message InkRoot has for the reader in InkViewport's message box: a
+   * download or print that failed (`reportFileError`), and what applying redactions did or why
+   * it failed. Returns the stop.
+   */
   onFileMessage(show: (message: string) => void): () => void
+  /**
+   * Applies the open document's redaction marks and shows the redacted file: what
+   * `useRedaction().apply` does.
+   */
+  applyRedactions(this: void): Promise<RedactionResult | null>
+  /**
+   * The view a document opened on redacted bytes starts from (the one it replaced), for
+   * InkViewport's first build of it; undefined for any other document.
+   */
+  keptView(this: void, doc: InkDocument): KeptView | undefined
 }
 
 export const [injectInkContext, provideInkContext] = createContext<InkContext>('InkRoot')

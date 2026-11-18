@@ -1,7 +1,7 @@
 /*
- * A stand-in for @inkbar/engine whose every write waits for the test, reached from the page as
- * `window.__heldEngine`: `writing()` says whether one is waiting, `finish()` lets it save and
- * `fail()` makes it reject. `loads` counts the loader's calls. `unavailable` makes the loader
+ * A stand-in for @inkbar/engine whose every write, and every apply of redaction marks, waits for
+ * the test, reached from the page as `window.__heldEngine`: `writing()` says whether one is
+ * waiting, `finish()` lets it save and `fail()` makes it reject. `loads` counts the loader's calls. `unavailable` makes the loader
  * itself fail, as it would offline.
  */
 import type { EngineLoader } from '@inkbar/core'
@@ -28,24 +28,26 @@ export function heldEngine(unavailable = false): EngineLoader {
     fail: () => settle?.fail(),
   }
   window.__heldEngine = held
+  const hold = (): Promise<void> =>
+    new Promise<void>((resolve, reject) => {
+      settle = {
+        finish: () => {
+          settle = undefined
+          resolve()
+        },
+        fail: () => {
+          settle = undefined
+          reject(new Error('write failed'))
+        },
+      }
+    })
   const doc = {
     pageCount: 1,
-    write: () =>
-      new Promise<void>((resolve, reject) => {
-        settle = {
-          finish: () => {
-            settle = undefined
-            resolve()
-          },
-          fail: () => {
-            settle = undefined
-            reject(new Error('write failed'))
-          },
-        }
-      }),
+    write: hold,
     // A PDF header is enough for a download to carry.
     save: () => Promise.resolve(new TextEncoder().encode('%PDF-1.7 written')),
-    redact: () => Promise.reject(new Error('unused')),
+    // An apply waits like a write; let through, it still fails: there is no file to redact.
+    redact: () => hold().then(() => Promise.reject(new Error('unused'))),
     close: () => Promise.resolve(),
   }
   const engine = {
