@@ -149,11 +149,11 @@ Inside `InkRoot`, `useHistory()` returns the same object. Its `batch(fn)` runs `
 
 `key` identifies the document. Reuse the same key when only the signed URL changes and the document is not reloaded.
 
-`InkRoot` takes a few more options. `password` opens an encrypted PDF (see [Locked files](#locked-files)). `passwordPrompt` (on by default) asks the reader for a locked file's password. `storage` sets what the viewer keeps between visits (see [Storage](#storage)). `minDocumentWidth` sets how narrow the document may get before a rail sidebar's panel floats over it (see [Sidebars](#sidebars)). `messages` and `locale` set the viewer's language (see [Translations](#translations)). `defaults` sets annotation colours; without it the theme's CSS variables apply. `fonts` sets the families the text style menu offers. `decorateAnnotation` adds attributes, classes and a screen-reader description to each annotation. `bind:page` and `bind:zoom` (or `onPageChange` and `onZoomChange`) follow and drive the viewport, and `bind:tool` (or `onToolChange`) does the same for the active tool. `onError` hears failed opens, form script errors and refused signings. `onActivate` hears the id of each activated annotation. `onFieldsChange` hears form value changes.
+`InkRoot` takes a few more options. `password` opens an encrypted PDF (see [Locked files](#locked-files)). `passwordPrompt` (on by default) asks the reader for a locked file's password. `storage` sets what the viewer keeps between visits (see [Storage](#storage)). `minDocumentWidth` sets how narrow the document may get before a rail sidebar's panel floats over it (see [Sidebars](#sidebars)). `messages` and `locale` set the viewer's language (see [Translations](#translations)). `engine` loads `@inkbar/engine` so Download and Print write the session into the file (see [Saving](#saving)). `defaults` sets annotation colours; without it the theme's CSS variables apply. `fonts` sets the families the text style menu offers. `decorateAnnotation` adds attributes, classes and a screen-reader description to each annotation. `bind:page` and `bind:zoom` (or `onPageChange` and `onZoomChange`) follow and drive the viewport, and `bind:tool` (or `onToolChange`) does the same for the active tool. `onError` hears failed opens, form script errors, refused signings and saves that could not be written. `onActivate` hears the id of each activated annotation. `onFieldsChange` hears form value changes.
 
 ## Viewport
 
-`InkViewport` takes `mode`, `rotation`, `gap` (CSS pixels between pages, default 16), `buffer` (pages kept mounted either side of the visible ones, default 2) and `pinchZoom` (default `true`; `false` leaves pinches to the browser, which zooms the whole page). A change to `gap`, `buffer` or `pinchZoom` rebuilds the engine.
+`InkViewport` takes `mode`, `rotation`, `gap` (CSS pixels between pages, default 16), `buffer` (pages kept mounted either side of the visible ones, default 2) and `pinchZoom` (default `true`; `false` leaves pinches to the browser, which zooms the whole page). A change to `gap`, `buffer` or `pinchZoom` rebuilds the viewer engine (the viewport, page layers and tools that `InkViewport` mounts).
 
 On a touch screen, two fingers pinch to zoom the document and scroll it. With `draw`, `sketch`, `shape`, `redact-area` and `freetext`, one finger draws; a finger tap draws nothing, and a pen that lands while a palm rests on the screen takes over. A shape, area redaction or text box gives one-finger scrolling back once it has made something.
 
@@ -324,11 +324,33 @@ The list and the marks share one selection: choosing a card selects its mark and
 
 To build your own, `useRecords<T>(name)` returns the live `records` and the `handle` to read and write them, each write one undo step, and `useRecordSelection(name)` returns `selected` and `select(id | null)`. Both need `InkRoot`. Plugins are set up once it has mounted, so until then `handle` is null, `records` is empty and nothing is selected. Both lists fill their parent's height and render empty on the server. The keys, focus and announcements are core's: see the [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#record-lists).
 
+## Saving
+
+Install `@inkbar/engine` and pass a loader for it as the `engine` prop of `InkRoot`:
+
+```svelte
+<script lang="ts">
+  const engine = () => import('@inkbar/engine')
+</script>
+
+<InkRoot src={url} {assets} {engine}>
+  <!-- … -->
+</InkRoot>
+```
+
+`InkDownloadButton`, `InkPrintButton` and Ctrl or Cmd+S and +P then hand over the file with this session's annotations and changed form values written into it: standard PDF annotations other programs can read, each drawn as it is on screen. The engine loads on the first save that has changes, and a visit that changes nothing never loads it. A bundler picks up its files from the package, so there is no setup. The prop is read when a document opens.
+
+Without the prop nothing changes: Download and Print give the file as it was opened, and the engine is not bundled.
+
+Open a file Inkbar saved and its annotations come back ready to edit. Annotations from other programs stay locked, and so do Inkbar's own in an encrypted file. A redaction mark is saved as a Redact annotation and is not applied: the content under it stays in the file. A signed file is saved by appending, so its signature still verifies. When the file cannot be written, Download and Print hand over nothing, the viewer says so, and `onError` hears a `SaveFailed` error.
+
+The [`@inkbar/core` README](https://github.com/inkbar/inkbar/tree/main/packages/core#saving-into-the-pdf) has the details, including where the saved file differs from the screen.
+
 ## Custom rendering
 
 Slots are snippets. `InkViewport` takes `loading`, `empty`, `error`, `locked`, `annotation` and `pageError`. `InkThreadPopover` takes `children` as a snippet that receives the popover's props. `InkToolButton` takes `children` as a snippet of `{ active, label }`, and `InkCommand` one of `{ label, busy }`. `InkThumbnails` and `InkOutline` take `item`, and `InkRecordList` takes `empty`. The props each receives are typed as `AnnotationSlotProps` and `ThreadPopoverSlotProps`, the same types the Vue and React packages export.
 
-`InkDownloadButton` and `InkPrintButton` download and print the open PDF; `filename` names the download (the opened `File`'s name, else the URL's last segment, else `document.pdf`). Printing loads the file into a hidden frame and opens the browser's print dialog for it; on iOS the PDF opens in a new tab instead. Until saving into the PDF ships, both give the file as it was opened, without this session's annotations.
+`InkDownloadButton` and `InkPrintButton` download and print the open PDF; `filename` names the download (the opened `File`'s name, else the URL's last segment, else `document.pdf`). Printing loads the file into a hidden frame and opens the browser's print dialog for it; on iOS the PDF opens in a new tab instead. With the `engine` prop they give the file with this session's changes written into it (see [Saving](#saving)); without it, the file as it was opened.
 
 `InkRoot`, `InkToolbar`, `InkToolButton`, `InkToolbarButton`, `InkCommand`, `InkUndo`, `InkRedo`, `InkDownloadButton`, `InkPrintButton`, `InkSearchButton`, `InkPrevPage`, `InkNextPage`, `InkBack`, `InkForward`, `InkZoomIn` and `InkZoomOut` take a `child` snippet to render your own element. Spread the `props` it gives you on that element. The snippet type is exported as `ChildSnippet`.
 

@@ -7,13 +7,14 @@ import { FRAMEWORK_ORDER } from '../shell/frameworks.ts'
 
 import { SCENARIOS } from './registry.ts'
 
-void test('ten scenarios in order', () => {
+void test('eleven scenarios in order', () => {
   assert.deepEqual(
     SCENARIOS.map((s) => s.id),
     [
       'tour',
       'tools',
       'forms',
+      'save',
       'redactions',
       'controlled',
       'search',
@@ -37,6 +38,16 @@ void test('events is registered for every framework, with its plugin', () => {
   assert.deepEqual(events.extraFiles, ['src/plugin/presses.ts', 'src/plugin/presses.css'])
   for (const file of ['react.tsx', 'vue.vue', 'svelte.svelte', 'vanilla.ts'])
     assert.ok(existsSync(new URL(`./events/${file}`, import.meta.url)), file)
+})
+
+void test('save is registered for every framework', () => {
+  const save = SCENARIOS.find((s) => s.id === 'save')
+  assert.ok(save)
+  assert.equal(save.title, 'Save and reopen')
+  assert.equal(save.document, 'letter')
+  assert.deepEqual(save.panels, ['events'])
+  for (const file of ['react.tsx', 'vue.vue', 'svelte.svelte', 'vanilla.ts'])
+    assert.ok(existsSync(new URL(`./save/${file}`, import.meta.url)), file)
 })
 
 void test('locked is registered for every framework', () => {

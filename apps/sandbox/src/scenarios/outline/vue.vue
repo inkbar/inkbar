@@ -35,6 +35,7 @@ import '@inkbar/theme/theme.css'
 import { assets } from 'virtual:inkbar-assets'
 import { ref } from 'vue'
 
+import { engine } from '../../shared/engine'
 import { FileUp } from '../../shared/file-up'
 import { storage } from '../../shared/signatures'
 
@@ -66,6 +67,7 @@ function onAction(action: ViewerAction): void {
     :locale="locale"
     :assets="assets"
     :storage="storage"
+    :engine="engine"
     class="scenario-root"
     @ready="onReady"
     @action="onAction"

@@ -51,6 +51,7 @@ import {
   type Suggestion,
 } from '../../plugin/suggestions'
 import '../../plugin/suggestions.css'
+import { engine } from '../../shared/engine'
 import { FileUp } from '../../shared/file-up'
 import { signatureFonts, storage } from '../../shared/signatures'
 
@@ -161,6 +162,7 @@ export default function SuggestRedactions({
       tools={tools}
       plugins={plugins}
       storage={storage}
+      engine={engine}
       signatureFonts={signatureFonts}
       onReady={onReady}
       onActivate={(id) => log('onActivate', id)}

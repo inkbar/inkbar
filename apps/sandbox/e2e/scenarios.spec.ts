@@ -40,6 +40,7 @@ const TOOLBARS: Record<string, string[]> = {
   tour: [...SELECT_TOOLS, ...CREATION_TOOLS],
   tools: [...SELECT_TOOLS, 'highlight', 'note'],
   forms: SELECT_TOOLS,
+  save: [...SELECT_TOOLS, 'highlight', 'note'],
   controlled: [...SELECT_TOOLS, ...CREATION_TOOLS],
   redactions: [...SELECT_TOOLS, ...CREATION_TOOLS],
   search: SELECT_TOOLS,

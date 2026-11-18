@@ -5,6 +5,7 @@ export type ScenarioId =
   | 'tour'
   | 'tools'
   | 'forms'
+  | 'save'
   | 'redactions'
   | 'controlled'
   | 'search'
@@ -50,6 +51,14 @@ export const SCENARIOS: readonly Scenario[] = [
       'Text fields, checkboxes, radios, a choice list and a signature field. No creation tools needed.',
     document: 'form',
     panels: ['events', 'values'],
+  },
+  {
+    id: 'save',
+    title: 'Save and reopen',
+    blurb:
+      'Download writes your annotations into the PDF. Open the file you saved and they come back, ready to edit.',
+    document: 'letter',
+    panels: ['events'],
   },
   {
     id: 'redactions',

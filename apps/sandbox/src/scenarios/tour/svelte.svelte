@@ -36,6 +36,7 @@
   import { onDestroy } from 'svelte'
   import { assets } from 'virtual:inkbar-assets'
 
+  import { engine } from '../../shared/engine'
   import { FileUp } from '../../shared/file-up'
   import { signatureFonts, storage } from '../../shared/signatures'
 
@@ -67,6 +68,7 @@
   {assets}
   {tools}
   {storage}
+  {engine}
   {signatureFonts}
   {onReady}
   onToolChange={(tool) => log('onToolChange', tool)}

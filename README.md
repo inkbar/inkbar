@@ -22,7 +22,7 @@
 
 Your users want to read a PDF, mark it up and send it back without leaving your app. The commercial PDF SDKs do that and charge per seat or per domain. PDF.js is free, but it renders pages and stops there: the toolbar, the annotations, undo and the keyboard support are yours to build.
 
-Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, gives you the parts to build its UI in Vue, React, Svelte or plain TypeScript, and is free under the MIT licence.
+Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, writes the annotations into the file, gives you the parts to build its UI in Vue, React, Svelte or plain TypeScript, and is free under the MIT licence.
 
 <p align="center">
   <img src=".github/assets/viewer.png" alt="The Inkbar viewer showing a lease clause with a highlighted phrase, a phrase struck out across a line break and a word marked for redaction. A note's comment thread is open beside the clause." width="100%">
@@ -30,7 +30,7 @@ Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, gi
 
 ## Why Inkbar
 
-- **Your framework.** Components and hooks for Vue 3, React 19 and Svelte 5, plus `createViewer` for apps with no framework at all. All four share one engine and one stylesheet.
+- **Your framework.** Components and hooks for Vue 3, React 19 and Svelte 5, plus `createViewer` for apps with no framework at all. All four share one core and one stylesheet.
 - **Toolbars you assemble.** You build each toolbar in your own markup from Inkbar's controls: tool buttons, undo and redo, the zoom select, the page input. Keep the ones you need, place them where they fit and add your own. The theme styles them with zero-specificity rules, so your CSS wins without `!important`, and it reads shadcn token names if your app defines them.
 - **Annotations as plain data.** Highlights, notes, drawings and redactions are typed objects. Keep them in your own state and save them to your own backend, or let Inkbar hold them. Undo and redo work either way. The annotation's data sets its shape, colours and text, and their paint is locked against stylesheets. A stylesheet adds or changes only what surrounds the drawing (the theme's outlines, note shadow and comment markers, the editor, handles and selection frame), and can still hide, move or filter elements.
 - **Redaction marks.** Mark text or areas for redaction by hand, or add marks from your own detector through the same API. Anything your review needs, such as a reason or a score, goes in the annotation's `custom` data.
@@ -56,15 +56,14 @@ Inkbar fills that gap. It renders, annotates and redacts PDFs in the browser, gi
 | Annotations | JSON export and import, and the PDF's own annotations shown as locked                                                                         |
 | History     | Undo and redo with grouped steps, whether Inkbar or your app holds the annotations                                                            |
 | Files       | Download and print the open PDF, and a password prompt for locked files                                                                       |
+| Saving      | Annotations and form values written into the PDF with `@inkbar/engine`, and editable again when the file is reopened                          |
 | Touch       | Pinch zoom, drawing with a finger, and press and long press events for plugins                                                                |
 | Languages   | English, with draft French and German, switched without a reload, and your own translations through `messages`                                |
 | Plugins     | Add commands, tools, page layers, marks and records from a plugin                                                                             |
 
 ### Not there yet
 
-- **Saving into the PDF.** Store `exportAnnotations('json')` in your own backend and import it on the next open. Download and print give the file as it was opened.
-- **Applying redactions.** A redaction mark is a tinted box over the content. The text under it still renders and can be copied. Inkbar will remove content once saving into the PDF ships.
-- **Saving field values into the PDF.** Values stay in memory. Export them with the annotations.
+- **Applying redactions.** A redaction mark is a tinted box over the content. The text under it still renders and can be copied, and a saved file keeps it under a Redact annotation.
 - **XFA forms.** The [docs](https://inkbar.dev/docs/) say what to do meanwhile.
 
 ## Install
@@ -90,6 +89,14 @@ export default defineConfig({
 ```
 
 Without Vite, copy the files yourself and pass their URLs. The [`@inkbar/core` README](packages/core/README.md#serving-pdfjs-assets) lists them.
+
+To write annotations and form values into the PDF on Download and Print, add `@inkbar/engine`:
+
+```sh
+pnpm add @inkbar/engine
+```
+
+Then pass `engine: () => import('@inkbar/engine')` to `createViewer`, or the same function as the `engine` prop of `InkRoot`. The engine loads on the first save that has changes, so a visit that changes nothing never fetches it. Without it, Download and Print give the file as it was opened. The [`@inkbar/core` README](packages/core/README.md#saving-into-the-pdf) says what is saved and where the saved file differs from the screen.
 
 ## Quick start
 
@@ -165,8 +172,9 @@ The [sandbox](https://sandbox.inkbar.dev) runs all four on a sample document. Dr
 | [`@inkbar/svelte`](packages/svelte) | Svelte 5 components and hooks to build your viewer.                                    |
 | [`@inkbar/theme`](packages/theme)   | The default stylesheet. Zero specificity, compatible with shadcn token names.          |
 | [`@inkbar/icons`](packages/icons)   | The icons for the toolbar controls and for notes, as data, with their licence notices. |
+| [`@inkbar/engine`](packages/engine) | Optional. Writes annotations and form values into the PDF.                             |
 
-The six packages are released together and share one version number. The framework packages take `@inkbar/core` as a peer dependency, so your app installs one copy of it.
+The seven packages are released together and share one version number. The framework packages take `@inkbar/core` as a peer dependency, so your app installs one copy of it.
 
 ## Development
 
@@ -180,6 +188,8 @@ cd inkbar
 pnpm install
 pnpm build
 ```
+
+The build downloads a prebuilt PDFium archive for `@inkbar/engine` and checks it against the hash in `packages/engine/pdfium.lock.json`. To build offline, set `INKBAR_PDFIUM_ARCHIVE` to a local copy of the archive.
 
 ### Run locally
 
@@ -214,6 +224,7 @@ pnpm test:browser                                        # component and end-to-
 | `packages/svelte` | `@inkbar/svelte`                                                           |
 | `packages/theme`  | `@inkbar/theme`                                                            |
 | `packages/icons`  | `@inkbar/icons`                                                            |
+| `packages/engine` | `@inkbar/engine`: the PDFium build and the code that drives it             |
 | `apps/sandbox`    | The sandbox at sandbox.inkbar.dev                                          |
 | `apps/e2e-*`      | The review apps for each framework and the end-to-end suite they share     |
 | `fixtures`        | Test PDFs, the script that generates them, and helpers for the test suites |
