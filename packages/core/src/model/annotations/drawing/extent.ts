@@ -1,6 +1,7 @@
 import { unionRects } from '../../geometry'
 
 import { arcToCubics } from './arc'
+import { standardMeasure } from './text/measure'
 
 import type { DrawItem, Paint, PathCommand } from './types'
 import type { Point, Rect } from '../../geometry'
@@ -137,11 +138,46 @@ export function strokeInset(rect: Rect, width: number): { inset: Rect; reach: Re
   }
 }
 
+type TextItem = Extract<DrawItem, { kind: 'text' }>
+
+/** Cosine and sine of each of a text's turns, anticlockwise in user space. */
+const TURNS: Record<TextItem['angle'], readonly [number, number]> = {
+  0: [1, 0],
+  90: [0, 1],
+  180: [-1, 0],
+  270: [0, -1],
+}
+
+/**
+ * The box a text with no clip paints in: each line (each segment, on a line with tabs) from its
+ * origin along its width with its word spacing, and from the family's descent below the baseline
+ * to its ascent above, turned with the text about the origin. `undefined` for no lines.
+ */
+function textRect(item: TextItem): Rect | undefined {
+  const { ascent, descent } = standardMeasure.vertical(item.font)
+  const [c, s] = TURNS[item.angle]
+  const points: Point[] = []
+  for (const line of item.lines) {
+    const spacing = line.wordSpacing ?? 0
+    for (const run of line.segments ?? [line]) {
+      const gaps = [...run.text].filter((ch) => ch === ' ').length
+      const length = run.width + gaps * spacing
+      for (const u of [0, length])
+        for (const v of [-descent * item.size, ascent * item.size])
+          points.push({
+            x: run.origin.x + u * c - v * s,
+            y: run.origin.y + u * s + v * c,
+          })
+    }
+  }
+  return pointsRect(points)
+}
+
 /**
  * The box `item` paints in, in user space: its geometry widened by half its stroke, which is
  * all a stroke can add because joins and caps are never longer than that: a join is round
  * wherever a corner is sharp, and a miter at a right angle ends on the corner of the widened
- * box. A `page` item paints its target, and a text its clip.
+ * box. A `page` item paints its target, and a text its clip, or its lines' boxes without one.
  */
 export function paintedRect(item: DrawItem): Rect | undefined {
   const pad = (r: Rect | undefined, paint: Paint): Rect | undefined =>
@@ -158,7 +194,7 @@ export function paintedRect(item: DrawItem): Rect | undefined {
     case 'image':
       return item.rect
     case 'text':
-      return item.clip?.rect
+      return item.clip?.rect ?? textRect(item)
     case 'page':
       return item.target
     case 'group': {

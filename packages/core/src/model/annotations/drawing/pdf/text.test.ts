@@ -206,6 +206,14 @@ describe('standard-font text', () => {
     expect(new TextDecoder('latin1').decode(new Uint8Array(bytes))).toBe(input)
   })
 
+  test('a soft hyphen, which the screen does not draw within a line, is left out', async () => {
+    const shy = String.fromCharCode(0xad)
+    const { content } = await paintOf([textItem([line(`co${shy}op${shy}`, 10, 700)])])
+    expect(content).toBe(`q\n${run('10 700 Td', '(coop)')}\nQ`)
+    const alone = await paintOf([textItem([line(shy, 10, 700)])])
+    expect(alone.content).toBe('')
+  })
+
   test('an accent written as a separate mark is set as the composed letter', async () => {
     const { content } = await paintOf([textItem([line('é', 10, 700)])])
     expect(content).toBe(`q\n${run('10 700 Td', '(\\351)')}\nQ`)

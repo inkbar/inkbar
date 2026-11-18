@@ -38,6 +38,7 @@ describe('classOf', () => {
     ['م', 'arabic'],
     ['ש', 'hebrew'],
     ['П', 'cyrillic'],
+    ['Ω', 'greek'],
   ] as const)('%j is %s', (cluster, name) => {
     expect(classOf(cluster)).toBe(name)
   })

@@ -25,6 +25,7 @@ import {
   FONT_FAMILIES,
   keepHistoryFocus,
   MIN_DOCUMENT_WIDTH,
+  savePictures,
   SIGNATURE_FONTS,
   trackToolStyle,
   unknownTool,
@@ -303,6 +304,7 @@ async function open(retryPassword?: string): Promise<void> {
       password: retryPassword ?? props.password,
       defaults:
         props.defaults ?? (rootEl.value ? cssVariableDefaults(rootEl.value) : undefined),
+      _pictures: savePictures(rootEl.value?.ownerDocument ?? globalThis.document),
       // Controlled hosts get the ref history below; core's own stack stays off.
       history: controlled.value ? false : (props.history ?? true),
       annotations: controlled.value

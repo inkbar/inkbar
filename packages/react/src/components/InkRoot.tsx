@@ -24,6 +24,7 @@ import {
   lockedStatus,
   MIN_DOCUMENT_WIDTH,
   pageSelectionText,
+  savePictures,
   SIGNATURE_FONTS,
   trackToolStyle,
   unknownTool,
@@ -571,6 +572,9 @@ export function InkRoot({
           defaults:
             latest.current.defaults ??
             (rootElRef.current ? cssVariableDefaults(rootElRef.current) : undefined),
+          _pictures: savePictures(
+            rootElRef.current?.ownerDocument ?? globalThis.document
+          ),
           // Controlled hosts get the snapshot history below; core's own stack stays off.
           history: latest.current.controlled ? false : (latest.current.history ?? true),
           annotations: latest.current.controlled

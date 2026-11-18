@@ -59,6 +59,7 @@ import { resolveSource, sourceFileName, type DocumentSource } from './source'
 import { textContentFromPdfjs, type TextContent } from './text'
 
 import type { TextPicture, ToPng } from './annotations/drawing/pdf/paint'
+import type { TextMeasure } from './annotations/drawing/types'
 import type {
   Annotation,
   AnnotationDocument,
@@ -124,8 +125,13 @@ export interface OpenOptions {
    * save with changes, never before. Absent: such a save rejects with EngineUnavailable.
    */
   engine?: EngineLoader | undefined
-  /** @internal Pictures for text and images the file cannot hold; the DOM layer supplies them. */
-  _pictures?: { textPicture?: TextPicture; toPng?: ToPng } | undefined
+  /**
+   * @internal What a save needs from the DOM layer, which supplies it: pictures for text and
+   * images the file cannot hold, and the measure the screen lays text out with (the standard
+   * tables alone when absent).
+   */
+  _pictures?:
+    { textPicture?: TextPicture; toPng?: ToPng; measure?: TextMeasure } | undefined
 }
 
 export interface InkDocument {
@@ -823,6 +829,7 @@ export async function openDocument(
         )
       const lifted = liftedRefs()
       const parents = fileParents()
+      const { measure, ...helpers } = options._pictures ?? {}
       return saver.write(now.key, () => {
         const { fields, signs } = writeFields(now.fields, form.fields.get())
         return buildWriteInput({
@@ -831,7 +838,8 @@ export async function openDocument(
           lifted,
           fields,
           signs,
-          helpers: options._pictures ?? {},
+          helpers,
+          measure,
           fileParents: parents,
         })
       })

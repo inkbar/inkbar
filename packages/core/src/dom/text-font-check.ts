@@ -40,6 +40,7 @@ export type TextClass =
   | 'arabic'
   | 'hebrew'
   | 'cyrillic'
+  | 'greek'
 
 /**
  * Per class: a probe string, and its width in the three font stacks (Helvetica, Times, Courier,
@@ -62,6 +63,7 @@ const PROBES: Record<TextClass, { text: string; recorded: [number, number, numbe
   arabic: { text: 'مرحبا', recorded: [21, 21, 21] },
   hebrew: { text: 'שלום', recorded: [21.984375, 20.5625, 24.015625] },
   cyrillic: { text: 'Привет', recorded: [33.796875, 31.109375, 36.015625] },
+  greek: { text: 'Καλημέρα', recorded: [44.703125, 42.34375, 48.015625] },
 }
 
 export const TEXT_CLASSES = Object.keys(PROBES) as TextClass[]
@@ -83,6 +85,7 @@ const CLASS_TESTS: [TextClass, RegExp][] = [
   ['arabic', /^\p{Script=Arabic}/u],
   ['hebrew', /^\p{Script=Hebrew}/u],
   ['cyrillic', /^\p{Script=Cyrillic}/u],
+  ['greek', /^\p{Script=Greek}/u],
   // Characters shared by scripts (the prolonged sound mark of kana) belong to the script that uses them here.
   ['katakana', /^\p{Script_Extensions=Katakana}/u],
   ['hiragana', /^\p{Script_Extensions=Hiragana}/u],

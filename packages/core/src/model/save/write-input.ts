@@ -8,7 +8,7 @@ import { savedDataFor } from '../annotations/saved-data'
 import { isReply } from '../annotations/threads'
 
 import type { FieldChange } from './changes'
-import type { DrawContext } from '../annotations/drawing/types'
+import type { DrawContext, TextMeasure } from '../annotations/drawing/types'
 import type { Annotation } from '../annotations/types'
 import type { FormField } from '../form/types'
 import type { Rect } from '../geometry'
@@ -31,6 +31,8 @@ export interface WriteAnnotationOptions {
   /** Full name of the signature field it signs, if any. */
   signs?: string | undefined
   helpers: Omit<PaintHelpers, 'page'>
+  /** What text is laid out with: the screen's measure, or the standard tables when absent. */
+  measure?: TextMeasure | undefined
   /** The data to store; `savedDataFor` of the annotation when absent. Fixtures only. */
   data?: (bounds: Rect) => string
 }
@@ -53,7 +55,10 @@ export async function writeAnnotation(
   // The engine writes `inReplyTo` as a reply. One whose parent is neither written nor in the
   // file shows on the page, so it is written as what it shows; its data keeps the link.
   delete annotation.inReplyTo
-  const drawing = describeDrawing(a, { page: options.page, measure: standardMeasure })
+  const drawing = describeDrawing(a, {
+    page: options.page,
+    measure: options.measure ?? standardMeasure,
+  })
   if (!drawing) throw new Error(`An annotation of type ${a.type} has no drawing`)
   const appearance = await paintDrawing(drawing, { ...options.helpers, page: a.page })
   return { page: a.page, annotation, appearance, data: stored(appearance.bounds) }
@@ -104,6 +109,8 @@ export async function buildWriteInput(state: {
   fields: Readonly<Record<string, WriteField>>
   signs: ReadonlyMap<string, string>
   helpers: Omit<PaintHelpers, 'page'>
+  /** What text is laid out with; the standard tables when absent. */
+  measure?: TextMeasure | undefined
   fileParents?: ReadonlyMap<string, AnnotationRef> | undefined
 }): Promise<WriteInput> {
   const { annotations } = state
@@ -161,6 +168,7 @@ export async function buildWriteInput(state: {
         replyTo: fileParentOf(a),
         signs: state.signs.get(a.id),
         helpers: state.helpers,
+        measure: state.measure,
       })
     )
   }

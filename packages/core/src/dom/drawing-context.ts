@@ -7,15 +7,18 @@ import type { PageTransform } from './transform'
 import type { DrawContext, Drawing } from '../model/annotations/drawing/types'
 import type { Annotation } from '../model/annotations/types'
 
-/** The standard tables, with the browser's fonts measuring what they do not hold. */
-const measure = measureWith(browserWidth)
+/**
+ * The standard tables, with the browser's fonts measuring what they do not hold: what every
+ * drawing on screen is laid out with, and what a save lays its text out with in a browser.
+ */
+export const browserMeasure = measureWith(browserWidth)
 
 /** What describing an annotation needs from its page. Zoom and view rotation are not part of it. */
 export function drawContext(t: PageTransform): DrawContext {
   return {
     // A copy of the box: the page it describes may change its own, and the cache compares.
     page: { box: { ...t.page.box }, rotate: t.page.rotate, userUnit: t.page.userUnit },
-    measure,
+    measure: browserMeasure,
   }
 }
 
