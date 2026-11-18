@@ -13,6 +13,12 @@ export function defineSandboxConfig(opts: {
   skip?: readonly string[]
 }): PlaywrightTestConfig {
   const { port, skip = [] } = opts
+  // Names only: a pattern could quietly skip more of the suite than meant.
+  const pattern = skip.find((name) => name.includes('*'))
+  if (pattern !== undefined)
+    throw new Error(
+      `defineSandboxConfig: skip takes spec file names, not patterns: ${pattern}`
+    )
   return defineConfig({
     testDir: fileURLToPath(new URL('./e2e', import.meta.url)),
     testIgnore: skip.map((name) => `**/${name}`),

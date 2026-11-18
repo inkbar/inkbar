@@ -266,7 +266,8 @@ function setup(): void {
   let first = true
   build += 1
   custom = !!slots.annotation
-  // Opened on redacted bytes: the view of the document it replaced.
+  // Opened on redacted bytes: the view of the document it replaced. It is handed over once, so
+  // only this first build of the reopened document starts from it.
   const kept = ctx.keptView(doc)
   // The tools this viewer registers, from the same inputs; a later `tools` waits for a rebuild.
   ctx.openedToolIds.value = toolIdsOf(ctx.hostTools.value, ctx.pluginHost.value)
@@ -284,7 +285,7 @@ function setup(): void {
     gap: props.gap,
     buffer: props.buffer,
     pinchZoom: props.pinchZoom,
-    tool: ctx.tool.value,
+    tool: kept?.tool ?? ctx.tool.value,
     ...(ctx.hostTools.value ? { tools: ctx.hostTools.value } : {}),
     // The engine adds the plugins' tools and layers, and decorates through the host, which
     // reads `decorateAnnotation` first.

@@ -124,3 +124,124 @@ test('renders your own element with asChild', async ({ mount, page }) => {
   await expect(own).toHaveAttribute('data-busy', 'false')
   await expect(cmp.getByTestId('errors')).toHaveText('RedactionFailed')
 })
+
+const finish = (page: Page) => page.evaluate(() => window.__heldEngine!.finish())
+const docKey = (page: Page) =>
+  page.evaluate(
+    () =>
+      (
+        document.querySelector('[data-ink-root]') as HTMLElement & {
+          __inkDocument?: { key: string }
+        }
+      ).__inkDocument?.key
+  )
+
+test('a function redactionConfirm asks with the preview and decides', async ({
+  mount,
+  page,
+}) => {
+  const props = {
+    src: fixtureUrl('redact-text'),
+    assets,
+    engine: 'held' as const,
+    confirm: 'no' as const,
+  }
+  const cmp = await mount(Harness, { props })
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  await mark(page)
+  const apply = cmp.locator('[data-ink-apply-redactions]')
+  await apply.click()
+  await expect(cmp.getByTestId('previews')).toHaveText('1')
+  await expect(apply).toHaveAttribute('aria-busy', 'false')
+  expect(await writing(page)).toBe(false)
+  await expect(cmp.getByTestId('redacted')).toHaveText('0')
+
+  await cmp.update({ props: { ...props, confirm: 'yes' } })
+  await apply.click()
+  await expect(cmp.getByTestId('previews')).toHaveText('1 1')
+  await expect.poll(() => writing(page)).toBe(true)
+  await finish(page)
+  await expect(cmp.getByTestId('redacted')).toHaveText('1')
+  await expect(page.locator('[data-ink-form-alert-message]')).toHaveText(
+    '1 redaction applied.'
+  )
+  await expect(cmp.locator('.ink-annotation[data-type="redact"]')).toHaveCount(0)
+})
+
+test('a redacted listener that throws goes to the app error handler; the file still reopens', async ({
+  mount,
+  page,
+}) => {
+  const cmp = await mount(Harness, {
+    props: { src: fixtureUrl('redact-text'), assets, engine: 'held', throwing: true },
+    hooksConfig: { errorHandler: true },
+  })
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  await mark(page)
+  await cmp.locator('[data-ink-apply-redactions]').click()
+  await expect.poll(() => writing(page)).toBe(true)
+  await finish(page)
+  await expect(page.locator('[data-ink-form-alert-message]')).toHaveText(
+    '1 redaction applied.'
+  )
+  expect(await page.evaluate(() => window.__vueErrors)).toEqual(['host failed'])
+  await expect(cmp.getByTestId('errors')).toHaveText('')
+  await expect(cmp.locator('.ink-annotation[data-type="redact"]')).toHaveCount(0)
+})
+
+test('keeps the tool across the reopen', async ({ mount, page }) => {
+  const cmp = await mount(Harness, {
+    props: { src: fixtureUrl('redact-text'), assets, engine: 'held' },
+  })
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  await cmp.locator('[data-tool="redact-area"]').click()
+  const tooled = cmp.locator('[data-ink-tool]')
+  await expect(tooled).toHaveAttribute('data-ink-tool', 'redact-area')
+  await mark(page)
+  await cmp.locator('[data-ink-apply-redactions]').click()
+  await expect.poll(() => writing(page)).toBe(true)
+  await finish(page)
+  await expect(page.locator('[data-ink-form-alert-message]')).toHaveText(
+    '1 redaction applied.'
+  )
+  await expect(tooled).toHaveAttribute('data-ink-tool', 'redact-area')
+})
+
+test('unmounting mid-apply hands nothing over and reports nothing', async ({
+  mount,
+  page,
+}) => {
+  const props = { src: fixtureUrl('redact-text'), assets, engine: 'held' as const }
+  const cmp = await mount(Harness, { props })
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  await mark(page)
+  await cmp.locator('[data-ink-apply-redactions]').click()
+  await expect.poll(() => writing(page)).toBe(true)
+  await cmp.update({ props: { ...props, shown: false } })
+  await expect(page.locator('[data-ink-root]')).toHaveCount(0)
+  await finish(page)
+  await page.waitForTimeout(200)
+  await expect(cmp.getByTestId('redacted')).toHaveText('0')
+  await expect(cmp.getByTestId('errors')).toHaveText('')
+  await expect(page.locator('[data-ink-form-alert-message]')).toHaveCount(0)
+})
+
+test('a src change mid-apply opens the new source and nothing else', async ({
+  mount,
+  page,
+}) => {
+  const props = { src: fixtureUrl('redact-text'), assets, engine: 'held' as const }
+  const cmp = await mount(Harness, { props })
+  await expect(cmp.locator('[data-ink-scroll] .ink-page canvas').first()).toBeVisible()
+  await mark(page)
+  await cmp.locator('[data-ink-apply-redactions]').click()
+  await expect.poll(() => writing(page)).toBe(true)
+  await cmp.update({ props: { ...props, src: fixtureUrl('text-simple') } })
+  await expect.poll(() => docKey(page)).toContain('text-simple')
+  await finish(page)
+  await page.waitForTimeout(200)
+  expect(await docKey(page)).toContain('text-simple')
+  await expect(cmp.getByTestId('redacted')).toHaveText('0')
+  await expect(cmp.getByTestId('errors')).toHaveText('')
+  await expect(page.locator('[data-ink-form-alert-message]')).toHaveCount(0)
+})

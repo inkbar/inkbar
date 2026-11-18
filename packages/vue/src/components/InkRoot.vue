@@ -16,8 +16,7 @@ import {
   createMessageState,
   createPluginHost,
   createRedactionDialog,
-  redactionFailure,
-  runRedaction,
+  applyRedactionsFlow,
   createSearchController,
   createPasswordPrompt,
   createToolOptions,
@@ -49,12 +48,7 @@ import {
 } from 'vue'
 
 import { registeredToolIds } from '../composables/useRegisteredTool'
-import {
-  provideInkContext,
-  type InkHistory,
-  type InkStatus,
-  type KeptView,
-} from '../context'
+import { provideInkContext, type InkHistory, type InkStatus } from '../context'
 import { provideMessageStore } from '../message-store'
 import { createRefHistory } from '../ref-history'
 import { useReadable } from '../use-readable'
@@ -81,6 +75,8 @@ import type {
   Navigation,
   PluginHost,
   RedactionDialog,
+  RedactionReopen,
+  RedactionView,
   SearchController,
   Tool,
   ToolController,
@@ -240,15 +236,16 @@ const emit = defineEmits<{
   /**
    * The redaction marks were applied: `bytes` is the redacted file, which the root now shows
    * in place of `src` (a host that stores files stores these), and `result` says what was done.
+   * A listener that throws goes to Vue's own error handling (`app.config.errorHandler`,
+   * `onErrorCaptured`), not to `error`; the redacted file still opens.
    */
   redacted: [event: { bytes: Uint8Array; result: RedactionResult }]
   /**
    * Opening failed, or later a form script failed, a signature field refused its signing, a
    * download or print could not write its copy (`SaveFailed`), or applying redactions failed
    * (`RedactionFailed`, `EngineUnavailable`, `NothingToRedact`); the last two kinds are also
-   * shown to the reader in InkViewport's message box. A `redacted` listener that throws is
-   * reported as a `RedactionFailed` with `details.callback: 'redacted'`, and the redacted file
-   * still opens. An error from while the document opened comes after `ready`.
+   * shown to the reader in InkViewport's message box. An error from while the document opened
+   * comes after `ready`.
    */
   error: [error: InkError]
   activate: [id: string]
@@ -307,23 +304,17 @@ function setTestHook(doc: InkDocument | undefined): void {
     (rootEl.value as TestHookElement).__inkDocument = doc
 }
 
-/** A load of the redacted file in place of `src`, after applying redactions. */
-interface Reopen {
-  source: DocumentSource
-  fileName: string
-  password: string | undefined
-  view: KeptView | undefined
-  /** The list a controlled document starts from, in place of the host's. */
-  initial: Annotation[] | undefined
-}
-/** The redacted file shown in place of `src`, until the host passes a new `src` or password. */
-let reopened: Reopen | null = null
+/**
+ * The redacted file shown in place of `src` (what `applyRedactionsFlow` said to open), until the
+ * host passes a new `src` or password.
+ */
+let reopened: RedactionReopen | null = null
 /** Runs once the next load's document is ready and `ready` has gone out. */
 let onShown: ((doc: InkDocument) => void) | undefined
 /** The password the open document was opened with: a redacted copy opens with it too. */
 let openedWith: string | undefined
 /** The view each document opened on redacted bytes starts from, until InkViewport reads it. */
-const keptViews = new WeakMap<InkDocument, KeptView>()
+const keptViews = new WeakMap<InkDocument, RedactionView>()
 
 let generation = 0
 /**
@@ -608,100 +599,62 @@ watch(
 )
 let unmounted = false
 
-/** A failed apply: the reader is told why and the host hears, unless the root has gone. */
-function reportRedactionError(error: unknown): void {
-  const failure = redactionFailure(error, messageState.get().messages)
-  if (!failure || unmounted) return
-  showMessage(failure.message)
-  emit('error', failure.error)
-}
-
 /**
- * Applies the open document's redaction marks: asks first (`redactionConfirm`), removes the
- * content under them, emits `redacted`, then shows the redacted file in place of `src`, with
- * the same key, file name, password and view. Controlled, the host is proposed its list without
- * the marks and the annotations removed with them (reason `'redaction'`); its answer re-seeds
- * the history. Resolves with what was done, or null when the reader cancelled or nothing was
- * applied. A failure leaves the document as it was, is shown in InkViewport's message box and
- * emitted as `error`; it does not reject.
+ * Applies the open document's redaction marks through core's `applyRedactionsFlow`: asks first
+ * (`redactionConfirm`), removes the content under them, emits `redacted`, then shows the
+ * redacted file in place of `src`, with the same key, file name, password and view. Controlled,
+ * the host is proposed its list without the marks and the annotations removed with them (reason
+ * `'redaction'`), and the history starts again from its answer. Resolves with what was done, or
+ * null when the reader cancelled or nothing was applied. A failure leaves the document as it
+ * was, is shown in InkViewport's message box and emitted as `error`; it does not reject.
  */
 async function applyRedactions(): Promise<RedactionResult | null> {
   const doc = document.value
   if (!doc || status.value.state !== 'ready') return null
   const ask = props.redactionConfirm
-  const confirm = ask === false ? () => Promise.resolve(true) : (ask ?? askInDialog)
-  let out: { bytes: Uint8Array; result: RedactionResult } | null
-  try {
-    out = await runRedaction(doc, { confirm })
-  } catch (error) {
-    reportRedactionError(error)
-    return null
-  }
-  // Unmounted, or another document opened, meanwhile: there is nothing to reopen.
-  if (!out || document.value !== doc) return null
-  const { bytes, result } = out
-  try {
-    emit('redacted', { bytes, result })
-  } catch (error) {
-    // The reader confirmed: the reopen goes ahead, and the host hears what its listener threw.
-    emit(
-      'error',
-      error instanceof InkError
-        ? error
-        : new InkError(
-            'RedactionFailed',
-            `redacted listener threw: ${error instanceof Error ? error.message : String(error)}`,
-            { callback: 'redacted' },
-            error
-          )
-    )
-  }
-  // A listener may have opened another document already.
-  if (document.value !== doc) return result
-  const vp = viewport.value
-  const view: KeptView | undefined = vp
-    ? {
-        zoom: vp.zoom.get(),
-        page: vp.currentPage.get(),
-        mode: vp.mode.get(),
-        rotation: vp.rotation.get(),
+  const out = await applyRedactionsFlow(doc, {
+    confirm: ask === false ? () => Promise.resolve(true) : (ask ?? askInDialog),
+    isCurrent: () => !unmounted && document.value === doc,
+    notify: (event) => {
+      try {
+        emit('redacted', event)
+      } catch {
+        // Vue hands a listener's throw to its own error handling, which in a development build
+        // with no handler installed also throws it on: it has been reported there already.
       }
-    : undefined
-  // A controlled host is proposed its list without the marks and the annotations removed with
-  // them, once; the reopened document starts from it, so the proposal its lifting makes agrees.
-  let initial: Annotation[] | undefined
-  if (doc.annotations.mode === 'controlled') {
-    const gone = new Set(result.removed.session)
-    // What the host holds: the file's own annotations never pass through it.
-    initial = doc.annotations.list
-      .get()
-      .filter((a) => a.source !== 'pdf' && a.type !== 'redact' && !gone.has(a.id))
-    doc.annotations.replaceAll(initial, 'redaction')
-    if (document.value !== doc) return result
-  }
-  reopened = {
-    source: { data: bytes, key: doc.key },
-    fileName: doc.fileName,
+    },
+    callbackName: 'redacted',
+    onError: (error) => emit('error', error),
+    showFailure: showMessage,
+    messages: () => messageState.get().messages,
+    view: () => {
+      const vp = viewport.value
+      const tc = toolController.value
+      return vp && tc
+        ? {
+            zoom: vp.zoom.get(),
+            page: vp.currentPage.get(),
+            mode: vp.mode.get(),
+            rotation: vp.rotation.get(),
+            tool: tc.active.get(),
+          }
+        : undefined
+    },
     password: openedWith,
-    view,
-    initial,
-  }
+  })
+  if (!out?.reopen) return out?.result ?? null
+  const reopen = out.reopen
+  reopened = reopen
   // Said once the redacted file shows, after InkViewport has built for it (a build empties its
   // message box); a reopen that fails shows its own failure instead.
   onShown = (next) =>
     void nextTick(() => {
-      if (document.value !== next) return
-      const m = messageState.get().messages.viewer
-      const said = [m.redactDone({ marks: result.marks })]
-      if (result.hiddenLayers) said.push(m.redactHiddenLayers)
-      if (result.foreignMarks > 0)
-        said.push(m.redactForeign({ count: result.foreignMarks }))
-      showMessage(said.join(' '))
+      if (document.value === next) showMessage(reopen.message)
     })
   // The new document has a history of its own: the old one goes with it.
   void open()
-  if (initial) refHistory.replaced(initial)
-  return result
+  if (reopen.initial) refHistory.replaced()
+  return out.result
 }
 const currentMessages = computed(() => words.value.messages)
 const currentLocale = computed(() => words.value.locale)

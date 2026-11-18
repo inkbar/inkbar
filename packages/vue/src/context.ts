@@ -17,11 +17,11 @@ import type {
 } from '@inkbar/core'
 import type {
   DecorateAnnotation,
-  LayoutMode,
   MessageState,
   Navigation,
   PasswordPrompt,
   PluginHost,
+  RedactionView,
   SearchController,
   Tool,
   ToolController,
@@ -29,20 +29,11 @@ import type {
   ToolOptions,
   ToolStyle,
   Viewport,
-  ViewRotation,
   ZoomValue,
 } from '@inkbar/core/dom'
 import type { Ref, ShallowRef } from 'vue'
 
 export type { InkStatus }
-
-/** What a reopen on redacted bytes keeps of the view it replaces. */
-export interface KeptView {
-  zoom: ZoomValue
-  page: number
-  mode: LayoutMode
-  rotation: ViewRotation
-}
 
 /**
  * Undo and redo for the current document, whichever mode its annotations are in. `track` and
@@ -180,10 +171,11 @@ export interface InkContext {
    */
   applyRedactions(this: void): Promise<RedactionResult | null>
   /**
-   * The view a document opened on redacted bytes starts from (the one it replaced), for
-   * InkViewport's first build of it; undefined for any other document.
+   * The view a document opened on redacted bytes starts from (the one it replaced, tool
+   * included), for InkViewport's first build of it; undefined for any other document, and on
+   * any later call for the same one.
    */
-  keptView(this: void, doc: InkDocument): KeptView | undefined
+  keptView(this: void, doc: InkDocument): RedactionView | undefined
 }
 
 export const [injectInkContext, provideInkContext] = createContext<InkContext>('InkRoot')
