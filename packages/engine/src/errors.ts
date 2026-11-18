@@ -37,6 +37,19 @@ export type EngineErrorCode =
   | 'engine-failure'
 
 /**
+ * Why `redact` refused before changing anything. `unremovable-content`: a mark lies over content
+ * the apply cannot remove. `could-not-inspect`: the engine could not look under the marks.
+ */
+export type RefusalReason = 'unremovable-content' | 'could-not-inspect'
+
+/**
+ * Content the apply cannot remove: a shape painted with a tiling pattern, a mesh or
+ * function-based shading, artwork under a soft mask whose group has content there, or a Type 3
+ * glyph that paints outside its box.
+ */
+export type UnremovableKind = 'pattern' | 'shading' | 'mask-group' | 'glyph'
+
+/**
  * The error every engine call rejects with, apart from a `RangeError` for a bad page index or
  * scale, a render larger than the pixel limit, a bad name or a box with no area in an
  * appearance, or a region with no quads or a number that is not finite as a 32-bit float.
@@ -56,6 +69,18 @@ export class EngineError extends Error {
    * about one.
    */
   readonly page?: number
+  /**
+   * Why a `redaction-failed` refused before changing anything, when it did: a mark over content
+   * the apply cannot remove, or a page the engine could not look under.
+   */
+  readonly reason?: RefusalReason
+  /**
+   * For `reason: 'unremovable-content'`: the ids of the marks given that lie over such content,
+   * on every page. Inkbar's earlier locked marks have no id here; `page` names their page.
+   */
+  readonly marks?: string[]
+  /** For `reason: 'unremovable-content'`: the kinds of content found under the marks. */
+  readonly kinds?: UnremovableKind[]
 
   constructor(
     code: EngineErrorCode,
@@ -64,6 +89,9 @@ export class EngineError extends Error {
       pdfiumError?: number
       annotation?: string
       page?: number
+      reason?: RefusalReason
+      marks?: string[]
+      kinds?: UnremovableKind[]
       cause?: unknown
     }
   ) {
@@ -73,6 +101,9 @@ export class EngineError extends Error {
     if (options?.pdfiumError !== undefined) this.pdfiumError = options.pdfiumError
     if (options?.annotation !== undefined) this.annotation = options.annotation
     if (options?.page !== undefined) this.page = options.page
+    if (options?.reason !== undefined) this.reason = options.reason
+    if (options?.marks !== undefined) this.marks = options.marks
+    if (options?.kinds !== undefined) this.kinds = options.kinds
   }
 }
 

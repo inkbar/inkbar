@@ -7,12 +7,15 @@ import type { FromWorker, Request, ToWorker, Transport, WireError } from '../pro
 const failure = (message: string, cause?: unknown) =>
   new EngineError('engine-failure', message, { cause })
 
-function fromWire(error: WireError): Error {
+export function fromWire(error: WireError): Error {
   if (error.range) return new RangeError(error.message)
   return new EngineError(error.code, error.message, {
     ...(error.pdfiumError !== undefined && { pdfiumError: error.pdfiumError }),
     ...(error.annotation !== undefined && { annotation: error.annotation }),
     ...(error.page !== undefined && { page: error.page }),
+    ...(error.reason !== undefined && { reason: error.reason }),
+    ...(error.marks !== undefined && { marks: error.marks }),
+    ...(error.kinds !== undefined && { kinds: error.kinds }),
   })
 }
 
