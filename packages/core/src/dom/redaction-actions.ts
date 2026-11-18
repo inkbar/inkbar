@@ -195,6 +195,13 @@ export interface RedactionFlowOptions {
   view: () => RedactionView | undefined
   /** The password the document was opened with. */
   password: string | undefined
+  /**
+   * Runs straight after a controlled host is proposed its list (reason `'redaction'`), before
+   * the flow awaits anything and so before a framework hands the host's answer back. A binding
+   * with a snapshot history arms `SnapshotHistory.replaced()` here, so that answer starts the
+   * history again instead of being a step.
+   */
+  proposed?: (initial: Annotation[]) => void
 }
 
 /**
@@ -215,14 +222,19 @@ export function redactionDoneMessage(
 /**
  * "Apply, then show the result", up to the reopen, which stays the caller's: it confirms and
  * applies (`runRedaction`), tells the host (`notify`), proposes a controlled host its list
- * without the marks and the annotations removed with them (reason `'redaction'`), and says what
- * to open. It re-checks `isCurrent` after every step that can change the document shown.
+ * without the marks and the annotations removed with them (reason `'redaction'`, then
+ * `proposed`), and says what to open. It re-checks `isCurrent` after every step that can change
+ * the document shown. It never rejects. What the caller does with each outcome:
  *
- * Resolves with null when the reader cancelled, nothing was applied, the apply failed or the
- * caller stopped being current before the host heard. A failure is shown (`showFailure`) and
- * reported (`onError`) unless the document was closed or the caller is no longer current; it
- * never rejects. Once the host has heard it resolves with `result`, and with `reopen` null when
- * the caller stopped being current meanwhile.
+ * - `{ result, reopen }` with `reopen` set: open `reopen.source` in place of the document, with
+ *   its file name, password, view and (controlled) initial list, and show `reopen.message`
+ *   once the reopened view has built. The caller must open it: dropping it leaves a controlled
+ *   host holding a list without the marks while the marks are still on screen.
+ * - `{ result, reopen: null }`: the caller stopped being current after the host heard. Nothing
+ *   is left to do; the host has the bytes through `notify`.
+ * - `null`: the reader cancelled, nothing was applied, the apply failed or the caller stopped
+ *   being current before the host heard. A failure has been shown (`showFailure`) and reported
+ *   (`onError`) already, unless the document was closed or the caller was no longer current.
  */
 export async function applyRedactionsFlow(
   doc: InkDocument,
@@ -270,6 +282,7 @@ export async function applyRedactionsFlow(
       .get()
       .filter((a) => a.source !== 'pdf' && a.type !== 'redact' && !gone.has(a.id))
     doc.annotations.replaceAll(initial, 'redaction')
+    opts.proposed?.(initial)
     if (!opts.isCurrent()) return { result, reopen: null }
   }
   return {

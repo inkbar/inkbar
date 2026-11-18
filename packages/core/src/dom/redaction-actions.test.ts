@@ -205,6 +205,30 @@ describe('applyRedactionsFlow', () => {
     expect(out?.reopen?.initial).toEqual([list[0]])
   })
 
+  it('runs proposed straight after the proposal, before the host can answer', async () => {
+    const { doc, replaceAll } = fakeDoc({ controlled: true })
+    const order: string[] = []
+    replaceAll.mockImplementation(() => {
+      order.push('replaceAll')
+      // A framework hands the host's answer back on a later microtask.
+      queueMicrotask(() => order.push('answer'))
+    })
+    const proposed = vi.fn((initial: Annotation[]) => {
+      order.push(`proposed ${initial.length}`)
+    })
+    const { opts } = options({ proposed })
+    const out = await applyRedactionsFlow(doc, opts)
+    expect(order).toEqual(['replaceAll', 'proposed 0', 'answer'])
+    expect(proposed).toHaveBeenCalledExactlyOnceWith(out!.reopen!.initial)
+  })
+
+  it('does not run proposed when the annotations are uncontrolled', async () => {
+    const { doc } = fakeDoc()
+    const proposed = vi.fn()
+    await applyRedactionsFlow(doc, options({ proposed }).opts)
+    expect(proposed).not.toHaveBeenCalled()
+  })
+
   it('not current after the proposal: no reopen', async () => {
     const { doc, replaceAll } = fakeDoc({ controlled: true })
     let current = true

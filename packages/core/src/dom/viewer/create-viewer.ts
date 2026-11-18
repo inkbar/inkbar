@@ -267,7 +267,8 @@ export interface Viewer {
    * annotations removed with them (reason `'redaction'`), and the reopened document starts from
    * that list. Resolves with what was done, or null when the reader cancelled or nothing was
    * applied. A failure leaves the document as it was, shows the reader why in the viewer's
-   * message box and reaches `onError`; it does not reject.
+   * message box and reaches `onError`; it does not reject. A failure is not reported once
+   * another document is showing or the viewer is destroyed.
    */
   applyRedactions(): Promise<RedactionResult | null>
   destroy(): void
