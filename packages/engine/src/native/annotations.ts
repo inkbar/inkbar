@@ -168,6 +168,21 @@ const quadFloats = (q: Quad) => [
 const pointFloats = (points: readonly Point[]) => points.flatMap((p) => [p.x, p.y])
 
 /**
+ * Whether every number in `value`, at any depth, is one PDFium can take: finite, and still
+ * finite as the 32-bit float it is passed as. Dash lists are left to `isDashPattern`.
+ */
+function finiteThroughout(value: unknown): boolean {
+  if (typeof value === 'number') return Number.isFinite(Math.fround(value))
+  if (Array.isArray(value)) return value.every(finiteThroughout)
+  if (typeof value === 'object' && value !== null)
+    // A dash list that is not a pattern is written as a solid border, so it is not checked here.
+    return Object.entries(value).every(
+      ([key, entry]) => key === 'dashes' || finiteThroughout(entry)
+    )
+  return true
+}
+
+/**
  * Writes one annotation on `page` and returns its handle, which the caller closes. A reply is
  * linked to `target`, the handle of the file annotation its `replyTo` names (0 when the page has
  * none), or else to its parent's handle in `parents`, by Gloss id: the annotations written
@@ -213,6 +228,8 @@ export function writeAnnotation(
       `its parent ${annotation.inReplyTo} is not among the annotations written before it in the same call; a parent must come earlier in the list than its replies`
     )
   if (!reply && !item.appearance) throw failed('it has no appearance')
+  if (!finiteThroughout(annotation))
+    throw failed('one of its numbers is not finite, or is too large to write')
 
   const annot = fn.FPDFPage_CreateAnnot(page, subtype)
   if (annot === 0) throw failed('it could not be created')

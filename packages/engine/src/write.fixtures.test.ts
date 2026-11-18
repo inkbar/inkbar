@@ -701,6 +701,29 @@ test('rejects a removal of an annotation the page does not have', async () => {
   }
 })
 
+test.each([
+  ['not a number', Number.NaN],
+  ['infinite', Number.POSITIVE_INFINITY],
+  ['too large for a 32-bit float', 1e39],
+])('rejects an annotation whose geometry is %s, naming it', async (_, value) => {
+  const bad = square('bad', 100)
+  const doc = await engine.open(opened)
+  try {
+    await expect(
+      doc.write({
+        annotations: [
+          {
+            ...bad,
+            annotation: { ...bad.annotation, rect: { ...bad.annotation.rect, x: value } },
+          },
+        ],
+      })
+    ).rejects.toMatchObject({ code: 'write-failed', annotation: 'bad' })
+  } finally {
+    await doc.close()
+  }
+})
+
 test('does not stack', async () => {
   const input = { annotations: [square('a', 100), square('b', 200)] }
   const doc = await engine.open(opened)
