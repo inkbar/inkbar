@@ -443,25 +443,36 @@ test('redacts a mark with no quads by its rectangle, not its appearance bounds',
   }
 })
 
-test("applies Inkbar's own earlier marks in an encrypted file", async () => {
-  const password = 'inkbar'
-  // The file's one word, Encrypted, runs from x 72 to 135 on the baseline y 700.
-  const line = mark('earlier', { page: 0, quad: [70, 715, 95, 715, 70, 695, 95, 695] })
-  const first = await engine.open(await fixtureBytes('encrypted-aes'), { password })
-  let marked: Uint8Array
+/** The file's one word, Encrypted, runs from x 72 to 135 on the baseline y 700. */
+const earlierMark = () =>
+  mark('earlier', { page: 0, quad: [70, 715, 95, 715, 70, 695, 95, 695] })
+
+/** `encrypted-aes` saved with one Inkbar mark only, so the mark comes back locked. */
+async function withEarlierMark(): Promise<Uint8Array> {
+  const first = await engine.open(await fixtureBytes('encrypted-aes'), {
+    password: 'inkbar',
+  })
   try {
-    // Saved as a mark only, so it comes back locked.
-    await first.write({ annotations: [line] })
-    marked = await first.save()
+    await first.write({ annotations: [earlierMark()] })
+    return await first.save()
   } finally {
     await first.close()
   }
+}
+
+test("applies Inkbar's own earlier marks in an encrypted file", async () => {
+  const password = 'inkbar'
+  const marked = await withEarlierMark()
   const doc = await engine.open(marked, { password })
   try {
     const result = await doc.redact({ marks: [] })
     expect(result.ownLockedMarks).toBe(1)
     expect(result.foreignMarks).toBe(0)
     expect(result.pages).toEqual([{ page: 0, marks: 1, annotationsRemoved: 0 }])
+    // The region it applied, read from the mark before the apply removed it.
+    expect(result.ownLockedRegions).toEqual([
+      { page: 0, quads: (earlierMark().annotation as { quads: unknown }).quads },
+    ])
     const bytes = await doc.save()
     const text = await withPdfjs(
       bytes,
@@ -476,6 +487,37 @@ test("applies Inkbar's own earlier marks in an encrypted file", async () => {
   } finally {
     await doc.close()
   }
+})
+
+test('reports no earlier regions for a file without earlier marks', async () => {
+  const { result } = await redacted('redact-text')
+  expect(result.ownLockedRegions).toEqual([])
+  const doc = await engine.open(await fixtureBytes('encrypted-aes'), {
+    password: 'inkbar',
+  })
+  try {
+    const plain = await doc.redact({ marks: [] })
+    expect(plain.ownLockedRegions).toEqual([])
+  } finally {
+    await doc.close()
+  }
+})
+
+test('earlier marks whose regions cannot be read name the page', async () => {
+  const marked = await withEarlierMark()
+  const native = await loadNative({ wasm })
+  const failing: Native = { ...native.fn, INK_Redact_OwnLockedQuads: () => -1 }
+  const core = new EngineCore(withFunctions(native, failing))
+  const { id } = core.open(marked, { password: 'inkbar' })
+  let error: unknown
+  try {
+    core.redact(id, { marks: [] })
+  } catch (caught) {
+    error = caught
+  }
+  expect(error).toBeInstanceOf(EngineError)
+  expect(error).toMatchObject({ code: 'redaction-failed', page: 0 })
+  core.destroy()
 })
 
 test('sanitises', async () => {

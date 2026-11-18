@@ -162,10 +162,11 @@ The engine does not enter tiling patterns, so content inside one stays.
 
 In an encrypted file, Inkbar's own earlier marks come back locked. The engine knows them by the data stored with them and applies them as well. Redact annotations from other programs stay in the file, unapplied.
 
-The result holds counts and flags, and no text from the file:
+The result holds counts, flags and places, and no text from the file:
 
 - `pages`: for each page where marks were applied, the number of marks and the number of other annotations they removed, pop-ups included.
 - `ownLockedMarks`: Inkbar's earlier locked marks it applied.
+- `ownLockedRegions`: the page and quads of each of those marks, read before the apply, for `checkRedaction` to check beside the regions of `marks`.
 - `foreignMarks`: other programs' Redact annotations left in the file, counted on every page.
 - `fieldsSkipped`: the names of the `fields` it skipped.
 - `sanitised`: what sanitising found and removed: `metadata`, `attachments` (a count), `scripts`, `thumbnails` and `privateData`.

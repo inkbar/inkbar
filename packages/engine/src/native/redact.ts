@@ -12,6 +12,7 @@ import type {
   RedactResult,
   WriteAnnotation,
 } from '../types.ts'
+import type { Quad } from 'gloss-format'
 
 /** What sanitising found, as the fork's flags. */
 const SANITISED = {
@@ -98,6 +99,37 @@ function reaches(corners: Corners, box: Rect): boolean {
 function skipped(item: WriteAnnotation, box: Rect): boolean {
   const { corners } = regionsOf(item)
   return corners.every((c) => c.every(Number.isFinite) && !reaches(c, box))
+}
+
+/**
+ * The quads of the Redact annotations on `page` that carry Inkbar's data: its earlier marks in
+ * an encrypted file, read before the apply removes them. A failure is `redaction-failed` naming
+ * the page.
+ */
+function ownLockedQuads(heap: Heap, doc: number, page: number, index: number): Quad[] {
+  const { fn } = heap
+  const failed = () =>
+    new EngineError(
+      'redaction-failed',
+      `The earlier marks on page ${index} could not be read.`,
+      { page: index }
+    )
+  const count = fn.INK_Redact_OwnLockedQuads(doc, page, 0, 0)
+  if (count < 0) throw failed()
+  if (count === 0) return []
+  return withFloats(heap, new Array<number>(count * 8).fill(0), (out) => {
+    if (fn.INK_Redact_OwnLockedQuads(doc, page, out, count) !== count) throw failed()
+    const floats = heap.native.HEAPF32.slice(out / 4, out / 4 + count * 8)
+    return Array.from({ length: count }, (_, i): Quad => {
+      const [x1, y1, x2, y2, x3, y3, x4, y4] = floats.subarray(i * 8, i * 8 + 8)
+      return {
+        p1: { x: x1!, y: y1! },
+        p2: { x: x2!, y: y2! },
+        p3: { x: x3!, y: y3! },
+        p4: { x: x4!, y: y4! },
+      }
+    })
+  })
 }
 
 /** Runs `use` with two zeroed 32-bit outputs, and returns its result with their values. */
@@ -256,10 +288,13 @@ export function applyRedactions(
 
   const pages: RedactResult['pages'] = []
   let ownLockedMarks = 0
+  const ownLockedRegions: RedactResult['ownLockedRegions'] = []
   let foreignMarks = 0
   for (let index = 0; index < context.pageCount; index++)
     withPage(index, (page) => {
       const box = context.pageBox(page)
+      // Read before this call's marks are written, which carry Inkbar's data too.
+      const earlier = context.encrypted ? ownLockedQuads(heap, doc, page, index) : []
       const marks = (marksByPage.get(index) ?? []).filter((item) => !skipped(item, box))
       const handles: number[] = []
       try {
@@ -278,6 +313,8 @@ export function applyRedactions(
         if (applied.value === 1) {
           const own = context.encrypted ? before - applied.second - handles.length : 0
           ownLockedMarks += own
+          if (own > 0 && earlier.length > 0)
+            ownLockedRegions.push({ page: index, quads: earlier })
           pages.push({
             page: index,
             marks: handles.length + own,
@@ -312,6 +349,7 @@ export function applyRedactions(
   return {
     pages,
     ownLockedMarks,
+    ownLockedRegions,
     foreignMarks,
     fieldsSkipped,
     sanitised: {

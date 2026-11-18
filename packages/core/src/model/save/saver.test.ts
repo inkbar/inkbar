@@ -61,6 +61,7 @@ function fakeEngine() {
           return Promise.resolve({
             pages: [{ page: 0, marks: input.marks.length, annotationsRemoved: 0 }],
             ownLockedMarks: 0,
+            ownLockedRegions: [],
             foreignMarks: 0,
             fieldsSkipped: [],
             sanitised: {

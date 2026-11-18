@@ -1,4 +1,4 @@
-import type { Annotation as GlossAnnotation } from 'gloss-format'
+import type { Annotation as GlossAnnotation, Quad } from 'gloss-format'
 
 /** Options for `Engine.open`. */
 export interface OpenOptions {
@@ -232,6 +232,12 @@ export interface RedactResult {
    * are told apart from other programs' marks by the data Inkbar stores with them.
    */
   ownLockedMarks: number
+  /**
+   * The regions of those marks, one entry per page where they were applied, in page order:
+   * each mark's /QuadPoints, or its /Rect when it has none. Empty when there were none. Pass
+   * them to `checkRedaction` with the marks given, to check what they removed.
+   */
+  ownLockedRegions: { page: number; quads: Quad[] }[]
   /** Redact annotations from other programs, left in the file unapplied. */
   foreignMarks: number
   /** The names of the `fields` skipped because a mark removed their widgets. */

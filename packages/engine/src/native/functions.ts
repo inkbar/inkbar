@@ -163,6 +163,13 @@ export const FUNCTIONS = {
     args: ['ptr', 'ptr', 'ptr', 'i32', 'i32', 'ptr', 'ptr'],
     ret: 'i32',
   },
+  // (FPDF_DOCUMENT doc, FPDF_PAGE page, float* out, int capacity) -> total quads, -1 failed.
+  //  Writes the quads of the page's REDACT annotations that carry /INKB_Gloss, 8 floats each.
+  INK_Redact_OwnLockedQuads: { args: ['ptr', 'ptr', 'ptr', 'i32'], ret: 'i32' },
+  // (FPDF_DOCUMENT doc, int page_index, const float* quads, int count) -> char* JSON report of
+  //  what the apply cannot remove under each quad, freed with INK_Inspect_Free; NULL when it
+  //  could not look
+  INK_Redact_Unremovable: { args: ['ptr', 'i32', 'ptr', 'i32'], ret: 'ptr' },
   // (FPDF_DOCUMENT doc, unsigned* out_removed, unsigned* out_attachment_count)
   INK_Sanitize: { args: ['ptr', 'ptr', 'ptr'], ret: 'i32' },
   // Not called yet. (FPDF_DOCUMENT doc, int page_index, const float* quads, int count)
