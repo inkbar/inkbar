@@ -63,14 +63,19 @@
     "zod": "^4.6.6"
   },
   "peerDependencies": {
+    "@inkbar/engine": "workspace:^",
     "vite": "^6.0.0 || ^7.0.0 || ^8.0.0"
   },
   "peerDependenciesMeta": {
+    "@inkbar/engine": {
+      "optional": true
+    },
     "vite": {
       "optional": true
     }
   },
   "devDependencies": {
+    "@inkbar/engine": "workspace:*",
     "@inkbar/fixtures": "workspace:*",
     "@inkbar/theme": "workspace:*",
     "@pdf-lib/standard-fonts": "1.0.0",
