@@ -1,1 +1,0 @@
-import{n as e}from"./index-BgOOGT7p.js";var t=()=>e(()=>import(`./dist-DdeDKmtG.js`),[]);export{t};
