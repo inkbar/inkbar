@@ -577,5 +577,88 @@
         "quad": [45, 225, 215, 225, 45, 190, 215, 190]
       }
     ]
+  },
+  "check-form-text": {
+    "file": "check-form-text.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "SECRET-ALPHA drawn by a Form XObject under the region, KEEP-BETA beside it in the page content; nothing redacted",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ]
+  },
+  "check-inline-image": {
+    "file": "check-inline-image.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A 4 by 4 grey inline image, a checkerboard of two values, over x 100..200, y 100..200; the region covers its left half; nothing redacted",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [95, 205, 150, 205, 95, 95, 150, 95]
+      }
+    ]
+  },
+  "check-pattern-text": {
+    "file": "check-pattern-text.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "The region filled with a tiling pattern whose cell draws SECRET-ALPHA, KEEP-BETA beside it in the page content; nothing redacted",
+    "secrets": ["SECRET", "ALPHA"],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [45, 225, 215, 225, 45, 190, 215, 190]
+      }
+    ]
+  },
+  "bad-black-box": {
+    "file": "bad-black-box.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "SECRET-DELTA with a black rectangle drawn over it (x 45..215, y 190..225) in the page content, KEEP-BETA beside it",
+    "secrets": ["SECRET", "DELTA"],
+    "keeps": ["KEEP-BETA"]
+  },
+  "bad-unapplied": {
+    "file": "bad-unapplied.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "SECRET-GAMMA under a Redact annotation (x 45..215, y 190..225) that was never applied, KEEP-BETA beside it",
+    "annotations": {
+      "Redact": 1
+    },
+    "secrets": ["SECRET", "GAMMA"],
+    "keeps": ["KEEP-BETA"]
+  },
+  "bad-appended": {
+    "file": "bad-appended.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "Two revisions: the first draws SECRET-ZETA and KEEP-BETA, the appended second draws KEEP-BETA alone; the first content stream stays in the bytes",
+    "secrets": ["SECRET", "ZETA"],
+    "keeps": ["KEEP-BETA"]
+  },
+  "check-image": {
+    "file": "check-image.pdf",
+    "pages": 1,
+    "opens": true,
+    "describes": "A Flate RGB image of 20 by 10 samples over x 100..300, y 100..200, its colour changing from sample to sample; the region covers its left half; nothing redacted",
+    "secrets": [],
+    "keeps": ["KEEP-BETA"],
+    "regions": [
+      {
+        "page": 0,
+        "quad": [95, 205, 200, 205, 95, 95, 200, 95]
+      }
+    ]
   }
 }
