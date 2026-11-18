@@ -211,7 +211,7 @@ Annotations Inkbar saved come back as session annotations, with the same ids, re
 
 In controlled mode `onChange` proposes them once, with `reason: 'file'`: your list with the saved annotations added. Apply that proposal as you apply any other, by pushing the list back. Until you push a list, the viewer does not show the saved annotations, and every save still keeps them in the file. The framework packages' undo history takes your answer as its starting point, so undo does not remove them.
 
-Annotations made by other programs stay locked, as before. So does an annotation Inkbar saved that another program has since moved or edited, replied to, or given a pop-up window. In an encrypted file, Inkbar's own annotations come back locked too.
+Annotations made by other programs stay locked, as before. So does an annotation Inkbar saved that another program has since moved or edited, replied to, or given a pop-up window. Inkbar's own replies to a note that stays locked stay locked with it. In an encrypted file, Inkbar's own annotations come back locked too.
 
 ### Where the saved file differs from the screen
 
